@@ -8,7 +8,6 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	applister "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
-	claimsutil "github.com/argoproj/argo-cd/v3/util/claims"
 	jwtutil "github.com/argoproj/argo-cd/v3/util/jwt"
 	"github.com/argoproj/argo-cd/v3/util/rbac"
 )
@@ -62,12 +61,8 @@ func (p *RBACPolicyEnforcer) EnforceClaims(claims jwt.Claims, rvals ...any) bool
 	if err != nil {
 		return false
 	}
-	argoClaims, err := claimsutil.MapClaimsToArgoClaims(mapClaims)
-	if err != nil {
-		return false
-	}
 
-	subject := argoClaims.GetUserIdentifier()
+	subject := jwtutil.GetUserIdentifier(mapClaims)
 	// Check if the request is for an application resource. We have special enforcement which takes
 	// into consideration the project's token and group bindings
 	var runtimePolicy string
@@ -137,7 +132,7 @@ func (p *RBACPolicyEnforcer) getProjectFromRequest(rvals ...any) *v1alpha1.AppPr
 	if res, ok := rvals[1].(string); ok {
 		if obj, ok := rvals[3].(string); ok {
 			switch res {
-			case rbac.ResourceApplications, rbac.ResourceRepositories, rbac.ResourceClusters, rbac.ResourceLogs, rbac.ResourceExec:
+			case rbac.ResourceApplicationSets, rbac.ResourceApplications, rbac.ResourceRepositories, rbac.ResourceClusters, rbac.ResourceLogs, rbac.ResourceExec:
 				if objSplit := strings.Split(obj, "/"); len(objSplit) >= 2 {
 					return getProjectByName(objSplit[0])
 				}

@@ -31,7 +31,7 @@ func TestHelmHooksAreCreated(t *testing.T) {
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		Expect(ResourceResultIs(ResourceResult{Version: "v1", Kind: "Pod", Namespace: fixture.DeploymentNamespace(), Name: "hook", Message: "pod/hook created", HookType: HookTypePreSync, HookPhase: OperationSucceeded, SyncPhase: SyncPhasePreSync}))
+		Expect(ResourceResultIs(ResourceResult{Version: "v1", Kind: "Pod", Namespace: fixture.DeploymentNamespace(), Name: "hook", Message: "pod/hook created", Images: []string{"quay.io/argoprojlabs/argocd-e2e-container:0.1"}, HookType: HookTypePreSync, HookPhase: OperationSucceeded, SyncPhase: SyncPhasePreSync}))
 }
 
 // make sure we treat Helm weights as a sync wave
@@ -552,7 +552,7 @@ func TestHelmRepoDiffLocal(t *testing.T) {
 
 func TestHelmOCIRegistry(t *testing.T) {
 	Given(t).
-		PushChartToOCIRegistry("helm-values", "helm-values", "1.0.0").
+		PushChartToOCIRegistry("testdata/helm-values", "helm-values", "1.0.0").
 		HelmOCIRepoAdded("myrepo").
 		RepoURLType(fixture.RepoURLTypeHelmOCI).
 		Chart("helm-values").
@@ -570,7 +570,7 @@ func TestHelmOCIRegistry(t *testing.T) {
 
 func TestGitWithHelmOCIRegistryDependencies(t *testing.T) {
 	Given(t).
-		PushChartToOCIRegistry("helm-values", "helm-values", "1.0.0").
+		PushChartToOCIRegistry("testdata/helm-values", "helm-values", "1.0.0").
 		HelmOCIRepoAdded("myrepo").
 		Path("helm-oci-with-dependencies").
 		When().
@@ -586,8 +586,8 @@ func TestGitWithHelmOCIRegistryDependencies(t *testing.T) {
 
 func TestHelmOCIRegistryWithDependencies(t *testing.T) {
 	Given(t).
-		PushChartToOCIRegistry("helm-values", "helm-values", "1.0.0").
-		PushChartToOCIRegistry("helm-oci-with-dependencies", "helm-oci-with-dependencies", "1.0.0").
+		PushChartToOCIRegistry("testdata/helm-values", "helm-values", "1.0.0").
+		PushChartToOCIRegistry("testdata/helm-oci-with-dependencies", "helm-oci-with-dependencies", "1.0.0").
 		HelmOCIRepoAdded("myrepo").
 		RepoURLType(fixture.RepoURLTypeHelmOCI).
 		Chart("helm-oci-with-dependencies").
@@ -605,7 +605,7 @@ func TestHelmOCIRegistryWithDependencies(t *testing.T) {
 
 func TestTemplatesGitWithHelmOCIDependencies(t *testing.T) {
 	Given(t).
-		PushChartToOCIRegistry("helm-values", "helm-values", "1.0.0").
+		PushChartToOCIRegistry("testdata/helm-values", "helm-values", "1.0.0").
 		HelmoOCICredentialsWithoutUserPassAdded().
 		Path("helm-oci-with-dependencies").
 		When().
@@ -621,8 +621,8 @@ func TestTemplatesGitWithHelmOCIDependencies(t *testing.T) {
 
 func TestTemplatesHelmOCIWithDependencies(t *testing.T) {
 	Given(t).
-		PushChartToOCIRegistry("helm-values", "helm-values", "1.0.0").
-		PushChartToOCIRegistry("helm-oci-with-dependencies", "helm-oci-with-dependencies", "1.0.0").
+		PushChartToOCIRegistry("testdata/helm-values", "helm-values", "1.0.0").
+		PushChartToOCIRegistry("testdata/helm-oci-with-dependencies", "helm-oci-with-dependencies", "1.0.0").
 		HelmoOCICredentialsWithoutUserPassAdded().
 		RepoURLType(fixture.RepoURLTypeHelmOCI).
 		Chart("helm-oci-with-dependencies").

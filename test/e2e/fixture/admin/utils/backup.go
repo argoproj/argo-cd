@@ -17,7 +17,7 @@ func GetExportedResourcesFromOutput(output string) (ExportedResources, error) {
 
 	for _, doc := range docs {
 		doc = strings.TrimSpace(doc)
-		if len(doc) == 0 {
+		if doc == "" {
 			continue
 		}
 

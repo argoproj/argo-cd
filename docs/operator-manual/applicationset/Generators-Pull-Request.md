@@ -112,7 +112,7 @@ spec:
 * `api`: If using self-hosted GitLab, the URL to access it. (Optional)
 * `tokenRef`: A `Secret` name and key containing the GitLab access token to use for requests. If not specified, will make anonymous requests which have a lower rate limit and can only see public repositories. (Optional)
 * `labels`: Labels is used to filter the MRs that you want to target. (Optional)
-* `pullRequestState`: PullRequestState is an additional MRs filter to get only those with a certain state. Default: "" (all states)
+* `pullRequestState`: PullRequestState is an additional MRs filter to get only those with a certain state. By default all states. Default: "" (all states). Valid values: `""`, `opened`, `closed`, `merged` or `locked`. (Optional)
 * `insecure`: By default (false) - Skip checking the validity of the SCM's certificate - useful for self-signed TLS certificates.
 * `caRef`: Optional `ConfigMap` name and key containing the GitLab certificates to trust - useful for self-signed TLS certificates. Possibly reference the ArgoCD CM holding the trusted certs.
 
@@ -236,7 +236,7 @@ spec:
   generators:
     - pullRequest:
         bitbucket:
-          # Workspace name where the repoistory is stored under. Required.
+          # Workspace name where the repository is stored under. Required.
           owner: myproject
           # Repository slug. Required.
           repo: myrepository
@@ -351,15 +351,18 @@ spec:
   generators:
   - pullRequest:
       # ...
-      # Include any pull request ending with "argocd". (optional)
+      # Include any pull request branch ending with "argocd" 
+      # and pull request title starting with "feat:". (optional)
       filters:
       - branchMatch: ".*-argocd"
+      - titleMatch: "^feat:"
   template:
   # ...
 ```
 
 * `branchMatch`: A regexp matched against source branch names.
 * `targetBranchMatch`: A regexp matched against target branch names.
+* `titleMatch`: A regexp matched against Pull Request title. 
 
 [GitHub](#github) and [GitLab](#gitlab) also support a `labels` filter.
 

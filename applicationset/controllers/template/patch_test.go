@@ -27,7 +27,7 @@ func Test_ApplyTemplatePatch(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{
 					Name:       "my-cluster-guestbook",
 					Namespace:  "namespace",
-					Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+					Finalizers: []string{appv1.ResourcesFinalizerName},
 				},
 				Spec: appv1.ApplicationSpec{
 					Project: "default",
@@ -72,7 +72,7 @@ func Test_ApplyTemplatePatch(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{
 					Name:       "my-cluster-guestbook",
 					Namespace:  "namespace",
-					Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+					Finalizers: []string{appv1.ResourcesFinalizerName},
 					Annotations: map[string]string{
 						"annotation-some-key": "annotation-some-value",
 					},
@@ -112,7 +112,7 @@ func Test_ApplyTemplatePatch(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{
 					Name:       "my-cluster-guestbook",
 					Namespace:  "namespace",
-					Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+					Finalizers: []string{appv1.ResourcesFinalizerName},
 				},
 				Spec: appv1.ApplicationSpec{
 					Project: "default",
@@ -148,7 +148,7 @@ spec:
 				ObjectMeta: metav1.ObjectMeta{
 					Name:       "my-cluster-guestbook",
 					Namespace:  "namespace",
-					Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+					Finalizers: []string{appv1.ResourcesFinalizerName},
 					Annotations: map[string]string{
 						"annotation-some-key": "annotation-some-value",
 					},

@@ -2,6 +2,7 @@ package apiclient
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -20,7 +21,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/common"
 	argocderrors "github.com/argoproj/argo-cd/v3/util/errors"
-	argoio "github.com/argoproj/argo-cd/v3/util/io"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/rand"
 )
 
@@ -52,7 +53,7 @@ func toFrame(msg []byte) []byte {
 	return frame
 }
 
-func (c *client) executeRequest(fullMethodName string, msg []byte, md metadata.MD) (*http.Response, error) {
+func (c *client) executeRequest(ctx context.Context, fullMethodName string, msg []byte, md metadata.MD) (*http.Response, error) {
 	schema := "https"
 	if c.PlainText {
 		schema = "http"
@@ -65,7 +66,8 @@ func (c *client) executeRequest(fullMethodName string, msg []byte, md metadata.M
 	} else {
 		requestURL = fmt.Sprintf("%s://%s%s", schema, c.ServerAddr, fullMethodName)
 	}
-	req, err := http.NewRequest(http.MethodPost, requestURL, bytes.NewReader(toFrame(msg)))
+	// Use context in the HTTP request
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, requestURL, bytes.NewReader(toFrame(msg)))
 	if err != nil {
 		return nil, err
 	}
@@ -137,16 +139,16 @@ func (c *client) startGRPCProxy() (*grpc.Server, net.Listener, error) {
 
 			md = metadata.Join(md, headersMD)
 
-			resp, err := c.executeRequest(fullMethodName, msg, md)
+			resp, err := c.executeRequest(stream.Context(), fullMethodName, msg, md)
 			if err != nil {
 				return err
 			}
 
 			go func() {
 				<-stream.Context().Done()
-				argoio.Close(resp.Body)
+				utilio.Close(resp.Body)
 			}()
-			defer argoio.Close(resp.Body)
+			defer utilio.Close(resp.Body)
 			c.httpClient.CloseIdleConnections()
 
 			for {
@@ -199,7 +201,7 @@ func (c *client) useGRPCProxy() (net.Addr, io.Closer, error) {
 	}
 	c.proxyUsersCount = c.proxyUsersCount + 1
 
-	return c.proxyListener.Addr(), argoio.NewCloser(func() error {
+	return c.proxyListener.Addr(), utilio.NewCloser(func() error {
 		c.proxyMutex.Lock()
 		defer c.proxyMutex.Unlock()
 		c.proxyUsersCount = c.proxyUsersCount - 1

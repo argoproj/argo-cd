@@ -12,6 +12,6 @@ tests:
     message: "Subresources are unhealthy"
   inputPath: testdata/degraded.yaml
 - healthStatus:
-    status: Suspended
+    status: Healthy
     message: "MonoVertex is paused"
-  inputPath: testdata/suspended.yaml
+  inputPath: testdata/paused.yaml

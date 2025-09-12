@@ -18,7 +18,7 @@ import (
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/podutils"
 
-	"github.com/argoproj/argo-cd/v3/util/io"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
 )
 
 func selectPodForPortForward(clientSet kubernetes.Interface, namespace string, podSelectors ...string) (*corev1.Pod, error) {
@@ -99,7 +99,7 @@ func PortForward(targetPort int, namespace string, overrides *clientcmd.ConfigOv
 		return -1, err
 	}
 	port := ln.Addr().(*net.TCPAddr).Port
-	io.Close(ln)
+	utilio.Close(ln)
 	forwarder, err := portforward.NewOnAddresses(dialer, []string{"localhost"}, []string{fmt.Sprintf("%d:%d", port, targetPort)}, context.Background().Done(), readyChan, out, errOut)
 	if err != nil {
 		return -1, err
@@ -116,7 +116,7 @@ func PortForward(targetPort int, namespace string, overrides *clientcmd.ConfigOv
 		return -1, err
 	case <-readyChan:
 	}
-	if len(errOut.String()) != 0 {
+	if errOut.String() != "" {
 		return -1, fmt.Errorf("%s", errOut.String())
 	}
 	return port, nil

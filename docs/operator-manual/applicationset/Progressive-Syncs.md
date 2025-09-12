@@ -21,15 +21,30 @@ As an experimental feature, progressive syncs must be explicitly enabled, in one
 
 ## Strategies
 
-* AllAtOnce (default)
-* RollingSync
+ApplicationSet strategies control both how applications are created (or updated) and deleted. These operations are configured using two separate fields:
 
-### AllAtOnce
+* **Creation Strategy** (`type` field): Controls application creation and updates
+* **Deletion Strategy** (`deletionOrder` field): Controls application deletion order
+
+### Creation Strategies
+
+The `type` field controls how applications are created and updated. Available values:
+
+* **AllAtOnce** (default)
+* **RollingSync**
+
+#### AllAtOnce
 This default Application update behavior is unchanged from the original ApplicationSet implementation.
 
 All Applications managed by the ApplicationSet resource are updated simultaneously when the ApplicationSet is updated.
 
-### RollingSync
+```yaml
+spec:
+  strategy:
+    type: AllAtOnce  # explicit, but this is the default
+```
+
+#### RollingSync
 This update strategy allows you to group Applications by labels present on the generated Application resources.
 When the ApplicationSet changes, the changes will be applied to each group of Application resources sequentially.
 
@@ -45,6 +60,78 @@ When the ApplicationSet changes, the changes will be applied to each group of Ap
 * When a sync is triggered, the sync is performed with the same syncPolicy configured for the Application. For example, this preserves the Application's retry settings.
 * If an Application is considered "Pending" for `applicationsetcontroller.default.application.progressing.timeout` seconds, the Application is automatically moved to Healthy status (default 300).
 * If an Application is not selected in any step, it will be excluded from the rolling sync and needs to be manually synced through the CLI or UI.
+
+```yaml
+spec:
+  strategy:
+    type: RollingSync
+    rollingSync:
+      steps:
+        - matchExpressions:
+            - key: envLabel
+              operator: In
+              values:
+                - env-dev
+        - matchExpressions:
+            - key: envLabel
+              operator: In
+              values:
+                - env-prod
+          maxUpdate: 10%
+```
+
+### Deletion Strategies
+
+The `deletionOrder` field controls the order in which applications are deleted when they are removed from the ApplicationSet. Available values:
+
+* **AllAtOnce** (default)
+* **Reverse**
+
+#### AllAtOnce Deletion
+This is the default behavior where all applications that need to be deleted are removed simultaneously. This works with both `AllAtOnce` and `RollingSync` creation strategies.
+
+```yaml
+spec:
+  strategy:
+    type: RollingSync  # or AllAtOnce
+    deletionOrder: AllAtOnce  # explicit, but this is the default
+```
+
+#### Reverse Deletion
+When using `deletionOrder: Reverse` with RollingSync strategy, applications are deleted in reverse order of the steps defined in `rollingSync.steps`. This ensures that applications deployed in later steps are deleted before applications deployed in earlier steps.
+This strategy is particularly useful when you need to tear down dependent services in the particular sequence.
+
+**Requirements for Reverse deletion:**
+- Must be used with `type: RollingSync` 
+- Requires `rollingSync.steps` to be defined
+- Applications are deleted in reverse order of step sequence
+
+**Important:** The ApplicationSet finalizer is not removed until all applications are successfully deleted. This ensures proper cleanup and prevents the ApplicationSet from being removed before its managed applications.
+
+```yaml
+spec:
+  strategy:
+    type: RollingSync
+    deletionOrder: Reverse
+    rollingSync:
+      steps:
+        - matchExpressions:
+            - key: envLabel
+              operator: In
+              values:
+                - env-dev        # Step 1: Created first, deleted last
+        - matchExpressions:
+            - key: envLabel  
+              operator: In
+              values:
+                - env-prod       # Step 2: Created second, deleted first
+```
+
+In this example, when applications are deleted:
+1. `env-prod` applications (Step 2) are deleted first
+2. `env-dev` applications (Step 1) are deleted second
+
+This deletion order is useful for scenarios where you need to tear down dependent services in the correct sequence, such as deleting frontend services before backend dependencies.
 
 #### Example
 The following example illustrates how to stage a progressive sync over Applications with explicitly configured environment labels.
@@ -75,6 +162,7 @@ spec:
         env: env-prod
   strategy:
     type: RollingSync
+    deletionOrder: Reverse  # Applications will be deleted in reverse order of steps
     rollingSync:
       steps:
         - matchExpressions:

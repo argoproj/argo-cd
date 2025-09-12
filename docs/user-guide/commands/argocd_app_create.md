@@ -24,7 +24,7 @@ argocd app create APPNAME [flags]
   argocd app create nginx-ingress --repo https://charts.helm.sh/stable --helm-chart nginx-ingress --revision 1.24.3 --dest-namespace default --dest-server https://kubernetes.default.svc
 
   # Create a Kustomize app
-  argocd app create kustomize-guestbook --repo https://github.com/argoproj/argocd-example-apps.git --path kustomize-guestbook --dest-namespace default --dest-server https://kubernetes.default.svc --kustomize-image gcr.io/heptio-images/ks-guestbook-demo:0.1
+  argocd app create kustomize-guestbook --repo https://github.com/argoproj/argocd-example-apps.git --path kustomize-guestbook --dest-namespace default --dest-server https://kubernetes.default.svc --kustomize-image quay.io/argoprojlabs/argocd-e2e-container:0.1
 
   # Create a MultiSource app while yaml file contains an application with multiple sources
   argocd app create guestbook --file <path-to-yaml-file>
@@ -107,6 +107,7 @@ argocd app create APPNAME [flags]
       --sync-retry-backoff-factor int              Factor multiplies the base duration after each failed sync retry (default 2)
       --sync-retry-backoff-max-duration duration   Max sync retry backoff duration. Input needs to be a duration (e.g. 2m, 1h) (default 3m0s)
       --sync-retry-limit int                       Max number of allowed sync retries
+      --sync-retry-refresh                         Indicates if the latest revision should be used on retry instead of the initial one
       --sync-source-branch string                  The branch from which the app will sync
       --sync-source-path string                    The path in the repository from which the app will sync
       --upsert                                     Allows to override application with the same name even if supplied application spec is different from existing spec
