@@ -85,7 +85,7 @@ export const ApplicationResourceList = (props: ApplicationResourceListProps) => 
                     break;
                 case 'createdAt':
                     {
-                        compare = createdOrNodeKey(a).localeCompare(createdOrNodeKey(b),  undefined,{numeric: true});
+                        compare = createdOrNodeKey(a).localeCompare(createdOrNodeKey(b), undefined, {numeric: true});
                     }
                     break;
                 case 'status':
