@@ -4,12 +4,12 @@ import * as classNames from 'classnames';
 import * as models from '../../../shared/models';
 import {ResourceIcon} from '../resource-icon';
 import {ResourceLabel} from '../resource-label';
-import {ComparisonStatusIcon, HealthStatusIcon, nodeKey, isSameNode} from '../utils';
+import {ComparisonStatusIcon, HealthStatusIcon, nodeKey, isSameNode, createdOrNodeKey} from '../utils';
 import {AppDetailsPreferences} from '../../../shared/services';
 import {Consumer} from '../../../shared/context';
 import Moment from 'react-moment';
 import {format} from 'date-fns';
-import {ResourceNode} from '../../../shared/models';
+import {HealthPriority, ResourceNode, SyncPriority, SyncStatusCode} from '../../../shared/models';
 import './application-resource-list.scss';
 
 export interface ApplicationResourceListProps {
@@ -85,16 +85,20 @@ export const ApplicationResourceList = (props: ApplicationResourceListProps) => 
                     break;
                 case 'createdAt':
                     {
-                        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-                        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-                        compare = dateA - dateB;
+                        compare = createdOrNodeKey(a).localeCompare(createdOrNodeKey(b),  undefined,{numeric: true});
                     }
                     break;
                 case 'status':
                     {
-                        const statusA = [a.health?.status, a.status].filter(s => !!s).join(',');
-                        const statusB = [b.health?.status, b.status].filter(s => !!s).join(',');
-                        compare = statusA.localeCompare(statusB);
+                        const healthA = a.health?.status ?? 'Unknown';
+                        const healthB = b.health?.status ?? 'Unknown';
+                        const syncA = (a.status as SyncStatusCode) ?? 'Unknown';
+                        const syncB = (b.status as SyncStatusCode) ?? 'Unknown';
+
+                        compare = HealthPriority[healthA] - HealthPriority[healthB];
+                        if (compare === 0) {
+                            compare = SyncPriority[syncA] - SyncPriority[syncB];
+                        }
                     }
                     break;
             }
