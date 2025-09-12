@@ -5,7 +5,7 @@ local hs = {
 if obj.status ~= nil then
   if obj.status.conditions ~= nil then
     
-    -- Don't change health if the resource status is stale, skip if observedGeneration is not set
+    -- Progressing health while the resource status is stale, skip if observedGeneration is not set
     if obj.status.observedGeneration == nil or obj.status.observedGeneration == obj.metadata.generation then
       for i, condition in ipairs(obj.status.conditions) do
 
