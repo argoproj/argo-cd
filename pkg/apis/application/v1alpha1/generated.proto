@@ -272,6 +272,8 @@ message ApplicationSetGenerator {
   optional .k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector selector = 9;
 
   optional PluginGenerator plugin = 10;
+
+  optional ClusterProfileGenerator clusterProfiles = 11;
 }
 
 // ApplicationSetList contains a list of ApplicationSet
@@ -308,6 +310,8 @@ message ApplicationSetNestedGenerator {
   optional .k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector selector = 9;
 
   optional PluginGenerator plugin = 10;
+
+  optional ClusterProfileGenerator clusterProfiles = 11;
 }
 
 // ApplicationSetResourceIgnoreDifferences configures how the ApplicationSet controller will ignore differences in live
@@ -434,8 +438,10 @@ message ApplicationSetTerminalGenerator {
 
   optional PluginGenerator plugin = 7;
 
+  optional ClusterProfileGenerator clusterProfiles = 8;
+
   // Selector allows to post-filter all generator.
-  optional .k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector selector = 8;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector selector = 9;
 }
 
 // ApplicationSetTree holds nodes which belongs to the application
@@ -930,6 +936,22 @@ message ClusterList {
   optional .k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
 
   repeated Cluster items = 2;
+}
+
+// ClusterProfileGenerator defines a generator to match against clusters registered with ArgoCD.
+message ClusterProfileGenerator {
+  // Selector defines a label selector to match against all clusters registered with ArgoCD.
+  // Clusters today are stored as Kubernetes Secrets, thus the Secret labels will be used
+  // for matching the selector.
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector selector = 1;
+
+  optional ApplicationSetTemplate template = 2;
+
+  // Values contains key/value pairs which are passed directly as parameters to the template
+  map<string, string> values = 3;
+
+  // returns the clusters a single 'clusters' value in the template
+  optional bool flatList = 4;
 }
 
 // Command holds binary path and arguments list
