@@ -6,22 +6,22 @@ import (
 	"strings"
 
 	log "github.com/sirupsen/logrus"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
-//go:generate go run github.com/argoproj/argo-cd/v2/hack/known_types corev1 k8s.io/api/core/v1 corev1_known_types.go --docs diffing_known_types.txt
-var knownTypes = map[string]func() interface{}{}
+//go:generate go run github.com/argoproj/argo-cd/v3/hack/known_types corev1 k8s.io/api/core/v1 corev1_known_types.go --docs diffing_known_types.txt
+var knownTypes = map[string]func() any{}
 
 type knownTypeField struct {
 	fieldPath  []string
-	newFieldFn func() interface{}
+	newFieldFn func() any
 }
 
 type knownTypesNormalizer struct {
@@ -30,10 +30,10 @@ type knownTypesNormalizer struct {
 
 // Register some non-code-generated types here. The bulk of them are in corev1_known_types.go
 func init() {
-	knownTypes["core/Quantity"] = func() interface{} {
+	knownTypes["core/Quantity"] = func() any {
 		return &resource.Quantity{}
 	}
-	knownTypes["meta/v1/Duration"] = func() interface{} {
+	knownTypes["meta/v1/Duration"] = func() any {
 		return &metav1.Duration{}
 	}
 }
@@ -62,8 +62,8 @@ func (n *knownTypesNormalizer) ensureDefaultCRDsConfigured() {
 	if _, ok := n.typeFields[rolloutGK]; !ok {
 		n.typeFields[rolloutGK] = []knownTypeField{{
 			fieldPath: []string{"spec", "template", "spec"},
-			newFieldFn: func() interface{} {
-				return &v1.PodSpec{}
+			newFieldFn: func() any {
+				return &corev1.PodSpec{}
 			},
 		}}
 	}
@@ -81,15 +81,15 @@ func (n *knownTypesNormalizer) addKnownField(gk schema.GroupKind, fieldPath stri
 	return nil
 }
 
-func normalize(obj map[string]interface{}, field knownTypeField, fieldPath []string) error {
+func normalize(obj map[string]any, field knownTypeField, fieldPath []string) error {
 	for i := range fieldPath {
 		if nestedField, ok, err := unstructured.NestedFieldNoCopy(obj, fieldPath[:i+1]...); err == nil && ok {
-			items, ok := nestedField.([]interface{})
+			items, ok := nestedField.([]any)
 			if !ok {
 				continue
 			}
 			for j := range items {
-				item, ok := items[j].(map[string]interface{})
+				item, ok := items[j].(map[string]any)
 				if !ok {
 					continue
 				}
@@ -102,7 +102,8 @@ func normalize(obj map[string]interface{}, field knownTypeField, fieldPath []str
 					}
 					items[j] = newItem
 				} else {
-					if err = normalize(item, field, subPath); err != nil {
+					err = normalize(item, field, subPath)
+					if err != nil {
 						return err
 					}
 				}
@@ -125,7 +126,7 @@ func normalize(obj map[string]interface{}, field knownTypeField, fieldPath []str
 	return nil
 }
 
-func remarshal(fieldVal interface{}, field knownTypeField) (interface{}, error) {
+func remarshal(fieldVal any, field knownTypeField) (any, error) {
 	data, err := json.Marshal(fieldVal)
 	if err != nil {
 		return nil, err
@@ -139,7 +140,7 @@ func remarshal(fieldVal interface{}, field knownTypeField) (interface{}, error) 
 	if err != nil {
 		return nil, err
 	}
-	var newFieldVal interface{}
+	var newFieldVal any
 	err = json.Unmarshal(data, &newFieldVal)
 	if err != nil {
 		return nil, err

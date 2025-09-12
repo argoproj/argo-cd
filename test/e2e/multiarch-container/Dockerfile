@@ -1,2 +1,2 @@
-FROM docker.io/library/busybox@sha256:2919d0172f7524b2d8df9e50066a682669e6d170ac0f6a49676d54358fe970b5
+FROM docker.io/library/busybox@sha256:ab33eacc8251e3807b85bb6dba570e4698c3998eca6f0fc2ccb60575a563ea74
 CMD exec sh -c "trap : TERM INT; echo 'Hi' && tail -f /dev/null"

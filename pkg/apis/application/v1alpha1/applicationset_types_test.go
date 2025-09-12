@@ -123,8 +123,8 @@ func TestApplicationSetSetConditions(t *testing.T) {
 			validate: func(t *testing.T, a *ApplicationSet) {
 				t.Helper()
 				// SetConditions should add timestamps for new conditions.
-				assert.True(t, a.Status.Conditions[0].LastTransitionTime.Time.After(fiveMinsAgo.Time))
-				assert.True(t, a.Status.Conditions[1].LastTransitionTime.Time.After(fiveMinsAgo.Time))
+				assert.True(t, a.Status.Conditions[0].LastTransitionTime.After(fiveMinsAgo.Time))
+				assert.True(t, a.Status.Conditions[1].LastTransitionTime.After(fiveMinsAgo.Time))
 			},
 		}, {
 			name: "condition cleared",
@@ -165,7 +165,7 @@ func TestApplicationSetSetConditions(t *testing.T) {
 
 func assertAppSetConditions(t *testing.T, expected []ApplicationSetCondition, actual []ApplicationSetCondition) {
 	t.Helper()
-	assert.Equal(t, len(expected), len(actual))
+	assert.Len(t, actual, len(expected))
 	for i := range expected {
 		assert.Equal(t, expected[i].Type, actual[i].Type)
 		assert.Equal(t, expected[i].Message, actual[i].Message)

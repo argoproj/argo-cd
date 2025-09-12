@@ -1,9 +1,18 @@
-PACKAGE=github.com/argoproj/argo-cd/v2/common
+PACKAGE=github.com/argoproj/argo-cd/v3/common
 CURRENT_DIR=$(shell pwd)
 DIST_DIR=${CURRENT_DIR}/dist
 CLI_NAME=argocd
 BIN_NAME=argocd
-CGO_FLAG=0
+
+UNAME_S:=$(shell uname)
+IS_DARWIN:=$(if $(filter Darwin, $(UNAME_S)),true,false)
+
+# When using OSX/Darwin, you might need to enable CGO for local builds
+DEFAULT_CGO_FLAG:=0
+ifeq ($(IS_DARWIN),true)
+    DEFAULT_CGO_FLAG:=1
+endif
+CGO_FLAG?=${DEFAULT_CGO_FLAG}
 
 GEN_RESOURCES_CLI_NAME=argocd-resources-gen
 
@@ -33,6 +42,17 @@ endif
 
 DOCKER_SRCDIR?=$(GOPATH)/src
 DOCKER_WORKDIR?=/go/src/github.com/argoproj/argo-cd
+
+# Allows you to control which Docker network the test-util containers attach to.
+# This is particularly useful if you are running Kubernetes in Docker (e.g., k3d)
+# and want the test containers to reach the Kubernetes API via an already-existing Docker network.
+DOCKER_NETWORK ?= default
+
+ifneq ($(DOCKER_NETWORK),default)
+DOCKER_NETWORK_ARG := --network $(DOCKER_NETWORK)
+else
+DOCKER_NETWORK_ARG :=
+endif
 
 ARGOCD_PROCFILE?=Procfile
 
@@ -104,11 +124,11 @@ define run-in-test-server
 		-v ${GOPATH}/pkg/mod:/go/pkg/mod${VOLUME_MOUNT} \
 		-v ${GOCACHE}:/tmp/go-build-cache${VOLUME_MOUNT} \
 		-v ${HOME}/.kube:/home/user/.kube${VOLUME_MOUNT} \
-		-v /tmp:/tmp${VOLUME_MOUNT} \
 		-w ${DOCKER_WORKDIR} \
 		-p ${ARGOCD_E2E_APISERVER_PORT}:8080 \
 		-p 4000:4000 \
 		-p 5000:5000 \
+		$(DOCKER_NETWORK_ARG)\
 		$(PODMAN_ARGS) \
 		$(TEST_TOOLS_PREFIX)$(TEST_TOOLS_IMAGE):$(TEST_TOOLS_TAG) \
 		bash -c "$(1)"
@@ -129,8 +149,8 @@ define run-in-test-client
 		-v ${GOPATH}/pkg/mod:/go/pkg/mod${VOLUME_MOUNT} \
 		-v ${GOCACHE}:/tmp/go-build-cache${VOLUME_MOUNT} \
 		-v ${HOME}/.kube:/home/user/.kube${VOLUME_MOUNT} \
-		-v /tmp:/tmp${VOLUME_MOUNT} \
 		-w ${DOCKER_WORKDIR} \
+		$(DOCKER_NETWORK_ARG)\
 		$(PODMAN_ARGS) \
 		$(TEST_TOOLS_PREFIX)$(TEST_TOOLS_IMAGE):$(TEST_TOOLS_TAG) \
 		bash -c "$(1)"
@@ -147,7 +167,11 @@ PATH:=$(PATH):$(PWD)/hack
 DOCKER_PUSH?=false
 IMAGE_NAMESPACE?=
 # perform static compilation
-STATIC_BUILD?=true
+DEFAULT_STATIC_BUILD:=true
+ifeq ($(IS_DARWIN),true)
+    DEFAULT_STATIC_BUILD:=false
+endif
+STATIC_BUILD?=${DEFAULT_STATIC_BUILD}
 # build development images
 DEV_IMAGE?=false
 ARGOCD_GPG_ENABLED?=true
@@ -355,11 +379,6 @@ mod-vendor: test-tools-image
 mod-vendor-local: mod-download-local
 	go mod vendor
 
-# Deprecated - replace by install-tools-local
-.PHONY: install-lint-tools
-install-lint-tools:
-	./hack/install.sh lint-tools
-
 # Run linter on the code
 .PHONY: lint
 lint: test-tools-image
@@ -435,7 +454,7 @@ test-e2e:
 test-e2e-local: cli-local
 	# NO_PROXY ensures all tests don't go out through a proxy if one is configured on the test system
 	export GO111MODULE=off
-	DIST_DIR=${DIST_DIR} RERUN_FAILS=5 PACKAGES="./test/e2e" ARGOCD_E2E_RECORD=${ARGOCD_E2E_RECORD} ARGOCD_GPG_ENABLED=true NO_PROXY=* ./hack/test.sh -timeout $(ARGOCD_E2E_TEST_TIMEOUT) -v -args -test.gocoverdir="$(PWD)/test-results"
+	DIST_DIR=${DIST_DIR} RERUN_FAILS=5 PACKAGES="./test/e2e" ARGOCD_E2E_RECORD=${ARGOCD_E2E_RECORD} ARGOCD_CONFIG_DIR=$(HOME)/.config/argocd-e2e ARGOCD_GPG_ENABLED=true NO_PROXY=* ./hack/test.sh -timeout $(ARGOCD_E2E_TEST_TIMEOUT) -v -args -test.gocoverdir="$(PWD)/test-results"
 
 # Spawns a shell in the test server container for debugging purposes
 debug-test-server: test-tools-image
@@ -491,6 +510,7 @@ start-e2e-local: mod-vendor-local dep-ui-local cli-local
 	ARGOCD_APPLICATIONSET_CONTROLLER_ALLOWED_SCM_PROVIDERS=http://127.0.0.1:8341,http://127.0.0.1:8342,http://127.0.0.1:8343,http://127.0.0.1:8344 \
 	ARGOCD_E2E_TEST=true \
 	ARGOCD_HYDRATOR_ENABLED=true \
+	ARGOCD_CLUSTER_CACHE_EVENTS_PROCESSING_INTERVAL=1ms \
 		goreman -f $(ARGOCD_PROCFILE) start ${ARGOCD_START}
 	ls -lrt /tmp/coverage
 
@@ -589,16 +609,19 @@ install-test-tools-local:
 	./hack/install.sh kustomize
 	./hack/install.sh helm
 	./hack/install.sh gotestsum
+	./hack/install.sh oras
 
 # Installs all tools required for running codegen (Linux packages)
 .PHONY: install-codegen-tools-local
 install-codegen-tools-local:
 	./hack/install.sh codegen-tools
+	./hack/install.sh codegen-go-tools
 
 # Installs all tools required for running codegen (Go packages)
 .PHONY: install-go-tools-local
 install-go-tools-local:
 	./hack/install.sh codegen-go-tools
+	./hack/install.sh lint-tools
 
 .PHONY: dep-ui
 dep-ui: test-tools-image
@@ -679,7 +702,6 @@ help:
 	@echo 'debug:'
 	@echo '  list -- list all make targets'
 	@echo '  install-tools-local -- install all the tools below'
-	@echo '  install-lint-tools(-local)'
 	@echo
 	@echo 'codegen:'
 	@echo '  codegen(-local) -- if using -local, run the following targets first'

@@ -1,8 +1,11 @@
 package notification
 
 import (
-	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
-	"github.com/argoproj/argo-cd/v2/util/errors"
+	"time"
+
+	"github.com/stretchr/testify/require"
+
+	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 )
 
 // this implements the "when" part of given/when/then
@@ -16,12 +19,14 @@ type Actions struct {
 }
 
 func (a *Actions) SetParamInNotificationConfigMap(key, value string) *Actions {
-	errors.CheckError(fixture.SetParamInNotificationsConfigMap(key, value))
+	a.context.t.Helper()
+	require.NoError(a.context.t, fixture.SetParamInNotificationsConfigMap(key, value))
 	return a
 }
 
 func (a *Actions) Then() *Consequences {
 	a.context.t.Helper()
+	time.Sleep(fixture.WhenThenSleepInterval)
 	return &Consequences{a.context, a}
 }
 

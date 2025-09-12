@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"context"
 	"errors"
 	"testing"
 	"time"
@@ -11,13 +10,15 @@ import (
 )
 
 func TestGetSignedRequestWithRetry(t *testing.T) {
-	ctx := context.Background()
+	t.Parallel()
+
+	ctx := t.Context()
 
 	t.Run("will return signed request on first attempt", func(t *testing.T) {
 		// given
 		t.Parallel()
 		mock := &signedRequestMock{
-			returnFunc: func(m *signedRequestMock) (string, error) {
+			returnFunc: func(_ *signedRequestMock) (string, error) {
 				return "token", nil
 			},
 		}
@@ -52,7 +53,7 @@ func TestGetSignedRequestWithRetry(t *testing.T) {
 		// given
 		t.Parallel()
 		mock := &signedRequestMock{
-			returnFunc: func(m *signedRequestMock) (string, error) {
+			returnFunc: func(_ *signedRequestMock) (string, error) {
 				return "", errors.New("some error")
 			},
 		}
@@ -62,7 +63,7 @@ func TestGetSignedRequestWithRetry(t *testing.T) {
 
 		// then
 		require.Error(t, err)
-		assert.Equal(t, "", signed)
+		assert.Empty(t, signed)
 	})
 }
 
@@ -71,7 +72,7 @@ type signedRequestMock struct {
 	returnFunc            func(m *signedRequestMock) (string, error)
 }
 
-func (m *signedRequestMock) getSignedRequestMock(clusterName, roleARN string, profile string) (string, error) {
+func (m *signedRequestMock) getSignedRequestMock(_, _ string, _ string) (string, error) {
 	m.getSignedRequestCalls++
 	return m.returnFunc(m)
 }

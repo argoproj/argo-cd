@@ -1,7 +1,6 @@
 package util
 
 import (
-	"bytes"
 	"log"
 	"os"
 	"testing"
@@ -10,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
@@ -165,6 +164,17 @@ func Test_setKustomizeOpt(t *testing.T) {
 		setKustomizeOpt(&src, kustomizeOpts{commonLabels: map[string]string{"foo1": "bar1", "foo2": "bar2"}, labelWithoutSelector: true})
 		assert.Equal(t, &v1alpha1.ApplicationSourceKustomize{CommonLabels: map[string]string{"foo1": "bar1", "foo2": "bar2"}, LabelWithoutSelector: true}, src.Kustomize)
 	})
+	t.Run("Label include templates", func(t *testing.T) {
+		src := v1alpha1.ApplicationSource{}
+		setKustomizeOpt(&src, kustomizeOpts{commonLabels: map[string]string{"foo1": "bar1", "foo2": "bar2"}, labelIncludeTemplates: true})
+		assert.Equal(t, &v1alpha1.ApplicationSourceKustomize{CommonLabels: map[string]string{"foo1": "bar1", "foo2": "bar2"}, LabelIncludeTemplates: true}, src.Kustomize)
+	})
+	t.Run("IgnoreMissingComponents", func(t *testing.T) {
+		src := v1alpha1.ApplicationSource{}
+		setKustomizeOpt(&src, kustomizeOpts{ignoreMissingComponents: true})
+		t.Logf("HERE IS THE SOURCE\n %+v\n", src)
+		assert.True(t, src.Kustomize.IgnoreMissingComponents)
+	})
 }
 
 func Test_setJsonnetOpt(t *testing.T) {
@@ -263,6 +273,13 @@ func Test_setAppSpecOptions(t *testing.T) {
 
 		require.NoError(t, f.SetFlag("sync-retry-limit", "0"))
 		assert.Nil(t, f.spec.SyncPolicy.Retry)
+	})
+	t.Run("RetryRefresh", func(t *testing.T) {
+		require.NoError(t, f.SetFlag("sync-retry-refresh", "true"))
+		assert.True(t, f.spec.SyncPolicy.Retry.Refresh)
+
+		require.NoError(t, f.SetFlag("sync-retry-refresh", "false"))
+		assert.False(t, f.spec.SyncPolicy.Retry.Refresh)
 	})
 	t.Run("Kustomize", func(t *testing.T) {
 		require.NoError(t, f.SetFlag("kustomize-replica", "my-deployment=2"))
@@ -543,7 +560,7 @@ func TestFilterResources(t *testing.T) {
 		}
 
 		filteredResources, err := FilterResources(false, resources, "g", "Service", "argocd-unknown", "test-helm", true)
-		require.ErrorContains(t, err, "No matching resource found")
+		require.ErrorContains(t, err, "no matching resource found")
 		assert.Nil(t, filteredResources)
 	})
 
@@ -558,31 +575,7 @@ func TestFilterResources(t *testing.T) {
 		}
 
 		filteredResources, err := FilterResources(false, resources, "g", "Service", "argocd", "test-helm", false)
-		require.ErrorContains(t, err, "Use the --all flag")
+		require.ErrorContains(t, err, "use the --all flag")
 		assert.Nil(t, filteredResources)
-	})
-}
-
-func TestSetAutoMaxProcs(t *testing.T) {
-	t.Run("CLI mode ignores errors", func(t *testing.T) {
-		logBuffer := &bytes.Buffer{}
-		oldLogger := log.Default()
-		log.SetOutput(logBuffer)
-		defer log.SetOutput(oldLogger.Writer())
-
-		SetAutoMaxProcs(true)
-
-		assert.Empty(t, logBuffer.String(), "Expected no log output when isCLI is true")
-	})
-
-	t.Run("Non-CLI mode logs error on failure", func(t *testing.T) {
-		logBuffer := &bytes.Buffer{}
-		oldLogger := log.Default()
-		log.SetOutput(logBuffer)
-		defer log.SetOutput(oldLogger.Writer())
-
-		SetAutoMaxProcs(false)
-
-		assert.NotContains(t, logBuffer.String(), "Error setting GOMAXPROCS", "Unexpected log output detected")
 	})
 }

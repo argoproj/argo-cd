@@ -1,7 +1,6 @@
 package sharding
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,16 +13,16 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	kubefake "k8s.io/client-go/kubernetes/fake"
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	dbmocks "github.com/argoproj/argo-cd/v2/util/db/mocks"
-	"github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	dbmocks "github.com/argoproj/argo-cd/v3/util/db/mocks"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 func TestGetShardByID_NotEmptyID(t *testing.T) {
@@ -391,12 +390,8 @@ func TestGetShardByIndexModuloReplicasCountDistributionFunction(t *testing.T) {
 	shardForCluster1 := distributionFunction(&cluster1)
 	shardForCluster2 := distributionFunction(&cluster2)
 
-	if shardForCluster1 != expectedShardForCluster1 {
-		t.Errorf("Expected shard for cluster1 to be %d but got %d", expectedShardForCluster1, shardForCluster1)
-	}
-	if shardForCluster2 != expectedShardForCluster2 {
-		t.Errorf("Expected shard for cluster2 to be %d but got %d", expectedShardForCluster2, shardForCluster2)
-	}
+	assert.Equal(t, expectedShardForCluster1, shardForCluster1, "Expected shard for cluster1 to be %d but got %d", expectedShardForCluster1, shardForCluster1)
+	assert.Equal(t, expectedShardForCluster2, shardForCluster2, "Expected shard for cluster2 to be %d but got %d", expectedShardForCluster2, shardForCluster2)
 }
 
 func TestInferShard(t *testing.T) {
@@ -497,7 +492,7 @@ func Test_generateDefaultShardMappingCM_NoPredefinedShard(t *testing.T) {
 	expectedMappingCM, err := json.Marshal(expectedMapping)
 	require.NoError(t, err)
 
-	expectedShadingCM := &v1.ConfigMap{
+	expectedShadingCM := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      common.ArgoCDAppControllerShardConfigMapName,
 			Namespace: "test",
@@ -532,7 +527,7 @@ func Test_generateDefaultShardMappingCM_PredefinedShard(t *testing.T) {
 	expectedMappingCM, err := json.Marshal(expectedMapping)
 	require.NoError(t, err)
 
-	expectedShadingCM := &v1.ConfigMap{
+	expectedShadingCM := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      common.ArgoCDAppControllerShardConfigMapName,
 			Namespace: "test",
@@ -821,7 +816,7 @@ func TestGetClusterSharding(t *testing.T) {
 	objects := append([]runtime.Object{}, deployment, deploymentMultiReplicas)
 	kubeclientset := kubefake.NewSimpleClientset(objects...)
 
-	settingsMgr := settings.NewSettingsManager(context.TODO(), kubeclientset, "argocd", settings.WithRepoOrClusterChangedHandler(func() {
+	settingsMgr := settings.NewSettingsManager(t.Context(), kubeclientset, "argocd", settings.WithRepoOrClusterChangedHandler(func() {
 	}))
 
 	testCases := []struct {
@@ -975,11 +970,7 @@ func TestGetClusterSharding(t *testing.T) {
 			}
 
 			if tc.expectedErr != nil {
-				if err != nil {
-					assert.Equal(t, tc.expectedErr.Error(), err.Error())
-				} else {
-					t.Errorf("Expected error %v but got nil", tc.expectedErr)
-				}
+				assert.EqualError(t, err, tc.expectedErr.Error())
 			} else {
 				require.NoError(t, err)
 			}

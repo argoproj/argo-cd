@@ -7,8 +7,18 @@ if obj.status == nil or obj.status.conditions == nil then
 end
 
 -- Sort conditions by lastTransitionTime, from old to new.
+-- Ensure that conditions with nil lastTransitionTime are always sorted after those with non-nil values.
 table.sort(obj.status.conditions, function(a, b)
-  return a.lastTransitionTime < b.lastTransitionTime
+  -- Nil values are considered "less than" non-nil values.
+  -- This means that conditions with nil lastTransitionTime will be sorted to the end.
+  if a.lastTransitionTime == nil then
+    return false
+  elseif b.lastTransitionTime == nil then
+    return true
+  else
+    -- If both have non-nil lastTransitionTime, compare them normally.
+    return a.lastTransitionTime < b.lastTransitionTime
+  end
 end)
 
 for _, condition in ipairs(obj.status.conditions) do
