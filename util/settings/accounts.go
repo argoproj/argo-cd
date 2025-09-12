@@ -258,7 +258,7 @@ func parseAccounts(secret *corev1.Secret, cm *corev1.ConfigMap) (map[string]Acco
 
 		account, ok := accounts[accountName]
 		if !ok {
-			account = Account{Enabled: true}
+			account = Account{Enabled: true, Tokens: make([]Token, 0)}
 			accounts[accountName] = account
 		}
 		switch suffix {
@@ -303,10 +303,17 @@ func parseAccounts(secret *corev1.Secret, cm *corev1.ConfigMap) (map[string]Acco
 			account.PasswordMtime = &mTime
 		}
 		if tokensStr, ok := secret.Data[fmt.Sprintf("%s.%s.%s", accountsKeyPrefix, name, accountTokensSuffix)]; ok {
-			account.Tokens = make([]Token, 0)
-			if len(tokensStr) != 0 {
-				if err := json.Unmarshal(tokensStr, &account.Tokens); err != nil {
-					log.Errorf("Account '%s' has invalid token in secret '%s'", name, secret.Name)
+			if len(tokensStr) == 0 {
+				account.Tokens = make([]Token, 0)
+			} else {
+				var tokens []Token
+				if err := json.Unmarshal(tokensStr, &tokens); err != nil {
+					log.Errorf("Account '%s' has invalid token in secret '%s': %v. Skipping token parsing to prevent data loss", name, secret.Name, err)
+					// Don't reset tokens on unmarshal error to prevent token loss
+					// This maintains consistency with admin account error handling
+					// Keep existing tokens (if any) instead of setting empty slice
+				} else {
+					account.Tokens = tokens
 				}
 			}
 		}
