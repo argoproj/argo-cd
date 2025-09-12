@@ -316,6 +316,34 @@ If for some reason authenticated Redis does not work for you and you want to use
 The Redis password is stored in Kubernetes secret `argocd-redis` with key `auth` in the namespace where Argo CD is installed.
 You can config your secret provider to generate Kubernetes secret accordingly.
 
+## How do I provide Redis credentials using a file mount?
+
+Redis credentials can be mounted as files in a specified directory, rather than being set directly as environment variables from a secret.
+
+**Set the Environment Variable**
+
+Set the `REDIS_CREDS_FILE_PATH` environment variable to the directory where your credential files are mounted.
+
+| Variable Name           | Description                                   |
+|-------------------------|-----------------------------------------------|
+| `REDIS_CREDS_FILE_PATH` | Path to the directory containing credential files |
+
+**Provide Credential Files**
+
+Place the following files in the specified directory:
+
+| Credential Type      | File Name           |
+|----------------------|---------------------|
+| Redis password       | `auth`              |
+| Redis username       | `auth_username`     |
+| Sentinel username    | `sentinel_username` |
+| Sentinel password    | `sentinel_auth`     |
+
+**Fallback Behavior:**  
+If a credential file is missing or cannot be read, Argo CD will automatically fall back to the corresponding environment variable (such as `REDIS_PASSWORD`, `REDIS_USERNAME`, etc.).
+
+This approach allows for more secure and flexible management of Redis credentials, especially when integrating with external secret management solutions.
+
 ## How do I fix `Manifest generation error (cached)`?
 
 `Manifest generation error (cached)` means that there was an error when generating manifests and that the error message has been cached to avoid runaway retries.
