@@ -101,36 +101,21 @@ const ProgressiveSyncStatus = ({application}: {application: models.Application})
                 return {canReadApplicationSets, appSet};
             }}>
             {({canReadApplicationSets, appSet}: {canReadApplicationSets: boolean; appSet: models.ApplicationSet}) => {
-                // If user doesn't have permission to read ApplicationSets, don't show Progressive Sync panel
-                if (!canReadApplicationSets) {
+                // Hide panel if: Progressive Sync disabled, no permission, or not RollingSync strategy
+                if (!appSet.status?.applicationStatus || appSet?.spec?.strategy?.type !== 'RollingSync' || !canReadApplicationSets) {
                     return null;
                 }
 
-                // If the ApplicationSet has no strategy (Progressive Sync disabled), don't show Progressive Sync panel
-                if (!appSet?.spec?.strategy) {
-                    return null;
-                }
-
-                // Get the current application's status from the ApplicationSet resources
-                // Check both applicationStatus (for RollingSync) and resources (for AllAtOnce)
+                // Get the current application's status from the ApplicationSet applicationStatus
                 const appResource = appSet.status?.applicationStatus?.find(status => status.application === application.metadata.name);
-                let appResourceFromResources = null;
-                if (!appResource) {
-                    appResourceFromResources = appSet.status?.resources?.find(
-                        resource => resource.name === application.metadata.name && resource.namespace === application.metadata.namespace
-                    );
-                }
-
-                // Determine strategy type and display accordingly
-                const strategyType = appSet.spec?.strategy?.type || 'AllAtOnce';
 
                 // If no application status is found, show a default status
-                if (!appResource && !appResourceFromResources) {
+                if (!appResource) {
                     return (
                         <div className='application-status-panel__item'>
                             {sectionHeader({
                                 title: 'PROGRESSIVE SYNC',
-                                helpContent: `Shows the current status of progressive sync for applications managed by an ApplicationSet with ${strategyType} strategy.`
+                                helpContent: 'Shows the current status of progressive sync for applications managed by an ApplicationSet with RollingSync strategy.'
                             })}
                             <div className='application-status-panel__item-value'>
                                 <i className='fa fa-clock' style={{color: COLORS.sync.out_of_sync}} /> Waiting
@@ -139,31 +124,20 @@ const ProgressiveSyncStatus = ({application}: {application: models.Application})
                         </div>
                     );
                 }
-                const isRollingSync = strategyType === 'RollingSync';
 
-                // Use the appropriate resource based on strategy
-                const currentResource = appResource || appResourceFromResources;
-                if (!currentResource) {
-                    return null;
-                }
-
-                // For AllAtOnce, get last transition time from ApplicationSet conditions
-                let lastTransitionTime = appResource?.lastTransitionTime;
-                if (!isRollingSync && !lastTransitionTime) {
-                    const upToDateCondition = appSet.status?.conditions?.find(condition => condition.type === 'ResourcesUpToDate');
-                    lastTransitionTime = upToDateCondition?.lastTransitionTime;
-                }
+                // Get last transition time from application status
+                const lastTransitionTime = appResource?.lastTransitionTime;
 
                 return (
                     <div className='application-status-panel__item'>
                         {sectionHeader({
                             title: 'PROGRESSIVE SYNC',
-                            helpContent: `Shows the current status of progressive sync for applications managed by an ApplicationSet with ${strategyType} strategy.`
+                            helpContent: 'Shows the current status of progressive sync for applications managed by an ApplicationSet with RollingSync strategy.'
                         })}
-                        <div className='application-status-panel__item-value' style={{color: getProgressiveSyncStatusColor(currentResource.status)}}>
-                            {getProgressiveSyncStatusIcon({status: currentResource.status})}&nbsp;{currentResource.status}
+                        <div className='application-status-panel__item-value' style={{color: getProgressiveSyncStatusColor(appResource.status)}}>
+                            {getProgressiveSyncStatusIcon({status: appResource.status})}&nbsp;{appResource.status}
                         </div>
-                        {isRollingSync && appResource?.step && <div className='application-status-panel__item-value'>Wave: {appResource.step}</div>}
+                        {appResource?.step && <div className='application-status-panel__item-value'>Wave: {appResource.step}</div>}
                         {lastTransitionTime && (
                             <div className='application-status-panel__item-name' style={{marginBottom: '0.5em'}}>
                                 Last Transition: <br />
@@ -171,7 +145,6 @@ const ProgressiveSyncStatus = ({application}: {application: models.Application})
                             </div>
                         )}
                         {appResource?.message && <div className='application-status-panel__item-name'>{appResource.message}</div>}
-                        {!isRollingSync && <div className='application-status-panel__item-name'>{strategyType} - All applications deployed simultaneously</div>}
                     </div>
                 );
             }}
