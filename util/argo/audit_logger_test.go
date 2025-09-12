@@ -2,7 +2,6 @@ package argo
 
 import (
 	"bytes"
-	"os"
 	"sync"
 	"testing"
 
