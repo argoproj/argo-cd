@@ -50,6 +50,8 @@ DOCKER_NETWORK ?= default
 
 ifneq ($(DOCKER_NETWORK),default)
 DOCKER_NETWORK_ARG := --network $(DOCKER_NETWORK)
+else
+DOCKER_NETWORK_ARG :=
 endif
 
 ARGOCD_PROCFILE?=Procfile
