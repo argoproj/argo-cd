@@ -58,7 +58,9 @@ export const ApplicationsTable = (props: {
                                             key={AppUtils.appInstanceName(app)}
                                             className={`argo-table-list__row
                 applications-list__entry applications-list__entry--health-${app.status.health.status} ${selectedApp === i ? 'applications-tiles__selected' : ''}`}>
-                                            <div className={`row applications-list__table-row ${app.status.sourceHydrator?.currentOperation ? 'applications-table-row--with-hydrator' : ''}`} onClick={e => ctx.navigation.goto(`/${AppUtils.getAppUrl(app)}`, {}, {event: e})}>
+                                            <div
+                                                className={`row applications-list__table-row ${app.status.sourceHydrator?.currentOperation ? 'applications-table-row--with-hydrator' : ''}`}
+                                                onClick={e => ctx.navigation.goto(`/${AppUtils.getAppUrl(app)}`, {}, {event: e})}>
                                                 <div className='columns small-4'>
                                                     <div className='row'>
                                                         <div className=' columns small-2'>
@@ -147,41 +149,41 @@ export const ApplicationsTable = (props: {
                                                     </div>
                                                 </div>
 
-                                            <div className='columns small-2'>
-                                                <AppUtils.HealthStatusIcon state={app.status.health} /> <span>{app.status.health.status}</span> <br />
-                                                {app.status.sourceHydrator?.currentOperation && (
-                                                    <>
-                                                        <AppUtils.HydrateOperationPhaseIcon operationState={app.status.sourceHydrator.currentOperation} />{' '}
-                                                        <span>{app.status.sourceHydrator.currentOperation.phase}</span> <br />
-                                                    </>
-                                                )}
-                                                <AppUtils.ComparisonStatusIcon status={app.status.sync.status} />
-                                                <span>{app.status.sync.status}</span> <OperationState app={app} quiet={true} />
-                                                <DropDownMenu
-                                                    anchor={() => (
-                                                        <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
-                                                            <i className='fa fa-ellipsis-v' />
-                                                        </button>
+                                                <div className='columns small-2'>
+                                                    <AppUtils.HealthStatusIcon state={app.status.health} /> <span>{app.status.health.status}</span> <br />
+                                                    {app.status.sourceHydrator?.currentOperation && (
+                                                        <>
+                                                            <AppUtils.HydrateOperationPhaseIcon operationState={app.status.sourceHydrator.currentOperation} />{' '}
+                                                            <span>{app.status.sourceHydrator.currentOperation.phase}</span> <br />
+                                                        </>
                                                     )}
-                                                    items={[
-                                                        {
-                                                            title: 'Sync',
-                                                            iconClassName: 'fa fa-fw fa-sync',
-                                                            action: () => props.syncApplication(app.metadata.name, app.metadata.namespace)
-                                                        },
-                                                        {
-                                                            title: 'Refresh',
-                                                            iconClassName: 'fa fa-fw fa-redo',
-                                                            action: () => props.refreshApplication(app.metadata.name, app.metadata.namespace)
-                                                        },
-                                                        {
-                                                            title: 'Delete',
-                                                            iconClassName: 'fa fa-fw fa-times-circle',
-                                                            action: () => props.deleteApplication(app.metadata.name, app.metadata.namespace)
-                                                        }
-                                                    ]}
-                                                />
-                                            </div>
+                                                    <AppUtils.ComparisonStatusIcon status={app.status.sync.status} />
+                                                    <span>{app.status.sync.status}</span> <OperationState app={app} quiet={true} />
+                                                    <DropDownMenu
+                                                        anchor={() => (
+                                                            <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
+                                                                <i className='fa fa-ellipsis-v' />
+                                                            </button>
+                                                        )}
+                                                        items={[
+                                                            {
+                                                                title: 'Sync',
+                                                                iconClassName: 'fa fa-fw fa-sync',
+                                                                action: () => props.syncApplication(app.metadata.name, app.metadata.namespace)
+                                                            },
+                                                            {
+                                                                title: 'Refresh',
+                                                                iconClassName: 'fa fa-fw fa-redo',
+                                                                action: () => props.refreshApplication(app.metadata.name, app.metadata.namespace)
+                                                            },
+                                                            {
+                                                                title: 'Delete',
+                                                                iconClassName: 'fa fa-fw fa-times-circle',
+                                                                action: () => props.deleteApplication(app.metadata.name, app.metadata.namespace)
+                                                            }
+                                                        ]}
+                                                    />
+                                                </div>
                                             </div>
                                         </div>
                                     );
