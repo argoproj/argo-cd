@@ -11,16 +11,6 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/argoproj/argo-cd/v3/common"
-	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
-
-	"github.com/argoproj/argo-cd/v3/util/env"
-	"github.com/argoproj/argo-cd/v3/util/errors"
-	service "github.com/argoproj/argo-cd/v3/util/notification/argocd"
-	"github.com/argoproj/argo-cd/v3/util/tls"
-
-	notificationscontroller "github.com/argoproj/argo-cd/v3/notification_controller/controller"
-
 	"github.com/argoproj/notifications-engine/pkg/controller"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -30,27 +20,25 @@ import (
 	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"k8s.io/client-go/tools/clientcmd"
+
+	"github.com/argoproj/argo-cd/v3/common"
+	notificationscontroller "github.com/argoproj/argo-cd/v3/notification_controller/controller"
+	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v3/util/cli"
+	"github.com/argoproj/argo-cd/v3/util/env"
+	"github.com/argoproj/argo-cd/v3/util/errors"
+	service "github.com/argoproj/argo-cd/v3/util/notification/argocd"
+	"github.com/argoproj/argo-cd/v3/util/tls"
 )
 
 const (
 	defaultMetricsPort = 9001
 )
 
-func addK8SFlagsToCmd(cmd *cobra.Command) clientcmd.ClientConfig {
-	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
-	loadingRules.DefaultClientConfig = &clientcmd.DefaultClientConfig
-	overrides := clientcmd.ConfigOverrides{}
-	kflags := clientcmd.RecommendedConfigOverrideFlags("")
-	cmd.PersistentFlags().StringVar(&loadingRules.ExplicitPath, "kubeconfig", "", "Path to a kube config. Only required if out-of-cluster")
-	clientcmd.BindOverrideFlags(&overrides, cmd.PersistentFlags(), kflags)
-	return clientcmd.NewInteractiveDeferredLoadingClientConfig(loadingRules, &overrides, os.Stdin)
-}
-
 func NewCommand() *cobra.Command {
 	var (
 		clientConfig                   clientcmd.ClientConfig
 		processorsCount                int
-		namespace                      string
 		appLabelSelector               string
 		logLevel                       string
 		logFormat                      string
@@ -175,10 +163,9 @@ func NewCommand() *cobra.Command {
 			return nil
 		},
 	}
-	clientConfig = addK8SFlagsToCmd(&command)
+	clientConfig = cli.AddKubectlFlagsToCmd(&command)
 	command.Flags().IntVar(&processorsCount, "processors-count", 1, "Processors count.")
 	command.Flags().StringVar(&appLabelSelector, "app-label-selector", "", "App label selector.")
-	command.Flags().StringVar(&namespace, "namespace", "", "Namespace which controller handles. Current namespace if empty.")
 	command.Flags().StringVar(&logLevel, "loglevel", env.StringFromEnv("ARGOCD_NOTIFICATIONS_CONTROLLER_LOGLEVEL", "info"), "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().StringVar(&logFormat, "logformat", env.StringFromEnv("ARGOCD_NOTIFICATIONS_CONTROLLER_LOGFORMAT", "json"), "Set the logging format. One of: json|text")
 	command.Flags().IntVar(&metricsPort, "metrics-port", defaultMetricsPort, "Metrics port")

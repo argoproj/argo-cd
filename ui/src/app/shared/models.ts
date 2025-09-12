@@ -44,6 +44,7 @@ export interface RetryBackoff {
 export interface RetryStrategy {
     limit: number;
     backoff: RetryBackoff;
+    refresh: boolean;
 }
 
 export interface RollbackOperation {
@@ -97,6 +98,15 @@ export interface RevisionMetadata {
     signatureInfo?: string;
 }
 
+export interface OCIMetadata {
+    createdAt: string;
+    authors: string;
+    docsUrl: string;
+    sourceUrl: string;
+    version: string;
+    description: string;
+}
+
 export interface ChartDetails {
     description?: string;
     maintainers?: string[];
@@ -128,6 +138,7 @@ export interface ResourceResult {
     message: string;
     hookType: HookType;
     hookPhase: OperationPhase;
+    images?: string[];
 }
 
 export type SyncResourceResult = ResourceResult & {
@@ -350,6 +361,12 @@ export const SyncStatuses: {[key: string]: SyncStatusCode} = {
     OutOfSync: 'OutOfSync'
 };
 
+export const SyncPriority: Record<SyncStatusCode, number> = {
+    Unknown: 0,
+    OutOfSync: 1,
+    Synced: 2
+};
+
 export type HealthStatusCode = 'Unknown' | 'Progressing' | 'Healthy' | 'Suspended' | 'Degraded' | 'Missing';
 
 export const HealthStatuses: {[key: string]: HealthStatusCode} = {
@@ -359,6 +376,15 @@ export const HealthStatuses: {[key: string]: HealthStatusCode} = {
     Degraded: 'Degraded',
     Missing: 'Missing',
     Unknown: 'Unknown'
+};
+
+export const HealthPriority: Record<HealthStatusCode, number> = {
+    Missing: 0,
+    Degraded: 1,
+    Unknown: 2,
+    Progressing: 3,
+    Suspended: 4,
+    Healthy: 5
 };
 
 export interface HealthStatus {
@@ -542,10 +568,6 @@ export interface AuthSettings {
     };
     oidcConfig: {
         name: string;
-        issuer: string;
-        clientID: string;
-        scopes: string[];
-        enablePKCEAuthentication: boolean;
     };
     help: {
         chatUrl: string;
@@ -612,6 +634,7 @@ export interface Repository {
     enableLfs?: boolean;
     githubAppId?: string;
     forceHttpBasicAuth?: boolean;
+    insecureOCIForceHttp?: boolean;
     enableOCI: boolean;
     useAzureWorkloadIdentity: boolean;
 }
@@ -995,6 +1018,7 @@ export interface Node {
     name: string;
     systemInfo: NodeSystemInfo;
     resourcesInfo: HostResourceInfo[];
+    labels: {[name: string]: string};
 }
 
 export interface NodeSystemInfo {

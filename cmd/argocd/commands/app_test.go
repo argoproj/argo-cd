@@ -1218,6 +1218,8 @@ func Test_unset(t *testing.T) {
 }
 
 func Test_unset_nothingToUnset(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		name   string
 		source v1alpha1.ApplicationSource
@@ -2154,6 +2156,10 @@ func (c *fakeAppServiceClient) GetApplicationSyncWindows(_ context.Context, _ *a
 	return nil, nil
 }
 
+func (c *fakeAppServiceClient) GetOCIMetadata(_ context.Context, _ *applicationpkg.RevisionMetadataQuery, _ ...grpc.CallOption) (*v1alpha1.OCIMetadata, error) {
+	return nil, nil
+}
+
 func (c *fakeAppServiceClient) RevisionMetadata(_ context.Context, _ *applicationpkg.RevisionMetadataQuery, _ ...grpc.CallOption) (*v1alpha1.RevisionMetadata, error) {
 	return nil, nil
 }
@@ -2222,7 +2228,12 @@ func (c *fakeAppServiceClient) ListResourceActions(_ context.Context, _ *applica
 	return nil, nil
 }
 
+// nolint:staticcheck // ResourceActionRunRequest is deprecated, but we still need to implement it to satisfy the server interface.
 func (c *fakeAppServiceClient) RunResourceAction(_ context.Context, _ *applicationpkg.ResourceActionRunRequest, _ ...grpc.CallOption) (*applicationpkg.ApplicationResponse, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) RunResourceActionV2(_ context.Context, _ *applicationpkg.ResourceActionRunRequestV2, _ ...grpc.CallOption) (*applicationpkg.ApplicationResponse, error) {
 	return nil, nil
 }
 
@@ -2239,6 +2250,10 @@ func (c *fakeAppServiceClient) ListLinks(_ context.Context, _ *applicationpkg.Li
 }
 
 func (c *fakeAppServiceClient) ListResourceLinks(_ context.Context, _ *applicationpkg.ApplicationResourceRequest, _ ...grpc.CallOption) (*applicationpkg.LinksResponse, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) ServerSideDiff(_ context.Context, _ *applicationpkg.ApplicationServerSideDiffQuery, _ ...grpc.CallOption) (*applicationpkg.ApplicationServerSideDiffResponse, error) {
 	return nil, nil
 }
 

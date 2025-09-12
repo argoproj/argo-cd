@@ -12,6 +12,8 @@ import (
 	"strings"
 	"time"
 
+	jwtutil "github.com/argoproj/argo-cd/v3/util/jwt"
+
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/golang-jwt/jwt/v5"
 	log "github.com/sirupsen/logrus"
@@ -23,7 +25,6 @@ import (
 	argocdclient "github.com/argoproj/argo-cd/v3/pkg/apiclient"
 	sessionpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/session"
 	settingspkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/settings"
-	claimsutil "github.com/argoproj/argo-cd/v3/util/claims"
 	"github.com/argoproj/argo-cd/v3/util/cli"
 	"github.com/argoproj/argo-cd/v3/util/errors"
 	grpc_util "github.com/argoproj/argo-cd/v3/util/grpc"
@@ -143,9 +144,7 @@ argocd login cd.argoproj.io --core`,
 				claims := jwt.MapClaims{}
 				_, _, err := parser.ParseUnverified(tokenString, &claims)
 				errors.CheckError(err)
-				argoClaims, err := claimsutil.MapClaimsToArgoClaims(claims)
-				errors.CheckError(err)
-				fmt.Printf("'%s' logged in successfully\n", userDisplayName(argoClaims))
+				fmt.Printf("'%s' logged in successfully\n", userDisplayName(claims))
 			}
 
 			// login successful. Persist the config
@@ -186,23 +185,19 @@ argocd login cd.argoproj.io --core`,
 	command.Flags().StringVar(&password, "password", "", "The password of an account to authenticate")
 	command.Flags().BoolVar(&sso, "sso", false, "Perform SSO login")
 	command.Flags().IntVar(&ssoPort, "sso-port", DefaultSSOLocalPort, "Port to run local OAuth2 login application")
-	command.Flags().
-		BoolVar(&skipTestTLS, "skip-test-tls", false, "Skip testing whether the server is configured with TLS (this can help when the command hangs for no apparent reason)")
+	command.Flags().BoolVar(&skipTestTLS, "skip-test-tls", false, "Skip testing whether the server is configured with TLS (this can help when the command hangs for no apparent reason)")
 	command.Flags().BoolVar(&ssoLaunchBrowser, "sso-launch-browser", true, "Automatically launch the system default browser when performing SSO login")
 	return command
 }
 
-func userDisplayName(claims *claimsutil.ArgoClaims) string {
-	if claims == nil {
-		return ""
+func userDisplayName(claims jwt.MapClaims) string {
+	if email := jwtutil.StringField(claims, "email"); email != "" {
+		return email
 	}
-	if claims.Email != "" {
-		return claims.Email
+	if name := jwtutil.StringField(claims, "name"); name != "" {
+		return name
 	}
-	if claims.Name != "" {
-		return claims.Name
-	}
-	return claims.GetUserIdentifier()
+	return jwtutil.GetUserIdentifier(claims)
 }
 
 // oauth2Login opens a browser, runs a temporary HTTP server to delegate OAuth2 login flow and

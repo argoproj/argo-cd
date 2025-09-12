@@ -70,18 +70,44 @@ type Renderer_RenderTemplateParams_Call struct {
 }
 
 // RenderTemplateParams is a helper method to define mock.On call
-//   - tmpl
-//   - syncPolicy
-//   - params
-//   - useGoTemplate
-//   - goTemplateOptions
+//   - tmpl *v1alpha1.Application
+//   - syncPolicy *v1alpha1.ApplicationSetSyncPolicy
+//   - params map[string]any
+//   - useGoTemplate bool
+//   - goTemplateOptions []string
 func (_e *Renderer_Expecter) RenderTemplateParams(tmpl interface{}, syncPolicy interface{}, params interface{}, useGoTemplate interface{}, goTemplateOptions interface{}) *Renderer_RenderTemplateParams_Call {
 	return &Renderer_RenderTemplateParams_Call{Call: _e.mock.On("RenderTemplateParams", tmpl, syncPolicy, params, useGoTemplate, goTemplateOptions)}
 }
 
 func (_c *Renderer_RenderTemplateParams_Call) Run(run func(tmpl *v1alpha1.Application, syncPolicy *v1alpha1.ApplicationSetSyncPolicy, params map[string]any, useGoTemplate bool, goTemplateOptions []string)) *Renderer_RenderTemplateParams_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(*v1alpha1.Application), args[1].(*v1alpha1.ApplicationSetSyncPolicy), args[2].(map[string]any), args[3].(bool), args[4].([]string))
+		var arg0 *v1alpha1.Application
+		if args[0] != nil {
+			arg0 = args[0].(*v1alpha1.Application)
+		}
+		var arg1 *v1alpha1.ApplicationSetSyncPolicy
+		if args[1] != nil {
+			arg1 = args[1].(*v1alpha1.ApplicationSetSyncPolicy)
+		}
+		var arg2 map[string]any
+		if args[2] != nil {
+			arg2 = args[2].(map[string]any)
+		}
+		var arg3 bool
+		if args[3] != nil {
+			arg3 = args[3].(bool)
+		}
+		var arg4 []string
+		if args[4] != nil {
+			arg4 = args[4].([]string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4,
+		)
 	})
 	return _c
 }
@@ -128,17 +154,38 @@ type Renderer_Replace_Call struct {
 }
 
 // Replace is a helper method to define mock.On call
-//   - tmpl
-//   - replaceMap
-//   - useGoTemplate
-//   - goTemplateOptions
+//   - tmpl string
+//   - replaceMap map[string]any
+//   - useGoTemplate bool
+//   - goTemplateOptions []string
 func (_e *Renderer_Expecter) Replace(tmpl interface{}, replaceMap interface{}, useGoTemplate interface{}, goTemplateOptions interface{}) *Renderer_Replace_Call {
 	return &Renderer_Replace_Call{Call: _e.mock.On("Replace", tmpl, replaceMap, useGoTemplate, goTemplateOptions)}
 }
 
 func (_c *Renderer_Replace_Call) Run(run func(tmpl string, replaceMap map[string]any, useGoTemplate bool, goTemplateOptions []string)) *Renderer_Replace_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(string), args[1].(map[string]any), args[2].(bool), args[3].([]string))
+		var arg0 string
+		if args[0] != nil {
+			arg0 = args[0].(string)
+		}
+		var arg1 map[string]any
+		if args[1] != nil {
+			arg1 = args[1].(map[string]any)
+		}
+		var arg2 bool
+		if args[2] != nil {
+			arg2 = args[2].(bool)
+		}
+		var arg3 []string
+		if args[3] != nil {
+			arg3 = args[3].([]string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
 	})
 	return _c
 }

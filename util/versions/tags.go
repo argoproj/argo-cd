@@ -62,3 +62,12 @@ func MaxVersion(revision string, tags []string) (string, error) {
 	log.Debugf("Semver constraint '%s' resolved to version '%s'", constraints.String(), maxVersion.Original())
 	return maxVersion.Original(), nil
 }
+
+// Returns true if the given revision is not an exact semver and can be parsed as a semver constraint
+func IsConstraint(revision string) bool {
+	if _, err := semver.NewVersion(revision); err == nil {
+		return false
+	}
+	_, err := semver.NewConstraint(revision)
+	return err == nil
+}

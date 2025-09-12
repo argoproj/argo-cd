@@ -65,3 +65,27 @@ func TestTags_MaxVersion(t *testing.T) {
 		require.Error(t, err)
 	})
 }
+
+func TestTags_IsConstraint(t *testing.T) {
+	t.Run("Exact", func(t *testing.T) {
+		assert.False(t, IsConstraint("0.5.3"))
+	})
+	t.Run("Exact nonsemver", func(t *testing.T) {
+		assert.False(t, IsConstraint("2024.03-LTS-RC19"))
+	})
+	t.Run("Constraint", func(t *testing.T) {
+		assert.True(t, IsConstraint("= 0.5.3"))
+	})
+	t.Run("Constraint", func(t *testing.T) {
+		assert.True(t, IsConstraint("> 0.5.3"))
+	})
+	t.Run("Constraint", func(t *testing.T) {
+		assert.True(t, IsConstraint(">0.5.0,<0.7.0"))
+	})
+	t.Run("Constraint", func(t *testing.T) {
+		assert.True(t, IsConstraint("0.7.*"))
+	})
+	t.Run("Constraint", func(t *testing.T) {
+		assert.True(t, IsConstraint("*"))
+	})
+}

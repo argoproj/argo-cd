@@ -22,10 +22,11 @@ updates:
     schedule:
       interval: "daily"
 
-  - package-ecosystem: "npm"
-    directory: "/ui-test/"
-    schedule:
-      interval: "daily"
+# Disabled since this code is rarely used.
+#  - package-ecosystem: "npm"
+#    directory: "/ui-test/"
+#    schedule:
+#      interval: "daily"
 
   - package-ecosystem: "docker"
     directory: "/"
@@ -52,7 +53,8 @@ updates:
     schedule:
       interval: "daily"
 
-  - package-ecosystem: "docker"
-    directory: "/ui-test/"
-    schedule:
-      interval: "daily"
+# Disabled since this code is rarely used.
+#  - package-ecosystem: "docker"
+#    directory: "/ui-test/"
+#    schedule:
+#      interval: "daily"

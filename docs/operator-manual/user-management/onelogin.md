@@ -23,7 +23,7 @@ To create the application, do the following:
 2. Click "Add App".
 3. Search for "OpenID Connect" in the search field.
 4. Select the "OpenId Connect (OIDC)" app to create.
-5. Update the "Display Name" field (could be something like "ArgoCD (Production)".
+5. Update the "Display Name" field (could be something like "ArgoCD (Production)").
 6. Click "Save".
 
 ### Configuring OIDC Application Settings

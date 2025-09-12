@@ -25,7 +25,7 @@ func TestListMergeGenerator(t *testing.T) {
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       fmt.Sprintf("%s-%s", name, nameSuffix),
 				Namespace:  utils.TestNamespace(),
-				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+				Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 			},
 			Spec: v1alpha1.ApplicationSpec{
 				Project: "default",
@@ -146,7 +146,7 @@ func TestClusterMergeGenerator(t *testing.T) {
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       fmt.Sprintf("%s-%s-%s", cluster, name, nameSuffix),
 				Namespace:  utils.TestNamespace(),
-				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+				Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 			},
 			Spec: v1alpha1.ApplicationSpec{
 				Project: "default",
@@ -290,7 +290,7 @@ func TestMergeTerminalMergeGeneratorSelector(t *testing.T) {
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       fmt.Sprintf("%s-%s", name, nameSuffix),
 				Namespace:  utils.TestNamespace(),
-				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+				Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 			},
 			Spec: v1alpha1.ApplicationSpec{
 				Project: "default",
