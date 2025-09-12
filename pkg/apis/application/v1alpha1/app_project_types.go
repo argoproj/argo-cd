@@ -139,7 +139,12 @@ func (proj AppProject) RemoveJWTToken(roleIndex int, issuedAt int64, id string) 
 	return err2
 }
 
-// TODO: document this method
+// ValidateJWTTokenID checks whether a given JWT token ID is already associated with the specified role.
+//
+// If the provided id is empty, the method returns nil (no validation error).
+// If a token with the same id already exists in the role, an error of type
+// codes.InvalidArgument is returned to indicate the token ID has been used.
+// Otherwise, it returns nil.
 func (proj *AppProject) ValidateJWTTokenID(roleName string, id string) error {
 	role, _, err := proj.GetRoleByName(roleName)
 	if err != nil {
@@ -156,6 +161,30 @@ func (proj *AppProject) ValidateJWTTokenID(roleName string, id string) error {
 	return nil
 }
 
+// ValidateProject performs a set of consistency and validation checks on the AppProject specification.
+//
+// The validation rules include:
+//   - Destinations:
+//   - Rejects invalid wildcard formats like "!*"
+//   - Ensures uniqueness of (server/namespace) or (name/namespace) combinations
+//   - SourceNamespaces:
+//   - Must be unique
+//   - SourceRepos:
+//   - Rejects invalid wildcard formats like "!*"
+//   - Must be unique
+//   - Roles:
+//   - Role names must be unique and valid
+//   - Policies within a role must be unique and valid for the project/role
+//   - Groups within a role must be unique and have valid names
+//   - SyncWindows:
+//   - Each window must have a unique identity hash
+//   - Each window must validate successfully
+//   - A window must target at least one of applications, clusters, or namespaces
+//   - DestinationServiceAccounts:
+//   - Server and namespace fields must not contain invalid characters or "!"
+//   - Default service account must not be empty or contain disallowed characters
+//   - Server/namespace values must compile as valid glob patterns
+//   - Each (server/namespace) combination must be unique
 func (proj *AppProject) ValidateProject() error {
 	destKeys := make(map[string]bool)
 	for _, dest := range proj.Spec.Destinations {
@@ -290,6 +319,11 @@ func (proj *AppProject) ValidateProject() error {
 	}
 
 	return nil
+}
+
+// RoleGroupExists checks if a group exists in the role
+func RoleGroupExists(role *ProjectRole) bool {
+	return len(role.Groups) != 0
 }
 
 // AddGroupToRole adds an OIDC group to a role
