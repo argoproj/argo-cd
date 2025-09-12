@@ -1,9 +1,0 @@
-apiVersion: sql.cnrm.cloud.google.com/v1beta1
-kind: SQLInstance
-status:
-  conditions:
-    - lastTransitionTime: '2022-07-01T12:56:21Z'
-      message: Update in progress
-      reason: Updating
-      status: 'False'
-      type: Ready
