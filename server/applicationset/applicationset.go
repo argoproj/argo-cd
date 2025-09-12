@@ -307,7 +307,7 @@ func (s *Server) updateAppSet(ctx context.Context, appset *v1alpha1.ApplicationS
 			return nil, err
 		}
 
-		appset, err = s.appclientset.ArgoprojV1alpha1().ApplicationSets(newAppset.Namespace).Get(ctx, newAppset.Name, metav1.GetOptions{})
+		appset, err = s.appclientset.ArgoprojV1alpha1().ApplicationSets(appset.Namespace).Get(ctx, appset.Name, metav1.GetOptions{})
 		if err != nil {
 			return nil, fmt.Errorf("error getting ApplicationSets: %w", err)
 		}
