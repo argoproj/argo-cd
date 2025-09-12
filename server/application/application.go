@@ -2060,8 +2060,15 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 			}
 		}
 	}
+
+	var source *v1alpha1.ApplicationSource
+	if !a.Spec.HasMultipleSources() {
+		source = ptr.To(a.Spec.GetSource())
+	}
+
 	op := v1alpha1.Operation{
 		Sync: &v1alpha1.SyncOperation{
+			Source:       source,
 			Revision:     revision,
 			Prune:        syncReq.GetPrune(),
 			DryRun:       syncReq.GetDryRun(),
@@ -2516,6 +2523,7 @@ func (s *Server) RunResourceAction(ctx context.Context, q *application.ResourceA
 		Kind:         q.Kind,
 		Version:      q.Version,
 		Group:        q.Group,
+		Action:       q.Action,
 		Project:      q.Project,
 	}
 	return s.RunResourceActionV2(ctx, qV2)

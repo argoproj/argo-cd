@@ -21,6 +21,13 @@ $header: 120px;
         }
     }
 
+    .white-box__details-row .columns.small-9 {
+        line-height: 1.4;
+        min-height: 50px;
+        padding-top: 15px;
+        padding-bottom: 15px;
+    }
+
     .argo-dropdown__content.is-menu {
         max-height: 500px;
     }

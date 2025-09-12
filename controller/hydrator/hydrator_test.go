@@ -1,6 +1,7 @@
 package hydrator
 
 import (
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -248,6 +249,75 @@ Co-authored-by: test test@test.com
 				return
 			}
 			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func Test_getRelevantAppsForHydration_RootPathSkipped(t *testing.T) {
+	t.Parallel()
+
+	d := mocks.NewDependencies(t)
+	// create an app that has a SyncSource.Path set to root
+	d.On("GetProcessableApps").Return(&v1alpha1.ApplicationList{
+		Items: []v1alpha1.Application{
+			{
+				Spec: v1alpha1.ApplicationSpec{
+					Project: "project",
+					SourceHydrator: &v1alpha1.SourceHydrator{
+						DrySource: v1alpha1.DrySource{
+							RepoURL:        "https://example.com/repo",
+							TargetRevision: "main",
+							Path:           ".", // root path
+						},
+						SyncSource: v1alpha1.SyncSource{
+							TargetBranch: "main",
+							Path:         ".", // root path
+						},
+					},
+				},
+			},
+		},
+	}, nil)
+
+	d.On("GetProcessableAppProj", mock.Anything).Return(&v1alpha1.AppProject{
+		Spec: v1alpha1.AppProjectSpec{
+			SourceRepos: []string{"https://example.com/*"},
+		},
+	}, nil).Maybe()
+
+	hydrator := &Hydrator{dependencies: d}
+
+	hydrationKey := types.HydrationQueueKey{
+		SourceRepoURL:        "https://example.com/repo",
+		SourceTargetRevision: "main",
+		DestinationBranch:    "main",
+	}
+
+	logCtx := log.WithField("test", "RootPathSkipped")
+	relevantApps, proj, err := hydrator.getRelevantAppsAndProjectsForHydration(logCtx, hydrationKey)
+	require.Error(t, err)
+	assert.Empty(t, relevantApps, "Expected no apps to be returned because SyncSource.Path resolves to root")
+	assert.Nil(t, proj)
+}
+
+func TestIsRootPath(t *testing.T) {
+	tests := []struct {
+		name     string
+		path     string
+		expected bool
+	}{
+		{"empty string", "", true},
+		{"dot path", ".", true},
+		{"slash", string(filepath.Separator), true},
+		{"nested path", "app", false},
+		{"nested path with slash", "app/", false},
+		{"deep path", "app/config", false},
+		{"current dir with trailing slash", "./", true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := IsRootPath(tt.path)
+			require.Equal(t, tt.expected, result)
 		})
 	}
 }

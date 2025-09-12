@@ -274,6 +274,13 @@ func Test_setAppSpecOptions(t *testing.T) {
 		require.NoError(t, f.SetFlag("sync-retry-limit", "0"))
 		assert.Nil(t, f.spec.SyncPolicy.Retry)
 	})
+	t.Run("RetryRefresh", func(t *testing.T) {
+		require.NoError(t, f.SetFlag("sync-retry-refresh", "true"))
+		assert.True(t, f.spec.SyncPolicy.Retry.Refresh)
+
+		require.NoError(t, f.SetFlag("sync-retry-refresh", "false"))
+		assert.False(t, f.spec.SyncPolicy.Retry.Refresh)
+	})
 	t.Run("Kustomize", func(t *testing.T) {
 		require.NoError(t, f.SetFlag("kustomize-replica", "my-deployment=2"))
 		require.NoError(t, f.SetFlag("kustomize-replica", "my-statefulset=4"))
