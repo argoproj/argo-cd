@@ -11,8 +11,8 @@ jobs:
     name: Cherry Pick
     if: |
       github.event.pull_request.merged == true && (
-        (github.event.action == 'labeled' && startsWith(github.event.label.name, 'cherry-pick-')) ||
-        (github.event.action == 'closed' && contains(toJSON(github.event.pull_request.labels.*.name), 'cherry-pick-'))
+        (github.event.action == 'labeled' && startsWith(github.event.label.name, 'cherry-pick/')) ||
+        (github.event.action == 'closed' && contains(toJSON(github.event.pull_request.labels.*.name), 'cherry-pick/'))
       )
     runs-on: ubuntu-latest
     steps:
@@ -48,10 +48,12 @@ jobs:
             CHERRY_PICK_LABEL="${{ github.event.label.name }}"
           else
             # PR was closed - find cherry-pick label from all labels
-            CHERRY_PICK_LABEL=$(echo '${{ toJSON(github.event.pull_request.labels) }}' | jq -r '.[] | select(.name | startswith("cherry-pick-")) | .name' | head -1)
+            CHERRY_PICK_LABEL=$(echo '${{ toJSON(github.event.pull_request.labels) }}' | jq -r '.[] | select(.name | startswith("cherry-pick/")) | .name' | head -1)
           fi
           
-          TARGET_BRANCH="release-${CHERRY_PICK_LABEL#cherry-pick-}"  # Remove 'cherry-pick-' prefix with `release-` prefix
+          VERSION_NUMBER="${CHERRY_PICK_LABEL#cherry-pick/}"
+          echo "version_number=$VERSION_NUMBER" >> "$GITHUB_OUTPUT"
+          TARGET_BRANCH="release-$VERSION_NUMBER"  # Remove 'cherry-pick/' prefix with `release-` prefix
           
           echo "🍒 Cherry-picking commit $MERGE_COMMIT to branch $TARGET_BRANCH"
           
@@ -89,7 +91,7 @@ jobs:
         run: |
           # Create cherry-pick PR
           gh pr create \
-            --title "${{ github.event.pull_request.title }} (cherry-pick #${{ github.event.pull_request.number }})" \
+            --title "${{ github.event.pull_request.title }} (cherry-pick #${{ github.event.pull_request.number }} for ${{ steps.cherry-pick.outputs.version_number }})" \
             --body "Cherry-picked ${{ github.event.pull_request.title }} (#${{ github.event.pull_request.number }})
 
           ${{ steps.cherry-pick.outputs.signoff }}" \
