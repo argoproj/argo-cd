@@ -439,3 +439,22 @@ data:
 
   # application.sync.impersonation.enabled enables application sync to use a custom service account, via impersonation. This allows decoupling sync from control-plane service account.
   application.sync.impersonation.enabled: "false"
+
+  ### SourceHydrator commit message template.
+  # This template iterates through the fields in the `.metadata` object,
+  # and formats them based on their type (map, array, or primitive values).
+  # This is the default template and targets specific metadata properties
+  sourceHydrator.commitMessageTemplate: |
+    {{.metadata.drySha | trunc 7}}: {{ .metadata.subject }}
+    {{- if .metadata.body }}
+    
+    {{ .metadata.body }}
+    {{- end }}
+    {{ range $ref := .metadata.references }}
+    {{- if and $ref.commit $ref.commit.author }}
+    Co-authored-by: {{ $ref.commit.author }}
+    {{- end }}
+    {{- end }}
+    {{- if .metadata.author }}
+    Co-authored-by: {{ .metadata.author }}
+    {{- end }}

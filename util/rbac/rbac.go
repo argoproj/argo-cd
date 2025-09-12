@@ -422,7 +422,7 @@ func (e *Enforcer) SetUserPolicy(policy string) error {
 	return e.LoadPolicy()
 }
 
-// newInformers returns an informer which watches updates on the rbac configmap
+// newInformer returns an informer which watches updates on the rbac configmap
 func (e *Enforcer) newInformer() cache.SharedIndexInformer {
 	tweakConfigMap := func(options *metav1.ListOptions) {
 		cmFieldSelector := fields.ParseSelectorOrDie("metadata.name=" + e.configmap)

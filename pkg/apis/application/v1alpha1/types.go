@@ -446,7 +446,12 @@ type SyncSource struct {
 	// TargetBranch is the branch to which hydrated manifests should be committed
 	TargetBranch string `json:"targetBranch" protobuf:"bytes,1,name=targetBranch"`
 	// Path is a directory path within the git repository where hydrated manifests should be committed to and synced
-	// from. If hydrateTo is set, this is just the path from which hydrated manifests will be synced.
+	// from. The Path should never point to the root of the repo. If hydrateTo is set, this is just the path from which
+	// hydrated manifests will be synced.
+	//
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:Pattern=`^.{2,}|[^./]$`
 	Path string `json:"path" protobuf:"bytes,2,name=path"`
 }
 
@@ -1467,6 +1472,8 @@ type RetryStrategy struct {
 	Limit int64 `json:"limit,omitempty" protobuf:"bytes,1,opt,name=limit"`
 	// Backoff controls how to backoff on subsequent retries of failed syncs
 	Backoff *Backoff `json:"backoff,omitempty" protobuf:"bytes,2,opt,name=backoff,casttype=Backoff"`
+	// Refresh indicates if the latest revision should be used on retry instead of the initial one (default: false)
+	Refresh bool `json:"refresh,omitempty" protobuf:"bytes,3,opt,name=refresh"`
 }
 
 func parseStringToDuration(durationString string) (time.Duration, error) {
@@ -1532,7 +1539,7 @@ type SyncPolicyAutomated struct {
 	// AllowEmpty allows apps have zero live resources (default: false)
 	AllowEmpty bool `json:"allowEmpty,omitempty" protobuf:"bytes,3,opt,name=allowEmpty"`
 	// Enable allows apps to explicitly control automated sync
-	Enabled *bool `json:"enabled,omitempty" protobuf:"bytes,4,opt,name=enable"`
+	Enabled *bool `json:"enabled,omitempty" protobuf:"bytes,4,opt,name=enabled"`
 }
 
 // SyncStrategy controls the manner in which a sync is performed
@@ -2235,6 +2242,32 @@ type Cluster struct {
 	Labels map[string]string `json:"labels,omitempty" protobuf:"bytes,12,opt,name=labels"`
 	// Annotations for cluster secret metadata
 	Annotations map[string]string `json:"annotations,omitempty" protobuf:"bytes,13,opt,name=annotations"`
+}
+
+func (c *Cluster) Sanitized() *Cluster {
+	return &Cluster{
+		ID:                 c.ID,
+		Server:             c.Server,
+		Name:               c.Name,
+		Project:            c.Project,
+		Namespaces:         c.Namespaces,
+		Shard:              c.Shard,
+		Labels:             c.Labels,
+		Annotations:        c.Annotations,
+		ClusterResources:   c.ClusterResources,
+		ConnectionState:    c.ConnectionState,
+		ServerVersion:      c.ServerVersion,
+		Info:               c.Info,
+		RefreshRequestedAt: c.RefreshRequestedAt,
+		Config: ClusterConfig{
+			AWSAuthConfig:      c.Config.AWSAuthConfig,
+			ProxyUrl:           c.Config.ProxyUrl,
+			DisableCompression: c.Config.DisableCompression,
+			TLSClientConfig: TLSClientConfig{
+				Insecure: c.Config.Insecure,
+			},
+		},
+	}
 }
 
 // Equals returns true if two cluster objects are considered to be equal
@@ -3288,6 +3321,14 @@ func (app *Application) HasPostDeleteFinalizer(stage ...string) bool {
 
 func (app *Application) SetPostDeleteFinalizer(stage ...string) {
 	setFinalizer(&app.ObjectMeta, strings.Join(append([]string{PostDeleteFinalizerName}, stage...), "/"), true)
+}
+
+func (app *Application) UnSetPostDeleteFinalizerAll() {
+	for _, finalizer := range app.Finalizers {
+		if strings.HasPrefix(finalizer, PostDeleteFinalizerName) {
+			setFinalizer(&app.ObjectMeta, finalizer, false)
+		}
+	}
 }
 
 func (app *Application) UnSetPostDeleteFinalizer(stage ...string) {
