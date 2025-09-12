@@ -1,7 +1,7 @@
 package utils
 
 import (
-	"github.com/argoproj/argo-cd/v2/util/cli"
+	"github.com/argoproj/argo-cd/v3/util/cli"
 )
 
 type Prompt struct {
@@ -53,7 +53,7 @@ func (p *Prompt) ConfirmBaseOnCount(messageForSingle string, messageForArray str
 	}
 
 	if count == 1 {
-		return p.Confirm(messageForSingle), true
+		return p.Confirm(messageForSingle), false
 	}
 
 	return p.ConfirmAll(messageForArray)

@@ -19,6 +19,7 @@ type MetricsServer struct {
 	repoPendingRequestsGauge *prometheus.GaugeVec
 	redisRequestCounter      *prometheus.CounterVec
 	redisRequestHistogram    *prometheus.HistogramVec
+	PrometheusRegistry       *prometheus.Registry
 }
 
 type GitRequestType string
@@ -108,6 +109,7 @@ func NewMetricsServer() *MetricsServer {
 		repoPendingRequestsGauge: repoPendingRequestsGauge,
 		redisRequestCounter:      redisRequestCounter,
 		redisRequestHistogram:    redisRequestHistogram,
+		PrometheusRegistry:       registry,
 	}
 }
 

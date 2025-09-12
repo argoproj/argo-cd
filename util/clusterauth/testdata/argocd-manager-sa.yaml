@@ -7,5 +7,3 @@ metadata:
   resourceVersion: "133015"
   selfLink: /api/v1/namespaces/kube-system/serviceaccounts/argocd-manager
   uid: 91dd37cf-8d92-11e9-a091-d65f2ae7fa8d
-secrets:
-- name: argocd-manager-token-tj79r

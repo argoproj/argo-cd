@@ -1,0 +1,14 @@
+apiVersion: opentelemetry.io/v1beta1
+kind: OpenTelemetryCollector
+metadata:
+  name: test-collector-degraded
+  namespace: default
+spec:
+  replicas: 2
+status:
+  image: ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector-contrib:0.124.1
+  scale:
+    replicas: 2
+    selector: app.kubernetes.io/component=opentelemetry-collector
+    statusReplicas: 0/2
+  version: 0.124.1

@@ -49,7 +49,7 @@ func TestUpperAndLower(t *testing.T) {
 	exprs := NewExprs()
 
 	for _, testCase := range testCases {
-		t.Run("With success case: Func: "+testCase.fn, func(tc *testing.T) {
+		t.Run("With success case: Func: "+testCase.fn, func(t *testing.T) {
 			toUpperFn, ok := exprs[testCase.fn].(func(s string) string)
 			assert.True(t, ok)
 

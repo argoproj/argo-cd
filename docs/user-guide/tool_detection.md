@@ -5,7 +5,7 @@ The tool used to build an application is detected as follows:
 If a specific tool is explicitly configured, then that tool is selected to create your application's manifests.
 
 The tool can be explicitly specified in the Application custom resource like this:
-```
+```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -38,8 +38,3 @@ keys, in the `argocd-cm` ConfigMap, to `false`: `kustomize.enable`, `helm.enable
 tool is disabled, Argo CD will assume the application target directory contains plain Kubernetes YAML manifests.
 
 Disabling unused config management tools can be a helpful security enhancement. Vulnerabilities are sometimes limited to certain config management tools. Even if there is no vulnerability, an attacker may use a certain tool to take advantage of a misconfiguration in an Argo CD instance. Disabling unused config management tools limits the tools available to malicious actors.
-
-## References
-
-* [reposerver/repository/repository.go/GetAppSourceType](https://github.com/argoproj/argo-cd/blob/master/reposerver/repository/repository.go#L286)
-* [server/repository/repository.go/listAppTypes](https://github.com/argoproj/argo-cd/blob/master/server/repository/repository.go#L97)

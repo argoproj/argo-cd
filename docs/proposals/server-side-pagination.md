@@ -33,7 +33,7 @@ for the Applications List and Watch APIs.
 
 The main motivation for this proposal it to improve the Argo CD UI responsiveness when there are a large number
 of applications. The API server memory usage increases with the number of applications however this is not critical
-and can be mitigated by increasing memory limits for the API server deployment. The UI however becames unresponsive
+and can be mitigated by increasing memory limits for the API server deployment. The UI however becomes unresponsive
 even on a powerful machine when the number of applications increases 2000. The server side pagination will allow
 to reduce amount of data returned by the API server and improve the UI responsiveness.
 

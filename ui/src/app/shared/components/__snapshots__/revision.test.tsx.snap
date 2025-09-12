@@ -7,6 +7,10 @@ exports[`Revision.Branch.Children 1`] = `
   target="_blank"
 >
   foo
+   
+  <i
+    className="fa fa-external-link-alt"
+  />
 </a>
 `;
 
@@ -17,6 +21,10 @@ exports[`Revision.Branch.NoChildren 1`] = `
   target="_blank"
 >
   long-branch-name
+   
+  <i
+    className="fa fa-external-link-alt"
+  />
 </a>
 `;
 
@@ -27,6 +35,10 @@ exports[`Revision.SHA1.Children 1`] = `
   target="_blank"
 >
   foo
+   
+  <i
+    className="fa fa-external-link-alt"
+  />
 </a>
 `;
 
@@ -37,5 +49,9 @@ exports[`Revision.SHA1.NoChildren 1`] = `
   target="_blank"
 >
   24eb0b2
+   
+  <i
+    className="fa fa-external-link-alt"
+  />
 </a>
 `;

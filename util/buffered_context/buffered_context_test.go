@@ -7,11 +7,11 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/argoproj/argo-cd/v2/util/buffered_context"
+	"github.com/argoproj/argo-cd/v3/util/buffered_context"
 )
 
 func TestWithEarlierDeadline_NoDeadline(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	bufferedCtx, cancel := buffered_context.WithEarlierDeadline(ctx, 100*time.Millisecond)
 	defer cancel()
@@ -23,7 +23,7 @@ func TestWithEarlierDeadline_NoDeadline(t *testing.T) {
 }
 
 func TestWithEarlierDeadline_WithDeadline(t *testing.T) {
-	ctx, cancel := context.WithDeadline(context.Background(), time.Now())
+	ctx, cancel := context.WithDeadline(t.Context(), time.Now())
 	defer cancel()
 
 	buffer := 100 * time.Millisecond

@@ -9,7 +9,7 @@ As of version 2.5, Argo CD supports managing `Application` resources in namespac
 
 Argo CD administrators can define a certain set of namespaces where `Application` resources may be created, updated and reconciled in. However, applications in these additional namespaces will only be allowed to use certain `AppProjects`, as configured by the Argo CD administrators. This allows ordinary Argo CD users (e.g. application teams) to use patterns like declarative management of `Application` resources, implementing app-of-apps and others without the risk of a privilege escalation through usage of other `AppProjects` that would exceed the permissions granted to the application teams.
 
-Some manual steps will need to be performed by the Argo CD administrator in order to enable this feature. 
+Some manual steps will need to be performed by the Argo CD administrator in order to enable this feature.
 
 One additional advantage of adopting applications in any namespace is to allow end-users to configure notifications for their Argo CD application in the namespace where Argo CD application is running in. See notifications [namespace based configuration](notifications/index.md#namespace-based-configuration) page for more information.
 
@@ -124,9 +124,13 @@ The `.spec.sourceNamespaces` field of the `AppProject` is a list that can contai
 !!! note
     For backwards compatibility, Applications in the Argo CD control plane's namespace (`argocd`) are allowed to set their `.spec.project` field to reference any AppProject, regardless of the restrictions placed by the AppProject's `.spec.sourceNamespaces` field.
   
+!!! note
+    Currently it's not possible to have a applicationset in one namespace and have the application
+    be generated in another. See [#11104](https://github.com/argoproj/argo-cd/issues/11104) for more info.
+
 ### Application names
 
-For the CLI and UI, applications are now referred to and displayed as in the format `<namespace>/<name>`. 
+For the CLI and UI, applications are now referred to and displayed as in the format `<namespace>/<name>`.
 
 For backwards compatibility, if the namespace of the Application is the control plane's namespace (i.e. `argocd`), the `<namespace>` can be omitted from the application name when referring to it. For example, the application names `argocd/someapp` and `someapp` are semantically the same and refer to the same application in the CLI and the UI.
 
@@ -134,7 +138,7 @@ For backwards compatibility, if the namespace of the Application is the control 
 
 The RBAC syntax for Application objects has been changed from `<project>/<application>` to `<project>/<namespace>/<application>` to accommodate the need to restrict access based on the source namespace of the Application to be managed.
 
-For backwards compatibility, Applications in the `argocd` namespace can still be refered to as `<project>/<application>` in the RBAC policy rules.
+For backwards compatibility, Applications in the `argocd` namespace can still be referred to as `<project>/<application>` in the RBAC policy rules.
 
 Wildcards do not make any distinction between project and application namespaces yet. For example, the following RBAC rule would match any application belonging to project `foo`, regardless of the namespace it is created in:
 
