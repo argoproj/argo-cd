@@ -10,15 +10,15 @@ import (
 	"github.com/argoproj/argo-cd/v3/applicationset/services"
 )
 
-func GetGenerators(ctx context.Context, c client.Client, k8sClient kubernetes.Interface, namespace string, argoCDService services.Repos, dynamicClient dynamic.Interface, scmConfig SCMConfig) map[string]Generator {
+func GetGenerators(ctx context.Context, c client.Client, k8sClient kubernetes.Interface, controllerNamespace string, argoCDService services.Repos, dynamicClient dynamic.Interface, scmConfig SCMConfig) map[string]Generator {
 	terminalGenerators := map[string]Generator{
 		"List":                    NewListGenerator(),
-		"Clusters":                NewClusterGenerator(ctx, c, k8sClient, namespace),
-		"Git":                     NewGitGenerator(argoCDService, namespace),
+		"Clusters":                NewClusterGenerator(ctx, c, k8sClient, controllerNamespace),
+		"Git":                     NewGitGenerator(argoCDService, controllerNamespace),
 		"SCMProvider":             NewSCMProviderGenerator(c, scmConfig),
-		"ClusterDecisionResource": NewDuckTypeGenerator(ctx, dynamicClient, k8sClient, namespace),
+		"ClusterDecisionResource": NewDuckTypeGenerator(ctx, dynamicClient, k8sClient, controllerNamespace),
 		"PullRequest":             NewPullRequestGenerator(c, scmConfig),
-		"Plugin":                  NewPluginGenerator(c, namespace),
+		"Plugin":                  NewPluginGenerator(c, controllerNamespace),
 	}
 
 	nestedGenerators := map[string]Generator{

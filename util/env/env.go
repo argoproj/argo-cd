@@ -185,7 +185,7 @@ func ParseBoolFromEnv(envVar string, defaultValue bool) bool {
 	return defaultValue
 }
 
-// ParseStringToStringVar parses given value from the environment as a map of string.
+// ParseStringToStringFromEnv parses given value from the environment as a map of string.
 // Returns default value if envVar is not set.
 func ParseStringToStringFromEnv(envVar string, defaultValue map[string]string, separator string) map[string]string {
 	str := os.Getenv(envVar)

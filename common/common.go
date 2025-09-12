@@ -192,6 +192,8 @@ const (
 	LabelValueSecretTypeRepoCreds = "repo-creds"
 	// LabelValueSecretTypeRepositoryWrite indicates a secret type of repository credentials for writing
 	LabelValueSecretTypeRepositoryWrite = "repository-write"
+	// LabelValueSecretTypeRepoCredsWrite indicates a secret type of repository credentials for writing for templating
+	LabelValueSecretTypeRepoCredsWrite = "repo-write-creds"
 	// LabelValueSecretTypeSCMCreds indicates a secret type of SCM credentials
 	LabelValueSecretTypeSCMCreds = "scm-creds"
 
