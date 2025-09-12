@@ -615,6 +615,26 @@ func TestFailKustomizeBuildPatches(t *testing.T) {
 	require.EqualError(t, err, "kustomization file not found in the path")
 }
 
+func TestKustomizeBuildComponentsNoFoundComponents(t *testing.T) {
+	appPath, err := testDataDir(t, kustomization6)
+	require.NoError(t, err)
+	kustomize := NewKustomizeApp(appPath, appPath, git.NopCreds{}, "", "", "", "")
+
+	// Test with non-existent components and IgnoreMissingComponents = true
+	// This should result in foundComponents being empty, so no "edit add component" command should be executed
+	kustomizeSource := v1alpha1.ApplicationSourceKustomize{
+		Components:              []string{"./non-existent-component1", "./non-existent-component2"},
+		IgnoreMissingComponents: true,
+	}
+	_, _, commands, err := kustomize.Build(&kustomizeSource, nil, nil, nil)
+	require.NoError(t, err)
+
+	// Verify that no "edit add component" command was executed
+	for _, cmd := range commands {
+		assert.NotContains(t, cmd, "edit add component", "kustomize edit add component should not be invoked when foundComponents is empty")
+	}
+}
+
 func Test_getImageParameters_sorted(t *testing.T) {
 	apps := []*unstructured.Unstructured{
 		{

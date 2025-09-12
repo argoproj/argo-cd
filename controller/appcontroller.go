@@ -603,6 +603,9 @@ func (ctrl *ApplicationController) getResourceTree(destCluster *appv1.Cluster, a
 					Group:     managedResource.Group,
 					Namespace: managedResource.Namespace,
 				},
+				Health: &appv1.HealthStatus{
+					Status: health.HealthStatusMissing,
+				},
 			})
 		} else {
 			managedResourcesKeys = append(managedResourcesKeys, kube.GetResourceKey(live))
@@ -1203,7 +1206,7 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 	if err != nil {
 		logCtx.Warnf("Unable to get destination cluster: %v", err)
 		app.UnSetCascadedDeletion()
-		app.UnSetPostDeleteFinalizer()
+		app.UnSetPostDeleteFinalizerAll()
 		if err := ctrl.updateFinalizers(app); err != nil {
 			return err
 		}
@@ -1392,12 +1395,19 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 		logCtx = logCtx.WithField("time_ms", time.Since(ts.StartTime).Milliseconds())
 		logCtx.Debug("Finished processing requested app operation")
 	}()
-	terminating := false
+	terminatingCause := ""
 	if isOperationInProgress(app) {
 		state = app.Status.OperationState.DeepCopy()
-		terminating = state.Phase == synccommon.OperationTerminating
 		switch {
-		case state.FinishedAt != nil && !terminating:
+		case state.Phase == synccommon.OperationTerminating:
+			logCtx.Infof("Resuming in-progress operation. phase: %s, message: %s", state.Phase, state.Message)
+		case ctrl.syncTimeout != time.Duration(0) && time.Now().After(state.StartedAt.Add(ctrl.syncTimeout)):
+			state.Phase = synccommon.OperationTerminating
+			state.Message = "operation is terminating due to timeout"
+			terminatingCause = "controller sync timeout"
+			ctrl.setOperationState(app, state)
+			logCtx.Infof("Terminating in-progress operation due to timeout. Started at: %v, timeout: %v", state.StartedAt, ctrl.syncTimeout)
+		case state.Phase == synccommon.OperationRunning && state.FinishedAt != nil:
 			// Failed operation with retry strategy might be in-progress and has completion time
 			retryAt, err := app.Status.OperationState.Operation.Retry.NextRetryAt(state.FinishedAt.Time, state.RetryCount)
 			if err != nil {
@@ -1407,21 +1417,28 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 				return
 			}
 			retryAfter := time.Until(retryAt)
+
 			if retryAfter > 0 {
 				logCtx.Infof("Skipping retrying in-progress operation. Attempting again at: %s", retryAt.Format(time.RFC3339))
 				ctrl.requestAppRefresh(app.QualifiedName(), CompareWithLatest.Pointer(), &retryAfter)
 				return
 			}
+
+			// Remove the desired revisions if the sync failed and we are retrying. The latest revision from the source will be used.
+			extraMsg := ""
+			if state.Operation.Retry.Refresh {
+				extraMsg += " with latest revisions"
+				state.Operation.Sync.Revision = ""
+				state.Operation.Sync.Revisions = nil
+			}
+
 			// Get rid of sync results and null out previous operation completion time
 			// This will start the retry attempt
+			state.Message = fmt.Sprintf("Retrying operation%s. Attempt #%d", extraMsg, state.RetryCount)
 			state.FinishedAt = nil
 			state.SyncResult = nil
 			ctrl.setOperationState(app, state)
-		case ctrl.syncTimeout != time.Duration(0) && time.Now().After(state.StartedAt.Add(ctrl.syncTimeout)) && !terminating:
-			state.Phase = synccommon.OperationTerminating
-			state.Message = "operation is terminating due to timeout"
-			ctrl.setOperationState(app, state)
-			logCtx.Infof("Terminating in-progress operation due to timeout. Started at: %v, timeout: %v", state.StartedAt, ctrl.syncTimeout)
+			logCtx.Infof("Retrying operation%s. Attempt #%d", extraMsg, state.RetryCount)
 		default:
 			logCtx.Infof("Resuming in-progress operation. phase: %s, message: %s", state.Phase, state.Message)
 		}
@@ -1436,6 +1453,7 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 	}
 	ts.AddCheckpoint("initial_operation_stage_ms")
 
+	terminating := state.Phase == synccommon.OperationTerminating
 	project, err := ctrl.getAppProj(app)
 	if err == nil {
 		// Start or resume the sync
@@ -1463,17 +1481,24 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 	case synccommon.OperationFailed, synccommon.OperationError:
 		if !terminating && (state.RetryCount < state.Operation.Retry.Limit || state.Operation.Retry.Limit < 0) {
 			now := metav1.Now()
-			state.FinishedAt = &now
 			if retryAt, err := state.Operation.Retry.NextRetryAt(now.Time, state.RetryCount); err != nil {
 				state.Phase = synccommon.OperationError
 				state.Message = fmt.Sprintf("%s (failed to retry: %v)", state.Message, err)
 			} else {
+				// Set FinishedAt explicitly on a Running phase. This is a unique condition that will allow this
+				// function to perform a retry the next time the operation is processed.
 				state.Phase = synccommon.OperationRunning
+				state.FinishedAt = &now
 				state.RetryCount++
-				state.Message = fmt.Sprintf("%s due to application controller sync timeout. Retrying attempt #%d at %s.", state.Message, state.RetryCount, retryAt.Format(time.Kitchen))
+				state.Message = fmt.Sprintf("%s. Retrying attempt #%d at %s.", state.Message, state.RetryCount, retryAt.Format(time.Kitchen))
 			}
-		} else if state.RetryCount > 0 {
-			state.Message = fmt.Sprintf("%s (retried %d times).", state.Message, state.RetryCount)
+		} else {
+			if terminating && terminatingCause != "" {
+				state.Message = fmt.Sprintf("%s, triggered by %s", state.Message, terminatingCause)
+			}
+			if state.RetryCount > 0 {
+				state.Message = fmt.Sprintf("%s (retried %d times).", state.Message, state.RetryCount)
+			}
 		}
 	}
 
@@ -2112,16 +2137,20 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 		}
 	}
 
+	source := ptr.To(app.Spec.GetSource())
 	desiredRevisions := []string{syncStatus.Revision}
 	if app.Spec.HasMultipleSources() {
+		source = nil
 		desiredRevisions = syncStatus.Revisions
 	}
 
 	op := appv1.Operation{
 		Sync: &appv1.SyncOperation{
+			Source:      source,
 			Revision:    syncStatus.Revision,
 			Prune:       app.Spec.SyncPolicy.Automated.Prune,
 			SyncOptions: app.Spec.SyncPolicy.SyncOptions,
+			Sources:     app.Spec.Sources,
 			Revisions:   syncStatus.Revisions,
 		},
 		InitiatedBy: appv1.OperationInitiator{Automated: true},

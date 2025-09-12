@@ -1,6 +1,8 @@
 package v1alpha1
 
 import (
+	"bytes"
+	"encoding/gob"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -22,6 +24,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/health"
 	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/cespare/xxhash/v2"
 	"github.com/robfig/cron/v3"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -443,7 +446,12 @@ type SyncSource struct {
 	// TargetBranch is the branch to which hydrated manifests should be committed
 	TargetBranch string `json:"targetBranch" protobuf:"bytes,1,name=targetBranch"`
 	// Path is a directory path within the git repository where hydrated manifests should be committed to and synced
-	// from. If hydrateTo is set, this is just the path from which hydrated manifests will be synced.
+	// from. The Path should never point to the root of the repo. If hydrateTo is set, this is just the path from which
+	// hydrated manifests will be synced.
+	//
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:Pattern=`^.{2,}|[^./]$`
 	Path string `json:"path" protobuf:"bytes,2,name=path"`
 }
 
@@ -1464,6 +1472,8 @@ type RetryStrategy struct {
 	Limit int64 `json:"limit,omitempty" protobuf:"bytes,1,opt,name=limit"`
 	// Backoff controls how to backoff on subsequent retries of failed syncs
 	Backoff *Backoff `json:"backoff,omitempty" protobuf:"bytes,2,opt,name=backoff,casttype=Backoff"`
+	// Refresh indicates if the latest revision should be used on retry instead of the initial one (default: false)
+	Refresh bool `json:"refresh,omitempty" protobuf:"bytes,3,opt,name=refresh"`
 }
 
 func parseStringToDuration(durationString string) (time.Duration, error) {
@@ -1529,7 +1539,7 @@ type SyncPolicyAutomated struct {
 	// AllowEmpty allows apps have zero live resources (default: false)
 	AllowEmpty bool `json:"allowEmpty,omitempty" protobuf:"bytes,3,opt,name=allowEmpty"`
 	// Enable allows apps to explicitly control automated sync
-	Enabled *bool `json:"enabled,omitempty" protobuf:"bytes,4,opt,name=enable"`
+	Enabled *bool `json:"enabled,omitempty" protobuf:"bytes,4,opt,name=enabled"`
 }
 
 // SyncStrategy controls the manner in which a sync is performed
@@ -2234,6 +2244,32 @@ type Cluster struct {
 	Annotations map[string]string `json:"annotations,omitempty" protobuf:"bytes,13,opt,name=annotations"`
 }
 
+func (c *Cluster) Sanitized() *Cluster {
+	return &Cluster{
+		ID:                 c.ID,
+		Server:             c.Server,
+		Name:               c.Name,
+		Project:            c.Project,
+		Namespaces:         c.Namespaces,
+		Shard:              c.Shard,
+		Labels:             c.Labels,
+		Annotations:        c.Annotations,
+		ClusterResources:   c.ClusterResources,
+		ConnectionState:    c.ConnectionState,
+		ServerVersion:      c.ServerVersion,
+		Info:               c.Info,
+		RefreshRequestedAt: c.RefreshRequestedAt,
+		Config: ClusterConfig{
+			AWSAuthConfig:      c.Config.AWSAuthConfig,
+			ProxyUrl:           c.Config.ProxyUrl,
+			DisableCompression: c.Config.DisableCompression,
+			TLSClientConfig: TLSClientConfig{
+				Insecure: c.Config.Insecure,
+			},
+		},
+	}
+}
+
 // Equals returns true if two cluster objects are considered to be equal
 func (c *Cluster) Equals(other *Cluster) bool {
 	if c.Server != other.Server {
@@ -2527,12 +2563,6 @@ type ResourceAction struct {
 type ResourceActionParam struct {
 	// Name is the name of the parameter.
 	Name string `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
-	// Value is the value of the parameter.
-	Value string `json:"value,omitempty" protobuf:"bytes,2,opt,name=value"`
-	// Type is the type of the parameter (e.g., string, integer).
-	Type string `json:"type,omitempty" protobuf:"bytes,3,opt,name=type"`
-	// Default is the default value of the parameter, if any.
-	Default string `json:"default,omitempty" protobuf:"bytes,4,opt,name=default"`
 }
 
 // TODO: refactor to use rbac.ActionGet, rbac.ActionCreate, without import cycle
@@ -3130,6 +3160,30 @@ func (w *SyncWindow) Validate() error {
 	return nil
 }
 
+func (w *SyncWindow) HashIdentity() (uint64, error) {
+	// Create a copy of the window with only the core identity fields
+	// Excluding ManualSync and Description as they are behavioral/metadata fields
+	identityWindow := SyncWindow{
+		Kind:           w.Kind,
+		Schedule:       w.Schedule,
+		Duration:       w.Duration,
+		Applications:   w.Applications,
+		Namespaces:     w.Namespaces,
+		Clusters:       w.Clusters,
+		TimeZone:       w.TimeZone,
+		UseAndOperator: w.UseAndOperator,
+		// ManualSync and Description are excluded as they don't affect window identity
+	}
+
+	var windowBuffer bytes.Buffer
+	enc := gob.NewEncoder(&windowBuffer)
+	err := enc.Encode(identityWindow)
+	if err != nil {
+		return 0, fmt.Errorf("failed to encode sync window for hashing: %w", err)
+	}
+	return xxhash.Sum64(windowBuffer.Bytes()), nil
+}
+
 // DestinationClusters returns a list of cluster URLs allowed as destination in an AppProject
 func (spec AppProjectSpec) DestinationClusters() []string {
 	servers := make([]string, 0)
@@ -3267,6 +3321,14 @@ func (app *Application) HasPostDeleteFinalizer(stage ...string) bool {
 
 func (app *Application) SetPostDeleteFinalizer(stage ...string) {
 	setFinalizer(&app.ObjectMeta, strings.Join(append([]string{PostDeleteFinalizerName}, stage...), "/"), true)
+}
+
+func (app *Application) UnSetPostDeleteFinalizerAll() {
+	for _, finalizer := range app.Finalizers {
+		if strings.HasPrefix(finalizer, PostDeleteFinalizerName) {
+			setFinalizer(&app.ObjectMeta, finalizer, false)
+		}
+	}
 }
 
 func (app *Application) UnSetPostDeleteFinalizer(stage ...string) {

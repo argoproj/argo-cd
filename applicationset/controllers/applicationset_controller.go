@@ -857,7 +857,7 @@ func (r *ApplicationSetReconciler) removeFinalizerOnInvalidDestination(ctx conte
 
 	// Detect if the destination is invalid (name doesn't correspond to a matching cluster)
 	if destCluster, err := argoutil.GetDestinationCluster(ctx, app.Spec.Destination, r.ArgoDB); err != nil {
-		appLog.Warnf("The destination cluster for %s couldn't be found: %v", app.Name, err)
+		appLog.Warnf("The destination cluster for %s could not be found: %v", app.Name, err)
 		validDestination = false
 	} else {
 		// Detect if the destination's server field does not match an existing cluster
@@ -876,7 +876,7 @@ func (r *ApplicationSetReconciler) removeFinalizerOnInvalidDestination(ctx conte
 		}
 
 		if !matchingCluster {
-			appLog.Warnf("A match for the destination cluster for %s, by server url, couldn't be found", app.Name)
+			appLog.Warnf("A match for the destination cluster for %s, by server url, could not be found", app.Name)
 		}
 
 		validDestination = matchingCluster
@@ -1433,17 +1433,37 @@ func (r *ApplicationSetReconciler) setAppSetApplicationStatus(ctx context.Contex
 	needToUpdateStatus := false
 
 	if len(applicationStatuses) != len(applicationSet.Status.ApplicationStatus) {
+		logCtx.WithFields(log.Fields{
+			"current_count":  len(applicationSet.Status.ApplicationStatus),
+			"expected_count": len(applicationStatuses),
+		}).Debug("application status count changed")
 		needToUpdateStatus = true
 	} else {
 		for i := range applicationStatuses {
 			appStatus := applicationStatuses[i]
 			idx := findApplicationStatusIndex(applicationSet.Status.ApplicationStatus, appStatus.Application)
 			if idx == -1 {
+				logCtx.WithFields(log.Fields{"application": appStatus.Application}).Debug("application not found in current status")
 				needToUpdateStatus = true
 				break
 			}
 			currentStatus := applicationSet.Status.ApplicationStatus[idx]
-			if currentStatus.Message != appStatus.Message || currentStatus.Status != appStatus.Status || currentStatus.Step != appStatus.Step {
+			statusChanged := currentStatus.Status != appStatus.Status
+			stepChanged := currentStatus.Step != appStatus.Step
+			messageChanged := currentStatus.Message != appStatus.Message
+
+			if statusChanged || stepChanged || messageChanged {
+				if statusChanged {
+					logCtx.WithFields(log.Fields{"application": appStatus.Application, "previous_status": currentStatus.Status, "new_status": appStatus.Status}).
+						Debug("application status changed")
+				}
+				if stepChanged {
+					logCtx.WithFields(log.Fields{"application": appStatus.Application, "previous_step": currentStatus.Step, "new_step": appStatus.Step}).
+						Debug("application step changed")
+				}
+				if messageChanged {
+					logCtx.WithFields(log.Fields{"application": appStatus.Application}).Debug("application message changed")
+				}
 				needToUpdateStatus = true
 				break
 			}

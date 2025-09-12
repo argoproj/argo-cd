@@ -10,6 +10,14 @@ cmd_button(
     text='make codegen-local',
 )
 
+cmd_button(
+    'make test-local',
+    argv=['sh', '-c', 'make test-local'],
+    location=location.NAV,
+    icon_name='science',
+    text='make test-local',
+)
+
 # add ui button in web ui to run make codegen-local (top nav)
 cmd_button(
     'make cli-local',

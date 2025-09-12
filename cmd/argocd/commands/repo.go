@@ -270,6 +270,19 @@ func NewRepoRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 	command := &cobra.Command{
 		Use:   "rm REPO ...",
 		Short: "Remove configured repositories",
+		Example: `
+  # Remove a single repository
+  argocd repo rm https://github.com/yourusername/your-repo.git
+
+  # Remove multiple repositories
+  argocd repo rm https://github.com/yourusername/your-repo.git https://git.example.com/repo2.git
+
+  # Remove repositories for a specific project
+  argocd repo rm https://github.com/yourusername/your-repo.git --project myproject
+
+  # Remove repository using SSH URL
+  argocd repo rm git@github.com:yourusername/your-repo.git
+`,
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
@@ -355,16 +368,19 @@ func NewRepoListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			conn, repoIf := headless.NewClientOrDie(clientOpts, c).NewRepoClientOrDie()
 			defer utilio.Close(conn)
 			forceRefresh := false
+
 			switch refresh {
 			case "":
 			case "hard":
 				forceRefresh = true
 			default:
-				err := stderrors.New("--refresh must be one of: 'hard'")
+				err := fmt.Errorf("unknown refresh value: %s. Supported values: hard", refresh)
 				errors.CheckError(err)
 			}
+
 			repos, err := repoIf.ListRepositories(ctx, &repositorypkg.RepoQuery{ForceRefresh: forceRefresh})
 			errors.CheckError(err)
+
 			switch output {
 			case "yaml", "json":
 				err := PrintResourceList(repos.Items, output, false)
@@ -375,12 +391,12 @@ func NewRepoListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			case "wide", "":
 				printRepoTable(repos.Items)
 			default:
-				errors.CheckError(fmt.Errorf("unknown output format: %s", output))
+				errors.CheckError(fmt.Errorf("unknown output format: %s. Supported formats: yaml|json|url|wide", output))
 			}
 		},
 	}
-	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide|url")
-	command.Flags().StringVar(&refresh, "refresh", "", "Force a cache refresh on connection status , must be one of: 'hard'")
+	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. Supported formats: yaml|json|url|wide")
+	command.Flags().StringVar(&refresh, "refresh", "", "Force a cache refresh on connection status. Supported values: hard")
 	return command
 }
 
@@ -429,11 +445,12 @@ func NewRepoGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			case "hard":
 				forceRefresh = true
 			default:
-				err := stderrors.New("--refresh must be one of: 'hard'")
+				err := fmt.Errorf("unknown refresh value: %s. Supported values: hard", refresh)
 				errors.CheckError(err)
 			}
 			repo, err := repoIf.Get(ctx, &repositorypkg.RepoQuery{Repo: repoURL, ForceRefresh: forceRefresh, AppProject: project})
 			errors.CheckError(err)
+
 			switch output {
 			case "yaml", "json":
 				err := PrintResource(repo, output)
@@ -444,13 +461,13 @@ func NewRepoGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			case "wide", "":
 				printRepoTable(appsv1.Repositories{repo})
 			default:
-				errors.CheckError(fmt.Errorf("unknown output format: %s", output))
+				errors.CheckError(fmt.Errorf("unknown output format: %s. Supported formats: yaml|json|url|wide", output))
 			}
 		},
 	}
 
 	command.Flags().StringVar(&project, "project", "", "project of the repository")
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide|url")
-	command.Flags().StringVar(&refresh, "refresh", "", "Force a cache refresh on connection status , must be one of: 'hard'")
+	command.Flags().StringVar(&refresh, "refresh", "", "Force a cache refresh on connection status. Supported values: hard")
 	return command
 }

@@ -41,8 +41,9 @@ go_mod_install k8s.io/code-generator/cmd/defaulter-gen
 go_mod_install k8s.io/code-generator/cmd/informer-gen
 go_mod_install k8s.io/code-generator/cmd/lister-gen
 
-# We still install openapi-gen from go.mod since upstream does not utilize release tags
-go_mod_install k8s.io/kube-openapi/cmd/openapi-gen
+# We still install openapi-gen from go.mod since upstream does not utilize release tags. Use go install in order for
+# replace directives to be respected.
+go install k8s.io/kube-openapi/cmd/openapi-gen
 
 # controller-gen is run by ./hack/gen-crd-spec to generate the CRDs
 go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.18.0
@@ -51,7 +52,7 @@ go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.18.0
 go install github.com/go-swagger/go-swagger/cmd/swagger@v0.28.0
 
 # goimports is used to auto-format generated code
-go install golang.org/x/tools/cmd/goimports@v0.1.8
+go install golang.org/x/tools/cmd/goimports@v0.35.0
 
 # mockery is used to generate mock
 # renovate: datasource=go packageName=github.com/vektra/mockery/v3
