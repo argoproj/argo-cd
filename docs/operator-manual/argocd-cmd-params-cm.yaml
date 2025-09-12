@@ -66,6 +66,8 @@ data:
   controller.self.heal.backoff.cap.seconds: "300"
   # Specifies a sync timeout for applications. "0" means no timeout (default "0")
   controller.sync.timeout.seconds: "0"
+  # Specifies the delay in seconds between each sync wave to give other controllers a chance to react to spec changes. (default "2")
+  controller.sync.wave.delay: "2"
 
   # Cache expiration for app state (default 1h0m0s)
   controller.app.state.cache.expiration: "1h0m0s"
