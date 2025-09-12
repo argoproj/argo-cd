@@ -509,3 +509,66 @@ func TestHasShardingUpdates(t *testing.T) {
 		})
 	}
 }
+
+func TestClusterSharding_UpdateShardAndReplicas(t *testing.T) {
+	shard := 1
+	replicas := 2
+	sharding := setupTestSharding(shard, replicas)
+
+	// Add some clusters to test distribution update
+	clusterA := &v1alpha1.Cluster{
+		ID:     "cluster-a",
+		Server: "https://cluster-a.example.com",
+	}
+	clusterB := &v1alpha1.Cluster{
+		ID:     "cluster-b",
+		Server: "https://cluster-b.example.com",
+	}
+	clusterC := &v1alpha1.Cluster{
+		ID:     "cluster-c",
+		Server: "https://cluster-c.example.com",
+	}
+
+	sharding.Add(clusterA)
+	sharding.Add(clusterB)
+	sharding.Add(clusterC)
+
+	// Get initial distribution
+	initialDistribution := sharding.GetDistribution()
+	assert.Len(t, initialDistribution, 3)
+
+	// Test updating to the same shard and replica count
+	result := sharding.UpdateShardAndReplicas(shard, replicas, "legacy")
+	assert.False(t, result)
+	assert.Equal(t, shard, sharding.Shard)
+	assert.Equal(t, replicas, sharding.Replicas)
+
+	// Test updating to a different replica count (scale up)
+	newReplicas := 3
+	result = sharding.UpdateShardAndReplicas(shard, newReplicas, "legacy")
+	assert.True(t, result)
+	assert.Equal(t, shard, sharding.Shard)
+	assert.Equal(t, newReplicas, sharding.Replicas)
+
+	// Verify that distribution was updated
+	updatedDistribution := sharding.GetDistribution()
+	assert.Len(t, updatedDistribution, 3)
+
+	// Test updating to a different shard
+	newShard := 0
+	result = sharding.UpdateShardAndReplicas(newShard, newReplicas, "legacy")
+	assert.True(t, result)
+	assert.Equal(t, newShard, sharding.Shard)
+	assert.Equal(t, newReplicas, sharding.Replicas)
+
+	// Test updating to a different replica count (scale down)
+	newReplicas = 1
+	result = sharding.UpdateShardAndReplicas(newShard, newReplicas, "legacy")
+	assert.True(t, result)
+	assert.Equal(t, newShard, sharding.Shard)
+	assert.Equal(t, newReplicas, sharding.Replicas)
+
+	// Verify that distribution was updated again
+	finalDistribution := sharding.GetDistribution()
+	assert.Len(t, finalDistribution, 3)
+}
