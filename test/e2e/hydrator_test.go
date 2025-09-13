@@ -1,10 +1,17 @@
 package e2e
 
 import (
+	"os"
 	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
+	"github.com/argoproj/argo-cd/v3/util/errors"
 
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
 )
@@ -38,16 +45,13 @@ func TestHydrateTo(t *testing.T) {
 		Wait("--hydrated").
 		Then().
 		Given().
-		// Async so we don't fail immediately on the error
 		Async(true).
 		When().
 		Sync().
 		Wait("--operation").
 		Then().
-		// Fails because we hydrated to env/test-next but not to env/test.
 		Expect(OperationPhaseIs(OperationError)).
 		When().
-		// Will now hydrate to the sync source branch.
 		AppSet("--hydrate-to-branch", "").
 		// a new git commit, that has a new revisionHistoryLimit.
 		PatchFile("guestbook/guestbook-ui-deployment.yaml", `[{"op": "replace", "path": "/spec/revisionHistoryLimit", "value": 10}]`).
@@ -61,7 +65,6 @@ func TestHydrateTo(t *testing.T) {
 }
 
 func TestAddingApp(t *testing.T) {
-	// Make sure that if we add another app targeting the same sync branch, it hydrates correctly.
 	Given(t).
 		Name("test-adding-app-1").
 		DrySourcePath("guestbook").
@@ -92,7 +95,6 @@ func TestAddingApp(t *testing.T) {
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		// Clean up the apps manually since we used custom names.
 		When().
 		Delete(true).
 		Then().
@@ -113,21 +115,176 @@ func TestKustomizeVersionOverride(t *testing.T) {
 		SyncSourcePath("kustomize-with-version-override").
 		SyncSourceBranch("env/test").
 		When().
-		// Skip validation, otherwise app creation will fail on the unsupported kustomize version.
 		CreateApp("--validate=false").
 		Refresh(RefreshTypeNormal).
 		Then().
-		// Expect a failure at first because the kustomize version is not supported.
 		Expect(HydrationPhaseIs(HydrateOperationPhaseFailed)).
-		// Now register the kustomize version override and try again.
 		Given().
 		RegisterKustomizeVersion("v1.2.3", "kustomize").
 		When().
-		// Hard refresh so we don't use the cached error.
 		Refresh(RefreshTypeHard).
 		Wait("--hydrated").
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced))
+}
+
+func TestHydratorWithHelm(t *testing.T) {
+	Given(t).
+		DrySourcePath("hydrator-helm").
+		DrySourceRevision("HEAD").
+		SyncSourcePath("hydrator-helm-output").
+		SyncSourceBranch("env/test").
+		When().
+		CreateApp().
+		Refresh(RefreshTypeNormal).
+		Wait("--hydrated").
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			output, err := fixture.Run("", "kubectl", "-n", fixture.DeploymentNamespace(), "get", "cm", "my-map", "-o", "jsonpath={.data.message}")
+			require.NoError(t, err)
+			assert.Equal(t, "helm-hydrated-successfully", output)
+		})
+}
+
+func TestHydratorWithKustomize(t *testing.T) {
+	Given(t).
+		DrySourcePath("hydrator-kustomize").
+		DrySourceRevision("HEAD").
+		SyncSourcePath("hydrator-kustomize-output").
+		SyncSourceBranch("env/test").
+		When().
+		CreateApp().
+		Refresh(RefreshTypeNormal).
+		Wait("--hydrated").
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			output, err := fixture.Run("", "kubectl", "-n", fixture.DeploymentNamespace(), "get", "cm", "kustomize-my-map", "-o", "jsonpath={.data.message}")
+			require.NoError(t, err)
+			assert.Equal(t, "kustomize-hydrated", output)
+		})
+}
+
+func TestHydratorWithDirectory(t *testing.T) {
+	Given(t).
+		DrySourcePath("hydrator-directory").
+		DrySourceRevision("HEAD").
+		SyncSourcePath("hydrator-directory-output").
+		SyncSourceBranch("env/test").
+		When().
+		CreateApp().
+		Refresh(RefreshTypeNormal).
+		Wait("--hydrated").
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			output, err := fixture.Run("", "kubectl", "-n", fixture.DeploymentNamespace(), "get", "cm", "my-map", "-o", "jsonpath={.data.message}")
+			require.NoError(t, err)
+			assert.Equal(t, "directory-hydrated", output)
+		})
+}
+
+func TestHydratorWithPlugin(t *testing.T) {
+	Given(t).
+		And(func() {
+			go startCMPServerForHydrator(t, "./testdata/hydrator-plugin")
+			time.Sleep(100 * time.Millisecond)
+		}).
+		DrySourcePath("hydrator-plugin").
+		DrySourceRevision("HEAD").
+		SyncSourcePath("hydrator-plugin-output").
+		SyncSourceBranch("env/test").
+		When().
+		CreateApp().
+		Refresh(RefreshTypeNormal).
+		Wait("--hydrated").
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			output, err := fixture.Run("", "kubectl", "-n", fixture.DeploymentNamespace(), "get", "cm", "plugin-generated-map", "-o", "jsonpath={.data.message}")
+			require.NoError(t, err)
+			assert.Equal(t, "plugin-hydrated", output)
+
+			contentOutput, err := fixture.Run("", "kubectl", "-n", fixture.DeploymentNamespace(), "get", "cm", "plugin-generated-map", "-o", "jsonpath={.data.content}")
+			require.NoError(t, err)
+			assert.Equal(t, "This is a test for the plugin.", contentOutput)
+		})
+}
+
+func TestHydratorWithMixedSources(t *testing.T) {
+	Given(t).
+		Name("test-mixed-sources-helm").
+		DrySourcePath("hydrator-helm").
+		DrySourceRevision("HEAD").
+		SyncSourcePath("hydrator-mixed-helm").
+		SyncSourceBranch("env/test").
+		When().
+		CreateApp().
+		Refresh(RefreshTypeNormal).
+		Wait("--hydrated").
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Given().
+		Name("test-mixed-sources-kustomize").
+		DrySourcePath("hydrator-kustomize").
+		DrySourceRevision("HEAD").
+		SyncSourcePath("hydrator-mixed-kustomize").
+		SyncSourceBranch("env/test").
+		When().
+		CreateApp().
+		Refresh(RefreshTypeNormal).
+		Wait("--hydrated").
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		When().
+		Delete(true).
+		Then().
+		Expect(DoesNotExist()).
+		Given().
+		Name("test-mixed-sources-helm").
+		When().
+		Delete(true).
+		Then().
+		Expect(DoesNotExist())
+}
+
+func TestHydratorErrorHandling(t *testing.T) {
+	Given(t).
+		Name("test-hydrator-error-handling").
+		DrySourcePath("non-existent-path").
+		DrySourceRevision("HEAD").
+		SyncSourcePath("hydrator-error-output").
+		SyncSourceBranch("env/test").
+		When().
+		CreateApp().
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(HydrationPhaseIs(HydrateOperationPhaseFailed))
+}
+
+func startCMPServerForHydrator(t *testing.T, configFile string) {
+	t.Helper()
+	pluginSockFilePath := fixture.TmpDir + fixture.PluginSockFilePath
+	t.Setenv("ARGOCD_BINARY_NAME", "argocd-cmp-server")
+	t.Setenv("ARGOCD_PLUGINSOCKFILEPATH", pluginSockFilePath)
+	if _, err := os.Stat(pluginSockFilePath); os.IsNotExist(err) {
+		err := os.Mkdir(pluginSockFilePath, 0o700)
+		require.NoError(t, err)
+	}
+	errors.NewHandler(t).FailOnErr(fixture.RunWithStdin("", "", "../../dist/argocd", "--config-dir-path", configFile))
 }
