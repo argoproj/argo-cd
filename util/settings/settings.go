@@ -136,6 +136,9 @@ type ArgoCDSettings struct {
 	// token verification to pass despite the OIDC provider having an invalid certificate. Only set to `true` if you
 	// understand the risks.
 	OIDCTLSInsecureSkipVerify bool `json:"oidcTLSInsecureSkipVerify"`
+	// OIDCRefreshTokenThreshold sets the threshold for preemptive server-side token refresh.  If set to 0, tokens
+	// will not be refreshed and will expire before client is redirected to login.
+	OIDCRefreshTokenThreshold time.Duration `json:"oidcRefreshTokenThreshold,omitempty"`
 	// AppsInAnyNamespaceEnabled indicates whether applications are allowed to be created in any namespace
 	AppsInAnyNamespaceEnabled bool `json:"appsInAnyNamespaceEnabled"`
 	// ExtensionConfig configurations related to ArgoCD proxy extensions. The keys are the extension name.
@@ -193,6 +196,7 @@ func (o *oidcConfig) toExported() *OIDCConfig {
 		UserInfoPath:             o.UserInfoPath,
 		EnableUserInfoGroups:     o.EnableUserInfoGroups,
 		UserInfoCacheExpiration:  o.UserInfoCacheExpiration,
+		RefreshTokenThreshold:    o.RefreshTokenThreshold,
 		RequestedScopes:          o.RequestedScopes,
 		RequestedIDTokenClaims:   o.RequestedIDTokenClaims,
 		LogoutURL:                o.LogoutURL,
@@ -218,6 +222,7 @@ type OIDCConfig struct {
 	EnablePKCEAuthentication bool                   `json:"enablePKCEAuthentication,omitempty"`
 	DomainHint               string                 `json:"domainHint,omitempty"`
 	Azure                    *AzureOIDCConfig       `json:"azure,omitempty"`
+	RefreshTokenThreshold    string                 `json:"refreshTokenThreshold,omitempty"`
 }
 
 type AzureOIDCConfig struct {
@@ -1442,6 +1447,7 @@ func getDownloadBinaryUrlsFromConfigMap(argoCDCM *corev1.ConfigMap) map[string]s
 func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *corev1.ConfigMap) {
 	settings.DexConfig = argoCDCM.Data[settingDexConfigKey]
 	settings.OIDCConfigRAW = argoCDCM.Data[settingsOIDCConfigKey]
+	settings.OIDCRefreshTokenThreshold = settings.RefreshTokenThreshold()
 	settings.KustomizeBuildOptions = argoCDCM.Data[kustomizeBuildOptionsKey]
 	settings.StatusBadgeEnabled = argoCDCM.Data[statusBadgeEnabledKey] == "true"
 	settings.StatusBadgeRootUrl = argoCDCM.Data[statusBadgeRootURLKey]
@@ -1892,6 +1898,18 @@ func (a *ArgoCDSettings) UserInfoCacheExpiration() time.Duration {
 	return 0
 }
 
+// RefreshTokenThreshold returns the duration before token expiration that a token should be refreshed by the server
+func (a *ArgoCDSettings) RefreshTokenThreshold() time.Duration {
+	if oidcConfig := a.OIDCConfig(); oidcConfig != nil && oidcConfig.RefreshTokenThreshold != "" {
+		refreshTokenThreshold, err := time.ParseDuration(oidcConfig.RefreshTokenThreshold)
+		if err != nil {
+			log.Warnf("Failed to parse 'oidc.config.refreshTokenThreshold' key: %v", err)
+		}
+		return refreshTokenThreshold
+	}
+	return 0
+}
+
 func (a *ArgoCDSettings) OAuth2ClientID() string {
 	if oidcConfig := a.OIDCConfig(); oidcConfig != nil {
 		return oidcConfig.ClientID
@@ -2011,6 +2029,9 @@ func (a *ArgoCDSettings) ArgoURLForRequest(r *http.Request) (string, error) {
 }
 
 func (a *ArgoCDSettings) RedirectURLForRequest(r *http.Request) (string, error) {
+	if r == nil {
+		return "", errors.New("request is nil")
+	}
 	base, err := a.ArgoURLForRequest(r)
 	if err != nil {
 		return "", err

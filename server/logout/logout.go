@@ -31,7 +31,7 @@ func NewHandler(settingsMrg *settings.SettingsManager, sessionMgr *session.Sessi
 type Handler struct {
 	settingsMgr *settings.SettingsManager
 	rootPath    string
-	verifyToken func(tokenString string) (jwt.Claims, string, error)
+	verifyToken func(ctx context.Context, tokenString string) (jwt.Claims, string, error)
 	revokeToken func(ctx context.Context, id string, expiringAt time.Duration) error
 	baseHRef    string
 }
@@ -94,7 +94,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.Header().Add("Set-Cookie", argocdCookie.String())
 	}
 
-	claims, _, err := h.verifyToken(tokenString)
+	claims, _, err := h.verifyToken(r.Context(), tokenString)
 	if err != nil {
 		http.Redirect(w, r, logoutRedirectURL, http.StatusSeeOther)
 		return
