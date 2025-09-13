@@ -144,7 +144,7 @@ func TestHydratorWithHelm(t *testing.T) {
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			output, err := fixture.Run("", "kubectl", "-n", fixture.DeploymentNamespace(), "get", "cm", "my-map", "-o", "jsonpath={.data.message}")
 			require.NoError(t, err)
 			assert.Equal(t, "helm-hydrated-successfully", output)
@@ -165,7 +165,7 @@ func TestHydratorWithKustomize(t *testing.T) {
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			output, err := fixture.Run("", "kubectl", "-n", fixture.DeploymentNamespace(), "get", "cm", "kustomize-my-map", "-o", "jsonpath={.data.message}")
 			require.NoError(t, err)
 			assert.Equal(t, "kustomize-hydrated", output)
@@ -186,7 +186,7 @@ func TestHydratorWithDirectory(t *testing.T) {
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			output, err := fixture.Run("", "kubectl", "-n", fixture.DeploymentNamespace(), "get", "cm", "my-map", "-o", "jsonpath={.data.message}")
 			require.NoError(t, err)
 			assert.Equal(t, "directory-hydrated", output)
@@ -211,7 +211,7 @@ func TestHydratorWithPlugin(t *testing.T) {
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			output, err := fixture.Run("", "kubectl", "-n", fixture.DeploymentNamespace(), "get", "cm", "plugin-generated-map", "-o", "jsonpath={.data.message}")
 			require.NoError(t, err)
 			assert.Equal(t, "plugin-hydrated", output)
