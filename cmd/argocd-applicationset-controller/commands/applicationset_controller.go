@@ -43,6 +43,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/db"
 	"github.com/argoproj/argo-cd/v3/util/errors"
 	argosettings "github.com/argoproj/argo-cd/v3/util/settings"
+	clusterv1alpha1 "sigs.k8s.io/cluster-inventory-api/apis/v1alpha1"
 )
 
 var gitSubmoduleEnabled = env.ParseBoolFromEnv(common.EnvGitSubmoduleEnabled, true)
@@ -83,6 +84,7 @@ func NewCommand() *cobra.Command {
 	scheme := runtime.NewScheme()
 	_ = clientgoscheme.AddToScheme(scheme)
 	_ = appv1alpha1.AddToScheme(scheme)
+	_ = clusterv1alpha1.AddToScheme(scheme)
 	command := cobra.Command{
 		Use:               cliName,
 		Short:             "Starts Argo CD ApplicationSet controller",

@@ -11,5 +11,5 @@ resources:
 - ../base/redis
 images:
 - name: quay.io/argoproj/argocd
-  newName: quay.io/argoproj/argocd
+  newName: us-central1-docker.pkg.dev/maralder-anthos-dev/argocd-images/argocd
   newTag: latest
