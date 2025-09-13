@@ -15,3 +15,7 @@ tests:
     status: Degraded
     message: "Initiating a failover from cluster-example-2"
   inputPath: testdata/cluster_degraded.yaml
+- healthStatus:
+    status: Suspended
+    message: "Cluster reconciliation is suspended"
+  inputPath: testdata/cluster_reconcile_suspended.yaml

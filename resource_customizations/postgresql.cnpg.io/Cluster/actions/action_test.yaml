@@ -1,0 +1,33 @@
+actionTests:
+  - action: promote
+    inputPath: testdata/cluster_healthy.yaml
+    expectedOutputPath: testdata/cluster_promoting.yaml
+    parameters:
+      instance: 'any'
+  - action: promote
+    inputPath: testdata/cluster_healthy.yaml
+    expectedOutputPath: testdata/cluster_promoting.yaml
+    parameters:
+      instance: '2'
+  - action: promote
+    inputPath: testdata/cluster_healthy.yaml
+    expectedOutputPath: testdata/cluster_promoting.yaml
+    parameters:
+      instance: 'cluster-example-2'
+  - action: promote
+    inputPath: testdata/cluster_healthy.yaml
+    expectedErrorMessage: 'Could not find a healthy instance matching the criteria: nonexistent-instance'
+    parameters:
+      instance: 'nonexistent-instance'
+  - action: reload
+    inputPath: testdata/cluster_healthy.yaml
+    expectedOutputPath: testdata/cluster_reload.yaml
+  - action: restart
+    inputPath: testdata/cluster_healthy.yaml
+    expectedOutputPath: testdata/cluster_restart.yaml
+  - action: suspend
+    inputPath: testdata/cluster_healthy.yaml
+    expectedOutputPath: testdata/cluster_reconcile_suspended.yaml
+  - action: resume
+    inputPath: testdata/cluster_reconcile_suspended.yaml
+    expectedOutputPath: testdata/cluster_healthy.yaml
