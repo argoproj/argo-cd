@@ -132,7 +132,11 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			status = app.Status.Sync.Status
 			applicationName = name[0]
 			if app.Status.OperationState != nil && app.Status.OperationState.SyncResult != nil {
-				revision = app.Status.OperationState.SyncResult.Revision
+				if len(app.Status.OperationState.SyncResult.Revisions) > 0 {
+					revision = app.Status.OperationState.SyncResult.Revisions[0]
+				} else {
+					revision = app.Status.OperationState.SyncResult.Revision
+				}
 			}
 		} else if errors.IsNotFound(err) {
 			notFound = true

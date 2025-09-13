@@ -471,19 +471,8 @@ func (s *Server) RotateAuth(ctx context.Context, q *cluster.ClusterQuery) (*clus
 }
 
 func (s *Server) toAPIResponse(clust *appv1.Cluster) *appv1.Cluster {
+	clust = clust.Sanitized()
 	_ = s.cache.GetClusterInfo(clust.Server, &clust.Info)
-
-	clust.Config.Password = ""
-	clust.Config.BearerToken = ""
-	clust.Config.KeyData = nil
-	if clust.Config.ExecProviderConfig != nil {
-		// We can't know what the user has put into args or
-		// env vars on the exec provider that might be sensitive
-		// (e.g. --private-key=XXX, PASSWORD=XXX)
-		// Implicitly assumes the command executable name is non-sensitive
-		clust.Config.ExecProviderConfig.Env = make(map[string]string)
-		clust.Config.ExecProviderConfig.Args = nil
-	}
 	// populate deprecated fields for backward compatibility
 	//nolint:staticcheck
 	clust.ServerVersion = clust.Info.ServerVersion

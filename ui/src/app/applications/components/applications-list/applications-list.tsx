@@ -39,6 +39,7 @@ const APP_FIELDS = [
     'metadata.deletionTimestamp',
     'spec',
     'operation.sync',
+    'status.sourceHydrator',
     'status.sync.status',
     'status.sync.revision',
     'status.health',
