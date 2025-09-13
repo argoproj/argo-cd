@@ -140,9 +140,11 @@ argocd login cd.argoproj.io --core`,
 					errors.CheckError(err)
 					tokenString, refreshToken = oauth2Login(ctx, ssoPort, acdSet.GetOIDCConfig(), oauth2conf, provider, ssoLaunchBrowser)
 				}
-				parser := jwt.NewParser(jwt.WithoutClaimsValidation())
-				claims := jwt.MapClaims{}
-				_, _, err := parser.ParseUnverified(tokenString, &claims)
+				verifier := provider.Verifier(&oidc.Config{ClientID: oauth2conf.ClientID})
+				idToken, err := verifier.Verify(ctx, tokenString)
+				errors.CheckError(err)
+				claims := map[string]interface{}{}
+				err = idToken.Claims(&claims)
 				errors.CheckError(err)
 				fmt.Printf("'%s' logged in successfully\n", userDisplayName(claims))
 			}
