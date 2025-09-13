@@ -108,7 +108,11 @@ export const ApplicationDeploymentHistoryDetails = ({app, info, index}: props) =
                                 errorRenderer={err => {
                                     return getErrorSection(err);
                                 }}
-                                input={{...recentDeployments[index].source, targetRevision: recentDeployments[index].revision, appName: app.metadata.namespace + '/' + app.metadata.name}}
+                                input={{
+                                    ...recentDeployments[index].source,
+                                    targetRevision: recentDeployments[index].revision,
+                                    appName: app.metadata.namespace + '/' + app.metadata.name
+                                }}
                                 load={src => services.repos.appDetails(src, src.appName, app.spec.project, 0, recentDeployments[index].id)}>
                                 {(details: models.RepoAppDetails) => (
                                     <div>
