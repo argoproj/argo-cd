@@ -1975,6 +1975,193 @@ func Test_newEnv_BuildMetadata(t *testing.T) {
 	assert.Equal(t, expected, envWithMetadata)
 }
 
+func Test_newEnv_RevisionMetadata_AllResolutionTypes(t *testing.T) {
+	baseRequest := &apiclient.ManifestRequest{
+		AppName:     "test-app",
+		Namespace:   "test-namespace",
+		ProjectName: "test-project",
+		Repo:        &v1alpha1.Repository{Repo: "https://github.com/test/repo"},
+		ApplicationSource: &v1alpha1.ApplicationSource{
+			Path:           "test-path",
+			TargetRevision: "test-target",
+		},
+	}
+
+	testCases := []struct {
+		name                     string
+		revisionMetadata         *versions.RevisionMetadata
+		expectedOriginalRevision string
+		expectedResolutionType   string
+		expectedResolvedTag      string
+		expectedResolvedTo       string
+	}{
+		{
+			name: "Direct resolution",
+			revisionMetadata: versions.NewRevisionMetadata("v1.2.3", versions.RevisionResolutionDirect).
+				WithResolvedTag("v1.2.3"),
+			expectedOriginalRevision: "v1.2.3",
+			expectedResolutionType:   "direct",
+			expectedResolvedTag:      "v1.2.3",
+			expectedResolvedTo:       "", // Not set for direct resolution
+		},
+		{
+			name: "Range resolution",
+			revisionMetadata: versions.NewRevisionMetadata("^1.0.0", versions.RevisionResolutionRange).
+				WithResolvedTag("1.2.3"),
+			expectedOriginalRevision: "^1.0.0",
+			expectedResolutionType:   "range",
+			expectedResolvedTag:      "1.2.3",
+			expectedResolvedTo:       "", // Not set for range resolution
+		},
+		{
+			name: "Symbolic reference resolution (Git)",
+			revisionMetadata: versions.NewRevisionMetadata("HEAD", versions.RevisionResolutionSymbolicReference).
+				WithResolvedTo("refs/heads/main"),
+			expectedOriginalRevision: "HEAD",
+			expectedResolutionType:   "symbolic_reference",
+			expectedResolvedTag:      "", // Not set for symbolic reference
+			expectedResolvedTo:       "refs/heads/main",
+		},
+		{
+			name: "Truncated commit SHA resolution (Git)",
+			revisionMetadata: versions.NewRevisionMetadata("abc1234", versions.RevisionResolutionTruncatedCommitSHA).
+				WithResolvedTag("abc1234"),
+			expectedOriginalRevision: "abc1234",
+			expectedResolutionType:   "truncated_commit_sha",
+			expectedResolvedTag:      "abc1234",
+			expectedResolvedTo:       "", // Not set for commit SHA
+		},
+		{
+			name: "Version resolution (OCI/Helm)",
+			revisionMetadata: versions.NewRevisionMetadata("latest", versions.RevisionResolutionVersion).
+				WithResolvedTag("sha256:abc123"),
+			expectedOriginalRevision: "latest",
+			expectedResolutionType:   "version",
+			expectedResolvedTag:      "sha256:abc123",
+			expectedResolvedTo:       "", // Not set for version resolution
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			metadata := &BuildMetadata{
+				RevisionMetadata: tc.revisionMetadata,
+			}
+
+			env := newEnv(baseRequest, "test-revision", metadata)
+
+			// Convert to map for easier testing
+			envMap := make(map[string]string)
+			for _, entry := range *env {
+				envMap[entry.Name] = entry.Value
+			}
+
+			// Check that all expected environment variables are present
+			if tc.expectedOriginalRevision != "" {
+				assert.Equal(t, tc.expectedOriginalRevision, envMap["ARGOCD_ORIGINAL_REVISION"], "ARGOCD_ORIGINAL_REVISION mismatch")
+			} else {
+				assert.NotContains(t, envMap, "ARGOCD_ORIGINAL_REVISION", "ARGOCD_ORIGINAL_REVISION should not be present")
+			}
+
+			if tc.expectedResolutionType != "" {
+				assert.Equal(t, tc.expectedResolutionType, envMap["ARGOCD_RESOLUTION_TYPE"], "ARGOCD_RESOLUTION_TYPE mismatch")
+			} else {
+				assert.NotContains(t, envMap, "ARGOCD_RESOLUTION_TYPE", "ARGOCD_RESOLUTION_TYPE should not be present")
+			}
+
+			if tc.expectedResolvedTag != "" {
+				assert.Equal(t, tc.expectedResolvedTag, envMap["ARGOCD_RESOLVED_TAG"], "ARGOCD_RESOLVED_TAG mismatch")
+			} else {
+				assert.NotContains(t, envMap, "ARGOCD_RESOLVED_TAG", "ARGOCD_RESOLVED_TAG should not be present")
+			}
+
+			if tc.expectedResolvedTo != "" {
+				assert.Equal(t, tc.expectedResolvedTo, envMap["ARGOCD_RESOLVED_TO"], "ARGOCD_RESOLVED_TO mismatch")
+			} else {
+				assert.NotContains(t, envMap, "ARGOCD_RESOLVED_TO", "ARGOCD_RESOLVED_TO should not be present")
+			}
+
+			// Verify basic environment variables are still present
+			assert.Equal(t, "test-app", envMap["ARGOCD_APP_NAME"])
+			assert.Equal(t, "test-namespace", envMap["ARGOCD_APP_NAMESPACE"])
+			assert.Equal(t, "test-project", envMap["ARGOCD_APP_PROJECT_NAME"])
+		})
+	}
+}
+
+func Test_newEnv_RevisionMetadata_EmptyAndNil(t *testing.T) {
+	baseRequest := &apiclient.ManifestRequest{
+		AppName:     "test-app",
+		Namespace:   "test-namespace",
+		ProjectName: "test-project",
+		Repo:        &v1alpha1.Repository{Repo: "https://github.com/test/repo"},
+		ApplicationSource: &v1alpha1.ApplicationSource{
+			Path:           "test-path",
+			TargetRevision: "test-target",
+		},
+	}
+
+	t.Run("Nil metadata", func(t *testing.T) {
+		env := newEnv(baseRequest, "test-revision", nil)
+
+		envMap := make(map[string]string)
+		for _, entry := range *env {
+			envMap[entry.Name] = entry.Value
+		}
+
+		// Should not contain any revision metadata environment variables
+		assert.NotContains(t, envMap, "ARGOCD_ORIGINAL_REVISION")
+		assert.NotContains(t, envMap, "ARGOCD_RESOLUTION_TYPE")
+		assert.NotContains(t, envMap, "ARGOCD_RESOLVED_TAG")
+		assert.NotContains(t, envMap, "ARGOCD_RESOLVED_TO")
+
+		// But should still contain basic app environment variables
+		assert.Equal(t, "test-app", envMap["ARGOCD_APP_NAME"])
+	})
+
+	t.Run("Empty RevisionMetadata", func(t *testing.T) {
+		metadata := &BuildMetadata{
+			RevisionMetadata: &versions.RevisionMetadata{}, // Empty struct
+		}
+
+		env := newEnv(baseRequest, "test-revision", metadata)
+
+		envMap := make(map[string]string)
+		for _, entry := range *env {
+			envMap[entry.Name] = entry.Value
+		}
+
+		// Should not contain revision metadata environment variables for empty metadata
+		assert.NotContains(t, envMap, "ARGOCD_ORIGINAL_REVISION")
+		assert.NotContains(t, envMap, "ARGOCD_RESOLUTION_TYPE")
+		assert.NotContains(t, envMap, "ARGOCD_RESOLVED_TAG")
+		assert.NotContains(t, envMap, "ARGOCD_RESOLVED_TO")
+	})
+
+	t.Run("Partial metadata", func(t *testing.T) {
+		metadata := &BuildMetadata{
+			RevisionMetadata: &versions.RevisionMetadata{
+				OriginalRevision: "v1.0.0",
+				ResolutionType:   versions.RevisionResolutionDirect,
+				// ResolvedTag and ResolvedTo intentionally left empty
+			},
+		}
+
+		env := newEnv(baseRequest, "test-revision", metadata)
+
+		envMap := make(map[string]string)
+		for _, entry := range *env {
+			envMap[entry.Name] = entry.Value
+		}
+
+		// Should contain only the non-empty fields
+		assert.Equal(t, "v1.0.0", envMap["ARGOCD_ORIGINAL_REVISION"])
+		assert.Equal(t, "direct", envMap["ARGOCD_RESOLUTION_TYPE"])
+		assert.NotContains(t, envMap, "ARGOCD_RESOLVED_TAG")
+		assert.NotContains(t, envMap, "ARGOCD_RESOLVED_TO")
+	})
+}
+
 func TestService_newHelmClientResolveRevision(t *testing.T) {
 	service := newService(t, ".")
 
