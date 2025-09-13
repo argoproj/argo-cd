@@ -7650,3 +7650,276 @@ func TestIsRollingSyncDeletionReversed(t *testing.T) {
 		})
 	}
 }
+
+func TestIsApplicationHealthy(t *testing.T) {
+	tests := []struct {
+		name           string
+		app            v1alpha1.Application
+		expectedResult bool
+	}{
+		{
+			name: "healthy application with synced status and succeeded operation",
+			app: v1alpha1.Application{
+				Status: v1alpha1.ApplicationStatus{
+					Health: v1alpha1.AppHealthStatus{
+						Status: health.HealthStatusHealthy,
+					},
+					Sync: v1alpha1.SyncStatus{
+						Status: v1alpha1.SyncStatusCodeSynced,
+					},
+					OperationState: &v1alpha1.OperationState{
+						Phase: common.OperationSucceeded,
+					},
+				},
+			},
+			expectedResult: true,
+		},
+		{
+			name: "healthy application with synced status and no operation",
+			app: v1alpha1.Application{
+				Status: v1alpha1.ApplicationStatus{
+					Health: v1alpha1.AppHealthStatus{
+						Status: health.HealthStatusHealthy,
+					},
+					Sync: v1alpha1.SyncStatus{
+						Status: v1alpha1.SyncStatusCodeSynced,
+					},
+					OperationState: nil,
+				},
+			},
+			expectedResult: true,
+		},
+		{
+			name: "healthy application with unknown sync status and succeeded operation",
+			app: v1alpha1.Application{
+				Status: v1alpha1.ApplicationStatus{
+					Health: v1alpha1.AppHealthStatus{
+						Status: health.HealthStatusHealthy,
+					},
+					Sync: v1alpha1.SyncStatus{
+						Status: v1alpha1.SyncStatusCodeUnknown,
+					},
+					OperationState: &v1alpha1.OperationState{
+						Phase: common.OperationSucceeded,
+					},
+				},
+			},
+			expectedResult: true,
+		},
+		{
+			name: "degraded health status",
+			app: v1alpha1.Application{
+				Status: v1alpha1.ApplicationStatus{
+					Health: v1alpha1.AppHealthStatus{
+						Status: health.HealthStatusDegraded,
+					},
+					Sync: v1alpha1.SyncStatus{
+						Status: v1alpha1.SyncStatusCodeSynced,
+					},
+					OperationState: &v1alpha1.OperationState{
+						Phase: common.OperationSucceeded,
+					},
+				},
+			},
+			expectedResult: false,
+		},
+		{
+			name: "progressing health status",
+			app: v1alpha1.Application{
+				Status: v1alpha1.ApplicationStatus{
+					Health: v1alpha1.AppHealthStatus{
+						Status: health.HealthStatusProgressing,
+					},
+					Sync: v1alpha1.SyncStatus{
+						Status: v1alpha1.SyncStatusCodeSynced,
+					},
+					OperationState: &v1alpha1.OperationState{
+						Phase: common.OperationSucceeded,
+					},
+				},
+			},
+			expectedResult: false,
+		},
+		{
+			name: "missing health status",
+			app: v1alpha1.Application{
+				Status: v1alpha1.ApplicationStatus{
+					Health: v1alpha1.AppHealthStatus{
+						Status: health.HealthStatusMissing,
+					},
+					Sync: v1alpha1.SyncStatus{
+						Status: v1alpha1.SyncStatusCodeSynced,
+					},
+					OperationState: &v1alpha1.OperationState{
+						Phase: common.OperationSucceeded,
+					},
+				},
+			},
+			expectedResult: false,
+		},
+		{
+			name: "unknown health status",
+			app: v1alpha1.Application{
+				Status: v1alpha1.ApplicationStatus{
+					Health: v1alpha1.AppHealthStatus{
+						Status: health.HealthStatusUnknown,
+					},
+					Sync: v1alpha1.SyncStatus{
+						Status: v1alpha1.SyncStatusCodeSynced,
+					},
+					OperationState: &v1alpha1.OperationState{
+						Phase: common.OperationSucceeded,
+					},
+				},
+			},
+			expectedResult: false,
+		},
+		{
+			name: "healthy but out of sync",
+			app: v1alpha1.Application{
+				Status: v1alpha1.ApplicationStatus{
+					Health: v1alpha1.AppHealthStatus{
+						Status: health.HealthStatusHealthy,
+					},
+					Sync: v1alpha1.SyncStatus{
+						Status: v1alpha1.SyncStatusCodeOutOfSync,
+					},
+					OperationState: &v1alpha1.OperationState{
+						Phase: common.OperationSucceeded,
+					},
+				},
+			},
+			expectedResult: false,
+		},
+		{
+			name: "healthy and synced but operation running",
+			app: v1alpha1.Application{
+				Status: v1alpha1.ApplicationStatus{
+					Health: v1alpha1.AppHealthStatus{
+						Status: health.HealthStatusHealthy,
+					},
+					Sync: v1alpha1.SyncStatus{
+						Status: v1alpha1.SyncStatusCodeSynced,
+					},
+					OperationState: &v1alpha1.OperationState{
+						Phase: common.OperationRunning,
+					},
+				},
+			},
+			expectedResult: false,
+		},
+		{
+			name: "healthy and synced but operation failed",
+			app: v1alpha1.Application{
+				Status: v1alpha1.ApplicationStatus{
+					Health: v1alpha1.AppHealthStatus{
+						Status: health.HealthStatusHealthy,
+					},
+					Sync: v1alpha1.SyncStatus{
+						Status: v1alpha1.SyncStatusCodeSynced,
+					},
+					OperationState: &v1alpha1.OperationState{
+						Phase: common.OperationFailed,
+					},
+				},
+			},
+			expectedResult: false,
+		},
+		{
+			name: "healthy and synced but operation error",
+			app: v1alpha1.Application{
+				Status: v1alpha1.ApplicationStatus{
+					Health: v1alpha1.AppHealthStatus{
+						Status: health.HealthStatusHealthy,
+					},
+					Sync: v1alpha1.SyncStatus{
+						Status: v1alpha1.SyncStatusCodeSynced,
+					},
+					OperationState: &v1alpha1.OperationState{
+						Phase: common.OperationError,
+					},
+				},
+			},
+			expectedResult: false,
+		},
+		{
+			name: "all conditions failing",
+			app: v1alpha1.Application{
+				Status: v1alpha1.ApplicationStatus{
+					Health: v1alpha1.AppHealthStatus{
+						Status: health.HealthStatusDegraded,
+					},
+					Sync: v1alpha1.SyncStatus{
+						Status: v1alpha1.SyncStatusCodeOutOfSync,
+					},
+					OperationState: &v1alpha1.OperationState{
+						Phase: common.OperationFailed,
+					},
+				},
+			},
+			expectedResult: false,
+		},
+		{
+			name: "empty health status string",
+			app: v1alpha1.Application{
+				Status: v1alpha1.ApplicationStatus{
+					Health: v1alpha1.AppHealthStatus{
+						Status: "",
+					},
+					Sync: v1alpha1.SyncStatus{
+						Status: v1alpha1.SyncStatusCodeSynced,
+					},
+					OperationState: &v1alpha1.OperationState{
+						Phase: common.OperationSucceeded,
+					},
+				},
+			},
+			expectedResult: false,
+		},
+		{
+			name: "empty sync status string",
+			app: v1alpha1.Application{
+				Status: v1alpha1.ApplicationStatus{
+					Health: v1alpha1.AppHealthStatus{
+						Status: health.HealthStatusHealthy,
+					},
+					Sync: v1alpha1.SyncStatus{
+						Status: "",
+					},
+					OperationState: &v1alpha1.OperationState{
+						Phase: common.OperationSucceeded,
+					},
+				},
+			},
+			expectedResult: true, // empty sync status is not "OutOfSync" so it passes
+		},
+		{
+			name: "completely empty application status",
+			app: v1alpha1.Application{
+				Status: v1alpha1.ApplicationStatus{},
+			},
+			expectedResult: false,
+		},
+		{
+			name: "no Operation state",
+			app: v1alpha1.Application{
+				Status: v1alpha1.ApplicationStatus{
+					Health: v1alpha1.AppHealthStatus{
+						Status: health.HealthStatusHealthy,
+					},
+					Sync: v1alpha1.SyncStatus{
+						Status: "",
+					},
+				},
+			},
+			expectedResult: true, // no OperationState defaults OperationPhaseString to "", thus passes
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := isApplicationHealthy(tt.app)
+			assert.Equal(t, tt.expectedResult, result, "isApplicationHealthy() result mismatch")
+		})
+	}
+}
