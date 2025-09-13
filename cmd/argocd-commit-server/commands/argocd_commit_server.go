@@ -35,7 +35,7 @@ func NewCommand() *cobra.Command {
 		metricsHost string
 	)
 	command := &cobra.Command{
-		Use:   common.CommitServer,
+		Use:   common.CommandCommitServer,
 		Short: "Run Argo CD Commit Server",
 		Long:  "Argo CD Commit Server is an internal service which commits and pushes hydrated manifests to git. This command runs Commit Server in the foreground.",
 		RunE: func(cmd *cobra.Command, _ []string) error {

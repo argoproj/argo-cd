@@ -52,7 +52,7 @@ func NewCommand() *cobra.Command {
 		selfServiceNotificationEnabled bool
 	)
 	command := cobra.Command{
-		Use:   common.Notifications,
+		Use:   common.CommandNotifications,
 		Short: "Starts Argo CD Notifications controller",
 		RunE: func(_ *cobra.Command, _ []string) error {
 			ctx, cancel := context.WithCancel(context.Background())

@@ -97,7 +97,7 @@ func NewCommand() *cobra.Command {
 		hydratorEnabled bool
 	)
 	command := cobra.Command{
-		Use:               common.ApplicationController,
+		Use:               common.CommandApplicationController,
 		Short:             "Run ArgoCD Application Controller",
 		Long:              "ArgoCD application controller is a Kubernetes controller that continuously monitors running applications and compares the current, live state against the desired target state (as specified in the repo). This command runs Application Controller in the foreground.  It can be configured by following options.",
 		DisableAutoGenTag: true,

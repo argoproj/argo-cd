@@ -48,7 +48,7 @@ func NewVersionCmd(clientOpts *argocdclient.ClientOptions, serverVersion *versio
 				v := make(map[string]any)
 
 				if short {
-					v["client"] = map[string]string{common.CLI: cv.Version}
+					v["client"] = map[string]string{common.CommandCLI: cv.Version}
 				} else {
 					v["client"] = cv
 				}
@@ -103,7 +103,7 @@ func getServerVersion(ctx context.Context, options *argocdclient.ClientOptions, 
 }
 
 func printClientVersion(version *common.Version, short bool) string {
-	output := fmt.Sprintf("%s: %s\n", common.CLI, version)
+	output := fmt.Sprintf("%s: %s\n", common.CommandCLI, version)
 	if short {
 		return output
 	}

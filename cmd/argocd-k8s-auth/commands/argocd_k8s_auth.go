@@ -8,7 +8,7 @@ import (
 
 func NewCommand() *cobra.Command {
 	command := &cobra.Command{
-		Use:               common.K8sAuth,
+		Use:               common.CommandK8sAuth,
 		Short:             "argocd-k8s-auth a set of commands to generate k8s auth token",
 		DisableAutoGenTag: true,
 		Run: func(c *cobra.Command, args []string) {

@@ -83,7 +83,7 @@ func NewCommand() *cobra.Command {
 	_ = clientgoscheme.AddToScheme(scheme)
 	_ = appv1alpha1.AddToScheme(scheme)
 	command := cobra.Command{
-		Use:               common.ApplicationSetController,
+		Use:               common.CommandApplicationSetController,
 		Short:             "Starts Argo CD ApplicationSet controller",
 		DisableAutoGenTag: true,
 		RunE: func(c *cobra.Command, _ []string) error {

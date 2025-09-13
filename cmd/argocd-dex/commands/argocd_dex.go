@@ -27,7 +27,7 @@ import (
 
 func NewCommand() *cobra.Command {
 	command := &cobra.Command{
-		Use:               common.Dex,
+		Use:               common.CommandDex,
 		Short:             "argocd-dex tools used by Argo CD",
 		Long:              "argocd-dex has internal utility tools used by Argo CD",
 		DisableAutoGenTag: true,

@@ -566,7 +566,7 @@ func TestGetApplicationControllerReplicas(t *testing.T) {
 	expectedReplicas = int32(3)
 	clientset = getClientset(&appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      common.ApplicationController,
+			Name:      common.CommandApplicationController,
 			Namespace: testNamespace,
 		},
 		Spec: appsv1.DeploymentSpec{

@@ -27,7 +27,7 @@ func NewCommand() *cobra.Command {
 		otlpAttrs      []string
 	)
 	command := cobra.Command{
-		Use:               common.CMPServer,
+		Use:               common.CommandCMPServer,
 		Short:             "Run ArgoCD ConfigManagementPlugin Server",
 		Long:              "ArgoCD ConfigManagementPlugin Server is an internal service which runs as sidecar container in reposerver deployment. The following configuration options are available:",
 		DisableAutoGenTag: true,
