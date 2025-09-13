@@ -438,6 +438,14 @@ type DrySource struct {
 	TargetRevision string `json:"targetRevision" protobuf:"bytes,2,name=targetRevision"`
 	// Path is a directory path within the Git repository where the manifests are located
 	Path string `json:"path" protobuf:"bytes,3,name=path"`
+	// Helm specifies helm specific options
+	Helm *ApplicationSourceHelm `json:"helm,omitempty" protobuf:"bytes,4,opt,name=helm"`
+	// Kustomize specifies kustomize specific options
+	Kustomize *ApplicationSourceKustomize `json:"kustomize,omitempty" protobuf:"bytes,5,opt,name=kustomize"`
+	// Directory specifies path/directory specific options
+	Directory *ApplicationSourceDirectory `json:"directory,omitempty" protobuf:"bytes,6,opt,name=directory"`
+	// Plugin specifies config management plugin specific options
+	Plugin *ApplicationSourcePlugin `json:"plugin,omitempty" protobuf:"bytes,7,opt,name=plugin"`
 }
 
 // SyncSource specifies a location from which hydrated manifests may be synced. RepoURL is assumed based on the

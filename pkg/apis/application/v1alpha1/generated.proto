@@ -1049,6 +1049,18 @@ message DrySource {
 
   // Path is a directory path within the Git repository where the manifests are located
   optional string path = 3;
+
+  // Helm specifies helm specific options
+  optional ApplicationSourceHelm helm = 4;
+
+  // Kustomize specifies kustomize specific options
+  optional ApplicationSourceKustomize kustomize = 5;
+
+  // Directory specifies path/directory specific options
+  optional ApplicationSourceDirectory directory = 6;
+
+  // Plugin specifies config management plugin specific options
+  optional ApplicationSourcePlugin plugin = 7;
 }
 
 // DuckType defines a generator to match against clusters registered with ArgoCD.
