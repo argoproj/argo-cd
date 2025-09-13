@@ -131,7 +131,7 @@ spec:
           valueFrom:
             configMapKeyRef:
               name: argocd-cmd-params-cm
-              key: controller.sync.wave.delay
+              key: controller.sync.wave.delay.seconds
               optional: true
         - name: ARGOCD_APPLICATION_CONTROLLER_SYNC_TIMEOUT
           valueFrom:
