@@ -323,6 +323,8 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts Applicatio
 	appsetLister := appFactory.Argoproj().V1alpha1().ApplicationSets().Lister()
 
 	userStateStorage := util_session.NewUserStateStorage(opts.RedisClient)
+	ssoClientApp, err := oidc.NewClientApp(settings, opts.DexServerAddr, opts.DexTLSConfig, opts.BaseHRef, cacheutil.NewRedisCache(opts.RedisClient, settings.UserInfoCacheExpiration(), cacheutil.RedisCompressionNone))
+	errorsutil.CheckError(err)
 	sessionMgr := util_session.NewSessionManager(settingsMgr, projLister, opts.DexServerAddr, opts.DexTLSConfig, userStateStorage)
 	enf := rbac.NewEnforcer(opts.KubeClientset, opts.Namespace, common.ArgoCDRBACConfigMapName, nil)
 	enf.EnableEnforce(!opts.DisableAuth)
@@ -370,6 +372,7 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts Applicatio
 	a := &ArgoCDServer{
 		ArgoCDServerOpts:   opts,
 		ApplicationSetOpts: appsetOpts,
+		ssoClientApp:       ssoClientApp,
 		log:                logger,
 		settings:           settings,
 		sessionMgr:         sessionMgr,
@@ -1364,10 +1367,7 @@ func (server *ArgoCDServer) registerDexHandlers(mux *http.ServeMux) {
 		return
 	}
 	// Run dex OpenID Connect Identity Provider behind a reverse proxy (served at /api/dex)
-	var err error
 	mux.HandleFunc(common.DexAPIEndpoint+"/", dexutil.NewDexHTTPReverseProxy(server.DexServerAddr, server.BaseHRef, server.DexTLSConfig))
-	server.ssoClientApp, err = oidc.NewClientApp(server.settings, server.DexServerAddr, server.DexTLSConfig, server.BaseHRef, cacheutil.NewRedisCache(server.RedisClient, server.settings.UserInfoCacheExpiration(), cacheutil.RedisCompressionNone))
-	errorsutil.CheckError(err)
 	mux.HandleFunc(common.LoginEndpoint, server.ssoClientApp.HandleLogin)
 	mux.HandleFunc(common.CallbackEndpoint, server.ssoClientApp.HandleCallback)
 }
@@ -1572,7 +1572,7 @@ func (server *ArgoCDServer) getClaims(ctx context.Context) (jwt.Claims, string, 
 	if tokenString == "" {
 		return nil, "", ErrNoSession
 	}
-	claims, newToken, err := server.sessionMgr.VerifyToken(tokenString)
+	claims, newToken, err := server.sessionMgr.VerifyToken(ctx, tokenString)
 	if err != nil {
 		return claims, "", status.Errorf(codes.Unauthenticated, "invalid session: %v", err)
 	}
@@ -1589,7 +1589,7 @@ func (server *ArgoCDServer) getClaims(ctx context.Context) (jwt.Claims, string, 
 	}
 	iss := jwtutil.StringField(groupClaims, "iss")
 	if iss != util_session.SessionManagerClaimsIssuer && server.settings.UserInfoGroupsEnabled() && server.settings.UserInfoPath() != "" {
-		userInfo, unauthorized, err := server.ssoClientApp.GetUserInfo(groupClaims, server.settings.IssuerURL(), server.settings.UserInfoPath())
+		userInfo, unauthorized, err := server.ssoClientApp.GetUserInfo(ctx, groupClaims, server.settings.IssuerURL(), server.settings.UserInfoPath())
 		if unauthorized {
 			log.Errorf("error while quering userinfo endpoint: %v", err)
 			return claims, "", status.Errorf(codes.Unauthenticated, "invalid session")
@@ -1602,6 +1602,19 @@ func (server *ArgoCDServer) getClaims(ctx context.Context) (jwt.Claims, string, 
 			return claims, "", status.Error(codes.Unknown, "subject of claims from user info endpoint didn't match subject of idToken, see https://openid.net/specs/openid-connect-core-1_0.html#UserInfo")
 		}
 		groupClaims["groups"] = userInfo["groups"]
+	}
+
+	sub := jwtutil.StringField(groupClaims, "sub")
+
+	if server.settings.IsSSOConfigured() {
+		refreshedToken, err := server.ssoClientApp.CheckAndRefreshToken(ctx, groupClaims, server.settings.OIDCRefreshTokenThreshold)
+		if err != nil {
+			log.Errorf("error checking and refreshing token: %v", err)
+		}
+		if refreshedToken != "" && refreshedToken != tokenString {
+			newToken = refreshedToken
+			log.Infof("refreshed token for subject: %v", sub)
+		}
 	}
 
 	return groupClaims, newToken, nil
