@@ -32,6 +32,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/cache"
 	"github.com/argoproj/argo-cd/v3/util/crypto"
 	"github.com/argoproj/argo-cd/v3/util/dex"
+	jwtutil "github.com/argoproj/argo-cd/v3/util/jwt"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 	"github.com/argoproj/argo-cd/v3/util/test"
 )
@@ -1358,7 +1359,6 @@ func TestClientApp_GetTokenSourceFromCache(t *testing.T) {
 func TestClientApp_GetUpdatedOidcTokenFromCache(t *testing.T) {
 	tests := []struct {
 		name                string
-		claims              jwt.MapClaims
 		subject             string
 		session             string
 		insertIntoCache     bool
@@ -1368,7 +1368,6 @@ func TestClientApp_GetUpdatedOidcTokenFromCache(t *testing.T) {
 	}{
 		{
 			name:                "empty token cache",
-			claims:              jwt.MapClaims{"sub": "alice", "sid": "111"},
 			subject:             "alice",
 			session:             "111",
 			insertIntoCache:     true,
@@ -1376,7 +1375,6 @@ func TestClientApp_GetUpdatedOidcTokenFromCache(t *testing.T) {
 		},
 		{
 			name:                "no refresh token",
-			claims:              jwt.MapClaims{"sub": "alice", "sid": "111"},
 			subject:             "alice",
 			session:             "111",
 			insertIntoCache:     true,
@@ -1384,19 +1382,15 @@ func TestClientApp_GetUpdatedOidcTokenFromCache(t *testing.T) {
 			expectErrorContains: "failed to refresh token from source: oauth2: token expired and refresh token is not set",
 		},
 		{
-			name:    "cache miss",
-			subject: "",
-			session: "",
-			claims:  jwt.MapClaims{"sub": "", "sid": ""},
-
+			name:            "cache miss",
+			subject:         "",
+			session:         "",
 			insertIntoCache: false,
 		},
 		{
-			name:    "updated token from cache",
-			subject: "alice",
-			session: "111",
-			claims:  jwt.MapClaims{"sub": "alice", "sid": "111"},
-
+			name:            "updated token from cache",
+			subject:         "alice",
+			session:         "111",
 			insertIntoCache: true,
 			oidcTokenCache: &OidcTokenCache{Token: &oauth2.Token{
 				RefreshToken: "not empty",
@@ -1422,9 +1416,11 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 			app, err := NewClientApp(cdSettings, "", nil, "/", cache.NewInMemoryCache(24*time.Hour))
 			require.NoError(t, err)
 			if tt.insertIntoCache {
-				require.NoError(t, app.SetOIDCTokenCache(tt.claims, tt.oidcTokenCache))
+				oidcTokenCacheJSON, err := json.Marshal(tt.oidcTokenCache)
+				require.NoError(t, err)
+				require.NoError(t, app.SetValueInEncryptedCache(formatOidcTokenCacheKey(tt.subject, tt.session), oidcTokenCacheJSON, time.Minute))
 			}
-			token, err := app.GetUpdatedOidcTokenFromCache(t.Context(), tt.claims)
+			token, err := app.GetUpdatedOidcTokenFromCache(t.Context(), tt.subject, tt.session)
 			if tt.expectErrorContains != "" {
 				assert.ErrorContains(t, err, tt.expectErrorContains)
 				return
@@ -1442,12 +1438,12 @@ func TestClientApp_CheckAndGetRefreshToken(t *testing.T) {
 		name                  string
 		expectErrorContains   string
 		expectNewToken        bool
-		claims                jwt.MapClaims
+		groupClaims           jwt.MapClaims
 		refreshTokenThreshold string
 	}{
 		{
 			name: "no new token",
-			claims: jwt.MapClaims{
+			groupClaims: jwt.MapClaims{
 				"aud":    common.ArgoCDClientAppID,
 				"exp":    float64(time.Now().Add(time.Hour).Unix()),
 				"sub":    "randomUser",
@@ -1460,7 +1456,7 @@ func TestClientApp_CheckAndGetRefreshToken(t *testing.T) {
 		},
 		{
 			name: "new token",
-			claims: jwt.MapClaims{
+			groupClaims: jwt.MapClaims{
 				"aud":    common.ArgoCDClientAppID,
 				"exp":    float64(time.Now().Add(55 * time.Second).Unix()),
 				"sub":    "randomUser",
@@ -1473,7 +1469,7 @@ func TestClientApp_CheckAndGetRefreshToken(t *testing.T) {
 		},
 		{
 			name: "parse error",
-			claims: jwt.MapClaims{
+			groupClaims: jwt.MapClaims{
 				"aud":    common.ArgoCDClientAppID,
 				"exp":    float64(time.Now().Add(time.Minute).Unix()),
 				"sub":    "randomUser",
@@ -1505,10 +1501,16 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL, tt.refreshTokenThreshold),
 			// redirect URL is given.
 			app, err := NewClientApp(cdSettings, "", nil, "/", cache.NewInMemoryCache(24*time.Hour))
 			require.NoError(t, err)
-			require.NoError(t, app.SetOIDCTokenCache(tt.claims, &OidcTokenCache{Token: &oauth2.Token{
+			oidcTokenCacheJSON, err := json.Marshal(&OidcTokenCache{Token: &oauth2.Token{
 				RefreshToken: "not empty",
-			}}))
-			token, err := app.CheckAndRefreshToken(t.Context(), tt.claims, cdSettings.RefreshTokenThreshold())
+			}})
+			require.NoError(t, err)
+			sub := jwtutil.StringField(tt.groupClaims, "sub")
+			require.NotEmpty(t, sub)
+			sid := jwtutil.StringField(tt.groupClaims, "sid")
+			require.NotEmpty(t, sid)
+			require.NoError(t, app.SetValueInEncryptedCache(formatOidcTokenCacheKey(sub, sid), oidcTokenCacheJSON, time.Minute))
+			token, err := app.CheckAndRefreshToken(t.Context(), tt.groupClaims, cdSettings.RefreshTokenThreshold())
 			if tt.expectErrorContains != "" {
 				require.ErrorContains(t, err, tt.expectErrorContains)
 				return

@@ -1580,18 +1580,19 @@ func (server *ArgoCDServer) getClaims(ctx context.Context) (jwt.Claims, string, 
 
 	finalClaims := claims
 	if server.settings.IsSSOConfigured() {
-		finalMapClaims, err := server.ssoClientApp.SetGroupsFromUserInfo(ctx, claims, util_session.SessionManagerClaimsIssuer)
+		groupClaims, err := server.ssoClientApp.SetGroupsFromUserInfo(ctx, claims, util_session.SessionManagerClaimsIssuer)
 		if err != nil {
 			return claims, "", status.Errorf(codes.Unauthenticated, "invalid session: %v", err)
 		}
-		finalClaims = finalMapClaims
-		refreshedToken, err := server.ssoClientApp.CheckAndRefreshToken(ctx, finalMapClaims, server.settings.OIDCRefreshTokenThreshold)
+		finalClaims = groupClaims
+		sub := jwtutil.StringField(groupClaims, "sub")
+		refreshedToken, err := server.ssoClientApp.CheckAndRefreshToken(ctx, groupClaims, server.settings.OIDCRefreshTokenThreshold)
 		if err != nil {
 			log.Errorf("error checking and refreshing token: %v", err)
 		}
 		if refreshedToken != "" && refreshedToken != tokenString {
 			newToken = refreshedToken
-			log.Infof("refreshed token for subject: %v", jwtutil.StringField(finalMapClaims, "sub"))
+			log.Infof("refreshed token for subject: %v", sub)
 		}
 	}
 
