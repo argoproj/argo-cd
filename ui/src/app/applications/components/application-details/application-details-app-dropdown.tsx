@@ -5,7 +5,7 @@ import {Context} from '../../../shared/context';
 import {services} from '../../../shared/services';
 import {getAppUrl} from '../utils';
 
-export const ApplicationsDetailsAppDropdown = (props: {appName: string}) => {
+export const ApplicationsDetailsAppDropdown = (props: {appName: string; namespace?: string}) => {
     const [opened, setOpened] = React.useState(false);
     const [appFilter, setAppFilter] = React.useState('');
     const ctx = React.useContext(Context);
@@ -15,7 +15,11 @@ export const ApplicationsDetailsAppDropdown = (props: {appName: string}) => {
             isMenu={true}
             anchor={() => (
                 <>
-                    <i className='fa fa-search' /> <span>{props.appName}</span>
+                    <i className='fa fa-search' />{' '}
+                    <span>
+                        {props.namespace ? `${props.namespace}/` : ''}
+                        {props.appName}
+                    </span>
                 </>
             )}>
             {opened && (
@@ -44,6 +48,7 @@ export const ApplicationsDetailsAppDropdown = (props: {appName: string}) => {
                                 .slice(0, 100) // take top 100 results after filtering to avoid performance issues
                                 .map(app => (
                                     <li key={app.metadata.name} onClick={() => ctx.navigation.goto(`/${getAppUrl(app)}`)}>
+                                        {app.metadata.namespace ? `${app.metadata.namespace}/` : ''}
                                         {app.metadata.name} {app.metadata.name === props.appName && ' (current)'}
                                     </li>
                                 ))
