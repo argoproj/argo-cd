@@ -18,7 +18,7 @@ import (
 
 func NewCommand() *cobra.Command {
 	command := cobra.Command{
-		Use:               common.GitAskPass,
+		Use:               common.CommandGitAskPass,
 		Short:             "Argo CD git credential helper",
 		DisableAutoGenTag: true,
 		Run: func(c *cobra.Command, _ []string) {
