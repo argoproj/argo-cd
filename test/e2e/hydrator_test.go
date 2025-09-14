@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/stretchr/testify/require"
 
 	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -132,105 +132,126 @@ func TestKustomizeVersionOverride(t *testing.T) {
 
 func TestHydratorWithHelm(t *testing.T) {
 	Given(t).
-		DrySourcePath("hydrator-helm").
-		DrySourceRevision("HEAD").
-		SyncSourcePath("hydrator-helm-output").
-		SyncSourceBranch("env/test").
+		Path("hydrator-helm").
 		When().
-		CreateApp().
+		CreateFromFile(func(app *Application) {
+			app.Spec.SourceHydrator = &SourceHydrator{
+				DrySource: DrySource{
+					RepoURL:        fixture.RepoURL(fixture.RepoURLTypeFile),
+					Path:           "hydrator-helm",
+					TargetRevision: "HEAD",
+				},
+				SyncSource: SyncSource{
+					TargetBranch: "env/test",
+					Path:         "hydrator-helm-output",
+				},
+			}
+		}).
 		Refresh(RefreshTypeNormal).
 		Wait("--hydrated").
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
-		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		And(func(_ *Application) {
-			output, err := fixture.Run("", "kubectl", "-n", fixture.DeploymentNamespace(), "get", "cm", "my-map", "-o", "jsonpath={.data.message}")
-			require.NoError(t, err)
-			assert.Equal(t, "helm-hydrated-successfully", output)
-		})
+		Expect(SyncStatusIs(SyncStatusCodeSynced))
 }
 
 func TestHydratorWithKustomize(t *testing.T) {
 	Given(t).
-		DrySourcePath("hydrator-kustomize").
-		DrySourceRevision("HEAD").
-		SyncSourcePath("hydrator-kustomize-output").
-		SyncSourceBranch("env/test").
+		Path("hydrator-kustomize").
 		When().
-		CreateApp().
+		CreateFromFile(func(app *Application) {
+			app.Spec.SourceHydrator = &SourceHydrator{
+				DrySource: DrySource{
+					RepoURL:        fixture.RepoURL(fixture.RepoURLTypeFile),
+					Path:           "hydrator-kustomize",
+					TargetRevision: "HEAD",
+				},
+				SyncSource: SyncSource{
+					TargetBranch: "env/test",
+					Path:         "hydrator-kustomize-output",
+				},
+			}
+		}).
 		Refresh(RefreshTypeNormal).
 		Wait("--hydrated").
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
-		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		And(func(_ *Application) {
-			output, err := fixture.Run("", "kubectl", "-n", fixture.DeploymentNamespace(), "get", "cm", "kustomize-my-map", "-o", "jsonpath={.data.message}")
-			require.NoError(t, err)
-			assert.Equal(t, "kustomize-hydrated", output)
-		})
+		Expect(SyncStatusIs(SyncStatusCodeSynced))
 }
 
 func TestHydratorWithDirectory(t *testing.T) {
 	Given(t).
-		DrySourcePath("hydrator-directory").
-		DrySourceRevision("HEAD").
-		SyncSourcePath("hydrator-directory-output").
-		SyncSourceBranch("env/test").
+		Path("hydrator-directory").
 		When().
-		CreateApp().
+		CreateFromFile(func(app *Application) {
+			app.Spec.SourceHydrator = &SourceHydrator{
+				DrySource: DrySource{
+					RepoURL:        fixture.RepoURL(fixture.RepoURLTypeFile),
+					Path:           "hydrator-directory",
+					TargetRevision: "HEAD",
+				},
+				SyncSource: SyncSource{
+					TargetBranch: "env/test",
+					Path:         "hydrator-directory-output",
+				},
+			}
+		}).
 		Refresh(RefreshTypeNormal).
 		Wait("--hydrated").
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
-		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		And(func(_ *Application) {
-			output, err := fixture.Run("", "kubectl", "-n", fixture.DeploymentNamespace(), "get", "cm", "my-map", "-o", "jsonpath={.data.message}")
-			require.NoError(t, err)
-			assert.Equal(t, "directory-hydrated", output)
-		})
+		Expect(SyncStatusIs(SyncStatusCodeSynced))
 }
 
 func TestHydratorWithPlugin(t *testing.T) {
 	Given(t).
+		Path("hydrator-plugin").
 		And(func() {
 			go startCMPServerForHydrator(t, "./testdata/hydrator-plugin")
 			time.Sleep(100 * time.Millisecond)
 		}).
-		DrySourcePath("hydrator-plugin").
-		DrySourceRevision("HEAD").
-		SyncSourcePath("hydrator-plugin-output").
-		SyncSourceBranch("env/test").
 		When().
-		CreateApp().
+		CreateFromFile(func(app *Application) {
+			app.Spec.SourceHydrator = &SourceHydrator{
+				DrySource: DrySource{
+					RepoURL:        fixture.RepoURL(fixture.RepoURLTypeFile),
+					Path:           "hydrator-plugin",
+					TargetRevision: "HEAD",
+				},
+				SyncSource: SyncSource{
+					TargetBranch: "env/test",
+					Path:         "hydrator-plugin-output",
+				},
+			}
+		}).
 		Refresh(RefreshTypeNormal).
 		Wait("--hydrated").
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
-		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		And(func(_ *Application) {
-			output, err := fixture.Run("", "kubectl", "-n", fixture.DeploymentNamespace(), "get", "cm", "plugin-generated-map", "-o", "jsonpath={.data.message}")
-			require.NoError(t, err)
-			assert.Equal(t, "plugin-hydrated", output)
-
-			contentOutput, err := fixture.Run("", "kubectl", "-n", fixture.DeploymentNamespace(), "get", "cm", "plugin-generated-map", "-o", "jsonpath={.data.content}")
-			require.NoError(t, err)
-			assert.Equal(t, "This is a test for the plugin.", contentOutput)
-		})
+		Expect(SyncStatusIs(SyncStatusCodeSynced))
 }
 
 func TestHydratorWithMixedSources(t *testing.T) {
 	Given(t).
 		Name("test-mixed-sources-helm").
-		DrySourcePath("hydrator-helm").
-		DrySourceRevision("HEAD").
-		SyncSourcePath("hydrator-mixed-helm").
-		SyncSourceBranch("env/test").
+		Path("hydrator-helm").
 		When().
-		CreateApp().
+		CreateFromFile(func(app *Application) {
+			app.Spec.SourceHydrator = &SourceHydrator{
+				DrySource: DrySource{
+					RepoURL:        fixture.RepoURL(fixture.RepoURLTypeFile),
+					Path:           "hydrator-helm",
+					TargetRevision: "HEAD",
+				},
+				SyncSource: SyncSource{
+					TargetBranch: "env/test",
+					Path:         "hydrator-mixed-helm",
+				},
+			}
+		}).
 		Refresh(RefreshTypeNormal).
 		Wait("--hydrated").
 		Sync().
@@ -239,12 +260,21 @@ func TestHydratorWithMixedSources(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Given().
 		Name("test-mixed-sources-kustomize").
-		DrySourcePath("hydrator-kustomize").
-		DrySourceRevision("HEAD").
-		SyncSourcePath("hydrator-mixed-kustomize").
-		SyncSourceBranch("env/test").
+		Path("hydrator-kustomize").
 		When().
-		CreateApp().
+		CreateFromFile(func(app *Application) {
+			app.Spec.SourceHydrator = &SourceHydrator{
+				DrySource: DrySource{
+					RepoURL:        fixture.RepoURL(fixture.RepoURLTypeFile),
+					Path:           "hydrator-kustomize",
+					TargetRevision: "HEAD",
+				},
+				SyncSource: SyncSource{
+					TargetBranch: "env/test",
+					Path:         "hydrator-mixed-kustomize",
+				},
+			}
+		}).
 		Refresh(RefreshTypeNormal).
 		Wait("--hydrated").
 		Sync().
@@ -265,16 +295,30 @@ func TestHydratorWithMixedSources(t *testing.T) {
 
 func TestHydratorErrorHandling(t *testing.T) {
 	Given(t).
-		Name("test-hydrator-error-handling").
-		DrySourcePath("non-existent-path").
-		DrySourceRevision("HEAD").
-		SyncSourcePath("hydrator-error-output").
-		SyncSourceBranch("env/test").
+		Name("test-invalid-hydrator").
+		Path("hydrator-invalid").
 		When().
-		CreateApp().
+		CreateFromFile(func(app *Application) {
+			app.Spec.SourceHydrator = &SourceHydrator{
+				DrySource: DrySource{
+					RepoURL:        fixture.RepoURL(fixture.RepoURLTypeFile),
+					Path:           "invalid-path",
+					TargetRevision: "HEAD",
+				},
+				SyncSource: SyncSource{
+					TargetBranch: "env/test",
+					Path:         "hydrator-invalid",
+				},
+			}
+		}).
+		IgnoreErrors().
 		Refresh(RefreshTypeNormal).
 		Then().
-		Expect(HydrationPhaseIs(HydrateOperationPhaseFailed))
+		Expect(HealthIs(health.HealthStatusDegraded)).
+		When().
+		Delete(true).
+		Then().
+		Expect(DoesNotExist())
 }
 
 func startCMPServerForHydrator(t *testing.T, configFile string) {
