@@ -201,7 +201,8 @@ type ApplicationSetGenerator struct {
 	// Selector allows to post-filter all generator.
 	Selector *metav1.LabelSelector `json:"selector,omitempty" protobuf:"bytes,9,name=selector"`
 
-	Plugin *PluginGenerator `json:"plugin,omitempty" protobuf:"bytes,10,name=plugin"`
+	Plugin          *PluginGenerator         `json:"plugin,omitempty" protobuf:"bytes,10,name=plugin"`
+	ClusterProfiles *ClusterProfileGenerator `json:"clusterProfiles,omitempty" protobuf:"bytes,11,name=clusterProfiles"`
 }
 
 // ApplicationSetNestedGenerator represents a generator nested within a combination-type generator (MatrixGenerator or
@@ -223,7 +224,8 @@ type ApplicationSetNestedGenerator struct {
 	// Selector allows to post-filter all generator.
 	Selector *metav1.LabelSelector `json:"selector,omitempty" protobuf:"bytes,9,name=selector"`
 
-	Plugin *PluginGenerator `json:"plugin,omitempty" protobuf:"bytes,10,name=plugin"`
+	Plugin          *PluginGenerator         `json:"plugin,omitempty" protobuf:"bytes,10,name=plugin"`
+	ClusterProfiles *ClusterProfileGenerator `json:"clusterProfiles,omitempty" protobuf:"bytes,11,name=clusterProfiles"`
 }
 
 type ApplicationSetNestedGenerators []ApplicationSetNestedGenerator
@@ -233,16 +235,17 @@ type ApplicationSetNestedGenerators []ApplicationSetNestedGenerator
 // MergeGenerator). ApplicationSet enforces this nesting depth limit because CRDs do not support recursive types.
 // https://github.com/kubernetes-sigs/controller-tools/issues/477
 type ApplicationSetTerminalGenerator struct {
-	List                    *ListGenerator        `json:"list,omitempty" protobuf:"bytes,1,name=list"`
-	Clusters                *ClusterGenerator     `json:"clusters,omitempty" protobuf:"bytes,2,name=clusters"`
-	Git                     *GitGenerator         `json:"git,omitempty" protobuf:"bytes,3,name=git"`
-	SCMProvider             *SCMProviderGenerator `json:"scmProvider,omitempty" protobuf:"bytes,4,name=scmProvider"`
-	ClusterDecisionResource *DuckTypeGenerator    `json:"clusterDecisionResource,omitempty" protobuf:"bytes,5,name=clusterDecisionResource"`
-	PullRequest             *PullRequestGenerator `json:"pullRequest,omitempty" protobuf:"bytes,6,name=pullRequest"`
-	Plugin                  *PluginGenerator      `json:"plugin,omitempty" protobuf:"bytes,7,name=plugin"`
+	List                    *ListGenerator           `json:"list,omitempty" protobuf:"bytes,1,name=list"`
+	Clusters                *ClusterGenerator        `json:"clusters,omitempty" protobuf:"bytes,2,name=clusters"`
+	Git                     *GitGenerator            `json:"git,omitempty" protobuf:"bytes,3,name=git"`
+	SCMProvider             *SCMProviderGenerator    `json:"scmProvider,omitempty" protobuf:"bytes,4,name=scmProvider"`
+	ClusterDecisionResource *DuckTypeGenerator       `json:"clusterDecisionResource,omitempty" protobuf:"bytes,5,name=clusterDecisionResource"`
+	PullRequest             *PullRequestGenerator    `json:"pullRequest,omitempty" protobuf:"bytes,6,name=pullRequest"`
+	Plugin                  *PluginGenerator         `json:"plugin,omitempty" protobuf:"bytes,7,name=plugin"`
+	ClusterProfiles         *ClusterProfileGenerator `json:"clusterProfiles,omitempty" protobuf:"bytes,8,name=clusterProfiles"`
 
 	// Selector allows to post-filter all generator.
-	Selector *metav1.LabelSelector `json:"selector,omitempty" protobuf:"bytes,8,name=selector"`
+	Selector *metav1.LabelSelector `json:"selector,omitempty" protobuf:"bytes,9,name=selector"`
 }
 
 type ApplicationSetTerminalGenerators []ApplicationSetTerminalGenerator
@@ -374,6 +377,21 @@ func (g NestedMergeGenerator) ToMergeGenerator() *MergeGenerator {
 
 // ClusterGenerator defines a generator to match against clusters registered with ArgoCD.
 type ClusterGenerator struct {
+	// Selector defines a label selector to match against all clusters registered with ArgoCD.
+	// Clusters today are stored as Kubernetes Secrets, thus the Secret labels will be used
+	// for matching the selector.
+	Selector metav1.LabelSelector   `json:"selector,omitempty" protobuf:"bytes,1,name=selector"`
+	Template ApplicationSetTemplate `json:"template,omitempty" protobuf:"bytes,2,name=template"`
+
+	// Values contains key/value pairs which are passed directly as parameters to the template
+	Values map[string]string `json:"values,omitempty" protobuf:"bytes,3,name=values"`
+
+	// returns the clusters a single 'clusters' value in the template
+	FlatList bool `json:"flatList,omitempty" protobuf:"bytes,4,name=flatList"`
+}
+
+// ClusterProfileGenerator defines a generator to match against clusters registered with ArgoCD.
+type ClusterProfileGenerator struct {
 	// Selector defines a label selector to match against all clusters registered with ArgoCD.
 	// Clusters today are stored as Kubernetes Secrets, thus the Secret labels will be used
 	// for matching the selector.
