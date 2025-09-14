@@ -390,7 +390,7 @@ RUN helm plugin install ${GCS_PLUGIN_REPO} --version ${GCS_PLUGIN_VERSION}
 ENV HELM_PLUGINS="/home/argocd/.local/share/helm/plugins/"
 ```
 
-The `HELM_PLUGINS` environment property required for ArgoCD to locale plugins correctly.
+The `HELM_PLUGINS` environment property required for ArgoCD to locate plugins correctly.
 
 Once built, use the custom image for ArgoCD installation.
 
