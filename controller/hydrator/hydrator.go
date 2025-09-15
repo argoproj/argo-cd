@@ -4,7 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"path/filepath"
+	"sync"
 	"time"
+
+	"golang.org/x/sync/errgroup"
 
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -44,7 +48,7 @@ type Dependencies interface {
 
 	// GetRepoObjs returns the repository objects for the given application, source, and revision. It calls the repo-
 	// server and gets the manifests (objects).
-	GetRepoObjs(app *appv1.Application, source appv1.ApplicationSource, revision string, project *appv1.AppProject) ([]*unstructured.Unstructured, *apiclient.ManifestResponse, error)
+	GetRepoObjs(ctx context.Context, app *appv1.Application, source appv1.ApplicationSource, revision string, project *appv1.AppProject) ([]*unstructured.Unstructured, *apiclient.ManifestResponse, error)
 
 	// GetWriteCredentials returns the repository credentials for the given repository URL and project. These are to be
 	// sent to the commit server to write the hydrated manifests.
@@ -152,6 +156,12 @@ func (h *Hydrator) ProcessHydrationQueueItem(hydrationKey types.HydrationQueueKe
 	})
 
 	relevantApps, drySHA, hydratedSHA, err := h.hydrateAppsLatestCommit(logCtx, hydrationKey)
+	if len(relevantApps) == 0 {
+		// return early if there are no relevant apps found to hydrate
+		// otherwise you'll be stuck in hydrating
+		logCtx.Info("Skipping hydration since there are no relevant apps found to hydrate")
+		return
+	}
 	if drySHA != "" {
 		logCtx = logCtx.WithField("drySHA", drySHA)
 	}
@@ -202,12 +212,12 @@ func (h *Hydrator) ProcessHydrationQueueItem(hydrationKey types.HydrationQueueKe
 }
 
 func (h *Hydrator) hydrateAppsLatestCommit(logCtx *log.Entry, hydrationKey types.HydrationQueueKey) ([]*appv1.Application, string, string, error) {
-	relevantApps, err := h.getRelevantAppsForHydration(logCtx, hydrationKey)
+	relevantApps, projects, err := h.getRelevantAppsAndProjectsForHydration(logCtx, hydrationKey)
 	if err != nil {
 		return nil, "", "", fmt.Errorf("failed to get relevant apps for hydration: %w", err)
 	}
 
-	dryRevision, hydratedRevision, err := h.hydrate(logCtx, relevantApps)
+	dryRevision, hydratedRevision, err := h.hydrate(logCtx, relevantApps, projects)
 	if err != nil {
 		return relevantApps, dryRevision, "", fmt.Errorf("failed to hydrate apps: %w", err)
 	}
@@ -215,14 +225,15 @@ func (h *Hydrator) hydrateAppsLatestCommit(logCtx *log.Entry, hydrationKey types
 	return relevantApps, dryRevision, hydratedRevision, nil
 }
 
-func (h *Hydrator) getRelevantAppsForHydration(logCtx *log.Entry, hydrationKey types.HydrationQueueKey) ([]*appv1.Application, error) {
+func (h *Hydrator) getRelevantAppsAndProjectsForHydration(logCtx *log.Entry, hydrationKey types.HydrationQueueKey) ([]*appv1.Application, map[string]*appv1.AppProject, error) {
 	// Get all apps
 	apps, err := h.dependencies.GetProcessableApps()
 	if err != nil {
-		return nil, fmt.Errorf("failed to list apps: %w", err)
+		return nil, nil, fmt.Errorf("failed to list apps: %w", err)
 	}
 
 	var relevantApps []*appv1.Application
+	projects := make(map[string]*appv1.AppProject)
 	uniquePaths := make(map[string]bool, len(apps.Items))
 	for _, app := range apps.Items {
 		if app.Spec.SourceHydrator == nil {
@@ -241,10 +252,18 @@ func (h *Hydrator) getRelevantAppsForHydration(logCtx *log.Entry, hydrationKey t
 			continue
 		}
 
+		path := app.Spec.SourceHydrator.SyncSource.Path
+		// ensure that the path is always set to a path that doesn't resolve to the root of the repo
+		if IsRootPath(path) {
+			return nil, nil, fmt.Errorf("app %q has path %q which resolves to repository root", app.QualifiedName(), path)
+		}
+
 		var proj *appv1.AppProject
+		// We can't short-circuit this even if we have seen this project before, because we need to verify that this
+		// particular app is allowed to use this project. That logic is in GetProcessableAppProj.
 		proj, err = h.dependencies.GetProcessableAppProj(&app)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get project %q for app %q: %w", app.Spec.Project, app.QualifiedName(), err)
+			return nil, nil, fmt.Errorf("failed to get project %q for app %q: %w", app.Spec.Project, app.QualifiedName(), err)
 		}
 		permitted := proj.IsSourcePermitted(app.Spec.GetSource())
 		if !permitted {
@@ -252,70 +271,71 @@ func (h *Hydrator) getRelevantAppsForHydration(logCtx *log.Entry, hydrationKey t
 			logCtx.Warnf("App %q is not permitted to use source %q", app.QualifiedName(), app.Spec.Source.String())
 			continue
 		}
+		projects[app.Spec.Project] = proj
 
 		// TODO: test the dupe detection
 		// TODO: normalize the path to avoid "path/.." from being treated as different from "."
-		if _, ok := uniquePaths[app.Spec.SourceHydrator.SyncSource.Path]; ok {
-			return nil, fmt.Errorf("multiple app hydrators use the same destination: %v", app.Spec.SourceHydrator.SyncSource.Path)
+		if _, ok := uniquePaths[path]; ok {
+			return nil, nil, fmt.Errorf("multiple app hydrators use the same destination: %v", app.Spec.SourceHydrator.SyncSource.Path)
 		}
-		uniquePaths[app.Spec.SourceHydrator.SyncSource.Path] = true
+		uniquePaths[path] = true
 
 		relevantApps = append(relevantApps, &app)
 	}
-	return relevantApps, nil
+	return relevantApps, projects, nil
 }
 
-func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application) (string, string, error) {
+func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application, projects map[string]*appv1.AppProject) (string, string, error) {
 	if len(apps) == 0 {
 		return "", "", nil
 	}
+
+	// These values are the same for all apps being hydrated together, so just get them from the first app.
 	repoURL := apps[0].Spec.SourceHydrator.DrySource.RepoURL
 	syncBranch := apps[0].Spec.SourceHydrator.SyncSource.TargetBranch
 	targetBranch := apps[0].Spec.GetHydrateToSource().TargetRevision
-	var paths []*commitclient.PathDetails
-	projects := make(map[string]bool, len(apps))
-	var targetRevision string
-	// TODO: parallelize this loop
+
+	// Disallow hydrating to the repository root.
+	// Hydrating to root would overwrite or delete files at the top level of the repo,
+	// which can break other applications or shared configuration.
+	// Every hydrated app must write into a subdirectory instead.
+
 	for _, app := range apps {
-		project, err := h.dependencies.GetProcessableAppProj(app)
-		if err != nil {
-			return "", "", fmt.Errorf("failed to get project: %w", err)
+		destPath := app.Spec.SourceHydrator.SyncSource.Path
+		if IsRootPath(destPath) {
+			return "", "", fmt.Errorf(
+				"app %q is configured to hydrate to the repository root (branch %q, path %q) which is not allowed",
+				app.QualifiedName(), targetBranch, destPath,
+			)
 		}
-		projects[project.Name] = true
-		drySource := appv1.ApplicationSource{
-			RepoURL:        app.Spec.SourceHydrator.DrySource.RepoURL,
-			Path:           app.Spec.SourceHydrator.DrySource.Path,
-			TargetRevision: app.Spec.SourceHydrator.DrySource.TargetRevision,
-		}
-		if targetRevision == "" {
-			targetRevision = app.Spec.SourceHydrator.DrySource.TargetRevision
-		}
+	}
 
-		// TODO: enable signature verification
-		objs, resp, err := h.dependencies.GetRepoObjs(app, drySource, targetRevision, project)
-		if err != nil {
-			return "", "", fmt.Errorf("failed to get repo objects for app %q: %w", app.QualifiedName(), err)
-		}
+	// Get a static SHA revision from the first app so that all apps are hydrated from the same revision.
+	targetRevision, pathDetails, err := h.getManifests(context.Background(), apps[0], "", projects[apps[0].Spec.Project])
+	if err != nil {
+		return "", "", fmt.Errorf("failed to get manifests for app %q: %w", apps[0].QualifiedName(), err)
+	}
+	paths := []*commitclient.PathDetails{pathDetails}
 
-		// This should be the DRY SHA. We set it here so that after processing the first app, all apps are hydrated
-		// using the same SHA.
-		targetRevision = resp.Revision
+	eg, ctx := errgroup.WithContext(context.Background())
+	var mu sync.Mutex
 
-		// Set up a ManifestsRequest
-		manifestDetails := make([]*commitclient.HydratedManifestDetails, len(objs))
-		for i, obj := range objs {
-			objJSON, err := json.Marshal(obj)
+	for _, app := range apps[1:] {
+		app := app
+		eg.Go(func() error {
+			_, pathDetails, err = h.getManifests(ctx, app, targetRevision, projects[app.Spec.Project])
 			if err != nil {
-				return "", "", fmt.Errorf("failed to marshal object: %w", err)
+				return fmt.Errorf("failed to get manifests for app %q: %w", app.QualifiedName(), err)
 			}
-			manifestDetails[i] = &commitclient.HydratedManifestDetails{ManifestJSON: string(objJSON)}
-		}
-
-		paths = append(paths, &commitclient.PathDetails{
-			Path:      app.Spec.SourceHydrator.SyncSource.Path,
-			Manifests: manifestDetails,
-			Commands:  resp.Commands,
+			mu.Lock()
+			paths = append(paths, pathDetails)
+			mu.Unlock()
+			return nil
 		})
+	}
+	err = eg.Wait()
+	if err != nil {
+		return "", "", fmt.Errorf("failed to get manifests for apps: %w", err)
 	}
 
 	// If all the apps are under the same project, use that project. Otherwise, use an empty string to indicate that we
@@ -374,6 +394,43 @@ func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application) (string
 		return targetRevision, "", fmt.Errorf("failed to commit hydrated manifests: %w", err)
 	}
 	return targetRevision, resp.HydratedSha, nil
+}
+
+// getManifests gets the manifests for the given application and target revision. It returns the resolved revision
+// (a git SHA), and path details for the commit server.
+//
+// If the given target revision is empty, it uses the target revision from the app dry source spec.
+func (h *Hydrator) getManifests(ctx context.Context, app *appv1.Application, targetRevision string, project *appv1.AppProject) (revision string, pathDetails *commitclient.PathDetails, err error) {
+	drySource := appv1.ApplicationSource{
+		RepoURL:        app.Spec.SourceHydrator.DrySource.RepoURL,
+		Path:           app.Spec.SourceHydrator.DrySource.Path,
+		TargetRevision: app.Spec.SourceHydrator.DrySource.TargetRevision,
+	}
+	if targetRevision == "" {
+		targetRevision = app.Spec.SourceHydrator.DrySource.TargetRevision
+	}
+
+	// TODO: enable signature verification
+	objs, resp, err := h.dependencies.GetRepoObjs(ctx, app, drySource, targetRevision, project)
+	if err != nil {
+		return "", nil, fmt.Errorf("failed to get repo objects for app %q: %w", app.QualifiedName(), err)
+	}
+
+	// Set up a ManifestsRequest
+	manifestDetails := make([]*commitclient.HydratedManifestDetails, len(objs))
+	for i, obj := range objs {
+		objJSON, err := json.Marshal(obj)
+		if err != nil {
+			return "", nil, fmt.Errorf("failed to marshal object: %w", err)
+		}
+		manifestDetails[i] = &commitclient.HydratedManifestDetails{ManifestJSON: string(objJSON)}
+	}
+
+	return resp.Revision, &commitclient.PathDetails{
+		Path:      app.Spec.SourceHydrator.SyncSource.Path,
+		Manifests: manifestDetails,
+		Commands:  resp.Commands,
+	}, nil
 }
 
 func (h *Hydrator) getRevisionMetadata(ctx context.Context, repoURL, project, revision string) (*appv1.RevisionMetadata, error) {
@@ -438,4 +495,10 @@ func getTemplatedCommitMessage(repoURL, revision, commitMessageTemplate string, 
 		return "", fmt.Errorf("failed to parse template %s: %w", commitMessageTemplate, err)
 	}
 	return templatedCommitMsg, nil
+}
+
+// IsRootPath returns whether the path references a root path
+func IsRootPath(path string) bool {
+	clean := filepath.Clean(path)
+	return clean == "" || clean == "." || clean == string(filepath.Separator)
 }
