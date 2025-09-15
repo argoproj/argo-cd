@@ -130,6 +130,8 @@ require (
 	sigs.k8s.io/yaml v1.6.0
 )
 
+require github.com/google/gnostic-models v0.7.0
+
 require (
 	cloud.google.com/go v0.120.0 // indirect
 	cloud.google.com/go/auth v0.15.0 // indirect
@@ -214,7 +216,6 @@ require (
 	github.com/gobwas/ws v1.2.1 // indirect
 	github.com/golang-jwt/jwt/v4 v4.5.2 // indirect
 	github.com/golang/glog v1.2.5 // indirect
-	github.com/google/gnostic-models v0.7.0 // indirect
 	github.com/google/go-github/v84 v84.0.0 // indirect
 	github.com/google/go-querystring v1.2.0 // indirect
 	github.com/google/s2a-go v0.1.9 // indirect
