@@ -492,7 +492,7 @@ func normalizeTargetResources(openAPISchema openapi.Resources, cr *comparisonRes
 }
 
 // getMergePatch calculates and returns the patch between the original and the
-// modified unstructures.
+// modified unstructureds.
 func getMergePatch(original, modified *unstructured.Unstructured, lookupPatchMeta strategicpatch.LookupPatchMeta) ([]byte, error) {
 	originalJSON, err := original.MarshalJSON()
 	if err != nil {
@@ -509,7 +509,7 @@ func getMergePatch(original, modified *unstructured.Unstructured, lookupPatchMet
 	return jsonpatch.CreateMergePatch(originalJSON, modifiedJSON)
 }
 
-// applyMergePatch will apply the given patch in the obj and return the patched unstructure.
+// applyMergePatch will apply the given patch in the obj and return the patched unstructured.
 func applyMergePatch(obj *unstructured.Unstructured, patch []byte, versionedObject any, meta strategicpatch.LookupPatchMeta) (*unstructured.Unstructured, error) {
 	originalJSON, err := obj.MarshalJSON()
 	if err != nil {
@@ -520,21 +520,17 @@ func applyMergePatch(obj *unstructured.Unstructured, patch []byte, versionedObje
 	case versionedObject != nil:
 		patchedJSON, err = strategicpatch.StrategicMergePatch(originalJSON, patch, versionedObject)
 	case meta != nil:
-		var originalMap, patchMap map[string]any
-		if err := json.Unmarshal(originalJSON, &originalMap); err != nil {
-			return nil, err
+		var patchMap map[string]any
+		if err = json.Unmarshal(patch, &patchMap); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal patch: %v", err)
 		}
-		if err := json.Unmarshal(patch, &patchMap); err != nil {
-			return nil, err
-		}
-
-		patchedMap, err := strategicpatch.StrategicMergeMapPatchUsingLookupPatchMeta(originalMap, patchMap, meta)
+		patchedMap, err := strategicpatch.StrategicMergeMapPatchUsingLookupPatchMeta(obj.Object, patchMap, meta)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to merge patch map: %v", err)
 		}
 		patchedJSON, err = json.Marshal(patchedMap)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to marshal patch map: %v", err)
 		}
 	default:
 		patchedJSON, err = jsonpatch.MergePatch(originalJSON, patch)
