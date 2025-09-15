@@ -2361,7 +2361,7 @@ func populateKustomizeAppDetails(ctx context.Context, res *apiclient.RepoAppDeta
 		Repo:              q.Repo,
 		ApplicationSource: q.Source,
 	}
-	env := newEnv(ctx, &fakeManifestRequest, reversion)
+	env := newEnv(ctx.Background(), &fakeManifestRequest, reversion)
 	_, images, _, err := k.Build(q.Source.Kustomize, q.KustomizeOptions, env, nil)
 	if err != nil {
 		return err
