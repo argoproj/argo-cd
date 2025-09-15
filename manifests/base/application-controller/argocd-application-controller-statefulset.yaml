@@ -130,6 +130,12 @@ spec:
               name: argocd-cmd-params-cm
               key: controller.self.heal.backoff.cooldown.seconds
               optional: true
+        - name: ARGOCD_SYNC_WAVE_DELAY
+          valueFrom:
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: controller.sync.wave.delay.seconds
+              optional: true
         - name: ARGOCD_APPLICATION_CONTROLLER_SYNC_TIMEOUT
           valueFrom:
             configMapKeyRef:
