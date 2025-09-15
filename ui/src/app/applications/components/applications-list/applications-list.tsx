@@ -6,7 +6,7 @@ import {Key, KeybindingContext, KeybindingProvider} from 'argo-ui/v2';
 import {RouteComponentProps} from 'react-router';
 import {combineLatest, from, merge, Observable} from 'rxjs';
 import {bufferTime, delay, filter, map, mergeMap, repeat, retryWhen} from 'rxjs/operators';
-import {AddAuthToToolbar, ClusterCtx, DataLoader, EmptyState, Page, Paginate, Spinner} from '../../../shared/components';
+import {AddAuthToToolbar, ClusterCtx, DataLoader, EmptyState, ObservableQuery, Page, Paginate, Spinner} from '../../../shared/components';
 import {AuthSettingsCtx, Consumer, Context, ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {AppsListViewKey, AppsListPreferences, AppsListViewType, HealthStatusBarPreferences, services} from '../../../shared/services';
@@ -94,75 +94,81 @@ function loadApplications(projects: string[], appNamespace: string, objectListKi
     );
 }
 
-const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: number; search: string}) => React.ReactNode}) => {
-    const observableQuery$ = useObservableQuery();
+const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: number; search: string}) => React.ReactNode}) => (
+    <ObservableQuery>
+        {q => (
+            <DataLoader
+                load={() =>
+                    combineLatest([services.viewPreferences.getPreferences().pipe(map(item => item.appList)), q]).pipe(
+                        map(items => {
+                            const params = items[1];
+                            const viewPref: AppsListPreferences = {...items[0]};
+                            if (params.get('proj') != null) {
+                                viewPref.projectsFilter = params
+                                    .get('proj')
+                                    .split(',')
+                                    .filter(item => !!item);
+                            }
+                            if (params.get('sync') != null) {
+                                viewPref.syncFilter = params
+                                    .get('sync')
+                                    .split(',')
+                                    .filter(item => !!item);
+                            }
+                            if (params.get('autoSync') != null) {
+                                viewPref.autoSyncFilter = params
+                                    .get('autoSync')
+                                    .split(',')
+                                    .filter(item => !!item);
+                            }
+                            if (params.get('health') != null) {
+                                viewPref.healthFilter = params
+                                    .get('health')
+                                    .split(',')
+                                    .filter(item => !!item);
+                            }
+                            if (params.get('hydration') != null) {
+                                viewPref.hydrationFilter = params
+                                    .get('hydration')
+                                    .split(',')
+                                    .filter(item => !!item);
+                            }
+                            if (params.get('namespace') != null) {
+                                viewPref.namespacesFilter = params
+                                    .get('namespace')
+                                    .split(',')
+                                    .filter(item => !!item);
+                            }
+                            if (params.get('cluster') != null) {
+                                viewPref.clustersFilter = params
+                                    .get('cluster')
+                                    .split(',')
+                                    .filter(item => !!item);
+                            }
+                            if (params.get('showFavorites') != null) {
+                                viewPref.showFavorites = params.get('showFavorites') === 'true';
+                            }
+                            if (params.get('view') != null) {
+                                viewPref.view = params.get('view') as AppsListViewType;
+                            }
+                            if (params.get('labels') != null) {
+                                viewPref.labelsFilter = params
+                                    .get('labels')
+                                    .split(',')
+                                    .map(decodeURIComponent)
+                                    .filter(item => !!item);
+                            }
+                            return {...viewPref, page: parseInt(params.get('page') || '0', 10), search: params.get('search') || ''};
+                        })
+                    )
+                }>
+                {pref => children(pref)}
+            </DataLoader>
+        )}
+    </ObservableQuery>
+);
 
-    return (
-        <DataLoader
-            load={() =>
-                combineLatest([services.viewPreferences.getPreferences().pipe(map(item => item.appList)), observableQuery$]).pipe(
-                    map(items => {
-                        const params = items[1];
-                        const viewPref: AppsListPreferences = {...items[0]};
-                        if (params.get('proj') != null) {
-                            viewPref.projectsFilter = params
-                                .get('proj')
-                                .split(',')
-                                .filter(item => !!item);
-                        }
-                        if (params.get('sync') != null) {
-                            viewPref.syncFilter = params
-                                .get('sync')
-                                .split(',')
-                                .filter(item => !!item);
-                        }
-                        if (params.get('autoSync') != null) {
-                            viewPref.autoSyncFilter = params
-                                .get('autoSync')
-                                .split(',')
-                                .filter(item => !!item);
-                        }
-                        if (params.get('health') != null) {
-                            viewPref.healthFilter = params
-                                .get('health')
-                                .split(',')
-                                .filter(item => !!item);
-                        }
-                        if (params.get('namespace') != null) {
-                            viewPref.namespacesFilter = params
-                                .get('namespace')
-                                .split(',')
-                                .filter(item => !!item);
-                        }
-                        if (params.get('cluster') != null) {
-                            viewPref.clustersFilter = params
-                                .get('cluster')
-                                .split(',')
-                                .filter(item => !!item);
-                        }
-                        if (params.get('showFavorites') != null) {
-                            viewPref.showFavorites = params.get('showFavorites') === 'true';
-                        }
-                        if (params.get('view') != null) {
-                            viewPref.view = params.get('view') as AppsListViewType;
-                        }
-                        if (params.get('labels') != null) {
-                            viewPref.labelsFilter = params
-                                .get('labels')
-                                .split(',')
-                                .map(decodeURIComponent)
-                                .filter(item => !!item);
-                        }
-                        return {...viewPref, page: parseInt(params.get('page') || '0', 10), search: params.get('search') || ''};
-                    })
-                )
-            }>
-            {pref => children(pref)}
-        </DataLoader>
-    );
-};
-
-function filterApps(applications: models.Application[], pref: AppsListPreferences, search: string): {filteredApps: models.Application[]; filterResults: FilteredApp[]} {
+function filterApps(applications: models.Application[], pref: AppsListPreferences, search: string, hydratorEnabled: boolean = true): {filteredApps: models.Application[]; filterResults: FilteredApp[]} {
     applications = applications.map(app => {
         let isAppOfAppsPattern = false;
         for (const resource of app.status.resources) {
@@ -173,7 +179,7 @@ function filterApps(applications: models.Application[], pref: AppsListPreference
         }
         return {...app, isAppOfAppsPattern};
     });
-    const filterResults = getFilterResults(applications, pref);
+    const filterResults = getFilterResults(applications, pref, hydratorEnabled);
     return {
         filterResults,
         filteredApps: filterResults.filter(
@@ -421,6 +427,7 @@ export const ApplicationsList = (props: RouteComponentProps<any> & {objectListKi
                 sync: newPref.syncFilter.join(','),
                 autoSync: newPref.autoSyncFilter.join(','),
                 health: newPref.healthFilter.join(','),
+                hydration: newPref.hydrationFilter.join(','),
                 namespace: newPref.namespacesFilter.join(','),
                 cluster: newPref.clustersFilter.join(','),
                 labels: newPref.labelsFilter.map(encodeURIComponent).join(',')
