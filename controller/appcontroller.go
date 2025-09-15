@@ -1222,7 +1222,7 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 
 	// Apply impersonation config if necessary
 	if err := ctrl.applyImpersonationConfig(config, proj, app, destCluster); err != nil {
-		return err
+		return fmt.Errorf("cannot apply impersonation: %w", err)
 	}
 
 	if app.CascadedDeletion() {
