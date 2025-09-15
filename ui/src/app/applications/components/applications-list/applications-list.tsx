@@ -6,7 +6,7 @@ import {Key, KeybindingContext, KeybindingProvider} from 'argo-ui/v2';
 import {RouteComponentProps} from 'react-router';
 import {combineLatest, from, merge, Observable} from 'rxjs';
 import {bufferTime, delay, filter, map, mergeMap, repeat, retryWhen} from 'rxjs/operators';
-import {AddAuthToToolbar, ClusterCtx, DataLoader, EmptyState, Page, Paginate, Spinner} from '../../../shared/components';
+import {AddAuthToToolbar, ClusterCtx, DataLoader, EmptyState, ObservableQuery, Page, Paginate, Spinner} from '../../../shared/components';
 import {AuthSettingsCtx, Consumer, Context, ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {AppsListViewKey, AppsListPreferences, AppSetsListPreferences, AppsListViewType, HealthStatusBarPreferences, services} from '../../../shared/services';
@@ -154,6 +154,12 @@ const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: num
                                 .split(',')
                                 .filter(item => !!item);
                         }
+                        if (params.get('hydration') != null) {
+                            viewPref.hydrationFilter = params
+                                .get('hydration')
+                                .split(',')
+                                .filter(item => !!item);
+                        }
                         if (params.get('namespace') != null) {
                             viewPref.namespacesFilter = params
                                 .get('namespace')
@@ -202,7 +208,7 @@ const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: num
     );
 };
 
-function filterApplications(applications: models.Application[], pref: AppsListPreferences, search: string): {filteredApps: models.Application[]; filterResults: FilteredApp[]} {
+function filterApplications(applications: models.Application[], pref: AppsListPreferences, search: string, hydratorEnabled: boolean = true): {filteredApps: models.Application[]; filterResults: FilteredApp[]} {
     const processedApps = applications.map(app => {
         let isAppOfAppsPattern = false;
         if (app.status?.resources) {
@@ -215,7 +221,7 @@ function filterApplications(applications: models.Application[], pref: AppsListPr
         }
         return {...app, isAppOfAppsPattern};
     });
-    const filterResults = getAppFilterResults(processedApps, pref);
+    const filterResults = getAppFilterResults(processedApps, pref, hydratorEnabled);
 
     return {
         filterResults,
@@ -479,6 +485,7 @@ export const ApplicationsList = (props: RouteComponentProps<any> & {objectListKi
                 sync: newPref.syncFilter.join(','),
                 autoSync: newPref.autoSyncFilter.join(','),
                 health: newPref.healthFilter.join(','),
+                hydration: newPref.hydrationFilter.join(','),
                 namespace: newPref.namespacesFilter.join(','),
                 targetRevision: newPref.targetRevisionFilter.map(encodeURIComponent).join(','),
                 cluster: newPref.clustersFilter.join(','),

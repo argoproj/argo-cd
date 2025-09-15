@@ -25,6 +25,7 @@ export interface FilterResult {
     sync: boolean;
     autosync: boolean;
     health: boolean;
+    hydration: boolean;
     clusters: boolean;
     namespaces: boolean;
     targetRevision: boolean;
@@ -56,6 +57,16 @@ export function getAutoSyncStatus(syncPolicy?: SyncPolicy) {
     return 'Enabled';
 }
 
+export function getHydrationStatus(app: Application) {
+    if (!app.spec.sourceHydrator) {
+        return 'None';
+    }
+    if (!app.status.sourceHydrator?.currentOperation) {
+        return 'None';
+    }
+    return app.status.sourceHydrator.currentOperation.phase;
+}
+
 export function getAppFilterResults(applications: Application[], pref: AppsListPreferences): FilteredApp[] {
     const labelSelector = createMetadataSelector(pref.labelsFilter || []);
     const annotationSelector = createMetadataSelector(pref.annotationsFilter || []);
@@ -71,6 +82,7 @@ export function getAppFilterResults(applications: Application[], pref: AppsListP
                 sync: pref.syncFilter.length === 0 || pref.syncFilter.includes(app.status.sync.status),
                 autosync: pref.autoSyncFilter.length === 0 || pref.autoSyncFilter.includes(getAutoSyncStatus(app.spec.syncPolicy)),
                 health: pref.healthFilter.length === 0 || pref.healthFilter.includes(app.status.health.status),
+                hydration: pref.hydrationFilter.length === 0 || pref.hydrationFilter.includes(getHydrationStatus(app)),
                 namespaces: pref.namespacesFilter.length === 0 || pref.namespacesFilter.some(ns => app.spec.destination.namespace && minimatch(app.spec.destination.namespace, ns)),
                 favourite: !pref.showFavorites || (pref.favoritesAppList && pref.favoritesAppList.includes(app.metadata.name)),
                 clusters:
@@ -238,6 +250,56 @@ const AppSetHealthFilter = (props: AppSetFilterProps) => (
         )}
     />
 );
+
+function getHydrationOptions(apps: FilteredApp[]) {
+    const hydrationStatuses = ['None', 'Hydrating', 'Hydrated', 'Failed'];
+    const counts = getCounts(apps, 'hydration', getHydrationStatus, hydrationStatuses);
+    return hydrationStatuses.map(status => {
+        let icon;
+        const iconColor =
+            status === 'Hydrated'
+                ? COLORS.operation.success
+                : status === 'Failed'
+                  ? COLORS.operation.failed
+                  : status === 'Hydrating'
+                    ? COLORS.operation.running
+                    : COLORS.sync.unknown;
+
+        switch (status) {
+            case 'Hydrated':
+                icon = <i className='fa fa-check-circle' style={{color: iconColor}} />;
+                break;
+            case 'Failed':
+                icon = <i className='fa fa-times-circle' style={{color: iconColor}} />;
+                break;
+            case 'Hydrating':
+                icon = <i className='fa fa-circle-notch' style={{color: iconColor}} />;
+                break;
+            case 'None':
+                icon = <i className='fa fa-minus-circle' style={{color: iconColor}} />;
+                break;
+            default:
+                icon = <i className='fa fa-question-circle' style={{color: iconColor}} />;
+                break;
+        }
+
+        return {
+            label: status,
+            icon,
+            count: counts.get(status)
+        };
+    });
+}
+
+const HydrationFilter = (props: AppFilterProps) => (
+    <Filter
+        label='HYDRATION STATUS'
+        selected={props.pref.hydrationFilter}
+        setSelected={s => props.onChange({...props.pref, hydrationFilter: s})}
+        options={getHydrationOptions(props.apps)}
+    />
+);
+
 
 const LabelsFilter = React.memo(
     (props: {apps: Array<{metadata: {labels?: {[key: string]: string}}}>; pref: {labelsFilter: string[]}; onChange: (labelsFilter: string[]) => void}) => {
@@ -519,6 +581,7 @@ export const ApplicationsFilter = (props: AppFilterProps) => {
             <FavoriteFilter value={!!props.pref.showFavorites} onChange={val => props.onChange({...props.pref, showFavorites: val})} />
             <SyncFilter {...props} />
             <AppHealthFilter {...props} />
+            <HydrationFilter {...props} collapsed={true} />
             <OperationFilter {...props} />
             <LabelsFilter apps={props.apps} pref={props.pref} onChange={labelsFilter => props.onChange({...props.pref, labelsFilter})} />
             <AnnotationsFilter {...props} />
