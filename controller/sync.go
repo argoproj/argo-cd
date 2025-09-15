@@ -522,15 +522,15 @@ func applyMergePatch(obj *unstructured.Unstructured, patch []byte, versionedObje
 	case meta != nil:
 		var patchMap map[string]any
 		if err = json.Unmarshal(patch, &patchMap); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal patch: %v", err)
+			return nil, fmt.Errorf("failed to unmarshal patch: %w", err)
 		}
 		patchedMap, err := strategicpatch.StrategicMergeMapPatchUsingLookupPatchMeta(obj.Object, patchMap, meta)
 		if err != nil {
-			return nil, fmt.Errorf("failed to merge patch map: %v", err)
+			return nil, fmt.Errorf("failed to merge patch map: %w", err)
 		}
 		patchedJSON, err = json.Marshal(patchedMap)
 		if err != nil {
-			return nil, fmt.Errorf("failed to marshal patch map: %v", err)
+			return nil, fmt.Errorf("failed to marshal patch map: %w", err)
 		}
 	default:
 		patchedJSON, err = jsonpatch.MergePatch(originalJSON, patch)
