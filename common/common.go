@@ -322,6 +322,8 @@ const (
 	EnvServerSideDiff = "ARGOCD_APPLICATION_CONTROLLER_SERVER_SIDE_DIFF"
 	// EnvGRPCMaxSizeMB is the environment variable to look for a max GRPC message size
 	EnvGRPCMaxSizeMB = "ARGOCD_GRPC_MAX_SIZE_MB"
+	// EnvChangePasswordSSOTokenMaxAge is the environment variable to configure the max age of SSO tokens for password changes
+	EnvChangePasswordSSOTokenMaxAge = "ARGOCD_CHANGE_PASSWORD_SSO_TOKEN_MAX_AGE"
 )
 
 // Config Management Plugin related constants
@@ -486,4 +488,16 @@ func SetOptionalRedisPasswordFromKubeConfig(ctx context.Context, kubeClient kube
 	}
 	redisOptions.Password = string(secret.Data[RedisInitialCredentialsKey])
 	return nil
+}
+
+// GetChangePasswordSSOTokenMaxAge returns the maximum age for SSO tokens when changing passwords.
+// It checks the environment variable ARGOCD_CHANGE_PASSWORD_SSO_TOKEN_MAX_AGE first,
+// and falls back to the default value of 5 minutes if not set or invalid.
+func GetChangePasswordSSOTokenMaxAge() time.Duration {
+	if val := os.Getenv(EnvChangePasswordSSOTokenMaxAge); val != "" {
+		if duration, err := time.ParseDuration(val); err == nil {
+			return duration
+		}
+	}
+	return ChangePasswordSSOTokenMaxAge
 }
