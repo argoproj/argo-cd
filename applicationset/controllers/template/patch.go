@@ -4,10 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"k8s.io/apimachinery/pkg/util/strategicpatch"
-
 	"github.com/argoproj/argo-cd/v3/applicationset/utils"
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"k8s.io/apimachinery/pkg/util/strategicpatch"
+
+	jsonpatch "github.com/evanphx/json-patch"
 )
 
 func applyTemplatePatch(app *appv1.Application, templatePatch string) (*appv1.Application, error) {
@@ -21,13 +22,27 @@ func applyTemplatePatch(app *appv1.Application, templatePatch string) (*appv1.Ap
 		return nil, fmt.Errorf("error while converting template to json %q: %w", convertedTemplatePatch, err)
 	}
 
-	if err := json.Unmarshal([]byte(convertedTemplatePatch), &appv1.Application{}); err != nil {
-		return nil, fmt.Errorf("invalid templatePatch %q: %w", convertedTemplatePatch, err)
-	}
+	var data []byte
+	if convertedTemplatePatch[0] == '[' {
 
-	data, err := strategicpatch.StrategicMergePatch(appString, []byte(convertedTemplatePatch), appv1.Application{})
-	if err != nil {
-		return nil, fmt.Errorf("error while applying templatePatch template to json %q: %w", convertedTemplatePatch, err)
+		patch, err := jsonpatch.DecodePatch([]byte(convertedTemplatePatch))
+		if err != nil {
+			return nil, fmt.Errorf("error while decoding templatePatch jsonPatch %q: %w", convertedTemplatePatch, err)
+		}
+
+		data, err = patch.Apply(appString)
+		if err != nil {
+			return nil, fmt.Errorf("error while applying templatePatch jsonPatch %q: %w", convertedTemplatePatch, err)
+		}
+	} else {
+		if err := json.Unmarshal([]byte(convertedTemplatePatch), &appv1.Application{}); err != nil {
+			return nil, fmt.Errorf("invalid templatePatch %q: %w", convertedTemplatePatch, err)
+		}
+
+		data, err = strategicpatch.StrategicMergePatch(appString, []byte(convertedTemplatePatch), appv1.Application{})
+		if err != nil {
+			return nil, fmt.Errorf("error while applying templatePatch template to json %q: %w", convertedTemplatePatch, err)
+		}
 	}
 
 	finalApp := appv1.Application{}
