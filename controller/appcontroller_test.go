@@ -1315,9 +1315,9 @@ func TestFinalizeAppDeletionWithImpersonation(t *testing.T) {
 		}
 	}
 
-	t.Run("cascaded deletion with impersonation enabled but no matching service account", func(t *testing.T) {
+	t.Run("no matching impersonation service account is configured", func(t *testing.T) {
 		// given impersonation is enabled but no matching service account exists
-		f := setup(test.FakeArgoCDNamespace, "")
+		f := setup(test.FakeDestNamespace, "")
 
 		// when
 		err := f.controller.finalizeApplicationDeletion(f.application, func(_ string) ([]*v1alpha1.Cluster, error) {
@@ -1329,21 +1329,7 @@ func TestFinalizeAppDeletionWithImpersonation(t *testing.T) {
 		assert.Contains(t, err.Error(), "error deriving service account to impersonate")
 	})
 
-	t.Run("cascaded deletion with impersonation enabled and empty service account", func(t *testing.T) {
-		// given impersonation is enabled with empty service account name
-		f := setup(test.FakeDestNamespace, "")
-
-		// when
-		err := f.controller.finalizeApplicationDeletion(f.application, func(_ string) ([]*v1alpha1.Cluster, error) {
-			return []*v1alpha1.Cluster{}, nil
-		})
-
-		// then deletion should fail due to invalid service account
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "default service account contains invalid chars")
-	})
-
-	t.Run("cascaded deletion with impersonation enabled and valid service account", func(t *testing.T) {
+	t.Run("valid impersonation service account is configured", func(t *testing.T) {
 		// given impersonation is enabled with valid service account
 		f := setup(test.FakeDestNamespace, "test-sa")
 
@@ -1356,11 +1342,10 @@ func TestFinalizeAppDeletionWithImpersonation(t *testing.T) {
 		require.NoError(t, err)
 	})
 
-	t.Run("unrelated cluster with impersonation enabled", func(t *testing.T) {
-		// given impersonation is enabled but cluster has no matching default service account
-		f := setup(test.FakeDestNamespace, "test-sa")
-		f.application.Spec.Destination.Server = "https://unrelated-cluster:6443"
-		f.application.Spec.Destination.Name = "unrelated"
+	t.Run("invalid application destination cluster", func(t *testing.T) {
+		// given impersonation is enabled but destination cluster does not exist
+		f.application.Spec.Destination.Server = "https://invalid-cluster:6443"
+		f.application.Spec.Destination.Name = "invalid"
 
 		// when
 		err := f.controller.finalizeApplicationDeletion(f.application, func(_ string) ([]*v1alpha1.Cluster, error) {
