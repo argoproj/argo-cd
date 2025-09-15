@@ -571,6 +571,56 @@ func TestUpdateAppSet(t *testing.T) {
 	})
 }
 
+func TestUpsertAppSet(t *testing.T) {
+	name := "test"
+	ns := "external-namespace"
+	appSet := newTestAppSet(func(appset *appsv1.ApplicationSet) {
+		appset.Annotations = map[string]string{
+			"annotation-key1": "annotation-value1",
+			"annotation-key2": "annotation-value2",
+		}
+		appset.Labels = map[string]string{
+			"label-key1": "label-value1",
+			"label-key2": "label-value2",
+		}
+		appset.Name = name
+		appset.Namespace = ns
+		appset.Finalizers = []string{"finalizer"}
+	})
+
+	updatedAppSet := newTestAppSet(func(appset *appsv1.ApplicationSet) {
+		appset.Annotations = map[string]string{
+			"annotation-key1": "annotation-value1-updated",
+		}
+		appset.Labels = map[string]string{
+			"label-key1": "label-value1-updated",
+		}
+		appset.Name = name
+		appset.Namespace = ns
+		appset.Finalizers = []string{"finalizer-updated"}
+	})
+
+	t.Run("Upsert", func(t *testing.T) {
+		appServer := newTestAppSetServer(t, appSet)
+
+		updated, err := appServer.Create(t.Context(), &applicationset.ApplicationSetCreateRequest{
+			Applicationset: updatedAppSet,
+			Upsert:         true,
+		})
+
+		require.NoError(t, err)
+		assert.Equal(t, map[string]string{
+			"annotation-key1": "annotation-value1-updated",
+			"annotation-key2": "annotation-value2",
+		}, updated.Annotations)
+		assert.Equal(t, map[string]string{
+			"label-key1": "label-value1-updated",
+			"label-key2": "label-value2",
+		}, updated.Labels)
+		assert.Equal(t, []string{"finalizer-updated"}, updated.Finalizers)
+	})
+}
+
 func TestResourceTree(t *testing.T) {
 	appSet1 := newTestAppSet(func(appset *appsv1.ApplicationSet) {
 		appset.Name = "AppSet1"
