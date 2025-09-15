@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/stretchr/testify/require"
 
 	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -311,14 +310,8 @@ func TestHydratorErrorHandling(t *testing.T) {
 				},
 			}
 		}).
-		IgnoreErrors().
-		Refresh(RefreshTypeNormal).
 		Then().
-		Expect(HealthIs(health.HealthStatusDegraded)).
-		When().
-		Delete(true).
-		Then().
-		Expect(DoesNotExist())
+		Expect(Error("", "app path does not exist"))
 }
 
 func startCMPServerForHydrator(t *testing.T, configFile string) {
@@ -330,5 +323,5 @@ func startCMPServerForHydrator(t *testing.T, configFile string) {
 		err := os.Mkdir(pluginSockFilePath, 0o700)
 		require.NoError(t, err)
 	}
-	errors.NewHandler(t).FailOnErr(fixture.RunWithStdin("", "", "../../dist/argocd", "--config-dir-path", configFile))
+	errors.NewHandler(t).FailOnErr(fixture.RunWithStdin("", "", "../../dist/argocd-cmp-server", "--config-dir-path", configFile))
 }
