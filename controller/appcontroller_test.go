@@ -1344,6 +1344,7 @@ func TestFinalizeAppDeletionWithImpersonation(t *testing.T) {
 
 	t.Run("invalid application destination cluster", func(t *testing.T) {
 		// given impersonation is enabled but destination cluster does not exist
+		f := setup(test.FakeDestNamespace, "test-sa")
 		f.application.Spec.Destination.Server = "https://invalid-cluster:6443"
 		f.application.Spec.Destination.Name = "invalid"
 
