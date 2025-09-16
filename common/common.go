@@ -124,6 +124,8 @@ const (
 
 	// ChangePasswordSSOTokenMaxAge is the max token age for password change operation
 	ChangePasswordSSOTokenMaxAge = time.Minute * 5
+	// ChangePasswordSSOTokenMaxAgeLimit is the maximum allowed value for configurable SSO token max age
+	ChangePasswordSSOTokenMaxAgeLimit = time.Minute * 10
 	// GithubAppCredsExpirationDuration is the default time used to cache the GitHub app credentials
 	GithubAppCredsExpirationDuration = time.Minute * 60
 
@@ -496,6 +498,11 @@ func SetOptionalRedisPasswordFromKubeConfig(ctx context.Context, kubeClient kube
 func GetChangePasswordSSOTokenMaxAge() time.Duration {
 	if val := os.Getenv(EnvChangePasswordSSOTokenMaxAge); val != "" {
 		if duration, err := time.ParseDuration(val); err == nil {
+			// Cap at maximum limit to prevent extreme values
+			if duration > ChangePasswordSSOTokenMaxAgeLimit {
+				logrus.Warnf("configured %s value %v exceeds maximum limit, using %v instead", EnvChangePasswordSSOTokenMaxAge, duration, ChangePasswordSSOTokenMaxAgeLimit)
+				return ChangePasswordSSOTokenMaxAgeLimit
+			}
 			return duration
 		} else {
 			logrus.Warnf("failed to parse %s value '%s': %v, using default %v", EnvChangePasswordSSOTokenMaxAge, val, err, ChangePasswordSSOTokenMaxAge)

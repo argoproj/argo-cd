@@ -134,6 +134,11 @@ func Test_GetChangePasswordSSOTokenMaxAge(t *testing.T) {
 			envValue:       "30s",
 			expectedMaxAge: time.Second * 30,
 		},
+		{
+			name:           "Value exceeds maximum limit - capped at limit",
+			envValue:       "30m",
+			expectedMaxAge: ChangePasswordSSOTokenMaxAgeLimit, // Should be capped at 10 minutes
+		},
 	}
 	for _, tc := range testCases {
 		tc := tc
