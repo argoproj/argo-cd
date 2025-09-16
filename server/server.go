@@ -66,8 +66,12 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/argoproj/argo-cd/v3/applicationset/generators"
+	"github.com/argoproj/argo-cd/v3/applicationset/services"
+	appsetwebhook "github.com/argoproj/argo-cd/v3/applicationset/webhook"
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient"
 	accountpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/account"
@@ -115,6 +119,7 @@ import (
 	dexutil "github.com/argoproj/argo-cd/v3/util/dex"
 	"github.com/argoproj/argo-cd/v3/util/env"
 	errorsutil "github.com/argoproj/argo-cd/v3/util/errors"
+	"github.com/argoproj/argo-cd/v3/util/github_app"
 	grpc_util "github.com/argoproj/argo-cd/v3/util/grpc"
 	"github.com/argoproj/argo-cd/v3/util/healthz"
 	httputil "github.com/argoproj/argo-cd/v3/util/http"
@@ -131,7 +136,8 @@ import (
 	settings_util "github.com/argoproj/argo-cd/v3/util/settings"
 	"github.com/argoproj/argo-cd/v3/util/swagger"
 	tlsutil "github.com/argoproj/argo-cd/v3/util/tls"
-	"github.com/argoproj/argo-cd/v3/util/webhook"
+	argocdwebhook "github.com/argoproj/argo-cd/v3/util/webhook"
+	"github.com/argoproj/argo-cd/v3/util/webhookmerger"
 )
 
 const (
@@ -226,6 +232,7 @@ type ArgoCDServerOpts struct {
 	DexTLSConfig            *dexutil.DexTLSConfig
 	BaseHRef                string
 	RootPath                string
+	ClientConfig            clientcmd.ClientConfig
 	DynamicClientset        dynamic.Interface
 	KubeControllerClientset client.Client
 	KubeClientset           kubernetes.Interface
@@ -246,6 +253,7 @@ type ArgoCDServerOpts struct {
 }
 
 type ApplicationSetOpts struct {
+	TokenRefStrictMode       bool
 	GitSubmoduleEnabled      bool
 	EnableNewGitFileGlobbing bool
 	ScmRootCAPath            string
@@ -1257,9 +1265,47 @@ func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWeb
 
 	// Webhook handler for git events (Note: cache timeouts are hardcoded because API server does not write to cache and not really using them)
 	argoDB := db.NewDB(server.Namespace, server.settingsMgr, server.KubeClientset)
-	acdWebhookHandler := webhook.NewHandler(server.Namespace, server.ApplicationNamespaces, server.WebhookParallelism, server.AppClientset, server.settings, server.settingsMgr, server.RepoServerCache, server.Cache, argoDB, server.settingsMgr.GetMaxWebhookPayloadSize())
+	acdWebhookHandler := argocdwebhook.NewHandler(server.Namespace, server.ApplicationNamespaces, server.WebhookParallelism, server.AppClientset, server.settings, server.settingsMgr, server.RepoServerCache, server.Cache, argoDB, server.settingsMgr.GetMaxWebhookPayloadSize())
 
-	mux.HandleFunc("/api/webhook", acdWebhookHandler.Handler)
+	applicationSetOpts := server.ApplicationSetOpts
+	argoCDService := services.NewArgoCDService(
+		argoDB,
+		applicationSetOpts.GitSubmoduleEnabled,
+		server.RepoClientset,
+		applicationSetOpts.EnableNewGitFileGlobbing,
+	)
+
+	scmConfig := generators.NewSCMConfig(
+		applicationSetOpts.ScmRootCAPath,
+		server.AllowedScmProviders,
+		server.EnableNewGitFileGlobbing,
+		github_app.NewAuthCredentials(argoDB.(db.RepoCredsDB)),
+		applicationSetOpts.TokenRefStrictMode,
+	)
+
+	topLevelGenerators := generators.GetGenerators(
+		ctx,
+		nil,
+		server.KubeClientset,
+		server.Namespace,
+		argoCDService,
+		nil,
+		scmConfig,
+	)
+
+	// start a webhook server that listens to incoming webhook payloads
+	appSetWebhookHandler, err := appsetwebhook.NewWebhookHandler(
+		server.WebhookParallelism,
+		server.settingsMgr,
+		server.KubeControllerClientset,
+		topLevelGenerators,
+	)
+	if err != nil {
+		log.Error(err, "failed to create webhook handler")
+		os.Exit(1)
+	}
+
+	mux.HandleFunc("/api/webhook", webhookmerger.NewWebhookMerger(acdWebhookHandler, appSetWebhookHandler).Handler)
 
 	// Serve cli binaries directly from API server
 	registerDownloadHandlers(mux, "/download")

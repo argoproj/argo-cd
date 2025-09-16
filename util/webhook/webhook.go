@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"html"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -602,7 +601,7 @@ func isHeadTouched(ctx context.Context, bbClient *bb.Client, owner, repoSlug, re
 	return bbRepo.Mainbranch.Name == revision, nil
 }
 
-func (a *ArgoCDWebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
+func (a *ArgoCDWebhookHandler) HandleRequest(w http.ResponseWriter, r *http.Request) error {
 	var payload any
 	var err error
 
@@ -641,9 +640,7 @@ func (a *ArgoCDWebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 			log.WithField(common.SecurityField, common.SecurityHigh).Infof("BitBucket webhook HMAC verification failed")
 		}
 	default:
-		log.Debug("Ignoring unknown webhook event")
-		http.Error(w, "Unknown webhook event", http.StatusBadRequest)
-		return
+		return errors.New("unknown webhook event")
 	}
 
 	if err != nil {
@@ -651,23 +648,17 @@ func (a *ArgoCDWebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 		if err.Error() == "error parsing payload" {
 			msg := fmt.Sprintf("Webhook processing failed: The payload is either too large or corrupted. Please check the payload size (must be under %v MB) and ensure it is valid JSON", a.maxWebhookPayloadSizeB/1024/1024)
 			log.WithField(common.SecurityField, common.SecurityHigh).Warn(msg)
-			http.Error(w, msg, http.StatusBadRequest)
-			return
+			return err
 		}
 
-		log.Infof("Webhook processing failed: %s", err)
-		status := http.StatusBadRequest
-		if r.Method != http.MethodPost {
-			status = http.StatusMethodNotAllowed
-		}
-		http.Error(w, "Webhook processing failed: "+html.EscapeString(err.Error()), status)
-		return
+		return fmt.Errorf("webhook processing failed: %w", err)
 	}
 
 	select {
 	case a.queue <- payload:
 	default:
-		log.Info("Queue is full, discarding webhook payload")
-		http.Error(w, "Queue is full, discarding webhook payload", http.StatusServiceUnavailable)
+		return errors.New("webhook processing failed: queue is full")
 	}
+
+	return nil
 }
