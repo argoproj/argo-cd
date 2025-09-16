@@ -32,7 +32,7 @@ jobs:
       docs: ${{ steps.filter.outputs.docs_any_changed }}
     steps:
       - uses: actions/checkout@8410ad0602e1e429cee44a835ae9f77f654a6694 # v4.0.0
-      - uses: tj-actions/changed-files@ed68ef82c095e0d48ec87eccea555d944a631a4c # v46.0.5
+      - uses: tj-actions/changed-files@24d32ffd492484c1d75e0c0b894501ddb9d30d62 # v47.0.0
         id: filter
         with:
           # Any file which is not under docs/, ui/ or is not a markdown file is counted as a backend file
@@ -496,7 +496,7 @@ jobs:
         run: |
           docker pull ghcr.io/dexidp/dex:v2.43.0
           docker pull argoproj/argo-cd-ci-builder:v1.0.0
-          docker pull redis:7.2.7-alpine
+          docker pull redis:8.2.1-alpine
       - name: Create target directory for binaries in the build-process
         run: |
           mkdir -p dist
