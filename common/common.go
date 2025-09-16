@@ -497,6 +497,8 @@ func GetChangePasswordSSOTokenMaxAge() time.Duration {
 	if val := os.Getenv(EnvChangePasswordSSOTokenMaxAge); val != "" {
 		if duration, err := time.ParseDuration(val); err == nil {
 			return duration
+		} else {
+			logrus.Warnf("failed to parse %s value '%s': %v, using default %v", EnvChangePasswordSSOTokenMaxAge, val, err, ChangePasswordSSOTokenMaxAge)
 		}
 	}
 	return ChangePasswordSSOTokenMaxAge
