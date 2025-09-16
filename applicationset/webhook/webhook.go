@@ -11,7 +11,6 @@ import (
 	"strings"
 	"sync"
 
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -24,6 +23,7 @@ import (
 	"github.com/go-playground/webhooks/v6/github"
 	"github.com/go-playground/webhooks/v6/gitlab"
 	log "github.com/sirupsen/logrus"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const payloadQueueSize = 50000
@@ -652,14 +652,16 @@ func (h *WebhookHandler) shouldRefreshMergeGenerator(gen *v1alpha1.MergeGenerato
 func refreshApplicationSet(c client.Client, appSet *v1alpha1.ApplicationSet) error {
 	// patch the ApplicationSet with the refresh annotation to reconcile
 	return retry.RetryOnConflict(retry.DefaultBackoff, func() error {
-		err := c.Get(context.Background(), types.NamespacedName{Name: appSet.Name, Namespace: appSet.Namespace}, appSet)
-		if err != nil {
-			return fmt.Errorf("error getting ApplicationSet: %w", err)
+		patchObj := &metav1.PartialObjectMetadata{
+			TypeMeta: appSet.TypeMeta,
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      appSet.Name,
+				Namespace: appSet.Namespace,
+				Annotations: map[string]string{
+					common.AnnotationApplicationSetRefresh: "true",
+				},
+			},
 		}
-		if appSet.Annotations == nil {
-			appSet.Annotations = map[string]string{}
-		}
-		appSet.Annotations[common.AnnotationApplicationSetRefresh] = "true"
-		return c.Patch(context.Background(), appSet, client.Merge)
+		return c.Patch(context.Background(), patchObj, client.Merge)
 	})
 }
