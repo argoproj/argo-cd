@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"strings"
 
+	"k8s.io/apimachinery/pkg/util/strategicpatch"
+
 	"github.com/argoproj/argo-cd/v3/applicationset/utils"
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"k8s.io/apimachinery/pkg/util/strategicpatch"
 
 	jsonpatch "github.com/evanphx/json-patch"
 )
@@ -27,7 +28,6 @@ func applyTemplatePatch(app *appv1.Application, templatePatch string) (*appv1.Ap
 	// If convertedTemplatePatch appears to be an array of json+patchsapp
 	// try and decode it else fall back to StrategicMergePatch
 	if strings.HasPrefix(convertedTemplatePatch, "[") {
-
 		patch, err := jsonpatch.DecodePatch([]byte(convertedTemplatePatch))
 		if err != nil {
 			return nil, fmt.Errorf("error while decoding templatePatch jsonPatch %q: %w", convertedTemplatePatch, err)
