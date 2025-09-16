@@ -44,13 +44,16 @@ func TestHydrateTo(t *testing.T) {
 		Wait("--hydrated").
 		Then().
 		Given().
+		// Async so we don't fail immediately on the error
 		Async(true).
 		When().
 		Sync().
 		Wait("--operation").
 		Then().
+		// Fails because we hydrated to env/test-next but not to env/test.
 		Expect(OperationPhaseIs(OperationError)).
 		When().
+		// Will now hydrate to the sync source branch.
 		AppSet("--hydrate-to-branch", "").
 		// a new git commit, that has a new revisionHistoryLimit.
 		PatchFile("guestbook/guestbook-ui-deployment.yaml", `[{"op": "replace", "path": "/spec/revisionHistoryLimit", "value": 10}]`).
@@ -64,6 +67,7 @@ func TestHydrateTo(t *testing.T) {
 }
 
 func TestAddingApp(t *testing.T) {
+	// Make sure that if we add another app targeting the same sync branch, it hydrates correctly.
 	Given(t).
 		Name("test-adding-app-1").
 		DrySourcePath("guestbook").
@@ -94,6 +98,7 @@ func TestAddingApp(t *testing.T) {
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		// Clean up the apps manually since we used custom names.
 		When().
 		Delete(true).
 		Then().
@@ -114,13 +119,17 @@ func TestKustomizeVersionOverride(t *testing.T) {
 		SyncSourcePath("kustomize-with-version-override").
 		SyncSourceBranch("env/test").
 		When().
+		// Skip validation, otherwise app creation will fail on the unsupported kustomize version.
 		CreateApp("--validate=false").
 		Refresh(RefreshTypeNormal).
 		Then().
+		// Expect a failure at first because the kustomize version is not supported.
 		Expect(HydrationPhaseIs(HydrateOperationPhaseFailed)).
+		// Now register the kustomize version override and try again.
 		Given().
 		RegisterKustomizeVersion("v1.2.3", "kustomize").
 		When().
+		// Hard refresh so we don't use the cached error.
 		Refresh(RefreshTypeHard).
 		Wait("--hydrated").
 		Sync().
