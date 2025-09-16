@@ -3,6 +3,7 @@ package template
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/argoproj/argo-cd/v3/applicationset/utils"
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -23,7 +24,9 @@ func applyTemplatePatch(app *appv1.Application, templatePatch string) (*appv1.Ap
 	}
 
 	var data []byte
-	if convertedTemplatePatch[0] == '[' {
+	// If convertedTemplatePatch appears to be an array of json+patchsapp
+	// try and decode it else fall back to StrategicMergePatch
+	if strings.HasPrefix(convertedTemplatePatch, "[") {
 
 		patch, err := jsonpatch.DecodePatch([]byte(convertedTemplatePatch))
 		if err != nil {
