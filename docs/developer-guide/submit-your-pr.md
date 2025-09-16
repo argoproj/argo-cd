@@ -84,3 +84,13 @@ If you want to see how much coverage just a specific module (i.e. your new one) 
 ...
 ok      github.com/argoproj/argo-cd/server/cache        0.029s  coverage: 89.3% of statements
 ```
+
+## Cherry-picking fixes
+
+If your PR contains a bug fix, and you want to have that fix backported to a previous release branch, please label your
+PR with `cherry-pick/x.y` (example: `cherry-pick/3.1`). If you do not have access to add labels, ask a maintainer to add
+them for you.
+
+If you add labels before the PR is merged, the cherry-pick bot will open the backport PRs when your PR is merged.
+
+Adding a label after the PR is merged will also cause the bot to open the backport PR.
