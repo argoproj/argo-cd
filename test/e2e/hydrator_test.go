@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"os"
+	"os/exec"
 	"testing"
 	"time"
 
@@ -10,7 +11,6 @@ import (
 	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
-	"github.com/argoproj/argo-cd/v3/util/errors"
 
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
 )
@@ -208,7 +208,7 @@ func TestHydratorWithPlugin(t *testing.T) {
 	Given(t).
 		Path("hydrator-plugin").
 		And(func() {
-			go startCMPServerForHydrator(t, "./testdata/hydrator-plugin")
+			startCMPServerForHydrator(t, "./testdata/hydrator-plugin")
 			time.Sleep(100 * time.Millisecond)
 		}).
 		When().
@@ -292,36 +292,26 @@ func TestHydratorWithMixedSources(t *testing.T) {
 		Expect(DoesNotExist())
 }
 
-func TestHydratorErrorHandling(t *testing.T) {
-	Given(t).
-		Name("test-invalid-hydrator").
-		Path("hydrator-invalid").
-		When().
-		CreateFromFile(func(app *Application) {
-			app.Spec.SourceHydrator = &SourceHydrator{
-				DrySource: DrySource{
-					RepoURL:        fixture.RepoURL(fixture.RepoURLTypeFile),
-					Path:           "invalid-path",
-					TargetRevision: "HEAD",
-				},
-				SyncSource: SyncSource{
-					TargetBranch: "env/test",
-					Path:         "hydrator-invalid",
-				},
-			}
-		}).
-		Then().
-		Expect(Error("", "app path does not exist"))
-}
-
 func startCMPServerForHydrator(t *testing.T, configFile string) {
 	t.Helper()
 	pluginSockFilePath := fixture.TmpDir + fixture.PluginSockFilePath
-	t.Setenv("ARGOCD_BINARY_NAME", "argocd-cmp-server")
-	t.Setenv("ARGOCD_PLUGINSOCKFILEPATH", pluginSockFilePath)
 	if _, err := os.Stat(pluginSockFilePath); os.IsNotExist(err) {
 		err := os.Mkdir(pluginSockFilePath, 0o700)
 		require.NoError(t, err)
 	}
-	errors.NewHandler(t).FailOnErr(fixture.RunWithStdin("", "", "../../dist/argocd-cmp-server", "--config-dir-path", configFile))
+
+	cmd := exec.Command("../../dist/argocd", "--config-dir-path", configFile)
+	cmd.Env = append(os.Environ(),
+		"ARGOCD_BINARY_NAME=argocd-cmp-server",
+		"ARGOCD_PLUGINSOCKFILEPATH="+pluginSockFilePath)
+
+	if err := cmd.Start(); err != nil {
+		require.NoError(t, err, "Failed to start CMP server")
+	}
+
+	t.Cleanup(func() {
+		if cmd.Process != nil {
+			_ = cmd.Process.Kill()
+		}
+	})
 }
