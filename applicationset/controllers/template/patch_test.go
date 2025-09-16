@@ -8,7 +8,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
@@ -195,16 +194,16 @@ spec:
 				Spec: appv1.ApplicationSpec{
 					Project: "default",
 					Sources: appv1.ApplicationSources{
-						v1alpha1.ApplicationSource{
+						appv1.ApplicationSource{
 							RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 							TargetRevision: "HEAD",
 							Path:           "guestbook",
 						},
-						v1alpha1.ApplicationSource{
+						appv1.ApplicationSource{
 							RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 							TargetRevision: "HEAD",
 							Path:           "blue-green",
-							Helm: &v1alpha1.ApplicationSourceHelm{
+							Helm: &appv1.ApplicationSourceHelm{
 								Values: `
 ---
 replicaCount: 3`,
@@ -252,16 +251,16 @@ replicaCount: 3`,
 				Spec: appv1.ApplicationSpec{
 					Project: "default",
 					Sources: appv1.ApplicationSources{
-						v1alpha1.ApplicationSource{
+						appv1.ApplicationSource{
 							RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 							TargetRevision: "HEAD",
 							Path:           "guestbook",
 						},
-						v1alpha1.ApplicationSource{
+						appv1.ApplicationSource{
 							RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 							TargetRevision: "HEAD",
 							Path:           "blue-green",
-							Helm: &v1alpha1.ApplicationSourceHelm{
+							Helm: &appv1.ApplicationSourceHelm{
 								Values: `
 ---
 replicaCount: 3`,

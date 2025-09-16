@@ -223,6 +223,5 @@ The same example using `json+patch`.
     When writing a `templatePatch`, you're crafting a patch. So, if the patch includes an empty `spec: # nothing in here`, it will effectively clear out existing fields. See [#17040](https://github.com/argoproj/argo-cd/issues/17040) for an example of this behavior.
 
 !!! important
-    `templatePatch` only supports `yaml`/`json` or `json+patch`. The two patch types
-    cannot be combined.  A `json+patch` `templatePatch` must be an array of patchs.
+    `templatePatch` only supports `yaml`/`json` or `json+patch`. The two patch types cannot be combined.  A `json+patch` `templatePatch` must be an array of patchs.
 
