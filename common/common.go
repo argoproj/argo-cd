@@ -497,16 +497,17 @@ func SetOptionalRedisPasswordFromKubeConfig(ctx context.Context, kubeClient kube
 // and falls back to the default value of 5 minutes if not set or invalid.
 func GetChangePasswordSSOTokenMaxAge() time.Duration {
 	if val := os.Getenv(EnvChangePasswordSSOTokenMaxAge); val != "" {
-		if duration, err := time.ParseDuration(val); err == nil {
-			// Cap at maximum limit to prevent extreme values
-			if duration > ChangePasswordSSOTokenMaxAgeLimit {
-				logrus.Warnf("configured %s value %v exceeds maximum limit, using %v instead", EnvChangePasswordSSOTokenMaxAge, duration, ChangePasswordSSOTokenMaxAgeLimit)
-				return ChangePasswordSSOTokenMaxAgeLimit
-			}
-			return duration
-		} else {
-			logrus.Warnf("failed to parse %s value '%s': %v, using default %v", EnvChangePasswordSSOTokenMaxAge, val, err, ChangePasswordSSOTokenMaxAge)
+		duration, err := time.ParseDuration(val)
+		if err != nil {
+			logrus.Warnf("failed to parse SSO token max age configuration: %v, using default(5m)", err)
+			return ChangePasswordSSOTokenMaxAge
 		}
+		// Cap at maximum limit to prevent extreme values
+		if duration > ChangePasswordSSOTokenMaxAgeLimit {
+			logrus.Warnf("configured SSO token max age exceeds maximum limit, using maximum allowed value instead(10m)")
+			return ChangePasswordSSOTokenMaxAgeLimit
+		}
+		return duration
 	}
 	return ChangePasswordSSOTokenMaxAge
 }
