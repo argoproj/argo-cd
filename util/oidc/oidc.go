@@ -350,7 +350,6 @@ func (a *ClientApp) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		opts = append(opts, oauth2.S256ChallengeOption(pkceVerifier))
 	}
 	stateNonce, err := a.generateAppState(returnURL, pkceVerifier, w)
-
 	if err != nil {
 		log.Errorf("Failed to initiate login flow: %v", err)
 		http.Error(w, "Failed to initiate login flow", http.StatusInternalServerError)
