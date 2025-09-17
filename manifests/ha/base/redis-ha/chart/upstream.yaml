@@ -9,7 +9,7 @@ metadata:
   labels:
     heritage: Helm
     release: argocd
-    chart: redis-ha-4.34.11
+    chart: redis-ha-4.33.2
     app: argocd-redis-ha
 secrets:
 - name: argocd-redis
@@ -23,7 +23,7 @@ metadata:
   labels:
     heritage: Helm
     release: argocd
-    chart: redis-ha-4.34.11
+    chart: redis-ha-4.33.2
     app: argocd-redis-ha
 ---
 # Source: redis-ha/charts/redis-ha/templates/redis-ha-configmap.yaml
@@ -35,7 +35,7 @@ metadata:
   labels:
     heritage: Helm
     release: argocd
-    chart: redis-ha-4.34.11
+    chart: redis-ha-4.33.2
     app: argocd-redis-ha
 data:
   redis.conf: |
@@ -606,28 +606,12 @@ data:
         if [ "$MASTER" = "$ANNOUNCE_IP" ]; then
             redis_role
             if [ "$ROLE" != "master" ]; then
-                echo "waiting for redis to become master"
-                sleep 10
-                identify_master
-                redis_role
-                echo "Redis role is $ROLE, expected role is master. No need to reinitialize."
-                if [ "$ROLE" != "master" ]; then
-                    echo "Redis role is $ROLE, expected role is master, reinitializing"
-                    reinit
-                fi
+                reinit
             fi
         elif [ "${MASTER}" ]; then
             identify_redis_master
             if [ "$REDIS_MASTER" != "$MASTER" ]; then
-                echo "Redis master and local master are not the same. waiting."
-                sleep 10
-                identify_master
-                identify_redis_master
-                echo "Redis master is ${MASTER}, expected master is ${REDIS_MASTER}. No need to reinitialize."
-                if [ "${REDIS_MASTER}" != "${MASTER}" ]; then
-                    echo "Redis master is ${MASTER}, expected master is ${REDIS_MASTER}, reinitializing"
-                    reinit
-                fi
+                reinit
             fi
         fi
     done
@@ -795,7 +779,7 @@ metadata:
   labels:
     heritage: Helm
     release: argocd
-    chart: redis-ha-4.34.11
+    chart: redis-ha-4.33.2
     app: argocd-redis-ha
 data:
   redis_liveness.sh: |
@@ -871,7 +855,7 @@ metadata:
     app: redis-ha
     heritage: "Helm"
     release: "argocd"
-    chart: redis-ha-4.34.11
+    chart: redis-ha-4.33.2
 rules:
 - apiGroups:
     - ""
@@ -890,8 +874,8 @@ metadata:
     app: redis-ha
     heritage: "Helm"
     release: "argocd"
-    chart: redis-ha-4.34.11
-    component: haproxy
+    chart: redis-ha-4.33.2
+    component: argocd-redis-ha-haproxy
 rules:
 - apiGroups:
     - ""
@@ -910,7 +894,7 @@ metadata:
     app: redis-ha
     heritage: "Helm"
     release: "argocd"
-    chart: redis-ha-4.34.11
+    chart: redis-ha-4.33.2
 subjects:
 - kind: ServiceAccount
   name: argocd-redis-ha
@@ -929,8 +913,8 @@ metadata:
     app: redis-ha
     heritage: "Helm"
     release: "argocd"
-    chart: redis-ha-4.34.11
-    component: haproxy
+    chart: redis-ha-4.33.2
+    component: argocd-redis-ha-haproxy
 subjects:
 - kind: ServiceAccount
   name: argocd-redis-ha-haproxy
@@ -949,7 +933,7 @@ metadata:
     app: redis-ha
     heritage: "Helm"
     release: "argocd"
-    chart: redis-ha-4.34.11
+    chart: redis-ha-4.33.2
   annotations:
 spec:
   publishNotReadyAddresses: true
@@ -978,7 +962,7 @@ metadata:
     app: redis-ha
     heritage: "Helm"
     release: "argocd"
-    chart: redis-ha-4.34.11
+    chart: redis-ha-4.33.2
   annotations:
 spec:
   publishNotReadyAddresses: true
@@ -1007,7 +991,7 @@ metadata:
     app: redis-ha
     heritage: "Helm"
     release: "argocd"
-    chart: redis-ha-4.34.11
+    chart: redis-ha-4.33.2
   annotations:
 spec:
   publishNotReadyAddresses: true
@@ -1036,7 +1020,7 @@ metadata:
     app: redis-ha
     heritage: "Helm"
     release: "argocd"
-    chart: redis-ha-4.34.11
+    chart: redis-ha-4.33.2
   annotations:
 spec:
   type: ClusterIP
@@ -1064,8 +1048,8 @@ metadata:
     app: redis-ha
     heritage: "Helm"
     release: "argocd"
-    chart: redis-ha-4.34.11
-    component: haproxy
+    chart: redis-ha-4.33.2
+    component: argocd-redis-ha-haproxy
   annotations:
 spec:
   type: ClusterIP
@@ -1092,8 +1076,7 @@ metadata:
     app: redis-ha
     heritage: "Helm"
     release: "argocd"
-    chart: redis-ha-4.34.11
-    component: haproxy
+    chart: redis-ha-4.33.2
 spec:
   strategy:
     type: RollingUpdate
@@ -1103,14 +1086,12 @@ spec:
     matchLabels:
       app: redis-ha-haproxy
       release: argocd
-      component: haproxy
   template:
     metadata:
       name: argocd-redis-ha-haproxy
       labels:
         app: redis-ha-haproxy
         release: argocd
-        component: haproxy
       annotations:
         prometheus.io/port: "9101"
         prometheus.io/scrape: "true"
@@ -1128,7 +1109,7 @@ spec:
       nodeSelector:
         {}
       tolerations:
-        []
+        null
       affinity:
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
@@ -1136,7 +1117,6 @@ spec:
                 matchLabels:
                   app: redis-ha-haproxy
                   release: argocd
-                  component: haproxy
               topologyKey: kubernetes.io/hostname
       initContainers:
       - name: config-init
@@ -1230,7 +1210,7 @@ metadata:
     app: redis-ha
     heritage: "Helm"
     release: "argocd"
-    chart: redis-ha-4.34.11
+    chart: redis-ha-4.33.2
   annotations:
     {}
 spec:
@@ -1246,7 +1226,7 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/init-config: fd74f7d84e39b3f6eac1d7ce5deb0083e58f218376faf363343d91a0fb4f2563
+        checksum/init-config: bd30e83dfdad9912b6c1cc32a8c26d7d01429a0730f5ee7af380fb593e874d54
       labels:
         release: argocd
         app: redis-ha
