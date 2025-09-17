@@ -5,6 +5,7 @@ import * as React from 'react';
 
 import {Consumer} from '../../context';
 import {MonacoEditor} from '../monaco-editor';
+import {safeYamlDump, YAML_SIZE_LIMITS} from '../../utils/yaml-performance';
 
 const jsonMergePatch = require('json-merge-patch');
 require('./yaml-editor.scss');
@@ -33,10 +34,17 @@ export class YamlEditor<T> extends React.Component<
 
     public render() {
         const props = this.props;
-        const yaml = props.input ? jsYaml.dump(props.input) : '';
+        const { yaml, info } = props.input ? safeYamlDump(props.input) : { yaml: '', info: null };
 
         return (
             <div className='yaml-editor'>
+                {info?.warningMessage && (
+                    <div className='yaml-editor__warning'>
+                        <i className='fa fa-exclamation-triangle' />
+                        <span>{info.warningMessage}</span>
+                    </div>
+                )}
+                
                 {!props.hideModeButtons && (
                     <div className='yaml-editor__buttons'>
                         {(this.state.editing && (
@@ -75,7 +83,8 @@ export class YamlEditor<T> extends React.Component<
                                         </button>{' '}
                                         <button
                                             onClick={() => {
-                                                this.model.setValue(jsYaml.dump(props.input));
+                                                const { yaml: freshYaml } = safeYamlDump(props.input);
+                                                this.model.setValue(freshYaml);
                                                 this.setState({editing: !this.state.editing});
                                                 if (props.onCancel) {
                                                     props.onCancel();
@@ -102,7 +111,14 @@ export class YamlEditor<T> extends React.Component<
                         options: {
                             readOnly: !this.state.editing,
                             minimap: {enabled: false},
-                            wordWrap: props.enableWordWrap ? 'on' : 'off'
+                            wordWrap: props.enableWordWrap ? 'on' : 'off',
+                            // Performance optimizations for large files
+                            renderWhitespace: info?.isLarge ? 'none' : 'selection',
+                            renderLineHighlight: info?.isLarge ? 'none' : 'line',
+                            occurrencesHighlight: info?.isLarge ? false : true,
+                            selectionHighlight: info?.isLarge ? false : true,
+                            folding: info?.isLarge ? false : true,
+                            foldingHighlight: info?.isLarge ? false : true
                         },
                         getApi: api => {
                             this.model = api.getModel() as monacoEditor.editor.ITextModel;

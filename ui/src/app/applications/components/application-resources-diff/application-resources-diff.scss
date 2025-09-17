@@ -12,6 +12,53 @@
             }
         }
     }
+    &__global-warning {
+        background-color: #fff3cd;
+        border: 1px solid #ffeaa7;
+        color: #856404;
+        padding: 12px 16px;
+        border-radius: 4px;
+        margin-bottom: 16px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        @include themify($themes){
+            background-color: themed('warning-bg');
+            border-color: themed('warning-border');
+            color: themed('warning-text');
+        }
+        i {
+            font-size: 16px;
+        }
+    }
+    &__warning {
+        background-color: #fff3cd;
+        border: 1px solid #ffeaa7;
+        color: #856404;
+        padding: 8px 12px;
+        border-radius: 4px;
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        @include themify($themes){
+            background-color: themed('warning-bg');
+            border-color: themed('warning-border');
+            color: themed('warning-text');
+        }
+        i {
+            font-size: 14px;
+        }
+    }
+    &__load-more {
+        text-align: center;
+        padding: 16px;
+        border-top: 1px solid #e0e0e0;
+        @include themify($themes){
+            border-top-color: themed('border');
+        }
+    }
     &__diff {
         font-size: 10pt;
         &__title {
