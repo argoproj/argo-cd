@@ -9,7 +9,7 @@ export const YAML_SIZE_LIMITS = {
     // Maximum context lines around changes
     MAX_CONTEXT_LINES: 50,
     // Size threshold to show performance warning
-    WARNING_THRESHOLD: 50000, // ~50KB
+    WARNING_THRESHOLD: 50000 // ~50KB
 };
 
 export interface YamlPerformanceInfo {
@@ -28,14 +28,14 @@ export function analyzeYamlPerformance(content: string): YamlPerformanceInfo {
     const lineCount = content.split('\n').length;
     const isLarge = size > YAML_SIZE_LIMITS.WARNING_THRESHOLD;
     const needsTruncation = size > YAML_SIZE_LIMITS.MAX_YAML_SIZE;
-    
+
     let warningMessage: string | undefined;
     if (needsTruncation) {
         warningMessage = `Resource is very large (${Math.round(size / 1000)}KB, ${lineCount} lines). Content has been truncated for performance.`;
     } else if (isLarge) {
         warningMessage = `Resource is large (${Math.round(size / 1000)}KB, ${lineCount} lines). Performance may be affected.`;
     }
-    
+
     return {
         size,
         lineCount,
@@ -48,41 +48,41 @@ export function analyzeYamlPerformance(content: string): YamlPerformanceInfo {
 /**
  * Safely dumps YAML with size limits and performance optimizations
  */
-export function safeYamlDump(obj: any, options: jsYaml.DumpOptions = {}): { yaml: string; info: YamlPerformanceInfo } {
+export function safeYamlDump(obj: any, options: jsYaml.DumpOptions = {}): {yaml: string; info: YamlPerformanceInfo} {
     const defaultOptions: jsYaml.DumpOptions = {
         indent: 2,
         lineWidth: -1, // Disable line wrapping for better performance
         noRefs: true, // Disable references for better performance
         ...options
     };
-    
+
     let yaml = jsYaml.dump(obj, defaultOptions);
     const info = analyzeYamlPerformance(yaml);
-    
+
     if (info.needsTruncation) {
         // Truncate the YAML content
         const lines = yaml.split('\n');
         const truncatedLines = lines.slice(0, YAML_SIZE_LIMITS.MAX_DIFF_LINES);
         yaml = truncatedLines.join('\n') + '\n# ... (content truncated for performance)';
     }
-    
-    return { yaml, info };
+
+    return {yaml, info};
 }
 
 /**
  * Truncates diff content to prevent browser freezing
  */
-export function truncateDiffContent(diffText: string): { content: string; wasTruncated: boolean } {
+export function truncateDiffContent(diffText: string): {content: string; wasTruncated: boolean} {
     const lines = diffText.split('\n');
     const wasTruncated = lines.length > YAML_SIZE_LIMITS.MAX_DIFF_LINES;
-    
+
     if (wasTruncated) {
         const truncatedLines = lines.slice(0, YAML_SIZE_LIMITS.MAX_DIFF_LINES);
         truncatedLines.push('# ... (diff truncated for performance)');
-        return { content: truncatedLines.join('\n'), wasTruncated };
+        return {content: truncatedLines.join('\n'), wasTruncated};
     }
-    
-    return { content: diffText, wasTruncated };
+
+    return {content: diffText, wasTruncated};
 }
 
 /**

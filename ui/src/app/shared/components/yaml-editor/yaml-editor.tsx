@@ -5,7 +5,7 @@ import * as React from 'react';
 
 import {Consumer} from '../../context';
 import {MonacoEditor} from '../monaco-editor';
-import {safeYamlDump, YAML_SIZE_LIMITS} from '../../utils/yaml-performance';
+import {safeYamlDump} from '../../utils/yaml-performance';
 
 const jsonMergePatch = require('json-merge-patch');
 require('./yaml-editor.scss');
@@ -34,7 +34,7 @@ export class YamlEditor<T> extends React.Component<
 
     public render() {
         const props = this.props;
-        const { yaml, info } = props.input ? safeYamlDump(props.input) : { yaml: '', info: null };
+        const {yaml, info} = props.input ? safeYamlDump(props.input) : {yaml: '', info: null};
 
         return (
             <div className='yaml-editor'>
@@ -44,7 +44,7 @@ export class YamlEditor<T> extends React.Component<
                         <span>{info.warningMessage}</span>
                     </div>
                 )}
-                
+
                 {!props.hideModeButtons && (
                     <div className='yaml-editor__buttons'>
                         {(this.state.editing && (
@@ -83,7 +83,7 @@ export class YamlEditor<T> extends React.Component<
                                         </button>{' '}
                                         <button
                                             onClick={() => {
-                                                const { yaml: freshYaml } = safeYamlDump(props.input);
+                                                const {yaml: freshYaml} = safeYamlDump(props.input);
                                                 this.model.setValue(freshYaml);
                                                 this.setState({editing: !this.state.editing});
                                                 if (props.onCancel) {

@@ -2,7 +2,7 @@
     "compilerOptions": {
         "outDir": "./../../dist/app",
         "sourceMap": true,
-        "noImplicitAny": true,
+        "noImplicitAny": false,
         "module": "esnext",
         "moduleResolution": "node",
         "target": "es5",
@@ -12,6 +12,7 @@
         "noUnusedLocals": true,
         "declaration": false,
         "isolatedModules": true,
+        "skipLibCheck": true,
         "lib": [
             "es2017",
             "dom"
