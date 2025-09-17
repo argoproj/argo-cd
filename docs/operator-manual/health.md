@@ -223,7 +223,7 @@ The following resources have Go-based health checks:
 
 ## Health Checks
 
-An Argo CD App's health is inferred from the health of its immediate child resources (the resources represented in source control).  
+Argo CD App health is inferred from the health of its immediate child resources as represented in the application source.  
 The App health will be the **worst health of its immediate child resources**, based on the following priority (from most to least healthy):  
 **Healthy, Suspended, Progressing, Missing, Degraded, Unknown.**  
 For example, if an App has a Missing resource and a Degraded resource, the App's health will be **Degraded**.
