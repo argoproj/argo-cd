@@ -1043,7 +1043,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
         const refreshing = app.metadata.annotations && app.metadata.annotations[appModels.AnnotationRefreshKey];
         const fullName = AppUtils.nodeKey({group: 'argoproj.io', kind: app.kind, name: app.metadata.name, namespace: app.metadata.namespace});
         const ActionMenuItem = (prop: {actionLabel: string}) => <span className={needOverlapLabelOnNarrowScreen ? 'show-for-large' : ''}>{prop.actionLabel}</span>;
-        return [
+        const menuItems = [
             {
                 iconClassName: 'fa fa-info-circle',
                 title: <ActionMenuItem actionLabel='Details' />,
@@ -1127,6 +1127,22 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                 }
             }
         ];
+
+        // If the application has a parent app-of-app tracking annotations, add a menu item to navigate to the parent application.
+        const parent: string = app?.metadata?.annotations?.[models.AnnotationAppParent];
+        const parentAppName: string = parent?.split('/')[0];
+        const parentAppNamespace: string = parent?.split('/')[1];
+        if (parentAppName && parentAppNamespace) {
+            menuItems.push({
+                iconClassName: 'fa fa-level-up',
+                title: <ActionMenuItem actionLabel='Parent' />,
+                action: async () => {
+                    this.appContext.apis.navigation.goto(`/applications/${parentAppNamespace}/${parentAppName}`);
+                }
+            });
+        }
+
+        return menuItems;
     }
 
     private filterTreeNode(node: ResourceTreeNode, filterInput: FilterInput): boolean {
