@@ -1,0 +1,105 @@
+name: Suggest Documentation Update (Enhanced)
+
+on:
+  issue_comment:
+    types: [created]
+  workflow_dispatch:
+    inputs:
+      force_run:
+        description: 'Force run even if filters would normally skip'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+
+jobs:
+  suggest-docs:
+    runs-on: ubuntu-latest
+    if: |
+      github.event.inputs.force_run == 'true' ||
+      (github.event.issue.pull_request && contains(github.event.comment.body, '[update-docs]'))
+
+    steps:
+      - name: Get PR information
+        id: pr_info
+        if: github.event.issue.pull_request
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_NUMBER=${{ github.event.issue.number }}
+          echo "Extracting PR information for PR #$PR_NUMBER"
+          PR_DATA=$(gh api repos/${{ github.repository }}/pulls/$PR_NUMBER)
+          
+          HEAD_REF=$(echo "$PR_DATA" | jq -r '.head.ref')
+          HEAD_REPO=$(echo "$PR_DATA" | jq -r '.head.repo.full_name')
+          BASE_REF=$(echo "$PR_DATA" | jq -r '.base.ref')
+          
+          echo "head_ref=$HEAD_REF" >> $GITHUB_OUTPUT
+          echo "head_repo=$HEAD_REPO" >> $GITHUB_OUTPUT
+          echo "base_ref=$BASE_REF" >> $GITHUB_OUTPUT
+          echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
+          
+          echo "PR info extracted: #$PR_NUMBER, base: $BASE_REF, head: $HEAD_REF"
+
+      - name: Checkout PR Code
+        uses: actions/checkout@v3
+        with:
+          repository: ${{ steps.pr_info.outputs.head_repo || github.repository }}
+          ref: ${{ steps.pr_info.outputs.head_ref || github.ref }}
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install Python Dependencies
+        run: |
+          pip install -U google-genai
+
+      - name: Configure Git
+        run: |
+          git config --global user.email "docbot@example.com"
+          git config --global user.name "Doc Bot"
+
+      - name: Set up GitHub CLI
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gh
+
+      - name: Set Environment Variables
+        run: |
+          echo "Setting environment variables for documentation script"
+          echo "PR Number: ${{ github.event.issue.number }}"
+          echo "Base ref: ${{ steps.pr_info.outputs.base_ref }}"
+
+      - name: Run Documentation Suggester
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          DOCS_REPO_URL: ${{ secrets.DOCS_REPO_URL }}
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+          PR_BASE: origin/${{ steps.pr_info.outputs.base_ref || 'main' }}
+          PR_NUMBER: ${{ github.event.issue.number }}
+          PR_HEAD_SHA: ${{ steps.pr_info.outputs.head_ref }}
+        run: |
+          echo "=== DEBUG: Environment variables being passed to script ==="
+          echo "PR_BASE: '$PR_BASE'"
+          echo "PR_NUMBER: '$PR_NUMBER'"
+          echo "PR_HEAD_SHA: '$PR_HEAD_SHA'"
+          echo "Issue number from event: '${{ github.event.issue.number }}'"
+          echo "Event type: '${{ github.event_name }}'"
+          echo "============================================================"
+          
+          # Explicitly set PR_NUMBER if it's empty
+          if [ -z "$PR_NUMBER" ] || [ "$PR_NUMBER" = "null" ]; then
+            echo "WARNING: PR_NUMBER is empty or null, setting to issue number"
+            export PR_NUMBER="${{ github.event.issue.number }}"
+            echo "Updated PR_NUMBER: '$PR_NUMBER'"
+          fi
+
+          python scripts/suggest_docs.py
