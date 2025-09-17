@@ -27,6 +27,20 @@ message AWSAuthConfig {
   optional string profile = 3;
 }
 
+// AppHealthStatus contains information about the currently observed health state of an application
+message AppHealthStatus {
+  // Status holds the status code of the application
+  optional string status = 1;
+
+  // Message is a human-readable informational message describing the health status
+  //
+  // Deprecated: this field is not used and will be removed in a future release.
+  optional string message = 2;
+
+  // LastTransitionTime is the time the HealthStatus was set or updated
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time lastTransitionTime = 3;
+}
+
 // AppProject provides a logical grouping of applications, providing controls for:
 // * where the apps may deploy to (cluster whitelist)
 // * what may be deployed (repository whitelist, resource whitelist/blacklist)
@@ -362,6 +376,10 @@ message ApplicationSetStrategy {
   optional string type = 1;
 
   optional ApplicationSetRolloutStrategy rollingSync = 2;
+
+  // DeletionOrder allows specifying the order for deleting generated apps when progressive sync is enabled.
+  // accepts values "AllAtOnce" and "Reverse"
+  optional string deletionOrder = 3;
 }
 
 // ApplicationSetSyncPolicy configures how generated Applications will relate to their
@@ -667,7 +685,7 @@ message ApplicationStatus {
   optional SyncStatus sync = 2;
 
   // Health contains information about the application's current health status
-  optional HealthStatus health = 3;
+  optional AppHealthStatus health = 3;
 
   // History contains information about the application's sync history
   repeated RevisionHistory history = 4;
@@ -921,6 +939,37 @@ message Command {
   repeated string args = 2;
 }
 
+// CommitMetadata contains metadata about a commit that is related in some way to another commit.
+message CommitMetadata {
+  // Author is the author of the commit, i.e. `git show -s --format=%an <%ae>`.
+  // Must be formatted according to RFC 5322 (mail.Address.String()).
+  // Comes from the Argocd-reference-commit-author trailer.
+  optional string author = 1;
+
+  // Date is the date of the commit, formatted as by `git show -s --format=%aI` (RFC 3339).
+  // It can also be an empty string if the date is unknown.
+  // Comes from the Argocd-reference-commit-date trailer.
+  optional string date = 2;
+
+  // Subject is the commit message subject line, i.e. `git show -s --format=%s`.
+  // Comes from the Argocd-reference-commit-subject trailer.
+  optional string subject = 3;
+
+  // Body is the commit message body minus the subject line, i.e. `git show -s --format=%b`.
+  // Comes from the Argocd-reference-commit-body trailer.
+  optional string body = 4;
+
+  // SHA is the commit hash.
+  // Comes from the Argocd-reference-commit-sha trailer.
+  optional string sha = 5;
+
+  // RepoURL is the URL of the repository where the commit is located.
+  // Comes from the Argocd-reference-commit-repourl trailer.
+  // This value is not validated and should not be used to construct UI links unless it is properly
+  // validated and/or sanitized first.
+  optional string repoUrl = 6;
+}
+
 // ComparedTo contains application source and target which was used for resources comparison
 message ComparedTo {
   // Source is a reference to the application's source used for comparison
@@ -1016,9 +1065,6 @@ message EnvEntry {
   optional string value = 2;
 }
 
-message ErrApplicationNotAllowedToUseProject {
-}
-
 // ExecProviderConfig is config used to call an external command to perform cluster authentication
 // See: https://godoc.org/k8s.io/client-go/tools/clientcmd/api#ExecConfig
 message ExecProviderConfig {
@@ -1046,6 +1092,8 @@ message GitDirectoryGeneratorItem {
 
 message GitFileGeneratorItem {
   optional string path = 1;
+
+  optional bool exclude = 2;
 }
 
 message GitGenerator {
@@ -1081,7 +1129,7 @@ message GnuPGPublicKey {
   // Trust holds the level of trust assigned to this key
   optional string trust = 4;
 
-  // SubType holds the key's sub type (e.g. rsa4096)
+  // SubType holds the key's subtype (e.g. rsa4096)
   optional string subType = 5;
 
   // KeyData holds the raw key data, in base64 encoded format
@@ -1095,15 +1143,17 @@ message GnuPGPublicKeyList {
   repeated GnuPGPublicKey items = 2;
 }
 
-// HealthStatus contains information about the currently observed health state of an application or resource
+// HealthStatus contains information about the currently observed health state of a resource
 message HealthStatus {
-  // Status holds the status code of the application or resource
+  // Status holds the status code of the resource
   optional string status = 1;
 
   // Message is a human-readable informational message describing the health status
   optional string message = 2;
 
   // LastTransitionTime is the time the HealthStatus was set or updated
+  //
+  // Deprecated: this field is not used and will be removed in a future release.
   optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time lastTransitionTime = 3;
 }
 
@@ -1143,6 +1193,9 @@ message HostInfo {
 
   // SystemInfo contains detailed system-level information about the host, such as OS, kernel version, and architecture.
   optional .k8s.io.api.core.v1.NodeSystemInfo systemInfo = 3;
+
+  // Labels holds the labels attached to the host.
+  map<string, string> labels = 4;
 }
 
 // HostResourceInfo represents resource usage details for a specific resource type on a host.
@@ -1256,7 +1309,14 @@ message KustomizeOptions {
   optional string buildOptions = 1;
 
   // BinaryPath holds optional path to kustomize binary
+  //
+  // Deprecated: Use settings.Settings instead. See: settings.Settings.KustomizeVersions.
+  // If this field is set, it will be used as the Kustomize binary path.
+  // Otherwise, Versions is used.
   optional string binaryPath = 2;
+
+  // Versions is a list of Kustomize versions and their corresponding binary paths and build options.
+  repeated KustomizeVersion versions = 3;
 }
 
 message KustomizePatch {
@@ -1291,6 +1351,18 @@ message KustomizeSelector {
   optional string annotationSelector = 2;
 
   optional string labelSelector = 3;
+}
+
+// KustomizeVersion holds information about additional Kustomize versions
+message KustomizeVersion {
+  // Name holds Kustomize version name
+  optional string name = 1;
+
+  // Path holds the corresponding binary path
+  optional string path = 2;
+
+  // BuildOptions that are specific to a Kustomize version
+  optional string buildOptions = 3;
 }
 
 // ListGenerator include items info
@@ -1357,6 +1429,23 @@ message NestedMergeGenerator {
   repeated ApplicationSetTerminalGenerator generators = 1;
 
   repeated string mergeKeys = 2;
+}
+
+// OCIMetadata contains metadata for a specific revision in an OCI repository
+message OCIMetadata {
+  optional string createdAt = 1;
+
+  optional string authors = 2;
+
+  optional string imageUrl = 3;
+
+  optional string docsUrl = 4;
+
+  optional string sourceUrl = 5;
+
+  optional string version = 6;
+
+  optional string description = 7;
 }
 
 // Operation contains information about a requested or running operation
@@ -1522,6 +1611,9 @@ message PullRequestGenerator {
 
   // Values contains key/value pairs which are passed directly as parameters to the template
   map<string, string> values = 10;
+
+  // ContinueOnRepoNotFoundError is a flag to continue the ApplicationSet Pull Request generator parameters generation even if the repository is not found.
+  optional bool continueOnRepoNotFoundError = 11;
 }
 
 // PullRequestGeneratorAzureDevOps defines connection info specific to AzureDevOps.
@@ -1594,6 +1686,8 @@ message PullRequestGeneratorFilter {
   optional string branchMatch = 1;
 
   optional string targetBranchMatch = 2;
+
+  optional string titleMatch = 3;
 }
 
 // PullRequestGeneratorGitLab defines connection info specific to GitLab.
@@ -1610,7 +1704,8 @@ message PullRequestGeneratorGitLab {
   // Labels is used to filter the MRs that you want to target
   repeated string labels = 4;
 
-  // PullRequestState is an additional MRs filter to get only those with a certain state. Default: "" (all states)
+  // PullRequestState is an additional MRs filter to get only those with a certain state. Default: "" (all states).
+  // Valid values: opened, closed, merged, locked".
   optional string pullRequestState = 5;
 
   // Skips validating the SCM provider's TLS certificate - useful for self-signed certificates.; default: false
@@ -1725,6 +1820,9 @@ message RepoCreds {
 
   // BearerToken contains the bearer token used for Git BitBucket Data Center auth at the repo server
   optional string bearerToken = 25;
+
+  // InsecureOCIForceHttp specifies whether the connection to the repository uses TLS at _all_. If true, no TLS. This flag is applicable for OCI repos only.
+  optional bool insecureOCIForceHttp = 26;
 }
 
 // RepositoryList is a collection of Repositories.
@@ -1811,6 +1909,9 @@ message Repository {
 
   // BearerToken contains the bearer token used for Git BitBucket Data Center auth at the repo server
   optional string bearerToken = 25;
+
+  // InsecureOCIForceHttp specifies whether the connection to the repository uses TLS at _all_. If true, no TLS. This flag is applicable for OCI repos only.
+  optional bool insecureOCIForceHttp = 26;
 }
 
 // A RepositoryCertificate is either SSH known hosts entry or TLS certificate
@@ -1880,15 +1981,6 @@ message ResourceActionDefinition {
 message ResourceActionParam {
   // Name is the name of the parameter.
   optional string name = 1;
-
-  // Value is the value of the parameter.
-  optional string value = 2;
-
-  // Type is the type of the parameter (e.g., string, integer).
-  optional string type = 3;
-
-  // Default is the default value of the parameter, if any.
-  optional string default = 4;
 }
 
 // ResourceActions holds the set of actions that can be applied to a resource.
@@ -2084,6 +2176,9 @@ message ResourceResult {
 
   // SyncPhase indicates the particular phase of the sync that this result was acquired in
   optional string syncPhase = 10;
+
+  // Images contains the images related to the ResourceResult
+  repeated string images = 11;
 }
 
 // ResourceStatus holds the current synchronization and health status of a Kubernetes resource.
@@ -2130,6 +2225,9 @@ message RetryStrategy {
 
   // Backoff controls how to backoff on subsequent retries of failed syncs
   optional Backoff backoff = 2;
+
+  // Refresh indicates if the latest revision should be used on retry instead of the initial one (default: false)
+  optional bool refresh = 3;
 }
 
 // RevisionHistory contains history information about a previous sync
@@ -2159,7 +2257,8 @@ message RevisionHistory {
   optional OperationInitiator initiatedBy = 10;
 }
 
-// RevisionMetadata contains metadata for a specific revision in a Git repository
+// RevisionMetadata contains metadata for a specific revision in a Git repository. This field is used by the
+// Source Hydrator feature which may be removed in the future.
 message RevisionMetadata {
   // who authored this revision,
   // typically their name and email, e.g. "John Doe <john_doe@my-company.com>",
@@ -2178,6 +2277,16 @@ message RevisionMetadata {
 
   // SignatureInfo contains a hint on the signer if the revision was signed with GPG, and signature verification is enabled.
   optional string signatureInfo = 5;
+
+  // References contains references to information that's related to this commit in some way.
+  repeated RevisionReference references = 6;
+}
+
+// RevisionReference contains a reference to a some information that is related in some way to another commit. For now,
+// it supports only references to a commit. In the future, it may support other types of references.
+message RevisionReference {
+  // Commit contains metadata about the commit that is related in some way to another commit.
+  optional CommitMetadata commit = 1;
 }
 
 // SCMProviderGenerator defines a generator that scrapes a SCMaaS API to find candidate repos.
@@ -2520,7 +2629,7 @@ message SyncPolicyAutomated {
   optional bool allowEmpty = 3;
 
   // Enable allows apps to explicitly control automated sync
-  optional bool enable = 4;
+  optional bool enabled = 4;
 }
 
 // SyncSource specifies a location from which hydrated manifests may be synced. RepoURL is assumed based on the
@@ -2530,7 +2639,12 @@ message SyncSource {
   optional string targetBranch = 1;
 
   // Path is a directory path within the git repository where hydrated manifests should be committed to and synced
-  // from. If hydrateTo is set, this is just the path from which hydrated manifests will be synced.
+  // from. The Path should never point to the root of the repo. If hydrateTo is set, this is just the path from which
+  // hydrated manifests will be synced.
+  //
+  // +kubebuilder:validation:Required
+  // +kubebuilder:validation:MinLength=1
+  // +kubebuilder:validation:Pattern=`^.{2,}|[^./]$`
   optional string path = 2;
 }
 

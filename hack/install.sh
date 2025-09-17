@@ -22,6 +22,6 @@ case "${unameOut}" in
     Darwin*)    INSTALL_OS=darwin;;
 esac
 
-for product in $*; do
-  ARCHITECTURE=$ARCHITECTURE INSTALL_OS=$INSTALL_OS "$(dirname $0)/installers/install-${product}.sh"
+for product in "$@"; do
+  ARCHITECTURE=$ARCHITECTURE INSTALL_OS=$INSTALL_OS "$(dirname "$0")/installers/install-${product}.sh"
 done

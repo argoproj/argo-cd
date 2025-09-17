@@ -14,7 +14,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/common"
 	executil "github.com/argoproj/argo-cd/v3/util/exec"
-	argoio "github.com/argoproj/argo-cd/v3/util/io"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	pathutil "github.com/argoproj/argo-cd/v3/util/io/path"
 	"github.com/argoproj/argo-cd/v3/util/proxy"
 )
@@ -101,7 +101,7 @@ func (c *Cmd) RegistryLogin(repo string, creds Creds) (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("failed to write certificate data to temporary file: %w", err)
 		}
-		defer argoio.Close(closer)
+		defer utilio.Close(closer)
 		args = append(args, "--cert-file", filePath)
 	}
 
@@ -110,7 +110,7 @@ func (c *Cmd) RegistryLogin(repo string, creds Creds) (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("failed to write key data to temporary file: %w", err)
 		}
-		defer argoio.Close(closer)
+		defer utilio.Close(closer)
 		args = append(args, "--key-file", filePath)
 	}
 
@@ -202,7 +202,7 @@ func (c *Cmd) RepoAdd(name string, url string, opts Creds, passCredentials bool)
 	return out, err
 }
 
-func writeToTmp(data []byte) (string, argoio.Closer, error) {
+func writeToTmp(data []byte) (string, utilio.Closer, error) {
 	file, err := os.CreateTemp("", "")
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to create temporary file: %w", err)
@@ -220,7 +220,7 @@ func writeToTmp(data []byte) (string, argoio.Closer, error) {
 			}).Errorf("error closing file %q: %v", file.Name(), err)
 		}
 	}()
-	return file.Name(), argoio.NewCloser(func() error {
+	return file.Name(), utilio.NewCloser(func() error {
 		return os.RemoveAll(file.Name())
 	}), nil
 }
@@ -255,7 +255,7 @@ func (c *Cmd) Fetch(repo, chartName, version, destination string, creds Creds, p
 		if err != nil {
 			return "", fmt.Errorf("failed to write certificate data to temporary file: %w", err)
 		}
-		defer argoio.Close(closer)
+		defer utilio.Close(closer)
 		args = append(args, "--cert-file", filePath)
 	}
 	if len(creds.GetKeyData()) > 0 {
@@ -263,7 +263,7 @@ func (c *Cmd) Fetch(repo, chartName, version, destination string, creds Creds, p
 		if err != nil {
 			return "", fmt.Errorf("failed to write key data to temporary file: %w", err)
 		}
-		defer argoio.Close(closer)
+		defer utilio.Close(closer)
 		args = append(args, "--key-file", filePath)
 	}
 	if passCredentials {
@@ -293,7 +293,7 @@ func (c *Cmd) PullOCI(repo string, chart string, version string, destination str
 		if err != nil {
 			return "", fmt.Errorf("failed to write certificate data to temporary file: %w", err)
 		}
-		defer argoio.Close(closer)
+		defer utilio.Close(closer)
 		args = append(args, "--cert-file", filePath)
 	}
 
@@ -302,7 +302,7 @@ func (c *Cmd) PullOCI(repo string, chart string, version string, destination str
 		if err != nil {
 			return "", fmt.Errorf("failed to write key data to temporary file: %w", err)
 		}
-		defer argoio.Close(closer)
+		defer utilio.Close(closer)
 		args = append(args, "--key-file", filePath)
 	}
 
@@ -367,13 +367,13 @@ func cleanSetParameters(val string) string {
 	return val
 }
 
-func replaceAllWithLookbehind(val string, old rune, new string, lookbehind rune) string {
+func replaceAllWithLookbehind(val string, old rune, newV string, lookbehind rune) string {
 	var result strings.Builder
 	var prevR rune
 	for _, r := range val {
 		if r == old {
 			if prevR != lookbehind {
-				result.WriteString(new)
+				result.WriteString(newV)
 			} else {
 				result.WriteRune(old)
 			}

@@ -116,7 +116,7 @@ func TestFindRevisionHistoryWithoutPassedId(t *testing.T) {
 	status := v1alpha1.ApplicationStatus{
 		Resources:      nil,
 		Sync:           v1alpha1.SyncStatus{},
-		Health:         v1alpha1.HealthStatus{},
+		Health:         v1alpha1.AppHealthStatus{},
 		History:        histories,
 		Conditions:     nil,
 		ReconciledAt:   nil,
@@ -224,7 +224,7 @@ func TestFindRevisionHistoryWithoutPassedIdWithMultipleSources(t *testing.T) {
 	status := v1alpha1.ApplicationStatus{
 		Resources:      nil,
 		Sync:           v1alpha1.SyncStatus{},
-		Health:         v1alpha1.HealthStatus{},
+		Health:         v1alpha1.AppHealthStatus{},
 		History:        histories,
 		Conditions:     nil,
 		ReconciledAt:   nil,
@@ -277,7 +277,7 @@ func TestFindRevisionHistoryWithoutPassedIdAndEmptyHistoryList(t *testing.T) {
 	status := v1alpha1.ApplicationStatus{
 		Resources:      nil,
 		Sync:           v1alpha1.SyncStatus{},
-		Health:         v1alpha1.HealthStatus{},
+		Health:         v1alpha1.AppHealthStatus{},
 		History:        histories,
 		Conditions:     nil,
 		ReconciledAt:   nil,
@@ -308,7 +308,7 @@ func TestFindRevisionHistoryWithPassedId(t *testing.T) {
 	status := v1alpha1.ApplicationStatus{
 		Resources:      nil,
 		Sync:           v1alpha1.SyncStatus{},
-		Health:         v1alpha1.HealthStatus{},
+		Health:         v1alpha1.AppHealthStatus{},
 		History:        histories,
 		Conditions:     nil,
 		ReconciledAt:   nil,
@@ -338,7 +338,7 @@ func TestFindRevisionHistoryWithPassedIdThatNotExist(t *testing.T) {
 	status := v1alpha1.ApplicationStatus{
 		Resources:      nil,
 		Sync:           v1alpha1.SyncStatus{},
-		Health:         v1alpha1.HealthStatus{},
+		Health:         v1alpha1.AppHealthStatus{},
 		History:        histories,
 		Conditions:     nil,
 		ReconciledAt:   nil,
@@ -692,9 +692,8 @@ func TestPrintAppSummaryTable(t *testing.T) {
 				Sync: v1alpha1.SyncStatus{
 					Status: v1alpha1.SyncStatusCodeOutOfSync,
 				},
-				Health: v1alpha1.HealthStatus{
-					Status:  health.HealthStatusProgressing,
-					Message: "health-message",
+				Health: v1alpha1.AppHealthStatus{
+					Status: health.HealthStatusProgressing,
 				},
 			},
 		}
@@ -747,7 +746,7 @@ SyncWindow:         Sync Denied
 Assigned Windows:   allow:0 0 * * *:24h,deny:0 0 * * *:24h,allow:0 0 * * *:24h
 Sync Policy:        Automated (Prune)
 Sync Status:        OutOfSync from master
-Health Status:      Progressing (health-message)
+Health Status:      Progressing
 `
 	assert.Equalf(t, expectation, output, "Incorrect print app summary output %q, should be %q", output, expectation)
 }
@@ -787,9 +786,8 @@ func TestPrintAppSummaryTable_MultipleSources(t *testing.T) {
 				Sync: v1alpha1.SyncStatus{
 					Status: v1alpha1.SyncStatusCodeOutOfSync,
 				},
-				Health: v1alpha1.HealthStatus{
-					Status:  health.HealthStatusProgressing,
-					Message: "health-message",
+				Health: v1alpha1.AppHealthStatus{
+					Status: health.HealthStatusProgressing,
 				},
 			},
 		}
@@ -845,7 +843,7 @@ SyncWindow:         Sync Denied
 Assigned Windows:   allow:0 0 * * *:24h,deny:0 0 * * *:24h,allow:0 0 * * *:24h
 Sync Policy:        Automated (Prune)
 Sync Status:        OutOfSync from master
-Health Status:      Progressing (health-message)
+Health Status:      Progressing
 `
 	assert.Equalf(t, expectation, output, "Incorrect print app summary output %q, should be %q", output, expectation)
 }
@@ -1220,6 +1218,8 @@ func Test_unset(t *testing.T) {
 }
 
 func Test_unset_nothingToUnset(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		name   string
 		source v1alpha1.ApplicationSource
@@ -1562,7 +1562,7 @@ func TestPrintApplicationTableNotWide(t *testing.T) {
 				Sync: v1alpha1.SyncStatus{
 					Status: "OutOfSync",
 				},
-				Health: v1alpha1.HealthStatus{
+				Health: v1alpha1.AppHealthStatus{
 					Status: "Healthy",
 				},
 			},
@@ -1598,7 +1598,7 @@ func TestPrintApplicationTableWide(t *testing.T) {
 				Sync: v1alpha1.SyncStatus{
 					Status: "OutOfSync",
 				},
-				Health: v1alpha1.HealthStatus{
+				Health: v1alpha1.AppHealthStatus{
 					Status: "Healthy",
 				},
 			},
@@ -1922,7 +1922,7 @@ Source:
 SyncWindow:         Sync Allowed
 Sync Policy:        Automated (Prune)
 Sync Status:        OutOfSync from master
-Health Status:      Progressing (health-message)
+Health Status:      Progressing
 
 Operation:          Sync
 Sync Revision:      revision
@@ -1987,7 +1987,7 @@ Source:
 SyncWindow:         Sync Allowed
 Sync Policy:        Automated (Prune)
 Sync Status:        OutOfSync from master
-Health Status:      Progressing (health-message)
+Health Status:      Progressing
 
 Operation:          Sync
 Sync Revision:      revision
@@ -2129,9 +2129,8 @@ func (c *fakeAppServiceClient) Get(_ context.Context, _ *applicationpkg.Applicat
 			Sync: v1alpha1.SyncStatus{
 				Status: v1alpha1.SyncStatusCodeOutOfSync,
 			},
-			Health: v1alpha1.HealthStatus{
-				Status:  health.HealthStatusProgressing,
-				Message: "health-message",
+			Health: v1alpha1.AppHealthStatus{
+				Status: health.HealthStatusProgressing,
 			},
 		},
 	}, nil
@@ -2154,6 +2153,10 @@ func (c *fakeAppServiceClient) Create(_ context.Context, _ *applicationpkg.Appli
 }
 
 func (c *fakeAppServiceClient) GetApplicationSyncWindows(_ context.Context, _ *applicationpkg.ApplicationSyncWindowsQuery, _ ...grpc.CallOption) (*applicationpkg.ApplicationSyncWindowsResponse, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) GetOCIMetadata(_ context.Context, _ *applicationpkg.RevisionMetadataQuery, _ ...grpc.CallOption) (*v1alpha1.OCIMetadata, error) {
 	return nil, nil
 }
 
@@ -2225,7 +2228,12 @@ func (c *fakeAppServiceClient) ListResourceActions(_ context.Context, _ *applica
 	return nil, nil
 }
 
+// nolint:staticcheck // ResourceActionRunRequest is deprecated, but we still need to implement it to satisfy the server interface.
 func (c *fakeAppServiceClient) RunResourceAction(_ context.Context, _ *applicationpkg.ResourceActionRunRequest, _ ...grpc.CallOption) (*applicationpkg.ApplicationResponse, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) RunResourceActionV2(_ context.Context, _ *applicationpkg.ResourceActionRunRequestV2, _ ...grpc.CallOption) (*applicationpkg.ApplicationResponse, error) {
 	return nil, nil
 }
 
@@ -2242,6 +2250,10 @@ func (c *fakeAppServiceClient) ListLinks(_ context.Context, _ *applicationpkg.Li
 }
 
 func (c *fakeAppServiceClient) ListResourceLinks(_ context.Context, _ *applicationpkg.ApplicationResourceRequest, _ ...grpc.CallOption) (*applicationpkg.LinksResponse, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) ServerSideDiff(_ context.Context, _ *applicationpkg.ApplicationServerSideDiffQuery, _ ...grpc.CallOption) (*applicationpkg.ApplicationServerSideDiffResponse, error) {
 	return nil, nil
 }
 

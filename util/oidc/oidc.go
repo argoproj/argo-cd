@@ -62,14 +62,14 @@ type ClientApp struct {
 	clientID string
 	// OAuth2 client secret of this application
 	clientSecret string
+	// Use Proof Key for Code Exchange (PKCE)
+	usePKCE bool
 	// Use Azure Workload Identity for clientID auth instead of clientSecret
 	useAzureWorkloadIdentity bool
 	// Callback URL for OAuth2 responses (e.g. https://argocd.example.com/auth/callback)
 	redirectURI string
 	// URL of the issuer (e.g. https://argocd.example.com/api/dex)
 	issuerURL string
-	// the path where the issuer providers user information (e.g /user-info for okta)
-	userInfoPath string
 	// The URL endpoint at which the ArgoCD server is accessed.
 	baseHRef string
 	// client is the HTTP client which is used to query the IDp
@@ -86,7 +86,8 @@ type ClientApp struct {
 	// clientCache represent a cache of sso artifact
 	clientCache cache.CacheClient
 	// properties for azure workload identity.
-	azure azureApp
+	azure      azureApp
+	domainHint string
 }
 
 type azureApp struct {
@@ -119,13 +120,14 @@ func NewClientApp(settings *settings.ArgoCDSettings, dexServerAddr string, dexTL
 	a := ClientApp{
 		clientID:                 settings.OAuth2ClientID(),
 		clientSecret:             settings.OAuth2ClientSecret(),
+		usePKCE:                  settings.OAuth2UsePKCE(),
 		useAzureWorkloadIdentity: settings.UseAzureWorkloadIdentity(),
 		redirectURI:              redirectURL,
 		issuerURL:                settings.IssuerURL(),
-		userInfoPath:             settings.UserInfoPath(),
 		baseHRef:                 baseHRef,
 		encryptionKey:            encryptionKey,
 		clientCache:              cacheClient,
+		domainHint:               settings.OIDCConfig().DomainHint,
 		azure:                    azureApp{mtx: &sync.RWMutex{}},
 	}
 	log.Infof("Creating client app (%s)", a.clientID)
@@ -186,7 +188,7 @@ func (a *ClientApp) oauth2Config(request *http.Request, scopes []string) (*oauth
 }
 
 // generateAppState creates an app state nonce
-func (a *ClientApp) generateAppState(returnURL string, w http.ResponseWriter) (string, error) {
+func (a *ClientApp) generateAppState(returnURL string, pkceVerifier string, w http.ResponseWriter) (string, error) {
 	// According to the spec (https://www.rfc-editor.org/rfc/rfc6749#section-10.10), this must be guessable with
 	// probability <= 2^(-128). The following call generates one of 52^24 random strings, ~= 2^136 possibilities.
 	randStr, err := rand.String(24)
@@ -196,7 +198,7 @@ func (a *ClientApp) generateAppState(returnURL string, w http.ResponseWriter) (s
 	if returnURL == "" {
 		returnURL = a.baseHRef
 	}
-	cookieValue := fmt.Sprintf("%s:%s", randStr, returnURL)
+	cookieValue := fmt.Sprintf("%s\n%s\n%s", randStr, returnURL, pkceVerifier)
 	if encrypted, err := crypto.Encrypt([]byte(cookieValue), a.encryptionKey); err != nil {
 		return "", err
 	} else {
@@ -214,23 +216,24 @@ func (a *ClientApp) generateAppState(returnURL string, w http.ResponseWriter) (s
 	return randStr, nil
 }
 
-func (a *ClientApp) verifyAppState(r *http.Request, w http.ResponseWriter, state string) (string, error) {
+func (a *ClientApp) verifyAppState(r *http.Request, w http.ResponseWriter, state string) (string, string, error) {
 	c, err := r.Cookie(common.StateCookieName)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	val, err := hex.DecodeString(c.Value)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	val, err = crypto.Decrypt(val, a.encryptionKey)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	cookieVal := string(val)
 	redirectURL := a.baseHRef
-	parts := strings.SplitN(cookieVal, ":", 2)
-	if len(parts) == 2 && parts[1] != "" {
+	pkceVerifier := ""
+	parts := strings.SplitN(cookieVal, "\n", 3)
+	if len(parts) > 1 && parts[1] != "" {
 		if !isValidRedirectURL(parts[1],
 			append([]string{a.settings.URL, a.baseHRef}, a.settings.AdditionalURLs...)) {
 			sanitizedURL := parts[1]
@@ -238,12 +241,15 @@ func (a *ClientApp) verifyAppState(r *http.Request, w http.ResponseWriter, state
 				sanitizedURL = sanitizedURL[:100]
 			}
 			log.Warnf("Failed to verify app state - got invalid redirectURL %q", sanitizedURL)
-			return "", fmt.Errorf("failed to verify app state: %w", ErrInvalidRedirectURL)
+			return "", "", fmt.Errorf("failed to verify app state: %w", ErrInvalidRedirectURL)
 		}
 		redirectURL = parts[1]
 	}
+	if len(parts) > 2 {
+		pkceVerifier = parts[2]
+	}
 	if parts[0] != state {
-		return "", fmt.Errorf("invalid state in '%s' cookie", common.AuthCookieName)
+		return "", "", fmt.Errorf("invalid state in '%s' cookie", common.AuthCookieName)
 	}
 	// set empty cookie to clear it
 	http.SetCookie(w, &http.Cookie{
@@ -253,7 +259,7 @@ func (a *ClientApp) verifyAppState(r *http.Request, w http.ResponseWriter, state
 		SameSite: http.SameSiteLaxMode,
 		Secure:   a.secureCookie,
 	})
-	return redirectURL, nil
+	return redirectURL, pkceVerifier, nil
 }
 
 // isValidRedirectURL checks whether the given redirectURL matches on of the
@@ -312,6 +318,7 @@ func (a *ClientApp) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	scopes := make([]string, 0)
+	pkceVerifier := ""
 	var opts []oauth2.AuthCodeOption
 	if config := a.settings.OIDCConfig(); config != nil {
 		scopes = GetScopesOrDefault(config.RequestedScopes)
@@ -331,7 +338,18 @@ func (a *ClientApp) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid redirect URL: the protocol and host (including port) must match and the path must be within allowed URLs if provided", http.StatusBadRequest)
 		return
 	}
-	stateNonce, err := a.generateAppState(returnURL, w)
+
+	if a.domainHint != "" {
+		opts = append(opts, oauth2.SetAuthURLParam("login_hint", a.domainHint))
+	}
+	// debug log to confirm domainHint at runtime
+	log.Infof("OIDC HandleLogin: domainHint=%q", a.domainHint)
+
+	if a.usePKCE {
+		pkceVerifier = oauth2.GenerateVerifier()
+		opts = append(opts, oauth2.S256ChallengeOption(pkceVerifier))
+	}
+	stateNonce, err := a.generateAppState(returnURL, pkceVerifier, w)
 	if err != nil {
 		log.Errorf("Failed to initiate login flow: %v", err)
 		http.Error(w, "Failed to initiate login flow", http.StatusInternalServerError)
@@ -415,7 +433,7 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 		a.handleImplicitFlow(r, w, state)
 		return
 	}
-	returnURL, err := a.verifyAppState(r, w, state)
+	returnURL, pkceVerifier, err := a.verifyAppState(r, w, state)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -435,6 +453,10 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 			oauth2.SetAuthURLParam("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"),
 			oauth2.SetAuthURLParam("client_assertion", clientAssertion),
 		}
+	}
+
+	if a.usePKCE {
+		options = append(options, oauth2.VerifierOption(pkceVerifier))
 	}
 
 	token, err := oauth2Config.Exchange(ctx, code, options...)
@@ -547,7 +569,8 @@ func (a *ClientApp) handleImplicitFlow(r *http.Request, w http.ResponseWriter, s
 		CookieName: common.AuthCookieName,
 	}
 	if state != "" {
-		returnURL, err := a.verifyAppState(r, w, state)
+		// Not using pkceVerifier, since PKCE is not supported in implicit flow.
+		returnURL, _, err := a.verifyAppState(r, w, state)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
@@ -642,7 +665,7 @@ func (a *ClientApp) GetUserInfo(actualClaims jwt.MapClaims, issuerURL, userInfoP
 			err = json.Unmarshal(claimsRaw, &claims)
 			if err == nil {
 				// return the cached claims since they are not yet expired, were successfully decrypted and unmarshaled
-				return claims, false, err
+				return claims, false, nil
 			}
 			log.Errorf("cannot unmarshal cached claims structure: %s", err)
 		}
@@ -665,7 +688,7 @@ func (a *ClientApp) GetUserInfo(actualClaims jwt.MapClaims, issuerURL, userInfoP
 	}
 
 	url := issuerURL + userInfoPath
-	request, err := http.NewRequest(http.MethodGet, url, nil)
+	request, err := http.NewRequest(http.MethodGet, url, http.NoBody)
 	if err != nil {
 		err = fmt.Errorf("failed creating new http request: %w", err)
 		return claims, false, err

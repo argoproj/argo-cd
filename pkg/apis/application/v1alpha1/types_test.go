@@ -825,6 +825,29 @@ func TestAppProject_ValidateSyncWindowList(t *testing.T) {
 		err = p.ValidateProject()
 		require.NoError(t, err)
 	})
+
+	t.Run("HasDuplicateSyncWindow", func(t *testing.T) {
+		p := newTestProjectWithSyncWindows()
+		err := p.ValidateProject()
+		require.NoError(t, err)
+		dup := *p.Spec.SyncWindows[0]
+		p.Spec.SyncWindows = append(p.Spec.SyncWindows, &dup)
+		err = p.ValidateProject()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "already exists")
+	})
+
+	t.Run("HasRequiredFields", func(t *testing.T) {
+		p := newTestProjectWithSyncWindows()
+		err := p.ValidateProject()
+		require.NoError(t, err)
+		p.Spec.SyncWindows[0].Applications = []string{}
+		p.Spec.SyncWindows[0].Namespaces = []string{}
+		p.Spec.SyncWindows[0].Clusters = []string{}
+		err = p.ValidateProject()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "requires one of application, cluster or namespace")
+	})
 }
 
 // TestInvalidPolicyRules checks various errors in policy rules
@@ -902,6 +925,42 @@ func TestAppProject_ValidPolicyRules(t *testing.T) {
 	}
 }
 
+// TestRoleGroupExists tests if a group has been defined in the Project role
+func TestRoleGroupExists(t *testing.T) {
+	tests := []struct {
+		name     string
+		role     *ProjectRole
+		expected bool
+	}{
+		{
+			name: "Project role group exists",
+			role: &ProjectRole{
+				Name:        "custom-project-role",
+				Description: "The \"custom-project-role\" will be applied to the `some-user` group.",
+				Groups:      []string{"some-user"},
+				Policies:    []string{"roj:sample-test-project:custom-project-role, applications, *, *, allow"},
+			},
+			expected: true,
+		},
+		{
+			name: "Project role group doesn't exist",
+			role: &ProjectRole{
+				Name:        "custom-project-role",
+				Description: "The \"custom-project-role\" will be applied to the `some-user` group.",
+				Policies:    []string{"roj:sample-test-project:custom-project-role, applications, *, *, allow"},
+			},
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			actual := RoleGroupExists(tt.role)
+			assert.Equal(t, tt.expected, actual)
+		})
+	}
+}
+
 func TestExplicitType(t *testing.T) {
 	src := ApplicationSource{
 		Kustomize: &ApplicationSourceKustomize{
@@ -947,6 +1006,8 @@ func TestAppSourceEquality(t *testing.T) {
 }
 
 func TestAppSource_GetKubeVersionOrDefault(t *testing.T) {
+	t.Parallel()
+
 	defaultKV := "999.999.999"
 	cases := []struct {
 		name   string
@@ -996,6 +1057,8 @@ func TestAppSource_GetKubeVersionOrDefault(t *testing.T) {
 }
 
 func TestAppSource_GetAPIVersionsOrDefault(t *testing.T) {
+	t.Parallel()
+
 	defaultAPIVersions := []string{"v1", "v2"}
 	cases := []struct {
 		name   string
@@ -1045,6 +1108,8 @@ func TestAppSource_GetAPIVersionsOrDefault(t *testing.T) {
 }
 
 func TestAppSource_GetNamespaceOrDefault(t *testing.T) {
+	t.Parallel()
+
 	defaultNS := "default"
 	cases := []struct {
 		name   string
@@ -2465,6 +2530,8 @@ func TestSyncWindows_Matches_AND_Operator(t *testing.T) {
 }
 
 func TestSyncWindows_CanSync(t *testing.T) {
+	t.Parallel()
+
 	t.Run("will allow manual sync if inactive-deny-window set with manual true", func(t *testing.T) {
 		// given
 		t.Parallel()
@@ -4073,6 +4140,8 @@ func getApplicationSpec() *ApplicationSpec {
 }
 
 func TestGetSource(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name           string
 		hasSources     bool
@@ -4102,6 +4171,8 @@ func TestGetSource(t *testing.T) {
 }
 
 func TestGetSources(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name            string
 		hasSources      bool
@@ -4139,6 +4210,8 @@ func TestGetSources(t *testing.T) {
 }
 
 func TestOptionalArrayEquality(t *testing.T) {
+	t.Parallel()
+
 	// Demonstrate that the JSON unmarshalling of an empty array parameter is an OptionalArray with the array field set
 	// to an empty array.
 	presentButEmpty := `{"array":[]}`
@@ -4182,6 +4255,8 @@ func TestOptionalArrayEquality(t *testing.T) {
 }
 
 func TestOptionalMapEquality(t *testing.T) {
+	t.Parallel()
+
 	// Demonstrate that the JSON unmarshalling of an empty map parameter is an OptionalMap with the map field set
 	// to an empty map.
 	presentButEmpty := `{"map":{}}`
@@ -4526,4 +4601,198 @@ func TestCluster_ParseProxyUrl(t *testing.T) {
 			require.ErrorContains(t, err, data.expectedErrMsg)
 		}
 	}
+}
+
+func TestSyncWindow_Hash(t *testing.T) {
+	tests := []struct {
+		name        string
+		window      *SyncWindow
+		expectError bool
+		errorMsg    string
+	}{
+		{
+			name: "valid sync window should hash successfully",
+			window: &SyncWindow{
+				Kind:           "allow",
+				Schedule:       "0 0 * * *",
+				Duration:       "1h",
+				TimeZone:       "UTC",
+				ManualSync:     true,
+				Applications:   []string{"app1", "app2"},
+				Namespaces:     []string{"ns1", "ns2"},
+				Clusters:       []string{"cluster1", "cluster2"},
+				UseAndOperator: false,
+				Description:    "test window",
+			},
+			expectError: false,
+		},
+		{
+			name: "empty sync window should hash successfully",
+			window: &SyncWindow{
+				Kind:     "deny",
+				Schedule: "0 0 * * *",
+				Duration: "30m",
+			},
+			expectError: false,
+		},
+		{
+			name: "sync window with nil should hash successfully",
+			window: &SyncWindow{
+				Kind:     "allow",
+				Schedule: "0 0 * * *",
+				Duration: "1h",
+			},
+			expectError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			hash, err := tt.window.HashIdentity()
+
+			if tt.expectError {
+				require.Error(t, err)
+				if tt.errorMsg != "" {
+					require.Contains(t, err.Error(), tt.errorMsg)
+				}
+			} else {
+				require.NoError(t, err)
+				require.NotZero(t, hash, "hash should not be zero for valid sync window")
+			}
+		})
+	}
+
+	// Test that different sync windows produce different hashes
+	t.Run("different sync windows should have different hashes", func(t *testing.T) {
+		window1 := &SyncWindow{
+			Kind:     "allow",
+			Schedule: "0 0 * * *",
+			Duration: "1h",
+		}
+		window2 := &SyncWindow{
+			Kind:     "deny",
+			Schedule: "0 0 * * *",
+			Duration: "1h",
+		}
+		window3 := &SyncWindow{
+			Kind:     "allow",
+			Schedule: "0 1 * * *",
+			Duration: "1h",
+		}
+
+		hash1, err1 := window1.HashIdentity()
+		hash2, err2 := window2.HashIdentity()
+		hash3, err3 := window3.HashIdentity()
+
+		require.NoError(t, err1)
+		require.NoError(t, err2)
+		require.NoError(t, err3)
+
+		require.NotEqual(t, hash1, hash2, "different kind should produce different hash")
+		require.NotEqual(t, hash1, hash3, "different schedule should produce different hash")
+		require.NotEqual(t, hash2, hash3, "different windows should produce different hashes")
+	})
+
+	// Test that identical sync windows produce the same hash
+	t.Run("identical sync windows should have same hash", func(t *testing.T) {
+		window1 := &SyncWindow{
+			Kind:     "allow",
+			Schedule: "0 0 * * *",
+			Duration: "1h",
+			TimeZone: "UTC",
+		}
+		window2 := &SyncWindow{
+			Kind:     "allow",
+			Schedule: "0 0 * * *",
+			Duration: "1h",
+			TimeZone: "UTC",
+		}
+
+		hash1, err1 := window1.HashIdentity()
+		hash2, err2 := window2.HashIdentity()
+
+		require.NoError(t, err1)
+		require.NoError(t, err2)
+		require.Equal(t, hash1, hash2, "identical windows should produce same hash")
+	})
+
+	// Test that windows with different ManualSync or Description but same core identity produce same hash
+	t.Run("windows with different metadata should have same identity hash", func(t *testing.T) {
+		window1 := &SyncWindow{
+			Kind:        "allow",
+			Schedule:    "0 0 * * *",
+			Duration:    "1h",
+			ManualSync:  false,
+			Description: "first window",
+		}
+		window2 := &SyncWindow{
+			Kind:        "allow",
+			Schedule:    "0 0 * * *",
+			Duration:    "1h",
+			ManualSync:  true,
+			Description: "second window with different description",
+		}
+
+		hash1, err1 := window1.HashIdentity()
+		hash2, err2 := window2.HashIdentity()
+
+		require.NoError(t, err1)
+		require.NoError(t, err2)
+		require.Equal(t, hash1, hash2, "windows with same core identity but different metadata should produce same hash")
+	})
+}
+
+func TestSanitized(t *testing.T) {
+	now := metav1.Now()
+	cluster := &Cluster{
+		ID:            "123",
+		Server:        "https://example.com",
+		Name:          "example",
+		ServerVersion: "v1.0.0",
+		Namespaces:    []string{"default", "kube-system"},
+		Project:       "default",
+		Labels: map[string]string{
+			"env": "production",
+		},
+		Annotations: map[string]string{
+			"annotation-key": "annotation-value",
+		},
+		ConnectionState: ConnectionState{
+			Status:     ConnectionStatusSuccessful,
+			Message:    "Connection successful",
+			ModifiedAt: &now,
+		},
+		Config: ClusterConfig{
+			Username:    "admin",
+			Password:    "password123",
+			BearerToken: "abc",
+			TLSClientConfig: TLSClientConfig{
+				Insecure: true,
+			},
+			ExecProviderConfig: &ExecProviderConfig{
+				Command: "test",
+			},
+		},
+	}
+
+	assert.Equal(t, &Cluster{
+		ID:            "123",
+		Server:        "https://example.com",
+		Name:          "example",
+		ServerVersion: "v1.0.0",
+		Namespaces:    []string{"default", "kube-system"},
+		Project:       "default",
+		Labels:        map[string]string{"env": "production"},
+		Annotations:   map[string]string{"annotation-key": "annotation-value"},
+		ConnectionState: ConnectionState{
+			Status:     ConnectionStatusSuccessful,
+			Message:    "Connection successful",
+			ModifiedAt: &now,
+		},
+		Config: ClusterConfig{
+			TLSClientConfig: TLSClientConfig{
+				Insecure: true,
+			},
+		},
+	}, cluster.Sanitized())
 }

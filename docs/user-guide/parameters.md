@@ -65,7 +65,7 @@ Example:
 ```yaml
 kustomize:
   images:
-    - gcr.io/heptio-images/ks-guestbook-demo:0.2
+    - quay.io/argoprojlabs/argocd-e2e-container:0.2
 ```
 
 The `.argocd-source` is trying to solve two following main use cases:
@@ -80,6 +80,9 @@ are sourcing multiple applications from a single path in your repository.
 
 The application specific file must be named `.argocd-source-<appname>.yaml`,
 where `<appname>` is the name of the application the overrides are valid for.
+When combined with the [apps-in-any-namespace](../operator-manual/app-any-namespace.md)
+feature, filename is expected to include the namespace name as a prefix, i.e.
+`.argocd-source-<namespace>_<appname>.yaml`.
 
 If there exists a non-application specific `.argocd-source.yaml`, parameters
 included in that file will be merged first, and then the application specific
