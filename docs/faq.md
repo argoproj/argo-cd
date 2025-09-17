@@ -366,3 +366,14 @@ If you can avoid using these features, you can avoid triggering the error. The o
    Excluding mutation webhooks from the diff could cause undesired diffing behavior.
 3. **Disable mutation webhooks when using server-side diff**: see [server-side diff docs](user-guide/diff-strategies.md#mutation-webhooks)
    for details about that feature. Disabling mutation webhooks may have undesired effects on sync behavior.
+
+## What does `Refresh` do and what is a `Hard Refresh`?
+
+`Refresh` / `Repo Refresh` will check the repository for the current applicable version of the
+application. If that doesn't match the last retrieved version, it will proceed to generate a
+new manifest.
+
+`Hard Refresh` / `Invalidate Cache` will regenerate the application's manifest.
+
+In either case, if the generated manifest differs from the current kubernetes state,
+the changes will be applied.
