@@ -4,6 +4,6 @@ WORKDIR /app/ui
 
 COPY ui /app/ui
 
-RUN yarn install
+RUN pnpm install
 
-ENTRYPOINT ["yarn", "start"]
+ENTRYPOINT ["pnpm", "start"]

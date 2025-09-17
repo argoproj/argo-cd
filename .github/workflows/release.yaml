@@ -166,12 +166,12 @@ jobs:
           # defines the sigs.k8s.io/bom version to use.
           SIGS_BOM_VERSION: v0.2.1
           # comma delimited list of project relative folders to inspect for package
-          # managers (gomod, yarn, npm).
+          # managers (gomod, pnpm, npm).
           PROJECT_FOLDERS: '.,./ui'
           # full qualified name of the docker image to be inspected
           DOCKER_IMAGE: quay.io/argoproj/argocd:${{ github.ref_name }}
         run: |
-          yarn install --cwd ./ui
+          pnpm install --dir ./ui
           go install github.com/spdx/spdx-sbom-generator/cmd/generator@$SPDX_GEN_VERSION
           go install sigs.k8s.io/bom/cmd/bom@$SIGS_BOM_VERSION
 

@@ -50,7 +50,20 @@ const config = {
             },
             {
                 test: /\.scss$/,
-                use: ['style-loader', 'raw-loader', 'sass-loader']
+                use: [
+                    'style-loader',
+                    'raw-loader',
+                    {
+                        loader: 'sass-loader',
+                        options: {
+                            sassOptions: {
+                                includePaths: ['node_modules'],
+                                quietDeps: true,
+                                silenceDeprecations: ['import', 'legacy-js-api', 'global-builtin', 'color-functions', 'mixed-decls']
+                            }
+                        }
+                    }
+                ]
             },
             {
                 test: /\.css$/,
@@ -109,6 +122,22 @@ const config = {
         },
         port: 4000,
         host: process.env.ARGOCD_E2E_YARN_HOST || 'localhost',
+        client: {
+            overlay: {
+                errors: true,
+                warnings: false,
+                // Filter out 401 unauthorized errors from overlay
+                runtimeErrors: (error) => {
+                    if (error.message && error.message.includes('Unauthorized')) {
+                        return false;
+                    }
+                    if (error.message && error.message.includes('401')) {
+                        return false;
+                    }
+                    return true;
+                }
+            }
+        },
         proxy: {
             '/extensions': proxyConf,
             '/api': proxyConf,

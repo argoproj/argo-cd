@@ -39,7 +39,7 @@ The Makefile's `start-e2e` target starts instances of ArgoCD on your local machi
 * `ARGOCD_E2E_REPOSERVER_PORT`: Listener port for `argocd-reposerver` (default: `8081`)
 * `ARGOCD_E2E_DEX_PORT`: Listener port for `dex` (default: `5556`)
 * `ARGOCD_E2E_REDIS_PORT`: Listener port for `redis` (default: `6379`)
-* `ARGOCD_E2E_YARN_CMD`: Command to use for starting the UI via Yarn (default: `yarn`)
+* `ARGOCD_E2E_YARN_CMD`: Command to use for starting the UI via Yarn (default: `pnpm`)
 
 If you have changed the port for `argocd-server`, be sure to also set `ARGOCD_SERVER` environment variable to point to that port, e.g. `export ARGOCD_SERVER=localhost:8888` before running `make test-e2e` so that the test will communicate to the correct server component.
 
