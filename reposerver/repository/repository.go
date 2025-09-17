@@ -3187,9 +3187,12 @@ func (s *Service) UpdateRevisionForPaths(_ context.Context, request *apiclient.U
 		return nil, status.Errorf(codes.Internal, "unable to get changed files for repo %s with revision %s: %v", repo.Repo, revision, err)
 	}
 
-	changed := false
-	if len(files) != 0 {
-		changed = apppathutil.AppFilesHaveChanged(refreshPaths, files)
+	// Check for file changes
+	changed := apppathutil.AppFilesHaveChanged(refreshPaths, files)
+
+	// Also check for build metadata changes that would affect rendered manifests
+	if !changed {
+		changed = s.buildMetadataHasChanged(request, syncedRevision, revision)
 	}
 
 	if !changed {
@@ -3214,6 +3217,101 @@ func (s *Service) UpdateRevisionForPaths(_ context.Context, request *apiclient.U
 		Revision: revision,
 		Changes:  true,
 	}, nil
+}
+
+func (s *Service) buildMetadataHasChanged(request *apiclient.UpdateRevisionForPathsRequest, oldRevision, newRevision string) bool {
+	// Get metadata for both revisions
+	gitClientOpts := git.WithCache(s.cache, !request.NoRevisionCache)
+	gitClient, err := s.newClient(request.GetRepo(), gitClientOpts)
+	if err != nil {
+		// If we can't check, assume changed to be safe
+		return true
+	}
+
+	// Get metadata for both revisions
+	_, oldMetadata, err := gitClient.LsRemote(oldRevision)
+	if err != nil {
+		return true
+	}
+
+	_, newMetadata, err := gitClient.LsRemote(newRevision)
+	if err != nil {
+		return true
+	}
+
+	// Create environment contexts with both metadata
+	oldBuildMetadata := &BuildMetadata{RevisionMetadata: oldMetadata}
+	newBuildMetadata := &BuildMetadata{RevisionMetadata: newMetadata}
+
+	// Create fake manifest request for environment creation
+	fakeRequest := &apiclient.ManifestRequest{
+		AppName:           request.AppName,
+		Namespace:         request.Namespace,
+		ProjectName:       "", // Not available in UpdateRevisionForPathsRequest
+		ApplicationSource: request.ApplicationSource,
+		Repo:              request.GetRepo(),
+	}
+
+	// Create environments with old and new metadata
+	oldEnv := newEnv(fakeRequest, oldRevision, oldBuildMetadata)
+	newEnv := newEnv(fakeRequest, newRevision, newBuildMetadata)
+
+	// Check if any application parameters would change when substituted
+	return s.appParametersWouldChange(request.ApplicationSource, oldEnv, newEnv)
+}
+
+// appParametersWouldChange checks if environment substitution would produce different
+// results for any application source parameters between two environment contexts.
+func (s *Service) appParametersWouldChange(appSource *v1alpha1.ApplicationSource, oldEnv, newEnv *v1alpha1.Env) bool {
+	if appSource.Helm != nil {
+		for _, param := range appSource.Helm.Parameters {
+			oldValue := oldEnv.Envsubst(param.Value)
+			newValue := newEnv.Envsubst(param.Value)
+			if oldValue != newValue {
+				return true
+			}
+		}
+
+		for _, fileParam := range appSource.Helm.FileParameters {
+			oldPath := oldEnv.Envsubst(fileParam.Path)
+			newPath := newEnv.Envsubst(fileParam.Path)
+			if oldPath != newPath {
+				return true
+			}
+		}
+	}
+
+	if appSource.Directory != nil && !appSource.Directory.Jsonnet.IsZero() {
+		// Check TLAs (Top Level Arguments)
+		for _, tla := range appSource.Directory.Jsonnet.TLAs {
+			oldValue := oldEnv.Envsubst(tla.Value)
+			newValue := newEnv.Envsubst(tla.Value)
+			if oldValue != newValue {
+				return true
+			}
+		}
+
+		// Check ExtVars (External Variables)
+		for _, extVar := range appSource.Directory.Jsonnet.ExtVars {
+			oldValue := oldEnv.Envsubst(extVar.Value)
+			newValue := newEnv.Envsubst(extVar.Value)
+			if oldValue != newValue {
+				return true
+			}
+		}
+	}
+
+	if appSource.Plugin != nil {
+		for _, envEntry := range appSource.Plugin.Env {
+			oldValue := oldEnv.Envsubst(envEntry.Value)
+			newValue := newEnv.Envsubst(envEntry.Value)
+			if oldValue != newValue {
+				return true
+			}
+		}
+	}
+
+	return false
 }
 
 func (s *Service) updateCachedRevision(logCtx *log.Entry, oldRev string, newRev string, request *apiclient.UpdateRevisionForPathsRequest, gitClientOpts git.ClientOpts) error {
