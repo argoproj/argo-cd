@@ -652,8 +652,12 @@ func (h *WebhookHandler) shouldRefreshMergeGenerator(gen *v1alpha1.MergeGenerato
 func refreshApplicationSet(c client.Client, appSet *v1alpha1.ApplicationSet) error {
 	// patch the ApplicationSet with the refresh annotation to reconcile
 	return retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+		gvk := v1alpha1.ApplicationSetSchemaGroupVersionKind
 		patchObj := &metav1.PartialObjectMetadata{
-			TypeMeta: appSet.TypeMeta,
+			TypeMeta: metav1.TypeMeta{
+				Kind:       gvk.Kind,
+				APIVersion: gvk.GroupVersion().String(),
+			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      appSet.Name,
 				Namespace: appSet.Namespace,
