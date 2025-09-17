@@ -1,17 +1,21 @@
 tests:
 - healthStatus:
     status: Progressing
-    message: "Waiting for NumaflowController status"
-  inputPath: testdata/progressing.yaml
+    message: "Not yet reconciled"
+  inputPath: testdata/NumaflowControllerRollout/progressing-observedgen.yaml
 - healthStatus:
     status: Healthy
-    message: "Successful"
-  inputPath: testdata/healthy.yaml
+    message: "Healthy"
+  inputPath: testdata/NumaflowControllerRollout/healthy.yaml
 - healthStatus:
     status: Degraded
     message: "no controller definition found for version degraded"
-  inputPath: testdata/degraded.yaml
+  inputPath: testdata/NumaflowControllerRollout/degraded.yaml
 - healthStatus:
     status: Progressing
-    message: "Waiting for NumaflowController status"
-  inputPath: testdata/progressing-reason.yaml
+    message: "Child Progressing"
+  inputPath: testdata/NumaflowControllerRollout/progressing-reason.yaml
+- healthStatus:
+    status: Progressing
+    message: "Update in progress"
+  inputPath: testdata/NumaflowControllerRollout/pending.yaml

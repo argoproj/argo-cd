@@ -12,6 +12,10 @@ tests:
       message: "Waiting for initialization"
     inputPath: testdata/unknown.yaml
   - healthStatus:
+      status: Progressing
+      message: "Waiting for initialization"
+    inputPath: testdata/no-update-strategy-partition.yaml
+  - healthStatus:
       status: Suspended
       message: "Daemonset is paused"
     inputPath: testdata/suspended.yaml

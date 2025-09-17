@@ -1,40 +1,127 @@
-local hs = {}
-local healthyCondition = {}
-local pipelinePaused = {}
-
-if obj.status ~= nil then
-  if obj.status.conditions ~= nil then
-    for i, condition in ipairs(obj.status.conditions) do
-      if condition.type == "ChildResourcesHealthy" then
-        healthyCondition = condition
-      end
-      if condition.type == "PipelinePausingOrPaused" then
-        pipelinePaused = condition
-      end
-    end
+-- return true if paused, along with the reason
+function isPaused(obj)
+  if obj.status == nil then 
+    return false, ""
   end
 
-  if obj.metadata.generation == obj.status.observedGeneration then
-    if (healthyCondition ~= {} and healthyCondition.status == "False" and (obj.metadata.generation == healthyCondition.observedGeneration) and healthyCondition.reason == "PipelineFailed") or obj.status.phase == "Failed" then
-      hs.status = "Degraded"
-      if obj.status.phase == "Failed" then
-        hs.message = obj.status.message
-      else
-        hs.message = healthyCondition.message
+  if obj.status.conditions ~= nil then
+    for i, condition in ipairs(obj.status.conditions) do
+      if condition.type == "PipelinePausingOrPaused" and condition.status == "True" then
+        return true, condition.message
       end
-      return hs
-    elseif (pipelinePaused ~= {} and pipelinePaused.status == "True") and (obj.metadata.generation == pipelinePaused.observedGeneration) then
-      hs.status = "Suspended"
-      hs.message = pipelinePaused.message
-      return hs
-    elseif (healthyCondition ~= {} and healthyCondition.status == "True") and (obj.metadata.generation == healthyCondition.observedGeneration) and obj.status.phase == "Deployed" then
-      hs.status = "Healthy"
-      hs.message = healthyCondition.message
-      return hs
     end
   end
 end
 
-hs.status = "Progressing"
-hs.message = "Waiting for Pipeline status"
+
+-- return true if degraded, along with the reason
+function isDegraded(obj) 
+  if obj.status == nil then 
+    return false, ""
+  end
+  -- check phase=Failed, healthy condition failed, progressive upgrade failed
+  if obj.status.phase == "Failed" then
+    return true, obj.status.message
+  end
+
+  if obj.status.conditions ~= nil then
+    for i, condition in ipairs(obj.status.conditions) do
+      if condition.type == "ChildResourcesHealthy" and condition.status == "False" and condition.reason == "PipelineFailed" then
+        return true, condition.message
+      elseif condition.type == "ProgressiveUpgradeSucceeded" and condition.status == "False" then
+        return true, "Progressive upgrade failed"
+      end
+    end
+  end
+
+  return false, ""
+end
+
+function isProgressing(obj) 
+  -- if there's no Status at all, we haven't been reconciled
+  if obj.status == nil then 
+    return true, "Not yet reconciled"
+  end
+
+  if obj.metadata.generation ~= obj.status.observedGeneration then
+    return true, "Not yet reconciled"
+  end
+
+  -- if we are in the middle of an upgrade
+  if obj.status.upgradeInProgress ~= nil and obj.status.upgradeInProgress ~= "" or obj.status.phase == "Pending" then
+    -- first check if Progressive Upgrade Failed; in that case, we won't return true (because "Degraded" will take precedence)
+    progressiveUpgradeFailed = false
+    if obj.status.conditions ~= nil then
+      for i, condition in ipairs(obj.status.conditions) do
+        if condition.type == "ProgressiveUpgradeSucceeded" and condition.status == "False" then
+          progressiveUpgradeFailed = true
+        end
+      end
+    end
+
+    if progressiveUpgradeFailed == false then
+      return true, "Update in progress"
+    end
+  end
+
+  -- if the child is Progressing
+  if obj.status.conditions ~= nil then
+    for i, condition in ipairs(obj.status.conditions) do
+      if condition.type == "ChildResourcesHealthy" and condition.status == "False" and condition.reason == "Progressing" then
+        return true, "Child Progressing"
+      end
+    end
+  end
+
+  return false, ""
+end
+
+-- return true if healthy, along with the reason
+function isHealthy(obj)
+  if obj.status == nil then 
+    return false, ""
+  end
+
+  if obj.status.conditions ~= nil then
+    for i, condition in ipairs(obj.status.conditions) do
+      if condition.type == "ChildResourcesHealthy" and condition.status == "True" then
+        return true, "Healthy"
+      end
+    end
+  end
+end
+
+local hs = {}
+
+
+progressing, reason = isProgressing(obj)
+if progressing then
+  hs.status = "Progressing"
+  hs.message = reason
+  return hs
+end
+
+degraded, reason = isDegraded(obj)
+if degraded then
+  hs.status = "Degraded"
+  hs.message = reason
+  return hs
+end
+
+paused, reason = isPaused(obj)
+if paused then 
+  hs.status = "Healthy"
+  hs.message = reason
+  return hs
+end
+
+healthy, reason = isHealthy(obj)
+if healthy then
+  hs.status = "Healthy"
+  hs.message = reason
+  return hs
+end
+
+hs.status = "Unknown"
+hs.message = "Unknown Pipeline status"
 return hs

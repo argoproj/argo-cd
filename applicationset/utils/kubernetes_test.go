@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -10,7 +9,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
-	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 func TestGetSecretRef(t *testing.T) {
@@ -21,7 +20,7 @@ func TestGetSecretRef(t *testing.T) {
 		},
 	}
 	client := fake.NewClientBuilder().WithObjects(secret).Build()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	cases := []struct {
 		name, namespace, token string
@@ -67,7 +66,7 @@ func TestGetSecretRef(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			token, err := GetSecretRef(ctx, client, c.ref, c.namespace)
+			token, err := GetSecretRef(ctx, client, c.ref, c.namespace, false)
 			if c.hasError {
 				require.Error(t, err)
 			} else {
@@ -86,7 +85,7 @@ func TestGetConfigMapData(t *testing.T) {
 		},
 	}
 	client := fake.NewClientBuilder().WithObjects(configMap).Build()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	cases := []struct {
 		name, namespace, data string

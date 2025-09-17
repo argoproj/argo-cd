@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -10,7 +9,7 @@ import (
 
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/argoproj/argo-cd/v2/util/errors"
+	"github.com/argoproj/argo-cd/v3/util/errors"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
@@ -29,7 +28,7 @@ func main() {
 		kubeConfigPath = os.Args[1]
 	}
 
-	println(fmt.Sprintf("Kubeconfig is available at %s", kubeConfigPath))
+	println("Kubeconfig is available at " + kubeConfigPath)
 	errors.CheckError(kube.WriteKubeConfig(cfg, "default", kubeConfigPath))
 	client, err := kubernetes.NewForConfig(cfg)
 	errors.CheckError(err)
@@ -46,7 +45,7 @@ func main() {
 	errors.CheckError(err)
 
 	cmd := exec.Command("kubectl", "apply", "-k", "manifests/base/config")
-	cmd.Env = []string{fmt.Sprintf("KUBECONFIG=%s", kubeConfigPath)}
+	cmd.Env = []string{"KUBECONFIG=" + kubeConfigPath}
 	errors.CheckError(cmd.Run())
 	<-context.Background().Done()
 }

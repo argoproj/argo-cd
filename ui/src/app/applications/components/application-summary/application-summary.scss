@@ -54,6 +54,11 @@
 
     .argo-field {
         line-height: 1.15;
+        button {
+            @include themify($themes) {
+                color: themed('text-1');
+            }
+        }
     }
 
     .white-box__details p {

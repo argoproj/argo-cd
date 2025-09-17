@@ -1,12 +1,27 @@
+@import 'node_modules/argo-ui/src/styles/config';
+
 .application-sync-panel__resource {
     margin-top: 0.5em;
     white-space: nowrap;
 
+    &:nth-of-type(odd) {
+        background: $argo-color-gray-3;
+
+        .theme-dark & {
+            background: $argo-color-gray-6;
+        }
+    }
+
+    &:nth-of-type(odd) {
+        background: #e0e0e0;
+    }
+
     .container {
-        max-width: 32em;
+        max-width: 30em;
         white-space: nowrap;
         display: inline-block;
         margin-right: 0.3em;
+
 
         label {
             cursor: pointer;

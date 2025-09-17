@@ -4,14 +4,18 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/argoproj/argo-cd/v3/common"
+
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
-// getSecretRef gets the value of the key for the specified Secret resource.
-func GetSecretRef(ctx context.Context, k8sClient client.Client, ref *argoprojiov1alpha1.SecretRef, namespace string) (string, error) {
+var ErrDisallowedSecretAccess = fmt.Errorf("secret must have label %q=%q", common.LabelKeySecretType, common.LabelValueSecretTypeSCMCreds)
+
+// GetSecretRef gets the value of the key for the specified Secret resource.
+func GetSecretRef(ctx context.Context, k8sClient client.Client, ref *argoprojiov1alpha1.SecretRef, namespace string, tokenRefStrictMode bool) (string, error) {
 	if ref == nil {
 		return "", nil
 	}
@@ -27,6 +31,11 @@ func GetSecretRef(ctx context.Context, k8sClient client.Client, ref *argoprojiov
 	if err != nil {
 		return "", fmt.Errorf("error fetching secret %s/%s: %w", namespace, ref.SecretName, err)
 	}
+
+	if tokenRefStrictMode && secret.GetLabels()[common.LabelKeySecretType] != common.LabelValueSecretTypeSCMCreds {
+		return "", fmt.Errorf("secret %s/%s is not a valid SCM creds secret: %w", namespace, ref.SecretName, ErrDisallowedSecretAccess)
+	}
+
 	tokenBytes, ok := secret.Data[ref.Key]
 	if !ok {
 		return "", fmt.Errorf("key %q in secret %s/%s not found", ref.Key, namespace, ref.SecretName)

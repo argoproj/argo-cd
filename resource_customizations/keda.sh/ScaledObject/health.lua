@@ -17,6 +17,10 @@ if obj.status ~= nil then
         hs.message = condition.message
         suspended = true
       end
+      if condition.status == "True" and condition.type == "Fallback" then
+        hs.message = condition.message
+        degraded = true
+      end
     end
   end
 end

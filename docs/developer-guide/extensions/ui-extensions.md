@@ -6,7 +6,7 @@ in the `argocd-server` Pods that are placed in the `/tmp/extensions` directory a
 ```
 /tmp/extensions
 ├── example1
-│   └── extension-1.js
+│   └── extension-1.js
 └── example2
     └── extension-2.js
 ```
@@ -73,7 +73,7 @@ registerSystemLevelExtension(component: ExtensionComponent, title: string, optio
 
 Below is an example of a simple system level extension:
 
-```typescript
+```javascript
 ((window) => {
   const component = () => {
     return React.createElement(
@@ -106,7 +106,7 @@ registerStatusPanelExtension(component: StatusPanelExtensionComponent, title: st
 
 Below is an example of a simple extension:
 
-```typescript
+```javascript
 ((window) => {
   const component = () => {
     return React.createElement(
@@ -129,32 +129,95 @@ It is also possible to add an optional flyout widget to your extension. It can b
 
 Below is an example of an extension using the flyout widget:
 
-```typescript
+
+```javascript
 ((window) => {
   const component = (props: {
-      openFlyout: () => any
-    }) => {
+    openFlyout: () => any
+  }) => {
     return React.createElement(
-      "div",
-      { 
-        style: { padding: "10px" },
-        onClick: () => props.openFlyout()
-      },
-      "Hello World"
+            "div",
+            {
+              style: { padding: "10px" },
+              onClick: () => props.openFlyout()
+            },
+            "Hello World"
     );
   };
   const flyout = () => {
     return React.createElement(
-      "div",
-      { style: { padding: "10px" } },
-      "This is a flyout"
+            "div",
+            { style: { padding: "10px" } },
+            "This is a flyout"
     );
   };
   window.extensionsAPI.registerStatusPanelExtension(
-    component,
-    "My Extension",
-    "my_extension",
-    flyout
+          component,
+          "My Extension",
+          "my_extension",
+          flyout
+  );
+})(window);
+```
+
+## Top Bar Action Menu Extensions
+
+The top bar panel is the action menu at the top of the application view where the action buttons are displayed like Details, Sync, Refresh. Argo CD allows you to add new button to the top bar action menu of an application.
+When the extension button is clicked, the custom widget will be rendered in a flyout panel.
+
+The extension should be registered using the `extensionsAPI.registerTopBarActionMenuExt` method:
+
+```typescript
+registerTopBarActionMenuExt(
+  component: TopBarActionMenuExtComponent,
+  title: string,
+  id: string,
+  flyout?: ExtensionComponent,
+  shouldDisplay: (app?: Application) => boolean = () => true,
+  iconClassName?: string,
+  isMiddle = false
+)
+```
+
+The callback function `shouldDisplay` should return true if the extension should be displayed and false otherwise:
+
+```typescript
+const shouldDisplay = (app: Application) => {
+  return application.metadata?.labels?.['application.environmentLabelKey'] === "prd";
+};
+```
+
+Below is an example of a simple extension with a flyout widget:
+
+```javascript
+((window) => {
+  const shouldDisplay = () => {
+    return true;
+  };
+  const flyout = () => {
+    return React.createElement(
+            "div",
+            { style: { padding: "10px" } },
+            "This is a flyout"
+    );
+  };
+  const component = () => {
+    return React.createElement(
+            "div",
+            {
+              onClick: () => flyout()
+            },
+            "Toolbar Extension Test"
+    );
+  };
+  window.extensionsAPI.registerTopBarActionMenuExt(
+          component,
+          "Toolbar Extension Test",
+          "Toolbar_Extension_Test",
+          flyout,
+          shouldDisplay,
+          '',
+          true
   );
 })(window);
 ```

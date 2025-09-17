@@ -1,0 +1,95 @@
+apiVersion: solr.apache.org/v1beta1
+kind: SolrCloud
+metadata:
+  annotations:
+    argocd.argoproj.io/tracking-id: foobar-solr:solr.apache.org/SolrCloud:foo/solr
+  finalizers:
+    - storage.finalizers.solr.apache.org
+  labels:
+    app.kubernetes.io/instance: foobar-solr
+    app.kubernetes.io/name: solr
+    app.kubernetes.io/version: 8.11.1
+    helm.sh/chart: solr-0.8.1
+  name: solr
+  namespace: foo
+spec:
+  availability:
+    podDisruptionBudget:
+      enabled: true
+      method: ClusterWide
+  busyBoxImage:
+    repository: library/busybox
+    tag: 1.28.0-glibc
+  customSolrKubeOptions:
+    podOptions:
+      defaultInitContainerResources: {}
+      nodeSelector:
+        node-role.kubernetes.io/worker: ''
+      podSecurityContext:
+        runAsGroup: 8983
+        runAsNonRoot: true
+        runAsUser: 8983
+        seccompProfile:
+          type: RuntimeDefault
+      resources: {}
+      serviceAccountName: solr-sa
+      startupProbe:
+        periodSeconds: 10
+        timeoutSeconds: 30
+  dataStorage:
+    persistent:
+      pvcTemplate:
+        metadata:
+          annotations:
+            foobar: solr-data
+          labels:
+            foobar: solr-data
+          name: solr-data
+        spec:
+          resources:
+            requests:
+              storage: 20Gi
+      reclaimPolicy: Delete
+  replicas: 1
+  scaling:
+    populatePodsOnScaleUp: true
+    vacatePodsOnScaleDown: true
+  solrAddressability:
+    commonServicePort: 80
+    podPort: 8983
+  solrImage:
+    repository: solr
+    tag: '8.11'
+  solrJavaMem: '-Xms1g -Xmx2g'
+  solrLogLevel: DEBUG
+  solrOpts: '-Dsolr.disable.shardsWhitelist=true'
+  updateStrategy:
+    managed: {}
+    method: Managed
+  zookeeperRef:
+    provided:
+      adminServerService: {}
+      chroot: /
+      clientService: {}
+      config: {}
+      headlessService: {}
+      image:
+        pullPolicy: IfNotPresent
+        repository: pravega/zookeeper
+      maxUnavailableReplicas: 1
+      persistence:
+        reclaimPolicy: Delete
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 5Gi
+      replicas: 1
+      zookeeperPodPolicy:
+        resources: {}
+        securityContext:
+          runAsNonRoot: true
+          seccompProfile:
+            type: RuntimeDefault
+status:

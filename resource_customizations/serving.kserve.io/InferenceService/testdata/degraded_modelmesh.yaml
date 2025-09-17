@@ -1,0 +1,16 @@
+apiVersion: serving.kserve.io/v1beta1
+kind: InferenceService
+metadata:
+  name: helloworld
+  namespace: default
+spec: {}
+status:
+  conditions:
+    - lastTransitionTime: '2024-05-30T22:43:16Z'
+      status: 'True'
+      type: PredictorReady
+    - lastTransitionTime: '2024-05-30T22:43:16Z'
+      status: 'True'
+      type: Ready
+  modelStatus:
+    transitionStatus: BlockedByFailedLoad

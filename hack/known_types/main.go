@@ -23,11 +23,11 @@ const (
 )
 
 func newCommand() *cobra.Command {
-	var docsOutputPath string = ""
+	var docsOutputPath string
 	command := &cobra.Command{
 		Use:     "go run github.com/argoproj/argo-cd/hack/known_types ALIAS PACKAGE_PATH OUTPUT_PATH",
 		Example: "go run github.com/argoproj/argo-cd/hack/known_types corev1 k8s.io/api/core/v1 corev1_known_types.go",
-		RunE: func(c *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, args []string) error {
 			if len(args) < 3 {
 				return errors.New("alias and package are not specified")
 			}
@@ -42,7 +42,7 @@ func newCommand() *cobra.Command {
 			imprt := importer.ForCompiler(token.NewFileSet(), "source", nil)
 			pkg, err := imprt.Import(packagePath)
 			if err != nil {
-				return err
+				return fmt.Errorf("error while importing the package at: %s : %w", packagePath, err)
 			}
 
 			shortPackagePath := strings.TrimPrefix(packagePath, packagePrefix)
@@ -65,7 +65,7 @@ func newCommand() *cobra.Command {
 
 				docs = append(docs, fmt.Sprintf("%s/%s", shortPackagePath, typeName.Name()))
 				mapItems = append(mapItems, fmt.Sprintf(`
-	knownTypes["%s/%s"] = func() interface{} {
+	knownTypes["%s/%s"] = func() any {
 		return &%s.%s{}
 	}`, shortPackagePath, typeName.Name(), alias, typeName.Name()))
 			}
@@ -78,7 +78,7 @@ func init() {%s
 }`, strings.Join(mapItems, ""))
 			if docsOutputPath != "" {
 				if err = os.WriteFile(docsOutputPath, []byte(strings.Join(docs, "\n")), 0o644); err != nil {
-					return err
+					return fmt.Errorf("error while writing to the %s: %w", docsOutputPath, err)
 				}
 			}
 

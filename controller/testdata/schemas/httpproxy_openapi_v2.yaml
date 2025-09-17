@@ -1,0 +1,62 @@
+swagger: "2.0"
+info:
+  title: HTTPProxy
+  version: "v1"
+paths: {}
+definitions:
+  io.projectcontour.v1.HTTPProxy:
+    type: object
+    x-kubernetes-group-version-kind:
+      - group: projectcontour.io
+        version: v1
+        kind: HTTPProxy
+    properties:
+      spec:
+        type: object
+        properties:
+          routes:
+            type: array
+            items:
+              type: object
+              properties:
+                rateLimitPolicy:
+                  type: object
+                  properties:
+                    global:
+                      type: object
+                      properties:
+                        descriptors:
+                          type: array
+                          x-kubernetes-list-map-keys:
+                            - entries
+                          items:
+                            type: object
+                            properties:
+                              entries:
+                                type: array
+                                x-kubernetes-list-map-keys:
+                                  - headerName
+                                items:
+                                  type: object
+                                  properties:
+                                    requestHeader:
+                                      type: object
+                                      properties:
+                                        descriptorKey:
+                                          type: string
+                                        headerName:
+                                          type: string
+                                    requestHeaderValueMatch:
+                                      type: object
+                                      properties:
+                                        headers:
+                                          type: array
+                                          items:
+                                            type: object
+                                            properties:
+                                              name:
+                                                type: string
+                                              contains:
+                                                type: string
+                                        value:
+                                          type: string

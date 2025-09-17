@@ -1,23 +1,46 @@
 hs = {}
-if obj.status == nil or obj.status.compliant == nil then
+if obj.spec.disabled then
+  hs.status = "Healthy"
+  hs.message = "Policy is disabled"
+  return hs
+end
+
+if obj.status == nil then
   hs.status = "Progressing"
   hs.message = "Waiting for the status to be reported"
   return hs
 end
+
+-- A policy will not have a compliant field but will have a placement key set if
+-- it is not being applied to any clusters
+if obj.status.compliant == nil and obj.status.status == nil and obj.status.placement ~= nil and #obj.status.placement > 0 then
+  hs.status = "Healthy"
+  hs.message = "No clusters match this policy"
+  return hs
+end
+
+if obj.status.compliant == nil then
+  hs.status = "Progressing"
+  hs.message = "Waiting for the status to be reported"
+  return hs
+end
+
 if obj.status.compliant == "Compliant" then
   hs.status = "Healthy"
 else
   hs.status = "Degraded"
 end
+
+-- Collect NonCompliant clusters for the policy
 noncompliants = {}
 if obj.status.status ~= nil then
   -- "root" policy
   for i, entry in ipairs(obj.status.status) do
     if entry.compliant ~= "Compliant" then
-      noncompliants[i] = entry.clustername
+      table.insert(noncompliants, entry.clustername)
     end
   end
-  if table.getn(noncompliants) == 0 then
+  if #noncompliants == 0 then
     hs.message = "All clusters are compliant"
   else
     hs.message = "NonCompliant clusters: " .. table.concat(noncompliants, ", ")
@@ -26,13 +49,14 @@ elseif obj.status.details ~= nil then
   -- "replicated" policy
   for i, entry in ipairs(obj.status.details) do
     if entry.compliant ~= "Compliant" then
-      noncompliants[i] = entry.templateMeta.name
+      table.insert(noncompliants, entry.templateMeta.name)
     end
   end
-  if table.getn(noncompliants) == 0 then
+  if #noncompliants == 0 then
     hs.message = "All templates are compliant"
   else
     hs.message = "NonCompliant templates: " .. table.concat(noncompliants, ", ")
   end
 end
+
 return hs

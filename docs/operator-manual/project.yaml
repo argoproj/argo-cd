@@ -14,10 +14,14 @@ spec:
   sourceRepos:
   - '*'
 
-  # Only permit applications to deploy to the guestbook namespace in the same cluster
+  # Only permit applications to deploy to the 'guestbook' namespace or any namespace starting with 'guestbook-' in the same cluster
   # Destination clusters can be identified by 'server', 'name', or both.
   destinations:
   - namespace: guestbook
+    server: https://kubernetes.default.svc
+    name: in-cluster
+  # Destinations also allow wildcard globbing
+  - namespace: guestbook-*
     server: https://kubernetes.default.svc
     name: in-cluster
 

@@ -15,7 +15,7 @@ const redocScriptName = "redoc.standalone.js"
 func ServeSwaggerUI(mux *http.ServeMux, swaggerJSON string, uiPath string, rootPath string) {
 	prefix := path.Dir(uiPath)
 	swaggerPath := path.Join(prefix, "swagger.json")
-	mux.HandleFunc(swaggerPath, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(swaggerPath, func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = fmt.Fprint(w, swaggerJSON)
 	})
 

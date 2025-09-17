@@ -37,7 +37,7 @@ spec:
             type: RuntimeDefault
       containers:
       - name: dex
-        image: ghcr.io/dexidp/dex:v2.41.1
+        image: ghcr.io/dexidp/dex:v2.43.0
         imagePullPolicy: Always
         command: [/shared/argocd-dex, rundex]
         env:
@@ -52,6 +52,12 @@ spec:
               configMapKeyRef:
                 key: dexserver.log.level
                 name: argocd-cmd-params-cm
+                optional: true
+          - name: ARGOCD_LOG_FORMAT_TIMESTAMP
+            valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: log.format.timestamp
                 optional: true
           - name: ARGOCD_DEX_SERVER_DISABLE_TLS
             valueFrom:
@@ -104,3 +110,5 @@ spec:
                 matchLabels:
                   app.kubernetes.io/part-of: argocd
               topologyKey: kubernetes.io/hostname
+      nodeSelector:
+        kubernetes.io/os: linux

@@ -87,7 +87,6 @@ func (s *SizedWaitGroup) AddWithContext(ctx context.Context) error {
 	case <-ctx.Done():
 		return ctx.Err()
 	case s.current <- struct{}{}:
-		break
 	}
 	s.wg.Add(1)
 	return nil

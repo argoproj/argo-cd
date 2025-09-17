@@ -1,15 +1,15 @@
 package util
 
 import (
+	"log"
 	"os"
 	"testing"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
@@ -64,6 +64,16 @@ func Test_setHelmOpt(t *testing.T) {
 		src := v1alpha1.ApplicationSource{}
 		setHelmOpt(&src, helmOpts{skipCrds: true})
 		assert.True(t, src.Helm.SkipCrds)
+	})
+	t.Run("HelmSkipSchemaValidation", func(t *testing.T) {
+		src := v1alpha1.ApplicationSource{}
+		setHelmOpt(&src, helmOpts{skipSchemaValidation: true})
+		assert.True(t, src.Helm.SkipSchemaValidation)
+	})
+	t.Run("HelmSkipTests", func(t *testing.T) {
+		src := v1alpha1.ApplicationSource{}
+		setHelmOpt(&src, helmOpts{skipTests: true})
+		assert.True(t, src.Helm.SkipTests)
 	})
 	t.Run("HelmNamespace", func(t *testing.T) {
 		src := v1alpha1.ApplicationSource{}
@@ -153,6 +163,17 @@ func Test_setKustomizeOpt(t *testing.T) {
 		src := v1alpha1.ApplicationSource{}
 		setKustomizeOpt(&src, kustomizeOpts{commonLabels: map[string]string{"foo1": "bar1", "foo2": "bar2"}, labelWithoutSelector: true})
 		assert.Equal(t, &v1alpha1.ApplicationSourceKustomize{CommonLabels: map[string]string{"foo1": "bar1", "foo2": "bar2"}, LabelWithoutSelector: true}, src.Kustomize)
+	})
+	t.Run("Label include templates", func(t *testing.T) {
+		src := v1alpha1.ApplicationSource{}
+		setKustomizeOpt(&src, kustomizeOpts{commonLabels: map[string]string{"foo1": "bar1", "foo2": "bar2"}, labelIncludeTemplates: true})
+		assert.Equal(t, &v1alpha1.ApplicationSourceKustomize{CommonLabels: map[string]string{"foo1": "bar1", "foo2": "bar2"}, LabelIncludeTemplates: true}, src.Kustomize)
+	})
+	t.Run("IgnoreMissingComponents", func(t *testing.T) {
+		src := v1alpha1.ApplicationSource{}
+		setKustomizeOpt(&src, kustomizeOpts{ignoreMissingComponents: true})
+		t.Logf("HERE IS THE SOURCE\n %+v\n", src)
+		assert.True(t, src.Kustomize.IgnoreMissingComponents)
 	})
 }
 
@@ -253,6 +274,13 @@ func Test_setAppSpecOptions(t *testing.T) {
 		require.NoError(t, f.SetFlag("sync-retry-limit", "0"))
 		assert.Nil(t, f.spec.SyncPolicy.Retry)
 	})
+	t.Run("RetryRefresh", func(t *testing.T) {
+		require.NoError(t, f.SetFlag("sync-retry-refresh", "true"))
+		assert.True(t, f.spec.SyncPolicy.Retry.Refresh)
+
+		require.NoError(t, f.SetFlag("sync-retry-refresh", "false"))
+		assert.False(t, f.spec.SyncPolicy.Retry.Refresh)
+	})
 	t.Run("Kustomize", func(t *testing.T) {
 		require.NoError(t, f.SetFlag("kustomize-replica", "my-deployment=2"))
 		require.NoError(t, f.SetFlag("kustomize-replica", "my-statefulset=4"))
@@ -283,6 +311,28 @@ func Test_setAppSpecOptions(t *testing.T) {
 		require.NoError(t, f.SetFlag("helm-api-versions", "v1"))
 		require.NoError(t, f.SetFlag("helm-api-versions", "v2"))
 		assert.Equal(t, []string{"v1", "v2"}, f.spec.Source.Helm.APIVersions)
+	})
+	t.Run("source hydrator", func(t *testing.T) {
+		require.NoError(t, f.SetFlag("dry-source-repo", "https://github.com/argoproj/argocd-example-apps"))
+		assert.Equal(t, "https://github.com/argoproj/argocd-example-apps", f.spec.SourceHydrator.DrySource.RepoURL)
+
+		require.NoError(t, f.SetFlag("dry-source-path", "apps"))
+		assert.Equal(t, "apps", f.spec.SourceHydrator.DrySource.Path)
+
+		require.NoError(t, f.SetFlag("dry-source-revision", "HEAD"))
+		assert.Equal(t, "HEAD", f.spec.SourceHydrator.DrySource.TargetRevision)
+
+		require.NoError(t, f.SetFlag("sync-source-branch", "env/test"))
+		assert.Equal(t, "env/test", f.spec.SourceHydrator.SyncSource.TargetBranch)
+
+		require.NoError(t, f.SetFlag("sync-source-path", "apps"))
+		assert.Equal(t, "apps", f.spec.SourceHydrator.SyncSource.Path)
+
+		require.NoError(t, f.SetFlag("hydrate-to-branch", "env/test-next"))
+		assert.Equal(t, "env/test-next", f.spec.SourceHydrator.HydrateTo.TargetBranch)
+
+		require.NoError(t, f.SetFlag("hydrate-to-branch", ""))
+		assert.Nil(t, f.spec.SourceHydrator.HydrateTo)
 	})
 }
 
@@ -510,7 +560,7 @@ func TestFilterResources(t *testing.T) {
 		}
 
 		filteredResources, err := FilterResources(false, resources, "g", "Service", "argocd-unknown", "test-helm", true)
-		require.ErrorContains(t, err, "No matching resource found")
+		require.ErrorContains(t, err, "no matching resource found")
 		assert.Nil(t, filteredResources)
 	})
 
@@ -525,7 +575,7 @@ func TestFilterResources(t *testing.T) {
 		}
 
 		filteredResources, err := FilterResources(false, resources, "g", "Service", "argocd", "test-helm", false)
-		require.ErrorContains(t, err, "Use the --all flag")
+		require.ErrorContains(t, err, "use the --all flag")
 		assert.Nil(t, filteredResources)
 	})
 }
