@@ -3294,7 +3294,7 @@ func TestSetApplicationSetApplicationStatus(t *testing.T) {
 			expectedAppStatuses: nil,
 		},
 		{
-			name: "clears applicationStatus when Progressive Sync is disabled (simulates the fix)",
+			name: "clears applicationStatus when Progressive Sync is disabled",
 			appSet: v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "progressive-sync-disabled",
