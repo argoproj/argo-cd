@@ -1354,11 +1354,11 @@ spec:
               - -c
               - /health/redis_readiness.sh
         startupProbe:
-          initialDelaySeconds: 5
-          periodSeconds: 10
+          initialDelaySeconds: 30
+          periodSeconds: 15
           timeoutSeconds: 15
           successThreshold: 1
-          failureThreshold: 3
+          failureThreshold: 5
           exec:
             command:
               - sh
