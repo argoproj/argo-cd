@@ -1,11 +1,10 @@
 # RBAC Configuration
 
-The RBAC feature enables restrictions of access to Argo CD resources. Argo CD does not have its own
-user management system and has only one built-in user, `admin`. The `admin` user is a superuser and
-it has unrestricted access to the system. RBAC requires [SSO configuration](user-management/index.md) or [one or more local users setup](user-management/index.md).
-Once SSO or local users are configured, additional RBAC roles can be defined, and SSO groups or local users can then be mapped to roles.
+Argo CD starts with a single user account: the built-in `admin` superuser, that has unrestricted access to the system.
+When additional users are enabled, [locally](user-management/index.md) or via [SSO](user-management/index.md),
+the Role-Base Access Control (RBAC) framework regulates access to Argo CD resources.
 
-There are two main components where RBAC configuration can be defined:
+There are two main components through which RBAC can be configured:
 
 - The global RBAC config map (see [argo-rbac-cm.yaml](argocd-rbac-cm-yaml.md))
 - The [AppProject's roles](../user-guide/projects.md#project-roles)
@@ -21,11 +20,11 @@ These default built-in role definitions can be seen in [builtin-policy.csv](http
 
 ## Default Policy for Authenticated Users
 
-When a user is authenticated in Argo CD, it will be granted the role specified in `policy.default`.
+When Argo CD authenticates a user, the value of `policy.default` in `argocd-rbac-cm.yaml` is used as a default role.
 
 !!! warning "Restricting Default Permissions"
 
-    **All authenticated users get _at least_ the permissions granted by the default policies. This access cannot be blocked
+    **All authenticated users get _at least_ the permissions granted by the default role. These permissions cannot be restricted
     by a `deny` rule.** It is recommended to create a new `role:authenticated` with the minimum set of permissions possible,
     then grant permissions to individual roles as needed.
 
@@ -37,8 +36,8 @@ The anonymous access to Argo CD can be enabled using the `users.anonymous.enable
 
 !!! warning
 
-    When enabling anonymous access, consider creating a new default role and assigning it to the default policies
-    with `policy.default: role:unauthenticated`.
+    When enabling anonymous access, consider creating a new default role and using it as a default policy
+    by setting `policy.default: role:unauthenticated`. in `argocd-rbac-cm.yaml`
 
 ## RBAC Model Structure
 
@@ -80,18 +79,18 @@ Below is a table that summarizes all possible resources and which actions are va
 
 ### Application-Specific Policy
 
-Some policy only have meaning within an application. It is the case with the following resources:
+Some policies only have meaning within an application. It is the case with the following resources:
 
 - `applications`
 - `applicationsets`
 - `logs`
 - `exec`
 
-While they can be set in the global configuration, they can also be configured in [AppProject's roles](../user-guide/projects.md#project-roles).
+While they can be set in the global configuration, they can also be configured in an [AppProject's roles](../user-guide/projects.md#project-roles).
 The expected `<object>` value in the policy structure is replaced by `<app-project>/<app-name>`.
 
-For instance, these policies would grant `example-user` access to get any applications,
-but only be able to see logs in `my-app` application part of the `example-project` project.
+For instance, these policies would allow `example-user` to view all applications,
+but seeing logs only from the application `my-app`, part of the `example-project` project.
 
 ```csv
 p, example-user, applications, get, *, allow
@@ -166,8 +165,8 @@ p, example-user, applications, update/*, default/prod-app, deny
 
     When disabled, it is not possible to deny fine-grained permissions for a sub-resource
     if the action was **explicitly allowed on the application**.
-    For instance, the following policies will **allow** a user to delete the Pod and any
-    other resources in the application:
+    For instance, the following policies will **allow** a user to delete not only the Pod,
+    but any other resources in the application:
 
     ```csv
     p, example-user, applications, delete, default/prod-app, allow
