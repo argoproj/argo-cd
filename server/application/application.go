@@ -587,6 +587,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 				RefSources:                      refSources,
 				AnnotationManifestGeneratePaths: a.GetAnnotation(v1alpha1.AnnotationKeyManifestGeneratePaths),
 				InstallationID:                  installationID,
+				NoCache:                         q.NoCache != nil && *q.NoCache,
 			})
 			if err != nil {
 				return fmt.Errorf("error generating manifests: %w", err)

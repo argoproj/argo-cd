@@ -326,6 +326,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [SEEK](https://seek.com.au)
 1. [SEKAI](https://www.sekai.io/)
 1. [Semgrep](https://semgrep.com)
+1. [Seznam.cz](https://o-seznam.cz/)
 1. [Shield](https://shield.com)
 1. [Shipfox](https://www.shipfox.io)
 1. [Shock Media](https://www.shockmedia.nl)
