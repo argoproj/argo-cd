@@ -24943,6 +24943,29 @@ data:
     ROLE=''
     REDIS_MASTER=''
 
+    # Load AUTH from file or env
+    echo "Loading redis credentials"
+    if [ -n "${REDIS_CREDS_FILE_PATH}" ] && [ -f "${REDIS_CREDS_FILE_PATH}/auth" ]; then
+      file_auth="$(< "${REDIS_CREDS_FILE_PATH}/auth" tr -d '\n\r')"
+      if [ -n "$file_auth" ]; then
+        echo "Retrieved Redis credentials from file."
+        AUTH="$file_auth"
+      elif [ -n "${AUTH:-}" ]; then
+        echo "Retrieved Redis password from environment (file was empty)."
+      else
+        echo "ERROR: Redis credential file is empty and no environment variable set."
+        exit 1
+      fi
+
+    elif [ -n "${AUTH:-}" ]; then
+      # No valid file, but env var is set
+      echo "Retrieved Redis password from environment."
+    else
+      # Neither source provided anything
+      echo "WARNING: Redis password not set via file or environment."
+      exit 1
+    fi
+
     set -eu
     sentinel_get_master() {
     set +e
@@ -25203,28 +25226,12 @@ data:
         if [ "$MASTER" = "$ANNOUNCE_IP" ]; then
             redis_role
             if [ "$ROLE" != "master" ]; then
-                echo "waiting for redis to become master"
-                sleep 10
-                identify_master
-                redis_role
-                echo "Redis role is $ROLE, expected role is master. No need to reinitialize."
-                if [ "$ROLE" != "master" ]; then
-                    echo "Redis role is $ROLE, expected role is master, reinitializing"
-                    reinit
-                fi
+                reinit
             fi
         elif [ "${MASTER}" ]; then
             identify_redis_master
             if [ "$REDIS_MASTER" != "$MASTER" ]; then
-                echo "Redis master and local master are not the same. waiting."
-                sleep 10
-                identify_master
-                identify_redis_master
-                echo "Redis master is ${MASTER}, expected master is ${REDIS_MASTER}. No need to reinitialize."
-                if [ "${REDIS_MASTER}" != "${MASTER}" ]; then
-                    echo "Redis master is ${MASTER}, expected master is ${REDIS_MASTER}, reinitializing"
-                    reinit
-                fi
+                reinit
             fi
         fi
     done
@@ -25267,6 +25274,34 @@ data:
   haproxy_init.sh: |
     HAPROXY_CONF=/data/haproxy.cfg
     cp /readonly/haproxy.cfg "$HAPROXY_CONF"
+
+    # Load AUTH from file or env
+    echo "Loading redis credentials"
+    if [ -n "${REDIS_CREDS_FILE_PATH}" ] && [ -f "${REDIS_CREDS_FILE_PATH}/auth" ]; then
+      file_auth="$(< "${REDIS_CREDS_FILE_PATH}/auth" tr -d '\n\r')"
+      if [ -n "$file_auth" ]; then
+        echo "Retrieved Redis credentials from file."
+        AUTH="$file_auth"
+      elif [ -n "${AUTH:-}" ]; then
+        echo "Retrieved Redis password from environment (file was empty)."
+      else
+        echo "ERROR: Redis credential file is empty and no environment variable set."
+        exit 1
+      fi
+
+    elif [ -n "${AUTH:-}" ]; then
+      # No valid file, but env var is set
+      echo "Retrieved Redis password from environment."
+    else
+      # Neither source provided anything
+      echo "WARNING: Redis password not set via file or environment."
+      exit 1
+    fi
+
+    # Inject AUTH into haproxy config
+    ESCAPED_AUTH=$(echo "$AUTH" | sed -e 's/[\/&]/\\&/g')
+    sed -i "s|\${AUTH}|${ESCAPED_AUTH}|" "$HAPROXY_CONF"
+
     for loop in $(seq 1 10); do
       getent hosts argocd-redis-ha-announce-0 && break
       echo "Waiting for service argocd-redis-ha-announce-0 to be ready ($loop) ..." && sleep 1
@@ -25314,6 +25349,47 @@ data:
     SERVICE=argocd-redis-ha
     SENTINEL_TLS_REPLICATION_ENABLED=false
     REDIS_TLS_REPLICATION_ENABLED=false
+
+    load_auth_password() {
+    if [ -n "${REDIS_CREDS_FILE_PATH}" ] && [ -f "${REDIS_CREDS_FILE_PATH}/auth" ]; then
+        REDIS_PASSWORD_FILE="${REDIS_CREDS_FILE_PATH}/auth"
+        file_auth="$(< "$REDIS_PASSWORD_FILE" tr -d '\r\n')"
+        if [ -n "$file_auth" ]; then
+            echo "Retrieved Redis credentials from file"
+            AUTH="$file_auth"
+            return 0
+        else
+            echo "WARNING: Redis credential file is empty"
+            # fall through to try env
+        fi
+    fi
+    if [ -n "${AUTH:-}" ]; then
+        echo "Retrieved Redis credentials from environment"
+    else
+        echo "ERROR: Redis credentials not set via file or environment"
+        exit 1
+    fi
+    }
+
+    load_sentinel_password() {
+    if [ -n "${REDIS_CREDS_FILE_PATH}" ] && [ -f "${REDIS_CREDS_FILE_PATH}/sentinel_auth" ]; then
+        SENTINEL_PASSWORD_FILE="${REDIS_CREDS_FILE_PATH}/sentinel_auth"
+        file_auth="$(< "$SENTINEL_PASSWORD_FILE" tr -d '\n\r')"
+        if [ -n "$file_auth" ]; then
+            echo "Retrieved Redis sentinel credentials from file"
+            SENTINELAUTH="$file_auth"
+            return 0
+        else
+            echo "WARNING: Redis sentinel credential file is empty"
+            # fall through to try env
+        fi
+    fi
+    if [ -n "${SENTINELAUTH:-}" ]; then
+        echo "Retrieved Redis sentinel credentials from environment"
+    else
+        echo "WARNING: Redis sentinel credentials not set via file or environment."
+    fi
+    }
 
     set -eu
     sentinel_get_master() {
@@ -25535,6 +25611,11 @@ data:
 
     identify_announce_ip
 
+    # Load Redis credentials from file or env
+    echo "Loading redis credentials"
+    load_auth_password
+    load_sentinel_password
+
     if [ -z "${ANNOUNCE_IP}" ]; then
         "Error: Could not resolve the announce ip for this pod"
         exit 1
@@ -25582,7 +25663,30 @@ data:
         maxclients 10000
         sentinel parallel-syncs argocd 5
     sentinel auth-pass argocd replace-default-auth
-  trigger-failover-if-master.sh: |
+  trigger-failover-if-master.sh: |-
+    # Load AUTH from file or env
+    echo "Loading redis credentials"
+    if [ -n "${REDIS_CREDS_FILE_PATH}" ] && [ -f "${REDIS_CREDS_FILE_PATH}/auth" ]; then
+      file_auth="$(< "${REDIS_CREDS_FILE_PATH}/auth" tr -d '\n\r')"
+      if [ -n "$file_auth" ]; then
+        echo "Retrieved Redis credentials from file."
+        AUTH="$file_auth"
+      elif [ -n "${AUTH:-}" ]; then
+        echo "Retrieved Redis password from environment (file was empty)."
+      else
+        echo "ERROR: Redis credential file is empty and no environment variable set."
+        exit 1
+      fi
+
+    elif [ -n "${AUTH:-}" ]; then
+      # No valid file, but env var is set
+      echo "Retrieved Redis password from environment."
+    else
+      # Neither source provided anything
+      echo "WARNING: Redis password not set via file or environment."
+      exit 1
+    fi
+
     get_redis_role() {
       is_master=$(
         redis-cli \
@@ -25624,6 +25728,29 @@ metadata:
 apiVersion: v1
 data:
   redis_liveness.sh: |
+    # Load AUTH from file or env
+    echo "Loading redis credentials"
+    if [ -n "${REDIS_CREDS_FILE_PATH}" ] && [ -f "${REDIS_CREDS_FILE_PATH}/auth" ]; then
+      file_auth="$(< "${REDIS_CREDS_FILE_PATH}/auth" tr -d '\n\r')"
+      if [ -n "$file_auth" ]; then
+        echo "Retrieved Redis credentials from file."
+        AUTH="$file_auth"
+      elif [ -n "${AUTH:-}" ]; then
+        echo "Retrieved Redis password from environment (file was empty)."
+      else
+        echo "ERROR: Redis credential file is empty and no environment variable set."
+        exit 1
+      fi
+
+    elif [ -n "${AUTH:-}" ]; then
+      # No valid file, but env var is set
+      echo "Retrieved Redis password from environment."
+    else
+      # Neither source provided anything
+      echo "WARNING: Redis password not set via file or environment."
+      exit 1
+    fi
+
     response=$(
       redis-cli \
         -a "${AUTH}" --no-auth-warning \
@@ -25637,7 +25764,30 @@ data:
       *) exit 1 ;;
     esac
     exit 0
-  redis_readiness.sh: |
+  redis_readiness.sh: |-
+    # Load AUTH from file or env
+    echo "Loading redis credentials"
+    if [ -n "${REDIS_CREDS_FILE_PATH}" ] && [ -f "${REDIS_CREDS_FILE_PATH}/auth" ]; then
+      file_auth="$(< "${REDIS_CREDS_FILE_PATH}/auth" tr -d '\n\r')"
+      if [ -n "$file_auth" ]; then
+        echo "Retrieved Redis credentials from file."
+        AUTH="$file_auth"
+      elif [ -n "${AUTH:-}" ]; then
+        echo "Retrieved Redis password from environment (file was empty)."
+      else
+        echo "ERROR: Redis credential file is empty and no environment variable set."
+        exit 1
+      fi
+
+    elif [ -n "${AUTH:-}" ]; then
+      # No valid file, but env var is set
+      echo "Retrieved Redis password from environment."
+    else
+      # Neither source provided anything
+      echo "WARNING: Redis password not set via file or environment."
+      exit 1
+    fi
+
     response=$(
       redis-cli \
         -a "${AUTH}" --no-auth-warning \
@@ -26697,6 +26847,33 @@ spec:
         - mountPath: /run/haproxy
           name: shared-socket
       initContainers:
+      - args:
+        - /readonly/haproxy_init.sh
+        command:
+        - sh
+        env:
+        - name: REDIS_CREDS_FILE_PATH
+          value: /redis-creds
+        image: public.ecr.aws/docker/library/haproxy:3.0.8-alpine
+        imagePullPolicy: IfNotPresent
+        name: config-init
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+          seccompProfile:
+            type: RuntimeDefault
+        volumeMounts:
+        - mountPath: /redis-creds
+          name: redis-creds
+          readOnly: true
+        - mountPath: /readonly
+          name: config-volume
+          readOnly: true
+        - mountPath: /data
+          name: data
       - command:
         - argocd
         - admin
@@ -26713,33 +26890,19 @@ spec:
           runAsNonRoot: true
           seccompProfile:
             type: RuntimeDefault
-      - args:
-        - /readonly/haproxy_init.sh
-        command:
-        - sh
-        image: public.ecr.aws/docker/library/haproxy:3.0.8-alpine
-        imagePullPolicy: IfNotPresent
-        name: config-init
-        securityContext:
-          allowPrivilegeEscalation: false
-          capabilities:
-            drop:
-            - ALL
-          readOnlyRootFilesystem: true
-          seccompProfile:
-            type: RuntimeDefault
-        volumeMounts:
-        - mountPath: /readonly
-          name: config-volume
-          readOnly: true
-        - mountPath: /data
-          name: data
       securityContext:
         fsGroup: 99
         runAsNonRoot: true
         runAsUser: 99
       serviceAccountName: argocd-redis-ha-haproxy
       volumes:
+      - name: redis-creds
+        secret:
+          items:
+          - key: auth
+            path: auth
+          optional: true
+          secretName: argocd-redis
       - configMap:
           name: argocd-redis-ha-configmap
         name: config-volume
@@ -26785,6 +26948,8 @@ spec:
       - args:
         - /usr/local/bin/argocd-repo-server
         env:
+        - name: REDIS_CREDS_FILE_PATH
+          value: /run/secrets/argocd/redis-auth
         - name: REDIS_PASSWORD
           valueFrom:
             secretKeyRef:
@@ -27048,6 +27213,9 @@ spec:
           seccompProfile:
             type: RuntimeDefault
         volumeMounts:
+        - mountPath: /run/secrets/argocd/redis-auth
+          name: redis-creds
+          readOnly: true
         - mountPath: /app/config/ssh
           name: ssh-known-hosts
         - mountPath: /app/config/tls
@@ -27088,6 +27256,13 @@ spec:
         kubernetes.io/os: linux
       serviceAccountName: argocd-repo-server
       volumes:
+      - name: redis-creds
+        secret:
+          items:
+          - key: auth
+            path: auth
+          optional: true
+          secretName: argocd-redis
       - configMap:
           name: argocd-ssh-known-hosts-cm
         name: ssh-known-hosts
@@ -27157,6 +27332,8 @@ spec:
         env:
         - name: ARGOCD_API_SERVER_REPLICAS
           value: "2"
+        - name: REDIS_CREDS_FILE_PATH
+          value: /run/secrets/argocd/redis-auth
         - name: REDIS_PASSWORD
           valueFrom:
             secretKeyRef:
@@ -27473,6 +27650,9 @@ spec:
           seccompProfile:
             type: RuntimeDefault
         volumeMounts:
+        - mountPath: /run/secrets/argocd/redis-auth
+          name: redis-creds
+          readOnly: true
         - mountPath: /app/config/ssh
           name: ssh-known-hosts
         - mountPath: /app/config/tls
@@ -27491,6 +27671,13 @@ spec:
         kubernetes.io/os: linux
       serviceAccountName: argocd-server
       volumes:
+      - name: redis-creds
+        secret:
+          items:
+          - key: auth
+            path: auth
+          optional: true
+          secretName: argocd-redis
       - emptyDir: {}
         name: plugins-home
       - emptyDir: {}
@@ -27567,6 +27754,8 @@ spec:
       - args:
         - /usr/local/bin/argocd-application-controller
         env:
+        - name: REDIS_CREDS_FILE_PATH
+          value: /run/secrets/argocd/redis-auth
         - name: REDIS_PASSWORD
           valueFrom:
             secretKeyRef:
@@ -27857,6 +28046,9 @@ spec:
           name: argocd-cmd-params-cm
         - mountPath: /tmp
           name: argocd-application-controller-tmp
+        - mountPath: /run/secrets/argocd/redis-auth
+          name: redis-creds
+          readOnly: true
         workingDir: /home/argocd
       nodeSelector:
         kubernetes.io/os: linux
@@ -27884,6 +28076,13 @@ spec:
           name: argocd-cmd-params-cm
           optional: true
         name: argocd-cmd-params-cm
+      - name: redis-creds
+        secret:
+          items:
+          - key: auth
+            path: auth
+          optional: true
+          secretName: argocd-redis
 ---
 apiVersion: apps/v1
 kind: StatefulSet
@@ -27921,6 +28120,8 @@ spec:
         command:
         - redis-server
         env:
+        - name: REDIS_CREDS_FILE_PATH
+          value: /run/secrets/argocd/redis-auth
         - name: AUTH
           valueFrom:
             secretKeyRef:
@@ -27974,12 +28175,15 @@ spec:
             - sh
             - -c
             - /health/redis_readiness.sh
-          failureThreshold: 5
-          initialDelaySeconds: 30
-          periodSeconds: 15
+          failureThreshold: 3
+          initialDelaySeconds: 5
+          periodSeconds: 10
           successThreshold: 1
           timeoutSeconds: 15
         volumeMounts:
+        - mountPath: /run/secrets/argocd/redis-auth
+          name: redis-creds
+          readOnly: true
         - mountPath: /readonly-config
           name: config
           readOnly: true
@@ -27992,6 +28196,8 @@ spec:
         command:
         - redis-sentinel
         env:
+        - name: REDIS_CREDS_FILE_PATH
+          value: /run/secrets/argocd/redis-auth
         - name: AUTH
           valueFrom:
             secretKeyRef:
@@ -28061,6 +28267,8 @@ spec:
         command:
         - sh
         env:
+        - name: REDIS_CREDS_FILE_PATH
+          value: /run/secrets/argocd/redis-auth
         - name: SENTINEL_ID_0
           value: 3c0d9c0320bb34888c2df5757c718ce6ca992ce6
         - name: SENTINEL_ID_1
@@ -28085,6 +28293,9 @@ spec:
           seccompProfile:
             type: RuntimeDefault
         volumeMounts:
+        - mountPath: /run/secrets/argocd/redis-auth
+          name: redis-creds
+          readOnly: true
         - mountPath: /readonly-config
           name: config
           readOnly: true
@@ -28096,6 +28307,8 @@ spec:
         command:
         - sh
         env:
+        - name: REDIS_CREDS_FILE_PATH
+          value: /run/secrets/argocd/redis-auth
         - name: SENTINEL_ID_0
           value: 3c0d9c0320bb34888c2df5757c718ce6ca992ce6
         - name: SENTINEL_ID_1
@@ -28119,6 +28332,9 @@ spec:
           seccompProfile:
             type: RuntimeDefault
         volumeMounts:
+        - mountPath: /run/secrets/argocd/redis-auth
+          name: redis-creds
+          readOnly: true
         - mountPath: /readonly-config
           name: config
           readOnly: true
@@ -28131,6 +28347,13 @@ spec:
       serviceAccountName: argocd-redis-ha
       terminationGracePeriodSeconds: 60
       volumes:
+      - name: redis-creds
+        secret:
+          items:
+          - key: auth
+            path: auth
+          optional: false
+          secretName: argocd-redis
       - configMap:
           name: argocd-redis-ha-configmap
         name: config
