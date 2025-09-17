@@ -188,7 +188,7 @@ git commit -m "Bump image to v1.2.3" \
 ```
 
 !!!note Newlines are not allowed
-    The commit trailers must not contain newlines. The 
+    The commit trailers must not contain newlines. 
 
 So the full CI script might look something like this:
 
