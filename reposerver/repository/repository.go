@@ -345,8 +345,9 @@ func (s *Service) runRepoOperation(
 	case source.IsHelm():
 		helmClient, revision, revisionMetadata, err = s.newHelmClientResolveRevision(repo, revision, source.Chart, settings.noCache || settings.noRevisionCache)
 	default:
-		// Check if revision is already a resolved commit SHA to avoid double resolution
-		if git.IsCommitSHA(revision) && source.TargetRevision != "" && source.TargetRevision != revision {
+		// Determine revision resolution strategy
+		switch {
+		case git.IsCommitSHA(revision) && source.TargetRevision != "" && source.TargetRevision != revision:
 			// Create temporary git client to validate constraint freshness
 			tempGitClient, err := s.newClient(repo, gitClientOpts)
 			if err != nil {
@@ -354,23 +355,24 @@ func (s *Service) runRepoOperation(
 			}
 			// Re-resolve the original constraint to check if it still points to this commit
 			currentRevision, currentMetadata, err := tempGitClient.LsRemote(source.TargetRevision)
-			if err == nil && currentRevision != revision {
+			switch {
+			case err == nil && currentRevision != revision:
 				// Constraint resolves to a different commit now - use normal resolution path for fresh data
 				gitClient, revision, revisionMetadata, err = s.newClientResolveRevisionWithMetadata(repo, source.TargetRevision, gitClientOpts)
 				if err != nil {
 					return err
 				}
-			} else if err == nil {
+			case err == nil:
 				// Constraint still resolves to this commit - use the temp client and fresh metadata
 				gitClient = tempGitClient
 				revisionMetadata = currentMetadata
-			} else {
+			default:
 				// Fallback to direct metadata if resolution fails
 				gitClient = tempGitClient
 				revisionMetadata = versions.NewRevisionMetadata(revision, versions.RevisionResolutionDirect)
 				revisionMetadata = revisionMetadata.WithResolvedTag(revision)
 			}
-		} else if git.IsCommitSHA(revision) {
+		case git.IsCommitSHA(revision):
 			// Already resolved and no constraint to validate - create git client without re-resolving
 			gitClient, err = s.newClient(repo, gitClientOpts)
 			if err != nil {
@@ -378,7 +380,7 @@ func (s *Service) runRepoOperation(
 			}
 			revisionMetadata = versions.NewRevisionMetadata(revision, versions.RevisionResolutionDirect)
 			revisionMetadata = revisionMetadata.WithResolvedTag(revision)
-		} else {
+		default:
 			// Need to resolve the revision
 			gitClient, revision, revisionMetadata, err = s.newClientResolveRevisionWithMetadata(repo, revision, gitClientOpts)
 		}
