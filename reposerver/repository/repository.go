@@ -2240,7 +2240,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 	res := &apiclient.RepoAppDetailsResponse{}
 
 	cacheFn := s.createGetAppDetailsCacheHandler(res, q)
-	operation := func(repoRoot, commitSHA, revision string, ctxSrc operationContextSrc, revisionMetadata *versions.RevisionMetadata) error {
+	operation := func(repoRoot, commitSHA, revision string, ctxSrc operationContextSrc, _ *versions.RevisionMetadata) error {
 		opContext, err := ctxSrc()
 		if err != nil {
 			return err
@@ -2673,7 +2673,9 @@ func (s *Service) newClientResolveRevisionWithMetadata(repo *v1alpha1.Repository
 	//
 	// Cache semver constraint metadata for later retrieval during manifest generation
 	if metadata != nil && metadata.ResolutionType == versions.RevisionResolutionRange {
-		s.cache.SetSemverMetadata(repo.Repo, revision, metadata.ResolvedTag, commitSHA, metadata)
+		if err := s.cache.SetSemverMetadata(repo.Repo, revision, metadata.ResolvedTag, commitSHA, metadata); err != nil {
+			log.Warnf("Failed to cache semver metadata: %v", err)
+		}
 	}
 	return gitClient, commitSHA, metadata, nil
 }
@@ -2692,7 +2694,9 @@ func (s *Service) newOCIClientResolveRevision(ctx context.Context, repo *v1alpha
 	// Cache semver constraint metadata for later retrieval during manifest generation
 	// But respect cache bypass parameters (don't cache during hard refresh)
 	if revisionMetadata != nil && revisionMetadata.ResolutionType == versions.RevisionResolutionRange && !noRevisionCache {
-		s.cache.SetSemverMetadata(repo.Repo, revision, revisionMetadata.ResolvedTag, digest, revisionMetadata)
+		if err := s.cache.SetSemverMetadata(repo.Repo, revision, revisionMetadata.ResolvedTag, digest, revisionMetadata); err != nil {
+			log.Warnf("Failed to cache semver metadata: %v", err)
+		}
 	}
 	return ociClient, digest, revisionMetadata, nil
 }
@@ -2734,7 +2738,9 @@ func (s *Service) newHelmClientResolveRevision(repo *v1alpha1.Repository, revisi
 	// Cache semver constraint metadata for later retrieval during manifest generation
 	// But respect cache bypass parameters (don't cache during hard refresh)
 	if metadata != nil && metadata.ResolutionType == versions.RevisionResolutionRange && !noRevisionCache {
-		s.cache.SetSemverMetadata(repo.Repo, revision, metadata.ResolvedTag, maxV, metadata)
+		if err := s.cache.SetSemverMetadata(repo.Repo, revision, metadata.ResolvedTag, maxV, metadata); err != nil {
+			log.Warnf("Failed to cache semver metadata: %v", err)
+		}
 	}
 	return helmClient, maxV, metadata, nil
 }
@@ -2925,7 +2931,9 @@ func (s *Service) ResolveRevision(ctx context.Context, q *apiclient.ResolveRevis
 		}
 		// Cache the semver metadata for later use during manifest generation
 		if metadata != nil {
-			s.cache.SetSemverMetadata(repo.Repo, ambiguousRevision, metadata.ResolvedTag, revision, metadata)
+			if err := s.cache.SetSemverMetadata(repo.Repo, ambiguousRevision, metadata.ResolvedTag, revision, metadata); err != nil {
+				log.Warnf("Failed to cache semver metadata: %v", err)
+			}
 		}
 		return &apiclient.ResolveRevisionResponse{
 			Revision:          revision,
@@ -2940,7 +2948,9 @@ func (s *Service) ResolveRevision(ctx context.Context, q *apiclient.ResolveRevis
 		}
 		// Cache the semver metadata for later use during manifest generation
 		if metadata != nil {
-			s.cache.SetSemverMetadata(repo.Repo, ambiguousRevision, metadata.ResolvedTag, revision, metadata)
+			if err := s.cache.SetSemverMetadata(repo.Repo, ambiguousRevision, metadata.ResolvedTag, revision, metadata); err != nil {
+				log.Warnf("Failed to cache semver metadata: %v", err)
+			}
 		}
 		return &apiclient.ResolveRevisionResponse{
 			Revision:          revision,
@@ -2953,7 +2963,9 @@ func (s *Service) ResolveRevision(ctx context.Context, q *apiclient.ResolveRevis
 	}
 	// Cache the semver metadata for later use during manifest generation
 	if metadata != nil {
-		s.cache.SetSemverMetadata(repo.Repo, ambiguousRevision, metadata.ResolvedTag, revision, metadata)
+		if err := s.cache.SetSemverMetadata(repo.Repo, ambiguousRevision, metadata.ResolvedTag, revision, metadata); err != nil {
+			log.Warnf("Failed to cache semver metadata: %v", err)
+		}
 	}
 	return &apiclient.ResolveRevisionResponse{
 		Revision:          revision,
@@ -3187,12 +3199,14 @@ func (s *Service) UpdateRevisionForPaths(_ context.Context, request *apiclient.U
 		return nil, status.Errorf(codes.Internal, "unable to get changed files for repo %s with revision %s: %v", repo.Repo, revision, err)
 	}
 
-	// Check for file changes
-	changed := apppathutil.AppFilesHaveChanged(refreshPaths, files)
-
 	// Also check for build metadata changes that would affect rendered manifests
+	changed := s.buildMetadataHasChanged(request, syncedRevision, revision)
+
+	// Check for file changes
 	if !changed {
-		changed = s.buildMetadataHasChanged(request, syncedRevision, revision)
+		if len(files) != 0 {
+			changed = apppathutil.AppFilesHaveChanged(refreshPaths, files)
+		}
 	}
 
 	if !changed {
