@@ -188,6 +188,26 @@ func newServiceWithSignature(t *testing.T, root string) *Service {
 	return service
 }
 
+func newServiceWithRealGitClient(t *testing.T, root string) *Service {
+	t.Helper()
+	// Create service with real git client instead of mocked one
+	root, err := filepath.Abs(root)
+	if err != nil {
+		panic(err)
+	}
+
+	cacheMocks := newCacheMocks()
+	t.Cleanup(cacheMocks.mockCache.StopRedisCallback)
+
+	return NewService(
+		metrics.NewMetricsServer(),
+		cacheMocks.cache,
+		RepoServerInitConstants{ParallelismLimit: 1},
+		&git.NoopCredsStore{},
+		root,
+	)
+}
+
 func newServiceWithCommitSHA(t *testing.T, root, revision string) *Service {
 	t.Helper()
 	var revisionErr error
@@ -3220,7 +3240,7 @@ func Test_getHelmDependencyRepos(t *testing.T) {
 }
 
 func TestResolveRevision(t *testing.T) {
-	service := newService(t, ".")
+	service := newServiceWithRealGitClient(t, ".")
 	repo := &v1alpha1.Repository{Repo: "https://github.com/argoproj/argo-cd"}
 	app := &v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{Source: &v1alpha1.ApplicationSource{}}}
 	resolveRevisionResponse, err := service.ResolveRevision(t.Context(), &apiclient.ResolveRevisionRequest{
@@ -3240,7 +3260,7 @@ func TestResolveRevision(t *testing.T) {
 }
 
 func TestResolveRevisionNegativeScenarios(t *testing.T) {
-	service := newService(t, ".")
+	service := newServiceWithRealGitClient(t, ".")
 	repo := &v1alpha1.Repository{Repo: "https://github.com/argoproj/argo-cd"}
 	app := &v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{Source: &v1alpha1.ApplicationSource{}}}
 	resolveRevisionResponse, err := service.ResolveRevision(t.Context(), &apiclient.ResolveRevisionRequest{
