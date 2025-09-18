@@ -13,6 +13,9 @@ import (
 	"time"
 
 	bb "github.com/ktrysmt/go-bitbucket"
+	"k8s.io/apimachinery/pkg/labels"
+
+	alpha1 "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/go-playground/webhooks/v6/azuredevops"
@@ -23,7 +26,6 @@ import (
 	"github.com/go-playground/webhooks/v6/gogs"
 	gogsclient "github.com/gogits/go-gogs-client"
 	log "github.com/sirupsen/logrus"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -60,6 +62,7 @@ type ArgoCDWebhookHandler struct {
 	ns                     string
 	appNs                  []string
 	appClientset           appclientset.Interface
+	appsLister             alpha1.ApplicationLister
 	github                 *github.Webhook
 	gitlab                 *gitlab.Webhook
 	bitbucket              *bitbucket.Webhook
@@ -72,7 +75,7 @@ type ArgoCDWebhookHandler struct {
 	maxWebhookPayloadSizeB int64
 }
 
-func NewHandler(namespace string, applicationNamespaces []string, webhookParallelism int, appClientset appclientset.Interface, set *settings.ArgoCDSettings, settingsSrc settingsSource, repoCache *cache.Cache, serverCache *servercache.Cache, argoDB db.ArgoDB, maxWebhookPayloadSizeB int64) *ArgoCDWebhookHandler {
+func NewHandler(namespace string, applicationNamespaces []string, webhookParallelism int, appClientset appclientset.Interface, appsLister alpha1.ApplicationLister, set *settings.ArgoCDSettings, settingsSrc settingsSource, repoCache *cache.Cache, serverCache *servercache.Cache, argoDB db.ArgoDB, maxWebhookPayloadSizeB int64) *ArgoCDWebhookHandler {
 	githubWebhook, err := github.New(github.Options.Secret(set.WebhookGitHubSecret))
 	if err != nil {
 		log.Warnf("Unable to init the GitHub webhook")
@@ -115,6 +118,7 @@ func NewHandler(namespace string, applicationNamespaces []string, webhookParalle
 		db:                     argoDB,
 		queue:                  make(chan any, payloadQueueSize),
 		maxWebhookPayloadSizeB: maxWebhookPayloadSizeB,
+		appsLister:             appsLister,
 	}
 
 	acdWebhook.startWorkerPool(webhookParallelism)
@@ -313,8 +317,8 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 		nsFilter = ""
 	}
 
-	appIf := a.appClientset.ArgoprojV1alpha1().Applications(nsFilter)
-	apps, err := appIf.List(context.Background(), metav1.ListOptions{})
+	appIf := a.appsLister.Applications(nsFilter)
+	apps, err := appIf.List(labels.Everything())
 	if err != nil {
 		log.Warnf("Failed to list applications: %v", err)
 		return
@@ -339,9 +343,9 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 	// Skip any application that is neither in the control plane's namespace
 	// nor in the list of enabled namespaces.
 	var filteredApps []v1alpha1.Application
-	for _, app := range apps.Items {
+	for _, app := range apps {
 		if app.Namespace == a.ns || glob.MatchStringInList(a.appNs, app.Namespace, glob.REGEXP) {
-			filteredApps = append(filteredApps, app)
+			filteredApps = append(filteredApps, *app)
 		}
 	}
 
