@@ -56,7 +56,7 @@ find docs -type f -name "*.md" | while read -r FILE; do
       # For non-admonition lines, check indentation and adjust for alert body.
       if [[ ALERT_STARTED -eq 1 ]] && [[ "$LINE" =~ ^[[:space:]]+ ]]; then
         # Strip leading whitespace and prepend "> "
-        STRIPPED_LINE=$(echo "$LINE" | sed 's/^[[:space:]]*//')
+        STRIPPED_LINE=${LINE##+([[:space:]])}
         echo -e "> $STRIPPED_LINE" >> "$TEMP_FILE"
       else
         echo "$LINE" >> "$TEMP_FILE"
