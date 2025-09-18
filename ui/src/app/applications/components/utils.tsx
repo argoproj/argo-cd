@@ -1718,6 +1718,10 @@ export const getProgressiveSyncStatusIcon = ({status, isButton}: {status: string
                 return {icon: 'fa-clock', color: COLORS.sync.out_of_sync};
             case 'Error':
                 return {icon: 'fa-times-circle', color: COLORS.health.degraded};
+            case 'Synced':
+                return {icon: 'fa-check-circle', color: COLORS.sync.synced};
+            case 'OutOfSync':
+                return {icon: 'fa-exclamation-triangle', color: COLORS.sync.out_of_sync};
             default:
                 return {icon: 'fa-question-circle', color: COLORS.sync.unknown};
         }
@@ -1740,6 +1744,10 @@ export const getProgressiveSyncStatusColor = (status: string): string => {
             return COLORS.health.healthy;
         case 'Error':
             return COLORS.health.degraded;
+        case 'Synced':
+            return COLORS.sync.synced;
+        case 'OutOfSync':
+            return COLORS.sync.out_of_sync;
         default:
             return COLORS.sync.unknown;
     }
