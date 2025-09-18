@@ -7650,7 +7650,7 @@ func TestIsRollingSyncDeletionReversed(t *testing.T) {
 		})
 	}
 }
-
+// TestIsApplicationHealthy tests if the application is healthy.
 func TestIsApplicationHealthy(t *testing.T) {
 	tests := []struct {
 		name           string
