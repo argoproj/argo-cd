@@ -23,7 +23,9 @@ These default built-in role definitions can be seen in [builtin-policy.csv](http
 
 When a user is authenticated in Argo CD, it will be granted the role specified in `policy.default`.
 
-!!! warning "Restricting Default Permissions"
+> [!WARNING]
+> **Restricting Default Permissions**
+>
 
     **All authenticated users get _at least_ the permissions granted by the default policies. This access cannot be blocked
     by a `deny` rule.** It is recommended to create a new `role:authenticated` with the minimum set of permissions possible,
@@ -35,7 +37,7 @@ Enabling anonymous access to the Argo CD instance allows users to assume the def
 
 The anonymous access to Argo CD can be enabled using the `users.anonymous.enabled` field in `argocd-cm` (see [argocd-cm.yaml](argocd-cm-yaml.md)).
 
-!!! warning
+> [!WARNING]
 
     When enabling anonymous access, consider creating a new default role and assigning it to the default policies
     with `policy.default: role:unauthenticated`.
@@ -125,7 +127,9 @@ For instance, to grant access to `example-user` to only delete Pods in the `prod
 p, example-user, applications, delete/*/Pod/*/*, default/prod-app, allow
 ```
 
-!!!warning "Understand glob pattern behavior"
+> [!WARNING]
+> **Understand glob pattern behavior**
+>
 
     Argo CD RBAC does not use `/` as a separator when evaluating glob patterns. So the pattern `delete/*/kind/*`
     will match `delete/<group>/kind/<namespace>/<name>` but also `delete/<group>/<kind>/kind/<name>`.
@@ -155,7 +159,9 @@ p, example-user, applications, update, default/prod-app, allow
 p, example-user, applications, update/*, default/prod-app, deny
 ```
 
-!!! note "Preserve Application permission Inheritance (Since v3.0.0)"
+> [!NOTE]
+> **Preserve Application permission Inheritance (Since v3.0.0)**
+>
 
     Prior to v3, `update` and `delete` actions (without a `/*`) were also evaluated
     on sub-resources.
@@ -215,7 +221,7 @@ The `applicationsets` resource is an [Application-Specific policy](#application-
 Allowing the `create` action on the resource effectively grants the ability to create Applications. While it doesn't allow the
 user to create Applications directly, they can create Applications via an ApplicationSet.
 
-!!! note
+> [!NOTE]
 
     In v2.5, it is not possible to create an ApplicationSet with a templated Project field (e.g. `project: {{path.basename}}`)
     via the API (or, by extension, the CLI). Disallowing templated projects makes project restrictions via RBAC safe:
@@ -370,7 +376,9 @@ This example shows how to assign a role to a local user.
 g, my-local-user, role:admin
 ```
 
-!!! warning "Ambiguous Group Assignments"
+> [!WARNING]
+> **Ambiguous Group Assignments**
+>
 
     If you have [enabled SSO](user-management/index.md#sso), any SSO user with a scope that matches a local user will be
     added to the same roles as the local user. For example, if local user `sally` is assigned to `role:admin`, and if an

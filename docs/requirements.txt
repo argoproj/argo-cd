@@ -1,4 +1,5 @@
 mkdocs==1.6.1
+mkdocs-github-admonitions-plugin==0.1.1
 # Strict mode has been disabled in latest versions of mkdocs-material.
 # Thus pointing to the older version of mkdocs-material.
 mkdocs-material==7.1.8

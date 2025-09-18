@@ -6,6 +6,8 @@ extra_css:
 - assets/versions.css
 extra_javascript:
 - assets/versions.js
+plugins:
+- gh-admonitions
 markdown_extensions:
 - markdown_include.include
 - codehilite:

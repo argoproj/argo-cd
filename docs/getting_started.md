@@ -1,7 +1,7 @@
 # Getting Started
 
-!!! tip
-    This guide assumes you have a grounding in the tools that Argo CD is based on. Please read [understanding the basics](understand_the_basics.md) to learn about these tools.
+> [!TIP]
+> This guide assumes you have a grounding in the tools that Argo CD is based on. Please read [understanding the basics](understand_the_basics.md) to learn about these tools.
 
 ## Requirements
 
@@ -18,12 +18,12 @@ kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/st
 
 This will create a new namespace, `argocd`, where Argo CD services and application resources will live.
 
-!!! warning
-    The installation manifests include `ClusterRoleBinding` resources that reference `argocd` namespace. If you are installing Argo CD into a different
-    namespace then make sure to update the namespace reference.
+> [!WARNING]
+> The installation manifests include `ClusterRoleBinding` resources that reference `argocd` namespace. If you are installing Argo CD into a different
+> namespace then make sure to update the namespace reference.
 
-!!! tip
-    If you are not interested in UI, SSO, and multi-cluster features, then you can install only the [core](operator-manual/core.md#installing) Argo CD components.
+> [!TIP]
+> If you are not interested in UI, SSO, and multi-cluster features, then you can install only the [core](operator-manual/core.md#installing) Argo CD components.
 
 This default installation will have a self-signed certificate and cannot be accessed without a bit of extra work.
 Do one of:
@@ -32,16 +32,16 @@ Do one of:
 * Configure the client OS to trust the self signed certificate.
 * Use the --insecure flag on all Argo CD CLI operations in this guide.
 
-!!! note 
-    Default namespace for `kubectl` config must be set to `argocd`.
-    This is only needed for the following commands since the previous commands have -n argocd already:
-    `kubectl config set-context --current --namespace=argocd`
-    
+> [!NOTE]
+> Default namespace for `kubectl` config must be set to `argocd`.
+> This is only needed for the following commands since the previous commands have -n argocd already:
+> `kubectl config set-context --current --namespace=argocd`
+> 
 
 Use `argocd login --core` to [configure](./user-guide/commands/argocd_login.md) CLI access and skip steps 3-5.
 
-!!! note
-    This default installation for Redis is using password authentication. The Redis password is stored in Kubernetes secret `argocd-redis` with key `auth` in the namespace where Argo CD is installed.
+> [!NOTE]
+> This default installation for Redis is using password authentication. The Redis password is stored in Kubernetes secret `argocd-redis` with key `auth` in the namespace where Argo CD is installed.
 
 ## 2. Download Argo CD CLI
 
@@ -94,12 +94,12 @@ using the `argocd` CLI:
 argocd admin initial-password -n argocd
 ```
 
-!!! warning
-    You should delete the `argocd-initial-admin-secret` from the Argo CD
-    namespace once you changed the password. The secret serves no other
-    purpose than to store the initially generated password in clear and can
-    safely be deleted at any time. It will be re-created on demand by Argo CD
-    if a new admin password must be re-generated.
+> [!WARNING]
+> You should delete the `argocd-initial-admin-secret` from the Argo CD
+> namespace once you changed the password. The secret serves no other
+> purpose than to store the initially generated password in clear and can
+> safely be deleted at any time. It will be re-created on demand by Argo CD
+> if a new admin password must be re-generated.
 
 Using the username `admin` and the password from above, login to Argo CD's IP or hostname:
 
@@ -107,8 +107,8 @@ Using the username `admin` and the password from above, login to Argo CD's IP or
 argocd login <ARGOCD_SERVER>
 ```
 
-!!! note
-    The CLI environment must be able to communicate with the Argo CD API server. If it isn't directly accessible as described above in step 3, you can tell the CLI to access it using port forwarding through one of these mechanisms: 1) add `--port-forward-namespace argocd` flag to every CLI command; or 2) set `ARGOCD_OPTS` environment variable: `export ARGOCD_OPTS='--port-forward-namespace argocd'`.
+> [!NOTE]
+> The CLI environment must be able to communicate with the Argo CD API server. If it isn't directly accessible as described above in step 3, you can tell the CLI to access it using port forwarding through one of these mechanisms: 1) add `--port-forward-namespace argocd` flag to every CLI command; or 2) set `ARGOCD_OPTS` environment variable: `export ARGOCD_OPTS='--port-forward-namespace argocd'`.
 
 Change the password using the command:
 
@@ -137,17 +137,17 @@ The above command installs a ServiceAccount (`argocd-manager`), into the kube-sy
 that kubectl context, and binds the service account to an admin-level ClusterRole. Argo CD uses this
 service account token to perform its management tasks (i.e. deploy/monitoring).
 
-!!! note
-    The rules of the `argocd-manager-role` role can be modified such that it only has `create`, `update`, `patch`, `delete` privileges to a limited set of namespaces, groups, kinds.
-    However `get`, `list`, `watch` privileges are required at the cluster-scope for Argo CD to function.
+> [!NOTE]
+> The rules of the `argocd-manager-role` role can be modified such that it only has `create`, `update`, `patch`, `delete` privileges to a limited set of namespaces, groups, kinds.
+> However `get`, `list`, `watch` privileges are required at the cluster-scope for Argo CD to function.
 
 ## 6. Create An Application From A Git Repository
 
 An example repository containing a guestbook application is available at
 [https://github.com/argoproj/argocd-example-apps.git](https://github.com/argoproj/argocd-example-apps.git) to demonstrate how Argo CD works.
 
-!!! note
-    Note: The following example application may only be compatible with AMD64 architecture. If you are running on a different architecture (such as ARM64 or ARMv7), you may encounter issues with dependencies or container images that are not built for your platform. Consider verifying the compatibility of the application or building architecture-specific images if necessary.
+> [!NOTE]
+> Note: The following example application may only be compatible with AMD64 architecture. If you are running on a different architecture (such as ARM64 or ARMv7), you may encounter issues with dependencies or container images that are not built for your platform. Consider verifying the compatibility of the application or building architecture-specific images if necessary.
 
 ### Creating Apps Via CLI
 

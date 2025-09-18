@@ -1,6 +1,6 @@
 # Overview
 
-!!!note
+> [!NOTE]
 
     This section contains information on upgrading Argo CD. Before upgrading please make sure to read details about
     the breaking changes between Argo CD versions.
@@ -30,7 +30,7 @@ kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/<v
 kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/<version>/manifests/ha/install.yaml
 ```
 
-!!! warning
+> [!WARNING]
 
     Even though some releases require only image change it is still recommended to apply whole manifests set.
     Manifest changes might include important parameter modifications and applying the whole set will protect you from

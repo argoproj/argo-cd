@@ -76,7 +76,9 @@ data:
 
 ---
 
-!!! warning "Deprecation Warning"
+> [!WARNING]
+> **Deprecation Warning**
+>
 
     Note that, according to [Dex documentation](https://dexidp.io/docs/connectors/saml/#warning), SAML is considered unsafe and they are planning to deprecate that module.
 

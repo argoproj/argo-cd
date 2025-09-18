@@ -6,10 +6,12 @@ namespace `argocd-e2e***` is created prior to the execution of the tests. The th
 The [/test/e2e/testdata](https://github.com/argoproj/argo-cd/tree/master/test/e2e/testdata) directory contains various Argo CD applications. Before test execution, the directory is copied into `/tmp/argo-e2e***` temp directory and used in tests as a
 Git repository via file url: `file:///tmp/argo-e2e***`.
 
-!!! note "Rancher Desktop Volume Sharing"
-    The e2e git server runs in a container. If you are using Rancher Desktop, you will need to enable volume sharing for
-    the e2e container to access the testdata directory. To do this, add the following to 
-    `~/Library/Application\ Support/rancher-desktop/lima/_config/override.yaml` and restart Rancher Desktop:
+> [!NOTE]
+> **Rancher Desktop Volume Sharing**
+>
+> The e2e git server runs in a container. If you are using Rancher Desktop, you will need to enable volume sharing for
+> the e2e container to access the testdata directory. To do this, add the following to 
+> `~/Library/Application\ Support/rancher-desktop/lima/_config/override.yaml` and restart Rancher Desktop:
 
     ```yaml
     mounts:

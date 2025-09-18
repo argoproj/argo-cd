@@ -116,9 +116,9 @@ specify a wildcard in the resource kind, and anywhere in the resource group, lik
         ...
 ```
 
-!!!important
-    Please, note that wildcards are only supported when using the `resource.customizations` key, the `resource.customizations.health.<group>_<kind>`
-    style keys do not work since wildcards (`*`) are not supported in Kubernetes configmap keys.
+> [!IMPORTANT]
+> Please, note that wildcards are only supported when using the `resource.customizations` key, the `resource.customizations.health.<group>_<kind>`
+> style keys do not work since wildcards (`*`) are not supported in Kubernetes configmap keys.
 
 The `obj` is a global variable which contains the resource. The script must return an object with status and optional message field.
 The custom health check might return one of the following health statuses:
@@ -191,7 +191,9 @@ If multiple wildcard checks match, the first one in the directory structure is u
 We use the [doublestar](https://github.com/bmatcuk/doublestar) glob library to match the wildcard checks. We currently
 only treat a path as a wildcard if it contains a `_` character, but this may change in the future.
 
-!!!important "Avoid Massive Scripts"
+> [!IMPORTANT]
+> **Avoid Massive Scripts**
+>
 
     Avoid writing massive scripts to handle multiple resources. They'll get hard to read and maintain. Instead, just
     duplicate the relevant parts in resource-specific scripts.

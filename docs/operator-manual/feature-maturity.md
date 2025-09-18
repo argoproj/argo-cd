@@ -3,7 +3,9 @@
 Argo CD features may be marked with a certain [status](https://github.com/argoproj/argoproj/blob/main/community/feature-status.md)
 to indicate their stability and maturity. These are the statuses of non-stable features in Argo CD:
 
-!!! danger "Using Alpha/Beta features risks"
+> [!CAUTION]
+> **Using Alpha/Beta features risks**
+>
 
     Aplha and Beta features do not guarantee backward compatibility and are subject to breaking changes in the future releases.
     It is highly suggested for Argo users not to rely on these features in production environments, especially if you do not have
