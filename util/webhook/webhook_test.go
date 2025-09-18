@@ -2,6 +2,7 @@ package webhook
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -11,14 +12,16 @@ import (
 	"testing"
 	"time"
 
-	"k8s.io/apimachinery/pkg/types"
+	argov1 "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
 
 	"github.com/go-playground/webhooks/v6/bitbucket"
 	bitbucketserver "github.com/go-playground/webhooks/v6/bitbucket-server"
 	"github.com/go-playground/webhooks/v6/github"
 	"github.com/go-playground/webhooks/v6/gitlab"
 	gogsclient "github.com/gogits/go-gogs-client"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	kubetesting "k8s.io/client-go/testing"
 
 	"github.com/argoproj/argo-cd/v3/util/cache/appstate"
@@ -64,6 +67,31 @@ func NewMockHandler(reactor *reactorDef, applicationNamespaces []string, objects
 	return NewMockHandlerWithPayloadLimit(reactor, applicationNamespaces, defaultMaxPayloadSize, objects...)
 }
 
+type fakeAppsLister struct {
+	argov1.ApplicationLister
+	argov1.ApplicationNamespaceLister
+	namespace string
+	clientset *appclientset.Clientset
+}
+
+func (f *fakeAppsLister) Applications(namespace string) argov1.ApplicationNamespaceLister {
+	return &fakeAppsLister{namespace: namespace, clientset: f.clientset}
+}
+
+func (f *fakeAppsLister) List(selector labels.Selector) ([]*v1alpha1.Application, error) {
+	res, err := f.clientset.ArgoprojV1alpha1().Applications(f.namespace).List(context.Background(), metav1.ListOptions{
+		LabelSelector: selector.String(),
+	})
+	if err != nil {
+		return nil, err
+	}
+	var apps []*v1alpha1.Application
+	for i := range res.Items {
+		apps = append(apps, &res.Items[i])
+	}
+	return apps, nil
+}
+
 func NewMockHandlerWithPayloadLimit(reactor *reactorDef, applicationNamespaces []string, maxPayloadSize int64, objects ...runtime.Object) *ArgoCDWebhookHandler {
 	appClientset := appclientset.NewSimpleClientset(objects...)
 	if reactor != nil {
@@ -76,7 +104,7 @@ func NewMockHandlerWithPayloadLimit(reactor *reactorDef, applicationNamespaces [
 	}
 	cacheClient := cacheutil.NewCache(cacheutil.NewInMemoryCache(1 * time.Hour))
 
-	return NewHandler("argocd", applicationNamespaces, 10, appClientset, &settings.ArgoCDSettings{}, &fakeSettingsSrc{}, cache.NewCache(
+	return NewHandler("argocd", applicationNamespaces, 10, appClientset, &fakeAppsLister{clientset: appClientset}, &settings.ArgoCDSettings{}, &fakeSettingsSrc{}, cache.NewCache(
 		cacheClient,
 		1*time.Minute,
 		1*time.Minute,
