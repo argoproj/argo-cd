@@ -2154,6 +2154,26 @@ func TestSync_WithRefresh(t *testing.T) {
 	assert.True(t, app.Operation.Retry.Refresh)
 }
 
+func TestGetManifests_WithNoCache(t *testing.T) {
+	testApp := newTestApp()
+	appServer := newTestAppServer(t, testApp)
+
+	mockRepoServiceClient := mocks.RepoServerServiceClient{}
+	mockRepoServiceClient.On("GenerateManifest", mock.Anything, mock.MatchedBy(func(mr *apiclient.ManifestRequest) bool {
+		// expected to be true because given NoCache in the ApplicationManifestQuery
+		return mr.NoCache
+	})).Return(&apiclient.ManifestResponse{}, nil)
+
+	appServer.repoClientset = &mocks.Clientset{RepoServerServiceClient: &mockRepoServiceClient}
+
+	_, err := appServer.GetManifests(t.Context(), &application.ApplicationManifestQuery{
+		Name:    &testApp.Name,
+		NoCache: ptr.To(true),
+	})
+	require.NoError(t, err)
+	mockRepoServiceClient.AssertExpectations(t)
+}
+
 func TestRollbackApp(t *testing.T) {
 	testApp := newTestApp()
 	testApp.Status.History = []v1alpha1.RevisionHistory{{
