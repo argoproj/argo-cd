@@ -462,9 +462,9 @@ jobs:
           set -x
           curl -sfL https://get.k3s.io | sh -
           sudo chmod -R a+rw /etc/rancher/k3s
-          sudo mkdir -p $HOME/.kube && sudo chown -R runner $HOME/.kube
+          sudo mkdir -p $HOME/.kube && sudo chown -R ubuntu $HOME/.kube
           sudo k3s kubectl config view --raw > $HOME/.kube/config
-          sudo chown runner $HOME/.kube/config
+          sudo chown ubuntu $HOME/.kube/config
           sudo chmod go-r $HOME/.kube/config
           kubectl version
       - name: Restore go build cache
@@ -500,7 +500,7 @@ jobs:
       - name: Create target directory for binaries in the build-process
         run: |
           mkdir -p dist
-          chown runner dist
+          chown ubuntu dist
       - name: Run E2E server and wait for it being available
         timeout-minutes: 30
         run: |
