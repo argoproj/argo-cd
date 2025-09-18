@@ -1005,7 +1005,7 @@ message ConfigManagementPlugin {
   optional bool lockRepo = 4;
 }
 
-// Utility struct for a reference to a configmap key.
+// ConfigMapKeyRef struct for a reference to a configmap key.
 message ConfigMapKeyRef {
   optional string configMapName = 1;
 
@@ -1736,7 +1736,7 @@ message PullRequestGeneratorGitea {
   repeated string labels = 6;
 }
 
-// PullRequestGenerator defines connection info specific to GitHub.
+// PullRequestGeneratorGithub defines connection info specific to GitHub.
 message PullRequestGeneratorGithub {
   // GitHub org or user to scan. Required.
   optional string owner = 1;
@@ -2482,7 +2482,7 @@ message SCMProviderGeneratorGitlab {
   optional ConfigMapKeyRef caRef = 9;
 }
 
-// Utility struct for a reference to a secret key.
+// SecretRef struct for a reference to a secret key.
 message SecretRef {
   optional string secretName = 1;
 

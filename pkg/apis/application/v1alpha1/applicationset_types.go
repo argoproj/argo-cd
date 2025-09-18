@@ -28,13 +28,13 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-// Utility struct for a reference to a secret key.
+// SecretRef struct for a reference to a secret key.
 type SecretRef struct {
 	SecretName string `json:"secretName" protobuf:"bytes,1,opt,name=secretName"`
 	Key        string `json:"key" protobuf:"bytes,2,opt,name=key"`
 }
 
-// Utility struct for a reference to a configmap key.
+// ConfigMapKeyRef struct for a reference to a configmap key.
 type ConfigMapKeyRef struct {
 	ConfigMapName string `json:"configMapName" protobuf:"bytes,1,opt,name=configMapName"`
 	Key           string `json:"key" protobuf:"bytes,2,opt,name=key"`
@@ -675,7 +675,7 @@ type PullRequestGeneratorAzureDevOps struct {
 	Labels []string `json:"labels,omitempty" protobuf:"bytes,6,rep,name=labels"`
 }
 
-// PullRequestGenerator defines connection info specific to GitHub.
+// PullRequestGeneratorGithub defines connection info specific to GitHub.
 type PullRequestGeneratorGithub struct {
 	// GitHub org or user to scan. Required.
 	Owner string `json:"owner" protobuf:"bytes,1,opt,name=owner"`
@@ -821,7 +821,7 @@ type ApplicationSetCondition struct {
 	Reason string `json:"reason" protobuf:"bytes,5,opt,name=reason"`
 }
 
-// SyncStatusCode is a type which represents possible comparison results
+// ApplicationSetConditionStatus is a type which represents possible comparison results
 type ApplicationSetConditionStatus string
 
 // Application Condition Status

@@ -8249,7 +8249,7 @@
       }
     },
     "v1alpha1ConfigMapKeyRef": {
-      "description": "Utility struct for a reference to a configmap key.",
+      "description": "ConfigMapKeyRef struct for a reference to a configmap key.",
       "type": "object",
       "properties": {
         "configMapName": {
@@ -9331,7 +9331,7 @@
       }
     },
     "v1alpha1PullRequestGeneratorGithub": {
-      "description": "PullRequestGenerator defines connection info specific to GitHub.",
+      "description": "PullRequestGeneratorGithub defines connection info specific to GitHub.",
       "type": "object",
       "properties": {
         "api": {
@@ -10335,7 +10335,7 @@
       }
     },
     "v1alpha1SecretRef": {
-      "description": "Utility struct for a reference to a secret key.",
+      "description": "SecretRef struct for a reference to a secret key.",
       "type": "object",
       "properties": {
         "key": {
