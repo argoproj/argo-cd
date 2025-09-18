@@ -127,8 +127,14 @@ func NewClientApp(settings *settings.ArgoCDSettings, dexServerAddr string, dexTL
 		baseHRef:                 baseHRef,
 		encryptionKey:            encryptionKey,
 		clientCache:              cacheClient,
-		domainHint:               settings.OIDCConfig().DomainHint,
-		azure:                    azureApp{mtx: &sync.RWMutex{}},
+		domainHint: func() string {
+			oidcConfig := settings.OIDCConfig()
+			if oidcConfig != nil {
+				return oidcConfig.DomainHint
+			}
+			return ""
+		}(),
+		azure: azureApp{mtx: &sync.RWMutex{}},
 	}
 	log.Infof("Creating client app (%s)", a.clientID)
 	u, err := url.Parse(settings.URL)
