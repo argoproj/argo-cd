@@ -426,7 +426,7 @@ jobs:
       - build-go
       - changes
     env:
-      GOPATH: /home/runner/go
+      GOPATH: /home/ubuntu/go
       ARGOCD_FAKE_IN_CLUSTER: 'true'
       ARGOCD_SSH_DATA_PATH: '/tmp/argo-e2e/app/config/ssh'
       ARGOCD_TLS_DATA_PATH: '/tmp/argo-e2e/app/config/tls'
@@ -474,7 +474,7 @@ jobs:
           key: ${{ runner.os }}-go-build-v1-${{ github.run_id }}
       - name: Add ~/go/bin to PATH
         run: |
-          echo "/home/runner/go/bin" >> $GITHUB_PATH
+          echo "/home/ubuntu/go/bin" >> $GITHUB_PATH
       - name: Add /usr/local/bin to PATH
         run: |
           echo "/usr/local/bin" >> $GITHUB_PATH
