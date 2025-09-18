@@ -6,7 +6,7 @@ import * as ReactDOM from 'react-dom';
 import * as models from '../../../shared/models';
 import {RouteComponentProps} from 'react-router';
 import {BehaviorSubject, combineLatest, from, merge, Observable} from 'rxjs';
-import {delay, filter, map, mergeMap, repeat, retryWhen} from 'rxjs/operators';
+import {filter, map, mergeMap} from 'rxjs/operators';
 
 import {DataLoader, EmptyState, ErrorNotification, ObservableQuery, Page, Paginate, Revision, Timestamp, CheckboxField} from '../../../shared/components';
 import {AppContext, ContextApis} from '../../../shared/context';
@@ -1184,29 +1184,20 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                             from([app]),
                             this.appChanged.pipe(filter(item => !!item)),
                             AppUtils.handlePageVisibility(() =>
-                                services.applications
-                                    .watch({name, appNamespace})
-                                    .pipe(
-                                        map(watchEvent => {
-                                            if (watchEvent.type === 'DELETED') {
-                                                this.onAppDeleted();
-                                            }
-                                            return watchEvent.application;
-                                        })
-                                    )
-                                    .pipe(repeat())
-                                    .pipe(retryWhen(errors => errors.pipe(delay(500))))
+                                services.applications.watch({name, appNamespace}).pipe(
+                                    map(watchEvent => {
+                                        if (watchEvent.type === 'DELETED') {
+                                            this.onAppDeleted();
+                                        }
+                                        return watchEvent.application;
+                                    })
+                                )
                             )
                         ),
                         merge(
                             from([fallbackTree]),
                             services.applications.resourceTree(name, appNamespace).catch(() => fallbackTree),
-                            AppUtils.handlePageVisibility(() =>
-                                services.applications
-                                    .watchResourceTree(name, appNamespace)
-                                    .pipe(repeat())
-                                    .pipe(retryWhen(errors => errors.pipe(delay(500))))
-                            )
+                            AppUtils.handlePageVisibility(() => services.applications.watchResourceTree(name, appNamespace))
                         )
                     );
                 })
