@@ -345,7 +345,7 @@ func (a *ClientApp) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if a.domainHint != "" {
-		opts = append(opts, oauth2.SetAuthURLParam("login_hint", a.domainHint))
+		opts = append(opts, oauth2.SetAuthURLParam("domain_hint", a.domainHint))
 	}
 	// debug log to confirm domainHint at runtime
 	log.Infof("OIDC HandleLogin: domainHint=%q", a.domainHint)
