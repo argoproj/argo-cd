@@ -679,12 +679,12 @@ func (a *ClientApp) GetUserInfo(actualClaims jwt.MapClaims, issuerURL, userInfoP
 	if errors.Is(err, cache.ErrCacheMiss) {
 		return claims, true, fmt.Errorf("no accessToken for %s: %w", sub, err)
 	} else if err != nil {
-		return claims, true, fmt.Errorf("couldn't read accessToken from cache for %s: %w", sub, err)
+		return claims, true, fmt.Errorf("could not read accessToken from cache for %s: %w", sub, err)
 	}
 
 	accessToken, err := crypto.Decrypt(encAccessToken, a.encryptionKey)
 	if err != nil {
-		return claims, true, fmt.Errorf("couldn't decrypt accessToken for %s: %w", sub, err)
+		return claims, true, fmt.Errorf("could not decrypt accessToken for %s: %w", sub, err)
 	}
 
 	url := issuerURL + userInfoPath
@@ -752,11 +752,11 @@ func (a *ClientApp) GetUserInfo(actualClaims jwt.MapClaims, issuerURL, userInfoP
 
 	rawClaims, err := json.Marshal(claims)
 	if err != nil {
-		return claims, false, fmt.Errorf("couldn't marshal claim to json: %w", err)
+		return claims, false, fmt.Errorf("could not marshal claim to json: %w", err)
 	}
 	encClaims, err = crypto.Encrypt(rawClaims, a.encryptionKey)
 	if err != nil {
-		return claims, false, fmt.Errorf("couldn't encrypt user info response: %w", err)
+		return claims, false, fmt.Errorf("could not encrypt user info response: %w", err)
 	}
 
 	err = a.clientCache.Set(&cache.Item{
@@ -767,7 +767,7 @@ func (a *ClientApp) GetUserInfo(actualClaims jwt.MapClaims, issuerURL, userInfoP
 		},
 	})
 	if err != nil {
-		return claims, false, fmt.Errorf("couldn't put item to cache: %w", err)
+		return claims, false, fmt.Errorf("could not put item to cache: %w", err)
 	}
 
 	return claims, false, nil

@@ -1379,6 +1379,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					AppNamespace:    &appNs,
 					Revisions:       revisions,
 					SourcePositions: sourcePositions,
+					NoCache:         &hardRefresh,
 				}
 				res, err := appIf.GetManifests(ctx, &q)
 				errors.CheckError(err)
@@ -1390,6 +1391,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					Name:         &appName,
 					Revision:     &revision,
 					AppNamespace: &appNs,
+					NoCache:      &hardRefresh,
 				}
 				res, err := appIf.GetManifests(ctx, &q)
 				errors.CheckError(err)
