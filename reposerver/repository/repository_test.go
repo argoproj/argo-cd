@@ -4190,6 +4190,9 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 				gitClient.On("IsRevisionPresent", "1e67a504d03def3a6a1125d934cb511680f72555").Once().Return(true)
 				gitClient.On("LsRemote", "HEAD").Once().Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil, nil)
 				gitClient.On("LsRemote", "SYNCEDHEAD").Once().Return("1e67a504d03def3a6a1125d934cb511680f72555", nil, nil)
+				// buildMetadataHasChanged calls LsRemote with resolved commit SHAs
+				gitClient.On("LsRemote", "1e67a504d03def3a6a1125d934cb511680f72555").Once().Return("1e67a504d03def3a6a1125d934cb511680f72555", nil, nil)
+				gitClient.On("LsRemote", "632039659e542ed7de0c170a4fcc1c571b288fc0").Once().Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil, nil)
 				paths.On("GetPath", mock.Anything).Return(".", nil)
 				paths.On("GetPathIfExists", mock.Anything).Return(".", nil)
 				gitClient.On("Root").Return("")
@@ -4223,6 +4226,9 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 				gitClient.On("IsRevisionPresent", "1e67a504d03def3a6a1125d934cb511680f72555").Once().Return(true)
 				gitClient.On("LsRemote", "HEAD").Once().Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil, nil)
 				gitClient.On("LsRemote", "SYNCEDHEAD").Once().Return("1e67a504d03def3a6a1125d934cb511680f72555", nil, nil)
+				// buildMetadataHasChanged calls LsRemote with resolved commit SHAs
+				gitClient.On("LsRemote", "1e67a504d03def3a6a1125d934cb511680f72555").Once().Return("1e67a504d03def3a6a1125d934cb511680f72555", nil, nil)
+				gitClient.On("LsRemote", "632039659e542ed7de0c170a4fcc1c571b288fc0").Once().Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil, nil)
 				paths.On("GetPath", mock.Anything).Return(".", nil)
 				paths.On("GetPathIfExists", mock.Anything).Return(".", nil)
 				gitClient.On("Root").Return("")
@@ -4264,6 +4270,9 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 				gitClient.On("Fetch", mock.Anything).Once().Return(nil)
 				gitClient.On("LsRemote", "HEAD").Once().Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil, nil)
 				gitClient.On("LsRemote", "SYNCEDHEAD").Once().Return("1e67a504d03def3a6a1125d934cb511680f72555", nil, nil)
+				// buildMetadataHasChanged calls LsRemote with resolved commit SHAs
+				gitClient.On("LsRemote", "1e67a504d03def3a6a1125d934cb511680f72555").Once().Return("1e67a504d03def3a6a1125d934cb511680f72555", nil, nil)
+				gitClient.On("LsRemote", "632039659e542ed7de0c170a4fcc1c571b288fc0").Once().Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil, nil)
 				paths.On("GetPath", mock.Anything).Return(".", nil)
 				paths.On("GetPathIfExists", mock.Anything).Return(".", nil)
 				gitClient.On("Root").Return("")

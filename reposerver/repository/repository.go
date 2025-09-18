@@ -3200,7 +3200,10 @@ func (s *Service) UpdateRevisionForPaths(_ context.Context, request *apiclient.U
 	}
 
 	// Also check for build metadata changes that would affect rendered manifests
-	changed := s.buildMetadataHasChanged(request, syncedRevision, revision)
+	changed := false
+	if request.ApplicationSource != nil {
+		changed = s.buildMetadataHasChanged(request, syncedRevision, revision)
+	}
 
 	// Check for file changes
 	if !changed {
