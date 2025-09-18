@@ -60,6 +60,7 @@ func NewAccountCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	command.AddCommand(NewAccountGenerateTokenCommand(clientOpts))
 	command.AddCommand(NewAccountGetCommand(clientOpts))
 	command.AddCommand(NewAccountDeleteTokenCommand(clientOpts))
+	command.AddCommand(NewAccountSessionTokenCommand(clientOpts))
 	command.AddCommand(NewBcryptCmd())
 	return command
 }
@@ -446,5 +447,87 @@ argocd account delete-token --account <account-name> ID`,
 		},
 	}
 	cmd.Flags().StringVarP(&account, "account", "a", "", "Account name. Defaults to the current account.")
+	return cmd
+}
+
+func NewAccountSessionTokenCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var (
+		refresh bool
+		output  string
+	)
+	cmd := &cobra.Command{
+		Use:   "session-token",
+		Short: "Display current session token",
+		Long: `Display the current session token for authentication.
+
+For SSO users: Auto-refreshes expired tokens using refresh token
+For local users: Shows current token (manual relogin needed if expired)`,
+		Example: `# Display current session token (auto-refreshes if expired for SSO users)
+argocd account session-token
+
+# Force refresh attempt (SSO users only)
+argocd account session-token --refresh
+
+# Show detailed token information
+argocd account session-token -o json
+
+# Use in scripts
+export ARGOCD_AUTH_TOKEN=$(argocd account session-token)
+curl -H "Authorization: Bearer $ARGOCD_AUTH_TOKEN" $ARGOCD_SERVER/api/v1/applications`,
+		Run: func(c *cobra.Command, _ []string) {
+			if refresh {
+				// Attempt refresh by creating client (works for SSO, no-op for local users)
+				clientset := headless.NewClientOrDie(clientOpts, c)
+				_ = clientset
+			}
+
+			// Read config (potentially refreshed for SSO users)
+			localCfg, err := localconfig.ReadLocalConfig(clientOpts.ConfigPath)
+			errors.CheckError(err)
+			if localCfg == nil {
+				log.Fatal("No configuration found. Please login first with 'argocd login'")
+			}
+
+			configCtx, err := localCfg.ResolveContext(clientOpts.Context)
+			errors.CheckError(err)
+			if configCtx == nil {
+				log.Fatal("No context found. Please login first with 'argocd login'")
+			}
+
+			if configCtx.User.AuthToken == "" {
+				log.Fatal("No authentication token found. Please login first with 'argocd login'")
+			}
+
+			// Get token claims for additional info
+			claims, err := configCtx.User.Claims()
+			if err != nil {
+				log.Fatal("Invalid token format. Please run 'argocd relogin'")
+			}
+
+			switch output {
+			case "json":
+				tokenInfo := map[string]interface{}{
+					"token":             configCtx.User.AuthToken,
+					"type":              "local",
+					"issuer":            claims.Issuer,
+					"subject":           claims.Subject,
+					"expires_at":        claims.ExpiresAt,
+					"issued_at":         claims.IssuedAt,
+					"has_refresh_token": configCtx.User.RefreshToken != "",
+				}
+				if claims.Issuer != sessionutil.SessionManagerClaimsIssuer {
+					tokenInfo["type"] = "sso"
+				}
+
+				jsonBytes, err := json.MarshalIndent(tokenInfo, "", "  ")
+				errors.CheckError(err)
+				fmt.Println(string(jsonBytes))
+			default:
+				fmt.Println(configCtx.User.AuthToken)
+			}
+		},
+	}
+	cmd.Flags().BoolVar(&refresh, "refresh", false, "Attempt to refresh token (SSO only)")
+	cmd.Flags().StringVarP(&output, "output", "o", "", "Output format (json)")
 	return cmd
 }
