@@ -56,5 +56,5 @@ go install golang.org/x/tools/cmd/goimports@v0.35.0
 
 # mockery is used to generate mock
 # renovate: datasource=go packageName=github.com/vektra/mockery/v3
-MOCKERY_VERSION=3.5.0
+MOCKERY_VERSION=3.5.5
 go install github.com/vektra/mockery/v3@v${MOCKERY_VERSION}
