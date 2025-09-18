@@ -42,8 +42,7 @@ Update the "Configuration" settings as follows:
 4. Click "Save".
 
 > [!NOTE]
-> **OneLogin may not let you save any other fields until the above fields are set.**
->
+> OneLogin may not let you save any other fields until the above fields are set.
 
 #### Info Tab
 
@@ -140,7 +139,6 @@ The "clientSecret" value is a client secret located in the SSO tab of the OneLog
 
 > [!NOTE]
 > **If you get an `invalid_client` error when trying the authenticate with OneLogin, there is a possibility that your client secret is not proper. Keep in mind that in previous versions `clientSecret` value had to be base64 encrypted, but it is not required anymore.**
->
 
 ### Configure Permissions for OneLogin Auth'd Users
 

@@ -83,5 +83,5 @@ The ClusterDecisionResource generator passes the 'name', 'server' and any other 
 > **Clusters listed as `Status.Decisions` must be predefined in Argo CD**
 >
 > The cluster names listed in the `Status.Decisions` *must* be defined within Argo CD, in order to generate applications for these values. The ApplicationSet controller does not create clusters within Argo CD.
-
-    The Default Cluster list key is `clusters`.
+>
+> The Default Cluster list key is `clusters`.

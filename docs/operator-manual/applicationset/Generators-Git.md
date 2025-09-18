@@ -9,7 +9,6 @@ The Git generator contains two subtypes: the Git directory generator, and Git fi
 > - in the case of git generators, PRs must require admin approval.
 > - Git generator does not support Signature Verification For ApplicationSets with a templated `project` field.
 > - You must only use "non-scoped" repositories for ApplicationSets with a templated `project` field (see ["Repository Credentials for Applicationsets" below](#repository-credentials-for-applicationsets)).
-> 
 
 ## Git Generator: Directories
 
@@ -124,10 +123,9 @@ This example excludes the `exclude-helm-guestbook` directory from the list of di
 > [!NOTE]
 > **Exclude rules have higher priority than include rules**
 >
-
-    If a directory matches at least one `exclude` pattern, it will be excluded. Or, said another way, *exclude rules take precedence over include rules.*
-
-    As a corollary, which directories are included/excluded is not affected by the order of `path`s in the `directories` field list (because, as above, exclude rules always take precedence over include rules). 
+> If a directory matches at least one `exclude` pattern, it will be excluded. Or, said another way, *exclude rules take precedence over include rules.*
+>
+> As a corollary, which directories are included/excluded is not affected by the order of `path`s in the `directories` field list (because, as above, exclude rules always take precedence over include rules). 
 
 For example, with these directories:
 

@@ -3,9 +3,8 @@
 > [!WARNING]
 > **Beta Feature (Since 2.7.0)**
 >
-
-    This feature is in the [Beta](https://github.com/argoproj/argoproj/blob/main/community/feature-status.md#beta) stage.
-    It is generally considered stable, but there may be unhandled edge cases.
+> This feature is in the [Beta](https://github.com/argoproj/argoproj/blob/main/community/feature-status.md#beta) stage.
+> It is generally considered stable, but there may be unhandled edge cases.
 
 ## Overview
 

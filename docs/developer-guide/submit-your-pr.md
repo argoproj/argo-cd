@@ -11,9 +11,9 @@
 > **Before you start**
 >
 > The Argo CD project continuously grows, both in terms of features and community size. It gets adopted by more and more organizations which entrust Argo CD to handle their critical production workloads. Thus, we need to take great care with any changes that affect compatibility, performance, scalability, stability and security of Argo CD. For this reason, every new feature or larger enhancement must be properly designed and discussed before it gets accepted into the code base.
-
-    We do welcome and encourage everyone to participate in the Argo CD project, but please understand that we can't accept each and every contribution from the community, for various reasons. If you want to submit code for a great new feature or enhancement, we kindly ask you to take a look at the
-    [code contribution guide](code-contributions.md#) before you start to write code or submit a PR.
+>
+> We do welcome and encourage everyone to participate in the Argo CD project, but please understand that we can't accept each and every contribution from the community, for various reasons. If you want to submit code for a great new feature or enhancement, we kindly ask you to take a look at the
+> [code contribution guide](code-contributions.md#) before you start to write code or submit a PR.
 
 If you want to submit a PR, please read this document carefully, as it contains important information guiding you through our PR quality gates.
 

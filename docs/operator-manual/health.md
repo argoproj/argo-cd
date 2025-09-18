@@ -194,9 +194,8 @@ only treat a path as a wildcard if it contains a `_` character, but this may cha
 > [!IMPORTANT]
 > **Avoid Massive Scripts**
 >
-
-    Avoid writing massive scripts to handle multiple resources. They'll get hard to read and maintain. Instead, just
-    duplicate the relevant parts in resource-specific scripts.
+> Avoid writing massive scripts to handle multiple resources. They'll get hard to read and maintain. Instead, just
+> duplicate the relevant parts in resource-specific scripts.
 
 ## Overriding Go-Based Health Checks
 

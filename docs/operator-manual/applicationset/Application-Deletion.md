@@ -25,5 +25,5 @@ kubectl delete ApplicationSet (NAME) --cascade=orphan
 
 > [!WARNING]
 > Even if using a non-cascaded delete, the `resources-finalizer.argocd.argoproj.io` is still specified on the `Application`. Thus, when the `Application` is deleted, all of its deployed resources will also be deleted. (The lifecycle of the Application, and its *child* objects, are still equivalent.)
-
-    To prevent the deletion of the resources of the Application, such as Services, Deployments, etc, set `.syncPolicy.preserveResourcesOnDeletion` to true in the ApplicationSet. This syncPolicy parameter prevents the finalizer from being added to the Application.
+> 
+> To prevent the deletion of the resources of the Application, such as Services, Deployments, etc, set `.syncPolicy.preserveResourcesOnDeletion` to true in the ApplicationSet. This syncPolicy parameter prevents the finalizer from being added to the Application.

@@ -26,10 +26,9 @@ When a user is authenticated in Argo CD, it will be granted the role specified i
 > [!WARNING]
 > **Restricting Default Permissions**
 >
-
-    **All authenticated users get _at least_ the permissions granted by the default policies. This access cannot be blocked
-    by a `deny` rule.** It is recommended to create a new `role:authenticated` with the minimum set of permissions possible,
-    then grant permissions to individual roles as needed.
+> **All authenticated users get _at least_ the permissions granted by the default policies. This access cannot be blocked
+> by a `deny` rule.** It is recommended to create a new `role:authenticated` with the minimum set of permissions possible,
+> then grant permissions to individual roles as needed.
 
 ## Anonymous Access
 
@@ -38,9 +37,8 @@ Enabling anonymous access to the Argo CD instance allows users to assume the def
 The anonymous access to Argo CD can be enabled using the `users.anonymous.enabled` field in `argocd-cm` (see [argocd-cm.yaml](argocd-cm-yaml.md)).
 
 > [!WARNING]
-
-    When enabling anonymous access, consider creating a new default role and assigning it to the default policies
-    with `policy.default: role:unauthenticated`.
+> When enabling anonymous access, consider creating a new default role and assigning it to the default policies
+> with `policy.default: role:unauthenticated`.
 
 ## RBAC Model Structure
 
@@ -130,14 +128,13 @@ p, example-user, applications, delete/*/Pod/*/*, default/prod-app, allow
 > [!WARNING]
 > **Understand glob pattern behavior**
 >
-
-    Argo CD RBAC does not use `/` as a separator when evaluating glob patterns. So the pattern `delete/*/kind/*`
-    will match `delete/<group>/kind/<namespace>/<name>` but also `delete/<group>/<kind>/kind/<name>`.
-
-    The fact that both of these match will generally not be a problem, because resource kinds generally contain capital
-    letters, and namespaces cannot contain capital letters. However, it is possible for a resource kind to be lowercase.
-    So it is better to just always include all the parts of the resource in the pattern (in other words, always use four
-    slashes).
+> Argo CD RBAC does not use `/` as a separator when evaluating glob patterns. So the pattern `delete/*/kind/*`
+> will match `delete/<group>/kind/<namespace>/<name>` but also `delete/<group>/<kind>/kind/<name>`.
+>
+> The fact that both of these match will generally not be a problem, because resource kinds generally contain capital
+> letters, and namespaces cannot contain capital letters. However, it is possible for a resource kind to be lowercase.
+> So it is better to just always include all the parts of the resource in the pattern (in other words, always use four
+> slashes).
 
 If we want to grant access to the user to update all resources of an application, but not the application itself:
 
@@ -162,23 +159,22 @@ p, example-user, applications, update/*, default/prod-app, deny
 > [!NOTE]
 > **Preserve Application permission Inheritance (Since v3.0.0)**
 >
-
-    Prior to v3, `update` and `delete` actions (without a `/*`) were also evaluated
-    on sub-resources.
-
-    To preserve this behavior, you can set the config value
-    `server.rbac.disableApplicationFineGrainedRBACInheritance` to `false` in
-    the Argo CD ConfigMap `argocd-cm`.
-
-    When disabled, it is not possible to deny fine-grained permissions for a sub-resource
-    if the action was **explicitly allowed on the application**.
-    For instance, the following policies will **allow** a user to delete the Pod and any
-    other resources in the application:
-
-    ```csv
-    p, example-user, applications, delete, default/prod-app, allow
-    p, example-user, applications, delete/*/Pod/*, default/prod-app, deny
-    ```
+> Prior to v3, `update` and `delete` actions (without a `/*`) were also evaluated
+> on sub-resources.
+> 
+> To preserve this behavior, you can set the config value
+> `server.rbac.disableApplicationFineGrainedRBACInheritance` to `false` in
+> the Argo CD ConfigMap `argocd-cm`.
+> 
+> When disabled, it is not possible to deny fine-grained permissions for a sub-resource
+> if the action was **explicitly allowed on the application**.
+> For instance, the following policies will **allow** a user to delete the Pod and any
+> other resources in the application:
+> 
+> ```csv
+> p, example-user, applications, delete, default/prod-app, allow
+> p, example-user, applications, delete/*/Pod/*, default/prod-app, deny
+> ```
 
 #### The `action` action
 
@@ -222,9 +218,8 @@ Allowing the `create` action on the resource effectively grants the ability to c
 user to create Applications directly, they can create Applications via an ApplicationSet.
 
 > [!NOTE]
-
-    In v2.5, it is not possible to create an ApplicationSet with a templated Project field (e.g. `project: {{path.basename}}`)
-    via the API (or, by extension, the CLI). Disallowing templated projects makes project restrictions via RBAC safe:
+> In v2.5, it is not possible to create an ApplicationSet with a templated Project field (e.g. `project: {{path.basename}}`)
+> via the API (or, by extension, the CLI). Disallowing templated projects makes project restrictions via RBAC safe:
 
 With the resource being application-specific, the `<object>` of the applicationsets policy will have the format `<app-project>/<app-name>`.
 However, since an ApplicationSet does belong to any project, the `<app-project>` value represents the projects in which the ApplicationSet will be able to create Applications.
@@ -379,22 +374,21 @@ g, my-local-user, role:admin
 > [!WARNING]
 > **Ambiguous Group Assignments**
 >
-
-    If you have [enabled SSO](user-management/index.md#sso), any SSO user with a scope that matches a local user will be
-    added to the same roles as the local user. For example, if local user `sally` is assigned to `role:admin`, and if an
-    SSO user has a scope which happens to be named `sally`, that SSO user will also be assigned to `role:admin`.
-
-    An example of where this may be a problem is if your SSO provider is an SCM, and org members are automatically
-    granted scopes named after the orgs. If a user can create or add themselves to an org in the SCM, they can gain the
-    permissions of the local user with the same name.
-
-    To avoid ambiguity, if you are using local users and SSO, it is recommended to assign policies directly to local
-    users, and not to assign roles to local users. In other words, instead of using `g, my-local-user, role:admin`, you
-    should explicitly assign policies to `my-local-user`:
-
-    ```yaml
-    p, my-local-user, *, *, *, allow
-    ```
+> If you have [enabled SSO](user-management/index.md#sso), any SSO user with a scope that matches a local user will be
+> added to the same roles as the local user. For example, if local user `sally` is assigned to `role:admin`, and if an
+> SSO user has a scope which happens to be named `sally`, that SSO user will also be assigned to `role:admin`.
+> 
+> An example of where this may be a problem is if your SSO provider is an SCM, and org members are automatically
+> granted scopes named after the orgs. If a user can create or add themselves to an org in the SCM, they can gain the
+> permissions of the local user with the same name.
+> 
+> To avoid ambiguity, if you are using local users and SSO, it is recommended to assign policies directly to local
+> users, and not to assign roles to local users. In other words, instead of using `g, my-local-user, role:admin`, you
+> should explicitly assign policies to `my-local-user`:
+> 
+> ```yaml
+> p, my-local-user, *, *, *, allow
+> ```
 
 ## Policy CSV Composition
 

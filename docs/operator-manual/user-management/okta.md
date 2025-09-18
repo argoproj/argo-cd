@@ -126,10 +126,10 @@ data:
 > **Okta groups for RBAC**
 >
 > If you want `groups` scope returned from Okta, you will need to enable [API Access Management with Okta](https://developer.okta.com/docs/concepts/api-access-management/). This addon is free, and automatically enabled, on Okta developer edition. However, it's an optional add-on for production environments, with an additional associated cost.
-
-    You may alternately add a "groups" scope and claim to the default authorization server, and then filter the claim in the Okta application configuration. It's not clear if this requires the Authorization Server add-on.
-
-    If this is not an option for you, use the [SAML (with Dex)](#saml-with-dex) option above instead.
+>
+> You may alternately add a "groups" scope and claim to the default authorization server, and then filter the claim in the Okta application configuration. It's not clear if this requires the Authorization Server add-on.
+>
+> If this is not an option for you, use the [SAML (with Dex)](#saml-with-dex) option above instead.
 
 > [!NOTE]
 > These instructions and screenshots are of Okta version 2023.05.2 E. You can find the current version in the Okta website footer.

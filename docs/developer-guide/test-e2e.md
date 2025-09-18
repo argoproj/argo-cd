@@ -12,12 +12,12 @@ Git repository via file url: `file:///tmp/argo-e2e***`.
 > The e2e git server runs in a container. If you are using Rancher Desktop, you will need to enable volume sharing for
 > the e2e container to access the testdata directory. To do this, add the following to 
 > `~/Library/Application\ Support/rancher-desktop/lima/_config/override.yaml` and restart Rancher Desktop:
-
-    ```yaml
-    mounts:
-    - location: /private/tmp
-      writable: true
-    ```
+>
+> ```yaml
+> mounts:
+> - location: /private/tmp
+>   writable: true
+> ```
 
 ## Running Tests Locally
 

@@ -57,8 +57,10 @@ To change the password, edit the `argocd-secret` secret and update the `admin.pa
 > **Generating a bcrypt hash**
 >
 > Use the following command to generate a bcrypt hash for `admin.password`
-
-        argocd account bcrypt --password <YOUR-PASSWORD-HERE>
+> 
+> ```shell
+> argocd account bcrypt --password <YOUR-PASSWORD-HERE>
+> ```
 
 To apply the new password hash, use the following command (replacing the hash with your own):
 
@@ -202,8 +204,7 @@ argocd ... --insecure
 ```
 
 > [!WARNING]
-> **Do not use `--insecure` in production**
->
+> Do not use `--insecure` in production.
 
 ## I have configured Dex via `dex.config` in `argocd-cm`, it still says Dex is unconfigured. Why?
 
