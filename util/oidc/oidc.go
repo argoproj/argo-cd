@@ -86,7 +86,8 @@ type ClientApp struct {
 	// clientCache represent a cache of sso artifact
 	clientCache cache.CacheClient
 	// properties for azure workload identity.
-	azure azureApp
+	azure      azureApp
+	domainHint string
 }
 
 type azureApp struct {
@@ -127,6 +128,13 @@ func NewClientApp(settings *settings.ArgoCDSettings, dexServerAddr string, dexTL
 		encryptionKey:            encryptionKey,
 		clientCache:              cacheClient,
 		azure:                    azureApp{mtx: &sync.RWMutex{}},
+		domainHint: func() string {
+			oidcConfig := settings.OIDCConfig()
+			if oidcConfig != nil {
+				return oidcConfig.DomainHint
+			}
+			return ""
+		}(),
 	}
 	log.Infof("Creating client app (%s)", a.clientID)
 	u, err := url.Parse(settings.URL)
@@ -336,6 +344,11 @@ func (a *ClientApp) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid redirect URL: the protocol and host (including port) must match and the path must be within allowed URLs if provided", http.StatusBadRequest)
 		return
 	}
+	if a.domainHint != "" {
+		opts = append(opts, oauth2.SetAuthURLParam("login_hint", a.domainHint))
+	}
+	// debug log to confirm domainHint at runtime
+	log.Infof("OIDC HandleLogin: domainHint=%q", a.domainHint)
 	if a.usePKCE {
 		pkceVerifier = oauth2.GenerateVerifier()
 		opts = append(opts, oauth2.S256ChallengeOption(pkceVerifier))
