@@ -54,7 +54,7 @@ export class PodView extends React.Component<PodViewProps> {
         apis: PropTypes.object
     };
 
-    public render() {
+    private sortOrderItemsFor(orders: SortOrder[], prefs: ViewPreferences): MenuItem[] {
         return (
             <DataLoader load={() => services.viewPreferences.getPreferences()}>
                 {prefs => {
@@ -268,8 +268,6 @@ export class PodView extends React.Component<PodViewProps> {
             </DataLoader>
         );
     }
-
-    private sortOrderItemsFor(orders: SortOrder[], prefs: ViewPreferences): MenuItem[] {
         const podPrefs = prefs.appDetails.podView || ({} as PodViewPreferences);
         return orders.map(order => ({
             title: (
@@ -432,6 +430,221 @@ export class PodView extends React.Component<PodViewProps> {
         return Object.values(groupRefs)
             .sort((a, b) => (a.name > b.name ? 1 : a.name === b.name ? 0 : -1)) // sort by name
             .filter(i => (i.pods || []).length > 0); // filter out groups with no pods
+    }
+
+    public render() {
+        return (
+            <DataLoader load={() => services.viewPreferences.getPreferences()}>
+                {prefs => {
+                    const podPrefs = prefs.appDetails.podView || ({} as PodViewPreferences);
+                    const groups = this.processTree(podPrefs.sortMode, this.props.tree.hosts || []) || [];
+
+                    if (podPrefs.sortMode !== 'node' && podPrefs.sortOrder) {
+                        // Sort the groups in place based on precomputed timestamps
+                        groups.sort((a, b) => {
+                            const timeA = Date.parse(a.createdAt || '0');
+                            const timeB = Date.parse(b.createdAt || '0');
+                            a.timestamp = timeA;
+                            b.timestamp = timeB;
+
+                            return podPrefs.sortOrder === 'asc' ? timeA - timeB : timeB - timeA;
+                        });
+                    }
+
+                    return (
+                        <React.Fragment>
+                            <div className='pod-view__settings'>
+                                <div className='pod-view__settings__section'>
+                                    GROUP BY:&nbsp;
+                                    <DropDownMenu
+                                        anchor={() => (
+                                            <button className='argo-button argo-button--base-o'>
+                                                {labelForSortMode[podPrefs.sortMode]}&nbsp;&nbsp;
+                                                <i className='fa fa-chevron-circle-down' />
+                                            </button>
+                                        )}
+                                        items={this.menuItemsFor(['node', 'parentResource', 'topLevelResource'], prefs)}
+                                    />
+                                </div>
+                                {podPrefs.sortMode !== 'node' && (
+                                    <div className='pod-view__settings__section'>
+                                        SORT BY AGE:&nbsp;
+                                        <DropDownMenu
+                                            anchor={() => (
+                                                <button className='argo-button argo-button--base-o'>
+                                                    {labelForSortOrder[podPrefs.sortOrder || 'desc']}&nbsp;&nbsp;
+                                                    <i className='fa fa-chevron-circle-down' />
+                                                </button>
+                                            )}
+                                            items={this.sortOrderItemsFor(['asc', 'desc'], prefs)}
+                                        />
+                                    </div>
+                                )}
+                                {podPrefs.sortMode === 'node' && (
+                                    <div className='pod-view__settings__section'>
+                                        <button
+                                            className={`argo-button argo-button--base${podPrefs.hideUnschedulable ? '-o' : ''}`}
+                                            style={{border: 'none', width: '170px'}}
+                                            onClick={() =>
+                                                services.viewPreferences.updatePreferences({
+                                                    appDetails: {...prefs.appDetails, podView: {...podPrefs, hideUnschedulable: !podPrefs.hideUnschedulable}}
+                                                })
+                                            }>
+                                            <i className={`fa fa-${podPrefs.hideUnschedulable ? 'eye-slash' : 'eye'}`} style={{width: '15px', marginRight: '5px'}} />
+                                            UNSCHEDULABLE
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                            {groups.length > 0 ? (
+                                <div className='pod-view__nodes-container'>
+                                    {groups.map(group => {
+                                        if (group.type === 'node' && group.name === 'Unschedulable' && podPrefs.hideUnschedulable) {
+                                            return null;
+                                        }
+                                        return (
+                                            <div className={`pod-view__node white-box ${group.kind === 'node' && 'pod-view__node--large'}`} key={group.fullName || group.name}>
+                                                <div
+                                                    className='pod-view__node__container--header'
+                                                    onClick={() => this.props.onItemClick(group.fullName)}
+                                                    style={group.kind === 'node' ? {} : {cursor: 'pointer'}}>
+                                                    <div style={{display: 'flex', alignItems: 'center'}}>
+                                                        <div style={{marginRight: '10px'}}>
+                                                            <ResourceIcon kind={group.kind || 'Unknown'} />
+                                                            <br />
+                                                            {<div style={{textAlign: 'center'}}>{ResourceLabel({kind: group.kind})}</div>}
+                                                        </div>
+                                                        <div style={{lineHeight: '15px'}}>
+                                                            <b style={{wordWrap: 'break-word'}}>{group.name || 'Unknown'}</b>
+                                                            {group.resourceStatus && (
+                                                                <div>
+                                                                    {group.resourceStatus.health && <HealthStatusIcon state={group.resourceStatus.health} />}
+                                                                    &nbsp;
+                                                                    {group.resourceStatus.status && (
+                                                                        <ComparisonStatusIcon status={group.resourceStatus.status} resource={group.resourceStatus} />
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                        <div style={{marginLeft: 'auto'}}>
+                                                            {group.renderMenu && (
+                                                                <DropDown
+                                                                    isMenu={true}
+                                                                    anchor={() => (
+                                                                        <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
+                                                                            <i className='fa fa-ellipsis-v' />
+                                                                        </button>
+                                                                    )}>
+                                                                    {() => group.renderMenu()}
+                                                                </DropDown>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                    {group.type === 'node' ? (
+                                                        <div>
+                                                            <div className='pod-view__node__info--large'>
+                                                                {(group.info || []).map(item => (
+                                                                    <Tooltip content={`${item.name}: ${item.value}`} key={item.name}>
+                                                                        <div className='pod-view__node__info--large__item'>
+                                                                            <div className='pod-view__node__info--large__item__name'>{item.name}:</div>
+                                                                            <div className='pod-view__node__info--large__item__value'>{item.value}</div>
+                                                                        </div>
+                                                                    </Tooltip>
+                                                                ))}
+                                                            </div>
+                                                            {group.hostLabels && Object.keys(group.hostLabels).length > 0 ? (
+                                                                <div className='pod-view__node__info--large'>
+                                                                    {Object.keys(group.hostLabels || []).map(label => (
+                                                                        <Tooltip content={`${label}: ${group.hostLabels[label]}`} key={label}>
+                                                                            <div className='pod-view__node__info--large__item'>
+                                                                                <div className='pod-view__node__info--large__item__name'>{label}:</div>
+                                                                                <div className='pod-view__node__info--large__item__value'>{group.hostLabels[label]}</div>
+                                                                            </div>
+                                                                        </Tooltip>
+                                                                    ))}
+                                                                </div>
+                                                            ) : null}
+                                                        </div>
+                                                    ) : (
+                                                        <div className='pod-view__node__info'>
+                                                            {group.createdAt ? (
+                                                                <div>
+                                                                    <Moment fromNow={true} ago={true}>
+                                                                        {group.createdAt}
+                                                                    </Moment>
+                                                                </div>
+                                                            ) : null}
+                                                            {group.info?.map(infoItem => <div key={infoItem.name}>{infoItem.value}</div>)}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <div className='pod-view__node__container'>
+                                                    {(group.hostResourcesInfo || []).length > 0 && (
+                                                        <div className='pod-view__node__container pod-view__node__container--stats'>
+                                                            {group.hostResourcesInfo.map(info => renderStats(info))}
+                                                        </div>
+                                                    )}
+                                                    <div className='pod-view__node__pod-container pod-view__node__container'>
+                                                        <div className='pod-view__node__pod-container__pods'>
+                                                            {group.pods.map(
+                                                                pod =>
+                                                                    this.props.nodeMenu && (
+                                                                        <DropDown
+                                                                            key={pod.uid}
+                                                                            isMenu={true}
+                                                                            anchor={() => (
+                                                                                <Tooltip
+                                                                                    content={<PodTooltip pod={pod} />}
+                                                                                    popperOptions={{
+                                                                                        modifiers: {
+                                                                                            preventOverflow: {
+                                                                                                enabled: true
+                                                                                            },
+                                                                                            hide: {
+                                                                                                enabled: false
+                                                                                            },
+                                                                                            flip: {
+                                                                                                enabled: false
+                                                                                            }
+                                                                                        }
+                                                                                    }}
+                                                                                    key={pod.metadata.name}>
+                                                                                    <div style={{position: 'relative'}}>
+                                                                                        {isYoungerThanXMinutes(pod, 30) && (
+                                                                                            <i className='fas fa-circle pod-view__node__pod pod-view__node__pod__new-pod-icon' />
+                                                                                        )}
+                                                                                        <div className={`pod-view__node__pod pod-view__node__pod--${pod.health.toLowerCase()}`}>
+                                                                                            <PodHealthIcon state={{status: pod.health, message: ''}} />
+                                                                                        </div>
+                                                                                    </div>
+                                                                                </Tooltip>
+                                                                            )}>
+                                                                            {() => this.props.nodeMenu(pod)}
+                                                                        </DropDown>
+                                                                    )
+                                                            )}
+                                                        </div>
+                                                        <div className='pod-view__node__label'>PODS</div>
+                                                        {(podPrefs.sortMode === 'parentResource' || podPrefs.sortMode === 'topLevelResource') && (
+                                                            <div key={group.uid}>{group.renderQuickStarts()}</div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            ) : (
+                                <EmptyState icon=' fa fa-th'>
+                                    <h4>Your application has no pod groups</h4>
+                                    <h5>Try switching to tree or list view</h5>
+                                </EmptyState>
+                            )}
+                        </React.Fragment>
+                    );
+                }}
+            </DataLoader>
+        );
     }
 }
 
