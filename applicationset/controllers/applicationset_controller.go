@@ -252,11 +252,11 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		// Progressive Sync is disabled, clear any existing applicationStatus to prevent stale data
 		if len(applicationSetInfo.Status.ApplicationStatus) > 0 {
 			logCtx.Infof("Progressive Sync disabled, removing %v AppStatus entries from ApplicationSet %v", len(applicationSetInfo.Status.ApplicationStatus), applicationSetInfo.Name)
-		}
 
-		err := r.setAppSetApplicationStatus(ctx, logCtx, &applicationSetInfo, []argov1alpha1.ApplicationSetApplicationStatus{})
-		if err != nil {
-			return ctrl.Result{}, fmt.Errorf("failed to clear AppSet application statuses when Progressive Sync is disabled for %v: %w", applicationSetInfo.Name, err)
+			err := r.setAppSetApplicationStatus(ctx, logCtx, &applicationSetInfo, []argov1alpha1.ApplicationSetApplicationStatus{})
+			if err != nil {
+				return ctrl.Result{}, fmt.Errorf("failed to clear AppSet application statuses when Progressive Sync is disabled for %v: %w", applicationSetInfo.Name, err)
+			}
 		}
 	}
 
