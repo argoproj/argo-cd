@@ -52,7 +52,7 @@ func NewConnection(address string) (*grpc.ClientConn, error) {
 	}
 
 	dialOpts = append(dialOpts, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	conn, err := grpc_util.BlockingDial(context.Background(), "unix", address, nil, dialOpts...)
+	conn, err := grpc_util.BlockingNewClient(context.Background(), "unix", address, nil, dialOpts...)
 	if err != nil {
 		log.Errorf("Unable to connect to config management plugin service with address %s", address)
 		return nil, err

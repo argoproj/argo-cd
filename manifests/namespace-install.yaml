@@ -1262,7 +1262,7 @@ spec:
             secretKeyRef:
               key: auth
               name: argocd-redis
-        image: public.ecr.aws/docker/library/redis:7.2.7-alpine
+        image: public.ecr.aws/docker/library/redis:8.2.1-alpine
         imagePullPolicy: Always
         name: redis
         ports:
@@ -2223,6 +2223,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: controller.self.heal.backoff.cooldown.seconds
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_SYNC_WAVE_DELAY
+          valueFrom:
+            configMapKeyRef:
+              key: controller.sync.wave.delay.seconds
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_APPLICATION_CONTROLLER_SYNC_TIMEOUT

@@ -108,6 +108,14 @@ spec:
 In this example, the hydrated manifests will be pushed to the `environments/dev` branch of the `argocd-example-apps`
 repository.
 
+When using source hydration, the `syncSource.path` field is required and must always point to a non-root
+directory in the repository. Setting the path to the repository root (for eg. `"."` or `""`) is not
+supported. This ensures that hydration is always scoped to a dedicated subdirectory, which avoids unintentionally overwriting or removing files that may exist in the repository root.
+
+During each hydration run, Argo CD cleans the application's configured path before writing out newly generated manifests. This guarantees that old or stale files from previous hydration do not linger in the output directory. However, the repository root is never cleaned, so files such as CI/CD configuration, README files, or other root-level assets remain untouched.
+
+It is important to note that hydration only cleans the currently configured application path. If an application’s path changes, the old directory is not removed automatically. Likewise, if an application is deleted, its output path remains in the repository and must be cleaned up manually by the repository owner if desired. This design is intentional: it prevents accidental deletion of files when applications are restructured or removed, and it protects critical files like CI pipelines that may coexist in the repository.
+
 !!! important "Project-Scoped Repositories"
 
     Repository Secrets may contain a `project` field, making the secret only usable by Applications in that project.
@@ -187,7 +195,7 @@ git commit -m "Bump image to v1.2.3" \
 ```
 
 !!!note Newlines are not allowed
-    The commit trailers must not contain newlines. The 
+    The commit trailers must not contain newlines. 
 
 So the full CI script might look something like this:
 
@@ -372,4 +380,3 @@ to configure branch protection rules on the destination repository.
     Argo CD-specific metadata (such as `argocd.argoproj.io/tracking-id`) is
     not written to Git during hydration. These annotations are added dynamically
     during application sync and comparison.
-!!!
