@@ -307,9 +307,9 @@ func TestNormalizeJQPathExpressionMultipleFields(t *testing.T) {
 	deployment := test.NewDeployment()
 
 	// Add annotations with custom prefix and other annotations
-	annotations := map[string]interface{}{
+	annotations := map[string]any{
 		"customprefix.foo":   "value1",
-		"customprefix.bar":   "value2", 
+		"customprefix.bar":   "value2",
 		"other.annotation":   "value3",
 		"another.annotation": "value4",
 	}
@@ -353,7 +353,7 @@ func TestNormalizeJQPathExpressionMultipleFieldsNoMatch(t *testing.T) {
 	deployment := test.NewDeployment()
 
 	// Add annotations without the target prefix
-	annotations := map[string]interface{}{
+	annotations := map[string]any{
 		"customprefix.foo":   "value1",
 		"other.annotation":   "value3",
 	}

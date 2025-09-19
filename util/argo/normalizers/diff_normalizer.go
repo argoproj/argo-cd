@@ -158,8 +158,8 @@ func (np *jqMultiPathNormalizerPatch) Apply(data []byte) ([]byte, error) {
 	if strings.Contains(np.pathExpression, ".metadata.annotations") && strings.Contains(np.pathExpression, "keys[]") {
 		// This is selecting annotation keys, so we need to delete those specific annotations
 		result := dataJSON
-		if metadata, ok := result["metadata"].(map[string]interface{}); ok {
-			if annotations, ok := metadata["annotations"].(map[string]interface{}); ok {
+		if metadata, ok := result["metadata"].(map[string]any); ok {
+			if annotations, ok := metadata["annotations"].(map[string]any); ok {
 				for _, key := range pathsToDelete {
 					delete(annotations, key)
 				}
@@ -169,7 +169,7 @@ func (np *jqMultiPathNormalizerPatch) Apply(data []byte) ([]byte, error) {
 				}
 			}
 		}
-		
+
 		patchedData, err := json.Marshal(result)
 		if err != nil {
 			return nil, err
@@ -192,7 +192,7 @@ func (np *jqMultiPathNormalizerPatch) Apply(data []byte) ([]byte, error) {
 		iter := deletionCode.RunWithContext(ctx, result)
 		if v, ok := iter.Next(); ok {
 			if _, isErr := v.(error); !isErr {
-				result = v.(map[string]interface{})
+				result = v.(map[string]any)
 			}
 		}
 	}
