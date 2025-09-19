@@ -601,13 +601,6 @@ export class ReposList extends React.Component<
                                                                 )}
                                                                 items={[
                                                                     {
-                                                                        title: 'Create application',
-                                                                        action: () =>
-                                                                            this.appContext.apis.navigation.goto('/applications', {
-                                                                                new: JSON.stringify({spec: {sourceHydrator: {drySource: {repoURL: repo.repo}}}})
-                                                                            })
-                                                                    },
-                                                                    {
                                                                         title: 'Disconnect',
                                                                         action: () => this.disconnectRepo(repo.repo, repo.project, true)
                                                                     }
