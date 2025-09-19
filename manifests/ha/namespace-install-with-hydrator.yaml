@@ -2756,9 +2756,9 @@ spec:
         - /bin/cp
         - -n
         - /usr/local/bin/argocd
-        - /var/run/argocd/argocd-cmp-server
+        - /var/run/argocd/argocd
         image: quay.io/argoproj/argocd:latest
-        name: copyutil-argocd-cmp-server
+        name: copyutil-argocd
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:
@@ -2772,12 +2772,12 @@ spec:
         - mountPath: /var/run/argocd
           name: var-files
       - command:
-        - /bin/cp
-        - -n
-        - /usr/local/bin/argocd
+        - /bin/ln
+        - -s
         - /var/run/argocd/argocd
+        - /var/run/argocd/argocd-cmp-server
         image: quay.io/argoproj/argocd:latest
-        name: copyutil-argocd
+        name: copyutil-argocd-cmp-server
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:
