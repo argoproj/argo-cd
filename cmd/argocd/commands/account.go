@@ -506,7 +506,7 @@ curl -H "Authorization: Bearer $ARGOCD_AUTH_TOKEN" $ARGOCD_SERVER/api/v1/applica
 
 			switch output {
 			case "json":
-				tokenInfo := map[string]interface{}{
+				tokenInfo := map[string]any{
 					"token":             configCtx.User.AuthToken,
 					"type":              "local",
 					"issuer":            claims.Issuer,
