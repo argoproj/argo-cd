@@ -82,8 +82,7 @@ func NewConnection(address string, timeoutSeconds int, tlsConfig *TLSConfigurati
 		opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	}
 
-	//nolint:staticcheck
-	conn, err := grpc.Dial(address, opts...)
+	conn, err := grpc.NewClient(address, opts...)
 	if err != nil {
 		log.Errorf("Unable to connect to repository service with address %s", address)
 		return nil, err

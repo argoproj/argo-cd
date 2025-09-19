@@ -374,6 +374,56 @@
         }
       }
     },
+    "/api/v1/applications/{appName}/server-side-diff": {
+      "get": {
+        "tags": [
+          "ApplicationService"
+        ],
+        "summary": "ServerSideDiff performs server-side diff calculation using dry-run apply",
+        "operationId": "ApplicationService_ServerSideDiff",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "appName",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "appNamespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "project",
+            "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi",
+            "name": "targetManifests",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/applicationApplicationServerSideDiffResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/applications/{application.metadata.name}": {
       "put": {
         "tags": [
@@ -998,6 +1048,11 @@
             },
             "collectionFormat": "multi",
             "name": "revisions",
+            "in": "query"
+          },
+          {
+            "type": "boolean",
+            "name": "noCache",
             "in": "query"
           }
         ],
@@ -5019,6 +5074,20 @@
         }
       }
     },
+    "applicationApplicationServerSideDiffResponse": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ResourceDiff"
+          }
+        },
+        "modified": {
+          "type": "boolean"
+        }
+      }
+    },
     "applicationApplicationSyncRequest": {
       "type": "object",
       "title": "ApplicationSyncRequest is a request to apply the config state to live state",
@@ -7008,7 +7077,7 @@
         },
         "status": {
           "type": "string",
-          "title": "Status contains the AppSet's perceived status of the managed Application resource: (Waiting, Pending, Progressing, Healthy)"
+          "title": "Status contains the AppSet's perceived status of the managed Application resource"
         },
         "step": {
           "type": "string",
@@ -9896,6 +9965,10 @@
           "description": "Limit is the maximum number of attempts for retrying a failed sync. If set to 0, no retries will be performed.",
           "type": "integer",
           "format": "int64"
+        },
+        "refresh": {
+          "type": "boolean",
+          "title": "Refresh indicates if the latest revision should be used on retry instead of the initial one (default: false)"
         }
       }
     },
@@ -10476,7 +10549,7 @@
           "type": "boolean",
           "title": "AllowEmpty allows apps have zero live resources (default: false)"
         },
-        "enable": {
+        "enabled": {
           "type": "boolean",
           "title": "Enable allows apps to explicitly control automated sync"
         },
@@ -10495,7 +10568,7 @@
       "type": "object",
       "properties": {
         "path": {
-          "description": "Path is a directory path within the git repository where hydrated manifests should be committed to and synced\nfrom. If hydrateTo is set, this is just the path from which hydrated manifests will be synced.",
+          "description": "Path is a directory path within the git repository where hydrated manifests should be committed to and synced\nfrom. The Path should never point to the root of the repo. If hydrateTo is set, this is just the path from which\nhydrated manifests will be synced.\n\n+kubebuilder:validation:Required\n+kubebuilder:validation:MinLength=1\n+kubebuilder:validation:Pattern=`^.{2,}|[^./]$`",
           "type": "string"
         },
         "targetBranch": {

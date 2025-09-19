@@ -5,6 +5,7 @@ PR with your organization name if you are using Argo CD.
 
 Currently, the following organizations are **officially** using Argo CD:
 
+1. [100ms](https://www.100ms.ai/)
 1. [127Labs](https://127labs.com/)
 1. [3Rein](https://www.3rein.com/)
 1. [42 School](https://42.fr/)
@@ -308,7 +309,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Relex Solutions](https://www.relexsolutions.com/)
 1. [RightRev](https://rightrev.com/)
 1. [Rijkswaterstaat](https://www.rijkswaterstaat.nl/en)
-1. [Rise](https://www.risecard.eu/)
+1. Rise
 1. [Riskified](https://www.riskified.com/)
 1. [Robotinfra](https://www.robotinfra.com)
 1. [Rocket.Chat](https://rocket.chat)
@@ -325,8 +326,10 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [SEEK](https://seek.com.au)
 1. [SEKAI](https://www.sekai.io/)
 1. [Semgrep](https://semgrep.com)
+1. [Seznam.cz](https://o-seznam.cz/)
 1. [Shield](https://shield.com)
 1. [Shipfox](https://www.shipfox.io)
+1. [Shock Media](https://www.shockmedia.nl)
 1. [SI Analytics](https://si-analytics.ai)
 1. [Sidewalk Entertainment](https://sidewalkplay.com/)
 1. [Skit](https://skit.ai/)
@@ -339,6 +342,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Snapp](https://snapp.ir/)
 1. [Snyk](https://snyk.io/)
 1. [Softway Medical](https://www.softwaymedical.fr/)
+1. [Sophotech](https://sopho.tech)
 1. [South China Morning Post (SCMP)](https://www.scmp.com/)
 1. [Speee](https://speee.jp/)
 1. [Spendesk](https://spendesk.com/)

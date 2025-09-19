@@ -931,6 +931,12 @@ func TestSecretsRepositoryBackend_GetAllHelmRepoCreds(t *testing.T) {
 }
 
 func TestRepoCredsToSecret(t *testing.T) {
+	clientset := getClientset()
+	testee := &secretsRepositoryBackend{db: &db{
+		ns:            testNamespace,
+		kubeclientset: clientset,
+		settingsMgr:   settings.NewSettingsManager(t.Context(), clientset, testNamespace),
+	}}
 	s := &corev1.Secret{}
 	creds := &appsv1.RepoCreds{
 		URL:                        "URL",
@@ -946,7 +952,7 @@ func TestRepoCredsToSecret(t *testing.T) {
 		GithubAppInstallationId:    456,
 		GitHubAppEnterpriseBaseURL: "GitHubAppEnterpriseBaseURL",
 	}
-	repoCredsToSecret(creds, s)
+	testee.repoCredsToSecret(creds, s)
 	assert.Equal(t, []byte(creds.URL), s.Data["url"])
 	assert.Equal(t, []byte(creds.Username), s.Data["username"])
 	assert.Equal(t, []byte(creds.Password), s.Data["password"])
@@ -961,4 +967,46 @@ func TestRepoCredsToSecret(t *testing.T) {
 	assert.Equal(t, []byte(creds.GitHubAppEnterpriseBaseURL), s.Data["githubAppEnterpriseBaseUrl"])
 	assert.Equal(t, map[string]string{common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD}, s.Annotations)
 	assert.Equal(t, map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepoCreds}, s.Labels)
+}
+
+func TestRepoWriteCredsToSecret(t *testing.T) {
+	clientset := getClientset()
+	testee := &secretsRepositoryBackend{
+		db: &db{
+			ns:            testNamespace,
+			kubeclientset: clientset,
+			settingsMgr:   settings.NewSettingsManager(t.Context(), clientset, testNamespace),
+		},
+		writeCreds: true,
+	}
+	s := &corev1.Secret{}
+	creds := &appsv1.RepoCreds{
+		URL:                        "URL",
+		Username:                   "Username",
+		Password:                   "Password",
+		SSHPrivateKey:              "SSHPrivateKey",
+		EnableOCI:                  true,
+		TLSClientCertData:          "TLSClientCertData",
+		TLSClientCertKey:           "TLSClientCertKey",
+		Type:                       "Type",
+		GithubAppPrivateKey:        "GithubAppPrivateKey",
+		GithubAppId:                123,
+		GithubAppInstallationId:    456,
+		GitHubAppEnterpriseBaseURL: "GitHubAppEnterpriseBaseURL",
+	}
+	testee.repoCredsToSecret(creds, s)
+	assert.Equal(t, []byte(creds.URL), s.Data["url"])
+	assert.Equal(t, []byte(creds.Username), s.Data["username"])
+	assert.Equal(t, []byte(creds.Password), s.Data["password"])
+	assert.Equal(t, []byte(creds.SSHPrivateKey), s.Data["sshPrivateKey"])
+	assert.Equal(t, []byte(strconv.FormatBool(creds.EnableOCI)), s.Data["enableOCI"])
+	assert.Equal(t, []byte(creds.TLSClientCertData), s.Data["tlsClientCertData"])
+	assert.Equal(t, []byte(creds.TLSClientCertKey), s.Data["tlsClientCertKey"])
+	assert.Equal(t, []byte(creds.Type), s.Data["type"])
+	assert.Equal(t, []byte(creds.GithubAppPrivateKey), s.Data["githubAppPrivateKey"])
+	assert.Equal(t, []byte(strconv.FormatInt(creds.GithubAppId, 10)), s.Data["githubAppID"])
+	assert.Equal(t, []byte(strconv.FormatInt(creds.GithubAppInstallationId, 10)), s.Data["githubAppInstallationID"])
+	assert.Equal(t, []byte(creds.GitHubAppEnterpriseBaseURL), s.Data["githubAppEnterpriseBaseUrl"])
+	assert.Equal(t, map[string]string{common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD}, s.Annotations)
+	assert.Equal(t, map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepoCredsWrite}, s.Labels)
 }

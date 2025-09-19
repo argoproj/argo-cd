@@ -32,6 +32,7 @@ argocd login cd.argoproj.io --core
 ### Options
 
 ```
+      --callback string      Host and Port for the callback URL
   -h, --help                 help for relogin
       --password string      The password of an account to authenticate
       --sso-launch-browser   Automatically launch the default browser when performing SSO login (default true)

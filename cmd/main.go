@@ -20,7 +20,6 @@ import (
 	reposerver "github.com/argoproj/argo-cd/v3/cmd/argocd-repo-server/commands"
 	apiserver "github.com/argoproj/argo-cd/v3/cmd/argocd-server/commands"
 	cli "github.com/argoproj/argo-cd/v3/cmd/argocd/commands"
-	"github.com/argoproj/argo-cd/v3/cmd/util"
 	"github.com/argoproj/argo-cd/v3/util/log"
 )
 
@@ -74,7 +73,6 @@ func main() {
 		command = cli.NewCommand()
 		isArgocdCLI = true
 	}
-	util.SetAutoMaxProcs(isArgocdCLI)
 
 	if isArgocdCLI {
 		// silence errors and usages since we'll be printing them manually.

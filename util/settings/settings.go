@@ -45,6 +45,21 @@ import (
 	tlsutil "github.com/argoproj/argo-cd/v3/util/tls"
 )
 
+var CommitMessageTemplate = `{{.metadata.drySha | trunc 7}}: {{ .metadata.subject }}
+{{- if .metadata.body }}
+
+{{ .metadata.body }}
+{{- end }}
+{{ range $ref := .metadata.references }}
+{{- if and $ref.commit $ref.commit.author }}
+Co-authored-by: {{ $ref.commit.author }}
+{{- end }}
+{{- end }}
+{{- if .metadata.author }}
+Co-authored-by: {{ .metadata.author }}
+{{- end }}
+`
+
 // ArgoCDSettings holds in-memory runtime configuration options.
 type ArgoCDSettings struct {
 	// URL is the externally facing URL users will visit to reach Argo CD.
@@ -494,6 +509,8 @@ const (
 	settingUIBannerPositionKey = "ui.bannerposition"
 	// settingsBinaryUrlsKey designates the key for the argocd binary URLs
 	settingsBinaryUrlsKey = "help.download"
+	// settingsApplicationInstanceLabelKey is the key to configure injected app instance label key
+	settingsSourceHydratorCommitMessageTemplateKey = "sourceHydrator.commitMessageTemplate"
 	// globalProjectsKey designates the key for global project settings
 	globalProjectsKey = "globalProjects"
 	// initialPasswordSecretName is the name of the secret that will hold the initial admin password
@@ -562,9 +579,13 @@ type SettingsManager struct {
 	// subscribers is a list of subscribers to settings updates
 	subscribers []chan<- *ArgoCDSettings
 	// mutex protects concurrency sensitive parts of settings manager: access to subscribers list and initialization flag
-	mutex                 *sync.Mutex
-	initContextCancel     func()
-	reposOrClusterChanged func()
+	mutex                     *sync.Mutex
+	initContextCancel         func()
+	reposOrClusterChanged     func()
+	tlsCertParser             func([]byte, []byte) (tls.Certificate, error)
+	tlsCertCache              *tls.Certificate
+	tlsCertCacheSecretName    string
+	tlsCertCacheSecretVersion string
 }
 
 type incompleteSettingsError struct {
@@ -999,6 +1020,17 @@ func (mgr *SettingsManager) GetResourceOverrides() (map[string]v1alpha1.Resource
 	}
 
 	return resourceOverrides, nil
+}
+
+func (mgr *SettingsManager) GetSourceHydratorCommitMessageTemplate() (string, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return "", err
+	}
+	if argoCDCM.Data[settingsSourceHydratorCommitMessageTemplateKey] == "" {
+		return CommitMessageTemplate, nil // in case template is not defined return default
+	}
+	return argoCDCM.Data[settingsSourceHydratorCommitMessageTemplateKey], nil
 }
 
 func addStatusOverrideToGK(resourceOverrides map[string]v1alpha1.ResourceOverride, groupKind string) {
@@ -1485,28 +1517,16 @@ func (mgr *SettingsManager) updateSettingsFromSecret(settings *ArgoCDSettings, a
 	// The TLS certificate may be externally managed. We try to load it from an
 	// external secret first. If the external secret doesn't exist, we either
 	// load it from argocd-secret or generate (and persist) a self-signed one.
-	cert, err := mgr.externalServerTLSCertificate()
-	if err != nil {
+	externalSecret, err := mgr.GetSecretByName(externalServerTLSSecretName)
+	if err != nil && !apierrors.IsNotFound(err) {
 		errs = append(errs, &incompleteSettingsError{message: fmt.Sprintf("could not read from secret %s/%s: %v", mgr.namespace, externalServerTLSSecretName, err)})
 	} else {
-		if cert != nil {
-			settings.Certificate = cert
-			settings.CertificateIsExternal = true
-			log.Infof("Loading TLS configuration from secret %s/%s", mgr.namespace, externalServerTLSSecretName)
-		} else {
-			serverCert, certOk := argoCDSecret.Data[settingServerCertificate]
-			serverKey, keyOk := argoCDSecret.Data[settingServerPrivateKey]
-			if certOk && keyOk {
-				cert, err := tls.X509KeyPair(serverCert, serverKey)
-				if err != nil {
-					errs = append(errs, &incompleteSettingsError{message: fmt.Sprintf("invalid x509 key pair %s/%s in secret: %s", settingServerCertificate, settingServerPrivateKey, err)})
-				} else {
-					settings.Certificate = &cert
-					settings.CertificateIsExternal = false
-				}
-			}
+		err = mgr.loadTLSCertificate(settings, externalSecret, argoCDSecret)
+		if err != nil {
+			errs = append(errs, err)
 		}
 	}
+
 	secretValues := make(map[string]string, len(argoCDSecret.Data))
 	for _, s := range secrets {
 		for k, v := range s.Data {
@@ -1533,88 +1553,61 @@ func (mgr *SettingsManager) updateSettingsFromSecret(settings *ArgoCDSettings, a
 	return nil
 }
 
-// externalServerTLSCertificate will try and load a TLS certificate from an
-// external secret, instead of tls.crt and tls.key in argocd-secret. If both
-// return values are nil, no external secret has been configured.
-func (mgr *SettingsManager) externalServerTLSCertificate() (*tls.Certificate, error) {
-	var cert tls.Certificate
-	secret, err := mgr.GetSecretByName(externalServerTLSSecretName)
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			return nil, nil
+func (mgr *SettingsManager) loadTLSCertificate(settings *ArgoCDSettings, externalSecret *corev1.Secret, argoCDSecret *corev1.Secret) error {
+	mgr.mutex.Lock()
+	defer mgr.mutex.Unlock()
+	if externalSecret != nil {
+		cert, err := mgr.loadTLSCertificateFromSecret(externalSecret)
+
+		if err != nil {
+			return err
+		} else if cert != nil {
+			settings.Certificate = cert
+			settings.CertificateIsExternal = true
 		}
 	}
+	// if there was no external cert found, check internal
+	if !settings.CertificateIsExternal {
+		cert, err := mgr.loadTLSCertificateFromSecret(argoCDSecret)
+
+		if err != nil {
+			return err
+		} else if cert != nil {
+			settings.Certificate = cert
+			settings.CertificateIsExternal = false
+		}
+	}
+	return nil
+}
+
+func (mgr *SettingsManager) loadTLSCertificateFromSecret(secret *corev1.Secret) (*tls.Certificate, error) {
+	if mgr.tlsCertCache != nil && mgr.tlsCertCacheSecretName == secret.Name && mgr.tlsCertCacheSecretVersion == secret.ResourceVersion {
+		return mgr.tlsCertCache, nil
+	}
+
 	tlsCert, certOK := secret.Data[settingServerCertificate]
 	tlsKey, keyOK := secret.Data[settingServerPrivateKey]
-	if certOK && keyOK {
-		cert, err = tls.X509KeyPair(tlsCert, tlsKey)
-		if err != nil {
-			return nil, err
-		}
+	if !certOK || !keyOK {
+		return nil, nil
 	}
+
+	log.Infof("Loading TLS configuration from secret %s/%s", mgr.namespace, secret.Name)
+	cert, err := mgr.tlsCertParser(tlsCert, tlsKey)
+	if err != nil {
+		return nil, err
+	}
+
+	mgr.tlsCertCache = &cert
+	mgr.tlsCertCacheSecretName = secret.Name
+	mgr.tlsCertCacheSecretVersion = secret.ResourceVersion
+
 	return &cert, nil
 }
 
-// SaveSettings serializes ArgoCDSettings and upserts it into K8s secret/configmap
-func (mgr *SettingsManager) SaveSettings(settings *ArgoCDSettings) error {
-	err := mgr.updateConfigMap(func(argoCDCM *corev1.ConfigMap) error {
-		if settings.URL != "" {
-			argoCDCM.Data[settingURLKey] = settings.URL
-		} else {
-			delete(argoCDCM.Data, settingURLKey)
-		}
-		if settings.DexConfig != "" {
-			argoCDCM.Data[settingDexConfigKey] = settings.DexConfig
-		} else {
-			delete(argoCDCM.Data, settings.DexConfig)
-		}
-		if settings.OIDCConfigRAW != "" {
-			argoCDCM.Data[settingsOIDCConfigKey] = settings.OIDCConfigRAW
-		} else {
-			delete(argoCDCM.Data, settingsOIDCConfigKey)
-		}
-		if settings.UiCssURL != "" {
-			argoCDCM.Data[settingUICSSURLKey] = settings.UiCssURL
-		}
-		if settings.UiBannerContent != "" {
-			argoCDCM.Data[settingUIBannerContentKey] = settings.UiBannerContent
-		} else {
-			delete(argoCDCM.Data, settingUIBannerContentKey)
-		}
-		if settings.UiBannerURL != "" {
-			argoCDCM.Data[settingUIBannerURLKey] = settings.UiBannerURL
-		} else {
-			delete(argoCDCM.Data, settingUIBannerURLKey)
-		}
-		return nil
-	})
-	if err != nil {
-		return err
-	}
-
+// saveSignatureAndCertificate serializes the server Signature and Certificate ArgoCDSettings and upserts it into the secret
+func (mgr *SettingsManager) saveSignatureAndCertificate(settings *ArgoCDSettings) error {
 	return mgr.updateSecret(func(argoCDSecret *corev1.Secret) error {
 		argoCDSecret.Data[settingServerSignatureKey] = settings.ServerSignature
-		if settings.WebhookGitHubSecret != "" {
-			argoCDSecret.Data[settingsWebhookGitHubSecretKey] = []byte(settings.WebhookGitHubSecret)
-		}
-		if settings.WebhookGitLabSecret != "" {
-			argoCDSecret.Data[settingsWebhookGitLabSecretKey] = []byte(settings.WebhookGitLabSecret)
-		}
-		if settings.WebhookBitbucketUUID != "" {
-			argoCDSecret.Data[settingsWebhookBitbucketUUIDKey] = []byte(settings.WebhookBitbucketUUID)
-		}
-		if settings.WebhookBitbucketServerSecret != "" {
-			argoCDSecret.Data[settingsWebhookBitbucketServerSecretKey] = []byte(settings.WebhookBitbucketServerSecret)
-		}
-		if settings.WebhookGogsSecret != "" {
-			argoCDSecret.Data[settingsWebhookGogsSecretKey] = []byte(settings.WebhookGogsSecret)
-		}
-		if settings.WebhookAzureDevOpsUsername != "" {
-			argoCDSecret.Data[settingsWebhookAzureDevOpsUsernameKey] = []byte(settings.WebhookAzureDevOpsUsername)
-		}
-		if settings.WebhookAzureDevOpsPassword != "" {
-			argoCDSecret.Data[settingsWebhookAzureDevOpsPasswordKey] = []byte(settings.WebhookAzureDevOpsPassword)
-		}
 		// we only write the certificate to the secret if it's not externally
 		// managed.
 		if settings.Certificate != nil && !settings.CertificateIsExternal {
@@ -1687,10 +1680,11 @@ func WithRepoOrClusterChangedHandler(handler func()) SettingsManagerOpts {
 // NewSettingsManager generates a new SettingsManager pointer and returns it
 func NewSettingsManager(ctx context.Context, clientset kubernetes.Interface, namespace string, opts ...SettingsManagerOpts) *SettingsManager {
 	mgr := &SettingsManager{
-		ctx:       ctx,
-		clientset: clientset,
-		namespace: namespace,
-		mutex:     &sync.Mutex{},
+		ctx:           ctx,
+		clientset:     clientset,
+		namespace:     namespace,
+		mutex:         &sync.Mutex{},
+		tlsCertParser: tls.X509KeyPair,
 	}
 	for i := range opts {
 		opts[i](mgr)
@@ -2073,24 +2067,7 @@ func isIncompleteSettingsError(err error) bool {
 // InitializeSettings is used to initialize empty admin password, signature, certificate etc if missing
 func (mgr *SettingsManager) InitializeSettings(insecureModeEnabled bool) (*ArgoCDSettings, error) {
 	const letters = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-"
-
-	cdSettings, err := mgr.GetSettings()
-	if err != nil && !isIncompleteSettingsError(err) {
-		return nil, err
-	}
-	if cdSettings == nil {
-		cdSettings = &ArgoCDSettings{}
-	}
-	if cdSettings.ServerSignature == nil {
-		// set JWT signature
-		signature, err := util.MakeSignature(32)
-		if err != nil {
-			return nil, fmt.Errorf("error setting JWT signature: %w", err)
-		}
-		cdSettings.ServerSignature = signature
-		log.Info("Initialized server signature")
-	}
-	err = mgr.UpdateAccount(common.ArgoCDAdminUsername, func(adminAccount *Account) error {
+	err := mgr.UpdateAccount(common.ArgoCDAdminUsername, func(adminAccount *Account) error {
 		if adminAccount.Enabled {
 			now := time.Now().UTC()
 			if adminAccount.PasswordHash == "" {
@@ -2130,6 +2107,23 @@ func (mgr *SettingsManager) InitializeSettings(insecureModeEnabled bool) (*ArgoC
 		return nil, err
 	}
 
+	cdSettings, err := mgr.GetSettings()
+	if err != nil && !isIncompleteSettingsError(err) {
+		return nil, err
+	}
+	if cdSettings == nil {
+		cdSettings = &ArgoCDSettings{}
+	}
+	if cdSettings.ServerSignature == nil {
+		// set JWT signature
+		signature, err := util.MakeSignature(32)
+		if err != nil {
+			return nil, fmt.Errorf("error setting JWT signature: %w", err)
+		}
+		cdSettings.ServerSignature = signature
+		log.Info("Initialized server signature")
+	}
+
 	if cdSettings.Certificate == nil && !insecureModeEnabled {
 		// generate TLS cert
 		hosts := []string{
@@ -2152,7 +2146,7 @@ func (mgr *SettingsManager) InitializeSettings(insecureModeEnabled bool) (*ArgoC
 		log.Info("Initialized TLS certificate")
 	}
 
-	err = mgr.SaveSettings(cdSettings)
+	err = mgr.saveSignatureAndCertificate(cdSettings)
 	if apierrors.IsConflict(err) {
 		// assume settings are initialized by another instance of api server
 		log.Warnf("conflict when initializing settings. assuming updated by another replica")

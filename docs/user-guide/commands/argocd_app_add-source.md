@@ -84,6 +84,7 @@ argocd app add-source APPNAME [flags]
       --sync-retry-backoff-factor int              Factor multiplies the base duration after each failed sync retry (default 2)
       --sync-retry-backoff-max-duration duration   Max sync retry backoff duration. Input needs to be a duration (e.g. 2m, 1h) (default 3m0s)
       --sync-retry-limit int                       Max number of allowed sync retries
+      --sync-retry-refresh                         Indicates if the latest revision should be used on retry instead of the initial one
       --sync-source-branch string                  The branch from which the app will sync
       --sync-source-path string                    The path in the repository from which the app will sync
       --validate                                   Validation of repo and cluster (default true)
