@@ -8,7 +8,7 @@ Display current session token
 
 Display the current session token for authentication.
 
-For SSO users: Auto-refreshes expired tokens using refresh token
+Automatically refreshes expired tokens using refresh token (SSO users).
 For local users: Shows current token (manual relogin needed if expired)
 
 ```
@@ -18,11 +18,8 @@ argocd account session-token [flags]
 ### Examples
 
 ```
-# Display current session token (auto-refreshes if expired for SSO users)
+# Display current session token (automatically refreshes if needed)
 argocd account session-token
-
-# Force refresh attempt (SSO users only)
-argocd account session-token --refresh
 
 # Show detailed token information
 argocd account session-token -o json
@@ -37,7 +34,6 @@ curl -H "Authorization: Bearer $ARGOCD_AUTH_TOKEN" $ARGOCD_SERVER/api/v1/applica
 ```
   -h, --help            help for session-token
   -o, --output string   Output format (json)
-      --refresh         Attempt to refresh token (SSO only)
 ```
 
 ### Options inherited from parent commands
