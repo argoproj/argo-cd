@@ -188,7 +188,7 @@ func (np *jqMultiPathNormalizerPatch) Apply(data []byte) ([]byte, error) {
 		if compileErr != nil {
 			continue // Skip invalid paths
 		}
-		
+
 		iter := deletionCode.RunWithContext(ctx, result)
 		if v, ok := iter.Next(); ok {
 			if _, isErr := v.(error); !isErr {
@@ -262,9 +262,9 @@ func NewIgnoreNormalizer(ignore []v1alpha1.ResourceIgnoreDifferences, overrides 
 		}
 		for _, pathExpression := range ignore[i].JQPathExpressions {
 			// For expressions that select multiple annotation keys, we need special handling
-			if strings.Contains(pathExpression, ".metadata.annotations") && 
-			   strings.Contains(pathExpression, "keys[]") && 
-			   strings.Contains(pathExpression, "select") {
+			if strings.Contains(pathExpression, ".metadata.annotations") &&
+				strings.Contains(pathExpression, "keys[]") &&
+				strings.Contains(pathExpression, "select") {
 				// This is likely selecting multiple annotation keys
 				patches = append(patches, &jqMultiPathNormalizerPatch{
 					baseNormalizerPatch: baseNormalizerPatch{

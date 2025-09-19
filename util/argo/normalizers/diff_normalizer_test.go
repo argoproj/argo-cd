@@ -354,8 +354,8 @@ func TestNormalizeJQPathExpressionMultipleFieldsNoMatch(t *testing.T) {
 
 	// Add annotations without the target prefix
 	annotations := map[string]any{
-		"customprefix.foo":   "value1",
-		"other.annotation":   "value3",
+		"customprefix.foo": "value1",
+		"other.annotation": "value3",
 	}
 	err = unstructured.SetNestedMap(deployment.Object, annotations, "metadata", "annotations")
 	require.NoError(t, err)
