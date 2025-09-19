@@ -1,10 +1,10 @@
 import {DropDownMenu, FormField, NotificationType, SlidingPanel} from 'argo-ui';
-import * as PropTypes from 'prop-types';
-import * as React from 'react';
+import React, {useRef, useContext} from 'react';
 import {Form, FormApi, Text, TextArea} from 'react-form';
-import {RouteComponentProps} from 'react-router';
+import {withRouter, RouteComponentProps} from 'react-router-dom';
+
 import {DataLoader, EmptyState, ErrorNotification, Page} from '../../../shared/components';
-import {AppContext} from '../../../shared/context';
+import {Context} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 
@@ -20,35 +20,33 @@ interface NewSSHKnownHostParams {
     certData: string;
 }
 
-export class CertsList extends React.Component<RouteComponentProps<any>> {
-    public static contextTypes = {
-        router: PropTypes.object,
-        apis: PropTypes.object,
-        history: PropTypes.object
+export const CertsList = ({match, location}: RouteComponentProps) => {
+        const ctx = useContext(Context);
+        
+    const formApiTLS = useRef<FormApi | null>(null);
+    const formApiSSH = useRef<FormApi | null>(null);
+    const loader = useRef<DataLoader | null>(null);
+
+
+    const clearForms = () => {
+        formApiSSH.current.resetAll();
+        formApiTLS.current.resetAll();
     };
-    private formApiTLS: FormApi;
-    private formApiSSH: FormApi;
-    private loader: DataLoader;
 
-    private clearForms() {
-        this.formApiSSH.resetAll();
-        this.formApiTLS.resetAll();
-    }
-
-    private async addTLSCertificate(params: NewTLSCertParams) {
+    const addTLSCertificate = async (params: NewTLSCertParams) => {
         try {
             await services.certs.create({items: [{serverName: params.serverName, certType: 'https', certData: params.certData, certSubType: '', certInfo: ''}], metadata: null});
-            this.showAddTLSCertificate = false;
-            this.loader.reload();
+            setAddTLSCertificate(false);
+            loader.current.reload();
         } catch (e) {
-            this.appContext.apis.notifications.show({
+            ctx.notifications.show({
                 content: <ErrorNotification title='Unable to add TLS certificate' e={e} />,
                 type: NotificationType.Error
             });
         }
-    }
+    };
 
-    private async addSSHKnownHosts(params: NewSSHKnownHostParams) {
+    const addSSHKnownHosts = async (params: NewSSHKnownHostParams) => {
         try {
             let knownHostEntries: models.RepoCert[] = [];
             atob(params.certData)
@@ -85,41 +83,44 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
                 throw new Error('No valid known hosts data entered');
             }
             await services.certs.create({items: knownHostEntries, metadata: null});
-            this.showAddSSHKnownHosts = false;
-            this.loader.reload();
+            setAddSSHKnownHosts(false);
+            loader.current.reload();
         } catch (e) {
-            this.appContext.apis.notifications.show({
+            ctx.notifications.show({
                 content: <ErrorNotification title='Unable to add SSH known hosts data' e={e} />,
                 type: NotificationType.Error
             });
         }
-    }
+    };
 
-    private async removeCert(serverName: string, certType: string, certSubType: string) {
-        const confirmed = await this.appContext.apis.popup.confirm('Remove certificate', 'Are you sure you want to remove ' + certType + ' certificate for ' + serverName + '?');
+    const removeCert = async (serverName: string, certType: string, certSubType: string) => {
+        const confirmed = await ctx.popup.confirm('Remove certificate', 'Are you sure you want to remove ' + certType + ' certificate for ' + serverName + '?');
         if (confirmed) {
             await services.certs.delete(serverName, certType, certSubType);
-            this.loader.reload();
+            loader.current.reload();
         }
-    }
+    };
 
-    private get showAddTLSCertificate() {
-        return new URLSearchParams(this.props.location.search).get('addTLSCert') === 'true';
-    }
+    const showAddTLSCertificate = () => {
+        return new URLSearchParams(location.search).get('addTLSCert') === 'true';
+    };
 
-    private set showAddTLSCertificate(val: boolean) {
-        this.clearForms();
-        this.appContext.router.history.push(`${this.props.match.url}?addTLSCert=${val}`);
-    }
+    const setAddTLSCertificate = (val: boolean) => {
+        clearForms();
+        ctx.history.push({
+            pathname: match.url,
+            search: `?addTLSCert=${val}`
+        });
+    };
 
-    private get showAddSSHKnownHosts() {
-        return new URLSearchParams(this.props.location.search).get('addSSHKnownHosts') === 'true';
-    }
+    const showAddSSHKnownHosts = () => {
+        return new URLSearchParams(location.search).get('addSSHKnownHosts') === 'true';
+    };
 
-    private set showAddSSHKnownHosts(val: boolean) {
-        this.clearForms();
-        this.appContext.router.history.push(`${this.props.match.url}?addSSHKnownHosts=${val}`);
-    }
+    const setAddSSHKnownHosts = (val: boolean) => {
+        clearForms();
+        ctx.history.push(`${match.url}?addSSHKnownHosts=${val}`);
+    };
 
     public render() {
         return (
@@ -285,3 +286,5 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
         );
     }
 }
+
+export default withRouter(CertsList);
