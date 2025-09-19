@@ -3,7 +3,6 @@ import * as PropTypes from 'prop-types';
 import * as React from 'react';
 import {Form, FormApi, Text, TextArea} from 'react-form';
 import {RouteComponentProps} from 'react-router';
-
 import {DataLoader, EmptyState, ErrorNotification, Page} from '../../../shared/components';
 import {AppContext} from '../../../shared/context';
 import * as models from '../../../shared/models';
@@ -27,10 +26,100 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
         apis: PropTypes.object,
         history: PropTypes.object
     };
-
     private formApiTLS: FormApi;
     private formApiSSH: FormApi;
     private loader: DataLoader;
+
+    private clearForms() {
+        this.formApiSSH.resetAll();
+        this.formApiTLS.resetAll();
+    }
+
+    private async addTLSCertificate(params: NewTLSCertParams) {
+        try {
+            await services.certs.create({items: [{serverName: params.serverName, certType: 'https', certData: params.certData, certSubType: '', certInfo: ''}], metadata: null});
+            this.showAddTLSCertificate = false;
+            this.loader.reload();
+        } catch (e) {
+            this.appContext.apis.notifications.show({
+                content: <ErrorNotification title='Unable to add TLS certificate' e={e} />,
+                type: NotificationType.Error
+            });
+        }
+    }
+
+    private async addSSHKnownHosts(params: NewSSHKnownHostParams) {
+        try {
+            let knownHostEntries: models.RepoCert[] = [];
+            atob(params.certData)
+                .split('\n')
+                .forEach(function processEntry(item) {
+                    const trimmedLine = item.trimLeft();
+                    if (trimmedLine.startsWith('#') === false) {
+                        const knownHosts = trimmedLine.split(' ', 3);
+                        if (knownHosts.length === 3) {
+                            // Perform a little sanity check on the data - server
+                            // checks too, but let's not send it invalid data in
+                            // the first place.
+                            // eslint-disable-next-line no-useless-escape
+                            const subType = knownHosts[1].match(/^(ssh\-[a-z0-9]+|ecdsa-[a-z0-9\-]+)$/gi);
+                            if (subType != null) {
+                                // Key could be valid for multiple hosts
+                                const hostnames = knownHosts[0].split(',');
+                                for (const hostname of hostnames) {
+                                    knownHostEntries = knownHostEntries.concat({
+                                        serverName: hostname,
+                                        certType: 'ssh',
+                                        certSubType: knownHosts[1],
+                                        certData: btoa(knownHosts[2]),
+                                        certInfo: ''
+                                    });
+                                }
+                            } else {
+                                throw new Error('Invalid SSH subtype: ' + subType);
+                            }
+                        }
+                    }
+                });
+            if (knownHostEntries.length === 0) {
+                throw new Error('No valid known hosts data entered');
+            }
+            await services.certs.create({items: knownHostEntries, metadata: null});
+            this.showAddSSHKnownHosts = false;
+            this.loader.reload();
+        } catch (e) {
+            this.appContext.apis.notifications.show({
+                content: <ErrorNotification title='Unable to add SSH known hosts data' e={e} />,
+                type: NotificationType.Error
+            });
+        }
+    }
+
+    private async removeCert(serverName: string, certType: string, certSubType: string) {
+        const confirmed = await this.appContext.apis.popup.confirm('Remove certificate', 'Are you sure you want to remove ' + certType + ' certificate for ' + serverName + '?');
+        if (confirmed) {
+            await services.certs.delete(serverName, certType, certSubType);
+            this.loader.reload();
+        }
+    }
+
+    private get showAddTLSCertificate() {
+        return new URLSearchParams(this.props.location.search).get('addTLSCert') === 'true';
+    }
+
+    private set showAddTLSCertificate(val: boolean) {
+        this.clearForms();
+        this.appContext.router.history.push(`${this.props.match.url}?addTLSCert=${val}`);
+    }
+
+    private get showAddSSHKnownHosts() {
+        return new URLSearchParams(this.props.location.search).get('addSSHKnownHosts') === 'true';
+    }
+
+    private set showAddSSHKnownHosts(val: boolean) {
+        this.clearForms();
+        this.appContext.router.history.push(`${this.props.match.url}?addSSHKnownHosts=${val}`);
+    }
 
     public render() {
         return (
@@ -194,100 +283,5 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
                 </SlidingPanel>
             </Page>
         );
-    }
-
-    private clearForms() {
-        this.formApiSSH.resetAll();
-        this.formApiTLS.resetAll();
-    }
-
-    private async addTLSCertificate(params: NewTLSCertParams) {
-        try {
-            await services.certs.create({items: [{serverName: params.serverName, certType: 'https', certData: params.certData, certSubType: '', certInfo: ''}], metadata: null});
-            this.showAddTLSCertificate = false;
-            this.loader.reload();
-        } catch (e) {
-            this.appContext.apis.notifications.show({
-                content: <ErrorNotification title='Unable to add TLS certificate' e={e} />,
-                type: NotificationType.Error
-            });
-        }
-    }
-
-    private async addSSHKnownHosts(params: NewSSHKnownHostParams) {
-        try {
-            let knownHostEntries: models.RepoCert[] = [];
-            atob(params.certData)
-                .split('\n')
-                .forEach(function processEntry(item) {
-                    const trimmedLine = item.trimLeft();
-                    if (trimmedLine.startsWith('#') === false) {
-                        const knownHosts = trimmedLine.split(' ', 3);
-                        if (knownHosts.length === 3) {
-                            // Perform a little sanity check on the data - server
-                            // checks too, but let's not send it invalid data in
-                            // the first place.
-                            // eslint-disable-next-line no-useless-escape
-                            const subType = knownHosts[1].match(/^(ssh\-[a-z0-9]+|ecdsa-[a-z0-9\-]+)$/gi);
-                            if (subType != null) {
-                                // Key could be valid for multiple hosts
-                                const hostnames = knownHosts[0].split(',');
-                                for (const hostname of hostnames) {
-                                    knownHostEntries = knownHostEntries.concat({
-                                        serverName: hostname,
-                                        certType: 'ssh',
-                                        certSubType: knownHosts[1],
-                                        certData: btoa(knownHosts[2]),
-                                        certInfo: ''
-                                    });
-                                }
-                            } else {
-                                throw new Error('Invalid SSH subtype: ' + subType);
-                            }
-                        }
-                    }
-                });
-            if (knownHostEntries.length === 0) {
-                throw new Error('No valid known hosts data entered');
-            }
-            await services.certs.create({items: knownHostEntries, metadata: null});
-            this.showAddSSHKnownHosts = false;
-            this.loader.reload();
-        } catch (e) {
-            this.appContext.apis.notifications.show({
-                content: <ErrorNotification title='Unable to add SSH known hosts data' e={e} />,
-                type: NotificationType.Error
-            });
-        }
-    }
-
-    private async removeCert(serverName: string, certType: string, certSubType: string) {
-        const confirmed = await this.appContext.apis.popup.confirm('Remove certificate', 'Are you sure you want to remove ' + certType + ' certificate for ' + serverName + '?');
-        if (confirmed) {
-            await services.certs.delete(serverName, certType, certSubType);
-            this.loader.reload();
-        }
-    }
-
-    private get showAddTLSCertificate() {
-        return new URLSearchParams(this.props.location.search).get('addTLSCert') === 'true';
-    }
-
-    private set showAddTLSCertificate(val: boolean) {
-        this.clearForms();
-        this.appContext.router.history.push(`${this.props.match.url}?addTLSCert=${val}`);
-    }
-
-    private get showAddSSHKnownHosts() {
-        return new URLSearchParams(this.props.location.search).get('addSSHKnownHosts') === 'true';
-    }
-
-    private set showAddSSHKnownHosts(val: boolean) {
-        this.clearForms();
-        this.appContext.router.history.push(`${this.props.match.url}?addSSHKnownHosts=${val}`);
-    }
-
-    private get appContext(): AppContext {
-        return this.context as AppContext;
     }
 }
