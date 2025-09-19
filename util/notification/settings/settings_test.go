@@ -3,11 +3,10 @@ package settings
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	corev1 "k8s.io/api/core/v1"
-
 	"github.com/argoproj/notifications-engine/pkg/api"
 	service "github.com/argoproj/argo-cd/v3/util/notification/argocd"
+	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
 )
 
 func TestGetFactorySettingsDeferred_ServiceNotInitialized(t *testing.T) {
@@ -25,6 +24,6 @@ func TestGetFactorySettingsDeferred_ServiceNotInitialized(t *testing.T) {
 	secret := &corev1.Secret{}
 
 	_, err := settings.InitGetVars(cfg, configMap, secret)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "argocdService is not initialized")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "argocdService is not initialized")
 }
