@@ -301,13 +301,13 @@ spec:
         - mountPath: /home/argocd/cmp-server/plugins
           name: plugins
       initContainers:
-      - command:
-        - /bin/cp
-        - -n
-        - /usr/local/bin/argocd
-        - /var/run/argocd/argocd
+      - args:
+          - /bin/cp -n /usr/local/bin/argocd /var/run/argocd/argocd && /bin/ln -s /var/run/argocd/argocd /var/run/argocd/argocd-cmp-server
+        command:
+          - sh
+          - '-c'
         image: quay.io/argoproj/argocd:latest
-        name: copyutil-argocd
+        name: copyutil
         securityContext:
           runAsNonRoot: true
           readOnlyRootFilesystem: true
@@ -320,25 +320,6 @@ spec:
         volumeMounts:
         - mountPath: /var/run/argocd
           name: var-files
-      - command:
-          - /bin/ln
-          - -s
-          - /var/run/argocd/argocd
-          - /var/run/argocd/argocd-cmp-server
-        image: quay.io/argoproj/argocd:latest
-        name: copyutil-argocd-cmp-server
-        securityContext:
-          runAsNonRoot: true
-          readOnlyRootFilesystem: true
-          allowPrivilegeEscalation: false
-          capabilities:
-            drop:
-              - ALL
-          seccompProfile:
-            type: RuntimeDefault
-        volumeMounts:
-          - mountPath: /var/run/argocd
-            name: var-files
       volumes:
         - name: ssh-known-hosts
           configMap:
