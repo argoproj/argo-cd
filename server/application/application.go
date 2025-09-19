@@ -1289,7 +1289,12 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *v1alpha1.Appl
 			return err
 		}
 		// Validate that the new project exists and the application is allowed to use it
-		newProj, err := s.getAppProject(ctx, app, log.WithFields(applog.GetAppLogFields(app)))
+		newProj, err := s.getAppProject(ctx, app, log.WithFields(log.Fields{
+			"application":        app.Name,
+			"app-namespace":      app.Namespace,
+			"app-qualified-name": app.QualifiedName(),
+			"project":            app.Spec.Project,
+		}))
 		if err != nil {
 			return err
 		}
