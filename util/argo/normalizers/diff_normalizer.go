@@ -69,6 +69,12 @@ type jqNormalizerPatch struct {
 	jqExecutionTimeout time.Duration
 }
 
+type jqMultiPathNormalizerPatch struct {
+	baseNormalizerPatch
+	pathExpression     string
+	jqExecutionTimeout time.Duration
+}
+
 func (np *jqNormalizerPatch) Apply(data []byte) ([]byte, error) {
 	dataJSON := make(map[string]any)
 	err := json.Unmarshal(data, &dataJSON)
@@ -100,6 +106,102 @@ func (np *jqNormalizerPatch) Apply(data []byte) ([]byte, error) {
 		return nil, err
 	}
 	return patchedData, err
+}
+
+func (np *jqMultiPathNormalizerPatch) Apply(data []byte) ([]byte, error) {
+	dataJSON := make(map[string]any)
+	err := json.Unmarshal(data, &dataJSON)
+	if err != nil {
+		return nil, err
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), np.jqExecutionTimeout)
+	defer cancel()
+
+	// First, evaluate the path expression to get the paths to delete
+	pathQuery, err := gojq.Parse(np.pathExpression)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse path expression: %w", err)
+	}
+	pathCode, err := gojq.Compile(pathQuery)
+	if err != nil {
+		return nil, fmt.Errorf("failed to compile path expression: %w", err)
+	}
+
+	// Collect all paths that match the expression
+	var pathsToDelete []string
+	iter := pathCode.RunWithContext(ctx, dataJSON)
+	for {
+		v, ok := iter.Next()
+		if !ok {
+			break
+		}
+		if err, ok := v.(error); ok {
+			if errors.Is(err, context.DeadlineExceeded) {
+				return nil, fmt.Errorf("JQ path evaluation timed out (%v)", np.jqExecutionTimeout.String())
+			}
+			// If the path expression fails (e.g., field doesn't exist), just continue
+			continue
+		}
+		if pathStr, ok := v.(string); ok {
+			pathsToDelete = append(pathsToDelete, pathStr)
+		}
+	}
+
+	// If no paths to delete, return original data
+	if len(pathsToDelete) == 0 {
+		return data, nil
+	}
+
+	// For annotation-based expressions, we need to handle them specially
+	// Check if this is an annotation key selection expression
+	if strings.Contains(np.pathExpression, ".metadata.annotations") && strings.Contains(np.pathExpression, "keys[]") {
+		// This is selecting annotation keys, so we need to delete those specific annotations
+		result := dataJSON
+		if metadata, ok := result["metadata"].(map[string]interface{}); ok {
+			if annotations, ok := metadata["annotations"].(map[string]interface{}); ok {
+				for _, key := range pathsToDelete {
+					delete(annotations, key)
+				}
+				// If annotations is now empty, we can remove it entirely
+				if len(annotations) == 0 {
+					delete(metadata, "annotations")
+				}
+			}
+		}
+		
+		patchedData, err := json.Marshal(result)
+		if err != nil {
+			return nil, err
+		}
+		return patchedData, nil
+	}
+
+	// For other types of expressions, try to delete each path individually
+	result := dataJSON
+	for _, path := range pathsToDelete {
+		deletionQuery, parseErr := gojq.Parse(fmt.Sprintf("del(.%s)", path))
+		if parseErr != nil {
+			continue // Skip invalid paths
+		}
+		deletionCode, compileErr := gojq.Compile(deletionQuery)
+		if compileErr != nil {
+			continue // Skip invalid paths
+		}
+		
+		iter := deletionCode.RunWithContext(ctx, result)
+		if v, ok := iter.Next(); ok {
+			if _, isErr := v.(error); !isErr {
+				result = v.(map[string]interface{})
+			}
+		}
+	}
+
+	patchedData, err := json.Marshal(result)
+	if err != nil {
+		return nil, err
+	}
+	return patchedData, nil
 }
 
 type ignoreNormalizer struct {
@@ -159,23 +261,40 @@ func NewIgnoreNormalizer(ignore []v1alpha1.ResourceIgnoreDifferences, overrides 
 			})
 		}
 		for _, pathExpression := range ignore[i].JQPathExpressions {
-			jqDeletionQuery, err := gojq.Parse(fmt.Sprintf("del(%s)", pathExpression))
-			if err != nil {
-				return nil, err
+			// For expressions that select multiple annotation keys, we need special handling
+			if strings.Contains(pathExpression, ".metadata.annotations") && 
+			   strings.Contains(pathExpression, "keys[]") && 
+			   strings.Contains(pathExpression, "select") {
+				// This is likely selecting multiple annotation keys
+				patches = append(patches, &jqMultiPathNormalizerPatch{
+					baseNormalizerPatch: baseNormalizerPatch{
+						groupKind: schema.GroupKind{Group: ignore[i].Group, Kind: ignore[i].Kind},
+						name:      ignore[i].Name,
+						namespace: ignore[i].Namespace,
+					},
+					pathExpression:     pathExpression,
+					jqExecutionTimeout: opts.getJQExecutionTimeout(),
+				})
+			} else {
+				// Standard single-path deletion
+				jqDeletionQuery, err := gojq.Parse(fmt.Sprintf("del(%s)", pathExpression))
+				if err != nil {
+					return nil, err
+				}
+				jqDeletionCode, err := gojq.Compile(jqDeletionQuery)
+				if err != nil {
+					return nil, err
+				}
+				patches = append(patches, &jqNormalizerPatch{
+					baseNormalizerPatch: baseNormalizerPatch{
+						groupKind: schema.GroupKind{Group: ignore[i].Group, Kind: ignore[i].Kind},
+						name:      ignore[i].Name,
+						namespace: ignore[i].Namespace,
+					},
+					code:               jqDeletionCode,
+					jqExecutionTimeout: opts.getJQExecutionTimeout(),
+				})
 			}
-			jqDeletionCode, err := gojq.Compile(jqDeletionQuery)
-			if err != nil {
-				return nil, err
-			}
-			patches = append(patches, &jqNormalizerPatch{
-				baseNormalizerPatch: baseNormalizerPatch{
-					groupKind: schema.GroupKind{Group: ignore[i].Group, Kind: ignore[i].Kind},
-					name:      ignore[i].Name,
-					namespace: ignore[i].Namespace,
-				},
-				code:               jqDeletionCode,
-				jqExecutionTimeout: opts.getJQExecutionTimeout(),
-			})
 		}
 	}
 	return &ignoreNormalizer{patches: patches}, nil

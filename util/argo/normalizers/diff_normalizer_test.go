@@ -293,3 +293,104 @@ func TestJQPathExpressionReturnsHelpfulError(t *testing.T) {
 	})
 	assert.Contains(t, out, "fromjson cannot be applied")
 }
+
+func TestNormalizeJQPathExpressionMultipleFields(t *testing.T) {
+	// Test case for issue #24599: jqPathExpressions should work for matching multiple fields
+	normalizer, err := NewIgnoreNormalizer([]v1alpha1.ResourceIgnoreDifferences{{
+		Group:             "apps",
+		Kind:              "Deployment",
+		JQPathExpressions: []string{".metadata.annotations? // {} | keys[] | select ( . | startswith(\"customprefix.\"))"},
+	}}, make(map[string]v1alpha1.ResourceOverride), IgnoreNormalizerOpts{})
+
+	require.NoError(t, err)
+
+	deployment := test.NewDeployment()
+
+	// Add annotations with custom prefix and other annotations
+	annotations := map[string]interface{}{
+		"customprefix.foo":   "value1",
+		"customprefix.bar":   "value2", 
+		"other.annotation":   "value3",
+		"another.annotation": "value4",
+	}
+	err = unstructured.SetNestedMap(deployment.Object, annotations, "metadata", "annotations")
+	require.NoError(t, err)
+
+	// Verify annotations exist before normalization
+	actualAnnotations, has, err := unstructured.NestedMap(deployment.Object, "metadata", "annotations")
+	require.NoError(t, err)
+	assert.True(t, has)
+	assert.Len(t, actualAnnotations, 4)
+	assert.Contains(t, actualAnnotations, "customprefix.foo")
+	assert.Contains(t, actualAnnotations, "customprefix.bar")
+	assert.Contains(t, actualAnnotations, "other.annotation")
+
+	// Apply normalization - should now work with the fix
+	err = normalizer.Normalize(deployment)
+	require.NoError(t, err)
+
+	// Verify that only customprefix annotations are removed
+	actualAnnotations, has, err = unstructured.NestedMap(deployment.Object, "metadata", "annotations")
+	require.NoError(t, err)
+	assert.True(t, has)
+	assert.Len(t, actualAnnotations, 2) // Only non-customprefix annotations should remain
+	assert.NotContains(t, actualAnnotations, "customprefix.foo")
+	assert.NotContains(t, actualAnnotations, "customprefix.bar")
+	assert.Contains(t, actualAnnotations, "other.annotation")
+	assert.Contains(t, actualAnnotations, "another.annotation")
+}
+
+func TestNormalizeJQPathExpressionMultipleFieldsNoMatch(t *testing.T) {
+	// Test case where no annotations match the prefix
+	normalizer, err := NewIgnoreNormalizer([]v1alpha1.ResourceIgnoreDifferences{{
+		Group:             "apps",
+		Kind:              "Deployment",
+		JQPathExpressions: []string{".metadata.annotations? // {} | keys[] | select ( . | startswith(\"nonexistent.\"))"},
+	}}, make(map[string]v1alpha1.ResourceOverride), IgnoreNormalizerOpts{})
+
+	require.NoError(t, err)
+
+	deployment := test.NewDeployment()
+
+	// Add annotations without the target prefix
+	annotations := map[string]interface{}{
+		"customprefix.foo":   "value1",
+		"other.annotation":   "value3",
+	}
+	err = unstructured.SetNestedMap(deployment.Object, annotations, "metadata", "annotations")
+	require.NoError(t, err)
+
+	// Apply normalization
+	err = normalizer.Normalize(deployment)
+	require.NoError(t, err)
+
+	// Verify that no annotations are removed since none match
+	actualAnnotations, has, err := unstructured.NestedMap(deployment.Object, "metadata", "annotations")
+	require.NoError(t, err)
+	assert.True(t, has)
+	assert.Len(t, actualAnnotations, 2) // All annotations should remain
+	assert.Contains(t, actualAnnotations, "customprefix.foo")
+	assert.Contains(t, actualAnnotations, "other.annotation")
+}
+
+func TestNormalizeJQPathExpressionMultipleFieldsNoAnnotations(t *testing.T) {
+	// Test case where there are no annotations at all
+	normalizer, err := NewIgnoreNormalizer([]v1alpha1.ResourceIgnoreDifferences{{
+		Group:             "apps",
+		Kind:              "Deployment",
+		JQPathExpressions: []string{".metadata.annotations? // {} | keys[] | select ( . | startswith(\"customprefix.\"))"},
+	}}, make(map[string]v1alpha1.ResourceOverride), IgnoreNormalizerOpts{})
+
+	require.NoError(t, err)
+
+	deployment := test.NewDeployment()
+
+	// Apply normalization without any annotations
+	err = normalizer.Normalize(deployment)
+	require.NoError(t, err)
+
+	// Verify that no annotations field is created
+	_, has, err := unstructured.NestedMap(deployment.Object, "metadata", "annotations")
+	require.NoError(t, err)
+	assert.False(t, has) // No annotations should exist
+}
