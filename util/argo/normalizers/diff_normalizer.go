@@ -188,7 +188,6 @@ func (np *jqMultiPathNormalizerPatch) Apply(data []byte) ([]byte, error) {
 		if compileErr != nil {
 			continue // Skip invalid paths
 		}
-
 		iter := deletionCode.RunWithContext(ctx, result)
 		if v, ok := iter.Next(); ok {
 			if _, isErr := v.(error); !isErr {
