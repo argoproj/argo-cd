@@ -418,7 +418,11 @@ func (c *client) RefreshAuthToken(localCfg *localconfig.LocalConfig, ctxName, co
 		return err
 	}
 	c.AuthToken = rawIDToken
-	c.RefreshToken = refreshToken
+	// When the oidc provider returns an empty refresh token, use the existing refresh token
+	if refreshToken != "" {
+		c.RefreshToken = refreshToken
+	}
+
 	localCfg.UpsertUser(localconfig.User{
 		Name:         ctxName,
 		AuthToken:    c.AuthToken,
