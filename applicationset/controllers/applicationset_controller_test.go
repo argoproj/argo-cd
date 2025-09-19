@@ -3293,43 +3293,6 @@ func TestSetApplicationSetApplicationStatus(t *testing.T) {
 			appStatuses:         []v1alpha1.ApplicationSetApplicationStatus{},
 			expectedAppStatuses: nil,
 		},
-		{
-			name: "clears applicationStatus when Progressive Sync is disabled",
-			appSet: v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "progressive-sync-disabled",
-					Namespace: "argocd",
-				},
-				Spec: v1alpha1.ApplicationSetSpec{
-					Generators: []v1alpha1.ApplicationSetGenerator{
-						{List: &v1alpha1.ListGenerator{
-							Elements: []apiextensionsv1.JSON{{
-								Raw: []byte(`{"cluster": "my-cluster","url": "https://kubernetes.default.svc"}`),
-							}},
-						}},
-					},
-					Template: v1alpha1.ApplicationSetTemplate{},
-				},
-				Status: v1alpha1.ApplicationSetStatus{
-					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
-						{
-							Application: "app1-dev",
-							Message:     "Application resource became Healthy, updating status from Progressing to Healthy.",
-							Status:      "Healthy",
-							Step:        "1",
-						},
-						{
-							Application: "app2-staging",
-							Message:     "Application resource became Healthy, updating status from Progressing to Healthy.",
-							Status:      "Healthy",
-							Step:        "2",
-						},
-					},
-				},
-			},
-			appStatuses:         []v1alpha1.ApplicationSetApplicationStatus{},
-			expectedAppStatuses: nil,
-		},
 	} {
 		t.Run(cc.name, func(t *testing.T) {
 			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&cc.appSet).WithStatusSubresource(&cc.appSet).Build()
@@ -7373,7 +7336,7 @@ func TestReconcileProgressiveSyncDisabled(t *testing.T) {
 
 			req := ctrl.Request{
 				NamespacedName: types.NamespacedName{
-					Namespace: "argocd",
+					Namespace: cc.appSet.Namespace,
 					Name:      cc.appSet.Name,
 				},
 			}
