@@ -2358,7 +2358,7 @@ func (c *fakeAcdClient) NewVersionClientOrDie() (io.Closer, versionpkg.VersionSe
 	return nil, nil
 }
 
-func (c *fakeAcdClient) RefreshAuthToken(localCfg *localconfig.LocalConfig, ctxName, configPath string) error {
+func (c *fakeAcdClient) RefreshAuthToken(_ *localconfig.LocalConfig, _, _ string) error {
 	return nil
 }
 
