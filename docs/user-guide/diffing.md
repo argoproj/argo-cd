@@ -57,6 +57,19 @@ spec:
         - .spec.template.spec.initContainers[] | select(.name == "injected-init-container")
 ```
 
+For more complex scenarios where you need to delete multiple paths based on JQ queries, use `jqPaths`. This field expects JQ queries that produce arrays of paths for use with `delpaths()`:
+
+```yaml
+spec:
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jqPaths:
+        - '.metadata.annotations // {} | [keys[] | select(startswith("customprefix.")) | ["metadata", "annotations", .]]'
+```
+
+The above example will ignore all annotations that start with "customprefix." by generating the appropriate paths and using `delpaths()` to remove them.
+
 To ignore fields owned by specific managers defined in your live resources:
 
 ```yaml

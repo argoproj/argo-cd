@@ -1012,6 +1012,12 @@ spec:
                       items:
                         type: string
                       type: array
+                    jqPaths:
+                      description: JQPaths is a list of JQ path queries that produce
+                        arrays of paths for deletion using delpaths()
+                      items:
+                        type: string
+                      type: array
                     jsonPointers:
                       items:
                         type: string
@@ -5060,6 +5066,12 @@ spec:
                             group:
                               type: string
                             jqPathExpressions:
+                              items:
+                                type: string
+                              type: array
+                            jqPaths:
+                              description: JQPaths is a list of JQ path queries that
+                                produce arrays of paths for deletion using delpaths()
                               items:
                                 type: string
                               type: array

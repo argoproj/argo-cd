@@ -394,3 +394,32 @@ func TestNormalizeJQPathExpressionMultipleFieldsNoAnnotations(t *testing.T) {
 	require.NoError(t, err)
 	assert.False(t, has) // No annotations should exist
 }
+
+func TestNormalizeJQPaths(t *testing.T) {
+	// Test the new JQPaths field that uses delpaths()
+	normalizer, err := NewIgnoreNormalizer([]v1alpha1.ResourceIgnoreDifferences{{
+		Group:   "apps",
+		Kind:    "Deployment",
+		JQPaths: []string{`.metadata.annotations // {} | [keys[] | select(startswith("customprefix.")) | ["metadata", "annotations", .]]`},
+	}}, make(map[string]v1alpha1.ResourceOverride), IgnoreNormalizerOpts{})
+
+	require.NoError(t, err)
+
+	deployment := test.NewDeployment()
+	deployment.SetAnnotations(map[string]string{
+		"customprefix.annotation1": "value1",
+		"customprefix.annotation2": "value2", 
+		"other.annotation":         "keep-this",
+	})
+
+	// Apply normalization
+	err = normalizer.Normalize(deployment)
+	require.NoError(t, err)
+
+	// Verify that only customprefix annotations are removed
+	annotations := deployment.GetAnnotations()
+	assert.NotContains(t, annotations, "customprefix.annotation1")
+	assert.NotContains(t, annotations, "customprefix.annotation2")
+	assert.Contains(t, annotations, "other.annotation")
+	assert.Equal(t, "keep-this", annotations["other.annotation"])
+}

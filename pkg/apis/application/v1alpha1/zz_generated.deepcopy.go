@@ -2996,6 +2996,11 @@ func (in *OverrideIgnoreDiff) DeepCopyInto(out *OverrideIgnoreDiff) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
+	if in.JQPaths != nil {
+		in, out := &in.JQPaths, &out.JQPaths
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	if in.ManagedFieldsManagers != nil {
 		in, out := &in.ManagedFieldsManagers, &out.ManagedFieldsManagers
 		*out = make([]string, len(*in))
@@ -3701,6 +3706,11 @@ func (in *ResourceIgnoreDifferences) DeepCopyInto(out *ResourceIgnoreDifferences
 	}
 	if in.JQPathExpressions != nil {
 		in, out := &in.JQPathExpressions, &out.JQPathExpressions
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
+	if in.JQPaths != nil {
+		in, out := &in.JQPaths, &out.JQPaths
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}

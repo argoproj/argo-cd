@@ -110,6 +110,10 @@ spec:
                                         items:
                                           type: string
                                         type: array
+                                      jqPaths:
+                                        items:
+                                          type: string
+                                        type: array
                                       jsonPointers:
                                         items:
                                           type: string
@@ -793,6 +797,10 @@ spec:
                                       group:
                                         type: string
                                       jqPathExpressions:
+                                        items:
+                                          type: string
+                                        type: array
+                                      jqPaths:
                                         items:
                                           type: string
                                         type: array
@@ -1483,6 +1491,10 @@ spec:
                                         items:
                                           type: string
                                         type: array
+                                      jqPaths:
+                                        items:
+                                          type: string
+                                        type: array
                                       jsonPointers:
                                         items:
                                           type: string
@@ -2145,6 +2157,10 @@ spec:
                                       group:
                                         type: string
                                       jqPathExpressions:
+                                        items:
+                                          type: string
+                                        type: array
+                                      jqPaths:
                                         items:
                                           type: string
                                         type: array
@@ -2838,6 +2854,10 @@ spec:
                                                   items:
                                                     type: string
                                                   type: array
+                                                jqPaths:
+                                                  items:
+                                                    type: string
+                                                  type: array
                                                 jsonPointers:
                                                   items:
                                                     type: string
@@ -3521,6 +3541,10 @@ spec:
                                                 group:
                                                   type: string
                                                 jqPathExpressions:
+                                                  items:
+                                                    type: string
+                                                  type: array
+                                                jqPaths:
                                                   items:
                                                     type: string
                                                   type: array
@@ -4211,6 +4235,10 @@ spec:
                                                   items:
                                                     type: string
                                                   type: array
+                                                jqPaths:
+                                                  items:
+                                                    type: string
+                                                  type: array
                                                 jsonPointers:
                                                   items:
                                                     type: string
@@ -4873,6 +4901,10 @@ spec:
                                                 group:
                                                   type: string
                                                 jqPathExpressions:
+                                                  items:
+                                                    type: string
+                                                  type: array
+                                                jqPaths:
                                                   items:
                                                     type: string
                                                   type: array
@@ -5546,6 +5578,10 @@ spec:
                                                 group:
                                                   type: string
                                                 jqPathExpressions:
+                                                  items:
+                                                    type: string
+                                                  type: array
+                                                jqPaths:
                                                   items:
                                                     type: string
                                                   type: array
@@ -6449,6 +6485,10 @@ spec:
                                                   items:
                                                     type: string
                                                   type: array
+                                                jqPaths:
+                                                  items:
+                                                    type: string
+                                                  type: array
                                                 jsonPointers:
                                                   items:
                                                     type: string
@@ -7340,6 +7380,10 @@ spec:
                                                   items:
                                                     type: string
                                                   type: array
+                                                jqPaths:
+                                                  items:
+                                                    type: string
+                                                  type: array
                                                 jsonPointers:
                                                   items:
                                                     type: string
@@ -8019,6 +8063,10 @@ spec:
                                       group:
                                         type: string
                                       jqPathExpressions:
+                                        items:
+                                          type: string
+                                        type: array
+                                      jqPaths:
                                         items:
                                           type: string
                                         type: array
@@ -8714,6 +8762,10 @@ spec:
                                                   items:
                                                     type: string
                                                   type: array
+                                                jqPaths:
+                                                  items:
+                                                    type: string
+                                                  type: array
                                                 jsonPointers:
                                                   items:
                                                     type: string
@@ -9397,6 +9449,10 @@ spec:
                                                 group:
                                                   type: string
                                                 jqPathExpressions:
+                                                  items:
+                                                    type: string
+                                                  type: array
+                                                jqPaths:
                                                   items:
                                                     type: string
                                                   type: array
@@ -10087,6 +10143,10 @@ spec:
                                                   items:
                                                     type: string
                                                   type: array
+                                                jqPaths:
+                                                  items:
+                                                    type: string
+                                                  type: array
                                                 jsonPointers:
                                                   items:
                                                     type: string
@@ -10749,6 +10809,10 @@ spec:
                                                 group:
                                                   type: string
                                                 jqPathExpressions:
+                                                  items:
+                                                    type: string
+                                                  type: array
+                                                jqPaths:
                                                   items:
                                                     type: string
                                                   type: array
@@ -11422,6 +11486,10 @@ spec:
                                                 group:
                                                   type: string
                                                 jqPathExpressions:
+                                                  items:
+                                                    type: string
+                                                  type: array
+                                                jqPaths:
                                                   items:
                                                     type: string
                                                   type: array
@@ -12325,6 +12393,10 @@ spec:
                                                   items:
                                                     type: string
                                                   type: array
+                                                jqPaths:
+                                                  items:
+                                                    type: string
+                                                  type: array
                                                 jsonPointers:
                                                   items:
                                                     type: string
@@ -13216,6 +13288,10 @@ spec:
                                                   items:
                                                     type: string
                                                   type: array
+                                                jqPaths:
+                                                  items:
+                                                    type: string
+                                                  type: array
                                                 jsonPointers:
                                                   items:
                                                     type: string
@@ -13902,6 +13978,10 @@ spec:
                                         items:
                                           type: string
                                         type: array
+                                      jqPaths:
+                                        items:
+                                          type: string
+                                        type: array
                                       jsonPointers:
                                         items:
                                           type: string
@@ -14571,6 +14651,10 @@ spec:
                                       group:
                                         type: string
                                       jqPathExpressions:
+                                        items:
+                                          type: string
+                                        type: array
+                                      jqPaths:
                                         items:
                                           type: string
                                         type: array
@@ -15474,6 +15558,10 @@ spec:
                                         items:
                                           type: string
                                         type: array
+                                      jqPaths:
+                                        items:
+                                          type: string
+                                        type: array
                                       jsonPointers:
                                         items:
                                           type: string
@@ -16365,6 +16453,10 @@ spec:
                                         items:
                                           type: string
                                         type: array
+                                      jqPaths:
+                                        items:
+                                          type: string
+                                        type: array
                                       jsonPointers:
                                         items:
                                           type: string
@@ -17121,6 +17213,10 @@ spec:
                             group:
                               type: string
                             jqPathExpressions:
+                              items:
+                                type: string
+                              type: array
+                            jqPaths:
                               items:
                                 type: string
                               type: array

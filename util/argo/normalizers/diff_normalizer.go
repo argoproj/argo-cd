@@ -75,6 +75,12 @@ type jqMultiPathNormalizerPatch struct {
 	jqExecutionTimeout time.Duration
 }
 
+type jqPathsNormalizerPatch struct {
+	baseNormalizerPatch
+	pathQueries        []string
+	jqExecutionTimeout time.Duration
+}
+
 func (np *jqNormalizerPatch) Apply(data []byte) ([]byte, error) {
 	dataJSON := make(map[string]any)
 	err := json.Unmarshal(data, &dataJSON)
@@ -203,6 +209,92 @@ func (np *jqMultiPathNormalizerPatch) Apply(data []byte) ([]byte, error) {
 	return patchedData, nil
 }
 
+func (np *jqPathsNormalizerPatch) Apply(data []byte) ([]byte, error) {
+	var dataJSON any
+	if err := json.Unmarshal(data, &dataJSON); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal JSON: %w", err)
+	}
+
+	// Collect all paths from all queries
+	var allPaths []any
+	ctx, cancel := context.WithTimeout(context.Background(), np.jqExecutionTimeout)
+	defer cancel()
+
+	for _, pathQuery := range np.pathQueries {
+		query, err := gojq.Parse(pathQuery)
+		if err != nil {
+			continue // Skip invalid queries
+		}
+		
+		code, err := gojq.Compile(query)
+		if err != nil {
+			continue // Skip invalid queries
+		}
+
+		iter := code.RunWithContext(ctx, dataJSON)
+		for {
+			v, ok := iter.Next()
+			if !ok {
+				break
+			}
+			if err, ok := v.(error); ok {
+				if errors.Is(err, context.DeadlineExceeded) {
+					return nil, fmt.Errorf("JQ path evaluation timed out (%v)", np.jqExecutionTimeout.String())
+				}
+				continue // Skip errors
+			}
+			
+			// The query should return an array of path arrays
+			if pathArray, ok := v.([]any); ok {
+				for _, path := range pathArray {
+					if pathArr, ok := path.([]any); ok {
+						allPaths = append(allPaths, pathArr)
+					}
+				}
+			}
+		}
+	}
+
+	if len(allPaths) == 0 {
+		return data, nil
+	}
+
+	// Convert paths to JSON for embedding in query
+	pathsJSON, err := json.Marshal(allPaths)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal paths: %w", err)
+	}
+
+	// Create delpaths query with embedded paths
+	delpathsQueryStr := fmt.Sprintf("delpaths(%s)", string(pathsJSON))
+	delpathsQuery, err := gojq.Parse(delpathsQueryStr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse delpaths query: %w", err)
+	}
+
+	code, err := gojq.Compile(delpathsQuery)
+	if err != nil {
+		return nil, fmt.Errorf("failed to compile delpaths query: %w", err)
+	}
+
+	iter := code.RunWithContext(ctx, dataJSON)
+	v, ok := iter.Next()
+	if !ok {
+		return data, nil
+	}
+	
+	if err, ok := v.(error); ok {
+		return nil, fmt.Errorf("delpaths execution failed: %w", err)
+	}
+
+	result, err := json.Marshal(v)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal result: %w", err)
+	}
+
+	return result, nil
+}
+
 type ignoreNormalizer struct {
 	patches []normalizerPatch
 }
@@ -225,7 +317,7 @@ func NewIgnoreNormalizer(ignore []v1alpha1.ResourceIgnoreDifferences, overrides 
 		if err != nil {
 			log.Warn(err)
 		}
-		if len(override.IgnoreDifferences.JSONPointers) > 0 || len(override.IgnoreDifferences.JQPathExpressions) > 0 {
+		if len(override.IgnoreDifferences.JSONPointers) > 0 || len(override.IgnoreDifferences.JQPathExpressions) > 0 || len(override.IgnoreDifferences.JQPaths) > 0 {
 			resourceIgnoreDifference := v1alpha1.ResourceIgnoreDifferences{
 				Group: group,
 				Kind:  kind,
@@ -235,6 +327,9 @@ func NewIgnoreNormalizer(ignore []v1alpha1.ResourceIgnoreDifferences, overrides 
 			}
 			if len(override.IgnoreDifferences.JQPathExpressions) > 0 {
 				resourceIgnoreDifference.JQPathExpressions = override.IgnoreDifferences.JQPathExpressions
+			}
+			if len(override.IgnoreDifferences.JQPaths) > 0 {
+				resourceIgnoreDifference.JQPaths = override.IgnoreDifferences.JQPaths
 			}
 			ignore = append(ignore, resourceIgnoreDifference)
 		}
@@ -294,6 +389,18 @@ func NewIgnoreNormalizer(ignore []v1alpha1.ResourceIgnoreDifferences, overrides 
 					jqExecutionTimeout: opts.getJQExecutionTimeout(),
 				})
 			}
+		}
+		// Handle new JQPaths field
+		if len(ignore[i].JQPaths) > 0 {
+			patches = append(patches, &jqPathsNormalizerPatch{
+				baseNormalizerPatch: baseNormalizerPatch{
+					groupKind: schema.GroupKind{Group: ignore[i].Group, Kind: ignore[i].Kind},
+					name:      ignore[i].Name,
+					namespace: ignore[i].Namespace,
+				},
+				pathQueries:        ignore[i].JQPaths,
+				jqExecutionTimeout: opts.getJQExecutionTimeout(),
+			})
 		}
 	}
 	return &ignoreNormalizer{patches: patches}, nil
