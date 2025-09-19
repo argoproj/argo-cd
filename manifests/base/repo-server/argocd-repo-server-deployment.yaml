@@ -307,7 +307,7 @@ spec:
         - /usr/local/bin/argocd
         - /var/run/argocd/argocd-cmp-server
         image: quay.io/argoproj/argocd:latest
-        name: copyutil
+        name: copyutil-argocd-cmp-server
         securityContext:
           runAsNonRoot: true
           readOnlyRootFilesystem: true
@@ -320,6 +320,25 @@ spec:
         volumeMounts:
         - mountPath: /var/run/argocd
           name: var-files
+      - command:
+          - /bin/cp
+          - -n
+          - /usr/local/bin/argocd
+          - /var/run/argocd/argocd
+        image: quay.io/argoproj/argocd:latest
+        name: copyutil-argocd
+        securityContext:
+          runAsNonRoot: true
+          readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+              - ALL
+          seccompProfile:
+            type: RuntimeDefault
+        volumeMounts:
+          - mountPath: /var/run/argocd
+            name: var-files
       volumes:
         - name: ssh-known-hosts
           configMap:
