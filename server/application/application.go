@@ -1288,6 +1288,17 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *v1alpha1.Appl
 		if err := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceApplications, rbac.ActionUpdate, currApp.RBACName(s.ns)); err != nil {
 			return err
 		}
+		// Validate that the new project exists and the application is allowed to use it
+		newProj, err := s.getAppProject(ctx, app, log.WithFields(log.Fields{
+			"application":        app.Name,
+			"app-namespace":      app.Namespace,
+			"app-qualified-name": app.QualifiedName(),
+			"project":            app.Spec.Project,
+		}))
+		if err != nil {
+			return err
+		}
+		proj = newProj
 	}
 
 	if _, err := argo.GetDestinationCluster(ctx, app.Spec.Destination, s.db); err != nil {
