@@ -1998,7 +1998,7 @@ func Test_getPluginEnvs_TraceContext(t *testing.T) {
 	slices.Sort(expected)
 	slices.Sort(actual)
 
-	assert.Equal(t, actual, expected)
+	assert.Equal(t, expected, actual)
 }
 
 func TestService_newHelmClientResolveRevision(t *testing.T) {
