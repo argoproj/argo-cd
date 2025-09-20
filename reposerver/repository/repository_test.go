@@ -22,6 +22,9 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/trace"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
@@ -1930,7 +1933,7 @@ func Test_newEnv(t *testing.T) {
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_SOURCE_REPO_URL", Value: "https://github.com/my-org/my-repo"},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_SOURCE_PATH", Value: "my-path"},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_SOURCE_TARGET_REVISION", Value: "my-target-revision"},
-	}, newEnv(t.Context(), &apiclient.ManifestRequest{
+	}, newEnv(&apiclient.ManifestRequest{
 		AppName:     "my-app-name",
 		Namespace:   "my-namespace",
 		ProjectName: "my-project-name",
@@ -1940,6 +1943,43 @@ func Test_newEnv(t *testing.T) {
 			TargetRevision: "my-target-revision",
 		},
 	}, "my-revision"))
+}
+
+func Test_getPluginEnvs_TraceContext(t *testing.T) {
+	// this is set by calling trace.InitTracer() in startup but in test it's easier to just set it here.
+	otel.SetTextMapPropagator(propagation.TraceContext{})
+	// hacky way to create a valid span context. (noopProvider exists, but it always use invalid one so we can't use it)
+	tid, _ := trace.TraceIDFromHex("0123456789abcdef0123456789abcdef")
+	sid, _ := trace.SpanIDFromHex("0123456789abcdef")
+	tc := trace.NewSpanContext(trace.SpanContextConfig{
+		TraceID:    tid,
+		SpanID:     sid,
+		TraceFlags: trace.FlagsSampled,
+		Remote:     true,
+	})
+	assert.True(t, tc.IsValid())
+
+	ctx := trace.ContextWithSpanContext(t.Context(), tc)
+	envs, err := getPluginEnvs(ctx, &v1alpha1.Env{}, &apiclient.ManifestRequest{
+		KubeVersion: "1.34.0",
+		ApiVersions: []string{},
+		AppName:     "my-app-name",
+		Namespace:   "my-namespace",
+		ProjectName: "my-project-name",
+		Repo:        &v1alpha1.Repository{Repo: "https://github.com/my-org/my-repo"},
+		ApplicationSource: &v1alpha1.ApplicationSource{
+			Path:           "my-path",
+			TargetRevision: "my-target-revision",
+		},
+	})
+
+	// currently BAGGAGE is not propgated so we don't need to check for it
+	require.NoError(t, err)
+	assert.Equal(t, envs, []string{
+		"KUBE_VERSION=1.34.0",
+		"KUBE_API_VERSIONS=",
+		"TRACEPARENT=00-0123456789abcdef0123456789abcdef-0123456789abcdef-01",
+	})
 }
 
 func TestService_newHelmClientResolveRevision(t *testing.T) {

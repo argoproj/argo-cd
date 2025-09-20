@@ -87,17 +87,18 @@ func GetTraceEnvFromContext(ctx context.Context) map[string]string {
 	carrier := make(map[string]string)
 	propagator.Inject(ctx, propagation.MapCarrier(carrier))
 
+	envs := make(map[string]string)
 	// specification: https://opentelemetry.io/docs/specs/otel/context/env-carriers/
 	for key, value := range carrier {
-		switch strings.ToLower(key) {
+		switch key {
 		case "traceparent":
-			carrier["TRACEPARENT"] = value
+			envs["TRACEPARENT"] = value
 		case "tracestate":
-			carrier["TRACESTATE"] = value
+			envs["TRACESTATE"] = value
 		case "baggage":
-			carrier["BAGGAGE"] = value
+			envs["BAGGAGE"] = value
 		}
 	}
 
-	return carrier
+	return envs
 }
