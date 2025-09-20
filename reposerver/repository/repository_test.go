@@ -472,7 +472,7 @@ func TestGenerateManifest_RefOnlyShortCircuit(t *testing.T) {
 	_, err := service.GenerateManifest(t.Context(), &q)
 	require.NoError(t, err)
 	cacheMocks.mockCache.AssertCacheCalledTimes(t, &repositorymocks.CacheCallCounts{
-		ExternalSets: 2,
+		ExternalSets: 3,
 		ExternalGets: 2,
 	})
 	assert.True(t, lsremoteCalled, "ls-remote should be called when the source is ref only")
@@ -542,7 +542,7 @@ func TestGenerateManifestsHelmWithRefs_CachedNoLsRemote(t *testing.T) {
 	_, err = service.GenerateManifest(t.Context(), &q)
 	require.NoError(t, err)
 	cacheMocks.mockCache.AssertCacheCalledTimes(t, &repositorymocks.CacheCallCounts{
-		ExternalSets: 2,
+		ExternalSets: 3,
 		ExternalGets: 5,
 	})
 }
@@ -4528,7 +4528,9 @@ func TestGetRevisionChartDetails(t *testing.T) {
 			Description: "test-description",
 			Home:        "test-home",
 			Maintainers: []string{"test-maintainer"},
-		}, &versions.RevisionMetadata{
+		})
+		require.NoError(t, err)
+		err = service.cache.SetSemverMetadataForHelm(repoURL, "my-chart", "1.1.0", "test-revision", &versions.RevisionMetadata{
 			OriginalRevision: "test-revision",
 			ResolutionType:   versions.RevisionResolutionDirect,
 			ResolvedTag:      "test-tag",
