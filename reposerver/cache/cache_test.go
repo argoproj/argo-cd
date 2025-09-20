@@ -598,7 +598,7 @@ func TestRevisionChartDetails(t *testing.T) {
 	t.Run("GetRevisionChartDetails cache miss", func(t *testing.T) {
 		fixtures := newFixtures()
 		t.Cleanup(fixtures.mockCache.StopRedisCallback)
-		details, _, err := fixtures.cache.GetRevisionChartDetails("test-repo", "test-revision", "v1.0.0")
+		details, err := fixtures.cache.GetRevisionChartDetails("test-repo", "test-revision", "v1.0.0")
 		require.ErrorIs(t, err, ErrCacheMiss)
 		assert.Equal(t, &v1alpha1.ChartDetails{}, details)
 		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalGets: 1})
@@ -607,27 +607,19 @@ func TestRevisionChartDetails(t *testing.T) {
 		fixtures := newFixtures()
 		t.Cleanup(fixtures.mockCache.StopRedisCallback)
 		cache := fixtures.cache
-		expectedItem := &ChartDetailsWithMetadata{
-			ChartDetails: &v1alpha1.ChartDetails{
-				Description: "test-chart",
-				Home:        "v1.0.0",
-				Maintainers: []string{"test-maintainer"},
-			},
-			RevisionMetadata: &versions.RevisionMetadata{
-				OriginalRevision: "test-revision",
-				ResolutionType:   versions.RevisionResolutionDirect,
-				ResolvedTag:      "test-tag",
-			},
+		expectedItem := &v1alpha1.ChartDetails{
+			Description: "test-chart",
+			Home:        "v1.0.0",
+			Maintainers: []string{"test-maintainer"},
 		}
 		err := cache.cache.SetItem(
 			revisionChartDetailsKey("test-repo", "test-revision", "v1.0.0"),
 			expectedItem,
 			&cacheutil.CacheActionOpts{Expiration: 30 * time.Second})
 		require.NoError(t, err)
-		details, metadata, err := fixtures.cache.GetRevisionChartDetails("test-repo", "test-revision", "v1.0.0")
+		details, err := fixtures.cache.GetRevisionChartDetails("test-repo", "test-revision", "v1.0.0")
 		require.NoError(t, err)
-		assert.Equal(t, expectedItem.ChartDetails, details)
-		assert.Equal(t, expectedItem.RevisionMetadata, metadata)
+		assert.Equal(t, expectedItem, details)
 		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalGets: 1, ExternalSets: 1})
 	})
 
@@ -635,51 +627,35 @@ func TestRevisionChartDetails(t *testing.T) {
 		fixtures := newFixtures()
 		t.Cleanup(fixtures.mockCache.StopRedisCallback)
 		cache := fixtures.cache
-		expectedItem := &ChartDetailsWithMetadata{
-			ChartDetails: &v1alpha1.ChartDetails{
-				Description: "test-chart",
-				Home:        "v1.0.0",
-				Maintainers: []string{"test-maintainer"},
-			},
-			RevisionMetadata: &versions.RevisionMetadata{
-				OriginalRevision: "test-revision",
-				ResolutionType:   versions.RevisionResolutionDirect,
-				ResolvedTag:      "test-tag",
-			},
+		expectedItem := &v1alpha1.ChartDetails{
+			Description: "test-chart",
+			Home:        "v1.0.0",
+			Maintainers: []string{"test-maintainer"},
 		}
 		err := cache.cache.SetItem(
 			revisionChartDetailsKey("test-repo", "test-revision", "v1.0.0"),
 			expectedItem,
 			&cacheutil.CacheActionOpts{Expiration: 30 * time.Second})
 		require.NoError(t, err)
-		details, metadata, err := fixtures.cache.GetRevisionChartDetails("test-repo", "test-revision", "v1.0.0")
+		details, err := fixtures.cache.GetRevisionChartDetails("test-repo", "test-revision", "v1.0.0")
 		require.NoError(t, err)
-		assert.Equal(t, expectedItem.ChartDetails, details)
-		assert.Equal(t, expectedItem.RevisionMetadata, metadata)
+		assert.Equal(t, expectedItem, details)
 		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalGets: 1, ExternalSets: 1})
 	})
 
 	t.Run("SetRevisionChartDetails", func(t *testing.T) {
 		fixtures := newFixtures()
 		t.Cleanup(fixtures.mockCache.StopRedisCallback)
-		expectedItem := &ChartDetailsWithMetadata{
-			ChartDetails: &v1alpha1.ChartDetails{
-				Description: "test-chart",
-				Home:        "v1.0.0",
-				Maintainers: []string{"test-maintainer"},
-			},
-			RevisionMetadata: &versions.RevisionMetadata{
-				OriginalRevision: "test-revision",
-				ResolutionType:   versions.RevisionResolutionDirect,
-				ResolvedTag:      "test-tag",
-			},
+		expectedItem := &v1alpha1.ChartDetails{
+			Description: "test-chart",
+			Home:        "v1.0.0",
+			Maintainers: []string{"test-maintainer"},
 		}
-		err := fixtures.cache.SetRevisionChartDetails("test-repo", "test-revision", "v1.0.0", expectedItem.ChartDetails, expectedItem.RevisionMetadata)
+		err := fixtures.cache.SetRevisionChartDetails("test-repo", "test-revision", "v1.0.0", expectedItem)
 		require.NoError(t, err)
-		details, metadata, err := fixtures.cache.GetRevisionChartDetails("test-repo", "test-revision", "v1.0.0")
+		details, err := fixtures.cache.GetRevisionChartDetails("test-repo", "test-revision", "v1.0.0")
 		require.NoError(t, err)
-		assert.Equal(t, expectedItem.ChartDetails, details)
-		assert.Equal(t, expectedItem.RevisionMetadata, metadata)
+		assert.Equal(t, expectedItem, details)
 		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalGets: 1, ExternalSets: 1})
 	})
 }
@@ -773,5 +749,64 @@ func TestGetGitFiles(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, expectedItem, files)
 		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalGets: 1, ExternalSets: 1})
+	})
+}
+
+func TestGetSemverMetadata(t *testing.T) {
+	t.Run("GetSemverMetadata cache miss", func(t *testing.T) {
+		fixtures := newFixtures()
+		t.Cleanup(fixtures.mockCache.StopRedisCallback)
+		metadata, err := fixtures.cache.GetSemverMetadata("test-repo", "test-revision", "v1.0.0")
+		require.ErrorIs(t, err, ErrCacheMiss)
+		assert.Equal(t, &versions.RevisionMetadata{}, metadata)
+	})
+	t.Run("GetSemverMetadata cache hit", func(t *testing.T) {
+		fixtures := newFixtures()
+		t.Cleanup(fixtures.mockCache.StopRedisCallback)
+		expected := &versions.RevisionMetadata{
+			OriginalRevision: "test-revision",
+			ResolutionType:   versions.RevisionResolutionDirect,
+			ResolvedTag:      "v1.0.0",
+		}
+		err := fixtures.cache.SetSemverMetadata("test-repo", "test-revision", "v1.0.0", expected)
+		require.NoError(t, err)
+		metadata, err := fixtures.cache.GetSemverMetadata("test-repo", "test-revision", "v1.0.0")
+		require.NoError(t, err)
+		assert.Equal(t, expected, metadata)
+	})
+	t.Run("GetSemverMetadataForHelm cache miss", func(t *testing.T) {
+		fixtures := newFixtures()
+		t.Cleanup(fixtures.mockCache.StopRedisCallback)
+		metadata, err := fixtures.cache.GetSemverMetadataForHelm("test-repo", "test-chart", "test-revision", "v1.0.0")
+		require.ErrorIs(t, err, ErrCacheMiss)
+		assert.Equal(t, &versions.RevisionMetadata{}, metadata)
+	})
+	t.Run("GetSemverMetadataForHelm cache hit", func(t *testing.T) {
+		fixtures := newFixtures()
+		t.Cleanup(fixtures.mockCache.StopRedisCallback)
+		expected := &versions.RevisionMetadata{
+			OriginalRevision: "test-revision",
+			ResolutionType:   versions.RevisionResolutionDirect,
+			ResolvedTag:      "v1.0.0",
+		}
+		err := fixtures.cache.SetSemverMetadataForHelm("test-repo", "test-chart", "test-revision", "v1.0.0", expected)
+		require.NoError(t, err)
+		metadata, err := fixtures.cache.GetSemverMetadataForHelm("test-repo", "test-chart", "test-revision", "v1.0.0")
+		require.NoError(t, err)
+		assert.Equal(t, expected, metadata)
+	})
+	t.Run("SetSemverMetadataForHelm", func(t *testing.T) {
+		fixtures := newFixtures()
+		t.Cleanup(fixtures.mockCache.StopRedisCallback)
+		expected := &versions.RevisionMetadata{
+			OriginalRevision: "test-revision",
+			ResolutionType:   versions.RevisionResolutionDirect,
+			ResolvedTag:      "v1.0.0",
+		}
+		err := fixtures.cache.SetSemverMetadataForHelm("test-repo", "test-chart", "test-revision", "v1.0.0", expected)
+		require.NoError(t, err)
+		metadata, err := fixtures.cache.GetSemverMetadataForHelm("test-repo", "test-chart", "test-revision", "v1.0.0")
+		require.NoError(t, err)
+		assert.Equal(t, expected, metadata)
 	})
 }
