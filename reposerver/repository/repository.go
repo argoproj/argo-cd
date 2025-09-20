@@ -2465,7 +2465,7 @@ func (s *Service) GetRevisionMetadata(_ context.Context, q *apiclient.RepoServer
 		metadata := &v1alpha1.RevisionMetadata{
 			Author:  semverMetadata.ResolvedTag, // Use the resolved tag as author info
 			Date:    &metav1.Time{},             // No date available from semver metadata
-			Message: fmt.Sprintf("Resolved from constraint: %s", semverMetadata.OriginalRevision),
+			Message: "Resolved from constraint: " + semverMetadata.OriginalRevision,
 			Tags:    []string{semverMetadata.ResolvedTag},
 		}
 		log.Infof("Using cached semver metadata for revision %s: %s", q.Revision, semverMetadata.OriginalRevision)
