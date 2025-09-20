@@ -571,22 +571,42 @@ func (cmr *CachedManifestResponse) generateCacheEntryHash() (string, error) {
 	return base64.URLEncoding.EncodeToString(fnvHash), nil
 }
 
-func semverMetadataKey(repoURL, originalRevision, resolvedTag, commitSHA string) string {
-	return fmt.Sprintf("semver|%s|%s|%s|%s", repoURL, originalRevision, resolvedTag, commitSHA)
+func semverMetadataKey(repoURL string, commitSHA string, targetRevision string) string {
+	return fmt.Sprintf("semver|%s|%s|%s", repoURL, commitSHA, targetRevision)
 }
 
-func (c *Cache) GetSemverMetadata(repoURL, originalRevision, resolvedTag, commitSHA string) (*versions.RevisionMetadata, error) {
+func semverMetadataHelmKey(repoURL string, chart string, commitSHA string, targetRevision string) string {
+	return fmt.Sprintf("semver|%s|%s|%s|%s", repoURL, chart, commitSHA, targetRevision)
+}
+
+func (c *Cache) GetSemverMetadata(repoURL string, commitSHA string, targetRevision string) (*versions.RevisionMetadata, error) {
 	item := &SemverResolutionMetadata{}
-	err := c.cache.GetItem(semverMetadataKey(repoURL, originalRevision, resolvedTag, commitSHA), item)
+	err := c.cache.GetItem(semverMetadataKey(repoURL, commitSHA, targetRevision), item)
 	if err != nil {
 		return nil, err
 	}
 	return item.RevisionMetadata, nil
 }
 
-func (c *Cache) SetSemverMetadata(repoURL, originalRevision, resolvedTag, commitSHA string, metadata *versions.RevisionMetadata) error {
+func (c *Cache) GetSemverMetadataForHelm(repoURL string, chart string, commitSHA string, targetRevision string) (*versions.RevisionMetadata, error) {
+	item := &SemverResolutionMetadata{}
+	err := c.cache.GetItem(semverMetadataHelmKey(repoURL, chart, commitSHA, targetRevision), item)
+	if err != nil {
+		return nil, err
+	}
+	return item.RevisionMetadata, nil
+}
+
+func (c *Cache) SetSemverMetadata(repoURL string, commitSHA string, targetRevision string, metadata *versions.RevisionMetadata) error {
 	return c.cache.SetItem(
-		semverMetadataKey(repoURL, originalRevision, resolvedTag, commitSHA),
+		semverMetadataKey(repoURL, commitSHA, targetRevision),
 		&SemverResolutionMetadata{RevisionMetadata: metadata},
-		&cacheutil.CacheActionOpts{Expiration: c.revisionCacheExpiration}) // Use shorter expiration for fresher semver metadata
+		&cacheutil.CacheActionOpts{Expiration: c.repoCacheExpiration})
+}
+
+func (c *Cache) SetSemverMetadataForHelm(repoURL string, chart string, commitSHA string, targetRevision string, metadata *versions.RevisionMetadata) error {
+	return c.cache.SetItem(
+		semverMetadataHelmKey(repoURL, chart, commitSHA, targetRevision),
+		&SemverResolutionMetadata{RevisionMetadata: metadata},
+		&cacheutil.CacheActionOpts{Expiration: c.repoCacheExpiration})
 }

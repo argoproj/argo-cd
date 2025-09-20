@@ -234,7 +234,7 @@ func (s *Service) ListRefs(_ context.Context, q *apiclient.ListRefsRequest) (*ap
 
 // ListApps lists the contents of a GitHub repo
 func (s *Service) ListApps(ctx context.Context, q *apiclient.ListAppsRequest) (*apiclient.AppList, error) {
-	gitClient, commitSHA, _, err := s.newClientResolveRevisionWithMetadata(q.Repo, q.Revision)
+	gitClient, commitSHA, _, err := s.newClientResolveRevisionWithMetadata(q.Repo, q.Revision, q.Revision)
 	if err != nil {
 		return nil, fmt.Errorf("error setting up git client and resolving given revision: %w", err)
 	}
@@ -341,9 +341,9 @@ func (s *Service) runRepoOperation(
 
 	switch {
 	case source.IsOCI():
-		ociClient, revision, revisionMetadata, err = s.newOCIClientResolveRevision(ctx, repo, revision, settings.noCache || settings.noRevisionCache)
+		ociClient, revision, revisionMetadata, err = s.newOCIClientResolveRevision(ctx, repo, revision, source.TargetRevision, settings.noCache || settings.noRevisionCache)
 	case source.IsHelm():
-		helmClient, revision, revisionMetadata, err = s.newHelmClientResolveRevision(repo, revision, source.Chart, settings.noCache || settings.noRevisionCache)
+		helmClient, revision, revisionMetadata, err = s.newHelmClientResolveRevision(repo, revision, source.Chart, source.TargetRevision, settings.noCache || settings.noRevisionCache)
 	default:
 		// Determine revision resolution strategy
 		switch {
@@ -358,7 +358,6 @@ func (s *Service) runRepoOperation(
 			switch {
 			case err == nil && currentRevision != revision:
 				// Constraint resolves to a different commit now - use normal resolution path for fresh data
-				gitClient, revision, revisionMetadata, err = s.newClientResolveRevisionWithMetadata(repo, source.TargetRevision, gitClientOpts)
 				if err != nil {
 					return err
 				}
@@ -382,7 +381,7 @@ func (s *Service) runRepoOperation(
 			revisionMetadata = revisionMetadata.WithResolvedTag(revision)
 		default:
 			// Need to resolve the revision
-			gitClient, revision, revisionMetadata, err = s.newClientResolveRevisionWithMetadata(repo, revision, gitClientOpts)
+			gitClient, revision, revisionMetadata, err = s.newClientResolveRevisionWithMetadata(repo, revision, source.TargetRevision, gitClientOpts)
 		}
 	}
 
@@ -450,7 +449,7 @@ func (s *Service) runRepoOperation(
 
 		return operation(ociPath, revision, revision, func() (*operationContext, error) {
 			return &operationContext{appPath, ""}, nil
-		}, nil)
+		}, revisionMetadata)
 	} else if source.IsHelm() {
 		if settings.noCache {
 			err = helmClient.CleanChartCache(source.Chart, revision)
@@ -485,7 +484,7 @@ func (s *Service) runRepoOperation(
 		}
 		return operation(chartPath, revision, revision, func() (*operationContext, error) {
 			return &operationContext{chartPath, ""}, nil
-		}, nil)
+		}, revisionMetadata)
 	}
 	closer, err := s.repoLock.Lock(gitClient.Root(), revision, settings.allowConcurrent, func() (goio.Closer, error) {
 		return s.checkoutRevision(gitClient, revision, s.initConstants.SubmoduleEnabled)
@@ -628,7 +627,7 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 	// Skip this path for ref only sources
 	if q.HasMultipleSources && q.ApplicationSource.Path == "" && !q.ApplicationSource.IsOCI() && !q.ApplicationSource.IsHelm() && q.ApplicationSource.IsRef() {
 		log.Debugf("Skipping manifest generation for ref only source for application: %s and ref %s", q.AppName, q.ApplicationSource.Ref)
-		_, revision, _, err := s.newClientResolveRevisionWithMetadata(q.Repo, q.Revision, git.WithCache(s.cache, !q.NoRevisionCache && !q.NoCache))
+		_, revision, _, err := s.newClientResolveRevisionWithMetadata(q.Repo, q.Revision, q.ApplicationSource.TargetRevision, git.WithCache(s.cache, !q.NoRevisionCache && !q.NoCache))
 		res = &apiclient.ManifestResponse{
 			Revision: revision,
 		}
@@ -2495,7 +2494,22 @@ func (s *Service) GetRevisionMetadata(_ context.Context, q *apiclient.RepoServer
 		}
 	}
 
-	gitClient, _, _, err := s.newClientResolveRevisionWithMetadata(q.Repo, q.Revision)
+	// First check if we have semver metadata cached for this revision
+	// This preserves constraint information when we have a resolved revision
+	if semverMetadata, err := s.cache.GetSemverMetadata(q.Repo.Repo, q.Revision, q.Revision); err == nil {
+		// We found cached semver metadata - create a synthetic revision metadata response
+		// This preserves the original constraint information without needing a git client
+		metadata := &v1alpha1.RevisionMetadata{
+			Author:  semverMetadata.ResolvedTag, // Use the resolved tag as author info
+			Date:    &metav1.Time{},             // No date available from semver metadata
+			Message: fmt.Sprintf("Resolved from constraint: %s", semverMetadata.OriginalRevision),
+			Tags:    []string{semverMetadata.ResolvedTag},
+		}
+		log.Infof("Using cached semver metadata for revision %s: %s", q.Revision, semverMetadata.OriginalRevision)
+		return metadata, nil
+	}
+
+	gitClient, _, _, err := s.newClientResolveRevisionWithMetadata(q.Repo, q.Revision, q.Revision)
 	if err != nil {
 		return nil, err
 	}
@@ -2597,7 +2611,7 @@ func (s *Service) GetRevisionChartDetails(_ context.Context, q *apiclient.RepoSe
 	} else {
 		log.Warnf("revision metadata cache error %s/%s/%s: %v", q.Repo.Repo, q.Name, q.Revision, err)
 	}
-	helmClient, revision, metadata, err := s.newHelmClientResolveRevision(q.Repo, q.Revision, q.Name, true)
+	helmClient, revision, metadata, err := s.newHelmClientResolveRevision(q.Repo, q.Revision, q.Name, q.Revision, true)
 	if err != nil {
 		return nil, fmt.Errorf("helm client error: %w", err)
 	}
@@ -2655,7 +2669,22 @@ func (s *Service) newClientResolveRevision(repo *v1alpha1.Repository, revision s
 }
 
 // newClientResolveRevisionWithMetadata is a helper that also returns revision resolution metadata
-func (s *Service) newClientResolveRevisionWithMetadata(repo *v1alpha1.Repository, revision string, opts ...git.ClientOpts) (git.Client, string, *versions.RevisionMetadata, error) {
+func (s *Service) newClientResolveRevisionWithMetadata(repo *v1alpha1.Repository, revision string, targetRevision string, opts ...git.ClientOpts) (git.Client, string, *versions.RevisionMetadata, error) {
+	// First check if we already have semver metadata cached for this revision
+	// This can happen when the revision is already resolved (e.g., a commit SHA)
+	// but we want to preserve the original constraint information
+	if git.IsCommitSHA(revision) {
+		if semverMetadata, err := s.cache.GetSemverMetadata(repo.Repo, revision, targetRevision); err == nil {
+			// We found cached semver metadata - create a client and return the cached metadata
+			gitClient, err := s.newClient(repo, opts...)
+			if err != nil {
+				return nil, "", nil, err
+			}
+			return gitClient, revision, semverMetadata, nil
+		}
+		// If cache miss, continue with normal resolution
+	}
+
 	gitClient, err := s.newClient(repo, opts...)
 	if err != nil {
 		return nil, "", nil, err
@@ -2668,21 +2697,34 @@ func (s *Service) newClientResolveRevisionWithMetadata(repo *v1alpha1.Repository
 
 	// Cache semver metadata immediately when we resolve a constraint (e.g., "^v1.0.0", "v*")
 	// This is necessary because:
-	// 1. Application controller may call ResolveRevision API which doesn't return metadata
+	// 1. Application controller may call ResolveRevision API which doesn't return metadata, and store this in the Application CRD
 	// 2. Later, GenerateManifest gets called with the resolved commit SHA
 	// 3. Without this cache, the commit SHA triggers "direct" resolution, losing semver info
 	// 4. By caching here, GenerateManifest can retrieve the original constraint metadata
-	//
-	// Cache semver constraint metadata for later retrieval during manifest generation
-	if metadata != nil && metadata.ResolutionType == versions.RevisionResolutionRange {
-		if err := s.cache.SetSemverMetadata(repo.Repo, revision, metadata.ResolvedTag, commitSHA, metadata); err != nil {
+	if metadata != nil {
+		if err := s.cache.SetSemverMetadata(repo.Repo, commitSHA, targetRevision, metadata); err != nil {
 			log.Warnf("Failed to cache semver metadata: %v", err)
 		}
 	}
 	return gitClient, commitSHA, metadata, nil
 }
 
-func (s *Service) newOCIClientResolveRevision(ctx context.Context, repo *v1alpha1.Repository, revision string, noRevisionCache bool) (oci.Client, string, *versions.RevisionMetadata, error) {
+func (s *Service) newOCIClientResolveRevision(ctx context.Context, repo *v1alpha1.Repository, revision string, targetRevision string, noRevisionCache bool) (oci.Client, string, *versions.RevisionMetadata, error) {
+	// First check if we already have semver metadata cached for this revision
+	// This can happen when the revision is already resolved (e.g., a digest)
+	// but we want to preserve the original constraint information
+	if strings.HasPrefix(revision, "sha256:") || versions.IsVersion(revision) {
+		if semverMetadata, err := s.cache.GetSemverMetadata(repo.Repo, revision, targetRevision); err == nil {
+			// We found cached semver metadata - create a client and return the cached metadata
+			ociClient, err := s.newOCIClient(repo.Repo, repo.GetOCICreds(), repo.Proxy, repo.NoProxy, s.initConstants.OCIMediaTypes, oci.WithIndexCache(s.cache), oci.WithImagePaths(s.ociPaths), oci.WithManifestMaxExtractedSize(s.initConstants.OCIManifestMaxExtractedSize), oci.WithDisableManifestMaxExtractedSize(s.initConstants.DisableOCIManifestMaxExtractedSize))
+			if err != nil {
+				return nil, "", nil, fmt.Errorf("failed to initialize oci client: %w", err)
+			}
+			return ociClient, revision, semverMetadata, nil
+		}
+		// If cache miss, continue with normal resolution
+	}
+
 	ociClient, err := s.newOCIClient(repo.Repo, repo.GetOCICreds(), repo.Proxy, repo.NoProxy, s.initConstants.OCIMediaTypes, oci.WithIndexCache(s.cache), oci.WithImagePaths(s.ociPaths), oci.WithManifestMaxExtractedSize(s.initConstants.OCIManifestMaxExtractedSize), oci.WithDisableManifestMaxExtractedSize(s.initConstants.DisableOCIManifestMaxExtractedSize))
 	if err != nil {
 		return nil, "", nil, fmt.Errorf("failed to initialize oci client: %w", err)
@@ -2696,14 +2738,27 @@ func (s *Service) newOCIClientResolveRevision(ctx context.Context, repo *v1alpha
 	// Cache semver constraint metadata for later retrieval during manifest generation
 	// But respect cache bypass parameters (don't cache during hard refresh)
 	if revisionMetadata != nil && revisionMetadata.ResolutionType == versions.RevisionResolutionRange && !noRevisionCache {
-		if err := s.cache.SetSemverMetadata(repo.Repo, revision, revisionMetadata.ResolvedTag, digest, revisionMetadata); err != nil {
+		if err := s.cache.SetSemverMetadata(repo.Repo, digest, targetRevision, revisionMetadata); err != nil {
 			log.Warnf("Failed to cache semver metadata: %v", err)
 		}
 	}
 	return ociClient, digest, revisionMetadata, nil
 }
 
-func (s *Service) newHelmClientResolveRevision(repo *v1alpha1.Repository, revision string, chart string, noRevisionCache bool) (helm.Client, string, *versions.RevisionMetadata, error) {
+func (s *Service) newHelmClientResolveRevision(repo *v1alpha1.Repository, revision string, chart string, targetRevision string, noRevisionCache bool) (helm.Client, string, *versions.RevisionMetadata, error) {
+	// First check if we already have semver metadata cached for this revision
+	// This can happen when the revision is already resolved (e.g., a version)
+	// but we want to preserve the original constraint information
+	if versions.IsVersion(revision) {
+		if semverMetadata, err := s.cache.GetSemverMetadataForHelm(repo.Repo, chart, revision, targetRevision); err == nil {
+			// We found cached semver metadata - create a client and return the cached metadata
+			enableOCI := repo.EnableOCI || helm.IsHelmOciRepo(repo.Repo)
+			helmClient := s.newHelmClient(repo.Repo, repo.GetHelmCreds(), enableOCI, repo.Proxy, repo.NoProxy, helm.WithIndexCache(s.cache), helm.WithChartPaths(s.chartPaths))
+			return helmClient, revision, semverMetadata, nil
+		}
+		// If cache miss, continue with normal resolution
+	}
+
 	enableOCI := repo.EnableOCI || helm.IsHelmOciRepo(repo.Repo)
 	helmClient := s.newHelmClient(repo.Repo, repo.GetHelmCreds(), enableOCI, repo.Proxy, repo.NoProxy, helm.WithIndexCache(s.cache), helm.WithChartPaths(s.chartPaths))
 	metadata := versions.NewRevisionMetadata(revision, versions.RevisionResolutionDirect)
@@ -2740,7 +2795,7 @@ func (s *Service) newHelmClientResolveRevision(repo *v1alpha1.Repository, revisi
 	// Cache semver constraint metadata for later retrieval during manifest generation
 	// But respect cache bypass parameters (don't cache during hard refresh)
 	if metadata != nil && metadata.ResolutionType == versions.RevisionResolutionRange && !noRevisionCache {
-		if err := s.cache.SetSemverMetadata(repo.Repo, revision, metadata.ResolvedTag, maxV, metadata); err != nil {
+		if err := s.cache.SetSemverMetadataForHelm(repo.Repo, chart, maxV, targetRevision, metadata); err != nil {
 			log.Warnf("Failed to cache semver metadata: %v", err)
 		}
 	}
@@ -2927,13 +2982,13 @@ func (s *Service) ResolveRevision(ctx context.Context, q *apiclient.ResolveRevis
 	source := app.Spec.GetSourcePtrByIndex(int(q.SourceIndex))
 
 	if source.IsOCI() {
-		_, revision, metadata, err := s.newOCIClientResolveRevision(ctx, repo, ambiguousRevision, true)
+		_, revision, metadata, err := s.newOCIClientResolveRevision(ctx, repo, ambiguousRevision, source.TargetRevision, true)
 		if err != nil {
 			return &apiclient.ResolveRevisionResponse{Revision: "", AmbiguousRevision: ""}, err
 		}
 		// Cache the semver metadata for later use during manifest generation
 		if metadata != nil {
-			if err := s.cache.SetSemverMetadata(repo.Repo, ambiguousRevision, metadata.ResolvedTag, revision, metadata); err != nil {
+			if err := s.cache.SetSemverMetadata(repo.Repo, revision, source.TargetRevision, metadata); err != nil {
 				log.Warnf("Failed to cache semver metadata: %v", err)
 			}
 		}
@@ -2944,13 +2999,13 @@ func (s *Service) ResolveRevision(ctx context.Context, q *apiclient.ResolveRevis
 	}
 
 	if source.IsHelm() {
-		_, revision, metadata, err := s.newHelmClientResolveRevision(repo, ambiguousRevision, source.Chart, true)
+		_, revision, metadata, err := s.newHelmClientResolveRevision(repo, ambiguousRevision, source.Chart, source.TargetRevision, true)
 		if err != nil {
 			return &apiclient.ResolveRevisionResponse{Revision: "", AmbiguousRevision: ""}, err
 		}
 		// Cache the semver metadata for later use during manifest generation
 		if metadata != nil {
-			if err := s.cache.SetSemverMetadata(repo.Repo, ambiguousRevision, metadata.ResolvedTag, revision, metadata); err != nil {
+			if err := s.cache.SetSemverMetadataForHelm(repo.Repo, source.Chart, revision, source.TargetRevision, metadata); err != nil {
 				log.Warnf("Failed to cache semver metadata: %v", err)
 			}
 		}
@@ -2959,13 +3014,13 @@ func (s *Service) ResolveRevision(ctx context.Context, q *apiclient.ResolveRevis
 			AmbiguousRevision: fmt.Sprintf("%v (%v)", ambiguousRevision, revision),
 		}, nil
 	}
-	_, revision, metadata, err := s.newClientResolveRevisionWithMetadata(repo, ambiguousRevision)
+	_, revision, metadata, err := s.newClientResolveRevisionWithMetadata(repo, ambiguousRevision, source.TargetRevision)
 	if err != nil {
 		return &apiclient.ResolveRevisionResponse{Revision: "", AmbiguousRevision: ""}, err
 	}
 	// Cache the semver metadata for later use during manifest generation
 	if metadata != nil {
-		if err := s.cache.SetSemverMetadata(repo.Repo, ambiguousRevision, metadata.ResolvedTag, revision, metadata); err != nil {
+		if err := s.cache.SetSemverMetadata(repo.Repo, revision, source.TargetRevision, metadata); err != nil {
 			log.Warnf("Failed to cache semver metadata: %v", err)
 		}
 	}
@@ -2989,7 +3044,7 @@ func (s *Service) GetGitFiles(_ context.Context, request *apiclient.GitFilesRequ
 		return nil, status.Error(codes.InvalidArgument, "must pass a valid repo")
 	}
 
-	gitClient, revision, _, err := s.newClientResolveRevisionWithMetadata(repo, revision, git.WithCache(s.cache, !noRevisionCache))
+	gitClient, revision, _, err := s.newClientResolveRevisionWithMetadata(repo, revision, revision, git.WithCache(s.cache, !noRevisionCache))
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "unable to resolve git revision %s: %v", revision, err)
 	}
@@ -3071,7 +3126,7 @@ func (s *Service) GetGitDirectories(_ context.Context, request *apiclient.GitDir
 		return nil, status.Error(codes.InvalidArgument, "must pass a valid repo")
 	}
 
-	gitClient, revision, _, err := s.newClientResolveRevisionWithMetadata(repo, revision, git.WithCache(s.cache, !noRevisionCache))
+	gitClient, revision, _, err := s.newClientResolveRevisionWithMetadata(repo, revision, revision, git.WithCache(s.cache, !noRevisionCache))
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "unable to resolve git revision %s: %v", revision, err)
 	}
@@ -3163,7 +3218,7 @@ func (s *Service) UpdateRevisionForPaths(_ context.Context, request *apiclient.U
 	}
 
 	gitClientOpts := git.WithCache(s.cache, !request.NoRevisionCache)
-	gitClient, revision, _, err := s.newClientResolveRevisionWithMetadata(repo, revision, gitClientOpts)
+	gitClient, revision, _, err := s.newClientResolveRevisionWithMetadata(repo, revision, revision, gitClientOpts)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "unable to resolve git revision %s: %v", revision, err)
 	}

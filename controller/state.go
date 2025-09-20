@@ -349,8 +349,9 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 	return targetObjs, manifestInfos, revisionsMayHaveChanges, nil
 }
 
+// TODO: This is unused?
 // ResolveGitRevision will resolve the given revision to a full commit SHA. Only works for git.
-func (m *appStateManager) ResolveGitRevision(repoURL string, revision string) (string, error) {
+func (m *appStateManager) ResolveGitRevision(repoURL string, revision string, appName string, appNamespace string) (string, error) {
 	conn, repoClient, err := m.repoClientset.NewRepoServerClient()
 	if err != nil {
 		return "", fmt.Errorf("failed to connect to repo server: %w", err)
@@ -362,8 +363,12 @@ func (m *appStateManager) ResolveGitRevision(repoURL string, revision string) (s
 		return "", fmt.Errorf("failed to get repo %q: %w", repoURL, err)
 	}
 
-	// Mock the app. The repo-server only needs to know whether the "chart" field is populated.
+	// Mock the app. The repo-server needs to keep track of the resolved revision for this specific application to retain metadata for the manifest generation.
 	app := &v1alpha1.Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      appName,
+			Namespace: appNamespace,
+		},
 		Spec: v1alpha1.ApplicationSpec{
 			Source: &v1alpha1.ApplicationSource{
 				RepoURL:        repoURL,
