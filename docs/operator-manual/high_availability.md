@@ -2,7 +2,7 @@
 
 Argo CD is largely stateless. All data is persisted as Kubernetes objects, which in turn is stored in Kubernetes' etcd. Redis is only used as a throw-away cache and can be lost. When lost, it will be rebuilt without loss of service.
 
-A set of [HA manifests](https://github.com/argoproj/argo-cd/tree/master/manifests/ha) are provided for users who wish to run Argo CD in a highly available manner. This runs more containers, and runs Redis in HA mode.
+A set of [HA manifests](https://github.com/argoproj/argo-cd/tree/stable/manifests/ha) are provided for users who wish to run Argo CD in a highly available manner. This runs more containers, and runs Redis in HA mode.
 
 !!! note
 
@@ -63,7 +63,7 @@ performance. For performance reasons the controller monitors and caches only the
 preferred version into a version of the resource stored in Git. If `kubectl convert` fails because the conversion is not supported then the controller falls back to Kubernetes API query which slows down
 reconciliation. In this case, we advise to use the preferred resource version in Git.
 
-* The controller polls Git every 3m by default. You can change this duration using the `timeout.reconciliation` and `timeout.reconciliation.jitter` setting in the `argocd-cm` ConfigMap. The value of the fields is a duration string e.g `60s`, `1m`, `1h` or `1d`.
+* The controller polls Git every 3m by default. You can change this duration using the `timeout.reconciliation` and `timeout.reconciliation.jitter` setting in the `argocd-cm` ConfigMap. The value of the fields is a [duration string](https://pkg.go.dev/time#ParseDuration) e.g `60s`, `1m` or `1h`.
 
 * If the controller is managing too many clusters and uses too much memory then you can shard clusters across multiple
 controller replicas. To enable sharding, increase the number of replicas in `argocd-application-controller` `StatefulSet`
@@ -205,7 +205,9 @@ If the manifest generation has no side effects then requests are processed in pa
 ### Manifest Paths Annotation
 
 Argo CD aggressively caches generated manifests and uses the repository commit SHA as a cache key. A new commit to the Git repository invalidates the cache for all applications configured in the repository.
-This can negatively affect repositories with multiple applications. You can use [webhooks](https://github.com/argoproj/argo-cd/blob/master/docs/operator-manual/webhook.md) and the `argocd.argoproj.io/manifest-generate-paths` Application CRD annotation to solve this problem and improve performance.
+This can negatively affect repositories with multiple applications. You can use the `argocd.argoproj.io/manifest-generate-paths` Application CRD annotation to solve this problem and improve performance.
+
+Note: The `argocd.argoproj.io/manifest-generate-paths` annotation is available for use with webhooks. Since Argo CD v2.11, this annotation can also be used **without configuring any webhooks**. Webhooks are not a pre-condition for this feature. You can rely on the annotation alone to optimize manifest generation for all applications.
 
 The `argocd.argoproj.io/manifest-generate-paths` annotation contains a semicolon-separated list of paths within the Git repository that are used during manifest generation. It will use the paths specified in the annotation to compare the last cached revision to the latest commit. If no modified files match the paths specified in `argocd.argoproj.io/manifest-generate-paths`, then it will not trigger application reconciliation and the existing cache will be considered valid for the new commit.
 

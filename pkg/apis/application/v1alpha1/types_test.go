@@ -925,6 +925,42 @@ func TestAppProject_ValidPolicyRules(t *testing.T) {
 	}
 }
 
+// TestRoleGroupExists tests if a group has been defined in the Project role
+func TestRoleGroupExists(t *testing.T) {
+	tests := []struct {
+		name     string
+		role     *ProjectRole
+		expected bool
+	}{
+		{
+			name: "Project role group exists",
+			role: &ProjectRole{
+				Name:        "custom-project-role",
+				Description: "The \"custom-project-role\" will be applied to the `some-user` group.",
+				Groups:      []string{"some-user"},
+				Policies:    []string{"roj:sample-test-project:custom-project-role, applications, *, *, allow"},
+			},
+			expected: true,
+		},
+		{
+			name: "Project role group doesn't exist",
+			role: &ProjectRole{
+				Name:        "custom-project-role",
+				Description: "The \"custom-project-role\" will be applied to the `some-user` group.",
+				Policies:    []string{"roj:sample-test-project:custom-project-role, applications, *, *, allow"},
+			},
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			actual := RoleGroupExists(tt.role)
+			assert.Equal(t, tt.expected, actual)
+		})
+	}
+}
+
 func TestExplicitType(t *testing.T) {
 	src := ApplicationSource{
 		Kustomize: &ApplicationSourceKustomize{
@@ -4704,4 +4740,59 @@ func TestSyncWindow_Hash(t *testing.T) {
 		require.NoError(t, err2)
 		require.Equal(t, hash1, hash2, "windows with same core identity but different metadata should produce same hash")
 	})
+}
+
+func TestSanitized(t *testing.T) {
+	now := metav1.Now()
+	cluster := &Cluster{
+		ID:            "123",
+		Server:        "https://example.com",
+		Name:          "example",
+		ServerVersion: "v1.0.0",
+		Namespaces:    []string{"default", "kube-system"},
+		Project:       "default",
+		Labels: map[string]string{
+			"env": "production",
+		},
+		Annotations: map[string]string{
+			"annotation-key": "annotation-value",
+		},
+		ConnectionState: ConnectionState{
+			Status:     ConnectionStatusSuccessful,
+			Message:    "Connection successful",
+			ModifiedAt: &now,
+		},
+		Config: ClusterConfig{
+			Username:    "admin",
+			Password:    "password123",
+			BearerToken: "abc",
+			TLSClientConfig: TLSClientConfig{
+				Insecure: true,
+			},
+			ExecProviderConfig: &ExecProviderConfig{
+				Command: "test",
+			},
+		},
+	}
+
+	assert.Equal(t, &Cluster{
+		ID:            "123",
+		Server:        "https://example.com",
+		Name:          "example",
+		ServerVersion: "v1.0.0",
+		Namespaces:    []string{"default", "kube-system"},
+		Project:       "default",
+		Labels:        map[string]string{"env": "production"},
+		Annotations:   map[string]string{"annotation-key": "annotation-value"},
+		ConnectionState: ConnectionState{
+			Status:     ConnectionStatusSuccessful,
+			Message:    "Connection successful",
+			ModifiedAt: &now,
+		},
+		Config: ClusterConfig{
+			TLSClientConfig: TLSClientConfig{
+				Insecure: true,
+			},
+		},
+	}, cluster.Sanitized())
 }

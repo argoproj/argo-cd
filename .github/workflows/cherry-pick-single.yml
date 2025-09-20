@@ -1,0 +1,114 @@
+name: Cherry Pick Single
+
+on:
+  workflow_call:
+    inputs:
+      merge_commit_sha:
+        required: true
+        type: string
+        description: "The merge commit SHA to cherry-pick"
+      version_number:
+        required: true
+        type: string
+        description: "The version number (from cherry-pick/ label)"
+      pr_number:
+        required: true
+        type: string
+        description: "The original PR number"
+      pr_title:
+        required: true
+        type: string
+        description: "The original PR title"
+    secrets:
+      CHERRYPICK_APP_ID:
+        required: true
+      CHERRYPICK_APP_PRIVATE_KEY:
+        required: true
+
+jobs:
+  cherry-pick:
+    name: Cherry Pick to ${{ inputs.version_number }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate a token
+        id: generate-token
+        uses: actions/create-github-app-token@a8d616148505b5069dccd32f177bb87d7f39123b # v2.1.1
+        with:
+          app-id: ${{ secrets.CHERRYPICK_APP_ID }}
+          private-key: ${{ secrets.CHERRYPICK_APP_PRIVATE_KEY }}
+
+      - name: Checkout repository
+        uses: actions/checkout@8410ad0602e1e429cee44a835ae9f77f654a6694  # v4.0.0
+        with:
+          fetch-depth: 0
+          token: ${{ steps.generate-token.outputs.token }}
+
+      - name: Configure Git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Cherry pick commit
+        id: cherry-pick
+        run: |
+          set -e
+
+          MERGE_COMMIT="${{ inputs.merge_commit_sha }}"
+          TARGET_BRANCH="release-${{ inputs.version_number }}"
+
+          echo "🍒 Cherry-picking commit $MERGE_COMMIT to branch $TARGET_BRANCH"
+
+          # Check if target branch exists
+          if ! git show-ref --verify --quiet "refs/remotes/origin/$TARGET_BRANCH"; then
+            echo "❌ Target branch '$TARGET_BRANCH' does not exist"
+            exit 1
+          fi
+
+          # Create new branch for cherry-pick
+          CHERRY_PICK_BRANCH="cherry-pick-${{ inputs.pr_number }}-to-${TARGET_BRANCH}"
+          git checkout -b "$CHERRY_PICK_BRANCH" "origin/$TARGET_BRANCH"
+
+          # Perform cherry-pick
+          if git cherry-pick -m 1 "$MERGE_COMMIT"; then
+            echo "✅ Cherry-pick successful"
+
+            # Extract Signed-off-by from the cherry-pick commit
+            SIGNOFF=$(git log -1 --pretty=format:"%B" | grep -E '^Signed-off-by:' || echo "")
+
+            # Push the new branch
+            git push origin "$CHERRY_PICK_BRANCH"
+
+            # Save data for PR creation
+            echo "branch_name=$CHERRY_PICK_BRANCH" >> "$GITHUB_OUTPUT"
+            echo "signoff=$SIGNOFF" >> "$GITHUB_OUTPUT"
+            echo "target_branch=$TARGET_BRANCH" >> "$GITHUB_OUTPUT"
+          else
+            echo "❌ Cherry-pick failed due to conflicts"
+            git cherry-pick --abort
+            exit 1
+          fi
+
+      - name: Create Pull Request
+        run: |
+          # Create cherry-pick PR
+          gh pr create \
+            --title "${{ inputs.pr_title }} (cherry-pick #${{ inputs.pr_number }} for ${{ inputs.version_number }})" \
+            --body "Cherry-picked ${{ inputs.pr_title }} (#${{ inputs.pr_number }})
+
+          ${{ steps.cherry-pick.outputs.signoff }}" \
+            --base "${{ steps.cherry-pick.outputs.target_branch }}" \
+            --head "${{ steps.cherry-pick.outputs.branch_name }}"
+
+          # Comment on original PR
+          gh pr comment ${{ inputs.pr_number }} \
+            --body "🍒 Cherry-pick PR created for ${{ inputs.version_number }}: #$(gh pr list --head ${{ steps.cherry-pick.outputs.branch_name }} --json number --jq '.[0].number')"
+        env:
+          GH_TOKEN: ${{ steps.generate-token.outputs.token }}
+
+      - name: Comment on failure
+        if: failure()
+        run: |
+          gh pr comment ${{ inputs.pr_number }} \
+            --body "❌ Cherry-pick failed for ${{ inputs.version_number }}. Please check the workflow logs for details."
+        env:
+          GH_TOKEN: ${{ steps.generate-token.outputs.token }}

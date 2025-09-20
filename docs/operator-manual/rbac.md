@@ -308,7 +308,7 @@ If omitted, it defaults to `'[groups]'`. The scope value can be a string, or a l
 
 For more information on `scopes` please review the [User Management Documentation](user-management/index.md).
 
-The following example shows targeting `email` as well as `groups` from your OIDC provider.
+The following example shows targeting `email` as well as `groups` from your OIDC provider, and also demonstrates explicit role assignments and role-to-role inheritance:
 
 ```yaml
 apiVersion: v1
@@ -324,12 +324,18 @@ data:
     p, my-org:team-alpha, applications, sync, my-project/*, allow
     g, my-org:team-beta, role:admin
     g, user@example.org, role:admin
+    g, admin, role:admin
+    g, role:admin, role:readonly
   policy.default: role:readonly
   scopes: '[groups, email]'
 ```
 
-This can be useful to associate users' emails and groups directly in AppProject.
+Here:
+1. `g, admin, role:admin` explicitly binds the built-in admin user to the admin role.
+2. `g, role:admin, role:readonly` shows role inheritance, so anyone granted `role:admin` also automatically has all the permissions of      
+   `role:readonly`.
 
+This approach can be combined with AppProjects to associate users' emails and groups directly at the project level:
 ```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: AppProject
