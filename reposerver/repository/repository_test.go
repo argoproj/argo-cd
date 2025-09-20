@@ -1986,14 +1986,19 @@ func Test_getPluginEnvs_TraceContext(t *testing.T) {
 			TargetRevision: "my-target-revision",
 		},
 	})
-
 	require.NoError(t, err)
-	assert.Equal(t, []string{
-		"KUBE_VERSION=1.34.0",
-		"KUBE_API_VERSIONS=",
-		"TRACEPARENT=00-0123456789abcdef0123456789abcdef-0123456789abcdef-01",
+
+	expected := []string{
 		"BAGGAGE=test-key=test-value",
-	}, envs)
+		"TRACEPARENT=00-0123456789abcdef0123456789abcdef-0123456789abcdef-01",
+		"KUBE_API_VERSIONS=",
+		"KUBE_VERSION=1.34.0",
+	}
+	actual := envs
+	slices.Sort(expected)
+	slices.Sort(actual)
+
+	assert.Equal(t, actual, expected)
 }
 
 func TestService_newHelmClientResolveRevision(t *testing.T) {
