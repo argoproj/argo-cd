@@ -1438,7 +1438,12 @@ func TestSetOperationStateLogRetries(t *testing.T) {
 	})
 	ctrl.setOperationState(newFakeApp(), &v1alpha1.OperationState{Phase: synccommon.OperationSucceeded})
 	assert.True(t, patched)
-	assert.Contains(t, hook.Entries[0].Message, "fake error")
+	require.GreaterOrEqual(t, len(hook.Entries), 1)
+	entry := hook.Entries[0]
+	require.Contains(t, entry.Data, "error")
+	errorVal, ok := entry.Data["error"].(error)
+	require.True(t, ok, "error field should be of type error")
+	assert.Contains(t, errorVal.Error(), "fake error")
 }
 
 func TestNeedRefreshAppStatus(t *testing.T) {
