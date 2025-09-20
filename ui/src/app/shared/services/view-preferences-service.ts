@@ -1,8 +1,8 @@
 import * as deepMerge from 'deepmerge';
-import {BehaviorSubject, Observable} from 'rxjs';
+import { BehaviorSubject, Observable } from 'rxjs';
 
-import {PodGroupType} from '../../applications/components/application-pod-view/pod-view';
-import {UserMessages} from '../models';
+import { PodGroupType } from '../../applications/components/application-pod-view/pod-view';
+import { UserMessages } from '../models';
 
 export type AppsDetailsViewType = 'tree' | 'network' | 'list' | 'pods';
 
@@ -54,15 +54,12 @@ export enum AppsListViewKey {
 
 export class AppsListPreferences {
     public static countEnabledFilters(pref: AppsListPreferences) {
-        return [pref.clustersFilter, pref.healthFilter, pref.labelsFilter, pref.namespacesFilter, pref.projectsFilter, pref.syncFilter].reduce(
-            (count, filter) => {
-                if (filter && filter.length > 0) {
-                    return count + 1;
-                }
-                return count;
-            },
-            0
-        );
+        return [pref.clustersFilter, pref.healthFilter, pref.labelsFilter, pref.namespacesFilter, pref.projectsFilter, pref.syncFilter].reduce((count, filter) => {
+            if (filter && filter.length > 0) {
+                return count + 1;
+            }
+            return count;
+        }, 0);
     }
 
     public static clearFilters(pref: AppsListPreferences) {
@@ -94,8 +91,8 @@ export interface ViewPreferences {
     version: number;
     appDetails: AppDetailsPreferences;
     appList: AppsListPreferences;
-    pageSizes: {[key: string]: number};
-    sortOptions?: {[key: string]: string};
+    pageSizes: { [key: string]: number };
+    sortOptions?: { [key: string]: string };
     hideBannerContent: string;
     hideSidebar: boolean;
     position: string;
@@ -169,7 +166,7 @@ export class ViewPreferencesService {
     }
 
     public updatePreferences(change: Partial<ViewPreferences>) {
-        const nextPref = Object.assign({}, this.preferencesSubj.getValue(), change, {version: minVer});
+        const nextPref = Object.assign({}, this.preferencesSubj.getValue(), change, { version: minVer });
         window.localStorage.setItem(VIEW_PREFERENCES_KEY, JSON.stringify(nextPref));
         this.preferencesSubj.next(nextPref);
     }
