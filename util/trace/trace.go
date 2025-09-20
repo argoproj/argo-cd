@@ -67,7 +67,10 @@ func InitTracer(ctx context.Context, serviceName, otlpAddress string, otlpInsecu
 	)
 
 	// set global propagator to tracecontext (the default is no-op).
-	otel.SetTextMapPropagator(propagation.TraceContext{})
+	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(
+		propagation.TraceContext{},
+		propagation.Baggage{},
+	))
 	otel.SetTracerProvider(provider)
 
 	return func() {

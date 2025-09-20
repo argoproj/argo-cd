@@ -23,6 +23,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/baggage"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -1946,8 +1947,13 @@ func Test_newEnv(t *testing.T) {
 }
 
 func Test_getPluginEnvs_TraceContext(t *testing.T) {
+	ctx := t.Context()
+
 	// this is set by calling trace.InitTracer() in startup but in test it's easier to just set it here.
-	otel.SetTextMapPropagator(propagation.TraceContext{})
+	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(
+		propagation.TraceContext{},
+		propagation.Baggage{},
+	))
 	// hacky way to create a valid span context. (noopProvider exists, but it always use invalid one so we can't use it)
 	tid, _ := trace.TraceIDFromHex("0123456789abcdef0123456789abcdef")
 	sid, _ := trace.SpanIDFromHex("0123456789abcdef")
@@ -1958,8 +1964,16 @@ func Test_getPluginEnvs_TraceContext(t *testing.T) {
 		Remote:     true,
 	})
 	assert.True(t, tc.IsValid())
+	ctx = trace.ContextWithSpanContext(ctx, tc)
 
-	ctx := trace.ContextWithSpanContext(t.Context(), tc)
+	// setup baggage for testing
+	testMember, err := baggage.NewMember("test-key", "test-value")
+	assert.NoError(t, err)
+	bg, err := baggage.New(testMember)
+	assert.NoError(t, err)
+	ctx = baggage.ContextWithBaggage(ctx, bg)
+
+	// run the test
 	envs, err := getPluginEnvs(ctx, &v1alpha1.Env{}, &apiclient.ManifestRequest{
 		KubeVersion: "1.34.0",
 		ApiVersions: []string{},
@@ -1978,6 +1992,7 @@ func Test_getPluginEnvs_TraceContext(t *testing.T) {
 	assert.Equal(t, envs, []string{
 		"KUBE_VERSION=1.34.0",
 		"KUBE_API_VERSIONS=",
+		"BAGGAGE=test-key=test-value",
 		"TRACEPARENT=00-0123456789abcdef0123456789abcdef-0123456789abcdef-01",
 	})
 }
