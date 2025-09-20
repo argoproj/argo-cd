@@ -345,44 +345,7 @@ func (s *Service) runRepoOperation(
 	case source.IsHelm():
 		helmClient, revision, revisionMetadata, err = s.newHelmClientResolveRevision(repo, revision, source.Chart, source.TargetRevision, settings.noCache || settings.noRevisionCache)
 	default:
-		// Determine revision resolution strategy
-		switch {
-		case git.IsCommitSHA(revision) && source.TargetRevision != "" && source.TargetRevision != revision:
-			// Create temporary git client to validate constraint freshness
-			tempGitClient, err := s.newClient(repo, gitClientOpts)
-			if err != nil {
-				return err
-			}
-			// Re-resolve the original constraint to check if it still points to this commit
-			currentRevision, currentMetadata, err := tempGitClient.LsRemote(source.TargetRevision)
-			switch {
-			case err == nil && currentRevision != revision:
-				// Constraint resolves to a different commit now - use normal resolution path for fresh data
-				if err != nil {
-					return err
-				}
-			case err == nil:
-				// Constraint still resolves to this commit - use the temp client and fresh metadata
-				gitClient = tempGitClient
-				revisionMetadata = currentMetadata
-			default:
-				// Fallback to direct metadata if resolution fails
-				gitClient = tempGitClient
-				revisionMetadata = versions.NewRevisionMetadata(revision, versions.RevisionResolutionDirect)
-				revisionMetadata = revisionMetadata.WithResolvedTag(revision)
-			}
-		case git.IsCommitSHA(revision):
-			// Already resolved and no constraint to validate - create git client without re-resolving
-			gitClient, err = s.newClient(repo, gitClientOpts)
-			if err != nil {
-				return err
-			}
-			revisionMetadata = versions.NewRevisionMetadata(revision, versions.RevisionResolutionDirect)
-			revisionMetadata = revisionMetadata.WithResolvedTag(revision)
-		default:
-			// Need to resolve the revision
-			gitClient, revision, revisionMetadata, err = s.newClientResolveRevisionWithMetadata(repo, revision, source.TargetRevision, gitClientOpts)
-		}
+		gitClient, revision, revisionMetadata, err = s.newClientResolveRevisionWithMetadata(repo, revision, source.TargetRevision, gitClientOpts)
 	}
 
 	if err != nil {
@@ -2601,7 +2564,7 @@ func (s *Service) GetOCIMetadata(ctx context.Context, q *apiclient.RepoServerRev
 
 // GetRevisionChartDetails returns the helm chart details of a given version
 func (s *Service) GetRevisionChartDetails(_ context.Context, q *apiclient.RepoServerRevisionChartDetailsRequest) (*v1alpha1.ChartDetails, error) {
-	details, _, err := s.cache.GetRevisionChartDetails(q.Repo.Repo, q.Name, q.Revision)
+	details, err := s.cache.GetRevisionChartDetails(q.Repo.Repo, q.Name, q.Revision)
 	if err == nil {
 		log.Infof("revision chart details cache hit: %s/%s/%s", q.Repo.Repo, q.Name, q.Revision)
 		return details, nil
@@ -2611,7 +2574,7 @@ func (s *Service) GetRevisionChartDetails(_ context.Context, q *apiclient.RepoSe
 	} else {
 		log.Warnf("revision metadata cache error %s/%s/%s: %v", q.Repo.Repo, q.Name, q.Revision, err)
 	}
-	helmClient, revision, metadata, err := s.newHelmClientResolveRevision(q.Repo, q.Revision, q.Name, q.Revision, true)
+	helmClient, revision, _, err := s.newHelmClientResolveRevision(q.Repo, q.Revision, q.Name, q.Revision, true)
 	if err != nil {
 		return nil, fmt.Errorf("helm client error: %w", err)
 	}
@@ -2633,7 +2596,7 @@ func (s *Service) GetRevisionChartDetails(_ context.Context, q *apiclient.RepoSe
 	if err != nil {
 		return nil, fmt.Errorf("error getting chart details: %w", err)
 	}
-	_ = s.cache.SetRevisionChartDetails(q.Repo.Repo, q.Name, q.Revision, details, metadata)
+	_ = s.cache.SetRevisionChartDetails(q.Repo.Repo, q.Name, q.Revision, details)
 	return details, nil
 }
 
