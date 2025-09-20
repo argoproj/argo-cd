@@ -351,9 +351,16 @@ type importOpts struct {
 	applicationsetNamespaces []string
 }
 
-func (opts *importOpts) executeImport(ctx context.Context, bakObjs []*unstructured.Unstructured, pruneObjects map[kube.ResourceKey]unstructured.Unstructured, client dynamic.Interface, namespace string, dryRunMsg string) ([]*unstructured.Unstructured, error) {
+func (opts *importOpts) executeImport(
+	ctx context.Context,
+	bakObjs []*unstructured.Unstructured,
+	pruneObjects map[kube.ResourceKey]unstructured.Unstructured,
+	client dynamic.Interface,
+	namespace string,
+	dryRunMsg string,
+) ([]*unstructured.Unstructured, error) {
+	var appliedObjs []*unstructured.Unstructured
 	var err error
-	appliedObjs := make([]*unstructured.Unstructured, 0)
 
 	for _, bakObj := range bakObjs {
 		gvk := bakObj.GroupVersionKind()
@@ -361,7 +368,14 @@ func (opts *importOpts) executeImport(ctx context.Context, bakObjs []*unstructur
 		if bakObj.GetNamespace() == "" {
 			bakObj.SetNamespace(namespace)
 		}
-		key := kube.ResourceKey{Group: gvk.Group, Kind: gvk.Kind, Name: bakObj.GetName(), Namespace: bakObj.GetNamespace()}
+
+		key := kube.ResourceKey{
+			Group:     gvk.Group,
+			Kind:      gvk.Kind,
+			Name:      bakObj.GetName(),
+			Namespace: bakObj.GetNamespace(),
+		}
+
 		liveObj, exists := pruneObjects[key]
 		delete(pruneObjects, key)
 
@@ -373,8 +387,6 @@ func (opts *importOpts) executeImport(ctx context.Context, bakObjs []*unstructur
 
 		dynClient := setDynamicClient(client, bakObj, namespace, opts.applicationNamespaces, opts.applicationsetNamespaces)
 
-		// If there is a live object, remove the tracking annotations/label that might conflict
-		// when argo is managed with an application.
 		if opts.ignoreTracking && exists {
 			updateTracking(bakObj, &liveObj)
 		}
@@ -383,10 +395,7 @@ func (opts *importOpts) executeImport(ctx context.Context, bakObjs []*unstructur
 		case !exists:
 			isForbidden := false
 			if !opts.dryRun {
-				created, err := dynClient.Create(ctx, bakObj, metav1.CreateOptions{})
-				if err == nil {
-					appliedObjs = append(appliedObjs, created)
-				}
+				_, err := dynClient.Create(ctx, bakObj, metav1.CreateOptions{})
 				if apierrors.IsForbidden(err) || apierrors.IsNotFound(err) {
 					isForbidden = true
 					log.Warnf("%s/%s %s: %v", gvk.Group, gvk.Kind, bakObj.GetName(), err)
@@ -401,14 +410,12 @@ func (opts *importOpts) executeImport(ctx context.Context, bakObjs []*unstructur
 			if opts.verbose {
 				fmt.Printf("%s/%s %s unchanged%s\n", gvk.Group, gvk.Kind, bakObj.GetName(), dryRunMsg)
 			}
+
 		default:
 			isForbidden := false
 			if !opts.dryRun {
 				newLive := updateLive(bakObj, &liveObj, opts.stopOperation)
-				updated, err := dynClient.Update(ctx, newLive, metav1.UpdateOptions{})
-				if err == nil {
-					appliedObjs = append(appliedObjs, updated)
-				}
+				_, err := dynClient.Update(ctx, newLive, metav1.UpdateOptions{})
 				if apierrors.IsConflict(err) {
 					fmt.Printf("Failed to update %s/%s %s in namespace %s: %v\n", gvk.Group, gvk.Kind, bakObj.GetName(), bakObj.GetNamespace(), err)
 					if opts.overrideOnConflict {
@@ -437,7 +444,23 @@ func (opts *importOpts) executeImport(ctx context.Context, bakObjs []*unstructur
 		}
 	}
 
+	if opts.prune {
+		err = pruneResources(ctx, client, pruneObjects, namespace, opts, dryRunMsg)
+	}
+
+	return appliedObjs, err
+}
+
+func pruneResources(
+	ctx context.Context,
+	client dynamic.Interface,
+	pruneObjects map[kube.ResourceKey]unstructured.Unstructured,
+	_ string,
+	opts *importOpts,
+	dryRunMsg string,
+) error {
 	promptUtil := utils.NewPrompt(opts.promptsEnabled)
+	var err error
 
 	// Delete objects not in backup
 	for key, liveObj := range pruneObjects {
@@ -447,55 +470,57 @@ func (opts *importOpts) executeImport(ctx context.Context, bakObjs []*unstructur
 			continue
 		}
 
-		if opts.prune {
-			var dynClient dynamic.ResourceInterface
-			switch key.Kind {
-			case "Secret":
-				dynClient = client.Resource(secretResource).Namespace(liveObj.GetNamespace())
-			case application.AppProjectKind:
-				dynClient = client.Resource(appprojectsResource).Namespace(liveObj.GetNamespace())
-			case application.ApplicationKind:
-				dynClient = client.Resource(applicationsResource).Namespace(liveObj.GetNamespace())
-				if !opts.dryRun {
-					if finalizers := liveObj.GetFinalizers(); len(finalizers) > 0 {
-						newLive := liveObj.DeepCopy()
-						newLive.SetFinalizers(nil)
-						_, err = dynClient.Update(ctx, newLive, metav1.UpdateOptions{})
-						if err != nil && !apierrors.IsNotFound(err) {
-							errors.CheckError(err)
-						}
-					}
-				}
-			case application.ApplicationSetKind:
-				dynClient = client.Resource(appplicationSetResource).Namespace(liveObj.GetNamespace())
-			default:
-				log.Fatalf("Unexpected kind '%s' in prune list", key.Kind)
-			}
-			isForbidden := false
-
+		var dynClient dynamic.ResourceInterface
+		switch key.Kind {
+		case "Secret":
+			dynClient = client.Resource(secretResource).Namespace(liveObj.GetNamespace())
+		case application.AppProjectKind:
+			dynClient = client.Resource(appprojectsResource).Namespace(liveObj.GetNamespace())
+		case application.ApplicationKind:
+			dynClient = client.Resource(applicationsResource).Namespace(liveObj.GetNamespace())
 			if !opts.dryRun {
-				canPrune := promptUtil.Confirm(fmt.Sprintf("Are you sure you want to prune %s/%s %s ? [y/n]", key.Group, key.Kind, key.Name))
-				if canPrune {
-					err = dynClient.Delete(ctx, key.Name, metav1.DeleteOptions{})
-					if apierrors.IsForbidden(err) || apierrors.IsNotFound(err) {
-						isForbidden = true
-						log.Warnf("%s/%s %s: %v\n", key.Group, key.Kind, key.Name, err)
-					} else {
+				if finalizers := liveObj.GetFinalizers(); len(finalizers) > 0 {
+					newLive := liveObj.DeepCopy()
+					newLive.SetFinalizers(nil)
+					_, err = dynClient.Update(ctx, newLive, metav1.UpdateOptions{})
+					if err != nil && !apierrors.IsNotFound(err) {
 						errors.CheckError(err)
 					}
-				} else {
-					fmt.Printf("The command to prune %s/%s %s was cancelled.\n", key.Group, key.Kind, key.Name)
 				}
 			}
-			if !isForbidden {
-				fmt.Printf("%s/%s %s pruned%s\n", key.Group, key.Kind, key.Name, dryRunMsg)
+		case application.ApplicationSetKind:
+			dynClient = client.Resource(appplicationSetResource).Namespace(liveObj.GetNamespace())
+		default:
+			log.Fatalf("Unexpected kind '%s' in prune list", key.Kind)
+		}
+
+		isForbidden := false
+		if !opts.dryRun {
+			canPrune := promptUtil.Confirm(
+				fmt.Sprintf("Are you sure you want to prune %s/%s %s ? [y/n]",
+					key.Group, key.Kind, key.Name),
+			)
+			if canPrune {
+				err = dynClient.Delete(ctx, key.Name, metav1.DeleteOptions{})
+				if apierrors.IsForbidden(err) || apierrors.IsNotFound(err) {
+					isForbidden = true
+					log.Warnf("%s/%s %s: %v\n", key.Group, key.Kind, key.Name, err)
+				} else {
+					errors.CheckError(err)
+				}
+			} else {
+				fmt.Printf("The command to prune %s/%s %s was cancelled.\n",
+					key.Group, key.Kind, key.Name)
 			}
-		} else {
-			fmt.Printf("%s/%s %s needs pruning\n", key.Group, key.Kind, key.Name)
+		}
+
+		if !isForbidden {
+			fmt.Printf("%s/%s %s pruned%s\n",
+				key.Group, key.Kind, key.Name, dryRunMsg)
 		}
 	}
 
-	return appliedObjs, err
+	return err
 }
 
 // check app has no need to stop operation.
