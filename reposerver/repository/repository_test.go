@@ -1991,8 +1991,8 @@ func Test_getPluginEnvs_TraceContext(t *testing.T) {
 	assert.Equal(t, []string{
 		"KUBE_VERSION=1.34.0",
 		"KUBE_API_VERSIONS=",
-		"BAGGAGE=test-key=test-value",
 		"TRACEPARENT=00-0123456789abcdef0123456789abcdef-0123456789abcdef-01",
+		"BAGGAGE=test-key=test-value",
 	}, envs)
 }
 
