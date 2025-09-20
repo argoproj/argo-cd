@@ -1541,8 +1541,7 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 			pluginName = q.ApplicationSource.Plugin.Name
 		}
 		// if pluginName is provided it has to be `<metadata.name>-<spec.version>` or just `<metadata.name>` if plugin version is empty
-		envWithTrace := addTracingEnv(ctx, env)
-		targetObjs, err = runConfigManagementPluginSidecars(ctx, appPath, repoRoot, pluginName, envWithTrace, q, q.Repo.GetGitCreds(gitCredsStore), opt.cmpTarDoneCh, opt.cmpTarExcludedGlobs, opt.cmpUseManifestGeneratePaths)
+		targetObjs, err = runConfigManagementPluginSidecars(ctx, appPath, repoRoot, pluginName, env, q, q.Repo.GetGitCreds(gitCredsStore), opt.cmpTarDoneCh, opt.cmpTarExcludedGlobs, opt.cmpUseManifestGeneratePaths)
 		if err != nil {
 			err = fmt.Errorf("CMP processing failed for application %q: %w", q.AppName, err)
 		}
@@ -1609,8 +1608,7 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 func newEnv(q *apiclient.ManifestRequest, revision string) *v1alpha1.Env {
 	shortRevision := shortenRevision(revision, 7)
 	shortRevision8 := shortenRevision(revision, 8)
-
-	env := &v1alpha1.Env{
+	return &v1alpha1.Env{
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_NAME", Value: q.AppName},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_NAMESPACE", Value: q.Namespace},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_PROJECT_NAME", Value: q.ProjectName},
@@ -1621,7 +1619,6 @@ func newEnv(q *apiclient.ManifestRequest, revision string) *v1alpha1.Env {
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_SOURCE_PATH", Value: q.ApplicationSource.Path},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_SOURCE_TARGET_REVISION", Value: q.ApplicationSource.TargetRevision},
 	}
-	return env
 }
 
 func shortenRevision(revision string, length int) string {
@@ -1632,14 +1629,13 @@ func shortenRevision(revision string, length int) string {
 }
 
 func newEnvRepoQuery(q *apiclient.RepoServerAppDetailsQuery, revision string) *v1alpha1.Env {
-	env := &v1alpha1.Env{
+	return &v1alpha1.Env{
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_NAME", Value: q.AppName},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_REVISION", Value: revision},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_SOURCE_REPO_URL", Value: q.Repo.Repo},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_SOURCE_PATH", Value: q.Source.Path},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_SOURCE_TARGET_REVISION", Value: q.Source.TargetRevision},
 	}
-	return env
 }
 
 // mergeSourceParameters merges parameter overrides from one or more files in
@@ -2055,7 +2051,7 @@ func makeJsonnetVM(appPath string, repoRoot string, sourceJsonnet v1alpha1.Appli
 	return vm, nil
 }
 
-func getPluginEnvs(env *v1alpha1.Env, q *apiclient.ManifestRequest) ([]string, error) {
+func getPluginEnvs(ctx context.Context, env *v1alpha1.Env, q *apiclient.ManifestRequest) ([]string, error) {
 	kubeVersion, err := parseKubeVersion(q.KubeVersion)
 	if err != nil {
 		return nil, fmt.Errorf("could not parse kubernetes version %s: %w", q.KubeVersion, err)
@@ -2063,6 +2059,7 @@ func getPluginEnvs(env *v1alpha1.Env, q *apiclient.ManifestRequest) ([]string, e
 	envVars := env.Environ()
 	envVars = append(envVars, "KUBE_VERSION="+kubeVersion)
 	envVars = append(envVars, "KUBE_API_VERSIONS="+strings.Join(q.ApiVersions, ","))
+	envVars = append(envVars, getPluginTracingEnvs(ctx)...)
 
 	return getPluginParamEnvs(envVars, q.ApplicationSource.Plugin)
 }
@@ -2096,15 +2093,20 @@ func getPluginParamEnvs(envVars []string, plugin *v1alpha1.ApplicationSourcePlug
 	return env, nil
 }
 
+func getPluginTracingEnvs(ctx context.Context) []string {
+	envs := []string{}
+	for k, v := range traceutil.GetTraceEnvFromContext(ctx) {
+		envs = append(envs, fmt.Sprintf("%s=%s", k, v))
+	}
+	return envs
+}
+
 func runConfigManagementPluginSidecars(ctx context.Context, appPath, repoPath, pluginName string, envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds git.Creds, tarDoneCh chan<- bool, tarExcludedGlobs []string, useManifestGeneratePaths bool) ([]*unstructured.Unstructured, error) {
 	// compute variables.
-	env, err := getPluginEnvs(envVars, q)
+	env, err := getPluginEnvs(ctx, envVars, q)
 	if err != nil {
 		return nil, err
 	}
-
-	// Inject tracing env only for plugin manifest generation
-	env = addTracingEnvStrings(ctx, env)
 
 	// detect config management plugin server
 	conn, cmpClient, err := discovery.DetectConfigManagementPlugin(ctx, appPath, repoPath, pluginName, env, tarExcludedGlobs)
@@ -2177,30 +2179,6 @@ func generateManifestsCMP(ctx context.Context, appPath, rootPath string, env []s
 	return generateManifestStream.CloseAndRecv()
 }
 
-// addTracingEnv appends trace context env vars to env only for plugin paths
-func addTracingEnv(ctx context.Context, env *v1alpha1.Env) *v1alpha1.Env {
-	if env == nil {
-		e := &v1alpha1.Env{}
-		env = e
-	}
-	if traceEnv := traceutil.GetTraceEnvFromContext(ctx); len(traceEnv) > 0 {
-		for key, value := range traceEnv {
-			*env = append(*env, &v1alpha1.EnvEntry{Name: key, Value: value})
-		}
-	}
-	return env
-}
-
-// addTracingEnvStrings appends trace context envs to a []string env slice
-func addTracingEnvStrings(ctx context.Context, env []string) []string {
-	if traceEnv := traceutil.GetTraceEnvFromContext(ctx); len(traceEnv) > 0 {
-		for key, value := range traceEnv {
-			env = append(env, fmt.Sprintf("%s=%s", key, value))
-		}
-	}
-	return env
-}
-
 func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppDetailsQuery) (*apiclient.RepoAppDetailsResponse, error) {
 	res := &apiclient.RepoAppDetailsResponse{}
 
@@ -2226,7 +2204,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 				return err
 			}
 		case v1alpha1.ApplicationSourceTypeKustomize:
-			if err := populateKustomizeAppDetails(ctx, res, q, repoRoot, opContext.appPath, commitSHA, s.gitCredsStore); err != nil {
+			if err := populateKustomizeAppDetails(res, q, repoRoot, opContext.appPath, commitSHA, s.gitCredsStore); err != nil {
 				return err
 			}
 		case v1alpha1.ApplicationSourceTypePlugin:
@@ -2362,7 +2340,7 @@ func walkHelmValueFilesInPath(root string, valueFiles *[]string) filepath.WalkFu
 	}
 }
 
-func populateKustomizeAppDetails(ctx context.Context, res *apiclient.RepoAppDetailsResponse, q *apiclient.RepoServerAppDetailsQuery, repoRoot string, appPath string, reversion string, credsStore git.CredsStore) error {
+func populateKustomizeAppDetails(res *apiclient.RepoAppDetailsResponse, q *apiclient.RepoServerAppDetailsQuery, repoRoot string, appPath string, reversion string, credsStore git.CredsStore) error {
 	res.Kustomize = &apiclient.KustomizeAppSpec{}
 	kustomizeBinary, err := settings.GetKustomizeBinaryPath(q.KustomizeOptions, *q.Source)
 	if err != nil {
@@ -2398,9 +2376,6 @@ func populatePluginAppDetails(ctx context.Context, res *apiclient.RepoAppDetails
 	if err != nil {
 		return fmt.Errorf("failed to get env vars for plugin: %w", err)
 	}
-
-	// Inject tracing env only for plugin parameter announcement/generation
-	env = addTracingEnvStrings(ctx, env)
 
 	pluginName := ""
 	if q.Source != nil && q.Source.Plugin != nil {
