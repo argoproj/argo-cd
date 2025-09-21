@@ -5,10 +5,12 @@ import (
 
 	"github.com/argoproj/gitops-engine/pkg/health"
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
+	"github.com/stretchr/testify/assert"
 
 	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
+	"github.com/argoproj/argo-cd/v3/util/errors"
 )
 
 func TestOCIImage(t *testing.T) {
@@ -91,4 +93,31 @@ func TestOCIImageWithOutOfBoundsSymlink(t *testing.T) {
 		CreateApp().
 		Then().
 		Expect(Error("", "could not decompress layer: illegal filepath in symlink"))
+}
+
+func TestOCIBuildEnvironment(t *testing.T) {
+	Given(t).
+		RepoURLType(fixture.RepoURLTypeOCI).
+		PushImageToOCIRegistry("testdata/helm-values", "1.0.0").
+		OCIRepoAdded("helm-values", "helm-values").
+		Revision("1.0.*").
+		OCIRegistry(fixture.OCIHostURL).
+		OCIRegistryPath("helm-values").
+		Path(".").
+		When().
+		CreateApp().
+		AppSet("--helm-set", "foo=$ARGOCD_RESOLVED_TAG").
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		Expect(Success("")).
+		When().
+		Sync().
+		Then().
+		Expect(Success("")).
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		And(func(_ *Application) {
+			assert.Equal(t, "1.0.0", errors.NewHandler(t).FailOnErr(fixture.Run(".", "kubectl", "-n", fixture.DeploymentNamespace(), "get", "cm", "my-map", "-o", "jsonpath={.data.foo}")).(string))
+		})
 }
