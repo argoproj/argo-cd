@@ -308,34 +308,41 @@ func (c *nativeOCIClient) DigestMetadata(ctx context.Context, digest string) (*i
 	return getOCIManifest(ctx, digest, repo)
 }
 
+func IsDigest(revision string) bool {
+	return strings.HasPrefix(revision, "sha256:")
+}
+
 func (c *nativeOCIClient) ResolveRevision(ctx context.Context, revision string, noCache bool) (string, *versions.RevisionMetadata, error) {
 	digest, err := c.resolveDigest(ctx, revision) // Lookup explicit revision
-	if err != nil {
-		// If the revision is not a semver constraint, just return the error
-		if !versions.IsConstraint(revision) {
-			return digest, nil, err
-		}
-
-		tags, err := c.GetTags(ctx, noCache)
-		if err != nil {
-			return "", nil, fmt.Errorf("error fetching tags: %w", err)
-		}
-
-		// Look to see if revision is a semver constraint
-		version, metadata, err := versions.MaxVersion(revision, tags)
-		if err != nil {
-			return "", nil, fmt.Errorf("no version for constraints: %w", err)
-		}
-		// Look up the digest for the resolved version
-		digest, err := c.resolveDigest(ctx, version)
-		if err != nil {
-			return "", nil, fmt.Errorf("error resolving digest: %w", err)
+	if err == nil {
+		metadata := versions.NewRevisionMetadata(revision, versions.RevisionResolutionVersion).WithResolved(digest)
+		if IsDigest(revision) {
+			metadata.ResolutionType = versions.RevisionResolutionDirect
 		}
 		return digest, metadata, nil
 	}
 
-	metadata := versions.NewRevisionMetadata(revision, versions.RevisionResolutionVersion)
-	return digest, metadata.WithResolvedTag(digest), nil
+	// If the revision is not a semver constraint, just return the error
+	if !versions.IsConstraint(revision) {
+		return digest, nil, err
+	}
+
+	tags, err := c.GetTags(ctx, noCache)
+	if err != nil {
+		return "", nil, fmt.Errorf("error fetching tags: %w", err)
+	}
+
+	// Look to see if revision is a semver constraint
+	version, metadata, err := versions.MaxVersion(revision, tags)
+	if err != nil {
+		return "", nil, fmt.Errorf("no version for constraints: %w", err)
+	}
+	// Look up the digest for the resolved version
+	digest, err = c.resolveDigest(ctx, version)
+	if err != nil {
+		return "", nil, fmt.Errorf("error resolving digest: %w", err)
+	}
+	return digest, metadata, nil
 }
 
 func (c *nativeOCIClient) GetTags(ctx context.Context, noCache bool) ([]string, error) {

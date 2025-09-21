@@ -14,6 +14,10 @@ const (
 	RevisionResolutionTruncatedCommitSHA RevisionResolutionType = "truncated_commit_sha"
 	// The revision was resolved as a specific version, e.g. "v1.0.0"
 	RevisionResolutionVersion RevisionResolutionType = "version"
+	// The revision was resolved as a branch
+	RevisionResolutionBranch RevisionResolutionType = "branch"
+	// The revision was resolved as a tag
+	RevisionResolutionTag RevisionResolutionType = "tag"
 )
 
 // RevisionMetadata contains metadata about how a revision was resolved
@@ -22,15 +26,13 @@ type RevisionMetadata struct {
 	OriginalRevision string
 	// ResolutionType indicates how the revision was resolved
 	ResolutionType RevisionResolutionType
-	// ResolvedTag is the actual tag/version that was resolved (if applicable)
-	ResolvedTag string
-	// ResolvedTo is the target of a symbolic reference resolution (Git-specific)
-	ResolvedTo string
+	// Resolved is the actual thing that was resolved
+	Resolved string
 }
 
 // IsEmpty returns true if the metadata has no meaningful data
 func (m *RevisionMetadata) IsEmpty() bool {
-	return m == nil || (m.OriginalRevision == "" && m.ResolutionType == "" && m.ResolvedTag == "" && m.ResolvedTo == "")
+	return m == nil || (m.OriginalRevision == "" && m.ResolutionType == "" && m.Resolved == "")
 }
 
 // NewRevisionMetadata creates a new RevisionMetadata with the given parameters
@@ -41,14 +43,8 @@ func NewRevisionMetadata(originalRevision string, resolutionType RevisionResolut
 	}
 }
 
-// WithResolvedTag sets the resolved tag and returns the metadata for chaining
-func (m *RevisionMetadata) WithResolvedTag(tag string) *RevisionMetadata {
-	m.ResolvedTag = tag
-	return m
-}
-
-// WithResolvedTo sets the resolved target and returns the metadata for chaining
-func (m *RevisionMetadata) WithResolvedTo(target string) *RevisionMetadata {
-	m.ResolvedTo = target
+// WithResolved sets the resolved thing and returns the metadata for chaining
+func (m *RevisionMetadata) WithResolved(resolved string) *RevisionMetadata {
+	m.Resolved = resolved
 	return m
 }

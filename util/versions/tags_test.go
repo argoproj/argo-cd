@@ -25,7 +25,7 @@ func TestTags_MaxVersion(t *testing.T) {
 		assert.Equal(t, "0.5.3", version)
 		assert.Equal(t, RevisionResolutionDirect, revisionMetadata.ResolutionType)
 		assert.Equal(t, "0.5.3", revisionMetadata.OriginalRevision)
-		assert.Equal(t, "0.5.3", revisionMetadata.ResolvedTag)
+		assert.Equal(t, "0.5.3", revisionMetadata.Resolved)
 	})
 	t.Run("Exact nonsemver", func(t *testing.T) {
 		version, revisionMetadata, err := MaxVersion("2024.03-LTS-RC19", tags)
@@ -33,7 +33,7 @@ func TestTags_MaxVersion(t *testing.T) {
 		assert.Equal(t, "2024.03-LTS-RC19", version)
 		assert.Equal(t, RevisionResolutionDirect, revisionMetadata.ResolutionType)
 		assert.Equal(t, "2024.03-LTS-RC19", revisionMetadata.OriginalRevision)
-		assert.Equal(t, "2024.03-LTS-RC19", revisionMetadata.ResolvedTag)
+		assert.Equal(t, "2024.03-LTS-RC19", revisionMetadata.Resolved)
 	})
 	t.Run("Exact missing", func(t *testing.T) {
 		// Passing an exact version which is not in the list of tags still returns that version
@@ -42,7 +42,7 @@ func TestTags_MaxVersion(t *testing.T) {
 		assert.Equal(t, "99.99", version)
 		assert.Equal(t, RevisionResolutionDirect, revisionMetadata.ResolutionType)
 		assert.Equal(t, "99.99", revisionMetadata.OriginalRevision)
-		assert.Equal(t, "99.99", revisionMetadata.ResolvedTag)
+		assert.Equal(t, "99.99", revisionMetadata.Resolved)
 	})
 	t.Run("Constraint", func(t *testing.T) {
 		version, revisionMetadata, err := MaxVersion("> 0.5.3", tags)
@@ -50,7 +50,7 @@ func TestTags_MaxVersion(t *testing.T) {
 		assert.Equal(t, "0.7.2", version)
 		assert.Equal(t, RevisionResolutionRange, revisionMetadata.ResolutionType)
 		assert.Equal(t, "> 0.5.3", revisionMetadata.OriginalRevision)
-		assert.Equal(t, "0.7.2", revisionMetadata.ResolvedTag)
+		assert.Equal(t, "0.7.2", revisionMetadata.Resolved)
 	})
 	t.Run("Constraint", func(t *testing.T) {
 		version, revisionMetadata, err := MaxVersion("> 0.0.0", tags)

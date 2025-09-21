@@ -766,7 +766,7 @@ func TestGetSemverMetadata(t *testing.T) {
 		expected := &versions.RevisionMetadata{
 			OriginalRevision: "test-revision",
 			ResolutionType:   versions.RevisionResolutionDirect,
-			ResolvedTag:      "v1.0.0",
+			Resolved:         "v1.0.0",
 		}
 		err := fixtures.cache.SetSemverMetadata("test-repo", "test-revision", "v1.0.0", expected)
 		require.NoError(t, err)
@@ -787,7 +787,7 @@ func TestGetSemverMetadata(t *testing.T) {
 		expected := &versions.RevisionMetadata{
 			OriginalRevision: "test-revision",
 			ResolutionType:   versions.RevisionResolutionDirect,
-			ResolvedTag:      "v1.0.0",
+			Resolved:         "v1.0.0",
 		}
 		err := fixtures.cache.SetSemverMetadataForHelm("test-repo", "test-chart", "test-revision", "v1.0.0", expected)
 		require.NoError(t, err)
@@ -801,7 +801,7 @@ func TestGetSemverMetadata(t *testing.T) {
 		expected := &versions.RevisionMetadata{
 			OriginalRevision: "test-revision",
 			ResolutionType:   versions.RevisionResolutionDirect,
-			ResolvedTag:      "v1.0.0",
+			Resolved:         "v1.0.0",
 		}
 		err := fixtures.cache.SetSemverMetadataForHelm("test-repo", "test-chart", "test-revision", "v1.0.0", expected)
 		require.NoError(t, err)

@@ -25,7 +25,7 @@ func MaxVersion(revision string, tags []string) (string, *RevisionMetadata, erro
 		// For example, the following are considered valid versions, and therefore should match an exact tag:
 		// - "v1.0.0"/"1.0.0"
 		// - "v1.0"/"1.0"
-		return v.Original(), metadata.WithResolvedTag(v.Original()), nil
+		return v.Original(), metadata.WithResolved(v.Original()), nil
 	}
 
 	constraints, err := semver.NewConstraint(revision)
@@ -34,7 +34,7 @@ func MaxVersion(revision string, tags []string) (string, *RevisionMetadata, erro
 		// If this is also an invalid constraint, we just iterate over available tags to determine if it is valid/invalid.
 		for _, tag := range tags {
 			if tag == revision {
-				return revision, metadata.WithResolvedTag(revision), nil
+				return revision, metadata.WithResolved(revision), nil
 			}
 		}
 		return "", nil, fmt.Errorf("failed to determine semver constraint: %w", err)
@@ -66,7 +66,7 @@ func MaxVersion(revision string, tags []string) (string, *RevisionMetadata, erro
 	}
 
 	log.Debugf("Semver constraint '%s' resolved to version '%s'", constraints.String(), maxVersion.Original())
-	return maxVersion.Original(), metadata.WithResolvedTag(maxVersion.Original()), nil
+	return maxVersion.Original(), metadata.WithResolved(maxVersion.Original()), nil
 }
 
 // Returns true if the given revision is not an exact semver and can be parsed as a semver constraint

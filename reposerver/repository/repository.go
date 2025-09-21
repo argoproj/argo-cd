@@ -1635,16 +1635,13 @@ func newEnv(q *apiclient.ManifestRequest, revision string, metadata *BuildMetada
 	if metadata != nil && metadata.RevisionMetadata != nil && !metadata.RevisionMetadata.IsEmpty() {
 		rm := metadata.RevisionMetadata
 		if rm.OriginalRevision != "" {
-			*env = append(*env, &v1alpha1.EnvEntry{Name: "ARGOCD_ORIGINAL_REVISION", Value: rm.OriginalRevision})
+			*env = append(*env, &v1alpha1.EnvEntry{Name: "ARGOCD_APP_ORIGINAL_REVISION", Value: rm.OriginalRevision})
 		}
 		if rm.ResolutionType != "" {
-			*env = append(*env, &v1alpha1.EnvEntry{Name: "ARGOCD_RESOLUTION_TYPE", Value: string(rm.ResolutionType)})
+			*env = append(*env, &v1alpha1.EnvEntry{Name: "ARGOCD_APP_RESOLUTION_TYPE", Value: string(rm.ResolutionType)})
 		}
-		if rm.ResolvedTag != "" {
-			*env = append(*env, &v1alpha1.EnvEntry{Name: "ARGOCD_RESOLVED_TAG", Value: rm.ResolvedTag})
-		}
-		if rm.ResolvedTo != "" {
-			*env = append(*env, &v1alpha1.EnvEntry{Name: "ARGOCD_RESOLVED_TO", Value: rm.ResolvedTo})
+		if rm.Resolved != "" {
+			*env = append(*env, &v1alpha1.EnvEntry{Name: "ARGOCD_APP_RESOLVED", Value: rm.Resolved})
 		}
 	}
 
@@ -2463,10 +2460,10 @@ func (s *Service) GetRevisionMetadata(_ context.Context, q *apiclient.RepoServer
 		// We found cached semver metadata - create a synthetic revision metadata response
 		// This preserves the original constraint information without needing a git client
 		metadata := &v1alpha1.RevisionMetadata{
-			Author:  semverMetadata.ResolvedTag, // Use the resolved tag as author info
-			Date:    &metav1.Time{},             // No date available from semver metadata
+			Author:  semverMetadata.Resolved, // Use the resolved tag as author info
+			Date:    &metav1.Time{},          // No date available from semver metadata
 			Message: "Resolved from constraint: " + semverMetadata.OriginalRevision,
-			Tags:    []string{semverMetadata.ResolvedTag},
+			Tags:    []string{semverMetadata.Resolved},
 		}
 		log.Infof("Using cached semver metadata for revision %s: %s", q.Revision, semverMetadata.OriginalRevision)
 		return metadata, nil
@@ -2635,7 +2632,7 @@ func (s *Service) newClientResolveRevision(repo *v1alpha1.Repository, revision s
 func (s *Service) newClientResolveRevisionWithMetadata(repo *v1alpha1.Repository, revision string, targetRevision string, opts ...git.ClientOpts) (git.Client, string, *versions.RevisionMetadata, error) {
 	// First check if we already have semver metadata cached for this revision
 	// This can happen when the revision is already resolved (e.g., a commit SHA)
-	// but we want to preserve the original constraint information
+	// but we want to preserve the original constraint information, i.e. how did we resolve this revision?
 	if git.IsCommitSHA(revision) {
 		if semverMetadata, err := s.cache.GetSemverMetadata(repo.Repo, revision, targetRevision); err == nil {
 			// We found cached semver metadata - create a client and return the cached metadata
@@ -2728,7 +2725,7 @@ func (s *Service) newHelmClientResolveRevision(repo *v1alpha1.Repository, revisi
 
 	// Note: This check runs the risk of returning a version which is not found in the helm registry.
 	if versions.IsVersion(revision) {
-		return helmClient, revision, metadata.WithResolvedTag(revision), nil
+		return helmClient, revision, metadata.WithResolved(revision), nil
 	}
 
 	var tags []string
