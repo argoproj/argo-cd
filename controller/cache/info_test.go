@@ -1092,7 +1092,7 @@ func TestGetPodInfo(t *testing.T) {
 			{Name: "Containers", Value: "1/1"},
 			{Name: common.PodRequestsCPU, Value: "0"},
 			{Name: common.PodRequestsMEM, Value: "0"},
-      {Name: "Pod IP", Value: "10.244.0.5"},
+			{Name: "Pod IP", Value: "10.244.0.5"},
 			{Name: "Pod IPs", Value: "10.244.0.5,2001:db8::1"},
 		}, info.Info)
 	})
@@ -1131,7 +1131,7 @@ func TestGetPodInfo(t *testing.T) {
 			{Name: "Containers", Value: "1/1"},
 			{Name: common.PodRequestsCPU, Value: "0"},
 			{Name: common.PodRequestsMEM, Value: "0"},
-      {Name: "Pod IP", Value: "10.244.0.5"},
+			{Name: "Pod IP", Value: "10.244.0.5"},
 		}, info.Info)
 	})
 
