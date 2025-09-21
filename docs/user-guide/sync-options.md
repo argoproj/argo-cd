@@ -185,9 +185,9 @@ spec:
 
 If the `Replace=true` sync option is set, Argo CD will use `kubectl replace` or `kubectl create` command to apply changes.
 
-!!! warning
-      During the sync process, the resources will be synchronized using the 'kubectl replace/create' command.
-      This sync option has the potential to be destructive and might lead to resources having to be recreated, which could cause an outage for your application.
+> [!WARNING]
+> During the sync process, the resources will be synchronized using the 'kubectl replace/create' command.
+> This sync option has the potential to be destructive and might lead to resources having to be recreated, which could cause an outage for your application.
 
 This can also be configured at individual resource level.
 ```yaml
@@ -200,9 +200,9 @@ metadata:
 
 For certain resources you might want to delete and recreate, e.g. job resources that should run every time when syncing.
 
-!!! warning
-      During the sync process, the resources will be synchronized using the 'kubectl delete/create' command.
-      This sync option has a destructive action, which could cause an outage for your application.
+> [!WARNING]
+> During the sync process, the resources will be synchronized using the 'kubectl delete/create' command.
+> This sync option has a destructive action, which could cause an outage for your application.
 
 In such cases you might use `Force=true` sync option in target resources annotation:
 ```yaml
