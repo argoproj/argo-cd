@@ -348,7 +348,7 @@ func Test_SemverTags(t *testing.T) {
 			require.NoError(t, err)
 			assert.True(t, IsCommitSHA(commitSHA))
 			assert.Equal(t, tc.expected, commitSHA)
-			assert.Equal(t, mapRefsTags[tc.expected], resolvedTag.ResolvedTag)
+			assert.Equal(t, mapRefsTags[tc.expected], resolvedTag.Resolved)
 		})
 	}
 }

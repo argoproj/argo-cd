@@ -356,7 +356,7 @@ func Test_nativeOCIClient_ResolveRevision(t *testing.T) {
 			expectedMetadata: &versions.RevisionMetadata{
 				OriginalRevision: "^1.0.0",
 				ResolutionType:   versions.RevisionResolutionRange,
-				ResolvedTag:      "1.2.0",
+				Resolved:         "1.2.0",
 			},
 		},
 		{
@@ -369,7 +369,7 @@ func Test_nativeOCIClient_ResolveRevision(t *testing.T) {
 			expectedMetadata: &versions.RevisionMetadata{
 				OriginalRevision: "1.2.0",
 				ResolutionType:   versions.RevisionResolutionVersion,
-				ResolvedTag:      descriptor.Digest.String(),
+				Resolved:         descriptor.Digest.String(),
 			},
 		},
 		{
@@ -381,8 +381,8 @@ func Test_nativeOCIClient_ResolveRevision(t *testing.T) {
 			expectedDigest: descriptor.Digest.String(),
 			expectedMetadata: &versions.RevisionMetadata{
 				OriginalRevision: descriptor.Digest.String(),
-				ResolutionType:   versions.RevisionResolutionVersion,
-				ResolvedTag:      descriptor.Digest.String(),
+				ResolutionType:   versions.RevisionResolutionDirect,
+				Resolved:         descriptor.Digest.String(),
 			},
 		},
 		{
@@ -419,7 +419,7 @@ func Test_nativeOCIClient_ResolveRevision(t *testing.T) {
 			expectedMetadata: &versions.RevisionMetadata{
 				OriginalRevision: "latest",
 				ResolutionType:   versions.RevisionResolutionVersion,
-				ResolvedTag:      descriptor.Digest.String(),
+				Resolved:         descriptor.Digest.String(),
 			},
 		},
 		{
@@ -432,7 +432,7 @@ func Test_nativeOCIClient_ResolveRevision(t *testing.T) {
 			expectedMetadata: &versions.RevisionMetadata{
 				OriginalRevision: ">=1.0.0 <2.0.0",
 				ResolutionType:   versions.RevisionResolutionRange,
-				ResolvedTag:      "1.2.0",
+				Resolved:         "1.2.0",
 			},
 		},
 		{
@@ -454,7 +454,7 @@ func Test_nativeOCIClient_ResolveRevision(t *testing.T) {
 			expectedMetadata: &versions.RevisionMetadata{
 				OriginalRevision: "v1.2.0",
 				ResolutionType:   versions.RevisionResolutionVersion,
-				ResolvedTag:      descriptor.Digest.String(),
+				Resolved:         descriptor.Digest.String(),
 			},
 		},
 		{

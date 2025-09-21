@@ -701,7 +701,7 @@ func (m *nativeGitClient) lsRemote(revision string) (string, *versions.RevisionM
 	metadata := versions.NewRevisionMetadata(originalRevision, versions.RevisionResolutionDirect)
 
 	if IsCommitSHA(revision) {
-		return revision, metadata.WithResolvedTag(revision), nil
+		return revision, metadata.WithResolved(revision), nil
 	}
 
 	refs, err := m.getRefs()
@@ -736,14 +736,19 @@ func (m *nativeGitClient) lsRemote(revision string) (string, *versions.RevisionM
 		}
 		// log.Debugf("%s\t%s", hash, refName)
 		if ref.Name().Short() == revision || refName == revision {
-			if ref.Type() == plumbing.HashReference {
-				log.Debugf("revision '%s' resolved to '%s'", revision, hash)
-				if metadata.ResolutionType == "" {
-					metadata.ResolutionType = versions.RevisionResolutionDirect
+			switch ref.Type() {
+			case plumbing.HashReference:
+				if maxV == "" {
+					if ref.Name().IsBranch() {
+						metadata.ResolutionType = versions.RevisionResolutionBranch
+					} else if ref.Name().IsTag() {
+						metadata.ResolutionType = versions.RevisionResolutionTag
+					}
+					metadata.Resolved = hash
 				}
-				return hash, metadata.WithResolvedTag(revision), nil
-			}
-			if ref.Type() == plumbing.SymbolicReference {
+				log.Debugf("revision '%s' resolved to '%s'", revision, hash)
+				return hash, metadata, nil
+			case plumbing.SymbolicReference:
 				refToResolve = ref.Target().String()
 			}
 		}
@@ -755,7 +760,8 @@ func (m *nativeGitClient) lsRemote(revision string) (string, *versions.RevisionM
 		if hash, ok := refToHash[refToResolve]; ok {
 			log.Debugf("symbolic reference '%s' (%s) resolved to '%s'", revision, refToResolve, hash)
 			metadata.ResolutionType = versions.RevisionResolutionSymbolicReference
-			return hash, metadata.WithResolvedTo(refToResolve), nil
+			metadata.Resolved = refToResolve
+			return hash, metadata.WithResolved(refToResolve), nil
 		}
 	}
 
@@ -763,7 +769,7 @@ func (m *nativeGitClient) lsRemote(revision string) (string, *versions.RevisionM
 	if IsTruncatedCommitSHA(revision) {
 		log.Debugf("revision '%s' assumed to be commit sha", revision)
 		metadata.ResolutionType = versions.RevisionResolutionTruncatedCommitSHA
-		return revision, metadata.WithResolvedTag(revision), nil
+		return revision, metadata.WithResolved(revision), nil
 	}
 
 	// If we get here, revision string had non hexadecimal characters (indicating its a branch, tag,

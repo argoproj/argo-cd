@@ -106,7 +106,7 @@ func TestOCIBuildEnvironment(t *testing.T) {
 		Path(".").
 		When().
 		CreateApp().
-		AppSet("--helm-set", "foo=$ARGOCD_RESOLVED_TAG").
+		AppSet("--helm-set", "foo=$ARGOCD_APP_RESOLVED").
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		Expect(Success("")).
