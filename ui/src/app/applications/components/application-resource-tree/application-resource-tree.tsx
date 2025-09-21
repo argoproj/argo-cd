@@ -715,6 +715,25 @@ function NodeInfoDetails({tag: tag, kind: kind}: {tag: models.InfoItem; kind: st
     }
 }
 
+function NodeInfo({info}: {info: models.InfoItem}) {
+    if (info.name === 'Pod IPs') {
+        const ips = info.value.split(',');
+        return (
+            <div style={{display: 'flex', flexDirection: 'column'}}>
+                <span>{info.name}</span>
+                {ips.map(ip => (
+                    <span key={ip}>- {ip}</span>
+                ))}
+            </div>
+        );
+    }
+    return (
+        <div>
+            {info.name}: {info.value}
+        </div>
+    );
+}
+
 function renderResourceNode(props: ApplicationResourceTreeProps, id: string, node: ResourceTreeNode & dagre.Node, nodesHavingChildren: Map<string, number>) {
     const fullName = nodeKey(node);
     let comparisonStatus: models.SyncStatusCode = null;
@@ -810,9 +829,7 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                         content={
                             <>
                                 {(node.info || []).map(i => (
-                                    <div key={i.name}>
-                                        {i.name}: {i.value}
-                                    </div>
+                                    <NodeInfo key={i.name} info={i} />
                                 ))}
                             </>
                         }
