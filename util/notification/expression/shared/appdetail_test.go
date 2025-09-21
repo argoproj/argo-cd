@@ -30,3 +30,68 @@ func TestGetParameterValueByName(t *testing.T) {
 	value := helmAppSpec.GetParameterValueByName("param1")
 	assert.Equal(t, "value-override", value)
 }
+
+func TestHelmAppSpecName(t *testing.T) {
+	helmAppSpec := CustomHelmAppSpec{
+		apiclient.HelmAppSpec{
+			Name: "test-helm-app",
+		},
+		nil,
+	}
+
+	assert.Equal(t, "test-helm-app", helmAppSpec.Name)
+}
+
+func TestGetParameterValueByNameFromHelmAppSpec(t *testing.T) {
+	helmAppSpec := CustomHelmAppSpec{
+		apiclient.HelmAppSpec{
+			Parameters: []*v1alpha1.HelmParameter{
+				{
+					Name:  "simple",
+					Value: "easy",
+				},
+				{
+					Name:  "another",
+					Value: "value",
+				},
+			},
+		},
+		nil,
+	}
+
+	value := helmAppSpec.GetParameterValueByName("simple")
+	assert.Equal(t, "easy", value)
+
+	value = helmAppSpec.GetParameterValueByName("another")
+	assert.Equal(t, "value", value)
+
+	value = helmAppSpec.GetParameterValueByName("non-existent")
+	assert.Equal(t, "", value)
+}
+
+func TestGetFileParameterPathByNameFromHelmAppSpec(t *testing.T) {
+	helmAppSpec := CustomHelmAppSpec{
+		apiclient.HelmAppSpec{
+			FileParameters: []*v1alpha1.HelmFileParameter{
+				{
+					Name: "config",
+					Path: "/path/to/config",
+				},
+				{
+					Name: "secret",
+					Path: "/path/to/secret",
+				},
+			},
+		},
+		nil,
+	}
+
+	path := helmAppSpec.GetFileParameterPathByName("config")
+	assert.Equal(t, "/path/to/config", path)
+
+	path = helmAppSpec.GetFileParameterPathByName("secret")
+	assert.Equal(t, "/path/to/secret", path)
+
+	path = helmAppSpec.GetFileParameterPathByName("non-existent")
+	assert.Equal(t, "", path)
+}
