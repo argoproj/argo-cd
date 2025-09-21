@@ -10,6 +10,7 @@ permissions:
 jobs:
   renovate:
     runs-on: ubuntu-latest
+    if: github.repository == 'argoproj/argo-cd'
     steps:
       - name: Get token
         id: get_token
@@ -20,6 +21,13 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # 4.2.2
+
+      # Some codegen commands require Go to be setup
+      - name: Setup Golang
+        uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 # v6.0.0
+        with:
+          # renovate: datasource=golang-version packageName=golang
+          go-version: 1.25.0
 
       - name: Self-hosted Renovate
         uses: renovatebot/github-action@f8af9272cd94a4637c29f60dea8731afd3134473 #43.0.12
