@@ -6410,10 +6410,11 @@ func TestUpdateResourceStatus(t *testing.T) {
 	require.NoError(t, err)
 
 	for _, cc := range []struct {
-		name              string
-		appSet            v1alpha1.ApplicationSet
-		apps              []v1alpha1.Application
-		expectedResources []v1alpha1.ResourceStatus
+		name                    string
+		appSet                  v1alpha1.ApplicationSet
+		apps                    []v1alpha1.Application
+		expectedResources       []v1alpha1.ResourceStatus
+		maxResourcesStatusCount int
 	}{
 		{
 			name: "handles an empty application list",
@@ -6577,6 +6578,73 @@ func TestUpdateResourceStatus(t *testing.T) {
 			apps:              []v1alpha1.Application{},
 			expectedResources: nil,
 		},
+		{
+			name: "truncates resources status list to",
+			appSet: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Status: v1alpha1.ApplicationSetStatus{
+					Resources: []v1alpha1.ResourceStatus{
+						{
+							Name:   "app1",
+							Status: v1alpha1.SyncStatusCodeOutOfSync,
+							Health: &v1alpha1.HealthStatus{
+								Status:  health.HealthStatusProgressing,
+								Message: "this is progressing",
+							},
+						},
+						{
+							Name:   "app2",
+							Status: v1alpha1.SyncStatusCodeOutOfSync,
+							Health: &v1alpha1.HealthStatus{
+								Status:  health.HealthStatusProgressing,
+								Message: "this is progressing",
+							},
+						},
+					},
+				},
+			},
+			apps: []v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app1",
+					},
+					Status: v1alpha1.ApplicationStatus{
+						Sync: v1alpha1.SyncStatus{
+							Status: v1alpha1.SyncStatusCodeSynced,
+						},
+						Health: v1alpha1.AppHealthStatus{
+							Status: health.HealthStatusHealthy,
+						},
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app2",
+					},
+					Status: v1alpha1.ApplicationStatus{
+						Sync: v1alpha1.SyncStatus{
+							Status: v1alpha1.SyncStatusCodeSynced,
+						},
+						Health: v1alpha1.AppHealthStatus{
+							Status: health.HealthStatusHealthy,
+						},
+					},
+				},
+			},
+			expectedResources: []v1alpha1.ResourceStatus{
+				{
+					Name:   "app1",
+					Status: v1alpha1.SyncStatusCodeSynced,
+					Health: &v1alpha1.HealthStatus{
+						Status: health.HealthStatusHealthy,
+					},
+				},
+			},
+			maxResourcesStatusCount: 1,
+		},
 	} {
 		t.Run(cc.name, func(t *testing.T) {
 			kubeclientset := kubefake.NewSimpleClientset([]runtime.Object{}...)
@@ -6587,13 +6655,14 @@ func TestUpdateResourceStatus(t *testing.T) {
 			argodb := db.NewDB("argocd", settings.NewSettingsManager(t.Context(), kubeclientset, "argocd"), kubeclientset)
 
 			r := ApplicationSetReconciler{
-				Client:        client,
-				Scheme:        scheme,
-				Recorder:      record.NewFakeRecorder(1),
-				Generators:    map[string]generators.Generator{},
-				ArgoDB:        argodb,
-				KubeClientset: kubeclientset,
-				Metrics:       metrics,
+				Client:                  client,
+				Scheme:                  scheme,
+				Recorder:                record.NewFakeRecorder(1),
+				Generators:              map[string]generators.Generator{},
+				ArgoDB:                  argodb,
+				KubeClientset:           kubeclientset,
+				Metrics:                 metrics,
+				MaxResourcesStatusCount: cc.maxResourcesStatusCount,
 			}
 
 			err := r.updateResourcesStatus(t.Context(), log.NewEntry(log.StandardLogger()), &cc.appSet, cc.apps)
