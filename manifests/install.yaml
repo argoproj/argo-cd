@@ -23818,13 +23818,17 @@ spec:
                 description: ClusterResourceWhitelist contains list of whitelisted
                   cluster level resources
                 items:
-                  description: |-
-                    GroupKind specifies a Group and a Kind, but does not force a version.  This is useful for identifying
-                    concepts during lookup stages without having partially valid types
+                  description: ClusterResourceWhitelistItem is a cluster resource
+                    that is allowed by the project's clusterResourceWhitelist
                   properties:
                     group:
                       type: string
                     kind:
+                      type: string
+                    name:
+                      description: |-
+                        Name is the name of the allowed resource. Glob patterns using Go's filepath.Match syntax are supported.
+                        Unlike the group and kind fields, if no name is specified, all resources of the specified kind are allowed.
                       type: string
                   required:
                   - group

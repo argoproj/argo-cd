@@ -2707,7 +2707,7 @@ type AppProjectSpec struct {
 	// Roles are user defined RBAC roles associated with this project
 	Roles []ProjectRole `json:"roles,omitempty" protobuf:"bytes,4,rep,name=roles"`
 	// ClusterResourceWhitelist contains list of whitelisted cluster level resources
-	ClusterResourceWhitelist []metav1.GroupKind `json:"clusterResourceWhitelist,omitempty" protobuf:"bytes,5,opt,name=clusterResourceWhitelist"`
+	ClusterResourceWhitelist []ClusterResourceWhitelistItem `json:"clusterResourceWhitelist,omitempty" protobuf:"bytes,5,opt,name=clusterResourceWhitelist"`
 	// NamespaceResourceBlacklist contains list of blacklisted namespace level resources
 	NamespaceResourceBlacklist []metav1.GroupKind `json:"namespaceResourceBlacklist,omitempty" protobuf:"bytes,6,opt,name=namespaceResourceBlacklist"`
 	// OrphanedResources specifies if controller should monitor orphaned resources of apps in this project
@@ -2726,6 +2726,15 @@ type AppProjectSpec struct {
 	PermitOnlyProjectScopedClusters bool `json:"permitOnlyProjectScopedClusters,omitempty" protobuf:"bytes,13,opt,name=permitOnlyProjectScopedClusters"`
 	// DestinationServiceAccounts holds information about the service accounts to be impersonated for the application sync operation for each destination.
 	DestinationServiceAccounts []ApplicationDestinationServiceAccount `json:"destinationServiceAccounts,omitempty" protobuf:"bytes,14,name=destinationServiceAccounts"`
+}
+
+// ClusterResourceWhitelistItem is a cluster resource that is allowed by the project's clusterResourceWhitelist
+type ClusterResourceWhitelistItem struct {
+	Group string `json:"group" protobuf:"bytes,1,opt,name=group"`
+	Kind  string `json:"kind" protobuf:"bytes,2,opt,name=kind"`
+	// Name is the name of the allowed resource. Glob patterns using Go's filepath.Match syntax are supported.
+	// Unlike the group and kind fields, if no name is specified, all resources of the specified kind are allowed.
+	Name string `json:"name,omitempty" protobuf:"bytes,3,opt,name=name"`
 }
 
 // SyncWindows is a collection of sync windows in this project
@@ -3528,6 +3537,28 @@ func isResourceInList(res metav1.GroupKind, list []metav1.GroupKind) bool {
 				return true
 			}
 		}
+	}
+	return false
+}
+
+func isNamedResourceInList(res metav1.GroupKind, name string, list []ClusterResourceWhitelistItem) bool {
+	for _, item := range list {
+		ok, err := filepath.Match(item.Kind, res.Kind)
+		if !ok || err != nil {
+			continue
+		}
+		ok, err = filepath.Match(item.Group, res.Group)
+		if !ok || err != nil {
+			continue
+		}
+		if item.Name == "" {
+			return true
+		}
+		ok, err = filepath.Match(item.Name, name)
+		if !ok || err != nil {
+			continue
+		}
+		return true
 	}
 	return false
 }

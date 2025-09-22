@@ -64,8 +64,17 @@ func getGroupKindList(values []string) []metav1.GroupKind {
 	return res
 }
 
-func (opts *ProjectOpts) GetAllowedClusterResources() []metav1.GroupKind {
-	return getGroupKindList(opts.allowedClusterResources)
+func getClusterResourceWhitelistItemList(values []string) []v1alpha1.ClusterResourceWhitelistItem {
+	gks := getGroupKindList(values)
+	res := make([]v1alpha1.ClusterResourceWhitelistItem, 0, len(gks))
+	for _, gk := range gks {
+		res = append(res, v1alpha1.ClusterResourceWhitelistItem{Group: gk.Group, Kind: gk.Kind})
+	}
+	return res
+}
+
+func (opts *ProjectOpts) GetAllowedClusterResources() []v1alpha1.ClusterResourceWhitelistItem {
+	return getClusterResourceWhitelistItemList(opts.allowedClusterResources)
 }
 
 func (opts *ProjectOpts) GetDeniedClusterResources() []metav1.GroupKind {

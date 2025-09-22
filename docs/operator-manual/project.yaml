@@ -29,6 +29,9 @@ spec:
   clusterResourceWhitelist:
   - group: ''
     kind: Namespace
+    # Name is optional. If specified, only resources with a matching name will be allowed.
+    # This field is only available in clusterResourceWhitelist.
+    name: '*'
 
   # Allow all namespaced-scoped resources to be created, except for ResourceQuota, LimitRange, NetworkPolicy
   namespaceResourceBlacklist:

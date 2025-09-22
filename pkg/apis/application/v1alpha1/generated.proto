@@ -83,7 +83,7 @@ message AppProjectSpec {
   repeated ProjectRole roles = 4;
 
   // ClusterResourceWhitelist contains list of whitelisted cluster level resources
-  repeated .k8s.io.apimachinery.pkg.apis.meta.v1.GroupKind clusterResourceWhitelist = 5;
+  repeated ClusterResourceWhitelistItem clusterResourceWhitelist = 5;
 
   // NamespaceResourceBlacklist contains list of blacklisted namespace level resources
   repeated .k8s.io.apimachinery.pkg.apis.meta.v1.GroupKind namespaceResourceBlacklist = 6;
@@ -930,6 +930,17 @@ message ClusterList {
   optional .k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
 
   repeated Cluster items = 2;
+}
+
+// ClusterResourceWhitelistItem is a cluster resource that is allowed by the project's clusterResourceWhitelist
+message ClusterResourceWhitelistItem {
+  optional string group = 1;
+
+  optional string kind = 2;
+
+  // Name is the name of the allowed resource. Glob patterns using Go's filepath.Match syntax are supported.
+  // Unlike the group and kind fields, if no name is specified, all resources of the specified kind are allowed.
+  optional string name = 3;
 }
 
 // Command holds binary path and arguments list

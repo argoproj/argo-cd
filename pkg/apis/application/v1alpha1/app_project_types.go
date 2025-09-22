@@ -397,7 +397,7 @@ func (proj *AppProject) ProjectPoliciesString() string {
 }
 
 // IsGroupKindPermitted validates if the given resource group/kind is permitted to be deployed in the project
-func (proj AppProject) IsGroupKindPermitted(gk schema.GroupKind, namespaced bool) bool {
+func (proj AppProject) IsGroupKindPermitted(gk schema.GroupKind, namespaced bool, name string) bool {
 	var isWhiteListed, isBlackListed bool
 	res := metav1.GroupKind{Group: gk.Group, Kind: gk.Kind}
 
@@ -413,18 +413,18 @@ func (proj AppProject) IsGroupKindPermitted(gk schema.GroupKind, namespaced bool
 	clusterWhitelist := proj.Spec.ClusterResourceWhitelist
 	clusterBlacklist := proj.Spec.ClusterResourceBlacklist
 
-	isWhiteListed = len(clusterWhitelist) != 0 && isResourceInList(res, clusterWhitelist)
+	isWhiteListed = len(clusterWhitelist) != 0 && isNamedResourceInList(res, name, clusterWhitelist)
 	isBlackListed = len(clusterBlacklist) != 0 && isResourceInList(res, clusterBlacklist)
 	return isWhiteListed && !isBlackListed
 }
 
 // IsLiveResourcePermitted returns whether a live resource found in the cluster is permitted by an AppProject
 func (proj AppProject) IsLiveResourcePermitted(un *unstructured.Unstructured, destCluster *Cluster, projectClusters func(project string) ([]*Cluster, error)) (bool, error) {
-	return proj.IsResourcePermitted(un.GroupVersionKind().GroupKind(), un.GetNamespace(), destCluster, projectClusters)
+	return proj.IsResourcePermitted(un.GroupVersionKind().GroupKind(), un.GetName(), un.GetNamespace(), destCluster, projectClusters)
 }
 
-func (proj AppProject) IsResourcePermitted(groupKind schema.GroupKind, namespace string, destCluster *Cluster, projectClusters func(project string) ([]*Cluster, error)) (bool, error) {
-	if !proj.IsGroupKindPermitted(groupKind, namespace != "") {
+func (proj AppProject) IsResourcePermitted(groupKind schema.GroupKind, name string, namespace string, destCluster *Cluster, projectClusters func(project string) ([]*Cluster, error)) (bool, error) {
+	if !proj.IsGroupKindPermitted(groupKind, namespace != "", name) {
 		return false, nil
 	}
 	if namespace != "" {
