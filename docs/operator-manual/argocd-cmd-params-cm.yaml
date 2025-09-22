@@ -272,6 +272,8 @@ data:
   applicationsetcontroller.requeue.after: "3m"
   # Enable strict mode for tokenRef in ApplicationSet resources. When enabled, the referenced secret must have a label `argocd.argoproj.io/secret-type` with value `scm-creds`.
   applicationsetcontroller.enable.tokenref.strict.mode: "false"
+  # The maximum number of resources stored in the status of an ApplicationSet. This is a safeguard to prevent the status from growing too large.
+  applicationsetcontroller.status.max.resources.count: "5000"
 
   ## Argo CD Notifications Controller Properties
   # Set the logging level. One of: debug|info|warn|error (default "info")
