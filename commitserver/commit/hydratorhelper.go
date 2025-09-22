@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"text/template"
 
 	"github.com/Masterminds/sprig/v3"
@@ -53,8 +52,7 @@ func WriteForPaths(root *os.Root, repoUrl, drySha string, dryCommitMetadata *app
 	}
 
 	for _, p := range paths {
-		hydratePath := strings.TrimSpace(p.Path)
-
+		hydratePath := p.Path
 		if hydratePath == "." {
 			hydratePath = ""
 		}
