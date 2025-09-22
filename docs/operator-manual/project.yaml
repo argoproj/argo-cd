@@ -31,7 +31,8 @@ spec:
     kind: Namespace
     # Name is optional. If specified, only resources with a matching name will be allowed.
     # This field is only available in clusterResourceWhitelist.
-    name: '*'
+    # Globs in Go's filepath.Match syntax are supported. Example: "team1-*".
+    name: ''
 
   # Allow all namespaced-scoped resources to be created, except for ResourceQuota, LimitRange, NetworkPolicy
   namespaceResourceBlacklist:
