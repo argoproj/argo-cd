@@ -24,7 +24,7 @@ func extractHealthStatusAndReason(node v1alpha1.ResourceNode) (healthStatus heal
 		healthStatus = node.Health.Status
 		reason = node.Health.Message
 	}
-	return
+	return healthStatus, reason
 }
 
 func treeViewAppGet(prefix string, uidToNodeMap map[string]v1alpha1.ResourceNode, parentToChildMap map[string][]string, parent v1alpha1.ResourceNode, mapNodeNameToResourceState map[string]*resourceState, w *tabwriter.Writer) {
