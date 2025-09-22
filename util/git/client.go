@@ -670,7 +670,7 @@ func (m *nativeGitClient) LsRemote(revision string) (res string, err error) {
 	for attempt := 0; attempt < maxAttemptsCount; attempt++ {
 		res, err = m.lsRemote(revision)
 		if err == nil {
-			return res, err
+			return res, nil
 		} else if apierrors.IsInternalError(err) || apierrors.IsTimeout(err) || apierrors.IsServerTimeout(err) ||
 			apierrors.IsTooManyRequests(err) || utilnet.IsProbableEOF(err) || utilnet.IsConnectionReset(err) {
 			// Formula: timeToWait = duration * factor^retry_number
