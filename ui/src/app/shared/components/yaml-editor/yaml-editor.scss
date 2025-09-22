@@ -1,3 +1,6 @@
+@import 'node_modules/argo-ui/src/styles/config';
+@import 'node_modules/argo-ui/src/styles/theme';
+
 .yaml-editor {
     position: relative;
 
@@ -7,6 +10,27 @@
         width: 290px;
         overflow-y: scroll;
         max-height: 500px;
+    }
+
+    &__warning {
+        background-color: #fff3cd;
+        border: 1px solid #ffeaa7;
+        color: #856404;
+        padding: 8px 12px;
+        border-radius: 4px;
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        @include themify($themes){
+            background-color: themed('warning-bg');
+            border-color: themed('warning-border');
+            color: themed('warning-text');
+        }
+        i {
+            font-size: 14px;
+        }
     }
 
     &__buttons {

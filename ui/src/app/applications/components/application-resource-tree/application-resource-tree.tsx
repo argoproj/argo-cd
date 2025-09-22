@@ -111,7 +111,7 @@ function groupNodes(nodes: ResourceTreeNode[], graph: dagre.graphlib.Graph) {
         const node = graph.node(nodeId);
         return {
             nodeId,
-            kind: node.kind,
+            kind: (node as any).kind,
             parentIds: graph.predecessors(nodeId),
             childIds: graph.successors(nodeId)
         };
@@ -174,7 +174,7 @@ function groupNodes(nodes: ResourceTreeNode[], graph: dagre.graphlib.Graph) {
             nodeIds.forEach((nodeId: string) => {
                 const index = nodes.findIndex(node => nodeId === node.uid || nodeId === nodeKey(node));
                 const graphNode = graph.node(nodeId);
-                if (!graphNode?.podGroup && index > -1) {
+                if (!(graphNode as any)?.podGroup && index > -1) {
                     groupedNodeIds.push(nodeId);
                 } else {
                     podGroupIds.push(nodeId);
@@ -290,8 +290,8 @@ function renderGroupedNodes(props: ApplicationResourceTreeProps, node: {count: n
                 </div>
                 <div
                     className='application-resource-tree__node-title application-resource-tree__direction-center-left'
-                    onClick={() => props.onGroupdNodeClick && props.onGroupdNodeClick(node.groupedNodeIds)}
-                    title={`Click to see details of ${node.count} collapsed ${node.kind} and doesn't contains any active pods`}>
+                    onClick={() => props.onGroupdNodeClick && props.onGroupdNodeClick((node as any).groupedNodeIds)}
+                    title={`Click to see details of ${node.count} collapsed ${(node as any).kind} and doesn't contains any active pods`}>
                     {node.count} {node.kind.endsWith('s') ? node.kind : `${node.kind}s`}
                     <span style={{paddingLeft: '.5em', fontSize: 'small'}}>
                         {node.kind === 'ReplicaSet' ? (
@@ -338,7 +338,7 @@ function renderLoadBalancerNode(node: dagre.Node & {label: string; color: string
                 height: node.height
             }}>
             <div className='application-resource-tree__node-kind-icon'>
-                <i title={node.kind} className={`icon fa fa-network-wired`} style={{color: node.color}} />
+                <i title={(node as any).kind} className={`icon fa fa-network-wired`} style={{color: node.color}} />
             </div>
             <div className='application-resource-tree__node-content'>
                 <span className='application-resource-tree__node-title'>{node.label}</span>
@@ -476,7 +476,7 @@ function renderPodGroup(props: ApplicationResourceTreeProps, id: string, node: R
                             'application-resource-tree__direction-right': props.nameDirection,
                             'application-resource-tree__direction-left': !props.nameDirection
                         })}
-                        onClick={() => props.onGroupdNodeClick && props.onGroupdNodeClick(node.groupedNodeIds)}>
+                        onClick={() => props.onGroupdNodeClick && props.onGroupdNodeClick((node as any).groupedNodeIds)}>
                         {node.name}
                     </span>
                     <span
@@ -868,7 +868,6 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
         resourceVersion: props.app.metadata.resourceVersion,
         group: 'argoproj.io',
         version: '',
-        // @ts-expect-error its not any
         children: [],
         status: props.app.status.sync.status,
         health: props.app.status.health,
@@ -1285,7 +1284,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                 style={{width: size.width + 150, height: size.height + 250, transformOrigin: '0% 4%', transform: `scale(${props.zoom})`}}>
                 {graphNodes.map(key => {
                     const node = graph.node(key);
-                    const nodeType = node.type;
+                    const nodeType = (node as any).type;
                     switch (nodeType) {
                         case NODE_TYPES.filteredIndicator:
                             return <React.Fragment key={key}>{renderFilteredNode(node as any, props.onClearFilter)}</React.Fragment>;

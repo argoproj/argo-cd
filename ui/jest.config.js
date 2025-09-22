@@ -5,13 +5,12 @@ module.exports = {
   collectCoverage: true,
   transformIgnorePatterns: ['node_modules/(?!(argo-ui)/)'],
   transform: {
-    '^.+\\.tsx?$': ['ts-jest', {
-      isolatedModules: true,
-    }]
+    '^.+\\.tsx?$': ['ts-jest']
   },
   globals: {
     'self': {}
   },
+  setupFilesAfterEnv: ['<rootDir>/src/setupTests.ts'],
   moduleNameMapper: {
     // https://github.com/facebook/jest/issues/3094
     '\\.(jpg|jpeg|png|gif|eot|otf|webp|svg|ttf|woff|woff2|mp4|webm|wav|mp3|m4a|aac|oga)$': '<rootDir>/__mocks__/fileMock.js',
