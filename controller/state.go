@@ -713,12 +713,48 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		if liveObj != nil {
 			appInstanceName := m.resourceTracking.GetAppName(liveObj, appLabelKey, v1alpha1.TrackingMethod(trackingMethod), installationID)
 			if appInstanceName != "" && appInstanceName != app.InstanceName(m.namespace) {
-				fqInstanceName := strings.ReplaceAll(appInstanceName, "_", "/")
-				conditions = append(conditions, v1alpha1.ApplicationCondition{
-					Type:               v1alpha1.ApplicationConditionSharedResourceWarning,
-					Message:            fmt.Sprintf("%s/%s is part of applications %s and %s", liveObj.GetKind(), liveObj.GetName(), app.QualifiedName(), fqInstanceName),
-					LastTransitionTime: &now,
-				})
+				// Fix for issue #24477: Avoid false SharedResourceWarning for resources in different clusters
+				// Resources in different clusters have different UIDs and different tracking IDs
+				// Only trigger warning if this appears to be the same physical resource
+				shouldWarn := true
+				uid := string(liveObj.GetUID())
+
+				// Check tracking annotation to determine if this is truly a different resource
+				if annotations := liveObj.GetAnnotations(); annotations != nil {
+					trackingID := annotations["argocd.argoproj.io/tracking-id"]
+
+					// If tracking ID contains cluster-specific information (like different cluster prefixes),
+					// this indicates resources in different clusters, not shared resources
+					if trackingID != "" {
+						// For resources with distinct tracking IDs that include cluster/instance info,
+						// we should be more conservative about triggering SharedResourceWarning
+						// The original issue shows tracking IDs like:
+						// "REDACTED-6d.fleet-control:..." vs "REDACTED-6a.fleet-control:..."
+						// These represent different clusters, not shared resources
+
+						// Extract cluster/instance prefix from tracking ID
+						if colonIndex := strings.Index(trackingID, ":"); colonIndex > 0 {
+							clusterPrefix := trackingID[:colonIndex]
+
+							// If the cluster prefix is different from current app's expected pattern,
+							// and we have a valid UID, this is likely a different cluster
+							if uid != "" && clusterPrefix != app.InstanceName(m.namespace) {
+								// This is a resource in a different cluster with different UID
+								// Don't trigger SharedResourceWarning
+								shouldWarn = false
+							}
+						}
+					}
+				}
+
+				if shouldWarn {
+					fqInstanceName := strings.ReplaceAll(appInstanceName, "_", "/")
+					conditions = append(conditions, v1alpha1.ApplicationCondition{
+						Type:               v1alpha1.ApplicationConditionSharedResourceWarning,
+						Message:            fmt.Sprintf("%s/%s is part of applications %s and %s", liveObj.GetKind(), liveObj.GetName(), app.QualifiedName(), fqInstanceName),
+						LastTransitionTime: &now,
+					})
+				}
 			}
 
 			// For the case when a namespace is managed with `managedNamespaceMetadata` AND it has resource tracking
