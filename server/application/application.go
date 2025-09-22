@@ -522,19 +522,17 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 			sources = appSpec.GetSources()
 		} else {
 			// For sourceHydrator applications, use the dry source to generate manifests
+			var source v1alpha1.ApplicationSource
 			if a.Spec.SourceHydrator != nil {
-				source := a.Spec.SourceHydrator.GetDrySource()
-				if q.GetRevision() != "" {
-					source.TargetRevision = q.GetRevision()
-				}
-				sources = append(sources, source)
+				source = a.Spec.SourceHydrator.GetDrySource()
 			} else {
-				source := a.Spec.GetSource()
-				if q.GetRevision() != "" {
-					source.TargetRevision = q.GetRevision()
-				}
-				sources = append(sources, source)
+				source = a.Spec.GetSource()
 			}
+
+			if q.GetRevision() != "" {
+				source.TargetRevision = q.GetRevision()
+			}
+			sources = append(sources, source)
 		}
 
 		// Store the map of all sources having ref field into a map for applications with sources field
