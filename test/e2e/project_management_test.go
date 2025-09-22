@@ -471,7 +471,7 @@ func createAndConfigGlobalProject() error {
 		{Group: "", Kind: "Deployment"},
 	}
 
-	projGlobal.Spec.ClusterResourceWhitelist = []metav1.GroupKind{
+	projGlobal.Spec.ClusterResourceWhitelist = []v1alpha1.ClusterResourceWhitelistItem{
 		{Group: "", Kind: "Job"},
 	}
 

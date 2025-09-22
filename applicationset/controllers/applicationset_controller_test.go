@@ -1937,7 +1937,7 @@ func TestValidateGeneratedApplications(t *testing.T) {
 					Server:    "*",
 				},
 			},
-			ClusterResourceWhitelist: []metav1.GroupKind{
+			ClusterResourceWhitelist: []v1alpha1.ClusterResourceWhitelistItem{
 				{
 					Group: "*",
 					Kind:  "*",

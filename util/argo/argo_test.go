@@ -1107,7 +1107,7 @@ func TestGetGlobalProjects(t *testing.T) {
 		defaultX := &argoappv1.AppProject{
 			ObjectMeta: metav1.ObjectMeta{Name: "default-x", Namespace: namespace},
 			Spec: argoappv1.AppProjectSpec{
-				ClusterResourceWhitelist: []metav1.GroupKind{
+				ClusterResourceWhitelist: []argoappv1.ClusterResourceWhitelistItem{
 					{Group: "*", Kind: "*"},
 				},
 				ClusterResourceBlacklist: []metav1.GroupKind{
