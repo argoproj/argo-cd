@@ -284,6 +284,8 @@ data:
   applicationsetcontroller.global.preserved.annotations: "acme.com/annotation1,acme.com/annotation2"
   # Comma delimited list of labels to preserve in generated applications
   applicationsetcontroller.global.preserved.labels: "acme.com/label1,acme.com/label2"
+  # The maximum number of resources stored in the status of an ApplicationSet. This is a safeguard to prevent the status from growing too large.
+  applicationsetcontroller.status.max.resources.count: "5000"
 
   ## Argo CD Notifications Controller Properties
   # Set the logging level. One of: debug|info|warn|error (default "info")
