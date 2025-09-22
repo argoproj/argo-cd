@@ -33,10 +33,9 @@ func TestGetParameterValueByName(t *testing.T) {
 
 func TestHelmAppSpecName(t *testing.T) {
 	helmAppSpec := CustomHelmAppSpec{
-		apiclient.HelmAppSpec{
+		HelmAppSpec: apiclient.HelmAppSpec{
 			Name: "test-helm-app",
 		},
-		nil,
 	}
 
 	assert.Equal(t, "test-helm-app", helmAppSpec.Name)
@@ -44,7 +43,7 @@ func TestHelmAppSpecName(t *testing.T) {
 
 func TestGetParameterValueByNameFromHelmAppSpec(t *testing.T) {
 	helmAppSpec := CustomHelmAppSpec{
-		apiclient.HelmAppSpec{
+		HelmAppSpec: apiclient.HelmAppSpec{
 			Parameters: []*v1alpha1.HelmParameter{
 				{
 					Name:  "simple",
@@ -56,7 +55,6 @@ func TestGetParameterValueByNameFromHelmAppSpec(t *testing.T) {
 				},
 			},
 		},
-		nil,
 	}
 
 	value := helmAppSpec.GetParameterValueByName("simple")
@@ -66,12 +64,12 @@ func TestGetParameterValueByNameFromHelmAppSpec(t *testing.T) {
 	assert.Equal(t, "value", value)
 
 	value = helmAppSpec.GetParameterValueByName("non-existent")
-	assert.Equal(t, "", value)
+	assert.Empty(t, value)
 }
 
 func TestGetFileParameterPathByNameFromHelmAppSpec(t *testing.T) {
 	helmAppSpec := CustomHelmAppSpec{
-		apiclient.HelmAppSpec{
+		HelmAppSpec: apiclient.HelmAppSpec{
 			FileParameters: []*v1alpha1.HelmFileParameter{
 				{
 					Name: "config",
@@ -83,7 +81,6 @@ func TestGetFileParameterPathByNameFromHelmAppSpec(t *testing.T) {
 				},
 			},
 		},
-		nil,
 	}
 
 	path := helmAppSpec.GetFileParameterPathByName("config")
@@ -93,5 +90,5 @@ func TestGetFileParameterPathByNameFromHelmAppSpec(t *testing.T) {
 	assert.Equal(t, "/path/to/secret", path)
 
 	path = helmAppSpec.GetFileParameterPathByName("non-existent")
-	assert.Equal(t, "", path)
+	assert.Empty(t, path)
 }
