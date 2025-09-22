@@ -1,10 +1,12 @@
 # Overview
 
-!!! warning "As an Argo CD user, you probably don't want to be reading this section of the docs."
-    This part of the manual is aimed at helping people contribute to Argo CD, documentation, or to develop third-party applications that interact with Argo CD, e.g.
-    
-    * A chat bot
-    * A Slack integration
+> [!WARNING]
+> **As an Argo CD user, you probably don't want to be reading this section of the docs.**
+>
+> This part of the manual is aimed at helping people contribute to Argo CD, documentation, or to develop third-party applications that interact with Argo CD, e.g.
+> 
+> * A chat bot
+> * A Slack integration
 
 ## Preface
 #### Understand the [Code Contribution Guide](code-contributions.md)

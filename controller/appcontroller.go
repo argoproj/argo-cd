@@ -1000,7 +1000,7 @@ func (ctrl *ApplicationController) processAppOperationQueueItem() (processNext b
 	appKey, shutdown := ctrl.appOperationQueue.Get()
 	if shutdown {
 		processNext = false
-		return
+		return processNext
 	}
 	processNext = true
 	defer func() {
@@ -1013,16 +1013,16 @@ func (ctrl *ApplicationController) processAppOperationQueueItem() (processNext b
 	obj, exists, err := ctrl.appInformer.GetIndexer().GetByKey(appKey)
 	if err != nil {
 		log.Errorf("Failed to get application '%s' from informer index: %+v", appKey, err)
-		return
+		return processNext
 	}
 	if !exists {
 		// This happens after app was deleted, but the work queue still had an entry for it.
-		return
+		return processNext
 	}
 	origApp, ok := obj.(*appv1.Application)
 	if !ok {
 		log.Warnf("Key '%s' in index is not an application", appKey)
-		return
+		return processNext
 	}
 	app := origApp.DeepCopy()
 	logCtx := log.WithFields(applog.GetAppLogFields(app))
@@ -1042,7 +1042,7 @@ func (ctrl *ApplicationController) processAppOperationQueueItem() (processNext b
 		freshApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.ObjectMeta.Namespace).Get(context.Background(), app.Name, metav1.GetOptions{})
 		if err != nil {
 			logCtx.Errorf("Failed to retrieve latest application state: %v", err)
-			return
+			return processNext
 		}
 		app = freshApp
 	}
@@ -1064,7 +1064,7 @@ func (ctrl *ApplicationController) processAppOperationQueueItem() (processNext b
 		}
 		ts.AddCheckpoint("finalize_application_deletion_ms")
 	}
-	return
+	return processNext
 }
 
 func (ctrl *ApplicationController) processAppComparisonTypeQueueItem() (processNext bool) {
@@ -1079,7 +1079,7 @@ func (ctrl *ApplicationController) processAppComparisonTypeQueueItem() (processN
 	}()
 	if shutdown {
 		processNext = false
-		return
+		return processNext
 	}
 
 	if parts := strings.Split(key, "/"); len(parts) != 3 {
@@ -1088,11 +1088,11 @@ func (ctrl *ApplicationController) processAppComparisonTypeQueueItem() (processN
 		compareWith, err := strconv.Atoi(parts[2])
 		if err != nil {
 			log.Warnf("Unable to parse comparison type: %v", err)
-			return
+			return processNext
 		}
 		ctrl.requestAppRefresh(ctrl.toAppQualifiedName(parts[1], parts[0]), CompareWith(compareWith).Pointer(), nil)
 	}
-	return
+	return processNext
 }
 
 func (ctrl *ApplicationController) processProjectQueueItem() (processNext bool) {
@@ -1107,21 +1107,21 @@ func (ctrl *ApplicationController) processProjectQueueItem() (processNext bool) 
 	}()
 	if shutdown {
 		processNext = false
-		return
+		return processNext
 	}
 	obj, exists, err := ctrl.projInformer.GetIndexer().GetByKey(key)
 	if err != nil {
 		log.Errorf("Failed to get project '%s' from informer index: %+v", key, err)
-		return
+		return processNext
 	}
 	if !exists {
 		// This happens after appproj was deleted, but the work queue still had an entry for it.
-		return
+		return processNext
 	}
 	origProj, ok := obj.(*appv1.AppProject)
 	if !ok {
 		log.Warnf("Key '%s' in index is not an appproject", key)
-		return
+		return processNext
 	}
 
 	if origProj.DeletionTimestamp != nil && origProj.HasFinalizer() {
@@ -1129,7 +1129,7 @@ func (ctrl *ApplicationController) processProjectQueueItem() (processNext bool) 
 			log.Warnf("Failed to finalize project deletion: %v", err)
 		}
 	}
-	return
+	return processNext
 }
 
 func (ctrl *ApplicationController) finalizeProjectDeletion(proj *appv1.AppProject) error {
@@ -1630,7 +1630,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	appKey, shutdown := ctrl.appRefreshQueue.Get()
 	if shutdown {
 		processNext = false
-		return
+		return processNext
 	}
 	processNext = true
 	defer func() {
@@ -1645,22 +1645,22 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	obj, exists, err := ctrl.appInformer.GetIndexer().GetByKey(appKey)
 	if err != nil {
 		log.Errorf("Failed to get application '%s' from informer index: %+v", appKey, err)
-		return
+		return processNext
 	}
 	if !exists {
 		// This happens after app was deleted, but the work queue still had an entry for it.
-		return
+		return processNext
 	}
 	origApp, ok := obj.(*appv1.Application)
 	if !ok {
 		log.Warnf("Key '%s' in index is not an application", appKey)
-		return
+		return processNext
 	}
 	origApp = origApp.DeepCopy()
 	needRefresh, refreshType, comparisonLevel := ctrl.needRefreshAppStatus(origApp, ctrl.statusRefreshTimeout, ctrl.statusHardRefreshTimeout)
 
 	if !needRefresh {
-		return
+		return processNext
 	}
 	app := origApp.DeepCopy()
 	logCtx := log.WithFields(applog.GetAppLogFields(app)).WithFields(log.Fields{
@@ -1703,12 +1703,12 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 					app.Status.Summary = tree.GetSummary(app)
 					if err := ctrl.cache.SetAppResourcesTree(app.InstanceName(ctrl.namespace), tree); err != nil {
 						logCtx.Errorf("Failed to cache resources tree: %v", err)
-						return
+						return processNext
 					}
 				}
 
 				patchDuration = ctrl.persistAppStatus(origApp, &app.Status)
-				return
+				return processNext
 			}
 			logCtx.Warnf("Failed to get cached managed resources for tree reconciliation, fall back to full reconciliation")
 		}
@@ -1730,14 +1730,14 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 			logCtx.Warnf("failed to set app managed resources tree: %v", err)
 		}
 		ts.AddCheckpoint("process_refresh_app_conditions_errors_ms")
-		return
+		return processNext
 	}
 
 	destCluster, err = argo.GetDestinationCluster(context.Background(), app.Spec.Destination, ctrl.db)
 	if err != nil {
 		logCtx.Errorf("Failed to get destination cluster: %v", err)
 		// exit the reconciliation. ctrl.refreshAppConditions should have caught the error
-		return
+		return processNext
 	}
 
 	var localManifests []string
@@ -1778,7 +1778,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 
 	if stderrors.Is(err, ErrCompareStateRepo) {
 		logCtx.Warnf("Ignoring temporary failed attempt to compare app state against repo: %v", err)
-		return // short circuit if git error is encountered
+		return processNext // short circuit if git error is encountered
 	}
 
 	for k, v := range compareResult.timings {
@@ -1847,14 +1847,14 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		}
 	}
 	ts.AddCheckpoint("process_finalizers_ms")
-	return
+	return processNext
 }
 
 func (ctrl *ApplicationController) processAppHydrateQueueItem() (processNext bool) {
 	appKey, shutdown := ctrl.appHydrateQueue.Get()
 	if shutdown {
 		processNext = false
-		return
+		return processNext
 	}
 	processNext = true
 	defer func() {
@@ -1866,29 +1866,29 @@ func (ctrl *ApplicationController) processAppHydrateQueueItem() (processNext boo
 	obj, exists, err := ctrl.appInformer.GetIndexer().GetByKey(appKey)
 	if err != nil {
 		log.Errorf("Failed to get application '%s' from informer index: %+v", appKey, err)
-		return
+		return processNext
 	}
 	if !exists {
 		// This happens after app was deleted, but the work queue still had an entry for it.
-		return
+		return processNext
 	}
 	origApp, ok := obj.(*appv1.Application)
 	if !ok {
 		log.Warnf("Key '%s' in index is not an application", appKey)
-		return
+		return processNext
 	}
 
 	ctrl.hydrator.ProcessAppHydrateQueueItem(origApp)
 
 	log.WithFields(applog.GetAppLogFields(origApp)).Debug("Successfully processed app hydrate queue item")
-	return
+	return processNext
 }
 
 func (ctrl *ApplicationController) processHydrationQueueItem() (processNext bool) {
 	hydrationKey, shutdown := ctrl.hydrationQueue.Get()
 	if shutdown {
 		processNext = false
-		return
+		return processNext
 	}
 	processNext = true
 	defer func() {
@@ -1909,7 +1909,7 @@ func (ctrl *ApplicationController) processHydrationQueueItem() (processNext bool
 	ctrl.hydrator.ProcessHydrationQueueItem(hydrationKey)
 
 	logCtx.Debug("Successfully processed hydration queue item")
-	return
+	return processNext
 }
 
 func resourceStatusKey(res appv1.ResourceStatus) string {
@@ -2072,11 +2072,11 @@ func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, new
 		&appv1.Application{ObjectMeta: metav1.ObjectMeta{Annotations: newAnnotations}, Status: *newStatus})
 	if err != nil {
 		logCtx.Errorf("Error constructing app status patch: %v", err)
-		return
+		return patchDuration
 	}
 	if !modified {
 		logCtx.Infof("No status changes. Skipping patch")
-		return
+		return patchDuration
 	}
 	// calculate time for path call
 	start := time.Now()
