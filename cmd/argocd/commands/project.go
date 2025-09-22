@@ -590,17 +590,15 @@ func NewProjectRemoveSourceNamespace(clientOpts *argocdclient.ClientOptions) *co
 	return command
 }
 
-func modifyResourcesList(list *[]metav1.GroupKind, add bool, listDesc string, group string, kind string) bool {
+func modifyResourcesList(list *[]metav1.GroupKind, add bool, listDesc string, group string, kind string) (bool, string) {
 	if add {
 		for _, item := range *list {
 			if item.Group == group && item.Kind == kind {
-				fmt.Printf("Group '%s' and kind '%s' already present in %s resources\n", group, kind, listDesc)
-				return false
+				return false, fmt.Sprintf("Group '%s' and kind '%s' already present in %s resources", group, kind, listDesc)
 			}
 		}
-		fmt.Printf("Group '%s' and kind '%s' is added to %s resources\n", group, kind, listDesc)
 		*list = append(*list, metav1.GroupKind{Group: group, Kind: kind})
-		return true
+		return true, fmt.Sprintf("Group '%s' and kind '%s' is added to %s resources", group, kind, listDesc)
 	}
 	index := -1
 	for i, item := range *list {
@@ -610,25 +608,21 @@ func modifyResourcesList(list *[]metav1.GroupKind, add bool, listDesc string, gr
 		}
 	}
 	if index == -1 {
-		fmt.Printf("Group '%s' and kind '%s' not in %s resources\n", group, kind, listDesc)
-		return false
+		return false, fmt.Sprintf("Group '%s' and kind '%s' not in %s resources", group, kind, listDesc)
 	}
 	*list = append((*list)[:index], (*list)[index+1:]...)
-	fmt.Printf("Group '%s' and kind '%s' is removed from %s resources\n", group, kind, listDesc)
-	return true
+	return true, fmt.Sprintf("Group '%s' and kind '%s' is removed from %s resources", group, kind, listDesc)
 }
 
-func modifyAllowClusterResourceList(list *[]v1alpha1.ClusterResourceWhitelistItem, add bool, group string, kind string, name string) bool {
+func modifyAllowClusterResourceList(list *[]v1alpha1.ClusterResourceWhitelistItem, add bool, group string, kind string, name string) (bool, string) {
 	if add {
 		for _, item := range *list {
 			if item.Group == group && item.Kind == kind && (name == "" || item.Name == name) {
-				fmt.Printf("Group '%s', kind '%s', and name '%s' is already present in cluster allow list\n", group, kind, name)
-				return false
+				return false, fmt.Sprintf("Group '%s', kind '%s', and name '%s' is already present in cluster allow list", group, kind, name)
 			}
 		}
-		fmt.Printf("Group '%s', kind '%s', and name '%s' is added to cluster allow list\n", group, kind, name)
 		*list = append(*list, v1alpha1.ClusterResourceWhitelistItem{Group: group, Kind: kind, Name: name})
-		return true
+		return true, fmt.Sprintf("Group '%s', kind '%s', and name '%s' is added to cluster allow list", group, kind, name)
 	}
 	index := -1
 	for i, item := range *list {
@@ -638,15 +632,13 @@ func modifyAllowClusterResourceList(list *[]v1alpha1.ClusterResourceWhitelistIte
 		}
 	}
 	if index == -1 {
-		fmt.Printf("Group '%s', kind '%s', and name '%s' not in cluster allow list\n", group, kind, name)
-		return false
+		return false, fmt.Sprintf("Group '%s', kind '%s', and name '%s' not in cluster allow list", group, kind, name)
 	}
 	*list = append((*list)[:index], (*list)[index+1:]...)
-	fmt.Printf("Group '%s', kind '%s', and name '%s' is removed from cluster allow list\n", group, kind, name)
-	return true
+	return true, fmt.Sprintf("Group '%s', kind '%s', and name '%s' is removed from cluster allow list", group, kind, name)
 }
 
-func modifyResourceListCmd(cmdUse, cmdDesc, examples string, clientOpts *argocdclient.ClientOptions, allow bool, namespacedList bool) *cobra.Command {
+func modifyResourceListCmd(getProjIf func(*cobra.Command) (io.Closer, projectpkg.ProjectServiceClient), cmdUse, cmdDesc, examples string, allow bool, namespacedList bool) *cobra.Command {
 	var (
 		listType    string
 		defaultList string
@@ -663,7 +655,7 @@ func modifyResourceListCmd(cmdUse, cmdDesc, examples string, clientOpts *argocdc
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
-			if len(args) != 3 {
+			if len(args) != 3 && (namespacedList || len(args) != 4) {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
@@ -672,7 +664,7 @@ func modifyResourceListCmd(cmdUse, cmdDesc, examples string, clientOpts *argocdc
 			if !namespacedList && len(args) > 3 {
 				name = args[3]
 			}
-			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
+			conn, projIf := getProjIf(c)
 			defer utilio.Close(conn)
 
 			proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
@@ -700,14 +692,16 @@ func modifyResourceListCmd(cmdUse, cmdDesc, examples string, clientOpts *argocdc
 			}
 
 			if !namespacedList && listAction == "allowed" {
-				if modifyAllowClusterResourceList(clusterAllowList, add, group, kind, name) {
+				if ok, msg := modifyAllowClusterResourceList(clusterAllowList, add, group, kind, name); ok {
+					c.Println(msg)
 					_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
 					errors.CheckError(err)
-					return
 				}
+				return
 			}
 
-			if modifyResourcesList(list, add, listAction+" "+listDesc, group, kind) {
+			if ok, msg := modifyResourcesList(list, add, listAction+" "+listDesc, group, kind); ok {
+				c.Println(msg)
 				_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
 				errors.CheckError(err)
 			}
@@ -725,7 +719,10 @@ func NewProjectAllowNamespaceResourceCommand(clientOpts *argocdclient.ClientOpti
 	# Removes a namespaced API resource with specified GROUP and KIND from the deny list or add a namespaced API resource to the allow list for project PROJECT
 	argocd proj allow-namespace-resource PROJECT GROUP KIND
 	`
-	return modifyResourceListCmd(use, desc, examples, clientOpts, true, true)
+	getProjIf := func(cmd *cobra.Command) (io.Closer, projectpkg.ProjectServiceClient) {
+		return headless.NewClientOrDie(clientOpts, cmd).NewProjectClientOrDie()
+	}
+	return modifyResourceListCmd(getProjIf, use, desc, examples, true, true)
 }
 
 // NewProjectDenyNamespaceResourceCommand returns a new instance of an `argocd proj deny-namespace-resource` command
@@ -736,7 +733,10 @@ func NewProjectDenyNamespaceResourceCommand(clientOpts *argocdclient.ClientOptio
 	# Adds a namespaced API resource with specified GROUP and KIND from the deny list or removes a namespaced API resource from the allow list for project PROJECT
 	argocd proj deny-namespace-resource PROJECT GROUP KIND
 	`
-	return modifyResourceListCmd(use, desc, examples, clientOpts, false, true)
+	getProjIf := func(cmd *cobra.Command) (io.Closer, projectpkg.ProjectServiceClient) {
+		return headless.NewClientOrDie(clientOpts, cmd).NewProjectClientOrDie()
+	}
+	return modifyResourceListCmd(getProjIf, use, desc, examples, false, true)
 }
 
 // NewProjectDenyClusterResourceCommand returns a new instance of an `deny-cluster-resource` command
@@ -747,7 +747,10 @@ func NewProjectDenyClusterResourceCommand(clientOpts *argocdclient.ClientOptions
 	# Removes a cluster-scoped API resource with specified GROUP and KIND from the allow list and adds it to deny list for project PROJECT
 	argocd proj deny-cluster-resource PROJECT GROUP KIND
 	`
-	return modifyResourceListCmd(use, desc, examples, clientOpts, false, false)
+	getProjIf := func(cmd *cobra.Command) (io.Closer, projectpkg.ProjectServiceClient) {
+		return headless.NewClientOrDie(clientOpts, cmd).NewProjectClientOrDie()
+	}
+	return modifyResourceListCmd(getProjIf, use, desc, examples, false, false)
 }
 
 // NewProjectAllowClusterResourceCommand returns a new instance of an `argocd proj allow-cluster-resource` command
@@ -761,7 +764,10 @@ func NewProjectAllowClusterResourceCommand(clientOpts *argocdclient.ClientOption
 	# Adds a cluster-scoped API resource with specified GROUP, KIND and NAME pattern to the allow list and removes it from deny list for project PROJECT
 	argocd proj allow-cluster-resource PROJECT GROUP KIND NAME
 	`
-	return modifyResourceListCmd(use, desc, examples, clientOpts, true, false)
+	getProjIf := func(cmd *cobra.Command) (io.Closer, projectpkg.ProjectServiceClient) {
+		return headless.NewClientOrDie(clientOpts, cmd).NewProjectClientOrDie()
+	}
+	return modifyResourceListCmd(getProjIf, use, desc, examples, true, false)
 }
 
 // NewProjectRemoveSourceCommand returns a new instance of an `argocd proj remove-src` command
