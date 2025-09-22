@@ -6,6 +6,7 @@ import (
 
 	"github.com/bradleyfalzon/ghinstallation/v2"
 	"github.com/google/go-github/v69/github"
+	"github.com/shurcooL/githubv4"
 
 	"github.com/argoproj/argo-cd/v3/applicationset/services/github_app_auth"
 	appsetutils "github.com/argoproj/argo-cd/v3/applicationset/utils"
@@ -44,4 +45,26 @@ func Client(g github_app_auth.Authentication, url string, optionalHTTPClient ...
 		}
 	}
 	return client, nil
+}
+
+// V4Client returns a githubv4 client for graphql queries using the given app authentication.
+func V4Client(g github_app_auth.Authentication, url string, optionalHTTPClient ...*http.Client) (*githubv4.Client, error) {
+	httpClient, transport := getOptionalHTTPClientAndTransport(optionalHTTPClient...)
+
+	rt, err := ghinstallation.New(transport, g.Id, g.InstallationId, []byte(g.PrivateKey))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create github app install: %w", err)
+	}
+	if url == "" {
+		url = g.EnterpriseBaseURL
+	}
+	var v4Client *githubv4.Client
+	httpClient.Transport = rt
+	if url == "" {
+		v4Client = githubv4.NewClient(httpClient)
+	} else {
+		rt.BaseURL = url
+		v4Client = githubv4.NewEnterpriseClient(url, httpClient)
+	}
+	return v4Client, nil
 }
