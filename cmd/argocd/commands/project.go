@@ -590,19 +590,8 @@ func NewProjectRemoveSourceNamespace(clientOpts *argocdclient.ClientOptions) *co
 	return command
 }
 
-func modifyResourcesList(list *[]metav1.GroupKind, clusterList *[]v1alpha1.ClusterResourceWhitelistItem, add bool, listDesc string, group string, kind string, name string) bool {
+func modifyResourcesList(list *[]metav1.GroupKind, add bool, listDesc string, group string, kind string) bool {
 	if add {
-		if clusterList != nil {
-			for _, item := range *clusterList {
-				if item.Group == group && item.Kind == kind && (name == "" || item.Name == name) {
-					fmt.Printf("Group '%s', kind '%s', and name '%s' is already present in cluster allow list\n", group, kind, name)
-					return false
-				}
-			}
-			fmt.Printf("Group '%s', kind '%s', and name '%s' is added to cluster allow list\n", group, kind, name)
-			*clusterList = append(*clusterList, v1alpha1.ClusterResourceWhitelistItem{Group: group, Kind: kind, Name: name})
-			return true
-		}
 		for _, item := range *list {
 			if item.Group == group && item.Kind == kind {
 				fmt.Printf("Group '%s' and kind '%s' already present in %s resources\n", group, kind, listDesc)
@@ -614,21 +603,6 @@ func modifyResourcesList(list *[]metav1.GroupKind, clusterList *[]v1alpha1.Clust
 		return true
 	}
 	index := -1
-	if clusterList != nil {
-		for i, item := range *clusterList {
-			if item.Group == group && item.Kind == kind && (name == "" || item.Name == name) {
-				index = i
-				break
-			}
-		}
-		if index == -1 {
-			fmt.Printf("Group '%s', kind '%s', and name '%s' not in cluster allow list\n", group, kind, name)
-			return false
-		}
-		*clusterList = append((*clusterList)[:index], (*clusterList)[index+1:]...)
-		fmt.Printf("Group '%s', kind '%s', and name '%s' is removed from cluster allow list\n", group, kind, name)
-		return true
-	}
 	for i, item := range *list {
 		if item.Group == group && item.Kind == kind {
 			index = i
@@ -641,6 +615,34 @@ func modifyResourcesList(list *[]metav1.GroupKind, clusterList *[]v1alpha1.Clust
 	}
 	*list = append((*list)[:index], (*list)[index+1:]...)
 	fmt.Printf("Group '%s' and kind '%s' is removed from %s resources\n", group, kind, listDesc)
+	return true
+}
+
+func modifyAllowClusterResourceList(list *[]v1alpha1.ClusterResourceWhitelistItem, add bool, group string, kind string, name string) bool {
+	if add {
+		for _, item := range *list {
+			if item.Group == group && item.Kind == kind && (name == "" || item.Name == name) {
+				fmt.Printf("Group '%s', kind '%s', and name '%s' is already present in cluster allow list\n", group, kind, name)
+				return false
+			}
+		}
+		fmt.Printf("Group '%s', kind '%s', and name '%s' is added to cluster allow list\n", group, kind, name)
+		*list = append(*list, v1alpha1.ClusterResourceWhitelistItem{Group: group, Kind: kind, Name: name})
+		return true
+	}
+	index := -1
+	for i, item := range *list {
+		if item.Group == group && item.Kind == kind && (name == "" || item.Name == name) {
+			index = i
+			break
+		}
+	}
+	if index == -1 {
+		fmt.Printf("Group '%s', kind '%s', and name '%s' not in cluster allow list\n", group, kind, name)
+		return false
+	}
+	*list = append((*list)[:index], (*list)[index+1:]...)
+	fmt.Printf("Group '%s', kind '%s', and name '%s' is removed from cluster allow list\n", group, kind, name)
 	return true
 }
 
@@ -697,7 +699,15 @@ func modifyResourceListCmd(cmdUse, cmdDesc, examples string, clientOpts *argocdc
 				add = !allow
 			}
 
-			if modifyResourcesList(list, clusterAllowList, add, listAction+" "+listDesc, group, kind, name) {
+			if !namespacedList && listAction == "allowed" {
+				if modifyAllowClusterResourceList(clusterAllowList, add, group, kind, name) {
+					_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
+					errors.CheckError(err)
+					return
+				}
+			}
+
+			if modifyResourcesList(list, add, listAction+" "+listDesc, group, kind) {
 				_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
 				errors.CheckError(err)
 			}
