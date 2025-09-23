@@ -2,7 +2,7 @@
 
 ## argocd appset generate
 
-Generate apps of ApplicationSet rendered templates
+Generate apps from ApplicationSet rendered templates and display the output.
 
 ```
 argocd appset generate [flags]
