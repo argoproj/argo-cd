@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/signal"
 	"runtime/debug"
-	"strings"
 	"sync"
 	"syscall"
 
@@ -20,6 +19,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"k8s.io/client-go/tools/clientcmd"
+	
 	cmdutil "github.com/argoproj/argo-cd/v3/cmd/util"
 	"github.com/argoproj/argo-cd/v3/common"
 	notificationscontroller "github.com/argoproj/argo-cd/v3/notification_controller/controller"
@@ -41,7 +41,6 @@ func NewCommand() *cobra.Command {
 		processorsCount                int
 		appLabelSelector               string
 		logLevel                       string
-		logFormat                      string
 		metricsPort                    int
 		argocdRepoServer               string
 		argocdRepoServerPlaintext      bool
