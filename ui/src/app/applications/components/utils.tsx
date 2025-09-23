@@ -1859,3 +1859,44 @@ export function getApplicationLinkURLFromNode(node: any, baseHref: string): {url
     }
     return {url, isExternal};
 }
+
+// Common utility functions for formatting CPU and Memory values
+export function formatCPUValue(milliCpu: number): string {
+    return milliCpu >= 1000 ? `${(milliCpu / 1000).toFixed(1)}` : `${milliCpu}m`;
+}
+
+export function formatMemoryValue(milliBytes: number): string {
+    const mib = Math.round(milliBytes / (1024 * 1024 * 1000));
+    return `${mib}Mi`;
+}
+
+export function formatCPUTooltip(milliCpu: number): string {
+    const displayValue = milliCpu >= 1000 ? `${(milliCpu / 1000).toFixed(1)} cores` : `${milliCpu}m`;
+    return `CPU Request: ${displayValue}`;
+}
+
+export function formatMemoryTooltip(milliBytes: number): string {
+    const mib = Math.round(milliBytes / (1024 * 1024 * 1000));
+    return `Memory Request: ${mib}Mi`;
+}
+
+export function formatResourceInfo(name: string, value: string): {displayValue: string; tooltipValue: string} {
+    const numValue = parseInt(value, 10);
+    
+    if (name === 'cpu') {
+        return {
+            displayValue: formatCPUValue(numValue),
+            tooltipValue: formatCPUTooltip(numValue)
+        };
+    } else if (name === 'memory') {
+        return {
+            displayValue: formatMemoryValue(numValue),
+            tooltipValue: formatMemoryTooltip(numValue)
+        };
+    }
+    
+    return {
+        displayValue: value,
+        tooltipValue: `${name}: ${value}`
+    };
+}
