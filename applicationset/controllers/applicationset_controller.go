@@ -103,6 +103,7 @@ type ApplicationSetReconciler struct {
 	GlobalPreservedAnnotations []string
 	GlobalPreservedLabels      []string
 	Metrics                    *metrics.ApplicationsetMetrics
+	MaxResourcesStatusCount    int
 }
 
 // +kubebuilder:rbac:groups=argoproj.io,resources=applicationsets,verbs=get;list;watch;create;update;patch;delete
@@ -1434,7 +1435,13 @@ func (r *ApplicationSetReconciler) updateResourcesStatus(ctx context.Context, lo
 	sort.Slice(statuses, func(i, j int) bool {
 		return statuses[i].Name < statuses[j].Name
 	})
+	resourcesCount := int64(len(statuses))
+	if r.MaxResourcesStatusCount > 0 && len(statuses) > r.MaxResourcesStatusCount {
+		logCtx.Warnf("Truncating ApplicationSet %s resource status from %d to max allowed %d entries", appset.Name, len(statuses), r.MaxResourcesStatusCount)
+		statuses = statuses[:r.MaxResourcesStatusCount]
+	}
 	appset.Status.Resources = statuses
+	appset.Status.ResourcesCount = resourcesCount
 	// DefaultRetry will retry 5 times with a backoff factor of 1, jitter of 0.1 and a duration of 10ms
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		namespacedName := types.NamespacedName{Namespace: appset.Namespace, Name: appset.Name}
@@ -1447,6 +1454,7 @@ func (r *ApplicationSetReconciler) updateResourcesStatus(ctx context.Context, lo
 		}
 
 		updatedAppset.Status.Resources = appset.Status.Resources
+		updatedAppset.Status.ResourcesCount = resourcesCount
 
 		// Update the newly fetched object with new status resources
 		err := r.Client.Status().Update(ctx, updatedAppset)

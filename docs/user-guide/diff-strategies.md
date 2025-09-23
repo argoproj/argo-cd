@@ -17,8 +17,10 @@ Argo CD currently has 3 different strategies to calculate diffs:
 
 ## Structured-Merge Diff
 
-!!! warning "Feature Discontinued"
-    After different issues were identified by the community, this strategy is being discontinued in favour of Server-Side Diff.
+> [!WARNING]
+> **Feature Discontinued**
+>
+> After different issues were identified by the community, this strategy is being discontinued in favour of Server-Side Diff.
 
 This diff strategy is automatically used when Server-Side Apply
 sync option is enabled. It uses the [structured-merge-diff][2] library
