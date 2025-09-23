@@ -227,6 +227,20 @@ func Test_modifyAllowClusterResourceList(t *testing.T) {
 			expectedList:   []v1alpha1.ClusterResourceRestrictionItem{},
 			expectedResult: true,
 		},
+		{
+			name: "Attempt to remove item with name but only group and kind exist",
+			initialList: []v1alpha1.ClusterResourceRestrictionItem{
+				{Group: "apps", Kind: "Deployment", Name: ""},
+			},
+			add:          false,
+			group:        "apps",
+			kind:         "Deployment",
+			resourceName: "example-deployment",
+			expectedList: []v1alpha1.ClusterResourceRestrictionItem{
+				{Group: "apps", Kind: "Deployment", Name: ""},
+			},
+			expectedResult: false,
+		},
 	}
 
 	for _, tt := range tests {
