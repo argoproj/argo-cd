@@ -212,7 +212,7 @@ func PushChartToOCIRegistry(t *testing.T, chartPathName, chartName, chartVersion
 	require.NoError(t, err1)
 	defer func() { _ = os.RemoveAll(tempDest) }()
 
-	chartAbsPath, err2 := filepath.Abs("./testdata/" + chartPathName)
+	chartAbsPath, err2 := filepath.Abs("./" + chartPathName)
 	require.NoError(t, err2)
 
 	t.Setenv("HELM_EXPERIMENTAL_OCI", "1")
@@ -236,7 +236,7 @@ func PushChartToAuthenticatedOCIRegistry(t *testing.T, chartPathName, chartName,
 	require.NoError(t, err1)
 	defer func() { _ = os.RemoveAll(tempDest) }()
 
-	chartAbsPath, err2 := filepath.Abs("./testdata/" + chartPathName)
+	chartAbsPath, err2 := filepath.Abs("./" + chartPathName)
 	require.NoError(t, err2)
 
 	t.Setenv("HELM_EXPERIMENTAL_OCI", "1")
@@ -274,13 +274,13 @@ func PushChartToAuthenticatedOCIRegistry(t *testing.T, chartPathName, chartName,
 // PushImageToOCIRegistry adds a helm chart to helm OCI registry
 func PushImageToOCIRegistry(t *testing.T, pathName, tag string) {
 	t.Helper()
-	imagePath := "./testdata/" + pathName
+	imagePath := "./" + pathName
 
 	errors.NewHandler(t).FailOnErr(fixture.Run(
 		imagePath,
 		"oras",
 		"push",
-		fmt.Sprintf("%s:%s", fmt.Sprintf("%s/%s", strings.TrimPrefix(fixture.OCIHostURL, "oci://"), pathName), tag),
+		fmt.Sprintf("%s:%s", fmt.Sprintf("%s/%s", strings.TrimPrefix(fixture.OCIHostURL, "oci://"), filepath.Base(pathName)), tag),
 		".",
 	))
 }
@@ -288,13 +288,13 @@ func PushImageToOCIRegistry(t *testing.T, pathName, tag string) {
 // PushImageToAuthenticatedOCIRegistry adds a helm chart to helm OCI registry
 func PushImageToAuthenticatedOCIRegistry(t *testing.T, pathName, tag string) {
 	t.Helper()
-	imagePath := "./testdata/" + pathName
+	imagePath := "./" + pathName
 
 	errors.NewHandler(t).FailOnErr(fixture.Run(
 		imagePath,
 		"oras",
 		"push",
-		fmt.Sprintf("%s:%s", fmt.Sprintf("%s/%s", strings.TrimPrefix(fixture.AuthenticatedOCIHostURL, "oci://"), pathName), tag),
+		fmt.Sprintf("%s:%s", fmt.Sprintf("%s/%s", strings.TrimPrefix(fixture.AuthenticatedOCIHostURL, "oci://"), filepath.Base(pathName)), tag),
 		".",
 	))
 }

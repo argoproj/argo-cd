@@ -551,7 +551,7 @@ func (c *client) newConn() (*grpc.ClientConn, io.Closer, error) {
 	if c.UserAgent != "" {
 		dialOpts = append(dialOpts, grpc.WithUserAgent(c.UserAgent))
 	}
-	conn, e := grpc_util.BlockingDial(ctx, network, serverAddr, creds, dialOpts...)
+	conn, e := grpc_util.BlockingNewClient(ctx, network, serverAddr, creds, dialOpts...)
 	closers = append(closers, conn)
 	return conn, utilio.NewCloser(func() error {
 		var firstErr error

@@ -222,7 +222,7 @@ message ApplicationSetApplicationStatus {
   // Message contains human-readable message indicating details about the status
   optional string message = 3;
 
-  // Status contains the AppSet's perceived status of the managed Application resource: (Waiting, Pending, Progressing, Healthy)
+  // Status contains the AppSet's perceived status of the managed Application resource
   optional string status = 4;
 
   // Step tracks which step this Application should be updated in
@@ -2225,6 +2225,9 @@ message RetryStrategy {
 
   // Backoff controls how to backoff on subsequent retries of failed syncs
   optional Backoff backoff = 2;
+
+  // Refresh indicates if the latest revision should be used on retry instead of the initial one (default: false)
+  optional bool refresh = 3;
 }
 
 // RevisionHistory contains history information about a previous sync
@@ -2626,7 +2629,7 @@ message SyncPolicyAutomated {
   optional bool allowEmpty = 3;
 
   // Enable allows apps to explicitly control automated sync
-  optional bool enable = 4;
+  optional bool enabled = 4;
 }
 
 // SyncSource specifies a location from which hydrated manifests may be synced. RepoURL is assumed based on the
@@ -2636,7 +2639,12 @@ message SyncSource {
   optional string targetBranch = 1;
 
   // Path is a directory path within the git repository where hydrated manifests should be committed to and synced
-  // from. If hydrateTo is set, this is just the path from which hydrated manifests will be synced.
+  // from. The Path should never point to the root of the repo. If hydrateTo is set, this is just the path from which
+  // hydrated manifests will be synced.
+  //
+  // +kubebuilder:validation:Required
+  // +kubebuilder:validation:MinLength=1
+  // +kubebuilder:validation:Pattern=`^.{2,}|[^./]$`
   optional string path = 2;
 }
 

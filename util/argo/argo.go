@@ -1152,7 +1152,7 @@ func parseName(qualifiedName string, defaultNs string, delim string) (name strin
 		namespace = defaultNs
 		name = t[0]
 	}
-	return
+	return name, namespace
 }
 
 // ParseAppNamespacedName parses a namespaced name in the format namespace/name
