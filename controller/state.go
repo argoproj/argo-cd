@@ -1028,7 +1028,7 @@ func (m *appStateManager) shouldTriggerSharedResourceWarning(liveObj *unstructur
 }
 
 // shouldWarnWithAnnotationTracking checks annotation-based tracking for cross-cluster resources
-func (m *appStateManager) shouldWarnWithAnnotationTracking(liveObj *unstructured.Unstructured, appInstanceName string, app *v1alpha1.Application, uid string) bool {
+func (m *appStateManager) shouldWarnWithAnnotationTracking(liveObj *unstructured.Unstructured, _ string, app *v1alpha1.Application, uid string) bool {
 	annotations := liveObj.GetAnnotations()
 	if annotations == nil {
 		return true
@@ -1053,8 +1053,8 @@ func (m *appStateManager) shouldWarnWithAnnotationTracking(liveObj *unstructured
 	return clusterPrefix == currentAppPrefix
 }
 
-// shouldWarnWithLabelTracking checks label-based tracking for cross-cluster resources  
-func (m *appStateManager) shouldWarnWithLabelTracking(liveObj *unstructured.Unstructured, appInstanceName string, app *v1alpha1.Application, uid string) bool {
+// shouldWarnWithLabelTracking checks label-based tracking for cross-cluster resources
+func (m *appStateManager) shouldWarnWithLabelTracking(_ *unstructured.Unstructured, appInstanceName string, app *v1alpha1.Application, uid string) bool {
 	// For label tracking, we have less cluster-specific information
 	// Use UID differences as primary indicator of different clusters
 	

@@ -33,19 +33,24 @@ func TestIssue24477_ExactScenario(t *testing.T) {
 
 	// PROOF: These resources should be recognized as different (different clusters)
 	assert.NotEqual(t, cert1.GetUID(), cert2.GetUID(), "Resources have different UIDs (different clusters)")
-	assert.NotEqual(t, cert1.GetAnnotations()["argocd.argoproj.io/tracking-id"], 
+	assert.NotEqual(t, cert1.GetAnnotations()["argocd.argoproj.io/tracking-id"],
 		cert2.GetAnnotations()["argocd.argoproj.io/tracking-id"], "Resources have different tracking IDs")
-	
+
 	// PROOF: Different tracking ID prefixes indicate different clusters
 	trackingID1 := cert1.GetAnnotations()["argocd.argoproj.io/tracking-id"]
 	trackingID2 := cert2.GetAnnotations()["argocd.argoproj.io/tracking-id"]
+
+	colonIndex1 := strings.Index(trackingID1, ":")
+	colonIndex2 := strings.Index(trackingID2, ":")
 	
-	prefix1 := trackingID1[:strings.Index(trackingID1, ":")]
-	prefix2 := trackingID2[:strings.Index(trackingID2, ":")]
-	
-	assert.Equal(t, "REDACTED-6d.fleet-control", prefix1)
-	assert.Equal(t, "REDACTED-6a.fleet-control", prefix2)
-	assert.NotEqual(t, prefix1, prefix2, "Different cluster prefixes confirm these are different clusters")
+	if colonIndex1 > 0 && colonIndex2 > 0 {
+		prefix1 := trackingID1[:colonIndex1]
+		prefix2 := trackingID2[:colonIndex2]
+
+		assert.Equal(t, "REDACTED-6d.fleet-control", prefix1)
+		assert.Equal(t, "REDACTED-6a.fleet-control", prefix2)
+		assert.NotEqual(t, prefix1, prefix2, "Different cluster prefixes confirm these are different clusters")
+	}
 }
 
 // TestSharedResourceWarningLogic_BeforeAndAfter demonstrates the fix

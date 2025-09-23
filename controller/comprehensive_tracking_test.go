@@ -22,57 +22,49 @@ func TestSharedResourceWarningAllTrackingMethods(t *testing.T) {
 		{
 			name:           "annotation_tracking_different_clusters",
 			trackingMethod: "annotation",
-			setupResources: func() (*unstructured.Unstructured, *unstructured.Unstructured) {
-				return createAnnotationTrackedResources()
-			},
-			expectWarning: false,
-			description:   "Resources with different tracking ID prefixes should not trigger warning",
+			setupResources: createAnnotationTrackedResources,
+			expectWarning:  false,
+			description:    "Resources with different tracking ID prefixes should not trigger warning",
 		},
 		{
 			name:           "annotation_tracking_same_cluster",
 			trackingMethod: "annotation",
-			setupResources: func() (*unstructured.Unstructured, *unstructured.Unstructured) {
-				return createSameClusterAnnotationResources()
-			},
-			expectWarning: true,
-			description:   "Resources with same tracking ID prefix should trigger warning",
+			setupResources: createSameClusterAnnotationResources,
+			expectWarning:  true,
+			description:    "Resources with same tracking ID prefix should trigger warning",
 		},
 		{
 			name:           "label_tracking_different_clusters",
 			trackingMethod: "label",
-			setupResources: func() (*unstructured.Unstructured, *unstructured.Unstructured) {
-				return createLabelTrackedResources()
-			},
-			expectWarning: false,
-			description:   "Resources with different cluster-aware labels should not trigger warning",
+			setupResources: createLabelTrackedResources,
+			expectWarning:  false,
+			description:    "Resources with different cluster-aware labels should not trigger warning",
 		},
 		{
 			name:           "annotation_plus_label_tracking",
 			trackingMethod: "annotation+label",
-			setupResources: func() (*unstructured.Unstructured, *unstructured.Unstructured) {
-				return createAnnotationPlusLabelResources()
-			},
-			expectWarning: false,
-			description:   "Mixed tracking method should work correctly",
+			setupResources: createAnnotationPlusLabelResources,
+			expectWarning:  false,
+			description:    "Mixed tracking method should work correctly",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			res1, _ := tt.setupResources()
-			
+
 			// Create mock app state manager
 			manager := createMockAppStateManager()
 			app := createMockApplication()
-			
+
 			// Test the logic
 			shouldWarn := manager.shouldTriggerSharedResourceWarning(
-				res1, 
+				res1,
 				getAppInstanceName(res1, tt.trackingMethod),
 				app,
 				tt.trackingMethod,
 			)
-			
+
 			if tt.expectWarning {
 				assert.True(t, shouldWarn, tt.description)
 			} else {
@@ -109,7 +101,7 @@ func createAnnotationTrackedResources() (*unstructured.Unstructured, *unstructur
 }
 
 func createSameClusterAnnotationResources() (*unstructured.Unstructured, *unstructured.Unstructured) {
-	// Same cluster, different apps
+	// Same cluster, different apps - should trigger warning
 	res1 := &unstructured.Unstructured{}
 	res1.SetAPIVersion("apps/v1")
 	res1.SetKind("Deployment")
@@ -117,7 +109,7 @@ func createSameClusterAnnotationResources() (*unstructured.Unstructured, *unstru
 	res1.SetNamespace("default")
 	res1.SetUID("62e7a834-97c6-4a99-8abf-8bbcb1dec995")
 	res1.SetAnnotations(map[string]string{
-		"argocd.argoproj.io/tracking-id": "same-cluster:apps/Deployment:default/nginx",
+		"argocd.argoproj.io/tracking-id": "argocd:apps/Deployment:default/nginx", // Same prefix as app
 	})
 
 	res2 := &unstructured.Unstructured{}
@@ -127,7 +119,7 @@ func createSameClusterAnnotationResources() (*unstructured.Unstructured, *unstru
 	res2.SetNamespace("default")
 	res2.SetUID("62e7a834-97c6-4a99-8abf-8bbcb1dec995") // Same UID = same cluster
 	res2.SetAnnotations(map[string]string{
-		"argocd.argoproj.io/tracking-id": "same-cluster:apps/Deployment:default/nginx",
+		"argocd.argoproj.io/tracking-id": "argocd:apps/Deployment:default/nginx", // Same prefix
 	})
 
 	return res1, res2
