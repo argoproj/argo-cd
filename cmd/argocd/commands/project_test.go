@@ -3,8 +3,9 @@ package commands
 import (
 	"bytes"
 	"io"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"testing"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
@@ -81,11 +82,11 @@ func Test_modifyNamespacedResourceList(t *testing.T) {
 		expectedResult bool
 	}{
 		{
-			name:         "Add new item to empty list",
-			initialList:  []metav1.GroupKind{},
-			add:          true,
-			group:        "apps",
-			kind:         "Deployment",
+			name:        "Add new item to empty list",
+			initialList: []metav1.GroupKind{},
+			add:         true,
+			group:       "apps",
+			kind:        "Deployment",
 			expectedList: []metav1.GroupKind{
 				{Group: "apps", Kind: "Deployment"},
 			},
@@ -96,9 +97,9 @@ func Test_modifyNamespacedResourceList(t *testing.T) {
 			initialList: []metav1.GroupKind{
 				{Group: "apps", Kind: "Deployment"},
 			},
-			add:          true,
-			group:        "apps",
-			kind:         "Deployment",
+			add:   true,
+			group: "apps",
+			kind:  "Deployment",
 			expectedList: []metav1.GroupKind{
 				{Group: "apps", Kind: "Deployment"},
 			},
@@ -120,9 +121,9 @@ func Test_modifyNamespacedResourceList(t *testing.T) {
 			initialList: []metav1.GroupKind{
 				{Group: "apps", Kind: "Deployment"},
 			},
-			add:          false,
-			group:        "apps",
-			kind:         "StatefulSet",
+			add:   false,
+			group: "apps",
+			kind:  "StatefulSet",
 			expectedList: []metav1.GroupKind{
 				{Group: "apps", Kind: "Deployment"},
 			},

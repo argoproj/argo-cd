@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/ghodss/yaml"
 	"io"
 	"os"
 	"slices"
