@@ -42,7 +42,7 @@ func TestIssue24477_ExactScenario(t *testing.T) {
 
 	colonIndex1 := strings.Index(trackingID1, ":")
 	colonIndex2 := strings.Index(trackingID2, ":")
-	
+
 	if colonIndex1 > 0 && colonIndex2 > 0 {
 		prefix1 := trackingID1[:colonIndex1]
 		prefix2 := trackingID2[:colonIndex2]
@@ -61,7 +61,7 @@ func TestSharedResourceWarningLogic_BeforeAndAfter(t *testing.T) {
 	cert.SetAnnotations(map[string]string{
 		"argocd.argoproj.io/tracking-id": "REDACTED-6d.fleet-control:ca.fleet.agoda.com/Certificate:agoda-routing/agoda.is",
 	})
-	
+
 	// OLD LOGIC (would always trigger warning)
 	oldLogicWouldWarn := func(obj *unstructured.Unstructured, currentAppInstance string) bool {
 		// Original logic: if tracking suggests different app, always warn
@@ -74,12 +74,12 @@ func TestSharedResourceWarningLogic_BeforeAndAfter(t *testing.T) {
 		}
 		return false
 	}
-	
+
 	// NEW LOGIC (our fix - considers cluster differences)
 	newLogicShouldWarn := func(obj *unstructured.Unstructured, currentAppInstance string) bool {
 		uid := string(obj.GetUID())
 		trackingID := obj.GetAnnotations()["argocd.argoproj.io/tracking-id"]
-		
+
 		if trackingID != "" && uid != "" {
 			if colonIndex := strings.Index(trackingID, ":"); colonIndex > 0 {
 				clusterPrefix := trackingID[:colonIndex]
@@ -92,12 +92,12 @@ func TestSharedResourceWarningLogic_BeforeAndAfter(t *testing.T) {
 		}
 		return true
 	}
-	
+
 	currentApp := "my-app-instance"
-	
+
 	// PROOF: Before fix would incorrectly warn
 	assert.True(t, oldLogicWouldWarn(cert, currentApp), "OLD: Incorrectly triggers warning for different cluster")
-	
-	// PROOF: After fix correctly doesn't warn  
+
+	// PROOF: After fix correctly doesn't warn
 	assert.False(t, newLogicShouldWarn(cert, currentApp), "NEW: Correctly avoids false positive for different cluster")
 }

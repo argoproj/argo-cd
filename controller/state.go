@@ -1028,7 +1028,7 @@ func (m *appStateManager) shouldTriggerSharedResourceWarning(liveObj *unstructur
 }
 
 // shouldWarnWithAnnotationTracking checks annotation-based tracking for cross-cluster resources
-func (m *appStateManager) shouldWarnWithAnnotationTracking(liveObj *unstructured.Unstructured, _ string, app *v1alpha1.Application, uid string) bool {
+func (m *appStateManager) shouldWarnWithAnnotationTracking(liveObj *unstructured.Unstructured, _ string, app *v1alpha1.Application, _ string) bool {
 	annotations := liveObj.GetAnnotations()
 	if annotations == nil {
 		return true
@@ -1054,10 +1054,10 @@ func (m *appStateManager) shouldWarnWithAnnotationTracking(liveObj *unstructured
 }
 
 // shouldWarnWithLabelTracking checks label-based tracking for cross-cluster resources
-func (m *appStateManager) shouldWarnWithLabelTracking(_ *unstructured.Unstructured, appInstanceName string, app *v1alpha1.Application, uid string) bool {
+func (m *appStateManager) shouldWarnWithLabelTracking(_ *unstructured.Unstructured, appInstanceName string, app *v1alpha1.Application, _ string) bool {
 	// For label tracking, we have less cluster-specific information
 	// Use UID differences as primary indicator of different clusters
-	
+
 	// If the app instance names follow a pattern that includes cluster info,
 	// we can use that to distinguish clusters
 	if strings.Contains(appInstanceName, "-") {
@@ -1068,7 +1068,7 @@ func (m *appStateManager) shouldWarnWithLabelTracking(_ *unstructured.Unstructur
 			// Extract potential cluster identifiers
 			appParts := strings.Split(appInstanceName, "-")
 			currentParts := strings.Split(currentAppName, "-")
-			
+
 			if len(appParts) > 1 && len(currentParts) > 1 {
 				// If first parts differ, likely different clusters
 				if appParts[0] != currentParts[0] {
@@ -1077,10 +1077,9 @@ func (m *appStateManager) shouldWarnWithLabelTracking(_ *unstructured.Unstructur
 			}
 		}
 	}
-	
+
 	return true // Default to warning for label tracking
 }
-
 
 // useDiffCache will determine if the diff should be calculated based
 // on the existing live state cache or not.

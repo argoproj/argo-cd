@@ -4,9 +4,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 // TestSharedResourceWarningAllTrackingMethods tests the fix for issue #24477
@@ -86,7 +87,7 @@ func createAnnotationTrackedResources() (*unstructured.Unstructured, *unstructur
 		"argocd.argoproj.io/tracking-id": "cluster-a-app:apps/Deployment:default/nginx",
 	})
 
-	// Cluster B resource  
+	// Cluster B resource
 	res2 := &unstructured.Unstructured{}
 	res2.SetAPIVersion("apps/v1")
 	res2.SetKind("Deployment")
