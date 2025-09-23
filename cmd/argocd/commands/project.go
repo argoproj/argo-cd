@@ -590,15 +590,15 @@ func NewProjectRemoveSourceNamespace(clientOpts *argocdclient.ClientOptions) *co
 	return command
 }
 
-func modifyResourcesList(list *[]metav1.GroupKind, add bool, listDesc string, group string, kind string) (bool, string) {
+func modifyNamespacedResourcesList(list *[]metav1.GroupKind, add bool, listAction string, group string, kind string) (bool, string) {
 	if add {
 		for _, item := range *list {
 			if item.Group == group && item.Kind == kind {
-				return false, fmt.Sprintf("Group '%s' and kind '%s' already present in %s resources", group, kind, listDesc)
+				return false, fmt.Sprintf("Group '%s' and kind '%s' already present in %s namespaced resources", group, kind, listAction)
 			}
 		}
 		*list = append(*list, metav1.GroupKind{Group: group, Kind: kind})
-		return true, fmt.Sprintf("Group '%s' and kind '%s' is added to %s resources", group, kind, listDesc)
+		return true, fmt.Sprintf("Group '%s' and kind '%s' is added to %s namespaced resources", group, kind, listAction)
 	}
 	index := -1
 	for i, item := range *list {
@@ -608,34 +608,34 @@ func modifyResourcesList(list *[]metav1.GroupKind, add bool, listDesc string, gr
 		}
 	}
 	if index == -1 {
-		return false, fmt.Sprintf("Group '%s' and kind '%s' not in %s resources", group, kind, listDesc)
+		return false, fmt.Sprintf("Group '%s' and kind '%s' not in %s namespaced resources", group, kind, listAction)
 	}
 	*list = append((*list)[:index], (*list)[index+1:]...)
-	return true, fmt.Sprintf("Group '%s' and kind '%s' is removed from %s resources", group, kind, listDesc)
+	return true, fmt.Sprintf("Group '%s' and kind '%s' is removed from %s namespaced resources", group, kind, listAction)
 }
 
-func modifyClusterResourcesList(list *[]v1alpha1.ClusterResourceRestrictionItem, add bool, group string, kind string, name string) (bool, string) {
+func modifyClusterResourcesList(list *[]v1alpha1.ClusterResourceRestrictionItem, add bool, listAction string, group string, kind string, name string) (bool, string) {
 	if add {
 		for _, item := range *list {
-			if item.Group == group && item.Kind == kind && (name == "" || item.Name == name) {
-				return false, fmt.Sprintf("Group '%s', kind '%s', and name '%s' is already present in cluster allow list", group, kind, name)
+			if item.Group == group && item.Kind == kind && item.Name == name {
+				return false, fmt.Sprintf("Group '%s', kind '%s', and name '%s' is already present in %s cluster resources", group, kind, name, listAction)
 			}
 		}
 		*list = append(*list, v1alpha1.ClusterResourceRestrictionItem{Group: group, Kind: kind, Name: name})
-		return true, fmt.Sprintf("Group '%s', kind '%s', and name '%s' is added to cluster allow list", group, kind, name)
+		return true, fmt.Sprintf("Group '%s', kind '%s', and name '%s' is added to %s cluster resources", group, kind, name, listAction)
 	}
 	index := -1
 	for i, item := range *list {
-		if item.Group == group && item.Kind == kind && (name == "" || item.Name == name) {
+		if item.Group == group && item.Kind == kind && item.Name == name {
 			index = i
 			break
 		}
 	}
 	if index == -1 {
-		return false, fmt.Sprintf("Group '%s', kind '%s', and name '%s' not in cluster allow list", group, kind, name)
+		return false, fmt.Sprintf("Group '%s', kind '%s', and name '%s' not in %s cluster resources", group, kind, name, listAction)
 	}
 	*list = append((*list)[:index], (*list)[index+1:]...)
-	return true, fmt.Sprintf("Group '%s', kind '%s', and name '%s' is removed from cluster allow list", group, kind, name)
+	return true, fmt.Sprintf("Group '%s', kind '%s', and name '%s' is removed from %s cluster resources", group, kind, name, listAction)
 }
 
 func modifyResourceListCmd(getProjIf func(*cobra.Command) (io.Closer, projectpkg.ProjectServiceClient), cmdUse, cmdDesc, examples string, allow bool, namespacedList bool) *cobra.Command {
@@ -672,14 +672,12 @@ func modifyResourceListCmd(getProjIf func(*cobra.Command) (io.Closer, projectpkg
 			var list, allowList, denyList *[]metav1.GroupKind
 			var clusterList *[]v1alpha1.ClusterResourceRestrictionItem
 			var clusterAllowList, clusterDenyList *[]v1alpha1.ClusterResourceRestrictionItem
-			var listAction, listDesc string
+			var listAction string
 			var add bool
 			if namespacedList {
 				allowList, denyList = &proj.Spec.NamespaceResourceWhitelist, &proj.Spec.NamespaceResourceBlacklist
-				listDesc = "namespaced"
 			} else {
 				clusterAllowList, clusterDenyList = &proj.Spec.ClusterResourceWhitelist, &proj.Spec.ClusterResourceBlacklist
-				listDesc = "cluster"
 			}
 
 			if (listType == "allow") || (listType == "white") {
@@ -695,7 +693,7 @@ func modifyResourceListCmd(getProjIf func(*cobra.Command) (io.Closer, projectpkg
 			}
 
 			if !namespacedList {
-				if ok, msg := modifyClusterResourcesList(clusterList, add, group, kind, name); ok {
+				if ok, msg := modifyClusterResourcesList(clusterList, add, listAction, group, kind, name); ok {
 					c.Println(msg)
 					_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
 					errors.CheckError(err)
@@ -703,7 +701,7 @@ func modifyResourceListCmd(getProjIf func(*cobra.Command) (io.Closer, projectpkg
 				return
 			}
 
-			if ok, msg := modifyResourcesList(list, add, listAction+" "+listDesc, group, kind); ok {
+			if ok, msg := modifyNamespacedResourcesList(list, add, listAction, group, kind); ok {
 				c.Println(msg)
 				_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
 				errors.CheckError(err)

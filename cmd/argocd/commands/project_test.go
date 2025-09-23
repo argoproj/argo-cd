@@ -3,6 +3,7 @@ package commands
 import (
 	"bytes"
 	"io"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"testing"
 
 	"github.com/spf13/cobra"
@@ -66,7 +67,77 @@ func TestModifyResourceListCmd_AddClusterAllowItemWithName(t *testing.T) {
 	assert.Equal(t, expected, mockProject.Spec.ClusterResourceWhitelist)
 
 	// Verify the output
-	assert.Contains(t, output.String(), "Group 'apps', kind 'Deployment', and name 'example-deployment' is added to cluster allow list")
+	assert.Contains(t, output.String(), "Group 'apps', kind 'Deployment', and name 'example-deployment' is added to allowed cluster resources")
+}
+
+func Test_modifyNamespacedResourceList(t *testing.T) {
+	tests := []struct {
+		name           string
+		initialList    []metav1.GroupKind
+		add            bool
+		group          string
+		kind           string
+		expectedList   []metav1.GroupKind
+		expectedResult bool
+	}{
+		{
+			name:         "Add new item to empty list",
+			initialList:  []metav1.GroupKind{},
+			add:          true,
+			group:        "apps",
+			kind:         "Deployment",
+			expectedList: []metav1.GroupKind{
+				{Group: "apps", Kind: "Deployment"},
+			},
+			expectedResult: true,
+		},
+		{
+			name: "Add duplicate item",
+			initialList: []metav1.GroupKind{
+				{Group: "apps", Kind: "Deployment"},
+			},
+			add:          true,
+			group:        "apps",
+			kind:         "Deployment",
+			expectedList: []metav1.GroupKind{
+				{Group: "apps", Kind: "Deployment"},
+			},
+			expectedResult: false,
+		},
+		{
+			name: "Remove existing item",
+			initialList: []metav1.GroupKind{
+				{Group: "apps", Kind: "Deployment"},
+			},
+			add:            false,
+			group:          "apps",
+			kind:           "Deployment",
+			expectedList:   []metav1.GroupKind{},
+			expectedResult: true,
+		},
+		{
+			name: "Remove non-existent item",
+			initialList: []metav1.GroupKind{
+				{Group: "apps", Kind: "Deployment"},
+			},
+			add:          false,
+			group:        "apps",
+			kind:         "StatefulSet",
+			expectedList: []metav1.GroupKind{
+				{Group: "apps", Kind: "Deployment"},
+			},
+			expectedResult: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			list := tt.initialList
+			result, _ := modifyNamespacedResourcesList(&list, tt.add, "", tt.group, tt.kind)
+			assert.Equal(t, tt.expectedResult, result)
+			assert.Equal(t, tt.expectedList, list)
+		})
+	}
 }
 
 func Test_modifyAllowClusterResourceList(t *testing.T) {
@@ -161,7 +232,8 @@ func Test_modifyAllowClusterResourceList(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			list := tt.initialList
-			result, _ := modifyClusterResourcesList(&list, tt.add, tt.group, tt.kind, tt.resourceName)
+
+			result, _ := modifyClusterResourcesList(&list, tt.add, "", tt.group, tt.kind, tt.resourceName)
 			assert.Equal(t, tt.expectedResult, result)
 			assert.Equal(t, tt.expectedList, list)
 		})
