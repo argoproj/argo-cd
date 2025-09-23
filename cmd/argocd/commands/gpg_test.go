@@ -101,4 +101,3 @@ func Test_printKeyTable_Multiple(t *testing.T) {
 	assert.Equal(t, "RSA2048", row2[1])
 	assert.Equal(t, "Second User <second@example.com>", row2[2])
 }
-
