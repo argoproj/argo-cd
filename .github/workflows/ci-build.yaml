@@ -294,7 +294,7 @@ jobs:
       - name: Check nothing has changed
         run: |
           set -xo pipefail
-          git diff --exit-code -- . ':!go.sum' ':!go.mod' ':!assets/swagger.json' | tee codegen.patch
+          git diff --exit-code -- . ':!go.sum' ':!go.mod' ':!assets/swagger.json' ':!go.work' ':!go.work.sum' | tee codegen.patch
         working-directory: /home/runner/go/src/github.com/argoproj/argo-cd
 
   build-ui:
