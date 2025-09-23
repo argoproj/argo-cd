@@ -24810,6 +24810,12 @@ spec:
               key: applicationsetcontroller.requeue.after
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_MAX_RESOURCES_STATUS_COUNT
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.status.max.resources.count
+              name: argocd-cmd-params-cm
+              optional: true
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         name: argocd-applicationset-controller
@@ -25269,8 +25275,8 @@ spec:
           name: plugins
       initContainers:
       - args:
-        - /bin/cp -n /usr/local/bin/argocd /var/run/argocd/argocd && /bin/ln -s /var/run/argocd/argocd
-          /var/run/argocd/argocd-cmp-server
+        - /bin/cp --update=none /usr/local/bin/argocd /var/run/argocd/argocd && /bin/ln
+          -s /var/run/argocd/argocd /var/run/argocd/argocd-cmp-server
         command:
         - sh
         - -c
