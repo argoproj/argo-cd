@@ -23,7 +23,7 @@ func TestModifyResourceListCmd_AddClusterAllowItemWithName(t *testing.T) {
 	projectName := "test-project"
 	mockProject := &v1alpha1.AppProject{
 		Spec: v1alpha1.AppProjectSpec{
-			ClusterResourceWhitelist: []v1alpha1.ClusterResourceWhitelistItem{},
+			ClusterResourceWhitelist: []v1alpha1.ClusterResourceRestrictionItem{},
 		},
 	}
 
@@ -60,7 +60,7 @@ func TestModifyResourceListCmd_AddClusterAllowItemWithName(t *testing.T) {
 	require.NoError(t, err)
 
 	// Verify the project was updated correctly
-	expected := []v1alpha1.ClusterResourceWhitelistItem{
+	expected := []v1alpha1.ClusterResourceRestrictionItem{
 		{Group: "apps", Kind: "Deployment", Name: "example-deployment"},
 	}
 	assert.Equal(t, expected, mockProject.Spec.ClusterResourceWhitelist)
@@ -72,88 +72,88 @@ func TestModifyResourceListCmd_AddClusterAllowItemWithName(t *testing.T) {
 func Test_modifyAllowClusterResourceList(t *testing.T) {
 	tests := []struct {
 		name           string
-		initialList    []v1alpha1.ClusterResourceWhitelistItem
+		initialList    []v1alpha1.ClusterResourceRestrictionItem
 		add            bool
 		group          string
 		kind           string
 		resourceName   string
-		expectedList   []v1alpha1.ClusterResourceWhitelistItem
+		expectedList   []v1alpha1.ClusterResourceRestrictionItem
 		expectedResult bool
 	}{
 		{
 			name:         "Add new item to empty list",
-			initialList:  []v1alpha1.ClusterResourceWhitelistItem{},
+			initialList:  []v1alpha1.ClusterResourceRestrictionItem{},
 			add:          true,
 			group:        "apps",
 			kind:         "Deployment",
 			resourceName: "",
-			expectedList: []v1alpha1.ClusterResourceWhitelistItem{
+			expectedList: []v1alpha1.ClusterResourceRestrictionItem{
 				{Group: "apps", Kind: "Deployment", Name: ""},
 			},
 			expectedResult: true,
 		},
 		{
 			name: "Add duplicate item",
-			initialList: []v1alpha1.ClusterResourceWhitelistItem{
+			initialList: []v1alpha1.ClusterResourceRestrictionItem{
 				{Group: "apps", Kind: "Deployment", Name: ""},
 			},
 			add:          true,
 			group:        "apps",
 			kind:         "Deployment",
 			resourceName: "",
-			expectedList: []v1alpha1.ClusterResourceWhitelistItem{
+			expectedList: []v1alpha1.ClusterResourceRestrictionItem{
 				{Group: "apps", Kind: "Deployment", Name: ""},
 			},
 			expectedResult: false,
 		},
 		{
 			name: "Remove existing item",
-			initialList: []v1alpha1.ClusterResourceWhitelistItem{
+			initialList: []v1alpha1.ClusterResourceRestrictionItem{
 				{Group: "apps", Kind: "Deployment", Name: ""},
 			},
 			add:            false,
 			group:          "apps",
 			kind:           "Deployment",
 			resourceName:   "",
-			expectedList:   []v1alpha1.ClusterResourceWhitelistItem{},
+			expectedList:   []v1alpha1.ClusterResourceRestrictionItem{},
 			expectedResult: true,
 		},
 		{
 			name: "Remove non-existent item",
-			initialList: []v1alpha1.ClusterResourceWhitelistItem{
+			initialList: []v1alpha1.ClusterResourceRestrictionItem{
 				{Group: "apps", Kind: "Deployment", Name: ""},
 			},
 			add:          false,
 			group:        "apps",
 			kind:         "StatefulSet",
 			resourceName: "",
-			expectedList: []v1alpha1.ClusterResourceWhitelistItem{
+			expectedList: []v1alpha1.ClusterResourceRestrictionItem{
 				{Group: "apps", Kind: "Deployment", Name: ""},
 			},
 			expectedResult: false,
 		},
 		{
 			name:         "Add item with name",
-			initialList:  []v1alpha1.ClusterResourceWhitelistItem{},
+			initialList:  []v1alpha1.ClusterResourceRestrictionItem{},
 			add:          true,
 			group:        "apps",
 			kind:         "Deployment",
 			resourceName: "example-deployment",
-			expectedList: []v1alpha1.ClusterResourceWhitelistItem{
+			expectedList: []v1alpha1.ClusterResourceRestrictionItem{
 				{Group: "apps", Kind: "Deployment", Name: "example-deployment"},
 			},
 			expectedResult: true,
 		},
 		{
 			name: "Remove item with name",
-			initialList: []v1alpha1.ClusterResourceWhitelistItem{
+			initialList: []v1alpha1.ClusterResourceRestrictionItem{
 				{Group: "apps", Kind: "Deployment", Name: "example-deployment"},
 			},
 			add:            false,
 			group:          "apps",
 			kind:           "Deployment",
 			resourceName:   "example-deployment",
-			expectedList:   []v1alpha1.ClusterResourceWhitelistItem{},
+			expectedList:   []v1alpha1.ClusterResourceRestrictionItem{},
 			expectedResult: true,
 		},
 	}
@@ -161,7 +161,7 @@ func Test_modifyAllowClusterResourceList(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			list := tt.initialList
-			result, _ := modifyAllowClusterResourceList(&list, tt.add, tt.group, tt.kind, tt.resourceName)
+			result, _ := modifyClusterResourcesList(&list, tt.add, tt.group, tt.kind, tt.resourceName)
 			assert.Equal(t, tt.expectedResult, result)
 			assert.Equal(t, tt.expectedList, list)
 		})

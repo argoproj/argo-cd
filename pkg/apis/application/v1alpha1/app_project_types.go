@@ -414,7 +414,7 @@ func (proj AppProject) IsGroupKindNamePermitted(gk schema.GroupKind, namespaced 
 	clusterBlacklist := proj.Spec.ClusterResourceBlacklist
 
 	isWhiteListed = len(clusterWhitelist) != 0 && isNamedResourceInList(res, name, clusterWhitelist)
-	isBlackListed = len(clusterBlacklist) != 0 && isResourceInList(res, clusterBlacklist)
+	isBlackListed = len(clusterBlacklist) != 0 && isNamedResourceInList(res, name, clusterBlacklist)
 	return isWhiteListed && !isBlackListed
 }
 

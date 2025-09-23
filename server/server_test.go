@@ -1224,7 +1224,7 @@ func TestInitializeDefaultProject_ProjectDoesNotExist(t *testing.T) {
 	assert.Equal(t, v1alpha1.AppProjectSpec{
 		SourceRepos:              []string{"*"},
 		Destinations:             []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
-		ClusterResourceWhitelist: []v1alpha1.ClusterResourceWhitelistItem{{Group: "*", Kind: "*"}},
+		ClusterResourceWhitelist: []v1alpha1.ClusterResourceRestrictionItem{{Group: "*", Kind: "*"}},
 	}, proj.Spec)
 }
 

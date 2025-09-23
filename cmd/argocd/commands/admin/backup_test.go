@@ -84,7 +84,7 @@ func newAppProject() *unstructured.Unstructured {
 					Server:    "*",
 				},
 			},
-			ClusterResourceWhitelist: []v1alpha1.ClusterResourceWhitelistItem{
+			ClusterResourceWhitelist: []v1alpha1.ClusterResourceRestrictionItem{
 				{
 					Group: "*",
 					Kind:  "*",

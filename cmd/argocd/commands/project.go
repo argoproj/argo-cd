@@ -614,14 +614,14 @@ func modifyResourcesList(list *[]metav1.GroupKind, add bool, listDesc string, gr
 	return true, fmt.Sprintf("Group '%s' and kind '%s' is removed from %s resources", group, kind, listDesc)
 }
 
-func modifyAllowClusterResourceList(list *[]v1alpha1.ClusterResourceWhitelistItem, add bool, group string, kind string, name string) (bool, string) {
+func modifyClusterResourcesList(list *[]v1alpha1.ClusterResourceRestrictionItem, add bool, group string, kind string, name string) (bool, string) {
 	if add {
 		for _, item := range *list {
 			if item.Group == group && item.Kind == kind && (name == "" || item.Name == name) {
 				return false, fmt.Sprintf("Group '%s', kind '%s', and name '%s' is already present in cluster allow list", group, kind, name)
 			}
 		}
-		*list = append(*list, v1alpha1.ClusterResourceWhitelistItem{Group: group, Kind: kind, Name: name})
+		*list = append(*list, v1alpha1.ClusterResourceRestrictionItem{Group: group, Kind: kind, Name: name})
 		return true, fmt.Sprintf("Group '%s', kind '%s', and name '%s' is added to cluster allow list", group, kind, name)
 	}
 	index := -1
@@ -670,29 +670,32 @@ func modifyResourceListCmd(getProjIf func(*cobra.Command) (io.Closer, projectpkg
 			proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
 			var list, allowList, denyList *[]metav1.GroupKind
-			var clusterAllowList *[]v1alpha1.ClusterResourceWhitelistItem
+			var clusterList *[]v1alpha1.ClusterResourceRestrictionItem
+			var clusterAllowList, clusterDenyList *[]v1alpha1.ClusterResourceRestrictionItem
 			var listAction, listDesc string
 			var add bool
 			if namespacedList {
 				allowList, denyList = &proj.Spec.NamespaceResourceWhitelist, &proj.Spec.NamespaceResourceBlacklist
 				listDesc = "namespaced"
 			} else {
-				clusterAllowList, denyList = &proj.Spec.ClusterResourceWhitelist, &proj.Spec.ClusterResourceBlacklist
+				clusterAllowList, clusterDenyList = &proj.Spec.ClusterResourceWhitelist, &proj.Spec.ClusterResourceBlacklist
 				listDesc = "cluster"
 			}
 
 			if (listType == "allow") || (listType == "white") {
 				list = allowList
+				clusterList = clusterAllowList
 				listAction = "allowed"
 				add = allow
 			} else {
 				list = denyList
+				clusterList = clusterDenyList
 				listAction = "denied"
 				add = !allow
 			}
 
-			if !namespacedList && listAction == "allowed" {
-				if ok, msg := modifyAllowClusterResourceList(clusterAllowList, add, group, kind, name); ok {
+			if !namespacedList {
+				if ok, msg := modifyClusterResourcesList(clusterList, add, group, kind, name); ok {
 					c.Println(msg)
 					_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
 					errors.CheckError(err)

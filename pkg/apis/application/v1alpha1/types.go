@@ -2707,7 +2707,7 @@ type AppProjectSpec struct {
 	// Roles are user defined RBAC roles associated with this project
 	Roles []ProjectRole `json:"roles,omitempty" protobuf:"bytes,4,rep,name=roles"`
 	// ClusterResourceWhitelist contains list of whitelisted cluster level resources
-	ClusterResourceWhitelist []ClusterResourceWhitelistItem `json:"clusterResourceWhitelist,omitempty" protobuf:"bytes,5,opt,name=clusterResourceWhitelist"`
+	ClusterResourceWhitelist []ClusterResourceRestrictionItem `json:"clusterResourceWhitelist,omitempty" protobuf:"bytes,5,opt,name=clusterResourceWhitelist"`
 	// NamespaceResourceBlacklist contains list of blacklisted namespace level resources
 	NamespaceResourceBlacklist []metav1.GroupKind `json:"namespaceResourceBlacklist,omitempty" protobuf:"bytes,6,opt,name=namespaceResourceBlacklist"`
 	// OrphanedResources specifies if controller should monitor orphaned resources of apps in this project
@@ -2719,7 +2719,7 @@ type AppProjectSpec struct {
 	// SignatureKeys contains a list of PGP key IDs that commits in Git must be signed with in order to be allowed for sync
 	SignatureKeys []SignatureKey `json:"signatureKeys,omitempty" protobuf:"bytes,10,opt,name=signatureKeys"`
 	// ClusterResourceBlacklist contains list of blacklisted cluster level resources
-	ClusterResourceBlacklist []metav1.GroupKind `json:"clusterResourceBlacklist,omitempty" protobuf:"bytes,11,opt,name=clusterResourceBlacklist"`
+	ClusterResourceBlacklist []ClusterResourceRestrictionItem `json:"clusterResourceBlacklist,omitempty" protobuf:"bytes,11,opt,name=clusterResourceBlacklist"`
 	// SourceNamespaces defines the namespaces application resources are allowed to be created in
 	SourceNamespaces []string `json:"sourceNamespaces,omitempty" protobuf:"bytes,12,opt,name=sourceNamespaces"`
 	// PermitOnlyProjectScopedClusters determines whether destinations can only reference clusters which are project-scoped
@@ -2728,12 +2728,12 @@ type AppProjectSpec struct {
 	DestinationServiceAccounts []ApplicationDestinationServiceAccount `json:"destinationServiceAccounts,omitempty" protobuf:"bytes,14,name=destinationServiceAccounts"`
 }
 
-// ClusterResourceWhitelistItem is a cluster resource that is allowed by the project's clusterResourceWhitelist
-type ClusterResourceWhitelistItem struct {
+// ClusterResourceRestrictionItem is a cluster resource that is restricted by the project's whitelist or blacklist
+type ClusterResourceRestrictionItem struct {
 	Group string `json:"group" protobuf:"bytes,1,opt,name=group"`
 	Kind  string `json:"kind" protobuf:"bytes,2,opt,name=kind"`
-	// Name is the name of the allowed resource. Glob patterns using Go's filepath.Match syntax are supported.
-	// Unlike the group and kind fields, if no name is specified, all resources of the specified kind are allowed.
+	// Name is the name of the restricted resource. Glob patterns using Go's filepath.Match syntax are supported.
+	// Unlike the group and kind fields, if no name is specified, all resources of the specified group/kind are matched.
 	Name string `json:"name,omitempty" protobuf:"bytes,3,opt,name=name"`
 }
 
@@ -3541,7 +3541,7 @@ func isResourceInList(res metav1.GroupKind, list []metav1.GroupKind) bool {
 	return false
 }
 
-func isNamedResourceInList(res metav1.GroupKind, name string, list []ClusterResourceWhitelistItem) bool {
+func isNamedResourceInList(res metav1.GroupKind, name string, list []ClusterResourceRestrictionItem) bool {
 	for _, item := range list {
 		ok, err := filepath.Match(item.Kind, res.Kind)
 		if !ok || err != nil {

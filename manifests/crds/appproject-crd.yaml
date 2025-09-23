@@ -52,13 +52,17 @@ spec:
                 description: ClusterResourceBlacklist contains list of blacklisted
                   cluster level resources
                 items:
-                  description: |-
-                    GroupKind specifies a Group and a Kind, but does not force a version.  This is useful for identifying
-                    concepts during lookup stages without having partially valid types
+                  description: ClusterResourceRestrictionItem is a cluster resource
+                    that is restricted by the project's whitelist or blacklist
                   properties:
                     group:
                       type: string
                     kind:
+                      type: string
+                    name:
+                      description: |-
+                        Name is the name of the restricted resource. Glob patterns using Go's filepath.Match syntax are supported.
+                        Unlike the group and kind fields, if no name is specified, all resources of the specified group/kind are matched.
                       type: string
                   required:
                   - group
@@ -69,8 +73,8 @@ spec:
                 description: ClusterResourceWhitelist contains list of whitelisted
                   cluster level resources
                 items:
-                  description: ClusterResourceWhitelistItem is a cluster resource
-                    that is allowed by the project's clusterResourceWhitelist
+                  description: ClusterResourceRestrictionItem is a cluster resource
+                    that is restricted by the project's whitelist or blacklist
                   properties:
                     group:
                       type: string
@@ -78,8 +82,8 @@ spec:
                       type: string
                     name:
                       description: |-
-                        Name is the name of the allowed resource. Glob patterns using Go's filepath.Match syntax are supported.
-                        Unlike the group and kind fields, if no name is specified, all resources of the specified kind are allowed.
+                        Name is the name of the restricted resource. Glob patterns using Go's filepath.Match syntax are supported.
+                        Unlike the group and kind fields, if no name is specified, all resources of the specified group/kind are matched.
                       type: string
                   required:
                   - group
