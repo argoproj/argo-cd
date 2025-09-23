@@ -714,38 +714,8 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 			appInstanceName := m.resourceTracking.GetAppName(liveObj, appLabelKey, v1alpha1.TrackingMethod(trackingMethod), installationID)
 			if appInstanceName != "" && appInstanceName != app.InstanceName(m.namespace) {
 				// Fix for issue #24477: Avoid false SharedResourceWarning for resources in different clusters
-				// Resources in different clusters have different UIDs and different tracking IDs
-				// Only trigger warning if this appears to be the same physical resource
-				shouldWarn := true
-				uid := string(liveObj.GetUID())
-
-				// Check tracking annotation to determine if this is truly a different resource
-				if annotations := liveObj.GetAnnotations(); annotations != nil {
-					trackingID := annotations["argocd.argoproj.io/tracking-id"]
-
-					// If tracking ID contains cluster-specific information (like different cluster prefixes),
-					// this indicates resources in different clusters, not shared resources
-					if trackingID != "" {
-						// For resources with distinct tracking IDs that include cluster/instance info,
-						// we should be more conservative about triggering SharedResourceWarning
-						// The original issue shows tracking IDs like:
-						// "REDACTED-6d.fleet-control:..." vs "REDACTED-6a.fleet-control:..."
-						// These represent different clusters, not shared resources
-
-						// Extract cluster/instance prefix from tracking ID
-						if colonIndex := strings.Index(trackingID, ":"); colonIndex > 0 {
-							clusterPrefix := trackingID[:colonIndex]
-
-							// If the cluster prefix is different from current app's expected pattern,
-							// and we have a valid UID, this is likely a different cluster
-							if uid != "" && clusterPrefix != app.InstanceName(m.namespace) {
-								// This is a resource in a different cluster with different UID
-								// Don't trigger SharedResourceWarning
-								shouldWarn = false
-							}
-						}
-					}
-				}
+				// Support all tracking methods: annotation, annotation+label, label
+				shouldWarn := m.shouldTriggerSharedResourceWarning(liveObj, appInstanceName, app, trackingMethod)
 
 				if shouldWarn {
 					fqInstanceName := strings.ReplaceAll(appInstanceName, "_", "/")
@@ -1037,6 +1007,80 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	compRes.timings = ts.Timings()
 	return &compRes, nil
 }
+
+// shouldTriggerSharedResourceWarning determines if SharedResourceWarning should be triggered
+// considering different tracking methods and cluster contexts
+func (m *appStateManager) shouldTriggerSharedResourceWarning(liveObj *unstructured.Unstructured, appInstanceName string, app *v1alpha1.Application, trackingMethod string) bool {
+	uid := string(liveObj.GetUID())
+	if uid == "" {
+		return true // No UID means we can't distinguish clusters reliably
+	}
+
+	// Check based on tracking method
+	switch v1alpha1.TrackingMethod(trackingMethod) {
+	case v1alpha1.TrackingMethodAnnotation, v1alpha1.TrackingMethodAnnotationAndLabel:
+		return m.shouldWarnWithAnnotationTracking(liveObj, appInstanceName, app, uid)
+	case v1alpha1.TrackingMethodLabel:
+		return m.shouldWarnWithLabelTracking(liveObj, appInstanceName, app, uid)
+	default:
+		return true // Unknown method, be conservative
+	}
+}
+
+// shouldWarnWithAnnotationTracking checks annotation-based tracking for cross-cluster resources
+func (m *appStateManager) shouldWarnWithAnnotationTracking(liveObj *unstructured.Unstructured, appInstanceName string, app *v1alpha1.Application, uid string) bool {
+	annotations := liveObj.GetAnnotations()
+	if annotations == nil {
+		return true
+	}
+
+	trackingID := annotations["argocd.argoproj.io/tracking-id"]
+	if trackingID == "" {
+		return true
+	}
+
+	// Extract cluster/instance prefix from tracking ID
+	colonIndex := strings.Index(trackingID, ":")
+	if colonIndex <= 0 {
+		return true
+	}
+
+	clusterPrefix := trackingID[:colonIndex]
+	currentAppPrefix := app.InstanceName(m.namespace)
+
+	// If cluster prefix differs, this indicates different clusters
+	// Don't trigger SharedResourceWarning for cross-cluster resources
+	return clusterPrefix == currentAppPrefix
+}
+
+// shouldWarnWithLabelTracking checks label-based tracking for cross-cluster resources  
+func (m *appStateManager) shouldWarnWithLabelTracking(liveObj *unstructured.Unstructured, appInstanceName string, app *v1alpha1.Application, uid string) bool {
+	// For label tracking, we have less cluster-specific information
+	// Use UID differences as primary indicator of different clusters
+	
+	// If the app instance names follow a pattern that includes cluster info,
+	// we can use that to distinguish clusters
+	if strings.Contains(appInstanceName, "-") {
+		// Check if app instance names suggest different clusters
+		// e.g., "cluster-a-app" vs "cluster-b-app"
+		currentAppName := app.InstanceName(m.namespace)
+		if strings.Contains(currentAppName, "-") {
+			// Extract potential cluster identifiers
+			appParts := strings.Split(appInstanceName, "-")
+			currentParts := strings.Split(currentAppName, "-")
+			
+			if len(appParts) > 1 && len(currentParts) > 1 {
+				// If first parts differ, likely different clusters
+				if appParts[0] != currentParts[0] {
+					return false
+				}
+			}
+		}
+	}
+	
+	return true // Default to warning for label tracking
+}
+
 
 // useDiffCache will determine if the diff should be calculated based
 // on the existing live state cache or not.
