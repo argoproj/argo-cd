@@ -105,14 +105,12 @@ func NewCommand() *cobra.Command {
 		Short:             "Run the ArgoCD API server",
 		Long:              "The API server is a gRPC/REST server which exposes the API consumed by the Web UI, CLI, and CI/CD systems.  This command runs API server in the foreground.  It can be configured by following options.",
 		DisableAutoGenTag: true,
-		RunE: func(c *cobra.Command, _ []string) error {
+		Run: func(c *cobra.Command, _ []string) {
 			ctx := c.Context()
 
 			vers := common.GetVersion()
 			namespace, _, err := clientConfig.Namespace()
-			if err != nil {
-				return fmt.Errorf("failed to get namespace: %w", err)
-			}
+			errors.CheckError(err)
 			vers.LogStartupInfo(
 				"ArgoCD API Server",
 				map[string]any{
@@ -133,35 +131,21 @@ func NewCommand() *cobra.Command {
 			}()
 
 			config, err := clientConfig.ClientConfig()
-			if err != nil {
-				return fmt.Errorf("failed to get client config: %w", err)
-			}
-			if err = v1alpha1.SetK8SConfigDefaults(config); err != nil {
-				return fmt.Errorf("failed to set K8s config defaults: %w", err)
-			}
+			errors.CheckError(err)
+			errors.CheckError(v1alpha1.SetK8SConfigDefaults(config))
 
 			tlsConfigCustomizer, err := tlsConfigCustomizerSrc()
-			if err != nil {
-				return fmt.Errorf("failed to create TLS config customizer: %w", err)
-			}
+			errors.CheckError(err)
 			cache, err := cacheSrc()
-			if err != nil {
-				return fmt.Errorf("failed to create cache: %w", err)
-			}
+			errors.CheckError(err)
 			repoServerCache, err := repoServerCacheSrc()
-			if err != nil {
-				return fmt.Errorf("failed to create repo server cache: %w", err)
-			}
+			errors.CheckError(err)
 
 			kubeclientset := kubernetes.NewForConfigOrDie(config)
 
 			appclientsetConfig, err := clientConfig.ClientConfig()
-			if err != nil {
-				return fmt.Errorf("failed to get app clientset config: %w", err)
-			}
-			if err = v1alpha1.SetK8SConfigDefaults(appclientsetConfig); err != nil {
-				return fmt.Errorf("failed to set K8s config defaults for app clientset: %w", err)
-			}
+			errors.CheckError(err)
+			errors.CheckError(v1alpha1.SetK8SConfigDefaults(appclientsetConfig))
 			config.UserAgent = fmt.Sprintf("argocd-server/%s (%s)", vers.Version, vers.Platform)
 
 			if failureRetryCount > 0 {
@@ -316,7 +300,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&baseHRef, "basehref", env.StringFromEnv("ARGOCD_SERVER_BASEHREF", "/"), "Value for base href in index.html. Used if Argo CD is running behind reverse proxy under subpath different from /")
 	command.Flags().StringVar(&rootPath, "rootpath", env.StringFromEnv("ARGOCD_SERVER_ROOTPATH", ""), "Used if Argo CD is running behind reverse proxy under subpath different from /")
 	command.Flags().StringVar(&cmdutil.LogFormat, "logformat", env.StringFromEnv("ARGOCD_SERVER_LOGFORMAT", "json"), "Set the logging format. One of: json|text")
-	command.Flags().StringVar(&cmdutil.LogLevel, "loglevel", env.StringFromEnv("ARGOCD_SERVER_LOGLEVEL", "info"), "Set the logging level. One of: debug|info|warn|error")
+	command.Flags().StringVar(&cmdutil.LogLevel, "loglevel", env.StringFromEnv("ARGOCD_SERVER_LOG_LEVEL", "info"), "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().IntVar(&glogLevel, "gloglevel", 0, "Set the glog logging level")
 	command.Flags().StringVar(&repoServerAddress, "repo-server", env.StringFromEnv("ARGOCD_SERVER_REPO_SERVER", common.DefaultRepoServerAddr), "Repo server address")
 	command.Flags().StringVar(&dexServerAddress, "dex-server", env.StringFromEnv("ARGOCD_SERVER_DEX_SERVER", common.DefaultDexServerAddr), "Dex server address")
