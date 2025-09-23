@@ -369,6 +369,10 @@ message ApplicationSetStatus {
 
   // Resources is a list of Applications resources managed by this application set.
   repeated ResourceStatus resources = 3;
+
+  // ResourcesCount is the total number of resources managed by this application set. The count may be higher than actual number of items in the Resources field when
+  // the number of managed resources exceeds the limit imposed by the controller (to avoid making the status field too large).
+  optional int64 resourcesCount = 4;
 }
 
 // ApplicationSetStrategy configures how generated Applications are updated in sequence.
