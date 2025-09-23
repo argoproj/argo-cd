@@ -136,6 +136,11 @@ ENTRYPOINT ["/usr/bin/tini", "--"]
 COPY --from=argocd-build /go/src/github.com/argoproj/argo-cd/dist/argocd* /usr/local/bin/
 
 USER root
+RUN apt-get update && \
+    apt-get install -y \
+    curl && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 RUN ln -s /usr/local/bin/argocd /usr/local/bin/argocd-server && \
     ln -s /usr/local/bin/argocd /usr/local/bin/argocd-repo-server && \
     ln -s /usr/local/bin/argocd /usr/local/bin/argocd-cmp-server && \
@@ -145,5 +150,8 @@ RUN ln -s /usr/local/bin/argocd /usr/local/bin/argocd-server && \
     ln -s /usr/local/bin/argocd /usr/local/bin/argocd-applicationset-controller && \
     ln -s /usr/local/bin/argocd /usr/local/bin/argocd-k8s-auth && \
     ln -s /usr/local/bin/argocd /usr/local/bin/argocd-commit-server
+
+RUN helm plugin install https://github.com/hayorov/helm-gcs.git --version 0.4.3
+ENV HELM_PLUGINS="/home/argocd/.local/share/helm/plugins/"
 
 USER $ARGOCD_USER_ID
