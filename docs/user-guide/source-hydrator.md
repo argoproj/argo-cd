@@ -26,8 +26,8 @@ data:
   hydrator.enabled: "true"
 ```
 
-!!! important
-    After updating the ConfigMap, you must restart the Argo CD controller and API server for the changes to take effect.
+> [!IMPORTANT]
+> After updating the ConfigMap, you must restart the Argo CD controller and API server for the changes to take effect.
 
 If you are using one of the `*-install.yaml` manifests to install Argo CD, you can use the 
 `*-install-with-hydrator.yaml` version of that file instead.
@@ -39,10 +39,10 @@ Without hydrator: https://raw.githubusercontent.com/argoproj/argo-cd/stable/mani
 With hydrator:    https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install-with-hydrator.yaml
 ```
 
-!!! important
-    The `*-with-hydrator-install.yaml` manifests will eventually be removed when the source hydrator is either enabled
-    by default or removed. The upgrade guide will note if the `install-with-hydrator.yaml` manifests are no longer
-    available.
+> [!IMPORTANT]
+> The `*-with-hydrator-install.yaml` manifests will eventually be removed when the source hydrator is either enabled
+> by default or removed. The upgrade guide will note if the `install-with-hydrator.yaml` manifests are no longer
+> available.
 
 ## Using the Source Hydrator
 
@@ -116,7 +116,9 @@ During each hydration run, Argo CD cleans the application's configured path befo
 
 It is important to note that hydration only cleans the currently configured application path. If an application’s path changes, the old directory is not removed automatically. Likewise, if an application is deleted, its output path remains in the repository and must be cleaned up manually by the repository owner if desired. This design is intentional: it prevents accidental deletion of files when applications are restructured or removed, and it protects critical files like CI pipelines that may coexist in the repository.
 
-!!! important "Project-Scoped Repositories"
+> [!IMPORTANT]
+> **Project-Scoped Repositories**
+>
 
     Repository Secrets may contain a `project` field, making the secret only usable by Applications in that project.
     The source hydrator only supports project-scoped repositories if all Applications writing to the same repository and
@@ -194,8 +196,8 @@ git commit -m "Bump image to v1.2.3" \
   --trailer "Argocd-reference-commit-date: 2025-06-09T13:50:18-04:00" 
 ```
 
-!!!note Newlines are not allowed
-    The commit trailers must not contain newlines. The 
+> [!NOTE]
+> The commit trailers must not contain newlines. 
 
 So the full CI script might look something like this:
 
@@ -375,8 +377,8 @@ from pushing to the hydrated branches, enable branch protection in your SCM.
 It is best practice to prefix the hydrated branches with a common prefix, such as `environments/`. This makes it easier
 to configure branch protection rules on the destination repository.
 
-!!! note
-    To maintain reproducibility and determinism in the Hydrator’s output,
-    Argo CD-specific metadata (such as `argocd.argoproj.io/tracking-id`) is
-    not written to Git during hydration. These annotations are added dynamically
-    during application sync and comparison.
+> [!NOTE]
+> To maintain reproducibility and determinism in the Hydrator’s output,
+> Argo CD-specific metadata (such as `argocd.argoproj.io/tracking-id`) is
+> not written to Git during hydration. These annotations are added dynamically
+> during application sync and comparison.

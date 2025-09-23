@@ -309,7 +309,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Relex Solutions](https://www.relexsolutions.com/)
 1. [RightRev](https://rightrev.com/)
 1. [Rijkswaterstaat](https://www.rijkswaterstaat.nl/en)
-1. [Rise](https://www.risecard.eu/)
+1. Rise
 1. [Riskified](https://www.riskified.com/)
 1. [Robotinfra](https://www.robotinfra.com)
 1. [Rocket.Chat](https://rocket.chat)
