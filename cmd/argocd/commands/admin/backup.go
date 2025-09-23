@@ -396,15 +396,33 @@ func (opts *importOpts) executeImport(
 			isForbidden := false
 			if !opts.dryRun {
 				_, err := dynClient.Create(ctx, bakObj, metav1.CreateOptions{})
-				if apierrors.IsForbidden(err) || apierrors.IsNotFound(err) {
+				switch {
+				case apierrors.IsAlreadyExists(err):
+					// Fetch current live
+					liveObj, getErr := dynClient.Get(ctx, bakObj.GetName(), metav1.GetOptions{})
+					if getErr != nil {
+						errors.CheckError(getErr)
+					}
+					// Merge backup into live
+					newLive := updateLive(bakObj, liveObj, opts.stopOperation)
+
+					_, err = dynClient.Update(ctx, newLive, metav1.UpdateOptions{})
+					errors.CheckError(err)
+
+					fmt.Printf("%s/%s %s in namespace %s updated%s (as it AlreadyExists)\n",
+						gvk.Group, gvk.Kind, bakObj.GetName(), bakObj.GetNamespace(), dryRunMsg)
+
+				case apierrors.IsForbidden(err) || apierrors.IsNotFound(err):
 					isForbidden = true
 					log.Warnf("%s/%s %s: %v", gvk.Group, gvk.Kind, bakObj.GetName(), err)
-				} else {
+
+				default:
 					errors.CheckError(err)
 				}
 			}
 			if !isForbidden {
-				fmt.Printf("%s/%s %s in namespace %s created%s\n", gvk.Group, gvk.Kind, bakObj.GetName(), bakObj.GetNamespace(), dryRunMsg)
+				fmt.Printf("%s/%s %s in namespace %s created%s\n",
+					gvk.Group, gvk.Kind, bakObj.GetName(), bakObj.GetNamespace(), dryRunMsg)
 			}
 		case specsEqual(*bakObj, liveObj) && checkAppHasNoNeedToStopOperation(liveObj, opts.stopOperation):
 			if opts.verbose {
