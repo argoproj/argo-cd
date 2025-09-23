@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/ghodss/yaml"
 	"io"
 	"os"
 	"slices"
@@ -655,10 +656,17 @@ func modifyResourceListCmd(getProjIf func(*cobra.Command) (io.Closer, projectpkg
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
-			if len(args) != 4 || (namespacedList && len(args) != 3) {
+			if namespacedList && len(args) != 3 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
+
+			if !namespacedList && (len(args) < 3 || len(args) > 4) {
+				// Cluster-scoped resource command can have an optional NAME argument.
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+
 			projName, group, kind := args[0], args[1], args[2]
 			var name string
 			if !namespacedList && len(args) > 3 {
