@@ -1,0 +1,70 @@
+{
+  "apiVersion": "admissionregistration.k8s.io/v1beta1",
+  "kind": "MutatingWebhookConfiguration",
+  "metadata": {
+    "annotations": {
+      "cert-manager.io/inject-apiserver-ca": "true",
+      "kubectl.kubernetes.io/last-applied-configuration": "{\"apiVersion\":\"admissionregistration.k8s.io/v1beta1\",\"kind\":\"MutatingWebhookConfiguration\",\"metadata\":{\"annotations\":{\"cert-manager.io/inject-apiserver-ca\":\"true\"},\"labels\":{\"app\":\"webhook\",\"app.kubernetes.io/instance\":\"cert-manager\",\"app.kubernetes.io/managed-by\":\"Tiller\",\"app.kubernetes.io/name\":\"webhook\",\"helm.sh/chart\":\"cert-manager-v0.11.0\"},\"name\":\"cert-manager-webhook\"},\"webhooks\":[{\"clientConfig\":{\"service\":{\"name\":\"kubernetes\",\"namespace\":\"default\",\"path\":\"/apis/webhook.cert-manager.io/v1beta1/mutations\"}},\"failurePolicy\":\"Fail\",\"name\":\"webhook.cert-manager.io\",\"rules\":[{\"apiGroups\":[\"cert-manager.io\"],\"apiVersions\":[\"v1alpha2\"],\"operations\":[\"CREATE\",\"UPDATE\"],\"resources\":[\"certificates\",\"issuers\",\"clusterissuers\",\"orders\",\"challenges\",\"certificaterequests\"]}]}]}\n"
+    },
+    "creationTimestamp": "2019-11-13T22:18:01Z",
+    "generation": 2,
+    "labels": {
+      "app": "webhook",
+      "app.kubernetes.io/instance": "cert-manager",
+      "app.kubernetes.io/managed-by": "Tiller",
+      "app.kubernetes.io/name": "webhook",
+      "helm.sh/chart": "cert-manager-v0.11.0"
+    },
+    "name": "cert-manager-webhook",
+    "resourceVersion": "192158268",
+    "selfLink": "/apis/admissionregistration.k8s.io/v1beta1/mutatingwebhookconfigurations/cert-manager-webhook",
+    "uid": "746a6ca1-0663-11ea-b4b2-42010a800164"
+  },
+  "webhooks": [
+    {
+      "admissionReviewVersions": [
+        "v1beta1"
+      ],
+      "clientConfig": {
+        "caBundle": "LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURERENDQWZTZ0F3SUJBZ0lSQU5iM3pUUEs0VlVmdnpyMHBteTZLSFV3RFFZSktvWklodmNOQVFFTEJRQXcKTHpFdE1Dc0dBMVVFQXhNa1lqQXlNemc0TnpNdE56Z3pNaTAwTVRFMkxUZzNaakV0T1RNeE9HSmtaV0ZtTTJJeQpNQjRYRFRFNE1EVXhNREl3TlRNMU1Wb1hEVEl6TURVd09USXhOVE0xTVZvd0x6RXRNQ3NHQTFVRUF4TWtZakF5Ck16ZzROek10Tnpnek1pMDBNVEUyTFRnM1pqRXRPVE14T0dKa1pXRm1NMkl5TUlJQklqQU5CZ2txaGtpRzl3MEIKQVFFRkFBT0NBUThBTUlJQkNnS0NBUUVBdWFrM2VleHFHS3g2dEJ2cExVdGgzSUlPQVBrVHd2bkVobER5dUFwOQpDY0tVU2JsOUR3VnVyYUtrYkZSdFZhM0xpaDhGQmZ0aDhETWI3RkxoNEZ5d1JpbDNJUEhWaEZacTFvQi9aSVQxCitDUlN6NXZXZWlVeGZCM0l5L05wSTBleFVHVVAzV2N2bHFiQU9odVhXRVo5OTB0NVpiWE9GYi9hcm9sU3hyQ0cKUkFQcUhzSlNoa3kyV3FNWnkyQ29yZjV3ZTZtZmVJcFpRUmlJOWd3eWN4S2ZWbmtrT28vRlhvQjYvbnJPRlNmVwpacmJvYmVxRWsvRFB3akRDdXY4aEpjajlFdjRwVytSZjRTakRVSjBBYWZMVU1yQ05qREtXUHJoYlRTMHpBdGlKClhLdmttVFFtWWZlYjVESEJUbmw2THJoN1FSanBsTlk1MW1vZ1MvSDBOb2trZndJREFRQUJveU13SVRBT0JnTlYKSFE4QkFmOEVCQU1DQWdRd0R3WURWUjBUQVFIL0JBVXdBd0VCL3pBTkJna3Foa2lHOXcwQkFRc0ZBQU9DQVFFQQpZdC93bVlubUw2RzJySm1PWVY3N1ZQdEMrN25TKzhUbmVkbkFlNFhLSUF6alk3RTNLazdvSk5uT1VxT2V5a2hpClVuRXhpNWRmTis0b0Z1TDFKd3lDVzR2R2ZNVnJzdFFFcXhMSkM5TFhzSGJXSUp4b1VTNlpiTjRPVWl2WlVTNE8KWGlKTlFSQW5GZnY3Qkw5SXR5NWxucS9CZTBPMFlBQkhoeGZOQ0FHOFRjd0cxVUxWMlRGMlZXVi9LQVAvODFiUQpWNmxrZlVnNTNZQmpTRVN1WkRRbmZibkJrMDFjd3FmUzZyZFV3dW44U3BjbHBQMFlFbWIyTUpEZmF6bll3RkdBCldQNnRiSzhTTXhiMlJnOUR1VWdrMEZBb1NFcDlvc25NQVF2eEMzZmx2Mzd4b0VYZTBDYXdjVEFwOEo2S1J2QlAKcmp2eDVUWkZrU2xjV2RCTktVZEN0QT09Ci0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0K",
+        "service": {
+          "name": "kubernetes",
+          "namespace": "default",
+          "path": "/apis/webhook.cert-manager.io/v1beta1/mutations",
+          "port": 443
+        }
+      },
+      "failurePolicy": "Fail",
+      "matchPolicy": "Exact",
+      "name": "webhook.cert-manager.io",
+      "namespaceSelector": {},
+      "objectSelector": {},
+      "reinvocationPolicy": "Never",
+      "rules": [
+        {
+          "apiGroups": [
+            "cert-manager.io"
+          ],
+          "apiVersions": [
+            "v1alpha2"
+          ],
+          "operations": [
+            "CREATE",
+            "UPDATE"
+          ],
+          "resources": [
+            "certificates",
+            "issuers",
+            "clusterissuers",
+            "orders",
+            "challenges",
+            "certificaterequests"
+          ],
+          "scope": "*"
+        }
+      ],
+      "sideEffects": "Unknown",
+      "timeoutSeconds": 30
+    }
+  ]
+}
