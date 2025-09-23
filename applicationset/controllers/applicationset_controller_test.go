@@ -7320,7 +7320,6 @@ func TestSyncApplication(t *testing.T) {
 	}
 }
 
-
 func TestReconcileProgressiveSyncDisabled(t *testing.T) {
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
