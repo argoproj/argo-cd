@@ -655,7 +655,7 @@ func modifyResourceListCmd(getProjIf func(*cobra.Command) (io.Closer, projectpkg
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
-			if len(args) != 3 && (namespacedList || len(args) != 4) {
+			if len(args) != 4 || (namespacedList && len(args) != 3) {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
