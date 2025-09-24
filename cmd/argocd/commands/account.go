@@ -470,7 +470,16 @@ argocd account session-token -o json
 export ARGOCD_AUTH_TOKEN=$(argocd account session-token)
 curl -H "Authorization: Bearer $ARGOCD_AUTH_TOKEN" $ARGOCD_SERVER/api/v1/applications`,
 		Run: func(c *cobra.Command, _ []string) {
-			// Read local config first
+			// Create client first - this handles token refresh automatically
+			_, err := argocdclient.NewClient(clientOpts)
+			if err != nil {
+				if strings.Contains(err.Error(), "invalid_grant") && strings.Contains(err.Error(), "Invalid refresh_token") {
+					log.Fatal("Refresh token is invalid or expired. Please run 'argocd relogin' to re-authenticate")
+				}
+				log.Fatal(err)
+			}
+
+			// Read config after client creation to get potentially refreshed token
 			localCfg, err := localconfig.ReadLocalConfig(clientOpts.ConfigPath)
 			errors.CheckError(err)
 			if localCfg == nil {
@@ -487,20 +496,7 @@ curl -H "Authorization: Bearer $ARGOCD_AUTH_TOKEN" $ARGOCD_SERVER/api/v1/applica
 				log.Fatal("No authentication token found. Please login first with 'argocd login'")
 			}
 
-			// Attempt token refresh for SSO users
-			clientset := headless.NewClientOrDie(clientOpts, c)
-			err = clientset.RefreshAuthToken(localCfg, localCfg.CurrentContext, clientOpts.ConfigPath)
-			if err != nil {
-				log.Debugf("Token refresh failed: %v", err)
-			} else {
-				// Re-read config to get potentially refreshed token
-				localCfg, err = localconfig.ReadLocalConfig(clientOpts.ConfigPath)
-				errors.CheckError(err)
-				configCtx, err = localCfg.ResolveContext(clientOpts.Context)
-				errors.CheckError(err)
-			}
-
-			// Get final token claims and validate
+			// Get token claims and validate
 			claims, err := configCtx.User.Claims()
 			if err != nil {
 				log.Fatal("Invalid token format. Please run 'argocd relogin'")
