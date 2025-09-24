@@ -110,7 +110,7 @@ func createSameClusterAnnotationResources() (*unstructured.Unstructured, *unstru
 	res1.SetNamespace("default")
 	res1.SetUID("62e7a834-97c6-4a99-8abf-8bbcb1dec995")
 	res1.SetAnnotations(map[string]string{
-		"argocd.argoproj.io/tracking-id": "argocd:apps/Deployment:default/nginx", // Same prefix as app
+		"argocd.argoproj.io/tracking-id": "other-app:apps/Deployment:default/nginx", // Different app
 	})
 
 	res2 := &unstructured.Unstructured{}
@@ -120,7 +120,7 @@ func createSameClusterAnnotationResources() (*unstructured.Unstructured, *unstru
 	res2.SetNamespace("default")
 	res2.SetUID("62e7a834-97c6-4a99-8abf-8bbcb1dec995") // Same UID = same cluster
 	res2.SetAnnotations(map[string]string{
-		"argocd.argoproj.io/tracking-id": "argocd:apps/Deployment:default/nginx", // Same prefix
+		"argocd.argoproj.io/tracking-id": "test-app:apps/Deployment:default/nginx", // Current app
 	})
 
 	return res1, res2

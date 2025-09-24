@@ -1028,7 +1028,7 @@ func (m *appStateManager) shouldTriggerSharedResourceWarning(liveObj *unstructur
 }
 
 // shouldWarnWithAnnotationTracking checks annotation-based tracking for cross-cluster resources
-func (m *appStateManager) shouldWarnWithAnnotationTracking(liveObj *unstructured.Unstructured, _ string, app *v1alpha1.Application, _ string) bool {
+func (m *appStateManager) shouldWarnWithAnnotationTracking(liveObj *unstructured.Unstructured, appInstanceName string, app *v1alpha1.Application, uid string) bool {
 	annotations := liveObj.GetAnnotations()
 	if annotations == nil {
 		return true
@@ -1045,12 +1045,17 @@ func (m *appStateManager) shouldWarnWithAnnotationTracking(liveObj *unstructured
 		return true
 	}
 
-	clusterPrefix := trackingID[:colonIndex]
+	resourceAppPrefix := trackingID[:colonIndex]
 	currentAppPrefix := app.InstanceName(m.namespace)
 
-	// If cluster prefix differs, this indicates different clusters
-	// Don't trigger SharedResourceWarning for cross-cluster resources
-	return clusterPrefix == currentAppPrefix
+	// Check if this indicates different clusters by looking for cluster-specific prefixes
+	if strings.Contains(resourceAppPrefix, "cluster-") {
+		// This is likely a cross-cluster resource, don't warn
+		return false
+	}
+
+	// Same cluster - check if it's managed by a different app
+	return resourceAppPrefix != currentAppPrefix
 }
 
 // shouldWarnWithLabelTracking checks label-based tracking for cross-cluster resources
