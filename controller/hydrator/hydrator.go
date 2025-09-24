@@ -110,23 +110,25 @@ func (h *Hydrator) ProcessAppHydrateQueueItem(origApp *appv1.Application) {
 
 	logCtx.Debug("Processing app hydrate queue item")
 
-	// TODO: don't reuse statusRefreshTimeout. Create a new timeout for hydration.
-	needsHydration, reason := appNeedsHydration(origApp, h.statusRefreshTimeout)
-	if !needsHydration {
-		return
+	needsHydration, reason := appNeedsHydration(origApp)
+	if needsHydration {
+		app.Status.SourceHydrator.CurrentOperation = &appv1.HydrateOperation{
+			StartedAt:      metav1.Now(),
+			FinishedAt:     nil,
+			Phase:          appv1.HydrateOperationPhaseHydrating,
+			SourceHydrator: *app.Spec.SourceHydrator,
+		}
+		h.dependencies.PersistAppHydratorStatus(origApp, &app.Status.SourceHydrator)
+		origApp.Status.SourceHydrator = app.Status.SourceHydrator
 	}
 
-	logCtx.WithField("reason", reason).Info("Hydrating app")
-
-	app.Status.SourceHydrator.CurrentOperation = &appv1.HydrateOperation{
-		StartedAt:      metav1.Now(),
-		FinishedAt:     nil,
-		Phase:          appv1.HydrateOperationPhaseHydrating,
-		SourceHydrator: *app.Spec.SourceHydrator,
+	needsRefresh := app.Status.SourceHydrator.CurrentOperation.Phase == appv1.HydrateOperationPhaseHydrating && metav1.Now().Sub(app.Status.SourceHydrator.CurrentOperation.StartedAt.Time) > h.statusRefreshTimeout
+	if needsHydration || needsRefresh {
+		logCtx.WithField("reason", reason).Info("Hydrating app")
+		h.dependencies.AddHydrationQueueItem(getHydrationQueueKey(app))
+	} else {
+		logCtx.WithField("reason", reason).Info("Skipping hydration")
 	}
-	h.dependencies.PersistAppHydratorStatus(origApp, &app.Status.SourceHydrator)
-	origApp.Status.SourceHydrator = app.Status.SourceHydrator
-	h.dependencies.AddHydrationQueueItem(getHydrationQueueKey(app))
 
 	logCtx.Debug("Successfully processed app hydrate queue item")
 }
@@ -456,30 +458,23 @@ func (h *Hydrator) getRevisionMetadata(ctx context.Context, repoURL, project, re
 }
 
 // appNeedsHydration answers if application needs manifests hydrated.
-func appNeedsHydration(app *appv1.Application, statusHydrateTimeout time.Duration) (needsHydration bool, reason string) {
-	if app.Spec.SourceHydrator == nil {
-		return false, "source hydrator not configured"
-	}
-
-	var hydratedAt *metav1.Time
-	if app.Status.SourceHydrator.CurrentOperation != nil {
-		hydratedAt = &app.Status.SourceHydrator.CurrentOperation.StartedAt
-	}
-
+func appNeedsHydration(app *appv1.Application) (needsHydration bool, reason string) {
 	switch {
-	case app.IsHydrateRequested():
-		return true, "hydrate requested"
+	case app.Spec.SourceHydrator == nil:
+		return false, "source hydrator not configured"
 	case app.Status.SourceHydrator.CurrentOperation == nil:
 		return true, "no previous hydrate operation"
+	case app.Status.SourceHydrator.CurrentOperation.Phase == appv1.HydrateOperationPhaseHydrating:
+		return false, "hydration operation already in progress"
+	case app.IsHydrateRequested():
+		return true, "hydrate requested"
 	case !app.Spec.SourceHydrator.DeepEquals(app.Status.SourceHydrator.CurrentOperation.SourceHydrator):
 		return true, "spec.sourceHydrator differs"
 	case app.Status.SourceHydrator.CurrentOperation.Phase == appv1.HydrateOperationPhaseFailed && metav1.Now().Sub(app.Status.SourceHydrator.CurrentOperation.FinishedAt.Time) > 2*time.Minute:
 		return true, "previous hydrate operation failed more than 2 minutes ago"
-	case hydratedAt == nil || hydratedAt.Add(statusHydrateTimeout).Before(time.Now().UTC()):
-		return true, "hydration expired"
 	}
 
-	return false, ""
+	return false, "hydration not needed"
 }
 
 // Gets the multi-line commit message based on the template defined in the configmap. It is a two step process:
