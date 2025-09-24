@@ -50,7 +50,7 @@ func newConfigmapObject() *unstructured.Unstructured {
 	cm := corev1.ConfigMap{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "ConfigMap",
-			APIVersion: "v1",
+			APIVersion: "argoproj.io/v1alpha1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      common.ArgoCDConfigMapName,
@@ -68,7 +68,7 @@ func newSecretsObject() *unstructured.Unstructured {
 	secret := corev1.Secret{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Secret",
-			APIVersion: "v1",
+			APIVersion: "argoproj.io/v1alpha1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      common.ArgoCDSecretName,
@@ -661,7 +661,7 @@ data:
 			fakeClient := fake.NewSimpleDynamicClient(scheme, liveObj)
 
 			objs := []*unstructured.Unstructured{bakObj}
-			_, err := tt.opts.executeImport(ctx, objs, nil, fakeClient, bakObj.GetNamespace(), "")
+			err := tt.opts.executeImport(ctx, objs, nil, fakeClient, bakObj.GetNamespace(), "")
 			require.NoError(t, err)
 
 			// Verify object exists in fake client

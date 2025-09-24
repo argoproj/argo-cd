@@ -242,7 +242,7 @@ func NewImportCommand() *cobra.Command {
 			}
 
 			errors.CheckError(err)
-			_, err = opts.executeImport(ctx, backupObjects, pruneObjects, client, namespace, dryRunMsg)
+			err = opts.executeImport(ctx, backupObjects, pruneObjects, client, namespace, dryRunMsg)
 			errors.CheckError(err)
 
 			duration := time.Since(tt)
@@ -358,8 +358,7 @@ func (opts *importOpts) executeImport(
 	client dynamic.Interface,
 	namespace string,
 	dryRunMsg string,
-) ([]*unstructured.Unstructured, error) {
-	var appliedObjs []*unstructured.Unstructured
+) (error) {
 	var err error
 
 	for _, bakObj := range bakObjs {
@@ -466,7 +465,7 @@ func (opts *importOpts) executeImport(
 		err = pruneResources(ctx, client, pruneObjects, namespace, opts, dryRunMsg)
 	}
 
-	return appliedObjs, err
+	return err
 }
 
 func pruneResources(
