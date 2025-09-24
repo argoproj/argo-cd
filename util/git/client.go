@@ -675,7 +675,7 @@ func (m *nativeGitClient) LsRemote(revision string) (res string, metadata *versi
 	for attempt := 0; attempt < maxAttemptsCount; attempt++ {
 		res, metadata, err = m.lsRemote(revision)
 		if err == nil {
-			return res, nil
+			return res, metadata, nil
 		} else if apierrors.IsInternalError(err) || apierrors.IsTimeout(err) || apierrors.IsServerTimeout(err) ||
 			apierrors.IsTooManyRequests(err) || utilnet.IsProbableEOF(err) || utilnet.IsConnectionReset(err) {
 			// Formula: timeToWait = duration * factor^retry_number
@@ -688,7 +688,7 @@ func (m *nativeGitClient) LsRemote(revision string) (res string, metadata *versi
 			time.Sleep(time.Duration(timeToWait))
 		}
 	}
-	return res, err
+	return res, metadata, err
 }
 
 func getGitTags(refs []*plumbing.Reference) []string {
