@@ -15,6 +15,8 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/net/proxy"
+
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/golang/protobuf/ptypes/empty"
@@ -275,8 +277,15 @@ func NewClient(opts *ClientOptions) (Client, error) {
 		if err != nil {
 			return nil, err
 		}
+		d := proxy.FromEnvironment()
+
+		dc := d.(interface {
+			DialContext(ctx context.Context, network, addr string) (net.Conn, error)
+		})
+
 		c.httpClient.Transport = &http.Transport{
 			TLSClientConfig: tlsConfig,
+			DialContext:     dc.DialContext,
 		}
 	}
 	if !c.GRPCWeb {
