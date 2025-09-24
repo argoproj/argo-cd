@@ -4796,3 +4796,116 @@ func TestSanitized(t *testing.T) {
 		},
 	}, cluster.Sanitized())
 }
+
+func TestCluster_RawRestConfig_KUBECONFIG(t *testing.T) {
+	testData := []struct {
+		name          string
+		setupFunc     func(*testing.T) string
+		expectedHost  string
+		expectedError bool
+	}{
+		{
+			name: "SingleKubeconfigPath",
+			setupFunc: func(t *testing.T) string {
+				tmpDir := t.TempDir()
+				kubeconfigPath := path.Join(tmpDir, "config")
+				kubeconfigContent := `apiVersion: v1
+kind: Config
+clusters:
+- cluster:
+    server: https://test-server
+  name: test-cluster
+contexts:
+- context:
+    cluster: test-cluster
+  name: test-context
+current-context: test-context`
+				err := os.WriteFile(kubeconfigPath, []byte(kubeconfigContent), 0644)
+				require.NoError(t, err)
+				return kubeconfigPath
+			},
+			expectedHost:  "https://test-server",
+			expectedError: false,
+		},
+		{
+			name: "MultipleKubeconfigPaths",
+			setupFunc: func(t *testing.T) string {
+				tmpDir := t.TempDir()
+				kubeconfig1 := path.Join(tmpDir, "config1")
+				kubeconfig2 := path.Join(tmpDir, "config2")
+
+				kubeconfig1Content := `apiVersion: v1
+kind: Config
+clusters:
+- cluster:
+    server: https://first-server
+  name: first-cluster
+contexts:
+- context:
+    cluster: first-cluster
+  name: first-context
+current-context: first-context`
+
+				kubeconfig2Content := `apiVersion: v1
+kind: Config
+clusters:
+- cluster:
+    server: https://second-server
+  name: second-cluster
+contexts:
+- context:
+    cluster: second-cluster
+  name: second-context
+current-context: second-context`
+
+				err := os.WriteFile(kubeconfig1, []byte(kubeconfig1Content), 0644)
+				require.NoError(t, err)
+				err = os.WriteFile(kubeconfig2, []byte(kubeconfig2Content), 0644)
+				require.NoError(t, err)
+
+				return kubeconfig1 + ":" + kubeconfig2
+			},
+			expectedHost:  "https://first-server",
+			expectedError: false,
+		},
+		{
+			name: "EmptyKubeconfigEnv",
+			setupFunc: func(t *testing.T) string {
+				return ""
+			},
+			expectedHost:  "",
+			expectedError: false,
+		},
+		{
+			name: "NonExistentPath",
+			setupFunc: func(t *testing.T) string {
+				return "/non/existent/path"
+			},
+			expectedHost:  "",
+			expectedError: true,
+		},
+	}
+
+	for _, data := range testData {
+		kubeconfigPath := data.setupFunc(t)
+		t.Setenv("KUBECONFIG", kubeconfigPath)
+		t.Setenv(EnvVarFakeInClusterConfig, "true")
+
+		cluster := &Cluster{
+			Server: KubernetesInternalAPIServerAddr,
+		}
+
+		config, err := cluster.RawRestConfig()
+
+		if data.expectedError {
+			require.Error(t, err)
+		} else {
+			require.NoError(t, err)
+			if data.expectedHost != "" {
+				assert.Equal(t, data.expectedHost, config.Host)
+			} else {
+				assert.NotEmpty(t, config.Host)
+			}
+		}
+	}
+}
