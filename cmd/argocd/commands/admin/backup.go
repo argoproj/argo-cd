@@ -358,7 +358,7 @@ func (opts *importOpts) executeImport(
 	client dynamic.Interface,
 	namespace string,
 	dryRunMsg string,
-) (error) {
+) error {
 	var err error
 
 	for _, bakObj := range bakObjs {
