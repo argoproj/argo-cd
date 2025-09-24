@@ -209,6 +209,7 @@ argocd_cluster_labels{label_environment="production",label_team_name="team3",nam
 
 Metrics about API Server API request and response activity (request totals, response codes, etc...).
 Scraped at the `argocd-server-metrics:8083/metrics` endpoint.
+For GRPC metrics to show up environment variable ARGOCD_ENABLE_GRPC_TIME_HISTOGRAM must be set to true. 
 
 | Metric                                            |   Type    | Description                                                                        
 |---------------------------------------------------|:---------:|---------------------------------------------------------------------------------------------|
@@ -249,8 +250,10 @@ Scraped at the `argocd-server-metrics:8083/metrics` endpoint.
 
 ## Repo Server Metrics
 
-Metrics about the Repo Server.
+Metrics about the Repo Server. The gRPC metrics are not exposed by default.  Metrics can be enabled using
+`ARGOCD_ENABLE_GRPC_TIME_HISTOGRAM=true` environment variable.  
 Scraped at the `argocd-repo-server:8084/metrics` endpoint.
+
 
 | Metric                                  |   Type    | Description                                                               |
 | --------------------------------------- | :-------: | ------------------------------------------------------------------------- |
@@ -268,7 +271,7 @@ Scraped at the `argocd-commit-server:8087/metrics` endpoint.
 
 | Metric                                                  |   Type    | Description                                          |
 | ------------------------------------------------------- | :-------: | ---------------------------------------------------- |
-| `argocd_commitserver_commit_pending_request_total`      |   guage   | Number of pending commit requests.                   |
+| `argocd_commitserver_commit_pending_request_total`      |   gauge   | Number of pending commit requests.                   |
 | `argocd_commitserver_git_request_duration_seconds`      | histogram | Git requests duration seconds.                       |
 | `argocd_commitserver_git_request_total`                 |  counter  | Number of git requests performed by commit server    |
 | `argocd_commitserver_commit_request_duration_seconds`   | histogram | Commit requests duration seconds.                    |

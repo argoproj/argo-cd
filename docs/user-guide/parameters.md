@@ -6,11 +6,11 @@ for *some* parts of the  k8s manifests determined dynamically, or outside of Git
 redeploying an application by changing application parameters via Argo CD, instead of making the 
 changes to the manifests in Git.
 
-!!! tip
-    Many consider this mode of operation as an anti-pattern to GitOps, since the source of
-    truth becomes a union of the Git repository, and the application overrides. The Argo CD parameter
-    overrides feature is provided mainly as a convenience to developers and is intended to be used in
-    dev/test environments, vs. production environments.
+> [!TIP]
+> Many consider this mode of operation as an anti-pattern to GitOps, since the source of
+> truth becomes a union of the Git repository, and the application overrides. The Argo CD parameter
+> overrides feature is provided mainly as a convenience to developers and is intended to be used in
+> dev/test environments, vs. production environments.
 
 To use parameter overrides, run the `argocd app set -p (COMPONENT=)PARAM=VALUE` command:
 
@@ -80,6 +80,9 @@ are sourcing multiple applications from a single path in your repository.
 
 The application specific file must be named `.argocd-source-<appname>.yaml`,
 where `<appname>` is the name of the application the overrides are valid for.
+When combined with the [apps-in-any-namespace](../operator-manual/app-any-namespace.md)
+feature, filename is expected to include the namespace name as a prefix, i.e.
+`.argocd-source-<namespace>_<appname>.yaml`.
 
 If there exists a non-application specific `.argocd-source.yaml`, parameters
 included in that file will be merged first, and then the application specific

@@ -1,6 +1,7 @@
 package hydrator
 
 import (
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -13,7 +14,14 @@ import (
 	"github.com/argoproj/argo-cd/v3/controller/hydrator/mocks"
 	"github.com/argoproj/argo-cd/v3/controller/hydrator/types"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
+
+var message = `testn
+Argocd-reference-commit-repourl: https://github.com/test/argocd-example-apps
+Argocd-reference-commit-author: Argocd-reference-commit-author
+Argocd-reference-commit-subject: testhydratormd
+Signed-off-by: testUser <test@gmail.com>`
 
 func Test_appNeedsHydration(t *testing.T) {
 	t.Parallel()
@@ -162,8 +170,154 @@ func Test_getRelevantAppsForHydration_RepoURLNormalization(t *testing.T) {
 	}
 
 	logCtx := log.WithField("test", "RepoURLNormalization")
-	relevantApps, err := hydrator.getRelevantAppsForHydration(logCtx, hydrationKey)
+	relevantApps, _, err := hydrator.getRelevantAppsAndProjectsForHydration(logCtx, hydrationKey)
 
 	require.NoError(t, err)
 	assert.Len(t, relevantApps, 2, "Expected both apps to be considered relevant despite URL differences")
+}
+
+func TestHydrator_getTemplatedCommitMessage(t *testing.T) {
+	references := make([]v1alpha1.RevisionReference, 0)
+	revReference := v1alpha1.RevisionReference{
+		Commit: &v1alpha1.CommitMetadata{
+			Author:  "testAuthor",
+			Subject: "test",
+			RepoURL: "https://github.com/test/argocd-example-apps",
+			SHA:     "3ff41cc5247197a6caf50216c4c76cc29d78a97c",
+		},
+	}
+	references = append(references, revReference)
+	type args struct {
+		repoURL           string
+		revision          string
+		dryCommitMetadata *v1alpha1.RevisionMetadata
+		template          string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    string
+		wantErr bool
+	}{
+		{
+			name: "test template",
+			args: args{
+				repoURL:  "https://github.com/test/argocd-example-apps",
+				revision: "3ff41cc5247197a6caf50216c4c76cc29d78a97d",
+				dryCommitMetadata: &v1alpha1.RevisionMetadata{
+					Author: "test test@test.com",
+					Date: &metav1.Time{
+						Time: metav1.Now().Time,
+					},
+					Message:    message,
+					References: references,
+				},
+				template: settings.CommitMessageTemplate,
+			},
+			want: `3ff41cc: testn
+Argocd-reference-commit-repourl: https://github.com/test/argocd-example-apps
+Argocd-reference-commit-author: Argocd-reference-commit-author
+Argocd-reference-commit-subject: testhydratormd
+Signed-off-by: testUser <test@gmail.com>
+
+Co-authored-by: testAuthor
+Co-authored-by: test test@test.com
+`,
+		},
+		{
+			name: "test empty template",
+			args: args{
+				repoURL:  "https://github.com/test/argocd-example-apps",
+				revision: "3ff41cc5247197a6caf50216c4c76cc29d78a97d",
+				dryCommitMetadata: &v1alpha1.RevisionMetadata{
+					Author: "test test@test.com",
+					Date: &metav1.Time{
+						Time: metav1.Now().Time,
+					},
+					Message:    message,
+					References: references,
+				},
+			},
+			want: "",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := getTemplatedCommitMessage(tt.args.repoURL, tt.args.revision, tt.args.template, tt.args.dryCommitMetadata)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Hydrator.getHydratorCommitMessage() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func Test_getRelevantAppsForHydration_RootPathSkipped(t *testing.T) {
+	t.Parallel()
+
+	d := mocks.NewDependencies(t)
+	// create an app that has a SyncSource.Path set to root
+	d.On("GetProcessableApps").Return(&v1alpha1.ApplicationList{
+		Items: []v1alpha1.Application{
+			{
+				Spec: v1alpha1.ApplicationSpec{
+					Project: "project",
+					SourceHydrator: &v1alpha1.SourceHydrator{
+						DrySource: v1alpha1.DrySource{
+							RepoURL:        "https://example.com/repo",
+							TargetRevision: "main",
+							Path:           ".", // root path
+						},
+						SyncSource: v1alpha1.SyncSource{
+							TargetBranch: "main",
+							Path:         ".", // root path
+						},
+					},
+				},
+			},
+		},
+	}, nil)
+
+	d.On("GetProcessableAppProj", mock.Anything).Return(&v1alpha1.AppProject{
+		Spec: v1alpha1.AppProjectSpec{
+			SourceRepos: []string{"https://example.com/*"},
+		},
+	}, nil).Maybe()
+
+	hydrator := &Hydrator{dependencies: d}
+
+	hydrationKey := types.HydrationQueueKey{
+		SourceRepoURL:        "https://example.com/repo",
+		SourceTargetRevision: "main",
+		DestinationBranch:    "main",
+	}
+
+	logCtx := log.WithField("test", "RootPathSkipped")
+	relevantApps, proj, err := hydrator.getRelevantAppsAndProjectsForHydration(logCtx, hydrationKey)
+	require.Error(t, err)
+	assert.Empty(t, relevantApps, "Expected no apps to be returned because SyncSource.Path resolves to root")
+	assert.Nil(t, proj)
+}
+
+func TestIsRootPath(t *testing.T) {
+	tests := []struct {
+		name     string
+		path     string
+		expected bool
+	}{
+		{"empty string", "", true},
+		{"dot path", ".", true},
+		{"slash", string(filepath.Separator), true},
+		{"nested path", "app", false},
+		{"nested path with slash", "app/", false},
+		{"deep path", "app/config", false},
+		{"current dir with trailing slash", "./", true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := IsRootPath(tt.path)
+			require.Equal(t, tt.expected, result)
+		})
+	}
 }

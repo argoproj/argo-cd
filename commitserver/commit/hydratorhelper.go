@@ -2,14 +2,10 @@ package commit
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
-	"io/fs"
 	"os"
 	"path/filepath"
-	"strings"
 	"text/template"
-	"time"
 
 	"github.com/Masterminds/sprig/v3"
 	log "github.com/sirupsen/logrus"
@@ -19,7 +15,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/commitserver/apiclient"
 	"github.com/argoproj/argo-cd/v3/common"
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/util/git"
+	"github.com/argoproj/argo-cd/v3/util/hydrator"
 	"github.com/argoproj/argo-cd/v3/util/io"
 )
 
@@ -38,25 +34,13 @@ func init() {
 // WriteForPaths writes the manifests, hydrator.metadata, and README.md files for each path in the provided paths. It
 // also writes a root-level hydrator.metadata file containing the repo URL and dry SHA.
 func WriteForPaths(root *os.Root, repoUrl, drySha string, dryCommitMetadata *appv1.RevisionMetadata, paths []*apiclient.PathDetails) error { //nolint:revive //FIXME(var-naming)
-	author := ""
-	message := ""
-	date := ""
-	var references []appv1.RevisionReference
-	if dryCommitMetadata != nil {
-		author = dryCommitMetadata.Author
-		message = dryCommitMetadata.Message
-		if dryCommitMetadata.Date != nil {
-			date = dryCommitMetadata.Date.Format(time.RFC3339)
-		}
-		references = dryCommitMetadata.References
+	hydratorMetadata, err := hydrator.GetCommitMetadata(repoUrl, drySha, dryCommitMetadata)
+	if err != nil {
+		return fmt.Errorf("failed to retrieve hydrator metadata: %w", err)
 	}
 
-	subject, body, _ := strings.Cut(message, "\n\n")
-
-	_, bodyMinusTrailers := git.GetReferences(log.WithFields(log.Fields{"repo": repoUrl, "revision": drySha}), body)
-
 	// Write the top-level readme.
-	err := writeMetadata(root, "", hydratorMetadataFile{DrySHA: drySha, RepoURL: repoUrl, Author: author, Subject: subject, Body: bodyMinusTrailers, Date: date, References: references})
+	err = writeMetadata(root, "", hydratorMetadata)
 	if err != nil {
 		return fmt.Errorf("failed to write top-level hydrator metadata: %w", err)
 	}
@@ -73,9 +57,12 @@ func WriteForPaths(root *os.Root, repoUrl, drySha string, dryCommitMetadata *app
 			hydratePath = ""
 		}
 
-		err = mkdirAll(root, hydratePath)
-		if err != nil {
-			return fmt.Errorf("failed to create path: %w", err)
+		// Only create directory if path is not empty (root directory case)
+		if hydratePath != "" {
+			err = root.MkdirAll(hydratePath, 0o755)
+			if err != nil {
+				return fmt.Errorf("failed to create path: %w", err)
+			}
 		}
 
 		// Write the manifests
@@ -85,7 +72,7 @@ func WriteForPaths(root *os.Root, repoUrl, drySha string, dryCommitMetadata *app
 		}
 
 		// Write hydrator.metadata containing information about the hydration process.
-		hydratorMetadata := hydratorMetadataFile{
+		hydratorMetadata := hydrator.HydratorCommitMetadata{
 			Commands: p.Commands,
 			DrySHA:   drySha,
 			RepoURL:  repoUrl,
@@ -105,7 +92,7 @@ func WriteForPaths(root *os.Root, repoUrl, drySha string, dryCommitMetadata *app
 }
 
 // writeMetadata writes the metadata to the hydrator.metadata file.
-func writeMetadata(root *os.Root, dirPath string, metadata hydratorMetadataFile) error {
+func writeMetadata(root *os.Root, dirPath string, metadata hydrator.HydratorCommitMetadata) error {
 	hydratorMetadataPath := filepath.Join(dirPath, "hydrator.metadata")
 	f, err := root.Create(hydratorMetadataPath)
 	if err != nil {
@@ -124,7 +111,7 @@ func writeMetadata(root *os.Root, dirPath string, metadata hydratorMetadataFile)
 }
 
 // writeReadme writes the readme to the README.md file.
-func writeReadme(root *os.Root, dirPath string, metadata hydratorMetadataFile) error {
+func writeReadme(root *os.Root, dirPath string, metadata hydrator.HydratorCommitMetadata) error {
 	readmeTemplate, err := template.New("readme").Funcs(sprigFuncMap).Parse(manifestHydrationReadmeTemplate)
 	if err != nil {
 		return fmt.Errorf("failed to parse readme template: %w", err)
@@ -210,27 +197,5 @@ func writeManifests(root *os.Root, dirPath string, manifests []*apiclient.Hydrat
 		}
 	}
 
-	return nil
-}
-
-// mkdirAll creates the directory and all its parents if they do not exist. It returns an error if the directory
-// cannot be.
-func mkdirAll(root *os.Root, dirPath string) error {
-	parts := strings.Split(dirPath, string(os.PathSeparator))
-	builtPath := ""
-	for _, part := range parts {
-		if part == "" {
-			continue
-		}
-		builtPath = filepath.Join(builtPath, part)
-		err := root.Mkdir(builtPath, os.ModePerm)
-		if err != nil {
-			if errors.Is(err, fs.ErrExist) {
-				log.WithError(err).Warnf("path %s already exists, skipping", dirPath)
-				continue
-			}
-			return fmt.Errorf("failed to create path: %w", err)
-		}
-	}
 	return nil
 }

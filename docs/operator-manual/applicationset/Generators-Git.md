@@ -2,14 +2,13 @@
 
 The Git generator contains two subtypes: the Git directory generator, and Git file generator.
 
-!!! warning
-    Git generators are often used to make it easier for (non-admin) developers to create Applications.
-    If the `project` field in your ApplicationSet is templated, developers may be able to create Applications under Projects with excessive permissions.
-    For ApplicationSets with a templated `project` field, [the source of truth _must_ be controlled by admins](./Security.md#templated-project-field)
-    - in the case of git generators, PRs must require admin approval.
-    - Git generator does not support Signature Verification For ApplicationSets with a templated `project` field.
-    - You must only use "non-scoped" repositories for ApplicationSets with a templated `project` field (see ["Repository Credentials for Applicationsets" below](#repository-credentials-for-applicationsets)).
-    
+> [!WARNING]
+> Git generators are often used to make it easier for (non-admin) developers to create Applications.
+> If the `project` field in your ApplicationSet is templated, developers may be able to create Applications under Projects with excessive permissions.
+> For ApplicationSets with a templated `project` field, [the source of truth _must_ be controlled by admins](./Security.md#templated-project-field)
+> - in the case of git generators, PRs must require admin approval.
+> - Git generator does not support Signature Verification For ApplicationSets with a templated `project` field.
+> - You must only use "non-scoped" repositories for ApplicationSets with a templated `project` field (see ["Repository Credentials for Applicationsets" below](#repository-credentials-for-applicationsets)).
 
 ## Git Generator: Directories
 
@@ -121,11 +120,12 @@ spec:
 
 This example excludes the `exclude-helm-guestbook` directory from the list of directories scanned for this `ApplicationSet` resource.
 
-!!! note "Exclude rules have higher priority than include rules"
-
-    If a directory matches at least one `exclude` pattern, it will be excluded. Or, said another way, *exclude rules take precedence over include rules.*
-
-    As a corollary, which directories are included/excluded is not affected by the order of `path`s in the `directories` field list (because, as above, exclude rules always take precedence over include rules). 
+> [!NOTE]
+> **Exclude rules have higher priority than include rules**
+>
+> If a directory matches at least one `exclude` pattern, it will be excluded. Or, said another way, *exclude rules take precedence over include rules.*
+>
+> As a corollary, which directories are included/excluded is not affected by the order of `path`s in the `directories` field list (because, as above, exclude rules always take precedence over include rules). 
 
 For example, with these directories:
 
@@ -237,8 +237,8 @@ spec:
         namespace: '{{.values.cluster}}'
 ```
 
-!!! note
-    The `values.` prefix is always prepended to values provided via `generators.git.values` field. Ensure you include this prefix in the parameter name within the `template` when using it.
+> [!NOTE]
+> The `values.` prefix is always prepended to values provided via `generators.git.values` field. Ensure you include this prefix in the parameter name within the `template` when using it.
 
 In `values` we can also interpolate all fields set by the git directory generator as mentioned above.
 
@@ -417,16 +417,45 @@ spec:
         namespace: guestbook
 ```
 
-!!! note
-    The `values.` prefix is always prepended to values provided via `generators.git.values` field. Ensure you include this prefix in the parameter name within the `template` when using it.
+> [!NOTE]
+> The `values.` prefix is always prepended to values provided via `generators.git.values` field. Ensure you include this prefix in the parameter name within the `template` when using it.
 
 In `values` we can also interpolate all fields set by the git files generator as mentioned above.
 
+## Git Polling Interval
+
+When using a Git generator, the ApplicationSet controller polls Git
+repositories, by default, every 3 minutes to detect changes, unless
+different default value is set by the
+`ARGOCD_APPLICATIONSET_CONTROLLER_REQUEUE_AFTER` environment variable.
+You can customize this interval per ApplicationSet using
+`requeueAfterSeconds`.
+
+> [!NOTE]
+> The Git generator uses the ArgoCD Repo Server to retrieve file
+> and directory lists from Git. Therefore, the Git generator is
+> affected by the Repo Server's Revision Cache Expiration setting
+> (see the description of the `timeout.reconciliation` parameter in
+> [argocd-cm.yaml](../argocd-cm-yaml.md/#:~:text=timeout.reconciliation%3A)).
+> If this value exceeds the configured Git Polling Interval, the
+> Git generator might not see files or directories from new commits
+> until the previous cache entry expires.
+> 
+## The `argocd.argoproj.io/application-set-refresh` Annotation
+
+Setting the `argocd.argoproj.io/application-set-refresh` annotation
+(to any value) triggers an ApplicationSet refresh. This annotation
+forces the Git provider to resolve Git references directly, bypassing
+the Revision Cache. The ApplicationSet controller removes this
+annotation after reconciliation.
+
 ## Webhook Configuration
 
-When using a Git generator, the ApplicationSet controller polls Git repositories every 3 minutes (this can be customized per ApplicationSet with `requeueAfterSeconds`) to detect changes. To eliminate
-this delay from polling, the ApplicationSet webhook server can be configured to receive webhook events. ApplicationSet supports
-Git webhook notifications from GitHub and GitLab. The following explains how to configure a Git webhook for GitHub, but the same process should be applicable to other providers.
+To eliminate the polling delay, the ApplicationSet webhook
+server can be configured to receive webhook events. ApplicationSet
+supports Git webhook notifications from GitHub and GitLab. The
+following explains how to configure a Git webhook for GitHub, but the
+same process should be applicable to other providers.
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -446,8 +475,8 @@ spec:
       # ...
 ```
 
-!!! note
-    The ApplicationSet controller webhook does not use the same webhook as the API server as defined [here](../webhook.md). ApplicationSet exposes a webhook server as a service of type ClusterIP. An ApplicationSet specific Ingress resource needs to be created to expose this service to the webhook source.
+> [!NOTE]
+> The ApplicationSet controller webhook does not use the same webhook as the API server as defined [here](../webhook.md). ApplicationSet exposes a webhook server as a service of type ClusterIP. An ApplicationSet specific Ingress resource needs to be created to expose this service to the webhook source.
 
 ### 1. Create the webhook in the Git provider
 
@@ -458,8 +487,8 @@ arbitrary value in the secret. This value will be used when configuring the webh
 
 ![Add Webhook](../../assets/applicationset/webhook-config.png "Add Webhook")
 
-!!! note
-    When creating the webhook in GitHub, the "Content type" needs to be set to "application/json". The default value "application/x-www-form-urlencoded" is not supported by the library used to handle the hooks
+> [!NOTE]
+> When creating the webhook in GitHub, the "Content type" needs to be set to "application/json". The default value "application/x-www-form-urlencoded" is not supported by the library used to handle the hooks
 
 ### 2. Configure ApplicationSet with the webhook secret (Optional)
 

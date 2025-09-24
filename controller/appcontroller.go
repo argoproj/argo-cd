@@ -603,6 +603,9 @@ func (ctrl *ApplicationController) getResourceTree(destCluster *appv1.Cluster, a
 					Group:     managedResource.Group,
 					Namespace: managedResource.Namespace,
 				},
+				Health: &appv1.HealthStatus{
+					Status: health.HealthStatusMissing,
+				},
 			})
 		} else {
 			managedResourcesKeys = append(managedResourcesKeys, kube.GetResourceKey(live))
@@ -997,7 +1000,7 @@ func (ctrl *ApplicationController) processAppOperationQueueItem() (processNext b
 	appKey, shutdown := ctrl.appOperationQueue.Get()
 	if shutdown {
 		processNext = false
-		return
+		return processNext
 	}
 	processNext = true
 	defer func() {
@@ -1010,16 +1013,16 @@ func (ctrl *ApplicationController) processAppOperationQueueItem() (processNext b
 	obj, exists, err := ctrl.appInformer.GetIndexer().GetByKey(appKey)
 	if err != nil {
 		log.Errorf("Failed to get application '%s' from informer index: %+v", appKey, err)
-		return
+		return processNext
 	}
 	if !exists {
 		// This happens after app was deleted, but the work queue still had an entry for it.
-		return
+		return processNext
 	}
 	origApp, ok := obj.(*appv1.Application)
 	if !ok {
 		log.Warnf("Key '%s' in index is not an application", appKey)
-		return
+		return processNext
 	}
 	app := origApp.DeepCopy()
 	logCtx := log.WithFields(applog.GetAppLogFields(app))
@@ -1039,7 +1042,7 @@ func (ctrl *ApplicationController) processAppOperationQueueItem() (processNext b
 		freshApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.ObjectMeta.Namespace).Get(context.Background(), app.Name, metav1.GetOptions{})
 		if err != nil {
 			logCtx.Errorf("Failed to retrieve latest application state: %v", err)
-			return
+			return processNext
 		}
 		app = freshApp
 	}
@@ -1061,7 +1064,7 @@ func (ctrl *ApplicationController) processAppOperationQueueItem() (processNext b
 		}
 		ts.AddCheckpoint("finalize_application_deletion_ms")
 	}
-	return
+	return processNext
 }
 
 func (ctrl *ApplicationController) processAppComparisonTypeQueueItem() (processNext bool) {
@@ -1076,7 +1079,7 @@ func (ctrl *ApplicationController) processAppComparisonTypeQueueItem() (processN
 	}()
 	if shutdown {
 		processNext = false
-		return
+		return processNext
 	}
 
 	if parts := strings.Split(key, "/"); len(parts) != 3 {
@@ -1085,11 +1088,11 @@ func (ctrl *ApplicationController) processAppComparisonTypeQueueItem() (processN
 		compareWith, err := strconv.Atoi(parts[2])
 		if err != nil {
 			log.Warnf("Unable to parse comparison type: %v", err)
-			return
+			return processNext
 		}
 		ctrl.requestAppRefresh(ctrl.toAppQualifiedName(parts[1], parts[0]), CompareWith(compareWith).Pointer(), nil)
 	}
-	return
+	return processNext
 }
 
 func (ctrl *ApplicationController) processProjectQueueItem() (processNext bool) {
@@ -1104,21 +1107,21 @@ func (ctrl *ApplicationController) processProjectQueueItem() (processNext bool) 
 	}()
 	if shutdown {
 		processNext = false
-		return
+		return processNext
 	}
 	obj, exists, err := ctrl.projInformer.GetIndexer().GetByKey(key)
 	if err != nil {
 		log.Errorf("Failed to get project '%s' from informer index: %+v", key, err)
-		return
+		return processNext
 	}
 	if !exists {
 		// This happens after appproj was deleted, but the work queue still had an entry for it.
-		return
+		return processNext
 	}
 	origProj, ok := obj.(*appv1.AppProject)
 	if !ok {
 		log.Warnf("Key '%s' in index is not an appproject", key)
-		return
+		return processNext
 	}
 
 	if origProj.DeletionTimestamp != nil && origProj.HasFinalizer() {
@@ -1126,7 +1129,7 @@ func (ctrl *ApplicationController) processProjectQueueItem() (processNext bool) 
 			log.Warnf("Failed to finalize project deletion: %v", err)
 		}
 	}
-	return
+	return processNext
 }
 
 func (ctrl *ApplicationController) finalizeProjectDeletion(proj *appv1.AppProject) error {
@@ -1203,7 +1206,7 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 	if err != nil {
 		logCtx.Warnf("Unable to get destination cluster: %v", err)
 		app.UnSetCascadedDeletion()
-		app.UnSetPostDeleteFinalizer()
+		app.UnSetPostDeleteFinalizerAll()
 		if err := ctrl.updateFinalizers(app); err != nil {
 			return err
 		}
@@ -1392,42 +1395,55 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 		logCtx = logCtx.WithField("time_ms", time.Since(ts.StartTime).Milliseconds())
 		logCtx.Debug("Finished processing requested app operation")
 	}()
-	terminating := false
+	terminatingCause := ""
 	if isOperationInProgress(app) {
 		state = app.Status.OperationState.DeepCopy()
-		terminating = state.Phase == synccommon.OperationTerminating
-		// Failed  operation with retry strategy might have be in-progress and has completion time
 		switch {
-		case state.FinishedAt != nil && !terminating:
+		case state.Phase == synccommon.OperationTerminating:
+			logCtx.Infof("Resuming in-progress operation. phase: %s, message: %s", state.Phase, state.Message)
+		case ctrl.syncTimeout != time.Duration(0) && time.Now().After(state.StartedAt.Add(ctrl.syncTimeout)):
+			state.Phase = synccommon.OperationTerminating
+			state.Message = "operation is terminating due to timeout"
+			terminatingCause = "controller sync timeout"
+			ctrl.setOperationState(app, state)
+			logCtx.Infof("Terminating in-progress operation due to timeout. Started at: %v, timeout: %v", state.StartedAt, ctrl.syncTimeout)
+		case state.Phase == synccommon.OperationRunning && state.FinishedAt != nil:
+			// Failed operation with retry strategy might be in-progress and has completion time
 			retryAt, err := app.Status.OperationState.Operation.Retry.NextRetryAt(state.FinishedAt.Time, state.RetryCount)
 			if err != nil {
-				state.Phase = synccommon.OperationFailed
+				state.Phase = synccommon.OperationError
 				state.Message = err.Error()
 				ctrl.setOperationState(app, state)
 				return
 			}
 			retryAfter := time.Until(retryAt)
+
 			if retryAfter > 0 {
 				logCtx.Infof("Skipping retrying in-progress operation. Attempting again at: %s", retryAt.Format(time.RFC3339))
 				ctrl.requestAppRefresh(app.QualifiedName(), CompareWithLatest.Pointer(), &retryAfter)
 				return
 			}
-			// retrying operation. remove previous failure time in app since it is used as a trigger
-			// that previous failed and operation should be retried
-			state.FinishedAt = nil
-			ctrl.setOperationState(app, state)
+
+			// Remove the desired revisions if the sync failed and we are retrying. The latest revision from the source will be used.
+			extraMsg := ""
+			if state.Operation.Retry.Refresh {
+				extraMsg += " with latest revisions"
+				state.Operation.Sync.Revision = ""
+				state.Operation.Sync.Revisions = nil
+			}
+
 			// Get rid of sync results and null out previous operation completion time
+			// This will start the retry attempt
+			state.Message = fmt.Sprintf("Retrying operation%s. Attempt #%d", extraMsg, state.RetryCount)
+			state.FinishedAt = nil
 			state.SyncResult = nil
-		case ctrl.syncTimeout != time.Duration(0) && time.Now().After(state.StartedAt.Add(ctrl.syncTimeout)) && !terminating:
-			state.Phase = synccommon.OperationTerminating
-			state.Message = "operation is terminating due to timeout"
 			ctrl.setOperationState(app, state)
-			logCtx.Infof("Terminating in-progress operation due to timeout. Started at: %v, timeout: %v", state.StartedAt, ctrl.syncTimeout)
+			logCtx.Infof("Retrying operation%s. Attempt #%d", extraMsg, state.RetryCount)
 		default:
 			logCtx.Infof("Resuming in-progress operation. phase: %s, message: %s", state.Phase, state.Message)
 		}
 	} else {
-		state = &appv1.OperationState{Phase: synccommon.OperationRunning, Operation: *app.Operation, StartedAt: metav1.Now()}
+		state = NewOperationState(*app.Operation)
 		ctrl.setOperationState(app, state)
 		if ctrl.syncTimeout != time.Duration(0) {
 			// Schedule a check during which the timeout would be checked.
@@ -1437,13 +1453,14 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 	}
 	ts.AddCheckpoint("initial_operation_stage_ms")
 
+	terminating := state.Phase == synccommon.OperationTerminating
 	project, err := ctrl.getAppProj(app)
-	if err != nil {
-		state.Phase = synccommon.OperationError
-		state.Message = fmt.Sprintf("Failed to load application project: %v", err)
-	} else {
+	if err == nil {
 		// Start or resume the sync
 		ctrl.appStateManager.SyncAppState(app, project, state)
+	} else {
+		state.Phase = synccommon.OperationError
+		state.Message = fmt.Sprintf("Failed to load application project: %v", err)
 	}
 	ts.AddCheckpoint("sync_app_state_ms")
 
@@ -1464,17 +1481,24 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 	case synccommon.OperationFailed, synccommon.OperationError:
 		if !terminating && (state.RetryCount < state.Operation.Retry.Limit || state.Operation.Retry.Limit < 0) {
 			now := metav1.Now()
-			state.FinishedAt = &now
 			if retryAt, err := state.Operation.Retry.NextRetryAt(now.Time, state.RetryCount); err != nil {
 				state.Phase = synccommon.OperationError
 				state.Message = fmt.Sprintf("%s (failed to retry: %v)", state.Message, err)
 			} else {
+				// Set FinishedAt explicitly on a Running phase. This is a unique condition that will allow this
+				// function to perform a retry the next time the operation is processed.
 				state.Phase = synccommon.OperationRunning
+				state.FinishedAt = &now
 				state.RetryCount++
-				state.Message = fmt.Sprintf("%s due to application controller sync timeout. Retrying attempt #%d at %s.", state.Message, state.RetryCount, retryAt.Format(time.Kitchen))
+				state.Message = fmt.Sprintf("%s. Retrying attempt #%d at %s.", state.Message, state.RetryCount, retryAt.Format(time.Kitchen))
 			}
-		} else if state.RetryCount > 0 {
-			state.Message = fmt.Sprintf("%s (retried %d times).", state.Message, state.RetryCount)
+		} else {
+			if terminating && terminatingCause != "" {
+				state.Message = fmt.Sprintf("%s, triggered by %s", state.Message, terminatingCause)
+			}
+			if state.RetryCount > 0 {
+				state.Message = fmt.Sprintf("%s (retried %d times).", state.Message, state.RetryCount)
+			}
 		}
 	}
 
@@ -1606,7 +1630,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	appKey, shutdown := ctrl.appRefreshQueue.Get()
 	if shutdown {
 		processNext = false
-		return
+		return processNext
 	}
 	processNext = true
 	defer func() {
@@ -1621,22 +1645,22 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	obj, exists, err := ctrl.appInformer.GetIndexer().GetByKey(appKey)
 	if err != nil {
 		log.Errorf("Failed to get application '%s' from informer index: %+v", appKey, err)
-		return
+		return processNext
 	}
 	if !exists {
 		// This happens after app was deleted, but the work queue still had an entry for it.
-		return
+		return processNext
 	}
 	origApp, ok := obj.(*appv1.Application)
 	if !ok {
 		log.Warnf("Key '%s' in index is not an application", appKey)
-		return
+		return processNext
 	}
 	origApp = origApp.DeepCopy()
 	needRefresh, refreshType, comparisonLevel := ctrl.needRefreshAppStatus(origApp, ctrl.statusRefreshTimeout, ctrl.statusHardRefreshTimeout)
 
 	if !needRefresh {
-		return
+		return processNext
 	}
 	app := origApp.DeepCopy()
 	logCtx := log.WithFields(applog.GetAppLogFields(app)).WithFields(log.Fields{
@@ -1679,12 +1703,12 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 					app.Status.Summary = tree.GetSummary(app)
 					if err := ctrl.cache.SetAppResourcesTree(app.InstanceName(ctrl.namespace), tree); err != nil {
 						logCtx.Errorf("Failed to cache resources tree: %v", err)
-						return
+						return processNext
 					}
 				}
 
 				patchDuration = ctrl.persistAppStatus(origApp, &app.Status)
-				return
+				return processNext
 			}
 			logCtx.Warnf("Failed to get cached managed resources for tree reconciliation, fall back to full reconciliation")
 		}
@@ -1706,14 +1730,14 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 			logCtx.Warnf("failed to set app managed resources tree: %v", err)
 		}
 		ts.AddCheckpoint("process_refresh_app_conditions_errors_ms")
-		return
+		return processNext
 	}
 
 	destCluster, err = argo.GetDestinationCluster(context.Background(), app.Spec.Destination, ctrl.db)
 	if err != nil {
 		logCtx.Errorf("Failed to get destination cluster: %v", err)
 		// exit the reconciliation. ctrl.refreshAppConditions should have caught the error
-		return
+		return processNext
 	}
 
 	var localManifests []string
@@ -1754,7 +1778,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 
 	if stderrors.Is(err, ErrCompareStateRepo) {
 		logCtx.Warnf("Ignoring temporary failed attempt to compare app state against repo: %v", err)
-		return // short circuit if git error is encountered
+		return processNext // short circuit if git error is encountered
 	}
 
 	for k, v := range compareResult.timings {
@@ -1774,7 +1798,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 
 	canSync, _ := project.Spec.SyncWindows.Matches(app).CanSync(false)
 	if canSync {
-		syncErrCond, opDuration := ctrl.autoSync(app, compareResult.syncStatus, compareResult.resources, compareResult.revisionUpdated)
+		syncErrCond, opDuration := ctrl.autoSync(app, compareResult.syncStatus, compareResult.resources, compareResult.revisionsMayHaveChanges)
 		setOpDuration = opDuration
 		if syncErrCond != nil {
 			app.Status.SetConditions(
@@ -1823,14 +1847,14 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		}
 	}
 	ts.AddCheckpoint("process_finalizers_ms")
-	return
+	return processNext
 }
 
 func (ctrl *ApplicationController) processAppHydrateQueueItem() (processNext bool) {
 	appKey, shutdown := ctrl.appHydrateQueue.Get()
 	if shutdown {
 		processNext = false
-		return
+		return processNext
 	}
 	processNext = true
 	defer func() {
@@ -1842,29 +1866,29 @@ func (ctrl *ApplicationController) processAppHydrateQueueItem() (processNext boo
 	obj, exists, err := ctrl.appInformer.GetIndexer().GetByKey(appKey)
 	if err != nil {
 		log.Errorf("Failed to get application '%s' from informer index: %+v", appKey, err)
-		return
+		return processNext
 	}
 	if !exists {
 		// This happens after app was deleted, but the work queue still had an entry for it.
-		return
+		return processNext
 	}
 	origApp, ok := obj.(*appv1.Application)
 	if !ok {
 		log.Warnf("Key '%s' in index is not an application", appKey)
-		return
+		return processNext
 	}
 
 	ctrl.hydrator.ProcessAppHydrateQueueItem(origApp)
 
 	log.WithFields(applog.GetAppLogFields(origApp)).Debug("Successfully processed app hydrate queue item")
-	return
+	return processNext
 }
 
 func (ctrl *ApplicationController) processHydrationQueueItem() (processNext bool) {
 	hydrationKey, shutdown := ctrl.hydrationQueue.Get()
 	if shutdown {
 		processNext = false
-		return
+		return processNext
 	}
 	processNext = true
 	defer func() {
@@ -1885,7 +1909,7 @@ func (ctrl *ApplicationController) processHydrationQueueItem() (processNext bool
 	ctrl.hydrator.ProcessHydrationQueueItem(hydrationKey)
 
 	logCtx.Debug("Successfully processed hydration queue item")
-	return
+	return processNext
 }
 
 func resourceStatusKey(res appv1.ResourceStatus) string {
@@ -2048,11 +2072,11 @@ func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, new
 		&appv1.Application{ObjectMeta: metav1.ObjectMeta{Annotations: newAnnotations}, Status: *newStatus})
 	if err != nil {
 		logCtx.Errorf("Error constructing app status patch: %v", err)
-		return
+		return patchDuration
 	}
 	if !modified {
 		logCtx.Infof("No status changes. Skipping patch")
-		return
+		return patchDuration
 	}
 	// calculate time for path call
 	start := time.Now()
@@ -2069,7 +2093,7 @@ func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, new
 }
 
 // autoSync will initiate a sync operation for an application configured with automated sync
-func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *appv1.SyncStatus, resources []appv1.ResourceStatus, revisionUpdated bool) (*appv1.ApplicationCondition, time.Duration) {
+func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *appv1.SyncStatus, resources []appv1.ResourceStatus, shouldCompareRevisions bool) (*appv1.ApplicationCondition, time.Duration) {
 	logCtx := log.WithFields(applog.GetAppLogFields(app))
 	ts := stats.NewTimingStats()
 	defer func() {
@@ -2113,23 +2137,25 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 		}
 	}
 
-	selfHeal := app.Spec.SyncPolicy.Automated.SelfHeal
+	source := ptr.To(app.Spec.GetSource())
+	desiredRevisions := []string{syncStatus.Revision}
+	if app.Spec.HasMultipleSources() {
+		source = nil
+		desiredRevisions = syncStatus.Revisions
+	}
 
-	desiredCommitSHA := syncStatus.Revision
-	desiredCommitSHAsMS := syncStatus.Revisions
-	alreadyAttempted, attemptPhase := alreadyAttemptedSync(app, desiredCommitSHA, desiredCommitSHAsMS, app.Spec.HasMultipleSources(), revisionUpdated)
-	ts.AddCheckpoint("already_attempted_sync_ms")
 	op := appv1.Operation{
 		Sync: &appv1.SyncOperation{
-			Revision:    desiredCommitSHA,
+			Source:      source,
+			Revision:    syncStatus.Revision,
 			Prune:       app.Spec.SyncPolicy.Automated.Prune,
 			SyncOptions: app.Spec.SyncPolicy.SyncOptions,
-			Revisions:   desiredCommitSHAsMS,
+			Sources:     app.Spec.Sources,
+			Revisions:   syncStatus.Revisions,
 		},
 		InitiatedBy: appv1.OperationInitiator{Automated: true},
 		Retry:       appv1.RetryStrategy{Limit: 5},
 	}
-
 	if app.Spec.SyncPolicy.Retry != nil {
 		op.Retry = *app.Spec.SyncPolicy.Retry
 	}
@@ -2138,14 +2164,16 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 	// auto-sync with pruning disabled). We need to ensure that we do not keep Syncing an
 	// application in an infinite loop. To detect this, we only attempt the Sync if the revision
 	// and parameter overrides are different from our most recent sync operation.
+	alreadyAttempted, lastAttemptedRevisions, lastAttemptedPhase := alreadyAttemptedSync(app, desiredRevisions, shouldCompareRevisions)
+	ts.AddCheckpoint("already_attempted_sync_ms")
 	if alreadyAttempted {
-		if !attemptPhase.Successful() {
-			logCtx.Warnf("Skipping auto-sync: failed previous sync attempt to %s", desiredCommitSHA)
-			message := fmt.Sprintf("Failed sync attempt to %s: %s", desiredCommitSHA, app.Status.OperationState.Message)
+		if !lastAttemptedPhase.Successful() {
+			logCtx.Warnf("Skipping auto-sync: failed previous sync attempt to %s and will not retry for %s", lastAttemptedRevisions, desiredRevisions)
+			message := fmt.Sprintf("Failed last sync attempt to %s: %s", lastAttemptedRevisions, app.Status.OperationState.Message)
 			return &appv1.ApplicationCondition{Type: appv1.ApplicationConditionSyncError, Message: message}, 0
 		}
-		if !selfHeal {
-			logCtx.Infof("Skipping auto-sync: most recent sync already to %s", desiredCommitSHA)
+		if !app.Spec.SyncPolicy.Automated.SelfHeal {
+			logCtx.Infof("Skipping auto-sync: most recent sync already to %s", desiredRevisions)
 			return nil, 0
 		}
 		// Self heal will trigger a new sync operation when the desired state changes and cause the application to
@@ -2159,9 +2187,8 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 			}
 		}
 
-		remainingTime := ctrl.selfHealRemainingBackoff(app, int(op.Sync.SelfHealAttemptsCount))
-		if remainingTime > 0 {
-			logCtx.Infof("Skipping auto-sync: already attempted sync to %s with timeout %v (retrying in %v)", desiredCommitSHA, ctrl.selfHealTimeout, remainingTime)
+		if remainingTime := ctrl.selfHealRemainingBackoff(app, int(op.Sync.SelfHealAttemptsCount)); remainingTime > 0 {
+			logCtx.Infof("Skipping auto-sync: already attempted sync to %s with timeout %v (retrying in %v)", lastAttemptedRevisions, ctrl.selfHealTimeout, remainingTime)
 			ctrl.requestAppRefresh(app.QualifiedName(), CompareWithLatest.Pointer(), &remainingTime)
 			return nil, 0
 		}
@@ -2187,7 +2214,7 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 			}
 		}
 		if bAllNeedPrune {
-			message := fmt.Sprintf("Skipping sync attempt to %s: auto-sync will wipe out all resources", desiredCommitSHA)
+			message := fmt.Sprintf("Skipping sync attempt to %s: auto-sync will wipe out all resources", desiredRevisions)
 			logCtx.Warn(message)
 			return &appv1.ApplicationCondition{Type: appv1.ApplicationConditionSyncError, Message: message}, 0
 		}
@@ -2203,57 +2230,60 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 		if stderrors.Is(err, argo.ErrAnotherOperationInProgress) {
 			// skipping auto-sync because another operation is in progress and was not noticed due to stale data in informer
 			// it is safe to skip auto-sync because it is already running
-			logCtx.Warnf("Failed to initiate auto-sync to %s: %v", desiredCommitSHA, err)
+			logCtx.Warnf("Failed to initiate auto-sync to %s: %v", desiredRevisions, err)
 			return nil, 0
 		}
 
-		logCtx.Errorf("Failed to initiate auto-sync to %s: %v", desiredCommitSHA, err)
+		logCtx.Errorf("Failed to initiate auto-sync to %s: %v", desiredRevisions, err)
 		return &appv1.ApplicationCondition{Type: appv1.ApplicationConditionSyncError, Message: err.Error()}, setOpTime
 	}
 	ctrl.writeBackToInformer(updatedApp)
 	ts.AddCheckpoint("write_back_to_informer_ms")
 
-	var target string
-	if updatedApp.Spec.HasMultipleSources() {
-		target = strings.Join(desiredCommitSHAsMS, ", ")
-	} else {
-		target = desiredCommitSHA
-	}
-	message := fmt.Sprintf("Initiated automated sync to '%s'", target)
+	message := fmt.Sprintf("Initiated automated sync to %s", desiredRevisions)
 	ctrl.logAppEvent(context.TODO(), app, argo.EventInfo{Reason: argo.EventReasonOperationStarted, Type: corev1.EventTypeNormal}, message)
 	logCtx.Info(message)
 	return nil, setOpTime
 }
 
-// alreadyAttemptedSync returns whether the most recent sync was performed against the
-// commitSHA and with the same app source config which are currently set in the app.
-func alreadyAttemptedSync(app *appv1.Application, commitSHA string, commitSHAsMS []string, hasMultipleSources bool, revisionUpdated bool) (bool, synccommon.OperationPhase) {
-	if app.Status.OperationState == nil || app.Status.OperationState.Operation.Sync == nil || app.Status.OperationState.SyncResult == nil {
-		return false, ""
+// alreadyAttemptedSync returns whether the most recently synced revision(s) exactly match the given desiredRevisions
+// and for the same application source. If the revision(s) have changed or the Application source configuration has been updated,
+// it will return false, indicating that a new sync should be attempted.
+// When newRevisionHasChanges is false, due to commits not having direct changes on the application, it will not compare the revision(s), but only the sources.
+// It also returns the last synced revisions if any, and the result of that last sync operation.
+func alreadyAttemptedSync(app *appv1.Application, desiredRevisions []string, newRevisionHasChanges bool) (bool, []string, synccommon.OperationPhase) {
+	if app.Status.OperationState == nil {
+		// The operation state may be removed when new operations are triggered
+		return false, []string{}, ""
 	}
-	if hasMultipleSources {
-		if revisionUpdated {
-			if !reflect.DeepEqual(app.Status.OperationState.SyncResult.Revisions, commitSHAsMS) {
-				return false, ""
-			}
-		} else {
-			log.WithFields(applog.GetAppLogFields(app)).Debugf("Skipping auto-sync: commitSHA %s has no changes", commitSHA)
-		}
-	} else {
-		if revisionUpdated {
-			log.WithFields(applog.GetAppLogFields(app)).Infof("Executing compare of syncResult.Revision and commitSha because manifest changed: %v", commitSHA)
-			if app.Status.OperationState.SyncResult.Revision != commitSHA {
-				return false, ""
-			}
-		} else {
-			log.WithFields(applog.GetAppLogFields(app)).Debugf("Skipping auto-sync: commitSHA %s has no changes", commitSHA)
-		}
+	if app.Status.OperationState.SyncResult == nil {
+		// If the sync has completed without result, it is very likely that an error happened
+		// We don't want to resync with auto-sync indefinitely. We should have retried the configured amount of time already
+		// In this case, a manual action to restore the app may be required
+		log.WithFields(applog.GetAppLogFields(app)).Warn("Already attempted sync: sync does not have any results")
+		return app.Status.OperationState.Phase.Completed(), []string{}, app.Status.OperationState.Phase
 	}
 
-	if hasMultipleSources {
-		return reflect.DeepEqual(app.Spec.Sources, app.Status.OperationState.SyncResult.Sources), app.Status.OperationState.Phase
+	if newRevisionHasChanges {
+		log.WithFields(applog.GetAppLogFields(app)).Infof("Already attempted sync: comparing synced revisions to %s", desiredRevisions)
+		if app.Spec.HasMultipleSources() {
+			if !reflect.DeepEqual(app.Status.OperationState.SyncResult.Revisions, desiredRevisions) {
+				return false, app.Status.OperationState.SyncResult.Revisions, app.Status.OperationState.Phase
+			}
+		} else {
+			if len(desiredRevisions) != 1 || app.Status.OperationState.SyncResult.Revision != desiredRevisions[0] {
+				return false, []string{app.Status.OperationState.SyncResult.Revision}, app.Status.OperationState.Phase
+			}
+		}
+	} else {
+		log.WithFields(applog.GetAppLogFields(app)).Debugf("Already attempted sync: revisions %s have no changes", desiredRevisions)
 	}
-	return reflect.DeepEqual(app.Spec.GetSource(), app.Status.OperationState.SyncResult.Source), app.Status.OperationState.Phase
+
+	log.WithFields(applog.GetAppLogFields(app)).Debug("Already attempted sync: comparing sources")
+	if app.Spec.HasMultipleSources() {
+		return reflect.DeepEqual(app.Spec.Sources, app.Status.OperationState.SyncResult.Sources), app.Status.OperationState.SyncResult.Revisions, app.Status.OperationState.Phase
+	}
+	return reflect.DeepEqual(app.Spec.GetSource(), app.Status.OperationState.SyncResult.Source), []string{app.Status.OperationState.SyncResult.Revision}, app.Status.OperationState.Phase
 }
 
 func (ctrl *ApplicationController) selfHealRemainingBackoff(app *appv1.Application, selfHealAttemptsCount int) time.Duration {

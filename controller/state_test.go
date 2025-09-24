@@ -1774,7 +1774,7 @@ func TestCompareAppStateDefaultRevisionUpdated(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, compRes)
 	assert.NotNil(t, compRes.syncStatus)
-	assert.True(t, compRes.revisionUpdated)
+	assert.True(t, compRes.revisionsMayHaveChanges)
 }
 
 func TestCompareAppStateRevisionUpdatedWithHelmSource(t *testing.T) {
@@ -1797,7 +1797,7 @@ func TestCompareAppStateRevisionUpdatedWithHelmSource(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, compRes)
 	assert.NotNil(t, compRes.syncStatus)
-	assert.True(t, compRes.revisionUpdated)
+	assert.True(t, compRes.revisionsMayHaveChanges)
 }
 
 func Test_normalizeClusterScopeTracking(t *testing.T) {
@@ -1845,6 +1845,6 @@ func TestCompareAppState_DoesNotCallUpdateRevisionForPaths_ForOCI(t *testing.T) 
 	sources := make([]v1alpha1.ApplicationSource, 0)
 	sources = append(sources, source)
 
-	_, _, _, err := ctrl.appStateManager.GetRepoObjs(app, sources, "abc123", []string{"123456"}, false, false, false, &defaultProj, false)
+	_, _, _, err := ctrl.appStateManager.GetRepoObjs(t.Context(), app, sources, "abc123", []string{"123456"}, false, false, false, &defaultProj, false)
 	require.NoError(t, err)
 }
