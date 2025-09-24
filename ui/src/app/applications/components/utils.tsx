@@ -1779,7 +1779,7 @@ export function formatMemoryTooltip(milliBytes: number): string {
 
 export function formatResourceInfo(name: string, value: string): {displayValue: string; tooltipValue: string} {
     const numValue = parseInt(value, 10);
-    
+
     if (name === 'cpu') {
         return {
             displayValue: formatCPUValue(numValue),
@@ -1791,7 +1791,7 @@ export function formatResourceInfo(name: string, value: string): {displayValue: 
             tooltipValue: formatMemoryTooltip(numValue)
         };
     }
-    
+
     return {
         displayValue: value,
         tooltipValue: `${name}: ${value}`
