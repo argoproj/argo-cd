@@ -4807,6 +4807,7 @@ func TestCluster_RawRestConfig_KUBECONFIG(t *testing.T) {
 		{
 			name: "SingleKubeconfigPath",
 			setupFunc: func(t *testing.T) string {
+				t.Helper()
 				tmpDir := t.TempDir()
 				kubeconfigPath := path.Join(tmpDir, "config")
 				kubeconfigContent := `apiVersion: v1
@@ -4820,7 +4821,7 @@ contexts:
     cluster: test-cluster
   name: test-context
 current-context: test-context`
-				err := os.WriteFile(kubeconfigPath, []byte(kubeconfigContent), 0644)
+				err := os.WriteFile(kubeconfigPath, []byte(kubeconfigContent), 0o644)
 				require.NoError(t, err)
 				return kubeconfigPath
 			},
@@ -4830,6 +4831,7 @@ current-context: test-context`
 		{
 			name: "MultipleKubeconfigPaths",
 			setupFunc: func(t *testing.T) string {
+				t.Helper()
 				tmpDir := t.TempDir()
 				kubeconfig1 := path.Join(tmpDir, "config1")
 				kubeconfig2 := path.Join(tmpDir, "config2")
@@ -4858,9 +4860,9 @@ contexts:
   name: second-context
 current-context: second-context`
 
-				err := os.WriteFile(kubeconfig1, []byte(kubeconfig1Content), 0644)
+				err := os.WriteFile(kubeconfig1, []byte(kubeconfig1Content), 0o644)
 				require.NoError(t, err)
-				err = os.WriteFile(kubeconfig2, []byte(kubeconfig2Content), 0644)
+				err = os.WriteFile(kubeconfig2, []byte(kubeconfig2Content), 0o644)
 				require.NoError(t, err)
 
 				return kubeconfig1 + ":" + kubeconfig2
@@ -4871,6 +4873,7 @@ current-context: second-context`
 		{
 			name: "EmptyKubeconfigEnv",
 			setupFunc: func(t *testing.T) string {
+				t.Helper()
 				return ""
 			},
 			expectedHost:  "",
@@ -4879,6 +4882,7 @@ current-context: second-context`
 		{
 			name: "NonExistentPath",
 			setupFunc: func(t *testing.T) string {
+				t.Helper()
 				return "/non/existent/path"
 			},
 			expectedHost:  "",
