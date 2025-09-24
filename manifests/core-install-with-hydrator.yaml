@@ -23737,6 +23737,9 @@ spec:
                       type: string
                   type: object
                 type: array
+              resourcesCount:
+                format: int64
+                type: integer
             type: object
         required:
         - metadata
@@ -25437,8 +25440,8 @@ spec:
           name: plugins
       initContainers:
       - args:
-        - /bin/cp -n /usr/local/bin/argocd /var/run/argocd/argocd && /bin/ln -s /var/run/argocd/argocd
-          /var/run/argocd/argocd-cmp-server
+        - /bin/cp --update=none /usr/local/bin/argocd /var/run/argocd/argocd && /bin/ln
+          -s /var/run/argocd/argocd /var/run/argocd/argocd-cmp-server
         command:
         - sh
         - -c

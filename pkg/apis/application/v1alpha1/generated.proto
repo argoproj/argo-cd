@@ -369,6 +369,10 @@ message ApplicationSetStatus {
 
   // Resources is a list of Applications resources managed by this application set.
   repeated ResourceStatus resources = 3;
+
+  // ResourcesCount is the total number of resources managed by this application set. The count may be higher than actual number of items in the Resources field when
+  // the number of managed resources exceeds the limit imposed by the controller (to avoid making the status field too large).
+  optional int64 resourcesCount = 4;
 }
 
 // ApplicationSetStrategy configures how generated Applications are updated in sequence.
@@ -1005,7 +1009,7 @@ message ConfigManagementPlugin {
   optional bool lockRepo = 4;
 }
 
-// Utility struct for a reference to a configmap key.
+// ConfigMapKeyRef struct for a reference to a configmap key.
 message ConfigMapKeyRef {
   optional string configMapName = 1;
 
@@ -1736,7 +1740,7 @@ message PullRequestGeneratorGitea {
   repeated string labels = 6;
 }
 
-// PullRequestGenerator defines connection info specific to GitHub.
+// PullRequestGeneratorGithub defines connection info specific to GitHub.
 message PullRequestGeneratorGithub {
   // GitHub org or user to scan. Required.
   optional string owner = 1;
@@ -2482,7 +2486,7 @@ message SCMProviderGeneratorGitlab {
   optional ConfigMapKeyRef caRef = 9;
 }
 
-// Utility struct for a reference to a secret key.
+// SecretRef struct for a reference to a secret key.
 message SecretRef {
   optional string secretName = 1;
 
