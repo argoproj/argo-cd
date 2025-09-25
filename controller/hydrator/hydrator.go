@@ -160,7 +160,7 @@ func (h *Hydrator) ProcessHydrationQueueItem(hydrationKey types.HydrationQueueKe
 		// return early if there are no relevant apps found to hydrate
 		// otherwise you'll be stuck in hydrating
 		logCtx.Info("Skipping hydration since there are no relevant apps found to hydrate")
-		return
+		return processNext
 	}
 	if drySHA != "" {
 		logCtx = logCtx.WithField("drySHA", drySHA)
@@ -180,7 +180,7 @@ func (h *Hydrator) ProcessHydrationQueueItem(hydrationKey types.HydrationQueueKe
 			logCtx = logCtx.WithFields(applog.GetAppLogFields(app))
 			logCtx.Errorf("Failed to hydrate app: %v", err)
 		}
-		return
+		return processNext
 	}
 	logCtx.WithField("appCount", len(relevantApps)).Debug("Successfully hydrated apps")
 	finishedAt := metav1.Now()
@@ -208,7 +208,7 @@ func (h *Hydrator) ProcessHydrationQueueItem(hydrationKey types.HydrationQueueKe
 			logCtx.WithField("app", app.QualifiedName()).WithError(err).Error("Failed to request app refresh after hydration")
 		}
 	}
-	return
+	return processNext
 }
 
 func (h *Hydrator) hydrateAppsLatestCommit(logCtx *log.Entry, hydrationKey types.HydrationQueueKey) ([]*appv1.Application, string, string, error) {

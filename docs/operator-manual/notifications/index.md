@@ -108,8 +108,8 @@ metadata:
     notifications.argoproj.io/subscribe.on-sync-failed.pagerdutyv2: "<serviceID for Pagerduty>"
 ```
 
-!!! note
-    When the same notification service and trigger are defined in controller level configuration and application level configuration,
-    both notifications will be sent according to its own configuration.
+> [!NOTE]
+> When the same notification service and trigger are defined in controller level configuration and application level configuration,
+> both notifications will be sent according to its own configuration.
 
 [Defining and using secrets within notification templates](templates/#defining-and-using-secrets-within-notification-templates) function is not available when flag `--self-service-notification-enable` is on.
