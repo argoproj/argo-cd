@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -109,7 +108,7 @@ func Test_appNeedsHydration(t *testing.T) {
 	}
 }
 
-func Test_getRelevantAppsForHydration_RepoURLNormalization(t *testing.T) {
+func Test_getAppsForHydrationKey_RepoURLNormalization(t *testing.T) {
 	t.Parallel()
 
 	d := mocks.NewDependencies(t)
@@ -149,11 +148,6 @@ func Test_getRelevantAppsForHydration_RepoURLNormalization(t *testing.T) {
 			},
 		},
 	}, nil)
-	d.On("GetProcessableAppProj", mock.Anything).Return(&v1alpha1.AppProject{
-		Spec: v1alpha1.AppProjectSpec{
-			SourceRepos: []string{"https://example.com/*"},
-		},
-	}, nil)
 
 	hydrator := &Hydrator{dependencies: d}
 
@@ -163,11 +157,10 @@ func Test_getRelevantAppsForHydration_RepoURLNormalization(t *testing.T) {
 		DestinationBranch:    "main",
 	}
 
-	logCtx := log.WithField("test", "RepoURLNormalization")
-	relevantApps, _, err := hydrator.getRelevantAppsAndProjectsForHydration(logCtx, hydrationKey)
+	apps, err := hydrator.getAppsForHydrationKey(hydrationKey)
 
 	require.NoError(t, err)
-	assert.Len(t, relevantApps, 2, "Expected both apps to be considered relevant despite URL differences")
+	assert.Len(t, apps, 2, "Expected both apps to be considered relevant despite URL differences")
 }
 
 func TestHydrator_getTemplatedCommitMessage(t *testing.T) {
@@ -247,31 +240,29 @@ Co-authored-by: test test@test.com
 	}
 }
 
-func Test_getRelevantAppsForHydration_RootPathSkipped(t *testing.T) {
+func Test_validateApplications_RootPathSkipped(t *testing.T) {
 	t.Parallel()
 
 	d := mocks.NewDependencies(t)
 	// create an app that has a SyncSource.Path set to root
-	d.On("GetProcessableApps").Return(&v1alpha1.ApplicationList{
-		Items: []v1alpha1.Application{
-			{
-				Spec: v1alpha1.ApplicationSpec{
-					Project: "project",
-					SourceHydrator: &v1alpha1.SourceHydrator{
-						DrySource: v1alpha1.DrySource{
-							RepoURL:        "https://example.com/repo",
-							TargetRevision: "main",
-							Path:           ".", // root path
-						},
-						SyncSource: v1alpha1.SyncSource{
-							TargetBranch: "main",
-							Path:         ".", // root path
-						},
+	apps := []*v1alpha1.Application{
+		{
+			Spec: v1alpha1.ApplicationSpec{
+				Project: "project",
+				SourceHydrator: &v1alpha1.SourceHydrator{
+					DrySource: v1alpha1.DrySource{
+						RepoURL:        "https://example.com/repo",
+						TargetRevision: "main",
+						Path:           ".", // root path
+					},
+					SyncSource: v1alpha1.SyncSource{
+						TargetBranch: "main",
+						Path:         ".", // root path
 					},
 				},
 			},
 		},
-	}, nil)
+	}
 
 	d.On("GetProcessableAppProj", mock.Anything).Return(&v1alpha1.AppProject{
 		Spec: v1alpha1.AppProjectSpec{
@@ -281,16 +272,9 @@ func Test_getRelevantAppsForHydration_RootPathSkipped(t *testing.T) {
 
 	hydrator := &Hydrator{dependencies: d}
 
-	hydrationKey := types.HydrationQueueKey{
-		SourceRepoURL:        "https://example.com/repo",
-		SourceTargetRevision: "main",
-		DestinationBranch:    "main",
-	}
-
-	logCtx := log.WithField("test", "RootPathSkipped")
-	relevantApps, proj, err := hydrator.getRelevantAppsAndProjectsForHydration(logCtx, hydrationKey)
-	require.Error(t, err)
-	assert.Empty(t, relevantApps, "Expected no apps to be returned because SyncSource.Path resolves to root")
+	proj, errors := hydrator.validateApplications(apps)
+	require.Len(t, errors, 1)
+	require.ErrorContains(t, errors[apps[0].QualifiedName()], "App is configured to hydrate to the repository root")
 	assert.Nil(t, proj)
 }
 
