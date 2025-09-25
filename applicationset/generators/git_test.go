@@ -676,10 +676,11 @@ func TestGitGenerateParamsFromFiles(t *testing.T) {
 		// repoFileContents maps repo path to the literal contents of that path
 		repoFileContents map[string][]byte
 		// if repoPathsError is non-nil, the call to GetPaths(...) will return this error value
-		repoPathsError error
-		values         map[string]string
-		expected       []map[string]any
-		expectedError  error
+		repoPathsError  error
+		values          map[string]string
+		pathParamPrefix string
+		expected        []map[string]any
+		expectedError   error
 	}{
 		{
 			name:  "happy flow: create params from git files",
@@ -992,6 +993,67 @@ cluster:
 			expected:       []map[string]any{},
 			expectedError:  nil,
 		},
+		{
+			name:  "path parameter prefix",
+			files: []v1alpha1.GitFileGeneratorItem{{Path: "**/config.json"}},
+			repoFileContents: map[string][]byte{
+				"cluster-config/production/config.json": []byte(`{
+   "cluster": {
+       "owner": "john.doe@example.com",
+       "name": "production",
+       "address": "https://kubernetes.default.svc"
+   },
+   "key1": "val1",
+   "key2": {
+       "key2_1": "val2_1",
+       "key2_2": {
+           "key2_2_1": "val2_2_1"
+       }
+   },
+   "key3": 123
+}`),
+				"cluster-config/staging/config.json": []byte(`{
+   "cluster": {
+       "owner": "foo.bar@example.com",
+       "name": "staging",
+       "address": "https://kubernetes.default.svc"
+   }
+}`),
+			},
+			repoPathsError:  nil,
+			pathParamPrefix: "myRepo",
+			expected: []map[string]any{
+				{
+					"cluster.owner":                  "john.doe@example.com",
+					"cluster.name":                   "production",
+					"cluster.address":                "https://kubernetes.default.svc",
+					"key1":                           "val1",
+					"key2.key2_1":                    "val2_1",
+					"key2.key2_2.key2_2_1":           "val2_2_1",
+					"key3":                           "123",
+					"myRepo.path":                    "cluster-config/production",
+					"myRepo.path.basename":           "production",
+					"myRepo.path[0]":                 "cluster-config",
+					"myRepo.path[1]":                 "production",
+					"myRepo.path.basenameNormalized": "production",
+					"myRepo.path.filename":           "config.json",
+					"myRepo.path.filenameNormalized": "config.json",
+				},
+				{
+					"cluster.owner":                  "foo.bar@example.com",
+					"cluster.name":                   "staging",
+					"cluster.address":                "https://kubernetes.default.svc",
+					"myRepo.path":                    "cluster-config/staging",
+					"myRepo.path.basename":           "staging",
+					"myRepo.path[0]":                 "cluster-config",
+					"myRepo.path[1]":                 "staging",
+					"myRepo.path.basenameNormalized": "staging",
+					"myRepo.path.filename":           "config.json",
+					"myRepo.path.filenameNormalized": "config.json",
+				},
+			},
+			expectedError: nil,
+		},
 	}
 
 	for _, testCase := range cases {
@@ -1012,10 +1074,11 @@ cluster:
 				Spec: v1alpha1.ApplicationSetSpec{
 					Generators: []v1alpha1.ApplicationSetGenerator{{
 						Git: &v1alpha1.GitGenerator{
-							RepoURL:  "RepoURL",
-							Revision: "Revision",
-							Files:    testCaseCopy.files,
-							Values:   testCaseCopy.values,
+							RepoURL:         "RepoURL",
+							Revision:        "Revision",
+							Files:           testCaseCopy.files,
+							Values:          testCaseCopy.values,
+							PathParamPrefix: testCaseCopy.pathParamPrefix,
 						},
 					}},
 				},
@@ -1974,9 +2037,10 @@ func TestGitGenerateParamsFromFilesGoTemplate(t *testing.T) {
 		// repoFileContents maps repo path to the literal contents of that path
 		repoFileContents map[string][]byte
 		// if repoPathsError is non-nil, the call to GetPaths(...) will return this error value
-		repoPathsError error
-		expected       []map[string]any
-		expectedError  error
+		repoPathsError  error
+		pathParamPrefix string
+		expected        []map[string]any
+		expectedError   error
 	}{
 		{
 			name:  "happy flow: create params from git files",
@@ -2271,6 +2335,87 @@ cluster:
 			},
 			expectedError: nil,
 		},
+		{
+			name:  "path param prefix",
+			files: []v1alpha1.GitFileGeneratorItem{{Path: "**/config.json"}},
+			repoFileContents: map[string][]byte{
+				"cluster-config/production/config.json": []byte(`{
+   "cluster": {
+       "owner": "john.doe@example.com",
+       "name": "production",
+       "address": "https://kubernetes.default.svc"
+   },
+   "key1": "val1",
+   "key2": {
+       "key2_1": "val2_1",
+       "key2_2": {
+           "key2_2_1": "val2_2_1"
+       }
+   },
+   "key3": 123
+}`),
+				"cluster-config/staging/config.json": []byte(`{
+   "cluster": {
+       "owner": "foo.bar@example.com",
+       "name": "staging",
+       "address": "https://kubernetes.default.svc"
+   }
+}`),
+			},
+			repoPathsError:  nil,
+			pathParamPrefix: "myRepo",
+			expected: []map[string]any{
+				{
+					"cluster": map[string]any{
+						"owner":   "john.doe@example.com",
+						"name":    "production",
+						"address": "https://kubernetes.default.svc",
+					},
+					"key1": "val1",
+					"key2": map[string]any{
+						"key2_1": "val2_1",
+						"key2_2": map[string]any{
+							"key2_2_1": "val2_2_1",
+						},
+					},
+					"key3": float64(123),
+					"myRepo": map[string]any{
+						"path": map[string]any{
+							"path":               "cluster-config/production",
+							"basename":           "production",
+							"filename":           "config.json",
+							"basenameNormalized": "production",
+							"filenameNormalized": "config.json",
+							"segments": []string{
+								"cluster-config",
+								"production",
+							},
+						},
+					},
+				},
+				{
+					"cluster": map[string]any{
+						"owner":   "foo.bar@example.com",
+						"name":    "staging",
+						"address": "https://kubernetes.default.svc",
+					},
+					"myRepo": map[string]any{
+						"path": map[string]any{
+							"path":               "cluster-config/staging",
+							"basename":           "staging",
+							"filename":           "config.json",
+							"basenameNormalized": "staging",
+							"filenameNormalized": "config.json",
+							"segments": []string{
+								"cluster-config",
+								"staging",
+							},
+						},
+					},
+				},
+			},
+			expectedError: nil,
+		},
 	}
 
 	for _, testCase := range cases {
@@ -2292,9 +2437,10 @@ cluster:
 					GoTemplate: true,
 					Generators: []v1alpha1.ApplicationSetGenerator{{
 						Git: &v1alpha1.GitGenerator{
-							RepoURL:  "RepoURL",
-							Revision: "Revision",
-							Files:    testCaseCopy.files,
+							RepoURL:         "RepoURL",
+							Revision:        "Revision",
+							Files:           testCaseCopy.files,
+							PathParamPrefix: testCaseCopy.pathParamPrefix,
 						},
 					}},
 				},
