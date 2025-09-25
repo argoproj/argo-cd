@@ -13,6 +13,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/controller/hydrator/mocks"
 	"github.com/argoproj/argo-cd/v3/controller/hydrator/types"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
@@ -300,5 +301,141 @@ func TestIsRootPath(t *testing.T) {
 	}
 }
 
-// TODO: ProcessAppHydrateQueueItem - currentOperation updated when app needs hydration
-// TODO: ProcessAppHydrateQueueItem - request hydration when in progress passed timeout
+func newTestApp(name string) *v1alpha1.Application {
+	app := &v1alpha1.Application{
+		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: "default"},
+		Spec: v1alpha1.ApplicationSpec{
+			SourceHydrator: &v1alpha1.SourceHydrator{
+				DrySource: v1alpha1.DrySource{
+					RepoURL:        "https://example.com/repo",
+					TargetRevision: "main",
+					Path:           "app",
+				},
+				SyncSource: v1alpha1.SyncSource{
+					TargetBranch: "main",
+					Path:         "app",
+				},
+			},
+		},
+	}
+	return app
+}
+
+func TestProcessAppHydrateQueueItem_HydrationNeeded(t *testing.T) {
+	t.Parallel()
+	d := mocks.NewDependencies(t)
+	app := newTestApp("test-app")
+
+	// appNeedsHydration returns true if no CurrentOperation
+	app.Status.SourceHydrator.CurrentOperation = nil
+
+	var persistedStatus *appv1.SourceHydratorStatus
+	d.On("PersistAppHydratorStatus", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+		persistedStatus = args.Get(1).(*appv1.SourceHydratorStatus)
+	}).Return().Once()
+	d.On("AddHydrationQueueItem", mock.Anything).Return().Once()
+
+	h := &Hydrator{
+		dependencies:         d,
+		statusRefreshTimeout: time.Minute,
+	}
+
+	h.ProcessAppHydrateQueueItem(app)
+
+	d.AssertCalled(t, "PersistAppHydratorStatus", mock.Anything, mock.Anything)
+	d.AssertCalled(t, "AddHydrationQueueItem", mock.Anything)
+
+	require.NotNil(t, persistedStatus)
+	assert.Equal(t, app.Status.SourceHydrator, *persistedStatus)
+
+	assert.NotNil(t, persistedStatus.CurrentOperation.StartedAt)
+	assert.Nil(t, persistedStatus.CurrentOperation.FinishedAt)
+	assert.Equal(t, v1alpha1.HydrateOperationPhaseHydrating, persistedStatus.CurrentOperation.Phase)
+	assert.Equal(t, *app.Spec.SourceHydrator, persistedStatus.CurrentOperation.SourceHydrator)
+}
+
+func TestProcessAppHydrateQueueItem_HydrationPassedTimeout(t *testing.T) {
+	t.Parallel()
+	d := mocks.NewDependencies(t)
+	now := metav1.Now()
+	// StartedAt is more than statusRefreshTimeout ago
+	startedAt := metav1.NewTime(now.Add(-2 * time.Minute))
+	app := newTestApp("test-app")
+	app.Status = v1alpha1.ApplicationStatus{
+		SourceHydrator: v1alpha1.SourceHydratorStatus{
+			CurrentOperation: &v1alpha1.HydrateOperation{
+				StartedAt:      startedAt,
+				Phase:          v1alpha1.HydrateOperationPhaseHydrating,
+				SourceHydrator: v1alpha1.SourceHydrator{},
+			},
+		},
+	}
+	d.On("AddHydrationQueueItem", mock.Anything).Return().Once()
+
+	h := &Hydrator{
+		dependencies:         d,
+		statusRefreshTimeout: time.Minute,
+	}
+
+	h.ProcessAppHydrateQueueItem(app)
+
+	d.AssertCalled(t, "AddHydrationQueueItem", mock.Anything)
+	d.AssertNotCalled(t, "PersistAppHydratorStatus", mock.Anything, mock.Anything)
+}
+
+func TestProcessAppHydrateQueueItem_NoSourceHydrator(t *testing.T) {
+	t.Parallel()
+	d := mocks.NewDependencies(t)
+	app := newTestApp("test-app")
+	app.Spec.SourceHydrator = nil
+
+	h := &Hydrator{
+		dependencies:         d,
+		statusRefreshTimeout: time.Minute,
+	}
+	h.ProcessAppHydrateQueueItem(app)
+
+	// Should not call anything
+	d.AssertNotCalled(t, "PersistAppHydratorStatus", mock.Anything, mock.Anything)
+	d.AssertNotCalled(t, "AddHydrationQueueItem", mock.Anything)
+}
+
+func TestProcessAppHydrateQueueItem_HydrationNotNeeded(t *testing.T) {
+	t.Parallel()
+	d := mocks.NewDependencies(t)
+	now := metav1.Now()
+	app := newTestApp("test-app")
+	app.Status = v1alpha1.ApplicationStatus{
+		SourceHydrator: v1alpha1.SourceHydratorStatus{
+			CurrentOperation: &v1alpha1.HydrateOperation{
+				StartedAt: now,
+				Phase:     v1alpha1.HydrateOperationPhaseHydrating,
+			},
+		},
+	}
+
+	h := &Hydrator{
+		dependencies:         d,
+		statusRefreshTimeout: time.Minute,
+	}
+	h.ProcessAppHydrateQueueItem(app)
+
+	// Should not call anything
+	d.AssertNotCalled(t, "PersistAppHydratorStatus", mock.Anything, mock.Anything)
+	d.AssertNotCalled(t, "AddHydrationQueueItem", mock.Anything)
+}
+
+// ProcessHydrationQueueItem - errors are set when validation fails
+// ProcessHydrationQueueItem - errors are set when hydration fails with app specific error
+// ProcessHydrationQueueItem - errors are set when hydration fails with common error
+// ProcessHydrationQueueItem - status is updated when successful
+
+// validateApplications - get project
+// validateApplications - source not permitted
+// validateApplications - root path
+// validateApplications - same destination
+
+// genericHydrationError - one error
+// genericHydrationError - multiple errors
+
+// hydrate - ???

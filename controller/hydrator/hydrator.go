@@ -101,9 +101,7 @@ func NewHydrator(dependencies Dependencies, statusRefreshTimeout time.Duration, 
 // It's likely that multiple applications will trigger hydration at the same time. The hydration queue key is meant to
 // dedupe these requests.
 func (h *Hydrator) ProcessAppHydrateQueueItem(origApp *appv1.Application) {
-	origApp = origApp.DeepCopy()
 	app := origApp.DeepCopy()
-
 	if app.Spec.SourceHydrator == nil {
 		return
 	}
@@ -111,7 +109,7 @@ func (h *Hydrator) ProcessAppHydrateQueueItem(origApp *appv1.Application) {
 	logCtx := log.WithFields(applog.GetAppLogFields(app))
 	logCtx.Debug("Processing app hydrate queue item")
 
-	needsHydration, reason := appNeedsHydration(origApp)
+	needsHydration, reason := appNeedsHydration(app)
 	if needsHydration {
 		app.Status.SourceHydrator.CurrentOperation = &appv1.HydrateOperation{
 			StartedAt:      metav1.Now(),
@@ -295,7 +293,7 @@ func (h *Hydrator) validateApplications(apps []*appv1.Application) (map[string]*
 		}
 		permitted := proj.IsSourcePermitted(app.Spec.GetSource())
 		if !permitted {
-			errors[app.QualifiedName()] = fmt.Errorf("App is not permitted to use source %q", app.Spec.Source.String())
+			errors[app.QualifiedName()] = fmt.Errorf("app is not permitted to use source %q", app.Spec.Source.String())
 			continue
 		}
 		projects[app.Spec.Project] = proj
@@ -306,15 +304,15 @@ func (h *Hydrator) validateApplications(apps []*appv1.Application) (map[string]*
 		// Every hydrated app must write into a subdirectory instead.
 		destPath := app.Spec.SourceHydrator.SyncSource.Path
 		if IsRootPath(destPath) {
-			errors[app.QualifiedName()] = fmt.Errorf("App is configured to hydrate to the repository root (branch %q, path %q) which is not allowed", app.Spec.GetHydrateToSource().TargetRevision, destPath)
+			errors[app.QualifiedName()] = fmt.Errorf("app is configured to hydrate to the repository root (branch %q, path %q) which is not allowed", app.Spec.GetHydrateToSource().TargetRevision, destPath)
 			continue
 		}
 
 		// TODO: test the dupe detection
 		// TODO: normalize the path to avoid "path/.." from being treated as different from "."
 		if appName, ok := uniquePaths[destPath]; ok {
-			errors[app.QualifiedName()] = fmt.Errorf("App %s hydrator use the same destination: %v", appName, app.Spec.SourceHydrator.SyncSource.Path)
-			errors[appName] = fmt.Errorf("App %s hydrator use the same destination: %v", app.QualifiedName(), app.Spec.SourceHydrator.SyncSource.Path)
+			errors[app.QualifiedName()] = fmt.Errorf("app %s hydrator use the same destination: %v", appName, app.Spec.SourceHydrator.SyncSource.Path)
+			errors[appName] = fmt.Errorf("app %s hydrator use the same destination: %v", app.QualifiedName(), app.Spec.SourceHydrator.SyncSource.Path)
 			continue
 		}
 		uniquePaths[destPath] = app.QualifiedName()
@@ -533,7 +531,7 @@ func genericHydrationError(validationErrors map[string]error) error {
 	if len(keys) > 1 {
 		remainder = fmt.Sprintf("and %d more have errors", len(keys)-1)
 	}
-	return fmt.Errorf("Cannot hydrate because application %s %s", keys[0], remainder)
+	return fmt.Errorf("cannot hydrate because application %s %s", keys[0], remainder)
 }
 
 // IsRootPath returns whether the path references a root path
