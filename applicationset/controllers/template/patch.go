@@ -25,7 +25,7 @@ func applyTemplatePatch(app *appv1.Application, templatePatch string) (*appv1.Ap
 	}
 
 	var data []byte
-	// If convertedTemplatePatch appears to be an array of json+patchsapp
+	// If convertedTemplatePatch appears to be an array of json+patchs
 	// try and decode it else fall back to StrategicMergePatch
 	if strings.HasPrefix(convertedTemplatePatch, "[") {
 		patch, err := jsonpatch.DecodePatch([]byte(convertedTemplatePatch))
