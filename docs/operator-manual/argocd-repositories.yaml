@@ -84,4 +84,31 @@ stringData:
   name: contosocharts
   enableOCI: "true"
   useAzureWorkloadIdentity: "true"
-  
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: private-oci-repo
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository # Set repository to get access to only one OCI repository 
+stringData:
+  username: my-username
+  password: my-password
+  project: myproject
+  type: oci
+  url: oci://my.registry.com/namespace/service
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: private-oci-repo
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repo-creds # Set repo-creds to access the entire OCI Namespace Registry.
+stringData:
+  username: my-username
+  password: my-password
+  project: myproject
+  type: oci
+  url: oci://my.registry.com/namespace
