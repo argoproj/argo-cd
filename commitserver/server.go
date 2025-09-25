@@ -1,8 +1,6 @@
 package commitserver
 
 import (
-	"context"
-
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
@@ -13,7 +11,6 @@ import (
 	versionpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/version"
 	"github.com/argoproj/argo-cd/v3/server/version"
 	"github.com/argoproj/argo-cd/v3/util/git"
-	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 // ArgoCDCommitServer is the server that handles commit requests.
@@ -22,8 +19,8 @@ type ArgoCDCommitServer struct {
 }
 
 // NewServer returns a new instance of the commit server.
-func NewServer(gitCredsStore git.CredsStore, metricsServer *metrics.Server, settingsMgr *settings.SettingsManager) *ArgoCDCommitServer {
-	return &ArgoCDCommitServer{commitService: commit.NewService(gitCredsStore, metricsServer, settingsMgr)}
+func NewServer(gitCredsStore git.CredsStore, metricsServer *metrics.Server) *ArgoCDCommitServer {
+	return &ArgoCDCommitServer{commitService: commit.NewService(gitCredsStore, metricsServer)}
 }
 
 // CreateGRPC creates a new gRPC server.
@@ -33,7 +30,6 @@ func (a *ArgoCDCommitServer) CreateGRPC() *grpc.Server {
 		return true, nil
 	}))
 
-	go a.commitService.WatchSettings(context.Background())
 	apiclient.RegisterCommitServiceServer(server, a.commitService)
 
 	healthService := health.NewServer()

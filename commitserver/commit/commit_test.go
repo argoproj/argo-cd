@@ -1,13 +1,11 @@
 package commit
 
 import (
-	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"k8s.io/client-go/kubernetes/fake"
 
 	"github.com/argoproj/argo-cd/v3/commitserver/apiclient"
 	"github.com/argoproj/argo-cd/v3/commitserver/commit/mocks"
@@ -15,7 +13,6 @@ import (
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/git"
 	gitmocks "github.com/argoproj/argo-cd/v3/util/git/mocks"
-	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 func Test_CommitHydratedManifests(t *testing.T) {
@@ -290,10 +287,8 @@ func newServiceWithMocks(t *testing.T) (*Service, *mocks.RepoClientFactory) {
 
 	metricsServer := metrics.NewMetricsServer()
 	mockCredsStore := git.NoopCredsStore{}
+	service := NewService(mockCredsStore, metricsServer)
 
-	settingsMgr := settings.NewSettingsManager(context.Background(), fake.NewClientset(), "default")
-
-	service := NewService(mockCredsStore, metricsServer, settingsMgr)
 	mockRepoClientFactory := mocks.NewRepoClientFactory(t)
 	service.repoClientFactory = mockRepoClientFactory
 

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"sync"
 	"time"
 
 	"github.com/argoproj/argo-cd/v3/controller/hydrator"
@@ -18,28 +17,19 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/io/files"
-	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 // Service is the service that handles commit requests.
 type Service struct {
 	metricsServer     *metrics.Server
 	repoClientFactory RepoClientFactory
-	settingsMgr       *settings.SettingsManager
-
-	lock           sync.RWMutex
-	hydratorConfig hydratorConfigData
 }
 
 // NewService returns a new instance of the commit service.
-func NewService(gitCredsStore git.CredsStore, metricsServer *metrics.Server, settingsMgr *settings.SettingsManager) *Service {
+func NewService(gitCredsStore git.CredsStore, metricsServer *metrics.Server) *Service {
 	return &Service{
 		metricsServer:     metricsServer,
 		repoClientFactory: NewRepoClientFactory(gitCredsStore, metricsServer),
-		settingsMgr:       settingsMgr,
-		hydratorConfig: hydratorConfigData{
-			manifestHydrationReadmeTemplate: defaultManifestHydrationReadmeTemplate,
-		},
 	}
 }
 
@@ -189,7 +179,7 @@ func (s *Service) handleCommitRequest(logCtx *log.Entry, r *apiclient.CommitHydr
 	}
 
 	logCtx.Debug("Writing manifests")
-	err = WriteForPaths(root, r.Repo.Repo, r.DrySha, r.DryCommitMetadata, r.Paths, s.hydratorConfig)
+	err = WriteForPaths(root, r.Repo.Repo, r.DrySha, r.DryCommitMetadata, r.Paths)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to write manifests: %w", err)
 	}

@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"context"
 	"fmt"
 	"net"
 	"net/http"
@@ -13,8 +12,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc/health/grpc_health_v1"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
 
 	cmdutil "github.com/argoproj/argo-cd/v3/cmd/util"
 	"github.com/argoproj/argo-cd/v3/commitserver"
@@ -27,17 +24,15 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/errors"
 	"github.com/argoproj/argo-cd/v3/util/healthz"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
-	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 // NewCommand returns a new instance of an argocd-commit-server command
 func NewCommand() *cobra.Command {
 	var (
-		clientConfig clientcmd.ClientConfig
-		listenHost   string
-		listenPort   int
-		metricsPort  int
-		metricsHost  string
+		listenHost  string
+		listenPort  int
+		metricsPort int
+		metricsHost string
 	)
 	command := &cobra.Command{
 		Use:   "argocd-commit-server",
@@ -45,14 +40,11 @@ func NewCommand() *cobra.Command {
 		Long:  "Argo CD Commit Server is an internal service which commits and pushes hydrated manifests to git. This command runs Commit Server in the foreground.",
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			vers := common.GetVersion()
-			namespace, _, err := clientConfig.Namespace()
-			errors.CheckError(err)
 
 			vers.LogStartupInfo(
 				"Argo CD Commit Server",
 				map[string]any{
-					"port":      listenPort,
-					"namespace": namespace,
+					"port": listenPort,
 				},
 			)
 
@@ -66,17 +58,8 @@ func NewCommand() *cobra.Command {
 			askPassServer := askpass.NewServer(askpass.CommitServerSocketPath)
 			go func() { errors.CheckError(askPassServer.Run()) }()
 
-			config, err := clientConfig.ClientConfig()
-			errors.CheckError(err)
-			kubeclientset := kubernetes.NewForConfigOrDie(config)
+			server := commitserver.NewServer(askPassServer, metricsServer)
 
-			settingsMgr := settings.NewSettingsManager(context.Background(), kubeclientset, namespace)
-			err = settingsMgr.ResyncInformers()
-			if err != nil {
-				errors.CheckError(err)
-			}
-
-			server := commitserver.NewServer(askPassServer, metricsServer, settingsMgr)
 			grpc := server.CreateGRPC()
 			ctx := cmd.Context()
 
@@ -128,7 +111,6 @@ func NewCommand() *cobra.Command {
 		},
 	}
 
-	clientConfig = cli.AddKubectlFlagsToCmd(command)
 	command.Flags().StringVar(&cmdutil.LogFormat, "logformat", env.StringFromEnv("ARGOCD_COMMIT_SERVER_LOGFORMAT", "json"), "Set the logging format. One of: json|text")
 	command.Flags().StringVar(&cmdutil.LogLevel, "loglevel", env.StringFromEnv("ARGOCD_COMMIT_SERVER_LOGLEVEL", "info"), "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().StringVar(&listenHost, "address", env.StringFromEnv("ARGOCD_COMMIT_SERVER_LISTEN_ADDRESS", common.DefaultAddressCommitServer), "Listen on given address for incoming connections")

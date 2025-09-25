@@ -24319,25 +24319,6 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   labels:
-    app.kubernetes.io/component: commit-server
-    app.kubernetes.io/name: argocd-commit-server
-    app.kubernetes.io/part-of: argocd
-  name: argocd-commit-server
-rules:
-- apiGroups:
-  - ""
-  resources:
-  - secrets
-  - configmaps
-  verbs:
-  - get
-  - list
-  - watch
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
-metadata:
-  labels:
     app.kubernetes.io/component: dex-server
     app.kubernetes.io/name: argocd-dex-server
     app.kubernetes.io/part-of: argocd
@@ -24644,22 +24625,6 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: argocd-applicationset-controller
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  labels:
-    app.kubernetes.io/component: commit-server
-    app.kubernetes.io/name: argocd-commit-server
-    app.kubernetes.io/part-of: argocd
-  name: argocd-commit-server
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: Role
-  name: argocd-commit-server
-subjects:
-- kind: ServiceAccount
-  name: argocd-commit-server
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -25420,6 +25385,7 @@ spec:
                   app.kubernetes.io/part-of: argocd
               topologyKey: kubernetes.io/hostname
             weight: 5
+      automountServiceAccountToken: false
       containers:
       - args:
         - /usr/local/bin/argocd-commit-server

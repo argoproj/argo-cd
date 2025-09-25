@@ -93,11 +93,7 @@ Argocd-reference-commit-sha: abc123
 		},
 	}
 
-	hydratorConfig := hydratorConfigData{
-		manifestHydrationReadmeTemplate: defaultManifestHydrationReadmeTemplate,
-	}
-
-	err := WriteForPaths(root, repoURL, drySha, metadata, paths, hydratorConfig)
+	err := WriteForPaths(root, repoURL, drySha, metadata, paths)
 	require.NoError(t, err)
 
 	// Check if the top-level hydrator.metadata exists and contains the repo URL and dry SHA
@@ -192,11 +188,7 @@ func TestWriteReadme(t *testing.T) {
 		},
 	}
 
-	hydratorConfig := hydratorConfigData{
-		manifestHydrationReadmeTemplate: defaultManifestHydrationReadmeTemplate,
-	}
-
-	err = writeReadme(root, "", metadata, hydratorConfig.manifestHydrationReadmeTemplate)
+	err = writeReadme(root, "", metadata)
 	require.NoError(t, err)
 
 	readmePath := filepath.Join(root.Name(), "README.md")

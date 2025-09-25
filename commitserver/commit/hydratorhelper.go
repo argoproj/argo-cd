@@ -83,7 +83,7 @@ func WriteForPaths(root *os.Root, repoUrl, drySha string, dryCommitMetadata *app
 		}
 
 		// Write README
-		err = writeReadme(root, hydratePath, hydratorMetadata, hydratorConfig.manifestHydrationReadmeTemplate)
+		err = writeReadme(root, hydratePath, hydratorMetadata)
 		if err != nil {
 			return fmt.Errorf("failed to write readme: %w", err)
 		}
