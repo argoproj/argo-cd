@@ -10573,7 +10573,7 @@
         },
         "targetBranch": {
           "type": "string",
-          "title": "TargetBranch is the branch to which hydrated manifests should be committed"
+          "title": "TargetBranch is the branch from which hydrated manifests will be synced"
         }
       }
     },

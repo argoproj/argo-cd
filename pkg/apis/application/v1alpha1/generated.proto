@@ -2635,7 +2635,7 @@ message SyncPolicyAutomated {
 // SyncSource specifies a location from which hydrated manifests may be synced. RepoURL is assumed based on the
 // associated DrySource config in the SourceHydrator.
 message SyncSource {
-  // TargetBranch is the branch to which hydrated manifests should be committed
+  // TargetBranch is the branch from which hydrated manifests will be synced
   optional string targetBranch = 1;
 
   // Path is a directory path within the git repository where hydrated manifests should be committed to and synced
