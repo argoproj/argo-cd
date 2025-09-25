@@ -108,6 +108,8 @@ FROM --platform=$BUILDPLATFORM docker.io/library/golang:1.25.1@sha256:8305f5fa8e
 WORKDIR /go/src/github.com/argoproj/argo-cd
 
 COPY go.* ./
+RUN mkdir -p gitops-engine
+COPY gitops-engine/go.* ./gitops-engine
 RUN go mod download
 
 # Perform the build

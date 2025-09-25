@@ -282,7 +282,7 @@ local_resource(
 
 local_resource(
     'vendor',
-    'go mod vendor',
+    'go work vendor',
     deps = [
         'go.mod',
         'go.sum',
