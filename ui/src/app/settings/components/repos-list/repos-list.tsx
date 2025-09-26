@@ -1204,6 +1204,14 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                                                         <FormField formApi={formApi} label='Insecure HTTP Only' field='insecureOCIForceHttp' component={CheckboxField} />
                                                     )}
                                                 </div>
+                                                {formApi.getFormState().values.type === 'helm' && (
+                                                    <React.Fragment>
+                                                        <div className='argo-form-row'>
+                                                            <FormField formApi={formApi} label='Enable Direct Pull' field='enableDirectPull' component={CheckboxField} />
+                                                            <HelpIcon title='Direct pull from Helm chart URL. May not work if the chart path does not follow the standard naming convention: <repo_url>/<chart_name>-<version>.tgz' />
+                                                        </div>
+                                                    </React.Fragment>
+                                                )}
                                                 <div className='argo-form-row'>
                                                     <FormField formApi={formApi} label='Use Azure Workload Identity' field='useAzureWorkloadIdentity' component={CheckboxField} />
                                                 </div>
