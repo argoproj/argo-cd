@@ -61,26 +61,31 @@ func WithIndexCache(indexCache indexCache) ClientOpts {
 	}
 }
 
+func WithDirectPull(enableDirectPull bool) ClientOpts {
+	return func(c *nativeHelmChart) {
+		c.enableDirectPull = enableDirectPull
+	}
+}
+
 func WithChartPaths(chartPaths utilio.TempPaths) ClientOpts {
 	return func(c *nativeHelmChart) {
 		c.chartCachePaths = chartPaths
 	}
 }
 
-func NewClient(repoURL string, creds Creds, enableOci bool, proxy string, noProxy string, enableDirectPull bool, opts ...ClientOpts) Client {
-	return NewClientWithLock(repoURL, creds, globalLock, enableOci, proxy, noProxy, enableDirectPull, opts...)
+func NewClient(repoURL string, creds Creds, enableOci bool, proxy string, noProxy string, opts ...ClientOpts) Client {
+	return NewClientWithLock(repoURL, creds, globalLock, enableOci, proxy, noProxy, opts...)
 }
 
-func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, enableOci bool, proxy string, noProxy string, enableDirectPull bool, opts ...ClientOpts) Client {
+func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, enableOci bool, proxy string, noProxy string, opts ...ClientOpts) Client {
 	c := &nativeHelmChart{
-		repoURL:          repoURL,
-		creds:            creds,
-		repoLock:         repoLock,
-		enableOci:        enableOci,
-		enableDirectPull: enableDirectPull,
-		proxy:            proxy,
-		noProxy:          noProxy,
-		chartCachePaths:  utilio.NewRandomizedTempPaths(os.TempDir()),
+		repoURL:         repoURL,
+		creds:           creds,
+		repoLock:        repoLock,
+		enableOci:       enableOci,
+		proxy:           proxy,
+		noProxy:         noProxy,
+		chartCachePaths: utilio.NewRandomizedTempPaths(os.TempDir()),
 	}
 	for i := range opts {
 		opts[i](c)

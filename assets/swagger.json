@@ -9389,7 +9389,7 @@
         },
         "enableDirectPull": {
           "type": "boolean",
-          "title": "EnableDirectPull specifies whether direct pull should be enabled"
+          "title": "EnableDirectPull specifies whether to download a Helm chart at a predictable path, without downloading the index file"
         },
         "enableOCI": {
           "type": "boolean",
@@ -9495,7 +9495,7 @@
         },
         "enableDirectPull": {
           "type": "boolean",
-          "title": "EnableDirectPull specifies whether direct pull should be enabled"
+          "title": "EnableDirectPull specifies whether to download a Helm chart at a predictable path, without downloading the index file"
         },
         "enableLfs": {
           "description": "EnableLFS specifies whether git-lfs support should be enabled for this repo. Only valid for Git repositories.",

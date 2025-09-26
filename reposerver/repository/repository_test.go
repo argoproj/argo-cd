@@ -162,7 +162,7 @@ func newServiceWithOpt(t *testing.T, cf clientFunc, root string) (*Service, *git
 	service.newGitClient = func(_ string, _ string, _ git.Creds, _ bool, _ bool, _ string, _ string, _ ...git.ClientOpts) (client git.Client, e error) {
 		return gitClient, nil
 	}
-	service.newHelmClient = func(_ string, _ helm.Creds, _ bool, _ string, _ string, _ bool, _ ...helm.ClientOpts) helm.Client {
+	service.newHelmClient = func(_ string, _ helm.Creds, _ bool, _ string, _ string, _ ...helm.ClientOpts) helm.Client {
 		return helmClient
 	}
 	service.newOCIClient = func(_ string, _ oci.Creds, _ string, _ string, _ []string, _ ...oci.ClientOpts) (oci.Client, error) {
