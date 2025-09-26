@@ -1079,13 +1079,12 @@ func (c *clusterCache) FindResources(namespace string, predicates ...func(r *Res
 	return result
 }
 
-// IterateHierarchy iterates resource tree starting from the specified top level resources and executes callback for each resource in the tree
-
 // IterateHierarchyV2 iterates through the hierarchy of resources starting from the given keys.
 // It iterates through all resources that have parent-child relationships either through
 // ownership references or namespace-based hierarchy.
 // If orphanedResourceNamespace is provided (non-empty), it will scan that namespace for orphaned resources
 // (resources with cluster-scoped parents that weren't in the initial keys).
+// It executes the callback on each resource in the tree.
 func (c *clusterCache) IterateHierarchyV2(keys []kube.ResourceKey, action func(resource *Resource, namespaceResources map[kube.ResourceKey]*Resource) bool, orphanedResourceNamespace string) {
 	c.lock.RLock()
 	defer c.lock.RUnlock()
@@ -1149,7 +1148,7 @@ func (c *clusterCache) IterateHierarchyV2(keys []kube.ResourceKey, action func(r
 
 	// Check for orphaned resources in the specified namespace (if any)
 	// These are children of cluster-scoped resources that weren't in the initial keys
-	if hasClusterNamespace && orphanedResourceNamespace != "" {
+	if orphanedResourceNamespace != "" /* hasClusterNamespace is always true here */ {
 		// Skip if we already processed this namespace
 		if _, processed := keysPerNamespace[orphanedResourceNamespace]; processed {
 			return
