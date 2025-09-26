@@ -65,11 +65,7 @@ jobs:
           go mod download
       - name: Check for tidiness of go.mod and go.sum
         run: |
-          rm go.work.sum
-          rm -rf vendor
-          go work vendor
-          go work sync
-          go mod tidy
+          make workspace-vendor
           git diff --exit-code -- .
 
   build-go:
