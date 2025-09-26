@@ -9162,6 +9162,15 @@ func (m *ClusterCacheInfo) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+	if len(m.FailedResourceGVKs) > 0 {
+		for iNdEx := len(m.FailedResourceGVKs) - 1; iNdEx >= 0; iNdEx-- {
+			i -= len(m.FailedResourceGVKs[iNdEx])
+			copy(dAtA[i:], m.FailedResourceGVKs[iNdEx])
+			i = encodeVarintGenerated(dAtA, i, uint64(len(m.FailedResourceGVKs[iNdEx])))
+			i--
+			dAtA[i] = 0x22
+		}
+	}
 	if m.LastCacheSyncTime != nil {
 		{
 			size, err := m.LastCacheSyncTime.MarshalToSizedBuffer(dAtA[:i])
@@ -17521,6 +17530,12 @@ func (m *ClusterCacheInfo) Size() (n int) {
 		l = m.LastCacheSyncTime.Size()
 		n += 1 + l + sovGenerated(uint64(l))
 	}
+	if len(m.FailedResourceGVKs) > 0 {
+		for _, s := range m.FailedResourceGVKs {
+			l = len(s)
+			n += 1 + l + sovGenerated(uint64(l))
+		}
+	}
 	return n
 }
 
@@ -21057,6 +21072,7 @@ func (this *ClusterCacheInfo) String() string {
 		`ResourcesCount:` + fmt.Sprintf("%v", this.ResourcesCount) + `,`,
 		`APIsCount:` + fmt.Sprintf("%v", this.APIsCount) + `,`,
 		`LastCacheSyncTime:` + strings.Replace(fmt.Sprintf("%v", this.LastCacheSyncTime), "Time", "v1.Time", 1) + `,`,
+		`FailedResourceGVKs:` + fmt.Sprintf("%v", this.FailedResourceGVKs) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -33749,6 +33765,38 @@ func (m *ClusterCacheInfo) Unmarshal(dAtA []byte) error {
 			if err := m.LastCacheSyncTime.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
+			iNdEx = postIndex
+		case 4:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field FailedResourceGVKs", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.FailedResourceGVKs = append(m.FailedResourceGVKs, string(dAtA[iNdEx:postIndex]))
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
