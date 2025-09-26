@@ -1586,124 +1586,22 @@ func BenchmarkIterateHierarchyV2(b *testing.B) {
 }
 
 func buildCrossNamespaceTestResourceMap() map[kube.ResourceKey]*Resource {
-	return buildParameterizedCrossNamespaceTestResourceMap(1000, 9000, 1000) // 10% cross-namespace
+	return buildParameterizedCrossNamespaceTestResourceMap(1000, 9000, 1000, false) // 10% cross-namespace
 }
 
-func buildParameterizedCrossNamespaceTestResourceMapWithUIDs(clusterParents, regularPods, crossNamespacePods int) map[kube.ResourceKey]*Resource {
+
+func buildParameterizedCrossNamespaceTestResourceMap(clusterParents, regularPods, crossNamespacePods int, includeUIDs bool) map[kube.ResourceKey]*Resource {
 	resources := make(map[kube.ResourceKey]*Resource)
-	clusterParentUIDs := make(map[string]string) // Map cluster role names to UIDs
+	clusterParentUIDs := make(map[string]string) // Map cluster role names to UIDs (when includeUIDs is true)
 
 	// Create cluster-scoped parents (ClusterRoles)
 	for i := 0; i < clusterParents; i++ {
 		clusterRoleName := fmt.Sprintf("cluster-role-%d", i)
 		uid := uuid.New().String()
-		clusterParentUIDs[clusterRoleName] = uid // Store UID for later reference
-
-		key := kube.ResourceKey{
-			Group:     "rbac.authorization.k8s.io",
-			Kind:      "ClusterRole",
-			Namespace: "", // cluster-scoped
-			Name:      clusterRoleName,
+		if includeUIDs {
+			clusterParentUIDs[clusterRoleName] = uid // Store UID for later reference
 		}
 
-		resourceYaml := fmt.Sprintf(`
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: %s
-  uid: %s
-rules:
-- apiGroups: [""]
-  resources: ["pods"]
-  verbs: ["get", "list"]`, clusterRoleName, uid)
-
-		resources[key] = cacheTest.newResource(strToUnstructured(resourceYaml))
-	}
-
-	// Create regular namespaced resources (Pods)
-	namespaces := []string{"default", "kube-system", "test-ns-1", "test-ns-2", "test-ns-3"}
-	for i := 0; i < regularPods; i++ {
-		name := fmt.Sprintf("pod-%d", i)
-		ownerName := fmt.Sprintf("pod-%d", i/10)
-		namespace := namespaces[i%len(namespaces)]
-		uid := uuid.New().String()
-
-		key := kube.ResourceKey{
-			Namespace: namespace,
-			Name:      name,
-			Kind:      "Pod",
-		}
-
-		resourceYaml := fmt.Sprintf(`
-apiVersion: v1
-kind: Pod
-metadata:
-  namespace: %s
-  name: %s
-  uid: %s`, namespace, name, uid)
-
-		// Add owner references for hierarchical structure
-		if i > 10 {
-			ownerKey := kube.ResourceKey{
-				Namespace: namespace,
-				Name:      ownerName,
-				Kind:      "Pod",
-			}
-			if ownerResource, ok := resources[ownerKey]; ok {
-				ownerUid := ownerResource.Ref.UID
-				resourceYaml += fmt.Sprintf(`
-  ownerReferences:
-  - apiVersion: v1
-    kind: Pod
-    name: %s
-    uid: %s`, ownerName, ownerUid)
-			}
-		}
-
-		resources[key] = cacheTest.newResource(strToUnstructured(resourceYaml))
-	}
-
-	// Create cross-namespace children (Pods) that reference cluster-scoped parents WITH UIDs
-	for i := 0; i < crossNamespacePods; i++ {
-		podName := fmt.Sprintf("cross-ns-pod-%d", i)
-		namespace := namespaces[i%len(namespaces)]
-		clusterRoleIndex := i % clusterParents // Reference one of the cluster roles
-		clusterRoleName := fmt.Sprintf("cluster-role-%d", clusterRoleIndex)
-		uid := uuid.New().String()
-		parentUID := clusterParentUIDs[clusterRoleName] // Get the parent's UID
-
-		key := kube.ResourceKey{
-			Namespace: namespace,
-			Name:      podName,
-			Kind:      "Pod",
-		}
-
-		resourceYaml := fmt.Sprintf(`
-apiVersion: v1
-kind: Pod
-metadata:
-  name: %s
-  namespace: %s
-  uid: %s
-  ownerReferences:
-  - apiVersion: rbac.authorization.k8s.io/v1
-    kind: ClusterRole
-    name: %s
-    uid: %s`, podName, namespace, uid, clusterRoleName, parentUID)
-
-		resources[key] = cacheTest.newResource(strToUnstructured(resourceYaml))
-	}
-
-	return resources
-}
-
-func buildParameterizedCrossNamespaceTestResourceMap(clusterParents, regularPods, crossNamespacePods int) map[kube.ResourceKey]*Resource {
-	resources := make(map[kube.ResourceKey]*Resource)
-
-	// Create cluster-scoped parents (ClusterRoles)
-	for i := 0; i < clusterParents; i++ {
-		clusterRoleName := fmt.Sprintf("cluster-role-%d", i)
-		uid := uuid.New().String()
 		key := kube.ResourceKey{
 			Group:     "rbac.authorization.k8s.io",
 			Kind:      "ClusterRole",
@@ -1782,7 +1680,23 @@ metadata:
 			Kind:      "Pod",
 		}
 
-		resourceYaml := fmt.Sprintf(`
+		var resourceYaml string
+		if includeUIDs {
+			parentUID := clusterParentUIDs[clusterRoleName] // Get the parent's UID
+			resourceYaml = fmt.Sprintf(`
+apiVersion: v1
+kind: Pod
+metadata:
+  name: %s
+  namespace: %s
+  uid: %s
+  ownerReferences:
+  - apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRole
+    name: %s
+    uid: %s`, podName, namespace, uid, clusterRoleName, parentUID)
+		} else {
+			resourceYaml = fmt.Sprintf(`
 apiVersion: v1
 kind: Pod
 metadata:
@@ -1793,6 +1707,7 @@ metadata:
   - apiVersion: rbac.authorization.k8s.io/v1
     kind: ClusterRole
     name: %s`, podName, namespace, uid, clusterRoleName)
+		}
 
 		resources[key] = cacheTest.newResource(strToUnstructured(resourceYaml))
 	}
@@ -1830,174 +1745,71 @@ func BenchmarkIterateHierarchyV2CrossNamespace(b *testing.B) {
 
 // Benchmark variations testing different cross-namespace percentages
 
-func BenchmarkIterateHierarchyV2CrossNamespace_0Percent(b *testing.B) {
-	cluster := newCluster(b).WithAPIResources([]kube.APIResourceInfo{{
-		GroupKind:            schema.GroupKind{Group: "rbac.authorization.k8s.io", Kind: "ClusterRole"},
-		GroupVersionResource: schema.GroupVersionResource{Group: "rbac.authorization.k8s.io", Version: "v1", Resource: "clusterroles"},
-		Meta:                 metav1.APIResource{Namespaced: false},
-	}})
-
-	testResources := buildParameterizedCrossNamespaceTestResourceMap(100, 10000, 0)
-	for _, resource := range testResources {
-		cluster.setNode(resource)
+func BenchmarkIterateHierarchyV2CrossNamespace_Percentage(b *testing.B) {
+	testCases := []struct {
+		name                 string
+		crossNamespacePercent float64
+		withNamespaceScan    bool
+		scanNamespace        string
+	}{
+		{"0Percent_NoScan", 0.00, false, ""},
+		{"1Percent_NoScan", 0.01, false, ""},
+		{"5Percent_NoScan", 0.05, false, ""},
+		{"10Percent_NoScan", 0.10, false, ""},
+		{"25Percent_NoScan", 0.25, false, ""},
+		{"25Percent_WithScan", 0.25, true, "default"},
 	}
 
-	startKey := kube.ResourceKey{Namespace: "default", Name: "pod-1", Kind: "Pod"}
+	for _, tc := range testCases {
+		b.Run(tc.name, func(b *testing.B) {
+			cluster := newCluster(b).WithAPIResources([]kube.APIResourceInfo{{
+				GroupKind:            schema.GroupKind{Group: "rbac.authorization.k8s.io", Kind: "ClusterRole"},
+				GroupVersionResource: schema.GroupVersionResource{Group: "rbac.authorization.k8s.io", Version: "v1", Resource: "clusterroles"},
+				Meta:                 metav1.APIResource{Namespaced: false},
+			}})
 
-	b.ResetTimer()
-	for n := 0; n < b.N; n++ {
-		cluster.IterateHierarchyV2([]kube.ResourceKey{startKey}, func(_ *Resource, _ map[kube.ResourceKey]*Resource) bool {
-			return true
-		}, "")
-	}
-}
+			// Calculate resource distribution
+			totalResources := 10000
+			crossNamespacePods := int(float64(totalResources) * tc.crossNamespacePercent)
+			regularPods := totalResources - crossNamespacePods
+			clusterParents := 100 // Fixed number of cluster-scoped resources
 
-func BenchmarkIterateHierarchyV2CrossNamespace_1Percent(b *testing.B) {
-	cluster := newCluster(b).WithAPIResources([]kube.APIResourceInfo{{
-		GroupKind:            schema.GroupKind{Group: "rbac.authorization.k8s.io", Kind: "ClusterRole"},
-		GroupVersionResource: schema.GroupVersionResource{Group: "rbac.authorization.k8s.io", Version: "v1", Resource: "clusterroles"},
-		Meta:                 metav1.APIResource{Namespaced: false},
-	}})
+			testResources := buildParameterizedCrossNamespaceTestResourceMap(
+				clusterParents,
+				regularPods,
+				crossNamespacePods,
+				tc.withNamespaceScan, // Use UIDs when namespace scanning is enabled
+			)
 
-	testResources := buildParameterizedCrossNamespaceTestResourceMap(100, 9900, 100)
-	for _, resource := range testResources {
-		cluster.setNode(resource)
-	}
+			for _, resource := range testResources {
+				cluster.setNode(resource)
+			}
 
-	startKey := kube.ResourceKey{Namespace: "default", Name: "cross-ns-pod-1", Kind: "Pod"}
+			// Start key depends on whether we have cross-namespace resources
+			var startKey kube.ResourceKey
+			if crossNamespacePods > 0 {
+				startKey = kube.ResourceKey{Namespace: "default", Name: "cross-ns-pod-1", Kind: "Pod"}
+			} else {
+				startKey = kube.ResourceKey{Namespace: "default", Name: "pod-1", Kind: "Pod"}
+			}
 
-	b.ResetTimer()
-	for n := 0; n < b.N; n++ {
-		cluster.IterateHierarchyV2([]kube.ResourceKey{startKey}, func(_ *Resource, _ map[kube.ResourceKey]*Resource) bool {
-			return true
-		}, "")
-	}
-}
+			// For cluster-scoped start when testing namespace scanning
+			if tc.withNamespaceScan {
+				startKey = kube.ResourceKey{
+					Group:     "rbac.authorization.k8s.io",
+					Kind:      "ClusterRole",
+					Namespace: "",
+					Name:      "cluster-role-0",
+				}
+			}
 
-func BenchmarkIterateHierarchyV2CrossNamespace_5Percent(b *testing.B) {
-	cluster := newCluster(b).WithAPIResources([]kube.APIResourceInfo{{
-		GroupKind:            schema.GroupKind{Group: "rbac.authorization.k8s.io", Kind: "ClusterRole"},
-		GroupVersionResource: schema.GroupVersionResource{Group: "rbac.authorization.k8s.io", Version: "v1", Resource: "clusterroles"},
-		Meta:                 metav1.APIResource{Namespaced: false},
-	}})
-
-	testResources := buildParameterizedCrossNamespaceTestResourceMap(500, 9500, 500)
-	for _, resource := range testResources {
-		cluster.setNode(resource)
-	}
-
-	startKey := kube.ResourceKey{Namespace: "default", Name: "cross-ns-pod-1", Kind: "Pod"}
-
-	b.ResetTimer()
-	for n := 0; n < b.N; n++ {
-		cluster.IterateHierarchyV2([]kube.ResourceKey{startKey}, func(_ *Resource, _ map[kube.ResourceKey]*Resource) bool {
-			return true
-		}, "")
-	}
-}
-
-func BenchmarkIterateHierarchyV2CrossNamespace_10Percent(b *testing.B) {
-	cluster := newCluster(b).WithAPIResources([]kube.APIResourceInfo{{
-		GroupKind:            schema.GroupKind{Group: "rbac.authorization.k8s.io", Kind: "ClusterRole"},
-		GroupVersionResource: schema.GroupVersionResource{Group: "rbac.authorization.k8s.io", Version: "v1", Resource: "clusterroles"},
-		Meta:                 metav1.APIResource{Namespaced: false},
-	}})
-
-	testResources := buildParameterizedCrossNamespaceTestResourceMap(1000, 9000, 1000)
-	for _, resource := range testResources {
-		cluster.setNode(resource)
-	}
-
-	startKey := kube.ResourceKey{Namespace: "default", Name: "cross-ns-pod-1", Kind: "Pod"}
-
-	b.ResetTimer()
-	for n := 0; n < b.N; n++ {
-		cluster.IterateHierarchyV2([]kube.ResourceKey{startKey}, func(_ *Resource, _ map[kube.ResourceKey]*Resource) bool {
-			return true
-		}, "")
-	}
-}
-
-func BenchmarkIterateHierarchyV2CrossNamespace_25Percent(b *testing.B) {
-	cluster := newCluster(b).WithAPIResources([]kube.APIResourceInfo{{
-		GroupKind:            schema.GroupKind{Group: "rbac.authorization.k8s.io", Kind: "ClusterRole"},
-		GroupVersionResource: schema.GroupVersionResource{Group: "rbac.authorization.k8s.io", Version: "v1", Resource: "clusterroles"},
-		Meta:                 metav1.APIResource{Namespaced: false},
-	}})
-
-	testResources := buildParameterizedCrossNamespaceTestResourceMap(2500, 7500, 2500)
-	for _, resource := range testResources {
-		cluster.setNode(resource)
-	}
-
-	startKey := kube.ResourceKey{Namespace: "default", Name: "cross-ns-pod-1", Kind: "Pod"}
-
-	b.ResetTimer()
-	for n := 0; n < b.N; n++ {
-		cluster.IterateHierarchyV2([]kube.ResourceKey{startKey}, func(_ *Resource, _ map[kube.ResourceKey]*Resource) bool {
-			return true
-		}, "")
-	}
-}
-
-// Benchmark starting from cluster-scoped resource WITHOUT the scan option (should be fast)
-func BenchmarkIterateHierarchyV2FromClusterScoped_25Percent_NoScan(b *testing.B) {
-	cluster := newCluster(b).WithAPIResources([]kube.APIResourceInfo{{
-		GroupKind:            schema.GroupKind{Group: "rbac.authorization.k8s.io", Kind: "ClusterRole"},
-		GroupVersionResource: schema.GroupVersionResource{Group: "rbac.authorization.k8s.io", Version: "v1", Resource: "clusterroles"},
-		Meta:                 metav1.APIResource{Namespaced: false},
-	}})
-
-	// Build resources with UIDs set for cross-namespace references
-	testResources := buildParameterizedCrossNamespaceTestResourceMapWithUIDs(2500, 7500, 2500)
-	for _, resource := range testResources {
-		cluster.setNode(resource)
-	}
-
-	// Start from a cluster-scoped resource
-	startKey := kube.ResourceKey{
-		Group:     "rbac.authorization.k8s.io",
-		Kind:      "ClusterRole",
-		Namespace: "",
-		Name:      "cluster-role-0",
-	}
-
-	b.ResetTimer()
-	for n := 0; n < b.N; n++ {
-		cluster.IterateHierarchyV2([]kube.ResourceKey{startKey}, func(_ *Resource, _ map[kube.ResourceKey]*Resource) bool {
-			return true
-		}, "")
-	}
-}
-
-// Benchmark starting from cluster-scoped resource WITH the scan option (will be slower)
-func BenchmarkIterateHierarchyV2FromClusterScoped_25Percent_WithScan(b *testing.B) {
-	cluster := newCluster(b).WithAPIResources([]kube.APIResourceInfo{{
-		GroupKind:            schema.GroupKind{Group: "rbac.authorization.k8s.io", Kind: "ClusterRole"},
-		GroupVersionResource: schema.GroupVersionResource{Group: "rbac.authorization.k8s.io", Version: "v1", Resource: "clusterroles"},
-		Meta:                 metav1.APIResource{Namespaced: false},
-	}})
-
-	// Build resources with UIDs set for cross-namespace references
-	testResources := buildParameterizedCrossNamespaceTestResourceMapWithUIDs(2500, 7500, 2500)
-	for _, resource := range testResources {
-		cluster.setNode(resource)
-	}
-
-	// Start from a cluster-scoped resource
-	startKey := kube.ResourceKey{
-		Group:     "rbac.authorization.k8s.io",
-		Kind:      "ClusterRole",
-		Namespace: "",
-		Name:      "cluster-role-0",
-	}
-
-	b.ResetTimer()
-	for n := 0; n < b.N; n++ {
-		// This benchmark tests scanning a specific namespace for orphaned resources
-		cluster.IterateHierarchyV2([]kube.ResourceKey{startKey}, func(_ *Resource, _ map[kube.ResourceKey]*Resource) bool {
-			return true
-		}, "default")
+			b.ResetTimer()
+			for n := 0; n < b.N; n++ {
+				cluster.IterateHierarchyV2([]kube.ResourceKey{startKey}, func(_ *Resource, _ map[kube.ResourceKey]*Resource) bool {
+					return true
+				}, tc.scanNamespace)
+			}
+		})
 	}
 }
 
@@ -2033,10 +1845,11 @@ func BenchmarkIterateHierarchyV2_NamespaceScaling(b *testing.B) {
 			crossNamespacePods := int(float64(tc.namespaceResourceCount) * tc.crossNamespacePercent)
 			regularPods := tc.namespaceResourceCount - crossNamespacePods
 
-			testResources := buildParameterizedCrossNamespaceTestResourceMapWithUIDs(
+			testResources := buildParameterizedCrossNamespaceTestResourceMap(
 				clusterParents,
 				regularPods,
 				crossNamespacePods,
+				true,
 			)
 
 			for _, resource := range testResources {
@@ -2084,10 +1897,11 @@ func BenchmarkIterateHierarchyV2_NamespaceScaling_NoScan(b *testing.B) {
 			}})
 
 			// All resources have cluster-scoped parents but we won't scan for them
-			testResources := buildParameterizedCrossNamespaceTestResourceMapWithUIDs(
+			testResources := buildParameterizedCrossNamespaceTestResourceMap(
 				100,
 				0,
 				tc.namespaceResourceCount,
+				true,
 			)
 
 			for _, resource := range testResources {
