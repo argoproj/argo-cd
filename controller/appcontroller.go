@@ -609,6 +609,9 @@ func (ctrl *ApplicationController) getResourceTree(destCluster *appv1.Cluster, a
 			managedResourcesKeys = append(managedResourcesKeys, kube.GetResourceKey(live))
 		}
 	}
+	// Always scan the destination namespace for orphaned resources (children of cluster-scoped
+	// resources that weren't in the initial keys). This handles operators like Crossplane that
+	// create resources in their namespace from cluster-scoped parents.
 	err = ctrl.stateCache.IterateHierarchyV2(destCluster, managedResourcesKeys, func(child appv1.ResourceNode, _ string) bool {
 		permitted, _ := proj.IsResourcePermitted(schema.GroupKind{Group: child.Group, Kind: child.Kind}, child.Name, child.Namespace, destCluster, func(project string) ([]*appv1.Cluster, error) {
 			clusters, err := ctrl.db.GetProjectClusters(context.TODO(), project)
@@ -622,7 +625,7 @@ func (ctrl *ApplicationController) getResourceTree(destCluster *appv1.Cluster, a
 		}
 		nodes = append(nodes, child)
 		return true
-	})
+	}, a.Spec.Destination.Namespace)
 	if err != nil {
 		return nil, fmt.Errorf("failed to iterate resource hierarchy v2: %w", err)
 	}
@@ -634,6 +637,7 @@ func (ctrl *ApplicationController) getResourceTree(destCluster *appv1.Cluster, a
 			orphanedNodesKeys = append(orphanedNodesKeys, k)
 		}
 	}
+	// Process orphaned resources (always scans the destination namespace for orphaned resources)
 	err = ctrl.stateCache.IterateHierarchyV2(destCluster, orphanedNodesKeys, func(child appv1.ResourceNode, appName string) bool {
 		belongToAnotherApp := false
 		if appName != "" {
@@ -656,7 +660,7 @@ func (ctrl *ApplicationController) getResourceTree(destCluster *appv1.Cluster, a
 		}
 		orphanedNodes = append(orphanedNodes, child)
 		return true
-	})
+	}, a.Spec.Destination.Namespace)
 	if err != nil {
 		return nil, err
 	}
