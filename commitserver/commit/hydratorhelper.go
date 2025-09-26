@@ -2,6 +2,7 @@ package commit
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,7 +12,6 @@ import (
 	"text/template"
 
 	"github.com/Masterminds/sprig/v3"
-	"github.com/google/go-cmp/cmp"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -38,22 +38,22 @@ func init() {
 
 // WriteForPaths writes the manifests, hydrator.metadata, and README.md files for each path in the provided paths. It
 // also writes a root-level hydrator.metadata file containing the repo URL and dry SHA.
-func WriteForPaths(root *os.Root, repoUrl, drySha, targetBranch string, dryCommitMetadata *appv1.RevisionMetadata, paths []*apiclient.PathDetails, gitClient git.Client) error { //nolint:revive //FIXME(var-naming)
+func WriteForPaths(root *os.Root, repoUrl, drySha, targetBranch string, dryCommitMetadata *appv1.RevisionMetadata, paths []*apiclient.PathDetails, gitClient git.Client) (bool, error) { //nolint:revive //FIXME(var-naming)
 	hydratorMetadata, err := hydrator.GetCommitMetadata(repoUrl, drySha, dryCommitMetadata)
 	if err != nil {
-		return fmt.Errorf("failed to retrieve hydrator metadata: %w", err)
+		return false, fmt.Errorf("failed to retrieve hydrator metadata: %w", err)
 	}
 
 	// Write the top-level readme.
 	err = writeMetadata(root, "", hydratorMetadata)
 	if err != nil {
-		return fmt.Errorf("failed to write top-level hydrator metadata: %w", err)
+		return false, fmt.Errorf("failed to write top-level hydrator metadata: %w", err)
 	}
 
 	// Write .gitattributes
 	err = writeGitAttributes(root)
 	if err != nil {
-		return fmt.Errorf("failed to write git attributes: %w", err)
+		return false, fmt.Errorf("failed to write git attributes: %w", err)
 	}
 	var atleastOneNewManifestExists bool
 	for _, p := range paths {
@@ -66,17 +66,18 @@ func WriteForPaths(root *os.Root, repoUrl, drySha, targetBranch string, dryCommi
 		if hydratePath != "" {
 			err = root.MkdirAll(hydratePath, 0o755)
 			if err != nil {
-				return fmt.Errorf("failed to create path: %w", err)
+				return false, fmt.Errorf("failed to create path: %w", err)
 			}
 		}
 
 		// Write the manifests
-		err := writeManifests(root, targetBranch, hydratePath, p.Manifests, gitClient)
+		success, err := writeManifests(root, targetBranch, hydratePath, p.Manifests, gitClient)
 		if err != nil {
-			if strings.EqualFold(err.Error(), fmt.Sprintf(ExistingManifestErrorPrefix, hydratePath)) {
-				continue
-			}
-			return fmt.Errorf("failed to write manifests: %w", err)
+			return false, fmt.Errorf("failed to write manifests: %w", err)
+		}
+		// this is to cover cases where no manifest changes were detected thus writeManifests short-circuited
+		if !success {
+			continue
 		}
 		// If even one new manifest exists then commit needs to happen else skip commit
 		// once set to true do not override
@@ -92,20 +93,20 @@ func WriteForPaths(root *os.Root, repoUrl, drySha, targetBranch string, dryCommi
 		}
 		err = writeMetadata(root, hydratePath, hydratorMetadata)
 		if err != nil {
-			return fmt.Errorf("failed to write hydrator metadata: %w", err)
+			return false, fmt.Errorf("failed to write hydrator metadata: %w", err)
 		}
 
 		// Write README
 		err = writeReadme(root, hydratePath, hydratorMetadata)
 		if err != nil {
-			return fmt.Errorf("failed to write readme: %w", err)
+			return false, fmt.Errorf("failed to write readme: %w", err)
 		}
 	}
 	// if no manifest changes then skip commit
 	if !atleastOneNewManifestExists {
-		return errors.New(NothingToCommitErrorMessage)
+		return false, nil
 	}
-	return nil
+	return true, nil
 }
 
 // writeMetadata writes the metadata to the hydrator.metadata file.
@@ -177,7 +178,7 @@ func writeGitAttributes(root *os.Root) error {
 
 // writeManifests writes the manifests to the manifest.yaml file, truncating the file if it exists and appending the
 // manifests in the order they are provided.
-func writeManifests(root *os.Root, branch, dirPath string, manifests []*apiclient.HydratedManifestDetails, gitClient git.Client) error {
+func writeManifests(root *os.Root, targetBranch, dirPath string, manifests []*apiclient.HydratedManifestDetails, gitClient git.Client) (bool, error) {
 	// If the file exists, truncate it.
 	// No need to use SecureJoin here, as the path is already sanitized.
 	manifestPath := filepath.Join(dirPath, "manifest.yaml")
@@ -185,22 +186,26 @@ func writeManifests(root *os.Root, branch, dirPath string, manifests []*apiclien
 	// build the current manifest
 	manifestYAML, err := renderManifestsToYAML(manifests)
 	if err != nil {
-		return err
+		return false, err
 	}
+
+	// TODO remove commented lines once the approach is finalized
 	// get the most recently hydrated minifest from git
-	existingManifest, err := gitClient.GetLatestManifest(branch, manifestPath)
+	// existingManifest, err := gitClient.GetLatestManifest(branch, manifestPath)
+	// instead of reading from git read it from disk as the targetBranch is already checked out
+	existingManifest, err := getExistingManifestFromDisk(manifestPath)
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	manifestChanged := hasManifestChanged(manifestYAML, existingManifest)
 	if !manifestChanged {
-		return fmt.Errorf(ExistingManifestErrorPrefix, dirPath)
+		return false, nil
 	}
 
 	file, err := root.OpenFile(manifestPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.ModePerm)
 	if err != nil {
-		return fmt.Errorf("failed to open manifest file: %w", err)
+		return false, fmt.Errorf("failed to open manifest file: %w", err)
 	}
 	defer func() {
 		err := file.Close()
@@ -210,28 +215,10 @@ func writeManifests(root *os.Root, branch, dirPath string, manifests []*apiclien
 	}()
 
 	if _, err := file.Write(manifestYAML); err != nil {
-		return fmt.Errorf("failed to write manifests to file: %w", err)
+		return false, fmt.Errorf("failed to write manifests to file: %w", err)
 	}
 
-	return nil
-}
-
-func hasManifestChanged(currentManifest, existingManifest []byte) bool {
-	if len(existingManifest) == 0 {
-		return true
-	}
-	var currentObj, existingObj any
-	if err := yaml.Unmarshal(currentManifest, &currentObj); err != nil {
-		fmt.Printf("Error unmarshaling current: %v\n", err)
-		return true
-	}
-	if err := yaml.Unmarshal(existingManifest, &existingObj); err != nil {
-		fmt.Printf("Error unmarshaling existing: %v\n", err)
-		return true
-	}
-
-	// Compare using go-cmp
-	return !cmp.Equal(currentObj, existingObj)
+	return true, nil
 }
 
 func renderManifestsToYAML(manifests []*apiclient.HydratedManifestDetails) ([]byte, error) {
@@ -258,6 +245,50 @@ func renderManifestsToYAML(manifests []*apiclient.HydratedManifestDetails) ([]by
 	return buf.Bytes(), nil
 }
 
+func hasManifestChanged(currentManifest, existingManifest []byte) bool {
+	if len(existingManifest) == 0 {
+		return true
+	}
+
+	hash1, err1 := hashNormalizedYaml(currentManifest)
+	hash2, err2 := hashNormalizedYaml(existingManifest)
+
+	if err1 != nil || err2 != nil {
+		return true
+	}
+
+	return hash1 != hash2
+	// TODO remove commented lines once the approach is finalized
+	// var currentObj, existingObj any
+	// if err := yaml.Unmarshal(currentManifest, &currentObj); err != nil {
+	// 	fmt.Printf("Error unmarshaling current: %v\n", err)
+	// 	return true
+	// }
+	// if err := yaml.Unmarshal(existingManifest, &existingObj); err != nil {
+	// 	fmt.Printf("Error unmarshaling existing: %v\n", err)
+	// 	return true
+	// }
+
+	// // Compare using go-cmp
+	// return !cmp.Equal(currentObj, existingObj)
+}
+
+func hashNormalizedYaml(yamlBytes []byte) (string, error) {
+	var obj any
+	if err := yaml.Unmarshal(yamlBytes, &obj); err != nil {
+		return "", fmt.Errorf("yaml unmarshal failed: %w", err)
+	}
+
+	// Marshal via json to enforce deterministic key ordering
+	normalized, err := json.Marshal(obj)
+	if err != nil {
+		return "", fmt.Errorf("json marshal failed: %w", err)
+	}
+
+	sum := sha256.Sum256(normalized)
+	return fmt.Sprint("%x", sum), nil
+}
+
 func IsHydrated(gitClient git.Client, drySha string) (bool, error) {
 	note, err := gitClient.GetCommitNote(drySha, NoteNamespace)
 	if err != nil {
@@ -268,8 +299,37 @@ func IsHydrated(gitClient git.Client, drySha string) (bool, error) {
 		}
 		return false, err
 	}
-	if !strings.Contains(note, drySha) {
-		return false, fmt.Errorf("invalid structure of note %s", note)
+	if note == "" {
+		return false, nil
 	}
-	return true, nil
+	var commitNote CommitNote
+	err = json.Unmarshal([]byte(note), &commitNote)
+	if err != nil {
+		return false, fmt.Errorf("json unmarshal failed %w", err)
+	}
+	return commitNote.DrySHA == drySha, nil
+}
+
+func AddNote(gitClient git.Client, drySha string) error {
+	note := CommitNote{DrySHA: drySha}
+	jsonBytes, err := json.Marshal(note)
+	if err != nil {
+		return fmt.Errorf("failed to marshal commit note: %w", err)
+	}
+	err = gitClient.AddAndPushNote(drySha, NoteNamespace, string(jsonBytes))
+	if err != nil {
+		return fmt.Errorf("failed to add commit note: %w", err)
+	}
+	return nil
+}
+
+func getExistingManifestFromDisk(filePath string) ([]byte, error) {
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return []byte{}, nil
+		}
+		return nil, fmt.Errorf("failed to read file %s: %w", filePath, err)
+	}
+	return data, nil
 }

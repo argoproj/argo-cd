@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/argoproj/argo-cd/v3/controller/hydrator"
@@ -21,10 +20,7 @@ import (
 )
 
 const (
-	NoteNamespace               = "source-hydrator"
-	NotePrefix                  = "hydrated for drySha %s"
-	ExistingManifestErrorPrefix = "duplicate, manifest already exists on path %s"
-	NothingToCommitErrorMessage = "duplicate, all minifest|s are current , nothing to commit"
+	NoteNamespace = "source-hydrator"
 )
 
 // Service is the service that handles commit requests.
@@ -53,6 +49,10 @@ type hydratorMetadataFile struct {
 	// Known Argocd- trailers with valid values are removed, but all other trailers are kept.
 	Body       string                       `json:"body,omitempty"`
 	References []v1alpha1.RevisionReference `json:"references,omitempty"`
+}
+
+type CommitNote struct {
+	DrySHA string `json:"drySha"`
 }
 
 // TODO: make this configurable via ConfigMap.
@@ -204,21 +204,16 @@ func (s *Service) handleCommitRequest(logCtx *log.Entry, r *apiclient.CommitHydr
 		return "", "", nil
 	}
 
-	var skipCommit bool
 	logCtx.Debug("Writing manifests")
-	err = WriteForPaths(root, r.Repo.Repo, r.DrySha, r.TargetBranch, r.DryCommitMetadata, r.Paths, gitClient)
+	success, err := WriteForPaths(root, r.Repo.Repo, r.DrySha, r.TargetBranch, r.DryCommitMetadata, r.Paths, gitClient)
+	// When there are no new manifests to commit, err will be nil and success will be false as nothing to commit. Else or every other error err will not be nil
 	if err != nil {
-		if strings.EqualFold(err.Error(), NothingToCommitErrorMessage) {
-			skipCommit = true
-		} else {
-			return "", "", fmt.Errorf("failed to write manifests: %w", err)
-		}
-
+		return "", "", fmt.Errorf("failed to write manifests: %w", err)
 	}
-	if skipCommit {
+	if !success {
 		// add the note and return
 		logCtx.Debug("Adding commit note")
-		err = gitClient.AddAndPushNote(r.DrySha, NoteNamespace, fmt.Sprintf(NotePrefix, r.DrySha))
+		err = AddNote(gitClient, r.DrySha)
 		if err != nil {
 			return "", "", fmt.Errorf("failed to add commit note: %w", err)
 		}
@@ -237,7 +232,7 @@ func (s *Service) handleCommitRequest(logCtx *log.Entry, r *apiclient.CommitHydr
 	}
 	// add the commit note
 	logCtx.Debug("Adding commit note")
-	err = gitClient.AddAndPushNote(r.DrySha, NoteNamespace, fmt.Sprintf(NotePrefix, r.DrySha))
+	err = AddNote(gitClient, r.DrySha)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to add commit note: %w", err)
 	}
