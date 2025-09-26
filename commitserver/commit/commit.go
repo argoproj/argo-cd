@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/argoproj/argo-cd/v3/controller/hydrator"
@@ -17,6 +18,13 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/io/files"
+)
+
+const (
+	NoteNamespace               = "source-hydrator"
+	NotePrefix                  = "hydrated for drySha %s"
+	ExistingManifestErrorPrefix = "duplicate, manifest already exists on path %s"
+	NothingToCommitErrorMessage = "duplicate, all minifest|s are current , nothing to commit"
 )
 
 // Service is the service that handles commit requests.
@@ -178,12 +186,44 @@ func (s *Service) handleCommitRequest(logCtx *log.Entry, r *apiclient.CommitHydr
 		}
 	}
 
-	logCtx.Debug("Writing manifests")
-	err = WriteForPaths(root, r.Repo.Repo, r.DrySha, r.DryCommitMetadata, r.Paths)
+	/* git note changes
+	1. Get the git note for the DRY SHA
+	2. If found, short-circuit, log a warn and return
+	3. If not, get the last manifest from git  for every path, compare it with the hydrated manifest
+	3a. If manifest has no changes, continue.. no need to push it
+	3b. Else, hydrate the manifest.
+	3c. Push the updated note
+	*/
+	isHydrated, err := IsHydrated(gitClient, r.DrySha)
 	if err != nil {
-		return "", "", fmt.Errorf("failed to write manifests: %w", err)
+		return "", "", fmt.Errorf("failed to get notes from git %w", err)
+	}
+	// short-circuit if hydrated already
+	if isHydrated {
+		logCtx.Debug("this dry sha %s is already hydrated", r.DrySha)
+		return "", "", nil
 	}
 
+	var skipCommit bool
+	logCtx.Debug("Writing manifests")
+	err = WriteForPaths(root, r.Repo.Repo, r.DrySha, r.TargetBranch, r.DryCommitMetadata, r.Paths, gitClient)
+	if err != nil {
+		if strings.EqualFold(err.Error(), NothingToCommitErrorMessage) {
+			skipCommit = true
+		} else {
+			return "", "", fmt.Errorf("failed to write manifests: %w", err)
+		}
+
+	}
+	if skipCommit {
+		// add the note and return
+		logCtx.Debug("Adding commit note")
+		err = gitClient.AddAndPushNote(r.DrySha, NoteNamespace, fmt.Sprintf(NotePrefix, r.DrySha))
+		if err != nil {
+			return "", "", fmt.Errorf("failed to add commit note: %w", err)
+		}
+		return "", "", nil
+	}
 	logCtx.Debug("Committing and pushing changes")
 	out, err = gitClient.CommitAndPush(r.TargetBranch, r.CommitMessage)
 	if err != nil {
@@ -195,7 +235,12 @@ func (s *Service) handleCommitRequest(logCtx *log.Entry, r *apiclient.CommitHydr
 	if err != nil {
 		return "", "", fmt.Errorf("failed to get commit SHA: %w", err)
 	}
-
+	// add the commit note
+	logCtx.Debug("Adding commit note")
+	err = gitClient.AddAndPushNote(r.DrySha, NoteNamespace, fmt.Sprintf(NotePrefix, r.DrySha))
+	if err != nil {
+		return "", "", fmt.Errorf("failed to add commit note: %w", err)
+	}
 	return "", sha, nil
 }
 

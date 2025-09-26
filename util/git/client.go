@@ -132,6 +132,12 @@ type Client interface {
 	RemoveContents(paths []string) (string, error)
 	// CommitAndPush commits and pushes changes to the target branch.
 	CommitAndPush(branch, message string) (string, error)
+	// GetCommitNote gets the note associated with the DRY sha stored in the specific namespace
+	GetCommitNote(drySha string, namespace string) (string, error)
+	// AddAndPushNote adds a note to a DRY sha and then pushes it.
+	AddAndPushNote(drySha string, namespace string, note string) error
+	// GetLatestManifest returns the last hydrated manifest
+	GetLatestManifest(branch, filePath string) ([]byte, error)
 }
 
 type EventHandlers struct {
@@ -1061,6 +1067,54 @@ func (m *nativeGitClient) CommitAndPush(branch, message string) (string, error) 
 	}
 
 	return "", nil
+}
+
+// GetCommitNote gets the note associated with the DRY sha stored in the specific namespace
+func (m *nativeGitClient) GetCommitNote(drySha string, namespace string) (string, error) {
+	if namespace == "" {
+		namespace = "commit"
+	}
+	ref := fmt.Sprintf("--ref=%s", namespace)
+	out, err := m.runCmd("notes", ref, "show", drySha)
+	if err != nil {
+		if strings.Contains(out, "nothing to commit, working tree clean") {
+			return out, nil
+		}
+		return out, fmt.Errorf("failed to get commit note: %w", err)
+	}
+	return strings.TrimSpace(out), nil
+}
+
+// AddAndPushNote adds a note to a DRY sha and then pushes it.
+func (m *nativeGitClient) AddAndPushNote(drySha string, namespace string, note string) error {
+	if namespace == "" {
+		namespace = "commit"
+	}
+	ref := fmt.Sprintf("--ref=%s", namespace)
+	_, err := m.runCmd("notes", ref, "add", "-m", note, drySha)
+	if err != nil {
+		return fmt.Errorf("failed to push: %w", err)
+	}
+	if m.OnPush != nil {
+		done := m.OnPush(m.repoURL)
+		defer done()
+	}
+
+	err = m.runCredentialedCmd("push", "origin", ref)
+	if err != nil {
+		return fmt.Errorf("failed to push: %w", err)
+	}
+
+	return nil
+}
+
+// GetLatestManifest returns the last hydrated manifest
+func (m *nativeGitClient) GetLatestManifest(branch, filePath string) ([]byte, error) {
+	out, err := m.runCmd("show", fmt.Sprintf("%s:%s", branch, filePath))
+	if err != nil {
+		return nil, fmt.Errorf("failed to get the manifest: %w", err)
+	}
+	return []byte(out), nil
 }
 
 // runWrapper runs a custom command with all the semantics of running the Git client
