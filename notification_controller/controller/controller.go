@@ -54,6 +54,14 @@ type NotificationController interface {
 	Init(ctx context.Context) error
 }
 
+type notificationController struct {
+	ctrl              controller.NotificationController
+	appInformer       cache.SharedIndexInformer
+	appProjInformer   cache.SharedIndexInformer
+	secretInformer    cache.SharedIndexInformer
+	configMapInformer cache.SharedIndexInformer
+}
+
 func NewController(
 	k8sClient kubernetes.Interface,
 	client dynamic.Interface,
@@ -169,14 +177,6 @@ func newInformer(resClient dynamic.ResourceInterface, controllerNamespace string
 		},
 	)
 	return informer
-}
-
-type notificationController struct {
-	ctrl              controller.NotificationController
-	appInformer       cache.SharedIndexInformer
-	appProjInformer   cache.SharedIndexInformer
-	secretInformer    cache.SharedIndexInformer
-	configMapInformer cache.SharedIndexInformer
 }
 
 func (c *notificationController) Init(ctx context.Context) error {

@@ -18,7 +18,6 @@ package v1alpha1
 
 import (
 	"encoding/json"
-	"fmt"
 	"sort"
 
 	"github.com/argoproj/argo-cd/v3/common"
@@ -29,13 +28,13 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-// Utility struct for a reference to a secret key.
+// SecretRef struct for a reference to a secret key.
 type SecretRef struct {
 	SecretName string `json:"secretName" protobuf:"bytes,1,opt,name=secretName"`
 	Key        string `json:"key" protobuf:"bytes,2,opt,name=key"`
 }
 
-// Utility struct for a reference to a configmap key.
+// ConfigMapKeyRef struct for a reference to a configmap key.
 type ConfigMapKeyRef struct {
 	ConfigMapName string `json:"configMapName" protobuf:"bytes,1,opt,name=configMapName"`
 	Key           string `json:"key" protobuf:"bytes,2,opt,name=key"`
@@ -85,7 +84,9 @@ type ApplicationPreservedFields struct {
 type ApplicationSetStrategy struct {
 	Type        string                         `json:"type,omitempty" protobuf:"bytes,1,opt,name=type"`
 	RollingSync *ApplicationSetRolloutStrategy `json:"rollingSync,omitempty" protobuf:"bytes,2,opt,name=rollingSync"`
-	// RollingUpdate *ApplicationSetRolloutStrategy `json:"rollingUpdate,omitempty" protobuf:"bytes,3,opt,name=rollingUpdate"`
+	// DeletionOrder allows specifying the order for deleting generated apps when progressive sync is enabled.
+	// accepts values "AllAtOnce" and "Reverse"
+	DeletionOrder string `json:"deletionOrder,omitempty" protobuf:"bytes,3,opt,name=deletionOrder"`
 }
 type ApplicationSetRolloutStrategy struct {
 	Steps []ApplicationSetRolloutStep `json:"steps,omitempty" protobuf:"bytes,1,opt,name=steps"`
@@ -615,6 +616,8 @@ type PullRequestGenerator struct {
 	AzureDevOps *PullRequestGeneratorAzureDevOps `json:"azuredevops,omitempty" protobuf:"bytes,9,opt,name=azuredevops"`
 	// Values contains key/value pairs which are passed directly as parameters to the template
 	Values map[string]string `json:"values,omitempty" protobuf:"bytes,10,name=values"`
+	// ContinueOnRepoNotFoundError is a flag to continue the ApplicationSet Pull Request generator parameters generation even if the repository is not found.
+	ContinueOnRepoNotFoundError bool `json:"continueOnRepoNotFoundError,omitempty" protobuf:"varint,11,opt,name=continueOnRepoNotFoundError"`
 	// If you add a new SCM provider, update CustomApiUrl below.
 }
 
@@ -672,7 +675,7 @@ type PullRequestGeneratorAzureDevOps struct {
 	Labels []string `json:"labels,omitempty" protobuf:"bytes,6,rep,name=labels"`
 }
 
-// PullRequestGenerator defines connection info specific to GitHub.
+// PullRequestGeneratorGithub defines connection info specific to GitHub.
 type PullRequestGeneratorGithub struct {
 	// GitHub org or user to scan. Required.
 	Owner string `json:"owner" protobuf:"bytes,1,opt,name=owner"`
@@ -765,6 +768,7 @@ type BasicAuthBitbucketServer struct {
 type PullRequestGeneratorFilter struct {
 	BranchMatch       *string `json:"branchMatch,omitempty" protobuf:"bytes,1,opt,name=branchMatch"`
 	TargetBranchMatch *string `json:"targetBranchMatch,omitempty" protobuf:"bytes,2,opt,name=targetBranchMatch"`
+	TitleMatch        *string `json:"titleMatch,omitempty" protobuf:"bytes,3,op,name=titleMatch"`
 }
 
 type PluginConfigMapRef struct {
@@ -801,6 +805,9 @@ type ApplicationSetStatus struct {
 	ApplicationStatus []ApplicationSetApplicationStatus `json:"applicationStatus,omitempty" protobuf:"bytes,2,name=applicationStatus"`
 	// Resources is a list of Applications resources managed by this application set.
 	Resources []ResourceStatus `json:"resources,omitempty" protobuf:"bytes,3,opt,name=resources"`
+	// ResourcesCount is the total number of resources managed by this application set. The count may be higher than actual number of items in the Resources field when
+	// the number of managed resources exceeds the limit imposed by the controller (to avoid making the status field too large).
+	ResourcesCount int64 `json:"resourcesCount,omitempty" protobuf:"varint,4,opt,name=resourcesCount"`
 }
 
 // ApplicationSetCondition contains details about an applicationset condition, which is usually an error or warning
@@ -817,7 +824,7 @@ type ApplicationSetCondition struct {
 	Reason string `json:"reason" protobuf:"bytes,5,opt,name=reason"`
 }
 
-// SyncStatusCode is a type which represents possible comparison results
+// ApplicationSetConditionStatus is a type which represents possible comparison results
 type ApplicationSetConditionStatus string
 
 // Application Condition Status
@@ -863,6 +870,20 @@ const (
 	ApplicationSetReasonSyncApplicationError             = "SyncApplicationError"
 )
 
+// Represents resource health status
+type ProgressiveSyncStatusCode string
+
+const (
+	// Indicates that an Application sync is waiting to be trigerred
+	ProgressiveSyncWaiting ProgressiveSyncStatusCode = "Waiting"
+	// Indicates that a sync has been trigerred, but the application did not report any status
+	ProgressiveSyncPending ProgressiveSyncStatusCode = "Pending"
+	// Indicates that the application has not yet reached an Healthy state in regards to the requested sync
+	ProgressiveSyncProgressing ProgressiveSyncStatusCode = "Progressing"
+	// Indicates that the application has reached an Healthy state in regards to the requested sync
+	ProgressiveSyncHealthy ProgressiveSyncStatusCode = "Healthy"
+)
+
 // ApplicationSetApplicationStatus contains details about each Application managed by the ApplicationSet
 type ApplicationSetApplicationStatus struct {
 	// Application contains the name of the Application resource
@@ -871,8 +892,8 @@ type ApplicationSetApplicationStatus struct {
 	LastTransitionTime *metav1.Time `json:"lastTransitionTime,omitempty" protobuf:"bytes,2,opt,name=lastTransitionTime"`
 	// Message contains human-readable message indicating details about the status
 	Message string `json:"message" protobuf:"bytes,3,opt,name=message"`
-	// Status contains the AppSet's perceived status of the managed Application resource: (Waiting, Pending, Progressing, Healthy)
-	Status string `json:"status" protobuf:"bytes,4,opt,name=status"`
+	// Status contains the AppSet's perceived status of the managed Application resource
+	Status ProgressiveSyncStatusCode `json:"status" protobuf:"bytes,4,opt,name=status"`
 	// Step tracks which step this Application should be updated in
 	Step string `json:"step" protobuf:"bytes,5,opt,name=step"`
 	// TargetRevision tracks the desired revisions the Application should be synced to.
@@ -917,50 +938,69 @@ func (a *ApplicationSet) RefreshRequired() bool {
 // If the applicationset has a pre-existing condition of a type that is not in the evaluated list,
 // it will be preserved. If the applicationset has a pre-existing condition of a type, status, reason that
 // is in the evaluated list, but not in the incoming conditions list, it will be removed.
-func (status *ApplicationSetStatus) SetConditions(conditions []ApplicationSetCondition, _ map[ApplicationSetConditionType]bool) {
-	applicationSetConditions := make([]ApplicationSetCondition, 0)
+func (status *ApplicationSetStatus) SetConditions(conditions []ApplicationSetCondition, evaluatedTypes map[ApplicationSetConditionType]bool) {
+	newConditions := make([]ApplicationSetCondition, 0)
 	now := metav1.Now()
+	// Keep the existing conditions when they are not evaluated
+	for i := range status.Conditions {
+		currentCondition := status.Conditions[i]
+		if isEvaluated, ok := evaluatedTypes[currentCondition.Type]; !ok || !isEvaluated {
+			if currentCondition.LastTransitionTime == nil {
+				currentCondition.LastTransitionTime = &now
+			}
+			newConditions = append(newConditions, currentCondition)
+		}
+	}
+
+	// Update the evaluated conditions
 	for i := range conditions {
 		condition := conditions[i]
+		if isEvaluated, ok := evaluatedTypes[condition.Type]; !ok || !isEvaluated {
+			// ignore an new condition when it is not evaluated
+			continue
+		}
+
 		if condition.LastTransitionTime == nil {
 			condition.LastTransitionTime = &now
 		}
-		eci := findConditionIndex(status.Conditions, condition.Type)
+		eci := condition.Type.findConditionIndex(status.Conditions)
 		if eci >= 0 && status.Conditions[eci].Message == condition.Message && status.Conditions[eci].Reason == condition.Reason && status.Conditions[eci].Status == condition.Status {
-			// If we already have a condition of this type, status and reason, only update the timestamp if something
-			// has changed.
-			applicationSetConditions = append(applicationSetConditions, status.Conditions[eci])
+			// If we already have a condition of this type and nothing has changed, do not update it
+			newConditions = append(newConditions, status.Conditions[eci])
 		} else {
-			// Otherwise we use the new incoming condition with an updated timestamp:
-			applicationSetConditions = append(applicationSetConditions, condition)
+			// Otherwise we use the new incoming condition with updated information
+			newConditions = append(newConditions, condition)
 		}
 	}
-	sort.Slice(applicationSetConditions, func(i, j int) bool {
-		left := applicationSetConditions[i]
-		right := applicationSetConditions[j]
-		return fmt.Sprintf("%s/%s/%s/%s/%v", left.Type, left.Message, left.Status, left.Reason, left.LastTransitionTime) < fmt.Sprintf("%s/%s/%s/%s/%v", right.Type, right.Message, right.Status, right.Reason, right.LastTransitionTime)
+
+	sort.Slice(newConditions, func(i, j int) bool {
+		left := newConditions[i]
+		right := newConditions[j]
+
+		if left.Type != right.Type {
+			return left.Type < right.Type
+		}
+		if left.Status != right.Status {
+			return left.Status < right.Status
+		}
+		if left.Reason != right.Reason {
+			return left.Reason < right.Reason
+		}
+		if left.Message != right.Message {
+			return left.Message < right.Message
+		}
+		return left.LastTransitionTime.Before(right.LastTransitionTime)
 	})
-	status.Conditions = applicationSetConditions
+	status.Conditions = newConditions
 }
 
-func findConditionIndex(conditions []ApplicationSetCondition, t ApplicationSetConditionType) int {
+func (t ApplicationSetConditionType) findConditionIndex(conditions []ApplicationSetCondition) int {
 	for i := range conditions {
 		if conditions[i].Type == t {
 			return i
 		}
 	}
 	return -1
-}
-
-func (status *ApplicationSetStatus) SetApplicationStatus(newStatus ApplicationSetApplicationStatus) {
-	for i := range status.ApplicationStatus {
-		appStatus := status.ApplicationStatus[i]
-		if appStatus.Application == newStatus.Application {
-			status.ApplicationStatus[i] = newStatus
-			return
-		}
-	}
-	status.ApplicationStatus = append(status.ApplicationStatus, newStatus)
 }
 
 // QualifiedName returns the full qualified name of the applicationset, including

@@ -32,10 +32,13 @@ func OperationPhaseIs(expected common.OperationPhase) Expectation {
 	return func(c *Consequences) (state, string) {
 		operationState := c.app().Status.OperationState
 		actual := common.OperationRunning
+		msg := ""
 		if operationState != nil {
 			actual = operationState.Phase
+			msg = operationState.Message
 		}
-		return simple(actual == expected, fmt.Sprintf("operation phase should be %s, is %s", expected, actual))
+		message := fmt.Sprintf("operation phase should be %s, is %s, message: '%s'", expected, actual, msg)
+		return simple(actual == expected, message)
 	}
 }
 
@@ -50,6 +53,15 @@ func OperationMessageContains(text string) Expectation {
 	}
 }
 
+func OperationRetriedMinimumTimes(minRetries int64) Expectation {
+	return func(c *Consequences) (state, string) {
+		operationState := c.app().Status.OperationState
+		actual := operationState.RetryCount
+		message := fmt.Sprintf("operation state retry cound should be at least %d, is %d, message: '%s'", minRetries, actual, operationState.Message)
+		return simple(actual >= minRetries, message)
+	}
+}
+
 func simple(success bool, message string) (state, string) {
 	if success {
 		return succeeded, message
@@ -61,6 +73,13 @@ func SyncStatusIs(expected v1alpha1.SyncStatusCode) Expectation {
 	return func(c *Consequences) (state, string) {
 		actual := c.app().Status.Sync.Status
 		return simple(actual == expected, fmt.Sprintf("sync status to be %s, is %s", expected, actual))
+	}
+}
+
+func HydrationPhaseIs(expected v1alpha1.HydrateOperationPhase) Expectation {
+	return func(c *Consequences) (state, string) {
+		actual := c.app().Status.SourceHydrator.CurrentOperation.Phase
+		return simple(actual == expected, fmt.Sprintf("hydration phase to be %s, is %s", expected, actual))
 	}
 }
 
@@ -104,6 +123,16 @@ func StatusExists() Expectation {
 			return succeeded, message
 		}
 		return pending, message
+	}
+}
+
+func Status(f func(v1alpha1.ApplicationStatus) (bool, string)) Expectation {
+	return func(c *Consequences) (state, string) {
+		ok, msg := f(c.app().Status)
+		if !ok {
+			return pending, msg
+		}
+		return succeeded, msg
 	}
 }
 
@@ -340,7 +369,7 @@ func Success(message string, matchers ...func(string, string) bool) Expectation 
 	}
 	return func(c *Consequences) (state, string) {
 		if c.actions.lastError != nil {
-			return failed, "error"
+			return failed, fmt.Errorf("error: %w", c.actions.lastError).Error()
 		}
 		if !match(c.actions.lastOutput, message) {
 			return failed, fmt.Sprintf("output did not contain '%s'", message)

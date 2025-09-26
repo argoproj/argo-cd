@@ -449,7 +449,7 @@ func validateRepo(ctx context.Context,
 		sources = []argoappv1.ApplicationSource{app.Spec.SourceHydrator.GetDrySource()}
 	}
 
-	refSources, err := GetRefSources(ctx, sources, app.Spec.Project, db.GetRepository, []string{}, false)
+	refSources, err := GetRefSources(ctx, sources, app.Spec.Project, db.GetRepository, []string{})
 	if err != nil {
 		return nil, fmt.Errorf("error getting ref sources: %w", err)
 	}
@@ -478,7 +478,7 @@ func validateRepo(ctx context.Context,
 // GetRefSources creates a map of ref keys (from the sources' 'ref' fields) to information about the referenced source.
 // This function also validates the references use allowed characters and does not define the same ref key more than
 // once (which would lead to ambiguous references).
-func GetRefSources(ctx context.Context, sources argoappv1.ApplicationSources, project string, getRepository func(ctx context.Context, url string, project string) (*argoappv1.Repository, error), revisions []string, isRollback bool) (argoappv1.RefTargetRevisionMapping, error) {
+func GetRefSources(ctx context.Context, sources argoappv1.ApplicationSources, project string, getRepository func(ctx context.Context, url string, project string) (*argoappv1.Repository, error), revisions []string) (argoappv1.RefTargetRevisionMapping, error) {
 	refSources := make(argoappv1.RefTargetRevisionMapping)
 	if len(sources) > 1 {
 		// Validate first to avoid unnecessary DB calls.
@@ -502,13 +502,14 @@ func GetRefSources(ctx context.Context, sources argoappv1.ApplicationSources, pr
 			if source.Ref == "" {
 				continue
 			}
+
 			repo, err := getRepository(ctx, source.RepoURL, project)
 			if err != nil {
 				return nil, fmt.Errorf("failed to get repository %s: %w", source.RepoURL, err)
 			}
 			refKey := "$" + source.Ref
 			revision := source.TargetRevision
-			if isRollback {
+			if len(revisions) > i && revisions[i] != "" {
 				revision = revisions[i]
 			}
 			refSources[refKey] = &argoappv1.RefTarget{
@@ -588,7 +589,7 @@ func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, p
 		if !proj.IsSourcePermitted(spec.SourceHydrator.GetDrySource()) {
 			conditions = append(conditions, argoappv1.ApplicationCondition{
 				Type:    argoappv1.ApplicationConditionInvalidSpecError,
-				Message: fmt.Sprintf("application repo %s is not permitted in project '%s'", spec.GetSource().RepoURL, spec.Project),
+				Message: fmt.Sprintf("application repo %s is not permitted in project '%s'", spec.SourceHydrator.GetDrySource().RepoURL, proj.Name),
 			})
 		}
 	case spec.HasMultipleSources():
@@ -602,7 +603,7 @@ func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, p
 			if !proj.IsSourcePermitted(source) {
 				conditions = append(conditions, argoappv1.ApplicationCondition{
 					Type:    argoappv1.ApplicationConditionInvalidSpecError,
-					Message: fmt.Sprintf("application repo %s is not permitted in project '%s'", source.RepoURL, spec.Project),
+					Message: fmt.Sprintf("application repo %s is not permitted in project '%s'", source.RepoURL, proj.Name),
 				})
 			}
 		}
@@ -615,7 +616,7 @@ func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, p
 		if !proj.IsSourcePermitted(spec.GetSource()) {
 			conditions = append(conditions, argoappv1.ApplicationCondition{
 				Type:    argoappv1.ApplicationConditionInvalidSpecError,
-				Message: fmt.Sprintf("application repo %s is not permitted in project '%s'", spec.GetSource().RepoURL, spec.Project),
+				Message: fmt.Sprintf("application repo %s is not permitted in project '%s'", spec.GetSource().RepoURL, proj.Name),
 			})
 		}
 	}
@@ -628,22 +629,21 @@ func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, p
 		})
 		return conditions, nil
 	}
-
-	if destCluster.Server != "" {
-		permitted, err := proj.IsDestinationPermitted(destCluster, spec.Destination.Namespace, func(project string) ([]*argoappv1.Cluster, error) {
-			return db.GetProjectClusters(ctx, project)
+	permitted, err := proj.IsDestinationPermitted(destCluster, spec.Destination.Namespace, func(project string) ([]*argoappv1.Cluster, error) {
+		return db.GetProjectClusters(ctx, project)
+	})
+	if err != nil {
+		return nil, err
+	}
+	if !permitted {
+		server := destCluster.Server
+		if spec.Destination.Name != "" {
+			server = destCluster.Name
+		}
+		conditions = append(conditions, argoappv1.ApplicationCondition{
+			Type:    argoappv1.ApplicationConditionInvalidSpecError,
+			Message: fmt.Sprintf("application destination server '%s' and namespace '%s' do not match any of the allowed destinations in project '%s'", server, spec.Destination.Namespace, proj.Name),
 		})
-		if err != nil {
-			return nil, err
-		}
-		if !permitted {
-			conditions = append(conditions, argoappv1.ApplicationCondition{
-				Type:    argoappv1.ApplicationConditionInvalidSpecError,
-				Message: fmt.Sprintf("application destination server '%s' and namespace '%s' do not match any of the allowed destinations in project '%s'", spec.Destination.Server, spec.Destination.Namespace, spec.Project),
-			})
-		}
-	} else if destCluster.Server == "" {
-		conditions = append(conditions, argoappv1.ApplicationCondition{Type: argoappv1.ApplicationConditionInvalidSpecError, Message: ErrDestinationMissing})
 	}
 	return conditions, nil
 }
@@ -729,7 +729,7 @@ func GetAppProject(ctx context.Context, app *argoappv1.Application, projLister a
 		return nil, err
 	}
 	if !proj.IsAppNamespacePermitted(app, ns) {
-		return nil, argoappv1.NewErrApplicationNotAllowedToUseProject(app.Name, app.Namespace, proj.Name)
+		return nil, NewErrApplicationNotAllowedToUseProject(app.Name, app.Namespace, proj.Name)
 	}
 	return proj, nil
 }
@@ -770,14 +770,6 @@ func verifyGenerateManifests(
 			conditions = append(conditions, argoappv1.ApplicationCondition{
 				Type:    argoappv1.ApplicationConditionInvalidSpecError,
 				Message: fmt.Sprintf("Unable to get repository: %v", err),
-			})
-			continue
-		}
-		kustomizeOptions, err := kustomizeSettings.GetOptions(source)
-		if err != nil {
-			conditions = append(conditions, argoappv1.ApplicationCondition{
-				Type:    argoappv1.ApplicationConditionInvalidSpecError,
-				Message: fmt.Sprintf("Error getting Kustomize options: %v", err),
 			})
 			continue
 		}
@@ -840,7 +832,7 @@ func verifyGenerateManifests(
 			Namespace:                       app.Spec.Destination.Namespace,
 			ApplicationSource:               &source,
 			AppLabelKey:                     appLabelKey,
-			KustomizeOptions:                kustomizeOptions,
+			KustomizeOptions:                kustomizeSettings,
 			KubeVersion:                     kubeVersion,
 			ApiVersions:                     apiVersions,
 			HelmOptions:                     helmOptions,
@@ -1160,7 +1152,7 @@ func parseName(qualifiedName string, defaultNs string, delim string) (name strin
 		namespace = defaultNs
 		name = t[0]
 	}
-	return
+	return name, namespace
 }
 
 // ParseAppNamespacedName parses a namespaced name in the format namespace/name

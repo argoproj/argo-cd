@@ -12,8 +12,8 @@ metadata:
 
 ![compare option needs pruning](../assets/compare-option-ignore-needs-pruning.png)
 
-!!! note
-    This only affects the sync status. If the resource's health is degraded, then the app will also be degraded.
+> [!NOTE]
+> This only affects the sync status. If the resource's health is degraded, then the app will also be degraded.
 
 Kustomize has a feature that allows you to generate config maps ([read more ⧉](https://github.com/kubernetes-sigs/kustomize/blob/master/examples/configGeneration.md)). You can set `generatorOptions` to add this annotation so that your app remains in sync:
 
@@ -28,7 +28,7 @@ generatorOptions:
 kind: Kustomization
 ``` 
  
-!!! note
-    `generatorOptions` adds annotations to both config maps and secrets ([read more ⧉](https://github.com/kubernetes-sigs/kustomize/blob/master/examples/generatorOptions.md)).
-    
+> [!NOTE]
+> `generatorOptions` adds annotations to both config maps and secrets ([read more ⧉](https://github.com/kubernetes-sigs/kustomize/blob/master/examples/generatorOptions.md)).
+> 
 You may wish to combine this with the [`Prune=false` sync option](sync-options.md).

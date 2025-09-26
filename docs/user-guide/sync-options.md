@@ -185,9 +185,9 @@ spec:
 
 If the `Replace=true` sync option is set, Argo CD will use `kubectl replace` or `kubectl create` command to apply changes.
 
-!!! warning
-      During the sync process, the resources will be synchronized using the 'kubectl replace/create' command.
-      This sync option has the potential to be destructive and might lead to resources having to be recreated, which could cause an outage for your application.
+> [!WARNING]
+> During the sync process, the resources will be synchronized using the 'kubectl replace/create' command.
+> This sync option has the potential to be destructive and might lead to resources having to be recreated, which could cause an outage for your application.
 
 This can also be configured at individual resource level.
 ```yaml
@@ -200,9 +200,9 @@ metadata:
 
 For certain resources you might want to delete and recreate, e.g. job resources that should run every time when syncing.
 
-!!! warning
-      During the sync process, the resources will be synchronized using the 'kubectl delete/create' command.
-      This sync option has a destructive action, which could cause an outage for your application.
+> [!WARNING]
+> During the sync process, the resources will be synchronized using the 'kubectl delete/create' command.
+> This sync option has a destructive action, which could cause an outage for your application.
 
 In such cases you might use `Force=true` sync option in target resources annotation:
 ```yaml
@@ -325,9 +325,9 @@ This is useful when you have other operators managing resources that are no long
 When client-side apply migration is enabled:
 1. Argo CD will use the specified field manager (or default if not specified) to perform migration
 2. During a server-side apply sync operation, it will:
-   - Perfirm a client-side-apply with the specified field manager
-   - Move the 'last-appled-configuration' annotation to be managed by the specified manager
-   - Perform the server-side apply, which will auto migrate all the fields under the manager that owns the 'last-applied-configration' annotation.
+   - Perform a client-side-apply with the specified field manager
+   - Move the 'last-applied-configuration' annotation to be managed by the specified manager
+   - Perform the server-side apply, which will auto migrate all the fields under the manager that owns the 'last-applied-configuration' annotation.
 
 This feature is based on Kubernetes' [client-side apply migration KEP](https://github.com/alexzielenski/enhancements/blob/03df8820b9feca6d2cab78e303c99b2c9c0c4c5c/keps/sig-cli/3517-kubectl-client-side-apply-migration/README.md), which provides the auto migration from client-side to server-side apply.
 

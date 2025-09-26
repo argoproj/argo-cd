@@ -802,12 +802,7 @@ func Test_nativeGitClient_CheckoutOrNew(t *testing.T) {
 	})
 }
 
-func Test_nativeGitClient_RemoveContents(t *testing.T) {
-	// Example status
-	// 2 files :
-	//   * <RepoRoot>/README.md
-	//   * <RepoRoot>/scripts/startup.sh
-
+func Test_nativeGitClient_RemoveContents_SpecificPath(t *testing.T) {
 	// given
 	tempDir, err := _createEmptyGitRepo()
 	require.NoError(t, err)
@@ -818,32 +813,37 @@ func Test_nativeGitClient_RemoveContents(t *testing.T) {
 	err = client.Init()
 	require.NoError(t, err)
 
-	out, err := client.SetAuthor("test", "test@example.com")
-	require.NoError(t, err, "error output: ", out)
+	_, err = client.SetAuthor("test", "test@example.com")
+	require.NoError(t, err)
 
 	err = runCmd(client.Root(), "touch", "README.md")
 	require.NoError(t, err)
 
 	err = runCmd(client.Root(), "mkdir", "scripts")
 	require.NoError(t, err)
-
 	err = runCmd(client.Root(), "touch", "scripts/startup.sh")
 	require.NoError(t, err)
 
 	err = runCmd(client.Root(), "git", "add", "--all")
 	require.NoError(t, err)
-
 	err = runCmd(client.Root(), "git", "commit", "-m", "Make files")
 	require.NoError(t, err)
 
-	// when
-	out, err = client.RemoveContents()
-	require.NoError(t, err, "error output: ", out)
-
-	// then
-	ls, err := outputCmd(client.Root(), "ls", "-l")
+	// when: remove only "scripts" directory
+	_, err = client.RemoveContents([]string{"scripts"})
 	require.NoError(t, err)
-	require.Equal(t, "total 0", strings.TrimSpace(string(ls)))
+
+	// then: "scripts" should be gone, "README.md" should still exist
+	_, err = os.Stat(filepath.Join(client.Root(), "README.md"))
+	require.NoError(t, err, "README.md should not be removed")
+
+	_, err = os.Stat(filepath.Join(client.Root(), "scripts"))
+	require.Error(t, err, "scripts directory should be removed")
+
+	// and: listing should only show README.md
+	ls, err := outputCmd(client.Root(), "ls")
+	require.NoError(t, err)
+	require.Equal(t, "README.md", strings.TrimSpace(string(ls)))
 }
 
 func Test_nativeGitClient_CommitAndPush(t *testing.T) {
@@ -1103,20 +1103,22 @@ func (m *mockCreds) GetUserInfo(_ context.Context) (string, string, error) {
 	return "", "", nil
 }
 
-func Test_getReferences(t *testing.T) {
+func Test_GetReferences(t *testing.T) {
 	t.Parallel()
 
 	now := time.Now()
 
 	tests := []struct {
-		name     string
-		input    string
-		expected []RevisionReference
+		name               string
+		input              string
+		expectedReferences []RevisionReference
+		expectedMessage    string
 	}{
 		{
-			name:     "No trailers",
-			input:    "This is a commit message without trailers.",
-			expected: nil,
+			name:               "No trailers",
+			input:              "This is a commit message without trailers.",
+			expectedReferences: nil,
+			expectedMessage:    "This is a commit message without trailers.\n",
 		},
 		{
 			name: "Invalid trailers",
@@ -1126,25 +1128,36 @@ Argocd-reference-commit-sha: xyz123
 Argocd-reference-commit-body: this isn't json
 Argocd-reference-commit-author: % not email %
 Argocd-reference-commit-bogus:`,
-			expected: nil,
+			expectedReferences: nil,
+			expectedMessage: `Argocd-reference-commit-repourl: % invalid %
+Argocd-reference-commit-date: invalid-date
+Argocd-reference-commit-sha: xyz123
+Argocd-reference-commit-body: this isn't json
+Argocd-reference-commit-author: % not email %
+Argocd-reference-commit-bogus:
+`,
 		},
 		{
-			name:     "Unknown trailers",
-			input:    "Argocd-reference-commit-unknown: foobar",
-			expected: nil,
+			name:               "Unknown trailers",
+			input:              "Argocd-reference-commit-unknown: foobar",
+			expectedReferences: nil,
+			expectedMessage:    "Argocd-reference-commit-unknown: foobar\n",
 		},
 		{
 			name: "Some valid and Invalid trailers",
 			input: `Argocd-reference-commit-sha: abc123
 Argocd-reference-commit-repourl: % invalid %
 Argocd-reference-commit-date: invalid-date`,
-			expected: []RevisionReference{
+			expectedReferences: []RevisionReference{
 				{
 					Commit: &CommitMetadata{
 						SHA: "abc123",
 					},
 				},
 			},
+			expectedMessage: `Argocd-reference-commit-repourl: % invalid %
+Argocd-reference-commit-date: invalid-date
+`,
 		},
 		{
 			name: "Valid trailers",
@@ -1154,7 +1167,7 @@ Argocd-reference-commit-date: %s
 Argocd-reference-commit-subject: Fix bug
 Argocd-reference-commit-body: "Fix bug\n\nSome: trailer"
 Argocd-reference-commit-sha: abc123`, now.Format(time.RFC3339)),
-			expected: []RevisionReference{
+			expectedReferences: []RevisionReference{
 				{
 					Commit: &CommitMetadata{
 						Author: mail.Address{
@@ -1169,18 +1182,20 @@ Argocd-reference-commit-sha: abc123`, now.Format(time.RFC3339)),
 					},
 				},
 			},
+			expectedMessage: "",
 		},
 		{
 			name: "Duplicate trailers",
 			input: `Argocd-reference-commit-repourl: https://github.com/org/repo.git
 Argocd-reference-commit-repourl: https://github.com/another/repo.git`,
-			expected: []RevisionReference{
+			expectedReferences: []RevisionReference{
 				{
 					Commit: &CommitMetadata{
 						RepoURL: "https://github.com/another/repo.git",
 					},
 				},
 			},
+			expectedMessage: "",
 		},
 	}
 
@@ -1189,8 +1204,9 @@ Argocd-reference-commit-repourl: https://github.com/another/repo.git`,
 			t.Parallel()
 
 			logCtx := log.WithFields(log.Fields{})
-			result := getReferences(logCtx, tt.input)
-			assert.Equal(t, tt.expected, result)
+			result, message := GetReferences(logCtx, tt.input)
+			assert.Equal(t, tt.expectedReferences, result)
+			assert.Equal(t, tt.expectedMessage, message)
 		})
 	}
 }

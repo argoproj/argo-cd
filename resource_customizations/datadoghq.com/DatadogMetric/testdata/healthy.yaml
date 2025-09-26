@@ -1,0 +1,25 @@
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogMetric
+metadata:
+  name: foo-bar-metric
+  namespace: foo-namespace
+status:
+  autoscalerReferences:
+    - hpa:foo-namespace/foo-bar-hpa
+  conditions:
+    - lastTransitionTime: "2025-04-23T18:40:58Z"
+      lastUpdateTime: "2025-06-17T20:45:05Z"
+      status: "True"
+      type: Active
+    - lastTransitionTime: "2025-06-16T14:07:12Z"
+      lastUpdateTime: "2025-06-17T20:45:05Z"
+      status: "True"
+      type: Valid
+    - lastUpdateTime: "2025-06-17T20:44:30Z"
+      status: "True"
+      type: Updated
+    - lastTransitionTime: "2025-06-16T14:07:12Z"
+      lastUpdateTime: "2025-06-17T20:45:05Z"
+      status: "False"
+      type: Error
+  currentValue: 0

@@ -122,7 +122,7 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 			expectedError: errors.New("cannot extract contents of oci image with revision sha256:1b6dfd71e2b35c2f35dffc39007c2276f3c0e235cbae4c39cba74bd406174e22: failed to perform \"Push\" on destination: could not decompress layer: error while iterating on tar reader: unexpected EOF"),
 		},
 		{
-			name: "extraction fails due to multiple layers",
+			name: "extraction fails due to multiple content layers",
 			fields: fields{
 				allowedMediaTypes: []string{imagev1.MediaTypeImageLayerGzip},
 			},
@@ -135,7 +135,21 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 				manifestMaxExtractedSize:        1000,
 				disableManifestMaxExtractedSize: false,
 			},
-			expectedError: errors.New("expected only a single oci layer, got 2"),
+			expectedError: errors.New("expected only a single oci content layer, got 2"),
+		},
+		{
+			name: "extraction with multiple layers, but just a single content layer",
+			fields: fields{
+				allowedMediaTypes: []string{imagev1.MediaTypeImageLayerGzip},
+			},
+			args: args{
+				digestFunc: func(store *memory.Store) string {
+					layerBlob := createGzippedTarWithContent(t, "some-path", "some content")
+					return generateManifest(t, store, layerConf{content.NewDescriptorFromBytes(imagev1.MediaTypeImageLayerGzip, layerBlob), layerBlob}, layerConf{content.NewDescriptorFromBytes("application/vnd.cncf.helm.chart.provenance.v1.prov", []byte{}), []byte{}})
+				},
+				manifestMaxExtractedSize:        1000,
+				disableManifestMaxExtractedSize: false,
+			},
 		},
 		{
 			name: "extraction fails due to invalid media type",
@@ -374,7 +388,7 @@ func Test_nativeOCIClient_ResolveRevision(t *testing.T) {
 			fields: fields{repo: store, tagsFunc: func(context.Context, string) (tags []string, err error) {
 				return []string{"1.0.0", "1.1.0", "1.2.0", "2.0.0"}, nil
 			}},
-			expectedError: errors.New("no version for constraints: failed to determine semver constraint: improper constraint: sha256:abc123"),
+			expectedError: errors.New("cannot get digest for revision sha256:abc123: sha256:abc123: not found"),
 		},
 		{
 			name:     "resolve latest tag",

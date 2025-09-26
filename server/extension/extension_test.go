@@ -28,7 +28,7 @@ import (
 func TestValidateHeaders(t *testing.T) {
 	t.Run("will build RequestResources successfully", func(t *testing.T) {
 		// given
-		r, err := http.NewRequest(http.MethodGet, "http://null", nil)
+		r, err := http.NewRequest(http.MethodGet, "http://null", http.NoBody)
 		require.NoError(t, err, "error initializing request")
 		r.Header.Add(extension.HeaderArgoCDApplicationName, "namespace:app-name")
 		r.Header.Add(extension.HeaderArgoCDProjectName, "project-name")
@@ -45,7 +45,7 @@ func TestValidateHeaders(t *testing.T) {
 	})
 	t.Run("will return error if application is malformatted", func(t *testing.T) {
 		// given
-		r, err := http.NewRequest(http.MethodGet, "http://null", nil)
+		r, err := http.NewRequest(http.MethodGet, "http://null", http.NoBody)
 		require.NoError(t, err, "error initializing request")
 		r.Header.Add(extension.HeaderArgoCDApplicationName, "no-namespace")
 
@@ -58,7 +58,7 @@ func TestValidateHeaders(t *testing.T) {
 	})
 	t.Run("will return error if application header is missing", func(t *testing.T) {
 		// given
-		r, err := http.NewRequest(http.MethodGet, "http://null", nil)
+		r, err := http.NewRequest(http.MethodGet, "http://null", http.NoBody)
 		require.NoError(t, err, "error initializing request")
 		r.Header.Add(extension.HeaderArgoCDProjectName, "project-name")
 
@@ -71,7 +71,7 @@ func TestValidateHeaders(t *testing.T) {
 	})
 	t.Run("will return error if project header is missing", func(t *testing.T) {
 		// given
-		r, err := http.NewRequest(http.MethodGet, "http://null", nil)
+		r, err := http.NewRequest(http.MethodGet, "http://null", http.NoBody)
 		require.NoError(t, err, "error initializing request")
 		r.Header.Add(extension.HeaderArgoCDApplicationName, "namespace:app-name")
 
@@ -84,7 +84,7 @@ func TestValidateHeaders(t *testing.T) {
 	})
 	t.Run("will return error if invalid namespace", func(t *testing.T) {
 		// given
-		r, err := http.NewRequest(http.MethodGet, "http://null", nil)
+		r, err := http.NewRequest(http.MethodGet, "http://null", http.NoBody)
 		require.NoError(t, err, "error initializing request")
 		r.Header.Add(extension.HeaderArgoCDApplicationName, "bad%namespace:app-name")
 		r.Header.Add(extension.HeaderArgoCDProjectName, "project-name")
@@ -98,7 +98,7 @@ func TestValidateHeaders(t *testing.T) {
 	})
 	t.Run("will return error if invalid app name", func(t *testing.T) {
 		// given
-		r, err := http.NewRequest(http.MethodGet, "http://null", nil)
+		r, err := http.NewRequest(http.MethodGet, "http://null", http.NoBody)
 		require.NoError(t, err, "error initializing request")
 		r.Header.Add(extension.HeaderArgoCDApplicationName, "namespace:bad@app")
 		r.Header.Add(extension.HeaderArgoCDProjectName, "project-name")
@@ -112,7 +112,7 @@ func TestValidateHeaders(t *testing.T) {
 	})
 	t.Run("will return error if invalid project name", func(t *testing.T) {
 		// given
-		r, err := http.NewRequest(http.MethodGet, "http://null", nil)
+		r, err := http.NewRequest(http.MethodGet, "http://null", http.NoBody)
 		require.NoError(t, err, "error initializing request")
 		r.Header.Add(extension.HeaderArgoCDApplicationName, "namespace:app")
 		r.Header.Add(extension.HeaderArgoCDProjectName, "bad^project")
@@ -352,8 +352,9 @@ func TestCallExtension(t *testing.T) {
 		f.rbacMock.On("EnforceErr", mock.Anything, rbac.ResourceExtensions, rbac.ActionInvoke, mock.Anything).Return(extAccessError)
 	}
 
-	withUser := func(f *fixture, username string, groups []string) {
-		f.userMock.On("GetUser", mock.Anything).Return(username)
+	withUser := func(f *fixture, userId string, username string, groups []string) {
+		f.userMock.On("GetUserId", mock.Anything).Return(userId)
+		f.userMock.On("GetUsername", mock.Anything).Return(username)
 		f.userMock.On("GetGroups", mock.Anything).Return(groups)
 	}
 
@@ -389,7 +390,7 @@ func TestCallExtension(t *testing.T) {
 	}
 	newExtensionRequest := func(t *testing.T, method, url string) *http.Request {
 		t.Helper()
-		r, err := http.NewRequest(method, url, nil)
+		r, err := http.NewRequest(method, url, http.NoBody)
 		require.NoError(t, err, "error initializing request")
 		r.Header.Add(extension.HeaderArgoCDApplicationName, "namespace:app-name")
 		r.Header.Add(extension.HeaderArgoCDProjectName, defaultProjectName)
@@ -411,7 +412,7 @@ func TestCallExtension(t *testing.T) {
 		}))
 		defer backendSrv.Close()
 		withRbac(f, true, true)
-		withUser(f, "some-user", []string{"group1", "group2"})
+		withUser(f, "some-user-id", "some-user", []string{"group1", "group2"})
 		withExtensionConfig(getExtensionConfig(backendEndpoint, backendSrv.URL), f)
 		ts := startTestServer(t, f)
 		defer ts.Close()
@@ -448,6 +449,7 @@ func TestCallExtension(t *testing.T) {
 		assert.Equal(t, clusterURL, resp.Header.Get(extension.HeaderArgoCDTargetClusterURL))
 		assert.Equal(t, "Bearer some-bearer-token", resp.Header.Get("Authorization"))
 		assert.Equal(t, "some-user", resp.Header.Get(extension.HeaderArgoCDUsername))
+		assert.Equal(t, "some-user-id", resp.Header.Get(extension.HeaderArgoCDUserId))
 		assert.Equal(t, "group1,group2", resp.Header.Get(extension.HeaderArgoCDGroups))
 
 		// waitgroup is necessary to make sure assertions aren't executed before
@@ -464,7 +466,7 @@ func TestCallExtension(t *testing.T) {
 		withExtensionConfig(getExtensionConfigString(), f)
 		withRbac(f, true, true)
 		withMetrics(f)
-		withUser(f, "some-user", []string{"group1", "group2"})
+		withUser(f, "some-user-id", "some-user", []string{"group1", "group2"})
 		cluster1Name := "cluster1"
 		f.appGetterMock.On("Get", "namespace", "app-name").Return(getApp(cluster1Name, "", defaultProjectName), nil)
 		withProject(getProjectWithDestinations("project-name", []string{cluster1Name}, []string{"some-url"}), f)
@@ -507,7 +509,7 @@ func TestCallExtension(t *testing.T) {
 		withExtensionConfig(getExtensionConfigWith2Backends(extName, beSrv1.URL, cluster1Name, cluster1URL, beSrv2.URL, cluster2Name, cluster2URL), f)
 		withProject(getProjectWithDestinations("project-name", []string{cluster1Name}, []string{cluster2URL}), f)
 		withMetrics(f)
-		withUser(f, "some-user", []string{"group1", "group2"})
+		withUser(f, "some-user-id", "some-user", []string{"group1", "group2"})
 
 		ts := startTestServer(t, f)
 		defer ts.Close()
@@ -554,7 +556,7 @@ func TestCallExtension(t *testing.T) {
 		withRbac(f, allowApp, allowExtension)
 		withExtensionConfig(getExtensionConfig(extName, "http://fake"), f)
 		withMetrics(f)
-		withUser(f, "some-user", []string{"group1", "group2"})
+		withUser(f, "some-user-id", "some-user", []string{"group1", "group2"})
 		ts := startTestServer(t, f)
 		defer ts.Close()
 		r := newExtensionRequest(t, "Get", fmt.Sprintf("%s/extensions/%s/", ts.URL, extName))
@@ -578,7 +580,7 @@ func TestCallExtension(t *testing.T) {
 		withRbac(f, allowApp, allowExtension)
 		withExtensionConfig(getExtensionConfig(extName, "http://fake"), f)
 		withMetrics(f)
-		withUser(f, "some-user", []string{"group1", "group2"})
+		withUser(f, "some-user-id", "some-user", []string{"group1", "group2"})
 		ts := startTestServer(t, f)
 		defer ts.Close()
 		r := newExtensionRequest(t, "Get", fmt.Sprintf("%s/extensions/%s/", ts.URL, extName))
@@ -603,7 +605,7 @@ func TestCallExtension(t *testing.T) {
 		withRbac(f, allowApp, allowExtension)
 		withExtensionConfig(getExtensionConfig(extName, "http://fake"), f)
 		withMetrics(f)
-		withUser(f, "some-user", []string{"group1", "group2"})
+		withUser(f, "some-user-id", "some-user", []string{"group1", "group2"})
 		ts := startTestServer(t, f)
 		defer ts.Close()
 		r := newExtensionRequest(t, "Get", fmt.Sprintf("%s/extensions/%s/", ts.URL, extName))
@@ -629,7 +631,7 @@ func TestCallExtension(t *testing.T) {
 		withRbac(f, allowApp, allowExtension)
 		withExtensionConfig(getExtensionConfig(extName, "http://fake"), f)
 		withMetrics(f)
-		withUser(f, "some-user", []string{"group1", "group2"})
+		withUser(f, "some-user-id", "some-user", []string{"group1", "group2"})
 		ts := startTestServer(t, f)
 		defer ts.Close()
 		r := newExtensionRequest(t, "Get", fmt.Sprintf("%s/extensions/%s/", ts.URL, extName))
@@ -655,7 +657,7 @@ func TestCallExtension(t *testing.T) {
 		withRbac(f, allowApp, allowExtension)
 		withExtensionConfig(getExtensionConfig(extName, "http://fake"), f)
 		withMetrics(f)
-		withUser(f, "some-user", []string{"group1", "group2"})
+		withUser(f, "some-user-id", "some-user", []string{"group1", "group2"})
 		ts := startTestServer(t, f)
 		defer ts.Close()
 		r := newExtensionRequest(t, "Get", fmt.Sprintf("%s/extensions/%s/", ts.URL, extName))
@@ -687,7 +689,7 @@ func TestCallExtension(t *testing.T) {
 		withExtensionConfig(getExtensionConfigWith2Backends(extName, "url1", "cluster1Name", "cluster1URL", "url2", "cluster2Name", "cluster2URL"), f)
 		withProject(getProjectWithDestinations("project-name", nil, []string{"srv1", destinationServer}), f)
 		withMetrics(f)
-		withUser(f, "some-user", []string{"group1", "group2"})
+		withUser(f, "some-user-id", "some-user", []string{"group1", "group2"})
 
 		ts := startTestServer(t, f)
 		defer ts.Close()
@@ -721,7 +723,7 @@ func TestCallExtension(t *testing.T) {
 		withRbac(f, allowApp, allowExtension)
 		withExtensionConfig(getExtensionConfig(extName, "http://fake"), f)
 		withMetrics(f)
-		withUser(f, "some-user", []string{"group1", "group2"})
+		withUser(f, "some-user-id", "some-user", []string{"group1", "group2"})
 		ts := startTestServer(t, f)
 		defer ts.Close()
 		r := newExtensionRequest(t, "Get", ts.URL+"/extensions/")

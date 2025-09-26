@@ -15,6 +15,8 @@ import (
 	"github.com/Masterminds/semver/v3"
 	"sigs.k8s.io/yaml"
 
+	"github.com/argoproj/argo-cd/v3/util/io"
+
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -24,8 +26,6 @@ import (
 	executil "github.com/argoproj/argo-cd/v3/util/exec"
 	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/proxy"
-
-	securejoin "github.com/cyphar/filepath-securejoin"
 )
 
 // Image represents a Docker image in the format NAME[:TAG].
@@ -346,12 +346,18 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 			foundComponents := opts.Components
 			if opts.IgnoreMissingComponents {
 				foundComponents = make([]string, 0)
+				root, err := os.OpenRoot(k.repoRoot)
+				defer io.Close(root)
+				if err != nil {
+					return nil, nil, nil, fmt.Errorf("failed to open the repo folder: %w", err)
+				}
+
 				for _, c := range opts.Components {
-					resolvedPath, err := securejoin.SecureJoin(k.path, c)
+					resolvedPath, err := filepath.Rel(k.repoRoot, filepath.Join(k.path, c))
 					if err != nil {
-						return nil, nil, nil, fmt.Errorf("Kustomize components path failed: %w", err)
+						return nil, nil, nil, fmt.Errorf("kustomize components path failed: %w", err)
 					}
-					_, err = os.Stat(resolvedPath)
+					_, err = root.Stat(resolvedPath)
 					if err != nil {
 						log.Debugf("%s component directory does not exist", resolvedPath)
 						continue
@@ -359,15 +365,18 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 					foundComponents = append(foundComponents, c)
 				}
 			}
-			args := []string{"edit", "add", "component"}
-			args = append(args, foundComponents...)
-			cmd := exec.Command(k.getBinaryPath(), args...)
-			cmd.Dir = k.path
-			cmd.Env = env
-			commands = append(commands, executil.GetCommandArgsToLog(cmd))
-			_, err := executil.Run(cmd)
-			if err != nil {
-				return nil, nil, nil, err
+
+			if len(foundComponents) > 0 {
+				args := []string{"edit", "add", "component"}
+				args = append(args, foundComponents...)
+				cmd := exec.Command(k.getBinaryPath(), args...)
+				cmd.Dir = k.path
+				cmd.Env = env
+				commands = append(commands, executil.GetCommandArgsToLog(cmd))
+				_, err := executil.Run(cmd)
+				if err != nil {
+					return nil, nil, nil, err
+				}
 			}
 		}
 	}
@@ -506,9 +515,10 @@ func getImageParameters(objs []*unstructured.Unstructured) []Image {
 func getImages(object map[string]any) []Image {
 	var images []Image
 	for k, v := range object {
-		if array, ok := v.([]any); ok {
+		switch v := v.(type) {
+		case []any:
 			if k == "containers" || k == "initContainers" {
-				for _, obj := range array {
+				for _, obj := range v {
 					if mapObj, isMapObj := obj.(map[string]any); isMapObj {
 						if image, hasImage := mapObj["image"]; hasImage {
 							images = append(images, fmt.Sprintf("%s", image))
@@ -516,14 +526,14 @@ func getImages(object map[string]any) []Image {
 					}
 				}
 			} else {
-				for i := range array {
-					if mapObj, isMapObj := array[i].(map[string]any); isMapObj {
+				for i := range v {
+					if mapObj, isMapObj := v[i].(map[string]any); isMapObj {
 						images = append(images, getImages(mapObj)...)
 					}
 				}
 			}
-		} else if objMap, ok := v.(map[string]any); ok {
-			images = append(images, getImages(objMap)...)
+		case map[string]any:
+			images = append(images, getImages(v)...)
 		}
 	}
 	return images
