@@ -653,12 +653,111 @@ func TestProcessHydrationQueueItem_SuccessfulHydration(t *testing.T) {
 	assert.Equal(t, app.Status.SourceHydrator.CurrentOperation.SourceHydrator, persistedStatus.LastSuccessfulOperation.SourceHydrator)
 }
 
-// validateApplications - get project
-// validateApplications - source not permitted
-// validateApplications - root path
-// validateApplications - same destination
+func TestValidateApplications_ProjectError(t *testing.T) {
+	t.Parallel()
+	d := mocks.NewDependencies(t)
+	app := newTestApp("test-app")
+	d.On("GetProcessableAppProj", app).Return(nil, errors.New("project error")).Once()
+	h := &Hydrator{dependencies: d}
 
-// genericHydrationError - one error
-// genericHydrationError - multiple errors
+	projects, errs := h.validateApplications([]*appv1.Application{app})
+	require.Nil(t, projects)
+	require.Len(t, errs, 1)
+	require.ErrorContains(t, errs[app.QualifiedName()], "project error")
+}
+
+func TestValidateApplications_SourceNotPermitted(t *testing.T) {
+	t.Parallel()
+	d := mocks.NewDependencies(t)
+	app := newTestApp("test-app")
+	proj := newTestProject()
+	proj.Spec.SourceRepos = []string{"not-allowed"}
+	d.On("GetProcessableAppProj", app).Return(proj, nil).Once()
+	h := &Hydrator{dependencies: d}
+
+	projects, errs := h.validateApplications([]*appv1.Application{app})
+	require.Nil(t, projects)
+	require.Len(t, errs, 1)
+	require.ErrorContains(t, errs[app.QualifiedName()], "app is not permitted to use source")
+}
+
+func TestValidateApplications_RootPath(t *testing.T) {
+	t.Parallel()
+	d := mocks.NewDependencies(t)
+	app := newTestApp("test-app")
+	app.Spec.SourceHydrator.SyncSource.Path = "."
+	proj := newTestProject()
+	d.On("GetProcessableAppProj", app).Return(proj, nil).Once()
+	h := &Hydrator{dependencies: d}
+
+	projects, errs := h.validateApplications([]*appv1.Application{app})
+	require.Nil(t, projects)
+	require.Len(t, errs, 1)
+	require.ErrorContains(t, errs[app.QualifiedName()], "app is configured to hydrate to the repository root")
+}
+
+func TestValidateApplications_DuplicateDestination(t *testing.T) {
+	t.Parallel()
+	d := mocks.NewDependencies(t)
+	app1 := newTestApp("app1")
+	app2 := newTestApp("app2")
+	app2.Spec.SourceHydrator.SyncSource.Path = app1.Spec.SourceHydrator.SyncSource.Path // duplicate path
+	proj := newTestProject()
+	d.On("GetProcessableAppProj", app1).Return(proj, nil).Once()
+	d.On("GetProcessableAppProj", app2).Return(proj, nil).Once()
+	h := &Hydrator{dependencies: d}
+
+	projects, errs := h.validateApplications([]*appv1.Application{app1, app2})
+	require.Nil(t, projects)
+	require.Len(t, errs, 2)
+	require.ErrorContains(t, errs[app1.QualifiedName()], "app default/app2 hydrator use the same destination")
+	require.ErrorContains(t, errs[app2.QualifiedName()], "app default/app1 hydrator use the same destination")
+}
+
+func TestValidateApplications_Success(t *testing.T) {
+	t.Parallel()
+	d := mocks.NewDependencies(t)
+	app1 := newTestApp("app1")
+	app2 := newTestApp("app2")
+	app2.Spec.SourceHydrator.SyncSource.Path = "other-path"
+	proj := newTestProject()
+	d.On("GetProcessableAppProj", app1).Return(proj, nil).Once()
+	d.On("GetProcessableAppProj", app2).Return(proj, nil).Once()
+	h := &Hydrator{dependencies: d}
+
+	projects, errs := h.validateApplications([]*appv1.Application{app1, app2})
+	require.NotNil(t, projects)
+	require.Empty(t, errs)
+	assert.Equal(t, proj, projects[app1.Spec.Project])
+	assert.Equal(t, proj, projects[app2.Spec.Project])
+}
+
+func TestGenericHydrationError(t *testing.T) {
+	t.Run("no errors", func(t *testing.T) {
+		err := genericHydrationError(map[string]error{})
+		assert.NoError(t, err)
+	})
+
+	t.Run("single error", func(t *testing.T) {
+		errs := map[string]error{
+			"default/app1": errors.New("error1"),
+		}
+		err := genericHydrationError(errs)
+		require.Error(t, err)
+		assert.Equal(t, "cannot hydrate because application default/app1 has an error", err.Error())
+	})
+
+	t.Run("multiple errors", func(t *testing.T) {
+		errs := map[string]error{
+			"default/app1": errors.New("error1"),
+			"default/app2": errors.New("error2"),
+			"default/app3": errors.New("error3"),
+		}
+		err := genericHydrationError(errs)
+		require.Error(t, err)
+		// Sorted keys, so default/app1 is first
+		assert.Equal(t, "cannot hydrate because application default/app1 and 2 more have errors", err.Error())
+	})
+}
 
 // hydrate - ???
