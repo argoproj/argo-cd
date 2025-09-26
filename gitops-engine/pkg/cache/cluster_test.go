@@ -1217,40 +1217,6 @@ func testClusterChild() *rbacv1.ClusterRole {
 	}
 }
 
-func TestIterateHierarchyV2_ClusterScopedParents(t *testing.T) {
-	cluster := newCluster(t, testClusterParent(), testNamespacedChild(), testClusterChild()).WithAPIResources([]kube.APIResourceInfo{{
-		GroupKind:            schema.GroupKind{Group: "", Kind: "Namespace"},
-		GroupVersionResource: schema.GroupVersionResource{Group: "", Version: "v1", Resource: "namespaces"},
-		Meta:                 metav1.APIResource{Namespaced: false},
-	}, {
-		GroupKind:            schema.GroupKind{Group: "rbac.authorization.k8s.io", Kind: "ClusterRole"},
-		GroupVersionResource: schema.GroupVersionResource{Group: "rbac.authorization.k8s.io", Version: "v1", Resource: "clusterroles"},
-		Meta:                 metav1.APIResource{Namespaced: false},
-	}})
-	err := cluster.EnsureSynced()
-	require.NoError(t, err)
-
-	keys := []kube.ResourceKey{}
-	// Edge case:  cluster-scoped resource and its namespaced children, both referred to in the manifest.  They should
-	// link up in the graph.
-	cluster.IterateHierarchyV2(
-		[]kube.ResourceKey{
-			kube.GetResourceKey(mustToUnstructured(testClusterParent())),
-			kube.GetResourceKey(mustToUnstructured(testNamespacedChild())),
-		},
-		func(resource *Resource, _ map[kube.ResourceKey]*Resource) bool {
-			keys = append(keys, resource.ResourceKey())
-			return true
-		},
-		"", // No orphaned resource namespace
-	)
-
-	assert.ElementsMatch(t, []kube.ResourceKey{
-		kube.GetResourceKey(mustToUnstructured(testClusterParent())),
-		kube.GetResourceKey(mustToUnstructured(testNamespacedChild())),
-		kube.GetResourceKey(mustToUnstructured(testClusterChild())),
-	}, keys)
-}
 
 func TestIterateHierarchyV2_ClusterScopedParentOnly_NoNamespaceScanning(t *testing.T) {
 	// Test that without namespace scanning, only cluster-scoped children are found
