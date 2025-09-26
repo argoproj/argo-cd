@@ -61,6 +61,12 @@ func WithIndexCache(indexCache indexCache) ClientOpts {
 	}
 }
 
+func WithDirectPull(enableDirectPull bool) ClientOpts {
+	return func(c *nativeHelmChart) {
+		c.enableDirectPull = enableDirectPull
+	}
+}
+
 func WithChartPaths(chartPaths utilio.TempPaths) ClientOpts {
 	return func(c *nativeHelmChart) {
 		c.chartCachePaths = chartPaths
@@ -90,14 +96,15 @@ func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, enabl
 var _ Client = &nativeHelmChart{}
 
 type nativeHelmChart struct {
-	chartCachePaths utilio.TempPaths
-	repoURL         string
-	creds           Creds
-	repoLock        sync.KeyLock
-	enableOci       bool
-	indexCache      indexCache
-	proxy           string
-	noProxy         string
+	chartCachePaths  utilio.TempPaths
+	repoURL          string
+	creds            Creds
+	repoLock         sync.KeyLock
+	enableOci        bool
+	enableDirectPull bool
+	indexCache       indexCache
+	proxy            string
+	noProxy          string
 }
 
 func fileExist(filePath string) (bool, error) {
@@ -201,7 +208,7 @@ func (c *nativeHelmChart) ExtractChart(chart string, version string, passCredent
 				return "", nil, fmt.Errorf("error pulling OCI chart: %w", err)
 			}
 		} else {
-			_, err = helmCmd.Fetch(c.repoURL, chart, version, tempDest, c.creds, passCredentials)
+			_, err = helmCmd.Fetch(c.repoURL, chart, version, tempDest, c.creds, passCredentials, c.enableDirectPull)
 			if err != nil {
 				_ = os.RemoveAll(tempDir)
 				return "", nil, fmt.Errorf("error fetching chart: %w", err)

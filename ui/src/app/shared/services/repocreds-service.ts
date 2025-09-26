@@ -13,6 +13,7 @@ export interface HTTPSCreds {
     noProxy: string;
     enableOCI: boolean;
     insecureOCIForceHttp: boolean;
+    enableDirectPull: boolean;
 }
 
 export interface SSHCreds {

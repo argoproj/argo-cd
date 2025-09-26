@@ -1827,6 +1827,9 @@ message RepoCreds {
 
   // InsecureOCIForceHttp specifies whether the connection to the repository uses TLS at _all_. If true, no TLS. This flag is applicable for OCI repos only.
   optional bool insecureOCIForceHttp = 26;
+
+  // EnableDirectPull specifies whether to download a Helm chart at a predictable path, without downloading the index file
+  optional bool enableDirectPull = 27;
 }
 
 // RepositoryList is a collection of Repositories.
@@ -1916,6 +1919,9 @@ message Repository {
 
   // InsecureOCIForceHttp specifies whether the connection to the repository uses TLS at _all_. If true, no TLS. This flag is applicable for OCI repos only.
   optional bool insecureOCIForceHttp = 26;
+
+  // EnableDirectPull specifies whether to download a Helm chart at a predictable path, without downloading the index file
+  optional bool enableDirectPull = 27;
 }
 
 // A RepositoryCertificate is either SSH known hosts entry or TLS certificate

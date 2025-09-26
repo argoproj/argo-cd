@@ -62,6 +62,7 @@ argocd repo add REPOURL [flags]
 
 ```
       --bearer-token string                     bearer token to the Git BitBucket Data Center repository
+      --enable-direct-pull                      Allows to download a Helm chart without downloading the index file
       --enable-lfs                              enable git-lfs (Large File Support) on this repository
       --enable-oci                              enable helm-oci (Helm OCI-Based Repository) (only valid for helm type repositories)
       --force-http-basic-auth                   whether to force use of basic auth when connecting repository via HTTP
