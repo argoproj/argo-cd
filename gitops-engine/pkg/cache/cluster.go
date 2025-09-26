@@ -1091,22 +1091,17 @@ func (c *clusterCache) IterateHierarchyV2(keys []kube.ResourceKey, action func(r
 
 	// Build namespace map with resource validation
 	keysPerNamespace := make(map[string][]kube.ResourceKey)
-	hasClusterNamespace := false
 	for _, key := range keys {
 		// PERFORMANCE HOTSPOT: This resource lookup is the most expensive operation in the function
 		// (~50% of CPU time). The map access triggers hash computation for ResourceKey.
 		if _, ok := c.resources[key]; ok {
 			keysPerNamespace[key.Namespace] = append(keysPerNamespace[key.Namespace], key)
-			if key.Namespace == "" {
-				hasClusterNamespace = true
-			}
 		}
 	}
 
-	// Fast path: feature disabled, no keys involve cluster namespace, or no cluster resources
-	// PERFORMANCE NOTE: Condition order matters! Check cheaper boolean conditions before map lookups.
-	// The len(c.nsIndex[""]) check involves a map access and should be evaluated last.
-	if c.disableClusterScopedParentRefs || !hasClusterNamespace || len(c.nsIndex[""]) == 0 {
+	// Fast path: feature disabled or no orphaned namespace scanning
+	// All cross-namespace complexity is deferred to orphaned resource processing
+	if c.disableClusterScopedParentRefs || orphanedResourceNamespace == "" {
 		// Process all namespaces with simple graph building (no cross-namespace overhead)
 		for namespace, namespaceKeys := range keysPerNamespace {
 			nsNodes := c.nsIndex[namespace]
@@ -1118,39 +1113,29 @@ func (c *clusterCache) IterateHierarchyV2(keys []kube.ResourceKey, action func(r
 		return
 	}
 
-	// Slow path: cross-namespace refs enabled, cluster resources exist, and we're processing cluster keys
+	// Slow path: cross-namespace refs enabled and orphaned namespace scanning requested
+	// Process explicit keys with simple graphs, then do comprehensive orphaned scanning
 
 	// Use a shared visited map to prevent duplicate visits across namespaces
 	visited := make(map[kube.ResourceKey]int, len(keys))
 
-	// Build cluster nodes map for cross-namespace lookups
+	// Process explicit keys with simple per-namespace graphs
+	for namespace, namespaceKeys := range keysPerNamespace {
+		nsNodes := c.nsIndex[namespace]
+		graph := buildGraph(nsNodes) // Always simple graph for explicit keys
+		c.processNamespaceHierarchy(namespaceKeys, nsNodes, graph, visited, action)
+	}
+
+	// Build cluster nodes map for cross-namespace lookups in orphaned processing
 	clusterNodes := c.nsIndex[""]
 	clusterNodesByUID := make(map[types.UID][]*Resource, len(clusterNodes))
 	for _, node := range clusterNodes {
 		clusterNodesByUID[node.Ref.UID] = append(clusterNodesByUID[node.Ref.UID], node)
 	}
 
-	// First process the namespaces we have explicit keys for
-	for namespace, namespaceKeys := range keysPerNamespace {
-		nsNodes := c.nsIndex[namespace]
-
-		// Only use cross-namespace graph for namespaced resources that might have cluster parents
-		var graph map[kube.ResourceKey]map[types.UID]*Resource
-		if namespace != "" && len(clusterNodesByUID) > 0 {
-			// This is a namespace that might have cluster-scoped parents
-			graph = buildGraphWithCrossNamespace(nsNodes, clusterNodesByUID)
-		} else {
-			// Cluster namespace or no cluster resources - use simple graph
-			graph = buildGraph(nsNodes)
-		}
-		c.processNamespaceHierarchy(namespaceKeys, nsNodes, graph, visited, action)
-	}
-
-	// Check for orphaned resources in the specified namespace (if any)
-	// These are children of cluster-scoped resources that weren't in the initial keys
-	if orphanedResourceNamespace != "" /* hasClusterNamespace is always true here */ {
-		c.processOrphanedResources(orphanedResourceNamespace, keysPerNamespace, clusterNodesByUID, visited, action)
-	}
+	// Check for orphaned resources in the specified namespace
+	// All cross-namespace relationships discovered here
+	c.processOrphanedResources(orphanedResourceNamespace, keysPerNamespace, clusterNodesByUID, visited, action)
 }
 
 // processOrphanedResources processes orphaned resources in a specified namespace that are children of cluster-scoped resources
