@@ -379,6 +379,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                 noProxy: params.noProxy,
                 forceHttpBasicAuth: params.forceHttpBasicAuth,
                 enableOCI: params.enableOCI,
+                enableDirectPull: params.enableDirectPull,
                 write: params.write,
                 useAzureWorkloadIdentity: params.useAzureWorkloadIdentity,
                 insecureOCIForceHttp: params.insecureOCIForceHttp
@@ -1205,12 +1206,10 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                                                     )}
                                                 </div>
                                                 {formApi.getFormState().values.type === 'helm' && (
-                                                    <React.Fragment>
-                                                        <div className='argo-form-row'>
-                                                            <FormField formApi={formApi} label='Enable Direct Pull' field='enableDirectPull' component={CheckboxField} />
-                                                            <HelpIcon title='Direct pull from Helm chart URL. May not work if the chart path does not follow the standard naming convention: <repo_url>/<chart_name>-<version>.tgz' />
-                                                        </div>
-                                                    </React.Fragment>
+                                                    <div className='argo-form-row'>
+                                                        <FormField formApi={formApi} label='Enable Direct Pull' field='enableDirectPull' component={CheckboxField} />
+                                                        <HelpIcon title='May not work if the chart path does not follow the standard naming convention: <repo_url>/<chart_name>-<version>.tgz' />
+                                                    </div>
                                                 )}
                                                 <div className='argo-form-row'>
                                                     <FormField formApi={formApi} label='Use Azure Workload Identity' field='useAzureWorkloadIdentity' component={CheckboxField} />
