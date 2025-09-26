@@ -118,6 +118,6 @@ func ExampleNewClusterCache_inspectNamespaceResources() {
 		clusterCache.IterateHierarchyV2([]kube.ResourceKey{root.ResourceKey()}, func(resource *Resource, _ map[kube.ResourceKey]*Resource) bool {
 			fmt.Printf("resource: %s, info: %v\n", resource.Ref.String(), resource.Info)
 			return true
-		})
+		}, "")
 	}
 }
