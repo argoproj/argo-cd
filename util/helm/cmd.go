@@ -281,7 +281,15 @@ func (c *Cmd) Fetch(repo, chartName, version, destination string, creds Creds, p
 		args = append(args, "--insecure-skip-tls-verify")
 	}
 
-	if directPull && isHelmStrictVersion(version) {
+	// when direct pull is disabled, use the default approach: `helm pull --version <version> --repo <repo> <chartName>`
+	// when direct pull is enabled and version is strict, use: `helm pull <repo>/<chartName>-<version>.tgz`
+	// otherwise, raise an error because direct pull doesn't work with wildcards
+	if !directPull {
+		if version != "" {
+			args = append(args, "--version", version)
+		}
+		args = append(args, "--repo", repo, chartName)
+	} else if isHelmStrictVersion(version) {
 		chartURL, err := safeChartURL(repo, chartName, version)
 		if err != nil {
 			return "", err
@@ -289,10 +297,7 @@ func (c *Cmd) Fetch(repo, chartName, version, destination string, creds Creds, p
 
 		args = append(args, chartURL)
 	} else {
-		if version != "" {
-			args = append(args, "--version", version)
-		}
-		args = append(args, "--repo", repo, chartName)
+		return "", fmt.Errorf("direct pull requires exact version (e.g., 1.2.3) and does not support wildcards or version ranges")
 	}
 
 	if creds.GetCAPath() != "" {

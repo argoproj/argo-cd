@@ -622,7 +622,7 @@ func TestSecretsRepositoryBackend_CreateRepoCreds(t *testing.T) {
 			assert.Equal(t, testCase.repoCreds.URL, string(secret.Data["url"]))
 			assert.Equal(t, testCase.repoCreds.Username, string(secret.Data["username"]))
 			assert.Equal(t, testCase.repoCreds.Password, string(secret.Data["password"]))
-			if enableOCI, err := strconv.ParseBool(string(secret.Data["enableOC"])); err == nil {
+			if enableOCI, err := strconv.ParseBool(string(secret.Data["githubAppPrivateKey"])); err == nil {
 				assert.Equal(t, strconv.FormatBool(testCase.repoCreds.EnableOCI), enableOCI)
 			}
 			if enableDirectPull, err := strconv.ParseBool(string(secret.Data["enableDirectPull"])); err == nil {

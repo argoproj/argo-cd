@@ -855,6 +855,7 @@ export class ReposList extends React.Component<
                                                         <React.Fragment>
                                                             <div className='argo-form-row'>
                                                                 <FormField formApi={formApi} label='Enable Direct Pull' field='enableDirectPull' component={CheckboxField} />
+                                                                <HelpIcon title='Direct pull from Helm chart URL. May not work if the chart path does not follow the standard naming convention: <repo_url>/<chart_name>-<version>.tgz' />
                                                             </div>
                                                         </React.Fragment>
                                                     )}
