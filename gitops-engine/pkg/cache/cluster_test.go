@@ -1231,8 +1231,8 @@ func TestIterateHierarchyV2_ClusterScopedParents(t *testing.T) {
 	require.NoError(t, err)
 
 	keys := []kube.ResourceKey{}
-	// In production, if you want to iterate a cluster-scoped resource and its namespaced children,
-	// you would include both in the keys (e.g., as part of managed resources)
+	// Edge case:  cluster-scoped resource and its namespaced children, both referred to in the manifest.  They should
+	// link up in the graph.
 	cluster.IterateHierarchyV2(
 		[]kube.ResourceKey{
 			kube.GetResourceKey(mustToUnstructured(testClusterParent())),
@@ -1334,9 +1334,10 @@ func TestIterateHierarchyV2_ClusterScopedParentOnly_WithNamespaceScanning(t *tes
 	}, keys)
 }
 
-
 func TestIterateHierarchyV2_ClusterScopedParentOnly_InferredUID(t *testing.T) {
-	// Test that passing only a cluster-scoped parent finds children even with inferred UIDs
+	// Test that passing only a cluster-scoped parent finds children even with inferred UIDs.
+	// This should never happen but we coded defensively for this case, and at worst it would link a child
+	// to the wrong parent if there were multiple parents with the same name (i.e. deleted and recreated).
 	namespacedChildNoUID := &corev1.Pod{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
