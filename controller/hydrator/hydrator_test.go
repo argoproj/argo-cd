@@ -1,16 +1,22 @@
 package hydrator
 
 import (
+	"context"
 	"errors"
 	"path/filepath"
 	"testing"
 	"time"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/utils/ptr"
+
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 
 	commitclient "github.com/argoproj/argo-cd/v3/commitserver/apiclient"
 	commitservermocks "github.com/argoproj/argo-cd/v3/commitserver/apiclient/mocks"
@@ -281,7 +287,7 @@ func Test_validateApplications_RootPathSkipped(t *testing.T) {
 
 	proj, errors := hydrator.validateApplications(apps)
 	require.Len(t, errors, 1)
-	require.ErrorContains(t, errors[apps[0].QualifiedName()], "App is configured to hydrate to the repository root")
+	require.ErrorContains(t, errors[apps[0].QualifiedName()], "app is configured to hydrate to the repository root")
 	assert.Nil(t, proj)
 }
 
@@ -325,11 +331,14 @@ func newTestApp(name string) *v1alpha1.Application {
 				DrySource: v1alpha1.DrySource{
 					RepoURL:        "https://example.com/repo",
 					TargetRevision: "main",
-					Path:           "app",
+					Path:           "base/app",
 				},
 				SyncSource: v1alpha1.SyncSource{
-					TargetBranch: "main",
+					TargetBranch: "hydrated",
 					Path:         "app",
+				},
+				HydrateTo: &appv1.HydrateTo{
+					TargetBranch: "hydrated-next",
 				},
 			},
 		},
@@ -760,4 +769,327 @@ func TestGenericHydrationError(t *testing.T) {
 	})
 }
 
-// hydrate - ???
+func TestHydrator_hydrate_Success(t *testing.T) {
+	t.Parallel()
+
+	d := mocks.NewDependencies(t)
+	r := mocks.NewRepoGetter(t)
+	cc := commitservermocks.NewCommitServiceClient(t)
+	rc := reposervermocks.NewRepoServerServiceClient(t)
+	h := &Hydrator{
+		dependencies:    d,
+		repoGetter:      r,
+		repoClientset:   &reposervermocks.Clientset{RepoServerServiceClient: rc},
+		commitClientset: &commitservermocks.Clientset{CommitServiceClient: cc},
+	}
+
+	app1 := newTestApp("app1")
+	app2 := newTestApp("app2")
+	app2.Spec.SourceHydrator.SyncSource.Path = "other-path"
+	apps := []*appv1.Application{app1, app2}
+	proj := newTestProject()
+	projects := map[string]*appv1.AppProject{app1.Spec.Project: proj}
+	readRepo := &appv1.Repository{Repo: "https://example.com/repo"}
+	writeRepo := &appv1.Repository{Repo: "https://example.com/repo"}
+
+	d.On("GetRepoObjs", mock.Anything, app1, app1.Spec.SourceHydrator.GetDrySource(), "main", proj).Return(nil, &apiclient.ManifestResponse{Revision: "sha123"}, nil)
+	d.On("GetRepoObjs", mock.Anything, app2, app2.Spec.SourceHydrator.GetDrySource(), "sha123", proj).Return(nil, &apiclient.ManifestResponse{Revision: "sha123"}, nil)
+	r.On("GetRepository", mock.Anything, readRepo.Repo, proj.Name).Return(readRepo, nil)
+	rc.On("GetRevisionMetadata", mock.Anything, mock.Anything).Return(&appv1.RevisionMetadata{Message: "metadata"}, nil).Run(func(args mock.Arguments) {
+		r := args.Get(1).(*apiclient.RepoServerRevisionMetadataRequest)
+		assert.Equal(t, readRepo, r.Repo)
+		assert.Equal(t, "sha123", r.Revision)
+	})
+	d.On("GetWriteCredentials", mock.Anything, readRepo.Repo, proj.Name).Return(writeRepo, nil)
+	d.On("GetHydratorCommitMessageTemplate").Return("commit message", nil)
+	cc.On("CommitHydratedManifests", mock.Anything, mock.Anything).Return(&commitclient.CommitHydratedManifestsResponse{HydratedSha: "hydrated123"}, nil).Run(func(args mock.Arguments) {
+		r := args.Get(1).(*commitclient.CommitHydratedManifestsRequest)
+		assert.Equal(t, "commit message", r.CommitMessage)
+		assert.Equal(t, "hydrated", r.SyncBranch)
+		assert.Equal(t, "hydrated-next", r.TargetBranch)
+		assert.Equal(t, "sha123", r.DrySha)
+		assert.Equal(t, writeRepo, r.Repo)
+		assert.Len(t, r.Paths, 2)
+		assert.Equal(t, app1.Spec.SourceHydrator.SyncSource.Path, r.Paths[0].Path)
+		assert.Equal(t, app2.Spec.SourceHydrator.SyncSource.Path, r.Paths[1].Path)
+		assert.Equal(t, "metadata", r.DryCommitMetadata.Message)
+	})
+	logCtx := log.NewEntry(log.StandardLogger())
+
+	sha, hydratedSha, errs, err := h.hydrate(logCtx, apps, projects)
+
+	require.NoError(t, err)
+	assert.Equal(t, "sha123", sha)
+	assert.Equal(t, "hydrated123", hydratedSha)
+	assert.Empty(t, errs)
+}
+
+func TestHydrator_hydrate_GetManifestsError(t *testing.T) {
+	t.Parallel()
+
+	d := mocks.NewDependencies(t)
+	r := mocks.NewRepoGetter(t)
+	cc := commitservermocks.NewCommitServiceClient(t)
+	rc := reposervermocks.NewRepoServerServiceClient(t)
+	h := &Hydrator{
+		dependencies:    d,
+		repoGetter:      r,
+		repoClientset:   &reposervermocks.Clientset{RepoServerServiceClient: rc},
+		commitClientset: &commitservermocks.Clientset{CommitServiceClient: cc},
+	}
+
+	app := newTestApp("app1")
+	proj := newTestProject()
+	projects := map[string]*appv1.AppProject{app.Spec.Project: proj}
+
+	d.On("GetRepoObjs", mock.Anything, app, mock.Anything, mock.Anything, proj).Return(nil, nil, errors.New("manifests error"))
+	logCtx := log.NewEntry(log.StandardLogger())
+
+	sha, hydratedSha, errs, err := h.hydrate(logCtx, []*appv1.Application{app}, projects)
+
+	require.NoError(t, err)
+	assert.Empty(t, sha)
+	assert.Empty(t, hydratedSha)
+	require.Len(t, errs, 1)
+	assert.ErrorContains(t, errs[app.QualifiedName()], "manifests error")
+}
+
+func TestHydrator_hydrate_RevisionMetadataError(t *testing.T) {
+	t.Parallel()
+
+	d := mocks.NewDependencies(t)
+	r := mocks.NewRepoGetter(t)
+	cc := commitservermocks.NewCommitServiceClient(t)
+	rc := reposervermocks.NewRepoServerServiceClient(t)
+	h := &Hydrator{
+		dependencies:    d,
+		repoGetter:      r,
+		repoClientset:   &reposervermocks.Clientset{RepoServerServiceClient: rc},
+		commitClientset: &commitservermocks.Clientset{CommitServiceClient: cc},
+	}
+
+	app := newTestApp("app1")
+	proj := newTestProject()
+	projects := map[string]*appv1.AppProject{app.Spec.Project: proj}
+
+	d.On("GetRepoObjs", mock.Anything, app, mock.Anything, mock.Anything, proj).Return(nil, &apiclient.ManifestResponse{Revision: "sha123"}, nil)
+	r.On("GetRepository", mock.Anything, mock.Anything, mock.Anything).Return(&appv1.Repository{Repo: "https://example.com/repo"}, nil)
+	rc.On("GetRevisionMetadata", mock.Anything, mock.Anything).Return(nil, errors.New("metadata error"))
+	logCtx := log.NewEntry(log.StandardLogger())
+
+	sha, hydratedSha, errs, err := h.hydrate(logCtx, []*appv1.Application{app}, projects)
+
+	require.Error(t, err)
+	assert.Equal(t, "sha123", sha)
+	assert.Empty(t, hydratedSha)
+	assert.Empty(t, errs)
+	assert.ErrorContains(t, err, "metadata error")
+}
+
+func TestHydrator_hydrate_GetWriteCredentialsError(t *testing.T) {
+	t.Parallel()
+
+	d := mocks.NewDependencies(t)
+	r := mocks.NewRepoGetter(t)
+	cc := commitservermocks.NewCommitServiceClient(t)
+	rc := reposervermocks.NewRepoServerServiceClient(t)
+	h := &Hydrator{
+		dependencies:    d,
+		repoGetter:      r,
+		repoClientset:   &reposervermocks.Clientset{RepoServerServiceClient: rc},
+		commitClientset: &commitservermocks.Clientset{CommitServiceClient: cc},
+	}
+
+	app := newTestApp("app1")
+	proj := newTestProject()
+	projects := map[string]*appv1.AppProject{app.Spec.Project: proj}
+
+	d.On("GetRepoObjs", mock.Anything, app, mock.Anything, mock.Anything, proj).Return(nil, &apiclient.ManifestResponse{Revision: "sha123"}, nil)
+	r.On("GetRepository", mock.Anything, mock.Anything, mock.Anything).Return(&appv1.Repository{Repo: "https://example.com/repo"}, nil)
+	rc.On("GetRevisionMetadata", mock.Anything, mock.Anything).Return(&appv1.RevisionMetadata{}, nil)
+	d.On("GetWriteCredentials", mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("creds error"))
+	logCtx := log.NewEntry(log.StandardLogger())
+
+	sha, hydratedSha, errs, err := h.hydrate(logCtx, []*appv1.Application{app}, projects)
+
+	require.Error(t, err)
+	assert.Equal(t, "sha123", sha)
+	assert.Empty(t, hydratedSha)
+	assert.Empty(t, errs)
+	assert.ErrorContains(t, err, "creds error")
+}
+
+func TestHydrator_hydrate_CommitMessageTemplateError(t *testing.T) {
+	t.Parallel()
+
+	d := mocks.NewDependencies(t)
+	r := mocks.NewRepoGetter(t)
+	cc := commitservermocks.NewCommitServiceClient(t)
+	rc := reposervermocks.NewRepoServerServiceClient(t)
+	h := &Hydrator{
+		dependencies:    d,
+		repoGetter:      r,
+		repoClientset:   &reposervermocks.Clientset{RepoServerServiceClient: rc},
+		commitClientset: &commitservermocks.Clientset{CommitServiceClient: cc},
+	}
+
+	app := newTestApp("app1")
+	proj := newTestProject()
+	projects := map[string]*appv1.AppProject{app.Spec.Project: proj}
+
+	d.On("GetRepoObjs", mock.Anything, app, mock.Anything, mock.Anything, proj).Return(nil, &apiclient.ManifestResponse{Revision: "sha123"}, nil)
+	r.On("GetRepository", mock.Anything, mock.Anything, mock.Anything).Return(&appv1.Repository{Repo: "https://example.com/repo"}, nil)
+	rc.On("GetRevisionMetadata", mock.Anything, mock.Anything).Return(&appv1.RevisionMetadata{}, nil)
+	d.On("GetWriteCredentials", mock.Anything, mock.Anything, mock.Anything).Return(&appv1.Repository{Repo: "https://example.com/repo"}, nil)
+	d.On("GetHydratorCommitMessageTemplate").Return("", errors.New("template error"))
+	logCtx := log.NewEntry(log.StandardLogger())
+
+	sha, hydratedSha, errs, err := h.hydrate(logCtx, []*appv1.Application{app}, projects)
+
+	require.Error(t, err)
+	assert.Equal(t, "sha123", sha)
+	assert.Empty(t, hydratedSha)
+	assert.Empty(t, errs)
+	assert.ErrorContains(t, err, "template error")
+}
+
+func TestHydrator_hydrate_TemplatedCommitMessageError(t *testing.T) {
+	t.Parallel()
+
+	d := mocks.NewDependencies(t)
+	r := mocks.NewRepoGetter(t)
+	cc := commitservermocks.NewCommitServiceClient(t)
+	rc := reposervermocks.NewRepoServerServiceClient(t)
+	h := &Hydrator{
+		dependencies:    d,
+		repoGetter:      r,
+		repoClientset:   &reposervermocks.Clientset{RepoServerServiceClient: rc},
+		commitClientset: &commitservermocks.Clientset{CommitServiceClient: cc},
+	}
+
+	app := newTestApp("app1")
+	proj := newTestProject()
+	projects := map[string]*appv1.AppProject{app.Spec.Project: proj}
+
+	d.On("GetRepoObjs", mock.Anything, app, mock.Anything, mock.Anything, proj).Return(nil, &apiclient.ManifestResponse{Revision: "sha123"}, nil)
+	r.On("GetRepository", mock.Anything, mock.Anything, mock.Anything).Return(&appv1.Repository{Repo: "https://example.com/repo"}, nil)
+	rc.On("GetRevisionMetadata", mock.Anything, mock.Anything).Return(&appv1.RevisionMetadata{}, nil)
+	d.On("GetWriteCredentials", mock.Anything, mock.Anything, mock.Anything).Return(&appv1.Repository{Repo: "https://example.com/repo"}, nil)
+	d.On("GetHydratorCommitMessageTemplate").Return("{{ notAFunction }} template", nil)
+	logCtx := log.NewEntry(log.StandardLogger())
+
+	sha, hydratedSha, errs, err := h.hydrate(logCtx, []*appv1.Application{app}, projects)
+
+	require.Error(t, err)
+	assert.Equal(t, "sha123", sha)
+	assert.Empty(t, hydratedSha)
+	assert.Empty(t, errs)
+	assert.ErrorContains(t, err, "failed to parse template")
+}
+
+func TestHydrator_hydrate_CommitHydratedManifestsError(t *testing.T) {
+	t.Parallel()
+
+	d := mocks.NewDependencies(t)
+	r := mocks.NewRepoGetter(t)
+	cc := commitservermocks.NewCommitServiceClient(t)
+	rc := reposervermocks.NewRepoServerServiceClient(t)
+	h := &Hydrator{
+		dependencies:    d,
+		repoGetter:      r,
+		repoClientset:   &reposervermocks.Clientset{RepoServerServiceClient: rc},
+		commitClientset: &commitservermocks.Clientset{CommitServiceClient: cc},
+	}
+
+	app := newTestApp("app1")
+	proj := newTestProject()
+	projects := map[string]*appv1.AppProject{app.Spec.Project: proj}
+
+	d.On("GetRepoObjs", mock.Anything, app, mock.Anything, mock.Anything, proj).Return(nil, &apiclient.ManifestResponse{Revision: "sha123"}, nil)
+	r.On("GetRepository", mock.Anything, mock.Anything, mock.Anything).Return(&appv1.Repository{Repo: "https://example.com/repo"}, nil)
+	rc.On("GetRevisionMetadata", mock.Anything, mock.Anything).Return(&appv1.RevisionMetadata{}, nil)
+	d.On("GetWriteCredentials", mock.Anything, mock.Anything, mock.Anything).Return(&appv1.Repository{Repo: "https://example.com/repo"}, nil)
+	d.On("GetHydratorCommitMessageTemplate").Return("commit message", nil)
+	cc.On("CommitHydratedManifests", mock.Anything, mock.Anything).Return(nil, errors.New("commit error"))
+	logCtx := log.NewEntry(log.StandardLogger())
+
+	sha, hydratedSha, errs, err := h.hydrate(logCtx, []*appv1.Application{app}, projects)
+
+	require.Error(t, err)
+	assert.Equal(t, "sha123", sha)
+	assert.Empty(t, hydratedSha)
+	assert.Empty(t, errs)
+	assert.ErrorContains(t, err, "commit error")
+}
+
+func TestHydrator_hydrate_EmptyApps(t *testing.T) {
+	t.Parallel()
+	d := mocks.NewDependencies(t)
+	logCtx := log.NewEntry(log.StandardLogger())
+	h := &Hydrator{dependencies: d}
+
+	sha, hydratedSha, errs, err := h.hydrate(logCtx, []*appv1.Application{}, nil)
+
+	require.NoError(t, err)
+	assert.Empty(t, sha)
+	assert.Empty(t, hydratedSha)
+	assert.Empty(t, errs)
+}
+
+func TestHydrator_getManifests_Success(t *testing.T) {
+	t.Parallel()
+	d := mocks.NewDependencies(t)
+	h := &Hydrator{dependencies: d}
+	app := newTestApp("test-app")
+	proj := newTestProject()
+
+	cm := kube.MustToUnstructured(&corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "test",
+		},
+	})
+
+	d.On("GetRepoObjs", mock.Anything, app, app.Spec.SourceHydrator.GetDrySource(), "sha123", proj).Return([]*unstructured.Unstructured{cm}, &apiclient.ManifestResponse{
+		Revision: "sha123",
+		Commands: []string{"cmd1", "cmd2"},
+	}, nil)
+
+	rev, pathDetails, err := h.getManifests(context.Background(), app, "sha123", proj)
+	require.NoError(t, err)
+	assert.Equal(t, "sha123", rev)
+	assert.Equal(t, app.Spec.SourceHydrator.SyncSource.Path, pathDetails.Path)
+	assert.Equal(t, []string{"cmd1", "cmd2"}, pathDetails.Commands)
+	assert.Len(t, pathDetails.Manifests, 1)
+	assert.JSONEq(t, `{"metadata":{"name":"test"}}`, pathDetails.Manifests[0].ManifestJSON)
+}
+
+func TestHydrator_getManifests_EmptyTargetRevision(t *testing.T) {
+	t.Parallel()
+	d := mocks.NewDependencies(t)
+	h := &Hydrator{dependencies: d}
+	app := newTestApp("test-app")
+	proj := newTestProject()
+
+	d.On("GetRepoObjs", mock.Anything, app, mock.Anything, "main", proj).Return([]*unstructured.Unstructured{}, &apiclient.ManifestResponse{Revision: "sha123"}, nil)
+
+	rev, pathDetails, err := h.getManifests(context.Background(), app, "", proj)
+	require.NoError(t, err)
+	assert.Equal(t, "sha123", rev)
+	assert.NotNil(t, pathDetails)
+}
+
+func TestHydrator_getManifests_GetRepoObjsError(t *testing.T) {
+	t.Parallel()
+	d := mocks.NewDependencies(t)
+	h := &Hydrator{dependencies: d}
+	app := newTestApp("test-app")
+	proj := newTestProject()
+
+	d.On("GetRepoObjs", mock.Anything, app, mock.Anything, "main", proj).Return(nil, nil, errors.New("repo error"))
+
+	rev, pathDetails, err := h.getManifests(context.Background(), app, "main", proj)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "repo error")
+	assert.Empty(t, rev)
+	assert.Nil(t, pathDetails)
+}

@@ -329,7 +329,6 @@ func (h *Hydrator) validateApplications(apps []*appv1.Application) (map[string]*
 }
 
 func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application, projects map[string]*appv1.AppProject) (string, string, map[string]error, error) {
-	// TODO: this method needs to be unit tested
 	errors := make(map[string]error)
 	if len(apps) == 0 {
 		return "", "", nil, nil
