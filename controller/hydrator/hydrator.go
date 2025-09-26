@@ -118,7 +118,6 @@ func (h *Hydrator) ProcessAppHydrateQueueItem(origApp *appv1.Application) {
 			SourceHydrator: *app.Spec.SourceHydrator,
 		}
 		h.dependencies.PersistAppHydratorStatus(origApp, &app.Status.SourceHydrator)
-		origApp.Status.SourceHydrator = app.Status.SourceHydrator
 	}
 
 	needsRefresh := app.Status.SourceHydrator.CurrentOperation.Phase == appv1.HydrateOperationPhaseHydrating && metav1.Now().Sub(app.Status.SourceHydrator.CurrentOperation.StartedAt.Time) > h.statusRefreshTimeout
@@ -155,6 +154,9 @@ func (h *Hydrator) ProcessHydrationQueueItem(hydrationKey types.HydrationQueueKe
 	// Get all applications sharing the same hydration key
 	apps, err := h.getAppsForHydrationKey(hydrationKey)
 	if err != nil {
+		// If we get an error here, we cannot proceed with hydration and we do not know
+		// which apps to update with the failure. The best we can do is log an error in
+		// the controller and wait for statusRefreshTimeout to retry
 		logCtx.WithError(err).Error("failed to get apps for hydration")
 		return
 	}
@@ -327,6 +329,7 @@ func (h *Hydrator) validateApplications(apps []*appv1.Application) (map[string]*
 }
 
 func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application, projects map[string]*appv1.AppProject) (string, string, map[string]error, error) {
+	// TODO: this method needs to be unit tested
 	errors := make(map[string]error)
 	if len(apps) == 0 {
 		return "", "", nil, nil
