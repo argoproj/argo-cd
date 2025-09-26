@@ -382,8 +382,8 @@ mod-vendor-local: mod-download-local
 # Update the go.work.sum file and the vendor folder
 .PHONY: workspace-vendor
 workspace-vendor:
-	rm -f go.work.sum
 	rm -rf vendor
+	rm -f go.work.sum
 	go work vendor
 	go mod tidy
 
