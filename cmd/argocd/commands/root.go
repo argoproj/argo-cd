@@ -44,6 +44,12 @@ func NewCommand() *cobra.Command {
 		},
 		DisableAutoGenTag: true,
 		SilenceUsage:      true,
+		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+			// Return available plugin commands for tab completion
+			pluginHandler := NewDefaultPluginHandler([]string{"argocd"})
+			plugins := pluginHandler.ListAvailablePlugins()
+			return plugins, cobra.ShellCompDirectiveNoFileComp
+		},
 	}
 
 	command.AddCommand(NewCompletionCommand())
