@@ -57,7 +57,7 @@ type RepoCreds struct {
 	BearerToken string `json:"bearerToken,omitempty" protobuf:"bytes,25,opt,name=bearerToken"`
 	// InsecureOCIForceHttp specifies whether the connection to the repository uses TLS at _all_. If true, no TLS. This flag is applicable for OCI repos only.
 	InsecureOCIForceHttp bool `json:"insecureOCIForceHttp,omitempty" protobuf:"bytes,26,opt,name=insecureOCIForceHttp"` //nolint:revive //FIXME(var-naming)
-	// EnableDirectPull specifies whether direct pull should be enabled
+	// EnableDirectPull specifies whether to download a Helm chart at a predictable path, without downloading the index file
 	EnableDirectPull bool `json:"enableDirectPull,omitempty" protobuf:"bytes,27,opt,name=enableDirectPull"`
 }
 
@@ -116,7 +116,7 @@ type Repository struct {
 	BearerToken string `json:"bearerToken,omitempty" protobuf:"bytes,25,opt,name=bearerToken"`
 	// InsecureOCIForceHttp specifies whether the connection to the repository uses TLS at _all_. If true, no TLS. This flag is applicable for OCI repos only.
 	InsecureOCIForceHttp bool `json:"insecureOCIForceHttp,omitempty" protobuf:"bytes,26,opt,name=insecureOCIForceHttp"` //nolint:revive //FIXME(var-naming)
-	// EnableDirectPull specifies whether direct pull should be enabled
+	// EnableDirectPull specifies whether to download a Helm chart at a predictable path, without downloading the index file
 	EnableDirectPull bool `json:"enableDirectPull,omitempty" protobuf:"bytes,27,opt,name=enableDirectPull"`
 }
 
