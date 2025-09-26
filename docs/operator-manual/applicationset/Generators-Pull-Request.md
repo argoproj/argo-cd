@@ -19,11 +19,11 @@ spec:
         # ...
 ```
 
-!!! note
-    Know the security implications of PR generators in ApplicationSets.
-    [Only admins may create ApplicationSets](./Security.md#only-admins-may-createupdatedelete-applicationsets) to avoid
-    leaking Secrets, and [only admins may create PRs](./Security.md#templated-project-field) if the `project` field of
-    an ApplicationSet with a PR generator is templated, to avoid granting management of out-of-bounds resources.
+> [!NOTE]
+> Know the security implications of PR generators in ApplicationSets.
+> [Only admins may create ApplicationSets](./Security.md#only-admins-may-createupdatedelete-applicationsets) to avoid
+> leaking Secrets, and [only admins may create PRs](./Security.md#templated-project-field) if the `project` field of
+> an ApplicationSet with a PR generator is templated, to avoid granting management of out-of-bounds resources.
 
 ## GitHub
 
@@ -452,8 +452,8 @@ When using a Pull Request generator, the ApplicationSet controller polls every `
 
 The configuration is almost the same as the one described [in the Git generator](Generators-Git.md), but there is one difference: if you want to use the Pull Request Generator as well, additionally configure the following settings.
 
-!!! note
-    The ApplicationSet controller webhook does not use the same webhook as the API server as defined [here](../webhook.md). ApplicationSet exposes a webhook server as a service of type ClusterIP. An ApplicationSet specific Ingress resource needs to be created to expose this service to the webhook source.
+> [!NOTE]
+> The ApplicationSet controller webhook does not use the same webhook as the API server as defined [here](../webhook.md). ApplicationSet exposes a webhook server as a service of type ClusterIP. An ApplicationSet specific Ingress resource needs to be created to expose this service to the webhook source.
 
 ### Github webhook configuration
 
@@ -528,7 +528,7 @@ spec:
         namespace: default
 ```
 
-!!! note
-    The `values.` prefix is always prepended to values provided via `generators.pullRequest.values` field. Ensure you include this prefix in the parameter name within the `template` when using it.
+> [!NOTE]
+> The `values.` prefix is always prepended to values provided via `generators.pullRequest.values` field. Ensure you include this prefix in the parameter name within the `template` when using it.
 
 In `values` we can also interpolate all fields set by the Pull Request generator as mentioned above.

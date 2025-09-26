@@ -13,7 +13,7 @@ argocd app remove-source APPNAME [flags]
 ```
   # Remove the source at position 1 from application's sources. Counting starts at 1.
   argocd app remove-source myapplication --source-position 1
-  
+
   # Remove the source named "test" from application's sources.
   argocd app remove-source myapplication --source-name test
 ```

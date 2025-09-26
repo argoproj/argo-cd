@@ -28,13 +28,13 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-// Utility struct for a reference to a secret key.
+// SecretRef struct for a reference to a secret key.
 type SecretRef struct {
 	SecretName string `json:"secretName" protobuf:"bytes,1,opt,name=secretName"`
 	Key        string `json:"key" protobuf:"bytes,2,opt,name=key"`
 }
 
-// Utility struct for a reference to a configmap key.
+// ConfigMapKeyRef struct for a reference to a configmap key.
 type ConfigMapKeyRef struct {
 	ConfigMapName string `json:"configMapName" protobuf:"bytes,1,opt,name=configMapName"`
 	Key           string `json:"key" protobuf:"bytes,2,opt,name=key"`
@@ -675,7 +675,7 @@ type PullRequestGeneratorAzureDevOps struct {
 	Labels []string `json:"labels,omitempty" protobuf:"bytes,6,rep,name=labels"`
 }
 
-// PullRequestGenerator defines connection info specific to GitHub.
+// PullRequestGeneratorGithub defines connection info specific to GitHub.
 type PullRequestGeneratorGithub struct {
 	// GitHub org or user to scan. Required.
 	Owner string `json:"owner" protobuf:"bytes,1,opt,name=owner"`
@@ -805,6 +805,9 @@ type ApplicationSetStatus struct {
 	ApplicationStatus []ApplicationSetApplicationStatus `json:"applicationStatus,omitempty" protobuf:"bytes,2,name=applicationStatus"`
 	// Resources is a list of Applications resources managed by this application set.
 	Resources []ResourceStatus `json:"resources,omitempty" protobuf:"bytes,3,opt,name=resources"`
+	// ResourcesCount is the total number of resources managed by this application set. The count may be higher than actual number of items in the Resources field when
+	// the number of managed resources exceeds the limit imposed by the controller (to avoid making the status field too large).
+	ResourcesCount int64 `json:"resourcesCount,omitempty" protobuf:"varint,4,opt,name=resourcesCount"`
 }
 
 // ApplicationSetCondition contains details about an applicationset condition, which is usually an error or warning
@@ -821,7 +824,7 @@ type ApplicationSetCondition struct {
 	Reason string `json:"reason" protobuf:"bytes,5,opt,name=reason"`
 }
 
-// SyncStatusCode is a type which represents possible comparison results
+// ApplicationSetConditionStatus is a type which represents possible comparison results
 type ApplicationSetConditionStatus string
 
 // Application Condition Status
@@ -867,6 +870,20 @@ const (
 	ApplicationSetReasonSyncApplicationError             = "SyncApplicationError"
 )
 
+// Represents resource health status
+type ProgressiveSyncStatusCode string
+
+const (
+	// Indicates that an Application sync is waiting to be trigerred
+	ProgressiveSyncWaiting ProgressiveSyncStatusCode = "Waiting"
+	// Indicates that a sync has been trigerred, but the application did not report any status
+	ProgressiveSyncPending ProgressiveSyncStatusCode = "Pending"
+	// Indicates that the application has not yet reached an Healthy state in regards to the requested sync
+	ProgressiveSyncProgressing ProgressiveSyncStatusCode = "Progressing"
+	// Indicates that the application has reached an Healthy state in regards to the requested sync
+	ProgressiveSyncHealthy ProgressiveSyncStatusCode = "Healthy"
+)
+
 // ApplicationSetApplicationStatus contains details about each Application managed by the ApplicationSet
 type ApplicationSetApplicationStatus struct {
 	// Application contains the name of the Application resource
@@ -875,8 +892,8 @@ type ApplicationSetApplicationStatus struct {
 	LastTransitionTime *metav1.Time `json:"lastTransitionTime,omitempty" protobuf:"bytes,2,opt,name=lastTransitionTime"`
 	// Message contains human-readable message indicating details about the status
 	Message string `json:"message" protobuf:"bytes,3,opt,name=message"`
-	// Status contains the AppSet's perceived status of the managed Application resource: (Waiting, Pending, Progressing, Healthy)
-	Status string `json:"status" protobuf:"bytes,4,opt,name=status"`
+	// Status contains the AppSet's perceived status of the managed Application resource
+	Status ProgressiveSyncStatusCode `json:"status" protobuf:"bytes,4,opt,name=status"`
 	// Step tracks which step this Application should be updated in
 	Step string `json:"step" protobuf:"bytes,5,opt,name=step"`
 	// TargetRevision tracks the desired revisions the Application should be synced to.

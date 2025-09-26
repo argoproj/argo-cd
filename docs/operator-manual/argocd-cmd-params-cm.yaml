@@ -66,6 +66,8 @@ data:
   controller.self.heal.backoff.cap.seconds: "300"
   # Specifies a sync timeout for applications. "0" means no timeout (default "0")
   controller.sync.timeout.seconds: "0"
+  # Specifies the delay in seconds between each sync wave to give other controllers a chance to react to spec changes. (default "2")
+  controller.sync.wave.delay.seconds: "2"
 
   # Cache expiration for app state (default 1h0m0s)
   controller.app.state.cache.expiration: "1h0m0s"
@@ -290,6 +292,8 @@ data:
   applicationsetcontroller.global.preserved.labels: "acme.com/label1,acme.com/label2"
   # Enable GitHub API metrics for generators that use GitHub API
   applicationsetcontroller.enable.github.api.metrics: "false"
+  # The maximum number of resources stored in the status of an ApplicationSet. This is a safeguard to prevent the status from growing too large.
+  applicationsetcontroller.status.max.resources.count: "5000"
 
   ## Argo CD Notifications Controller Properties
   # Set the logging level. One of: debug|info|warn|error (default "info")

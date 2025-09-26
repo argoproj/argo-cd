@@ -4,9 +4,9 @@ The [ApplicationSet controller](../operator-manual/applicationset/index.md) adds
 
 The set of tools provided by the ApplicationSet controller may also be used to allow developers (without access to the Argo CD namespace) to independently create Applications without cluster-administrator intervention.
 
-!!! warning
-    Be aware of the [security implications](../operator-manual/applicationset/Security.md) before allowing developers to
-    create Applications via ApplicationSets.
+> [!WARNING]
+> Be aware of the [security implications](../operator-manual/applicationset/Security.md) before allowing developers to
+> create Applications via ApplicationSets.
 
 The ApplicationSet controller automatically generates Argo CD Applications based on the contents of an `ApplicationSet` Custom Resource (CR).
 

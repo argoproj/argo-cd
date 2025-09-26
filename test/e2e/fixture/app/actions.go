@@ -40,9 +40,9 @@ func (a *Actions) DoNotIgnoreErrors() *Actions {
 	return a
 }
 
-func (a *Actions) PatchFile(file string, jsonPath string) *Actions {
+func (a *Actions) PatchFile(file string, jsonPatch string) *Actions {
 	a.context.t.Helper()
-	fixture.Patch(a.context.t, a.context.path+"/"+file, jsonPath)
+	fixture.Patch(a.context.t, a.context.path+"/"+file, jsonPatch)
 	return a
 }
 

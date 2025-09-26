@@ -70,5 +70,7 @@ data:
 
 <br>
 
-!!! note "Storing Client Secrets"
-    Details on storing your clientSecret securely and correctly can be found on the [User Management Overview page](index.md#sensitive-data-and-sso-client-secrets).
+> [!NOTE]
+> **Storing Client Secrets**
+>
+> Details on storing your clientSecret securely and correctly can be found on the [User Management Overview page](index.md#sensitive-data-and-sso-client-secrets).

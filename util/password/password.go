@@ -70,7 +70,7 @@ func HashPassword(password string) (string, error) {
 // VerifyPassword verifies an entered password against a hashed password and returns whether the hash is "stale" (i.e., was verified using the FIRST preferred hasher above).
 func VerifyPassword(password, hashedPassword string) (valid, stale bool) {
 	valid, stale = verifyPasswordWithHashers(password, hashedPassword, preferredHashers)
-	return
+	return valid, stale
 }
 
 // HashPassword creates a one-way digest ("hash") of a password.  In the case of Bcrypt, a pseudorandom salt is included automatically by the underlying library.

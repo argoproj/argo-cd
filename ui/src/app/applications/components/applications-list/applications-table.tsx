@@ -57,7 +57,9 @@ export const ApplicationsTable = (props: {
                                         key={AppUtils.appInstanceName(app)}
                                         className={`argo-table-list__row
                 applications-list__entry applications-list__entry--health-${app.status.health.status} ${selectedApp === i ? 'applications-tiles__selected' : ''}`}>
-                                        <div className={`row applications-list__table-row`} onClick={e => ctx.navigation.goto(`/${AppUtils.getAppUrl(app)}`, {}, {event: e})}>
+                                        <div
+                                            className={`row applications-list__table-row ${app.status.sourceHydrator?.currentOperation ? 'applications-table-row--with-hydrator' : ''}`}
+                                            onClick={e => ctx.navigation.goto(`/${AppUtils.getAppUrl(app)}`, {}, {event: e})}>
                                             <div className='columns small-4'>
                                                 <div className='row'>
                                                     <div className=' columns small-2'>
@@ -84,11 +86,6 @@ export const ApplicationsTable = (props: {
                                                             <ApplicationURLs urls={app.status.summary.externalURLs} />
                                                         </div>
                                                     </div>
-                                                    <div className='show-for-xxlarge columns small-4'>Project:</div>
-                                                    <div className='columns small-12 xxlarge-6'>{app.spec.project}</div>
-                                                </div>
-                                                <div className='row'>
-                                                    <div className=' columns small-2' />
                                                     <div className='show-for-xxlarge columns small-4'>Name:</div>
                                                     <div className='columns small-12 xxlarge-6'>
                                                         <Tooltip
@@ -101,9 +98,14 @@ export const ApplicationsTable = (props: {
                                                                     </Moment>
                                                                 </>
                                                             }>
-                                                            <span>{app.metadata.name}</span>
+                                                            <span className='application-name'>{app.metadata.name}</span>
                                                         </Tooltip>
                                                     </div>
+                                                </div>
+                                                <div className='row'>
+                                                    <div className=' columns small-2' />
+                                                    <div className='show-for-xxlarge columns small-4'>Project:</div>
+                                                    <div className='columns small-12 xxlarge-6'>{app.spec.project}</div>
                                                 </div>
                                             </div>
 
@@ -129,6 +131,12 @@ export const ApplicationsTable = (props: {
 
                                             <div className='columns small-2'>
                                                 <AppUtils.HealthStatusIcon state={app.status.health} /> <span>{app.status.health.status}</span> <br />
+                                                {app.status.sourceHydrator?.currentOperation && (
+                                                    <>
+                                                        <AppUtils.HydrateOperationPhaseIcon operationState={app.status.sourceHydrator.currentOperation} />{' '}
+                                                        <span>{app.status.sourceHydrator.currentOperation.phase}</span> <br />
+                                                    </>
+                                                )}
                                                 <AppUtils.ComparisonStatusIcon status={app.status.sync.status} />
                                                 <span>{app.status.sync.status}</span> <OperationState app={app} quiet={true} />
                                                 <DropDownMenu

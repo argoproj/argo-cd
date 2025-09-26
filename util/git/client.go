@@ -670,7 +670,7 @@ func (m *nativeGitClient) LsRemote(revision string) (res string, err error) {
 	for attempt := 0; attempt < maxAttemptsCount; attempt++ {
 		res, err = m.lsRemote(revision)
 		if err == nil {
-			return
+			return res, nil
 		} else if apierrors.IsInternalError(err) || apierrors.IsTimeout(err) || apierrors.IsServerTimeout(err) ||
 			apierrors.IsTooManyRequests(err) || utilnet.IsProbableEOF(err) || utilnet.IsConnectionReset(err) {
 			// Formula: timeToWait = duration * factor^retry_number
@@ -683,7 +683,7 @@ func (m *nativeGitClient) LsRemote(revision string) (res string, err error) {
 			time.Sleep(time.Duration(timeToWait))
 		}
 	}
-	return
+	return res, err
 }
 
 func getGitTags(refs []*plumbing.Reference) []string {
@@ -1027,7 +1027,7 @@ func (m *nativeGitClient) RemoveContents(paths []string) (string, error) {
 	if len(paths) == 0 {
 		return "", nil
 	}
-	args := append([]string{"rm", "-r", "--ignore-unmatch"}, paths...)
+	args := append([]string{"rm", "-r", "--ignore-unmatch", "--"}, paths...)
 	out, err := m.runCmd(args...)
 	if err != nil {
 		return out, fmt.Errorf("failed to clear paths %v: %w", paths, err)

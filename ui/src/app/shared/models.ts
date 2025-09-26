@@ -44,6 +44,7 @@ export interface RetryBackoff {
 export interface RetryStrategy {
     limit: number;
     backoff: RetryBackoff;
+    refresh: boolean;
 }
 
 export interface RollbackOperation {
@@ -360,6 +361,12 @@ export const SyncStatuses: {[key: string]: SyncStatusCode} = {
     OutOfSync: 'OutOfSync'
 };
 
+export const SyncPriority: Record<SyncStatusCode, number> = {
+    Unknown: 0,
+    OutOfSync: 1,
+    Synced: 2
+};
+
 export type HealthStatusCode = 'Unknown' | 'Progressing' | 'Healthy' | 'Suspended' | 'Degraded' | 'Missing';
 
 export const HealthStatuses: {[key: string]: HealthStatusCode} = {
@@ -369,6 +376,15 @@ export const HealthStatuses: {[key: string]: HealthStatusCode} = {
     Degraded: 'Degraded',
     Missing: 'Missing',
     Unknown: 'Unknown'
+};
+
+export const HealthPriority: Record<HealthStatusCode, number> = {
+    Missing: 0,
+    Degraded: 1,
+    Unknown: 2,
+    Progressing: 3,
+    Suspended: 4,
+    Healthy: 5
 };
 
 export interface HealthStatus {
@@ -1117,4 +1133,9 @@ export interface ApplicationSet {
         }>;
         resources?: ApplicationSetResource[];
     };
+}
+
+export interface ApplicationSetList {
+    metadata: models.ListMeta;
+    items: ApplicationSet[];
 }

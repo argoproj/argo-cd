@@ -1,4 +1,9 @@
 .applications-table {
+
+    .application-name {
+        font-weight: bolder;
+    }
+
     .argo-table-list__row {
         line-height: 26px;
         padding-top: 4px;
@@ -12,6 +17,15 @@
                 top: 50%;
                 transform: translateY(-50%);
             }
+        }
+    }
+
+    .applications-list__table-row.applications-table-row--with-hydrator {
+        .columns.small-4,
+        .columns.small-6 {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
         }
     }
 

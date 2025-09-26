@@ -558,7 +558,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	appLabelKey, resourceOverrides, resFilter, installationID, trackingMethod, err := m.getComparisonSettings()
 	ts.AddCheckpoint("settings_ms")
 	if err != nil {
-		// return unknown comparison result if basic comparison settings cannot be loaded
+		log.Infof("Basic comparison settings cannot be loaded, using unknown comparison: %s", err.Error())
 		return &comparisonResult{syncStatus: syncStatus, healthStatus: health.HealthStatusUnknown}, nil
 	}
 

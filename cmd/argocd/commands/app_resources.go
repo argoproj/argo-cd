@@ -57,7 +57,7 @@ func NewApplicationGetResourceCommand(clientOpts *argocdclient.ClientOptions) *c
   # Get a specific resource with managed fields, Pod my-app-pod, in 'my-app' by name in wide format
     argocd app get-resource my-app --kind Pod --resource-name my-app-pod --show-managed-fields
 
-  # Get the the details of a specific field in a resource in 'my-app' in the wide format
+  # Get the details of a specific field in a resource in 'my-app' in the wide format
     argocd app get-resource my-app --kind Pod --filter-fields status.podIP
 
   # Get the details of multiple specific fields in a specific resource in 'my-app' in the wide format

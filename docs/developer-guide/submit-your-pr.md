@@ -7,11 +7,13 @@
 
 ## Preface
 
-!!!note "Before you start"
-    The Argo CD project continuously grows, both in terms of features and community size. It gets adopted by more and more organizations which entrust Argo CD to handle their critical production workloads. Thus, we need to take great care with any changes that affect compatibility, performance, scalability, stability and security of Argo CD. For this reason, every new feature or larger enhancement must be properly designed and discussed before it gets accepted into the code base.
-
-    We do welcome and encourage everyone to participate in the Argo CD project, but please understand that we can't accept each and every contribution from the community, for various reasons. If you want to submit code for a great new feature or enhancement, we kindly ask you to take a look at the
-    [code contribution guide](code-contributions.md#) before you start to write code or submit a PR.
+> [!NOTE]
+> **Before you start**
+>
+> The Argo CD project continuously grows, both in terms of features and community size. It gets adopted by more and more organizations which entrust Argo CD to handle their critical production workloads. Thus, we need to take great care with any changes that affect compatibility, performance, scalability, stability and security of Argo CD. For this reason, every new feature or larger enhancement must be properly designed and discussed before it gets accepted into the code base.
+>
+> We do welcome and encourage everyone to participate in the Argo CD project, but please understand that we can't accept each and every contribution from the community, for various reasons. If you want to submit code for a great new feature or enhancement, we kindly ask you to take a look at the
+> [code contribution guide](code-contributions.md#) before you start to write code or submit a PR.
 
 If you want to submit a PR, please read this document carefully, as it contains important information guiding you through our PR quality gates.
 
@@ -34,8 +36,8 @@ make pre-commit-local
 
 When you submit a PR against Argo CD's GitHub repository, a couple of CI checks will be run automatically to ensure your changes will build fine and meet certain quality standards. Your contribution needs to pass those checks in order to be merged into the repository.
 
-!!!note
-    Please make sure that you always create PRs from a branch that is up-to-date with the latest changes from Argo CD's master branch. Depending on how long it takes for the maintainers to review and merge your PR, it might be necessary to pull in latest changes into your branch again.
+> [!NOTE]
+> Please make sure that you always create PRs from a branch that is up-to-date with the latest changes from Argo CD's master branch. Depending on how long it takes for the maintainers to review and merge your PR, it might be necessary to pull in latest changes into your branch again.
 
 Please understand that we, as an Open Source project, have limited capacities for reviewing and merging PRs to Argo CD. We will do our best to review your PR and give you feedback as soon as possible, but please bear with us if it takes a little longer as expected.
 
@@ -84,3 +86,13 @@ If you want to see how much coverage just a specific module (i.e. your new one) 
 ...
 ok      github.com/argoproj/argo-cd/server/cache        0.029s  coverage: 89.3% of statements
 ```
+
+## Cherry-picking fixes
+
+If your PR contains a bug fix, and you want to have that fix backported to a previous release branch, please label your
+PR with `cherry-pick/x.y` (example: `cherry-pick/3.1`). If you do not have access to add labels, ask a maintainer to add
+them for you.
+
+If you add labels before the PR is merged, the cherry-pick bot will open the backport PRs when your PR is merged.
+
+Adding a label after the PR is merged will also cause the bot to open the backport PR.

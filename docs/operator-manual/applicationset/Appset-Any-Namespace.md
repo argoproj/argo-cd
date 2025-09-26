@@ -1,11 +1,13 @@
 # ApplicationSet in any namespace
 
-!!! warning "Beta Feature (Since v2.8.0)"
-    This feature is in the [Beta](https://github.com/argoproj/argoproj/blob/main/community/feature-status.md#beta) stage. 
-    It is generally considered stable, but there may be unhandled edge cases.
+> [!WARNING]
+> **Beta Feature (Since v2.8.0)**
+>
+> This feature is in the [Beta](https://github.com/argoproj/argoproj/blob/main/community/feature-status.md#beta) stage. 
+> It is generally considered stable, but there may be unhandled edge cases.
 
-!!! warning
-    Please read this documentation carefully before you enable this feature. Misconfiguration could lead to potential security issues.
+> [!WARNING]
+> Please read this documentation carefully before you enable this feature. Misconfiguration could lead to potential security issues.
 
 ## Introduction
 
@@ -70,12 +72,12 @@ data:
   applicationsetcontroller.allowed.scm.providers: https://git.mydomain.com/,https://gitlab.mydomain.com/
 ```
 
-!!! note
-    Please note url used in the `api` field of the `ApplicationSet` must match the url declared by the Administrator including the protocol
+> [!NOTE]
+> Please note url used in the `api` field of the `ApplicationSet` must match the url declared by the Administrator including the protocol
 
-!!! warning
-    The allow-list only applies to SCM providers for which the user may configure a custom `api`. Where an SCM or PR
-    generator does not accept a custom API URL, the provider is implicitly allowed.
+> [!WARNING]
+> The allow-list only applies to SCM providers for which the user may configure a custom `api`. Where an SCM or PR
+> generator does not accept a custom API URL, the provider is implicitly allowed.
 
 If you do not intend to allow users to use the SCM or PR generators, you can disable them entirely by setting the environment variable `ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_SCM_PROVIDERS` to argocd-cmd-params-cm `applicationsetcontroller.enable.scm.providers` to `false`.
 

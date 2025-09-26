@@ -2,9 +2,10 @@
 name: Enhancement proposal
 about: Propose an enhancement for this project
 title: ''
-labels: 'enhancement'
+labels: ['enhancement', 'triage/pending']
 assignees: ''
 ---
+
 # Summary
 
 What change you think needs making.
