@@ -255,6 +255,9 @@ const (
 	EnvGitRetryFactor = "ARGOCD_GIT_RETRY_FACTOR"
 	// EnvGitSubmoduleEnabled overrides git submodule support, true by default
 	EnvGitSubmoduleEnabled = "ARGOCD_GIT_MODULES_ENABLED"
+	// EnvGitCleanupEnabled enables cleanup for git temporary files on fetch errors
+	// Valid values: "true", "false" (default: "false")
+	EnvGitCleanupEnabled = "ARGOCD_GIT_CLEANUP_ENABLED"
 	// EnvGnuPGHome is the path to ArgoCD's GnuPG keyring for signature verification
 	EnvGnuPGHome = "ARGOCD_GNUPGHOME"
 	// EnvWatchAPIBufferSize is the buffer size used to transfer K8S watch events to watch API consumer
@@ -358,6 +361,12 @@ const (
 	DefaultGitRetryMaxDuration time.Duration = time.Second * 5        // 5s
 	DefaultGitRetryDuration    time.Duration = time.Millisecond * 250 // 0.25s
 	DefaultGitRetryFactor                    = int64(2)
+)
+
+// Git cleanup configuration
+const (
+	// GitCleanupEnabledDefault is the default value for git cleanup
+	GitCleanupEnabledDefault = false
 )
 
 // Constants represent the pod selector labels of the Argo CD component names. These values are determined by the
