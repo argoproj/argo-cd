@@ -2001,6 +2001,118 @@ func BenchmarkIterateHierarchyV2FromClusterScoped_25Percent_WithScan(b *testing.
 	}
 }
 
+// BenchmarkIterateHierarchyV2_NamespaceScaling tests how namespace scanning scales with namespace size
+func BenchmarkIterateHierarchyV2_NamespaceScaling(b *testing.B) {
+	testCases := []struct {
+		name                 string
+		namespaceResourceCount int
+		crossNamespacePercent  float64
+	}{
+		{"100_Resources_10pct", 100, 0.10},
+		{"1000_Resources_10pct", 1000, 0.10},
+		{"5000_Resources_10pct", 5000, 0.10},
+		{"10000_Resources_10pct", 10000, 0.10},
+		{"20000_Resources_10pct", 20000, 0.10},
+		// Also test with different cross-namespace percentages
+		{"5000_Resources_0pct", 5000, 0.00},
+		{"5000_Resources_5pct", 5000, 0.05},
+		{"5000_Resources_25pct", 5000, 0.25},
+		{"5000_Resources_50pct", 5000, 0.50},
+	}
+
+	for _, tc := range testCases {
+		b.Run(tc.name, func(b *testing.B) {
+			cluster := newCluster(b).WithAPIResources([]kube.APIResourceInfo{{
+				GroupKind:            schema.GroupKind{Group: "rbac.authorization.k8s.io", Kind: "ClusterRole"},
+				GroupVersionResource: schema.GroupVersionResource{Group: "rbac.authorization.k8s.io", Version: "v1", Resource: "clusterroles"},
+				Meta:                 metav1.APIResource{Namespaced: false},
+			}})
+
+			// Calculate resource distribution
+			clusterParents := 100 // Fixed number of cluster-scoped resources
+			crossNamespacePods := int(float64(tc.namespaceResourceCount) * tc.crossNamespacePercent)
+			regularPods := tc.namespaceResourceCount - crossNamespacePods
+
+			testResources := buildParameterizedCrossNamespaceTestResourceMapWithUIDs(
+				clusterParents,
+				regularPods,
+				crossNamespacePods,
+			)
+
+			for _, resource := range testResources {
+				cluster.setNode(resource)
+			}
+
+			// Start from a cluster-scoped resource
+			startKey := kube.ResourceKey{
+				Group:     "rbac.authorization.k8s.io",
+				Kind:      "ClusterRole",
+				Namespace: "",
+				Name:      "cluster-role-0",
+			}
+
+			b.ResetTimer()
+			for n := 0; n < b.N; n++ {
+				// Test scanning the "default" namespace which has the most resources
+				cluster.IterateHierarchyV2([]kube.ResourceKey{startKey}, func(_ *Resource, _ map[kube.ResourceKey]*Resource) bool {
+					return true
+				}, "default")
+			}
+		})
+	}
+}
+
+// BenchmarkIterateHierarchyV2_NamespaceScaling_NoScan provides baseline for comparison
+func BenchmarkIterateHierarchyV2_NamespaceScaling_NoScan(b *testing.B) {
+	testCases := []struct {
+		name                 string
+		namespaceResourceCount int
+	}{
+		{"100_Resources", 100},
+		{"1000_Resources", 1000},
+		{"5000_Resources", 5000},
+		{"10000_Resources", 10000},
+		{"20000_Resources", 20000},
+	}
+
+	for _, tc := range testCases {
+		b.Run(tc.name, func(b *testing.B) {
+			cluster := newCluster(b).WithAPIResources([]kube.APIResourceInfo{{
+				GroupKind:            schema.GroupKind{Group: "rbac.authorization.k8s.io", Kind: "ClusterRole"},
+				GroupVersionResource: schema.GroupVersionResource{Group: "rbac.authorization.k8s.io", Version: "v1", Resource: "clusterroles"},
+				Meta:                 metav1.APIResource{Namespaced: false},
+			}})
+
+			// All resources have cluster-scoped parents but we won't scan for them
+			testResources := buildParameterizedCrossNamespaceTestResourceMapWithUIDs(
+				100,
+				0,
+				tc.namespaceResourceCount,
+			)
+
+			for _, resource := range testResources {
+				cluster.setNode(resource)
+			}
+
+			// Start from a cluster-scoped resource
+			startKey := kube.ResourceKey{
+				Group:     "rbac.authorization.k8s.io",
+				Kind:      "ClusterRole",
+				Namespace: "",
+				Name:      "cluster-role-0",
+			}
+
+			b.ResetTimer()
+			for n := 0; n < b.N; n++ {
+				// No namespace scanning - just traverse cluster-scoped children
+				cluster.IterateHierarchyV2([]kube.ResourceKey{startKey}, func(_ *Resource, _ map[kube.ResourceKey]*Resource) bool {
+					return true
+				}, "")
+			}
+		})
+	}
+}
+
 func TestIterateHierarchyV2_NoDuplicatesInSameNamespace(t *testing.T) {
 	// Create a parent-child relationship in the same namespace
 	parent := &appsv1.Deployment{

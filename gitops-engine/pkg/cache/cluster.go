@@ -1134,7 +1134,7 @@ func (c *clusterCache) IterateHierarchyV2(keys []kube.ResourceKey, action func(r
 	// First process the namespaces we have explicit keys for
 	for namespace, namespaceKeys := range keysPerNamespace {
 		nsNodes := c.nsIndex[namespace]
-		
+
 		// Only use cross-namespace graph for namespaced resources that might have cluster parents
 		var graph map[kube.ResourceKey]map[types.UID]*Resource
 		if namespace != "" && len(clusterNodesByUID) > 0 {
@@ -1287,20 +1287,22 @@ func buildGraph(nsNodes map[kube.ResourceKey]*Resource) map[kube.ResourceKey]map
 			uidNodes, ok := nodesByUID[ownerRef.UID]
 			if ok {
 				for _, uidNode := range uidNodes {
+					// Cache ResourceKey() to avoid repeated expensive calls
+					uidNodeKey := uidNode.ResourceKey()
 					// Update the graph for this owner to include the child.
-					if _, ok := graph[uidNode.ResourceKey()]; !ok {
-						graph[uidNode.ResourceKey()] = make(map[types.UID]*Resource)
+					if _, ok := graph[uidNodeKey]; !ok {
+						graph[uidNodeKey] = make(map[types.UID]*Resource)
 					}
-					r, ok := graph[uidNode.ResourceKey()][childNode.Ref.UID]
+					r, ok := graph[uidNodeKey][childNode.Ref.UID]
 					if !ok {
-						graph[uidNode.ResourceKey()][childNode.Ref.UID] = childNode
+						graph[uidNodeKey][childNode.Ref.UID] = childNode
 					} else if r != nil {
 						// The object might have multiple children with the same UID (e.g. replicaset from apps and extensions group).
 						// It is ok to pick any object, but we need to make sure we pick the same child after every refresh.
 						key1 := r.ResourceKey()
 						key2 := childNode.ResourceKey()
 						if strings.Compare(key1.String(), key2.String()) > 0 {
-							graph[uidNode.ResourceKey()][childNode.Ref.UID] = childNode
+							graph[uidNodeKey][childNode.Ref.UID] = childNode
 						}
 					}
 				}
@@ -1343,17 +1345,19 @@ func buildGraphWithCrossNamespace(nsNodes map[kube.ResourceKey]*Resource, cluste
 			}
 			if ok {
 				for _, uidNode := range uidNodes {
-					if _, ok := graph[uidNode.ResourceKey()]; !ok {
-						graph[uidNode.ResourceKey()] = make(map[types.UID]*Resource)
+					// Cache ResourceKey() to avoid repeated expensive calls
+					uidNodeKey := uidNode.ResourceKey()
+					if _, ok := graph[uidNodeKey]; !ok {
+						graph[uidNodeKey] = make(map[types.UID]*Resource)
 					}
-					r, ok := graph[uidNode.ResourceKey()][childNode.Ref.UID]
+					r, ok := graph[uidNodeKey][childNode.Ref.UID]
 					if !ok {
-						graph[uidNode.ResourceKey()][childNode.Ref.UID] = childNode
+						graph[uidNodeKey][childNode.Ref.UID] = childNode
 					} else if r != nil {
 						key1 := r.ResourceKey()
 						key2 := childNode.ResourceKey()
 						if strings.Compare(key1.String(), key2.String()) > 0 {
-							graph[uidNode.ResourceKey()][childNode.Ref.UID] = childNode
+							graph[uidNodeKey][childNode.Ref.UID] = childNode
 						}
 					}
 				}
