@@ -43,8 +43,8 @@ spec:
       recurse: true
 ```
 
-!!! warning
-    Directory-type applications only work for plain manifest files. If Argo CD encounters Kustomize, Helm, or Jsonnet files when directory: is set, it will fail to render the manifests.
+> [!WARNING]
+> Directory-type applications only work for plain manifest files. If Argo CD encounters Kustomize, Helm, or Jsonnet files when directory: is set, it will fail to render the manifests.
 
 ## Including/Excluding Files
 
@@ -59,8 +59,8 @@ For example, if you want to include only `.yaml` files, you can use this pattern
 argocd app set guestbook --directory-include "*.yaml"
 ```
 
-!!! note
-    It is important to quote `*.yaml` so that the shell does not expand the pattern before sending it to Argo CD.
+> [!NOTE]
+> It is important to quote `*.yaml` so that the shell does not expand the pattern before sending it to Argo CD.
 
 It is also possible to include multiple patterns. Wrap the patterns with `{}` and separate them with commas. To include
 `.yml` and `.yaml` files, use this pattern:
