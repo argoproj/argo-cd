@@ -2193,3 +2193,49 @@ func TestSettingsManager_GetAllowedNodeLabels(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateStrictTransportSecurity(t *testing.T) {
+	tests := []struct {
+		name      string
+		input     string
+		want      string
+		expectErr bool
+	}{
+		{
+			name:      "empty value returns default",
+			input:     "",
+			want:      "max-age=63072000; includeSubDomains; preload",
+			expectErr: false,
+		},
+		{
+			name:      "valid custom value",
+			input:     "max-age=31536000; includeSubDomains; preload",
+			want:      "max-age=31536000; includeSubDomains; preload",
+			expectErr: false,
+		},
+		{
+			name:      "invalid max-age value",
+			input:     "max-age=notanumber; includeSubDomains",
+			want:      "",
+			expectErr: true,
+		},
+		{
+			name:      "repeated directive",
+			input:     "max-age=31536000; includeSubDomains; includeSubDomains",
+			want:      "",
+			expectErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := validateStrictTransportSecurity(tt.input)
+			if tt.expectErr {
+				assert.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, tt.want, got)
+			}
+		})
+	}
+}
