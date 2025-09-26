@@ -125,6 +125,7 @@ func (g *GitGenerator) generateParamsForGitDirectories(appSetGenerator *argoproj
 		"repoURL":         appSetGenerator.Git.RepoURL,
 		"revision":        appSetGenerator.Git.Revision,
 		"pathParamPrefix": appSetGenerator.Git.PathParamPrefix,
+		"paramPrefix":     appSetGenerator.Git.ParamPrefix,
 	}).Info("applications result from the repo service")
 
 	requestedApps := g.filterApps(appSetGenerator.Git.Directories, allPaths)
@@ -206,7 +207,7 @@ func (g *GitGenerator) generateParamsForGitFiles(appSetGenerator *argoprojiov1al
 	var allParams []map[string]any
 	for _, filePath := range filePaths {
 		// A JSON / YAML file path can contain multiple sets of parameters (ie it is an array)
-		paramsFromFileArray, err := g.generateParamsFromGitFile(filePath, fileContentMap[filePath], appSetGenerator.Git.Values, useGoTemplate, goTemplateOptions, appSetGenerator.Git.PathParamPrefix)
+		paramsFromFileArray, err := g.generateParamsFromGitFile(filePath, fileContentMap[filePath], appSetGenerator.Git.Values, useGoTemplate, goTemplateOptions, appSetGenerator.Git.PathParamPrefix, appSetGenerator.Git.ParamPrefix)
 		if err != nil {
 			return nil, fmt.Errorf("unable to process file '%s': %w", filePath, err)
 		}
@@ -219,7 +220,7 @@ func (g *GitGenerator) generateParamsForGitFiles(appSetGenerator *argoprojiov1al
 // generateParamsFromGitFile parses the content of a Git-tracked file and generates a slice of parameter maps.
 // The file can contain a single YAML/JSON object or an array of such objects. Depending on the useGoTemplate flag,
 // it either preserves structure for Go templating or flattens the objects for use as plain key-value parameters.
-func (g *GitGenerator) generateParamsFromGitFile(filePath string, fileContent []byte, values map[string]string, useGoTemplate bool, goTemplateOptions []string, pathParamPrefix string) ([]map[string]any, error) {
+func (g *GitGenerator) generateParamsFromGitFile(filePath string, fileContent []byte, values map[string]string, useGoTemplate bool, goTemplateOptions []string, pathParamPrefix string, paramPrefix string) ([]map[string]any, error) {
 	objectsFound := []map[string]any{}
 
 	// First, we attempt to parse as a single object.
@@ -242,8 +243,12 @@ func (g *GitGenerator) generateParamsFromGitFile(filePath string, fileContent []
 		params := map[string]any{}
 
 		if useGoTemplate {
-			for k, v := range objectFound {
-				params[k] = v
+			if paramPrefix != "" {
+				params[paramPrefix] = objectFound
+			} else {
+				for k, v := range objectFound {
+					params[k] = v
+				}
 			}
 
 			paramPath := map[string]any{}
@@ -260,7 +265,11 @@ func (g *GitGenerator) generateParamsFromGitFile(filePath string, fileContent []
 				params["path"] = paramPath
 			}
 		} else {
-			flat, err := flatten.Flatten(objectFound, "", flatten.DotStyle)
+			flattenPrefix := ""
+			if paramPrefix != "" {
+				flattenPrefix = paramPrefix + "."
+			}
+			flat, err := flatten.Flatten(objectFound, flattenPrefix, flatten.DotStyle)
 			if err != nil {
 				return nil, fmt.Errorf("error flattening object: %w", err)
 			}
