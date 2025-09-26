@@ -1,52 +1,39 @@
-# `argocd account` Command Reference
+# `argocd account session-token` Command Reference
 
-## argocd account
+## argocd account session-token
 
-Manage account settings
+Display current session token
+
+### Synopsis
+
+Display the current session token for authentication.
+
+Automatically refreshes expired tokens using refresh token (SSO users).
+For local users: Shows current token (manual relogin needed if expired)
 
 ```
-argocd account [flags]
+argocd account session-token [flags]
 ```
 
 ### Examples
 
 ```
-  # List accounts
-  argocd account list
-  
-  # Update the current user's password
-  argocd account update-password
-  
-  # Can I sync any app?
-  argocd account can-i sync applications '*'
-  
-  # Get User information
-  argocd account get-user-info
+# Display current session token (automatically refreshes if needed)
+argocd account session-token
+
+# Show detailed token information
+argocd account session-token -o json
+
+# Use in scripts
+export ARGOCD_AUTH_TOKEN=$(argocd account session-token)
+curl -H "Authorization: Bearer $ARGOCD_AUTH_TOKEN" $ARGOCD_SERVER/api/v1/applications
 ```
 
 ### Options
 
 ```
-      --as string                      Username to impersonate for the operation
-      --as-group stringArray           Group to impersonate for the operation, this flag can be repeated to specify multiple groups.
-      --as-uid string                  UID to impersonate for the operation
-      --certificate-authority string   Path to a cert file for the certificate authority
-      --client-certificate string      Path to a client certificate file for TLS
-      --client-key string              Path to a client key file for TLS
-      --cluster string                 The name of the kubeconfig cluster to use
-      --context string                 The name of the kubeconfig context to use
-      --disable-compression            If true, opt-out of response compression for all requests to the server
-  -h, --help                           help for account
-      --insecure-skip-tls-verify       If true, the server's certificate will not be checked for validity. This will make your HTTPS connections insecure
-      --kubeconfig string              Path to a kube config. Only required if out-of-cluster
-  -n, --namespace string               If present, the namespace scope for this CLI request
-      --password string                Password for basic authentication to the API server
-      --proxy-url string               If provided, this URL will be used to connect via proxy
-      --request-timeout string         The length of time to wait before giving up on a single server request. Non-zero values should contain a corresponding time unit (e.g. 1s, 2m, 3h). A value of zero means don't timeout requests. (default "0")
-      --tls-server-name string         If provided, this name will be used to validate server certificate. If this is not provided, hostname used to contact the server is used.
-      --token string                   Bearer token for authentication to the API server
-      --user string                    The name of the kubeconfig user to use
-      --username string                Username for basic authentication to the API server
+  -h, --help            help for session-token
+  -o, --output string   Output format (json)
 ```
 
 ### Options inherited from parent commands
@@ -82,14 +69,5 @@ argocd account [flags]
 
 ### SEE ALSO
 
-* [argocd](argocd.md)	 - argocd controls a Argo CD server
-* [argocd account bcrypt](argocd_account_bcrypt.md)	 - Generate bcrypt hash for any password
-* [argocd account can-i](argocd_account_can-i.md)	 - Can I
-* [argocd account delete-token](argocd_account_delete-token.md)	 - Deletes account token
-* [argocd account generate-token](argocd_account_generate-token.md)	 - Generate account token
-* [argocd account get](argocd_account_get.md)	 - Get account details
-* [argocd account get-user-info](argocd_account_get-user-info.md)	 - Get user info
-* [argocd account list](argocd_account_list.md)	 - List accounts
-* [argocd account session-token](argocd_account_session-token.md)	 - Display current session token
-* [argocd account update-password](argocd_account_update-password.md)	 - Update an account's password
+* [argocd account](argocd_account.md)	 - Manage account settings
 
