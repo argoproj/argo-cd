@@ -43,6 +43,17 @@ endif
 DOCKER_SRCDIR?=$(GOPATH)/src
 DOCKER_WORKDIR?=/go/src/github.com/argoproj/argo-cd
 
+# Allows you to control which Docker network the test-util containers attach to.
+# This is particularly useful if you are running Kubernetes in Docker (e.g., k3d)
+# and want the test containers to reach the Kubernetes API via an already-existing Docker network.
+DOCKER_NETWORK ?= default
+
+ifneq ($(DOCKER_NETWORK),default)
+DOCKER_NETWORK_ARG := --network $(DOCKER_NETWORK)
+else
+DOCKER_NETWORK_ARG :=
+endif
+
 ARGOCD_PROCFILE?=Procfile
 
 # pointing to python 3.7 to match https://github.com/argoproj/argo-cd/blob/master/.readthedocs.yml
@@ -117,6 +128,7 @@ define run-in-test-server
 		-p ${ARGOCD_E2E_APISERVER_PORT}:8080 \
 		-p 4000:4000 \
 		-p 5000:5000 \
+		$(DOCKER_NETWORK_ARG)\
 		$(PODMAN_ARGS) \
 		$(TEST_TOOLS_PREFIX)$(TEST_TOOLS_IMAGE):$(TEST_TOOLS_TAG) \
 		bash -c "$(1)"
@@ -138,6 +150,7 @@ define run-in-test-client
 		-v ${GOCACHE}:/tmp/go-build-cache${VOLUME_MOUNT} \
 		-v ${HOME}/.kube:/home/user/.kube${VOLUME_MOUNT} \
 		-w ${DOCKER_WORKDIR} \
+		$(DOCKER_NETWORK_ARG)\
 		$(PODMAN_ARGS) \
 		$(TEST_TOOLS_PREFIX)$(TEST_TOOLS_IMAGE):$(TEST_TOOLS_TAG) \
 		bash -c "$(1)"
@@ -360,11 +373,11 @@ mod-download-local:
 
 .PHONY: mod-vendor
 mod-vendor: test-tools-image
-	$(call run-in-test-client,go mod vendor)
+	$(call run-in-test-client,go work vendor)
 
 .PHONY: mod-vendor-local
 mod-vendor-local: mod-download-local
-	go mod vendor
+	go work vendor
 
 # Run linter on the code
 .PHONY: lint

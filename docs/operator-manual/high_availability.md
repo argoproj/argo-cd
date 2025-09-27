@@ -2,12 +2,11 @@
 
 Argo CD is largely stateless. All data is persisted as Kubernetes objects, which in turn is stored in Kubernetes' etcd. Redis is only used as a throw-away cache and can be lost. When lost, it will be rebuilt without loss of service.
 
-A set of [HA manifests](https://github.com/argoproj/argo-cd/tree/master/manifests/ha) are provided for users who wish to run Argo CD in a highly available manner. This runs more containers, and runs Redis in HA mode.
+A set of [HA manifests](https://github.com/argoproj/argo-cd/tree/stable/manifests/ha) are provided for users who wish to run Argo CD in a highly available manner. This runs more containers, and runs Redis in HA mode.
 
-!!! note
-
-    The HA installation will require at least three different nodes due to pod anti-affinity roles in the
-    specs. Additionally, IPv6 only clusters are not supported.
+> [!NOTE]
+> The HA installation will require at least three different nodes due to pod anti-affinity roles in the
+> specs. Additionally, IPv6 only clusters are not supported.
 
 ## Scaling Up
 
@@ -36,6 +35,9 @@ and might fail. To avoid failed syncs use the `ARGOCD_GIT_ATTEMPTS_COUNT` enviro
 
 * `argocd-repo-server` will issue a `SIGTERM` signal to a command that has elapsed the `ARGOCD_EXEC_TIMEOUT`. In most cases, well-behaved commands will exit immediately when receiving the signal. However, if this does not happen, `argocd-repo-server` will wait an additional timeout of `ARGOCD_EXEC_FATAL_TIMEOUT` and then forcefully exit the command with a `SIGKILL` to prevent stalling. Note that a failure to exit with `SIGTERM` is usually a bug in either the offending command or in the way `argocd-repo-server` calls it and should be reported to the issue tracker for further investigation.
 
+* When using the `discovery` option in Config Management Plugins (CMP), `argocd-repo-server` copies the repository (or only the files specified via the `argocd.argoproj.io/manifest-generate-paths` annotation) into a separate directory for each plugin.
+This can place a heavy load on disk resources for a **argocd-repo-server**, especially if the repository contains large files. To mitigate this, consider disabling `discovery` or using [Plugin tar stream exclusions](./config-management-plugins.md#plugin-tar-stream-exclusions).
+
 **metrics:**
 
 * `argocd_git_request_total` - Number of git requests. This metric provides two tags:
@@ -63,7 +65,7 @@ performance. For performance reasons the controller monitors and caches only the
 preferred version into a version of the resource stored in Git. If `kubectl convert` fails because the conversion is not supported then the controller falls back to Kubernetes API query which slows down
 reconciliation. In this case, we advise to use the preferred resource version in Git.
 
-* The controller polls Git every 3m by default. You can change this duration using the `timeout.reconciliation` and `timeout.reconciliation.jitter` setting in the `argocd-cm` ConfigMap. The value of the fields is a duration string e.g `60s`, `1m`, `1h` or `1d`.
+* The controller polls Git every 3m by default. You can change this duration using the `timeout.reconciliation` and `timeout.reconciliation.jitter` setting in the `argocd-cm` ConfigMap. The value of the fields is a [duration string](https://pkg.go.dev/time#ParseDuration) e.g `60s`, `1m` or `1h`.
 
 * If the controller is managing too many clusters and uses too much memory then you can shard clusters across multiple
 controller replicas. To enable sharding, increase the number of replicas in `argocd-application-controller` `StatefulSet`
@@ -95,9 +97,11 @@ spec:
 
 The `--sharding-method` parameter can also be overridden by setting the key `controller.sharding.algorithm` in the `argocd-cmd-params-cm` `configMap` (preferably) or by setting the `ARGOCD_CONTROLLER_SHARDING_ALGORITHM` environment variable and by specifying the same possible values.
 
-!!! warning "Alpha Features"
-    The `round-robin` shard distribution algorithm is an experimental feature. Reshuffling is known to occur in certain scenarios with cluster removal. If the cluster at rank-0 is removed, reshuffling all clusters across shards will occur and may temporarily have negative performance impacts.
-    The `consistent-hashing` shard distribution algorithm is an experimental feature. Extensive benchmark have been documented on the [CNOE blog](https://cnoe.io/blog/argo-cd-application-scalability) with encouraging results. Community feedback is highly appreciated before moving this feature to a production ready state.
+> [!WARNING]
+> **Alpha Features**
+>
+> The `round-robin` shard distribution algorithm is an experimental feature. Reshuffling is known to occur in certain scenarios with cluster removal. If the cluster at rank-0 is removed, reshuffling all clusters across shards will occur and may temporarily have negative performance impacts.
+> The `consistent-hashing` shard distribution algorithm is an experimental feature. Extensive benchmark have been documented on the [CNOE blog](https://cnoe.io/blog/argo-cd-application-scalability) with encouraging results. Community feedback is highly appreciated before moving this feature to a production ready state.
 
 * A cluster can be manually assigned and forced to a `shard` by patching the `shard` field in the cluster secret to contain the shard number, e.g.
 ```yaml
@@ -205,7 +209,9 @@ If the manifest generation has no side effects then requests are processed in pa
 ### Manifest Paths Annotation
 
 Argo CD aggressively caches generated manifests and uses the repository commit SHA as a cache key. A new commit to the Git repository invalidates the cache for all applications configured in the repository.
-This can negatively affect repositories with multiple applications. You can use [webhooks](https://github.com/argoproj/argo-cd/blob/master/docs/operator-manual/webhook.md) and the `argocd.argoproj.io/manifest-generate-paths` Application CRD annotation to solve this problem and improve performance.
+This can negatively affect repositories with multiple applications. You can use the `argocd.argoproj.io/manifest-generate-paths` Application CRD annotation to solve this problem and improve performance.
+
+Note: The `argocd.argoproj.io/manifest-generate-paths` annotation is available for use with webhooks. Since Argo CD v2.11, this annotation can also be used **without configuring any webhooks**. Webhooks are not a pre-condition for this feature. You can rely on the annotation alone to optimize manifest generation for all applications.
 
 The `argocd.argoproj.io/manifest-generate-paths` annotation contains a semicolon-separated list of paths within the Git repository that are used during manifest generation. It will use the paths specified in the annotation to compare the last cached revision to the latest commit. If no modified files match the paths specified in `argocd.argoproj.io/manifest-generate-paths`, then it will not trigger application reconciliation and the existing cache will be considered valid for the new commit.
 
@@ -215,8 +221,8 @@ Similarly, applications referencing an external Helm values file will not get th
 
 For webhooks, the comparison is done using the files specified in the webhook event payload instead.
 
-!!! note
-    Application manifest paths annotation support for webhooks depends on the git provider used for the Application. It is currently only supported for GitHub, GitLab, and Gogs based repos.
+> [!NOTE]
+> Application manifest paths annotation support for webhooks depends on the git provider used for the Application. It is currently only supported for GitHub, GitLab, and Gogs based repos.
 
 * **Relative path** The annotation might contain a relative path. In this case the path is considered relative to the path specified in the application source:
 
@@ -291,8 +297,8 @@ spec:
 # ...
 ```
 
-!!! note
-    If application manifest generation using the `argocd.argoproj.io/manifest-generate-paths` annotation feature is enabled, only the resources specified by this annotation will be sent to the CMP server for manifest generation, rather than the entire repository. To determine the appropriate resources, a common root path is calculated based on the paths provided in the annotation. The application path serves as the deepest path that can be selected as the root.
+> [!NOTE]
+> If application manifest generation using the `argocd.argoproj.io/manifest-generate-paths` annotation feature is enabled, only the resources specified by this annotation will be sent to the CMP server for manifest generation, rather than the entire repository. To determine the appropriate resources, a common root path is calculated based on the paths provided in the annotation. The application path serves as the deepest path that can be selected as the root.
 
 ### Application Sync Timeout & Jitter
 

@@ -235,6 +235,8 @@ nav:
 - roadmap.md
 - Releases ⧉: https://github.com/argoproj/argo-cd/releases
 - Blog ⧉: https://blog.argoproj.io/
+plugins:
+- gh-admonitions
 repo_url: https://github.com/argoproj/argo-cd
 site_name: Argo CD - Declarative GitOps CD for Kubernetes
 site_url: !ENV READTHEDOCS_CANONICAL_URL

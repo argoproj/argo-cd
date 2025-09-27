@@ -1,0 +1,11 @@
+apiVersion: capabilities.3scale.net/v1alpha1
+kind: Tenant
+metadata:
+  name: example-tenant
+  namespace: example-ns
+status:
+  tenantId: 123456
+  adminId: 789
+  conditions:
+    - type: Ready
+      status: "True"

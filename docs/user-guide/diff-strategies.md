@@ -17,8 +17,10 @@ Argo CD currently has 3 different strategies to calculate diffs:
 
 ## Structured-Merge Diff
 
-!!! warning "Feature Discontinued"
-    After different issues were identified by the community, this strategy is being discontinued in favour of Server-Side Diff.
+> [!WARNING]
+> **Feature Discontinued**
+>
+> After different issues were identified by the community, this strategy is being discontinued in favour of Server-Side Diff.
 
 This diff strategy is automatically used when Server-Side Apply
 sync option is enabled. It uses the [structured-merge-diff][2] library
@@ -39,6 +41,7 @@ are only triggered when:
 - There is a new revision in the repo which the Argo CD Application is
   targeting.
 - The Argo CD Application spec changed.
+- The [Resource Version][3] of the resource itself in live state changed
 
 One advantage of Server-Side Diff is that Kubernetes Admission
 Controllers will participate in the diff calculation. If for example
@@ -135,3 +138,4 @@ metadata:
 
 [1]: https://github.com/argoproj/argoproj/blob/main/community/feature-status.md#beta
 [2]: https://github.com/kubernetes-sigs/structured-merge-diff
+[3]: https://kubernetes.io/docs/reference/using-api/api-concepts/#resourceversion-in-metadata

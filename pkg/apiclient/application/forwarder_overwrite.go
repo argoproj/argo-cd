@@ -29,6 +29,7 @@ var appFields = map[string]func(app *v1alpha1.Application) any{
 	"metadata.creationTimestamp": func(app *v1alpha1.Application) any { return app.CreationTimestamp },
 	"metadata.deletionTimestamp": func(app *v1alpha1.Application) any { return app.DeletionTimestamp },
 	"spec":                       func(app *v1alpha1.Application) any { return app.Spec },
+	"status.sourceHydrator":      func(app *v1alpha1.Application) any { return app.Status.SourceHydrator },
 	"status.sync.status":         func(app *v1alpha1.Application) any { return app.Status.Sync.Status },
 	"status.health":              func(app *v1alpha1.Application) any { return app.Status.Health },
 	"status.summary":             func(app *v1alpha1.Application) any { return app.Status.Summary },

@@ -7027,6 +7027,13 @@ func schema_pkg_apis_application_v1alpha1_RetryStrategy(ref common.ReferenceCall
 							Ref:         ref("github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.Backoff"),
 						},
 					},
+					"refresh": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Refresh indicates if a new revision should trigger a new sync (default: false)",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 				},
 			},
 		},

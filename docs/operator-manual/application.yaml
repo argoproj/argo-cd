@@ -226,7 +226,7 @@ spec:
   # Sync policy
   syncPolicy:
     automated: # automated sync by default retries failed attempts 5 times with following delays between attempts ( 5s, 10s, 20s, 40s, 80s ); retry controlled using `retry` field.
-      enable: true # Enables automated syncing of the application ( true by default ).
+      enabled: true # Enables automated syncing of the application ( true by default ).
       prune: true # Specifies if resources should be pruned during auto-syncing ( false by default ).
       selfHeal: true # Specifies if partial app sync should be executed when resources are changed only in target Kubernetes cluster and no git change detected ( false by default ).
       allowEmpty: false # Allows deleting all application resources during automatic syncing ( false by default ).
@@ -266,7 +266,8 @@ spec:
     - /spec/replicas
   - kind: ConfigMap
     jqPathExpressions:
-    - '.data["config.yaml"].auth'
+    # Example: Ignore changes to a specific key inside a ConfigMap
+    - '.data["config.yaml"]'
   # for the specified managedFields managers
   - group: "*"
     kind: "*"

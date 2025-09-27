@@ -1012,7 +1012,21 @@ func TestNoAppEnumeration(t *testing.T) {
 		assert.EqualError(t, err, "rpc error: code = NotFound desc = applications.argoproj.io \"doest-not-exist\" not found", "when the request specifies a project, we can return the standard k8s error message")
 	})
 
+	//nolint:staticcheck,SA1019 // RunResourceAction is deprecated, but we still need to support it for backward compatibility.
 	t.Run("RunResourceAction", func(t *testing.T) {
+		_, err := appServer.RunResourceAction(adminCtx, &application.ResourceActionRunRequest{Name: ptr.To("test"), ResourceName: ptr.To("test"), Group: ptr.To("apps"), Kind: ptr.To("Deployment"), Namespace: ptr.To("test"), Action: ptr.To("restart")})
+		require.NoError(t, err)
+		_, err = appServer.RunResourceAction(noRoleCtx, &application.ResourceActionRunRequest{Name: ptr.To("test")})
+		require.EqualError(t, err, common.PermissionDeniedAPIError.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
+		_, err = appServer.RunResourceAction(noRoleCtx, &application.ResourceActionRunRequest{Group: ptr.To("argoproj.io"), Kind: ptr.To("Application"), Name: ptr.To("test")})
+		require.EqualError(t, err, common.PermissionDeniedAPIError.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
+		_, err = appServer.RunResourceAction(adminCtx, &application.ResourceActionRunRequest{Name: ptr.To("doest-not-exist")})
+		require.EqualError(t, err, common.PermissionDeniedAPIError.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
+		_, err = appServer.RunResourceAction(adminCtx, &application.ResourceActionRunRequest{Name: ptr.To("doest-not-exist"), Project: ptr.To("test")})
+		assert.EqualError(t, err, "rpc error: code = NotFound desc = applications.argoproj.io \"doest-not-exist\" not found", "when the request specifies a project, we can return the standard k8s error message")
+	})
+
+	t.Run("RunResourceActionV2", func(t *testing.T) {
 		_, err := appServer.RunResourceActionV2(adminCtx, &application.ResourceActionRunRequestV2{Name: ptr.To("test"), ResourceName: ptr.To("test"), Group: ptr.To("apps"), Kind: ptr.To("Deployment"), Namespace: ptr.To("test"), Action: ptr.To("restart")})
 		require.NoError(t, err)
 		_, err = appServer.RunResourceActionV2(noRoleCtx, &application.ResourceActionRunRequestV2{Name: ptr.To("test")})
@@ -2561,6 +2575,7 @@ func TestSyncAndTerminate(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, app)
 	assert.NotNil(t, app.Operation)
+	assert.Equal(t, testApp.Spec.GetSource(), *app.Operation.Sync.Source)
 
 	events, err := appServer.kubeclientset.CoreV1().Events(appServer.ns).List(t.Context(), metav1.ListOptions{})
 	require.NoError(t, err)
@@ -2639,8 +2654,83 @@ func TestSyncGit(t *testing.T) {
 	assert.Equal(t, "Unknown user initiated sync locally", events.Items[1].Message)
 }
 
+func TestSync_WithRefresh(t *testing.T) {
+	ctx := t.Context()
+	appServer := newTestAppServer(t)
+	testApp := newTestApp()
+	testApp.Spec.SyncPolicy = &v1alpha1.SyncPolicy{
+		Retry: &v1alpha1.RetryStrategy{
+			Refresh: true,
+		},
+	}
+	testApp.Spec.Source.RepoURL = "https://github.com/argoproj/argo-cd.git"
+	createReq := application.ApplicationCreateRequest{
+		Application: testApp,
+	}
+	app, err := appServer.Create(ctx, &createReq)
+	require.NoError(t, err)
+	app, err = appServer.Sync(ctx, &application.ApplicationSyncRequest{Name: &app.Name})
+	require.NoError(t, err)
+	assert.NotNil(t, app)
+	assert.NotNil(t, app.Operation)
+	assert.True(t, app.Operation.Retry.Refresh)
+}
+
+func TestGetManifests_WithNoCache(t *testing.T) {
+	testApp := newTestApp()
+	appServer := newTestAppServer(t, testApp)
+
+	mockRepoServiceClient := mocks.RepoServerServiceClient{}
+	mockRepoServiceClient.On("GenerateManifest", mock.Anything, mock.MatchedBy(func(mr *apiclient.ManifestRequest) bool {
+		// expected to be true because given NoCache in the ApplicationManifestQuery
+		return mr.NoCache
+	})).Return(&apiclient.ManifestResponse{}, nil)
+
+	appServer.repoClientset = &mocks.Clientset{RepoServerServiceClient: &mockRepoServiceClient}
+
+	_, err := appServer.GetManifests(t.Context(), &application.ApplicationManifestQuery{
+		Name:    &testApp.Name,
+		NoCache: ptr.To(true),
+	})
+	require.NoError(t, err)
+	mockRepoServiceClient.AssertExpectations(t)
+}
+
 func TestRollbackApp(t *testing.T) {
 	testApp := newTestApp()
+	testApp.Status.History = []v1alpha1.RevisionHistory{{
+		ID:        1,
+		Revision:  "abc",
+		Revisions: []string{"abc"},
+		Source:    *testApp.Spec.Source.DeepCopy(),
+		Sources:   []v1alpha1.ApplicationSource{*testApp.Spec.Source.DeepCopy()},
+	}}
+	appServer := newTestAppServer(t, testApp)
+
+	updatedApp, err := appServer.Rollback(t.Context(), &application.ApplicationRollbackRequest{
+		Name: &testApp.Name,
+		Id:   ptr.To(int64(1)),
+	})
+
+	require.NoError(t, err)
+
+	assert.NotNil(t, updatedApp.Operation)
+	assert.NotNil(t, updatedApp.Operation.Sync)
+	assert.NotNil(t, updatedApp.Operation.Sync.Source)
+	assert.Equal(t, testApp.Status.History[0].Source, *updatedApp.Operation.Sync.Source)
+	assert.Equal(t, testApp.Status.History[0].Sources, updatedApp.Operation.Sync.Sources)
+	assert.Equal(t, testApp.Status.History[0].Revision, updatedApp.Operation.Sync.Revision)
+	assert.Equal(t, testApp.Status.History[0].Revisions, updatedApp.Operation.Sync.Revisions)
+}
+
+func TestRollbackApp_WithRefresh(t *testing.T) {
+	testApp := newTestApp()
+	testApp.Spec.SyncPolicy = &v1alpha1.SyncPolicy{
+		Retry: &v1alpha1.RetryStrategy{
+			Refresh: true,
+		},
+	}
+
 	testApp.Status.History = []v1alpha1.RevisionHistory{{
 		ID:       1,
 		Revision: "abc",
@@ -2656,9 +2746,8 @@ func TestRollbackApp(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.NotNil(t, updatedApp.Operation)
-	assert.NotNil(t, updatedApp.Operation.Sync)
-	assert.NotNil(t, updatedApp.Operation.Sync.Source)
-	assert.Equal(t, "abc", updatedApp.Operation.Sync.Revision)
+	assert.NotNil(t, updatedApp.Operation.Retry)
+	assert.False(t, updatedApp.Operation.Retry.Refresh, "refresh should never be set on rollback")
 }
 
 func TestUpdateAppProject(t *testing.T) {
