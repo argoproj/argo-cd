@@ -1166,6 +1166,7 @@ func (ctrl *ApplicationController) removeProjectFinalizer(proj *appv1.AppProject
 func (ctrl *ApplicationController) shouldBeDeleted(app *appv1.Application, obj *unstructured.Unstructured) bool {
 	return !kube.IsCRD(obj) && !isSelfReferencedApp(app, kube.GetObjectRef(obj)) &&
 		!resourceutil.HasAnnotationOption(obj, synccommon.AnnotationSyncOptions, synccommon.SyncOptionDisableDeletion) &&
+		(app.Spec.SyncPolicy == nil || !app.Spec.SyncPolicy.SyncOptions.HasOption(synccommon.SyncOptionDisableDeletion)) &&
 		!resourceutil.HasAnnotationOption(obj, helm.ResourcePolicyAnnotation, helm.ResourcePolicyKeep)
 }
 
@@ -1228,6 +1229,11 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 		objsMap, err := ctrl.getPermittedAppLiveObjects(destCluster, app, proj, projectClusters)
 		if err != nil {
 			return err
+		}
+
+		if app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.SyncOptions.HasOption(synccommon.SyncOptionDeleteRequireConfirm) && !deletionApproved {
+			logCtx.Infof("Application requires manual confirmation to be deleted")
+			return nil
 		}
 
 		for k := range objsMap {

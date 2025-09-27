@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -834,6 +835,60 @@ func TestDoNotPrunePruneFalse(t *testing.T) {
 
 	phase, _, _ = syncCtx.GetState()
 	assert.Equal(t, synccommon.OperationSucceeded, phase)
+
+	// test that we can still not prune if prune is disabled on the app level
+	syncCtx.pruneDisabled = true
+	pod.SetAnnotations(map[string]string{synccommon.AnnotationSyncOptions: "Prune=true"})
+	syncCtx.Sync()
+
+	phase, _, resources = syncCtx.GetState()
+
+	assert.Equal(t, synccommon.OperationSucceeded, phase)
+	assert.Len(t, resources, 1)
+	assert.Equal(t, synccommon.ResultCodePruneSkipped, resources[0].Status)
+	assert.Equal(t, "ignored (no prune)", resources[0].Message)
+
+	syncCtx.Sync()
+
+	phase, _, _ = syncCtx.GetState()
+	assert.Equal(t, synccommon.OperationSucceeded, phase)
+}
+
+// make sure that we need confirmation to prune with Prune=confirm
+func TestPruneConfirm(t *testing.T) {
+	for _, appLevelConfirmation := range []bool{true, false} {
+		t.Run("appLevelConfirmation="+strconv.FormatBool(appLevelConfirmation), func(t *testing.T) {
+			syncCtx := newTestSyncCtx(nil, WithOperationSettings(false, true, false, false))
+			syncCtx.requiresPruneConfirmation = appLevelConfirmation
+			pod := testingutils.NewPod()
+			if appLevelConfirmation {
+				pod.SetAnnotations(map[string]string{synccommon.AnnotationSyncOptions: "Prune=true"})
+			} else {
+				pod.SetAnnotations(map[string]string{synccommon.AnnotationSyncOptions: "Prune=confirm"})
+			}
+			pod.SetNamespace(testingutils.FakeArgoCDNamespace)
+			syncCtx.resources = groupResources(ReconciliationResult{
+				Live:   []*unstructured.Unstructured{pod},
+				Target: []*unstructured.Unstructured{nil},
+			})
+
+			syncCtx.Sync()
+			phase, msg, resources := syncCtx.GetState()
+
+			assert.Equal(t, synccommon.OperationRunning, phase)
+			assert.Empty(t, resources)
+			assert.Equal(t, "Waiting for pruning confirmation of v1/Pod/my-pod", msg)
+
+			syncCtx.pruneConfirmed = true
+			syncCtx.Sync()
+
+			phase, _, resources = syncCtx.GetState()
+			assert.Equal(t, synccommon.OperationSucceeded, phase)
+			assert.Len(t, resources, 1)
+			assert.Equal(t, synccommon.ResultCodePruned, resources[0].Status)
+			assert.Equal(t, "pruned", resources[0].Message)
+		})
+	}
 }
 
 // // make sure Validate=false means we don't validate

@@ -115,10 +115,24 @@ func WithPrune(prune bool) SyncOpt {
 	}
 }
 
+// WithRequiresPruneConfirmation specifies if pruning resources requires a confirmation
+func WithRequiresPruneConfirmation(requiresConfirmation bool) SyncOpt {
+	return func(ctx *syncContext) {
+		ctx.requiresPruneConfirmation = requiresConfirmation
+	}
+}
+
 // WithPruneConfirmed specifies if prune is confirmed for resources that require confirmation
 func WithPruneConfirmed(confirmed bool) SyncOpt {
 	return func(ctx *syncContext) {
 		ctx.pruneConfirmed = confirmed
+	}
+}
+
+// WithPruneDisabled specifies if prune is globally disabled for this application
+func WithPruneDisabled(disabled bool) SyncOpt {
+	return func(ctx *syncContext) {
+		ctx.pruneDisabled = disabled
 	}
 }
 
@@ -367,6 +381,8 @@ type syncContext struct {
 	pruneLast                       bool
 	prunePropagationPolicy          *metav1.DeletionPropagation
 	pruneConfirmed                  bool
+	requiresPruneConfirmation       bool
+	pruneDisabled                   bool
 	clientSideApplyMigrationManager string
 	enableClientSideApplyMigration  bool
 
@@ -1221,7 +1237,7 @@ func (sc *syncContext) applyObject(t *syncTask, dryRun, validate bool) (common.R
 func (sc *syncContext) pruneObject(liveObj *unstructured.Unstructured, prune, dryRun bool) (common.ResultCode, string) {
 	if !prune {
 		return common.ResultCodePruneSkipped, "ignored (requires pruning)"
-	} else if resourceutil.HasAnnotationOption(liveObj, common.AnnotationSyncOptions, common.SyncOptionDisablePrune) {
+	} else if resourceutil.HasAnnotationOption(liveObj, common.AnnotationSyncOptions, common.SyncOptionDisablePrune) || sc.pruneDisabled {
 		return common.ResultCodePruneSkipped, "ignored (no prune)"
 	}
 	if dryRun {
@@ -1406,7 +1422,7 @@ func (sc *syncContext) runTasks(tasks syncTasks, dryRun bool) runState {
 		if !sc.pruneConfirmed {
 			var resources []string
 			for _, task := range pruneTasks {
-				if resourceutil.HasAnnotationOption(task.liveObj, common.AnnotationSyncOptions, common.SyncOptionPruneRequireConfirm) {
+				if sc.requiresPruneConfirmation || resourceutil.HasAnnotationOption(task.liveObj, common.AnnotationSyncOptions, common.SyncOptionPruneRequireConfirm) {
 					resources = append(resources, fmt.Sprintf("%s/%s/%s", task.obj().GetAPIVersion(), task.obj().GetKind(), task.name()))
 				}
 			}
