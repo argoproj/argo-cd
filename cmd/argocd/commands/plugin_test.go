@@ -346,8 +346,7 @@ func TestListAvailablePlugins(t *testing.T) {
 				return
 			}
 
-			// Sort both slices for comparison since order is not guaranteed
-			assert.ElementsMatch(t, tt.expected, plugins)
+			assert.Equal(t, tt.expected, plugins)
 		})
 	}
 }
