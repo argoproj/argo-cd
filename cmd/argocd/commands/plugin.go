@@ -145,7 +145,6 @@ func (h *DefaultPluginHandler) command(name string, arg ...string) *exec.Cmd {
 // ListAvailablePlugins returns a list of plugin names that are available in the user's PATH
 // for tab completion. It searches for executables matching the ValidPrefixes pattern.
 func (h *DefaultPluginHandler) ListAvailablePlugins() []string {
-	var plugins []string
 
 	// Get PATH environment variable
 	pathEnv := os.Getenv("PATH")
