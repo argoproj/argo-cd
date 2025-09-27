@@ -6,28 +6,28 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	apiv1 "k8s.io/api/core/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-	"sigs.k8s.io/yaml"
 
-	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
-	"github.com/argoproj/argo-cd/v2/common"
-	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
-	"github.com/argoproj/argo-cd/v2/util/errors"
-	"github.com/argoproj/argo-cd/v2/util/settings"
-
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
+	cmdutil "github.com/argoproj/argo-cd/v3/cmd/util"
+	"github.com/argoproj/argo-cd/v3/common"
+	argocdclient "github.com/argoproj/argo-cd/v3/pkg/apiclient"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
+	"github.com/argoproj/argo-cd/v3/util/errors"
 )
 
 const (
 	// YamlSeparator separates sections of a YAML file
 	yamlSeparator = "---\n"
+
+	applicationsetNamespacesCmdParamsKey = "applicationsetcontroller.namespaces"
+	applicationNamespacesCmdParamsKey    = "application.namespaces"
 )
 
 var (
@@ -37,6 +37,19 @@ var (
 	appprojectsResource     = schema.GroupVersionResource{Group: application.Group, Version: "v1alpha1", Resource: application.AppProjectPlural}
 	appplicationSetResource = schema.GroupVersionResource{Group: application.Group, Version: "v1alpha1", Resource: application.ApplicationSetPlural}
 )
+
+type argocdAdditionalNamespaces struct {
+	applicationNamespaces    []string
+	applicationsetNamespaces []string
+}
+
+type argoCDClientsets struct {
+	configMaps      dynamic.ResourceInterface
+	secrets         dynamic.ResourceInterface
+	applications    dynamic.ResourceInterface
+	projects        dynamic.ResourceInterface
+	applicationSets dynamic.ResourceInterface
+}
 
 // NewAdminCommand returns a new instance of an argocd command
 func NewAdminCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
@@ -69,101 +82,30 @@ $ argocd admin initial-password reset
 	command.AddCommand(NewInitialPasswordCommand())
 	command.AddCommand(NewRedisInitialPasswordCommand())
 
-	command.Flags().StringVar(&cmdutil.LogFormat, "logformat", "text", "Set the logging format. One of: text|json")
+	command.Flags().StringVar(&cmdutil.LogFormat, "logformat", "json", "Set the logging format. One of: json|text")
 	command.Flags().StringVar(&cmdutil.LogLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
 	return command
-}
-
-type argoCDClientsets struct {
-	configMaps      dynamic.ResourceInterface
-	secrets         dynamic.ResourceInterface
-	applications    dynamic.ResourceInterface
-	projects        dynamic.ResourceInterface
-	applicationSets dynamic.ResourceInterface
 }
 
 func newArgoCDClientsets(config *rest.Config, namespace string) *argoCDClientsets {
 	dynamicIf, err := dynamic.NewForConfig(config)
 	errors.CheckError(err)
+
 	return &argoCDClientsets{
-		configMaps: dynamicIf.Resource(configMapResource).Namespace(namespace),
-		secrets:    dynamicIf.Resource(secretResource).Namespace(namespace),
-		// To support applications and applicationsets in any namespace we will watch all namespaces and filter them afterwards
-		applications:    dynamicIf.Resource(applicationsResource),
+		configMaps:      dynamicIf.Resource(configMapResource).Namespace(namespace),
+		secrets:         dynamicIf.Resource(secretResource).Namespace(namespace),
+		applications:    dynamicIf.Resource(applicationsResource).Namespace(namespace),
 		projects:        dynamicIf.Resource(appprojectsResource).Namespace(namespace),
-		applicationSets: dynamicIf.Resource(appplicationSetResource),
+		applicationSets: dynamicIf.Resource(appplicationSetResource).Namespace(namespace),
 	}
-}
-
-// getReferencedSecrets examines the argocd-cm config for any referenced repo secrets and returns a
-// map of all referenced secrets.
-func getReferencedSecrets(un unstructured.Unstructured) map[string]bool {
-	var cm apiv1.ConfigMap
-	err := runtime.DefaultUnstructuredConverter.FromUnstructured(un.Object, &cm)
-	errors.CheckError(err)
-	referencedSecrets := make(map[string]bool)
-
-	// Referenced repository secrets
-	if reposRAW, ok := cm.Data["repositories"]; ok {
-		repos := make([]settings.Repository, 0)
-		err := yaml.Unmarshal([]byte(reposRAW), &repos)
-		errors.CheckError(err)
-		for _, cred := range repos {
-			if cred.PasswordSecret != nil {
-				referencedSecrets[cred.PasswordSecret.Name] = true
-			}
-			if cred.SSHPrivateKeySecret != nil {
-				referencedSecrets[cred.SSHPrivateKeySecret.Name] = true
-			}
-			if cred.UsernameSecret != nil {
-				referencedSecrets[cred.UsernameSecret.Name] = true
-			}
-			if cred.TLSClientCertDataSecret != nil {
-				referencedSecrets[cred.TLSClientCertDataSecret.Name] = true
-			}
-			if cred.TLSClientCertKeySecret != nil {
-				referencedSecrets[cred.TLSClientCertKeySecret.Name] = true
-			}
-		}
-	}
-
-	// Referenced repository credentials secrets
-	if reposRAW, ok := cm.Data["repository.credentials"]; ok {
-		creds := make([]settings.RepositoryCredentials, 0)
-		err := yaml.Unmarshal([]byte(reposRAW), &creds)
-		errors.CheckError(err)
-		for _, cred := range creds {
-			if cred.PasswordSecret != nil {
-				referencedSecrets[cred.PasswordSecret.Name] = true
-			}
-			if cred.SSHPrivateKeySecret != nil {
-				referencedSecrets[cred.SSHPrivateKeySecret.Name] = true
-			}
-			if cred.UsernameSecret != nil {
-				referencedSecrets[cred.UsernameSecret.Name] = true
-			}
-			if cred.TLSClientCertDataSecret != nil {
-				referencedSecrets[cred.TLSClientCertDataSecret.Name] = true
-			}
-			if cred.TLSClientCertKeySecret != nil {
-				referencedSecrets[cred.TLSClientCertKeySecret.Name] = true
-			}
-		}
-	}
-	return referencedSecrets
 }
 
 // isArgoCDSecret returns whether or not the given secret is a part of Argo CD configuration
 // (e.g. argocd-secret, repo credentials, or cluster credentials)
-func isArgoCDSecret(repoSecretRefs map[string]bool, un unstructured.Unstructured) bool {
+func isArgoCDSecret(un unstructured.Unstructured) bool {
 	secretName := un.GetName()
 	if secretName == common.ArgoCDSecretName {
 		return true
-	}
-	if repoSecretRefs != nil {
-		if _, ok := repoSecretRefs[secretName]; ok {
-			return true
-		}
 	}
 	if labels := un.GetLabels(); labels != nil {
 		if _, ok := labels[common.LabelKeySecretType]; ok {
@@ -192,8 +134,8 @@ func isArgoCDConfigMap(name string) bool {
 func specsEqual(left, right unstructured.Unstructured) bool {
 	leftAnnotation := left.GetAnnotations()
 	rightAnnotation := right.GetAnnotations()
-	delete(leftAnnotation, apiv1.LastAppliedConfigAnnotation)
-	delete(rightAnnotation, apiv1.LastAppliedConfigAnnotation)
+	delete(leftAnnotation, corev1.LastAppliedConfigAnnotation)
+	delete(rightAnnotation, corev1.LastAppliedConfigAnnotation)
 	if !reflect.DeepEqual(leftAnnotation, rightAnnotation) {
 		return false
 	}
@@ -227,24 +169,14 @@ func specsEqual(left, right unstructured.Unstructured) bool {
 	return false
 }
 
-type argocdAdditonalNamespaces struct {
-	applicationNamespaces    []string
-	applicationsetNamespaces []string
-}
-
-const (
-	applicationsetNamespacesCmdParamsKey = "applicationsetcontroller.namespaces"
-	applicationNamespacesCmdParamsKey    = "application.namespaces"
-)
-
 // Get additional namespaces from argocd-cmd-params
-func getAdditionalNamespaces(ctx context.Context, argocdClientsets *argoCDClientsets) *argocdAdditonalNamespaces {
+func getAdditionalNamespaces(ctx context.Context, configMapsClient dynamic.ResourceInterface) *argocdAdditionalNamespaces {
 	applicationNamespaces := make([]string, 0)
 	applicationsetNamespaces := make([]string, 0)
 
-	un, err := argocdClientsets.configMaps.Get(ctx, common.ArgoCDCmdParamsConfigMapName, v1.GetOptions{})
+	un, err := configMapsClient.Get(ctx, common.ArgoCDCmdParamsConfigMapName, metav1.GetOptions{})
 	errors.CheckError(err)
-	var cm apiv1.ConfigMap
+	var cm corev1.ConfigMap
 	err = runtime.DefaultUnstructuredConverter.FromUnstructured(un.Object, &cm)
 	errors.CheckError(err)
 
@@ -270,7 +202,7 @@ func getAdditionalNamespaces(ctx context.Context, argocdClientsets *argoCDClient
 		applicationsetNamespaces = namespacesListFromString(strNamespaces)
 	}
 
-	return &argocdAdditonalNamespaces{
+	return &argocdAdditionalNamespaces{
 		applicationNamespaces:    applicationNamespaces,
 		applicationsetNamespaces: applicationsetNamespaces,
 	}

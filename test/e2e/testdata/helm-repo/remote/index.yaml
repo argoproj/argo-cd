@@ -5,3 +5,4 @@ entries:
       urls:
         - http://argocd-e2e-server:9080/helm-repo/helm-1.0.0.tgz
       version: 1.0.0
+      name: helm

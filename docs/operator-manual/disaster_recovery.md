@@ -24,5 +24,5 @@ Import from a backup:
 docker run -i -v ~/.kube:/home/argocd/.kube --rm quay.io/argoproj/argocd:$VERSION argocd admin import - < backup.yaml
 ```
 
-!!! note
-    If you are running Argo CD on a namespace different than default remember to pass the namespace parameter (-n <namespace>). 'argocd admin export' will not fail if you run it in the wrong namespace.
+> [!NOTE]
+> If you are running Argo CD on a namespace different than default remember to pass the namespace parameter (-n <namespace>). 'argocd admin export' will not fail if you run it in the wrong namespace.

@@ -2,6 +2,7 @@ package util
 
 import (
 	"context"
+	stderrors "errors"
 	"fmt"
 	"os"
 	"sort"
@@ -16,8 +17,8 @@ import (
 	clientcmdapiv1 "k8s.io/client-go/tools/clientcmd/api/v1"
 	"sigs.k8s.io/yaml"
 
-	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/errors"
+	argoappv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/errors"
 )
 
 type ClusterEndpoint string
@@ -69,24 +70,24 @@ func PrintKubeContexts(ca clientcmd.ConfigAccess) {
 
 func NewCluster(name string, namespaces []string, clusterResources bool, conf *rest.Config, managerBearerToken string, awsAuthConf *argoappv1.AWSAuthConfig, execProviderConf *argoappv1.ExecProviderConfig, labels, annotations map[string]string) *argoappv1.Cluster {
 	tlsClientConfig := argoappv1.TLSClientConfig{
-		Insecure:   conf.TLSClientConfig.Insecure,
-		ServerName: conf.TLSClientConfig.ServerName,
-		CAData:     conf.TLSClientConfig.CAData,
-		CertData:   conf.TLSClientConfig.CertData,
-		KeyData:    conf.TLSClientConfig.KeyData,
+		Insecure:   conf.Insecure,
+		ServerName: conf.ServerName,
+		CAData:     conf.CAData,
+		CertData:   conf.CertData,
+		KeyData:    conf.KeyData,
 	}
-	if len(conf.TLSClientConfig.CAData) == 0 && conf.TLSClientConfig.CAFile != "" {
-		data, err := os.ReadFile(conf.TLSClientConfig.CAFile)
+	if len(conf.CAData) == 0 && conf.CAFile != "" {
+		data, err := os.ReadFile(conf.CAFile)
 		errors.CheckError(err)
 		tlsClientConfig.CAData = data
 	}
-	if len(conf.TLSClientConfig.CertData) == 0 && conf.TLSClientConfig.CertFile != "" {
-		data, err := os.ReadFile(conf.TLSClientConfig.CertFile)
+	if len(conf.CertData) == 0 && conf.CertFile != "" {
+		data, err := os.ReadFile(conf.CertFile)
 		errors.CheckError(err)
 		tlsClientConfig.CertData = data
 	}
-	if len(conf.TLSClientConfig.KeyData) == 0 && conf.TLSClientConfig.KeyFile != "" {
-		data, err := os.ReadFile(conf.TLSClientConfig.KeyFile)
+	if len(conf.KeyData) == 0 && conf.KeyFile != "" {
+		data, err := os.ReadFile(conf.KeyFile)
 		errors.CheckError(err)
 		tlsClientConfig.KeyData = data
 	}
@@ -122,28 +123,30 @@ func NewCluster(name string, namespaces []string, clusterResources bool, conf *r
 	return &clst
 }
 
-// GetKubePublicEndpoint returns the kubernetes apiserver endpoint as published
+// GetKubePublicEndpoint returns the kubernetes apiserver endpoint and certificate authority data as published
 // in the kube-public.
-func GetKubePublicEndpoint(client kubernetes.Interface) (string, error) {
+func GetKubePublicEndpoint(client kubernetes.Interface) (string, []byte, error) {
 	clusterInfo, err := client.CoreV1().ConfigMaps("kube-public").Get(context.TODO(), "cluster-info", metav1.GetOptions{})
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 	kubeconfig, ok := clusterInfo.Data["kubeconfig"]
 	if !ok {
-		return "", fmt.Errorf("cluster-info does not contain a public kubeconfig")
+		return "", nil, stderrors.New("cluster-info does not contain a public kubeconfig")
 	}
 	// Parse Kubeconfig and get server address
 	config := &clientcmdapiv1.Config{}
 	err = yaml.Unmarshal([]byte(kubeconfig), config)
 	if err != nil {
-		return "", fmt.Errorf("failed to parse cluster-info kubeconfig: %w", err)
+		return "", nil, fmt.Errorf("failed to parse cluster-info kubeconfig: %w", err)
 	}
 	if len(config.Clusters) == 0 {
-		return "", fmt.Errorf("cluster-info kubeconfig does not have any clusters")
+		return "", nil, stderrors.New("cluster-info kubeconfig does not have any clusters")
 	}
 
-	return config.Clusters[0].Cluster.Server, nil
+	endpoint := config.Clusters[0].Cluster.Server
+	certificateAuthorityData := config.Clusters[0].Cluster.CertificateAuthorityData
+	return endpoint, certificateAuthorityData, nil
 }
 
 type ClusterOptions struct {
@@ -166,7 +169,7 @@ type ClusterOptions struct {
 	ExecProviderInstallHint string
 	ClusterEndpoint         string
 	DisableCompression      bool
-	ProxyUrl                string
+	ProxyUrl                string //nolint:revive //FIXME(var-naming)
 }
 
 // InClusterEndpoint returns true if ArgoCD should reference the in-cluster

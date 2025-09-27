@@ -1,6 +1,6 @@
 # Sync Applications with Kubectl
 
-You can use "kubectl" to ask Argo CD to synchronize applications the same way you can use the CLI or UI. Many configurations like "force", "prune", "apply" and even synchronize a specific list of resources are equally supported. This is done by applying or patching the Argo CD application with a document that defines an "operation".
+You can use "kubectl" to ask Argo CD to synchronize applications the same way you can use the CLI or UI. Many configurations like "force", "prune", "apply" and even synchronizing a specific list of resources are equally supported. This is done by applying or patching the Argo CD application with a document that defines an "operation".
 
 This "operation" defines how a synchronization should be done and for what resources these synchronization is to be done.
 
@@ -51,7 +51,7 @@ In these cases, "kubectl apply" gives better results.
 Either with a "kubectl patch" or "kubectl apply", the state of the synchronization is reported in the "operationState" field in the application object.
 
 ```bash
-$ kubectl get -n <namespace> get app <app-name> -o yaml
+$ kubectl get -n <namespace> app <app-name> -o yaml
 ...
 status:
   operationState:

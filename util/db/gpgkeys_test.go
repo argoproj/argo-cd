@@ -1,24 +1,22 @@
 package db
 
 import (
-	"context"
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/util/gpg/testdata"
-	"github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/util/gpg/testdata"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 // GPG config map with a single key and good mapping
-var gpgCMEmpty = v1.ConfigMap{
+var gpgCMEmpty = corev1.ConfigMap{
 	ObjectMeta: metav1.ObjectMeta{
 		Name:      common.ArgoCDGPGKeysConfigMapName,
 		Namespace: testNamespace,
@@ -29,7 +27,7 @@ var gpgCMEmpty = v1.ConfigMap{
 }
 
 // GPG config map with a single key and good mapping
-var gpgCMSingleGoodPubkey = v1.ConfigMap{
+var gpgCMSingleGoodPubkey = corev1.ConfigMap{
 	ObjectMeta: metav1.ObjectMeta{
 		Name:      common.ArgoCDGPGKeysConfigMapName,
 		Namespace: testNamespace,
@@ -43,7 +41,7 @@ var gpgCMSingleGoodPubkey = v1.ConfigMap{
 }
 
 // GPG config map with two keys and good mapping
-var gpgCMMultiGoodPubkey = v1.ConfigMap{
+var gpgCMMultiGoodPubkey = corev1.ConfigMap{
 	ObjectMeta: metav1.ObjectMeta{
 		Name:      common.ArgoCDGPGKeysConfigMapName,
 		Namespace: testNamespace,
@@ -58,7 +56,7 @@ var gpgCMMultiGoodPubkey = v1.ConfigMap{
 }
 
 // GPG config map with a single key and bad mapping
-var gpgCMSingleKeyWrongId = v1.ConfigMap{
+var gpgCMSingleKeyWrongId = corev1.ConfigMap{
 	ObjectMeta: metav1.ObjectMeta{
 		Name:      common.ArgoCDGPGKeysConfigMapName,
 		Namespace: testNamespace,
@@ -72,7 +70,7 @@ var gpgCMSingleKeyWrongId = v1.ConfigMap{
 }
 
 // GPG config map with a garbage pub key
-var gpgCMGarbagePubkey = v1.ConfigMap{
+var gpgCMGarbagePubkey = corev1.ConfigMap{
 	ObjectMeta: metav1.ObjectMeta{
 		Name:      common.ArgoCDGPGKeysConfigMapName,
 		Namespace: testNamespace,
@@ -86,7 +84,7 @@ var gpgCMGarbagePubkey = v1.ConfigMap{
 }
 
 // GPG config map with a wrong key
-var gpgCMGarbageCMKey = v1.ConfigMap{
+var gpgCMGarbageCMKey = corev1.ConfigMap{
 	ObjectMeta: metav1.ObjectMeta{
 		Name:      common.ArgoCDGPGKeysConfigMapName,
 		Namespace: testNamespace,
@@ -100,8 +98,8 @@ var gpgCMGarbageCMKey = v1.ConfigMap{
 }
 
 // Returns a fake client set for use in tests
-func getGPGKeysClientset(gpgCM v1.ConfigMap) *fake.Clientset {
-	cm := v1.ConfigMap{
+func getGPGKeysClientset(gpgCM corev1.ConfigMap) *fake.Clientset {
+	cm := corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "argocd-cm",
 			Namespace: testNamespace,
@@ -112,7 +110,7 @@ func getGPGKeysClientset(gpgCM v1.ConfigMap) *fake.Clientset {
 		Data: nil,
 	}
 
-	return fake.NewSimpleClientset([]runtime.Object{&cm, &gpgCM}...)
+	return fake.NewClientset([]runtime.Object{&cm, &gpgCM}...)
 }
 
 func Test_ValidatePGPKey(t *testing.T) {
@@ -144,60 +142,60 @@ func Test_ListConfiguredGPGPublicKeys(t *testing.T) {
 	// Good case. Single key in input, right mapping to Key ID in CM
 	{
 		clientset := getGPGKeysClientset(gpgCMSingleGoodPubkey)
-		settings := settings.NewSettingsManager(context.Background(), clientset, testNamespace)
+		settings := settings.NewSettingsManager(t.Context(), clientset, testNamespace)
 		db := NewDB(testNamespace, settings, clientset)
 		if db == nil {
 			panic("could not get database")
 		}
-		keys, err := db.ListConfiguredGPGPublicKeys(context.Background())
+		keys, err := db.ListConfiguredGPGPublicKeys(t.Context())
 		require.NoError(t, err)
 		assert.Len(t, keys, 1)
 	}
 	// Good case. No certificates in ConfigMap
 	{
 		clientset := getGPGKeysClientset(gpgCMEmpty)
-		settings := settings.NewSettingsManager(context.Background(), clientset, testNamespace)
+		settings := settings.NewSettingsManager(t.Context(), clientset, testNamespace)
 		db := NewDB(testNamespace, settings, clientset)
 		if db == nil {
 			panic("could not get database")
 		}
-		keys, err := db.ListConfiguredGPGPublicKeys(context.Background())
+		keys, err := db.ListConfiguredGPGPublicKeys(t.Context())
 		require.NoError(t, err)
 		assert.Empty(t, keys)
 	}
 	// Bad case. Single key in input, wrong mapping to Key ID in CM
 	{
 		clientset := getGPGKeysClientset(gpgCMSingleKeyWrongId)
-		settings := settings.NewSettingsManager(context.Background(), clientset, testNamespace)
+		settings := settings.NewSettingsManager(t.Context(), clientset, testNamespace)
 		db := NewDB(testNamespace, settings, clientset)
 		if db == nil {
 			panic("could not get database")
 		}
-		keys, err := db.ListConfiguredGPGPublicKeys(context.Background())
+		keys, err := db.ListConfiguredGPGPublicKeys(t.Context())
 		require.Error(t, err)
 		assert.Empty(t, keys)
 	}
 	// Bad case. Garbage public key
 	{
 		clientset := getGPGKeysClientset(gpgCMGarbagePubkey)
-		settings := settings.NewSettingsManager(context.Background(), clientset, testNamespace)
+		settings := settings.NewSettingsManager(t.Context(), clientset, testNamespace)
 		db := NewDB(testNamespace, settings, clientset)
 		if db == nil {
 			panic("could not get database")
 		}
-		keys, err := db.ListConfiguredGPGPublicKeys(context.Background())
+		keys, err := db.ListConfiguredGPGPublicKeys(t.Context())
 		require.Error(t, err)
 		assert.Empty(t, keys)
 	}
 	// Bad case. Garbage ConfigMap key in data
 	{
 		clientset := getGPGKeysClientset(gpgCMGarbageCMKey)
-		settings := settings.NewSettingsManager(context.Background(), clientset, testNamespace)
+		settings := settings.NewSettingsManager(t.Context(), clientset, testNamespace)
 		db := NewDB(testNamespace, settings, clientset)
 		if db == nil {
 			panic("could not get database")
 		}
-		keys, err := db.ListConfiguredGPGPublicKeys(context.Background())
+		keys, err := db.ListConfiguredGPGPublicKeys(t.Context())
 		require.Error(t, err)
 		assert.Empty(t, keys)
 	}
@@ -207,49 +205,49 @@ func Test_AddGPGPublicKey(t *testing.T) {
 	// Good case
 	{
 		clientset := getGPGKeysClientset(gpgCMEmpty)
-		settings := settings.NewSettingsManager(context.Background(), clientset, testNamespace)
+		settings := settings.NewSettingsManager(t.Context(), clientset, testNamespace)
 		db := NewDB(testNamespace, settings, clientset)
 
 		// Key should be added
-		new, skipped, err := db.AddGPGPublicKey(context.Background(), testdata.Github_asc)
+		keys, skipped, err := db.AddGPGPublicKey(t.Context(), testdata.Github_asc)
 		require.NoError(t, err)
-		assert.Len(t, new, 1)
+		assert.Len(t, keys, 1)
 		assert.Empty(t, skipped)
 		cm, err := settings.GetConfigMapByName(common.ArgoCDGPGKeysConfigMapName)
 		require.NoError(t, err)
 		assert.Len(t, cm.Data, 1)
 
 		// Same key should not be added, but skipped
-		new, skipped, err = db.AddGPGPublicKey(context.Background(), testdata.Github_asc)
+		keys, skipped, err = db.AddGPGPublicKey(t.Context(), testdata.Github_asc)
 		require.NoError(t, err)
-		assert.Empty(t, new)
+		assert.Empty(t, keys)
 		assert.Len(t, skipped, 1)
 		cm, err = settings.GetConfigMapByName(common.ArgoCDGPGKeysConfigMapName)
 		require.NoError(t, err)
 		assert.Len(t, cm.Data, 1)
 
 		// New keys should be added
-		new, skipped, err = db.AddGPGPublicKey(context.Background(), testdata.Multi_asc)
+		keys, skipped, err = db.AddGPGPublicKey(t.Context(), testdata.Multi_asc)
 		require.NoError(t, err)
-		assert.Len(t, new, 2)
+		assert.Len(t, keys, 2)
 		assert.Empty(t, skipped)
 		cm, err = settings.GetConfigMapByName(common.ArgoCDGPGKeysConfigMapName)
 		require.NoError(t, err)
 		assert.Len(t, cm.Data, 3)
 
 		// Same new keys should be skipped
-		new, skipped, err = db.AddGPGPublicKey(context.Background(), testdata.Multi_asc)
+		keys, skipped, err = db.AddGPGPublicKey(t.Context(), testdata.Multi_asc)
 		require.NoError(t, err)
-		assert.Empty(t, new)
+		assert.Empty(t, keys)
 		assert.Len(t, skipped, 2)
 		cm, err = settings.GetConfigMapByName(common.ArgoCDGPGKeysConfigMapName)
 		require.NoError(t, err)
 		assert.Len(t, cm.Data, 3)
 
 		// Garbage input should result in error
-		new, skipped, err = db.AddGPGPublicKey(context.Background(), testdata.Garbage_asc)
+		keys, skipped, err = db.AddGPGPublicKey(t.Context(), testdata.Garbage_asc)
 		require.Error(t, err)
-		assert.Nil(t, new)
+		assert.Nil(t, keys)
 		assert.Nil(t, skipped)
 		cm, err = settings.GetConfigMapByName(common.ArgoCDGPGKeysConfigMapName)
 		require.NoError(t, err)
@@ -258,47 +256,47 @@ func Test_AddGPGPublicKey(t *testing.T) {
 }
 
 func Test_DeleteGPGPublicKey(t *testing.T) {
-	defer os.Setenv("GNUPGHOME", "")
+	defer t.Setenv("GNUPGHOME", "")
 
 	t.Run("good case", func(t *testing.T) {
 		clientset := getGPGKeysClientset(gpgCMMultiGoodPubkey)
-		settings := settings.NewSettingsManager(context.Background(), clientset, testNamespace)
+		settings := settings.NewSettingsManager(t.Context(), clientset, testNamespace)
 		db := NewDB(testNamespace, settings, clientset)
 
 		// Key should be removed
-		err := db.DeleteGPGPublicKey(context.Background(), "FDC79815400D88A9")
+		err := db.DeleteGPGPublicKey(t.Context(), "FDC79815400D88A9")
 		require.NoError(t, err)
 
 		// Key should not exist anymore, therefore can't be deleted again
-		err = db.DeleteGPGPublicKey(context.Background(), "FDC79815400D88A9")
+		err = db.DeleteGPGPublicKey(t.Context(), "FDC79815400D88A9")
 		require.Error(t, err)
 
 		// One key left in configuration
-		n, err := db.ListConfiguredGPGPublicKeys(context.Background())
+		n, err := db.ListConfiguredGPGPublicKeys(t.Context())
 		require.NoError(t, err)
 		assert.Len(t, n, 1)
 
 		// Key should be removed
-		err = db.DeleteGPGPublicKey(context.Background(), "F7842A5CEAA9C0B1")
+		err = db.DeleteGPGPublicKey(t.Context(), "F7842A5CEAA9C0B1")
 		require.NoError(t, err)
 
 		// Key should not exist anymore, therefore can't be deleted again
-		err = db.DeleteGPGPublicKey(context.Background(), "F7842A5CEAA9C0B1")
+		err = db.DeleteGPGPublicKey(t.Context(), "F7842A5CEAA9C0B1")
 		require.Error(t, err)
 
 		// No key left in configuration
-		n, err = db.ListConfiguredGPGPublicKeys(context.Background())
+		n, err = db.ListConfiguredGPGPublicKeys(t.Context())
 		require.NoError(t, err)
 		assert.Empty(t, n)
 	})
 
 	t.Run("bad case - empty ConfigMap", func(t *testing.T) {
 		clientset := getGPGKeysClientset(gpgCMEmpty)
-		settings := settings.NewSettingsManager(context.Background(), clientset, testNamespace)
+		settings := settings.NewSettingsManager(t.Context(), clientset, testNamespace)
 		db := NewDB(testNamespace, settings, clientset)
 
 		// Key should be removed
-		err := db.DeleteGPGPublicKey(context.Background(), "F7842A5CEAA9C0B1")
+		err := db.DeleteGPGPublicKey(t.Context(), "F7842A5CEAA9C0B1")
 		require.Error(t, err)
 	})
 }

@@ -3,15 +3,18 @@ package admin
 import (
 	"context"
 	"encoding/json"
+	stderrors "errors"
 	"fmt"
 	"net/http"
 	"os"
 	"sort"
 	"time"
 
+	"github.com/argoproj/gitops-engine/pkg/health"
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/spf13/cobra"
-	apiv1 "k8s.io/api/core/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
@@ -19,28 +22,28 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/yaml"
 
-	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/controller"
-	"github.com/argoproj/argo-cd/v2/controller/cache"
-	"github.com/argoproj/argo-cd/v2/controller/metrics"
-	"github.com/argoproj/argo-cd/v2/controller/sharding"
-	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
-	appinformers "github.com/argoproj/argo-cd/v2/pkg/client/informers/externalversions"
-	reposerverclient "github.com/argoproj/argo-cd/v2/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/v2/util/argo"
-	"github.com/argoproj/argo-cd/v2/util/argo/normalizers"
-	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
-	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
-	"github.com/argoproj/argo-cd/v2/util/cli"
-	"github.com/argoproj/argo-cd/v2/util/config"
-	"github.com/argoproj/argo-cd/v2/util/db"
-	"github.com/argoproj/argo-cd/v2/util/errors"
-	"github.com/argoproj/argo-cd/v2/util/io"
-	kubeutil "github.com/argoproj/argo-cd/v2/util/kube"
-	"github.com/argoproj/argo-cd/v2/util/settings"
+	cmdutil "github.com/argoproj/argo-cd/v3/cmd/util"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/controller"
+	"github.com/argoproj/argo-cd/v3/controller/cache"
+	"github.com/argoproj/argo-cd/v3/controller/metrics"
+	"github.com/argoproj/argo-cd/v3/controller/sharding"
+	argocdclient "github.com/argoproj/argo-cd/v3/pkg/apiclient"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
+	appinformers "github.com/argoproj/argo-cd/v3/pkg/client/informers/externalversions"
+	reposerverclient "github.com/argoproj/argo-cd/v3/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v3/util/argo"
+	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
+	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
+	appstatecache "github.com/argoproj/argo-cd/v3/util/cache/appstate"
+	"github.com/argoproj/argo-cd/v3/util/cli"
+	"github.com/argoproj/argo-cd/v3/util/config"
+	"github.com/argoproj/argo-cd/v3/util/db"
+	"github.com/argoproj/argo-cd/v3/util/errors"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
+	kubeutil "github.com/argoproj/argo-cd/v3/util/kube"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 func NewAppCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
@@ -97,7 +100,7 @@ func NewGenAppSpecCommand() *cobra.Command {
 	argocd admin app generate-spec nginx-ingress --repo https://charts.helm.sh/stable --helm-chart nginx-ingress --revision 1.24.3 --dest-namespace default --dest-server https://kubernetes.default.svc
 
 	# Generate declarative config for a Kustomize app
-	argocd admin app generate-spec kustomize-guestbook --repo https://github.com/argoproj/argocd-example-apps.git --path kustomize-guestbook --dest-namespace default --dest-server https://kubernetes.default.svc --kustomize-image gcr.io/heptio-images/ks-guestbook-demo:0.1
+	argocd admin app generate-spec kustomize-guestbook --repo https://github.com/argoproj/argocd-example-apps.git --path kustomize-guestbook --dest-namespace default --dest-server https://kubernetes.default.svc --kustomize-image quay.io/argoprojlabs/argocd-e2e-container:0.1
 
 	# Generate declarative config for a app using a custom tool:
 	argocd admin app generate-spec kasane --repo https://github.com/argoproj/argocd-example-apps.git --path plugins/kasane --dest-namespace default --dest-server https://kubernetes.default.svc --config-management-plugin kasane
@@ -106,7 +109,7 @@ func NewGenAppSpecCommand() *cobra.Command {
 			apps, err := cmdutil.ConstructApps(fileURL, appName, labels, annotations, args, appOpts, c.Flags())
 			errors.CheckError(err)
 			if len(apps) > 1 {
-				errors.CheckError(fmt.Errorf("failed to generate spec, more than one application is not supported"))
+				errors.CheckError(stderrors.New("failed to generate spec, more than one application is not supported"))
 			}
 			app := apps[0]
 			if app.Name == "" {
@@ -114,11 +117,11 @@ func NewGenAppSpecCommand() *cobra.Command {
 				os.Exit(1)
 			}
 			if setFinalizer {
-				app.Finalizers = append(app.Finalizers, "resources-finalizer.argocd.argoproj.io")
+				app.Finalizers = append(app.Finalizers, v1alpha1.ResourcesFinalizerName)
 			}
 			out, closer, err := getOutWriter(inline, fileURL)
 			errors.CheckError(err)
-			defer io.Close(closer)
+			defer utilio.Close(closer)
 
 			errors.CheckError(PrintResources(outputFormat, out, app))
 		},
@@ -141,7 +144,7 @@ func NewGenAppSpecCommand() *cobra.Command {
 
 type appReconcileResult struct {
 	Name       string                          `json:"name"`
-	Health     *v1alpha1.HealthStatus          `json:"health"`
+	Health     health.HealthStatusCode         `json:"health"`
 	Sync       *v1alpha1.SyncStatus            `json:"sync"`
 	Conditions []v1alpha1.ApplicationCondition `json:"conditions"`
 }
@@ -158,7 +161,7 @@ func (r *reconcileResults) getAppsMap() map[string]appReconcileResult {
 	return res
 }
 
-func printLine(format string, a ...interface{}) {
+func printLine(format string, a ...any) {
 	_, _ = fmt.Printf(format+"\n", a...)
 }
 
@@ -185,15 +188,15 @@ func NewDiffReconcileResults() *cobra.Command {
 	return command
 }
 
-func toUnstructured(val interface{}) (*unstructured.Unstructured, error) {
+func toUnstructured(val any) (*unstructured.Unstructured, error) {
 	data, err := json.Marshal(val)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error while marhsalling value: %w", err)
 	}
-	res := make(map[string]interface{})
+	res := make(map[string]any)
 	err = json.Unmarshal(data, &res)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error while unmarhsalling data: %w", err)
 	}
 	return &unstructured.Unstructured{Object: res}, nil
 }
@@ -227,7 +230,7 @@ func diffReconcileResults(res1 reconcileResults, res2 reconcileResults) error {
 	for k, v := range resMap2 {
 		secondUn, err := toUnstructured(v)
 		if err != nil {
-			return err
+			return fmt.Errorf("error converting second resource of second map to unstructure: %w", err)
 		}
 		pairs = append(pairs, diffPair{name: k, first: nil, second: secondUn})
 	}
@@ -283,7 +286,7 @@ func NewReconcileCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command 
 					overrides := clientcmd.ConfigOverrides{}
 					repoServerName := clientOpts.RepoServerName
 					repoServerServiceLabelSelector := common.LabelKeyComponentRepoServer + "=" + common.LabelValueComponentRepoServer
-					repoServerServices, err := kubeClientset.CoreV1().Services(namespace).List(context.Background(), v1.ListOptions{LabelSelector: repoServerServiceLabelSelector})
+					repoServerServices, err := kubeClientset.CoreV1().Services(namespace).List(context.Background(), metav1.ListOptions{LabelSelector: repoServerServiceLabelSelector})
 					errors.CheckError(err)
 					if len(repoServerServices.Items) > 0 {
 						if repoServerServicelabel, ok := repoServerServices.Items[0].Labels[common.LabelKeyAppName]; ok && repoServerServicelabel != "" {
@@ -336,9 +339,9 @@ func saveToFile(err error, outputFormat string, result reconcileResults, outputP
 }
 
 func getReconcileResults(ctx context.Context, appClientset appclientset.Interface, namespace string, selector string) ([]appReconcileResult, error) {
-	appsList, err := appClientset.ArgoprojV1alpha1().Applications(namespace).List(ctx, v1.ListOptions{LabelSelector: selector})
+	appsList, err := appClientset.ArgoprojV1alpha1().Applications(namespace).List(ctx, metav1.ListOptions{LabelSelector: selector})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error listing namespaced apps: %w", err)
 	}
 
 	var items []appReconcileResult
@@ -346,7 +349,7 @@ func getReconcileResults(ctx context.Context, appClientset appclientset.Interfac
 		items = append(items, appReconcileResult{
 			Name:       app.Name,
 			Conditions: app.Status.Conditions,
-			Health:     &app.Status.Health,
+			Health:     app.Status.Health.Status,
 			Sync:       &app.Status.Sync,
 		})
 	}
@@ -370,7 +373,7 @@ func reconcileApplications(
 		appClientset,
 		1*time.Hour,
 		appinformers.WithNamespace(namespace),
-		appinformers.WithTweakListOptions(func(options *v1.ListOptions) {}),
+		appinformers.WithTweakListOptions(func(_ *metav1.ListOptions) {}),
 	)
 
 	appInformer := appInformerFactory.Argoproj().V1alpha1().Applications().Informer()
@@ -378,22 +381,22 @@ func reconcileApplications(
 	go appInformer.Run(ctx.Done())
 	go projInformer.Run(ctx.Done())
 	if !kubecache.WaitForCacheSync(ctx.Done(), appInformer.HasSynced, projInformer.HasSynced) {
-		return nil, fmt.Errorf("failed to sync cache")
+		return nil, stderrors.New("failed to sync cache")
 	}
 
 	appLister := appInformerFactory.Argoproj().V1alpha1().Applications().Lister()
 	projLister := appInformerFactory.Argoproj().V1alpha1().AppProjects().Lister()
-	server, err := metrics.NewMetricsServer("", appLister, func(obj interface{}) bool {
+	server, err := metrics.NewMetricsServer("", appLister, func(_ any) bool {
 		return true
-	}, func(r *http.Request) error {
+	}, func(_ *http.Request) error {
 		return nil
-	}, []string{}, []string{})
+	}, []string{}, []string{}, argoDB)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error starting new metrics server: %w", err)
 	}
 	stateCache := createLiveStateCache(argoDB, appInformer, settingsMgr, server)
 	if err := stateCache.Init(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error initializing state cache: %w", err)
 	}
 
 	cache := appstatecache.NewCache(
@@ -402,11 +405,29 @@ func reconcileApplications(
 	)
 
 	appStateManager := controller.NewAppStateManager(
-		argoDB, appClientset, repoServerClient, namespace, kubeutil.NewKubectl(), settingsMgr, stateCache, projInformer, server, cache, time.Second, argo.NewResourceTracking(), false, 0, serverSideDiff, ignoreNormalizerOpts)
+		argoDB,
+		appClientset,
+		repoServerClient,
+		namespace,
+		kubeutil.NewKubectl(),
+		func(_ string) (kube.CleanupFunc, error) {
+			return func() {}, nil
+		},
+		settingsMgr,
+		stateCache,
+		server,
+		cache,
+		time.Second,
+		argo.NewResourceTracking(),
+		false,
+		0,
+		serverSideDiff,
+		ignoreNormalizerOpts,
+	)
 
-	appsList, err := appClientset.ArgoprojV1alpha1().Applications(namespace).List(ctx, v1.ListOptions{LabelSelector: selector})
+	appsList, err := appClientset.ArgoprojV1alpha1().Applications(namespace).List(ctx, metav1.ListOptions{LabelSelector: selector})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error listing namespaced apps: %w", err)
 	}
 
 	sort.Slice(appsList.Items, func(i, j int) bool {
@@ -416,20 +437,25 @@ func reconcileApplications(
 	var items []appReconcileResult
 	prevServer := ""
 	for _, app := range appsList.Items {
-		if prevServer != app.Spec.Destination.Server {
+		destCluster, err := argo.GetDestinationCluster(ctx, app.Spec.Destination, argoDB)
+		if err != nil {
+			return nil, fmt.Errorf("error getting destination cluster: %w", err)
+		}
+
+		if prevServer != destCluster.Server {
 			if prevServer != "" {
-				if clusterCache, err := stateCache.GetClusterCache(prevServer); err == nil {
+				if clusterCache, err := stateCache.GetClusterCache(destCluster); err == nil {
 					clusterCache.Invalidate()
 				}
 			}
-			printLine("Reconciling apps of %s", app.Spec.Destination.Server)
-			prevServer = app.Spec.Destination.Server
+			printLine("Reconciling apps of %s", destCluster.Server)
+			prevServer = destCluster.Server
 		}
 		printLine(app.Name)
 
 		proj, err := projLister.AppProjects(namespace).Get(app.Spec.Project)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("error getting namespaced project: %w", err)
 		}
 
 		sources := make([]v1alpha1.ApplicationSource, 0)
@@ -437,9 +463,9 @@ func reconcileApplications(
 		sources = append(sources, app.Spec.GetSource())
 		revisions = append(revisions, app.Spec.GetSource().TargetRevision)
 
-		res, err := appStateManager.CompareAppState(&app, proj, revisions, sources, false, false, nil, false, false)
+		res, err := appStateManager.CompareAppState(&app, proj, revisions, sources, false, false, nil, false)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("error comparing app states: %w", err)
 		}
 		items = append(items, appReconcileResult{
 			Name:       app.Name,
@@ -452,5 +478,5 @@ func reconcileApplications(
 }
 
 func newLiveStateCache(argoDB db.ArgoDB, appInformer kubecache.SharedIndexInformer, settingsMgr *settings.SettingsManager, server *metrics.MetricsServer) cache.LiveStateCache {
-	return cache.NewLiveStateCache(argoDB, appInformer, settingsMgr, kubeutil.NewKubectl(), server, func(managedByApp map[string]bool, ref apiv1.ObjectReference) {}, &sharding.ClusterSharding{}, argo.NewResourceTracking())
+	return cache.NewLiveStateCache(argoDB, appInformer, settingsMgr, server, func(_ map[string]bool, _ corev1.ObjectReference) {}, &sharding.ClusterSharding{}, argo.NewResourceTracking())
 }

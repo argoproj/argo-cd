@@ -9,5 +9,5 @@ tests:
   inputPath: testdata/progressing.yaml
 - healthStatus:
     status: Degraded
-    message: 'PodDisruptionBudget has InsufficientPods'
+    message: 'PodDisruptionBudget has SyncFailed'
   inputPath: testdata/degraded.yaml

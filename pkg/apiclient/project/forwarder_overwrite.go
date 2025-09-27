@@ -1,7 +1,7 @@
 package project
 
 import (
-	"github.com/argoproj/pkg/grpc/http"
+	"github.com/argoproj/pkg/v2/grpc/http"
 )
 
 func init() {

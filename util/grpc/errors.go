@@ -8,7 +8,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	apierr "k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
 func rewrapError(err error, code codes.Code) error {
@@ -17,15 +17,14 @@ func rewrapError(err error, code codes.Code) error {
 
 func gitErrToGRPC(err error) error {
 	if err == nil {
-		return err
+		return nil
 	}
 	errMsg := err.Error()
 	if grpcStatus := UnwrapGRPCStatus(err); grpcStatus != nil {
 		errMsg = grpcStatus.Message()
 	}
 
-	switch errMsg {
-	case giterr.ErrRepositoryNotFound.Error():
+	if errMsg == giterr.ErrRepositoryNotFound.Error() {
 		err = rewrapError(errors.New(errMsg), codes.NotFound)
 	}
 	return err
@@ -66,31 +65,31 @@ func kubeErrToGRPC(err error) error {
 	*/
 
 	switch {
-	case apierr.IsNotFound(err):
+	case apierrors.IsNotFound(err):
 		err = rewrapError(err, codes.NotFound)
-	case apierr.IsAlreadyExists(err):
+	case apierrors.IsAlreadyExists(err):
 		err = rewrapError(err, codes.AlreadyExists)
-	case apierr.IsInvalid(err):
+	case apierrors.IsInvalid(err):
 		err = rewrapError(err, codes.InvalidArgument)
-	case apierr.IsMethodNotSupported(err):
+	case apierrors.IsMethodNotSupported(err):
 		err = rewrapError(err, codes.Unimplemented)
-	case apierr.IsServiceUnavailable(err):
+	case apierrors.IsServiceUnavailable(err):
 		err = rewrapError(err, codes.Unavailable)
-	case apierr.IsBadRequest(err):
+	case apierrors.IsBadRequest(err):
 		err = rewrapError(err, codes.FailedPrecondition)
-	case apierr.IsUnauthorized(err):
+	case apierrors.IsUnauthorized(err):
 		err = rewrapError(err, codes.Unauthenticated)
-	case apierr.IsForbidden(err):
+	case apierrors.IsForbidden(err):
 		err = rewrapError(err, codes.PermissionDenied)
-	case apierr.IsTimeout(err):
+	case apierrors.IsTimeout(err):
 		err = rewrapError(err, codes.DeadlineExceeded)
-	case apierr.IsServerTimeout(err):
+	case apierrors.IsServerTimeout(err):
 		err = rewrapError(err, codes.Unavailable)
-	case apierr.IsConflict(err):
+	case apierrors.IsConflict(err):
 		err = rewrapError(err, codes.Aborted)
-	case apierr.IsTooManyRequests(err):
+	case apierrors.IsTooManyRequests(err):
 		err = rewrapError(err, codes.ResourceExhausted)
-	case apierr.IsInternalError(err):
+	case apierrors.IsInternalError(err):
 		err = rewrapError(err, codes.Internal)
 	default:
 		// This is necessary as GRPC Status don't support wrapped errors:
@@ -104,7 +103,7 @@ func kubeErrToGRPC(err error) error {
 
 // ErrorCodeGitUnaryServerInterceptor replaces Kubernetes errors with relevant gRPC equivalents, if any.
 func ErrorCodeGitUnaryServerInterceptor() grpc.UnaryServerInterceptor {
-	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
+	return func(ctx context.Context, req any, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp any, err error) {
 		resp, err = handler(ctx, req)
 		return resp, gitErrToGRPC(err)
 	}
@@ -112,7 +111,7 @@ func ErrorCodeGitUnaryServerInterceptor() grpc.UnaryServerInterceptor {
 
 // ErrorCodeGitStreamServerInterceptor replaces Kubernetes errors with relevant gRPC equivalents, if any.
 func ErrorCodeGitStreamServerInterceptor() grpc.StreamServerInterceptor {
-	return func(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+	return func(srv any, ss grpc.ServerStream, _ *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
 		err := handler(srv, ss)
 		return gitErrToGRPC(err)
 	}
@@ -120,7 +119,7 @@ func ErrorCodeGitStreamServerInterceptor() grpc.StreamServerInterceptor {
 
 // ErrorCodeK8sUnaryServerInterceptor replaces Kubernetes errors with relevant gRPC equivalents, if any.
 func ErrorCodeK8sUnaryServerInterceptor() grpc.UnaryServerInterceptor {
-	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
+	return func(ctx context.Context, req any, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp any, err error) {
 		resp, err = handler(ctx, req)
 		return resp, kubeErrToGRPC(err)
 	}
@@ -128,7 +127,7 @@ func ErrorCodeK8sUnaryServerInterceptor() grpc.UnaryServerInterceptor {
 
 // ErrorCodeK8sStreamServerInterceptor replaces Kubernetes errors with relevant gRPC equivalents, if any.
 func ErrorCodeK8sStreamServerInterceptor() grpc.StreamServerInterceptor {
-	return func(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+	return func(srv any, ss grpc.ServerStream, _ *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
 		err := handler(srv, ss)
 		return kubeErrToGRPC(err)
 	}

@@ -16,6 +16,12 @@ status:
       reason: InsufficientPods
       status: "False"
       type: DisruptionAllowed
+    - lastTransitionTime: "2024-09-06T18:29:06Z"
+      message: ""
+      observedGeneration: 2
+      reason: SyncFailed
+      status: "False"
+      type: DisruptionAllowed
   currentHealthy: 2
   desiredHealthy: 3
   disruptionsAllowed: 0
