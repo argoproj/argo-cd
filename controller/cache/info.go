@@ -469,13 +469,6 @@ func populatePodInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 	if pod.Status.PodIP != "" {
 		res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Pod IP", Value: pod.Status.PodIP})
 	}
-	if len(pod.Status.PodIPs) > 0 {
-		var podIPs []string
-		for _, podIP := range pod.Status.PodIPs {
-			podIPs = append(podIPs, podIP.IP)
-		}
-		res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Pod IPs", Value: strings.Join(podIPs, ",")})
-	}
 
 	var urls []string
 	if res.NetworkingInfo != nil {

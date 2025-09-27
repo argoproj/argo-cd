@@ -716,17 +716,6 @@ function NodeInfoDetails({tag: tag, kind: kind}: {tag: models.InfoItem; kind: st
 }
 
 function NodeInfo({info}: {info: models.InfoItem}) {
-    if (info.name === 'Pod IPs') {
-        const ips = info.value.split(',');
-        return (
-            <div style={{display: 'flex', flexDirection: 'column'}}>
-                <span>{info.name}</span>
-                {ips.map(ip => (
-                    <span key={ip}>- {ip}</span>
-                ))}
-            </div>
-        );
-    }
     return (
         <div>
             {info.name}: {info.value}

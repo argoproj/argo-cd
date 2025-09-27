@@ -1075,7 +1075,6 @@ func TestGetPodInfo(t *testing.T) {
     podIP: "10.244.0.5"
     podIPs:
       - ip: "10.244.0.5"
-      - ip: "2001:db8::1"
     containerStatuses:
       - name: container
         ready: true
@@ -1093,81 +1092,6 @@ func TestGetPodInfo(t *testing.T) {
 			{Name: common.PodRequestsCPU, Value: "0"},
 			{Name: common.PodRequestsMEM, Value: "0"},
 			{Name: "Pod IP", Value: "10.244.0.5"},
-			{Name: "Pod IPs", Value: "10.244.0.5,2001:db8::1"},
-		}, info.Info)
-	})
-
-	// Test Pod with only single IP
-	t.Run("TestPodWithSingleIP", func(t *testing.T) {
-		t.Parallel()
-
-		pod := strToUnstructured(`
-  apiVersion: v1
-  kind: Pod
-  metadata:
-    name: test-pod-single-ip
-    namespace: default
-  spec:
-    nodeName: minikube
-    containers:
-      - name: container
-        image: nginx
-  status:
-    phase: Running
-    podIP: "10.244.0.5"
-    containerStatuses:
-      - name: container
-        ready: true
-        restartCount: 0
-        state:
-          running:
-            startedAt: "2024-01-01T00:00:00Z"
-`)
-		info := &ResourceInfo{}
-		populateNodeInfo(pod, info, []string{})
-		assert.Equal(t, []v1alpha1.InfoItem{
-			{Name: "Status Reason", Value: "Running"},
-			{Name: "Node", Value: "minikube"},
-			{Name: "Containers", Value: "1/1"},
-			{Name: common.PodRequestsCPU, Value: "0"},
-			{Name: common.PodRequestsMEM, Value: "0"},
-			{Name: "Pod IP", Value: "10.244.0.5"},
-		}, info.Info)
-	})
-
-	// Test Pod without IP (pending state)
-	t.Run("TestPodWithoutIP", func(t *testing.T) {
-		t.Parallel()
-
-		pod := strToUnstructured(`
-  apiVersion: v1
-  kind: Pod
-  metadata:
-    name: test-pod-no-ip
-    namespace: default
-  spec:
-    nodeName: minikube
-    containers:
-      - name: container
-        image: nginx
-  status:
-    phase: Pending
-    containerStatuses:
-      - name: container
-        ready: false
-        restartCount: 0
-        state:
-          waiting:
-            reason: ContainerCreating
-`)
-		info := &ResourceInfo{}
-		populateNodeInfo(pod, info, []string{})
-		assert.Equal(t, []v1alpha1.InfoItem{
-			{Name: "Status Reason", Value: "ContainerCreating"},
-			{Name: "Node", Value: "minikube"},
-			{Name: "Containers", Value: "0/1"},
-			{Name: common.PodRequestsCPU, Value: "0"},
-			{Name: common.PodRequestsMEM, Value: "0"},
 		}, info.Info)
 	})
 }
