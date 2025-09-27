@@ -78,6 +78,7 @@ type fakeData struct {
 	updateRevisionForPathsResponse  *apiclient.UpdateRevisionForPathsResponse
 	updateRevisionForPathsResponses []*apiclient.UpdateRevisionForPathsResponse
 	additionalObjs                  []runtime.Object
+	taintedGVKs                     []string
 }
 
 type MockKubectl struct {
@@ -101,7 +102,15 @@ func newFakeController(ctx context.Context, data *fakeData, repoErr error) *Appl
 	return newFakeControllerWithResync(ctx, data, time.Minute, repoErr, nil)
 }
 
+func newFakeControllerWithStateCacheErrors(ctx context.Context, data *fakeData, stateCacheErr error) *ApplicationController {
+	return newFakeControllerWithResyncAndStateCacheErrors(ctx, data, time.Minute, nil, nil, stateCacheErr)
+}
+
 func newFakeControllerWithResync(ctx context.Context, data *fakeData, appResyncPeriod time.Duration, repoErr, revisionPathsErr error) *ApplicationController {
+	return newFakeControllerWithResyncAndStateCacheErrors(ctx, data, appResyncPeriod, repoErr, revisionPathsErr, nil)
+}
+
+func newFakeControllerWithResyncAndStateCacheErrors(ctx context.Context, data *fakeData, appResyncPeriod time.Duration, repoErr, revisionPathsErr, stateCacheErr error) *ApplicationController {
 	var clust corev1.Secret
 	err := yaml.Unmarshal([]byte(fakeCluster), &clust)
 	if err != nil {
@@ -229,25 +238,43 @@ func newFakeControllerWithResync(ctx context.Context, data *fakeData, appResyncP
 	ctrl.appStateManager.(*appStateManager).liveStateCache = mockStateCache
 	ctrl.stateCache = mockStateCache
 	mockStateCache.EXPECT().IsNamespaced(mock.Anything, mock.Anything).Return(true, nil)
-	mockStateCache.EXPECT().GetManagedLiveObjs(mock.Anything, mock.Anything, mock.Anything).Return(data.managedLiveObjs, nil)
 	mockStateCache.EXPECT().GetVersionsInfo(mock.Anything).Return("v1.2.3", nil, nil)
-	mockStateCache.EXPECT().GetTaintedGVKs(mock.Anything).Return([]string{})
-	response := make(map[kube.ResourceKey]v1alpha1.ResourceNode)
-	for k, v := range data.namespacedResources {
-		response[k] = v.ResourceNode
-	}
-	mockStateCache.EXPECT().GetNamespaceTopLevelResources(mock.Anything, mock.Anything).Return(response, nil)
-	mockStateCache.EXPECT().IterateResources(mock.Anything, mock.Anything).Return(nil)
 	mockStateCache.EXPECT().GetClusterCache(mock.Anything).Return(clusterCacheMock, nil)
-	mockStateCache.EXPECT().IterateHierarchyV2(mock.Anything, mock.Anything, mock.Anything).Run(func(_ *v1alpha1.Cluster, keys []kube.ResourceKey, action func(_ v1alpha1.ResourceNode, _ string) bool) {
-		for _, key := range keys {
-			appName := ""
-			if res, ok := data.namespacedResources[key]; ok {
-				appName = res.AppName
-			}
-			_ = action(v1alpha1.ResourceNode{ResourceRef: v1alpha1.ResourceRef{Kind: key.Kind, Group: key.Group, Namespace: key.Namespace, Name: key.Name}}, appName)
+	mockStateCache.EXPECT().IterateResources(mock.Anything, mock.Anything).Return(nil)
+
+	// Configure taintedGVKs from data (always, regardless of error)
+	taintedGVKs := data.taintedGVKs
+	if taintedGVKs == nil {
+		taintedGVKs = []string{}
+	}
+	mockStateCache.EXPECT().GetTaintedGVKs(mock.Anything).Return(taintedGVKs)
+
+	switch stateCacheErr {
+	case nil:
+		// Success path - configure normal mock responses
+		mockStateCache.EXPECT().GetManagedLiveObjs(mock.Anything, mock.Anything, mock.Anything).Return(data.managedLiveObjs, nil)
+		response := make(map[kube.ResourceKey]v1alpha1.ResourceNode)
+		for k, v := range data.namespacedResources {
+			response[k] = v.ResourceNode
 		}
-	}).Return(nil)
+		mockStateCache.EXPECT().GetNamespaceTopLevelResources(mock.Anything, mock.Anything).Return(response, nil)
+		mockStateCache.EXPECT().IterateHierarchyV2(mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+			keys := args[1].([]kube.ResourceKey)
+			action := args[2].(func(child v1alpha1.ResourceNode, appName string) bool)
+			for _, key := range keys {
+				appName := ""
+				if res, ok := data.namespacedResources[key]; ok {
+					appName = res.AppName
+				}
+				_ = action(v1alpha1.ResourceNode{ResourceRef: v1alpha1.ResourceRef{Kind: key.Kind, Group: key.Group, Namespace: key.Namespace, Name: key.Name}}, appName)
+			}
+		}).Return(nil)
+	default:
+		// Error injection path - return errors for state cache operations
+		mockStateCache.EXPECT().GetManagedLiveObjs(mock.Anything, mock.Anything, mock.Anything).Return(nil, stateCacheErr)
+		mockStateCache.EXPECT().GetNamespaceTopLevelResources(mock.Anything, mock.Anything).Return(nil, stateCacheErr)
+		mockStateCache.EXPECT().IterateHierarchyV2(mock.Anything, mock.Anything, mock.Anything).Return(stateCacheErr)
+	}
 	return ctrl
 }
 
@@ -3204,9 +3231,6 @@ func TestConversionWebhookFailureIsolation(t *testing.T) {
 	app2.Name = "app2"
 	app2.Spec.Destination.Namespace = "different-namespace"
 
-	// Create a conversion webhook error
-	conversionError := errors.New("failed to sync cluster: failed to load initial state of resource BucketServerSideEncryptionConfiguration.s3.aws.upbound.io: conversion webhook for s3.aws.upbound.io/v1beta1, Kind=BucketServerSideEncryptionConfiguration failed: Post \"https://provider-aws-s3.crossplane-system.svc:9443/convert?timeout=30s\": no endpoints available for service \"provider-aws-s3\"")
-
 	// Create a specific list operation conversion webhook error
 	listConversionError := errors.New("failed to list resources: conversion webhook for conversion.example.com/v1, Kind=Example failed: Post \"https://conversion-webhook-service.webhook-system.svc:443/convert?timeout=30s\": service \"conversion-webhook-service\" not found")
 
@@ -3228,41 +3252,19 @@ func TestConversionWebhookFailureIsolation(t *testing.T) {
 			},
 		},
 		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+		taintedGVKs: []string{
+			"s3.aws.upbound.io/v1beta1, Kind=BucketServerSideEncryptionConfiguration",
+			"conversion.example.com/v1, Kind=Example",
+		},
 	}
 
-	ctrl := newFakeController(t.Context(), data, nil)
+	ctrl := newFakeControllerWithStateCacheErrors(t.context(), data, listConversionError)
 
-	// Create a new mock state cache for conversion webhook failures
-	customMockStateCache := &mockstatecache.LiveStateCache{}
-
-	// Set up all the necessary methods for basic functionality
-	customMockStateCache.On("IsNamespaced", mock.Anything, mock.Anything).Return(true, nil)
-	customMockStateCache.On("GetVersionsInfo", mock.Anything).Return("v1.2.3", nil, nil)
-
-	// Set up conversion webhook failures for specific operations
-	// Use the list conversion error for GetManagedLiveObjs to test list error handling
-	customMockStateCache.On("GetManagedLiveObjs", mock.Anything, mock.Anything, mock.Anything).Return(nil, listConversionError)
-	customMockStateCache.On("GetNamespaceTopLevelResources", mock.Anything, mock.Anything).Return(nil, conversionError)
-	customMockStateCache.On("IterateHierarchyV2", mock.Anything, mock.Anything, mock.Anything).Return(conversionError)
-	customMockStateCache.On("IterateResources", mock.Anything, mock.Anything).Return(nil)
-
-	// Set up taint manager methods - return tainted GVKs that match the conversion webhook errors
-	taintedGVKs := []string{
-		"s3.aws.upbound.io/v1beta1, Kind=BucketServerSideEncryptionConfiguration",
-		"conversion.example.com/v1, Kind=Example",
-	}
-	customMockStateCache.On("GetTaintedGVKs", mock.Anything).Return(taintedGVKs)
-
-	// Set up cluster cache mock
-	clusterCacheMock := &mocks.ClusterCache{}
-	clusterCacheMock.EXPECT().IsNamespaced(mock.Anything).Return(true, nil)
-	clusterCacheMock.EXPECT().GetOpenAPISchema().Return(nil, nil)
-	clusterCacheMock.EXPECT().GetGVKParser().Return(nil)
-	customMockStateCache.EXPECT().GetClusterCache(mock.Anything).Return(clusterCacheMock, nil)
-
-	// Replace the state cache
-	ctrl.stateCache = customMockStateCache
-	ctrl.appStateManager.(*appStateManager).liveStateCache = customMockStateCache
+	// Add applications to the refresh queue before processing
+	app1Key, _ := cache.MetaNamespaceKeyFunc(app1)
+	app2Key, _ := cache.MetaNamespaceKeyFunc(app2)
+	ctrl.appRefreshQueue.AddRateLimited(app1Key)
+	ctrl.appRefreshQueue.AddRateLimited(app2Key)
 
 	// Process queue items for both applications
 	ctrl.processAppRefreshQueueItem() // app1
