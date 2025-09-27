@@ -173,6 +173,7 @@ func (s *Server) getAppEnforceRBAC(ctx context.Context, action, project, namespa
 		"application": name,
 		"namespace":   namespace,
 	})
+	globalAccess := false
 	if project != "" {
 		// The user has provided everything we need to perform an initial RBAC check.
 		givenRBACName := security.RBACName(s.ns, project, namespace, name)
@@ -187,14 +188,24 @@ func (s *Server) getAppEnforceRBAC(ctx context.Context, action, project, namespa
 			_, _ = getApp()
 			return nil, nil, argocommon.PermissionDeniedAPIError
 		}
+	} else {
+		// The user did not provide a project in the request. We can only guarantee that the user would have access to
+		// an application in a specific project if the user has access to all projects. For that,
+		// we assume that the application requested is '*/*'.
+		givenRBACName := security.RBACName(s.ns, "*", namespace, "*")
+		if err := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceApplications, action, givenRBACName); err == nil {
+			globalAccess = true
+		}
 	}
+
 	a, err := getApp()
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			if project != "" {
+			if project != "" || globalAccess {
 				// We know that the user was allowed to get the Application, but the Application does not exist. Return 404.
 				return nil, nil, status.Error(codes.NotFound, apierrors.NewNotFound(schema.GroupResource{Group: "argoproj.io", Resource: "applications"}, name).Error())
 			}
+
 			// We don't know if the user was allowed to get the Application, and we don't want to leak information about
 			// the Application's existence. Return 403.
 			logCtx.Warn("application does not exist")
@@ -203,6 +214,7 @@ func (s *Server) getAppEnforceRBAC(ctx context.Context, action, project, namespa
 		logCtx.Errorf("failed to get application: %s", err)
 		return nil, nil, argocommon.PermissionDeniedAPIError
 	}
+
 	// Even if we performed an initial RBAC check (because the request was fully parameterized), we still need to
 	// perform a second RBAC check to ensure that the user has access to the actual Application's project (not just the
 	// project they specified in the request).
