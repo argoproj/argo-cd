@@ -309,3 +309,108 @@ func TestPluginStatusCode(t *testing.T) {
 		})
 	}
 }
+
+// TestListAvailablePlugins tests the plugin discovery functionality for tab completion
+func TestListAvailablePlugins(t *testing.T) {
+	setupPluginPath(t)
+
+	tests := []struct {
+		name        string
+		validPrefix []string
+		expected    []string
+	}{
+		{
+			name:        "Standard argocd prefix finds plugins",
+			validPrefix: []string{"argocd"},
+			expected:    []string{"foo", "demo_plugin", "error", "test-plugin", "status-code-plugin", "version"},
+		},
+		{
+			name:        "Multiple prefixes",
+			validPrefix: []string{"argocd", "kubectl"},
+			expected:    []string{"foo", "demo_plugin", "error", "test-plugin", "status-code-plugin", "version"},
+		},
+		{
+			name:        "Non-existent prefix finds no plugins",
+			validPrefix: []string{"nonexistent"},
+			expected:    []string{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pluginHandler := NewDefaultPluginHandler(tt.validPrefix)
+			plugins := pluginHandler.ListAvailablePlugins()
+
+			if len(tt.expected) == 0 {
+				assert.Empty(t, plugins)
+				return
+			}
+
+			// Sort both slices for comparison since order is not guaranteed
+			assert.ElementsMatch(t, tt.expected, plugins)
+		})
+	}
+}
+
+// TestListAvailablePluginsEmptyPath tests plugin discovery when PATH is empty
+func TestListAvailablePluginsEmptyPath(t *testing.T) {
+	// Save original PATH
+	originalPath := os.Getenv("PATH")
+	defer func() {
+		t.Setenv("PATH", originalPath)
+	}()
+
+	// Set empty PATH
+	t.Setenv("PATH", "")
+
+	pluginHandler := NewDefaultPluginHandler([]string{"argocd"})
+	plugins := pluginHandler.ListAvailablePlugins()
+
+	assert.Empty(t, plugins, "Should return empty list when PATH is empty")
+}
+
+// TestListAvailablePluginsNonExecutableFiles tests that non-executable files are ignored
+func TestListAvailablePluginsNonExecutableFiles(t *testing.T) {
+	setupPluginPath(t)
+
+	pluginHandler := NewDefaultPluginHandler([]string{"argocd"})
+	plugins := pluginHandler.ListAvailablePlugins()
+
+	// Should not include 'no-permission' since it's not executable
+	assert.NotContains(t, plugins, "no-permission")
+}
+
+// TestListAvailablePluginsDeduplication tests that duplicate plugins from different PATH dirs are handled
+func TestListAvailablePluginsDeduplication(t *testing.T) {
+	// Create two temporary directories with the same plugin
+	dir1 := t.TempDir()
+	dir2 := t.TempDir()
+
+	// Create the same plugin in both directories
+	plugin1 := filepath.Join(dir1, "argocd-duplicate")
+	plugin2 := filepath.Join(dir2, "argocd-duplicate")
+
+	err := os.WriteFile(plugin1, []byte("#!/bin/bash\necho 'plugin1'\n"), 0o755)
+	require.NoError(t, err)
+
+	err = os.WriteFile(plugin2, []byte("#!/bin/bash\necho 'plugin2'\n"), 0o755)
+	require.NoError(t, err)
+
+	// Set PATH to include both directories
+	testPath := dir1 + string(os.PathListSeparator) + dir2
+	t.Setenv("PATH", testPath)
+
+	pluginHandler := NewDefaultPluginHandler([]string{"argocd"})
+	plugins := pluginHandler.ListAvailablePlugins()
+
+	// Should only find "duplicate" once, not twice
+	duplicateCount := 0
+	for _, plugin := range plugins {
+		if plugin == "duplicate" {
+			duplicateCount++
+		}
+	}
+
+	assert.Equal(t, 1, duplicateCount, "Duplicate plugin should only appear once")
+	assert.Contains(t, plugins, "duplicate")
+}
