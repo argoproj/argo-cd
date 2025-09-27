@@ -205,5 +205,5 @@ func (h *DefaultPluginHandler) ListAvailablePlugins() []string {
 		}
 	}
 
-	return plugins
+	return sort.Strings(maps.Keys(seenPlugins))
 }
