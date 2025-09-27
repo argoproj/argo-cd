@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/argoproj/argo-cd/v3/util/cli"
@@ -145,11 +146,10 @@ func (h *DefaultPluginHandler) command(name string, arg ...string) *exec.Cmd {
 // ListAvailablePlugins returns a list of plugin names that are available in the user's PATH
 // for tab completion. It searches for executables matching the ValidPrefixes pattern.
 func (h *DefaultPluginHandler) ListAvailablePlugins() []string {
-
 	// Get PATH environment variable
 	pathEnv := os.Getenv("PATH")
 	if pathEnv == "" {
-		return plugins
+		return []string{}
 	}
 
 	// Split PATH into individual directories
@@ -204,5 +204,11 @@ func (h *DefaultPluginHandler) ListAvailablePlugins() []string {
 		}
 	}
 
-	return sort.Strings(maps.Keys(seenPlugins))
+	// Convert map keys to sorted slice
+	plugins := make([]string, 0, len(seenPlugins))
+	for plugin := range seenPlugins {
+		plugins = append(plugins, plugin)
+	}
+	slices.Sort(plugins)
+	return plugins
 }

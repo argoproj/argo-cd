@@ -322,12 +322,12 @@ func TestListAvailablePlugins(t *testing.T) {
 		{
 			name:        "Standard argocd prefix finds plugins",
 			validPrefix: []string{"argocd"},
-			expected:    []string{"foo", "demo_plugin", "error", "test-plugin", "status-code-plugin", "version"},
+			expected:    []string{"demo_plugin", "error", "foo", "status-code-plugin", "test-plugin", "version"},
 		},
 		{
 			name:        "Multiple prefixes",
 			validPrefix: []string{"argocd", "kubectl"},
-			expected:    []string{"foo", "demo_plugin", "error", "test-plugin", "status-code-plugin", "version"},
+			expected:    []string{"demo_plugin", "error", "foo", "status-code-plugin", "test-plugin", "version"},
 		},
 		{
 			name:        "Non-existent prefix finds no plugins",
@@ -340,11 +340,6 @@ func TestListAvailablePlugins(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			pluginHandler := NewDefaultPluginHandler(tt.validPrefix)
 			plugins := pluginHandler.ListAvailablePlugins()
-
-			if len(tt.expected) == 0 {
-				assert.Empty(t, plugins)
-				return
-			}
 
 			assert.Equal(t, tt.expected, plugins)
 		})
