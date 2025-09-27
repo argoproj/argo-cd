@@ -15,6 +15,7 @@ export interface FilterResult {
     sync: boolean;
     autosync: boolean;
     health: boolean;
+    hydration: boolean;
     namespaces: boolean;
     clusters: boolean;
     favourite: boolean;
@@ -32,6 +33,16 @@ export function getAutoSyncStatus(syncPolicy?: SyncPolicy) {
     return 'Enabled';
 }
 
+export function getHydrationStatus(app: Application) {
+    if (!app.spec.sourceHydrator) {
+        return 'None';
+    }
+    if (!app.status.sourceHydrator?.currentOperation) {
+        return 'None';
+    }
+    return app.status.sourceHydrator.currentOperation.phase;
+}
+
 export function getFilterResults(applications: Application[], pref: AppsListPreferences): FilteredApp[] {
     return applications.map(app => ({
         ...app,
@@ -40,6 +51,7 @@ export function getFilterResults(applications: Application[], pref: AppsListPref
             sync: pref.syncFilter.length === 0 || pref.syncFilter.includes(app.status.sync.status),
             autosync: pref.autoSyncFilter.length === 0 || pref.autoSyncFilter.includes(getAutoSyncStatus(app.spec.syncPolicy)),
             health: pref.healthFilter.length === 0 || pref.healthFilter.includes(app.status.health.status),
+            hydration: pref.hydrationFilter.length === 0 || pref.hydrationFilter.includes(getHydrationStatus(app)),
             namespaces: pref.namespacesFilter.length === 0 || pref.namespacesFilter.some(ns => app.spec.destination.namespace && minimatch(app.spec.destination.namespace, ns)),
             favourite: !pref.showFavorites || (pref.favoritesAppList && pref.favoritesAppList.includes(app.metadata.name)),
             clusters:
@@ -129,6 +141,55 @@ const HealthFilter = (props: AppFilterProps) => (
                 <HealthStatusIcon state={{status: s as HealthStatusCode, message: ''}} noSpin={true} />
             )
         )}
+    />
+);
+
+function getHydrationOptions(apps: FilteredApp[]) {
+    const hydrationStatuses = ['None', 'Hydrating', 'Hydrated', 'Failed'];
+    const counts = getCounts(apps, 'hydration', getHydrationStatus, hydrationStatuses);
+    return hydrationStatuses.map(status => {
+        let icon;
+        const iconColor =
+            status === 'Hydrated'
+                ? COLORS.operation.success
+                : status === 'Failed'
+                  ? COLORS.operation.failed
+                  : status === 'Hydrating'
+                    ? COLORS.operation.running
+                    : COLORS.sync.unknown;
+
+        switch (status) {
+            case 'Hydrated':
+                icon = <i className='fa fa-check-circle' style={{color: iconColor}} />;
+                break;
+            case 'Failed':
+                icon = <i className='fa fa-times-circle' style={{color: iconColor}} />;
+                break;
+            case 'Hydrating':
+                icon = <i className='fa fa-circle-notch' style={{color: iconColor}} />;
+                break;
+            case 'None':
+                icon = <i className='fa fa-minus-circle' style={{color: iconColor}} />;
+                break;
+            default:
+                icon = <i className='fa fa-question-circle' style={{color: iconColor}} />;
+                break;
+        }
+
+        return {
+            label: status,
+            icon,
+            count: counts.get(status)
+        };
+    });
+}
+
+const HydrationFilter = (props: AppFilterProps) => (
+    <Filter
+        label='HYDRATION STATUS'
+        selected={props.pref.hydrationFilter}
+        setSelected={s => props.onChange({...props.pref, hydrationFilter: s})}
+        options={getHydrationOptions(props.apps)}
     />
 );
 
@@ -281,6 +342,7 @@ export const ApplicationsFilter = (props: AppFilterProps) => {
             <FavoriteFilter {...props} />
             <SyncFilter {...props} />
             <HealthFilter {...props} />
+            <HydrationFilter {...props} collapsed={true} />
             <LabelsFilter {...props} />
             <ProjectFilter {...props} />
             <ClusterFilter {...props} />

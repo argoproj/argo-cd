@@ -126,6 +126,12 @@ const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: num
                                     .split(',')
                                     .filter(item => !!item);
                             }
+                            if (params.get('hydration') != null) {
+                                viewPref.hydrationFilter = params
+                                    .get('hydration')
+                                    .split(',')
+                                    .filter(item => !!item);
+                            }
                             if (params.get('namespace') != null) {
                                 viewPref.namespacesFilter = params
                                     .get('namespace')
@@ -352,6 +358,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                 sync: newPref.syncFilter.join(','),
                 autoSync: newPref.autoSyncFilter.join(','),
                 health: newPref.healthFilter.join(','),
+                hydration: newPref.hydrationFilter.join(','),
                 namespace: newPref.namespacesFilter.join(','),
                 cluster: newPref.clustersFilter.join(','),
                 labels: newPref.labelsFilter.map(encodeURIComponent).join(',')
