@@ -398,14 +398,5 @@ func TestListAvailablePluginsDeduplication(t *testing.T) {
 	pluginHandler := NewDefaultPluginHandler([]string{"argocd"})
 	plugins := pluginHandler.ListAvailablePlugins()
 
-	// Should only find "duplicate" once, not twice
-	duplicateCount := 0
-	for _, plugin := range plugins {
-		if plugin == "duplicate" {
-			duplicateCount++
-		}
-	}
-
-	assert.Equal(t, 1, duplicateCount, "Duplicate plugin should only appear once")
-	assert.Contains(t, plugins, "duplicate")
+	assert.Equal(t, []string{"duplicate"}, plugins)
 }
