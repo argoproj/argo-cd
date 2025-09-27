@@ -76,7 +76,7 @@ jobs:
             const token = process.env['ACTIONS_RUNTIME_TOKEN']
             const runtimeUrl = process.env['ACTIONS_ID_TOKEN_REQUEST_URL']
             core.setOutput('TOKEN', token.trim())
-            core.setOutput('IDTOKENURL', runtimeUrl.trim())            
+            core.setOutput('IDTOKENURL', runtimeUrl.trim())
 
       - name: Obtain access token
         id: idtoken
@@ -115,7 +115,7 @@ jobs:
           echo "::add-mask::$(echo "$DEX_TOKEN" | base64 -w0)"
           echo "::add-mask::$DEX_TOKEN"
           echo "dex-token=$DEX_TOKEN" >> "$GITHUB_OUTPUT"
-          # use $DEX_TOKEN          
+          # use $DEX_TOKEN
 
       - name: Setup ArgoCD CLI
         run: |
@@ -139,7 +139,7 @@ jobs:
 ```
 
 
-## Configuring RBAC (ArgoCD v3)
+## Configuring RBAC
 
 When using ArgoCD v3.0.0 or later, then you define your `policy.csv` like so:
 
@@ -154,50 +154,7 @@ configs:
 
 More info: [RBAC Configuration](../rbac.md)
 
-## RBAC (ArgoCD v2)
-
-When using ArgoCD v2.x.x, then ArgoCD used the JWT `sub` field instead of
-`federated_claims.user_id`. This was changed in PR [#20683](https://github.com/argoproj/argo-cd/pull/20683)
-but that fix is only available since ArgoCD v3.0.0.
-
-Therefore, when using ArgoCD v2.x.x you need to specify the base64-encoded
-value used by Dex:
-
-```yaml
-configs:
-  rbac:
-    policy.csv: |
-      p, CiByZXBvOm15LW9yZy9teS1yZXBvOnB1bGxfcmVxdWVzdBIOZ2l0aHViLWFjdGlvbnM, projects, get, my-project, allow
-      p, CiByZXBvOm15LW9yZy9teS1yZXBvOnB1bGxfcmVxdWVzdBIOZ2l0aHViLWFjdGlvbnM, applications, get, my-project/*, allow
-      p, CiByZXBvOm15LW9yZy9teS1yZXBvOnB1bGxfcmVxdWVzdBIOZ2l0aHViLWFjdGlvbnM, applicationsets, get, my-project/*, allow
-```
-
-This string can be found in the `argocd-server` logs when trying to access
-ArgoCD. It is not a randomly generated string.
-
-The value is a base64-encoded string (with trimmed `=` signs) of the following
-protobuf message:
-
-```protobuf
-syntax = "proto3";
-package internal;
-
-// IDTokenSubject represents both the userID and connID which is returned
-// as the "sub" claim in the ID Token.
-message IDTokenSubject {
-  string user_id = 1;
-  string conn_id = 2;
-}
-```
-
-(Source: <https://github.com/dexidp/dex/blob/v2.42.1/server/internal/types.proto#L14-L19>)
-
-Which means you can generate the string yourself using sites like
-<https://www.protobufpal.com/> by pasting the protobuf definition and
-a JSON-encoded version of the message. Example:
-
-```json
-{"user_id": "repo:my-org/my-repo:pull_request", "conn_id": "github-actions"}
-```
-
-![Screenshot of protobufpal.com](../../assets/github-actions-protobufpal.png)
+> [!NOTE]
+> Defining policies are not supported on ArgoCD v2.
+> To define policies, please [upgrade](../upgrading/overview.md)
+> to to v3.0.0 or later.
