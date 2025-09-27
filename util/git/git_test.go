@@ -268,9 +268,10 @@ func TestLsRemote(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			commitSHA, err := clnt.LsRemote(tc.revision)
+			commitSHA, metadata, err := clnt.LsRemote(tc.revision)
 			require.NoError(t, err)
 			assert.True(t, IsCommitSHA(commitSHA))
+			assert.NotNil(t, metadata) // Ensure metadata is returned
 			if tc.expectedCommit != "" {
 				assert.Equal(t, tc.expectedCommit, commitSHA)
 			}
@@ -279,7 +280,7 @@ func TestLsRemote(t *testing.T) {
 
 	// We do not resolve truncated git hashes and return the commit as-is if it appears to be a commit
 	t.Run("truncated commit", func(t *testing.T) {
-		commitSHA, err := clnt.LsRemote("4e22a3c")
+		commitSHA, _, err := clnt.LsRemote("4e22a3c")
 		require.NoError(t, err)
 		assert.False(t, IsCommitSHA(commitSHA))
 		assert.True(t, IsTruncatedCommitSHA(commitSHA))
@@ -292,7 +293,7 @@ func TestLsRemote(t *testing.T) {
 		}
 
 		for _, revision := range xfail {
-			_, err := clnt.LsRemote(revision)
+			_, _, err := clnt.LsRemote(revision)
 			assert.ErrorContains(t, err, "unable to resolve")
 		}
 	})
@@ -309,7 +310,7 @@ func TestLFSClient(t *testing.T) {
 	client, err := NewClientExt("https://github.com/argoproj-labs/argocd-testrepo-lfs", tempDir, NopCreds{}, false, true, "", "")
 	require.NoError(t, err)
 
-	commitSHA, err := client.LsRemote("HEAD")
+	commitSHA, _, err := client.LsRemote("HEAD")
 	require.NoError(t, err)
 	assert.NotEmpty(t, commitSHA)
 
@@ -354,7 +355,7 @@ func TestVerifyCommitSignature(t *testing.T) {
 	err = client.Fetch("")
 	require.NoError(t, err)
 
-	commitSHA, err := client.LsRemote("HEAD")
+	commitSHA, _, err := client.LsRemote("HEAD")
 	require.NoError(t, err)
 
 	_, err = client.Checkout(commitSHA, true)
@@ -401,7 +402,7 @@ func TestNewFactory(t *testing.T) {
 
 		client, err := NewClientExt(tt.args.url, dirName, NopCreds{}, tt.args.insecureIgnoreHostKey, false, "", "")
 		require.NoError(t, err)
-		commitSHA, err := client.LsRemote("HEAD")
+		commitSHA, _, err := client.LsRemote("HEAD")
 		require.NoError(t, err)
 
 		err = client.Init()
@@ -698,7 +699,7 @@ func TestAnnotatedTagHandling(t *testing.T) {
 	require.NoError(t, err)
 
 	// Test annotated tag resolution
-	commitSHA, err := client.LsRemote("v1.0.0") // Known annotated tag
+	commitSHA, _, err := client.LsRemote("v1.0.0") // Known annotated tag
 	require.NoError(t, err)
 
 	// Verify we get commit SHA, not tag SHA
