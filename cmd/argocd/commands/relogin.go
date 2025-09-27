@@ -18,7 +18,7 @@ import (
 )
 
 // NewReloginCommand returns a new instance of `argocd relogin` command
-func NewReloginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Command {
+func NewReloginCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
 		password         string
 		callback         string
@@ -36,7 +36,7 @@ func NewReloginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comm
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			localCfg, err := localconfig.ReadLocalConfig(globalClientOpts.ConfigPath)
+			localCfg, err := localconfig.ReadLocalConfig(clientOpts.ConfigPath)
 			errors.CheckError(err)
 			if localCfg == nil {
 				log.Fatalf("No context found. Login using `argocd login`")
@@ -50,12 +50,12 @@ func NewReloginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comm
 				ConfigPath:        "",
 				ServerAddr:        configCtx.Server.Server,
 				Insecure:          configCtx.Server.Insecure,
-				ClientCertFile:    globalClientOpts.ClientCertFile,
-				ClientCertKeyFile: globalClientOpts.ClientCertKeyFile,
-				GRPCWeb:           globalClientOpts.GRPCWeb,
-				GRPCWebRootPath:   globalClientOpts.GRPCWebRootPath,
+				ClientCertFile:    clientOpts.ClientCertFile,
+				ClientCertKeyFile: clientOpts.ClientCertKeyFile,
+				GRPCWeb:           clientOpts.GRPCWeb,
+				GRPCWebRootPath:   clientOpts.GRPCWebRootPath,
 				PlainText:         configCtx.Server.PlainText,
-				Headers:           globalClientOpts.Headers,
+				Headers:           clientOpts.Headers,
 			}
 			acdClient := headless.NewClientOrDie(&clientOpts, c)
 			claims, err := configCtx.User.Claims()
@@ -82,7 +82,7 @@ func NewReloginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comm
 				AuthToken:    tokenString,
 				RefreshToken: refreshToken,
 			})
-			err = localconfig.WriteLocalConfig(*localCfg, globalClientOpts.ConfigPath)
+			err = localconfig.WriteLocalConfig(*localCfg, clientOpts.ConfigPath)
 			errors.CheckError(err)
 			fmt.Printf("Context '%s' updated\n", localCfg.CurrentContext)
 		},
