@@ -348,7 +348,6 @@ func TestListAvailablePlugins(t *testing.T) {
 
 // TestListAvailablePluginsEmptyPath tests plugin discovery when PATH is empty
 func TestListAvailablePluginsEmptyPath(t *testing.T) {
-
 	// Set empty PATH
 	t.Setenv("PATH", "")
 
