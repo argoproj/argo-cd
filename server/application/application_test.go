@@ -287,6 +287,12 @@ func newTestAppServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforcer),
 	}
 	appCache := servercache.NewCache(appStateCache, time.Hour, time.Hour)
 
+	// Seed cluster info so server version lookup in GetManifests succeeds
+	require.NoError(t, appCache.SetClusterInfo(
+		fakeCluster().Server,
+		&v1alpha1.ClusterInfo{ServerVersion: "v1.27.0"},
+	))
+
 	kubectl := &kubetest.MockKubectlCmd{}
 	kubectl = kubectl.WithGetResourceFunc(func(_ context.Context, _ *rest.Config, gvk schema.GroupVersionKind, name string, namespace string) (*unstructured.Unstructured, error) {
 		for _, obj := range objects {
@@ -449,6 +455,12 @@ func newTestAppServerWithEnforcerConfigureWithBenchmark(b *testing.B, f func(*rb
 		}
 	}
 	appCache := servercache.NewCache(appStateCache, time.Hour, time.Hour)
+
+	// Seed cluster info so server version lookup in GetManifests succeeds
+	require.NoError(b, appCache.SetClusterInfo(
+		fakeCluster().Server,
+		&v1alpha1.ClusterInfo{ServerVersion: "v1.27.0"},
+	))
 
 	kubectl := &kubetest.MockKubectlCmd{}
 	kubectl = kubectl.WithGetResourceFunc(func(_ context.Context, _ *rest.Config, gvk schema.GroupVersionKind, name string, namespace string) (*unstructured.Unstructured, error) {
