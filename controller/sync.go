@@ -162,7 +162,15 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, project *v1alp
 	compareResult, err := m.CompareAppState(app, project, revisions, sources, false, true, syncOp.Manifests, isMultiSourceSync)
 	if err != nil && !stderrors.Is(err, ErrCompareStateRepo) {
 		state.Phase = common.OperationError
-		state.Message = err.Error()
+
+		// Check if cluster has cache issues and provide a more helpful message
+		clusterURL := app.Spec.Destination.Server
+		taintedGVKs := m.liveStateCache.GetTaintedGVKs(clusterURL)
+		if len(taintedGVKs) > 0 {
+			state.Message = "Application contains resources with conversion webhook failures. Some resources cannot be properly synchronized. Check cluster status for more details about the affected resource types."
+		} else {
+			state.Message = err.Error()
+		}
 		return
 	}
 

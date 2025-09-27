@@ -681,10 +681,50 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 
 	liveObjByKey, err := m.liveStateCache.GetManagedLiveObjs(destCluster, app, targetObjs)
 	if err != nil {
-		liveObjByKey = make(map[kubeutil.ResourceKey]*unstructured.Unstructured)
-		msg := "Failed to load live state: " + err.Error()
-		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
-		failedToLoadObjs = true
+		// Handle cluster cache errors gracefully - this includes conversion webhook errors,
+		// pagination token expiration, and other issues that might result in partial data
+		taintedGVKs := m.liveStateCache.GetTaintedGVKs(destCluster.Server)
+		if len(taintedGVKs) > 0 {
+			logCtx.Warnf("Conversion webhook error while getting managed live objects, continuing with empty live state: %v", err)
+			liveObjByKey = make(map[kubeutil.ResourceKey]*unstructured.Unstructured)
+
+			// Extract more detailed information from the error message for better diagnostics
+			errorMsg := err.Error()
+			switch {
+			case strings.Contains(errorMsg, "cannot sync application because all target resources have known conversion webhook failures"):
+				// More detailed error message
+				conditions = append(conditions, v1alpha1.ApplicationCondition{
+					Type:               v1alpha1.ApplicationConditionComparisonError,
+					Message:            fmt.Sprintf("This application cannot be synced because it contains resources with conversion webhook failures: %v. Check cluster status for more details about the affected resource types.", errorMsg),
+					LastTransitionTime: &now,
+				})
+			case strings.Contains(errorMsg, "failed to list resources") && strings.Contains(errorMsg, "conversion webhook"):
+				// Specific handling for list operation failures due to conversion webhook issues
+				conditions = append(conditions, v1alpha1.ApplicationCondition{
+					Type:               v1alpha1.ApplicationConditionComparisonError,
+					Message:            fmt.Sprintf("Failed to list resources due to conversion webhook error: %v. Check cluster status for more details about the affected resource types.", errorMsg),
+					LastTransitionTime: &now,
+				})
+			case strings.Contains(errorMsg, "conversion webhook") || strings.Contains(errorMsg, "unavailable resource types"):
+				conditions = append(conditions, v1alpha1.ApplicationCondition{
+					Type:               v1alpha1.ApplicationConditionComparisonError,
+					Message:            "Application contains resources affected by conversion webhook failures. Some resources may not be properly synchronized. Check cluster status for more details about the affected resource types.",
+					LastTransitionTime: &now,
+				})
+			default:
+				conditions = append(conditions, v1alpha1.ApplicationCondition{
+					Type:               v1alpha1.ApplicationConditionComparisonError,
+					Message:            fmt.Sprintf("Error retrieving live state: %v", err),
+					LastTransitionTime: &now,
+				})
+			}
+			// Don't set failedToLoadObjs = true here to allow processing to continue
+		} else {
+			liveObjByKey = make(map[kubeutil.ResourceKey]*unstructured.Unstructured)
+			msg := "Failed to load live state: " + err.Error()
+			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
+			failedToLoadObjs = true
+		}
 	}
 
 	logCtx.Debugf("Retrieved live manifests")
@@ -761,6 +801,17 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	}
 
 	reconciliation := sync.Reconcile(targetObjs, liveObjByKey, app.Spec.Destination.Namespace, infoProvider)
+
+	// Check if the app has conversion webhook error conditions
+	hasConversionWebhookIssues := false
+	for _, condition := range app.Status.Conditions {
+		if condition.Type == v1alpha1.ApplicationConditionComparisonError &&
+			(strings.Contains(condition.Message, "conversion webhook") || strings.Contains(condition.Message, "unavailable resource types")) {
+			hasConversionWebhookIssues = true
+			break
+		}
+	}
+
 	ts.AddCheckpoint("live_ms")
 
 	compareOptions, err := m.settingsMgr.GetResourceCompareOptions()
@@ -937,9 +988,18 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		resourceSummaries[i] = resState
 	}
 
-	if failedToLoadObjs {
+	switch {
+	case failedToLoadObjs:
 		syncCode = v1alpha1.SyncStatusCodeUnknown
-	} else if app.HasChangedManagedNamespaceMetadata() {
+	case hasConversionWebhookIssues && len(targetObjs) == 0:
+		// If we have conversion webhook issues and no target objects successfully loaded,
+		// the sync status should be Unknown since we can't determine real state
+		syncCode = v1alpha1.SyncStatusCodeUnknown
+	case hasConversionWebhookIssues:
+		// If we have conversion webhook issues but some targets loaded, mark as OutOfSync
+		// This ensures the user knows something needs attention
+		syncCode = v1alpha1.SyncStatusCodeOutOfSync
+	case app.HasChangedManagedNamespaceMetadata():
 		syncCode = v1alpha1.SyncStatusCodeOutOfSync
 	}
 
@@ -954,7 +1014,22 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 
 	ts.AddCheckpoint("sync_ms")
 
-	healthStatus, err := setApplicationHealth(managedResources, resourceSummaries, resourceOverrides, app, m.persistResourceHealth)
+	// Get cluster health information for enhanced health analysis
+	var clusterHealth *ClusterHealthStatus
+	if m.liveStateCache != nil {
+		// Create a minimal cluster health analyzer function
+		clusterURL := app.Spec.Destination.Server
+		taintedGVKs := m.liveStateCache.GetTaintedGVKs(clusterURL)
+		if len(taintedGVKs) > 0 {
+			clusterHealth = &ClusterHealthStatus{
+				HasCacheIssues: true,
+				AffectedGVKs:   taintedGVKs,
+				Severity:       SeverityDegraded,
+			}
+		}
+	}
+
+	healthStatus, err := setApplicationHealthWithClusterInfo(managedResources, resourceSummaries, resourceOverrides, app, m.persistResourceHealth, clusterHealth)
 	if err != nil {
 		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: "error setting app health: " + err.Error(), LastTransitionTime: &now})
 	}

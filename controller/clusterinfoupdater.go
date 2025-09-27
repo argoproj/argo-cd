@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/argoproj/argo-cd/v3/common"
@@ -120,6 +121,7 @@ func (c *clusterInfoUpdater) updateClusterInfo(ctx context.Context, cluster appv
 	}
 
 	updated := c.getUpdatedClusterInfo(ctx, apps, cluster, info, metav1.Now())
+
 	return c.cache.SetClusterInfo(cluster.Server, &updated)
 }
 
@@ -143,31 +145,71 @@ func (c *clusterInfoUpdater) getUpdatedClusterInfo(ctx context.Context, apps []*
 	clusterInfo := appv1.ClusterInfo{
 		ConnectionState:   appv1.ConnectionState{ModifiedAt: &now},
 		ApplicationsCount: appCount,
+		CacheInfo:         appv1.ClusterCacheInfo{},
 	}
 	if info != nil {
 		clusterInfo.ServerVersion = info.K8SVersion
 		clusterInfo.APIVersions = argo.APIResourcesToStrings(info.APIResources, true)
+
 		switch {
 		case info.LastCacheSyncTime == nil:
 			clusterInfo.ConnectionState.Status = appv1.ConnectionStatusUnknown
 		case info.SyncError == nil:
+			// If there's no sync error, the connection is successful
 			clusterInfo.ConnectionState.Status = appv1.ConnectionStatusSuccessful
 			syncTime := metav1.NewTime(*info.LastCacheSyncTime)
 			clusterInfo.CacheInfo.LastCacheSyncTime = &syncTime
 			clusterInfo.CacheInfo.APIsCount = int64(info.APIsCount)
 			clusterInfo.CacheInfo.ResourcesCount = int64(info.ResourcesCount)
+			clusterInfo.CacheInfo.FailedResourceGVKs = info.FailedResourceGVKs
+		case c.hasClusterCacheIssues(cluster.Server, info.SyncError):
+			// We have a successful connection but some resources failed to sync
+			clusterInfo.ConnectionState.Status = appv1.ConnectionStatusDegraded
+			clusterInfo.ConnectionState.Message = fmt.Sprintf("Conversion webhook errors detected: %v", info.SyncError.Error())
+			syncTime := metav1.NewTime(*info.LastCacheSyncTime)
+			clusterInfo.CacheInfo.LastCacheSyncTime = &syncTime
+			clusterInfo.CacheInfo.APIsCount = int64(info.APIsCount)
+			clusterInfo.CacheInfo.ResourcesCount = int64(info.ResourcesCount)
+			clusterInfo.CacheInfo.FailedResourceGVKs = info.FailedResourceGVKs
 		default:
 			clusterInfo.ConnectionState.Status = appv1.ConnectionStatusFailed
 			clusterInfo.ConnectionState.Message = info.SyncError.Error()
 		}
 	} else {
-		clusterInfo.ConnectionState.Status = appv1.ConnectionStatusUnknown
+		// Cluster cache not initialized (lazy loading optimization)
 		if appCount == 0 {
-			clusterInfo.ConnectionState.Message = "Cluster has no applications and is not being monitored."
+			// Empty cluster should show as successful to indicate readiness
+			// This maintains backward compatibility and user expectations
+			clusterInfo.ConnectionState.Status = appv1.ConnectionStatusSuccessful
+			clusterInfo.ConnectionState.Message = "Cluster connected and ready for applications"
+		} else {
+			// Has apps but no cache is truly unknown (shouldn't normally happen)
+			clusterInfo.ConnectionState.Status = appv1.ConnectionStatusUnknown
+			clusterInfo.ConnectionState.Message = "Cluster cache initialization pending"
 		}
 	}
 
 	return clusterInfo
+}
+
+// hasClusterCacheIssues checks for cluster cache issues using taint manager
+func (c *clusterInfoUpdater) hasClusterCacheIssues(serverURL string, err error) bool {
+	// Try to access taint information if infoSource supports it
+	if liveStateCache, ok := c.infoSource.(interface{ GetTaintedGVKs(string) []string }); ok {
+		taintedGVKs := liveStateCache.GetTaintedGVKs(serverURL)
+		return len(taintedGVKs) > 0
+	}
+
+	// If taint manager is not available, fall back to string matching for backward compatibility
+	if err != nil {
+		errMsg := err.Error()
+		return strings.Contains(errMsg, "conversion webhook") ||
+			strings.Contains(errMsg, "unavailable resource types") ||
+			strings.Contains(errMsg, "failed to list resources") ||
+			strings.Contains(errMsg, "Expired: too old resource version")
+	}
+
+	return false
 }
 
 func updateClusterLabels(ctx context.Context, clusterInfo *cache.ClusterInfo, cluster appv1.Cluster, updateCluster func(context.Context, *appv1.Cluster) (*appv1.Cluster, error)) error {
