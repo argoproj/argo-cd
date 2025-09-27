@@ -116,9 +116,9 @@ specify a wildcard in the resource kind, and anywhere in the resource group, lik
         ...
 ```
 
-!!!important
-    Please, note that wildcards are only supported when using the `resource.customizations` key, the `resource.customizations.health.<group>_<kind>`
-style keys do not work since wildcards (`*`) are not supported in Kubernetes configmap keys.
+> [!IMPORTANT]
+> Please, note that wildcards are only supported when using the `resource.customizations` key, the `resource.customizations.health.<group>_<kind>`
+> style keys do not work since wildcards (`*`) are not supported in Kubernetes configmap keys.
 
 The `obj` is a global variable which contains the resource. The script must return an object with status and optional message field.
 The custom health check might return one of the following health statuses:
@@ -168,7 +168,34 @@ To test the implemented custom health checks, run `go test -v ./util/lua/`.
 
 The [PR#1139](https://github.com/argoproj/argo-cd/pull/1139) is an example of Cert Manager CRDs custom health check.
 
-Please note that bundled health checks with wildcards are not supported.
+#### Wildcard Support for Built-in Health Checks
+
+You can use a single health check for multiple resources by using a wildcard in the group or kind directory names.
+
+The `_` character behaves like a `*` wildcard. For example, consider the following directory structure:
+
+```
+argo-cd
+|-- resource_customizations
+|    |-- _.group.io               # CRD group
+|    |    |-- _                   # Resource kind
+|    |    |    |-- health.lua     # Health check
+```
+
+Any resource with a group that ends with `.group.io` will use the health check in `health.lua`.
+
+Wildcard checks are only evaluated if there is no specific check for the resource.
+
+If multiple wildcard checks match, the first one in the directory structure is used.
+
+We use the [doublestar](https://github.com/bmatcuk/doublestar) glob library to match the wildcard checks. We currently
+only treat a path as a wildcard if it contains a `_` character, but this may change in the future.
+
+> [!IMPORTANT]
+> **Avoid Massive Scripts**
+>
+> Avoid writing massive scripts to handle multiple resources. They'll get hard to read and maintain. Instead, just
+> duplicate the relevant parts in resource-specific scripts.
 
 ## Overriding Go-Based Health Checks
 
@@ -197,10 +224,10 @@ The following resources have Go-based health checks:
 
 ## Health Checks
 
-An Argo CD App's health is inferred from the health of its immediate child resources (the resources represented in 
-source control). The App health will be the worst health of its immediate child sources. The priority of most to least 
-healthy statuses is: `Healthy`, `Suspended`, `Progressing`, `Missing`, `Degraded`, `Unknown`. So, for example, if an App
-has a `Missing` resource and a `Degraded` resource, the App's health will be `Missing`.
+Argo CD App health is inferred from the health of its immediate child resources as represented in the application source.  
+The App health will be the **worst health of its immediate child resources**, based on the following priority (from most to least healthy):  
+**Healthy, Suspended, Progressing, Missing, Degraded, Unknown.**  
+For example, if an App has a Missing resource and a Degraded resource, the App's health will be **Degraded**.
 
 But the health of a resource is not inherited from child resources - it is calculated using only information about the 
 resource itself. A resource's status field may or may not contain information about the health of a child resource, and 
@@ -229,3 +256,16 @@ App (healthy)
 └── CustomResource (healthy) <- This resource's health check needs to be fixed to mark the App as unhealthy
     └── CustomChildResource (unhealthy)
 ```
+## Ignoring Child Resource Health Check in Applications
+
+To ignore the health check of an immediate child resource within an Application, set the annotation `argocd.argoproj.io/ignore-healthcheck` to `true`. For example:
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    argocd.argoproj.io/ignore-healthcheck: "true"
+```
+
+By doing this, the health status of the Deployment will not affect the health of its parent Application.

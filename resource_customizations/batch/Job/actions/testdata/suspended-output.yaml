@@ -1,0 +1,28 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: test-29228857
+spec:
+  suspend: false
+  template:
+    spec:
+      containers:
+        - command:
+            - /bin/sh
+            - -c
+            - date; echo Hello from the Kubernetes cluster
+          image: busybox:1.28
+          imagePullPolicy: IfNotPresent
+          name: hello
+      restartPolicy: OnFailure
+status:
+  conditions:
+    - lastProbeTime: '2025-07-28T20:01:53Z'
+      lastTransitionTime: '2025-07-28T20:01:53Z'
+      message: Job suspended
+      reason: JobSuspended
+      status: 'True'
+      type: Suspended
+  ready: 0
+  startTime: '2025-07-28T19:37:00Z'
+  terminating: 0

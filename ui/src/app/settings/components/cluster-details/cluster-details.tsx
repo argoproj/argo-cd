@@ -2,7 +2,7 @@ import * as classNames from 'classnames';
 import * as moment from 'moment';
 import * as React from 'react';
 import {FieldApi, FormField as ReactFormField, Text} from 'react-form';
-import {RouteComponentProps} from 'react-router-dom';
+import {RouteComponentProps, Link} from 'react-router-dom';
 import {from, timer} from 'rxjs';
 import {mergeMap} from 'rxjs/operators';
 
@@ -10,6 +10,7 @@ import {FormField, Ticker} from 'argo-ui';
 import {ConnectionStateIcon, DataLoader, EditablePanel, Page, Timestamp, MapInputField} from '../../../shared/components';
 import {Cluster} from '../../../shared/models';
 import {services} from '../../../shared/services';
+import {formatClusterQueryParam} from '../../../shared/utils';
 
 function isRefreshRequested(cluster: Cluster): boolean {
     return cluster.info.connectionState.attemptedAt && cluster.refreshRequestedAt && moment(cluster.info.connectionState.attemptedAt).isBefore(moment(cluster.refreshRequestedAt));
@@ -85,6 +86,23 @@ export const ClusterDetails = (props: RouteComponentProps<{server: string}>) => 
                                     title: 'NAMESPACES',
                                     view: ((cluster.namespaces || []).length === 0 && 'All namespaces') || cluster.namespaces.join(', '),
                                     edit: formApi => <FormField formApi={formApi} field='namespaces' component={NamespacesEditor} />
+                                },
+                                {
+                                    title: 'APPLICATIONS',
+                                    view: (
+                                        <div>
+                                            <DataLoader load={() => services.applications.list([])}>
+                                                {apps => (
+                                                    <Link to={`/applications?cluster=${formatClusterQueryParam(cluster)}`}>
+                                                        {
+                                                            apps.items.filter(app => app.spec.destination.name === cluster.name || app.spec.destination.server === cluster.server)
+                                                                .length
+                                                        }
+                                                    </Link>
+                                                )}
+                                            </DataLoader>
+                                        </div>
+                                    )
                                 },
                                 {
                                     title: 'LABELS',

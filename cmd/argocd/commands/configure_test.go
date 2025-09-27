@@ -4,12 +4,12 @@ import (
 	"os"
 	"testing"
 
-	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
+	argocdclient "github.com/argoproj/argo-cd/v3/pkg/apiclient"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/argoproj/argo-cd/v2/util/localconfig"
+	"github.com/argoproj/argo-cd/v3/util/localconfig"
 )
 
 func TestNewConfigureCommand_PromptsEnabled_DefaultTrue(t *testing.T) {

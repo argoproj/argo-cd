@@ -8,8 +8,8 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/mock"
 
-	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
-	cacheutilmocks "github.com/argoproj/argo-cd/v2/util/cache/mocks"
+	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
+	cacheutilmocks "github.com/argoproj/argo-cd/v3/util/cache/mocks"
 )
 
 type MockCacheType int
