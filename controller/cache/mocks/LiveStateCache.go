@@ -472,16 +472,16 @@ func (_c *LiveStateCache_IsNamespaced_Call) RunAndReturn(run func(server *v1alph
 }
 
 // IterateHierarchyV2 provides a mock function for the type LiveStateCache
-func (_mock *LiveStateCache) IterateHierarchyV2(server *v1alpha1.Cluster, keys []kube.ResourceKey, action func(child v1alpha1.ResourceNode, appName string) bool) error {
-	ret := _mock.Called(server, keys, action)
+func (_mock *LiveStateCache) IterateHierarchyV2(server *v1alpha1.Cluster, keys []kube.ResourceKey, action func(child v1alpha1.ResourceNode, appName string) bool, orphanedResourceNamespace string) error {
+	ret := _mock.Called(server, keys, action, orphanedResourceNamespace)
 
 	if len(ret) == 0 {
 		panic("no return value specified for IterateHierarchyV2")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(*v1alpha1.Cluster, []kube.ResourceKey, func(child v1alpha1.ResourceNode, appName string) bool) error); ok {
-		r0 = returnFunc(server, keys, action)
+	if returnFunc, ok := ret.Get(0).(func(*v1alpha1.Cluster, []kube.ResourceKey, func(child v1alpha1.ResourceNode, appName string) bool, string) error); ok {
+		r0 = returnFunc(server, keys, action, orphanedResourceNamespace)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -497,11 +497,12 @@ type LiveStateCache_IterateHierarchyV2_Call struct {
 //   - server *v1alpha1.Cluster
 //   - keys []kube.ResourceKey
 //   - action func(child v1alpha1.ResourceNode, appName string) bool
-func (_e *LiveStateCache_Expecter) IterateHierarchyV2(server interface{}, keys interface{}, action interface{}) *LiveStateCache_IterateHierarchyV2_Call {
-	return &LiveStateCache_IterateHierarchyV2_Call{Call: _e.mock.On("IterateHierarchyV2", server, keys, action)}
+//   - orphanedResourceNamespace string
+func (_e *LiveStateCache_Expecter) IterateHierarchyV2(server interface{}, keys interface{}, action interface{}, orphanedResourceNamespace interface{}) *LiveStateCache_IterateHierarchyV2_Call {
+	return &LiveStateCache_IterateHierarchyV2_Call{Call: _e.mock.On("IterateHierarchyV2", server, keys, action, orphanedResourceNamespace)}
 }
 
-func (_c *LiveStateCache_IterateHierarchyV2_Call) Run(run func(server *v1alpha1.Cluster, keys []kube.ResourceKey, action func(child v1alpha1.ResourceNode, appName string) bool)) *LiveStateCache_IterateHierarchyV2_Call {
+func (_c *LiveStateCache_IterateHierarchyV2_Call) Run(run func(server *v1alpha1.Cluster, keys []kube.ResourceKey, action func(child v1alpha1.ResourceNode, appName string) bool, orphanedResourceNamespace string)) *LiveStateCache_IterateHierarchyV2_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 *v1alpha1.Cluster
 		if args[0] != nil {
@@ -515,10 +516,15 @@ func (_c *LiveStateCache_IterateHierarchyV2_Call) Run(run func(server *v1alpha1.
 		if args[2] != nil {
 			arg2 = args[2].(func(child v1alpha1.ResourceNode, appName string) bool)
 		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3,
 		)
 	})
 	return _c
@@ -529,7 +535,7 @@ func (_c *LiveStateCache_IterateHierarchyV2_Call) Return(err error) *LiveStateCa
 	return _c
 }
 
-func (_c *LiveStateCache_IterateHierarchyV2_Call) RunAndReturn(run func(server *v1alpha1.Cluster, keys []kube.ResourceKey, action func(child v1alpha1.ResourceNode, appName string) bool) error) *LiveStateCache_IterateHierarchyV2_Call {
+func (_c *LiveStateCache_IterateHierarchyV2_Call) RunAndReturn(run func(server *v1alpha1.Cluster, keys []kube.ResourceKey, action func(child v1alpha1.ResourceNode, appName string) bool, orphanedResourceNamespace string) error) *LiveStateCache_IterateHierarchyV2_Call {
 	_c.Call.Return(run)
 	return _c
 }
