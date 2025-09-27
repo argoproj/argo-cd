@@ -1054,6 +1054,46 @@ func TestGetPodInfo(t *testing.T) {
 			{Name: common.PodRequestsMEM, Value: "0"},
 		}, info.Info)
 	})
+
+	// Test Pod IP information
+	t.Run("TestPodWithIPInfo", func(t *testing.T) {
+		t.Parallel()
+
+		pod := strToUnstructured(`
+  apiVersion: v1
+  kind: Pod
+  metadata:
+    name: test-pod-with-ip
+    namespace: default
+  spec:
+    nodeName: minikube
+    containers:
+      - name: container
+        image: nginx
+  status:
+    phase: Running
+    podIP: "10.244.0.5"
+    podIPs:
+      - ip: "10.244.0.5"
+    containerStatuses:
+      - name: container
+        ready: true
+        restartCount: 0
+        state:
+          running:
+            startedAt: "2024-01-01T00:00:00Z"
+`)
+		info := &ResourceInfo{}
+		populateNodeInfo(pod, info, []string{})
+		assert.Equal(t, []v1alpha1.InfoItem{
+			{Name: "Status Reason", Value: "Running"},
+			{Name: "Node", Value: "minikube"},
+			{Name: "Containers", Value: "1/1"},
+			{Name: common.PodRequestsCPU, Value: "0"},
+			{Name: common.PodRequestsMEM, Value: "0"},
+			{Name: "Pod IP", Value: "10.244.0.5"},
+		}, info.Info)
+	})
 }
 
 func TestGetNodeInfo(t *testing.T) {
