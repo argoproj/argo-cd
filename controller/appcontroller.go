@@ -290,8 +290,11 @@ func NewApplicationController(
 					return fmt.Errorf("error while updating the heartbeat for to the Shard Mapping ConfigMap: %w", err)
 				}
 
-				// update the shard number in the clusterSharding, and resync all applications if the shard number is updated
-				if ctrl.clusterSharding.UpdateShard(shard) {
+				// Get the sharding algorithm from environment variable
+				shardingAlgorithm := env.StringFromEnv(common.EnvControllerShardingAlgorithm, common.DefaultShardingAlgorithm)
+
+				// update the shard and replica count in the clusterSharding if either has changed
+				if ctrl.clusterSharding.UpdateShardAndReplicas(shard, int(*appControllerDeployment.Spec.Replicas), shardingAlgorithm) {
 					// update shard number in stateCache
 					ctrl.stateCache.UpdateShard(shard)
 

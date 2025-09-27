@@ -21,6 +21,7 @@ type ClusterShardingCache interface {
 	GetDistribution() map[string]int
 	GetAppDistribution() map[string]int
 	UpdateShard(shard int) bool
+	UpdateShardAndReplicas(shard, replicas int, shardingAlgorithm string) bool
 }
 
 type ClusterSharding struct {
@@ -272,6 +273,42 @@ func (sharding *ClusterSharding) UpdateShard(shard int) bool {
 		sharding.lock.RLock()
 		sharding.Shard = shard
 		sharding.lock.RUnlock()
+		return true
+	}
+	return false
+}
+
+// UpdateShardAndReplicas will update both the shard and replica count of ClusterSharding when either has changed.
+// This method also regenerates the distribution function with the new replica count and updates the cluster distribution.
+func (sharding *ClusterSharding) UpdateShardAndReplicas(shard, replicas int, shardingAlgorithm string) bool {
+	sharding.lock.Lock()
+	defer sharding.lock.Unlock()
+
+	shardChanged := shard != sharding.Shard
+	replicasChanged := replicas != sharding.Replicas
+
+	if shardChanged || replicasChanged {
+		if shardChanged {
+			log.Infof("Updating shard from %d to %d", sharding.Shard, shard)
+			sharding.Shard = shard
+		}
+		if replicasChanged {
+			log.Infof("Updating replica count from %d to %d", sharding.Replicas, replicas)
+			sharding.Replicas = replicas
+
+			// Regenerate the distribution function with the new replica count
+			distributionFunction := NoShardingDistributionFunction()
+			if replicas > 1 {
+				log.Debugf("Regenerating distribution function with replica count: %d, algorithm: %s", replicas, shardingAlgorithm)
+				distributionFunction = GetDistributionFunction(sharding.getClusterAccessor(), sharding.getAppAccessor(), shardingAlgorithm, replicas)
+			} else {
+				log.Info("Processing all cluster shards")
+			}
+			sharding.getClusterShard = distributionFunction
+		}
+
+		// Update the distribution to reflect any changes
+		sharding.updateDistribution()
 		return true
 	}
 	return false
