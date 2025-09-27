@@ -6,9 +6,7 @@ to generate tokens that identifies the repository and where it runs.
 See: <https://docs.github.com/en/actions/security-for-github-actions/security-hardening-your-deployments/about-security-hardening-with-openid-connect>
 
 You need to use OAuth 2.0 Token Exchange. Some identity providers supports this
-out of the box, for example [Okta](https://developer.okta.com/docs/guides/set-up-token-exchange/main/).
-
-However if you can't use that then you can use Dex.
+out of the box such as Dex.
 
 ## Using Dex
 
@@ -49,12 +47,9 @@ dex.config: |
   #    id: argo-cd-cli
 ```
 
-This is very similar to Dex's official documentation (<https://dexidp.io/docs/guides/token-exchange/>),
-however you don't need to set `staticClients`.
-ArgoCD will automatically generate a static client named `argo-cd-cli` for you
-that you should use.
+ArgoCD automatically generates a static client named `argo-cd-cli` that you can use to get your token from a GitHub Action.
 
-Then you want a GitHub Action workflow something like this:
+Here is an example of GitHub Action that will retrieve a valid Argo CD authentication token from Dex and use it to perform action with the CLI:
 
 ```yaml
 name: argocd-test
@@ -137,25 +132,14 @@ jobs:
           ARGOCD_OPTS: --grpc-web
         run: |
           set -x
-
           argocd version
-
           argocd account get-user-info
-
           argocd proj list
-
           argocd app list
 ```
 
-One notable difference from Dex's official documentation (<https://dexidp.io/docs/guides/token-exchange/>),
-is setting `subject_token_type` to `id_token` instead of `access_token`
-to avoid the following error:
 
-```logfmt
-dex-79d7d98fff-8qrl2 dex time=2025-03-06T13:58:35.821Z level=ERROR msg="failed to verify subject token" err="oidc: getUserInfo is required for access token exchange" request_id=e2ef51fa-84c7-4734-8ea4-ade43a95d1af
-```
-
-## RBAC (ArgoCD v3)
+## Configuring RBAC (ArgoCD v3)
 
 When using ArgoCD v3.0.0 or later, then you define your `policy.csv` like so:
 
