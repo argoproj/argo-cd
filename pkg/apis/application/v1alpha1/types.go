@@ -443,7 +443,7 @@ type DrySource struct {
 // SyncSource specifies a location from which hydrated manifests may be synced. RepoURL is assumed based on the
 // associated DrySource config in the SourceHydrator.
 type SyncSource struct {
-	// TargetBranch is the branch to which hydrated manifests should be committed
+	// TargetBranch is the branch from which hydrated manifests will be synced
 	TargetBranch string `json:"targetBranch" protobuf:"bytes,1,name=targetBranch"`
 	// Path is a directory path within the git repository where hydrated manifests should be committed to and synced
 	// from. The Path should never point to the root of the repo. If hydrateTo is set, this is just the path from which
