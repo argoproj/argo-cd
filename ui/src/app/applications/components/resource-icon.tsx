@@ -2,7 +2,7 @@ import * as React from 'react';
 import {resourceIcons} from './resources';
 import {resourceIcons as resourceCustomizations} from './resource-customizations';
 
-export const ResourceIcon = ({group, kind, customStyle}: {group: string, kind: string; customStyle?: React.CSSProperties}) => {
+export const ResourceIcon = ({group, kind, customStyle}: {group: string; kind: string; customStyle?: React.CSSProperties}) => {
     if (kind === 'node') {
         return <img src={'assets/images/infrastructure_components/' + kind + '.svg'} alt={kind} style={{padding: '2px', width: '40px', height: '32px', ...customStyle}} />;
     }
