@@ -36,6 +36,7 @@ import (
 	argocommon "github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	applog "github.com/argoproj/argo-cd/v3/util/app/log"
 	"github.com/argoproj/argo-cd/v3/util/db"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
@@ -68,8 +69,7 @@ func getDefaultTestClientSet(obj ...runtime.Object) *kubefake.Clientset {
 		Data: map[string]string{},
 	}
 
-	objects := append(obj, emptyArgoCDConfigMap, argoCDSecret)
-	kubeclientset := kubefake.NewClientset(objects...)
+	kubeclientset := kubefake.NewClientset(append(obj, emptyArgoCDConfigMap, argoCDSecret)...)
 	return kubeclientset
 }
 
@@ -1210,7 +1210,7 @@ func TestRemoveFinalizerOnInvalidDestination_FinalizerTypes(t *testing.T) {
 			clusterList, err := utils.ListClusters(t.Context(), kubeclientset, "namespace")
 			require.NoError(t, err)
 
-			appLog := log.WithFields(log.Fields{"app": app.Name, "appSet": ""})
+			appLog := log.WithFields(applog.GetAppLogFields(&app)).WithField("appSet", "")
 
 			appInputParam := app.DeepCopy()
 
@@ -1366,7 +1366,7 @@ func TestRemoveFinalizerOnInvalidDestination_DestinationTypes(t *testing.T) {
 			clusterList, err := utils.ListClusters(t.Context(), kubeclientset, "argocd")
 			require.NoError(t, err)
 
-			appLog := log.WithFields(log.Fields{"app": app.Name, "appSet": ""})
+			appLog := log.WithFields(applog.GetAppLogFields(&app)).WithField("appSet", "")
 
 			appInputParam := app.DeepCopy()
 
@@ -1953,14 +1953,15 @@ func TestValidateGeneratedApplications(t *testing.T) {
 	for _, cc := range []struct {
 		name             string
 		apps             []v1alpha1.Application
-		validationErrors map[int]error
+		validationErrors map[string]error
 	}{
 		{
 			name: "valid app should return true",
 			apps: []v1alpha1.Application{
 				{
-					TypeMeta:   metav1.TypeMeta{},
-					ObjectMeta: metav1.ObjectMeta{},
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app",
+					},
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "default",
 						Source: &v1alpha1.ApplicationSource{
@@ -1975,14 +1976,15 @@ func TestValidateGeneratedApplications(t *testing.T) {
 					},
 				},
 			},
-			validationErrors: map[int]error{},
+			validationErrors: map[string]error{},
 		},
 		{
 			name: "can't have both name and server defined",
 			apps: []v1alpha1.Application{
 				{
-					TypeMeta:   metav1.TypeMeta{},
-					ObjectMeta: metav1.ObjectMeta{},
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app",
+					},
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "default",
 						Source: &v1alpha1.ApplicationSource{
@@ -1998,14 +2000,15 @@ func TestValidateGeneratedApplications(t *testing.T) {
 					},
 				},
 			},
-			validationErrors: map[int]error{0: errors.New("application destination spec is invalid: application destination can't have both name and server defined: my-cluster my-server")},
+			validationErrors: map[string]error{"app": errors.New("application destination spec is invalid: application destination can't have both name and server defined: my-cluster my-server")},
 		},
 		{
 			name: "project mismatch should return error",
 			apps: []v1alpha1.Application{
 				{
-					TypeMeta:   metav1.TypeMeta{},
-					ObjectMeta: metav1.ObjectMeta{},
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app",
+					},
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "DOES-NOT-EXIST",
 						Source: &v1alpha1.ApplicationSource{
@@ -2020,14 +2023,15 @@ func TestValidateGeneratedApplications(t *testing.T) {
 					},
 				},
 			},
-			validationErrors: map[int]error{0: errors.New("application references project DOES-NOT-EXIST which does not exist")},
+			validationErrors: map[string]error{"app": errors.New("application references project DOES-NOT-EXIST which does not exist")},
 		},
 		{
 			name: "valid app should return true",
 			apps: []v1alpha1.Application{
 				{
-					TypeMeta:   metav1.TypeMeta{},
-					ObjectMeta: metav1.ObjectMeta{},
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app",
+					},
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "default",
 						Source: &v1alpha1.ApplicationSource{
@@ -2042,14 +2046,15 @@ func TestValidateGeneratedApplications(t *testing.T) {
 					},
 				},
 			},
-			validationErrors: map[int]error{},
+			validationErrors: map[string]error{},
 		},
 		{
 			name: "cluster should match",
 			apps: []v1alpha1.Application{
 				{
-					TypeMeta:   metav1.TypeMeta{},
-					ObjectMeta: metav1.ObjectMeta{},
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app",
+					},
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "default",
 						Source: &v1alpha1.ApplicationSource{
@@ -2064,7 +2069,7 @@ func TestValidateGeneratedApplications(t *testing.T) {
 					},
 				},
 			},
-			validationErrors: map[int]error{0: errors.New("application destination spec is invalid: there are no clusters with this name: nonexistent-cluster")},
+			validationErrors: map[string]error{"app": errors.New("application destination spec is invalid: there are no clusters with this name: nonexistent-cluster")},
 		},
 	} {
 		t.Run(cc.name, func(t *testing.T) {
@@ -2197,13 +2202,20 @@ func TestSetApplicationSetStatusCondition(t *testing.T) {
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)
+	kubeclientset := kubefake.NewSimpleClientset([]runtime.Object{}...)
+	someTime := &metav1.Time{Time: time.Now().Add(-5 * time.Minute)}
+	existingParameterGeneratedCondition := getParametersGeneratedCondition(true, "")
+	existingParameterGeneratedCondition.LastTransitionTime = someTime
 
-	testCases := []struct {
-		appset     v1alpha1.ApplicationSet
-		conditions []v1alpha1.ApplicationSetCondition
-		testfunc   func(t *testing.T, appset v1alpha1.ApplicationSet)
+	for _, c := range []struct {
+		name                string
+		appset              v1alpha1.ApplicationSet
+		condition           v1alpha1.ApplicationSetCondition
+		parametersGenerated bool
+		testfunc            func(t *testing.T, conditions []v1alpha1.ApplicationSetCondition)
 	}{
 		{
+			name: "has parameters generated condition when false",
 			appset: v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
@@ -2220,20 +2232,28 @@ func TestSetApplicationSetStatusCondition(t *testing.T) {
 					Template: v1alpha1.ApplicationSetTemplate{},
 				},
 			},
-			conditions: []v1alpha1.ApplicationSetCondition{
-				{
-					Type:    v1alpha1.ApplicationSetConditionResourcesUpToDate,
-					Message: "All applications have been generated successfully",
-					Reason:  v1alpha1.ApplicationSetReasonApplicationSetUpToDate,
-					Status:  v1alpha1.ApplicationSetConditionStatusTrue,
-				},
+			condition: v1alpha1.ApplicationSetCondition{
+				Type:    v1alpha1.ApplicationSetConditionResourcesUpToDate,
+				Message: "This is a message",
+				Reason:  "test",
+				Status:  v1alpha1.ApplicationSetConditionStatusFalse,
 			},
-			testfunc: func(t *testing.T, appset v1alpha1.ApplicationSet) {
+			parametersGenerated: false,
+			testfunc: func(t *testing.T, conditions []v1alpha1.ApplicationSetCondition) {
 				t.Helper()
-				assert.Len(t, appset.Status.Conditions, 3)
+				require.Len(t, conditions, 2)
+
+				// Conditions are ordered by type, so the order is deterministic
+				assert.Equal(t, v1alpha1.ApplicationSetConditionParametersGenerated, conditions[0].Type)
+				assert.Equal(t, v1alpha1.ApplicationSetConditionStatusFalse, conditions[0].Status)
+
+				assert.Equal(t, v1alpha1.ApplicationSetConditionResourcesUpToDate, conditions[1].Type)
+				assert.Equal(t, v1alpha1.ApplicationSetConditionStatusFalse, conditions[1].Status)
+				assert.Equal(t, "test", conditions[1].Reason)
 			},
 		},
 		{
+			name: "parameters generated condition is used when specified",
 			appset: v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
@@ -2250,37 +2270,24 @@ func TestSetApplicationSetStatusCondition(t *testing.T) {
 					Template: v1alpha1.ApplicationSetTemplate{},
 				},
 			},
-			conditions: []v1alpha1.ApplicationSetCondition{
-				{
-					Type:    v1alpha1.ApplicationSetConditionResourcesUpToDate,
-					Message: "All applications have been generated successfully",
-					Reason:  v1alpha1.ApplicationSetReasonApplicationSetUpToDate,
-					Status:  v1alpha1.ApplicationSetConditionStatusTrue,
-				},
-				{
-					Type:    v1alpha1.ApplicationSetConditionRolloutProgressing,
-					Message: "ApplicationSet Rollout Rollout started",
-					Reason:  v1alpha1.ApplicationSetReasonApplicationSetUpToDate,
-					Status:  v1alpha1.ApplicationSetConditionStatusTrue,
-				},
+			condition: v1alpha1.ApplicationSetCondition{
+				Type:    v1alpha1.ApplicationSetConditionParametersGenerated,
+				Message: "This is a message",
+				Reason:  "test",
+				Status:  v1alpha1.ApplicationSetConditionStatusFalse,
 			},
-			testfunc: func(t *testing.T, appset v1alpha1.ApplicationSet) {
+			parametersGenerated: true,
+			testfunc: func(t *testing.T, conditions []v1alpha1.ApplicationSetCondition) {
 				t.Helper()
-				assert.Len(t, appset.Status.Conditions, 3)
+				require.Len(t, conditions, 1)
 
-				isProgressingCondition := false
-
-				for _, condition := range appset.Status.Conditions {
-					if condition.Type == v1alpha1.ApplicationSetConditionRolloutProgressing {
-						isProgressingCondition = true
-						break
-					}
-				}
-
-				assert.False(t, isProgressingCondition, "no RolloutProgressing should be set for applicationsets that don't have rolling strategy")
+				assert.Equal(t, v1alpha1.ApplicationSetConditionParametersGenerated, conditions[0].Type)
+				assert.Equal(t, v1alpha1.ApplicationSetConditionStatusFalse, conditions[0].Status)
+				assert.Equal(t, "test", conditions[0].Reason)
 			},
 		},
 		{
+			name: "has parameter conditions when true",
 			appset: v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
@@ -2295,83 +2302,369 @@ func TestSetApplicationSetStatusCondition(t *testing.T) {
 						}},
 					},
 					Template: v1alpha1.ApplicationSetTemplate{},
+				},
+			},
+			condition: v1alpha1.ApplicationSetCondition{
+				Type:    v1alpha1.ApplicationSetConditionResourcesUpToDate,
+				Message: "This is a message",
+				Reason:  "test",
+				Status:  v1alpha1.ApplicationSetConditionStatusFalse,
+			},
+			parametersGenerated: true,
+			testfunc: func(t *testing.T, conditions []v1alpha1.ApplicationSetCondition) {
+				t.Helper()
+				require.Len(t, conditions, 2)
+
+				// Conditions are ordered by type, so the order is deterministic
+				assert.Equal(t, v1alpha1.ApplicationSetConditionParametersGenerated, conditions[0].Type)
+				assert.Equal(t, v1alpha1.ApplicationSetConditionStatusTrue, conditions[0].Status)
+
+				assert.Equal(t, v1alpha1.ApplicationSetConditionResourcesUpToDate, conditions[1].Type)
+				assert.Equal(t, v1alpha1.ApplicationSetConditionStatusFalse, conditions[1].Status)
+				assert.Equal(t, "test", conditions[1].Reason)
+			},
+		},
+		{
+			name: "resource up to date sets error condition to false",
+			appset: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Spec: v1alpha1.ApplicationSetSpec{
+					Generators: []v1alpha1.ApplicationSetGenerator{
+						{List: &v1alpha1.ListGenerator{
+							Elements: []apiextensionsv1.JSON{{
+								Raw: []byte(`{"cluster": "my-cluster","url": "https://kubernetes.default.svc"}`),
+							}},
+						}},
+					},
+					Template: v1alpha1.ApplicationSetTemplate{},
+				},
+			},
+			condition: v1alpha1.ApplicationSetCondition{
+				Type:    v1alpha1.ApplicationSetConditionResourcesUpToDate,
+				Message: "Completed",
+				Reason:  "test",
+				Status:  v1alpha1.ApplicationSetConditionStatusTrue,
+			},
+			testfunc: func(t *testing.T, conditions []v1alpha1.ApplicationSetCondition) {
+				t.Helper()
+				require.Len(t, conditions, 3)
+
+				assert.Equal(t, v1alpha1.ApplicationSetConditionErrorOccurred, conditions[0].Type)
+				assert.Equal(t, v1alpha1.ApplicationSetConditionStatusFalse, conditions[0].Status)
+				assert.Equal(t, "test", conditions[0].Reason)
+				assert.Equal(t, "Completed", conditions[0].Message)
+
+				assert.Equal(t, v1alpha1.ApplicationSetConditionParametersGenerated, conditions[1].Type)
+
+				assert.Equal(t, v1alpha1.ApplicationSetConditionResourcesUpToDate, conditions[2].Type)
+				assert.Equal(t, v1alpha1.ApplicationSetConditionStatusTrue, conditions[2].Status)
+				assert.Equal(t, "test", conditions[2].Reason)
+				assert.Equal(t, "Completed", conditions[2].Message)
+			},
+		},
+		{
+			name: "error condition sets resource up to date to false",
+			appset: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Spec: v1alpha1.ApplicationSetSpec{
+					Generators: []v1alpha1.ApplicationSetGenerator{
+						{List: &v1alpha1.ListGenerator{
+							Elements: []apiextensionsv1.JSON{{
+								Raw: []byte(`{"cluster": "my-cluster","url": "https://kubernetes.default.svc"}`),
+							}},
+						}},
+					},
+					Template: v1alpha1.ApplicationSetTemplate{},
+				},
+			},
+			condition: v1alpha1.ApplicationSetCondition{
+				Type:    v1alpha1.ApplicationSetConditionErrorOccurred,
+				Message: "Error",
+				Reason:  "test",
+				Status:  v1alpha1.ApplicationSetConditionStatusTrue,
+			},
+			testfunc: func(t *testing.T, conditions []v1alpha1.ApplicationSetCondition) {
+				t.Helper()
+				require.Len(t, conditions, 3)
+
+				assert.Equal(t, v1alpha1.ApplicationSetConditionErrorOccurred, conditions[0].Type)
+				assert.Equal(t, v1alpha1.ApplicationSetConditionStatusTrue, conditions[0].Status)
+				assert.Equal(t, "test", conditions[0].Reason)
+				assert.Equal(t, "Error", conditions[0].Message)
+
+				assert.Equal(t, v1alpha1.ApplicationSetConditionParametersGenerated, conditions[1].Type)
+
+				assert.Equal(t, v1alpha1.ApplicationSetConditionResourcesUpToDate, conditions[2].Type)
+				assert.Equal(t, v1alpha1.ApplicationSetConditionStatusFalse, conditions[2].Status)
+				assert.Equal(t, v1alpha1.ApplicationSetReasonErrorOccurred, conditions[2].Reason)
+				assert.Equal(t, "Error", conditions[2].Message)
+			},
+		},
+		{
+			name: "updating an unchanged condition does not mutate existing conditions",
+			appset: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Spec: v1alpha1.ApplicationSetSpec{
+					Generators: []v1alpha1.ApplicationSetGenerator{
+						{List: &v1alpha1.ListGenerator{
+							Elements: []apiextensionsv1.JSON{{
+								Raw: []byte(`{"cluster": "my-cluster","url": "https://kubernetes.default.svc"}`),
+							}},
+						}},
+					},
 					Strategy: &v1alpha1.ApplicationSetStrategy{
-						Type: "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
-							Steps: []v1alpha1.ApplicationSetRolloutStep{
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{
-										{
-											Key:      "test",
-											Operator: "In",
-											Values:   []string{"test"},
-										},
-									},
-								},
-							},
+						Type:        "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{},
+					},
+					Template: v1alpha1.ApplicationSetTemplate{},
+				},
+				Status: v1alpha1.ApplicationSetStatus{
+					Conditions: []v1alpha1.ApplicationSetCondition{
+						{
+							Type:               v1alpha1.ApplicationSetConditionErrorOccurred,
+							Message:            "existing",
+							LastTransitionTime: someTime,
+						},
+						existingParameterGeneratedCondition,
+						{
+							Type:               v1alpha1.ApplicationSetConditionResourcesUpToDate,
+							Message:            "existing",
+							Status:             v1alpha1.ApplicationSetConditionStatusFalse,
+							LastTransitionTime: someTime,
+						},
+						{
+							Type:               v1alpha1.ApplicationSetConditionRolloutProgressing,
+							Message:            "existing",
+							LastTransitionTime: someTime,
 						},
 					},
 				},
 			},
-			conditions: []v1alpha1.ApplicationSetCondition{
-				{
-					Type:    v1alpha1.ApplicationSetConditionResourcesUpToDate,
-					Message: "All applications have been generated successfully",
-					Reason:  v1alpha1.ApplicationSetReasonApplicationSetUpToDate,
-					Status:  v1alpha1.ApplicationSetConditionStatusTrue,
-				},
-				{
-					Type:    v1alpha1.ApplicationSetConditionRolloutProgressing,
-					Message: "ApplicationSet Rollout Rollout started",
-					Reason:  v1alpha1.ApplicationSetReasonApplicationSetUpToDate,
-					Status:  v1alpha1.ApplicationSetConditionStatusTrue,
-				},
+			condition: v1alpha1.ApplicationSetCondition{
+				Type:    v1alpha1.ApplicationSetConditionResourcesUpToDate,
+				Message: "existing",
+				Status:  v1alpha1.ApplicationSetConditionStatusFalse,
 			},
-			testfunc: func(t *testing.T, appset v1alpha1.ApplicationSet) {
+			parametersGenerated: true,
+			testfunc: func(t *testing.T, conditions []v1alpha1.ApplicationSetCondition) {
 				t.Helper()
-				assert.Len(t, appset.Status.Conditions, 4)
+				require.Len(t, conditions, 4)
 
-				isProgressingCondition := false
+				assert.Equal(t, v1alpha1.ApplicationSetConditionErrorOccurred, conditions[0].Type)
+				assert.Equal(t, someTime, conditions[0].LastTransitionTime)
 
-				for _, condition := range appset.Status.Conditions {
-					if condition.Type == v1alpha1.ApplicationSetConditionRolloutProgressing {
-						isProgressingCondition = true
-						break
-					}
-				}
+				assert.Equal(t, v1alpha1.ApplicationSetConditionParametersGenerated, conditions[1].Type)
+				assert.Equal(t, someTime, conditions[1].LastTransitionTime)
 
-				assert.True(t, isProgressingCondition, "RolloutProgressing should be set for rollout strategy appset")
+				assert.Equal(t, v1alpha1.ApplicationSetConditionResourcesUpToDate, conditions[2].Type)
+				assert.Equal(t, someTime, conditions[2].LastTransitionTime)
+
+				assert.Equal(t, v1alpha1.ApplicationSetConditionRolloutProgressing, conditions[3].Type)
+				assert.Equal(t, someTime, conditions[3].LastTransitionTime)
 			},
 		},
-	}
-
-	kubeclientset := kubefake.NewSimpleClientset([]runtime.Object{}...)
-
-	for _, testCase := range testCases {
-		client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&testCase.appset).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).WithStatusSubresource(&testCase.appset).Build()
-		metrics := appsetmetrics.NewFakeAppsetMetrics()
-
-		argodb := db.NewDB("argocd", settings.NewSettingsManager(t.Context(), kubeclientset, "argocd"), kubeclientset)
-
-		r := ApplicationSetReconciler{
-			Client:   client,
-			Scheme:   scheme,
-			Renderer: &utils.Render{},
-			Recorder: record.NewFakeRecorder(1),
-			Generators: map[string]generators.Generator{
-				"List": generators.NewListGenerator(),
+		{
+			name: "progressing conditions is removed when AppSet is not configured",
+			appset: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Spec: v1alpha1.ApplicationSetSpec{
+					Generators: []v1alpha1.ApplicationSetGenerator{
+						{List: &v1alpha1.ListGenerator{
+							Elements: []apiextensionsv1.JSON{{
+								Raw: []byte(`{"cluster": "my-cluster","url": "https://kubernetes.default.svc"}`),
+							}},
+						}},
+					},
+					// Strategy removed
+					// Strategy: &v1alpha1.ApplicationSetStrategy{
+					// 	Type:        "RollingSync",
+					// 	RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{},
+					// },
+					Template: v1alpha1.ApplicationSetTemplate{},
+				},
+				Status: v1alpha1.ApplicationSetStatus{
+					Conditions: []v1alpha1.ApplicationSetCondition{
+						{
+							Type:               v1alpha1.ApplicationSetConditionErrorOccurred,
+							Message:            "existing",
+							LastTransitionTime: someTime,
+						},
+						existingParameterGeneratedCondition,
+						{
+							Type:               v1alpha1.ApplicationSetConditionResourcesUpToDate,
+							Message:            "existing",
+							Status:             v1alpha1.ApplicationSetConditionStatusFalse,
+							LastTransitionTime: someTime,
+						},
+						{
+							Type:               v1alpha1.ApplicationSetConditionRolloutProgressing,
+							Message:            "existing",
+							LastTransitionTime: someTime,
+						},
+					},
+				},
 			},
-			ArgoDB:        argodb,
-			KubeClientset: kubeclientset,
-			Metrics:       metrics,
-		}
+			condition: v1alpha1.ApplicationSetCondition{
+				Type:    v1alpha1.ApplicationSetConditionResourcesUpToDate,
+				Message: "existing",
+				Status:  v1alpha1.ApplicationSetConditionStatusFalse,
+			},
+			parametersGenerated: true,
+			testfunc: func(t *testing.T, conditions []v1alpha1.ApplicationSetCondition) {
+				t.Helper()
+				require.Len(t, conditions, 3)
+				for _, c := range conditions {
+					assert.NotEqual(t, v1alpha1.ApplicationSetConditionRolloutProgressing, c.Type)
+				}
+			},
+		},
+		{
+			name: "progressing conditions is ignored when AppSet is not configured",
+			appset: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Spec: v1alpha1.ApplicationSetSpec{
+					Generators: []v1alpha1.ApplicationSetGenerator{
+						{List: &v1alpha1.ListGenerator{
+							Elements: []apiextensionsv1.JSON{{
+								Raw: []byte(`{"cluster": "my-cluster","url": "https://kubernetes.default.svc"}`),
+							}},
+						}},
+					},
+					// Strategy removed
+					// Strategy: &v1alpha1.ApplicationSetStrategy{
+					// 	Type:        "RollingSync",
+					// 	RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{},
+					// },
+					Template: v1alpha1.ApplicationSetTemplate{},
+				},
+				Status: v1alpha1.ApplicationSetStatus{
+					Conditions: []v1alpha1.ApplicationSetCondition{
+						{
+							Type:               v1alpha1.ApplicationSetConditionErrorOccurred,
+							Message:            "existing",
+							LastTransitionTime: someTime,
+						},
+						existingParameterGeneratedCondition,
+						{
+							Type:               v1alpha1.ApplicationSetConditionResourcesUpToDate,
+							Message:            "existing",
+							Status:             v1alpha1.ApplicationSetConditionStatusFalse,
+							LastTransitionTime: someTime,
+						},
+					},
+				},
+			},
+			condition: v1alpha1.ApplicationSetCondition{
+				Type:    v1alpha1.ApplicationSetConditionRolloutProgressing,
+				Message: "do not add me",
+				Status:  v1alpha1.ApplicationSetConditionStatusTrue,
+			},
+			parametersGenerated: true,
+			testfunc: func(t *testing.T, conditions []v1alpha1.ApplicationSetCondition) {
+				t.Helper()
+				require.Len(t, conditions, 3)
+				for _, c := range conditions {
+					assert.NotEqual(t, v1alpha1.ApplicationSetConditionRolloutProgressing, c.Type)
+				}
+			},
+		},
+		{
+			name: "progressing conditions is updated correctly when configured",
+			appset: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Spec: v1alpha1.ApplicationSetSpec{
+					Generators: []v1alpha1.ApplicationSetGenerator{
+						{List: &v1alpha1.ListGenerator{
+							Elements: []apiextensionsv1.JSON{{
+								Raw: []byte(`{"cluster": "my-cluster","url": "https://kubernetes.default.svc"}`),
+							}},
+						}},
+					},
+					Strategy: &v1alpha1.ApplicationSetStrategy{
+						Type:        "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{},
+					},
+					Template: v1alpha1.ApplicationSetTemplate{},
+				},
+				Status: v1alpha1.ApplicationSetStatus{
+					Conditions: []v1alpha1.ApplicationSetCondition{
+						{
+							Type:               v1alpha1.ApplicationSetConditionErrorOccurred,
+							Message:            "existing",
+							LastTransitionTime: someTime,
+						},
+						existingParameterGeneratedCondition,
+						{
+							Type:               v1alpha1.ApplicationSetConditionResourcesUpToDate,
+							Message:            "existing",
+							Status:             v1alpha1.ApplicationSetConditionStatusFalse,
+							LastTransitionTime: someTime,
+						},
+						{
+							Type:    v1alpha1.ApplicationSetConditionRolloutProgressing,
+							Message: "old value",
+							Status:  v1alpha1.ApplicationSetConditionStatusTrue,
+						},
+					},
+				},
+			},
+			condition: v1alpha1.ApplicationSetCondition{
+				Type:    v1alpha1.ApplicationSetConditionRolloutProgressing,
+				Message: "new value",
+				Status:  v1alpha1.ApplicationSetConditionStatusFalse,
+			},
+			parametersGenerated: true,
+			testfunc: func(t *testing.T, conditions []v1alpha1.ApplicationSetCondition) {
+				t.Helper()
+				require.Len(t, conditions, 4)
 
-		for _, condition := range testCase.conditions {
-			err = r.setApplicationSetStatusCondition(t.Context(), &testCase.appset, condition, true)
+				assert.Equal(t, v1alpha1.ApplicationSetConditionRolloutProgressing, conditions[3].Type)
+				assert.Equal(t, v1alpha1.ApplicationSetConditionStatusFalse, conditions[3].Status)
+				assert.Equal(t, "new value", conditions[3].Message)
+			},
+		},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&c.appset).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).WithStatusSubresource(&c.appset).Build()
+			metrics := appsetmetrics.NewFakeAppsetMetrics()
+			argodb := db.NewDB("argocd", settings.NewSettingsManager(t.Context(), kubeclientset, "argocd"), kubeclientset)
+
+			r := ApplicationSetReconciler{
+				Client:   client,
+				Scheme:   scheme,
+				Renderer: &utils.Render{},
+				Recorder: record.NewFakeRecorder(1),
+				Generators: map[string]generators.Generator{
+					"List": generators.NewListGenerator(),
+				},
+				ArgoDB:        argodb,
+				KubeClientset: kubeclientset,
+				Metrics:       metrics,
+			}
+
+			err = r.setApplicationSetStatusCondition(t.Context(), &c.appset, c.condition, c.parametersGenerated)
 			require.NoError(t, err)
-		}
 
-		testCase.testfunc(t, testCase.appset)
+			c.testfunc(t, c.appset.Status.Conditions)
+		})
 	}
 }
 
@@ -2916,14 +3209,57 @@ func TestSetApplicationSetApplicationStatus(t *testing.T) {
 				{
 					Application: "app1",
 					Message:     "testing SetApplicationSetApplicationStatus to Healthy",
-					Status:      "Healthy",
+					Status:      v1alpha1.ProgressiveSyncHealthy,
 				},
 			},
 			expectedAppStatuses: []v1alpha1.ApplicationSetApplicationStatus{
 				{
 					Application: "app1",
 					Message:     "testing SetApplicationSetApplicationStatus to Healthy",
-					Status:      "Healthy",
+					Status:      v1alpha1.ProgressiveSyncHealthy,
+				},
+			},
+		},
+		{
+			name: "order appstatus by name",
+			appSet: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Spec: v1alpha1.ApplicationSetSpec{
+					Generators: []v1alpha1.ApplicationSetGenerator{
+						{List: &v1alpha1.ListGenerator{
+							Elements: []apiextensionsv1.JSON{{
+								Raw: []byte(`{"cluster": "my-cluster","url": "https://kubernetes.default.svc"}`),
+							}},
+						}},
+					},
+					Template: v1alpha1.ApplicationSetTemplate{},
+				},
+			},
+			appStatuses: []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application: "app2",
+					Message:     "testing SetApplicationSetApplicationStatus to Healthy",
+					Status:      v1alpha1.ProgressiveSyncHealthy,
+				},
+				{
+					Application: "app1",
+					Message:     "testing SetApplicationSetApplicationStatus to Healthy",
+					Status:      v1alpha1.ProgressiveSyncHealthy,
+				},
+			},
+			expectedAppStatuses: []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application: "app1",
+					Message:     "testing SetApplicationSetApplicationStatus to Healthy",
+					Status:      v1alpha1.ProgressiveSyncHealthy,
+				},
+				{
+					Application: "app2",
+					Message:     "testing SetApplicationSetApplicationStatus to Healthy",
+					Status:      v1alpha1.ProgressiveSyncHealthy,
 				},
 			},
 		},
@@ -2949,7 +3285,7 @@ func TestSetApplicationSetApplicationStatus(t *testing.T) {
 						{
 							Application: "app1",
 							Message:     "testing SetApplicationSetApplicationStatus to Healthy",
-							Status:      "Healthy",
+							Status:      v1alpha1.ProgressiveSyncHealthy,
 						},
 					},
 				},
@@ -3741,7 +4077,7 @@ func TestBuildAppDependencyList(t *testing.T) {
 	}
 }
 
-func TestBuildAppSyncMap(t *testing.T) {
+func TestGetAppsToSync(t *testing.T) {
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)
@@ -3752,7 +4088,7 @@ func TestBuildAppSyncMap(t *testing.T) {
 	for _, cc := range []struct {
 		name              string
 		appSet            v1alpha1.ApplicationSet
-		appMap            map[string]v1alpha1.Application
+		currentApps       []v1alpha1.Application
 		appDependencyList [][]string
 		expectedMap       map[string]bool
 	}{
@@ -3783,7 +4119,7 @@ func TestBuildAppSyncMap(t *testing.T) {
 			expectedMap:       map[string]bool{},
 		},
 		{
-			name: "handles two applications with no statuses",
+			name: "handles missing applications with statuses",
 			appSet: v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
@@ -3804,6 +4140,21 @@ func TestBuildAppSyncMap(t *testing.T) {
 						},
 					},
 				},
+				Status: v1alpha1.ApplicationSetStatus{
+					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
+						{
+							Application: "app1",
+							Status:      v1alpha1.ProgressiveSyncHealthy,
+						},
+						{
+							Application: "app2",
+							Status:      v1alpha1.ProgressiveSyncHealthy,
+						},
+					},
+				},
+			},
+			currentApps: []v1alpha1.Application{
+				{ObjectMeta: metav1.ObjectMeta{Name: "app2"}},
 			},
 			appDependencyList: [][]string{
 				{"app1"},
@@ -3811,11 +4162,10 @@ func TestBuildAppSyncMap(t *testing.T) {
 			},
 			expectedMap: map[string]bool{
 				"app1": true,
-				"app2": false,
 			},
 		},
 		{
-			name: "handles applications after an empty selection",
+			name: "handles new applications with no statuses",
 			appSet: v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
@@ -3836,6 +4186,45 @@ func TestBuildAppSyncMap(t *testing.T) {
 						},
 					},
 				},
+			},
+			currentApps: []v1alpha1.Application{
+				{ObjectMeta: metav1.ObjectMeta{Name: "app1"}},
+				{ObjectMeta: metav1.ObjectMeta{Name: "app2"}},
+			},
+			appDependencyList: [][]string{
+				{"app1"},
+				{"app2"},
+			},
+			expectedMap: map[string]bool{
+				"app1": true,
+			},
+		},
+		{
+			name: "handles an empty step as completed",
+			appSet: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Spec: v1alpha1.ApplicationSetSpec{
+					Strategy: &v1alpha1.ApplicationSetStrategy{
+						Type: "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
+							Steps: []v1alpha1.ApplicationSetRolloutStep{
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
+								},
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
+								},
+							},
+						},
+					},
+				},
+			},
+			currentApps: []v1alpha1.Application{
+				{ObjectMeta: metav1.ObjectMeta{Name: "app1"}},
+				{ObjectMeta: metav1.ObjectMeta{Name: "app2"}},
 			},
 			appDependencyList: [][]string{
 				{},
@@ -3847,7 +4236,7 @@ func TestBuildAppSyncMap(t *testing.T) {
 			},
 		},
 		{
-			name: "handles RollingSync applications that are healthy and have no changes",
+			name: "handles healthy steps",
 			appSet: v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
@@ -3872,518 +4261,232 @@ func TestBuildAppSyncMap(t *testing.T) {
 					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
 						{
 							Application: "app1",
-							Status:      "Healthy",
+							Status:      v1alpha1.ProgressiveSyncHealthy,
 						},
 						{
 							Application: "app2",
-							Status:      "Healthy",
-						},
-					},
-				},
-			},
-			appMap: map[string]v1alpha1.Application{
-				"app1": {
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "app1",
-					},
-					Status: v1alpha1.ApplicationStatus{
-						Health: v1alpha1.HealthStatus{
-							Status: health.HealthStatusHealthy,
-						},
-						OperationState: &v1alpha1.OperationState{
-							Phase: common.OperationSucceeded,
-						},
-						Sync: v1alpha1.SyncStatus{
-							Status: v1alpha1.SyncStatusCodeSynced,
-						},
-					},
-				},
-				"app2": {
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "app2",
-					},
-					Status: v1alpha1.ApplicationStatus{
-						Health: v1alpha1.HealthStatus{
-							Status: health.HealthStatusHealthy,
-						},
-						OperationState: &v1alpha1.OperationState{
-							Phase: common.OperationSucceeded,
-						},
-						Sync: v1alpha1.SyncStatus{
-							Status: v1alpha1.SyncStatusCodeSynced,
-						},
-					},
-				},
-			},
-			appDependencyList: [][]string{
-				{"app1"},
-				{"app2"},
-			},
-			expectedMap: map[string]bool{
-				"app1": true,
-				"app2": true,
-			},
-		},
-		{
-			name: "blocks RollingSync applications that are healthy and have no changes, but are still pending",
-			appSet: v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "name",
-					Namespace: "argocd",
-				},
-				Spec: v1alpha1.ApplicationSetSpec{
-					Strategy: &v1alpha1.ApplicationSetStrategy{
-						Type: "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
-							Steps: []v1alpha1.ApplicationSetRolloutStep{
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-							},
-						},
-					},
-				},
-				Status: v1alpha1.ApplicationSetStatus{
-					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
-						{
-							Application: "app1",
-							Status:      "Pending",
-						},
-						{
-							Application: "app2",
-							Status:      "Healthy",
-						},
-					},
-				},
-			},
-			appMap: map[string]v1alpha1.Application{
-				"app1": {
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "app1",
-					},
-					Status: v1alpha1.ApplicationStatus{
-						Health: v1alpha1.HealthStatus{
-							Status: health.HealthStatusHealthy,
-						},
-						OperationState: &v1alpha1.OperationState{
-							Phase: common.OperationSucceeded,
-						},
-						Sync: v1alpha1.SyncStatus{
-							Status: v1alpha1.SyncStatusCodeSynced,
-						},
-					},
-				},
-				"app2": {
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "app2",
-					},
-					Status: v1alpha1.ApplicationStatus{
-						Health: v1alpha1.HealthStatus{
-							Status: health.HealthStatusHealthy,
-						},
-						OperationState: &v1alpha1.OperationState{
-							Phase: common.OperationSucceeded,
-						},
-						Sync: v1alpha1.SyncStatus{
-							Status: v1alpha1.SyncStatusCodeSynced,
-						},
-					},
-				},
-			},
-			appDependencyList: [][]string{
-				{"app1"},
-				{"app2"},
-			},
-			expectedMap: map[string]bool{
-				"app1": true,
-				"app2": false,
-			},
-		},
-		{
-			name: "handles RollingSync applications that are up to date and healthy, but still syncing",
-			appSet: v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "name",
-					Namespace: "argocd",
-				},
-				Spec: v1alpha1.ApplicationSetSpec{
-					Strategy: &v1alpha1.ApplicationSetStrategy{
-						Type: "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
-							Steps: []v1alpha1.ApplicationSetRolloutStep{
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-							},
-						},
-					},
-				},
-				Status: v1alpha1.ApplicationSetStatus{
-					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
-						{
-							Application: "app1",
-							Status:      "Progressing",
-						},
-						{
-							Application: "app2",
-							Status:      "Progressing",
-						},
-					},
-				},
-			},
-			appMap: map[string]v1alpha1.Application{
-				"app1": {
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "app1",
-					},
-					Status: v1alpha1.ApplicationStatus{
-						Health: v1alpha1.HealthStatus{
-							Status: health.HealthStatusHealthy,
-						},
-						OperationState: &v1alpha1.OperationState{
-							Phase: common.OperationRunning,
-						},
-						Sync: v1alpha1.SyncStatus{
-							Status: v1alpha1.SyncStatusCodeSynced,
-						},
-					},
-				},
-				"app2": {
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "app2",
-					},
-					Status: v1alpha1.ApplicationStatus{
-						Health: v1alpha1.HealthStatus{
-							Status: health.HealthStatusHealthy,
-						},
-						OperationState: &v1alpha1.OperationState{
-							Phase: common.OperationRunning,
-						},
-						Sync: v1alpha1.SyncStatus{
-							Status: v1alpha1.SyncStatusCodeSynced,
-						},
-					},
-				},
-			},
-			appDependencyList: [][]string{
-				{"app1"},
-				{"app2"},
-			},
-			expectedMap: map[string]bool{
-				"app1": true,
-				"app2": false,
-			},
-		},
-		{
-			name: "handles RollingSync applications that are up to date and synced, but degraded",
-			appSet: v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "name",
-					Namespace: "argocd",
-				},
-				Spec: v1alpha1.ApplicationSetSpec{
-					Strategy: &v1alpha1.ApplicationSetStrategy{
-						Type: "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
-							Steps: []v1alpha1.ApplicationSetRolloutStep{
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-							},
-						},
-					},
-				},
-				Status: v1alpha1.ApplicationSetStatus{
-					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
-						{
-							Application: "app1",
-							Status:      "Progressing",
-						},
-						{
-							Application: "app2",
-							Status:      "Progressing",
-						},
-					},
-				},
-			},
-			appMap: map[string]v1alpha1.Application{
-				"app1": {
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "app1",
-					},
-					Status: v1alpha1.ApplicationStatus{
-						Health: v1alpha1.HealthStatus{
-							Status: health.HealthStatusDegraded,
-						},
-						OperationState: &v1alpha1.OperationState{
-							Phase: common.OperationRunning,
-						},
-						Sync: v1alpha1.SyncStatus{
-							Status: v1alpha1.SyncStatusCodeSynced,
-						},
-					},
-				},
-				"app2": {
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "app2",
-					},
-					Status: v1alpha1.ApplicationStatus{
-						Health: v1alpha1.HealthStatus{
-							Status: health.HealthStatusDegraded,
-						},
-						OperationState: &v1alpha1.OperationState{
-							Phase: common.OperationRunning,
-						},
-						Sync: v1alpha1.SyncStatus{
-							Status: v1alpha1.SyncStatusCodeSynced,
-						},
-					},
-				},
-			},
-			appDependencyList: [][]string{
-				{"app1"},
-				{"app2"},
-			},
-			expectedMap: map[string]bool{
-				"app1": true,
-				"app2": false,
-			},
-		},
-		{
-			name: "handles RollingSync applications that are OutOfSync and healthy",
-			appSet: v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "name",
-					Namespace: "argocd",
-				},
-				Spec: v1alpha1.ApplicationSetSpec{
-					Strategy: &v1alpha1.ApplicationSetStrategy{
-						Type: "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
-							Steps: []v1alpha1.ApplicationSetRolloutStep{
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-							},
-						},
-					},
-				},
-				Status: v1alpha1.ApplicationSetStatus{
-					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
-						{
-							Application: "app1",
-							Status:      "Healthy",
-						},
-						{
-							Application: "app2",
-							Status:      "Healthy",
-						},
-					},
-				},
-			},
-			appDependencyList: [][]string{
-				{"app1"},
-				{"app2"},
-			},
-			appMap: map[string]v1alpha1.Application{
-				"app1": {
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "app1",
-					},
-					Status: v1alpha1.ApplicationStatus{
-						Health: v1alpha1.HealthStatus{
-							Status: health.HealthStatusHealthy,
-						},
-						OperationState: &v1alpha1.OperationState{
-							Phase: common.OperationSucceeded,
-						},
-						Sync: v1alpha1.SyncStatus{
-							Status: v1alpha1.SyncStatusCodeOutOfSync,
-						},
-					},
-				},
-				"app2": {
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "app2",
-					},
-					Status: v1alpha1.ApplicationStatus{
-						Health: v1alpha1.HealthStatus{
-							Status: health.HealthStatusHealthy,
-						},
-						OperationState: &v1alpha1.OperationState{
-							Phase: common.OperationSucceeded,
-						},
-						Sync: v1alpha1.SyncStatus{
-							Status: v1alpha1.SyncStatusCodeOutOfSync,
-						},
-					},
-				},
-			},
-			expectedMap: map[string]bool{
-				"app1": true,
-				"app2": false,
-			},
-		},
-		{
-			name: "handles a lot of applications",
-			appSet: v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "name",
-					Namespace: "argocd",
-				},
-				Spec: v1alpha1.ApplicationSetSpec{
-					Strategy: &v1alpha1.ApplicationSetStrategy{
-						Type: "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
-							Steps: []v1alpha1.ApplicationSetRolloutStep{
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-							},
-						},
-					},
-				},
-				Status: v1alpha1.ApplicationSetStatus{
-					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
-						{
-							Application: "app1",
-							Status:      "Healthy",
-						},
-						{
-							Application: "app2",
-							Status:      "Healthy",
+							Status:      v1alpha1.ProgressiveSyncHealthy,
 						},
 						{
 							Application: "app3",
-							Status:      "Healthy",
+							Status:      v1alpha1.ProgressiveSyncHealthy,
 						},
 						{
 							Application: "app4",
-							Status:      "Healthy",
-						},
-						{
-							Application: "app5",
-							Status:      "Healthy",
-						},
-						{
-							Application: "app7",
-							Status:      "Healthy",
+							Status:      v1alpha1.ProgressiveSyncHealthy,
 						},
 					},
 				},
 			},
-			appMap: map[string]v1alpha1.Application{
-				"app1": {
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "app1",
-					},
-					Status: v1alpha1.ApplicationStatus{
-						Health: v1alpha1.HealthStatus{
-							Status: health.HealthStatusHealthy,
-						},
-						OperationState: &v1alpha1.OperationState{
-							Phase: common.OperationSucceeded,
-						},
-						Sync: v1alpha1.SyncStatus{
-							Status: v1alpha1.SyncStatusCodeSynced,
-						},
-					},
-				},
-				"app2": {
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "app2",
-					},
-					Status: v1alpha1.ApplicationStatus{
-						Health: v1alpha1.HealthStatus{
-							Status: health.HealthStatusHealthy,
-						},
-						OperationState: &v1alpha1.OperationState{
-							Phase: common.OperationSucceeded,
-						},
-						Sync: v1alpha1.SyncStatus{
-							Status: v1alpha1.SyncStatusCodeSynced,
-						},
-					},
-				},
-				"app3": {
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "app3",
-					},
-					Status: v1alpha1.ApplicationStatus{
-						Health: v1alpha1.HealthStatus{
-							Status: health.HealthStatusHealthy,
-						},
-						OperationState: &v1alpha1.OperationState{
-							Phase: common.OperationSucceeded,
-						},
-						Sync: v1alpha1.SyncStatus{
-							Status: v1alpha1.SyncStatusCodeSynced,
-						},
-					},
-				},
-				"app5": {
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "app5",
-					},
-					Status: v1alpha1.ApplicationStatus{
-						Health: v1alpha1.HealthStatus{
-							Status: health.HealthStatusHealthy,
-						},
-						OperationState: &v1alpha1.OperationState{
-							Phase: common.OperationSucceeded,
-						},
-						Sync: v1alpha1.SyncStatus{
-							Status: v1alpha1.SyncStatusCodeSynced,
-						},
-					},
-				},
-				"app6": {
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "app6",
-					},
-					Status: v1alpha1.ApplicationStatus{
-						Health: v1alpha1.HealthStatus{
-							Status: health.HealthStatusDegraded,
-						},
-						OperationState: &v1alpha1.OperationState{
-							Phase: common.OperationSucceeded,
-						},
-						Sync: v1alpha1.SyncStatus{
-							Status: v1alpha1.SyncStatusCodeSynced,
-						},
-					},
-				},
+			currentApps: []v1alpha1.Application{
+				{ObjectMeta: metav1.ObjectMeta{Name: "app1"}},
+				{ObjectMeta: metav1.ObjectMeta{Name: "app2"}},
+				{ObjectMeta: metav1.ObjectMeta{Name: "app3"}},
+				{ObjectMeta: metav1.ObjectMeta{Name: "app4"}},
 			},
 			appDependencyList: [][]string{
-				{"app1", "app2", "app3"},
-				{"app4", "app5", "app6"},
-				{"app7", "app8", "app9"},
+				{"app1", "app2"},
+				{"app3", "app4"},
 			},
 			expectedMap: map[string]bool{
 				"app1": true,
 				"app2": true,
 				"app3": true,
 				"app4": true,
-				"app5": true,
-				"app6": true,
-				"app7": false,
-				"app8": false,
-				"app9": false,
+			},
+		},
+		{
+			name: "do not consider waiting steps as completed",
+			appSet: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Spec: v1alpha1.ApplicationSetSpec{
+					Strategy: &v1alpha1.ApplicationSetStrategy{
+						Type: "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
+							Steps: []v1alpha1.ApplicationSetRolloutStep{
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
+								},
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
+								},
+							},
+						},
+					},
+				},
+				Status: v1alpha1.ApplicationSetStatus{
+					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
+						{
+							Application: "app1",
+							Status:      v1alpha1.ProgressiveSyncWaiting,
+						},
+						{
+							Application: "app2",
+							Status:      v1alpha1.ProgressiveSyncHealthy,
+						},
+					},
+				},
+			},
+			currentApps: []v1alpha1.Application{
+				{ObjectMeta: metav1.ObjectMeta{Name: "app1"}},
+				{ObjectMeta: metav1.ObjectMeta{Name: "app2"}},
+			},
+			appDependencyList: [][]string{
+				{"app1"},
+				{"app2"},
+			},
+			expectedMap: map[string]bool{
+				"app1": true,
+			},
+		},
+		{
+			name: "do not consider pending steps as completed",
+			appSet: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Spec: v1alpha1.ApplicationSetSpec{
+					Strategy: &v1alpha1.ApplicationSetStrategy{
+						Type: "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
+							Steps: []v1alpha1.ApplicationSetRolloutStep{
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
+								},
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
+								},
+							},
+						},
+					},
+				},
+				Status: v1alpha1.ApplicationSetStatus{
+					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
+						{
+							Application: "app1",
+							Status:      v1alpha1.ProgressiveSyncPending,
+						},
+						{
+							Application: "app2",
+							Status:      v1alpha1.ProgressiveSyncHealthy,
+						},
+					},
+				},
+			},
+			currentApps: []v1alpha1.Application{
+				{ObjectMeta: metav1.ObjectMeta{Name: "app1"}},
+				{ObjectMeta: metav1.ObjectMeta{Name: "app2"}},
+			},
+			appDependencyList: [][]string{
+				{"app1"},
+				{"app2"},
+			},
+			expectedMap: map[string]bool{
+				"app1": true,
+			},
+		},
+		{
+			name: "do not consider progressing steps as completed",
+			appSet: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Spec: v1alpha1.ApplicationSetSpec{
+					Strategy: &v1alpha1.ApplicationSetStrategy{
+						Type: "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
+							Steps: []v1alpha1.ApplicationSetRolloutStep{
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
+								},
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
+								},
+							},
+						},
+					},
+				},
+				Status: v1alpha1.ApplicationSetStatus{
+					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
+						{
+							Application: "app1",
+							Status:      v1alpha1.ProgressiveSyncProgressing,
+						},
+						{
+							Application: "app2",
+							Status:      v1alpha1.ProgressiveSyncHealthy,
+						},
+					},
+				},
+			},
+			currentApps: []v1alpha1.Application{
+				{ObjectMeta: metav1.ObjectMeta{Name: "app1"}},
+				{ObjectMeta: metav1.ObjectMeta{Name: "app2"}},
+			},
+			appDependencyList: [][]string{
+				{"app1"},
+				{"app2"},
+			},
+			expectedMap: map[string]bool{
+				"app1": true,
+			},
+		},
+		{
+			name: "Ignores applications not selected",
+			appSet: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Spec: v1alpha1.ApplicationSetSpec{
+					Strategy: &v1alpha1.ApplicationSetStrategy{
+						Type: "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
+							Steps: []v1alpha1.ApplicationSetRolloutStep{
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
+								},
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
+								},
+							},
+						},
+					},
+				},
+				Status: v1alpha1.ApplicationSetStatus{
+					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
+						{
+							Application: "old_app",
+							Status:      v1alpha1.ProgressiveSyncProgressing,
+						},
+						{
+							Application: "app1",
+							Status:      v1alpha1.ProgressiveSyncHealthy,
+						},
+						{
+							Application: "app2",
+							Status:      v1alpha1.ProgressiveSyncHealthy,
+						},
+					},
+				},
+			},
+			currentApps: []v1alpha1.Application{
+				{ObjectMeta: metav1.ObjectMeta{Name: "old_app"}},
+				{ObjectMeta: metav1.ObjectMeta{Name: "app1"}},
+				{ObjectMeta: metav1.ObjectMeta{Name: "app2"}},
+			},
+			appDependencyList: [][]string{
+				{"app1"},
+				{"app2"},
+			},
+			expectedMap: map[string]bool{
+				"app1": true,
+				"app2": true,
 			},
 		},
 	} {
@@ -4402,16 +4505,72 @@ func TestBuildAppSyncMap(t *testing.T) {
 				Metrics:       metrics,
 			}
 
-			appSyncMap := r.buildAppSyncMap(cc.appSet, cc.appDependencyList, cc.appMap)
-			assert.Equal(t, cc.expectedMap, appSyncMap, "expected appSyncMap did not match actual")
+			appsToSync := r.getAppsToSync(cc.appSet, cc.appDependencyList, cc.currentApps)
+			assert.Equal(t, cc.expectedMap, appsToSync, "expected map did not match actual")
 		})
 	}
 }
 
 func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
+	nowMinus5 := metav1.Time{Time: time.Now().Add(-5 * time.Minute)}
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)
+
+	newDefaultAppSet := func(stepsCount int, status []v1alpha1.ApplicationSetApplicationStatus) v1alpha1.ApplicationSet {
+		steps := []v1alpha1.ApplicationSetRolloutStep{}
+		for i := 0; i < stepsCount; i++ {
+			steps = append(steps, v1alpha1.ApplicationSetRolloutStep{MatchExpressions: []v1alpha1.ApplicationMatchExpression{}})
+		}
+		return v1alpha1.ApplicationSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "name",
+				Namespace: "argocd",
+			},
+			Spec: v1alpha1.ApplicationSetSpec{
+				Strategy: &v1alpha1.ApplicationSetStrategy{
+					Type: "RollingSync",
+					RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
+						Steps: steps,
+					},
+				},
+			},
+			Status: v1alpha1.ApplicationSetStatus{
+				ApplicationStatus: status,
+			},
+		}
+	}
+
+	newApp := func(name string, health health.HealthStatusCode, sync v1alpha1.SyncStatusCode, revision string, opState *v1alpha1.OperationState) v1alpha1.Application {
+		return v1alpha1.Application{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: name,
+			},
+			Status: v1alpha1.ApplicationStatus{
+				ReconciledAt: &metav1.Time{Time: time.Now()},
+				Health: v1alpha1.AppHealthStatus{
+					Status: health,
+				},
+				OperationState: opState,
+				Sync: v1alpha1.SyncStatus{
+					Status:   sync,
+					Revision: revision,
+				},
+			},
+		}
+	}
+
+	newOperationState := func(phase common.OperationPhase) *v1alpha1.OperationState {
+		finishedAt := &metav1.Time{Time: time.Now().Add(-1 * time.Second)}
+		if !phase.Completed() {
+			finishedAt = nil
+		}
+		return &v1alpha1.OperationState{
+			Phase:      phase,
+			StartedAt:  metav1.Time{Time: time.Now().Add(-1 * time.Minute)},
+			FinishedAt: finishedAt,
+		}
+	}
 
 	for _, cc := range []struct {
 		name              string
@@ -4421,71 +4580,16 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 		expectedAppStatus []v1alpha1.ApplicationSetApplicationStatus
 	}{
 		{
-			name: "handles a nil list of statuses and no applications",
-			appSet: v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "name",
-					Namespace: "argocd",
-				},
-				Spec: v1alpha1.ApplicationSetSpec{
-					Strategy: &v1alpha1.ApplicationSetStrategy{
-						Type: "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
-							Steps: []v1alpha1.ApplicationSetRolloutStep{
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-							},
-						},
-					},
-				},
-			},
+			name:              "handles a nil list of statuses and no applications",
+			appSet:            newDefaultAppSet(2, nil),
 			apps:              []v1alpha1.Application{},
 			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{},
 		},
 		{
-			name: "handles a nil list of statuses with a healthy application",
-			appSet: v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "name",
-					Namespace: "argocd",
-				},
-				Spec: v1alpha1.ApplicationSetSpec{
-					Strategy: &v1alpha1.ApplicationSetStrategy{
-						Type: "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
-							Steps: []v1alpha1.ApplicationSetRolloutStep{
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-							},
-						},
-					},
-				},
-			},
+			name:   "handles a nil list of statuses with a healthy application",
+			appSet: newDefaultAppSet(2, nil),
 			apps: []v1alpha1.Application{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "app1",
-					},
-					Status: v1alpha1.ApplicationStatus{
-						Health: v1alpha1.HealthStatus{
-							Status: health.HealthStatusHealthy,
-						},
-						OperationState: &v1alpha1.OperationState{
-							Phase: common.OperationSucceeded,
-						},
-						Sync: v1alpha1.SyncStatus{
-							Status: v1alpha1.SyncStatusCodeSynced,
-						},
-					},
-				},
+				newApp("app1", health.HealthStatusHealthy, v1alpha1.SyncStatusCodeSynced, "next", newOperationState(common.OperationSucceeded)),
 			},
 			appStepMap: map[string]int{
 				"app1": 0,
@@ -4493,54 +4597,18 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
 				{
 					Application:     "app1",
-					Message:         "Application resource is already Healthy, updating status from Waiting to Healthy.",
-					Status:          "Healthy",
+					Message:         "Application resource has synced, updating status to Healthy",
+					Status:          v1alpha1.ProgressiveSyncHealthy,
 					Step:            "1",
-					TargetRevisions: []string{},
+					TargetRevisions: []string{"next"},
 				},
 			},
 		},
 		{
-			name: "handles an empty list of statuses with a healthy application",
-			appSet: v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "name",
-					Namespace: "argocd",
-				},
-				Spec: v1alpha1.ApplicationSetSpec{
-					Strategy: &v1alpha1.ApplicationSetStrategy{
-						Type: "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
-							Steps: []v1alpha1.ApplicationSetRolloutStep{
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-							},
-						},
-					},
-				},
-				Status: v1alpha1.ApplicationSetStatus{},
-			},
+			name:   "moves a new application to healthy when app is synced and healthy",
+			appSet: newDefaultAppSet(2, []v1alpha1.ApplicationSetApplicationStatus{}),
 			apps: []v1alpha1.Application{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "app1",
-					},
-					Status: v1alpha1.ApplicationStatus{
-						Health: v1alpha1.HealthStatus{
-							Status: health.HealthStatusHealthy,
-						},
-						OperationState: &v1alpha1.OperationState{
-							Phase: common.OperationSucceeded,
-						},
-						Sync: v1alpha1.SyncStatus{
-							Status: v1alpha1.SyncStatusCodeSynced,
-						},
-					},
-				},
+				newApp("app1", health.HealthStatusHealthy, v1alpha1.SyncStatusCodeSynced, "current", newOperationState(common.OperationSucceeded)),
 			},
 			appStepMap: map[string]int{
 				"app1": 0,
@@ -4548,63 +4616,27 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
 				{
 					Application:     "app1",
-					Message:         "Application resource is already Healthy, updating status from Waiting to Healthy.",
-					Status:          "Healthy",
+					Message:         "Application resource has synced, updating status to Healthy",
+					Status:          v1alpha1.ProgressiveSyncHealthy,
 					Step:            "1",
-					TargetRevisions: []string{},
+					TargetRevisions: []string{"current"},
 				},
 			},
 		},
 		{
-			name: "handles an outdated list of statuses with a healthy application, setting required variables",
-			appSet: v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "name",
-					Namespace: "argocd",
-				},
-				Spec: v1alpha1.ApplicationSetSpec{
-					Strategy: &v1alpha1.ApplicationSetStrategy{
-						Type: "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
-							Steps: []v1alpha1.ApplicationSetRolloutStep{
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-							},
-						},
-					},
-				},
-				Status: v1alpha1.ApplicationSetStatus{
-					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
-						{
-							Application: "app1",
-							Message:     "Application resource is already Healthy, updating status from Waiting to Healthy.",
-							Status:      "Healthy",
-							Step:        "1",
-						},
-					},
-				},
-			},
-			apps: []v1alpha1.Application{
+			name: "moves a waiting application to healthy when app is synced and healthy",
+			appSet: newDefaultAppSet(2, []v1alpha1.ApplicationSetApplicationStatus{
 				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "app1",
-					},
-					Status: v1alpha1.ApplicationStatus{
-						Health: v1alpha1.HealthStatus{
-							Status: health.HealthStatusHealthy,
-						},
-						OperationState: &v1alpha1.OperationState{
-							Phase: common.OperationSucceeded,
-						},
-						Sync: v1alpha1.SyncStatus{
-							Status: v1alpha1.SyncStatusCodeSynced,
-						},
-					},
+					Application:        "app1",
+					Message:            "",
+					Status:             v1alpha1.ProgressiveSyncWaiting,
+					Step:               "1",
+					TargetRevisions:    []string{"current"},
+					LastTransitionTime: &nowMinus5,
 				},
+			}),
+			apps: []v1alpha1.Application{
+				newApp("app1", health.HealthStatusHealthy, v1alpha1.SyncStatusCodeSynced, "current", newOperationState(common.OperationSucceeded)),
 			},
 			appStepMap: map[string]int{
 				"app1": 0,
@@ -4612,77 +4644,83 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
 				{
 					Application:     "app1",
-					Message:         "Application resource is already Healthy, updating status from Waiting to Healthy.",
-					Status:          "Healthy",
+					Message:         "Application resource has synced, updating status to Healthy",
+					Status:          v1alpha1.ProgressiveSyncHealthy,
 					Step:            "1",
-					TargetRevisions: []string{},
+					TargetRevisions: []string{"current"},
 				},
 			},
 		},
 		{
-			name: "progresses an OutOfSync RollingSync application to waiting",
-			appSet: v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "name",
-					Namespace: "argocd",
-				},
-				Spec: v1alpha1.ApplicationSetSpec{
-					Strategy: &v1alpha1.ApplicationSetStrategy{
-						Type: "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
-							Steps: []v1alpha1.ApplicationSetRolloutStep{
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-							},
-						},
-					},
-				},
-				Status: v1alpha1.ApplicationSetStatus{
-					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
-						{
-							Application:     "app1",
-							Message:         "",
-							Status:          "Healthy",
-							Step:            "1",
-							TargetRevisions: []string{"Previous"},
-						},
-						{
-							Application:     "app2-multisource",
-							Message:         "",
-							Status:          "Healthy",
-							Step:            "1",
-							TargetRevisions: []string{"Previous", "OtherPrevious"},
-						},
-					},
+			name:   "moves a new application to progressing when app is synced but not healthy",
+			appSet: newDefaultAppSet(2, []v1alpha1.ApplicationSetApplicationStatus{}),
+			apps: []v1alpha1.Application{
+				newApp("app1", health.HealthStatusDegraded, v1alpha1.SyncStatusCodeSynced, "current", newOperationState(common.OperationSucceeded)),
+			},
+			appStepMap: map[string]int{
+				"app1": 0,
+			},
+			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:     "app1",
+					Message:         "Application resource has synced, updating status to Progressing",
+					Status:          v1alpha1.ProgressiveSyncProgressing,
+					Step:            "1",
+					TargetRevisions: []string{"current"},
 				},
 			},
+		},
+		{
+			name: "moves an application with new revision to Healthy when it is not OutOfSync",
+			appSet: newDefaultAppSet(2, []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:        "app1",
+					Message:            "Application resource has synced, updating status to Healthy",
+					Status:             v1alpha1.ProgressiveSyncHealthy,
+					Step:               "1",
+					TargetRevisions:    []string{"previous"},
+					LastTransitionTime: &nowMinus5,
+				},
+			}),
 			apps: []v1alpha1.Application{
+				newApp("app1", health.HealthStatusHealthy, v1alpha1.SyncStatusCodeSynced, "next", newOperationState(common.OperationSucceeded)),
+			},
+			appStepMap: map[string]int{
+				"app1": 0,
+			},
+			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
 				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "app1",
-					},
-					Status: v1alpha1.ApplicationStatus{
-						Sync: v1alpha1.SyncStatus{
-							Status:   v1alpha1.SyncStatusCodeOutOfSync,
-							Revision: "Next",
-						},
-					},
+					Application:     "app1",
+					Message:         "Application resource has synced, updating status to Healthy",
+					Status:          v1alpha1.ProgressiveSyncHealthy,
+					Step:            "1",
+					TargetRevisions: []string{"next"},
+				},
+			},
+		},
+		{
+			name: "moves an application with new version to waiting when it is OutOfSync",
+			appSet: newDefaultAppSet(2, []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:        "app1",
+					Message:            "",
+					Status:             v1alpha1.ProgressiveSyncHealthy,
+					Step:               "1",
+					TargetRevisions:    []string{"previous"},
+					LastTransitionTime: &nowMinus5,
 				},
 				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "app2-multisource",
-					},
-					Status: v1alpha1.ApplicationStatus{
-						Sync: v1alpha1.SyncStatus{
-							Status:    v1alpha1.SyncStatusCodeOutOfSync,
-							Revisions: []string{"Next", "OtherNext"},
-						},
-					},
+					Application:        "app2-multisource",
+					Message:            "",
+					Status:             v1alpha1.ProgressiveSyncHealthy,
+					Step:               "1",
+					TargetRevisions:    []string{"previous", "removed-source"},
+					LastTransitionTime: &nowMinus5,
 				},
+			}),
+			apps: []v1alpha1.Application{
+				newApp("app1", health.HealthStatusHealthy, v1alpha1.SyncStatusCodeOutOfSync, "next", nil),
+				newApp("app2-multisource", health.HealthStatusHealthy, v1alpha1.SyncStatusCodeOutOfSync, "next", nil),
 			},
 			appStepMap: map[string]int{
 				"app1":             0,
@@ -4691,65 +4729,197 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
 				{
 					Application:     "app1",
-					Message:         "Application has pending changes, setting status to Waiting.",
-					Status:          "Waiting",
+					Message:         "Application has pending changes, setting status to Waiting",
+					Status:          v1alpha1.ProgressiveSyncWaiting,
 					Step:            "1",
-					TargetRevisions: []string{"Next"},
+					TargetRevisions: []string{"next"},
 				},
 				{
 					Application:     "app2-multisource",
-					Message:         "Application has pending changes, setting status to Waiting.",
-					Status:          "Waiting",
+					Message:         "Application has pending changes, setting status to Waiting",
+					Status:          v1alpha1.ProgressiveSyncWaiting,
 					Step:            "1",
-					TargetRevisions: []string{"Next", "OtherNext"},
+					TargetRevisions: []string{"next"},
 				},
 			},
 		},
 		{
-			name: "progresses a pending progressing application to progressing",
-			appSet: v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "name",
-					Namespace: "argocd",
+			name: "does not move a Healthy application to another status if the revision has not changed",
+			appSet: newDefaultAppSet(2, []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:        "app1",
+					Message:            "",
+					Status:             v1alpha1.ProgressiveSyncHealthy,
+					Step:               "1",
+					TargetRevisions:    []string{"next"},
+					LastTransitionTime: &nowMinus5,
 				},
-				Spec: v1alpha1.ApplicationSetSpec{
-					Strategy: &v1alpha1.ApplicationSetStrategy{
-						Type: "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
-							Steps: []v1alpha1.ApplicationSetRolloutStep{
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-							},
-						},
-					},
-				},
-				Status: v1alpha1.ApplicationSetStatus{
-					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
-						{
-							Application:     "app1",
-							Message:         "",
-							Status:          "Pending",
-							Step:            "1",
-							TargetRevisions: []string{"Next"},
-						},
-					},
+			}),
+			apps: []v1alpha1.Application{
+				newApp("app1", health.HealthStatusHealthy, v1alpha1.SyncStatusCodeOutOfSync, "next", newOperationState(common.OperationSucceeded)),
+			},
+			appStepMap: map[string]int{
+				"app1": 0,
+			},
+			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:        "app1",
+					Message:            "",
+					Status:             v1alpha1.ProgressiveSyncHealthy,
+					Step:               "1",
+					TargetRevisions:    []string{"next"},
+					LastTransitionTime: &nowMinus5,
 				},
 			},
+		},
+		{
+			name: "moves a pending application to progressing when operation is running",
+			appSet: newDefaultAppSet(2, []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:        "app1",
+					Message:            "",
+					Status:             v1alpha1.ProgressiveSyncPending,
+					Step:               "1",
+					TargetRevisions:    []string{"next"},
+					LastTransitionTime: &nowMinus5,
+				},
+			}),
+			apps: []v1alpha1.Application{
+				newApp("app1", health.HealthStatusHealthy, v1alpha1.SyncStatusCodeOutOfSync, "next", newOperationState(common.OperationRunning)),
+			},
+			appStepMap: map[string]int{
+				"app1": 0,
+			},
+			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:     "app1",
+					Message:         "Application resource became Progressing, updating status from Pending to Progressing",
+					Status:          v1alpha1.ProgressiveSyncProgressing,
+					Step:            "1",
+					TargetRevisions: []string{"next"},
+				},
+			},
+		},
+		{
+			name: "moves a pending application to progressing when operation is successful",
+			appSet: newDefaultAppSet(2, []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:        "app1",
+					Message:            "",
+					Status:             v1alpha1.ProgressiveSyncPending,
+					Step:               "1",
+					TargetRevisions:    []string{"next"},
+					LastTransitionTime: &nowMinus5,
+				},
+			}),
+			apps: []v1alpha1.Application{
+				newApp("app1", health.HealthStatusHealthy, v1alpha1.SyncStatusCodeOutOfSync, "next", newOperationState(common.OperationSucceeded)),
+			},
+			appStepMap: map[string]int{
+				"app1": 0,
+			},
+			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:     "app1",
+					Message:         "Application resource completed a sync successfully, updating status from Pending to Progressing",
+					Status:          v1alpha1.ProgressiveSyncProgressing,
+					Step:            "1",
+					TargetRevisions: []string{"next"},
+				},
+			},
+		},
+		{
+			name: "moves a pending application to progressing when sync operation has failed",
+			appSet: newDefaultAppSet(2, []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:        "app1",
+					Message:            "",
+					Status:             v1alpha1.ProgressiveSyncPending,
+					Step:               "1",
+					TargetRevisions:    []string{"next"},
+					LastTransitionTime: &nowMinus5,
+				},
+			}),
+			apps: []v1alpha1.Application{
+				newApp("app1", health.HealthStatusHealthy, v1alpha1.SyncStatusCodeOutOfSync, "next", newOperationState(common.OperationFailed)),
+			},
+			appStepMap: map[string]int{
+				"app1": 0,
+			},
+			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:     "app1",
+					Message:         "Application resource completed a sync, updating status from Pending to Progressing",
+					Status:          v1alpha1.ProgressiveSyncProgressing,
+					Step:            "1",
+					TargetRevisions: []string{"next"},
+				},
+			},
+		},
+		{
+			name: "moves a pending application to progressing when sync operation had error",
+			appSet: newDefaultAppSet(2, []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:        "app1",
+					Message:            "",
+					Status:             v1alpha1.ProgressiveSyncPending,
+					Step:               "1",
+					TargetRevisions:    []string{"next"},
+					LastTransitionTime: &nowMinus5,
+				},
+			}),
+			apps: []v1alpha1.Application{
+				newApp("app1", health.HealthStatusHealthy, v1alpha1.SyncStatusCodeOutOfSync, "next", newOperationState(common.OperationError)),
+			},
+			appStepMap: map[string]int{
+				"app1": 0,
+			},
+			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:     "app1",
+					Message:         "Application resource completed a sync, updating status from Pending to Progressing",
+					Status:          v1alpha1.ProgressiveSyncProgressing,
+					Step:            "1",
+					TargetRevisions: []string{"next"},
+				},
+			},
+		},
+		{
+			// If an application is invalid, we move it to Progressing to avoid calling sync indefinitely.
+			// It is the user responsibility to fix the error on the Application. This is different than
+			// sync failures were the user is expected to configure retry as part of the sync policy.
+			name: "moves a pending application with InvalidSpecError errors to progressing",
+			appSet: newDefaultAppSet(2, []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:        "app1",
+					Message:            "",
+					Status:             v1alpha1.ProgressiveSyncPending,
+					Step:               "1",
+					TargetRevisions:    []string{"next"},
+					LastTransitionTime: &nowMinus5,
+				},
+			}),
 			apps: []v1alpha1.Application{
 				{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "app1",
 					},
 					Status: v1alpha1.ApplicationStatus{
-						Health: v1alpha1.HealthStatus{
-							Status: health.HealthStatusProgressing,
+						ReconciledAt: nil,
+						Conditions: []v1alpha1.ApplicationCondition{
+							{
+								Type:               v1alpha1.ApplicationConditionInvalidSpecError,
+								Message:            "Fake invalid specs preventing app updates and sync to be trigerred",
+								LastTransitionTime: &metav1.Time{Time: time.Now()},
+							},
 						},
+						Health: v1alpha1.AppHealthStatus{
+							Status: health.HealthStatusUnknown,
+						},
+						OperationState: nil,
 						Sync: v1alpha1.SyncStatus{
-							Revision: "Next",
+							Status:   v1alpha1.SyncStatusCodeUnknown,
+							Revision: "next",
 						},
 					},
 				},
@@ -4760,62 +4930,75 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
 				{
 					Application:     "app1",
-					Message:         "Application resource became Progressing, updating status from Pending to Progressing.",
-					Status:          "Progressing",
+					Message:         "Application resource has error and cannot sync, updating status to Progressing",
+					Status:          v1alpha1.ProgressiveSyncProgressing,
 					Step:            "1",
-					TargetRevisions: []string{"Next"},
+					TargetRevisions: []string{"next"},
 				},
 			},
 		},
 		{
-			name: "progresses a pending synced application to progressing",
-			appSet: v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "name",
-					Namespace: "argocd",
+			name: "does not move a pending application to progressing if sync happened before transition",
+			appSet: newDefaultAppSet(2, []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:        "app1",
+					Message:            "",
+					Status:             v1alpha1.ProgressiveSyncPending,
+					Step:               "1",
+					TargetRevisions:    []string{"next"},
+					LastTransitionTime: &metav1.Time{Time: time.Now()},
 				},
-				Spec: v1alpha1.ApplicationSetSpec{
-					Strategy: &v1alpha1.ApplicationSetStrategy{
-						Type: "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
-							Steps: []v1alpha1.ApplicationSetRolloutStep{
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-							},
-						},
-					},
-				},
-				Status: v1alpha1.ApplicationSetStatus{
-					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
-						{
-							Application:     "app1",
-							Message:         "",
-							Status:          "Pending",
-							Step:            "1",
-							TargetRevisions: []string{"Current"},
-						},
-					},
+			}),
+			apps: []v1alpha1.Application{
+				newApp("app1", health.HealthStatusProgressing, v1alpha1.SyncStatusCodeSynced, "next", &v1alpha1.OperationState{
+					Phase:      common.OperationSucceeded,
+					StartedAt:  nowMinus5,
+					FinishedAt: &metav1.Time{Time: nowMinus5.Add(5 * time.Second)},
+				}),
+			},
+			appStepMap: map[string]int{
+				"app1": 0,
+			},
+			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:     "app1",
+					Message:         "",
+					Status:          v1alpha1.ProgressiveSyncPending,
+					Step:            "1",
+					TargetRevisions: []string{"next"},
 				},
 			},
+		},
+		{
+			name: "does not move a pending application to progressing if it has not been reconciled since transition",
+			appSet: newDefaultAppSet(2, []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:        "app1",
+					Message:            "",
+					Status:             v1alpha1.ProgressiveSyncPending,
+					Step:               "1",
+					TargetRevisions:    []string{"next"},
+					LastTransitionTime: &metav1.Time{Time: time.Now().Add(-2 * time.Minute)},
+				},
+			}),
 			apps: []v1alpha1.Application{
 				{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "app1",
 					},
 					Status: v1alpha1.ApplicationStatus{
-						Health: v1alpha1.HealthStatus{
+						ReconciledAt: &nowMinus5, // This means data is stale and we cannot trust the information in the status.
+						Health: v1alpha1.AppHealthStatus{
 							Status: health.HealthStatusHealthy,
 						},
 						OperationState: &v1alpha1.OperationState{
-							Phase: common.OperationRunning,
+							Phase:      common.OperationSucceeded,
+							StartedAt:  metav1.Time{Time: time.Now().Add(-1 * time.Minute)},
+							FinishedAt: &metav1.Time{Time: time.Now()},
 						},
 						Sync: v1alpha1.SyncStatus{
 							Status:   v1alpha1.SyncStatusCodeSynced,
-							Revision: "Current",
+							Revision: "next",
 						},
 					},
 				},
@@ -4826,65 +5009,27 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
 				{
 					Application:     "app1",
-					Message:         "Application resource became Progressing, updating status from Pending to Progressing.",
-					Status:          "Progressing",
+					Message:         "",
+					Status:          v1alpha1.ProgressiveSyncPending,
 					Step:            "1",
-					TargetRevisions: []string{"Current"},
+					TargetRevisions: []string{"next"},
 				},
 			},
 		},
 		{
-			name: "progresses a progressing application to healthy",
-			appSet: v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "name",
-					Namespace: "argocd",
-				},
-				Spec: v1alpha1.ApplicationSetSpec{
-					Strategy: &v1alpha1.ApplicationSetStrategy{
-						Type: "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
-							Steps: []v1alpha1.ApplicationSetRolloutStep{
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-							},
-						},
-					},
-				},
-				Status: v1alpha1.ApplicationSetStatus{
-					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
-						{
-							Application:     "app1",
-							Message:         "",
-							Status:          "Progressing",
-							Step:            "1",
-							TargetRevisions: []string{"Next"},
-						},
-					},
-				},
-			},
-			apps: []v1alpha1.Application{
+			name: "moves a progressing application to healthy when it is synced and healthy",
+			appSet: newDefaultAppSet(2, []v1alpha1.ApplicationSetApplicationStatus{
 				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "app1",
-					},
-					Status: v1alpha1.ApplicationStatus{
-						Health: v1alpha1.HealthStatus{
-							Status: health.HealthStatusHealthy,
-						},
-						OperationState: &v1alpha1.OperationState{
-							Phase: common.OperationSucceeded,
-						},
-						Sync: v1alpha1.SyncStatus{
-							Status:   v1alpha1.SyncStatusCodeSynced,
-							Revision: "Next",
-						},
-					},
+					Application:        "app1",
+					Message:            "",
+					Status:             v1alpha1.ProgressiveSyncProgressing,
+					Step:               "1",
+					TargetRevisions:    []string{"next"},
+					LastTransitionTime: &nowMinus5,
 				},
+			}),
+			apps: []v1alpha1.Application{
+				newApp("app1", health.HealthStatusHealthy, v1alpha1.SyncStatusCodeSynced, "next", newOperationState(common.OperationSucceeded)),
 			},
 			appStepMap: map[string]int{
 				"app1": 0,
@@ -4892,65 +5037,27 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
 				{
 					Application:     "app1",
-					Message:         "Application resource became Healthy, updating status from Progressing to Healthy.",
-					Status:          "Healthy",
+					Message:         "Application resource became Healthy, updating status from Progressing to Healthy",
+					Status:          v1alpha1.ProgressiveSyncHealthy,
 					Step:            "1",
-					TargetRevisions: []string{"Next"},
+					TargetRevisions: []string{"next"},
 				},
 			},
 		},
 		{
-			name: "progresses a waiting healthy application to healthy",
-			appSet: v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "name",
-					Namespace: "argocd",
-				},
-				Spec: v1alpha1.ApplicationSetSpec{
-					Strategy: &v1alpha1.ApplicationSetStrategy{
-						Type: "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
-							Steps: []v1alpha1.ApplicationSetRolloutStep{
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-							},
-						},
-					},
-				},
-				Status: v1alpha1.ApplicationSetStatus{
-					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
-						{
-							Application:     "app1",
-							Message:         "",
-							Status:          "Waiting",
-							Step:            "1",
-							TargetRevisions: []string{"Current"},
-						},
-					},
-				},
-			},
-			apps: []v1alpha1.Application{
+			name: "does not move a progressing application to healthy when it is synced and not healthy",
+			appSet: newDefaultAppSet(2, []v1alpha1.ApplicationSetApplicationStatus{
 				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "app1",
-					},
-					Status: v1alpha1.ApplicationStatus{
-						Health: v1alpha1.HealthStatus{
-							Status: health.HealthStatusHealthy,
-						},
-						OperationState: &v1alpha1.OperationState{
-							Phase: common.OperationSucceeded,
-						},
-						Sync: v1alpha1.SyncStatus{
-							Revision: "Current",
-							Status:   v1alpha1.SyncStatusCodeSynced,
-						},
-					},
+					Application:        "app1",
+					Message:            "",
+					Status:             v1alpha1.ProgressiveSyncProgressing,
+					Step:               "1",
+					TargetRevisions:    []string{"next"},
+					LastTransitionTime: &nowMinus5,
 				},
+			}),
+			apps: []v1alpha1.Application{
+				newApp("app1", health.HealthStatusDegraded, v1alpha1.SyncStatusCodeSynced, "next", newOperationState(common.OperationSucceeded)),
 			},
 			appStepMap: map[string]int{
 				"app1": 0,
@@ -4958,373 +5065,114 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
 				{
 					Application:     "app1",
-					Message:         "Application resource is already Healthy, updating status from Waiting to Healthy.",
-					Status:          "Healthy",
+					Message:         "",
+					Status:          v1alpha1.ProgressiveSyncProgressing,
 					Step:            "1",
-					TargetRevisions: []string{"Current"},
+					TargetRevisions: []string{"next"},
 				},
 			},
 		},
 		{
-			name: "progresses a new outofsync application in a later step to waiting",
-			appSet: v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "name",
-					Namespace: "argocd",
-				},
-				Spec: v1alpha1.ApplicationSetSpec{
-					Strategy: &v1alpha1.ApplicationSetStrategy{
-						Type: "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
-							Steps: []v1alpha1.ApplicationSetRolloutStep{
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-							},
-						},
-					},
-				},
-			},
-			apps: []v1alpha1.Application{
+			name: "application status is removed when applciation is deleted",
+			appSet: newDefaultAppSet(2, []v1alpha1.ApplicationSetApplicationStatus{
 				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "app1",
-					},
-					Status: v1alpha1.ApplicationStatus{
-						Health: v1alpha1.HealthStatus{
-							Status: health.HealthStatusHealthy,
-						},
-						OperationState: &v1alpha1.OperationState{
-							Phase: common.OperationSucceeded,
-							SyncResult: &v1alpha1.SyncOperationResult{
-								Revision: "Previous",
-							},
-						},
-						Sync: v1alpha1.SyncStatus{
-							Status:   v1alpha1.SyncStatusCodeOutOfSync,
-							Revision: "Next",
-						},
-					},
+					Application:     "app1",
+					Message:         "",
+					Status:          v1alpha1.ProgressiveSyncPending,
+					Step:            "1",
+					TargetRevisions: []string{"current"},
 				},
+				{
+					Application:     "app2",
+					Message:         "",
+					Status:          v1alpha1.ProgressiveSyncPending,
+					Step:            "1",
+					TargetRevisions: []string{"current"},
+				},
+			}),
+			apps: []v1alpha1.Application{
+				newApp("app1", health.HealthStatusHealthy, v1alpha1.SyncStatusCodeOutOfSync, "current", nil),
 			},
 			appStepMap: map[string]int{
-				"app1": 1,
-				"app2": 0,
+				"app1": 0,
 			},
 			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
 				{
 					Application:     "app1",
-					Message:         "No Application status found, defaulting status to Waiting.",
-					Status:          "Waiting",
+					Message:         "",
+					Status:          v1alpha1.ProgressiveSyncPending,
+					Step:            "1",
+					TargetRevisions: []string{"current"},
+				},
+			},
+		},
+		{
+			name: "application status that is not in steps is updated to -1",
+			appSet: newDefaultAppSet(2, []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:     "app1",
+					Message:         "",
+					Status:          v1alpha1.ProgressiveSyncPending,
+					Step:            "1",
+					TargetRevisions: []string{"current"},
+				},
+				{
+					Application:     "app2",
+					Message:         "",
+					Status:          v1alpha1.ProgressiveSyncPending,
+					Step:            "1",
+					TargetRevisions: []string{"current"},
+				},
+			}),
+			apps: []v1alpha1.Application{
+				newApp("app1", health.HealthStatusHealthy, v1alpha1.SyncStatusCodeOutOfSync, "current", nil),
+				newApp("app2", health.HealthStatusHealthy, v1alpha1.SyncStatusCodeOutOfSync, "current", nil),
+			},
+			appStepMap: map[string]int{
+				"app1": 0,
+				// app2 is removed from step selector
+			},
+			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:     "app1",
+					Message:         "",
+					Status:          v1alpha1.ProgressiveSyncPending,
+					Step:            "1",
+					TargetRevisions: []string{"current"},
+				},
+				{
+					Application:     "app2",
+					Message:         "",
+					Status:          v1alpha1.ProgressiveSyncPending,
+					Step:            "-1",
+					TargetRevisions: []string{"current"},
+				},
+			},
+		},
+		{
+			name: "update the steps of an existing status",
+			appSet: newDefaultAppSet(2, []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:     "app1",
+					Message:         "",
+					Status:          v1alpha1.ProgressiveSyncPending,
+					Step:            "1",
+					TargetRevisions: []string{"current"},
+				},
+			}),
+			apps: []v1alpha1.Application{
+				newApp("app1", health.HealthStatusHealthy, v1alpha1.SyncStatusCodeOutOfSync, "current", nil),
+			},
+			appStepMap: map[string]int{
+				"app1": 1, // 1 is actually steps 2
+			},
+			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:     "app1",
+					Message:         "",
+					Status:          v1alpha1.ProgressiveSyncPending,
 					Step:            "2",
-					TargetRevisions: []string{"Next"},
-				},
-			},
-		},
-		{
-			name: "progresses a pending application with a successful sync triggered by controller to progressing",
-			appSet: v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "name",
-					Namespace: "argocd",
-				},
-				Spec: v1alpha1.ApplicationSetSpec{
-					Strategy: &v1alpha1.ApplicationSetStrategy{
-						Type: "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
-							Steps: []v1alpha1.ApplicationSetRolloutStep{
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-							},
-						},
-					},
-				},
-				Status: v1alpha1.ApplicationSetStatus{
-					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
-						{
-							Application: "app1",
-							LastTransitionTime: &metav1.Time{
-								Time: time.Now().Add(time.Duration(-1) * time.Minute),
-							},
-							Message:         "",
-							Status:          "Pending",
-							Step:            "1",
-							TargetRevisions: []string{"Next"},
-						},
-					},
-				},
-			},
-			apps: []v1alpha1.Application{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "app1",
-					},
-					Status: v1alpha1.ApplicationStatus{
-						Health: v1alpha1.HealthStatus{
-							Status: health.HealthStatusDegraded,
-						},
-						OperationState: &v1alpha1.OperationState{
-							Phase: common.OperationSucceeded,
-							StartedAt: metav1.Time{
-								Time: time.Now(),
-							},
-							Operation: v1alpha1.Operation{
-								InitiatedBy: v1alpha1.OperationInitiator{
-									Username:  "applicationset-controller",
-									Automated: true,
-								},
-							},
-							SyncResult: &v1alpha1.SyncOperationResult{
-								Revision: "Next",
-							},
-						},
-						Sync: v1alpha1.SyncStatus{
-							Status:   v1alpha1.SyncStatusCodeSynced,
-							Revision: "Next",
-						},
-					},
-				},
-			},
-			appStepMap: map[string]int{
-				"app1": 0,
-			},
-			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
-				{
-					Application:     "app1",
-					Message:         "Application resource completed a sync successfully, updating status from Pending to Progressing.",
-					Status:          "Progressing",
-					Step:            "1",
-					TargetRevisions: []string{"Next"},
-				},
-			},
-		},
-		{
-			name: "progresses a pending application with a successful sync trigger by applicationset-controller <1s ago to progressing",
-			appSet: v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "name",
-					Namespace: "argocd",
-				},
-				Spec: v1alpha1.ApplicationSetSpec{
-					Strategy: &v1alpha1.ApplicationSetStrategy{
-						Type: "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
-							Steps: []v1alpha1.ApplicationSetRolloutStep{
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-							},
-						},
-					},
-				},
-				Status: v1alpha1.ApplicationSetStatus{
-					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
-						{
-							Application: "app1",
-							LastTransitionTime: &metav1.Time{
-								Time: time.Now(),
-							},
-							Message:         "",
-							Status:          "Pending",
-							Step:            "1",
-							TargetRevisions: []string{"Next"},
-						},
-					},
-				},
-			},
-			apps: []v1alpha1.Application{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "app1",
-					},
-					Status: v1alpha1.ApplicationStatus{
-						Health: v1alpha1.HealthStatus{
-							Status: health.HealthStatusDegraded,
-						},
-						OperationState: &v1alpha1.OperationState{
-							Phase: common.OperationSucceeded,
-							StartedAt: metav1.Time{
-								Time: time.Now().Add(time.Duration(-1) * time.Second),
-							},
-							Operation: v1alpha1.Operation{
-								InitiatedBy: v1alpha1.OperationInitiator{
-									Username:  "applicationset-controller",
-									Automated: true,
-								},
-							},
-							SyncResult: &v1alpha1.SyncOperationResult{
-								Revision: "Next",
-							},
-						},
-						Sync: v1alpha1.SyncStatus{
-							Status:   v1alpha1.SyncStatusCodeSynced,
-							Revision: "Next",
-						},
-					},
-				},
-			},
-			appStepMap: map[string]int{
-				"app1": 0,
-			},
-			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
-				{
-					Application:     "app1",
-					Message:         "Application resource completed a sync successfully, updating status from Pending to Progressing.",
-					Status:          "Progressing",
-					Step:            "1",
-					TargetRevisions: []string{"Next"},
-				},
-			},
-		},
-		{
-			name: "removes the appStatus for applications that no longer exist",
-			appSet: v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "name",
-					Namespace: "argocd",
-				},
-				Spec: v1alpha1.ApplicationSetSpec{
-					Strategy: &v1alpha1.ApplicationSetStrategy{
-						Type: "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
-							Steps: []v1alpha1.ApplicationSetRolloutStep{
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-							},
-						},
-					},
-				},
-				Status: v1alpha1.ApplicationSetStatus{
-					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
-						{
-							Application:     "app1",
-							Message:         "Application has pending changes, setting status to Waiting.",
-							Status:          "Waiting",
-							Step:            "1",
-							TargetRevisions: []string{"Current"},
-						},
-						{
-							Application:     "app2",
-							Message:         "Application has pending changes, setting status to Waiting.",
-							Status:          "Waiting",
-							Step:            "1",
-							TargetRevisions: []string{"Current"},
-						},
-					},
-				},
-			},
-			apps: []v1alpha1.Application{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "app1",
-					},
-					Status: v1alpha1.ApplicationStatus{
-						Health: v1alpha1.HealthStatus{
-							Status: health.HealthStatusHealthy,
-						},
-						OperationState: &v1alpha1.OperationState{
-							Phase: common.OperationSucceeded,
-						},
-						Sync: v1alpha1.SyncStatus{
-							Status:   v1alpha1.SyncStatusCodeSynced,
-							Revision: "Current",
-						},
-					},
-				},
-			},
-			appStepMap: map[string]int{
-				"app1": 0,
-			},
-			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
-				{
-					Application:     "app1",
-					Message:         "Application resource is already Healthy, updating status from Waiting to Healthy.",
-					Status:          "Healthy",
-					Step:            "1",
-					TargetRevisions: []string{"Current"},
-				},
-			},
-		},
-		{
-			name: "progresses a pending synced application with an old revision to progressing with the Current one",
-			appSet: v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "name",
-					Namespace: "argocd",
-				},
-				Spec: v1alpha1.ApplicationSetSpec{
-					Strategy: &v1alpha1.ApplicationSetStrategy{
-						Type: "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
-							Steps: []v1alpha1.ApplicationSetRolloutStep{
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-							},
-						},
-					},
-				},
-				Status: v1alpha1.ApplicationSetStatus{
-					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
-						{
-							Application:     "app1",
-							Message:         "",
-							Status:          "Pending",
-							Step:            "1",
-							TargetRevisions: []string{"Old"},
-						},
-					},
-				},
-			},
-			apps: []v1alpha1.Application{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "app1",
-					},
-					Status: v1alpha1.ApplicationStatus{
-						Health: v1alpha1.HealthStatus{
-							Status: health.HealthStatusHealthy,
-						},
-						OperationState: &v1alpha1.OperationState{
-							Phase: common.OperationSucceeded,
-							SyncResult: &v1alpha1.SyncOperationResult{
-								Revision: "Current",
-							},
-						},
-						Sync: v1alpha1.SyncStatus{
-							Status:    v1alpha1.SyncStatusCodeSynced,
-							Revisions: []string{"Current"},
-						},
-					},
-				},
-			},
-			appStepMap: map[string]int{
-				"app1": 0,
-			},
-			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
-				{
-					Application:     "app1",
-					Message:         "Application resource is already Healthy, updating status from Waiting to Healthy.",
-					Status:          "Healthy",
-					Step:            "1",
-					TargetRevisions: []string{"Current"},
+					TargetRevisions: []string{"current"},
 				},
 			},
 		},
@@ -5352,6 +5200,9 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 			// opt out of testing the LastTransitionTime is accurate
 			for i := range appStatuses {
 				appStatuses[i].LastTransitionTime = nil
+			}
+			for i := range cc.expectedAppStatus {
+				cc.expectedAppStatus[i].LastTransitionTime = nil
 			}
 
 			require.NoError(t, err, "expected no errors, but errors occurred")
@@ -5450,7 +5301,6 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 			},
 			appSyncMap: map[string]bool{
 				"app1": true,
-				"app2": false,
 			},
 			appStepMap: map[string]int{
 				"app1": 0,
@@ -5484,9 +5334,10 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
 						{
 							Application:     "app1",
-							Message:         "Application is out of date with the current AppSet generation, setting status to Waiting.",
-							Status:          "Waiting",
-							TargetRevisions: []string{"Next"},
+							Message:         "Application is out of date with the current AppSet generation, setting status to Waiting",
+							Status:          v1alpha1.ProgressiveSyncWaiting,
+							Step:            "1",
+							TargetRevisions: []string{"next"},
 						},
 					},
 				},
@@ -5501,10 +5352,10 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 				{
 					Application:        "app1",
 					LastTransitionTime: nil,
-					Message:            "Application moved to Pending status, watching for the Application resource to start Progressing.",
-					Status:             "Pending",
+					Message:            "Application moved to Pending status, watching for the Application resource to start Progressing",
+					Status:             v1alpha1.ProgressiveSyncPending,
 					Step:               "1",
-					TargetRevisions:    []string{"Next"},
+					TargetRevisions:    []string{"next"},
 				},
 			},
 		},
@@ -5534,8 +5385,8 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
 						{
 							Application: "app1",
-							Message:     "Application is out of date with the current AppSet generation, setting status to Waiting.",
-							Status:      "Waiting",
+							Message:     "Application is out of date with the current AppSet generation, setting status to Waiting",
+							Status:      v1alpha1.ProgressiveSyncWaiting,
 							Step:        "1",
 						},
 					},
@@ -5551,8 +5402,8 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 				{
 					Application:        "app1",
 					LastTransitionTime: nil,
-					Message:            "Application is out of date with the current AppSet generation, setting status to Waiting.",
-					Status:             "Waiting",
+					Message:            "Application is out of date with the current AppSet generation, setting status to Waiting",
+					Status:             v1alpha1.ProgressiveSyncWaiting,
 					Step:               "1",
 				},
 			},
@@ -5583,8 +5434,8 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
 						{
 							Application: "app1",
-							Message:     "Application Pending status timed out while waiting to become Progressing, reset status to Healthy.",
-							Status:      "Healthy",
+							Message:     "Application Pending status timed out while waiting to become Progressing, reset status to Healthy",
+							Status:      v1alpha1.ProgressiveSyncHealthy,
 							Step:        "1",
 						},
 					},
@@ -5600,8 +5451,8 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 				{
 					Application:        "app1",
 					LastTransitionTime: nil,
-					Message:            "Application Pending status timed out while waiting to become Progressing, reset status to Healthy.",
-					Status:             "Healthy",
+					Message:            "Application Pending status timed out while waiting to become Progressing, reset status to Healthy",
+					Status:             v1alpha1.ProgressiveSyncHealthy,
 					Step:               "1",
 				},
 			},
@@ -5636,26 +5487,26 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
 						{
 							Application: "app1",
-							Message:     "Application resource became Progressing, updating status from Pending to Progressing.",
-							Status:      "Progressing",
+							Message:     "Application resource became Progressing, updating status from Pending to Progressing",
+							Status:      v1alpha1.ProgressiveSyncProgressing,
 							Step:        "1",
 						},
 						{
 							Application: "app2",
-							Message:     "Application is out of date with the current AppSet generation, setting status to Waiting.",
-							Status:      "Waiting",
+							Message:     "Application is out of date with the current AppSet generation, setting status to Waiting",
+							Status:      v1alpha1.ProgressiveSyncWaiting,
 							Step:        "1",
 						},
 						{
 							Application: "app3",
-							Message:     "Application is out of date with the current AppSet generation, setting status to Waiting.",
-							Status:      "Waiting",
+							Message:     "Application is out of date with the current AppSet generation, setting status to Waiting",
+							Status:      v1alpha1.ProgressiveSyncWaiting,
 							Step:        "1",
 						},
 						{
 							Application: "app4",
-							Message:     "Application moved to Pending status, watching for the Application resource to start Progressing.",
-							Status:      "Pending",
+							Message:     "Application moved to Pending status, watching for the Application resource to start Progressing",
+							Status:      v1alpha1.ProgressiveSyncPending,
 							Step:        "1",
 						},
 					},
@@ -5719,29 +5570,29 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 				{
 					Application:        "app1",
 					LastTransitionTime: nil,
-					Message:            "Application resource became Progressing, updating status from Pending to Progressing.",
-					Status:             "Progressing",
+					Message:            "Application resource became Progressing, updating status from Pending to Progressing",
+					Status:             v1alpha1.ProgressiveSyncProgressing,
 					Step:               "1",
 				},
 				{
 					Application:        "app2",
 					LastTransitionTime: nil,
-					Message:            "Application moved to Pending status, watching for the Application resource to start Progressing.",
-					Status:             "Pending",
+					Message:            "Application moved to Pending status, watching for the Application resource to start Progressing",
+					Status:             v1alpha1.ProgressiveSyncPending,
 					Step:               "1",
 				},
 				{
 					Application:        "app3",
 					LastTransitionTime: nil,
-					Message:            "Application is out of date with the current AppSet generation, setting status to Waiting.",
-					Status:             "Waiting",
+					Message:            "Application is out of date with the current AppSet generation, setting status to Waiting",
+					Status:             v1alpha1.ProgressiveSyncWaiting,
 					Step:               "1",
 				},
 				{
 					Application:        "app4",
 					LastTransitionTime: nil,
-					Message:            "Application moved to Pending status, watching for the Application resource to start Progressing.",
-					Status:             "Pending",
+					Message:            "Application moved to Pending status, watching for the Application resource to start Progressing",
+					Status:             v1alpha1.ProgressiveSyncPending,
 					Step:               "1",
 				},
 			},
@@ -5776,20 +5627,20 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
 						{
 							Application: "app1",
-							Message:     "Application is out of date with the current AppSet generation, setting status to Waiting.",
-							Status:      "Waiting",
+							Message:     "Application is out of date with the current AppSet generation, setting status to Waiting",
+							Status:      v1alpha1.ProgressiveSyncWaiting,
 							Step:        "1",
 						},
 						{
 							Application: "app2",
-							Message:     "Application is out of date with the current AppSet generation, setting status to Waiting.",
-							Status:      "Waiting",
+							Message:     "Application is out of date with the current AppSet generation, setting status to Waiting",
+							Status:      v1alpha1.ProgressiveSyncWaiting,
 							Step:        "1",
 						},
 						{
 							Application: "app3",
-							Message:     "Application is out of date with the current AppSet generation, setting status to Waiting.",
-							Status:      "Waiting",
+							Message:     "Application is out of date with the current AppSet generation, setting status to Waiting",
+							Status:      v1alpha1.ProgressiveSyncWaiting,
 							Step:        "1",
 						},
 					},
@@ -5809,22 +5660,22 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 				{
 					Application:        "app1",
 					LastTransitionTime: nil,
-					Message:            "Application moved to Pending status, watching for the Application resource to start Progressing.",
-					Status:             "Pending",
+					Message:            "Application moved to Pending status, watching for the Application resource to start Progressing",
+					Status:             v1alpha1.ProgressiveSyncPending,
 					Step:               "1",
 				},
 				{
 					Application:        "app2",
 					LastTransitionTime: nil,
-					Message:            "Application is out of date with the current AppSet generation, setting status to Waiting.",
-					Status:             "Waiting",
+					Message:            "Application is out of date with the current AppSet generation, setting status to Waiting",
+					Status:             v1alpha1.ProgressiveSyncWaiting,
 					Step:               "1",
 				},
 				{
 					Application:        "app3",
 					LastTransitionTime: nil,
-					Message:            "Application is out of date with the current AppSet generation, setting status to Waiting.",
-					Status:             "Waiting",
+					Message:            "Application is out of date with the current AppSet generation, setting status to Waiting",
+					Status:             v1alpha1.ProgressiveSyncWaiting,
 					Step:               "1",
 				},
 			},
@@ -5859,20 +5710,20 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
 						{
 							Application: "app1",
-							Message:     "Application is out of date with the current AppSet generation, setting status to Waiting.",
-							Status:      "Waiting",
+							Message:     "Application is out of date with the current AppSet generation, setting status to Waiting",
+							Status:      v1alpha1.ProgressiveSyncWaiting,
 							Step:        "1",
 						},
 						{
 							Application: "app2",
-							Message:     "Application is out of date with the current AppSet generation, setting status to Waiting.",
-							Status:      "Waiting",
+							Message:     "Application is out of date with the current AppSet generation, setting status to Waiting",
+							Status:      v1alpha1.ProgressiveSyncWaiting,
 							Step:        "1",
 						},
 						{
 							Application: "app3",
-							Message:     "Application is out of date with the current AppSet generation, setting status to Waiting.",
-							Status:      "Waiting",
+							Message:     "Application is out of date with the current AppSet generation, setting status to Waiting",
+							Status:      v1alpha1.ProgressiveSyncWaiting,
 							Step:        "1",
 						},
 					},
@@ -5892,22 +5743,22 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 				{
 					Application:        "app1",
 					LastTransitionTime: nil,
-					Message:            "Application is out of date with the current AppSet generation, setting status to Waiting.",
-					Status:             "Waiting",
+					Message:            "Application is out of date with the current AppSet generation, setting status to Waiting",
+					Status:             v1alpha1.ProgressiveSyncWaiting,
 					Step:               "1",
 				},
 				{
 					Application:        "app2",
 					LastTransitionTime: nil,
-					Message:            "Application is out of date with the current AppSet generation, setting status to Waiting.",
-					Status:             "Waiting",
+					Message:            "Application is out of date with the current AppSet generation, setting status to Waiting",
+					Status:             v1alpha1.ProgressiveSyncWaiting,
 					Step:               "1",
 				},
 				{
 					Application:        "app3",
 					LastTransitionTime: nil,
-					Message:            "Application is out of date with the current AppSet generation, setting status to Waiting.",
-					Status:             "Waiting",
+					Message:            "Application is out of date with the current AppSet generation, setting status to Waiting",
+					Status:             v1alpha1.ProgressiveSyncWaiting,
 					Step:               "1",
 				},
 			},
@@ -5942,20 +5793,20 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
 						{
 							Application: "app1",
-							Message:     "Application is out of date with the current AppSet generation, setting status to Waiting.",
-							Status:      "Waiting",
+							Message:     "Application is out of date with the current AppSet generation, setting status to Waiting",
+							Status:      v1alpha1.ProgressiveSyncWaiting,
 							Step:        "1",
 						},
 						{
 							Application: "app2",
-							Message:     "Application is out of date with the current AppSet generation, setting status to Waiting.",
-							Status:      "Waiting",
+							Message:     "Application is out of date with the current AppSet generation, setting status to Waiting",
+							Status:      v1alpha1.ProgressiveSyncWaiting,
 							Step:        "1",
 						},
 						{
 							Application: "app3",
-							Message:     "Application is out of date with the current AppSet generation, setting status to Waiting.",
-							Status:      "Waiting",
+							Message:     "Application is out of date with the current AppSet generation, setting status to Waiting",
+							Status:      v1alpha1.ProgressiveSyncWaiting,
 							Step:        "1",
 						},
 					},
@@ -5975,22 +5826,22 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 				{
 					Application:        "app1",
 					LastTransitionTime: nil,
-					Message:            "Application moved to Pending status, watching for the Application resource to start Progressing.",
-					Status:             "Pending",
+					Message:            "Application moved to Pending status, watching for the Application resource to start Progressing",
+					Status:             v1alpha1.ProgressiveSyncPending,
 					Step:               "1",
 				},
 				{
 					Application:        "app2",
 					LastTransitionTime: nil,
-					Message:            "Application moved to Pending status, watching for the Application resource to start Progressing.",
-					Status:             "Pending",
+					Message:            "Application moved to Pending status, watching for the Application resource to start Progressing",
+					Status:             v1alpha1.ProgressiveSyncPending,
 					Step:               "1",
 				},
 				{
 					Application:        "app3",
 					LastTransitionTime: nil,
-					Message:            "Application moved to Pending status, watching for the Application resource to start Progressing.",
-					Status:             "Pending",
+					Message:            "Application moved to Pending status, watching for the Application resource to start Progressing",
+					Status:             v1alpha1.ProgressiveSyncPending,
 					Step:               "1",
 				},
 			},
@@ -6025,20 +5876,20 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
 						{
 							Application: "app1",
-							Message:     "Application is out of date with the current AppSet generation, setting status to Waiting.",
-							Status:      "Waiting",
+							Message:     "Application is out of date with the current AppSet generation, setting status to Waiting",
+							Status:      v1alpha1.ProgressiveSyncWaiting,
 							Step:        "1",
 						},
 						{
 							Application: "app2",
-							Message:     "Application is out of date with the current AppSet generation, setting status to Waiting.",
-							Status:      "Waiting",
+							Message:     "Application is out of date with the current AppSet generation, setting status to Waiting",
+							Status:      v1alpha1.ProgressiveSyncWaiting,
 							Step:        "1",
 						},
 						{
 							Application: "app3",
-							Message:     "Application is out of date with the current AppSet generation, setting status to Waiting.",
-							Status:      "Waiting",
+							Message:     "Application is out of date with the current AppSet generation, setting status to Waiting",
+							Status:      v1alpha1.ProgressiveSyncWaiting,
 							Step:        "1",
 						},
 					},
@@ -6058,22 +5909,22 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 				{
 					Application:        "app1",
 					LastTransitionTime: nil,
-					Message:            "Application moved to Pending status, watching for the Application resource to start Progressing.",
-					Status:             "Pending",
+					Message:            "Application moved to Pending status, watching for the Application resource to start Progressing",
+					Status:             v1alpha1.ProgressiveSyncPending,
 					Step:               "1",
 				},
 				{
 					Application:        "app2",
 					LastTransitionTime: nil,
-					Message:            "Application is out of date with the current AppSet generation, setting status to Waiting.",
-					Status:             "Waiting",
+					Message:            "Application is out of date with the current AppSet generation, setting status to Waiting",
+					Status:             v1alpha1.ProgressiveSyncWaiting,
 					Step:               "1",
 				},
 				{
 					Application:        "app3",
 					LastTransitionTime: nil,
-					Message:            "Application is out of date with the current AppSet generation, setting status to Waiting.",
-					Status:             "Waiting",
+					Message:            "Application is out of date with the current AppSet generation, setting status to Waiting",
+					Status:             v1alpha1.ProgressiveSyncWaiting,
 					Step:               "1",
 				},
 			},
@@ -6116,10 +5967,11 @@ func TestUpdateResourceStatus(t *testing.T) {
 	require.NoError(t, err)
 
 	for _, cc := range []struct {
-		name              string
-		appSet            v1alpha1.ApplicationSet
-		apps              []v1alpha1.Application
-		expectedResources []v1alpha1.ResourceStatus
+		name                    string
+		appSet                  v1alpha1.ApplicationSet
+		apps                    []v1alpha1.Application
+		expectedResources       []v1alpha1.ResourceStatus
+		maxResourcesStatusCount int
 	}{
 		{
 			name: "handles an empty application list",
@@ -6155,9 +6007,8 @@ func TestUpdateResourceStatus(t *testing.T) {
 						Sync: v1alpha1.SyncStatus{
 							Status: v1alpha1.SyncStatusCodeSynced,
 						},
-						Health: v1alpha1.HealthStatus{
-							Status:  health.HealthStatusHealthy,
-							Message: "OK",
+						Health: v1alpha1.AppHealthStatus{
+							Status: health.HealthStatusHealthy,
 						},
 					},
 				},
@@ -6167,8 +6018,7 @@ func TestUpdateResourceStatus(t *testing.T) {
 					Name:   "app1",
 					Status: v1alpha1.SyncStatusCodeSynced,
 					Health: &v1alpha1.HealthStatus{
-						Status:  health.HealthStatusHealthy,
-						Message: "OK",
+						Status: health.HealthStatusHealthy,
 					},
 				},
 			},
@@ -6186,8 +6036,7 @@ func TestUpdateResourceStatus(t *testing.T) {
 							Name:   "app1",
 							Status: v1alpha1.SyncStatusCodeSynced,
 							Health: &v1alpha1.HealthStatus{
-								Status:  health.HealthStatusHealthy,
-								Message: "OK",
+								Status: health.HealthStatusHealthy,
 							},
 						},
 					},
@@ -6202,9 +6051,8 @@ func TestUpdateResourceStatus(t *testing.T) {
 						Sync: v1alpha1.SyncStatus{
 							Status: v1alpha1.SyncStatusCodeSynced,
 						},
-						Health: v1alpha1.HealthStatus{
-							Status:  health.HealthStatusHealthy,
-							Message: "OK",
+						Health: v1alpha1.AppHealthStatus{
+							Status: health.HealthStatusHealthy,
 						},
 					},
 				},
@@ -6214,8 +6062,7 @@ func TestUpdateResourceStatus(t *testing.T) {
 					Name:   "app1",
 					Status: v1alpha1.SyncStatusCodeSynced,
 					Health: &v1alpha1.HealthStatus{
-						Status:  health.HealthStatusHealthy,
-						Message: "OK",
+						Status: health.HealthStatusHealthy,
 					},
 				},
 			},
@@ -6234,7 +6081,7 @@ func TestUpdateResourceStatus(t *testing.T) {
 							Status: v1alpha1.SyncStatusCodeOutOfSync,
 							Health: &v1alpha1.HealthStatus{
 								Status:  health.HealthStatusProgressing,
-								Message: "Progressing",
+								Message: "this is progressing",
 							},
 						},
 					},
@@ -6249,9 +6096,8 @@ func TestUpdateResourceStatus(t *testing.T) {
 						Sync: v1alpha1.SyncStatus{
 							Status: v1alpha1.SyncStatusCodeSynced,
 						},
-						Health: v1alpha1.HealthStatus{
-							Status:  health.HealthStatusHealthy,
-							Message: "OK",
+						Health: v1alpha1.AppHealthStatus{
+							Status: health.HealthStatusHealthy,
 						},
 					},
 				},
@@ -6261,8 +6107,7 @@ func TestUpdateResourceStatus(t *testing.T) {
 					Name:   "app1",
 					Status: v1alpha1.SyncStatusCodeSynced,
 					Health: &v1alpha1.HealthStatus{
-						Status:  health.HealthStatusHealthy,
-						Message: "OK",
+						Status: health.HealthStatusHealthy,
 					},
 				},
 			},
@@ -6290,6 +6135,73 @@ func TestUpdateResourceStatus(t *testing.T) {
 			apps:              []v1alpha1.Application{},
 			expectedResources: nil,
 		},
+		{
+			name: "truncates resources status list to",
+			appSet: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Status: v1alpha1.ApplicationSetStatus{
+					Resources: []v1alpha1.ResourceStatus{
+						{
+							Name:   "app1",
+							Status: v1alpha1.SyncStatusCodeOutOfSync,
+							Health: &v1alpha1.HealthStatus{
+								Status:  health.HealthStatusProgressing,
+								Message: "this is progressing",
+							},
+						},
+						{
+							Name:   "app2",
+							Status: v1alpha1.SyncStatusCodeOutOfSync,
+							Health: &v1alpha1.HealthStatus{
+								Status:  health.HealthStatusProgressing,
+								Message: "this is progressing",
+							},
+						},
+					},
+				},
+			},
+			apps: []v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app1",
+					},
+					Status: v1alpha1.ApplicationStatus{
+						Sync: v1alpha1.SyncStatus{
+							Status: v1alpha1.SyncStatusCodeSynced,
+						},
+						Health: v1alpha1.AppHealthStatus{
+							Status: health.HealthStatusHealthy,
+						},
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app2",
+					},
+					Status: v1alpha1.ApplicationStatus{
+						Sync: v1alpha1.SyncStatus{
+							Status: v1alpha1.SyncStatusCodeSynced,
+						},
+						Health: v1alpha1.AppHealthStatus{
+							Status: health.HealthStatusHealthy,
+						},
+					},
+				},
+			},
+			expectedResources: []v1alpha1.ResourceStatus{
+				{
+					Name:   "app1",
+					Status: v1alpha1.SyncStatusCodeSynced,
+					Health: &v1alpha1.HealthStatus{
+						Status: health.HealthStatusHealthy,
+					},
+				},
+			},
+			maxResourcesStatusCount: 1,
+		},
 	} {
 		t.Run(cc.name, func(t *testing.T) {
 			kubeclientset := kubefake.NewSimpleClientset([]runtime.Object{}...)
@@ -6300,13 +6212,14 @@ func TestUpdateResourceStatus(t *testing.T) {
 			argodb := db.NewDB("argocd", settings.NewSettingsManager(t.Context(), kubeclientset, "argocd"), kubeclientset)
 
 			r := ApplicationSetReconciler{
-				Client:        client,
-				Scheme:        scheme,
-				Recorder:      record.NewFakeRecorder(1),
-				Generators:    map[string]generators.Generator{},
-				ArgoDB:        argodb,
-				KubeClientset: kubeclientset,
-				Metrics:       metrics,
+				Client:                  client,
+				Scheme:                  scheme,
+				Recorder:                record.NewFakeRecorder(1),
+				Generators:              map[string]generators.Generator{},
+				ArgoDB:                  argodb,
+				KubeClientset:           kubeclientset,
+				Metrics:                 metrics,
+				MaxResourcesStatusCount: cc.maxResourcesStatusCount,
 			}
 
 			err := r.updateResourcesStatus(t.Context(), log.NewEntry(log.StandardLogger()), &cc.appSet, cc.apps)
@@ -6324,8 +6237,7 @@ func generateNAppResourceStatuses(n int) []v1alpha1.ResourceStatus {
 			Name:   "app" + strconv.Itoa(i),
 			Status: v1alpha1.SyncStatusCodeSynced,
 			Health: &v1alpha1.HealthStatus{
-				Status:  health.HealthStatusHealthy,
-				Message: "OK",
+				Status: health.HealthStatusHealthy,
 			},
 		},
 		)
@@ -6344,9 +6256,8 @@ func generateNHealthyApps(n int) []v1alpha1.Application {
 				Sync: v1alpha1.SyncStatus{
 					Status: v1alpha1.SyncStatusCodeSynced,
 				},
-				Health: v1alpha1.HealthStatus{
-					Status:  health.HealthStatusHealthy,
-					Message: "OK",
+				Health: v1alpha1.AppHealthStatus{
+					Status: health.HealthStatusHealthy,
 				},
 			},
 		})
@@ -6450,13 +6361,13 @@ func TestApplicationOwnsHandler(t *testing.T) {
 		{name: "ApplicationHealthStatusDiff", args: args{
 			e: event.UpdateEvent{
 				ObjectOld: &v1alpha1.Application{Status: v1alpha1.ApplicationStatus{
-					Health: v1alpha1.HealthStatus{
-						Status: "Unknown",
+					Health: v1alpha1.AppHealthStatus{
+						Status: health.HealthStatusUnknown,
 					},
 				}},
 				ObjectNew: &v1alpha1.Application{Status: v1alpha1.ApplicationStatus{
-					Health: v1alpha1.HealthStatus{
-						Status: "Healthy",
+					Health: v1alpha1.AppHealthStatus{
+						Status: health.HealthStatusHealthy,
 					},
 				}},
 			},
@@ -6466,12 +6377,12 @@ func TestApplicationOwnsHandler(t *testing.T) {
 			e: event.UpdateEvent{
 				ObjectOld: &v1alpha1.Application{Status: v1alpha1.ApplicationStatus{
 					Sync: v1alpha1.SyncStatus{
-						Status: "OutOfSync",
+						Status: v1alpha1.SyncStatusCodeOutOfSync,
 					},
 				}},
 				ObjectNew: &v1alpha1.Application{Status: v1alpha1.ApplicationStatus{
 					Sync: v1alpha1.SyncStatus{
-						Status: "Synced",
+						Status: v1alpha1.SyncStatusCodeSynced,
 					},
 				}},
 			},
@@ -6650,7 +6561,7 @@ func TestMigrateStatus(t *testing.T) {
 				Status: v1alpha1.ApplicationSetStatus{
 					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
 						{
-							TargetRevisions: []string{"Current"},
+							TargetRevisions: []string{"current"},
 						},
 					},
 				},
@@ -6658,7 +6569,7 @@ func TestMigrateStatus(t *testing.T) {
 			expectedStatus: v1alpha1.ApplicationSetStatus{
 				ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
 					{
-						TargetRevisions: []string{"Current"},
+						TargetRevisions: []string{"current"},
 					},
 				},
 			},
@@ -6678,8 +6589,6 @@ func TestMigrateStatus(t *testing.T) {
 }
 
 func TestApplicationSetOwnsHandlerUpdate(t *testing.T) {
-	ownsHandler := getApplicationSetOwnsHandler()
-
 	buildAppSet := func(annotations map[string]string) *v1alpha1.ApplicationSet {
 		return &v1alpha1.ApplicationSet{
 			ObjectMeta: metav1.ObjectMeta{
@@ -6689,10 +6598,11 @@ func TestApplicationSetOwnsHandlerUpdate(t *testing.T) {
 	}
 
 	tests := []struct {
-		name      string
-		appSetOld crtclient.Object
-		appSetNew crtclient.Object
-		want      bool
+		name                   string
+		appSetOld              crtclient.Object
+		appSetNew              crtclient.Object
+		enableProgressiveSyncs bool
+		want                   bool
 	}{
 		{
 			name: "Different Spec",
@@ -6710,13 +6620,15 @@ func TestApplicationSetOwnsHandlerUpdate(t *testing.T) {
 					},
 				},
 			},
-			want: true,
+			enableProgressiveSyncs: false,
+			want:                   true,
 		},
 		{
-			name:      "Different Annotations",
-			appSetOld: buildAppSet(map[string]string{"key1": "value1"}),
-			appSetNew: buildAppSet(map[string]string{"key1": "value2"}),
-			want:      true,
+			name:                   "Different Annotations",
+			appSetOld:              buildAppSet(map[string]string{"key1": "value1"}),
+			appSetNew:              buildAppSet(map[string]string{"key1": "value2"}),
+			enableProgressiveSyncs: false,
+			want:                   true,
 		},
 		{
 			name: "Different Labels",
@@ -6730,7 +6642,8 @@ func TestApplicationSetOwnsHandlerUpdate(t *testing.T) {
 					Labels: map[string]string{"key1": "value2"},
 				},
 			},
-			want: true,
+			enableProgressiveSyncs: false,
+			want:                   true,
 		},
 		{
 			name: "Different Finalizers",
@@ -6744,7 +6657,8 @@ func TestApplicationSetOwnsHandlerUpdate(t *testing.T) {
 					Finalizers: []string{"finalizer2"},
 				},
 			},
-			want: true,
+			enableProgressiveSyncs: false,
+			want:                   true,
 		},
 		{
 			name: "No Changes",
@@ -6772,15 +6686,17 @@ func TestApplicationSetOwnsHandlerUpdate(t *testing.T) {
 					Finalizers:  []string{"finalizer1"},
 				},
 			},
-			want: false,
+			enableProgressiveSyncs: false,
+			want:                   false,
 		},
 		{
 			name: "annotation removed",
 			appSetOld: buildAppSet(map[string]string{
 				argocommon.AnnotationApplicationSetRefresh: "true",
 			}),
-			appSetNew: buildAppSet(map[string]string{}),
-			want:      false,
+			appSetNew:              buildAppSet(map[string]string{}),
+			enableProgressiveSyncs: false,
+			want:                   false,
 		},
 		{
 			name: "annotation not removed",
@@ -6790,7 +6706,8 @@ func TestApplicationSetOwnsHandlerUpdate(t *testing.T) {
 			appSetNew: buildAppSet(map[string]string{
 				argocommon.AnnotationApplicationSetRefresh: "true",
 			}),
-			want: false,
+			enableProgressiveSyncs: false,
+			want:                   false,
 		},
 		{
 			name:      "annotation added",
@@ -6798,35 +6715,61 @@ func TestApplicationSetOwnsHandlerUpdate(t *testing.T) {
 			appSetNew: buildAppSet(map[string]string{
 				argocommon.AnnotationApplicationSetRefresh: "true",
 			}),
-			want: true,
+			enableProgressiveSyncs: false,
+			want:                   true,
 		},
 		{
-			name:      "old object is not an appset",
-			appSetOld: &v1alpha1.Application{},
-			appSetNew: buildAppSet(map[string]string{}),
-			want:      false,
+			name:                   "old object is not an appset",
+			appSetOld:              &v1alpha1.Application{},
+			appSetNew:              buildAppSet(map[string]string{}),
+			enableProgressiveSyncs: false,
+			want:                   false,
 		},
 		{
-			name:      "new object is not an appset",
+			name:                   "new object is not an appset",
+			appSetOld:              buildAppSet(map[string]string{}),
+			appSetNew:              &v1alpha1.Application{},
+			enableProgressiveSyncs: false,
+			want:                   false,
+		},
+		{
+			name:      "deletionTimestamp present when progressive sync enabled",
 			appSetOld: buildAppSet(map[string]string{}),
-			appSetNew: &v1alpha1.Application{},
-			want:      false,
+			appSetNew: &v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					DeletionTimestamp: &metav1.Time{Time: time.Now()},
+				},
+			},
+			enableProgressiveSyncs: true,
+			want:                   true,
+		},
+		{
+			name:      "deletionTimestamp present when progressive sync disabled",
+			appSetOld: buildAppSet(map[string]string{}),
+			appSetNew: &v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					DeletionTimestamp: &metav1.Time{Time: time.Now()},
+				},
+			},
+			enableProgressiveSyncs: false,
+			want:                   true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			ownsHandler := getApplicationSetOwnsHandler(tt.enableProgressiveSyncs)
 			requeue := ownsHandler.UpdateFunc(event.UpdateEvent{
 				ObjectOld: tt.appSetOld,
 				ObjectNew: tt.appSetNew,
 			})
-			assert.Equalf(t, tt.want, requeue, "ownsHandler.UpdateFunc(%v, %v)", tt.appSetOld, tt.appSetNew)
+			assert.Equalf(t, tt.want, requeue, "ownsHandler.UpdateFunc(%v, %v, %t)", tt.appSetOld, tt.appSetNew, tt.enableProgressiveSyncs)
 		})
 	}
 }
 
 func TestApplicationSetOwnsHandlerGeneric(t *testing.T) {
-	ownsHandler := getApplicationSetOwnsHandler()
+	ownsHandler := getApplicationSetOwnsHandler(false)
 	tests := []struct {
 		name string
 		obj  crtclient.Object
@@ -6855,7 +6798,7 @@ func TestApplicationSetOwnsHandlerGeneric(t *testing.T) {
 }
 
 func TestApplicationSetOwnsHandlerCreate(t *testing.T) {
-	ownsHandler := getApplicationSetOwnsHandler()
+	ownsHandler := getApplicationSetOwnsHandler(false)
 	tests := []struct {
 		name string
 		obj  crtclient.Object
@@ -6884,7 +6827,7 @@ func TestApplicationSetOwnsHandlerCreate(t *testing.T) {
 }
 
 func TestApplicationSetOwnsHandlerDelete(t *testing.T) {
-	ownsHandler := getApplicationSetOwnsHandler()
+	ownsHandler := getApplicationSetOwnsHandler(false)
 	tests := []struct {
 		name string
 		obj  crtclient.Object
@@ -6914,19 +6857,85 @@ func TestApplicationSetOwnsHandlerDelete(t *testing.T) {
 
 func TestShouldRequeueForApplicationSet(t *testing.T) {
 	type args struct {
-		appSetOld *v1alpha1.ApplicationSet
-		appSetNew *v1alpha1.ApplicationSet
+		appSetOld              *v1alpha1.ApplicationSet
+		appSetNew              *v1alpha1.ApplicationSet
+		enableProgressiveSyncs bool
 	}
 	tests := []struct {
 		name string
 		args args
 		want bool
 	}{
-		{name: "NilAppSet", args: args{appSetNew: &v1alpha1.ApplicationSet{}, appSetOld: nil}, want: false},
+		{
+			name: "NilAppSet",
+			args: args{
+				appSetNew:              &v1alpha1.ApplicationSet{},
+				appSetOld:              nil,
+				enableProgressiveSyncs: false,
+			},
+			want: false,
+		},
+		{
+			name: "ApplicationSetApplicationStatusChanged",
+			args: args{
+				appSetOld: &v1alpha1.ApplicationSet{
+					Status: v1alpha1.ApplicationSetStatus{
+						ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
+							{
+								Application: "app1",
+								Status:      v1alpha1.ProgressiveSyncHealthy,
+							},
+						},
+					},
+				},
+				appSetNew: &v1alpha1.ApplicationSet{
+					Status: v1alpha1.ApplicationSetStatus{
+						ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
+							{
+								Application: "app1",
+								Status:      v1alpha1.ProgressiveSyncWaiting,
+							},
+						},
+					},
+				},
+				enableProgressiveSyncs: true,
+			},
+			want: true,
+		},
+		{
+			name: "ApplicationSetWithDeletionTimestamp",
+			args: args{
+				appSetOld: &v1alpha1.ApplicationSet{
+					Status: v1alpha1.ApplicationSetStatus{
+						ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
+							{
+								Application: "app1",
+								Status:      v1alpha1.ProgressiveSyncHealthy,
+							},
+						},
+					},
+				},
+				appSetNew: &v1alpha1.ApplicationSet{
+					ObjectMeta: metav1.ObjectMeta{
+						DeletionTimestamp: &metav1.Time{Time: time.Now()},
+					},
+					Status: v1alpha1.ApplicationSetStatus{
+						ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
+							{
+								Application: "app1",
+								Status:      v1alpha1.ProgressiveSyncWaiting,
+							},
+						},
+					},
+				},
+				enableProgressiveSyncs: false,
+			},
+			want: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equalf(t, tt.want, shouldRequeueForApplicationSet(tt.args.appSetOld, tt.args.appSetNew), "shouldRequeueForApplicationSet(%v, %v)", tt.args.appSetOld, tt.args.appSetNew)
+			assert.Equalf(t, tt.want, shouldRequeueForApplicationSet(tt.args.appSetOld, tt.args.appSetNew, tt.args.enableProgressiveSyncs), "shouldRequeueForApplicationSet(%v, %v)", tt.args.appSetOld, tt.args.appSetNew)
 		})
 	}
 }
@@ -7069,6 +7078,280 @@ func TestIsRollingSyncStrategy(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := isRollingSyncStrategy(tt.appset)
 			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestSyncApplication(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    v1alpha1.Application
+		prune    bool
+		expected v1alpha1.Application
+	}{
+		{
+			name: "Default retry limit with no SyncPolicy",
+			input: v1alpha1.Application{
+				Spec: v1alpha1.ApplicationSpec{},
+			},
+			prune: false,
+			expected: v1alpha1.Application{
+				Spec: v1alpha1.ApplicationSpec{},
+				Operation: &v1alpha1.Operation{
+					InitiatedBy: v1alpha1.OperationInitiator{
+						Username:  "applicationset-controller",
+						Automated: true,
+					},
+					Info: []*v1alpha1.Info{
+						{
+							Name:  "Reason",
+							Value: "ApplicationSet RollingSync triggered a sync of this Application resource",
+						},
+					},
+					Sync: &v1alpha1.SyncOperation{
+						Prune: false,
+					},
+					Retry: v1alpha1.RetryStrategy{
+						Limit: 5,
+					},
+				},
+			},
+		},
+		{
+			name: "Retry and SyncOptions from SyncPolicy are applied",
+			input: v1alpha1.Application{
+				Spec: v1alpha1.ApplicationSpec{
+					SyncPolicy: &v1alpha1.SyncPolicy{
+						Retry: &v1alpha1.RetryStrategy{
+							Limit: 10,
+						},
+						SyncOptions: []string{"CreateNamespace=true"},
+					},
+				},
+			},
+			prune: true,
+			expected: v1alpha1.Application{
+				Spec: v1alpha1.ApplicationSpec{
+					SyncPolicy: &v1alpha1.SyncPolicy{
+						Retry: &v1alpha1.RetryStrategy{
+							Limit: 10,
+						},
+						SyncOptions: []string{"CreateNamespace=true"},
+					},
+				},
+				Operation: &v1alpha1.Operation{
+					InitiatedBy: v1alpha1.OperationInitiator{
+						Username:  "applicationset-controller",
+						Automated: true,
+					},
+					Info: []*v1alpha1.Info{
+						{
+							Name:  "Reason",
+							Value: "ApplicationSet RollingSync triggered a sync of this Application resource",
+						},
+					},
+					Sync: &v1alpha1.SyncOperation{
+						SyncOptions: []string{"CreateNamespace=true"},
+						Prune:       true,
+					},
+					Retry: v1alpha1.RetryStrategy{
+						Limit: 10,
+					},
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := syncApplication(tt.input, tt.prune)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestIsRollingSyncDeletionReversed(t *testing.T) {
+	tests := []struct {
+		name     string
+		appset   *v1alpha1.ApplicationSet
+		expected bool
+	}{
+		{
+			name: "Deletion Order on strategy is set as Reverse",
+			appset: &v1alpha1.ApplicationSet{
+				Spec: v1alpha1.ApplicationSetSpec{
+					Strategy: &v1alpha1.ApplicationSetStrategy{
+						Type: "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
+							Steps: []v1alpha1.ApplicationSetRolloutStep{
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{
+										{
+											Key:      "environment",
+											Operator: "In",
+											Values: []string{
+												"dev",
+											},
+										},
+									},
+								},
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{
+										{
+											Key:      "environment",
+											Operator: "In",
+											Values: []string{
+												"staging",
+											},
+										},
+									},
+								},
+							},
+						},
+						DeletionOrder: ReverseDeletionOrder,
+					},
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "Deletion Order on strategy is set as AllAtOnce",
+			appset: &v1alpha1.ApplicationSet{
+				Spec: v1alpha1.ApplicationSetSpec{
+					Strategy: &v1alpha1.ApplicationSetStrategy{
+						Type: "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
+							Steps: []v1alpha1.ApplicationSetRolloutStep{},
+						},
+						DeletionOrder: AllAtOnceDeletionOrder,
+					},
+				},
+			},
+			expected: false,
+		},
+		{
+			name: "Deletion Order on strategy is set as Reverse but no steps in RollingSync",
+			appset: &v1alpha1.ApplicationSet{
+				Spec: v1alpha1.ApplicationSetSpec{
+					Strategy: &v1alpha1.ApplicationSetStrategy{
+						Type: "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
+							Steps: []v1alpha1.ApplicationSetRolloutStep{},
+						},
+						DeletionOrder: ReverseDeletionOrder,
+					},
+				},
+			},
+			expected: false,
+		},
+		{
+			name: "Deletion Order on strategy is set as Reverse, but AllAtOnce is explicitly set",
+			appset: &v1alpha1.ApplicationSet{
+				Spec: v1alpha1.ApplicationSetSpec{
+					Strategy: &v1alpha1.ApplicationSetStrategy{
+						Type: "AllAtOnce",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
+							Steps: []v1alpha1.ApplicationSetRolloutStep{},
+						},
+						DeletionOrder: ReverseDeletionOrder,
+					},
+				},
+			},
+			expected: false,
+		},
+		{
+			name: "Strategy is Nil",
+			appset: &v1alpha1.ApplicationSet{
+				Spec: v1alpha1.ApplicationSetSpec{
+					Strategy: &v1alpha1.ApplicationSetStrategy{},
+				},
+			},
+			expected: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := isProgressiveSyncDeletionOrderReversed(tt.appset)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestReconcileProgressiveSyncDisabled(t *testing.T) {
+	scheme := runtime.NewScheme()
+	err := v1alpha1.AddToScheme(scheme)
+	require.NoError(t, err)
+
+	kubeclientset := kubefake.NewSimpleClientset([]runtime.Object{}...)
+
+	for _, cc := range []struct {
+		name                   string
+		appSet                 v1alpha1.ApplicationSet
+		enableProgressiveSyncs bool
+		expectedAppStatuses    []v1alpha1.ApplicationSetApplicationStatus
+	}{
+		{
+			name: "clears applicationStatus when Progressive Sync is disabled",
+			appSet: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-appset",
+					Namespace: "argocd",
+				},
+				Spec: v1alpha1.ApplicationSetSpec{
+					Generators: []v1alpha1.ApplicationSetGenerator{},
+					Template:   v1alpha1.ApplicationSetTemplate{},
+				},
+				Status: v1alpha1.ApplicationSetStatus{
+					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
+						{
+							Application: "test-appset-guestbook",
+							Message:     "Application resource became Healthy, updating status from Progressing to Healthy.",
+							Status:      "Healthy",
+							Step:        "1",
+						},
+					},
+				},
+			},
+			enableProgressiveSyncs: false,
+			expectedAppStatuses:    nil,
+		},
+	} {
+		t.Run(cc.name, func(t *testing.T) {
+			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&cc.appSet).WithStatusSubresource(&cc.appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
+			metrics := appsetmetrics.NewFakeAppsetMetrics()
+
+			argodb := db.NewDB("argocd", settings.NewSettingsManager(t.Context(), kubeclientset, "argocd"), kubeclientset)
+
+			r := ApplicationSetReconciler{
+				Client:                 client,
+				Scheme:                 scheme,
+				Renderer:               &utils.Render{},
+				Recorder:               record.NewFakeRecorder(1),
+				Generators:             map[string]generators.Generator{},
+				ArgoDB:                 argodb,
+				KubeClientset:          kubeclientset,
+				Metrics:                metrics,
+				EnableProgressiveSyncs: cc.enableProgressiveSyncs,
+			}
+
+			req := ctrl.Request{
+				NamespacedName: types.NamespacedName{
+					Namespace: cc.appSet.Namespace,
+					Name:      cc.appSet.Name,
+				},
+			}
+
+			// Run reconciliation
+			_, err = r.Reconcile(t.Context(), req)
+			require.NoError(t, err)
+
+			// Fetch the updated ApplicationSet
+			var updatedAppSet v1alpha1.ApplicationSet
+			err = r.Get(t.Context(), req.NamespacedName, &updatedAppSet)
+			require.NoError(t, err)
+
+			// Verify the applicationStatus field
+			assert.Equal(t, cc.expectedAppStatuses, updatedAppSet.Status.ApplicationStatus, "applicationStatus should match expected value")
 		})
 	}
 }

@@ -173,7 +173,7 @@ Argo CD will use the policies defined in the AppProject roles while authorizing 
 
 _Note 1_: It is very important that policy roles follow the pattern `proj:<project-name>:<role-name>` or they won't be effective during the Argo CD authorization process.
 
-_Note 2_: The example above used `applications` as the resource for the policy definition. However other types of resources can also be used: `repositories`, `clusters`, `logs`, `exec` and `projects`. See the [RBAC documentation](../operator-manual/rbac.md) for more details about those resources.
+_Note 2_: The example above used `applications` as the resource for the policy definition. However other types of resources can also be used: `applicationsets`, `repositories`, `clusters`, `logs` and `exec`. See the [RBAC documentation](../operator-manual/rbac.md) for more details about those resources.
 
 In order to create roles in a project and add policies to a role, a user will need permission to update a project.  The following commands can be used to manage a role.
 
@@ -334,11 +334,11 @@ stringData:
   password: ****
 ```
 
-!!! warning
-    Please keep in mind when using a project-scoped repository, only applications or applicationsets with a matching project 
-    name can make use of it. When using an applicationset with a Git generator that also makes use of a templated `project` 
-    (i.e. it contains ``{{ ... }}``) only non-scoped repositories can be used with the applicationset (i.e. repositories 
-    that do _not_ have a `project` set).
+> [!WARNING]
+> Please keep in mind when using a project-scoped repository, only applications or applicationsets with a matching project 
+> name can make use of it. When using an applicationset with a Git generator that also makes use of a templated `project` 
+> (i.e. it contains ``{{ ... }}``) only non-scoped repositories can be used with the applicationset (i.e. repositories 
+> that do _not_ have a `project` set).
 
 All the examples above concern Git repositories, but the same principles apply to clusters as well.
 

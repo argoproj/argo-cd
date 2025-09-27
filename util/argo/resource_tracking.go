@@ -12,13 +12,6 @@ import (
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/kube"
-	"github.com/argoproj/argo-cd/v3/util/settings"
-)
-
-const (
-	TrackingMethodAnnotation         v1alpha1.TrackingMethod = "annotation"
-	TrackingMethodLabel              v1alpha1.TrackingMethod = "label"
-	TrackingMethodAnnotationAndLabel v1alpha1.TrackingMethod = "annotation+label"
 )
 
 var (
@@ -35,6 +28,7 @@ type ResourceTracking interface {
 	BuildAppInstanceValue(value AppInstanceValue) string
 	ParseAppInstanceValue(value string) (*AppInstanceValue, error)
 	Normalize(config, live *unstructured.Unstructured, labelKey, trackingMethod string) error
+	RemoveAppInstance(un *unstructured.Unstructured, trackingMethod string) error
 }
 
 // AppInstanceValue store information about resource tracking info
@@ -52,17 +46,8 @@ func NewResourceTracking() ResourceTracking {
 	return &resourceTracking{}
 }
 
-// GetTrackingMethod retrieve tracking method from settings
-func GetTrackingMethod(settingsMgr *settings.SettingsManager) v1alpha1.TrackingMethod {
-	tm, err := settingsMgr.GetTrackingMethod()
-	if err != nil || tm == "" {
-		return TrackingMethodAnnotation
-	}
-	return v1alpha1.TrackingMethod(tm)
-}
-
 func IsOldTrackingMethod(trackingMethod string) bool {
-	return trackingMethod == "" || trackingMethod == string(TrackingMethodLabel)
+	return trackingMethod == "" || trackingMethod == string(v1alpha1.TrackingMethodLabel)
 }
 
 func (rt *resourceTracking) getAppInstanceValue(un *unstructured.Unstructured, installationID string) *AppInstanceValue {
@@ -90,15 +75,15 @@ func (rt *resourceTracking) GetAppName(un *unstructured.Unstructured, key string
 		return ""
 	}
 	switch trackingMethod {
-	case TrackingMethodLabel:
+	case v1alpha1.TrackingMethodLabel:
 		label, err := kube.GetAppInstanceLabel(un, key)
 		if err != nil {
 			return ""
 		}
 		return label
-	case TrackingMethodAnnotationAndLabel:
+	case v1alpha1.TrackingMethodAnnotationAndLabel:
 		return retrieveAppInstanceValue()
-	case TrackingMethodAnnotation:
+	case v1alpha1.TrackingMethodAnnotation:
 		return retrieveAppInstanceValue()
 	default:
 		return retrieveAppInstanceValue()
@@ -110,7 +95,7 @@ func (rt *resourceTracking) GetAppName(un *unstructured.Unstructured, key string
 // not be parsed, it returns nil.
 func (rt *resourceTracking) GetAppInstance(un *unstructured.Unstructured, trackingMethod v1alpha1.TrackingMethod, instanceID string) *AppInstanceValue {
 	switch trackingMethod {
-	case TrackingMethodAnnotation, TrackingMethodAnnotationAndLabel:
+	case v1alpha1.TrackingMethodAnnotation, v1alpha1.TrackingMethodAnnotationAndLabel:
 		return rt.getAppInstanceValue(un, instanceID)
 	default:
 		return nil
@@ -152,15 +137,15 @@ func (rt *resourceTracking) SetAppInstance(un *unstructured.Unstructured, key, v
 		return kube.SetAppInstanceAnnotation(un, common.AnnotationKeyAppInstance, rt.BuildAppInstanceValue(appInstanceValue))
 	}
 	switch trackingMethod {
-	case TrackingMethodLabel:
+	case v1alpha1.TrackingMethodLabel:
 		err := kube.SetAppInstanceLabel(un, key, val)
 		if err != nil {
 			return fmt.Errorf("failed to set app instance label: %w", err)
 		}
 		return nil
-	case TrackingMethodAnnotation:
+	case v1alpha1.TrackingMethodAnnotation:
 		return setAppInstanceAnnotation()
-	case TrackingMethodAnnotationAndLabel:
+	case v1alpha1.TrackingMethodAnnotationAndLabel:
 		err := setAppInstanceAnnotation()
 		if err != nil {
 			return err
@@ -184,6 +169,46 @@ func (rt *resourceTracking) SetAppInstance(un *unstructured.Unstructured, key, v
 	default:
 		return setAppInstanceAnnotation()
 	}
+}
+
+func (rt *resourceTracking) RemoveAppInstance(un *unstructured.Unstructured, trackingMethod string) error {
+	switch v1alpha1.TrackingMethod(trackingMethod) {
+	case v1alpha1.TrackingMethodLabel:
+		if err := kube.RemoveLabel(un, common.LabelKeyAppInstance); err != nil {
+			return err
+		}
+		return nil
+	case v1alpha1.TrackingMethodAnnotation:
+		if err := kube.RemoveAnnotation(un, common.AnnotationKeyAppInstance); err != nil {
+			return err
+		}
+		if err := kube.RemoveAnnotation(un, common.AnnotationInstallationID); err != nil {
+			return err
+		}
+		return nil
+	case v1alpha1.TrackingMethodAnnotationAndLabel:
+		if err := kube.RemoveAnnotation(un, common.AnnotationKeyAppInstance); err != nil {
+			return err
+		}
+		if err := kube.RemoveAnnotation(un, common.AnnotationInstallationID); err != nil {
+			return err
+		}
+		if err := kube.RemoveLabel(un, common.LabelKeyAppInstance); err != nil {
+			return err
+		}
+		return nil
+	default:
+		// By default, only app instance annotations are set and not labels
+		// hence the default case should be only to remove annotations and not labels
+		if err := kube.RemoveAnnotation(un, common.AnnotationKeyAppInstance); err != nil {
+			return err
+		}
+		if err := kube.RemoveAnnotation(un, common.AnnotationInstallationID); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // BuildAppInstanceValue build resource tracking id in format <application-name>;<group>/<kind>/<namespace>/<name>

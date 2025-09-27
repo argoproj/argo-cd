@@ -13,6 +13,9 @@ import (
 	"time"
 
 	bb "github.com/ktrysmt/go-bitbucket"
+	"k8s.io/apimachinery/pkg/labels"
+
+	alpha1 "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/go-playground/webhooks/v6/azuredevops"
@@ -23,7 +26,6 @@ import (
 	"github.com/go-playground/webhooks/v6/gogs"
 	gogsclient "github.com/gogits/go-gogs-client"
 	log "github.com/sirupsen/logrus"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -60,6 +62,7 @@ type ArgoCDWebhookHandler struct {
 	ns                     string
 	appNs                  []string
 	appClientset           appclientset.Interface
+	appsLister             alpha1.ApplicationLister
 	github                 *github.Webhook
 	gitlab                 *gitlab.Webhook
 	bitbucket              *bitbucket.Webhook
@@ -72,28 +75,28 @@ type ArgoCDWebhookHandler struct {
 	maxWebhookPayloadSizeB int64
 }
 
-func NewHandler(namespace string, applicationNamespaces []string, webhookParallelism int, appClientset appclientset.Interface, set *settings.ArgoCDSettings, settingsSrc settingsSource, repoCache *cache.Cache, serverCache *servercache.Cache, argoDB db.ArgoDB, maxWebhookPayloadSizeB int64) *ArgoCDWebhookHandler {
-	githubWebhook, err := github.New(github.Options.Secret(set.WebhookGitHubSecret))
+func NewHandler(namespace string, applicationNamespaces []string, webhookParallelism int, appClientset appclientset.Interface, appsLister alpha1.ApplicationLister, set *settings.ArgoCDSettings, settingsSrc settingsSource, repoCache *cache.Cache, serverCache *servercache.Cache, argoDB db.ArgoDB, maxWebhookPayloadSizeB int64) *ArgoCDWebhookHandler {
+	githubWebhook, err := github.New(github.Options.Secret(set.GetWebhookGitHubSecret()))
 	if err != nil {
 		log.Warnf("Unable to init the GitHub webhook")
 	}
-	gitlabWebhook, err := gitlab.New(gitlab.Options.Secret(set.WebhookGitLabSecret))
+	gitlabWebhook, err := gitlab.New(gitlab.Options.Secret(set.GetWebhookGitLabSecret()))
 	if err != nil {
 		log.Warnf("Unable to init the GitLab webhook")
 	}
-	bitbucketWebhook, err := bitbucket.New(bitbucket.Options.UUID(set.WebhookBitbucketUUID))
+	bitbucketWebhook, err := bitbucket.New(bitbucket.Options.UUID(set.GetWebhookBitbucketUUID()))
 	if err != nil {
 		log.Warnf("Unable to init the Bitbucket webhook")
 	}
-	bitbucketserverWebhook, err := bitbucketserver.New(bitbucketserver.Options.Secret(set.WebhookBitbucketServerSecret))
+	bitbucketserverWebhook, err := bitbucketserver.New(bitbucketserver.Options.Secret(set.GetWebhookBitbucketServerSecret()))
 	if err != nil {
 		log.Warnf("Unable to init the Bitbucket Server webhook")
 	}
-	gogsWebhook, err := gogs.New(gogs.Options.Secret(set.WebhookGogsSecret))
+	gogsWebhook, err := gogs.New(gogs.Options.Secret(set.GetWebhookGogsSecret()))
 	if err != nil {
 		log.Warnf("Unable to init the Gogs webhook")
 	}
-	azuredevopsWebhook, err := azuredevops.New(azuredevops.Options.BasicAuth(set.WebhookAzureDevOpsUsername, set.WebhookAzureDevOpsPassword))
+	azuredevopsWebhook, err := azuredevops.New(azuredevops.Options.BasicAuth(set.GetWebhookAzureDevOpsUsername(), set.GetWebhookAzureDevOpsPassword()))
 	if err != nil {
 		log.Warnf("Unable to init the Azure DevOps webhook")
 	}
@@ -115,6 +118,7 @@ func NewHandler(namespace string, applicationNamespaces []string, webhookParalle
 		db:                     argoDB,
 		queue:                  make(chan any, payloadQueueSize),
 		maxWebhookPayloadSizeB: maxWebhookPayloadSizeB,
+		appsLister:             appsLister,
 	}
 
 	acdWebhook.startWorkerPool(webhookParallelism)
@@ -209,7 +213,7 @@ func (a *ArgoCDWebhookHandler) affectedRevisionInfo(payloadIf any) (webURLs []st
 		// Get DiffSet only for authenticated webhooks.
 		// when WebhookBitbucketUUID is set in argocd-secret, then the payload must be signed and
 		// signature is validated before payload is parsed.
-		if len(a.settings.WebhookBitbucketUUID) > 0 {
+		if a.settings.GetWebhookBitbucketUUID() != "" {
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
 			argoRepo, err := a.lookupRepository(ctx, webURLs[0])
@@ -313,8 +317,8 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 		nsFilter = ""
 	}
 
-	appIf := a.appClientset.ArgoprojV1alpha1().Applications(nsFilter)
-	apps, err := appIf.List(context.Background(), metav1.ListOptions{})
+	appIf := a.appsLister.Applications(nsFilter)
+	apps, err := appIf.List(labels.Everything())
 	if err != nil {
 		log.Warnf("Failed to list applications: %v", err)
 		return
@@ -339,9 +343,9 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 	// Skip any application that is neither in the control plane's namespace
 	// nor in the list of enabled namespaces.
 	var filteredApps []v1alpha1.Application
-	for _, app := range apps.Items {
+	for _, app := range apps {
 		if app.Namespace == a.ns || glob.MatchStringInList(a.appNs, app.Namespace, glob.REGEXP) {
-			filteredApps = append(filteredApps, app)
+			filteredApps = append(filteredApps, *app)
 		}
 	}
 
@@ -424,7 +428,8 @@ func getURLRegex(originalURL string, regexpFormat string) (*regexp.Regexp, error
 	}
 
 	regexEscapedHostname := regexp.QuoteMeta(urlObj.Hostname())
-	regexEscapedPath := regexp.QuoteMeta(urlObj.EscapedPath()[1:])
+	const urlPathSeparator = "/"
+	regexEscapedPath := regexp.QuoteMeta(strings.TrimPrefix(urlObj.EscapedPath(), urlPathSeparator))
 	regexpStr := fmt.Sprintf(regexpFormat, usernameRegex, regexEscapedHostname, regexEscapedPath)
 	repoRegexp, err := regexp.Compile(regexpStr)
 	if err != nil {
@@ -453,7 +458,7 @@ func (a *ArgoCDWebhookHandler) storePreviouslyCachedManifests(app *v1alpha1.Appl
 		sources = append(sources, app.Spec.GetSource())
 	}
 
-	refSources, err := argo.GetRefSources(context.Background(), sources, app.Spec.Project, a.db.GetRepository, []string{}, false)
+	refSources, err := argo.GetRefSources(context.Background(), sources, app.Spec.Project, a.db.GetRepository, []string{})
 	if err != nil {
 		return fmt.Errorf("error getting ref sources: %w", err)
 	}

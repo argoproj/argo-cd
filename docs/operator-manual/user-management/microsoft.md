@@ -1,7 +1,7 @@
 # Microsoft
 
-!!! note ""
-    Entra ID was formerly known as Azure AD.
+> [!NOTE]
+> Entra ID was formerly known as Azure AD.
 
 * [Entra ID App Registration Auth using OIDC](#entra-id-app-registration-auth-using-oidc)
 * [Entra ID SAML Enterprise App Auth using Dex](#entra-id-saml-enterprise-app-auth-using-dex)
@@ -80,7 +80,7 @@
                      requestedIDTokenClaims:
                         groups:
                            essential: true
-                           value: "SecurityGroup"
+                           value: "ApplicationGroup"
                      requestedScopes:
                         - openid
                         - profile

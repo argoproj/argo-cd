@@ -19,5 +19,7 @@ Run `argocd cluster rm context-name`.
 
 This removes the cluster with the specified name.
 
-!!!note "in-cluster cannot be removed"
-    The `in-cluster` cluster cannot be removed with this. If you want to disable the `in-cluster` configuration, you need to update your `argocd-cm` ConfigMap. Set [`cluster.inClusterEnabled`](./argocd-cm-yaml.md) to `"false"`
+> [!NOTE]
+> **in-cluster cannot be removed**
+>
+> The `in-cluster` cluster cannot be removed with this. If you want to disable the `in-cluster` configuration, you need to update your `argocd-cm` ConfigMap. Set [`cluster.inClusterEnabled`](./argocd-cm-yaml.md) to `"false"`

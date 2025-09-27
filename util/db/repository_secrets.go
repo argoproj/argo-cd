@@ -187,7 +187,7 @@ func (s *secretsRepositoryBackend) CreateRepoCreds(ctx context.Context, repoCred
 		},
 	}
 
-	repoCredsToSecret(repoCreds, repoCredsSecret)
+	s.repoCredsToSecret(repoCreds, repoCredsSecret)
 
 	_, err := s.db.createSecret(ctx, repoCredsSecret)
 	if err != nil {
@@ -237,7 +237,7 @@ func (s *secretsRepositoryBackend) UpdateRepoCreds(ctx context.Context, repoCred
 		return nil, err
 	}
 
-	repoCredsToSecret(repoCreds, repoCredsSecret)
+	s.repoCredsToSecret(repoCreds, repoCredsSecret)
 
 	repoCredsSecret, err = s.db.kubeclientset.CoreV1().Secrets(s.db.ns).Update(ctx, repoCredsSecret, metav1.UpdateOptions{})
 	if err != nil {
@@ -300,6 +300,28 @@ func (s *secretsRepositoryBackend) GetAllHelmRepoCreds(_ context.Context) ([]*ap
 	return helmRepoCreds, nil
 }
 
+func (s *secretsRepositoryBackend) GetAllOCIRepoCreds(_ context.Context) ([]*appsv1.RepoCreds, error) {
+	var ociRepoCreds []*appsv1.RepoCreds
+
+	secrets, err := s.db.listSecretsByType(common.LabelValueSecretTypeRepoCreds)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, secret := range secrets {
+		if strings.EqualFold(string(secret.Data["type"]), "oci") {
+			repoCreds, err := s.secretToRepoCred(secret)
+			if err != nil {
+				return nil, err
+			}
+
+			ociRepoCreds = append(ociRepoCreds, repoCreds)
+		}
+	}
+
+	return ociRepoCreds, nil
+}
+
 func secretToRepository(secret *corev1.Secret) (*appsv1.Repository, error) {
 	repository := &appsv1.Repository{
 		Name:                       string(secret.Data["name"]),
@@ -343,6 +365,12 @@ func secretToRepository(secret *corev1.Secret) (*appsv1.Repository, error) {
 	}
 	repository.EnableOCI = enableOCI
 
+	insecureOCIForceHTTP, err := boolOrFalse(secret, "insecureOCIForceHttp")
+	if err != nil {
+		return repository, err
+	}
+	repository.InsecureOCIForceHttp = insecureOCIForceHTTP
+
 	githubAppID, err := intOrZero(secret, "githubAppID")
 	if err != nil {
 		return repository, err
@@ -383,6 +411,7 @@ func (s *secretsRepositoryBackend) repositoryToSecret(repository *appsv1.Reposit
 	updateSecretString(secret, "bearerToken", repository.BearerToken)
 	updateSecretString(secret, "sshPrivateKey", repository.SSHPrivateKey)
 	updateSecretBool(secret, "enableOCI", repository.EnableOCI)
+	updateSecretBool(secret, "insecureOCIForceHttp", repository.InsecureOCIForceHttp)
 	updateSecretString(secret, "tlsClientCertData", repository.TLSClientCertData)
 	updateSecretString(secret, "tlsClientCertKey", repository.TLSClientCertKey)
 	updateSecretString(secret, "type", repository.Type)
@@ -424,6 +453,12 @@ func (s *secretsRepositoryBackend) secretToRepoCred(secret *corev1.Secret) (*app
 	}
 	repository.EnableOCI = enableOCI
 
+	insecureOCIForceHTTP, err := boolOrFalse(secret, "insecureOCIForceHttp")
+	if err != nil {
+		return repository, err
+	}
+	repository.InsecureOCIForceHttp = insecureOCIForceHTTP
+
 	githubAppID, err := intOrZero(secret, "githubAppID")
 	if err != nil {
 		return repository, err
@@ -451,7 +486,7 @@ func (s *secretsRepositoryBackend) secretToRepoCred(secret *corev1.Secret) (*app
 	return repository, nil
 }
 
-func repoCredsToSecret(repoCreds *appsv1.RepoCreds, secret *corev1.Secret) {
+func (s *secretsRepositoryBackend) repoCredsToSecret(repoCreds *appsv1.RepoCreds, secret *corev1.Secret) {
 	if secret.Data == nil {
 		secret.Data = make(map[string][]byte)
 	}
@@ -462,6 +497,7 @@ func repoCredsToSecret(repoCreds *appsv1.RepoCreds, secret *corev1.Secret) {
 	updateSecretString(secret, "bearerToken", repoCreds.BearerToken)
 	updateSecretString(secret, "sshPrivateKey", repoCreds.SSHPrivateKey)
 	updateSecretBool(secret, "enableOCI", repoCreds.EnableOCI)
+	updateSecretBool(secret, "insecureOCIForceHttp", repoCreds.InsecureOCIForceHttp)
 	updateSecretString(secret, "tlsClientCertData", repoCreds.TLSClientCertData)
 	updateSecretString(secret, "tlsClientCertKey", repoCreds.TLSClientCertKey)
 	updateSecretString(secret, "type", repoCreds.Type)
@@ -474,7 +510,7 @@ func repoCredsToSecret(repoCreds *appsv1.RepoCreds, secret *corev1.Secret) {
 	updateSecretString(secret, "noProxy", repoCreds.NoProxy)
 	updateSecretBool(secret, "forceHttpBasicAuth", repoCreds.ForceHttpBasicAuth)
 	updateSecretBool(secret, "useAzureWorkloadIdentity", repoCreds.UseAzureWorkloadIdentity)
-	addSecretMetadata(secret, common.LabelValueSecretTypeRepoCreds)
+	addSecretMetadata(secret, s.getRepoCredSecretType())
 }
 
 func (s *secretsRepositoryBackend) getRepositorySecret(repoURL, project string, allowFallback bool) (*corev1.Secret, error) {
@@ -513,7 +549,7 @@ func (s *secretsRepositoryBackend) getRepositorySecret(repoURL, project string, 
 }
 
 func (s *secretsRepositoryBackend) getRepoCredsSecret(repoURL string) (*corev1.Secret, error) {
-	secrets, err := s.db.listSecretsByType(common.LabelValueSecretTypeRepoCreds)
+	secrets, err := s.db.listSecretsByType(s.getRepoCredSecretType())
 	if err != nil {
 		return nil, err
 	}
@@ -527,16 +563,16 @@ func (s *secretsRepositoryBackend) getRepoCredsSecret(repoURL string) (*corev1.S
 }
 
 func (s *secretsRepositoryBackend) getRepositoryCredentialIndex(repoCredentials []*corev1.Secret, repoURL string) int {
-	max, idx := 0, -1
+	maxLen, idx := 0, -1
 	repoURL = git.NormalizeGitURL(repoURL)
 	for i, cred := range repoCredentials {
 		credURL := git.NormalizeGitURL(string(cred.Data["url"]))
 		if strings.HasPrefix(repoURL, credURL) {
-			if len(credURL) == max {
+			if len(credURL) == maxLen {
 				log.Warnf("Found multiple credentials for repoURL: %s", repoURL)
 			}
-			if len(credURL) > max {
-				max = len(credURL)
+			if len(credURL) > maxLen {
+				maxLen = len(credURL)
 				idx = i
 			}
 		}
@@ -549,4 +585,11 @@ func (s *secretsRepositoryBackend) getSecretType() string {
 		return common.LabelValueSecretTypeRepositoryWrite
 	}
 	return common.LabelValueSecretTypeRepository
+}
+
+func (s *secretsRepositoryBackend) getRepoCredSecretType() string {
+	if s.writeCreds {
+		return common.LabelValueSecretTypeRepoCredsWrite
+	}
+	return common.LabelValueSecretTypeRepoCreds
 }
