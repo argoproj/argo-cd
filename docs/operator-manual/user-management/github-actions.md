@@ -15,16 +15,6 @@ Edit the `argocd-cm` and configure the `dex.config` section:
 ```yaml
 dex.config: |
   connectors:
-    # Example connector
-    - type: oidc
-      id: google
-      name: Google
-      config:
-        issuer: https://accounts.google.com
-        clientID: XXXXXXXXXXXXX.apps.googleusercontent.com
-        clientSecret: XXXXXXXXXXXXX
-
-    # GitHub Actions connector
     - type: oidc
       id: github-actions
       name: GitHub Actions
@@ -35,16 +25,6 @@ dex.config: |
         scopes: [openid]
         userNameKey: sub
         insecureSkipEmailVerified: true
-
-        # If using ArgoCD v2, then you also need to set this to get
-        # commands like "argocd account get-user-info" to display correctly
-        claimMapping:
-          email: sub
-
-  # Argo automatically adds the "argo-cd-cli" client
-  #staticClients:
-  #  - name: Argo CD CLI
-  #    id: argo-cd-cli
 ```
 
 ArgoCD automatically generates a static client named `argo-cd-cli` that you can use to get your token from a GitHub Action.
