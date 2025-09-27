@@ -18,7 +18,7 @@ export const ResourceIcon = ({group, kind, customStyle}: {group: string; kind: s
     } else {
         const matchedGroup = matchGroupToResource(group);
         if (matchedGroup) {
-            return <img src={`assets/images/resources/${matchedGroup}/icon.svg`} alt={kind} style={{paddingBottom: '2px', width: '40px', height: '32px', ...customStyle}}/>;
+            return <img src={`assets/images/resources/${matchedGroup}/icon.svg`} alt={kind} style={{paddingBottom: '2px', width: '40px', height: '32px', ...customStyle}} />;
         }
     }
     const initials = kind.replace(/[a-z]/g, '');
