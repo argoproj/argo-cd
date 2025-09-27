@@ -197,10 +197,7 @@ func (h *DefaultPluginHandler) ListAvailablePlugins() []string {
 					if info, err := entry.Info(); err == nil {
 						// On Unix-like systems, check executable bit
 						if info.Mode()&0o111 != 0 {
-							if !seenPlugins[pluginName] {
-								plugins = append(plugins, pluginName)
-								seenPlugins[pluginName] = true
-							}
+							seenPlugins[pluginName] = true
 						}
 					}
 				}
