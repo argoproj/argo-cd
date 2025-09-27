@@ -1,6 +1,7 @@
 import * as React from 'react';
 import {resourceIcons} from './resources';
-import {resourceIcons as resourceCustomizations} from './resource-customizations';
+import {resourceIconGroups as resourceCustomizations} from './resource-customizations';
+import * as minimatch from 'minimatch';
 
 export const ResourceIcon = ({group, kind, customStyle}: {group: string; kind: string; customStyle?: React.CSSProperties}) => {
     if (kind === 'node') {
@@ -14,8 +15,11 @@ export const ResourceIcon = ({group, kind, customStyle}: {group: string; kind: s
         if (i !== undefined) {
             return <img src={'assets/images/resources/' + i + '.svg'} alt={kind} style={{padding: '2px', width: '40px', height: '32px', ...customStyle}} />;
         }
-    } else if (resourceCustomizations.includes(`${group}/${kind}`)) {
-        return <img src={`assets/images/resource_customizations/${group}/${kind}/icon.svg`} alt={kind} style={{padding: '2px', width: '40px', height: '32px', ...customStyle}} />;
+    } else {
+        const matchedGroup = matchGroupToResource(group);
+        if (matchedGroup) {
+            return <img src={`assets/images/resources/${matchedGroup}/icon.svg`} alt={kind} style={{paddingBottom: '2px', width: '40px', height: '32px', ...customStyle}}/>;
+        }
     }
     const initials = kind.replace(/[a-z]/g, '');
     const n = initials.length;
@@ -37,3 +41,22 @@ export const ResourceIcon = ({group, kind, customStyle}: {group: string; kind: s
         </div>
     );
 };
+
+// Utility function to match group with possible wildcards in resourceCustomizations. If found, returns the matched key
+// as a path component (with '*' replaced by '_' if necessary), otherwise returns an empty string.
+function matchGroupToResource(group: string): string {
+    // Check for an exact match
+    if (group in resourceCustomizations) {
+        return group;
+    }
+
+    // Loop over the map keys to find a match using minimatch
+    for (const key in resourceCustomizations) {
+        if (key.includes('*') && minimatch(group, key)) {
+            return key.replace(/\*/g, '_');
+        }
+    }
+
+    // Return an empty string if no match is found
+    return '';
+}
