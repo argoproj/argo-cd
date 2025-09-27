@@ -29,10 +29,9 @@ As build dependencies change over time, you have to synchronize your development
 
 * `make dep-ui` or `make dep-ui-local`
 
-Argo CD recently migrated to Go modules. Usually, dependencies will be downloaded at build time, but the Makefile provides two targets to download and vendor all dependencies:
+Argo CD recently migrated to [Go Workspaces](https://go.dev/blog/get-familiar-with-workspaces), allowing it to manage both the main Go module dependencies and the gitops-engine dependencies seamlessly. Dependencies are typically downloaded during the build process. However, if you want to ensure your environment is up-to-date, refer to the following make target:
 
-* `make mod-download` or `make mod-download-local` will download all required Go modules and
-* `make mod-vendor` or `make mod-vendor-local` will vendor those dependencies into the Argo CD source tree
+* `make workspace-vendor`: synchronize all Go dependencies and update the vendor folder.
 
 ### Generate API glue code and other assets
 

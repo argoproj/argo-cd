@@ -65,12 +65,8 @@ jobs:
           go mod download
       - name: Check for tidiness of go.mod and go.sum
         run: |
-          rm go.work.sum
-          go work sync
-          go work vendor
-          go mod tidy
-          git diff --exit-code -- .
-
+          make workspace-vendor
+          git diff --exit-code -- . ':!go.work.sum'
   build-go:
     name: Build & cache Go code
     if: ${{ needs.changes.outputs.backend == 'true' }}
