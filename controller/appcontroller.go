@@ -103,13 +103,12 @@ func (a CompareWith) Pointer() *CompareWith {
 	return &a
 }
 
-
 // ClusterHealthStatus provides structured information about cluster cache issues
 type ClusterHealthStatus struct {
-	HasCacheIssues       bool                           `json:"hasCacheIssues"`
-	UsesTaintedResources bool                           `json:"usesTaintedResources"`
+	HasCacheIssues       bool                            `json:"hasCacheIssues"`
+	UsesTaintedResources bool                            `json:"usesTaintedResources"`
 	IssueTypes           []errors.ClusterHealthIssueType `json:"issueTypes"`
-	AffectedGVKs         []string                       `json:"affectedGVKs"`
+	AffectedGVKs         []string                        `json:"affectedGVKs"`
 	Severity             errors.ClusterHealthSeverity    `json:"severity"`
 }
 

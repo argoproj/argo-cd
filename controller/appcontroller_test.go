@@ -43,6 +43,7 @@ import (
 	"sigs.k8s.io/yaml"
 
 	dbmocks "github.com/argoproj/argo-cd/v3/util/db/mocks"
+	argoerrors "github.com/argoproj/argo-cd/v3/util/errors"
 
 	mockcommitclient "github.com/argoproj/argo-cd/v3/commitserver/apiclient/mocks"
 	mockstatecache "github.com/argoproj/argo-cd/v3/controller/cache/mocks"
@@ -3335,7 +3336,7 @@ func TestAnalyzeClusterHealth(t *testing.T) {
 				UsesTaintedResources: false,
 				IssueTypes:           nil,
 				AffectedGVKs:         []string{},
-				Severity:             SeverityNone,
+				Severity:             argoerrors.SeverityNone,
 			},
 		},
 		{
@@ -3356,9 +3357,9 @@ func TestAnalyzeClusterHealth(t *testing.T) {
 			expectedStatus: ClusterHealthStatus{
 				HasCacheIssues:       true,
 				UsesTaintedResources: false,
-				IssueTypes:           []ClusterHealthIssueType{IssueTypeTaintedResources},
+				IssueTypes:           []argoerrors.ClusterHealthIssueType{argoerrors.IssueTypeTaintedResources},
 				AffectedGVKs:         []string{"example.com/v1, Kind=Example"},
-				Severity:             SeverityDegraded,
+				Severity:             argoerrors.SeverityDegraded,
 			},
 		},
 		{
@@ -3379,9 +3380,9 @@ func TestAnalyzeClusterHealth(t *testing.T) {
 			expectedStatus: ClusterHealthStatus{
 				HasCacheIssues:       true,
 				UsesTaintedResources: true,
-				IssueTypes:           []ClusterHealthIssueType{IssueTypeTaintedResources},
+				IssueTypes:           []argoerrors.ClusterHealthIssueType{argoerrors.IssueTypeTaintedResources},
 				AffectedGVKs:         []string{"example.com/v1, Kind=Example"},
-				Severity:             SeverityDegraded,
+				Severity:             argoerrors.SeverityDegraded,
 			},
 		},
 		{
@@ -3402,9 +3403,9 @@ func TestAnalyzeClusterHealth(t *testing.T) {
 			expectedStatus: ClusterHealthStatus{
 				HasCacheIssues:       true,
 				UsesTaintedResources: false,
-				IssueTypes:           []ClusterHealthIssueType{IssueTypeConversionWebhook},
+				IssueTypes:           []argoerrors.ClusterHealthIssueType{argoerrors.IssueTypeConversionWebhook},
 				AffectedGVKs:         []string{},
-				Severity:             SeverityDegraded,
+				Severity:             argoerrors.SeverityDegraded,
 			},
 		},
 	}
@@ -3437,31 +3438,31 @@ func TestCheckMessageForIssues(t *testing.T) {
 		name              string
 		message           string
 		expectedHasIssue  bool
-		expectedIssueType ClusterHealthIssueType
+		expectedIssueType argoerrors.ClusterHealthIssueType
 	}{
 		{
 			name:              "conversion webhook error",
 			message:           "conversion webhook failed to process request",
 			expectedHasIssue:  true,
-			expectedIssueType: IssueTypeConversionWebhook,
+			expectedIssueType: argoerrors.IssueTypeConversionWebhook,
 		},
 		{
 			name:              "unavailable resource types",
 			message:           "found 2 unavailable resource types",
 			expectedHasIssue:  true,
-			expectedIssueType: IssueTypeUnavailableTypes,
+			expectedIssueType: argoerrors.IssueTypeUnavailableTypes,
 		},
 		{
 			name:              "failed to list resources",
 			message:           "failed to list resources for apps/v1",
 			expectedHasIssue:  true,
-			expectedIssueType: IssueTypeListFailure,
+			expectedIssueType: argoerrors.IssueTypeListFailure,
 		},
 		{
 			name:              "expired resource version",
 			message:           "Expired: too old resource version",
 			expectedHasIssue:  true,
-			expectedIssueType: IssueTypeResourceExpired,
+			expectedIssueType: argoerrors.IssueTypeResourceExpired,
 		},
 		{
 			name:             "normal message",
@@ -3472,7 +3473,7 @@ func TestCheckMessageForIssues(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var issueTypes []ClusterHealthIssueType
+			var issueTypes []argoerrors.ClusterHealthIssueType
 			hasIssue := ctrl.checkMessageForIssues(tt.message, &issueTypes)
 
 			assert.Equal(t, tt.expectedHasIssue, hasIssue)
