@@ -17,13 +17,12 @@ import (
 
 const prefix = "argocd"
 
-// DefaultPluginHandler implements the PluginHandler interface
 type DefaultPluginHandler struct {
 	lookPath func(file string) (string, error)
 	run      func(cmd *exec.Cmd) error
 }
 
-// NewDefaultPluginHandler instantiates the DefaultPluginHandler
+// NewDefaultPluginHandler instantiates a DefaultPluginHandler
 func NewDefaultPluginHandler() *DefaultPluginHandler {
 	return &DefaultPluginHandler{
 		lookPath: exec.LookPath,
@@ -34,8 +33,8 @@ func NewDefaultPluginHandler() *DefaultPluginHandler {
 }
 
 // HandleCommandExecutionError processes the error returned from executing the command.
-// It handles both standard Argo CD commands and plugin commands. We don't require to return
-// error but we are doing it to cover various test scenarios.
+// It handles both standard Argo CD commands and plugin commands. We don't require returning
+// an error, but we are doing it to cover various test scenarios.
 func (h *DefaultPluginHandler) HandleCommandExecutionError(err error, isArgocdCLI bool, args []string) error {
 	// the log level needs to be setup manually here since the initConfig()
 	// set by the cobra.OnInitialize() was never executed because cmd.Execute()
@@ -144,17 +143,11 @@ func (h *DefaultPluginHandler) command(name string, arg ...string) *exec.Cmd {
 // ListAvailablePlugins returns a list of plugin names that are available in the user's PATH
 // for tab completion. It searches for executables matching the ValidPrefixes pattern.
 func (h *DefaultPluginHandler) ListAvailablePlugins() []string {
-	// Split PATH into individual directories
-	pathDirs := filepath.SplitList(os.Getenv("PATH"))
-	if len(pathDirs) == 0 {
-		return []string{}
-	}
-
 	// Track seen plugin names to avoid duplicates
 	seenPlugins := make(map[string]bool)
 
 	// Search through each directory in PATH
-	for _, dir := range pathDirs {
+	for _, dir := range filepath.SplitList(os.Getenv("PATH")) {
 		// Skip empty directories
 		if dir == "" {
 			continue
@@ -175,35 +168,27 @@ func (h *DefaultPluginHandler) ListAvailablePlugins() []string {
 
 			name := entry.Name()
 
-			// Check if the file matches any of our valid prefixes
-			for _, prefix := range h.ValidPrefixes {
-				pluginPrefix := prefix + "-"
-				if strings.HasPrefix(name, pluginPrefix) {
-					// Extract the plugin command name (everything after the prefix)
-					pluginName := strings.TrimPrefix(name, pluginPrefix)
+			// Check if the file is a valid argocd plugin
+			pluginPrefix := prefix + "-"
+			if strings.HasPrefix(name, pluginPrefix) {
+				// Extract the plugin command name (everything after the prefix)
+				pluginName := strings.TrimPrefix(name, pluginPrefix)
 
-					// Skip empty plugin names or names with path separators
-					if pluginName == "" || strings.Contains(pluginName, "/") || strings.Contains(pluginName, "\\") {
-						continue
-					}
+				// Skip empty plugin names or names with path separators
+				if pluginName == "" || strings.Contains(pluginName, "/") || strings.Contains(pluginName, "\\") {
+					continue
+				}
 
-					// Check if the file is executable
-					if info, err := entry.Info(); err == nil {
-						// On Unix-like systems, check executable bit
-						if info.Mode()&0o111 != 0 {
-							seenPlugins[pluginName] = true
-						}
+				// Check if the file is executable
+				if info, err := entry.Info(); err == nil {
+					// On Unix-like systems, check executable bit
+					if info.Mode()&0o111 != 0 {
+						seenPlugins[pluginName] = true
 					}
 				}
 			}
 		}
 	}
 
-	// Convert map keys to sorted slice and return
-	if len(seenPlugins) == 0 {
-		return []string{}
-	}
-	plugins := slices.Collect(maps.Keys(seenPlugins))
-	slices.Sort(plugins)
-	return plugins
+	return slices.Sorted(maps.Keys(seenPlugins))
 }

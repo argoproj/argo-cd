@@ -320,25 +320,14 @@ func TestListAvailablePlugins(t *testing.T) {
 		expected    []string
 	}{
 		{
-			name:        "Standard argocd prefix finds plugins",
-			validPrefix: []string{"argocd"},
-			expected:    []string{"demo_plugin", "error", "foo", "status-code-plugin", "test-plugin", "version"},
-		},
-		{
-			name:        "Multiple prefixes",
-			validPrefix: []string{"argocd", "kubectl"},
-			expected:    []string{"demo_plugin", "error", "foo", "status-code-plugin", "test-plugin", "version"},
-		},
-		{
-			name:        "Non-existent prefix finds no plugins",
-			validPrefix: []string{"nonexistent"},
-			expected:    []string{},
+			name:     "Standard argocd prefix finds plugins",
+			expected: []string{"demo_plugin", "error", "foo", "status-code-plugin", "test-plugin", "version"},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			pluginHandler := NewDefaultPluginHandler(tt.validPrefix)
+			pluginHandler := NewDefaultPluginHandler()
 			plugins := pluginHandler.ListAvailablePlugins()
 
 			assert.Equal(t, tt.expected, plugins)
@@ -351,7 +340,7 @@ func TestListAvailablePluginsEmptyPath(t *testing.T) {
 	// Set empty PATH
 	t.Setenv("PATH", "")
 
-	pluginHandler := NewDefaultPluginHandler([]string{"argocd"})
+	pluginHandler := NewDefaultPluginHandler()
 	plugins := pluginHandler.ListAvailablePlugins()
 
 	assert.Empty(t, plugins, "Should return empty list when PATH is empty")
@@ -361,7 +350,7 @@ func TestListAvailablePluginsEmptyPath(t *testing.T) {
 func TestListAvailablePluginsNonExecutableFiles(t *testing.T) {
 	setupPluginPath(t)
 
-	pluginHandler := NewDefaultPluginHandler([]string{"argocd"})
+	pluginHandler := NewDefaultPluginHandler()
 	plugins := pluginHandler.ListAvailablePlugins()
 
 	// Should not include 'no-permission' since it's not executable
@@ -388,7 +377,7 @@ func TestListAvailablePluginsDeduplication(t *testing.T) {
 	testPath := dir1 + string(os.PathListSeparator) + dir2
 	t.Setenv("PATH", testPath)
 
-	pluginHandler := NewDefaultPluginHandler([]string{"argocd"})
+	pluginHandler := NewDefaultPluginHandler()
 	plugins := pluginHandler.ListAvailablePlugins()
 
 	assert.Equal(t, []string{"duplicate"}, plugins)
