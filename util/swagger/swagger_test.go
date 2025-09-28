@@ -38,13 +38,33 @@ func TestSwaggerUI(t *testing.T) {
 
 	server := "http://" + address
 
-	specDoc, err := loads.Spec(server + "/swagger.json")
-	require.NoError(t, err)
+	// test swagger.json endpoint
+	t.Run("swagger.json endpoint", func(t *testing.T) {
+		resp, err := http.Get(server + "/swagger.json")
+		require.NoError(t, err)
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+		require.Equal(t, "DENY", resp.Header.Get("X-Frame-Options"))
 
-	_, err = json.MarshalIndent(specDoc.Spec(), "", "  ")
-	require.NoError(t, err)
+		specDoc, err := loads.Spec(server + "/swagger.json")
+		require.NoError(t, err)
 
-	resp, err := http.Get(server + "/swagger-ui")
-	require.NoError(t, err)
-	require.Equalf(t, http.StatusOK, resp.StatusCode, "Was expecting status code 200 from swagger-ui, but got %d instead", resp.StatusCode)
+		_, err = json.MarshalIndent(specDoc.Spec(), "", "  ")
+		require.NoError(t, err)
+	})
+
+	// test swagger-ui endpoint
+	t.Run("swagger-ui endpoint", func(t *testing.T) {
+		resp, err := http.Get(server + "/swagger-ui")
+		require.NoError(t, err)
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+		require.Equal(t, "DENY", resp.Header.Get("X-Frame-Options"))
+	})
+
+	// test non-existent path
+	t.Run("non-existent path", func(t *testing.T) {
+		resp, err := http.Get(server + "/non-existent")
+		require.NoError(t, err)
+		require.Equal(t, http.StatusNotFound, resp.StatusCode)
+		require.Equal(t, "DENY", resp.Header.Get("X-Frame-Options"))
+	})
 }
