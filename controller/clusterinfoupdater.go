@@ -3,7 +3,6 @@ package controller
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/argoproj/argo-cd/v3/common"
@@ -15,6 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 
 	"github.com/argoproj/argo-cd/v3/util/env"
+	"github.com/argoproj/argo-cd/v3/util/errors"
 
 	"github.com/argoproj/argo-cd/v3/controller/metrics"
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -194,19 +194,18 @@ func (c *clusterInfoUpdater) getUpdatedClusterInfo(ctx context.Context, apps []*
 
 // hasClusterCacheIssues checks for cluster cache issues using taint manager
 func (c *clusterInfoUpdater) hasClusterCacheIssues(serverURL string, err error) bool {
-	// Try to access taint information if infoSource supports it
+	// Check taint information from the cache
 	if liveStateCache, ok := c.infoSource.(interface{ GetTaintedGVKs(string) []string }); ok {
 		taintedGVKs := liveStateCache.GetTaintedGVKs(serverURL)
-		return len(taintedGVKs) > 0
+		if len(taintedGVKs) > 0 {
+			return true
+		}
 	}
 
-	// If taint manager is not available, fall back to string matching for backward compatibility
+	// Also check if the error itself indicates cache issues
 	if err != nil {
-		errMsg := err.Error()
-		return strings.Contains(errMsg, "conversion webhook") ||
-			strings.Contains(errMsg, "unavailable resource types") ||
-			strings.Contains(errMsg, "failed to list resources") ||
-			strings.Contains(errMsg, "Expired: too old resource version")
+		analysis := errors.AnalyzeError(err)
+		return analysis.HasIssue && analysis.IsCacheTainting
 	}
 
 	return false
