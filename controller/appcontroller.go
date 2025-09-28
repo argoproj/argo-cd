@@ -644,7 +644,7 @@ func (ctrl *ApplicationController) getResourceTree(destCluster *appv1.Cluster, a
 		}
 
 		logCtx := log.WithFields(applog.GetAppLogFields(a))
-		logCtx.Warnf("Conversion webhook error while iterating managed resource hierarchy, continuing with limited resource tree: %v", err)
+		logCtx.Warnf("Failed to iterate managed resource hierarchy due to tainted cluster cache (affected GVKs: %v), continuing with limited resource tree: %v", taintedGVKs, err)
 		// Continue processing with the nodes we have so far instead of failing completely
 	}
 	ts.AddCheckpoint("process_managed_resources_ms")
@@ -687,7 +687,7 @@ func (ctrl *ApplicationController) getResourceTree(destCluster *appv1.Cluster, a
 		}
 
 		logCtx := log.WithFields(applog.GetAppLogFields(a))
-		logCtx.Warnf("Conversion webhook error while iterating orphaned resource hierarchy, skipping orphaned resource detection: %v", err)
+		logCtx.Warnf("Failed to iterate orphaned resource hierarchy due to tainted cluster cache (affected GVKs: %v), skipping orphaned resource detection: %v", taintedGVKs, err)
 		// Clear orphaned nodes since we can't reliably detect them
 		orphanedNodes = make([]appv1.ResourceNode, 0)
 	}

@@ -166,7 +166,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, project *v1alp
 		clusterURL := app.Spec.Destination.Server
 		taintedGVKs := m.liveStateCache.GetTaintedGVKs(clusterURL)
 		if len(taintedGVKs) > 0 {
-			state.Message = "Application contains resources with conversion webhook failures. Some resources cannot be properly synchronized. Check cluster status for more details about the affected resource types."
+			state.Message = fmt.Sprintf("Application sync affected by tainted cluster cache. Some resources cannot be properly synchronized (affected GVKs: %v). Check cluster status for more details.", taintedGVKs)
 		} else {
 			state.Message = err.Error()
 		}
