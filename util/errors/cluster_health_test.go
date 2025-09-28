@@ -463,6 +463,11 @@ func TestIsConversionWebhookError(t *testing.T) {
 			expected: false,
 		},
 		{
+			name:     "empty string",
+			input:    "",
+			expected: false,
+		},
+		{
 			name:     "invalid type",
 			input:    123,
 			expected: false,
@@ -544,6 +549,65 @@ func TestExtractGVK(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := extractGVK(tt.message)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestCredentialsConfigurationError(t *testing.T) {
+	originalErr := errors.New("original credential error")
+
+	t.Run("NewCredentialsConfigurationError creates wrapped error", func(t *testing.T) {
+		wrappedErr := NewCredentialsConfigurationError(originalErr)
+		assert.NotNil(t, wrappedErr)
+		assert.Equal(t, "original credential error", wrappedErr.Error())
+	})
+
+	t.Run("IsCredentialsConfigurationError detects wrapped error", func(t *testing.T) {
+		wrappedErr := NewCredentialsConfigurationError(originalErr)
+		assert.True(t, IsCredentialsConfigurationError(wrappedErr))
+	})
+
+	t.Run("IsCredentialsConfigurationError returns false for regular error", func(t *testing.T) {
+		regularErr := errors.New("regular error")
+		assert.False(t, IsCredentialsConfigurationError(regularErr))
+	})
+
+	t.Run("IsCredentialsConfigurationError returns false for nil", func(t *testing.T) {
+		assert.False(t, IsCredentialsConfigurationError(nil))
+	})
+}
+
+func TestAppendUnique(t *testing.T) {
+	tests := []struct {
+		name         string
+		initialTypes []ClusterHealthIssueType
+		addType      ClusterHealthIssueType
+		expected     []ClusterHealthIssueType
+	}{
+		{
+			name:         "append to empty slice",
+			initialTypes: []ClusterHealthIssueType{},
+			addType:      IssueTypeConversionWebhook,
+			expected:     []ClusterHealthIssueType{IssueTypeConversionWebhook},
+		},
+		{
+			name:         "append unique type",
+			initialTypes: []ClusterHealthIssueType{IssueTypeConversionWebhook},
+			addType:      IssueTypeTimeout,
+			expected:     []ClusterHealthIssueType{IssueTypeConversionWebhook, IssueTypeTimeout},
+		},
+		{
+			name:         "append duplicate type",
+			initialTypes: []ClusterHealthIssueType{IssueTypeConversionWebhook},
+			addType:      IssueTypeConversionWebhook,
+			expected:     []ClusterHealthIssueType{IssueTypeConversionWebhook},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := appendUnique(tt.initialTypes, tt.addType)
 			assert.Equal(t, tt.expected, result)
 		})
 	}

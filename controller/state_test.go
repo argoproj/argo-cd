@@ -1935,6 +1935,72 @@ func TestCompareAppStateRevisionUpdatedWithHelmSource(t *testing.T) {
 	assert.True(t, compRes.revisionsMayHaveChanges)
 }
 
+func TestCompareAppStateWithConversionWebhookError(t *testing.T) {
+	app := newFakeApp()
+
+	// Setup conditions to simulate conversion webhook errors in the cluster cache
+	data := fakeData{
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+		taintedGVKs:     []string{"example.com/v1/Example"},
+	}
+
+	// Pass the conversion webhook error as the stateCacheErr parameter
+	ctrl := newFakeControllerWithStateCacheErrors(&data, errors.New("conversion webhook for example.com/v1, Kind=Example failed: Post error"))
+	sources := make([]v1alpha1.ApplicationSource, 0)
+	sources = append(sources, app.Spec.GetSource())
+	revisions := make([]string, 0)
+	revisions = append(revisions, "")
+
+	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
+	require.NoError(t, err)
+	assert.NotNil(t, compRes)
+
+	// Should handle conversion webhook error gracefully by continuing with empty live state
+	assert.Equal(t, v1alpha1.SyncStatusCodeSynced, compRes.syncStatus.Status)
+	assert.Len(t, app.Status.Conditions, 1)
+	assert.Equal(t, v1alpha1.ApplicationConditionComparisonError, app.Status.Conditions[0].Type)
+	assert.Contains(t, app.Status.Conditions[0].Message, "conversion webhook")
+}
+
+func TestCompareAppStateWithCacheTaintingIssues(t *testing.T) {
+	app := newFakeApp()
+	app.Status.Conditions = []v1alpha1.ApplicationCondition{
+		{
+			Type:    v1alpha1.ApplicationConditionComparisonError,
+			Message: "conversion webhook for example.com/v1, Kind=Example failed: Post error",
+		},
+	}
+
+	data := fakeData{
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+	}
+
+	ctrl := newFakeController(&data, nil)
+	sources := make([]v1alpha1.ApplicationSource, 0)
+	sources = append(sources, app.Spec.GetSource())
+	revisions := make([]string, 0)
+	revisions = append(revisions, "")
+
+	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
+	require.NoError(t, err)
+	assert.NotNil(t, compRes)
+
+	// With cache-tainting issues and no target objects, status should be Unknown
+	assert.Equal(t, v1alpha1.SyncStatusCodeUnknown, compRes.syncStatus.Status)
+}
+
 func Test_normalizeClusterScopeTracking(t *testing.T) {
 	obj := kube.MustToUnstructured(&rbacv1.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{
