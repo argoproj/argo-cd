@@ -87,7 +87,7 @@ func (a *ClusterHealthAnalysis) GetConditionMessage() string {
 // Pre-compiled regex patterns for better performance
 var (
 	// Conversion webhook related patterns
-	conversionWebhookPattern = regexp.MustCompile(`(?i)conversion\s+webhook.*(?:failed|error)`)
+	conversionWebhookPattern = regexp.MustCompile(`(?i)conversion\s+webhook.*(?:failed|error|failures)`)
 	webhookFailuresPattern   = regexp.MustCompile(`(?i)known\s+conversion\s+webhook\s+failures`)
 	unavailableTypesPattern  = regexp.MustCompile(`(?i)unavailable\s+resource\s+types`)
 
