@@ -3,6 +3,7 @@ package commands
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -154,6 +155,9 @@ func (h *DefaultPluginHandler) ListAvailablePlugins() []string {
 
 	// Split PATH into individual directories
 	pathDirs := filepath.SplitList(pathEnv)
+	if len(pathDirs) == 0 {
+		return []string{}
+	}
 
 	// Track seen plugin names to avoid duplicates
 	seenPlugins := make(map[string]bool)
@@ -204,11 +208,11 @@ func (h *DefaultPluginHandler) ListAvailablePlugins() []string {
 		}
 	}
 
-	// Convert map keys to sorted slice
-	plugins := make([]string, 0, len(seenPlugins))
-	for plugin := range seenPlugins {
-		plugins = append(plugins, plugin)
+	// Convert map keys to sorted slice and return
+	if len(seenPlugins) == 0 {
+		return []string{}
 	}
+	plugins := slices.Collect(maps.Keys(seenPlugins))
 	slices.Sort(plugins)
 	return plugins
 }
