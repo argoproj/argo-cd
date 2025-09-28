@@ -4,7 +4,7 @@ import * as classNames from 'classnames';
 import * as models from '../../../shared/models';
 import {ResourceIcon} from '../resource-icon';
 import {ResourceLabel} from '../resource-label';
-import {ComparisonStatusIcon, HealthStatusIcon, nodeKey, isSameNode, createdOrNodeKey} from '../utils';
+import {ComparisonStatusIcon, HealthStatusIcon, nodeKey, isSameNode, createdOrNodeKey, resourceStatusToResourceNode} from '../utils';
 import {AppDetailsPreferences} from '../../../shared/services';
 import {Consumer} from '../../../shared/context';
 import Moment from 'react-moment';
@@ -249,7 +249,14 @@ export const ApplicationResourceList = (props: ApplicationResourceListProps) => 
                                                             <i className='fa fa-ellipsis-v' />
                                                         </button>
                                                     )}>
-                                                    {() => props.nodeMenu(nodeByKey.get(nodeKey(res)))}
+                                                    {() => {
+                                                        const node = nodeByKey.get(nodeKey(res));
+                                                        if (node) {
+                                                            return props.nodeMenu(node);
+                                                        } else { // For orphaned resources, create a ResourceNode-like object to prevent errors
+                                                            return props.nodeMenu(resourceStatusToResourceNode(res));
+                                                        }
+                                                    }}
                                                 </DropDown>
                                             </div>
                                         )}
