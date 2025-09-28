@@ -41,7 +41,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
 	appstatecache "github.com/argoproj/argo-cd/v3/util/cache/appstate"
 	"github.com/argoproj/argo-cd/v3/util/db"
-	errorutils "github.com/argoproj/argo-cd/v3/util/errors"
+	argoerrors "github.com/argoproj/argo-cd/v3/util/errors"
 	"github.com/argoproj/argo-cd/v3/util/env"
 	"github.com/argoproj/argo-cd/v3/util/gpg"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
@@ -699,36 +699,21 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 			logCtx.Warnf("Conversion webhook error while getting managed live objects, continuing with empty live state: %v", err)
 			liveObjByKey = make(map[kubeutil.ResourceKey]*unstructured.Unstructured)
 
-			// Extract more detailed information from the error message for better diagnostics
-			errorMsg := err.Error()
-			switch {
-			case strings.Contains(errorMsg, "cannot sync application because all target resources have known conversion webhook failures"):
-				// More detailed error message
-				conditions = append(conditions, v1alpha1.ApplicationCondition{
-					Type:               v1alpha1.ApplicationConditionComparisonError,
-					Message:            fmt.Sprintf("This application cannot be synced because it contains resources with conversion webhook failures: %v. Check cluster status for more details about the affected resource types.", errorMsg),
-					LastTransitionTime: &now,
-				})
-			case strings.Contains(errorMsg, "failed to list resources") && strings.Contains(errorMsg, "conversion webhook"):
-				// Specific handling for list operation failures due to conversion webhook issues
-				conditions = append(conditions, v1alpha1.ApplicationCondition{
-					Type:               v1alpha1.ApplicationConditionComparisonError,
-					Message:            fmt.Sprintf("Failed to list resources due to conversion webhook error: %v. Check cluster status for more details about the affected resource types.", errorMsg),
-					LastTransitionTime: &now,
-				})
-			case strings.Contains(errorMsg, "conversion webhook") || strings.Contains(errorMsg, "unavailable resource types"):
-				conditions = append(conditions, v1alpha1.ApplicationCondition{
-					Type:               v1alpha1.ApplicationConditionComparisonError,
-					Message:            "Application contains resources affected by conversion webhook failures. Some resources may not be properly synchronized. Check cluster status for more details about the affected resource types.",
-					LastTransitionTime: &now,
-				})
-			default:
-				conditions = append(conditions, v1alpha1.ApplicationCondition{
-					Type:               v1alpha1.ApplicationConditionComparisonError,
-					Message:            fmt.Sprintf("Error retrieving live state: %v", err),
-					LastTransitionTime: &now,
-				})
+			// Use centralized error analysis for better diagnostics
+			analysis := argoerrors.AnalyzeError(err)
+
+			// Get appropriate condition message from the analysis
+			message := analysis.GetConditionMessage()
+			if message == "" {
+				// Fallback if analysis didn't produce a message
+				message = fmt.Sprintf("Error retrieving live state: %v", err)
 			}
+
+			conditions = append(conditions, v1alpha1.ApplicationCondition{
+				Type:               v1alpha1.ApplicationConditionComparisonError,
+				Message:            message,
+				LastTransitionTime: &now,
+			})
 			// Don't set failedToLoadObjs = true here to allow processing to continue
 		} else {
 			liveObjByKey = make(map[kubeutil.ResourceKey]*unstructured.Unstructured)
@@ -829,7 +814,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	hasConversionWebhookIssues := false
 	for _, condition := range app.Status.Conditions {
 		if condition.Type == v1alpha1.ApplicationConditionComparisonError &&
-			(strings.Contains(condition.Message, "conversion webhook") || strings.Contains(condition.Message, "unavailable resource types")) {
+			argoerrors.IsConversionWebhookError(condition.Message) {
 			hasConversionWebhookIssues = true
 			break
 		}
@@ -1049,7 +1034,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 			clusterHealth = &ClusterHealthStatus{
 				HasCacheIssues: true,
 				AffectedGVKs:   taintedGVKs,
-				Severity:       SeverityDegraded,
+				Severity:       argoerrors.SeverityDegraded,
 			}
 		}
 	}
