@@ -253,7 +253,8 @@ export const ApplicationResourceList = (props: ApplicationResourceListProps) => 
                                                         const node = nodeByKey.get(nodeKey(res));
                                                         if (node) {
                                                             return props.nodeMenu(node);
-                                                        } else { // For orphaned resources, create a ResourceNode-like object to prevent errors
+                                                        } else {
+                                                            // For orphaned resources, create a ResourceNode-like object to prevent errors
                                                             return props.nodeMenu(resourceStatusToResourceNode(res));
                                                         }
                                                     }}
