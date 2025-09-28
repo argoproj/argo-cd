@@ -25,6 +25,8 @@ import (
 	"github.com/go-playground/webhooks/v6/gitlab"
 	"github.com/go-playground/webhooks/v6/gogs"
 	gogsclient "github.com/gogits/go-gogs-client"
+	azv7 "github.com/microsoft/azure-devops-go-api/azuredevops/v7"
+	azv7git "github.com/microsoft/azure-devops-go-api/azuredevops/v7/git"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/v3/common"
@@ -158,7 +160,42 @@ func (a *ArgoCDWebhookHandler) affectedRevisionInfo(payloadIf any) (webURLs []st
 		change.shaAfter = ParseRevision(payload.Resource.RefUpdates[0].NewObjectID)
 		change.shaBefore = ParseRevision(payload.Resource.RefUpdates[0].OldObjectID)
 		touchedHead = payload.Resource.RefUpdates[0].Name == payload.Resource.Repository.DefaultBranch
-		// unfortunately, Azure DevOps doesn't provide a list of changed files
+		// Get changes only for authenticated webhooks.
+		// when WebhookBitbucketUUID is set in argocd-secret, then the payload must be signed and
+		// signature is validated before payload is parsed.
+		if len(a.settings.WebhookAzureDevOpsPassword) > 0 && len(a.settings.WebhookAzureDevOpsUsername) > 0 {
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			argoRepo, err := a.lookupRepository(ctx, webURLs[0])
+			if err != nil {
+				log.Warnf("error trying to find a matching repo for URL %s: %v", webURLs[0], err)
+				break
+			}
+			var conn *azv7.Connection
+			if argoRepo == nil {
+				// it could be a public repository with no repo creds stored.
+				// initialize with anonymous Azure Devops client.
+				log.Debugf("no azure devops repository configured for URL %s, initializing no auth client", webURLs[0])
+				conn = azv7.NewAnonymousConnection(webURLs[0])
+			} else {
+				conn = azv7.NewPatConnection(webURLs[0], argoRepo.BearerToken)
+			}
+			azClient, err := azv7git.NewClient(ctx, conn)
+			if err != nil {
+				break
+			}
+			changes, err := azClient.GetChanges(ctx, azv7git.GetChangesArgs{
+				CommitId:     &change.shaAfter,
+				RepositoryId: &payload.Resource.Repository.ID,
+				Project:      &payload.Resource.Repository.Project.ID,
+			})
+			if err != nil {
+				break
+			}
+			for _, gitChange := range *changes.Changes {
+				changedFiles = append(changedFiles, gitChange.(string))
+			}
+		}
 	case github.PushPayload:
 		// See: https://developer.github.com/v3/activity/events/types/#pushevent
 		webURLs = append(webURLs, payload.Repository.HTMLURL)
