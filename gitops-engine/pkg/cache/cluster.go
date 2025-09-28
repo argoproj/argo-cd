@@ -1726,21 +1726,6 @@ func (c *clusterCache) clearFailedGVK(gvk schema.GroupVersionKind) {
 // but allow it to continue operating. This includes errors like conversion webhook
 // failures and other recoverable sync errors.
 func (c *clusterCache) errorTaintsCache(err error) bool {
-	if err == nil {
-		return false
-	}
-
-	errStr := err.Error()
-
-	switch {
-	case strings.Contains(errStr, "conversion webhook"):
-		return true
-	case strings.Contains(errStr, "failed") && strings.Contains(errStr, "convert"):
-		return true
-	// Future extension: pagination token expiration errors
-	// case strings.Contains(errStr, "expired") && strings.Contains(errStr, "token"):
-	//     return true
-	default:
-		return false
-	}
+	classification := ClassifyError(err)
+	return classification.IsCacheTainting
 }
