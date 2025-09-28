@@ -692,11 +692,11 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 
 	liveObjByKey, err := m.liveStateCache.GetManagedLiveObjs(destCluster, app, targetObjs)
 	if err != nil {
-		// Handle cluster cache errors gracefully - this includes conversion webhook errors,
-		// pagination token expiration, and other issues that might result in partial data
+		// Handle cluster cache errors gracefully - this includes various issues
+		// that might result in partial data (conversion webhooks, pagination token expiration, etc.)
 		taintedGVKs := m.liveStateCache.GetTaintedGVKs(destCluster.Server)
 		if len(taintedGVKs) > 0 {
-			logCtx.Warnf("Conversion webhook error while getting managed live objects, continuing with empty live state: %v", err)
+			logCtx.Warnf("Failed to get managed live objects due to tainted cluster cache (affected GVKs: %v), continuing with empty live state: %v", taintedGVKs, err)
 			liveObjByKey = make(map[kubeutil.ResourceKey]*unstructured.Unstructured)
 
 			// Use centralized error analysis for better diagnostics
@@ -810,12 +810,12 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 
 	reconciliation := sync.Reconcile(targetObjsForSync, liveObjByKey, app.Spec.Destination.Namespace, infoProvider)
 
-	// Check if the app has conversion webhook error conditions
-	hasConversionWebhookIssues := false
+	// Check if the app has cache-tainting error conditions
+	hasCacheTaintingIssues := false
 	for _, condition := range app.Status.Conditions {
 		if condition.Type == v1alpha1.ApplicationConditionComparisonError &&
 			argoerrors.IsConversionWebhookError(condition.Message) {
-			hasConversionWebhookIssues = true
+			hasCacheTaintingIssues = true
 			break
 		}
 	}
@@ -1001,12 +1001,12 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	switch {
 	case failedToLoadObjs:
 		syncCode = v1alpha1.SyncStatusCodeUnknown
-	case hasConversionWebhookIssues && len(targetObjs) == 0:
-		// If we have conversion webhook issues and no target objects successfully loaded,
+	case hasCacheTaintingIssues && len(targetObjs) == 0:
+		// If we have cache-tainting issues and no target objects successfully loaded,
 		// the sync status should be Unknown since we can't determine real state
 		syncCode = v1alpha1.SyncStatusCodeUnknown
-	case hasConversionWebhookIssues:
-		// If we have conversion webhook issues but some targets loaded, mark as OutOfSync
+	case hasCacheTaintingIssues:
+		// If we have cache-tainting issues but some targets loaded, mark as OutOfSync
 		// This ensures the user knows something needs attention
 		syncCode = v1alpha1.SyncStatusCodeOutOfSync
 	case app.HasChangedManagedNamespaceMetadata():
