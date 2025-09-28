@@ -15,18 +15,18 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+const prefix = "argocd"
+
 // DefaultPluginHandler implements the PluginHandler interface
 type DefaultPluginHandler struct {
-	ValidPrefixes []string
-	lookPath      func(file string) (string, error)
-	run           func(cmd *exec.Cmd) error
+	lookPath func(file string) (string, error)
+	run      func(cmd *exec.Cmd) error
 }
 
 // NewDefaultPluginHandler instantiates the DefaultPluginHandler
-func NewDefaultPluginHandler(validPrefixes []string) *DefaultPluginHandler {
+func NewDefaultPluginHandler() *DefaultPluginHandler {
 	return &DefaultPluginHandler{
-		ValidPrefixes: validPrefixes,
-		lookPath:      exec.LookPath,
+		lookPath: exec.LookPath,
 		run: func(cmd *exec.Cmd) error {
 			return cmd.Run()
 		},
@@ -87,27 +87,24 @@ func (h *DefaultPluginHandler) handlePluginCommand(cmdArgs []string) (string, er
 
 // lookForPlugin looks for a plugin in the PATH that starts with argocd prefix
 func (h *DefaultPluginHandler) lookForPlugin(filename string) (string, bool) {
-	for _, prefix := range h.ValidPrefixes {
-		pluginName := fmt.Sprintf("%s-%s", prefix, filename)
-		path, err := h.lookPath(pluginName)
-		if err != nil {
-			//  error if a plugin is found in a relative path
-			if errors.Is(err, exec.ErrDot) {
-				log.Errorf("Plugin '%s' found in relative path: %v", pluginName, err)
-			} else {
-				log.Warnf("error looking for plugin '%s': %v", pluginName, err)
-			}
-			continue
+	pluginName := fmt.Sprintf("%s-%s", prefix, filename)
+	path, err := h.lookPath(pluginName)
+	if err != nil {
+		//  error if a plugin is found in a relative path
+		if errors.Is(err, exec.ErrDot) {
+			log.Errorf("Plugin '%s' found in relative path: %v", pluginName, err)
+		} else {
+			log.Warnf("error looking for plugin '%s': %v", pluginName, err)
 		}
 
-		if path == "" {
-			return "", false
-		}
-
-		return path, true
+		return "", false
 	}
 
-	return "", false
+	if path == "" {
+		return "", false
+	}
+
+	return path, true
 }
 
 // executePlugin implements PluginHandler and executes a plugin found
