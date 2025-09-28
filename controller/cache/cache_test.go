@@ -32,6 +32,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	dbmocks "github.com/argoproj/argo-cd/v3/util/db/mocks"
+	argoerrors "github.com/argoproj/argo-cd/v3/util/errors"
 	argosettings "github.com/argoproj/argo-cd/v3/util/settings"
 )
 
@@ -1103,7 +1104,7 @@ func TestIsPartialCacheError(t *testing.T) {
 			if tc.errorMsg != "" {
 				err = errors.New(tc.errorMsg)
 			}
-			result := isPartialCacheError(err)
+			result := argoerrors.IsPartialCacheError(err)
 			assert.Equal(t, tc.expectMatch, result)
 		})
 	}

@@ -25,9 +25,9 @@ const (
 type ErrorContext string
 
 const (
-	ContextAllTargetsFailed   ErrorContext = "all_targets_failed"    // All target resources have failures
+	ContextAllTargetsFailed    ErrorContext = "all_targets_failed"    // All target resources have failures
 	ContextListOperationFailed ErrorContext = "list_operation_failed" // Failed during list operation
-	ContextGenericFailure     ErrorContext = "generic_failure"       // Generic or unspecified failure
+	ContextGenericFailure      ErrorContext = "generic_failure"       // Generic or unspecified failure
 )
 
 // ClusterHealthSeverity represents the severity of cluster health issues
@@ -42,15 +42,15 @@ const (
 
 // ClusterHealthAnalysis contains the analysis of an error or message
 type ClusterHealthAnalysis struct {
-	HasIssue          bool                   `json:"hasIssue"`
-	IssueType         ClusterHealthIssueType `json:"issueType"`
-	ErrorContext      ErrorContext           `json:"errorContext"`
-	Severity          ClusterHealthSeverity  `json:"severity"`
-	IsPartialCache    bool                   `json:"isPartialCache"`
-	IsCacheTainting   bool                   `json:"isCacheTainting"`
-	Message           string                 `json:"message"`
-	ExtractedGVK      string                 `json:"extractedGVK,omitempty"`
-	SuggestedAction   string                 `json:"suggestedAction,omitempty"`
+	HasIssue        bool                   `json:"hasIssue"`
+	IssueType       ClusterHealthIssueType `json:"issueType"`
+	ErrorContext    ErrorContext           `json:"errorContext"`
+	Severity        ClusterHealthSeverity  `json:"severity"`
+	IsPartialCache  bool                   `json:"isPartialCache"`
+	IsCacheTainting bool                   `json:"isCacheTainting"`
+	Message         string                 `json:"message"`
+	ExtractedGVK    string                 `json:"extractedGVK,omitempty"`
+	SuggestedAction string                 `json:"suggestedAction,omitempty"`
 }
 
 // GetConditionMessage returns an appropriate application condition message based on the error analysis
@@ -96,8 +96,8 @@ var (
 	resourceExpiredPattern   = regexp.MustCompile(`(?i)the\s+resourceVersion.*is\s+too\s+old`)
 
 	// List and API discovery patterns
-	listFailurePattern      = regexp.MustCompile(`(?i)failed\s+to\s+list.*resources`)
-	apiDiscoveryPattern     = regexp.MustCompile(`(?i)unable\s+to\s+retrieve.*(?:openapi|discovery)`)
+	listFailurePattern  = regexp.MustCompile(`(?i)failed\s+to\s+list.*resources`)
+	apiDiscoveryPattern = regexp.MustCompile(`(?i)unable\s+to\s+retrieve.*(?:openapi|discovery)`)
 
 	// Connection and network patterns
 	connectionRefusedPattern = regexp.MustCompile(`(?i)connection\s+refused`)
@@ -140,8 +140,7 @@ func AnalyzeMessage(message string) *ClusterHealthAnalysis {
 
 	// Check for conversion webhook issues (highest priority)
 	if conversionWebhookPattern.MatchString(message) ||
-		webhookFailuresPattern.MatchString(message) ||
-		unavailableTypesPattern.MatchString(message) {
+		webhookFailuresPattern.MatchString(message) {
 		analysis.IssueType = IssueTypeConversionWebhook
 		analysis.Severity = SeverityDegraded
 		analysis.IsPartialCache = true
@@ -150,13 +149,25 @@ func AnalyzeMessage(message string) *ClusterHealthAnalysis {
 		analysis.ExtractedGVK = extractGVK(message)
 
 		// Determine the specific context
-		if strings.Contains(message, "cannot sync application because all target resources") {
+		switch {
+		case strings.Contains(message, "cannot sync application because all target resources"):
 			analysis.ErrorContext = ContextAllTargetsFailed
-		} else if strings.Contains(message, "failed to list resources") {
+		case strings.Contains(message, "failed to list resources"):
 			analysis.ErrorContext = ContextListOperationFailed
-		} else {
+		default:
 			analysis.ErrorContext = ContextGenericFailure
 		}
+		return analysis
+	}
+
+	// Check for unavailable resource types
+	if unavailableTypesPattern.MatchString(message) {
+		analysis.IssueType = IssueTypeUnavailableTypes
+		analysis.ErrorContext = ContextGenericFailure
+		analysis.Severity = SeverityDegraded
+		analysis.IsPartialCache = true
+		analysis.IsCacheTainting = true
+		analysis.SuggestedAction = "Check API server availability and resource definitions."
 		return analysis
 	}
 
@@ -200,9 +211,9 @@ func AnalyzeMessage(message string) *ClusterHealthAnalysis {
 		return analysis
 	}
 
-	// Check for connection failures (total failures, not partial)
-	if connectionRefusedPattern.MatchString(message) ||
-		connectionResetPattern.MatchString(message) {
+	// Check for connection failures
+	if connectionRefusedPattern.MatchString(message) {
+		// Connection refused is a total failure
 		analysis.IssueType = IssueTypeConnectionFailure
 		analysis.ErrorContext = ContextGenericFailure
 		analysis.Severity = SeverityCritical
@@ -212,22 +223,25 @@ func AnalyzeMessage(message string) *ClusterHealthAnalysis {
 		return analysis
 	}
 
-	// Check for timeout issues (could be partial or total)
+	// Check for timeout issues and connection resets (partial failures)
 	if ioTimeoutPattern.MatchString(message) ||
-		contextDeadlinePattern.MatchString(message) {
+		contextDeadlinePattern.MatchString(message) ||
+		connectionResetPattern.MatchString(message) {
 		analysis.IssueType = IssueTypeTimeout
 		analysis.ErrorContext = ContextGenericFailure
-		analysis.Severity = SeverityCritical
-		analysis.IsPartialCache = false
-		analysis.IsCacheTainting = false
+		analysis.Severity = SeverityDegraded
+		analysis.IsPartialCache = true // These are transient issues, so partial cache
+		analysis.IsCacheTainting = true
 		analysis.SuggestedAction = "Check network latency and increase timeout values if necessary."
 		return analysis
 	}
 
-	// Default case - unknown issue
+	// Default case - no recognized issue pattern
+	// For normal messages, mark as no issue
+	analysis.HasIssue = false
 	analysis.IssueType = IssueTypeUnknown
 	analysis.ErrorContext = ContextGenericFailure
-	analysis.Severity = SeverityWarning
+	analysis.Severity = SeverityNone
 	analysis.IsPartialCache = false
 	analysis.IsCacheTainting = false
 	return analysis
