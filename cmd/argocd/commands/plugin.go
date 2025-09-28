@@ -3,9 +3,11 @@ package commands
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/argoproj/argo-cd/v3/util/cli"
@@ -140,4 +142,71 @@ func (h *DefaultPluginHandler) command(name string, arg ...string) *exec.Cmd {
 		}
 	}
 	return cmd
+}
+
+// ListAvailablePlugins returns a list of plugin names that are available in the user's PATH
+// for tab completion. It searches for executables matching the ValidPrefixes pattern.
+func (h *DefaultPluginHandler) ListAvailablePlugins() []string {
+	// Split PATH into individual directories
+	pathDirs := filepath.SplitList(os.Getenv("PATH"))
+	if len(pathDirs) == 0 {
+		return []string{}
+	}
+
+	// Track seen plugin names to avoid duplicates
+	seenPlugins := make(map[string]bool)
+
+	// Search through each directory in PATH
+	for _, dir := range pathDirs {
+		// Skip empty directories
+		if dir == "" {
+			continue
+		}
+
+		// Read directory contents
+		entries, err := os.ReadDir(dir)
+		if err != nil {
+			continue
+		}
+
+		// Check each file in the directory
+		for _, entry := range entries {
+			// Skip directories and non-executable files
+			if entry.IsDir() {
+				continue
+			}
+
+			name := entry.Name()
+
+			// Check if the file matches any of our valid prefixes
+			for _, prefix := range h.ValidPrefixes {
+				pluginPrefix := prefix + "-"
+				if strings.HasPrefix(name, pluginPrefix) {
+					// Extract the plugin command name (everything after the prefix)
+					pluginName := strings.TrimPrefix(name, pluginPrefix)
+
+					// Skip empty plugin names or names with path separators
+					if pluginName == "" || strings.Contains(pluginName, "/") || strings.Contains(pluginName, "\\") {
+						continue
+					}
+
+					// Check if the file is executable
+					if info, err := entry.Info(); err == nil {
+						// On Unix-like systems, check executable bit
+						if info.Mode()&0o111 != 0 {
+							seenPlugins[pluginName] = true
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// Convert map keys to sorted slice and return
+	if len(seenPlugins) == 0 {
+		return []string{}
+	}
+	plugins := slices.Collect(maps.Keys(seenPlugins))
+	slices.Sort(plugins)
+	return plugins
 }
