@@ -495,8 +495,9 @@ func (server *ArgoCDServer) logInClusterWarnings() error {
 func startListener(host string, port int) (net.Listener, error) {
 	var conn net.Listener
 	var realErr error
+	lc := net.ListenConfig{}
 	_ = wait.ExponentialBackoff(backoff, func() (bool, error) {
-		conn, realErr = net.Listen("tcp", fmt.Sprintf("%s:%d", host, port))
+		conn, realErr = lc.Listen(context.Background(), "tcp", fmt.Sprintf("%s:%d", host, port))
 		if realErr != nil {
 			return false, nil
 		}
