@@ -10,7 +10,6 @@ import (
 	"net/url"
 	"os/exec"
 	"reflect"
-	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -39,6 +38,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
 	"github.com/argoproj/argo-cd/v3/util/db"
 	"github.com/argoproj/argo-cd/v3/util/env"
+	argoerrors "github.com/argoproj/argo-cd/v3/util/errors"
 	logutils "github.com/argoproj/argo-cd/v3/util/log"
 	"github.com/argoproj/argo-cd/v3/util/lua"
 	"github.com/argoproj/argo-cd/v3/util/settings"
@@ -1009,49 +1009,12 @@ func (c *liveStateCache) shouldReturnPartialCache(server string, err error) bool
 	taintedGVKs := c.taintManager.getTaintedGVKs(server)
 
 	// Only return partial cache if we have specific GVK failures AND it's a recoverable error
-	if len(taintedGVKs) == 0 || !isPartialCacheError(err) {
+	if len(taintedGVKs) == 0 || !argoerrors.IsPartialCacheError(err) {
 		return false
 	}
 
 	log.WithField("cluster", server).WithField("taintedGVKs", taintedGVKs).Debug("Partial cache acceptable for tainted GVKs")
 	return true
-}
-
-// Pre-compiled regex patterns for better performance
-var (
-	partialCacheErrorPatterns = []*regexp.Regexp{
-		// Conversion webhook errors - specific to certain GVKs
-		regexp.MustCompile(`(?i)conversion\s+webhook.*(?:failed|error)`),
-
-		// Pagination token expiration - recoverable
-		regexp.MustCompile(`(?i)expired.*too\s+old\s+resource\s+version`),
-
-		// Network timeout errors - often transient and recoverable
-		regexp.MustCompile(`(?i)connection\s+reset\s+by\s+peer`),
-		regexp.MustCompile(`(?i)i/o\s+timeout`),
-
-		// TODO: Consider adding resource list failures after reproducing the issue
-		// Maintainer noted this as a potential partial failure case, but we don't have
-		// a working reproduction to validate the behavior yet.
-		// regexp.MustCompile(`(?i)failed\s+to\s+list\s+resources`),
-	}
-)
-
-// isPartialCacheError checks if an error indicates a partial cache failure
-// (specific resource types) rather than total failure (connection/auth issues)
-func isPartialCacheError(err error) bool {
-	if err == nil {
-		return false
-	}
-	errStr := err.Error()
-
-	for _, pattern := range partialCacheErrorPatterns {
-		if pattern.MatchString(errStr) {
-			return true
-		}
-	}
-
-	return false
 }
 
 // clusterTaintManager manages cluster taint state in a thread-safe manner

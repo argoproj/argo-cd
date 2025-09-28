@@ -63,12 +63,12 @@ import (
 	argodiff "github.com/argoproj/argo-cd/v3/util/argo/diff"
 	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
 	"github.com/argoproj/argo-cd/v3/util/env"
+	"github.com/argoproj/argo-cd/v3/util/errors"
 	"github.com/argoproj/argo-cd/v3/util/stats"
 
 	"github.com/argoproj/argo-cd/v3/pkg/ratelimiter"
 	appstatecache "github.com/argoproj/argo-cd/v3/util/cache/appstate"
 	"github.com/argoproj/argo-cd/v3/util/db"
-	"github.com/argoproj/argo-cd/v3/util/errors"
 	"github.com/argoproj/argo-cd/v3/util/glob"
 	"github.com/argoproj/argo-cd/v3/util/helm"
 	logutils "github.com/argoproj/argo-cd/v3/util/log"
@@ -103,33 +103,14 @@ func (a CompareWith) Pointer() *CompareWith {
 	return &a
 }
 
-// ClusterHealthIssueType represents different types of cluster health issues
-type ClusterHealthIssueType string
-
-const (
-	IssueTypeConversionWebhook ClusterHealthIssueType = "conversion_webhook"
-	IssueTypeUnavailableTypes  ClusterHealthIssueType = "unavailable_types"
-	IssueTypeListFailure       ClusterHealthIssueType = "list_failure"
-	IssueTypeResourceExpired   ClusterHealthIssueType = "resource_expired"
-	IssueTypeTaintedResources  ClusterHealthIssueType = "tainted_resources"
-)
-
-// ClusterHealthSeverity represents the severity of cluster health issues
-type ClusterHealthSeverity string
-
-const (
-	SeverityNone     ClusterHealthSeverity = "none"
-	SeverityDegraded ClusterHealthSeverity = "degraded"
-	SeverityFailed   ClusterHealthSeverity = "failed"
-)
 
 // ClusterHealthStatus provides structured information about cluster cache issues
 type ClusterHealthStatus struct {
-	HasCacheIssues       bool                     `json:"hasCacheIssues"`
-	UsesTaintedResources bool                     `json:"usesTaintedResources"`
-	IssueTypes           []ClusterHealthIssueType `json:"issueTypes"`
-	AffectedGVKs         []string                 `json:"affectedGVKs"`
-	Severity             ClusterHealthSeverity    `json:"severity"`
+	HasCacheIssues       bool                           `json:"hasCacheIssues"`
+	UsesTaintedResources bool                           `json:"usesTaintedResources"`
+	IssueTypes           []errors.ClusterHealthIssueType `json:"issueTypes"`
+	AffectedGVKs         []string                       `json:"affectedGVKs"`
+	Severity             errors.ClusterHealthSeverity    `json:"severity"`
 }
 
 // ApplicationController is the controller for application resources.
@@ -2142,18 +2123,18 @@ func (ctrl *ApplicationController) analyzeClusterHealth(app *appv1.Application) 
 	// Get tainted GVKs from the cluster taint manager (primary source of truth)
 	taintedGVKs := ctrl.stateCache.GetTaintedGVKs(clusterURL)
 
-	var issueTypes []ClusterHealthIssueType
+	var issueTypes []errors.ClusterHealthIssueType
 	var affectedGVKs []string
-	severity := SeverityNone
+	severity := errors.SeverityNone
 	hasCacheIssues := false
 	usesTaintedResources := false
 
 	// 1. Check tainted resources first (authoritative)
 	if len(taintedGVKs) > 0 {
 		hasCacheIssues = true
-		issueTypes = append(issueTypes, IssueTypeTaintedResources)
+		issueTypes = append(issueTypes, errors.IssueTypeTaintedResources)
 		affectedGVKs = append(affectedGVKs, taintedGVKs...)
-		severity = SeverityDegraded
+		severity = errors.SeverityDegraded
 
 		// Check if the app uses any tainted resources
 		for _, res := range app.Status.Resources {
@@ -2178,8 +2159,8 @@ func (ctrl *ApplicationController) analyzeClusterHealth(app *appv1.Application) 
 		message := app.Status.OperationState.Message
 		if ctrl.checkMessageForIssues(message, &issueTypes) {
 			hasCacheIssues = true
-			if severity == SeverityNone {
-				severity = SeverityDegraded
+			if severity == errors.SeverityNone {
+				severity = errors.SeverityDegraded
 			}
 		}
 
@@ -2188,8 +2169,8 @@ func (ctrl *ApplicationController) analyzeClusterHealth(app *appv1.Application) 
 			for _, res := range app.Status.OperationState.SyncResult.Resources {
 				if ctrl.checkMessageForIssues(res.Message, &issueTypes) {
 					hasCacheIssues = true
-					if severity == SeverityNone {
-						severity = SeverityDegraded
+					if severity == errors.SeverityNone {
+						severity = errors.SeverityDegraded
 					}
 				}
 			}
@@ -2202,8 +2183,8 @@ func (ctrl *ApplicationController) analyzeClusterHealth(app *appv1.Application) 
 			condition.Type == appv1.ApplicationConditionSyncError {
 			if ctrl.checkMessageForIssues(condition.Message, &issueTypes) {
 				hasCacheIssues = true
-				if severity == SeverityNone {
-					severity = SeverityDegraded
+				if severity == errors.SeverityNone {
+					severity = errors.SeverityDegraded
 				}
 			}
 		}
@@ -2214,8 +2195,8 @@ func (ctrl *ApplicationController) analyzeClusterHealth(app *appv1.Application) 
 		if res.Health != nil && res.Health.Message != "" {
 			if ctrl.checkMessageForIssues(res.Health.Message, &issueTypes) {
 				hasCacheIssues = true
-				if severity == SeverityNone {
-					severity = SeverityDegraded
+				if severity == errors.SeverityNone {
+					severity = errors.SeverityDegraded
 				}
 			}
 		}
@@ -2231,35 +2212,17 @@ func (ctrl *ApplicationController) analyzeClusterHealth(app *appv1.Application) 
 }
 
 // checkMessageForIssues checks a message for known cache issues and updates issue types
-func (ctrl *ApplicationController) checkMessageForIssues(message string, issueTypes *[]ClusterHealthIssueType) bool {
-	hasIssue := false
-
-	if strings.Contains(message, "conversion webhook") ||
-		strings.Contains(message, "known conversion webhook failures") {
-		*issueTypes = appendUniqueIssueType(*issueTypes, IssueTypeConversionWebhook)
-		hasIssue = true
+func (ctrl *ApplicationController) checkMessageForIssues(message string, issueTypes *[]errors.ClusterHealthIssueType) bool {
+	analysis := errors.AnalyzeMessage(message)
+	if analysis.HasIssue {
+		*issueTypes = appendUniqueIssueType(*issueTypes, analysis.IssueType)
+		return true
 	}
-
-	if strings.Contains(message, "unavailable resource types") {
-		*issueTypes = appendUniqueIssueType(*issueTypes, IssueTypeUnavailableTypes)
-		hasIssue = true
-	}
-
-	if strings.Contains(message, "failed to list resources") {
-		*issueTypes = appendUniqueIssueType(*issueTypes, IssueTypeListFailure)
-		hasIssue = true
-	}
-
-	if strings.Contains(message, "Expired: too old resource version") {
-		*issueTypes = appendUniqueIssueType(*issueTypes, IssueTypeResourceExpired)
-		hasIssue = true
-	}
-
-	return hasIssue
+	return false
 }
 
 // appendUniqueIssueType adds an issue type if it's not already present
-func appendUniqueIssueType(types []ClusterHealthIssueType, issueType ClusterHealthIssueType) []ClusterHealthIssueType {
+func appendUniqueIssueType(types []errors.ClusterHealthIssueType, issueType errors.ClusterHealthIssueType) []errors.ClusterHealthIssueType {
 	for _, t := range types {
 		if t == issueType {
 			return types
