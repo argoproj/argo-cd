@@ -165,7 +165,7 @@ func (c *clusterInfoUpdater) getUpdatedClusterInfo(ctx context.Context, apps []*
 		case c.hasClusterCacheIssues(cluster.Server, info.SyncError):
 			// We have a successful connection but some resources failed to sync
 			clusterInfo.ConnectionState.Status = appv1.ConnectionStatusDegraded
-			clusterInfo.ConnectionState.Message = fmt.Sprintf("Conversion webhook errors detected: %v", info.SyncError.Error())
+			clusterInfo.ConnectionState.Message = fmt.Sprintf("Cluster cache sync issues detected: %v", info.SyncError.Error())
 			syncTime := metav1.NewTime(*info.LastCacheSyncTime)
 			clusterInfo.CacheInfo.LastCacheSyncTime = &syncTime
 			clusterInfo.CacheInfo.APIsCount = int64(info.APIsCount)
