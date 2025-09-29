@@ -20,7 +20,8 @@ local has_no_status = {
   "DeploymentRuntimeConfig",
   "ClusterProviderConfig",
   "ProviderConfig",
-  "ProviderConfigUsage"
+  "ProviderConfigUsage",
+  "ControllerConfig" -- Added to ensure that healthcheck is backwards-compatible with Crossplane v1
 }
 if obj.status == nil or next(obj.status) == nil and contains(has_no_status, obj.kind) then
     health_status.status = "Healthy"
