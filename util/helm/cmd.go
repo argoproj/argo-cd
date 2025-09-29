@@ -1,6 +1,7 @@
 package helm
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -50,8 +51,8 @@ var redactor = func(text string) string {
 	return regexp.MustCompile("(--username|--password) [^ ]*").ReplaceAllString(text, "$1 ******")
 }
 
-func (c Cmd) run(args ...string) (string, string, error) {
-	cmd := exec.Command("helm", args...)
+func (c Cmd) run(ctx context.Context, args ...string) (string, string, error) {
+	cmd := exec.CommandContext(ctx, "helm", args...)
 	cmd.Dir = c.WorkDir
 	cmd.Env = os.Environ()
 	if !c.IsLocal {
@@ -117,7 +118,7 @@ func (c *Cmd) RegistryLogin(repo string, creds Creds) (string, error) {
 	if creds.GetInsecureSkipVerify() {
 		args = append(args, "--insecure")
 	}
-	out, _, err := c.run(args...)
+	out, _, err := c.run(context.Background(), args...)
 	if err != nil {
 		return "", fmt.Errorf("failed to login to registry: %w", err)
 	}
@@ -127,7 +128,7 @@ func (c *Cmd) RegistryLogin(repo string, creds Creds) (string, error) {
 func (c *Cmd) RegistryLogout(repo string, _ Creds) (string, error) {
 	args := []string{"registry", "logout"}
 	args = append(args, repo)
-	out, _, err := c.run(args...)
+	out, _, err := c.run(context.Background(), args...)
 	if err != nil {
 		return "", fmt.Errorf("failed to logout from registry: %w", err)
 	}
@@ -195,7 +196,7 @@ func (c *Cmd) RepoAdd(name string, url string, opts Creds, passCredentials bool)
 
 	args = append(args, name, url)
 
-	out, _, err := c.run(args...)
+	out, _, err := c.run(context.Background(), args...)
 	if err != nil {
 		return "", fmt.Errorf("failed to add repository: %w", err)
 	}
@@ -270,7 +271,7 @@ func (c *Cmd) Fetch(repo, chartName, version, destination string, creds Creds, p
 		args = append(args, "--pass-credentials")
 	}
 
-	out, _, err := c.run(args...)
+	out, _, err := c.run(context.Background(), args...)
 	if err != nil {
 		return "", fmt.Errorf("failed to fetch chart: %w", err)
 	}
@@ -309,7 +310,7 @@ func (c *Cmd) PullOCI(repo string, chart string, version string, destination str
 	if creds.GetInsecureSkipVerify() {
 		args = append(args, "--insecure-skip-tls-verify")
 	}
-	out, _, err := c.run(args...)
+	out, _, err := c.run(context.Background(), args...)
 	if err != nil {
 		return "", fmt.Errorf("failed to pull OCI chart: %w", err)
 	}
@@ -317,7 +318,7 @@ func (c *Cmd) PullOCI(repo string, chart string, version string, destination str
 }
 
 func (c *Cmd) dependencyBuild() (string, error) {
-	out, _, err := c.run("dependency", "build")
+	out, _, err := c.run(context.Background(), "dependency", "build")
 	if err != nil {
 		return "", fmt.Errorf("failed to build dependencies: %w", err)
 	}
@@ -325,7 +326,7 @@ func (c *Cmd) dependencyBuild() (string, error) {
 }
 
 func (c *Cmd) inspectValues(values string) (string, error) {
-	out, _, err := c.run("show", "values", values)
+	out, _, err := c.run(context.Background(), "show", "values", values)
 	if err != nil {
 		return "", fmt.Errorf("failed to inspect values: %w", err)
 	}
@@ -333,7 +334,7 @@ func (c *Cmd) inspectValues(values string) (string, error) {
 }
 
 func (c *Cmd) InspectChart() (string, error) {
-	out, _, err := c.run("show", "chart", ".")
+	out, _, err := c.run(context.Background(), "show", "chart", ".")
 	if err != nil {
 		return "", fmt.Errorf("failed to inspect chart: %w", err)
 	}
@@ -430,7 +431,7 @@ func (c *Cmd) template(chartPath string, opts *TemplateOpts) (string, string, er
 		args = append(args, "--skip-tests")
 	}
 
-	out, command, err := c.run(args...)
+	out, command, err := c.run(context.Background(), args...)
 	if err != nil {
 		msg := err.Error()
 		if strings.Contains(msg, "--api-versions") {
@@ -462,7 +463,7 @@ func cleanupChartLockFile(chartPath string) (func(), error) {
 }
 
 func (c *Cmd) Freestyle(args ...string) (string, error) {
-	out, _, err := c.run(args...)
+	out, _, err := c.run(context.Background(), args...)
 	if err != nil {
 		return "", fmt.Errorf("failed to execute freestyle helm command: %w", err)
 	}
