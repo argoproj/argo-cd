@@ -133,11 +133,11 @@ type Client interface {
 	// CommitAndPush commits and pushes changes to the target branch.
 	CommitAndPush(branch, message string) (string, error)
 	// GetCommitNote gets the note associated with the DRY sha stored in the specific namespace
-	GetCommitNote(drySha string, namespace string) (string, error)
+	GetCommitNote(sha string, namespace string) (string, error)
 	// AddAndPushNote adds a note to a DRY sha and then pushes it.
-	AddAndPushNote(drySha string, namespace string, note string) error
-	// GetLatestManifest returns the last hydrated manifest
-	// GetLatestManifest(branch, filePath string) ([]byte, error)
+	AddAndPushNote(sha string, namespace string, note string) error
+	// HasFileChanged returns the outout of git diff considering whether it is tracked or un-tracked
+	HasFileChanged(filePath string) (bool, error)
 }
 
 type EventHandlers struct {
@@ -1070,12 +1070,12 @@ func (m *nativeGitClient) CommitAndPush(branch, message string) (string, error) 
 }
 
 // GetCommitNote gets the note associated with the DRY sha stored in the specific namespace
-func (m *nativeGitClient) GetCommitNote(drySha string, namespace string) (string, error) {
+func (m *nativeGitClient) GetCommitNote(sha string, namespace string) (string, error) {
 	if strings.TrimSpace(namespace) == "" {
 		namespace = "commit"
 	}
 	ref := fmt.Sprintf("--ref=%s", namespace)
-	out, err := m.runCmd("notes", ref, "show", drySha)
+	out, err := m.runCmd("notes", ref, "show", sha)
 	if err != nil {
 		return out, fmt.Errorf("failed to get commit note: %w", err)
 	}
@@ -1083,12 +1083,12 @@ func (m *nativeGitClient) GetCommitNote(drySha string, namespace string) (string
 }
 
 // AddAndPushNote adds a note to a DRY sha and then pushes it.
-func (m *nativeGitClient) AddAndPushNote(drySha string, namespace string, note string) error {
+func (m *nativeGitClient) AddAndPushNote(sha string, namespace string, note string) error {
 	if namespace == "" {
 		namespace = "commit"
 	}
 	ref := fmt.Sprintf("--ref=%s", namespace)
-	_, err := m.runCmd("notes", ref, "add", "-m", note, drySha)
+	_, err := m.runCmd("notes", ref, "add", "-m", note, sha)
 	if err != nil {
 		return fmt.Errorf("failed to push: %w", err)
 	}
@@ -1105,15 +1105,30 @@ func (m *nativeGitClient) AddAndPushNote(drySha string, namespace string, note s
 	return nil
 }
 
-// TODO remove this if read from disk is the way to go
-// GetLatestManifest returns the last hydrated manifest
-// func (m *nativeGitClient) GetLatestManifest(branch, filePath string) ([]byte, error) {
-// 	out, err := m.runCmd("show", fmt.Sprintf("%s:%s", branch, filePath))
-// 	if err != nil {
-// 		return nil, fmt.Errorf("failed to get the manifest: %w", err)
-// 	}
-// 	return []byte(out), nil
-// }
+// HasFileChanged returns the outout of git diff considering whether it is tracked or un-tracked
+func (m *nativeGitClient) HasFileChanged(filePath string) (bool, error) {
+	// 1. Use git status to check if file is untracked
+	statusOut, err := m.runCmd("status", "--porcelain", filePath)
+	if err != nil {
+		return false, fmt.Errorf("failed to get git status: %w", err)
+	}
+	if strings.HasPrefix(statusOut, "??") {
+		return true, nil // file is untracked
+	}
+
+	// 2. File is tracked, use git diff --quiet and check exit code
+	diffCmd := exec.Command("git", "diff", "--quiet", filePath)
+	_, err = m.runCmdOutput(diffCmd, runOpts{SkipErrorLogging: true})
+	if err == nil {
+		return false, nil // no changes
+	}
+	// Exit code 1 indicates: changes found
+	if exitErr, ok := err.(*exec.ExitError); ok && exitErr.ExitCode() == 1 {
+		return true, nil
+	}
+	// Actual error
+	return false, fmt.Errorf("git diff failed: %w", err)
+}
 
 // runWrapper runs a custom command with all the semantics of running the Git client
 func (m *nativeGitClient) runGnuPGWrapper(wrapper string, args ...string) (string, error) {

@@ -205,12 +205,12 @@ func (s *Service) handleCommitRequest(logCtx *log.Entry, r *apiclient.CommitHydr
 	}
 
 	logCtx.Debug("Writing manifests")
-	success, err := WriteForPaths(root, r.Repo.Repo, r.DrySha, r.TargetBranch, r.DryCommitMetadata, r.Paths, gitClient)
+	shouldCommit, err := WriteForPaths(root, r.Repo.Repo, r.DrySha, r.TargetBranch, r.DryCommitMetadata, r.Paths, gitClient)
 	// When there are no new manifests to commit, err will be nil and success will be false as nothing to commit. Else or every other error err will not be nil
 	if err != nil {
 		return "", "", fmt.Errorf("failed to write manifests: %w", err)
 	}
-	if !success {
+	if !shouldCommit {
 		// add the note and return
 		logCtx.Debug("Adding commit note")
 		err = AddNote(gitClient, r.DrySha)

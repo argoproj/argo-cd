@@ -1,8 +1,6 @@
 package commit
 
 import (
-	"bytes"
-	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -55,7 +53,7 @@ func WriteForPaths(root *os.Root, repoUrl, drySha, targetBranch string, dryCommi
 	if err != nil {
 		return false, fmt.Errorf("failed to write git attributes: %w", err)
 	}
-	var atleastOneNewManifestExists bool
+	var atleastOneManifestChanged bool
 	for _, p := range paths {
 		hydratePath := p.Path
 		if hydratePath == "." {
@@ -71,19 +69,24 @@ func WriteForPaths(root *os.Root, repoUrl, drySha, targetBranch string, dryCommi
 		}
 
 		// Write the manifests
-		success, err := writeManifests(root, targetBranch, hydratePath, p.Manifests, gitClient)
+		err := writeManifests(root, hydratePath, p.Manifests)
 		if err != nil {
 			return false, fmt.Errorf("failed to write manifests: %w", err)
 		}
-		// this is to cover cases where no manifest changes were detected thus writeManifests short-circuited
-		if !success {
+		changed, err := hasManifestChanged(hydratePath, gitClient)
+		if err != nil {
+			return false, fmt.Errorf("failed to check if anything changed on the manifest: %w", err)
+		}
+		if !changed {
+			err = deleteManifest(hydratePath)
+			if err != nil {
+				return false, fmt.Errorf("failed to delete the un-changed manifest: %w", err)
+			}
 			continue
 		}
 		// If even one new manifest exists then commit needs to happen else skip commit
 		// once set to true do not override
-		if !atleastOneNewManifestExists {
-			atleastOneNewManifestExists = true
-		}
+		atleastOneManifestChanged = changed
 
 		// Write hydrator.metadata containing information about the hydration process.
 		hydratorMetadata := hydrator.HydratorCommitMetadata{
@@ -103,10 +106,10 @@ func WriteForPaths(root *os.Root, repoUrl, drySha, targetBranch string, dryCommi
 		}
 	}
 	// if no manifest changes then skip commit
-	if !atleastOneNewManifestExists {
+	if !atleastOneManifestChanged {
 		return false, nil
 	}
-	return true, nil
+	return atleastOneManifestChanged, nil
 }
 
 // writeMetadata writes the metadata to the hydrator.metadata file.
@@ -178,34 +181,14 @@ func writeGitAttributes(root *os.Root) error {
 
 // writeManifests writes the manifests to the manifest.yaml file, truncating the file if it exists and appending the
 // manifests in the order they are provided.
-func writeManifests(root *os.Root, targetBranch, dirPath string, manifests []*apiclient.HydratedManifestDetails, gitClient git.Client) (bool, error) {
+func writeManifests(root *os.Root, dirPath string, manifests []*apiclient.HydratedManifestDetails) error {
 	// If the file exists, truncate it.
 	// No need to use SecureJoin here, as the path is already sanitized.
 	manifestPath := filepath.Join(dirPath, "manifest.yaml")
 
-	// build the current manifest
-	manifestYAML, err := renderManifestsToYAML(manifests)
-	if err != nil {
-		return false, err
-	}
-
-	// TODO remove commented lines once the approach is finalized
-	// get the most recently hydrated minifest from git
-	// existingManifest, err := gitClient.GetLatestManifest(branch, manifestPath)
-	// instead of reading from git read it from disk as the targetBranch is already checked out
-	existingManifest, err := getExistingManifestFromDisk(manifestPath)
-	if err != nil {
-		return false, err
-	}
-
-	manifestChanged := hasManifestChanged(manifestYAML, existingManifest)
-	if !manifestChanged {
-		return false, nil
-	}
-
 	file, err := root.OpenFile(manifestPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.ModePerm)
 	if err != nil {
-		return false, fmt.Errorf("failed to open manifest file: %w", err)
+		return fmt.Errorf("failed to open manifest file: %w", err)
 	}
 	defer func() {
 		err := file.Close()
@@ -214,79 +197,41 @@ func writeManifests(root *os.Root, targetBranch, dirPath string, manifests []*ap
 		}
 	}()
 
-	if _, err := file.Write(manifestYAML); err != nil {
-		return false, fmt.Errorf("failed to write manifests to file: %w", err)
-	}
-
-	return true, nil
-}
-
-func renderManifestsToYAML(manifests []*apiclient.HydratedManifestDetails) ([]byte, error) {
-	var buf bytes.Buffer
-	enc := yaml.NewEncoder(&buf)
-	enc.SetIndent(2)
+	enc := yaml.NewEncoder(file)
 	defer func() {
 		err := enc.Close()
 		if err != nil {
 			log.WithError(err).Error("failed to close yaml encoder")
 		}
 	}()
+	enc.SetIndent(2)
 
 	for _, m := range manifests {
 		obj := &unstructured.Unstructured{}
-		err := json.Unmarshal([]byte(m.ManifestJSON), obj)
+		err = json.Unmarshal([]byte(m.ManifestJSON), obj)
 		if err != nil {
-			return nil, fmt.Errorf("failed to unmarshal manifest: %w", err)
+			return fmt.Errorf("failed to unmarshal manifest: %w", err)
 		}
-		if err := enc.Encode(&obj.Object); err != nil {
-			return nil, fmt.Errorf("failed to encode manifest: %w", err)
+		err = enc.Encode(&obj.Object)
+		if err != nil {
+			return fmt.Errorf("failed to encode manifest: %w", err)
 		}
 	}
-	return buf.Bytes(), nil
+
+	return nil
 }
 
-func hasManifestChanged(currentManifest, existingManifest []byte) bool {
-	if len(existingManifest) == 0 {
-		return true
+func deleteManifest(dirPath string) error {
+	manifestPath := filepath.Join(dirPath, "manifest.yaml")
+	if err := os.Remove(manifestPath); err != nil {
+		return fmt.Errorf("failed to remove manifest: %w", err)
 	}
-
-	hash1, err1 := hashNormalizedYaml(currentManifest)
-	hash2, err2 := hashNormalizedYaml(existingManifest)
-
-	if err1 != nil || err2 != nil {
-		return true
-	}
-
-	return hash1 != hash2
-	// TODO remove commented lines once the approach is finalized
-	// var currentObj, existingObj any
-	// if err := yaml.Unmarshal(currentManifest, &currentObj); err != nil {
-	// 	fmt.Printf("Error unmarshaling current: %v\n", err)
-	// 	return true
-	// }
-	// if err := yaml.Unmarshal(existingManifest, &existingObj); err != nil {
-	// 	fmt.Printf("Error unmarshaling existing: %v\n", err)
-	// 	return true
-	// }
-
-	// // Compare using go-cmp
-	// return !cmp.Equal(currentObj, existingObj)
+	return nil
 }
 
-func hashNormalizedYaml(yamlBytes []byte) (string, error) {
-	var obj any
-	if err := yaml.Unmarshal(yamlBytes, &obj); err != nil {
-		return "", fmt.Errorf("yaml unmarshal failed: %w", err)
-	}
-
-	// Marshal via json to enforce deterministic key ordering
-	normalized, err := json.Marshal(obj)
-	if err != nil {
-		return "", fmt.Errorf("json marshal failed: %w", err)
-	}
-
-	sum := sha256.Sum256(normalized)
-	return fmt.Sprint("%x", sum), nil
+func hasManifestChanged(dirPath string, gitClient git.Client) (bool, error) {
+	manifestPath := filepath.Join(dirPath, "manifest.yaml")
+	return gitClient.HasFileChanged(manifestPath)
 }
 
 func IsHydrated(gitClient git.Client, drySha string) (bool, error) {
@@ -298,9 +243,6 @@ func IsHydrated(gitClient git.Client, drySha string) (bool, error) {
 			return false, nil
 		}
 		return false, err
-	}
-	if note == "" {
-		return false, nil
 	}
 	var commitNote CommitNote
 	err = json.Unmarshal([]byte(note), &commitNote)
@@ -321,15 +263,4 @@ func AddNote(gitClient git.Client, drySha string) error {
 		return fmt.Errorf("failed to add commit note: %w", err)
 	}
 	return nil
-}
-
-func getExistingManifestFromDisk(filePath string) ([]byte, error) {
-	data, err := os.ReadFile(filePath)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return []byte{}, nil
-		}
-		return nil, fmt.Errorf("failed to read file %s: %w", filePath, err)
-	}
-	return data, nil
 }
