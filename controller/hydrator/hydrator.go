@@ -300,7 +300,7 @@ func (h *Hydrator) validateApplications(apps []*appv1.Application) (map[string]*
 		}
 		permitted := proj.IsSourcePermitted(app.Spec.GetSource())
 		if !permitted {
-			errors[app.QualifiedName()] = fmt.Errorf("app is not permitted to use source %q", app.Spec.Source.String())
+			errors[app.QualifiedName()] = fmt.Errorf("app is not permitted to use source %q", app.Spec.GetSource().String())
 			continue
 		}
 		projects[app.Spec.Project] = proj
