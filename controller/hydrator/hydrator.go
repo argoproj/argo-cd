@@ -125,7 +125,7 @@ func (h *Hydrator) ProcessAppHydrateQueueItem(origApp *appv1.Application) {
 		logCtx.WithField("reason", reason).Info("Hydrating app")
 		h.dependencies.AddHydrationQueueItem(getHydrationQueueKey(app))
 	} else {
-		logCtx.WithField("reason", reason).Info("Skipping hydration")
+		logCtx.WithField("reason", reason).Debug("Skipping hydration")
 	}
 
 	logCtx.Debug("Successfully processed app hydrate queue item")
