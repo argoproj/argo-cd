@@ -1,0 +1,412 @@
+apiVersion: promoter.argoproj.io/v1alpha1
+kind: PromotionStrategy
+metadata:
+  name: promotion-strategy
+  namespace: gitops-promoter
+spec:
+  activeCommitStatuses:
+    - key: argocd-health
+  environments:
+    - autoMerge: false
+      branch: wave/0/west
+    - autoMerge: false
+      branch: wave/1/west
+    - autoMerge: false
+      branch: wave/2/west
+    - autoMerge: false
+      branch: wave/3/west
+    - autoMerge: false
+      branch: wave/4/west
+    - autoMerge: false
+      branch: wave/5/west
+  gitRepositoryRef:
+    name: cdp-deployments
+status:
+  conditions:
+    - lastTransitionTime: '2025-08-02T06:43:44Z'
+      message: Reconciliation succeeded
+      observedGeneration: 6
+      reason: ReconciliationSuccess
+      status: 'True'
+      type: Ready
+  environments:
+    - active:
+        commitStatuses:
+          - key: argocd-health
+            phase: pending
+        dry:
+          author: Fake Person <fake@example.com>
+          commitTime: '2025-09-24T14:13:27Z'
+          repoURL: https://git.example.com/fake-org/fake-repo
+          sha: f94c9d42993145d9f10bb2c404b74da14ee3f74e
+          subject: 'chore: fake new commit message'
+        hydrated:
+          author: GitOps Promoter
+          commitTime: '2025-09-24T14:14:21Z'
+          sha: 6b1095752ea7bef9c5c4251cb0722ce33dfd68d1
+          subject: >-
+            This is a no-op commit merging from wave/0/west-next into
+            wave/0/west
+      branch: wave/0/west
+      history:
+        - active:
+            dry:
+              author: Fake Person <fake@example.com>
+              commitTime: '2025-09-23T17:33:12Z'
+              repoURL: https://git.example.com/fake-org/fake-repo
+              sha: 28f351384c8b8e58624726c4c3713979d0143775
+              subject: 'chore: fake old commit message'
+            hydrated:
+              author: argo-cd[bot]
+              body: "Fake commit message"
+              commitTime: '2025-09-23T17:36:40Z'
+              sha: 3ebd45b702bc23619c8ae6724e81955afc644555
+              subject: Promote 28f35 to `wave/0/west` (#2929)
+          proposed:
+            hydrated: {}
+          pullRequest: {}
+        - active:
+            dry:
+              author: asingh51 <fake@example.com>
+              commitTime: '2025-09-22T21:04:40Z'
+              repoURL: https://git.example.com/fake-org/fake-repo
+              sha: 9dc9529ddba077fcdf8cffef716b7d20e1e8b844
+              subject: >-
+                Onboarding new cluster to argocd-genai  on wave 5 [ARGO-2499]
+                (#2921)
+            hydrated:
+              author: argo-cd[bot]
+              body: "Fake commit message"
+              commitTime: '2025-09-22T21:56:33Z'
+              sha: 2fefa5165e46988666cbb1d2d4f39e21871fa671
+              subject: Promote 9dc95 to `wave/0/west` (#2925)
+          proposed:
+            hydrated: {}
+          pullRequest: {}
+        - active:
+            dry:
+              author: Fake Person <fake@example.com>
+              commitTime: '2025-09-22T19:29:53Z'
+              repoURL: https://git.example.com/fake-org/fake-repo
+              sha: 7f91282cc8146644d0721efde1b9069ccbd475a1
+              subject: >-
+                chore: temporarily disable server-side diff on argo-argo
+                (ARGO-2528) (#2917)
+            hydrated:
+              author: argo-cd[bot]
+              body: "Fake commit message"
+              commitTime: '2025-09-22T19:32:09Z'
+              sha: 6c6493caa0d5b7211bb09c93a7047c90db393cd6
+              subject: Promote 7f912 to `wave/0/west` (#2922)
+          proposed:
+            hydrated: {}
+          pullRequest: {}
+      proposed:
+        dry:
+          author: Fake Person <fake@example.com>
+          commitTime: '2025-09-24T14:13:27Z'
+          repoURL: https://git.example.com/fake-org/fake-repo
+          sha: f94c9d42993145d9f10bb2c404b74da14ee3f74e
+          subject: 'chore: fake new commit message'
+        hydrated:
+          author: GitOps Promoter
+          commitTime: '2025-09-24T14:14:16Z'
+          sha: 9dfd6245b7b2e86660a13743ecc85d26bf3df04c
+          subject: Merge branch 'wave/0/west' into wave/0/west-next
+    - active:
+        commitStatuses:
+          - key: argocd-health
+            phase: pending
+        dry:
+          author: Fake Person <fake@example.com>
+          commitTime: '2025-09-24T14:13:27Z'
+          repoURL: https://git.example.com/fake-org/fake-repo
+          sha: f94c9d42993145d9f10bb2c404b74da14ee3f74e
+          subject: 'chore: fake new commit message'
+        hydrated:
+          author: GitOps Promoter
+          commitTime: '2025-09-24T14:14:01Z'
+          sha: 580bbde2b775a8c6dc1484c4ba970426029e63b4
+          subject: >-
+            This is a no-op commit merging from wave/1/west-next into
+            wave/1/west
+      branch: wave/1/west
+      history:
+        - active:
+            dry:
+              author: Fake Person <fake@example.com>
+              commitTime: '2025-09-23T17:33:12Z'
+              repoURL: https://git.example.com/fake-org/fake-repo
+              sha: 28f351384c8b8e58624726c4c3713979d0143775
+              subject: 'chore: fake old commit message'
+            hydrated:
+              author: argo-cd[bot]
+              body: "Fake commit message"
+              commitTime: '2025-09-23T17:37:46Z'
+              sha: c2b69cd2186df736ee4e27a6de5590135a3c5823
+              subject: Promote 28f35 to `wave/1/west` (#2928)
+          proposed:
+            hydrated: {}
+          pullRequest: {}
+        - active:
+            dry:
+              author: Fake Person <fake@example.com>
+              commitTime: '2025-09-22T19:29:53Z'
+              repoURL: https://git.example.com/fake-org/fake-repo
+              sha: 7f91282cc8146644d0721efde1b9069ccbd475a1
+              subject: >-
+                chore: temporarily disable server-side diff on argo-argo
+                (ARGO-2528) (#2917)
+            hydrated:
+              author: argo-cd[bot]
+              body: "Fake commit message"
+              commitTime: '2025-09-22T20:15:13Z'
+              sha: baf2f21f5085adaa7fe4720ca41d4f7ff918d4fd
+              subject: Promote 7f912 to `wave/1/west` (#2883)
+          proposed:
+            hydrated: {}
+          pullRequest: {}
+        - active:
+            dry:
+              author: Fake Person <fake@example.com>
+              commitTime: '2025-09-16T16:32:32Z'
+              repoURL: https://git.example.com/fake-org/fake-repo
+              sha: 789df516a84b1d3beb2f8ffe56e052b5b411aa74
+              subject: >-
+                chore: upgrade to 3.2.0-rc1, argo and team instances (ARGO-2412)
+                (#2875)
+            hydrated:
+              author: argo-cd[bot]
+              body: "Fake commit message"
+              commitTime: '2025-09-16T16:45:40Z'
+              sha: 728e1a237732a20281f986916301a5dca254e3a4
+              subject: Promote 789df to `wave/1/west` (#2876)
+          proposed:
+            hydrated: {}
+          pullRequest: {}
+      proposed:
+        commitStatuses:
+          - key: promoter-previous-environment
+            phase: pending
+        dry:
+          author: Fake Person <fake@example.com>
+          commitTime: '2025-09-24T14:13:27Z'
+          repoURL: https://git.example.com/fake-org/fake-repo
+          sha: f94c9d42993145d9f10bb2c404b74da14ee3f74e
+          subject: 'chore: fake new commit message'
+        hydrated:
+          author: GitOps Promoter
+          commitTime: '2025-09-24T14:13:56Z'
+          sha: 50b7c73718813b9b92a0e1e166798cbd55874bbd
+          subject: Merge branch 'wave/1/west' into wave/1/west-next
+    - active:
+        commitStatuses:
+          - key: argocd-health
+            phase: pending
+        dry:
+          author: Fake Person <fake@example.com>
+          commitTime: '2025-09-23T17:33:12Z'
+          repoURL: https://git.example.com/fake-org/fake-repo
+          sha: 28f351384c8b8e58624726c4c3713979d0143775
+          subject: 'chore: fake old commit message'
+        hydrated:
+          author: GitOps Promoter
+          commitTime: '2025-09-23T17:34:05Z'
+          sha: 169626417d1863434901c9225ded78963b7bd691
+          subject: >-
+            This is a no-op commit merging from wave/2/west-next into
+            wave/2/west
+      branch: wave/2/west
+      history:
+        - active:
+            dry:
+              author: Fake Person <fake@example.com>
+              commitTime: '2025-09-22T19:29:53Z'
+              repoURL: https://git.example.com/fake-org/fake-repo
+              sha: 7f91282cc8146644d0721efde1b9069ccbd475a1
+              subject: >-
+                chore: temporarily disable server-side diff on argo-argo
+                (ARGO-2528) (#2917)
+            hydrated:
+              author: argo-cd[bot]
+              body: "Fake commit message"
+              commitTime: '2025-09-22T20:59:45Z'
+              sha: 1bfe993b41fe27b298c0aab9a5f185b29a478178
+              subject: Promote 7f912 to `wave/2/west` (#2884)
+          proposed:
+            hydrated: {}
+          pullRequest: {}
+      proposed:
+        commitStatuses:
+          - key: promoter-previous-environment
+            phase: pending
+        dry:
+          author: Fake Person <fake@example.com>
+          commitTime: '2025-09-23T17:33:12Z'
+          repoURL: https://git.example.com/fake-org/fake-repo
+          sha: 28f351384c8b8e58624726c4c3713979d0143775
+          subject: 'chore: fake old commit message'
+        hydrated:
+          author: Argo CD
+          body: "Fake commit message"
+          commitTime: '2025-09-23T17:33:50Z'
+          sha: 6e0e11f0102faa5779223159a2b16ccee63a8ac0
+          subject: '28f3513: chore: fake old commit message'
+    - active:
+        commitStatuses:
+          - key: argocd-health
+            phase: pending
+        dry:
+          author: Fake Person <fake@example.com>
+          commitTime: '2025-09-24T14:13:27Z'
+          repoURL: https://git.example.com/fake-org/fake-repo
+          sha: f94c9d42993145d9f10bb2c404b74da14ee3f74e
+          subject: 'chore: fake new commit message'
+        hydrated:
+          author: GitOps Promoter
+          commitTime: '2025-09-24T14:14:08Z'
+          sha: 73cf41db84a6e97a74c967243e65ffce66dd4198
+          subject: >-
+            This is a no-op commit merging from wave/3/west-next into
+            wave/3/west
+      branch: wave/3/west
+      history:
+        - active:
+            dry:
+              author: Fake Person <fake@example.com>
+              commitTime: '2025-09-22T19:29:53Z'
+              repoURL: https://git.example.com/fake-org/fake-repo
+              sha: 7f91282cc8146644d0721efde1b9069ccbd475a1
+              subject: >-
+                chore: fake super old commit message
+            hydrated:
+              author: argo-cd[bot]
+              body: "Fake commit message"
+              commitTime: '2025-09-22T21:00:07Z'
+              sha: e7456f8ff4a5943ace3bb425e2d4e7dd43a53e46
+              subject: Promote 7f912 to `wave/3/west` (#2887)
+          proposed:
+            hydrated: {}
+          pullRequest: {}
+      proposed:
+        commitStatuses:
+          - key: promoter-previous-environment
+            phase: pending
+        dry:
+          author: Fake Person <fake@example.com>
+          commitTime: '2025-09-24T14:13:27Z'
+          repoURL: https://git.example.com/fake-org/fake-repo
+          sha: f94c9d42993145d9f10bb2c404b74da14ee3f74e
+          subject: 'chore: fake new commit message'
+        hydrated:
+          author: Argo CD
+          body: "Fake commit message"
+          commitTime: '2025-09-24T14:13:49Z'
+          sha: daf0534e9db36334c82870cbb2e5d14cc687e0f5
+          subject: 'f94c9d4: chore: fake new commit message'
+    - active:
+        commitStatuses:
+          - key: argocd-health
+            phase: pending
+        dry:
+          author: Fake Person <fake@example.com>
+          commitTime: '2025-09-24T14:13:27Z'
+          repoURL: https://git.example.com/fake-org/fake-repo
+          sha: f94c9d42993145d9f10bb2c404b74da14ee3f74e
+          subject: 'chore: fake new commit message'
+        hydrated:
+          author: GitOps Promoter
+          commitTime: '2025-09-24T14:14:30Z'
+          sha: 5abc8f1fd4056ad9f78723f3a83ac2291e87c821
+          subject: >-
+            This is a no-op commit merging from wave/4/west-next into
+            wave/4/west
+      branch: wave/4/west
+      history:
+        - active:
+            dry:
+              author: Fake Person <fake@example.com>
+              commitTime: '2025-09-22T19:29:53Z'
+              repoURL: https://git.example.com/fake-org/fake-repo
+              sha: 7f91282cc8146644d0721efde1b9069ccbd475a1
+              subject: >-
+                chore: temporarily disable server-side diff on argo-argo
+                (ARGO-2528) (#2917)
+            hydrated:
+              author: argo-cd[bot]
+              body: "Fake commit message"
+              commitTime: '2025-09-22T21:00:29Z'
+              sha: 1d6e2b279108f6430825c889f6d2248fe4388aba
+              subject: Promote 7f912 to `wave/4/west` (#2885)
+          proposed:
+            hydrated: {}
+          pullRequest: {}
+      proposed:
+        commitStatuses:
+          - key: promoter-previous-environment
+            phase: pending
+        dry:
+          author: Fake Person <fake@example.com>
+          commitTime: '2025-09-24T14:13:27Z'
+          repoURL: https://git.example.com/fake-org/fake-repo
+          sha: f94c9d42993145d9f10bb2c404b74da14ee3f74e
+          subject: 'chore: fake new commit message'
+        hydrated:
+          author: Argo CD
+          body: "Fake commit message"
+          commitTime: '2025-09-24T14:14:09Z'
+          sha: 91d942a1da3799d6027a7c407eee98b1f9cdcde0
+          subject: 'f94c9d4: chore: fake new commit message'
+    - active:
+        commitStatuses:
+          - key: argocd-health
+            phase: pending
+        dry:
+          author: Fake Person <fake@example.com>
+          commitTime: '2025-09-24T14:13:27Z'
+          repoURL: https://git.example.com/fake-org/fake-repo
+          sha: f94c9d42993145d9f10bb2c404b74da14ee3f74e
+          subject: 'chore: fake new commit message'
+        hydrated:
+          author: GitOps Promoter
+          commitTime: '2025-09-24T14:14:40Z'
+          sha: 7bee0fcb985ac4ecccddf70a8b2d02cc0c41f231
+          subject: >-
+            This is a no-op commit merging from wave/5/west-next into
+            wave/5/west
+      branch: wave/5/west
+      history:
+        - active:
+            dry:
+              author: Fake Person <fake@example.com>
+              commitTime: '2025-09-22T19:29:53Z'
+              repoURL: https://git.example.com/fake-org/fake-repo
+              sha: 7f91282cc8146644d0721efde1b9069ccbd475a1
+              subject: >-
+                chore: temporarily disable server-side diff on argo-argo
+                (ARGO-2528) (#2917)
+            hydrated:
+              author: argo-cd[bot]
+              body: "Fake commit message"
+              commitTime: '2025-09-22T21:00:59Z'
+              sha: a9d26ef79a1cc786a2a90446f7e8bbef2e5be653
+              subject: Promote 7f912 to `wave/5/west` (#2888)
+          proposed:
+            hydrated: {}
+          pullRequest: {}
+      proposed:
+        commitStatuses:
+          - key: promoter-previous-environment
+            phase: pending
+        dry:
+          author: Fake Person <fake@example.com>
+          commitTime: '2025-09-24T14:13:27Z'
+          repoURL: https://git.example.com/fake-org/fake-repo
+          sha: f94c9d42993145d9f10bb2c404b74da14ee3f74e
+          subject: 'chore: fake new commit message'
+        hydrated:
+          author: Argo CD
+          body: "Fake commit message"
+          commitTime: '2025-09-24T14:14:24Z'
+          sha: 20c41602695addbf7760236eff562f5692e585aa
+          subject: 'f94c9d4: chore: fake new commit message'
