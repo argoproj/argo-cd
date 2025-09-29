@@ -20,6 +20,8 @@ message CommitHydratedManifestsRequest {
   repeated PathDetails paths = 6;
   // DryCommitMetadata contains metadata about the DRY commit, such as the author and committer.
   github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.RevisionMetadata dryCommitMetadata = 7;
+  // ReadmeMessage is the message content for README template updates.
+  string readmeMessage = 8;
 }
 
 // PathDetails holds information about hydrated manifests to be written to a particular path in the hydrated manifests

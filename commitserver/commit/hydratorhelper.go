@@ -33,7 +33,7 @@ func init() {
 
 // WriteForPaths writes the manifests, hydrator.metadata, and README.md files for each path in the provided paths. It
 // also writes a root-level hydrator.metadata file containing the repo URL and dry SHA.
-func WriteForPaths(root *os.Root, repoUrl, drySha string, dryCommitMetadata *appv1.RevisionMetadata, paths []*apiclient.PathDetails) error { //nolint:revive //FIXME(var-naming)
+func WriteForPaths(root *os.Root, repoUrl, drySha string, dryCommitMetadata *appv1.RevisionMetadata, paths []*apiclient.PathDetails, rawReadmeTemplate string) error { //nolint:revive //FIXME(var-naming)
 	hydratorMetadata, err := hydrator.GetCommitMetadata(repoUrl, drySha, dryCommitMetadata)
 	if err != nil {
 		return fmt.Errorf("failed to retrieve hydrator metadata: %w", err)
@@ -83,7 +83,7 @@ func WriteForPaths(root *os.Root, repoUrl, drySha string, dryCommitMetadata *app
 		}
 
 		// Write README
-		err = writeReadme(root, hydratePath, hydratorMetadata)
+		err = writeReadme(root, hydratePath, hydratorMetadata, rawReadmeTemplate)
 		if err != nil {
 			return fmt.Errorf("failed to write readme: %w", err)
 		}
@@ -111,8 +111,8 @@ func writeMetadata(root *os.Root, dirPath string, metadata hydrator.HydratorComm
 }
 
 // writeReadme writes the readme to the README.md file.
-func writeReadme(root *os.Root, dirPath string, metadata hydrator.HydratorCommitMetadata) error {
-	readmeTemplate, err := template.New("readme").Funcs(sprigFuncMap).Parse(manifestHydrationReadmeTemplate)
+func writeReadme(root *os.Root, dirPath string, metadata hydrator.HydratorCommitMetadata, rawReadmeTemplate string) error {
+	readmeTemplate, err := template.New("readme").Funcs(sprigFuncMap).Parse(rawReadmeTemplate)
 	if err != nil {
 		return fmt.Errorf("failed to parse readme template: %w", err)
 	}
