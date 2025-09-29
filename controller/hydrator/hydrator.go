@@ -248,6 +248,11 @@ func (h *Hydrator) ProcessHydrationQueueItem(hydrationKey types.HydrationQueueKe
 
 // setAppHydratorError updates the CurrentOperation with the error information.
 func (h *Hydrator) setAppHydratorError(app *appv1.Application, err error) {
+	// if the operation is not in progress, we do not update the status
+	if app.Status.SourceHydrator.CurrentOperation.Phase != appv1.HydrateOperationPhaseHydrating {
+		return
+	}
+
 	origApp := app.DeepCopy()
 	app.Status.SourceHydrator.CurrentOperation.Phase = appv1.HydrateOperationPhaseFailed
 	failedAt := metav1.Now()
