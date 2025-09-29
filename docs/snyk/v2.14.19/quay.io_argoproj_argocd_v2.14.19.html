@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="28 known vulnerabilities found in 86 vulnerable dependency paths.">
+  <meta name="description" content="27 known vulnerabilities found in 76 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -487,22 +487,22 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">September 14th 2025, 12:30:33 am (UTC+00:00)</p>
+                <p class="timestamp">September 28th 2025, 12:34:17 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
                 <ul>
-                  <li class="paths">quay.io/argoproj/argocd:v2.14.17/argoproj/argocd/Dockerfile (deb)</li>
-                  <li class="paths">quay.io/argoproj/argocd:v2.14.17/argoproj/argo-cd/v2//usr/local/bin/argocd (gomodules)</li>
-                  <li class="paths">quay.io/argoproj/argocd:v2.14.17//usr/local/bin/kustomize (gomodules)</li>
-                  <li class="paths">quay.io/argoproj/argocd:v2.14.17/helm/v3//usr/local/bin/helm (gomodules)</li>
-                  <li class="paths">quay.io/argoproj/argocd:v2.14.17/git-lfs/git-lfs//usr/bin/git-lfs (gomodules)</li>
+                  <li class="paths">quay.io/argoproj/argocd:v2.14.19/argoproj/argocd/Dockerfile (deb)</li>
+                  <li class="paths">quay.io/argoproj/argocd:v2.14.19/argoproj/argo-cd/v2//usr/local/bin/argocd (gomodules)</li>
+                  <li class="paths">quay.io/argoproj/argocd:v2.14.19//usr/local/bin/kustomize (gomodules)</li>
+                  <li class="paths">quay.io/argoproj/argocd:v2.14.19/helm/v3//usr/local/bin/helm (gomodules)</li>
+                  <li class="paths">quay.io/argoproj/argocd:v2.14.19/git-lfs/git-lfs//usr/bin/git-lfs (gomodules)</li>
                 </ul>
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>28</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>86 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>27</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>76 vulnerable dependency paths</span></div>
                 <div class="meta-count"><span>2383</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
@@ -525,7 +525,7 @@
         
                 <ul class="card__meta">
                     <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:v2.14.17/argoproj/argo-cd/v2 <span class="list-paths__item__arrow">›</span> /usr/local/bin/argocd
+                        Manifest file: quay.io/argoproj/argocd:v2.14.19/argoproj/argo-cd/v2 <span class="list-paths__item__arrow">›</span> /usr/local/bin/argocd
                     </li>
                     <li class="card__meta__item">
                         Package Manager: golang
@@ -598,7 +598,7 @@
         
                 <ul class="card__meta">
                     <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:v2.14.17/helm/v3 <span class="list-paths__item__arrow">›</span> /usr/local/bin/helm
+                        Manifest file: quay.io/argoproj/argocd:v2.14.19/helm/v3 <span class="list-paths__item__arrow">›</span> /usr/local/bin/helm
                     </li>
                     <li class="card__meta__item">
                         Package Manager: golang
@@ -669,6 +669,88 @@
             </div>
         
         </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
+            <h2 class="card__title">Improper Handling of Unexpected Data Type</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--high">
+                        <span class="label__text">high severity</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:v2.14.19/argoproj/argo-cd/v2 <span class="list-paths__item__arrow">›</span> /usr/local/bin/argocd
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            golang.org/x/crypto/ssh/agent
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/argoproj/argo-cd/v2@* and golang.org/x/crypto/ssh/agent@v0.37.0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/crypto/ssh/agent@v0.37.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p>Affected versions of this package are vulnerable to Improper Handling of Unexpected Data Type when functions including <code>List()</code> and <code>SignWithFlags()</code> process <code>*successAgentMsg</code>. This can be triggered by a malicious agent sending a single <code>0x06</code> byte (<code>SSH_AGENT_SUCCESS</code>), which is unmarshalled into a <code>*successAgentMsg</code>, causing a panic and client crash.</p>
+        <h2 id="details">Details</h2>
+        <p>Denial of Service (DoS) describes a family of attacks, all aimed at making a system inaccessible to its intended and legitimate users.</p>
+        <p>Unlike other vulnerabilities, DoS attacks usually do not aim at breaching security. Rather, they are focused on making websites and services unavailable to genuine users resulting in downtime.</p>
+        <p>One popular Denial of Service vulnerability is DDoS (a Distributed Denial of Service), an attack that attempts to clog network pipes to the system by generating a large volume of traffic from many machines.</p>
+        <p>When it comes to open source libraries, DoS vulnerabilities allow attackers to trigger such a crash or crippling of the service by using a flaw either in the application code or from the use of open source libraries.</p>
+        <p>Two common types of DoS vulnerabilities:</p>
+        <ul>
+        <li><p>High CPU/Memory Consumption- An attacker sending crafted requests that could cause the system to take a disproportionate amount of time to process. For example, <a href="https://security.snyk.io/vuln/SNYK-JAVA-COMMONSFILEUPLOAD-30082">commons-fileupload:commons-fileupload</a>.</p>
+        </li>
+        <li><p>Crash - An attacker sending crafted requests that could cause the system to crash. For Example,  <a href="https://snyk.io/vuln/npm:ws:20171108">npm <code>ws</code> package</a></p>
+        </li>
+        </ul>
+        <h2 id="remediation">Remediation</h2>
+        <p>A fix was pushed into the <code>master</code> branch but not yet published.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/golang/crypto/commit/559e062ce8bfd6a39925294620b50906ca2a6f95">GitHub Commit</a></li>
+        <li><a href="https://github.com/golang/go/issues/75178">GitHub Issue</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXCRYPTOSSHAGENT-12668891">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
             <h2 class="card__title">Directory Traversal</h2>
             <div class="card__section">
@@ -683,7 +765,7 @@
         
                 <ul class="card__meta">
                     <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:v2.14.17/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
+                        Manifest file: quay.io/argoproj/argocd:v2.14.19/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
                     </li>
                     <li class="card__meta__item">
                         Package Manager: ubuntu:24.04
@@ -696,7 +778,7 @@
         
                     <li class="card__meta__item">Introduced through:
         
-                                docker-image|quay.io/argoproj/argocd@v2.14.17 and tar@1.35+dfsg-3build1
+                                docker-image|quay.io/argoproj/argocd@v2.14.19 and tar@1.35+dfsg-3build1
         
                     </li>
                 </ul>
@@ -709,7 +791,7 @@
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.14.17
+                                        docker-image|quay.io/argoproj/argocd@v2.14.19
                                          <span class="list-paths__item__arrow">›</span> 
                                         tar@1.35+dfsg-3build1
                                         
@@ -718,11 +800,11 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.14.17
+                                        docker-image|quay.io/argoproj/argocd@v2.14.19
                                          <span class="list-paths__item__arrow">›</span> 
                                         dash@0.5.12-6ubuntu5
                                          <span class="list-paths__item__arrow">›</span> 
-                                        dpkg@1.22.6ubuntu6.1
+                                        dpkg@1.22.6ubuntu6.2
                                          <span class="list-paths__item__arrow">›</span> 
                                         tar@1.35+dfsg-3build1
                                         
@@ -759,7 +841,7 @@
         
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">CVE-2025-7709</h2>
+            <h2 class="card__title">Directory Traversal</h2>
             <div class="card__section">
         
                 <div class="card__labels">
@@ -772,81 +854,7 @@
         
                 <ul class="card__meta">
                     <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:v2.14.17/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: ubuntu:24.04
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            sqlite3/libsqlite3-0
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-        
-                                    docker-image|quay.io/argoproj/argocd@v2.14.17, gnupg2/gpg@2.4.4-2ubuntu17.3 and others
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.14.17
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        gnupg2/gpg@2.4.4-2ubuntu17.3
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        sqlite3/libsqlite3-0@3.45.1-1ubuntu2.4
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="nvd-description">NVD Description</h2>
-        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>sqlite3</code> package and not the <code>sqlite3</code> package as distributed by <code>Ubuntu</code>.</em>
-        <em>See <code>How to fix?</code> for <code>Ubuntu:24.04</code> relevant fixed versions and status.</em></p>
-        <p>An integer overflow exists in the  FTS5 <a href="https://sqlite.org/fts5.html">https://sqlite.org/fts5.html</a>  extension. It occurs when the size of an array of tombstone pointers is calculated and truncated into a 32-bit integer. A pointer to partially controlled data can then be written out of bounds.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>There is no fixed version for <code>Ubuntu:24.04</code> <code>sqlite3</code>.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2025-7709">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2025-7709</a></li>
-        <li><a href="https://github.com/google/security-research/security/advisories/GHSA-v2c8-vqqp-hv3g">https://github.com/google/security-research/security/advisories/GHSA-v2c8-vqqp-hv3g</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2404-SQLITE3-12554290">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">Insecure Storage of Sensitive Information</h2>
-            <div class="card__section">
-        
-                <div class="card__labels">
-                    <div class="label label--medium">
-                        <span class="label__text">medium severity</span>
-                    </div>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:v2.14.17/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
+                        Manifest file: quay.io/argoproj/argocd:v2.14.19/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
                     </li>
                     <li class="card__meta__item">
                         Package Manager: ubuntu:24.04
@@ -859,7 +867,7 @@
         
                     <li class="card__meta__item">Introduced through:
         
-                                docker-image|quay.io/argoproj/argocd@v2.14.17 and pam/libpam0g@1.5.3-5ubuntu5.4
+                                docker-image|quay.io/argoproj/argocd@v2.14.19 and pam/libpam0g@1.5.3-5ubuntu5.5
         
                     </li>
                 </ul>
@@ -872,38 +880,38 @@
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.14.17
+                                        docker-image|quay.io/argoproj/argocd@v2.14.19
                                          <span class="list-paths__item__arrow">›</span> 
-                                        pam/libpam0g@1.5.3-5ubuntu5.4
+                                        pam/libpam0g@1.5.3-5ubuntu5.5
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.14.17
+                                        docker-image|quay.io/argoproj/argocd@v2.14.19
                                          <span class="list-paths__item__arrow">›</span> 
                                         shadow/login@1:4.13+dfsg1-4ubuntu3.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        pam/libpam0g@1.5.3-5ubuntu5.4
+                                        pam/libpam0g@1.5.3-5ubuntu5.5
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.14.17
+                                        docker-image|quay.io/argoproj/argocd@v2.14.19
                                          <span class="list-paths__item__arrow">›</span> 
                                         util-linux@2.39.3-9ubuntu6.3
                                          <span class="list-paths__item__arrow">›</span> 
-                                        pam/libpam0g@1.5.3-5ubuntu5.4
+                                        pam/libpam0g@1.5.3-5ubuntu5.5
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.14.17
+                                        docker-image|quay.io/argoproj/argocd@v2.14.19
                                          <span class="list-paths__item__arrow">›</span> 
                                         apt@2.8.3
                                          <span class="list-paths__item__arrow">›</span> 
@@ -911,14 +919,14 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         shadow/passwd@1:4.13+dfsg1-4ubuntu3.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        pam/libpam0g@1.5.3-5ubuntu5.4
+                                        pam/libpam0g@1.5.3-5ubuntu5.5
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.14.17
+                                        docker-image|quay.io/argoproj/argocd@v2.14.19
                                          <span class="list-paths__item__arrow">›</span> 
                                         apt@2.8.3
                                          <span class="list-paths__item__arrow">›</span> 
@@ -926,16 +934,16 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         shadow/passwd@1:4.13+dfsg1-4ubuntu3.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        pam/libpam-modules@1.5.3-5ubuntu5.4
+                                        pam/libpam-modules@1.5.3-5ubuntu5.5
                                          <span class="list-paths__item__arrow">›</span> 
-                                        pam/libpam0g@1.5.3-5ubuntu5.4
+                                        pam/libpam0g@1.5.3-5ubuntu5.5
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.14.17
+                                        docker-image|quay.io/argoproj/argocd@v2.14.19
                                          <span class="list-paths__item__arrow">›</span> 
                                         apt@2.8.3
                                          <span class="list-paths__item__arrow">›</span> 
@@ -943,27 +951,27 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         shadow/passwd@1:4.13+dfsg1-4ubuntu3.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        pam/libpam-modules@1.5.3-5ubuntu5.4
+                                        pam/libpam-modules@1.5.3-5ubuntu5.5
                                          <span class="list-paths__item__arrow">›</span> 
-                                        pam/libpam-modules-bin@1.5.3-5ubuntu5.4
+                                        pam/libpam-modules-bin@1.5.3-5ubuntu5.5
                                          <span class="list-paths__item__arrow">›</span> 
-                                        pam/libpam0g@1.5.3-5ubuntu5.4
+                                        pam/libpam0g@1.5.3-5ubuntu5.5
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.14.17
+                                        docker-image|quay.io/argoproj/argocd@v2.14.19
                                          <span class="list-paths__item__arrow">›</span> 
-                                        pam/libpam-modules-bin@1.5.3-5ubuntu5.4
+                                        pam/libpam-modules-bin@1.5.3-5ubuntu5.5
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.14.17
+                                        docker-image|quay.io/argoproj/argocd@v2.14.19
                                          <span class="list-paths__item__arrow">›</span> 
                                         apt@2.8.3
                                          <span class="list-paths__item__arrow">›</span> 
@@ -971,47 +979,47 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         shadow/passwd@1:4.13+dfsg1-4ubuntu3.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        pam/libpam-modules@1.5.3-5ubuntu5.4
+                                        pam/libpam-modules@1.5.3-5ubuntu5.5
                                          <span class="list-paths__item__arrow">›</span> 
-                                        pam/libpam-modules-bin@1.5.3-5ubuntu5.4
+                                        pam/libpam-modules-bin@1.5.3-5ubuntu5.5
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.14.17
+                                        docker-image|quay.io/argoproj/argocd@v2.14.19
                                          <span class="list-paths__item__arrow">›</span> 
-                                        pam/libpam-modules@1.5.3-5ubuntu5.4
+                                        pam/libpam-modules@1.5.3-5ubuntu5.5
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.14.17
+                                        docker-image|quay.io/argoproj/argocd@v2.14.19
                                          <span class="list-paths__item__arrow">›</span> 
-                                        pam/libpam-runtime@1.5.3-5ubuntu5.4
+                                        pam/libpam-runtime@1.5.3-5ubuntu5.5
                                          <span class="list-paths__item__arrow">›</span> 
-                                        pam/libpam-modules@1.5.3-5ubuntu5.4
+                                        pam/libpam-modules@1.5.3-5ubuntu5.5
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.14.17
+                                        docker-image|quay.io/argoproj/argocd@v2.14.19
                                          <span class="list-paths__item__arrow">›</span> 
                                         shadow/login@1:4.13+dfsg1-4ubuntu3.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        pam/libpam-modules@1.5.3-5ubuntu5.4
+                                        pam/libpam-modules@1.5.3-5ubuntu5.5
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.14.17
+                                        docker-image|quay.io/argoproj/argocd@v2.14.19
                                          <span class="list-paths__item__arrow">›</span> 
                                         apt@2.8.3
                                          <span class="list-paths__item__arrow">›</span> 
@@ -1019,27 +1027,27 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         shadow/passwd@1:4.13+dfsg1-4ubuntu3.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        pam/libpam-modules@1.5.3-5ubuntu5.4
+                                        pam/libpam-modules@1.5.3-5ubuntu5.5
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.14.17
+                                        docker-image|quay.io/argoproj/argocd@v2.14.19
                                          <span class="list-paths__item__arrow">›</span> 
-                                        pam/libpam-runtime@1.5.3-5ubuntu5.4
+                                        pam/libpam-runtime@1.5.3-5ubuntu5.5
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.14.17
+                                        docker-image|quay.io/argoproj/argocd@v2.14.19
                                          <span class="list-paths__item__arrow">›</span> 
                                         shadow/login@1:4.13+dfsg1-4ubuntu3.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        pam/libpam-runtime@1.5.3-5ubuntu5.4
+                                        pam/libpam-runtime@1.5.3-5ubuntu5.5
                                         
                                 </span>
         
@@ -1053,267 +1061,34 @@
               <h2 id="nvd-description">NVD Description</h2>
         <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>pam</code> package and not the <code>pam</code> package as distributed by <code>Ubuntu</code>.</em>
         <em>See <code>How to fix?</code> for <code>Ubuntu:24.04</code> relevant fixed versions and status.</em></p>
-        <p>A vulnerability was found in PAM. The secret information is stored in memory, where the attacker can trigger the victim program to execute by sending characters to its standard input (stdin). As this occurs, the attacker can train the branch predictor to execute an ROP chain speculatively. This flaw could result in leaked passwords, such as those found in /etc/shadow while performing authentications.</p>
+        <p>A flaw was found in linux-pam. The pam_namespace module may improperly handle user-controlled paths, allowing local users to exploit symlink attacks and race conditions to elevate their privileges to root. This CVE provides a &#34;complete&#34; fix for CVE-2025-6020.</p>
         <h2 id="remediation">Remediation</h2>
         <p>There is no fixed version for <code>Ubuntu:24.04</code> <code>pam</code>.</p>
         <h2 id="references">References</h2>
         <ul>
-        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2024-10041">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2024-10041</a></li>
-        <li><a href="https://access.redhat.com/security/cve/CVE-2024-10041">https://access.redhat.com/security/cve/CVE-2024-10041</a></li>
-        <li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=2319212">https://bugzilla.redhat.com/show_bug.cgi?id=2319212</a></li>
-        <li><a href="https://access.redhat.com/errata/RHSA-2024:9941">https://access.redhat.com/errata/RHSA-2024:9941</a></li>
-        <li><a href="https://access.redhat.com/errata/RHSA-2024:10379">https://access.redhat.com/errata/RHSA-2024:10379</a></li>
-        <li><a href="https://access.redhat.com/errata/RHSA-2024:11250">https://access.redhat.com/errata/RHSA-2024:11250</a></li>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2025-8941">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2025-8941</a></li>
+        <li><a href="https://access.redhat.com/security/cve/CVE-2025-8941">https://access.redhat.com/security/cve/CVE-2025-8941</a></li>
+        <li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=2388220">https://bugzilla.redhat.com/show_bug.cgi?id=2388220</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2025:14557">https://access.redhat.com/errata/RHSA-2025:14557</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2025:15100">https://access.redhat.com/errata/RHSA-2025:15100</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2025:15104">https://access.redhat.com/errata/RHSA-2025:15104</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2025:15107">https://access.redhat.com/errata/RHSA-2025:15107</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2025:15099">https://access.redhat.com/errata/RHSA-2025:15099</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2025:15101">https://access.redhat.com/errata/RHSA-2025:15101</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2025:15102">https://access.redhat.com/errata/RHSA-2025:15102</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2025:15103">https://access.redhat.com/errata/RHSA-2025:15103</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2025:15105">https://access.redhat.com/errata/RHSA-2025:15105</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2025:15106">https://access.redhat.com/errata/RHSA-2025:15106</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2025:15709">https://access.redhat.com/errata/RHSA-2025:15709</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2025:15828">https://access.redhat.com/errata/RHSA-2025:15828</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2025:15827">https://access.redhat.com/errata/RHSA-2025:15827</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2025:16524">https://access.redhat.com/errata/RHSA-2025:16524</a></li>
         </ul>
         
               <hr/>
         
             <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2404-PAM-8303372">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">Improper Authentication</h2>
-            <div class="card__section">
-        
-                <div class="card__labels">
-                    <div class="label label--medium">
-                        <span class="label__text">medium severity</span>
-                    </div>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:v2.14.17/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: ubuntu:24.04
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            pam/libpam0g
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-                                docker-image|quay.io/argoproj/argocd@v2.14.17 and pam/libpam0g@1.5.3-5ubuntu5.4
-        
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.14.17
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        pam/libpam0g@1.5.3-5ubuntu5.4
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.14.17
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        shadow/login@1:4.13+dfsg1-4ubuntu3.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        pam/libpam0g@1.5.3-5ubuntu5.4
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.14.17
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        util-linux@2.39.3-9ubuntu6.3
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        pam/libpam0g@1.5.3-5ubuntu5.4
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.14.17
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        apt@2.8.3
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        adduser@3.137ubuntu1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        shadow/passwd@1:4.13+dfsg1-4ubuntu3.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        pam/libpam0g@1.5.3-5ubuntu5.4
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.14.17
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        apt@2.8.3
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        adduser@3.137ubuntu1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        shadow/passwd@1:4.13+dfsg1-4ubuntu3.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        pam/libpam-modules@1.5.3-5ubuntu5.4
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        pam/libpam0g@1.5.3-5ubuntu5.4
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.14.17
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        apt@2.8.3
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        adduser@3.137ubuntu1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        shadow/passwd@1:4.13+dfsg1-4ubuntu3.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        pam/libpam-modules@1.5.3-5ubuntu5.4
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        pam/libpam-modules-bin@1.5.3-5ubuntu5.4
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        pam/libpam0g@1.5.3-5ubuntu5.4
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.14.17
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        pam/libpam-modules-bin@1.5.3-5ubuntu5.4
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.14.17
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        apt@2.8.3
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        adduser@3.137ubuntu1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        shadow/passwd@1:4.13+dfsg1-4ubuntu3.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        pam/libpam-modules@1.5.3-5ubuntu5.4
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        pam/libpam-modules-bin@1.5.3-5ubuntu5.4
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.14.17
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        pam/libpam-modules@1.5.3-5ubuntu5.4
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.14.17
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        pam/libpam-runtime@1.5.3-5ubuntu5.4
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        pam/libpam-modules@1.5.3-5ubuntu5.4
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.14.17
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        shadow/login@1:4.13+dfsg1-4ubuntu3.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        pam/libpam-modules@1.5.3-5ubuntu5.4
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.14.17
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        apt@2.8.3
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        adduser@3.137ubuntu1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        shadow/passwd@1:4.13+dfsg1-4ubuntu3.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        pam/libpam-modules@1.5.3-5ubuntu5.4
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.14.17
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        pam/libpam-runtime@1.5.3-5ubuntu5.4
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.14.17
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        shadow/login@1:4.13+dfsg1-4ubuntu3.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        pam/libpam-runtime@1.5.3-5ubuntu5.4
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="nvd-description">NVD Description</h2>
-        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>pam</code> package and not the <code>pam</code> package as distributed by <code>Ubuntu</code>.</em>
-        <em>See <code>How to fix?</code> for <code>Ubuntu:24.04</code> relevant fixed versions and status.</em></p>
-        <p>A flaw was found in pam_access, where certain rules in its configuration file are mistakenly treated as hostnames. This vulnerability allows attackers to trick the system by pretending to be a trusted hostname, gaining unauthorized access. This issue poses a risk for systems that rely on this feature to control who can access certain services or terminals.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>There is no fixed version for <code>Ubuntu:24.04</code> <code>pam</code>.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2024-10963">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2024-10963</a></li>
-        <li><a href="https://access.redhat.com/security/cve/CVE-2024-10963">https://access.redhat.com/security/cve/CVE-2024-10963</a></li>
-        <li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=2324291">https://bugzilla.redhat.com/show_bug.cgi?id=2324291</a></li>
-        <li><a href="https://access.redhat.com/errata/RHSA-2024:10232">https://access.redhat.com/errata/RHSA-2024:10232</a></li>
-        <li><a href="https://access.redhat.com/errata/RHSA-2024:10244">https://access.redhat.com/errata/RHSA-2024:10244</a></li>
-        <li><a href="https://access.redhat.com/errata/RHSA-2024:10379">https://access.redhat.com/errata/RHSA-2024:10379</a></li>
-        <li><a href="https://access.redhat.com/errata/RHSA-2024:10518">https://access.redhat.com/errata/RHSA-2024:10518</a></li>
-        <li><a href="https://access.redhat.com/errata/RHSA-2024:10528">https://access.redhat.com/errata/RHSA-2024:10528</a></li>
-        <li><a href="https://access.redhat.com/errata/RHSA-2024:10852">https://access.redhat.com/errata/RHSA-2024:10852</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2404-PAM-8352843">More about this vulnerability</a></p>
+                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2404-PAM-11936905">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
@@ -1331,7 +1106,7 @@
         
                 <ul class="card__meta">
                     <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:v2.14.17/argoproj/argo-cd/v2 <span class="list-paths__item__arrow">›</span> /usr/local/bin/argocd
+                        Manifest file: quay.io/argoproj/argocd:v2.14.19/argoproj/argo-cd/v2 <span class="list-paths__item__arrow">›</span> /usr/local/bin/argocd
                     </li>
                     <li class="card__meta__item">
                         Package Manager: golang
@@ -1393,7 +1168,7 @@
         
                 <ul class="card__meta">
                     <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:v2.14.17/helm/v3 <span class="list-paths__item__arrow">›</span> /usr/local/bin/helm
+                        Manifest file: quay.io/argoproj/argocd:v2.14.19/helm/v3 <span class="list-paths__item__arrow">›</span> /usr/local/bin/helm
                     </li>
                     <li class="card__meta__item">
                         Package Manager: golang
@@ -1507,93 +1282,6 @@
         
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">CVE-2025-8058</h2>
-            <div class="card__section">
-        
-                <div class="card__labels">
-                    <div class="label label--medium">
-                        <span class="label__text">medium severity</span>
-                    </div>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:v2.14.17/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: ubuntu:24.04
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            glibc/libc-bin
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-                                docker-image|quay.io/argoproj/argocd@v2.14.17 and glibc/libc-bin@2.39-0ubuntu8.5
-        
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.14.17
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        glibc/libc-bin@2.39-0ubuntu8.5
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.14.17
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        glibc/libc6@2.39-0ubuntu8.5
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="nvd-description">NVD Description</h2>
-        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>glibc</code> package and not the <code>glibc</code> package as distributed by <code>Ubuntu</code>.</em>
-        <em>See <code>How to fix?</code> for <code>Ubuntu:24.04</code> relevant fixed versions and status.</em></p>
-        <p>The regcomp function in the GNU C library version from 2.4 to 2.41 is 
-        subject to a double free if some previous allocation fails. It can be 
-        accomplished either by a malloc failure or by using an interposed malloc
-         that injects random malloc failures. The double free can allow buffer 
-        manipulation depending of how the regex is constructed. This issue 
-        affects all architectures and ABIs supported by the GNU C library.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>There is no fixed version for <code>Ubuntu:24.04</code> <code>glibc</code>.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2025-8058">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2025-8058</a></li>
-        <li><a href="https://sourceware.org/bugzilla/show_bug.cgi?id=33185">https://sourceware.org/bugzilla/show_bug.cgi?id=33185</a></li>
-        <li><a href="https://sourceware.org/git/?p=glibc.git;a=commit;h=3ff17af18c38727b88d9115e536c069e6b5d601f">https://sourceware.org/git/?p=glibc.git;a=commit;h=3ff17af18c38727b88d9115e536c069e6b5d601f</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2404-GLIBC-11031045">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
             <h2 class="card__title">MPL-2.0 license</h2>
             <div class="card__section">
         
@@ -1607,7 +1295,7 @@
         
                 <ul class="card__meta">
                     <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:v2.14.17/argoproj/argo-cd/v2 <span class="list-paths__item__arrow">›</span> /usr/local/bin/argocd
+                        Manifest file: quay.io/argoproj/argocd:v2.14.19/argoproj/argo-cd/v2 <span class="list-paths__item__arrow">›</span> /usr/local/bin/argocd
                     </li>
                     <li class="card__meta__item">
                         Package Manager: golang
@@ -1669,7 +1357,7 @@
         
                 <ul class="card__meta">
                     <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:v2.14.17/argoproj/argo-cd/v2 <span class="list-paths__item__arrow">›</span> /usr/local/bin/argocd
+                        Manifest file: quay.io/argoproj/argocd:v2.14.19/argoproj/argo-cd/v2 <span class="list-paths__item__arrow">›</span> /usr/local/bin/argocd
                     </li>
                     <li class="card__meta__item">
                         Package Manager: golang
@@ -1731,7 +1419,7 @@
         
                 <ul class="card__meta">
                     <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:v2.14.17/argoproj/argo-cd/v2 <span class="list-paths__item__arrow">›</span> /usr/local/bin/argocd
+                        Manifest file: quay.io/argoproj/argocd:v2.14.19/argoproj/argo-cd/v2 <span class="list-paths__item__arrow">›</span> /usr/local/bin/argocd
                     </li>
                     <li class="card__meta__item">
                         Package Manager: golang
@@ -1793,7 +1481,7 @@
         
                 <ul class="card__meta">
                     <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:v2.14.17/helm/v3 <span class="list-paths__item__arrow">›</span> /usr/local/bin/helm
+                        Manifest file: quay.io/argoproj/argocd:v2.14.19/helm/v3 <span class="list-paths__item__arrow">›</span> /usr/local/bin/helm
                     </li>
                     <li class="card__meta__item">
                         Package Manager: golang
@@ -1855,7 +1543,7 @@
         
                 <ul class="card__meta">
                     <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:v2.14.17/argoproj/argo-cd/v2 <span class="list-paths__item__arrow">›</span> /usr/local/bin/argocd
+                        Manifest file: quay.io/argoproj/argocd:v2.14.19/argoproj/argo-cd/v2 <span class="list-paths__item__arrow">›</span> /usr/local/bin/argocd
                     </li>
                     <li class="card__meta__item">
                         Package Manager: golang
@@ -1917,7 +1605,7 @@
         
                 <ul class="card__meta">
                     <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:v2.14.17/argoproj/argo-cd/v2 <span class="list-paths__item__arrow">›</span> /usr/local/bin/argocd
+                        Manifest file: quay.io/argoproj/argocd:v2.14.19/argoproj/argo-cd/v2 <span class="list-paths__item__arrow">›</span> /usr/local/bin/argocd
                     </li>
                     <li class="card__meta__item">
                         Package Manager: golang
@@ -1979,7 +1667,7 @@
         
                 <ul class="card__meta">
                     <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:v2.14.17/argoproj/argo-cd/v2 <span class="list-paths__item__arrow">›</span> /usr/local/bin/argocd
+                        Manifest file: quay.io/argoproj/argocd:v2.14.19/argoproj/argo-cd/v2 <span class="list-paths__item__arrow">›</span> /usr/local/bin/argocd
                     </li>
                     <li class="card__meta__item">
                         Package Manager: golang
@@ -2051,7 +1739,7 @@
         
                 <ul class="card__meta">
                     <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:v2.14.17/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
+                        Manifest file: quay.io/argoproj/argocd:v2.14.19/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
                     </li>
                     <li class="card__meta__item">
                         Package Manager: ubuntu:24.04
@@ -2065,7 +1753,7 @@
                     <li class="card__meta__item">Introduced through:
         
         
-                                    docker-image|quay.io/argoproj/argocd@v2.14.17, git@1:2.43.0-1ubuntu7.3 and others
+                                    docker-image|quay.io/argoproj/argocd@v2.14.19, git@1:2.43.0-1ubuntu7.3 and others
                     </li>
                 </ul>
         
@@ -2077,7 +1765,7 @@
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.14.17
+                                        docker-image|quay.io/argoproj/argocd@v2.14.19
                                          <span class="list-paths__item__arrow">›</span> 
                                         git@1:2.43.0-1ubuntu7.3
                                          <span class="list-paths__item__arrow">›</span> 
@@ -2088,7 +1776,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.14.17
+                                        docker-image|quay.io/argoproj/argocd@v2.14.19
                                          <span class="list-paths__item__arrow">›</span> 
                                         git@1:2.43.0-1ubuntu7.3
                                         
@@ -2097,7 +1785,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.14.17
+                                        docker-image|quay.io/argoproj/argocd@v2.14.19
                                          <span class="list-paths__item__arrow">›</span> 
                                         git-lfs@3.4.1-1ubuntu0.3
                                          <span class="list-paths__item__arrow">›</span> 
@@ -2146,7 +1834,7 @@
         
                 <ul class="card__meta">
                     <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:v2.14.17/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
+                        Manifest file: quay.io/argoproj/argocd:v2.14.19/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
                     </li>
                     <li class="card__meta__item">
                         Package Manager: ubuntu:24.04
@@ -2159,7 +1847,7 @@
         
                     <li class="card__meta__item">Introduced through:
         
-                                docker-image|quay.io/argoproj/argocd@v2.14.17 and shadow/passwd@1:4.13+dfsg1-4ubuntu3.2
+                                docker-image|quay.io/argoproj/argocd@v2.14.19 and shadow/passwd@1:4.13+dfsg1-4ubuntu3.2
         
                     </li>
                 </ul>
@@ -2172,7 +1860,7 @@
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.14.17
+                                        docker-image|quay.io/argoproj/argocd@v2.14.19
                                          <span class="list-paths__item__arrow">›</span> 
                                         shadow/passwd@1:4.13+dfsg1-4ubuntu3.2
                                         
@@ -2181,9 +1869,9 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.14.17
+                                        docker-image|quay.io/argoproj/argocd@v2.14.19
                                          <span class="list-paths__item__arrow">›</span> 
-                                        openssh/openssh-client@1:9.6p1-3ubuntu13.13
+                                        openssh/openssh-client@1:9.6p1-3ubuntu13.14
                                          <span class="list-paths__item__arrow">›</span> 
                                         shadow/passwd@1:4.13+dfsg1-4ubuntu3.2
                                         
@@ -2192,7 +1880,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.14.17
+                                        docker-image|quay.io/argoproj/argocd@v2.14.19
                                          <span class="list-paths__item__arrow">›</span> 
                                         apt@2.8.3
                                          <span class="list-paths__item__arrow">›</span> 
@@ -2205,7 +1893,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.14.17
+                                        docker-image|quay.io/argoproj/argocd@v2.14.19
                                          <span class="list-paths__item__arrow">›</span> 
                                         shadow/login@1:4.13+dfsg1-4ubuntu3.2
                                         
@@ -2253,7 +1941,7 @@
         
                 <ul class="card__meta">
                     <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:v2.14.17/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
+                        Manifest file: quay.io/argoproj/argocd:v2.14.19/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
                     </li>
                     <li class="card__meta__item">
                         Package Manager: ubuntu:24.04
@@ -2266,7 +1954,7 @@
         
                     <li class="card__meta__item">Introduced through:
         
-                                docker-image|quay.io/argoproj/argocd@v2.14.17 and patch@2.7.6-7build3
+                                docker-image|quay.io/argoproj/argocd@v2.14.19 and patch@2.7.6-7build3
         
                     </li>
                 </ul>
@@ -2279,7 +1967,7 @@
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.14.17
+                                        docker-image|quay.io/argoproj/argocd@v2.14.19
                                          <span class="list-paths__item__arrow">›</span> 
                                         patch@2.7.6-7build3
                                         
@@ -2325,7 +2013,7 @@
         
                 <ul class="card__meta">
                     <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:v2.14.17/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
+                        Manifest file: quay.io/argoproj/argocd:v2.14.19/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
                     </li>
                     <li class="card__meta__item">
                         Package Manager: ubuntu:24.04
@@ -2338,7 +2026,7 @@
         
                     <li class="card__meta__item">Introduced through:
         
-                                docker-image|quay.io/argoproj/argocd@v2.14.17 and patch@2.7.6-7build3
+                                docker-image|quay.io/argoproj/argocd@v2.14.19 and patch@2.7.6-7build3
         
                     </li>
                 </ul>
@@ -2351,7 +2039,7 @@
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.14.17
+                                        docker-image|quay.io/argoproj/argocd@v2.14.19
                                          <span class="list-paths__item__arrow">›</span> 
                                         patch@2.7.6-7build3
                                         
@@ -2402,7 +2090,7 @@
         
                 <ul class="card__meta">
                     <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:v2.14.17/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
+                        Manifest file: quay.io/argoproj/argocd:v2.14.19/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
                     </li>
                     <li class="card__meta__item">
                         Package Manager: ubuntu:24.04
@@ -2415,7 +2103,7 @@
         
                     <li class="card__meta__item">Introduced through:
         
-                                docker-image|quay.io/argoproj/argocd@v2.14.17 and openssl/libssl3t64@3.0.13-0ubuntu3.5
+                                docker-image|quay.io/argoproj/argocd@v2.14.19 and openssl/libssl3t64@3.0.13-0ubuntu3.5
         
                     </li>
                 </ul>
@@ -2428,7 +2116,7 @@
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.14.17
+                                        docker-image|quay.io/argoproj/argocd@v2.14.19
                                          <span class="list-paths__item__arrow">›</span> 
                                         openssl/libssl3t64@3.0.13-0ubuntu3.5
                                         
@@ -2437,9 +2125,9 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.14.17
+                                        docker-image|quay.io/argoproj/argocd@v2.14.19
                                          <span class="list-paths__item__arrow">›</span> 
-                                        coreutils@9.4-3ubuntu6
+                                        coreutils@9.4-3ubuntu6.1
                                          <span class="list-paths__item__arrow">›</span> 
                                         openssl/libssl3t64@3.0.13-0ubuntu3.5
                                         
@@ -2448,7 +2136,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.14.17
+                                        docker-image|quay.io/argoproj/argocd@v2.14.19
                                          <span class="list-paths__item__arrow">›</span> 
                                         cyrus-sasl2/libsasl2-modules@2.1.28+dfsg1-5ubuntu3.1
                                          <span class="list-paths__item__arrow">›</span> 
@@ -2459,7 +2147,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.14.17
+                                        docker-image|quay.io/argoproj/argocd@v2.14.19
                                          <span class="list-paths__item__arrow">›</span> 
                                         libfido2/libfido2-1@1.14.0-1build3
                                          <span class="list-paths__item__arrow">›</span> 
@@ -2470,9 +2158,9 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.14.17
+                                        docker-image|quay.io/argoproj/argocd@v2.14.19
                                          <span class="list-paths__item__arrow">›</span> 
-                                        openssh/openssh-client@1:9.6p1-3ubuntu13.13
+                                        openssh/openssh-client@1:9.6p1-3ubuntu13.14
                                          <span class="list-paths__item__arrow">›</span> 
                                         openssl/libssl3t64@3.0.13-0ubuntu3.5
                                         
@@ -2481,7 +2169,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.14.17
+                                        docker-image|quay.io/argoproj/argocd@v2.14.19
                                          <span class="list-paths__item__arrow">›</span> 
                                         ca-certificates@20240203
                                          <span class="list-paths__item__arrow">›</span> 
@@ -2494,7 +2182,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.14.17
+                                        docker-image|quay.io/argoproj/argocd@v2.14.19
                                          <span class="list-paths__item__arrow">›</span> 
                                         git@1:2.43.0-1ubuntu7.3
                                          <span class="list-paths__item__arrow">›</span> 
@@ -2509,7 +2197,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.14.17
+                                        docker-image|quay.io/argoproj/argocd@v2.14.19
                                          <span class="list-paths__item__arrow">›</span> 
                                         git@1:2.43.0-1ubuntu7.3
                                          <span class="list-paths__item__arrow">›</span> 
@@ -2526,7 +2214,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.14.17
+                                        docker-image|quay.io/argoproj/argocd@v2.14.19
                                          <span class="list-paths__item__arrow">›</span> 
                                         git@1:2.43.0-1ubuntu7.3
                                          <span class="list-paths__item__arrow">›</span> 
@@ -2543,7 +2231,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.14.17
+                                        docker-image|quay.io/argoproj/argocd@v2.14.19
                                          <span class="list-paths__item__arrow">›</span> 
                                         openssl@3.0.13-0ubuntu3.5
                                         
@@ -2552,7 +2240,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.14.17
+                                        docker-image|quay.io/argoproj/argocd@v2.14.19
                                          <span class="list-paths__item__arrow">›</span> 
                                         ca-certificates@20240203
                                          <span class="list-paths__item__arrow">›</span> 
@@ -2602,7 +2290,7 @@
         
                 <ul class="card__meta">
                     <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:v2.14.17/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
+                        Manifest file: quay.io/argoproj/argocd:v2.14.19/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
                     </li>
                     <li class="card__meta__item">
                         Package Manager: ubuntu:24.04
@@ -2615,7 +2303,7 @@
         
                     <li class="card__meta__item">Introduced through:
         
-                                docker-image|quay.io/argoproj/argocd@v2.14.17 and libgcrypt20@1.10.3-2build1
+                                docker-image|quay.io/argoproj/argocd@v2.14.19 and libgcrypt20@1.10.3-2build1
         
                     </li>
                 </ul>
@@ -2628,7 +2316,7 @@
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.14.17
+                                        docker-image|quay.io/argoproj/argocd@v2.14.19
                                          <span class="list-paths__item__arrow">›</span> 
                                         libgcrypt20@1.10.3-2build1
                                         
@@ -2637,7 +2325,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.14.17
+                                        docker-image|quay.io/argoproj/argocd@v2.14.19
                                          <span class="list-paths__item__arrow">›</span> 
                                         gnupg2/dirmngr@2.4.4-2ubuntu17.3
                                          <span class="list-paths__item__arrow">›</span> 
@@ -2648,7 +2336,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.14.17
+                                        docker-image|quay.io/argoproj/argocd@v2.14.19
                                          <span class="list-paths__item__arrow">›</span> 
                                         gnupg2/gpg@2.4.4-2ubuntu17.3
                                          <span class="list-paths__item__arrow">›</span> 
@@ -2659,7 +2347,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.14.17
+                                        docker-image|quay.io/argoproj/argocd@v2.14.19
                                          <span class="list-paths__item__arrow">›</span> 
                                         gnupg2/gpg-agent@2.4.4-2ubuntu17.3
                                          <span class="list-paths__item__arrow">›</span> 
@@ -2670,7 +2358,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.14.17
+                                        docker-image|quay.io/argoproj/argocd@v2.14.19
                                          <span class="list-paths__item__arrow">›</span> 
                                         apt@2.8.3
                                          <span class="list-paths__item__arrow">›</span> 
@@ -2683,7 +2371,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.14.17
+                                        docker-image|quay.io/argoproj/argocd@v2.14.19
                                          <span class="list-paths__item__arrow">›</span> 
                                         apt@2.8.3
                                          <span class="list-paths__item__arrow">›</span> 
@@ -2696,7 +2384,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.14.17
+                                        docker-image|quay.io/argoproj/argocd@v2.14.19
                                          <span class="list-paths__item__arrow">›</span> 
                                         gnupg2/gpg@2.4.4-2ubuntu17.3
                                          <span class="list-paths__item__arrow">›</span> 
@@ -2709,7 +2397,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.14.17
+                                        docker-image|quay.io/argoproj/argocd@v2.14.19
                                          <span class="list-paths__item__arrow">›</span> 
                                         apt@2.8.3
                                          <span class="list-paths__item__arrow">›</span> 
@@ -2717,7 +2405,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         shadow/passwd@1:4.13+dfsg1-4ubuntu3.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        pam/libpam-modules@1.5.3-5ubuntu5.4
+                                        pam/libpam-modules@1.5.3-5ubuntu5.5
                                          <span class="list-paths__item__arrow">›</span> 
                                         systemd/libsystemd0@255.4-1ubuntu8.10
                                          <span class="list-paths__item__arrow">›</span> 
@@ -2770,7 +2458,7 @@
         
                 <ul class="card__meta">
                     <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:v2.14.17/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
+                        Manifest file: quay.io/argoproj/argocd:v2.14.19/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
                     </li>
                     <li class="card__meta__item">
                         Package Manager: ubuntu:24.04
@@ -2783,7 +2471,7 @@
         
                     <li class="card__meta__item">Introduced through:
         
-                                docker-image|quay.io/argoproj/argocd@v2.14.17 and gnupg2/gpgv@2.4.4-2ubuntu17.3
+                                docker-image|quay.io/argoproj/argocd@v2.14.19 and gnupg2/gpgv@2.4.4-2ubuntu17.3
         
                     </li>
                 </ul>
@@ -2796,7 +2484,7 @@
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.14.17
+                                        docker-image|quay.io/argoproj/argocd@v2.14.19
                                          <span class="list-paths__item__arrow">›</span> 
                                         gnupg2/gpgv@2.4.4-2ubuntu17.3
                                         
@@ -2805,7 +2493,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.14.17
+                                        docker-image|quay.io/argoproj/argocd@v2.14.19
                                          <span class="list-paths__item__arrow">›</span> 
                                         apt@2.8.3
                                          <span class="list-paths__item__arrow">›</span> 
@@ -2816,7 +2504,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.14.17
+                                        docker-image|quay.io/argoproj/argocd@v2.14.19
                                          <span class="list-paths__item__arrow">›</span> 
                                         gnupg2/dirmngr@2.4.4-2ubuntu17.3
                                          <span class="list-paths__item__arrow">›</span> 
@@ -2827,7 +2515,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.14.17
+                                        docker-image|quay.io/argoproj/argocd@v2.14.19
                                          <span class="list-paths__item__arrow">›</span> 
                                         gnupg2/gpg-agent@2.4.4-2ubuntu17.3
                                          <span class="list-paths__item__arrow">›</span> 
@@ -2838,7 +2526,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.14.17
+                                        docker-image|quay.io/argoproj/argocd@v2.14.19
                                          <span class="list-paths__item__arrow">›</span> 
                                         gnupg2/gpg@2.4.4-2ubuntu17.3
                                          <span class="list-paths__item__arrow">›</span> 
@@ -2849,7 +2537,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.14.17
+                                        docker-image|quay.io/argoproj/argocd@v2.14.19
                                          <span class="list-paths__item__arrow">›</span> 
                                         gnupg2/dirmngr@2.4.4-2ubuntu17.3
                                         
@@ -2858,7 +2546,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.14.17
+                                        docker-image|quay.io/argoproj/argocd@v2.14.19
                                          <span class="list-paths__item__arrow">›</span> 
                                         gnupg2/gpg@2.4.4-2ubuntu17.3
                                         
@@ -2867,7 +2555,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.14.17
+                                        docker-image|quay.io/argoproj/argocd@v2.14.19
                                          <span class="list-paths__item__arrow">›</span> 
                                         gnupg2/gpg-agent@2.4.4-2ubuntu17.3
                                         
@@ -2918,7 +2606,7 @@
         
                 <ul class="card__meta">
                     <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:v2.14.17/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
+                        Manifest file: quay.io/argoproj/argocd:v2.14.19/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
                     </li>
                     <li class="card__meta__item">
                         Package Manager: ubuntu:24.04
@@ -2931,7 +2619,7 @@
         
                     <li class="card__meta__item">Introduced through:
         
-                                docker-image|quay.io/argoproj/argocd@v2.14.17 and glibc/libc-bin@2.39-0ubuntu8.5
+                                docker-image|quay.io/argoproj/argocd@v2.14.19 and glibc/libc-bin@2.39-0ubuntu8.6
         
                     </li>
                 </ul>
@@ -2944,18 +2632,18 @@
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.14.17
+                                        docker-image|quay.io/argoproj/argocd@v2.14.19
                                          <span class="list-paths__item__arrow">›</span> 
-                                        glibc/libc-bin@2.39-0ubuntu8.5
+                                        glibc/libc-bin@2.39-0ubuntu8.6
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.14.17
+                                        docker-image|quay.io/argoproj/argocd@v2.14.19
                                          <span class="list-paths__item__arrow">›</span> 
-                                        glibc/libc6@2.39-0ubuntu8.5
+                                        glibc/libc6@2.39-0ubuntu8.6
                                         
                                 </span>
         
@@ -2988,6 +2676,148 @@
         
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
+            <h2 class="card__title">CVE-2025-6297</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--low">
+                        <span class="label__text">low severity</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:v2.14.19/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: ubuntu:24.04
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            dpkg
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|quay.io/argoproj/argocd@v2.14.19 and dpkg@1.22.6ubuntu6.2
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.14.19
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        dpkg@1.22.6ubuntu6.2
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.14.19
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        dash@0.5.12-6ubuntu5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        dpkg@1.22.6ubuntu6.2
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.14.19
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gzip@1.12-1ubuntu3.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        dpkg@1.22.6ubuntu6.2
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.14.19
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        git@1:2.43.0-1ubuntu7.3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        perl@5.38.2-3.2ubuntu0.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        dpkg@1.22.6ubuntu6.2
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.14.19
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        git@1:2.43.0-1ubuntu7.3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        perl@5.38.2-3.2ubuntu0.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        perl/perl-modules-5.38@5.38.2-3.2ubuntu0.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        dpkg@1.22.6ubuntu6.2
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.14.19
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        git@1:2.43.0-1ubuntu7.3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        perl@5.38.2-3.2ubuntu0.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        perl/perl-base@5.38.2-3.2ubuntu0.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        dpkg@1.22.6ubuntu6.2
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>dpkg</code> package and not the <code>dpkg</code> package as distributed by <code>Ubuntu</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Ubuntu:24.04</code> relevant fixed versions and status.</em></p>
+        <p>It was discovered that dpkg-deb does not properly sanitize directory permissions when extracting a control member into a temporary directory, which is
+        documented as being a safe operation even on untrusted data. This may result in leaving temporary files behind on cleanup. Given automated and repeated execution of dpkg-deb commands on
+        adversarial .deb packages or with well compressible files, placed
+        inside a directory with permissions not allowing removal by a non-root
+        user, this can end up in a DoS scenario due to causing disk quota
+        exhaustion or disk full conditions.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>Ubuntu:24.04</code> <code>dpkg</code> to version 1.22.6ubuntu6.5 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2025-6297">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2025-6297</a></li>
+        <li><a href="https://git.dpkg.org/cgit/dpkg/dpkg.git/commit/?id=ed6bbd445dd8800308c67236ba35d08004c98e82">https://git.dpkg.org/cgit/dpkg/dpkg.git/commit/?id=ed6bbd445dd8800308c67236ba35d08004c98e82</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2404-DPKG-10597581">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
             <h2 class="card__title">CVE-2025-9086</h2>
             <div class="card__section">
         
@@ -3001,7 +2831,7 @@
         
                 <ul class="card__meta">
                     <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:v2.14.17/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
+                        Manifest file: quay.io/argoproj/argocd:v2.14.19/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
                     </li>
                     <li class="card__meta__item">
                         Package Manager: ubuntu:24.04
@@ -3015,7 +2845,7 @@
                     <li class="card__meta__item">Introduced through:
         
         
-                                    docker-image|quay.io/argoproj/argocd@v2.14.17, git@1:2.43.0-1ubuntu7.3 and others
+                                    docker-image|quay.io/argoproj/argocd@v2.14.19, git@1:2.43.0-1ubuntu7.3 and others
                     </li>
                 </ul>
         
@@ -3027,7 +2857,7 @@
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.14.17
+                                        docker-image|quay.io/argoproj/argocd@v2.14.19
                                          <span class="list-paths__item__arrow">›</span> 
                                         git@1:2.43.0-1ubuntu7.3
                                          <span class="list-paths__item__arrow">›</span> 
@@ -3092,7 +2922,7 @@
         
                 <ul class="card__meta">
                     <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:v2.14.17/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
+                        Manifest file: quay.io/argoproj/argocd:v2.14.19/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
                     </li>
                     <li class="card__meta__item">
                         Package Manager: ubuntu:24.04
@@ -3106,7 +2936,7 @@
                     <li class="card__meta__item">Introduced through:
         
         
-                                    docker-image|quay.io/argoproj/argocd@v2.14.17, git@1:2.43.0-1ubuntu7.3 and others
+                                    docker-image|quay.io/argoproj/argocd@v2.14.19, git@1:2.43.0-1ubuntu7.3 and others
                     </li>
                 </ul>
         
@@ -3118,7 +2948,7 @@
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.14.17
+                                        docker-image|quay.io/argoproj/argocd@v2.14.19
                                          <span class="list-paths__item__arrow">›</span> 
                                         git@1:2.43.0-1ubuntu7.3
                                          <span class="list-paths__item__arrow">›</span> 
@@ -3175,7 +3005,7 @@
         
                 <ul class="card__meta">
                     <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:v2.14.17/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
+                        Manifest file: quay.io/argoproj/argocd:v2.14.19/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
                     </li>
                     <li class="card__meta__item">
                         Package Manager: ubuntu:24.04
@@ -3189,7 +3019,7 @@
                     <li class="card__meta__item">Introduced through:
         
         
-                                    docker-image|quay.io/argoproj/argocd@v2.14.17, git@1:2.43.0-1ubuntu7.3 and others
+                                    docker-image|quay.io/argoproj/argocd@v2.14.19, git@1:2.43.0-1ubuntu7.3 and others
                     </li>
                 </ul>
         
@@ -3201,7 +3031,7 @@
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.14.17
+                                        docker-image|quay.io/argoproj/argocd@v2.14.19
                                          <span class="list-paths__item__arrow">›</span> 
                                         git@1:2.43.0-1ubuntu7.3
                                          <span class="list-paths__item__arrow">›</span> 
@@ -3256,7 +3086,7 @@
         
                 <ul class="card__meta">
                     <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:v2.14.17/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
+                        Manifest file: quay.io/argoproj/argocd:v2.14.19/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
                     </li>
                     <li class="card__meta__item">
                         Package Manager: ubuntu:24.04
@@ -3269,7 +3099,7 @@
         
                     <li class="card__meta__item">Introduced through:
         
-                                docker-image|quay.io/argoproj/argocd@v2.14.17 and coreutils@9.4-3ubuntu6
+                                docker-image|quay.io/argoproj/argocd@v2.14.19 and coreutils@9.4-3ubuntu6.1
         
                     </li>
                 </ul>
@@ -3282,9 +3112,9 @@
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.14.17
+                                        docker-image|quay.io/argoproj/argocd@v2.14.19
                                          <span class="list-paths__item__arrow">›</span> 
-                                        coreutils@9.4-3ubuntu6
+                                        coreutils@9.4-3ubuntu6.1
                                         
                                 </span>
         
