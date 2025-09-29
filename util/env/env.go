@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	timeutil "github.com/argoproj/pkg/time"
+
 	log "github.com/sirupsen/logrus"
 )
 
@@ -125,8 +127,13 @@ func ParseDurationFromEnv(env string, defaultValue, min, max time.Duration) time
 	}
 	dur, err := time.ParseDuration(str)
 	if err != nil {
-		log.Warnf("Could not parse '%s' as a duration string from environment %s", str, env)
-		return defaultValue
+		// provides backwards compatibility for durations defined in days, see: https://github.com/argoproj/argo-cd/issues/24740
+		durPtr, err2 := timeutil.ParseDuration(str)
+		if err2 != nil {
+			log.Warnf("Could not parse '%s' as a duration from environment %s", str, env)
+			return defaultValue
+		}
+		dur = *durPtr
 	}
 
 	if dur < min {
