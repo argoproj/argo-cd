@@ -46,8 +46,7 @@ func NewCommand() *cobra.Command {
 		SilenceUsage:      true,
 		ValidArgsFunction: func(_ *cobra.Command, _ []string, _ string) ([]string, cobra.ShellCompDirective) {
 			// Return available plugin commands for tab completion
-			pluginHandler := NewDefaultPluginHandler([]string{"argocd"})
-			plugins := pluginHandler.ListAvailablePlugins()
+			plugins := NewDefaultPluginHandler().ListAvailablePlugins()
 			return plugins, cobra.ShellCompDirectiveNoFileComp
 		},
 	}
