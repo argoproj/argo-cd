@@ -22,4 +22,4 @@ export const resourceIconGroups = {
     'projectcontour.io': true,
     'work.karmada.io': true,
     'zookeeper.pravega.io': true,
-}
+};

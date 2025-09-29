@@ -10,5 +10,5 @@
   echo "// Each glob corresponds to a directory under ui/src/assets/images/resources, where any asterisk is represented as an underscore (_).";
   echo "export const resourceIconGroups = {";
   find ui/src/assets/images/resources -name icon.svg | sort | sed "s/ui\/src\/assets\/images\/resources\//    '/" | sed "s/\/icon.svg/': true,/" | sed 's/_/*/';
-  echo "}";
+  echo "};";
 } > ui/src/app/applications/components/resource-customizations.ts
