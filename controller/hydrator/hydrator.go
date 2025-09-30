@@ -162,10 +162,20 @@ func (h *Hydrator) ProcessHydrationQueueItem(hydrationKey types.HydrationQueueKe
 	}
 	logCtx.WithField("appCount", len(apps))
 
-	// TODO: we might end up in a race condition here where an HydrationQueueItem is processed
+	// FIXME: we might end up in a race condition here where an HydrationQueueItem is processed
 	// before all applications had their CurrentOperation set by ProcessAppHydrateQueueItem.
 	// This would cause this method to update "old" CurrentOperation.
 	// It should only start hydration if all apps are in the HydrateOperationPhaseHydrating phase.
+	raceDetected := false
+	for _, app := range apps {
+		if app.Status.SourceHydrator.CurrentOperation == nil || app.Status.SourceHydrator.CurrentOperation.Phase != appv1.HydrateOperationPhaseHydrating {
+			raceDetected = true
+			break
+		}
+	}
+	if raceDetected {
+		logCtx.Warn("race condition detected: not all apps are in HydrateOperationPhaseHydrating phase")
+	}
 
 	// validate all the applications to make sure they are all correctly configured.
 	// All applications sharing the same hydration key must succeed for the hydration to be processed.
