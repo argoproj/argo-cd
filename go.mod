@@ -19,7 +19,7 @@ require (
 	github.com/aws/aws-sdk-go v1.55.7
 	github.com/bmatcuk/doublestar/v4 v4.9.1
 	github.com/bombsimon/logrusr/v4 v4.1.0
-	github.com/bradleyfalzon/ghinstallation/v2 v2.16.0
+	github.com/bradleyfalzon/ghinstallation/v2 v2.17.0
 	github.com/casbin/casbin/v2 v2.127.0
 	github.com/casbin/govaluate v1.10.0
 	github.com/cespare/xxhash/v2 v2.3.0
@@ -204,7 +204,7 @@ require (
 	github.com/golang-jwt/jwt/v4 v4.5.2 // indirect
 	github.com/golang/glog v1.2.5 // indirect
 	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8 // indirect
-	github.com/google/go-github/v72 v72.0.0 // indirect
+	github.com/google/go-github/v75 v75.0.0 // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/google/s2a-go v0.1.9 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.4 // indirect
