@@ -728,6 +728,20 @@ func Test_affectedRevisionInfo_appRevisionHasChanged(t *testing.T) {
 		{true, "refs/tags/no-slashes", bitbucketPushPayload("no-slashes"), "bitbucket push branch or tag name without slashes, targetRevision tag prefixed"},
 		{true, "refs/tags/no-slashes", bitbucketRefChangedPayload("no-slashes"), "bitbucket ref changed branch or tag name without slashes, targetRevision tag prefixed"},
 		{true, "refs/tags/no-slashes", gogsPushPayload("no-slashes"), "gogs push branch or tag name without slashes, targetRevision tag prefixed"},
+
+		{true, "some-ref", bitbucketserver.RepositoryReferenceChangedPayload{
+			Changes: []bitbucketserver.RepositoryChange{
+				{Reference: bitbucketserver.RepositoryReference{ID: "refs/heads/some-ref"}},
+			},
+			Repository: bitbucketserver.Repository{Links: map[string]any{"clone": "boom"}}, // The string "boom" here is what previously caused a panic.
+		}, "bitbucket push branch or tag name, malformed link"}, // https://github.com/argoproj/argo-cd/security/advisories/GHSA-f9gq-prrc-hrhc
+
+		{true, "some-ref", bitbucketserver.RepositoryReferenceChangedPayload{
+			Changes: []bitbucketserver.RepositoryChange{
+				{Reference: bitbucketserver.RepositoryReference{ID: "refs/heads/some-ref"}},
+			},
+			Repository: bitbucketserver.Repository{Links: map[string]any{"clone": []any{map[string]any{"name": "http", "href": []string{}}}}}, // The href as an empty array is what previously caused a panic.
+		}, "bitbucket push branch or tag name, malformed href"},
 	}
 	for _, testCase := range tests {
 		testCopy := testCase
