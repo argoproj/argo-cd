@@ -239,11 +239,13 @@ func affectedRevisionInfo(payloadIf interface{}) (webURLs []string, revision str
 		// so we cannot update changedFiles for this type of payload
 
 	case gogsclient.PushPayload:
-		webURLs = append(webURLs, payload.Repo.HTMLURL)
 		revision = ParseRevision(payload.Ref)
 		change.shaAfter = ParseRevision(payload.After)
 		change.shaBefore = ParseRevision(payload.Before)
-		touchedHead = bool(payload.Repo.DefaultBranch == revision)
+		if payload.Repo != nil {
+			webURLs = append(webURLs, payload.Repo.HTMLURL)
+			touchedHead = payload.Repo.DefaultBranch == revision
+		}
 		for _, commit := range payload.Commits {
 			changedFiles = append(changedFiles, commit.Added...)
 			changedFiles = append(changedFiles, commit.Modified...)
