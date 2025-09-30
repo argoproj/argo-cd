@@ -1878,7 +1878,7 @@ func (ctrl *ApplicationController) processAppHydrateQueueItem() (processNext boo
 		return
 	}
 
-	ctrl.hydrator.ProcessAppHydrateQueueItem(origApp)
+	ctrl.hydrator.ProcessAppHydrateQueueItem(origApp.DeepCopy())
 
 	log.WithFields(applog.GetAppLogFields(origApp)).Debug("Successfully processed app hydrate queue item")
 	return
