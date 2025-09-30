@@ -271,7 +271,7 @@ func (h *Hydrator) setAppHydratorError(app *appv1.Application, err error) {
 	h.dependencies.PersistAppHydratorStatus(origApp, &app.Status.SourceHydrator)
 }
 
-// getRelevantAppsAndProjectsForHydration returns the applications matching the hydration key.
+// getAppsForHydrationKey returns the applications matching the hydration key.
 func (h *Hydrator) getAppsForHydrationKey(hydrationKey types.HydrationQueueKey) ([]*appv1.Application, error) {
 	// Get all apps
 	apps, err := h.dependencies.GetProcessableApps()
@@ -352,7 +352,11 @@ func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application, project
 	// These values are the same for all apps being hydrated together, so just get them from the first app.
 	repoURL := apps[0].Spec.GetHydrateToSource().RepoURL
 	targetBranch := apps[0].Spec.GetHydrateToSource().TargetRevision
-	// TODO: the sync source can be different since it is not part of the hydration key. See if it matters
+	// FIXME: As a convenience, the commit server will create the syncBranch if it does not exist. If the
+	// targetBranch does not exist, it will create it based on the syncBranch. On the next line, we take
+	// the `syncBranch` from the first app and assume that they're all configured the same. Instead, if any
+	// app has a different syncBranch, we should send the commit server an empty string and allow it to
+	// create the targetBranch as an orphan since we can't reliable determine a reasonable base.
 	syncBranch := apps[0].Spec.SourceHydrator.SyncSource.TargetBranch
 
 	// Get a static SHA revision from the first app so that all apps are hydrated from the same revision.
