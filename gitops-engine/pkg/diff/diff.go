@@ -310,7 +310,7 @@ func filterOutCompositeKeyFields(typedValue *typed.TypedValue, fieldsToRemove *f
 // Example: .spec.containers[name="nginx"].ports[containerPort=80,protocol="TCP"].protocol
 // The path elements include:
 //   - PathElement{Key: {name: "nginx"}} - single key (not composite)
-//   - PathElement{Key: {containerPort: 80, protoc ol: "TCP"}} - composite key with 2 fields
+//   - PathElement{Key: {containerPort: 80, protocol: "TCP"}} - composite key with 2 fields
 func isCompositeKeyField(fieldPath fieldpath.Path) bool {
 	if len(fieldPath) == 0 {
 		return false
@@ -326,15 +326,16 @@ func isCompositeKeyField(fieldPath fieldpath.Path) bool {
 	// Look backwards through the path to find the most recent associative list key
 	for i := len(fieldPath) - 2; i >= 0; i-- {
 		pe := fieldPath[i]
-		if pe.Key != nil {
-			if len(*pe.Key) <= 1 {
-				continue
-			}
-			// This is a composite key
-			for _, keyField := range *pe.Key {
-				if keyField.Name == finalFieldName {
-					return true
-				}
+		if pe.Key == nil {
+			continue
+		}
+		if len(*pe.Key) <= 1 {
+			continue
+		}
+		// This is a composite key
+		for _, keyField := range *pe.Key {
+			if keyField.Name == finalFieldName {
+				return true
 			}
 		}
 	}
