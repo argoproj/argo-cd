@@ -108,7 +108,7 @@ The __Valid Redirect URIs__ should be set to:
 
 - http://localhost:8085/auth/callback (needed for argo-cd cli, depends on value from [--sso-port](../../user-guide/commands/argocd_login.md))
 - https://{hostname}/auth/callback
-- https://{hostname}/pkce/verify (needed for argo-cd web)
+- https://{hostname}/pkce/verify (needed for argo-cd UI)
 
 ![Keycloak configure client](../../assets/keycloak-configure-client-pkce.png "Keycloak configure client")
 
