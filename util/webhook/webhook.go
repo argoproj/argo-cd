@@ -255,13 +255,15 @@ func (a *ArgoCDWebhookHandler) affectedRevisionInfo(payloadIf any) (webURLs []st
 
 		// Webhook module does not parse the inner links
 		if payload.Repository.Links != nil {
-			for _, l := range payload.Repository.Links["clone"].([]any) {
-				link := l.(map[string]any)
-				if link["name"] == "http" {
-					webURLs = append(webURLs, link["href"].(string))
-				}
-				if link["name"] == "ssh" {
-					webURLs = append(webURLs, link["href"].(string))
+			clone, ok := payload.Repository.Links["clone"].([]any)
+			if ok {
+				for _, l := range clone {
+					link := l.(map[string]any)
+					if link["name"] == "http" || link["name"] == "ssh" {
+						if href, ok := link["href"].(string); ok {
+							webURLs = append(webURLs, href)
+						}
+					}
 				}
 			}
 		}
