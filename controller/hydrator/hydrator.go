@@ -261,7 +261,7 @@ func (h *Hydrator) setAppHydratorError(app *appv1.Application, err error) {
 	h.dependencies.PersistAppHydratorStatus(origApp, &app.Status.SourceHydrator)
 }
 
-// getRelevantAppsAndProjectsForHydration returns the applications matching the hydration key.
+// getAppsForHydrationKey returns the applications matching the hydration key.
 func (h *Hydrator) getAppsForHydrationKey(hydrationKey types.HydrationQueueKey) ([]*appv1.Application, error) {
 	// Get all apps
 	apps, err := h.dependencies.GetProcessableApps()
