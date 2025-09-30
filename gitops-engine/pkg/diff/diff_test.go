@@ -1107,7 +1107,7 @@ func TestServerSideDiff(t *testing.T) {
 		assert.Contains(t, predictedLiveStr, "selector", "Other fields should remain visible")
 	})
 
-	t.Run("will preserve composite key fields added by mutation webhook", func(t *testing.T) {
+	t.Run("will preserve composite key fields during diff", func(t *testing.T) {
 		// given
 		t.Parallel()
 		liveState := StrToUnstructured(testdata.DeploymentCompositeKeyLiveYAMLSSD)
