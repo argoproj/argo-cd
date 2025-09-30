@@ -14,6 +14,8 @@ import (
 
 	argov1 "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
 
+	"github.com/go-playground/webhooks/v6/azuredevops"
+
 	"github.com/go-playground/webhooks/v6/bitbucket"
 	bitbucketserver "github.com/go-playground/webhooks/v6/bitbucket-server"
 	"github.com/go-playground/webhooks/v6/github"
@@ -692,6 +694,9 @@ func Test_affectedRevisionInfo_appRevisionHasChanged(t *testing.T) {
 		{true, "refs/tags/no-slashes", bitbucketPushPayload("no-slashes"), "bitbucket push branch or tag name without slashes, targetRevision tag prefixed"},
 		{true, "refs/tags/no-slashes", bitbucketRefChangedPayload("no-slashes"), "bitbucket ref changed branch or tag name without slashes, targetRevision tag prefixed"},
 		{true, "refs/tags/no-slashes", gogsPushPayload("no-slashes"), "gogs push branch or tag name without slashes, targetRevision tag prefixed"},
+
+		// Testing fix for https://github.com/argoproj/argo-cd/security/advisories/GHSA-gpx4-37g2-c8pv
+		{false, "test", azuredevops.GitPushEvent{Resource: azuredevops.Resource{RefUpdates: []azuredevops.RefUpdate{}}}, "Azure DevOps malformed push event with no ref updates"},
 
 		{true, "some-ref", bitbucketserver.RepositoryReferenceChangedPayload{
 			Changes: []bitbucketserver.RepositoryChange{

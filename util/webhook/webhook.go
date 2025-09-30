@@ -148,10 +148,12 @@ func affectedRevisionInfo(payloadIf any) (webURLs []string, revision string, cha
 	case azuredevops.GitPushEvent:
 		// See: https://learn.microsoft.com/en-us/azure/devops/service-hooks/events?view=azure-devops#git.push
 		webURLs = append(webURLs, payload.Resource.Repository.RemoteURL)
-		revision = ParseRevision(payload.Resource.RefUpdates[0].Name)
-		change.shaAfter = ParseRevision(payload.Resource.RefUpdates[0].NewObjectID)
-		change.shaBefore = ParseRevision(payload.Resource.RefUpdates[0].OldObjectID)
-		touchedHead = payload.Resource.RefUpdates[0].Name == payload.Resource.Repository.DefaultBranch
+		if len(payload.Resource.RefUpdates) > 0 {
+			revision = ParseRevision(payload.Resource.RefUpdates[0].Name)
+			change.shaAfter = ParseRevision(payload.Resource.RefUpdates[0].NewObjectID)
+			change.shaBefore = ParseRevision(payload.Resource.RefUpdates[0].OldObjectID)
+			touchedHead = payload.Resource.RefUpdates[0].Name == payload.Resource.Repository.DefaultBranch
+		}
 		// unfortunately, Azure DevOps doesn't provide a list of changed files
 	case github.PushPayload:
 		// See: https://developer.github.com/v3/activity/events/types/#pushevent
