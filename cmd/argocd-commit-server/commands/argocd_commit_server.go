@@ -40,7 +40,6 @@ func NewCommand() *cobra.Command {
 		Long:  "Argo CD Commit Server is an internal service which commits and pushes hydrated manifests to git. This command runs Commit Server in the foreground.",
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			vers := common.GetVersion()
-
 			vers.LogStartupInfo(
 				"Argo CD Commit Server",
 				map[string]any{
@@ -59,7 +58,6 @@ func NewCommand() *cobra.Command {
 			go func() { errors.CheckError(askPassServer.Run()) }()
 
 			server := commitserver.NewServer(askPassServer, metricsServer)
-
 			grpc := server.CreateGRPC()
 			ctx := cmd.Context()
 
@@ -110,7 +108,6 @@ func NewCommand() *cobra.Command {
 			return nil
 		},
 	}
-
 	command.Flags().StringVar(&cmdutil.LogFormat, "logformat", env.StringFromEnv("ARGOCD_COMMIT_SERVER_LOGFORMAT", "json"), "Set the logging format. One of: json|text")
 	command.Flags().StringVar(&cmdutil.LogLevel, "loglevel", env.StringFromEnv("ARGOCD_COMMIT_SERVER_LOGLEVEL", "info"), "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().StringVar(&listenHost, "address", env.StringFromEnv("ARGOCD_COMMIT_SERVER_LISTEN_ADDRESS", common.DefaultAddressCommitServer), "Listen on given address for incoming connections")

@@ -288,7 +288,6 @@ func newServiceWithMocks(t *testing.T) (*Service, *mocks.RepoClientFactory) {
 	metricsServer := metrics.NewMetricsServer()
 	mockCredsStore := git.NoopCredsStore{}
 	service := NewService(mockCredsStore, metricsServer)
-
 	mockRepoClientFactory := mocks.NewRepoClientFactory(t)
 	service.repoClientFactory = mockRepoClientFactory
 

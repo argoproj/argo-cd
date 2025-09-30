@@ -29,7 +29,6 @@ func (a *ArgoCDCommitServer) CreateGRPC() *grpc.Server {
 	versionpkg.RegisterVersionServiceServer(server, version.NewServer(nil, func() (bool, error) {
 		return true, nil
 	}))
-
 	apiclient.RegisterCommitServiceServer(server, a.commitService)
 
 	healthService := health.NewServer()

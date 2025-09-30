@@ -2189,3 +2189,30 @@ func TestSettingsManager_GetAllowedNodeLabels(t *testing.T) {
 		})
 	}
 }
+
+func TestGetHydratorReadmeTemplate(t *testing.T) {
+	t.Run("DefaultTemplate", func(t *testing.T) {
+		_, settingsManager := fixtures(map[string]string{})
+		template, err := settingsManager.GetHydratorReadmeTemplate()
+		require.NoError(t, err)
+		assert.Equal(t, ManifestHydrationReadmeTemplate, template)
+	})
+
+	t.Run("CustomTemplateInConfigMap", func(t *testing.T) {
+		customTemplate := "Custom Readme Template: {{ .RepoURL }}"
+		_, settingsManager := fixtures(map[string]string{
+			settingsSourceHydratorReadmeMessageTemplateKey: customTemplate,
+		})
+		template, err := settingsManager.GetHydratorReadmeTemplate()
+		require.NoError(t, err)
+		assert.Equal(t, customTemplate, template)
+	})
+
+	t.Run("ConfigMapError", func(t *testing.T) {
+		kubeClient := fake.NewClientset()
+		settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+		template, err := settingsManager.GetHydratorReadmeTemplate()
+		require.Error(t, err)
+		assert.Equal(t, ManifestHydrationReadmeTemplate, template)
+	})
+}

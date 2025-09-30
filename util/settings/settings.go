@@ -60,7 +60,6 @@ Co-authored-by: {{ .metadata.author }}
 {{- end }}
 `
 
-// TODO: make this configurable via ConfigMap.
 var ManifestHydrationReadmeTemplate = `# Manifest Hydration
 
 To hydrate the manifests in this repository, run the following commands:
