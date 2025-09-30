@@ -686,7 +686,7 @@ func TestValidateApplications_SourceNotPermitted(t *testing.T) {
 	projects, errs := h.validateApplications([]*v1alpha1.Application{app})
 	require.Nil(t, projects)
 	require.Len(t, errs, 1)
-	require.ErrorContains(t, errs[app.QualifiedName()], "app is not permitted to use source")
+	require.ErrorContains(t, errs[app.QualifiedName()], "application repo https://example.com/repo is not permitted in project 'test-project'")
 }
 
 func TestValidateApplications_RootPath(t *testing.T) {
