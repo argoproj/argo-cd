@@ -36,7 +36,7 @@ func init() {
 
 // WriteForPaths writes the manifests, hydrator.metadata, and README.md files for each path in the provided paths. It
 // also writes a root-level hydrator.metadata file containing the repo URL and dry SHA.
-func WriteForPaths(root *os.Root, repoUrl, drySha, targetBranch string, dryCommitMetadata *appv1.RevisionMetadata, paths []*apiclient.PathDetails, gitClient git.Client) (bool, error) { //nolint:revive //FIXME(var-naming)
+func WriteForPaths(root *os.Root, repoUrl, drySha string, dryCommitMetadata *appv1.RevisionMetadata, paths []*apiclient.PathDetails, gitClient git.Client) (bool, error) { //nolint:revive //FIXME(var-naming)
 	hydratorMetadata, err := hydrator.GetCommitMetadata(repoUrl, drySha, dryCommitMetadata)
 	if err != nil {
 		return false, fmt.Errorf("failed to retrieve hydrator metadata: %w", err)
@@ -78,7 +78,7 @@ func WriteForPaths(root *os.Root, repoUrl, drySha, targetBranch string, dryCommi
 			return false, fmt.Errorf("failed to check if anything changed on the manifest: %w", err)
 		}
 		if !changed {
-			err = deleteManifest(hydratePath)
+			err = deleteManifest(root, hydratePath)
 			if err != nil {
 				return false, fmt.Errorf("failed to delete the un-changed manifest: %w", err)
 			}
@@ -221,9 +221,9 @@ func writeManifests(root *os.Root, dirPath string, manifests []*apiclient.Hydrat
 	return nil
 }
 
-func deleteManifest(dirPath string) error {
+func deleteManifest(root *os.Root, dirPath string) error {
 	manifestPath := filepath.Join(dirPath, "manifest.yaml")
-	if err := os.Remove(manifestPath); err != nil {
+	if err := root.Remove(manifestPath); err != nil {
 		return fmt.Errorf("failed to remove manifest: %w", err)
 	}
 	return nil
@@ -239,7 +239,7 @@ func IsHydrated(gitClient git.Client, drySha string) (bool, error) {
 	if err != nil {
 		// an empty note or note not found is a valid and acceptable outcome in this context
 		unwrappedError := errors.Unwrap(err)
-		if strings.Contains(unwrappedError.Error(), "no note found") {
+		if unwrappedError != nil && strings.Contains(unwrappedError.Error(), "no note found") {
 			return false, nil
 		}
 		return false, err

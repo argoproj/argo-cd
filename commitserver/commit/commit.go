@@ -200,12 +200,12 @@ func (s *Service) handleCommitRequest(logCtx *log.Entry, r *apiclient.CommitHydr
 	}
 	// short-circuit if hydrated already
 	if isHydrated {
-		logCtx.Debug("this dry sha %s is already hydrated", r.DrySha)
+		logCtx.Debugf("this dry sha %s is already hydrated", r.DrySha)
 		return "", "", nil
 	}
 
 	logCtx.Debug("Writing manifests")
-	shouldCommit, err := WriteForPaths(root, r.Repo.Repo, r.DrySha, r.TargetBranch, r.DryCommitMetadata, r.Paths, gitClient)
+	shouldCommit, err := WriteForPaths(root, r.Repo.Repo, r.DrySha, r.DryCommitMetadata, r.Paths, gitClient)
 	// When there are no new manifests to commit, err will be nil and success will be false as nothing to commit. Else or every other error err will not be nil
 	if err != nil {
 		return "", "", fmt.Errorf("failed to write manifests: %w", err)

@@ -1097,7 +1097,7 @@ func (m *nativeGitClient) AddAndPushNote(sha string, namespace string, note stri
 		defer done()
 	}
 
-	err = m.runCredentialedCmd("push", "origin", ref)
+	err = m.runCredentialedCmd("push", "origin", fmt.Sprintf("refs/notes/%s", namespace))
 	if err != nil {
 		return fmt.Errorf("failed to push: %w", err)
 	}
