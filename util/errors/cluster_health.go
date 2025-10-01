@@ -107,8 +107,11 @@ var (
 	ioTimeoutPattern         = regexp.MustCompile(`(?i)i/o\s+timeout`)
 	contextDeadlinePattern   = regexp.MustCompile(`(?i)context\s+deadline\s+exceeded`)
 
-	// GVK extraction pattern
+	// GVK extraction patterns - matches different formats:
+	// 1. Group:"example.io" Version:"v1" Kind:"Example" (structured)
 	gvkExtractionPattern = regexp.MustCompile(`(?:Group|group):"([^"]*)".*(?:Version|version):"([^"]*)".*(?:Kind|kind):"([^"]*)"`)
+	// 2. example.io/v1, Kind=Example (conversion webhook format)
+	conversionWebhookGVKPattern = regexp.MustCompile(`(\S+)/(\S+),\s*Kind=(\S+)`)
 )
 
 // AnalyzeError analyzes an error and returns structured health information
@@ -292,6 +295,7 @@ func IsConversionWebhookError(input any) bool {
 // ExtractGVKObject extracts GroupVersionKind information from error messages
 // and returns it as a schema.GroupVersionKind object
 func ExtractGVKObject(message string) *schema.GroupVersionKind {
+	// Try structured format first: Group:"example.io" Version:"v1" Kind:"Example"
 	matches := gvkExtractionPattern.FindStringSubmatch(message)
 	if len(matches) == 4 {
 		return &schema.GroupVersionKind{
@@ -300,6 +304,17 @@ func ExtractGVKObject(message string) *schema.GroupVersionKind {
 			Kind:    matches[3],
 		}
 	}
+
+	// Try conversion webhook format: example.io/v1, Kind=Example
+	matches = conversionWebhookGVKPattern.FindStringSubmatch(message)
+	if len(matches) == 4 {
+		return &schema.GroupVersionKind{
+			Group:   matches[1],
+			Version: matches[2],
+			Kind:    matches[3],
+		}
+	}
+
 	return nil
 }
 
