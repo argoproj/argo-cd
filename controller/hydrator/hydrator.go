@@ -431,7 +431,7 @@ func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application, project
 	// get the readme message template
 	readmeTemplate, err := h.dependencies.GetHydratorReadmeMessageTemplate()
 	if err != nil {
-		return "", "", fmt.Errorf("failed to get hydrated readme message template: %w", err)
+		return "", "", errors, fmt.Errorf("failed to get hydrated readme message template: %w", err)
 	}
 
 	manifestsRequest := commitclient.CommitHydratedManifestsRequest{
