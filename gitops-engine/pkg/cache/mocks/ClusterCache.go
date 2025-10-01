@@ -734,16 +734,50 @@ func (_mock *ClusterCache) OnResourceUpdated(handler cache.OnResourceUpdatedHand
 	return r0
 }
 
-// ClusterCache_OnResourceUpdated_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'OnResourceUpdated'
-type ClusterCache_OnResourceUpdated_Call struct {
-	*mock.Call
+// RefreshStaleResources provides a mock function with given fields: gvk
+func (_m *ClusterCache) RefreshStaleResources(gvk schema.GroupVersionKind) error {
+	ret := _m.Called(gvk)
+
+	if len(ret) == 0 {
+		panic("no return value specified for RefreshStaleResources")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(schema.GroupVersionKind) error); ok {
+		r0 = rf(gvk)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
 }
 
-// OnResourceUpdated is a helper method to define mock.On call
-//   - handler cache.OnResourceUpdatedHandler
-func (_e *ClusterCache_Expecter) OnResourceUpdated(handler interface{}) *ClusterCache_OnResourceUpdated_Call {
-	return &ClusterCache_OnResourceUpdated_Call{Call: _e.mock.On("OnResourceUpdated", handler)}
+// RefreshSpecificResources provides a mock function with given fields: keys
+func (_m *ClusterCache) RefreshSpecificResources(keys []kube.ResourceKey) error {
+	ret := _m.Called(keys)
+
+	if len(ret) == 0 {
+		panic("no return value specified for RefreshSpecificResources")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func([]kube.ResourceKey) error); ok {
+		r0 = rf(keys)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
 }
+
+// NewClusterCache creates a new instance of ClusterCache. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
+// The first argument is typically a *testing.T value.
+func NewClusterCache(t interface {
+	mock.TestingT
+	Cleanup(func())
+}) *ClusterCache {
+	mock := &ClusterCache{}
+	mock.Mock.Test(t)
 
 func (_c *ClusterCache_OnResourceUpdated_Call) Run(run func(handler cache.OnResourceUpdatedHandler)) *ClusterCache_OnResourceUpdated_Call {
 	_c.Call.Run(func(args mock.Arguments) {
