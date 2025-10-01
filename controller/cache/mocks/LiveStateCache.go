@@ -83,6 +83,52 @@ func (_c *LiveStateCache_ClearClusterTaints_Call) RunAndReturn(run func(server s
 	return _c
 }
 
+// ClearGVKTaint provides a mock function for the type LiveStateCache
+func (_mock *LiveStateCache) ClearGVKTaint(server string, gvk string) {
+	_mock.Called(server, gvk)
+	return
+}
+
+// LiveStateCache_ClearGVKTaint_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ClearGVKTaint'
+type LiveStateCache_ClearGVKTaint_Call struct {
+	*mock.Call
+}
+
+// ClearGVKTaint is a helper method to define mock.On call
+//   - server string
+//   - gvk string
+func (_e *LiveStateCache_Expecter) ClearGVKTaint(server interface{}, gvk interface{}) *LiveStateCache_ClearGVKTaint_Call {
+	return &LiveStateCache_ClearGVKTaint_Call{Call: _e.mock.On("ClearGVKTaint", server, gvk)}
+}
+
+func (_c *LiveStateCache_ClearGVKTaint_Call) Run(run func(server string, gvk string)) *LiveStateCache_ClearGVKTaint_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 string
+		if args[0] != nil {
+			arg0 = args[0].(string)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *LiveStateCache_ClearGVKTaint_Call) Return() *LiveStateCache_ClearGVKTaint_Call {
+	_c.Call.Return()
+	return _c
+}
+
+func (_c *LiveStateCache_ClearGVKTaint_Call) RunAndReturn(run func(server string, gvk string)) *LiveStateCache_ClearGVKTaint_Call {
+	_c.Run(run)
+	return _c
+}
+
 // GetClusterCache provides a mock function for the type LiveStateCache
 func (_mock *LiveStateCache) GetClusterCache(server *v1alpha1.Cluster) (cache.ClusterCache, error) {
 	ret := _mock.Called(server)
