@@ -1961,8 +1961,8 @@ func TestCompareAppStateWithConversionWebhookError(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, compRes)
 
-	// Should handle conversion webhook error gracefully by continuing with empty live state
-	assert.Equal(t, v1alpha1.SyncStatusCodeSynced, compRes.syncStatus.Status)
+	// Should handle conversion webhook error by detecting cache issues and returning Unknown status
+	assert.Equal(t, v1alpha1.SyncStatusCodeUnknown, compRes.syncStatus.Status)
 	assert.Len(t, app.Status.Conditions, 1)
 	assert.Equal(t, v1alpha1.ApplicationConditionComparisonError, app.Status.Conditions[0].Type)
 	assert.Contains(t, app.Status.Conditions[0].Message, "conversion webhook")
@@ -1997,8 +1997,92 @@ func TestCompareAppStateWithCacheTaintingIssues(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, compRes)
 
-	// With cache-tainting issues and no target objects, status should be Unknown
+	// Without real cache-tainting issues (no taintedGVKs), status should be Synced
+	// This test shows the old stale condition approach was incorrect
+	assert.Equal(t, v1alpha1.SyncStatusCodeSynced, compRes.syncStatus.Status)
+}
+
+func TestCompareAppStateStaleConditionsIgnored(t *testing.T) {
+	app := newFakeApp()
+
+	// Set up stale conditions that would have fooled the old implementation
+	app.Status.Conditions = []v1alpha1.ApplicationCondition{
+		{
+			Type:    v1alpha1.ApplicationConditionComparisonError,
+			Message: "conversion webhook for example.com/v1, Kind=Example failed: Post error",
+		},
+	}
+
+	data := fakeData{
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+		// Importantly: NO taintedGVKs - meaning cache is actually healthy now
+	}
+
+	ctrl := newFakeController(&data, nil)
+	sources := make([]v1alpha1.ApplicationSource, 0)
+	sources = append(sources, app.Spec.GetSource())
+	revisions := make([]string, 0)
+	revisions = append(revisions, "")
+
+	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
+	require.NoError(t, err)
+	assert.NotNil(t, compRes)
+
+	// With the improved logic, stale conditions are ignored and we get accurate status
+	// Old approach would have incorrectly returned Unknown due to stale condition
+	assert.Equal(t, v1alpha1.SyncStatusCodeSynced, compRes.syncStatus.Status)
+}
+
+func TestCompareAppStateWithCacheIssuesReturnsUnknownNotOutOfSync(t *testing.T) {
+	app := newFakeApp()
+
+	// Create a scenario with target objects loaded but cache issues present
+	// Create an Example resource that matches the tainted GVK
+	example := &unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": "example.com/v1",
+			"kind":       "Example",
+			"metadata": map[string]interface{}{
+				"name":      "test-example",
+				"namespace": test.FakeDestNamespace,
+			},
+			"spec": map[string]interface{}{
+				"field": "test-value",
+			},
+		},
+	}
+
+	data := fakeData{
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{toJSON(t, example)}, // Target objects loaded successfully
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+		taintedGVKs:     []string{"example.com/v1, Kind=Example"}, // Cache issues present for the GVK the app uses
+	}
+
+	ctrl := newFakeControllerWithStateCacheErrors(&data, errors.New("conversion webhook failed"))
+	sources := make([]v1alpha1.ApplicationSource, 0)
+	sources = append(sources, app.Spec.GetSource())
+	revisions := make([]string, 0)
+	revisions = append(revisions, "")
+
+	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
+	require.NoError(t, err)
+	assert.NotNil(t, compRes)
+
+	// Even with target objects loaded, cache tainting should result in Unknown status
+	// This prevents users from attempting sync operations that would fail
 	assert.Equal(t, v1alpha1.SyncStatusCodeUnknown, compRes.syncStatus.Status)
+	assert.Len(t, compRes.resources, 1) // Target object is present
 }
 
 func Test_normalizeClusterScopeTracking(t *testing.T) {
