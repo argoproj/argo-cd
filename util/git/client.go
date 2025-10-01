@@ -1074,6 +1074,12 @@ func (m *nativeGitClient) GetCommitNote(sha string, namespace string) (string, e
 	if strings.TrimSpace(namespace) == "" {
 		namespace = "commit"
 	}
+
+	// fetch first
+	// cli command: git fetch origin refs/notes/source-hydrator:refs/notes/source-hydrator
+	notesRef := fmt.Sprintf("refs/notes/%s", namespace)
+	_, _ = m.runCmd("fetch", "origin", fmt.Sprintf("%s:%s", notesRef, notesRef)) // Ignore fetch error for best effort
+
 	ref := fmt.Sprintf("--ref=%s", namespace)
 	out, err := m.runCmd("notes", ref, "show", sha)
 	if err != nil {
