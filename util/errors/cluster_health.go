@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
-	
+
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
