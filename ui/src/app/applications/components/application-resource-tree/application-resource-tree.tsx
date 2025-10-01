@@ -488,7 +488,7 @@ function renderPodGroup(props: ApplicationResourceTreeProps, id: string, node: R
                         {node.hook && <i title='Resource lifecycle hook' className='fa fa-anchor' />}
                         {healthState != null && <HealthStatusIcon state={healthState} />}
                         {comparisonStatus != null && <ComparisonStatusIcon status={comparisonStatus} resource={!rootNode && node} />}
-                        {appNode && (
+                        {appNode && !rootNode && (
                             <Consumer>
                                 {ctx => {
                                     // For nested applications, use the node's data to construct the URL
@@ -498,7 +498,7 @@ function renderPodGroup(props: ApplicationResourceTreeProps, id: string, node: R
                                             href={linkInfo.url}
                                             target={linkInfo.isExternal ? '_blank' : undefined}
                                             rel={linkInfo.isExternal ? 'noopener noreferrer' : undefined}
-                                            title={`Link: ${linkInfo.url}\nmanaged-by-url: ${getManagedByURLFromNode(node) || 'none'}`}>
+                                            title={getManagedByURLFromNode(node) ? `Open application\nmanaged-by-url: ${getManagedByURLFromNode(node)}` : 'Open application'}>
                                             <i className='fa fa-external-link-alt' />
                                         </a>
                                     );
@@ -779,7 +779,7 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                     {node.hook && <i title='Resource lifecycle hook' className='fa fa-anchor' />}
                     {healthState != null && <HealthStatusIcon state={healthState} />}
                     {comparisonStatus != null && <ComparisonStatusIcon status={comparisonStatus} resource={!rootNode && node} />}
-                    {appNode && (
+                    {appNode && !rootNode && (
                         <Consumer>
                             {ctx => {
                                 // For nested applications, use the node's data to construct the URL
@@ -789,7 +789,7 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                                         href={linkInfo.url}
                                         target={linkInfo.isExternal ? '_blank' : undefined}
                                         rel={linkInfo.isExternal ? 'noopener noreferrer' : undefined}
-                                        title={`Link: ${linkInfo.url}\nmanaged-by-url: ${getManagedByURLFromNode(node) || 'none'}`}>
+                                        title={getManagedByURLFromNode(node) ? `Open application\nmanaged-by-url: ${getManagedByURLFromNode(node)}` : 'Open application'}>
                                         <i className='fa fa-external-link-alt' />
                                     </a>
                                 );
@@ -818,7 +818,7 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                     </span>
                 ) : null}
                 {(node.info || [])
-                    .filter(tag => !tag.name.includes('Node'))
+                    .filter(tag => !tag.name.includes('Node') && tag.name !== 'managed-by-url')
                     .slice(0, 4)
                     .map((tag, i) => {
                         return <NodeInfoDetails tag={tag} kind={node.kind} key={i} />;
