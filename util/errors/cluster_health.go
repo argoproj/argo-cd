@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 // ClusterHealthIssueType represents different types of cluster health issues
@@ -146,7 +148,7 @@ func AnalyzeMessage(message string) *ClusterHealthAnalysis {
 		analysis.IsPartialCache = true
 		analysis.IsCacheTainting = true
 		analysis.SuggestedAction = "Check conversion webhooks for affected CRDs. Consider upgrading CRDs or fixing webhook endpoints."
-		analysis.ExtractedGVK = extractGVK(message)
+		analysis.ExtractedGVK = ExtractGVK(message)
 
 		// Determine the specific context
 		switch {
@@ -196,7 +198,7 @@ func AnalyzeMessage(message string) *ClusterHealthAnalysis {
 			analysis.Severity = SeverityCritical
 			analysis.IsPartialCache = false
 		}
-		analysis.ExtractedGVK = extractGVK(message)
+		analysis.ExtractedGVK = ExtractGVK(message)
 		return analysis
 	}
 
@@ -287,16 +289,26 @@ func IsConversionWebhookError(input any) bool {
 }
 
 // extractGVK attempts to extract GVK information from error messages
-func extractGVK(message string) string {
+// ExtractGVKObject extracts GroupVersionKind information from error messages
+// and returns it as a schema.GroupVersionKind object
+func ExtractGVKObject(message string) *schema.GroupVersionKind {
 	matches := gvkExtractionPattern.FindStringSubmatch(message)
 	if len(matches) == 4 {
-		group := matches[1]
-		version := matches[2]
-		kind := matches[3]
-		if group == "" {
-			return version + "/" + kind
+		return &schema.GroupVersionKind{
+			Group:   matches[1],
+			Version: matches[2],
+			Kind:    matches[3],
 		}
-		return group + "/" + version + "/" + kind
+	}
+	return nil
+}
+
+// ExtractGVK extracts GroupVersionKind information from error messages
+// and returns it in the standard Kubernetes GVK.String() format
+func ExtractGVK(message string) string {
+	gvk := ExtractGVKObject(message)
+	if gvk != nil {
+		return gvk.String()
 	}
 	return ""
 }
