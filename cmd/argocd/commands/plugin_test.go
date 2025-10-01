@@ -28,7 +28,7 @@ func setupPluginPath(t *testing.T) {
 func TestNormalCommandWithPlugin(t *testing.T) {
 	setupPluginPath(t)
 
-	_ = NewDefaultPluginHandler([]string{"argocd"})
+	_ = NewDefaultPluginHandler()
 	args := []string{"argocd", "version", "--short", "--client"}
 	buf := new(bytes.Buffer)
 	cmd := NewVersionCmd(&argocdclient.ClientOptions{}, nil)
@@ -47,7 +47,7 @@ func TestNormalCommandWithPlugin(t *testing.T) {
 func TestPluginExecution(t *testing.T) {
 	setupPluginPath(t)
 
-	pluginHandler := NewDefaultPluginHandler([]string{"argocd"})
+	pluginHandler := NewDefaultPluginHandler()
 	cmd := NewCommand()
 	cmd.SilenceErrors = true
 	cmd.SilenceUsage = true
@@ -101,7 +101,7 @@ func TestPluginExecution(t *testing.T) {
 func TestNormalCommandError(t *testing.T) {
 	setupPluginPath(t)
 
-	pluginHandler := NewDefaultPluginHandler([]string{"argocd"})
+	pluginHandler := NewDefaultPluginHandler()
 	args := []string{"argocd", "version", "--non-existent-flag"}
 	cmd := NewVersionCmd(&argocdclient.ClientOptions{}, nil)
 	cmd.SetArgs(args[1:])
@@ -118,7 +118,7 @@ func TestNormalCommandError(t *testing.T) {
 // TestUnknownCommandNoPlugin tests the scenario when the command is neither a normal ArgoCD command
 // nor exists as a plugin
 func TestUnknownCommandNoPlugin(t *testing.T) {
-	pluginHandler := NewDefaultPluginHandler([]string{"argocd"})
+	pluginHandler := NewDefaultPluginHandler()
 	cmd := NewCommand()
 	cmd.SilenceErrors = true
 	cmd.SilenceUsage = true
@@ -137,7 +137,7 @@ func TestUnknownCommandNoPlugin(t *testing.T) {
 func TestPluginNoExecutePermission(t *testing.T) {
 	setupPluginPath(t)
 
-	pluginHandler := NewDefaultPluginHandler([]string{"argocd"})
+	pluginHandler := NewDefaultPluginHandler()
 	cmd := NewCommand()
 	cmd.SilenceErrors = true
 	cmd.SilenceUsage = true
@@ -156,7 +156,7 @@ func TestPluginNoExecutePermission(t *testing.T) {
 func TestPluginExecutionError(t *testing.T) {
 	setupPluginPath(t)
 
-	pluginHandler := NewDefaultPluginHandler([]string{"argocd"})
+	pluginHandler := NewDefaultPluginHandler()
 	cmd := NewCommand()
 	cmd.SilenceErrors = true
 	cmd.SilenceUsage = true
@@ -187,7 +187,7 @@ func TestPluginInRelativePathIgnored(t *testing.T) {
 
 	t.Setenv("PATH", os.Getenv("PATH")+string(os.PathListSeparator)+relativePath)
 
-	pluginHandler := NewDefaultPluginHandler([]string{"argocd"})
+	pluginHandler := NewDefaultPluginHandler()
 	cmd := NewCommand()
 	cmd.SilenceErrors = true
 	cmd.SilenceUsage = true
@@ -206,7 +206,7 @@ func TestPluginInRelativePathIgnored(t *testing.T) {
 func TestPluginFlagParsing(t *testing.T) {
 	setupPluginPath(t)
 
-	pluginHandler := NewDefaultPluginHandler([]string{"argocd"})
+	pluginHandler := NewDefaultPluginHandler()
 
 	tests := []struct {
 		name           string
@@ -255,7 +255,7 @@ func TestPluginFlagParsing(t *testing.T) {
 func TestPluginStatusCode(t *testing.T) {
 	setupPluginPath(t)
 
-	pluginHandler := NewDefaultPluginHandler([]string{"argocd"})
+	pluginHandler := NewDefaultPluginHandler()
 
 	tests := []struct {
 		name       string
@@ -308,4 +308,77 @@ func TestPluginStatusCode(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestListAvailablePlugins tests the plugin discovery functionality for tab completion
+func TestListAvailablePlugins(t *testing.T) {
+	setupPluginPath(t)
+
+	tests := []struct {
+		name        string
+		validPrefix []string
+		expected    []string
+	}{
+		{
+			name:     "Standard argocd prefix finds plugins",
+			expected: []string{"demo_plugin", "error", "foo", "status-code-plugin", "test-plugin", "version"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pluginHandler := NewDefaultPluginHandler()
+			plugins := pluginHandler.ListAvailablePlugins()
+
+			assert.Equal(t, tt.expected, plugins)
+		})
+	}
+}
+
+// TestListAvailablePluginsEmptyPath tests plugin discovery when PATH is empty
+func TestListAvailablePluginsEmptyPath(t *testing.T) {
+	// Set empty PATH
+	t.Setenv("PATH", "")
+
+	pluginHandler := NewDefaultPluginHandler()
+	plugins := pluginHandler.ListAvailablePlugins()
+
+	assert.Empty(t, plugins, "Should return empty list when PATH is empty")
+}
+
+// TestListAvailablePluginsNonExecutableFiles tests that non-executable files are ignored
+func TestListAvailablePluginsNonExecutableFiles(t *testing.T) {
+	setupPluginPath(t)
+
+	pluginHandler := NewDefaultPluginHandler()
+	plugins := pluginHandler.ListAvailablePlugins()
+
+	// Should not include 'no-permission' since it's not executable
+	assert.NotContains(t, plugins, "no-permission")
+}
+
+// TestListAvailablePluginsDeduplication tests that duplicate plugins from different PATH dirs are handled
+func TestListAvailablePluginsDeduplication(t *testing.T) {
+	// Create two temporary directories with the same plugin
+	dir1 := t.TempDir()
+	dir2 := t.TempDir()
+
+	// Create the same plugin in both directories
+	plugin1 := filepath.Join(dir1, "argocd-duplicate")
+	plugin2 := filepath.Join(dir2, "argocd-duplicate")
+
+	err := os.WriteFile(plugin1, []byte("#!/bin/bash\necho 'plugin1'\n"), 0o755)
+	require.NoError(t, err)
+
+	err = os.WriteFile(plugin2, []byte("#!/bin/bash\necho 'plugin2'\n"), 0o755)
+	require.NoError(t, err)
+
+	// Set PATH to include both directories
+	testPath := dir1 + string(os.PathListSeparator) + dir2
+	t.Setenv("PATH", testPath)
+
+	pluginHandler := NewDefaultPluginHandler()
+	plugins := pluginHandler.ListAvailablePlugins()
+
+	assert.Equal(t, []string{"duplicate"}, plugins)
 }
