@@ -24,7 +24,6 @@ packages:
       Renderer: {}
   github.com/argoproj/argo-cd/v3/commitserver/apiclient:
     interfaces:
-      Clientset: {}
       CommitServiceClient: {}
   github.com/argoproj/argo-cd/v3/commitserver/commit:
     interfaces:
@@ -35,6 +34,7 @@ packages:
   github.com/argoproj/argo-cd/v3/controller/hydrator:
     interfaces:
       Dependencies: {}
+      RepoGetter: {}
   github.com/argoproj/argo-cd/v3/pkg/apiclient/cluster:
     interfaces:
       ClusterServiceServer: {}

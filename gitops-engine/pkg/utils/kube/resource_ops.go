@@ -334,7 +334,7 @@ func (k *kubectlResourceOperations) ApplyResource(ctx context.Context, obj *unst
 	span.SetBaggageItem("kind", obj.GetKind())
 	span.SetBaggageItem("name", obj.GetName())
 	defer span.Finish()
-	logWithLevel := k.log
+	logWithLevel := k.log.V(0)
 	if dryRunStrategy != cmdutil.DryRunNone {
 		logWithLevel = logWithLevel.V(1)
 	}
