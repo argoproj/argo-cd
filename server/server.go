@@ -495,8 +495,9 @@ func (server *ArgoCDServer) logInClusterWarnings() error {
 func startListener(host string, port int) (net.Listener, error) {
 	var conn net.Listener
 	var realErr error
+	lc := net.ListenConfig{}
 	_ = wait.ExponentialBackoff(backoff, func() (bool, error) {
-		conn, realErr = net.Listen("tcp", fmt.Sprintf("%s:%d", host, port))
+		conn, realErr = lc.Listen(context.Background(), "tcp", fmt.Sprintf("%s:%d", host, port))
 		if realErr != nil {
 			return false, nil
 		}
@@ -1257,7 +1258,7 @@ func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWeb
 
 	// Webhook handler for git events (Note: cache timeouts are hardcoded because API server does not write to cache and not really using them)
 	argoDB := db.NewDB(server.Namespace, server.settingsMgr, server.KubeClientset)
-	acdWebhookHandler := webhook.NewHandler(server.Namespace, server.ApplicationNamespaces, server.WebhookParallelism, server.AppClientset, server.settings, server.settingsMgr, server.RepoServerCache, server.Cache, argoDB, server.settingsMgr.GetMaxWebhookPayloadSize())
+	acdWebhookHandler := webhook.NewHandler(server.Namespace, server.ApplicationNamespaces, server.WebhookParallelism, server.AppClientset, server.appLister, server.settings, server.settingsMgr, server.RepoServerCache, server.Cache, argoDB, server.settingsMgr.GetMaxWebhookPayloadSize())
 
 	mux.HandleFunc("/api/webhook", acdWebhookHandler.Handler)
 

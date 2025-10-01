@@ -1485,8 +1485,9 @@ spec:
                         pattern: ^.{2,}|[^./]$
                         type: string
                       targetBranch:
-                        description: TargetBranch is the branch to which hydrated
-                          manifests should be committed
+                        description: |-
+                          TargetBranch is the branch from which hydrated manifests will be synced.
+                          If HydrateTo is not set, this is also the branch to which hydrated manifests are committed.
                         type: string
                     required:
                     - path
@@ -4900,8 +4901,9 @@ spec:
                                 pattern: ^.{2,}|[^./]$
                                 type: string
                               targetBranch:
-                                description: TargetBranch is the branch to which hydrated
-                                  manifests should be committed
+                                description: |-
+                                  TargetBranch is the branch from which hydrated manifests will be synced.
+                                  If HydrateTo is not set, this is also the branch to which hydrated manifests are committed.
                                 type: string
                             required:
                             - path
@@ -4982,8 +4984,9 @@ spec:
                                 pattern: ^.{2,}|[^./]$
                                 type: string
                               targetBranch:
-                                description: TargetBranch is the branch to which hydrated
-                                  manifests should be committed
+                                description: |-
+                                  TargetBranch is the branch from which hydrated manifests will be synced.
+                                  If HydrateTo is not set, this is also the branch to which hydrated manifests are committed.
                                 type: string
                             required:
                             - path
@@ -23737,6 +23740,9 @@ spec:
                       type: string
                   type: object
                 type: array
+              resourcesCount:
+                format: int64
+                type: integer
             type: object
         required:
         - metadata
@@ -24893,6 +24899,12 @@ spec:
               key: applicationsetcontroller.requeue.after
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_MAX_RESOURCES_STATUS_COUNT
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.status.max.resources.count
+              name: argocd-cmd-params-cm
+              optional: true
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         name: argocd-applicationset-controller
@@ -25527,11 +25539,12 @@ spec:
         - mountPath: /home/argocd/cmp-server/plugins
           name: plugins
       initContainers:
-      - command:
-        - /bin/cp
-        - -n
-        - /usr/local/bin/argocd
-        - /var/run/argocd/argocd-cmp-server
+      - args:
+        - /bin/cp --update=none /usr/local/bin/argocd /var/run/argocd/argocd && /bin/ln
+          -s /var/run/argocd/argocd /var/run/argocd/argocd-cmp-server
+        command:
+        - sh
+        - -c
         image: quay.io/argoproj/argocd:latest
         name: copyutil
         securityContext:
