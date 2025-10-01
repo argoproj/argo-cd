@@ -63,6 +63,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Camptocamp](https://camptocamp.com)
 1. [Candis](https://www.candis.io)
 1. [Capital One](https://www.capitalone.com)
+1. [Capptain LTD](https://capptain.co/)
 1. [CARFAX Europe](https://www.carfax.eu)
 1. [CARFAX](https://www.carfax.com)
 1. [Carrefour Group](https://www.carrefour.com)
@@ -424,4 +425,3 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Zimpler](https://www.zimpler.com/)
 1. [ZipRecruiter](https://www.ziprecruiter.com/)
 1. [ZOZO](https://corp.zozo.com/)
-1. [Capptain LTD](https://capptain.co/)
