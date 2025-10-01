@@ -1852,16 +1852,31 @@ func TestCompareAppStateRevisionUpdatedWithHelmSource(t *testing.T) {
 func TestCompareAppStateWithConversionWebhookError(t *testing.T) {
 	app := newFakeApp()
 
+	// Create a target object that uses the tainted GVK
+	example := &unstructured.Unstructured{
+		Object: map[string]any{
+			"apiVersion": "example.com/v1",
+			"kind":       "Example",
+			"metadata": map[string]any{
+				"name":      "test-example",
+				"namespace": test.FakeDestNamespace,
+			},
+			"spec": map[string]any{
+				"foo": "bar",
+			},
+		},
+	}
+
 	// Setup conditions to simulate conversion webhook errors in the cluster cache
 	data := fakeData{
 		manifestResponse: &apiclient.ManifestResponse{
-			Manifests: []string{},
+			Manifests: []string{toJSON(t, example)},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,
 			Revision:  "abc123",
 		},
 		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
-		taintedGVKs:     []string{"example.com/v1/Example"},
+		taintedGVKs:     []string{"example.com/v1, Kind=Example"},
 	}
 
 	// Pass the conversion webhook error as the stateCacheErr parameter
@@ -1959,14 +1974,14 @@ func TestCompareAppStateWithCacheIssuesReturnsUnknownNotOutOfSync(t *testing.T) 
 	// Create a scenario with target objects loaded but cache issues present
 	// Create an Example resource that matches the tainted GVK
 	example := &unstructured.Unstructured{
-		Object: map[string]interface{}{
+		Object: map[string]any{
 			"apiVersion": "example.com/v1",
 			"kind":       "Example",
-			"metadata": map[string]interface{}{
+			"metadata": map[string]any{
 				"name":      "test-example",
 				"namespace": test.FakeDestNamespace,
 			},
-			"spec": map[string]interface{}{
+			"spec": map[string]any{
 				"field": "test-value",
 			},
 		},
