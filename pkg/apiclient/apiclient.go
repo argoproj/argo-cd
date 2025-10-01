@@ -490,13 +490,13 @@ func (c jwtCredentials) GetRequestMetadata(context.Context, ...string) (map[stri
 	}, nil
 }
 
-func (c *client) newConn() (*grpc.ClientConn, io.Closer, error) {
+func (c *client) newConn(ctx context.Context) (*grpc.ClientConn, io.Closer, error) {
 	closers := make([]io.Closer, 0)
 	serverAddr := c.ServerAddr
 	network := "tcp"
 	if c.GRPCWeb || c.GRPCWebRootPath != "" {
 		// start local grpc server which proxies requests using grpc-web protocol
-		addr, closer, err := c.useGRPCProxy()
+		addr, closer, err := c.useGRPCProxy(ctx)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -526,8 +526,6 @@ func (c *client) newConn() (*grpc.ClientConn, io.Closer, error) {
 	dialOpts = append(dialOpts, grpc.WithStreamInterceptor(grpc_util.RetryOnlyForServerStreamInterceptor(retryOpts...)))
 	dialOpts = append(dialOpts, grpc.WithUnaryInterceptor(grpc_retry.UnaryClientInterceptor(retryOpts...)))
 	dialOpts = append(dialOpts, grpc.WithStatsHandler(otelgrpc.NewClientHandler()))
-
-	ctx := context.Background()
 
 	headers, err := parseHeaders(c.Headers)
 	if err != nil {
@@ -584,7 +582,7 @@ func (c *client) ClientOptions() ClientOptions {
 }
 
 func (c *client) NewRepoClient() (io.Closer, repositorypkg.RepositoryServiceClient, error) {
-	conn, closer, err := c.newConn()
+	conn, closer, err := c.newConn(context.Background())
 	if err != nil {
 		return nil, nil, err
 	}
@@ -601,7 +599,7 @@ func (c *client) NewRepoClientOrDie() (io.Closer, repositorypkg.RepositoryServic
 }
 
 func (c *client) NewRepoCredsClient() (io.Closer, repocredspkg.RepoCredsServiceClient, error) {
-	conn, closer, err := c.newConn()
+	conn, closer, err := c.newConn(context.Background())
 	if err != nil {
 		return nil, nil, err
 	}
@@ -618,7 +616,7 @@ func (c *client) NewRepoCredsClientOrDie() (io.Closer, repocredspkg.RepoCredsSer
 }
 
 func (c *client) NewCertClient() (io.Closer, certificatepkg.CertificateServiceClient, error) {
-	conn, closer, err := c.newConn()
+	conn, closer, err := c.newConn(context.Background())
 	if err != nil {
 		return nil, nil, err
 	}
@@ -635,7 +633,7 @@ func (c *client) NewCertClientOrDie() (io.Closer, certificatepkg.CertificateServ
 }
 
 func (c *client) NewClusterClient() (io.Closer, clusterpkg.ClusterServiceClient, error) {
-	conn, closer, err := c.newConn()
+	conn, closer, err := c.newConn(context.Background())
 	if err != nil {
 		return nil, nil, err
 	}
@@ -652,7 +650,7 @@ func (c *client) NewClusterClientOrDie() (io.Closer, clusterpkg.ClusterServiceCl
 }
 
 func (c *client) NewGPGKeyClient() (io.Closer, gpgkeypkg.GPGKeyServiceClient, error) {
-	conn, closer, err := c.newConn()
+	conn, closer, err := c.newConn(context.Background())
 	if err != nil {
 		return nil, nil, err
 	}
@@ -669,7 +667,7 @@ func (c *client) NewGPGKeyClientOrDie() (io.Closer, gpgkeypkg.GPGKeyServiceClien
 }
 
 func (c *client) NewApplicationClient() (io.Closer, applicationpkg.ApplicationServiceClient, error) {
-	conn, closer, err := c.newConn()
+	conn, closer, err := c.newConn(context.Background())
 	if err != nil {
 		return nil, nil, err
 	}
@@ -678,7 +676,7 @@ func (c *client) NewApplicationClient() (io.Closer, applicationpkg.ApplicationSe
 }
 
 func (c *client) NewApplicationSetClient() (io.Closer, applicationsetpkg.ApplicationSetServiceClient, error) {
-	conn, closer, err := c.newConn()
+	conn, closer, err := c.newConn(context.Background())
 	if err != nil {
 		return nil, nil, err
 	}
@@ -695,7 +693,7 @@ func (c *client) NewApplicationClientOrDie() (io.Closer, applicationpkg.Applicat
 }
 
 func (c *client) NewNotificationClient() (io.Closer, notificationpkg.NotificationServiceClient, error) {
-	conn, closer, err := c.newConn()
+	conn, closer, err := c.newConn(context.Background())
 	if err != nil {
 		return nil, nil, err
 	}
@@ -720,7 +718,7 @@ func (c *client) NewApplicationSetClientOrDie() (io.Closer, applicationsetpkg.Ap
 }
 
 func (c *client) NewSessionClient() (io.Closer, sessionpkg.SessionServiceClient, error) {
-	conn, closer, err := c.newConn()
+	conn, closer, err := c.newConn(context.Background())
 	if err != nil {
 		return nil, nil, err
 	}
@@ -737,7 +735,7 @@ func (c *client) NewSessionClientOrDie() (io.Closer, sessionpkg.SessionServiceCl
 }
 
 func (c *client) NewSettingsClient() (io.Closer, settingspkg.SettingsServiceClient, error) {
-	conn, closer, err := c.newConn()
+	conn, closer, err := c.newConn(context.Background())
 	if err != nil {
 		return nil, nil, err
 	}
@@ -754,7 +752,7 @@ func (c *client) NewSettingsClientOrDie() (io.Closer, settingspkg.SettingsServic
 }
 
 func (c *client) NewVersionClient() (io.Closer, versionpkg.VersionServiceClient, error) {
-	conn, closer, err := c.newConn()
+	conn, closer, err := c.newConn(context.Background())
 	if err != nil {
 		return nil, nil, err
 	}
@@ -771,7 +769,7 @@ func (c *client) NewVersionClientOrDie() (io.Closer, versionpkg.VersionServiceCl
 }
 
 func (c *client) NewProjectClient() (io.Closer, projectpkg.ProjectServiceClient, error) {
-	conn, closer, err := c.newConn()
+	conn, closer, err := c.newConn(context.Background())
 	if err != nil {
 		return nil, nil, err
 	}
@@ -788,7 +786,7 @@ func (c *client) NewProjectClientOrDie() (io.Closer, projectpkg.ProjectServiceCl
 }
 
 func (c *client) NewAccountClient() (io.Closer, accountpkg.AccountServiceClient, error) {
-	conn, closer, err := c.newConn()
+	conn, closer, err := c.newConn(context.Background())
 	if err != nil {
 		return nil, nil, err
 	}

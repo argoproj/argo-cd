@@ -68,7 +68,7 @@ local proposedSha = obj.status.environments[1].proposed.dry.sha  -- Don't panic,
 for _, env in ipairs(obj.status.environments) do
     if env.proposed.dry.sha ~= proposedSha then
         hs.status = "Progressing"
-        hs.status = "Not all environments have the same proposed commit SHA. This likely means the hydrator has not run for all environments yet."
+        hs.message = "Not all environments have the same proposed commit SHA. This likely means the hydrator has not run for all environments yet."
         return hs
     end
 end

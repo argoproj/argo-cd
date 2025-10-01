@@ -1921,16 +1921,10 @@ func TestReplaceStringSecret(t *testing.T) {
 }
 
 func TestRedirectURLForRequest(t *testing.T) {
-	generateRequest := func(url string) *http.Request {
-		r, err := http.NewRequest(http.MethodPost, url, http.NoBody)
-		require.NoError(t, err)
-		return r
-	}
-
 	testCases := []struct {
 		Name        string
 		Settings    *ArgoCDSettings
-		Request     *http.Request
+		RequestURL  string
 		ExpectedURL string
 		ExpectError bool
 	}{
@@ -1939,7 +1933,7 @@ func TestRedirectURLForRequest(t *testing.T) {
 			Settings: &ArgoCDSettings{
 				URL: "https://example.org",
 			},
-			Request:     generateRequest("https://example.org/login"),
+			RequestURL:  "https://example.org/login",
 			ExpectedURL: "https://example.org/auth/callback",
 			ExpectError: false,
 		},
@@ -1948,7 +1942,7 @@ func TestRedirectURLForRequest(t *testing.T) {
 			Settings: &ArgoCDSettings{
 				URL: "https://otherhost.org",
 			},
-			Request:     generateRequest("https://example.org/login"),
+			RequestURL:  "https://example.org/login",
 			ExpectedURL: "https://otherhost.org/auth/callback",
 			ExpectError: false,
 		},
@@ -1957,7 +1951,7 @@ func TestRedirectURLForRequest(t *testing.T) {
 			Settings: &ArgoCDSettings{
 				URL: ":httpsotherhostorg",
 			},
-			Request:     generateRequest("https://example.org/login"),
+			RequestURL:  "https://example.org/login",
 			ExpectedURL: "",
 			ExpectError: true,
 		},
@@ -1967,7 +1961,7 @@ func TestRedirectURLForRequest(t *testing.T) {
 				URL:            "https://otherhost.org",
 				AdditionalURLs: []string{"https://anotherhost.org"},
 			},
-			Request:     generateRequest("https://anotherhost.org/login"),
+			RequestURL:  "https://anotherhost.org/login",
 			ExpectedURL: "https://anotherhost.org/auth/callback",
 			ExpectError: false,
 		},
@@ -1975,7 +1969,9 @@ func TestRedirectURLForRequest(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
-			result, err := tc.Settings.RedirectURLForRequest(tc.Request)
+			request, err := http.NewRequestWithContext(t.Context(), http.MethodPost, tc.RequestURL, http.NoBody)
+			require.NoError(t, err)
+			result, err := tc.Settings.RedirectURLForRequest(request)
 			assert.Equal(t, tc.ExpectedURL, result)
 			if tc.ExpectError {
 				assert.Error(t, err)

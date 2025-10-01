@@ -1,6 +1,7 @@
 package fixture
 
 import (
+	"context"
 	"os"
 	"os/exec"
 	"strings"
@@ -13,7 +14,7 @@ func Run(workDir, name string, args ...string) (string, error) {
 }
 
 func RunWithStdin(stdin, workDir, name string, args ...string) (string, error) {
-	cmd := exec.Command(name, args...)
+	cmd := exec.CommandContext(context.Background(), name, args...)
 	if stdin != "" {
 		cmd.Stdin = strings.NewReader(stdin)
 	}
@@ -24,7 +25,7 @@ func RunWithStdin(stdin, workDir, name string, args ...string) (string, error) {
 }
 
 func RunWithStdinWithRedactor(stdin, workDir, name string, redactor func(string) string, args ...string) (string, error) {
-	cmd := exec.Command(name, args...)
+	cmd := exec.CommandContext(context.Background(), name, args...)
 	if stdin != "" {
 		cmd.Stdin = strings.NewReader(stdin)
 	}

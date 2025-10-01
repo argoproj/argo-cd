@@ -183,7 +183,7 @@ func TestCustomHTTPClient(t *testing.T) {
 				assert.Nil(t, cert.PrivateKey)
 			}
 		}
-		req, err := http.NewRequest(http.MethodGet, "http://proxy-from-env:7878", http.NoBody)
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "http://proxy-from-env:7878", http.NoBody)
 		require.NoError(t, err)
 		proxy, err := transport.Proxy(req)
 		require.NoError(t, err)
@@ -454,11 +454,12 @@ func TestListRevisions(t *testing.T) {
 func TestLsFiles(t *testing.T) {
 	tmpDir1 := t.TempDir()
 	tmpDir2 := t.TempDir()
+	ctx := t.Context()
 
 	client, err := NewClientExt("", tmpDir1, NopCreds{}, false, false, "", "")
 	require.NoError(t, err)
 
-	require.NoError(t, runCmd(tmpDir1, "git", "init"))
+	require.NoError(t, runCmd(ctx, tmpDir1, "git", "init"))
 
 	// Setup files
 	require.NoError(t, os.WriteFile(filepath.Join(tmpDir1, "a.yaml"), []byte{}, 0o644))
@@ -470,8 +471,8 @@ func TestLsFiles(t *testing.T) {
 
 	require.NoError(t, os.Symlink(filepath.Join(tmpDir2, "c.yaml"), filepath.Join(tmpDir1, "link.yaml")))
 
-	require.NoError(t, runCmd(tmpDir1, "git", "add", "."))
-	require.NoError(t, runCmd(tmpDir1, "git", "commit", "-m", "Initial commit"))
+	require.NoError(t, runCmd(ctx, tmpDir1, "git", "add", "."))
+	require.NoError(t, runCmd(ctx, tmpDir1, "git", "commit", "-m", "Initial commit"))
 
 	tests := []struct {
 		name           string
@@ -510,11 +511,12 @@ func TestLsFiles(t *testing.T) {
 
 func TestLsFilesForGitFileGeneratorGlobbingPatterns(t *testing.T) {
 	tmpDir := t.TempDir()
+	ctx := t.Context()
 
 	client, err := NewClientExt("", tmpDir, NopCreds{}, false, false, "", "")
 	require.NoError(t, err)
 
-	err = runCmd(tmpDir, "git", "init")
+	err = runCmd(ctx, tmpDir, "git", "init")
 	require.NoError(t, err)
 
 	// Setup directory structure and files
@@ -538,8 +540,8 @@ func TestLsFilesForGitFileGeneratorGlobbingPatterns(t *testing.T) {
 		_, err := os.Create(filepath.Join(tmpDir, file))
 		require.NoError(t, err)
 	}
-	require.NoError(t, runCmd(tmpDir, "git", "add", "."))
-	require.NoError(t, runCmd(tmpDir, "git", "commit", "-m", "Initial commit"))
+	require.NoError(t, runCmd(ctx, tmpDir, "git", "add", "."))
+	require.NoError(t, runCmd(ctx, tmpDir, "git", "commit", "-m", "Initial commit"))
 
 	tests := []struct {
 		name                 string
