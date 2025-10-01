@@ -5,6 +5,7 @@ import {Key, KeybindingContext, NumKey, NumKeyToNumber, NumPadKey, useNav} from 
 import {Cluster} from '../../../shared/components';
 import {Consumer, Context, AuthSettingsCtx} from '../../../shared/context';
 import * as models from '../../../shared/models';
+import {ApplicationURLs} from '../application-urls';
 import * as AppUtils from '../utils';
 import {getAppDefaultSource, OperationState, getApplicationLinkURL, getManagedByURL} from '../utils';
 import {services} from '../../../shared/services';
@@ -139,6 +140,7 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                                         </div>
                                                         <div className={app.status.summary.externalURLs?.length > 0 ? 'columns small-2' : 'columns small-1'}>
                                                             <div className='applications-list__external-link'>
+                                                                <ApplicationURLs urls={app.status.summary.externalURLs} />
                                                                 <button
                                                                     onClick={e => {
                                                                         e.stopPropagation();
@@ -148,7 +150,7 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                                                             ctx.navigation.goto(`/${AppUtils.getAppUrl(app)}`);
                                                                         }
                                                                     }}
-                                                                    title={`Link: ${linkInfo.url}\nmanaged-by-url: ${getManagedByURL(app) || 'none'}`}>
+                                                                    title={getManagedByURL(app) ? `Managed by: ${getManagedByURL(app)}` : 'Open application'}>
                                                                     <i className='fa fa-external-link-alt' />
                                                                 </button>
                                                                 <Tooltip content={favList?.includes(app.metadata.name) ? 'Remove Favorite' : 'Add Favorite'}>
