@@ -641,6 +641,7 @@ func TestProcessHydrationQueueItem_SuccessfulHydration(t *testing.T) {
 	rc.On("GetRevisionMetadata", mock.Anything, mock.Anything).Return(nil, nil).Once()
 	d.On("GetWriteCredentials", mock.Anything, "https://example.com/repo", "test-project").Return(nil, nil).Once()
 	d.On("GetHydratorCommitMessageTemplate").Return("commit message", nil).Once()
+	d.On("GetHydratorReadmeMessageTemplate").Return("readme message", nil).Once()
 	cc.On("CommitHydratedManifests", mock.Anything, mock.Anything).Return(&commitclient.CommitHydratedManifestsResponse{HydratedSha: "def456"}, nil).Once()
 
 	h.ProcessHydrationQueueItem(hydrationKey)
@@ -801,6 +802,7 @@ func TestHydrator_hydrate_Success(t *testing.T) {
 	})
 	d.On("GetWriteCredentials", mock.Anything, readRepo.Repo, proj.Name).Return(writeRepo, nil)
 	d.On("GetHydratorCommitMessageTemplate").Return("commit message", nil)
+	d.On("GetHydratorReadmeMessageTemplate").Return("readme message", nil)
 	cc.On("CommitHydratedManifests", mock.Anything, mock.Anything).Return(&commitclient.CommitHydratedManifestsResponse{HydratedSha: "hydrated123"}, nil).Run(func(args mock.Arguments) {
 		r := args.Get(1).(*commitclient.CommitHydratedManifestsRequest)
 		assert.Equal(t, "commit message", r.CommitMessage)
@@ -1009,6 +1011,7 @@ func TestHydrator_hydrate_CommitHydratedManifestsError(t *testing.T) {
 	rc.On("GetRevisionMetadata", mock.Anything, mock.Anything).Return(&v1alpha1.RevisionMetadata{}, nil)
 	d.On("GetWriteCredentials", mock.Anything, mock.Anything, mock.Anything).Return(&v1alpha1.Repository{Repo: "https://example.com/repo"}, nil)
 	d.On("GetHydratorCommitMessageTemplate").Return("commit message", nil)
+	d.On("GetHydratorReadmeMessageTemplate").Return("readme message", nil)
 	cc.On("CommitHydratedManifests", mock.Anything, mock.Anything).Return(nil, errors.New("commit error"))
 	logCtx := log.NewEntry(log.StandardLogger())
 
