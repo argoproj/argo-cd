@@ -170,6 +170,10 @@ type ClusterCache interface {
 	GetManagedLiveObjs(targetObjs []*unstructured.Unstructured, isManaged func(r *Resource) bool) (map[kube.ResourceKey]*unstructured.Unstructured, error)
 	// GetClusterInfo returns cluster cache statistics
 	GetClusterInfo() ClusterInfo
+	// RefreshStaleResources refreshes resources of a specific GVK that have nil Resource data
+	RefreshStaleResources(gvk schema.GroupVersionKind) error
+	// RefreshSpecificResources refreshes specific resource instances that have nil Resource data
+	RefreshSpecificResources(keys []kube.ResourceKey) error
 	// OnResourceUpdated register event handler that is executed every time when resource get's updated in the cache
 	OnResourceUpdated(handler OnResourceUpdatedHandler) Unsubscribe
 	// OnEvent register event handler that is executed every time when new K8S event received
@@ -1540,6 +1544,100 @@ func (c *clusterCache) GetManagedLiveObjs(targetObjs []*unstructured.Unstructure
 	}
 
 	return managedObjs, nil
+}
+
+// RefreshStaleResources refreshes resources of a specific GVK that have nil Resource data
+// This is used to recover resources after their GVK recovers from a tainted state
+func (c *clusterCache) RefreshStaleResources(gvk schema.GroupVersionKind) error {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
+	var staleResources []*Resource
+	gk := gvk.GroupKind()
+
+	// Find resources with nil Resource data for this GVK
+	for key, res := range c.resources {
+		if key.Kind == gk.Kind && key.Group == gk.Group && res.Resource == nil {
+			staleResources = append(staleResources, res)
+		}
+	}
+
+	if len(staleResources) == 0 {
+		return nil
+	}
+
+	c.log.Info(fmt.Sprintf("Refreshing %d stale resources for GVK %s", len(staleResources), gvk.String()))
+
+	// Refresh each stale resource by fetching it from the API server
+	for _, res := range staleResources {
+		refreshedUn, err := c.kubectl.GetResource(context.TODO(), c.config, gvk, res.Ref.Name, res.Ref.Namespace)
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				// Resource was deleted, remove it from cache
+				c.onNodeRemoved(res.ResourceKey())
+				continue
+			}
+			// Log error but don't fail the entire operation
+			c.log.Error(err, fmt.Sprintf("Failed to refresh resource %s", res.ResourceKey()))
+			continue
+		}
+
+		// Create new resource with refreshed data
+		refreshedRes := c.newResource(refreshedUn)
+
+		// Update the cache
+		c.onNodeUpdated(res, refreshedRes)
+	}
+
+	return nil
+}
+
+// RefreshSpecificResources refreshes specific resource instances that have nil Resource data
+// This is more efficient than RefreshStaleResources when you know exactly which resources need refreshing
+func (c *clusterCache) RefreshSpecificResources(keys []kube.ResourceKey) error {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
+	var staleKeys []kube.ResourceKey
+
+	// Find resources with nil Resource data for these specific keys
+	for _, key := range keys {
+		if res, exists := c.resources[key]; exists && res.Resource == nil {
+			staleKeys = append(staleKeys, key)
+		}
+	}
+
+	if len(staleKeys) == 0 {
+		return nil
+	}
+
+	c.log.Info(fmt.Sprintf("Refreshing %d specific stale resources", len(staleKeys)))
+
+	// Refresh each stale resource by fetching it from the API server
+	for _, key := range staleKeys {
+		res := c.resources[key]
+		gvk := res.Ref.GroupVersionKind()
+
+		refreshedUn, err := c.kubectl.GetResource(context.TODO(), c.config, gvk, res.Ref.Name, res.Ref.Namespace)
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				// Resource was deleted, remove it from cache
+				c.onNodeRemoved(key)
+				continue
+			}
+			// Log error but don't fail the entire operation
+			c.log.Error(err, fmt.Sprintf("Failed to refresh resource %s", key))
+			continue
+		}
+
+		// Create new resource with refreshed data
+		refreshedRes := c.newResource(refreshedUn)
+
+		// Update the cache
+		c.onNodeUpdated(res, refreshedRes)
+	}
+
+	return nil
 }
 
 func (c *clusterCache) recordEvent(event watch.EventType, un *unstructured.Unstructured) {
