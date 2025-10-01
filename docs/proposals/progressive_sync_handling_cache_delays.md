@@ -1,7 +1,7 @@
 ---
 title: Fix Out-of-Order Syncing in ApplicationSet Progressive Sync
 authors:
-  - "@krana" # Authors' github accounts here.
+  - "@ranakan19" # Authors' github accounts here.
 sponsors:
   - TBD        # List all interested parties here.
 reviewers:
@@ -48,7 +48,25 @@ This proposal presents three options to address the cache staleness issue that c
 
 ### Use cases
 
-As a user of ApplicationSet's progressive sync, do not want to run into a situation where applications of step 'x' is progressing before applications of step 'y' where x>y. 
+Users of ApplicationSet's progressive sync should not encounter situations where applications of step 'x' are progressing before applications of step 'y' where x > y.
+
+The following scenarios describe the expected progressive sync behavior:
+
+**Scenario 1: Single Source Repository**
+- **Given**: All applications in an ApplicationSet pull from the same Git repository and targetRevision
+- **When**: A change is pushed to that targetRevision
+- **Then**: Applications should be synced progressively through the defined stages in order
+
+**Scenario 2: ApplicationSet Template Changes**
+- **Given**: A change is made to the ApplicationSet's `spec.template` field
+- **When**: This change causes two or more Applications to go OutOfSync
+- **Then**: Those changes should be progressively synced through the defined stages in order
+
+**Scenario 3: Multiple Source Repositories**
+- **Given**: An ApplicationSet's Applications have different sources (repos, branches, etc.)
+- **When**: Changes are made to the sources of more than one application simultaneously
+- **Then**: Those applications should be progressively synced through the defined stages in order  
+
 
 ### Implementation Details/Notes/Constraints
 
@@ -117,6 +135,7 @@ If potentially stale - requeue
 
 **Cons:**
 - May cause sync delays
+- Requeue could also be expensive if the AppSet makes external API calls on reconcile.
 
 #### Option 2: ResourceVersion-based Staleness Detection with Direct API Calls
 
@@ -128,6 +147,7 @@ If there is a way to identify critical Applications, making direct API calls can
 
 **Cons:**
 - Need to determine appropriate thresholds
+- Direct API calls are expensive
 
 #### Option 3: Separate ApplicationSetApplicationStatus Controller 
 
