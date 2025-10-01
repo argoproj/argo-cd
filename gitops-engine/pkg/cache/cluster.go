@@ -1140,11 +1140,13 @@ func (c *clusterCache) sync() error {
 						Version: api.GroupVersionResource.Version,
 						Kind:    api.GroupKind.Kind,
 					}
+					c.log.Info("Conversion webhook error detected, tainting cache but allowing sync to continue", "gvk", gvk.String(), "error", err.Error())
 					lock.Lock()
 					c.trackFailedGVK(gvk, err)
 					lock.Unlock()
 					return nil
 				}
+				c.log.Info("Error NOT classified as cache-tainting, failing sync", "gvk", api.GroupKind.String(), "error", err.Error())
 				return fmt.Errorf("failed to load initial state of resource %s: %w", api.GroupKind.String(), err)
 			}
 
@@ -1479,8 +1481,10 @@ func (c *clusterCache) GetManagedLiveObjs(targetObjs []*unstructured.Unstructure
 	managedObjs := make(map[kube.ResourceKey]*unstructured.Unstructured)
 	// iterate all objects in live state cache to find ones associated with app
 	for key, o := range c.resources {
-		if isManaged(o) && o.Resource != nil && len(o.OwnerRefs) == 0 {
-			managedObjs[key] = o.Resource
+		if isManaged(o) && len(o.OwnerRefs) == 0 {
+			if o.Resource != nil {
+				managedObjs[key] = o.Resource
+			}
 		}
 	}
 	// but are simply missing our label
@@ -1716,7 +1720,53 @@ func (c *clusterCache) processEvent(key kube.ResourceKey, evMeta eventMeta) {
 			c.onNodeRemoved(key)
 		}
 	} else {
-		c.onNodeUpdated(existingNode, c.newResource(evMeta.un))
+		var newRes *Resource
+		var newResourceErr error
+
+		// Wrap newResource() call with panic recovery to handle conversion webhook failures
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					newResourceErr = fmt.Errorf("resource conversion failed: %v", r)
+				}
+			}()
+			newRes = c.newResource(evMeta.un)
+		}()
+
+		// If resource conversion failed, create a tainted resource entry
+		if newResourceErr != nil {
+			gvk := evMeta.un.GroupVersionKind()
+			c.log.Info("Resource conversion failed during watch event, creating tainted cache entry", "gvk", gvk.String(), "key", key.String(), "error", newResourceErr.Error())
+
+			// Track the failed GVK
+			c.trackFailedGVK(gvk, newResourceErr)
+
+			// Create a tainted resource entry to preserve resource metadata
+			var creationTimestamp *metav1.Time
+			ct := evMeta.un.GetCreationTimestamp()
+			if !ct.IsZero() {
+				creationTimestamp = &ct
+			}
+
+			// Preserve the existing resource's Info (especially AppName) to maintain app association
+			var preservedInfo any
+			if exists && existingNode != nil && existingNode.Info != nil {
+				preservedInfo = existingNode.Info
+			}
+
+			newRes = &Resource{
+				ResourceVersion:    evMeta.un.GetResourceVersion(),
+				Ref:                kube.GetObjectRef(evMeta.un),
+				OwnerRefs:          []metav1.OwnerReference{}, // Empty slice instead of nil to avoid nil pointer issues
+				Info:               preservedInfo, // Preserve app association for immediate health update
+				CreationTimestamp:  creationTimestamp,
+				isInferredParentOf: nil,
+				Resource:           nil, // This marks the resource as tainted
+			}
+		}
+
+		// Always call onNodeUpdated so app controller gets notified of the change
+		c.onNodeUpdated(existingNode, newRes)
 	}
 }
 
