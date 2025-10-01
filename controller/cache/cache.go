@@ -161,6 +161,7 @@ type LiveStateCache interface {
 	IsClusterTainted(server string) bool
 	GetTaintedGVKs(server string) []string
 	ClearClusterTaints(server string)
+	ClearGVKTaint(server string, gvk string)
 }
 
 type ObjectUpdatedHandler = func(managedByApp map[string]bool, ref corev1.ObjectReference)
@@ -922,13 +923,12 @@ func (c *liveStateCache) handleModEvent(oldCluster *appv1.Cluster, newCluster *a
 		}
 
 		if len(updateSettings) > 0 || forceInvalidate {
-			cluster.Invalidate(updateSettings...)
-
-			// When explicitly refreshed, clear any cluster taints
+			// When explicitly refreshed, validate tainted GVKs BEFORE invalidating to preserve taint state for validation
 			if forceInvalidate {
-				c.taintManager.clearTaints(newCluster.Server)
-				log.WithField("server", newCluster.Server).Info("Cleared cluster taints due to explicit refresh")
+				c.validateAndClearHealthyTaints(newCluster, cluster)
 			}
+
+			cluster.Invalidate(updateSettings...)
 
 			go func() {
 				// warm up cluster cache
@@ -999,6 +999,11 @@ func (c *liveStateCache) GetTaintedGVKs(server string) []string {
 // ClearClusterTaints removes all taints for a cluster
 func (c *liveStateCache) ClearClusterTaints(server string) {
 	c.taintManager.clearTaints(server)
+}
+
+// ClearGVKTaint removes a specific GVK taint from a cluster
+func (c *liveStateCache) ClearGVKTaint(server string, gvk string) {
+	c.taintManager.clearGVKTaint(server, gvk)
 }
 
 // shouldReturnPartialCache determines whether to return partial cache based on
@@ -1116,6 +1121,26 @@ func (ctm *clusterTaintManager) clearTaints(server string) {
 	}).Info("Cleared cluster taints")
 }
 
+// clearGVKTaint removes a specific GVK taint for a cluster
+func (ctm *clusterTaintManager) clearGVKTaint(server string, gvk string) {
+	ctm.mu.Lock()
+	defer ctm.mu.Unlock()
+
+	if serverTaints, exists := ctm.taints[server]; exists {
+		delete(serverTaints, gvk)
+		if len(serverTaints) == 0 {
+			// If no taints left, remove the server entry
+			delete(ctm.taints, server)
+			delete(ctm.taintTimes, server)
+		}
+	}
+
+	log.WithFields(log.Fields{
+		"server": server,
+		"gvk":    gvk,
+	}).Info("Cleared specific GVK taint")
+}
+
 // cleanupExpiredTaints removes expired taint entries for all clusters
 func (ctm *clusterTaintManager) cleanupExpiredTaints() {
 	ctm.mu.Lock()
@@ -1157,4 +1182,51 @@ func (ctm *clusterTaintManager) isResourceGVKFailed(server, gvk string) bool {
 
 	_, failed := serverTaints[gvk]
 	return failed
+}
+
+// validateAndClearHealthyTaints validates tainted GVKs during explicit refresh
+// and only clears those that are now healthy, rather than clearing all taints
+func (c *liveStateCache) validateAndClearHealthyTaints(cluster *appv1.Cluster, clusterCache clustercache.ClusterCache) {
+	taintedGVKs := c.taintManager.getTaintedGVKs(cluster.Server)
+
+	if len(taintedGVKs) == 0 {
+		log.WithField("server", cluster.Server).Debug("No tainted GVKs found during explicit refresh")
+		return
+	}
+
+	log.WithField("server", cluster.Server).WithField("taintedGVKs", taintedGVKs).Info("Validating tainted GVKs during explicit refresh")
+
+	for _, gvkString := range taintedGVKs {
+		// Test if the GVK is healthy by attempting to find resources of this type
+		// This will trigger conversion webhooks if they exist and may panic on failure
+		var err error
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					err = fmt.Errorf("GVK validation failed due to panic: %v", r)
+				}
+			}()
+
+			// Attempt to find resources matching this GVK string - this will trigger conversion webhooks
+			_ = clusterCache.FindResources("", func(res *clustercache.Resource) bool {
+				return res.Ref.GroupVersionKind().String() == gvkString
+			})
+		}()
+
+		if err == nil {
+			// GVK is now healthy, remove the taint
+			c.taintManager.clearGVKTaint(cluster.Server, gvkString)
+			log.WithField("server", cluster.Server).WithField("gvk", gvkString).Info("GVK validation succeeded during refresh, removed taint")
+		} else {
+			log.WithField("server", cluster.Server).WithField("gvk", gvkString).WithError(err).Info("GVK validation failed during refresh, keeping taint")
+		}
+	}
+
+	// Report final taint status
+	remainingTaints := c.taintManager.getTaintedGVKs(cluster.Server)
+	if len(remainingTaints) == 0 {
+		log.WithField("server", cluster.Server).Info("All tainted GVKs validated successfully, cluster cache is now clean")
+	} else {
+		log.WithField("server", cluster.Server).WithField("remainingTaints", remainingTaints).Info("Some GVKs remain tainted after validation")
+	}
 }

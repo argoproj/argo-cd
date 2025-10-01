@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestAnalyzeMessage(t *testing.T) {
@@ -527,12 +528,12 @@ func TestExtractGVK(t *testing.T) {
 		{
 			name:     "full GVK",
 			message:  `error with Group:"example.com" Version:"v1" Kind:"Example"`,
-			expected: "example.com/v1/Example",
+			expected: "example.com/v1, Kind=Example",
 		},
 		{
 			name:     "GVK without group",
 			message:  `error with Group:"" Version:"v1" Kind:"Pod"`,
-			expected: "v1/Pod",
+			expected: "/v1, Kind=Pod",
 		},
 		{
 			name:     "no GVK in message",
@@ -542,13 +543,13 @@ func TestExtractGVK(t *testing.T) {
 		{
 			name:     "lowercase fields",
 			message:  `error with group:"apps" version:"v1" kind:"Deployment"`,
-			expected: "apps/v1/Deployment",
+			expected: "apps/v1, Kind=Deployment",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := extractGVK(tt.message)
+			result := ExtractGVK(tt.message)
 			assert.Equal(t, tt.expected, result)
 		})
 	}
@@ -559,7 +560,7 @@ func TestCredentialsConfigurationError(t *testing.T) {
 
 	t.Run("NewCredentialsConfigurationError creates wrapped error", func(t *testing.T) {
 		wrappedErr := NewCredentialsConfigurationError(originalErr)
-		assert.NotNil(t, wrappedErr)
+		require.Error(t, wrappedErr)
 		assert.Equal(t, "original credential error", wrappedErr.Error())
 	})
 
