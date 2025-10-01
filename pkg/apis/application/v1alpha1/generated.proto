@@ -222,7 +222,7 @@ message ApplicationSetApplicationStatus {
   // Message contains human-readable message indicating details about the status
   optional string message = 3;
 
-  // Status contains the AppSet's perceived status of the managed Application resource: (Waiting, Pending, Progressing, Healthy)
+  // Status contains the AppSet's perceived status of the managed Application resource
   optional string status = 4;
 
   // Step tracks which step this Application should be updated in
@@ -369,6 +369,10 @@ message ApplicationSetStatus {
 
   // Resources is a list of Applications resources managed by this application set.
   repeated ResourceStatus resources = 3;
+
+  // ResourcesCount is the total number of resources managed by this application set. The count may be higher than actual number of items in the Resources field when
+  // the number of managed resources exceeds the limit imposed by the controller (to avoid making the status field too large).
+  optional int64 resourcesCount = 4;
 }
 
 // ApplicationSetStrategy configures how generated Applications are updated in sequence.
@@ -1005,7 +1009,7 @@ message ConfigManagementPlugin {
   optional bool lockRepo = 4;
 }
 
-// Utility struct for a reference to a configmap key.
+// ConfigMapKeyRef struct for a reference to a configmap key.
 message ConfigMapKeyRef {
   optional string configMapName = 1;
 
@@ -1736,7 +1740,7 @@ message PullRequestGeneratorGitea {
   repeated string labels = 6;
 }
 
-// PullRequestGenerator defines connection info specific to GitHub.
+// PullRequestGeneratorGithub defines connection info specific to GitHub.
 message PullRequestGeneratorGithub {
   // GitHub org or user to scan. Required.
   optional string owner = 1;
@@ -2225,6 +2229,9 @@ message RetryStrategy {
 
   // Backoff controls how to backoff on subsequent retries of failed syncs
   optional Backoff backoff = 2;
+
+  // Refresh indicates if the latest revision should be used on retry instead of the initial one (default: false)
+  optional bool refresh = 3;
 }
 
 // RevisionHistory contains history information about a previous sync
@@ -2479,7 +2486,7 @@ message SCMProviderGeneratorGitlab {
   optional ConfigMapKeyRef caRef = 9;
 }
 
-// Utility struct for a reference to a secret key.
+// SecretRef struct for a reference to a secret key.
 message SecretRef {
   optional string secretName = 1;
 
@@ -2632,11 +2639,17 @@ message SyncPolicyAutomated {
 // SyncSource specifies a location from which hydrated manifests may be synced. RepoURL is assumed based on the
 // associated DrySource config in the SourceHydrator.
 message SyncSource {
-  // TargetBranch is the branch to which hydrated manifests should be committed
+  // TargetBranch is the branch from which hydrated manifests will be synced.
+  // If HydrateTo is not set, this is also the branch to which hydrated manifests are committed.
   optional string targetBranch = 1;
 
   // Path is a directory path within the git repository where hydrated manifests should be committed to and synced
-  // from. If hydrateTo is set, this is just the path from which hydrated manifests will be synced.
+  // from. The Path should never point to the root of the repo. If hydrateTo is set, this is just the path from which
+  // hydrated manifests will be synced.
+  //
+  // +kubebuilder:validation:Required
+  // +kubebuilder:validation:MinLength=1
+  // +kubebuilder:validation:Pattern=`^.{2,}|[^./]$`
   optional string path = 2;
 }
 
