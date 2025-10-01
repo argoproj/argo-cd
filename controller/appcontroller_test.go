@@ -249,6 +249,8 @@ func newFakeControllerWithResyncAndStateCacheErrors(ctx context.Context, data *f
 		taintedGVKs = []string{}
 	}
 	mockStateCache.EXPECT().GetTaintedGVKs(mock.Anything).Return(taintedGVKs)
+	mockStateCache.EXPECT().MarkClusterTainted(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return()
+	mockStateCache.EXPECT().ClearGVKTaint(mock.Anything, mock.Anything).Return()
 
 	switch stateCacheErr {
 	case nil:
