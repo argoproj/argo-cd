@@ -18,7 +18,7 @@ import (
 // - Application isolation (only CRD-using apps affected, not others)
 // - Complete recovery after webhook is fixed (apps healthy)
 //
-// This follows the reproduction pattern from ~/workspace/conversion-webhook-repro/scripts
+// This follows the reproduction pattern from conversion-webhook-repro/scripts
 func TestConversionWebhookFailureIsolation(t *testing.T) {
 	// Step 1: Bring up working app that will NOT be impacted (to test isolation)
 	isolatedAppName := "isolated-guestbook-app"
@@ -39,8 +39,8 @@ func TestConversionWebhookFailureIsolation(t *testing.T) {
 	t.Log("🔧 Setting up working CRD first (no conversion webhook)")
 	_, err := fixture.Run("", "kubectl", "apply", "-f", "/tmp/argo-e2e/testdata.git/conversion-webhook-test/crds/crd.yaml")
 	require.NoError(t, err)
-	// Give CRD time to be ready
-	time.Sleep(3 * time.Second)
+	// Give CRD time to be ready and for ArgoCD cache to discover new API versions
+	time.Sleep(10 * time.Second)
 
 	t.Log("📱 Creating CRD-using app (will be impacted)")
 	GivenWithSameState(t).
@@ -90,7 +90,7 @@ func TestConversionWebhookFailureIsolation(t *testing.T) {
 		Then().
 		Expect(OperationPhaseIs(OperationFailed)).
 		Expect(HealthIs(health.HealthStatusDegraded)).
-		Expect(SyncStatusIs(SyncStatusCodeOutOfSync))
+		Expect(SyncStatusIs(SyncStatusCodeUnknown)) // Cache tainting from conversion failures prevents safe sync operations
 
 	// Allow time for sync to process and conversion webhook errors to be detected
 	time.Sleep(10 * time.Second)
@@ -121,8 +121,22 @@ func TestConversionWebhookFailureIsolation(t *testing.T) {
 	_, err = fixture.Run("", "kubectl", "apply", "-f", "/tmp/argo-e2e/testdata.git/conversion-webhook-test/crds/crd.yaml")
 	require.NoError(t, err)
 
-	// Step 9: Trigger sync of CRD app after fix to recover
-	t.Log("🔄 Triggering sync of CRD app after fix to recover")
+	// Wait for CRD changes to propagate through the API server
+	t.Log("⏳ Waiting for CRD changes to propagate through the API server...")
+	time.Sleep(10 * time.Second)
+
+	// Step 9: Trigger hard refresh of CRD app after fix to re-evaluate tainted GVKs
+	t.Log("🔄 Triggering hard refresh of CRD app after fix to re-evaluate tainted GVKs")
+	GivenWithSameState(t).
+		Name(crdAppName).
+		When().
+		Refresh(RefreshTypeHard)
+
+	// Allow time for hard refresh to process and validate tainted GVKs
+	time.Sleep(5 * time.Second)
+
+	// Step 10: Trigger sync of CRD app after taint validation to recover
+	t.Log("🔄 Triggering sync of CRD app after taint validation to recover")
 	GivenWithSameState(t).
 		Name(crdAppName).
 		When().
@@ -140,7 +154,7 @@ func TestConversionWebhookFailureIsolation(t *testing.T) {
 	// Allow time for recovery
 	time.Sleep(5 * time.Second)
 
-	// Step 10: Validate that isolated app remains healthy after recovery
+	// Step 11: Validate that isolated app remains healthy after recovery
 	t.Log("🔍 Validating isolated app remains healthy after recovery")
 	GivenWithSameState(t).
 		Name(isolatedAppName).
