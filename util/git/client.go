@@ -1083,14 +1083,14 @@ func (m *nativeGitClient) GetCommitNote(sha string, namespace string) (string, e
 	if strings.TrimSpace(namespace) == "" {
 		namespace = "commit"
 	}
-
+	ctx := context.Background()
 	// fetch first
 	// cli command: git fetch origin refs/notes/source-hydrator:refs/notes/source-hydrator
 	notesRef := fmt.Sprintf("refs/notes/%s", namespace)
-	_, _ = m.runCmd("fetch", "origin", fmt.Sprintf("%s:%s", notesRef, notesRef)) // Ignore fetch error for best effort
+	_, _ = m.runCmd(ctx, "fetch", "origin", fmt.Sprintf("%s:%s", notesRef, notesRef)) // Ignore fetch error for best effort
 
 	ref := fmt.Sprintf("--ref=%s", namespace)
-	out, err := m.runCmd("notes", ref, "show", sha)
+	out, err := m.runCmd(ctx, "notes", ref, "show", sha)
 	if err != nil {
 		return out, fmt.Errorf("failed to get commit note: %w", err)
 	}
@@ -1102,8 +1102,9 @@ func (m *nativeGitClient) AddAndPushNote(sha string, namespace string, note stri
 	if namespace == "" {
 		namespace = "commit"
 	}
+	ctx := context.Background()
 	ref := fmt.Sprintf("--ref=%s", namespace)
-	_, err := m.runCmd("notes", ref, "add", "-m", note, sha)
+	_, err := m.runCmd(ctx, "notes", ref, "add", "-m", note, sha)
 	if err != nil {
 		return fmt.Errorf("failed to push: %w", err)
 	}
@@ -1112,7 +1113,7 @@ func (m *nativeGitClient) AddAndPushNote(sha string, namespace string, note stri
 		defer done()
 	}
 
-	err = m.runCredentialedCmd("push", "origin", fmt.Sprintf("refs/notes/%s", namespace))
+	err = m.runCredentialedCmd(ctx, "push", "origin", fmt.Sprintf("refs/notes/%s", namespace))
 	if err != nil {
 		return fmt.Errorf("failed to push: %w", err)
 	}
@@ -1122,8 +1123,9 @@ func (m *nativeGitClient) AddAndPushNote(sha string, namespace string, note stri
 
 // HasFileChanged returns the outout of git diff considering whether it is tracked or un-tracked
 func (m *nativeGitClient) HasFileChanged(filePath string) (bool, error) {
+	ctx := context.Background()
 	// 1. Use git status to check if file is untracked
-	statusOut, err := m.runCmd("status", "--porcelain", filePath)
+	statusOut, err := m.runCmd(ctx, "status", "--porcelain", filePath)
 	if err != nil {
 		return false, fmt.Errorf("failed to get git status: %w", err)
 	}
