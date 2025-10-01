@@ -50,6 +50,8 @@ const (
 	SyncOptionClientSideApplyMigration = "ClientSideApplyMigration=true"
 	// Sync option that disables client-side apply migration
 	SyncOptionDisableClientSideApplyMigration = "ClientSideApplyMigration=false"
+	// Sync option that means only controller owner references are respected
+	SyncOptionControllerReferencesOnly = "ControllerReferencesOnly=true"
 
 	// Default field manager for client-side apply migration
 	DefaultClientSideApplyMigrationManager = "kubectl-client-side-apply"

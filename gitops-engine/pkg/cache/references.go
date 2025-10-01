@@ -10,6 +10,8 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
 
+	"github.com/argoproj/gitops-engine/pkg/sync/common"
+	"github.com/argoproj/gitops-engine/pkg/sync/resource"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 )
 
@@ -22,6 +24,16 @@ func (c *clusterCache) resolveResourceReferences(un *unstructured.Unstructured) 
 	var isInferredParentOf func(_ kube.ResourceKey) bool
 	ownerRefs := un.GetOwnerReferences()
 	gvk := un.GroupVersionKind()
+
+	if resource.HasAnnotationOption(un, common.AnnotationSyncOptions, common.SyncOptionControllerReferencesOnly) {
+		controllerOwnerRefs := []metav1.OwnerReference{}
+		for _, ownerRef := range un.GetOwnerReferences() {
+			if ownerRef.Controller != nil && *ownerRef.Controller {
+				controllerOwnerRefs = append(controllerOwnerRefs, ownerRef)
+			}
+		}
+		ownerRefs = controllerOwnerRefs
+	}
 
 	switch {
 	// Special case for endpoint. Remove after https://github.com/kubernetes/kubernetes/issues/28483 is fixed
