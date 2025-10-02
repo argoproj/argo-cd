@@ -68,6 +68,7 @@ func NewCommand() *cobra.Command {
 	command.AddCommand(initialize.InitCommand(NewGPGCommand(&clientOpts)))
 	command.AddCommand(admin.NewAdminCommand(&clientOpts))
 	command.AddCommand(initialize.InitCommand(NewConfigureCommand(&clientOpts)))
+	command.AddCommand(NewMCPCommand())
 
 	defaultLocalConfigPath, err := localconfig.DefaultLocalConfigPath()
 	errors.CheckError(err)

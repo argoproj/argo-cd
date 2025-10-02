@@ -31,3 +31,6 @@ cmd/argocd-server/argocd-server
 
 # ignore generated `.argocd-helm-dep-up` marker file; this should not be committed to git
 reposerver/repository/testdata/**/.argocd-helm-dep-up
+
+# ignore generated MCP tools files
+mcp-tools.json
