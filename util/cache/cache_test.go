@@ -91,7 +91,7 @@ func TestGenerateCacheKey(t *testing.T) {
 }
 
 // Test loading Redis credentials from a file
-func TestloadRedisCreds(t *testing.T) {
+func TestLoadRedisCreds(t *testing.T) {
 	dir := t.TempDir()
 	// Helper to write a file
 	writeFile := func(name, content string) {
