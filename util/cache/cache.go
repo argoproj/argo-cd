@@ -139,8 +139,8 @@ func getFlagVal[T any](cmd *cobra.Command, o Options, name string, getVal func(n
 	}
 }
 
-// loadRedisCredsFromFile loads Redis credentials from a file mounted at the specified path.
-func loadRedisCredsFromSecret(mountPath string, opt Options) *redisCreds {
+// loadRedisCreds loads Redis credentials.
+func loadRedisCreds(mountPath string, opt Options) *redisCreds {
 	creds := &redisCreds{}
 	if mountPath != "" {
 		log.Info("Loading Redis credentials from file: ", mountPath)
@@ -279,7 +279,7 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...Options) func() (*Cache, err
 				credsFilePath = val
 			}
 		}
-		creds := loadRedisCredsFromSecret(credsFilePath, opt)
+		creds := loadRedisCreds(credsFilePath, opt)
 		password = creds.password
 		username = creds.username
 		sentinelUsername = creds.sentinelUsername

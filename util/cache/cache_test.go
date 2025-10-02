@@ -91,7 +91,7 @@ func TestGenerateCacheKey(t *testing.T) {
 }
 
 // Test loading Redis credentials from a file
-func TestLoadRedisCredsFromFile(t *testing.T) {
+func TestloadRedisCreds(t *testing.T) {
 	dir := t.TempDir()
 	// Helper to write a file
 	writeFile := func(name, content string) {
@@ -103,7 +103,7 @@ func TestLoadRedisCredsFromFile(t *testing.T) {
 	writeFile("sentinel_username", "sentineluser")
 	writeFile("sentinel_auth", "sentinelpass")
 
-	creds := loadRedisCredsFromSecret(dir, Options{})
+	creds := loadRedisCreds(dir, Options{})
 	assert.Equal(t, "mypassword", creds.password)
 	assert.Equal(t, "myuser", creds.username)
 	assert.Equal(t, "sentineluser", creds.sentinelUsername)
@@ -118,7 +118,7 @@ func TestLoadRedisCredsFromEnv(t *testing.T) {
 	t.Setenv(envRedisSentinelUsername, "sentineluser")
 	t.Setenv(envRedisSentinelPassword, "sentinelpass")
 
-	creds := loadRedisCredsFromSecret("", Options{})
+	creds := loadRedisCreds("", Options{})
 	assert.Equal(t, "mypassword", creds.password)
 	assert.Equal(t, "myuser", creds.username)
 	assert.Equal(t, "sentineluser", creds.sentinelUsername)
@@ -144,7 +144,7 @@ func TestLoadRedisCredsFromBothEnvAndFile(t *testing.T) {
 	writeFile("sentinel_username", "filesentineluser")
 	writeFile("sentinel_auth", "filesentinelpass")
 
-	creds := loadRedisCredsFromSecret(dir, Options{})
+	creds := loadRedisCreds(dir, Options{})
 	assert.Equal(t, "filepassword", creds.password)
 	assert.Equal(t, "fileuser", creds.username)
 	assert.Equal(t, "filesentineluser", creds.sentinelUsername)
