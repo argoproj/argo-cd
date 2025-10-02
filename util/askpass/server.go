@@ -63,7 +63,8 @@ func (s *server) GetCredentials(_ context.Context, q *CredentialsRequest) (*Cred
 
 func (s *server) Start(path string) (utilio.Closer, error) {
 	_ = os.Remove(path)
-	listener, err := net.Listen("unix", path)
+	lc := &net.ListenConfig{}
+	listener, err := lc.Listen(context.Background(), "unix", path)
 	if err != nil {
 		return nil, err
 	}

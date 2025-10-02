@@ -318,7 +318,7 @@ If you don't need to set any environment variables, you can set an empty plugin 
 > [!IMPORTANT]
 > If your CMP command runs too long, the command will be killed, and the UI will show an error. The CMP server
 > respects the timeouts set by the `server.repo.server.timeout.seconds` and `controller.repo.server.timeout.seconds` 
-> items in `argocd-cm`. Increase their values from the default of 60s.
+> items in `argocd-cmd-params-cm`. Increase their values from the default of 60s.
 >
 > Each CMP command will also independently timeout on the `ARGOCD_EXEC_TIMEOUT` set for the CMP sidecar. The default
 > is 90s. So if you increase the repo server timeout greater than 90s, be sure to set `ARGOCD_EXEC_TIMEOUT` on the
@@ -331,7 +331,7 @@ If you don't need to set any environment variables, you can set an empty plugin 
 > and let the automatic discovery to identify the plugin.
 
 > [!NOTE]
-> If a CMP renders blank manfiests, and `prune` is set to `true`, Argo CD will automatically remove resources. CMP plugin authors should ensure errors are part of the exit code. Commonly something like `kustomize build . | cat` won't pass errors because of the pipe. Consider setting `set -o pipefail` so anything piped will pass errors on failure.
+> If a CMP renders blank manifests, and `prune` is set to `true`, Argo CD will automatically remove resources. CMP plugin authors should ensure errors are part of the exit code. Commonly something like `kustomize build . | cat` won't pass errors because of the pipe. Consider setting `set -o pipefail` so anything piped will pass errors on failure.
 
 > [!NOTE]
 > If a CMP command fails to gracefully exit on `ARGOCD_EXEC_TIMEOUT`, it will be forcefully killed after an additional timeout of `ARGOCD_EXEC_FATAL_TIMEOUT`.
