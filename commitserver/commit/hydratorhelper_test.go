@@ -232,7 +232,7 @@ Argocd-reference-commit-sha: abc123
 			manifestPath := path.Join(fullHydratePath, "manifest.yaml")
 			_, err := os.ReadFile(manifestPath)
 			require.Error(t, err)
-			assert.True(t, errors.Is(err, unix.ENOENT), "expected ENOENT error, got: %v", err)
+			require.ErrorIs(t, err, unix.ENOENT, "expected ENOENT error, got: %v", err)
 			continue
 		}
 		// Check if each path directory exists
@@ -376,7 +376,7 @@ func TestDeleteManifest_FileNotExist(t *testing.T) {
 	err := writeManifests(root, "", manifests)
 	require.NoError(t, err)
 	err = deleteManifest(root, "path1")
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "no such file or directory")
 }
 
@@ -406,15 +406,15 @@ func TestHasManifestChanged(t *testing.T) {
 		hydratePath := p.Path
 		if hydratePath != "" {
 			err := root.MkdirAll(hydratePath, 0o755)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 		}
 
 		// Write the manifests
 		err := writeManifests(root, hydratePath, p.Manifests)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		changed, err := hasManifestChanged(hydratePath, mockGitClient)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.True(t, changed)
 	}
 }
@@ -438,15 +438,15 @@ func TestHasManifestChanged_NoChange(t *testing.T) {
 		hydratePath := p.Path
 		if hydratePath != "" {
 			err := root.MkdirAll(hydratePath, 0o755)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 		}
 
 		// Write the manifests
 		err := writeManifests(root, hydratePath, p.Manifests)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		changed, err := hasManifestChanged(hydratePath, mockGitClient)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.False(t, changed)
 	}
 }
@@ -461,11 +461,11 @@ func TestIsHydrated(t *testing.T) {
 	mockGitClient.On("GetCommitNote", dryShaErr, mock.Anything).Return("", err).Once()
 	// an existing note
 	isHydrated, err := IsHydrated(mockGitClient, drySha)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.True(t, isHydrated)
 
 	isHydrated, err = IsHydrated(mockGitClient, dryShaErr)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.False(t, isHydrated)
 	assert.Contains(t, err.Error(), "no note found")
 }
@@ -480,9 +480,9 @@ func TestAddNote(t *testing.T) {
 
 	// success
 	err = AddNote(mockGitClient, drySha)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// failure
 	err = AddNote(mockGitClient, dryShaErr)
-	assert.Error(t, err)
+	require.Error(t, err)
 }

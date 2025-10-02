@@ -77,6 +77,7 @@ func WriteForPaths(root *os.Root, repoUrl, drySha string, dryCommitMetadata *app
 		if err != nil {
 			return false, fmt.Errorf("failed to check if anything changed on the manifest: %w", err)
 		}
+
 		if !changed {
 			err = deleteManifest(root, hydratePath)
 			if err != nil {

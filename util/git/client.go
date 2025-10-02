@@ -1086,10 +1086,10 @@ func (m *nativeGitClient) GetCommitNote(sha string, namespace string) (string, e
 	ctx := context.Background()
 	// fetch first
 	// cli command: git fetch origin refs/notes/source-hydrator:refs/notes/source-hydrator
-	notesRef := fmt.Sprintf("refs/notes/%s", namespace)
+	notesRef := "refs/notes/" + namespace
 	_, _ = m.runCmd(ctx, "fetch", "origin", fmt.Sprintf("%s:%s", notesRef, notesRef)) // Ignore fetch error for best effort
 
-	ref := fmt.Sprintf("--ref=%s", namespace)
+	ref := "--ref=" + namespace
 	out, err := m.runCmd(ctx, "notes", ref, "show", sha)
 	if err != nil {
 		return out, fmt.Errorf("failed to get commit note: %w", err)
@@ -1103,7 +1103,7 @@ func (m *nativeGitClient) AddAndPushNote(sha string, namespace string, note stri
 		namespace = "commit"
 	}
 	ctx := context.Background()
-	ref := fmt.Sprintf("--ref=%s", namespace)
+	ref := "--ref=" + namespace
 	_, err := m.runCmd(ctx, "notes", ref, "add", "-m", note, sha)
 	if err != nil {
 		return fmt.Errorf("failed to push: %w", err)
@@ -1113,7 +1113,7 @@ func (m *nativeGitClient) AddAndPushNote(sha string, namespace string, note stri
 		defer done()
 	}
 
-	err = m.runCredentialedCmd(ctx, "push", "origin", fmt.Sprintf("refs/notes/%s", namespace))
+	err = m.runCredentialedCmd(ctx, "push", "origin", "refs/notes/"+namespace)
 	if err != nil {
 		return fmt.Errorf("failed to push: %w", err)
 	}
@@ -1123,27 +1123,16 @@ func (m *nativeGitClient) AddAndPushNote(sha string, namespace string, note stri
 
 // HasFileChanged returns the outout of git diff considering whether it is tracked or un-tracked
 func (m *nativeGitClient) HasFileChanged(filePath string) (bool, error) {
-	ctx := context.Background()
-	// 1. Use git status to check if file is untracked
-	statusOut, err := m.runCmd(ctx, "status", "--porcelain", filePath)
-	if err != nil {
-		return false, fmt.Errorf("failed to get git status: %w", err)
-	}
-	if strings.HasPrefix(statusOut, "??") {
-		return true, nil // file is untracked
-	}
-
-	// 2. File is tracked, use git diff --quiet and check exit code
-	diffCmd := exec.Command("git", "diff", "--quiet", filePath)
-	_, err = m.runCmdOutput(diffCmd, runOpts{SkipErrorLogging: true})
+	// use git diff --quiet and check exit code .. --cached is to consider files staged for deletion
+	_, err := m.runCmd(context.Background(), "diff", "--cached", "--quiet", filePath)
 	if err == nil {
 		return false, nil // no changes
 	}
 	// Exit code 1 indicates: changes found
-	if exitErr, ok := err.(*exec.ExitError); ok && exitErr.ExitCode() == 1 {
+	if strings.Contains(err.Error(), "exit status 1") {
 		return true, nil
 	}
-	// Actual error
+	// always return the actual wrapped error
 	return false, fmt.Errorf("git diff failed: %w", err)
 }
 
