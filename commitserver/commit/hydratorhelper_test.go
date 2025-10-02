@@ -19,6 +19,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/commitserver/apiclient"
 	appsv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/hydrator"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 // tempRoot creates a temporary directory and returns an os.Root object for it.
@@ -93,7 +94,7 @@ Argocd-reference-commit-sha: abc123
 		},
 	}
 
-	err := WriteForPaths(root, repoURL, drySha, metadata, paths)
+	err := WriteForPaths(root, repoURL, drySha, metadata, paths, settings.ManifestHydrationReadmeTemplate)
 	require.NoError(t, err)
 
 	// Check if the top-level hydrator.metadata exists and contains the repo URL and dry SHA
@@ -188,7 +189,7 @@ func TestWriteReadme(t *testing.T) {
 		},
 	}
 
-	err = writeReadme(root, "", metadata)
+	err = writeReadme(root, "", metadata, settings.ManifestHydrationReadmeTemplate)
 	require.NoError(t, err)
 
 	readmePath := filepath.Join(root.Name(), "README.md")

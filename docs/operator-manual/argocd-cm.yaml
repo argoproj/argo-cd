@@ -458,3 +458,34 @@ data:
     {{- if .metadata.author }}
     Co-authored-by: {{ .metadata.author }}
     {{- end }}
+
+  ### SourceHydrator readme message template.
+  # This template defines the content of the README.md file that is automatically
+  # generated during the hydration process. It can use placeholders such as
+  # `.RepoURL`, `.DrySHA`, and `.Commands` to provide reproducible instructions.
+  #
+  # The template is dynamically loaded from a ConfigMap, which allows customizing
+  # the README format depending on the environment or requirements.
+  sourceHydrator.readmeMessageTemplate: |
+    # Manifest Hydration
+
+    To hydrate the manifests in this repository, run the following commands:
+
+    ```shell
+    git clone {{ .RepoURL }}
+    # cd into the cloned directory
+    git checkout {{ .DrySHA }}
+    {{ range $command := .Commands -}}
+    {{ $command }}
+    {{ end -}}
+    ```
+
+    {{ if .References -}}
+    ## References
+
+    {{ range $ref := .References -}}
+    {{ if $ref.Commit -}}
+    * [{{ $ref.Commit.SHA | mustRegexFind "[0-9a-f]+" | trunc 7 }}]({{ $ref.Commit.RepoURL }}): {{ $ref.Commit.Subject }} ({{ $ref.Commit.Author }})
+    {{ end -}}
+    {{ end -}}
+    {{ end -}}

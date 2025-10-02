@@ -299,6 +299,46 @@ data:
     {{- if .metadata.author }}
     Co-authored-by: {{ .metadata.author }}
     {{- end }}
+```
+
+## README Template
+
+The hydration README is generated using a [Go text/template](https://pkg.go.dev/text/template), optionally configured by the user via the `argocd-cm` ConfigMap. The template is rendered using the values from `hydrator.metadata` and can be multi-line to define structured documentation. This allows users to customize how the hydration process and references are documented.
+
+To define the README template, set the `sourceHydrator.readmeMessageTemplate` field in the `argocd-cm` ConfigMap.
+
+The template may also use functions from the [Sprig function library](https://github.com/Masterminds/sprig).
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+  namespace: argocd
+data:
+  sourceHydrator.readmeMessageTemplate: |
+    # Manifest Hydration
+
+    To hydrate the manifests in this repository, run the following commands:
+
+    ```shell
+    git clone {{ .RepoURL }}
+    git checkout {{ .DrySHA }}
+    {{ range $command := .Commands }}
+    {{ $command }}
+    {{ end }}
+    ```
+
+    {{ if .References }}
+    ## References
+
+    {{ range $ref := .References }}
+    {{ if $ref.Commit }}
+    * [{{ $ref.Commit.SHA | trunc 7 }}]({{ $ref.Commit.RepoURL }}): {{ $ref.Commit.Subject }} ({{ $ref.Commit.Author }})
+    {{ end }}
+    {{ end }}
+    {{ end }}
+```
 
 ### Credential Templates
 

@@ -60,6 +60,28 @@ Co-authored-by: {{ .metadata.author }}
 {{- end }}
 `
 
+var ManifestHydrationReadmeTemplate = `# Manifest Hydration
+
+To hydrate the manifests in this repository, run the following commands:
+
+` + "```shell" + `
+git clone {{ .RepoURL }}
+# cd into the cloned directory
+git checkout {{ .DrySHA }}
+{{ range $command := .Commands -}}
+{{ $command }}
+{{ end -}}` + "```" + `
+{{ if .References -}}
+
+## References
+
+{{ range $ref := .References -}}
+{{ if $ref.Commit -}}
+* [{{ $ref.Commit.SHA | mustRegexFind "[0-9a-f]+" | trunc 7 }}]({{ $ref.Commit.RepoURL }}): {{ $ref.Commit.Subject }} ({{ $ref.Commit.Author }})
+{{ end -}}
+{{ end -}}
+{{ end -}}`
+
 // ArgoCDSettings holds in-memory runtime configuration options.
 type ArgoCDSettings struct {
 	// URL is the externally facing URL users will visit to reach Argo CD.
@@ -511,6 +533,8 @@ const (
 	settingsBinaryUrlsKey = "help.download"
 	// settingsApplicationInstanceLabelKey is the key to configure injected app instance label key
 	settingsSourceHydratorCommitMessageTemplateKey = "sourceHydrator.commitMessageTemplate"
+	// settingsSourceHydratorReadmeMessageTemplateKey is the key to configure hydrator default commit README.md template
+	settingsSourceHydratorReadmeMessageTemplateKey = "sourceHydrator.readmeMessageTemplate"
 	// globalProjectsKey designates the key for global project settings
 	globalProjectsKey = "globalProjects"
 	// initialPasswordSecretName is the name of the secret that will hold the initial admin password
@@ -798,6 +822,18 @@ func (mgr *SettingsManager) getSecrets() ([]*corev1.Secret, error) {
 	return secrets, nil
 }
 
+func (mgr *SettingsManager) GetHydratorReadmeTemplate() (string, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return ManifestHydrationReadmeTemplate, err
+	}
+	readmeTemplate := argoCDCM.Data[settingsSourceHydratorReadmeMessageTemplateKey]
+	if readmeTemplate == "" {
+		return ManifestHydrationReadmeTemplate, nil
+	}
+	return readmeTemplate, nil
+}
+
 func (mgr *SettingsManager) GetResourcesFilter() (*ResourcesFilter, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
@@ -1027,6 +1063,7 @@ func (mgr *SettingsManager) GetSourceHydratorCommitMessageTemplate() (string, er
 	if err != nil {
 		return "", err
 	}
+
 	if argoCDCM.Data[settingsSourceHydratorCommitMessageTemplateKey] == "" {
 		return CommitMessageTemplate, nil // in case template is not defined return default
 	}

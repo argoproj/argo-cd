@@ -121,3 +121,48 @@ func TestGetHydratorCommitMessageTemplate(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotEmpty(t, tmpl)
 }
+
+func TestGetHydratorReadmeMessageTemplate_WhenTemplateIsNotDefined_FallbackToDefault(t *testing.T) {
+	cm := test.NewConfigMap()
+	cmBytes, _ := json.Marshal(cm)
+
+	data := fakeData{
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{string(cmBytes)},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+	}
+
+	ctrl := newFakeControllerWithResync(&data, time.Minute, nil, errors.New("this should not be called"))
+
+	tmpl, err := ctrl.GetHydratorReadmeMessageTemplate()
+	require.NoError(t, err)
+	assert.NotEmpty(t, tmpl) // fallback 되어야 함
+	assert.Equal(t, settings.ManifestHydrationReadmeTemplate, tmpl)
+}
+
+func TestGetHydratorReadmeMessageTemplate(t *testing.T) {
+	readmeTemplate := `hello world`
+	cm := test.NewFakeConfigMap()
+	cm.Data["sourceHydrator.readmeMessageTemplate"] = readmeTemplate
+	cmBytes, _ := json.Marshal(cm)
+
+	data := fakeData{
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{string(cmBytes)},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+		configMapData: cm.Data,
+	}
+
+	ctrl := newFakeControllerWithResync(&data, time.Minute, nil, errors.New("this should not be called"))
+
+	tmpl, err := ctrl.GetHydratorReadmeMessageTemplate()
+	require.NoError(t, err)
+	assert.NotEmpty(t, tmpl)
+	assert.Equal(t, readmeTemplate, tmpl)
+}
