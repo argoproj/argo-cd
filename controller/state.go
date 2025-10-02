@@ -710,6 +710,9 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		// Handle cluster cache errors gracefully - this includes various issues
 		// that might result in partial data (conversion webhooks, pagination token expiration, etc.)
 
+		// Log the error for debugging during refresh
+		logCtx.Warnf("GetManagedLiveObjs error during refresh: %v", err)
+
 		// Use centralized error analysis to determine if this is a cache-tainting error
 		analysis := argoerrors.AnalyzeError(err)
 		if analysis.IsCacheTainting && analysis.ExtractedGVK != "" {

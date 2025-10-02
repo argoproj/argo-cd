@@ -27,10 +27,10 @@ func setApplicationHealthWithClusterInfo(resources []managedResource, statuses [
 	var errCount uint
 	var containsResources, containsLiveResources bool
 
-	// Start with Healthy status, but adjust if cluster health issues are detected
+	// Start with Healthy status, but adjust if app uses tainted resources
 	appHealthStatus := health.HealthStatusHealthy
-	if clusterHealth != nil && clusterHealth.HasCacheIssues {
-		// If we have cluster cache issues, start with Degraded status
+	if clusterHealth != nil && clusterHealth.UsesTaintedResources {
+		// If app uses tainted resources, start with Degraded status
 		appHealthStatus = health.HealthStatusDegraded
 	}
 	for i, res := range resources {

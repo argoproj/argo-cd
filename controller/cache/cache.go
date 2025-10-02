@@ -1016,12 +1016,54 @@ func (c *liveStateCache) MarkClusterTainted(server string, reason string, gvk st
 
 // IsClusterTainted checks if a cluster is in tainted state
 func (c *liveStateCache) IsClusterTainted(server string) bool {
-	return c.taintManager.isTainted(server)
+	// Check ArgoCD's taint manager
+	if c.taintManager.isTainted(server) {
+		return true
+	}
+
+	// Also check gitops-engine's failed GVKs
+	c.lock.RLock()
+	clusterCache, ok := c.clusters[server]
+	c.lock.RUnlock()
+
+	if ok && clusterCache != nil {
+		clusterInfo := clusterCache.GetClusterInfo()
+		return len(clusterInfo.FailedResourceGVKs) > 0
+	}
+
+	return false
 }
 
 // GetTaintedGVKs returns a list of tainted GVKs for a cluster
 func (c *liveStateCache) GetTaintedGVKs(server string) []string {
-	return c.taintManager.getTaintedGVKs(server)
+	// First get any taints tracked by ArgoCD's taint manager
+	taintedGVKs := c.taintManager.getTaintedGVKs(server)
+
+	// Also get failed GVKs tracked by gitops-engine
+	c.lock.RLock()
+	clusterCache, ok := c.clusters[server]
+	c.lock.RUnlock()
+
+	if ok && clusterCache != nil {
+		clusterInfo := clusterCache.GetClusterInfo()
+		// Merge the failed GVKs from gitops-engine with ArgoCD's tracked taints
+		// Use a map to deduplicate
+		gvkMap := make(map[string]bool)
+		for _, gvk := range taintedGVKs {
+			gvkMap[gvk] = true
+		}
+		for _, gvk := range clusterInfo.FailedResourceGVKs {
+			gvkMap[gvk] = true
+		}
+		// Convert back to slice
+		result := make([]string, 0, len(gvkMap))
+		for gvk := range gvkMap {
+			result = append(result, gvk)
+		}
+		return result
+	}
+
+	return taintedGVKs
 }
 
 // ClearClusterTaints removes all taints for a cluster
