@@ -20,7 +20,7 @@ HOST_OS:=$(shell go env GOOS)
 HOST_ARCH:=$(shell go env GOARCH)
 
 TARGET_ARCH?=linux/amd64
-KUBECONFIG?=${HOME}/.kube
+KUBECONFIG?=${HOME}/.kube/config
 
 VERSION=$(shell cat ${CURRENT_DIR}/VERSION)
 BUILD_DATE:=$(if $(BUILD_DATE),$(BUILD_DATE),$(shell date -u +'%Y-%m-%dT%H:%M:%SZ'))
