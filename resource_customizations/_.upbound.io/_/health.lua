@@ -1,4 +1,4 @@
--- Health check copied from here: https://github.com/crossplane/docs/blob/bd701357e9d5eecf529a0b42f23a78850a6d1d87/content/master/guides/crossplane-with-argo-cd.md
+-- Health check copied from here: https://github.com/crossplane/docs/blob/709889c5dbe6e5a2ea3dffd66fe276cf465b47b5/content/master/guides/crossplane-with-argo-cd.md
 
 health_status = {
   status = "Progressing",
@@ -15,6 +15,7 @@ local function contains (table, val)
 end
 
 local has_no_status = {
+  "ClusterProviderConfig",
   "ProviderConfig",
   "ProviderConfigUsage"
 }
@@ -26,7 +27,7 @@ if obj.status == nil or next(obj.status) == nil and contains(has_no_status, obj.
 end
 
 if obj.status == nil or next(obj.status) == nil or obj.status.conditions == nil then
-  if obj.kind == "ProviderConfig" and obj.status.users ~= nil then
+  if (obj.kind == "ProviderConfig" or obj.kind == "ClusterProviderConfig") and obj.status.users ~= nil then
     health_status.status = "Healthy"
     health_status.message = "Resource is in use."
     return health_status

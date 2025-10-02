@@ -437,7 +437,7 @@ You can also manage SSH known hosts entries in a declarative, self-managed ArgoC
 
 ## Helm
 
-Helm charts can be sourced from protected Helm repositories or OCI registries. You can configure access to protected Helm charts by using either the CLI or the UI by speciying `helm` as the _type_ of HTTPS based repository.
+Helm charts can be sourced from protected Helm repositories or OCI registries. You can configure access to protected Helm charts by using either the CLI or the UI by specifying `helm` as the _type_ of HTTPS based repository.
 
 Using the CLI:
 

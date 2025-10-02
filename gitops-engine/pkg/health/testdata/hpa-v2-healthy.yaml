@@ -1,0 +1,42 @@
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  creationTimestamp: '2022-05-13T12:39:31Z'
+  name: sample
+  uid: 0e6d855e-83ed-4ed5-b80a-461a750f14db
+spec:
+  maxReplicas: 2
+  minReplicas: 1
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: argocd-server
+  targetCPUUtilizationPercentage: 80
+status:
+  conditions:
+    - lastTransitionTime: '2022-05-13T12:40:34Z'
+      message: recommended size matches current size
+      reason: ReadyForNewScale
+      status: 'True'
+      type: AbleToScale
+    - lastTransitionTime: '2022-05-13T12:40:33Z'
+      message: >-
+        the HPA was able to successfully calculate a replica count from cpu
+        resource utilization (percentage of request)
+      reason: ValidMetricFound
+      status: 'True'
+      type: ScalingActive
+    - lastTransitionTime: '2022-05-13T12:40:31Z'
+      message: the desired count is within the acceptable range
+      reason: DesiredWithinRange
+      status: 'False'
+      type: ScalingLimited
+  currentMetrics:
+  - resource:
+      current:
+        averageUtilization: 6
+        averageValue: 12m
+      name: cpu
+    type: Resource
+  currentReplicas: 1
+  desiredReplicas: 1
