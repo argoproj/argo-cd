@@ -26,7 +26,7 @@ if obj.status.conditions then
                 hs.message = "Waiting for pull request spec update to be observed"
                 return hs
             end
-            if condition.status == "False" and (condition.reason == "ReconcileError" or condition.reason == "Failed") then
+            if condition.status == "False" then
                 hs.status = "Degraded"
                 hs.message = "Pull request reconciliation failed: " .. (condition.message or "Unknown error")
                 return hs
