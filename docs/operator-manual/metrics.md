@@ -390,6 +390,23 @@ spec:
     - port: metrics
 ```
 
+For the optional [Source Hydrator](../user-guide/source-hydrator.md) commit server component, you can add the following:
+
+```yaml
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: argocd-commit-server-metrics
+  labels:
+    release: prometheus-operator
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: argocd-commit-server
+  endpoints:
+    - port: metrics
+```
+
 ## Dashboards
 
 You can find an example Grafana dashboard [here](https://github.com/argoproj/argo-cd/blob/master/examples/dashboard.json) or check demo instance
