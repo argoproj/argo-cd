@@ -89,7 +89,7 @@ func (a *ClusterHealthAnalysis) GetConditionMessage() string {
 // Pre-compiled regex patterns for better performance
 var (
 	// Conversion webhook related patterns
-	conversionWebhookPattern = regexp.MustCompile(`(?i)conversion\s+webhook.*(?:failed|error|failures)`)
+	conversionWebhookPattern = regexp.MustCompile(`(?i)conversion\s+webhook.*(?:failed|error|failures)|conversion\s+webhook\s+for.*failed`)
 	webhookFailuresPattern   = regexp.MustCompile(`(?i)known\s+conversion\s+webhook\s+failures`)
 	unavailableTypesPattern  = regexp.MustCompile(`(?i)unavailable\s+resource\s+types`)
 
@@ -110,8 +110,8 @@ var (
 	// GVK extraction patterns - matches different formats:
 	// 1. Group:"example.io" Version:"v1" Kind:"Example" (structured)
 	gvkExtractionPattern = regexp.MustCompile(`(?:Group|group):"([^"]*)".*(?:Version|version):"([^"]*)".*(?:Kind|kind):"([^"]*)"`)
-	// 2. example.io/v1, Kind=Example (conversion webhook format)
-	conversionWebhookGVKPattern = regexp.MustCompile(`(\S+)/(\S+),\s*Kind=(\S+)`)
+	// 2. "example.io/v1, Kind=Example" (conversion webhook format - may have quotes)
+	conversionWebhookGVKPattern = regexp.MustCompile(`"?([^"\s]+)/([^"\s,]+),\s*Kind=([^"\s]+)"?`)
 )
 
 // AnalyzeError analyzes an error and returns structured health information

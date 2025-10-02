@@ -416,6 +416,11 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, project *v1alp
 
 		// Use centralized error analysis to detect cache-tainting issues during sync operations
 		if res.Message != "" {
+			// Log the message for debugging
+			if strings.Contains(strings.ToLower(res.Message), "conversion") || strings.Contains(strings.ToLower(res.Message), "webhook") {
+				logEntry.Infof("Sync error message with conversion/webhook: %s", res.Message)
+			}
+
 			analysis := argoerrors.AnalyzeMessage(res.Message)
 			if analysis.IsCacheTainting {
 				// Mark affected GVK as tainted using extracted GVK or resource info
@@ -432,6 +437,19 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, project *v1alp
 				if gvk != "" {
 					m.liveStateCache.MarkClusterTainted(destCluster.Server, res.Message, gvk, string(analysis.IssueType))
 					logEntry.Warnf("Marked GVK %s as tainted due to %s: %v", gvk, analysis.IssueType, res.Message)
+				}
+			} else if strings.Contains(strings.ToLower(res.Message), "conversion") && strings.Contains(strings.ToLower(res.Message), "webhook") {
+				// If we detect conversion webhook error but analysis didn't catch it, log a warning and still mark as tainted
+				logEntry.Warnf("Conversion webhook error not detected by AnalyzeMessage: %s", res.Message)
+				gvkObj := schema.GroupVersionKind{
+					Group:   res.ResourceKey.Group,
+					Version: res.Version,
+					Kind:    res.ResourceKey.Kind,
+				}
+				gvk := gvkObj.String()
+				if gvk != "" {
+					m.liveStateCache.MarkClusterTainted(destCluster.Server, res.Message, gvk, string(argoerrors.IssueTypeConversionWebhook))
+					logEntry.Warnf("Marked GVK %s as tainted due to conversion webhook error: %v", gvk, res.Message)
 				}
 			}
 		}
