@@ -37,6 +37,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
 	"github.com/argoproj/argo-cd/v3/util/db"
 	"github.com/argoproj/argo-cd/v3/util/env"
+	argoerrors "github.com/argoproj/argo-cd/v3/util/errors"
 	logutils "github.com/argoproj/argo-cd/v3/util/log"
 	"github.com/argoproj/argo-cd/v3/util/lua"
 	"github.com/argoproj/argo-cd/v3/util/settings"
@@ -153,6 +154,13 @@ type LiveStateCache interface {
 	Init() error
 	// UpdateShard will update the shard of ClusterSharding when the shard has changed.
 	UpdateShard(shard int) bool
+
+	// Taint management methods (primarily for testing and internal use)
+	MarkClusterTainted(server string, reason string, gvk string, errorType string)
+	IsClusterTainted(server string) bool
+	GetTaintedGVKs(server string) []string
+	ClearClusterTaints(server string)
+	ClearGVKTaint(server string, gvk string)
 }
 
 type ObjectUpdatedHandler = func(managedByApp map[string]bool, ref corev1.ObjectReference)
@@ -203,6 +211,7 @@ func NewLiveStateCache(
 		metricsServer:    metricsServer,
 		clusterSharding:  clusterSharding,
 		resourceTracking: resourceTracking,
+		taintManager:     newClusterTaintManager(),
 	}
 }
 
@@ -231,6 +240,17 @@ type liveStateCache struct {
 	clusters      map[string]clustercache.ClusterCache
 	cacheSettings cacheSettings
 	lock          sync.RWMutex
+	taintManager  *clusterTaintManager
+}
+
+// cleanupExpiredFailedGVKs removes expired taint entries using the instance taint manager
+func (c *liveStateCache) cleanupExpiredFailedGVKs() {
+	c.taintManager.cleanupExpiredTaints()
+}
+
+// isResourceGVKFailed checks if a specific GVK is marked as failed for a cluster
+func (c *liveStateCache) isResourceGVKFailed(server, gvk string) bool {
+	return c.taintManager.isResourceGVKFailed(server, gvk)
 }
 
 func (c *liveStateCache) loadCacheSettings() (*cacheSettings, error) {
@@ -639,10 +659,16 @@ func (c *liveStateCache) getSyncedCluster(server *appv1.Cluster) (clustercache.C
 	if err != nil {
 		return nil, fmt.Errorf("error getting cluster: %w", err)
 	}
+
 	err = clusterCache.EnsureSynced()
 	if err != nil {
-		return nil, fmt.Errorf("error synchronizing cache state : %w", err)
+		if c.shouldReturnPartialCache(server.Server, err) {
+			log.WithField("cluster", server.Server).Warnf("Cluster cache sync error detected for specific resource types, proceeding with partial cache: %v", err)
+			return clusterCache, nil
+		}
+		return nil, fmt.Errorf("error synchronizing cache state: %w", err)
 	}
+
 	return clusterCache, nil
 }
 
@@ -653,8 +679,11 @@ func (c *liveStateCache) invalidate(cacheSettings cacheSettings) {
 	clusters := c.clusters
 	c.lock.Unlock()
 
-	for _, clust := range clusters {
+	for server, clust := range clusters {
 		clust.Invalidate(clustercache.SetSettings(cacheSettings.clusterSettings))
+
+		// Clear any cluster taints when invalidating a cluster cache
+		c.taintManager.clearTaints(server)
 	}
 	log.Info("live state cache invalidated")
 }
@@ -672,6 +701,14 @@ func (c *liveStateCache) IterateHierarchyV2(server *appv1.Cluster, keys []kube.R
 	if err != nil {
 		return err
 	}
+
+	// Wrap the cluster iteration with error recovery
+	defer func() {
+		if r := recover(); r != nil {
+			log.WithField("cluster", server.Server).Errorf("Recovered from panic during IterateHierarchyV2: %v", r)
+		}
+	}()
+
 	clusterInfo.IterateHierarchyV2(keys, func(resource *clustercache.Resource, namespaceResources map[kube.ResourceKey]*clustercache.Resource) bool {
 		return action(asResourceNode(resource), getApp(resource, namespaceResources))
 	})
@@ -697,11 +734,14 @@ func (c *liveStateCache) GetNamespaceTopLevelResources(server *appv1.Cluster, na
 	if err != nil {
 		return nil, err
 	}
+
 	resources := clusterInfo.FindResources(namespace, clustercache.TopLevelResource)
 	res := make(map[kube.ResourceKey]appv1.ResourceNode)
+
 	for k, r := range resources {
 		res[k] = asResourceNode(r)
 	}
+
 	return res, nil
 }
 
@@ -710,6 +750,7 @@ func (c *liveStateCache) GetManagedLiveObjs(destCluster *appv1.Cluster, a *appv1
 	if err != nil {
 		return nil, fmt.Errorf("failed to get cluster info for %q: %w", destCluster.Server, err)
 	}
+
 	return clusterInfo.GetManagedLiveObjs(targetObjs, func(r *clustercache.Resource) bool {
 		return resInfo(r).AppName == a.InstanceName(c.settingsMgr.GetNamespace())
 	})
@@ -861,11 +902,45 @@ func (c *liveStateCache) handleModEvent(oldCluster *appv1.Cluster, newCluster *a
 		}
 
 		if len(updateSettings) > 0 || forceInvalidate {
+			// When explicitly refreshed, we'll validate tainted GVKs AFTER sync
+			anyGVKsRecovered := false
+
 			cluster.Invalidate(updateSettings...)
-			go func() {
-				// warm up cluster cache
-				_ = cluster.EnsureSynced()
-			}()
+
+			// When we have tainted GVKs and are doing a hard refresh, sync synchronously
+			// to test if the GVKs have recovered and repopulate resources if they have
+			if forceInvalidate && len(c.taintManager.getTaintedGVKs(newCluster.Server)) > 0 {
+				log.WithField("cluster", newCluster.Server).Info("Cluster has tainted GVKs, performing synchronous cache sync to test recovery")
+
+				// Try to sync - this will fail for broken GVKs but succeed for healthy ones
+				syncErr := cluster.EnsureSynced()
+
+				// After sync, re-validate tainted GVKs to see which ones actually recovered
+				anyGVKsRecovered = c.validateAndClearRecoveredTaints(newCluster, cluster)
+
+				if anyGVKsRecovered {
+					stillHasTaints := c.IsClusterTainted(newCluster.Server)
+					if stillHasTaints {
+						log.WithField("cluster", newCluster.Server).Info("Some GVKs recovered during refresh, resources have been restored")
+					} else {
+						log.WithField("cluster", newCluster.Server).Info("All GVKs recovered from degraded state, all resources restored")
+					}
+				} else if syncErr != nil {
+					log.WithField("cluster", newCluster.Server).WithError(syncErr).Debug("Cache sync completed with errors, no GVKs recovered")
+				}
+			} else if forceInvalidate && anyGVKsRecovered {
+				// This case shouldn't happen anymore but keep for safety
+				log.WithField("cluster", newCluster.Server).Info("Performing synchronous cache sync")
+				if err := cluster.EnsureSynced(); err != nil {
+					log.WithField("cluster", newCluster.Server).WithError(err).Debug("Cache sync completed with some errors")
+				}
+			} else {
+				// For other cases, warm up cache asynchronously as before
+				go func() {
+					// warm up cluster cache
+					_ = cluster.EnsureSynced()
+				}()
+			}
 		}
 	}
 }
@@ -880,6 +955,9 @@ func (c *liveStateCache) handleDeleteEvent(clusterServer string) {
 		c.lock.Lock()
 		delete(c.clusters, clusterServer)
 		c.lock.Unlock()
+
+		// Also clear any cluster taints for the deleted/invalidated cluster
+		c.taintManager.clearTaints(clusterServer)
 	}
 }
 
@@ -892,9 +970,10 @@ func (c *liveStateCache) GetClustersInfo() []clustercache.ClusterInfo {
 	c.lock.RUnlock()
 
 	res := make([]clustercache.ClusterInfo, 0)
-	for server, c := range clusters {
-		info := c.GetClusterInfo()
+	for server, clusterCache := range clusters {
+		info := clusterCache.GetClusterInfo()
 		info.Server = server
+
 		res = append(res, info)
 	}
 	return res
@@ -907,4 +986,284 @@ func (c *liveStateCache) GetClusterCache(server *appv1.Cluster) (clustercache.Cl
 // UpdateShard will update the shard of ClusterSharding when the shard has changed.
 func (c *liveStateCache) UpdateShard(shard int) bool {
 	return c.clusterSharding.UpdateShard(shard)
+}
+
+// MarkClusterTainted marks a cluster as having tainted cache state
+func (c *liveStateCache) MarkClusterTainted(server string, reason string, gvk string, errorType string) {
+	c.taintManager.markTainted(server, gvk, errorType, reason)
+}
+
+// IsClusterTainted checks if a cluster is in tainted state
+func (c *liveStateCache) IsClusterTainted(server string) bool {
+	return c.taintManager.isTainted(server)
+}
+
+// GetTaintedGVKs returns a list of tainted GVKs for a cluster
+func (c *liveStateCache) GetTaintedGVKs(server string) []string {
+	return c.taintManager.getTaintedGVKs(server)
+}
+
+// ClearClusterTaints removes all taints for a cluster
+func (c *liveStateCache) ClearClusterTaints(server string) {
+	c.taintManager.clearTaints(server)
+}
+
+// ClearGVKTaint removes a specific GVK taint from a cluster
+func (c *liveStateCache) ClearGVKTaint(server string, gvk string) {
+	c.taintManager.clearGVKTaint(server, gvk)
+}
+
+// shouldReturnPartialCache determines whether to return partial cache based on
+// tainted GVKs and error type. Only returns partial cache when:
+// 1. Specific GVKs are tainted (indicating partial, not total failure)
+// 2. The error is a recoverable cache error (not a connection failure)
+func (c *liveStateCache) shouldReturnPartialCache(server string, err error) bool {
+	taintedGVKs := c.taintManager.getTaintedGVKs(server)
+
+	// Only return partial cache if we have specific GVK failures AND it's a recoverable error
+	if len(taintedGVKs) == 0 || !argoerrors.IsPartialCacheError(err) {
+		return false
+	}
+
+	log.WithField("cluster", server).WithField("taintedGVKs", taintedGVKs).Debug("Partial cache acceptable for tainted GVKs")
+	return true
+}
+
+// clusterTaintManager manages cluster taint state in a thread-safe manner
+type clusterTaintManager struct {
+	mu         sync.RWMutex
+	taints     map[string]map[string]string    // server -> gvk -> error type
+	taintTimes map[string]map[string]time.Time // server -> gvk -> timestamp
+}
+
+// Default expiration time for failed GVKs (30 minutes)
+const failedGVKExpirationTime = 30 * time.Minute
+
+// newClusterTaintManager creates a new instance of cluster taint manager
+func newClusterTaintManager() *clusterTaintManager {
+	return &clusterTaintManager{
+		taints:     make(map[string]map[string]string),
+		taintTimes: make(map[string]map[string]time.Time),
+	}
+}
+
+// markTainted marks a specific GVK as tainted for a cluster
+func (ctm *clusterTaintManager) markTainted(server, gvk, errorType, reason string) {
+	ctm.mu.Lock()
+	defer ctm.mu.Unlock()
+
+	// Initialize if not exists
+	if ctm.taints[server] == nil {
+		ctm.taints[server] = make(map[string]string)
+		ctm.taintTimes[server] = make(map[string]time.Time)
+	}
+
+	// Store the GVK, error type, and timestamp
+	if gvk != "" {
+		ctm.taints[server][gvk] = errorType
+		ctm.taintTimes[server][gvk] = time.Now()
+
+		log.WithFields(log.Fields{
+			"server":    server,
+			"gvk":       gvk,
+			"errorType": errorType,
+			"reason":    reason,
+		}).Warnf("Marked cluster GVK as tainted")
+	}
+}
+
+// isTainted checks if a cluster is in tainted state
+func (ctm *clusterTaintManager) isTainted(server string) bool {
+	ctm.mu.RLock()
+	defer ctm.mu.RUnlock()
+
+	taints, exists := ctm.taints[server]
+	return exists && len(taints) > 0
+}
+
+// getTaintedGVKs returns a copy of tainted GVKs for a cluster
+func (ctm *clusterTaintManager) getTaintedGVKs(server string) []string {
+	ctm.mu.RLock()
+	defer ctm.mu.RUnlock()
+
+	taints, exists := ctm.taints[server]
+	if !exists {
+		return nil
+	}
+
+	// Return a copy to avoid concurrent modification issues
+	gvks := make([]string, 0, len(taints))
+	for gvk := range taints {
+		gvks = append(gvks, gvk)
+	}
+	return gvks
+}
+
+// getAllTaints returns a copy of all cluster taints
+func (ctm *clusterTaintManager) getAllTaints() map[string]map[string]string {
+	ctm.mu.RLock()
+	defer ctm.mu.RUnlock()
+
+	// Return a deep copy to prevent external modifications
+	result := make(map[string]map[string]string)
+	for server, taints := range ctm.taints {
+		result[server] = make(map[string]string)
+		for gvk, errorType := range taints {
+			result[server][gvk] = errorType
+		}
+	}
+	return result
+}
+
+// ClearClusterTaints removes all taints for a specific cluster
+// clearTaints removes all taints for a cluster
+func (ctm *clusterTaintManager) clearTaints(server string) {
+	ctm.mu.Lock()
+	defer ctm.mu.Unlock()
+
+	delete(ctm.taints, server)
+	delete(ctm.taintTimes, server)
+	log.WithFields(log.Fields{
+		"server": server,
+	}).Info("Cleared cluster taints")
+}
+
+// clearGVKTaint removes a specific GVK taint for a cluster
+func (ctm *clusterTaintManager) clearGVKTaint(server string, gvk string) {
+	ctm.mu.Lock()
+	defer ctm.mu.Unlock()
+
+	if serverTaints, exists := ctm.taints[server]; exists {
+		delete(serverTaints, gvk)
+		if len(serverTaints) == 0 {
+			// If no taints left, remove the server entry
+			delete(ctm.taints, server)
+			delete(ctm.taintTimes, server)
+		}
+	}
+
+	log.WithFields(log.Fields{
+		"server": server,
+		"gvk":    gvk,
+	}).Info("Cleared specific GVK taint")
+}
+
+// cleanupExpiredTaints removes expired taint entries for all clusters
+func (ctm *clusterTaintManager) cleanupExpiredTaints() {
+	ctm.mu.Lock()
+	defer ctm.mu.Unlock()
+
+	now := time.Now()
+	for server, taintTimes := range ctm.taintTimes {
+		for gvk, taintTime := range taintTimes {
+			if now.Sub(taintTime) > failedGVKExpirationTime {
+				// Remove expired taint
+				delete(ctm.taints[server], gvk)
+				delete(ctm.taintTimes[server], gvk)
+
+				log.WithFields(log.Fields{
+					"server": server,
+					"gvk":    gvk,
+					"age":    now.Sub(taintTime),
+				}).Debug("Cleaned up expired cluster taint")
+			}
+		}
+
+		// Clean up empty server entries
+		if len(ctm.taints[server]) == 0 {
+			delete(ctm.taints, server)
+			delete(ctm.taintTimes, server)
+		}
+	}
+}
+
+// isResourceGVKFailed checks if a specific GVK is marked as failed for a cluster
+func (ctm *clusterTaintManager) isResourceGVKFailed(server, gvk string) bool {
+	ctm.mu.RLock()
+	defer ctm.mu.RUnlock()
+
+	serverTaints, exists := ctm.taints[server]
+	if !exists {
+		return false
+	}
+
+	_, failed := serverTaints[gvk]
+	return failed
+}
+
+// validateAndClearRecoveredTaints validates tainted GVKs AFTER a cache sync
+// and only clears those that successfully synced (have accessible resources).
+// Returns true if any GVKs were cleared (recovered).
+func (c *liveStateCache) validateAndClearRecoveredTaints(cluster *appv1.Cluster, clusterCache clustercache.ClusterCache) bool {
+	taintedGVKs := c.taintManager.getTaintedGVKs(cluster.Server)
+
+	if len(taintedGVKs) == 0 {
+		return false
+	}
+
+	log.WithField("server", cluster.Server).WithField("taintedGVKs", taintedGVKs).Info("Validating tainted GVKs after sync")
+
+	clearedCount := 0
+	for _, gvkString := range taintedGVKs {
+		// After a successful sync, resources should be in the cache
+		// Try to find resources of this GVK (this may panic if the GVK is still broken)
+		var resources map[kube.ResourceKey]*clustercache.Resource
+		var findErr error
+
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					findErr = fmt.Errorf("GVK %s is still broken: %v", gvkString, r)
+				}
+			}()
+			resources = clusterCache.FindResources("", func(res *clustercache.Resource) bool {
+				return res.Ref.GroupVersionKind().String() == gvkString
+			})
+		}()
+
+		// If FindResources panicked, the GVK is still broken
+		if findErr != nil {
+			log.WithField("server", cluster.Server).WithField("gvk", gvkString).WithError(findErr).Debug("GVK still tainted - FindResources failed")
+			continue
+		}
+
+		// If we found resources with valid ResourceVersions, the GVK has recovered
+		resourceFound := false
+		for _, res := range resources {
+			if res.ResourceVersion != "" {
+				resourceFound = true
+				break
+			}
+		}
+
+		if resourceFound {
+			// GVK has recovered - we found accessible resources after sync
+			c.taintManager.clearGVKTaint(cluster.Server, gvkString)
+			log.WithField("server", cluster.Server).WithField("gvk", gvkString).Info("GVK recovered - found accessible resources after sync")
+
+			// Note: Stale resources will be automatically refreshed in GetManagedLiveObjs when applications request them
+
+			clearedCount++
+		} else {
+			log.WithField("server", cluster.Server).WithField("gvk", gvkString).Debug("GVK still tainted - no accessible resources found after sync")
+		}
+	}
+
+	// Report final taint status
+	remainingTaints := c.taintManager.getTaintedGVKs(cluster.Server)
+	if len(remainingTaints) == 0 {
+		log.WithField("server", cluster.Server).Info("All tainted GVKs validated successfully, cluster cache is now clean")
+	} else {
+		log.WithField("server", cluster.Server).WithField("remainingTaints", remainingTaints).Info("Some GVKs remain tainted after validation")
+	}
+
+	return clearedCount > 0
+}
+
+// validateAndClearHealthyTaints is deprecated and no longer used.
+// Validation now happens after EnsureSynced via validateAndClearRecoveredTaints.
+func (c *liveStateCache) validateAndClearHealthyTaints(cluster *appv1.Cluster, clusterCache clustercache.ClusterCache) bool {
+	// This function is no longer used but kept for compatibility
+	// All validation now happens after sync in validateAndClearRecoveredTaints
+	return false
 }

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -41,6 +42,7 @@ import (
 	"sigs.k8s.io/yaml"
 
 	dbmocks "github.com/argoproj/argo-cd/v3/util/db/mocks"
+	argoerrors "github.com/argoproj/argo-cd/v3/util/errors"
 
 	mockcommitclient "github.com/argoproj/argo-cd/v3/commitserver/apiclient/mocks"
 	mockstatecache "github.com/argoproj/argo-cd/v3/controller/cache/mocks"
@@ -75,6 +77,7 @@ type fakeData struct {
 	applicationNamespaces          []string
 	updateRevisionForPathsResponse *apiclient.UpdateRevisionForPathsResponse
 	additionalObjs                 []runtime.Object
+	taintedGVKs                    []string
 }
 
 type MockKubectl struct {
@@ -98,7 +101,15 @@ func newFakeController(data *fakeData, repoErr error) *ApplicationController {
 	return newFakeControllerWithResync(data, time.Minute, repoErr, nil)
 }
 
+func newFakeControllerWithStateCacheErrors(data *fakeData, stateCacheErr error) *ApplicationController {
+	return newFakeControllerWithResyncAndStateCacheErrors(data, time.Minute, nil, nil, stateCacheErr)
+}
+
 func newFakeControllerWithResync(data *fakeData, appResyncPeriod time.Duration, repoErr, revisionPathsErr error) *ApplicationController {
+	return newFakeControllerWithResyncAndStateCacheErrors(data, appResyncPeriod, repoErr, revisionPathsErr, nil)
+}
+
+func newFakeControllerWithResyncAndStateCacheErrors(data *fakeData, appResyncPeriod time.Duration, repoErr, revisionPathsErr, stateCacheErr error) *ApplicationController {
 	var clust corev1.Secret
 	err := yaml.Unmarshal([]byte(fakeCluster), &clust)
 	if err != nil {
@@ -215,26 +226,45 @@ func newFakeControllerWithResync(data *fakeData, appResyncPeriod time.Duration, 
 	ctrl.appStateManager.(*appStateManager).liveStateCache = &mockStateCache
 	ctrl.stateCache = &mockStateCache
 	mockStateCache.On("IsNamespaced", mock.Anything, mock.Anything).Return(true, nil)
-	mockStateCache.On("GetManagedLiveObjs", mock.Anything, mock.Anything, mock.Anything).Return(data.managedLiveObjs, nil)
 	mockStateCache.On("GetVersionsInfo", mock.Anything).Return("v1.2.3", nil, nil)
-	response := make(map[kube.ResourceKey]v1alpha1.ResourceNode)
-	for k, v := range data.namespacedResources {
-		response[k] = v.ResourceNode
-	}
-	mockStateCache.On("GetNamespaceTopLevelResources", mock.Anything, mock.Anything).Return(response, nil)
-	mockStateCache.On("IterateResources", mock.Anything, mock.Anything).Return(nil)
 	mockStateCache.On("GetClusterCache", mock.Anything).Return(&clusterCacheMock, nil)
-	mockStateCache.On("IterateHierarchyV2", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
-		keys := args[1].([]kube.ResourceKey)
-		action := args[2].(func(child v1alpha1.ResourceNode, appName string) bool)
-		for _, key := range keys {
-			appName := ""
-			if res, ok := data.namespacedResources[key]; ok {
-				appName = res.AppName
-			}
-			_ = action(v1alpha1.ResourceNode{ResourceRef: v1alpha1.ResourceRef{Kind: key.Kind, Group: key.Group, Namespace: key.Namespace, Name: key.Name}}, appName)
+	mockStateCache.On("IterateResources", mock.Anything, mock.Anything).Return(nil)
+
+	// Configure taintedGVKs from data (always, regardless of error)
+	taintedGVKs := data.taintedGVKs
+	if taintedGVKs == nil {
+		taintedGVKs = []string{}
+	}
+	mockStateCache.On("GetTaintedGVKs", mock.Anything).Return(taintedGVKs)
+	mockStateCache.On("MarkClusterTainted", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return()
+	mockStateCache.On("ClearGVKTaint", mock.Anything, mock.Anything).Return()
+
+	switch stateCacheErr {
+	case nil:
+		// Success path - configure normal mock responses
+		mockStateCache.On("GetManagedLiveObjs", mock.Anything, mock.Anything, mock.Anything).Return(data.managedLiveObjs, nil)
+		response := make(map[kube.ResourceKey]v1alpha1.ResourceNode)
+		for k, v := range data.namespacedResources {
+			response[k] = v.ResourceNode
 		}
-	}).Return(nil)
+		mockStateCache.On("GetNamespaceTopLevelResources", mock.Anything, mock.Anything).Return(response, nil)
+		mockStateCache.On("IterateHierarchyV2", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+			keys := args[1].([]kube.ResourceKey)
+			action := args[2].(func(child v1alpha1.ResourceNode, appName string) bool)
+			for _, key := range keys {
+				appName := ""
+				if res, ok := data.namespacedResources[key]; ok {
+					appName = res.AppName
+				}
+				_ = action(v1alpha1.ResourceNode{ResourceRef: v1alpha1.ResourceRef{Kind: key.Kind, Group: key.Group, Namespace: key.Namespace, Name: key.Name}}, appName)
+			}
+		}).Return(nil)
+	default:
+		// Error injection path - return errors for state cache operations
+		mockStateCache.On("GetManagedLiveObjs", mock.Anything, mock.Anything, mock.Anything).Return(nil, stateCacheErr)
+		mockStateCache.On("GetNamespaceTopLevelResources", mock.Anything, mock.Anything).Return(nil, stateCacheErr)
+		mockStateCache.On("IterateHierarchyV2", mock.Anything, mock.Anything, mock.Anything).Return(stateCacheErr)
+	}
 	return ctrl
 }
 
@@ -2969,4 +2999,266 @@ func TestSelfHealBackoffCooldownElapsed(t *testing.T) {
 		elapsed := ctrl.selfHealBackoffCooldownElapsed(app)
 		assert.False(t, elapsed)
 	})
+}
+
+func TestConversionWebhookFailureIsolation(t *testing.T) {
+	app1 := newFakeApp()
+	app1.Name = "app1"
+
+	app2 := newFakeApp()
+	app2.Name = "app2"
+	app2.Spec.Destination.Namespace = "different-namespace"
+
+	// Create a specific list operation conversion webhook error
+	listConversionError := errors.New("failed to list resources: conversion webhook for conversion.example.com/v1, Kind=Example failed: Post \"https://conversion-webhook-service.webhook-system.svc:443/convert?timeout=30s\": service \"conversion-webhook-service\" not found")
+
+	data := &fakeData{
+		apps: []runtime.Object{app1, app2, &defaultProj},
+		// Use manifestResponses to allow multiple calls
+		manifestResponses: []*apiclient.ManifestResponse{
+			{
+				Manifests: []string{},
+				Namespace: test.FakeDestNamespace,
+				Server:    test.FakeClusterURL,
+				Revision:  "abc123",
+			},
+			{
+				Manifests: []string{},
+				Namespace: test.FakeDestNamespace,
+				Server:    test.FakeClusterURL,
+				Revision:  "abc123",
+			},
+		},
+		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+		taintedGVKs: []string{
+			"s3.aws.upbound.io/v1beta1, Kind=BucketServerSideEncryptionConfiguration",
+			"conversion.example.com/v1, Kind=Example",
+		},
+	}
+
+	ctrl := newFakeControllerWithStateCacheErrors(data, listConversionError)
+
+	// Add applications to the refresh queue before processing
+	app1Key, _ := cache.MetaNamespaceKeyFunc(app1)
+	app2Key, _ := cache.MetaNamespaceKeyFunc(app2)
+	ctrl.appRefreshQueue.AddRateLimited(app1Key)
+	ctrl.appRefreshQueue.AddRateLimited(app2Key)
+
+	// Process queue items for both applications
+	ctrl.processAppRefreshQueueItem() // app1
+	ctrl.processAppRefreshQueueItem() // app2
+
+	updatedApp1, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(t.Context(), "app1", metav1.GetOptions{})
+	require.NoError(t, err)
+
+	updatedApp2, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(t.Context(), "app2", metav1.GetOptions{})
+	require.NoError(t, err)
+
+	// Test that applications don't go to Unknown state due to conversion webhook failures
+	assert.NotEqual(t, v1alpha1.SyncStatusCodeUnknown, updatedApp1.Status.Sync.Status,
+		"App1 should not be in Unknown sync state due to conversion webhook failure")
+	assert.NotEqual(t, v1alpha1.SyncStatusCodeUnknown, updatedApp2.Status.Sync.Status,
+		"App2 should not be in Unknown sync state due to conversion webhook failure")
+	assert.NotEqual(t, health.HealthStatusUnknown, updatedApp1.Status.Health.Status,
+		"App1 should not be in Unknown health state due to conversion webhook failure")
+	assert.NotEqual(t, health.HealthStatusUnknown, updatedApp2.Status.Health.Status,
+		"App2 should not be in Unknown health state due to conversion webhook failure")
+
+	// Verify that conversion webhook errors are properly handled and reported
+	hasConversionError := false
+	hasListConversionError := false
+
+	for _, app := range []*v1alpha1.Application{updatedApp1, updatedApp2} {
+		for _, condition := range app.Status.Conditions {
+			if condition.Type == v1alpha1.ApplicationConditionComparisonError {
+				if strings.Contains(condition.Message, "conversion webhook") {
+					hasConversionError = true
+				}
+				if strings.Contains(condition.Message, "failed to list resources") {
+					hasListConversionError = true
+				}
+			}
+		}
+	}
+
+	// We expect both types of errors to be reported, but applications should still function
+	assert.True(t, hasConversionError, "Conversion webhook errors should be reported in application conditions")
+	assert.True(t, hasListConversionError, "List conversion webhook errors should be reported in application conditions")
+}
+
+func TestAnalyzeClusterHealth(t *testing.T) {
+	tests := []struct {
+		name           string
+		app            *v1alpha1.Application
+		taintedGVKs    []string
+		expectedStatus ClusterHealthStatus
+	}{
+		{
+			name: "healthy cluster with no issues",
+			app: &v1alpha1.Application{
+				Spec: v1alpha1.ApplicationSpec{
+					Destination: v1alpha1.ApplicationDestination{
+						Server: "https://kubernetes.default.svc",
+					},
+				},
+				Status: v1alpha1.ApplicationStatus{
+					Resources: []v1alpha1.ResourceStatus{
+						{Group: "apps", Version: "v1", Kind: "Deployment"},
+					},
+				},
+			},
+			taintedGVKs: []string{},
+			expectedStatus: ClusterHealthStatus{
+				HasCacheIssues:       false,
+				UsesTaintedResources: false,
+				IssueTypes:           nil,
+				AffectedGVKs:         []string{},
+				Severity:             argoerrors.SeverityNone,
+			},
+		},
+		{
+			name: "cluster with tainted GVKs but app doesn't use them",
+			app: &v1alpha1.Application{
+				Spec: v1alpha1.ApplicationSpec{
+					Destination: v1alpha1.ApplicationDestination{
+						Server: "https://kubernetes.default.svc",
+					},
+				},
+				Status: v1alpha1.ApplicationStatus{
+					Resources: []v1alpha1.ResourceStatus{
+						{Group: "apps", Version: "v1", Kind: "Deployment"},
+					},
+				},
+			},
+			taintedGVKs: []string{"example.com/v1, Kind=Example"},
+			expectedStatus: ClusterHealthStatus{
+				HasCacheIssues:       true,
+				UsesTaintedResources: false,
+				IssueTypes:           []argoerrors.ClusterHealthIssueType{argoerrors.IssueTypeTaintedResources},
+				AffectedGVKs:         []string{"example.com/v1, Kind=Example"},
+				Severity:             argoerrors.SeverityDegraded,
+			},
+		},
+		{
+			name: "cluster with tainted GVKs and app uses them",
+			app: &v1alpha1.Application{
+				Spec: v1alpha1.ApplicationSpec{
+					Destination: v1alpha1.ApplicationDestination{
+						Server: "https://kubernetes.default.svc",
+					},
+				},
+				Status: v1alpha1.ApplicationStatus{
+					Resources: []v1alpha1.ResourceStatus{
+						{Group: "example.com", Version: "v1", Kind: "Example"},
+					},
+				},
+			},
+			taintedGVKs: []string{"example.com/v1, Kind=Example"},
+			expectedStatus: ClusterHealthStatus{
+				HasCacheIssues:       true,
+				UsesTaintedResources: true,
+				IssueTypes:           []argoerrors.ClusterHealthIssueType{argoerrors.IssueTypeTaintedResources},
+				AffectedGVKs:         []string{"example.com/v1, Kind=Example"},
+				Severity:             argoerrors.SeverityDegraded,
+			},
+		},
+		{
+			name: "app with operation state conversion webhook error",
+			app: &v1alpha1.Application{
+				Spec: v1alpha1.ApplicationSpec{
+					Destination: v1alpha1.ApplicationDestination{
+						Server: "https://kubernetes.default.svc",
+					},
+				},
+				Status: v1alpha1.ApplicationStatus{
+					OperationState: &v1alpha1.OperationState{
+						Message: "conversion webhook error detected",
+					},
+				},
+			},
+			taintedGVKs: []string{},
+			expectedStatus: ClusterHealthStatus{
+				HasCacheIssues:       true,
+				UsesTaintedResources: false,
+				IssueTypes:           []argoerrors.ClusterHealthIssueType{argoerrors.IssueTypeConversionWebhook},
+				AffectedGVKs:         []string{},
+				Severity:             argoerrors.SeverityDegraded,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create a mock state cache
+			mockStateCache := &mockstatecache.LiveStateCache{}
+			mockStateCache.On("GetTaintedGVKs", tt.app.Spec.Destination.Server).Return(tt.taintedGVKs)
+
+			ctrl := &ApplicationController{
+				stateCache: mockStateCache,
+			}
+
+			result := ctrl.analyzeClusterHealth(tt.app)
+
+			assert.Equal(t, tt.expectedStatus.HasCacheIssues, result.HasCacheIssues)
+			assert.Equal(t, tt.expectedStatus.UsesTaintedResources, result.UsesTaintedResources)
+			assert.Equal(t, tt.expectedStatus.Severity, result.Severity)
+			assert.Len(t, result.IssueTypes, len(tt.expectedStatus.IssueTypes))
+			assert.Len(t, result.AffectedGVKs, len(tt.expectedStatus.AffectedGVKs))
+		})
+	}
+}
+
+func TestCheckMessageForIssues(t *testing.T) {
+	ctrl := &ApplicationController{}
+
+	tests := []struct {
+		name              string
+		message           string
+		expectedHasIssue  bool
+		expectedIssueType argoerrors.ClusterHealthIssueType
+	}{
+		{
+			name:              "conversion webhook error",
+			message:           "conversion webhook failed to process request",
+			expectedHasIssue:  true,
+			expectedIssueType: argoerrors.IssueTypeConversionWebhook,
+		},
+		{
+			name:              "unavailable resource types",
+			message:           "found 2 unavailable resource types",
+			expectedHasIssue:  true,
+			expectedIssueType: argoerrors.IssueTypeUnavailableTypes,
+		},
+		{
+			name:              "failed to list resources",
+			message:           "failed to list resources for apps/v1",
+			expectedHasIssue:  true,
+			expectedIssueType: argoerrors.IssueTypeListFailure,
+		},
+		{
+			name:              "expired resource version",
+			message:           "Expired: too old resource version",
+			expectedHasIssue:  true,
+			expectedIssueType: argoerrors.IssueTypeResourceExpired,
+		},
+		{
+			name:             "normal message",
+			message:          "application sync completed successfully",
+			expectedHasIssue: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var issueTypes []argoerrors.ClusterHealthIssueType
+			hasIssue := ctrl.checkMessageForIssues(tt.message, &issueTypes)
+
+			assert.Equal(t, tt.expectedHasIssue, hasIssue)
+			if tt.expectedHasIssue {
+				assert.Contains(t, issueTypes, tt.expectedIssueType)
+			} else {
+				assert.Empty(t, issueTypes)
+			}
+		})
+	}
 }
