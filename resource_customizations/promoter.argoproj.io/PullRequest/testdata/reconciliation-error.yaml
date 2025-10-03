@@ -7,7 +7,7 @@ status:
   conditions:
     - type: Ready
       status: "False"
-      reason: ReconcileError
+      reason: ReconciliationError
       message: Something went wrong
       observedGeneration: 2
 
