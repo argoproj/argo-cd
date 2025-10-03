@@ -1106,6 +1106,66 @@ func TestServerSideDiff(t *testing.T) {
 		// Other fields should still be visible (not ignored)
 		assert.Contains(t, predictedLiveStr, "selector", "Other fields should remain visible")
 	})
+
+	t.Run("will preserve composite key fields during diff", func(t *testing.T) {
+		// given
+		t.Parallel()
+		liveState := StrToUnstructured(testdata.DeploymentCompositeKeyLiveYAMLSSD)
+		desiredState := StrToUnstructured(testdata.DeploymentCompositeKeyConfigYAMLSSD)
+		opts := buildOpts(testdata.DeploymentCompositeKeyPredictedLiveJSONSSD)
+
+		// when
+		result, err := serverSideDiff(desiredState, liveState, opts...)
+
+		// then
+		require.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.True(t, result.Modified)
+
+		predictedDeploy := YamlToDeploy(t, result.PredictedLive)
+		liveDeploy := YamlToDeploy(t, result.NormalizedLive)
+
+		// Verify the nginx container has all 3 ports in predicted live
+		assert.Len(t, predictedDeploy.Spec.Template.Spec.Containers, 2, "Should have 2 containers")
+		nginxContainer := predictedDeploy.Spec.Template.Spec.Containers[0]
+		assert.Equal(t, "nginx", nginxContainer.Name)
+		assert.Len(t, nginxContainer.Ports, 3, "nginx should have 3 ports in predicted")
+
+		// Verify live still has only 2 ports for nginx
+		liveNginxContainer := liveDeploy.Spec.Template.Spec.Containers[0]
+		assert.Len(t, liveNginxContainer.Ports, 2, "nginx should have 2 ports in live")
+
+		// Check that the new port 8080 has protocol field preserved (composite key field)
+		port8080Found := false
+		for _, port := range nginxContainer.Ports {
+			if port.ContainerPort == 8080 {
+				port8080Found = true
+				assert.Equal(t, "metrics", port.Name, "Port 8080 should have name 'metrics'")
+				assert.Equal(t, corev1.ProtocolTCP, port.Protocol, "Port 8080 protocol (composite key field) must be preserved from webhook")
+			}
+		}
+		assert.True(t, port8080Found, "Port 8080 should be present in predicted live")
+
+		// Verify existing ports still have their protocol (also composite key fields)
+		port80Found := false
+		port443Found := false
+		for _, port := range nginxContainer.Ports {
+			if port.ContainerPort == 80 {
+				port80Found = true
+				assert.Equal(t, corev1.ProtocolTCP, port.Protocol)
+			}
+			if port.ContainerPort == 443 {
+				port443Found = true
+				assert.Equal(t, corev1.ProtocolTCP, port.Protocol)
+			}
+		}
+		assert.True(t, port80Found, "Port 80 should be present")
+		assert.True(t, port443Found, "Port 443 should be present")
+
+		// Verify that mutation webhook changes are still filtered out from diff
+		assert.Empty(t, predictedDeploy.Annotations[AnnotationLastAppliedConfig])
+		assert.Empty(t, liveDeploy.Annotations[AnnotationLastAppliedConfig])
+	})
 }
 
 // testIgnoreDifferencesNormalizer implements a simple normalizer that removes specified fields
