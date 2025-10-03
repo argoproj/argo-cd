@@ -1,0 +1,5 @@
+<!--
+From: https://github.com/cncf/artwork/blob/3e6dbd6b9f3fd3b03e848c10a9921ccc5b5dabf7/projects/rook/icon/white/rook-icon-white.svg
+Only modified to set the fill color to #8fa4b1.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" role="img" viewBox="22.36 -5.64 310.53 371.28"><style>svg {enable-background:new 0 0 360 360}</style><style>.st0{fill:#8fa4b1}</style><path d="M325.9 113.7h-77.6V87.9h51.6V27.5h-39.4v34.2h-63.8V27.5h-38.6v34.2H92.5V27.5h-37v60.4h49.9v25.8H29.5V1.5h88.8v34.3h13.8V1.5h90.6v34.3h11.8V1.5h91.4zm-26.6 48.6V305c0 15.2-12.4 27.6-27.6 27.6H83.6C68.3 332.6 56 320.2 56 305V162.3h243.3m26-25.9H30.1v168.7c0 29.5 24 53.5 53.5 53.5h188.2c29.5 0 53.5-24 53.5-53.5V136.4z" class="st0"/><path d="M177.7 214.5c15.4 0 28.1 12.6 28.1 28.1V272h-56.1v-29.4c-.1-15.5 12.5-28.1 28-28.1m0-26c-29.7 0-54 24.2-54 54v55.4h108.1v-55.4c-.1-29.7-24.4-54-54.1-54z" class="st0"/></svg>
