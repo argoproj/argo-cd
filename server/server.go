@@ -1226,6 +1226,13 @@ func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWeb
 	th := util_session.WithAuthMiddleware(server.DisableAuth, server.sessionMgr, terminal)
 	mux.Handle("/terminal", th)
 
+	// Debug handler for kubectl debug functionality
+	debugOpts := application.DebugOptions{DisableAuth: server.DisableAuth, Enf: server.enf}
+	debug := application.NewDebugHandler(server.appLister, server.Namespace, server.ApplicationNamespaces, server.db, appResourceTreeFn, server.sessionMgr, &debugOpts).
+		WithFeatureFlagMiddleware(server.settingsMgr.GetSettings)
+	dh := util_session.WithAuthMiddleware(server.DisableAuth, server.sessionMgr, debug)
+	mux.Handle("/debug", dh)
+
 	// Proxy extension is currently an alpha feature and is disabled
 	// by default.
 	if server.EnableProxyExtension {

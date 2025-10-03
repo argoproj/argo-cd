@@ -245,3 +245,199 @@ func (t *terminalSession) Write(p []byte) (int, error) {
 func (t *terminalSession) Close() error {
 	return t.wsConn.Close()
 }
+
+// debugSession implements PtyHandler for debug sessions
+type debugSession struct {
+	ctx            context.Context
+	wsConn         *websocket.Conn
+	sizeChan       chan remotecommand.TerminalSize
+	doneChan       chan struct{}
+	readLock       sync.Mutex
+	writeLock      sync.Mutex
+	sessionManager *util_session.SessionManager
+	token          *string
+	appRBACName    string
+	debugOpts      *DebugOptions
+}
+
+// newDebugSession create debugSession
+func newDebugSession(ctx context.Context, w http.ResponseWriter,
+	r *http.Request, sessionManager *util_session.SessionManager, appRBACName string, debugOpts *DebugOptions) (*debugSession, error) {
+	log.WithFields(log.Fields{
+		"appRBACName": appRBACName,
+		"remoteAddr":  r.RemoteAddr,
+		"userAgent":   r.UserAgent(),
+	}).Info("Creating debug session")
+
+	conn, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		log.WithError(err).Error("Failed to upgrade WebSocket connection")
+		return nil, err
+	}
+
+	token, err := getToken(r)
+	if err != nil {
+		log.WithError(err).Error("Failed to get authentication token")
+		conn.Close()
+		return nil, err
+	}
+
+	session := &debugSession{
+		ctx:            ctx,
+		wsConn:         conn,
+		sizeChan:       make(chan remotecommand.TerminalSize),
+		doneChan:       make(chan struct{}),
+		sessionManager: sessionManager,
+		token:          &token,
+		appRBACName:    appRBACName,
+		debugOpts:      debugOpts,
+	}
+
+	log.Info("Debug session created successfully")
+	return session, nil
+}
+
+// Done must be called at the end of debug session
+func (d *debugSession) Done() {
+	close(d.doneChan)
+}
+
+// StartKeepalives starts keep alive pings for debug session
+func (d *debugSession) StartKeepalives(interval time.Duration) {
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			if err := d.Ping(); err != nil {
+				return
+			}
+		case <-d.doneChan:
+			return
+		}
+	}
+}
+
+// Next returns the new terminal size, or nil when resize has not occurred
+func (d *debugSession) Next() *remotecommand.TerminalSize {
+	select {
+	case size := <-d.sizeChan:
+		return &size
+	default:
+		return nil
+	}
+}
+
+func (d *debugSession) reconnect() (int, error) {
+	msg, err := json.Marshal(DebugCommand{Code: ReconnectCode})
+	if err != nil {
+		return 0, err
+	}
+	d.writeLock.Lock()
+	err = d.wsConn.WriteMessage(websocket.TextMessage, msg)
+	d.writeLock.Unlock()
+	return 0, err
+}
+
+func (d *debugSession) validatePermissions(p []byte) (int, error) {
+	if d.debugOpts.DisableAuth || d.debugOpts.Enf == nil {
+		return 0, nil
+	}
+
+	// Check if user has debug permissions (using exec permissions for now)
+	if !d.debugOpts.Enf.Enforce(d.token, d.appRBACName, "exec", "create") {
+		return 0, fmt.Errorf("permission denied")
+	}
+	return 0, nil
+}
+
+func (d *debugSession) performValidationsAndReconnect(p []byte) (int, error) {
+	// In disable auth mode, no point verifying the token or validating permissions
+	if d.debugOpts.DisableAuth {
+		return 0, nil
+	}
+
+	// check if token still valid
+	_, newToken, err := d.sessionManager.VerifyToken(*d.token)
+	// err in case if token is revoked, newToken in case if refresh happened
+	if err != nil || newToken != "" {
+		// need to send reconnect code in case if token was refreshed
+		return d.reconnect()
+	}
+	code, err := d.validatePermissions(p)
+	if err != nil {
+		return code, err
+	}
+
+	return 0, nil
+}
+
+// Read called in a loop from remote command as long as the process is running
+func (d *debugSession) Read(p []byte) (int, error) {
+	code, err := d.performValidationsAndReconnect(p)
+	if err != nil {
+		return code, err
+	}
+
+	d.readLock.Lock()
+	_, message, err := d.wsConn.ReadMessage()
+	d.readLock.Unlock()
+	if err != nil {
+		if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+			log.Errorf("unexpected closer error: %v", err)
+			return copy(p, EndOfTransmission), err
+		}
+		log.Errorf("read message error: %v", err)
+		return copy(p, EndOfTransmission), err
+	}
+	var msg DebugMessage
+	if err := json.Unmarshal(message, &msg); err != nil {
+		log.Errorf("read parse message err: %v", err)
+		return copy(p, EndOfTransmission), err
+	}
+	switch msg.Operation {
+	case "stdin":
+		return copy(p, msg.Data), nil
+	case "resize":
+		d.sizeChan <- remotecommand.TerminalSize{Width: msg.Cols, Height: msg.Rows}
+		return 0, nil
+	default:
+		return copy(p, EndOfTransmission), fmt.Errorf("unknown message type %s", msg.Operation)
+	}
+}
+
+// Ping called periodically to ensure connection stays alive through load balancers
+func (d *debugSession) Ping() error {
+	d.writeLock.Lock()
+	err := d.wsConn.WriteMessage(websocket.PingMessage, []byte("ping"))
+	d.writeLock.Unlock()
+	if err != nil {
+		log.Errorf("ping message err: %v", err)
+	}
+	return err
+}
+
+// Write called from remote command whenever there is any output
+func (d *debugSession) Write(p []byte) (int, error) {
+	msg, err := json.Marshal(DebugMessage{
+		Operation: "stdout",
+		Data:      string(p),
+	})
+	if err != nil {
+		log.Errorf("write parse message err: %v", err)
+		return 0, err
+	}
+	d.writeLock.Lock()
+	err = d.wsConn.WriteMessage(websocket.TextMessage, msg)
+	d.writeLock.Unlock()
+	if err != nil {
+		log.Errorf("write message err: %v", err)
+		return 0, err
+	}
+	return len(p), nil
+}
+
+// Close closes websocket connection
+func (d *debugSession) Close() error {
+	return d.wsConn.Close()
+}

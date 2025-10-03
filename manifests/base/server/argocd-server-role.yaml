@@ -41,3 +41,9 @@ rules:
   verbs:
   - create
   - list
+- apiGroups:
+  - ""
+  resources:
+  - pods/ephemeralcontainers
+  verbs:
+  - update  # supports kubectl debug functionality

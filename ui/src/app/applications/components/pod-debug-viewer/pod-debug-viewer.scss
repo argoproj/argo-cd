@@ -1,0 +1,342 @@
+.pod-debug-viewer {
+    height: 780px;
+    display: flex;
+    flex-direction: column;
+
+    .debug-config {
+        padding: 2rem;
+        height: 100%;
+        overflow-y: auto;
+
+        &__header {
+            margin-bottom: 2rem;
+            text-align: center;
+
+            h3 {
+                font-size: 1.5rem;
+                color: #333;
+                margin-bottom: 0.5rem;
+            }
+
+            p {
+                color: #666;
+                margin: 0;
+
+                strong {
+                    color: #007acc;
+                }
+            }
+        }
+
+        &__form {
+            max-width: 600px;
+            margin: 0 auto;
+
+            .form-field {
+                margin-bottom: 1.5rem;
+
+                label {
+                    display: block;
+                    font-weight: 600;
+                    color: #333;
+                    margin-bottom: 0.5rem;
+
+                    &.checkbox-label {
+                        display: flex;
+                        align-items: center;
+                        cursor: pointer;
+
+                        input[type="checkbox"] {
+                            margin-right: 0.5rem;
+                        }
+                    }
+                }
+
+                .debug-input {
+                    width: 100%;
+                    padding: 0.75rem;
+                    border: 2px solid #e0e0e0;
+                    border-radius: 8px;
+                    font-size: 1rem;
+                    transition: border-color 0.2s;
+
+                    &:focus {
+                        outline: none;
+                        border-color: #007acc;
+                    }
+
+                    &::placeholder {
+                        color: #999;
+                    }
+                }
+
+                small {
+                    display: block;
+                    color: #666;
+                    font-size: 0.875rem;
+                    margin-top: 0.25rem;
+                }
+            }
+        }
+
+        &__actions {
+            text-align: center;
+            margin: 2rem 0;
+        }
+
+        &__info {
+            background-color: #f8f9fa;
+            padding: 1.5rem;
+            border-radius: 8px;
+            border: 1px solid #e0e0e0;
+
+            h4 {
+                margin: 0 0 1rem 0;
+                color: #333;
+            }
+
+            .debug-images {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 0.5rem;
+
+                .image-suggestion {
+                    padding: 0.5rem 1rem;
+                    background-color: #fff;
+                    border: 1px solid #ddd;
+                    border-radius: 6px;
+                    cursor: pointer;
+                    font-family: monospace;
+                    font-size: 0.875rem;
+                    transition: all 0.2s;
+
+                    &:hover {
+                        background-color: #007acc;
+                        color: white;
+                        border-color: #007acc;
+                    }
+                }
+            }
+        }
+    }
+
+    .debug-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1rem;
+        background-color: #f8f9fa;
+        border-bottom: 1px solid #e0e0e0;
+
+        .debug-session-info {
+            .debug-status {
+                font-weight: 600;
+                color: #333;
+
+                .debug-image-tag {
+                    color: #007acc;
+                    font-family: monospace;
+                    font-size: 0.875rem;
+                }
+            }
+        }
+
+        .debug-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+    }
+
+    .debug-terminal-container {
+        flex: 1;
+        position: relative;
+        overflow: hidden;
+
+        .debug-terminal {
+            height: 100%;
+
+            .xterm {
+                padding: 10px 20px;
+                height: 100%;
+            }
+        }
+    }
+
+    .debug-connecting {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        text-align: center;
+        background-color: rgba(255, 255, 255, 0.95);
+        padding: 2rem;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+
+        .connecting-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #007acc;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
+        p {
+            margin: 0;
+            color: #666;
+        }
+    }
+}
+
+.debug-button {
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 6px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+
+    &:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+    &--primary {
+        background-color: #007acc;
+        color: white;
+
+        &:hover:not(:disabled) {
+            background-color: #005fa3;
+        }
+    }
+
+    &--secondary {
+        background-color: #6c757d;
+        color: white;
+
+        &:hover:not(:disabled) {
+            background-color: #545b62;
+        }
+    }
+
+    &--danger {
+        background-color: #dc3545;
+        color: white;
+
+        &:hover:not(:disabled) {
+            background-color: #c82333;
+        }
+    }
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+// Responsive design
+@media (max-width: 768px) {
+    .pod-debug-viewer {
+        .debug-config {
+            padding: 1rem;
+
+            &__info .debug-images {
+                flex-direction: column;
+            }
+        }
+
+        .debug-header {
+            flex-direction: column;
+            gap: 1rem;
+            align-items: stretch;
+
+            .debug-actions {
+                justify-content: center;
+            }
+        }
+    }
+}
+
+// Theme support
+.theme-light {
+    .pod-debug-viewer {
+        .debug-terminal-container {
+            .xterm {
+                background-color: #fff;
+            }
+        }
+    }
+}
+
+.theme-dark {
+    .pod-debug-viewer {
+        .debug-config {
+            background-color: #1e1e1e;
+            color: #d4d4d4;
+
+            &__header {
+                h3 {
+                    color: #d4d4d4;
+                }
+
+                p {
+                    color: #b0b0b0;
+                }
+            }
+
+            &__form {
+                .form-field {
+                    label {
+                        color: #d4d4d4;
+                    }
+
+                    .debug-input {
+                        background-color: #2d2d30;
+                        border-color: #464647;
+                        color: #d4d4d4;
+
+                        &:focus {
+                            border-color: #007acc;
+                        }
+                    }
+
+                    small {
+                        color: #b0b0b0;
+                    }
+                }
+            }
+
+            &__info {
+                background-color: #252526;
+                border-color: #464647;
+
+                h4 {
+                    color: #d4d4d4;
+                }
+
+                .debug-images .image-suggestion {
+                    background-color: #2d2d30;
+                    border-color: #464647;
+                    color: #d4d4d4;
+
+                    &:hover {
+                        background-color: #007acc;
+                        color: white;
+                    }
+                }
+            }
+        }
+
+        .debug-header {
+            background-color: #252526;
+            border-bottom-color: #464647;
+
+            .debug-session-info .debug-status {
+                color: #d4d4d4;
+            }
+        }
+    }
+}

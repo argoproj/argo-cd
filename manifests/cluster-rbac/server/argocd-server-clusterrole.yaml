@@ -29,6 +29,12 @@ rules:
   verbs:
   - get     # supports viewing pod logs from UI
 - apiGroups:
+  - ""
+  resources:
+  - pods/ephemeralcontainers
+  verbs:
+  - update  # supports kubectl debug functionality
+- apiGroups:
   - "argoproj.io"
   resources:
   - "applications"

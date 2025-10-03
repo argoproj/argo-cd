@@ -21,6 +21,7 @@ import {ResourceIcon} from '../resource-icon';
 import {ResourceLabel} from '../resource-label';
 import * as AppUtils from '../utils';
 import './resource-details.scss';
+import {PodDebugViewer} from '../pod-debug-viewer/pod-debug-viewer';
 
 const jsonMergePatch = require('json-merge-patch');
 
@@ -131,6 +132,26 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                         title: 'Terminal',
                         content: (
                             <PodTerminalViewer
+                                applicationName={application.metadata.name}
+                                applicationNamespace={application.metadata.namespace}
+                                projectName={application.spec.project}
+                                podState={podState}
+                                selectedNode={selectedNode}
+                                containerName={AppUtils.getContainerName(podState, activeContainer)}
+                                onClickContainer={onClickContainer}
+                            />
+                        )
+                    }
+                ]);
+            }
+            if (selectedNode?.kind === 'Pod') {
+                tabs = tabs.concat([
+                    {
+                        key: 'debug',
+                        icon: 'fa fa-bug',
+                        title: 'DEBUG',
+                        content: (
+                            <PodDebugViewer
                                 applicationName={application.metadata.name}
                                 applicationNamespace={application.metadata.namespace}
                                 projectName={application.spec.project}
