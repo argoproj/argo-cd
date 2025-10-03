@@ -360,3 +360,5 @@ replace (
 	k8s.io/sample-cli-plugin => k8s.io/sample-cli-plugin v0.34.0
 	k8s.io/sample-controller => k8s.io/sample-controller v0.34.0
 )
+
+replace sigs.k8s.io/structured-merge-diff/v6 => /Users/pjiang1/Documents/git/oss/structured-merge-diff
