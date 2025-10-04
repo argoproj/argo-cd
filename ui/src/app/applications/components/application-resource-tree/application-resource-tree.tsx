@@ -36,6 +36,36 @@ function treeNodeKey(node: NodeId & {uid?: string}) {
     return node.uid || nodeKey(node);
 }
 
+// List of known cluster-scoped resource kinds
+const clusterScopedKinds = new Set(['ClusterRole', 'ClusterRoleBinding', 'Namespace', 'Node',
+    'PersistentVolume', 'StorageClass', 'CustomResourceDefinition', 'APIService',
+    'TokenReview', 'SubjectAccessReview', 'SelfSubjectAccessReview', 'SelfSubjectRulesReview',
+    'ClusterServiceVersion', 'PackageManifest', 'OperatorGroup',
+    'ValidatingWebhookConfiguration', 'MutatingWebhookConfiguration']);
+
+// Get the key for a parent ref, handling cluster-scoped resources
+function getParentKey(parent: NodeId & {uid?: string}, nodeByKey: Map<string, ResourceTreeNode>) {
+    // If the parent has a UID, try that first
+    if (parent.uid) {
+        // Check if we can find it by UID
+        const found = Array.from(nodeByKey.entries()).find(([_, node]) => node.uid === parent.uid);
+        if (found) {
+            return found[0];
+        }
+    }
+
+    // For cluster-scoped resources, try looking up without namespace
+    if (clusterScopedKinds.has(parent.kind)) {
+        const keyWithoutNamespace = [parent.group, parent.kind, '', parent.name].join('/');
+        if (nodeByKey.has(keyWithoutNamespace)) {
+            return keyWithoutNamespace;
+        }
+    }
+
+    // Fall back to regular key
+    return treeNodeKey(parent);
+}
+
 const color = require('color');
 
 export interface ResourceTreeNode extends models.ResourceNode {
@@ -1026,7 +1056,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
         const hiddenNodes: ResourceTreeNode[] = [];
         networkNodes.forEach(parent => {
             findNetworkTargets(networkNodes, parent.networkingInfo).forEach(child => {
-                const children = childrenByParentKey.get(treeNodeKey(parent)) || [];
+                const children = childrenByParentKey.get(getParentKey(parent, nodeByKey)) || [];
                 hasParents.add(treeNodeKey(child));
                 const parentId = parent.uid;
                 if (nodesHavingChildren.has(parentId)) {
@@ -1038,7 +1068,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                     if (props.getNodeExpansion(parentId)) {
                         hasParents.add(treeNodeKey(child));
                         children.push(child);
-                        childrenByParentKey.set(treeNodeKey(parent), children);
+                        childrenByParentKey.set(getParentKey(parent, nodeByKey), children);
                     } else {
                         hiddenNodes.push(child);
                     }
@@ -1085,7 +1115,8 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                     graph.setNode(treeNodeKey(root), {...root, width: NODE_WIDTH, height: NODE_HEIGHT, root});
                 }
                 (childrenByParentKey.get(treeNodeKey(root)) || []).forEach(child => {
-                    if (root.namespace === child.namespace) {
+                    // Draw edge if nodes are in same namespace OR if parent is cluster-scoped (no namespace)
+                    if (root.namespace === child.namespace || !root.namespace) {
                         graph.setEdge(treeNodeKey(root), treeNodeKey(child), {colors: [colorByService.get(treeNodeKey(child))]});
                     }
                 });
@@ -1132,7 +1163,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                         orphans.push(node);
                     }
                     node.parentRefs.forEach(parent => {
-                        const parentId = treeNodeKey(parent);
+                        const parentId = getParentKey(parent, nodeByKey);
                         const children = childrenByParentKey.get(parentId) || [];
                         if (nodesHavingChildren.has(parentId)) {
                             nodesHavingChildren.set(parentId, nodesHavingChildren.get(parentId) + children.length);
@@ -1191,7 +1222,13 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
             if (treeNodeKey(child) === treeNodeKey(root)) {
                 return;
             }
-            if (node.namespace === child.namespace) {
+            // Draw edge if nodes are in same namespace OR if parent is cluster-scoped
+            // Check if parent is a known cluster-scoped kind
+            const clusterScopedKinds = ['ClusterRole', 'ClusterRoleBinding', 'Namespace', 'Node',
+                'PersistentVolume', 'StorageClass', 'CustomResourceDefinition'];
+            const isParentClusterScoped = clusterScopedKinds.includes(node.kind);
+
+            if (node.namespace === child.namespace || isParentClusterScoped) {
                 graph.setEdge(treeNodeKey(node), treeNodeKey(child), {colors});
             }
             processNode(child, root, colors);
