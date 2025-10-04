@@ -284,7 +284,7 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
                                         <div className='columns large-1 small-2' title={getStatus(resource)}>
                                             <utils.ResourceResultIcon resource={resource} /> {getStatus(resource)}
                                         </div>
-                                        <div className='columns large-1 small-2' title={resource.health?.status}>
+                                        <div className='columns large-1 small-2'>
                                             {resource.health ? (
                                                 <span>
                                                     <utils.HealthStatusIcon state={resource?.health} /> {resource.health?.status}
