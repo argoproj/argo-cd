@@ -144,7 +144,7 @@ func getChildren(cluster *clusterCache, un *unstructured.Unstructured) []*Resour
 	cluster.IterateHierarchyV2([]kube.ResourceKey{kube.GetResourceKey(un)}, func(child *Resource, _ map[kube.ResourceKey]*Resource) bool {
 		hierarchy = append(hierarchy, child)
 		return true
-	}, "")
+	})
 	return hierarchy[1:]
 }
 
@@ -1061,7 +1061,7 @@ func TestIterateHierarchyV2(t *testing.T) {
 		cluster.IterateHierarchyV2(startKeys, func(child *Resource, _ map[kube.ResourceKey]*Resource) bool {
 			keys = append(keys, child.ResourceKey())
 			return true
-		}, "")
+		})
 
 		assert.ElementsMatch(t,
 			[]kube.ResourceKey{
@@ -1079,7 +1079,7 @@ func TestIterateHierarchyV2(t *testing.T) {
 		cluster.IterateHierarchyV2(startKeys, func(child *Resource, _ map[kube.ResourceKey]*Resource) bool {
 			keys = append(keys, child.ResourceKey())
 			return false
-		}, "")
+		})
 
 		assert.ElementsMatch(t,
 			[]kube.ResourceKey{
@@ -1094,7 +1094,7 @@ func TestIterateHierarchyV2(t *testing.T) {
 		cluster.IterateHierarchyV2(startKeys, func(child *Resource, _ map[kube.ResourceKey]*Resource) bool {
 			keys = append(keys, child.ResourceKey())
 			return child.ResourceKey().Kind != kube.ReplicaSetKind
-		}, "")
+		})
 
 		assert.ElementsMatch(t,
 			[]kube.ResourceKey{
@@ -1110,7 +1110,7 @@ func TestIterateHierarchyV2(t *testing.T) {
 		cluster.IterateHierarchyV2(startKeys, func(child *Resource, _ map[kube.ResourceKey]*Resource) bool {
 			keys = append(keys, child.ResourceKey())
 			return child.ResourceKey().Kind != kube.PodKind
-		}, "")
+		})
 
 		assert.ElementsMatch(t,
 			[]kube.ResourceKey{
@@ -1131,7 +1131,7 @@ func TestIterateHierarchyV2(t *testing.T) {
 		cluster.IterateHierarchyV2(startKeys, func(child *Resource, _ map[kube.ResourceKey]*Resource) bool {
 			keys = append(keys, child.ResourceKey())
 			return true
-		}, "")
+		})
 
 		assert.ElementsMatch(t,
 			[]kube.ResourceKey{
@@ -1150,7 +1150,7 @@ func TestIterateHierarchyV2(t *testing.T) {
 		cluster.IterateHierarchyV2(startKeys, func(child *Resource, _ map[kube.ResourceKey]*Resource) bool {
 			keys = append(keys, child.ResourceKey())
 			return true
-		}, "")
+		})
 
 		assert.ElementsMatch(t,
 			[]kube.ResourceKey{
@@ -1218,8 +1218,9 @@ func testClusterChild() *rbacv1.ClusterRole {
 }
 
 
-func TestIterateHierarchyV2_ClusterScopedParentOnly_NoNamespaceScanning(t *testing.T) {
-	// Test that without namespace scanning, only cluster-scoped children are found
+func TestIterateHierarchyV2_ClusterScopedParent_FindsAllChildren(t *testing.T) {
+	// Test that cluster-scoped parents automatically find all their children (both cluster-scoped and namespaced)
+	// This is the core behavior of the new implementation - cross-namespace relationships are always tracked
 	cluster := newCluster(t, testClusterParent(), testNamespacedChild(), testClusterChild()).WithAPIResources([]kube.APIResourceInfo{{
 		GroupKind:            schema.GroupKind{Group: "", Kind: "Namespace"},
 		GroupVersionResource: schema.GroupVersionResource{Group: "", Version: "v1", Resource: "namespaces"},
@@ -1233,72 +1234,23 @@ func TestIterateHierarchyV2_ClusterScopedParentOnly_NoNamespaceScanning(t *testi
 	require.NoError(t, err)
 
 	keys := []kube.ResourceKey{}
-	// Only pass the cluster-scoped parent - without namespace scanning, should only find cluster-scoped children
 	cluster.IterateHierarchyV2(
 		[]kube.ResourceKey{kube.GetResourceKey(mustToUnstructured(testClusterParent()))},
 		func(resource *Resource, _ map[kube.ResourceKey]*Resource) bool {
-			t.Logf("Visiting resource: %v", resource.ResourceKey())
 			keys = append(keys, resource.ResourceKey())
 			return true
 		},
-		"", // No namespace scanning
 	)
 
-	// Without namespace scanning, should only find the parent and its cluster-scoped child
+	// Should find the parent and all its children (both cluster-scoped and namespaced)
 	expected := []kube.ResourceKey{
 		kube.GetResourceKey(mustToUnstructured(testClusterParent())),
 		kube.GetResourceKey(mustToUnstructured(testClusterChild())),
+		kube.GetResourceKey(mustToUnstructured(testNamespacedChild())),
 	}
-	t.Logf("Expected: %v", expected)
-	t.Logf("Actual: %v", keys)
 	assert.ElementsMatch(t, expected, keys)
 }
 
-func TestIterateHierarchyV2_ClusterScopedParentOnly_WithNamespaceScanning(t *testing.T) {
-	// Test that with namespace scanning, both cluster-scoped and namespaced children are found
-	cluster := newCluster(t, testClusterParent(), testNamespacedChild(), testClusterChild()).WithAPIResources([]kube.APIResourceInfo{{
-		GroupKind:            schema.GroupKind{Group: "", Kind: "Namespace"},
-		GroupVersionResource: schema.GroupVersionResource{Group: "", Version: "v1", Resource: "namespaces"},
-		Meta:                 metav1.APIResource{Namespaced: false},
-	}, {
-		GroupKind:            schema.GroupKind{Group: "rbac.authorization.k8s.io", Kind: "ClusterRole"},
-		GroupVersionResource: schema.GroupVersionResource{Group: "rbac.authorization.k8s.io", Version: "v1", Resource: "clusterroles"},
-		Meta:                 metav1.APIResource{Namespaced: false},
-	}})
-	err := cluster.EnsureSynced()
-	require.NoError(t, err)
-
-	// Check what's in the namespace index
-	t.Logf("Namespaces in index: %v", len(cluster.nsIndex))
-	for ns, resources := range cluster.nsIndex {
-		t.Logf("Namespace %q has %d resources", ns, len(resources))
-		for key, res := range resources {
-			t.Logf("  - %v with %d owner refs", key, len(res.OwnerRefs))
-			for _, ref := range res.OwnerRefs {
-				t.Logf("    owner: %s/%s name=%s uid=%s", ref.APIVersion, ref.Kind, ref.Name, ref.UID)
-			}
-		}
-	}
-
-	keys := []kube.ResourceKey{}
-	// Only pass the cluster-scoped parent with namespace scanning enabled
-	cluster.IterateHierarchyV2(
-		[]kube.ResourceKey{kube.GetResourceKey(mustToUnstructured(testClusterParent()))},
-		func(resource *Resource, _ map[kube.ResourceKey]*Resource) bool {
-			t.Logf("Visiting resource: %v", resource.ResourceKey())
-			keys = append(keys, resource.ResourceKey())
-			return true
-		},
-		"test-namespace", // Scan for orphaned resources in test-namespace
-	)
-
-	// With namespace scanning, should find the parent, the namespaced child, and cluster child
-	assert.ElementsMatch(t, []kube.ResourceKey{
-		kube.GetResourceKey(mustToUnstructured(testClusterParent())),
-		kube.GetResourceKey(mustToUnstructured(testNamespacedChild())), // in test-namespace
-		kube.GetResourceKey(mustToUnstructured(testClusterChild())),
-	}, keys)
-}
 
 func TestIterateHierarchyV2_ClusterScopedParentOnly_InferredUID(t *testing.T) {
 	// Test that passing only a cluster-scoped parent finds children even with inferred UIDs.
@@ -1347,7 +1299,6 @@ func TestIterateHierarchyV2_ClusterScopedParentOnly_InferredUID(t *testing.T) {
 			keys = append(keys, resource.ResourceKey())
 			return true
 		},
-		"", // No orphaned resource namespace
 	)
 
 	// Should find the parent and all its children, even with inferred UID
@@ -1376,7 +1327,6 @@ func TestIterateHierarchyV2_DisabledClusterScopedParents(t *testing.T) {
 			keys = append(keys, resource.ResourceKey())
 			return true
 		},
-		"", // No orphaned resource namespace
 	)
 
 	// When disabled, should only visit the parent
@@ -1515,7 +1465,7 @@ func BenchmarkIterateHierarchyV2(b *testing.B) {
 			{Namespace: "default", Name: "test-1", Kind: "Pod"},
 		}, func(_ *Resource, _ map[kube.ResourceKey]*Resource) bool {
 			return true
-		}, "")
+		})
 	}
 }
 
@@ -1708,7 +1658,7 @@ func BenchmarkIterateHierarchyV2CrossNamespace_Percentage(b *testing.B) {
 			for n := 0; n < b.N; n++ {
 				cluster.IterateHierarchyV2([]kube.ResourceKey{startKey}, func(_ *Resource, _ map[kube.ResourceKey]*Resource) bool {
 					return true
-				}, tc.scanNamespace)
+				})
 			}
 		})
 	}
@@ -1767,10 +1717,10 @@ func BenchmarkIterateHierarchyV2_NamespaceScaling(b *testing.B) {
 
 			b.ResetTimer()
 			for n := 0; n < b.N; n++ {
-				// Test scanning the "default" namespace which has the most resources
+				// Test with cluster-scoped parent - will automatically scan for orphaned children
 				cluster.IterateHierarchyV2([]kube.ResourceKey{startKey}, func(_ *Resource, _ map[kube.ResourceKey]*Resource) bool {
 					return true
-				}, "default")
+				})
 			}
 		})
 	}
@@ -1822,7 +1772,7 @@ func BenchmarkIterateHierarchyV2_NamespaceScaling_NoScan(b *testing.B) {
 				// No namespace scanning - just traverse cluster-scoped children
 				cluster.IterateHierarchyV2([]kube.ResourceKey{startKey}, func(_ *Resource, _ map[kube.ResourceKey]*Resource) bool {
 					return true
-				}, "")
+				})
 			}
 		})
 	}
@@ -1860,7 +1810,6 @@ func TestIterateHierarchyV2_NoDuplicatesInSameNamespace(t *testing.T) {
 			visitCount[resource.Ref.Name]++
 			return true
 		},
-		"", // No orphaned resource namespace
 	)
 
 	// Each resource should be visited exactly once
@@ -1894,7 +1843,6 @@ func TestIterateHierarchyV2_NoDuplicatesCrossNamespace(t *testing.T) {
 			visitCount[resource.Ref.Name]++
 			return true
 		},
-		"", // No orphaned resource namespace
 	)
 
 	// Each resource should be visited exactly once, even with cross-namespace relationships
