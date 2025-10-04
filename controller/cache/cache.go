@@ -138,8 +138,7 @@ type LiveStateCache interface {
 	// Returns synced cluster cache
 	GetClusterCache(server *appv1.Cluster) (clustercache.ClusterCache, error)
 	// Executes give callback against resources specified by the keys and all its children
-	// If orphanedResourceNamespace is provided (non-empty), it will scan that namespace for orphaned resources
-	IterateHierarchyV2(server *appv1.Cluster, keys []kube.ResourceKey, action func(child appv1.ResourceNode, appName string) bool, orphanedResourceNamespace string) error
+	IterateHierarchyV2(server *appv1.Cluster, keys []kube.ResourceKey, action func(child appv1.ResourceNode, appName string) bool) error
 	// Returns state of live nodes which correspond for target nodes of specified application.
 	GetManagedLiveObjs(destCluster *appv1.Cluster, a *appv1.Application, targetObjs []*unstructured.Unstructured) (map[kube.ResourceKey]*unstructured.Unstructured, error)
 	// IterateResources iterates all resource stored in cache
@@ -234,6 +233,38 @@ type liveStateCache struct {
 	lock          sync.RWMutex
 }
 
+// isKnownClusterScopedResource returns true if the resource kind is known to be cluster-scoped
+func isKnownClusterScopedResource(kind string) bool {
+	// List of known cluster-scoped resource kinds
+	clusterScopedKinds := map[string]bool{
+		"Namespace":                    true,
+		"Node":                         true,
+		"PersistentVolume":             true,
+		"ClusterRole":                  true,
+		"ClusterRoleBinding":           true,
+		"CustomResourceDefinition":     true,
+		"StorageClass":                 true,
+		"VolumeSnapshotClass":          true,
+		"IngressClass":                 true,
+		"RuntimeClass":                 true,
+		"PriorityClass":                true,
+		"CSIDriver":                    true,
+		"CSINode":                      true,
+		"VolumeAttachment":             true,
+		"APIService":                   true,
+		"TokenReview":                  true,
+		"SubjectAccessReview":          true,
+		"SelfSubjectAccessReview":      true,
+		"SelfSubjectRulesReview":       true,
+		"ClusterServiceVersion":        true,
+		"PackageManifest":              true,
+		"OperatorGroup":                true,
+		"ValidatingWebhookConfiguration": true,
+		"MutatingWebhookConfiguration":   true,
+	}
+	return clusterScopedKinds[kind]
+}
+
 func (c *liveStateCache) loadCacheSettings() (*cacheSettings, error) {
 	appInstanceLabelKey, err := c.settingsMgr.GetAppInstanceLabelKey()
 	if err != nil {
@@ -279,14 +310,17 @@ func asResourceNode(r *clustercache.Resource) appv1.ResourceNode {
 	parentRefs := make([]appv1.ResourceRef, len(r.OwnerRefs))
 	for i, ownerRef := range r.OwnerRefs {
 		ownerGvk := schema.FromAPIVersionAndKind(ownerRef.APIVersion, ownerRef.Kind)
-		parentRefs[i] = appv1.ResourceRef{
-			Group:     ownerGvk.Group,
-			Kind:      ownerGvk.Kind,
-			Version:   ownerGvk.Version,
-			Namespace: r.Ref.Namespace,
-			Name:      ownerRef.Name,
-			UID:       string(ownerRef.UID),
+		parentRef := appv1.ResourceRef{
+			Group:   ownerGvk.Group,
+			Kind:    ownerGvk.Kind,
+			Version: ownerGvk.Version,
+			Name:    ownerRef.Name,
+			UID:     string(ownerRef.UID),
 		}
+		// Set namespace for the parent ref - even for cluster-scoped parents
+		// The UI needs this to match nodes properly
+		parentRef.Namespace = r.Ref.Namespace
+		parentRefs[i] = parentRef
 	}
 	var resHealth *appv1.HealthStatus
 	resourceInfo := resInfo(r)
@@ -668,14 +702,14 @@ func (c *liveStateCache) IsNamespaced(server *appv1.Cluster, gk schema.GroupKind
 	return clusterInfo.IsNamespaced(gk)
 }
 
-func (c *liveStateCache) IterateHierarchyV2(server *appv1.Cluster, keys []kube.ResourceKey, action func(child appv1.ResourceNode, appName string) bool, orphanedResourceNamespace string) error {
+func (c *liveStateCache) IterateHierarchyV2(server *appv1.Cluster, keys []kube.ResourceKey, action func(child appv1.ResourceNode, appName string) bool) error {
 	clusterInfo, err := c.getSyncedCluster(server)
 	if err != nil {
 		return err
 	}
 	clusterInfo.IterateHierarchyV2(keys, func(resource *clustercache.Resource, namespaceResources map[kube.ResourceKey]*clustercache.Resource) bool {
 		return action(asResourceNode(resource), getApp(resource, namespaceResources))
-	}, orphanedResourceNamespace)
+	})
 	return nil
 }
 
