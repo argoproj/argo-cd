@@ -22,15 +22,29 @@ type ResolvedFileOrDirectoryPath string
 // resolveSymbolicLinkRecursive resolves the symlink path recursively to its
 // canonical path on the file system, with a maximum nesting level of maxDepth.
 // If path is not a symlink, returns the verbatim copy of path and err of nil.
-func resolveSymbolicLinkRecursive(path string, maxDepth int) (string, error) {
-	resolved, err := os.Readlink(path)
+func resolveSymbolicLinkRecursive(path string, root *os.Root, maxDepth int) (string, error) {
+	linkRelPath, err := filepath.Rel(root.Name(), path)
+	if err != nil {
+		return "", err
+	}
+
+	_, err = root.Stat(linkRelPath)
+	if err != nil {
+		// If the file doesn't exist, return the original path
+		if os.IsNotExist(err) {
+			return path, nil
+		}
+		return "", err
+	}
+
+	// Check if the path is a symlink
+	resolved, err := root.Readlink(linkRelPath)
 	if err != nil {
 		// path is not a symbolic link
 		var pathErr *os.PathError
 		if errors.As(err, &pathErr) {
 			return path, nil
 		}
-		// Other error has occurred
 		return "", err
 	}
 
@@ -45,7 +59,7 @@ func resolveSymbolicLinkRecursive(path string, maxDepth int) (string, error) {
 		resolved = filepath.Join(basePath, resolved)
 	}
 
-	return resolveSymbolicLinkRecursive(resolved, maxDepth-1)
+	return resolveSymbolicLinkRecursive(resolved, root, maxDepth-1)
 }
 
 // isURLSchemeAllowed returns true if the protocol scheme is in the list of
@@ -73,7 +87,7 @@ func resolveFailure(path string, err error) error {
 	return errors.New("internal error: failed to resolve path. Check logs for more details")
 }
 
-func ResolveFileOrDirectoryPath(appPath, repoRoot, dir string) (ResolvedFileOrDirectoryPath, error) {
+func ResolveFileOrDirectoryPath(appPath string, repoRoot *os.Root, dir string) (ResolvedFileOrDirectoryPath, error) {
 	path, err := resolveFileOrDirectory(appPath, repoRoot, dir, true)
 	if err != nil {
 		return "", err
@@ -110,7 +124,7 @@ func ResolveFileOrDirectoryPath(appPath, repoRoot, dir string) (ResolvedFileOrDi
 //
 // isRemote will be set to true if valueFile is an URL using an allowed
 // protocol scheme, or to false if it resolved to a local file.
-func ResolveValueFilePathOrUrl(appPath, repoRoot, valueFile string, allowedURLSchemes []string) (resolvedPath ResolvedFilePath, isRemote bool, err error) { //nolint:revive //FIXME(var-naming)
+func ResolveValueFilePathOrUrl(appPath string, repoRoot *os.Root, valueFile string, allowedURLSchemes []string) (resolvedPath ResolvedFilePath, isRemote bool, err error) { //nolint:revive //FIXME(var-naming)
 	// A value file can be specified as an URL to a remote resource.
 	// We only allow certain URL schemes for remote value files.
 	url, err := url.Parse(valueFile)
@@ -132,11 +146,11 @@ func ResolveValueFilePathOrUrl(appPath, repoRoot, valueFile string, allowedURLSc
 	return ResolvedFilePath(path), false, nil
 }
 
-func resolveFileOrDirectory(appPath string, repoRoot string, fileOrDirectory string, allowResolveToRoot bool) (string, error) {
+func resolveFileOrDirectory(appPath string, repoRoot *os.Root, fileOrDirectory string, allowResolveToRoot bool) (string, error) {
 	// Ensure that our repository root is absolute
-	absRepoPath, err := filepath.Abs(repoRoot)
+	absRepoPath, err := filepath.Abs(repoRoot.Name())
 	if err != nil {
-		return "", resolveFailure(repoRoot, err)
+		return "", resolveFailure(repoRoot.Name(), err)
 	}
 
 	// If the path to the file or directory is relative, join it with the current working directory (appPath)
@@ -145,7 +159,7 @@ func resolveFileOrDirectory(appPath string, repoRoot string, fileOrDirectory str
 	if !filepath.IsAbs(path) {
 		absWorkDir, err := filepath.Abs(appPath)
 		if err != nil {
-			return "", resolveFailure(repoRoot, err)
+			return "", resolveFailure(repoRoot.Name(), err)
 		}
 		path = filepath.Join(absWorkDir, path)
 	} else {
@@ -153,16 +167,20 @@ func resolveFileOrDirectory(appPath string, repoRoot string, fileOrDirectory str
 	}
 
 	// Ensure any symbolic link is resolved before we evaluate the path
-	delinkedPath, err := resolveSymbolicLinkRecursive(path, 10)
+	delinkedPath, err := resolveSymbolicLinkRecursive(path, repoRoot, 10)
 	if err != nil {
-		return "", resolveFailure(repoRoot, err)
+		// Check if this is a path escape error and return appropriate message
+		if strings.Contains(err.Error(), "path escapes from parent") {
+			return "", fmt.Errorf("file '%s' resolved to outside repository root", fileOrDirectory)
+		}
+		return "", resolveFailure(repoRoot.Name(), err)
 	}
 	path = delinkedPath
 
 	// Resolve the joined path to an absolute path
 	path, err = filepath.Abs(path)
 	if err != nil {
-		return "", resolveFailure(repoRoot, err)
+		return "", resolveFailure(repoRoot.Name(), err)
 	}
 
 	// Ensure our root path has a trailing slash, otherwise the following check
@@ -173,13 +191,16 @@ func resolveFileOrDirectory(appPath string, repoRoot string, fileOrDirectory str
 	}
 
 	resolvedToRoot := path+string(os.PathSeparator) == requiredRootPath
-	if resolvedToRoot {
-		if !allowResolveToRoot {
-			return "", resolveFailure(path, errors.New("path resolved to repository root, which is not allowed"))
-		}
+	if resolvedToRoot && !allowResolveToRoot {
+		return "", resolveFailure(path, errors.New("path resolved to repository root, which is not allowed"))
 	} else {
+		rel, err := filepath.Rel(repoRoot.Name(), requiredRootPath)
+		if err != nil {
+			return "", resolveFailure(repoRoot.Name(), fmt.Errorf("failed to resolve relative path to repository root: %w", err))
+		}
+
 		// Make sure that the resolved path to file is within the repository's root path
-		if !strings.HasPrefix(path, requiredRootPath) {
+		if _, err = repoRoot.Stat(rel); err != nil {
 			return "", fmt.Errorf("file '%s' resolved to outside repository root", fileOrDirectory)
 		}
 	}
