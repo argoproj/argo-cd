@@ -43,7 +43,7 @@ export function getParentKey(parent: NodeId & {uid?: string}, nodeByKey: Map<str
     // If the parent has a UID, try that first
     if (parent.uid) {
         // Check if we can find it by UID
-        const found = Array.from(nodeByKey.entries()).find(([_, node]) => node.uid === parent.uid);
+        const found = Array.from(nodeByKey.entries()).find(([, node]) => node.uid === parent.uid);
         if (found) {
             return found[0];
         }
@@ -1140,12 +1140,6 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
         const orphans: ResourceTreeNode[] = [];
         let allChildNodes: ResourceTreeNode[] = [];
         nodesHavingChildren.set(appNode.uid, 1);
-        console.log('App node expansion check:', {
-            appNodeUid: appNode.uid,
-            isExpanded: props.getNodeExpansion(appNode.uid),
-            totalNodes: nodes.length,
-            orphanedNodes: nodes.filter(n => n.orphaned).length
-        });
         if (props.getNodeExpansion(appNode.uid)) {
             nodes.forEach(node => {
                 allChildNodes = [];
@@ -1157,25 +1151,6 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                     }
                     node.parentRefs.forEach(parent => {
                         const parentId = getParentKey(parent, nodeByKey);
-
-                        // Debug logging for cross-namespace relationships
-                        if (!nodeByKey.has(parentId)) {
-                            console.log('Parent not found in nodeByKey:', {
-                                child: `${node.kind}/${node.name} (ns: ${node.namespace || 'cluster'})`,
-                                parent: `${parent.kind}/${parent.name} (ns: ${parent.namespace || 'cluster'})`,
-                                parentId,
-                                expectedKey: `${parent.group}/${parent.kind}/${parent.namespace || ''}/${parent.name}`,
-                                availableKeys: Array.from(nodeByKey.keys()).filter(k => k.includes(parent.name))
-                            });
-                        } else if (parent.namespace !== node.namespace) {
-                            console.log('Cross-namespace parent found:', {
-                                child: `${node.kind}/${node.name} (ns: ${node.namespace || 'cluster'})`,
-                                parent: `${parent.kind}/${parent.name} (ns: ${parent.namespace || 'cluster'})`,
-                                parentId,
-                                parentNode: nodeByKey.get(parentId)
-                            });
-                        }
-
                         const children = childrenByParentKey.get(parentId) || [];
                         if (nodesHavingChildren.has(parentId)) {
                             nodesHavingChildren.set(parentId, nodesHavingChildren.get(parentId) + children.length);
@@ -1186,15 +1161,6 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                         if (node.kind !== 'Pod' || !props.showCompactNodes) {
                             const parentExpanded = props.getNodeExpansion(parentId);
                             const shouldAdd = parentExpanded || node.orphaned;
-
-                            console.log('Parent-child connection check:', {
-                                child: `${node.kind}/${node.name}`,
-                                childOrphaned: node.orphaned,
-                                parentId,
-                                parentExpanded,
-                                shouldAdd,
-                                willConnect: shouldAdd
-                            });
 
                             // Always add orphaned children regardless of expansion state
                             // Otherwise they won't be connected to their parents in the graph
@@ -1252,12 +1218,6 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
             const isParentClusterScoped = !node.namespace || node.namespace === '';
             if (node.namespace === child.namespace || isParentClusterScoped) {
                 graph.setEdge(treeNodeKey(node), treeNodeKey(child), {colors});
-            } else {
-                // Debug: log when we skip drawing an edge
-                console.log('Skipping edge due to namespace mismatch:', {
-                    parent: `${node.kind}/${node.name} (ns: ${node.namespace})`,
-                    child: `${child.kind}/${child.name} (ns: ${child.namespace})`
-                });
             }
             processNode(child, root, colors);
         });
