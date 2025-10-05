@@ -233,38 +233,6 @@ type liveStateCache struct {
 	lock          sync.RWMutex
 }
 
-// isKnownClusterScopedResource returns true if the resource kind is known to be cluster-scoped
-func isKnownClusterScopedResource(kind string) bool {
-	// List of known cluster-scoped resource kinds
-	clusterScopedKinds := map[string]bool{
-		"Namespace":                    true,
-		"Node":                         true,
-		"PersistentVolume":             true,
-		"ClusterRole":                  true,
-		"ClusterRoleBinding":           true,
-		"CustomResourceDefinition":     true,
-		"StorageClass":                 true,
-		"VolumeSnapshotClass":          true,
-		"IngressClass":                 true,
-		"RuntimeClass":                 true,
-		"PriorityClass":                true,
-		"CSIDriver":                    true,
-		"CSINode":                      true,
-		"VolumeAttachment":             true,
-		"APIService":                   true,
-		"TokenReview":                  true,
-		"SubjectAccessReview":          true,
-		"SelfSubjectAccessReview":      true,
-		"SelfSubjectRulesReview":       true,
-		"ClusterServiceVersion":        true,
-		"PackageManifest":              true,
-		"OperatorGroup":                true,
-		"ValidatingWebhookConfiguration": true,
-		"MutatingWebhookConfiguration":   true,
-	}
-	return clusterScopedKinds[kind]
-}
-
 func (c *liveStateCache) loadCacheSettings() (*cacheSettings, error) {
 	appInstanceLabelKey, err := c.settingsMgr.GetAppInstanceLabelKey()
 	if err != nil {
@@ -302,7 +270,7 @@ func (c *liveStateCache) loadCacheSettings() (*cacheSettings, error) {
 	return &cacheSettings{clusterSettings, appInstanceLabelKey, appv1.TrackingMethod(trackingMethod), installationID, resourceUpdatesOverrides, ignoreResourceUpdatesEnabled}, nil
 }
 
-func asResourceNode(r *clustercache.Resource) appv1.ResourceNode {
+func asResourceNode(r *clustercache.Resource, namespaceResources map[kube.ResourceKey]*clustercache.Resource) appv1.ResourceNode {
 	gv, err := schema.ParseGroupVersion(r.Ref.APIVersion)
 	if err != nil {
 		gv = schema.GroupVersion{}
@@ -317,9 +285,22 @@ func asResourceNode(r *clustercache.Resource) appv1.ResourceNode {
 			Name:    ownerRef.Name,
 			UID:     string(ownerRef.UID),
 		}
-		// Set namespace for the parent ref - even for cluster-scoped parents
-		// The UI needs this to match nodes properly
-		parentRef.Namespace = r.Ref.Namespace
+
+		// Look up the parent in namespace resources
+		// If found, it's namespaced and we use its namespace
+		// If not found, it must be cluster-scoped (namespace = "")
+		parentKey := kube.NewResourceKey(ownerGvk.Group, ownerGvk.Kind, r.Ref.Namespace, ownerRef.Name)
+		if parent, ok := namespaceResources[parentKey]; ok {
+			parentRef.Namespace = parent.Ref.Namespace
+		} else {
+			// Not in namespace => must be cluster-scoped
+			parentRef.Namespace = ""
+			// Debug logging for cross-namespace relationships
+			if r.Ref.Namespace != "" {
+				log.Debugf("Cross-namespace ref: %s/%s in namespace %s has parent %s/%s (cluster-scoped)",
+					r.Ref.Kind, r.Ref.Name, r.Ref.Namespace, ownerGvk.Kind, ownerRef.Name)
+			}
+		}
 		parentRefs[i] = parentRef
 	}
 	var resHealth *appv1.HealthStatus
@@ -708,7 +689,7 @@ func (c *liveStateCache) IterateHierarchyV2(server *appv1.Cluster, keys []kube.R
 		return err
 	}
 	clusterInfo.IterateHierarchyV2(keys, func(resource *clustercache.Resource, namespaceResources map[kube.ResourceKey]*clustercache.Resource) bool {
-		return action(asResourceNode(resource), getApp(resource, namespaceResources))
+		return action(asResourceNode(resource, namespaceResources), getApp(resource, namespaceResources))
 	})
 	return nil
 }
@@ -733,9 +714,15 @@ func (c *liveStateCache) GetNamespaceTopLevelResources(server *appv1.Cluster, na
 		return nil, err
 	}
 	resources := clusterInfo.FindResources(namespace, clustercache.TopLevelResource)
+
+	// Get all namespace resources for parent lookups
+	namespaceResources := clusterInfo.FindResources(namespace, func(r *clustercache.Resource) bool {
+		return true
+	})
+
 	res := make(map[kube.ResourceKey]appv1.ResourceNode)
 	for k, r := range resources {
-		res[k] = asResourceNode(r)
+		res[k] = asResourceNode(r, namespaceResources)
 	}
 	return res, nil
 }

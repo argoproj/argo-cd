@@ -36,29 +36,16 @@ function treeNodeKey(node: NodeId & {uid?: string}) {
     return node.uid || nodeKey(node);
 }
 
-// List of known cluster-scoped resource kinds
-const clusterScopedKinds = new Set(['ClusterRole', 'ClusterRoleBinding', 'Namespace', 'Node',
-    'PersistentVolume', 'StorageClass', 'CustomResourceDefinition', 'APIService',
-    'TokenReview', 'SubjectAccessReview', 'SelfSubjectAccessReview', 'SelfSubjectRulesReview',
-    'ClusterServiceVersion', 'PackageManifest', 'OperatorGroup',
-    'ValidatingWebhookConfiguration', 'MutatingWebhookConfiguration']);
-
-// Get the key for a parent ref, handling cluster-scoped resources
-function getParentKey(parent: NodeId & {uid?: string}, nodeByKey: Map<string, ResourceTreeNode>) {
+// Get the key for a parent ref
+// Now that backend properly sets empty namespace for cluster-scoped parents,
+// we just need UID-based lookup with regular key fallback
+export function getParentKey(parent: NodeId & {uid?: string}, nodeByKey: Map<string, ResourceTreeNode>) {
     // If the parent has a UID, try that first
     if (parent.uid) {
         // Check if we can find it by UID
         const found = Array.from(nodeByKey.entries()).find(([_, node]) => node.uid === parent.uid);
         if (found) {
             return found[0];
-        }
-    }
-
-    // For cluster-scoped resources, try looking up without namespace
-    if (clusterScopedKinds.has(parent.kind)) {
-        const keyWithoutNamespace = [parent.group, parent.kind, '', parent.name].join('/');
-        if (nodeByKey.has(keyWithoutNamespace)) {
-            return keyWithoutNamespace;
         }
     }
 
@@ -1153,6 +1140,12 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
         const orphans: ResourceTreeNode[] = [];
         let allChildNodes: ResourceTreeNode[] = [];
         nodesHavingChildren.set(appNode.uid, 1);
+        console.log('App node expansion check:', {
+            appNodeUid: appNode.uid,
+            isExpanded: props.getNodeExpansion(appNode.uid),
+            totalNodes: nodes.length,
+            orphanedNodes: nodes.filter(n => n.orphaned).length
+        });
         if (props.getNodeExpansion(appNode.uid)) {
             nodes.forEach(node => {
                 allChildNodes = [];
@@ -1164,6 +1157,25 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                     }
                     node.parentRefs.forEach(parent => {
                         const parentId = getParentKey(parent, nodeByKey);
+
+                        // Debug logging for cross-namespace relationships
+                        if (!nodeByKey.has(parentId)) {
+                            console.log('Parent not found in nodeByKey:', {
+                                child: `${node.kind}/${node.name} (ns: ${node.namespace || 'cluster'})`,
+                                parent: `${parent.kind}/${parent.name} (ns: ${parent.namespace || 'cluster'})`,
+                                parentId,
+                                expectedKey: `${parent.group}/${parent.kind}/${parent.namespace || ''}/${parent.name}`,
+                                availableKeys: Array.from(nodeByKey.keys()).filter(k => k.includes(parent.name))
+                            });
+                        } else if (parent.namespace !== node.namespace) {
+                            console.log('Cross-namespace parent found:', {
+                                child: `${node.kind}/${node.name} (ns: ${node.namespace || 'cluster'})`,
+                                parent: `${parent.kind}/${parent.name} (ns: ${parent.namespace || 'cluster'})`,
+                                parentId,
+                                parentNode: nodeByKey.get(parentId)
+                            });
+                        }
+
                         const children = childrenByParentKey.get(parentId) || [];
                         if (nodesHavingChildren.has(parentId)) {
                             nodesHavingChildren.set(parentId, nodesHavingChildren.get(parentId) + children.length);
@@ -1172,7 +1184,21 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                         }
                         allChildNodes.push(node);
                         if (node.kind !== 'Pod' || !props.showCompactNodes) {
-                            if (props.getNodeExpansion(parentId)) {
+                            const parentExpanded = props.getNodeExpansion(parentId);
+                            const shouldAdd = parentExpanded || node.orphaned;
+
+                            console.log('Parent-child connection check:', {
+                                child: `${node.kind}/${node.name}`,
+                                childOrphaned: node.orphaned,
+                                parentId,
+                                parentExpanded,
+                                shouldAdd,
+                                willConnect: shouldAdd
+                            });
+
+                            // Always add orphaned children regardless of expansion state
+                            // Otherwise they won't be connected to their parents in the graph
+                            if (shouldAdd) {
                                 children.push(node);
                                 childrenByParentKey.set(parentId, children);
                             }
@@ -1222,14 +1248,16 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
             if (treeNodeKey(child) === treeNodeKey(root)) {
                 return;
             }
-            // Draw edge if nodes are in same namespace OR if parent is cluster-scoped
-            // Check if parent is a known cluster-scoped kind
-            const clusterScopedKinds = ['ClusterRole', 'ClusterRoleBinding', 'Namespace', 'Node',
-                'PersistentVolume', 'StorageClass', 'CustomResourceDefinition'];
-            const isParentClusterScoped = clusterScopedKinds.includes(node.kind);
-
+            // Draw edge if nodes are in same namespace OR if parent is cluster-scoped (empty/undefined namespace)
+            const isParentClusterScoped = !node.namespace || node.namespace === '';
             if (node.namespace === child.namespace || isParentClusterScoped) {
                 graph.setEdge(treeNodeKey(node), treeNodeKey(child), {colors});
+            } else {
+                // Debug: log when we skip drawing an edge
+                console.log('Skipping edge due to namespace mismatch:', {
+                    parent: `${node.kind}/${node.name} (ns: ${node.namespace})`,
+                    child: `${child.kind}/${child.name} (ns: ${child.namespace})`
+                });
             }
             processNode(child, root, colors);
         });

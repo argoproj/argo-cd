@@ -323,7 +323,7 @@ func Test_asResourceNode_owner_refs(t *testing.T) {
 		CreationTimestamp: nil,
 		Info:              nil,
 		Resource:          nil,
-	})
+	}, nil)
 	expected := appv1.ResourceNode{
 		ResourceRef: appv1.ResourceRef{
 			Version: "v1",
