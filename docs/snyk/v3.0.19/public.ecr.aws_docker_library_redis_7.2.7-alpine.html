@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="3 known vulnerabilities found in 30 vulnerable dependency paths.">
+  <meta name="description" content="3 known vulnerabilities found in 27 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -487,33 +487,25 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">October 5th 2025, 12:22:14 am (UTC+00:00)</p>
+                <p class="timestamp">October 5th 2025, 12:30:48 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
-                <span>Scanned the following path:</span>
+                <span>Scanned the following paths:</span>
                 <ul>
-                  <li class="paths">public.ecr.aws/docker/library/haproxy:3.0.8-alpine/docker/library/haproxy (apk)</li>
+                  <li class="paths">public.ecr.aws/docker/library/redis:7.2.7-alpine/docker/library/redis (apk)</li>
+                  <li class="paths">public.ecr.aws/docker/library/redis:7.2.7-alpine/tianon/gosu//usr/local/bin/gosu (gomodules)</li>
                 </ul>
               </div>
     
               <div class="meta-counts">
                 <div class="meta-count"><span>3</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>30 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>27 vulnerable dependency paths</span></div>
                 <div class="meta-count"><span>19</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
           </header><!-- .project__header -->
         </div><!-- .layout-stacked__header -->
-      <section class="layout-container">
-          <table class="metatable">
-              <tbody>
-              <tr class="meta-row"><th class="meta-row-label">Project</th> <td class="meta-row-value">docker-image|public.ecr.aws/docker/library/haproxy</td></tr>
-              <tr class="meta-row"><th class="meta-row-label">Path</th> <td class="meta-row-value">public.ecr.aws/docker/library/haproxy:3.0.8-alpine/docker/library/haproxy</td></tr>
-              <tr class="meta-row"><th class="meta-row-label">Package Manager</th> <td class="meta-row-value">apk</td></tr>
-              
-              </tbody>
-          </table>
-      </section>
+
     <div class="layout-container" style="padding-top: 35px;">
       <div class="cards--vuln filter--patch filter--ignore">
         <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
@@ -540,7 +532,7 @@
         
                     <li class="card__meta__item">Introduced through:
         
-                                docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine and openssl/libcrypto3@3.3.3-r0
+                                docker-image|public.ecr.aws/docker/library/redis@7.2.7-alpine and openssl/libcrypto3@3.3.3-r0
         
                     </li>
                 </ul>
@@ -553,7 +545,7 @@
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                        docker-image|public.ecr.aws/docker/library/redis@7.2.7-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         openssl/libcrypto3@3.3.3-r0
                                         
@@ -562,9 +554,9 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                        docker-image|public.ecr.aws/docker/library/redis@7.2.7-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        .haproxy-rundeps@20250214.191219
+                                        .redis-rundeps@20250214.192257
                                          <span class="list-paths__item__arrow">›</span> 
                                         openssl/libcrypto3@3.3.3-r0
                                         
@@ -573,7 +565,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                        docker-image|public.ecr.aws/docker/library/redis@7.2.7-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         apk-tools/apk-tools@2.14.6-r3
                                          <span class="list-paths__item__arrow">›</span> 
@@ -584,7 +576,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                        docker-image|public.ecr.aws/docker/library/redis@7.2.7-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         busybox/ssl_client@1.37.0-r12
                                          <span class="list-paths__item__arrow">›</span> 
@@ -595,20 +587,9 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                        docker-image|public.ecr.aws/docker/library/redis@7.2.7-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        ca-certificates/ca-certificates@20241121-r1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libcrypto3@3.3.3-r0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        .haproxy-rundeps@20250214.191219
+                                        .redis-rundeps@20250214.192257
                                          <span class="list-paths__item__arrow">›</span> 
                                         openssl/libssl3@3.3.3-r0
                                          <span class="list-paths__item__arrow">›</span> 
@@ -619,7 +600,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                        docker-image|public.ecr.aws/docker/library/redis@7.2.7-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         openssl/libssl3@3.3.3-r0
                                         
@@ -628,9 +609,9 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                        docker-image|public.ecr.aws/docker/library/redis@7.2.7-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        .haproxy-rundeps@20250214.191219
+                                        .redis-rundeps@20250214.192257
                                          <span class="list-paths__item__arrow">›</span> 
                                         openssl/libssl3@3.3.3-r0
                                         
@@ -639,7 +620,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                        docker-image|public.ecr.aws/docker/library/redis@7.2.7-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         apk-tools/apk-tools@2.14.6-r3
                                          <span class="list-paths__item__arrow">›</span> 
@@ -650,7 +631,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                        docker-image|public.ecr.aws/docker/library/redis@7.2.7-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         busybox/ssl_client@1.37.0-r12
                                          <span class="list-paths__item__arrow">›</span> 
@@ -727,7 +708,7 @@
         
                     <li class="card__meta__item">Introduced through:
         
-                                docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine and openssl/libcrypto3@3.3.3-r0
+                                docker-image|public.ecr.aws/docker/library/redis@7.2.7-alpine and openssl/libcrypto3@3.3.3-r0
         
                     </li>
                 </ul>
@@ -740,7 +721,7 @@
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                        docker-image|public.ecr.aws/docker/library/redis@7.2.7-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         openssl/libcrypto3@3.3.3-r0
                                         
@@ -749,9 +730,9 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                        docker-image|public.ecr.aws/docker/library/redis@7.2.7-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        .haproxy-rundeps@20250214.191219
+                                        .redis-rundeps@20250214.192257
                                          <span class="list-paths__item__arrow">›</span> 
                                         openssl/libcrypto3@3.3.3-r0
                                         
@@ -760,7 +741,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                        docker-image|public.ecr.aws/docker/library/redis@7.2.7-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         apk-tools/apk-tools@2.14.6-r3
                                          <span class="list-paths__item__arrow">›</span> 
@@ -771,7 +752,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                        docker-image|public.ecr.aws/docker/library/redis@7.2.7-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         busybox/ssl_client@1.37.0-r12
                                          <span class="list-paths__item__arrow">›</span> 
@@ -782,20 +763,9 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                        docker-image|public.ecr.aws/docker/library/redis@7.2.7-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        ca-certificates/ca-certificates@20241121-r1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libcrypto3@3.3.3-r0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        .haproxy-rundeps@20250214.191219
+                                        .redis-rundeps@20250214.192257
                                          <span class="list-paths__item__arrow">›</span> 
                                         openssl/libssl3@3.3.3-r0
                                          <span class="list-paths__item__arrow">›</span> 
@@ -806,7 +776,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                        docker-image|public.ecr.aws/docker/library/redis@7.2.7-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         openssl/libssl3@3.3.3-r0
                                         
@@ -815,9 +785,9 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                        docker-image|public.ecr.aws/docker/library/redis@7.2.7-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        .haproxy-rundeps@20250214.191219
+                                        .redis-rundeps@20250214.192257
                                          <span class="list-paths__item__arrow">›</span> 
                                         openssl/libssl3@3.3.3-r0
                                         
@@ -826,7 +796,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                        docker-image|public.ecr.aws/docker/library/redis@7.2.7-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         apk-tools/apk-tools@2.14.6-r3
                                          <span class="list-paths__item__arrow">›</span> 
@@ -837,7 +807,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                        docker-image|public.ecr.aws/docker/library/redis@7.2.7-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         busybox/ssl_client@1.37.0-r12
                                          <span class="list-paths__item__arrow">›</span> 
@@ -912,7 +882,7 @@
         
                     <li class="card__meta__item">Introduced through:
         
-                                docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine and openssl/libcrypto3@3.3.3-r0
+                                docker-image|public.ecr.aws/docker/library/redis@7.2.7-alpine and openssl/libcrypto3@3.3.3-r0
         
                     </li>
                 </ul>
@@ -925,7 +895,7 @@
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                        docker-image|public.ecr.aws/docker/library/redis@7.2.7-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         openssl/libcrypto3@3.3.3-r0
                                         
@@ -934,9 +904,9 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                        docker-image|public.ecr.aws/docker/library/redis@7.2.7-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        .haproxy-rundeps@20250214.191219
+                                        .redis-rundeps@20250214.192257
                                          <span class="list-paths__item__arrow">›</span> 
                                         openssl/libcrypto3@3.3.3-r0
                                         
@@ -945,7 +915,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                        docker-image|public.ecr.aws/docker/library/redis@7.2.7-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         apk-tools/apk-tools@2.14.6-r3
                                          <span class="list-paths__item__arrow">›</span> 
@@ -956,7 +926,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                        docker-image|public.ecr.aws/docker/library/redis@7.2.7-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         busybox/ssl_client@1.37.0-r12
                                          <span class="list-paths__item__arrow">›</span> 
@@ -967,20 +937,9 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                        docker-image|public.ecr.aws/docker/library/redis@7.2.7-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        ca-certificates/ca-certificates@20241121-r1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libcrypto3@3.3.3-r0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        .haproxy-rundeps@20250214.191219
+                                        .redis-rundeps@20250214.192257
                                          <span class="list-paths__item__arrow">›</span> 
                                         openssl/libssl3@3.3.3-r0
                                          <span class="list-paths__item__arrow">›</span> 
@@ -991,7 +950,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                        docker-image|public.ecr.aws/docker/library/redis@7.2.7-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         openssl/libssl3@3.3.3-r0
                                         
@@ -1000,9 +959,9 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                        docker-image|public.ecr.aws/docker/library/redis@7.2.7-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        .haproxy-rundeps@20250214.191219
+                                        .redis-rundeps@20250214.192257
                                          <span class="list-paths__item__arrow">›</span> 
                                         openssl/libssl3@3.3.3-r0
                                         
@@ -1011,7 +970,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                        docker-image|public.ecr.aws/docker/library/redis@7.2.7-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         apk-tools/apk-tools@2.14.6-r3
                                          <span class="list-paths__item__arrow">›</span> 
@@ -1022,7 +981,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                        docker-image|public.ecr.aws/docker/library/redis@7.2.7-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         busybox/ssl_client@1.37.0-r12
                                          <span class="list-paths__item__arrow">›</span> 
