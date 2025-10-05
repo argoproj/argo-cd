@@ -1,0 +1,10 @@
+apiVersion: jetstream.nats.io/v1beta2
+kind: ObjectStore
+metadata:
+  name: object-store-name
+spec:
+  bucket: my-object-store
+  storage: file
+  replicas: 1
+  maxBytes: 536870912 # 512 MB
+  compression: true
