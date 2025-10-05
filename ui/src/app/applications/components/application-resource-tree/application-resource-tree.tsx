@@ -36,22 +36,6 @@ function treeNodeKey(node: NodeId & {uid?: string}) {
     return node.uid || nodeKey(node);
 }
 
-// Get the key for a parent ref
-// Now that backend properly sets empty namespace for cluster-scoped parents,
-// we just need UID-based lookup with regular key fallback
-export function getParentKey(parent: NodeId & {uid?: string}, nodeByKey: Map<string, ResourceTreeNode>) {
-    // If the parent has a UID, try that first
-    if (parent.uid) {
-        // Check if we can find it by UID
-        const found = Array.from(nodeByKey.entries()).find(([, node]) => node.uid === parent.uid);
-        if (found) {
-            return found[0];
-        }
-    }
-
-    // Fall back to regular key
-    return treeNodeKey(parent);
-}
 
 const color = require('color');
 
@@ -1043,7 +1027,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
         const hiddenNodes: ResourceTreeNode[] = [];
         networkNodes.forEach(parent => {
             findNetworkTargets(networkNodes, parent.networkingInfo).forEach(child => {
-                const children = childrenByParentKey.get(getParentKey(parent, nodeByKey)) || [];
+                const children = childrenByParentKey.get(treeNodeKey(parent)) || [];
                 hasParents.add(treeNodeKey(child));
                 const parentId = parent.uid;
                 if (nodesHavingChildren.has(parentId)) {
@@ -1055,7 +1039,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                     if (props.getNodeExpansion(parentId)) {
                         hasParents.add(treeNodeKey(child));
                         children.push(child);
-                        childrenByParentKey.set(getParentKey(parent, nodeByKey), children);
+                        childrenByParentKey.set(treeNodeKey(parent), children);
                     } else {
                         hiddenNodes.push(child);
                     }
@@ -1150,7 +1134,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                         orphans.push(node);
                     }
                     node.parentRefs.forEach(parent => {
-                        const parentId = getParentKey(parent, nodeByKey);
+                        const parentId = treeNodeKey(parent);
                         const children = childrenByParentKey.get(parentId) || [];
                         if (nodesHavingChildren.has(parentId)) {
                             nodesHavingChildren.set(parentId, nodesHavingChildren.get(parentId) + children.length);
@@ -1159,12 +1143,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                         }
                         allChildNodes.push(node);
                         if (node.kind !== 'Pod' || !props.showCompactNodes) {
-                            const parentExpanded = props.getNodeExpansion(parentId);
-                            const shouldAdd = parentExpanded || node.orphaned;
-
-                            // Always add orphaned children regardless of expansion state
-                            // Otherwise they won't be connected to their parents in the graph
-                            if (shouldAdd) {
+                            if (props.getNodeExpansion(parentId)) {
                                 children.push(node);
                                 childrenByParentKey.set(parentId, children);
                             }

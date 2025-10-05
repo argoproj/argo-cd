@@ -207,7 +207,7 @@ func NewClusterCache(config *rest.Config, opts ...UpdateSettingsFunc) *clusterCa
 		// Check environment variable once at startup for performance
 		disableClusterScopedParentRefs: os.Getenv("GITOPS_ENGINE_DISABLE_CLUSTER_SCOPED_PARENT_REFS") != "",
 		orphanedChildren:                make(map[string]map[kube.ResourceKey]map[kube.ResourceKey]*Resource),
-		childToClusterParents:           make(map[kube.ResourceKey][]kube.ResourceKey),
+		namespacedChildToClusterParents: make(map[kube.ResourceKey][]kube.ResourceKey),
 	}
 	for i := range opts {
 		opts[i](cache)
@@ -275,8 +275,8 @@ type clusterCache struct {
 	// Structure: namespace -> cluster-scoped parent key -> children
 	orphanedChildren map[string]map[kube.ResourceKey]map[kube.ResourceKey]*Resource
 
-	// Reverse index for efficient updates: child key -> cluster-scoped parent keys
-	childToClusterParents map[kube.ResourceKey][]kube.ResourceKey
+	// Reverse index for efficient updates: namespaced child key -> cluster-scoped parent keys
+	namespacedChildToClusterParents map[kube.ResourceKey][]kube.ResourceKey
 }
 
 type clusterCacheSync struct {
@@ -514,7 +514,7 @@ func (c *clusterCache) rebuildOrphanedChildrenIndex() {
 
 	// Clear existing indexes
 	c.orphanedChildren = make(map[string]map[kube.ResourceKey]map[kube.ResourceKey]*Resource)
-	c.childToClusterParents = make(map[kube.ResourceKey][]kube.ResourceKey)
+	c.namespacedChildToClusterParents = make(map[kube.ResourceKey][]kube.ResourceKey)
 
 	// Rebuild from all namespaced resources
 	for namespace, nsResources := range c.nsIndex {
@@ -533,7 +533,7 @@ func (c *clusterCache) updateOrphanedChildrenIndex(child *Resource) {
 	childKey := child.ResourceKey()
 
 	// Clear old entries for this child
-	if oldParents, exists := c.childToClusterParents[childKey]; exists {
+	if oldParents, exists := c.namespacedChildToClusterParents[childKey]; exists {
 		for _, parentKey := range oldParents {
 			// Remove from orphaned children map
 			if nsMap, ok := c.orphanedChildren[child.Ref.Namespace]; ok {
@@ -549,7 +549,7 @@ func (c *clusterCache) updateOrphanedChildrenIndex(child *Resource) {
 				}
 			}
 		}
-		delete(c.childToClusterParents, childKey)
+		delete(c.namespacedChildToClusterParents, childKey)
 	}
 
 	// Track new cluster-scoped parents
@@ -618,7 +618,7 @@ func (c *clusterCache) updateOrphanedChildrenIndex(child *Resource) {
 
 	// Update reverse index
 	if len(newClusterParents) > 0 {
-		c.childToClusterParents[childKey] = newClusterParents
+		c.namespacedChildToClusterParents[childKey] = newClusterParents
 	}
 }
 
@@ -1589,7 +1589,7 @@ func (c *clusterCache) onNodeRemoved(key kube.ResourceKey) {
 		if !c.disableClusterScopedParentRefs {
 			// If this is a namespaced resource that was tracked as an orphaned child
 			if key.Namespace != "" {
-				if parents, exists := c.childToClusterParents[key]; exists {
+				if parents, exists := c.namespacedChildToClusterParents[key]; exists {
 					for _, parentKey := range parents {
 						if nsMap, ok := c.orphanedChildren[key.Namespace]; ok {
 							if parentMap, ok := nsMap[parentKey]; ok {
@@ -1603,7 +1603,7 @@ func (c *clusterCache) onNodeRemoved(key kube.ResourceKey) {
 							}
 						}
 					}
-					delete(c.childToClusterParents, key)
+					delete(c.namespacedChildToClusterParents, key)
 				}
 			}
 
@@ -1614,7 +1614,7 @@ func (c *clusterCache) onNodeRemoved(key kube.ResourceKey) {
 					if children, ok := nsMap[key]; ok {
 						for childKey := range children {
 							// Update the child's reverse index
-							if parents, exists := c.childToClusterParents[childKey]; exists {
+							if parents, exists := c.namespacedChildToClusterParents[childKey]; exists {
 								newParents := make([]kube.ResourceKey, 0, len(parents))
 								for _, p := range parents {
 									if p != key {
@@ -1622,9 +1622,9 @@ func (c *clusterCache) onNodeRemoved(key kube.ResourceKey) {
 									}
 								}
 								if len(newParents) > 0 {
-									c.childToClusterParents[childKey] = newParents
+									c.namespacedChildToClusterParents[childKey] = newParents
 								} else {
-									delete(c.childToClusterParents, childKey)
+									delete(c.namespacedChildToClusterParents, childKey)
 								}
 							}
 						}
