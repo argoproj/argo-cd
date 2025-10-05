@@ -9,9 +9,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	applicationpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
 	clusterpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/cluster"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
 	"github.com/argoproj/argo-cd/v3/util/io"
@@ -30,7 +30,7 @@ func TestCrossNamespaceOwnership(t *testing.T) {
 		Sync().
 		Then().
 		Expect(SyncStatusIs(v1alpha1.SyncStatusCodeSynced)).
-		And(func(app *v1alpha1.Application) {
+		And(func(_ *v1alpha1.Application) {
 			// Get the UID of the ClusterRole that was created
 			output, err := Run("", "kubectl", "get", "clusterrole", "test-cluster-role",
 				"-o", "jsonpath={.metadata.uid}")
@@ -61,7 +61,7 @@ rules:
 			t.Logf("Created Role in app namespace: %s", DeploymentNamespace())
 
 			// Create another namespace for cross-namespace testing
-			otherNamespace := fmt.Sprintf("%s-other", DeploymentNamespace())
+			otherNamespace := DeploymentNamespace() + "-other"
 			_, err = Run("", "kubectl", "create", "namespace", otherNamespace)
 			if err != nil {
 				// Namespace might already exist, that's ok
@@ -104,7 +104,7 @@ rules:
 			if err != nil {
 				t.Logf("Warning: Failed to invalidate cache: %v", err)
 			} else {
-				t.Logf("Cache invalidated successfully, cluster status: %s", cluster.ConnectionState.Status)
+				t.Logf("Cache invalidated successfully, cluster status: %s", cluster.Info.ConnectionState.Status)
 			}
 
 			// Wait for cache to rebuild
@@ -148,9 +148,10 @@ rules:
 							parent.Kind, parent.Name, parent.Namespace)
 					}
 
-					if node.Name == "test-role-same-ns" {
+					switch node.Name {
+					case "test-role-same-ns":
 						roleSameNs = &node
-					} else if node.Name == "test-role-other-ns" {
+					case "test-role-other-ns":
 						roleOtherNs = &node
 					}
 				}
@@ -191,7 +192,7 @@ func TestCrossNamespaceOwnershipWithRefresh(t *testing.T) {
 		Sync().
 		Then().
 		Expect(SyncStatusIs(v1alpha1.SyncStatusCodeSynced)).
-		And(func(app *v1alpha1.Application) {
+		And(func(_ *v1alpha1.Application) {
 			// Get the UID of the ClusterRole
 			output, err := Run("", "kubectl", "get", "clusterrole", "test-cluster-role",
 				"-o", "jsonpath={.metadata.uid}")
