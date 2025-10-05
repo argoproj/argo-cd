@@ -133,14 +133,20 @@ rules:
 				}
 			}
 			require.NotNil(t, clusterRoleNode, "ClusterRole not found in resource tree")
-			t.Logf("Found ClusterRole in tree: %s", clusterRoleNode.Name)
+			t.Logf("Found ClusterRole in tree: %s, namespace: '%s'", clusterRoleNode.Name, clusterRoleNode.Namespace)
 
 			// Find both Roles and verify they reference the ClusterRole as their parent
 			var roleSameNs, roleOtherNs *v1alpha1.ResourceNode
 			for _, node := range tree.Nodes {
 				if node.Kind == "Role" {
-					t.Logf("Found Role: %s in namespace %s with parent refs: %v",
+					t.Logf("Found Role: %s in namespace '%s' with parent refs: %v",
 						node.Name, node.Namespace, node.ParentRefs)
+
+					// Log parent namespace values
+					for _, parent := range node.ParentRefs {
+						t.Logf("  Parent ref: Kind=%s, Name=%s, Namespace='%s'",
+							parent.Kind, parent.Name, parent.Namespace)
+					}
 
 					if node.Name == "test-role-same-ns" {
 						roleSameNs = &node
