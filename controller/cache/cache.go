@@ -716,7 +716,7 @@ func (c *liveStateCache) GetNamespaceTopLevelResources(server *appv1.Cluster, na
 	resources := clusterInfo.FindResources(namespace, clustercache.TopLevelResource)
 
 	// Get all namespace resources for parent lookups
-	namespaceResources := clusterInfo.FindResources(namespace, func(r *clustercache.Resource) bool {
+	namespaceResources := clusterInfo.FindResources(namespace, func(_ *clustercache.Resource) bool {
 		return true
 	})
 
