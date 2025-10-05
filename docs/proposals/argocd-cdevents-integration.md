@@ -10,7 +10,7 @@ approvers:
   - TBD
 
 creation-date: 2025-06-21
-last-updated: 2025-08-11
+last-updated: 2025-10-04
 ---
 
 
@@ -132,46 +132,73 @@ As a DevOps engineer, I want to trigger automated rollback procedures when ArgoC
   send: [app-health-degraded]
 ```
 
-### cdEvents Specification (v0.5.0-draft)
+### cdEvents Specification (v0.4.1)
+
+> **Note**: This proposal uses cdEvents v0.4.1 with event types at v0.2.0, which are currently stable and validated in a demo reference implementation. Future versions should maintain backward compatibility following semantic versioning.
 
 **Continuous Deployment Event Types:**
-- `dev.cdevents.service.deployed.0.3.0-draft` - Service deployed to environment (new instance)
-- `dev.cdevents.service.upgraded.0.3.0-draft` - Service upgraded to new version (existing instance)
-- `dev.cdevents.service.removed.0.3.0-draft` - Service removed from environment
-- `dev.cdevents.service.published.0.3.0-draft` - Service published and accessible
-- `dev.cdevents.service.rolledback.0.3.0-draft` - Service rolled back to previous version
-- `dev.cdevents.environment.created.0.3.0-draft` - Environment created
-- `dev.cdevents.environment.modified.0.3.0-draft` - Environment modified
-- `dev.cdevents.environment.deleted.0.3.0-draft` - Environment deleted
+- `dev.cdevents.service.deployed.0.2.0` - Service deployed to environment (new instance)
+- `dev.cdevents.service.upgraded.0.2.0` - Service upgraded to new version (existing instance)
+- `dev.cdevents.service.removed.0.2.0` - Service removed from environment
+- `dev.cdevents.service.published.0.2.0` - Service published and accessible
+- `dev.cdevents.service.rolledback.0.2.0` - Service rolled back to previous version
+- `dev.cdevents.environment.created.0.2.0` - Environment created
+- `dev.cdevents.environment.modified.0.2.0` - Environment modified
+- `dev.cdevents.environment.deleted.0.2.0` - Environment deleted
 
 **Continuous Operations Event Types:**
-- `dev.cdevents.incident.detected.0.3.0-draft` - Incident detected in environment
-- `dev.cdevents.incident.reported.0.3.0-draft` - Incident reported through ticketing
-- `dev.cdevents.incident.resolved.0.3.0-draft` - Incident resolved
-- `dev.cdevents.ticket.created.0.2.0-draft` - Ticket created
-- `dev.cdevents.ticket.updated.0.2.0-draft` - Ticket updated
-- `dev.cdevents.ticket.closed.0.2.0-draft` - Ticket closed
+- `dev.cdevents.incident.detected.0.2.0` - Incident detected in environment
+- `dev.cdevents.incident.reported.0.2.0` - Incident reported through ticketing
+- `dev.cdevents.incident.resolved.0.2.0` - Incident resolved
 
 **cdEvents Structure:**
 ```json
 {
   "context": {
-    "version": "0.5.0-draft",
+    "version": "0.4.1",
     "id": "271069a8-fc18-44f1-b38f-9d70a1695819",
-    "source": "/event/source/123",
-    "type": "dev.cdevents.service.deployed.0.3.0-draft",
-    "timestamp": "2023-03-20T14:27:05.315384Z"
+    "source": "/argocd/production",
+    "type": "dev.cdevents.service.deployed.0.2.0",
+    "timestamp": "2025-01-20T14:27:05.315384Z"
   },
   "subject": {
-    "id": "myService123",
+    "id": "production/myService",
     "type": "service",
+    "source": "/argocd/production",
     "content": {
-      "environment": {"id": "production"},
-      "artifactId": "pkg:oci/myapp@sha256%3A..."
+      "environment": {
+        "id": "production",
+        "source": "in-cluster"
+      },
+      "artifactId": "pkg:git/github.com/example/myapp@abc123def"
+    }
+  },
+  "customData": {
+    "argocd": {
+      "application": "myService",
+      "syncStatus": "Synced",
+      "healthStatus": "Healthy"
     }
   }
 }
 ```
+
+**CloudEvents HTTP Binding:**
+
+cdEvents can be transmitted using CloudEvents HTTP headers alongside the JSON body:
+
+```http
+POST /webhook/cdevents HTTP/1.1
+Content-Type: application/json
+Ce-Specversion: 0.4.1
+Ce-Type: dev.cdevents.service.deployed.0.2.0
+Ce-Source: argocd/production
+Ce-Id: 271069a8-fc18-44f1-b38f-9d70a1695819
+
+{body as shown above}
+```
+
+This approach separates protocol metadata (in headers) from event payload (in body), improving compatibility with CloudEvents-aware infrastructure.
 
 ## Implementation Details/Notes/Constraints
 
@@ -190,23 +217,20 @@ As a DevOps engineer, I want to trigger automated rollback procedures when ArgoC
 
 | ArgoCD Trigger | cdEvents Type | Condition | Description |
 |---|---|---|---|
-| `on-deployed` (first deployment) | `service.deployed` | New application, no previous sync | Initial deployment of service |
-| `on-deployed` (upgrade) | `service.upgraded` | Application with previous successful sync | Service upgraded to new version |
-| `on-sync-succeeded` | `service.upgraded` | Sync completed with new revision | Alternative upgrade detection |
-| `on-deleted` | `service.removed` | Application being deleted | Service removal from environment |
-| `on-created` | `environment.created` | Namespace-scoped app creation | Environment lifecycle (optional) |
-| `on-deleted` | `environment.deleted` | Namespace-scoped app deletion | Environment lifecycle (optional) |
-| Service accessibility | `service.published` | Service becomes externally accessible | Service ready for consumption |
+| `on-deployed` (first deployment) | `service.deployed.0.2.0` | New application, no previous sync | Initial deployment of service |
+| `on-deployed` (upgrade) | `service.upgraded.0.2.0` | Application with previous successful sync | Service upgraded to new version |
+| `on-sync-succeeded` | `service.upgraded.0.2.0` | Sync completed with new revision | Alternative upgrade detection |
+| `on-deleted` | `service.removed.0.2.0` | Application being deleted | Service removal from environment |
+| `on-created` | `environment.created.0.2.0` | Namespace-scoped app creation | Environment lifecycle (optional) |
+| `on-deleted` | `environment.deleted.0.2.0` | Namespace-scoped app deletion | Environment lifecycle (optional) |
 
 #### Continuous Operations Event Mappings
 
 | ArgoCD Trigger | cdEvents Type | Condition | Description |
 |---|---|---|---|
-| `on-health-degraded` | `incident.detected` | Health transitions to Degraded | Service health incident |
-| `on-sync-failed` | `incident.detected` | Sync operation fails | Deployment incident |
-| `on-sync-status-unknown` | `incident.detected` | Sync status becomes unknown | Operational incident |
-| Health recovery | `incident.resolved` | Health transitions from Degraded to Healthy | Health incident resolution |
-| Sync recovery | `incident.resolved` | Sync succeeds after failure | Deployment incident resolution |
+| `on-health-degraded` | `incident.detected.0.2.0` | Health transitions to Degraded | Service health incident |
+| `on-sync-failed` | `incident.detected.0.2.0` | Sync operation fails | Deployment incident |
+| `on-sync-status-unknown` | `incident.detected.0.2.0` | Sync status becomes unknown | Operational incident |
 
 ### Subject and Data Mapping Logic
 
@@ -216,6 +240,7 @@ As a DevOps engineer, I want to trigger automated rollback procedures when ArgoC
 subject:
   id: "{app.metadata.namespace}/{app.metadata.name}"
   type: "service"
+  source: "/argocd/{app.metadata.namespace}"
   content:
     environment:
       id: "{app.metadata.namespace}"
@@ -225,10 +250,11 @@ subject:
 
 **Environment Subject Mapping:**
 ```yaml
-# Kubernetes Namespace → cdEvents Environment  
+# Kubernetes Namespace → cdEvents Environment
 subject:
   id: "{app.metadata.namespace}"
   type: "environment"
+  source: "/argocd/{cluster-context}"
   content:
     name: "{app.metadata.namespace}"
     url: "{cluster-api-server-url}"
@@ -240,6 +266,7 @@ subject:
 subject:
   id: "incident-{app.metadata.namespace}-{app.metadata.name}-{timestamp}"
   type: "incident"
+  source: "/argocd/{app.metadata.namespace}"
   content:
     description: "{health.status} - {sync.status}"
     environment:
@@ -249,12 +276,82 @@ subject:
     artifactId: "pkg:git/{repo-url}@{git-commit-sha}"
 ```
 
+**Enhanced CustomData Examples:**
+
+For **Service Deployed/Upgraded** events:
+```json
+{
+  "customData": {
+    "argocd": {
+      "application": "webapp",
+      "syncStatus": "Synced",
+      "healthStatus": "Healthy",
+      "targetRevision": "main",
+      "cluster": "production-cluster",
+      "namespace": "production"
+    }
+  }
+}
+```
+
+For **Sync Failed (Incident)** events:
+```json
+{
+  "customData": {
+    "argocd": {
+      "application": "webapp",
+      "phase": "Failed",
+      "syncResult": {
+        "revision": "abc123",
+        "resources": [...],
+        "message": "one or more objects failed to apply"
+      }
+    }
+  }
+}
+```
+
+
+
 **Data Transformations:**
 - **Application Identification**: `{namespace}/{name}` → Service ID
 - **Git Revision**: Commit SHA → PURL format (`pkg:git/repo@sha`)
 - **Environment**: Kubernetes namespace → Environment ID
 - **Timestamps**: RFC3339 format as required by cdEvents
-- **Source**: ArgoCD cluster context (configurable)
+- **Source**: ArgoCD cluster context (configurable, follows `/argocd/{context}` pattern)
+
+### CustomData Namespacing Convention
+
+To enable interoperability in multi-tool CD ecosystems, ArgoCD-specific metadata in the `customData` field is namespaced under the `argocd` key:
+
+```json
+{
+  "customData": {
+    "argocd": {
+      "application": "webapp",
+      "syncStatus": "Synced",
+      "healthStatus": "Healthy",
+      "targetRevision": "main",
+      "cluster": "production-cluster",
+      "namespace": "production"
+    }
+  }
+}
+```
+
+**Rationale:**
+- **Tool Identification**: Clearly identifies ArgoCD-specific fields in mixed event streams
+- **Collision Avoidance**: Prevents conflicts when events from multiple CD tools are aggregated
+- **Query Efficiency**: Enables JSON path queries like `customData.argocd.syncStatus` in observability platforms
+- **Extensibility**: Allows future correlation with other tools (e.g., `customData.github`, `customData.tekton`)
+
+**Naming Guidelines:**
+- Use the **primary tool name** as the namespace key (lowercase, e.g., `argocd`, `tekton`, `jenkins`)
+- Within the namespace, use descriptive, domain-specific field names
+- Avoid redundant prefixes (use `application` not `argocdApplication` within the `argocd` namespace)
+
+**Future Considerations:**
+If organizational hierarchy becomes necessary (e.g., multiple tools from the same project), the cdEvents community may recommend reverse-DNS style namespacing (e.g., `argoproj.argocd`, `argoproj.workflows`). This proposal uses single-level namespacing as sufficient for current use cases.
 
 ### Detailed examples
 
@@ -362,6 +459,7 @@ The Phase 1 implementation leverages ArgoCD's existing notification engine with 
 For initial prototype and testing, we recommend a simple HTTP webhook receiver that can...
 
 - *Is there an existing example/demo service from cdEvents group?*
+- Yes - see cdViz - https://github.com/cdviz-dev/cdviz/
 
 ## Gaps and Future Considerations
 
