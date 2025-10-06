@@ -56,7 +56,7 @@ ENV GOPATH=/go
 COPY hack/install.sh hack/tool-versions.sh go.* ./
 COPY hack/installers installers
 RUN mkdir -p gitops-engine
-COPY gitops-engine/go.* ./gitops-engine
+COPY gitops-engine/go.* ./gitops-engine/
 
 RUN ./install.sh helm && \
     ./install.sh kustomize && \
