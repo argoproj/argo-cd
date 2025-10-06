@@ -22,6 +22,7 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -187,6 +188,88 @@ func Benchmark_sync(t *testing.B) {
 	for n := 0; n < t.N; n++ {
 		err := c.sync()
 		require.NoError(t, err)
+	}
+}
+
+// Benchmark_sync_CrossNamespace tests sync performance with cross-namespace relationships
+// This specifically tests the performance impact of building indexes for cluster-scoped
+// parents that own namespaced children across different namespaces
+func Benchmark_sync_CrossNamespace(b *testing.B) {
+	testCases := []struct {
+		name                  string
+		numNamespaces         int
+		resourcesPerNamespace int
+		crossNamespacePercent float64
+	}{
+		{"Small_0pct", 5, 100, 0.0},
+		{"Small_10pct", 5, 100, 0.1},
+		{"Small_25pct", 5, 100, 0.25},
+		{"Medium_0pct", 10, 500, 0.0},
+		{"Medium_10pct", 10, 500, 0.1},
+		{"Medium_25pct", 10, 500, 0.25},
+		{"Large_0pct", 20, 1000, 0.0},
+		{"Large_10pct", 20, 1000, 0.1},
+		{"Large_25pct", 20, 1000, 0.25},
+	}
+
+	for _, tc := range testCases {
+		b.Run(tc.name, func(b *testing.B) {
+			resources := []runtime.Object{}
+
+			// Create cluster-scoped parents (ClusterRoles)
+			numClusterParents := 50
+			for i := 0; i < numClusterParents; i++ {
+				resources = append(resources, &rbacv1.ClusterRole{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: fmt.Sprintf("cluster-role-%d", i),
+						UID:  types.UID(fmt.Sprintf("cluster-uid-%d", i)),
+					},
+				})
+			}
+
+			// Create namespaced resources with some having cluster-scoped parents
+			for ns := 0; ns < tc.numNamespaces; ns++ {
+				namespace := fmt.Sprintf("namespace-%d", ns)
+				crossNamespaceCount := int(float64(tc.resourcesPerNamespace) * tc.crossNamespacePercent)
+
+				for i := 0; i < tc.resourcesPerNamespace; i++ {
+					pod := &corev1.Pod{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      fmt.Sprintf("pod-%d", i),
+							Namespace: namespace,
+							UID:       types.UID(fmt.Sprintf("pod-uid-%d-%d", ns, i)),
+						},
+					}
+
+					// Add cross-namespace ownership for some pods
+					if i < crossNamespaceCount {
+						pod.OwnerReferences = []metav1.OwnerReference{{
+							APIVersion: "rbac.authorization.k8s.io/v1",
+							Kind:       "ClusterRole",
+							Name:       fmt.Sprintf("cluster-role-%d", i%numClusterParents),
+							UID:        types.UID(fmt.Sprintf("cluster-uid-%d", i%numClusterParents)),
+						}}
+					}
+
+					resources = append(resources, pod)
+				}
+			}
+
+			// Need to add API resources for ClusterRole
+			c := newCluster(b, resources...).WithAPIResources([]kube.APIResourceInfo{{
+				GroupKind:            schema.GroupKind{Group: "rbac.authorization.k8s.io", Kind: "ClusterRole"},
+				GroupVersionResource: schema.GroupVersionResource{Group: "rbac.authorization.k8s.io", Version: "v1", Resource: "clusterroles"},
+				Meta:                 metav1.APIResource{Namespaced: false},
+			}})
+
+			b.ResetTimer()
+			b.ReportAllocs() // Important: measure memory allocations for index overhead
+
+			for n := 0; n < b.N; n++ {
+				err := c.sync()
+				require.NoError(b, err)
+			}
+		})
 	}
 }
 
