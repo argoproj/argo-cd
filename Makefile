@@ -261,8 +261,12 @@ clidocsgen:
 actionsdocsgen:
 	hack/generate-actions-list.sh
 
+.PHONY: resourceiconsgen
+resourceiconsgen:
+	hack/generate-icons-typescript.sh
+
 .PHONY: codegen-local
-codegen-local: mod-vendor-local mockgen gogen protogen clientgen openapigen clidocsgen actionsdocsgen manifests-local notification-docs notification-catalog
+codegen-local: mod-vendor-local mockgen gogen protogen clientgen openapigen clidocsgen actionsdocsgen resourceiconsgen manifests-local notification-docs notification-catalog
 	rm -rf vendor/
 
 .PHONY: codegen-local-fast
@@ -373,19 +377,11 @@ mod-download-local:
 
 .PHONY: mod-vendor
 mod-vendor: test-tools-image
-	$(call run-in-test-client,go work vendor)
+	$(call run-in-test-client,go mod vendor)
 
 .PHONY: mod-vendor-local
 mod-vendor-local: mod-download-local
-	go work vendor
-
-# Update the go.work.sum file and the vendor folder
-.PHONY: workspace-vendor
-workspace-vendor:
-	rm -rf vendor
-	rm -f go.work.sum
-	go work vendor
-	go mod tidy
+	go mod vendor
 
 # Run linter on the code
 .PHONY: lint
