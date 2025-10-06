@@ -36,7 +36,6 @@ function treeNodeKey(node: NodeId & {uid?: string}) {
     return node.uid || nodeKey(node);
 }
 
-
 const color = require('color');
 
 export interface ResourceTreeNode extends models.ResourceNode {
