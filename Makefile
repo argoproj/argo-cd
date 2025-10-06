@@ -383,14 +383,6 @@ mod-vendor: test-tools-image
 mod-vendor-local: mod-download-local
 	go mod vendor
 
-# Update the go.work.sum file and the vendor folder
-.PHONY: workspace-vendor
-workspace-vendor:
-	rm -rf vendor
-	rm -f go.work.sum
-	go mod vendor
-	go mod tidy
-
 # Run linter on the code
 .PHONY: lint
 lint: test-tools-image
