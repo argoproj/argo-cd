@@ -199,3 +199,54 @@ spec:
 
 > [!IMPORTANT]
 > When writing a `templatePatch`, you're crafting a patch. So, if the patch includes an empty `spec: # nothing in here`, it will effectively clear out existing fields. See [#17040](https://github.com/argoproj/argo-cd/issues/17040) for an example of this behavior.
+
+
+## Template Json Patch
+
+The `templateJsonPatch` feature enables advanced templating with support for `json+patch` using RFC 6902.  This feature has all of the limitations of templatePatch and is applied after `templatePatch` so both features can be used together.  It's big advantage over templatePatch is it's ability to target elements inside arrays which works well with `sources` and any arrays inside `valuesObject`
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: guestbook
+spec:
+  goTemplate: true
+  generators:
+  - list:
+      elements:
+        - cluster: engineering-dev
+          url: https://kubernetes.default.svc
+          autoSync: true
+          prune: true
+          valueFiles:
+            - values.large.yaml
+            - values.debug.yaml
+  template:
+    metadata:
+      name: '{{ .nameNormalized }}-deployment'
+    spec:
+      project: "default"
+      source:
+        repoURL: https://github.com/infra-team/cluster-deployments.git
+        targetRevision: HEAD
+        path: guestbook/{{ .nameNormalized }}
+      destination:
+        server: '{{ .server }}'
+        namespace: guestbook
+  templateJsonPatch: |
+    [
+      {
+        "op": "replace",
+        "path: "/spec/source/helm/valuefiles",
+        "value" {{ .valueFiles }}
+      }
+      {{ if .autoSync }}
+      ,{
+        "op": "add"
+        "path": "/spec/syncPolicy"
+        "value": { "automated": {"prune": {{.prune}} }}
+      }
+      {{ end }}
+    ]
+```

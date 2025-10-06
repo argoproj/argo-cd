@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
@@ -240,10 +241,269 @@ spec:
 	}
 }
 
+func Test_ApplyTemplateJsonPatch(t *testing.T) {
+	testCases := []struct {
+		name              string
+		appTemplate       *appv1.Application
+		templateJsonPatch string
+		expectedApp       *appv1.Application
+	}{
+		{
+			name: "json+path",
+			appTemplate: &appv1.Application{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "Application",
+					APIVersion: "argoproj.io/v1alpha1",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:       "my-cluster-guestbook",
+					Namespace:  "namespace",
+					Finalizers: []string{appv1.ResourcesFinalizerName},
+				},
+				Spec: appv1.ApplicationSpec{
+					Project: "default",
+					Source: &appv1.ApplicationSource{
+						RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+						TargetRevision: "HEAD",
+						Path:           "guestbook",
+					},
+					Destination: appv1.ApplicationDestination{
+						Server:    "https://kubernetes.default.svc",
+						Namespace: "guestbook",
+					},
+				},
+			},
+			templateJsonPatch: `
+[
+	{
+		"op": "add",
+		"path": "/metadata/annotations",
+		"value": {}
+	},
+	{
+		"op": "add",
+		"path": "/metadata/annotations/annotation-some-key",
+		"value": "annotation-some-value"
+	},
+	{
+		"op": "add",
+		"path": "/spec/source/helm",
+		"value": {}
+	},
+	{
+		"op": "add",
+		"path": "/spec/source/helm/valueFiles",
+		"value": ["values.test.yaml", "values.big.yaml"]
+	},
+	{
+		"op": "add",
+		"path": "/spec/syncPolicy",
+		"value": {}
+	},
+	{
+		"op": "add",
+		"path": "/spec/syncPolicy/automated",
+		"value": {}
+	},	
+	{
+		"op": "add",
+		"path": "/spec/syncPolicy/automated/prune",
+		"value": true
+	}
+]`,
+			expectedApp: &appv1.Application{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "Application",
+					APIVersion: "argoproj.io/v1alpha1",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:       "my-cluster-guestbook",
+					Namespace:  "namespace",
+					Finalizers: []string{appv1.ResourcesFinalizerName},
+					Annotations: map[string]string{
+						"annotation-some-key": "annotation-some-value",
+					},
+				},
+				Spec: appv1.ApplicationSpec{
+					Project: "default",
+					Source: &appv1.ApplicationSource{
+						RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+						TargetRevision: "HEAD",
+						Path:           "guestbook",
+						Helm: &appv1.ApplicationSourceHelm{
+							ValueFiles: []string{
+								"values.test.yaml",
+								"values.big.yaml",
+							},
+						},
+					},
+					Destination: appv1.ApplicationDestination{
+						Server:    "https://kubernetes.default.svc",
+						Namespace: "guestbook",
+					},
+					SyncPolicy: &appv1.SyncPolicy{
+						Automated: &appv1.SyncPolicyAutomated{
+							Prune: true,
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "json+patch sources",
+			appTemplate: &appv1.Application{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "Application",
+					APIVersion: "argoproj.io/v1alpha1",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:       "my-cluster-guestbook",
+					Namespace:  "namespace",
+					Finalizers: []string{appv1.ResourcesFinalizerName},
+				},
+				Spec: appv1.ApplicationSpec{
+					Project: "default",
+					Sources: appv1.ApplicationSources{
+						appv1.ApplicationSource{
+							RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+							TargetRevision: "HEAD",
+							Path:           "guestbook",
+						},
+						appv1.ApplicationSource{
+							RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+							TargetRevision: "HEAD",
+							Path:           "blue-green",
+							Helm: &appv1.ApplicationSourceHelm{
+								Values: `
+---
+replicaCount: 3`,
+							},
+						},
+					},
+				},
+			},
+			templateJsonPatch: `
+[
+  {
+    "op": "add",
+    "path": "/spec/sources/1/helm/valuesObject",
+    "value": {"replicaCount": 6}
+  }
+]`,
+			expectedApp: &appv1.Application{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "Application",
+					APIVersion: "argoproj.io/v1alpha1",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:       "my-cluster-guestbook",
+					Namespace:  "namespace",
+					Finalizers: []string{appv1.ResourcesFinalizerName},
+				},
+				Spec: appv1.ApplicationSpec{
+					Project: "default",
+					Sources: appv1.ApplicationSources{
+						appv1.ApplicationSource{
+							RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+							TargetRevision: "HEAD",
+							Path:           "guestbook",
+						},
+						appv1.ApplicationSource{
+							RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+							TargetRevision: "HEAD",
+							Path:           "blue-green",
+							Helm: &appv1.ApplicationSourceHelm{
+								Values: `
+---
+replicaCount: 3`,
+								ValuesObject: &runtime.RawExtension{
+									Raw: []byte(`{"replicaCount":6}`),
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "project field isn't overwritten",
+			appTemplate: &appv1.Application{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "Application",
+					APIVersion: "argoproj.io/v1alpha1",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "my-cluster-guestbook",
+					Namespace: "namespace",
+				},
+				Spec: appv1.ApplicationSpec{
+					Project: "default",
+					Source: &appv1.ApplicationSource{
+						RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+						TargetRevision: "HEAD",
+						Path:           "guestbook",
+					},
+					Destination: appv1.ApplicationDestination{
+						Server:    "https://kubernetes.default.svc",
+						Namespace: "guestbook",
+					},
+				},
+			},
+			templateJsonPatch: `
+[
+	{
+		"op": "replace",
+		"path": "/spec/project",
+		"value": "my-project"
+	}
+]`,
+			expectedApp: &appv1.Application{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "Application",
+					APIVersion: "argoproj.io/v1alpha1",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "my-cluster-guestbook",
+					Namespace: "namespace",
+				},
+				Spec: appv1.ApplicationSpec{
+					Project: "default",
+					Source: &appv1.ApplicationSource{
+						RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+						TargetRevision: "HEAD",
+						Path:           "guestbook",
+					},
+					Destination: appv1.ApplicationDestination{
+						Server:    "https://kubernetes.default.svc",
+						Namespace: "guestbook",
+					},
+				},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		tcc := tc
+		t.Run(tcc.name, func(t *testing.T) {
+			result, err := applyTemplateJsonPatch(tcc.appTemplate, tcc.templateJsonPatch)
+			require.NoError(t, err)
+			assert.Equal(t, *tcc.expectedApp, *result)
+		})
+	}
+}
+
 func TestError(t *testing.T) {
 	app := &appv1.Application{}
 
 	result, err := applyTemplatePatch(app, "hello world")
+	require.Error(t, err)
+	require.Nil(t, result)
+}
+
+func TestJsonPatchError(t *testing.T) {
+	app := &appv1.Application{}
+
+	result, err := applyTemplateJsonPatch(app, `["op": "add", "path": "/spec/something"]`)
 	require.Error(t, err)
 	require.Nil(t, result)
 }

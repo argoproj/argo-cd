@@ -73,6 +73,7 @@ type ApplicationSetSpec struct {
 	ApplyNestedSelectors         bool                            `json:"applyNestedSelectors,omitempty" protobuf:"bytes,8,name=applyNestedSelectors"`
 	IgnoreApplicationDifferences ApplicationSetIgnoreDifferences `json:"ignoreApplicationDifferences,omitempty" protobuf:"bytes,9,name=ignoreApplicationDifferences"`
 	TemplatePatch                *string                         `json:"templatePatch,omitempty" protobuf:"bytes,10,name=templatePatch"`
+	TemplateJsonPatch            *string                         `json:"templateJsonPatch,omitempty" protobuf:"bytes,11,name=templateJsonPatch"`
 }
 
 type ApplicationPreservedFields struct {

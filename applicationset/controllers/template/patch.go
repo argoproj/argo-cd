@@ -8,6 +8,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/applicationset/utils"
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	jsonpatch "github.com/evanphx/json-patch"
 )
 
 func applyTemplatePatch(app *appv1.Application, templatePatch string) (*appv1.Application, error) {
@@ -28,6 +29,34 @@ func applyTemplatePatch(app *appv1.Application, templatePatch string) (*appv1.Ap
 	data, err := strategicpatch.StrategicMergePatch(appString, []byte(convertedTemplatePatch), appv1.Application{})
 	if err != nil {
 		return nil, fmt.Errorf("error while applying templatePatch template to json %q: %w", convertedTemplatePatch, err)
+	}
+
+	finalApp := appv1.Application{}
+	err = json.Unmarshal(data, &finalApp)
+	if err != nil {
+		return nil, fmt.Errorf("error while unmarhsalling patched application: %w", err)
+	}
+
+	// Prevent changes to the `project` field. This helps prevent malicious template patches
+	finalApp.Spec.Project = app.Spec.Project
+
+	return &finalApp, nil
+}
+
+func applyTemplateJsonPatch(app *appv1.Application, templateJsonPatch string) (*appv1.Application, error) {
+	appString, err := json.Marshal(app)
+	if err != nil {
+		return nil, fmt.Errorf("error while marhsalling Application %w", err)
+	}
+
+	patch, err := jsonpatch.DecodePatch([]byte(templateJsonPatch))
+	if err != nil {
+		return nil, fmt.Errorf("error while decoding templateJsonPatch %q: %w", templateJsonPatch, err)
+	}
+
+	data, err := patch.Apply(appString)
+	if err != nil {
+		return nil, fmt.Errorf("error while applying templateJsonPatch %q: %w", templateJsonPatch, err)
 	}
 
 	finalApp := appv1.Application{}
