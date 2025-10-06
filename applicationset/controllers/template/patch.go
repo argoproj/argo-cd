@@ -6,9 +6,10 @@ import (
 
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 
+	jsonpatch "github.com/evanphx/json-patch"
+
 	"github.com/argoproj/argo-cd/v3/applicationset/utils"
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	jsonpatch "github.com/evanphx/json-patch"
 )
 
 func applyTemplatePatch(app *appv1.Application, templatePatch string) (*appv1.Application, error) {
@@ -43,20 +44,20 @@ func applyTemplatePatch(app *appv1.Application, templatePatch string) (*appv1.Ap
 	return &finalApp, nil
 }
 
-func applyTemplateJsonPatch(app *appv1.Application, templateJsonPatch string) (*appv1.Application, error) {
+func applyTemplateJSONPatch(app *appv1.Application, templateJSONPatch string) (*appv1.Application, error) {
 	appString, err := json.Marshal(app)
 	if err != nil {
 		return nil, fmt.Errorf("error while marhsalling Application %w", err)
 	}
 
-	patch, err := jsonpatch.DecodePatch([]byte(templateJsonPatch))
+	patch, err := jsonpatch.DecodePatch([]byte(templateJSONPatch))
 	if err != nil {
-		return nil, fmt.Errorf("error while decoding templateJsonPatch %q: %w", templateJsonPatch, err)
+		return nil, fmt.Errorf("error while decoding templateJSONPatch %q: %w", templateJSONPatch, err)
 	}
 
 	data, err := patch.Apply(appString)
 	if err != nil {
-		return nil, fmt.Errorf("error while applying templateJsonPatch %q: %w", templateJsonPatch, err)
+		return nil, fmt.Errorf("error while applying templateJsonPatch %q: %w", templateJSONPatch, err)
 	}
 
 	finalApp := appv1.Application{}

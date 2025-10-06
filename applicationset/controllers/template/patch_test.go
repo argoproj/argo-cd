@@ -241,11 +241,11 @@ spec:
 	}
 }
 
-func Test_ApplyTemplateJsonPatch(t *testing.T) {
+func Test_ApplyTemplateJSONPatch(t *testing.T) {
 	testCases := []struct {
 		name              string
 		appTemplate       *appv1.Application
-		templateJsonPatch string
+		templateJSONPatch string
 		expectedApp       *appv1.Application
 	}{
 		{
@@ -273,7 +273,7 @@ func Test_ApplyTemplateJsonPatch(t *testing.T) {
 					},
 				},
 			},
-			templateJsonPatch: `
+			templateJSONPatch: `
 [
 	{
 		"op": "add",
@@ -382,7 +382,7 @@ replicaCount: 3`,
 					},
 				},
 			},
-			templateJsonPatch: `
+			templateJSONPatch: `
 [
   {
     "op": "add",
@@ -449,7 +449,7 @@ replicaCount: 3`,
 					},
 				},
 			},
-			templateJsonPatch: `
+			templateJSONPatch: `
 [
 	{
 		"op": "replace",
@@ -485,7 +485,7 @@ replicaCount: 3`,
 	for _, tc := range testCases {
 		tcc := tc
 		t.Run(tcc.name, func(t *testing.T) {
-			result, err := applyTemplateJsonPatch(tcc.appTemplate, tcc.templateJsonPatch)
+			result, err := applyTemplateJSONPatch(tcc.appTemplate, tcc.templateJSONPatch)
 			require.NoError(t, err)
 			assert.Equal(t, *tcc.expectedApp, *result)
 		})
@@ -503,7 +503,7 @@ func TestError(t *testing.T) {
 func TestJsonPatchError(t *testing.T) {
 	app := &appv1.Application{}
 
-	result, err := applyTemplateJsonPatch(app, `["op": "add", "path": "/spec/something"]`)
+	result, err := applyTemplateJSONPatch(app, `["op": "add", "path": "/spec/something"]`)
 	require.Error(t, err)
 	require.Nil(t, result)
 }

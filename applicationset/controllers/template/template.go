@@ -63,8 +63,8 @@ func GenerateApplications(logCtx *log.Entry, applicationSetInfo argov1alpha1.App
 					app = patchedApplication
 				}
 
-				if applicationSetInfo.Spec.TemplateJsonPatch != nil {
-					patchedApplication, err := renderTemplateJsonPatch(renderer, app, applicationSetInfo, p)
+				if applicationSetInfo.Spec.TemplateJSONPatch != nil {
+					patchedApplication, err := renderTemplateJSONPatch(renderer, app, applicationSetInfo, p)
 					if err != nil {
 						log.WithError(err).WithField("params", a.Params).WithField("generator", requestedGenerator).
 							Error("error generating application from params")
@@ -104,13 +104,13 @@ func renderTemplatePatch(r utils.Renderer, app *argov1alpha1.Application, applic
 	return applyTemplatePatch(app, replacedTemplate)
 }
 
-func renderTemplateJsonPatch(r utils.Renderer, app *argov1alpha1.Application, applicationSetInfo argov1alpha1.ApplicationSet, params map[string]any) (*argov1alpha1.Application, error) {
-	replacedTemplate, err := r.Replace(*applicationSetInfo.Spec.TemplateJsonPatch, params, applicationSetInfo.Spec.GoTemplate, applicationSetInfo.Spec.GoTemplateOptions)
+func renderTemplateJSONPatch(r utils.Renderer, app *argov1alpha1.Application, applicationSetInfo argov1alpha1.ApplicationSet, params map[string]any) (*argov1alpha1.Application, error) {
+	replacedTemplate, err := r.Replace(*applicationSetInfo.Spec.TemplateJSONPatch, params, applicationSetInfo.Spec.GoTemplate, applicationSetInfo.Spec.GoTemplateOptions)
 	if err != nil {
 		return nil, fmt.Errorf("error replacing values in templateJsonPatch: %w", err)
 	}
 
-	return applyTemplateJsonPatch(app, replacedTemplate)
+	return applyTemplateJSONPatch(app, replacedTemplate)
 }
 
 func GetTempApplication(applicationSetTemplate argov1alpha1.ApplicationSetTemplate) *argov1alpha1.Application {

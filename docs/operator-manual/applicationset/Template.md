@@ -234,7 +234,7 @@ spec:
       destination:
         server: '{{ .server }}'
         namespace: guestbook
-  templateJsonPatch: |
+  templateJSONPatch: |
     [
       {
         "op": "replace",
