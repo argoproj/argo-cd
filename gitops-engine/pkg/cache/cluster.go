@@ -90,13 +90,6 @@ type eventMeta struct {
 	un    *unstructured.Unstructured
 }
 
-// missingOwnerRef tracks owner references that need cluster-scoped parent resolution
-type missingOwnerRef struct {
-	childResource *Resource
-	ownerRefIndex int
-	parentKey     kube.ResourceKey // cluster-scoped parent key (Namespace: "")
-}
-
 // ClusterInfo holds cluster cache stats
 type ClusterInfo struct {
 	// Server holds cluster API server URL
