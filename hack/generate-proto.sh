@@ -77,7 +77,7 @@ go-to-protobuf \
     --output-dir="${GOPATH}/src/"
 
 # go-to-protobuf modifies vendored code. Re-vendor code so it's available for subsequent steps.
-go work vendor
+go mod vendor
 
 # Either protoc-gen-go, protoc-gen-gofast, or protoc-gen-gogofast can be used to build
 # server/*/<service>.pb.go from .proto files. golang/protobuf and gogo/protobuf can be used
