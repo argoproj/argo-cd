@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"encoding/json"
 	stderrors "errors"
 	"fmt"
 	"os"
@@ -262,7 +263,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, project *v1alp
 	// resources which in this case applies the live values in the configured
 	// ignore differences fields.
 	if syncOp.SyncOptions.HasOption("RespectIgnoreDifferences=true") {
-		patchedTargets, err := normalizeTargetResources(compareResult)
+		patchedTargets, err := normalizeTargetResources(openAPISchema, compareResult)
 		if err != nil {
 			state.Phase = common.OperationError
 			state.Message = fmt.Sprintf("Failed to normalize target resources: %s", err)
@@ -435,53 +436,65 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, project *v1alp
 //   - applies normalization to the target resources based on the live resources
 //   - copies ignored fields from the matching live resources: apply normalizer to the live resource,
 //     calculates the patch performed by normalizer and applies the patch to the target resource
-func normalizeTargetResources(cr *comparisonResult) ([]*unstructured.Unstructured, error) {
-	// normalize live and target resources
+func normalizeTargetResources(openAPISchema openapi.Resources, cr *comparisonResult) ([]*unstructured.Unstructured, error) {
+	// Normalize live and target resources (cleaning or aligning them)
 	normalized, err := diff.Normalize(cr.reconciliationResult.Live, cr.reconciliationResult.Target, cr.diffConfig)
 	if err != nil {
 		return nil, err
 	}
+
 	patchedTargets := []*unstructured.Unstructured{}
+
 	for idx, live := range cr.reconciliationResult.Live {
 		normalizedTarget := normalized.Targets[idx]
 		if normalizedTarget == nil {
 			patchedTargets = append(patchedTargets, nil)
 			continue
 		}
+		gvk := normalizedTarget.GroupVersionKind()
+
 		originalTarget := cr.reconciliationResult.Target[idx]
 		if live == nil {
+			// No live resource, just use target
 			patchedTargets = append(patchedTargets, originalTarget)
 			continue
 		}
 
-		var lookupPatchMeta *strategicpatch.PatchMetaFromStruct
-		versionedObject, err := scheme.Scheme.New(normalizedTarget.GroupVersionKind())
-		if err == nil {
-			meta, err := strategicpatch.NewPatchMetaFromStruct(versionedObject)
-			if err != nil {
+		var (
+			lookupPatchMeta strategicpatch.LookupPatchMeta
+			versionedObject any
+		)
+
+		// Load patch meta struct or OpenAPI schema for CRDs
+		if versionedObject, err = scheme.Scheme.New(gvk); err == nil {
+			if lookupPatchMeta, err = strategicpatch.NewPatchMetaFromStruct(versionedObject); err != nil {
 				return nil, err
 			}
-			lookupPatchMeta = &meta
+		} else if crdSchema := openAPISchema.LookupResource(gvk); crdSchema != nil {
+			lookupPatchMeta = strategicpatch.NewPatchMetaFromOpenAPI(crdSchema)
 		}
 
+		// Calculate live patch
 		livePatch, err := getMergePatch(normalized.Lives[idx], live, lookupPatchMeta)
 		if err != nil {
 			return nil, err
 		}
 
-		normalizedTarget, err = applyMergePatch(normalizedTarget, livePatch, versionedObject)
+		// Apply the patch to the normalized target
+		// This ensures ignored fields in live are restored into the target before syncing
+		normalizedTarget, err = applyMergePatch(normalizedTarget, livePatch, versionedObject, lookupPatchMeta)
 		if err != nil {
 			return nil, err
 		}
-
 		patchedTargets = append(patchedTargets, normalizedTarget)
 	}
+
 	return patchedTargets, nil
 }
 
 // getMergePatch calculates and returns the patch between the original and the
 // modified unstructures.
-func getMergePatch(original, modified *unstructured.Unstructured, lookupPatchMeta *strategicpatch.PatchMetaFromStruct) ([]byte, error) {
+func getMergePatch(original, modified *unstructured.Unstructured, lookupPatchMeta strategicpatch.LookupPatchMeta) ([]byte, error) {
 	originalJSON, err := original.MarshalJSON()
 	if err != nil {
 		return nil, err
@@ -497,18 +510,35 @@ func getMergePatch(original, modified *unstructured.Unstructured, lookupPatchMet
 	return jsonpatch.CreateMergePatch(originalJSON, modifiedJSON)
 }
 
-// applyMergePatch will apply the given patch in the obj and return the patched
-// unstructure.
-func applyMergePatch(obj *unstructured.Unstructured, patch []byte, versionedObject any) (*unstructured.Unstructured, error) {
+// applyMergePatch will apply the given patch in the obj and return the patched unstructure.
+func applyMergePatch(obj *unstructured.Unstructured, patch []byte, versionedObject any, meta strategicpatch.LookupPatchMeta) (*unstructured.Unstructured, error) {
 	originalJSON, err := obj.MarshalJSON()
 	if err != nil {
 		return nil, err
 	}
 	var patchedJSON []byte
-	if versionedObject == nil {
-		patchedJSON, err = jsonpatch.MergePatch(originalJSON, patch)
-	} else {
+	switch {
+	case versionedObject != nil:
 		patchedJSON, err = strategicpatch.StrategicMergePatch(originalJSON, patch, versionedObject)
+	case meta != nil:
+		var originalMap, patchMap map[string]any
+		if err := json.Unmarshal(originalJSON, &originalMap); err != nil {
+			return nil, err
+		}
+		if err := json.Unmarshal(patch, &patchMap); err != nil {
+			return nil, err
+		}
+
+		patchedMap, err := strategicpatch.StrategicMergeMapPatchUsingLookupPatchMeta(originalMap, patchMap, meta)
+		if err != nil {
+			return nil, err
+		}
+		patchedJSON, err = json.Marshal(patchedMap)
+		if err != nil {
+			return nil, err
+		}
+	default:
+		patchedJSON, err = jsonpatch.MergePatch(originalJSON, patch)
 	}
 	if err != nil {
 		return nil, err

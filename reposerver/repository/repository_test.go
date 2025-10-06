@@ -1134,6 +1134,27 @@ func TestManifestGenErrorCacheRespectsNoCache(t *testing.T) {
 	assert.True(t, strings.HasPrefix(err.Error(), cachedManifestGenerationPrefix))
 }
 
+func TestGenerateHelmKubeVersion(t *testing.T) {
+	service := newService(t, "../../util/helm/testdata/redis")
+
+	res, err := service.GenerateManifest(t.Context(), &apiclient.ManifestRequest{
+		Repo:    &v1alpha1.Repository{},
+		AppName: "test",
+		ApplicationSource: &v1alpha1.ApplicationSource{
+			Path: ".",
+			Helm: &v1alpha1.ApplicationSourceHelm{
+				KubeVersion: "1.30.11+IKS",
+			},
+		},
+		ProjectName:        "something",
+		ProjectSourceRepos: []string{"*"},
+	})
+
+	require.NoError(t, err)
+	assert.Len(t, res.Commands, 1)
+	assert.Contains(t, res.Commands[0], "--kube-version 1.30.11")
+}
+
 func TestGenerateHelmWithValues(t *testing.T) {
 	service := newService(t, "../../util/helm/testdata/redis")
 
@@ -2028,12 +2049,12 @@ func TestGetAppDetailsWithAppParameterFile(t *testing.T) {
 // There are unit test that will use kustomize set and by that modify the
 // kustomization.yaml. For proper testing, we need to copy the testdata to a
 // temporary path, run the tests, and then throw the copy away again.
-func mkTempParameters(source string) string {
+func mkTempParameters(ctx context.Context, source string) string {
 	tempDir, err := os.MkdirTemp("./testdata", "app-parameters")
 	if err != nil {
 		panic(err)
 	}
-	cmd := exec.Command("cp", "-R", source, tempDir)
+	cmd := exec.CommandContext(ctx, "cp", "-R", source, tempDir)
 	err = cmd.Run()
 	if err != nil {
 		os.RemoveAll(tempDir)
@@ -2046,7 +2067,7 @@ func mkTempParameters(source string) string {
 // the test would modify the data when run.
 func runWithTempTestdata(t *testing.T, path string, runner func(t *testing.T, path string)) {
 	t.Helper()
-	tempDir := mkTempParameters("./testdata/app-parameters")
+	tempDir := mkTempParameters(t.Context(), "./testdata/app-parameters")
 	runner(t, filepath.Join(tempDir, "app-parameters", path))
 	os.RemoveAll(tempDir)
 }
@@ -3047,6 +3068,7 @@ func TestDirectoryPermissionInitializer(t *testing.T) {
 
 func addHelmToGitRepo(t *testing.T, options newGitRepoOptions) {
 	t.Helper()
+	ctx := t.Context()
 	err := os.WriteFile(filepath.Join(options.path, "Chart.yaml"), []byte("name: test\nversion: v1.0.0"), 0o777)
 	require.NoError(t, err)
 	for valuesFileName, values := range options.helmChartOptions.valuesFiles {
@@ -3056,10 +3078,10 @@ func addHelmToGitRepo(t *testing.T, options newGitRepoOptions) {
 		require.NoError(t, err)
 	}
 	require.NoError(t, err)
-	cmd := exec.Command("git", "add", "-A")
+	cmd := exec.CommandContext(ctx, "git", "add", "-A")
 	cmd.Dir = options.path
 	require.NoError(t, cmd.Run())
-	cmd = exec.Command("git", "commit", "-m", "Initial commit")
+	cmd = exec.CommandContext(ctx, "git", "commit", "-m", "Initial commit")
 	cmd.Dir = options.path
 	require.NoError(t, cmd.Run())
 }
@@ -3069,20 +3091,21 @@ func initGitRepo(t *testing.T, options newGitRepoOptions) (revision string) {
 	if options.createPath {
 		require.NoError(t, os.Mkdir(options.path, 0o755))
 	}
+	ctx := t.Context()
 
-	cmd := exec.Command("git", "init", "-b", "main", options.path)
+	cmd := exec.CommandContext(ctx, "git", "init", "-b", "main", options.path)
 	cmd.Dir = options.path
 	require.NoError(t, cmd.Run())
 
 	if options.remote != "" {
-		cmd = exec.Command("git", "remote", "add", "origin", options.path)
+		cmd = exec.CommandContext(ctx, "git", "remote", "add", "origin", options.path)
 		cmd.Dir = options.path
 		require.NoError(t, cmd.Run())
 	}
 
 	commitAdded := options.addEmptyCommit || options.helmChartOptions.chartName != ""
 	if options.addEmptyCommit {
-		cmd = exec.Command("git", "commit", "-m", "Initial commit", "--allow-empty")
+		cmd = exec.CommandContext(ctx, "git", "commit", "-m", "Initial commit", "--allow-empty")
 		cmd.Dir = options.path
 		require.NoError(t, cmd.Run())
 	} else if options.helmChartOptions.chartName != "" {
@@ -3091,7 +3114,7 @@ func initGitRepo(t *testing.T, options newGitRepoOptions) (revision string) {
 
 	if commitAdded {
 		var revB bytes.Buffer
-		cmd = exec.Command("git", "rev-parse", "HEAD", options.path)
+		cmd = exec.CommandContext(ctx, "git", "rev-parse", "HEAD", options.path)
 		cmd.Dir = options.path
 		cmd.Stdout = &revB
 		require.NoError(t, cmd.Run())
@@ -3242,7 +3265,7 @@ func TestFetchRevisionCanGetNonstandardRefs(t *testing.T) {
 // and error output. If it fails, it stops the test with a failure message.
 func runGit(t *testing.T, workDir string, args ...string) string {
 	t.Helper()
-	cmd := exec.Command("git", args...)
+	cmd := exec.CommandContext(t.Context(), "git", args...)
 	cmd.Dir = workDir
 	out, err := cmd.CombinedOutput()
 	stringOut := string(out)
@@ -4333,7 +4356,7 @@ func Test_GenerateManifests_Commands(t *testing.T) {
 		q := apiclient.ManifestRequest{
 			AppName:     "test-app",
 			Namespace:   "test-namespace",
-			KubeVersion: "1.2.3",
+			KubeVersion: "1.2.3+something",
 			ApiVersions: []string{"v1/Test", "v2/Test"},
 			Repo:        &v1alpha1.Repository{},
 			ApplicationSource: &v1alpha1.ApplicationSource{
@@ -4379,7 +4402,7 @@ func Test_GenerateManifests_Commands(t *testing.T) {
 		t.Run("with overrides", func(t *testing.T) {
 			// These can be set explicitly instead of using inferred values. Make sure the overrides apply.
 			q.ApplicationSource.Helm.APIVersions = []string{"v3", "v4"}
-			q.ApplicationSource.Helm.KubeVersion = "5.6.7"
+			q.ApplicationSource.Helm.KubeVersion = "5.6.7+something"
 			q.ApplicationSource.Helm.Namespace = "different-namespace"
 			q.ApplicationSource.Helm.ReleaseName = "different-release-name"
 
@@ -4454,9 +4477,12 @@ images:
 		q := apiclient.ManifestRequest{
 			AppName:     "test-app",
 			Namespace:   "test-namespace",
-			KubeVersion: "1.2.3",
+			KubeVersion: "1.2.3+something",
 			ApiVersions: []string{"v1/Test", "v2/Test"},
 			Repo:        &v1alpha1.Repository{},
+			KustomizeOptions: &v1alpha1.KustomizeOptions{
+				BuildOptions: "--enable-helm",
+			},
 			ApplicationSource: &v1alpha1.ApplicationSource{
 				Path: ".",
 				Kustomize: &v1alpha1.ApplicationSourceKustomize{
@@ -4475,7 +4501,7 @@ images:
 					Images: v1alpha1.KustomizeImages{
 						"image=override",
 					},
-					KubeVersion:           "5.6.7",
+					KubeVersion:           "5.6.7+something",
 					LabelWithoutSelector:  true,
 					LabelIncludeTemplates: true,
 					NamePrefix:            "test-prefix",
@@ -4494,7 +4520,6 @@ images:
 		}
 
 		res, err := service.GenerateManifest(t.Context(), &q)
-
 		require.NoError(t, err)
 		assert.Equal(t, []string{
 			"kustomize edit set nameprefix -- test-prefix",
@@ -4505,7 +4530,7 @@ images:
 			"kustomize edit add annotation --force test:annotation-test-app",
 			"kustomize edit set namespace -- override-namespace",
 			"kustomize edit add component component",
-			"kustomize build .",
+			"kustomize build . --enable-helm --helm-kube-version 5.6.7 --helm-api-versions v1 --helm-api-versions v2",
 		}, res.Commands)
 	})
 }

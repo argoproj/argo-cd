@@ -96,10 +96,10 @@ resource.customizations.actions.argoproj.io_Rollout: |
 
 #### Creating new resources with a custom action
 
-!!! important
-    Creating resources via the Argo CD UI is an intentional, strategic departure from GitOps principles. We recommend 
-    that you use this feature sparingly and only for resources that are not part of the desired state of the 
-    application.
+> [!IMPORTANT]
+> Creating resources via the Argo CD UI is an intentional, strategic departure from GitOps principles. We recommend 
+> that you use this feature sparingly and only for resources that are not part of the desired state of the 
+> application.
 
 The resource the action is invoked on would be referred to as the `source resource`.  
 The new resource and all the resources implicitly created as a result, must be permitted on the AppProject level, otherwise the creation will fail.
@@ -216,7 +216,7 @@ The `fa-fw` class ensures that the icon is displayed with a fixed width, to avoi
 ```lua
 local actions = {}
 actions["create-workflow"] = {
-  ["iconClass"] = "fa fa-fw fa-play",
+  ["iconClass"] = "fa fa-fw fa-plus",
   ["displayName"] = "Create Workflow"
 }
 return actions

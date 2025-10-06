@@ -1,7 +1,9 @@
 # OneLogin
 
-!!! note "Are you using this? Please contribute!"
-    If you're using this IdP please consider [contributing](../../developer-guide/docs-site.md) to this document.
+> [!NOTE]
+> **Are you using this? Please contribute!**
+>
+> If you're using this IdP please consider [contributing](../../developer-guide/docs-site.md) to this document.
 
 <!-- markdownlint-disable MD033 -->
 <div style="text-align:center"><img src="../../../assets/argo.png" /></div>
@@ -39,7 +41,8 @@ Update the "Configuration" settings as follows:
 3. Set the "Redirect Url" field to https://argocd.myproject.com/auth/callback, replacing the hostname with your own.
 4. Click "Save".
 
-!!! note "OneLogin may not let you save any other fields until the above fields are set."
+> [!NOTE]
+> OneLogin may not let you save any other fields until the above fields are set.
 
 #### Info Tab
 
@@ -134,7 +137,8 @@ The “issuer” is taken from the SSO tab of the OneLogin application. It is on
 
 The "clientSecret" value is a client secret located in the SSO tab of the OneLogin application.
 
-!!! note "If you get an `invalid_client` error when trying the authenticate with OneLogin, there is a possibility that your client secret is not proper. Keep in mind that in previous versions `clientSecret` value had to be base64 encrypted, but it is not required anymore."
+> [!NOTE]
+> **If you get an `invalid_client` error when trying the authenticate with OneLogin, there is a possibility that your client secret is not proper. Keep in mind that in previous versions `clientSecret` value had to be base64 encrypted, but it is not required anymore.**
 
 ### Configure Permissions for OneLogin Auth'd Users
 

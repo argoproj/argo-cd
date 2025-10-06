@@ -493,7 +493,7 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	}
 	sub := jwtutil.StringField(claims, "sub")
 	err = a.clientCache.Set(&cache.Item{
-		Key:    formatAccessTokenCacheKey(sub),
+		Key:    FormatAccessTokenCacheKey(sub),
 		Object: encToken,
 		CacheActionOpts: cache.CacheActionOpts{
 			Expiration: getTokenExpiration(claims),
@@ -640,6 +640,39 @@ func createClaimsAuthenticationRequestParameter(requestedClaims map[string]*oidc
 	return oauth2.SetAuthURLParam("claims", string(claimsRequestRAW)), nil
 }
 
+// SetGroupsFromUserInfo takes a claims object and adds groups claim from userinfo endpoint if available
+// This is required by some SSO implementations as they don't provide the groups claim in the ID token
+// If querying the UserInfo endpoint fails, we return an error to indicate the session is invalid
+// we assume that everywhere in argocd jwt.MapClaims is used as type for interface jwt.Claims
+// otherwise this would cause a panic
+func (a *ClientApp) SetGroupsFromUserInfo(claims jwt.Claims, sessionManagerClaimsIssuer string) (jwt.MapClaims, error) {
+	var groupClaims jwt.MapClaims
+	var ok bool
+	if groupClaims, ok = claims.(jwt.MapClaims); !ok {
+		if tmpClaims, ok := claims.(*jwt.MapClaims); ok {
+			if tmpClaims != nil {
+				groupClaims = *tmpClaims
+			}
+		}
+	}
+	iss := jwtutil.StringField(groupClaims, "iss")
+	if iss != sessionManagerClaimsIssuer && a.settings.UserInfoGroupsEnabled() && a.settings.UserInfoPath() != "" {
+		userInfo, unauthorized, err := a.GetUserInfo(groupClaims, a.settings.IssuerURL(), a.settings.UserInfoPath())
+		if unauthorized {
+			return groupClaims, fmt.Errorf("error while quering userinfo endpoint: %w", err)
+		}
+		if err != nil {
+			return groupClaims, fmt.Errorf("error fetching user info endpoint: %w", err)
+		}
+		if groupClaims["sub"] != userInfo["sub"] {
+			return groupClaims, errors.New("subject of claims from user info endpoint didn't match subject of idToken, see https://openid.net/specs/openid-connect-core-1_0.html#UserInfo")
+		}
+		groupClaims["groups"] = userInfo["groups"]
+	}
+
+	return groupClaims, nil
+}
+
 // GetUserInfo queries the IDP userinfo endpoint for claims
 func (a *ClientApp) GetUserInfo(actualClaims jwt.MapClaims, issuerURL, userInfoPath string) (jwt.MapClaims, bool, error) {
 	sub := jwtutil.StringField(actualClaims, "sub")
@@ -647,7 +680,7 @@ func (a *ClientApp) GetUserInfo(actualClaims jwt.MapClaims, issuerURL, userInfoP
 	var encClaims []byte
 
 	// in case we got it in the cache, we just return the item
-	clientCacheKey := formatUserInfoResponseCacheKey(sub)
+	clientCacheKey := FormatUserInfoResponseCacheKey(sub)
 	if err := a.clientCache.Get(clientCacheKey, &encClaims); err == nil {
 		claimsRaw, err := crypto.Decrypt(encClaims, a.encryptionKey)
 		if err != nil {
@@ -664,22 +697,22 @@ func (a *ClientApp) GetUserInfo(actualClaims jwt.MapClaims, issuerURL, userInfoP
 
 	// check if the accessToken for the user is still present
 	var encAccessToken []byte
-	err := a.clientCache.Get(formatAccessTokenCacheKey(sub), &encAccessToken)
+	err := a.clientCache.Get(FormatAccessTokenCacheKey(sub), &encAccessToken)
 	// without an accessToken we can't query the user info endpoint
 	// thus the user needs to reauthenticate for argocd to get a new accessToken
 	if errors.Is(err, cache.ErrCacheMiss) {
 		return claims, true, fmt.Errorf("no accessToken for %s: %w", sub, err)
 	} else if err != nil {
-		return claims, true, fmt.Errorf("couldn't read accessToken from cache for %s: %w", sub, err)
+		return claims, true, fmt.Errorf("could not read accessToken from cache for %s: %w", sub, err)
 	}
 
 	accessToken, err := crypto.Decrypt(encAccessToken, a.encryptionKey)
 	if err != nil {
-		return claims, true, fmt.Errorf("couldn't decrypt accessToken for %s: %w", sub, err)
+		return claims, true, fmt.Errorf("could not decrypt accessToken for %s: %w", sub, err)
 	}
 
 	url := issuerURL + userInfoPath
-	request, err := http.NewRequest(http.MethodGet, url, http.NoBody)
+	request, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, http.NoBody)
 	if err != nil {
 		err = fmt.Errorf("failed creating new http request: %w", err)
 		return claims, false, err
@@ -743,11 +776,11 @@ func (a *ClientApp) GetUserInfo(actualClaims jwt.MapClaims, issuerURL, userInfoP
 
 	rawClaims, err := json.Marshal(claims)
 	if err != nil {
-		return claims, false, fmt.Errorf("couldn't marshal claim to json: %w", err)
+		return claims, false, fmt.Errorf("could not marshal claim to json: %w", err)
 	}
 	encClaims, err = crypto.Encrypt(rawClaims, a.encryptionKey)
 	if err != nil {
-		return claims, false, fmt.Errorf("couldn't encrypt user info response: %w", err)
+		return claims, false, fmt.Errorf("could not encrypt user info response: %w", err)
 	}
 
 	err = a.clientCache.Set(&cache.Item{
@@ -758,7 +791,7 @@ func (a *ClientApp) GetUserInfo(actualClaims jwt.MapClaims, issuerURL, userInfoP
 		},
 	})
 	if err != nil {
-		return claims, false, fmt.Errorf("couldn't put item to cache: %w", err)
+		return claims, false, fmt.Errorf("could not put item to cache: %w", err)
 	}
 
 	return claims, false, nil
@@ -774,11 +807,11 @@ func getTokenExpiration(claims jwt.MapClaims) time.Duration {
 }
 
 // formatUserInfoResponseCacheKey returns the key which is used to store userinfo of user in cache
-func formatUserInfoResponseCacheKey(sub string) string {
+func FormatUserInfoResponseCacheKey(sub string) string {
 	return fmt.Sprintf("%s_%s", UserInfoResponseCachePrefix, sub)
 }
 
 // formatAccessTokenCacheKey returns the key which is used to store the accessToken of a user in cache
-func formatAccessTokenCacheKey(sub string) string {
+func FormatAccessTokenCacheKey(sub string) string {
 	return fmt.Sprintf("%s_%s", AccessTokenCachePrefix, sub)
 }

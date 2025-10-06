@@ -20,6 +20,7 @@ node_modules/
 .kube/
 ./test/cmp/*.sock
 .envrc.remote
+.mirrord/
 .*.swp
 rerunreport.txt
 
