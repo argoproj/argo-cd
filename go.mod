@@ -12,7 +12,7 @@ require (
 	github.com/Masterminds/sprig/v3 v3.3.0
 	github.com/TomOnTime/utfutil v1.0.0
 	github.com/alicebob/miniredis/v2 v2.35.0
-	github.com/argoproj/gitops-engine v0.7.1-0.20251003191641-cf8d42f2c53d
+	github.com/argoproj/gitops-engine v0.7.1-0.20251006172252-b89b0871b414
 	github.com/argoproj/notifications-engine v0.4.1-0.20250908182349-da04400446ff
 	github.com/argoproj/pkg v0.13.6
 	github.com/argoproj/pkg/v2 v2.0.1
@@ -115,7 +115,7 @@ require (
 	layeh.com/gopher-json v0.0.0-20190114024228-97fed8db8427
 	oras.land/oras-go/v2 v2.6.0
 	sigs.k8s.io/controller-runtime v0.21.0
-	sigs.k8s.io/structured-merge-diff/v6 v6.3.0
+	sigs.k8s.io/structured-merge-diff/v6 v6.3.1-0.20251003215857-446d8398e19c
 	sigs.k8s.io/yaml v1.6.0
 )
 
