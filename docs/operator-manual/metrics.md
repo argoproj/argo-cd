@@ -271,7 +271,7 @@ Scraped at the `argocd-commit-server:8087/metrics` endpoint.
 
 | Metric                                                  |   Type    | Description                                          |
 | ------------------------------------------------------- | :-------: | ---------------------------------------------------- |
-| `argocd_commitserver_commit_pending_request_total`      |   guage   | Number of pending commit requests.                   |
+| `argocd_commitserver_commit_pending_request_total`      |   gauge   | Number of pending commit requests.                   |
 | `argocd_commitserver_git_request_duration_seconds`      | histogram | Git requests duration seconds.                       |
 | `argocd_commitserver_git_request_total`                 |  counter  | Number of git requests performed by commit server    |
 | `argocd_commitserver_commit_request_duration_seconds`   | histogram | Commit requests duration seconds.                    |
@@ -386,6 +386,23 @@ spec:
   selector:
     matchLabels:
       app.kubernetes.io/name: argocd-notifications-controller-metrics
+  endpoints:
+    - port: metrics
+```
+
+For the optional [Source Hydrator](../user-guide/source-hydrator.md) commit server component, you can add the following:
+
+```yaml
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: argocd-commit-server-metrics
+  labels:
+    release: prometheus-operator
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: argocd-commit-server
   endpoints:
     - port: metrics
 ```

@@ -57,8 +57,8 @@ How it works:
 - After each successful commit to *argoproj/applicationset* `master` branch, a GitHub action will run that performs a container build/push to [`argoproj/argocd-applicationset:latest`](https://quay.io/repository/argoproj/argocd-applicationset?tab=tags )
 - [Documentation for the `master`-branch-based developer builds](https://argocd-applicationset.readthedocs.io/en/master/)  is available from Read the Docs.
 
-!!! warning
-    Development builds contain newer features and bug fixes, but are more likely to be unstable, as compared to release builds.
+> [!WARNING]
+> Development builds contain newer features and bug fixes, but are more likely to be unstable, as compared to release builds.
 
 See the `master` branch [Read the Docs](https://argocd-applicationset.readthedocs.io/en/master/) page for documentation on post-release features. -->
 

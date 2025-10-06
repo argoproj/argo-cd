@@ -2,6 +2,7 @@ package exec
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -283,5 +284,5 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 }
 
 func RunCommand(name string, opts CmdOpts, arg ...string) (string, error) {
-	return RunCommandExt(exec.Command(name, arg...), opts)
+	return RunCommandExt(exec.CommandContext(context.Background(), name, arg...), opts)
 }

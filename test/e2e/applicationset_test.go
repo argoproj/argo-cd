@@ -1316,7 +1316,8 @@ func githubSCMMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request)
 func testServerWithPort(t *testing.T, port int, handler http.Handler) *httptest.Server {
 	t.Helper()
 	// Use mocked API response to avoid rate-limiting.
-	l, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port))
+	lc := net.ListenConfig{}
+	l, err := lc.Listen(t.Context(), "tcp", fmt.Sprintf("127.0.0.1:%d", port))
 	require.NoError(t, err, "Unable to start server")
 
 	ts := httptest.NewUnstartedServer(handler)

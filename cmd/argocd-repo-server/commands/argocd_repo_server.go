@@ -169,7 +169,8 @@ func NewCommand() *cobra.Command {
 			}
 
 			grpc := server.CreateGRPC()
-			listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", listenHost, listenPort))
+			lc := &net.ListenConfig{}
+			listener, err := lc.Listen(ctx, "tcp", fmt.Sprintf("%s:%d", listenHost, listenPort))
 			errors.CheckError(err)
 
 			healthz.ServeHealthCheck(http.DefaultServeMux, func(r *http.Request) error {

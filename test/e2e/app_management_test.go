@@ -1564,7 +1564,7 @@ func TestPermissions(t *testing.T) {
 		CreateApp().
 		Sync().
 		Then().
-		// make sure application resource actiions are successful
+		// make sure application resource actions are successful
 		And(func(app *Application) {
 			assertResourceActions(t, app.Name, true)
 		}).
@@ -1603,7 +1603,7 @@ func TestPermissions(t *testing.T) {
 		}).
 		Refresh(RefreshTypeNormal).
 		Then().
-		// make sure application resource actiions are failing
+		// make sure application resource actions are failing
 		And(func(_ *Application) {
 			assertResourceActions(t, "test-permissions", false)
 		})
@@ -2305,7 +2305,7 @@ func TestListResource(t *testing.T) {
 //
 //	application --dest-namespace does not exist
 //
-// Verity application --dest-namespace is created
+//	Verify application --dest-namespace is created
 //
 //	application sync successful
 //	when application is deleted, --dest-namespace is not deleted

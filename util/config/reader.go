@@ -1,6 +1,7 @@
 package config
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -71,7 +72,11 @@ func UnmarshalRemoteFile(url string, obj any) error {
 // The caller is responsible for checking error return values.
 func ReadRemoteFile(url string) ([]byte, error) {
 	var data []byte
-	resp, err := http.Get(url)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, http.NoBody)
+	if err != nil {
+		return data, err
+	}
+	resp, err := http.DefaultClient.Do(req)
 	if err == nil {
 		defer func() {
 			_ = resp.Body.Close()

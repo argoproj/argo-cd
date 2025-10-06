@@ -28,11 +28,12 @@ func GetFactorySettings(argocdService service.Service, secretName, configMapName
 }
 
 // GetFactorySettingsForCLI allows the initialization of argocdService to be deferred until it is used, when InitGetVars is called.
-func GetFactorySettingsForCLI(argocdService service.Service, secretName, configMapName string, selfServiceNotificationEnabled bool) api.Settings {
+func GetFactorySettingsForCLI(serviceGetter func() service.Service, secretName, configMapName string, selfServiceNotificationEnabled bool) api.Settings {
 	return api.Settings{
 		SecretName:    secretName,
 		ConfigMapName: configMapName,
 		InitGetVars: func(cfg *api.Config, configMap *corev1.ConfigMap, secret *corev1.Secret) (api.GetVars, error) {
+			argocdService := serviceGetter()
 			if argocdService == nil {
 				return nil, errors.New("argocdService is not initialized")
 			}

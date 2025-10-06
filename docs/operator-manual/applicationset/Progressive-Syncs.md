@@ -1,6 +1,8 @@
 # Progressive Syncs
 
-!!! warning "Alpha Feature (Since v2.6.0)"
+> [!WARNING]
+> **Alpha Feature (Since v2.6.0)**
+>
 
     This is an experimental, [alpha-quality](https://github.com/argoproj/argoproj/blob/main/community/feature-status.md#alpha)
     feature that allows you to control the order in which the ApplicationSet controller will create or update the Applications

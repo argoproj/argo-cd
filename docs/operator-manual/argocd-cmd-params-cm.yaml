@@ -292,6 +292,8 @@ data:
   applicationsetcontroller.global.preserved.labels: "acme.com/label1,acme.com/label2"
   # Enable GitHub API metrics for generators that use GitHub API
   applicationsetcontroller.enable.github.api.metrics: "false"
+  # The maximum number of resources stored in the status of an ApplicationSet. This is a safeguard to prevent the status from growing too large.
+  applicationsetcontroller.status.max.resources.count: "5000"
 
   ## Argo CD Notifications Controller Properties
   # Set the logging level. One of: debug|info|warn|error (default "info")

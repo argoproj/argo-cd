@@ -5619,6 +5619,9 @@
         "statusBadgeRootUrl": {
           "type": "string"
         },
+        "syncWithReplaceAllowed": {
+          "type": "boolean"
+        },
         "trackingMethod": {
           "type": "string"
         },
@@ -7322,6 +7325,11 @@
           "items": {
             "$ref": "#/definitions/applicationv1alpha1ResourceStatus"
           }
+        },
+        "resourcesCount": {
+          "description": "ResourcesCount is the total number of resources managed by this application set. The count may be higher than actual number of items in the Resources field when\nthe number of managed resources exceeds the limit imposed by the controller (to avoid making the status field too large).",
+          "type": "integer",
+          "format": "int64"
         }
       }
     },
@@ -8249,7 +8257,7 @@
       }
     },
     "v1alpha1ConfigMapKeyRef": {
-      "description": "Utility struct for a reference to a configmap key.",
+      "description": "ConfigMapKeyRef struct for a reference to a configmap key.",
       "type": "object",
       "properties": {
         "configMapName": {
@@ -9331,7 +9339,7 @@
       }
     },
     "v1alpha1PullRequestGeneratorGithub": {
-      "description": "PullRequestGenerator defines connection info specific to GitHub.",
+      "description": "PullRequestGeneratorGithub defines connection info specific to GitHub.",
       "type": "object",
       "properties": {
         "api": {
@@ -10335,7 +10343,7 @@
       }
     },
     "v1alpha1SecretRef": {
-      "description": "Utility struct for a reference to a secret key.",
+      "description": "SecretRef struct for a reference to a secret key.",
       "type": "object",
       "properties": {
         "key": {
@@ -10572,8 +10580,8 @@
           "type": "string"
         },
         "targetBranch": {
-          "type": "string",
-          "title": "TargetBranch is the branch to which hydrated manifests should be committed"
+          "description": "TargetBranch is the branch from which hydrated manifests will be synced.\nIf HydrateTo is not set, this is also the branch to which hydrated manifests are committed.",
+          "type": "string"
         }
       }
     },

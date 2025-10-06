@@ -42,8 +42,8 @@ The following configuration options are available for Kustomize:
 
 To use Kustomize with an overlay, point your path to the overlay.
 
-!!! tip
-    If you're generating resources, you should read up how to ignore those generated resources using the [`IgnoreExtraneous` compare option](compare-options.md).
+> [!TIP]
+> If you're generating resources, you should read up how to ignore those generated resources using the [`IgnoreExtraneous` compare option](compare-options.md).
 
 ## Patches
 Patches are a way to kustomize resources using inline configurations in Argo CD applications.  `patches`  follow the same logic as the corresponding Kustomization.  Any patches that target existing Kustomization file will be merged.

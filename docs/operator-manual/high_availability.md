@@ -4,10 +4,9 @@ Argo CD is largely stateless. All data is persisted as Kubernetes objects, which
 
 A set of [HA manifests](https://github.com/argoproj/argo-cd/tree/stable/manifests/ha) are provided for users who wish to run Argo CD in a highly available manner. This runs more containers, and runs Redis in HA mode.
 
-!!! note
-
-    The HA installation will require at least three different nodes due to pod anti-affinity roles in the
-    specs. Additionally, IPv6 only clusters are not supported.
+> [!NOTE]
+> The HA installation will require at least three different nodes due to pod anti-affinity roles in the
+> specs. Additionally, IPv6 only clusters are not supported.
 
 ## Scaling Up
 
@@ -35,6 +34,9 @@ and might fail. To avoid failed syncs use the `ARGOCD_GIT_ATTEMPTS_COUNT` enviro
 * `argocd-repo-server` executes config management tools such as `helm` or `kustomize` and enforces a 90 second timeout. This timeout can be changed by using the `ARGOCD_EXEC_TIMEOUT` env variable. The value should be in the Go time duration string format, for example, `2m30s`.
 
 * `argocd-repo-server` will issue a `SIGTERM` signal to a command that has elapsed the `ARGOCD_EXEC_TIMEOUT`. In most cases, well-behaved commands will exit immediately when receiving the signal. However, if this does not happen, `argocd-repo-server` will wait an additional timeout of `ARGOCD_EXEC_FATAL_TIMEOUT` and then forcefully exit the command with a `SIGKILL` to prevent stalling. Note that a failure to exit with `SIGTERM` is usually a bug in either the offending command or in the way `argocd-repo-server` calls it and should be reported to the issue tracker for further investigation.
+
+* When using the `discovery` option in Config Management Plugins (CMP), `argocd-repo-server` copies the repository (or only the files specified via the `argocd.argoproj.io/manifest-generate-paths` annotation) into a separate directory for each plugin.
+This can place a heavy load on disk resources for a **argocd-repo-server**, especially if the repository contains large files. To mitigate this, consider disabling `discovery` or using [Plugin tar stream exclusions](./config-management-plugins.md#plugin-tar-stream-exclusions).
 
 **metrics:**
 
@@ -95,9 +97,11 @@ spec:
 
 The `--sharding-method` parameter can also be overridden by setting the key `controller.sharding.algorithm` in the `argocd-cmd-params-cm` `configMap` (preferably) or by setting the `ARGOCD_CONTROLLER_SHARDING_ALGORITHM` environment variable and by specifying the same possible values.
 
-!!! warning "Alpha Features"
-    The `round-robin` shard distribution algorithm is an experimental feature. Reshuffling is known to occur in certain scenarios with cluster removal. If the cluster at rank-0 is removed, reshuffling all clusters across shards will occur and may temporarily have negative performance impacts.
-    The `consistent-hashing` shard distribution algorithm is an experimental feature. Extensive benchmark have been documented on the [CNOE blog](https://cnoe.io/blog/argo-cd-application-scalability) with encouraging results. Community feedback is highly appreciated before moving this feature to a production ready state.
+> [!WARNING]
+> **Alpha Features**
+>
+> The `round-robin` shard distribution algorithm is an experimental feature. Reshuffling is known to occur in certain scenarios with cluster removal. If the cluster at rank-0 is removed, reshuffling all clusters across shards will occur and may temporarily have negative performance impacts.
+> The `consistent-hashing` shard distribution algorithm is an experimental feature. Extensive benchmark have been documented on the [CNOE blog](https://cnoe.io/blog/argo-cd-application-scalability) with encouraging results. Community feedback is highly appreciated before moving this feature to a production ready state.
 
 * A cluster can be manually assigned and forced to a `shard` by patching the `shard` field in the cluster secret to contain the shard number, e.g.
 ```yaml
@@ -217,8 +221,8 @@ Similarly, applications referencing an external Helm values file will not get th
 
 For webhooks, the comparison is done using the files specified in the webhook event payload instead.
 
-!!! note
-    Application manifest paths annotation support for webhooks depends on the git provider used for the Application. It is currently only supported for GitHub, GitLab, and Gogs based repos.
+> [!NOTE]
+> Application manifest paths annotation support for webhooks depends on the git provider used for the Application. It is currently only supported for GitHub, GitLab, and Gogs based repos.
 
 * **Relative path** The annotation might contain a relative path. In this case the path is considered relative to the path specified in the application source:
 
@@ -293,8 +297,8 @@ spec:
 # ...
 ```
 
-!!! note
-    If application manifest generation using the `argocd.argoproj.io/manifest-generate-paths` annotation feature is enabled, only the resources specified by this annotation will be sent to the CMP server for manifest generation, rather than the entire repository. To determine the appropriate resources, a common root path is calculated based on the paths provided in the annotation. The application path serves as the deepest path that can be selected as the root.
+> [!NOTE]
+> If application manifest generation using the `argocd.argoproj.io/manifest-generate-paths` annotation feature is enabled, only the resources specified by this annotation will be sent to the CMP server for manifest generation, rather than the entire repository. To determine the appropriate resources, a common root path is calculated based on the paths provided in the annotation. The application path serves as the deepest path that can be selected as the root.
 
 ### Application Sync Timeout & Jitter
 

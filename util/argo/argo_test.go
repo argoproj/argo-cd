@@ -624,6 +624,40 @@ func TestFilterByRepoP(t *testing.T) {
 	})
 }
 
+func TestFilterByPath(t *testing.T) {
+	apps := []argoappv1.Application{
+		{
+			Spec: argoappv1.ApplicationSpec{
+				Source: &argoappv1.ApplicationSource{
+					Path: "example/app/foo",
+				},
+			},
+		},
+		{
+			Spec: argoappv1.ApplicationSpec{
+				Source: &argoappv1.ApplicationSource{
+					Path: "example/app/existent",
+				},
+			},
+		},
+	}
+
+	t.Run("Empty filter", func(t *testing.T) {
+		res := FilterByPath(apps, "")
+		assert.Len(t, res, 2)
+	})
+
+	t.Run("Found one match", func(t *testing.T) {
+		res := FilterByPath(apps, "example/app/foo")
+		assert.Len(t, res, 1)
+	})
+
+	t.Run("No match found", func(t *testing.T) {
+		res := FilterByPath(apps, "example/app/non-existent")
+		assert.Empty(t, res)
+	})
+}
+
 func TestValidatePermissions(t *testing.T) {
 	t.Run("Empty Repo URL result in condition", func(t *testing.T) {
 		spec := argoappv1.ApplicationSpec{

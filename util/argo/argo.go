@@ -180,6 +180,20 @@ func FilterByRepoP(apps []*argoappv1.Application, repo string) []*argoappv1.Appl
 	return items
 }
 
+// FilterByPath returns an application
+func FilterByPath(apps []argoappv1.Application, path string) []argoappv1.Application {
+	if path == "" {
+		return apps
+	}
+	items := make([]argoappv1.Application, 0)
+	for i := 0; i < len(apps); i++ {
+		if apps[i].Spec.GetSource().Path == path {
+			items = append(items, apps[i])
+		}
+	}
+	return items
+}
+
 // FilterByCluster returns an application
 func FilterByCluster(apps []argoappv1.Application, cluster string) []argoappv1.Application {
 	if cluster == "" {
@@ -1152,7 +1166,7 @@ func parseName(qualifiedName string, defaultNs string, delim string) (name strin
 		namespace = defaultNs
 		name = t[0]
 	}
-	return
+	return name, namespace
 }
 
 // ParseAppNamespacedName parses a namespaced name in the format namespace/name

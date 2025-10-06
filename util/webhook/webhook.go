@@ -154,10 +154,12 @@ func (a *ArgoCDWebhookHandler) affectedRevisionInfo(payloadIf any) (webURLs []st
 	case azuredevops.GitPushEvent:
 		// See: https://learn.microsoft.com/en-us/azure/devops/service-hooks/events?view=azure-devops#git.push
 		webURLs = append(webURLs, payload.Resource.Repository.RemoteURL)
-		revision = ParseRevision(payload.Resource.RefUpdates[0].Name)
-		change.shaAfter = ParseRevision(payload.Resource.RefUpdates[0].NewObjectID)
-		change.shaBefore = ParseRevision(payload.Resource.RefUpdates[0].OldObjectID)
-		touchedHead = payload.Resource.RefUpdates[0].Name == payload.Resource.Repository.DefaultBranch
+		if len(payload.Resource.RefUpdates) > 0 {
+			revision = ParseRevision(payload.Resource.RefUpdates[0].Name)
+			change.shaAfter = ParseRevision(payload.Resource.RefUpdates[0].NewObjectID)
+			change.shaBefore = ParseRevision(payload.Resource.RefUpdates[0].OldObjectID)
+			touchedHead = payload.Resource.RefUpdates[0].Name == payload.Resource.Repository.DefaultBranch
+		}
 		// unfortunately, Azure DevOps doesn't provide a list of changed files
 	case github.PushPayload:
 		// See: https://developer.github.com/v3/activity/events/types/#pushevent
@@ -255,13 +257,15 @@ func (a *ArgoCDWebhookHandler) affectedRevisionInfo(payloadIf any) (webURLs []st
 
 		// Webhook module does not parse the inner links
 		if payload.Repository.Links != nil {
-			for _, l := range payload.Repository.Links["clone"].([]any) {
-				link := l.(map[string]any)
-				if link["name"] == "http" {
-					webURLs = append(webURLs, link["href"].(string))
-				}
-				if link["name"] == "ssh" {
-					webURLs = append(webURLs, link["href"].(string))
+			clone, ok := payload.Repository.Links["clone"].([]any)
+			if ok {
+				for _, l := range clone {
+					link := l.(map[string]any)
+					if link["name"] == "http" || link["name"] == "ssh" {
+						if href, ok := link["href"].(string); ok {
+							webURLs = append(webURLs, href)
+						}
+					}
 				}
 			}
 		}
@@ -280,11 +284,13 @@ func (a *ArgoCDWebhookHandler) affectedRevisionInfo(payloadIf any) (webURLs []st
 		// so we cannot update changedFiles for this type of payload
 
 	case gogsclient.PushPayload:
-		webURLs = append(webURLs, payload.Repo.HTMLURL)
 		revision = ParseRevision(payload.Ref)
 		change.shaAfter = ParseRevision(payload.After)
 		change.shaBefore = ParseRevision(payload.Before)
-		touchedHead = bool(payload.Repo.DefaultBranch == revision)
+		if payload.Repo != nil {
+			webURLs = append(webURLs, payload.Repo.HTMLURL)
+			touchedHead = payload.Repo.DefaultBranch == revision
+		}
 		for _, commit := range payload.Commits {
 			changedFiles = append(changedFiles, commit.Added...)
 			changedFiles = append(changedFiles, commit.Modified...)
