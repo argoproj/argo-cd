@@ -6,14 +6,14 @@ Both protocols are exposed by the argocd-server service object on the following 
 * 443 - gRPC/HTTPS
 * 80 - HTTP (redirects to HTTPS)
 
-There are several ways how Ingress can be configured.
+There are several ways in which Ingress can be configured.
 
 ## [Ambassador](https://www.getambassador.io/)
 
 The Ambassador Edge Stack can be used as a Kubernetes ingress controller with [automatic TLS termination](https://www.getambassador.io/docs/latest/topics/running/tls/#host) and routing capabilities for both the CLI and the UI.
 
-The API server should be run with TLS disabled. Edit the `argocd-server` deployment to add the `--insecure` flag to the argocd-server command, or simply set `server.insecure: "true"` in the `argocd-cmd-params-cm` ConfigMap [as described here](server-commands/additional-configuration-method.md). Given the `argocd` CLI includes the port number in the request `host` header, 2 Mappings are required. 
-Note: Disabling TLS in not required if you are using grpc-web
+The API server should be run with TLS disabled. Edit the `argocd-server` deployment to add the `--insecure` flag to the argocd-server command, or simply set `server.insecure: "true"` in the `argocd-cmd-params-cm` ConfigMap [as described here](server-commands/additional-configuration-method.md). Given the `argocd` CLI includes the port number in the request `host` header, 2 Mappings are required.
+Note: Disabling TLS is not required if you are using grpc-web
 
 ### Option 1: Mapping CRD for Host-based Routing
 ```yaml

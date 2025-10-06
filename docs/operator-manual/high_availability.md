@@ -19,7 +19,7 @@ The `argocd-repo-server` is responsible for cloning Git repository, keeping it u
 * `argocd-repo-server` fork/exec config management tool to generate manifests. The fork can fail due to lack of memory or limit on the number of OS threads.
 The `--parallelismlimit` flag controls how many manifests generations are running concurrently and helps avoid OOM kills.
 
-* the `argocd-repo-server` ensures that repository is in the clean state during the manifest generation using config management tools such as Kustomize, Helm
+* the `argocd-repo-server` ensures that the repository is in a clean state during the manifest generation using config management tools such as Kustomize, Helm
 or custom plugin. As a result Git repositories with multiple applications might affect repository server performance.
 Read [Monorepo Scaling Considerations](#monorepo-scaling-considerations) for more information.
 
@@ -65,7 +65,7 @@ performance. For performance reasons the controller monitors and caches only the
 preferred version into a version of the resource stored in Git. If `kubectl convert` fails because the conversion is not supported then the controller falls back to Kubernetes API query which slows down
 reconciliation. In this case, we advise to use the preferred resource version in Git.
 
-* The controller polls Git every 3m by default. You can change this duration using the `timeout.reconciliation` and `timeout.reconciliation.jitter` setting in the `argocd-cm` ConfigMap. The value of the fields is a [duration string](https://pkg.go.dev/time#ParseDuration) e.g `60s`, `1m` or `1h`.
+* The controller polls Git every 3 minutes by default. You can change this duration using the `timeout.reconciliation` and `timeout.reconciliation.jitter` setting in the `argocd-cm` ConfigMap. The value of the fields is a [duration string](https://pkg.go.dev/time#ParseDuration) e.g `60s`, `1m` or `1h`.
 
 * If the controller is managing too many clusters and uses too much memory then you can shard clusters across multiple
 controller replicas. To enable sharding, increase the number of replicas in `argocd-application-controller` `StatefulSet`
@@ -151,7 +151,7 @@ stringData:
 
 * `ARGOCD_APPLICATION_TREE_SHARD_SIZE` - environment variable controlling the max number of resources stored in one Redis
   key. Splitting application tree into multiple keys helps to reduce the amount of traffic between the controller and Redis.
-  The default value is 0, which means that the application tree is stored in a single Redis key. The reasonable value is 100.
+  The default value is 0, which means that the application tree is stored in a single Redis key. A reasonable value is 100.
 
 **metrics**
 

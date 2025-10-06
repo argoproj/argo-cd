@@ -39,8 +39,8 @@ The triage process could be as follows:
 1. A new bug issue is created by someone on the tracker
 
 1. The first person of the core team to see it will start the triage by classifying
-   the issue (see below). This will indicate the creator that we have noticed the
-   issue, and that it's not "fire & forget" tracker.
+   the issue (see below). This will indicate to the creator that we have noticed the
+   issue, and that it's not a "fire & forget" tracker.
 
 1. Initial classification should be possible even when much of the information is
    missing yet. In this case, the issue would be classified as such (see below).
@@ -74,11 +74,11 @@ it should be marked as such:
 * Remove the label `bug` from the issue
 * Add the label `inquiry` to the issue
 
-If the inquiry turns out to be something that should be covered by the docs, but
+If the inquiry turns out to be something that should be covered by the documentation, but
 is not, the following actions should be taken:
 
-* The title of the issue should be adapted that it will be clear that the bug
-  affects the docs, not the code
+* The title of the issue should be adapted so that it will be clear that the bug
+  affects the documentation, not the code
 * The label `documentation` should be attached to the issue
 
 If the issue is too confusing (can happen), another possibility is to close the
@@ -96,15 +96,15 @@ these categories:
 * Retain the `bug` label to the issue
 * Close the issue
 
-When closing the issue, it is important to let requester know why the issue
-has been closed. The optimum would be to provide a solution to his request
+When closing the issue, it is important to let the requester know why the issue
+has been closed. The optimum would be to provide a solution to their request
 in the comments of the issue, or at least pointers to possible solutions.
 
 ### Regressions
 
 Sometimes it happens that something that worked in a previous release does
 not work now when it should still work. If this is the case, the following
-actions should be done
+actions should be taken
 
 * Add the label `regression` to the issue
 * Continue with triage
@@ -147,28 +147,28 @@ following labels can be used to classify bugs into their priority:
   dedicated patch release.
 
 The priority should be set according to the value of the fix and the attached
-severity. This means. a bug with a severity of `minor` could still be classified
+severity. This means a bug with a severity of `minor` could still be classified
 with priority `high`, when it is a *low hanging fruit* (i.e. the bug is easy to
 fix with low effort) and contributes to overall user experience of ArgoCD.
 
 Likewise, a bug classified with a severity of `major` could still have a
-priority of `medium`, if there is a workaround available for the bug which
-mitigates the effects of the bug to a bearable extend.
+priority of `medium` if there is a workaround available for the bug which
+mitigates the effects of the bug to a bearable extent.
 
 Bugs classified with a severity of `critical` most likely belong to either
 the `urgent` priority, or to the `high` category when there is a workaround
 available.
 
-Bugs that have a `regression`label attached (see Regression above) should
+Bugs that have a `regression` label attached (see Regression above) should
 usually be handled with higher priority, so those kind of issues will most
 likely have a priority of `high` or `urgent` attached to it.
 
 ## Summary
 
 Applying a little discipline when working with our issue tracker could greatly
-help us in making informed decision about which bugs to fix when. Also, it
-would help us to get a clear view whether we can do for example a new minor
-release without having forgot any outstanding issues that should make it into
+help us in making informed decisions about which bugs to fix when. Also, it
+would help us to get a clear view of whether we can do, for example, a new minor
+release without having forgotten any outstanding issues that should make it into
 that release.
 
 If we are able to work with classification of bug issues, we might want to
