@@ -520,23 +520,20 @@ func (c *clusterCache) rebuildOrphanedChildrenIndex() {
 	}
 }
 
-// updateOrphanedChildrenIndex tracks namespaced resources that have cluster-scoped parents
-// This enables efficient cross-namespace hierarchy traversal without scanning
-func (c *clusterCache) updateOrphanedChildrenIndex(child *Resource) {
-	childKey := child.ResourceKey()
-
-	// Clear old entries for this child
+// removeOrphanedChild removes a child from the orphaned children tracking structures
+// and cleans up empty maps
+func (c *clusterCache) removeOrphanedChild(childKey kube.ResourceKey, namespace string) {
 	if oldParents, exists := c.namespacedChildToClusterParents[childKey]; exists {
 		for _, parentKey := range oldParents {
 			// Remove from orphaned children map
-			if nsMap, ok := c.orphanedChildren[child.Ref.Namespace]; ok {
+			if nsMap, ok := c.orphanedChildren[namespace]; ok {
 				if parentMap, ok := nsMap[parentKey]; ok {
 					delete(parentMap, childKey)
 					// Clean up empty maps
 					if len(parentMap) == 0 {
 						delete(nsMap, parentKey)
 						if len(nsMap) == 0 {
-							delete(c.orphanedChildren, child.Ref.Namespace)
+							delete(c.orphanedChildren, namespace)
 						}
 					}
 				}
@@ -544,6 +541,15 @@ func (c *clusterCache) updateOrphanedChildrenIndex(child *Resource) {
 		}
 		delete(c.namespacedChildToClusterParents, childKey)
 	}
+}
+
+// updateOrphanedChildrenIndex tracks namespaced resources that have cluster-scoped parents
+// This enables efficient cross-namespace hierarchy traversal without scanning
+func (c *clusterCache) updateOrphanedChildrenIndex(child *Resource) {
+	childKey := child.ResourceKey()
+
+	// Clear old entries for this child
+	c.removeOrphanedChild(childKey, child.Ref.Namespace)
 
 	// Track new cluster-scoped parents
 	var newClusterParents []kube.ResourceKey
@@ -1582,22 +1588,7 @@ func (c *clusterCache) onNodeRemoved(key kube.ResourceKey) {
 		if !c.disableClusterScopedParentRefs {
 			// If this is a namespaced resource that was tracked as an orphaned child
 			if key.Namespace != "" {
-				if parents, exists := c.namespacedChildToClusterParents[key]; exists {
-					for _, parentKey := range parents {
-						if nsMap, ok := c.orphanedChildren[key.Namespace]; ok {
-							if parentMap, ok := nsMap[parentKey]; ok {
-								delete(parentMap, key)
-								if len(parentMap) == 0 {
-									delete(nsMap, parentKey)
-									if len(nsMap) == 0 {
-										delete(c.orphanedChildren, key.Namespace)
-									}
-								}
-							}
-						}
-					}
-					delete(c.namespacedChildToClusterParents, key)
-				}
+				c.removeOrphanedChild(key, key.Namespace)
 			}
 
 			// If this is a cluster-scoped resource that was a parent
