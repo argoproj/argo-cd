@@ -2114,9 +2114,9 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 func (s *Server) resolveSourceRevisions(ctx context.Context, a *v1alpha1.Application, syncReq *application.ApplicationSyncRequest) (string, string, []string, []string, error) {
 	requireOverridePrivilegeForRevisionSync, err := s.settingsMgr.RequireOverridePrivilegeForRevisionSync()
 	if err != nil {
-		// continue, but log error
-		log.WithError(err).Warn("error getting RequireOverridePrivilegeForRevisionSync setting, defaulting to false")
-		requireOverridePrivilegeForRevisionSync = false
+		// give up, and return the error
+		return "", "", nil, nil,
+			fmt.Errorf("error getting setting 'RequireOverridePrivilegeForRevisionSync' from configmap: : %w", err)
 	}
 	if a.Spec.HasMultipleSources() {
 		numOfSources := int64(len(a.Spec.GetSources()))
@@ -2131,8 +2131,12 @@ func (s *Server) resolveSourceRevisions(ctx context.Context, a *v1alpha1.Applica
 		}
 		for index, desiredRevision := range desiredRevisions {
 			if desiredRevision != "" && desiredRevision != text.FirstNonEmpty(a.Spec.GetSources()[index].TargetRevision, "HEAD") {
-				if err := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceApplications, rbac.ActionOverride, a.RBACName(s.ns)); err != nil && requireOverridePrivilegeForRevisionSync {
-					return "", "", nil, nil, err
+				// User is trying to sync to a different revision than the ones specified in the app sources
+				// Enforce that they have the 'override' privilege if the setting is enabled
+				if requireOverridePrivilegeForRevisionSync {
+					if err := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceApplications, rbac.ActionOverride, a.RBACName(s.ns)); err != nil {
+						return "", "", nil, nil, err
+					}
 				}
 				if a.Spec.SyncPolicy != nil && a.Spec.SyncPolicy.IsAutomatedSyncEnabled() && !syncReq.GetDryRun() {
 					return "", "", nil, nil, status.Errorf(codes.FailedPrecondition,
@@ -2152,11 +2156,16 @@ func (s *Server) resolveSourceRevisions(ctx context.Context, a *v1alpha1.Applica
 	source := a.Spec.GetSource()
 	if syncReq.GetRevision() != "" &&
 		syncReq.GetRevision() != text.FirstNonEmpty(source.TargetRevision, "HEAD") {
-		if err := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceApplications, rbac.ActionOverride, a.RBACName(s.ns)); err != nil && requireOverridePrivilegeForRevisionSync {
-			return "", "", nil, nil, err
+		// User is trying to sync to a different revision than the one specified in the app spec
+		// Enforce that they have the 'override' privilege if the setting is enabled
+		if requireOverridePrivilegeForRevisionSync {
+			if err := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceApplications, rbac.ActionOverride, a.RBACName(s.ns)); err != nil {
+				return "", "", nil, nil, err
+			}
 		}
 		if a.Spec.SyncPolicy != nil &&
 			a.Spec.SyncPolicy.IsAutomatedSyncEnabled() && !syncReq.GetDryRun() {
+			// If the app has auto-sync enabled, we cannot allow syncing to a different revision
 			return "", "", nil, nil, status.Errorf(codes.FailedPrecondition, "Cannot sync to %s: auto-sync currently set to %s", syncReq.GetRevision(), source.TargetRevision)
 		}
 	}

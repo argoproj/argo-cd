@@ -1280,18 +1280,18 @@ func (mgr *SettingsManager) RequireOverridePrivilegeForRevisionSync() (bool, err
 		return false, err
 	}
 
-	// false is default in order to not break exisiting installations
+	// false is default in order to not break existing installations
 	if argoCDCM.Data[requireOverridePrivilegeForRevisionSyncKey] == "" {
 		return false, nil
 	}
 
-	maybeBooleanFlageValue, err2 := strconv.ParseBool(
+	maybeBooleanFlagValue, err2 := strconv.ParseBool(
 		argoCDCM.Data[requireOverridePrivilegeForRevisionSyncKey])
 	if err2 != nil {
 		return false, fmt.Errorf("error parsing %s value: %w, expected true or false",
 			requireOverridePrivilegeForRevisionSyncKey, err2)
 	}
-	return maybeBooleanFlageValue, nil
+	return maybeBooleanFlagValue, nil
 }
 
 // GetSettings retrieves settings from the ArgoCDConfigMap and secret.

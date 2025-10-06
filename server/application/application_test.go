@@ -2338,6 +2338,47 @@ func TestSync_SyncWithoutSyncPermissionShouldFail(t *testing.T) {
 	assert.Equal(t, codes.PermissionDenied.String(), status.Code(err).String())
 }
 
+func TestSyncRBACSettingsError(t *testing.T) {
+	ctx := t.Context()
+	//nolint:staticcheck
+	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "test-user"})
+	appServer := newTestAppServer(t)
+	_ = appServer.enf.SetBuiltinPolicy(`
+		p, test-user, applications, get, default/*, allow
+		p, test-user, applications, create, default/*, allow
+		p, test-user, applications, sync, default/*, allow
+		p, test-user, applications, override, default/*, deny
+	`)
+
+	// create a new app
+	testApp := newTestApp()
+	app, err := appServer.Create(ctx,
+		&application.ApplicationCreateRequest{Application: testApp})
+	require.NoError(t, err)
+
+	// override settings manager to return error
+	brokenclientset := fake.NewClientset(&corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "argocd-secret",
+			Namespace: testNamespace,
+		},
+		Data: map[string][]byte{
+			"admin.password":   []byte("test"),
+			"server.secretkey": []byte("test"),
+		},
+	})
+	appServer.settingsMgr = settings.NewSettingsManager(ctx, brokenclientset, testNamespace)
+	// and sync to different revision
+	syncReq := &application.ApplicationSyncRequest{
+		Name:     &app.Name,
+		Revision: ptr.To("revisionbranch"),
+	}
+
+	_, err2 := appServer.Sync(ctx, syncReq)
+	require.Error(t, err2)
+	require.ErrorContains(t, err2, "error getting setting")
+}
+
 func TestSyncRBACOverrideFalse_DiffRevNoOverrideAllowed(t *testing.T) {
 	ctx := t.Context()
 	//nolint:staticcheck
