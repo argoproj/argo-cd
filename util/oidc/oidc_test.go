@@ -943,7 +943,7 @@ func TestGetUserInfo(t *testing.T) {
 				expectError     bool
 			}{
 				{
-					key:         formatUserInfoResponseCacheKey("randomUser"),
+					key:         FormatUserInfoResponseCacheKey("randomUser"),
 					expectError: true,
 				},
 			},
@@ -958,7 +958,7 @@ func TestGetUserInfo(t *testing.T) {
 				encrypt bool
 			}{
 				{
-					key:     formatAccessTokenCacheKey("randomUser"),
+					key:     FormatAccessTokenCacheKey("randomUser"),
 					value:   "FakeAccessToken",
 					encrypt: true,
 				},
@@ -977,7 +977,7 @@ func TestGetUserInfo(t *testing.T) {
 				expectError     bool
 			}{
 				{
-					key:         formatUserInfoResponseCacheKey("randomUser"),
+					key:         FormatUserInfoResponseCacheKey("randomUser"),
 					expectError: true,
 				},
 			},
@@ -992,7 +992,7 @@ func TestGetUserInfo(t *testing.T) {
 				encrypt bool
 			}{
 				{
-					key:     formatAccessTokenCacheKey("randomUser"),
+					key:     FormatAccessTokenCacheKey("randomUser"),
 					value:   "FakeAccessToken",
 					encrypt: true,
 				},
@@ -1011,7 +1011,7 @@ func TestGetUserInfo(t *testing.T) {
 				expectError     bool
 			}{
 				{
-					key:         formatUserInfoResponseCacheKey("randomUser"),
+					key:         FormatUserInfoResponseCacheKey("randomUser"),
 					expectError: true,
 				},
 			},
@@ -1034,7 +1034,7 @@ func TestGetUserInfo(t *testing.T) {
 				encrypt bool
 			}{
 				{
-					key:     formatAccessTokenCacheKey("randomUser"),
+					key:     FormatAccessTokenCacheKey("randomUser"),
 					value:   "FakeAccessToken",
 					encrypt: true,
 				},
@@ -1053,7 +1053,7 @@ func TestGetUserInfo(t *testing.T) {
 				expectError     bool
 			}{
 				{
-					key:         formatUserInfoResponseCacheKey("randomUser"),
+					key:         FormatUserInfoResponseCacheKey("randomUser"),
 					expectError: true,
 				},
 			},
@@ -1086,7 +1086,7 @@ func TestGetUserInfo(t *testing.T) {
 				expectError     bool
 			}{
 				{
-					key:             formatUserInfoResponseCacheKey("randomUser"),
+					key:             FormatUserInfoResponseCacheKey("randomUser"),
 					value:           "{\"groups\":[\"githubOrg:engineers\"]}",
 					expectEncrypted: true,
 					expectError:     false,
@@ -1113,7 +1113,7 @@ func TestGetUserInfo(t *testing.T) {
 				encrypt bool
 			}{
 				{
-					key:     formatAccessTokenCacheKey("randomUser"),
+					key:     FormatAccessTokenCacheKey("randomUser"),
 					value:   "FakeAccessToken",
 					encrypt: true,
 				},
@@ -1169,6 +1169,97 @@ func TestGetUserInfo(t *testing.T) {
 					assert.Equal(t, item.value, string(tmpValue))
 				}
 			}
+		})
+	}
+}
+
+func TestSetGroupsFromUserInfo(t *testing.T) {
+	tests := []struct {
+		name           string
+		inputClaims    jwt.MapClaims // function input
+		cacheClaims    jwt.MapClaims // userinfo response
+		expectedClaims jwt.MapClaims // function output
+		expectError    bool
+	}{
+		{
+			name:           "set correct groups from userinfo endpoint", // enriches the JWT claims with information from the userinfo endpoint, default case
+			inputClaims:    jwt.MapClaims{"sub": "randomUser", "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
+			cacheClaims:    jwt.MapClaims{"sub": "randomUser", "groups": []string{"githubOrg:example"}, "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
+			expectedClaims: jwt.MapClaims{"sub": "randomUser", "groups": []any{"githubOrg:example"}, "exp": float64(time.Now().Add(5 * time.Minute).Unix())}, // the groups must be of type any since the response we get was parsed by GetUserInfo and we don't yet know the type of the groups claim
+			expectError:    false,
+		},
+		{
+			name:           "return error for wrong userinfo claims returned", // when there's an error in this feature, the claims should be untouched for the rest to still proceed
+			inputClaims:    jwt.MapClaims{"sub": "randomUser", "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
+			cacheClaims:    jwt.MapClaims{"sub": "wrongUser", "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
+			expectedClaims: jwt.MapClaims{"sub": "randomUser", "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
+			expectError:    true,
+		},
+		{
+			name:           "override groups already defined in input claims", // this is expected behavior since input claims might have been truncated (HTTP header 4K limit)
+			inputClaims:    jwt.MapClaims{"sub": "randomUser", "groups": []string{"groupfromjwt"}, "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
+			cacheClaims:    jwt.MapClaims{"sub": "randomUser", "groups": []string{"superusers", "usergroup", "support-group"}, "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
+			expectedClaims: jwt.MapClaims{"sub": "randomUser", "groups": []any{"superusers", "usergroup", "support-group"}, "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
+			expectError:    false,
+		},
+		{
+			name:           "empty cache and non-rechable userinfo endpoint", // this will try to reach the userinfo endpoint defined in the test and fail
+			inputClaims:    jwt.MapClaims{"sub": "randomUser", "groups": []string{"groupfromjwt"}, "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
+			cacheClaims:    nil, // the test doesn't set the cache for an empty object
+			expectedClaims: jwt.MapClaims{"sub": "randomUser", "groups": []string{"groupfromjwt"}, "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
+			expectError:    true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// create the ClientApp
+			userInfoCache := cache.NewInMemoryCache(24 * time.Hour)
+			signature, err := util.MakeSignature(32)
+			require.NoError(t, err, "failed creating signature for settings object")
+			cdSettings := &settings.ArgoCDSettings{
+				ServerSignature: signature,
+				OIDCConfigRAW: `
+issuer: http://localhost:63231
+enableUserInfoGroups: true
+userInfoPath: /`,
+			}
+			a, err := NewClientApp(cdSettings, "", nil, "/argo-cd", userInfoCache)
+			require.NoError(t, err, "failed creating clientapp")
+
+			// prepoluate cache to predict what the GetUserInfo function will return to the SetGroupsFromUserInfo function (without having to mock the userinfo response)
+			encryptionKey, err := cdSettings.GetServerEncryptionKey()
+			require.NoError(t, err, "failed obtaining encryption key from settings")
+
+			// set fake accessToken for function to not return early
+			encAccessToken, err := crypto.Encrypt([]byte("123456"), encryptionKey)
+			require.NoError(t, err, "failed encrypting dummy access token")
+			err = a.clientCache.Set(&cache.Item{
+				Key:    FormatAccessTokenCacheKey("randomUser"),
+				Object: encAccessToken,
+			})
+			require.NoError(t, err, "failed setting item to in-memory cache")
+
+			// set cacheClaims to in-memory cache to let GetUserInfo return early with this information (GetUserInfo has a separate test, here we focus on SetUserInfoGroups)
+			if tt.cacheClaims != nil {
+				cacheClaims, err := json.Marshal(tt.cacheClaims)
+				require.NoError(t, err)
+				encCacheClaims, err := crypto.Encrypt([]byte(cacheClaims), encryptionKey)
+				require.NoError(t, err, "failed encrypting dummy access token")
+				err = a.clientCache.Set(&cache.Item{
+					Key:    FormatUserInfoResponseCacheKey("randomUser"),
+					Object: encCacheClaims,
+				})
+				require.NoError(t, err, "failed setting item to in-memory cache")
+			}
+
+			receivedClaims, err := a.SetGroupsFromUserInfo(tt.inputClaims, "argocd")
+			if tt.expectError {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+			assert.Equal(t, tt.expectedClaims, receivedClaims) // check that the claims were successfully enriched with what we expect
 		})
 	}
 }

@@ -35,7 +35,7 @@ require (
 	github.com/gfleury/go-bitbucket-v1 v0.0.0-20240917142304-df385efaac68
 	// DO NOT BUMP UNTIL go-git/go-git#1551 is fixed
 	github.com/go-git/go-git/v5 v5.14.0
-	github.com/go-jose/go-jose/v4 v4.1.2
+	github.com/go-jose/go-jose/v4 v4.1.3
 	github.com/go-logr/logr v1.4.3
 	github.com/go-openapi/loads v0.23.1
 	github.com/go-openapi/runtime v0.29.0
@@ -115,7 +115,7 @@ require (
 	layeh.com/gopher-json v0.0.0-20190114024228-97fed8db8427
 	oras.land/oras-go/v2 v2.6.0
 	sigs.k8s.io/controller-runtime v0.21.0
-	sigs.k8s.io/structured-merge-diff/v6 v6.3.0
+	sigs.k8s.io/structured-merge-diff/v6 v6.3.1-0.20251003215857-446d8398e19c
 	sigs.k8s.io/yaml v1.6.0
 )
 
@@ -360,3 +360,5 @@ replace (
 	k8s.io/sample-cli-plugin => k8s.io/sample-cli-plugin v0.34.0
 	k8s.io/sample-controller => k8s.io/sample-controller v0.34.0
 )
+
+replace github.com/argoproj/gitops-engine => ./gitops-engine

@@ -480,9 +480,9 @@ func (mgr *SessionManager) VerifyUsernamePassword(username string, password stri
 
 // AuthMiddlewareFunc returns a function that can be used as an
 // authentication middleware for HTTP requests.
-func (mgr *SessionManager) AuthMiddlewareFunc(disabled bool) func(http.Handler) http.Handler {
+func (mgr *SessionManager) AuthMiddlewareFunc(disabled bool, isSSOConfigured bool, ssoClientApp *oidcutil.ClientApp) func(http.Handler) http.Handler {
 	return func(h http.Handler) http.Handler {
-		return WithAuthMiddleware(disabled, mgr, h)
+		return WithAuthMiddleware(disabled, isSSOConfigured, ssoClientApp, mgr, h)
 	}
 }
 
@@ -495,26 +495,41 @@ type TokenVerifier interface {
 // WithAuthMiddleware is an HTTP middleware used to ensure incoming
 // requests are authenticated before invoking the target handler. If
 // disabled is true, it will just invoke the next handler in the chain.
-func WithAuthMiddleware(disabled bool, authn TokenVerifier, next http.Handler) http.Handler {
+func WithAuthMiddleware(disabled bool, isSSOConfigured bool, ssoClientApp *oidcutil.ClientApp, authn TokenVerifier, next http.Handler) http.Handler {
+	if disabled {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			next.ServeHTTP(w, r)
+		})
+	}
+
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !disabled {
-			cookies := r.Cookies()
-			tokenString, err := httputil.JoinCookies(common.AuthCookieName, cookies)
-			if err != nil {
-				http.Error(w, "Auth cookie not found", http.StatusBadRequest)
-				return
-			}
-			claims, _, err := authn.VerifyToken(tokenString)
-			if err != nil {
-				http.Error(w, "Invalid token", http.StatusUnauthorized)
-				return
-			}
-			ctx := r.Context()
-			// Add claims to the context to inspect for RBAC
-			//nolint:staticcheck
-			ctx = context.WithValue(ctx, "claims", claims)
-			r = r.WithContext(ctx)
+		cookies := r.Cookies()
+		tokenString, err := httputil.JoinCookies(common.AuthCookieName, cookies)
+		if err != nil {
+			http.Error(w, "Auth cookie not found", http.StatusBadRequest)
+			return
 		}
+		claims, _, err := authn.VerifyToken(tokenString)
+		if err != nil {
+			http.Error(w, "Invalid token", http.StatusUnauthorized)
+			return
+		}
+
+		finalClaims := claims
+		if isSSOConfigured {
+			finalClaims, err = ssoClientApp.SetGroupsFromUserInfo(claims, SessionManagerClaimsIssuer)
+			if err != nil {
+				http.Error(w, "Invalid session", http.StatusUnauthorized)
+				return
+			}
+		}
+
+		ctx := r.Context()
+		// Add claims to the context to inspect for RBAC
+		//nolint:staticcheck
+		ctx = context.WithValue(ctx, "claims", finalClaims)
+		r = r.WithContext(ctx)
+
 		next.ServeHTTP(w, r)
 	})
 }
