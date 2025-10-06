@@ -2539,6 +2539,99 @@ func TestGetAppRefresh_HardRefresh(t *testing.T) {
 	}
 }
 
+func TestGetApp_HealthStatusPropagation(t *testing.T) {
+	newServerWithTree := func(t *testing.T) (*Server, *v1alpha1.Application) {
+		t.Helper()
+		cacheClient := cache.NewCache(cache.NewInMemoryCache(1 * time.Hour))
+
+		testApp := newTestApp()
+		testApp.Status.ResourceHealthSource = v1alpha1.ResourceHealthLocationAppTree
+		testApp.Status.Resources = []v1alpha1.ResourceStatus{
+			{
+				Group:     "apps",
+				Kind:      "Deployment",
+				Name:      "guestbook",
+				Namespace: "default",
+			},
+		}
+
+		appServer := newTestAppServer(t, testApp)
+
+		appStateCache := appstate.NewCache(cacheClient, time.Minute)
+		appInstanceName := testApp.InstanceName(appServer.appNamespaceOrDefault(testApp.Namespace))
+		err := appStateCache.SetAppResourcesTree(appInstanceName, &v1alpha1.ApplicationTree{
+			Nodes: []v1alpha1.ResourceNode{{
+				ResourceRef: v1alpha1.ResourceRef{
+					Group:     "apps",
+					Kind:      "Deployment",
+					Name:      "guestbook",
+					Namespace: "default",
+				},
+				Health: &v1alpha1.HealthStatus{Status: health.HealthStatusDegraded},
+			}},
+		})
+		require.NoError(t, err)
+		appServer.cache = servercache.NewCache(appStateCache, time.Minute, time.Minute)
+
+		return appServer, testApp
+	}
+
+	t.Run("propagated health status on get with no refresh", func(t *testing.T) {
+		appServer, testApp := newServerWithTree(t)
+		fetchedApp, err := appServer.Get(t.Context(), &application.ApplicationQuery{
+			Name: &testApp.Name,
+		})
+		require.NoError(t, err)
+		assert.Equal(t, health.HealthStatusDegraded, fetchedApp.Status.Resources[0].Health.Status)
+	})
+
+	t.Run("propagated health status on normal refresh", func(t *testing.T) {
+		appServer, testApp := newServerWithTree(t)
+		var patched int32
+		ch := make(chan string, 1)
+		ctx, cancel := context.WithCancel(t.Context())
+		defer cancel()
+		go refreshAnnotationRemover(t, ctx, &patched, appServer, testApp.Name, ch)
+
+		fetchedApp, err := appServer.Get(t.Context(), &application.ApplicationQuery{
+			Name:    &testApp.Name,
+			Refresh: ptr.To(string(v1alpha1.RefreshTypeNormal)),
+		})
+		require.NoError(t, err)
+
+		select {
+		case <-ch:
+			assert.Equal(t, int32(1), atomic.LoadInt32(&patched))
+		case <-time.After(10 * time.Second):
+			assert.Fail(t, "Out of time ( 10 seconds )")
+		}
+		assert.Equal(t, health.HealthStatusDegraded, fetchedApp.Status.Resources[0].Health.Status)
+	})
+
+	t.Run("propagated health status on hard refresh", func(t *testing.T) {
+		appServer, testApp := newServerWithTree(t)
+		var patched int32
+		ch := make(chan string, 1)
+		ctx, cancel := context.WithCancel(t.Context())
+		defer cancel()
+		go refreshAnnotationRemover(t, ctx, &patched, appServer, testApp.Name, ch)
+
+		fetchedApp, err := appServer.Get(t.Context(), &application.ApplicationQuery{
+			Name:    &testApp.Name,
+			Refresh: ptr.To(string(v1alpha1.RefreshTypeHard)),
+		})
+		require.NoError(t, err)
+
+		select {
+		case <-ch:
+			assert.Equal(t, int32(1), atomic.LoadInt32(&patched))
+		case <-time.After(10 * time.Second):
+			assert.Fail(t, "Out of time ( 10 seconds )")
+		}
+		assert.Equal(t, health.HealthStatusDegraded, fetchedApp.Status.Resources[0].Health.Status)
+	})
+}
+
 func TestInferResourcesStatusHealth(t *testing.T) {
 	cacheClient := cache.NewCache(cache.NewInMemoryCache(1 * time.Hour))
 
