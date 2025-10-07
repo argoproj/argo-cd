@@ -774,9 +774,8 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*v1a
 		return nil, err
 	}
 
-	s.inferResourcesStatusHealth(a)
-
 	if q.Refresh == nil {
+		s.inferResourcesStatusHealth(a)
 		return a, nil
 	}
 
@@ -855,7 +854,9 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*v1a
 					annotations = make(map[string]string)
 				}
 				if _, ok := annotations[v1alpha1.AnnotationKeyRefresh]; !ok {
-					return event.Application.DeepCopy(), nil
+					refreshedApp := event.Application.DeepCopy()
+					s.inferResourcesStatusHealth(refreshedApp)
+					return refreshedApp, nil
 				}
 			}
 		}
@@ -2482,7 +2483,7 @@ func (s *Server) getUnstructuredLiveResourceOrApp(ctx context.Context, rbacReque
 	if err != nil {
 		return nil, nil, nil, nil, fmt.Errorf("error getting resource: %w", err)
 	}
-	return
+	return obj, res, app, config, err
 }
 
 func (s *Server) getAvailableActions(resourceOverrides map[string]v1alpha1.ResourceOverride, obj *unstructured.Unstructured) ([]v1alpha1.ResourceAction, error) {

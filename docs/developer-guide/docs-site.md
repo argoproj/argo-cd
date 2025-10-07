@@ -38,7 +38,7 @@ If you want to build and test the site directly on your local machine without th
 
 ## Analytics
 
-!!! tip
-    Don't forget to disable your ad-blocker when testing.
+> [!TIP]
+> Don't forget to disable your ad-blocker when testing.
 
 We collect [Google Analytics](https://analytics.google.com/analytics/web/#/report-home/a105170809w198079555p192782995).

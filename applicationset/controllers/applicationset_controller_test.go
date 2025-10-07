@@ -5967,10 +5967,11 @@ func TestUpdateResourceStatus(t *testing.T) {
 	require.NoError(t, err)
 
 	for _, cc := range []struct {
-		name              string
-		appSet            v1alpha1.ApplicationSet
-		apps              []v1alpha1.Application
-		expectedResources []v1alpha1.ResourceStatus
+		name                    string
+		appSet                  v1alpha1.ApplicationSet
+		apps                    []v1alpha1.Application
+		expectedResources       []v1alpha1.ResourceStatus
+		maxResourcesStatusCount int
 	}{
 		{
 			name: "handles an empty application list",
@@ -6134,6 +6135,73 @@ func TestUpdateResourceStatus(t *testing.T) {
 			apps:              []v1alpha1.Application{},
 			expectedResources: nil,
 		},
+		{
+			name: "truncates resources status list to",
+			appSet: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Status: v1alpha1.ApplicationSetStatus{
+					Resources: []v1alpha1.ResourceStatus{
+						{
+							Name:   "app1",
+							Status: v1alpha1.SyncStatusCodeOutOfSync,
+							Health: &v1alpha1.HealthStatus{
+								Status:  health.HealthStatusProgressing,
+								Message: "this is progressing",
+							},
+						},
+						{
+							Name:   "app2",
+							Status: v1alpha1.SyncStatusCodeOutOfSync,
+							Health: &v1alpha1.HealthStatus{
+								Status:  health.HealthStatusProgressing,
+								Message: "this is progressing",
+							},
+						},
+					},
+				},
+			},
+			apps: []v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app1",
+					},
+					Status: v1alpha1.ApplicationStatus{
+						Sync: v1alpha1.SyncStatus{
+							Status: v1alpha1.SyncStatusCodeSynced,
+						},
+						Health: v1alpha1.AppHealthStatus{
+							Status: health.HealthStatusHealthy,
+						},
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app2",
+					},
+					Status: v1alpha1.ApplicationStatus{
+						Sync: v1alpha1.SyncStatus{
+							Status: v1alpha1.SyncStatusCodeSynced,
+						},
+						Health: v1alpha1.AppHealthStatus{
+							Status: health.HealthStatusHealthy,
+						},
+					},
+				},
+			},
+			expectedResources: []v1alpha1.ResourceStatus{
+				{
+					Name:   "app1",
+					Status: v1alpha1.SyncStatusCodeSynced,
+					Health: &v1alpha1.HealthStatus{
+						Status: health.HealthStatusHealthy,
+					},
+				},
+			},
+			maxResourcesStatusCount: 1,
+		},
 	} {
 		t.Run(cc.name, func(t *testing.T) {
 			kubeclientset := kubefake.NewSimpleClientset([]runtime.Object{}...)
@@ -6144,13 +6212,14 @@ func TestUpdateResourceStatus(t *testing.T) {
 			argodb := db.NewDB("argocd", settings.NewSettingsManager(t.Context(), kubeclientset, "argocd"), kubeclientset)
 
 			r := ApplicationSetReconciler{
-				Client:        client,
-				Scheme:        scheme,
-				Recorder:      record.NewFakeRecorder(1),
-				Generators:    map[string]generators.Generator{},
-				ArgoDB:        argodb,
-				KubeClientset: kubeclientset,
-				Metrics:       metrics,
+				Client:                  client,
+				Scheme:                  scheme,
+				Recorder:                record.NewFakeRecorder(1),
+				Generators:              map[string]generators.Generator{},
+				ArgoDB:                  argodb,
+				KubeClientset:           kubeclientset,
+				Metrics:                 metrics,
+				MaxResourcesStatusCount: cc.maxResourcesStatusCount,
 			}
 
 			err := r.updateResourcesStatus(t.Context(), log.NewEntry(log.StandardLogger()), &cc.appSet, cc.apps)
@@ -7204,6 +7273,85 @@ func TestIsRollingSyncDeletionReversed(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := isProgressiveSyncDeletionOrderReversed(tt.appset)
 			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestReconcileProgressiveSyncDisabled(t *testing.T) {
+	scheme := runtime.NewScheme()
+	err := v1alpha1.AddToScheme(scheme)
+	require.NoError(t, err)
+
+	kubeclientset := kubefake.NewSimpleClientset([]runtime.Object{}...)
+
+	for _, cc := range []struct {
+		name                   string
+		appSet                 v1alpha1.ApplicationSet
+		enableProgressiveSyncs bool
+		expectedAppStatuses    []v1alpha1.ApplicationSetApplicationStatus
+	}{
+		{
+			name: "clears applicationStatus when Progressive Sync is disabled",
+			appSet: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-appset",
+					Namespace: "argocd",
+				},
+				Spec: v1alpha1.ApplicationSetSpec{
+					Generators: []v1alpha1.ApplicationSetGenerator{},
+					Template:   v1alpha1.ApplicationSetTemplate{},
+				},
+				Status: v1alpha1.ApplicationSetStatus{
+					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
+						{
+							Application: "test-appset-guestbook",
+							Message:     "Application resource became Healthy, updating status from Progressing to Healthy.",
+							Status:      "Healthy",
+							Step:        "1",
+						},
+					},
+				},
+			},
+			enableProgressiveSyncs: false,
+			expectedAppStatuses:    nil,
+		},
+	} {
+		t.Run(cc.name, func(t *testing.T) {
+			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&cc.appSet).WithStatusSubresource(&cc.appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
+			metrics := appsetmetrics.NewFakeAppsetMetrics()
+
+			argodb := db.NewDB("argocd", settings.NewSettingsManager(t.Context(), kubeclientset, "argocd"), kubeclientset)
+
+			r := ApplicationSetReconciler{
+				Client:                 client,
+				Scheme:                 scheme,
+				Renderer:               &utils.Render{},
+				Recorder:               record.NewFakeRecorder(1),
+				Generators:             map[string]generators.Generator{},
+				ArgoDB:                 argodb,
+				KubeClientset:          kubeclientset,
+				Metrics:                metrics,
+				EnableProgressiveSyncs: cc.enableProgressiveSyncs,
+			}
+
+			req := ctrl.Request{
+				NamespacedName: types.NamespacedName{
+					Namespace: cc.appSet.Namespace,
+					Name:      cc.appSet.Name,
+				},
+			}
+
+			// Run reconciliation
+			_, err = r.Reconcile(t.Context(), req)
+			require.NoError(t, err)
+
+			// Fetch the updated ApplicationSet
+			var updatedAppSet v1alpha1.ApplicationSet
+			err = r.Get(t.Context(), req.NamespacedName, &updatedAppSet)
+			require.NoError(t, err)
+
+			// Verify the applicationStatus field
+			assert.Equal(t, cc.expectedAppStatuses, updatedAppSet.Status.ApplicationStatus, "applicationStatus should match expected value")
 		})
 	}
 }

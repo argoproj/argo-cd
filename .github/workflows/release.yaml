@@ -32,6 +32,42 @@ jobs:
       quay_username: ${{ secrets.RELEASE_QUAY_USERNAME }}
       quay_password: ${{ secrets.RELEASE_QUAY_TOKEN }}
 
+  setup-variables:
+    name: Setup Release Variables
+    if: github.repository == 'argoproj/argo-cd'
+    runs-on: ubuntu-22.04
+    outputs:
+      is_pre_release: ${{ steps.var.outputs.is_pre_release }}
+      is_latest_release: ${{ steps.var.outputs.is_latest_release }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@8410ad0602e1e429cee44a835ae9f77f654a6694 # v4.0.0
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Setup variables
+        id: var
+        run: |
+          set -xue
+          # Fetch all tag information
+          git fetch --prune --tags --force
+
+          LATEST_RELEASE_TAG=$(git -c 'versionsort.suffix=-rc' tag --list --sort=version:refname | grep -v '-' | tail -n1)
+
+          PRE_RELEASE=false
+          # Check if latest tag is a pre-release
+          if echo ${{ github.ref_name }} | grep -E -- '-rc[0-9]+$';then
+            PRE_RELEASE=true
+          fi
+
+          IS_LATEST=false
+          # Ensure latest release tag matches github.ref_name
+          if [[ $LATEST_RELEASE_TAG == ${{ github.ref_name }} ]];then
+            IS_LATEST=true
+          fi
+          echo "is_pre_release=$PRE_RELEASE" >> $GITHUB_OUTPUT
+          echo "is_latest_release=$IS_LATEST" >> $GITHUB_OUTPUT
+
   argocd-image-provenance:
     needs: [argocd-image]
     permissions:
@@ -50,15 +86,17 @@ jobs:
 
   goreleaser:
     needs:
+      - setup-variables
       - argocd-image
       - argocd-image-provenance
     permissions:
       contents: write # used for uploading assets
     if: github.repository == 'argoproj/argo-cd'
     runs-on: ubuntu-22.04
+    env:
+      GORELEASER_MAKE_LATEST: ${{ needs.setup-variables.outputs.is_latest_release }}
     outputs:
       hashes: ${{ steps.hash.outputs.hashes }}
-
     steps:
       - name: Checkout code
         uses: actions/checkout@8410ad0602e1e429cee44a835ae9f77f654a6694 # v4.0.0
@@ -142,7 +180,7 @@ jobs:
     permissions:
       contents: write # Needed for release uploads
     outputs:
-      hashes: ${{ steps.sbom-hash.outputs.hashes}}
+      hashes: ${{ steps.sbom-hash.outputs.hashes }}
     if: github.repository == 'argoproj/argo-cd'
     runs-on: ubuntu-22.04
     steps:
@@ -198,7 +236,7 @@ jobs:
           echo "hashes=$(sha256sum /tmp/sbom.tar.gz | base64 -w0)" >> "$GITHUB_OUTPUT"
 
       - name: Upload SBOM
-        uses: softprops/action-gh-release@6cbd405e2c4e67a21c47fa9e383d020e4e28b836 # v2.3.3
+        uses: softprops/action-gh-release@62c96d0c4e8a889135c1f3a25910db8dbe0e85f7 # v2.3.4
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -221,6 +259,7 @@ jobs:
 
   post-release:
     needs:
+      - setup-variables
       - argocd-image
       - goreleaser
       - generate-sbom
@@ -229,6 +268,8 @@ jobs:
       pull-requests: write # Needed to create PR for VERSION update.
     if: github.repository == 'argoproj/argo-cd'
     runs-on: ubuntu-22.04
+    env:
+      TAG_STABLE: ${{ needs.setup-variables.outputs.is_latest_release }}
     steps:
       - name: Checkout code
         uses: actions/checkout@8410ad0602e1e429cee44a835ae9f77f654a6694 # v4.0.0
@@ -241,27 +282,6 @@ jobs:
           set -ue
           git config --global user.email 'ci@argoproj.com'
           git config --global user.name 'CI'
-
-      - name: Check if tag is the latest version and not a pre-release
-        run: |
-          set -xue
-          # Fetch all tag information
-          git fetch --prune --tags --force
-
-          LATEST_TAG=$(git -c 'versionsort.suffix=-rc' tag --list --sort=version:refname | tail -n1)
-
-          PRE_RELEASE=false
-          # Check if latest tag is a pre-release
-          if echo $LATEST_TAG | grep -E -- '-rc[0-9]+$';then
-            PRE_RELEASE=true
-          fi
-
-          # Ensure latest tag matches github.ref_name & not a pre-release
-          if [[ $LATEST_TAG == ${{ github.ref_name }} ]] && [[ $PRE_RELEASE != 'true' ]];then
-            echo "TAG_STABLE=true" >> $GITHUB_ENV
-          else
-            echo "TAG_STABLE=false" >> $GITHUB_ENV
-          fi
 
       - name: Update stable tag to latest version
         run: |
