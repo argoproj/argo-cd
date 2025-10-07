@@ -89,6 +89,17 @@ func TestDeclarativeHelmInvalidValuesFile(t *testing.T) {
 		Expect(Condition(ApplicationConditionComparisonError, "does-not-exist-values.yaml: no such file or directory"))
 }
 
+func TestDeclarativeHelmInvalidFileParameters(t *testing.T) {
+	Given(t).
+		Path("helm").
+		When().
+		Declarative("declarative-apps/missing-file-parameters.yaml").
+		Then().
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		Expect(SyncStatusIs(SyncStatusCodeUnknown)).
+		Expect(Condition(ApplicationConditionComparisonError, "does-not-exist-values.yaml: no such file or directory"))
+}
+
 func TestHelmRepo(t *testing.T) {
 	fixture.SkipOnEnv(t, "HELM")
 	Given(t).
@@ -154,6 +165,43 @@ func TestHelmIgnoreMissingValueFiles(t *testing.T) {
 		Sync().
 		Then().
 		Expect(ErrorRegex("Error: open .*does-not-exist-values.yaml: no such file or directory", ""))
+}
+
+func TestHelmIgnoreMissingFileParameters(t *testing.T) {
+	Given(t).
+		Path("helm").
+		When().
+		Declarative("declarative-apps/missing-file-parameters.yaml").
+		Then().
+		And(func(app *Application) {
+			assert.Equal(t, []HelmFileParameter{{
+				Name: "some.key", Path: "does-not-exist-values.yaml",
+			}}, app.Spec.GetSource().Helm.FileParameters)
+			assert.False(t, app.Spec.GetSource().Helm.IgnoreMissingFileParameters)
+		}).
+		When().
+		AppSet("--ignore-missing-file-parameters").
+		Then().
+		And(func(app *Application) {
+			assert.True(t, app.Spec.GetSource().Helm.IgnoreMissingFileParameters)
+		}).
+		When().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		When().
+		AppUnSet("--ignore-missing-file-parameters").
+		Then().
+		And(func(app *Application) {
+			assert.False(t, app.Spec.GetSource().Helm.IgnoreMissingFileParameters)
+		}).
+		When().
+		IgnoreErrors().
+		Sync().
+		Then().
+		Expect(ErrorRegex("Error: failed parsing --set-file data: open .*does-not-exist-values.yaml: no such file or directory", ""))
 }
 
 func TestHelmValuesMultipleUnset(t *testing.T) {
