@@ -539,24 +539,18 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// save the accessToken in memory for later use
-	sub := jwtutil.StringField(claims, "sub")
-	err = a.SetValueInEncryptedCache(FormatAccessTokenCacheKey(sub), []byte(token.AccessToken), GetTokenExpiration(claims))
+	err = a.SetAccessTokenCache(claims, []byte(token.AccessToken))
 	if err != nil {
 		claimsJSON, _ := json.Marshal(claims)
-		log.Errorf("cannot cache encrypted accessToken: %v (claims=%s)", err, claimsJSON)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		errorMsg := fmt.Sprintf("cannot cache encrypted accessToken: %v (claims=%s)", err, claimsJSON)
+		log.Error(errorMsg)
+		http.Error(w, errorMsg, http.StatusInternalServerError)
 		return
 	}
 
 	// Cache encrypted raw token for background refresh
 	oidcTokenCache := NewOidcTokenCache(a.getRedirectURIForRequest(r), token)
-	oidcTokenCacheJSON, err := json.Marshal(oidcTokenCache)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	sid := jwtutil.StringField(claims, "sid")
-	err = a.SetValueInEncryptedCache(formatOidcTokenCacheKey(sub, sid), oidcTokenCacheJSON, GetTokenExpiration(claims))
+	err = a.SetOIDCTokenCache(claims, oidcTokenCache)
 	if err != nil {
 		claimsJSON, _ := json.Marshal(claims)
 		log.Errorf("cannot cache encrypted oidc token: %v (claims=%s)", err, claimsJSON)
@@ -608,7 +602,7 @@ func (a *ClientApp) GetValueFromEncryptedCache(key string) (value []byte, err er
 func (a *ClientApp) SetValueInEncryptedCache(key string, value []byte, expiration time.Duration) error {
 	encryptedValue, err := crypto.Encrypt(value, a.encryptionKey)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to encrypt value: %w", err)
 	}
 	err = a.clientCache.Set(&cache.Item{
 		Key:    key,
@@ -618,16 +612,14 @@ func (a *ClientApp) SetValueInEncryptedCache(key string, value []byte, expiratio
 		},
 	})
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to set encrypted value in cache: %w", err)
 	}
 	return nil
 }
 
-func (a *ClientApp) CheckAndRefreshToken(ctx context.Context, groupClaims jwt.MapClaims, refreshTokenThreshold time.Duration) (string, error) {
-	sub := jwtutil.StringField(groupClaims, "sub")
-	sid := jwtutil.StringField(groupClaims, "sid")
-	if GetTokenExpiration(groupClaims) < refreshTokenThreshold {
-		token, err := a.GetUpdatedOidcTokenFromCache(ctx, sub, sid)
+func (a *ClientApp) CheckAndRefreshToken(ctx context.Context, claims jwt.MapClaims, refreshTokenThreshold time.Duration) (string, error) {
+	if GetTokenExpiration(claims) < refreshTokenThreshold {
+		token, err := a.GetUpdatedOidcTokenFromCache(ctx, claims)
 		if err != nil {
 			log.Errorf("Failed to get token from cache: %v", err)
 			return "", err
@@ -645,11 +637,11 @@ func (a *ClientApp) CheckAndRefreshToken(ctx context.Context, groupClaims jwt.Ma
 
 // GetUpdatedOidcTokenFromCache fetches a token from cache and refreshes it if under the threshold for expiration.
 // The cached token will also be updated if it is refreshed.  Returns latest token or an error if the process fails.
-func (a *ClientApp) GetUpdatedOidcTokenFromCache(ctx context.Context, subject string, sessionId string) (*oauth2.Token, error) {
+func (a *ClientApp) GetUpdatedOidcTokenFromCache(ctx context.Context, claims jwt.MapClaims) (*oauth2.Token, error) {
 	ctx = gooidc.ClientContext(ctx, a.client)
 
 	// Get oauth2 config
-	cacheKey := formatOidcTokenCacheKey(subject, sessionId)
+	cacheKey := formatOidcTokenCacheKey(sub, sid)
 	oidcTokenCacheJSON, err := a.GetValueFromEncryptedCache(cacheKey)
 	if err != nil {
 		return nil, err
@@ -660,13 +652,11 @@ func (a *ClientApp) GetUpdatedOidcTokenFromCache(ctx context.Context, subject st
 
 	oidcTokenCache, err := GetOidcTokenCacheFromJSON(oidcTokenCacheJSON)
 	if err != nil {
-		err = fmt.Errorf("failed to unmarshal cached oidc token: %w", err)
-		return nil, err
+		return nil, fmt.Errorf("failed to unmarshal cached oidc token: %w", err)
 	}
 	tokenSource, err := a.GetTokenSourceFromCache(ctx, oidcTokenCache)
 	if err != nil {
-		err = fmt.Errorf("failed to get token source from cached oidc token: %w", err)
-		return nil, err
+		return nil, fmt.Errorf("failed to get token source from cached oidc token: %w", err)
 	}
 	token, err := tokenSource.Token()
 	if err != nil {
@@ -674,13 +664,9 @@ func (a *ClientApp) GetUpdatedOidcTokenFromCache(ctx context.Context, subject st
 	}
 	if token.AccessToken != oidcTokenCache.Token.AccessToken {
 		oidcTokenCache = NewOidcTokenCache(oidcTokenCache.RedirectURL, token)
-		oidcTokenCacheJSON, err = json.Marshal(oidcTokenCache)
+		err = a.SetOIDCTokenCache(claims, oidcTokenCache)
 		if err != nil {
-			return nil, fmt.Errorf("failed to marshal oidc oidcTokenCache refresher: %w", err)
-		}
-		err = a.SetValueInEncryptedCache(cacheKey, oidcTokenCacheJSON, time.Until(token.Expiry))
-		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to set oidc token cache: %w", err)
 		}
 	}
 	return token, nil
@@ -980,6 +966,22 @@ func FormatAccessTokenCacheKey(sub string) string {
 }
 
 // formatRefreshTokenCacheKey returns the key which is used to store the oidc Token for a session in cache
-func formatOidcTokenCacheKey(sub string, sid string) string {
+func formatOidcTokenCacheKey(claims jwt.MapClaims) string {
+	sub := jwtutil.StringField(claims, "sub")
+	sid := jwtutil.StringField(claims, "sid")
 	return fmt.Sprintf("%s_%s_%s", OidcTokenCachePrefix, sub, sid)
+}
+
+// SetAccessTokenCache caches access token
+func (a *ClientApp) SetAccessTokenCache(claims jwt.MapClaims, accessToken []byte) error {
+	return a.SetValueInEncryptedCache(FormatAccessTokenCacheKey(jwtutil.StringField(claims, "sub")), accessToken, GetTokenExpiration(claims))
+}
+
+// SetOIDCTokenCache caches raw OIDC token to reconstitute a token source for refresh
+func (a *ClientApp) SetOIDCTokenCache(claims jwt.MapClaims, oidcTokenCache *OidcTokenCache) error {
+	oidcTokenCacheJSON, err := json.Marshal(oidcTokenCache)
+	if err != nil {
+		return fmt.Errorf("could not marshal oidc token cache: %w", err)
+	}
+	return a.SetValueInEncryptedCache(formatOidcTokenCacheKey(claims), oidcTokenCacheJSON, GetTokenExpiration(claims))
 }
