@@ -59,6 +59,7 @@
 - [numaplane.numaproj.io/PipelineRollout/pause](https://github.com/argoproj/argo-cd/blob/master/resource_customizations/numaplane.numaproj.io/PipelineRollout/actions/pause/action.lua)
 - [numaplane.numaproj.io/PipelineRollout/unpause-fast](https://github.com/argoproj/argo-cd/blob/master/resource_customizations/numaplane.numaproj.io/PipelineRollout/actions/unpause-fast/action.lua)
 - [numaplane.numaproj.io/PipelineRollout/unpause-gradual](https://github.com/argoproj/argo-cd/blob/master/resource_customizations/numaplane.numaproj.io/PipelineRollout/actions/unpause-gradual/action.lua)
+- [promoter.argoproj.io/PullRequest/merge](https://github.com/argoproj/argo-cd/blob/master/resource_customizations/promoter.argoproj.io/PullRequest/actions/merge/action.lua)
 - [source.toolkit.fluxcd.io/Bucket/reconcile](https://github.com/argoproj/argo-cd/blob/master/resource_customizations/source.toolkit.fluxcd.io/Bucket/actions/reconcile/action.lua)
 - [source.toolkit.fluxcd.io/Bucket/resume](https://github.com/argoproj/argo-cd/blob/master/resource_customizations/source.toolkit.fluxcd.io/Bucket/actions/resume/action.lua)
 - [source.toolkit.fluxcd.io/Bucket/suspend](https://github.com/argoproj/argo-cd/blob/master/resource_customizations/source.toolkit.fluxcd.io/Bucket/actions/suspend/action.lua)

@@ -29,11 +29,6 @@ As build dependencies change over time, you have to synchronize your development
 
 * `make dep-ui` or `make dep-ui-local`
 
-Argo CD recently migrated to Go modules. Usually, dependencies will be downloaded at build time, but the Makefile provides two targets to download and vendor all dependencies:
-
-* `make mod-download` or `make mod-download-local` will download all required Go modules and
-* `make mod-vendor` or `make mod-vendor-local` will vendor those dependencies into the Argo CD source tree
-
 ### Generate API glue code and other assets
 
 Argo CD relies on Google's [Protocol Buffers](https://developers.google.com/protocol-buffers) for its API, and this makes heavy use of auto-generated glue code and stubs. Whenever you touched parts of the API code, you must re-generate the auto generated code.
