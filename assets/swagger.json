@@ -7499,6 +7499,10 @@
             "$ref": "#/definitions/v1alpha1HelmFileParameter"
           }
         },
+        "ignoreMissingFileParameters": {
+          "type": "boolean",
+          "title": "IgnoreMissingFileParameters prevents helm template from failing when fileParameters do not exist locally by not appending them to helm template --set-file"
+        },
         "ignoreMissingValueFiles": {
           "type": "boolean",
           "title": "IgnoreMissingValueFiles prevents helm template from failing when valueFiles do not exist locally by not appending them to helm template --values"
