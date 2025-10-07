@@ -641,7 +641,7 @@ func (a *ClientApp) GetUpdatedOidcTokenFromCache(ctx context.Context, claims jwt
 	ctx = gooidc.ClientContext(ctx, a.client)
 
 	// Get oauth2 config
-	cacheKey := formatOidcTokenCacheKey(sub, sid)
+	cacheKey := formatOidcTokenCacheKey(claims)
 	oidcTokenCacheJSON, err := a.GetValueFromEncryptedCache(cacheKey)
 	if err != nil {
 		return nil, err
