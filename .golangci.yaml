@@ -39,6 +39,10 @@ linters:
       - linters:
           - unparam
         path: (.+)_test\.go
+      - linters:
+          - gocritic
+        text: hugeParam
+        path: (applicationset|cmpserver|commitserver|common|controller|notification_controller|pkg|reposerver|server|test|util)
 
     presets:
       - comments
@@ -59,7 +63,6 @@ linters:
         - commentedOutCode
         - deferInLoop
         - exitAfterDefer
-        - hugeParam
         - importShadow
         - paramTypeCombine # Leave disabled, there are too many failures to be worth fixing.
         - rangeValCopy
