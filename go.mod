@@ -118,6 +118,8 @@ require (
 	sigs.k8s.io/yaml v1.6.0
 )
 
+require sigs.k8s.io/cluster-inventory-api v0.0.0-20250905200926-6d9c0fd21edd
+
 require (
 	cloud.google.com/go/auth v0.15.0 // indirect
 	cloud.google.com/go/auth/oauth2adapt v0.2.7 // indirect
@@ -292,7 +294,6 @@ require (
 	k8s.io/kube-aggregator v0.34.0 // indirect
 	k8s.io/kubernetes v1.34.0 // indirect
 	nhooyr.io/websocket v1.8.7 // indirect
-	sigs.k8s.io/cluster-inventory-api v0.0.0-20250905200926-6d9c0fd21edd // indirect
 	sigs.k8s.io/json v0.0.0-20241014173422-cfa47c3a1cc8 // indirect
 	sigs.k8s.io/kustomize/api v0.20.1 // indirect
 	sigs.k8s.io/kustomize/kyaml v0.20.1 // indirect

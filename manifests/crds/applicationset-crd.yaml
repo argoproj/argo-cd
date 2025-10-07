@@ -1095,6 +1095,8 @@ spec:
                                     syncSource:
                                       properties:
                                         path:
+                                          minLength: 1
+                                          pattern: ^.{2,}|[^./]$
                                           type: string
                                         targetBranch:
                                           type: string
@@ -1386,6 +1388,8 @@ spec:
                                         limit:
                                           format: int64
                                           type: integer
+                                        refresh:
+                                          type: boolean
                                       type: object
                                     syncOptions:
                                       items:
@@ -4503,6 +4507,8 @@ spec:
                                               syncSource:
                                                 properties:
                                                   path:
+                                                    minLength: 1
+                                                    pattern: ^.{2,}|[^./]$
                                                     type: string
                                                   targetBranch:
                                                     type: string
@@ -4794,6 +4800,8 @@ spec:
                                                   limit:
                                                     format: int64
                                                     type: integer
+                                                  refresh:
+                                                    type: boolean
                                                 type: object
                                               syncOptions:
                                                 items:
@@ -11059,6 +11067,8 @@ spec:
                                               syncSource:
                                                 properties:
                                                   path:
+                                                    minLength: 1
+                                                    pattern: ^.{2,}|[^./]$
                                                     type: string
                                                   targetBranch:
                                                     type: string
@@ -11350,6 +11360,8 @@ spec:
                                                   limit:
                                                     format: int64
                                                     type: integer
+                                                  refresh:
+                                                    type: boolean
                                                 type: object
                                               syncOptions:
                                                 items:
