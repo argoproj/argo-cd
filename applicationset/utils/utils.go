@@ -69,6 +69,12 @@ func IsJSONStr(str string) bool {
 	return str != "" && str[0] == '{'
 }
 
+func IsJSONArray(s string) bool {
+	var arr []interface{}
+	err := json.Unmarshal([]byte(s), &arr)
+	return err == nil
+}
+
 func ConvertYAMLToJSON(str string) (string, error) {
 	if !IsJSONStr(str) {
 		jsonStr, err := yaml.YAMLToJSON([]byte(str))

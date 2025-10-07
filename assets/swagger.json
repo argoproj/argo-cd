@@ -7294,6 +7294,9 @@
         "template": {
           "$ref": "#/definitions/v1alpha1ApplicationSetTemplate"
         },
+        "templateJSONPatch": {
+          "type": "string"
+        },
         "templatePatch": {
           "type": "string"
         }
