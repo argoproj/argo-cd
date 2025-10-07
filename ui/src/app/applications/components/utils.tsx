@@ -457,11 +457,6 @@ const isApplicationResource = (resource: ResourceTreeNode): boolean => {
     return resource.kind === 'Application' && resource.group === 'argoproj.io';
 };
 
-// Helper function to detect if a resource is an ApplicationSet
-const isApplicationSetResource = (resource: ResourceTreeNode): boolean => {
-    return resource.kind === 'ApplicationSet' && resource.group === 'argoproj.io';
-};
-
 export const deletePopup = async (
     ctx: ContextApis,
     resource: ResourceTreeNode,
@@ -470,20 +465,18 @@ export const deletePopup = async (
     childResources: appModels.ResourceNode[],
     appChanged?: BehaviorSubject<appModels.Application>
 ) => {
-    // Detect if this is an Application or ApplicationSet resource
+    // Detect if this is an Application resource
     const isApplication = isApplicationResource(resource);
-    const isApplicationSet = isApplicationSetResource(resource);
 
-    // For Application resources, use the same behavior as the applications list page
+    // For Application resources, show different dialogs based on context
     if (isApplication) {
-        // Check if this is a child application for different dialog messaging
+        // Check if this is a child application
         const partOfLabel = application.metadata.labels?.['app.kubernetes.io/part-of'];
         const hasParentLabel = partOfLabel && partOfLabel.trim() !== '';
         const isChildApp = application.metadata.name !== resource.name && hasParentLabel;
 
-        // Use the standard deleteApplication function but with custom title if it's a child app
+        // Show child app dialog with specific warning
         if (isChildApp) {
-            // Custom dialog for child applications with different title
             return ctx.popup.prompt(
                 'Delete child application',
                 api => (
@@ -492,12 +485,14 @@ export const deletePopup = async (
                             Are you sure you want to delete the <strong>child Application</strong> <kbd>{resource.name}</kbd>?
                         </p>
                         <p>
-                            <strong>ℹ️ Note:</strong> You are deleting a child application from the resource tree. This will behave the same as deleting from the Applications list.
+                            <strong>⚠️ Warning:</strong> You are about to delete an Application resource <kbd>{resource.name}</kbd> from the resource tree.
                         </p>
                         <p>
-                            Deleting the application in <strong>foreground</strong> or <strong>background</strong> mode will delete all the application's managed resources, which
-                            can be <strong>dangerous</strong>. Be sure you understand the effects of deleting this resource before continuing. Consider asking someone to review the
-                            change first.
+                            The deletion behavior may differ from what you expect. Even with <kbd>"Non-cascading"</kbd> selected, managed resources may still be deleted if the
+                            application has finalizers.
+                        </p>
+                        <p>
+                            For more predictable deletion behavior, consider deleting this application from the <strong>Applications list</strong> instead.
                         </p>
                         <div className='argo-form-row'>
                             <FormField
@@ -521,7 +516,7 @@ export const deletePopup = async (
                                 },
                                 {
                                     name: 'Non-cascading',
-                                    message: `Only delete the application, but do not cascade delete its resources`
+                                    message: `Delete the application. Managed resources may still be deleted if finalizers are present`
                                 }
                             ].map(policy => {
                                 return (
@@ -560,10 +555,89 @@ export const deletePopup = async (
                 'red',
                 {propagationPolicy: 'foreground'}
             );
-        } else {
-            // Use the standard deleteApplication function for non-child applications
-            return deleteApplication(resource.name, resource.namespace || '', ctx);
         }
+
+        // Standard dialog for regular applications
+        return ctx.popup.prompt(
+            'Delete application',
+            api => (
+                <div>
+                    <p>
+                        Are you sure you want to delete the <strong>Application</strong> <kbd>{resource.name}</kbd>?
+                    </p>
+                    <p>
+                        <strong>⚠️ Warning:</strong> You are about to delete an Application resource <kbd>{resource.name}</kbd> from the resource tree.
+                    </p>
+                    <p>
+                        The deletion behavior may differ from what you expect. Even with <kbd>"Non-cascading"</kbd> selected, managed resources may still be deleted if the
+                        application has finalizers.
+                    </p>
+                    <p>
+                        For more predictable deletion behavior, consider deleting this application from the
+                        <strong> Applications list</strong> instead. Be sure you understand the effects of deleting this resource before continuing. Consider asking someone to
+                        review the change first.
+                    </p>
+                    <div className='argo-form-row'>
+                        <FormField
+                            label={`Please type '${resource.name}' to confirm the deletion of the application`}
+                            formApi={api}
+                            field='applicationName'
+                            qeId='name-field-delete-confirmation'
+                            component={Text}
+                        />
+                    </div>
+                    <p>Select propagation policy for application deletion</p>
+                    <div className='propagation-policy-list'>
+                        {[
+                            {
+                                name: 'Foreground',
+                                message: `Cascade delete the application's resources using foreground propagation policy`
+                            },
+                            {
+                                name: 'Background',
+                                message: `Cascade delete the application's resources using background propagation policy`
+                            },
+                            {
+                                name: 'Non-cascading',
+                                message: `Delete the application. Managed resources may still be deleted if finalizers are present`
+                            }
+                        ].map(policy => {
+                            return (
+                                <FormField
+                                    formApi={api}
+                                    key={policy.name}
+                                    field='propagationPolicy'
+                                    component={PropagationPolicyOption}
+                                    componentProps={{
+                                        policy: policy.name,
+                                        message: policy.message
+                                    }}
+                                />
+                            );
+                        })}
+                    </div>
+                </div>
+            ),
+            {
+                validate: vals => ({
+                    applicationName: vals.applicationName !== resource.name && 'Enter the application name to confirm the deletion'
+                }),
+                submit: async (vals, _, close) => {
+                    try {
+                        await services.applications.delete(resource.name, resource.namespace || '', vals.propagationPolicy);
+                        close();
+                    } catch (e) {
+                        ctx.notifications.show({
+                            content: <ErrorNotification title='Unable to delete application' e={e} />,
+                            type: NotificationType.Error
+                        });
+                    }
+                }
+            },
+            {name: 'argo-icon-warning', color: 'failed'},
+            'red',
+            {propagationPolicy: 'foreground'}
+        );
     }
 
     const deleteOptions = {
@@ -577,7 +651,7 @@ export const deletePopup = async (
         return deletePodAction(ctx, resource, application);
     }
 
-    // Check if we're in a parent-child or ApplicationSet context
+    // Check if we're in a parent-child context
     const partOfLabel = application.metadata.labels?.['app.kubernetes.io/part-of'];
     const hasParentLabel = partOfLabel && partOfLabel.trim() !== '';
     const isInParentContext = hasParentLabel;
@@ -586,33 +660,16 @@ export const deletePopup = async (
     let dialogTitle = 'Delete resource';
     let customMessage: React.ReactNode = null;
 
-    if (isApplicationSet) {
-        dialogTitle = 'Delete application set';
-        customMessage = (
-            <div>
-                <p>
-                    <strong>⚠️ Warning:</strong> You are deleting an ApplicationSet resource from the resource tree.
-                </p>
-                <p>
-                    Deleting an ApplicationSet in <strong>foreground</strong> or <strong>background</strong> mode will delete all managed resources, which can be{' '}
-                    <strong>dangerous</strong>. The <strong>Non-cascading (Orphan)</strong> option may not behave as expected when deleting from the resource tree.
-                </p>
-                <p>
-                    Consider deleting this ApplicationSet from the Applications list instead for clearer deletion behavior. Be sure you understand the effects before continuing.
-                    Consider asking someone to review the change first.
-                </p>
-            </div>
-        );
-    } else if (isInParentContext) {
+    if (isInParentContext) {
         dialogTitle = 'Delete resource';
         customMessage = (
             <div>
                 <p>
-                    <strong>ℹ️ Note:</strong> You are deleting a resource from a parent application's resource tree.
+                    <strong>ℹ️ Note:</strong> You are about to delete a resource from a parent application's resource tree.
                 </p>
                 <p>
-                    Deleting resources in <strong>foreground</strong> or <strong>background</strong> mode will delete the resource and its dependent resources, which can be{' '}
-                    <strong>dangerous</strong>. The <strong>Non-cascading (Orphan)</strong> option will only delete this specific resource.
+                    Deleting resources in <kbd>foreground</kbd> or <kbd>background</kbd> mode will delete the resource and its dependent resources, which can be{' '}
+                    <strong>dangerous</strong>. The <kbd>Non-cascading (Orphan)</kbd> option will only delete this specific resource.
                 </p>
                 <p>Be sure you understand the effects of deleting this resource before continuing. Consider asking someone to review the change first.</p>
             </div>
