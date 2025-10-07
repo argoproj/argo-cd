@@ -2,14 +2,16 @@ import {FormField, NotificationType, SlidingPanel} from 'argo-ui';
 import React, {useRef, useContext} from 'react';
 import {Form, FormApi, Text} from 'react-form';
 
-import {DataLoader, EmptyState, ErrorNotification, Page, Query} from '../../../shared/components';
+import {DataLoader, EmptyState, ErrorNotification, Page} from '../../../shared/components';
 import {Context} from '../../../shared/context';
 import {Project} from '../../../shared/models';
 import {services} from '../../../shared/services';
+import {useQuery} from '../../../shared/hooks/query';
 
 export function ProjectsList() {
     const formApiRef = useRef<FormApi | null>(null);
     const ctx = useContext(Context);
+    const query = useQuery();
 
     return (
         <Page
@@ -55,56 +57,52 @@ export function ProjectsList() {
                     }
                 </DataLoader>
             </div>
-            <Query>
-                {params => (
-                    <SlidingPanel
-                        isShown={params.get('add') === 'true'}
-                        onClose={() => ctx.navigation.goto('.', {add: null}, {replace: true})}
-                        isMiddle={true}
-                        header={
-                            <div>
-                                <button onClick={() => formApiRef.current && formApiRef.current.submitForm(null)} className='argo-button argo-button--base'>
-                                    Create
-                                </button>{' '}
-                                <button onClick={() => ctx.navigation.goto('.', {add: null}, {replace: true})} className='argo-button argo-button--base-o'>
-                                    Cancel
-                                </button>
+            <SlidingPanel
+                isShown={query.get('add') === 'true'}
+                onClose={() => ctx.navigation.goto('.', {add: null}, {replace: true})}
+                isMiddle={true}
+                header={
+                    <div>
+                        <button onClick={() => formApiRef.current && formApiRef.current.submitForm(null)} className='argo-button argo-button--base'>
+                            Create
+                        </button>{' '}
+                        <button onClick={() => ctx.navigation.goto('.', {add: null}, {replace: true})} className='argo-button argo-button--base-o'>
+                            Cancel
+                        </button>
+                    </div>
+                }>
+                <Form
+                    defaultValues={{metadata: {}, spec: {}}}
+                    getApi={api => (formApiRef.current = api)}
+                    validateError={(p: Project) => ({
+                        'metadata.name': !p.metadata.name && 'Project Name is required'
+                    })}
+                    onSubmit={async (proj: Project) => {
+                        try {
+                            await services.projects.create(proj);
+                            ctx.navigation.goto(`./${proj.metadata.name}`, {add: null}, {replace: true});
+                        } catch (e) {
+                            ctx.notifications.show({
+                                content: <ErrorNotification title='Unable to create project' e={e} />,
+                                type: NotificationType.Error
+                            });
+                        }
+                    }}>
+                    {api => (
+                        <form onSubmit={api.submitForm} role='form' className='width-control'>
+                            <div className='white-box'>
+                                <p>GENERAL</p>
+                                <div className='argo-form-row'>
+                                    <FormField formApi={api} label='Project Name' field='metadata.name' component={Text} />
+                                </div>
+                                <div className='argo-form-row'>
+                                    <FormField formApi={api} label='Description' field='spec.description' component={Text} />
+                                </div>
                             </div>
-                        }>
-                        <Form
-                            defaultValues={{metadata: {}, spec: {}}}
-                            getApi={api => (formApiRef.current = api)}
-                            validateError={(p: Project) => ({
-                                'metadata.name': !p.metadata.name && 'Project Name is required'
-                            })}
-                            onSubmit={async (proj: Project) => {
-                                try {
-                                    await services.projects.create(proj);
-                                    ctx.navigation.goto(`./${proj.metadata.name}`, {add: null}, {replace: true});
-                                } catch (e) {
-                                    ctx.notifications.show({
-                                        content: <ErrorNotification title='Unable to create project' e={e} />,
-                                        type: NotificationType.Error
-                                    });
-                                }
-                            }}>
-                            {api => (
-                                <form onSubmit={api.submitForm} role='form' className='width-control'>
-                                    <div className='white-box'>
-                                        <p>GENERAL</p>
-                                        <div className='argo-form-row'>
-                                            <FormField formApi={api} label='Project Name' field='metadata.name' component={Text} />
-                                        </div>
-                                        <div className='argo-form-row'>
-                                            <FormField formApi={api} label='Description' field='spec.description' component={Text} />
-                                        </div>
-                                    </div>
-                                </form>
-                            )}
-                        </Form>
-                    </SlidingPanel>
-                )}
-            </Query>
+                        </form>
+                    )}
+                </Form>
+            </SlidingPanel>
         </Page>
     );
 }
