@@ -3,10 +3,9 @@ import * as classNames from 'classnames';
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
 import {Key, KeybindingContext, KeybindingProvider} from 'argo-ui/v2';
-import {RouteComponentProps} from 'react-router';
 import {combineLatest, from, merge, Observable} from 'rxjs';
 import {bufferTime, delay, filter, map, mergeMap, repeat, retryWhen} from 'rxjs/operators';
-import {AddAuthToToolbar, ClusterCtx, DataLoader, EmptyState, ObservableQuery, Page, Paginate, Query, Spinner} from '../../../shared/components';
+import {AddAuthToToolbar, ClusterCtx, DataLoader, EmptyState, Page, Paginate, Spinner} from '../../../shared/components';
 import {AuthSettingsCtx, Consumer, Context, ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {AppsListViewKey, AppsListPreferences, AppsListViewType, HealthStatusBarPreferences, services} from '../../../shared/services';
@@ -21,6 +20,7 @@ import {ApplicationsTable} from './applications-table';
 import {ApplicationTiles} from './applications-tiles';
 import {ApplicationsRefreshPanel} from '../applications-refresh-panel/applications-refresh-panel';
 import {useSidebarTarget} from '../../../sidebar/sidebar';
+import {useQuery, useObservableQuery} from '../../../shared/hooks/query';
 
 import './applications-list.scss';
 import './flex-top-bar.scss';
@@ -93,73 +93,73 @@ function loadApplications(projects: string[], appNamespace: string): Observable<
     );
 }
 
-const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: number; search: string}) => React.ReactNode}) => (
-    <ObservableQuery>
-        {q => (
-            <DataLoader
-                load={() =>
-                    combineLatest([services.viewPreferences.getPreferences().pipe(map(item => item.appList)), q]).pipe(
-                        map(items => {
-                            const params = items[1];
-                            const viewPref: AppsListPreferences = {...items[0]};
-                            if (params.get('proj') != null) {
-                                viewPref.projectsFilter = params
-                                    .get('proj')
-                                    .split(',')
-                                    .filter(item => !!item);
-                            }
-                            if (params.get('sync') != null) {
-                                viewPref.syncFilter = params
-                                    .get('sync')
-                                    .split(',')
-                                    .filter(item => !!item);
-                            }
-                            if (params.get('autoSync') != null) {
-                                viewPref.autoSyncFilter = params
-                                    .get('autoSync')
-                                    .split(',')
-                                    .filter(item => !!item);
-                            }
-                            if (params.get('health') != null) {
-                                viewPref.healthFilter = params
-                                    .get('health')
-                                    .split(',')
-                                    .filter(item => !!item);
-                            }
-                            if (params.get('namespace') != null) {
-                                viewPref.namespacesFilter = params
-                                    .get('namespace')
-                                    .split(',')
-                                    .filter(item => !!item);
-                            }
-                            if (params.get('cluster') != null) {
-                                viewPref.clustersFilter = params
-                                    .get('cluster')
-                                    .split(',')
-                                    .filter(item => !!item);
-                            }
-                            if (params.get('showFavorites') != null) {
-                                viewPref.showFavorites = params.get('showFavorites') === 'true';
-                            }
-                            if (params.get('view') != null) {
-                                viewPref.view = params.get('view') as AppsListViewType;
-                            }
-                            if (params.get('labels') != null) {
-                                viewPref.labelsFilter = params
-                                    .get('labels')
-                                    .split(',')
-                                    .map(decodeURIComponent)
-                                    .filter(item => !!item);
-                            }
-                            return {...viewPref, page: parseInt(params.get('page') || '0', 10), search: params.get('search') || ''};
-                        })
-                    )
-                }>
-                {pref => children(pref)}
-            </DataLoader>
-        )}
-    </ObservableQuery>
-);
+const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: number; search: string}) => React.ReactNode}) => {
+    const observableQuery$ = useObservableQuery();
+
+    return (
+        <DataLoader
+            load={() =>
+                combineLatest([services.viewPreferences.getPreferences().pipe(map(item => item.appList)), observableQuery$]).pipe(
+                    map(items => {
+                        const params = items[1];
+                        const viewPref: AppsListPreferences = {...items[0]};
+                        if (params.get('proj') != null) {
+                            viewPref.projectsFilter = params
+                                .get('proj')
+                                .split(',')
+                                .filter(item => !!item);
+                        }
+                        if (params.get('sync') != null) {
+                            viewPref.syncFilter = params
+                                .get('sync')
+                                .split(',')
+                                .filter(item => !!item);
+                        }
+                        if (params.get('autoSync') != null) {
+                            viewPref.autoSyncFilter = params
+                                .get('autoSync')
+                                .split(',')
+                                .filter(item => !!item);
+                        }
+                        if (params.get('health') != null) {
+                            viewPref.healthFilter = params
+                                .get('health')
+                                .split(',')
+                                .filter(item => !!item);
+                        }
+                        if (params.get('namespace') != null) {
+                            viewPref.namespacesFilter = params
+                                .get('namespace')
+                                .split(',')
+                                .filter(item => !!item);
+                        }
+                        if (params.get('cluster') != null) {
+                            viewPref.clustersFilter = params
+                                .get('cluster')
+                                .split(',')
+                                .filter(item => !!item);
+                        }
+                        if (params.get('showFavorites') != null) {
+                            viewPref.showFavorites = params.get('showFavorites') === 'true';
+                        }
+                        if (params.get('view') != null) {
+                            viewPref.view = params.get('view') as AppsListViewType;
+                        }
+                        if (params.get('labels') != null) {
+                            viewPref.labelsFilter = params
+                                .get('labels')
+                                .split(',')
+                                .map(decodeURIComponent)
+                                .filter(item => !!item);
+                        }
+                        return {...viewPref, page: parseInt(params.get('page') || '0', 10), search: params.get('search') || ''};
+                    })
+                )
+            }>
+            {pref => children(pref)}
+        </DataLoader>
+    );
+};
 
 function filterApps(applications: models.Application[], pref: AppsListPreferences, search: string): {filteredApps: models.Application[]; filterResults: FilteredApp[]} {
     applications = applications.map(app => {
@@ -292,7 +292,7 @@ const FlexTopBar = (props: {toolbar: Toolbar | Observable<Toolbar>}) => {
                                 {toolbar.actionMenu && (
                                     <React.Fragment>
                                         {toolbar.actionMenu.items.map((item, i) => (
-                                            <Tooltip className='custom-tooltip' content={item.title}>
+                                            <Tooltip className='custom-tooltip' content={item.title} key={item.qeId || i}>
                                                 <button
                                                     disabled={!!item.disabled}
                                                     qe-id={item.qeId}
@@ -318,8 +318,9 @@ const FlexTopBar = (props: {toolbar: Toolbar | Observable<Toolbar>}) => {
     );
 };
 
-export const ApplicationsList = (props: RouteComponentProps<{}>) => {
-    const query = new URLSearchParams(props.location.search);
+export const ApplicationsList = () => {
+    const query = useQuery();
+    const observableQuery$ = useObservableQuery();
     const appInput = tryJsonParse(query.get('new'));
     const syncAppsInput = tryJsonParse(query.get('syncApps'));
     const refreshAppsInput = tryJsonParse(query.get('refreshApps'));
@@ -419,7 +420,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                         toolbar={{
                                                             tools: (
                                                                 <React.Fragment key='app-list-tools'>
-                                                                    <Query>{q => <SearchBar content={q.get('search')} apps={applications} ctx={ctx} />}</Query>
+                                                                    <SearchBar content={query.get('search')} apps={applications} ctx={ctx} />
                                                                     <Tooltip content='Toggle Health Status Bar'>
                                                                         <button
                                                                             className={`applications-list__accordion argo-button argo-button--base${
@@ -599,29 +600,25 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                             apps={filteredApps}
                                                         />
                                                     </div>
-                                                    <ObservableQuery>
-                                                        {q => (
-                                                            <DataLoader
-                                                                load={() =>
-                                                                    q.pipe(
-                                                                        mergeMap(params => {
-                                                                            const syncApp = params.get('syncApp');
-                                                                            const appNamespace = params.get('appNamespace');
-                                                                            return (syncApp && from(services.applications.get(syncApp, appNamespace))) || from([null]);
-                                                                        })
-                                                                    )
-                                                                }>
-                                                                {app => (
-                                                                    <ApplicationSyncPanel
-                                                                        key='syncPanel'
-                                                                        application={app}
-                                                                        selectedResource={'all'}
-                                                                        hide={() => ctx.navigation.goto('.', {syncApp: null}, {replace: true})}
-                                                                    />
-                                                                )}
-                                                            </DataLoader>
+                                                    <DataLoader
+                                                        load={() =>
+                                                            observableQuery$.pipe(
+                                                                mergeMap(params => {
+                                                                    const syncApp = params.get('syncApp');
+                                                                    const appNamespace = params.get('appNamespace');
+                                                                    return (syncApp && from(services.applications.get(syncApp, appNamespace))) || from([null]);
+                                                                })
+                                                            )
+                                                        }>
+                                                        {app => (
+                                                            <ApplicationSyncPanel
+                                                                key='syncPanel'
+                                                                application={app}
+                                                                selectedResource={'all'}
+                                                                hide={() => ctx.navigation.goto('.', {syncApp: null}, {replace: true})}
+                                                            />
                                                         )}
-                                                    </ObservableQuery>
+                                                    </DataLoader>
                                                     <SlidingPanel
                                                         isShown={!!appInput}
                                                         onClose={() => handleCreatePanelClose()} //Separate handling for outside click.
