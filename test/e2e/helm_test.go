@@ -82,7 +82,7 @@ func TestDeclarativeHelmInvalidValuesFile(t *testing.T) {
 	Given(t).
 		Path("helm").
 		When().
-		Declarative("declarative-apps/invalid-helm.yaml").
+		Declarative("declarative-apps/missing-values-file.yaml").
 		Then().
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		Expect(SyncStatusIs(SyncStatusCodeUnknown)).
@@ -125,7 +125,7 @@ func TestHelmIgnoreMissingValueFiles(t *testing.T) {
 	Given(t).
 		Path("helm").
 		When().
-		Declarative("declarative-apps/invalid-helm.yaml").
+		Declarative("declarative-apps/missing-values-file.yaml").
 		Then().
 		And(func(app *Application) {
 			assert.Equal(t, []string{"does-not-exist-values.yaml"}, app.Spec.GetSource().Helm.ValueFiles)
