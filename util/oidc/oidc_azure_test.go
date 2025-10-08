@@ -44,7 +44,7 @@ func TestFetchAzureGroupsOverflow(t *testing.T) {
 		// We expect the call to be made to our constructed Microsoft Graph endpoint
 		// Since we ignore the legacy endpoint from _claim_sources
 		assert.Equal(t, "POST", r.Method)
-		assert.Contains(t, r.URL.Path, "/me/getMemberObjects") // app+user token uses /me endpoint
+		assert.Contains(t, r.URL.Path, "/me/getMemberGroups") // app+user token uses /me endpoint
 
 		// Verify Content-Type
 		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
@@ -149,7 +149,7 @@ func TestFetchAzureGroupsOverflowDisabled(t *testing.T) {
 		},
 		"_claim_sources": map[string]interface{}{
 			"src1": map[string]interface{}{
-				"endpoint": "https://graph.microsoft.com/v1.0/me/getMemberObjects",
+				"endpoint": "https://graph.microsoft.com/v1.0/me/getMemberGroups",
 			},
 		},
 	}
@@ -246,7 +246,7 @@ func TestFetchAzureGroupsOverflowNoAccessToken(t *testing.T) {
 		},
 		"_claim_sources": map[string]interface{}{
 			"src1": map[string]interface{}{
-				"endpoint": "https://graph.microsoft.com/v1.0/me/getMemberObjects",
+				"endpoint": "https://graph.microsoft.com/v1.0/me/getMemberGroups",
 				// No access_token
 			},
 		},
@@ -266,7 +266,7 @@ func TestFetchAzureGroupsOverflowRealScenario(t *testing.T) {
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// We expect the call to be made to our constructed Microsoft Graph endpoint
 		assert.Equal(t, "POST", r.Method)
-		assert.Contains(t, r.URL.Path, "/me/getMemberObjects") // app+user token uses /me endpoint
+		assert.Contains(t, r.URL.Path, "/me/getMemberGroups") // app+user token uses /me endpoint
 
 		// Verify Content-Type
 		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))

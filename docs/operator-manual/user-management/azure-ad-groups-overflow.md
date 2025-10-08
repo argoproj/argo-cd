@@ -150,9 +150,9 @@ The implementation handles Azure AD's distributed claims by:
 1. **Detection**: Checking for `_claim_names` and `_claim_sources` in the JWT token, specifically looking for the "groups" claim
 2. **Access Token Extraction**: Retrieving the access token from the distributed claims source
 3. **Endpoint Construction**: Following Microsoft's security recommendations by constructing Microsoft Graph API endpoints based on the `idtyp` claim rather than using deprecated endpoints from `_claim_sources`
-   - **App+User tokens** (no `idtyp` claim): Use `/me/getMemberObjects` endpoint
-   - **App-only tokens** (`idtyp: "app"`): Use `/users/{user-id}/getMemberObjects` endpoint
-4. **Group Fetching**: Making a POST request to the Microsoft Graph API v1.0 `getMemberObjects` endpoint
+  - **App+User tokens** (no `idtyp` claim): Use `/me/getMemberGroups` endpoint
+  - **App-only tokens** (`idtyp: "app"`): Use `/users/{user-id}/getMemberGroups` endpoint
+4. **Group Fetching**: Making a POST request to the Microsoft Graph API v1.0 `getMemberGroups` endpoint
 5. **Claims Enhancement**: Adding the fetched groups back to the JWT claims for authorization processing
 
 ## Limitations

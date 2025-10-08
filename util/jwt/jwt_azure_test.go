@@ -23,7 +23,7 @@ func TestHasAzureGroupsOverflow(t *testing.T) {
 				},
 				"_claim_sources": map[string]any{
 					"src1": map[string]any{
-						"endpoint": "https://graph.microsoft.com/v1.0/me/getMemberObjects",
+						"endpoint": "https://graph.microsoft.com/v1.0/me/getMemberGroups",
 					},
 				},
 			},
@@ -100,13 +100,13 @@ func TestGetAzureGroupsOverflowInfo(t *testing.T) {
 				},
 				"_claim_sources": map[string]any{
 					"src1": map[string]any{
-						"endpoint":     "https://graph.microsoft.com/v1.0/me/getMemberObjects",
+						"endpoint":     "https://graph.microsoft.com/v1.0/me/getMemberGroups",
 						"access_token": "token123",
 					},
 				},
 			},
 			expected: &AzureGroupsOverflowInfo{
-				GraphEndpoint: "https://graph.microsoft.com/v1.0/me/getMemberObjects",
+				GraphEndpoint: "https://graph.microsoft.com/v1.0/me/getMemberGroups",
 				AccessToken:   "token123",
 			},
 			expectError: false,
@@ -128,7 +128,7 @@ func TestGetAzureGroupsOverflowInfo(t *testing.T) {
 				// No idtyp claim means app+user token
 			},
 			expected: &AzureGroupsOverflowInfo{
-				GraphEndpoint: "https://graph.microsoft.com/v1.0/me/getMemberObjects",
+				GraphEndpoint: "https://graph.microsoft.com/v1.0/me/getMemberGroups",
 				AccessToken:   "token123",
 			},
 			expectError: false,
@@ -150,7 +150,7 @@ func TestGetAzureGroupsOverflowInfo(t *testing.T) {
 				},
 			},
 			expected: &AzureGroupsOverflowInfo{
-				GraphEndpoint: "https://graph.microsoft.com/v1.0/users/22222222-2222-2222-2222-222222222222/getMemberObjects",
+				GraphEndpoint: "https://graph.microsoft.com/v1.0/users/22222222-2222-2222-2222-222222222222/getMemberGroups",
 				AccessToken:   "token123",
 			},
 			expectError: false,
@@ -219,7 +219,7 @@ func TestConstructMicrosoftGraphGroupsEndpoint(t *testing.T) {
 				"oid": "22222222-2222-2222-2222-222222222222",
 				// No idtyp claim means it's an app+user token
 			},
-			expected: "https://graph.microsoft.com/v1.0/me/getMemberObjects",
+				expected: "https://graph.microsoft.com/v1.0/me/getMemberGroups",
 		},
 		{
 			name: "app-only token with oid claim",
@@ -228,7 +228,7 @@ func TestConstructMicrosoftGraphGroupsEndpoint(t *testing.T) {
 				"oid":   "33333333-3333-3333-3333-333333333333",
 				"idtyp": "app",
 			},
-			expected: "https://graph.microsoft.com/v1.0/users/33333333-3333-3333-3333-333333333333/getMemberObjects",
+				expected: "https://graph.microsoft.com/v1.0/users/33333333-3333-3333-3333-333333333333/getMemberGroups",
 		},
 		{
 			name: "app-only token without oid claim (fallback)",
@@ -236,7 +236,7 @@ func TestConstructMicrosoftGraphGroupsEndpoint(t *testing.T) {
 				"sub":   "service-principal-id",
 				"idtyp": "app",
 			},
-			expected: "https://graph.microsoft.com/v1.0/me/getMemberObjects",
+				expected: "https://graph.microsoft.com/v1.0/me/getMemberGroups",
 		},
 	}
 
@@ -259,7 +259,7 @@ func TestAzureGroupsOverflowScenario(t *testing.T) {
 		},
 		"_claim_sources": map[string]any{
 			"src1": map[string]any{
-				"endpoint":     "https://graph.microsoft.com/v1.0/me/getMemberObjects",
+				"endpoint":     "https://graph.microsoft.com/v1.0/me/getMemberGroups",
 				"access_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9...",
 			},
 		},
@@ -272,6 +272,6 @@ func TestAzureGroupsOverflowScenario(t *testing.T) {
 	azureInfo, err := GetAzureGroupsOverflowInfo(claims)
 	require.NoError(t, err)
 	require.NotNil(t, azureInfo)
-	assert.Equal(t, "https://graph.microsoft.com/v1.0/me/getMemberObjects", azureInfo.GraphEndpoint)
+	assert.Equal(t, "https://graph.microsoft.com/v1.0/me/getMemberGroups", azureInfo.GraphEndpoint)
 	assert.Equal(t, "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9...", azureInfo.AccessToken)
 }

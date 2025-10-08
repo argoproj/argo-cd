@@ -251,18 +251,20 @@ func GetAzureGroupsOverflowInfo(claims jwtgo.MapClaims) (*AzureGroupsOverflowInf
 // based on the token type as recommended by Microsoft documentation.
 // See: https://learn.microsoft.com/en-us/entra/identity-platform/access-token-claims-reference#groups-overage-claim
 func constructMicrosoftGraphGroupsEndpoint(claims jwtgo.MapClaims) string {
-	// Check if this is an app-only token using the idtyp claim
+	// We now use the Microsoft Graph getMemberGroups action instead of getMemberObjects.
+	// Docs: https://learn.microsoft.com/en-us/graph/api/directoryobject-getmembergroups
+	// Reason: We only need group object IDs for authorization mapping; getMemberGroups
+	// returns only groups (and is the recommended action for group-based authorization).
 	if idtyp := StringField(claims, "idtyp"); idtyp == "app" {
 		// For app-only tokens, we need to use the user ID from the oid claim
-		// https://graph.microsoft.com/v1.0/users/{userId}/getMemberObjects
+		// https://graph.microsoft.com/v1.0/users/{userId}/getMemberGroups
 		if oid := StringField(claims, "oid"); oid != "" {
-			return fmt.Sprintf("https://graph.microsoft.com/v1.0/users/%s/getMemberObjects", oid)
+			return fmt.Sprintf("https://graph.microsoft.com/v1.0/users/%s/getMemberGroups", oid)
 		}
-		// Fallback if no oid claim - this shouldn't happen in practice
-		return "https://graph.microsoft.com/v1.0/me/getMemberObjects"
+		// Fallback – should not normally occur – default to /me variant
+		return "https://graph.microsoft.com/v1.0/me/getMemberGroups"
 	}
-
-	// For app+user tokens (normal user authentication), use /me endpoint
-	// https://graph.microsoft.com/v1.0/me/getMemberObjects
-	return "https://graph.microsoft.com/v1.0/me/getMemberObjects"
+	// App+user tokens (normal delegated user auth) use /me action endpoint
+	// https://graph.microsoft.com/v1.0/me/getMemberGroups
+	return "https://graph.microsoft.com/v1.0/me/getMemberGroups"
 }
