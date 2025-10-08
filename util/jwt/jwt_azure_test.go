@@ -112,9 +112,33 @@ func TestGetAzureGroupsOverflowInfo(t *testing.T) {
 			expectError: false,
 		},
 		{
-			name: "legacy graph.windows.net endpoint",
+			name: "app+user token ignores legacy endpoint and constructs correct URL",
 			claims: jwtgo.MapClaims{
 				"sub": "user123",
+				"oid": "22222222-2222-2222-2222-222222222222",
+				"_claim_names": map[string]any{
+					"groups": "src1",
+				},
+				"_claim_sources": map[string]any{
+					"src1": map[string]any{
+						"endpoint":     "https://graph.windows.net/11111111-1111-1111-1111-111111111111/users/22222222-2222-2222-2222-222222222222/getMemberObjects",
+						"access_token": "token123",
+					},
+				},
+				// No idtyp claim means app+user token
+			},
+			expected: &AzureGroupsOverflowInfo{
+				GraphEndpoint: "https://graph.microsoft.com/v1.0/me/getMemberObjects",
+				AccessToken:   "token123",
+			},
+			expectError: false,
+		},
+		{
+			name: "app-only token constructs correct URL with user ID",
+			claims: jwtgo.MapClaims{
+				"sub":   "user123",
+				"oid":   "22222222-2222-2222-2222-222222222222",
+				"idtyp": "app",
 				"_claim_names": map[string]any{
 					"groups": "src1",
 				},
@@ -126,7 +150,7 @@ func TestGetAzureGroupsOverflowInfo(t *testing.T) {
 				},
 			},
 			expected: &AzureGroupsOverflowInfo{
-				GraphEndpoint: "https://graph.microsoft.com/v1.0/11111111-1111-1111-1111-111111111111/users/22222222-2222-2222-2222-222222222222/getMemberObjects",
+				GraphEndpoint: "https://graph.microsoft.com/v1.0/users/22222222-2222-2222-2222-222222222222/getMemberObjects",
 				AccessToken:   "token123",
 			},
 			expectError: false,
@@ -182,32 +206,43 @@ func TestGetAzureGroupsOverflowInfo(t *testing.T) {
 	}
 }
 
-func TestConvertToMicrosoftGraphEndpoint(t *testing.T) {
+func TestConstructMicrosoftGraphGroupsEndpoint(t *testing.T) {
 	tests := []struct {
 		name     string
-		endpoint string
+		claims   jwtgo.MapClaims
 		expected string
 	}{
 		{
-			name:     "legacy graph.windows.net endpoint",
-			endpoint: "https://graph.windows.net/11111111-1111-1111-1111-111111111111/users/22222222-2222-2222-2222-222222222222/getMemberObjects",
-			expected: "https://graph.microsoft.com/v1.0/11111111-1111-1111-1111-111111111111/users/22222222-2222-2222-2222-222222222222/getMemberObjects",
-		},
-		{
-			name:     "already Microsoft Graph endpoint",
-			endpoint: "https://graph.microsoft.com/v1.0/me/getMemberObjects",
+			name: "app+user token (normal user authentication)",
+			claims: jwtgo.MapClaims{
+				"sub": "user@example.com",
+				"oid": "22222222-2222-2222-2222-222222222222",
+				// No idtyp claim means it's an app+user token
+			},
 			expected: "https://graph.microsoft.com/v1.0/me/getMemberObjects",
 		},
 		{
-			name:     "generic endpoint - unchanged",
-			endpoint: "https://example.com/groups",
-			expected: "https://example.com/groups",
+			name: "app-only token with oid claim",
+			claims: jwtgo.MapClaims{
+				"sub":   "service-principal-id",
+				"oid":   "33333333-3333-3333-3333-333333333333",
+				"idtyp": "app",
+			},
+			expected: "https://graph.microsoft.com/v1.0/users/33333333-3333-3333-3333-333333333333/getMemberObjects",
+		},
+		{
+			name: "app-only token without oid claim (fallback)",
+			claims: jwtgo.MapClaims{
+				"sub":   "service-principal-id",
+				"idtyp": "app",
+			},
+			expected: "https://graph.microsoft.com/v1.0/me/getMemberObjects",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := convertToMicrosoftGraphEndpoint(tt.endpoint)
+			result := constructMicrosoftGraphGroupsEndpoint(tt.claims)
 			assert.Equal(t, tt.expected, result)
 		})
 	}

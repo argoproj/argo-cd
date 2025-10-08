@@ -221,7 +221,7 @@ func GetAzureGroupsOverflowInfo(claims jwtgo.MapClaims) (*AzureGroupsOverflowInf
 		return nil, fmt.Errorf("groups source name is not a string")
 	}
 
-	// Get the source information
+	// Get the source information to extract access token
 	sourceRaw, exists := claimSourcesMap[groupsSourceName]
 	if !exists {
 		return nil, fmt.Errorf("source %s not found in _claim_sources", groupsSourceName)
@@ -232,13 +232,9 @@ func GetAzureGroupsOverflowInfo(claims jwtgo.MapClaims) (*AzureGroupsOverflowInf
 		return nil, fmt.Errorf("source %s is not a map", groupsSourceName)
 	}
 
-	endpoint, hasEndpoint := sourceMap["endpoint"].(string)
-	if !hasEndpoint {
-		return nil, fmt.Errorf("endpoint not found in source %s", groupsSourceName)
-	}
-
-	// Convert older Azure endpoints to Microsoft Graph API v1.0
-	graphEndpoint := convertToMicrosoftGraphEndpoint(endpoint)
+	// Construct the Microsoft Graph API URL based on token type
+	// According to Microsoft docs, ignore the endpoint URL and construct our own
+	graphEndpoint := constructMicrosoftGraphGroupsEndpoint(claims)
 
 	info := &AzureGroupsOverflowInfo{
 		GraphEndpoint: graphEndpoint,
@@ -251,32 +247,22 @@ func GetAzureGroupsOverflowInfo(claims jwtgo.MapClaims) (*AzureGroupsOverflowInf
 	return info, nil
 }
 
-// convertToMicrosoftGraphEndpoint converts legacy Azure AD endpoints to Microsoft Graph API v1.0
-func convertToMicrosoftGraphEndpoint(endpoint string) string {
-	// Convert legacy graph.windows.net to graph.microsoft.com
-	if strings.Contains(endpoint, "graph.windows.net") {
-		// Extract tenant ID from the old URL
-		// e.g., https://graph.windows.net/11111111-1111-1111-1111-111111111111/users/22222222-2222-2222-2222-222222222222/getMemberObjects
-		parts := strings.Split(endpoint, "/")
-		if len(parts) >= 5 {
-			tenantId := parts[3]
-			userId := parts[5]
-			return fmt.Sprintf("https://graph.microsoft.com/v1.0/%s/users/%s/getMemberObjects", tenantId, userId)
+// constructMicrosoftGraphGroupsEndpoint constructs the correct Microsoft Graph API URL
+// based on the token type as recommended by Microsoft documentation.
+// See: https://learn.microsoft.com/en-us/entra/identity-platform/access-token-claims-reference#groups-overage-claim
+func constructMicrosoftGraphGroupsEndpoint(claims jwtgo.MapClaims) string {
+	// Check if this is an app-only token using the idtyp claim
+	if idtyp := StringField(claims, "idtyp"); idtyp == "app" {
+		// For app-only tokens, we need to use the user ID from the oid claim
+		// https://graph.microsoft.com/v1.0/users/{userId}/getMemberObjects
+		if oid := StringField(claims, "oid"); oid != "" {
+			return fmt.Sprintf("https://graph.microsoft.com/v1.0/users/%s/getMemberObjects", oid)
 		}
+		// Fallback if no oid claim - this shouldn't happen in practice
+		return "https://graph.microsoft.com/v1.0/me/getMemberObjects"
 	}
 	
-	// If already using graph.microsoft.com or if it's a generic endpoint, ensure it uses v1.0 and getMemberObjects
-	if strings.Contains(endpoint, "graph.microsoft.com") {
-		// Handle various Microsoft Graph endpoint formats
-		if strings.Contains(endpoint, "/me/") {
-			// Convert /me/ endpoints to direct user endpoints if possible
-			return endpoint
-		}
-		if !strings.Contains(endpoint, "getMemberObjects") && !strings.Contains(endpoint, "GetMemberGroups") {
-			// Default to /me/getMemberObjects for Microsoft Graph
-			return "https://graph.microsoft.com/v1.0/me/getMemberObjects"
-		}
-	}
-	
-	return endpoint
+	// For app+user tokens (normal user authentication), use /me endpoint
+	// https://graph.microsoft.com/v1.0/me/getMemberObjects
+	return "https://graph.microsoft.com/v1.0/me/getMemberObjects"
 }

@@ -137,22 +137,23 @@ Monitor the following metrics to track Azure AD groups overflow usage:
 
 ## Security Considerations
 
-- Azure Graph API endpoints are accessed using access tokens from the original OAuth2 flow
-- Failed Azure AD groups overflow requests fall back gracefully to original JWT claims
-- Timeouts prevent hanging requests from blocking authentication
-- Only group memberships are fetched, no other user information
-- Access tokens are only used to call Microsoft Graph API endpoints
+- The Azure groups overflow feature requires the OIDC client to have appropriate Microsoft Graph API permissions
+- Access tokens from distributed claims are used temporarily to fetch group memberships and are not stored
+- **Microsoft Security Recommendation**: ArgoCD follows Microsoft's security best practices by ignoring the deprecated endpoint URLs from `_claim_sources` and constructing secure Microsoft Graph API v1.0 endpoints based on the token type (`idtyp` claim)
+- Consider the network latency impact of additional API calls to Microsoft Graph during authentication
+- Monitor the timeout setting to balance between reliability and performance
 
 ## Implementation Details
 
-Argo CD automatically detects Azure AD groups overflow and uses the correct Microsoft Graph API format:
+The implementation handles Azure AD's distributed claims by:
 
-- **HTTP Method**: POST
-- **Endpoint**: Converts legacy `graph.windows.net` URLs to `graph.microsoft.com/v1.0` format automatically
-- **Request Body**: `{"securityEnabledOnly": false}`
-- **Response Format**: `{"value": ["group-id-1", "group-id-2", ...]}`
-
-This implementation follows the [Microsoft Graph API specification](https://learn.microsoft.com/en-us/graph/api/directoryobject-getmembergroups) for retrieving user group memberships.
+1. **Detection**: Checking for `_claim_names` and `_claim_sources` in the JWT token, specifically looking for the "groups" claim
+2. **Access Token Extraction**: Retrieving the access token from the distributed claims source
+3. **Endpoint Construction**: Following Microsoft's security recommendations by constructing Microsoft Graph API endpoints based on the `idtyp` claim rather than using deprecated endpoints from `_claim_sources`
+   - **App+User tokens** (no `idtyp` claim): Use `/me/getMemberObjects` endpoint
+   - **App-only tokens** (`idtyp: "app"`): Use `/users/{user-id}/getMemberObjects` endpoint
+4. **Group Fetching**: Making a POST request to the Microsoft Graph API v1.0 `getMemberObjects` endpoint
+5. **Claims Enhancement**: Adding the fetched groups back to the JWT claims for authorization processing
 
 ## Limitations
 

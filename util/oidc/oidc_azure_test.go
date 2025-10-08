@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -38,10 +39,12 @@ azureGroupsOverflowTimeout: "%s"
 }
 
 func TestFetchAzureGroupsOverflow(t *testing.T) {
-	// Create a mock server for Azure Graph API endpoint
+	// Create a mock server for Microsoft Graph API endpoint
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Verify it's a POST request
+		// We expect the call to be made to our constructed Microsoft Graph endpoint
+		// Since we ignore the legacy endpoint from _claim_sources
 		assert.Equal(t, "POST", r.Method)
+		assert.Contains(t, r.URL.Path, "/me/getMemberObjects") // app+user token uses /me endpoint
 
 		// Verify Content-Type
 		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
@@ -59,7 +62,7 @@ func TestFetchAzureGroupsOverflow(t *testing.T) {
 		json.Unmarshal(body, &requestBody)
 		assert.Equal(t, false, requestBody["securityEnabledOnly"])
 
-		// Return Azure Graph API response format
+		// Return Microsoft Graph API response format
 		response := map[string]interface{}{
 			"value": []string{"group1", "group2", "admin"},
 		}
@@ -71,22 +74,31 @@ func TestFetchAzureGroupsOverflow(t *testing.T) {
 	// Create mock settings
 	mockSettings := createMockSettings(true, 10*time.Second)
 
-	// Create client app
+	// Create client app with custom transport to redirect Microsoft Graph calls to our mock
+	transport := &mockTransport{
+		mockServer: mockServer,
+	}
+	httpClient := &http.Client{Transport: transport}
+
 	client := &ClientApp{
-		client:   http.DefaultClient,
+		client:   httpClient,
 		settings: mockSettings,
 	}
 
 	// Test claims with Azure groups overflow
+	// Note: We need oid claim for constructing Microsoft Graph endpoint
 	claims := jwtgo.MapClaims{
 		"sub":   "user123",
 		"email": "user@example.com",
+		"oid":   "22222222-2222-2222-2222-222222222222",
 		"_claim_names": map[string]interface{}{
 			"groups": "src1",
 		},
 		"_claim_sources": map[string]interface{}{
 			"src1": map[string]interface{}{
-				"endpoint":     mockServer.URL,
+				// This endpoint will be ignored as per Microsoft's recommendation
+				// We construct our own Microsoft Graph endpoint based on idtyp claim
+				"endpoint":     "https://graph.windows.net/old-tenant/users/old-user/getMemberObjects",
 				"access_token": "test-token",
 			},
 		},
@@ -241,10 +253,11 @@ func TestFetchAzureGroupsOverflowNoAccessToken(t *testing.T) {
 }
 
 func TestFetchAzureGroupsOverflowRealScenario(t *testing.T) {
-	// Create a mock Azure Graph API server
+	// Create a mock Microsoft Graph API server
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Verify it's a POST request
+		// We expect the call to be made to our constructed Microsoft Graph endpoint
 		assert.Equal(t, "POST", r.Method)
+		assert.Contains(t, r.URL.Path, "/me/getMemberObjects") // app+user token uses /me endpoint
 
 		// Verify Content-Type
 		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
@@ -259,7 +272,7 @@ func TestFetchAzureGroupsOverflowRealScenario(t *testing.T) {
 		json.Unmarshal(body, &requestBody)
 		assert.Equal(t, false, requestBody["securityEnabledOnly"])
 
-		// Return Azure Graph API response format
+		// Return Microsoft Graph API response format
 		response := map[string]interface{}{
 			"value": []string{
 				"12345678-1234-1234-1234-123456789abc",
@@ -274,8 +287,14 @@ func TestFetchAzureGroupsOverflowRealScenario(t *testing.T) {
 
 	mockSettings := createMockSettings(true, 10*time.Second)
 
+	// Create client app with custom transport to redirect Microsoft Graph calls to our mock
+	transport := &mockTransport{
+		mockServer: mockServer,
+	}
+	httpClient := &http.Client{Transport: transport}
+
 	client := &ClientApp{
-		client:   http.DefaultClient,
+		client:   httpClient,
 		settings: mockSettings,
 	}
 
@@ -283,12 +302,14 @@ func TestFetchAzureGroupsOverflowRealScenario(t *testing.T) {
 	claims := jwtgo.MapClaims{
 		"sub":   "user@contoso.com",
 		"email": "user@contoso.com",
+		"oid":   "33333333-3333-3333-3333-333333333333", // Need oid for Microsoft Graph endpoint construction
 		"_claim_names": map[string]interface{}{
 			"groups": "src1",
 		},
 		"_claim_sources": map[string]interface{}{
 			"src1": map[string]interface{}{
-				"endpoint":     mockServer.URL,
+				// This endpoint will be ignored per Microsoft's recommendation
+				"endpoint":     "https://graph.windows.net/old-tenant/users/old-user/getMemberObjects",
 				"access_token": "azure-access-token",
 			},
 		},
@@ -308,4 +329,19 @@ func TestFetchAzureGroupsOverflowRealScenario(t *testing.T) {
 	assert.Contains(t, groups, "12345678-1234-1234-1234-123456789abc")
 	assert.Contains(t, groups, "87654321-4321-4321-4321-cba987654321")
 	assert.Contains(t, groups, "11111111-2222-3333-4444-555555555555")
+}
+
+// mockTransport redirects Microsoft Graph API calls to our mock server
+type mockTransport struct {
+	mockServer *httptest.Server
+}
+
+func (t *mockTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	// Redirect any Microsoft Graph API calls to our mock server
+	if strings.Contains(req.URL.Host, "graph.microsoft.com") {
+		// Replace the host but keep the path
+		req.URL.Scheme = "http"
+		req.URL.Host = strings.TrimPrefix(t.mockServer.URL, "http://")
+	}
+	return http.DefaultTransport.RoundTrip(req)
 }
