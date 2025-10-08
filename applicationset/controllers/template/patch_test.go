@@ -500,10 +500,19 @@ func TestError(t *testing.T) {
 	require.Nil(t, result)
 }
 
+// TestJsonPatchError verifies error handling for invalid JSON Patch input.
 func TestJsonPatchError(t *testing.T) {
 	app := &appv1.Application{}
 
-	result, err := applyTemplateJSONPatch(app, `["op": "add", "path": "/spec/something"]`)
+	// Intentionally invalid JSON Patch format to test error handling
+	result, err := applyTemplateJSONPatch(app, `["not": "valid", "patch": "/spec/something"]`)
 	require.Error(t, err)
 	require.Nil(t, result)
+	require.Nil(t, result)
+
+	// Intentionally invalid JSON Patch to test error handling.
+	result, err = applyTemplateJSONPatch(app, `["op": "add", "path": "/spec/something/that/does/not/exist"]`)
+	require.Error(t, err)
+	require.Nil(t, result)
+
 }
