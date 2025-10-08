@@ -656,18 +656,35 @@ func (a *ClientApp) SetGroupsFromUserInfo(claims jwt.Claims, sessionManagerClaim
 		}
 	}
 	iss := jwtutil.StringField(groupClaims, "iss")
-	if iss != sessionManagerClaimsIssuer && a.settings.UserInfoGroupsEnabled() && a.settings.UserInfoPath() != "" {
-		userInfo, unauthorized, err := a.GetUserInfo(groupClaims, a.settings.IssuerURL(), a.settings.UserInfoPath())
-		if unauthorized {
-			return groupClaims, fmt.Errorf("error while quering userinfo endpoint: %w", err)
+	
+	// Only process external OIDC tokens (not internal session manager tokens)
+	if iss != sessionManagerClaimsIssuer {
+		// First, try to fetch distributed claims if enabled
+		if a.settings.DistributedClaimsEnabled() && jwtutil.HasDistributedClaims(groupClaims) {
+			enrichedClaims, err := a.FetchDistributedClaims(groupClaims)
+			if err != nil {
+				log.Warnf("Failed to fetch distributed claims: %v", err)
+				// Continue with original claims if distributed claims fail
+			} else {
+				groupClaims = enrichedClaims
+				log.Debug("Successfully fetched and merged distributed claims")
+			}
 		}
-		if err != nil {
-			return groupClaims, fmt.Errorf("error fetching user info endpoint: %w", err)
+		
+		// Then, fetch from userinfo endpoint if enabled
+		if a.settings.UserInfoGroupsEnabled() && a.settings.UserInfoPath() != "" {
+			userInfo, unauthorized, err := a.GetUserInfo(groupClaims, a.settings.IssuerURL(), a.settings.UserInfoPath())
+			if unauthorized {
+				return groupClaims, fmt.Errorf("error while quering userinfo endpoint: %w", err)
+			}
+			if err != nil {
+				return groupClaims, fmt.Errorf("error fetching user info endpoint: %w", err)
+			}
+			if groupClaims["sub"] != userInfo["sub"] {
+				return groupClaims, errors.New("subject of claims from user info endpoint didn't match subject of idToken, see https://openid.net/specs/openid-connect-core-1_0.html#UserInfo")
+			}
+			groupClaims["groups"] = userInfo["groups"]
 		}
-		if groupClaims["sub"] != userInfo["sub"] {
-			return groupClaims, errors.New("subject of claims from user info endpoint didn't match subject of idToken, see https://openid.net/specs/openid-connect-core-1_0.html#UserInfo")
-		}
-		groupClaims["groups"] = userInfo["groups"]
 	}
 
 	return groupClaims, nil
@@ -795,6 +812,241 @@ func (a *ClientApp) GetUserInfo(actualClaims jwt.MapClaims, issuerURL, userInfoP
 	}
 
 	return claims, false, nil
+}
+
+// FetchDistributedClaims fetches and merges distributed claims into the provided claims
+func (a *ClientApp) FetchDistributedClaims(claims jwt.MapClaims) (jwt.MapClaims, error) {
+	if !jwtutil.HasDistributedClaims(claims) {
+		log.Debug("No distributed claims detected in JWT")
+		return claims, nil
+	}
+
+	// Check if distributed claims are enabled in settings
+	if !a.settings.DistributedClaimsEnabled() {
+		log.Debug("Distributed claims are disabled in configuration, skipping")
+		return claims, nil
+	}
+
+	sub := jwtutil.StringField(claims, "sub")
+	log.Debugf("Processing distributed claims for subject: %s", sub)
+
+	claimSources, err := jwtutil.GetClaimSources(claims)
+	if err != nil {
+		log.Warnf("Failed to parse claim sources for subject %s: %v", sub, err)
+		return claims, nil // Graceful fallback
+	}
+
+	claimNames, err := jwtutil.GetDistributedClaimNames(claims)
+	if err != nil {
+		log.Warnf("Failed to parse claim names for subject %s: %v", sub, err)
+		return claims, nil // Graceful fallback
+	}
+
+	log.Debugf("Found %d claim sources and %d claim names", len(claimSources), len(claimNames))
+
+	// Fetch claims from each source
+	enrichedClaims := make(jwt.MapClaims)
+	for k, v := range claims {
+		enrichedClaims[k] = v
+	}
+
+	fetchedCount := 0
+	for claimName, sourceName := range claimNames {
+		source, exists := claimSources[sourceName]
+		if !exists {
+			log.Warnf("Claim source %s not found for claim %s (subject: %s)", sourceName, claimName, sub)
+			continue
+		}
+
+		log.Debugf("Fetching claim %s from source %s (endpoint: %s)", claimName, sourceName, source.Endpoint)
+		
+		distributedClaims, err := a.fetchClaimsFromSource(source, claims)
+		if err != nil {
+			log.Warnf("Failed to fetch distributed claims from %s for subject %s: %v", source.Endpoint, sub, err)
+			continue
+		}
+
+		// Merge the specific claim from distributed claims
+		if value, exists := distributedClaims[claimName]; exists {
+			enrichedClaims[claimName] = value
+			fetchedCount++
+			log.Debugf("Successfully merged claim %s for subject %s", claimName, sub)
+		} else {
+			log.Warnf("Claim %s not found in distributed claims response from %s", claimName, source.Endpoint)
+		}
+	}
+
+	if fetchedCount > 0 {
+		log.Infof("Successfully fetched %d distributed claims for subject %s", fetchedCount, sub)
+	} else {
+		log.Warnf("No distributed claims were successfully fetched for subject %s", sub)
+	}
+
+	return enrichedClaims, nil
+}
+
+// fetchClaimsFromSource fetches claims from a specific distributed claims endpoint
+func (a *ClientApp) fetchClaimsFromSource(source jwtutil.ClaimSource, originalClaims jwt.MapClaims) (jwt.MapClaims, error) {
+	timeout := a.settings.DistributedClaimsTimeout()
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	// Determine if this is an Azure AD Graph API endpoint that requires POST
+	// Check for Microsoft Graph API endpoints or test endpoints
+	isAzureGraphAPI := strings.Contains(source.Endpoint, "graph.microsoft.com") || 
+		strings.Contains(source.Endpoint, "/me/GetMemberGroups")
+	var req *http.Request
+	var err error
+
+	if isAzureGraphAPI {
+		// Azure AD Graph API requires POST with JSON body
+		requestBody := map[string]interface{}{
+			"securityEnabledOnly": false,
+		}
+		jsonBody, err := json.Marshal(requestBody)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal Azure Graph API request body: %w", err)
+		}
+
+		req, err = http.NewRequestWithContext(ctx, http.MethodPost, source.Endpoint, strings.NewReader(string(jsonBody)))
+		if err != nil {
+			return nil, fmt.Errorf("failed to create HTTP POST request to %s: %w", source.Endpoint, err)
+		}
+		req.Header.Set("Content-Type", "application/json")
+		log.Debug("Using POST request for Azure Graph API endpoint")
+	} else {
+		// Standard GET request for other providers
+		req, err = http.NewRequestWithContext(ctx, http.MethodGet, source.Endpoint, nil)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create HTTP GET request to %s: %w", source.Endpoint, err)
+		}
+		log.Debug("Using GET request for standard distributed claims endpoint")
+	}
+
+	// Add authorization header if access token is provided
+	if source.AccessToken != "" {
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", source.AccessToken))
+		log.Debug("Using access token for distributed claims request")
+	} else {
+		log.Debug("No access token provided for distributed claims request")
+	}
+
+	// Set a reasonable User-Agent
+	req.Header.Set("User-Agent", "ArgoCD/distributed-claims")
+	req.Header.Set("Accept", "application/json, application/jwt")
+
+	log.Debugf("Fetching distributed claims from %s with timeout %v", source.Endpoint, timeout)
+	
+	resp, err := a.client.Do(req)
+	if err != nil {
+		if ctx.Err() == context.DeadlineExceeded {
+			return nil, fmt.Errorf("timeout fetching distributed claims from %s after %v", source.Endpoint, timeout)
+		}
+		return nil, fmt.Errorf("HTTP request failed for %s: %w", source.Endpoint, err)
+	}
+	defer resp.Body.Close()
+
+	log.Debugf("Distributed claims response status: %d from %s", resp.StatusCode, source.Endpoint)
+
+	if resp.StatusCode == http.StatusUnauthorized {
+		return nil, fmt.Errorf("unauthorized access to distributed claims endpoint %s - access token may be invalid or expired", source.Endpoint)
+	}
+
+	if resp.StatusCode == http.StatusForbidden {
+		return nil, fmt.Errorf("forbidden access to distributed claims endpoint %s - insufficient permissions", source.Endpoint)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("distributed claims endpoint %s returned status %d", source.Endpoint, resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body from %s: %w", source.Endpoint, err)
+	}
+
+	if len(body) == 0 {
+		return nil, fmt.Errorf("empty response body from distributed claims endpoint %s", source.Endpoint)
+	}
+
+	// Check content type to determine how to parse the response
+	contentType := resp.Header.Get("Content-Type")
+	log.Debugf("Distributed claims response content-type: %s", contentType)
+	
+	if strings.Contains(contentType, "application/jwt") {
+		// Response is a JWT, verify and extract claims
+		log.Debug("Parsing distributed claims response as JWT")
+		return a.parseDistributedClaimsJWT(string(body), originalClaims)
+	}
+
+	// Response is JSON, parse directly
+	log.Debug("Parsing distributed claims response as JSON")
+	
+	// Check if this is an Azure Graph API response
+	if isAzureGraphAPI {
+		return a.parseAzureGraphAPIResponse(body, originalClaims, source.Endpoint)
+	}
+
+	// Standard distributed claims response
+	var distributedClaims jwt.MapClaims
+	if err := json.Unmarshal(body, &distributedClaims); err != nil {
+		return nil, fmt.Errorf("failed to parse distributed claims JSON from %s: %w", source.Endpoint, err)
+	}
+
+	// Validate subject matches
+	if sub := jwtutil.StringField(distributedClaims, "sub"); sub != "" {
+		originalSub := jwtutil.StringField(originalClaims, "sub")
+		if sub != originalSub {
+			return nil, fmt.Errorf("subject mismatch in distributed claims from %s: got %s, expected %s", source.Endpoint, sub, originalSub)
+		}
+	}
+
+	log.Debugf("Successfully parsed distributed claims from %s", source.Endpoint)
+	return distributedClaims, nil
+}
+
+// parseDistributedClaimsJWT parses and validates a JWT response from distributed claims endpoint
+func (a *ClientApp) parseDistributedClaimsJWT(tokenString string, originalClaims jwt.MapClaims) (jwt.MapClaims, error) {
+	// Verify the JWT using the same provider settings
+	idToken, err := a.provider.Verify(tokenString, a.settings)
+	if err != nil {
+		return nil, fmt.Errorf("failed to verify distributed claims JWT: %w", err)
+	}
+
+	var claims jwt.MapClaims
+	if err := idToken.Claims(&claims); err != nil {
+		return nil, fmt.Errorf("failed to extract claims from distributed JWT: %w", err)
+	}
+
+	// Validate subject matches original token
+	distributedSub := jwtutil.StringField(claims, "sub")
+	originalSub := jwtutil.StringField(originalClaims, "sub")
+	if distributedSub != originalSub {
+		return nil, fmt.Errorf("subject mismatch in distributed claims JWT: got %s, expected %s", distributedSub, originalSub)
+	}
+
+	return claims, nil
+}
+
+// parseAzureGraphAPIResponse parses Azure Graph API response format
+func (a *ClientApp) parseAzureGraphAPIResponse(body []byte, originalClaims jwt.MapClaims, endpoint string) (jwt.MapClaims, error) {
+	// Azure Graph API returns: {"value": ["group-id-1", "group-id-2", ...]}
+	var azureResponse struct {
+		Value []string `json:"value"`
+	}
+	
+	if err := json.Unmarshal(body, &azureResponse); err != nil {
+		return nil, fmt.Errorf("failed to parse Azure Graph API response from %s: %w", endpoint, err)
+	}
+
+	// Create distributed claims with the groups from Azure
+	distributedClaims := jwt.MapClaims{
+		"groups": azureResponse.Value,
+		"sub":    jwtutil.StringField(originalClaims, "sub"), // Use original subject
+	}
+
+	log.Debugf("Successfully parsed Azure Graph API response from %s with %d groups", endpoint, len(azureResponse.Value))
+	return distributedClaims, nil
 }
 
 // getTokenExpiration returns a time.Duration until the token expires

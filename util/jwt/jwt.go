@@ -165,3 +165,91 @@ func GetUserIdentifier(c jwtgo.MapClaims) string {
 
 	return userId
 }
+
+// ClaimSource represents a distributed claim source as defined in OIDC spec
+type ClaimSource struct {
+	Endpoint    string `json:"endpoint"`
+	AccessToken string `json:"access_token,omitempty"`
+}
+
+// HasDistributedClaims checks if the JWT contains distributed claims
+func HasDistributedClaims(claims jwtgo.MapClaims) bool {
+	claimNames := claims["_claim_names"]
+	claimSources := claims["_claim_sources"]
+	
+	return claimNames != nil && claimSources != nil
+}
+
+// GetClaimSources extracts the claim sources from distributed claims
+func GetClaimSources(claims jwtgo.MapClaims) (map[string]ClaimSource, error) {
+	if !HasDistributedClaims(claims) {
+		return nil, nil
+	}
+
+	sourcesRaw, ok := claims["_claim_sources"]
+	if !ok {
+		return nil, fmt.Errorf("_claim_sources not found in claims")
+	}
+
+	sourcesMap, ok := sourcesRaw.(map[string]any)
+	if !ok {
+		return nil, fmt.Errorf("_claim_sources is not a map, got type %T", sourcesRaw)
+	}
+
+	sources := make(map[string]ClaimSource)
+	for sourceName, sourceDataRaw := range sourcesMap {
+		sourceDataMap, ok := sourceDataRaw.(map[string]any)
+		if !ok {
+			// Log warning but continue processing other sources
+			fmt.Printf("Warning: claim source %s data is not a map, got type %T\n", sourceName, sourceDataRaw)
+			continue
+		}
+
+		source := ClaimSource{}
+		if endpoint, ok := sourceDataMap["endpoint"].(string); ok {
+			source.Endpoint = endpoint
+		}
+		if accessToken, ok := sourceDataMap["access_token"].(string); ok {
+			source.AccessToken = accessToken
+		}
+
+		if source.Endpoint != "" {
+			sources[sourceName] = source
+		} else {
+			// Log warning for sources without endpoints
+			fmt.Printf("Warning: claim source %s has no endpoint\n", sourceName)
+		}
+	}
+
+	if len(sources) == 0 {
+		return nil, fmt.Errorf("no valid claim sources found")
+	}
+
+	return sources, nil
+}
+
+// GetDistributedClaimNames extracts the mapping of claim names to sources
+func GetDistributedClaimNames(claims jwtgo.MapClaims) (map[string]string, error) {
+	if !HasDistributedClaims(claims) {
+		return nil, nil
+	}
+
+	claimNamesRaw, ok := claims["_claim_names"]
+	if !ok {
+		return nil, fmt.Errorf("_claim_names not found in claims")
+	}
+
+	claimNamesMap, ok := claimNamesRaw.(map[string]any)
+	if !ok {
+		return nil, fmt.Errorf("_claim_names is not a map")
+	}
+
+	claimNames := make(map[string]string)
+	for claimName, sourceNameRaw := range claimNamesMap {
+		if sourceName, ok := sourceNameRaw.(string); ok {
+			claimNames[claimName] = sourceName
+		}
+	}
+
+	return claimNames, nil
+}
