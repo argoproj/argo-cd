@@ -57,10 +57,19 @@ func TestFetchAzureGroupsOverflow(t *testing.T) {
 		}
 
 		// Verify request body
-		body, _ := io.ReadAll(r.Body)
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
 		var requestBody map[string]interface{}
-		json.Unmarshal(body, &requestBody)
-		assert.Equal(t, false, requestBody["securityEnabledOnly"])
+		if err := json.Unmarshal(body, &requestBody); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		if securityEnabled, exists := requestBody["securityEnabledOnly"]; exists {
+			assert.Equal(t, true, securityEnabled)
+		}
 
 		// Return Microsoft Graph API response format
 		response := map[string]interface{}{
@@ -267,10 +276,19 @@ func TestFetchAzureGroupsOverflowRealScenario(t *testing.T) {
 		assert.Equal(t, "Bearer azure-access-token", auth)
 
 		// Verify request body
-		body, _ := io.ReadAll(r.Body)
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
 		var requestBody map[string]interface{}
-		json.Unmarshal(body, &requestBody)
-		assert.Equal(t, false, requestBody["securityEnabledOnly"])
+		if err := json.Unmarshal(body, &requestBody); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		if securityEnabled, exists := requestBody["securityEnabledOnly"]; exists {
+			assert.Equal(t, true, securityEnabled)
+		}
 
 		// Return Microsoft Graph API response format
 		response := map[string]interface{}{

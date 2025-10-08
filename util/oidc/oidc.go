@@ -869,7 +869,7 @@ func (a *ClientApp) fetchAzureGroups(azureInfo *jwtutil.AzureGroupsOverflowInfo,
 
 	// Azure AD Graph API requires POST with JSON body
 	requestBody := map[string]interface{}{
-		"securityEnabledOnly": false,
+		"securityEnabledOnly": true,
 	}
 	jsonBody, err := json.Marshal(requestBody)
 	if err != nil {
