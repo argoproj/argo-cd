@@ -170,7 +170,7 @@ func GetUserIdentifier(c jwtgo.MapClaims) string {
 func HasAzureGroupsOverflow(claims jwtgo.MapClaims) bool {
 	claimNamesRaw, hasClaimNames := claims["_claim_names"]
 	_, hasClaimSources := claims["_claim_sources"]
-	
+
 	if !hasClaimNames || !hasClaimSources {
 		return false
 	}
@@ -261,7 +261,7 @@ func constructMicrosoftGraphGroupsEndpoint(claims jwtgo.MapClaims) string {
 		// Fallback if no oid claim - this shouldn't happen in practice
 		return "https://graph.microsoft.com/v1.0/me/getMemberObjects"
 	}
-	
+
 	// For app+user tokens (normal user authentication), use /me endpoint
 	// https://graph.microsoft.com/v1.0/me/getMemberObjects
 	return "https://graph.microsoft.com/v1.0/me/getMemberObjects"

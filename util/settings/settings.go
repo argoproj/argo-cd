@@ -184,44 +184,44 @@ func (o *oidcConfig) toExported() *OIDCConfig {
 		return nil
 	}
 	return &OIDCConfig{
-		Name:                        o.Name,
-		Issuer:                      o.Issuer,
-		ClientID:                    o.ClientID,
-		ClientSecret:                o.ClientSecret,
-		Azure:                       o.Azure,
-		CLIClientID:                 o.CLIClientID,
-		UserInfoPath:                o.UserInfoPath,
-		EnableUserInfoGroups:        o.EnableUserInfoGroups,
-		UserInfoCacheExpiration:     o.UserInfoCacheExpiration,
-		RequestedScopes:             o.RequestedScopes,
-		RequestedIDTokenClaims:      o.RequestedIDTokenClaims,
-		LogoutURL:                   o.LogoutURL,
-		RootCA:                      o.RootCA,
-		EnablePKCEAuthentication:    o.EnablePKCEAuthentication,
-		DomainHint:                  o.DomainHint,
-		EnableAzureGroupsOverflow:   o.EnableAzureGroupsOverflow,
-		AzureGroupsOverflowTimeout:  o.AzureGroupsOverflowTimeout,
+		Name:                       o.Name,
+		Issuer:                     o.Issuer,
+		ClientID:                   o.ClientID,
+		ClientSecret:               o.ClientSecret,
+		Azure:                      o.Azure,
+		CLIClientID:                o.CLIClientID,
+		UserInfoPath:               o.UserInfoPath,
+		EnableUserInfoGroups:       o.EnableUserInfoGroups,
+		UserInfoCacheExpiration:    o.UserInfoCacheExpiration,
+		RequestedScopes:            o.RequestedScopes,
+		RequestedIDTokenClaims:     o.RequestedIDTokenClaims,
+		LogoutURL:                  o.LogoutURL,
+		RootCA:                     o.RootCA,
+		EnablePKCEAuthentication:   o.EnablePKCEAuthentication,
+		DomainHint:                 o.DomainHint,
+		EnableAzureGroupsOverflow:  o.EnableAzureGroupsOverflow,
+		AzureGroupsOverflowTimeout: o.AzureGroupsOverflowTimeout,
 	}
 }
 
 type OIDCConfig struct {
-	Name                        string                 `json:"name,omitempty"`
-	Issuer                      string                 `json:"issuer,omitempty"`
-	ClientID                    string                 `json:"clientID,omitempty"`
-	ClientSecret                string                 `json:"clientSecret,omitempty"`
-	CLIClientID                 string                 `json:"cliClientID,omitempty"`
-	EnableUserInfoGroups        bool                   `json:"enableUserInfoGroups,omitempty"`
-	UserInfoPath                string                 `json:"userInfoPath,omitempty"`
-	UserInfoCacheExpiration     string                 `json:"userInfoCacheExpiration,omitempty"`
-	RequestedScopes             []string               `json:"requestedScopes,omitempty"`
-	RequestedIDTokenClaims      map[string]*oidc.Claim `json:"requestedIDTokenClaims,omitempty"`
-	LogoutURL                   string                 `json:"logoutURL,omitempty"`
-	RootCA                      string                 `json:"rootCA,omitempty"`
-	EnablePKCEAuthentication    bool                   `json:"enablePKCEAuthentication,omitempty"`
-	DomainHint                  string                 `json:"domainHint,omitempty"`
-	Azure                       *AzureOIDCConfig       `json:"azure,omitempty"`
-	EnableAzureGroupsOverflow   bool                   `json:"enableAzureGroupsOverflow,omitempty"`
-	AzureGroupsOverflowTimeout  string                 `json:"azureGroupsOverflowTimeout,omitempty"`
+	Name                       string                 `json:"name,omitempty"`
+	Issuer                     string                 `json:"issuer,omitempty"`
+	ClientID                   string                 `json:"clientID,omitempty"`
+	ClientSecret               string                 `json:"clientSecret,omitempty"`
+	CLIClientID                string                 `json:"cliClientID,omitempty"`
+	EnableUserInfoGroups       bool                   `json:"enableUserInfoGroups,omitempty"`
+	UserInfoPath               string                 `json:"userInfoPath,omitempty"`
+	UserInfoCacheExpiration    string                 `json:"userInfoCacheExpiration,omitempty"`
+	RequestedScopes            []string               `json:"requestedScopes,omitempty"`
+	RequestedIDTokenClaims     map[string]*oidc.Claim `json:"requestedIDTokenClaims,omitempty"`
+	LogoutURL                  string                 `json:"logoutURL,omitempty"`
+	RootCA                     string                 `json:"rootCA,omitempty"`
+	EnablePKCEAuthentication   bool                   `json:"enablePKCEAuthentication,omitempty"`
+	DomainHint                 string                 `json:"domainHint,omitempty"`
+	Azure                      *AzureOIDCConfig       `json:"azure,omitempty"`
+	EnableAzureGroupsOverflow  bool                   `json:"enableAzureGroupsOverflow,omitempty"`
+	AzureGroupsOverflowTimeout string                 `json:"azureGroupsOverflowTimeout,omitempty"`
 }
 
 type AzureOIDCConfig struct {

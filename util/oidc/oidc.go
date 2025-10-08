@@ -656,7 +656,7 @@ func (a *ClientApp) SetGroupsFromUserInfo(claims jwt.Claims, sessionManagerClaim
 		}
 	}
 	iss := jwtutil.StringField(groupClaims, "iss")
-	
+
 	// Only process external OIDC tokens (not internal session manager tokens)
 	if iss != sessionManagerClaimsIssuer {
 		// First, try to fetch Azure AD groups overflow if enabled
@@ -670,7 +670,7 @@ func (a *ClientApp) SetGroupsFromUserInfo(claims jwt.Claims, sessionManagerClaim
 				log.Debug("Successfully fetched and merged Azure AD groups overflow")
 			}
 		}
-		
+
 		// Then, fetch from userinfo endpoint if enabled
 		if a.settings.UserInfoGroupsEnabled() && a.settings.UserInfoPath() != "" {
 			userInfo, unauthorized, err := a.GetUserInfo(groupClaims, a.settings.IssuerURL(), a.settings.UserInfoPath())
@@ -895,7 +895,7 @@ func (a *ClientApp) fetchAzureGroups(azureInfo *jwtutil.AzureGroupsOverflowInfo,
 	req.Header.Set("Accept", "application/json")
 
 	log.Debugf("Fetching Azure AD groups from %s with timeout %v", azureInfo.GraphEndpoint, timeout)
-	
+
 	resp, err := a.client.Do(req)
 	if err != nil {
 		if ctx.Err() == context.DeadlineExceeded {
@@ -942,8 +942,6 @@ func (a *ClientApp) fetchAzureGroups(azureInfo *jwtutil.AzureGroupsOverflowInfo,
 	log.Debugf("Successfully parsed Azure Graph API response from %s with %d groups", azureInfo.GraphEndpoint, len(azureResponse.Value))
 	return azureResponse.Value, nil
 }
-
-
 
 // getTokenExpiration returns a time.Duration until the token expires
 func getTokenExpiration(claims jwt.MapClaims) time.Duration {
