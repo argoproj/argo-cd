@@ -145,9 +145,14 @@ func loadRedisCreds(mountPath string, opt Options) *redisCreds {
 	if mountPath != "" {
 		log.Info("Loading Redis credentials from file: ", mountPath)
 		readAuthDetailsFromFile := func(filename string) string {
-			data, err := os.ReadFile(filepath.Join(mountPath, filename))
+			path := filepath.Join(mountPath, filename)
+			data, err := os.ReadFile(path)
+			if errors.Is(err, os.ErrNotExist) {
+				log.Debugf("Redis credential file %s not found; falling back to env if available", path)
+				return ""
+			}
 			if err != nil {
-				log.Warnf("Could not read Redis credential file %s: %v. Falling back to environment variable if available.", filepath.Join(mountPath, filename), err)
+				log.Warnf("Failed to read Redis credential file %s: %v; falling back to env", path, err)
 				return ""
 			}
 			return strings.TrimSpace(string(data))
