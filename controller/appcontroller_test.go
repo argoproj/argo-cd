@@ -451,7 +451,8 @@ var fakePostDeleteHook = `
       "app.kubernetes.io/instance": "my-app"
     },
     "annotations": {
-      "argocd.argoproj.io/hook": "PostDelete"
+      "argocd.argoproj.io/hook": "PostDelete",
+      "argocd.argoproj.io/hook-delete-policy": "HookSucceeded"
     }
   },
   "spec": {
