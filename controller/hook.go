@@ -17,23 +17,25 @@ import (
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
-var (
-	preDeleteHook  = "PreDelete"
-	postDeleteHook = "PostDelete"
+type HookType string
 
-	hookTypeAnnotations = map[string]map[string]string{
-		preDeleteHook: {
-			"argocd.argoproj.io/hook": preDeleteHook,
-			"helm.sh/hook":            "pre-delete",
-		},
-		postDeleteHook: {
-			"argocd.argoproj.io/hook": postDeleteHook,
-			"helm.sh/hook":            "post-delete",
-		},
-	}
+const (
+	PreDeleteHookType  HookType = "PreDelete"
+	PostDeleteHookType HookType = "PostDelete"
 )
 
-func isHookOfType(obj *unstructured.Unstructured, hookType string) bool {
+var hookTypeAnnotations = map[HookType]map[string]string{
+	PreDeleteHookType: {
+		"argocd.argoproj.io/hook": string(PreDeleteHookType),
+		"helm.sh/hook":            "pre-delete",
+	},
+	PostDeleteHookType: {
+		"argocd.argoproj.io/hook": string(PostDeleteHookType),
+		"helm.sh/hook":            "post-delete",
+	},
+}
+
+func isHookOfType(obj *unstructured.Unstructured, hookType HookType) bool {
 	if obj == nil || obj.GetAnnotations() == nil {
 		return false
 	}
@@ -60,15 +62,15 @@ func isHook(obj *unstructured.Unstructured) bool {
 }
 
 func isPreDeleteHook(obj *unstructured.Unstructured) bool {
-	return isHookOfType(obj, preDeleteHook)
+	return isHookOfType(obj, PreDeleteHookType)
 }
 
 func isPostDeleteHook(obj *unstructured.Unstructured) bool {
-	return isHookOfType(obj, postDeleteHook)
+	return isHookOfType(obj, PostDeleteHookType)
 }
 
 // executeHooks is a generic function to execute hooks of a specified type
-func (ctrl *ApplicationController) executeHooks(hookType string, app *appv1.Application, proj *appv1.AppProject, liveObjs map[kube.ResourceKey]*unstructured.Unstructured, config *rest.Config, logCtx *log.Entry) (bool, error) {
+func (ctrl *ApplicationController) executeHooks(hookType HookType, app *appv1.Application, proj *appv1.AppProject, liveObjs map[kube.ResourceKey]*unstructured.Unstructured, config *rest.Config, logCtx *log.Entry) (bool, error) {
 	appLabelKey, err := ctrl.settingsMgr.GetAppInstanceLabelKey()
 	if err != nil {
 		return false, err
@@ -160,7 +162,7 @@ func (ctrl *ApplicationController) executeHooks(hookType string, app *appv1.Appl
 }
 
 // cleanupHooks is a generic function to clean up hooks of a specified type
-func (ctrl *ApplicationController) cleanupHooks(hookType string, liveObjs map[kube.ResourceKey]*unstructured.Unstructured, config *rest.Config, logCtx *log.Entry) (bool, error) {
+func (ctrl *ApplicationController) cleanupHooks(hookType HookType, liveObjs map[kube.ResourceKey]*unstructured.Unstructured, config *rest.Config, logCtx *log.Entry) (bool, error) {
 	resourceOverrides, err := ctrl.settingsMgr.GetResourceOverrides()
 	if err != nil {
 		return false, err
@@ -220,17 +222,17 @@ func (ctrl *ApplicationController) cleanupHooks(hookType string, liveObjs map[ku
 // Execute and cleanup hooks for pre-delete and post-delete operations
 
 func (ctrl *ApplicationController) executePreDeleteHooks(app *appv1.Application, proj *appv1.AppProject, liveObjs map[kube.ResourceKey]*unstructured.Unstructured, config *rest.Config, logCtx *log.Entry) (bool, error) {
-	return ctrl.executeHooks(preDeleteHook, app, proj, liveObjs, config, logCtx)
+	return ctrl.executeHooks(PreDeleteHookType, app, proj, liveObjs, config, logCtx)
 }
 
 func (ctrl *ApplicationController) cleanupPreDeleteHooks(liveObjs map[kube.ResourceKey]*unstructured.Unstructured, config *rest.Config, logCtx *log.Entry) (bool, error) {
-	return ctrl.cleanupHooks(preDeleteHook, liveObjs, config, logCtx)
+	return ctrl.cleanupHooks(PreDeleteHookType, liveObjs, config, logCtx)
 }
 
 func (ctrl *ApplicationController) executePostDeleteHooks(app *appv1.Application, proj *appv1.AppProject, liveObjs map[kube.ResourceKey]*unstructured.Unstructured, config *rest.Config, logCtx *log.Entry) (bool, error) {
-	return ctrl.executeHooks(postDeleteHook, app, proj, liveObjs, config, logCtx)
+	return ctrl.executeHooks(PostDeleteHookType, app, proj, liveObjs, config, logCtx)
 }
 
 func (ctrl *ApplicationController) cleanupPostDeleteHooks(liveObjs map[kube.ResourceKey]*unstructured.Unstructured, config *rest.Config, logCtx *log.Entry) (bool, error) {
-	return ctrl.cleanupHooks(postDeleteHook, liveObjs, config, logCtx)
+	return ctrl.cleanupHooks(PostDeleteHookType, liveObjs, config, logCtx)
 }
