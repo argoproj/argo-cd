@@ -199,8 +199,8 @@ func (o *oidcConfig) toExported() *OIDCConfig {
 		RootCA:                      o.RootCA,
 		EnablePKCEAuthentication:    o.EnablePKCEAuthentication,
 		DomainHint:                  o.DomainHint,
-		EnableDistributedClaims:     o.EnableDistributedClaims,
-		DistributedClaimsTimeout:    o.DistributedClaimsTimeout,
+		EnableAzureGroupsOverflow:   o.EnableAzureGroupsOverflow,
+		AzureGroupsOverflowTimeout:  o.AzureGroupsOverflowTimeout,
 	}
 }
 
@@ -220,8 +220,8 @@ type OIDCConfig struct {
 	EnablePKCEAuthentication    bool                   `json:"enablePKCEAuthentication,omitempty"`
 	DomainHint                  string                 `json:"domainHint,omitempty"`
 	Azure                       *AzureOIDCConfig       `json:"azure,omitempty"`
-	EnableDistributedClaims     bool                   `json:"enableDistributedClaims,omitempty"`
-	DistributedClaimsTimeout    string                 `json:"distributedClaimsTimeout,omitempty"`
+	EnableAzureGroupsOverflow   bool                   `json:"enableAzureGroupsOverflow,omitempty"`
+	AzureGroupsOverflowTimeout  string                 `json:"azureGroupsOverflowTimeout,omitempty"`
 }
 
 type AzureOIDCConfig struct {
@@ -1896,20 +1896,20 @@ func (a *ArgoCDSettings) UserInfoCacheExpiration() time.Duration {
 	return 0
 }
 
-// DistributedClaimsEnabled returns whether distributed claims should be fetched
-func (a *ArgoCDSettings) DistributedClaimsEnabled() bool {
+// AzureGroupsOverflowEnabled returns whether Azure AD groups overflow handling should be enabled
+func (a *ArgoCDSettings) AzureGroupsOverflowEnabled() bool {
 	if oidcConfig := a.OIDCConfig(); oidcConfig != nil {
-		return oidcConfig.EnableDistributedClaims
+		return oidcConfig.EnableAzureGroupsOverflow
 	}
 	return false
 }
 
-// DistributedClaimsTimeout returns the timeout duration for distributed claims requests
-func (a *ArgoCDSettings) DistributedClaimsTimeout() time.Duration {
-	if oidcConfig := a.OIDCConfig(); oidcConfig != nil && oidcConfig.DistributedClaimsTimeout != "" {
-		timeout, err := time.ParseDuration(oidcConfig.DistributedClaimsTimeout)
+// AzureGroupsOverflowTimeout returns the timeout duration for Azure AD groups overflow requests
+func (a *ArgoCDSettings) AzureGroupsOverflowTimeout() time.Duration {
+	if oidcConfig := a.OIDCConfig(); oidcConfig != nil && oidcConfig.AzureGroupsOverflowTimeout != "" {
+		timeout, err := time.ParseDuration(oidcConfig.AzureGroupsOverflowTimeout)
 		if err != nil {
-			log.Warnf("Failed to parse 'oidc.config.distributedClaimsTimeout' key: %v", err)
+			log.Warnf("Failed to parse 'oidc.config.azureGroupsOverflowTimeout' key: %v", err)
 			return 10 * time.Second // Default timeout
 		}
 		return timeout

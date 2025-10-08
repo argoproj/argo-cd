@@ -166,90 +166,117 @@ func GetUserIdentifier(c jwtgo.MapClaims) string {
 	return userId
 }
 
-// ClaimSource represents a distributed claim source as defined in OIDC spec
-type ClaimSource struct {
-	Endpoint    string `json:"endpoint"`
-	AccessToken string `json:"access_token,omitempty"`
-}
-
-// HasDistributedClaims checks if the JWT contains distributed claims
-func HasDistributedClaims(claims jwtgo.MapClaims) bool {
-	claimNames := claims["_claim_names"]
-	claimSources := claims["_claim_sources"]
+// HasAzureGroupsOverflow checks if the JWT indicates Azure AD groups overflow (distributed claims with groups)
+func HasAzureGroupsOverflow(claims jwtgo.MapClaims) bool {
+	claimNamesRaw, hasClaimNames := claims["_claim_names"]
+	_, hasClaimSources := claims["_claim_sources"]
 	
-	return claimNames != nil && claimSources != nil
+	if !hasClaimNames || !hasClaimSources {
+		return false
+	}
+
+	// Check if "groups" is in the distributed claims
+	claimNamesMap, ok := claimNamesRaw.(map[string]any)
+	if !ok {
+		return false
+	}
+
+	_, hasGroupsClaim := claimNamesMap["groups"]
+	return hasGroupsClaim
 }
 
-// GetClaimSources extracts the claim sources from distributed claims
-func GetClaimSources(claims jwtgo.MapClaims) (map[string]ClaimSource, error) {
-	if !HasDistributedClaims(claims) {
+// AzureGroupsOverflowInfo represents information needed to fetch Azure AD groups
+type AzureGroupsOverflowInfo struct {
+	GraphEndpoint string
+	AccessToken   string
+}
+
+// GetAzureGroupsOverflowInfo extracts Azure AD groups overflow information from JWT claims
+func GetAzureGroupsOverflowInfo(claims jwtgo.MapClaims) (*AzureGroupsOverflowInfo, error) {
+	if !HasAzureGroupsOverflow(claims) {
 		return nil, nil
 	}
 
-	sourcesRaw, ok := claims["_claim_sources"]
-	if !ok {
-		return nil, fmt.Errorf("_claim_sources not found in claims")
-	}
-
-	sourcesMap, ok := sourcesRaw.(map[string]any)
-	if !ok {
-		return nil, fmt.Errorf("_claim_sources is not a map, got type %T", sourcesRaw)
-	}
-
-	sources := make(map[string]ClaimSource)
-	for sourceName, sourceDataRaw := range sourcesMap {
-		sourceDataMap, ok := sourceDataRaw.(map[string]any)
-		if !ok {
-			// Log warning but continue processing other sources
-			fmt.Printf("Warning: claim source %s data is not a map, got type %T\n", sourceName, sourceDataRaw)
-			continue
-		}
-
-		source := ClaimSource{}
-		if endpoint, ok := sourceDataMap["endpoint"].(string); ok {
-			source.Endpoint = endpoint
-		}
-		if accessToken, ok := sourceDataMap["access_token"].(string); ok {
-			source.AccessToken = accessToken
-		}
-
-		if source.Endpoint != "" {
-			sources[sourceName] = source
-		} else {
-			// Log warning for sources without endpoints
-			fmt.Printf("Warning: claim source %s has no endpoint\n", sourceName)
-		}
-	}
-
-	if len(sources) == 0 {
-		return nil, fmt.Errorf("no valid claim sources found")
-	}
-
-	return sources, nil
-}
-
-// GetDistributedClaimNames extracts the mapping of claim names to sources
-func GetDistributedClaimNames(claims jwtgo.MapClaims) (map[string]string, error) {
-	if !HasDistributedClaims(claims) {
-		return nil, nil
-	}
-
-	claimNamesRaw, ok := claims["_claim_names"]
-	if !ok {
-		return nil, fmt.Errorf("_claim_names not found in claims")
-	}
+	claimNamesRaw, _ := claims["_claim_names"]
+	claimSourcesRaw, _ := claims["_claim_sources"]
 
 	claimNamesMap, ok := claimNamesRaw.(map[string]any)
 	if !ok {
 		return nil, fmt.Errorf("_claim_names is not a map")
 	}
 
-	claimNames := make(map[string]string)
-	for claimName, sourceNameRaw := range claimNamesMap {
-		if sourceName, ok := sourceNameRaw.(string); ok {
-			claimNames[claimName] = sourceName
-		}
+	claimSourcesMap, ok := claimSourcesRaw.(map[string]any)
+	if !ok {
+		return nil, fmt.Errorf("_claim_sources is not a map")
 	}
 
-	return claimNames, nil
+	// Get the source name for groups claim
+	groupsSourceNameRaw, exists := claimNamesMap["groups"]
+	if !exists {
+		return nil, fmt.Errorf("groups claim not found in _claim_names")
+	}
+
+	groupsSourceName, ok := groupsSourceNameRaw.(string)
+	if !ok {
+		return nil, fmt.Errorf("groups source name is not a string")
+	}
+
+	// Get the source information
+	sourceRaw, exists := claimSourcesMap[groupsSourceName]
+	if !exists {
+		return nil, fmt.Errorf("source %s not found in _claim_sources", groupsSourceName)
+	}
+
+	sourceMap, ok := sourceRaw.(map[string]any)
+	if !ok {
+		return nil, fmt.Errorf("source %s is not a map", groupsSourceName)
+	}
+
+	endpoint, hasEndpoint := sourceMap["endpoint"].(string)
+	if !hasEndpoint {
+		return nil, fmt.Errorf("endpoint not found in source %s", groupsSourceName)
+	}
+
+	// Convert older Azure endpoints to Microsoft Graph API v1.0
+	graphEndpoint := convertToMicrosoftGraphEndpoint(endpoint)
+
+	info := &AzureGroupsOverflowInfo{
+		GraphEndpoint: graphEndpoint,
+	}
+
+	if accessToken, hasToken := sourceMap["access_token"].(string); hasToken {
+		info.AccessToken = accessToken
+	}
+
+	return info, nil
+}
+
+// convertToMicrosoftGraphEndpoint converts legacy Azure AD endpoints to Microsoft Graph API v1.0
+func convertToMicrosoftGraphEndpoint(endpoint string) string {
+	// Convert legacy graph.windows.net to graph.microsoft.com
+	if strings.Contains(endpoint, "graph.windows.net") {
+		// Extract tenant ID from the old URL
+		// e.g., https://graph.windows.net/11111111-1111-1111-1111-111111111111/users/22222222-2222-2222-2222-222222222222/getMemberObjects
+		parts := strings.Split(endpoint, "/")
+		if len(parts) >= 5 {
+			tenantId := parts[3]
+			userId := parts[5]
+			return fmt.Sprintf("https://graph.microsoft.com/v1.0/%s/users/%s/getMemberObjects", tenantId, userId)
+		}
+	}
+	
+	// If already using graph.microsoft.com or if it's a generic endpoint, ensure it uses v1.0 and getMemberObjects
+	if strings.Contains(endpoint, "graph.microsoft.com") {
+		// Handle various Microsoft Graph endpoint formats
+		if strings.Contains(endpoint, "/me/") {
+			// Convert /me/ endpoints to direct user endpoints if possible
+			return endpoint
+		}
+		if !strings.Contains(endpoint, "getMemberObjects") && !strings.Contains(endpoint, "GetMemberGroups") {
+			// Default to /me/getMemberObjects for Microsoft Graph
+			return "https://graph.microsoft.com/v1.0/me/getMemberObjects"
+		}
+	}
+	
+	return endpoint
 }

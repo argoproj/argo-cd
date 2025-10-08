@@ -17,27 +17,35 @@ import (
 )
 
 // Create a mock settings that implements the methods we need
-func createMockSettings(distributedClaimsEnabled bool, timeout time.Duration) *settings.ArgoCDSettings {
+func createMockSettings(azureGroupsOverflowEnabled bool, timeout time.Duration) *settings.ArgoCDSettings {
 	timeoutStr := timeout.String()
 	enabledStr := "false"
-	if distributedClaimsEnabled {
+	if azureGroupsOverflowEnabled {
 		enabledStr = "true"
 	}
-	
-	return &settings.ArgoCDSettings{
-		OIDCConfigRAW: fmt.Sprintf(`
+
+	oidcConfigRaw := fmt.Sprintf(`
 name: Test
 issuer: https://example.com
 clientID: test-client
-enableDistributedClaims: %s
-distributedClaimsTimeout: "%s"
-`, enabledStr, timeoutStr),
+enableAzureGroupsOverflow: %s
+azureGroupsOverflowTimeout: "%s"
+`, enabledStr, timeoutStr)
+
+	return &settings.ArgoCDSettings{
+		OIDCConfigRAW: oidcConfigRaw,
 	}
 }
 
-func TestFetchDistributedClaims(t *testing.T) {
-	// Create a mock server for distributed claims endpoint
+func TestFetchAzureGroupsOverflow(t *testing.T) {
+	// Create a mock server for Azure Graph API endpoint
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Verify it's a POST request
+		assert.Equal(t, "POST", r.Method)
+
+		// Verify Content-Type
+		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
+
 		// Check authorization header
 		auth := r.Header.Get("Authorization")
 		if auth != "Bearer test-token" {
@@ -45,10 +53,15 @@ func TestFetchDistributedClaims(t *testing.T) {
 			return
 		}
 
-		// Return mock group claims
+		// Verify request body
+		body, _ := io.ReadAll(r.Body)
+		var requestBody map[string]interface{}
+		json.Unmarshal(body, &requestBody)
+		assert.Equal(t, false, requestBody["securityEnabledOnly"])
+
+		// Return Azure Graph API response format
 		response := map[string]interface{}{
-			"sub":    "user123",
-			"groups": []string{"group1", "group2", "admin"},
+			"value": []string{"group1", "group2", "admin"},
 		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(response)
@@ -64,7 +77,7 @@ func TestFetchDistributedClaims(t *testing.T) {
 		settings: mockSettings,
 	}
 
-	// Test claims with distributed claims
+	// Test claims with Azure groups overflow
 	claims := jwtgo.MapClaims{
 		"sub":   "user123",
 		"email": "user@example.com",
@@ -79,34 +92,28 @@ func TestFetchDistributedClaims(t *testing.T) {
 		},
 	}
 
-	// Test fetching distributed claims
-	enrichedClaims, err := client.FetchDistributedClaims(claims)
+	// Test fetching Azure groups overflow
+	enrichedClaims, err := client.FetchAzureGroupsOverflow(claims)
 	require.NoError(t, err)
 
 	// Verify claims were enriched
 	assert.Equal(t, "user123", enrichedClaims["sub"])
 	assert.Equal(t, "user@example.com", enrichedClaims["email"])
-	
-	// When JSON is unmarshaled, arrays become []interface{} instead of []string
+
+	// Check groups were added
 	groupsRaw, exists := enrichedClaims["groups"]
 	require.True(t, exists, "groups claim should exist")
-	
-	groupsInterfaceSlice, ok := groupsRaw.([]interface{})
-	require.True(t, ok, "groups should be an interface array")
-	
-	// Convert to string slice for verification
-	groups := make([]string, len(groupsInterfaceSlice))
-	for i, g := range groupsInterfaceSlice {
-		groups[i] = g.(string)
-	}
-	
+
+	groups, ok := groupsRaw.([]string)
+	require.True(t, ok, "groups should be a string array")
+
 	assert.Contains(t, groups, "group1")
 	assert.Contains(t, groups, "group2")
 	assert.Contains(t, groups, "admin")
 }
 
-func TestFetchDistributedClaimsDisabled(t *testing.T) {
-	// Create mock settings with distributed claims disabled
+func TestFetchAzureGroupsOverflowDisabled(t *testing.T) {
+	// Create mock settings with Azure groups overflow disabled
 	mockSettings := createMockSettings(false, 10*time.Second)
 
 	client := &ClientApp{
@@ -121,18 +128,18 @@ func TestFetchDistributedClaimsDisabled(t *testing.T) {
 		},
 		"_claim_sources": map[string]interface{}{
 			"src1": map[string]interface{}{
-				"endpoint": "https://example.com/claims",
+				"endpoint": "https://graph.microsoft.com/v1.0/me/getMemberObjects",
 			},
 		},
 	}
 
 	// Should return original claims unchanged
-	enrichedClaims, err := client.FetchDistributedClaims(claims)
+	enrichedClaims, err := client.FetchAzureGroupsOverflow(claims)
 	require.NoError(t, err)
 	assert.Equal(t, claims, enrichedClaims)
 }
 
-func TestFetchDistributedClaimsTimeout(t *testing.T) {
+func TestFetchAzureGroupsOverflowTimeout(t *testing.T) {
 	// Create a mock server that hangs
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		time.Sleep(2 * time.Second) // Longer than timeout
@@ -160,9 +167,9 @@ func TestFetchDistributedClaimsTimeout(t *testing.T) {
 	}
 
 	// Should return original claims due to timeout (graceful fallback)
-	enrichedClaims, err := client.FetchDistributedClaims(claims)
+	enrichedClaims, err := client.FetchAzureGroupsOverflow(claims)
 	require.NoError(t, err)
-	
+
 	// Original claims should be preserved
 	assert.Equal(t, "user123", enrichedClaims["sub"])
 	// groups claim should not be present since fetch failed
@@ -170,7 +177,7 @@ func TestFetchDistributedClaimsTimeout(t *testing.T) {
 	assert.False(t, hasGroups)
 }
 
-func TestFetchDistributedClaimsUnauthorized(t *testing.T) {
+func TestFetchAzureGroupsOverflowUnauthorized(t *testing.T) {
 	// Create a mock server that returns 401
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
@@ -198,23 +205,12 @@ func TestFetchDistributedClaimsUnauthorized(t *testing.T) {
 	}
 
 	// Should return original claims due to authorization failure (graceful fallback)
-	enrichedClaims, err := client.FetchDistributedClaims(claims)
+	enrichedClaims, err := client.FetchAzureGroupsOverflow(claims)
 	require.NoError(t, err)
 	assert.Equal(t, claims["sub"], enrichedClaims["sub"])
 }
 
-func TestFetchDistributedClaimsSubjectMismatch(t *testing.T) {
-	// Create a mock server that returns different subject
-	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		response := map[string]interface{}{
-			"sub":    "different-user", // Different from original
-			"groups": []string{"admin"},
-		}
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
-	}))
-	defer mockServer.Close()
-
+func TestFetchAzureGroupsOverflowNoAccessToken(t *testing.T) {
 	mockSettings := createMockSettings(true, 10*time.Second)
 
 	client := &ClientApp{
@@ -229,33 +225,34 @@ func TestFetchDistributedClaimsSubjectMismatch(t *testing.T) {
 		},
 		"_claim_sources": map[string]interface{}{
 			"src1": map[string]interface{}{
-				"endpoint": mockServer.URL,
+				"endpoint": "https://graph.microsoft.com/v1.0/me/getMemberObjects",
+				// No access_token
 			},
 		},
 	}
 
-	// Should return original claims due to subject mismatch (graceful fallback)
-	enrichedClaims, err := client.FetchDistributedClaims(claims)
+	// Should return original claims when no access token is provided (graceful fallback)
+	enrichedClaims, err := client.FetchAzureGroupsOverflow(claims)
 	require.NoError(t, err)
 	assert.Equal(t, "user123", enrichedClaims["sub"])
-	// groups should not be added due to subject mismatch
+	// groups should not be added due to missing access token
 	_, hasGroups := enrichedClaims["groups"]
 	assert.False(t, hasGroups)
 }
 
-func TestFetchDistributedClaimsAzureAD(t *testing.T) {
+func TestFetchAzureGroupsOverflowRealScenario(t *testing.T) {
 	// Create a mock Azure Graph API server
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Verify it's a POST request
 		assert.Equal(t, "POST", r.Method)
-		
+
 		// Verify Content-Type
 		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
-		
+
 		// Verify Authorization header
 		auth := r.Header.Get("Authorization")
 		assert.Equal(t, "Bearer azure-access-token", auth)
-		
+
 		// Verify request body
 		body, _ := io.ReadAll(r.Body)
 		var requestBody map[string]interface{}
@@ -275,8 +272,6 @@ func TestFetchDistributedClaimsAzureAD(t *testing.T) {
 	}))
 	defer mockServer.Close()
 
-
-
 	mockSettings := createMockSettings(true, 10*time.Second)
 
 	client := &ClientApp{
@@ -284,10 +279,7 @@ func TestFetchDistributedClaimsAzureAD(t *testing.T) {
 		settings: mockSettings,
 	}
 
-	// Test claims with Azure AD distributed claims
-	// Use the mock server URL but with the GetMemberGroups path to trigger Azure AD logic
-	azureEndpoint := mockServer.URL + "/me/GetMemberGroups"
-	
+	// Test claims with Azure AD groups overflow
 	claims := jwtgo.MapClaims{
 		"sub":   "user@contoso.com",
 		"email": "user@contoso.com",
@@ -296,20 +288,20 @@ func TestFetchDistributedClaimsAzureAD(t *testing.T) {
 		},
 		"_claim_sources": map[string]interface{}{
 			"src1": map[string]interface{}{
-				"endpoint":     azureEndpoint,
+				"endpoint":     mockServer.URL,
 				"access_token": "azure-access-token",
 			},
 		},
 	}
 
-	// Test fetching distributed claims
-	enrichedClaims, err := client.FetchDistributedClaims(claims)
+	// Test fetching Azure groups overflow
+	enrichedClaims, err := client.FetchAzureGroupsOverflow(claims)
 	require.NoError(t, err)
 
 	// Verify claims were enriched with Azure AD groups
 	assert.Equal(t, "user@contoso.com", enrichedClaims["sub"])
 	assert.Equal(t, "user@contoso.com", enrichedClaims["email"])
-	
+
 	groups, ok := enrichedClaims["groups"].([]string)
 	require.True(t, ok, "groups should be a string array")
 	assert.Len(t, groups, 3)
