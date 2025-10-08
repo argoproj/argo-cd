@@ -2117,6 +2117,68 @@ func TestIsImpersonationEnabled(t *testing.T) {
 		"when user enables the flag in argocd-cm config map, IsImpersonationEnabled() must not return any error")
 }
 
+func TestRequireOverridePrivilegeForRevisionSyncNoConfigMap(t *testing.T) {
+	// When there is no argocd-cm itself,
+	// Then RequireOverridePrivilegeForRevisionSync() must return false (default value) and an error with appropriate error message.
+	kubeClient := fake.NewClientset()
+	settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
+	featureFlag, err := settingsManager.RequireOverridePrivilegeForRevisionSync()
+	require.False(t, featureFlag,
+		"with no argocd-cm config map, RequireOverridePrivilegeForRevisionSync() must return return false (default value)")
+	require.ErrorContains(t, err, "configmap \"argocd-cm\" not found",
+		"with no argocd-cm config map, RequireOverridePrivilegeForRevisionSync() must return an error")
+}
+
+func TestRequireOverridePrivilegeForRevisionSyncEmptyConfigMap(t *testing.T) {
+	// When there is no feature flag present in the argocd-cm,
+	// Then RequireOverridePrivilegeForRevisionSync() must return false (default value) and nil error.
+	_, settingsManager := fixtures(map[string]string{})
+	featureFlag, err := settingsManager.RequireOverridePrivilegeForRevisionSync()
+	require.False(t, featureFlag,
+		"with empty argocd-cm config map, RequireOverridePrivilegeForRevisionSync() must return false (default value)")
+	require.NoError(t, err,
+		"with empty argocd-cm config map, RequireOverridePrivilegeForRevisionSync() must not return any error")
+}
+
+func TestRequireOverridePrivilegeForRevisionSyncFalse(t *testing.T) {
+	// When user disables the feature explicitly,
+	// Then RequireOverridePrivilegeForRevisionSync() must return false and nil error.
+	_, settingsManager := fixtures(map[string]string{
+		"application.sync.RequireOverridePrivilegeForRevisionSync": "false",
+	})
+	featureFlag, err := settingsManager.RequireOverridePrivilegeForRevisionSync()
+	require.False(t, featureFlag,
+		"when user disables the flag in argocd-cm config map, RequireOverridePrivilegeForRevisionSync() must return user set value")
+	require.NoError(t, err,
+		"when user disables the flag in argocd-cm config map, RequireOverridePrivilegeForRevisionSync() must not return any error")
+}
+
+func TestRequireOverridePrivilegeForRevisionSyncTrue(t *testing.T) {
+	// When user enables the feature explicitly,
+	// Then RequireOverridePrivilegeForRevisionSync() must return true and nil error.
+	_, settingsManager := fixtures(map[string]string{
+		"application.sync.requireOverridePrivilegeForRevisionSync": "true",
+	})
+	featureFlag, err := settingsManager.RequireOverridePrivilegeForRevisionSync()
+	require.True(t, featureFlag,
+		"when user enables the flag in argocd-cm config map, RequireOverridePrivilegeForRevisionSync() must return user set value")
+	require.NoError(t, err,
+		"when user enables the flag in argocd-cm config map, RequireOverridePrivilegeForRevisionSync() must not return any error")
+}
+
+func TestRequireOverridePrivilegeForRevisionSyncParseError(t *testing.T) {
+	// When a value is set that cannot be parsed as boolean,
+	// Then RequireOverridePrivilegeForRevisionSync() must return false and nil error.
+	_, settingsManager := fixtures(map[string]string{
+		"application.sync.requireOverridePrivilegeForRevisionSync": "BANANA",
+	})
+	featureFlag, err := settingsManager.RequireOverridePrivilegeForRevisionSync()
+	require.False(t, featureFlag,
+		"when user set the flag to unparseable value in argocd-cm config map, RequireOverridePrivilegeForRevisionSync() must return false (default value)")
+	require.ErrorContains(t, err, "invalid syntax",
+		"when user set the flag to unparseable value in argocd-cm config map, RequireOverridePrivilegeForRevisionSync() must return an error")
+}
+
 func TestSettingsManager_GetHideSecretAnnotations(t *testing.T) {
 	tests := []struct {
 		name   string
