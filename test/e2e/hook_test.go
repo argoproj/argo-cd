@@ -76,6 +76,33 @@ func TestPreDeleteHook(t *testing.T) {
 		}))
 }
 
+func TestPreDeleteHookFailureAndRetry(t *testing.T) {
+	Given(t).
+		Path("pre-delete-hook").
+		When().
+		// Patch hook to make it fail
+		PatchFile("hook.yaml", `[{"op": "replace", "path": "/spec/containers/0/command/0", "value": "false"}]`).
+		CreateApp().
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		When().
+		Delete(false). // Non-blocking delete
+		Then().
+		// App should still exist because pre-delete hook failed
+		Expect(Condition(ApplicationConditionDeletionError, "")).
+		When().
+		// Fix the hook by patching it to succeed
+		PatchFile("hook.yaml", `[{"op": "replace", "path": "/spec/containers/0/command", "value": ["sleep", "3"]}]`).
+		Refresh(RefreshTypeNormal).
+		Then().
+		// After fixing the hook, deletion should eventually succeed
+		Expect(DoesNotExist()).
+		Expect(NotPod(func(p corev1.Pod) bool {
+			return p.Name == "hook"
+		}))
+}
+
 func TestPostDeleteHook(t *testing.T) {
 	Given(t).
 		Path("post-delete-hook").
