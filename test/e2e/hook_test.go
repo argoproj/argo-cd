@@ -70,6 +70,7 @@ func TestPreDeleteHook(t *testing.T) {
 		When().
 		Delete(true).
 		Then().
+		Expect(DoesNotExist()).
 		Expect(NotPod(func(p corev1.Pod) bool {
 			return p.Name == "hook"
 		}))
