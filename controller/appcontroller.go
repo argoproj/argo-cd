@@ -632,7 +632,7 @@ func (ctrl *ApplicationController) getResourceTree(destCluster *appv1.Cluster, a
 	orphanedNodes := make([]appv1.ResourceNode, 0)
 	orphanedNodesKeys := make([]kube.ResourceKey, 0)
 	for k := range orphanedNodesMap {
-		if k.Namespace != "" && proj.IsGroupKindNamePermitted(k.GroupKind(), true, k.Name) && !isKnownOrphanedResourceExclusion(k, proj) {
+		if k.Namespace != "" && proj.IsGroupKindNamePermitted(k.GroupKind(), k.Name, true) && !isKnownOrphanedResourceExclusion(k, proj) {
 			orphanedNodesKeys = append(orphanedNodesKeys, k)
 		}
 	}

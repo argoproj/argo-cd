@@ -397,7 +397,7 @@ func (proj *AppProject) ProjectPoliciesString() string {
 }
 
 // IsGroupKindNamePermitted validates if the given resource group/kind is permitted to be deployed in the project
-func (proj AppProject) IsGroupKindNamePermitted(gk schema.GroupKind, namespaced bool, name string) bool {
+func (proj AppProject) IsGroupKindNamePermitted(gk schema.GroupKind, name string, namespaced bool) bool {
 	var isWhiteListed, isBlackListed bool
 	res := metav1.GroupKind{Group: gk.Group, Kind: gk.Kind}
 
@@ -424,7 +424,7 @@ func (proj AppProject) IsLiveResourcePermitted(un *unstructured.Unstructured, de
 }
 
 func (proj AppProject) IsResourcePermitted(groupKind schema.GroupKind, name string, namespace string, destCluster *Cluster, projectClusters func(project string) ([]*Cluster, error)) (bool, error) {
-	if !proj.IsGroupKindNamePermitted(groupKind, namespace != "", name) {
+	if !proj.IsGroupKindNamePermitted(groupKind, name, namespace != "") {
 		return false, nil
 	}
 	if namespace != "" {
