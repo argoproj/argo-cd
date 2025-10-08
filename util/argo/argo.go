@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"regexp"
 	"slices"
 	"sort"
@@ -109,6 +110,58 @@ func FilterByProjects(apps []argoappv1.Application, projects []string) []argoapp
 		a := apps[i]
 		if _, ok := projectsMap[a.Spec.GetProject()]; ok {
 			items = append(items, a)
+		}
+	}
+	return items
+}
+
+// FilterByFile returns applications affected by files
+func FilterByFile(apps []argoappv1.Application, file []string) []argoappv1.Application {
+	if len(file) == 0 {
+		return apps
+	}
+	items := make([]argoappv1.Application, 0)
+	// TODO: use a map to identify already added apps/items to prevent duplication.
+	// The problem here is Application type is not comparable.
+	// existentApps := make(map[argoappv1.Application]bool)
+	for i := 0; i < len(file); i++ {
+		filePath := filepath.Clean(file[i])
+		for j := 0; j < len(apps); j++ {
+			a := apps[j]
+			appPath := filepath.Clean(a.Spec.GetSource().Path)
+			annotations := strings.Split(a.GetAnnotation(argoappv1.AnnotationKeyManifestGeneratePaths), ";")
+			for _, annotation := range annotations {
+				annotation = strings.TrimSpace(annotation)
+				if annotation == "" {
+					// TODO: Call FilterByPath to match identical file and path args.
+					continue
+				}
+				var targetPath string
+
+				switch annotation {
+				case ".":
+					targetPath = appPath
+				case "..":
+					targetPath = filepath.Dir(appPath)
+
+				default:
+					if filepath.IsAbs(annotation) {
+						targetPath = filepath.Clean(annotation)
+					} else {
+						targetPath = filepath.Join(appPath, annotation)
+						targetPath = filepath.Clean(targetPath)
+					}
+				}
+				relativePath, err := filepath.Rel(targetPath, filePath)
+				if err != nil {
+					return nil
+				}
+				if !strings.HasPrefix(relativePath, "..") { // && !existentApps[a] {
+					items = append(items, a)
+					// existentApps[a] = true
+					break
+				}
+			}
 		}
 	}
 	return items
