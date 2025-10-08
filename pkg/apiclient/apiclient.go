@@ -64,8 +64,12 @@ const (
 	EnvArgoCDAuthToken = "ARGOCD_AUTH_TOKEN"
 )
 
-// MaxGRPCMessageSize contains max grpc message size
-var MaxGRPCMessageSize = env.ParseNumFromEnv(common.EnvGRPCMaxSizeMB, 200, 0, math.MaxInt32) * 1024 * 1024
+var (
+	// MaxGRPCMessageSize contains max grpc message size
+	MaxGRPCMessageSize = env.ParseNumFromEnv(common.EnvGRPCMaxSizeMB, 200, 0, math.MaxInt32) * 1024 * 1024
+	// MaxGRPCRetriesNum contains max grpc retries
+	MaxGRPCRetriesNum = env.ParseNumFromEnv(common.EnvGRPCMaxMaxRetries, 3, 0, math.MaxInt32)
+)
 
 // Client defines an interface for interaction with an Argo CD server.
 type Client interface {
@@ -517,7 +521,7 @@ func (c *client) newConn(ctx context.Context) (*grpc.ClientConn, io.Closer, erro
 		Token: c.AuthToken,
 	}
 	retryOpts := []grpc_retry.CallOption{
-		grpc_retry.WithMax(3),
+		grpc_retry.WithMax(uint(MaxGRPCRetriesNum)),
 		grpc_retry.WithBackoff(grpc_retry.BackoffLinear(1000 * time.Millisecond)),
 	}
 	var dialOpts []grpc.DialOption
