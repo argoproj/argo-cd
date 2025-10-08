@@ -176,7 +176,7 @@ func upsertRoleBinding(clientset kubernetes.Interface, name string, roleName str
 }
 
 // InstallClusterManagerRBAC installs RBAC resources for a cluster manager to operate a cluster. Returns a token
-func InstallClusterManagerRBAC(clientset kubernetes.Interface, ns string, namespaces []string, bearerTokenTimeout time.Duration) (string, error) {
+func InstallClusterManagerRBAC(ctx context.Context, clientset kubernetes.Interface, ns string, namespaces []string, bearerTokenTimeout time.Duration) (string, error) {
 	err := CreateServiceAccount(clientset, ArgoCDManagerServiceAccount, ns)
 	if err != nil {
 		return "", err
@@ -214,21 +214,21 @@ func InstallClusterManagerRBAC(clientset kubernetes.Interface, ns string, namesp
 		}
 	}
 
-	return GetServiceAccountBearerToken(clientset, ns, ArgoCDManagerServiceAccount, bearerTokenTimeout)
+	return GetServiceAccountBearerToken(ctx, clientset, ns, ArgoCDManagerServiceAccount, bearerTokenTimeout)
 }
 
 // GetServiceAccountBearerToken determines if a ServiceAccount has a
 // bearer token secret to use or if a secret should be created. It then
 // waits for the secret to have a bearer token if a secret needs to
 // be created and returns the token in encoded base64.
-func GetServiceAccountBearerToken(clientset kubernetes.Interface, ns string, sa string, timeout time.Duration) (string, error) {
+func GetServiceAccountBearerToken(ctx context.Context, clientset kubernetes.Interface, ns string, sa string, timeout time.Duration) (string, error) {
 	secretName, err := getOrCreateServiceAccountTokenSecret(clientset, sa, ns)
 	if err != nil {
 		return "", err
 	}
 
 	var secret *corev1.Secret
-	err = wait.PollUntilContextTimeout(context.Background(), 500*time.Millisecond, timeout, true, func(ctx context.Context) (bool, error) {
+	err = wait.PollUntilContextTimeout(ctx, 500*time.Millisecond, timeout, true, func(ctx context.Context) (bool, error) {
 		ctx, cancel := context.WithTimeout(ctx, common.ClusterAuthRequestTimeout)
 		defer cancel()
 		secret, err = clientset.CoreV1().Secrets(ns).Get(ctx, secretName, metav1.GetOptions{})
@@ -340,9 +340,9 @@ func ParseServiceAccountToken(token string) (*ServiceAccountClaims, error) {
 
 // GenerateNewClusterManagerSecret creates a new secret derived with same metadata as existing one
 // and waits until the secret is populated with a bearer token
-func GenerateNewClusterManagerSecret(clientset kubernetes.Interface, claims *ServiceAccountClaims) (*corev1.Secret, error) {
+func GenerateNewClusterManagerSecret(ctx context.Context, clientset kubernetes.Interface, claims *ServiceAccountClaims) (*corev1.Secret, error) {
 	secretsClient := clientset.CoreV1().Secrets(claims.Namespace)
-	existingSecret, err := secretsClient.Get(context.Background(), claims.SecretName, metav1.GetOptions{})
+	existingSecret, err := secretsClient.Get(ctx, claims.SecretName, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -357,12 +357,12 @@ func GenerateNewClusterManagerSecret(clientset kubernetes.Interface, claims *Ser
 	// We will create an empty secret and let kubernetes populate the data
 	newSecret.Data = nil
 
-	created, err := secretsClient.Create(context.Background(), &newSecret, metav1.CreateOptions{})
+	created, err := secretsClient.Create(ctx, &newSecret, metav1.CreateOptions{})
 	if err != nil {
 		return nil, err
 	}
 
-	err = wait.PollUntilContextTimeout(context.Background(), 500*time.Millisecond, 30*time.Second, false, func(ctx context.Context) (bool, error) {
+	err = wait.PollUntilContextTimeout(ctx, 500*time.Millisecond, 30*time.Second, false, func(ctx context.Context) (bool, error) {
 		created, err = secretsClient.Get(ctx, created.Name, metav1.GetOptions{})
 		if err != nil {
 			return false, err
@@ -379,7 +379,7 @@ func GenerateNewClusterManagerSecret(clientset kubernetes.Interface, claims *Ser
 }
 
 // RotateServiceAccountSecrets rotates the entries in the service accounts secrets list
-func RotateServiceAccountSecrets(clientset kubernetes.Interface, claims *ServiceAccountClaims, newSecret *corev1.Secret) error {
+func RotateServiceAccountSecrets(ctx context.Context, clientset kubernetes.Interface, claims *ServiceAccountClaims, newSecret *corev1.Secret) error {
 	// 1. update service account secrets list with new secret name while also removing the old name
 	saClient := clientset.CoreV1().ServiceAccounts(claims.Namespace)
 	sa, err := saClient.Get(context.Background(), claims.ServiceAccountName, metav1.GetOptions{})
@@ -400,14 +400,14 @@ func RotateServiceAccountSecrets(clientset kubernetes.Interface, claims *Service
 	if !alreadyPresent {
 		sa.Secrets = append(newSecretsList, corev1.ObjectReference{Name: newSecret.Name})
 	}
-	_, err = saClient.Update(context.Background(), sa, metav1.UpdateOptions{})
+	_, err = saClient.Update(ctx, sa, metav1.UpdateOptions{})
 	if err != nil {
 		return err
 	}
 
 	// 2. delete existing secret object
 	secretsClient := clientset.CoreV1().Secrets(claims.Namespace)
-	err = secretsClient.Delete(context.Background(), claims.SecretName, metav1.DeleteOptions{})
+	err = secretsClient.Delete(ctx, claims.SecretName, metav1.DeleteOptions{})
 	if !apierrors.IsNotFound(err) {
 		return err
 	}

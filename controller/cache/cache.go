@@ -155,7 +155,7 @@ type LiveStateCache interface {
 	UpdateShard(shard int) bool
 }
 
-type ObjectUpdatedHandler = func(managedByApp map[string]bool, ref corev1.ObjectReference)
+type ObjectUpdatedHandler = func(ctx context.Context, managedByApp map[string]bool, ref corev1.ObjectReference)
 
 type PodInfo struct {
 	NodeName         string
@@ -233,32 +233,32 @@ type liveStateCache struct {
 	lock          sync.RWMutex
 }
 
-func (c *liveStateCache) loadCacheSettings() (*cacheSettings, error) {
-	appInstanceLabelKey, err := c.settingsMgr.GetAppInstanceLabelKey()
+func (c *liveStateCache) loadCacheSettings(ctx context.Context) (*cacheSettings, error) {
+	appInstanceLabelKey, err := c.settingsMgr.GetAppInstanceLabelKey(ctx)
 	if err != nil {
 		return nil, err
 	}
-	trackingMethod, err := c.settingsMgr.GetTrackingMethod()
+	trackingMethod, err := c.settingsMgr.GetTrackingMethod(ctx)
 	if err != nil {
 		return nil, err
 	}
-	installationID, err := c.settingsMgr.GetInstallationID()
+	installationID, err := c.settingsMgr.GetInstallationID(ctx)
 	if err != nil {
 		return nil, err
 	}
-	resourceUpdatesOverrides, err := c.settingsMgr.GetIgnoreResourceUpdatesOverrides()
+	resourceUpdatesOverrides, err := c.settingsMgr.GetIgnoreResourceUpdatesOverrides(ctx)
 	if err != nil {
 		return nil, err
 	}
-	ignoreResourceUpdatesEnabled, err := c.settingsMgr.GetIsIgnoreResourceUpdatesEnabled()
+	ignoreResourceUpdatesEnabled, err := c.settingsMgr.GetIsIgnoreResourceUpdatesEnabled(ctx)
 	if err != nil {
 		return nil, err
 	}
-	resourcesFilter, err := c.settingsMgr.GetResourcesFilter()
+	resourcesFilter, err := c.settingsMgr.GetResourcesFilter(ctx)
 	if err != nil {
 		return nil, err
 	}
-	resourceOverrides, err := c.settingsMgr.GetResourceOverrides()
+	resourceOverrides, err := c.settingsMgr.GetResourceOverrides(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -474,7 +474,7 @@ func isTransientNetworkErr(err error) bool {
 	return false
 }
 
-func (c *liveStateCache) getCluster(cluster *appv1.Cluster) (clustercache.ClusterCache, error) {
+func (c *liveStateCache) getCluster(ctx context.Context, cluster *appv1.Cluster) (clustercache.ClusterCache, error) {
 	c.lock.RLock()
 	clusterCache, ok := c.clusters[cluster.Server]
 	cacheSettings := c.cacheSettings
@@ -500,12 +500,12 @@ func (c *liveStateCache) getCluster(cluster *appv1.Cluster) (clustercache.Cluste
 		return nil, fmt.Errorf("controller is configured to ignore cluster %s", cluster.Server)
 	}
 
-	resourceCustomLabels, err := c.settingsMgr.GetResourceCustomLabels()
+	resourceCustomLabels, err := c.settingsMgr.GetResourceCustomLabels(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("error getting custom label: %w", err)
 	}
 
-	respectRBAC, err := c.settingsMgr.RespectRBAC()
+	respectRBAC, err := c.settingsMgr.RespectRBAC(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("error getting value for %v: %w", settings.RespectRBAC, err)
 	}
@@ -617,7 +617,7 @@ func (c *liveStateCache) getCluster(cluster *appv1.Cluster) (clustercache.Cluste
 			}
 			toNotify[app] = isRootAppNode(r) || toNotify[app]
 		}
-		c.onObjectUpdated(toNotify, ref)
+		c.onObjectUpdated(ctx,toNotify, ref)
 	})
 
 	_ = clusterCache.OnEvent(func(_ watch.EventType, un *unstructured.Unstructured) {
@@ -634,8 +634,8 @@ func (c *liveStateCache) getCluster(cluster *appv1.Cluster) (clustercache.Cluste
 	return clusterCache, nil
 }
 
-func (c *liveStateCache) getSyncedCluster(server *appv1.Cluster) (clustercache.ClusterCache, error) {
-	clusterCache, err := c.getCluster(server)
+func (c *liveStateCache) getSyncedCluster(ctx context.Context, server *appv1.Cluster) (clustercache.ClusterCache, error) {
+	clusterCache, err := c.getCluster(ctx, server)
 	if err != nil {
 		return nil, fmt.Errorf("error getting cluster: %w", err)
 	}
@@ -660,7 +660,7 @@ func (c *liveStateCache) invalidate(cacheSettings cacheSettings) {
 }
 
 func (c *liveStateCache) IsNamespaced(server *appv1.Cluster, gk schema.GroupKind) (bool, error) {
-	clusterInfo, err := c.getSyncedCluster(server)
+	clusterInfo, err := c.getSyncedCluster(context.Background(), server)
 	if err != nil {
 		return false, err
 	}
@@ -668,7 +668,7 @@ func (c *liveStateCache) IsNamespaced(server *appv1.Cluster, gk schema.GroupKind
 }
 
 func (c *liveStateCache) IterateHierarchyV2(server *appv1.Cluster, keys []kube.ResourceKey, action func(child appv1.ResourceNode, appName string) bool) error {
-	clusterInfo, err := c.getSyncedCluster(server)
+	clusterInfo, err := c.getSyncedCluster(context.Background(), server)
 	if err != nil {
 		return err
 	}
@@ -679,7 +679,7 @@ func (c *liveStateCache) IterateHierarchyV2(server *appv1.Cluster, keys []kube.R
 }
 
 func (c *liveStateCache) IterateResources(server *appv1.Cluster, callback func(res *clustercache.Resource, info *ResourceInfo)) error {
-	clusterInfo, err := c.getSyncedCluster(server)
+	clusterInfo, err := c.getSyncedCluster(context.Background(), server)
 	if err != nil {
 		return err
 	}
@@ -693,7 +693,7 @@ func (c *liveStateCache) IterateResources(server *appv1.Cluster, callback func(r
 }
 
 func (c *liveStateCache) GetNamespaceTopLevelResources(server *appv1.Cluster, namespace string) (map[kube.ResourceKey]appv1.ResourceNode, error) {
-	clusterInfo, err := c.getSyncedCluster(server)
+	clusterInfo, err := c.getSyncedCluster(context.Background(), server)
 	if err != nil {
 		return nil, err
 	}
@@ -706,7 +706,7 @@ func (c *liveStateCache) GetNamespaceTopLevelResources(server *appv1.Cluster, na
 }
 
 func (c *liveStateCache) GetManagedLiveObjs(destCluster *appv1.Cluster, a *appv1.Application, targetObjs []*unstructured.Unstructured) (map[kube.ResourceKey]*unstructured.Unstructured, error) {
-	clusterInfo, err := c.getSyncedCluster(destCluster)
+	clusterInfo, err := c.getSyncedCluster(context.Background(), destCluster)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get cluster info for %q: %w", destCluster.Server, err)
 	}
@@ -716,7 +716,7 @@ func (c *liveStateCache) GetManagedLiveObjs(destCluster *appv1.Cluster, a *appv1
 }
 
 func (c *liveStateCache) GetVersionsInfo(server *appv1.Cluster) (string, []kube.APIResourceInfo, error) {
-	clusterInfo, err := c.getSyncedCluster(server)
+	clusterInfo, err := c.getSyncedCluster(context.Background(), server)
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to get cluster info for %q: %w", server.Server, err)
 	}
@@ -749,7 +749,7 @@ func (c *liveStateCache) watchSettings(ctx context.Context) {
 	for !done {
 		select {
 		case <-updateCh:
-			nextCacheSettings, err := c.loadCacheSettings()
+			nextCacheSettings, err := c.loadCacheSettings(ctx)
 			if err != nil {
 				log.Warnf("Failed to read updated settings: %v", err)
 				continue
@@ -775,7 +775,7 @@ func (c *liveStateCache) watchSettings(ctx context.Context) {
 }
 
 func (c *liveStateCache) Init() error {
-	cacheSettings, err := c.loadCacheSettings()
+	cacheSettings, err := c.loadCacheSettings(context.Background())
 	if err != nil {
 		return fmt.Errorf("error loading cache settings: %w", err)
 	}
@@ -818,7 +818,7 @@ func (c *liveStateCache) handleAddEvent(cluster *appv1.Cluster) {
 		if c.isClusterHasApps(c.appInformer.GetStore().List(), cluster) {
 			go func() {
 				// warm up cache for cluster with apps
-				_, _ = c.getSyncedCluster(cluster)
+				_, _ = c.getSyncedCluster(context.Background(), cluster)
 			}()
 		}
 	}
@@ -901,7 +901,7 @@ func (c *liveStateCache) GetClustersInfo() []clustercache.ClusterInfo {
 }
 
 func (c *liveStateCache) GetClusterCache(server *appv1.Cluster) (clustercache.ClusterCache, error) {
-	return c.getSyncedCluster(server)
+	return c.getSyncedCluster(context.Background(), server)
 }
 
 // UpdateShard will update the shard of ClusterSharding when the shard has changed.

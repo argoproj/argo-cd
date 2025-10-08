@@ -287,7 +287,7 @@ func getCertClientset() *fake.Clientset {
 
 func TestListCertificate(t *testing.T) {
 	clientset := getCertClientset()
-	db := NewDB(testNamespace, settings.NewSettingsManager(t.Context(), clientset, testNamespace), clientset)
+	db := NewDB(testNamespace, settings.NewSettingsManager(clientset, testNamespace), clientset)
 	assert.NotNil(t, db)
 
 	// List all SSH known host entries from configuration.
@@ -358,7 +358,7 @@ func TestListCertificate(t *testing.T) {
 
 func TestCreateSSHKnownHostEntries(t *testing.T) {
 	clientset := getCertClientset()
-	db := NewDB(testNamespace, settings.NewSettingsManager(t.Context(), clientset, testNamespace), clientset)
+	db := NewDB(testNamespace, settings.NewSettingsManager(clientset, testNamespace), clientset)
 	assert.NotNil(t, db)
 
 	// Valid known hosts entry
@@ -487,7 +487,7 @@ func TestCreateSSHKnownHostEntries(t *testing.T) {
 
 func TestCreateTLSCertificates(t *testing.T) {
 	clientset := getCertClientset()
-	db := NewDB(testNamespace, settings.NewSettingsManager(t.Context(), clientset, testNamespace), clientset)
+	db := NewDB(testNamespace, settings.NewSettingsManager(clientset, testNamespace), clientset)
 	assert.NotNil(t, db)
 
 	// Valid TLS certificate
@@ -671,7 +671,7 @@ func TestCreateTLSCertificates(t *testing.T) {
 
 func TestRemoveSSHKnownHosts(t *testing.T) {
 	clientset := getCertClientset()
-	db := NewDB(testNamespace, settings.NewSettingsManager(t.Context(), clientset, testNamespace), clientset)
+	db := NewDB(testNamespace, settings.NewSettingsManager(clientset, testNamespace), clientset)
 	assert.NotNil(t, db)
 
 	// Remove single SSH known hosts entry by hostname
@@ -735,7 +735,7 @@ func TestRemoveSSHKnownHosts(t *testing.T) {
 
 func TestRemoveTLSCertificates(t *testing.T) {
 	clientset := getCertClientset()
-	db := NewDB(testNamespace, settings.NewSettingsManager(t.Context(), clientset, testNamespace), clientset)
+	db := NewDB(testNamespace, settings.NewSettingsManager(clientset, testNamespace), clientset)
 	assert.NotNil(t, db)
 
 	// Remove single TLS certificate entry by hostname

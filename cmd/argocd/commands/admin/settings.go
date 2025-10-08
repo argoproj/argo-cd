@@ -125,8 +125,8 @@ func (opts *settingsOpts) createSettingsManager(ctx context.Context) (*settings.
 	setSettingsMeta(argocdSecret)
 	clientset := fake.NewClientset(argocdSecret, argocdCM)
 
-	manager := settings.NewSettingsManager(ctx, clientset, "default")
-	errors.CheckError(manager.ResyncInformers())
+	manager := settings.NewSettingsManager(clientset, "default")
+	errors.CheckError(manager.ResyncInformers(ctx))
 
 	return manager, nil
 }
@@ -197,7 +197,7 @@ func joinValidators(validators ...settingValidator) settingValidator {
 
 var validatorsByGroup = map[string]settingValidator{
 	"general": joinValidators(func(manager *settings.SettingsManager) (string, error) {
-		general, err := manager.GetSettings()
+		general, err := manager.GetSettings(context.Background())
 		if err != nil {
 			return "", err
 		}
@@ -225,17 +225,17 @@ var validatorsByGroup = map[string]settingValidator{
 		}
 		return summary, nil
 	}, func(manager *settings.SettingsManager) (string, error) {
-		_, err := manager.GetAppInstanceLabelKey()
+		_, err := manager.GetAppInstanceLabelKey(context.Background())
 		return "", err
 	}, func(manager *settings.SettingsManager) (string, error) {
-		_, err := manager.GetHelp()
+		_, err := manager.GetHelp(context.Background())
 		return "", err
 	}, func(manager *settings.SettingsManager) (string, error) {
-		_, err := manager.GetGoogleAnalytics()
+		_, err := manager.GetGoogleAnalytics(context.Background())
 		return "", err
 	}),
 	"kustomize": func(manager *settings.SettingsManager) (string, error) {
-		opts, err := manager.GetKustomizeSettings()
+		opts, err := manager.GetKustomizeSettings(context.Background())
 		if err != nil {
 			return "", err
 		}
@@ -249,14 +249,14 @@ var validatorsByGroup = map[string]settingValidator{
 		return summary, err
 	},
 	"accounts": func(manager *settings.SettingsManager) (string, error) {
-		accounts, err := manager.GetAccounts()
+		accounts, err := manager.GetAccounts(context.Background())
 		if err != nil {
 			return "", err
 		}
 		return fmt.Sprintf("%d accounts", len(accounts)), nil
 	},
 	"resource-overrides": func(manager *settings.SettingsManager) (string, error) {
-		overrides, err := manager.GetResourceOverrides()
+		overrides, err := manager.GetResourceOverrides(context.Background())
 		if err != nil {
 			return "", err
 		}
@@ -342,7 +342,7 @@ func NewResourceOverridesCommand(cmdCtx commandContext) *cobra.Command {
 	return command
 }
 
-func executeResourceOverrideCommand(ctx context.Context, cmdCtx commandContext, args []string, callback func(res unstructured.Unstructured, override v1alpha1.ResourceOverride, overrides map[string]v1alpha1.ResourceOverride)) {
+func executeResourceOverrideCommand(ctx context.Context, cmdCtx commandContext, args []string, callback func(ctx context.Context, res unstructured.Unstructured, override v1alpha1.ResourceOverride, overrides map[string]v1alpha1.ResourceOverride)) {
 	data, err := os.ReadFile(args[0])
 	errors.CheckError(err)
 
@@ -352,7 +352,7 @@ func executeResourceOverrideCommand(ctx context.Context, cmdCtx commandContext, 
 	settingsManager, err := cmdCtx.createSettingsManager(ctx)
 	errors.CheckError(err)
 
-	overrides, err := settingsManager.GetResourceOverrides()
+	overrides, err := settingsManager.GetResourceOverrides(ctx)
 	errors.CheckError(err)
 	gvk := res.GroupVersionKind()
 	key := gvk.Kind
@@ -360,10 +360,10 @@ func executeResourceOverrideCommand(ctx context.Context, cmdCtx commandContext, 
 		key = fmt.Sprintf("%s/%s", gvk.Group, gvk.Kind)
 	}
 	override := overrides[key]
-	callback(res, override, overrides)
+	callback(ctx, res, override, overrides)
 }
 
-func executeIgnoreResourceUpdatesOverrideCommand(ctx context.Context, cmdCtx commandContext, args []string, callback func(res unstructured.Unstructured, override v1alpha1.ResourceOverride, overrides map[string]v1alpha1.ResourceOverride)) {
+func executeIgnoreResourceUpdatesOverrideCommand(ctx context.Context, cmdCtx commandContext, args []string, callback func(ctx context.Context, res unstructured.Unstructured, override v1alpha1.ResourceOverride, overrides map[string]v1alpha1.ResourceOverride)) {
 	data, err := os.ReadFile(args[0])
 	errors.CheckError(err)
 
@@ -373,7 +373,7 @@ func executeIgnoreResourceUpdatesOverrideCommand(ctx context.Context, cmdCtx com
 	settingsManager, err := cmdCtx.createSettingsManager(ctx)
 	errors.CheckError(err)
 
-	overrides, err := settingsManager.GetIgnoreResourceUpdatesOverrides()
+	overrides, err := settingsManager.GetIgnoreResourceUpdatesOverrides(ctx)
 	errors.CheckError(err)
 	gvk := res.GroupVersionKind()
 	key := gvk.Kind
@@ -385,7 +385,7 @@ func executeIgnoreResourceUpdatesOverrideCommand(ctx context.Context, cmdCtx com
 		_, _ = fmt.Printf("No overrides configured for '%s/%s'\n", gvk.Group, gvk.Kind)
 		return
 	}
-	callback(res, override, overrides)
+	callback(ctx, res, override, overrides)
 }
 
 func NewResourceIgnoreDifferencesCommand(cmdCtx commandContext) *cobra.Command {
@@ -403,7 +403,7 @@ argocd admin settings resource-overrides ignore-differences ./deploy.yaml --argo
 				os.Exit(1)
 			}
 
-			executeResourceOverrideCommand(ctx, cmdCtx, args, func(res unstructured.Unstructured, override v1alpha1.ResourceOverride, overrides map[string]v1alpha1.ResourceOverride) {
+			executeResourceOverrideCommand(ctx, cmdCtx, args, func(ctx context.Context, res unstructured.Unstructured, override v1alpha1.ResourceOverride, overrides map[string]v1alpha1.ResourceOverride) {
 				gvk := res.GroupVersionKind()
 				if len(override.IgnoreDifferences.JSONPointers) == 0 && len(override.IgnoreDifferences.JQPathExpressions) == 0 {
 					_, _ = fmt.Printf("Ignore differences are not configured for '%s/%s'\n", gvk.Group, gvk.Kind)
@@ -431,7 +431,7 @@ argocd admin settings resource-overrides ignore-differences ./deploy.yaml --argo
 				}
 
 				_, _ = fmt.Printf("Following fields are ignored:\n\n")
-				_ = cli.PrintDiff(res.GetName(), &res, normalizedRes)
+				_ = cli.PrintDiff(ctx, res.GetName(), &res, normalizedRes)
 			})
 		},
 	}
@@ -454,7 +454,7 @@ argocd admin settings resource-overrides ignore-resource-updates ./deploy.yaml -
 				os.Exit(1)
 			}
 
-			executeIgnoreResourceUpdatesOverrideCommand(ctx, cmdCtx, args, func(res unstructured.Unstructured, override v1alpha1.ResourceOverride, overrides map[string]v1alpha1.ResourceOverride) {
+			executeIgnoreResourceUpdatesOverrideCommand(ctx, cmdCtx, args, func(ctx context.Context, res unstructured.Unstructured, override v1alpha1.ResourceOverride, overrides map[string]v1alpha1.ResourceOverride) {
 				gvk := res.GroupVersionKind()
 				if len(override.IgnoreResourceUpdates.JSONPointers) == 0 && len(override.IgnoreResourceUpdates.JQPathExpressions) == 0 {
 					_, _ = fmt.Printf("Ignore resource updates are not configured for '%s/%s'\n", gvk.Group, gvk.Kind)
@@ -478,7 +478,7 @@ argocd admin settings resource-overrides ignore-resource-updates ./deploy.yaml -
 				}
 
 				_, _ = fmt.Printf("Following fields are ignored:\n\n")
-				_ = cli.PrintDiff(res.GetName(), &res, normalizedRes)
+				_ = cli.PrintDiff(ctx, res.GetName(), &res, normalizedRes)
 			})
 		},
 	}
@@ -501,7 +501,7 @@ argocd admin settings resource-overrides health ./deploy.yaml --argocd-cm-path .
 				os.Exit(1)
 			}
 
-			executeResourceOverrideCommand(ctx, cmdCtx, args, func(res unstructured.Unstructured, _ v1alpha1.ResourceOverride, overrides map[string]v1alpha1.ResourceOverride) {
+			executeResourceOverrideCommand(ctx, cmdCtx, args, func(ctx context.Context, res unstructured.Unstructured, _ v1alpha1.ResourceOverride, overrides map[string]v1alpha1.ResourceOverride) {
 				gvk := res.GroupVersionKind()
 				resHealth, err := healthutil.GetResourceHealth(&res, lua.ResourceHealthOverrides(overrides))
 				switch {
@@ -534,7 +534,7 @@ argocd admin settings resource-overrides action list /tmp/deploy.yaml --argocd-c
 				os.Exit(1)
 			}
 
-			executeResourceOverrideCommand(ctx, cmdCtx, args, func(res unstructured.Unstructured, override v1alpha1.ResourceOverride, overrides map[string]v1alpha1.ResourceOverride) {
+			executeResourceOverrideCommand(ctx, cmdCtx, args, func(ctx context.Context, res unstructured.Unstructured, override v1alpha1.ResourceOverride, overrides map[string]v1alpha1.ResourceOverride) {
 				gvk := res.GroupVersionKind()
 				if override.Actions == "" {
 					_, _ = fmt.Printf("Actions are not configured for '%s/%s'\n", gvk.Group, gvk.Kind)
@@ -545,7 +545,7 @@ argocd admin settings resource-overrides action list /tmp/deploy.yaml --argocd-c
 				discoveryScript, err := luaVM.GetResourceActionDiscovery(&res)
 				errors.CheckError(err)
 
-				availableActions, err := luaVM.ExecuteResourceActionDiscovery(&res, discoveryScript)
+				availableActions, err := luaVM.ExecuteResourceActionDiscovery(ctx, &res, discoveryScript)
 				errors.CheckError(err)
 				sort.Slice(availableActions, func(i, j int) bool {
 					return availableActions[i].Name < availableActions[j].Name
@@ -599,7 +599,7 @@ argocd admin settings resource-overrides action /tmp/deploy.yaml restart --argoc
 				}
 			}
 
-			executeResourceOverrideCommand(ctx, cmdCtx, args, func(res unstructured.Unstructured, override v1alpha1.ResourceOverride, overrides map[string]v1alpha1.ResourceOverride) {
+			executeResourceOverrideCommand(ctx, cmdCtx, args, func(ctx context.Context, res unstructured.Unstructured, override v1alpha1.ResourceOverride, overrides map[string]v1alpha1.ResourceOverride) {
 				gvk := res.GroupVersionKind()
 				if override.Actions == "" {
 					_, _ = fmt.Printf("Actions are not configured for '%s/%s'\n", gvk.Group, gvk.Kind)
@@ -610,7 +610,7 @@ argocd admin settings resource-overrides action /tmp/deploy.yaml restart --argoc
 				action, err := luaVM.GetResourceAction(&res, action)
 				errors.CheckError(err)
 
-				modifiedRes, err := luaVM.ExecuteResourceAction(&res, action.ActionLua, parsedParams)
+				modifiedRes, err := luaVM.ExecuteResourceAction(ctx, &res, action.ActionLua, parsedParams)
 				errors.CheckError(err)
 
 				for _, impactedResource := range modifiedRes {
@@ -624,7 +624,7 @@ argocd admin settings resource-overrides action /tmp/deploy.yaml restart --argoc
 						}
 
 						_, _ = fmt.Printf("Following fields have been changed:\n\n")
-						_ = cli.PrintDiff(res.GetName(), &res, result)
+						_ = cli.PrintDiff(ctx, res.GetName(), &res, result)
 					case lua.CreateOperation:
 						yamlBytes, err := yaml.Marshal(impactedResource.UnstructuredObj)
 						errors.CheckError(err)

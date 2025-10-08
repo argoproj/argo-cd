@@ -55,12 +55,13 @@ type forwardCacheClient struct {
 
 func (c *forwardCacheClient) doLazy(action func(client cache.CacheClient) error) error {
 	c.init.Do(func() {
+		ctx := context.Background()
 		overrides := clientcmd.ConfigOverrides{
 			CurrentContext: c.context,
 		}
 		redisHaProxyPodLabelSelector := common.LabelKeyAppName + "=" + c.redisHaProxyName
 		redisPodLabelSelector := common.LabelKeyAppName + "=" + c.redisName
-		redisPort, err := kubeutil.PortForward(6379, c.namespace, &overrides,
+		redisPort, err := kubeutil.PortForward(ctx, 6379, c.namespace, &overrides,
 			redisHaProxyPodLabelSelector, redisPodLabelSelector)
 		if err != nil {
 			c.err = err
@@ -124,12 +125,13 @@ type forwardRepoClientset struct {
 
 func (c *forwardRepoClientset) NewRepoServerClient() (utilio.Closer, repoapiclient.RepoServerServiceClient, error) {
 	c.init.Do(func() {
+		ctx := context.Background()
 		overrides := clientcmd.ConfigOverrides{
 			CurrentContext: c.context,
 		}
 		repoServerName := c.repoServerName
 		repoServererviceLabelSelector := common.LabelKeyComponentRepoServer + "=" + common.LabelValueComponentRepoServer
-		repoServerServices, err := c.kubeClientset.CoreV1().Services(c.namespace).List(context.Background(), metav1.ListOptions{LabelSelector: repoServererviceLabelSelector})
+		repoServerServices, err := c.kubeClientset.CoreV1().Services(c.namespace).List(ctx, metav1.ListOptions{LabelSelector: repoServererviceLabelSelector})
 		if err != nil {
 			c.err = err
 			return
@@ -140,7 +142,7 @@ func (c *forwardRepoClientset) NewRepoServerClient() (utilio.Closer, repoapiclie
 			}
 		}
 		repoServerPodLabelSelector := common.LabelKeyAppName + "=" + repoServerName
-		repoServerPort, err := kubeutil.PortForward(8081, c.namespace, &overrides, repoServerPodLabelSelector)
+		repoServerPort, err := kubeutil.PortForward(ctx, 8081, c.namespace, &overrides, repoServerPodLabelSelector)
 		if err != nil {
 			c.err = err
 			return
@@ -156,11 +158,11 @@ func (c *forwardRepoClientset) NewRepoServerClient() (utilio.Closer, repoapiclie
 }
 
 func testAPI(ctx context.Context, clientOpts *apiclient.ClientOptions) error {
-	apiClient, err := apiclient.NewClient(clientOpts)
+	apiClient, err := apiclient.NewClient(ctx, clientOpts)
 	if err != nil {
 		return fmt.Errorf("failed to create API client: %w", err)
 	}
-	closer, versionClient, err := apiClient.NewVersionClient()
+	closer, versionClient, err := apiClient.NewVersionClient(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to create version client: %w", err)
 	}
@@ -290,7 +292,7 @@ func MaybeStartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOpti
 	}, server.ApplicationSetOpts{})
 	srv.Init(ctx)
 
-	lns, err := srv.Listen()
+	lns, err := srv.Listen(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to listen: %w", err)
 	}
@@ -316,9 +318,7 @@ func MaybeStartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOpti
 }
 
 // NewClientOrDie creates a new API client from a set of config options, or fails fatally if the new client creation fails.
-func NewClientOrDie(opts *apiclient.ClientOptions, c *cobra.Command) apiclient.Client {
-	ctx := c.Context()
-
+func NewClientOrDie(ctx context.Context, opts *apiclient.ClientOptions, c *cobra.Command) apiclient.Client {
 	ctxStr := initialize.RetrieveContextIfChanged(c.Flag("context"))
 	// If we're in core mode, start the API server on the fly and configure the client `opts` to use it.
 	// If we're not in core mode, this function call will do nothing.
@@ -326,7 +326,7 @@ func NewClientOrDie(opts *apiclient.ClientOptions, c *cobra.Command) apiclient.C
 	if err != nil {
 		log.Fatal(err)
 	}
-	client, err := apiclient.NewClient(opts)
+	client, err := apiclient.NewClient(ctx, opts)
 	if err != nil {
 		log.Fatal(err)
 	}

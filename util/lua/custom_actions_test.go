@@ -138,13 +138,14 @@ func TestLuaResourceActionsScript(t *testing.T) {
 			test := resourceTest.DiscoveryTests[i]
 			testName := "discovery/" + test.InputPath
 			t.Run(testName, func(t *testing.T) {
+				ctx := t.Context()
 				vm := VM{
 					UseOpenLibs: true,
 				}
 				obj := getObj(t, filepath.Join(dir, test.InputPath))
 				discoveryLua, err := vm.GetResourceActionDiscovery(obj)
 				require.NoError(t, err)
-				result, err := vm.ExecuteResourceActionDiscovery(obj, discoveryLua)
+				result, err := vm.ExecuteResourceActionDiscovery(ctx, obj, discoveryLua)
 				require.NoError(t, err)
 				for i := range result {
 					assert.Contains(t, test.Result, result[i])
@@ -156,6 +157,7 @@ func TestLuaResourceActionsScript(t *testing.T) {
 			testName := fmt.Sprintf("actions/%s/%s", test.Action, test.InputPath)
 
 			t.Run(testName, func(t *testing.T) {
+				ctx := t.Context()
 				vm := VM{
 					// Uncomment the following line if you need to use lua libraries debugging
 					// purposes. Otherwise, leave this false to ensure tests reflect the same
@@ -187,7 +189,7 @@ func TestLuaResourceActionsScript(t *testing.T) {
 				}
 
 				require.NoError(t, err)
-				impactedResources, err := vm.ExecuteResourceAction(sourceObj, action.ActionLua, params)
+				impactedResources, err := vm.ExecuteResourceAction(ctx, sourceObj, action.ActionLua, params)
 
 				// Handle expected errors
 				if test.ExpectedErrorMessage != "" {
@@ -237,7 +239,7 @@ func TestLuaResourceActionsScript(t *testing.T) {
 					require.NoError(t, err)
 					if diffResult.Modified {
 						t.Error("Output does not match input:")
-						err = cli.PrintDiff(test.Action, expectedObj, result)
+						err = cli.PrintDiff(ctx, test.Action, expectedObj, result)
 						require.NoError(t, err)
 					}
 				}

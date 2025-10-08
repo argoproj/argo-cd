@@ -79,14 +79,14 @@ func (a *Actions) SwitchToArgoCDNamespace() *Actions {
 
 // CreateClusterSecret creates a faux cluster secret, with the given cluster server and cluster name (this cluster
 // will not actually be used by the Argo CD controller, but that's not needed for our E2E tests)
-func (a *Actions) CreateClusterSecret(secretName string, clusterName string, clusterServer string) *Actions {
+func (a *Actions) CreateClusterSecret(ctx context.Context, secretName string, clusterName string, clusterServer string) *Actions {
 	a.context.t.Helper()
 	fixtureClient := utils.GetE2EFixtureK8sClient(a.context.t)
 
 	var serviceAccountName string
 
 	// Look for a service account matching '*application-controller*'
-	err := wait.PollUntilContextTimeout(context.Background(), 500*time.Millisecond, 30*time.Second, false, func(ctx context.Context) (bool, error) {
+	err := wait.PollUntilContextTimeout(ctx, 500*time.Millisecond, 30*time.Second, false, func(ctx context.Context) (bool, error) {
 		serviceAccountList, err := fixtureClient.KubeClientset.CoreV1().ServiceAccounts(fixture.TestNamespace()).List(ctx, metav1.ListOptions{})
 		if err != nil {
 			fmt.Println("Unable to retrieve ServiceAccount list", err)
@@ -114,7 +114,7 @@ func (a *Actions) CreateClusterSecret(secretName string, clusterName string, clu
 
 	if err == nil {
 		var bearerToken string
-		bearerToken, err = clusterauth.GetServiceAccountBearerToken(fixtureClient.KubeClientset, fixture.TestNamespace(), serviceAccountName, common.BearerTokenTimeout)
+		bearerToken, err = clusterauth.GetServiceAccountBearerToken(ctx, fixtureClient.KubeClientset, fixture.TestNamespace(), serviceAccountName, common.BearerTokenTimeout)
 
 		// bearerToken
 		secret := &corev1.Secret{

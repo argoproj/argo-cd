@@ -106,7 +106,8 @@ func NewGenAppSpecCommand() *cobra.Command {
 	argocd admin app generate-spec kasane --repo https://github.com/argoproj/argocd-example-apps.git --path plugins/kasane --dest-namespace default --dest-server https://kubernetes.default.svc --config-management-plugin kasane
 `,
 		Run: func(c *cobra.Command, args []string) {
-			apps, err := cmdutil.ConstructApps(fileURL, appName, labels, annotations, args, appOpts, c.Flags())
+			ctx := c.Context()
+			apps, err := cmdutil.ConstructApps(ctx, fileURL, appName, labels, annotations, args, appOpts, c.Flags())
 			errors.CheckError(err)
 			if len(apps) > 1 {
 				errors.CheckError(stderrors.New("failed to generate spec, more than one application is not supported"))
@@ -181,7 +182,7 @@ func NewDiffReconcileResults() *cobra.Command {
 			var res2 reconcileResults
 			errors.CheckError(config.UnmarshalLocalFile(path1, &res1))
 			errors.CheckError(config.UnmarshalLocalFile(path2, &res2))
-			errors.CheckError(diffReconcileResults(res1, res2))
+			errors.CheckError(diffReconcileResults(c.Context(), res1, res2))
 		},
 	}
 
@@ -207,7 +208,7 @@ type diffPair struct {
 	second *unstructured.Unstructured
 }
 
-func diffReconcileResults(res1 reconcileResults, res2 reconcileResults) error {
+func diffReconcileResults(ctx context.Context, res1 reconcileResults, res2 reconcileResults) error {
 	var pairs []diffPair
 	resMap1 := res1.getAppsMap()
 	resMap2 := res2.getAppsMap()
@@ -239,7 +240,7 @@ func diffReconcileResults(res1 reconcileResults, res2 reconcileResults) error {
 	})
 	for _, item := range pairs {
 		printLine(item.name)
-		_ = cli.PrintDiff(item.name, item.first, item.second)
+		_ = cli.PrintDiff(ctx, item.name, item.first, item.second)
 	}
 
 	return nil
@@ -286,7 +287,7 @@ func NewReconcileCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command 
 					overrides := clientcmd.ConfigOverrides{}
 					repoServerName := clientOpts.RepoServerName
 					repoServerServiceLabelSelector := common.LabelKeyComponentRepoServer + "=" + common.LabelValueComponentRepoServer
-					repoServerServices, err := kubeClientset.CoreV1().Services(namespace).List(context.Background(), metav1.ListOptions{LabelSelector: repoServerServiceLabelSelector})
+					repoServerServices, err := kubeClientset.CoreV1().Services(namespace).List(ctx, metav1.ListOptions{LabelSelector: repoServerServiceLabelSelector})
 					errors.CheckError(err)
 					if len(repoServerServices.Items) > 0 {
 						if repoServerServicelabel, ok := repoServerServices.Items[0].Labels[common.LabelKeyAppName]; ok && repoServerServicelabel != "" {
@@ -294,7 +295,7 @@ func NewReconcileCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command 
 						}
 					}
 					repoServerPodLabelSelector := common.LabelKeyAppName + "=" + repoServerName
-					repoServerPort, err := kubeutil.PortForward(8081, namespace, &overrides, repoServerPodLabelSelector)
+					repoServerPort, err := kubeutil.PortForward(ctx, 8081, namespace, &overrides, repoServerPodLabelSelector)
 					errors.CheckError(err)
 					repoServerAddress = fmt.Sprintf("localhost:%d", repoServerPort)
 				}
@@ -367,7 +368,7 @@ func reconcileApplications(
 	serverSideDiff bool,
 	ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts,
 ) ([]appReconcileResult, error) {
-	settingsMgr := settings.NewSettingsManager(ctx, kubeClientset, namespace)
+	settingsMgr := settings.NewSettingsManager(kubeClientset, namespace)
 	argoDB := db.NewDB(namespace, settingsMgr, kubeClientset)
 	appInformerFactory := appinformers.NewSharedInformerFactoryWithOptions(
 		appClientset,
@@ -410,7 +411,7 @@ func reconcileApplications(
 		repoServerClient,
 		namespace,
 		kubeutil.NewKubectl(),
-		func(_ string) (kube.CleanupFunc, error) {
+		func(context.Context, string) (kube.CleanupFunc, error) {
 			return func() {}, nil
 		},
 		settingsMgr,
@@ -463,7 +464,7 @@ func reconcileApplications(
 		sources = append(sources, app.Spec.GetSource())
 		revisions = append(revisions, app.Spec.GetSource().TargetRevision)
 
-		res, err := appStateManager.CompareAppState(&app, proj, revisions, sources, false, false, nil, false)
+		res, err := appStateManager.CompareAppState(ctx, &app, proj, revisions, sources, false, false, nil, false)
 		if err != nil {
 			return nil, fmt.Errorf("error comparing app states: %w", err)
 		}
@@ -478,5 +479,5 @@ func reconcileApplications(
 }
 
 func newLiveStateCache(argoDB db.ArgoDB, appInformer kubecache.SharedIndexInformer, settingsMgr *settings.SettingsManager, server *metrics.MetricsServer) cache.LiveStateCache {
-	return cache.NewLiveStateCache(argoDB, appInformer, settingsMgr, server, func(_ map[string]bool, _ corev1.ObjectReference) {}, &sharding.ClusterSharding{}, argo.NewResourceTracking())
+	return cache.NewLiveStateCache(argoDB, appInformer, settingsMgr, server, func(context.Context, map[string]bool, corev1.ObjectReference) {}, &sharding.ClusterSharding{}, argo.NewResourceTracking())
 }

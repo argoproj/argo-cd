@@ -30,7 +30,7 @@ func TestCreateAndUseAccount(t *testing.T) {
 			assert.Equal(t, []string{"login"}, account.Capabilities)
 		}).
 		When().
-		Login().
+		Login(t.Context()).
 		Then().
 		CurrentUser(func(user *session.GetUserInfoResponse, _ error) {
 			assert.True(t, user.LoggedIn)
@@ -45,7 +45,7 @@ func TestCanIGetLogsAllow(t *testing.T) {
 		Project(ProjectName).
 		When().
 		Create().
-		Login().
+		Login(t.Context()).
 		SetPermissions([]ACL{
 			{
 				Resource: "logs",
@@ -71,7 +71,7 @@ func TestCanIGetLogsDeny(t *testing.T) {
 		Name("test").
 		When().
 		Create().
-		Login().
+		Login(t.Context()).
 		CanIGetLogs().
 		Then().
 		AndCLIOutput(func(output string, _ error) {
@@ -81,6 +81,7 @@ func TestCanIGetLogsDeny(t *testing.T) {
 
 func TestCreateAndUseAccountCLI(t *testing.T) {
 	EnsureCleanState(t)
+	ctx := t.Context()
 
 	output, err := RunCli("account", "list")
 	errors.CheckError(err)
@@ -104,9 +105,9 @@ test   true     login, apiKey`, output)
 
 	clientOpts := ArgoCDClientset.ClientOptions()
 	clientOpts.AuthToken = token
-	testAccountClientset := headless.NewClientOrDie(&clientOpts, &cobra.Command{})
+	testAccountClientset := headless.NewClientOrDie(ctx, &clientOpts, &cobra.Command{})
 
-	closer, client := testAccountClientset.NewSessionClientOrDie()
+	closer, client := testAccountClientset.NewSessionClientOrDie(ctx)
 	defer utilio.Close(closer)
 
 	info, err := client.GetUserInfo(t.Context(), &session.GetUserInfoRequest{})
@@ -117,8 +118,9 @@ test   true     login, apiKey`, output)
 
 func TestLoginBadCredentials(t *testing.T) {
 	EnsureCleanState(t)
+	ctx := t.Context()
 
-	closer, sessionClient := ArgoCDClientset.NewSessionClientOrDie()
+	closer, sessionClient := ArgoCDClientset.NewSessionClientOrDie(ctx)
 	defer utilio.Close(closer)
 
 	requests := []session.SessionCreateRequest{{

@@ -82,8 +82,8 @@ func (_c *Dependencies_AddHydrationQueueItem_Call) RunAndReturn(run func(key typ
 }
 
 // GetHydratorCommitMessageTemplate provides a mock function for the type Dependencies
-func (_mock *Dependencies) GetHydratorCommitMessageTemplate() (string, error) {
-	ret := _mock.Called()
+func (_mock *Dependencies) GetHydratorCommitMessageTemplate(ctx context.Context) (string, error) {
+	ret := _mock.Called(ctx)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetHydratorCommitMessageTemplate")
@@ -91,16 +91,16 @@ func (_mock *Dependencies) GetHydratorCommitMessageTemplate() (string, error) {
 
 	var r0 string
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func() (string, error)); ok {
-		return returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (string, error)); ok {
+		return returnFunc(ctx)
 	}
-	if returnFunc, ok := ret.Get(0).(func() string); ok {
-		r0 = returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) string); ok {
+		r0 = returnFunc(ctx)
 	} else {
 		r0 = ret.Get(0).(string)
 	}
-	if returnFunc, ok := ret.Get(1).(func() error); ok {
-		r1 = returnFunc()
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -113,13 +113,20 @@ type Dependencies_GetHydratorCommitMessageTemplate_Call struct {
 }
 
 // GetHydratorCommitMessageTemplate is a helper method to define mock.On call
-func (_e *Dependencies_Expecter) GetHydratorCommitMessageTemplate() *Dependencies_GetHydratorCommitMessageTemplate_Call {
-	return &Dependencies_GetHydratorCommitMessageTemplate_Call{Call: _e.mock.On("GetHydratorCommitMessageTemplate")}
+//   - ctx context.Context
+func (_e *Dependencies_Expecter) GetHydratorCommitMessageTemplate(ctx interface{}) *Dependencies_GetHydratorCommitMessageTemplate_Call {
+	return &Dependencies_GetHydratorCommitMessageTemplate_Call{Call: _e.mock.On("GetHydratorCommitMessageTemplate", ctx)}
 }
 
-func (_c *Dependencies_GetHydratorCommitMessageTemplate_Call) Run(run func()) *Dependencies_GetHydratorCommitMessageTemplate_Call {
+func (_c *Dependencies_GetHydratorCommitMessageTemplate_Call) Run(run func(ctx context.Context)) *Dependencies_GetHydratorCommitMessageTemplate_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run()
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
 	})
 	return _c
 }
@@ -129,14 +136,14 @@ func (_c *Dependencies_GetHydratorCommitMessageTemplate_Call) Return(s string, e
 	return _c
 }
 
-func (_c *Dependencies_GetHydratorCommitMessageTemplate_Call) RunAndReturn(run func() (string, error)) *Dependencies_GetHydratorCommitMessageTemplate_Call {
+func (_c *Dependencies_GetHydratorCommitMessageTemplate_Call) RunAndReturn(run func(ctx context.Context) (string, error)) *Dependencies_GetHydratorCommitMessageTemplate_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetProcessableAppProj provides a mock function for the type Dependencies
-func (_mock *Dependencies) GetProcessableAppProj(app *v1alpha1.Application) (*v1alpha1.AppProject, error) {
-	ret := _mock.Called(app)
+func (_mock *Dependencies) GetProcessableAppProj(ctx context.Context, app *v1alpha1.Application) (*v1alpha1.AppProject, error) {
+	ret := _mock.Called(ctx, app)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetProcessableAppProj")
@@ -144,18 +151,18 @@ func (_mock *Dependencies) GetProcessableAppProj(app *v1alpha1.Application) (*v1
 
 	var r0 *v1alpha1.AppProject
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(*v1alpha1.Application) (*v1alpha1.AppProject, error)); ok {
-		return returnFunc(app)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *v1alpha1.Application) (*v1alpha1.AppProject, error)); ok {
+		return returnFunc(ctx, app)
 	}
-	if returnFunc, ok := ret.Get(0).(func(*v1alpha1.Application) *v1alpha1.AppProject); ok {
-		r0 = returnFunc(app)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *v1alpha1.Application) *v1alpha1.AppProject); ok {
+		r0 = returnFunc(ctx, app)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*v1alpha1.AppProject)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(*v1alpha1.Application) error); ok {
-		r1 = returnFunc(app)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, *v1alpha1.Application) error); ok {
+		r1 = returnFunc(ctx, app)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -168,19 +175,25 @@ type Dependencies_GetProcessableAppProj_Call struct {
 }
 
 // GetProcessableAppProj is a helper method to define mock.On call
+//   - ctx context.Context
 //   - app *v1alpha1.Application
-func (_e *Dependencies_Expecter) GetProcessableAppProj(app interface{}) *Dependencies_GetProcessableAppProj_Call {
-	return &Dependencies_GetProcessableAppProj_Call{Call: _e.mock.On("GetProcessableAppProj", app)}
+func (_e *Dependencies_Expecter) GetProcessableAppProj(ctx interface{}, app interface{}) *Dependencies_GetProcessableAppProj_Call {
+	return &Dependencies_GetProcessableAppProj_Call{Call: _e.mock.On("GetProcessableAppProj", ctx, app)}
 }
 
-func (_c *Dependencies_GetProcessableAppProj_Call) Run(run func(app *v1alpha1.Application)) *Dependencies_GetProcessableAppProj_Call {
+func (_c *Dependencies_GetProcessableAppProj_Call) Run(run func(ctx context.Context, app *v1alpha1.Application)) *Dependencies_GetProcessableAppProj_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 *v1alpha1.Application
+		var arg0 context.Context
 		if args[0] != nil {
-			arg0 = args[0].(*v1alpha1.Application)
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 *v1alpha1.Application
+		if args[1] != nil {
+			arg1 = args[1].(*v1alpha1.Application)
 		}
 		run(
 			arg0,
+			arg1,
 		)
 	})
 	return _c
@@ -191,14 +204,14 @@ func (_c *Dependencies_GetProcessableAppProj_Call) Return(appProject *v1alpha1.A
 	return _c
 }
 
-func (_c *Dependencies_GetProcessableAppProj_Call) RunAndReturn(run func(app *v1alpha1.Application) (*v1alpha1.AppProject, error)) *Dependencies_GetProcessableAppProj_Call {
+func (_c *Dependencies_GetProcessableAppProj_Call) RunAndReturn(run func(ctx context.Context, app *v1alpha1.Application) (*v1alpha1.AppProject, error)) *Dependencies_GetProcessableAppProj_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetProcessableApps provides a mock function for the type Dependencies
-func (_mock *Dependencies) GetProcessableApps() (*v1alpha1.ApplicationList, error) {
-	ret := _mock.Called()
+func (_mock *Dependencies) GetProcessableApps(ctx context.Context) (*v1alpha1.ApplicationList, error) {
+	ret := _mock.Called(ctx)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetProcessableApps")
@@ -206,18 +219,18 @@ func (_mock *Dependencies) GetProcessableApps() (*v1alpha1.ApplicationList, erro
 
 	var r0 *v1alpha1.ApplicationList
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func() (*v1alpha1.ApplicationList, error)); ok {
-		return returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (*v1alpha1.ApplicationList, error)); ok {
+		return returnFunc(ctx)
 	}
-	if returnFunc, ok := ret.Get(0).(func() *v1alpha1.ApplicationList); ok {
-		r0 = returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) *v1alpha1.ApplicationList); ok {
+		r0 = returnFunc(ctx)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*v1alpha1.ApplicationList)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func() error); ok {
-		r1 = returnFunc()
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -230,13 +243,18 @@ type Dependencies_GetProcessableApps_Call struct {
 }
 
 // GetProcessableApps is a helper method to define mock.On call
-func (_e *Dependencies_Expecter) GetProcessableApps() *Dependencies_GetProcessableApps_Call {
-	return &Dependencies_GetProcessableApps_Call{Call: _e.mock.On("GetProcessableApps")}
+//   - ctx context.Context
+func (_e *Dependencies_Expecter) GetProcessableApps(ctx interface{}) *Dependencies_GetProcessableApps_Call {
+	return &Dependencies_GetProcessableApps_Call{Call: _e.mock.On("GetProcessableApps", ctx)}
 }
 
-func (_c *Dependencies_GetProcessableApps_Call) Run(run func()) *Dependencies_GetProcessableApps_Call {
+func (_c *Dependencies_GetProcessableApps_Call) Run(run func(ctx context.Context)) *Dependencies_GetProcessableApps_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run()
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(arg0)
 	})
 	return _c
 }
@@ -246,7 +264,7 @@ func (_c *Dependencies_GetProcessableApps_Call) Return(applicationList *v1alpha1
 	return _c
 }
 
-func (_c *Dependencies_GetProcessableApps_Call) RunAndReturn(run func() (*v1alpha1.ApplicationList, error)) *Dependencies_GetProcessableApps_Call {
+func (_c *Dependencies_GetProcessableApps_Call) RunAndReturn(run func(ctx context.Context) []*v1alpha1.Application) *Dependencies_GetProcessableApps_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -420,8 +438,8 @@ func (_c *Dependencies_GetWriteCredentials_Call) RunAndReturn(run func(ctx conte
 }
 
 // PersistAppHydratorStatus provides a mock function for the type Dependencies
-func (_mock *Dependencies) PersistAppHydratorStatus(orig *v1alpha1.Application, newStatus *v1alpha1.SourceHydratorStatus) {
-	_mock.Called(orig, newStatus)
+func (_mock *Dependencies) PersistAppHydratorStatus(ctx context.Context, orig *v1alpha1.Application, newStatus *v1alpha1.SourceHydratorStatus) {
+	_mock.Called(ctx, orig, newStatus)
 	return
 }
 
@@ -431,25 +449,31 @@ type Dependencies_PersistAppHydratorStatus_Call struct {
 }
 
 // PersistAppHydratorStatus is a helper method to define mock.On call
+//   - ctx context.Context
 //   - orig *v1alpha1.Application
 //   - newStatus *v1alpha1.SourceHydratorStatus
-func (_e *Dependencies_Expecter) PersistAppHydratorStatus(orig interface{}, newStatus interface{}) *Dependencies_PersistAppHydratorStatus_Call {
-	return &Dependencies_PersistAppHydratorStatus_Call{Call: _e.mock.On("PersistAppHydratorStatus", orig, newStatus)}
+func (_e *Dependencies_Expecter) PersistAppHydratorStatus(ctx interface{}, orig interface{}, newStatus interface{}) *Dependencies_PersistAppHydratorStatus_Call {
+	return &Dependencies_PersistAppHydratorStatus_Call{Call: _e.mock.On("PersistAppHydratorStatus", ctx, orig, newStatus)}
 }
 
-func (_c *Dependencies_PersistAppHydratorStatus_Call) Run(run func(orig *v1alpha1.Application, newStatus *v1alpha1.SourceHydratorStatus)) *Dependencies_PersistAppHydratorStatus_Call {
+func (_c *Dependencies_PersistAppHydratorStatus_Call) Run(run func(ctx context.Context, orig *v1alpha1.Application, newStatus *v1alpha1.SourceHydratorStatus)) *Dependencies_PersistAppHydratorStatus_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 *v1alpha1.Application
+		var arg0 context.Context
 		if args[0] != nil {
-			arg0 = args[0].(*v1alpha1.Application)
+			arg0 = args[0].(context.Context)
 		}
-		var arg1 *v1alpha1.SourceHydratorStatus
+		var arg1 *v1alpha1.Application
 		if args[1] != nil {
-			arg1 = args[1].(*v1alpha1.SourceHydratorStatus)
+			arg1 = args[1].(*v1alpha1.Application)
+		}
+		var arg2 *v1alpha1.SourceHydratorStatus
+		if args[2] != nil {
+			arg2 = args[2].(*v1alpha1.SourceHydratorStatus)
 		}
 		run(
 			arg0,
 			arg1,
+			arg2,
 		)
 	})
 	return _c
@@ -460,22 +484,22 @@ func (_c *Dependencies_PersistAppHydratorStatus_Call) Return() *Dependencies_Per
 	return _c
 }
 
-func (_c *Dependencies_PersistAppHydratorStatus_Call) RunAndReturn(run func(orig *v1alpha1.Application, newStatus *v1alpha1.SourceHydratorStatus)) *Dependencies_PersistAppHydratorStatus_Call {
+func (_c *Dependencies_PersistAppHydratorStatus_Call) RunAndReturn(run func(ctx context.Context, orig *v1alpha1.Application, newStatus *v1alpha1.SourceHydratorStatus)) *Dependencies_PersistAppHydratorStatus_Call {
 	_c.Run(run)
 	return _c
 }
 
 // RequestAppRefresh provides a mock function for the type Dependencies
-func (_mock *Dependencies) RequestAppRefresh(appName string, appNamespace string) error {
-	ret := _mock.Called(appName, appNamespace)
+func (_mock *Dependencies) RequestAppRefresh(ctx context.Context, appName string, appNamespace string) error {
+	ret := _mock.Called(ctx, appName, appNamespace)
 
 	if len(ret) == 0 {
 		panic("no return value specified for RequestAppRefresh")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(string, string) error); ok {
-		r0 = returnFunc(appName, appNamespace)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) error); ok {
+		r0 = returnFunc(ctx, appName, appNamespace)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -488,25 +512,31 @@ type Dependencies_RequestAppRefresh_Call struct {
 }
 
 // RequestAppRefresh is a helper method to define mock.On call
+//   - ctx context.Context
 //   - appName string
 //   - appNamespace string
-func (_e *Dependencies_Expecter) RequestAppRefresh(appName interface{}, appNamespace interface{}) *Dependencies_RequestAppRefresh_Call {
-	return &Dependencies_RequestAppRefresh_Call{Call: _e.mock.On("RequestAppRefresh", appName, appNamespace)}
+func (_e *Dependencies_Expecter) RequestAppRefresh(ctx interface{}, appName interface{}, appNamespace interface{}) *Dependencies_RequestAppRefresh_Call {
+	return &Dependencies_RequestAppRefresh_Call{Call: _e.mock.On("RequestAppRefresh", ctx, appName, appNamespace)}
 }
 
-func (_c *Dependencies_RequestAppRefresh_Call) Run(run func(appName string, appNamespace string)) *Dependencies_RequestAppRefresh_Call {
+func (_c *Dependencies_RequestAppRefresh_Call) Run(run func(ctx context.Context, appName string, appNamespace string)) *Dependencies_RequestAppRefresh_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 string
+		var arg0 context.Context
 		if args[0] != nil {
-			arg0 = args[0].(string)
+			arg0 = args[0].(context.Context)
 		}
 		var arg1 string
 		if args[1] != nil {
 			arg1 = args[1].(string)
 		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
 		run(
 			arg0,
 			arg1,
+			arg2,
 		)
 	})
 	return _c
@@ -517,7 +547,7 @@ func (_c *Dependencies_RequestAppRefresh_Call) Return(err error) *Dependencies_R
 	return _c
 }
 
-func (_c *Dependencies_RequestAppRefresh_Call) RunAndReturn(run func(appName string, appNamespace string) error) *Dependencies_RequestAppRefresh_Call {
+func (_c *Dependencies_RequestAppRefresh_Call) RunAndReturn(run func(ctx context.Context, appName string, appNamespace string) error) *Dependencies_RequestAppRefresh_Call {
 	_c.Call.Return(run)
 	return _c
 }

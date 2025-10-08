@@ -60,8 +60,8 @@ func Unmarshal(data []byte, obj any) error {
 
 // UnmarshalRemoteFile retrieves JSON or YAML through a GET request.
 // The caller is responsible for checking error return values.
-func UnmarshalRemoteFile(url string, obj any) error {
-	data, err := ReadRemoteFile(url)
+func UnmarshalRemoteFile(ctx context.Context, url string, obj any) error {
+	data, err := ReadRemoteFile(ctx, url)
 	if err == nil {
 		err = unmarshalObject(data, obj)
 	}
@@ -70,9 +70,9 @@ func UnmarshalRemoteFile(url string, obj any) error {
 
 // ReadRemoteFile issues a GET request to retrieve the contents of the specified URL as a byte array.
 // The caller is responsible for checking error return values.
-func ReadRemoteFile(url string) ([]byte, error) {
+func ReadRemoteFile(ctx context.Context, url string) ([]byte, error) {
 	var data []byte
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, http.NoBody)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
 	if err != nil {
 		return data, err
 	}

@@ -5,6 +5,8 @@
 package mocks
 
 import (
+	"context"
+
 	"github.com/argoproj/argo-cd/v3/util/git"
 	mock "github.com/stretchr/testify/mock"
 )
@@ -748,8 +750,8 @@ func (_c *Client_LsLargeFiles_Call) RunAndReturn(run func() ([]string, error)) *
 }
 
 // LsRefs provides a mock function for the type Client
-func (_mock *Client) LsRefs() (*git.Refs, error) {
-	ret := _mock.Called()
+func (_mock *Client) LsRefs(ctx context.Context) (*git.Refs, error) {
+	ret := _mock.Called(ctx)
 
 	if len(ret) == 0 {
 		panic("no return value specified for LsRefs")
@@ -757,18 +759,18 @@ func (_mock *Client) LsRefs() (*git.Refs, error) {
 
 	var r0 *git.Refs
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func() (*git.Refs, error)); ok {
-		return returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (*git.Refs, error)); ok {
+		return returnFunc(ctx)
 	}
-	if returnFunc, ok := ret.Get(0).(func() *git.Refs); ok {
-		r0 = returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) *git.Refs); ok {
+		r0 = returnFunc(ctx)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*git.Refs)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func() error); ok {
-		r1 = returnFunc()
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -781,13 +783,20 @@ type Client_LsRefs_Call struct {
 }
 
 // LsRefs is a helper method to define mock.On call
-func (_e *Client_Expecter) LsRefs() *Client_LsRefs_Call {
-	return &Client_LsRefs_Call{Call: _e.mock.On("LsRefs")}
+//   - ctx context.Context
+func (_e *Client_Expecter) LsRefs(ctx interface{}) *Client_LsRefs_Call {
+	return &Client_LsRefs_Call{Call: _e.mock.On("LsRefs", ctx)}
 }
 
-func (_c *Client_LsRefs_Call) Run(run func()) *Client_LsRefs_Call {
+func (_c *Client_LsRefs_Call) Run(run func(ctx context.Context)) *Client_LsRefs_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run()
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
 	})
 	return _c
 }
@@ -797,14 +806,14 @@ func (_c *Client_LsRefs_Call) Return(refs *git.Refs, err error) *Client_LsRefs_C
 	return _c
 }
 
-func (_c *Client_LsRefs_Call) RunAndReturn(run func() (*git.Refs, error)) *Client_LsRefs_Call {
+func (_c *Client_LsRefs_Call) RunAndReturn(run func(ctx context.Context) (*git.Refs, error)) *Client_LsRefs_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // LsRemote provides a mock function for the type Client
-func (_mock *Client) LsRemote(revision string) (string, error) {
-	ret := _mock.Called(revision)
+func (_mock *Client) LsRemote(ctx context.Context, revision string) (string, error) {
+	ret := _mock.Called(ctx, revision)
 
 	if len(ret) == 0 {
 		panic("no return value specified for LsRemote")
@@ -812,16 +821,16 @@ func (_mock *Client) LsRemote(revision string) (string, error) {
 
 	var r0 string
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(string) (string, error)); ok {
-		return returnFunc(revision)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) (string, error)); ok {
+		return returnFunc(ctx, revision)
 	}
-	if returnFunc, ok := ret.Get(0).(func(string) string); ok {
-		r0 = returnFunc(revision)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) string); ok {
+		r0 = returnFunc(ctx, revision)
 	} else {
 		r0 = ret.Get(0).(string)
 	}
-	if returnFunc, ok := ret.Get(1).(func(string) error); ok {
-		r1 = returnFunc(revision)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = returnFunc(ctx, revision)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -834,19 +843,25 @@ type Client_LsRemote_Call struct {
 }
 
 // LsRemote is a helper method to define mock.On call
+//   - ctx context.Context
 //   - revision string
-func (_e *Client_Expecter) LsRemote(revision interface{}) *Client_LsRemote_Call {
-	return &Client_LsRemote_Call{Call: _e.mock.On("LsRemote", revision)}
+func (_e *Client_Expecter) LsRemote(ctx interface{}, revision interface{}) *Client_LsRemote_Call {
+	return &Client_LsRemote_Call{Call: _e.mock.On("LsRemote", ctx, revision)}
 }
 
-func (_c *Client_LsRemote_Call) Run(run func(revision string)) *Client_LsRemote_Call {
+func (_c *Client_LsRemote_Call) Run(run func(ctx context.Context, revision string)) *Client_LsRemote_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 string
+		var arg0 context.Context
 		if args[0] != nil {
-			arg0 = args[0].(string)
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
 		}
 		run(
 			arg0,
+			arg1,
 		)
 	})
 	return _c
@@ -857,7 +872,7 @@ func (_c *Client_LsRemote_Call) Return(s string, err error) *Client_LsRemote_Cal
 	return _c
 }
 
-func (_c *Client_LsRemote_Call) RunAndReturn(run func(revision string) (string, error)) *Client_LsRemote_Call {
+func (_c *Client_LsRemote_Call) RunAndReturn(run func(ctx context.Context, revision string) (string, error)) *Client_LsRemote_Call {
 	_c.Call.Return(run)
 	return _c
 }

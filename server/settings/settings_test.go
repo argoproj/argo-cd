@@ -1,7 +1,6 @@
 package settings
 
 import (
-	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -36,7 +35,7 @@ func fixtures(data map[string]string) (*fake.Clientset, *settings.SettingsManage
 			"server.secretkey": []byte("test"),
 		},
 	})
-	settingsManager := settings.NewSettingsManager(context.Background(), kubeClient, testNamespace)
+	settingsManager := settings.NewSettingsManager(kubeClient, testNamespace)
 	return kubeClient, settingsManager
 }
 

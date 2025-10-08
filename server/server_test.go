@@ -419,6 +419,7 @@ func TestCertsAreNotGeneratedInInsecureMode(t *testing.T) {
 }
 
 func TestGracefulShutdown(t *testing.T) {
+	ctx := t.Context()
 	port, err := test.GetFreePort()
 	require.NoError(t, err)
 	mockRepoClient := &mocks.Clientset{RepoServerServiceClient: &mocks.RepoServerServiceClient{}}
@@ -445,11 +446,11 @@ func TestGracefulShutdown(t *testing.T) {
 	appsetInformerCancel := test.StartInformer(s.appsetInformer)
 	defer appsetInformerCancel()
 
-	lns, err := s.Listen()
+	lns, err := s.Listen(ctx)
 	require.NoError(t, err)
 
 	shutdown := false
-	runCtx, runCancel := context.WithTimeout(t.Context(), 2*time.Second)
+	runCtx, runCancel := context.WithTimeout(ctx, 2*time.Second)
 	defer runCancel()
 
 	err = s.healthCheck(&http.Request{URL: &url.URL{Path: "/healthz", RawQuery: "full=true"}})
@@ -527,7 +528,7 @@ func TestAuthenticate(t *testing.T) {
 			argocd := NewServer(t.Context(), argoCDOpts, ApplicationSetOpts{})
 			ctx := t.Context()
 			if testData.user != "" {
-				token, err := argocd.sessionMgr.Create(testData.user, 0, "abc")
+				token, err := argocd.sessionMgr.Create(ctx, testData.user, 0, "abc")
 				require.NoError(t, err)
 				ctx = metadata.NewIncomingContext(t.Context(), metadata.Pairs(apiclient.MetaDataTokenKey, token))
 			}
@@ -1206,6 +1207,7 @@ func TestTranslateGrpcCookieHeader(t *testing.T) {
 }
 
 func TestInitializeDefaultProject_ProjectDoesNotExist(t *testing.T) {
+	ctx := t.Context()
 	argoCDOpts := ArgoCDServerOpts{
 		Namespace:     test.FakeArgoCDNamespace,
 		KubeClientset: fake.NewSimpleClientset(test.NewFakeConfigMap(), test.NewFakeSecret()),
@@ -1213,11 +1215,11 @@ func TestInitializeDefaultProject_ProjectDoesNotExist(t *testing.T) {
 		RepoClientset: &mocks.Clientset{RepoServerServiceClient: &mocks.RepoServerServiceClient{}},
 	}
 
-	err := initializeDefaultProject(argoCDOpts)
+	err := initializeDefaultProject(ctx, argoCDOpts)
 	require.NoError(t, err)
 
 	proj, err := argoCDOpts.AppClientset.ArgoprojV1alpha1().
-		AppProjects(test.FakeArgoCDNamespace).Get(t.Context(), v1alpha1.DefaultAppProjectName, metav1.GetOptions{})
+		AppProjects(test.FakeArgoCDNamespace).Get(ctx, v1alpha1.DefaultAppProjectName, metav1.GetOptions{})
 
 	require.NoError(t, err)
 
@@ -1229,6 +1231,7 @@ func TestInitializeDefaultProject_ProjectDoesNotExist(t *testing.T) {
 }
 
 func TestInitializeDefaultProject_ProjectAlreadyInitialized(t *testing.T) {
+	ctx := t.Context()
 	existingDefaultProject := v1alpha1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      v1alpha1.DefaultAppProjectName,
@@ -1247,11 +1250,11 @@ func TestInitializeDefaultProject_ProjectAlreadyInitialized(t *testing.T) {
 		RepoClientset: &mocks.Clientset{RepoServerServiceClient: &mocks.RepoServerServiceClient{}},
 	}
 
-	err := initializeDefaultProject(argoCDOpts)
+	err := initializeDefaultProject(ctx, argoCDOpts)
 	require.NoError(t, err)
 
 	proj, err := argoCDOpts.AppClientset.ArgoprojV1alpha1().
-		AppProjects(test.FakeArgoCDNamespace).Get(t.Context(), v1alpha1.DefaultAppProjectName, metav1.GetOptions{})
+		AppProjects(test.FakeArgoCDNamespace).Get(ctx, v1alpha1.DefaultAppProjectName, metav1.GetOptions{})
 
 	require.NoError(t, err)
 

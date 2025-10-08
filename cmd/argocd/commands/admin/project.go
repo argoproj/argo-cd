@@ -61,7 +61,8 @@ func NewGenProjectSpecCommand() *cobra.Command {
   		`),
 
 		Run: func(c *cobra.Command, args []string) {
-			proj, err := cmdutil.ConstructAppProj(fileURL, args, opts, c)
+			ctx := c.Context()
+			proj, err := cmdutil.ConstructAppProj(ctx, fileURL, args, opts, c)
 			errors.CheckError(err)
 
 			out, closer, err := getOutWriter(inline, fileURL)
@@ -121,7 +122,7 @@ func saveProject(ctx context.Context, updated v1alpha1.AppProject, orig v1alpha1
 	if err != nil {
 		return fmt.Errorf("error converting project to unstructured: %w", err)
 	}
-	_ = cli.PrintDiff(updated.Name, target, live)
+	_ = cli.PrintDiff(ctx, updated.Name, target, live)
 	if !dryRun {
 		_, err = projectsIf.Update(ctx, &updated, metav1.UpdateOptions{})
 		if err != nil {

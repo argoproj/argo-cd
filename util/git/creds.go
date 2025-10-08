@@ -388,7 +388,8 @@ func NewGitHubAppCreds(appID int64, appInstallId int64, privateKey string, baseU
 }
 
 func (g GitHubAppCreds) Environ() (io.Closer, []string, error) {
-	token, err := g.getAccessToken()
+	ctx := context.Background()
+	token, err := g.getAccessToken(ctx)
 	if err != nil {
 		return NopCloser{}, nil, err
 	}
@@ -485,9 +486,9 @@ func (g GitHubAppCreds) GetUserInfo(ctx context.Context) (string, string, error)
 
 // getAccessToken fetches GitHub token using the app id, install id, and private key.
 // the token is then cached for re-use.
-func (g GitHubAppCreds) getAccessToken() (string, error) {
+func (g GitHubAppCreds) getAccessToken(ctx context.Context) (string, error) {
 	// Timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 
 	itr, err := g.getInstallationTransport()
@@ -584,8 +585,8 @@ type GoogleCloudCreds struct {
 	store CredsStore
 }
 
-func NewGoogleCloudCreds(jsonData string, store CredsStore) GoogleCloudCreds {
-	creds, err := google.CredentialsFromJSON(context.Background(), []byte(jsonData), "https://www.googleapis.com/auth/cloud-platform")
+func NewGoogleCloudCreds(ctx context.Context, jsonData string, store CredsStore) GoogleCloudCreds {
+	creds, err := google.CredentialsFromJSON(ctx, []byte(jsonData), "https://www.googleapis.com/auth/cloud-platform")
 	if err != nil {
 		// Invalid JSON
 		log.Errorf("Failed reading credentials from JSON: %+v", err)

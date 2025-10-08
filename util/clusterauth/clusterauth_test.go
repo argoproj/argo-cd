@@ -176,35 +176,39 @@ func TestInstallClusterManagerRBAC(t *testing.T) {
 	}
 
 	t.Run("Cluster Scope - Success", func(t *testing.T) {
+		ctx := t.Context()
 		cs := fake.NewClientset(ns, legacyAutoSecret, sa)
 		cs.PrependReactor("create", "secrets", _MockK8STokenController(cs.Tracker()))
-		token, err := InstallClusterManagerRBAC(cs, "test", nil, testBearerTokenTimeout)
+		token, err := InstallClusterManagerRBAC(ctx, cs, "test", nil, testBearerTokenTimeout)
 		require.NoError(t, err)
 		assert.Equal(t, testToken, token)
 	})
 
 	t.Run("Cluster Scope - Missing data in secret", func(t *testing.T) {
+		ctx := t.Context()
 		nsecret := legacyAutoSecret.DeepCopy()
 		nsecret.Data = make(map[string][]byte)
 		cs := fake.NewClientset(ns, nsecret, sa)
-		token, err := InstallClusterManagerRBAC(cs, "test", nil, testBearerTokenTimeout)
+		token, err := InstallClusterManagerRBAC(ctx, cs, "test", nil, testBearerTokenTimeout)
 		require.Error(t, err)
 		assert.Empty(t, token)
 	})
 
 	t.Run("Namespace Scope - Success", func(t *testing.T) {
+		ctx := t.Context()
 		cs := fake.NewClientset(ns, sa, longLivedSecret)
 		cs.PrependReactor("create", "secrets", _MockK8STokenController(cs.Tracker()))
-		token, err := InstallClusterManagerRBAC(cs, "test", []string{"nsa"}, testBearerTokenTimeout)
+		token, err := InstallClusterManagerRBAC(ctx, cs, "test", []string{"nsa"}, testBearerTokenTimeout)
 		require.NoError(t, err)
 		assert.Equal(t, "barfoo", token)
 	})
 
 	t.Run("Namespace Scope - Missing data in secret", func(t *testing.T) {
+		ctx := t.Context()
 		nsecret := legacyAutoSecret.DeepCopy()
 		nsecret.Data = make(map[string][]byte)
 		cs := fake.NewClientset(ns, nsecret, sa)
-		token, err := InstallClusterManagerRBAC(cs, "test", []string{"nsa"}, testBearerTokenTimeout)
+		token, err := InstallClusterManagerRBAC(ctx, cs, "test", []string{"nsa"}, testBearerTokenTimeout)
 		require.Error(t, err)
 		assert.Empty(t, token)
 	})
@@ -219,6 +223,7 @@ func TestUninstallClusterManagerRBAC(t *testing.T) {
 }
 
 func TestGenerateNewClusterManagerSecret(t *testing.T) {
+	ctx := t.Context()
 	kubeclientset := fake.NewClientset(newServiceAccountSecret(t))
 	kubeclientset.ReactionChain = nil
 
@@ -232,13 +237,14 @@ func TestGenerateNewClusterManagerSecret(t *testing.T) {
 		return true, generatedSecret, nil
 	})
 
-	created, err := GenerateNewClusterManagerSecret(kubeclientset, &testClaims)
+	created, err := GenerateNewClusterManagerSecret(ctx, kubeclientset, &testClaims)
 	require.NoError(t, err)
 	assert.Equal(t, "argocd-manager-token-abc123", created.Name)
 	assert.Equal(t, "fake-token", string(created.Data["token"]))
 }
 
 func TestRotateServiceAccountSecrets(t *testing.T) {
+	ctx := t.Context()
 	generatedSecret := newServiceAccountSecret(t)
 	generatedSecret.Name = "argocd-manager-token-abc123"
 	generatedSecret.Data = map[string][]byte{
@@ -247,7 +253,7 @@ func TestRotateServiceAccountSecrets(t *testing.T) {
 
 	kubeclientset := fake.NewClientset(newServiceAccount(t), newServiceAccountSecret(t), generatedSecret)
 
-	err := RotateServiceAccountSecrets(kubeclientset, &testClaims, generatedSecret)
+	err := RotateServiceAccountSecrets(ctx, kubeclientset, &testClaims, generatedSecret)
 	require.NoError(t, err)
 
 	// Verify service account references new secret and old secret is deleted
@@ -265,6 +271,7 @@ func TestRotateServiceAccountSecrets(t *testing.T) {
 }
 
 func TestGetServiceAccountBearerToken(t *testing.T) {
+	ctx := t.Context()
 	sa := newServiceAccount(t)
 	tokenSecret := newServiceAccountSecret(t)
 	dockercfgSecret := &corev1.Secret{
@@ -283,7 +290,7 @@ func TestGetServiceAccountBearerToken(t *testing.T) {
 	}
 	kubeclientset := fake.NewClientset(sa, dockercfgSecret, tokenSecret)
 
-	token, err := GetServiceAccountBearerToken(kubeclientset, "kube-system", sa.Name, testBearerTokenTimeout)
+	token, err := GetServiceAccountBearerToken(ctx, kubeclientset, "kube-system", sa.Name, testBearerTokenTimeout)
 	require.NoError(t, err)
 	assert.Equal(t, testToken, token)
 }

@@ -1,8 +1,6 @@
 package generators
 
 import (
-	"context"
-
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -10,13 +8,13 @@ import (
 	"github.com/argoproj/argo-cd/v3/applicationset/services"
 )
 
-func GetGenerators(ctx context.Context, c client.Client, k8sClient kubernetes.Interface, controllerNamespace string, argoCDService services.Repos, dynamicClient dynamic.Interface, scmConfig SCMConfig) map[string]Generator {
+func GetGenerators(c client.Client, k8sClient kubernetes.Interface, controllerNamespace string, argoCDService services.Repos, dynamicClient dynamic.Interface, scmConfig SCMConfig) map[string]Generator {
 	terminalGenerators := map[string]Generator{
 		"List":                    NewListGenerator(),
-		"Clusters":                NewClusterGenerator(ctx, c, k8sClient, controllerNamespace),
+		"Clusters":                NewClusterGenerator(c, k8sClient, controllerNamespace),
 		"Git":                     NewGitGenerator(argoCDService, controllerNamespace),
 		"SCMProvider":             NewSCMProviderGenerator(c, scmConfig),
-		"ClusterDecisionResource": NewDuckTypeGenerator(ctx, dynamicClient, k8sClient, controllerNamespace),
+		"ClusterDecisionResource": NewDuckTypeGenerator(dynamicClient, k8sClient, controllerNamespace),
 		"PullRequest":             NewPullRequestGenerator(c, scmConfig),
 		"Plugin":                  NewPluginGenerator(c, controllerNamespace),
 	}

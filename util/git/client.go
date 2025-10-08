@@ -112,8 +112,8 @@ type Client interface {
 	Fetch(revision string) error
 	Submodule() error
 	Checkout(revision string, submoduleEnabled bool) (string, error)
-	LsRefs() (*Refs, error)
-	LsRemote(revision string) (string, error)
+	LsRefs(ctx context.Context) (*Refs, error)
+	LsRemote(ctx context.Context, revision string) (string, error)
 	LsFiles(path string, enableNewGitFileGlobbing bool) ([]string, error)
 	LsLargeFiles() ([]string, error)
 	CommitSHA() (string, error)
@@ -136,7 +136,7 @@ type Client interface {
 }
 
 type EventHandlers struct {
-	OnLsRemote func(repo string) func()
+	OnLsRemote func(ctx context.Context, repo string) func()
 	OnFetch    func(repo string) func()
 	OnPush     func(repo string) func()
 }
@@ -311,7 +311,7 @@ func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds, proxyURL stri
 	return customHTTPClient
 }
 
-func newAuth(repoURL string, creds Creds) (transport.AuthMethod, error) {
+func newAuth(ctx context.Context, repoURL string, creds Creds) (transport.AuthMethod, error) {
 	switch creds := creds.(type) {
 	case SSHCreds:
 		var sshUser string
@@ -346,7 +346,7 @@ func newAuth(repoURL string, creds Creds) (transport.AuthMethod, error) {
 		}
 		return &auth, nil
 	case GitHubAppCreds:
-		token, err := creds.getAccessToken()
+		token, err := creds.getAccessToken(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -572,7 +572,7 @@ func (m *nativeGitClient) Checkout(revision string, submoduleEnabled bool) (stri
 	return "", nil
 }
 
-func (m *nativeGitClient) getRefs() ([]*plumbing.Reference, error) {
+func (m *nativeGitClient) getRefs(ctx context.Context) ([]*plumbing.Reference, error) {
 	myLockUUID, err := uuid.NewRandom()
 	myLockId := ""
 	if err != nil {
@@ -606,7 +606,7 @@ func (m *nativeGitClient) getRefs() ([]*plumbing.Reference, error) {
 	}
 
 	if m.OnLsRemote != nil {
-		done := m.OnLsRemote(m.repoURL)
+		done := m.OnLsRemote(ctx, m.repoURL)
 		defer done()
 	}
 
@@ -621,7 +621,7 @@ func (m *nativeGitClient) getRefs() ([]*plumbing.Reference, error) {
 	if err != nil {
 		return nil, err
 	}
-	auth, err := newAuth(m.repoURL, m.creds)
+	auth, err := newAuth(ctx, m.repoURL, m.creds)
 	if err != nil {
 		return nil, err
 	}
@@ -638,8 +638,8 @@ func (m *nativeGitClient) getRefs() ([]*plumbing.Reference, error) {
 	return res, err
 }
 
-func (m *nativeGitClient) LsRefs() (*Refs, error) {
-	refs, err := m.getRefs()
+func (m *nativeGitClient) LsRefs(ctx context.Context) (*Refs, error) {
+	refs, err := m.getRefs(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -671,9 +671,9 @@ func (m *nativeGitClient) LsRefs() (*Refs, error) {
 // it will return the revision string. Otherwise, it returns an error indicating that the revision could
 // not be resolved. This method runs with in-memory storage and is safe to run concurrently,
 // or to be run without a git repository locally cloned.
-func (m *nativeGitClient) LsRemote(revision string) (res string, err error) {
+func (m *nativeGitClient) LsRemote(ctx context.Context, revision string) (res string, err error) {
 	for attempt := 0; attempt < maxAttemptsCount; attempt++ {
-		res, err = m.lsRemote(revision)
+		res, err = m.lsRemote(ctx, revision)
 		if err == nil {
 			return res, nil
 		} else if apierrors.IsInternalError(err) || apierrors.IsTimeout(err) || apierrors.IsServerTimeout(err) ||
@@ -701,12 +701,12 @@ func getGitTags(refs []*plumbing.Reference) []string {
 	return tags
 }
 
-func (m *nativeGitClient) lsRemote(revision string) (string, error) {
+func (m *nativeGitClient) lsRemote(ctx context.Context, revision string) (string, error) {
 	if IsCommitSHA(revision) {
 		return revision, nil
 	}
 
-	refs, err := m.getRefs()
+	refs, err := m.getRefs(ctx)
 	if err != nil {
 		return "", fmt.Errorf("failed to list refs: %w", err)
 	}

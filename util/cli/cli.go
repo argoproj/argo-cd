@@ -302,7 +302,7 @@ func InteractiveEdit(filePattern string, data []byte, save func(input []byte) er
 
 // PrintDiff prints a diff between two unstructured objects to stdout using an external diff utility
 // Honors the diff utility set in the KUBECTL_EXTERNAL_DIFF environment variable
-func PrintDiff(name string, live *unstructured.Unstructured, target *unstructured.Unstructured) error {
+func PrintDiff(ctx context.Context, name string, live *unstructured.Unstructured, target *unstructured.Unstructured) error {
 	tempDir, err := os.MkdirTemp("", "argocd-diff")
 	if err != nil {
 		return err
@@ -341,7 +341,7 @@ func PrintDiff(name string, live *unstructured.Unstructured, target *unstructure
 		cmdBinary = parts[0]
 		args = parts[1:]
 	}
-	cmd := exec.CommandContext(context.Background(), cmdBinary, append(args, liveFile, targetFile)...)
+	cmd := exec.CommandContext(ctx, cmdBinary, append(args, liveFile, targetFile)...)
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stdout
 	return cmd.Run()

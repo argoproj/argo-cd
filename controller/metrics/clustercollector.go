@@ -93,7 +93,7 @@ func NewClusterCollector(ctx context.Context, source HasClustersInfo, clusterLis
 		lock:          sync.RWMutex{},
 	}
 
-	collector.setClusterData()
+	collector.setClusterData(ctx)
 	go collector.run(ctx)
 
 	return collector
@@ -106,13 +106,13 @@ func (c *clusterCollector) run(ctx context.Context) {
 		select {
 		case <-ctx.Done():
 		case <-tick:
-			c.setClusterData()
+			c.setClusterData(ctx)
 		}
 	}
 }
 
-func (c *clusterCollector) setClusterData() {
-	if clusterData, err := c.getClusterData(); err == nil {
+func (c *clusterCollector) setClusterData(ctx context.Context) {
+	if clusterData, err := c.getClusterData(ctx); err == nil {
 		c.lock.Lock()
 		c.latestInfo = clusterData
 		c.lock.Unlock()
@@ -121,11 +121,11 @@ func (c *clusterCollector) setClusterData() {
 	}
 }
 
-func (c *clusterCollector) getClusterData() ([]*clusterData, error) {
+func (c *clusterCollector) getClusterData(ctx context.Context) ([]*clusterData, error) {
 	clusterDatas := []*clusterData{}
 	clusterInfos := c.infoSource.GetClustersInfo()
 
-	ctx, cancel := context.WithTimeout(context.Background(), metricsCollectionTimeout)
+	ctx, cancel := context.WithTimeout(ctx, metricsCollectionTimeout)
 	defer cancel()
 	clusters, err := c.clusterLister(ctx)
 	if err != nil {

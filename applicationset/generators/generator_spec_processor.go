@@ -1,6 +1,7 @@
 package generators
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 
@@ -27,7 +28,7 @@ type TransformResult struct {
 }
 
 // Transform a spec generator to list of paramSets and a template
-func Transform(requestedGenerator argoprojiov1alpha1.ApplicationSetGenerator, allGenerators map[string]Generator, baseTemplate argoprojiov1alpha1.ApplicationSetTemplate, appSet *argoprojiov1alpha1.ApplicationSet, genParams map[string]any, client client.Client) ([]TransformResult, error) {
+func Transform(ctx context.Context, requestedGenerator argoprojiov1alpha1.ApplicationSetGenerator, allGenerators map[string]Generator, baseTemplate argoprojiov1alpha1.ApplicationSetTemplate, appSet *argoprojiov1alpha1.ApplicationSet, genParams map[string]any, client client.Client) ([]TransformResult, error) {
 	// This is a custom version of the `LabelSelectorAsSelector` that is in k8s.io/apimachinery. This has been copied
 	// verbatim from that package, with the difference that we do not have any restrictions on label values. This is done
 	// so that, among other things, we can match on cluster urls.
@@ -65,7 +66,7 @@ func Transform(requestedGenerator argoprojiov1alpha1.ApplicationSetGenerator, al
 				continue
 			}
 		}
-		params, err = g.GenerateParams(interpolatedGenerator, appSet, client)
+		params, err = g.GenerateParams(ctx, interpolatedGenerator, appSet, client)
 		if err != nil {
 			log.WithError(err).WithField("generator", g).
 				Error("error generating params")

@@ -20,9 +20,10 @@ func TestRandomPasswordVerificationDelay(t *testing.T) {
 	// significantly slower due to data race detection being enabled, which breaks through
 	// the maximum time limit required by `TestRandomPasswordVerificationDelay`.
 
+	ctx := t.Context()
 	var sleptFor time.Duration
-	settingsMgr := settings.NewSettingsManager(t.Context(), getKubeClient(t, "password", true), "argocd")
-	mgr := newSessionManager(settingsMgr, getProjLister(), NewUserStateStorage(nil))
+	settingsMgr := settings.NewSettingsManager(getKubeClient(t, "password", true), "argocd")
+	mgr := newSessionManager(ctx, settingsMgr, getProjLister(), NewUserStateStorage(nil))
 	mgr.verificationDelayNoiseEnabled = true
 	mgr.sleep = func(d time.Duration) {
 		sleptFor = d
@@ -30,7 +31,7 @@ func TestRandomPasswordVerificationDelay(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		sleptFor = 0
 		start := time.Now()
-		require.NoError(t, mgr.VerifyUsernamePassword("admin", "password"))
+		require.NoError(t, mgr.VerifyUsernamePassword(ctx, "admin", "password"))
 		totalDuration := time.Since(start) + sleptFor
 		assert.GreaterOrEqual(t, totalDuration.Nanoseconds(), verificationDelayNoiseMin.Nanoseconds())
 		assert.LessOrEqual(t, totalDuration.Nanoseconds(), verificationDelayNoiseMax.Nanoseconds())

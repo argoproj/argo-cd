@@ -200,7 +200,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				repoOpts.Repo.InsecureOCIForceHttp = repoOpts.InsecureOCIForceHTTP
 			}
 
-			conn, repoIf := headless.NewClientOrDie(clientOpts, c).NewRepoClientOrDie()
+			conn, repoIf := headless.NewClientOrDie(ctx, clientOpts, c).NewRepoClientOrDie()
 			defer utilio.Close(conn)
 
 			// If the user set a username, but didn't supply password via --password,
@@ -290,7 +290,7 @@ func NewRepoRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			conn, repoIf := headless.NewClientOrDie(clientOpts, c).NewRepoClientOrDie()
+			conn, repoIf := headless.NewClientOrDie(ctx, clientOpts, c).NewRepoClientOrDie()
 			defer utilio.Close(conn)
 
 			promptUtil := utils.NewPrompt(clientOpts.PromptsEnabled)
@@ -365,7 +365,7 @@ func NewRepoListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 		Run: func(c *cobra.Command, _ []string) {
 			ctx := c.Context()
 
-			conn, repoIf := headless.NewClientOrDie(clientOpts, c).NewRepoClientOrDie()
+			conn, repoIf := headless.NewClientOrDie(ctx, clientOpts, c).NewRepoClientOrDie()
 			defer utilio.Close(conn)
 			forceRefresh := false
 
@@ -437,7 +437,7 @@ func NewRepoGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 
 			// Repository URL
 			repoURL := args[0]
-			conn, repoIf := headless.NewClientOrDie(clientOpts, c).NewRepoClientOrDie()
+			conn, repoIf := headless.NewClientOrDie(ctx, clientOpts, c).NewRepoClientOrDie()
 			defer utilio.Close(conn)
 			forceRefresh := false
 			switch refresh {

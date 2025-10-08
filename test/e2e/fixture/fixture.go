@@ -181,6 +181,7 @@ func IsLocal() bool {
 // creates e2e tests fixture: ensures that Application CRD is installed, creates temporal namespace, starts repo and api server,
 // configure currently available cluster.
 func init() {
+	ctx := context.Background()
 	// ensure we log all shell execs
 	log.SetLevel(log.DebugLevel)
 	// set-up variables
@@ -204,7 +205,7 @@ func init() {
 	tlsTestResult, err := grpcutil.TestTLS(apiServerAddress, dialTime)
 	errors.CheckError(err)
 
-	ArgoCDClientset, err = apiclient.NewClient(&apiclient.ClientOptions{
+	ArgoCDClientset, err = apiclient.NewClient(ctx, &apiclient.ClientOptions{
 		Insecure:          true,
 		ServerAddr:        apiServerAddress,
 		PlainText:         !tlsTestResult.TLS,
@@ -218,7 +219,7 @@ func init() {
 
 	plainText = !tlsTestResult.TLS
 
-	errors.CheckError(LoginAs(adminUsername))
+	errors.CheckError(LoginAs(ctx, adminUsername))
 
 	log.WithFields(log.Fields{"apiServerAddress": apiServerAddress}).Info("initialized")
 
@@ -247,14 +248,14 @@ func init() {
 	}
 }
 
-func loginAs(username, password string) error {
-	closer, client, err := ArgoCDClientset.NewSessionClient()
+func loginAs(ctx context.Context, username, password string) error {
+	closer, client, err := ArgoCDClientset.NewSessionClient(ctx)
 	if err != nil {
 		return err
 	}
 	defer utilio.Close(closer)
 
-	userInfoResponse, err := client.GetUserInfo(context.Background(), &sessionpkg.GetUserInfoRequest{})
+	userInfoResponse, err := client.GetUserInfo(ctx, &sessionpkg.GetUserInfoRequest{})
 	if err != nil {
 		return err
 	}
@@ -262,13 +263,13 @@ func loginAs(username, password string) error {
 		return nil
 	}
 
-	sessionResponse, err := client.Create(context.Background(), &sessionpkg.SessionCreateRequest{Username: username, Password: password})
+	sessionResponse, err := client.Create(ctx, &sessionpkg.SessionCreateRequest{Username: username, Password: password})
 	if err != nil {
 		return err
 	}
 	token = sessionResponse.Token
 
-	ArgoCDClientset, err = apiclient.NewClient(&apiclient.ClientOptions{
+	ArgoCDClientset, err = apiclient.NewClient(ctx, &apiclient.ClientOptions{
 		Insecure:          true,
 		ServerAddr:        apiServerAddress,
 		AuthToken:         token,
@@ -282,12 +283,12 @@ func loginAs(username, password string) error {
 	return err
 }
 
-func LoginAs(username string) error {
+func LoginAs(ctx context.Context, username string) error {
 	password := DefaultTestUserPassword
 	if username == "admin" {
 		password = AdminPassword
 	}
-	return loginAs(username, password)
+	return loginAs(ctx, username, password)
 }
 
 func Name() string {
@@ -855,7 +856,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 		},
 		func() error {
 			// We can switch user and as result in previous state we will have non-admin user, this case should be reset
-			return LoginAs(adminUsername)
+			return LoginAs(context.Background(), adminUsername)
 		},
 	})
 

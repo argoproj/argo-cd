@@ -23,7 +23,6 @@ import (
 
 func TestRequeueAfter(t *testing.T) {
 	mockServer := &mocks.Repos{}
-	ctx := t.Context()
 	scheme := runtime.NewScheme()
 	err := argov1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)
@@ -59,10 +58,10 @@ func TestRequeueAfter(t *testing.T) {
 	scmConfig := generators.NewSCMConfig("", []string{""}, true, true, nil, true)
 	terminalGenerators := map[string]generators.Generator{
 		"List":                    generators.NewListGenerator(),
-		"Clusters":                generators.NewClusterGenerator(ctx, k8sClient, appClientset, "argocd"),
+		"Clusters":                generators.NewClusterGenerator(k8sClient, appClientset, "argocd"),
 		"Git":                     generators.NewGitGenerator(mockServer, "namespace"),
 		"SCMProvider":             generators.NewSCMProviderGenerator(fake.NewClientBuilder().WithObjects(&corev1.Secret{}).Build(), scmConfig),
-		"ClusterDecisionResource": generators.NewDuckTypeGenerator(ctx, fakeDynClient, appClientset, "argocd"),
+		"ClusterDecisionResource": generators.NewDuckTypeGenerator(fakeDynClient, appClientset, "argocd"),
 		"PullRequest":             generators.NewPullRequestGenerator(k8sClient, scmConfig),
 	}
 

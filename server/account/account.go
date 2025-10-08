@@ -62,7 +62,7 @@ func (s *Server) UpdatePassword(ctx context.Context, q *account.UpdatePasswordRe
 			return nil, status.Errorf(codes.InvalidArgument, "password can only be changed for local users, not user %q", username)
 		}
 
-		err := s.sessionMgr.VerifyUsernamePassword(username, q.CurrentPassword)
+		err := s.sessionMgr.VerifyUsernamePassword(ctx, username, q.CurrentPassword)
 		if err != nil {
 			return nil, status.Errorf(codes.InvalidArgument, "current password does not match")
 		}
@@ -79,7 +79,7 @@ func (s *Server) UpdatePassword(ctx context.Context, q *account.UpdatePasswordRe
 	}
 
 	// Need to validate password complexity with regular expression
-	passwordPattern, err := s.settingsMgr.GetPasswordPattern()
+	passwordPattern, err := s.settingsMgr.GetPasswordPattern(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get password pattern: %w", err)
 	}
@@ -99,7 +99,7 @@ func (s *Server) UpdatePassword(ctx context.Context, q *account.UpdatePasswordRe
 		return nil, fmt.Errorf("failed to hash password: %w", err)
 	}
 
-	err = s.settingsMgr.UpdateAccount(updatedUsername, func(acc *settings.Account) error {
+	err = s.settingsMgr.UpdateAccount(ctx, updatedUsername, func(_ context.Context, acc *settings.Account) error {
 		acc.PasswordHash = hashedPassword
 		now := time.Now().UTC()
 		acc.PasswordMtime = &now
@@ -169,7 +169,7 @@ func (s *Server) ensureHasAccountPermission(ctx context.Context, action string, 
 // ListAccounts returns the list of accounts
 func (s *Server) ListAccounts(ctx context.Context, _ *account.ListAccountRequest) (*account.AccountsList, error) {
 	resp := account.AccountsList{}
-	accounts, err := s.settingsMgr.GetAccounts()
+	accounts, err := s.settingsMgr.GetAccounts(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get accounts: %w", err)
 	}
@@ -189,7 +189,7 @@ func (s *Server) GetAccount(ctx context.Context, r *account.GetAccountRequest) (
 	if err := s.ensureHasAccountPermission(ctx, rbac.ActionGet, r.Name); err != nil {
 		return nil, fmt.Errorf("permission denied to get account %s: %w", r.Name, err)
 	}
-	a, err := s.settingsMgr.GetAccount(r.Name)
+	a, err := s.settingsMgr.GetAccount(ctx, r.Name)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get account %s: %w", r.Name, err)
 	}
@@ -212,7 +212,7 @@ func (s *Server) CreateToken(ctx context.Context, r *account.CreateTokenRequest)
 	}
 
 	var tokenString string
-	err := s.settingsMgr.UpdateAccount(r.Name, func(account *settings.Account) error {
+	err := s.settingsMgr.UpdateAccount(ctx, r.Name, func(ctx context.Context, account *settings.Account) error {
 		if account.TokenIndex(id) > -1 {
 			return fmt.Errorf("account already has token with id '%s'", id)
 		}
@@ -222,7 +222,7 @@ func (s *Server) CreateToken(ctx context.Context, r *account.CreateTokenRequest)
 
 		now := time.Now()
 		var err error
-		tokenString, err = s.sessionMgr.Create(fmt.Sprintf("%s:%s", r.Name, settings.AccountCapabilityApiKey), r.ExpiresIn, id)
+		tokenString, err = s.sessionMgr.Create(ctx, fmt.Sprintf("%s:%s", r.Name, settings.AccountCapabilityApiKey), r.ExpiresIn, id)
 		if err != nil {
 			return err
 		}
@@ -250,7 +250,7 @@ func (s *Server) DeleteToken(ctx context.Context, r *account.DeleteTokenRequest)
 		return nil, fmt.Errorf("permission denied to delete account %s: %w", r.Name, err)
 	}
 
-	err := s.settingsMgr.UpdateAccount(r.Name, func(account *settings.Account) error {
+	err := s.settingsMgr.UpdateAccount(ctx, r.Name, func(_ context.Context, account *settings.Account) error {
 		if index := account.TokenIndex(r.Id); index > -1 {
 			account.Tokens = append(account.Tokens[:index], account.Tokens[index+1:]...)
 			return nil

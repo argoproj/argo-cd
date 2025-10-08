@@ -1123,6 +1123,7 @@ func TestGetUserInfo(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			ctx := t.Context()
 			ts := httptest.NewServer(http.HandlerFunc(tt.idpHandler))
 			defer ts.Close()
 
@@ -1147,7 +1148,7 @@ func TestGetUserInfo(t *testing.T) {
 				require.NoError(t, err)
 			}
 
-			got, unauthenticated, err := a.GetUserInfo(tt.idpClaims, ts.URL, tt.userInfoPath)
+			got, unauthenticated, err := a.GetUserInfo(ctx, tt.idpClaims, ts.URL, tt.userInfoPath)
 			assert.Equal(t, tt.expectedOutput, got)
 			assert.Equal(t, tt.expectUnauthenticated, unauthenticated)
 			if tt.expectError {
@@ -1213,6 +1214,7 @@ func TestSetGroupsFromUserInfo(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			ctx := t.Context()
 			// create the ClientApp
 			userInfoCache := cache.NewInMemoryCache(24 * time.Hour)
 			signature, err := util.MakeSignature(32)
@@ -1253,7 +1255,7 @@ userInfoPath: /`,
 				require.NoError(t, err, "failed setting item to in-memory cache")
 			}
 
-			receivedClaims, err := a.SetGroupsFromUserInfo(tt.inputClaims, "argocd")
+			receivedClaims, err := a.SetGroupsFromUserInfo(ctx, tt.inputClaims, "argocd")
 			if tt.expectError {
 				require.Error(t, err)
 			} else {

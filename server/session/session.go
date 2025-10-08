@@ -41,7 +41,7 @@ func NewServer(mgr *sessionmgr.SessionManager, settingsMgr *settings.SettingsMan
 
 // Create generates a JWT token signed by Argo CD intended for web/CLI logins of the admin user
 // using username/password
-func (s *Server) Create(_ context.Context, q *session.SessionCreateRequest) (*session.SessionResponse, error) {
+func (s *Server) Create(ctx context.Context, q *session.SessionCreateRequest) (*session.SessionResponse, error) {
 	if s.limitLoginAttempts != nil {
 		closer, err := s.limitLoginAttempts()
 		if err != nil {
@@ -59,7 +59,7 @@ func (s *Server) Create(_ context.Context, q *session.SessionCreateRequest) (*se
 		s.mgr.IncLoginRequestCounter(failure)
 		return nil, status.Errorf(codes.Unauthenticated, "no credentials supplied")
 	}
-	err := s.mgr.VerifyUsernamePassword(q.Username, q.Password)
+	err := s.mgr.VerifyUsernamePassword(ctx, q.Username, q.Password)
 	if err != nil {
 		s.mgr.IncLoginRequestCounter(failure)
 		return nil, err
@@ -69,12 +69,13 @@ func (s *Server) Create(_ context.Context, q *session.SessionCreateRequest) (*se
 		s.mgr.IncLoginRequestCounter(failure)
 		return nil, err
 	}
-	argoCDSettings, err := s.settingsMgr.GetSettings()
+	argoCDSettings, err := s.settingsMgr.GetSettings(ctx)
 	if err != nil {
 		s.mgr.IncLoginRequestCounter(failure)
 		return nil, err
 	}
 	jwtToken, err := s.mgr.Create(
+		ctx,
 		fmt.Sprintf("%s:%s", q.Username, settings.AccountCapabilityLogin),
 		int64(argoCDSettings.UserSessionDuration.Seconds()),
 		uniqueId.String())

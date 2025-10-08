@@ -1,6 +1,7 @@
 package project
 
 import (
+	"context"
 	"time"
 
 	"github.com/stretchr/testify/require"
@@ -59,9 +60,9 @@ func (a *Actions) SetParamInSettingConfigMap(key, value string) *Actions {
 	return a
 }
 
-func (a *Actions) Login() *Actions {
+func (a *Actions) Login(ctx context.Context) *Actions {
 	a.context.t.Helper()
-	require.NoError(a.context.t, fixture.LoginAs(a.context.name))
+	require.NoError(a.context.t, fixture.LoginAs(ctx, a.context.name))
 	return a
 }
 

@@ -45,7 +45,7 @@ func TestCreateRepositoryNonAdminUserPermissionDenied(t *testing.T) {
 		Name("test").
 		When().
 		Create().
-		Login()
+		Login(t.Context())
 
 	path := "https://github.com/argoproj/argo-cd.git"
 	repoFixture.GivenWithSameState(t).
@@ -65,7 +65,7 @@ func TestCreateRepositoryNonAdminUserWithWrongProject(t *testing.T) {
 		Name("test").
 		When().
 		Create().
-		Login().
+		Login(t.Context()).
 		SetPermissions([]fixture.ACL{
 			{
 				Resource: "repositories",
@@ -92,7 +92,7 @@ func TestDeleteRepositoryRbacAllowed(t *testing.T) {
 		Name("test").
 		When().
 		Create().
-		Login().
+		Login(t.Context()).
 		SetPermissions([]fixture.ACL{
 			{
 				Resource: "repositories",
@@ -135,7 +135,7 @@ func TestDeleteRepositoryRbacDenied(t *testing.T) {
 		Name("test").
 		When().
 		Create().
-		Login().
+		Login(t.Context()).
 		SetPermissions([]fixture.ACL{
 			{
 				Resource: "repositories",

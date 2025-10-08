@@ -1,6 +1,7 @@
 package generators
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -29,7 +30,7 @@ func (g *ListGenerator) GetTemplate(appSetGenerator *argoprojiov1alpha1.Applicat
 	return &appSetGenerator.List.Template
 }
 
-func (g *ListGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, appSet *argoprojiov1alpha1.ApplicationSet, _ client.Client) ([]map[string]any, error) {
+func (g *ListGenerator) GenerateParams(_ context.Context, appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, appSet *argoprojiov1alpha1.ApplicationSet, _ client.Client) ([]map[string]any, error) {
 	if appSetGenerator == nil {
 		return nil, ErrEmptyAppSetGenerator
 	}

@@ -26,7 +26,7 @@ import (
 
 type CleanupFunc func()
 
-type OnKubectlRunFunc func(command string) (CleanupFunc, error)
+type OnKubectlRunFunc func(ctx context.Context, command string) (CleanupFunc, error)
 
 type Kubectl interface {
 	ManageResources(config *rest.Config, openAPISchema openapi.Resources) (ResourceOperations, func(), error)

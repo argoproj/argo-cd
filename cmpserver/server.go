@@ -81,13 +81,13 @@ func NewServer(initConstants plugin.CMPServerInitConstants) (*ArgoCDCMPServer, e
 	}, nil
 }
 
-func (a *ArgoCDCMPServer) Run() {
+func (a *ArgoCDCMPServer) Run(ctx context.Context) {
 	config := a.initConstants.PluginConfig
 
 	// Listen on the socket address
 	_ = os.Remove(config.Address())
 	lc := &net.ListenConfig{}
-	listener, err := lc.Listen(context.Background(), "unix", config.Address())
+	listener, err := lc.Listen(ctx, "unix", config.Address())
 	errors.CheckError(err)
 	log.Infof("argocd-cmp-server %s serving on %s", common.GetVersion(), listener.Addr())
 

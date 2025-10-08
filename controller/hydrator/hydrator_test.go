@@ -1,7 +1,6 @@
 package hydrator
 
 import (
-	"context"
 	"errors"
 	"path/filepath"
 	"testing"
@@ -122,6 +121,7 @@ func Test_appNeedsHydration(t *testing.T) {
 
 func Test_getAppsForHydrationKey_RepoURLNormalization(t *testing.T) {
 	t.Parallel()
+	ctx := t.Context()
 
 	d := mocks.NewDependencies(t)
 	d.On("GetProcessableApps").Return(&v1alpha1.ApplicationList{
@@ -169,7 +169,7 @@ func Test_getAppsForHydrationKey_RepoURLNormalization(t *testing.T) {
 		DestinationBranch:    "main",
 	}
 
-	apps, err := hydrator.getAppsForHydrationKey(hydrationKey)
+	apps, err := hydrator.getAppsForHydrationKey(ctx, hydrationKey)
 
 	require.NoError(t, err)
 	assert.Len(t, apps, 2, "Expected both apps to be considered relevant despite URL differences")
@@ -254,6 +254,7 @@ Co-authored-by: test test@test.com
 
 func Test_validateApplications_RootPathSkipped(t *testing.T) {
 	t.Parallel()
+	ctx := t.Context()
 
 	d := mocks.NewDependencies(t)
 	// create an app that has a SyncSource.Path set to root
@@ -284,7 +285,7 @@ func Test_validateApplications_RootPathSkipped(t *testing.T) {
 
 	hydrator := &Hydrator{dependencies: d}
 
-	proj, errors := hydrator.validateApplications(apps)
+	proj, errors := hydrator.validateApplications(ctx, apps)
 	require.Len(t, errors, 1)
 	require.ErrorContains(t, errors[apps[0].QualifiedName()], "app is configured to hydrate to the repository root")
 	assert.Nil(t, proj)
@@ -394,8 +395,8 @@ func TestProcessAppHydrateQueueItem_HydrationNeeded(t *testing.T) {
 	app.Status.SourceHydrator.CurrentOperation = nil
 
 	var persistedStatus *v1alpha1.SourceHydratorStatus
-	d.On("PersistAppHydratorStatus", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
-		persistedStatus = args.Get(1).(*v1alpha1.SourceHydratorStatus)
+	d.On("PersistAppHydratorStatus", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+		persistedStatus = args.Get(2).(*v1alpha1.SourceHydratorStatus)
 	}).Return().Once()
 	d.On("AddHydrationQueueItem", mock.Anything).Return().Once()
 
@@ -404,9 +405,9 @@ func TestProcessAppHydrateQueueItem_HydrationNeeded(t *testing.T) {
 		statusRefreshTimeout: time.Minute,
 	}
 
-	h.ProcessAppHydrateQueueItem(app)
+	h.ProcessAppHydrateQueueItem(t.Context(), app)
 
-	d.AssertCalled(t, "PersistAppHydratorStatus", mock.Anything, mock.Anything)
+	d.AssertCalled(t, "PersistAppHydratorStatus", mock.Anything, mock.Anything, mock.Anything)
 	d.AssertCalled(t, "AddHydrationQueueItem", mock.Anything)
 
 	require.NotNil(t, persistedStatus)
@@ -439,7 +440,7 @@ func TestProcessAppHydrateQueueItem_HydrationPassedTimeout(t *testing.T) {
 		statusRefreshTimeout: time.Minute,
 	}
 
-	h.ProcessAppHydrateQueueItem(app)
+	h.ProcessAppHydrateQueueItem(t.Context(), app)
 
 	d.AssertCalled(t, "AddHydrationQueueItem", mock.Anything)
 	d.AssertNotCalled(t, "PersistAppHydratorStatus", mock.Anything, mock.Anything)
@@ -455,7 +456,7 @@ func TestProcessAppHydrateQueueItem_NoSourceHydrator(t *testing.T) {
 		dependencies:         d,
 		statusRefreshTimeout: time.Minute,
 	}
-	h.ProcessAppHydrateQueueItem(app)
+	h.ProcessAppHydrateQueueItem(t.Context(), app)
 
 	// Should not call anything
 	d.AssertNotCalled(t, "PersistAppHydratorStatus", mock.Anything, mock.Anything)
@@ -480,7 +481,7 @@ func TestProcessAppHydrateQueueItem_HydrationNotNeeded(t *testing.T) {
 		dependencies:         d,
 		statusRefreshTimeout: time.Minute,
 	}
-	h.ProcessAppHydrateQueueItem(app)
+	h.ProcessAppHydrateQueueItem(t.Context(), app)
 
 	// Should not call anything
 	d.AssertNotCalled(t, "PersistAppHydratorStatus", mock.Anything, mock.Anything)
@@ -504,15 +505,15 @@ func TestProcessHydrationQueueItem_ValidationFails(t *testing.T) {
 	// Expect setAppHydratorError to be called
 	var persistedStatus1 *v1alpha1.SourceHydratorStatus
 	var persistedStatus2 *v1alpha1.SourceHydratorStatus
-	d.On("PersistAppHydratorStatus", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
-		if args.Get(0).(*v1alpha1.Application).Name == app1.Name {
-			persistedStatus1 = args.Get(1).(*v1alpha1.SourceHydratorStatus)
-		} else if args.Get(0).(*v1alpha1.Application).Name == app2.Name {
-			persistedStatus2 = args.Get(1).(*v1alpha1.SourceHydratorStatus)
+	d.On("PersistAppHydratorStatus", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+		if args.Get(1).(*v1alpha1.Application).Name == app1.Name {
+			persistedStatus1 = args.Get(2).(*v1alpha1.SourceHydratorStatus)
+		} else if args.Get(1).(*v1alpha1.Application).Name == app2.Name {
+			persistedStatus2 = args.Get(2).(*v1alpha1.SourceHydratorStatus)
 		}
 	}).Return().Twice()
 
-	h.ProcessHydrationQueueItem(hydrationKey)
+	h.ProcessHydrationQueueItem(t.Context(), hydrationKey)
 
 	assert.NotNil(t, persistedStatus1)
 	assert.NotNil(t, persistedStatus1.CurrentOperation.FinishedAt)
@@ -547,15 +548,15 @@ func TestProcessHydrationQueueItem_HydrateFails_AppSpecificError(t *testing.T) {
 	// Expect setAppHydratorError to be called
 	var persistedStatus1 *v1alpha1.SourceHydratorStatus
 	var persistedStatus2 *v1alpha1.SourceHydratorStatus
-	d.On("PersistAppHydratorStatus", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
-		if args.Get(0).(*v1alpha1.Application).Name == app1.Name {
-			persistedStatus1 = args.Get(1).(*v1alpha1.SourceHydratorStatus)
-		} else if args.Get(0).(*v1alpha1.Application).Name == app2.Name {
-			persistedStatus2 = args.Get(1).(*v1alpha1.SourceHydratorStatus)
+	d.On("PersistAppHydratorStatus", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+		if args.Get(1).(*v1alpha1.Application).Name == app1.Name {
+			persistedStatus1 = args.Get(2).(*v1alpha1.SourceHydratorStatus)
+		} else if args.Get(1).(*v1alpha1.Application).Name == app2.Name {
+			persistedStatus2 = args.Get(2).(*v1alpha1.SourceHydratorStatus)
 		}
 	}).Return().Twice()
 
-	h.ProcessHydrationQueueItem(hydrationKey)
+	h.ProcessHydrationQueueItem(t.Context(), hydrationKey)
 
 	assert.NotNil(t, persistedStatus1)
 	assert.NotNil(t, persistedStatus1.CurrentOperation.FinishedAt)
@@ -591,15 +592,15 @@ func TestProcessHydrationQueueItem_HydrateFails_CommonError(t *testing.T) {
 	// Expect setAppHydratorError to be called
 	var persistedStatus1 *v1alpha1.SourceHydratorStatus
 	var persistedStatus2 *v1alpha1.SourceHydratorStatus
-	d.On("PersistAppHydratorStatus", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
-		if args.Get(0).(*v1alpha1.Application).Name == app1.Name {
-			persistedStatus1 = args.Get(1).(*v1alpha1.SourceHydratorStatus)
-		} else if args.Get(0).(*v1alpha1.Application).Name == app2.Name {
-			persistedStatus2 = args.Get(1).(*v1alpha1.SourceHydratorStatus)
+	d.On("PersistAppHydratorStatus", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+		if args.Get(1).(*v1alpha1.Application).Name == app1.Name {
+			persistedStatus1 = args.Get(2).(*v1alpha1.SourceHydratorStatus)
+		} else if args.Get(1).(*v1alpha1.Application).Name == app2.Name {
+			persistedStatus2 = args.Get(2).(*v1alpha1.SourceHydratorStatus)
 		}
 	}).Return().Twice()
 
-	h.ProcessHydrationQueueItem(hydrationKey)
+	h.ProcessHydrationQueueItem(t.Context(), hydrationKey)
 
 	assert.NotNil(t, persistedStatus1)
 	assert.NotNil(t, persistedStatus1.CurrentOperation.FinishedAt)
@@ -630,8 +631,8 @@ func TestProcessHydrationQueueItem_SuccessfulHydration(t *testing.T) {
 
 	// Expect setAppHydratorError to be called
 	var persistedStatus *v1alpha1.SourceHydratorStatus
-	d.On("PersistAppHydratorStatus", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
-		persistedStatus = args.Get(1).(*v1alpha1.SourceHydratorStatus)
+	d.On("PersistAppHydratorStatus", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+		persistedStatus = args.Get(2).(*v1alpha1.SourceHydratorStatus)
 	}).Return().Once()
 	d.On("RequestAppRefresh", app.Name, app.Namespace).Return(nil).Once()
 	d.On("GetRepoObjs", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, &repoclient.ManifestResponse{
@@ -640,12 +641,12 @@ func TestProcessHydrationQueueItem_SuccessfulHydration(t *testing.T) {
 	r.On("GetRepository", mock.Anything, "https://example.com/repo", "test-project").Return(nil, nil).Once()
 	rc.On("GetRevisionMetadata", mock.Anything, mock.Anything).Return(nil, nil).Once()
 	d.On("GetWriteCredentials", mock.Anything, "https://example.com/repo", "test-project").Return(nil, nil).Once()
-	d.On("GetHydratorCommitMessageTemplate").Return("commit message", nil).Once()
+	d.On("GetHydratorCommitMessageTemplate", mock.Anything).Return("commit message", nil).Once()
 	cc.On("CommitHydratedManifests", mock.Anything, mock.Anything).Return(&commitclient.CommitHydratedManifestsResponse{HydratedSha: "def456"}, nil).Once()
 
-	h.ProcessHydrationQueueItem(hydrationKey)
+	h.ProcessHydrationQueueItem(t.Context(), hydrationKey)
 
-	d.AssertCalled(t, "PersistAppHydratorStatus", mock.Anything, mock.Anything)
+	d.AssertCalled(t, "PersistAppHydratorStatus", mock.Anything, mock.Anything, mock.Anything)
 	d.AssertCalled(t, "RequestAppRefresh", app.Name, app.Namespace)
 	assert.NotNil(t, persistedStatus)
 	assert.Equal(t, app.Status.SourceHydrator.CurrentOperation.StartedAt, persistedStatus.CurrentOperation.StartedAt)
@@ -663,12 +664,13 @@ func TestProcessHydrationQueueItem_SuccessfulHydration(t *testing.T) {
 
 func TestValidateApplications_ProjectError(t *testing.T) {
 	t.Parallel()
+	ctx := t.Context()
 	d := mocks.NewDependencies(t)
 	app := newTestApp("test-app")
 	d.On("GetProcessableAppProj", app).Return(nil, errors.New("project error")).Once()
 	h := &Hydrator{dependencies: d}
 
-	projects, errs := h.validateApplications([]*v1alpha1.Application{app})
+	projects, errs := h.validateApplications(ctx, []*v1alpha1.Application{app})
 	require.Nil(t, projects)
 	require.Len(t, errs, 1)
 	require.ErrorContains(t, errs[app.QualifiedName()], "project error")
@@ -676,6 +678,7 @@ func TestValidateApplications_ProjectError(t *testing.T) {
 
 func TestValidateApplications_SourceNotPermitted(t *testing.T) {
 	t.Parallel()
+	ctx := t.Context()
 	d := mocks.NewDependencies(t)
 	app := newTestApp("test-app")
 	proj := newTestProject()
@@ -683,7 +686,7 @@ func TestValidateApplications_SourceNotPermitted(t *testing.T) {
 	d.On("GetProcessableAppProj", app).Return(proj, nil).Once()
 	h := &Hydrator{dependencies: d}
 
-	projects, errs := h.validateApplications([]*v1alpha1.Application{app})
+	projects, errs := h.validateApplications(ctx, []*v1alpha1.Application{app})
 	require.Nil(t, projects)
 	require.Len(t, errs, 1)
 	require.ErrorContains(t, errs[app.QualifiedName()], "application repo https://example.com/repo is not permitted in project 'test-project'")
@@ -691,6 +694,7 @@ func TestValidateApplications_SourceNotPermitted(t *testing.T) {
 
 func TestValidateApplications_RootPath(t *testing.T) {
 	t.Parallel()
+	ctx := t.Context()
 	d := mocks.NewDependencies(t)
 	app := newTestApp("test-app")
 	app.Spec.SourceHydrator.SyncSource.Path = "."
@@ -698,7 +702,7 @@ func TestValidateApplications_RootPath(t *testing.T) {
 	d.On("GetProcessableAppProj", app).Return(proj, nil).Once()
 	h := &Hydrator{dependencies: d}
 
-	projects, errs := h.validateApplications([]*v1alpha1.Application{app})
+	projects, errs := h.validateApplications(ctx, []*v1alpha1.Application{app})
 	require.Nil(t, projects)
 	require.Len(t, errs, 1)
 	require.ErrorContains(t, errs[app.QualifiedName()], "app is configured to hydrate to the repository root")
@@ -706,6 +710,7 @@ func TestValidateApplications_RootPath(t *testing.T) {
 
 func TestValidateApplications_DuplicateDestination(t *testing.T) {
 	t.Parallel()
+	ctx := t.Context()
 	d := mocks.NewDependencies(t)
 	app1 := newTestApp("app1")
 	app2 := newTestApp("app2")
@@ -715,7 +720,7 @@ func TestValidateApplications_DuplicateDestination(t *testing.T) {
 	d.On("GetProcessableAppProj", app2).Return(proj, nil).Once()
 	h := &Hydrator{dependencies: d}
 
-	projects, errs := h.validateApplications([]*v1alpha1.Application{app1, app2})
+	projects, errs := h.validateApplications(ctx, []*v1alpha1.Application{app1, app2})
 	require.Nil(t, projects)
 	require.Len(t, errs, 2)
 	require.ErrorContains(t, errs[app1.QualifiedName()], "app default/app2 hydrator use the same destination")
@@ -724,6 +729,7 @@ func TestValidateApplications_DuplicateDestination(t *testing.T) {
 
 func TestValidateApplications_Success(t *testing.T) {
 	t.Parallel()
+	ctx := t.Context()
 	d := mocks.NewDependencies(t)
 	app1 := newTestApp("app1")
 	app2 := newTestApp("app2")
@@ -733,7 +739,7 @@ func TestValidateApplications_Success(t *testing.T) {
 	d.On("GetProcessableAppProj", app2).Return(proj, nil).Once()
 	h := &Hydrator{dependencies: d}
 
-	projects, errs := h.validateApplications([]*v1alpha1.Application{app1, app2})
+	projects, errs := h.validateApplications(ctx, []*v1alpha1.Application{app1, app2})
 	require.NotNil(t, projects)
 	require.Empty(t, errs)
 	assert.Equal(t, proj, projects[app1.Spec.Project])
@@ -800,7 +806,7 @@ func TestHydrator_hydrate_Success(t *testing.T) {
 		assert.Equal(t, "sha123", r.Revision)
 	})
 	d.On("GetWriteCredentials", mock.Anything, readRepo.Repo, proj.Name).Return(writeRepo, nil)
-	d.On("GetHydratorCommitMessageTemplate").Return("commit message", nil)
+	d.On("GetHydratorCommitMessageTemplate", mock.Anything).Return("commit message", nil)
 	cc.On("CommitHydratedManifests", mock.Anything, mock.Anything).Return(&commitclient.CommitHydratedManifestsResponse{HydratedSha: "hydrated123"}, nil).Run(func(args mock.Arguments) {
 		r := args.Get(1).(*commitclient.CommitHydratedManifestsRequest)
 		assert.Equal(t, "commit message", r.CommitMessage)
@@ -815,7 +821,7 @@ func TestHydrator_hydrate_Success(t *testing.T) {
 	})
 	logCtx := log.NewEntry(log.StandardLogger())
 
-	sha, hydratedSha, errs, err := h.hydrate(logCtx, apps, projects)
+	sha, hydratedSha, errs, err := h.hydrate(t.Context(), logCtx, apps, projects)
 
 	require.NoError(t, err)
 	assert.Equal(t, "sha123", sha)
@@ -844,7 +850,7 @@ func TestHydrator_hydrate_GetManifestsError(t *testing.T) {
 	d.On("GetRepoObjs", mock.Anything, app, mock.Anything, mock.Anything, proj).Return(nil, nil, errors.New("manifests error"))
 	logCtx := log.NewEntry(log.StandardLogger())
 
-	sha, hydratedSha, errs, err := h.hydrate(logCtx, []*v1alpha1.Application{app}, projects)
+	sha, hydratedSha, errs, err := h.hydrate(t.Context(), logCtx, []*v1alpha1.Application{app}, projects)
 
 	require.NoError(t, err)
 	assert.Empty(t, sha)
@@ -876,7 +882,7 @@ func TestHydrator_hydrate_RevisionMetadataError(t *testing.T) {
 	rc.On("GetRevisionMetadata", mock.Anything, mock.Anything).Return(nil, errors.New("metadata error"))
 	logCtx := log.NewEntry(log.StandardLogger())
 
-	sha, hydratedSha, errs, err := h.hydrate(logCtx, []*v1alpha1.Application{app}, projects)
+	sha, hydratedSha, errs, err := h.hydrate(t.Context(), logCtx, []*v1alpha1.Application{app}, projects)
 
 	require.Error(t, err)
 	assert.Equal(t, "sha123", sha)
@@ -909,7 +915,7 @@ func TestHydrator_hydrate_GetWriteCredentialsError(t *testing.T) {
 	d.On("GetWriteCredentials", mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("creds error"))
 	logCtx := log.NewEntry(log.StandardLogger())
 
-	sha, hydratedSha, errs, err := h.hydrate(logCtx, []*v1alpha1.Application{app}, projects)
+	sha, hydratedSha, errs, err := h.hydrate(t.Context(), logCtx, []*v1alpha1.Application{app}, projects)
 
 	require.Error(t, err)
 	assert.Equal(t, "sha123", sha)
@@ -940,10 +946,10 @@ func TestHydrator_hydrate_CommitMessageTemplateError(t *testing.T) {
 	r.On("GetRepository", mock.Anything, mock.Anything, mock.Anything).Return(&v1alpha1.Repository{Repo: "https://example.com/repo"}, nil)
 	rc.On("GetRevisionMetadata", mock.Anything, mock.Anything).Return(&v1alpha1.RevisionMetadata{}, nil)
 	d.On("GetWriteCredentials", mock.Anything, mock.Anything, mock.Anything).Return(&v1alpha1.Repository{Repo: "https://example.com/repo"}, nil)
-	d.On("GetHydratorCommitMessageTemplate").Return("", errors.New("template error"))
+	d.On("GetHydratorCommitMessageTemplate", mock.Anything).Return("", errors.New("template error"))
 	logCtx := log.NewEntry(log.StandardLogger())
 
-	sha, hydratedSha, errs, err := h.hydrate(logCtx, []*v1alpha1.Application{app}, projects)
+	sha, hydratedSha, errs, err := h.hydrate(t.Context(), logCtx, []*v1alpha1.Application{app}, projects)
 
 	require.Error(t, err)
 	assert.Equal(t, "sha123", sha)
@@ -974,10 +980,10 @@ func TestHydrator_hydrate_TemplatedCommitMessageError(t *testing.T) {
 	r.On("GetRepository", mock.Anything, mock.Anything, mock.Anything).Return(&v1alpha1.Repository{Repo: "https://example.com/repo"}, nil)
 	rc.On("GetRevisionMetadata", mock.Anything, mock.Anything).Return(&v1alpha1.RevisionMetadata{}, nil)
 	d.On("GetWriteCredentials", mock.Anything, mock.Anything, mock.Anything).Return(&v1alpha1.Repository{Repo: "https://example.com/repo"}, nil)
-	d.On("GetHydratorCommitMessageTemplate").Return("{{ notAFunction }} template", nil)
+	d.On("GetHydratorCommitMessageTemplate", mock.Anything).Return("{{ notAFunction }} template", nil)
 	logCtx := log.NewEntry(log.StandardLogger())
 
-	sha, hydratedSha, errs, err := h.hydrate(logCtx, []*v1alpha1.Application{app}, projects)
+	sha, hydratedSha, errs, err := h.hydrate(t.Context(), logCtx, []*v1alpha1.Application{app}, projects)
 
 	require.Error(t, err)
 	assert.Equal(t, "sha123", sha)
@@ -1008,11 +1014,11 @@ func TestHydrator_hydrate_CommitHydratedManifestsError(t *testing.T) {
 	r.On("GetRepository", mock.Anything, mock.Anything, mock.Anything).Return(&v1alpha1.Repository{Repo: "https://example.com/repo"}, nil)
 	rc.On("GetRevisionMetadata", mock.Anything, mock.Anything).Return(&v1alpha1.RevisionMetadata{}, nil)
 	d.On("GetWriteCredentials", mock.Anything, mock.Anything, mock.Anything).Return(&v1alpha1.Repository{Repo: "https://example.com/repo"}, nil)
-	d.On("GetHydratorCommitMessageTemplate").Return("commit message", nil)
+	d.On("GetHydratorCommitMessageTemplate", mock.Anything).Return("commit message", nil)
 	cc.On("CommitHydratedManifests", mock.Anything, mock.Anything).Return(nil, errors.New("commit error"))
 	logCtx := log.NewEntry(log.StandardLogger())
 
-	sha, hydratedSha, errs, err := h.hydrate(logCtx, []*v1alpha1.Application{app}, projects)
+	sha, hydratedSha, errs, err := h.hydrate(t.Context(), logCtx, []*v1alpha1.Application{app}, projects)
 
 	require.Error(t, err)
 	assert.Equal(t, "sha123", sha)
@@ -1027,7 +1033,7 @@ func TestHydrator_hydrate_EmptyApps(t *testing.T) {
 	logCtx := log.NewEntry(log.StandardLogger())
 	h := &Hydrator{dependencies: d}
 
-	sha, hydratedSha, errs, err := h.hydrate(logCtx, []*v1alpha1.Application{}, nil)
+	sha, hydratedSha, errs, err := h.hydrate(t.Context(), logCtx, []*v1alpha1.Application{}, nil)
 
 	require.NoError(t, err)
 	assert.Empty(t, sha)
@@ -1037,6 +1043,7 @@ func TestHydrator_hydrate_EmptyApps(t *testing.T) {
 
 func TestHydrator_getManifests_Success(t *testing.T) {
 	t.Parallel()
+	ctx := t.Context()
 	d := mocks.NewDependencies(t)
 	h := &Hydrator{dependencies: d}
 	app := newTestApp("test-app")
@@ -1053,7 +1060,7 @@ func TestHydrator_getManifests_Success(t *testing.T) {
 		Commands: []string{"cmd1", "cmd2"},
 	}, nil)
 
-	rev, pathDetails, err := h.getManifests(context.Background(), app, "sha123", proj)
+	rev, pathDetails, err := h.getManifests(ctx, app, "sha123", proj)
 	require.NoError(t, err)
 	assert.Equal(t, "sha123", rev)
 	assert.Equal(t, app.Spec.SourceHydrator.SyncSource.Path, pathDetails.Path)
@@ -1064,6 +1071,7 @@ func TestHydrator_getManifests_Success(t *testing.T) {
 
 func TestHydrator_getManifests_EmptyTargetRevision(t *testing.T) {
 	t.Parallel()
+	ctx := t.Context()
 	d := mocks.NewDependencies(t)
 	h := &Hydrator{dependencies: d}
 	app := newTestApp("test-app")
@@ -1071,7 +1079,7 @@ func TestHydrator_getManifests_EmptyTargetRevision(t *testing.T) {
 
 	d.On("GetRepoObjs", mock.Anything, app, mock.Anything, "main", proj).Return([]*unstructured.Unstructured{}, &repoclient.ManifestResponse{Revision: "sha123"}, nil)
 
-	rev, pathDetails, err := h.getManifests(context.Background(), app, "", proj)
+	rev, pathDetails, err := h.getManifests(ctx, app, "", proj)
 	require.NoError(t, err)
 	assert.Equal(t, "sha123", rev)
 	assert.NotNil(t, pathDetails)
@@ -1079,6 +1087,7 @@ func TestHydrator_getManifests_EmptyTargetRevision(t *testing.T) {
 
 func TestHydrator_getManifests_GetRepoObjsError(t *testing.T) {
 	t.Parallel()
+	ctx := t.Context()
 	d := mocks.NewDependencies(t)
 	h := &Hydrator{dependencies: d}
 	app := newTestApp("test-app")
@@ -1086,7 +1095,7 @@ func TestHydrator_getManifests_GetRepoObjsError(t *testing.T) {
 
 	d.On("GetRepoObjs", mock.Anything, app, mock.Anything, "main", proj).Return(nil, nil, errors.New("repo error"))
 
-	rev, pathDetails, err := h.getManifests(context.Background(), app, "main", proj)
+	rev, pathDetails, err := h.getManifests(ctx, app, "main", proj)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "repo error")
 	assert.Empty(t, rev)

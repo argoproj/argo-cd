@@ -5,6 +5,8 @@
 package mocks
 
 import (
+	"context"
+
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	mock "github.com/stretchr/testify/mock"
 )
@@ -99,8 +101,8 @@ func (_c *ProjectGetter_Get_Call) RunAndReturn(run func(name string) (*v1alpha1.
 }
 
 // GetClusters provides a mock function for the type ProjectGetter
-func (_mock *ProjectGetter) GetClusters(project string) ([]*v1alpha1.Cluster, error) {
-	ret := _mock.Called(project)
+func (_mock *ProjectGetter) GetClusters(ctx context.Context, project string) ([]*v1alpha1.Cluster, error) {
+	ret := _mock.Called(ctx, project)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetClusters")
@@ -108,18 +110,18 @@ func (_mock *ProjectGetter) GetClusters(project string) ([]*v1alpha1.Cluster, er
 
 	var r0 []*v1alpha1.Cluster
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(string) ([]*v1alpha1.Cluster, error)); ok {
-		return returnFunc(project)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) ([]*v1alpha1.Cluster, error)); ok {
+		return returnFunc(ctx, project)
 	}
-	if returnFunc, ok := ret.Get(0).(func(string) []*v1alpha1.Cluster); ok {
-		r0 = returnFunc(project)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) []*v1alpha1.Cluster); ok {
+		r0 = returnFunc(ctx, project)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]*v1alpha1.Cluster)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(string) error); ok {
-		r1 = returnFunc(project)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = returnFunc(ctx, project)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -132,19 +134,25 @@ type ProjectGetter_GetClusters_Call struct {
 }
 
 // GetClusters is a helper method to define mock.On call
+//   - ctx context.Context
 //   - project string
-func (_e *ProjectGetter_Expecter) GetClusters(project interface{}) *ProjectGetter_GetClusters_Call {
-	return &ProjectGetter_GetClusters_Call{Call: _e.mock.On("GetClusters", project)}
+func (_e *ProjectGetter_Expecter) GetClusters(ctx interface{}, project interface{}) *ProjectGetter_GetClusters_Call {
+	return &ProjectGetter_GetClusters_Call{Call: _e.mock.On("GetClusters", ctx, project)}
 }
 
-func (_c *ProjectGetter_GetClusters_Call) Run(run func(project string)) *ProjectGetter_GetClusters_Call {
+func (_c *ProjectGetter_GetClusters_Call) Run(run func(ctx context.Context, project string)) *ProjectGetter_GetClusters_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 string
+		var arg0 context.Context
 		if args[0] != nil {
-			arg0 = args[0].(string)
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
 		}
 		run(
 			arg0,
+			arg1,
 		)
 	})
 	return _c
@@ -155,7 +163,7 @@ func (_c *ProjectGetter_GetClusters_Call) Return(clusters []*v1alpha1.Cluster, e
 	return _c
 }
 
-func (_c *ProjectGetter_GetClusters_Call) RunAndReturn(run func(project string) ([]*v1alpha1.Cluster, error)) *ProjectGetter_GetClusters_Call {
+func (_c *ProjectGetter_GetClusters_Call) RunAndReturn(run func(ctx context.Context, project string) ([]*v1alpha1.Cluster, error)) *ProjectGetter_GetClusters_Call {
 	_c.Call.Return(run)
 	return _c
 }

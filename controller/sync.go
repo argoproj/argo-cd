@@ -118,7 +118,7 @@ func newSyncOperationResult(app *v1alpha1.Application, op v1alpha1.SyncOperation
 	return syncRes
 }
 
-func (m *appStateManager) SyncAppState(app *v1alpha1.Application, project *v1alpha1.AppProject, state *v1alpha1.OperationState) {
+func (m *appStateManager) SyncAppState(ctx context.Context, app *v1alpha1.Application, project *v1alpha1.AppProject, state *v1alpha1.OperationState) {
 	syncId, err := syncid.Generate()
 	if err != nil {
 		state.Phase = common.OperationError
@@ -159,7 +159,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, project *v1alp
 	}
 
 	// ignore error if CompareStateRepoError, this shouldn't happen as noRevisionCache is true
-	compareResult, err := m.CompareAppState(app, project, revisions, sources, false, true, syncOp.Manifests, isMultiSourceSync)
+	compareResult, err := m.CompareAppState(ctx, app, project, revisions, sources, false, true, syncOp.Manifests, isMultiSourceSync)
 	if err != nil && !stderrors.Is(err, ErrCompareStateRepo) {
 		state.Phase = common.OperationError
 		state.Message = err.Error()
@@ -189,7 +189,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, project *v1alp
 		return
 	}
 
-	destCluster, err := argo.GetDestinationCluster(context.Background(), app.Spec.Destination, m.db)
+	destCluster, err := argo.GetDestinationCluster(ctx, app.Spec.Destination, m.db)
 	if err != nil {
 		state.Phase = common.OperationError
 		state.Message = fmt.Sprintf("Failed to get destination cluster: %v", err)
@@ -211,7 +211,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, project *v1alp
 	}
 	restConfig := metrics.AddMetricsTransportWrapper(m.metricsServer, app, clusterRESTConfig)
 
-	resourceOverrides, err := m.settingsMgr.GetResourceOverrides()
+	resourceOverrides, err := m.settingsMgr.GetResourceOverrides(ctx)
 	if err != nil {
 		state.Phase = common.OperationError
 		state.Message = fmt.Sprintf("Failed to load resource overrides: %v", err)
@@ -272,18 +272,18 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, project *v1alp
 		reconciliationResult.Target = patchedTargets
 	}
 
-	installationID, err := m.settingsMgr.GetInstallationID()
+	installationID, err := m.settingsMgr.GetInstallationID(ctx)
 	if err != nil {
 		log.Errorf("Could not get installation ID: %v", err)
 		return
 	}
-	trackingMethod, err := m.settingsMgr.GetTrackingMethod()
+	trackingMethod, err := m.settingsMgr.GetTrackingMethod(ctx)
 	if err != nil {
 		log.Errorf("Could not get trackingMethod: %v", err)
 		return
 	}
 
-	impersonationEnabled, err := m.settingsMgr.IsImpersonationEnabled()
+	impersonationEnabled, err := m.settingsMgr.IsImpersonationEnabled(ctx)
 	if err != nil {
 		log.Errorf("could not get impersonation feature flag: %v", err)
 		return
@@ -313,8 +313,8 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, project *v1alp
 				return fmt.Errorf("resource %s:%s is not permitted in project %s", un.GroupVersionKind().Group, un.GroupVersionKind().Kind, project.Name)
 			}
 			if res.Namespaced {
-				permitted, err := project.IsDestinationPermitted(destCluster, un.GetNamespace(), func(project string) ([]*v1alpha1.Cluster, error) {
-					return m.db.GetProjectClusters(context.TODO(), project)
+				permitted, err := project.IsDestinationPermitted(ctx, destCluster, un.GetNamespace(), func(ctx context.Context, project string) ([]*v1alpha1.Cluster, error) {
+					return m.db.GetProjectClusters(ctx, project)
 				})
 				if err != nil {
 					return err
@@ -423,7 +423,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, project *v1alp
 	logEntry.WithField("duration", time.Since(start)).Info("sync/terminate complete")
 
 	if !syncOp.DryRun && len(syncOp.Resources) == 0 && state.Phase.Successful() {
-		err := m.persistRevisionHistory(app, compareResult.syncStatus.Revision, compareResult.syncStatus.ComparedTo.Source, compareResult.syncStatus.Revisions, compareResult.syncStatus.ComparedTo.Sources, isMultiSourceSync, state.StartedAt, state.Operation.InitiatedBy)
+		err := m.persistRevisionHistory(ctx, app, compareResult.syncStatus.Revision, compareResult.syncStatus.ComparedTo.Source, compareResult.syncStatus.Revisions, compareResult.syncStatus.ComparedTo.Sources, isMultiSourceSync, state.StartedAt, state.Operation.InitiatedBy)
 		if err != nil {
 			state.Phase = common.OperationError
 			state.Message = fmt.Sprintf("failed to record sync to history: %v", err)

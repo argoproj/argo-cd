@@ -84,7 +84,7 @@ func NewCommand() *cobra.Command {
 			stats.RegisterHeapDumper("memprofile")
 
 			// run argocd-cmp-server server
-			server.Run()
+			server.Run(ctx)
 			return nil
 		},
 	}

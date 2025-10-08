@@ -158,7 +158,7 @@ func newFakeControllerWithResync(data *fakeData, appResyncPeriod time.Duration, 
 	runtimeObjs := []runtime.Object{&clust, &secret, &cm}
 	runtimeObjs = append(runtimeObjs, data.additionalObjs...)
 	kubeClient := fake.NewClientset(runtimeObjs...)
-	settingsMgr := settings.NewSettingsManager(context.Background(), kubeClient, test.FakeArgoCDNamespace)
+	settingsMgr := settings.NewSettingsManager(kubeClient, test.FakeArgoCDNamespace)
 	kubectl := &MockKubectl{Kubectl: &kubetest.MockKubectlCmd{}}
 	ctrl, err := NewApplicationController(
 		test.FakeArgoCDNamespace,
@@ -596,13 +596,14 @@ func newFakeServiceAccount() map[string]any {
 }
 
 func TestAutoSync(t *testing.T) {
+	ctx := t.Context()
 	app := newFakeApp()
 	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}}, nil)
 	syncStatus := v1alpha1.SyncStatus{
 		Status:   v1alpha1.SyncStatusCodeOutOfSync,
 		Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
 	}
-	cond, _ := ctrl.autoSync(app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}}, true)
+	cond, _ := ctrl.autoSync(ctx, app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}}, true)
 	assert.Nil(t, cond)
 	app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(t.Context(), "my-app", metav1.GetOptions{})
 	require.NoError(t, err)
@@ -612,6 +613,7 @@ func TestAutoSync(t *testing.T) {
 }
 
 func TestAutoSyncEnabledSetToTrue(t *testing.T) {
+	ctx := t.Context()
 	app := newFakeApp()
 	enable := true
 	app.Spec.SyncPolicy.Automated = &v1alpha1.SyncPolicyAutomated{Enabled: &enable}
@@ -620,7 +622,7 @@ func TestAutoSyncEnabledSetToTrue(t *testing.T) {
 		Status:   v1alpha1.SyncStatusCodeOutOfSync,
 		Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
 	}
-	cond, _ := ctrl.autoSync(app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}}, true)
+	cond, _ := ctrl.autoSync(ctx, app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}}, true)
 	assert.Nil(t, cond)
 	app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(t.Context(), "my-app", metav1.GetOptions{})
 	require.NoError(t, err)
@@ -633,6 +635,7 @@ func TestAutoSyncMultiSourceWithoutSelfHeal(t *testing.T) {
 	// Simulate OutOfSync caused by object change in cluster
 	// So our Sync Revisions and SyncStatus Revisions should deep equal
 	t.Run("ClusterObjectChangeShouldNotTriggerAutoSync", func(t *testing.T) {
+		ctx := t.Context()
 		app := newFakeMultiSourceApp()
 		app.Spec.SyncPolicy.Automated.SelfHeal = false
 		app.Status.OperationState.SyncResult.Revisions = []string{"z", "x", "v"}
@@ -641,13 +644,14 @@ func TestAutoSyncMultiSourceWithoutSelfHeal(t *testing.T) {
 			Status:    v1alpha1.SyncStatusCodeOutOfSync,
 			Revisions: []string{"z", "x", "v"},
 		}
-		cond, _ := ctrl.autoSync(app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook-1", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}}, true)
+		cond, _ := ctrl.autoSync(ctx, app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook-1", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}}, true)
 		assert.Nil(t, cond)
 		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(t.Context(), "my-app", metav1.GetOptions{})
 		require.NoError(t, err)
 		assert.Nil(t, app.Operation)
 	})
 	t.Run("NewRevisionChangeShouldTriggerAutoSync", func(t *testing.T) {
+		ctx := t.Context()
 		app := newFakeMultiSourceApp()
 		app.Spec.SyncPolicy.Automated.SelfHeal = false
 		app.Status.OperationState.SyncResult.Revisions = []string{"z", "x", "v"}
@@ -656,7 +660,7 @@ func TestAutoSyncMultiSourceWithoutSelfHeal(t *testing.T) {
 			Status:    v1alpha1.SyncStatusCodeOutOfSync,
 			Revisions: []string{"a", "b", "c"},
 		}
-		cond, _ := ctrl.autoSync(app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook-1", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}}, true)
+		cond, _ := ctrl.autoSync(ctx, app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook-1", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}}, true)
 		assert.Nil(t, cond)
 		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(t.Context(), "my-app", metav1.GetOptions{})
 		require.NoError(t, err)
@@ -665,6 +669,7 @@ func TestAutoSyncMultiSourceWithoutSelfHeal(t *testing.T) {
 }
 
 func TestAutoSyncNotAllowEmpty(t *testing.T) {
+	ctx := t.Context()
 	app := newFakeApp()
 	app.Spec.SyncPolicy.Automated.Prune = true
 	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}}, nil)
@@ -672,11 +677,12 @@ func TestAutoSyncNotAllowEmpty(t *testing.T) {
 		Status:   v1alpha1.SyncStatusCodeOutOfSync,
 		Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
 	}
-	cond, _ := ctrl.autoSync(app, &syncStatus, []v1alpha1.ResourceStatus{}, true)
+	cond, _ := ctrl.autoSync(ctx, app, &syncStatus, []v1alpha1.ResourceStatus{}, true)
 	assert.NotNil(t, cond)
 }
 
 func TestAutoSyncAllowEmpty(t *testing.T) {
+	ctx := t.Context()
 	app := newFakeApp()
 	app.Spec.SyncPolicy.Automated.Prune = true
 	app.Spec.SyncPolicy.Automated.AllowEmpty = true
@@ -685,7 +691,7 @@ func TestAutoSyncAllowEmpty(t *testing.T) {
 		Status:   v1alpha1.SyncStatusCodeOutOfSync,
 		Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
 	}
-	cond, _ := ctrl.autoSync(app, &syncStatus, []v1alpha1.ResourceStatus{}, true)
+	cond, _ := ctrl.autoSync(ctx, app, &syncStatus, []v1alpha1.ResourceStatus{}, true)
 	assert.Nil(t, cond)
 }
 
@@ -693,13 +699,14 @@ func TestSkipAutoSync(t *testing.T) {
 	// Verify we skip when we previously synced to it in our most recent history
 	// Set current to 'aaaaa', desired to 'aaaa' and mark system OutOfSync
 	t.Run("PreviouslySyncedToRevision", func(t *testing.T) {
+		ctx := t.Context()
 		app := newFakeApp()
 		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}}, nil)
 		syncStatus := v1alpha1.SyncStatus{
 			Status:   v1alpha1.SyncStatusCodeOutOfSync,
 			Revision: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 		}
-		cond, _ := ctrl.autoSync(app, &syncStatus, []v1alpha1.ResourceStatus{}, true)
+		cond, _ := ctrl.autoSync(ctx, app, &syncStatus, []v1alpha1.ResourceStatus{}, true)
 		assert.Nil(t, cond)
 		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(t.Context(), "my-app", metav1.GetOptions{})
 		require.NoError(t, err)
@@ -708,13 +715,14 @@ func TestSkipAutoSync(t *testing.T) {
 
 	// Verify we skip when we are already Synced (even if revision is different)
 	t.Run("AlreadyInSyncedState", func(t *testing.T) {
+		ctx := t.Context()
 		app := newFakeApp()
 		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}}, nil)
 		syncStatus := v1alpha1.SyncStatus{
 			Status:   v1alpha1.SyncStatusCodeSynced,
 			Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
 		}
-		cond, _ := ctrl.autoSync(app, &syncStatus, []v1alpha1.ResourceStatus{}, true)
+		cond, _ := ctrl.autoSync(ctx, app, &syncStatus, []v1alpha1.ResourceStatus{}, true)
 		assert.Nil(t, cond)
 		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(t.Context(), "my-app", metav1.GetOptions{})
 		require.NoError(t, err)
@@ -723,6 +731,7 @@ func TestSkipAutoSync(t *testing.T) {
 
 	// Verify we skip when auto-sync is disabled
 	t.Run("AutoSyncIsDisabled", func(t *testing.T) {
+		ctx := t.Context()
 		app := newFakeApp()
 		app.Spec.SyncPolicy = nil
 		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}}, nil)
@@ -730,7 +739,7 @@ func TestSkipAutoSync(t *testing.T) {
 			Status:   v1alpha1.SyncStatusCodeOutOfSync,
 			Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
 		}
-		cond, _ := ctrl.autoSync(app, &syncStatus, []v1alpha1.ResourceStatus{}, true)
+		cond, _ := ctrl.autoSync(ctx, app, &syncStatus, []v1alpha1.ResourceStatus{}, true)
 		assert.Nil(t, cond)
 		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(t.Context(), "my-app", metav1.GetOptions{})
 		require.NoError(t, err)
@@ -739,6 +748,7 @@ func TestSkipAutoSync(t *testing.T) {
 
 	// Verify we skip when auto-sync is disabled
 	t.Run("AutoSyncEnableFieldIsSetFalse", func(t *testing.T) {
+		ctx := t.Context()
 		app := newFakeApp()
 		enable := false
 		app.Spec.SyncPolicy.Automated = &v1alpha1.SyncPolicyAutomated{Enabled: &enable}
@@ -747,7 +757,7 @@ func TestSkipAutoSync(t *testing.T) {
 			Status:   v1alpha1.SyncStatusCodeOutOfSync,
 			Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
 		}
-		cond, _ := ctrl.autoSync(app, &syncStatus, []v1alpha1.ResourceStatus{}, true)
+		cond, _ := ctrl.autoSync(ctx, app, &syncStatus, []v1alpha1.ResourceStatus{}, true)
 		assert.Nil(t, cond)
 		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(t.Context(), "my-app", metav1.GetOptions{})
 		require.NoError(t, err)
@@ -756,6 +766,7 @@ func TestSkipAutoSync(t *testing.T) {
 
 	// Verify we skip when application is marked for deletion
 	t.Run("ApplicationIsMarkedForDeletion", func(t *testing.T) {
+		ctx := t.Context()
 		app := newFakeApp()
 		now := metav1.Now()
 		app.DeletionTimestamp = &now
@@ -764,7 +775,7 @@ func TestSkipAutoSync(t *testing.T) {
 			Status:   v1alpha1.SyncStatusCodeOutOfSync,
 			Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
 		}
-		cond, _ := ctrl.autoSync(app, &syncStatus, []v1alpha1.ResourceStatus{}, true)
+		cond, _ := ctrl.autoSync(ctx, app, &syncStatus, []v1alpha1.ResourceStatus{}, true)
 		assert.Nil(t, cond)
 		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(t.Context(), "my-app", metav1.GetOptions{})
 		require.NoError(t, err)
@@ -774,6 +785,7 @@ func TestSkipAutoSync(t *testing.T) {
 	// Verify we skip when previous sync attempt failed and return error condition
 	// Set current to 'aaaaa', desired to 'bbbbb' and add 'bbbbb' to failure history
 	t.Run("PreviousSyncAttemptFailed", func(t *testing.T) {
+		ctx := t.Context()
 		app := newFakeApp()
 		app.Status.OperationState = &v1alpha1.OperationState{
 			Operation: v1alpha1.Operation{
@@ -790,7 +802,7 @@ func TestSkipAutoSync(t *testing.T) {
 			Status:   v1alpha1.SyncStatusCodeOutOfSync,
 			Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
 		}
-		cond, _ := ctrl.autoSync(app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}}, true)
+		cond, _ := ctrl.autoSync(ctx, app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}}, true)
 		assert.NotNil(t, cond)
 		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(t.Context(), "my-app", metav1.GetOptions{})
 		require.NoError(t, err)
@@ -798,6 +810,7 @@ func TestSkipAutoSync(t *testing.T) {
 	})
 
 	t.Run("PreviousSyncAttemptError", func(t *testing.T) {
+		ctx := t.Context()
 		app := newFakeApp()
 		app.Status.OperationState = &v1alpha1.OperationState{
 			Operation: v1alpha1.Operation{
@@ -814,7 +827,7 @@ func TestSkipAutoSync(t *testing.T) {
 			Status:   v1alpha1.SyncStatusCodeOutOfSync,
 			Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
 		}
-		cond, _ := ctrl.autoSync(app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}}, true)
+		cond, _ := ctrl.autoSync(ctx, app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}}, true)
 		assert.NotNil(t, cond)
 		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(t.Context(), "my-app", metav1.GetOptions{})
 		require.NoError(t, err)
@@ -822,13 +835,14 @@ func TestSkipAutoSync(t *testing.T) {
 	})
 
 	t.Run("NeedsToPruneResourcesOnlyButAutomatedPruneDisabled", func(t *testing.T) {
+		ctx := t.Context()
 		app := newFakeApp()
 		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}}, nil)
 		syncStatus := v1alpha1.SyncStatus{
 			Status:   v1alpha1.SyncStatusCodeOutOfSync,
 			Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
 		}
-		cond, _ := ctrl.autoSync(app, &syncStatus, []v1alpha1.ResourceStatus{
+		cond, _ := ctrl.autoSync(ctx, app, &syncStatus, []v1alpha1.ResourceStatus{
 			{Name: "guestbook", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync, RequiresPruning: true},
 		}, true)
 		assert.Nil(t, cond)
@@ -840,6 +854,7 @@ func TestSkipAutoSync(t *testing.T) {
 
 // TestAutoSyncIndicateError verifies we skip auto-sync and return error condition if previous sync failed
 func TestAutoSyncIndicateError(t *testing.T) {
+	ctx := t.Context()
 	app := newFakeApp()
 	app.Spec.Source.Helm = &v1alpha1.ApplicationSourceHelm{
 		Parameters: []v1alpha1.HelmParameter{
@@ -866,7 +881,7 @@ func TestAutoSyncIndicateError(t *testing.T) {
 			Source:   *app.Spec.Source.DeepCopy(),
 		},
 	}
-	cond, _ := ctrl.autoSync(app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}}, true)
+	cond, _ := ctrl.autoSync(ctx, app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}}, true)
 	assert.NotNil(t, cond)
 	app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(t.Context(), "my-app", metav1.GetOptions{})
 	require.NoError(t, err)
@@ -876,6 +891,7 @@ func TestAutoSyncIndicateError(t *testing.T) {
 // TestAutoSyncParameterOverrides verifies we auto-sync if revision is same but parameter overrides are different
 func TestAutoSyncParameterOverrides(t *testing.T) {
 	t.Run("Single source", func(t *testing.T) {
+		ctx := t.Context()
 		app := newFakeApp()
 		app.Spec.Source.Helm = &v1alpha1.ApplicationSourceHelm{
 			Parameters: []v1alpha1.HelmParameter{
@@ -910,7 +926,7 @@ func TestAutoSyncParameterOverrides(t *testing.T) {
 			Revision: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 		}
 		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}}, nil)
-		cond, _ := ctrl.autoSync(app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}}, true)
+		cond, _ := ctrl.autoSync(ctx, app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}}, true)
 		assert.Nil(t, cond)
 		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(t.Context(), "my-app", metav1.GetOptions{})
 		require.NoError(t, err)
@@ -918,6 +934,7 @@ func TestAutoSyncParameterOverrides(t *testing.T) {
 	})
 
 	t.Run("Multi sources", func(t *testing.T) {
+		ctx := t.Context()
 		app := newFakeMultiSourceApp()
 		app.Spec.Sources[0].Helm = &v1alpha1.ApplicationSourceHelm{
 			Parameters: []v1alpha1.HelmParameter{
@@ -941,7 +958,7 @@ func TestAutoSyncParameterOverrides(t *testing.T) {
 			Status:    v1alpha1.SyncStatusCodeOutOfSync,
 			Revisions: []string{"z", "x", "v"},
 		}
-		cond, _ := ctrl.autoSync(app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}}, true)
+		cond, _ := ctrl.autoSync(ctx, app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}}, true)
 		assert.Nil(t, cond)
 		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(t.Context(), "my-app", metav1.GetOptions{})
 		require.NoError(t, err)
@@ -986,7 +1003,7 @@ func TestFinalizeAppDeletion(t *testing.T) {
 			patched = true
 			return true, &v1alpha1.Application{}, nil
 		})
-		err := ctrl.finalizeApplicationDeletion(app, func(_ string) ([]*v1alpha1.Cluster, error) {
+		err := ctrl.finalizeApplicationDeletion(t.Context(), app, func(context.Context, string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
 		})
 		require.NoError(t, err)
@@ -1038,7 +1055,7 @@ func TestFinalizeAppDeletion(t *testing.T) {
 			patched = true
 			return true, &v1alpha1.Application{}, nil
 		})
-		err := ctrl.finalizeApplicationDeletion(app, func(_ string) ([]*v1alpha1.Cluster, error) {
+		err := ctrl.finalizeApplicationDeletion(t.Context(), app, func(context.Context, string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
 		})
 		require.NoError(t, err)
@@ -1072,7 +1089,7 @@ func TestFinalizeAppDeletion(t *testing.T) {
 			patched = true
 			return true, &v1alpha1.Application{}, nil
 		})
-		err := ctrl.finalizeApplicationDeletion(app, func(_ string) ([]*v1alpha1.Cluster, error) {
+		err := ctrl.finalizeApplicationDeletion(t.Context(), app, func(context.Context, string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
 		})
 		require.NoError(t, err)
@@ -1096,7 +1113,7 @@ func TestFinalizeAppDeletion(t *testing.T) {
 			fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 				return defaultReactor.React(action)
 			})
-			err := ctrl.finalizeApplicationDeletion(app, func(_ string) ([]*v1alpha1.Cluster, error) {
+			err := ctrl.finalizeApplicationDeletion(t.Context(), app, func(context.Context, string) ([]*v1alpha1.Cluster, error) {
 				return []*v1alpha1.Cluster{}, nil
 			})
 			require.NoError(t, err)
@@ -1139,7 +1156,7 @@ func TestFinalizeAppDeletion(t *testing.T) {
 			patched = true
 			return true, &v1alpha1.Application{}, nil
 		})
-		err := ctrl.finalizeApplicationDeletion(app, func(_ string) ([]*v1alpha1.Cluster, error) {
+		err := ctrl.finalizeApplicationDeletion(t.Context(), app, func(context.Context, string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
 		})
 		require.NoError(t, err)
@@ -1183,7 +1200,7 @@ func TestFinalizeAppDeletion(t *testing.T) {
 			patched = true
 			return true, &v1alpha1.Application{}, nil
 		})
-		err := ctrl.finalizeApplicationDeletion(app, func(_ string) ([]*v1alpha1.Cluster, error) {
+		err := ctrl.finalizeApplicationDeletion(t.Context(), app, func(context.Context, string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
 		})
 		require.NoError(t, err)
@@ -1230,7 +1247,7 @@ func TestFinalizeAppDeletion(t *testing.T) {
 			patched = true
 			return true, &v1alpha1.Application{}, nil
 		})
-		err := ctrl.finalizeApplicationDeletion(app, func(_ string) ([]*v1alpha1.Cluster, error) {
+		err := ctrl.finalizeApplicationDeletion(t.Context(), app, func(context.Context, string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
 		})
 		require.NoError(t, err)
@@ -1320,7 +1337,7 @@ func TestFinalizeAppDeletionWithImpersonation(t *testing.T) {
 		f := setup(test.FakeDestNamespace, "")
 
 		// when
-		err := f.controller.finalizeApplicationDeletion(f.application, func(_ string) ([]*v1alpha1.Cluster, error) {
+		err := f.controller.finalizeApplicationDeletion(t.Context(), f.application, func(context.Context, string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
 		})
 
@@ -1334,7 +1351,7 @@ func TestFinalizeAppDeletionWithImpersonation(t *testing.T) {
 		f := setup(test.FakeDestNamespace, "test-sa")
 
 		// when
-		err := f.controller.finalizeApplicationDeletion(f.application, func(_ string) ([]*v1alpha1.Cluster, error) {
+		err := f.controller.finalizeApplicationDeletion(t.Context(), f.application, func(context.Context, string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
 		})
 
@@ -1349,7 +1366,7 @@ func TestFinalizeAppDeletionWithImpersonation(t *testing.T) {
 		f.application.Spec.Destination.Name = "invalid"
 
 		// when
-		err := f.controller.finalizeApplicationDeletion(f.application, func(_ string) ([]*v1alpha1.Cluster, error) {
+		err := f.controller.finalizeApplicationDeletion(t.Context(), f.application, func(context.Context, string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
 		})
 
@@ -1405,7 +1422,7 @@ func TestNormalizeApplication(t *testing.T) {
 			}
 			return true, &v1alpha1.Application{}, nil
 		})
-		ctrl.processAppRefreshQueueItem()
+		ctrl.processAppRefreshQueueItem(t.Context())
 		assert.True(t, normalized)
 	}
 
@@ -1427,12 +1444,13 @@ func TestNormalizeApplication(t *testing.T) {
 			}
 			return true, &v1alpha1.Application{}, nil
 		})
-		ctrl.processAppRefreshQueueItem()
+		ctrl.processAppRefreshQueueItem(t.Context())
 		assert.False(t, normalized)
 	}
 }
 
 func TestHandleAppUpdated(t *testing.T) {
+	ctx := t.Context()
 	app := newFakeApp()
 	app.Spec.Destination.Namespace = test.FakeArgoCDNamespace
 	app.Spec.Destination.Server = v1alpha1.KubernetesInternalAPIServerAddr
@@ -1440,18 +1458,19 @@ func TestHandleAppUpdated(t *testing.T) {
 	proj.Spec.SourceNamespaces = []string{test.FakeArgoCDNamespace}
 	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app, proj}}, nil)
 
-	ctrl.handleObjectUpdated(map[string]bool{app.InstanceName(ctrl.namespace): true}, kube.GetObjectRef(kube.MustToUnstructured(app)))
+	ctrl.handleObjectUpdated(ctx, map[string]bool{app.InstanceName(ctrl.namespace): true}, kube.GetObjectRef(kube.MustToUnstructured(app)))
 	isRequested, level := ctrl.isRefreshRequested(app.QualifiedName())
 	assert.False(t, isRequested)
 	assert.Equal(t, ComparisonWithNothing, level)
 
-	ctrl.handleObjectUpdated(map[string]bool{app.InstanceName(ctrl.namespace): true}, corev1.ObjectReference{UID: "test", Kind: kube.DeploymentKind, Name: "test", Namespace: "default"})
+	ctrl.handleObjectUpdated(ctx, map[string]bool{app.InstanceName(ctrl.namespace): true}, corev1.ObjectReference{UID: "test", Kind: kube.DeploymentKind, Name: "test", Namespace: "default"})
 	isRequested, level = ctrl.isRefreshRequested(app.QualifiedName())
 	assert.True(t, isRequested)
 	assert.Equal(t, CompareWithRecent, level)
 }
 
 func TestHandleOrphanedResourceUpdated(t *testing.T) {
+	ctx := t.Context()
 	app1 := newFakeApp()
 	app1.Name = "app1"
 	app1.Spec.Destination.Namespace = test.FakeArgoCDNamespace
@@ -1467,7 +1486,7 @@ func TestHandleOrphanedResourceUpdated(t *testing.T) {
 
 	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app1, app2, proj}}, nil)
 
-	ctrl.handleObjectUpdated(map[string]bool{}, corev1.ObjectReference{UID: "test", Kind: kube.DeploymentKind, Name: "test", Namespace: test.FakeArgoCDNamespace})
+	ctrl.handleObjectUpdated(ctx, map[string]bool{}, corev1.ObjectReference{UID: "test", Kind: kube.DeploymentKind, Name: "test", Namespace: test.FakeArgoCDNamespace})
 
 	isRequested, level := ctrl.isRefreshRequested(app1.QualifiedName())
 	assert.True(t, isRequested)
@@ -1479,6 +1498,7 @@ func TestHandleOrphanedResourceUpdated(t *testing.T) {
 }
 
 func TestGetResourceTree_HasOrphanedResources(t *testing.T) {
+	ctx := t.Context()
 	app := newFakeApp()
 	proj := defaultProj.DeepCopy()
 	proj.Spec.OrphanedResources = &v1alpha1.OrphanedResourcesMonitorSettings{}
@@ -1504,7 +1524,7 @@ func TestGetResourceTree_HasOrphanedResources(t *testing.T) {
 			kube.NewResourceKey("apps", "Deployment", "default", "deploy2"):          {ResourceNode: orphanedDeploy2},
 		},
 	}, nil)
-	tree, err := ctrl.getResourceTree(&v1alpha1.Cluster{Server: "https://localhost:6443", Name: "fake-cluster"}, app, []*v1alpha1.ResourceDiff{{
+	tree, err := ctrl.getResourceTree(ctx, &v1alpha1.Cluster{Server: "https://localhost:6443", Name: "fake-cluster"}, app, []*v1alpha1.ResourceDiff{{
 		Namespace:   "default",
 		Name:        "nginx-deployment",
 		Kind:        "Deployment",
@@ -1828,34 +1848,37 @@ func TestRefreshAppConditions(t *testing.T) {
 	}
 
 	t.Run("NoErrorConditions", func(t *testing.T) {
+		ctx := t.Context()
 		app := newFakeApp()
 		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app, &defaultProj}}, nil)
 
-		_, hasErrors := ctrl.refreshAppConditions(app)
+		_, hasErrors := ctrl.refreshAppConditions(ctx, app)
 		assert.False(t, hasErrors)
 		assert.Empty(t, app.Status.Conditions)
 	})
 
 	t.Run("PreserveExistingWarningCondition", func(t *testing.T) {
+		ctx := t.Context()
 		app := newFakeApp()
 		app.Status.SetConditions([]v1alpha1.ApplicationCondition{{Type: v1alpha1.ApplicationConditionExcludedResourceWarning}}, nil)
 
 		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app, &defaultProj}}, nil)
 
-		_, hasErrors := ctrl.refreshAppConditions(app)
+		_, hasErrors := ctrl.refreshAppConditions(ctx, app)
 		assert.False(t, hasErrors)
 		assert.Len(t, app.Status.Conditions, 1)
 		assert.Equal(t, v1alpha1.ApplicationConditionExcludedResourceWarning, app.Status.Conditions[0].Type)
 	})
 
 	t.Run("ReplacesSpecErrorCondition", func(t *testing.T) {
+		ctx := t.Context()
 		app := newFakeApp()
 		app.Spec.Project = "wrong project"
 		app.Status.SetConditions([]v1alpha1.ApplicationCondition{{Type: v1alpha1.ApplicationConditionInvalidSpecError, Message: "old message"}}, nil)
 
 		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app, &defaultProj}}, nil)
 
-		_, hasErrors := ctrl.refreshAppConditions(app)
+		_, hasErrors := ctrl.refreshAppConditions(ctx, app)
 		assert.True(t, hasErrors)
 		assert.Len(t, app.Status.Conditions, 1)
 		assert.Equal(t, v1alpha1.ApplicationConditionInvalidSpecError, app.Status.Conditions[0].Type)
@@ -1894,7 +1917,7 @@ func TestUpdateReconciledAt(t *testing.T) {
 		ctrl.requestAppRefresh(app.Name, CompareWithLatest.Pointer(), nil)
 		ctrl.appRefreshQueue.AddRateLimited(key)
 
-		ctrl.processAppRefreshQueueItem()
+		ctrl.processAppRefreshQueueItem(t.Context())
 
 		_, updated, err := unstructured.NestedString(receivedPatch, "status", "reconciledAt")
 		require.NoError(t, err)
@@ -1910,7 +1933,7 @@ func TestUpdateReconciledAt(t *testing.T) {
 		ctrl.appRefreshQueue.AddRateLimited(key)
 		ctrl.requestAppRefresh(app.Name, CompareWithRecent.Pointer(), nil)
 
-		ctrl.processAppRefreshQueueItem()
+		ctrl.processAppRefreshQueueItem(t.Context())
 
 		_, updated, err := unstructured.NestedString(receivedPatch, "status", "reconciledAt")
 		require.NoError(t, err)
@@ -1999,6 +2022,7 @@ apps/Deployment:
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			ctx := t.Context()
 			ctrl := newFakeController(&fakeData{
 				apps: []runtime.Object{tc.app, &defaultProj},
 				manifestResponse: &apiclient.ManifestResponse{
@@ -2013,7 +2037,7 @@ apps/Deployment:
 				configMapData: tc.configMapData,
 			}, nil)
 
-			ctrl.processAppRefreshQueueItem()
+			ctrl.processAppRefreshQueueItem(ctx)
 			apps, err := ctrl.appLister.List(labels.Everything())
 			require.NoError(t, err)
 			assert.NotEmpty(t, apps)
@@ -2112,8 +2136,9 @@ apps/Deployment:
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			ctx := t.Context()
 			deployment.SetLabels(map[string]string{"status": tc.initialStatus})
-			ctrl.processAppRefreshQueueItem()
+			ctrl.processAppRefreshQueueItem(ctx)
 			apps, err := ctrl.appLister.List(labels.Everything())
 			require.NoError(t, err)
 			if assert.NotEmpty(t, apps) {
@@ -2144,7 +2169,7 @@ func TestProjectErrorToCondition(t *testing.T) {
 	ctrl.appRefreshQueue.AddRateLimited(key)
 	ctrl.requestAppRefresh(app.Name, CompareWithRecent.Pointer(), nil)
 
-	ctrl.processAppRefreshQueueItem()
+	ctrl.processAppRefreshQueueItem(t.Context())
 
 	obj, ok, err := ctrl.appInformer.GetIndexer().GetByKey(key)
 	assert.True(t, ok)
@@ -2210,7 +2235,7 @@ func TestProcessRequestedAppOperation_FailedNoRetries(t *testing.T) {
 		return true, &v1alpha1.Application{}, nil
 	})
 
-	ctrl.processRequestedAppOperation(app)
+	ctrl.processRequestedAppOperation(t.Context(), app)
 
 	phase, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "phase")
 	message, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "message")
@@ -2241,7 +2266,7 @@ func TestProcessRequestedAppOperation_InvalidDestination(t *testing.T) {
 		})
 	}()
 
-	ctrl.processRequestedAppOperation(app)
+	ctrl.processRequestedAppOperation(t.Context(), app)
 
 	phase, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "phase")
 	message, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "message")
@@ -2266,7 +2291,7 @@ func TestProcessRequestedAppOperation_FailedHasRetries(t *testing.T) {
 		return true, &v1alpha1.Application{}, nil
 	})
 
-	ctrl.processRequestedAppOperation(app)
+	ctrl.processRequestedAppOperation(t.Context(), app)
 
 	phase, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "phase")
 	message, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "message")
@@ -2313,7 +2338,7 @@ func TestProcessRequestedAppOperation_RunningPreviouslyFailed(t *testing.T) {
 		return true, &v1alpha1.Application{}, nil
 	})
 
-	ctrl.processRequestedAppOperation(app)
+	ctrl.processRequestedAppOperation(t.Context(), app)
 
 	phase, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "phase")
 	message, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "message")
@@ -2367,7 +2392,7 @@ func TestProcessRequestedAppOperation_RunningPreviouslyFailedBackoff(t *testing.
 		return true, &v1alpha1.Application{}, nil
 	})
 
-	ctrl.processRequestedAppOperation(app)
+	ctrl.processRequestedAppOperation(t.Context(), app)
 }
 
 func TestProcessRequestedAppOperation_HasRetriesTerminated(t *testing.T) {
@@ -2398,7 +2423,7 @@ func TestProcessRequestedAppOperation_HasRetriesTerminated(t *testing.T) {
 		return true, &v1alpha1.Application{}, nil
 	})
 
-	ctrl.processRequestedAppOperation(app)
+	ctrl.processRequestedAppOperation(t.Context(), app)
 
 	phase, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "phase")
 	message, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "message")
@@ -2427,7 +2452,7 @@ func TestProcessRequestedAppOperation_Successful(t *testing.T) {
 		return true, &v1alpha1.Application{}, nil
 	})
 
-	ctrl.processRequestedAppOperation(app)
+	ctrl.processRequestedAppOperation(t.Context(), app)
 
 	phase, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "phase")
 	message, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "message")
@@ -2505,7 +2530,7 @@ func TestProcessRequestedAppOperation_SyncTimeout(t *testing.T) {
 				app.Status.OperationState.RetryCount = int64(tc.retryAttempt)
 			}
 
-			ctrl.processRequestedAppOperation(app)
+			ctrl.processRequestedAppOperation(t.Context(), app)
 
 			app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.ObjectMeta.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
 			require.NoError(t, err)
@@ -2560,7 +2585,7 @@ func TestGetAppHosts(t *testing.T) {
 	})).Return(nil)
 	ctrl.stateCache = mockStateCache
 
-	hosts, err := ctrl.getAppHosts(&v1alpha1.Cluster{Server: "test", Name: "test"}, app, []v1alpha1.ResourceNode{{
+	hosts, err := ctrl.getAppHosts(t.Context(), &v1alpha1.Cluster{Server: "test", Name: "test"}, app, []v1alpha1.ResourceNode{{
 		ResourceRef: v1alpha1.ResourceRef{Name: "pod1", Namespace: "default", Kind: kube.PodKind},
 		Info: []v1alpha1.InfoItem{{
 			Name:  "Host",
@@ -2690,7 +2715,7 @@ func TestAddControllerNamespace(t *testing.T) {
 			manifestResponse: &apiclient.ManifestResponse{},
 		}, nil)
 
-		ctrl.processAppRefreshQueueItem()
+		ctrl.processAppRefreshQueueItem(t.Context())
 
 		updatedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(ctrl.namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
 		require.NoError(t, err)
@@ -2709,7 +2734,7 @@ func TestAddControllerNamespace(t *testing.T) {
 			applicationNamespaces: []string{appNamespace},
 		}, nil)
 
-		ctrl.processAppRefreshQueueItem()
+		ctrl.processAppRefreshQueueItem(t.Context())
 
 		updatedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(appNamespace).Get(t.Context(), app.Name, metav1.GetOptions{})
 		require.NoError(t, err)

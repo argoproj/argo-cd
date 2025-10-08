@@ -55,7 +55,7 @@ type ArgoDB interface {
 	// GetRepository returns a repository by URL
 	GetRepository(ctx context.Context, url, project string) (*appv1.Repository, error)
 	// GetProjectRepositories returns project scoped repositories by given project name
-	GetProjectRepositories(project string) ([]*appv1.Repository, error)
+	GetProjectRepositories(ctx context.Context, project string) ([]*appv1.Repository, error)
 	// RepositoryExists returns whether a repository is configured for the given URL
 	RepositoryExists(ctx context.Context, repoURL, project string) (bool, error)
 	// UpdateRepository updates a repository
@@ -68,7 +68,7 @@ type ArgoDB interface {
 	// GetWriteRepository returns a repository by URL with write credentials
 	GetWriteRepository(ctx context.Context, url, project string) (*appv1.Repository, error)
 	// GetProjectWriteRepositories returns project scoped repositories from write credentials by given project name
-	GetProjectWriteRepositories(project string) ([]*appv1.Repository, error)
+	GetProjectWriteRepositories(ctx context.Context, project string) ([]*appv1.Repository, error)
 	// WriteRepositoryExists returns whether a repository is configured for the given URL with write credentials
 	WriteRepositoryExists(ctx context.Context, repoURL, project string) (bool, error)
 	// UpdateWriteRepository updates a repository with write credentials
@@ -141,9 +141,9 @@ func NewDB(namespace string, settingsMgr *settings.SettingsManager, kubeclientse
 	}
 }
 
-func (db *db) getSecret(name string, cache map[string]*corev1.Secret) (*corev1.Secret, error) {
+func (db *db) getSecret(ctx context.Context, name string, cache map[string]*corev1.Secret) (*corev1.Secret, error) {
 	if _, ok := cache[name]; !ok {
-		secret, err := db.settingsMgr.GetSecretByName(name)
+		secret, err := db.settingsMgr.GetSecretByName(ctx, name)
 		if err != nil {
 			return nil, err
 		}

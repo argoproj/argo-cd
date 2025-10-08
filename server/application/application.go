@@ -439,7 +439,7 @@ func (s *Server) queryRepoServer(ctx context.Context, proj *v1alpha1.AppProject,
 	if err != nil {
 		return fmt.Errorf("error getting helm repository credentials: %w", err)
 	}
-	helmOptions, err := s.settingsMgr.GetHelmSettings()
+	helmOptions, err := s.settingsMgr.GetHelmSettings(ctx)
 	if err != nil {
 		return fmt.Errorf("error getting helm settings: %w", err)
 	}
@@ -447,11 +447,11 @@ func (s *Server) queryRepoServer(ctx context.Context, proj *v1alpha1.AppProject,
 	if err != nil {
 		return fmt.Errorf("error getting permitted repos credentials: %w", err)
 	}
-	enabledSourceTypes, err := s.settingsMgr.GetEnabledSourceTypes()
+	enabledSourceTypes, err := s.settingsMgr.GetEnabledSourceTypes(ctx)
 	if err != nil {
 		return fmt.Errorf("error getting settings enabled source types: %w", err)
 	}
-	ociRepos, err := s.db.ListOCIRepositories(context.Background())
+	ociRepos, err := s.db.ListOCIRepositories(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to list OCI repositories: %w", err)
 	}
@@ -459,7 +459,7 @@ func (s *Server) queryRepoServer(ctx context.Context, proj *v1alpha1.AppProject,
 	if err != nil {
 		return fmt.Errorf("failed to get permitted OCI repositories for project %q: %w", proj.Name, err)
 	}
-	ociRepositoryCredentials, err := s.db.GetAllOCIRepositoryCredentials(context.Background())
+	ociRepositoryCredentials, err := s.db.GetAllOCIRepositoryCredentials(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get OCI credentials: %w", err)
 	}
@@ -489,7 +489,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 	err = s.queryRepoServer(ctx, proj, func(
 		client apiclient.RepoServerServiceClient, helmRepos []*v1alpha1.Repository, helmCreds []*v1alpha1.RepoCreds, ociRepos []*v1alpha1.Repository, ociCreds []*v1alpha1.RepoCreds, helmOptions *v1alpha1.HelmOptions, enableGenerateManifests map[string]bool,
 	) error {
-		appInstanceLabelKey, err := s.settingsMgr.GetAppInstanceLabelKey()
+		appInstanceLabelKey, err := s.settingsMgr.GetAppInstanceLabelKey(ctx)
 		if err != nil {
 			return fmt.Errorf("error getting app instance label key from settings: %w", err)
 		}
@@ -529,7 +529,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 		}
 
 		// Store the map of all sources having ref field into a map for applications with sources field
-		refSources, err := argo.GetRefSources(context.Background(), sources, appSpec.Project, s.db.GetRepository, []string{})
+		refSources, err := argo.GetRefSources(ctx, sources, appSpec.Project, s.db.GetRepository, []string{})
 		if err != nil {
 			return fmt.Errorf("failed to get ref sources: %w", err)
 		}
@@ -540,16 +540,16 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 				return fmt.Errorf("error getting repository: %w", err)
 			}
 
-			kustomizeSettings, err := s.settingsMgr.GetKustomizeSettings()
+			kustomizeSettings, err := s.settingsMgr.GetKustomizeSettings(ctx)
 			if err != nil {
 				return fmt.Errorf("error getting kustomize settings: %w", err)
 			}
 
-			installationID, err := s.settingsMgr.GetInstallationID()
+			installationID, err := s.settingsMgr.GetInstallationID(ctx)
 			if err != nil {
 				return fmt.Errorf("error getting installation ID: %w", err)
 			}
-			trackingMethod, err := s.settingsMgr.GetTrackingMethod()
+			trackingMethod, err := s.settingsMgr.GetTrackingMethod(ctx)
 			if err != nil {
 				return fmt.Errorf("error getting trackingMethod from settings: %w", err)
 			}
@@ -609,7 +609,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 				return nil, fmt.Errorf("error unmarshaling manifest into unstructured: %w", err)
 			}
 			if obj.GetKind() == kube.SecretKind && obj.GroupVersionKind().Group == "" {
-				obj, _, err = diff.HideSecretData(obj, nil, s.settingsMgr.GetSensitiveAnnotations())
+				obj, _, err = diff.HideSecretData(obj, nil, s.settingsMgr.GetSensitiveAnnotations(ctx))
 				if err != nil {
 					return nil, fmt.Errorf("error hiding secret data: %w", err)
 				}
@@ -646,12 +646,12 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 	err = s.queryRepoServer(ctx, proj, func(
 		client apiclient.RepoServerServiceClient, helmRepos []*v1alpha1.Repository, helmCreds []*v1alpha1.RepoCreds, _ []*v1alpha1.Repository, _ []*v1alpha1.RepoCreds, helmOptions *v1alpha1.HelmOptions, enableGenerateManifests map[string]bool,
 	) error {
-		appInstanceLabelKey, err := s.settingsMgr.GetAppInstanceLabelKey()
+		appInstanceLabelKey, err := s.settingsMgr.GetAppInstanceLabelKey(ctx)
 		if err != nil {
 			return fmt.Errorf("error getting app instance label key from settings: %w", err)
 		}
 
-		trackingMethod, err := s.settingsMgr.GetTrackingMethod()
+		trackingMethod, err := s.settingsMgr.GetTrackingMethod(ctx)
 		if err != nil {
 			return fmt.Errorf("error getting trackingMethod from settings: %w", err)
 		}
@@ -683,7 +683,7 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 			return fmt.Errorf("error getting repository: %w", err)
 		}
 
-		kustomizeSettings, err := s.settingsMgr.GetKustomizeSettings()
+		kustomizeSettings, err := s.settingsMgr.GetKustomizeSettings(ctx)
 		if err != nil {
 			return fmt.Errorf("error getting kustomize settings: %w", err)
 		}
@@ -737,7 +737,7 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 			return fmt.Errorf("error unmarshaling manifest into unstructured: %w", err)
 		}
 		if obj.GetKind() == kube.SecretKind && obj.GroupVersionKind().Group == "" {
-			obj, _, err = diff.HideSecretData(obj, nil, s.settingsMgr.GetSensitiveAnnotations())
+			obj, _, err = diff.HideSecretData(obj, nil, s.settingsMgr.GetSensitiveAnnotations(ctx))
 			if err != nil {
 				return fmt.Errorf("error hiding secret data: %w", err)
 			}
@@ -792,7 +792,7 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*v1a
 	})
 	defer unsubscribe()
 
-	app, err := argo.RefreshApp(appIf, appName, refreshType, true)
+	app, err := argo.RefreshApp(ctx, appIf, appName, refreshType, true)
 	if err != nil {
 		return nil, fmt.Errorf("error refreshing the app: %w", err)
 	}
@@ -813,11 +813,11 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*v1a
 			if err != nil {
 				return fmt.Errorf("error getting repository: %w", err)
 			}
-			kustomizeSettings, err := s.settingsMgr.GetKustomizeSettings()
+			kustomizeSettings, err := s.settingsMgr.GetKustomizeSettings(ctx)
 			if err != nil {
 				return fmt.Errorf("error getting kustomize settings: %w", err)
 			}
-			trackingMethod, err := s.settingsMgr.GetTrackingMethod()
+			trackingMethod, err := s.settingsMgr.GetTrackingMethod(ctx)
 			if err != nil {
 				return fmt.Errorf("error getting trackingMethod from settings: %w", err)
 			}
@@ -1409,7 +1409,7 @@ func (s *Server) getAppResources(ctx context.Context, a *v1alpha1.Application) (
 }
 
 func (s *Server) getAppLiveResource(ctx context.Context, action string, q *application.ApplicationResourceRequest) (*v1alpha1.ResourceNode, *rest.Config, *v1alpha1.Application, error) {
-	fineGrainedInheritanceDisabled, err := s.settingsMgr.ApplicationFineGrainedRBACInheritanceDisabled()
+	fineGrainedInheritanceDisabled, err := s.settingsMgr.ApplicationFineGrainedRBACInheritanceDisabled(ctx)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -1456,7 +1456,7 @@ func (s *Server) GetResource(ctx context.Context, q *application.ApplicationReso
 	if err != nil {
 		return nil, fmt.Errorf("error getting resource: %w", err)
 	}
-	obj, err = s.replaceSecretValues(obj)
+	obj, err = s.replaceSecretValues(ctx, obj)
 	if err != nil {
 		return nil, fmt.Errorf("error replacing secret values: %w", err)
 	}
@@ -1468,9 +1468,9 @@ func (s *Server) GetResource(ctx context.Context, q *application.ApplicationReso
 	return &application.ApplicationResourceResponse{Manifest: &manifest}, nil
 }
 
-func (s *Server) replaceSecretValues(obj *unstructured.Unstructured) (*unstructured.Unstructured, error) {
+func (s *Server) replaceSecretValues(ctx context.Context, obj *unstructured.Unstructured) (*unstructured.Unstructured, error) {
 	if obj.GetKind() == kube.SecretKind && obj.GroupVersionKind().Group == "" {
-		_, obj, err := diff.HideSecretData(nil, obj, s.settingsMgr.GetSensitiveAnnotations())
+		_, obj, err := diff.HideSecretData(nil, obj, s.settingsMgr.GetSensitiveAnnotations(ctx))
 		if err != nil {
 			return nil, err
 		}
@@ -1507,7 +1507,7 @@ func (s *Server) PatchResource(ctx context.Context, q *application.ApplicationRe
 	if manifest == nil {
 		return nil, errors.New("failed to patch resource: manifest was nil")
 	}
-	manifest, err = s.replaceSecretValues(manifest)
+	manifest, err = s.replaceSecretValues(ctx, manifest)
 	if err != nil {
 		return nil, fmt.Errorf("error replacing secret values: %w", err)
 	}
@@ -1569,13 +1569,14 @@ func (s *Server) ResourceTree(ctx context.Context, q *application.ResourcesQuery
 }
 
 func (s *Server) WatchResourceTree(q *application.ResourcesQuery, ws application.ApplicationService_WatchResourceTreeServer) error {
-	_, _, err := s.getApplicationEnforceRBACInformer(ws.Context(), rbac.ActionGet, q.GetProject(), q.GetAppNamespace(), q.GetApplicationName())
+	ctx := ws.Context()
+	_, _, err := s.getApplicationEnforceRBACInformer(ctx, rbac.ActionGet, q.GetProject(), q.GetAppNamespace(), q.GetApplicationName())
 	if err != nil {
 		return err
 	}
 
 	cacheKey := argo.AppInstanceName(q.GetApplicationName(), q.GetAppNamespace(), s.ns)
-	return s.cache.OnAppResourcesTreeChanged(ws.Context(), cacheKey, func() error {
+	return s.cache.OnAppResourcesTreeChanged(ctx, cacheKey, func() error {
 		var tree v1alpha1.ApplicationTree
 		err := s.cache.GetAppResourcesTree(cacheKey, &tree)
 		if err != nil {
@@ -1773,6 +1774,7 @@ func (s *Server) ManagedResources(ctx context.Context, q *application.ResourcesQ
 }
 
 func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.ApplicationService_PodLogsServer) error {
+	ctx := ws.Context()
 	if q.PodName != nil {
 		podKind := "Pod"
 		q.Kind = &podKind
@@ -1806,21 +1808,21 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 		}
 	}
 
-	a, _, err := s.getApplicationEnforceRBACInformer(ws.Context(), rbac.ActionGet, q.GetProject(), q.GetAppNamespace(), q.GetName())
+	a, _, err := s.getApplicationEnforceRBACInformer(ctx, rbac.ActionGet, q.GetProject(), q.GetAppNamespace(), q.GetName())
 	if err != nil {
 		return err
 	}
 
-	if err := s.enf.EnforceErr(ws.Context().Value("claims"), rbac.ResourceLogs, rbac.ActionGet, a.RBACName(s.ns)); err != nil {
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceLogs, rbac.ActionGet, a.RBACName(s.ns)); err != nil {
 		return err
 	}
 
-	tree, err := s.getAppResources(ws.Context(), a)
+	tree, err := s.getAppResources(ctx, a)
 	if err != nil {
 		return fmt.Errorf("error getting app resource tree: %w", err)
 	}
 
-	config, err := s.getApplicationClusterConfig(ws.Context(), a)
+	config, err := s.getApplicationClusterConfig(ctx, a)
 	if err != nil {
 		return fmt.Errorf("error getting application cluster config: %w", err)
 	}
@@ -1836,7 +1838,7 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 		return nil
 	}
 
-	maxPodLogsToRender, err := s.settingsMgr.GetMaxPodLogsToRender()
+	maxPodLogsToRender, err := s.settingsMgr.GetMaxPodLogsToRender(ctx)
 	if err != nil {
 		return fmt.Errorf("error getting MaxPodLogsToRender config: %w", err)
 	}
@@ -1856,7 +1858,7 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 			SinceTime:    q.GetSinceTime(),
 			TailLines:    tailLines,
 			Previous:     q.GetPrevious(),
-		}).Stream(ws.Context())
+		}).Stream(ctx)
 		podName := pod.Name
 		logStream := make(chan logEntry)
 		if err == nil {
@@ -1934,7 +1936,7 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 	select {
 	case err := <-done:
 		return err
-	case <-ws.Context().Done():
+	case <-ctx.Done():
 		log.WithField("application", q.Name).Debug("k8s pod logs reader completed due to closed grpc context")
 		return nil
 	}
@@ -2091,7 +2093,7 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 	appName := syncReq.GetName()
 	appNs := s.appNamespaceOrDefault(syncReq.GetAppNamespace())
 	appIf := s.appclientset.ArgoprojV1alpha1().Applications(appNs)
-	a, err = argo.SetAppOperation(appIf, appName, &op)
+	a, err = argo.SetAppOperation(ctx, appIf, appName, &op)
 	if err != nil {
 		return nil, fmt.Errorf("error setting app operation: %w", err)
 	}
@@ -2113,7 +2115,7 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 }
 
 func (s *Server) resolveSourceRevisions(ctx context.Context, a *v1alpha1.Application, syncReq *application.ApplicationSyncRequest) (string, string, []string, []string, error) {
-	requireOverridePrivilegeForRevisionSync, err := s.settingsMgr.RequireOverridePrivilegeForRevisionSync()
+	requireOverridePrivilegeForRevisionSync, err := s.settingsMgr.RequireOverridePrivilegeForRevisionSync(ctx)
 	if err != nil {
 		// give up, and return the error
 		return "", "", nil, nil,
@@ -2231,7 +2233,7 @@ func (s *Server) Rollback(ctx context.Context, rollbackReq *application.Applicat
 	appName := rollbackReq.GetName()
 	appNs := s.appNamespaceOrDefault(rollbackReq.GetAppNamespace())
 	appIf := s.appclientset.ArgoprojV1alpha1().Applications(appNs)
-	a, err = argo.SetAppOperation(appIf, appName, &op)
+	a, err = argo.SetAppOperation(ctx, appIf, appName, &op)
 	if err != nil {
 		return nil, fmt.Errorf("error setting app operation: %w", err)
 	}
@@ -2250,7 +2252,7 @@ func (s *Server) ListLinks(ctx context.Context, req *application.ListAppLinksReq
 		return nil, fmt.Errorf("error getting application: %w", err)
 	}
 
-	deepLinks, err := s.settingsMgr.GetDeepLinks(settings.ApplicationDeepLinks)
+	deepLinks, err := s.settingsMgr.GetDeepLinks(ctx, settings.ApplicationDeepLinks)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read application deep links from configmap: %w", err)
 	}
@@ -2279,7 +2281,7 @@ func (s *Server) getObjectsForDeepLinks(ctx context.Context, app *v1alpha1.Appli
 		return nil, nil, err
 	}
 
-	getProjectClusters := func(project string) ([]*v1alpha1.Cluster, error) {
+	getProjectClusters := func(ctx context.Context, project string) ([]*v1alpha1.Cluster, error) {
 		return s.db.GetProjectClusters(ctx, project)
 	}
 
@@ -2292,7 +2294,7 @@ func (s *Server) getObjectsForDeepLinks(ctx context.Context, app *v1alpha1.Appli
 		return nil, nil, nil
 	}
 
-	permitted, err := proj.IsDestinationPermitted(destCluster, app.Spec.Destination.Namespace, getProjectClusters)
+	permitted, err := proj.IsDestinationPermitted(ctx, destCluster, app.Spec.Destination.Namespace, getProjectClusters)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -2309,12 +2311,12 @@ func (s *Server) ListResourceLinks(ctx context.Context, req *application.Applica
 	if err != nil {
 		return nil, err
 	}
-	deepLinks, err := s.settingsMgr.GetDeepLinks(settings.ResourceDeepLinks)
+	deepLinks, err := s.settingsMgr.GetDeepLinks(ctx, settings.ResourceDeepLinks)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read application deep links from configmap: %w", err)
 	}
 
-	obj, err = s.replaceSecretValues(obj)
+	obj, err = s.replaceSecretValues(ctx, obj)
 	if err != nil {
 		return nil, fmt.Errorf("error replacing secret values: %w", err)
 	}
@@ -2447,7 +2449,7 @@ func (s *Server) logAppEvent(ctx context.Context, a *v1alpha1.Application, reaso
 	}
 	message := fmt.Sprintf("%s %s", user, action)
 	eventLabels := argo.GetAppEventLabels(ctx, a, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr, s.db)
-	s.auditLogger.LogAppEvent(a, eventInfo, message, user, eventLabels)
+	s.auditLogger.LogAppEvent(ctx, a, eventInfo, message, user, eventLabels)
 }
 
 func (s *Server) logResourceEvent(ctx context.Context, res *v1alpha1.ResourceNode, reason string, action string) {
@@ -2457,7 +2459,7 @@ func (s *Server) logResourceEvent(ctx context.Context, res *v1alpha1.ResourceNod
 		user = "Unknown user"
 	}
 	message := fmt.Sprintf("%s %s", user, action)
-	s.auditLogger.LogResourceEvent(res, eventInfo, message, user)
+	s.auditLogger.LogResourceEvent(ctx, res, eventInfo, message, user)
 }
 
 func (s *Server) ListResourceActions(ctx context.Context, q *application.ApplicationResourceRequest) (*application.ResourceActionsListResponse, error) {
@@ -2465,12 +2467,12 @@ func (s *Server) ListResourceActions(ctx context.Context, q *application.Applica
 	if err != nil {
 		return nil, err
 	}
-	resourceOverrides, err := s.settingsMgr.GetResourceOverrides()
+	resourceOverrides, err := s.settingsMgr.GetResourceOverrides(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("error getting resource overrides: %w", err)
 	}
 
-	availableActions, err := s.getAvailableActions(resourceOverrides, obj)
+	availableActions, err := s.getAvailableActions(ctx, resourceOverrides, obj)
 	if err != nil {
 		return nil, fmt.Errorf("error getting available actions: %w", err)
 	}
@@ -2510,7 +2512,7 @@ func (s *Server) getUnstructuredLiveResourceOrApp(ctx context.Context, rbacReque
 	return obj, res, app, config, err
 }
 
-func (s *Server) getAvailableActions(resourceOverrides map[string]v1alpha1.ResourceOverride, obj *unstructured.Unstructured) ([]v1alpha1.ResourceAction, error) {
+func (s *Server) getAvailableActions(ctx context.Context, resourceOverrides map[string]v1alpha1.ResourceOverride, obj *unstructured.Unstructured) ([]v1alpha1.ResourceAction, error) {
 	luaVM := lua.VM{
 		ResourceOverrides: resourceOverrides,
 	}
@@ -2522,7 +2524,7 @@ func (s *Server) getAvailableActions(resourceOverrides map[string]v1alpha1.Resou
 	if len(discoveryScripts) == 0 {
 		return []v1alpha1.ResourceAction{}, nil
 	}
-	availableActions, err := luaVM.ExecuteResourceActionDiscovery(obj, discoveryScripts)
+	availableActions, err := luaVM.ExecuteResourceActionDiscovery(ctx, obj, discoveryScripts)
 	if err != nil {
 		return nil, fmt.Errorf("error executing Lua discovery script: %w", err)
 	}
@@ -2577,7 +2579,7 @@ func (s *Server) RunResourceActionV2(ctx context.Context, q *application.Resourc
 		return nil, fmt.Errorf("error marshaling live object: %w", err)
 	}
 
-	resourceOverrides, err := s.settingsMgr.GetResourceOverrides()
+	resourceOverrides, err := s.settingsMgr.GetResourceOverrides(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("error getting resource overrides: %w", err)
 	}
@@ -2590,7 +2592,7 @@ func (s *Server) RunResourceActionV2(ctx context.Context, q *application.Resourc
 		return nil, fmt.Errorf("error getting Lua resource action: %w", err)
 	}
 
-	newObjects, err := luaVM.ExecuteResourceAction(liveObj, action.ActionLua, q.GetResourceActionParameters())
+	newObjects, err := luaVM.ExecuteResourceAction(ctx, liveObj, action.ActionLua, q.GetResourceActionParameters())
 	if err != nil {
 		return nil, fmt.Errorf("error executing Lua resource action: %w", err)
 	}
@@ -2622,7 +2624,7 @@ func (s *Server) RunResourceActionV2(ctx context.Context, q *application.Resourc
 	// the dry-run for relevant apply/delete operation would have to be invoked as well.
 	for _, impactedResource := range newObjects {
 		newObj := impactedResource.UnstructuredObj
-		err := s.verifyResourcePermitted(destCluster, proj, newObj)
+		err := s.verifyResourcePermitted(ctx, destCluster, proj, newObj)
 		if err != nil {
 			return nil, err
 		}
@@ -2714,9 +2716,9 @@ func (s *Server) patchResource(ctx context.Context, config *rest.Config, liveObj
 	return &application.ApplicationResponse{}, nil
 }
 
-func (s *Server) verifyResourcePermitted(destCluster *v1alpha1.Cluster, proj *v1alpha1.AppProject, obj *unstructured.Unstructured) error {
-	permitted, err := proj.IsResourcePermitted(schema.GroupKind{Group: obj.GroupVersionKind().Group, Kind: obj.GroupVersionKind().Kind}, obj.GetNamespace(), destCluster, func(project string) ([]*v1alpha1.Cluster, error) {
-		clusters, err := s.db.GetProjectClusters(context.TODO(), project)
+func (s *Server) verifyResourcePermitted(ctx context.Context, destCluster *v1alpha1.Cluster, proj *v1alpha1.AppProject, obj *unstructured.Unstructured) error {
+	permitted, err := proj.IsResourcePermitted(ctx, schema.GroupKind{Group: obj.GroupVersionKind().Group, Kind: obj.GroupVersionKind().Kind}, obj.GetNamespace(), destCluster, func(ctx context.Context, project string) ([]*v1alpha1.Cluster, error) {
+		clusters, err := s.db.GetProjectClusters(ctx, project)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get project clusters: %w", err)
 		}
@@ -2881,12 +2883,12 @@ func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationS
 		return nil, fmt.Errorf("error getting application: %w", err)
 	}
 
-	argoSettings, err := s.settingsMgr.GetSettings()
+	argoSettings, err := s.settingsMgr.GetSettings(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("error getting ArgoCD settings: %w", err)
 	}
 
-	resourceOverrides, err := s.settingsMgr.GetResourceOverrides()
+	resourceOverrides, err := s.settingsMgr.GetResourceOverrides(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("error getting resource overrides: %w", err)
 	}
@@ -2914,7 +2916,7 @@ func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationS
 		return nil, fmt.Errorf("failed to get OpenAPI schema: %w", err)
 	}
 
-	applier, cleanup, err := kubeutil.ManageServerSideDiffDryRuns(clusterConfig, openAPISchema, func(_ string) (kube.CleanupFunc, error) {
+	applier, cleanup, err := kubeutil.ManageServerSideDiffDryRuns(clusterConfig, openAPISchema, func(context.Context, string) (kube.CleanupFunc, error) {
 		return func() {}, nil
 	})
 	if err != nil {
@@ -2924,7 +2926,7 @@ func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationS
 
 	dryRunner := diff.NewK8sServerSideDryRunner(applier)
 
-	appLabelKey, err := s.settingsMgr.GetAppInstanceLabelKey()
+	appLabelKey, err := s.settingsMgr.GetAppInstanceLabelKey(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("error getting app instance label key: %w", err)
 	}

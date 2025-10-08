@@ -81,12 +81,13 @@ func TestHelmTemplateValues(t *testing.T) {
 }
 
 func TestHelmGetParams(t *testing.T) {
+	ctx := t.Context()
 	repoRoot := "./testdata/redis"
 	repoRootAbs, err := filepath.Abs(repoRoot)
 	require.NoError(t, err)
 	h, err := NewHelmApp(repoRootAbs, nil, false, "", "", "", false)
 	require.NoError(t, err)
-	params, err := h.GetParameters(nil, repoRootAbs, repoRootAbs)
+	params, err := h.GetParameters(ctx, nil, repoRootAbs, repoRootAbs)
 	require.NoError(t, err)
 
 	slaveCountParam := params["cluster.slaveCount"]
@@ -94,6 +95,7 @@ func TestHelmGetParams(t *testing.T) {
 }
 
 func TestHelmGetParamsValueFiles(t *testing.T) {
+	ctx := t.Context()
 	repoRoot := "./testdata/redis"
 	repoRootAbs, err := filepath.Abs(repoRoot)
 	require.NoError(t, err)
@@ -101,7 +103,7 @@ func TestHelmGetParamsValueFiles(t *testing.T) {
 	require.NoError(t, err)
 	valuesPath, _, err := path.ResolveValueFilePathOrUrl(repoRootAbs, repoRootAbs, "values-production.yaml", nil)
 	require.NoError(t, err)
-	params, err := h.GetParameters([]path.ResolvedFilePath{valuesPath}, repoRootAbs, repoRootAbs)
+	params, err := h.GetParameters(ctx, []path.ResolvedFilePath{valuesPath}, repoRootAbs, repoRootAbs)
 	require.NoError(t, err)
 
 	slaveCountParam := params["cluster.slaveCount"]
@@ -109,6 +111,7 @@ func TestHelmGetParamsValueFiles(t *testing.T) {
 }
 
 func TestHelmGetParamsValueFilesThatExist(t *testing.T) {
+	ctx := t.Context()
 	repoRoot := "./testdata/redis"
 	repoRootAbs, err := filepath.Abs(repoRoot)
 	require.NoError(t, err)
@@ -118,7 +121,7 @@ func TestHelmGetParamsValueFilesThatExist(t *testing.T) {
 	require.NoError(t, err)
 	valuesProductionPath, _, err := path.ResolveValueFilePathOrUrl(repoRootAbs, repoRootAbs, "values-production.yaml", nil)
 	require.NoError(t, err)
-	params, err := h.GetParameters([]path.ResolvedFilePath{valuesMissingPath, valuesProductionPath}, repoRootAbs, repoRootAbs)
+	params, err := h.GetParameters(ctx, []path.ResolvedFilePath{valuesMissingPath, valuesProductionPath}, repoRootAbs, repoRootAbs)
 	require.NoError(t, err)
 
 	slaveCountParam := params["cluster.slaveCount"]
@@ -176,7 +179,7 @@ func TestHelmArgCleaner(t *testing.T) {
 }
 
 func TestVersion(t *testing.T) {
-	ver, err := Version()
+	ver, err := Version(t.Context())
 	require.NoError(t, err)
 	assert.NotEmpty(t, ver)
 }

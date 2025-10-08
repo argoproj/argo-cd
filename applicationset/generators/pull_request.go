@@ -56,7 +56,7 @@ func (g *PullRequestGenerator) GetTemplate(appSetGenerator *argoprojiov1alpha1.A
 	return &appSetGenerator.PullRequest.Template
 }
 
-func (g *PullRequestGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, applicationSetInfo *argoprojiov1alpha1.ApplicationSet, _ client.Client) ([]map[string]any, error) {
+func (g *PullRequestGenerator) GenerateParams(ctx context.Context, appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, applicationSetInfo *argoprojiov1alpha1.ApplicationSet, _ client.Client) ([]map[string]any, error) {
 	if appSetGenerator == nil {
 		return nil, ErrEmptyAppSetGenerator
 	}
@@ -65,7 +65,6 @@ func (g *PullRequestGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 		return nil, ErrEmptyAppSetGenerator
 	}
 
-	ctx := context.Background()
 	svc, err := g.selectServiceProviderFunc(ctx, appSetGenerator.PullRequest, applicationSetInfo)
 	if err != nil {
 		return nil, fmt.Errorf("failed to select pull request service provider: %w", err)

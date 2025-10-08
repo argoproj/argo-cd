@@ -2,6 +2,7 @@ package util
 
 import (
 	"bufio"
+	"context"
 	stderrors "errors"
 	"fmt"
 	"io"
@@ -174,7 +175,7 @@ func AddAppFlags(command *cobra.Command, opts *AppOptions) {
 	command.Flags().StringVar(&opts.SourceName, "source-name", "", "Name of the source from the list of sources of the app.")
 }
 
-func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, appOpts *AppOptions, sourcePosition int) int {
+func SetAppSpecOptions(ctx context.Context, flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, appOpts *AppOptions, sourcePosition int) int {
 	visited := 0
 	if flags == nil {
 		return visited
@@ -188,7 +189,7 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 		if source == nil {
 			source = &argoappv1.ApplicationSource{}
 		}
-		source, visited = ConstructSource(source, *appOpts, flags)
+		source, visited = ConstructSource(ctx, source, *appOpts, flags)
 		if spec.HasMultipleSources() {
 			switch {
 			case sourcePosition == 0:
@@ -575,16 +576,16 @@ func readAppsFromStdin(apps *[]*argoappv1.Application) error {
 	return nil
 }
 
-func readAppsFromURI(fileURL string, apps *[]*argoappv1.Application) error {
-	readFilePayload := func() ([]byte, error) {
+func readAppsFromURI(ctx context.Context, fileURL string, apps *[]*argoappv1.Application) error {
+	readFilePayload := func(ctx context.Context) ([]byte, error) {
 		parsedURL, err := url.ParseRequestURI(fileURL)
 		if err != nil || (parsedURL.Scheme != "http" && parsedURL.Scheme != "https") {
 			return os.ReadFile(fileURL)
 		}
-		return config.ReadRemoteFile(fileURL)
+		return config.ReadRemoteFile(ctx, fileURL)
 	}
 
-	yml, err := readFilePayload()
+	yml, err := readFilePayload(ctx)
 	if err != nil {
 		return err
 	}
@@ -602,7 +603,7 @@ func constructAppsFromStdin() ([]*argoappv1.Application, error) {
 	return apps, nil
 }
 
-func constructAppsBaseOnName(appName string, labels, annotations, args []string, appOpts AppOptions, flags *pflag.FlagSet) ([]*argoappv1.Application, error) {
+func constructAppsBaseOnName(ctx context.Context, appName string, labels, annotations, args []string, appOpts AppOptions, flags *pflag.FlagSet) ([]*argoappv1.Application, error) {
 	var app *argoappv1.Application
 
 	// read arguments
@@ -624,7 +625,7 @@ func constructAppsBaseOnName(appName string, labels, annotations, args []string,
 		},
 		Spec: argoappv1.ApplicationSpec{},
 	}
-	SetAppSpecOptions(flags, &app.Spec, &appOpts, 0)
+	SetAppSpecOptions(ctx, flags, &app.Spec, &appOpts, 0)
 	SetParameterOverrides(app, appOpts.Parameters, 0)
 	mergeLabels(app, labels)
 	setAnnotations(app, annotations)
@@ -633,10 +634,10 @@ func constructAppsBaseOnName(appName string, labels, annotations, args []string,
 	}, nil
 }
 
-func constructAppsFromFileURL(fileURL, appName string, labels, annotations, args []string, appOpts AppOptions, flags *pflag.FlagSet) ([]*argoappv1.Application, error) {
+func constructAppsFromFileURL(ctx context.Context, fileURL, appName string, labels, annotations, args []string, appOpts AppOptions, flags *pflag.FlagSet) ([]*argoappv1.Application, error) {
 	apps := make([]*argoappv1.Application, 0)
 	// read uri
-	err := readAppsFromURI(fileURL, &apps)
+	err := readAppsFromURI(ctx, fileURL, &apps)
 	if err != nil {
 		return nil, err
 	}
@@ -656,24 +657,24 @@ func constructAppsFromFileURL(fileURL, appName string, labels, annotations, args
 
 		// do not allow overrides for applications with multiple sources
 		if !app.Spec.HasMultipleSources() {
-			SetAppSpecOptions(flags, &app.Spec, &appOpts, 0)
+			SetAppSpecOptions(ctx, flags, &app.Spec, &appOpts, 0)
 			SetParameterOverrides(app, appOpts.Parameters, 0)
 		}
 	}
 	return apps, nil
 }
 
-func ConstructApps(fileURL, appName string, labels, annotations, args []string, appOpts AppOptions, flags *pflag.FlagSet) ([]*argoappv1.Application, error) {
+func ConstructApps(ctx context.Context, fileURL, appName string, labels, annotations, args []string, appOpts AppOptions, flags *pflag.FlagSet) ([]*argoappv1.Application, error) {
 	if fileURL == "-" {
 		return constructAppsFromStdin()
 	} else if fileURL != "" {
-		return constructAppsFromFileURL(fileURL, appName, labels, annotations, args, appOpts, flags)
+		return constructAppsFromFileURL(ctx, fileURL, appName, labels, annotations, args, appOpts, flags)
 	}
 
-	return constructAppsBaseOnName(appName, labels, annotations, args, appOpts, flags)
+	return constructAppsBaseOnName(ctx, appName, labels, annotations, args, appOpts, flags)
 }
 
-func ConstructSource(source *argoappv1.ApplicationSource, appOpts AppOptions, flags *pflag.FlagSet) (*argoappv1.ApplicationSource, int) {
+func ConstructSource(ctx context.Context, source *argoappv1.ApplicationSource, appOpts AppOptions, flags *pflag.FlagSet) (*argoappv1.ApplicationSource, int) {
 	visited := 0
 	flags.Visit(func(f *pflag.Flag) {
 		visited++
@@ -697,7 +698,7 @@ func ConstructSource(source *argoappv1.ApplicationSource, appOpts AppOptions, fl
 			if err != nil || (parsedURL.Scheme != "http" && parsedURL.Scheme != "https") {
 				data, err = os.ReadFile(appOpts.values)
 			} else {
-				data, err = config.ReadRemoteFile(appOpts.values)
+				data, err = config.ReadRemoteFile(ctx, appOpts.values)
 			}
 			errors.CheckError(err)
 			setHelmOpt(source, helmOpts{values: string(data)})

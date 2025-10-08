@@ -23,14 +23,14 @@ type ExtendedClient struct {
 	owner    string
 }
 
-func (c *ExtendedClient) GetContents(repo *Repository, path string) (bool, error) {
+func (c *ExtendedClient) GetContents(ctx context.Context, repo *Repository, path string) (bool, error) {
 	urlStr := c.GetApiBaseURL()
 
 	// Getting file contents from V2 defined at https://developer.atlassian.com/cloud/bitbucket/rest/api-group-source/#api-repositories-workspace-repo-slug-src-commit-path-get
 	urlStr += fmt.Sprintf("/repositories/%s/%s/src/%s/%s?format=meta", c.owner, repo.Repository, repo.SHA, path)
 	body := strings.NewReader("")
 
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, urlStr, body)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, urlStr, body)
 	if err != nil {
 		return false, err
 	}
@@ -117,8 +117,8 @@ func (g *BitBucketCloudProvider) ListRepos(_ context.Context, cloneProtocol stri
 	return repos, nil
 }
 
-func (g *BitBucketCloudProvider) RepoHasPath(_ context.Context, repo *Repository, path string) (bool, error) {
-	contents, err := g.client.GetContents(repo, path)
+func (g *BitBucketCloudProvider) RepoHasPath(ctx context.Context, repo *Repository, path string) (bool, error) {
+	contents, err := g.client.GetContents(ctx, repo, path)
 	if err != nil {
 		return false, err
 	}

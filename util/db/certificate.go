@@ -56,7 +56,7 @@ type CertificateListSelector struct {
 //   - For SSH keys, the SHA256 fingerprint of the key as string, prepended by
 //     the string "SHA256:"
 //   - For TLS certs, the Subject of the X509 cert as a string in DN notation
-func (db *db) ListRepoCertificates(_ context.Context, selector *CertificateListSelector) (*appsv1.RepositoryCertificateList, error) {
+func (db *db) ListRepoCertificates(ctx context.Context, selector *CertificateListSelector) (*appsv1.RepositoryCertificateList, error) {
 	// selector may be given as nil, but we need at least an empty data structure
 	// so we create it if necessary.
 	if selector == nil {
@@ -67,7 +67,7 @@ func (db *db) ListRepoCertificates(_ context.Context, selector *CertificateListS
 
 	// Get all SSH known host entries
 	if selector.CertType == "" || selector.CertType == "*" || selector.CertType == "ssh" {
-		sshKnownHosts, err := db.getSSHKnownHostsData()
+		sshKnownHosts, err := db.getSSHKnownHostsData(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -86,7 +86,7 @@ func (db *db) ListRepoCertificates(_ context.Context, selector *CertificateListS
 
 	// Get all TLS certificates
 	if selector.CertType == "" || selector.CertType == "*" || selector.CertType == "https" || selector.CertType == "tls" {
-		tlsCertificates, err := db.getTLSCertificateData()
+		tlsCertificates, err := db.getTLSCertificateData(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -123,9 +123,9 @@ func (db *db) ListRepoCertificates(_ context.Context, selector *CertificateListS
 }
 
 // Get a single certificate from the datastore
-func (db *db) GetRepoCertificate(_ context.Context, serverType string, serverName string) (*appsv1.RepositoryCertificate, error) {
+func (db *db) GetRepoCertificate(ctx context.Context, serverType string, serverName string) (*appsv1.RepositoryCertificate, error) {
 	if serverType == "ssh" {
-		sshKnownHostsList, err := db.getSSHKnownHostsData()
+		sshKnownHostsList, err := db.getSSHKnownHostsData(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -155,12 +155,12 @@ func (db *db) CreateRepoCertificate(ctx context.Context, certificates *appsv1.Re
 		saveTLSData = false
 	)
 
-	sshKnownHostsList, err := db.getSSHKnownHostsData()
+	sshKnownHostsList, err := db.getSSHKnownHostsData(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	tlsCertificates, err := db.getTLSCertificateData()
+	tlsCertificates, err := db.getTLSCertificateData(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -347,7 +347,7 @@ func (db *db) RemoveRepoCertificates(ctx context.Context, selector *CertificateL
 	}
 
 	if selector.CertType == "" || selector.CertType == "ssh" || selector.CertType == "*" {
-		knownHostsOld, err = db.getSSHKnownHostsData()
+		knownHostsOld, err = db.getSSHKnownHostsData(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -368,7 +368,7 @@ func (db *db) RemoveRepoCertificates(ctx context.Context, selector *CertificateL
 	}
 
 	if selector.CertType == "" || selector.CertType == "*" || selector.CertType == "https" || selector.CertType == "tls" {
-		tlsCertificatesOld, err = db.getTLSCertificateData()
+		tlsCertificatesOld, err = db.getTLSCertificateData(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -438,9 +438,9 @@ func tlsCertificatesToMap(tlsCertificates []*TLSCertificate) map[string]string {
 }
 
 // Get the TLS certificate data from the config map
-func (db *db) getTLSCertificateData() ([]*TLSCertificate, error) {
+func (db *db) getTLSCertificateData(ctx context.Context) ([]*TLSCertificate, error) {
 	certificates := make([]*TLSCertificate, 0)
-	certCM, err := db.settingsMgr.GetConfigMapByName(common.ArgoCDTLSCertsConfigMapName)
+	certCM, err := db.settingsMgr.GetConfigMapByName(ctx, common.ArgoCDTLSCertsConfigMapName)
 	if err != nil {
 		return nil, err
 	}
@@ -453,8 +453,8 @@ func (db *db) getTLSCertificateData() ([]*TLSCertificate, error) {
 
 // Gets the SSH known host data from ConfigMap and parse it into an array of
 // SSHKnownHostEntry structs.
-func (db *db) getSSHKnownHostsData() ([]*SSHKnownHostsEntry, error) {
-	certCM, err := db.settingsMgr.GetConfigMapByName(common.ArgoCDKnownHostsConfigMapName)
+func (db *db) getSSHKnownHostsData(ctx context.Context) ([]*SSHKnownHostsEntry, error) {
+	certCM, err := db.settingsMgr.GetConfigMapByName(ctx, common.ArgoCDKnownHostsConfigMapName)
 	if err != nil {
 		return nil, err
 	}

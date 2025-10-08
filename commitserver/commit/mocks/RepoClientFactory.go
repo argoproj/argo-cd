@@ -5,6 +5,8 @@
 package mocks
 
 import (
+	"context"
+
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/git"
 	mock "github.com/stretchr/testify/mock"
@@ -38,8 +40,8 @@ func (_m *RepoClientFactory) EXPECT() *RepoClientFactory_Expecter {
 }
 
 // NewClient provides a mock function for the type RepoClientFactory
-func (_mock *RepoClientFactory) NewClient(repo *v1alpha1.Repository, rootPath string) (git.Client, error) {
-	ret := _mock.Called(repo, rootPath)
+func (_mock *RepoClientFactory) NewClient(ctx context.Context, repo *v1alpha1.Repository, rootPath string) (git.Client, error) {
+	ret := _mock.Called(ctx, repo, rootPath)
 
 	if len(ret) == 0 {
 		panic("no return value specified for NewClient")
@@ -47,18 +49,18 @@ func (_mock *RepoClientFactory) NewClient(repo *v1alpha1.Repository, rootPath st
 
 	var r0 git.Client
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(*v1alpha1.Repository, string) (git.Client, error)); ok {
-		return returnFunc(repo, rootPath)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *v1alpha1.Repository, string) (git.Client, error)); ok {
+		return returnFunc(ctx, repo, rootPath)
 	}
-	if returnFunc, ok := ret.Get(0).(func(*v1alpha1.Repository, string) git.Client); ok {
-		r0 = returnFunc(repo, rootPath)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *v1alpha1.Repository, string) git.Client); ok {
+		r0 = returnFunc(ctx, repo, rootPath)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(git.Client)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(*v1alpha1.Repository, string) error); ok {
-		r1 = returnFunc(repo, rootPath)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, *v1alpha1.Repository, string) error); ok {
+		r1 = returnFunc(ctx, repo, rootPath)
 	} else {
 		r1 = ret.Error(1)
 	}

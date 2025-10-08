@@ -36,12 +36,13 @@ import (
 )
 
 func TestRefreshApp(t *testing.T) {
+	ctx := t.Context()
 	var testApp argoappv1.Application
 	testApp.Name = "test-app"
 	testApp.Namespace = "default"
 	appClientset := appclientset.NewSimpleClientset(&testApp)
 	appIf := appClientset.ArgoprojV1alpha1().Applications("default")
-	_, err := RefreshApp(appIf, "test-app", argoappv1.RefreshTypeNormal, true)
+	_, err := RefreshApp(ctx, appIf, "test-app", argoappv1.RefreshTypeNormal, true)
 	require.NoError(t, err)
 	// For some reason, the fake Application interface doesn't reflect the patch status after Patch(),
 	// so can't verify it was set in unit tests.
@@ -79,7 +80,7 @@ func TestGetAppProjectWithNoProjDefined(t *testing.T) {
 	cache.WaitForCacheSync(ctx.Done(), informer.HasSynced)
 
 	kubeClient := fake.NewClientset(&cm)
-	settingsMgr := settings.NewSettingsManager(t.Context(), kubeClient, test.FakeArgoCDNamespace)
+	settingsMgr := settings.NewSettingsManager(kubeClient, test.FakeArgoCDNamespace)
 	argoDB := db.NewDB("default", settingsMgr, kubeClient)
 	proj, err := GetAppProject(ctx, &testApp, applisters.NewAppProjectLister(informer.GetIndexer()), namespace, settingsMgr, argoDB)
 	require.NoError(t, err)
@@ -443,7 +444,7 @@ func TestValidateRepo(t *testing.T) {
 	}
 
 	kubeClient := fake.NewClientset(&cm)
-	settingsMgr := settings.NewSettingsManager(t.Context(), kubeClient, test.FakeArgoCDNamespace)
+	settingsMgr := settings.NewSettingsManager(kubeClient, test.FakeArgoCDNamespace)
 
 	conditions, err := ValidateRepo(t.Context(), app, repoClientSet, db, &kubetest.MockKubectlCmd{Version: kubeVersion, APIResources: apiResources}, proj, settingsMgr)
 
@@ -909,13 +910,15 @@ func TestValidatePermissions(t *testing.T) {
 
 func TestSetAppOperations(t *testing.T) {
 	t.Run("Application not existing", func(t *testing.T) {
+		ctx := t.Context()
 		appIf := appclientset.NewSimpleClientset().ArgoprojV1alpha1().Applications("default")
-		app, err := SetAppOperation(appIf, "someapp", &argoappv1.Operation{Sync: &argoappv1.SyncOperation{Revision: "aaa"}})
+		app, err := SetAppOperation(ctx, appIf, "someapp", &argoappv1.Operation{Sync: &argoappv1.SyncOperation{Revision: "aaa"}})
 		require.Error(t, err)
 		assert.Nil(t, app)
 	})
 
 	t.Run("Operation already in progress", func(t *testing.T) {
+		ctx := t.Context()
 		a := argoappv1.Application{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "someapp",
@@ -924,12 +927,13 @@ func TestSetAppOperations(t *testing.T) {
 			Operation: &argoappv1.Operation{Sync: &argoappv1.SyncOperation{Revision: "aaa"}},
 		}
 		appIf := appclientset.NewSimpleClientset(&a).ArgoprojV1alpha1().Applications("default")
-		app, err := SetAppOperation(appIf, "someapp", &argoappv1.Operation{Sync: &argoappv1.SyncOperation{Revision: "aaa"}})
+		app, err := SetAppOperation(ctx, appIf, "someapp", &argoappv1.Operation{Sync: &argoappv1.SyncOperation{Revision: "aaa"}})
 		require.ErrorContains(t, err, "operation is already in progress")
 		assert.Nil(t, app)
 	})
 
 	t.Run("Operation unspecified", func(t *testing.T) {
+		ctx := t.Context()
 		a := argoappv1.Application{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "someapp",
@@ -937,12 +941,13 @@ func TestSetAppOperations(t *testing.T) {
 			},
 		}
 		appIf := appclientset.NewSimpleClientset(&a).ArgoprojV1alpha1().Applications("default")
-		app, err := SetAppOperation(appIf, "someapp", &argoappv1.Operation{Sync: nil})
+		app, err := SetAppOperation(ctx, appIf, "someapp", &argoappv1.Operation{Sync: nil})
 		require.ErrorContains(t, err, "Operation unspecified")
 		assert.Nil(t, app)
 	})
 
 	t.Run("Success", func(t *testing.T) {
+		ctx := t.Context()
 		a := argoappv1.Application{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "someapp",
@@ -950,7 +955,7 @@ func TestSetAppOperations(t *testing.T) {
 			},
 		}
 		appIf := appclientset.NewSimpleClientset(&a).ArgoprojV1alpha1().Applications("default")
-		app, err := SetAppOperation(appIf, "someapp", &argoappv1.Operation{Sync: &argoappv1.SyncOperation{Revision: "aaa"}})
+		app, err := SetAppOperation(ctx, appIf, "someapp", &argoappv1.Operation{Sync: &argoappv1.SyncOperation{Revision: "aaa"}})
 		require.NoError(t, err)
 		assert.NotNil(t, app)
 	})
@@ -1182,15 +1187,15 @@ func TestGetGlobalProjects(t *testing.T) {
 		cache.WaitForCacheSync(ctx.Done(), informer.HasSynced)
 
 		kubeClient := fake.NewSimpleClientset(&cm)
-		settingsMgr := settings.NewSettingsManager(t.Context(), kubeClient, test.FakeArgoCDNamespace)
+		settingsMgr := settings.NewSettingsManager(kubeClient, test.FakeArgoCDNamespace)
 
 		projLister := applisters.NewAppProjectLister(informer.GetIndexer())
 
-		xGlobalProjects := GetGlobalProjects(isX, projLister, settingsMgr)
+		xGlobalProjects := GetGlobalProjects(t.Context(), isX, projLister, settingsMgr)
 		assert.Len(t, xGlobalProjects, 1)
 		assert.Equal(t, "default-x", xGlobalProjects[0].Name)
 
-		nonXGlobalProjects := GetGlobalProjects(isNoX, projLister, settingsMgr)
+		nonXGlobalProjects := GetGlobalProjects(t.Context(), isNoX, projLister, settingsMgr)
 		assert.Len(t, nonXGlobalProjects, 1)
 		assert.Equal(t, "default-non-x", nonXGlobalProjects[0].Name)
 	})
@@ -1726,7 +1731,7 @@ func TestGetAppEventLabels(t *testing.T) {
 			cache.WaitForCacheSync(ctx.Done(), informer.HasSynced)
 
 			kubeClient := fake.NewSimpleClientset(&cm)
-			settingsMgr := settings.NewSettingsManager(t.Context(), kubeClient, test.FakeArgoCDNamespace)
+			settingsMgr := settings.NewSettingsManager(kubeClient, test.FakeArgoCDNamespace)
 			argoDB := db.NewDB("default", settingsMgr, kubeClient)
 
 			eventLabels := GetAppEventLabels(ctx, &app, applisters.NewAppProjectLister(informer.GetIndexer()), test.FakeArgoCDNamespace, settingsMgr, argoDB)

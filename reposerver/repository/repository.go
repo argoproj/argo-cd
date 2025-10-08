@@ -210,8 +210,8 @@ func (s *Service) ListOCITags(ctx context.Context, q *apiclient.ListRefsRequest)
 }
 
 // ListRefs List a subset of the refs (currently, branches and tags) of a git repo
-func (s *Service) ListRefs(_ context.Context, q *apiclient.ListRefsRequest) (*apiclient.Refs, error) {
-	gitClient, err := s.newClient(q.Repo)
+func (s *Service) ListRefs(ctx context.Context, q *apiclient.ListRefsRequest) (*apiclient.Refs, error) {
+	gitClient, err := s.newClient(ctx, q.Repo)
 	if err != nil {
 		return nil, fmt.Errorf("error creating git client: %w", err)
 	}
@@ -219,7 +219,7 @@ func (s *Service) ListRefs(_ context.Context, q *apiclient.ListRefsRequest) (*ap
 	s.metricsServer.IncPendingRepoRequest(q.Repo.Repo)
 	defer s.metricsServer.DecPendingRepoRequest(q.Repo.Repo)
 
-	refs, err := gitClient.LsRefs()
+	refs, err := gitClient.LsRefs(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -234,7 +234,7 @@ func (s *Service) ListRefs(_ context.Context, q *apiclient.ListRefsRequest) (*ap
 
 // ListApps lists the contents of a GitHub repo
 func (s *Service) ListApps(ctx context.Context, q *apiclient.ListAppsRequest) (*apiclient.AppList, error) {
-	gitClient, commitSHA, err := s.newClientResolveRevision(q.Repo, q.Revision)
+	gitClient, commitSHA, err := s.newClientResolveRevision(ctx, q.Repo, q.Revision)
 	if err != nil {
 		return nil, fmt.Errorf("error setting up git client and resolving given revision: %w", err)
 	}
@@ -344,14 +344,14 @@ func (s *Service) runRepoOperation(
 	case source.IsHelm():
 		helmClient, revision, err = s.newHelmClientResolveRevision(repo, revision, source.Chart, settings.noCache || settings.noRevisionCache)
 	default:
-		gitClient, revision, err = s.newClientResolveRevision(repo, revision, gitClientOpts)
+		gitClient, revision, err = s.newClientResolveRevision(ctx, repo, revision, gitClientOpts)
 	}
 
 	if err != nil {
 		return err
 	}
 
-	repoRefs, err := resolveReferencedSources(hasMultipleSources, source.Helm, refSources, s.newClientResolveRevision, gitClientOpts)
+	repoRefs, err := resolveReferencedSources(ctx, hasMultipleSources, source.Helm, refSources, s.newClientResolveRevision, gitClientOpts)
 	if err != nil {
 		return err
 	}
@@ -528,14 +528,14 @@ func getRepoSanitizerRegex(rootDir string) *regexp.Regexp {
 	return regexp.MustCompile(regexp.QuoteMeta(rootDir) + `/[^ /]*`)
 }
 
-type gitClientGetter func(repo *v1alpha1.Repository, revision string, opts ...git.ClientOpts) (git.Client, string, error)
+type gitClientGetter func(ctx context.Context, repo *v1alpha1.Repository, revision string, opts ...git.ClientOpts) (git.Client, string, error)
 
 // resolveReferencedSources resolves the revisions for the given referenced sources. This lets us invalidate the cached
 // when one or more referenced sources change.
 //
 // Much of this logic is duplicated in runManifestGenAsync. If making changes here, check whether runManifestGenAsync
 // should be updated.
-func resolveReferencedSources(hasMultipleSources bool, source *v1alpha1.ApplicationSourceHelm, refSources map[string]*v1alpha1.RefTarget, newClientResolveRevision gitClientGetter, gitClientOpts git.ClientOpts) (map[string]string, error) {
+func resolveReferencedSources(ctx context.Context, hasMultipleSources bool, source *v1alpha1.ApplicationSourceHelm, refSources map[string]*v1alpha1.RefTarget, newClientResolveRevision gitClientGetter, gitClientOpts git.ClientOpts) (map[string]string, error) {
 	repoRefs := make(map[string]string)
 	if !hasMultipleSources || source == nil {
 		return repoRefs, nil
@@ -570,7 +570,7 @@ func resolveReferencedSources(hasMultipleSources bool, source *v1alpha1.Applicat
 		normalizedRepoURL := git.NormalizeGitURL(refSourceMapping.Repo.Repo)
 		_, ok = repoRefs[normalizedRepoURL]
 		if !ok {
-			_, referencedCommitSHA, err := newClientResolveRevision(&refSourceMapping.Repo, refSourceMapping.TargetRevision, gitClientOpts)
+			_, referencedCommitSHA, err := newClientResolveRevision(ctx, &refSourceMapping.Repo, refSourceMapping.TargetRevision, gitClientOpts)
 			if err != nil {
 				log.Errorf("Failed to get git client for repo %s: %v", refSourceMapping.Repo.Repo, err)
 				return nil, fmt.Errorf("failed to get git client for repo %s", refSourceMapping.Repo.Repo)
@@ -589,7 +589,7 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 	// Skip this path for ref only sources
 	if q.HasMultipleSources && q.ApplicationSource.Path == "" && !q.ApplicationSource.IsOCI() && !q.ApplicationSource.IsHelm() && q.ApplicationSource.IsRef() {
 		log.Debugf("Skipping manifest generation for ref only source for application: %s and ref %s", q.AppName, q.ApplicationSource.Ref)
-		_, revision, err := s.newClientResolveRevision(q.Repo, q.Revision, git.WithCache(s.cache, !q.NoRevisionCache && !q.NoCache))
+		_, revision, err := s.newClientResolveRevision(ctx, q.Repo, q.Revision, git.WithCache(s.cache, !q.NoRevisionCache && !q.NoCache))
 		res = &apiclient.ManifestResponse{
 			Revision: revision,
 		}
@@ -822,7 +822,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 							return
 						}
 					} else {
-						gitClient, referencedCommitSHA, err := s.newClientResolveRevision(&refSourceMapping.Repo, refSourceMapping.TargetRevision, git.WithCache(s.cache, !q.NoRevisionCache && !q.NoCache))
+						gitClient, referencedCommitSHA, err := s.newClientResolveRevision(ctx, &refSourceMapping.Repo, refSourceMapping.TargetRevision, git.WithCache(s.cache, !q.NoRevisionCache && !q.NoCache))
 						if err != nil {
 							log.Errorf("Failed to get git client for repo %s: %v", refSourceMapping.Repo.Repo, err)
 							ch.errCh <- fmt.Errorf("failed to get git client for repo %s", refSourceMapping.Repo.Repo)
@@ -1529,7 +1529,7 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 		if err != nil {
 			return nil, fmt.Errorf("could not parse kubernetes version %s: %w", q.ApplicationSource.GetKubeVersionOrDefault(q.KubeVersion), err)
 		}
-		k := kustomize.NewKustomizeApp(repoRoot, appPath, q.Repo.GetGitCreds(gitCredsStore), repoURL, kustomizeBinary, q.Repo.Proxy, q.Repo.NoProxy)
+		k := kustomize.NewKustomizeApp(repoRoot, appPath, q.Repo.GetGitCreds(ctx, gitCredsStore), repoURL, kustomizeBinary, q.Repo.Proxy, q.Repo.NoProxy)
 		targetObjs, _, commands, err = k.Build(q.ApplicationSource.Kustomize, q.KustomizeOptions, env, &kustomize.BuildOpts{
 			KubeVersion: kubeVersion,
 			APIVersions: q.ApplicationSource.GetAPIVersionsOrDefault(q.ApiVersions),
@@ -1540,7 +1540,7 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 			pluginName = q.ApplicationSource.Plugin.Name
 		}
 		// if pluginName is provided it has to be `<metadata.name>-<spec.version>` or just `<metadata.name>` if plugin version is empty
-		targetObjs, err = runConfigManagementPluginSidecars(ctx, appPath, repoRoot, pluginName, env, q, q.Repo.GetGitCreds(gitCredsStore), opt.cmpTarDoneCh, opt.cmpTarExcludedGlobs, opt.cmpUseManifestGeneratePaths)
+		targetObjs, err = runConfigManagementPluginSidecars(ctx, appPath, repoRoot, pluginName, env, q, q.Repo.GetGitCreds(ctx, gitCredsStore), opt.cmpTarDoneCh, opt.cmpTarExcludedGlobs, opt.cmpUseManifestGeneratePaths)
 		if err != nil {
 			err = fmt.Errorf("CMP processing failed for application %q: %w", q.AppName, err)
 		}
@@ -2190,11 +2190,11 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 
 		switch appSourceType {
 		case v1alpha1.ApplicationSourceTypeHelm:
-			if err := populateHelmAppDetails(res, opContext.appPath, repoRoot, q, s.gitRepoPaths); err != nil {
+			if err := populateHelmAppDetails(ctx, res, opContext.appPath, repoRoot, q, s.gitRepoPaths); err != nil {
 				return err
 			}
 		case v1alpha1.ApplicationSourceTypeKustomize:
-			if err := populateKustomizeAppDetails(res, q, repoRoot, opContext.appPath, commitSHA, s.gitCredsStore); err != nil {
+			if err := populateKustomizeAppDetails(ctx, res, q, repoRoot, opContext.appPath, commitSHA, s.gitCredsStore); err != nil {
 				return err
 			}
 		case v1alpha1.ApplicationSourceTypePlugin:
@@ -2229,7 +2229,7 @@ func (s *Service) createGetAppDetailsCacheHandler(res *apiclient.RepoAppDetailsR
 	}
 }
 
-func populateHelmAppDetails(res *apiclient.RepoAppDetailsResponse, appPath string, repoRoot string, q *apiclient.RepoServerAppDetailsQuery, gitRepoPaths utilio.TempPaths) error {
+func populateHelmAppDetails(ctx context.Context, res *apiclient.RepoAppDetailsResponse, appPath string, repoRoot string, q *apiclient.RepoServerAppDetailsQuery, gitRepoPaths utilio.TempPaths) error {
 	var selectedValueFiles []string
 	var availableValueFiles []string
 
@@ -2276,7 +2276,7 @@ func populateHelmAppDetails(res *apiclient.RepoAppDetailsResponse, appPath strin
 	if err != nil {
 		return fmt.Errorf("failed to resolve value files: %w", err)
 	}
-	params, err := h.GetParameters(resolvedSelectedValueFiles, appPath, repoRoot)
+	params, err := h.GetParameters(ctx, resolvedSelectedValueFiles, appPath, repoRoot)
 	if err != nil {
 		return err
 	}
@@ -2330,13 +2330,13 @@ func walkHelmValueFilesInPath(root string, valueFiles *[]string) filepath.WalkFu
 	}
 }
 
-func populateKustomizeAppDetails(res *apiclient.RepoAppDetailsResponse, q *apiclient.RepoServerAppDetailsQuery, repoRoot string, appPath string, reversion string, credsStore git.CredsStore) error {
+func populateKustomizeAppDetails(ctx context.Context, res *apiclient.RepoAppDetailsResponse, q *apiclient.RepoServerAppDetailsQuery, repoRoot string, appPath string, reversion string, credsStore git.CredsStore) error {
 	res.Kustomize = &apiclient.KustomizeAppSpec{}
 	kustomizeBinary, err := settings.GetKustomizeBinaryPath(q.KustomizeOptions, *q.Source)
 	if err != nil {
 		return fmt.Errorf("failed to get kustomize binary path: %w", err)
 	}
-	k := kustomize.NewKustomizeApp(repoRoot, appPath, q.Repo.GetGitCreds(credsStore), q.Repo.Repo, kustomizeBinary, q.Repo.Proxy, q.Repo.NoProxy)
+	k := kustomize.NewKustomizeApp(repoRoot, appPath, q.Repo.GetGitCreds(ctx, credsStore), q.Repo.Repo, kustomizeBinary, q.Repo.Proxy, q.Repo.NoProxy)
 	fakeManifestRequest := apiclient.ManifestRequest{
 		AppName:           q.AppName,
 		Namespace:         "", // FIXME: omit it for now
@@ -2399,7 +2399,7 @@ func populatePluginAppDetails(ctx context.Context, res *apiclient.RepoAppDetails
 	return nil
 }
 
-func (s *Service) GetRevisionMetadata(_ context.Context, q *apiclient.RepoServerRevisionMetadataRequest) (*v1alpha1.RevisionMetadata, error) {
+func (s *Service) GetRevisionMetadata(ctx context.Context, q *apiclient.RepoServerRevisionMetadataRequest) (*v1alpha1.RevisionMetadata, error) {
 	if !git.IsCommitSHA(q.Revision) && !git.IsTruncatedCommitSHA(q.Revision) {
 		return nil, fmt.Errorf("revision %s must be resolved", q.Revision)
 	}
@@ -2426,7 +2426,7 @@ func (s *Service) GetRevisionMetadata(_ context.Context, q *apiclient.RepoServer
 		}
 	}
 
-	gitClient, _, err := s.newClientResolveRevision(q.Repo, q.Revision)
+	gitClient, _, err := s.newClientResolveRevision(ctx, q.Repo, q.Revision)
 	if err != nil {
 		return nil, err
 	}
@@ -2517,7 +2517,7 @@ func (s *Service) GetOCIMetadata(ctx context.Context, q *apiclient.RepoServerRev
 }
 
 // GetRevisionChartDetails returns the helm chart details of a given version
-func (s *Service) GetRevisionChartDetails(_ context.Context, q *apiclient.RepoServerRevisionChartDetailsRequest) (*v1alpha1.ChartDetails, error) {
+func (s *Service) GetRevisionChartDetails(ctx context.Context, q *apiclient.RepoServerRevisionChartDetailsRequest) (*v1alpha1.ChartDetails, error) {
 	details, err := s.cache.GetRevisionChartDetails(q.Repo.Repo, q.Name, q.Revision)
 	if err == nil {
 		log.Infof("revision chart details cache hit: %s/%s/%s", q.Repo.Repo, q.Name, q.Revision)
@@ -2542,7 +2542,7 @@ func (s *Service) GetRevisionChartDetails(_ context.Context, q *apiclient.RepoSe
 		return nil, fmt.Errorf("error creating helm cmd: %w", err)
 	}
 	defer helmCmd.Close()
-	helmDetails, err := helmCmd.InspectChart()
+	helmDetails, err := helmCmd.InspectChart(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("error inspecting chart: %w", err)
 	}
@@ -2561,23 +2561,23 @@ func fileParameters(q *apiclient.RepoServerAppDetailsQuery) []v1alpha1.HelmFileP
 	return q.Source.Helm.FileParameters
 }
 
-func (s *Service) newClient(repo *v1alpha1.Repository, opts ...git.ClientOpts) (git.Client, error) {
+func (s *Service) newClient(ctx context.Context, repo *v1alpha1.Repository, opts ...git.ClientOpts) (git.Client, error) {
 	repoPath, err := s.gitRepoPaths.GetPath(git.NormalizeGitURL(repo.Repo))
 	if err != nil {
 		return nil, err
 	}
 	opts = append(opts, git.WithEventHandlers(metrics.NewGitClientEventHandlers(s.metricsServer)))
-	return s.newGitClient(repo.Repo, repoPath, repo.GetGitCreds(s.gitCredsStore), repo.IsInsecure(), repo.EnableLFS, repo.Proxy, repo.NoProxy, opts...)
+	return s.newGitClient(repo.Repo, repoPath, repo.GetGitCreds(ctx, s.gitCredsStore), repo.IsInsecure(), repo.EnableLFS, repo.Proxy, repo.NoProxy, opts...)
 }
 
 // newClientResolveRevision is a helper to perform the common task of instantiating a git client
 // and resolving a revision to a commit SHA
-func (s *Service) newClientResolveRevision(repo *v1alpha1.Repository, revision string, opts ...git.ClientOpts) (git.Client, string, error) {
-	gitClient, err := s.newClient(repo, opts...)
+func (s *Service) newClientResolveRevision(ctx context.Context, repo *v1alpha1.Repository, revision string, opts ...git.ClientOpts) (git.Client, string, error) {
+	gitClient, err := s.newClient(ctx, repo, opts...)
 	if err != nil {
 		return nil, "", err
 	}
-	commitSHA, err := gitClient.LsRemote(revision)
+	commitSHA, err := gitClient.LsRemote(ctx, revision)
 	if err != nil {
 		s.metricsServer.IncGitLsRemoteFail(gitClient.Root(), revision)
 		return nil, "", err
@@ -2774,11 +2774,11 @@ func (s *Service) TestRepository(ctx context.Context, q *apiclient.TestRepositor
 	if repo.Type == "" {
 		repo.Type = "git"
 	}
-	checks := map[string]func() error{
-		"git": func() error {
-			return git.TestRepo(repo.Repo, repo.GetGitCreds(s.gitCredsStore), repo.IsInsecure(), repo.IsLFSEnabled(), repo.Proxy, repo.NoProxy)
+	checks := map[string]func(context.Context) error{
+		"git": func(ctx context.Context) error {
+			return git.TestRepo(ctx, repo.Repo, repo.GetGitCreds(ctx, s.gitCredsStore), repo.IsInsecure(), repo.IsLFSEnabled(), repo.Proxy, repo.NoProxy)
 		},
-		"oci": func() error {
+		"oci": func(context.Context) error {
 			client, err := oci.NewClient(repo.Repo, repo.GetOCICreds(), repo.Proxy, repo.NoProxy, s.initConstants.OCIMediaTypes)
 			if err != nil {
 				return err
@@ -2786,7 +2786,7 @@ func (s *Service) TestRepository(ctx context.Context, q *apiclient.TestRepositor
 			_, err = client.TestRepo(ctx)
 			return err
 		},
-		"helm": func() error {
+		"helm": func(context.Context) error {
 			if repo.EnableOCI {
 				if !helm.IsHelmOciRepo(repo.Repo) {
 					return errors.New("OCI Helm repository URL should include hostname and port only")
@@ -2800,7 +2800,7 @@ func (s *Service) TestRepository(ctx context.Context, q *apiclient.TestRepositor
 	}
 	check := checks[repo.Type]
 	apiResp := &apiclient.TestRepositoryResponse{VerifiedRepository: false}
-	err := check()
+	err := check(ctx)
 	if err != nil {
 		return apiResp, fmt.Errorf("error testing repository connectivity: %w", err)
 	}
@@ -2835,11 +2835,11 @@ func (s *Service) ResolveRevision(ctx context.Context, q *apiclient.ResolveRevis
 			AmbiguousRevision: fmt.Sprintf("%v (%v)", ambiguousRevision, revision),
 		}, nil
 	}
-	gitClient, err := git.NewClient(repo.Repo, repo.GetGitCreds(s.gitCredsStore), repo.IsInsecure(), repo.IsLFSEnabled(), repo.Proxy, repo.NoProxy)
+	gitClient, err := git.NewClient(repo.Repo, repo.GetGitCreds(ctx, s.gitCredsStore), repo.IsInsecure(), repo.IsLFSEnabled(), repo.Proxy, repo.NoProxy)
 	if err != nil {
 		return &apiclient.ResolveRevisionResponse{Revision: "", AmbiguousRevision: ""}, err
 	}
-	revision, err := gitClient.LsRemote(ambiguousRevision)
+	revision, err := gitClient.LsRemote(ctx, ambiguousRevision)
 	if err != nil {
 		s.metricsServer.IncGitLsRemoteFail(gitClient.Root(), revision)
 		return &apiclient.ResolveRevisionResponse{Revision: "", AmbiguousRevision: ""}, err
@@ -2850,7 +2850,7 @@ func (s *Service) ResolveRevision(ctx context.Context, q *apiclient.ResolveRevis
 	}, nil
 }
 
-func (s *Service) GetGitFiles(_ context.Context, request *apiclient.GitFilesRequest) (*apiclient.GitFilesResponse, error) {
+func (s *Service) GetGitFiles(ctx context.Context, request *apiclient.GitFilesRequest) (*apiclient.GitFilesResponse, error) {
 	repo := request.GetRepo()
 	revision := request.GetRevision()
 	gitPath := request.GetPath()
@@ -2864,7 +2864,7 @@ func (s *Service) GetGitFiles(_ context.Context, request *apiclient.GitFilesRequ
 		return nil, status.Error(codes.InvalidArgument, "must pass a valid repo")
 	}
 
-	gitClient, revision, err := s.newClientResolveRevision(repo, revision, git.WithCache(s.cache, !noRevisionCache))
+	gitClient, revision, err := s.newClientResolveRevision(ctx, repo, revision, git.WithCache(s.cache, !noRevisionCache))
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "unable to resolve git revision %s: %v", revision, err)
 	}
@@ -2938,7 +2938,7 @@ func verifyCommitSignature(verifyCommit bool, gitClient git.Client, revision str
 	return nil
 }
 
-func (s *Service) GetGitDirectories(_ context.Context, request *apiclient.GitDirectoriesRequest) (*apiclient.GitDirectoriesResponse, error) {
+func (s *Service) GetGitDirectories(ctx context.Context, request *apiclient.GitDirectoriesRequest) (*apiclient.GitDirectoriesResponse, error) {
 	repo := request.GetRepo()
 	revision := request.GetRevision()
 	noRevisionCache := request.GetNoRevisionCache()
@@ -2946,7 +2946,7 @@ func (s *Service) GetGitDirectories(_ context.Context, request *apiclient.GitDir
 		return nil, status.Error(codes.InvalidArgument, "must pass a valid repo")
 	}
 
-	gitClient, revision, err := s.newClientResolveRevision(repo, revision, git.WithCache(s.cache, !noRevisionCache))
+	gitClient, revision, err := s.newClientResolveRevision(ctx, repo, revision, git.WithCache(s.cache, !noRevisionCache))
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "unable to resolve git revision %s: %v", revision, err)
 	}
@@ -3020,7 +3020,7 @@ func (s *Service) GetGitDirectories(_ context.Context, request *apiclient.GitDir
 // If no files were changed, it will store the already cached manifest to the key corresponding to the old revision, avoiding an unnecessary generation.
 // Example: cache has key "a1a1a1" with manifest "x", and the files for that manifest have not changed,
 // "x" will be stored again with the new revision "b2b2b2".
-func (s *Service) UpdateRevisionForPaths(_ context.Context, request *apiclient.UpdateRevisionForPathsRequest) (*apiclient.UpdateRevisionForPathsResponse, error) {
+func (s *Service) UpdateRevisionForPaths(ctx context.Context, request *apiclient.UpdateRevisionForPathsRequest) (*apiclient.UpdateRevisionForPathsResponse, error) {
 	logCtx := log.WithFields(log.Fields{"application": request.AppName, "appNamespace": request.Namespace})
 
 	repo := request.GetRepo()
@@ -3038,12 +3038,12 @@ func (s *Service) UpdateRevisionForPaths(_ context.Context, request *apiclient.U
 	}
 
 	gitClientOpts := git.WithCache(s.cache, !request.NoRevisionCache)
-	gitClient, revision, err := s.newClientResolveRevision(repo, revision, gitClientOpts)
+	gitClient, revision, err := s.newClientResolveRevision(ctx, repo, revision, gitClientOpts)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "unable to resolve git revision %s: %v", revision, err)
 	}
 
-	syncedRevision, err = gitClient.LsRemote(syncedRevision)
+	syncedRevision, err = gitClient.LsRemote(ctx, syncedRevision)
 	if err != nil {
 		s.metricsServer.IncGitLsRemoteFail(gitClient.Root(), revision)
 		return nil, status.Errorf(codes.Internal, "unable to resolve git revision %s: %v", revision, err)
@@ -3084,7 +3084,7 @@ func (s *Service) UpdateRevisionForPaths(_ context.Context, request *apiclient.U
 	if !changed {
 		logCtx.Debugf("no changes found for application %s in repo %s from revision %s to revision %s", request.AppName, repo.Repo, syncedRevision, revision)
 
-		err := s.updateCachedRevision(logCtx, syncedRevision, revision, request, gitClientOpts)
+		err := s.updateCachedRevision(ctx, logCtx, syncedRevision, revision, request, gitClientOpts)
 		if err != nil {
 			// Only warn with the error, no need to block anything if there is a caching error.
 			logCtx.Warnf("error updating cached revision for repo %s with revision %s: %v", repo.Repo, revision, err)
@@ -3105,11 +3105,11 @@ func (s *Service) UpdateRevisionForPaths(_ context.Context, request *apiclient.U
 	}, nil
 }
 
-func (s *Service) updateCachedRevision(logCtx *log.Entry, oldRev string, newRev string, request *apiclient.UpdateRevisionForPathsRequest, gitClientOpts git.ClientOpts) error {
+func (s *Service) updateCachedRevision(ctx context.Context, logCtx *log.Entry, oldRev string, newRev string, request *apiclient.UpdateRevisionForPathsRequest, gitClientOpts git.ClientOpts) error {
 	repoRefs := make(map[string]string)
 	if request.HasMultipleSources && request.ApplicationSource.Helm != nil {
 		var err error
-		repoRefs, err = resolveReferencedSources(true, request.ApplicationSource.Helm, request.RefSources, s.newClientResolveRevision, gitClientOpts)
+		repoRefs, err = resolveReferencedSources(ctx, true, request.ApplicationSource.Helm, request.RefSources, s.newClientResolveRevision, gitClientOpts)
 		if err != nil {
 			return fmt.Errorf("failed to get repo refs for application %s in repo %s from revision %s: %w", request.AppName, request.GetRepo().Repo, request.Revision, err)
 		}

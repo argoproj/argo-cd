@@ -139,6 +139,7 @@ func TestGetReconcileResults_Refresh(t *testing.T) {
 func TestDiffReconcileResults_NoDifferences(t *testing.T) {
 	logs, err := captureStdout(func() {
 		require.NoError(t, diffReconcileResults(
+			t.Context(),
 			reconcileResults{Applications: []appReconcileResult{{
 				Name: "app1",
 				Sync: &v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeOutOfSync},
@@ -156,6 +157,7 @@ func TestDiffReconcileResults_NoDifferences(t *testing.T) {
 func TestDiffReconcileResults_DifferentApps(t *testing.T) {
 	logs, err := captureStdout(func() {
 		require.NoError(t, diffReconcileResults(
+			t.Context(),
 			reconcileResults{Applications: []appReconcileResult{{
 				Name: "app1",
 				Sync: &v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeOutOfSync},

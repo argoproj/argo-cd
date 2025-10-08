@@ -43,16 +43,16 @@ func NewUserStateStorage(redis *redis.Client) *userStateStorage {
 func (storage *userStateStorage) Init(ctx context.Context) {
 	go storage.watchRevokedTokens(ctx)
 	ticker := time.NewTicker(storage.resyncDuration)
-	go func() {
-		storage.loadRevokedTokensSafe()
+	go func(ctx context.Context) {
+		storage.loadRevokedTokensSafe(ctx)
 		for range ticker.C {
-			storage.loadRevokedTokensSafe()
+			storage.loadRevokedTokensSafe(ctx)
 		}
-	}()
-	go func() {
+	}(ctx)
+	go func(ctx context.Context) {
 		<-ctx.Done()
 		ticker.Stop()
-	}()
+	}(ctx)
 }
 
 func (storage *userStateStorage) watchRevokedTokens(ctx context.Context) {
@@ -73,19 +73,19 @@ func (storage *userStateStorage) watchRevokedTokens(ctx context.Context) {
 	}
 }
 
-func (storage *userStateStorage) loadRevokedTokensSafe() {
-	err := storage.loadRevokedTokens()
+func (storage *userStateStorage) loadRevokedTokensSafe(ctx context.Context) {
+	err := storage.loadRevokedTokens(ctx)
 	for err != nil {
 		log.Warnf("Failed to resync revoked tokens. retrying again in 1 minute: %v", err)
 		time.Sleep(time.Minute)
-		err = storage.loadRevokedTokens()
+		err = storage.loadRevokedTokens(ctx)
 	}
 }
 
-func (storage *userStateStorage) loadRevokedTokens() error {
+func (storage *userStateStorage) loadRevokedTokens(ctx context.Context) error {
 	redisRevokedTokens := map[string]bool{}
-	iterator := storage.redis.Scan(context.Background(), 0, revokedTokenPrefix+"*", 10000).Iterator()
-	for iterator.Next(context.Background()) {
+	iterator := storage.redis.Scan(ctx, 0, revokedTokenPrefix+"*", 10000).Iterator()
+	for iterator.Next(ctx) {
 		parts := strings.Split(iterator.Val(), "|")
 		if len(parts) != 2 {
 			log.Warnf("Unexpected redis key prefixed with '%s'. Must have token id after the prefix but got: '%s'.",

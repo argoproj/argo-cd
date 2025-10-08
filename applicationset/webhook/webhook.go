@@ -34,6 +34,11 @@ const payloadQueueSize = 50000
 
 const panicMsgAppSet = "panic while processing applicationset-controller webhook event"
 
+type webhookPayload struct {
+	ctx     context.Context
+	payload any
+}
+
 type WebhookHandler struct {
 	sync.WaitGroup // for testing
 	github         *github.Webhook
@@ -41,7 +46,7 @@ type WebhookHandler struct {
 	azuredevops    *azuredevops.Webhook
 	client         client.Client
 	generators     map[string]generators.Generator
-	queue          chan any
+	queue          chan webhookPayload
 }
 
 type gitGeneratorInfo struct {
@@ -72,9 +77,9 @@ type prGeneratorGitlabInfo struct {
 	APIHostname string
 }
 
-func NewWebhookHandler(webhookParallelism int, argocdSettingsMgr *argosettings.SettingsManager, client client.Client, generators map[string]generators.Generator) (*WebhookHandler, error) {
+func NewWebhookHandler(ctx context.Context, webhookParallelism int, argocdSettingsMgr *argosettings.SettingsManager, client client.Client, generators map[string]generators.Generator) (*WebhookHandler, error) {
 	// register the webhook secrets stored under "argocd-secret" for verifying incoming payloads
-	argocdSettings, err := argocdSettingsMgr.GetSettings()
+	argocdSettings, err := argocdSettingsMgr.GetSettings(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get argocd settings: %w", err)
 	}
@@ -97,7 +102,7 @@ func NewWebhookHandler(webhookParallelism int, argocdSettingsMgr *argosettings.S
 		azuredevops: azuredevopsHandler,
 		client:      client,
 		generators:  generators,
-		queue:       make(chan any, payloadQueueSize),
+		queue:       make(chan webhookPayload, payloadQueueSize),
 	}
 
 	webhookHandler.startWorkerPool(webhookParallelism)
@@ -112,17 +117,17 @@ func (h *WebhookHandler) startWorkerPool(webhookParallelism int) {
 		go func() {
 			defer h.Done()
 			for {
-				payload, ok := <-h.queue
+				wp, ok := <-h.queue
 				if !ok {
 					return
 				}
-				guard.RecoverAndLog(func() { h.HandleEvent(payload) }, compLog, panicMsgAppSet)
+				guard.RecoverAndLog(func() { h.HandleEvent(wp.ctx, wp.payload) }, compLog, panicMsgAppSet)
 			}
 		}()
 	}
 }
 
-func (h *WebhookHandler) HandleEvent(payload any) {
+func (h *WebhookHandler) HandleEvent(ctx context.Context, payload any) {
 	gitGenInfo := getGitGeneratorInfo(payload)
 	prGenInfo := getPRGeneratorInfo(payload)
 	if gitGenInfo == nil && prGenInfo == nil {
@@ -130,7 +135,7 @@ func (h *WebhookHandler) HandleEvent(payload any) {
 	}
 
 	appSetList := &v1alpha1.ApplicationSetList{}
-	err := h.client.List(context.Background(), appSetList, &client.ListOptions{})
+	err := h.client.List(ctx, appSetList, &client.ListOptions{})
 	if err != nil {
 		log.Errorf("Failed to list applicationsets: %v", err)
 		return
@@ -143,14 +148,14 @@ func (h *WebhookHandler) HandleEvent(payload any) {
 			shouldRefresh = shouldRefreshGitGenerator(gen.Git, gitGenInfo) ||
 				shouldRefreshPRGenerator(gen.PullRequest, prGenInfo) ||
 				shouldRefreshPluginGenerator(gen.Plugin) ||
-				h.shouldRefreshMatrixGenerator(gen.Matrix, &appSet, gitGenInfo, prGenInfo) ||
-				h.shouldRefreshMergeGenerator(gen.Merge, &appSet, gitGenInfo, prGenInfo)
+				h.shouldRefreshMatrixGenerator(ctx, gen.Matrix, &appSet, gitGenInfo, prGenInfo) ||
+				h.shouldRefreshMergeGenerator(ctx, gen.Merge, &appSet, gitGenInfo, prGenInfo)
 			if shouldRefresh {
 				break
 			}
 		}
 		if shouldRefresh {
-			err := refreshApplicationSet(h.client, &appSet)
+			err := refreshApplicationSet(ctx, h.client, &appSet)
 			if err != nil {
 				log.Errorf("Failed to refresh ApplicationSet '%s' for controller reprocessing", appSet.Name)
 				continue
@@ -188,7 +193,7 @@ func (h *WebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	select {
-	case h.queue <- payload:
+	case h.queue <- webhookPayload{ctx: r.Context(), payload: payload}:
 	default:
 		log.Info("Queue is full, discarding webhook payload")
 		http.Error(w, "Queue is full, discarding webhook payload", http.StatusServiceUnavailable)
@@ -415,7 +420,7 @@ func shouldRefreshPRGenerator(gen *v1alpha1.PullRequestGenerator, info *prGenera
 	return false
 }
 
-func (h *WebhookHandler) shouldRefreshMatrixGenerator(gen *v1alpha1.MatrixGenerator, appSet *v1alpha1.ApplicationSet, gitGenInfo *gitGeneratorInfo, prGenInfo *prGeneratorInfo) bool {
+func (h *WebhookHandler) shouldRefreshMatrixGenerator(ctx context.Context, gen *v1alpha1.MatrixGenerator, appSet *v1alpha1.ApplicationSet, gitGenInfo *gitGeneratorInfo, prGenInfo *prGeneratorInfo) bool {
 	if gen == nil {
 		return false
 	}
@@ -444,7 +449,7 @@ func (h *WebhookHandler) shouldRefreshMatrixGenerator(gen *v1alpha1.MatrixGenera
 		}
 		if nestedMatrix != nil {
 			matrixGenerator0 = nestedMatrix.ToMatrixGenerator()
-			if h.shouldRefreshMatrixGenerator(matrixGenerator0, appSet, gitGenInfo, prGenInfo) {
+			if h.shouldRefreshMatrixGenerator(ctx, matrixGenerator0, appSet, gitGenInfo, prGenInfo) {
 				return true
 			}
 		}
@@ -461,7 +466,7 @@ func (h *WebhookHandler) shouldRefreshMatrixGenerator(gen *v1alpha1.MatrixGenera
 		}
 		if nestedMerge != nil {
 			mergeGenerator0 = nestedMerge.ToMergeGenerator()
-			if h.shouldRefreshMergeGenerator(mergeGenerator0, appSet, gitGenInfo, prGenInfo) {
+			if h.shouldRefreshMergeGenerator(ctx, mergeGenerator0, appSet, gitGenInfo, prGenInfo) {
 				return true
 			}
 		}
@@ -484,7 +489,7 @@ func (h *WebhookHandler) shouldRefreshMatrixGenerator(gen *v1alpha1.MatrixGenera
 	relGenerators := generators.GetRelevantGenerators(requestedGenerator0, h.generators)
 	params := []map[string]any{}
 	for _, g := range relGenerators {
-		p, err := g.GenerateParams(requestedGenerator0, appSet, h.client)
+		p, err := g.GenerateParams(ctx, requestedGenerator0, appSet, h.client)
 		if err != nil {
 			log.Error(err)
 			return false
@@ -549,8 +554,8 @@ func (h *WebhookHandler) shouldRefreshMatrixGenerator(gen *v1alpha1.MatrixGenera
 			if shouldRefreshGitGenerator(interpolatedGenerator.Git, gitGenInfo) ||
 				shouldRefreshPRGenerator(interpolatedGenerator.PullRequest, prGenInfo) ||
 				shouldRefreshPluginGenerator(interpolatedGenerator.Plugin) ||
-				h.shouldRefreshMatrixGenerator(interpolatedGenerator.Matrix, appSet, gitGenInfo, prGenInfo) ||
-				h.shouldRefreshMergeGenerator(requestedGenerator1.Merge, appSet, gitGenInfo, prGenInfo) {
+				h.shouldRefreshMatrixGenerator(ctx, interpolatedGenerator.Matrix, appSet, gitGenInfo, prGenInfo) ||
+				h.shouldRefreshMergeGenerator(ctx, requestedGenerator1.Merge, appSet, gitGenInfo, prGenInfo) {
 				return true
 			}
 		}
@@ -560,11 +565,11 @@ func (h *WebhookHandler) shouldRefreshMatrixGenerator(gen *v1alpha1.MatrixGenera
 	return shouldRefreshGitGenerator(requestedGenerator1.Git, gitGenInfo) ||
 		shouldRefreshPRGenerator(requestedGenerator1.PullRequest, prGenInfo) ||
 		shouldRefreshPluginGenerator(requestedGenerator1.Plugin) ||
-		h.shouldRefreshMatrixGenerator(requestedGenerator1.Matrix, appSet, gitGenInfo, prGenInfo) ||
-		h.shouldRefreshMergeGenerator(requestedGenerator1.Merge, appSet, gitGenInfo, prGenInfo)
+		h.shouldRefreshMatrixGenerator(ctx, requestedGenerator1.Matrix, appSet, gitGenInfo, prGenInfo) ||
+		h.shouldRefreshMergeGenerator(ctx, requestedGenerator1.Merge, appSet, gitGenInfo, prGenInfo)
 }
 
-func (h *WebhookHandler) shouldRefreshMergeGenerator(gen *v1alpha1.MergeGenerator, appSet *v1alpha1.ApplicationSet, gitGenInfo *gitGeneratorInfo, prGenInfo *prGeneratorInfo) bool {
+func (h *WebhookHandler) shouldRefreshMergeGenerator(ctx context.Context, gen *v1alpha1.MergeGenerator, appSet *v1alpha1.ApplicationSet, gitGenInfo *gitGeneratorInfo, prGenInfo *prGeneratorInfo) bool {
 	if gen == nil {
 		return false
 	}
@@ -585,7 +590,7 @@ func (h *WebhookHandler) shouldRefreshMergeGenerator(gen *v1alpha1.MergeGenerato
 				return false
 			}
 			if nestedMatrix != nil {
-				if h.shouldRefreshMatrixGenerator(nestedMatrix.ToMatrixGenerator(), appSet, gitGenInfo, prGenInfo) {
+				if h.shouldRefreshMatrixGenerator(ctx, nestedMatrix.ToMatrixGenerator(), appSet, gitGenInfo, prGenInfo) {
 					return true
 				}
 			}
@@ -600,7 +605,7 @@ func (h *WebhookHandler) shouldRefreshMergeGenerator(gen *v1alpha1.MergeGenerato
 				return false
 			}
 			if nestedMerge != nil {
-				if h.shouldRefreshMergeGenerator(nestedMerge.ToMergeGenerator(), appSet, gitGenInfo, prGenInfo) {
+				if h.shouldRefreshMergeGenerator(ctx, nestedMerge.ToMergeGenerator(), appSet, gitGenInfo, prGenInfo) {
 					return true
 				}
 			}
@@ -610,10 +615,10 @@ func (h *WebhookHandler) shouldRefreshMergeGenerator(gen *v1alpha1.MergeGenerato
 	return false
 }
 
-func refreshApplicationSet(c client.Client, appSet *v1alpha1.ApplicationSet) error {
+func refreshApplicationSet(ctx context.Context, c client.Client, appSet *v1alpha1.ApplicationSet) error {
 	// patch the ApplicationSet with the refresh annotation to reconcile
 	return retry.RetryOnConflict(retry.DefaultBackoff, func() error {
-		err := c.Get(context.Background(), types.NamespacedName{Name: appSet.Name, Namespace: appSet.Namespace}, appSet)
+		err := c.Get(ctx, types.NamespacedName{Name: appSet.Name, Namespace: appSet.Namespace}, appSet)
 		if err != nil {
 			return fmt.Errorf("error getting ApplicationSet: %w", err)
 		}
@@ -621,6 +626,6 @@ func refreshApplicationSet(c client.Client, appSet *v1alpha1.ApplicationSet) err
 			appSet.Annotations = map[string]string{}
 		}
 		appSet.Annotations[common.AnnotationApplicationSetRefresh] = "true"
-		return c.Patch(context.Background(), appSet, client.Merge)
+		return c.Patch(ctx, appSet, client.Merge)
 	})
 }

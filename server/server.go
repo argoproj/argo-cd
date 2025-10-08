@@ -278,7 +278,7 @@ func (g GracefulRestartSignal) String() string {
 func (g GracefulRestartSignal) Signal() {}
 
 // initializeDefaultProject creates the default project if it does not already exist
-func initializeDefaultProject(opts ArgoCDServerOpts) error {
+func initializeDefaultProject(ctx context.Context, opts ArgoCDServerOpts) error {
 	defaultProj := &v1alpha1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{Name: v1alpha1.DefaultAppProjectName, Namespace: opts.Namespace},
 		Spec: v1alpha1.AppProjectSpec{
@@ -288,9 +288,9 @@ func initializeDefaultProject(opts ArgoCDServerOpts) error {
 		},
 	}
 
-	_, err := opts.AppClientset.ArgoprojV1alpha1().AppProjects(opts.Namespace).Get(context.Background(), defaultProj.Name, metav1.GetOptions{})
+	_, err := opts.AppClientset.ArgoprojV1alpha1().AppProjects(opts.Namespace).Get(ctx, defaultProj.Name, metav1.GetOptions{})
 	if apierrors.IsNotFound(err) {
-		_, err = opts.AppClientset.ArgoprojV1alpha1().AppProjects(opts.Namespace).Create(context.Background(), defaultProj, metav1.CreateOptions{})
+		_, err = opts.AppClientset.ArgoprojV1alpha1().AppProjects(opts.Namespace).Create(ctx, defaultProj, metav1.CreateOptions{})
 		if apierrors.IsAlreadyExists(err) {
 			return nil
 		}
@@ -300,10 +300,10 @@ func initializeDefaultProject(opts ArgoCDServerOpts) error {
 
 // NewServer returns a new instance of the Argo CD API server
 func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts ApplicationSetOpts) *ArgoCDServer {
-	settingsMgr := settings_util.NewSettingsManager(ctx, opts.KubeClientset, opts.Namespace)
-	settings, err := settingsMgr.InitializeSettings(opts.Insecure)
+	settingsMgr := settings_util.NewSettingsManager(opts.KubeClientset, opts.Namespace)
+	settings, err := settingsMgr.InitializeSettings(ctx, opts.Insecure)
 	errorsutil.CheckError(err)
-	err = initializeDefaultProject(opts)
+	err = initializeDefaultProject(ctx, opts)
 	errorsutil.CheckError(err)
 
 	appInformerNs := opts.Namespace
@@ -323,7 +323,7 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts Applicatio
 	appsetLister := appFactory.Argoproj().V1alpha1().ApplicationSets().Lister()
 
 	userStateStorage := util_session.NewUserStateStorage(opts.RedisClient)
-	sessionMgr := util_session.NewSessionManager(settingsMgr, projLister, opts.DexServerAddr, opts.DexTLSConfig, userStateStorage)
+	sessionMgr := util_session.NewSessionManager(ctx, settingsMgr, projLister, opts.DexServerAddr, opts.DexTLSConfig, userStateStorage)
 	enf := rbac.NewEnforcer(opts.KubeClientset, opts.Namespace, common.ArgoCDRBACConfigMapName, nil)
 	enf.EnableEnforce(!opts.DisableAuth)
 	err = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
@@ -392,7 +392,7 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts Applicatio
 		stopCh:             make(chan os.Signal, 1),
 	}
 
-	err = a.logInClusterWarnings()
+	err = a.logInClusterWarnings(ctx)
 	if err != nil {
 		// Just log. It's not critical.
 		log.Warnf("Failed to log in-cluster warnings: %v", err)
@@ -452,14 +452,14 @@ func (l *Listeners) Close() error {
 }
 
 // logInClusterWarnings checks the in-cluster configuration and prints out any warnings.
-func (server *ArgoCDServer) logInClusterWarnings() error {
+func (server *ArgoCDServer) logInClusterWarnings(ctx context.Context) error {
 	labelSelector := labels.NewSelector()
 	req, err := labels.NewRequirement(common.LabelKeySecretType, selection.Equals, []string{common.LabelValueSecretTypeCluster})
 	if err != nil {
 		return fmt.Errorf("failed to construct cluster-type label selector: %w", err)
 	}
 	labelSelector = labelSelector.Add(*req)
-	secretsLister, err := server.settingsMgr.GetSecretsLister()
+	secretsLister, err := server.settingsMgr.GetSecretsLister(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get secrets lister: %w", err)
 	}
@@ -479,7 +479,7 @@ func (server *ArgoCDServer) logInClusterWarnings() error {
 	}
 	if len(inClusterSecrets) > 0 {
 		// Don't make this call unless we actually have in-cluster secrets, to save time.
-		dbSettings, err := server.settingsMgr.GetSettings()
+		dbSettings, err := server.settingsMgr.GetSettings(ctx)
 		if err != nil {
 			return fmt.Errorf("could not get DB settings: %w", err)
 		}
@@ -492,12 +492,12 @@ func (server *ArgoCDServer) logInClusterWarnings() error {
 	return nil
 }
 
-func startListener(host string, port int) (net.Listener, error) {
+func startListener(ctx context.Context, host string, port int) (net.Listener, error) {
 	var conn net.Listener
 	var realErr error
 	lc := net.ListenConfig{}
 	_ = wait.ExponentialBackoff(backoff, func() (bool, error) {
-		conn, realErr = lc.Listen(context.Background(), "tcp", fmt.Sprintf("%s:%d", host, port))
+		conn, realErr = lc.Listen(ctx, "tcp", fmt.Sprintf("%s:%d", host, port))
 		if realErr != nil {
 			return false, nil
 		}
@@ -506,12 +506,12 @@ func startListener(host string, port int) (net.Listener, error) {
 	return conn, realErr
 }
 
-func (server *ArgoCDServer) Listen() (*Listeners, error) {
-	mainLn, err := startListener(server.ListenHost, server.ListenPort)
+func (server *ArgoCDServer) Listen(ctx context.Context) (*Listeners, error) {
+	mainLn, err := startListener(ctx, server.ListenHost, server.ListenPort)
 	if err != nil {
 		return nil, err
 	}
-	metricsLn, err := startListener(server.ListenHost, server.MetricsPort)
+	metricsLn, err := startListener(ctx, server.ListenHost, server.MetricsPort)
 	if err != nil {
 		utilio.Close(mainLn)
 		return nil, err
@@ -575,12 +575,12 @@ func (server *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 	// reads those hooks. If this is called first, there may be a data race.
 	server.userStateStorage.Init(ctx)
 
-	svcSet := newArgoCDServiceSet(server)
+	svcSet := newArgoCDServiceSet(ctx, server)
 	if server.sessionMgr != nil {
 		server.sessionMgr.CollectMetrics(metricsServ)
 	}
 	server.serviceSet = svcSet
-	grpcS, appResourceTreeFn := server.newGRPCServer(metricsServ.PrometheusRegistry)
+	grpcS, appResourceTreeFn := server.newGRPCServer(ctx, metricsServ.PrometheusRegistry)
 	grpcWebS := grpcweb.WrapServer(grpcS)
 	var httpS *http.Server
 	var httpsS *http.Server
@@ -903,7 +903,7 @@ func (server *ArgoCDServer) useTLS() bool {
 	return true
 }
 
-func (server *ArgoCDServer) newGRPCServer(prometheusRegistry *prometheus.Registry) (*grpc.Server, application.AppResourceTreeFn) {
+func (server *ArgoCDServer) newGRPCServer(ctx context.Context, prometheusRegistry *prometheus.Registry) (*grpc.Server, application.AppResourceTreeFn) {
 	var serverMetricsOptions []grpc_prometheus.ServerMetricsOption
 	if enableGRPCTimeHistogram {
 		serverMetricsOptions = append(serverMetricsOptions, grpc_prometheus.WithServerHandlingTimeHistogram())
@@ -995,7 +995,7 @@ func (server *ArgoCDServer) newGRPCServer(prometheusRegistry *prometheus.Registr
 	// Register reflection service on gRPC server.
 	reflection.Register(grpcS)
 	serverMetrics.InitializeMetrics(grpcS)
-	errorsutil.CheckError(server.serviceSet.ProjectService.NormalizeProjs())
+	errorsutil.CheckError(server.serviceSet.ProjectService.NormalizeProjs(ctx))
 	return grpcS, server.serviceSet.AppResourceTreeFn
 }
 
@@ -1016,7 +1016,7 @@ type ArgoCDServiceSet struct {
 	VersionService        *version.Server
 }
 
-func newArgoCDServiceSet(a *ArgoCDServer) *ArgoCDServiceSet {
+func newArgoCDServiceSet(ctx context.Context, a *ArgoCDServer) *ArgoCDServiceSet {
 	kubectl := kubeutil.NewKubectl()
 	clusterService := cluster.NewServer(a.db, a.enf, a.Cache, kubectl)
 	repoService := repository.NewServer(a.RepoClientset, a.db, a.enf, a.Cache, a.appLister, a.projInformer, a.Namespace, a.settingsMgr, a.HydratorEnabled)
@@ -1081,7 +1081,7 @@ func newArgoCDServiceSet(a *ArgoCDServer) *ArgoCDServiceSet {
 		if a.DisableAuth {
 			return true, nil
 		}
-		sett, err := a.settingsMgr.GetSettings()
+		sett, err := a.settingsMgr.GetSettings(ctx)
 		if err != nil {
 			return false, err
 		}
@@ -1261,7 +1261,7 @@ func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWeb
 
 	// Webhook handler for git events (Note: cache timeouts are hardcoded because API server does not write to cache and not really using them)
 	argoDB := db.NewDB(server.Namespace, server.settingsMgr, server.KubeClientset)
-	acdWebhookHandler := webhook.NewHandler(server.Namespace, server.ApplicationNamespaces, server.WebhookParallelism, server.AppClientset, server.appLister, server.settings, server.settingsMgr, server.RepoServerCache, server.Cache, argoDB, server.settingsMgr.GetMaxWebhookPayloadSize())
+	acdWebhookHandler := webhook.NewHandler(server.Namespace, server.ApplicationNamespaces, server.WebhookParallelism, server.AppClientset, server.appLister, server.settings, server.settingsMgr, server.RepoServerCache, server.Cache, argoDB, server.settingsMgr.GetMaxWebhookPayloadSize(ctx))
 
 	mux.HandleFunc("/api/webhook", acdWebhookHandler.Handler)
 
@@ -1552,7 +1552,7 @@ func (server *ArgoCDServer) Authenticate(ctx context.Context) (context.Context, 
 	}
 
 	if claimsErr != nil {
-		argoCDSettings, err := server.settingsMgr.GetSettings()
+		argoCDSettings, err := server.settingsMgr.GetSettings(ctx)
 		if err != nil {
 			return ctx, status.Errorf(codes.Internal, "unable to load settings: %v", err)
 		}
@@ -1575,14 +1575,14 @@ func (server *ArgoCDServer) getClaims(ctx context.Context) (jwt.Claims, string, 
 	if tokenString == "" {
 		return nil, "", ErrNoSession
 	}
-	claims, newToken, err := server.sessionMgr.VerifyToken(tokenString)
+	claims, newToken, err := server.sessionMgr.VerifyToken(ctx, tokenString)
 	if err != nil {
 		return claims, "", status.Errorf(codes.Unauthenticated, "invalid session: %v", err)
 	}
 
 	finalClaims := claims
 	if server.settings.IsSSOConfigured() {
-		finalClaims, err = server.ssoClientApp.SetGroupsFromUserInfo(claims, util_session.SessionManagerClaimsIssuer)
+		finalClaims, err = server.ssoClientApp.SetGroupsFromUserInfo(ctx, claims, util_session.SessionManagerClaimsIssuer)
 		if err != nil {
 			return claims, "", status.Errorf(codes.Unauthenticated, "invalid session: %v", err)
 		}

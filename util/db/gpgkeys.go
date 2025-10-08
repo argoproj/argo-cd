@@ -14,7 +14,7 @@ import (
 )
 
 // Validates a single GnuPG key and returns the key's ID
-func validatePGPKey(keyData string) (*appsv1.GnuPGPublicKey, error) {
+func validatePGPKey(ctx context.Context, keyData string) (*appsv1.GnuPGPublicKey, error) {
 	f, err := os.CreateTemp("", "gpg-public-key")
 	if err != nil {
 		return nil, err
@@ -32,7 +32,7 @@ func validatePGPKey(keyData string) (*appsv1.GnuPGPublicKey, error) {
 		}
 	}()
 
-	parsed, err := gpg.ValidatePGPKeys(f.Name())
+	parsed, err := gpg.ValidatePGPKeys(ctx, f.Name())
 	if err != nil {
 		return nil, err
 	}
@@ -56,10 +56,10 @@ func validatePGPKey(keyData string) (*appsv1.GnuPGPublicKey, error) {
 }
 
 // ListConfiguredGPGPublicKeys returns a list of all configured GPG public keys from the ConfigMap
-func (db *db) ListConfiguredGPGPublicKeys(_ context.Context) (map[string]*appsv1.GnuPGPublicKey, error) {
+func (db *db) ListConfiguredGPGPublicKeys(ctx context.Context) (map[string]*appsv1.GnuPGPublicKey, error) {
 	log.Debugf("Loading PGP public keys from config map")
 	result := make(map[string]*appsv1.GnuPGPublicKey)
-	keysCM, err := db.settingsMgr.GetConfigMapByName(common.ArgoCDGPGKeysConfigMapName)
+	keysCM, err := db.settingsMgr.GetConfigMapByName(ctx, common.ArgoCDGPGKeysConfigMapName)
 	if err != nil {
 		return nil, err
 	}
@@ -73,7 +73,7 @@ func (db *db) ListConfiguredGPGPublicKeys(_ context.Context) (map[string]*appsv1
 		if expectedKeyID == "" {
 			return nil, fmt.Errorf("found entry with key '%s' in ConfigMap, but this is not a valid PGP key ID", k)
 		}
-		parsedKey, err := validatePGPKey(p)
+		parsedKey, err := validatePGPKey(ctx, p)
 		if err != nil {
 			return nil, fmt.Errorf("could not parse GPG key for entry '%s': %s", expectedKeyID, err.Error())
 		}
@@ -91,12 +91,12 @@ func (db *db) AddGPGPublicKey(ctx context.Context, keyData string) (map[string]*
 	result := make(map[string]*appsv1.GnuPGPublicKey)
 	skipped := make([]string, 0)
 
-	keys, err := gpg.ValidatePGPKeysFromString(keyData)
+	keys, err := gpg.ValidatePGPKeysFromString(ctx, keyData)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	keysCM, err := db.settingsMgr.GetConfigMapByName(common.ArgoCDGPGKeysConfigMapName)
+	keysCM, err := db.settingsMgr.GetConfigMapByName(ctx, common.ArgoCDGPGKeysConfigMapName)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -122,7 +122,7 @@ func (db *db) AddGPGPublicKey(ctx context.Context, keyData string) (map[string]*
 
 // DeleteGPGPublicKey deletes a GPG public key from the configuration
 func (db *db) DeleteGPGPublicKey(ctx context.Context, keyID string) error {
-	keysCM, err := db.settingsMgr.GetConfigMapByName(common.ArgoCDGPGKeysConfigMapName)
+	keysCM, err := db.settingsMgr.GetConfigMapByName(ctx, common.ArgoCDGPGKeysConfigMapName)
 	if err != nil {
 		return err
 	}

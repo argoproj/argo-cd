@@ -1,6 +1,7 @@
 package extension_test
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -134,11 +135,11 @@ func TestRegisterExtensions(t *testing.T) {
 		manager            *extension.Manager
 	}
 
-	setup := func() *fixture {
+	setup := func(ctx context.Context) *fixture {
 		settMock := &mocks.SettingsGetter{}
 
 		logger, _ := test.NewNullLogger()
-		logEntry := logger.WithContext(t.Context())
+		logEntry := logger.WithContext(ctx)
 		m := extension.NewManager(logEntry, "", settMock, nil, nil, nil, nil, nil)
 
 		return &fixture{
@@ -149,7 +150,7 @@ func TestRegisterExtensions(t *testing.T) {
 	t.Run("will register extensions successfully", func(t *testing.T) {
 		// given
 		t.Parallel()
-		f := setup()
+		f := setup(t.Context())
 		settings := &settings.ArgoCDSettings{
 			ExtensionConfig: map[string]string{
 				"":            getExtensionConfigString(),
@@ -214,7 +215,7 @@ func TestRegisterExtensions(t *testing.T) {
 			t.Run(tc.name, func(t *testing.T) {
 				// given
 				t.Parallel()
-				f := setup()
+				f := setup(t.Context())
 				settings := &settings.ArgoCDSettings{
 					ExtensionConfig: map[string]string{
 						"": tc.configYaml,
@@ -248,7 +249,7 @@ func TestCallExtension(t *testing.T) {
 	defaultServerNamespace := "control-plane-ns"
 	defaultProjectName := "project-name"
 
-	setup := func() *fixture {
+	setup := func(ctx context.Context) *fixture {
 		appMock := &mocks.ApplicationGetter{}
 		settMock := &mocks.SettingsGetter{}
 		rbacMock := &mocks.RbacEnforcer{}
@@ -261,7 +262,7 @@ func TestCallExtension(t *testing.T) {
 		dbMock.On("GetCluster", mock.Anything, mock.Anything).Return(&v1alpha1.Cluster{Server: "some-url", Name: "cluster1"}, nil)
 
 		logger, _ := test.NewNullLogger()
-		logEntry := logger.WithContext(t.Context())
+		logEntry := logger.WithContext(ctx)
 		m := extension.NewManager(logEntry, defaultServerNamespace, settMock, appMock, projMock, dbMock, rbacMock, userMock)
 		m.AddMetricsRegistry(metricsMock)
 
@@ -400,7 +401,7 @@ func TestCallExtension(t *testing.T) {
 	t.Run("will call extension backend successfully", func(t *testing.T) {
 		// given
 		t.Parallel()
-		f := setup()
+		f := setup(t.Context())
 		backendResponse := "some data"
 		backendEndpoint := "some-backend"
 		clusterURL := "some-url"
@@ -462,7 +463,7 @@ func TestCallExtension(t *testing.T) {
 	t.Run("proxy will return 404 if extension endpoint not registered", func(t *testing.T) {
 		// given
 		t.Parallel()
-		f := setup()
+		f := setup(t.Context())
 		withExtensionConfig(getExtensionConfigString(), f)
 		withRbac(f, true, true)
 		withMetrics(f)
@@ -487,7 +488,7 @@ func TestCallExtension(t *testing.T) {
 	t.Run("will route requests with 2 backends for the same extension successfully", func(t *testing.T) {
 		// given
 		t.Parallel()
-		f := setup()
+		f := setup(t.Context())
 		extName := "some-extension"
 
 		response1 := "response backend 1"
@@ -549,7 +550,7 @@ func TestCallExtension(t *testing.T) {
 	t.Run("will return 401 if sub has no access to get application", func(t *testing.T) {
 		// given
 		t.Parallel()
-		f := setup()
+		f := setup(t.Context())
 		allowApp := false
 		allowExtension := true
 		extName := "some-extension"
@@ -573,7 +574,7 @@ func TestCallExtension(t *testing.T) {
 	t.Run("will return 401 if sub has no access to invoke extension", func(t *testing.T) {
 		// given
 		t.Parallel()
-		f := setup()
+		f := setup(t.Context())
 		allowApp := true
 		allowExtension := false
 		extName := "some-extension"
@@ -597,7 +598,7 @@ func TestCallExtension(t *testing.T) {
 	t.Run("will return 401 if project has no access to target cluster", func(t *testing.T) {
 		// given
 		t.Parallel()
-		f := setup()
+		f := setup(t.Context())
 		allowApp := true
 		allowExtension := true
 		extName := "some-extension"
@@ -624,7 +625,7 @@ func TestCallExtension(t *testing.T) {
 	t.Run("will return 401 if project in application does not exist", func(t *testing.T) {
 		// given
 		t.Parallel()
-		f := setup()
+		f := setup(t.Context())
 		allowApp := true
 		allowExtension := true
 		extName := "some-extension"
@@ -649,7 +650,7 @@ func TestCallExtension(t *testing.T) {
 	t.Run("will return 401 if project in application does not match with header", func(t *testing.T) {
 		// given
 		t.Parallel()
-		f := setup()
+		f := setup(t.Context())
 		allowApp := true
 		allowExtension := true
 		extName := "some-extension"
@@ -678,7 +679,7 @@ func TestCallExtension(t *testing.T) {
 
 		// given
 		t.Parallel()
-		f := setup()
+		f := setup(t.Context())
 		extName := "some-extension"
 		maliciousName := "srv1"
 		destinationServer := "some-valid-server"
@@ -715,7 +716,7 @@ func TestCallExtension(t *testing.T) {
 	t.Run("will return 400 if no extension name is provided", func(t *testing.T) {
 		// given
 		t.Parallel()
-		f := setup()
+		f := setup(t.Context())
 		allowApp := true
 		allowExtension := true
 		extName := "some-extension"

@@ -1,6 +1,7 @@
 package v1alpha1
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -229,6 +230,7 @@ func TestAppProject_IsDestinationPermitted(t *testing.T) {
 		data := data
 		t.Run(data.name, func(t *testing.T) {
 			t.Parallel()
+			ctx := t.Context()
 
 			proj := AppProject{
 				Spec: AppProjectSpec{
@@ -239,7 +241,7 @@ func TestAppProject_IsDestinationPermitted(t *testing.T) {
 				Server: data.appDest.Server,
 				Name:   data.appDest.Name,
 			}
-			permitted, _ := proj.IsDestinationPermitted(destCluster, data.appDest.Namespace, func(_ string) ([]*Cluster, error) {
+			permitted, _ := proj.IsDestinationPermitted(ctx, destCluster, data.appDest.Namespace, func(context.Context, string) ([]*Cluster, error) {
 				return []*Cluster{}, nil
 			})
 			assert.Equal(t, data.isPermitted, permitted)
@@ -248,6 +250,7 @@ func TestAppProject_IsDestinationPermitted(t *testing.T) {
 }
 
 func TestAppProject_IsNegatedDestinationPermitted(t *testing.T) {
+	ctx := t.Context()
 	testData := []struct {
 		projDest    []ApplicationDestination
 		appDest     ApplicationDestination
@@ -410,7 +413,7 @@ func TestAppProject_IsNegatedDestinationPermitted(t *testing.T) {
 			Server: data.appDest.Server,
 			Name:   data.appDest.Name,
 		}
-		permitted, _ := proj.IsDestinationPermitted(destCluster, data.appDest.Namespace, func(_ string) ([]*Cluster, error) {
+		permitted, _ := proj.IsDestinationPermitted(ctx, destCluster, data.appDest.Namespace, func(context.Context, string) ([]*Cluster, error) {
 			return []*Cluster{}, nil
 		})
 		assert.Equalf(t, data.isPermitted, permitted, "appDest mismatch for %+v with project destinations %+v", data.appDest, data.projDest)
@@ -418,6 +421,7 @@ func TestAppProject_IsNegatedDestinationPermitted(t *testing.T) {
 }
 
 func TestAppProject_IsDestinationPermitted_PermitOnlyProjectScopedClusters(t *testing.T) {
+	ctx := t.Context()
 	testData := []struct {
 		projDest    []ApplicationDestination
 		appDest     ApplicationDestination
@@ -486,7 +490,7 @@ func TestAppProject_IsDestinationPermitted_PermitOnlyProjectScopedClusters(t *te
 			Server: data.appDest.Server,
 			Name:   data.appDest.Name,
 		}
-		permitted, _ := proj.IsDestinationPermitted(destCluster, data.appDest.Namespace, func(_ string) ([]*Cluster, error) {
+		permitted, _ := proj.IsDestinationPermitted(ctx, destCluster, data.appDest.Namespace, func(context.Context, string) ([]*Cluster, error) {
 			return data.clusters, nil
 		})
 		assert.Equal(t, data.isPermitted, permitted)
@@ -500,7 +504,7 @@ func TestAppProject_IsDestinationPermitted_PermitOnlyProjectScopedClusters(t *te
 			}},
 		},
 	}
-	_, err := proj.IsDestinationPermitted(&Cluster{Server: "https://my-cluster.123.com"}, "default", func(_ string) ([]*Cluster, error) {
+	_, err := proj.IsDestinationPermitted(ctx, &Cluster{Server: "https://my-cluster.123.com"}, "default", func(context.Context, string) ([]*Cluster, error) {
 		return nil, errors.New("some error")
 	})
 	assert.ErrorContains(t, err, "could not retrieve project clusters")

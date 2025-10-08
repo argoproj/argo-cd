@@ -267,7 +267,7 @@ func NewCommand() *cobra.Command {
 			for {
 				var closer func()
 				serverCtx, cancel := context.WithCancel(ctx)
-				lns, err := argocd.Listen()
+				lns, err := argocd.Listen(serverCtx)
 				errors.CheckError(err)
 				if otlpAddress != "" {
 					closer, err = traceutil.InitTracer(serverCtx, "argocd-server", otlpAddress, otlpInsecure, otlpHeaders, otlpAttrs)

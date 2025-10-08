@@ -39,7 +39,7 @@ func (s *Server) Version(ctx context.Context, _ *empty.Empty) (*version.VersionM
 	}
 
 	if s.kustomizeVersion == "" {
-		kustomizeVersion, err := kustomize.Version()
+		kustomizeVersion, err := kustomize.Version(ctx)
 		if err == nil {
 			s.kustomizeVersion = kustomizeVersion
 		} else {
@@ -47,7 +47,7 @@ func (s *Server) Version(ctx context.Context, _ *empty.Empty) (*version.VersionM
 		}
 	}
 	if s.helmVersion == "" {
-		helmVersion, err := helm.Version()
+		helmVersion, err := helm.Version(ctx)
 		if err == nil {
 			s.helmVersion = helmVersion
 		} else {

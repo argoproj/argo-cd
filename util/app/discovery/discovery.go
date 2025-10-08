@@ -159,7 +159,7 @@ func cmpSupports(ctx context.Context, pluginSockFilePath, appPath, repoPath, fil
 
 	cmpclientset := pluginclient.NewConfigManagementPluginClientSet(address)
 
-	conn, cmpClient, err := cmpclientset.NewConfigManagementPluginClient()
+	conn, cmpClient, err := cmpclientset.NewConfigManagementPluginClient(ctx)
 	if err != nil {
 		log.WithFields(log.Fields{
 			common.SecurityField:    common.SecurityMedium,

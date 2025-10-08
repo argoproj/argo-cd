@@ -64,6 +64,7 @@ func Test_IsGPGEnabled(t *testing.T) {
 }
 
 func Test_GPG_InitializeGnuPG(t *testing.T) {
+	ctx := t.Context()
 	p := initTempDir(t)
 
 	// First run should initialize fine
@@ -71,7 +72,7 @@ func Test_GPG_InitializeGnuPG(t *testing.T) {
 	require.NoError(t, err)
 
 	// We should have exactly one public key with ultimate trust (our own) in the keyring
-	keys, err := GetInstalledPGPKeys(nil)
+	keys, err := GetInstalledPGPKeys(ctx, nil)
 	require.NoError(t, err)
 	assert.Len(t, keys, 1)
 	assert.Equal(t, "ultimate", keys[0].Trust)
@@ -86,7 +87,7 @@ func Test_GPG_InitializeGnuPG(t *testing.T) {
 	// Second run should not return error
 	err = InitializeGnuPG()
 	require.NoError(t, err)
-	keys, err = GetInstalledPGPKeys(nil)
+	keys, err = GetInstalledPGPKeys(ctx, nil)
 	require.NoError(t, err)
 	assert.Len(t, keys, 1)
 	assert.Equal(t, "ultimate", keys[0].Trust)
@@ -138,12 +139,13 @@ func Test_GPG_InitializeGnuPG(t *testing.T) {
 
 func Test_GPG_KeyManagement(t *testing.T) {
 	initTempDir(t)
+	ctx := t.Context()
 
 	err := InitializeGnuPG()
 	require.NoError(t, err)
 
 	// Import a single good key
-	keys, err := ImportPGPKeys("testdata/github.asc")
+	keys, err := ImportPGPKeys(ctx, "testdata/github.asc")
 	require.NoError(t, err)
 	assert.Len(t, keys, 1)
 	assert.Equal(t, "4AEE18F83AFDEB23", keys[0].KeyID)
@@ -156,14 +158,14 @@ func Test_GPG_KeyManagement(t *testing.T) {
 
 	// We should have a total of 2 keys in the keyring now
 	{
-		keys, err := GetInstalledPGPKeys(nil)
+		keys, err := GetInstalledPGPKeys(ctx, nil)
 		require.NoError(t, err)
 		assert.Len(t, keys, 2)
 	}
 
 	// We should now have that key in our keyring with unknown trust (trustdb not updated)
 	{
-		keys, err := GetInstalledPGPKeys([]string{importedKeyId})
+		keys, err := GetInstalledPGPKeys(ctx, []string{importedKeyId})
 		require.NoError(t, err)
 		assert.Len(t, keys, 1)
 		assert.Equal(t, "4AEE18F83AFDEB23", keys[0].KeyID)
@@ -177,9 +179,9 @@ func Test_GPG_KeyManagement(t *testing.T) {
 
 	// Set trust level for our key and check the result
 	{
-		err := SetPGPTrustLevelById(kids, "ultimate")
+		err := SetPGPTrustLevelById(ctx, kids, "ultimate")
 		require.NoError(t, err)
-		keys, err := GetInstalledPGPKeys(kids)
+		keys, err := GetInstalledPGPKeys(ctx, kids)
 		require.NoError(t, err)
 		assert.Len(t, keys, 1)
 		assert.Equal(t, kids[0], keys[0].Fingerprint)
@@ -187,35 +189,35 @@ func Test_GPG_KeyManagement(t *testing.T) {
 	}
 
 	// Import garbage - error expected
-	keys, err = ImportPGPKeys("testdata/garbage.asc")
+	keys, err = ImportPGPKeys(t.Context(), "testdata/garbage.asc")
 	require.Error(t, err)
 	assert.Empty(t, keys)
 
 	// We should still have a total of 2 keys in the keyring now
 	{
-		keys, err := GetInstalledPGPKeys(nil)
+		keys, err := GetInstalledPGPKeys(ctx, nil)
 		require.NoError(t, err)
 		assert.Len(t, keys, 2)
 	}
 
 	// Delete previously imported public key
 	{
-		err := DeletePGPKey(importedKeyId)
+		err := DeletePGPKey(ctx, importedKeyId)
 		require.NoError(t, err)
-		keys, err := GetInstalledPGPKeys(nil)
+		keys, err := GetInstalledPGPKeys(ctx, nil)
 		require.NoError(t, err)
 		assert.Len(t, keys, 1)
 	}
 
 	// Delete non-existing key
 	{
-		err := DeletePGPKey(importedKeyId)
+		err := DeletePGPKey(ctx, importedKeyId)
 		require.Error(t, err)
 	}
 
 	// Import multiple keys
 	{
-		keys, err := ImportPGPKeys("testdata/multi.asc")
+		keys, err := ImportPGPKeys(t.Context(), "testdata/multi.asc")
 		require.NoError(t, err)
 		assert.Len(t, keys, 2)
 		assert.Contains(t, keys[0].Owner, "john.doe@example.com")
@@ -224,7 +226,7 @@ func Test_GPG_KeyManagement(t *testing.T) {
 
 	// Check if they were really imported
 	{
-		keys, err := GetInstalledPGPKeys(nil)
+		keys, err := GetInstalledPGPKeys(ctx, nil)
 		require.NoError(t, err)
 		assert.Len(t, keys, 3)
 	}
@@ -237,7 +239,7 @@ func Test_ImportPGPKeysFromString(t *testing.T) {
 	require.NoError(t, err)
 
 	// Import a single good key
-	keys, err := ImportPGPKeysFromString(test.MustLoadFileToString("testdata/github.asc"))
+	keys, err := ImportPGPKeysFromString(t.Context(), test.MustLoadFileToString("testdata/github.asc"))
 	require.NoError(t, err)
 	assert.Len(t, keys, 1)
 	assert.Equal(t, "4AEE18F83AFDEB23", keys[0].KeyID)
@@ -254,14 +256,14 @@ func Test_ValidateGPGKeysFromString(t *testing.T) {
 
 	{
 		keyData := test.MustLoadFileToString("testdata/github.asc")
-		keys, err := ValidatePGPKeysFromString(keyData)
+		keys, err := ValidatePGPKeysFromString(t.Context(), keyData)
 		require.NoError(t, err)
 		assert.Len(t, keys, 1)
 	}
 
 	{
 		keyData := test.MustLoadFileToString("testdata/multi.asc")
-		keys, err := ValidatePGPKeysFromString(keyData)
+		keys, err := ValidatePGPKeysFromString(t.Context(), keyData)
 		require.NoError(t, err)
 		assert.Len(t, keys, 2)
 	}
@@ -269,13 +271,14 @@ func Test_ValidateGPGKeysFromString(t *testing.T) {
 
 func Test_ValidateGPGKeys(t *testing.T) {
 	initTempDir(t)
+	ctx := t.Context()
 
 	err := InitializeGnuPG()
 	require.NoError(t, err)
 
 	// Validation good case - 1 key
 	{
-		keys, err := ValidatePGPKeys("testdata/github.asc")
+		keys, err := ValidatePGPKeys(t.Context(), "testdata/github.asc")
 		require.NoError(t, err)
 		assert.Len(t, keys, 1)
 		assert.Contains(t, keys, "4AEE18F83AFDEB23")
@@ -283,14 +286,14 @@ func Test_ValidateGPGKeys(t *testing.T) {
 
 	// Validation bad case
 	{
-		keys, err := ValidatePGPKeys("testdata/garbage.asc")
+		keys, err := ValidatePGPKeys(t.Context(), "testdata/garbage.asc")
 		require.Error(t, err)
 		assert.Empty(t, keys)
 	}
 
 	// We should still have a total of 1 keys in the keyring now
 	{
-		keys, err := GetInstalledPGPKeys(nil)
+		keys, err := GetInstalledPGPKeys(ctx, nil)
 		require.NoError(t, err)
 		assert.Len(t, keys, 1)
 	}
@@ -302,7 +305,7 @@ func Test_GPG_ParseGitCommitVerification(t *testing.T) {
 	err := InitializeGnuPG()
 	require.NoError(t, err)
 
-	keys, err := ImportPGPKeys("testdata/github.asc")
+	keys, err := ImportPGPKeys(t.Context(), "testdata/github.asc")
 	require.NoError(t, err)
 	assert.Len(t, keys, 1)
 
@@ -516,25 +519,26 @@ func Test_isHexString(t *testing.T) {
 
 func Test_IsSecretKey(t *testing.T) {
 	initTempDir(t)
+	ctx := t.Context()
 
 	// First run should initialize fine
 	err := InitializeGnuPG()
 	require.NoError(t, err)
 
 	// We should have exactly one public key with ultimate trust (our own) in the keyring
-	keys, err := GetInstalledPGPKeys(nil)
+	keys, err := GetInstalledPGPKeys(ctx, nil)
 	require.NoError(t, err)
 	assert.Len(t, keys, 1)
 	assert.Equal(t, "ultimate", keys[0].Trust)
 
 	{
-		secret, err := IsSecretKey(keys[0].KeyID)
+		secret, err := IsSecretKey(ctx, keys[0].KeyID)
 		require.NoError(t, err)
 		assert.True(t, secret)
 	}
 
 	{
-		secret, err := IsSecretKey("invalid")
+		secret, err := IsSecretKey(ctx, "invalid")
 		require.NoError(t, err)
 		assert.False(t, secret)
 	}
@@ -542,6 +546,7 @@ func Test_IsSecretKey(t *testing.T) {
 
 func Test_SyncKeyRingFromDirectory(t *testing.T) {
 	initTempDir(t)
+	ctx := t.Context()
 
 	// First run should initialize fine
 	err := InitializeGnuPG()
@@ -550,7 +555,7 @@ func Test_SyncKeyRingFromDirectory(t *testing.T) {
 	tempDir := t.TempDir()
 
 	{
-		newKeys, removed, err := SyncKeyRingFromDirectory(tempDir)
+		newKeys, removed, err := SyncKeyRingFromDirectory(t.Context(), tempDir)
 		require.NoError(t, err)
 		assert.Empty(t, newKeys)
 		assert.Empty(t, removed)
@@ -575,12 +580,12 @@ func Test_SyncKeyRingFromDirectory(t *testing.T) {
 			dst.Close()
 		}
 
-		newKeys, removed, err := SyncKeyRingFromDirectory(tempDir)
+		newKeys, removed, err := SyncKeyRingFromDirectory(t.Context(), tempDir)
 		require.NoError(t, err)
 		assert.Len(t, newKeys, 3)
 		assert.Empty(t, removed)
 
-		installed, err := GetInstalledPGPKeys(newKeys)
+		installed, err := GetInstalledPGPKeys(ctx, newKeys)
 		require.NoError(t, err)
 		for _, k := range installed {
 			assert.Contains(t, newKeys, k.KeyID)
@@ -592,12 +597,12 @@ func Test_SyncKeyRingFromDirectory(t *testing.T) {
 		if err != nil {
 			panic(err.Error())
 		}
-		newKeys, removed, err := SyncKeyRingFromDirectory(tempDir)
+		newKeys, removed, err := SyncKeyRingFromDirectory(t.Context(), tempDir)
 		require.NoError(t, err)
 		assert.Empty(t, newKeys)
 		assert.Len(t, removed, 1)
 
-		installed, err := GetInstalledPGPKeys(newKeys)
+		installed, err := GetInstalledPGPKeys(ctx, newKeys)
 		require.NoError(t, err)
 		for _, k := range installed {
 			assert.NotEqual(t, k.KeyID, removed[0])

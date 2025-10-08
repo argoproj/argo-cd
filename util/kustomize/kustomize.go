@@ -479,8 +479,8 @@ func getSemverSafe(ctx context.Context, k *kustomize) *semver.Version {
 	return semVer
 }
 
-func Version() (string, error) {
-	return versionWithBinaryPath(context.Background(), &kustomize{})
+func Version(ctx context.Context) (string, error) {
+	return versionWithBinaryPath(ctx, &kustomize{})
 }
 
 func versionWithBinaryPath(ctx context.Context, k *kustomize) (string, error) {

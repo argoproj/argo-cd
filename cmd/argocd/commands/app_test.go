@@ -956,7 +956,8 @@ func TestPrintParams(t *testing.T) {
 
 func TestAppUrlDefault(t *testing.T) {
 	t.Run("Plain text", func(t *testing.T) {
-		result := appURLDefault(argocdclient.NewClientOrDie(&argocdclient.ClientOptions{
+		ctx := t.Context()
+		result := appURLDefault(argocdclient.NewClientOrDie(ctx, &argocdclient.ClientOptions{
 			ServerAddr: "localhost:80",
 			PlainText:  true,
 		}), "test")
@@ -964,7 +965,8 @@ func TestAppUrlDefault(t *testing.T) {
 		require.Equalf(t, result, expectation, "Incorrect url %q, should be %q", result, expectation)
 	})
 	t.Run("https", func(t *testing.T) {
-		result := appURLDefault(argocdclient.NewClientOrDie(&argocdclient.ClientOptions{
+		ctx := t.Context()
+		result := appURLDefault(argocdclient.NewClientOrDie(ctx, &argocdclient.ClientOptions{
 			ServerAddr: "localhost:443",
 			PlainText:  false,
 		}), "test")
@@ -2018,7 +2020,7 @@ type customAcdClient struct {
 
 func (c *customAcdClient) WatchApplicationWithRetry(ctx context.Context, _ string, _ string) chan *v1alpha1.ApplicationWatchEvent {
 	appEventsCh := make(chan *v1alpha1.ApplicationWatchEvent)
-	_, appClient := c.NewApplicationClientOrDie()
+	_, appClient := c.NewApplicationClientOrDie(ctx)
 	app, _ := appClient.Get(ctx, &applicationpkg.ApplicationQuery{})
 
 	newApp := v1alpha1.Application{
@@ -2041,11 +2043,11 @@ func (c *customAcdClient) WatchApplicationWithRetry(ctx context.Context, _ strin
 	return appEventsCh
 }
 
-func (c *customAcdClient) NewApplicationClientOrDie() (io.Closer, applicationpkg.ApplicationServiceClient) {
+func (c *customAcdClient) NewApplicationClientOrDie(context.Context) (io.Closer, applicationpkg.ApplicationServiceClient) {
 	return &fakeConnection{}, &fakeAppServiceClient{}
 }
 
-func (c *customAcdClient) NewSettingsClientOrDie() (io.Closer, settingspkg.SettingsServiceClient) {
+func (c *customAcdClient) NewSettingsClientOrDie(context.Context) (io.Closer, settingspkg.SettingsServiceClient) {
 	return &fakeConnection{}, &fakeSettingsServiceClient{}
 }
 
@@ -2309,67 +2311,67 @@ func (c *fakeAcdClient) NewGPGKeyClientOrDie() (io.Closer, gpgkeypkg.GPGKeyServi
 	return nil, nil
 }
 
-func (c *fakeAcdClient) NewApplicationClient() (io.Closer, applicationpkg.ApplicationServiceClient, error) {
+func (c *fakeAcdClient) NewApplicationClient(context.Context) (io.Closer, applicationpkg.ApplicationServiceClient, error) {
 	return nil, nil, nil
 }
 
-func (c *fakeAcdClient) NewApplicationSetClient() (io.Closer, applicationsetpkg.ApplicationSetServiceClient, error) {
+func (c *fakeAcdClient) NewApplicationSetClient(context.Context) (io.Closer, applicationsetpkg.ApplicationSetServiceClient, error) {
 	return nil, nil, nil
 }
 
-func (c *fakeAcdClient) NewApplicationClientOrDie() (io.Closer, applicationpkg.ApplicationServiceClient) {
+func (c *fakeAcdClient) NewApplicationClientOrDie(context.Context) (io.Closer, applicationpkg.ApplicationServiceClient) {
 	return nil, nil
 }
 
-func (c *fakeAcdClient) NewApplicationSetClientOrDie() (io.Closer, applicationsetpkg.ApplicationSetServiceClient) {
+func (c *fakeAcdClient) NewApplicationSetClientOrDie(context.Context) (io.Closer, applicationsetpkg.ApplicationSetServiceClient) {
 	return nil, nil
 }
 
-func (c *fakeAcdClient) NewNotificationClient() (io.Closer, notificationpkg.NotificationServiceClient, error) {
+func (c *fakeAcdClient) NewNotificationClient(context.Context) (io.Closer, notificationpkg.NotificationServiceClient, error) {
 	return nil, nil, nil
 }
 
-func (c *fakeAcdClient) NewNotificationClientOrDie() (io.Closer, notificationpkg.NotificationServiceClient) {
+func (c *fakeAcdClient) NewNotificationClientOrDie(context.Context) (io.Closer, notificationpkg.NotificationServiceClient) {
 	return nil, nil
 }
 
-func (c *fakeAcdClient) NewSessionClient() (io.Closer, sessionpkg.SessionServiceClient, error) {
+func (c *fakeAcdClient) NewSessionClient(context.Context) (io.Closer, sessionpkg.SessionServiceClient, error) {
 	return nil, nil, nil
 }
 
-func (c *fakeAcdClient) NewSessionClientOrDie() (io.Closer, sessionpkg.SessionServiceClient) {
+func (c *fakeAcdClient) NewSessionClientOrDie(context.Context) (io.Closer, sessionpkg.SessionServiceClient) {
 	return nil, nil
 }
 
-func (c *fakeAcdClient) NewSettingsClient() (io.Closer, settingspkg.SettingsServiceClient, error) {
+func (c *fakeAcdClient) NewSettingsClient(context.Context) (io.Closer, settingspkg.SettingsServiceClient, error) {
 	return nil, nil, nil
 }
 
-func (c *fakeAcdClient) NewSettingsClientOrDie() (io.Closer, settingspkg.SettingsServiceClient) {
+func (c *fakeAcdClient) NewSettingsClientOrDie(context.Context) (io.Closer, settingspkg.SettingsServiceClient) {
 	return nil, nil
 }
 
-func (c *fakeAcdClient) NewVersionClient() (io.Closer, versionpkg.VersionServiceClient, error) {
+func (c *fakeAcdClient) NewVersionClient(context.Context) (io.Closer, versionpkg.VersionServiceClient, error) {
 	return nil, nil, nil
 }
 
-func (c *fakeAcdClient) NewVersionClientOrDie() (io.Closer, versionpkg.VersionServiceClient) {
+func (c *fakeAcdClient) NewVersionClientOrDie(context.Context) (io.Closer, versionpkg.VersionServiceClient) {
 	return nil, nil
 }
 
-func (c *fakeAcdClient) NewProjectClient() (io.Closer, projectpkg.ProjectServiceClient, error) {
+func (c *fakeAcdClient) NewProjectClient(context.Context) (io.Closer, projectpkg.ProjectServiceClient, error) {
 	return nil, nil, nil
 }
 
-func (c *fakeAcdClient) NewProjectClientOrDie() (io.Closer, projectpkg.ProjectServiceClient) {
+func (c *fakeAcdClient) NewProjectClientOrDie(context.Context) (io.Closer, projectpkg.ProjectServiceClient) {
 	return nil, nil
 }
 
-func (c *fakeAcdClient) NewAccountClient() (io.Closer, accountpkg.AccountServiceClient, error) {
+func (c *fakeAcdClient) NewAccountClient(context.Context) (io.Closer, accountpkg.AccountServiceClient, error) {
 	return nil, nil, nil
 }
 
-func (c *fakeAcdClient) NewAccountClientOrDie() (io.Closer, accountpkg.AccountServiceClient) {
+func (c *fakeAcdClient) NewAccountClientOrDie(context.Context) (io.Closer, accountpkg.AccountServiceClient) {
 	return nil, nil
 }
 

@@ -42,9 +42,9 @@ import (
 )
 
 type settingsSource interface {
-	GetAppInstanceLabelKey() (string, error)
-	GetTrackingMethod() (string, error)
-	GetInstallationID() (string, error)
+	GetAppInstanceLabelKey(ctx context.Context) (string, error)
+	GetTrackingMethod(ctx context.Context) (string, error)
+	GetInstallationID(ctx context.Context) (string, error)
 }
 
 // https://www.rfc-editor.org/rfc/rfc3986#section-3.2.1
@@ -153,7 +153,7 @@ func ParseRevision(ref string) string {
 
 // affectedRevisionInfo examines a payload from a webhook event, and extracts the repo web URL,
 // the revision, and whether, or not this affected origin/HEAD (the default branch of the repository)
-func (a *ArgoCDWebhookHandler) affectedRevisionInfo(payloadIf any) (webURLs []string, revision string, change changeInfo, touchedHead bool, changedFiles []string) {
+func (a *ArgoCDWebhookHandler) affectedRevisionInfo(ctx context.Context, payloadIf any) (webURLs []string, revision string, change changeInfo, touchedHead bool, changedFiles []string) {
 	switch payload := payloadIf.(type) {
 	case azuredevops.GitPushEvent:
 		// See: https://learn.microsoft.com/en-us/azure/devops/service-hooks/events?view=azure-devops#git.push
@@ -220,7 +220,7 @@ func (a *ArgoCDWebhookHandler) affectedRevisionInfo(payloadIf any) (webURLs []st
 		// when WebhookBitbucketUUID is set in argocd-secret, then the payload must be signed and
 		// signature is validated before payload is parsed.
 		if a.settings.GetWebhookBitbucketUUID() != "" {
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 			defer cancel()
 			argoRepo, err := a.lookupRepository(ctx, webURLs[0])
 			if err != nil {
@@ -311,7 +311,8 @@ type changeInfo struct {
 
 // HandleEvent handles webhook events for repo push events
 func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
-	webURLs, revision, change, touchedHead, changedFiles := a.affectedRevisionInfo(payload)
+	ctx := context.Background()
+	webURLs, revision, change, touchedHead, changedFiles := a.affectedRevisionInfo(ctx, payload)
 	// NOTE: the webURL does not include the .git extension
 	if len(webURLs) == 0 {
 		log.Info("Ignoring webhook event")
@@ -334,17 +335,17 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 		return
 	}
 
-	installationID, err := a.settingsSrc.GetInstallationID()
+	installationID, err := a.settingsSrc.GetInstallationID(ctx)
 	if err != nil {
 		log.Warnf("Failed to get installation ID: %v", err)
 		return
 	}
-	trackingMethod, err := a.settingsSrc.GetTrackingMethod()
+	trackingMethod, err := a.settingsSrc.GetTrackingMethod(ctx)
 	if err != nil {
 		log.Warnf("Failed to get trackingMethod: %v", err)
 		return
 	}
-	appInstanceLabelKey, err := a.settingsSrc.GetAppInstanceLabelKey()
+	appInstanceLabelKey, err := a.settingsSrc.GetAppInstanceLabelKey(ctx)
 	if err != nil {
 		log.Warnf("Failed to get appInstanceLabelKey: %v", err)
 		return
@@ -373,7 +374,7 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 					if path.AppFilesHaveChanged(refreshPaths, changedFiles) {
 						namespacedAppInterface := a.appClientset.ArgoprojV1alpha1().Applications(app.Namespace)
 						log.Infof("webhook trigger refresh app to hydrate '%s'", app.Name)
-						_, err = argo.RefreshApp(namespacedAppInterface, app.Name, v1alpha1.RefreshTypeNormal, true)
+						_, err = argo.RefreshApp(ctx, namespacedAppInterface, app.Name, v1alpha1.RefreshTypeNormal, true)
 						if err != nil {
 							log.Warnf("Failed to hydrate app '%s' for controller reprocessing: %v", app.Name, err)
 							continue
@@ -387,7 +388,7 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 					refreshPaths := path.GetAppRefreshPaths(&app)
 					if path.AppFilesHaveChanged(refreshPaths, changedFiles) {
 						namespacedAppInterface := a.appClientset.ArgoprojV1alpha1().Applications(app.Namespace)
-						_, err = argo.RefreshApp(namespacedAppInterface, app.Name, v1alpha1.RefreshTypeNormal, true)
+						_, err = argo.RefreshApp(ctx, namespacedAppInterface, app.Name, v1alpha1.RefreshTypeNormal, true)
 						if err != nil {
 							log.Warnf("Failed to refresh app '%s' for controller reprocessing: %v", app.Name, err)
 							continue
@@ -395,7 +396,7 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 						// No need to refresh multiple times if multiple sources match.
 						break
 					} else if change.shaBefore != "" && change.shaAfter != "" {
-						if err := a.storePreviouslyCachedManifests(&app, change, trackingMethod, appInstanceLabelKey, installationID); err != nil {
+						if err := a.storePreviouslyCachedManifests(ctx, &app, change, trackingMethod, appInstanceLabelKey, installationID); err != nil {
 							log.Warnf("Failed to store cached manifests of previous revision for app '%s': %v", app.Name, err)
 						}
 					}
@@ -449,8 +450,8 @@ func getURLRegex(originalURL string, regexpFormat string) (*regexp.Regexp, error
 	return repoRegexp, nil
 }
 
-func (a *ArgoCDWebhookHandler) storePreviouslyCachedManifests(app *v1alpha1.Application, change changeInfo, trackingMethod string, appInstanceLabelKey string, installationID string) error {
-	destCluster, err := argo.GetDestinationCluster(context.Background(), app.Spec.Destination, a.db)
+func (a *ArgoCDWebhookHandler) storePreviouslyCachedManifests(ctx context.Context, app *v1alpha1.Application, change changeInfo, trackingMethod string, appInstanceLabelKey string, installationID string) error {
+	destCluster, err := argo.GetDestinationCluster(ctx, app.Spec.Destination, a.db)
 	if err != nil {
 		return fmt.Errorf("error validating destination: %w", err)
 	}
@@ -468,7 +469,7 @@ func (a *ArgoCDWebhookHandler) storePreviouslyCachedManifests(app *v1alpha1.Appl
 		sources = append(sources, app.Spec.GetSource())
 	}
 
-	refSources, err := argo.GetRefSources(context.Background(), sources, app.Spec.Project, a.db.GetRepository, []string{})
+	refSources, err := argo.GetRefSources(ctx, sources, app.Spec.Project, a.db.GetRepository, []string{})
 	if err != nil {
 		return fmt.Errorf("error getting ref sources: %w", err)
 	}

@@ -1,6 +1,7 @@
 package reposerver
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"path"
@@ -63,7 +64,7 @@ func StartGPGWatcher(sourcePath string) error {
 					}
 					if gpg.IsShortKeyID(path.Base(event.Name)) || forceSync {
 						log.Infof("Updating GPG keyring on filesystem event")
-						added, removed, err := gpg.SyncKeyRingFromDirectory(sourcePath)
+						added, removed, err := gpg.SyncKeyRingFromDirectory(context.Background(), sourcePath)
 						if err != nil {
 							log.Errorf("Could not sync keyring: %s", err.Error())
 						} else {

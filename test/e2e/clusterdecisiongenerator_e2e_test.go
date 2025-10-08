@@ -56,7 +56,7 @@ func TestSimpleClusterDecisionResourceGeneratorExternalNamespace(t *testing.T) {
 	Given(t).
 		// Create a ClusterGenerator-based ApplicationSet
 		When().
-		CreateClusterSecret("my-secret", "cluster1", "https://kubernetes.default.svc").
+		CreateClusterSecret(t.Context(), "my-secret", "cluster1", "https://kubernetes.default.svc").
 		CreatePlacementRoleAndRoleBinding().
 		CreatePlacementDecisionConfigMap("my-configmap").
 		CreatePlacementDecision("my-placementdecision").
@@ -164,7 +164,7 @@ func TestSimpleClusterDecisionResourceGenerator(t *testing.T) {
 	Given(t).
 		// Create a ClusterGenerator-based ApplicationSet
 		When().
-		CreateClusterSecret("my-secret", "cluster1", "https://kubernetes.default.svc").
+		CreateClusterSecret(t.Context(), "my-secret", "cluster1", "https://kubernetes.default.svc").
 		CreatePlacementRoleAndRoleBinding().
 		CreatePlacementDecisionConfigMap("my-configmap").
 		CreatePlacementDecision("my-placementdecision").
@@ -275,7 +275,7 @@ func TestSimpleClusterDecisionResourceGeneratorAddingCluster(t *testing.T) {
 	Given(t).
 		// Create a ClusterGenerator-based ApplicationSet
 		When().
-		CreateClusterSecret("my-secret", "cluster1", "https://kubernetes.default.svc").
+		CreateClusterSecret(t.Context(), "my-secret", "cluster1", "https://kubernetes.default.svc").
 		CreatePlacementRoleAndRoleBinding().
 		CreatePlacementDecisionConfigMap("my-configmap").
 		CreatePlacementDecision("my-placementdecision").
@@ -315,7 +315,7 @@ func TestSimpleClusterDecisionResourceGeneratorAddingCluster(t *testing.T) {
 
 		// Update the ApplicationSet template namespace, and verify it updates the Applications
 		When().
-		CreateClusterSecret("my-secret2", "cluster2", "https://kubernetes.default.svc").
+		CreateClusterSecret(t.Context(), "my-secret2", "cluster2", "https://kubernetes.default.svc").
 		Then().Expect(ApplicationsExist([]v1alpha1.Application{expectedAppCluster1, expectedAppCluster2})).
 
 		// Delete the ApplicationSet, and verify it deletes the Applications
@@ -370,8 +370,8 @@ func TestSimpleClusterDecisionResourceGeneratorDeletingClusterSecret(t *testing.
 	Given(t).
 		// Create a ClusterGenerator-based ApplicationSet
 		When().
-		CreateClusterSecret("my-secret", "cluster1", "https://kubernetes.default.svc").
-		CreateClusterSecret("my-secret2", "cluster2", "https://kubernetes.default.svc").
+		CreateClusterSecret(t.Context(), "my-secret", "cluster1", "https://kubernetes.default.svc").
+		CreateClusterSecret(t.Context(), "my-secret2", "cluster2", "https://kubernetes.default.svc").
 		CreatePlacementRoleAndRoleBinding().
 		CreatePlacementDecisionConfigMap("my-configmap").
 		CreatePlacementDecision("my-placementdecision").
@@ -474,8 +474,8 @@ func TestSimpleClusterDecisionResourceGeneratorDeletingClusterFromResource(t *te
 	Given(t).
 		// Create a ClusterGenerator-based ApplicationSet
 		When().
-		CreateClusterSecret("my-secret", "cluster1", "https://kubernetes.default.svc").
-		CreateClusterSecret("my-secret2", "cluster2", "https://kubernetes.default.svc").
+		CreateClusterSecret(t.Context(), "my-secret", "cluster1", "https://kubernetes.default.svc").
+		CreateClusterSecret(t.Context(), "my-secret2", "cluster2", "https://kubernetes.default.svc").
 		CreatePlacementRoleAndRoleBinding().
 		CreatePlacementDecisionConfigMap("my-configmap").
 		CreatePlacementDecision("my-placementdecision").

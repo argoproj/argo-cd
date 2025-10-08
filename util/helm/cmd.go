@@ -325,16 +325,16 @@ func (c *Cmd) dependencyBuild() (string, error) {
 	return out, nil
 }
 
-func (c *Cmd) inspectValues(values string) (string, error) {
-	out, _, err := c.run(context.Background(), "show", "values", values)
+func (c *Cmd) inspectValues(ctx context.Context, values string) (string, error) {
+	out, _, err := c.run(ctx, "show", "values", values)
 	if err != nil {
 		return "", fmt.Errorf("failed to inspect values: %w", err)
 	}
 	return out, nil
 }
 
-func (c *Cmd) InspectChart() (string, error) {
-	out, _, err := c.run(context.Background(), "show", "chart", ".")
+func (c *Cmd) InspectChart(ctx context.Context) (string, error) {
+	out, _, err := c.run(ctx, "show", "chart", ".")
 	if err != nil {
 		return "", fmt.Errorf("failed to inspect chart: %w", err)
 	}
@@ -462,8 +462,8 @@ func cleanupChartLockFile(chartPath string) (func(), error) {
 	}, nil
 }
 
-func (c *Cmd) Freestyle(args ...string) (string, error) {
-	out, _, err := c.run(context.Background(), args...)
+func (c *Cmd) Freestyle(ctx context.Context, args ...string) (string, error) {
+	out, _, err := c.run(ctx, args...)
 	if err != nil {
 		return "", fmt.Errorf("failed to execute freestyle helm command: %w", err)
 	}

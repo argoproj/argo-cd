@@ -253,13 +253,13 @@ func NewDefaultSettingsGetter(mgr *settings.SettingsManager) *DefaultSettingsGet
 
 // Get will retrieve the Argo CD settings.
 func (s *DefaultSettingsGetter) Get() (*settings.ArgoCDSettings, error) {
-	return s.settingsMgr.GetSettings()
+	return s.settingsMgr.GetSettings(context.Background())
 }
 
 // ProjectGetter defines the contract to retrieve Argo CD Project.
 type ProjectGetter interface {
 	Get(name string) (*v1alpha1.AppProject, error)
-	GetClusters(project string) ([]*v1alpha1.Cluster, error)
+	GetClusters(ctx context.Context, project string) ([]*v1alpha1.Cluster, error)
 }
 
 // DefaultProjectGetter is the real ProjectGetter implementation.
@@ -282,8 +282,8 @@ func (p *DefaultProjectGetter) Get(name string) (*v1alpha1.AppProject, error) {
 }
 
 // GetClusters will retrieve the clusters configured by a project.
-func (p *DefaultProjectGetter) GetClusters(project string) ([]*v1alpha1.Cluster, error) {
-	return p.db.GetProjectClusters(context.TODO(), project)
+func (p *DefaultProjectGetter) GetClusters(ctx context.Context, project string) ([]*v1alpha1.Cluster, error) {
+	return p.db.GetProjectClusters(ctx, project)
 }
 
 // UserGetter defines the contract to retrieve info from the logged in user.
@@ -714,7 +714,7 @@ func (m *Manager) authorize(ctx context.Context, rr *RequestResources, extName s
 	if err != nil {
 		return nil, fmt.Errorf("error getting destination cluster: %w", err)
 	}
-	permitted, err := proj.IsDestinationPermitted(destCluster, app.Spec.Destination.Namespace, m.project.GetClusters)
+	permitted, err := proj.IsDestinationPermitted(ctx, destCluster, app.Spec.Destination.Namespace, m.project.GetClusters)
 	if err != nil {
 		return nil, fmt.Errorf("error validating project destinations: %w", err)
 	}

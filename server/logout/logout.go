@@ -31,7 +31,7 @@ func NewHandler(settingsMrg *settings.SettingsManager, sessionMgr *session.Sessi
 type Handler struct {
 	settingsMgr *settings.SettingsManager
 	rootPath    string
-	verifyToken func(tokenString string) (jwt.Claims, string, error)
+	verifyToken func(ctx context.Context, tokenString string) (jwt.Claims, string, error)
 	revokeToken func(ctx context.Context, id string, expiringAt time.Duration) error
 	baseHRef    string
 }
@@ -49,10 +49,11 @@ func constructLogoutURL(logoutURL, token, logoutRedirectURL string) string {
 // ServeHTTP is the logout handler for ArgoCD and constructs OIDC logout URL and redirects to it for OIDC issued sessions,
 // and redirects user to '/login' for argocd issued sessions
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	var tokenString string
 	var oidcConfig *settings.OIDCConfig
 
-	argoCDSettings, err := h.settingsMgr.GetSettings()
+	argoCDSettings, err := h.settingsMgr.GetSettings(ctx)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		http.Error(w, "Failed to retrieve argoCD settings: "+err.Error(), http.StatusInternalServerError)
@@ -94,7 +95,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.Header().Add("Set-Cookie", argocdCookie.String())
 	}
 
-	claims, _, err := h.verifyToken(tokenString)
+	claims, _, err := h.verifyToken(ctx, tokenString)
 	if err != nil {
 		http.Redirect(w, r, logoutRedirectURL, http.StatusSeeOther)
 		return
@@ -109,7 +110,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	issuer := jwtutil.StringField(mapClaims, "iss")
 	id := jwtutil.StringField(mapClaims, "jti")
 	if exp, err := jwtutil.ExpirationTime(mapClaims); err == nil && id != "" {
-		if err := h.revokeToken(context.Background(), id, time.Until(exp)); err != nil {
+		if err := h.revokeToken(ctx, id, time.Until(exp)); err != nil {
 			log.Warnf("failed to invalidate token '%s': %v", id, err)
 		}
 	}

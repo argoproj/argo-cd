@@ -645,7 +645,7 @@ func createClaimsAuthenticationRequestParameter(requestedClaims map[string]*oidc
 // If querying the UserInfo endpoint fails, we return an error to indicate the session is invalid
 // we assume that everywhere in argocd jwt.MapClaims is used as type for interface jwt.Claims
 // otherwise this would cause a panic
-func (a *ClientApp) SetGroupsFromUserInfo(claims jwt.Claims, sessionManagerClaimsIssuer string) (jwt.MapClaims, error) {
+func (a *ClientApp) SetGroupsFromUserInfo(ctx context.Context, claims jwt.Claims, sessionManagerClaimsIssuer string) (jwt.MapClaims, error) {
 	var groupClaims jwt.MapClaims
 	var ok bool
 	if groupClaims, ok = claims.(jwt.MapClaims); !ok {
@@ -657,7 +657,7 @@ func (a *ClientApp) SetGroupsFromUserInfo(claims jwt.Claims, sessionManagerClaim
 	}
 	iss := jwtutil.StringField(groupClaims, "iss")
 	if iss != sessionManagerClaimsIssuer && a.settings.UserInfoGroupsEnabled() && a.settings.UserInfoPath() != "" {
-		userInfo, unauthorized, err := a.GetUserInfo(groupClaims, a.settings.IssuerURL(), a.settings.UserInfoPath())
+		userInfo, unauthorized, err := a.GetUserInfo(ctx, groupClaims, a.settings.IssuerURL(), a.settings.UserInfoPath())
 		if unauthorized {
 			return groupClaims, fmt.Errorf("error while quering userinfo endpoint: %w", err)
 		}
@@ -674,7 +674,7 @@ func (a *ClientApp) SetGroupsFromUserInfo(claims jwt.Claims, sessionManagerClaim
 }
 
 // GetUserInfo queries the IDP userinfo endpoint for claims
-func (a *ClientApp) GetUserInfo(actualClaims jwt.MapClaims, issuerURL, userInfoPath string) (jwt.MapClaims, bool, error) {
+func (a *ClientApp) GetUserInfo(ctx context.Context, actualClaims jwt.MapClaims, issuerURL, userInfoPath string) (jwt.MapClaims, bool, error) {
 	sub := jwtutil.StringField(actualClaims, "sub")
 	var claims jwt.MapClaims
 	var encClaims []byte
@@ -712,7 +712,7 @@ func (a *ClientApp) GetUserInfo(actualClaims jwt.MapClaims, issuerURL, userInfoP
 	}
 
 	url := issuerURL + userInfoPath
-	request, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, http.NoBody)
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
 	if err != nil {
 		err = fmt.Errorf("failed creating new http request: %w", err)
 		return claims, false, err

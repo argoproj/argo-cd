@@ -313,9 +313,9 @@ func createNamespaceScopedUser(t *testing.T, username string, clusterScopedSecre
 
 	// Attempting to patch the ServiceAccount can intermittently fail with 'failed to patch serviceaccount "(...)" with bearer token secret: Operation cannot be fulfilled on serviceaccounts "(...)": the object has been modified; please apply your changes to the latest version and try again'
 	// We thus keep trying for up to 20 seconds.
-	waitErr := wait.PollUntilContextTimeout(t.Context(), 1*time.Second, 20*time.Second, true, func(context.Context) (done bool, err error) {
+	waitErr := wait.PollUntilContextTimeout(t.Context(), 1*time.Second, 20*time.Second, true, func(ctx context.Context) (done bool, err error) {
 		// Retrieve the bearer token from the ServiceAccount
-		token, err = clusterauth.GetServiceAccountBearerToken(KubeClientset, ns.Name, serviceAccountName, time.Second*60)
+		token, err = clusterauth.GetServiceAccountBearerToken(ctx, KubeClientset, ns.Name, serviceAccountName, time.Second*60)
 
 		// Success is no error and a real token, otherwise keep trying
 		return (err == nil && token != ""), nil

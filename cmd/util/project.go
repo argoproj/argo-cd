@@ -2,6 +2,7 @@ package util
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"log"
 	"net/url"
@@ -148,12 +149,12 @@ func readProjFromStdin(proj *v1alpha1.AppProject) error {
 	return nil
 }
 
-func readProjFromURI(fileURL string, proj *v1alpha1.AppProject) error {
+func readProjFromURI(ctx context.Context, fileURL string, proj *v1alpha1.AppProject) error {
 	parsedURL, err := url.ParseRequestURI(fileURL)
 	if err != nil || (parsedURL.Scheme != "http" && parsedURL.Scheme != "https") {
 		err = config.UnmarshalLocalFile(fileURL, &proj)
 	} else {
-		err = config.UnmarshalRemoteFile(fileURL, &proj)
+		err = config.UnmarshalRemoteFile(ctx, fileURL, &proj)
 	}
 	if err != nil {
 		return fmt.Errorf("error reading proj from uri: %w", err)
@@ -195,7 +196,7 @@ func SetProjSpecOptions(flags *pflag.FlagSet, spec *v1alpha1.AppProjectSpec, pro
 	return visited
 }
 
-func ConstructAppProj(fileURL string, args []string, opts ProjectOpts, c *cobra.Command) (*v1alpha1.AppProject, error) {
+func ConstructAppProj(ctx context.Context, fileURL string, args []string, opts ProjectOpts, c *cobra.Command) (*v1alpha1.AppProject, error) {
 	proj := v1alpha1.AppProject{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       application.AppProjectKind,
@@ -211,7 +212,7 @@ func ConstructAppProj(fileURL string, args []string, opts ProjectOpts, c *cobra.
 		}
 	case fileURL != "":
 		// read uri
-		err := readProjFromURI(fileURL, &proj)
+		err := readProjFromURI(ctx, fileURL, &proj)
 		if err != nil {
 			return nil, err
 		}

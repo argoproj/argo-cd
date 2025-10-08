@@ -1,7 +1,6 @@
 package generators
 
 import (
-	"context"
 	"testing"
 
 	log "github.com/sirupsen/logrus"
@@ -79,7 +78,7 @@ func TestMatchValues(t *testing.T) {
 				},
 			}
 
-			results, err := Transform(argov1alpha1.ApplicationSetGenerator{
+			results, err := Transform(t.Context(), argov1alpha1.ApplicationSetGenerator{
 				Selector: testCase.selector,
 				List: &argov1alpha1.ListGenerator{
 					Elements: testCase.elements,
@@ -163,7 +162,7 @@ func TestMatchValuesGoTemplate(t *testing.T) {
 				},
 			}
 
-			results, err := Transform(argov1alpha1.ApplicationSetGenerator{
+			results, err := Transform(t.Context(), argov1alpha1.ApplicationSetGenerator{
 				Selector: testCase.selector,
 				List: &argov1alpha1.ListGenerator{
 					Elements: testCase.elements,
@@ -233,7 +232,7 @@ func TestTransForm(t *testing.T) {
 				Spec: argov1alpha1.ApplicationSetSpec{},
 			}
 
-			results, err := Transform(
+			results, err := Transform(t.Context(),
 				argov1alpha1.ApplicationSetGenerator{
 					Selector: testCase.selector,
 					Clusters: &argov1alpha1.ClusterGenerator{
@@ -342,7 +341,7 @@ func getMockClusterGenerator() Generator {
 	appClientset := kubefake.NewSimpleClientset(runtimeClusters...)
 
 	fakeClient := fake.NewClientBuilder().WithObjects(clusters...).Build()
-	return NewClusterGenerator(context.Background(), fakeClient, appClientset, "namespace")
+	return NewClusterGenerator(fakeClient, appClientset, "namespace")
 }
 
 func getMockGitGenerator() Generator {

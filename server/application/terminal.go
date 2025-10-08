@@ -70,13 +70,13 @@ func (s *terminalHandler) getApplicationClusterRawConfig(ctx context.Context, a 
 	return rawConfig, nil
 }
 
-type GetSettingsFunc func() (*settings.ArgoCDSettings, error)
+type GetSettingsFunc func(ctx context.Context) (*settings.ArgoCDSettings, error)
 
 // WithFeatureFlagMiddleware is an HTTP middleware to verify if the terminal
 // feature is enabled before invoking the main handler
 func (s *terminalHandler) WithFeatureFlagMiddleware(getSettings GetSettingsFunc) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		argocdSettings, err := getSettings()
+		argocdSettings, err := getSettings(r.Context())
 		if err != nil {
 			log.Errorf("error executing WithFeatureFlagMiddleware: error getting settings: %s", err)
 			http.Error(w, "Failed to get settings", http.StatusBadRequest)
@@ -242,12 +242,12 @@ func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	if isValidShell(s.allowedShells, shell) {
 		cmd := []string{shell}
-		err = startProcess(kubeClientset, config, namespace, podName, container, cmd, session)
+		err = startProcess(ctx, kubeClientset, config, namespace, podName, container, cmd, session)
 	} else {
 		// No shell given or the given shell was not allowed: try the configured shells until one succeeds or all fail.
 		for _, testShell := range s.allowedShells {
 			cmd := []string{testShell}
-			if err = startProcess(kubeClientset, config, namespace, podName, container, cmd, session); err == nil {
+			if err = startProcess(ctx, kubeClientset, config, namespace, podName, container, cmd, session); err == nil {
 				break
 			}
 		}
@@ -295,7 +295,7 @@ type TerminalCommand struct {
 }
 
 // startProcess executes specified commands in the container and connects it up with the ptyHandler (a session)
-func startProcess(k8sClient kubernetes.Interface, cfg *rest.Config, namespace, podName, containerName string, cmd []string, ptyHandler PtyHandler) error {
+func startProcess(ctx context.Context, k8sClient kubernetes.Interface, cfg *rest.Config, namespace, podName, containerName string, cmd []string, ptyHandler PtyHandler) error {
 	req := k8sClient.CoreV1().RESTClient().Post().
 		Resource("pods").
 		Name(podName).
@@ -329,7 +329,7 @@ func startProcess(k8sClient kubernetes.Interface, cfg *rest.Config, namespace, p
 			return err
 		}
 	}
-	return exec.StreamWithContext(context.Background(), remotecommand.StreamOptions{
+	return exec.StreamWithContext(ctx, remotecommand.StreamOptions{
 		Stdin:             ptyHandler,
 		Stdout:            ptyHandler,
 		Stderr:            ptyHandler,

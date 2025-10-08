@@ -70,8 +70,8 @@ func New(limit int) SizedWaitGroup {
 // been called.
 //
 // See sync.WaitGroup documentation for more information.
-func (s *SizedWaitGroup) Add() {
-	_ = s.AddWithContext(context.Background())
+func (s *SizedWaitGroup) Add(ctx context.Context) {
+	_ = s.AddWithContext(ctx)
 }
 
 // AddWithContext increments the internal WaitGroup counter.

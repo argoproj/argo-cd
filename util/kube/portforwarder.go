@@ -21,9 +21,9 @@ import (
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 )
 
-func selectPodForPortForward(clientSet kubernetes.Interface, namespace string, podSelectors ...string) (*corev1.Pod, error) {
+func selectPodForPortForward(ctx context.Context, clientSet kubernetes.Interface, namespace string, podSelectors ...string) (*corev1.Pod, error) {
 	for _, podSelector := range podSelectors {
-		pods, err := clientSet.CoreV1().Pods(namespace).List(context.Background(), metav1.ListOptions{
+		pods, err := clientSet.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
 			LabelSelector: podSelector,
 		})
 		if err != nil {
@@ -39,8 +39,7 @@ func selectPodForPortForward(clientSet kubernetes.Interface, namespace string, p
 	return nil, fmt.Errorf("cannot find ready pod with selector: %v - use the --{component}-name flag in this command or set the environmental variable (Refer to https://argo-cd.readthedocs.io/en/stable/user-guide/environment-variables), to change the Argo CD component name in the CLI", podSelectors)
 }
 
-func PortForward(targetPort int, namespace string, overrides *clientcmd.ConfigOverrides, podSelectors ...string) (int, error) {
-	ctx := context.Background()
+func PortForward(ctx context.Context, targetPort int, namespace string, overrides *clientcmd.ConfigOverrides, podSelectors ...string) (int, error) {
 	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
 	loadingRules.DefaultClientConfig = &clientcmd.DefaultClientConfig
 	clientConfig := clientcmd.NewInteractiveDeferredLoadingClientConfig(loadingRules, overrides, os.Stdin)
@@ -61,7 +60,7 @@ func PortForward(targetPort int, namespace string, overrides *clientcmd.ConfigOv
 		return -1, err
 	}
 
-	pod, err := selectPodForPortForward(clientSet, namespace, podSelectors...)
+	pod, err := selectPodForPortForward(ctx, clientSet, namespace, podSelectors...)
 	if err != nil {
 		return -1, err
 	}

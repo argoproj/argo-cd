@@ -1,6 +1,7 @@
 package db
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -95,7 +96,7 @@ var repoArgoProjWrite = &corev1.Secret{
 
 func TestDb_CreateRepository(t *testing.T) {
 	clientset := getClientset()
-	settingsManager := settings.NewSettingsManager(t.Context(), clientset, testNamespace)
+	settingsManager := settings.NewSettingsManager(clientset, testNamespace)
 	testee := &db{
 		ns:            testNamespace,
 		kubeclientset: clientset,
@@ -125,7 +126,7 @@ func TestDb_CreateRepository(t *testing.T) {
 
 func TestDb_GetRepository(t *testing.T) {
 	clientset := getClientset(repoArgoCD, repoArgoProj)
-	settingsManager := settings.NewSettingsManager(t.Context(), clientset, testNamespace)
+	settingsManager := settings.NewSettingsManager(clientset, testNamespace)
 	testee := &db{
 		ns:            testNamespace,
 		kubeclientset: clientset,
@@ -150,7 +151,7 @@ func TestDb_GetRepository(t *testing.T) {
 
 func TestDb_GetWriteRepository(t *testing.T) {
 	clientset := getClientset(repoArgoCDWrite, repoArgoProjWrite)
-	settingsManager := settings.NewSettingsManager(t.Context(), clientset, testNamespace)
+	settingsManager := settings.NewSettingsManager(clientset, testNamespace)
 	testee := &db{
 		ns:            testNamespace,
 		kubeclientset: clientset,
@@ -170,7 +171,7 @@ func TestDb_GetWriteRepository(t *testing.T) {
 
 func TestDb_GetWriteRepository_SecretNotFound_DefaultRepo(t *testing.T) {
 	clientset := getClientset(repoArgoCD)
-	settingsManager := settings.NewSettingsManager(t.Context(), clientset, testNamespace)
+	settingsManager := settings.NewSettingsManager(clientset, testNamespace)
 	testee := &db{
 		ns:            testNamespace,
 		kubeclientset: clientset,
@@ -185,7 +186,7 @@ func TestDb_GetWriteRepository_SecretNotFound_DefaultRepo(t *testing.T) {
 
 func TestDb_ListRepositories(t *testing.T) {
 	clientset := getClientset(repoArgoCD, repoArgoProj)
-	settingsManager := settings.NewSettingsManager(t.Context(), clientset, testNamespace)
+	settingsManager := settings.NewSettingsManager(clientset, testNamespace)
 	testee := &db{
 		ns:            testNamespace,
 		kubeclientset: clientset,
@@ -207,7 +208,7 @@ func TestDb_UpdateRepository(t *testing.T) {
 	}
 
 	clientset := getClientset(repoArgoCD)
-	settingsManager := settings.NewSettingsManager(t.Context(), clientset, testNamespace)
+	settingsManager := settings.NewSettingsManager(clientset, testNamespace)
 	testee := &db{
 		ns:            testNamespace,
 		kubeclientset: clientset,
@@ -232,7 +233,7 @@ func TestDb_UpdateRepository(t *testing.T) {
 
 func TestDb_DeleteRepository(t *testing.T) {
 	clientset := getClientset(repoArgoCD, repoArgoProj)
-	settingsManager := settings.NewSettingsManager(t.Context(), clientset, testNamespace)
+	settingsManager := settings.NewSettingsManager(clientset, testNamespace)
 	testee := &db{
 		ns:            testNamespace,
 		kubeclientset: clientset,
@@ -282,7 +283,7 @@ func TestDb_GetRepositoryCredentials(t *testing.T) {
 	}
 
 	clientset := getClientset(gitHubRepoCredsSecret, gitLabRepoCredsSecret)
-	testee := NewDB(testNamespace, settings.NewSettingsManager(t.Context(), clientset, testNamespace), clientset)
+	testee := NewDB(testNamespace, settings.NewSettingsManager(clientset, testNamespace), clientset)
 
 	repoCreds, err := testee.GetRepositoryCredentials(t.Context(), "git@github.com:argoproj/argoproj.git")
 	require.NoError(t, err)
@@ -405,9 +406,9 @@ func Test_GetProjectRepositories(t *testing.T) {
 	}
 
 	clientset := getClientset(repoSecretWithProject, repoSecretWithoutProject)
-	argoDB := NewDB(testNamespace, settings.NewSettingsManager(t.Context(), clientset, testNamespace), clientset)
+	argoDB := NewDB(testNamespace, settings.NewSettingsManager(clientset, testNamespace), clientset)
 
-	repos, err := argoDB.GetProjectRepositories("some-project")
+	repos, err := argoDB.GetProjectRepositories(context.Background(), "some-project")
 	require.NoError(t, err)
 	assert.Len(t, repos, 1)
 	assert.Equal(t, "git@github.com:argoproj/argo-cd", repos[0].Repo)

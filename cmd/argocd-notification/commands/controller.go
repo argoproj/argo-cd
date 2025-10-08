@@ -54,8 +54,8 @@ func NewCommand() *cobra.Command {
 	command := cobra.Command{
 		Use:   "controller",
 		Short: "Starts Argo CD Notifications controller",
-		RunE: func(_ *cobra.Command, _ []string) error {
-			ctx, cancel := context.WithCancel(context.Background())
+		RunE: func(c *cobra.Command, _ []string) error {
+			ctx, cancel := context.WithCancel(c.Context())
 			defer cancel()
 
 			vers := common.GetVersion()

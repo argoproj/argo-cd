@@ -31,6 +31,7 @@ func checkHealth(t *testing.T, requireHealthy bool) {
 
 func TestAPIServerGracefulRestart(t *testing.T) {
 	fixture.EnsureCleanState(t)
+	ctx := t.Context()
 
 	// Should be healthy.
 	checkHealth(t, true)
@@ -44,12 +45,12 @@ func TestAPIServerGracefulRestart(t *testing.T) {
 	}
 	// One final time, should be healthy, or restart is considered too slow for tests
 	checkHealth(t, true)
-	closer, settingsClient, err := fixture.ArgoCDClientset.NewSettingsClient()
+	closer, settingsClient, err := fixture.ArgoCDClientset.NewSettingsClient(ctx)
 	if closer != nil {
 		defer closer.Close()
 	}
 	require.NoError(t, err)
-	settings, err := settingsClient.Get(t.Context(), &settings.SettingsQuery{})
+	settings, err := settingsClient.Get(ctx, &settings.SettingsQuery{})
 	require.NoError(t, err)
 	require.Equal(t, "http://test-api-server-graceful-restart", settings.URL)
 }
