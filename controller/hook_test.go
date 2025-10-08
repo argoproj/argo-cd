@@ -10,49 +10,49 @@ import (
 func TestIsHookOfType(t *testing.T) {
 	tests := []struct {
 		name     string
-		hookType string
+		hookType HookType
 		annot    map[string]string
 		expected bool
 	}{
 		{
 			name:     "ArgoCD PreDelete hook",
-			hookType: preDeleteHook,
-			annot:    map[string]string{"argocd.argoproj.io/hook": preDeleteHook},
+			hookType: PreDeleteHookType,
+			annot:    map[string]string{"argocd.argoproj.io/hook": "PreDelete"},
 			expected: true,
 		},
 		{
 			name:     "Helm PreDelete hook",
-			hookType: preDeleteHook,
+			hookType: PreDeleteHookType,
 			annot:    map[string]string{"helm.sh/hook": "pre-delete"},
 			expected: true,
 		},
 		{
 			name:     "ArgoCD PostDelete hook",
-			hookType: postDeleteHook,
-			annot:    map[string]string{"argocd.argoproj.io/hook": postDeleteHook},
+			hookType: PostDeleteHookType,
+			annot:    map[string]string{"argocd.argoproj.io/hook": "PostDelete"},
 			expected: true,
 		},
 		{
 			name:     "Helm PostDelete hook",
-			hookType: postDeleteHook,
+			hookType: PostDeleteHookType,
 			annot:    map[string]string{"helm.sh/hook": "post-delete"},
 			expected: true,
 		},
 		{
 			name:     "Not a hook",
-			hookType: preDeleteHook,
+			hookType: PreDeleteHookType,
 			annot:    map[string]string{"some-other": "annotation"},
 			expected: false,
 		},
 		{
 			name:     "Wrong hook type",
-			hookType: preDeleteHook,
-			annot:    map[string]string{"argocd.argoproj.io/hook": postDeleteHook},
+			hookType: PreDeleteHookType,
+			annot:    map[string]string{"argocd.argoproj.io/hook": "PostDelete"},
 			expected: false,
 		},
 		{
 			name:     "Nil annotations",
-			hookType: preDeleteHook,
+			hookType: PreDeleteHookType,
 			annot:    nil,
 			expected: false,
 		},
@@ -76,12 +76,12 @@ func TestIsHook(t *testing.T) {
 	}{
 		{
 			name:     "ArgoCD PreDelete hook",
-			annot:    map[string]string{"argocd.argoproj.io/hook": preDeleteHook},
+			annot:    map[string]string{"argocd.argoproj.io/hook": "PreDelete"},
 			expected: true,
 		},
 		{
 			name:     "ArgoCD PostDelete hook",
-			annot:    map[string]string{"argocd.argoproj.io/hook": postDeleteHook},
+			annot:    map[string]string{"argocd.argoproj.io/hook": "PostDelete"},
 			expected: true,
 		},
 		{
@@ -114,7 +114,7 @@ func TestIsPreDeleteHook(t *testing.T) {
 	}{
 		{
 			name:     "ArgoCD PreDelete hook",
-			annot:    map[string]string{"argocd.argoproj.io/hook": preDeleteHook},
+			annot:    map[string]string{"argocd.argoproj.io/hook": "PreDelete"},
 			expected: true,
 		},
 		{
@@ -124,7 +124,7 @@ func TestIsPreDeleteHook(t *testing.T) {
 		},
 		{
 			name:     "ArgoCD PostDelete hook",
-			annot:    map[string]string{"argocd.argoproj.io/hook": postDeleteHook},
+			annot:    map[string]string{"argocd.argoproj.io/hook": "PostDelete"},
 			expected: false,
 		},
 	}
@@ -147,7 +147,7 @@ func TestIsPostDeleteHook(t *testing.T) {
 	}{
 		{
 			name:     "ArgoCD PostDelete hook",
-			annot:    map[string]string{"argocd.argoproj.io/hook": postDeleteHook},
+			annot:    map[string]string{"argocd.argoproj.io/hook": "PostDelete"},
 			expected: true,
 		},
 		{
@@ -157,7 +157,7 @@ func TestIsPostDeleteHook(t *testing.T) {
 		},
 		{
 			name:     "ArgoCD PreDelete hook",
-			annot:    map[string]string{"argocd.argoproj.io/hook": preDeleteHook},
+			annot:    map[string]string{"argocd.argoproj.io/hook": "PreDelete"},
 			expected: false,
 		},
 	}
