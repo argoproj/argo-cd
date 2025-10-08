@@ -420,8 +420,7 @@ var fakePreDeleteHook = `
       "app.kubernetes.io/instance": "my-app"
     },
     "annotations": {
-      "argocd.argoproj.io/hook": "PreDelete",
-      "argocd.argoproj.io/hook-delete-policy": "HookSucceeded"
+      "argocd.argoproj.io/hook": "PreDelete"
     }
   },
   "spec": {
@@ -452,8 +451,7 @@ var fakePostDeleteHook = `
       "app.kubernetes.io/instance": "my-app"
     },
     "annotations": {
-      "argocd.argoproj.io/hook": "PostDelete",
-      "argocd.argoproj.io/hook-delete-policy": "HookSucceeded"
+      "argocd.argoproj.io/hook": "PostDelete"
     }
   },
   "spec": {
