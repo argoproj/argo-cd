@@ -440,6 +440,11 @@ data:
   # application.sync.impersonation.enabled enables application sync to use a custom service account, via impersonation. This allows decoupling sync from control-plane service account.
   application.sync.impersonation.enabled: "false"
 
+  # If true, passing passing a different revision from the one given in the application when syncing requires the `override` privilege. 
+  # The current default setting up to now (`false`) requires only `sync` privilege for syncing to a different revision. 
+  # We highly recommend that this be set to `true`. The next major release will set the default to be `true`.  
+  application.sync.requireOverridePrivilegeForRevisionSync: "true"  
+
   ### SourceHydrator commit message template.
   # This template iterates through the fields in the `.metadata` object,
   # and formats them based on their type (map, array, or primitive values).
@@ -458,3 +463,4 @@ data:
     {{- if .metadata.author }}
     Co-authored-by: {{ .metadata.author }}
     {{- end }}
+
