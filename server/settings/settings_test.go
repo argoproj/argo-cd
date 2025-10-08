@@ -43,7 +43,7 @@ func fixtures(data map[string]string) (*fake.Clientset, *settings.SettingsManage
 func TestSettingsServer(t *testing.T) {
 	newServer := func(data map[string]string) *Server {
 		_, settingsMgr := fixtures(data)
-		return NewServer(settingsMgr, nil, nil, false, false, false)
+		return NewServer(settingsMgr, nil, nil, false, false, false, false)
 	}
 
 	t.Run("TestGetInstallationID", func(t *testing.T) {

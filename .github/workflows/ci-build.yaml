@@ -65,8 +65,8 @@ jobs:
           go mod download
       - name: Check for tidiness of go.mod and go.sum
         run: |
-          make workspace-vendor
-          git diff --exit-code -- . ':!go.work.sum'
+          go mod tidy
+          git diff --exit-code -- .
   build-go:
     name: Build & cache Go code
     if: ${{ needs.changes.outputs.backend == 'true' }}
@@ -269,7 +269,7 @@ jobs:
         run: |
           # We need to vendor go modules for codegen yet
           go mod download
-          go work vendor -v
+          go mod vendor -v
         working-directory: /home/runner/go/src/github.com/argoproj/argo-cd
       - name: Install toolchain for codegen
         run: |
@@ -290,7 +290,7 @@ jobs:
       - name: Check nothing has changed
         run: |
           set -xo pipefail
-          git diff --exit-code -- . ':!go.sum' ':!go.mod' ':!assets/swagger.json' ':!go.work' ':!go.work.sum' | tee codegen.patch
+          git diff --exit-code -- . ':!go.sum' ':!go.mod' ':!assets/swagger.json' | tee codegen.patch
         working-directory: /home/runner/go/src/github.com/argoproj/argo-cd
 
   build-ui:
