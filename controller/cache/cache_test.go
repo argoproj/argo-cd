@@ -1,7 +1,6 @@
 package cache
 
 import (
-	"context"
 	"errors"
 	"net"
 	"net/url"
@@ -65,7 +64,7 @@ func fixtures(data map[string]string, opts ...func(secret *corev1.Secret)) (*fak
 		opts[i](secret)
 	}
 	kubeClient := fake.NewClientset(cm, secret)
-	settingsManager := argosettings.NewSettingsManager(context.Background(), kubeClient, "default")
+	settingsManager := argosettings.NewSettingsManager(kubeClient, "default")
 
 	return kubeClient, settingsManager
 }
@@ -171,7 +170,7 @@ func TestHandleDeleteEvent_CacheDeadlock(t *testing.T) {
 	db := &dbmocks.ArgoDB{}
 	db.On("GetApplicationControllerReplicas").Return(1)
 	fakeClient := fake.NewClientset()
-	settingsMgr := argosettings.NewSettingsManager(t.Context(), fakeClient, "argocd")
+	settingsMgr := argosettings.NewSettingsManager(fakeClient, "argocd")
 	liveStateCacheLock := sync.RWMutex{}
 	gitopsEngineClusterCache := &mocks.ClusterCache{}
 	clustersCache := liveStateCache{
@@ -778,6 +777,7 @@ func Test_GetVersionsInfo_error_redacted(t *testing.T) {
 }
 
 func TestLoadCacheSettings(t *testing.T) {
+	ctx := t.Context()
 	_, settingsManager := fixtures(map[string]string{
 		"application.instanceLabelKey":       "testLabel",
 		"application.resourceTrackingMethod": string(appv1.TrackingMethodLabel),
@@ -786,11 +786,11 @@ func TestLoadCacheSettings(t *testing.T) {
 	ch := liveStateCache{
 		settingsMgr: settingsManager,
 	}
-	label, err := settingsManager.GetAppInstanceLabelKey()
+	label, err := settingsManager.GetAppInstanceLabelKey(ctx)
 	require.NoError(t, err)
-	trackingMethod, err := settingsManager.GetTrackingMethod()
+	trackingMethod, err := settingsManager.GetTrackingMethod(ctx)
 	require.NoError(t, err)
-	res, err := ch.loadCacheSettings()
+	res, err := ch.loadCacheSettings(ctx)
 	require.NoError(t, err)
 
 	assert.Equal(t, label, res.appInstanceLabelKey)

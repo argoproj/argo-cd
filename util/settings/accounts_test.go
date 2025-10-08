@@ -16,7 +16,7 @@ import (
 
 func TestGetAccounts_NoAccountsConfigured(t *testing.T) {
 	_, settingsManager := fixtures(nil)
-	accounts, err := settingsManager.GetAccounts()
+	accounts, err := settingsManager.GetAccounts(t.Context())
 	require.NoError(t, err)
 
 	adminAccount, ok := accounts[common.ArgoCDAdminUsername]
@@ -28,7 +28,7 @@ func TestGetAccounts_HasConfiguredAccounts(t *testing.T) {
 	_, settingsManager := fixtures(map[string]string{"accounts.test": "apiKey"}, func(secret *corev1.Secret) {
 		secret.Data["accounts.test.tokens"] = []byte(`[{"id":"123","iat":1583789194,"exp":1583789194}]`)
 	})
-	accounts, err := settingsManager.GetAccounts()
+	accounts, err := settingsManager.GetAccounts(t.Context())
 	require.NoError(t, err)
 
 	acc, ok := accounts["test"]
@@ -43,7 +43,7 @@ func TestGetAccounts_DisableAccount(t *testing.T) {
 		"accounts.test":         "apiKey",
 		"accounts.test.enabled": "false",
 	})
-	accounts, err := settingsManager.GetAccounts()
+	accounts, err := settingsManager.GetAccounts(t.Context())
 	require.NoError(t, err)
 
 	acc, ok := accounts["test"]
@@ -57,13 +57,13 @@ func TestGetAccount(t *testing.T) {
 	})
 
 	t.Run("ExistingUserName", func(t *testing.T) {
-		_, err := settingsManager.GetAccount("test")
+		_, err := settingsManager.GetAccount(t.Context(), "test")
 
 		require.NoError(t, err)
 	})
 
 	t.Run("IncorrectName", func(t *testing.T) {
-		_, err := settingsManager.GetAccount("incorrect-name")
+		_, err := settingsManager.GetAccount(t.Context(), "incorrect-name")
 
 		require.Error(t, err)
 		assert.Equal(t, codes.NotFound, status.Code(err))
@@ -87,7 +87,7 @@ func TestGetAccount_WithInvalidToken(t *testing.T) {
 		},
 	)
 
-	_, err := settingsManager.GetAccounts()
+	_, err := settingsManager.GetAccounts(t.Context())
 	require.NoError(t, err)
 }
 
@@ -98,7 +98,7 @@ func TestGetAdminAccount(t *testing.T) {
 		secret.Data["admin.passwordMtime"] = []byte(mTime)
 	})
 
-	acc, err := settingsManager.GetAccount(common.ArgoCDAdminUsername)
+	acc, err := settingsManager.GetAccount(t.Context(), common.ArgoCDAdminUsername)
 	require.NoError(t, err)
 
 	assert.Equal(t, "admin-password", acc.PasswordHash)
@@ -149,7 +149,7 @@ func TestAddAccount_AccountAdded(t *testing.T) {
 		PasswordHash:  "hash",
 		PasswordMtime: &mTime,
 	}
-	err := settingsManager.AddAccount("test", addedAccount)
+	err := settingsManager.AddAccount(t.Context(), "test", addedAccount)
 	require.NoError(t, err)
 
 	cm, err := clientset.CoreV1().ConfigMaps("default").Get(t.Context(), common.ArgoCDConfigMapName, metav1.GetOptions{})
@@ -168,13 +168,13 @@ func TestAddAccount_AccountAdded(t *testing.T) {
 
 func TestAddAccount_AlreadyExists(t *testing.T) {
 	_, settingsManager := fixtures(map[string]string{"accounts.test": "login"})
-	err := settingsManager.AddAccount("test", Account{})
+	err := settingsManager.AddAccount(t.Context(), "test", Account{})
 	require.Error(t, err)
 }
 
 func TestAddAccount_CannotAddAdmin(t *testing.T) {
 	_, settingsManager := fixtures(nil)
-	err := settingsManager.AddAccount("admin", Account{})
+	err := settingsManager.AddAccount(t.Context(), "admin", Account{})
 	require.Error(t, err)
 }
 

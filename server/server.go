@@ -300,8 +300,8 @@ func initializeDefaultProject(opts ArgoCDServerOpts) error {
 
 // NewServer returns a new instance of the Argo CD API server
 func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts ApplicationSetOpts) *ArgoCDServer {
-	settingsMgr := settings_util.NewSettingsManager(ctx, opts.KubeClientset, opts.Namespace)
-	settings, err := settingsMgr.InitializeSettings(opts.Insecure)
+	settingsMgr := settings_util.NewSettingsManager(opts.KubeClientset, opts.Namespace)
+	settings, err := settingsMgr.InitializeSettings(ctx, opts.Insecure)
 	errorsutil.CheckError(err)
 	err = initializeDefaultProject(opts)
 	errorsutil.CheckError(err)
@@ -392,7 +392,7 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts Applicatio
 		stopCh:             make(chan os.Signal, 1),
 	}
 
-	err = a.logInClusterWarnings()
+	err = a.logInClusterWarnings(ctx)
 	if err != nil {
 		// Just log. It's not critical.
 		log.Warnf("Failed to log in-cluster warnings: %v", err)
@@ -452,14 +452,14 @@ func (l *Listeners) Close() error {
 }
 
 // logInClusterWarnings checks the in-cluster configuration and prints out any warnings.
-func (server *ArgoCDServer) logInClusterWarnings() error {
+func (server *ArgoCDServer) logInClusterWarnings(ctx context.Context) error {
 	labelSelector := labels.NewSelector()
 	req, err := labels.NewRequirement(common.LabelKeySecretType, selection.Equals, []string{common.LabelValueSecretTypeCluster})
 	if err != nil {
 		return fmt.Errorf("failed to construct cluster-type label selector: %w", err)
 	}
 	labelSelector = labelSelector.Add(*req)
-	secretsLister, err := server.settingsMgr.GetSecretsLister()
+	secretsLister, err := server.settingsMgr.GetSecretsLister(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get secrets lister: %w", err)
 	}
@@ -479,7 +479,7 @@ func (server *ArgoCDServer) logInClusterWarnings() error {
 	}
 	if len(inClusterSecrets) > 0 {
 		// Don't make this call unless we actually have in-cluster secrets, to save time.
-		dbSettings, err := server.settingsMgr.GetSettings()
+		dbSettings, err := server.settingsMgr.GetSettings(ctx)
 		if err != nil {
 			return fmt.Errorf("could not get DB settings: %w", err)
 		}
@@ -1081,7 +1081,7 @@ func newArgoCDServiceSet(a *ArgoCDServer) *ArgoCDServiceSet {
 		if a.DisableAuth {
 			return true, nil
 		}
-		sett, err := a.settingsMgr.GetSettings()
+		sett, err := a.settingsMgr.GetSettings(context.Background())
 		if err != nil {
 			return false, err
 		}
@@ -1261,7 +1261,7 @@ func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWeb
 
 	// Webhook handler for git events (Note: cache timeouts are hardcoded because API server does not write to cache and not really using them)
 	argoDB := db.NewDB(server.Namespace, server.settingsMgr, server.KubeClientset)
-	acdWebhookHandler := webhook.NewHandler(server.Namespace, server.ApplicationNamespaces, server.WebhookParallelism, server.AppClientset, server.appLister, server.settings, server.settingsMgr, server.RepoServerCache, server.Cache, argoDB, server.settingsMgr.GetMaxWebhookPayloadSize())
+	acdWebhookHandler := webhook.NewHandler(server.Namespace, server.ApplicationNamespaces, server.WebhookParallelism, server.AppClientset, server.appLister, server.settings, server.settingsMgr, server.RepoServerCache, server.Cache, argoDB, server.settingsMgr.GetMaxWebhookPayloadSize(ctx))
 
 	mux.HandleFunc("/api/webhook", acdWebhookHandler.Handler)
 
@@ -1552,7 +1552,7 @@ func (server *ArgoCDServer) Authenticate(ctx context.Context) (context.Context, 
 	}
 
 	if claimsErr != nil {
-		argoCDSettings, err := server.settingsMgr.GetSettings()
+		argoCDSettings, err := server.settingsMgr.GetSettings(ctx)
 		if err != nil {
 			return ctx, status.Errorf(codes.Internal, "unable to load settings: %v", err)
 		}

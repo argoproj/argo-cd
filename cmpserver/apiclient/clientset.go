@@ -31,14 +31,14 @@ type clientSet struct {
 }
 
 func (c *clientSet) NewConfigManagementPluginClient() (utilio.Closer, ConfigManagementPluginServiceClient, error) {
-	conn, err := NewConnection(c.address)
+	conn, err := NewConnection(context.Background(), c.address)
 	if err != nil {
 		return nil, nil, err
 	}
 	return conn, NewConfigManagementPluginServiceClient(conn), nil
 }
 
-func NewConnection(address string) (*grpc.ClientConn, error) {
+func NewConnection(ctx context.Context, address string) (*grpc.ClientConn, error) {
 	retryOpts := []grpc_retry.CallOption{
 		grpc_retry.WithMax(3),
 		grpc_retry.WithBackoff(grpc_retry.BackoffLinear(1000 * time.Millisecond)),
@@ -52,7 +52,7 @@ func NewConnection(address string) (*grpc.ClientConn, error) {
 	}
 
 	dialOpts = append(dialOpts, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	conn, err := grpc_util.BlockingNewClient(context.Background(), "unix", address, nil, dialOpts...)
+	conn, err := grpc_util.BlockingNewClient(ctx, "unix", address, nil, dialOpts...)
 	if err != nil {
 		log.Errorf("Unable to connect to config management plugin service with address %s", address)
 		return nil, err

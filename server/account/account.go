@@ -79,7 +79,7 @@ func (s *Server) UpdatePassword(ctx context.Context, q *account.UpdatePasswordRe
 	}
 
 	// Need to validate password complexity with regular expression
-	passwordPattern, err := s.settingsMgr.GetPasswordPattern()
+	passwordPattern, err := s.settingsMgr.GetPasswordPattern(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get password pattern: %w", err)
 	}
@@ -169,7 +169,7 @@ func (s *Server) ensureHasAccountPermission(ctx context.Context, action string, 
 // ListAccounts returns the list of accounts
 func (s *Server) ListAccounts(ctx context.Context, _ *account.ListAccountRequest) (*account.AccountsList, error) {
 	resp := account.AccountsList{}
-	accounts, err := s.settingsMgr.GetAccounts()
+	accounts, err := s.settingsMgr.GetAccounts(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get accounts: %w", err)
 	}
@@ -189,7 +189,7 @@ func (s *Server) GetAccount(ctx context.Context, r *account.GetAccountRequest) (
 	if err := s.ensureHasAccountPermission(ctx, rbac.ActionGet, r.Name); err != nil {
 		return nil, fmt.Errorf("permission denied to get account %s: %w", r.Name, err)
 	}
-	a, err := s.settingsMgr.GetAccount(r.Name)
+	a, err := s.settingsMgr.GetAccount(ctx, r.Name)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get account %s: %w", r.Name, err)
 	}

@@ -158,7 +158,7 @@ func newFakeControllerWithResync(data *fakeData, appResyncPeriod time.Duration, 
 	runtimeObjs := []runtime.Object{&clust, &secret, &cm}
 	runtimeObjs = append(runtimeObjs, data.additionalObjs...)
 	kubeClient := fake.NewClientset(runtimeObjs...)
-	settingsMgr := settings.NewSettingsManager(context.Background(), kubeClient, test.FakeArgoCDNamespace)
+	settingsMgr := settings.NewSettingsManager(kubeClient, test.FakeArgoCDNamespace)
 	kubectl := &MockKubectl{Kubectl: &kubetest.MockKubectlCmd{}}
 	ctrl, err := NewApplicationController(
 		test.FakeArgoCDNamespace,
@@ -986,7 +986,7 @@ func TestFinalizeAppDeletion(t *testing.T) {
 			patched = true
 			return true, &v1alpha1.Application{}, nil
 		})
-		err := ctrl.finalizeApplicationDeletion(app, func(_ string) ([]*v1alpha1.Cluster, error) {
+		err := ctrl.finalizeApplicationDeletion(t.Context(), app, func(_ string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
 		})
 		require.NoError(t, err)
@@ -1038,7 +1038,7 @@ func TestFinalizeAppDeletion(t *testing.T) {
 			patched = true
 			return true, &v1alpha1.Application{}, nil
 		})
-		err := ctrl.finalizeApplicationDeletion(app, func(_ string) ([]*v1alpha1.Cluster, error) {
+		err := ctrl.finalizeApplicationDeletion(t.Context(), app, func(_ string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
 		})
 		require.NoError(t, err)
@@ -1072,7 +1072,7 @@ func TestFinalizeAppDeletion(t *testing.T) {
 			patched = true
 			return true, &v1alpha1.Application{}, nil
 		})
-		err := ctrl.finalizeApplicationDeletion(app, func(_ string) ([]*v1alpha1.Cluster, error) {
+		err := ctrl.finalizeApplicationDeletion(t.Context(), app, func(_ string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
 		})
 		require.NoError(t, err)
@@ -1096,7 +1096,7 @@ func TestFinalizeAppDeletion(t *testing.T) {
 			fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 				return defaultReactor.React(action)
 			})
-			err := ctrl.finalizeApplicationDeletion(app, func(_ string) ([]*v1alpha1.Cluster, error) {
+			err := ctrl.finalizeApplicationDeletion(t.Context(), app, func(_ string) ([]*v1alpha1.Cluster, error) {
 				return []*v1alpha1.Cluster{}, nil
 			})
 			require.NoError(t, err)
@@ -1139,7 +1139,7 @@ func TestFinalizeAppDeletion(t *testing.T) {
 			patched = true
 			return true, &v1alpha1.Application{}, nil
 		})
-		err := ctrl.finalizeApplicationDeletion(app, func(_ string) ([]*v1alpha1.Cluster, error) {
+		err := ctrl.finalizeApplicationDeletion(t.Context(), app, func(_ string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
 		})
 		require.NoError(t, err)
@@ -1183,7 +1183,7 @@ func TestFinalizeAppDeletion(t *testing.T) {
 			patched = true
 			return true, &v1alpha1.Application{}, nil
 		})
-		err := ctrl.finalizeApplicationDeletion(app, func(_ string) ([]*v1alpha1.Cluster, error) {
+		err := ctrl.finalizeApplicationDeletion(t.Context(), app, func(_ string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
 		})
 		require.NoError(t, err)
@@ -1230,7 +1230,7 @@ func TestFinalizeAppDeletion(t *testing.T) {
 			patched = true
 			return true, &v1alpha1.Application{}, nil
 		})
-		err := ctrl.finalizeApplicationDeletion(app, func(_ string) ([]*v1alpha1.Cluster, error) {
+		err := ctrl.finalizeApplicationDeletion(t.Context(), app, func(_ string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
 		})
 		require.NoError(t, err)
@@ -1320,7 +1320,7 @@ func TestFinalizeAppDeletionWithImpersonation(t *testing.T) {
 		f := setup(test.FakeDestNamespace, "")
 
 		// when
-		err := f.controller.finalizeApplicationDeletion(f.application, func(_ string) ([]*v1alpha1.Cluster, error) {
+		err := f.controller.finalizeApplicationDeletion(t.Context(), f.application, func(_ string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
 		})
 
@@ -1334,7 +1334,7 @@ func TestFinalizeAppDeletionWithImpersonation(t *testing.T) {
 		f := setup(test.FakeDestNamespace, "test-sa")
 
 		// when
-		err := f.controller.finalizeApplicationDeletion(f.application, func(_ string) ([]*v1alpha1.Cluster, error) {
+		err := f.controller.finalizeApplicationDeletion(t.Context(), f.application, func(_ string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
 		})
 
@@ -1349,7 +1349,7 @@ func TestFinalizeAppDeletionWithImpersonation(t *testing.T) {
 		f.application.Spec.Destination.Name = "invalid"
 
 		// when
-		err := f.controller.finalizeApplicationDeletion(f.application, func(_ string) ([]*v1alpha1.Cluster, error) {
+		err := f.controller.finalizeApplicationDeletion(t.Context(), f.application, func(_ string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
 		})
 
@@ -1405,7 +1405,7 @@ func TestNormalizeApplication(t *testing.T) {
 			}
 			return true, &v1alpha1.Application{}, nil
 		})
-		ctrl.processAppRefreshQueueItem()
+		ctrl.processAppRefreshQueueItem(t.Context())
 		assert.True(t, normalized)
 	}
 
@@ -1427,7 +1427,7 @@ func TestNormalizeApplication(t *testing.T) {
 			}
 			return true, &v1alpha1.Application{}, nil
 		})
-		ctrl.processAppRefreshQueueItem()
+		ctrl.processAppRefreshQueueItem(t.Context())
 		assert.False(t, normalized)
 	}
 }
@@ -1894,7 +1894,7 @@ func TestUpdateReconciledAt(t *testing.T) {
 		ctrl.requestAppRefresh(app.Name, CompareWithLatest.Pointer(), nil)
 		ctrl.appRefreshQueue.AddRateLimited(key)
 
-		ctrl.processAppRefreshQueueItem()
+		ctrl.processAppRefreshQueueItem(t.Context())
 
 		_, updated, err := unstructured.NestedString(receivedPatch, "status", "reconciledAt")
 		require.NoError(t, err)
@@ -1910,7 +1910,7 @@ func TestUpdateReconciledAt(t *testing.T) {
 		ctrl.appRefreshQueue.AddRateLimited(key)
 		ctrl.requestAppRefresh(app.Name, CompareWithRecent.Pointer(), nil)
 
-		ctrl.processAppRefreshQueueItem()
+		ctrl.processAppRefreshQueueItem(t.Context())
 
 		_, updated, err := unstructured.NestedString(receivedPatch, "status", "reconciledAt")
 		require.NoError(t, err)
@@ -1999,6 +1999,7 @@ apps/Deployment:
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			ctx := t.Context()
 			ctrl := newFakeController(&fakeData{
 				apps: []runtime.Object{tc.app, &defaultProj},
 				manifestResponse: &apiclient.ManifestResponse{
@@ -2013,7 +2014,7 @@ apps/Deployment:
 				configMapData: tc.configMapData,
 			}, nil)
 
-			ctrl.processAppRefreshQueueItem()
+			ctrl.processAppRefreshQueueItem(ctx)
 			apps, err := ctrl.appLister.List(labels.Everything())
 			require.NoError(t, err)
 			assert.NotEmpty(t, apps)
@@ -2112,8 +2113,9 @@ apps/Deployment:
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			ctx := t.Context()
 			deployment.SetLabels(map[string]string{"status": tc.initialStatus})
-			ctrl.processAppRefreshQueueItem()
+			ctrl.processAppRefreshQueueItem(ctx)
 			apps, err := ctrl.appLister.List(labels.Everything())
 			require.NoError(t, err)
 			if assert.NotEmpty(t, apps) {
@@ -2144,7 +2146,7 @@ func TestProjectErrorToCondition(t *testing.T) {
 	ctrl.appRefreshQueue.AddRateLimited(key)
 	ctrl.requestAppRefresh(app.Name, CompareWithRecent.Pointer(), nil)
 
-	ctrl.processAppRefreshQueueItem()
+	ctrl.processAppRefreshQueueItem(t.Context())
 
 	obj, ok, err := ctrl.appInformer.GetIndexer().GetByKey(key)
 	assert.True(t, ok)
@@ -2210,7 +2212,7 @@ func TestProcessRequestedAppOperation_FailedNoRetries(t *testing.T) {
 		return true, &v1alpha1.Application{}, nil
 	})
 
-	ctrl.processRequestedAppOperation(app)
+	ctrl.processRequestedAppOperation(t.Context(), app)
 
 	phase, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "phase")
 	message, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "message")
@@ -2241,7 +2243,7 @@ func TestProcessRequestedAppOperation_InvalidDestination(t *testing.T) {
 		})
 	}()
 
-	ctrl.processRequestedAppOperation(app)
+	ctrl.processRequestedAppOperation(t.Context(), app)
 
 	phase, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "phase")
 	message, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "message")
@@ -2266,7 +2268,7 @@ func TestProcessRequestedAppOperation_FailedHasRetries(t *testing.T) {
 		return true, &v1alpha1.Application{}, nil
 	})
 
-	ctrl.processRequestedAppOperation(app)
+	ctrl.processRequestedAppOperation(t.Context(), app)
 
 	phase, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "phase")
 	message, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "message")
@@ -2313,7 +2315,7 @@ func TestProcessRequestedAppOperation_RunningPreviouslyFailed(t *testing.T) {
 		return true, &v1alpha1.Application{}, nil
 	})
 
-	ctrl.processRequestedAppOperation(app)
+	ctrl.processRequestedAppOperation(t.Context(), app)
 
 	phase, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "phase")
 	message, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "message")
@@ -2367,7 +2369,7 @@ func TestProcessRequestedAppOperation_RunningPreviouslyFailedBackoff(t *testing.
 		return true, &v1alpha1.Application{}, nil
 	})
 
-	ctrl.processRequestedAppOperation(app)
+	ctrl.processRequestedAppOperation(t.Context(), app)
 }
 
 func TestProcessRequestedAppOperation_HasRetriesTerminated(t *testing.T) {
@@ -2398,7 +2400,7 @@ func TestProcessRequestedAppOperation_HasRetriesTerminated(t *testing.T) {
 		return true, &v1alpha1.Application{}, nil
 	})
 
-	ctrl.processRequestedAppOperation(app)
+	ctrl.processRequestedAppOperation(t.Context(), app)
 
 	phase, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "phase")
 	message, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "message")
@@ -2427,7 +2429,7 @@ func TestProcessRequestedAppOperation_Successful(t *testing.T) {
 		return true, &v1alpha1.Application{}, nil
 	})
 
-	ctrl.processRequestedAppOperation(app)
+	ctrl.processRequestedAppOperation(t.Context(), app)
 
 	phase, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "phase")
 	message, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "message")
@@ -2505,7 +2507,7 @@ func TestProcessRequestedAppOperation_SyncTimeout(t *testing.T) {
 				app.Status.OperationState.RetryCount = int64(tc.retryAttempt)
 			}
 
-			ctrl.processRequestedAppOperation(app)
+			ctrl.processRequestedAppOperation(t.Context(), app)
 
 			app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.ObjectMeta.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
 			require.NoError(t, err)
@@ -2560,7 +2562,7 @@ func TestGetAppHosts(t *testing.T) {
 	})).Return(nil)
 	ctrl.stateCache = mockStateCache
 
-	hosts, err := ctrl.getAppHosts(&v1alpha1.Cluster{Server: "test", Name: "test"}, app, []v1alpha1.ResourceNode{{
+	hosts, err := ctrl.getAppHosts(t.Context(), &v1alpha1.Cluster{Server: "test", Name: "test"}, app, []v1alpha1.ResourceNode{{
 		ResourceRef: v1alpha1.ResourceRef{Name: "pod1", Namespace: "default", Kind: kube.PodKind},
 		Info: []v1alpha1.InfoItem{{
 			Name:  "Host",
@@ -2690,7 +2692,7 @@ func TestAddControllerNamespace(t *testing.T) {
 			manifestResponse: &apiclient.ManifestResponse{},
 		}, nil)
 
-		ctrl.processAppRefreshQueueItem()
+		ctrl.processAppRefreshQueueItem(t.Context())
 
 		updatedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(ctrl.namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
 		require.NoError(t, err)
@@ -2709,7 +2711,7 @@ func TestAddControllerNamespace(t *testing.T) {
 			applicationNamespaces: []string{appNamespace},
 		}, nil)
 
-		ctrl.processAppRefreshQueueItem()
+		ctrl.processAppRefreshQueueItem(t.Context())
 
 		updatedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(appNamespace).Get(t.Context(), app.Name, metav1.GetOptions{})
 		require.NoError(t, err)

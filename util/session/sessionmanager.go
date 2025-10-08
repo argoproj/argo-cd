@@ -124,7 +124,7 @@ func NewSessionManager(settingsMgr *settings.SettingsManager, projectsLister v1a
 		projectsLister:                projectsLister,
 		verificationDelayNoiseEnabled: true,
 	}
-	settings, err := settingsMgr.GetSettings()
+	settings, err := settingsMgr.GetSettings(context.Background())
 	if err != nil {
 		panic(err)
 	}
@@ -161,6 +161,7 @@ func NewSessionManager(settingsMgr *settings.SettingsManager, projectsLister v1a
 // Passing a value of `0` for secondsBeforeExpiry creates a token that never expires.
 // The id parameter holds an optional unique JWT token identifier and stored as a standard claim "jti" in the JWT token.
 func (mgr *SessionManager) Create(subject string, secondsBeforeExpiry int64, id string) (string, error) {
+	ctx := context.Background()
 	now := time.Now().UTC()
 	claims := jwt.RegisteredClaims{
 		IssuedAt:  jwt.NewNumericDate(now),
@@ -174,7 +175,7 @@ func (mgr *SessionManager) Create(subject string, secondsBeforeExpiry int64, id 
 		claims.ExpiresAt = jwt.NewNumericDate(expires)
 	}
 
-	return mgr.signClaims(claims)
+	return mgr.signClaims(ctx, claims)
 }
 
 func (mgr *SessionManager) CollectMetrics(registry MetricsRegistry) {
@@ -191,9 +192,9 @@ func (mgr *SessionManager) IncLoginRequestCounter(status string) {
 	}
 }
 
-func (mgr *SessionManager) signClaims(claims jwt.Claims) (string, error) {
+func (mgr *SessionManager) signClaims(ctx context.Context, claims jwt.Claims) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	settings, err := mgr.settingsMgr.GetSettings()
+	settings, err := mgr.settingsMgr.GetSettings(ctx)
 	if err != nil {
 		return "", err
 	}
@@ -218,12 +219,13 @@ func GetSubjectAccountAndCapability(subject string) (string, settings.AccountCap
 
 // Parse tries to parse the provided string and returns the token claims for local login.
 func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, string, error) {
+	ctx := context.Background()
 	// Parse takes the token string and a function for looking up the key. The latter is especially
 	// useful if you use multiple keys for your application.  The standard is to use 'kid' in the
 	// head of the token to identify which key to use, but the parsed token (head and claims) is provided
 	// to the callback, providing flexibility.
 	var claims jwt.MapClaims
-	argoCDSettings, err := mgr.settingsMgr.GetSettings()
+	argoCDSettings, err := mgr.settingsMgr.GetSettings(ctx)
 	if err != nil {
 		return nil, "", err
 	}
@@ -262,7 +264,7 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, string, error)
 	subject, capability := GetSubjectAccountAndCapability(subject)
 	claims["sub"] = subject
 
-	account, err := mgr.settingsMgr.GetAccount(subject)
+	account, err := mgr.settingsMgr.GetAccount(context.Background(), subject)
 	if err != nil {
 		return nil, "", err
 	}
@@ -448,7 +450,7 @@ func (mgr *SessionManager) VerifyUsernamePassword(username string, password stri
 		return InvalidLoginErr
 	}
 
-	account, err := mgr.settingsMgr.GetAccount(username)
+	account, err := mgr.settingsMgr.GetAccount(context.Background(), username)
 	if err != nil {
 		if errStatus, ok := status.FromError(err); ok && errStatus.Code() == codes.NotFound {
 			mgr.updateFailureCount(username, true)
@@ -537,6 +539,7 @@ func WithAuthMiddleware(disabled bool, isSSOConfigured bool, ssoClientApp *oidcu
 // VerifyToken verifies if a token is correct. Tokens can be issued either from us or by an IDP.
 // We choose how to verify based on the issuer.
 func (mgr *SessionManager) VerifyToken(tokenString string) (jwt.Claims, string, error) {
+	ctx := context.Background()
 	parser := jwt.NewParser(jwt.WithoutClaimsValidation())
 	claims := jwt.MapClaims{}
 	_, _, err := parser.ParseUnverified(tokenString, &claims)
@@ -551,12 +554,12 @@ func (mgr *SessionManager) VerifyToken(tokenString string) (jwt.Claims, string, 
 		return mgr.Parse(tokenString)
 	default:
 		// IDP signed token
-		prov, err := mgr.provider()
+		prov, err := mgr.provider(ctx)
 		if err != nil {
 			return nil, "", err
 		}
 
-		argoSettings, err := mgr.settingsMgr.GetSettings()
+		argoSettings, err := mgr.settingsMgr.GetSettings(ctx)
 		if err != nil {
 			return nil, "", fmt.Errorf("cannot access settings while verifying the token: %w", err)
 		}
@@ -589,11 +592,11 @@ func (mgr *SessionManager) VerifyToken(tokenString string) (jwt.Claims, string, 
 	}
 }
 
-func (mgr *SessionManager) provider() (oidcutil.Provider, error) {
+func (mgr *SessionManager) provider(ctx context.Context) (oidcutil.Provider, error) {
 	if mgr.prov != nil {
 		return mgr.prov, nil
 	}
-	settings, err := mgr.settingsMgr.GetSettings()
+	settings, err := mgr.settingsMgr.GetSettings(ctx)
 	if err != nil {
 		return nil, err
 	}

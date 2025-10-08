@@ -49,7 +49,7 @@ func getClientset(objects ...runtime.Object) *fake.Clientset {
 
 func TestCreateRepository(t *testing.T) {
 	clientset := getClientset()
-	db := NewDB(testNamespace, settings.NewSettingsManager(t.Context(), clientset, testNamespace), clientset)
+	db := NewDB(testNamespace, settings.NewSettingsManager(clientset, testNamespace), clientset)
 
 	repo, err := db.CreateRepository(t.Context(), &v1alpha1.Repository{
 		Repo:     "https://github.com/argoproj/argocd-example-apps",
@@ -70,7 +70,7 @@ func TestCreateRepository(t *testing.T) {
 
 func TestCreateProjectScopedRepository(t *testing.T) {
 	clientset := getClientset()
-	db := NewDB(testNamespace, settings.NewSettingsManager(t.Context(), clientset, testNamespace), clientset)
+	db := NewDB(testNamespace, settings.NewSettingsManager(clientset, testNamespace), clientset)
 
 	repo, err := db.CreateRepository(t.Context(), &v1alpha1.Repository{
 		Repo:     "https://github.com/argoproj/argocd-example-apps",
@@ -117,7 +117,7 @@ func TestCreateProjectScopedRepository(t *testing.T) {
 
 func TestCreateRepoCredentials(t *testing.T) {
 	clientset := getClientset()
-	db := NewDB(testNamespace, settings.NewSettingsManager(t.Context(), clientset, testNamespace), clientset)
+	db := NewDB(testNamespace, settings.NewSettingsManager(clientset, testNamespace), clientset)
 
 	creds, err := db.CreateRepositoryCredentials(t.Context(), &v1alpha1.RepoCreds{
 		URL:      "https://github.com/argoproj/",
@@ -153,7 +153,7 @@ func TestCreateRepoCredentials(t *testing.T) {
 
 func TestCreateWriteRepoCredentials(t *testing.T) {
 	clientset := getClientset()
-	db := NewDB(testNamespace, settings.NewSettingsManager(t.Context(), clientset, testNamespace), clientset)
+	db := NewDB(testNamespace, settings.NewSettingsManager(clientset, testNamespace), clientset)
 
 	creds, err := db.CreateWriteRepositoryCredentials(t.Context(), &v1alpha1.RepoCreds{
 		URL:      "https://github.com/argoproj/",
@@ -185,7 +185,7 @@ func TestCreateWriteRepoCredentials(t *testing.T) {
 
 func TestGetRepositoryCredentials(t *testing.T) {
 	clientset := getClientset()
-	db := NewDB(testNamespace, settings.NewSettingsManager(t.Context(), clientset, testNamespace), clientset)
+	db := NewDB(testNamespace, settings.NewSettingsManager(clientset, testNamespace), clientset)
 	_, err := db.CreateRepositoryCredentials(t.Context(), &v1alpha1.RepoCreds{
 		URL:      "https://secured",
 		Username: "test-username",
@@ -231,7 +231,7 @@ func TestGetRepositoryCredentials(t *testing.T) {
 
 func TestGetWriteRepositoryCredentials(t *testing.T) {
 	clientset := getClientset()
-	db := NewDB(testNamespace, settings.NewSettingsManager(t.Context(), clientset, testNamespace), clientset)
+	db := NewDB(testNamespace, settings.NewSettingsManager(clientset, testNamespace), clientset)
 	_, err := db.CreateWriteRepositoryCredentials(t.Context(), &v1alpha1.RepoCreds{
 		URL:      "https://secured",
 		Username: "test-username",
@@ -277,7 +277,7 @@ func TestGetWriteRepositoryCredentials(t *testing.T) {
 
 func TestCreateExistingRepository(t *testing.T) {
 	clientset := getClientset()
-	db := NewDB(testNamespace, settings.NewSettingsManager(t.Context(), clientset, testNamespace), clientset)
+	db := NewDB(testNamespace, settings.NewSettingsManager(clientset, testNamespace), clientset)
 
 	_, err := db.CreateRepository(t.Context(), &v1alpha1.Repository{
 		Repo:     "https://github.com/argoproj/argocd-example-apps",
@@ -341,7 +341,7 @@ func TestGetRepository(t *testing.T) {
 			"password": []byte("test-password"),
 		},
 	})
-	db := NewDB(testNamespace, settings.NewSettingsManager(t.Context(), clientset, testNamespace), clientset)
+	db := NewDB(testNamespace, settings.NewSettingsManager(clientset, testNamespace), clientset)
 
 	tests := []struct {
 		name    string
@@ -419,7 +419,7 @@ func TestGetWriteRepository(t *testing.T) {
 			"password": []byte("test-password"),
 		},
 	})
-	db := NewDB(testNamespace, settings.NewSettingsManager(t.Context(), clientset, testNamespace), clientset)
+	db := NewDB(testNamespace, settings.NewSettingsManager(clientset, testNamespace), clientset)
 
 	tests := []struct {
 		name    string
@@ -454,7 +454,7 @@ func TestGetWriteRepository(t *testing.T) {
 func TestCreateClusterSuccessful(t *testing.T) {
 	server := "https://mycluster"
 	clientset := getClientset()
-	db := NewDB(testNamespace, settings.NewSettingsManager(t.Context(), clientset, testNamespace), clientset)
+	db := NewDB(testNamespace, settings.NewSettingsManager(clientset, testNamespace), clientset)
 
 	_, err := db.CreateCluster(t.Context(), &v1alpha1.Cluster{
 		Server: server,
@@ -489,7 +489,7 @@ func TestDeleteClusterWithManagedSecret(t *testing.T) {
 		},
 	})
 
-	db := NewDB(testNamespace, settings.NewSettingsManager(t.Context(), clientset, testNamespace), clientset)
+	db := NewDB(testNamespace, settings.NewSettingsManager(clientset, testNamespace), clientset)
 	err := db.DeleteCluster(t.Context(), clusterURL)
 	require.NoError(t, err)
 
@@ -517,7 +517,7 @@ func TestDeleteClusterWithUnmanagedSecret(t *testing.T) {
 		},
 	})
 
-	db := NewDB(testNamespace, settings.NewSettingsManager(t.Context(), clientset, testNamespace), clientset)
+	db := NewDB(testNamespace, settings.NewSettingsManager(clientset, testNamespace), clientset)
 	err := db.DeleteCluster(t.Context(), clusterURL)
 	require.NoError(t, err)
 
@@ -530,7 +530,7 @@ func TestDeleteClusterWithUnmanagedSecret(t *testing.T) {
 func TestFuzzyEquivalence(t *testing.T) {
 	clientset := getClientset()
 	ctx := t.Context()
-	db := NewDB(testNamespace, settings.NewSettingsManager(t.Context(), clientset, testNamespace), clientset)
+	db := NewDB(testNamespace, settings.NewSettingsManager(clientset, testNamespace), clientset)
 
 	repo, err := db.CreateRepository(ctx, &v1alpha1.Repository{
 		Repo: "https://github.com/argoproj/argocd-example-apps",
@@ -559,7 +559,7 @@ func TestGetApplicationControllerReplicas(t *testing.T) {
 	clientset := getClientset()
 	expectedReplicas := int32(2)
 	t.Setenv(common.EnvControllerReplicas, "2")
-	db := NewDB(testNamespace, settings.NewSettingsManager(t.Context(), clientset, testNamespace), clientset)
+	db := NewDB(testNamespace, settings.NewSettingsManager(clientset, testNamespace), clientset)
 	replicas := db.GetApplicationControllerReplicas()
 	assert.Equal(t, int(expectedReplicas), replicas)
 
@@ -574,7 +574,7 @@ func TestGetApplicationControllerReplicas(t *testing.T) {
 		},
 	})
 	t.Setenv(common.EnvControllerReplicas, "2")
-	db = NewDB(testNamespace, settings.NewSettingsManager(t.Context(), clientset, testNamespace), clientset)
+	db = NewDB(testNamespace, settings.NewSettingsManager(clientset, testNamespace), clientset)
 	replicas = db.GetApplicationControllerReplicas()
 	assert.Equal(t, int(expectedReplicas), replicas)
 }

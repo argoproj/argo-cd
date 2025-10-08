@@ -82,8 +82,8 @@ func (_c *Dependencies_AddHydrationQueueItem_Call) RunAndReturn(run func(key typ
 }
 
 // GetHydratorCommitMessageTemplate provides a mock function for the type Dependencies
-func (_mock *Dependencies) GetHydratorCommitMessageTemplate() (string, error) {
-	ret := _mock.Called()
+func (_mock *Dependencies) GetHydratorCommitMessageTemplate(ctx context.Context) (string, error) {
+	ret := _mock.Called(ctx)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetHydratorCommitMessageTemplate")
@@ -91,16 +91,16 @@ func (_mock *Dependencies) GetHydratorCommitMessageTemplate() (string, error) {
 
 	var r0 string
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func() (string, error)); ok {
-		return returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (string, error)); ok {
+		return returnFunc(ctx)
 	}
-	if returnFunc, ok := ret.Get(0).(func() string); ok {
-		r0 = returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) string); ok {
+		r0 = returnFunc(ctx)
 	} else {
 		r0 = ret.Get(0).(string)
 	}
-	if returnFunc, ok := ret.Get(1).(func() error); ok {
-		r1 = returnFunc()
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -113,13 +113,20 @@ type Dependencies_GetHydratorCommitMessageTemplate_Call struct {
 }
 
 // GetHydratorCommitMessageTemplate is a helper method to define mock.On call
-func (_e *Dependencies_Expecter) GetHydratorCommitMessageTemplate() *Dependencies_GetHydratorCommitMessageTemplate_Call {
-	return &Dependencies_GetHydratorCommitMessageTemplate_Call{Call: _e.mock.On("GetHydratorCommitMessageTemplate")}
+//   - ctx context.Context
+func (_e *Dependencies_Expecter) GetHydratorCommitMessageTemplate(ctx interface{}) *Dependencies_GetHydratorCommitMessageTemplate_Call {
+	return &Dependencies_GetHydratorCommitMessageTemplate_Call{Call: _e.mock.On("GetHydratorCommitMessageTemplate", ctx)}
 }
 
-func (_c *Dependencies_GetHydratorCommitMessageTemplate_Call) Run(run func()) *Dependencies_GetHydratorCommitMessageTemplate_Call {
+func (_c *Dependencies_GetHydratorCommitMessageTemplate_Call) Run(run func(ctx context.Context)) *Dependencies_GetHydratorCommitMessageTemplate_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run()
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
 	})
 	return _c
 }
@@ -129,7 +136,7 @@ func (_c *Dependencies_GetHydratorCommitMessageTemplate_Call) Return(s string, e
 	return _c
 }
 
-func (_c *Dependencies_GetHydratorCommitMessageTemplate_Call) RunAndReturn(run func() (string, error)) *Dependencies_GetHydratorCommitMessageTemplate_Call {
+func (_c *Dependencies_GetHydratorCommitMessageTemplate_Call) RunAndReturn(run func(ctx context.Context) (string, error)) *Dependencies_GetHydratorCommitMessageTemplate_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -420,8 +427,8 @@ func (_c *Dependencies_GetWriteCredentials_Call) RunAndReturn(run func(ctx conte
 }
 
 // PersistAppHydratorStatus provides a mock function for the type Dependencies
-func (_mock *Dependencies) PersistAppHydratorStatus(orig *v1alpha1.Application, newStatus *v1alpha1.SourceHydratorStatus) {
-	_mock.Called(orig, newStatus)
+func (_mock *Dependencies) PersistAppHydratorStatus(ctx context.Context, orig *v1alpha1.Application, newStatus *v1alpha1.SourceHydratorStatus) {
+	_mock.Called(ctx, orig, newStatus)
 	return
 }
 
@@ -431,25 +438,31 @@ type Dependencies_PersistAppHydratorStatus_Call struct {
 }
 
 // PersistAppHydratorStatus is a helper method to define mock.On call
+//   - ctx context.Context
 //   - orig *v1alpha1.Application
 //   - newStatus *v1alpha1.SourceHydratorStatus
-func (_e *Dependencies_Expecter) PersistAppHydratorStatus(orig interface{}, newStatus interface{}) *Dependencies_PersistAppHydratorStatus_Call {
-	return &Dependencies_PersistAppHydratorStatus_Call{Call: _e.mock.On("PersistAppHydratorStatus", orig, newStatus)}
+func (_e *Dependencies_Expecter) PersistAppHydratorStatus(ctx interface{}, orig interface{}, newStatus interface{}) *Dependencies_PersistAppHydratorStatus_Call {
+	return &Dependencies_PersistAppHydratorStatus_Call{Call: _e.mock.On("PersistAppHydratorStatus", ctx, orig, newStatus)}
 }
 
-func (_c *Dependencies_PersistAppHydratorStatus_Call) Run(run func(orig *v1alpha1.Application, newStatus *v1alpha1.SourceHydratorStatus)) *Dependencies_PersistAppHydratorStatus_Call {
+func (_c *Dependencies_PersistAppHydratorStatus_Call) Run(run func(ctx context.Context, orig *v1alpha1.Application, newStatus *v1alpha1.SourceHydratorStatus)) *Dependencies_PersistAppHydratorStatus_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 *v1alpha1.Application
+		var arg0 context.Context
 		if args[0] != nil {
-			arg0 = args[0].(*v1alpha1.Application)
+			arg0 = args[0].(context.Context)
 		}
-		var arg1 *v1alpha1.SourceHydratorStatus
+		var arg1 *v1alpha1.Application
 		if args[1] != nil {
-			arg1 = args[1].(*v1alpha1.SourceHydratorStatus)
+			arg1 = args[1].(*v1alpha1.Application)
+		}
+		var arg2 *v1alpha1.SourceHydratorStatus
+		if args[2] != nil {
+			arg2 = args[2].(*v1alpha1.SourceHydratorStatus)
 		}
 		run(
 			arg0,
 			arg1,
+			arg2,
 		)
 	})
 	return _c
@@ -460,7 +473,7 @@ func (_c *Dependencies_PersistAppHydratorStatus_Call) Return() *Dependencies_Per
 	return _c
 }
 
-func (_c *Dependencies_PersistAppHydratorStatus_Call) RunAndReturn(run func(orig *v1alpha1.Application, newStatus *v1alpha1.SourceHydratorStatus)) *Dependencies_PersistAppHydratorStatus_Call {
+func (_c *Dependencies_PersistAppHydratorStatus_Call) RunAndReturn(run func(ctx context.Context, orig *v1alpha1.Application, newStatus *v1alpha1.SourceHydratorStatus)) *Dependencies_PersistAppHydratorStatus_Call {
 	_c.Run(run)
 	return _c
 }

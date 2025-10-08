@@ -94,7 +94,7 @@ func TestProjectServer(t *testing.T) {
 			"server": []byte("https://server3"),
 		},
 	})
-	settingsMgr := settings.NewSettingsManager(t.Context(), kubeclientset, testNamespace)
+	settingsMgr := settings.NewSettingsManager(kubeclientset, testNamespace)
 	enforcer := newEnforcer(kubeclientset)
 	existingProj := v1alpha1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: testNamespace},

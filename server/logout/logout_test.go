@@ -236,11 +236,11 @@ func TestHandlerConstructLogoutURL(t *testing.T) {
 		},
 	)
 
-	settingsManagerWithOIDCConfig := settings.NewSettingsManager(t.Context(), kubeClientWithOIDCConfig, "default")
-	settingsManagerWithoutOIDCConfig := settings.NewSettingsManager(t.Context(), kubeClientWithoutOIDCConfig, "default")
-	settingsManagerWithOIDCConfigButNoLogoutURL := settings.NewSettingsManager(t.Context(), kubeClientWithOIDCConfigButNoLogoutURL, "default")
-	settingsManagerWithoutOIDCAndMultipleURLs := settings.NewSettingsManager(t.Context(), kubeClientWithoutOIDCAndMultipleURLs, "default")
-	settingsManagerWithOIDCConfigButNoURL := settings.NewSettingsManager(t.Context(), kubeClientWithOIDCConfigButNoURL, "default")
+	settingsManagerWithOIDCConfig := settings.NewSettingsManager(kubeClientWithOIDCConfig, "default")
+	settingsManagerWithoutOIDCConfig := settings.NewSettingsManager(kubeClientWithoutOIDCConfig, "default")
+	settingsManagerWithOIDCConfigButNoLogoutURL := settings.NewSettingsManager(kubeClientWithOIDCConfigButNoLogoutURL, "default")
+	settingsManagerWithoutOIDCAndMultipleURLs := settings.NewSettingsManager(kubeClientWithoutOIDCAndMultipleURLs, "default")
+	settingsManagerWithOIDCConfigButNoURL := settings.NewSettingsManager(kubeClientWithOIDCConfigButNoURL, "default")
 
 	sessionManager := session.NewSessionManager(settingsManagerWithOIDCConfig, test.NewFakeProjLister(), "", nil, session.NewUserStateStorage(nil))
 

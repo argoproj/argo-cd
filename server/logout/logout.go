@@ -52,7 +52,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var tokenString string
 	var oidcConfig *settings.OIDCConfig
 
-	argoCDSettings, err := h.settingsMgr.GetSettings()
+	argoCDSettings, err := h.settingsMgr.GetSettings(r.Context())
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		http.Error(w, "Failed to retrieve argoCD settings: "+err.Error(), http.StatusInternalServerError)

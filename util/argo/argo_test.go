@@ -79,7 +79,7 @@ func TestGetAppProjectWithNoProjDefined(t *testing.T) {
 	cache.WaitForCacheSync(ctx.Done(), informer.HasSynced)
 
 	kubeClient := fake.NewClientset(&cm)
-	settingsMgr := settings.NewSettingsManager(t.Context(), kubeClient, test.FakeArgoCDNamespace)
+	settingsMgr := settings.NewSettingsManager(kubeClient, test.FakeArgoCDNamespace)
 	argoDB := db.NewDB("default", settingsMgr, kubeClient)
 	proj, err := GetAppProject(ctx, &testApp, applisters.NewAppProjectLister(informer.GetIndexer()), namespace, settingsMgr, argoDB)
 	require.NoError(t, err)
@@ -443,7 +443,7 @@ func TestValidateRepo(t *testing.T) {
 	}
 
 	kubeClient := fake.NewClientset(&cm)
-	settingsMgr := settings.NewSettingsManager(t.Context(), kubeClient, test.FakeArgoCDNamespace)
+	settingsMgr := settings.NewSettingsManager(kubeClient, test.FakeArgoCDNamespace)
 
 	conditions, err := ValidateRepo(t.Context(), app, repoClientSet, db, &kubetest.MockKubectlCmd{Version: kubeVersion, APIResources: apiResources}, proj, settingsMgr)
 
@@ -1182,7 +1182,7 @@ func TestGetGlobalProjects(t *testing.T) {
 		cache.WaitForCacheSync(ctx.Done(), informer.HasSynced)
 
 		kubeClient := fake.NewSimpleClientset(&cm)
-		settingsMgr := settings.NewSettingsManager(t.Context(), kubeClient, test.FakeArgoCDNamespace)
+		settingsMgr := settings.NewSettingsManager(kubeClient, test.FakeArgoCDNamespace)
 
 		projLister := applisters.NewAppProjectLister(informer.GetIndexer())
 
@@ -1726,7 +1726,7 @@ func TestGetAppEventLabels(t *testing.T) {
 			cache.WaitForCacheSync(ctx.Done(), informer.HasSynced)
 
 			kubeClient := fake.NewSimpleClientset(&cm)
-			settingsMgr := settings.NewSettingsManager(t.Context(), kubeClient, test.FakeArgoCDNamespace)
+			settingsMgr := settings.NewSettingsManager(kubeClient, test.FakeArgoCDNamespace)
 			argoDB := db.NewDB("default", settingsMgr, kubeClient)
 
 			eventLabels := GetAppEventLabels(ctx, &app, applisters.NewAppProjectLister(informer.GetIndexer()), test.FakeArgoCDNamespace, settingsMgr, argoDB)

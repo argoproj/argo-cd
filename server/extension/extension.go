@@ -253,7 +253,7 @@ func NewDefaultSettingsGetter(mgr *settings.SettingsManager) *DefaultSettingsGet
 
 // Get will retrieve the Argo CD settings.
 func (s *DefaultSettingsGetter) Get() (*settings.ArgoCDSettings, error) {
-	return s.settingsMgr.GetSettings()
+	return s.settingsMgr.GetSettings(context.Background())
 }
 
 // ProjectGetter defines the contract to retrieve Argo CD Project.

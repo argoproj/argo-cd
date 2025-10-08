@@ -51,15 +51,15 @@ import (
 
 type fakeSettingsSrc struct{}
 
-func (f fakeSettingsSrc) GetAppInstanceLabelKey() (string, error) {
+func (f fakeSettingsSrc) GetAppInstanceLabelKey(context.Context) (string, error) {
 	return "mycompany.com/appname", nil
 }
 
-func (f fakeSettingsSrc) GetTrackingMethod() (string, error) {
+func (f fakeSettingsSrc) GetTrackingMethod(context.Context) (string, error) {
 	return "", nil
 }
 
-func (f fakeSettingsSrc) GetInstallationID() (string, error) {
+func (f fakeSettingsSrc) GetInstallationID(context.Context) (string, error) {
 	return "", nil
 }
 
@@ -756,7 +756,7 @@ func Test_affectedRevisionInfo_appRevisionHasChanged(t *testing.T) {
 		t.Run(testCopy.name, func(t *testing.T) {
 			t.Parallel()
 			h := NewMockHandler(nil, []string{})
-			_, revisionFromHook, _, _, _ := h.affectedRevisionInfo(testCopy.hookPayload)
+			_, revisionFromHook, _, _, _ := h.affectedRevisionInfo(t.Context(), testCopy.hookPayload)
 			if got := sourceRevisionHasChanged(sourceWithRevision(testCopy.targetRevision), revisionFromHook, false); got != testCopy.hasChanged {
 				t.Errorf("sourceRevisionHasChanged() = %v, want %v", got, testCopy.hasChanged)
 			}
@@ -966,7 +966,7 @@ func Test_affectedRevisionInfo_bitbucket_changed_files(t *testing.T) {
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
 			h := NewMockHandlerForBitbucketCallback(nil, []string{})
-			_, revisionFromHook, change, touchHead, changedFiles := h.affectedRevisionInfo(testCase.hookPayload)
+			_, revisionFromHook, change, touchHead, changedFiles := h.affectedRevisionInfo(t.Context(), testCase.hookPayload)
 			require.Equal(t, testCase.revision, revisionFromHook)
 			require.Equal(t, testCase.expectedTouchHead, touchHead)
 			require.Equal(t, testCase.expectedChangedFiles, changedFiles)

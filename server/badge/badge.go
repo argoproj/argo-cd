@@ -102,7 +102,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	notFound := false
 	adjustWidth := false
 	svgWidth := svgWidthWithoutRevision
-	if sets, err := h.settingsMgr.GetSettings(); err == nil {
+	if sets, err := h.settingsMgr.GetSettings(r.Context()); err == nil {
 		enabled = sets.StatusBadgeEnabled
 	}
 

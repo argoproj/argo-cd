@@ -80,7 +80,7 @@ type ClusterWithInfo struct {
 }
 
 func loadClusters(ctx context.Context, kubeClient kubernetes.Interface, appClient versioned.Interface, replicas int, shardingAlgorithm string, namespace string, portForwardRedis bool, cacheSrc func() (*appstatecache.Cache, error), shard int, redisName string, redisHaProxyName string, redisCompressionStr string) ([]ClusterWithInfo, error) {
-	settingsMgr := settings.NewSettingsManager(ctx, kubeClient, namespace)
+	settingsMgr := settings.NewSettingsManager(kubeClient, namespace)
 
 	argoDB := db.NewDB(namespace, settingsMgr, kubeClient)
 	clustersList, err := argoDB.ListClusters(ctx)
@@ -266,7 +266,7 @@ func runClusterNamespacesCommand(ctx context.Context, clientConfig clientcmd.Cli
 	kubeClient := kubernetes.NewForConfigOrDie(clientCfg)
 	appClient := versioned.NewForConfigOrDie(clientCfg)
 
-	settingsMgr := settings.NewSettingsManager(ctx, kubeClient, namespace)
+	settingsMgr := settings.NewSettingsManager(kubeClient, namespace)
 	argoDB := db.NewDB(namespace, settingsMgr, kubeClient)
 	clustersList, err := argoDB.ListClusters(ctx)
 	if err != nil {
@@ -555,7 +555,7 @@ argocd admin cluster kubeconfig https://cluster-api-url:6443 /path/to/output/kub
 			kubeclientset, err := kubernetes.NewForConfig(conf)
 			errors.CheckError(err)
 
-			cluster, err := db.NewDB(namespace, settings.NewSettingsManager(ctx, kubeclientset, namespace), kubeclientset).GetCluster(ctx, serverURL)
+			cluster, err := db.NewDB(namespace, settings.NewSettingsManager(kubeclientset, namespace), kubeclientset).GetCluster(ctx, serverURL)
 			errors.CheckError(err)
 			rawConfig, err := cluster.RawRestConfig()
 			errors.CheckError(err)
@@ -679,7 +679,7 @@ func NewGenClusterConfigCommand(pathOpts *clientcmd.PathOptions) *cobra.Command 
 				clst.Shard = &clusterOpts.Shard
 			}
 
-			settingsMgr := settings.NewSettingsManager(ctx, kubeClientset, ArgoCDNamespace)
+			settingsMgr := settings.NewSettingsManager(kubeClientset, ArgoCDNamespace)
 			argoDB := db.NewDB(ArgoCDNamespace, settingsMgr, kubeClientset)
 
 			_, err = argoDB.CreateCluster(ctx, clst)

@@ -15,8 +15,10 @@ issues:
 
 linters:
   enable:
+    - contextcheck
     - errorlint
     - exptostd
+    - fatcontext
     - gocritic
     - gomodguard
     - govet

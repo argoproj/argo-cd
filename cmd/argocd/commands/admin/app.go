@@ -286,7 +286,7 @@ func NewReconcileCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command 
 					overrides := clientcmd.ConfigOverrides{}
 					repoServerName := clientOpts.RepoServerName
 					repoServerServiceLabelSelector := common.LabelKeyComponentRepoServer + "=" + common.LabelValueComponentRepoServer
-					repoServerServices, err := kubeClientset.CoreV1().Services(namespace).List(context.Background(), metav1.ListOptions{LabelSelector: repoServerServiceLabelSelector})
+					repoServerServices, err := kubeClientset.CoreV1().Services(namespace).List(ctx, metav1.ListOptions{LabelSelector: repoServerServiceLabelSelector})
 					errors.CheckError(err)
 					if len(repoServerServices.Items) > 0 {
 						if repoServerServicelabel, ok := repoServerServices.Items[0].Labels[common.LabelKeyAppName]; ok && repoServerServicelabel != "" {
@@ -367,7 +367,7 @@ func reconcileApplications(
 	serverSideDiff bool,
 	ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts,
 ) ([]appReconcileResult, error) {
-	settingsMgr := settings.NewSettingsManager(ctx, kubeClientset, namespace)
+	settingsMgr := settings.NewSettingsManager(kubeClientset, namespace)
 	argoDB := db.NewDB(namespace, settingsMgr, kubeClientset)
 	appInformerFactory := appinformers.NewSharedInformerFactoryWithOptions(
 		appClientset,
@@ -410,7 +410,7 @@ func reconcileApplications(
 		repoServerClient,
 		namespace,
 		kubeutil.NewKubectl(),
-		func(_ string) (kube.CleanupFunc, error) {
+		func(context.Context, string) (kube.CleanupFunc, error) {
 			return func() {}, nil
 		},
 		settingsMgr,
@@ -463,7 +463,7 @@ func reconcileApplications(
 		sources = append(sources, app.Spec.GetSource())
 		revisions = append(revisions, app.Spec.GetSource().TargetRevision)
 
-		res, err := appStateManager.CompareAppState(&app, proj, revisions, sources, false, false, nil, false)
+		res, err := appStateManager.CompareAppState(ctx, &app, proj, revisions, sources, false, false, nil, false)
 		if err != nil {
 			return nil, fmt.Errorf("error comparing app states: %w", err)
 		}

@@ -125,8 +125,8 @@ func (opts *settingsOpts) createSettingsManager(ctx context.Context) (*settings.
 	setSettingsMeta(argocdSecret)
 	clientset := fake.NewClientset(argocdSecret, argocdCM)
 
-	manager := settings.NewSettingsManager(ctx, clientset, "default")
-	errors.CheckError(manager.ResyncInformers())
+	manager := settings.NewSettingsManager(clientset, "default")
+	errors.CheckError(manager.ResyncInformers(ctx))
 
 	return manager, nil
 }
@@ -197,7 +197,7 @@ func joinValidators(validators ...settingValidator) settingValidator {
 
 var validatorsByGroup = map[string]settingValidator{
 	"general": joinValidators(func(manager *settings.SettingsManager) (string, error) {
-		general, err := manager.GetSettings()
+		general, err := manager.GetSettings(context.Background())
 		if err != nil {
 			return "", err
 		}
@@ -225,17 +225,17 @@ var validatorsByGroup = map[string]settingValidator{
 		}
 		return summary, nil
 	}, func(manager *settings.SettingsManager) (string, error) {
-		_, err := manager.GetAppInstanceLabelKey()
+		_, err := manager.GetAppInstanceLabelKey(context.Background())
 		return "", err
 	}, func(manager *settings.SettingsManager) (string, error) {
-		_, err := manager.GetHelp()
+		_, err := manager.GetHelp(context.Background())
 		return "", err
 	}, func(manager *settings.SettingsManager) (string, error) {
-		_, err := manager.GetGoogleAnalytics()
+		_, err := manager.GetGoogleAnalytics(context.Background())
 		return "", err
 	}),
 	"kustomize": func(manager *settings.SettingsManager) (string, error) {
-		opts, err := manager.GetKustomizeSettings()
+		opts, err := manager.GetKustomizeSettings(context.Background())
 		if err != nil {
 			return "", err
 		}
@@ -249,14 +249,14 @@ var validatorsByGroup = map[string]settingValidator{
 		return summary, err
 	},
 	"accounts": func(manager *settings.SettingsManager) (string, error) {
-		accounts, err := manager.GetAccounts()
+		accounts, err := manager.GetAccounts(context.Background())
 		if err != nil {
 			return "", err
 		}
 		return fmt.Sprintf("%d accounts", len(accounts)), nil
 	},
 	"resource-overrides": func(manager *settings.SettingsManager) (string, error) {
-		overrides, err := manager.GetResourceOverrides()
+		overrides, err := manager.GetResourceOverrides(context.Background())
 		if err != nil {
 			return "", err
 		}
@@ -352,7 +352,7 @@ func executeResourceOverrideCommand(ctx context.Context, cmdCtx commandContext, 
 	settingsManager, err := cmdCtx.createSettingsManager(ctx)
 	errors.CheckError(err)
 
-	overrides, err := settingsManager.GetResourceOverrides()
+	overrides, err := settingsManager.GetResourceOverrides(ctx)
 	errors.CheckError(err)
 	gvk := res.GroupVersionKind()
 	key := gvk.Kind
@@ -373,7 +373,7 @@ func executeIgnoreResourceUpdatesOverrideCommand(ctx context.Context, cmdCtx com
 	settingsManager, err := cmdCtx.createSettingsManager(ctx)
 	errors.CheckError(err)
 
-	overrides, err := settingsManager.GetIgnoreResourceUpdatesOverrides()
+	overrides, err := settingsManager.GetIgnoreResourceUpdatesOverrides(ctx)
 	errors.CheckError(err)
 	gvk := res.GroupVersionKind()
 	key := gvk.Kind

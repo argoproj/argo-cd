@@ -193,7 +193,7 @@ func (k *kubectlServerSideDiffDryRunApplier) runResourceCommand(obj *unstructure
 // See: https://github.com/kubernetes/kubernetes/issues/66353
 // `auth reconcile` will delete and recreate the resource if necessary
 func (k *kubectlResourceOperations) rbacReconcile(ctx context.Context, obj *unstructured.Unstructured, fileName string, dryRunStrategy cmdutil.DryRunStrategy) (string, error) {
-	cleanup, err := processKubectlRun(k.onKubectlRun, "auth")
+	cleanup, err := processKubectlRun(ctx, k.onKubectlRun, "auth")
 	if err != nil {
 		return "", fmt.Errorf("error processing kubectl run auth: %w", err)
 	}
@@ -227,7 +227,7 @@ func (k *kubectlResourceOperations) ReplaceResource(ctx context.Context, obj *un
 	defer span.Finish()
 	k.log.Info(fmt.Sprintf("Replacing resource %s/%s in cluster: %s, namespace: %s", obj.GetKind(), obj.GetName(), k.config.Host, obj.GetNamespace()))
 	return k.runResourceCommand(ctx, obj, dryRunStrategy, func(ioStreams genericclioptions.IOStreams, fileName string) error {
-		cleanup, err := processKubectlRun(k.onKubectlRun, "replace")
+		cleanup, err := processKubectlRun(ctx, k.onKubectlRun, "replace")
 		if err != nil {
 			return err
 		}
@@ -249,7 +249,7 @@ func (k *kubectlResourceOperations) CreateResource(ctx context.Context, obj *uns
 	span.SetBaggageItem("name", obj.GetName())
 	defer span.Finish()
 	return k.runResourceCommand(ctx, obj, dryRunStrategy, func(ioStreams genericclioptions.IOStreams, fileName string) error {
-		cleanup, err := processKubectlRun(k.onKubectlRun, "create")
+		cleanup, err := processKubectlRun(ctx, k.onKubectlRun, "create")
 		if err != nil {
 			return err
 		}
@@ -303,7 +303,7 @@ func (k *kubectlResourceOperations) UpdateResource(ctx context.Context, obj *uns
 }
 
 // ApplyResource performs an apply of a unstructured resource
-func (k *kubectlServerSideDiffDryRunApplier) ApplyResource(_ context.Context, obj *unstructured.Unstructured, dryRunStrategy cmdutil.DryRunStrategy, force, validate, serverSideApply bool, manager string) (string, error) {
+func (k *kubectlServerSideDiffDryRunApplier) ApplyResource(ctx context.Context, obj *unstructured.Unstructured, dryRunStrategy cmdutil.DryRunStrategy, force, validate, serverSideApply bool, manager string) (string, error) {
 	span := k.tracer.StartSpan("ApplyResource")
 	span.SetBaggageItem("kind", obj.GetKind())
 	span.SetBaggageItem("name", obj.GetName())
@@ -314,7 +314,7 @@ func (k *kubectlServerSideDiffDryRunApplier) ApplyResource(_ context.Context, ob
 		"serverSideApply", serverSideApply).Info(fmt.Sprintf("Running server-side diff. Dry run applying resource %s/%s in cluster: %s, namespace: %s", obj.GetKind(), obj.GetName(), k.config.Host, obj.GetNamespace()))
 
 	return k.runResourceCommand(obj, func(ioStreams genericclioptions.IOStreams, fileName string) error {
-		cleanup, err := processKubectlRun(k.onKubectlRun, "apply")
+		cleanup, err := processKubectlRun(ctx, k.onKubectlRun, "apply")
 		if err != nil {
 			return err
 		}
@@ -345,7 +345,7 @@ func (k *kubectlResourceOperations) ApplyResource(ctx context.Context, obj *unst
 		"serverSideDiff", true).Info(fmt.Sprintf("Applying resource %s/%s in cluster: %s, namespace: %s", obj.GetKind(), obj.GetName(), k.config.Host, obj.GetNamespace()))
 
 	return k.runResourceCommand(ctx, obj, dryRunStrategy, func(ioStreams genericclioptions.IOStreams, fileName string) error {
-		cleanup, err := processKubectlRun(k.onKubectlRun, "apply")
+		cleanup, err := processKubectlRun(ctx, k.onKubectlRun, "apply")
 		if err != nil {
 			return err
 		}
@@ -641,9 +641,9 @@ func (k *kubectlResourceOperations) authReconcile(ctx context.Context, obj *unst
 	return strings.Join(out, ". "), nil
 }
 
-func processKubectlRun(onKubectlRun OnKubectlRunFunc, cmd string) (CleanupFunc, error) {
+func processKubectlRun(ctx context.Context, onKubectlRun OnKubectlRunFunc, cmd string) (CleanupFunc, error) {
 	if onKubectlRun != nil {
-		return onKubectlRun(cmd)
+		return onKubectlRun(ctx, cmd)
 	}
 	return func() {}, nil
 }
