@@ -47,6 +47,49 @@ This can take the following values:
 | `HookFailed` | The hook resource is deleted after the hook failed. |
 | `BeforeHookCreation` | Any existing hook resource is deleted before the new one is created (since v1.3). It is meant to be used with `/metadata/name`. |
 
+## PreDelete and PostDelete Hooks
+
+### PreDelete Hooks
+
+PreDelete hooks execute before an Application and its resources are deleted. They run only during Application deletion (e.g., `kubectl delete application` or `argocd app delete`), not during normal sync operations, even when pruning is enabled.
+
+**Behavior:**
+
+1. When an Application is deleted, Argo CD checks for PreDelete hooks defined in the Application's manifests
+2. If PreDelete hooks exist, they are created and executed before any Application resources are deleted
+3. Argo CD waits for all PreDelete hooks to reach a Healthy state before proceeding with deletion
+4. Once all PreDelete hooks complete successfully, they are cleaned up and the Application resources are deleted
+
+**Failure Handling:**
+
+If a PreDelete hook fails (e.g., a Job fails or a Pod crashes), the Application deletion is blocked:
+
+- The Application will remain in a deleting state with a `DeletionError` condition
+- Application resources will not be deleted until the hook succeeds
+- The user can fix the failing hook by updating its manifest in the git repository
+- After fixing the hook, Argo CD will automatically retry the deletion on the next reconciliation
+- Alternatively, the user can manually delete the failing hook resource to allow deletion to proceed
+
+
+### PostDelete Hooks
+
+PostDelete hooks execute after all Application resources have been deleted. They are useful for cleanup operations, notifications, or removing external resources.
+
+**Behavior:**
+
+1. Application resources are deleted first
+2. Once all Application resources are fully removed, PostDelete hooks are created and executed
+3. Argo CD waits for all PostDelete hooks to reach a Healthy state
+4. Once all PostDelete hooks complete successfully, they are cleaned up and the Application is fully removed
+
+**Failure Handling:**
+
+If a PostDelete hook fails:
+
+- The Application is already deleted from the cluster, but the Application CR remains with a `DeletionError` condition
+- The user can fix the failing hook by updating its manifest in the git repository
+- After fixing the hook, Argo CD will automatically retry on the next reconciliation
+- Alternatively, the user can manually delete the failing hook resource to complete the Application deletion
 
 ## How sync waves work?
 
