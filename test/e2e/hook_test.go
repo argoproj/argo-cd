@@ -70,65 +70,9 @@ func TestPreDeleteHook(t *testing.T) {
 		When().
 		Delete(true).
 		Then().
-		AndAction(func() {
-			var hooks *corev1.PodList
-			var err error
-
-			found := false
-			for i := 0; i < 10; i++ {
-				hooks, err = KubeClientset.CoreV1().Pods(DeploymentNamespace()).List(
-					t.Context(),
-					metav1.ListOptions{},
-				)
-				require.NoError(t, err)
-
-				if len(hooks.Items) > 0 {
-					for _, pod := range hooks.Items {
-						if pod.Name == "hook" {
-							found = true
-							break
-						}
-					}
-				}
-
-				if found {
-					break
-				}
-
-				time.Sleep(1 * time.Second)
-			}
-
-			assert.True(t, found)
-
-			_, err = KubeClientset.CoreV1().ConfigMaps(DeploymentNamespace()).Get(
-				t.Context(), "guestbook-ui", metav1.GetOptions{},
-			)
-			assert.NoError(t, err)
-		}).
-		AndAction(func() {
-			deleted := false
-			for i := 0; i < 20; i++ {
-				hooks, err := KubeClientset.CoreV1().Pods(DeploymentNamespace()).List(
-					t.Context(),
-					metav1.ListOptions{},
-				)
-				require.NoError(t, err)
-
-				_, cmErr := KubeClientset.CoreV1().ConfigMaps(DeploymentNamespace()).Get(
-					t.Context(), "guestbook-ui", metav1.GetOptions{},
-				)
-
-				if (len(hooks.Items) == 0 || (len(hooks.Items) == 1 && hooks.Items[0].Name != "hook")) &&
-					(cmErr != nil && apierrors.IsNotFound(cmErr)) {
-					deleted = true
-					break
-				}
-
-				time.Sleep(1 * time.Second)
-			}
-
-			assert.True(t, deleted)
-		})
+		Expect(NotPod(func(p corev1.Pod) bool {
+			return p.Name == "hook"
+		}))
 }
 
 func TestPostDeleteHook(t *testing.T) {
@@ -140,12 +84,9 @@ func TestPostDeleteHook(t *testing.T) {
 		Delete(true).
 		Then().
 		Expect(DoesNotExist()).
-		AndAction(func() {
-			hooks, err := KubeClientset.CoreV1().Pods(DeploymentNamespace()).List(t.Context(), metav1.ListOptions{})
-			require.NoError(t, err)
-			assert.Len(t, hooks.Items, 1)
-			assert.Equal(t, "hook", hooks.Items[0].Name)
-		})
+		Expect(Pod(func(p corev1.Pod) bool {
+			return p.Name == "hook"
+		}))
 }
 
 // make sure that hooks do not appear in "argocd app diff"
