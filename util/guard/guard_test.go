@@ -26,13 +26,13 @@ func (r *recorder) Errorf(format string, args ...any) {
 }
 
 func TestRun_Recovers(_ *testing.T) {
-	Run(func() { panic("boom") }, nop{}, "msg") // fails if panic escapes
+	RecoverAndLog(func() { panic("boom") }, nop{}, "msg") // fails if panic escapes
 }
 
 func TestRun_AllowsNextCall(t *testing.T) {
 	ran := false
-	Run(func() { panic("boom") }, nop{}, "msg")
-	Run(func() { ran = true }, nop{}, "msg")
+	RecoverAndLog(func() { panic("boom") }, nop{}, "msg")
+	RecoverAndLog(func() { ran = true }, nop{}, "msg")
 	if !ran {
 		t.Fatal("expected second callback to run")
 	}
@@ -40,7 +40,7 @@ func TestRun_AllowsNextCall(t *testing.T) {
 
 func TestRun_LogsMessageAndStack(t *testing.T) {
 	r := &recorder{}
-	Run(func() { panic("boom") }, r, "msg")
+	RecoverAndLog(func() { panic("boom") }, r, "msg")
 	if r.calls != 1 {
 		t.Fatalf("expected 1 log call, got %d", r.calls)
 	}
@@ -59,13 +59,13 @@ func TestRun_LogsMessageAndStack(t *testing.T) {
 
 func TestRun_NilLoggerDoesNotPanic(_ *testing.T) {
 	var l Logger // nil
-	Run(func() { panic("boom") }, l, "ignored")
+	RecoverAndLog(func() { panic("boom") }, l, "ignored")
 }
 
 func TestRun_NoPanicDoesNotLog(t *testing.T) {
 	r := &recorder{}
 	ran := false
-	Run(func() { ran = true }, r, "msg")
+	RecoverAndLog(func() { ran = true }, r, "msg")
 	if !ran {
 		t.Fatal("expected fn to run")
 	}
@@ -82,7 +82,7 @@ func TestRun_ConcurrentPanicsLogged(t *testing.T) {
 	for i := 0; i < n; i++ {
 		go func(i int) {
 			defer wg.Done()
-			Run(func() { panic(fmt.Sprintf("boom-%d", i)) }, r, "msg")
+			RecoverAndLog(func() { panic(fmt.Sprintf("boom-%d", i)) }, r, "msg")
 		}(i)
 	}
 	wg.Wait()

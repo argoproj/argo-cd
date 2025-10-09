@@ -140,7 +140,7 @@ func (a *ArgoCDWebhookHandler) startWorkerPool(webhookParallelism int) {
 				if !ok {
 					return
 				}
-				guard.Run(func() { a.HandleEvent(payload) }, compLog, panicMsgServer)
+				guard.RecoverAndLog(func() { a.HandleEvent(payload) }, compLog, panicMsgServer)
 			}
 		}()
 	}

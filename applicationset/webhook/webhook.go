@@ -116,7 +116,7 @@ func (h *WebhookHandler) startWorkerPool(webhookParallelism int) {
 				if !ok {
 					return
 				}
-				guard.Run(func() { h.HandleEvent(payload) }, compLog, panicMsgAppSet)
+				guard.RecoverAndLog(func() { h.HandleEvent(payload) }, compLog, panicMsgAppSet)
 			}
 		}()
 	}

@@ -8,7 +8,7 @@ import (
 type Logger interface{ Errorf(string, ...any) }
 
 // Run executes fn and recovers a panic, logging a component-specific message.
-func Run(fn func(), log Logger, msg string) {
+func RecoverAndLog(fn func(), log Logger, msg string) {
 	defer func() {
 		if r := recover(); r != nil {
 			if log != nil {
