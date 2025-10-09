@@ -117,9 +117,8 @@ func renderTemplateJSONPatch(r utils.Renderer, app *argov1alpha1.Application, ap
 	// that are not rendered from templeting.
 	if utils.IsJSONArray(replacedTemplate) {
 		return applyTemplateJSONPatch(app, strings.TrimSpace(replacedTemplate))
-	} else {
-		return app, nil
 	}
+	return app, nil
 }
 
 func GetTempApplication(applicationSetTemplate argov1alpha1.ApplicationSetTemplate) *argov1alpha1.Application {

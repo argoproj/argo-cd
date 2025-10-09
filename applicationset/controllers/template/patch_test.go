@@ -514,5 +514,4 @@ func TestJsonPatchError(t *testing.T) {
 	result, err = applyTemplateJSONPatch(app, `["op": "add", "path": "/spec/something/that/does/not/exist"]`)
 	require.Error(t, err)
 	require.Nil(t, result)
-
 }
