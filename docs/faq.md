@@ -346,10 +346,11 @@ Place the following files in the specified directory:
 | Sentinel username    | `sentinel_username` |
 | Sentinel password    | `sentinel_auth`     |
 
-**Fallback Behavior:**  
-If a credential file is missing or cannot be read, Argo CD will automatically fall back to the corresponding environment variable (such as `REDIS_PASSWORD`, `REDIS_USERNAME`, etc.).
+- **Fallback behavior:**
+  - If `REDIS_CREDS_FILE_PATH` (or its prefixed variant) is set, Argo CD reads credentials only from the mounted files. Missing files do not fall back to environment variables; the corresponding values remain empty.
+  - If no credentials file path is set, Argo CD reads from environment variables (`REDIS_USERNAME`, `REDIS_PASSWORD`, `REDIS_SENTINEL_USERNAME`, `REDIS_SENTINEL_PASSWORD`) and their prefixed variants.
 
-This approach allows for more secure and flexible management of Redis credentials, especially when integrating with external secret management solutions.
+This avoids ambiguity between mounted files and environment variables while still supporting env-only setups when no mount is provided.
 
 ## How do I fix `Manifest generation error (cached)`?
 
