@@ -33,6 +33,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/db"
 	"github.com/argoproj/argo-cd/v3/util/glob"
+	"github.com/argoproj/argo-cd/v3/util/guard"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
@@ -47,6 +48,8 @@ type settingsSource interface {
 const usernameRegex = `[\w\.][\w\.-]{0,30}[\w\.\$-]?`
 
 const payloadQueueSize = 50000
+
+const panicMsgServer = "panic while processing api-server webhook event"
 
 var _ settingsSource = &settings.SettingsManager{}
 
@@ -121,6 +124,7 @@ func NewHandler(namespace string, applicationNamespaces []string, webhookParalle
 }
 
 func (a *ArgoCDWebhookHandler) startWorkerPool(webhookParallelism int) {
+	compLog := log.WithField("component", "api-server-webhook")
 	for i := 0; i < webhookParallelism; i++ {
 		a.Add(1)
 		go func() {
@@ -130,7 +134,7 @@ func (a *ArgoCDWebhookHandler) startWorkerPool(webhookParallelism int) {
 				if !ok {
 					return
 				}
-				a.HandleEvent(payload)
+				guard.RecoverAndLog(func() { a.HandleEvent(payload) }, compLog, panicMsgServer)
 			}
 		}()
 	}
