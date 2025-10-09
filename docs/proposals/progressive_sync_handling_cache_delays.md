@@ -76,7 +76,7 @@ The issue stems from several factors:
 1. ApplicationSet controller uses cache's eventual consistency model
 2. Progressive sync decisions are made based on potentially stale informer cache data
 3. The logic to make ordering decisions gets the owned application's list from cache
-4. Applying resources of ApplicationSet's Application is done asynchronously
+4. Applications from the same ApplicationSet are reconciled and detect changes in an unordered way
 
 #### Additional Context
 
