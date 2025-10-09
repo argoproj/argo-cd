@@ -47,10 +47,6 @@ import (
 
 var gitSubmoduleEnabled = env.ParseBoolFromEnv(common.EnvGitSubmoduleEnabled, true)
 
-const (
-	cliName = common.ApplicationSetController
-)
-
 func NewCommand() *cobra.Command {
 	var (
 		clientConfig                 clientcmd.ClientConfig
@@ -85,7 +81,7 @@ func NewCommand() *cobra.Command {
 	_ = clientgoscheme.AddToScheme(scheme)
 	_ = appv1alpha1.AddToScheme(scheme)
 	command := cobra.Command{
-		Use:               cliName,
+		Use:               common.CommandApplicationSetController,
 		Short:             "Starts Argo CD ApplicationSet controller",
 		DisableAutoGenTag: true,
 		RunE: func(c *cobra.Command, _ []string) error {
