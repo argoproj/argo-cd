@@ -3,6 +3,7 @@ import * as classNames from 'classnames';
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
 import {Key, KeybindingContext, KeybindingProvider} from 'argo-ui/v2';
+import {History} from 'history';
 import {combineLatest, from, merge, Observable} from 'rxjs';
 import {bufferTime, delay, filter, map, mergeMap, repeat, retryWhen} from 'rxjs/operators';
 import {AddAuthToToolbar, ClusterCtx, DataLoader, EmptyState, Page, Paginate, Spinner} from '../../../shared/components';
@@ -52,14 +53,20 @@ const APP_FIELDS = [
 const APP_LIST_FIELDS = ['metadata.resourceVersion', ...APP_FIELDS.map(field => `items.${field}`)];
 const APP_WATCH_FIELDS = ['result.type', ...APP_FIELDS.map(field => `result.application.${field}`)];
 
-function loadApplications(projects: string[], appNamespace: string): Observable<models.Application[]> {
-    return from(services.applications.list(projects, {appNamespace, fields: APP_LIST_FIELDS})).pipe(
+function loadApplications(
+    ctx: ContextApis & {
+        history: History<unknown>;
+    },
+    projects: string[],
+    appNamespace: string
+): Observable<models.AbstractApplication[]> {
+    return from(services.applications.list(projects, ctx, {appNamespace, fields: APP_LIST_FIELDS})).pipe(
         mergeMap(applicationsList => {
             const applications = applicationsList.items;
             return merge(
                 from([applications]),
                 services.applications
-                    .watch({projects, resourceVersion: applicationsList.metadata.resourceVersion}, {fields: APP_WATCH_FIELDS})
+                    .watch(ctx.history.location.pathname, {projects, resourceVersion: applicationsList.metadata.resourceVersion}, {fields: APP_WATCH_FIELDS})
                     .pipe(repeat())
                     .pipe(retryWhen(errors => errors.pipe(delay(WATCH_RETRY_TIMEOUT))))
                     // batch events to avoid constant re-rendering and improve UI performance
@@ -391,7 +398,7 @@ export const ApplicationsList = () => {
                                     <DataLoader
                                         input={pref.projectsFilter?.join(',')}
                                         ref={loaderRef}
-                                        load={() => AppUtils.handlePageVisibility(() => loadApplications(pref.projectsFilter, query.get('appNamespace')))}
+                                        load={() => AppUtils.handlePageVisibility(() => loadApplications(ctx, pref.projectsFilter, query.get('appNamespace')))}
                                         loadingRenderer={() => (
                                             <div className='argo-container'>
                                                 <MockupList height={100} marginTop={30} />
@@ -606,7 +613,7 @@ export const ApplicationsList = () => {
                                                                 mergeMap(params => {
                                                                     const syncApp = params.get('syncApp');
                                                                     const appNamespace = params.get('appNamespace');
-                                                                    return (syncApp && from(services.applications.get(syncApp, appNamespace))) || from([null]);
+                                                                    return (syncApp && from(services.applications.get(syncApp, appNamespace, ctx.history.location.pathname))) || from([null]);
                                                                 })
                                                             )
                                                         }>

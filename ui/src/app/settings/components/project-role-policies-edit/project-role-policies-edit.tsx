@@ -2,6 +2,7 @@ import * as React from 'react';
 import * as ReactForm from 'react-form';
 
 import {DataLoader} from '../../../shared/components';
+import {Context} from '../../../shared/context';
 import {Application} from '../../../shared/models';
 import {services} from '../../../shared/services';
 
@@ -21,8 +22,10 @@ function generatePolicy(project: string, role: string, resource?: string, action
 
 const actions = ['get', 'create', 'update', 'delete', 'sync', 'override'];
 
-export const ProjectRolePoliciesEdit = (props: ProjectRolePoliciesProps) => (
-    <DataLoader load={() => services.applications.list([props.projName], {fields: ['items.metadata.name']}).then(list => list.items)}>
+export const ProjectRolePoliciesEdit = (props: ProjectRolePoliciesProps) => {
+    const ctx = React.useContext(Context);
+    return (
+        <DataLoader load={() => services.applications.list([props.projName], ctx, {fields: ['items.metadata.name']}).then(list => list.items)}>
         {applications => (
             <React.Fragment>
                 <p>POLICY RULES</p>
@@ -67,7 +70,8 @@ export const ProjectRolePoliciesEdit = (props: ProjectRolePoliciesProps) => (
             </React.Fragment>
         )}
     </DataLoader>
-);
+    );
+};
 
 interface PolicyProps {
     projName: string;

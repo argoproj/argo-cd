@@ -79,7 +79,7 @@ export const SelectNode = (fullName: string, containerIndex = 0, tab: string = n
 
 export const ApplicationDetails: FC<RouteComponentProps<{appnamespace: string; name: string}>> = props => {
     const appContext = useContext(Context);
-    const appChanged = useRef(new BehaviorSubject<appModels.Application>(null));
+    const appChanged = useRef(new BehaviorSubject<appModels.AbstractApplication>(null));
 
     const getExtensionsState = useCallback(() => {
         const extensions = services.extensions.getAppViewExtensions();
@@ -280,7 +280,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                         await services.applications.update(update, {validate: false});
                     }
                     await services.applications.rollback(props.match.params.name, getAppNamespace(), revisionHistory.id);
-                    appChanged.current.next(await services.applications.get(props.match.params.name, getAppNamespace()));
+                    appChanged.current.next(await services.applications.get(props.match.params.name, getAppNamespace(), appContext.history.location.pathname));
                     setRollbackPanelVisible(-1);
                 }
             } catch (e) {
@@ -1209,7 +1209,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                 items={[
                                     {
                                         title: 'Hard Refresh',
-                                        action: () => !refreshing && services.applications.get(app.metadata.name, app.metadata.namespace, 'hard')
+                                        action: () => !refreshing && services.applications.get(app.metadata.name, app.metadata.namespace, appContext.history.location.pathname, 'hard')
                                     }
                                 ]}
                                 anchor={() => <i className='fa fa-caret-down' />}
@@ -1219,7 +1219,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                     disabled: !!refreshing,
                     action: () => {
                         if (!refreshing) {
-                            services.applications.get(app.metadata.name, app.metadata.namespace, 'normal');
+                            services.applications.get(app.metadata.name, app.metadata.namespace, appContext.history.location.pathname, 'normal');
                             AppUtils.setAppRefreshing(app);
                             appChanged.current.next(app);
                         }
@@ -1262,14 +1262,14 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
     }, [appContext, props.match.params.name]);
 
     const loadAppInfo = useCallback(
-        (name: string, appNamespace: string): Observable<{application: appModels.Application; tree: appModels.ApplicationTree}> => {
-            return from(services.applications.get(name, appNamespace))
+        (name: string, appNamespace: string): Observable<{application: appModels.AbstractApplication; tree: appModels.AbstractApplicationTree}> => {
+            return from(services.applications.get(name, appNamespace, appContext.history.location.pathname))
                 .pipe(
                     mergeMap(app => {
                         const fallbackTree = {
-                            nodes: app.status.resources.map(res => ({...res, parentRefs: [], info: [], resourceVersion: '', uid: ''})),
-                            orphanedNodes: [],
-                            hosts: []
+                            nodes: app.status?.resources?.map((res: appModels.ResourceStatus) => ({...res, parentRefs: [] as appModels.ResourceRef[], info: [] as appModels.InfoItem[], resourceVersion: '', uid: ''})) || [],
+                            orphanedNodes: [] as appModels.ResourceNode[],
+                            hosts: [] as appModels.Node[]
                         } as appModels.ApplicationTree;
                         return combineLatest(
                             merge(
@@ -1277,7 +1277,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                 appChanged.current.pipe(filter(item => !!item)),
                                 AppUtils.handlePageVisibility(() =>
                                     services.applications
-                                        .watch({name, appNamespace})
+                                        .watch(appContext.history.location.pathname, {name, appNamespace})
                                         .pipe(
                                             map(watchEvent => {
                                                 if (watchEvent.type === 'DELETED') {
@@ -1292,7 +1292,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                             ),
                             merge(
                                 from([fallbackTree]),
-                                services.applications.resourceTree(name, appNamespace).catch(() => fallbackTree),
+                                services.applications.resourceTree(name, appNamespace, appContext.history.location.pathname).catch(() => fallbackTree),
                                 AppUtils.handlePageVisibility(() =>
                                     services.applications
                                         .watchResourceTree(name, appNamespace)
@@ -1310,7 +1310,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
     );
 
     const updateApp = useCallback(async (app: appModels.Application, query: {validate?: boolean}) => {
-        const latestApp = await services.applications.get(app.metadata.name, app.metadata.namespace);
+        const latestApp = await services.applications.get(app.metadata.name, app.metadata.namespace, appContext.history.location.pathname);
         latestApp.metadata.labels = app.metadata.labels;
         latestApp.metadata.annotations = app.metadata.annotations;
         latestApp.spec = app.spec;
