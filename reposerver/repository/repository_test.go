@@ -22,6 +22,10 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/baggage"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/trace"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
@@ -1940,6 +1944,61 @@ func Test_newEnv(t *testing.T) {
 			TargetRevision: "my-target-revision",
 		},
 	}, "my-revision"))
+}
+
+func Test_getPluginEnvs_TraceContext(t *testing.T) {
+	ctx := t.Context()
+
+	// this is set by calling trace.InitTracer() in startup but in test it's easier to just set it here.
+	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(
+		propagation.TraceContext{},
+		propagation.Baggage{},
+	))
+	// hacky way to create a valid span context. (noopProvider exists, but it always use invalid one so we can't use it)
+	tid, _ := trace.TraceIDFromHex("0123456789abcdef0123456789abcdef")
+	sid, _ := trace.SpanIDFromHex("0123456789abcdef")
+	tc := trace.NewSpanContext(trace.SpanContextConfig{
+		TraceID:    tid,
+		SpanID:     sid,
+		TraceFlags: trace.FlagsSampled,
+		Remote:     true,
+	})
+	assert.True(t, tc.IsValid())
+	ctx = trace.ContextWithSpanContext(ctx, tc)
+
+	// setup baggage for testing
+	testMember, err := baggage.NewMember("test-key", "test-value")
+	require.NoError(t, err)
+	bg, err := baggage.New(testMember)
+	require.NoError(t, err)
+	ctx = baggage.ContextWithBaggage(ctx, bg)
+
+	// run the test
+	envs, err := getPluginEnvs(ctx, &v1alpha1.Env{}, &apiclient.ManifestRequest{
+		KubeVersion: "1.34.0",
+		ApiVersions: []string{},
+		AppName:     "my-app-name",
+		Namespace:   "my-namespace",
+		ProjectName: "my-project-name",
+		Repo:        &v1alpha1.Repository{Repo: "https://github.com/my-org/my-repo"},
+		ApplicationSource: &v1alpha1.ApplicationSource{
+			Path:           "my-path",
+			TargetRevision: "my-target-revision",
+		},
+	})
+	require.NoError(t, err)
+
+	expected := []string{
+		"BAGGAGE=test-key=test-value",
+		"TRACEPARENT=00-0123456789abcdef0123456789abcdef-0123456789abcdef-01",
+		"KUBE_API_VERSIONS=",
+		"KUBE_VERSION=1.34.0",
+	}
+	actual := envs
+	slices.Sort(expected)
+	slices.Sort(actual)
+
+	assert.Equal(t, expected, actual)
 }
 
 func TestService_newHelmClientResolveRevision(t *testing.T) {

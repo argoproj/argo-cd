@@ -64,6 +64,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/kustomize"
 	"github.com/argoproj/argo-cd/v3/util/manifeststream"
 	"github.com/argoproj/argo-cd/v3/util/settings"
+	traceutil "github.com/argoproj/argo-cd/v3/util/trace"
 	"github.com/argoproj/argo-cd/v3/util/versions"
 )
 
@@ -2050,7 +2051,7 @@ func makeJsonnetVM(appPath string, repoRoot string, sourceJsonnet v1alpha1.Appli
 	return vm, nil
 }
 
-func getPluginEnvs(env *v1alpha1.Env, q *apiclient.ManifestRequest) ([]string, error) {
+func getPluginEnvs(ctx context.Context, env *v1alpha1.Env, q *apiclient.ManifestRequest) ([]string, error) {
 	kubeVersion, err := parseKubeVersion(q.KubeVersion)
 	if err != nil {
 		return nil, fmt.Errorf("could not parse kubernetes version %s: %w", q.KubeVersion, err)
@@ -2058,6 +2059,7 @@ func getPluginEnvs(env *v1alpha1.Env, q *apiclient.ManifestRequest) ([]string, e
 	envVars := env.Environ()
 	envVars = append(envVars, "KUBE_VERSION="+kubeVersion)
 	envVars = append(envVars, "KUBE_API_VERSIONS="+strings.Join(q.ApiVersions, ","))
+	envVars = append(envVars, getPluginTracingEnvs(ctx)...)
 
 	return getPluginParamEnvs(envVars, q.ApplicationSource.Plugin)
 }
@@ -2091,9 +2093,17 @@ func getPluginParamEnvs(envVars []string, plugin *v1alpha1.ApplicationSourcePlug
 	return env, nil
 }
 
+func getPluginTracingEnvs(ctx context.Context) []string {
+	envs := []string{}
+	for k, v := range traceutil.GetTraceEnvFromContext(ctx) {
+		envs = append(envs, fmt.Sprintf("%s=%s", k, v))
+	}
+	return envs
+}
+
 func runConfigManagementPluginSidecars(ctx context.Context, appPath, repoPath, pluginName string, envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds git.Creds, tarDoneCh chan<- bool, tarExcludedGlobs []string, useManifestGeneratePaths bool) ([]*unstructured.Unstructured, error) {
 	// compute variables.
-	env, err := getPluginEnvs(envVars, q)
+	env, err := getPluginEnvs(ctx, envVars, q)
 	if err != nil {
 		return nil, err
 	}

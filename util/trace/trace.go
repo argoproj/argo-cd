@@ -67,7 +67,10 @@ func InitTracer(ctx context.Context, serviceName, otlpAddress string, otlpInsecu
 	)
 
 	// set global propagator to tracecontext (the default is no-op).
-	otel.SetTextMapPropagator(propagation.TraceContext{})
+	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(
+		propagation.TraceContext{},
+		propagation.Baggage{},
+	))
 	otel.SetTracerProvider(provider)
 
 	return func() {
@@ -75,4 +78,30 @@ func InitTracer(ctx context.Context, serviceName, otlpAddress string, otlpInsecu
 			log.Errorf("failed to stop exporter: %v", err)
 		}
 	}, nil
+}
+
+// GetTraceEnvFromContext extracts environment variables that can be used to propagate the trace context.
+func GetTraceEnvFromContext(ctx context.Context) map[string]string {
+	propagator := otel.GetTextMapPropagator()
+	if propagator == nil {
+		return nil
+	}
+
+	carrier := make(map[string]string)
+	propagator.Inject(ctx, propagation.MapCarrier(carrier))
+
+	envs := make(map[string]string)
+	// specification: https://opentelemetry.io/docs/specs/otel/context/env-carriers/
+	for key, value := range carrier {
+		switch key {
+		case "traceparent":
+			envs["TRACEPARENT"] = value
+		case "tracestate":
+			envs["TRACESTATE"] = value
+		case "baggage":
+			envs["BAGGAGE"] = value
+		}
+	}
+
+	return envs
 }
