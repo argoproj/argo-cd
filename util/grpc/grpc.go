@@ -40,7 +40,8 @@ func BlockingNewClient(ctx context.Context, network, address string, creds crede
 	var err error
 
 	if network == "unix" {
-		rawConn, err = net.Dial(network, address)
+		dialer := net.Dialer{}
+		rawConn, err = dialer.DialContext(ctx, network, address)
 	} else {
 		proxyDialer := proxy.FromEnvironment()
 		rawConn, err = proxyDialer.Dial(network, address)
