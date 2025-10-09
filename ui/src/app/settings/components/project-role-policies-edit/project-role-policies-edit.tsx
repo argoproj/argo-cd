@@ -26,50 +26,50 @@ export const ProjectRolePoliciesEdit = (props: ProjectRolePoliciesProps) => {
     const ctx = React.useContext(Context);
     return (
         <DataLoader load={() => services.applications.list([props.projName], ctx, {fields: ['items.metadata.name']}).then(list => list.items)}>
-        {applications => (
-            <React.Fragment>
-                <p>POLICY RULES</p>
-                <div>Manage this role's permissions to applications, appsets, repositories, clusters, exec and logs</div>
-                <div className='argo-table-list'>
-                    <div className='argo-table-list__head'>
-                        <div className='row'>
-                            <div className='columns small-3'>RESOURCE</div>
-                            <div className='columns small-3'>ACTION</div>
-                            <div className='columns small-3'>OBJECT</div>
-                            <div className='columns small-3'>PERMISSION</div>
+            {applications => (
+                <React.Fragment>
+                    <p>POLICY RULES</p>
+                    <div>Manage this role's permissions to applications, appsets, repositories, clusters, exec and logs</div>
+                    <div className='argo-table-list'>
+                        <div className='argo-table-list__head'>
+                            <div className='row'>
+                                <div className='columns small-3'>RESOURCE</div>
+                                <div className='columns small-3'>ACTION</div>
+                                <div className='columns small-3'>OBJECT</div>
+                                <div className='columns small-3'>PERMISSION</div>
+                            </div>
                         </div>
-                    </div>
-                    <div className='argo-table-list__row'>
-                        {props.policies.map((policy, i) => (
-                            <Policy
-                                key={i}
-                                field={['policies', i]}
-                                formApi={props.formApi}
-                                policy={policy}
-                                projName={props.projName}
-                                roleName={props.roleName}
-                                deletePolicy={() => props.formApi.setValue('policies', removeEl(props.policies, i))}
-                                availableApps={applications}
-                                actions={actions}
-                            />
-                        ))}
-                        <div className='row'>
-                            <div className='columns small-4'>
-                                <a
-                                    className='argo-button argo-button--base'
-                                    onClick={() => {
-                                        const newPolicy = generatePolicy(props.projName, props.roleName);
-                                        props.formApi.setValue('policies', (props.formApi.values.policies || []).concat(newPolicy));
-                                    }}>
-                                    Add policy
-                                </a>
+                        <div className='argo-table-list__row'>
+                            {props.policies.map((policy, i) => (
+                                <Policy
+                                    key={i}
+                                    field={['policies', i]}
+                                    formApi={props.formApi}
+                                    policy={policy}
+                                    projName={props.projName}
+                                    roleName={props.roleName}
+                                    deletePolicy={() => props.formApi.setValue('policies', removeEl(props.policies, i))}
+                                    availableApps={applications}
+                                    actions={actions}
+                                />
+                            ))}
+                            <div className='row'>
+                                <div className='columns small-4'>
+                                    <a
+                                        className='argo-button argo-button--base'
+                                        onClick={() => {
+                                            const newPolicy = generatePolicy(props.projName, props.roleName);
+                                            props.formApi.setValue('policies', (props.formApi.values.policies || []).concat(newPolicy));
+                                        }}>
+                                        Add policy
+                                    </a>
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
-            </React.Fragment>
-        )}
-    </DataLoader>
+                </React.Fragment>
+            )}
+        </DataLoader>
     );
 };
 

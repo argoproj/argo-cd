@@ -625,7 +625,10 @@ function getActionItems(
 ): Observable<ActionMenuItem[]> {
     function isTopLevelResource(res: ResourceTreeNode, app: appModels.AbstractApplication): boolean {
         const uniqRes = `/${res.namespace}/${res.group}/${res.kind}/${res.name}`;
-        return app.status?.resources?.some((resStatus: appModels.ResourceStatus) => `/${resStatus.namespace}/${resStatus.group}/${resStatus.kind}/${resStatus.name}` === uniqRes) || false;
+        return (
+            app.status?.resources?.some((resStatus: appModels.ResourceStatus) => `/${resStatus.namespace}/${resStatus.group}/${resStatus.kind}/${resStatus.name}` === uniqRes) ||
+            false
+        );
     }
 
     const isPod = resource.kind === 'Pod';

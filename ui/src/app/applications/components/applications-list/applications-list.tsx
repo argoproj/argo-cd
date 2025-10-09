@@ -613,7 +613,10 @@ export const ApplicationsList = () => {
                                                                 mergeMap(params => {
                                                                     const syncApp = params.get('syncApp');
                                                                     const appNamespace = params.get('appNamespace');
-                                                                    return (syncApp && from(services.applications.get(syncApp, appNamespace, ctx.history.location.pathname))) || from([null]);
+                                                                    return (
+                                                                        (syncApp && from(services.applications.get(syncApp, appNamespace, ctx.history.location.pathname))) ||
+                                                                        from([null])
+                                                                    );
                                                                 })
                                                             )
                                                         }>

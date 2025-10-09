@@ -1209,7 +1209,8 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                 items={[
                                     {
                                         title: 'Hard Refresh',
-                                        action: () => !refreshing && services.applications.get(app.metadata.name, app.metadata.namespace, appContext.history.location.pathname, 'hard')
+                                        action: () =>
+                                            !refreshing && services.applications.get(app.metadata.name, app.metadata.namespace, appContext.history.location.pathname, 'hard')
                                     }
                                 ]}
                                 anchor={() => <i className='fa fa-caret-down' />}
@@ -1267,7 +1268,14 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                 .pipe(
                     mergeMap(app => {
                         const fallbackTree = {
-                            nodes: app.status?.resources?.map((res: appModels.ResourceStatus) => ({...res, parentRefs: [] as appModels.ResourceRef[], info: [] as appModels.InfoItem[], resourceVersion: '', uid: ''})) || [],
+                            nodes:
+                                app.status?.resources?.map((res: appModels.ResourceStatus) => ({
+                                    ...res,
+                                    parentRefs: [] as appModels.ResourceRef[],
+                                    info: [] as appModels.InfoItem[],
+                                    resourceVersion: '',
+                                    uid: ''
+                                })) || [],
                             orphanedNodes: [] as appModels.ResourceNode[],
                             hosts: [] as appModels.Node[]
                         } as appModels.ApplicationTree;
