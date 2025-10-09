@@ -1921,16 +1921,10 @@ func TestReplaceStringSecret(t *testing.T) {
 }
 
 func TestRedirectURLForRequest(t *testing.T) {
-	generateRequest := func(url string) *http.Request {
-		r, err := http.NewRequest(http.MethodPost, url, http.NoBody)
-		require.NoError(t, err)
-		return r
-	}
-
 	testCases := []struct {
 		Name        string
 		Settings    *ArgoCDSettings
-		Request     *http.Request
+		RequestURL  string
 		ExpectedURL string
 		ExpectError bool
 	}{
@@ -1939,7 +1933,7 @@ func TestRedirectURLForRequest(t *testing.T) {
 			Settings: &ArgoCDSettings{
 				URL: "https://example.org",
 			},
-			Request:     generateRequest("https://example.org/login"),
+			RequestURL:  "https://example.org/login",
 			ExpectedURL: "https://example.org/auth/callback",
 			ExpectError: false,
 		},
@@ -1948,7 +1942,7 @@ func TestRedirectURLForRequest(t *testing.T) {
 			Settings: &ArgoCDSettings{
 				URL: "https://otherhost.org",
 			},
-			Request:     generateRequest("https://example.org/login"),
+			RequestURL:  "https://example.org/login",
 			ExpectedURL: "https://otherhost.org/auth/callback",
 			ExpectError: false,
 		},
@@ -1957,7 +1951,7 @@ func TestRedirectURLForRequest(t *testing.T) {
 			Settings: &ArgoCDSettings{
 				URL: ":httpsotherhostorg",
 			},
-			Request:     generateRequest("https://example.org/login"),
+			RequestURL:  "https://example.org/login",
 			ExpectedURL: "",
 			ExpectError: true,
 		},
@@ -1967,7 +1961,7 @@ func TestRedirectURLForRequest(t *testing.T) {
 				URL:            "https://otherhost.org",
 				AdditionalURLs: []string{"https://anotherhost.org"},
 			},
-			Request:     generateRequest("https://anotherhost.org/login"),
+			RequestURL:  "https://anotherhost.org/login",
 			ExpectedURL: "https://anotherhost.org/auth/callback",
 			ExpectError: false,
 		},
@@ -1975,7 +1969,9 @@ func TestRedirectURLForRequest(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
-			result, err := tc.Settings.RedirectURLForRequest(tc.Request)
+			request, err := http.NewRequestWithContext(t.Context(), http.MethodPost, tc.RequestURL, http.NoBody)
+			require.NoError(t, err)
+			result, err := tc.Settings.RedirectURLForRequest(request)
 			assert.Equal(t, tc.ExpectedURL, result)
 			if tc.ExpectError {
 				assert.Error(t, err)
@@ -2119,6 +2115,68 @@ func TestIsImpersonationEnabled(t *testing.T) {
 		"when user enables the flag in argocd-cm config map, IsImpersonationEnabled() must return user set value")
 	require.NoError(t, err,
 		"when user enables the flag in argocd-cm config map, IsImpersonationEnabled() must not return any error")
+}
+
+func TestRequireOverridePrivilegeForRevisionSyncNoConfigMap(t *testing.T) {
+	// When there is no argocd-cm itself,
+	// Then RequireOverridePrivilegeForRevisionSync() must return false (default value) and an error with appropriate error message.
+	kubeClient := fake.NewClientset()
+	settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
+	featureFlag, err := settingsManager.RequireOverridePrivilegeForRevisionSync()
+	require.False(t, featureFlag,
+		"with no argocd-cm config map, RequireOverridePrivilegeForRevisionSync() must return return false (default value)")
+	require.ErrorContains(t, err, "configmap \"argocd-cm\" not found",
+		"with no argocd-cm config map, RequireOverridePrivilegeForRevisionSync() must return an error")
+}
+
+func TestRequireOverridePrivilegeForRevisionSyncEmptyConfigMap(t *testing.T) {
+	// When there is no feature flag present in the argocd-cm,
+	// Then RequireOverridePrivilegeForRevisionSync() must return false (default value) and nil error.
+	_, settingsManager := fixtures(map[string]string{})
+	featureFlag, err := settingsManager.RequireOverridePrivilegeForRevisionSync()
+	require.False(t, featureFlag,
+		"with empty argocd-cm config map, RequireOverridePrivilegeForRevisionSync() must return false (default value)")
+	require.NoError(t, err,
+		"with empty argocd-cm config map, RequireOverridePrivilegeForRevisionSync() must not return any error")
+}
+
+func TestRequireOverridePrivilegeForRevisionSyncFalse(t *testing.T) {
+	// When user disables the feature explicitly,
+	// Then RequireOverridePrivilegeForRevisionSync() must return false and nil error.
+	_, settingsManager := fixtures(map[string]string{
+		"application.sync.RequireOverridePrivilegeForRevisionSync": "false",
+	})
+	featureFlag, err := settingsManager.RequireOverridePrivilegeForRevisionSync()
+	require.False(t, featureFlag,
+		"when user disables the flag in argocd-cm config map, RequireOverridePrivilegeForRevisionSync() must return user set value")
+	require.NoError(t, err,
+		"when user disables the flag in argocd-cm config map, RequireOverridePrivilegeForRevisionSync() must not return any error")
+}
+
+func TestRequireOverridePrivilegeForRevisionSyncTrue(t *testing.T) {
+	// When user enables the feature explicitly,
+	// Then RequireOverridePrivilegeForRevisionSync() must return true and nil error.
+	_, settingsManager := fixtures(map[string]string{
+		"application.sync.requireOverridePrivilegeForRevisionSync": "true",
+	})
+	featureFlag, err := settingsManager.RequireOverridePrivilegeForRevisionSync()
+	require.True(t, featureFlag,
+		"when user enables the flag in argocd-cm config map, RequireOverridePrivilegeForRevisionSync() must return user set value")
+	require.NoError(t, err,
+		"when user enables the flag in argocd-cm config map, RequireOverridePrivilegeForRevisionSync() must not return any error")
+}
+
+func TestRequireOverridePrivilegeForRevisionSyncParseError(t *testing.T) {
+	// When a value is set that cannot be parsed as boolean,
+	// Then RequireOverridePrivilegeForRevisionSync() must return false and nil error.
+	_, settingsManager := fixtures(map[string]string{
+		"application.sync.requireOverridePrivilegeForRevisionSync": "BANANA",
+	})
+	featureFlag, err := settingsManager.RequireOverridePrivilegeForRevisionSync()
+	require.False(t, featureFlag,
+		"when user set the flag to unparseable value in argocd-cm config map, RequireOverridePrivilegeForRevisionSync() must return false (default value)")
+	require.ErrorContains(t, err, "invalid syntax",
+		"when user set the flag to unparseable value in argocd-cm config map, RequireOverridePrivilegeForRevisionSync() must return an error")
 }
 
 func TestSettingsManager_GetHideSecretAnnotations(t *testing.T) {

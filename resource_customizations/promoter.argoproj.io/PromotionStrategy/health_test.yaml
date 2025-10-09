@@ -39,3 +39,7 @@ tests:
     status: Healthy
     message: All environments are up-to-date on commit 'abc1234'.
   inputPath: testdata/all-healthy.yaml
+- healthStatus:
+    status: Progressing
+    message: Not all environments have the same proposed commit SHA. This likely means the hydrator has not run for all environments yet.
+  inputPath: testdata/different-proposed-commits.yaml

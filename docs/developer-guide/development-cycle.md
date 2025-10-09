@@ -7,7 +7,7 @@
 ## Preface 
 When you have developed and possibly manually tested the code you want to contribute, you should ensure that everything builds correctly. Commit your changes locally and perform the following steps, for each step the commands for both local and virtualized toolchain are listed. 
 
-### Docker priviliges for virtualized toolchain users
+### Docker privileges for virtualized toolchain users
 [These instructions](toolchain-guide.md#docker-privileges) are relevant for most of the steps below 
 
 ### Using Podman for virtualized toolchain users
@@ -28,11 +28,6 @@ kubectl config set-context --current --namespace=argocd
 As build dependencies change over time, you have to synchronize your development environment with the current specification. In order to pull in all required dependencies, issue:
 
 * `make dep-ui` or `make dep-ui-local`
-
-Argo CD recently migrated to Go modules. Usually, dependencies will be downloaded at build time, but the Makefile provides two targets to download and vendor all dependencies:
-
-* `make mod-download` or `make mod-download-local` will download all required Go modules and
-* `make mod-vendor` or `make mod-vendor-local` will vendor those dependencies into the Argo CD source tree
 
 ### Generate API glue code and other assets
 

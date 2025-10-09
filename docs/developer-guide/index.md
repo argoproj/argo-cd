@@ -28,7 +28,7 @@ For backend and frontend contributions, that require a full building-testing-run
 ## Contributing to Argo CD Notifications documentation
 
 This guide will help you get started quickly with contributing documentation changes, performing the minimum setup you'll need.
-The notificaions docs are located in [notifications-engine](https://github.com/argoproj/notifications-engine) Git repository and require 2 pull requests: one for the `notifications-engine` repo and one for the `argo-cd` repo.
+The notifications docs are located in [notifications-engine](https://github.com/argoproj/notifications-engine) Git repository and require 2 pull requests: one for the `notifications-engine` repo and one for the `argo-cd` repo.
 For backend and frontend contributions, that require a full building-testing-running-locally cycle, please refer to [Contributing to Argo CD backend and frontend ](index.md#contributing-to-argo-cd-backend-and-frontend) 
 
 ### Fork and clone Argo CD repository
