@@ -227,6 +227,7 @@ func NewClusterCache(config *rest.Config, opts ...UpdateSettingsFunc) *clusterCa
 		disableClusterScopedParentRefs: os.Getenv(EnvDisableClusterScopedParentRefs) != "",
 		orphanedChildren:                make(map[string]map[kube.ResourceKey]map[kube.ResourceKey]*Resource),
 		namespacedChildToClusterParents: make(map[kube.ResourceKey][]kube.ResourceKey),
+		clusterScopedByUID:              make(map[types.UID]kube.ResourceKey),
 	}
 	for i := range opts {
 		opts[i](cache)
@@ -296,6 +297,10 @@ type clusterCache struct {
 
 	// Reverse index for efficient updates: namespaced child key -> cluster-scoped parent keys
 	namespacedChildToClusterParents map[kube.ResourceKey][]kube.ResourceKey
+
+	// UID index for O(1) cluster-scoped parent lookup by UID
+	// Maps cluster-scoped resource UID -> ResourceKey for efficient findClusterScopedParent
+	clusterScopedByUID map[types.UID]kube.ResourceKey
 }
 
 type clusterCacheSync struct {
@@ -503,6 +508,11 @@ func (c *clusterCache) setNode(n *Resource) {
 	}
 	ns[key] = n
 
+	// Track cluster-scoped resources in UID index for efficient parent lookup
+	if !c.disableClusterScopedParentRefs && key.Namespace == "" {
+		c.clusterScopedByUID[n.Ref.UID] = key
+	}
+
 	// Track cross-namespace parent-child relationships
 	// Only update during regular operations, not during initial sync
 	// (will be done in bulk after sync completes)
@@ -534,6 +544,14 @@ func (c *clusterCache) rebuildOrphanedChildrenIndex() {
 	// Clear existing indexes
 	c.orphanedChildren = make(map[string]map[kube.ResourceKey]map[kube.ResourceKey]*Resource)
 	c.namespacedChildToClusterParents = make(map[kube.ResourceKey][]kube.ResourceKey)
+	c.clusterScopedByUID = make(map[types.UID]kube.ResourceKey)
+
+	// Rebuild UID index from all cluster-scoped resources
+	for key, resource := range c.resources {
+		if key.Namespace == "" {
+			c.clusterScopedByUID[resource.Ref.UID] = key
+		}
+	}
 
 	// Rebuild from all namespaced resources
 	for namespace, nsResources := range c.nsIndex {
@@ -591,17 +609,9 @@ func (c *clusterCache) findClusterScopedParent(ownerRef metav1.OwnerReference) (
 
 	var parentKey kube.ResourceKey
 	if ownerRef.UID != "" {
-		// Look for a resource with this UID in all namespaces
-		for _, resources := range c.nsIndex {
-			for key, resource := range resources {
-				if resource.Ref.UID == ownerRef.UID {
-					parentKey = key
-					break
-				}
-			}
-			if parentKey.Name != "" {
-				break
-			}
+		// O(1) lookup using UID index for cluster-scoped resources
+		if key, ok := c.clusterScopedByUID[ownerRef.UID]; ok {
+			parentKey = key
 		}
 	} else {
 		// Inferred owner reference - construct the key
@@ -1336,14 +1346,26 @@ func (c *clusterCache) processCrossNamespaceChildren(
 	visited map[kube.ResourceKey]int,
 	action func(resource *Resource, namespaceResources map[kube.ResourceKey]*Resource) bool,
 ) {
+	// Build graphs only for namespaces that have cross-namespace children
+	// Cache within this call to avoid rebuilding when multiple cluster keys share namespaces
+	namespaceGraphs := make(map[string]map[kube.ResourceKey]map[types.UID]*Resource)
+
 	for _, clusterKey := range clusterScopedKeys {
 		// Check all namespaces for orphaned children of this cluster resource
 		for namespace, nsMap := range c.orphanedChildren {
 			if children, ok := nsMap[clusterKey]; ok {
-				// Process each orphaned child
-				nsNodes := c.nsIndex[namespace]
-				nsGraph := buildGraph(nsNodes)
+				// Build graph for this namespace only once within this IterateHierarchyV2 call
+				nsGraph, ok := namespaceGraphs[namespace]
+				if !ok {
+					nsNodes := c.nsIndex[namespace]
+					nsGraph = buildGraph(nsNodes)
+					namespaceGraphs[namespace] = nsGraph
+				}
 
+				// Get namespace nodes
+				nsNodes := c.nsIndex[namespace]
+
+				// Process each orphaned child
 				for childKey, child := range children {
 					if visited[childKey] == 0 && action(child, nsNodes) {
 						visited[childKey] = 1
@@ -1664,6 +1686,11 @@ func (c *clusterCache) onNodeRemoved(key kube.ResourceKey) {
 					}
 				}
 			}
+		}
+
+		// Clean up UID index for cluster-scoped resources
+		if !c.disableClusterScopedParentRefs && key.Namespace == "" {
+			delete(c.clusterScopedByUID, existing.Ref.UID)
 		}
 
 		// Clean up orphaned children tracking
