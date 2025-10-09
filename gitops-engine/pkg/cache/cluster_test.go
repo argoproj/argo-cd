@@ -191,67 +191,91 @@ func Benchmark_sync(t *testing.B) {
 	}
 }
 
-// Benchmark_sync_CrossNamespace tests sync performance with cross-namespace relationships
-// This specifically tests the performance impact of building indexes for cluster-scoped
-// parents that own namespaced children across different namespaces
+// Benchmark_sync_CrossNamespace tests sync performance with cross-namespace relationships.
+// This measures the one-time cost of building cross-namespace indexes during cache synchronization.
 func Benchmark_sync_CrossNamespace(b *testing.B) {
 	testCases := []struct {
-		name                  string
-		numNamespaces         int
-		resourcesPerNamespace int
-		crossNamespacePercent float64
+		name                         string
+		totalNamespaces              int
+		resourcesPerNamespace        int
+		namespacesWithCrossNS        int // Number of namespaces with cross-NS children
+		crossNSResourcesPerNamespace int // Cross-NS children in each affected namespace
+		disableFeature               bool
 	}{
-		{"Small_0pct", 5, 100, 0.0},
-		{"Small_10pct", 5, 100, 0.1},
-		{"Small_25pct", 5, 100, 0.25},
-		{"Medium_0pct", 10, 500, 0.0},
-		{"Medium_10pct", 10, 500, 0.1},
-		{"Medium_25pct", 10, 500, 0.25},
-		{"Large_0pct", 20, 1000, 0.0},
-		{"Large_10pct", 20, 1000, 0.1},
-		{"Large_25pct", 20, 1000, 0.25},
+		// Baseline
+		{"50NS_0pct_100perNS", 50, 100, 0, 0, false},
+
+		// Primary dimension: Percentage of namespaces with cross-NS children
+		{"50NS_2pct_100perNS", 50, 100, 1, 10, false},
+		{"50NS_10pct_100perNS", 50, 100, 5, 10, false},
+		{"50NS_20pct_100perNS", 50, 100, 10, 10, false},
+
+		// Feature flag validation
+		{"50NS_10pct_100perNS_Disabled", 50, 100, 5, 10, true},
+		{"50NS_20pct_100perNS_Disabled", 50, 100, 10, 10, true},
 	}
 
 	for _, tc := range testCases {
 		b.Run(tc.name, func(b *testing.B) {
+			if tc.disableFeature {
+				b.Setenv("GITOPS_ENGINE_DISABLE_CLUSTER_SCOPED_PARENT_REFS", "1")
+			}
+
 			resources := []runtime.Object{}
 
 			// Create cluster-scoped parents (ClusterRoles)
-			numClusterParents := 50
+			numClusterParents := 100
+			clusterUIDs := make(map[string]types.UID)
 			for i := 0; i < numClusterParents; i++ {
+				uid := types.UID(fmt.Sprintf("cluster-uid-%d", i))
+				clusterUIDs[fmt.Sprintf("cluster-role-%d", i)] = uid
 				resources = append(resources, &rbacv1.ClusterRole{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: fmt.Sprintf("cluster-role-%d", i),
-						UID:  types.UID(fmt.Sprintf("cluster-uid-%d", i)),
+						UID:  uid,
 					},
 				})
 			}
 
-			// Create namespaced resources with some having cluster-scoped parents
-			for ns := 0; ns < tc.numNamespaces; ns++ {
+			// Create namespaced resources
+			for ns := 0; ns < tc.totalNamespaces; ns++ {
 				namespace := fmt.Sprintf("namespace-%d", ns)
-				crossNamespaceCount := int(float64(tc.resourcesPerNamespace) * tc.crossNamespacePercent)
+				hasCrossNS := ns < tc.namespacesWithCrossNS
+				regularPods := tc.resourcesPerNamespace
+				crossNSPods := 0
 
-				for i := 0; i < tc.resourcesPerNamespace; i++ {
-					pod := &corev1.Pod{
+				if hasCrossNS {
+					regularPods = tc.resourcesPerNamespace - tc.crossNSResourcesPerNamespace
+					crossNSPods = tc.crossNSResourcesPerNamespace
+				}
+
+				// Regular pods without cross-namespace parents
+				for i := 0; i < regularPods; i++ {
+					resources = append(resources, &corev1.Pod{
 						ObjectMeta: metav1.ObjectMeta{
 							Name:      fmt.Sprintf("pod-%d", i),
 							Namespace: namespace,
 							UID:       types.UID(fmt.Sprintf("pod-uid-%d-%d", ns, i)),
 						},
-					}
+					})
+				}
 
-					// Add cross-namespace ownership for some pods
-					if i < crossNamespaceCount {
-						pod.OwnerReferences = []metav1.OwnerReference{{
-							APIVersion: "rbac.authorization.k8s.io/v1",
-							Kind:       "ClusterRole",
-							Name:       fmt.Sprintf("cluster-role-%d", i%numClusterParents),
-							UID:        types.UID(fmt.Sprintf("cluster-uid-%d", i%numClusterParents)),
-						}}
-					}
-
-					resources = append(resources, pod)
+				// Pods with cross-namespace parents
+				for i := 0; i < crossNSPods; i++ {
+					clusterRoleName := fmt.Sprintf("cluster-role-%d", i%numClusterParents)
+					resources = append(resources, &corev1.Pod{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      fmt.Sprintf("cross-ns-pod-%d", i),
+							Namespace: namespace,
+							UID:       types.UID(fmt.Sprintf("cross-ns-pod-uid-%d-%d", ns, i)),
+							OwnerReferences: []metav1.OwnerReference{{
+								APIVersion: "rbac.authorization.k8s.io/v1",
+								Kind:       "ClusterRole",
+								Name:       clusterRoleName,
+								UID:        clusterUIDs[clusterRoleName],
+							}},
+						},
+					})
 				}
 			}
 
@@ -263,7 +287,7 @@ func Benchmark_sync_CrossNamespace(b *testing.B) {
 			}})
 
 			b.ResetTimer()
-			b.ReportAllocs() // Important: measure memory allocations for index overhead
+			b.ReportAllocs()
 
 			for n := 0; n < b.N; n++ {
 				err := c.sync()
@@ -1416,6 +1440,208 @@ func TestIterateHierarchyV2_DisabledClusterScopedParents(t *testing.T) {
 	assert.Equal(t, []kube.ResourceKey{kube.GetResourceKey(mustToUnstructured(testClusterParent()))}, keys)
 }
 
+func TestOrphanedChildrenCleanup(t *testing.T) {
+	// Test that orphanedChildren indexes are properly cleaned up when resources are deleted
+	clusterParent := testClusterParent()
+	namespacedChild := testNamespacedChild()
+
+	cluster := newCluster(t, clusterParent, namespacedChild).WithAPIResources([]kube.APIResourceInfo{{
+		GroupKind:            schema.GroupKind{Group: "", Kind: "Namespace"},
+		GroupVersionResource: schema.GroupVersionResource{Group: "", Version: "v1", Resource: "namespaces"},
+		Meta:                 metav1.APIResource{Namespaced: false},
+	}})
+	err := cluster.EnsureSynced()
+	require.NoError(t, err)
+
+	// Verify child is tracked in orphanedChildren
+	cluster.lock.RLock()
+	parentKey := kube.GetResourceKey(mustToUnstructured(clusterParent))
+	childKey := kube.GetResourceKey(mustToUnstructured(namespacedChild))
+	namespace := namespacedChild.Namespace
+
+	// Check that the child is in orphanedChildren
+	nsMap, ok := cluster.orphanedChildren[namespace]
+	require.True(t, ok, "namespace should be in orphanedChildren")
+	parentMap, ok := nsMap[parentKey]
+	require.True(t, ok, "parent should have entry in orphanedChildren")
+	_, ok = parentMap[childKey]
+	require.True(t, ok, "child should be in parent's orphanedChildren map")
+
+	// Check reverse index
+	parents, ok := cluster.namespacedChildToClusterParents[childKey]
+	require.True(t, ok, "child should be in reverse index")
+	require.Contains(t, parents, parentKey, "reverse index should contain parent")
+	cluster.lock.RUnlock()
+
+	// Delete the child
+	cluster.lock.Lock()
+	cluster.onNodeRemoved(childKey)
+	cluster.lock.Unlock()
+
+	// Verify cleanup: child removed from orphanedChildren
+	cluster.lock.RLock()
+	nsMap, ok = cluster.orphanedChildren[namespace]
+	if ok {
+		parentMap, ok = nsMap[parentKey]
+		if ok {
+			_, ok = parentMap[childKey]
+			assert.False(t, ok, "child should be removed from orphanedChildren")
+		}
+	}
+
+	// Verify cleanup: child removed from reverse index
+	_, ok = cluster.namespacedChildToClusterParents[childKey]
+	assert.False(t, ok, "child should be removed from reverse index")
+	cluster.lock.RUnlock()
+
+	// Re-add the child and verify it re-populates correctly
+	cluster.lock.Lock()
+	cluster.setNode(cluster.newResource(mustToUnstructured(namespacedChild)))
+	cluster.lock.Unlock()
+
+	cluster.lock.RLock()
+	nsMap, ok = cluster.orphanedChildren[namespace]
+	require.True(t, ok, "namespace should be back in orphanedChildren")
+	parentMap, ok = nsMap[parentKey]
+	require.True(t, ok, "parent should be back in orphanedChildren")
+	_, ok = parentMap[childKey]
+	require.True(t, ok, "child should be back in orphanedChildren")
+
+	parents, ok = cluster.namespacedChildToClusterParents[childKey]
+	require.True(t, ok, "child should be back in reverse index")
+	require.Contains(t, parents, parentKey, "reverse index should contain parent again")
+	cluster.lock.RUnlock()
+}
+
+func TestOrphanedChildrenIndex_OwnerRefLifecycle(t *testing.T) {
+	// Test realistic scenarios of owner references being added and removed
+	clusterParent := testClusterParent()
+
+	// Start with a child that has NO owner reference
+	childNoOwner := &corev1.Pod{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Pod",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            "child-no-owner",
+			Namespace:       "test-namespace",
+			UID:             "child-uid-123",
+			ResourceVersion: "1",
+			// No OwnerReferences
+		},
+	}
+
+	cluster := newCluster(t, clusterParent, childNoOwner).WithAPIResources([]kube.APIResourceInfo{{
+		GroupKind:            schema.GroupKind{Group: "", Kind: "Namespace"},
+		GroupVersionResource: schema.GroupVersionResource{Group: "", Version: "v1", Resource: "namespaces"},
+		Meta:                 metav1.APIResource{Namespaced: false},
+	}})
+	err := cluster.EnsureSynced()
+	require.NoError(t, err)
+
+	parentKey := kube.GetResourceKey(mustToUnstructured(clusterParent))
+	childKey := kube.GetResourceKey(mustToUnstructured(childNoOwner))
+	namespace := childNoOwner.Namespace
+
+	// Verify child is NOT tracked initially (no owner ref)
+	cluster.lock.RLock()
+	nsMap, ok := cluster.orphanedChildren[namespace]
+	if ok {
+		parentMap, ok := nsMap[parentKey]
+		if ok {
+			_, ok = parentMap[childKey]
+			assert.False(t, ok, "child without owner ref should not be in orphanedChildren")
+		}
+	}
+	_, ok = cluster.namespacedChildToClusterParents[childKey]
+	assert.False(t, ok, "child without owner ref should not be in reverse index")
+	cluster.lock.RUnlock()
+
+	// Simulate controller adding owner reference (e.g., adoption)
+	childWithOwner := &corev1.Pod{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Pod",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            "child-no-owner",
+			Namespace:       "test-namespace",
+			UID:             "child-uid-123",
+			ResourceVersion: "2",
+			OwnerReferences: []metav1.OwnerReference{{
+				APIVersion: "v1",
+				Kind:       "Namespace",
+				Name:       "test-cluster-parent",
+				UID:        "cluster-parent-123",
+			}},
+		},
+	}
+
+	cluster.lock.Lock()
+	cluster.setNode(cluster.newResource(mustToUnstructured(childWithOwner)))
+	cluster.lock.Unlock()
+
+	// Verify child is NOW tracked (owner ref added)
+	cluster.lock.RLock()
+	nsMap, ok = cluster.orphanedChildren[namespace]
+	require.True(t, ok, "namespace should be in orphanedChildren after adding owner ref")
+	parentMap, ok := nsMap[parentKey]
+	require.True(t, ok, "parent should be in orphanedChildren after adding owner ref")
+	_, ok = parentMap[childKey]
+	require.True(t, ok, "child should be in orphanedChildren after adding owner ref")
+
+	parents, ok := cluster.namespacedChildToClusterParents[childKey]
+	require.True(t, ok, "child should be in reverse index after adding owner ref")
+	require.Contains(t, parents, parentKey, "reverse index should contain parent")
+	cluster.lock.RUnlock()
+
+	// Simulate removing owner reference (e.g., parent deletion with orphanDependents: true)
+	childWithoutOwnerAgain := &corev1.Pod{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Pod",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            "child-no-owner",
+			Namespace:       "test-namespace",
+			UID:             "child-uid-123",
+			ResourceVersion: "3",
+			// OwnerReferences removed
+		},
+	}
+
+	cluster.lock.Lock()
+	cluster.setNode(cluster.newResource(mustToUnstructured(childWithoutOwnerAgain)))
+	cluster.lock.Unlock()
+
+	// Verify child is NO LONGER tracked (owner ref removed)
+	cluster.lock.RLock()
+	nsMap, ok = cluster.orphanedChildren[namespace]
+	if ok {
+		parentMap, ok = nsMap[parentKey]
+		if ok {
+			_, ok = parentMap[childKey]
+			assert.False(t, ok, "child should be removed from orphanedChildren after removing owner ref")
+		}
+	}
+
+	_, ok = cluster.namespacedChildToClusterParents[childKey]
+	assert.False(t, ok, "child should be removed from reverse index after removing owner ref")
+	cluster.lock.RUnlock()
+
+	// Verify empty map cleanup: namespace map should be cleaned up if it's empty
+	cluster.lock.RLock()
+	nsMap, ok = cluster.orphanedChildren[namespace]
+	if ok {
+		parentMap, ok = nsMap[parentKey]
+		if ok {
+			assert.Empty(t, parentMap, "parent map should be empty or cleaned up")
+		}
+	}
+	cluster.lock.RUnlock()
+}
+
 // Test_watchEvents_Deadlock validates that starting watches will not create a deadlock
 // caused by using improper locking in various callback methods when there is a high load on the
 // system.
@@ -1552,22 +1778,29 @@ func BenchmarkIterateHierarchyV2(b *testing.B) {
 	}
 }
 
-func buildParameterizedCrossNamespaceTestResourceMap(clusterParents, regularPods, crossNamespacePods int, includeUIDs bool) map[kube.ResourceKey]*Resource {
+// buildClusterParentTestResourceMap creates test resources with configurable namespace distribution.
+// Parameters:
+//   - clusterParents: number of cluster-scoped parent resources (ClusterRoles)
+//   - totalNamespaces: total number of namespaces to create
+//   - namespacesWithCrossNS: how many of those namespaces contain cross-namespace children
+//   - resourcesPerNamespace: resources in each namespace
+//   - crossNSResourcesPerNamespace: how many cross-namespace children in each affected namespace
+func buildClusterParentTestResourceMap(
+	clusterParents, totalNamespaces, namespacesWithCrossNS, resourcesPerNamespace, crossNSResourcesPerNamespace int,
+) map[kube.ResourceKey]*Resource {
 	resources := make(map[kube.ResourceKey]*Resource)
-	clusterParentUIDs := make(map[string]string) // Map cluster role names to UIDs (when includeUIDs is true)
 
 	// Create cluster-scoped parents (ClusterRoles)
+	clusterParentUIDs := make(map[string]string)
 	for i := 0; i < clusterParents; i++ {
 		clusterRoleName := fmt.Sprintf("cluster-role-%d", i)
 		uid := uuid.New().String()
-		if includeUIDs {
-			clusterParentUIDs[clusterRoleName] = uid // Store UID for later reference
-		}
+		clusterParentUIDs[clusterRoleName] = uid
 
 		key := kube.ResourceKey{
 			Group:     "rbac.authorization.k8s.io",
 			Kind:      "ClusterRole",
-			Namespace: "", // cluster-scoped
+			Namespace: "",
 			Name:      clusterRoleName,
 		}
 
@@ -1585,21 +1818,35 @@ rules:
 		resources[key] = cacheTest.newResource(strToUnstructured(resourceYaml))
 	}
 
-	// Create regular namespaced resources (Pods)
-	namespaces := []string{"default", "kube-system", "test-ns-1", "test-ns-2", "test-ns-3"}
-	for i := 0; i < regularPods; i++ {
-		name := fmt.Sprintf("pod-%d", i)
-		ownerName := fmt.Sprintf("pod-%d", i/10)
-		namespace := namespaces[i%len(namespaces)]
-		uid := uuid.New().String()
+	// Generate namespace names
+	namespaces := make([]string, totalNamespaces)
+	for i := 0; i < totalNamespaces; i++ {
+		namespaces[i] = fmt.Sprintf("ns-%d", i)
+	}
 
-		key := kube.ResourceKey{
-			Namespace: namespace,
-			Name:      name,
-			Kind:      "Pod",
+	// For each namespace
+	for nsIdx, namespace := range namespaces {
+		hasCrossNS := nsIdx < namespacesWithCrossNS
+		regularPodsInNS := resourcesPerNamespace
+		crossNSPodsInNS := 0
+
+		if hasCrossNS {
+			regularPodsInNS = resourcesPerNamespace - crossNSResourcesPerNamespace
+			crossNSPodsInNS = crossNSResourcesPerNamespace
 		}
 
-		resourceYaml := fmt.Sprintf(`
+		// Create regular namespaced resources (Pods)
+		for i := 0; i < regularPodsInNS; i++ {
+			name := fmt.Sprintf("pod-%s-%d", namespace, i)
+			uid := uuid.New().String()
+
+			key := kube.ResourceKey{
+				Namespace: namespace,
+				Name:      name,
+				Kind:      "Pod",
+			}
+
+			resourceYaml := fmt.Sprintf(`
 apiVersion: v1
 kind: Pod
 metadata:
@@ -1607,45 +1854,24 @@ metadata:
   name: %s
   uid: %s`, namespace, name, uid)
 
-		// Add owner references for hierarchical structure (similar to regular benchmark)
-		if i/10 != 0 {
-			ownerKey := kube.ResourceKey{
+			resources[key] = cacheTest.newResource(strToUnstructured(resourceYaml))
+		}
+
+		// Create cross-namespace children if this namespace has them
+		for i := 0; i < crossNSPodsInNS; i++ {
+			podName := fmt.Sprintf("cross-ns-pod-%s-%d", namespace, i)
+			clusterRoleIndex := i % clusterParents
+			clusterRoleName := fmt.Sprintf("cluster-role-%d", clusterRoleIndex)
+			parentUID := clusterParentUIDs[clusterRoleName]
+			uid := uuid.New().String()
+
+			key := kube.ResourceKey{
 				Namespace: namespace,
-				Name:      ownerName,
+				Name:      podName,
 				Kind:      "Pod",
 			}
-			if owner, exists := resources[ownerKey]; exists {
-				ownerUid := owner.Ref.UID
-				resourceYaml += fmt.Sprintf(`
-  ownerReferences:
-  - apiVersion: v1
-    kind: Pod
-    name: %s
-    uid: %s`, ownerName, ownerUid)
-			}
-		}
 
-		resources[key] = cacheTest.newResource(strToUnstructured(resourceYaml))
-	}
-
-	// Create cross-namespace children (Pods) that reference cluster-scoped parents (ClusterRoles)
-	for i := 0; i < crossNamespacePods; i++ {
-		podName := fmt.Sprintf("cross-ns-pod-%d", i)
-		namespace := namespaces[i%len(namespaces)]
-		clusterRoleIndex := i % clusterParents // Reference one of the cluster roles
-		clusterRoleName := fmt.Sprintf("cluster-role-%d", clusterRoleIndex)
-		uid := uuid.New().String()
-
-		key := kube.ResourceKey{
-			Namespace: namespace,
-			Name:      podName,
-			Kind:      "Pod",
-		}
-
-		var resourceYaml string
-		if includeUIDs {
-			parentUID := clusterParentUIDs[clusterRoleName] // Get the parent's UID
-			resourceYaml = fmt.Sprintf(`
+			resourceYaml := fmt.Sprintf(`
 apiVersion: v1
 kind: Pod
 metadata:
@@ -1657,140 +1883,103 @@ metadata:
     kind: ClusterRole
     name: %s
     uid: %s`, podName, namespace, uid, clusterRoleName, parentUID)
-		} else {
-			resourceYaml = fmt.Sprintf(`
-apiVersion: v1
-kind: Pod
-metadata:
-  name: %s
-  namespace: %s
-  uid: %s
-  ownerReferences:
-  - apiVersion: rbac.authorization.k8s.io/v1
-    kind: ClusterRole
-    name: %s`, podName, namespace, uid, clusterRoleName)
-		}
 
-		resources[key] = cacheTest.newResource(strToUnstructured(resourceYaml))
+			resources[key] = cacheTest.newResource(strToUnstructured(resourceYaml))
+		}
 	}
 
 	return resources
 }
 
-// Benchmark variations testing different cross-namespace percentages
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
 
-func BenchmarkIterateHierarchyV2CrossNamespace_Percentage(b *testing.B) {
+// BenchmarkIterateHierarchyV2_ClusterParentTraversal benchmarks full hierarchy traversal
+// starting from cluster-scoped parents with varying percentages of namespaces containing
+// cross-namespace children. This tests the actual performance impact of the cross-namespace
+// relationship tracking feature.
+func BenchmarkIterateHierarchyV2_ClusterParentTraversal(b *testing.B) {
 	testCases := []struct {
-		name                  string
-		crossNamespacePercent float64
-		withNamespaceScan     bool
-		scanNamespace         string
+		name                         string
+		totalNamespaces              int
+		resourcesPerNamespace        int
+		namespacesWithCrossNS        int // Number of namespaces with cross-NS children
+		crossNSResourcesPerNamespace int // Cross-NS children in each affected namespace
+		disableFeature               bool
 	}{
-		{"0Percent_NoScan", 0.00, false, ""},
-		{"1Percent_NoScan", 0.01, false, ""},
-		{"5Percent_NoScan", 0.05, false, ""},
-		{"10Percent_NoScan", 0.10, false, ""},
-		{"25Percent_NoScan", 0.25, false, ""},
-		{"25Percent_WithScan", 0.25, true, "default"},
+		// Baseline: 0% of namespaces have cross-NS children
+		{"50NS_0pct_100perNS", 50, 100, 0, 0, false},
+
+		// Primary dimension: Percentage of namespaces with cross-NS children
+		// 5,000 total resources (50 NS × 100 resources/NS), 10 cross-NS children per affected namespace
+		{"50NS_2pct_100perNS_10cross", 50, 100, 1, 10, false},   // 2% of namespaces (1/50)
+		{"50NS_4pct_100perNS_10cross", 50, 100, 2, 10, false},   // 4% of namespaces (2/50)
+		{"50NS_10pct_100perNS_10cross", 50, 100, 5, 10, false},  // 10% of namespaces (5/50)
+		{"50NS_20pct_100perNS_10cross", 50, 100, 10, 10, false}, // 20% of namespaces (10/50)
+
+		// Secondary dimension: Within a namespace, % of resources that are cross-NS
+		// 5,000 total resources, 2% of namespaces (1/50) have cross-NS children
+		{"50NS_2pct_100perNS_10cross", 50, 100, 1, 10, false},  // 10% of namespace resources (10/100)
+		{"50NS_2pct_100perNS_25cross", 50, 100, 1, 25, false},  // 25% of namespace resources (25/100)
+		{"50NS_2pct_100perNS_50cross", 50, 100, 1, 50, false},  // 50% of namespace resources (50/100)
+
+		// Feature flag validation
+		{"50NS_10pct_100perNS_10cross_Disabled", 50, 100, 5, 10, true}, // 10% of namespaces, feature disabled
+
+		// Edge cases
+		{"100NS_1pct_100perNS_10cross", 100, 100, 1, 10, false},   // 1% of namespaces (1/100) - extreme clustering
+		{"50NS_100pct_100perNS_10cross", 50, 100, 50, 10, false},  // 100% of namespaces - worst case
 	}
 
 	for _, tc := range testCases {
 		b.Run(tc.name, func(b *testing.B) {
+			if tc.disableFeature {
+				b.Setenv("GITOPS_ENGINE_DISABLE_CLUSTER_SCOPED_PARENT_REFS", "1")
+			}
+
 			cluster := newCluster(b).WithAPIResources([]kube.APIResourceInfo{{
 				GroupKind:            schema.GroupKind{Group: "rbac.authorization.k8s.io", Kind: "ClusterRole"},
 				GroupVersionResource: schema.GroupVersionResource{Group: "rbac.authorization.k8s.io", Version: "v1", Resource: "clusterroles"},
 				Meta:                 metav1.APIResource{Namespaced: false},
+			}, {
+				GroupKind:            schema.GroupKind{Group: "", Kind: "Pod"},
+				GroupVersionResource: schema.GroupVersionResource{Group: "", Version: "v1", Resource: "pods"},
+				Meta:                 metav1.APIResource{Namespaced: true},
 			}})
 
-			// Calculate resource distribution
-			totalResources := 10000
-			crossNamespacePods := int(float64(totalResources) * tc.crossNamespacePercent)
-			regularPods := totalResources - crossNamespacePods
+			// CRITICAL: Initialize namespacedResources so setNode will populate orphanedChildren index
+			cluster.namespacedResources = map[schema.GroupKind]bool{
+				{Group: "", Kind: "Pod"}:                                   true,
+				{Group: "rbac.authorization.k8s.io", Kind: "ClusterRole"}: false,
+			}
+
 			clusterParents := 100 // Fixed number of cluster-scoped resources
 
-			testResources := buildParameterizedCrossNamespaceTestResourceMap(
+			testResources := buildClusterParentTestResourceMap(
 				clusterParents,
-				regularPods,
-				crossNamespacePods,
-				tc.withNamespaceScan, // Use UIDs when namespace scanning is enabled
+				tc.totalNamespaces,
+				tc.namespacesWithCrossNS,
+				tc.resourcesPerNamespace,
+				tc.crossNSResourcesPerNamespace,
 			)
 
+			// Add resources to cache - this will populate orphanedChildren index
 			for _, resource := range testResources {
 				cluster.setNode(resource)
 			}
 
-			// Start key depends on whether we have cross-namespace resources
-			var startKey kube.ResourceKey
-			if crossNamespacePods > 0 {
-				startKey = kube.ResourceKey{Namespace: "default", Name: "cross-ns-pod-1", Kind: "Pod"}
-			} else {
-				startKey = kube.ResourceKey{Namespace: "default", Name: "pod-1", Kind: "Pod"}
-			}
-
-			// For cluster-scoped start when testing namespace scanning
-			if tc.withNamespaceScan {
-				startKey = kube.ResourceKey{
-					Group:     "rbac.authorization.k8s.io",
-					Kind:      "ClusterRole",
-					Namespace: "",
-					Name:      "cluster-role-0",
+			// Verify indexes are populated (sanity check)
+			if !tc.disableFeature && tc.namespacesWithCrossNS > 0 {
+				if len(cluster.orphanedChildren) == 0 {
+					b.Fatal("orphanedChildren index not populated - benchmark setup is broken")
 				}
 			}
 
-			b.ResetTimer()
-			for n := 0; n < b.N; n++ {
-				cluster.IterateHierarchyV2([]kube.ResourceKey{startKey}, func(_ *Resource, _ map[kube.ResourceKey]*Resource) bool {
-					return true
-				})
-			}
-		})
-	}
-}
-
-// BenchmarkIterateHierarchyV2_NamespaceScaling tests how namespace scanning scales with namespace size
-func BenchmarkIterateHierarchyV2_NamespaceScaling(b *testing.B) {
-	testCases := []struct {
-		name                   string
-		namespaceResourceCount int
-		crossNamespacePercent  float64
-	}{
-		{"100_Resources_10pct", 100, 0.10},
-		{"1000_Resources_10pct", 1000, 0.10},
-		{"5000_Resources_10pct", 5000, 0.10},
-		{"10000_Resources_10pct", 10000, 0.10},
-		{"20000_Resources_10pct", 20000, 0.10},
-		// Also test with different cross-namespace percentages
-		{"5000_Resources_0pct", 5000, 0.00},
-		{"5000_Resources_5pct", 5000, 0.05},
-		{"5000_Resources_25pct", 5000, 0.25},
-		{"5000_Resources_50pct", 5000, 0.50},
-	}
-
-	for _, tc := range testCases {
-		b.Run(tc.name, func(b *testing.B) {
-			cluster := newCluster(b).WithAPIResources([]kube.APIResourceInfo{{
-				GroupKind:            schema.GroupKind{Group: "rbac.authorization.k8s.io", Kind: "ClusterRole"},
-				GroupVersionResource: schema.GroupVersionResource{Group: "rbac.authorization.k8s.io", Version: "v1", Resource: "clusterroles"},
-				Meta:                 metav1.APIResource{Namespaced: false},
-			}})
-
-			// Calculate resource distribution
-			clusterParents := 100 // Fixed number of cluster-scoped resources
-			crossNamespacePods := int(float64(tc.namespaceResourceCount) * tc.crossNamespacePercent)
-			regularPods := tc.namespaceResourceCount - crossNamespacePods
-
-			testResources := buildParameterizedCrossNamespaceTestResourceMap(
-				clusterParents,
-				regularPods,
-				crossNamespacePods,
-				true,
-			)
-
-			for _, resource := range testResources {
-				cluster.setNode(resource)
-			}
-
-			// Start from a cluster-scoped resource
+			// Always start from a cluster-scoped parent to test cross-namespace traversal
 			startKey := kube.ResourceKey{
 				Group:     "rbac.authorization.k8s.io",
 				Kind:      "ClusterRole",
@@ -1799,8 +1988,9 @@ func BenchmarkIterateHierarchyV2_NamespaceScaling(b *testing.B) {
 			}
 
 			b.ResetTimer()
+			b.ReportAllocs()
+
 			for n := 0; n < b.N; n++ {
-				// Test with cluster-scoped parent - will automatically scan for orphaned children
 				cluster.IterateHierarchyV2([]kube.ResourceKey{startKey}, func(_ *Resource, _ map[kube.ResourceKey]*Resource) bool {
 					return true
 				})
@@ -1809,57 +1999,6 @@ func BenchmarkIterateHierarchyV2_NamespaceScaling(b *testing.B) {
 	}
 }
 
-// BenchmarkIterateHierarchyV2_NamespaceScaling_NoScan provides baseline for comparison
-func BenchmarkIterateHierarchyV2_NamespaceScaling_NoScan(b *testing.B) {
-	testCases := []struct {
-		name                   string
-		namespaceResourceCount int
-	}{
-		{"100_Resources", 100},
-		{"1000_Resources", 1000},
-		{"5000_Resources", 5000},
-		{"10000_Resources", 10000},
-		{"20000_Resources", 20000},
-	}
-
-	for _, tc := range testCases {
-		b.Run(tc.name, func(b *testing.B) {
-			cluster := newCluster(b).WithAPIResources([]kube.APIResourceInfo{{
-				GroupKind:            schema.GroupKind{Group: "rbac.authorization.k8s.io", Kind: "ClusterRole"},
-				GroupVersionResource: schema.GroupVersionResource{Group: "rbac.authorization.k8s.io", Version: "v1", Resource: "clusterroles"},
-				Meta:                 metav1.APIResource{Namespaced: false},
-			}})
-
-			// All resources have cluster-scoped parents but we won't scan for them
-			testResources := buildParameterizedCrossNamespaceTestResourceMap(
-				100,
-				0,
-				tc.namespaceResourceCount,
-				true,
-			)
-
-			for _, resource := range testResources {
-				cluster.setNode(resource)
-			}
-
-			// Start from a cluster-scoped resource
-			startKey := kube.ResourceKey{
-				Group:     "rbac.authorization.k8s.io",
-				Kind:      "ClusterRole",
-				Namespace: "",
-				Name:      "cluster-role-0",
-			}
-
-			b.ResetTimer()
-			for n := 0; n < b.N; n++ {
-				// No namespace scanning - just traverse cluster-scoped children
-				cluster.IterateHierarchyV2([]kube.ResourceKey{startKey}, func(_ *Resource, _ map[kube.ResourceKey]*Resource) bool {
-					return true
-				})
-			}
-		})
-	}
-}
 
 func TestIterateHierarchyV2_NoDuplicatesInSameNamespace(t *testing.T) {
 	// Create a parent-child relationship in the same namespace
