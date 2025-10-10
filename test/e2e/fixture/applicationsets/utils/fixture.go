@@ -229,7 +229,7 @@ func waitForExpectedClusterState(t *testing.T) error {
 		OrphanedResources:        nil,
 		SourceRepos:              []string{"*"},
 		Destinations:             []v1alpha1.ApplicationDestination{{Namespace: "*", Server: "*"}},
-		ClusterResourceWhitelist: []metav1.GroupKind{{Group: "*", Kind: "*"}},
+		ClusterResourceWhitelist: []v1alpha1.ClusterResourceRestrictionItem{{Group: "*", Kind: "*"}},
 		SourceNamespaces:         []string{string(ArgoCDExternalNamespace), string(ArgoCDExternalNamespace2)},
 	})
 
