@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -1847,4 +1848,50 @@ func TestCompareAppState_DoesNotCallUpdateRevisionForPaths_ForOCI(t *testing.T) 
 
 	_, _, _, err := ctrl.appStateManager.GetRepoObjs(t.Context(), app, sources, "abc123", []string{"123456"}, false, false, false, &defaultProj, false)
 	require.NoError(t, err)
+}
+
+func Test_isObjRequiresDeletionConfirmation(t *testing.T) {
+	for _, tt := range []struct {
+		name                string
+		resourceSyncOptions []string
+		appSyncOptions      []string
+		expected            bool
+	}{
+		{
+			name:     "default",
+			expected: false,
+		},
+		{
+			name:                "confirm delete resource",
+			resourceSyncOptions: []string{"Delete=confirm"},
+			expected:            true,
+		},
+		{
+			name:           "confirm delete resource",
+			appSyncOptions: []string{"Delete=confirm"},
+			expected:       true,
+		},
+		{
+			name:                "confirm app & resource delete",
+			appSyncOptions:      []string{"Delete=confirm"},
+			resourceSyncOptions: []string{"Delete=confirm"},
+			expected:            true,
+		},
+		{
+			name:                "confirm app & resource override",
+			appSyncOptions:      []string{"Delete=confirm"},
+			resourceSyncOptions: []string{"Delete=foo"},
+			expected:            false,
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			obj := NewPod()
+			obj.SetAnnotations(map[string]string{"argocd.argoproj.io/sync-options": strings.Join(tt.resourceSyncOptions, ",")})
+
+			app := newFakeApp()
+			app.Spec.SyncPolicy.SyncOptions = tt.appSyncOptions
+
+			require.Equal(t, tt.expected, isObjRequiresDeletionConfirmation(obj, app))
+		})
+	}
 }

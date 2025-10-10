@@ -36,16 +36,18 @@ const (
 	SyncOptionServerSideApply = "ServerSideApply=true"
 	// Sync option that disables use of --server-side flag instead of client-side
 	SyncOptionDisableServerSideApply = "ServerSideApply=false"
-	// Sync option that disables resource deletion
-	SyncOptionDisableDeletion = "Delete=false"
 	// Sync option that sync only out of sync resources
 	SyncOptionApplyOutOfSyncOnly = "ApplyOutOfSyncOnly=true"
 	// Sync option that disables sync only out of sync resources
 	SyncOptionDisableApplyOutOfSyncOnly = "ApplyOutOfSyncOnly=false"
 	// Sync option that requires confirmation before deleting the resource
-	SyncOptionDeleteRequireConfirm = "Delete=confirm"
-	// Sync option that requires confirmation before deleting the resource
 	SyncOptionPruneRequireConfirm = "Prune=confirm"
+	// Sync option that controls resource deletion
+	SyncOptionDelete = "Delete"
+	// Sync value to confirm a delete operation
+	SyncValueConfirm = "confirm"
+	// Sync value to disable a delete operation
+	SyncValueFalse = "false"
 	// Sync option that enables client-side apply migration
 	SyncOptionClientSideApplyMigration = "ClientSideApplyMigration=true"
 	// Sync option that disables client-side apply migration
