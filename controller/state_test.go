@@ -1872,6 +1872,11 @@ func Test_isObjRequiresDeletionConfirmation(t *testing.T) {
 			expected:       true,
 		},
 		{
+			name:           "confirm prune resource",
+			appSyncOptions: []string{"Prune=confirm"},
+			expected:       true,
+		},
+		{
 			name:                "confirm app & resource delete",
 			appSyncOptions:      []string{"Delete=confirm"},
 			resourceSyncOptions: []string{"Delete=confirm"},
@@ -1882,6 +1887,24 @@ func Test_isObjRequiresDeletionConfirmation(t *testing.T) {
 			appSyncOptions:      []string{"Delete=confirm"},
 			resourceSyncOptions: []string{"Delete=foo"},
 			expected:            false,
+		},
+		{
+			name:                "confirm app & resource mixed delete and prune",
+			appSyncOptions:      []string{"Prune=confirm"},
+			resourceSyncOptions: []string{"Delete=confirm"},
+			expected:            true,
+		},
+		{
+			name:                "override prune resource",
+			appSyncOptions:      []string{"Prune=confirm"},
+			resourceSyncOptions: []string{"Prune=foo"},
+			expected:            false,
+		},
+		{
+			name:                "override delete resource and additional delete confirm",
+			appSyncOptions:      []string{"Delete=confirm", "Prune=confirm"},
+			resourceSyncOptions: []string{"Delete=foo"},
+			expected:            true,
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {

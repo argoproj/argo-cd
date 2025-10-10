@@ -1064,6 +1064,14 @@ func isObjRequiresDeletionConfirmation(obj *unstructured.Unstructured, app *v1al
 		return true
 	}
 
+	pruneOption := resourceutil.GetAnnotationOptionValue(obj, synccommon.AnnotationSyncOptions, synccommon.SyncOptionPrune)
+	if pruneOption == nil && app.Spec.SyncPolicy != nil {
+		pruneOption = app.Spec.SyncPolicy.SyncOptions.GetOptionValue(synccommon.SyncOptionPrune)
+	}
+	if pruneOption != nil && *pruneOption == synccommon.SyncValueConfirm {
+		return true
+	}
+
 	return false
 }
 
