@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -13,6 +14,7 @@ import (
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/utils/ptr"
 
 	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/assert"
@@ -825,11 +827,10 @@ func TestDoNotSyncOrPruneHooks(t *testing.T) {
 	assert.Equal(t, synccommon.OperationSucceeded, phase)
 }
 
-// make sure that we do not prune resources with Prune=false
-func TestDoNotPrunePruneFalse(t *testing.T) {
+func TestDoNotPruneAppLevelPruneFalse(t *testing.T) {
 	syncCtx := newTestSyncCtx(nil, WithOperationSettings(false, true, false, false))
 	pod := testingutils.NewPod()
-	pod.SetAnnotations(map[string]string{synccommon.AnnotationSyncOptions: "Prune=false"})
+	syncCtx.defaultPruneOption = ptr.To("false")
 	pod.SetNamespace(testingutils.FakeArgoCDNamespace)
 	syncCtx.resources = groupResources(ReconciliationResult{
 		Live:   []*unstructured.Unstructured{pod},
@@ -848,6 +849,33 @@ func TestDoNotPrunePruneFalse(t *testing.T) {
 
 	phase, _, _ = syncCtx.GetState()
 	assert.Equal(t, synccommon.OperationSucceeded, phase)
+}
+
+func TestDoNotPruneResourceLevelPruneFalse(t *testing.T) {
+	syncCtx := newTestSyncCtx(nil, WithOperationSettings(false, true, false, false))
+	pod := testingutils.NewPod()
+
+	pod.SetAnnotations(map[string]string{synccommon.AnnotationSyncOptions: "Prune=false"})
+
+	pod.SetNamespace(testingutils.FakeArgoCDNamespace)
+	syncCtx.resources = groupResources(ReconciliationResult{
+		Live:   []*unstructured.Unstructured{pod},
+		Target: []*unstructured.Unstructured{nil},
+	})
+
+	// Check that the defaultPruneOption does not override the resource level Prune=false annotation
+	for _, defaultPruneOption := range []*string{nil, ptr.To("true"), ptr.To("false")} {
+		t.Run(fmt.Sprintf("Check resource level override defaultPruneOption=%v", defaultPruneOption), func(t *testing.T) {
+			syncCtx.defaultPruneOption = defaultPruneOption
+			syncCtx.Sync()
+			phase, _, resources := syncCtx.GetState()
+
+			assert.Equal(t, synccommon.OperationSucceeded, phase)
+			assert.Len(t, resources, 1)
+			assert.Equal(t, synccommon.ResultCodePruneSkipped, resources[0].Status)
+			assert.Equal(t, "ignored (no prune)", resources[0].Message)
+		})
+	}
 }
 
 func TestPruneConfirm(t *testing.T) {
