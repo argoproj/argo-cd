@@ -30,8 +30,26 @@ func mustToAbsPath(t *testing.T, relativePath string) string {
 	return res
 }
 
+type AddRepoOpts func(args []string) []string
+
+func WithShallowClone(val bool) AddRepoOpts {
+	return func(args []string) []string {
+		if val {
+			args = append(args, "--shallow-clone")
+		}
+		return args
+	}
+}
+
+func applyOpts(args []string, opts []AddRepoOpts) []string {
+	for _, opt := range opts {
+		args = opt(args)
+	}
+	return args
+}
+
 // sets the current repo as the default SSH test repo
-func AddSSHRepo(t *testing.T, insecure bool, credentials bool, repoURLType fixture.RepoURLType) {
+func AddSSHRepo(t *testing.T, insecure bool, credentials bool, repoURLType fixture.RepoURLType, opts ...AddRepoOpts) {
 	t.Helper()
 	keyPath, err := filepath.Abs("../fixture/testrepos/id_rsa")
 	require.NoError(t, err)
@@ -42,11 +60,11 @@ func AddSSHRepo(t *testing.T, insecure bool, credentials bool, repoURLType fixtu
 	if insecure {
 		args = append(args, "--insecure-ignore-host-key")
 	}
-	errors.NewHandler(t).FailOnErr(fixture.RunCli(args...))
+	errors.NewHandler(t).FailOnErr(fixture.RunCli(applyOpts(args, opts)...))
 }
 
 // sets the current repo as the default HTTPS test repo
-func AddHTTPSRepo(t *testing.T, insecure bool, credentials bool, project string, repoURLType fixture.RepoURLType) {
+func AddHTTPSRepo(t *testing.T, insecure bool, credentials bool, project string, repoURLType fixture.RepoURLType, opts ...AddRepoOpts) {
 	t.Helper()
 	// This construct is somewhat necessary to satisfy the compiler
 	args := []string{"repo", "add", fixture.RepoURL(repoURLType)}
@@ -59,7 +77,7 @@ func AddHTTPSRepo(t *testing.T, insecure bool, credentials bool, project string,
 	if project != "" {
 		args = append(args, "--project", project)
 	}
-	errors.NewHandler(t).FailOnErr(fixture.RunCli(args...))
+	errors.NewHandler(t).FailOnErr(fixture.RunCli(applyOpts(args, opts)...))
 }
 
 // sets a HTTPS repo using TLS client certificate authentication
