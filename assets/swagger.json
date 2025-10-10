@@ -9554,6 +9554,10 @@
           "type": "string",
           "title": "Repo contains the URL to the remote repository"
         },
+        "shallowClone": {
+          "description": "ShallowClone specifies whether to perform a shallow clone of Git repositories. This is only applicable for Git repos.",
+          "type": "boolean"
+        },
         "sshPrivateKey": {
           "description": "SSHPrivateKey contains the PEM data for authenticating at the repo server. Only used with Git repos.",
           "type": "string"

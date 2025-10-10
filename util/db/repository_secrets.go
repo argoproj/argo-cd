@@ -341,6 +341,7 @@ func secretToRepository(secret *corev1.Secret) (*appsv1.Repository, error) {
 		NoProxy:                    string(secretCopy.Data["noProxy"]),
 		Project:                    string(secretCopy.Data["project"]),
 		GCPServiceAccountKey:       string(secretCopy.Data["gcpServiceAccountKey"]),
+		ShallowClone:               string(secretCopy.Data["shallowClone"]) == "true",
 	}
 
 	insecureIgnoreHostKey, err := boolOrFalse(secretCopy, "insecureIgnoreHostKey")
@@ -431,6 +432,7 @@ func (s *secretsRepositoryBackend) repositoryToSecret(repository *appsv1.Reposit
 	updateSecretString(secretCopy, "gcpServiceAccountKey", repository.GCPServiceAccountKey)
 	updateSecretBool(secretCopy, "forceHttpBasicAuth", repository.ForceHttpBasicAuth)
 	updateSecretBool(secretCopy, "useAzureWorkloadIdentity", repository.UseAzureWorkloadIdentity)
+	updateSecretBool(secretCopy, "shallowClone", repository.ShallowClone)
 	addSecretMetadata(secretCopy, s.getSecretType())
 
 	return secretCopy

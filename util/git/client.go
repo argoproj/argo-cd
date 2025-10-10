@@ -109,7 +109,7 @@ type gitRefCache interface {
 type Client interface {
 	Root() string
 	Init() error
-	Fetch(revision string) error
+	Fetch(revision string, depth int) error
 	Submodule() error
 	Checkout(revision string, submoduleEnabled bool) (string, error)
 	LsRefs() (*Refs, error)
@@ -415,14 +415,17 @@ func (m *nativeGitClient) IsLFSEnabled() bool {
 	return m.enableLfs
 }
 
-func (m *nativeGitClient) fetch(ctx context.Context, revision string) error {
-	var err error
+func (m *nativeGitClient) fetch(ctx context.Context, revision string, depth int) error {
+	args := []string{"fetch", "origin"}
 	if revision != "" {
-		err = m.runCredentialedCmd(ctx, "fetch", "origin", revision, "--tags", "--force", "--prune")
-	} else {
-		err = m.runCredentialedCmd(ctx, "fetch", "origin", "--tags", "--force", "--prune")
+		args = append(args, revision)
 	}
-	return err
+
+	if depth > 0 {
+		args = append(args, "--depth", strconv.Itoa(depth))
+	}
+	args = append(args, "--force", "--prune", "--tags")
+	return m.runCredentialedCmd(ctx, args...)
 }
 
 // IsRevisionPresent checks to see if the given revision already exists locally.
@@ -440,14 +443,14 @@ func (m *nativeGitClient) IsRevisionPresent(revision string) bool {
 }
 
 // Fetch fetches latest updates from origin
-func (m *nativeGitClient) Fetch(revision string) error {
+func (m *nativeGitClient) Fetch(revision string, depth int) error {
 	if m.OnFetch != nil {
 		done := m.OnFetch(m.repoURL)
 		defer done()
 	}
 	ctx := context.Background()
 
-	err := m.fetch(ctx, revision)
+	err := m.fetch(ctx, revision, depth)
 
 	// When we have LFS support enabled, check for large files and fetch them too.
 	if err == nil && m.IsLFSEnabled() {

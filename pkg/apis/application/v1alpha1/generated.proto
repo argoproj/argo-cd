@@ -1916,6 +1916,9 @@ message Repository {
 
   // InsecureOCIForceHttp specifies whether the connection to the repository uses TLS at _all_. If true, no TLS. This flag is applicable for OCI repos only.
   optional bool insecureOCIForceHttp = 26;
+
+  // ShallowClone specifies whether to perform a shallow clone of Git repositories. This is only applicable for Git repos.
+  optional bool shallowClone = 27;
 }
 
 // A RepositoryCertificate is either SSH known hosts entry or TLS certificate
