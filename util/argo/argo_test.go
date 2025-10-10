@@ -1739,3 +1739,170 @@ func TestGetAppEventLabels(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateManagedByURL(t *testing.T) {
+	tests := []struct {
+		name       string
+		app        *argoappv1.Application
+		wantErr    bool
+		wantErrMsg string
+	}{
+		{
+			name: "Valid HTTPS URL",
+			app: &argoappv1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						argoappv1.AnnotationKeyManagedByURL: "https://argocd.example.com",
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Valid HTTP URL",
+			app: &argoappv1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						argoappv1.AnnotationKeyManagedByURL: "http://argocd.example.com",
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Valid localhost HTTPS URL",
+			app: &argoappv1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						argoappv1.AnnotationKeyManagedByURL: "https://localhost:8081",
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Valid localhost HTTP URL",
+			app: &argoappv1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						argoappv1.AnnotationKeyManagedByURL: "http://localhost:8081",
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Valid 127.0.0.1 URL",
+			app: &argoappv1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						argoappv1.AnnotationKeyManagedByURL: "http://127.0.0.1:8081",
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "No annotations",
+			app: &argoappv1.Application{
+				ObjectMeta: metav1.ObjectMeta{},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Empty managed-by-url",
+			app: &argoappv1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						argoappv1.AnnotationKeyManagedByURL: "",
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Missing managed-by-url annotation",
+			app: &argoappv1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						"other.annotation": "value",
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Invalid protocol - javascript",
+			app: &argoappv1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						argoappv1.AnnotationKeyManagedByURL: "javascript:alert('xss')",
+					},
+				},
+			},
+			wantErr:    true,
+			wantErrMsg: "invalid managed-by URL: URL must include http or https protocol",
+		},
+		{
+			name: "Invalid protocol - data",
+			app: &argoappv1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						argoappv1.AnnotationKeyManagedByURL: "data:text/html,<script>alert('xss')</script>",
+					},
+				},
+			},
+			wantErr:    true,
+			wantErrMsg: "invalid managed-by URL: URL must include http or https protocol",
+		},
+		{
+			name: "Invalid protocol - file",
+			app: &argoappv1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						argoappv1.AnnotationKeyManagedByURL: "file:///etc/passwd",
+					},
+				},
+			},
+			wantErr:    true,
+			wantErrMsg: "invalid managed-by URL: URL must include http or https protocol",
+		},
+		{
+			name: "Invalid URL format",
+			app: &argoappv1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						argoappv1.AnnotationKeyManagedByURL: "not-a-url",
+					},
+				},
+			},
+			wantErr:    true,
+			wantErrMsg: "invalid managed-by URL: URL must include http or https protocol",
+		},
+		{
+			name: "URL with path and query",
+			app: &argoappv1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						argoappv1.AnnotationKeyManagedByURL: "https://argocd.example.com/applications?namespace=default",
+					},
+				},
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			conditions := ValidateManagedByURL(tt.app)
+
+			if tt.wantErr {
+				require.Len(t, conditions, 1, "Expected exactly one validation condition")
+				assert.Equal(t, argoappv1.ApplicationConditionInvalidSpecError, conditions[0].Type)
+				assert.Contains(t, conditions[0].Message, tt.wantErrMsg)
+			} else {
+				assert.Empty(t, conditions, "Expected no validation conditions for valid URL")
+			}
+		})
+	}
+}
