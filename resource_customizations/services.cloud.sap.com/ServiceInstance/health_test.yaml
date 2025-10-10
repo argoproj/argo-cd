@@ -1,0 +1,13 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: Waiting for status
+  inputPath: testdata/progressing.yaml
+- healthStatus:
+    status: Degraded
+    message: 'ServiceInstance update failed'
+  inputPath: testdata/degraded.yaml
+- healthStatus:
+    status: Healthy
+    message: 'Ready to use'
+  inputPath: testdata/healthy.yaml
