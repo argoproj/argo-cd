@@ -228,6 +228,7 @@ func NewClusterCache(config *rest.Config, opts ...UpdateSettingsFunc) *clusterCa
 		orphanedChildren:                make(map[string]map[kube.ResourceKey]map[kube.ResourceKey]*Resource),
 		namespacedChildToClusterParents: make(map[kube.ResourceKey][]kube.ResourceKey),
 		clusterScopedByUID:              make(map[types.UID]kube.ResourceKey),
+		parentUIDToChildren:             make(map[types.UID][]kube.ResourceKey),
 	}
 	for i := range opts {
 		opts[i](cache)
@@ -301,6 +302,11 @@ type clusterCache struct {
 	// UID index for O(1) cluster-scoped parent lookup by UID
 	// Maps cluster-scoped resource UID -> ResourceKey for efficient findClusterScopedParent
 	clusterScopedByUID map[types.UID]kube.ResourceKey
+
+	// Parent-to-children index for O(1) hierarchy traversal
+	// Maps any resource's UID to its direct children's ResourceKeys
+	// Eliminates need for O(n) graph building during hierarchy traversal
+	parentUIDToChildren map[types.UID][]kube.ResourceKey
 }
 
 type clusterCacheSync struct {
@@ -500,6 +506,10 @@ func (c *clusterCache) newResource(un *unstructured.Unstructured) *Resource {
 
 func (c *clusterCache) setNode(n *Resource) {
 	key := n.ResourceKey()
+
+	// Keep track of existing resource for index updates
+	existing := c.resources[key]
+
 	c.resources[key] = n
 	ns, ok := c.nsIndex[key.Namespace]
 	if !ok {
@@ -519,6 +529,10 @@ func (c *clusterCache) setNode(n *Resource) {
 	if !c.disableClusterScopedParentRefs && key.Namespace != "" && len(c.namespacedResources) > 0 {
 		c.updateOrphanedChildrenIndex(n)
 	}
+
+	// Update parent-to-children index for all resources with owner refs
+	// This is always done, regardless of sync state, as it's cheap to maintain
+	c.updateParentUIDToChildren(key, existing, n)
 
 	// update inferred parent references
 	if n.isInferredParentOf != nil || mightHaveInferredOwner(n) {
@@ -545,6 +559,7 @@ func (c *clusterCache) rebuildOrphanedChildrenIndex() {
 	c.orphanedChildren = make(map[string]map[kube.ResourceKey]map[kube.ResourceKey]*Resource)
 	c.namespacedChildToClusterParents = make(map[kube.ResourceKey][]kube.ResourceKey)
 	c.clusterScopedByUID = make(map[types.UID]kube.ResourceKey)
+	c.parentUIDToChildren = make(map[types.UID][]kube.ResourceKey)
 
 	// Rebuild UID index from all cluster-scoped resources
 	for key, resource := range c.resources {
@@ -553,12 +568,19 @@ func (c *clusterCache) rebuildOrphanedChildrenIndex() {
 		}
 	}
 
-	// Rebuild from all namespaced resources
-	for namespace, nsResources := range c.nsIndex {
-		if namespace == "" {
-			continue // Skip cluster-scoped resources
+	// Rebuild parent-to-children index and orphaned children index from all resources
+	for _, resource := range c.resources {
+		key := resource.ResourceKey()
+
+		// Rebuild parent-to-children index for all resources with owner refs
+		for _, ownerRef := range resource.OwnerRefs {
+			if ownerRef.UID != "" {
+				c.addToParentUIDToChildren(ownerRef.UID, key)
+			}
 		}
-		for _, resource := range nsResources {
+
+		// Rebuild orphaned children index for namespaced resources only
+		if key.Namespace != "" {
 			c.updateOrphanedChildrenIndex(resource)
 		}
 	}
@@ -678,6 +700,70 @@ func (c *clusterCache) trackOrphanedChild(childKey kube.ResourceKey, child *Reso
 		c.orphanedChildren[child.Ref.Namespace][parentKey] = make(map[kube.ResourceKey]*Resource)
 	}
 	c.orphanedChildren[child.Ref.Namespace][parentKey][childKey] = child
+}
+
+// addToParentUIDToChildren adds a child to the parent-to-children index
+func (c *clusterCache) addToParentUIDToChildren(parentUID types.UID, childKey kube.ResourceKey) {
+	// Check if child is already in the list to avoid duplicates
+	children := c.parentUIDToChildren[parentUID]
+	for _, existing := range children {
+		if existing == childKey {
+			return // Already exists, no need to add
+		}
+	}
+	c.parentUIDToChildren[parentUID] = append(children, childKey)
+}
+
+// removeFromParentUIDToChildren removes a child from the parent-to-children index
+func (c *clusterCache) removeFromParentUIDToChildren(parentUID types.UID, childKey kube.ResourceKey) {
+	children := c.parentUIDToChildren[parentUID]
+	for i, existing := range children {
+		if existing == childKey {
+			// Remove by swapping with last element and truncating
+			children[i] = children[len(children)-1]
+			c.parentUIDToChildren[parentUID] = children[:len(children)-1]
+
+			// Clean up empty entries
+			if len(c.parentUIDToChildren[parentUID]) == 0 {
+				delete(c.parentUIDToChildren, parentUID)
+			}
+			return
+		}
+	}
+}
+
+// updateParentUIDToChildren updates the parent-to-children index when a resource's owner refs change
+func (c *clusterCache) updateParentUIDToChildren(childKey kube.ResourceKey, oldResource *Resource, newResource *Resource) {
+	// Build sets of old and new parent UIDs
+	oldParents := make(map[types.UID]bool)
+	if oldResource != nil {
+		for _, ref := range oldResource.OwnerRefs {
+			if ref.UID != "" {
+				oldParents[ref.UID] = true
+			}
+		}
+	}
+
+	newParents := make(map[types.UID]bool)
+	for _, ref := range newResource.OwnerRefs {
+		if ref.UID != "" {
+			newParents[ref.UID] = true
+		}
+	}
+
+	// Remove from parents that are no longer in owner refs
+	for oldUID := range oldParents {
+		if !newParents[oldUID] {
+			c.removeFromParentUIDToChildren(oldUID, childKey)
+		}
+	}
+
+	// Add to parents that are new in owner refs
+	for newUID := range newParents {
+		if !oldParents[newUID] {
+			c.addToParentUIDToChildren(newUID, childKey)
+		}
+	}
 }
 
 // updateOrphanedChildrenIndex tracks namespaced resources that have cluster-scoped parents
@@ -1122,6 +1208,7 @@ func (c *clusterCache) sync() error {
 	c.apisMeta = make(map[schema.GroupKind]*apiMeta)
 	c.resources = make(map[kube.ResourceKey]*Resource)
 	c.namespacedResources = make(map[schema.GroupKind]bool)
+	c.parentUIDToChildren = make(map[types.UID][]kube.ResourceKey)
 	config := c.config
 	version, err := c.kubectl.GetServerVersion(config)
 	if err != nil {
@@ -1346,41 +1433,69 @@ func (c *clusterCache) processCrossNamespaceChildren(
 	visited map[kube.ResourceKey]int,
 	action func(resource *Resource, namespaceResources map[kube.ResourceKey]*Resource) bool,
 ) {
-	// Build graphs only for namespaces that have cross-namespace children
-	// Cache within this call to avoid rebuilding when multiple cluster keys share namespaces
-	namespaceGraphs := make(map[string]map[kube.ResourceKey]map[types.UID]*Resource)
-
 	for _, clusterKey := range clusterScopedKeys {
-		// Check all namespaces for orphaned children of this cluster resource
-		for namespace, nsMap := range c.orphanedChildren {
-			if children, ok := nsMap[clusterKey]; ok {
-				// Build graph for this namespace only once within this IterateHierarchyV2 call
-				nsGraph, ok := namespaceGraphs[namespace]
-				if !ok {
-					nsNodes := c.nsIndex[namespace]
-					nsGraph = buildGraph(nsNodes)
-					namespaceGraphs[namespace] = nsGraph
-				}
+		// Get cluster-scoped resource to access its UID
+		clusterResource := c.resources[clusterKey]
+		if clusterResource == nil {
+			continue
+		}
 
-				// Get namespace nodes
-				nsNodes := c.nsIndex[namespace]
-
-				// Process each orphaned child
-				for childKey, child := range children {
-					if visited[childKey] == 0 && action(child, nsNodes) {
-						visited[childKey] = 1
-						// Process the child's descendants in the namespace
-						child.iterateChildrenV2(nsGraph, nsNodes, visited, func(err error, descendant *Resource, namespaceResources map[kube.ResourceKey]*Resource) bool {
-							if err != nil {
-								c.log.V(2).Info(err.Error())
-								return false
-							}
-							return action(descendant, namespaceResources)
-						})
-						visited[childKey] = 2
-					}
-				}
+		// Use parent-to-children index for O(1) lookup of direct children
+		childKeys := c.parentUIDToChildren[clusterResource.Ref.UID]
+		for _, childKey := range childKeys {
+			child := c.resources[childKey]
+			if child == nil || visited[childKey] != 0 {
+				continue
 			}
+
+			// Get namespace nodes for this child
+			nsNodes := c.nsIndex[childKey.Namespace]
+			if nsNodes == nil {
+				continue
+			}
+
+			// Process this child
+			if action(child, nsNodes) {
+				visited[childKey] = 1
+				// Recursively process descendants using index-based traversal
+				c.iterateChildrenUsingIndex(child, nsNodes, visited, action)
+				visited[childKey] = 2
+			}
+		}
+	}
+}
+
+// iterateChildrenUsingIndex recursively processes a resource's children using the parentUIDToChildren index
+// This replaces graph-based traversal with O(1) index lookups
+func (c *clusterCache) iterateChildrenUsingIndex(
+	parent *Resource,
+	nsNodes map[kube.ResourceKey]*Resource,
+	visited map[kube.ResourceKey]int,
+	action func(resource *Resource, namespaceResources map[kube.ResourceKey]*Resource) bool,
+) {
+	// Look up direct children of this parent using the index
+	childKeys := c.parentUIDToChildren[parent.Ref.UID]
+	for _, childKey := range childKeys {
+		if visited[childKey] != 0 {
+			continue // Already visited or in progress
+		}
+
+		child := c.resources[childKey]
+		if child == nil {
+			continue
+		}
+
+		// Only process children in the same namespace (for within-namespace traversal)
+		// Cross-namespace children are handled by the outer loop in processCrossNamespaceChildren
+		if child.Ref.Namespace != parent.Ref.Namespace {
+			continue
+		}
+
+		if action(child, nsNodes) {
+			visited[childKey] = 1
+			// Recursively process this child's descendants
+			c.iterateChildrenUsingIndex(child, nsNodes, visited, action)
+			visited[childKey] = 2
 		}
 	}
 }
@@ -1691,6 +1806,13 @@ func (c *clusterCache) onNodeRemoved(key kube.ResourceKey) {
 		// Clean up UID index for cluster-scoped resources
 		if !c.disableClusterScopedParentRefs && key.Namespace == "" {
 			delete(c.clusterScopedByUID, existing.Ref.UID)
+		}
+
+		// Clean up parent-to-children index
+		for _, ownerRef := range existing.OwnerRefs {
+			if ownerRef.UID != "" {
+				c.removeFromParentUIDToChildren(ownerRef.UID, key)
+			}
 		}
 
 		// Clean up orphaned children tracking
