@@ -1253,7 +1253,10 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 			}
 		}
 		for _, p := range appHelm.FileParameters {
+			isRemote := false
 			var resolvedPath pathutil.ResolvedFilePath
+			var err error
+
 			referencedSource := getReferencedSource(p.Path, q.RefSources)
 			if referencedSource != nil {
 				// If the $-prefixed path appears to reference another source, do env substitution _after_ resolving the source
@@ -1262,11 +1265,22 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 					return nil, "", fmt.Errorf("error resolving set-file path: %w", err)
 				}
 			} else {
-				resolvedPath, _, err = pathutil.ResolveValueFilePathOrUrl(appPath, repoRoot, env.Envsubst(p.Path), q.GetValuesFileSchemes())
+				resolvedPath, isRemote, err = pathutil.ResolveValueFilePathOrUrl(appPath, repoRoot, env.Envsubst(p.Path), q.GetValuesFileSchemes())
 				if err != nil {
 					return nil, "", fmt.Errorf("error resolving helm value file path: %w", err)
 				}
 			}
+
+			if !isRemote {
+				_, err = os.Stat(string(resolvedPath))
+				if os.IsNotExist(err) {
+					if appHelm.IgnoreMissingFileParameters {
+						log.Debugf(" %s set-file path does not exist", resolvedPath)
+						continue
+					}
+				}
+			}
+
 			templateOpts.SetFile[p.Name] = resolvedPath
 		}
 		passCredentials = appHelm.PassCredentials
