@@ -1461,6 +1461,18 @@ func (o SyncOptions) HasOption(option string) bool {
 	return slices.Contains(o, option)
 }
 
+// GetOptionValue returns true if the list of sync options contains given option
+// This function only support options that are defined as key=value and not standalone.
+func (o SyncOptions) GetOptionValue(optionKey string) *string {
+	prefix := optionKey + "="
+	for _, i := range o {
+		if val, found := strings.CutPrefix(i, prefix); found {
+			return new(val)
+		}
+	}
+	return nil
+}
+
 type ManagedNamespaceMetadata struct {
 	Labels      map[string]string `json:"labels,omitempty" protobuf:"bytes,1,opt,name=labels"`
 	Annotations map[string]string `json:"annotations,omitempty" protobuf:"bytes,2,opt,name=annotations"`
