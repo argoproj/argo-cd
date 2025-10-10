@@ -436,7 +436,7 @@ export const deleteSourceAction = (app: appModels.Application, source: appModels
 };
 
 export const deletePopup = async (
-    ctx: ContextApis & {history: {location: {pathname: string}}},
+    ctx: ContextApis,
     resource: ResourceTreeNode,
     application: appModels.AbstractApplication,
     isManaged: boolean,
@@ -530,7 +530,7 @@ export const deletePopup = async (
                     await services.applications.deleteResource(application.metadata.name, application.metadata.namespace, resource, !!force, !!orphan);
                     if (appChanged) {
                         const objectListKind = isApp(application) ? 'application' : 'applicationset';
-                        appChanged.next(await services.applications.get(application.metadata.name, application.metadata.namespace, objectListKind, 'normal'));
+                        appChanged.next(await services.applications.get(application.metadata.name, application.metadata.namespace, objectListKind));
                     }
                     close();
                 } catch (e) {
@@ -620,7 +620,7 @@ function getActionItems(
     resource: ResourceTreeNode,
     application: appModels.AbstractApplication,
     tree: appModels.AbstractApplicationTree,
-    apis: ContextApis & {history: {location: {pathname: string}}},
+    apis: ContextApis,
     appChanged: BehaviorSubject<appModels.AbstractApplication>,
     isQuickStart: boolean
 ): Observable<ActionMenuItem[]> {
@@ -734,7 +734,7 @@ export function renderResourceMenu(
     resource: ResourceTreeNode,
     application: appModels.AbstractApplication,
     tree: appModels.AbstractApplicationTree,
-    apis: ContextApis & {history: {location: {pathname: string}}},
+    apis: ContextApis,
     appChanged: BehaviorSubject<appModels.AbstractApplication>,
     getApplicationActionMenu: () => any
 ): React.ReactNode {
@@ -814,7 +814,7 @@ export function renderResourceButtons(
     resource: ResourceTreeNode,
     application: appModels.AbstractApplication,
     tree: appModels.AbstractApplicationTree,
-    apis: ContextApis & {history: {location: {pathname: string}}},
+    apis: ContextApis,
     appChanged: BehaviorSubject<appModels.AbstractApplication>
 ): React.ReactNode {
     const menuItems: Observable<ActionMenuItem[]> = getActionItems(resource, application, tree, apis, appChanged, true);
@@ -1636,13 +1636,6 @@ export const urlPattern = new RegExp(
 export function isApp(abstractApp: appModels.AbstractApplication): abstractApp is appModels.Application {
     return abstractApp.kind === 'Application';
 }
-
-// Currently used for view-preferences-service only.
-// TODO: GET RID OF IT (by finding an elegant solution for loading the relevant prefs by using location.pathname).
-export function isInvokedFromApps(): boolean {
-    return true;
-}
-
 
 export function getRootPathByApp(abstractApp: appModels.AbstractApplication) {
     return isApp(abstractApp) ? '/applications' : '/applicationsets';

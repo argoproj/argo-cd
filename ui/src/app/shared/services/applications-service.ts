@@ -32,11 +32,7 @@ function getQuery(projects: string[], isListOfApplications: boolean, options?: Q
 export class ApplicationsService {
     constructor() {}
 
-    public list(
-        projects: string[],
-        objectListKind: string,
-        options?: QueryOptions
-    ): Promise<models.AbstractApplicationList> {
+    public list(projects: string[], objectListKind: string, options?: QueryOptions): Promise<models.AbstractApplicationList> {
         const isListOfApplications = objectListKind === 'application';
         const endpoint = isListOfApplications ? '/applications' : '/applicationsets';
         return requests

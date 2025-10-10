@@ -53,11 +53,7 @@ const APP_FIELDS = [
 const APP_LIST_FIELDS = ['metadata.resourceVersion', ...APP_FIELDS.map(field => `items.${field}`)];
 const APP_WATCH_FIELDS = ['result.type', ...APP_FIELDS.map(field => `result.application.${field}`)];
 
-function loadApplications(
-    projects: string[],
-    appNamespace: string,
-    objectListKind: string
-): Observable<models.AbstractApplication[]> {
+function loadApplications(projects: string[], appNamespace: string, objectListKind: string): Observable<models.AbstractApplication[]> {
     return from(services.applications.list(projects, objectListKind, {appNamespace, fields: APP_LIST_FIELDS})).pipe(
         mergeMap(applicationsList => {
             const applications = applicationsList.items;
@@ -615,10 +611,7 @@ export const ApplicationsList = (props: RouteComponentProps<any> & {objectListKi
                                                                 mergeMap(params => {
                                                                     const syncApp = params.get('syncApp');
                                                                     const appNamespace = params.get('appNamespace');
-                                                                    return (
-                                                                        (syncApp && from(services.applications.get(syncApp, appNamespace, objectListKind))) ||
-                                                                        from([null])
-                                                                    );
+                                                                    return (syncApp && from(services.applications.get(syncApp, appNamespace, objectListKind))) || from([null]);
                                                                 })
                                                             )
                                                         }>
