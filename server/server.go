@@ -590,6 +590,13 @@ func (server *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 	} else {
 		httpS = server.newHTTPServer(ctx, server.ListenPort, grpcWebS, appResourceTreeFn, listeners.GatewayConn, metricsServ)
 	}
+
+	if httpsS != nil {
+		httpsS.Handler = server.hostValidationMiddleware(server.strictTransportSecurityMiddleware(httpsS.Handler))
+	}
+
+	httpS.Handler = server.hostValidationMiddleware(httpS.Handler)
+
 	if server.RootPath != "" {
 		httpS.Handler = withRootPath(httpS.Handler, server)
 
@@ -1589,6 +1596,164 @@ func (server *ArgoCDServer) getClaims(ctx context.Context) (jwt.Claims, string, 
 	}
 
 	return finalClaims, newToken, nil
+}
+
+// hostValidationMiddleware validates the Host header of incoming HTTP requests against the
+// configured server URLs to prevent host header attacks and ensure requests are only served
+// for allowed hosts.
+func (server *ArgoCDServer) hostValidationMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !validateHost(r.Host, append([]string{server.settings.URL}, server.settings.AdditionalURLs...)) {
+			log.Warnf("Rejected request due to invalid Host header: %s", r.Host)
+			http.Error(w, "Invalid Host header", http.StatusBadRequest)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// strictTransportSecurityMiddleware returns an HTTP middleware that adds the
+// Strict-Transport-Security response header when HSTS is enabled in server settings.
+// The header value is taken from server.settings.HstsDirectiveValue.
+func (server *ArgoCDServer) strictTransportSecurityMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if server.settings.HstsEnabled {
+			w.Header().Set("Strict-Transport-Security", server.settings.HstsDirectiveValue)
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// getHostname and lookupIP are declared as package-level variables so tests can
+// replace them with deterministic implementations. This makes unit tests able to
+// simulate specific hostnames, DNS lookup results or errors without performing
+// real network calls or mutating global system state.
+var (
+	getHostname = os.Hostname
+	lookupIP    = net.LookupIP
+)
+
+// normalizeHost trims whitespace from the input host string, removes an
+// optional port (e.g. "example.com:8080"), and strips surrounding square
+// brackets used for IPv6 literals (e.g. "[::1]"). If the input is empty or
+// only whitespace, an empty string is returned.
+func normalizeHost(raw string) string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return ""
+	}
+	if h, _, err := net.SplitHostPort(raw); err == nil {
+		raw = h
+	}
+	return strings.Trim(raw, "[]")
+}
+
+// hostFromEntry extracts host portion from a server host entry which can be a URL or raw host.
+func hostFromEntry(entry string) string {
+	if entry == "" {
+		return ""
+	}
+	if u, err := url.Parse(entry); err == nil && u.Host != "" {
+		return u.Host
+	}
+	return entry
+}
+
+// ipMatchesResolved compares whether ip equals the parsed IP literal or any IP
+// address resolved for name. If the name is an IP literal it is
+// compared directly; otherwise the name is resolved using and the resolved addresses are compared.
+// Returns false for empty names or on any lookup error.
+func ipMatchesResolved(ip net.IP, name string) bool {
+	if name == "" {
+		return false
+	}
+
+	name = normalizeHost(name)
+	if name == "" {
+		return false
+	}
+
+	if cfgIP := net.ParseIP(name); cfgIP != nil {
+		return cfgIP.Equal(ip)
+	}
+
+	addrs, err := lookupIP(name)
+	if err != nil {
+		return false
+	}
+	for _, a := range addrs {
+		if a.Equal(ip) {
+			return true
+		}
+	}
+	return false
+}
+
+// localIPMatches checks whether the provided IP equals any of the network
+// addresses resolved for the local host name. Works for both IPv4 and IPv6 literals.
+func localIPMatches(ip net.IP) bool {
+	hostname, err := getHostname()
+	if err != nil || hostname == "" {
+		return false
+	}
+
+	serverIPAddresses, err := lookupIP(hostname)
+	if err != nil {
+		return false
+	}
+
+	for _, a := range serverIPAddresses {
+		if a.Equal(ip) {
+			return true
+		}
+	}
+	return false
+}
+
+// isRequestIPAllowed checks whether the request IP is allowed based on loopback,
+// local host addresses, or resolved server hosts.
+func isRequestIPAllowed(reqIP net.IP, serverHosts []string) bool {
+	if reqIP.IsLoopback() {
+		return true
+	}
+	if localIPMatches(reqIP) {
+		return true
+	}
+	for _, sh := range serverHosts {
+		if ipMatchesResolved(reqIP, hostFromEntry(sh)) {
+			return true
+		}
+	}
+	return false
+}
+
+// isHostAllowed returns whether the provided host is permitted to
+// access the API server. It checks against a set of allowed hosts which includes:
+// the literal "localhost", server's primary URL and any configured AdditionalURLs
+func isHostAllowed(host string, serverHosts []string) bool {
+	allowed := map[string]bool{"localhost": true}
+	for _, sh := range serverHosts {
+		h := normalizeHost(hostFromEntry(sh))
+		if h != "" {
+			allowed[strings.ToLower(h)] = true
+		}
+	}
+
+	return allowed[host]
+}
+
+// validateHost validates the Host header of the request against the configured server URLs
+func validateHost(requestHost string, serverHosts []string) bool {
+	host := normalizeHost(requestHost)
+	if host == "" {
+		return false
+	}
+
+	if reqIP := net.ParseIP(host); reqIP != nil {
+		return isRequestIPAllowed(reqIP, serverHosts)
+	}
+
+	return isHostAllowed(host, serverHosts)
 }
 
 // getToken extracts the token from gRPC metadata or cookie headers

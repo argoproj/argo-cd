@@ -354,6 +354,17 @@ data:
   # This is to prevent the UI from becoming unresponsive when rendering a large number of logs. Default is 10.
   server.maxPodLogsToRender: "10"
 
+  # Enables the Strict-Transport-Security (HSTS) header in HTTP responses (optional).
+  # When set to "true", the server will include the HSTS header to instruct browsers to always use HTTPS for future requests.
+  server.hsts.enabled: "true"
+
+  # Specifies the value of the Strict-Transport-Security (HSTS) header sent in HTTP responses (optional).
+  # This setting is only used when server.hsts.enabled is set to "true".
+  # For example, 'max-age=31536000; includeSubDomains' instructs browsers to use HTTPS for one year and apply the policy to all subdomains.
+  # If this config is empty, a default value will be used (max-age=63072000; includeSubDomains; preload).
+  server.hsts.directive: "max-age=31536000; includeSubDomains"
+
+
   # exec.enabled indicates whether the UI exec feature is enabled. It is disabled by default.
   exec.enabled: "false"
 
