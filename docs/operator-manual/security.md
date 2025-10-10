@@ -40,6 +40,16 @@ the three components (argocd-server, argocd-repo-server, argocd-application-cont
 API server can enforce the use of TLS 1.2 using the flag: `--tlsminversion 1.2`.
 Communication with Redis is performed over plain HTTP by default. TLS can be setup with command line arguments.
 
+## HTTP Strict Transport Security (HSTS)
+Argo CD supports configuring the Strict-Transport-Security (HSTS) header to enhance security by 
+instructing browsers to only interact with the server over HTTPS.
+
+* server.hsts.enabled: Enables or disables the inclusion of the HSTS header in HTTP responses. Set to true to enable HSTS.
+* server.hsts.directive: Specifies the value of the HSTS header, such as max-age=31536000; includeSubDomains, 
+to define the duration and scope of the policy.
+
+Enabling HSTS helps protect users from protocol downgrade attacks and cookie hijacking by ensuring all future requests use HTTPS.
+
 ## Git & Helm Repositories
 
 Git and helm repositories are managed by a stand-alone service, called the repo-server. The

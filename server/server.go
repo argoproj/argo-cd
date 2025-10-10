@@ -592,7 +592,7 @@ func (server *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 	}
 
 	if httpsS != nil {
-		httpsS.Handler = server.strictTransportSecurityMiddleware(server.hostValidationMiddleware(httpsS.Handler))
+		httpsS.Handler = server.hostValidationMiddleware(server.strictTransportSecurityMiddleware(httpsS.Handler))
 	}
 
 	httpS.Handler = server.hostValidationMiddleware(httpS.Handler)
