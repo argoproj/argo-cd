@@ -529,7 +529,8 @@ export const deletePopup = async (
                 try {
                     await services.applications.deleteResource(application.metadata.name, application.metadata.namespace, resource, !!force, !!orphan);
                     if (appChanged) {
-                        appChanged.next(await services.applications.get(application.metadata.name, application.metadata.namespace, ctx.history.location.pathname));
+                        const objectListKind = isApp(application) ? 'application' : 'applicationset';
+                        appChanged.next(await services.applications.get(application.metadata.name, application.metadata.namespace, objectListKind, 'normal'));
                     }
                     close();
                 } catch (e) {
@@ -1642,13 +1643,6 @@ export function isInvokedFromApps(): boolean {
     return true;
 }
 
-export function isInvokedFromAppsPath(pathname: string): boolean {
-    return pathname.includes('applicationsets') ? false : true;
-}
-
-export function getRootPathByPath(pathname: string) {
-    return isInvokedFromAppsPath(pathname) ? '/applications' : '/applicationsets';
-}
 
 export function getRootPathByApp(abstractApp: appModels.AbstractApplication) {
     return isApp(abstractApp) ? '/applications' : '/applicationsets';

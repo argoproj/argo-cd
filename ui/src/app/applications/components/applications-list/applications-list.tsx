@@ -3,7 +3,7 @@ import * as classNames from 'classnames';
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
 import {Key, KeybindingContext, KeybindingProvider} from 'argo-ui/v2';
-import {History} from 'history';
+import {RouteComponentProps} from 'react-router';
 import {combineLatest, from, merge, Observable} from 'rxjs';
 import {bufferTime, delay, filter, map, mergeMap, repeat, retryWhen} from 'rxjs/operators';
 import {AddAuthToToolbar, ClusterCtx, DataLoader, EmptyState, Page, Paginate, Spinner} from '../../../shared/components';
@@ -54,19 +54,17 @@ const APP_LIST_FIELDS = ['metadata.resourceVersion', ...APP_FIELDS.map(field => 
 const APP_WATCH_FIELDS = ['result.type', ...APP_FIELDS.map(field => `result.application.${field}`)];
 
 function loadApplications(
-    ctx: ContextApis & {
-        history: History<unknown>;
-    },
     projects: string[],
-    appNamespace: string
+    appNamespace: string,
+    objectListKind: string
 ): Observable<models.AbstractApplication[]> {
-    return from(services.applications.list(projects, ctx, {appNamespace, fields: APP_LIST_FIELDS})).pipe(
+    return from(services.applications.list(projects, objectListKind, {appNamespace, fields: APP_LIST_FIELDS})).pipe(
         mergeMap(applicationsList => {
             const applications = applicationsList.items;
             return merge(
                 from([applications]),
                 services.applications
-                    .watch(ctx.history.location.pathname, {projects, resourceVersion: applicationsList.metadata.resourceVersion}, {fields: APP_WATCH_FIELDS})
+                    .watch(objectListKind, {projects, resourceVersion: applicationsList.metadata.resourceVersion}, {fields: APP_WATCH_FIELDS})
                     .pipe(repeat())
                     .pipe(retryWhen(errors => errors.pipe(delay(WATCH_RETRY_TIMEOUT))))
                     // batch events to avoid constant re-rendering and improve UI performance
@@ -325,7 +323,7 @@ const FlexTopBar = (props: {toolbar: Toolbar | Observable<Toolbar>}) => {
     );
 };
 
-export const ApplicationsList = () => {
+export const ApplicationsList = (props: RouteComponentProps<any> & {objectListKind: string}) => {
     const query = useQuery();
     const observableQuery$ = useObservableQuery();
     const appInput = tryJsonParse(query.get('new'));
@@ -336,6 +334,10 @@ export const ApplicationsList = () => {
     const [isAppCreatePending, setAppCreatePending] = React.useState(false);
     const loaderRef = React.useRef<DataLoader>();
     const {List, Summary, Tiles} = AppsListViewKey;
+
+    const objectListKind = props.objectListKind;
+    // isListOfApplications will be used when ApplicationSet routes are added
+    // const isListOfApplications = objectListKind === 'application';
 
     function refreshApp(appName: string, appNamespace: string) {
         // app refreshing might be done too quickly so that UI might miss it due to event batching
@@ -348,7 +350,7 @@ export const ApplicationsList = () => {
                 loaderRef.current.setData(applications);
             }
         }
-        services.applications.get(appName, appNamespace, 'normal');
+        services.applications.get(appName, appNamespace, objectListKind, 'normal');
     }
 
     function onFilterPrefChanged(ctx: ContextApis, newPref: AppsListPreferences) {
@@ -398,7 +400,7 @@ export const ApplicationsList = () => {
                                     <DataLoader
                                         input={pref.projectsFilter?.join(',')}
                                         ref={loaderRef}
-                                        load={() => AppUtils.handlePageVisibility(() => loadApplications(ctx, pref.projectsFilter, query.get('appNamespace')))}
+                                        load={() => AppUtils.handlePageVisibility(() => loadApplications(pref.projectsFilter, query.get('appNamespace'), objectListKind))}
                                         loadingRenderer={() => (
                                             <div className='argo-container'>
                                                 <MockupList height={100} marginTop={30} />
@@ -614,7 +616,7 @@ export const ApplicationsList = () => {
                                                                     const syncApp = params.get('syncApp');
                                                                     const appNamespace = params.get('appNamespace');
                                                                     return (
-                                                                        (syncApp && from(services.applications.get(syncApp, appNamespace, ctx.history.location.pathname))) ||
+                                                                        (syncApp && from(services.applications.get(syncApp, appNamespace, objectListKind))) ||
                                                                         from([null])
                                                                     );
                                                                 })

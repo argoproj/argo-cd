@@ -8,7 +8,6 @@ import {mergeMap} from 'rxjs/operators';
 
 import {FormField, Ticker} from 'argo-ui';
 import {ConnectionStateIcon, DataLoader, EditablePanel, Page, Timestamp, MapInputField} from '../../../shared/components';
-import {Context} from '../../../shared/context';
 import {Cluster} from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {formatClusterQueryParam} from '../../../shared/utils';
@@ -22,11 +21,11 @@ export const NamespacesEditor = ReactFormField((props: {fieldApi: FieldApi; clas
     return <input className={props.className} value={val} onChange={event => props.fieldApi.setValue(event.target.value.split(','))} />;
 });
 
-export const ClusterDetails = (props: RouteComponentProps<{server: string}>) => {
+export const ClusterDetails = (props: RouteComponentProps<{server: string}> & {objectListKind?: string}) => {
     const server = decodeURIComponent(props.match.params.server);
     const loaderRef = React.useRef<DataLoader>();
     const [updating, setUpdating] = React.useState(false);
-    const ctx = React.useContext(Context);
+    const objectListKind = props.objectListKind || 'application';
     return (
         <DataLoader ref={loaderRef} input={server} load={(url: string) => timer(0, 1000).pipe(mergeMap(() => from(services.clusters.get(url, ''))))}>
             {(cluster: Cluster) => (
@@ -93,7 +92,7 @@ export const ClusterDetails = (props: RouteComponentProps<{server: string}>) => 
                                     title: 'APPLICATIONS',
                                     view: (
                                         <div>
-                                            <DataLoader load={() => services.applications.list([], ctx)}>
+                                            <DataLoader load={() => services.applications.list([], objectListKind)}>
                                                 {apps => (
                                                     <Link to={`/applications?cluster=${formatClusterQueryParam(cluster)}`}>
                                                         {

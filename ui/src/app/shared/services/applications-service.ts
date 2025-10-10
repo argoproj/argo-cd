@@ -5,9 +5,7 @@ import {map, repeat, retry} from 'rxjs/operators';
 import * as models from '../models';
 import {isValidURL} from '../utils';
 import requests from './requests';
-import {getRootPathByApp, getRootPathByPath, isApp, isInvokedFromAppsPath} from '../../applications/components/utils';
-import {ContextApis} from '../context';
-import {History} from 'history';
+import {getRootPathByApp, isApp} from '../../applications/components/utils';
 
 interface QueryOptions {
     fields: string[];
@@ -23,8 +21,8 @@ function optionsToSearch(options?: QueryOptions) {
     return {};
 }
 
-function getQuery(projects: string[], isFromApps: boolean, options?: QueryOptions): any {
-    if (isFromApps) {
+function getQuery(projects: string[], isListOfApplications: boolean, options?: QueryOptions): any {
+    if (isListOfApplications) {
         return {projects, ...optionsToSearch(options)};
     } else {
         return {...optionsToSearch(options)};
@@ -36,31 +34,31 @@ export class ApplicationsService {
 
     public list(
         projects: string[],
-        ctx: ContextApis & {
-            history: History<unknown>;
-        },
+        objectListKind: string,
         options?: QueryOptions
     ): Promise<models.AbstractApplicationList> {
-        const isFromApps = isInvokedFromAppsPath(ctx.history.location.pathname);
+        const isListOfApplications = objectListKind === 'application';
+        const endpoint = isListOfApplications ? '/applications' : '/applicationsets';
         return requests
-            .get(getRootPathByPath(ctx.history.location.pathname))
-            .query(getQuery(projects, isFromApps, options))
+            .get(endpoint)
+            .query(getQuery(projects, isListOfApplications, options))
             .then(res => {
-                if (isFromApps) {
+                if (isListOfApplications) {
                     return res.body as models.ApplicationList;
                 } else {
                     return res.body as models.ApplicationSetList;
                 }
             })
             .then(list => {
-                list.items = (list.items || []).map(app => this.parseAppFields(app, isFromApps));
+                list.items = (list.items || []).map(app => this.parseAppFields(app, isListOfApplications));
                 return list;
             });
     }
 
-    public get(name: string, appNamespace: string, pathname: string, refresh?: 'normal' | 'hard'): Promise<models.AbstractApplication> {
+    public get(name: string, appNamespace: string, objectListKind: string, refresh?: 'normal' | 'hard'): Promise<models.AbstractApplication> {
         const query: {[key: string]: string} = {};
-        const isFromApps = isInvokedFromAppsPath(pathname);
+        const isListOfApplications = objectListKind === 'application';
+        const endpoint = isListOfApplications ? '/applications' : '/applicationsets';
         if (refresh) {
             query.refresh = refresh;
         }
@@ -68,9 +66,9 @@ export class ApplicationsService {
             query.appNamespace = appNamespace;
         }
         return requests
-            .get(`${getRootPathByPath(pathname)}/${name}`)
+            .get(`${endpoint}/${name}`)
             .query(query)
-            .then(res => this.parseAppFields(res.body, isFromApps));
+            .then(res => this.parseAppFields(res.body, isListOfApplications));
     }
 
     public getApplicationSyncWindowState(name: string, appNamespace: string): Promise<models.ApplicationSyncWindowState> {
@@ -113,16 +111,20 @@ export class ApplicationsService {
         return r.then(res => res.body as models.ChartDetails);
     }
 
-    public resourceTree(name: string, appNamespace: string, pathname: string): Promise<models.AbstractApplicationTree> {
+    public resourceTree(name: string, appNamespace: string, objectListKind: string): Promise<models.AbstractApplicationTree> {
+        const isListOfApplications = objectListKind === 'application';
+        const endpoint = isListOfApplications ? '/applications' : '/applicationsets';
         return requests
-            .get(`${getRootPathByPath(pathname)}/${name}/resource-tree`)
+            .get(`${endpoint}/${name}/resource-tree`)
             .query({appNamespace})
             .then(res => res.body as models.AbstractApplicationTree);
     }
 
-    public watchResourceTree(name: string, appNamespace: string): Observable<models.ApplicationTree> {
+    public watchResourceTree(name: string, appNamespace: string, objectListKind: string): Observable<models.ApplicationTree> {
+        const isListOfApplications = objectListKind === 'application';
+        const endpoint = isListOfApplications ? 'applications' : 'applicationsets';
         return requests
-            .loadEventSource(`/stream/applications/${name}/resource-tree?appNamespace=${appNamespace}`)
+            .loadEventSource(`/stream/${endpoint}/${name}/resource-tree?appNamespace=${appNamespace}`)
             .pipe(map(data => JSON.parse(data).result as models.ApplicationTree));
     }
 
@@ -208,12 +210,13 @@ export class ApplicationsService {
     }
 
     public watch(
-        pathname: string,
+        objectListKind: string,
         query?: {name?: string; resourceVersion?: string; projects?: string[]; appNamespace?: string},
         options?: QueryOptions
     ): Observable<models.ApplicationWatchEvent> {
         const search = new URLSearchParams();
-        const isFromApps = isInvokedFromAppsPath(pathname);
+        const isListOfApplications = objectListKind === 'application';
+        const endpoint = isListOfApplications ? '/applications' : '/applicationsets';
         if (query) {
             if (query.name) {
                 search.set('name', query.name);
@@ -230,12 +233,12 @@ export class ApplicationsService {
             search.set('fields', searchOptions.fields);
             search.set('selector', searchOptions.selector);
             search.set('appNamespace', searchOptions.appNamespace);
-            if (isFromApps) {
+            if (isListOfApplications) {
                 query?.projects?.forEach(project => search.append('projects', project));
             }
         }
         const searchStr = search.toString();
-        const url = `/stream${getRootPathByPath(pathname)}${(searchStr && '?' + searchStr) || ''}`;
+        const url = `/stream${endpoint}${(searchStr && '?' + searchStr) || ''}`;
         return requests
             .loadEventSource(url)
             .pipe(repeat())
@@ -243,7 +246,7 @@ export class ApplicationsService {
             .pipe(map(data => JSON.parse(data).result as models.ApplicationWatchEvent))
             .pipe(
                 map(watchEvent => {
-                    watchEvent.application = this.parseAppFields(watchEvent.application, isFromApps) as models.Application;
+                    watchEvent.application = this.parseAppFields(watchEvent.application, isListOfApplications) as models.Application;
                     return watchEvent;
                 })
             );
