@@ -27,6 +27,7 @@ argocd app list [flags]
 ```
   -N, --app-namespace string   Only list applications in namespace
   -c, --cluster string         List apps by cluster name or url
+  -f, --file stringArray       List apps affected by file
   -h, --help                   help for list
   -o, --output string          Output format. One of: wide|name|json|yaml (default "wide")
   -P, --path string            List apps by path
