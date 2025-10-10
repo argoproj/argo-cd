@@ -75,6 +75,10 @@ data:
     #     - https://argo/oauth2/callback
     #   secret: $secretReference
 
+  # A default dex connector id to force HTTP redirect in Dex Auth endpoint.
+  # Helpful when dex configured with two connectors for human users and for machines.
+  dex.auth.connectorId: github
+
   # OIDC configuration as an alternative to dex (optional).
   oidc.config: |
     name: Okta
