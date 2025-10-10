@@ -24,6 +24,20 @@ patches:
 - target:
     version: v1
     group: ""
+    kind: ConfigMap
+    name: argocd-redis-ha-health-configmap
+    namespace: argocd
+  path: overlays/argocd-redis-ha-health-configmap-script.yaml
+- target:
+    version: v1
+    group: ""
+    kind: ConfigMap
+    name: argocd-redis-ha-configmap
+    namespace: argocd
+  path: overlays/argocd-redis-ha-configmap-script.yaml 
+- target:
+    version: v1
+    group: ""
     kind: ServiceAccount
     name: argocd-redis-ha
     namespace: argocd
@@ -306,3 +320,7 @@ patches:
     kind: Deployment
     name: argocd-redis-ha-haproxy
   path: overlays/deployment-initContainers.yaml
+
+# Enable file mounted secret  
+- path: overlays/redis-ha-haproxy-file-mounted-secret.yaml
+- path: overlays/redis-ha-statefulset-file-mounted-secret.yaml

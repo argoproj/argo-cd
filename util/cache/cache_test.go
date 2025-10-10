@@ -1,6 +1,8 @@
 package cache
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -86,4 +88,65 @@ func TestGenerateCacheKey(t *testing.T) {
 	cache := NewCache(client)
 	testKey := cache.generateFullKey("testkey")
 	assert.Equal(t, "testkey|"+common.CacheVersion, testKey)
+}
+
+// Test loading Redis credentials from a file
+func TestLoadRedisCreds(t *testing.T) {
+	dir := t.TempDir()
+	// Helper to write a file
+	writeFile := func(name, content string) {
+		require.NoError(t, os.WriteFile(filepath.Join(dir, name), []byte(content), 0o400))
+	}
+	// Write all files
+	writeFile("auth", "mypassword\n")
+	writeFile("auth_username", "myuser")
+	writeFile("sentinel_username", "sentineluser")
+	writeFile("sentinel_auth", "sentinelpass")
+
+	creds := loadRedisCreds(dir, Options{})
+	assert.Equal(t, "mypassword", creds.password)
+	assert.Equal(t, "myuser", creds.username)
+	assert.Equal(t, "sentineluser", creds.sentinelUsername)
+	assert.Equal(t, "sentinelpass", creds.sentinelPassword)
+}
+
+// Test loading Redis credentials from environment variables
+func TestLoadRedisCredsFromEnv(t *testing.T) {
+	// Set environment variables
+	t.Setenv(envRedisPassword, "mypassword")
+	t.Setenv(envRedisUsername, "myuser")
+	t.Setenv(envRedisSentinelUsername, "sentineluser")
+	t.Setenv(envRedisSentinelPassword, "sentinelpass")
+
+	creds := loadRedisCreds("", Options{})
+	assert.Equal(t, "mypassword", creds.password)
+	assert.Equal(t, "myuser", creds.username)
+	assert.Equal(t, "sentineluser", creds.sentinelUsername)
+	assert.Equal(t, "sentinelpass", creds.sentinelPassword)
+}
+
+// Test loading Redis credentials from both environment variables and a file
+func TestLoadRedisCredsFromBothEnvAndFile(t *testing.T) {
+	// Set environment variables
+	t.Setenv(envRedisPassword, "mypassword")
+	t.Setenv(envRedisUsername, "myuser")
+	t.Setenv(envRedisSentinelUsername, "sentineluser")
+	t.Setenv(envRedisSentinelPassword, "sentinelpass")
+
+	dir := t.TempDir()
+	// Helper to write a file
+	writeFile := func(name, content string) {
+		require.NoError(t, os.WriteFile(filepath.Join(dir, name), []byte(content), 0o400))
+	}
+	// Write all files
+	writeFile("auth", "filepassword\n")
+	writeFile("auth_username", "fileuser")
+	writeFile("sentinel_username", "filesentineluser")
+	writeFile("sentinel_auth", "filesentinelpass")
+
+	creds := loadRedisCreds(dir, Options{})
+	assert.Equal(t, "filepassword", creds.password)
+	assert.Equal(t, "fileuser", creds.username)
+	assert.Equal(t, "filesentineluser", creds.sentinelUsername)
+	assert.Equal(t, "filesentinelpass", creds.sentinelPassword)
 }

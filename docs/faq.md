@@ -323,6 +323,35 @@ If for some reason authenticated Redis does not work for you and you want to use
 The Redis password is stored in Kubernetes secret `argocd-redis` with key `auth` in the namespace where Argo CD is installed.
 You can config your secret provider to generate Kubernetes secret accordingly.
 
+## How do I provide Redis credentials using a file mount?
+
+Redis credentials can be mounted as files in a specified directory, rather than being set directly as environment variables from a secret.
+
+**Set the Environment Variable**
+
+Set the `REDIS_CREDS_FILE_PATH` environment variable to the directory where your credential files are mounted.
+
+| Variable Name           | Description                                   |
+|-------------------------|-----------------------------------------------|
+| `REDIS_CREDS_FILE_PATH` | Path to the directory containing credential files |
+
+**Provide Credential Files**
+
+Place the following files in the specified directory:
+
+| Credential Type      | File Name           |
+|----------------------|---------------------|
+| Redis password       | `auth`              |
+| Redis username       | `auth_username`     |
+| Sentinel username    | `sentinel_username` |
+| Sentinel password    | `sentinel_auth`     |
+
+- **Fallback behavior:**
+  - If `REDIS_CREDS_FILE_PATH` (or its prefixed variant) is set, Argo CD reads credentials only from the mounted files. Missing files do not fall back to environment variables; the corresponding values remain empty.
+  - If no credentials file path is set, Argo CD reads from environment variables (`REDIS_USERNAME`, `REDIS_PASSWORD`, `REDIS_SENTINEL_USERNAME`, `REDIS_SENTINEL_PASSWORD`) and their prefixed variants.
+
+This avoids ambiguity between mounted files and environment variables while still supporting env-only setups when no mount is provided.
+
 ## How do I fix `Manifest generation error (cached)`?
 
 `Manifest generation error (cached)` means that there was an error when generating manifests and that the error message has been cached to avoid runaway retries.
