@@ -378,11 +378,11 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
 	if err != nil {
 		return nil, err
 	}
-	kustomizeSettings, err := s.settings.GetKustomizeSettings()
+	kustomizeSettings, err := s.settings.GetKustomizeSettings(ctx)
 	if err != nil {
 		return nil, err
 	}
-	helmOptions, err := s.settings.GetHelmSettings()
+	helmOptions, err := s.settings.GetHelmSettings(ctx)
 	if err != nil {
 		return nil, err
 	}

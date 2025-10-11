@@ -35,7 +35,7 @@ func (ctrl *ApplicationController) GetRepoObjs(ctx context.Context, origApp *app
 	drySources := []appv1.ApplicationSource{drySource}
 	dryRevisions := []string{revision}
 
-	appLabelKey, err := ctrl.settingsMgr.GetAppInstanceLabelKey()
+	appLabelKey, err := ctrl.settingsMgr.GetAppInstanceLabelKey(ctx)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get app instance label key: %w", err)
 	}
@@ -54,7 +54,7 @@ func (ctrl *ApplicationController) GetRepoObjs(ctx context.Context, origApp *app
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get repo objects: %w", err)
 	}
-	trackingMethod, err := ctrl.settingsMgr.GetTrackingMethod()
+	trackingMethod, err := ctrl.settingsMgr.GetTrackingMethod(ctx)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get tracking method: %w", err)
 	}
@@ -88,18 +88,18 @@ func (ctrl *ApplicationController) RequestAppRefresh(appName string, appNamespac
 	return nil
 }
 
-func (ctrl *ApplicationController) PersistAppHydratorStatus(orig *appv1.Application, newStatus *appv1.SourceHydratorStatus) {
+func (ctrl *ApplicationController) PersistAppHydratorStatus(ctx context.Context, orig *appv1.Application, newStatus *appv1.SourceHydratorStatus) {
 	status := orig.Status.DeepCopy()
 	status.SourceHydrator = *newStatus
-	ctrl.persistAppStatus(orig, status)
+	ctrl.persistAppStatus(ctx, orig, status)
 }
 
 func (ctrl *ApplicationController) AddHydrationQueueItem(key types.HydrationQueueKey) {
 	ctrl.hydrationQueue.AddRateLimited(key)
 }
 
-func (ctrl *ApplicationController) GetHydratorCommitMessageTemplate() (string, error) {
-	sourceHydratorCommitMessageKey, err := ctrl.settingsMgr.GetSourceHydratorCommitMessageTemplate()
+func (ctrl *ApplicationController) GetHydratorCommitMessageTemplate(ctx context.Context) (string, error) {
+	sourceHydratorCommitMessageKey, err := ctrl.settingsMgr.GetSourceHydratorCommitMessageTemplate(ctx)
 	if err != nil {
 		return "", fmt.Errorf("failed to get sourceHydrator commit message template key: %w", err)
 	}

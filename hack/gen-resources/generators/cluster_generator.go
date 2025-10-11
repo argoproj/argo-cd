@@ -64,7 +64,7 @@ func NewClusterGenerator(db db.ArgoDB, clientSet *kubernetes.Clientset, config *
 	return &ClusterGenerator{db, clientSet, config}
 }
 
-func (cg *ClusterGenerator) getClusterCredentials(namespace string, releaseSuffix string) ([]byte, []byte, []byte, error) {
+func (cg *ClusterGenerator) getClusterCredentials(ctx context.Context, namespace string, releaseSuffix string) ([]byte, []byte, []byte, error) {
 	cmd := []string{
 		"sh",
 		"-c",
@@ -94,7 +94,7 @@ func (cg *ClusterGenerator) getClusterCredentials(namespace string, releaseSuffi
 		return nil, nil, nil, err
 	}
 
-	err = exec.StreamWithContext(context.Background(), remotecommand.StreamOptions{
+	err = exec.StreamWithContext(ctx, remotecommand.StreamOptions{
 		Stdin:  &stdin,
 		Stdout: &stdout,
 		Stderr: &stderr,
@@ -170,7 +170,7 @@ func (cg *ClusterGenerator) retrieveClusterURI(namespace, releaseSuffix string) 
 	return ""
 }
 
-func (cg *ClusterGenerator) generate(i int, opts *util.GenerateOpts) error {
+func (cg *ClusterGenerator) generate(ctx context.Context, i int, opts *util.GenerateOpts) error {
 	log.Printf("Generate cluster #%v of #%v", i, opts.ClusterOpts.Samples)
 
 	namespace := opts.ClusterOpts.NamespacePrefix + "-" + util.GetRandomString()
@@ -187,7 +187,7 @@ func (cg *ClusterGenerator) generate(i int, opts *util.GenerateOpts) error {
 	}
 
 	log.Print("Get cluster credentials")
-	caData, cert, key, err := cg.getClusterCredentials(namespace, releaseSuffix)
+	caData, cert, key, err := cg.getClusterCredentials(ctx, namespace, releaseSuffix)
 
 	for o := 0; o < 5; o++ {
 		if err == nil {
@@ -195,7 +195,7 @@ func (cg *ClusterGenerator) generate(i int, opts *util.GenerateOpts) error {
 		}
 		log.Printf("Failed to get cluster credentials %s, retrying...", releaseSuffix)
 		time.Sleep(10 * time.Second)
-		caData, cert, key, err = cg.getClusterCredentials(namespace, releaseSuffix)
+		caData, cert, key, err = cg.getClusterCredentials(ctx, namespace, releaseSuffix)
 	}
 	if err != nil {
 		return err
@@ -230,7 +230,7 @@ func (cg *ClusterGenerator) generate(i int, opts *util.GenerateOpts) error {
 	return nil
 }
 
-func (cg *ClusterGenerator) Generate(opts *util.GenerateOpts) error {
+func (cg *ClusterGenerator) Generate(ctx context.Context, opts *util.GenerateOpts) error {
 	log.Printf("Excute in parallel with %v", opts.ClusterOpts.Concurrency)
 
 	wg := util.New(opts.ClusterOpts.Concurrency)
@@ -238,7 +238,7 @@ func (cg *ClusterGenerator) Generate(opts *util.GenerateOpts) error {
 		wg.Add()
 		go func(i int) {
 			defer wg.Done()
-			err := cg.generate(i, opts)
+			err := cg.generate(ctx, i, opts)
 			if err != nil {
 				log.Printf("Failed to generate cluster #%v due to : %s", i, err.Error())
 			}

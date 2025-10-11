@@ -301,13 +301,14 @@ func createClusterIndexByClusterIdMap(getCluster clusterAccessor) map[string]int
 // If the shard value passed to this function is -1, that is, the shard was not set as an environment variable,
 // we default the shard number to 0 for computing the default config map.
 func GetOrUpdateShardFromConfigMap(kubeClient kubernetes.Interface, settingsMgr *settings.SettingsManager, replicas, shard int) (int, error) {
+	ctx := context.Background()
 	hostname, err := osHostnameFunction()
 	if err != nil {
 		return -1, err
 	}
 
 	// fetch the shard mapping configMap
-	shardMappingCM, err := kubeClient.CoreV1().ConfigMaps(settingsMgr.GetNamespace()).Get(context.Background(), common.ArgoCDAppControllerShardConfigMapName, metav1.GetOptions{})
+	shardMappingCM, err := kubeClient.CoreV1().ConfigMaps(settingsMgr.GetNamespace()).Get(ctx, common.ArgoCDAppControllerShardConfigMapName, metav1.GetOptions{})
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
 			return -1, fmt.Errorf("error getting sharding config map: %w", err)
@@ -322,7 +323,7 @@ func GetOrUpdateShardFromConfigMap(kubeClient kubernetes.Interface, settingsMgr 
 		if err != nil {
 			return -1, fmt.Errorf("error generating default shard mapping configmap %w", err)
 		}
-		if _, err = kubeClient.CoreV1().ConfigMaps(settingsMgr.GetNamespace()).Create(context.Background(), shardMappingCM, metav1.CreateOptions{}); err != nil {
+		if _, err = kubeClient.CoreV1().ConfigMaps(settingsMgr.GetNamespace()).Create(ctx, shardMappingCM, metav1.CreateOptions{}); err != nil {
 			return -1, fmt.Errorf("error creating shard mapping configmap %w", err)
 		}
 		// return 0 as the controller is assigned to shard 0 while generating default shard mapping ConfigMap
@@ -343,7 +344,7 @@ func GetOrUpdateShardFromConfigMap(kubeClient kubernetes.Interface, settingsMgr 
 	}
 	shardMappingCM.Data[ShardControllerMappingKey] = string(updatedShardMappingData)
 
-	_, err = kubeClient.CoreV1().ConfigMaps(settingsMgr.GetNamespace()).Update(context.Background(), shardMappingCM, metav1.UpdateOptions{})
+	_, err = kubeClient.CoreV1().ConfigMaps(settingsMgr.GetNamespace()).Update(ctx, shardMappingCM, metav1.UpdateOptions{})
 	if err != nil {
 		return -1, err
 	}

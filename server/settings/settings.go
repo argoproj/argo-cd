@@ -39,7 +39,7 @@ func NewServer(mgr *settings.SettingsManager, repoClient apiclient.Clientset, au
 
 // Get returns Argo CD settings
 func (s *Server) Get(ctx context.Context, _ *settingspkg.SettingsQuery) (*settingspkg.Settings, error) {
-	resourceOverrides, err := s.mgr.GetResourceOverrides()
+	resourceOverrides, err := s.mgr.GetResourceOverrides(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -48,24 +48,24 @@ func (s *Server) Get(ctx context.Context, _ *settingspkg.SettingsQuery) (*settin
 		val := resourceOverrides[k]
 		overrides[k] = &val
 	}
-	appInstanceLabelKey, err := s.mgr.GetAppInstanceLabelKey()
+	appInstanceLabelKey, err := s.mgr.GetAppInstanceLabelKey(ctx)
 	if err != nil {
 		return nil, err
 	}
-	argoCDSettings, err := s.mgr.GetSettings()
+	argoCDSettings, err := s.mgr.GetSettings(ctx)
 	if err != nil {
 		return nil, err
 	}
-	gaSettings, err := s.mgr.GetGoogleAnalytics()
+	gaSettings, err := s.mgr.GetGoogleAnalytics(ctx)
 	if err != nil {
 		return nil, err
 	}
-	help, err := s.mgr.GetHelp()
+	help, err := s.mgr.GetHelp(ctx)
 	if err != nil {
 		return nil, err
 	}
 	userLoginsDisabled := true
-	accounts, err := s.mgr.GetAccounts()
+	accounts, err := s.mgr.GetAccounts(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -76,7 +76,7 @@ func (s *Server) Get(ctx context.Context, _ *settingspkg.SettingsQuery) (*settin
 		}
 	}
 
-	kustomizeSettings, err := s.mgr.GetKustomizeSettings()
+	kustomizeSettings, err := s.mgr.GetKustomizeSettings(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -85,12 +85,12 @@ func (s *Server) Get(ctx context.Context, _ *settingspkg.SettingsQuery) (*settin
 		kustomizeVersions = append(kustomizeVersions, kustomizeSettings.Versions[i].Name)
 	}
 
-	trackingMethod, err := s.mgr.GetTrackingMethod()
+	trackingMethod, err := s.mgr.GetTrackingMethod(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	installationID, err := s.mgr.GetInstallationID()
+	installationID, err := s.mgr.GetInstallationID(ctx)
 	if err != nil {
 		return nil, err
 	}

@@ -79,7 +79,7 @@ func FetchRepos(token string, samples int) ([]Repo, error) {
 	return repos, nil
 }
 
-func (rg *RepoGenerator) Generate(opts *util.GenerateOpts) error {
+func (rg *RepoGenerator) Generate(_ context.Context, opts *util.GenerateOpts) error {
 	repos, err := FetchRepos(opts.GithubToken, opts.RepositoryOpts.Samples)
 	if err != nil {
 		return err

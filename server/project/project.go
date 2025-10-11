@@ -184,7 +184,7 @@ func (s *Server) ListLinks(ctx context.Context, q *project.ListProjectLinksReque
 		return nil, fmt.Errorf("error getting application: %w", err)
 	}
 
-	deepLinks, err := s.settingsMgr.GetDeepLinks(settings.ProjectDeepLinks)
+	deepLinks, err := s.settingsMgr.GetDeepLinks(ctx, settings.ProjectDeepLinks)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read application deep links from configmap: %w", err)
 	}

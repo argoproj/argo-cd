@@ -319,7 +319,7 @@ func TestGetCluster_CannotSetCADataAndInsecureTrue(t *testing.T) {
 		},
 	}
 	clientset := getClientset(nil, testNamespace)
-	db := db.NewDB(testNamespace, settings.NewSettingsManager(t.Context(), clientset, testNamespace), clientset)
+	db := db.NewDB(testNamespace, settings.NewSettingsManager(clientset, testNamespace), clientset)
 	server := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{})
 
 	t.Run("Create Fails When CAData is Set and Insecure is True", func(t *testing.T) {
@@ -474,7 +474,7 @@ func TestDeleteClusterByName(t *testing.T) {
 			"config": []byte("{}"),
 		},
 	})
-	db := db.NewDB(testNamespace, settings.NewSettingsManager(t.Context(), clientset, testNamespace), clientset)
+	db := db.NewDB(testNamespace, settings.NewSettingsManager(clientset, testNamespace), clientset)
 	server := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{})
 
 	t.Run("Delete Fails When Deleting by Unknown Name", func(t *testing.T) {
@@ -551,7 +551,7 @@ func TestRotateAuth(t *testing.T) {
 			},
 		})
 
-	db := db.NewDB(testNamespace, settings.NewSettingsManager(t.Context(), clientset, testNamespace), clientset)
+	db := db.NewDB(testNamespace, settings.NewSettingsManager(clientset, testNamespace), clientset)
 	server := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{})
 
 	t.Run("RotateAuth by Unknown Name", func(t *testing.T) {
