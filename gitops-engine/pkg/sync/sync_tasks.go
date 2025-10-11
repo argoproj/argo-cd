@@ -2,6 +2,7 @@ package sync
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 
@@ -255,6 +256,58 @@ func (s syncTasks) wave() int {
 		return s[0].wave()
 	}
 	return 0
+}
+
+func (s syncTasks) syncIdentities() []common.SyncIdentity {
+	if len(s) > 0 {
+		syncIdentities := make([]common.SyncIdentity, 0)
+		for i := range s {
+			wi := &common.SyncIdentity{Phase: s[i].phase, Wave: s[i].wave(), WaveGroup: s[i].waveGroup()}
+			if !slices.Contains(syncIdentities, *wi) {
+				syncIdentities = append(syncIdentities, *wi)
+			}
+		}
+		return syncIdentities
+	}
+	return make([]common.SyncIdentity, 0)
+}
+
+func (s syncTasks) getDependencyGraph() (common.WaveDependencyGraph, bool) {
+	dependencyGraph := common.WaveDependencyGraph{Dependencies: make(map[common.GroupIdentity][]common.GroupIdentity)}
+	for _, task := range s {
+		if task.targetObj != nil {
+			origin := common.GroupIdentity{Phase: task.phase, WaveGroup: task.waveGroup()}
+			for _, dependency := range task.waveGroupDependencies() {
+				destination := common.GroupIdentity{Phase: task.phase, WaveGroup: dependency}
+				cycleFree := dependencyGraph.AddDependency(&origin, &destination)
+				if !cycleFree {
+					emptydependencyGraph := common.WaveDependencyGraph{Dependencies: make(map[common.GroupIdentity][]common.GroupIdentity)}
+					return emptydependencyGraph, false
+				}
+			}
+		}
+	}
+	return dependencyGraph, true
+}
+
+func (s syncTasks) independentSyncIdentities(dependencyGraph common.WaveDependencyGraph) []common.SyncIdentity {
+	if len(s) > 0 {
+		firstSyncIdentities := make([]common.SyncIdentity, 0)
+		for i, firstSyncTask := range s {
+			belongsToFirstWaveGroups := true
+			for _, secondSyncTask := range s {
+				if firstSyncTask.dependsOn(secondSyncTask, dependencyGraph) {
+					belongsToFirstWaveGroups = false
+				}
+			}
+			wi := &common.SyncIdentity{Phase: s[i].phase, Wave: s[i].wave(), WaveGroup: s[i].waveGroup()}
+			if belongsToFirstWaveGroups && !slices.Contains(firstSyncIdentities, *wi) {
+				firstSyncIdentities = append(firstSyncIdentities, *wi)
+			}
+		}
+		return firstSyncIdentities
+	}
+	return make([]common.SyncIdentity, 0)
 }
 
 func (s syncTasks) lastPhase() common.SyncPhase {
