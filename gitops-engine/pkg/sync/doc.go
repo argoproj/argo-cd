@@ -75,6 +75,10 @@ that runs before all other resources. The `argocd.argoproj.io/sync-wave` annotat
 	  annotations:
 	    argocd.argoproj.io/sync-wave: "5"
 
+# Sync Groups
+
+The wave groups allow to define independant/dependent sync processes
+
 # Sync Options
 
 The sync options allows customizing the synchronization of selected resources. The options are specified using the
@@ -89,6 +93,7 @@ How Does It Work Together?
 Syncing process orders the resources in the following precedence:
 
 - The phase
+- The group with respect to group dependencies
 - The wave they are in (lower values first)
 - By kind (e.g. namespaces first)
 - By name

@@ -12,6 +12,10 @@ const (
 	AnnotationSyncOptions = "argocd.argoproj.io/sync-options"
 	// AnnotationSyncWave indicates which wave of the sync the resource or hook should be in
 	AnnotationSyncWave = "argocd.argoproj.io/sync-wave"
+	// AnnotationSyncWaveGroup indicates which wave of the sync the resource or hook should be in
+	AnnotationSyncWaveGroup = "argocd.argoproj.io/sync-wave-group"
+	// AnnotationSyncWaveGroupDependencies indicates which wave of the sync the resource or hook should be in
+	AnnotationSyncWaveGroupDependencies = "argocd.argoproj.io/sync-wave-group-dependencies"
 	// AnnotationKeyHook contains the hook type of a resource
 	AnnotationKeyHook = "argocd.argoproj.io/hook"
 	// AnnotationKeyHookDeletePolicy is the policy of deleting a hook
@@ -59,10 +63,16 @@ type PermissionValidator func(un *unstructured.Unstructured, res *metav1.APIReso
 
 type SyncPhase string
 
+type SyncIdentity struct {
+	Phase     SyncPhase
+	Wave      int
+	WaveGroup int
+}
+
 // SyncWaveHook is a callback function which will be invoked after each sync wave is successfully
 // applied during a sync operation. The callback indicates which phase and wave it had just
 // executed, and whether or not that wave was the final one.
-type SyncWaveHook func(phase SyncPhase, wave int, final bool) error
+type SyncWaveHook func(t []SyncIdentity, final bool) error
 
 const (
 	SyncPhasePreSync  = "PreSync"
