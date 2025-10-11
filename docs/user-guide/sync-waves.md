@@ -80,6 +80,14 @@ It repeats this process until all phases and waves are in-sync and healthy.
 
 Because an application can have resources that are unhealthy in the first wave, it may be that the app can never get to healthy.
 
+## How Sync Waves Groups work?
+
+On top of Sync waves, Argo CD offers a way to group resources belonging to a same component (examples : Kafka, UI, Database, MyCusonComponent, ...). These are sync wave groups. They are defined by the argocd.argoproj.io/sync-wave-group annotation. The value is an integer that defines the component of which the resource belongs. Sync Wave groups behave like apps within the main app. Resources within a same Sync Wave group will be synced according to their Sync wave's values.
+
+It is possible to define dependencies between Sync Wave groups. These are sync wave group dependencies. They are defined at resource level by the argocd.argoproj.io/sync-wave-group-dependencies annotation. The value is a list of integers, separated by commas. These integers define the Sync Wave groups that need to be synced before the resource in which this annotation is defined.
+
+Note that in order to avoid circular dependencies, values defined in argocd.argoproj.io/sync-wave-group-dependencies will only be taken into account if they are strictly less than the Sync Wave group value.
+
 ## How Do I Configure Phases?
 
 Pre-sync and post-sync can only contain hooks. Apply the hook annotation:
@@ -100,9 +108,11 @@ Specify the wave using the following annotation:
 metadata:
   annotations:
     argocd.argoproj.io/sync-wave: "5"
+    argocd.argoproj.io/sync-wave-group: "2"
+    argocd.argoproj.io/sync-wave-group-dependencies: "0,1"
 ```
 
-Hooks and resources are assigned to wave zero by default. The wave can be negative, so you can create a wave that runs before all other resources.
+Hooks and resources are assigned to wave zero and wave goup zero by default. The wave can be negative, so you can create a wave that runs before all other resources.
 
 ## Examples
 

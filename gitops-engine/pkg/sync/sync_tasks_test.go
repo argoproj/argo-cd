@@ -482,3 +482,103 @@ func Test_syncTasks_multiStep(t *testing.T) {
 		assert.True(t, tasks.multiStep())
 	})
 }
+
+func Test_syncTasks_identities(t *testing.T) {
+
+	var multiplePhasesTasks = syncTasks{
+		{
+			phase: common.SyncPhasePreSync, targetObj: &unstructured.Unstructured{},
+		},
+		{
+			phase: common.SyncPhaseSync,
+			targetObj: &unstructured.Unstructured{
+				Object: map[string]any{
+					"metadata": map[string]any{
+						"name": "a",
+						"annotations": map[string]any{
+							"argocd.argoproj.io/sync-wave": "1",
+						},
+					},
+				},
+			},
+		},
+		{
+			phase: common.SyncPhaseSync,
+			targetObj: &unstructured.Unstructured{
+				Object: map[string]any{
+					"metadata": map[string]any{
+						"name": "b",
+						"annotations": map[string]any{
+							"argocd.argoproj.io/sync-wave":       "1",
+							"argocd.argoproj.io/sync-wave-group": "1",
+						},
+					},
+				},
+			},
+		},
+		{
+			phase: common.SyncPhaseSync,
+			targetObj: &unstructured.Unstructured{
+				Object: map[string]any{
+					"metadata": map[string]any{
+						"name": "c",
+						"annotations": map[string]any{
+							"argocd.argoproj.io/sync-wave":                    "1",
+							"argocd.argoproj.io/sync-wave-group":              "2",
+							"argocd.argoproj.io/sync-wave-group-dependencies": "0,1",
+						},
+					},
+				},
+			},
+		},
+	}
+	assert.Equal(t, 4, len(multiplePhasesTasks.syncIdentities()))
+	assert.Equal(t, 1, len(multiplePhasesTasks.independantSyncIdentities()))
+
+	var singlePhaseTasks = syncTasks{
+		{
+			phase: common.SyncPhaseSync,
+			targetObj: &unstructured.Unstructured{
+				Object: map[string]any{
+					"metadata": map[string]any{
+						"name": "a",
+						"annotations": map[string]any{
+							"argocd.argoproj.io/sync-wave": "1",
+						},
+					},
+				},
+			},
+		},
+		{
+			phase: common.SyncPhaseSync,
+			targetObj: &unstructured.Unstructured{
+				Object: map[string]any{
+					"metadata": map[string]any{
+						"name": "b",
+						"annotations": map[string]any{
+							"argocd.argoproj.io/sync-wave":       "1",
+							"argocd.argoproj.io/sync-wave-group": "1",
+						},
+					},
+				},
+			},
+		},
+		{
+			phase: common.SyncPhaseSync,
+			targetObj: &unstructured.Unstructured{
+				Object: map[string]any{
+					"metadata": map[string]any{
+						"name": "c",
+						"annotations": map[string]any{
+							"argocd.argoproj.io/sync-wave":                    "1",
+							"argocd.argoproj.io/sync-wave-group":              "2",
+							"argocd.argoproj.io/sync-wave-group-dependencies": "0,1",
+						},
+					},
+				},
+			},
+		},
+	}
+	assert.Equal(t, 3, len(singlePhaseTasks.syncIdentities()))
+	assert.Equal(t, 2, len(singlePhaseTasks.independantSyncIdentities()))
+}
