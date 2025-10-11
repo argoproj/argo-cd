@@ -2,6 +2,7 @@ package template
 
 import (
 	"fmt"
+	"strings"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -63,6 +64,22 @@ func GenerateApplications(logCtx *log.Entry, applicationSetInfo argov1alpha1.App
 					app = patchedApplication
 				}
 
+				if applicationSetInfo.Spec.TemplateJSONPatch != nil {
+					patchedApplication, err := renderTemplateJSONPatch(renderer, app, applicationSetInfo, p)
+					if err != nil {
+						log.WithError(err).WithField("params", a.Params).WithField("generator", requestedGenerator).
+							Error("error generating application from params")
+
+						if firstError == nil {
+							firstError = err
+							applicationSetReason = argov1alpha1.ApplicationSetReasonRenderTemplateParamsError
+						}
+						continue
+					}
+
+					app = patchedApplication
+				}
+
 				// The app's namespace must be the same as the AppSet's namespace to preserve the appsets-in-any-namespace
 				// security boundary.
 				app.Namespace = applicationSetInfo.Namespace
@@ -86,6 +103,22 @@ func renderTemplatePatch(r utils.Renderer, app *argov1alpha1.Application, applic
 	}
 
 	return applyTemplatePatch(app, replacedTemplate)
+}
+
+func renderTemplateJSONPatch(r utils.Renderer, app *argov1alpha1.Application, applicationSetInfo argov1alpha1.ApplicationSet, params map[string]any) (*argov1alpha1.Application, error) {
+	replacedTemplate, err := r.Replace(*applicationSetInfo.Spec.TemplateJSONPatch, params, applicationSetInfo.Spec.GoTemplate, applicationSetInfo.Spec.GoTemplateOptions)
+	if err != nil {
+		return nil, fmt.Errorf("error replacing values in templateJSONPatch: %w", err)
+	}
+
+	// If the templateJSONPatch does not appear to be a
+	// json array after rendendering do not try to apply
+	// json+patches. This deals with templateJSONPatchs
+	// that are not rendered from templeting.
+	if utils.IsJSONArray(replacedTemplate) {
+		return applyTemplateJSONPatch(app, strings.TrimSpace(replacedTemplate))
+	}
+	return app, nil
 }
 
 func GetTempApplication(applicationSetTemplate argov1alpha1.ApplicationSetTemplate) *argov1alpha1.Application {
