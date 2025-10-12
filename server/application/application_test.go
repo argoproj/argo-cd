@@ -2559,7 +2559,7 @@ func TestGetApp_HealthStatusPropagation(t *testing.T) {
 			}},
 		})
 		require.NoError(t, err)
-		appServer.cache = servercache.NewCache(appStateCache, time.Minute, time.Minute)
+		appServer.cache = servercache.NewCache(appStateCache, time.Minute, time.Minute, time.Minute)
 
 		return appServer, testApp
 	}
