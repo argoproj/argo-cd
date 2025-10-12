@@ -121,9 +121,7 @@ func FilterByFile(apps []argoappv1.Application, file []string) []argoappv1.Appli
 		return apps
 	}
 	items := make([]argoappv1.Application, 0)
-	// TODO: use a map to identify already added apps/items to prevent duplication.
-	// The problem here is Application type is not comparable.
-	// existentApps := make(map[argoappv1.Application]bool)
+	existing := make([]bool, len(apps))
 	for i := 0; i < len(file); i++ {
 		filePath := filepath.Clean(file[i])
 		for j := 0; j < len(apps); j++ {
@@ -156,9 +154,9 @@ func FilterByFile(apps []argoappv1.Application, file []string) []argoappv1.Appli
 				if err != nil {
 					return nil
 				}
-				if !strings.HasPrefix(relativePath, "..") { // && !existentApps[a] {
+				if !strings.HasPrefix(relativePath, "..") && !existing[j] {
 					items = append(items, a)
-					// existentApps[a] = true
+					existing[j] = true
 					break
 				}
 			}

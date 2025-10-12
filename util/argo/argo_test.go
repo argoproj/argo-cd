@@ -599,6 +599,11 @@ func TestFilterByFile(t *testing.T) {
 		// Expected: zero apps are returned
 		assert.Empty(t, res)
 	})
+	t.Run("Duplicate file arguments returns only two apps", func(t *testing.T) {
+		res := FilterByFile(apps, []string{"example/apps/foo/base.yaml", "example/apps/foo/chart/manifest.yaml"})
+		// Expected: app1, app2 only. no duplicates
+		assert.Len(t, res, 2)
+	})
 }
 
 func TestFilterByProjectsP(t *testing.T) {
