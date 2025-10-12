@@ -50,14 +50,19 @@ func applyTemplateJSONPatch(app *appv1.Application, templateJSONPatch string) (*
 		return nil, fmt.Errorf("error while marhsalling Application %w", err)
 	}
 
-	patch, err := jsonpatch.DecodePatch([]byte(templateJSONPatch))
+	convertedTemplatePatch, err := utils.ConvertYAMLToJSON(templateJSONPatch)
 	if err != nil {
-		return nil, fmt.Errorf("error while decoding templateJSONPatch %q: %w", templateJSONPatch, err)
+		return nil, fmt.Errorf("error while converting template to json %q: %w", convertedTemplatePatch, err)
+	}
+
+	patch, err := jsonpatch.DecodePatch([]byte(convertedTemplatePatch))
+	if err != nil {
+		return nil, fmt.Errorf("error while decoding templateJSONPatch %q: %w", convertedTemplatePatch, err)
 	}
 
 	data, err := patch.Apply(appString)
 	if err != nil {
-		return nil, fmt.Errorf("error while applying templateJsonPatch %q: %w", templateJSONPatch, err)
+		return nil, fmt.Errorf("error while applying templateJSONPatch %q: %w", convertedTemplatePatch, err)
 	}
 
 	finalApp := appv1.Application{}

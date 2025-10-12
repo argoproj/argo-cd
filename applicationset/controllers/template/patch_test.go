@@ -249,7 +249,7 @@ func Test_ApplyTemplateJSONPatch(t *testing.T) {
 		expectedApp       *appv1.Application
 	}{
 		{
-			name: "json+path",
+			name: "json+path JSON",
 			appTemplate: &appv1.Application{
 				TypeMeta: metav1.TypeMeta{
 					Kind:       "Application",
@@ -310,6 +310,86 @@ func Test_ApplyTemplateJSONPatch(t *testing.T) {
 		"path": "/spec/syncPolicy/automated/prune",
 		"value": true
 	}
+]`,
+			expectedApp: &appv1.Application{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "Application",
+					APIVersion: "argoproj.io/v1alpha1",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:       "my-cluster-guestbook",
+					Namespace:  "namespace",
+					Finalizers: []string{appv1.ResourcesFinalizerName},
+					Annotations: map[string]string{
+						"annotation-some-key": "annotation-some-value",
+					},
+				},
+				Spec: appv1.ApplicationSpec{
+					Project: "default",
+					Source: &appv1.ApplicationSource{
+						RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+						TargetRevision: "HEAD",
+						Path:           "guestbook",
+						Helm: &appv1.ApplicationSourceHelm{
+							ValueFiles: []string{
+								"values.test.yaml",
+								"values.big.yaml",
+							},
+						},
+					},
+					Destination: appv1.ApplicationDestination{
+						Server:    "https://kubernetes.default.svc",
+						Namespace: "guestbook",
+					},
+					SyncPolicy: &appv1.SyncPolicy{
+						Automated: &appv1.SyncPolicyAutomated{
+							Prune: true,
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "json+path YAML",
+			appTemplate: &appv1.Application{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "Application",
+					APIVersion: "argoproj.io/v1alpha1",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:       "my-cluster-guestbook",
+					Namespace:  "namespace",
+					Finalizers: []string{appv1.ResourcesFinalizerName},
+				},
+				Spec: appv1.ApplicationSpec{
+					Project: "default",
+					Source: &appv1.ApplicationSource{
+						RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+						TargetRevision: "HEAD",
+						Path:           "guestbook",
+					},
+					Destination: appv1.ApplicationDestination{
+						Server:    "https://kubernetes.default.svc",
+						Namespace: "guestbook",
+					},
+				},
+			},
+			templateJSONPatch: `
+- op: add
+  path: /metadata/annotations
+  value:
+    annotation-some-key: annotation-some-value
+- op: add
+  path: /spec/source/helm
+  value:
+    valueFiles:
+	  - values.text.yaml
+	    values.big.yaml
+- op: add
+  path: /spec/syncPolicy
+  value:
+    automated:
+	  prune: true
 ]`,
 			expectedApp: &appv1.Application{
 				TypeMeta: metav1.TypeMeta{
@@ -421,6 +501,51 @@ replicaCount: 3`,
 								},
 							},
 						},
+					},
+				},
+			},
+		},
+		{
+			name: "json+path no patch",
+			appTemplate: &appv1.Application{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "Application",
+					APIVersion: "argoproj.io/v1alpha1",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:       "my-cluster-guestbook",
+					Namespace:  "namespace",
+					Finalizers: []string{appv1.ResourcesFinalizerName},
+				},
+				Spec: appv1.ApplicationSpec{
+					Project: "default",
+					Source: &appv1.ApplicationSource{
+						RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+						TargetRevision: "HEAD",
+						Path:           "guestbook",
+					},
+					Destination: appv1.ApplicationDestination{
+						Server:    "https://kubernetes.default.svc",
+						Namespace: "guestbook",
+					},
+				},
+			},
+			templateJSONPatch: `# No actual patch`,
+			expectedApp: &appv1.Application{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "Application",
+					APIVersion: "argoproj.io/v1alpha1",
+				},
+				Spec: appv1.ApplicationSpec{
+					Project: "default",
+					Source: &appv1.ApplicationSource{
+						RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+						TargetRevision: "HEAD",
+						Path:           "guestbook",
+					},
+					Destination: appv1.ApplicationDestination{
+						Server:    "https://kubernetes.default.svc",
+						Namespace: "guestbook",
 					},
 				},
 			},

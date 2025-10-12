@@ -201,7 +201,7 @@ spec:
 > When writing a `templatePatch`, you're crafting a patch. So, if the patch includes an empty `spec: # nothing in here`, it will effectively clear out existing fields. See [#17040](https://github.com/argoproj/argo-cd/issues/17040) for an example of this behavior.
 
 
-## Template Json Patch
+## Template JSON Patch
 
 The `templateJsonPatch` feature enables advanced templating with support for `json+patch` using RFC 6902.  This feature has all of the limitations of templatePatch and is applied after `templatePatch` so both features can be used together.  It's big advantage over templatePatch is it's ability to target elements inside arrays which works well with `sources` and any arrays inside `valuesObject`
 
@@ -249,4 +249,19 @@ spec:
       }
       {{ end }}
     ]
+```
+The templateJSONPatch can also contain a `json+patch` in YAML format.
+
+```
+  templateJSONPatch: |
+    - op: replace:
+      path: /spec/source/helm/valuefiles
+      value: {{ .valueFiles | toJson }}
+    {{ if .autoSync }}
+    - op: add:
+      path: /spec/syncPolicy
+      value:
+        automated:
+          prune: {{.prune}} 
+    {{ end }}
 ```

@@ -1390,33 +1390,3 @@ WkBKOclmOV2xlTVuPw==
 		})
 	}
 }
-
-func TestIsJSONArray(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		input    string
-		expected bool
-	}{
-		{`["a", "b", "c"]`, true},
-		{`[1, 2, 3]`, true},
-		{`[]`, true},
-		{`{"key": "value"}`, false},
-		{`"string"`, false},
-		{`123`, false},
-		{`null`, false},
-		{``, false},
-		{`[invalid json]`, false},
-		{`[{"a":1},{"b":2}]`, true},
-		{`[1],[2]`, false},
-	}
-
-	for _, tt := range tests {
-		tt := tt
-		t.Run(tt.input, func(t *testing.T) {
-			t.Parallel()
-			result := IsJSONArray(tt.input)
-			assert.Equal(t, tt.expected, result)
-		})
-	}
-}
