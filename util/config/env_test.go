@@ -113,6 +113,24 @@ func TestStringSliceFlagAtEnd(t *testing.T) {
 	assert.Equal(t, "Strict-Transport-Security: max-age=31536000", strings[0])
 }
 
+func TestStringSliceMultiple(t *testing.T) {
+	loadOpts(t, "--header 'Content-Type: application/json; charset=utf-8' --header 'Strict-Transport-Security: max-age=31536000'")
+	strings := GetStringSliceFlag("header", []string{})
+
+	assert.Len(t, strings, 2)
+	assert.Equal(t, "Content-Type: application/json; charset=utf-8", strings[0])
+	assert.Equal(t, "Strict-Transport-Security: max-age=31536000", strings[1])
+}
+
+func TestStringSliceMultipleWithEqualSign(t *testing.T) {
+	loadOpts(t, "--header='Content-Type: application/json; charset=utf-8' --header='Strict-Transport-Security: max-age=31536000'")
+	strings := GetStringSliceFlag("header", []string{})
+
+	assert.Len(t, strings, 2)
+	assert.Equal(t, "Content-Type: application/json; charset=utf-8", strings[0])
+	assert.Equal(t, "Strict-Transport-Security: max-age=31536000", strings[1])
+}
+
 func TestFlagAtStart(t *testing.T) {
 	loadOpts(t, "--foo bar")
 
@@ -147,4 +165,10 @@ func TestFlagWithEqualSign(t *testing.T) {
 	loadOpts(t, "--foo=bar")
 
 	assert.Equal(t, "bar", GetFlag("foo", ""))
+}
+
+func TestFlagMultiple(t *testing.T) {
+	loadOpts(t, "--foo bar --foo baz")
+
+	assert.Equal(t, "baz", GetFlag("foo", "qux"))
 }
