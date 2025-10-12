@@ -1695,29 +1695,36 @@ func githubPullMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		switch r.RequestURI {
-		case "/api/v3/repos/applicationset-test-org/argocd-example-apps/pulls?per_page=100":
-			_, err := io.WriteString(w, `[
-  {
-    "number": 1,
-    "title": "title1",
-    "labels": [
-      {
-        "name": "preview"
+		case "/graphql":
+			_, err := io.WriteString(w, `{
+  "data": {
+    "search": {
+      "nodes": [
+        {
+          "number": 1,
+          "title": "title1",
+          "headRefName": "pull-request",
+          "baseRefName": "master",
+          "headRefOid": "824a5c987fdfb2b0629e9dbf5f31636c69ba4772",
+          "labels": {
+            "nodes": [
+              {
+                "name": "preview"
+              }
+            ]
+          },
+          "author": {
+            "login": "testName"
+          }
+        }
+      ],
+      "pageInfo": {
+        "endCursor": "cursor1",
+        "hasNextPage": false
       }
-    ],
-	"base": {
-		"ref": "master",
-		"sha": "7a4a5c987fdfb2b0629e9dbf5f31636c69ba4775"
-	},
-    "head": {
-      "ref": "pull-request",
-      "sha": "824a5c987fdfb2b0629e9dbf5f31636c69ba4772"
-    },
-	"user": {
-	  "login": "testName"
-	}
+    }
   }
-]`)
+}`)
 			if err != nil {
 				t.Fail()
 			}
