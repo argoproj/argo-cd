@@ -249,7 +249,7 @@ func Test_ApplyTemplateJSONPatch(t *testing.T) {
 		expectedApp       *appv1.Application
 	}{
 		{
-			name: "json+path JSON",
+			name: "json+path with JSON",
 			appTemplate: &appv1.Application{
 				TypeMeta: metav1.TypeMeta{
 					Kind:       "Application",
@@ -350,7 +350,7 @@ func Test_ApplyTemplateJSONPatch(t *testing.T) {
 			},
 		},
 		{
-			name: "json+path YAML",
+			name: "json+path with YAML",
 			appTemplate: &appv1.Application{
 				TypeMeta: metav1.TypeMeta{
 					Kind:       "Application",
@@ -383,14 +383,14 @@ func Test_ApplyTemplateJSONPatch(t *testing.T) {
   path: /spec/source/helm
   value:
     valueFiles:
-	  - values.text.yaml
-	    values.big.yaml
+     - values.test.yaml
+     - values.big.yaml
 - op: add
   path: /spec/syncPolicy
   value:
     automated:
-	  prune: true
-]`,
+      prune: true
+`,
 			expectedApp: &appv1.Application{
 				TypeMeta: metav1.TypeMeta{
 					Kind:       "Application",
@@ -535,6 +535,11 @@ replicaCount: 3`,
 				TypeMeta: metav1.TypeMeta{
 					Kind:       "Application",
 					APIVersion: "argoproj.io/v1alpha1",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:       "my-cluster-guestbook",
+					Namespace:  "namespace",
+					Finalizers: []string{appv1.ResourcesFinalizerName},
 				},
 				Spec: appv1.ApplicationSpec{
 					Project: "default",
