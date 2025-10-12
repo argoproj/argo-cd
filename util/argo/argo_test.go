@@ -312,11 +312,10 @@ func TestValidateChartWithoutRevision(t *testing.T) {
 		},
 	}
 	cluster := &argoappv1.Cluster{Server: "https://kubernetes.default.svc"}
-	db := &dbmocks.ArgoDB{}
-	ctx := t.Context()
-	db.On("GetCluster", ctx, appSpec.Destination.Server).Return(cluster, nil)
+	db := dbmocks.NewArgoDB(t)
+	db.EXPECT().GetCluster(mock.Anything, appSpec.Destination.Server).Return(cluster, nil).Maybe()
 
-	conditions, err := ValidatePermissions(ctx, appSpec, &argoappv1.AppProject{
+	conditions, err := ValidatePermissions(t.Context(), appSpec, &argoappv1.AppProject{
 		Spec: argoappv1.AppProjectSpec{
 			SourceRepos:  []string{"*"},
 			Destinations: []argoappv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
@@ -384,7 +383,7 @@ func TestValidateRepo(t *testing.T) {
 
 	repoClient := &mocks.RepoServerServiceClient{}
 	source := app.Spec.GetSource()
-	repoClient.On("GetAppDetails", t.Context(), &apiclient.RepoServerAppDetailsQuery{
+	repoClient.EXPECT().GetAppDetails(mock.Anything, &apiclient.RepoServerAppDetailsQuery{
 		Repo:             repo,
 		Source:           &source,
 		Repos:            helmRepos,
@@ -394,7 +393,7 @@ func TestValidateRepo(t *testing.T) {
 	}).Return(&apiclient.RepoAppDetailsResponse{}, nil)
 
 	repo.Type = "git"
-	repoClient.On("TestRepository", t.Context(), &apiclient.TestRepositoryRequest{
+	repoClient.EXPECT().TestRepository(mock.Anything, &apiclient.TestRepositoryRequest{
 		Repo: repo,
 	}).Return(&apiclient.TestRepositoryResponse{
 		VerifiedRepository: true,
@@ -402,21 +401,21 @@ func TestValidateRepo(t *testing.T) {
 
 	repoClientSet := &mocks.Clientset{RepoServerServiceClient: repoClient}
 
-	db := &dbmocks.ArgoDB{}
+	db := dbmocks.NewArgoDB(t)
 
-	db.On("GetRepository", t.Context(), app.Spec.Source.RepoURL, "").Return(repo, nil)
-	db.On("ListHelmRepositories", t.Context()).Return(helmRepos, nil)
-	db.On("ListOCIRepositories", t.Context()).Return([]*argoappv1.Repository{}, nil)
-	db.On("GetCluster", t.Context(), app.Spec.Destination.Server).Return(cluster, nil)
-	db.On("GetAllHelmRepositoryCredentials", t.Context()).Return(nil, nil)
-	db.On("GetAllOCIRepositoryCredentials", t.Context()).Return([]*argoappv1.RepoCreds{}, nil)
+	db.EXPECT().GetRepository(mock.Anything, app.Spec.Source.RepoURL, "").Return(repo, nil).Maybe()
+	db.EXPECT().ListHelmRepositories(mock.Anything).Return(helmRepos, nil).Maybe()
+	db.EXPECT().ListOCIRepositories(mock.Anything).Return([]*argoappv1.Repository{}, nil)
+	db.EXPECT().GetCluster(mock.Anything, app.Spec.Destination.Server).Return(cluster, nil).Maybe()
+	db.EXPECT().GetAllHelmRepositoryCredentials(mock.Anything).Return(nil, nil).Maybe()
+	db.EXPECT().GetAllOCIRepositoryCredentials(mock.Anything).Return([]*argoappv1.RepoCreds{}, nil)
 
 	var receivedRequest *apiclient.ManifestRequest
 
-	repoClient.On("GenerateManifest", t.Context(), mock.MatchedBy(func(req *apiclient.ManifestRequest) bool {
+	repoClient.EXPECT().GenerateManifest(mock.Anything, mock.MatchedBy(func(req *apiclient.ManifestRequest) bool {
 		receivedRequest = req
 		return true
-	})).Return(nil, nil)
+	})).Return(nil, nil).Maybe()
 
 	cm := corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
@@ -709,7 +708,7 @@ func TestValidatePermissions(t *testing.T) {
 			},
 		}
 		proj := argoappv1.AppProject{}
-		db := &dbmocks.ArgoDB{}
+		db := dbmocks.NewArgoDB(t)
 		conditions, err := ValidatePermissions(t.Context(), &spec, &proj, db)
 		require.NoError(t, err)
 		assert.Len(t, conditions, 1)
@@ -726,7 +725,7 @@ func TestValidatePermissions(t *testing.T) {
 			},
 		}
 		proj := argoappv1.AppProject{}
-		db := &dbmocks.ArgoDB{}
+		db := dbmocks.NewArgoDB(t)
 		conditions, err := ValidatePermissions(t.Context(), &spec, &proj, db)
 		require.NoError(t, err)
 		assert.Len(t, conditions, 1)
@@ -743,7 +742,7 @@ func TestValidatePermissions(t *testing.T) {
 			},
 		}
 		proj := argoappv1.AppProject{}
-		db := &dbmocks.ArgoDB{}
+		db := dbmocks.NewArgoDB(t)
 		conditions, err := ValidatePermissions(t.Context(), &spec, &proj, db)
 		require.NoError(t, err)
 		assert.Len(t, conditions, 1)
@@ -776,8 +775,8 @@ func TestValidatePermissions(t *testing.T) {
 			},
 		}
 		cluster := &argoappv1.Cluster{Server: "https://127.0.0.1:6443", Name: "test"}
-		db := &dbmocks.ArgoDB{}
-		db.On("GetCluster", t.Context(), spec.Destination.Server).Return(cluster, nil)
+		db := dbmocks.NewArgoDB(t)
+		db.EXPECT().GetCluster(mock.Anything, spec.Destination.Server).Return(cluster, nil).Maybe()
 		conditions, err := ValidatePermissions(t.Context(), &spec, &proj, db)
 		require.NoError(t, err)
 		assert.Len(t, conditions, 1)
@@ -809,8 +808,8 @@ func TestValidatePermissions(t *testing.T) {
 			},
 		}
 		cluster := &argoappv1.Cluster{Server: "https://127.0.0.1:6443", Name: "test"}
-		db := &dbmocks.ArgoDB{}
-		db.On("GetCluster", t.Context(), spec.Destination.Server).Return(cluster, nil)
+		db := dbmocks.NewArgoDB(t)
+		db.EXPECT().GetCluster(mock.Anything, spec.Destination.Server).Return(cluster, nil).Maybe()
 		conditions, err := ValidatePermissions(t.Context(), &spec, &proj, db)
 		require.NoError(t, err)
 		assert.Len(t, conditions, 1)
@@ -841,8 +840,8 @@ func TestValidatePermissions(t *testing.T) {
 				SourceRepos: []string{"http://some/where"},
 			},
 		}
-		db := &dbmocks.ArgoDB{}
-		db.On("GetCluster", t.Context(), spec.Destination.Server).Return(nil, status.Errorf(codes.NotFound, "Cluster does not exist"))
+		db := dbmocks.NewArgoDB(t)
+		db.EXPECT().GetCluster(mock.Anything, spec.Destination.Server).Return(nil, status.Errorf(codes.NotFound, "Cluster does not exist")).Maybe()
 		conditions, err := ValidatePermissions(t.Context(), &spec, &proj, db)
 		require.NoError(t, err)
 		assert.Len(t, conditions, 1)
@@ -873,8 +872,8 @@ func TestValidatePermissions(t *testing.T) {
 				SourceRepos: []string{"http://some/where"},
 			},
 		}
-		db := &dbmocks.ArgoDB{}
-		db.On("GetClusterServersByName", t.Context(), "does-not-exist").Return(nil, nil)
+		db := dbmocks.NewArgoDB(t)
+		db.EXPECT().GetClusterServersByName(mock.Anything, "does-not-exist").Return(nil, nil).Maybe()
 		conditions, err := ValidatePermissions(t.Context(), &spec, &proj, db)
 		require.NoError(t, err)
 		assert.Len(t, conditions, 1)
@@ -905,8 +904,8 @@ func TestValidatePermissions(t *testing.T) {
 				SourceRepos: []string{"http://some/where"},
 			},
 		}
-		db := &dbmocks.ArgoDB{}
-		db.On("GetCluster", t.Context(), spec.Destination.Server).Return(nil, errors.New("Unknown error occurred"))
+		db := dbmocks.NewArgoDB(t)
+		db.EXPECT().GetCluster(mock.Anything, spec.Destination.Server).Return(nil, errors.New("Unknown error occurred")).Maybe()
 		conditions, err := ValidatePermissions(t.Context(), &spec, &proj, db)
 		require.NoError(t, err)
 		assert.Len(t, conditions, 1)
@@ -937,13 +936,13 @@ func TestValidatePermissions(t *testing.T) {
 				SourceRepos: []string{"http://some/where"},
 			},
 		}
-		db := &dbmocks.ArgoDB{}
+		db := dbmocks.NewArgoDB(t)
 		cluster := argoappv1.Cluster{
 			Name:   "does-exist",
 			Server: "https://127.0.0.1:6443",
 		}
-		db.On("GetClusterServersByName", t.Context(), "does-exist").Return([]string{"https://127.0.0.1:6443"}, nil)
-		db.On("GetCluster", t.Context(), "https://127.0.0.1:6443").Return(&cluster, nil)
+		db.EXPECT().GetClusterServersByName(mock.Anything, "does-exist").Return([]string{"https://127.0.0.1:6443"}, nil)
+		db.EXPECT().GetCluster(mock.Anything, "https://127.0.0.1:6443").Return(&cluster, nil).Maybe()
 		conditions, err := ValidatePermissions(t.Context(), &spec, &proj, db)
 		require.NoError(t, err)
 		assert.Empty(t, conditions)
@@ -1007,8 +1006,8 @@ func TestGetDestinationCluster(t *testing.T) {
 		}
 
 		expectedCluster := &argoappv1.Cluster{Server: "https://127.0.0.1:6443"}
-		db := &dbmocks.ArgoDB{}
-		db.On("GetCluster", t.Context(), "https://127.0.0.1:6443").Return(expectedCluster, nil)
+		db := dbmocks.NewArgoDB(t)
+		db.EXPECT().GetCluster(mock.Anything, "https://127.0.0.1:6443").Return(expectedCluster, nil).Maybe()
 
 		destCluster, err := GetDestinationCluster(t.Context(), dest, db)
 		require.NoError(t, err)
@@ -1021,9 +1020,9 @@ func TestGetDestinationCluster(t *testing.T) {
 			Name: "minikube",
 		}
 
-		db := &dbmocks.ArgoDB{}
-		db.On("GetClusterServersByName", t.Context(), "minikube").Return([]string{"https://127.0.0.1:6443"}, nil)
-		db.On("GetCluster", t.Context(), "https://127.0.0.1:6443").Return(&argoappv1.Cluster{Server: "https://127.0.0.1:6443", Name: "minikube"}, nil)
+		db := dbmocks.NewArgoDB(t)
+		db.EXPECT().GetClusterServersByName(mock.Anything, "minikube").Return([]string{"https://127.0.0.1:6443"}, nil)
+		db.EXPECT().GetCluster(mock.Anything, "https://127.0.0.1:6443").Return(&argoappv1.Cluster{Server: "https://127.0.0.1:6443", Name: "minikube"}, nil)
 
 		destCluster, err := GetDestinationCluster(t.Context(), dest, db)
 		require.NoError(t, err)
@@ -1046,8 +1045,8 @@ func TestGetDestinationCluster(t *testing.T) {
 			Name: "minikube",
 		}
 
-		db := &dbmocks.ArgoDB{}
-		db.On("GetClusterServersByName", t.Context(), mock.Anything).Return(nil, errors.New("an error occurred"))
+		db := dbmocks.NewArgoDB(t)
+		db.EXPECT().GetClusterServersByName(mock.Anything, mock.Anything).Return(nil, errors.New("an error occurred")).Maybe()
 
 		_, err := GetDestinationCluster(t.Context(), dest, db)
 		require.ErrorContains(t, err, "an error occurred")
@@ -1058,8 +1057,8 @@ func TestGetDestinationCluster(t *testing.T) {
 			Name: "minikube",
 		}
 
-		db := &dbmocks.ArgoDB{}
-		db.On("GetClusterServersByName", t.Context(), "minikube").Return(nil, nil)
+		db := dbmocks.NewArgoDB(t)
+		db.EXPECT().GetClusterServersByName(mock.Anything, "minikube").Return(nil, nil).Maybe()
 
 		_, err := GetDestinationCluster(t.Context(), dest, db)
 		assert.EqualError(t, err, "there are no clusters with this name: minikube")
@@ -1070,8 +1069,8 @@ func TestGetDestinationCluster(t *testing.T) {
 			Name: "dind",
 		}
 
-		db := &dbmocks.ArgoDB{}
-		db.On("GetClusterServersByName", t.Context(), "dind").Return([]string{"https://127.0.0.1:2443", "https://127.0.0.1:8443"}, nil)
+		db := dbmocks.NewArgoDB(t)
+		db.EXPECT().GetClusterServersByName(mock.Anything, "dind").Return([]string{"https://127.0.0.1:2443", "https://127.0.0.1:8443"}, nil)
 
 		_, err := GetDestinationCluster(t.Context(), dest, db)
 		assert.EqualError(t, err, "there are 2 clusters with the same name: [https://127.0.0.1:2443 https://127.0.0.1:8443]")
@@ -1495,7 +1494,7 @@ func TestValidatePermissionsMultipleSources(t *testing.T) {
 		}
 
 		proj := argoappv1.AppProject{}
-		db := &dbmocks.ArgoDB{}
+		db := dbmocks.NewArgoDB(t)
 		conditions, err := ValidatePermissions(t.Context(), &spec, &proj, db)
 		require.NoError(t, err)
 		assert.Len(t, conditions, 1)
@@ -1515,7 +1514,7 @@ func TestValidatePermissionsMultipleSources(t *testing.T) {
 			},
 		}
 		proj := argoappv1.AppProject{}
-		db := &dbmocks.ArgoDB{}
+		db := dbmocks.NewArgoDB(t)
 		conditions, err := ValidatePermissions(t.Context(), &spec, &proj, db)
 		require.NoError(t, err)
 		assert.Len(t, conditions, 1)
@@ -1550,8 +1549,8 @@ func TestValidatePermissionsMultipleSources(t *testing.T) {
 			},
 		}
 		cluster := &argoappv1.Cluster{Server: "https://127.0.0.1:6443", Name: "test"}
-		db := &dbmocks.ArgoDB{}
-		db.On("GetCluster", t.Context(), spec.Destination.Server).Return(cluster, nil)
+		db := dbmocks.NewArgoDB(t)
+		db.EXPECT().GetCluster(mock.Anything, spec.Destination.Server).Return(cluster, nil).Maybe()
 		conditions, err := ValidatePermissions(t.Context(), &spec, &proj, db)
 		require.NoError(t, err)
 		assert.Len(t, conditions, 1)
@@ -1584,13 +1583,13 @@ func TestValidatePermissionsMultipleSources(t *testing.T) {
 				SourceRepos: []string{"http://some/where"},
 			},
 		}
-		db := &dbmocks.ArgoDB{}
+		db := dbmocks.NewArgoDB(t)
 		cluster := argoappv1.Cluster{
 			Name:   "does-exist",
 			Server: "https://127.0.0.1:6443",
 		}
-		db.On("GetClusterServersByName", t.Context(), "does-exist").Return([]string{"https://127.0.0.1:6443"}, nil)
-		db.On("GetCluster", t.Context(), "https://127.0.0.1:6443").Return(&cluster, nil)
+		db.EXPECT().GetClusterServersByName(mock.Anything, "does-exist").Return([]string{"https://127.0.0.1:6443"}, nil)
+		db.EXPECT().GetCluster(mock.Anything, "https://127.0.0.1:6443").Return(&cluster, nil).Maybe()
 		conditions, err := ValidatePermissions(t.Context(), &spec, &proj, db)
 		require.NoError(t, err)
 		assert.Empty(t, conditions)
