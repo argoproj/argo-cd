@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
 	"testing"
 	"time"
 
@@ -1246,6 +1247,117 @@ func TestFinalizeAppDeletion(t *testing.T) {
 	})
 }
 
+func TestFinalizeAppDeletionWithImpersonation(t *testing.T) {
+	type fixture struct {
+		application *v1alpha1.Application
+		controller  *ApplicationController
+	}
+
+	setup := func(destinationNamespace, serviceAccountName string) *fixture {
+		app := newFakeApp()
+		app.Status.OperationState = nil
+		app.Status.History = nil
+		now := metav1.Now()
+		app.DeletionTimestamp = &now
+
+		project := &v1alpha1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: test.FakeArgoCDNamespace,
+				Name:      "default",
+			},
+			Spec: v1alpha1.AppProjectSpec{
+				SourceRepos: []string{"*"},
+				Destinations: []v1alpha1.ApplicationDestination{
+					{
+						Server:    "*",
+						Namespace: "*",
+					},
+				},
+				DestinationServiceAccounts: []v1alpha1.ApplicationDestinationServiceAccount{
+					{
+						Server:                "https://localhost:6443",
+						Namespace:             destinationNamespace,
+						DefaultServiceAccount: serviceAccountName,
+					},
+				},
+			},
+		}
+
+		additionalObjs := []runtime.Object{}
+		if serviceAccountName != "" {
+			syncServiceAccount := &corev1.ServiceAccount{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      serviceAccountName,
+					Namespace: test.FakeDestNamespace,
+				},
+			}
+			additionalObjs = append(additionalObjs, syncServiceAccount)
+		}
+
+		data := fakeData{
+			apps: []runtime.Object{app, project},
+			manifestResponse: &apiclient.ManifestResponse{
+				Manifests: []string{},
+				Namespace: test.FakeDestNamespace,
+				Server:    "https://localhost:6443",
+				Revision:  "abc123",
+			},
+			managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{},
+			configMapData: map[string]string{
+				"application.sync.impersonation.enabled": strconv.FormatBool(true),
+			},
+			additionalObjs: additionalObjs,
+		}
+		ctrl := newFakeController(&data, nil)
+		return &fixture{
+			application: app,
+			controller:  ctrl,
+		}
+	}
+
+	t.Run("no matching impersonation service account is configured", func(t *testing.T) {
+		// given impersonation is enabled but no matching service account exists
+		f := setup(test.FakeDestNamespace, "")
+
+		// when
+		err := f.controller.finalizeApplicationDeletion(f.application, func(_ string) ([]*v1alpha1.Cluster, error) {
+			return []*v1alpha1.Cluster{}, nil
+		})
+
+		// then deletion should fail due to impersonation error
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "error deriving service account to impersonate")
+	})
+
+	t.Run("valid impersonation service account is configured", func(t *testing.T) {
+		// given impersonation is enabled with valid service account
+		f := setup(test.FakeDestNamespace, "test-sa")
+
+		// when
+		err := f.controller.finalizeApplicationDeletion(f.application, func(_ string) ([]*v1alpha1.Cluster, error) {
+			return []*v1alpha1.Cluster{}, nil
+		})
+
+		// then deletion should succeed
+		require.NoError(t, err)
+	})
+
+	t.Run("invalid application destination cluster", func(t *testing.T) {
+		// given impersonation is enabled but destination cluster does not exist
+		f := setup(test.FakeDestNamespace, "test-sa")
+		f.application.Spec.Destination.Server = "https://invalid-cluster:6443"
+		f.application.Spec.Destination.Name = "invalid"
+
+		// when
+		err := f.controller.finalizeApplicationDeletion(f.application, func(_ string) ([]*v1alpha1.Cluster, error) {
+			return []*v1alpha1.Cluster{}, nil
+		})
+
+		// then deletion should still succeed by removing finalizers
+		require.NoError(t, err)
+	})
+}
+
 // TestNormalizeApplication verifies we normalize an application during reconciliation
 func TestNormalizeApplication(t *testing.T) {
 	defaultProj := v1alpha1.AppProject{
@@ -1438,7 +1550,12 @@ func TestSetOperationStateLogRetries(t *testing.T) {
 	})
 	ctrl.setOperationState(newFakeApp(), &v1alpha1.OperationState{Phase: synccommon.OperationSucceeded})
 	assert.True(t, patched)
-	assert.Contains(t, hook.Entries[0].Message, "fake error")
+	require.GreaterOrEqual(t, len(hook.Entries), 1)
+	entry := hook.Entries[0]
+	require.Contains(t, entry.Data, "error")
+	errorVal, ok := entry.Data["error"].(error)
+	require.True(t, ok, "error field should be of type error")
+	assert.Contains(t, errorVal.Error(), "fake error")
 }
 
 func TestNeedRefreshAppStatus(t *testing.T) {

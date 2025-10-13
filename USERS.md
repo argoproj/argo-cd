@@ -63,6 +63,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Camptocamp](https://camptocamp.com)
 1. [Candis](https://www.candis.io)
 1. [Capital One](https://www.capitalone.com)
+1. [Capptain LTD](https://capptain.co/)
 1. [CARFAX Europe](https://www.carfax.eu)
 1. [CARFAX](https://www.carfax.com)
 1. [Carrefour Group](https://www.carrefour.com)
@@ -309,7 +310,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Relex Solutions](https://www.relexsolutions.com/)
 1. [RightRev](https://rightrev.com/)
 1. [Rijkswaterstaat](https://www.rijkswaterstaat.nl/en)
-1. [Rise](https://www.risecard.eu/)
+1. Rise
 1. [Riskified](https://www.riskified.com/)
 1. [Robotinfra](https://www.robotinfra.com)
 1. [Rocket.Chat](https://rocket.chat)

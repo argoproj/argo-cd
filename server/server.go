@@ -495,8 +495,9 @@ func (server *ArgoCDServer) logInClusterWarnings() error {
 func startListener(host string, port int) (net.Listener, error) {
 	var conn net.Listener
 	var realErr error
+	lc := net.ListenConfig{}
 	_ = wait.ExponentialBackoff(backoff, func() (bool, error) {
-		conn, realErr = net.Listen("tcp", fmt.Sprintf("%s:%d", host, port))
+		conn, realErr = lc.Listen(context.Background(), "tcp", fmt.Sprintf("%s:%d", host, port))
 		if realErr != nil {
 			return false, nil
 		}
@@ -1070,7 +1071,7 @@ func newArgoCDServiceSet(a *ArgoCDServer) *ArgoCDServiceSet {
 
 	projectService := project.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.enf, projectLock, a.sessionMgr, a.policyEnforcer, a.projInformer, a.settingsMgr, a.db, a.EnableK8sEvent)
 	appsInAnyNamespaceEnabled := len(a.ApplicationNamespaces) > 0
-	settingsService := settings.NewServer(a.settingsMgr, a.RepoClientset, a, a.DisableAuth, appsInAnyNamespaceEnabled, a.HydratorEnabled)
+	settingsService := settings.NewServer(a.settingsMgr, a.RepoClientset, a, a.DisableAuth, appsInAnyNamespaceEnabled, a.HydratorEnabled, a.SyncWithReplaceAllowed)
 	accountService := account.NewServer(a.sessionMgr, a.settingsMgr, a.enf)
 
 	notificationService := notification.NewServer(a.apiFactory)
@@ -1220,9 +1221,12 @@ func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWeb
 
 	terminalOpts := application.TerminalOptions{DisableAuth: server.DisableAuth, Enf: server.enf}
 
+	// SSO ClientApp
+	server.ssoClientApp, _ = oidc.NewClientApp(server.settings, server.DexServerAddr, server.DexTLSConfig, server.BaseHRef, cacheutil.NewRedisCache(server.RedisClient, server.settings.UserInfoCacheExpiration(), cacheutil.RedisCompressionNone))
+
 	terminal := application.NewHandler(server.appLister, server.Namespace, server.ApplicationNamespaces, server.db, appResourceTreeFn, server.settings.ExecShells, server.sessionMgr, &terminalOpts).
 		WithFeatureFlagMiddleware(server.settingsMgr.GetSettings)
-	th := util_session.WithAuthMiddleware(server.DisableAuth, server.sessionMgr, terminal)
+	th := util_session.WithAuthMiddleware(server.DisableAuth, server.settings.IsSSOConfigured(), server.ssoClientApp, server.sessionMgr, terminal)
 	mux.Handle("/terminal", th)
 
 	// Proxy extension is currently an alpha feature and is disabled
@@ -1252,12 +1256,12 @@ func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWeb
 	swagger.ServeSwaggerUI(mux, assets.SwaggerJSON, "/swagger-ui", server.RootPath)
 	healthz.ServeHealthCheck(mux, server.healthCheck)
 
-	// Dex reverse proxy and client app and OAuth2 login/callback
+	// Dex reverse proxy and OAuth2 login/callback
 	server.registerDexHandlers(mux)
 
 	// Webhook handler for git events (Note: cache timeouts are hardcoded because API server does not write to cache and not really using them)
 	argoDB := db.NewDB(server.Namespace, server.settingsMgr, server.KubeClientset)
-	acdWebhookHandler := webhook.NewHandler(server.Namespace, server.ApplicationNamespaces, server.WebhookParallelism, server.AppClientset, server.settings, server.settingsMgr, server.RepoServerCache, server.Cache, argoDB, server.settingsMgr.GetMaxWebhookPayloadSize())
+	acdWebhookHandler := webhook.NewHandler(server.Namespace, server.ApplicationNamespaces, server.WebhookParallelism, server.AppClientset, server.appLister, server.settings, server.settingsMgr, server.RepoServerCache, server.Cache, argoDB, server.settingsMgr.GetMaxWebhookPayloadSize())
 
 	mux.HandleFunc("/api/webhook", acdWebhookHandler.Handler)
 
@@ -1304,7 +1308,7 @@ func enforceContentTypes(handler http.Handler, types []string) http.Handler {
 func registerExtensions(mux *http.ServeMux, a *ArgoCDServer, metricsReg HTTPMetricsRegistry) {
 	a.log.Info("Registering extensions...")
 	extHandler := http.HandlerFunc(a.extensionManager.CallExtension())
-	authMiddleware := a.sessionMgr.AuthMiddlewareFunc(a.DisableAuth)
+	authMiddleware := a.sessionMgr.AuthMiddlewareFunc(a.DisableAuth, a.settings.IsSSOConfigured(), a.ssoClientApp)
 	// auth middleware ensures that requests to all extensions are authenticated first
 	mux.Handle(extension.URLPrefix+"/", authMiddleware(extHandler))
 
@@ -1358,7 +1362,7 @@ func (server *ArgoCDServer) serveExtensions(extensionsSharedPath string, w http.
 	}
 }
 
-// registerDexHandlers will register dex HTTP handlers, creating the OAuth client app
+// registerDexHandlers will register dex HTTP handlers
 func (server *ArgoCDServer) registerDexHandlers(mux *http.ServeMux) {
 	if !server.settings.IsSSOConfigured() {
 		return
@@ -1366,7 +1370,6 @@ func (server *ArgoCDServer) registerDexHandlers(mux *http.ServeMux) {
 	// Run dex OpenID Connect Identity Provider behind a reverse proxy (served at /api/dex)
 	var err error
 	mux.HandleFunc(common.DexAPIEndpoint+"/", dexutil.NewDexHTTPReverseProxy(server.DexServerAddr, server.BaseHRef, server.DexTLSConfig))
-	server.ssoClientApp, err = oidc.NewClientApp(server.settings, server.DexServerAddr, server.DexTLSConfig, server.BaseHRef, cacheutil.NewRedisCache(server.RedisClient, server.settings.UserInfoCacheExpiration(), cacheutil.RedisCompressionNone))
 	errorsutil.CheckError(err)
 	mux.HandleFunc(common.LoginEndpoint, server.ssoClientApp.HandleLogin)
 	mux.HandleFunc(common.CallbackEndpoint, server.ssoClientApp.HandleCallback)
@@ -1577,34 +1580,15 @@ func (server *ArgoCDServer) getClaims(ctx context.Context) (jwt.Claims, string, 
 		return claims, "", status.Errorf(codes.Unauthenticated, "invalid session: %v", err)
 	}
 
-	// Some SSO implementations (Okta) require a call to
-	// the OIDC user info path to get attributes like groups
-	// we assume that everywhere in argocd jwt.MapClaims is used as type for interface jwt.Claims
-	// otherwise this would cause a panic
-	var groupClaims jwt.MapClaims
-	if groupClaims, ok = claims.(jwt.MapClaims); !ok {
-		if tmpClaims, ok := claims.(*jwt.MapClaims); ok {
-			groupClaims = *tmpClaims
-		}
-	}
-	iss := jwtutil.StringField(groupClaims, "iss")
-	if iss != util_session.SessionManagerClaimsIssuer && server.settings.UserInfoGroupsEnabled() && server.settings.UserInfoPath() != "" {
-		userInfo, unauthorized, err := server.ssoClientApp.GetUserInfo(groupClaims, server.settings.IssuerURL(), server.settings.UserInfoPath())
-		if unauthorized {
-			log.Errorf("error while quering userinfo endpoint: %v", err)
-			return claims, "", status.Errorf(codes.Unauthenticated, "invalid session")
-		}
+	finalClaims := claims
+	if server.settings.IsSSOConfigured() {
+		finalClaims, err = server.ssoClientApp.SetGroupsFromUserInfo(claims, util_session.SessionManagerClaimsIssuer)
 		if err != nil {
-			log.Errorf("error fetching user info endpoint: %v", err)
-			return claims, "", status.Errorf(codes.Internal, "invalid userinfo response")
+			return claims, "", status.Errorf(codes.Unauthenticated, "invalid session: %v", err)
 		}
-		if groupClaims["sub"] != userInfo["sub"] {
-			return claims, "", status.Error(codes.Unknown, "subject of claims from user info endpoint didn't match subject of idToken, see https://openid.net/specs/openid-connect-core-1_0.html#UserInfo")
-		}
-		groupClaims["groups"] = userInfo["groups"]
 	}
 
-	return groupClaims, newToken, nil
+	return finalClaims, newToken, nil
 }
 
 // getToken extracts the token from gRPC metadata or cookie headers

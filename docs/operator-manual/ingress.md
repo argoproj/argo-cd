@@ -685,9 +685,8 @@ spec:
 ```
 
 ---
-!!! note
-
-    The next two steps (the certificate secret and the Ingress) are described supposing that you manage the certificate yourself, and you have the certificate and key files for it. In the case that your certificate is Google-managed, fix the next two steps using the [guide to use a Google-managed SSL certificate](https://cloud.google.com/kubernetes-engine/docs/how-to/managed-certs#creating_an_ingress_with_a_google-managed_certificate).
+> [!NOTE]
+> The next two steps (the certificate secret and the Ingress) are described supposing that you manage the certificate yourself, and you have the certificate and key files for it. In the case that your certificate is Google-managed, fix the next two steps using the [guide to use a Google-managed SSL certificate](https://cloud.google.com/kubernetes-engine/docs/how-to/managed-certs#creating_an_ingress_with_a_google-managed_certificate).
 
 ---
 
@@ -705,9 +704,8 @@ kubectl -n argocd create secret tls secret-yourdomain-com \
 And finally, to top it all, our Ingress. Note the reference to our frontend config, the service, and to the certificate secret.
 
 ---
-!!! note
-
-   GKE clusters running versions earlier than `1.21.3-gke.1600`, [the only supported value for the pathType field](https://cloud.google.com/kubernetes-engine/docs/how-to/load-balance-ingress#creating_an_ingress) is `ImplementationSpecific`. So you must check your GKE cluster's version. You need to use different YAML depending on the version.
+> [!NOTE]
+> GKE clusters running versions earlier than `1.21.3-gke.1600`, [the only supported value for the pathType field](https://cloud.google.com/kubernetes-engine/docs/how-to/load-balance-ingress#creating_an_ingress) is `ImplementationSpecific`. So you must check your GKE cluster's version. You need to use different YAML depending on the version.
 
 ---
 

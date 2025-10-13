@@ -584,6 +584,7 @@ export interface AuthSettings {
     execEnabled: boolean;
     appsInAnyNamespaceEnabled: boolean;
     hydratorEnabled: boolean;
+    syncWithReplaceAllowed: boolean;
 }
 
 export interface UserInfo {
@@ -1133,4 +1134,9 @@ export interface ApplicationSet {
         }>;
         resources?: ApplicationSetResource[];
     };
+}
+
+export interface ApplicationSetList {
+    metadata: models.ListMeta;
+    items: ApplicationSet[];
 }
