@@ -562,7 +562,6 @@ func readApps(yml []byte, apps *[]*argoappv1.Application) error {
 	return err
 }
 
-
 func readAppsFromStdin(apps *[]*argoappv1.Application) error {
 	reader := bufio.NewReader(os.Stdin)
 	data, err := io.ReadAll(reader)
@@ -576,7 +575,6 @@ func readAppsFromStdin(apps *[]*argoappv1.Application) error {
 	}
 	return nil
 }
-
 
 func readAppsFromURI(fileURL string, apps *[]*argoappv1.Application) error {
 	readFilePayload := func() ([]byte, error) {
@@ -594,7 +592,6 @@ func readAppsFromURI(fileURL string, apps *[]*argoappv1.Application) error {
 
 	return readApps(yml, apps)
 }
-
 
 func constructAppsFromStdin() ([]*argoappv1.Application, error) {
 	apps := make([]*argoappv1.Application, 0)
