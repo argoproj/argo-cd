@@ -31,6 +31,22 @@ export function nodeKey(node: NodeId) {
     return [node.group, node.kind, node.namespace, node.name].join('/');
 }
 
+// Convert ResourceStatus to ResourceNode for orphaned resources
+export function resourceStatusToResourceNode(res: appModels.ResourceStatus): appModels.ResourceNode {
+    return {
+        kind: res.kind,
+        name: res.name,
+        namespace: res.namespace,
+        group: res.group,
+        version: res.version,
+        uid: `${res.group}/${res.kind}/${res.namespace}/${res.name}`,
+        resourceVersion: '',
+        createdAt: res.createdAt,
+        parentRefs: [],
+        info: []
+    };
+}
+
 export function createdOrNodeKey(node: NodeId) {
     return node?.createdAt || nodeKey(node);
 }
