@@ -117,6 +117,7 @@ func FilterByProjects(apps []argoappv1.Application, projects []string) []argoapp
 
 // FilterByFile returns applications affected by files
 func FilterByFile(apps []argoappv1.Application, file []string) []argoappv1.Application {
+	// if no files  are provided, return all the apps
 	if len(file) == 0 {
 		return apps
 	}
