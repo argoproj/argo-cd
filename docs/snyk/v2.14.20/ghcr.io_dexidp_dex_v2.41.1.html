@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="37 known vulnerabilities found in 100 vulnerable dependency paths.">
+  <meta name="description" content="38 known vulnerabilities found in 101 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -487,7 +487,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">October 5th 2025, 12:33:34 am (UTC+00:00)</p>
+                <p class="timestamp">October 12th 2025, 12:31:18 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
@@ -500,8 +500,8 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>37</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>100 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>38</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>101 vulnerable dependency paths</span></div>
                 <div class="meta-count"><span>969</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
@@ -1414,6 +1414,78 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXNETHTML-9572088">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Observable Discrepancy</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: ghcr.io/dexidp/dex:v2.41.1/hairyhenderson/gomplate/v4 <span class="list-paths__item__arrow">›</span> /usr/local/bin/gomplate
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            github.com/hashicorp/vault/api/auth/userpass
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/hairyhenderson/gomplate/v4@* and github.com/hashicorp/vault/api/auth/userpass@v0.7.0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/hairyhenderson/gomplate/v4@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/hashicorp/vault/api/auth/userpass@v0.7.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p>Affected versions of this package are vulnerable to Observable Discrepancy via <code>userpass</code> auth method. An attacker can enumerate valid usernames on this auth method through brute force or a list of known usernames.</p>
+        <p>##Workaround</p>
+        <p>This issue can be partially mitigated by using rate-limit quotas in Vault or enabling network level controls for rate limiting that restrict access to Vault. Customers may also consider enforcing login MFA for the userpass auth mounts.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>There is no fixed version for <code>github.com/hashicorp/vault/api/auth/userpass</code>.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://discuss.hashicorp.com/t/hcsec-2025-21-vault-user-enumeration-in-userpass-auth-method/76095">HashiCorp Discussion</a></li>
+        <li><a href="https://cyata.ai/blog/cracking-the-vault-how-we-found-zero-day-flaws-in-authentication-identity-and-authorization-in-hashicorp-vault/">Security Report</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GITHUBCOMHASHICORPVAULTAPIAUTHUSERPASS-13517971">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
