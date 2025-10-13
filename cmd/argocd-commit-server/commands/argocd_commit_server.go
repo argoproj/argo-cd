@@ -66,26 +66,30 @@ func NewCommand() *cobra.Command {
 			errors.CheckError(err)
 
 			healthz.ServeHealthCheck(http.DefaultServeMux, func(r *http.Request) error {
-				if val, ok := r.URL.Query()["full"]; ok && len(val) > 0 && val[0] == "true" {
-					// connect to itself to make sure commit server is able to serve connection
-					// used by liveness probe to auto restart commit server
-					conn, err := apiclient.NewConnection(fmt.Sprintf("localhost:%d", listenPort))
-					if err != nil {
-						return err
-					}
-					defer utilio.Close(conn)
-					client := grpc_health_v1.NewHealthClient(conn)
-					res, err := client.Check(r.Context(), &grpc_health_v1.HealthCheckRequest{})
-					if err != nil {
-						return err
-					}
-					if res.Status != grpc_health_v1.HealthCheckResponse_SERVING {
-						return fmt.Errorf("grpc health check status is '%v'", res.Status)
-					}
-					return nil
-				}
-				return nil
-			})
+    			if val, ok := r.URL.Query()["full"]; ok && len(val) > 0 && val[0] == "true" {
+        		// connect to itself to make sure commit server is able to serve connection
+        		// used by liveness probe to auto restart commit server
+        		conn, err := apiclient.NewConnection(fmt.Sprintf("localhost:%d", listenPort))
+        		if err != nil {
+            		return fmt.Errorf("failed to connect to commit server at localhost:%d: %w", listenPort, err)
+        		}
+        		defer utilio.Close(conn)
+
+        		client := grpc_health_v1.NewHealthClient(conn)
+        		res, err := client.Check(r.Context(), &grpc_health_v1.HealthCheckRequest{})
+        		if err != nil {
+            		return fmt.Errorf("grpc health check request failed: %w", err)
+        		}
+
+        		if res.Status != grpc_health_v1.HealthCheckResponse_SERVING {
+            		return fmt.Errorf("grpc health check returned non-serving status: '%v'", res.Status)
+        		}
+
+        		return nil
+    		}
+    		return nil
+		})
+
 
 			// Graceful shutdown code adapted from here: https://gist.github.com/embano1/e0bf49d24f1cdd07cffad93097c04f0a
 			sigCh := make(chan os.Signal, 1)

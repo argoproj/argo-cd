@@ -553,8 +553,9 @@ func (r *ApplicationSetReconciler) setApplicationSetStatusCondition(ctx context.
 		// Update the newly fetched object with new set of conditions
 		err := r.Client.Status().Update(ctx, updatedAppset)
 		if err != nil {
-			return err
+    		return fmt.Errorf("failed to update AppSet status: %w", err)
 		}
+
 		updatedAppset.DeepCopyInto(applicationSet)
 		return nil
 	})
@@ -1422,8 +1423,9 @@ func (r *ApplicationSetReconciler) migrateStatus(ctx context.Context, appset *ar
 			// Update the newly fetched object with new set of ApplicationStatus
 			err := r.Client.Status().Update(ctx, updatedAppset)
 			if err != nil {
-				return err
+    			return fmt.Errorf("failed to update AppSet status: %w", err)
 			}
+
 			updatedAppset.DeepCopyInto(appset)
 			return nil
 		})
@@ -1469,7 +1471,7 @@ func (r *ApplicationSetReconciler) updateResourcesStatus(ctx context.Context, lo
 		// Update the newly fetched object with new status resources
 		err := r.Client.Status().Update(ctx, updatedAppset)
 		if err != nil {
-			return err
+    		return fmt.Errorf("failed to update AppSet status: %w", err)
 		}
 		updatedAppset.DeepCopyInto(appset)
 		return nil
@@ -1547,7 +1549,7 @@ func (r *ApplicationSetReconciler) setAppSetApplicationStatus(ctx context.Contex
 			// Update the newly fetched object with new set of ApplicationStatus
 			err := r.Client.Status().Update(ctx, updatedAppset)
 			if err != nil {
-				return err
+    			return fmt.Errorf("failed to update AppSet status: %w", err)
 			}
 			updatedAppset.DeepCopyInto(applicationSet)
 			return nil
