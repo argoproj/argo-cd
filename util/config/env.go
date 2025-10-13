@@ -28,27 +28,12 @@ func LoadFlags() error {
 		return err
 	}
 
-	setKey := func(key string) {
-		// pkg shellquota doesn't recognize `=` so that the opts in format `foo=bar` could not work.
-		// issue ref: https://github.com/argoproj/argo-cd/issues/6822
-		if strings.Contains(key, "=") {
-			kv := strings.SplitN(key, "=", 2)
-			actualKey, actualValue := kv[0], kv[1]
-			flags[actualKey] = append(flags[actualKey], actualValue)
-		} else {
-			if _, ok := flags[key]; !ok {
-				// empty slice means bool flag.
-				flags[key] = []string{}
-			}
-		}
-	}
-
 	var key string
 	for _, opt := range opts {
 		switch {
 		case strings.HasPrefix(opt, "--"):
 			if key != "" {
-				setKey(key)
+				processFlagKey(flags, key)
 			}
 			key = strings.TrimPrefix(opt, "--")
 		case key != "":
@@ -59,9 +44,24 @@ func LoadFlags() error {
 		}
 	}
 	if key != "" {
-		setKey(key)
+		processFlagKey(flags, key)
 	}
 	return nil
+}
+
+func processFlagKey(flags map[string][]string, key string) {
+	// pkg shellquota doesn't recognize `=` so that the opts in format `foo=bar` could not work.
+	// issue ref: https://github.com/argoproj/argo-cd/issues/6822
+	if strings.Contains(key, "=") {
+		kv := strings.SplitN(key, "=", 2)
+		actualKey, actualValue := kv[0], kv[1]
+		flags[actualKey] = append(flags[actualKey], actualValue)
+	} else {
+		if _, ok := flags[key]; !ok {
+			// empty slice means bool flag.
+			flags[key] = []string{}
+		}
+	}
 }
 
 func getFlag(key string) (string, bool) {

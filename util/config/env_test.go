@@ -172,3 +172,73 @@ func TestFlagMultiple(t *testing.T) {
 
 	assert.Equal(t, "baz", GetFlag("foo", "qux"))
 }
+
+func TestProcessFlagKey(t *testing.T) {
+	tests := []struct {
+		name          string
+		initialFlags  map[string][]string
+		key           string
+		expectedFlags map[string][]string
+	}{
+		{
+			name:         "boolean flag",
+			initialFlags: map[string][]string{},
+			key:          "foo",
+			expectedFlags: map[string][]string{
+				"foo": {},
+			},
+		},
+		{
+			name: "boolean flag with existing key",
+			initialFlags: map[string][]string{
+				"foo": {},
+			},
+			key: "foo",
+			expectedFlags: map[string][]string{
+				"foo": {},
+			},
+		},
+		{
+			name:         "key with equal sign",
+			initialFlags: map[string][]string{},
+			key:          "foo=bar",
+			expectedFlags: map[string][]string{
+				"foo": {"bar"},
+			},
+		},
+		{
+			name:         "key with equal sign and empty value",
+			initialFlags: map[string][]string{},
+			key:          "foo=",
+			expectedFlags: map[string][]string{
+				"foo": {""},
+			},
+		},
+		{
+			name:         "key with multiple equal signs",
+			initialFlags: map[string][]string{},
+			key:          "foo=bar=baz",
+			expectedFlags: map[string][]string{
+				"foo": {"bar=baz"},
+			},
+		},
+		{
+			name: "key with equal sign appends to existing key",
+			initialFlags: map[string][]string{
+				"foo": {"bar"},
+			},
+			key: "foo=baz",
+			expectedFlags: map[string][]string{
+				"foo": {"bar", "baz"},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			flags := tt.initialFlags
+			processFlagKey(flags, tt.key)
+			assert.Equal(t, tt.expectedFlags, flags)
+		})
+	}
+}
