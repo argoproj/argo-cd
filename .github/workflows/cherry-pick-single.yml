@@ -38,7 +38,7 @@ jobs:
           private-key: ${{ secrets.CHERRYPICK_APP_PRIVATE_KEY }}
 
       - name: Checkout repository
-        uses: actions/checkout@8410ad0602e1e429cee44a835ae9f77f654a6694  # v4.0.0
+        uses: actions/checkout@1e31de5234b9f8995739874a8ce0492dc87873e2  # v4.0.0
         with:
           fetch-depth: 0
           token: ${{ steps.generate-token.outputs.token }}
