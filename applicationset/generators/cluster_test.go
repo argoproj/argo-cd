@@ -27,7 +27,7 @@ type possiblyErroringFakeCtrlRuntimeClient struct {
 
 func (p *possiblyErroringFakeCtrlRuntimeClient) List(ctx context.Context, secretList client.ObjectList, opts ...client.ListOption) error {
 	if p.shouldError {
-		return errors.New("could not list Secrets")
+		return errors.New("client error")
 	}
 	return p.Client.List(ctx, secretList, opts...)
 }
