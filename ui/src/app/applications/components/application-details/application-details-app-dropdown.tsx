@@ -5,7 +5,7 @@ import {Context} from '../../../shared/context';
 import {services} from '../../../shared/services';
 import {getAppUrl} from '../utils';
 
-export const ApplicationsDetailsAppDropdown = (props: {appName: string}) => {
+export const ApplicationsDetailsAppDropdown = (props: {appName: string; objectListKind: string}) => {
     const [opened, setOpened] = React.useState(false);
     const [appFilter, setAppFilter] = React.useState('');
     const ctx = React.useContext(Context);
@@ -35,7 +35,7 @@ export const ApplicationsDetailsAppDropdown = (props: {appName: string}) => {
                             }
                         />
                     </li>
-                    <DataLoader load={() => services.applications.list([], {fields: ['items.metadata.name', 'items.metadata.namespace']})}>
+                    <DataLoader load={() => services.applications.list([], props.objectListKind, {fields: ['items.metadata.name', 'items.metadata.namespace']})}>
                         {apps =>
                             apps.items
                                 .filter(app => {
