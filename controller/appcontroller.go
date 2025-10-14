@@ -1163,11 +1163,55 @@ func (ctrl *ApplicationController) removeProjectFinalizer(proj *appv1.AppProject
 	return err
 }
 
+// hasPostDeleteHooksForNamespace checks if there are PostDelete hooks that might manage the given namespace
+func (ctrl *ApplicationController) hasPostDeleteHooksForNamespace(app *appv1.Application, namespaceName string) bool {
+	appLabelKey, err := ctrl.settingsMgr.GetAppInstanceLabelKey()
+	if err != nil {
+		return false
+	}
+	var revisions []string
+	for _, src := range app.Spec.GetSources() {
+		revisions = append(revisions, src.TargetRevision)
+	}
+
+	proj, err := ctrl.getAppProj(app)
+	if err != nil {
+		return false
+	}
+
+	targets, _, _, err := ctrl.appStateManager.GetRepoObjs(context.Background(), app, app.Spec.GetSources(), appLabelKey, revisions, false, false, false, proj, true)
+	if err != nil {
+		return false
+	}
+
+	for _, obj := range targets {
+		if isPostDeleteHook(obj) {
+			// Check if this PostDelete hook is running in the target namespace or has cluster-wide scope (empty namespace)
+			if obj.GetNamespace() == namespaceName || obj.GetNamespace() == "" {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // shouldBeDeleted returns whether a given resource obj should be deleted on cascade delete of application app
 func (ctrl *ApplicationController) shouldBeDeleted(app *appv1.Application, obj *unstructured.Unstructured) bool {
-	return !kube.IsCRD(obj) && !isSelfReferencedApp(app, kube.GetObjectRef(obj)) &&
-		!resourceutil.HasAnnotationOption(obj, synccommon.AnnotationSyncOptions, synccommon.SyncOptionDisableDeletion) &&
-		!resourceutil.HasAnnotationOption(obj, helm.ResourcePolicyAnnotation, helm.ResourcePolicyKeep)
+	if kube.IsCRD(obj) || isSelfReferencedApp(app, kube.GetObjectRef(obj)) ||
+		resourceutil.HasAnnotationOption(obj, synccommon.AnnotationSyncOptions, synccommon.SyncOptionDisableDeletion) ||
+		resourceutil.HasAnnotationOption(obj, helm.ResourcePolicyAnnotation, helm.ResourcePolicyKeep) {
+		return false
+	}
+
+	// If this is a namespace and there are PostDelete hooks that might manage it,
+	// defer the namespace deletion until after PostDelete hooks complete
+	if obj.GetKind() == "Namespace" {
+		if ctrl.hasPostDeleteHooksForNamespace(app, obj.GetName()) {
+			return false
+		}
+	}
+
+	return true
 }
 
 func (ctrl *ApplicationController) getPermittedAppLiveObjects(destCluster *appv1.Cluster, app *appv1.Application, proj *appv1.AppProject, projectClusters func(project string) ([]*appv1.Cluster, error)) (map[kube.ResourceKey]*unstructured.Unstructured, error) {
@@ -1318,6 +1362,13 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 			return nil
 		}
 		app.UnSetPostDeleteFinalizer("cleanup")
+
+		// After PostDelete hooks are cleaned up, delete any namespaces that were deferred
+		err = ctrl.deleteDeferredNamespacesAfterPostDelete(app, destCluster, config, proj, projectClusters, logCtx)
+		if err != nil {
+			return err
+		}
+
 		return ctrl.updateFinalizers(app)
 	}
 
@@ -1330,6 +1381,43 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 			return err
 		}
 		ctrl.projectRefreshQueue.Add(fmt.Sprintf("%s/%s", ctrl.namespace, app.Spec.GetProject()))
+	}
+
+	return nil
+}
+
+// deleteDeferredNamespacesAfterPostDelete deletes namespaces deferred by PostDelete hooks
+func (ctrl *ApplicationController) deleteDeferredNamespacesAfterPostDelete(app *appv1.Application, destCluster *appv1.Cluster, config *rest.Config, proj *appv1.AppProject, projectClusters func(project string) ([]*appv1.Cluster, error), logCtx *log.Entry) error {
+	objsMap, err := ctrl.getPermittedAppLiveObjects(destCluster, app, proj, projectClusters)
+	if err != nil {
+		return err
+	}
+
+	var namespacesToDelete []*unstructured.Unstructured
+	for _, obj := range objsMap {
+		// Only namespaces remain at this point that were deferred due to PostDelete hooks
+		if obj.GetKind() == "Namespace" {
+			namespacesToDelete = append(namespacesToDelete, obj)
+		}
+	}
+
+	if len(namespacesToDelete) == 0 {
+		return nil
+	}
+
+	logCtx.Infof("Deleting %d deferred namespaces", len(namespacesToDelete))
+
+	propagationPolicy := metav1.DeletePropagationForeground
+	if app.GetPropagationPolicy() == appv1.BackgroundPropagationPolicyFinalizer {
+		propagationPolicy = metav1.DeletePropagationBackground
+	}
+
+	for _, ns := range namespacesToDelete {
+		err = ctrl.kubectl.DeleteResource(context.Background(), config, ns.GroupVersionKind(), ns.GetName(), "", metav1.DeleteOptions{PropagationPolicy: &propagationPolicy})
+		if err != nil && !apierrors.IsNotFound(err) {
+			logCtx.WithError(err).Errorf("Failed to delete deferred namespace %s", ns.GetName())
+			return err
+		}
 	}
 
 	return nil
