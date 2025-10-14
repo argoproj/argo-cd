@@ -4,7 +4,16 @@ import * as classNames from 'classnames';
 import * as models from '../../../shared/models';
 import {ResourceIcon} from '../resource-icon';
 import {ResourceLabel} from '../resource-label';
-import {ComparisonStatusIcon, HealthStatusIcon, nodeKey, isSameNode, createdOrNodeKey, resourceStatusToResourceNode, getApplicationLinkURLFromNode, getManagedByURLFromNode} from '../utils';
+import {
+    ComparisonStatusIcon,
+    HealthStatusIcon,
+    nodeKey,
+    isSameNode,
+    createdOrNodeKey,
+    resourceStatusToResourceNode,
+    getApplicationLinkURLFromNode,
+    getManagedByURLFromNode
+} from '../utils';
 import {AppDetailsPreferences} from '../../../shared/services';
 import {Consumer} from '../../../shared/context';
 import Moment from 'react-moment';
