@@ -29,7 +29,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
     - name: Checkout repository
-      uses: actions/checkout@8410ad0602e1e429cee44a835ae9f77f654a6694 # v4.0.0
+      uses: actions/checkout@1e31de5234b9f8995739874a8ce0492dc87873e2 # v4.0.0
 
     # Use correct go version. https://github.com/github/codeql-action/issues/1842#issuecomment-1704398087
     - name: Setup Golang
