@@ -10,4 +10,3 @@ spec:
         env:
         - name: AUTH
           $patch: delete
-

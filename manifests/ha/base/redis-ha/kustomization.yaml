@@ -316,7 +316,6 @@ patches:
       kind: Role
       name: argocd-redis-ha-haproxy
   path: overlays/haproxy-role.yaml
-  
 
 # Uncomment to enable file mounted secret
 #- path: overlays/redis-ha-haproxy-file-mounted-secret.yaml
