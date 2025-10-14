@@ -299,7 +299,7 @@ func NewApplicationController(
 					// resync all applications
 					apps, err := ctrl.appLister.List(labels.Everything())
 					if err != nil {
-						return err
+						return fmt.Errorf("failed to list apps from appLister: %w", err)
 					}
 					for _, app := range apps {
 						if !ctrl.canProcessApp(app) {
@@ -1201,22 +1201,23 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 	}
 	proj, err := ctrl.getAppProj(app)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get AppProject for app %s: %w", app.Name, err)
 	}
+
 	destCluster, err := argo.GetDestinationCluster(context.Background(), app.Spec.Destination, ctrl.db)
 	if err != nil {
 		logCtx.WithError(err).Warn("Unable to get destination cluster")
 		app.UnSetCascadedDeletion()
 		app.UnSetPostDeleteFinalizerAll()
 		if err := ctrl.updateFinalizers(app); err != nil {
-			return err
+			return fmt.Errorf("failed to update finalizers for app %s after cluster retrieval failure: %w", app.Name, err)
 		}
 		logCtx.Infof("Resource entries removed from undefined cluster")
 		return nil
 	}
 	clusterRESTConfig, err := destCluster.RESTConfig()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get REST config for destination cluster of app %s: %w", app.Name, err)
 	}
 	config := metrics.AddMetricsTransportWrapper(ctrl.metricsServer, app, clusterRESTConfig)
 
@@ -1233,7 +1234,7 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 		objs := make([]*unstructured.Unstructured, 0)
 		objsMap, err := ctrl.getPermittedAppLiveObjects(destCluster, app, proj, projectClusters)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to get permitted live objects for app %s in project %s: %w", app.Name, proj.Name, err)
 		}
 
 		for k := range objsMap {
@@ -1265,12 +1266,12 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 			return ctrl.kubectl.DeleteResource(context.Background(), config, obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace(), metav1.DeleteOptions{PropagationPolicy: &propagationPolicy})
 		})
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to delete filtered resources for app %s in project %s: %w", app.Name, proj.Name, err)
 		}
 
 		objsMap, err = ctrl.getPermittedAppLiveObjects(destCluster, app, proj, projectClusters)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to get permitted live objects after deletion for app %s in project %s: %w", app.Name, proj.Name, err)
 		}
 
 		for k, obj := range objsMap {
@@ -1290,13 +1291,14 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 	if app.HasPostDeleteFinalizer() {
 		objsMap, err := ctrl.getPermittedAppLiveObjects(destCluster, app, proj, projectClusters)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to get permitted live objects for app %s in project %s: %w", app.Name, proj.Name, err)
 		}
 
 		done, err := ctrl.executePostDeleteHooks(app, proj, objsMap, config, logCtx)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to execute post-delete hooks for app %s in project %s: %w", app.Name, proj.Name, err)
 		}
+
 		if !done {
 			return nil
 		}
@@ -1307,13 +1309,14 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 	if app.HasPostDeleteFinalizer("cleanup") {
 		objsMap, err := ctrl.getPermittedAppLiveObjects(destCluster, app, proj, projectClusters)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to get permitted live objects for app %s in project %s: %w", app.Name, proj.Name, err)
 		}
 
 		done, err := ctrl.cleanupPostDeleteHooks(objsMap, config, logCtx)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to cleanup post-delete hooks for app %s in project %s: %w", app.Name, proj.Name, err)
 		}
+
 		if !done {
 			return nil
 		}
@@ -1323,12 +1326,13 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 
 	if !app.CascadedDeletion() && !app.HasPostDeleteFinalizer() {
 		if err := ctrl.cache.SetAppManagedResources(app.Name, nil); err != nil {
-			return err
+			return fmt.Errorf("failed to set managed resources cache for app %s: %w", app.Name, err)
 		}
 
 		if err := ctrl.cache.SetAppResourcesTree(app.Name, nil); err != nil {
-			return err
+			return fmt.Errorf("failed to set resources tree cache for app %s: %w", app.Name, err)
 		}
+
 		ctrl.projectRefreshQueue.Add(fmt.Sprintf("%s/%s", ctrl.namespace, app.Spec.GetProject()))
 	}
 

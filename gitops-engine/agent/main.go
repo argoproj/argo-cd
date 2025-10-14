@@ -70,7 +70,7 @@ func (s *settings) parseManifests(ctx context.Context) ([]*unstructured.Unstruct
 	for i := range s.paths {
 		if err := filepath.Walk(filepath.Join(s.repoPath, s.paths[i]), func(path string, info os.FileInfo, err error) error {
 			if err != nil {
-				return err
+				return fmt.Errorf("error walking path %s: %w", path, err)
 			}
 			if info.IsDir() {
 				return nil
