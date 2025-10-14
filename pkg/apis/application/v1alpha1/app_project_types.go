@@ -530,7 +530,8 @@ func isDenyPattern(pattern string) bool {
 	return strings.HasPrefix(pattern, "!")
 }
 
-// TODO: document this method
+// NormalizeJWTTokens keeps JWT tokens in sync between the project’s spec and status.
+// It makes sure every token has an ID and that both sections reflect the same set of tokens.
 func (proj *AppProject) NormalizeJWTTokens() bool {
 	needNormalize := false
 	for i, role := range proj.Spec.Roles {
