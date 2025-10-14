@@ -498,6 +498,9 @@ function renderPodGroup(props: ApplicationResourceTreeProps, id: string, node: R
                                             href={linkInfo.url}
                                             target={linkInfo.isExternal ? '_blank' : undefined}
                                             rel={linkInfo.isExternal ? 'noopener noreferrer' : undefined}
+                                            onClick={e => {
+                                                e.stopPropagation();
+                                            }}
                                             title={getManagedByURLFromNode(node) ? `Open application\nmanaged-by-url: ${getManagedByURLFromNode(node)}` : 'Open application'}>
                                             <i className='fa fa-external-link-alt' />
                                         </a>
@@ -789,6 +792,9 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                                         href={linkInfo.url}
                                         target={linkInfo.isExternal ? '_blank' : undefined}
                                         rel={linkInfo.isExternal ? 'noopener noreferrer' : undefined}
+                                        onClick={e => {
+                                            e.stopPropagation();
+                                        }}
                                         title={getManagedByURLFromNode(node) ? `Open application\nmanaged-by-url: ${getManagedByURLFromNode(node)}` : 'Open application'}>
                                         <i className='fa fa-external-link-alt' />
                                     </a>
