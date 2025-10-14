@@ -144,6 +144,10 @@ type ArgoCDSettings struct {
 	// ImpersonationEnabled indicates whether Application sync privileges can be decoupled from control plane
 	// privileges using impersonation
 	ImpersonationEnabled bool `json:"impersonationEnabled"`
+	// Set Transport security header for HTTP requests
+	HstsEnabled bool `json:"hstsEnabled"`
+	// HtstDirectiveValue is the value of the Strict-Transport-Security header
+	HstsDirectiveValue string `json:"hstsDirectiveValue,omitempty"`
 	// RequireOverridePrivilegeForRevisionSync indicates whether giving an external revision during snyc is considered an override.
 	// Up to revision 3.2, this was always false. It is now still false by default, in order to not breaking existing usage.
 	RequireOverridePrivilegeForRevisionSync bool `json:"requireOverridePrivilegeForRevisionSync"`
@@ -555,6 +559,8 @@ const (
 	RespectRBACValueNormal = "normal"
 	// impersonationEnabledKey is the key to configure whether the application sync decoupling through impersonation feature is enabled
 	impersonationEnabledKey = "application.sync.impersonation.enabled"
+	settingHSTSEnabledKey   = "server.hsts.enabled"
+	settingHSTSDirectiveKey = "server.hsts.directive"
 	// requireOverridePrivilegeForRevisionSyncKey is the key to configure whether giving an external revision during sync is considered an override
 	requireOverridePrivilegeForRevisionSyncKey = "application.sync.requireOverridePrivilegeForRevisionSync"
 )
@@ -1451,6 +1457,15 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *corev1.Conf
 	settings.UiBannerPermanent = argoCDCM.Data[settingUIBannerPermanentKey] == "true"
 	settings.UiBannerPosition = argoCDCM.Data[settingUIBannerPositionKey]
 	settings.BinaryUrls = getDownloadBinaryUrlsFromConfigMap(argoCDCM)
+	settings.HstsEnabled = argoCDCM.Data[settingHSTSEnabledKey] == "true"
+	if settings.HstsEnabled {
+		if hstsValue, err := validateStrictTransportSecurity(argoCDCM.Data[settingHSTSDirectiveKey]); err != nil {
+			log.Warnf("Configuration server.hsts.enabled is not valid: %v", err)
+			settings.HstsEnabled = false
+		} else {
+			settings.HstsDirectiveValue = hstsValue
+		}
+	}
 	if err := validateExternalURL(argoCDCM.Data[settingURLKey]); err != nil {
 		log.Warnf("Failed to validate URL in configmap: %v", err)
 	}
@@ -2368,4 +2383,52 @@ func (mgr *SettingsManager) GetAllowedNodeLabels() []string {
 		labelKeys = append(labelKeys, k)
 	}
 	return labelKeys
+}
+
+// validateStrictTransportSecurity validates the Strict-Transport-Security header directive value,
+// ensuring it contains valid directives such as max-age, includeSubDomains, and preload.
+// It returns the validated directive string or an error if invalid.
+func validateStrictTransportSecurity(value string) (string, error) {
+	const defaultHstsDirective = "max-age=63072000; includeSubDomains; preload"
+	if value == "" {
+		return defaultHstsDirective, nil
+	}
+
+	parts := strings.Split(value, ";")
+	var hasMaxAge bool
+	processedDirectives := make(map[string]bool)
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		var key string
+		switch {
+		case strings.HasPrefix(part, "max-age="):
+			key = "max-age"
+			maxAgeVal := strings.TrimPrefix(part, "max-age=")
+			if maxAgeVal == "" {
+				return "", errors.New("max-age directive is empty")
+			}
+			_, err := strconv.ParseUint(maxAgeVal, 10, 64)
+			if err != nil {
+				return "", fmt.Errorf("invalid max-age value: %w", err)
+			}
+			hasMaxAge = true
+		case part == "includeSubDomains", part == "preload":
+			key = part
+		default:
+			return "", fmt.Errorf("invalid directive: %s", part)
+		}
+		if processedDirectives[key] {
+			return "", fmt.Errorf("repeated directive: %s", key)
+		}
+		processedDirectives[key] = true
+	}
+
+	if !hasMaxAge {
+		return "", errors.New("max-age directive is empty")
+	}
+
+	return value, nil
 }

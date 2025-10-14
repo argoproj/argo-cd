@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -1709,4 +1710,150 @@ func Test_StaticAssetsDir_no_symlink_traversal(t *testing.T) {
 	argocd.newStaticAssetsHandler()(w, req)
 	resp = w.Result()
 	assert.Equal(t, http.StatusOK, resp.StatusCode, "should have been able to access the normal file")
+}
+
+func TestStrictTransportSecurityMiddleware(t *testing.T) {
+	argocd, closer := fakeServer(t)
+	defer closer()
+
+	t.Run("Sets header when enabled", func(t *testing.T) {
+		argocd.settings = &settings_util.ArgoCDSettings{
+			HstsEnabled:        true,
+			HstsDirectiveValue: "max-age=31536000; includeSubDomains",
+		}
+
+		called := false
+		next := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			called = true
+			w.WriteHeader(http.StatusNoContent)
+		})
+
+		handler := argocd.strictTransportSecurityMiddleware(next)
+		rr := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+		handler.ServeHTTP(rr, req)
+
+		resp := rr.Result()
+		assert.True(t, called, "next handler should be invoked")
+		assert.Equal(t, "max-age=31536000; includeSubDomains", resp.Header.Get("Strict-Transport-Security"))
+	})
+
+	t.Run("Does not set header when disabled", func(t *testing.T) {
+		argocd.settings = &settings_util.ArgoCDSettings{
+			HstsEnabled:        false,
+			HstsDirectiveValue: "should-not-be-set",
+		}
+
+		called := false
+		next := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			called = true
+			w.WriteHeader(http.StatusNoContent)
+		})
+
+		handler := argocd.strictTransportSecurityMiddleware(next)
+		rr := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+		handler.ServeHTTP(rr, req)
+
+		resp := rr.Result()
+		assert.True(t, called, "next handler should be invoked")
+		assert.Empty(t, resp.Header.Get("Strict-Transport-Security"))
+	})
+}
+
+func TestHostValidationMiddleware(t *testing.T) {
+	argocd, closer := fakeServer(t)
+	defer closer()
+
+	allowedHost := "example.com"
+	additionalHost := "other.com"
+	argocd.settings.URL = "https://" + allowedHost
+	argocd.settings.AdditionalURLs = []string{"https://" + additionalHost}
+	argocd.settings.HstsEnabled = true
+	argocd.settings.HstsDirectiveValue = "max-age=63072000; includeSubDomains; preload"
+
+	handlerCalled := false
+	next := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		handlerCalled = true
+		w.WriteHeader(http.StatusOK)
+	})
+
+	tests := []struct {
+		name       string
+		host       string
+		wantStatus int
+		wantCalled bool
+		expectHtst bool
+	}{
+		{"allowed host", allowedHost, http.StatusOK, true, true},
+		{"allowed host withport", allowedHost + ":8080", http.StatusOK, true, true},
+		{"additional host", additionalHost, http.StatusOK, true, true},
+		{"disallowed host", "bad.com", http.StatusBadRequest, false, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			handlerCalled = false
+			req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+			req.Host = tt.host
+			w := httptest.NewRecorder()
+			argocd.hostValidationMiddleware(next).ServeHTTP(w, req)
+			resp := w.Result()
+			assert.Equal(t, tt.wantStatus, resp.StatusCode)
+			assert.Equal(t, tt.wantCalled, handlerCalled)
+		})
+	}
+}
+
+func TestHostValidationMiddleware_IPVersions(t *testing.T) {
+	argocd, closer := fakeServer(t)
+	defer closer()
+
+	handlerCalled := false
+	next := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		handlerCalled = true
+		w.WriteHeader(http.StatusOK)
+	})
+
+	// Mock getHostname and lookupIP functions
+	origHostnameFunc := getHostname
+	origLookupIP := lookupIP
+
+	getHostname = func() (string, error) { return "test-hostname", nil }
+	lookupIP = func(_ string) ([]net.IP, error) {
+		return []net.IP{net.ParseIP("127.0.0.1"), net.ParseIP("2001:db8::68")}, nil
+	}
+	defer func() {
+		getHostname = origHostnameFunc
+		lookupIP = origLookupIP
+	}()
+
+	tests := []struct {
+		name       string
+		host       string
+		wantStatus int
+		wantCalled bool
+	}{
+		{"ipv4 allowed", "localhost", http.StatusOK, true},
+		{"ipv4 with port allowed", "127.0.0.1:8080", http.StatusOK, true},
+		{"ipv6 allowed bracket", "[2001:db8::68]", http.StatusOK, true},
+		{"ipv6 with port allowed", "[2001:db8::68]:8443", http.StatusOK, true},
+		{"unauthorized ipv4", "192.0.2.1", http.StatusBadRequest, false},
+		{"unauthorized ipv4 with port", "192.0.2.1:8443", http.StatusBadRequest, false},
+		{"unauthorized ipv6", "2001:db8::1", http.StatusBadRequest, false},
+		{"unauthorized ipv6 bracket", "[2001:db8::1]:8443", http.StatusBadRequest, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			handlerCalled = false
+			req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+			req.Host = tt.host
+			w := httptest.NewRecorder()
+			argocd.hostValidationMiddleware(next).ServeHTTP(w, req)
+			resp := w.Result()
+			assert.Equal(t, tt.wantStatus, resp.StatusCode)
+			assert.Equal(t, tt.wantCalled, handlerCalled)
+		})
+	}
 }
