@@ -160,7 +160,7 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 			ctx := c.Context()
 
 			argocdClient := headless.NewClientOrDie(clientOpts, c)
-			apps, err := cmdutil.ConstructApps(fileURL, appName, labels, annotations, args, appOpts, c.Flags())
+			apps, err := cmdutil.ConstructApps(fileURL, appName, labels, annotations, args, &appOpts, c.Flags())
 			errors.CheckError(err)
 
 			for _, app := range apps {
@@ -967,7 +967,7 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 	var sourcePosition int
 	var sourceName string
 	appOpts := cmdutil.AppOptions{}
-	opts := unsetOpts{}
+	opts := &unsetOpts{}
 	var appNamespace string
 	command := &cobra.Command{
 		Use:   "unset APPNAME parameters",
@@ -1071,7 +1071,7 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 	return command
 }
 
-func unset(source *argoappv1.ApplicationSource, opts unsetOpts) (updated bool, nothingToUnset bool) {
+func unset(source *argoappv1.ApplicationSource, opts *unsetOpts) (updated bool, nothingToUnset bool) {
 	needToUnsetRef := false
 	if opts.ref && source.IsRef() {
 		source.Ref = ""
@@ -1774,8 +1774,8 @@ func printApplicationTable(apps []argoappv1.Application, output *string) {
 			app.Spec.GetProject(),
 			app.Status.Sync.Status,
 			app.Status.Health.Status,
-			formatSyncPolicy(app),
-			formatConditionsSummary(app),
+			formatSyncPolicy(&app),
+			formatConditionsSummary(&app),
 		}
 		if *output == "wide" {
 			vals = append(vals, app.Spec.GetSource().RepoURL, app.Spec.GetSource().Path, app.Spec.GetSource().TargetRevision)
@@ -1857,7 +1857,7 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	return command
 }
 
-func formatSyncPolicy(app argoappv1.Application) string {
+func formatSyncPolicy(app *argoappv1.Application) string {
 	if app.Spec.SyncPolicy == nil || !app.Spec.SyncPolicy.IsAutomatedSyncEnabled() {
 		return "Manual"
 	}
@@ -1868,7 +1868,7 @@ func formatSyncPolicy(app argoappv1.Application) string {
 	return policy
 }
 
-func formatConditionsSummary(app argoappv1.Application) string {
+func formatConditionsSummary(app *argoappv1.Application) string {
 	typeToCnt := make(map[string]int)
 	for i := range app.Status.Conditions {
 		condition := app.Status.Conditions[i]
@@ -2058,7 +2058,8 @@ func printTreeView(nodeMapping map[string]argoappv1.ResourceNode, parentChildMap
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	_, _ = fmt.Fprintf(w, "KIND/NAME\tSTATUS\tHEALTH\tMESSAGE\n")
 	for uid := range parentNodes {
-		treeViewAppGet("", nodeMapping, parentChildMapping, nodeMapping[uid], mapNodeNameToResourceState, w)
+		parent := nodeMapping[uid]
+		treeViewAppGet("", nodeMapping, parentChildMapping, &parent, mapNodeNameToResourceState, w)
 	}
 	_ = w.Flush()
 }
@@ -2067,7 +2068,8 @@ func printTreeViewDetailed(nodeMapping map[string]argoappv1.ResourceNode, parent
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	fmt.Fprintf(w, "KIND/NAME\tSTATUS\tHEALTH\tAGE\tMESSAGE\tREASON\n")
 	for uid := range parentNodes {
-		detailedTreeViewAppGet("", nodeMapping, parentChildMapping, nodeMapping[uid], mapNodeNameToResourceState, w)
+		parent := nodeMapping[uid]
+		detailedTreeViewAppGet("", nodeMapping, parentChildMapping, &parent, mapNodeNameToResourceState, w)
 	}
 	_ = w.Flush()
 }
@@ -3455,7 +3457,7 @@ func NewApplicationAddSourceCommand(clientOpts *argocdclient.ClientOptions) *cob
 			}
 
 			if len(app.Spec.Sources) > 0 {
-				appSource, _ := cmdutil.ConstructSource(&argoappv1.ApplicationSource{}, appOpts, c.Flags())
+				appSource, _ := cmdutil.ConstructSource(&argoappv1.ApplicationSource{}, &appOpts, c.Flags())
 
 				// sourcePosition is the index at which new source will be appended to spec.Sources
 				sourcePosition := len(app.Spec.GetSources())
