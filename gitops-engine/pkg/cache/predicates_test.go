@@ -106,7 +106,7 @@ func ExampleNewClusterCache_inspectNamespaceResources() {
 			_, ok := un.GetLabels()["acme.io/my-label"]
 			// cache whole manifest if resource has label
 			cacheManifest = ok
-			return
+			return info, cacheManifest
 		}),
 	)
 	// Ensure cluster is synced before using it

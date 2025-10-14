@@ -91,11 +91,11 @@ func newClusterWithOptions(_ testing.TB, opts []UpdateSettingsFunc, objs ...runt
 	client.PrependReactor("list", "*", func(action testcore.Action) (handled bool, ret runtime.Object, err error) {
 		handled, ret, err = reactor.React(action)
 		if err != nil || !handled {
-			return
+			return handled, ret, err
 		}
 		// make sure list response have resource version
 		ret.(metav1.ListInterface).SetResourceVersion("123")
-		return
+		return handled, ret, err
 	})
 
 	apiResources := []kube.APIResourceInfo{{
@@ -1189,7 +1189,7 @@ func Test_watchEvents_Deadlock(t *testing.T) {
 			// deadlock.RLock()
 			// defer deadlock.RUnlock()
 
-			return
+			return info, cacheManifest
 		}),
 	}, res1, res2, testDeploy())
 	defer func() {

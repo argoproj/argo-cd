@@ -157,7 +157,7 @@ func newCmd(log logr.Logger) *cobra.Command {
 					info = &resourceInfo{gcMark: un.GetAnnotations()[annotationGCMark]}
 					// cache resources that has that mark to improve performance
 					cacheManifest = gcMark != ""
-					return
+					return info, cacheManifest
 				}),
 			)
 			gitOpsEngine := engine.NewEngine(config, clusterCache, engine.WithLogr(log))

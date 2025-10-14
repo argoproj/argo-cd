@@ -325,7 +325,6 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, project *v1alp
 				}
 			}
 			return nil
-
 		}),
 		sync.WithOperationSettings(syncOp.DryRun, syncOp.Prune, syncOp.SyncStrategy.Force(), syncOp.IsApplyStrategy() || len(syncOp.Resources) > 0),
 		sync.WithInitialState(state.Phase, state.Message, initialResourcesRes, state.StartedAt),
