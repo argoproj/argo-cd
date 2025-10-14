@@ -1,11 +1,11 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
+  name: argocd-redis
   labels:
     app.kubernetes.io/name: argocd-redis
     app.kubernetes.io/part-of: argocd
     app.kubernetes.io/component: redis
-  name: argocd-redis
 spec:
   selector:
     matchLabels:
@@ -15,6 +15,12 @@ spec:
       labels:
         app.kubernetes.io/name: argocd-redis
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        seccompProfile:
+          type: RuntimeDefault
+      serviceAccountName: argocd-redis
       initContainers:
         - command:
             - argocd
@@ -32,28 +38,39 @@ spec:
             runAsNonRoot: true
             seccompProfile:
               type: RuntimeDefault
-      securityContext:
-        runAsNonRoot: true
-        runAsUser: 999
-        seccompProfile:
-          type: RuntimeDefault
-      serviceAccountName: argocd-redis        
+        - name: config-init
+          image: redis:7.2.7-alpine
+          command: 
+          - "sh"
+          - "/readonly-config/init.sh"
+          env:
+            - name: REDIS_CREDS_FILE_PATH
+              value: "/run/secrets/argocd/redis-auth"
+          volumeMounts:
+            - name: config
+              mountPath: /readonly-config
+            - name: data
+              mountPath: /data
+            - name: redis-creds
+              mountPath: "/run/secrets/argocd/redis-auth"
+              readOnly: true
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: false
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+      # Replace containers section to use config file instead of env var
       containers:
       - name: redis
         image: redis:8.2.1-alpine
         imagePullPolicy: Always
         args:
-        - "--save"
-        - ""
-        - "--appendonly"
-        - "no"
-        - --requirepass $(REDIS_PASSWORD)
-        env:
-          - name: REDIS_PASSWORD
-            valueFrom:
-              secretKeyRef:
-                key: auth
-                name: argocd-redis
+        - "redis-server"
+        - "/data/conf/redis.conf"
         ports:
         - containerPort: 6379
         securityContext:
@@ -62,6 +79,23 @@ spec:
           capabilities:
             drop:
             - ALL
+        volumeMounts:
+          - name: data
+            mountPath: /data
+      # Add volumes section
+      volumes:
+        - name: config
+          configMap:
+            name: argocd-redis-cm
+        - name: data
+          emptyDir: {}
+        - name: redis-creds
+          secret:
+            secretName: argocd-redis
+            items:
+              - key: auth
+                path: auth
+            optional: true
       affinity:
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
@@ -78,4 +112,5 @@ spec:
                   app.kubernetes.io/part-of: argocd
               topologyKey: kubernetes.io/hostname
       nodeSelector:
-        kubernetes.io/os: linux 
+        kubernetes.io/os: linux
+

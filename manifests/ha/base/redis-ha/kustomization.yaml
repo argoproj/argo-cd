@@ -21,20 +21,22 @@ patches:
     name: argocd-redis-ha-configmap
     namespace: argocd
   path: overlays/remove-namespace.yaml
-- target:
-    version: v1
-    group: ""
-    kind: ConfigMap
-    name: argocd-redis-ha-health-configmap
-    namespace: argocd
-  path: overlays/argocd-redis-ha-health-configmap-script.yaml
-- target:
-    version: v1
-    group: ""
-    kind: ConfigMap
-    name: argocd-redis-ha-configmap
-    namespace: argocd
-  path: overlays/argocd-redis-ha-configmap-script.yaml 
+# Uncomment to enable file mounted secret
+#- target:
+#    version: v1
+#    group: ""
+#    kind: ConfigMap
+#    name: argocd-redis-ha-health-configmap
+#    namespace: argocd
+#  path: overlays/argocd-redis-ha-health-configmap-script.yaml
+# Uncomment to enable file mounted secret
+#- target:
+#    version: v1
+#    group: ""
+#    kind: ConfigMap
+#    name: argocd-redis-ha-configmap
+#    namespace: argocd
+#  path: overlays/argocd-redis-ha-configmap-script.yaml 
 - target:
     version: v1
     group: ""
@@ -314,13 +316,18 @@ patches:
       kind: Role
       name: argocd-redis-ha-haproxy
   path: overlays/haproxy-role.yaml
+  
+
+# Uncomment to enable file mounted secret
+#- path: overlays/redis-ha-haproxy-file-mounted-secret.yaml
+#- path: overlays/redis-ha-statefulset-file-mounted-secret.yaml
+#- path: overlays/redis-ha-statefulset-remove-auth-env.yaml
+#- path: overlays/redis-ha-haproxy-remove-auth-env.yaml
+
+# Ensure secret-init runs before config-init by adding it after the file-mounted secret overlay
 - target:
     group: apps
     version: v1
     kind: Deployment
     name: argocd-redis-ha-haproxy
   path: overlays/deployment-initContainers.yaml
-
-# Enable file mounted secret  
-- path: overlays/redis-ha-haproxy-file-mounted-secret.yaml
-- path: overlays/redis-ha-statefulset-file-mounted-secret.yaml

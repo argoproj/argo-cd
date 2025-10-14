@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: argocd-redis-ha-server
+spec:
+  template:
+    spec:
+      initContainers:
+      - name: config-init
+        env:
+        - name: AUTH
+          $patch: delete
+      containers:
+      - name: redis
+        env:
+        - name: AUTH
+          $patch: delete
+      - name: sentinel
+        env:
+        - name: AUTH
+          $patch: delete
+      - name: split-brain-fix
+        env:
+        - name: AUTH
+          $patch: delete

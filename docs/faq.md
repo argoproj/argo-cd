@@ -352,6 +352,52 @@ Place the following files in the specified directory:
 
 This avoids ambiguity between mounted files and environment variables while still supporting env-only setups when no mount is provided.
 
+### Enable in Kustomize (HA and non-HA)
+
+File-mounted credentials can be toggled through Kustomize overlays.
+
+1) HA installation (Redis Sentinel + HAProxy)
+
+- Edit `manifests/ha/base/redis-ha/kustomization.yaml` and uncomment the file-mount overlays:
+
+```yaml
+- path: overlays/redis-ha-haproxy-file-mounted-secret.yaml
+- path: overlays/redis-ha-statefulset-file-mounted-secret.yaml
+- path: overlays/redis-ha-statefulset-remove-auth-env.yaml
+- path: overlays/redis-ha-haproxy-remove-auth-env.yaml
+```
+
+```yaml
+- target:
+    version: v1
+    group: ""
+    kind: ConfigMap
+    name: argocd-redis-ha-health-configmap
+    namespace: argocd
+  path: overlays/argocd-redis-ha-health-configmap-script.yaml
+- target:
+    version: v1
+    group: ""
+    kind: ConfigMap
+    name: argocd-redis-ha-configmap
+    namespace: argocd
+  path: overlays/argocd-redis-ha-configmap-script.yaml 
+```
+
+2) Non-HA installation (single Redis)
+
+- Edit `manifests/base/redis/kustomization.yaml` and uncomment the resources/patches for file-mount:
+
+```yaml
+resources:
+  - argocd-redis-deployment.yaml
+   ...
+  - overlays/file-mount/argocd-redis-cm.yaml
+
+patches:
+  - path: overlays/file-mount/redis-deployment-patch.yaml
+```
+
 ## How do I fix `Manifest generation error (cached)`?
 
 `Manifest generation error (cached)` means that there was an error when generating manifests and that the error message has been cached to avoid runaway retries.

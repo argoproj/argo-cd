@@ -1,6 +1,9 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
+# Default Redis deployment with environment variables
+# To enable file-based credentials, uncomment the patches below
+
 resources:
   - argocd-redis-deployment.yaml
   - argocd-redis-sa.yaml
@@ -8,7 +11,13 @@ resources:
   - argocd-redis-network-policy.yaml
   - argocd-redis-role.yaml
   - argocd-redis-rolebinding.yaml
-  - argocd-redis-cm.yaml
+# Uncomment to enable file mounted secret
+#  - overlays/file-mount/argocd-redis-cm.yaml
+
+
+# Uncomment to enable file mounted secret
+#patches:
+#  - path: overlays/file-mount/redis-deployment-patch.yaml
 
 images:
   - name: redis
