@@ -24,8 +24,6 @@ spec:
         args:
           - /usr/local/bin/argocd-repo-server
         env:
-          - name: REDIS_CREDS_FILE_PATH
-            value: "/run/secrets/argocd/redis-auth"
           - name: REDIS_PASSWORD
             valueFrom:
               secretKeyRef:
@@ -286,9 +284,6 @@ spec:
           seccompProfile:
             type: RuntimeDefault
         volumeMounts:
-        - name: redis-creds
-          mountPath: "/run/secrets/argocd/redis-auth"
-          readOnly: true
         - name: ssh-known-hosts
           mountPath: /app/config/ssh
         - name: tls-certs
@@ -326,13 +321,7 @@ spec:
         - mountPath: /var/run/argocd
           name: var-files
       volumes:
-        - name: redis-creds
-          secret:
-            secretName: argocd-redis
-            items:
-              - key: auth
-                path: auth
-            optional: true      
+        
         - name: ssh-known-hosts
           configMap:
             name: argocd-ssh-known-hosts-cm

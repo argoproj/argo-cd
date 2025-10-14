@@ -7,3 +7,6 @@ resources:
 - argocd-application-controller-statefulset.yaml
 - argocd-application-controller-deployment.yaml
 
+# Uncomment to enable Redis file-mounted credentials for application-controller Deployment
+#patches:
+#  - path: overlays/file-mount/controller-deployment-file-mount-patch.yaml

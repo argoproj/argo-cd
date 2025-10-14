@@ -398,6 +398,55 @@ patches:
   - path: overlays/file-mount/redis-deployment-patch.yaml
 ```
 
+### Enable in Kustomize for Argo CD component
+
+You can enable file-mounted credentials for Argo CD components via optional overlays. Uncomment the relevant lines below.
+
+- Server (base install)
+
+Edit `manifests/base/server/kustomization.yaml`:
+
+```yaml
+# Uncomment to enable Redis file-mounted credentials for argocd-server
+patches:
+  - path: overlays/file-mount/server-file-mount-patch.yaml
+```
+
+- Application Controller (StatefulSet, base install)
+
+Edit `manifests/base/application-controller/kustomization.yaml`:
+
+```yaml
+# Uncomment to enable Redis file-mounted credentials for application-controller
+patches:
+  - path: overlays/file-mount/controller-file-mount-patch.yaml
+```
+
+- Application Controller (Deployment variant)
+
+Edit `manifests/base/application-controller-deployment/kustomization.yaml`:
+
+```yaml
+# Uncomment to enable Redis file-mounted credentials for application-controller Deployment
+patches:
+  - path: overlays/file-mount/controller-deployment-file-mount-patch.yaml
+```
+
+- Repo Server
+
+Edit `manifests/base/repo-server/kustomization.yaml`:
+
+```yaml
+# Uncomment to enable Redis file-mounted credentials for repo-server
+patches:
+  - path: overlays/file-mount/repo-file-mount-patch.yaml
+```
+
+Notes
+
+- When these overlays are enabled, the `REDIS_PASSWORD` env var is removed so only file-mounted credentials are used.
+- When overlays are not enabled, the default env-based configuration remains in effect.
+
 ## How do I fix `Manifest generation error (cached)`?
 
 `Manifest generation error (cached)` means that there was an error when generating manifests and that the error message has been cached to avoid runaway retries.

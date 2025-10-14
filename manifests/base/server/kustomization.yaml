@@ -9,3 +9,7 @@ resources:
 - argocd-server-service.yaml
 - argocd-server-metrics.yaml
 - argocd-server-network-policy.yaml
+
+# Uncomment to enable Redis file-mounted credentials for argocd-server
+#patches:
+#  - path: overlays/file-mount/server-file-mount-patch.yaml

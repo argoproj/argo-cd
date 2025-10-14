@@ -2478,8 +2478,6 @@ spec:
       - args:
         - /usr/local/bin/argocd-repo-server
         env:
-        - name: REDIS_CREDS_FILE_PATH
-          value: /run/secrets/argocd/redis-auth
         - name: REDIS_PASSWORD
           valueFrom:
             secretKeyRef:
@@ -2743,9 +2741,6 @@ spec:
           seccompProfile:
             type: RuntimeDefault
         volumeMounts:
-        - mountPath: /run/secrets/argocd/redis-auth
-          name: redis-creds
-          readOnly: true
         - mountPath: /app/config/ssh
           name: ssh-known-hosts
         - mountPath: /app/config/tls
@@ -2787,13 +2782,6 @@ spec:
         kubernetes.io/os: linux
       serviceAccountName: argocd-repo-server
       volumes:
-      - name: redis-creds
-        secret:
-          items:
-          - key: auth
-            path: auth
-          optional: true
-          secretName: argocd-redis
       - configMap:
           name: argocd-ssh-known-hosts-cm
         name: ssh-known-hosts
@@ -2863,8 +2851,6 @@ spec:
         env:
         - name: ARGOCD_API_SERVER_REPLICAS
           value: "2"
-        - name: REDIS_CREDS_FILE_PATH
-          value: /run/secrets/argocd/redis-auth
         - name: REDIS_PASSWORD
           valueFrom:
             secretKeyRef:
@@ -3181,9 +3167,6 @@ spec:
           seccompProfile:
             type: RuntimeDefault
         volumeMounts:
-        - mountPath: /run/secrets/argocd/redis-auth
-          name: redis-creds
-          readOnly: true
         - mountPath: /app/config/ssh
           name: ssh-known-hosts
         - mountPath: /app/config/tls
@@ -3202,13 +3185,6 @@ spec:
         kubernetes.io/os: linux
       serviceAccountName: argocd-server
       volumes:
-      - name: redis-creds
-        secret:
-          items:
-          - key: auth
-            path: auth
-          optional: true
-          secretName: argocd-redis
       - emptyDir: {}
         name: plugins-home
       - emptyDir: {}
@@ -3285,8 +3261,6 @@ spec:
       - args:
         - /usr/local/bin/argocd-application-controller
         env:
-        - name: REDIS_CREDS_FILE_PATH
-          value: /run/secrets/argocd/redis-auth
         - name: REDIS_PASSWORD
           valueFrom:
             secretKeyRef:
@@ -3577,9 +3551,6 @@ spec:
           name: argocd-cmd-params-cm
         - mountPath: /tmp
           name: argocd-application-controller-tmp
-        - mountPath: /run/secrets/argocd/redis-auth
-          name: redis-creds
-          readOnly: true
         workingDir: /home/argocd
       nodeSelector:
         kubernetes.io/os: linux
@@ -3607,13 +3578,6 @@ spec:
           name: argocd-cmd-params-cm
           optional: true
         name: argocd-cmd-params-cm
-      - name: redis-creds
-        secret:
-          items:
-          - key: auth
-            path: auth
-          optional: true
-          secretName: argocd-redis
 ---
 apiVersion: apps/v1
 kind: StatefulSet

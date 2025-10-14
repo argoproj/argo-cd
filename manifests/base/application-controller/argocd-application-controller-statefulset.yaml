@@ -21,8 +21,6 @@ spec:
       - args:
         - /usr/local/bin/argocd-application-controller
         env:
-        - name: REDIS_CREDS_FILE_PATH
-          value: "/run/secrets/argocd/redis-auth"
         - name: REDIS_PASSWORD
           valueFrom:
             secretKeyRef:
@@ -314,9 +312,7 @@ spec:
           mountPath: /home/argocd/params
         - name: argocd-application-controller-tmp
           mountPath: /tmp
-        - name: redis-creds
-          mountPath: "/run/secrets/argocd/redis-auth"
-          readOnly: true  
+  
       serviceAccountName: argocd-application-controller
       affinity:
         podAntiAffinity:
@@ -355,13 +351,6 @@ spec:
           name: argocd-cmd-params-cm
           items:
             - key: controller.profile.enabled
-              path: profiler.enabled
-      - name: redis-creds
-        secret:
-          secretName: argocd-redis
-          items:
-            - key: auth
-              path: auth
-          optional: true            
+              path: profiler.enabled  
       nodeSelector:
         kubernetes.io/os: linux

@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: argocd-application-controller
+spec:
+  template:
+    spec:
+      containers:
+      - name: argocd-application-controller
+        env:
+        - name: REDIS_PASSWORD
+          $patch: delete
+        - name: REDIS_CREDS_FILE_PATH
+          value: "/run/secrets/argocd/redis-auth"
+        volumeMounts:
+        - name: redis-creds
+          mountPath: "/run/secrets/argocd/redis-auth"
+          readOnly: true
+      volumes:
+      - name: redis-creds
+        secret:
+          secretName: argocd-redis
+          items:
+          - key: auth
+            path: auth
+          optional: true
