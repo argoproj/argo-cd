@@ -304,7 +304,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@1e31de5234b9f8995739874a8ce0492dc87873e2 # v4.0.0
       - name: Setup NodeJS
-        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
         with:
           # renovate: datasource=node-version packageName=node versioning=node
           node-version: '22.9.0'
