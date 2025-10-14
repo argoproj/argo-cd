@@ -1441,7 +1441,7 @@ func TestIterateHierarchyV2_DisabledClusterScopedParents(t *testing.T) {
 }
 
 func TestOrphanedChildrenCleanup(t *testing.T) {
-	// Test that orphanedChildren indexes are properly cleaned up when resources are deleted
+	// Test that parent-to-children index is properly cleaned up when resources are deleted
 	clusterParent := testClusterParent()
 	namespacedChild := testNamespacedChild()
 
@@ -1453,24 +1453,15 @@ func TestOrphanedChildrenCleanup(t *testing.T) {
 	err := cluster.EnsureSynced()
 	require.NoError(t, err)
 
-	// Verify child is tracked in orphanedChildren
+	// Verify child is tracked in parentUIDToChildren index
 	cluster.lock.RLock()
-	parentKey := kube.GetResourceKey(mustToUnstructured(clusterParent))
 	childKey := kube.GetResourceKey(mustToUnstructured(namespacedChild))
-	namespace := namespacedChild.Namespace
+	parentUID := clusterParent.GetUID()
 
-	// Check that the child is in orphanedChildren
-	nsMap, ok := cluster.orphanedChildren[namespace]
-	require.True(t, ok, "namespace should be in orphanedChildren")
-	parentMap, ok := nsMap[parentKey]
-	require.True(t, ok, "parent should have entry in orphanedChildren")
-	_, ok = parentMap[childKey]
-	require.True(t, ok, "child should be in parent's orphanedChildren map")
-
-	// Check reverse index
-	parents, ok := cluster.namespacedChildToClusterParents[childKey]
-	require.True(t, ok, "child should be in reverse index")
-	require.Contains(t, parents, parentKey, "reverse index should contain parent")
+	// Check that the child is in parentUIDToChildren
+	children, ok := cluster.parentUIDToChildren[parentUID]
+	require.True(t, ok, "parent should have entry in parentUIDToChildren")
+	require.Contains(t, children, childKey, "child should be in parent's children list")
 	cluster.lock.RUnlock()
 
 	// Delete the child
@@ -1478,20 +1469,12 @@ func TestOrphanedChildrenCleanup(t *testing.T) {
 	cluster.onNodeRemoved(childKey)
 	cluster.lock.Unlock()
 
-	// Verify cleanup: child removed from orphanedChildren
+	// Verify cleanup: child removed from parentUIDToChildren
 	cluster.lock.RLock()
-	nsMap, ok = cluster.orphanedChildren[namespace]
+	children, ok = cluster.parentUIDToChildren[parentUID]
 	if ok {
-		parentMap, ok = nsMap[parentKey]
-		if ok {
-			_, ok = parentMap[childKey]
-			assert.False(t, ok, "child should be removed from orphanedChildren")
-		}
+		assert.NotContains(t, children, childKey, "child should be removed from parent's children list")
 	}
-
-	// Verify cleanup: child removed from reverse index
-	_, ok = cluster.namespacedChildToClusterParents[childKey]
-	assert.False(t, ok, "child should be removed from reverse index")
 	cluster.lock.RUnlock()
 
 	// Re-add the child and verify it re-populates correctly
@@ -1500,16 +1483,9 @@ func TestOrphanedChildrenCleanup(t *testing.T) {
 	cluster.lock.Unlock()
 
 	cluster.lock.RLock()
-	nsMap, ok = cluster.orphanedChildren[namespace]
-	require.True(t, ok, "namespace should be back in orphanedChildren")
-	parentMap, ok = nsMap[parentKey]
-	require.True(t, ok, "parent should be back in orphanedChildren")
-	_, ok = parentMap[childKey]
-	require.True(t, ok, "child should be back in orphanedChildren")
-
-	parents, ok = cluster.namespacedChildToClusterParents[childKey]
-	require.True(t, ok, "child should be back in reverse index")
-	require.Contains(t, parents, parentKey, "reverse index should contain parent again")
+	children, ok = cluster.parentUIDToChildren[parentUID]
+	require.True(t, ok, "parent should be back in parentUIDToChildren")
+	require.Contains(t, children, childKey, "child should be back in parent's children list")
 	cluster.lock.RUnlock()
 }
 
@@ -1540,22 +1516,15 @@ func TestOrphanedChildrenIndex_OwnerRefLifecycle(t *testing.T) {
 	err := cluster.EnsureSynced()
 	require.NoError(t, err)
 
-	parentKey := kube.GetResourceKey(mustToUnstructured(clusterParent))
 	childKey := kube.GetResourceKey(mustToUnstructured(childNoOwner))
-	namespace := childNoOwner.Namespace
+	parentUID := clusterParent.GetUID()
 
 	// Verify child is NOT tracked initially (no owner ref)
 	cluster.lock.RLock()
-	nsMap, ok := cluster.orphanedChildren[namespace]
+	children, ok := cluster.parentUIDToChildren[parentUID]
 	if ok {
-		parentMap, ok := nsMap[parentKey]
-		if ok {
-			_, ok = parentMap[childKey]
-			assert.False(t, ok, "child without owner ref should not be in orphanedChildren")
-		}
+		assert.NotContains(t, children, childKey, "child without owner ref should not be in parentUIDToChildren")
 	}
-	_, ok = cluster.namespacedChildToClusterParents[childKey]
-	assert.False(t, ok, "child without owner ref should not be in reverse index")
 	cluster.lock.RUnlock()
 
 	// Simulate controller adding owner reference (e.g., adoption)
@@ -1584,16 +1553,9 @@ func TestOrphanedChildrenIndex_OwnerRefLifecycle(t *testing.T) {
 
 	// Verify child is NOW tracked (owner ref added)
 	cluster.lock.RLock()
-	nsMap, ok = cluster.orphanedChildren[namespace]
-	require.True(t, ok, "namespace should be in orphanedChildren after adding owner ref")
-	parentMap, ok := nsMap[parentKey]
-	require.True(t, ok, "parent should be in orphanedChildren after adding owner ref")
-	_, ok = parentMap[childKey]
-	require.True(t, ok, "child should be in orphanedChildren after adding owner ref")
-
-	parents, ok := cluster.namespacedChildToClusterParents[childKey]
-	require.True(t, ok, "child should be in reverse index after adding owner ref")
-	require.Contains(t, parents, parentKey, "reverse index should contain parent")
+	children, ok = cluster.parentUIDToChildren[parentUID]
+	require.True(t, ok, "parent should have entry in parentUIDToChildren after adding owner ref")
+	require.Contains(t, children, childKey, "child should be in parent's children list after adding owner ref")
 	cluster.lock.RUnlock()
 
 	// Simulate removing owner reference (e.g., parent deletion with orphanDependents: true)
@@ -1617,27 +1579,17 @@ func TestOrphanedChildrenIndex_OwnerRefLifecycle(t *testing.T) {
 
 	// Verify child is NO LONGER tracked (owner ref removed)
 	cluster.lock.RLock()
-	nsMap, ok = cluster.orphanedChildren[namespace]
+	children, ok = cluster.parentUIDToChildren[parentUID]
 	if ok {
-		parentMap, ok = nsMap[parentKey]
-		if ok {
-			_, ok = parentMap[childKey]
-			assert.False(t, ok, "child should be removed from orphanedChildren after removing owner ref")
-		}
+		assert.NotContains(t, children, childKey, "child should be removed from parentUIDToChildren after removing owner ref")
 	}
-
-	_, ok = cluster.namespacedChildToClusterParents[childKey]
-	assert.False(t, ok, "child should be removed from reverse index after removing owner ref")
 	cluster.lock.RUnlock()
 
-	// Verify empty map cleanup: namespace map should be cleaned up if it's empty
+	// Verify empty entry cleanup: parent entry should be cleaned up if it has no children
 	cluster.lock.RLock()
-	nsMap, ok = cluster.orphanedChildren[namespace]
+	children, ok = cluster.parentUIDToChildren[parentUID]
 	if ok {
-		parentMap, ok = nsMap[parentKey]
-		if ok {
-			assert.Empty(t, parentMap, "parent map should be empty or cleaned up")
-		}
+		assert.Empty(t, children, "parent's children list should be empty or cleaned up")
 	}
 	cluster.lock.RUnlock()
 }
@@ -1974,8 +1926,8 @@ func BenchmarkIterateHierarchyV2_ClusterParentTraversal(b *testing.B) {
 
 			// Verify indexes are populated (sanity check)
 			if !tc.disableFeature && tc.namespacesWithCrossNS > 0 {
-				if len(cluster.orphanedChildren) == 0 {
-					b.Fatal("orphanedChildren index not populated - benchmark setup is broken")
+				if len(cluster.parentUIDToChildren) == 0 {
+					b.Fatal("parentUIDToChildren index not populated - benchmark setup is broken")
 				}
 			}
 
