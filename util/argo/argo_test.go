@@ -556,6 +556,49 @@ func TestFilterByProjectsP(t *testing.T) {
 	})
 }
 
+func TestFilterAppSetsByProjects(t *testing.T) {
+	appsets := []argoappv1.ApplicationSet{
+		{
+			Spec: argoappv1.ApplicationSetSpec{
+				Template: argoappv1.ApplicationSetTemplate{
+					Spec: argoappv1.ApplicationSpec{
+						Project: "fooproj",
+					},
+				},
+			},
+		},
+		{
+			Spec: argoappv1.ApplicationSetSpec{
+				Template: argoappv1.ApplicationSetTemplate{
+					Spec: argoappv1.ApplicationSpec{
+						Project: "barproj",
+					},
+				},
+			},
+		},
+	}
+
+	t.Run("No apps in single project", func(t *testing.T) {
+		res := FilterAppSetsByProjects(appsets, []string{"foobarproj"})
+		assert.Empty(t, res)
+	})
+
+	t.Run("Single app in single project", func(t *testing.T) {
+		res := FilterAppSetsByProjects(appsets, []string{"fooproj"})
+		assert.Len(t, res, 1)
+	})
+
+	t.Run("Single app in multiple project", func(t *testing.T) {
+		res := FilterAppSetsByProjects(appsets, []string{"fooproj", "foobarproj"})
+		assert.Len(t, res, 1)
+	})
+
+	t.Run("Multiple apps in multiple project", func(t *testing.T) {
+		res := FilterAppSetsByProjects(appsets, []string{"fooproj", "barproj"})
+		assert.Len(t, res, 2)
+	})
+}
+
 func TestFilterByRepo(t *testing.T) {
 	apps := []argoappv1.Application{
 		{
@@ -1108,6 +1151,59 @@ func TestFilterByNameP(t *testing.T) {
 		res := FilterByNameP(apps, "foobar")
 		assert.Empty(t, res)
 	})
+}
+
+func TestFilterByCluster(t *testing.T) {
+	apps := []argoappv1.Application{
+		{
+			Spec: argoappv1.ApplicationSpec{
+				Destination: argoappv1.ApplicationDestination{
+					Server: "https://cluster-1.example.com",
+				},
+			},
+		},
+		{
+			Spec: argoappv1.ApplicationSpec{
+				Destination: argoappv1.ApplicationDestination{
+					Name: "in-cluster",
+				},
+			},
+		},
+	}
+
+	tests := []struct {
+		name     string
+		cluster  string
+		expected int
+	}{
+		{
+			name:     "Empty filter returns all",
+			cluster:  "",
+			expected: 2,
+		},
+		{
+			name:     "Match by Server",
+			cluster:  "https://cluster-1.example.com",
+			expected: 1,
+		},
+		{
+			name:     "Match by Name",
+			cluster:  "in-cluster",
+			expected: 1,
+		},
+		{
+			name:     "No match found",
+			cluster:  "https://cluster-2.example.com",
+			expected: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			res := FilterByCluster(apps, tt.cluster)
+			assert.Len(t, res, tt.expected)
+		})
+	}
 }
 
 func TestGetGlobalProjects(t *testing.T) {
