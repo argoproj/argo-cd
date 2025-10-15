@@ -1,0 +1,25 @@
+apiVersion: promoter.argoproj.io/v1alpha1
+kind: CommitStatus
+metadata:
+  name: test-commit-status
+  namespace: test
+  generation: 1
+spec:
+  sha: abc1234567890
+  url: https://example.com/ci/test
+  gitRepositoryRef:
+    name: repo
+  description: example
+  name: example
+  phase: success
+status:
+  conditions:
+    - lastTransitionTime: '2025-10-15T16:00:00Z'
+      message: 'Failed to update commit status: API request failed'
+      observedGeneration: 1
+      reason: ReconciliationError
+      status: 'False'
+      type: Ready
+  id: "1"
+  sha: abc1234567890
+
