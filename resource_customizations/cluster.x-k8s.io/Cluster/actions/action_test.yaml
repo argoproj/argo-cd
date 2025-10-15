@@ -1,0 +1,7 @@
+actionTests:
+- action: pause
+  inputPath: testdata/cluster.yaml
+  expectedOutputPath: testdata/cluster-pause.yaml
+- action: resume
+  inputPath: testdata/cluster-pause.yaml
+  expectedOutputPath: testdata/cluster-resume.yaml
