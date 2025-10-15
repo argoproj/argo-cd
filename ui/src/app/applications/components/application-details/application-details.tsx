@@ -1267,7 +1267,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                 .pipe(
                     mergeMap(app => {
                         const fallbackTree = {
-                            nodes: app.status.resources.map(res => ({...res, parentRefs: [], info: [], resourceVersion: '', uid: ''})),
+                            nodes: app.status.resources.map(res => ({...res, parentRefs: [] as any[], info: [] as any[], resourceVersion: '', uid: ''})),
                             orphanedNodes: [],
                             hosts: []
                         } as appModels.ApplicationTree;
