@@ -2,7 +2,7 @@
 
 # Default values for environment variables
 REDIS_PORT="${ARGOCD_E2E_REDIS_PORT:-6379}"
-REDIS_IMAGE_TAG=$(grep -A1 "name: redis" manifests/base/redis/argocd-redis-deployment.yaml | grep "image:" | cut -d':' -f3)
+REDIS_IMAGE_TAG=$(grep 'image: redis' manifests/base/redis/argocd-redis-deployment.yaml | cut -d':' -f3)
 
 if [ "$ARGOCD_REDIS_LOCAL" = 'true' ]; then
     if ! command -v redis-server &>/dev/null; then

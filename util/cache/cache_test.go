@@ -103,11 +103,11 @@ func TestLoadRedisCreds(t *testing.T) {
 	writeFile("sentinel_username", "sentineluser")
 	writeFile("sentinel_auth", "sentinelpass")
 
-	creds := loadRedisCreds(dir, Options{})
-	assert.Equal(t, "mypassword", creds.password)
-	assert.Equal(t, "myuser", creds.username)
-	assert.Equal(t, "sentineluser", creds.sentinelUsername)
-	assert.Equal(t, "sentinelpass", creds.sentinelPassword)
+	username, password, sentinelUsername, sentinelPassword := loadRedisCreds(dir, Options{})
+	assert.Equal(t, "mypassword", password)
+	assert.Equal(t, "myuser", username)
+	assert.Equal(t, "sentineluser", sentinelUsername)
+	assert.Equal(t, "sentinelpass", sentinelPassword)
 }
 
 // Test loading Redis credentials from environment variables
@@ -118,11 +118,11 @@ func TestLoadRedisCredsFromEnv(t *testing.T) {
 	t.Setenv(envRedisSentinelUsername, "sentineluser")
 	t.Setenv(envRedisSentinelPassword, "sentinelpass")
 
-	creds := loadRedisCreds("", Options{})
-	assert.Equal(t, "mypassword", creds.password)
-	assert.Equal(t, "myuser", creds.username)
-	assert.Equal(t, "sentineluser", creds.sentinelUsername)
-	assert.Equal(t, "sentinelpass", creds.sentinelPassword)
+	username, password, sentinelUsername, sentinelPassword := loadRedisCreds("", Options{})
+	assert.Equal(t, "mypassword", password)
+	assert.Equal(t, "myuser", username)
+	assert.Equal(t, "sentineluser", sentinelUsername)
+	assert.Equal(t, "sentinelpass", sentinelPassword)
 }
 
 // Test loading Redis credentials from both environment variables and a file
@@ -144,9 +144,9 @@ func TestLoadRedisCredsFromBothEnvAndFile(t *testing.T) {
 	writeFile("sentinel_username", "filesentineluser")
 	writeFile("sentinel_auth", "filesentinelpass")
 
-	creds := loadRedisCreds(dir, Options{})
-	assert.Equal(t, "filepassword", creds.password)
-	assert.Equal(t, "fileuser", creds.username)
-	assert.Equal(t, "filesentineluser", creds.sentinelUsername)
-	assert.Equal(t, "filesentinelpass", creds.sentinelPassword)
+	username, password, sentinelUsername, sentinelPassword := loadRedisCreds(dir, Options{})
+	assert.Equal(t, "filepassword", password)
+	assert.Equal(t, "fileuser", username)
+	assert.Equal(t, "filesentineluser", sentinelUsername)
+	assert.Equal(t, "filesentinelpass", sentinelPassword)
 }
