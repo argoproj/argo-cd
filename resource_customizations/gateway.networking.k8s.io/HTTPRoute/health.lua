@@ -24,9 +24,7 @@ function isParentGenerationObserved(obj, parent)
   -- Check if any condition has observedGeneration matching current generation
   for _, condition in ipairs(parent.conditions) do
     if condition.observedGeneration ~= nil then
-      local observedGen = tonumber(condition.observedGeneration)
-      local currentGen = tonumber(obj.metadata.generation)
-      if observedGen == currentGen then
+      if condition.observedGeneration == obj.metadata.generation then
         return true
       end
     end
@@ -37,7 +35,6 @@ end
 
 if obj.status ~= nil then
   if obj.status.parents ~= nil then
-    -- Only evaluate parents whose observedGeneration matches the current generation
     for _, parent in ipairs(obj.status.parents) do
       if parent.conditions ~= nil then
         -- Skip this parent if it's not from the current generation
