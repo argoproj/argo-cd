@@ -2212,6 +2212,12 @@
             "description": "The application set namespace. Default empty is argocd control plane namespace.",
             "name": "appsetNamespace",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Optional project to filter the applicationset by its template.spec.project.",
+            "name": "project",
+            "in": "query"
           }
         ],
         "responses": {
@@ -2233,7 +2239,7 @@
         "tags": [
           "ApplicationSetService"
         ],
-        "summary": "Delete deletes an application set",
+        "summary": "Delete deletes an applicationset",
         "operationId": "ApplicationSetService_Delete",
         "parameters": [
           {
