@@ -21,16 +21,16 @@ function isParentGenerationObserved(obj, parent)
     return false
   end
 
-  -- Check if any condition has observedGeneration matching current generation
+  -- Check if all conditions have observedGeneration matching current generation
   for _, condition in ipairs(parent.conditions) do
     if condition.observedGeneration ~= nil then
-      if condition.observedGeneration == obj.metadata.generation then
-        return true
+      if condition.observedGeneration ~= obj.metadata.generation then
+        return false
       end
     end
   end
 
-  return false
+  return true
 end
 
 if obj.status ~= nil then
