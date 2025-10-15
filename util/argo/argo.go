@@ -407,6 +407,29 @@ func ValidateRepo(
 	return conditions, nil
 }
 
+// ValidateManagedByURL validates the managed-by-url annotation on applications to ensure it contains a valid URL
+func ValidateManagedByURL(app *argoappv1.Application) []argoappv1.ApplicationCondition {
+	conditions := make([]argoappv1.ApplicationCondition, 0)
+
+	if app.Annotations == nil {
+		return conditions
+	}
+
+	managedByURL, exists := app.Annotations[argoappv1.AnnotationKeyManagedByURL]
+	if !exists || managedByURL == "" {
+		return conditions
+	}
+
+	if err := settings.ValidateExternalURL(managedByURL); err != nil {
+		conditions = append(conditions, argoappv1.ApplicationCondition{
+			Type:    argoappv1.ApplicationConditionInvalidSpecError,
+			Message: fmt.Sprintf("invalid managed-by URL: %v", err),
+		})
+	}
+
+	return conditions
+}
+
 func validateRepo(ctx context.Context,
 	app *argoappv1.Application,
 	db db.ArgoDB,
