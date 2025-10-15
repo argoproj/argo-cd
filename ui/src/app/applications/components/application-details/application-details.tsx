@@ -1175,7 +1175,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
             .pipe(
                 mergeMap(app => {
                     const fallbackTree = {
-                        nodes: app.status.resources.map(res => ({...res, parentRefs: [], info: [], resourceVersion: '', uid: ''})),
+                        nodes: app.status.resources.map(res => ({...res, parentRefs: [] as any[], info: [] as any[], resourceVersion: '', uid: ''})),
                         orphanedNodes: [],
                         hosts: []
                     } as appModels.ApplicationTree;

@@ -8,6 +8,7 @@ import * as moment from 'moment';
 import {BehaviorSubject, combineLatest, concat, from, fromEvent, Observable, Observer, Subscription} from 'rxjs';
 import {debounceTime, map} from 'rxjs/operators';
 import {AppContext, Context, ContextApis} from '../../shared/context';
+import {isValidURL} from '../../shared/utils';
 import {ResourceTreeNode} from './application-resource-tree/application-resource-tree';
 
 import {CheckboxField, COLORS, ErrorNotification, Revision} from '../../shared/components';
@@ -1756,3 +1757,89 @@ export const podRequests = {
     CPU: 'Requests (CPU)',
     MEMORY: 'Requests (MEM)'
 } as const;
+
+/**
+ * Gets the managed-by-url annotation from an application if it exists
+ * @param app The application object
+ * @returns The managed-by-url value or null if not present
+ */
+export function getManagedByURL(app: any): string | null {
+    return app?.metadata?.annotations?.['argocd.argoproj.io/managed-by-url'] || null;
+}
+
+/**
+ * Gets the managed-by-url from a resource node's info field
+ * @param node The resource node object
+ * @returns The managed-by-url value or null if not present
+ */
+export function getManagedByURLFromNode(node: any): string | null {
+    if (!node?.info) {
+        return null;
+    }
+
+    const managedByURLInfo = node.info.find((info: any) => info.name === 'managed-by-url');
+    return managedByURLInfo?.value || null;
+}
+
+/**
+ * Gets the correct URL for an application link, considering managed-by-url annotation
+ * @param app The application object
+ * @param baseHref The current instance's base href
+ * @param node Optional resource node to get managed-by-url from info field
+ * @returns The URL to use for the application link
+ */
+export function getApplicationLinkURL(app: any, baseHref: string, node?: any): {url: string; isExternal: boolean} {
+    // First try to get managed-by-url from the node's info field (for nested applications)
+    let managedByURL = node ? getManagedByURLFromNode(node) : null;
+
+    // If not found in node, try the application's metadata
+    if (!managedByURL) {
+        managedByURL = getManagedByURL(app);
+    }
+
+    let url, isExternal;
+    if (managedByURL) {
+        // Validate the managed-by URL using the same validation as external links
+        if (!isValidURL(managedByURL)) {
+            // If URL is invalid, fall back to local URL for security
+            console.warn(`Invalid managed-by URL for application ${app.metadata.name}: ${managedByURL}`);
+            url = baseHref + 'applications/' + app.metadata.namespace + '/' + app.metadata.name;
+            isExternal = false;
+        } else {
+            url = managedByURL + '/applications/' + app.metadata.namespace + '/' + app.metadata.name;
+            isExternal = true;
+        }
+    } else {
+        url = baseHref + 'applications/' + app.metadata.namespace + '/' + app.metadata.name;
+        isExternal = false;
+    }
+    return {url, isExternal};
+}
+
+/**
+ * Gets the correct URL for an application link from a resource node, considering managed-by-url annotation
+ * @param node The resource node representing an application
+ * @param baseHref The current instance's base href
+ * @returns The URL to use for the application link
+ */
+export function getApplicationLinkURLFromNode(node: any, baseHref: string): {url: string; isExternal: boolean} {
+    const managedByURL = getManagedByURLFromNode(node);
+
+    let url, isExternal;
+    if (managedByURL) {
+        // Validate the managed-by URL using the same validation as external links
+        if (!isValidURL(managedByURL)) {
+            // If URL is invalid, fall back to local URL for security
+            console.warn(`Invalid managed-by URL for application ${node.name}: ${managedByURL}`);
+            url = baseHref + 'applications/' + node.namespace + '/' + node.name;
+            isExternal = false;
+        } else {
+            url = managedByURL + '/applications/' + node.namespace + '/' + node.name;
+            isExternal = true;
+        }
+    } else {
+        url = baseHref + 'applications/' + node.namespace + '/' + node.name;
+        isExternal = false;
+    }
+    return {url, isExternal};
+}

@@ -4,7 +4,7 @@ import * as classNames from 'classnames';
 import * as models from '../../../shared/models';
 import {ResourceIcon} from '../resource-icon';
 import {ResourceLabel} from '../resource-label';
-import {ComparisonStatusIcon, HealthStatusIcon, nodeKey, isSameNode, createdOrNodeKey} from '../utils';
+import {ComparisonStatusIcon, HealthStatusIcon, nodeKey, isSameNode, createdOrNodeKey, getApplicationLinkURLFromNode, getManagedByURLFromNode} from '../utils';
 import {AppDetailsPreferences} from '../../../shared/services';
 import {Consumer} from '../../../shared/context';
 import Moment from 'react-moment';
@@ -185,16 +185,26 @@ export const ApplicationResourceList = (props: ApplicationResourceListProps) => 
                                             <span className='application-details__item_text'>{res.name}</span>
                                             {res.kind === 'Application' && (
                                                 <Consumer>
-                                                    {ctx => (
-                                                        <span className='application-details__external_link'>
-                                                            <a
-                                                                href={ctx.baseHref + 'applications/' + res.namespace + '/' + res.name}
-                                                                onClick={e => e.stopPropagation()}
-                                                                title='Open application'>
-                                                                <i className='fa fa-external-link-alt' />
-                                                            </a>
-                                                        </span>
-                                                    )}
+                                                    {ctx => {
+                                                        // Get the node from the tree to access managed-by-url info
+                                                        const node = nodeByKey.get(nodeKey(res));
+                                                        const linkInfo = node
+                                                            ? getApplicationLinkURLFromNode(node, ctx.baseHref)
+                                                            : {url: ctx.baseHref + 'applications/' + res.namespace + '/' + res.name, isExternal: false};
+                                                        const managedByURL = node ? getManagedByURLFromNode(node) : null;
+                                                        return (
+                                                            <span className='application-details__external_link'>
+                                                                <a
+                                                                    href={linkInfo.url}
+                                                                    target={linkInfo.isExternal ? '_blank' : undefined}
+                                                                    rel={linkInfo.isExternal ? 'noopener noreferrer' : undefined}
+                                                                    onClick={e => e.stopPropagation()}
+                                                                    title={managedByURL ? `Open application\nmanaged-by-url: ${managedByURL}` : 'Open application'}>
+                                                                    <i className='fa fa-external-link-alt' />
+                                                                </a>
+                                                            </span>
+                                                        );
+                                                    }}
                                                 </Consumer>
                                             )}
                                         </div>
