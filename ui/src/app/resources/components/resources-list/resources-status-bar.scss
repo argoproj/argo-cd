@@ -1,0 +1,32 @@
+@import 'node_modules/argo-ui/src/styles/config';
+
+.status-bar {
+    $height: 16px;
+    $border-width: 2px;
+    margin: 0px;
+    width: 100%;
+    height: $height;
+    display: flex;
+    border-radius: 25px;
+    border: $border-width solid white;
+
+    &__segment {
+        &__fill {
+            height: $height - (2 * $border-width);
+        }
+    }
+
+    &__segment:first-child {
+        border-top-left-radius: 25px;
+        border-bottom-left-radius: 25px;
+    }
+
+    &__segment:last-child {
+        border-top-right-radius: 25px;
+        border-bottom-right-radius: 25px;
+    }
+
+    &__segment:not(:first-child) {
+        border-left: 3px solid white;
+    }
+}
