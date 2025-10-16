@@ -2803,6 +2803,320 @@ func TestPostDeleteHookNamespaceDeletion(t *testing.T) {
 		shouldDelete := ctrl.shouldBeDeleted(app, configMapObj)
 		assert.True(t, shouldDelete, "non-namespace resources should not be affected by PostDelete hook logic")
 	})
+
+	t.Run("namespace deletion is deferred when PostDelete hooks have empty namespace", func(t *testing.T) {
+		app := newFakeApp()
+		app.Spec.Destination.Namespace = "app-namespace"
+
+		// Create a PostDelete hook with empty namespace (inherits from app)
+		postDeleteHook := `{
+			"apiVersion": "batch/v1",
+			"kind": "Job",
+			"metadata": {
+				"name": "post-delete-hook",
+				"annotations": {
+					"argocd.argoproj.io/hook": "PostDelete"
+				}
+			}
+		}`
+
+		ctrl := newFakeController(&fakeData{
+			apps: []runtime.Object{app, &defaultProj},
+			manifestResponse: &apiclient.ManifestResponse{
+				Manifests: []string{postDeleteHook},
+			},
+		}, nil)
+
+		// Create a namespace object
+		namespaceObj := &unstructured.Unstructured{
+			Object: map[string]any{
+				"apiVersion": "v1",
+				"kind":       "Namespace",
+				"metadata": map[string]any{
+					"name": "app-namespace",
+				},
+			},
+		}
+
+		shouldDelete := ctrl.shouldBeDeleted(app, namespaceObj)
+		assert.False(t, shouldDelete, "namespace should be deferred when PostDelete hooks have empty namespace")
+	})
+
+	t.Run("namespace deletion proceeds when PostDelete hooks exist in different namespace", func(t *testing.T) {
+		app := newFakeApp()
+		app.Spec.Destination.Namespace = "app-namespace"
+
+		// Create a PostDelete hook in a different namespace
+		postDeleteHook := `{
+			"apiVersion": "batch/v1",
+			"kind": "Job",
+			"metadata": {
+				"name": "post-delete-hook",
+				"namespace": "different-namespace",
+				"annotations": {
+					"argocd.argoproj.io/hook": "PostDelete"
+				}
+			}
+		}`
+
+		ctrl := newFakeController(&fakeData{
+			apps: []runtime.Object{app, &defaultProj},
+			manifestResponse: &apiclient.ManifestResponse{
+				Manifests: []string{postDeleteHook},
+			},
+		}, nil)
+
+		// Create a namespace object
+		namespaceObj := &unstructured.Unstructured{
+			Object: map[string]any{
+				"apiVersion": "v1",
+				"kind":       "Namespace",
+				"metadata": map[string]any{
+					"name": "app-namespace",
+				},
+			},
+		}
+
+		shouldDelete := ctrl.shouldBeDeleted(app, namespaceObj)
+		assert.True(t, shouldDelete, "namespace should be deleted when PostDelete hooks exist in different namespace")
+	})
+
+	t.Run("namespace deletion proceeds when only PreSync hooks exist", func(t *testing.T) {
+		app := newFakeApp()
+		app.Spec.Destination.Namespace = "app-namespace"
+
+		// Create a PreSync hook (not PostDelete)
+		preSyncHook := `{
+			"apiVersion": "batch/v1",
+			"kind": "Job",
+			"metadata": {
+				"name": "pre-sync-hook",
+				"namespace": "app-namespace",
+				"annotations": {
+					"argocd.argoproj.io/hook": "PreSync"
+				}
+			}
+		}`
+
+		ctrl := newFakeController(&fakeData{
+			apps: []runtime.Object{app, &defaultProj},
+			manifestResponse: &apiclient.ManifestResponse{
+				Manifests: []string{preSyncHook},
+			},
+		}, nil)
+
+		// Create a namespace object
+		namespaceObj := &unstructured.Unstructured{
+			Object: map[string]any{
+				"apiVersion": "v1",
+				"kind":       "Namespace",
+				"metadata": map[string]any{
+					"name": "app-namespace",
+				},
+			},
+		}
+
+		shouldDelete := ctrl.shouldBeDeleted(app, namespaceObj)
+		assert.True(t, shouldDelete, "namespace should be deleted when only non-PostDelete hooks exist")
+	})
+}
+
+func TestHasPostDeleteHooksForNamespace(t *testing.T) {
+	defaultProj := v1alpha1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "default",
+			Namespace: test.FakeArgoCDNamespace,
+		},
+		Spec: v1alpha1.AppProjectSpec{
+			SourceRepos: []string{"*"},
+			Destinations: []v1alpha1.ApplicationDestination{
+				{
+					Server:    "*",
+					Namespace: "*",
+				},
+			},
+		},
+	}
+
+	t.Run("returns false when app has multiple sources", func(t *testing.T) {
+		app := newFakeApp()
+		app.Spec.Destination.Namespace = "app-namespace"
+		// Add multiple sources to test the revisions loop
+		app.Spec.Sources = []v1alpha1.ApplicationSource{
+			{RepoURL: "https://github.com/example/repo1", TargetRevision: "main"},
+			{RepoURL: "https://github.com/example/repo2", TargetRevision: "develop"},
+		}
+
+		ctrl := newFakeController(&fakeData{
+			apps: []runtime.Object{app, &defaultProj},
+			manifestResponses: []*apiclient.ManifestResponse{
+				{Manifests: []string{}}, // No PostDelete hooks for first source
+				{Manifests: []string{}}, // No PostDelete hooks for second source
+			},
+		}, nil)
+
+		hasHooks := ctrl.hasPostDeleteHooksForNamespace(app, "app-namespace")
+		assert.False(t, hasHooks, "should return false when no PostDelete hooks exist with multiple sources")
+	})
+
+	t.Run("returns false when project retrieval fails", func(t *testing.T) {
+		app := newFakeApp()
+		app.Spec.Project = "non-existent-project"
+		app.Spec.Destination.Namespace = "app-namespace"
+
+		ctrl := newFakeController(&fakeData{
+			apps: []runtime.Object{app, &defaultProj},
+		}, nil)
+
+		hasHooks := ctrl.hasPostDeleteHooksForNamespace(app, "app-namespace")
+		assert.False(t, hasHooks, "should return false when project retrieval fails")
+	})
+
+	t.Run("returns true when PostDelete hook exists in target namespace", func(t *testing.T) {
+		app := newFakeApp()
+		app.Spec.Destination.Namespace = "app-namespace"
+
+		postDeleteHook := `{
+			"apiVersion": "batch/v1",
+			"kind": "Job",
+			"metadata": {
+				"name": "post-delete-hook",
+				"namespace": "app-namespace",
+				"annotations": {
+					"argocd.argoproj.io/hook": "PostDelete"
+				}
+			}
+		}`
+
+		ctrl := newFakeController(&fakeData{
+			apps: []runtime.Object{app, &defaultProj},
+			manifestResponse: &apiclient.ManifestResponse{
+				Manifests: []string{postDeleteHook},
+			},
+		}, nil)
+
+		hasHooks := ctrl.hasPostDeleteHooksForNamespace(app, "app-namespace")
+		assert.True(t, hasHooks, "should return true when PostDelete hook exists in target namespace")
+	})
+
+	t.Run("returns true when PostDelete hook has empty namespace", func(t *testing.T) {
+		app := newFakeApp()
+		app.Spec.Destination.Namespace = "app-namespace"
+
+		postDeleteHook := `{
+			"apiVersion": "batch/v1",
+			"kind": "Job",
+			"metadata": {
+				"name": "post-delete-hook",
+				"annotations": {
+					"argocd.argoproj.io/hook": "PostDelete"
+				}
+			}
+		}`
+
+		ctrl := newFakeController(&fakeData{
+			apps: []runtime.Object{app, &defaultProj},
+			manifestResponse: &apiclient.ManifestResponse{
+				Manifests: []string{postDeleteHook},
+			},
+		}, nil)
+
+		hasHooks := ctrl.hasPostDeleteHooksForNamespace(app, "app-namespace")
+		assert.True(t, hasHooks, "should return true when PostDelete hook has empty namespace")
+	})
+
+	t.Run("returns false when PostDelete hook exists in different namespace", func(t *testing.T) {
+		app := newFakeApp()
+		app.Spec.Destination.Namespace = "app-namespace"
+
+		postDeleteHook := `{
+			"apiVersion": "batch/v1",
+			"kind": "Job",
+			"metadata": {
+				"name": "post-delete-hook",
+				"namespace": "different-namespace",
+				"annotations": {
+					"argocd.argoproj.io/hook": "PostDelete"
+				}
+			}
+		}`
+
+		ctrl := newFakeController(&fakeData{
+			apps: []runtime.Object{app, &defaultProj},
+			manifestResponse: &apiclient.ManifestResponse{
+				Manifests: []string{postDeleteHook},
+			},
+		}, nil)
+
+		hasHooks := ctrl.hasPostDeleteHooksForNamespace(app, "app-namespace")
+		assert.False(t, hasHooks, "should return false when PostDelete hook exists in different namespace")
+	})
+
+	t.Run("returns false when no PostDelete hooks exist", func(t *testing.T) {
+		app := newFakeApp()
+		app.Spec.Destination.Namespace = "app-namespace"
+
+		preSyncHook := `{
+			"apiVersion": "batch/v1",
+			"kind": "Job",
+			"metadata": {
+				"name": "pre-sync-hook",
+				"namespace": "app-namespace",
+				"annotations": {
+					"argocd.argoproj.io/hook": "PreSync"
+				}
+			}
+		}`
+
+		ctrl := newFakeController(&fakeData{
+			apps: []runtime.Object{app, &defaultProj},
+			manifestResponse: &apiclient.ManifestResponse{
+				Manifests: []string{preSyncHook},
+			},
+		}, nil)
+
+		hasHooks := ctrl.hasPostDeleteHooksForNamespace(app, "app-namespace")
+		assert.False(t, hasHooks, "should return false when no PostDelete hooks exist")
+	})
+
+	t.Run("handles multiple PostDelete hooks correctly", func(t *testing.T) {
+		app := newFakeApp()
+		app.Spec.Destination.Namespace = "app-namespace"
+
+		// Multiple PostDelete hooks
+		postDeleteHook1 := `{
+			"apiVersion": "batch/v1",
+			"kind": "Job",
+			"metadata": {
+				"name": "post-delete-hook-1",
+				"namespace": "app-namespace",
+				"annotations": {
+					"argocd.argoproj.io/hook": "PostDelete"
+				}
+			}
+		}`
+
+		postDeleteHook2 := `{
+			"apiVersion": "v1",
+			"kind": "Pod",
+			"metadata": {
+				"name": "post-delete-hook-2",
+				"annotations": {
+					"argocd.argoproj.io/hook": "PostDelete"
+				}
+			}
+		}`
+
+		ctrl := newFakeController(&fakeData{
+			apps: []runtime.Object{app, &defaultProj},
+			manifestResponse: &apiclient.ManifestResponse{
+				Manifests: []string{postDeleteHook1, postDeleteHook2},
+			},
+		}, nil)
+
+		hasHooks := ctrl.hasPostDeleteHooksForNamespace(app, "app-namespace")
+		assert.True(t, hasHooks, "should return true when multiple PostDelete hooks exist")
+	})
 }
 
 func TestAddControllerNamespace(t *testing.T) {
