@@ -321,7 +321,6 @@ spec:
         - mountPath: /var/run/argocd
           name: var-files
       volumes:
-        
         - name: ssh-known-hosts
           configMap:
             name: argocd-ssh-known-hosts-cm

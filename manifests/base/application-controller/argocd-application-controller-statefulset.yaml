@@ -312,7 +312,6 @@ spec:
           mountPath: /home/argocd/params
         - name: argocd-application-controller-tmp
           mountPath: /tmp
-  
       serviceAccountName: argocd-application-controller
       affinity:
         podAntiAffinity:
@@ -351,6 +350,6 @@ spec:
           name: argocd-cmd-params-cm
           items:
             - key: controller.profile.enabled
-              path: profiler.enabled  
+              path: profiler.enabled
       nodeSelector:
         kubernetes.io/os: linux

@@ -6,7 +6,3 @@ resources:
 - argocd-repo-server-deployment.yaml
 - argocd-repo-server-service.yaml
 - argocd-repo-server-network-policy.yaml
-
-# Uncomment to enable Redis file-mounted credentials for repo-server
-#patches:
-#  - path: overlays/file-mount/repo-file-mount-patch.yaml
