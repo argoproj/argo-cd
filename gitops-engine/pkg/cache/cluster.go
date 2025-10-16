@@ -1212,15 +1212,9 @@ func (c *clusterCache) IterateHierarchyV2(keys []kube.ResourceKey, action func(r
 
 	// Group keys by namespace for efficient processing
 	keysPerNamespace := make(map[string][]kube.ResourceKey)
-	clusterScopedKeys := make([]kube.ResourceKey, 0)
-
 	for _, key := range keys {
 		if _, ok := c.resources[key]; ok {
-			if key.Namespace == "" {
-				clusterScopedKeys = append(clusterScopedKeys, key)
-			} else {
-				keysPerNamespace[key.Namespace] = append(keysPerNamespace[key.Namespace], key)
-			}
+			keysPerNamespace[key.Namespace] = append(keysPerNamespace[key.Namespace], key)
 		}
 	}
 
@@ -1231,16 +1225,11 @@ func (c *clusterCache) IterateHierarchyV2(keys []kube.ResourceKey, action func(r
 		c.processNamespaceHierarchy(namespaceKeys, nsNodes, graph, visited, action)
 	}
 
-	// Process cluster-scoped resources themselves (always process them)
-	if len(clusterScopedKeys) > 0 {
-		clusterNodes := c.nsIndex[""]
-		clusterGraph := buildGraph(clusterNodes)
-		c.processNamespaceHierarchy(clusterScopedKeys, clusterNodes, clusterGraph, visited, action)
-	}
-
 	// Process pre-computed cross-namespace children (only if not disabled)
-	if !c.disableClusterScopedParentRefs && len(clusterScopedKeys) > 0 {
-		c.processCrossNamespaceChildren(clusterScopedKeys, visited, action)
+	if !c.disableClusterScopedParentRefs {
+		if clusterKeys, ok := keysPerNamespace[""]; ok {
+			c.processCrossNamespaceChildren(clusterKeys, visited, action)
+		}
 	}
 }
 
