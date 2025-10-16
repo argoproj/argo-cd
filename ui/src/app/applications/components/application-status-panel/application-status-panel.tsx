@@ -91,9 +91,6 @@ const ProgressiveSyncStatus = ({application}: {application: models.Application})
                 );
             }}
             load={async () => {
-                // Check if user has permission to read ApplicationSets
-                const canReadApplicationSets = await services.accounts.canI('applicationsets', 'get', application.spec.project + '/' + application.metadata.name);
-
                 // Find ApplicationSet by searching all namespaces dynamically
                 const appSetList = await services.applications.listApplicationSets();
                 const appSet = appSetList.items?.find(item => item.metadata.name === appSetRef.name);
@@ -101,6 +98,22 @@ const ProgressiveSyncStatus = ({application}: {application: models.Application})
                 if (!appSet) {
                     throw new Error(`ApplicationSet ${appSetRef.name} not found in any namespace`);
                 }
+
+                // Check if project field is templated (contains Go template syntax)
+                const projectField = (appSet.spec as any)?.template?.spec?.project || '';
+                const isTemplated = projectField.includes('{{') || projectField.includes('}}');
+
+                // For templated projects, avoid making requests that will fail.
+                if (isTemplated) {
+                    return {canReadApplicationSets: false, appSet};
+                }
+
+                // For non-templated projects, check permission using the ApplicationSet's namespace and name
+                const canReadApplicationSets = await services.accounts.canI(
+                    'applicationsets',
+                    'get',
+                    application.spec.project + '/' + appSet.metadata.namespace + '/' + appSet.metadata.name
+                );
 
                 return {canReadApplicationSets, appSet};
             }}>
