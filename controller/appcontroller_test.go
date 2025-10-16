@@ -2682,6 +2682,129 @@ func Test_syncDeleteOption(t *testing.T) {
 	})
 }
 
+func TestPostDeleteHookNamespaceDeletion(t *testing.T) {
+	defaultProj := v1alpha1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "default",
+			Namespace: test.FakeArgoCDNamespace,
+		},
+		Spec: v1alpha1.AppProjectSpec{
+			SourceRepos: []string{"*"},
+			Destinations: []v1alpha1.ApplicationDestination{
+				{
+					Server:    "*",
+					Namespace: "*",
+				},
+			},
+		},
+	}
+
+	t.Run("namespace deletion is deferred when PostDelete hooks exist in same namespace", func(t *testing.T) {
+		app := newFakeApp()
+		app.Spec.Destination.Namespace = "app-namespace"
+
+		// Create a PostDelete hook in the same namespace
+		postDeleteHook := `{
+			"apiVersion": "batch/v1",
+			"kind": "Job",
+			"metadata": {
+				"name": "post-delete-hook",
+				"namespace": "app-namespace",
+				"annotations": {
+					"argocd.argoproj.io/hook": "PostDelete"
+				}
+			}
+		}`
+
+		ctrl := newFakeController(&fakeData{
+			apps: []runtime.Object{app, &defaultProj},
+			manifestResponse: &apiclient.ManifestResponse{
+				Manifests: []string{postDeleteHook},
+			},
+		}, nil)
+
+		// Create a namespace object
+		namespaceObj := &unstructured.Unstructured{
+			Object: map[string]any{
+				"apiVersion": "v1",
+				"kind":       "Namespace",
+				"metadata": map[string]any{
+					"name": "app-namespace",
+				},
+			},
+		}
+
+		shouldDelete := ctrl.shouldBeDeleted(app, namespaceObj)
+		assert.False(t, shouldDelete, "namespace should be deferred when PostDelete hooks exist in same namespace")
+	})
+
+	t.Run("namespace deletion proceeds normally when no PostDelete hooks exist", func(t *testing.T) {
+		app := newFakeApp()
+		app.Spec.Destination.Namespace = "app-namespace"
+
+		ctrl := newFakeController(&fakeData{
+			apps: []runtime.Object{app, &defaultProj},
+			manifestResponse: &apiclient.ManifestResponse{
+				Manifests: []string{}, // No PostDelete hooks
+			},
+		}, nil)
+
+		// Create a namespace object
+		namespaceObj := &unstructured.Unstructured{
+			Object: map[string]any{
+				"apiVersion": "v1",
+				"kind":       "Namespace",
+				"metadata": map[string]any{
+					"name": "app-namespace",
+				},
+			},
+		}
+
+		shouldDelete := ctrl.shouldBeDeleted(app, namespaceObj)
+		assert.True(t, shouldDelete, "namespace should be deleted when no PostDelete hooks exist")
+	})
+
+	t.Run("non-namespace resources are not affected by PostDelete hooks", func(t *testing.T) {
+		app := newFakeApp()
+		app.Spec.Destination.Namespace = "app-namespace"
+
+		// Create a PostDelete hook
+		postDeleteHook := `{
+			"apiVersion": "batch/v1",
+			"kind": "Job",
+			"metadata": {
+				"name": "post-delete-hook",
+				"namespace": "app-namespace",
+				"annotations": {
+					"argocd.argoproj.io/hook": "PostDelete"
+				}
+			}
+		}`
+
+		ctrl := newFakeController(&fakeData{
+			apps: []runtime.Object{app, &defaultProj},
+			manifestResponse: &apiclient.ManifestResponse{
+				Manifests: []string{postDeleteHook},
+			},
+		}, nil)
+
+		// Create a non-namespace object (ConfigMap)
+		configMapObj := &unstructured.Unstructured{
+			Object: map[string]any{
+				"apiVersion": "v1",
+				"kind":       "ConfigMap",
+				"metadata": map[string]any{
+					"name":      "test-cm",
+					"namespace": "app-namespace",
+				},
+			},
+		}
+
+		shouldDelete := ctrl.shouldBeDeleted(app, configMapObj)
+		assert.True(t, shouldDelete, "non-namespace resources should not be affected by PostDelete hook logic")
+	})
+}
+
 func TestAddControllerNamespace(t *testing.T) {
 	t.Run("set controllerNamespace when the app is in the controller namespace", func(t *testing.T) {
 		app := newFakeApp()
