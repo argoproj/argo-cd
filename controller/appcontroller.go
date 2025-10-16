@@ -1186,7 +1186,7 @@ func (ctrl *ApplicationController) hasPostDeleteHooksForNamespace(app *appv1.App
 
 	for _, obj := range targets {
 		if isPostDeleteHook(obj) {
-			// Check if this PostDelete hook is running in the target namespace or has cluster-wide scope (empty namespace)
+			// Check if this PostDelete hook is running in the target namespace or has empty namespace(inherited from application)
 			if obj.GetNamespace() == namespaceName || obj.GetNamespace() == "" {
 				return true
 			}
