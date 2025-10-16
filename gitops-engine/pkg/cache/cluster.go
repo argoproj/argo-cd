@@ -1213,9 +1213,11 @@ func (c *clusterCache) IterateHierarchyV2(keys []kube.ResourceKey, action func(r
 	// Group keys by namespace for efficient processing
 	keysPerNamespace := make(map[string][]kube.ResourceKey)
 	for _, key := range keys {
-		if _, ok := c.resources[key]; ok {
-			keysPerNamespace[key.Namespace] = append(keysPerNamespace[key.Namespace], key)
+		_, ok := c.resources[key]
+		if !ok {
+			continue
 		}
+		keysPerNamespace[key.Namespace] = append(keysPerNamespace[key.Namespace], key)
 	}
 
 	// Process namespaced resources with standard hierarchy
