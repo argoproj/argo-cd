@@ -16,6 +16,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v3/reposerver/cache/mocks"
 	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
+	"github.com/argoproj/argo-cd/v3/util/versions"
 )
 
 type MockedCache struct {
@@ -748,5 +749,64 @@ func TestGetGitFiles(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, expectedItem, files)
 		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalGets: 1, ExternalSets: 1})
+	})
+}
+
+func TestGetSemverMetadata(t *testing.T) {
+	t.Run("GetSemverMetadata cache miss", func(t *testing.T) {
+		fixtures := newFixtures()
+		t.Cleanup(fixtures.mockCache.StopRedisCallback)
+		metadata, err := fixtures.cache.GetSemverMetadata("test-repo", "test-revision", "v1.0.0")
+		require.ErrorIs(t, err, ErrCacheMiss)
+		assert.Equal(t, &versions.RevisionMetadata{}, metadata)
+	})
+	t.Run("GetSemverMetadata cache hit", func(t *testing.T) {
+		fixtures := newFixtures()
+		t.Cleanup(fixtures.mockCache.StopRedisCallback)
+		expected := &versions.RevisionMetadata{
+			OriginalRevision: "test-revision",
+			ResolutionType:   versions.RevisionResolutionDirect,
+			Resolved:         "v1.0.0",
+		}
+		err := fixtures.cache.SetSemverMetadata("test-repo", "test-revision", "v1.0.0", expected)
+		require.NoError(t, err)
+		metadata, err := fixtures.cache.GetSemverMetadata("test-repo", "test-revision", "v1.0.0")
+		require.NoError(t, err)
+		assert.Equal(t, expected, metadata)
+	})
+	t.Run("GetSemverMetadataForHelm cache miss", func(t *testing.T) {
+		fixtures := newFixtures()
+		t.Cleanup(fixtures.mockCache.StopRedisCallback)
+		metadata, err := fixtures.cache.GetSemverMetadataForHelm("test-repo", "test-chart", "test-revision", "v1.0.0")
+		require.ErrorIs(t, err, ErrCacheMiss)
+		assert.Equal(t, &versions.RevisionMetadata{}, metadata)
+	})
+	t.Run("GetSemverMetadataForHelm cache hit", func(t *testing.T) {
+		fixtures := newFixtures()
+		t.Cleanup(fixtures.mockCache.StopRedisCallback)
+		expected := &versions.RevisionMetadata{
+			OriginalRevision: "test-revision",
+			ResolutionType:   versions.RevisionResolutionDirect,
+			Resolved:         "v1.0.0",
+		}
+		err := fixtures.cache.SetSemverMetadataForHelm("test-repo", "test-chart", "test-revision", "v1.0.0", expected)
+		require.NoError(t, err)
+		metadata, err := fixtures.cache.GetSemverMetadataForHelm("test-repo", "test-chart", "test-revision", "v1.0.0")
+		require.NoError(t, err)
+		assert.Equal(t, expected, metadata)
+	})
+	t.Run("SetSemverMetadataForHelm", func(t *testing.T) {
+		fixtures := newFixtures()
+		t.Cleanup(fixtures.mockCache.StopRedisCallback)
+		expected := &versions.RevisionMetadata{
+			OriginalRevision: "test-revision",
+			ResolutionType:   versions.RevisionResolutionDirect,
+			Resolved:         "v1.0.0",
+		}
+		err := fixtures.cache.SetSemverMetadataForHelm("test-repo", "test-chart", "test-revision", "v1.0.0", expected)
+		require.NoError(t, err)
+		metadata, err := fixtures.cache.GetSemverMetadataForHelm("test-repo", "test-chart", "test-revision", "v1.0.0")
+		require.NoError(t, err)
+		assert.Equal(t, expected, metadata)
 	})
 }
