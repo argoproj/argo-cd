@@ -24,7 +24,6 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/util/cache/appstate"
 	"github.com/argoproj/argo-cd/v3/util/dex"
 	"github.com/argoproj/argo-cd/v3/util/env"
 	httputil "github.com/argoproj/argo-cd/v3/util/http"
@@ -44,6 +43,7 @@ type SessionManager struct {
 	sleep                         func(d time.Duration)
 	verificationDelayNoiseEnabled bool
 	failedLock                    sync.RWMutex
+	metricsRegistry               MetricsRegistry
 }
 
 // LoginAttempts is a timestamped counter for failed login attempts
@@ -52,6 +52,10 @@ type LoginAttempts struct {
 	LastFailed time.Time `json:"lastFailed"`
 	// Number of consecutive login failures
 	FailCount int `json:"failCount"`
+}
+
+type MetricsRegistry interface {
+	IncLoginRequestCounter(status string)
 }
 
 const (
@@ -173,6 +177,20 @@ func (mgr *SessionManager) Create(subject string, secondsBeforeExpiry int64, id 
 	return mgr.signClaims(claims)
 }
 
+func (mgr *SessionManager) CollectMetrics(registry MetricsRegistry) {
+	mgr.metricsRegistry = registry
+	if mgr.metricsRegistry == nil {
+		log.Warn("Metrics registry is not set, metrics will not be collected")
+		return
+	}
+}
+
+func (mgr *SessionManager) IncLoginRequestCounter(status string) {
+	if mgr.metricsRegistry != nil {
+		mgr.metricsRegistry.IncLoginRequestCounter(status)
+	}
+}
+
 func (mgr *SessionManager) signClaims(claims jwt.Claims) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	settings, err := mgr.settingsMgr.GetSettings()
@@ -286,16 +304,7 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, string, error)
 // GetLoginFailures retrieves the login failure information from the cache. Any modifications to the LoginAttemps map must be done in a thread-safe manner.
 func (mgr *SessionManager) GetLoginFailures() map[string]LoginAttempts {
 	// Get failures from the cache
-	var failures map[string]LoginAttempts
-	err := mgr.storage.GetLoginAttempts(&failures)
-	if err != nil {
-		if !errors.Is(err, appstate.ErrCacheMiss) {
-			log.Errorf("Could not retrieve login attempts: %v", err)
-		}
-		failures = make(map[string]LoginAttempts)
-	}
-
-	return failures
+	return mgr.storage.GetLoginAttempts()
 }
 
 func expireOldFailedAttempts(maxAge time.Duration, failures map[string]LoginAttempts) int {
@@ -471,9 +480,9 @@ func (mgr *SessionManager) VerifyUsernamePassword(username string, password stri
 
 // AuthMiddlewareFunc returns a function that can be used as an
 // authentication middleware for HTTP requests.
-func (mgr *SessionManager) AuthMiddlewareFunc(disabled bool) func(http.Handler) http.Handler {
+func (mgr *SessionManager) AuthMiddlewareFunc(disabled bool, isSSOConfigured bool, ssoClientApp *oidcutil.ClientApp) func(http.Handler) http.Handler {
 	return func(h http.Handler) http.Handler {
-		return WithAuthMiddleware(disabled, mgr, h)
+		return WithAuthMiddleware(disabled, isSSOConfigured, ssoClientApp, mgr, h)
 	}
 }
 
@@ -486,26 +495,41 @@ type TokenVerifier interface {
 // WithAuthMiddleware is an HTTP middleware used to ensure incoming
 // requests are authenticated before invoking the target handler. If
 // disabled is true, it will just invoke the next handler in the chain.
-func WithAuthMiddleware(disabled bool, authn TokenVerifier, next http.Handler) http.Handler {
+func WithAuthMiddleware(disabled bool, isSSOConfigured bool, ssoClientApp *oidcutil.ClientApp, authn TokenVerifier, next http.Handler) http.Handler {
+	if disabled {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			next.ServeHTTP(w, r)
+		})
+	}
+
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !disabled {
-			cookies := r.Cookies()
-			tokenString, err := httputil.JoinCookies(common.AuthCookieName, cookies)
-			if err != nil {
-				http.Error(w, "Auth cookie not found", http.StatusBadRequest)
-				return
-			}
-			claims, _, err := authn.VerifyToken(tokenString)
-			if err != nil {
-				http.Error(w, "Invalid token", http.StatusUnauthorized)
-				return
-			}
-			ctx := r.Context()
-			// Add claims to the context to inspect for RBAC
-			//nolint:staticcheck
-			ctx = context.WithValue(ctx, "claims", claims)
-			r = r.WithContext(ctx)
+		cookies := r.Cookies()
+		tokenString, err := httputil.JoinCookies(common.AuthCookieName, cookies)
+		if err != nil {
+			http.Error(w, "Auth cookie not found", http.StatusBadRequest)
+			return
 		}
+		claims, _, err := authn.VerifyToken(tokenString)
+		if err != nil {
+			http.Error(w, "Invalid token", http.StatusUnauthorized)
+			return
+		}
+
+		finalClaims := claims
+		if isSSOConfigured {
+			finalClaims, err = ssoClientApp.SetGroupsFromUserInfo(claims, SessionManagerClaimsIssuer)
+			if err != nil {
+				http.Error(w, "Invalid session", http.StatusUnauthorized)
+				return
+			}
+		}
+
+		ctx := r.Context()
+		// Add claims to the context to inspect for RBAC
+		//nolint:staticcheck
+		ctx = context.WithValue(ctx, "claims", finalClaims)
+		r = r.WithContext(ctx)
+
 		next.ServeHTTP(w, r)
 	})
 }

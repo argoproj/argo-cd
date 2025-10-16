@@ -7,7 +7,7 @@ import {Consumer, Context, AuthSettingsCtx} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {ApplicationURLs} from '../application-urls';
 import * as AppUtils from '../utils';
-import {getAppDefaultSource, OperationState} from '../utils';
+import {getAppDefaultSource, OperationState, getApplicationLinkURL, getManagedByURL} from '../utils';
 import {services} from '../../../shared/services';
 
 import './applications-tiles.scss';
@@ -66,7 +66,7 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
         keys: Key.ENTER,
         action: () => {
             if (selectedApp > -1) {
-                ctxh.navigation.goto(AppUtils.getAppUrl(applications[selectedApp]));
+                ctxh.navigation.goto(`/${AppUtils.getAppUrl(applications[selectedApp])}`);
                 return true;
             }
             return false;
@@ -108,7 +108,9 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                             <div className='applications-tiles argo-table-list argo-table-list--clickable' ref={appContainerRef}>
                                 {applications.map((app, i) => {
                                     const source = getAppDefaultSource(app);
+                                    const isOci = source?.repoURL?.startsWith('oci://');
                                     const targetRevision = source ? source.targetRevision || 'HEAD' : 'Unknown';
+                                    const linkInfo = getApplicationLinkURL(app, ctx.baseHref);
                                     return (
                                         <div
                                             key={AppUtils.appInstanceName(app)}
@@ -118,14 +120,18 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                             }`}>
                                             <div
                                                 className='row applications-tiles__wrapper'
-                                                onClick={e => ctx.navigation.goto(AppUtils.getAppUrl(app), {view: pref.appDetails.view}, {event: e})}>
+                                                onClick={e => ctx.navigation.goto(`/${AppUtils.getAppUrl(app)}`, {view: pref.appDetails.view}, {event: e})}>
                                                 <div
                                                     className={`columns small-12 applications-list__info qe-applications-list-${AppUtils.appInstanceName(
                                                         app
                                                     )} applications-tiles__item`}>
                                                     <div className='row '>
                                                         <div className={app.status.summary.externalURLs?.length > 0 ? 'columns small-10' : 'columns small-11'}>
-                                                            <i className={'icon argo-icon-' + (source?.chart != null ? 'helm' : 'git')} />
+                                                            <i
+                                                                className={
+                                                                    'icon argo-icon-' + (source?.chart != null ? 'helm' : isOci ? 'oci applications-tiles__item__small' : 'git')
+                                                                }
+                                                            />
                                                             <Tooltip content={AppUtils.appInstanceName(app)}>
                                                                 <span className='applications-list__title'>
                                                                     {AppUtils.appQualifiedName(app, useAuthSettingsCtx?.appsInAnyNamespaceEnabled)}
@@ -135,6 +141,18 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                                         <div className={app.status.summary.externalURLs?.length > 0 ? 'columns small-2' : 'columns small-1'}>
                                                             <div className='applications-list__external-link'>
                                                                 <ApplicationURLs urls={app.status.summary.externalURLs} />
+                                                                <button
+                                                                    onClick={e => {
+                                                                        e.stopPropagation();
+                                                                        if (linkInfo.isExternal) {
+                                                                            window.open(linkInfo.url, '_blank', 'noopener,noreferrer');
+                                                                        } else {
+                                                                            ctx.navigation.goto(`/${AppUtils.getAppUrl(app)}`);
+                                                                        }
+                                                                    }}
+                                                                    title={getManagedByURL(app) ? `Managed by: ${getManagedByURL(app)}` : 'Open application'}>
+                                                                    <i className='fa fa-external-link-alt' />
+                                                                </button>
                                                                 <Tooltip content={favList?.includes(app.metadata.name) ? 'Remove Favorite' : 'Add Favorite'}>
                                                                     <button
                                                                         className='large-text-height'
@@ -197,6 +215,13 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                                         <div className='columns small-9' qe-id='applications-tiles-health-status'>
                                                             <AppUtils.HealthStatusIcon state={app.status.health} /> {app.status.health.status}
                                                             &nbsp;
+                                                            {app.status.sourceHydrator?.currentOperation && (
+                                                                <>
+                                                                    <AppUtils.HydrateOperationPhaseIcon operationState={app.status.sourceHydrator.currentOperation} />{' '}
+                                                                    {app.status.sourceHydrator.currentOperation.phase}
+                                                                    &nbsp;
+                                                                </>
+                                                            )}
                                                             <AppUtils.ComparisonStatusIcon status={app.status.sync.status} /> {app.status.sync.status}
                                                             &nbsp;
                                                             <OperationState app={app} quiet={true} />
@@ -207,7 +232,7 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                                             Repository:
                                                         </div>
                                                         <div className='columns small-9'>
-                                                            <Tooltip content={source?.repoURL} zIndex={4}>
+                                                            <Tooltip content={source?.repoURL || ''} zIndex={4}>
                                                                 <span>{source?.repoURL}</span>
                                                             </Tooltip>
                                                         </div>

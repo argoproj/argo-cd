@@ -1,4 +1,4 @@
-FROM docker.io/library/redis:7.4.3@sha256:7df1eeff67eb0ba84f6b9d2940765a6bb1158081426745c185a03b1507de6a09 AS redis
+FROM docker.io/library/redis:8.2.1@sha256:cc2dfb8f5151da2684b4a09bd04b567f92d07591d91980eb3eca21df07e12760 AS redis
 
 # There are libraries we will want to copy from here in the final stage of the
 # build, but the COPY directive does not have a way to determine system
@@ -8,15 +8,19 @@ RUN ln -s /usr/lib/$(uname -m)-linux-gnu /usr/lib/linux-gnu
 # Please make sure to also check the contained yarn version and update the references below when upgrading this image's version
 FROM docker.io/library/node:22.9.0@sha256:69e667a79aa41ec0db50bc452a60e705ca16f35285eaf037ebe627a65a5cdf52 AS node
 
-FROM docker.io/library/golang:1.24.4@sha256:db5d0afbfb4ab648af2393b92e87eaae9ad5e01132803d80caef91b5752d289c AS golang
+FROM docker.io/library/golang:1.25.1@sha256:8305f5fa8ea63c7b5bc85bd223ccc62941f852318ebfbd22f53bbd0b358c07e1 AS golang
 
-FROM docker.io/library/registry:3.0@sha256:1fc7de654f2ac1247f0b67e8a459e273b0993be7d2beda1f3f56fbf1001ed3e7 AS registry
+FROM docker.io/library/registry:3.0@sha256:cd92709b4191c5779cd7215ccd695db6c54652e7a62843197e367427efb84d0e AS registry
 
-FROM docker.io/bitnami/kubectl:1.32@sha256:493d1b871556d48d6b25d471f192c2427571cd6f78523eebcaf4d263353c7487 AS kubectl
+FROM docker.io/bitnamilegacy/kubectl:1.32@sha256:493d1b871556d48d6b25d471f192c2427571cd6f78523eebcaf4d263353c7487 AS kubectl
 
-FROM docker.io/library/ubuntu:24.04@sha256:1e622c5f073b4f6bfad6632f2616c7f59ef256e96fe78bf6a595d1dc4376ac02
+FROM docker.io/library/ubuntu:25.10@sha256:a61c057b4f69200ecf031519a20db79b8683837ba1dc2a59458d333eb75b174d
 
 ENV DEBIAN_FRONTEND=noninteractive
+
+# NOTE: binutils-gold contains the gold linker, which was recently removed
+#       from binutils, but is still nesessary for building lint-tools on arm64 only
+#       until this Golang issue is fixed: https://github.com/golang/go/issues/22040
 RUN  apt-get update && apt-get install --fix-missing -y \
     ca-certificates \
     curl \
@@ -34,6 +38,9 @@ RUN  apt-get update && apt-get install --fix-missing -y \
     sudo \
     tini \
     zip && \
+    if [ "$(uname -m)" = "aarch64" ]; then \
+       apt-get install --fix-missing -y binutils-gold; \
+    fi && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
@@ -48,6 +55,7 @@ ENV GOPATH=/go
 # Install build and test dependencies
 COPY hack/install.sh hack/tool-versions.sh go.* ./
 COPY hack/installers installers
+COPY gitops-engine/go.* ./gitops-engine/
 
 RUN ./install.sh helm && \
     ./install.sh kustomize && \

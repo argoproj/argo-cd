@@ -230,7 +230,7 @@ func IsValidSSHKnownHostsEntry(line string) bool {
 	trimmedEntry := strings.TrimSpace(line)
 	// We ignore commented out lines - usually happens when copy and pasting
 	// to the ConfigMap from a known_hosts file or from ssh-keyscan output.
-	if len(trimmedEntry) == 0 || trimmedEntry[0] == '#' {
+	if trimmedEntry == "" || trimmedEntry[0] == '#' {
 		return false
 	}
 

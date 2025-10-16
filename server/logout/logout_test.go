@@ -286,21 +286,22 @@ func TestHandlerConstructLogoutURL(t *testing.T) {
 	nonOidcTokenHeader["Cookie"] = []string{"argocd.token=" + nonOidcToken}
 	invalidHeader := make(map[string][]string)
 	invalidHeader["Cookie"] = []string{"argocd.token=" + invalidToken}
+	ctx := t.Context()
 
-	oidcRequest, err := http.NewRequest(http.MethodGet, "http://localhost:4000/api/logout", nil)
+	oidcRequest, err := http.NewRequestWithContext(ctx, http.MethodGet, "http://localhost:4000/api/logout", http.NoBody)
 	require.NoError(t, err)
 	oidcRequest.Header = oidcTokenHeader
-	nonoidcRequest, err := http.NewRequest(http.MethodGet, "http://localhost:4000/api/logout", nil)
+	nonoidcRequest, err := http.NewRequestWithContext(ctx, http.MethodGet, "http://localhost:4000/api/logout", http.NoBody)
 	require.NoError(t, err)
 	nonoidcRequest.Header = nonOidcTokenHeader
-	nonoidcRequestOnSecondHost, err := http.NewRequest(http.MethodGet, "http://argocd.my-corp.tld/api/logout", nil)
+	nonoidcRequestOnSecondHost, err := http.NewRequestWithContext(ctx, http.MethodGet, "http://argocd.my-corp.tld/api/logout", http.NoBody)
 	assert.NoError(t, err)
 	nonoidcRequestOnSecondHost.Header = nonOidcTokenHeader
 	assert.NoError(t, err)
-	requestWithInvalidToken, err := http.NewRequest(http.MethodGet, "http://localhost:4000/api/logout", nil)
+	requestWithInvalidToken, err := http.NewRequestWithContext(ctx, http.MethodGet, "http://localhost:4000/api/logout", http.NoBody)
 	require.NoError(t, err)
 	requestWithInvalidToken.Header = invalidHeader
-	invalidRequest, err := http.NewRequest(http.MethodGet, "http://localhost:4000/api/logout", nil)
+	invalidRequest, err := http.NewRequestWithContext(ctx, http.MethodGet, "http://localhost:4000/api/logout", http.NoBody)
 	require.NoError(t, err)
 
 	tests := []struct {

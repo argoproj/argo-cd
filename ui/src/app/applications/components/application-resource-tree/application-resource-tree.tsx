@@ -22,7 +22,9 @@ import {
     NodeId,
     nodeKey,
     PodHealthIcon,
-    getUsrMsgKeyToDisplay
+    getUsrMsgKeyToDisplay,
+    getApplicationLinkURLFromNode,
+    getManagedByURLFromNode
 } from '../utils';
 import {NodeUpdateAnimation} from './node-update-animation';
 import {PodGroup} from '../application-pod-view/pod-view';
@@ -210,7 +212,7 @@ export function compareNodes(first: ResourceTreeNode, second: ResourceTreeNode) 
         const numberA = Number(a);
         const numberB = Number(b);
         if (isNaN(numberA) || isNaN(numberB)) {
-            return a.localeCompare(b);
+            return a.localeCompare(b, undefined, {numeric: true});
         }
         return Math.sign(numberA - numberB);
     }
@@ -229,13 +231,13 @@ export function compareNodes(first: ResourceTreeNode, second: ResourceTreeNode) 
         return (
             orphanedToInt(first.orphaned) - orphanedToInt(second.orphaned) ||
             compareRevision(getRevision(second), getRevision(first)) ||
-            nodeKey(first).localeCompare(nodeKey(second)) ||
+            nodeKey(first).localeCompare(nodeKey(second), undefined, {numeric: true}) ||
             0
         );
     }
     return (
         orphanedToInt(first.orphaned) - orphanedToInt(second.orphaned) ||
-        nodeKey(first).localeCompare(nodeKey(second)) ||
+        nodeKey(first).localeCompare(nodeKey(second), undefined, {numeric: true}) ||
         compareRevision(getRevision(first), getRevision(second)) ||
         0
     );
@@ -284,7 +286,7 @@ function renderGroupedNodes(props: ApplicationResourceTreeProps, node: {count: n
         <React.Fragment>
             <div className='application-resource-tree__node' style={{left: node.x, top: node.y, width: node.width, height: node.height}}>
                 <div className='application-resource-tree__node-kind-icon'>
-                    <ResourceIcon kind={node.kind} />
+                    <ResourceIcon group={node.group} kind={node.kind} />
                     <br />
                     <div className='application-resource-tree__node-kind'>{ResourceLabel({kind: node.kind})}</div>
                 </div>
@@ -446,7 +448,8 @@ function renderPodGroup(props: ApplicationResourceTreeProps, id: string, node: R
         <div
             className={classNames('application-resource-tree__node', {
                 'active': fullName === props.selectedNodeFullName,
-                'application-resource-tree__node--orphaned': node.orphaned
+                'application-resource-tree__node--orphaned': node.orphaned,
+                'application-resource-tree__node--grouped-node': !showPodGroupByStatus
             })}
             title={describeNode(node)}
             style={{
@@ -461,7 +464,7 @@ function renderPodGroup(props: ApplicationResourceTreeProps, id: string, node: R
                     className={classNames('application-resource-tree__node-kind-icon', {
                         'application-resource-tree__node-kind-icon--big': rootNode
                     })}>
-                    <ResourceIcon kind={node.kind || 'Unknown'} />
+                    <ResourceIcon group={node.group} kind={node.kind || 'Unknown'} />
                     <br />
                     {!rootNode && <div className='application-resource-tree__node-kind'>{ResourceLabel({kind: node.kind})}</div>}
                 </div>
@@ -487,11 +490,22 @@ function renderPodGroup(props: ApplicationResourceTreeProps, id: string, node: R
                         {comparisonStatus != null && <ComparisonStatusIcon status={comparisonStatus} resource={!rootNode && node} />}
                         {appNode && !rootNode && (
                             <Consumer>
-                                {ctx => (
-                                    <a href={ctx.baseHref + 'applications/' + node.namespace + '/' + node.name} title='Open application'>
-                                        <i className='fa fa-external-link-alt' />
-                                    </a>
-                                )}
+                                {ctx => {
+                                    // For nested applications, use the node's data to construct the URL
+                                    const linkInfo = getApplicationLinkURLFromNode(node, ctx.baseHref);
+                                    return (
+                                        <a
+                                            href={linkInfo.url}
+                                            target={linkInfo.isExternal ? '_blank' : undefined}
+                                            rel={linkInfo.isExternal ? 'noopener noreferrer' : undefined}
+                                            onClick={e => {
+                                                e.stopPropagation();
+                                            }}
+                                            title={getManagedByURLFromNode(node) ? `Open application\nmanaged-by-url: ${getManagedByURLFromNode(node)}` : 'Open application'}>
+                                            <i className='fa fa-external-link-alt' />
+                                        </a>
+                                    );
+                                }}
                             </Consumer>
                         )}
                         <ApplicationURLs urls={rootNode ? extLinks : node.networkingInfo && node.networkingInfo.externalURLs} />
@@ -745,7 +759,7 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                 className={classNames('application-resource-tree__node-kind-icon', {
                     'application-resource-tree__node-kind-icon--big': rootNode
                 })}>
-                <ResourceIcon kind={node.kind} />
+                <ResourceIcon group={node.group} kind={node.kind} />
                 <br />
                 {!rootNode && <div className='application-resource-tree__node-kind'>{ResourceLabel({kind: node.kind})}</div>}
             </div>
@@ -770,11 +784,22 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                     {comparisonStatus != null && <ComparisonStatusIcon status={comparisonStatus} resource={!rootNode && node} />}
                     {appNode && !rootNode && (
                         <Consumer>
-                            {ctx => (
-                                <a href={ctx.baseHref + 'applications/' + node.namespace + '/' + node.name} title='Open application'>
-                                    <i className='fa fa-external-link-alt' />
-                                </a>
-                            )}
+                            {ctx => {
+                                // For nested applications, use the node's data to construct the URL
+                                const linkInfo = getApplicationLinkURLFromNode(node, ctx.baseHref);
+                                return (
+                                    <a
+                                        href={linkInfo.url}
+                                        target={linkInfo.isExternal ? '_blank' : undefined}
+                                        rel={linkInfo.isExternal ? 'noopener noreferrer' : undefined}
+                                        onClick={e => {
+                                            e.stopPropagation();
+                                        }}
+                                        title={getManagedByURLFromNode(node) ? `Open application\nmanaged-by-url: ${getManagedByURLFromNode(node)}` : 'Open application'}>
+                                        <i className='fa fa-external-link-alt' />
+                                    </a>
+                                );
+                            }}
                         </Consumer>
                     )}
                     <ApplicationURLs urls={rootNode ? extLinks : node.networkingInfo && node.networkingInfo.externalURLs} />
@@ -799,7 +824,7 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                     </span>
                 ) : null}
                 {(node.info || [])
-                    .filter(tag => !tag.name.includes('Node'))
+                    .filter(tag => !tag.name.includes('Node') && tag.name !== 'managed-by-url')
                     .slice(0, 4)
                     .map((tag, i) => {
                         return <NodeInfoDetails tag={tag} kind={node.kind} key={i} />;

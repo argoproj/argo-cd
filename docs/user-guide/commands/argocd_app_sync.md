@@ -64,6 +64,7 @@ argocd app sync [APPNAME... | -l selector | --project project-name] [flags]
       --retry-backoff-factor int                          Factor multiplies the base duration after each failed retry (default 2)
       --retry-backoff-max-duration duration               Max retry backoff duration. Input needs to be a duration (e.g. 2m, 1h) (default 3m0s)
       --retry-limit int                                   Max number of allowed sync retries
+      --retry-refresh                                     Indicates if the latest revision should be used on retry instead of the initial one
       --revision string                                   Sync to a specific revision. Preserves parameter overrides
       --revisions stringArray                             Show manifests at specific revisions for source position in source-positions
   -l, --selector string                                   Sync apps that match this label. Supports '=', '==', '!=', in, notin, exists & not exists. Matching apps must satisfy all of the specified label constraints.

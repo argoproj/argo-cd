@@ -374,6 +374,56 @@
         }
       }
     },
+    "/api/v1/applications/{appName}/server-side-diff": {
+      "get": {
+        "tags": [
+          "ApplicationService"
+        ],
+        "summary": "ServerSideDiff performs server-side diff calculation using dry-run apply",
+        "operationId": "ApplicationService_ServerSideDiff",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "appName",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "appNamespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "project",
+            "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi",
+            "name": "targetManifests",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/applicationApplicationServerSideDiffResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/applications/{application.metadata.name}": {
       "put": {
         "tags": [
@@ -999,6 +1049,11 @@
             "collectionFormat": "multi",
             "name": "revisions",
             "in": "query"
+          },
+          {
+            "type": "boolean",
+            "name": "noCache",
+            "in": "query"
           }
         ],
         "responses": {
@@ -1473,10 +1528,11 @@
         }
       },
       "post": {
+        "description": "Deprecated: use RunResourceActionV2 instead. This version does not support resource action parameters but is\nmaintained for backward compatibility. It will be removed in a future release.",
         "tags": [
           "ApplicationService"
         ],
-        "summary": "RunResourceAction run resource action",
+        "summary": "RunResourceAction runs a resource action",
         "operationId": "ApplicationService_RunResourceAction",
         "parameters": [
           {
@@ -1490,7 +1546,81 @@
             "in": "body",
             "required": true,
             "schema": {
-              "$ref": "#/definitions/applicationResourceActionRunRequest"
+              "type": "string"
+            }
+          },
+          {
+            "type": "string",
+            "name": "namespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "resourceName",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "version",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "group",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "kind",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "appNamespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "project",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/applicationApplicationResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/applications/{name}/resource/actions/v2": {
+      "post": {
+        "tags": [
+          "ApplicationService"
+        ],
+        "summary": "RunResourceActionV2 runs a resource action with parameters",
+        "operationId": "ApplicationService_RunResourceActionV2",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/applicationResourceActionRunRequestV2"
             }
           }
         ],
@@ -4944,6 +5074,20 @@
         }
       }
     },
+    "applicationApplicationServerSideDiffResponse": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ResourceDiff"
+          }
+        },
+        "modified": {
+          "type": "boolean"
+        }
+      }
+    },
     "applicationApplicationSyncRequest": {
       "type": "object",
       "title": "ApplicationSyncRequest is a request to apply the config state to live state",
@@ -5127,7 +5271,7 @@
         }
       }
     },
-    "applicationResourceActionRunRequest": {
+    "applicationResourceActionRunRequestV2": {
       "type": "object",
       "properties": {
         "action": {
@@ -5474,6 +5618,9 @@
         },
         "statusBadgeRootUrl": {
           "type": "string"
+        },
+        "syncWithReplaceAllowed": {
+          "type": "boolean"
         },
         "trackingMethod": {
           "type": "string"
@@ -6933,7 +7080,7 @@
         },
         "status": {
           "type": "string",
-          "title": "Status contains the AppSet's perceived status of the managed Application resource: (Waiting, Pending, Progressing, Healthy)"
+          "title": "Status contains the AppSet's perceived status of the managed Application resource"
         },
         "step": {
           "type": "string",
@@ -7178,6 +7325,11 @@
           "items": {
             "$ref": "#/definitions/applicationv1alpha1ResourceStatus"
           }
+        },
+        "resourcesCount": {
+          "description": "ResourcesCount is the total number of resources managed by this application set. The count may be higher than actual number of items in the Resources field when\nthe number of managed resources exceeds the limit imposed by the controller (to avoid making the status field too large).",
+          "type": "integer",
+          "format": "int64"
         }
       }
     },
@@ -7185,6 +7337,10 @@
       "description": "ApplicationSetStrategy configures how generated Applications are updated in sequence.",
       "type": "object",
       "properties": {
+        "deletionOrder": {
+          "type": "string",
+          "title": "DeletionOrder allows specifying the order for deleting generated apps when progressive sync is enabled.\naccepts values \"AllAtOnce\" and \"Reverse\""
+        },
         "rollingSync": {
           "$ref": "#/definitions/v1alpha1ApplicationSetRolloutStrategy"
         },
@@ -8031,14 +8187,15 @@
       "type": "object",
       "properties": {
         "author": {
-          "$ref": "#/definitions/v1alpha1CommitMetadataAuthor"
+          "description": "Author is the author of the commit, i.e. `git show -s --format=%an <%ae>`.\nMust be formatted according to RFC 5322 (mail.Address.String()).\nComes from the Argocd-reference-commit-author trailer.",
+          "type": "string"
         },
         "body": {
-          "description": "Body is the commit message body.\nComes from the Argocd-reference-commit-body trailer.",
+          "description": "Body is the commit message body minus the subject line, i.e. `git show -s --format=%b`.\nComes from the Argocd-reference-commit-body trailer.",
           "type": "string"
         },
         "date": {
-          "description": "Date is the date of the commit, formatted as by `git show -s --format=%aI`.\nComes from the Argocd-reference-commit-date trailer.",
+          "description": "Date is the date of the commit, formatted as by `git show -s --format=%aI` (RFC 3339).\nIt can also be an empty string if the date is unknown.\nComes from the Argocd-reference-commit-date trailer.",
           "type": "string"
         },
         "repoUrl": {
@@ -8050,21 +8207,7 @@
           "type": "string"
         },
         "subject": {
-          "description": "Subject is the commit message subject.\nComes from the Argocd-reference-commit-subject trailer.",
-          "type": "string"
-        }
-      }
-    },
-    "v1alpha1CommitMetadataAuthor": {
-      "description": "CommitMetadataAuthor contains information about the author of a commit.",
-      "type": "object",
-      "properties": {
-        "email": {
-          "description": "Email is the email of the author.\nComes from the Argocd-reference-commit-author-email trailer.",
-          "type": "string"
-        },
-        "name": {
-          "description": "Name is the name of the author.\nComes from the Argocd-reference-commit-author-name trailer.",
+          "description": "Subject is the commit message subject line, i.e. `git show -s --format=%s`.\nComes from the Argocd-reference-commit-subject trailer.",
           "type": "string"
         }
       }
@@ -8114,7 +8257,7 @@
       }
     },
     "v1alpha1ConfigMapKeyRef": {
-      "description": "Utility struct for a reference to a configmap key.",
+      "description": "ConfigMapKeyRef struct for a reference to a configmap key.",
       "type": "object",
       "properties": {
         "configMapName": {
@@ -8573,12 +8716,20 @@
       "title": "KustomizeOptions are options for kustomize to use when building manifests",
       "properties": {
         "binaryPath": {
+          "description": "Deprecated: Use settings.Settings instead. See: settings.Settings.KustomizeVersions.\nIf this field is set, it will be used as the Kustomize binary path.\nOtherwise, Versions is used.",
           "type": "string",
           "title": "BinaryPath holds optional path to kustomize binary"
         },
         "buildOptions": {
           "type": "string",
           "title": "BuildOptions is a string of build parameters to use when calling `kustomize build`"
+        },
+        "versions": {
+          "description": "Versions is a list of Kustomize versions and their corresponding binary paths and build options.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1KustomizeVersion"
+          }
         }
       }
     },
@@ -8639,6 +8790,24 @@
         },
         "resId": {
           "$ref": "#/definitions/v1alpha1KustomizeResId"
+        }
+      }
+    },
+    "v1alpha1KustomizeVersion": {
+      "type": "object",
+      "title": "KustomizeVersion holds information about additional Kustomize versions",
+      "properties": {
+        "buildOptions": {
+          "type": "string",
+          "title": "BuildOptions that are specific to a Kustomize version"
+        },
+        "name": {
+          "type": "string",
+          "title": "Name holds Kustomize version name"
+        },
+        "path": {
+          "type": "string",
+          "title": "Path holds the corresponding binary path"
         }
       }
     },
@@ -8963,6 +9132,10 @@
         "bitbucketServer": {
           "$ref": "#/definitions/v1alpha1PullRequestGeneratorBitbucketServer"
         },
+        "continueOnRepoNotFoundError": {
+          "description": "ContinueOnRepoNotFoundError is a flag to continue the ApplicationSet Pull Request generator parameters generation even if the repository is not found.",
+          "type": "boolean"
+        },
         "filters": {
           "description": "Filters for which pull requests should be considered.",
           "type": "array",
@@ -9092,6 +9265,9 @@
         },
         "targetBranchMatch": {
           "type": "string"
+        },
+        "titleMatch": {
+          "type": "string"
         }
       }
     },
@@ -9163,7 +9339,7 @@
       }
     },
     "v1alpha1PullRequestGeneratorGithub": {
-      "description": "PullRequestGenerator defines connection info specific to GitHub.",
+      "description": "PullRequestGeneratorGithub defines connection info specific to GitHub.",
       "type": "object",
       "properties": {
         "api": {
@@ -9495,20 +9671,8 @@
       "description": "ResourceActionParam represents a parameter for a resource action.\nIt includes a name, value, type, and an optional default value for the parameter.",
       "type": "object",
       "properties": {
-        "default": {
-          "description": "Default is the default value of the parameter, if any.",
-          "type": "string"
-        },
         "name": {
           "description": "Name is the name of the parameter.",
-          "type": "string"
-        },
-        "type": {
-          "description": "Type is the type of the parameter (e.g., string, integer).",
-          "type": "string"
-        },
-        "value": {
-          "description": "Value is the value of the parameter.",
           "type": "string"
         }
       }
@@ -9809,6 +9973,10 @@
           "description": "Limit is the maximum number of attempts for retrying a failed sync. If set to 0, no retries will be performed.",
           "type": "integer",
           "format": "int64"
+        },
+        "refresh": {
+          "type": "boolean",
+          "title": "Refresh indicates if the latest revision should be used on retry instead of the initial one (default: false)"
         }
       }
     },
@@ -10175,7 +10343,7 @@
       }
     },
     "v1alpha1SecretRef": {
-      "description": "Utility struct for a reference to a secret key.",
+      "description": "SecretRef struct for a reference to a secret key.",
       "type": "object",
       "properties": {
         "key": {
@@ -10389,7 +10557,7 @@
           "type": "boolean",
           "title": "AllowEmpty allows apps have zero live resources (default: false)"
         },
-        "enable": {
+        "enabled": {
           "type": "boolean",
           "title": "Enable allows apps to explicitly control automated sync"
         },
@@ -10408,12 +10576,12 @@
       "type": "object",
       "properties": {
         "path": {
-          "description": "Path is a directory path within the git repository where hydrated manifests should be committed to and synced\nfrom. If hydrateTo is set, this is just the path from which hydrated manifests will be synced.",
+          "description": "Path is a directory path within the git repository where hydrated manifests should be committed to and synced\nfrom. The Path should never point to the root of the repo. If hydrateTo is set, this is just the path from which\nhydrated manifests will be synced.\n\n+kubebuilder:validation:Required\n+kubebuilder:validation:MinLength=1\n+kubebuilder:validation:Pattern=`^.{2,}|[^./]$`",
           "type": "string"
         },
         "targetBranch": {
-          "type": "string",
-          "title": "TargetBranch is the branch to which hydrated manifests should be committed"
+          "description": "TargetBranch is the branch from which hydrated manifests will be synced.\nIf HydrateTo is not set, this is also the branch to which hydrated manifests are committed.",
+          "type": "string"
         }
       }
     },

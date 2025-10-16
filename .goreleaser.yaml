@@ -24,8 +24,8 @@ builds:
       - -extldflags="-static"
     goos:
       - linux
-      - darwin
       - windows
+      - darwin
     goarch:
       - amd64
       - arm64
@@ -56,6 +56,7 @@ checksum:
   algorithm: sha256
 
 release:
+  make_latest: '{{ .Env.GORELEASER_MAKE_LATEST }}'
   prerelease: auto
   draft: false
   header: |

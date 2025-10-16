@@ -14,6 +14,7 @@ import (
 	"golang.org/x/net/proxy"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/keepalive"
@@ -30,72 +31,55 @@ func LoggerRecoveryHandler(log *logrus.Entry) recovery.RecoveryHandlerFunc {
 	}
 }
 
-// BlockingDial is a helper method to dial the given address, using optional TLS credentials,
+// BlockingNewClient is a helper method to dial the given address, using optional TLS credentials,
 // and blocking until the returned connection is ready. If the given credentials are nil, the
 // connection will be insecure (plain-text).
 // Lifted from: https://github.com/fullstorydev/grpcurl/blob/master/grpcurl.go
-func BlockingDial(ctx context.Context, network, address string, creds credentials.TransportCredentials, opts ...grpc.DialOption) (*grpc.ClientConn, error) {
-	// grpc.Dial doesn't provide any information on permanent connection errors (like
-	// TLS handshake failures). So in order to provide good error messages, we need a
-	// custom dialer that can provide that info. That means we manage the TLS handshake.
-	result := make(chan any, 1)
-	writeResult := func(res any) {
-		// non-blocking write: we only need the first result
-		select {
-		case result <- res:
-		default:
-		}
+func BlockingNewClient(ctx context.Context, network, address string, creds credentials.TransportCredentials, opts ...grpc.DialOption) (*grpc.ClientConn, error) {
+	proxyDialer := proxy.FromEnvironment()
+	rawConn, err := proxyDialer.Dial(network, address)
+	if err != nil {
+		return nil, fmt.Errorf("error dial proxy: %w", err)
 	}
 
-	dialer := func(ctx context.Context, address string) (net.Conn, error) {
-		conn, err := proxy.Dial(ctx, network, address)
+	if creds != nil {
+		rawConn, _, err = creds.ClientHandshake(ctx, address, rawConn)
 		if err != nil {
-			writeResult(err)
-			return nil, fmt.Errorf("error dial proxy: %w", err)
+			return nil, fmt.Errorf("error creating connection: %w", err)
 		}
-		if creds != nil {
-			conn, _, err = creds.ClientHandshake(ctx, address, conn)
-			if err != nil {
-				writeResult(err)
-				return nil, fmt.Errorf("error creating connection: %w", err)
-			}
-		}
-		return conn, nil
+	}
+	customDialer := func(_ context.Context, _ string) (net.Conn, error) {
+		return rawConn, nil
 	}
 
-	// Even with grpc.FailOnNonTempDialError, this call will usually timeout in
-	// the face of TLS handshake errors. So we can't rely on grpc.WithBlock() to
-	// know when we're done. So we run it in a goroutine and then use result
-	// channel to either get the channel or fail-fast.
-	go func() {
-		opts = append(opts,
-			//nolint:staticcheck
-			grpc.WithBlock(),
-			//nolint:staticcheck
-			grpc.FailOnNonTempDialError(true),
-			grpc.WithContextDialer(dialer),
-			grpc.WithTransportCredentials(insecure.NewCredentials()), // we are handling TLS, so tell grpc not to
-			grpc.WithKeepaliveParams(keepalive.ClientParameters{Time: common.GetGRPCKeepAliveTime()}),
-		)
-		//nolint:staticcheck
-		conn, err := grpc.DialContext(ctx, address, opts...)
-		var res any
-		if err != nil {
-			res = err
-		} else {
-			res = conn
-		}
-		writeResult(res)
-	}()
+	opts = append(opts,
+		grpc.WithContextDialer(customDialer),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithKeepaliveParams(keepalive.ClientParameters{Time: common.GetGRPCKeepAliveTime()}),
+	)
 
-	select {
-	case res := <-result:
-		if conn, ok := res.(*grpc.ClientConn); ok {
-			return conn, nil
+	conn, err := grpc.NewClient("passthrough:"+address, opts...)
+	if err != nil {
+		return nil, fmt.Errorf("grpc.NewClient failed: %w", err)
+	}
+
+	conn.Connect()
+	if err := waitForReady(ctx, conn); err != nil {
+		return nil, fmt.Errorf("gRPC connection not ready: %w", err)
+	}
+
+	return conn, nil
+}
+
+func waitForReady(ctx context.Context, conn *grpc.ClientConn) error {
+	for {
+		state := conn.GetState()
+		if state == connectivity.Ready {
+			return nil
 		}
-		return nil, res.(error)
-	case <-ctx.Done():
-		return nil, ctx.Err()
+		if !conn.WaitForStateChange(ctx, state) {
+			return ctx.Err() // context timeout or cancellation
+		}
 	}
 }
 
@@ -119,7 +103,7 @@ func TestTLS(address string, dialTime time.Duration) (*TLSTestResult, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), dialTime)
 	defer cancel()
 
-	conn, err := BlockingDial(ctx, "tcp", address, creds)
+	conn, err := BlockingNewClient(ctx, "tcp", address, creds)
 	if err == nil {
 		_ = conn.Close()
 		testResult.TLS = true
@@ -127,7 +111,7 @@ func TestTLS(address string, dialTime time.Duration) (*TLSTestResult, error) {
 		ctx, cancel := context.WithTimeout(context.Background(), dialTime)
 		defer cancel()
 
-		conn, err := BlockingDial(ctx, "tcp", address, creds)
+		conn, err := BlockingNewClient(ctx, "tcp", address, creds)
 		if err == nil {
 			_ = conn.Close()
 		} else {
@@ -142,7 +126,7 @@ func TestTLS(address string, dialTime time.Duration) (*TLSTestResult, error) {
 	// refused). Test if server accepts plain-text connections
 	ctx, cancel = context.WithTimeout(context.Background(), dialTime)
 	defer cancel()
-	conn, err = BlockingDial(ctx, "tcp", address, nil)
+	conn, err = BlockingNewClient(ctx, "tcp", address, nil)
 	if err == nil {
 		_ = conn.Close()
 		testResult.TLS = false

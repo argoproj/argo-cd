@@ -21,8 +21,10 @@ All resources, including `Application` and `AppProject` specs, have to be instal
 
 For each specific kind of ConfigMap and Secret resource, there is only a single supported resource name (as listed in the above table) - if you need to merge things you need to do it before creating them.
 
-!!!warning "A note about ConfigMap resources"
-    Be sure to annotate your ConfigMap resources using the label `app.kubernetes.io/part-of: argocd`, otherwise Argo CD will not be able to use them.
+> [!WARNING]
+> **A note about ConfigMap resources**
+>
+> Be sure to annotate your ConfigMap resources using the label `app.kubernetes.io/part-of: argocd`, otherwise Argo CD will not be able to use them.
 
 ### Multiple configuration objects
 
@@ -63,11 +65,11 @@ spec:
 
 See [application.yaml](application.yaml) for additional fields. As long as you have completed the first step of [Getting Started](../getting_started.md#1-install-argo-cd), you can apply this with `kubectl apply -n argocd -f application.yaml` and Argo CD will start deploying the guestbook application.
 
-!!! note
-    The namespace must match the namespace of your Argo CD instance - typically this is `argocd`.
+> [!NOTE]
+> The namespace must match the namespace of your Argo CD instance - typically this is `argocd`.
 
-!!! note
-    When creating an application from a Helm repository, the `chart` attribute must be specified instead of the `path` attribute within `spec.source`.
+> [!NOTE]
+> When creating an application from a Helm repository, the `chart` attribute must be specified instead of the `path` attribute within `spec.source`.
 
 ```yaml
 spec:
@@ -77,8 +79,8 @@ spec:
     chart: argo
 ```
 
-!!! warning
-    Without the `resources-finalizer.argocd.argoproj.io` finalizer, deleting an application will not delete the resources it manages. To perform a cascading delete, you must add the finalizer. See [App Deletion](../user-guide/app_deletion.md#about-the-deletion-finalizer).
+> [!WARNING]
+> Without the `resources-finalizer.argocd.argoproj.io` finalizer, deleting an application will not delete the resources it manages. To perform a cascading delete, you must add the finalizer. See [App Deletion](../user-guide/app_deletion.md#about-the-deletion-finalizer).
 
 ```yaml
 metadata:
@@ -102,11 +104,13 @@ It is defined by the following key pieces of information:
 * `destinations` reference to clusters and namespaces that applications within the project can deploy into.
 * `roles` list of entities with definitions of their access to resources within the project.
 
-!!!warning "Projects which can deploy to the Argo CD namespace grant admin access"
-    If a Project's `destinations` configuration allows deploying to the namespace in which Argo CD is installed, then
-    Applications under that project have admin-level access. [RBAC access](https://argo-cd.readthedocs.io/en/stable/operator-manual/rbac/)
-    to admin-level Projects should be carefully restricted, and push access to allowed `sourceRepos` should be limited
-    to only admins.
+> [!WARNING]
+> **Projects which can deploy to the Argo CD namespace grant admin access**
+>
+> If a Project's `destinations` configuration allows deploying to the namespace in which Argo CD is installed, then
+> Applications under that project have admin-level access. [RBAC access](https://argo-cd.readthedocs.io/en/stable/operator-manual/rbac/)
+> to admin-level Projects should be carefully restricted, and push access to allowed `sourceRepos` should be limited
+> to only admins.
 
 An example spec is as follows:
 
@@ -168,19 +172,19 @@ spec:
 
 ## Repositories
 
-!!!note
-    Some Git hosters - notably GitLab and possibly on-premise GitLab instances as well - require you to
-    specify the `.git` suffix in the repository URL, otherwise they will send a HTTP 301 redirect to the
-    repository URL suffixed with `.git`. Argo CD will **not** follow these redirects, so you have to
-    adjust your repository URL to be suffixed with `.git`.
+> [!NOTE]
+> Some Git hosters - notably GitLab and possibly on-premise GitLab instances as well - require you to
+> specify the `.git` suffix in the repository URL, otherwise they will send a HTTP 301 redirect to the
+> repository URL suffixed with `.git`. Argo CD will **not** follow these redirects, so you have to
+> adjust your repository URL to be suffixed with `.git`.
 
 Repository details are stored in secrets. To configure a repo, create a secret which contains repository details.
 Consider using [bitnami-labs/sealed-secrets](https://github.com/bitnami-labs/sealed-secrets) to store an encrypted secret definition as a Kubernetes manifest.
 Each repository must have a `url` field and, depending on whether you connect using HTTPS, SSH, or GitHub App, `username` and `password` (for HTTPS), `sshPrivateKey` (for SSH), or `githubAppPrivateKey` (for GitHub App).
 Credentials can be scoped to a project using the optional `project` field. When omitted, the credential will be used as the default for all projects without a scoped credential.
 
-!!!warning
-    When using [bitnami-labs/sealed-secrets](https://github.com/bitnami-labs/sealed-secrets) the labels will be removed and have to be readded as described here: https://github.com/bitnami-labs/sealed-secrets#sealedsecrets-as-templates-for-secrets
+> [!WARNING]
+> When using [bitnami-labs/sealed-secrets](https://github.com/bitnami-labs/sealed-secrets) the labels will be removed and have to be readded as described here: https://github.com/bitnami-labs/sealed-secrets#sealedsecrets-as-templates-for-secrets
 
 Example for HTTPS:
 
@@ -285,8 +289,8 @@ stringData:
     }
 ```
 
-!!! tip
-    The Kubernetes documentation has [instructions for creating a secret containing a private key](https://kubernetes.io/docs/concepts/configuration/secret/#use-case-pod-with-ssh-keys).
+> [!TIP]
+> The Kubernetes documentation has [instructions for creating a secret containing a private key](https://kubernetes.io/docs/concepts/configuration/secret/#use-case-pod-with-ssh-keys).
 
 Example for Azure Container Registry/ Azure Devops repositories using Azure workload identity:
 
@@ -340,8 +344,8 @@ In order for Argo CD to use a credential template for any given repository, the 
 * The repository must either not be configured at all, or if configured, must not contain any credential information (i.e. contain none of `sshPrivateKey`, `username`, `password` )
 * The URL configured for a credential template (e.g. `https://github.com/argoproj`) must match as prefix for the repository URL (e.g. `https://github.com/argoproj/argocd-example-apps`).
 
-!!! note
-    Matching credential template URL prefixes is done on a _best match_ effort, so the longest (best) match will take precedence. The order of definition is not important, as opposed to pre v1.4 configuration.
+> [!NOTE]
+> Matching credential template URL prefixes is done on a _best match_ effort, so the longest (best) match will take precedence. The order of definition is not important, as opposed to pre v1.4 configuration.
 
 The following keys are valid to refer to credential secrets:
 
@@ -422,8 +426,8 @@ data:
 
 ```
 
-!!! note
-    The `argocd-tls-certs-cm` ConfigMap will be mounted as a volume at the mount path `/app/config/tls` in the pods of `argocd-server` and `argocd-repo-server`. It will create files for each data key in the mount path directory, so above example would leave the file `/app/config/tls/server.example.com`, which contains the certificate data. It might take a while for changes in the ConfigMap to be reflected in your pods, depending on your Kubernetes configuration.
+> [!NOTE]
+> The `argocd-tls-certs-cm` ConfigMap will be mounted as a volume at the mount path `/app/config/tls` in the pods of `argocd-server` and `argocd-repo-server`. It will create files for each data key in the mount path directory, so above example would leave the file `/app/config/tls/server.example.com`, which contains the certificate data. It might take a while for changes in the ConfigMap to be reflected in your pods, depending on your Kubernetes configuration.
 
 ### SSH known host public keys
 
@@ -474,8 +478,8 @@ data:
     vs-ssh.visualstudio.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7Hr1oTWqNqOlzGJOfGJ4NakVyIzf1rXYd4d7wo6jBlkLvCA4odBlL0mDUyZ0/QUfTTqeu+tm22gOsv+VrVTMk6vwRU75gY/y9ut5Mb3bR5BV58dKXyq9A9UeB5Cakehn5Zgm6x1mKoVyf+FFn26iYqXJRgzIZZcZ5V6hrE0Qg39kZm4az48o0AUbf6Sp4SLdvnuMa2sVNwHBboS7EJkm57XQPVU3/QpyNLHbWDdzwtrlS+ez30S3AdYhLKEOxAG8weOnyrtLJAUen9mTkol8oII1edf7mWWbWVf0nBmly21+nZcmCTISQBtdcyPaEno7fFQMDD26/s0lfKob4Kw8H
 ```
 
-!!! note
-    The `argocd-ssh-known-hosts-cm` ConfigMap will be mounted as a volume at the mount path `/app/config/ssh` in the pods of `argocd-server` and `argocd-repo-server`. It will create a file `ssh_known_hosts` in that directory, which contains the SSH known hosts data used by Argo CD for connecting to Git repositories via SSH. It might take a while for changes in the ConfigMap to be reflected in your pods, depending on your Kubernetes configuration.
+> [!NOTE]
+> The `argocd-ssh-known-hosts-cm` ConfigMap will be mounted as a volume at the mount path `/app/config/ssh` in the pods of `argocd-server` and `argocd-repo-server`. It will create a file `ssh_known_hosts` in that directory, which contains the SSH known hosts data used by Argo CD for connecting to Git repositories via SSH. It might take a while for changes in the ConfigMap to be reflected in your pods, depending on your Kubernetes configuration.
 
 ### Configure repositories with proxy
 
@@ -559,14 +563,14 @@ tlsClientConfig:
 disableCompression: boolean
 ```
 
-!!! important
-    When `namespaces` is set, Argo CD will perform a separate list/watch operation for each namespace. This can cause
-    the Application controller to exceed the maximum number of idle connections allowed for the Kubernetes API server.
-    To resolve this issue, you can increase the `ARGOCD_K8S_CLIENT_MAX_IDLE_CONNECTIONS` environment variable in the
-    Application controller.
+> [!IMPORTANT]
+> When `namespaces` is set, Argo CD will perform a separate list/watch operation for each namespace. This can cause
+> the Application controller to exceed the maximum number of idle connections allowed for the Kubernetes API server.
+> To resolve this issue, you can increase the `ARGOCD_K8S_CLIENT_MAX_IDLE_CONNECTIONS` environment variable in the
+> Application controller.
 
-!!! important 
-    Note that if you specify a command to run under `execProviderConfig`, that command must be available in the Argo CD image. See [BYOI (Build Your Own Image)](custom_tools.md#byoi-build-your-own-image).
+> [!IMPORTANT]
+> Note that if you specify a command to run under `execProviderConfig`, that command must be available in the Argo CD image. See [BYOI (Build Your Own Image)](custom_tools.md#byoi-build-your-own-image).
 
 Cluster secret example:
 
@@ -687,7 +691,7 @@ The 3 service accounts need to be modified to include an annotation with the Arg
 
 Here's an example service account configurations for `argocd-application-controller`, `argocd-applicationset-controller`, and `argocd-server`.
 
-!!! warning
+> [!WARNING]
 Once the annotations has been set on the service accounts, the application controller and server pods need to be restarted.
 
 ```yaml
@@ -1007,15 +1011,15 @@ Azure cluster secret example using argocd-k8s-auth and [kubelogin](https://githu
 |Variable Name|Description|
 |-------------|-----------|
 |AAD_LOGIN_METHOD|One of devicecode, spn, ropc, msi, azurecli, or workloadidentity|
-|AAD_SERVICE_PRINCIPAL_CLIENT_CERTIFICATE|AAD client cert in pfx.  Used in spn login|
-|AAD_SERVICE_PRINCIPAL_CLIENT_ID|AAD client application ID|
-|AAD_SERVICE_PRINCIPAL_CLIENT_SECRET|AAD client application secret|
+|AZURE_CLIENT_CERTIFICATE_PATH|Path to AAD client cert in pfx.  Used in spn login and WorkloadIdentityLogin flow|
+|AZURE_CLIENT_CERTIFICATE_PASSWORD|Password for the client cert in pfx.  Used in spn login|
+|AZURE_CLIENT_ID|AAD client application ID|
+|AZURE_CLIENT_SECRET|AAD client application secret|
 |AAD_USER_PRINCIPAL_NAME|Used in the ropc flow|
 |AAD_USER_PRINCIPAL_PASSWORD|Used in the ropc flow|
 |AZURE_TENANT_ID|The AAD tenant ID.|
 |AZURE_AUTHORITY_HOST|Used in the WorkloadIdentityLogin flow|
 |AZURE_FEDERATED_TOKEN_FILE|Used in the WorkloadIdentityLogin flow|
-|AZURE_CLIENT_ID|Used in the WorkloadIdentityLogin flow|
 
 In addition to the environment variables above, argocd-k8s-auth accepts two extra environment variables to set the AAD environment, and to set the AAD server application ID.  The AAD server application ID will default to 6dae42f8-4368-4678-94ff-3960e28e3630 if not specified.  See [here](https://github.com/azure/kubelogin#exec-plugin-format) for details.
 
@@ -1089,9 +1093,9 @@ stringData:
         "command": "argocd-k8s-auth",
         "env": {
           "AAD_ENVIRONMENT_NAME": "AzurePublicCloud",
-          "AAD_SERVICE_PRINCIPAL_CLIENT_SECRET": "fill in your service principal client secret",
+          "AZURE_CLIENT_SECRET": "fill in your service principal client secret",
           "AZURE_TENANT_ID": "fill in tenant id",
-          "AAD_SERVICE_PRINCIPAL_CLIENT_ID": "fill in your service principal client id",
+          "AZURE_CLIENT_ID": "fill in your service principal client id",
           "AAD_LOGIN_METHOD": "spn"
         },
         "args": ["azure"],
@@ -1331,5 +1335,5 @@ patches:
 The live example of self managed Argo CD config is available at [https://cd.apps.argoproj.io](https://cd.apps.argoproj.io) and with configuration
 stored at [argoproj/argoproj-deployments](https://github.com/argoproj/argoproj-deployments/tree/master/argocd).
 
-!!! note
-    You will need to sign-in using your GitHub account to get access to [https://cd.apps.argoproj.io](https://cd.apps.argoproj.io)
+> [!NOTE]
+> You will need to sign-in using your GitHub account to get access to [https://cd.apps.argoproj.io](https://cd.apps.argoproj.io)

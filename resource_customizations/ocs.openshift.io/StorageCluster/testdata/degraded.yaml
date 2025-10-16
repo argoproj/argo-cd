@@ -29,6 +29,37 @@ status:
   conditions:
   - lastHeartBeatTime: "2023-10-01T12:00:00Z"
     lastTransitionTime: "2023-10-01T12:00:00Z"
-    message: "StorageCluster is degraded"
+    message: Version check successful
+    reason: VersionMatched
+    status: "False"
+    type: VersionMismatch
+  - lastHeartBeatTime: "2023-10-01T12:00:00Z"
+    lastTransitionTime: "2023-10-01T12:00:00Z"
+    message: "Reconcile completed successfully"
+    reason: ReconcileCompleted
+    status: "True"
+    type: ReconcileComplete
+  - lastHeartBeatTime: "2023-10-01T12:00:00Z"
+    lastTransitionTime: "2023-10-01T12:00:00Z"
+    message: 'CephCluster error: Failed to configure ceph cluster'
+    reason: ClusterStateError
+    status: "False"
+    type: Available
+  - lastHeartBeatTime: "2023-10-01T12:00:00Z"
+    lastTransitionTime: "2023-10-01T12:00:00Z"
+    message: "Reconcile completed successfully"
+    reason: ReconcileCompleted
+    status: "False"
+    type: Progressing
+  - lastHeartBeatTime: "2023-10-01T12:00:00Z"
+    lastTransitionTime: "2023-10-01T12:00:00Z"
+    message: "CephCluster error: Failed to configure ceph cluster"
+    reason: ClusterStateError
     status: "True"
     type: Degraded
+  - lastHeartBeatTime: "2023-10-01T12:00:00Z"
+    lastTransitionTime: "2023-10-01T12:00:00Z"
+    message: Reconcile completed successfully
+    reason: ReconcileCompleted
+    status: "True"
+    type: Upgradeable

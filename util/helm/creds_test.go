@@ -67,7 +67,7 @@ func TestGetPasswordShouldGenerateTokenIfNotPresentInCache(t *testing.T) {
 	mockServer := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/v2/":
-			w.Header().Set("Www-Authenticate", fmt.Sprintf(`Bearer realm="%s",service="%s"`, mockedServerURL(), mockedServerURL()[8:]))
+			w.Header().Set("Www-Authenticate", fmt.Sprintf(`Bearer realm=%q,service=%q`, mockedServerURL(), mockedServerURL()[8:]))
 			w.WriteHeader(http.StatusUnauthorized)
 
 		case "/oauth2/exchange":
@@ -102,7 +102,7 @@ func TestChallengeAzureContainerRegistry(t *testing.T) {
 	workloadIdentityMock := new(mocks.TokenProvider)
 	creds := NewAzureWorkloadIdentityCreds(mockServer.URL[8:], "", nil, nil, true, workloadIdentityMock)
 
-	tokenParams, err := creds.challengeAzureContainerRegistry(creds.repoURL)
+	tokenParams, err := creds.challengeAzureContainerRegistry(t.Context(), creds.repoURL)
 	require.NoError(t, err)
 
 	expectedParams := map[string]string{
@@ -124,7 +124,7 @@ func TestChallengeAzureContainerRegistryNoChallenge(t *testing.T) {
 	workloadIdentityMock := new(mocks.TokenProvider)
 	creds := NewAzureWorkloadIdentityCreds(mockServer.URL[8:], "", nil, nil, true, workloadIdentityMock)
 
-	_, err := creds.challengeAzureContainerRegistry(creds.repoURL)
+	_, err := creds.challengeAzureContainerRegistry(t.Context(), creds.repoURL)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "did not issue a challenge")
 }
@@ -142,7 +142,7 @@ func TestChallengeAzureContainerRegistryNonBearer(t *testing.T) {
 	workloadIdentityMock := new(mocks.TokenProvider)
 	creds := NewAzureWorkloadIdentityCreds(mockServer.URL[8:], "", nil, nil, true, workloadIdentityMock)
 
-	_, err := creds.challengeAzureContainerRegistry(creds.repoURL)
+	_, err := creds.challengeAzureContainerRegistry(t.Context(), creds.repoURL)
 	assert.ErrorContains(t, err, "does not allow 'Bearer' authentication")
 }
 
@@ -159,7 +159,7 @@ func TestChallengeAzureContainerRegistryNoService(t *testing.T) {
 	workloadIdentityMock := new(mocks.TokenProvider)
 	creds := NewAzureWorkloadIdentityCreds(mockServer.URL[8:], "", nil, nil, true, workloadIdentityMock)
 
-	_, err := creds.challengeAzureContainerRegistry(creds.repoURL)
+	_, err := creds.challengeAzureContainerRegistry(t.Context(), creds.repoURL)
 	assert.ErrorContains(t, err, "service parameter not found in challenge")
 }
 
@@ -176,7 +176,7 @@ func TestChallengeAzureContainerRegistryNoRealm(t *testing.T) {
 	workloadIdentityMock := new(mocks.TokenProvider)
 	creds := NewAzureWorkloadIdentityCreds(mockServer.URL[8:], "", nil, nil, true, workloadIdentityMock)
 
-	_, err := creds.challengeAzureContainerRegistry(creds.repoURL)
+	_, err := creds.challengeAzureContainerRegistry(t.Context(), creds.repoURL)
 	assert.ErrorContains(t, err, "realm parameter not found in challenge")
 }
 
@@ -201,7 +201,7 @@ func TestGetAccessTokenAfterChallenge_Success(t *testing.T) {
 		"service": "registry.example.com",
 	}
 
-	refreshToken, err := creds.getAccessTokenAfterChallenge(tokenParams)
+	refreshToken, err := creds.getAccessTokenAfterChallenge(t.Context(), tokenParams)
 	require.NoError(t, err)
 	assert.Equal(t, "newRefreshToken", refreshToken)
 }
@@ -226,7 +226,7 @@ func TestGetAccessTokenAfterChallenge_Failure(t *testing.T) {
 		"service": "registry.example.com",
 	}
 
-	refreshToken, err := creds.getAccessTokenAfterChallenge(tokenParams)
+	refreshToken, err := creds.getAccessTokenAfterChallenge(t.Context(), tokenParams)
 	require.ErrorContains(t, err, "failed to get refresh token")
 	assert.Empty(t, refreshToken)
 }
@@ -251,7 +251,7 @@ func TestGetAccessTokenAfterChallenge_MalformedResponse(t *testing.T) {
 		"service": "registry.example.com",
 	}
 
-	refreshToken, err := creds.getAccessTokenAfterChallenge(tokenParams)
+	refreshToken, err := creds.getAccessTokenAfterChallenge(t.Context(), tokenParams)
 	require.ErrorContains(t, err, "failed to unmarshal response body")
 	assert.Empty(t, refreshToken)
 }
@@ -281,16 +281,16 @@ func TestGetAccessToken_FetchNewTokenIfExistingIsExpired(t *testing.T) {
 		switch r.URL.Path {
 		case "/v2/":
 			assert.Equal(t, "/v2/", r.URL.Path)
-			w.Header().Set("Www-Authenticate", fmt.Sprintf(`Bearer realm="%s",service="%s"`, mockedServerURL(), mockedServerURL()[8:]))
+			w.Header().Set("Www-Authenticate", fmt.Sprintf(`Bearer realm=%q,service=%q`, mockedServerURL(), mockedServerURL()[8:]))
 			w.WriteHeader(http.StatusUnauthorized)
 		case "/oauth2/exchange":
 			assert.Equal(t, "/oauth2/exchange", r.URL.Path)
 			var response string
 			switch callCount {
 			case 0:
-				response = fmt.Sprintf(`{"refresh_token": "%s"}`, accessToken1)
+				response = fmt.Sprintf(`{"refresh_token": %q}`, accessToken1)
 			case 1:
-				response = fmt.Sprintf(`{"refresh_token": "%s"}`, accessToken2)
+				response = fmt.Sprintf(`{"refresh_token": %q}`, accessToken2)
 			default:
 				response = `{"refresh_token": "defaultToken"}`
 			}
@@ -335,16 +335,16 @@ func TestGetAccessToken_ReuseTokenIfExistingIsNotExpired(t *testing.T) {
 		switch r.URL.Path {
 		case "/v2/":
 			assert.Equal(t, "/v2/", r.URL.Path)
-			w.Header().Set("Www-Authenticate", fmt.Sprintf(`Bearer realm="%s",service="%s"`, mockedServerURL(), mockedServerURL()[8:]))
+			w.Header().Set("Www-Authenticate", fmt.Sprintf(`Bearer realm=%q,service=%q`, mockedServerURL(), mockedServerURL()[8:]))
 			w.WriteHeader(http.StatusUnauthorized)
 		case "/oauth2/exchange":
 			assert.Equal(t, "/oauth2/exchange", r.URL.Path)
 			var response string
 			switch callCount {
 			case 0:
-				response = fmt.Sprintf(`{"refresh_token": "%s"}`, accessToken1)
+				response = fmt.Sprintf(`{"refresh_token": %q}`, accessToken1)
 			case 1:
-				response = fmt.Sprintf(`{"refresh_token": "%s"}`, accessToken2)
+				response = fmt.Sprintf(`{"refresh_token": %q}`, accessToken2)
 			default:
 				response = `{"refresh_token": "defaultToken"}`
 			}
