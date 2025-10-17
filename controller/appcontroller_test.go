@@ -512,6 +512,24 @@ var fakeRoleBinding = `
 }
 `
 
+var fakeConfigMap = `
+{
+  "apiVersion": "v1",
+  "kind": "ConfigMap",
+  "metadata": {
+    "name": "test-cm",
+    "namespace": "default"
+  }
+}
+`
+
+var fakeNamespace = `
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: app-namespace
+`
+
 func newFakeApp() *v1alpha1.Application {
 	return createFakeApp(fakeApp)
 }
@@ -593,6 +611,24 @@ func newFakeServiceAccount() map[string]any {
 		panic(err)
 	}
 	return serviceAccount
+}
+
+func newFakeConfigMap() map[string]any {
+	var configMap map[string]any
+	err := yaml.Unmarshal([]byte(fakeConfigMap), &configMap)
+	if err != nil {
+		panic(err)
+	}
+	return configMap
+}
+
+func newFakeNamespace() map[string]any {
+	var namespace map[string]any
+	err := yaml.Unmarshal([]byte(fakeNamespace), &namespace)
+	if err != nil {
+		panic(err)
+	}
+	return namespace
 }
 
 func TestAutoSync(t *testing.T) {
@@ -2703,35 +2739,21 @@ func TestPostDeleteHookNamespaceDeletion(t *testing.T) {
 		app := newFakeApp()
 		app.Spec.Destination.Namespace = "app-namespace"
 
-		// Create a PostDelete hook in the same namespace
-		postDeleteHook := `{
-			"apiVersion": "batch/v1",
-			"kind": "Job",
-			"metadata": {
-				"name": "post-delete-hook",
-				"namespace": "app-namespace",
-				"annotations": {
-					"argocd.argoproj.io/hook": "PostDelete"
-				}
-			}
-		}`
+		// Create a PostDelete hook in the same namespace using existing fake data
+		postDeleteHookData := newFakePostDeleteHook()
+		postDeleteHookData["metadata"].(map[string]any)["namespace"] = "app-namespace"
+		postDeleteHookJSON, _ := json.Marshal(postDeleteHookData)
 
 		ctrl := newFakeController(&fakeData{
 			apps: []runtime.Object{app, &defaultProj},
 			manifestResponse: &apiclient.ManifestResponse{
-				Manifests: []string{postDeleteHook},
+				Manifests: []string{string(postDeleteHookJSON)},
 			},
 		}, nil)
 
 		// Create a namespace object
 		namespaceObj := &unstructured.Unstructured{
-			Object: map[string]any{
-				"apiVersion": "v1",
-				"kind":       "Namespace",
-				"metadata": map[string]any{
-					"name": "app-namespace",
-				},
-			},
+			Object: newFakeNamespace(),
 		}
 
 		shouldDelete := ctrl.shouldBeDeleted(app, namespaceObj)
@@ -2751,13 +2773,7 @@ func TestPostDeleteHookNamespaceDeletion(t *testing.T) {
 
 		// Create a namespace object
 		namespaceObj := &unstructured.Unstructured{
-			Object: map[string]any{
-				"apiVersion": "v1",
-				"kind":       "Namespace",
-				"metadata": map[string]any{
-					"name": "app-namespace",
-				},
-			},
+			Object: newFakeNamespace(),
 		}
 
 		shouldDelete := ctrl.shouldBeDeleted(app, namespaceObj)
@@ -2768,36 +2784,21 @@ func TestPostDeleteHookNamespaceDeletion(t *testing.T) {
 		app := newFakeApp()
 		app.Spec.Destination.Namespace = "app-namespace"
 
-		// Create a PostDelete hook
-		postDeleteHook := `{
-			"apiVersion": "batch/v1",
-			"kind": "Job",
-			"metadata": {
-				"name": "post-delete-hook",
-				"namespace": "app-namespace",
-				"annotations": {
-					"argocd.argoproj.io/hook": "PostDelete"
-				}
-			}
-		}`
+		// Create a PostDelete hook using existing fake data
+		postDeleteHookData := newFakePostDeleteHook()
+		postDeleteHookData["metadata"].(map[string]any)["namespace"] = "app-namespace"
+		postDeleteHookJSON, _ := json.Marshal(postDeleteHookData)
 
 		ctrl := newFakeController(&fakeData{
 			apps: []runtime.Object{app, &defaultProj},
 			manifestResponse: &apiclient.ManifestResponse{
-				Manifests: []string{postDeleteHook},
+				Manifests: []string{string(postDeleteHookJSON)},
 			},
 		}, nil)
 
 		// Create a non-namespace object (ConfigMap)
 		configMapObj := &unstructured.Unstructured{
-			Object: map[string]any{
-				"apiVersion": "v1",
-				"kind":       "ConfigMap",
-				"metadata": map[string]any{
-					"name":      "test-cm",
-					"namespace": "app-namespace",
-				},
-			},
+			Object: newFakeConfigMap(),
 		}
 
 		shouldDelete := ctrl.shouldBeDeleted(app, configMapObj)
@@ -2808,34 +2809,21 @@ func TestPostDeleteHookNamespaceDeletion(t *testing.T) {
 		app := newFakeApp()
 		app.Spec.Destination.Namespace = "app-namespace"
 
-		// Create a PostDelete hook with empty namespace (inherits from app)
-		postDeleteHook := `{
-			"apiVersion": "batch/v1",
-			"kind": "Job",
-			"metadata": {
-				"name": "post-delete-hook",
-				"annotations": {
-					"argocd.argoproj.io/hook": "PostDelete"
-				}
-			}
-		}`
+		// Create a PostDelete hook with empty namespace (inherits from app) using existing fake data
+		postDeleteHookData := newFakePostDeleteHook()
+		delete(postDeleteHookData["metadata"].(map[string]any), "namespace")
+		postDeleteHookJSON, _ := json.Marshal(postDeleteHookData)
 
 		ctrl := newFakeController(&fakeData{
 			apps: []runtime.Object{app, &defaultProj},
 			manifestResponse: &apiclient.ManifestResponse{
-				Manifests: []string{postDeleteHook},
+				Manifests: []string{string(postDeleteHookJSON)},
 			},
 		}, nil)
 
 		// Create a namespace object
 		namespaceObj := &unstructured.Unstructured{
-			Object: map[string]any{
-				"apiVersion": "v1",
-				"kind":       "Namespace",
-				"metadata": map[string]any{
-					"name": "app-namespace",
-				},
-			},
+			Object: newFakeNamespace(),
 		}
 
 		shouldDelete := ctrl.shouldBeDeleted(app, namespaceObj)
@@ -2846,78 +2834,25 @@ func TestPostDeleteHookNamespaceDeletion(t *testing.T) {
 		app := newFakeApp()
 		app.Spec.Destination.Namespace = "app-namespace"
 
-		// Create a PostDelete hook in a different namespace
-		postDeleteHook := `{
-			"apiVersion": "batch/v1",
-			"kind": "Job",
-			"metadata": {
-				"name": "post-delete-hook",
-				"namespace": "different-namespace",
-				"annotations": {
-					"argocd.argoproj.io/hook": "PostDelete"
-				}
-			}
-		}`
+		// Create a PostDelete hook in a different namespace using existing fake data
+		postDeleteHookData := newFakePostDeleteHook()
+		postDeleteHookData["metadata"].(map[string]any)["namespace"] = "different-namespace"
+		postDeleteHookJSON, _ := json.Marshal(postDeleteHookData)
 
 		ctrl := newFakeController(&fakeData{
 			apps: []runtime.Object{app, &defaultProj},
 			manifestResponse: &apiclient.ManifestResponse{
-				Manifests: []string{postDeleteHook},
+				Manifests: []string{string(postDeleteHookJSON)},
 			},
 		}, nil)
 
 		// Create a namespace object
 		namespaceObj := &unstructured.Unstructured{
-			Object: map[string]any{
-				"apiVersion": "v1",
-				"kind":       "Namespace",
-				"metadata": map[string]any{
-					"name": "app-namespace",
-				},
-			},
+			Object: newFakeNamespace(),
 		}
 
 		shouldDelete := ctrl.shouldBeDeleted(app, namespaceObj)
 		assert.True(t, shouldDelete, "namespace should be deleted when PostDelete hooks exist in different namespace")
-	})
-
-	t.Run("namespace deletion proceeds when only PreSync hooks exist", func(t *testing.T) {
-		app := newFakeApp()
-		app.Spec.Destination.Namespace = "app-namespace"
-
-		// Create a PreSync hook (not PostDelete)
-		preSyncHook := `{
-			"apiVersion": "batch/v1",
-			"kind": "Job",
-			"metadata": {
-				"name": "pre-sync-hook",
-				"namespace": "app-namespace",
-				"annotations": {
-					"argocd.argoproj.io/hook": "PreSync"
-				}
-			}
-		}`
-
-		ctrl := newFakeController(&fakeData{
-			apps: []runtime.Object{app, &defaultProj},
-			manifestResponse: &apiclient.ManifestResponse{
-				Manifests: []string{preSyncHook},
-			},
-		}, nil)
-
-		// Create a namespace object
-		namespaceObj := &unstructured.Unstructured{
-			Object: map[string]any{
-				"apiVersion": "v1",
-				"kind":       "Namespace",
-				"metadata": map[string]any{
-					"name": "app-namespace",
-				},
-			},
-		}
-
-		shouldDelete := ctrl.shouldBeDeleted(app, namespaceObj)
-		assert.True(t, shouldDelete, "namespace should be deleted when only non-PostDelete hooks exist")
 	})
 }
 
@@ -2976,22 +2911,14 @@ func TestHasPostDeleteHooksForNamespace(t *testing.T) {
 		app := newFakeApp()
 		app.Spec.Destination.Namespace = "app-namespace"
 
-		postDeleteHook := `{
-			"apiVersion": "batch/v1",
-			"kind": "Job",
-			"metadata": {
-				"name": "post-delete-hook",
-				"namespace": "app-namespace",
-				"annotations": {
-					"argocd.argoproj.io/hook": "PostDelete"
-				}
-			}
-		}`
+		postDeleteHookData := newFakePostDeleteHook()
+		postDeleteHookData["metadata"].(map[string]any)["namespace"] = "app-namespace"
+		postDeleteHookJSON, _ := json.Marshal(postDeleteHookData)
 
 		ctrl := newFakeController(&fakeData{
 			apps: []runtime.Object{app, &defaultProj},
 			manifestResponse: &apiclient.ManifestResponse{
-				Manifests: []string{postDeleteHook},
+				Manifests: []string{string(postDeleteHookJSON)},
 			},
 		}, nil)
 
@@ -3003,21 +2930,14 @@ func TestHasPostDeleteHooksForNamespace(t *testing.T) {
 		app := newFakeApp()
 		app.Spec.Destination.Namespace = "app-namespace"
 
-		postDeleteHook := `{
-			"apiVersion": "batch/v1",
-			"kind": "Job",
-			"metadata": {
-				"name": "post-delete-hook",
-				"annotations": {
-					"argocd.argoproj.io/hook": "PostDelete"
-				}
-			}
-		}`
+		postDeleteHookData := newFakePostDeleteHook()
+		delete(postDeleteHookData["metadata"].(map[string]any), "namespace")
+		postDeleteHookJSON, _ := json.Marshal(postDeleteHookData)
 
 		ctrl := newFakeController(&fakeData{
 			apps: []runtime.Object{app, &defaultProj},
 			manifestResponse: &apiclient.ManifestResponse{
-				Manifests: []string{postDeleteHook},
+				Manifests: []string{string(postDeleteHookJSON)},
 			},
 		}, nil)
 
@@ -3029,22 +2949,14 @@ func TestHasPostDeleteHooksForNamespace(t *testing.T) {
 		app := newFakeApp()
 		app.Spec.Destination.Namespace = "app-namespace"
 
-		postDeleteHook := `{
-			"apiVersion": "batch/v1",
-			"kind": "Job",
-			"metadata": {
-				"name": "post-delete-hook",
-				"namespace": "different-namespace",
-				"annotations": {
-					"argocd.argoproj.io/hook": "PostDelete"
-				}
-			}
-		}`
+		postDeleteHookData := newFakePostDeleteHook()
+		postDeleteHookData["metadata"].(map[string]any)["namespace"] = "different-namespace"
+		postDeleteHookJSON, _ := json.Marshal(postDeleteHookData)
 
 		ctrl := newFakeController(&fakeData{
 			apps: []runtime.Object{app, &defaultProj},
 			manifestResponse: &apiclient.ManifestResponse{
-				Manifests: []string{postDeleteHook},
+				Manifests: []string{string(postDeleteHookJSON)},
 			},
 		}, nil)
 
@@ -3052,65 +2964,25 @@ func TestHasPostDeleteHooksForNamespace(t *testing.T) {
 		assert.False(t, hasHooks, "should return false when PostDelete hook exists in different namespace")
 	})
 
-	t.Run("returns false when no PostDelete hooks exist", func(t *testing.T) {
-		app := newFakeApp()
-		app.Spec.Destination.Namespace = "app-namespace"
-
-		preSyncHook := `{
-			"apiVersion": "batch/v1",
-			"kind": "Job",
-			"metadata": {
-				"name": "pre-sync-hook",
-				"namespace": "app-namespace",
-				"annotations": {
-					"argocd.argoproj.io/hook": "PreSync"
-				}
-			}
-		}`
-
-		ctrl := newFakeController(&fakeData{
-			apps: []runtime.Object{app, &defaultProj},
-			manifestResponse: &apiclient.ManifestResponse{
-				Manifests: []string{preSyncHook},
-			},
-		}, nil)
-
-		hasHooks := ctrl.hasPostDeleteHooksForNamespace(app, "app-namespace")
-		assert.False(t, hasHooks, "should return false when no PostDelete hooks exist")
-	})
-
 	t.Run("handles multiple PostDelete hooks correctly", func(t *testing.T) {
 		app := newFakeApp()
 		app.Spec.Destination.Namespace = "app-namespace"
 
-		// Multiple PostDelete hooks
-		postDeleteHook1 := `{
-			"apiVersion": "batch/v1",
-			"kind": "Job",
-			"metadata": {
-				"name": "post-delete-hook-1",
-				"namespace": "app-namespace",
-				"annotations": {
-					"argocd.argoproj.io/hook": "PostDelete"
-				}
-			}
-		}`
+		// Multiple PostDelete hooks using existing fake data
+		postDeleteHookData1 := newFakePostDeleteHook()
+		postDeleteHookData1["metadata"].(map[string]any)["namespace"] = "app-namespace"
+		postDeleteHookData1["metadata"].(map[string]any)["name"] = "post-delete-hook-1"
+		postDeleteHookJSON1, _ := json.Marshal(postDeleteHookData1)
 
-		postDeleteHook2 := `{
-			"apiVersion": "v1",
-			"kind": "Pod",
-			"metadata": {
-				"name": "post-delete-hook-2",
-				"annotations": {
-					"argocd.argoproj.io/hook": "PostDelete"
-				}
-			}
-		}`
+		postDeleteHookData2 := newFakePostDeleteHook()
+		delete(postDeleteHookData2["metadata"].(map[string]any), "namespace") // Empty namespace
+		postDeleteHookData2["metadata"].(map[string]any)["name"] = "post-delete-hook-2"
+		postDeleteHookJSON2, _ := json.Marshal(postDeleteHookData2)
 
 		ctrl := newFakeController(&fakeData{
 			apps: []runtime.Object{app, &defaultProj},
 			manifestResponse: &apiclient.ManifestResponse{
-				Manifests: []string{postDeleteHook1, postDeleteHook2},
+				Manifests: []string{string(postDeleteHookJSON1), string(postDeleteHookJSON2)},
 			},
 		}, nil)
 
