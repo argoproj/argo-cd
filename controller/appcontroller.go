@@ -1361,7 +1361,7 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 		app.UnSetPostDeleteFinalizer("cleanup")
 
 		// After PostDelete hooks are cleaned up, delete any namespaces that were deferred
-		err = ctrl.deleteDeferredNamespacesAfterPostDelete(app, destCluster, config, proj, projectClusters, logCtx)
+		err = ctrl.deleteDeferredNamespacesAfterPostDelete(app, destCluster, config, proj, projectClusters)
 		if err != nil {
 			return err
 		}
@@ -1384,7 +1384,7 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 }
 
 // deleteDeferredNamespacesAfterPostDelete deletes namespaces deferred by PostDelete hooks
-func (ctrl *ApplicationController) deleteDeferredNamespacesAfterPostDelete(app *appv1.Application, destCluster *appv1.Cluster, config *rest.Config, proj *appv1.AppProject, projectClusters func(project string) ([]*appv1.Cluster, error), logCtx *log.Entry) error {
+func (ctrl *ApplicationController) deleteDeferredNamespacesAfterPostDelete(app *appv1.Application, destCluster *appv1.Cluster, config *rest.Config, proj *appv1.AppProject, projectClusters func(project string) ([]*appv1.Cluster, error)) error {
 	objsMap, err := ctrl.getPermittedAppLiveObjects(destCluster, app, proj, projectClusters)
 	if err != nil {
 		return err
