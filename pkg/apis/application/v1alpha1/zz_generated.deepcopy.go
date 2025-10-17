@@ -797,6 +797,11 @@ func (in *ApplicationSetSpec) DeepCopyInto(out *ApplicationSetSpec) {
 		*out = new(string)
 		**out = **in
 	}
+	if in.TemplateJSONPatch != nil {
+		in, out := &in.TemplateJSONPatch, &out.TemplateJSONPatch
+		*out = new(string)
+		**out = **in
+	}
 	return
 }
 
