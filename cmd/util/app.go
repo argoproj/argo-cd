@@ -555,7 +555,7 @@ func readApps(yml []byte, apps *[]*argoappv1.Application) error {
 		err = config.Unmarshal([]byte(yml), &app)
 		*apps = append(*apps, &app)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to unmarshal application YAML: %w", err)
 		}
 	}
 
@@ -566,8 +566,9 @@ func readAppsFromStdin(apps *[]*argoappv1.Application) error {
 	reader := bufio.NewReader(os.Stdin)
 	data, err := io.ReadAll(reader)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to read from stdin: %w", err)
 	}
+
 	err = readApps(data, apps)
 	if err != nil {
 		return fmt.Errorf("unable to read manifest from stdin: %w", err)
@@ -586,7 +587,7 @@ func readAppsFromURI(fileURL string, apps *[]*argoappv1.Application) error {
 
 	yml, err := readFilePayload()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to read file %q: %w", fileURL, err)
 	}
 
 	return readApps(yml, apps)

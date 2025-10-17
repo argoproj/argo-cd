@@ -225,20 +225,29 @@ func (k *kubectlResourceOperations) ReplaceResource(ctx context.Context, obj *un
 	span.SetBaggageItem("kind", obj.GetKind())
 	span.SetBaggageItem("name", obj.GetName())
 	defer span.Finish()
-	k.log.Info(fmt.Sprintf("Replacing resource %s/%s in cluster: %s, namespace: %s", obj.GetKind(), obj.GetName(), k.config.Host, obj.GetNamespace()))
+
+	k.log.Info(fmt.Sprintf(
+		"Replacing resource %s/%s in cluster: %s, namespace: %s",
+		obj.GetKind(), obj.GetName(), k.config.Host, obj.GetNamespace(),
+	))
+
 	return k.runResourceCommand(ctx, obj, dryRunStrategy, func(ioStreams genericclioptions.IOStreams, fileName string) error {
 		cleanup, err := processKubectlRun(k.onKubectlRun, "replace")
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to process kubectl run for replace on resource %s/%s: %w", obj.GetKind(), obj.GetName(), err)
 		}
 		defer cleanup()
 
 		replaceOptions, err := k.newReplaceOptions(k.config, k.fact, ioStreams, fileName, obj.GetNamespace(), force, dryRunStrategy)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to create replace options for resource %s/%s: %w", obj.GetKind(), obj.GetName(), err)
 		}
 
-		return replaceOptions.Run(k.fact)
+		if err := replaceOptions.Run(k.fact); err != nil {
+			return fmt.Errorf("failed to execute replace for resource %s/%s: %w", obj.GetKind(), obj.GetName(), err)
+		}
+
+		return nil
 	})
 }
 
@@ -248,17 +257,19 @@ func (k *kubectlResourceOperations) CreateResource(ctx context.Context, obj *uns
 	span.SetBaggageItem("kind", gvk.Kind)
 	span.SetBaggageItem("name", obj.GetName())
 	defer span.Finish()
+
 	return k.runResourceCommand(ctx, obj, dryRunStrategy, func(ioStreams genericclioptions.IOStreams, fileName string) error {
 		cleanup, err := processKubectlRun(k.onKubectlRun, "create")
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to process kubectl run for create on resource %s/%s: %w", gvk.Kind, obj.GetName(), err)
 		}
 		defer cleanup()
 
 		createOptions, err := k.newCreateOptions(ioStreams, fileName, dryRunStrategy)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to create options for resource %s/%s: %w", gvk.Kind, obj.GetName(), err)
 		}
+
 		command := &cobra.Command{}
 		saveConfig := false
 		command.Flags().BoolVar(&saveConfig, "save-config", false, "")
@@ -268,7 +279,11 @@ func (k *kubectlResourceOperations) CreateResource(ctx context.Context, obj *uns
 			_ = command.Flags().Set("validate", "true")
 		}
 
-		return createOptions.RunCreate(k.fact, command)
+		if err := createOptions.RunCreate(k.fact, command); err != nil {
+			return fmt.Errorf("failed to execute create for resource %s/%s: %w", gvk.Kind, obj.GetName(), err)
+		}
+
+		return nil
 	})
 }
 
@@ -302,60 +317,93 @@ func (k *kubectlResourceOperations) UpdateResource(ctx context.Context, obj *uns
 	return resourceIf.Update(ctx, obj, updateOptions)
 }
 
-// ApplyResource performs an apply of a unstructured resource
-func (k *kubectlServerSideDiffDryRunApplier) ApplyResource(_ context.Context, obj *unstructured.Unstructured, dryRunStrategy cmdutil.DryRunStrategy, force, validate, serverSideApply bool, manager string) (string, error) {
+// ApplyResource performs an apply of an unstructured resource
+func (k *kubectlServerSideDiffDryRunApplier) ApplyResource(
+	_ context.Context,
+	obj *unstructured.Unstructured,
+	dryRunStrategy cmdutil.DryRunStrategy,
+	force, validate, serverSideApply bool,
+	manager string,
+) (string, error) {
 	span := k.tracer.StartSpan("ApplyResource")
 	span.SetBaggageItem("kind", obj.GetKind())
 	span.SetBaggageItem("name", obj.GetName())
 	defer span.Finish()
+
 	k.log.V(1).WithValues(
 		"dry-run", [...]string{"none", "client", "server"}[dryRunStrategy],
 		"manager", manager,
-		"serverSideApply", serverSideApply).Info(fmt.Sprintf("Running server-side diff. Dry run applying resource %s/%s in cluster: %s, namespace: %s", obj.GetKind(), obj.GetName(), k.config.Host, obj.GetNamespace()))
+		"serverSideApply", serverSideApply,
+	).Info(fmt.Sprintf(
+		"Running server-side diff. Dry run applying resource %s/%s in cluster: %s, namespace: %s",
+		obj.GetKind(), obj.GetName(), k.config.Host, obj.GetNamespace(),
+	))
 
 	return k.runResourceCommand(obj, func(ioStreams genericclioptions.IOStreams, fileName string) error {
 		cleanup, err := processKubectlRun(k.onKubectlRun, "apply")
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to process kubectl run for apply on resource %s/%s: %w", obj.GetKind(), obj.GetName(), err)
 		}
 		defer cleanup()
 
 		applyOpts, err := k.newApplyOptions(ioStreams, obj, fileName, validate, force, serverSideApply, dryRunStrategy, manager)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to create apply options for resource %s/%s: %w", obj.GetKind(), obj.GetName(), err)
 		}
-		return applyOpts.Run()
+
+		if err := applyOpts.Run(); err != nil {
+			return fmt.Errorf("failed to execute apply for resource %s/%s: %w", obj.GetKind(), obj.GetName(), err)
+		}
+
+		return nil
 	})
 }
 
 // ApplyResource performs an apply of a unstructured resource
-func (k *kubectlResourceOperations) ApplyResource(ctx context.Context, obj *unstructured.Unstructured, dryRunStrategy cmdutil.DryRunStrategy, force, validate, serverSideApply bool, manager string) (string, error) {
+func (k *kubectlResourceOperations) ApplyResource(
+	ctx context.Context,
+	obj *unstructured.Unstructured,
+	dryRunStrategy cmdutil.DryRunStrategy,
+	force, validate, serverSideApply bool,
+	manager string,
+) (string, error) {
 	span := k.tracer.StartSpan("ApplyResource")
 	span.SetBaggageItem("kind", obj.GetKind())
 	span.SetBaggageItem("name", obj.GetName())
 	defer span.Finish()
+
 	logWithLevel := k.log.V(0)
 	if dryRunStrategy != cmdutil.DryRunNone {
 		logWithLevel = logWithLevel.V(1)
 	}
+
 	logWithLevel.WithValues(
 		"dry-run", [...]string{"none", "client", "server"}[dryRunStrategy],
 		"manager", manager,
 		"serverSideApply", serverSideApply,
-		"serverSideDiff", true).Info(fmt.Sprintf("Applying resource %s/%s in cluster: %s, namespace: %s", obj.GetKind(), obj.GetName(), k.config.Host, obj.GetNamespace()))
+		"serverSideDiff", true,
+	).Info(fmt.Sprintf(
+		"Applying resource %s/%s in cluster: %s, namespace: %s",
+		obj.GetKind(), obj.GetName(), k.config.Host, obj.GetNamespace(),
+	))
 
 	return k.runResourceCommand(ctx, obj, dryRunStrategy, func(ioStreams genericclioptions.IOStreams, fileName string) error {
 		cleanup, err := processKubectlRun(k.onKubectlRun, "apply")
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to process kubectl run for apply on resource %s/%s: %w", obj.GetKind(), obj.GetName(), err)
 		}
 		defer cleanup()
 
 		applyOpts, err := k.newApplyOptions(ioStreams, obj, fileName, validate, force, serverSideApply, dryRunStrategy, manager)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to create apply options for resource %s/%s: %w", obj.GetKind(), obj.GetName(), err)
 		}
-		return applyOpts.Run()
+
+		if err := applyOpts.Run(); err != nil {
+			return fmt.Errorf("failed to execute apply for resource %s/%s: %w", obj.GetKind(), obj.GetName(), err)
+		}
+
+		return nil
 	})
 }
 

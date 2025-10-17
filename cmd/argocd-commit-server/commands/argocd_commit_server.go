@@ -71,17 +71,20 @@ func NewCommand() *cobra.Command {
 					// used by liveness probe to auto restart commit server
 					conn, err := apiclient.NewConnection(fmt.Sprintf("localhost:%d", listenPort))
 					if err != nil {
-						return err
+						return fmt.Errorf("failed to connect to commit server at localhost:%d: %w", listenPort, err)
 					}
 					defer utilio.Close(conn)
+
 					client := grpc_health_v1.NewHealthClient(conn)
 					res, err := client.Check(r.Context(), &grpc_health_v1.HealthCheckRequest{})
 					if err != nil {
-						return err
+						return fmt.Errorf("grpc health check request failed: %w", err)
 					}
+
 					if res.Status != grpc_health_v1.HealthCheckResponse_SERVING {
-						return fmt.Errorf("grpc health check status is '%v'", res.Status)
+						return fmt.Errorf("grpc health check returned non-serving status: '%v'", res.Status)
 					}
+
 					return nil
 				}
 				return nil
