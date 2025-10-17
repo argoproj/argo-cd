@@ -51,6 +51,17 @@ rules:
       - ""
     resources:
       - secrets
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - ""
+    resources:
       - configmaps
     verbs:
       - get
@@ -75,3 +86,11 @@ rules:
       - get
       - update
       - create
+  - apiGroups:
+      - multicluster.x-k8s.io
+    resources:
+      - clusterprofiles
+    verbs:
+      - get
+      - list
+      - watch
