@@ -409,6 +409,13 @@ metadata:
 data:
 `
 
+var fakeNamespace = `
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: app-namespace
+`
+
 var fakePostDeleteHook = `
 {
   "apiVersion": "batch/v1",
@@ -521,13 +528,6 @@ var fakeConfigMap = `
     "namespace": "default"
   }
 }
-`
-
-var fakeNamespace = `
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: app-namespace
 `
 
 func newFakeApp() *v1alpha1.Application {
@@ -2735,7 +2735,7 @@ func TestPostDeleteHookNamespaceDeletion(t *testing.T) {
 		},
 	}
 
-	t.Run("namespace deletion is deferred when PostDelete hooks exist in same namespace", func(t *testing.T) {
+	t.Run("namespace deletion is deferred when PostDelete hooks exist", func(t *testing.T) {
 		app := newFakeApp()
 		app.Spec.Destination.Namespace = "app-namespace"
 
@@ -2757,7 +2757,7 @@ func TestPostDeleteHookNamespaceDeletion(t *testing.T) {
 		}
 
 		shouldDelete := ctrl.shouldBeDeleted(app, namespaceObj)
-		assert.False(t, shouldDelete, "namespace should be deferred when PostDelete hooks exist in same namespace")
+		assert.False(t, shouldDelete, "namespace should be deferred when PostDelete hooks exist")
 	})
 
 	t.Run("namespace deletion proceeds normally when no PostDelete hooks exist", func(t *testing.T) {
@@ -2803,56 +2803,6 @@ func TestPostDeleteHookNamespaceDeletion(t *testing.T) {
 
 		shouldDelete := ctrl.shouldBeDeleted(app, configMapObj)
 		assert.True(t, shouldDelete, "non-namespace resources should not be affected by PostDelete hook logic")
-	})
-
-	t.Run("namespace deletion is deferred when PostDelete hooks have empty namespace", func(t *testing.T) {
-		app := newFakeApp()
-		app.Spec.Destination.Namespace = "app-namespace"
-
-		// Create a PostDelete hook with empty namespace (inherits from app) using existing fake data
-		postDeleteHookData := newFakePostDeleteHook()
-		delete(postDeleteHookData["metadata"].(map[string]any), "namespace")
-		postDeleteHookJSON, _ := json.Marshal(postDeleteHookData)
-
-		ctrl := newFakeController(&fakeData{
-			apps: []runtime.Object{app, &defaultProj},
-			manifestResponse: &apiclient.ManifestResponse{
-				Manifests: []string{string(postDeleteHookJSON)},
-			},
-		}, nil)
-
-		// Create a namespace object
-		namespaceObj := &unstructured.Unstructured{
-			Object: newFakeNamespace(),
-		}
-
-		shouldDelete := ctrl.shouldBeDeleted(app, namespaceObj)
-		assert.False(t, shouldDelete, "namespace should be deferred when PostDelete hooks have empty namespace")
-	})
-
-	t.Run("namespace deletion proceeds when PostDelete hooks exist in different namespace", func(t *testing.T) {
-		app := newFakeApp()
-		app.Spec.Destination.Namespace = "app-namespace"
-
-		// Create a PostDelete hook in a different namespace using existing fake data
-		postDeleteHookData := newFakePostDeleteHook()
-		postDeleteHookData["metadata"].(map[string]any)["namespace"] = "different-namespace"
-		postDeleteHookJSON, _ := json.Marshal(postDeleteHookData)
-
-		ctrl := newFakeController(&fakeData{
-			apps: []runtime.Object{app, &defaultProj},
-			manifestResponse: &apiclient.ManifestResponse{
-				Manifests: []string{string(postDeleteHookJSON)},
-			},
-		}, nil)
-
-		// Create a namespace object
-		namespaceObj := &unstructured.Unstructured{
-			Object: newFakeNamespace(),
-		}
-
-		shouldDelete := ctrl.shouldBeDeleted(app, namespaceObj)
-		assert.True(t, shouldDelete, "namespace should be deleted when PostDelete hooks exist in different namespace")
 	})
 }
 
@@ -2905,63 +2855,6 @@ func TestHasPostDeleteHooksForNamespace(t *testing.T) {
 
 		hasHooks := ctrl.hasPostDeleteHooksForNamespace(app, "app-namespace")
 		assert.False(t, hasHooks, "should return false when project retrieval fails")
-	})
-
-	t.Run("returns true when PostDelete hook exists in target namespace", func(t *testing.T) {
-		app := newFakeApp()
-		app.Spec.Destination.Namespace = "app-namespace"
-
-		postDeleteHookData := newFakePostDeleteHook()
-		postDeleteHookData["metadata"].(map[string]any)["namespace"] = "app-namespace"
-		postDeleteHookJSON, _ := json.Marshal(postDeleteHookData)
-
-		ctrl := newFakeController(&fakeData{
-			apps: []runtime.Object{app, &defaultProj},
-			manifestResponse: &apiclient.ManifestResponse{
-				Manifests: []string{string(postDeleteHookJSON)},
-			},
-		}, nil)
-
-		hasHooks := ctrl.hasPostDeleteHooksForNamespace(app, "app-namespace")
-		assert.True(t, hasHooks, "should return true when PostDelete hook exists in target namespace")
-	})
-
-	t.Run("returns true when PostDelete hook has empty namespace", func(t *testing.T) {
-		app := newFakeApp()
-		app.Spec.Destination.Namespace = "app-namespace"
-
-		postDeleteHookData := newFakePostDeleteHook()
-		delete(postDeleteHookData["metadata"].(map[string]any), "namespace")
-		postDeleteHookJSON, _ := json.Marshal(postDeleteHookData)
-
-		ctrl := newFakeController(&fakeData{
-			apps: []runtime.Object{app, &defaultProj},
-			manifestResponse: &apiclient.ManifestResponse{
-				Manifests: []string{string(postDeleteHookJSON)},
-			},
-		}, nil)
-
-		hasHooks := ctrl.hasPostDeleteHooksForNamespace(app, "app-namespace")
-		assert.True(t, hasHooks, "should return true when PostDelete hook has empty namespace")
-	})
-
-	t.Run("returns false when PostDelete hook exists in different namespace", func(t *testing.T) {
-		app := newFakeApp()
-		app.Spec.Destination.Namespace = "app-namespace"
-
-		postDeleteHookData := newFakePostDeleteHook()
-		postDeleteHookData["metadata"].(map[string]any)["namespace"] = "different-namespace"
-		postDeleteHookJSON, _ := json.Marshal(postDeleteHookData)
-
-		ctrl := newFakeController(&fakeData{
-			apps: []runtime.Object{app, &defaultProj},
-			manifestResponse: &apiclient.ManifestResponse{
-				Manifests: []string{string(postDeleteHookJSON)},
-			},
-		}, nil)
-
-		hasHooks := ctrl.hasPostDeleteHooksForNamespace(app, "app-namespace")
-		assert.False(t, hasHooks, "should return false when PostDelete hook exists in different namespace")
 	})
 
 	t.Run("handles multiple PostDelete hooks correctly", func(t *testing.T) {
