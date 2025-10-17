@@ -1073,7 +1073,8 @@ func Test_unset(t *testing.T) {
 
 	helmSource := &v1alpha1.ApplicationSource{
 		Helm: &v1alpha1.ApplicationSourceHelm{
-			IgnoreMissingValueFiles: true,
+			IgnoreMissingValueFiles:     true,
+			IgnoreMissingFileParameters: true,
 			Parameters: []v1alpha1.HelmParameter{
 				{
 					Name:  "name-1",
@@ -1195,6 +1196,15 @@ func Test_unset(t *testing.T) {
 	assert.True(t, updated)
 	assert.False(t, nothingToUnset)
 	updated, nothingToUnset = unset(helmSource, unsetOpts{ignoreMissingValueFiles: true})
+	assert.False(t, updated)
+	assert.False(t, nothingToUnset)
+
+	assert.True(t, helmSource.Helm.IgnoreMissingFileParameters)
+	updated, nothingToUnset = unset(helmSource, unsetOpts{ignoreMissingFileParameters: true})
+	assert.False(t, helmSource.Helm.IgnoreMissingFileParameters)
+	assert.True(t, updated)
+	assert.False(t, nothingToUnset)
+	updated, nothingToUnset = unset(helmSource, unsetOpts{ignoreMissingFileParameters: true})
 	assert.False(t, updated)
 	assert.False(t, nothingToUnset)
 

@@ -30,6 +30,11 @@ func Test_setHelmOpt(t *testing.T) {
 		setHelmOpt(&src, helmOpts{ignoreMissingValueFiles: true})
 		assert.True(t, src.Helm.IgnoreMissingValueFiles)
 	})
+	t.Run("IgnoreMissingFileParameters", func(t *testing.T) {
+		src := v1alpha1.ApplicationSource{}
+		setHelmOpt(&src, helmOpts{ignoreMissingFileParameters: true})
+		assert.True(t, src.Helm.IgnoreMissingFileParameters)
+	})
 	t.Run("ReleaseName", func(t *testing.T) {
 		src := v1alpha1.ApplicationSource{}
 		setHelmOpt(&src, helmOpts{releaseName: "foo"})
