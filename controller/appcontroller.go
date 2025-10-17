@@ -1298,10 +1298,7 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 
 		filteredObjs := FilterObjectsForDeletion(objs)
 
-		propagationPolicy := metav1.DeletePropagationForeground
-		if app.GetPropagationPolicy() == appv1.BackgroundPropagationPolicyFinalizer {
-			propagationPolicy = metav1.DeletePropagationBackground
-		}
+		propagationPolicy := ctrl.getPropagationPolicy(app)
 		logCtx.Infof("Deleting application's resources with %s propagation policy", propagationPolicy)
 
 		err = kube.RunAllAsync(len(filteredObjs), func(i int) error {
@@ -1405,22 +1402,23 @@ func (ctrl *ApplicationController) deleteDeferredNamespacesAfterPostDelete(app *
 		return nil
 	}
 
-	logCtx.Infof("Deleting %d deferred namespaces", len(namespacesToDelete))
-
-	propagationPolicy := metav1.DeletePropagationForeground
-	if app.GetPropagationPolicy() == appv1.BackgroundPropagationPolicyFinalizer {
-		propagationPolicy = metav1.DeletePropagationBackground
-	}
+	propagationPolicy := ctrl.getPropagationPolicy(app)
 
 	for _, ns := range namespacesToDelete {
 		err = ctrl.kubectl.DeleteResource(context.Background(), config, ns.GroupVersionKind(), ns.GetName(), "", metav1.DeleteOptions{PropagationPolicy: &propagationPolicy})
 		if err != nil && !apierrors.IsNotFound(err) {
-			logCtx.WithError(err).Errorf("Failed to delete deferred namespace %s", ns.GetName())
 			return err
 		}
 	}
 
 	return nil
+}
+
+func (ctrl *ApplicationController) getPropagationPolicy(app *appv1.Application) metav1.DeletionPropagation {
+	if app.GetPropagationPolicy() == appv1.BackgroundPropagationPolicyFinalizer {
+		return metav1.DeletePropagationBackground
+	}
+	return metav1.DeletePropagationForeground
 }
 
 func (ctrl *ApplicationController) updateFinalizers(app *appv1.Application) error {

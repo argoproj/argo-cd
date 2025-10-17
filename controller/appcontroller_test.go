@@ -3117,6 +3117,63 @@ func TestHasPostDeleteHooksForNamespace(t *testing.T) {
 		hasHooks := ctrl.hasPostDeleteHooksForNamespace(app, "app-namespace")
 		assert.True(t, hasHooks, "should return true when multiple PostDelete hooks exist")
 	})
+
+	t.Run("returns false when GetAppInstanceLabelKey fails", func(t *testing.T) {
+		app := newFakeApp()
+		app.Spec.Destination.Namespace = "app-namespace"
+
+		ctrl := newFakeController(&fakeData{
+			apps: []runtime.Object{app, &defaultProj},
+			manifestResponse: &apiclient.ManifestResponse{
+				Manifests: []string{},
+			},
+			configMapData: map[string]string{
+				"application.instanceLabelKey": "",
+			},
+		}, nil)
+
+		hasHooks := ctrl.hasPostDeleteHooksForNamespace(app, "app-namespace")
+		assert.False(t, hasHooks, "should return false when GetAppInstanceLabelKey fails")
+	})
+}
+
+func TestGetPropagationPolicy(t *testing.T) {
+	defaultProj := v1alpha1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "default",
+			Namespace: test.FakeArgoCDNamespace,
+		},
+		Spec: v1alpha1.AppProjectSpec{
+			SourceRepos: []string{"*"},
+			Destinations: []v1alpha1.ApplicationDestination{
+				{
+					Server:    "*",
+					Namespace: "*",
+				},
+			},
+		},
+	}
+
+	t.Run("returns foreground propagation policy by default", func(t *testing.T) {
+		app := newFakeApp()
+		ctrl := newFakeController(&fakeData{
+			apps: []runtime.Object{app, &defaultProj},
+		}, nil)
+
+		policy := ctrl.getPropagationPolicy(app)
+		assert.Equal(t, metav1.DeletePropagationForeground, policy, "should return foreground propagation policy by default")
+	})
+
+	t.Run("returns background propagation policy when finalizer is set", func(t *testing.T) {
+		app := newFakeApp()
+		app.SetFinalizers([]string{v1alpha1.BackgroundPropagationPolicyFinalizer})
+		ctrl := newFakeController(&fakeData{
+			apps: []runtime.Object{app, &defaultProj},
+		}, nil)
+
+		policy := ctrl.getPropagationPolicy(app)
+		assert.Equal(t, metav1.DeletePropagationBackground, policy, "should return background propagation policy when finalizer is set")
+	})
 }
 
 func TestAddControllerNamespace(t *testing.T) {
