@@ -3555,6 +3555,20 @@ func Test_getResolvedValueFiles(t *testing.T) {
 			expectedPath: path.Join(tempDir, "main-repo", "app-path", "values.yaml"),
 		},
 		{
+			name:    "fallback finds file under ref source path",
+			rawPath: "$ref/subdir/values.yaml",
+			env:     &v1alpha1.Env{},
+			refSources: map[string]*v1alpha1.RefTarget{
+				"$ref": {
+					Repo: v1alpha1.Repository{
+						Repo: "https://github.com/org/repo1",
+					},
+				},
+			},
+			// expected path should point to repo1/subdir/values.yaml inside the temp dir
+			expectedPath: path.Join(tempDir, "repo1", "subdir", "values.yaml"),
+		},
+		{
 			name:         "unresolved env var",
 			rawPath:      "$APP_PATH/values.yaml",
 			env:          &v1alpha1.Env{},
