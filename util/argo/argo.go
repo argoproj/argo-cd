@@ -1192,7 +1192,7 @@ func parseName(qualifiedName string, defaultNs string, delim string) (name strin
 	return name, namespace
 }
 
-// ParseAppNamespacedName parses a namespaced name in the format namespace/name
+// ParseFromQualifiedName parses a namespaced name in the format namespace/name
 // and returns the components. If name wasn't namespaced, defaultNs will be
 // returned as namespace component.
 func ParseFromQualifiedName(qualifiedAppName string, defaultNs string) (appName string, appNamespace string) {
