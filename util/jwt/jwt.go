@@ -165,3 +165,106 @@ func GetUserIdentifier(c jwtgo.MapClaims) string {
 
 	return userId
 }
+
+// HasAzureGroupsOverflow checks if the JWT indicates Azure AD groups overflow (distributed claims with groups)
+func HasAzureGroupsOverflow(claims jwtgo.MapClaims) bool {
+	claimNamesRaw, hasClaimNames := claims["_claim_names"]
+	_, hasClaimSources := claims["_claim_sources"]
+
+	if !hasClaimNames || !hasClaimSources {
+		return false
+	}
+
+	// Check if "groups" is in the distributed claims
+	claimNamesMap, ok := claimNamesRaw.(map[string]any)
+	if !ok {
+		return false
+	}
+
+	_, hasGroupsClaim := claimNamesMap["groups"]
+	return hasGroupsClaim
+}
+
+// AzureGroupsOverflowInfo represents information needed to fetch Azure AD groups
+type AzureGroupsOverflowInfo struct {
+	GraphEndpoint string
+	AccessToken   string
+}
+
+// GetAzureGroupsOverflowInfo extracts Azure AD groups overflow information from JWT claims
+func GetAzureGroupsOverflowInfo(claims jwtgo.MapClaims) (*AzureGroupsOverflowInfo, error) {
+	if !HasAzureGroupsOverflow(claims) {
+		return nil, nil
+	}
+
+	claimNamesRaw, _ := claims["_claim_names"]
+	claimSourcesRaw, _ := claims["_claim_sources"]
+
+	claimNamesMap, ok := claimNamesRaw.(map[string]any)
+	if !ok {
+		return nil, fmt.Errorf("_claim_names is not a map")
+	}
+
+	claimSourcesMap, ok := claimSourcesRaw.(map[string]any)
+	if !ok {
+		return nil, fmt.Errorf("_claim_sources is not a map")
+	}
+
+	// Get the source name for groups claim
+	groupsSourceNameRaw, exists := claimNamesMap["groups"]
+	if !exists {
+		return nil, fmt.Errorf("groups claim not found in _claim_names")
+	}
+
+	groupsSourceName, ok := groupsSourceNameRaw.(string)
+	if !ok {
+		return nil, fmt.Errorf("groups source name is not a string")
+	}
+
+	// Get the source information to extract access token
+	sourceRaw, exists := claimSourcesMap[groupsSourceName]
+	if !exists {
+		return nil, fmt.Errorf("source %s not found in _claim_sources", groupsSourceName)
+	}
+
+	sourceMap, ok := sourceRaw.(map[string]any)
+	if !ok {
+		return nil, fmt.Errorf("source %s is not a map", groupsSourceName)
+	}
+
+	// Construct the Microsoft Graph API URL based on token type
+	// According to Microsoft docs, ignore the endpoint URL and construct our own
+	graphEndpoint := constructMicrosoftGraphGroupsEndpoint(claims)
+
+	info := &AzureGroupsOverflowInfo{
+		GraphEndpoint: graphEndpoint,
+	}
+
+	if accessToken, hasToken := sourceMap["access_token"].(string); hasToken {
+		info.AccessToken = accessToken
+	}
+
+	return info, nil
+}
+
+// constructMicrosoftGraphGroupsEndpoint constructs the correct Microsoft Graph API URL
+// based on the token type as recommended by Microsoft documentation.
+// See: https://learn.microsoft.com/en-us/entra/identity-platform/access-token-claims-reference#groups-overage-claim
+func constructMicrosoftGraphGroupsEndpoint(claims jwtgo.MapClaims) string {
+	// We now use the Microsoft Graph getMemberGroups action instead of getMemberObjects.
+	// Docs: https://learn.microsoft.com/en-us/graph/api/directoryobject-getmembergroups
+	// Reason: We only need group object IDs for authorization mapping; getMemberGroups
+	// returns only groups (and is the recommended action for group-based authorization).
+	if idtyp := StringField(claims, "idtyp"); idtyp == "app" {
+		// For app-only tokens, we need to use the user ID from the oid claim
+		// https://graph.microsoft.com/v1.0/users/{userId}/getMemberGroups
+		if oid := StringField(claims, "oid"); oid != "" {
+			return fmt.Sprintf("https://graph.microsoft.com/v1.0/users/%s/getMemberGroups", oid)
+		}
+		// Fallback – should not normally occur – default to /me variant
+		return "https://graph.microsoft.com/v1.0/me/getMemberGroups"
+	}
+	// App+user tokens (normal delegated user auth) use /me action endpoint
+	// https://graph.microsoft.com/v1.0/me/getMemberGroups
+	return "https://graph.microsoft.com/v1.0/me/getMemberGroups"
+}
