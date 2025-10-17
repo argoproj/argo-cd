@@ -86,3 +86,8 @@ packages:
       dir: applicationset/services/scm_provider/azure_devops/git/mocks
     interfaces:
       Client: {}
+  github.com/argoproj/gitops-engine/pkg/cache:
+    config:
+      dir: gitops-engine/pkg/cache/mocks
+    interfaces:
+      ClusterCache: {}
