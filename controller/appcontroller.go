@@ -1167,9 +1167,16 @@ func (ctrl *ApplicationController) removeProjectFinalizer(proj *appv1.AppProject
 func (ctrl *ApplicationController) getAppTargets(app *appv1.Application) []*unstructured.Unstructured {
 	logCtx := log.WithFields(applog.GetAppLogFields(app))
 
+	// Safely handle potential panics to avoid breaking the deletion process
+	defer func() {
+		if r := recover(); r != nil {
+			logCtx.WithField("panic", r).Debug("Recovered from panic in getAppTargets, disabling PostDelete hook optimization")
+		}
+	}()
+
 	appLabelKey, err := ctrl.settingsMgr.GetAppInstanceLabelKey()
 	if err != nil {
-		logCtx.WithError(err).Error("Unable to get app instance label key")
+		logCtx.WithError(err).Debug("Unable to get app instance label key, disabling PostDelete hook optimization")
 		return nil
 	}
 
@@ -1180,13 +1187,13 @@ func (ctrl *ApplicationController) getAppTargets(app *appv1.Application) []*unst
 
 	proj, err := ctrl.getAppProj(app)
 	if err != nil {
-		logCtx.WithError(err).Error("Unable to get app project")
+		logCtx.WithError(err).Debug("Unable to get app project, disabling PostDelete hook optimization")
 		return nil
 	}
 
 	targets, _, _, err := ctrl.appStateManager.GetRepoObjs(context.Background(), app, app.Spec.GetSources(), appLabelKey, revisions, false, false, false, proj, true)
 	if err != nil {
-		logCtx.WithError(err).Error("Unable to get repo objects")
+		logCtx.WithError(err).Debug("Unable to get repo objects, disabling PostDelete hook optimization")
 		return nil
 	}
 
@@ -1216,7 +1223,8 @@ func (ctrl *ApplicationController) shouldBeDeleted(app *appv1.Application, obj *
 
 	// If this is a namespace and there are PostDelete hooks that might manage it,
 	// defer the namespace deletion until after PostDelete hooks complete
-	if obj.GetKind() == "Namespace" {
+	// If targets is nil, we skip the PostDelete hook optimization for safety
+	if obj.GetKind() == "Namespace" && targets != nil {
 		if ctrl.hasPostDeleteHooksForNamespace(obj.GetName(), targets) {
 			return false
 		}
