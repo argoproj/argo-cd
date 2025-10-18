@@ -2704,17 +2704,17 @@ func Test_syncDeleteOption(t *testing.T) {
 	cm := newFakeCM()
 	t.Run("without delete option object is deleted", func(t *testing.T) {
 		cmObj := kube.MustToUnstructured(&cm)
-		assert.True(t, ctrl.shouldBeDeleted(app, cmObj))
+		assert.True(t, ctrl.shouldBeDeleted(app, cmObj, nil))
 	})
 	t.Run("with delete set to false object is retained", func(t *testing.T) {
 		cmObj := kube.MustToUnstructured(&cm)
 		cmObj.SetAnnotations(map[string]string{"argocd.argoproj.io/sync-options": "Delete=false"})
-		assert.False(t, ctrl.shouldBeDeleted(app, cmObj))
+		assert.False(t, ctrl.shouldBeDeleted(app, cmObj, nil))
 	})
 	t.Run("with delete set to false object is retained", func(t *testing.T) {
 		cmObj := kube.MustToUnstructured(&cm)
 		cmObj.SetAnnotations(map[string]string{"helm.sh/resource-policy": "keep"})
-		assert.False(t, ctrl.shouldBeDeleted(app, cmObj))
+		assert.False(t, ctrl.shouldBeDeleted(app, cmObj, nil))
 	})
 }
 
@@ -2756,7 +2756,9 @@ func TestPostDeleteHookNamespaceDeletion(t *testing.T) {
 			Object: newFakeNamespace(),
 		}
 
-		shouldDelete := ctrl.shouldBeDeleted(app, namespaceObj)
+		// Get targets to pass to shouldBeDeleted
+		targets := ctrl.getAppTargets(app)
+		shouldDelete := ctrl.shouldBeDeleted(app, namespaceObj, targets)
 		assert.False(t, shouldDelete, "namespace should be deferred when PostDelete hooks exist")
 	})
 
@@ -2776,7 +2778,9 @@ func TestPostDeleteHookNamespaceDeletion(t *testing.T) {
 			Object: newFakeNamespace(),
 		}
 
-		shouldDelete := ctrl.shouldBeDeleted(app, namespaceObj)
+		// Get targets to pass to shouldBeDeleted
+		targets := ctrl.getAppTargets(app)
+		shouldDelete := ctrl.shouldBeDeleted(app, namespaceObj, targets)
 		assert.True(t, shouldDelete, "namespace should be deleted when no PostDelete hooks exist")
 	})
 
@@ -2801,7 +2805,9 @@ func TestPostDeleteHookNamespaceDeletion(t *testing.T) {
 			Object: newFakeConfigMap(),
 		}
 
-		shouldDelete := ctrl.shouldBeDeleted(app, configMapObj)
+		// Get targets to pass to shouldBeDeleted
+		targets := ctrl.getAppTargets(app)
+		shouldDelete := ctrl.shouldBeDeleted(app, configMapObj, targets)
 		assert.True(t, shouldDelete, "non-namespace resources should not be affected by PostDelete hook logic")
 	})
 }
@@ -2840,7 +2846,8 @@ func TestHasPostDeleteHooksForNamespace(t *testing.T) {
 			},
 		}, nil)
 
-		hasHooks := ctrl.hasPostDeleteHooksForNamespace(app, "app-namespace")
+		targets := ctrl.getAppTargets(app)
+		hasHooks := ctrl.hasPostDeleteHooksForNamespace(app, "app-namespace", targets)
 		assert.True(t, hasHooks, "should return true when single PostDelete hook exists")
 	})
 
@@ -2866,7 +2873,8 @@ func TestHasPostDeleteHooksForNamespace(t *testing.T) {
 			},
 		}, nil)
 
-		hasHooks := ctrl.hasPostDeleteHooksForNamespace(app, "app-namespace")
+		targets := ctrl.getAppTargets(app)
+		hasHooks := ctrl.hasPostDeleteHooksForNamespace(app, "app-namespace", targets)
 		assert.True(t, hasHooks, "should return true when multiple PostDelete hooks exist")
 	})
 }

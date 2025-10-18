@@ -1163,13 +1163,14 @@ func (ctrl *ApplicationController) removeProjectFinalizer(proj *appv1.AppProject
 	return err
 }
 
-// hasPostDeleteHooksForNamespace checks if there are PostDelete hooks that might manage the given namespace
-func (ctrl *ApplicationController) hasPostDeleteHooksForNamespace(app *appv1.Application, namespaceName string) bool {
+// getAppTargets retrieves the target objects from the application's sources
+func (ctrl *ApplicationController) getAppTargets(app *appv1.Application) []*unstructured.Unstructured {
 	logCtx := log.WithFields(applog.GetAppLogFields(app))
 
 	appLabelKey, err := ctrl.settingsMgr.GetAppInstanceLabelKey()
 	if err != nil {
 		logCtx.WithError(err).Error("Unable to get app instance label key")
+		return nil
 	}
 
 	var revisions []string
@@ -1180,13 +1181,20 @@ func (ctrl *ApplicationController) hasPostDeleteHooksForNamespace(app *appv1.App
 	proj, err := ctrl.getAppProj(app)
 	if err != nil {
 		logCtx.WithError(err).Error("Unable to get app project")
+		return nil
 	}
 
 	targets, _, _, err := ctrl.appStateManager.GetRepoObjs(context.Background(), app, app.Spec.GetSources(), appLabelKey, revisions, false, false, false, proj, true)
 	if err != nil {
 		logCtx.WithError(err).Error("Unable to get repo objects")
+		return nil
 	}
 
+	return targets
+}
+
+// hasPostDeleteHooksForNamespace checks if there are PostDelete hooks that might manage the given namespace
+func (ctrl *ApplicationController) hasPostDeleteHooksForNamespace(app *appv1.Application, namespaceName string, targets []*unstructured.Unstructured) bool {
 	for _, obj := range targets {
 		if isPostDeleteHook(obj) {
 			// Check if this PostDelete hook is running in the target namespace or has empty namespace(inherited from application)
@@ -1199,7 +1207,7 @@ func (ctrl *ApplicationController) hasPostDeleteHooksForNamespace(app *appv1.App
 }
 
 // shouldBeDeleted returns whether a given resource obj should be deleted on cascade delete of application app
-func (ctrl *ApplicationController) shouldBeDeleted(app *appv1.Application, obj *unstructured.Unstructured) bool {
+func (ctrl *ApplicationController) shouldBeDeleted(app *appv1.Application, obj *unstructured.Unstructured, targets []*unstructured.Unstructured) bool {
 	if kube.IsCRD(obj) || isSelfReferencedApp(app, kube.GetObjectRef(obj)) ||
 		resourceutil.HasAnnotationOption(obj, synccommon.AnnotationSyncOptions, synccommon.SyncOptionDisableDeletion) ||
 		resourceutil.HasAnnotationOption(obj, helm.ResourcePolicyAnnotation, helm.ResourcePolicyKeep) {
@@ -1209,7 +1217,7 @@ func (ctrl *ApplicationController) shouldBeDeleted(app *appv1.Application, obj *
 	// If this is a namespace and there are PostDelete hooks that might manage it,
 	// defer the namespace deletion until after PostDelete hooks complete
 	if obj.GetKind() == "Namespace" {
-		if ctrl.hasPostDeleteHooksForNamespace(app, obj.GetName()) {
+		if ctrl.hasPostDeleteHooksForNamespace(app, obj.GetName(), targets) {
 			return false
 		}
 	}
@@ -1283,6 +1291,9 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 			return err
 		}
 
+		// Get targets once to avoid expensive GetRepoObjs calls for each namespace
+		targets := ctrl.getAppTargets(app)
+
 		for k := range objsMap {
 			// Wait for objects pending deletion to complete before proceeding with next sync wave
 			if objsMap[k].GetDeletionTimestamp() != nil {
@@ -1290,7 +1301,7 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 				return nil
 			}
 
-			if ctrl.shouldBeDeleted(app, objsMap[k]) {
+			if ctrl.shouldBeDeleted(app, objsMap[k], targets) {
 				objs = append(objs, objsMap[k])
 				if res, ok := app.Status.FindResource(k); ok && res.RequiresDeletionConfirmation && !deletionApproved {
 					logCtx.Infof("Resource %v requires manual confirmation to delete", k)
@@ -1318,7 +1329,7 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 		}
 
 		for k, obj := range objsMap {
-			if !ctrl.shouldBeDeleted(app, obj) {
+			if !ctrl.shouldBeDeleted(app, obj, targets) {
 				delete(objsMap, k)
 			}
 		}
