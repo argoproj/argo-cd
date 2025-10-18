@@ -14,7 +14,7 @@ Two types of installation manifests are provided:
 
 ### Non High Availability:
 
-Not recommended for production use. This type of installation is typically used during evaluation period for demonstrations and testing.
+Not recommended for production use. This type of installation is typically used during the evaluation period for demonstrations and testing.
 
 * [install.yaml](https://github.com/argoproj/argo-cd/blob/master/manifests/install.yaml) - Standard Argo CD installation with cluster-admin access. Use this
   manifest set if you plan to use Argo CD to deploy applications in the same cluster that Argo CD runs

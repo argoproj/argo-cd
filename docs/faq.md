@@ -255,7 +255,7 @@ There are two parts to the message:
 
     > map[name:**KEY_BC** value:150] map[name:**KEY_BC** value:500] map[name:**KEY_BD** value:250] map[name:**KEY_BD** value:500] map[name:KEY_BI value:something]
 
-    You'll want to identify the keys that are duplicated -- you can focus on the first part, as each duplicated key will appear, once for each of its value with its value in the first list. The second list is really just
+    You'll want to identify the keys that are duplicated -- you can focus on the first part, as each duplicated key will appear once for each of its values, with the value shown in the first list. The second list is really just
 
    `]`
 
