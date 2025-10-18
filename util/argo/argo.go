@@ -180,6 +180,20 @@ func FilterByRepoP(apps []*argoappv1.Application, repo string) []*argoappv1.Appl
 	return items
 }
 
+// FilterByPath returns an application
+func FilterByPath(apps []argoappv1.Application, path string) []argoappv1.Application {
+	if path == "" {
+		return apps
+	}
+	items := make([]argoappv1.Application, 0)
+	for i := 0; i < len(apps); i++ {
+		if apps[i].Spec.GetSource().Path == path {
+			items = append(items, apps[i])
+		}
+	}
+	return items
+}
+
 // FilterByCluster returns an application
 func FilterByCluster(apps []argoappv1.Application, cluster string) []argoappv1.Application {
 	if cluster == "" {
@@ -391,6 +405,29 @@ func ValidateRepo(
 	conditions = append(conditions, sourceCondition...)
 
 	return conditions, nil
+}
+
+// ValidateManagedByURL validates the managed-by-url annotation on applications to ensure it contains a valid URL
+func ValidateManagedByURL(app *argoappv1.Application) []argoappv1.ApplicationCondition {
+	conditions := make([]argoappv1.ApplicationCondition, 0)
+
+	if app.Annotations == nil {
+		return conditions
+	}
+
+	managedByURL, exists := app.Annotations[argoappv1.AnnotationKeyManagedByURL]
+	if !exists || managedByURL == "" {
+		return conditions
+	}
+
+	if err := settings.ValidateExternalURL(managedByURL); err != nil {
+		conditions = append(conditions, argoappv1.ApplicationCondition{
+			Type:    argoappv1.ApplicationConditionInvalidSpecError,
+			Message: fmt.Sprintf("invalid managed-by URL: %v", err),
+		})
+	}
+
+	return conditions
 }
 
 func validateRepo(ctx context.Context,
