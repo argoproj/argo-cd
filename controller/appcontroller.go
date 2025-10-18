@@ -376,11 +376,12 @@ func (ctrl *ApplicationController) onKubectlRun(command string) (kube.CleanupFun
 
 func isSelfReferencedApp(app *appv1.Application, ref corev1.ObjectReference) bool {
 	gvk := ref.GroupVersionKind()
-	return ref.UID == app.UID &&
-		ref.Name == app.Name &&
-		ref.Namespace == app.Namespace &&
-		gvk.Group == application.Group &&
-		gvk.Kind == application.ApplicationKind
+	// Only prevent deletion/health-check if this is literally the same application instance (same UID)
+	// This allows parent applications to delete child applications in App of Apps pattern
+	// UID comparison is the most reliable way to check if two resources are the same
+	return gvk.Group == application.Group &&
+		gvk.Kind == application.ApplicationKind &&
+		ref.UID != "" && app.UID != "" && ref.UID == app.UID
 }
 
 func (ctrl *ApplicationController) newAppProjCache(name string) *appProjCache {
