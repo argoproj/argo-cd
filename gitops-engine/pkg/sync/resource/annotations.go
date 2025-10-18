@@ -2,6 +2,8 @@ package resource
 
 import (
 	"strings"
+
+	"k8s.io/utils/ptr"
 )
 
 // AnnotationGetter defines the operations required to inspect if a resource
@@ -38,4 +40,17 @@ func HasAnnotationOption(obj AnnotationGetter, key, val string) bool {
 		}
 	}
 	return false
+}
+
+// GetAnnotationOptionValue will return the value of an option inside the
+// annotation defined as the given key.
+// This function only support options that are defined as key=value and not standalone.
+func GetAnnotationOptionValue(obj AnnotationGetter, annotation, optionKey string) *string {
+	prefix := optionKey + "="
+	for _, item := range GetAnnotationCSVs(obj, annotation) {
+		if strings.HasPrefix(item, prefix) {
+			return ptr.To(strings.TrimPrefix(item, prefix))
+		}
+	}
+	return nil
 }
