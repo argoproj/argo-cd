@@ -172,7 +172,6 @@ func TestHandleDeleteEvent_CacheDeadlock(t *testing.T) {
 	db.On("GetApplicationControllerReplicas").Return(1)
 	fakeClient := fake.NewClientset()
 	settingsMgr := argosettings.NewSettingsManager(t.Context(), fakeClient, "argocd")
-	liveStateCacheLock := sync.RWMutex{}
 	gitopsEngineClusterCache := &mocks.ClusterCache{}
 	clustersCache := liveStateCache{
 		clusters: map[string]cache.ClusterCache{
@@ -180,9 +179,7 @@ func TestHandleDeleteEvent_CacheDeadlock(t *testing.T) {
 		},
 		clusterSharding: sharding.NewClusterSharding(db, 0, 1, common.DefaultShardingAlgorithm),
 		settingsMgr:     settingsMgr,
-		// Set the lock here so we can reference it later
-		//nolint:govet // We need to overwrite here to have access to the lock
-		lock: liveStateCacheLock,
+		lock:            sync.RWMutex{},
 	}
 	channel := make(chan string)
 	// Mocked lock held by the gitops-engine cluster cache
