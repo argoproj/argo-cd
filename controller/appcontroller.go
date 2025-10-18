@@ -1186,7 +1186,7 @@ func (ctrl *ApplicationController) hasPostDeleteHooksForNamespace(app *appv1.App
 	if err != nil {
 		logCtx.WithError(err).Error("Unable to get repo objects")
 	}
- 
+
 	for _, obj := range targets {
 		if isPostDeleteHook(obj) {
 			// Check if this PostDelete hook is running in the target namespace or has empty namespace(inherited from application)
