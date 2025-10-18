@@ -1166,12 +1166,12 @@ func (ctrl *ApplicationController) removeProjectFinalizer(proj *appv1.AppProject
 // hasPostDeleteHooksForNamespace checks if there are PostDelete hooks that might manage the given namespace
 func (ctrl *ApplicationController) hasPostDeleteHooksForNamespace(app *appv1.Application, namespaceName string) bool {
 	logCtx := log.WithFields(applog.GetAppLogFields(app))
-	
+
 	appLabelKey, err := ctrl.settingsMgr.GetAppInstanceLabelKey()
 	if err != nil {
 		logCtx.WithError(err).Error("Unable to get app instance label key")
 	}
-	
+
 	var revisions []string
 	for _, src := range app.Spec.GetSources() {
 		revisions = append(revisions, src.TargetRevision)
