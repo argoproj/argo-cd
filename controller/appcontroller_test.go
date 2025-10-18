@@ -2847,7 +2847,7 @@ func TestHasPostDeleteHooksForNamespace(t *testing.T) {
 		}, nil)
 
 		targets := ctrl.getAppTargets(app)
-		hasHooks := ctrl.hasPostDeleteHooksForNamespace(app, "app-namespace", targets)
+		hasHooks := ctrl.hasPostDeleteHooksForNamespace("app-namespace", targets)
 		assert.True(t, hasHooks, "should return true when single PostDelete hook exists")
 	})
 
@@ -2874,7 +2874,7 @@ func TestHasPostDeleteHooksForNamespace(t *testing.T) {
 		}, nil)
 
 		targets := ctrl.getAppTargets(app)
-		hasHooks := ctrl.hasPostDeleteHooksForNamespace(app, "app-namespace", targets)
+		hasHooks := ctrl.hasPostDeleteHooksForNamespace("app-namespace", targets)
 		assert.True(t, hasHooks, "should return true when multiple PostDelete hooks exist")
 	})
 }

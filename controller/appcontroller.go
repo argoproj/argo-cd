@@ -1194,7 +1194,7 @@ func (ctrl *ApplicationController) getAppTargets(app *appv1.Application) []*unst
 }
 
 // hasPostDeleteHooksForNamespace checks if there are PostDelete hooks that might manage the given namespace
-func (ctrl *ApplicationController) hasPostDeleteHooksForNamespace(app *appv1.Application, namespaceName string, targets []*unstructured.Unstructured) bool {
+func (ctrl *ApplicationController) hasPostDeleteHooksForNamespace(namespaceName string, targets []*unstructured.Unstructured) bool {
 	for _, obj := range targets {
 		if isPostDeleteHook(obj) {
 			// Check if this PostDelete hook is running in the target namespace or has empty namespace(inherited from application)
@@ -1217,7 +1217,7 @@ func (ctrl *ApplicationController) shouldBeDeleted(app *appv1.Application, obj *
 	// If this is a namespace and there are PostDelete hooks that might manage it,
 	// defer the namespace deletion until after PostDelete hooks complete
 	if obj.GetKind() == "Namespace" {
-		if ctrl.hasPostDeleteHooksForNamespace(app, obj.GetName(), targets) {
+		if ctrl.hasPostDeleteHooksForNamespace(obj.GetName(), targets) {
 			return false
 		}
 	}
