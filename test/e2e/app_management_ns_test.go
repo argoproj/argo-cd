@@ -52,7 +52,7 @@ func TestNamespacedGetLogsDeny(t *testing.T) {
 		Name("test").
 		When().
 		Create().
-		Login().
+		Login(t.Context()).
 		SetPermissions([]fixture.ACL{
 			{
 				Resource: "applications",
@@ -99,7 +99,7 @@ func TestNamespacedGetLogsAllowNS(t *testing.T) {
 		Name("test").
 		When().
 		Create().
-		Login().
+		Login(t.Context()).
 		SetPermissions([]fixture.ACL{
 			{
 				Resource: "applications",
@@ -542,7 +542,7 @@ func TestNamespacedManipulateApplicationResources(t *testing.T) {
 
 			deployment := resources[index]
 
-			closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
+			closer, client, err := fixture.ArgoCDClientset.NewApplicationClient(t.Context())
 			require.NoError(t, err)
 			defer utilio.Close(closer)
 
@@ -561,7 +561,7 @@ func TestNamespacedManipulateApplicationResources(t *testing.T) {
 }
 
 func TestNamespacedAppWithSecrets(t *testing.T) {
-	closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
+	closer, client, err := fixture.ArgoCDClientset.NewApplicationClient(t.Context())
 	require.NoError(t, err)
 	defer utilio.Close(closer)
 
@@ -859,7 +859,7 @@ func TestNamespacedResourceAction(t *testing.T) {
 		Sync().
 		Then().
 		And(func(app *Application) {
-			closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
+			closer, client, err := fixture.ArgoCDClientset.NewApplicationClient(t.Context())
 			require.NoError(t, err)
 			defer utilio.Close(closer)
 
@@ -1033,7 +1033,7 @@ func assertNSResourceActions(t *testing.T, appName string, successful bool) {
 		}
 	}
 
-	closer, cdClient := fixture.ArgoCDClientset.NewApplicationClientOrDie()
+	closer, cdClient := fixture.ArgoCDClientset.NewApplicationClientOrDie(t.Context())
 	defer utilio.Close(closer)
 
 	deploymentResource, err := fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Get(t.Context(), "guestbook-ui", metav1.GetOptions{})
@@ -1154,7 +1154,7 @@ func TestNamespacedPermissions(t *testing.T) {
 		Expect(Condition(ApplicationConditionInvalidSpecError, destinationError)).
 		Expect(Condition(ApplicationConditionInvalidSpecError, sourceError)).
 		And(func(app *Application) {
-			closer, cdClient := fixture.ArgoCDClientset.NewApplicationClientOrDie()
+			closer, cdClient := fixture.ArgoCDClientset.NewApplicationClientOrDie(t.Context())
 			defer utilio.Close(closer)
 			tree, err := cdClient.ResourceTree(t.Context(), &applicationpkg.ResourcesQuery{ApplicationName: &app.Name, AppNamespace: &app.Namespace})
 			require.NoError(t, err)

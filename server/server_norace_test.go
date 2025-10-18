@@ -29,7 +29,7 @@ func TestUserAgent(t *testing.T) {
 
 	s, closer := fakeServer(t)
 	defer closer()
-	lns, err := s.Listen()
+	lns, err := s.Listen(t.Context())
 	require.NoError(t, err)
 
 	cancelInformer := test.StartInformer(s.projInformer)
@@ -73,9 +73,9 @@ func TestUserAgent(t *testing.T) {
 			PlainText:  true,
 			UserAgent:  test.userAgent,
 		}
-		clnt, err := apiclient.NewClient(&opts)
+		clnt, err := apiclient.NewClient(ctx, &opts)
 		require.NoError(t, err)
-		conn, appClnt := clnt.NewApplicationClientOrDie()
+		conn, appClnt := clnt.NewApplicationClientOrDie(ctx)
 		_, err = appClnt.List(ctx, &applicationpkg.ApplicationQuery{})
 		if test.errorMsg != "" {
 			require.Error(t, err)
@@ -95,7 +95,7 @@ func Test_StaticHeaders(t *testing.T) {
 	{
 		s, closer := fakeServer(t)
 		defer closer()
-		lns, err := s.Listen()
+		lns, err := s.Listen(t.Context())
 		require.NoError(t, err)
 		cancelInformer := test.StartInformer(s.projInformer)
 		defer cancelInformer()
@@ -126,7 +126,7 @@ func Test_StaticHeaders(t *testing.T) {
 		s.ContentSecurityPolicy = "frame-ancestors 'none';"
 		cancelInformer := test.StartInformer(s.projInformer)
 		defer cancelInformer()
-		lns, err := s.Listen()
+		lns, err := s.Listen(t.Context())
 		require.NoError(t, err)
 		ctx, cancel := context.WithCancel(t.Context())
 		defer cancel()
@@ -155,7 +155,7 @@ func Test_StaticHeaders(t *testing.T) {
 		s.ContentSecurityPolicy = ""
 		cancelInformer := test.StartInformer(s.projInformer)
 		defer cancelInformer()
-		lns, err := s.Listen()
+		lns, err := s.Listen(t.Context())
 		require.NoError(t, err)
 		ctx, cancel := context.WithCancel(t.Context())
 		defer cancel()

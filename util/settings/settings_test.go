@@ -1,7 +1,6 @@
 package settings
 
 import (
-	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
@@ -50,7 +49,7 @@ func fixtures(data map[string]string, opts ...func(secret *corev1.Secret)) (*fak
 		opts[i](secret)
 	}
 	kubeClient := fake.NewClientset(cm, secret)
-	settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+	settingsManager := NewSettingsManager(kubeClient, "default")
 
 	return kubeClient, settingsManager
 }
@@ -68,16 +67,16 @@ func TestDocumentedArgoCDConfigMapIsValid(t *testing.T) {
 func TestGetConfigMapByName(t *testing.T) {
 	t.Run("data is never nil", func(t *testing.T) {
 		_, settingsManager := fixtures(nil)
-		cm, err := settingsManager.GetConfigMapByName(common.ArgoCDConfigMapName)
+		cm, err := settingsManager.GetConfigMapByName(t.Context(), common.ArgoCDConfigMapName)
 		require.NoError(t, err)
 		assert.NotNil(t, cm.Data)
 	})
 	t.Run("cannot update informer value", func(t *testing.T) {
 		_, settingsManager := fixtures(nil)
-		cm1, err := settingsManager.GetConfigMapByName(common.ArgoCDConfigMapName)
+		cm1, err := settingsManager.GetConfigMapByName(t.Context(), common.ArgoCDConfigMapName)
 		require.NoError(t, err)
 		cm1.Data["test"] = "invalid"
-		cm2, err := settingsManager.GetConfigMapByName(common.ArgoCDConfigMapName)
+		cm2, err := settingsManager.GetConfigMapByName(t.Context(), common.ArgoCDConfigMapName)
 		require.NoError(t, err)
 		assert.NotContains(t, cm2.Data, "test")
 	})
@@ -86,16 +85,16 @@ func TestGetConfigMapByName(t *testing.T) {
 func TestGetSecretByName(t *testing.T) {
 	t.Run("data is never nil", func(t *testing.T) {
 		_, settingsManager := fixtures(nil, func(secret *corev1.Secret) { secret.Data = nil })
-		secret, err := settingsManager.GetSecretByName(common.ArgoCDSecretName)
+		secret, err := settingsManager.GetSecretByName(t.Context(), common.ArgoCDSecretName)
 		require.NoError(t, err)
 		assert.NotNil(t, secret.Data)
 	})
 	t.Run("cannot update informer value", func(t *testing.T) {
 		_, settingsManager := fixtures(nil)
-		s1, err := settingsManager.GetSecretByName(common.ArgoCDSecretName)
+		s1, err := settingsManager.GetSecretByName(t.Context(), common.ArgoCDSecretName)
 		require.NoError(t, err)
 		s1.Data["test"] = []byte("invalid")
-		s2, err := settingsManager.GetSecretByName(common.ArgoCDSecretName)
+		s2, err := settingsManager.GetSecretByName(t.Context(), common.ArgoCDSecretName)
 		require.NoError(t, err)
 		assert.NotContains(t, s2.Data, "test")
 	})
@@ -153,7 +152,7 @@ func TestGetResourceFilter(t *testing.T) {
 		"resource.inclusions": "\n  - apiGroups: [\"group2\"]\n    kinds: [\"kind2\"]\n    clusters: [\"cluster2\"]\n",
 	}
 	_, settingsManager := fixtures(data)
-	filter, err := settingsManager.GetResourcesFilter()
+	filter, err := settingsManager.GetResourcesFilter(t.Context())
 	require.NoError(t, err)
 	assert.Equal(t, &ResourcesFilter{
 		ResourceExclusions: []FilteredResource{{APIGroups: []string{"group1"}, Kinds: []string{"kind1"}, Clusters: []string{"cluster1"}}},
@@ -165,14 +164,14 @@ func TestInClusterServerAddressEnabled(t *testing.T) {
 	_, settingsManager := fixtures(map[string]string{
 		"cluster.inClusterEnabled": "true",
 	})
-	argoCDCM, err := settingsManager.getConfigMap()
+	argoCDCM, err := settingsManager.getConfigMap(t.Context())
 	require.NoError(t, err)
 	assert.Equal(t, "true", argoCDCM.Data[inClusterEnabledKey])
 
 	_, settingsManager = fixtures(map[string]string{
 		"cluster.inClusterEnabled": "false",
 	})
-	argoCDCM, err = settingsManager.getConfigMap()
+	argoCDCM, err = settingsManager.getConfigMap(t.Context())
 	require.NoError(t, err)
 	assert.NotEqual(t, "true", argoCDCM.Data[inClusterEnabledKey])
 }
@@ -203,8 +202,8 @@ func TestInClusterServerAddressEnabledByDefault(t *testing.T) {
 			},
 		},
 	)
-	settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
-	settings, err := settingsManager.GetSettings()
+	settingsManager := NewSettingsManager(kubeClient, "default")
+	settings, err := settingsManager.GetSettings(t.Context())
 	require.NoError(t, err)
 	assert.True(t, settings.InClusterEnabled)
 }
@@ -214,14 +213,14 @@ func TestGetAppInstanceLabelKey(t *testing.T) {
 		_, settingsManager := fixtures(map[string]string{
 			"application.instanceLabelKey": "testLabel",
 		})
-		label, err := settingsManager.GetAppInstanceLabelKey()
+		label, err := settingsManager.GetAppInstanceLabelKey(t.Context())
 		require.NoError(t, err)
 		assert.Equal(t, "testLabel", label)
 	})
 
 	t.Run("should get default instanceLabelKey if custom not defined", func(t *testing.T) {
 		_, settingsManager := fixtures(map[string]string{})
-		label, err := settingsManager.GetAppInstanceLabelKey()
+		label, err := settingsManager.GetAppInstanceLabelKey(t.Context())
 		require.NoError(t, err)
 		assert.Equal(t, common.LabelKeyAppInstance, label)
 	})
@@ -232,14 +231,14 @@ func TestGetTrackingMethod(t *testing.T) {
 		_, settingsManager := fixtures(map[string]string{
 			"application.resourceTrackingMethod": string(v1alpha1.TrackingMethodLabel),
 		})
-		label, err := settingsManager.GetTrackingMethod()
+		label, err := settingsManager.GetTrackingMethod(t.Context())
 		require.NoError(t, err)
 		assert.Equal(t, string(v1alpha1.TrackingMethodLabel), label)
 	})
 
 	t.Run("should get default trackingMethod if custom not defined", func(t *testing.T) {
 		_, settingsManager := fixtures(map[string]string{})
-		label, err := settingsManager.GetTrackingMethod()
+		label, err := settingsManager.GetTrackingMethod(t.Context())
 		require.NoError(t, err)
 		assert.Equal(t, string(v1alpha1.TrackingMethodAnnotation), label)
 	})
@@ -249,14 +248,14 @@ func TestGetInstallationID(t *testing.T) {
 	_, settingsManager := fixtures(map[string]string{
 		"installationID": "123456789",
 	})
-	id, err := settingsManager.GetInstallationID()
+	id, err := settingsManager.GetInstallationID(t.Context())
 	require.NoError(t, err)
 	assert.Equal(t, "123456789", id)
 }
 
 func TestApplicationFineGrainedRBACInheritanceDisabledDefault(t *testing.T) {
 	_, settingsManager := fixtures(nil)
-	flag, err := settingsManager.ApplicationFineGrainedRBACInheritanceDisabled()
+	flag, err := settingsManager.ApplicationFineGrainedRBACInheritanceDisabled(t.Context())
 	require.NoError(t, err)
 	assert.True(t, flag)
 }
@@ -265,21 +264,21 @@ func TestApplicationFineGrainedRBACInheritanceDisabled(t *testing.T) {
 	_, settingsManager := fixtures(map[string]string{
 		"server.rbac.disableApplicationFineGrainedRBACInheritance": "false",
 	})
-	flag, err := settingsManager.ApplicationFineGrainedRBACInheritanceDisabled()
+	flag, err := settingsManager.ApplicationFineGrainedRBACInheritanceDisabled(t.Context())
 	require.NoError(t, err)
 	assert.False(t, flag)
 }
 
 func TestGetIsIgnoreResourceUpdatesEnabled(t *testing.T) {
 	_, settingsManager := fixtures(nil)
-	ignoreResourceUpdatesEnabled, err := settingsManager.GetIsIgnoreResourceUpdatesEnabled()
+	ignoreResourceUpdatesEnabled, err := settingsManager.GetIsIgnoreResourceUpdatesEnabled(t.Context())
 	require.NoError(t, err)
 	assert.True(t, ignoreResourceUpdatesEnabled)
 
 	_, settingsManager = fixtures(map[string]string{
 		"resource.ignoreResourceUpdatesEnabled": "true",
 	})
-	ignoreResourceUpdatesEnabled, err = settingsManager.GetIsIgnoreResourceUpdatesEnabled()
+	ignoreResourceUpdatesEnabled, err = settingsManager.GetIsIgnoreResourceUpdatesEnabled(t.Context())
 	require.NoError(t, err)
 	assert.True(t, ignoreResourceUpdatesEnabled)
 }
@@ -288,7 +287,7 @@ func TestGetIsIgnoreResourceUpdatesEnabledFalse(t *testing.T) {
 	_, settingsManager := fixtures(map[string]string{
 		"resource.ignoreResourceUpdatesEnabled": "false",
 	})
-	ignoreResourceUpdatesEnabled, err := settingsManager.GetIsIgnoreResourceUpdatesEnabled()
+	ignoreResourceUpdatesEnabled, err := settingsManager.GetIsIgnoreResourceUpdatesEnabled(t.Context())
 	require.NoError(t, err)
 	assert.False(t, ignoreResourceUpdatesEnabled)
 }
@@ -313,7 +312,7 @@ func TestGetResourceOverrides(t *testing.T) {
         jqPathExpressions:
         - .webhooks[1].clientConfig.caBundle`,
 	})
-	overrides, err := settingsManager.GetResourceOverrides()
+	overrides, err := settingsManager.GetResourceOverrides(t.Context())
 	require.NoError(t, err)
 
 	webHookOverrides := overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"]
@@ -340,7 +339,7 @@ func TestGetResourceOverrides(t *testing.T) {
 		"resource.compareoptions": `
     ignoreResourceStatusField: all`,
 	})
-	overrides, err = settingsManager.GetResourceOverrides()
+	overrides, err = settingsManager.GetResourceOverrides(t.Context())
 	require.NoError(t, err)
 
 	globalOverrides = overrides["*/*"]
@@ -360,7 +359,7 @@ func TestGetResourceOverrides(t *testing.T) {
         jqPathExpressions:
         - .webhooks[0].clientConfig.caBundle`,
 	})
-	overrides, err = settingsManager.GetResourceOverrides()
+	overrides, err = settingsManager.GetResourceOverrides(t.Context())
 	require.NoError(t, err)
 
 	crdOverrides := overrides[crdGK]
@@ -375,7 +374,7 @@ func TestGetResourceOverrides(t *testing.T) {
 		"resource.compareoptions": `
     ignoreResourceStatusField: foobar`,
 	})
-	overrides, err = settingsManager.GetResourceOverrides()
+	overrides, err = settingsManager.GetResourceOverrides(t.Context())
 	require.NoError(t, err)
 
 	globalOverrides = overrides["*/*"]
@@ -387,7 +386,7 @@ func TestGetResourceOverrides(t *testing.T) {
 		"resource.compareoptions": `
     ignoreResourceStatusField: off`,
 	})
-	overrides, err = settingsManager.GetResourceOverrides()
+	overrides, err = settingsManager.GetResourceOverrides(t.Context())
 	require.NoError(t, err)
 	assert.Empty(t, overrides)
 
@@ -396,7 +395,7 @@ func TestGetResourceOverrides(t *testing.T) {
 		"resource.compareoptions": `
     ignoreResourceStatusField: false`,
 	})
-	overrides, err = settingsManager.GetResourceOverrides()
+	overrides, err = settingsManager.GetResourceOverrides(t.Context())
 	require.NoError(t, err)
 	assert.Empty(t, overrides)
 
@@ -405,7 +404,7 @@ func TestGetResourceOverrides(t *testing.T) {
 		"resource.compareoptions": `
     ignoreResourceStatusField: none`,
 	})
-	overrides, err = settingsManager.GetResourceOverrides()
+	overrides, err = settingsManager.GetResourceOverrides(t.Context())
 	require.NoError(t, err)
 	assert.Empty(t, overrides)
 }
@@ -421,7 +420,7 @@ func TestGetResourceOverridesHealthWithWildcard(t *testing.T) {
 	t.Run("TestResourceHealthOverrideWithWildcard", func(t *testing.T) {
 		_, settingsManager := fixtures(data)
 
-		overrides, err := settingsManager.GetResourceOverrides()
+		overrides, err := settingsManager.GetResourceOverrides(t.Context())
 		require.NoError(t, err)
 		assert.Len(t, overrides, 2)
 		assert.Equal(t, "foo", overrides["*.aws.crossplane.io/*"].HealthLua)
@@ -432,7 +431,7 @@ func TestSettingsManager_GetResourceOverrides_with_empty_string(t *testing.T) {
 	_, settingsManager := fixtures(map[string]string{
 		resourceCustomizationsKey: "",
 	})
-	overrides, err := settingsManager.GetResourceOverrides()
+	overrides, err := settingsManager.GetResourceOverrides(t.Context())
 	require.NoError(t, err)
 
 	assert.Len(t, overrides, 1)
@@ -465,7 +464,7 @@ func TestGetResourceOverrides_with_splitted_keys(t *testing.T) {
 	t.Run("MergedKey", func(t *testing.T) {
 		_, settingsManager := fixtures(data)
 
-		overrides, err := settingsManager.GetResourceOverrides()
+		overrides, err := settingsManager.GetResourceOverrides(t.Context())
 		require.NoError(t, err)
 		assert.Len(t, overrides, 4)
 		assert.Len(t, overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreDifferences.JSONPointers, 1)
@@ -514,7 +513,7 @@ func TestGetResourceOverrides_with_splitted_keys(t *testing.T) {
 
 		_, settingsManager := fixtures(mergemaps(data, newData))
 
-		overrides, err := settingsManager.GetResourceOverrides()
+		overrides, err := settingsManager.GetResourceOverrides(t.Context())
 		require.NoError(t, err)
 		assert.Len(t, overrides, 8)
 		assert.Len(t, overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreDifferences.JSONPointers, 1)
@@ -577,7 +576,7 @@ func TestGetIgnoreResourceUpdatesOverrides(t *testing.T) {
 	}
 
 	_, settingsManager := fixtures(testCustomizations)
-	overrides, err := settingsManager.GetIgnoreResourceUpdatesOverrides()
+	overrides, err := settingsManager.GetIgnoreResourceUpdatesOverrides(t.Context())
 	require.NoError(t, err)
 
 	// default overrides should always be present
@@ -601,7 +600,7 @@ func TestGetIgnoreResourceUpdatesOverrides(t *testing.T) {
             ignoreResourceStatusField: none
             ignoreDifferencesOnResourceUpdates: false`,
 	}, testCustomizations))
-	overrides, err = settingsManager.GetIgnoreResourceUpdatesOverrides()
+	overrides, err = settingsManager.GetIgnoreResourceUpdatesOverrides(t.Context())
 	require.NoError(t, err)
 	assert.NotNil(t, overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"])
 	assert.Equal(t, v1alpha1.ResourceOverride{
@@ -635,7 +634,7 @@ func TestGetResourceCompareOptions(t *testing.T) {
 		_, settingsManager := fixtures(map[string]string{
 			"resource.compareoptions": "ignoreAggregatedRoles: true",
 		})
-		compareOptions, err := settingsManager.GetResourceCompareOptions()
+		compareOptions, err := settingsManager.GetResourceCompareOptions(t.Context())
 		require.NoError(t, err)
 		assert.True(t, compareOptions.IgnoreAggregatedRoles)
 	}
@@ -645,7 +644,7 @@ func TestGetResourceCompareOptions(t *testing.T) {
 		_, settingsManager := fixtures(map[string]string{
 			"resource.compareoptions": "ignoreAggregatedRoles: false",
 		})
-		compareOptions, err := settingsManager.GetResourceCompareOptions()
+		compareOptions, err := settingsManager.GetResourceCompareOptions(t.Context())
 		require.NoError(t, err)
 		assert.False(t, compareOptions.IgnoreAggregatedRoles)
 	}
@@ -655,7 +654,7 @@ func TestGetResourceCompareOptions(t *testing.T) {
 		_, settingsManager := fixtures(map[string]string{
 			"resource.compareoptions": "ignoreDifferencesOnResourceUpdates: true",
 		})
-		compareOptions, err := settingsManager.GetResourceCompareOptions()
+		compareOptions, err := settingsManager.GetResourceCompareOptions(t.Context())
 		require.NoError(t, err)
 		assert.True(t, compareOptions.IgnoreDifferencesOnResourceUpdates)
 	}
@@ -665,7 +664,7 @@ func TestGetResourceCompareOptions(t *testing.T) {
 		_, settingsManager := fixtures(map[string]string{
 			"resource.compareoptions": "ignoreDifferencesOnResourceUpdates: false",
 		})
-		compareOptions, err := settingsManager.GetResourceCompareOptions()
+		compareOptions, err := settingsManager.GetResourceCompareOptions(t.Context())
 		require.NoError(t, err)
 		assert.False(t, compareOptions.IgnoreDifferencesOnResourceUpdates)
 	}
@@ -675,7 +674,7 @@ func TestGetResourceCompareOptions(t *testing.T) {
 		_, settingsManager := fixtures(map[string]string{
 			"resource.compareoptions": "",
 		})
-		compareOptions, err := settingsManager.GetResourceCompareOptions()
+		compareOptions, err := settingsManager.GetResourceCompareOptions(t.Context())
 		defaultOptions := GetDefaultDiffOptions()
 		require.NoError(t, err)
 		assert.Equal(t, defaultOptions.IgnoreAggregatedRoles, compareOptions.IgnoreAggregatedRoles)
@@ -685,7 +684,7 @@ func TestGetResourceCompareOptions(t *testing.T) {
 	// resource.compareoptions not defined - should result in default being returned
 	{
 		_, settingsManager := fixtures(map[string]string{})
-		compareOptions, err := settingsManager.GetResourceCompareOptions()
+		compareOptions, err := settingsManager.GetResourceCompareOptions(t.Context())
 		defaultOptions := GetDefaultDiffOptions()
 		require.NoError(t, err)
 		assert.Equal(t, defaultOptions.IgnoreAggregatedRoles, compareOptions.IgnoreAggregatedRoles)
@@ -697,7 +696,7 @@ func TestSettingsManager_GetKustomizeBuildOptions(t *testing.T) {
 	t.Run("Empty", func(t *testing.T) {
 		_, settingsManager := fixtures(map[string]string{})
 
-		settings, err := settingsManager.GetKustomizeSettings()
+		settings, err := settingsManager.GetKustomizeSettings(t.Context())
 
 		require.NoError(t, err)
 		assert.Empty(t, settings.BuildOptions)
@@ -709,7 +708,7 @@ func TestSettingsManager_GetKustomizeBuildOptions(t *testing.T) {
 			"kustomize.version.v3.2.1": "somePath",
 		})
 
-		options, err := settingsManager.GetKustomizeSettings()
+		options, err := settingsManager.GetKustomizeSettings(t.Context())
 
 		require.NoError(t, err)
 		assert.Equal(t, "foo", options.BuildOptions)
@@ -727,7 +726,7 @@ func TestSettingsManager_GetKustomizeBuildOptions(t *testing.T) {
 			"kustomize.buildOptions.v3.2.5": "--options v3.2.5",
 		})
 
-		got, err := settingsManager.GetKustomizeSettings()
+		got, err := settingsManager.GetKustomizeSettings(t.Context())
 
 		require.NoError(t, err)
 		assert.Equal(t, "--global true", got.BuildOptions)
@@ -758,7 +757,7 @@ func TestSettingsManager_GetKustomizeBuildOptions(t *testing.T) {
 			"kustomize.path.v3.2.1":         "/other_path_3.2.1",
 		})
 
-		got, err := settingsManager.GetKustomizeSettings()
+		got, err := settingsManager.GetKustomizeSettings(t.Context())
 		require.ErrorContains(t, err, "found duplicate kustomize version: v3.2.1")
 		assert.Empty(t, got)
 	})
@@ -768,7 +767,7 @@ func TestSettingsManager_GetKustomizeBuildOptions(t *testing.T) {
 			"other.options": "--global true",
 		})
 
-		got, err := settingsManager.GetKustomizeSettings()
+		got, err := settingsManager.GetKustomizeSettings(t.Context())
 		require.NoError(t, err)
 		assert.Empty(t, got)
 	})
@@ -800,10 +799,10 @@ func TestSettingsManager_GetEventLabelKeys(t *testing.T) {
 				})
 			}
 
-			inKeys := settingsManager.GetIncludeEventLabelKeys()
+			inKeys := settingsManager.GetIncludeEventLabelKeys(t.Context())
 			assert.Len(t, inKeys, len(tt.expectedKeys))
 
-			exKeys := settingsManager.GetExcludeEventLabelKeys()
+			exKeys := settingsManager.GetExcludeEventLabelKeys(t.Context())
 			assert.Len(t, exKeys, len(tt.expectedKeys))
 
 			for i := range tt.expectedKeys {
@@ -868,7 +867,7 @@ func TestGetGoogleAnalytics(t *testing.T) {
 	_, settingsManager := fixtures(map[string]string{
 		"ga.trackingid": "123",
 	})
-	ga, err := settingsManager.GetGoogleAnalytics()
+	ga, err := settingsManager.GetGoogleAnalytics(t.Context())
 	require.NoError(t, err)
 	assert.Equal(t, "123", ga.TrackingID)
 	assert.True(t, ga.AnonymizeUsers)
@@ -877,7 +876,7 @@ func TestGetGoogleAnalytics(t *testing.T) {
 func TestSettingsManager_GetHelp(t *testing.T) {
 	t.Run("Default", func(t *testing.T) {
 		_, settingsManager := fixtures(nil)
-		h, err := settingsManager.GetHelp()
+		h, err := settingsManager.GetHelp(t.Context())
 		require.NoError(t, err)
 		assert.Empty(t, h.ChatURL)
 		assert.Empty(t, h.ChatText)
@@ -887,7 +886,7 @@ func TestSettingsManager_GetHelp(t *testing.T) {
 			"help.chatUrl":  "foo",
 			"help.chatText": "bar",
 		})
-		h, err := settingsManager.GetHelp()
+		h, err := settingsManager.GetHelp(t.Context())
 		require.NoError(t, err)
 		assert.Equal(t, "foo", h.ChatURL)
 		assert.Equal(t, "bar", h.ChatText)
@@ -896,7 +895,7 @@ func TestSettingsManager_GetHelp(t *testing.T) {
 		_, settingManager := fixtures(map[string]string{
 			"help.chatUrl": "foo",
 		})
-		h, err := settingManager.GetHelp()
+		h, err := settingManager.GetHelp(t.Context())
 		require.NoError(t, err)
 		assert.Equal(t, "foo", h.ChatURL)
 		assert.Equal(t, "Chat now!", h.ChatText)
@@ -905,7 +904,7 @@ func TestSettingsManager_GetHelp(t *testing.T) {
 		_, settingManager := fixtures(map[string]string{
 			"help.chatText": "bar",
 		})
-		h, err := settingManager.GetHelp()
+		h, err := settingManager.GetHelp(t.Context())
 		require.NoError(t, err)
 		assert.Empty(t, h.ChatURL)
 		assert.Empty(t, h.ChatText)
@@ -916,7 +915,7 @@ func TestSettingsManager_GetHelp(t *testing.T) {
 			"help.download.linux-s390x":  "s390x-path",
 			"help.download.unsupported":  "nowhere",
 		})
-		h, err := settingsManager.GetHelp()
+		h, err := settingsManager.GetHelp(t.Context())
 		require.NoError(t, err)
 		assert.Equal(t, map[string]string{"darwin-amd64": "amd64-path", "linux-s390x": "s390x-path"}, h.BinaryURLs)
 	})
@@ -948,8 +947,8 @@ func TestSettingsManager_GetSettings(t *testing.T) {
 				},
 			},
 		)
-		settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
-		s, err := settingsManager.GetSettings()
+		settingsManager := NewSettingsManager(kubeClient, "default")
+		s, err := settingsManager.GetSettings(t.Context())
 		require.NoError(t, err)
 		assert.Equal(t, time.Hour*24, s.UserSessionDuration)
 	})
@@ -980,8 +979,8 @@ func TestSettingsManager_GetSettings(t *testing.T) {
 				},
 			},
 		)
-		settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
-		s, err := settingsManager.GetSettings()
+		settingsManager := NewSettingsManager(kubeClient, "default")
+		s, err := settingsManager.GetSettings(t.Context())
 		require.NoError(t, err)
 		assert.Equal(t, time.Hour*24, s.UserSessionDuration)
 	})
@@ -1012,8 +1011,8 @@ func TestSettingsManager_GetSettings(t *testing.T) {
 				},
 			},
 		)
-		settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
-		s, err := settingsManager.GetSettings()
+		settingsManager := NewSettingsManager(kubeClient, "default")
+		s, err := settingsManager.GetSettings(t.Context())
 		require.NoError(t, err)
 		assert.Equal(t, time.Hour*10, s.UserSessionDuration)
 	})
@@ -1047,8 +1046,8 @@ func TestGetOIDCConfig(t *testing.T) {
 			},
 		},
 	)
-	settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
-	settings, err := settingsManager.GetSettings()
+	settingsManager := NewSettingsManager(kubeClient, "default")
+	settings, err := settingsManager.GetSettings(t.Context())
 	require.NoError(t, err)
 
 	oidcConfig := settings.OIDCConfig()
@@ -1127,8 +1126,8 @@ func TestGetOIDCSecretTrim(t *testing.T) {
 			},
 		},
 	)
-	settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
-	settings, err := settingsManager.GetSettings()
+	settingsManager := NewSettingsManager(kubeClient, "default")
+	settings, err := settingsManager.GetSettings(t.Context())
 	require.NoError(t, err)
 
 	oidcConfig := settings.OIDCConfig()
@@ -1183,8 +1182,8 @@ func Test_GetTLSConfiguration(t *testing.T) {
 				},
 			},
 		)
-		settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
-		settings, err := settingsManager.GetSettings()
+		settingsManager := NewSettingsManager(kubeClient, "default")
+		settings, err := settingsManager.GetSettings(t.Context())
 		require.NoError(t, err)
 		assert.True(t, settings.CertificateIsExternal)
 		assert.NotNil(t, settings.Certificate)
@@ -1231,8 +1230,8 @@ func Test_GetTLSConfiguration(t *testing.T) {
 				},
 			},
 		)
-		settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
-		settings, err := settingsManager.GetSettings()
+		settingsManager := NewSettingsManager(kubeClient, "default")
+		settings, err := settingsManager.GetSettings(t.Context())
 		require.NoError(t, err)
 		assert.True(t, settings.CertificateIsExternal)
 		assert.NotNil(t, settings.Certificate)
@@ -1276,8 +1275,8 @@ func Test_GetTLSConfiguration(t *testing.T) {
 				},
 			},
 		)
-		settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
-		settings, err := settingsManager.GetSettings()
+		settingsManager := NewSettingsManager(kubeClient, "default")
+		settings, err := settingsManager.GetSettings(t.Context())
 		require.ErrorContains(t, err, "failed to find any PEM data in certificate input")
 		assert.NotNil(t, settings)
 	})
@@ -1318,7 +1317,7 @@ func Test_GetTLSConfiguration(t *testing.T) {
 
 		kubeClient := fake.NewClientset(cm, secret, tlsSecret)
 		callCount := 0
-		settingsManager := NewSettingsManager(context.Background(), kubeClient, "default", func(mgr *SettingsManager) {
+		settingsManager := NewSettingsManager(kubeClient, "default", func(mgr *SettingsManager) {
 			mgr.tlsCertParser = func(certpem []byte, keypem []byte) (tls.Certificate, error) {
 				callCount++
 
@@ -1330,12 +1329,12 @@ func Test_GetTLSConfiguration(t *testing.T) {
 		assert.Equal(t, 0, callCount)
 
 		// should be called by first call to GetSettings
-		_, err := settingsManager.GetSettings()
+		_, err := settingsManager.GetSettings(t.Context())
 		require.NoError(t, err)
 		assert.Equal(t, 1, callCount)
 
 		// should not be called by subsequent call to GetSettings
-		_, err = settingsManager.GetSettings()
+		_, err = settingsManager.GetSettings(t.Context())
 		require.NoError(t, err)
 		assert.Equal(t, 1, callCount)
 	})
@@ -1376,7 +1375,7 @@ func Test_GetTLSConfiguration(t *testing.T) {
 
 		kubeClient := fake.NewClientset(cm, secret, tlsSecret)
 		callCount := 0
-		settingsManager := NewSettingsManager(context.Background(), kubeClient, "default", func(mgr *SettingsManager) {
+		settingsManager := NewSettingsManager(kubeClient, "default", func(mgr *SettingsManager) {
 			mgr.tlsCertParser = func(certpem []byte, keypem []byte) (tls.Certificate, error) {
 				callCount++
 
@@ -1385,7 +1384,7 @@ func Test_GetTLSConfiguration(t *testing.T) {
 		})
 
 		// should be called by first call to GetSettings
-		settings, err := settingsManager.GetSettings()
+		settings, err := settingsManager.GetSettings(t.Context())
 		require.NoError(t, err)
 		assert.Equal(t, 1, callCount)
 		assert.NotNil(t, settings.Certificate)
@@ -1401,7 +1400,7 @@ func Test_GetTLSConfiguration(t *testing.T) {
 		time.Sleep(250 * time.Millisecond)
 
 		// should be called again after secret update resolves
-		settings, err = settingsManager.GetSettings()
+		settings, err = settingsManager.GetSettings(t.Context())
 		require.NoError(t, err)
 		assert.Equal(t, 2, callCount)
 		assert.NotNil(t, settings.Certificate)
@@ -1435,8 +1434,8 @@ func Test_GetTLSConfiguration(t *testing.T) {
 				},
 			},
 		)
-		settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
-		settings, err := settingsManager.GetSettings()
+		settingsManager := NewSettingsManager(kubeClient, "default")
+		settings, err := settingsManager.GetSettings(t.Context())
 		require.NoError(t, err)
 		// should have internal cert at this point
 		assert.NotNil(t, settings.Certificate)
@@ -1460,7 +1459,7 @@ func Test_GetTLSConfiguration(t *testing.T) {
 		// allow time for the create to resolve to avoid timing issues below
 		time.Sleep(250 * time.Millisecond)
 
-		settings, err = settingsManager.GetSettings()
+		settings, err = settingsManager.GetSettings(t.Context())
 		require.NoError(t, err)
 		// should now have an external cert
 		assert.NotNil(t, settings.Certificate)
@@ -1505,8 +1504,8 @@ func Test_GetTLSConfiguration(t *testing.T) {
 				},
 			},
 		)
-		settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
-		settings, err := settingsManager.GetSettings()
+		settingsManager := NewSettingsManager(kubeClient, "default")
+		settings, err := settingsManager.GetSettings(t.Context())
 		require.NoError(t, err)
 		// should have external cert at this point
 		assert.NotNil(t, settings.Certificate)
@@ -1519,7 +1518,7 @@ func Test_GetTLSConfiguration(t *testing.T) {
 		// allow time for the delete to resolve to avoid timing issues below
 		time.Sleep(250 * time.Millisecond)
 
-		settings, err = settingsManager.GetSettings()
+		settings, err = settingsManager.GetSettings(t.Context())
 		require.NoError(t, err)
 		// should now have an internal cert
 		assert.NotNil(t, settings.Certificate)
@@ -1556,8 +1555,8 @@ func Test_GetTLSConfiguration(t *testing.T) {
 				},
 			},
 		)
-		settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
-		settings, err := settingsManager.GetSettings()
+		settingsManager := NewSettingsManager(kubeClient, "default")
+		settings, err := settingsManager.GetSettings(t.Context())
 		require.NoError(t, err)
 		assert.False(t, settings.CertificateIsExternal)
 		assert.NotNil(t, settings.Certificate)
@@ -1569,21 +1568,21 @@ func TestDownloadArgoCDBinaryUrls(t *testing.T) {
 	_, settingsManager := fixtures(map[string]string{
 		"help.download.darwin-amd64": "some-url",
 	})
-	argoCDCM, err := settingsManager.getConfigMap()
+	argoCDCM, err := settingsManager.getConfigMap(t.Context())
 	require.NoError(t, err)
 	assert.Equal(t, "some-url", argoCDCM.Data["help.download.darwin-amd64"])
 
 	_, settingsManager = fixtures(map[string]string{
 		"help.download.linux-s390x": "some-url",
 	})
-	argoCDCM, err = settingsManager.getConfigMap()
+	argoCDCM, err = settingsManager.getConfigMap(t.Context())
 	require.NoError(t, err)
 	assert.Equal(t, "some-url", argoCDCM.Data["help.download.linux-s390x"])
 
 	_, settingsManager = fixtures(map[string]string{
 		"help.download.unsupported": "some-url",
 	})
-	argoCDCM, err = settingsManager.getConfigMap()
+	argoCDCM, err = settingsManager.getConfigMap(t.Context())
 	require.NoError(t, err)
 	assert.Equal(t, "some-url", argoCDCM.Data["help.download.unsupported"])
 }
@@ -1635,9 +1634,9 @@ requestedIDTokenClaims: {"groups": {"essential": true}}`,
 		},
 	}
 	kubeClient := fake.NewClientset(cm, secret, argocdSecret)
-	settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
+	settingsManager := NewSettingsManager(kubeClient, "default")
 
-	settings, err := settingsManager.GetSettings()
+	settings, err := settingsManager.GetSettings(t.Context())
 	require.NoError(t, err)
 	assert.Equal(t, "mywebhooksecret", settings.GetWebhookGitHubSecret())
 
@@ -1693,9 +1692,9 @@ func TestGetEnableManifestGeneration(t *testing.T) {
 			}
 
 			kubeClient := fake.NewClientset(cm, argocdSecret)
-			settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
+			settingsManager := NewSettingsManager(kubeClient, "default")
 
-			enableManifestGeneration, err := settingsManager.GetEnabledSourceTypes()
+			enableManifestGeneration, err := settingsManager.GetEnabledSourceTypes(t.Context())
 			require.NoError(t, err)
 
 			assert.Equal(t, enableManifestGeneration[tc.source], tc.enabled)
@@ -1762,9 +1761,9 @@ func TestGetHelmSettings(t *testing.T) {
 				},
 			}
 			kubeClient := fake.NewClientset(cm, secret, argocdSecret)
-			settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
+			settingsManager := NewSettingsManager(kubeClient, "default")
 
-			helmSettings, err := settingsManager.GetHelmSettings()
+			helmSettings, err := settingsManager.GetHelmSettings(t.Context())
 			require.NoError(t, err)
 
 			assert.ElementsMatch(t, tc.expected, helmSettings.ValuesFileSchemes)
@@ -2078,8 +2077,8 @@ func TestIsImpersonationEnabled(t *testing.T) {
 	// When there is no argocd-cm itself,
 	// Then IsImpersonationEnabled() must return false (default value) and an error with appropriate error message.
 	kubeClient := fake.NewClientset()
-	settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
-	featureFlag, err := settingsManager.IsImpersonationEnabled()
+	settingsManager := NewSettingsManager(kubeClient, "default")
+	featureFlag, err := settingsManager.IsImpersonationEnabled(t.Context())
 	require.False(t, featureFlag,
 		"with no argocd-cm config map, IsImpersonationEnabled() must return return false (default value)")
 	require.ErrorContains(t, err, "configmap \"argocd-cm\" not found",
@@ -2088,7 +2087,7 @@ func TestIsImpersonationEnabled(t *testing.T) {
 	// When there is no impersonation feature flag present in the argocd-cm,
 	// Then IsImpersonationEnabled() must return false (default value) and nil error.
 	_, settingsManager = fixtures(map[string]string{})
-	featureFlag, err = settingsManager.IsImpersonationEnabled()
+	featureFlag, err = settingsManager.IsImpersonationEnabled(t.Context())
 	require.False(t, featureFlag,
 		"with empty argocd-cm config map, IsImpersonationEnabled() must return false (default value)")
 	require.NoError(t, err,
@@ -2099,7 +2098,7 @@ func TestIsImpersonationEnabled(t *testing.T) {
 	_, settingsManager = fixtures(map[string]string{
 		"application.sync.impersonation.enabled": "false",
 	})
-	featureFlag, err = settingsManager.IsImpersonationEnabled()
+	featureFlag, err = settingsManager.IsImpersonationEnabled(t.Context())
 	require.False(t, featureFlag,
 		"when user enables the flag in argocd-cm config map, IsImpersonationEnabled() must return user set value")
 	require.NoError(t, err,
@@ -2110,7 +2109,7 @@ func TestIsImpersonationEnabled(t *testing.T) {
 	_, settingsManager = fixtures(map[string]string{
 		"application.sync.impersonation.enabled": "true",
 	})
-	featureFlag, err = settingsManager.IsImpersonationEnabled()
+	featureFlag, err = settingsManager.IsImpersonationEnabled(t.Context())
 	require.True(t, featureFlag,
 		"when user enables the flag in argocd-cm config map, IsImpersonationEnabled() must return user set value")
 	require.NoError(t, err,
@@ -2121,8 +2120,8 @@ func TestRequireOverridePrivilegeForRevisionSyncNoConfigMap(t *testing.T) {
 	// When there is no argocd-cm itself,
 	// Then RequireOverridePrivilegeForRevisionSync() must return false (default value) and an error with appropriate error message.
 	kubeClient := fake.NewClientset()
-	settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
-	featureFlag, err := settingsManager.RequireOverridePrivilegeForRevisionSync()
+	settingsManager := NewSettingsManager(kubeClient, "default")
+	featureFlag, err := settingsManager.RequireOverridePrivilegeForRevisionSync(t.Context())
 	require.False(t, featureFlag,
 		"with no argocd-cm config map, RequireOverridePrivilegeForRevisionSync() must return return false (default value)")
 	require.ErrorContains(t, err, "configmap \"argocd-cm\" not found",
@@ -2133,7 +2132,7 @@ func TestRequireOverridePrivilegeForRevisionSyncEmptyConfigMap(t *testing.T) {
 	// When there is no feature flag present in the argocd-cm,
 	// Then RequireOverridePrivilegeForRevisionSync() must return false (default value) and nil error.
 	_, settingsManager := fixtures(map[string]string{})
-	featureFlag, err := settingsManager.RequireOverridePrivilegeForRevisionSync()
+	featureFlag, err := settingsManager.RequireOverridePrivilegeForRevisionSync(t.Context())
 	require.False(t, featureFlag,
 		"with empty argocd-cm config map, RequireOverridePrivilegeForRevisionSync() must return false (default value)")
 	require.NoError(t, err,
@@ -2146,7 +2145,7 @@ func TestRequireOverridePrivilegeForRevisionSyncFalse(t *testing.T) {
 	_, settingsManager := fixtures(map[string]string{
 		"application.sync.RequireOverridePrivilegeForRevisionSync": "false",
 	})
-	featureFlag, err := settingsManager.RequireOverridePrivilegeForRevisionSync()
+	featureFlag, err := settingsManager.RequireOverridePrivilegeForRevisionSync(t.Context())
 	require.False(t, featureFlag,
 		"when user disables the flag in argocd-cm config map, RequireOverridePrivilegeForRevisionSync() must return user set value")
 	require.NoError(t, err,
@@ -2159,7 +2158,7 @@ func TestRequireOverridePrivilegeForRevisionSyncTrue(t *testing.T) {
 	_, settingsManager := fixtures(map[string]string{
 		"application.sync.requireOverridePrivilegeForRevisionSync": "true",
 	})
-	featureFlag, err := settingsManager.RequireOverridePrivilegeForRevisionSync()
+	featureFlag, err := settingsManager.RequireOverridePrivilegeForRevisionSync(t.Context())
 	require.True(t, featureFlag,
 		"when user enables the flag in argocd-cm config map, RequireOverridePrivilegeForRevisionSync() must return user set value")
 	require.NoError(t, err,
@@ -2172,7 +2171,7 @@ func TestRequireOverridePrivilegeForRevisionSyncParseError(t *testing.T) {
 	_, settingsManager := fixtures(map[string]string{
 		"application.sync.requireOverridePrivilegeForRevisionSync": "BANANA",
 	})
-	featureFlag, err := settingsManager.RequireOverridePrivilegeForRevisionSync()
+	featureFlag, err := settingsManager.RequireOverridePrivilegeForRevisionSync(t.Context())
 	require.False(t, featureFlag,
 		"when user set the flag to unparseable value in argocd-cm config map, RequireOverridePrivilegeForRevisionSync() must return false (default value)")
 	require.ErrorContains(t, err, "invalid syntax",
@@ -2206,7 +2205,7 @@ func TestSettingsManager_GetHideSecretAnnotations(t *testing.T) {
 			_, settingsManager := fixtures(map[string]string{
 				resourceSensitiveAnnotationsKey: tt.input,
 			})
-			keys := settingsManager.GetSensitiveAnnotations()
+			keys := settingsManager.GetSensitiveAnnotations(t.Context())
 			assert.Len(t, keys, len(tt.output))
 			assert.Equal(t, tt.output, keys)
 		})
@@ -2245,7 +2244,7 @@ func TestSettingsManager_GetAllowedNodeLabels(t *testing.T) {
 			_, settingsManager := fixtures(map[string]string{
 				allowedNodeLabelsKey: tt.input,
 			})
-			keys := settingsManager.GetAllowedNodeLabels()
+			keys := settingsManager.GetAllowedNodeLabels(t.Context())
 			assert.Len(t, keys, len(tt.output))
 			assert.Equal(t, tt.output, keys)
 		})

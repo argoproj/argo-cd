@@ -35,7 +35,7 @@ type Helm interface {
 	// Template returns a list of unstructured objects from a `helm template` command
 	Template(opts *TemplateOpts) (string, string, error)
 	// GetParameters returns a list of chart parameters taking into account values in provided YAML files.
-	GetParameters(valuesFiles []pathutil.ResolvedFilePath, appPath, repoRoot string) (map[string]string, error)
+	GetParameters(ctx context.Context, valuesFiles []pathutil.ResolvedFilePath, appPath, repoRoot string) (map[string]string, error)
 	// DependencyBuild runs `helm dependency build` to download a chart's dependencies
 	DependencyBuild() error
 	// Dispose deletes temp resources
@@ -119,8 +119,8 @@ func (h *helm) Dispose() {
 	h.cmd.Close()
 }
 
-func Version() (string, error) {
-	cmd := exec.CommandContext(context.Background(), "helm", "version", "--client", "--short")
+func Version(ctx context.Context) (string, error) {
+	cmd := exec.CommandContext(ctx, "helm", "version", "--client", "--short")
 	// example version output:
 	// short: "v3.3.1+g249e521"
 	version, err := executil.RunWithRedactor(cmd, redactor)
@@ -130,11 +130,11 @@ func Version() (string, error) {
 	return strings.TrimSpace(version), nil
 }
 
-func (h *helm) GetParameters(valuesFiles []pathutil.ResolvedFilePath, appPath, repoRoot string) (map[string]string, error) {
+func (h *helm) GetParameters(ctx context.Context, valuesFiles []pathutil.ResolvedFilePath, appPath, repoRoot string) (map[string]string, error) {
 	var values []string
 	// Don't load values.yaml if it's an out-of-bounds link.
 	if _, _, err := pathutil.ResolveValueFilePathOrUrl(appPath, repoRoot, "values.yaml", []string{}); err == nil {
-		out, err := h.cmd.inspectValues(".")
+		out, err := h.cmd.inspectValues(ctx, ".")
 		if err != nil {
 			return nil, fmt.Errorf("failed to execute helm inspect values command: %w", err)
 		}
@@ -147,7 +147,7 @@ func (h *helm) GetParameters(valuesFiles []pathutil.ResolvedFilePath, appPath, r
 		var fileValues []byte
 		parsedURL, err := url.ParseRequestURI(file)
 		if err == nil && (parsedURL.Scheme == "http" || parsedURL.Scheme == "https") {
-			fileValues, err = config.ReadRemoteFile(file)
+			fileValues, err = config.ReadRemoteFile(ctx, file)
 		} else {
 			_, fileReadErr := os.Stat(file)
 			if os.IsNotExist(fileReadErr) {

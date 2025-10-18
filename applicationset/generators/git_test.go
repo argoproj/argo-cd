@@ -349,7 +349,7 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 
 			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appProject).Build()
 
-			got, err := gitGenerator.GenerateParams(&applicationSetInfo.Spec.Generators[0], &applicationSetInfo, client)
+			got, err := gitGenerator.GenerateParams(t.Context(), &applicationSetInfo.Spec.Generators[0], &applicationSetInfo, client)
 
 			if testCaseCopy.expectedError != nil {
 				require.EqualError(t, err, testCaseCopy.expectedError.Error())
@@ -652,7 +652,7 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 
 			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appProject).Build()
 
-			got, err := gitGenerator.GenerateParams(&applicationSetInfo.Spec.Generators[0], &applicationSetInfo, client)
+			got, err := gitGenerator.GenerateParams(t.Context(), &applicationSetInfo.Spec.Generators[0], &applicationSetInfo, client)
 
 			if testCaseCopy.expectedError != nil {
 				require.EqualError(t, err, testCaseCopy.expectedError.Error())
@@ -1028,7 +1028,7 @@ cluster:
 
 			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appProject).Build()
 
-			got, err := gitGenerator.GenerateParams(&applicationSetInfo.Spec.Generators[0], &applicationSetInfo, client)
+			got, err := gitGenerator.GenerateParams(t.Context(), &applicationSetInfo.Spec.Generators[0], &applicationSetInfo, client)
 
 			if testCaseCopy.expectedError != nil {
 				require.EqualError(t, err, testCaseCopy.expectedError.Error())
@@ -1374,7 +1374,7 @@ env: testing
 
 			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appProject).Build()
 
-			got, err := gitGenerator.GenerateParams(&applicationSetInfo.Spec.Generators[0], &applicationSetInfo, client)
+			got, err := gitGenerator.GenerateParams(t.Context(), &applicationSetInfo.Spec.Generators[0], &applicationSetInfo, client)
 
 			if testCaseCopy.expectedError != nil {
 				require.EqualError(t, err, testCaseCopy.expectedError.Error())
@@ -1715,7 +1715,7 @@ env: testing
 
 			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appProject).Build()
 
-			got, err := gitGenerator.GenerateParams(&applicationSetInfo.Spec.Generators[0], &applicationSetInfo, client)
+			got, err := gitGenerator.GenerateParams(t.Context(), &applicationSetInfo.Spec.Generators[0], &applicationSetInfo, client)
 
 			if testCaseCopy.expectedError != nil {
 				require.EqualError(t, err, testCaseCopy.expectedError.Error())
@@ -1950,7 +1950,7 @@ func TestGitGeneratorParamsFromFilesWithExcludeOptionGoTemplate(t *testing.T) {
 
 			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appProject).Build()
 
-			got, err := gitGenerator.GenerateParams(&applicationSetInfo.Spec.Generators[0], &applicationSetInfo, client)
+			got, err := gitGenerator.GenerateParams(t.Context(), &applicationSetInfo.Spec.Generators[0], &applicationSetInfo, client)
 
 			if testCaseCopy.expectedError != nil {
 				require.EqualError(t, err, testCaseCopy.expectedError.Error())
@@ -2307,7 +2307,7 @@ cluster:
 
 			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appProject).Build()
 
-			got, err := gitGenerator.GenerateParams(&applicationSetInfo.Spec.Generators[0], &applicationSetInfo, client)
+			got, err := gitGenerator.GenerateParams(t.Context(), &applicationSetInfo.Spec.Generators[0], &applicationSetInfo, client)
 
 			if testCaseCopy.expectedError != nil {
 				require.EqualError(t, err, testCaseCopy.expectedError.Error())
@@ -2502,7 +2502,7 @@ func TestGitGenerator_GenerateParams(t *testing.T) {
 
 		client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&testCase.appProject).Build()
 
-		got, err := gitGenerator.GenerateParams(&testCase.appset.Spec.Generators[0], &testCase.appset, client)
+		got, err := gitGenerator.GenerateParams(t.Context(), &testCase.appset.Spec.Generators[0], &testCase.appset, client)
 
 		if testCase.expectedError != nil {
 			require.EqualError(t, err, testCase.expectedError.Error())

@@ -172,7 +172,7 @@ func NewGenRepoSpecCommand() *cobra.Command {
 				},
 			}
 			kubeClientset := fake.NewClientset(argoCDCM)
-			settingsMgr := settings.NewSettingsManager(ctx, kubeClientset, ArgoCDNamespace)
+			settingsMgr := settings.NewSettingsManager(kubeClientset, ArgoCDNamespace)
 			argoDB := db.NewDB(ArgoCDNamespace, settingsMgr, kubeClientset)
 
 			_, err = argoDB.CreateRepository(ctx, &repoOpts.Repo)

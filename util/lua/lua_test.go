@@ -79,9 +79,10 @@ func StrToUnstructured(jsonStr string) *unstructured.Unstructured {
 }
 
 func TestExecuteNewHealthStatusFunction(t *testing.T) {
+	ctx := t.Context()
 	testObj := StrToUnstructured(objJSON)
 	vm := VM{}
-	status, err := vm.ExecuteHealthLua(testObj, newHealthStatusFunction)
+	status, err := vm.ExecuteHealthLua(ctx, testObj, newHealthStatusFunction)
 	require.NoError(t, err)
 	expectedHealthStatus := &health.HealthStatus{
 		Status:  "Healthy",
@@ -91,9 +92,10 @@ func TestExecuteNewHealthStatusFunction(t *testing.T) {
 }
 
 func TestExecuteWildcardHealthStatusFunction(t *testing.T) {
+	ctx := t.Context()
 	testObj := StrToUnstructured(ec2AWSCrossplaneObjJSON)
 	vm := VM{}
-	status, err := vm.ExecuteHealthLua(testObj, newWildcardHealthStatusFunction)
+	status, err := vm.ExecuteHealthLua(ctx, testObj, newWildcardHealthStatusFunction)
 	require.NoError(t, err)
 	expectedHealthStatus := &health.HealthStatus{
 		Status:  "Healthy",
@@ -105,9 +107,10 @@ func TestExecuteWildcardHealthStatusFunction(t *testing.T) {
 const osLuaScript = `os.getenv("HOME")`
 
 func TestFailExternalLibCall(t *testing.T) {
+	ctx := t.Context()
 	testObj := StrToUnstructured(objJSON)
 	vm := VM{}
-	_, err := vm.ExecuteHealthLua(testObj, osLuaScript)
+	_, err := vm.ExecuteHealthLua(ctx, testObj, osLuaScript)
 	require.Error(t, err)
 	var target *lua.ApiError
 	assert.ErrorAs(t, err, &target)
@@ -116,9 +119,10 @@ func TestFailExternalLibCall(t *testing.T) {
 const returnInt = `return 1`
 
 func TestFailLuaReturnNonTable(t *testing.T) {
+	ctx := t.Context()
 	testObj := StrToUnstructured(objJSON)
 	vm := VM{}
-	_, err := vm.ExecuteHealthLua(testObj, returnInt)
+	_, err := vm.ExecuteHealthLua(ctx, testObj, returnInt)
 	assert.Equal(t, fmt.Errorf(incorrectReturnType, "table", "number"), err)
 }
 
@@ -128,9 +132,10 @@ return healthStatus
 `
 
 func TestInvalidHealthStatusStatus(t *testing.T) {
+	ctx := t.Context()
 	testObj := StrToUnstructured(objJSON)
 	vm := VM{}
-	status, err := vm.ExecuteHealthLua(testObj, invalidHealthStatusStatus)
+	status, err := vm.ExecuteHealthLua(ctx, testObj, invalidHealthStatusStatus)
 	require.NoError(t, err)
 	expectedStatus := &health.HealthStatus{
 		Status:  health.HealthStatusUnknown,
@@ -144,9 +149,10 @@ return
 `
 
 func TestNoReturnHealthStatusStatus(t *testing.T) {
+	ctx := t.Context()
 	testObj := StrToUnstructured(objJSON)
 	vm := VM{}
-	status, err := vm.ExecuteHealthLua(testObj, validReturnNothingHealthStatusStatus)
+	status, err := vm.ExecuteHealthLua(ctx, testObj, validReturnNothingHealthStatusStatus)
 	require.NoError(t, err)
 	expectedStatus := &health.HealthStatus{}
 	assert.Equal(t, expectedStatus, status)
@@ -157,9 +163,10 @@ return nil
 `
 
 func TestNilHealthStatusStatus(t *testing.T) {
+	ctx := t.Context()
 	testObj := StrToUnstructured(objJSON)
 	vm := VM{}
-	status, err := vm.ExecuteHealthLua(testObj, validNilHealthStatusStatus)
+	status, err := vm.ExecuteHealthLua(ctx, testObj, validNilHealthStatusStatus)
 	require.NoError(t, err)
 	expectedStatus := &health.HealthStatus{}
 	assert.Equal(t, expectedStatus, status)
@@ -170,9 +177,10 @@ return healthStatus
 `
 
 func TestEmptyHealthStatusStatus(t *testing.T) {
+	ctx := t.Context()
 	testObj := StrToUnstructured(objJSON)
 	vm := VM{}
-	status, err := vm.ExecuteHealthLua(testObj, validEmptyArrayHealthStatusStatus)
+	status, err := vm.ExecuteHealthLua(ctx, testObj, validEmptyArrayHealthStatusStatus)
 	require.NoError(t, err)
 	expectedStatus := &health.HealthStatus{}
 	assert.Equal(t, expectedStatus, status)
@@ -181,9 +189,10 @@ func TestEmptyHealthStatusStatus(t *testing.T) {
 const infiniteLoop = `while true do ; end`
 
 func TestHandleInfiniteLoop(t *testing.T) {
+	ctx := t.Context()
 	testObj := StrToUnstructured(objJSON)
 	vm := VM{}
-	_, err := vm.ExecuteHealthLua(testObj, infiniteLoop)
+	_, err := vm.ExecuteHealthLua(ctx, testObj, infiniteLoop)
 	var target *lua.ApiError
 	require.ErrorAs(t, err, &target)
 }
@@ -386,9 +395,10 @@ return a
 `
 
 func TestExecuteResourceActionDiscovery(t *testing.T) {
+	ctx := t.Context()
 	testObj := StrToUnstructured(objJSON)
 	vm := VM{}
-	actions, err := vm.ExecuteResourceActionDiscovery(testObj, []string{validDiscoveryLua})
+	actions, err := vm.ExecuteResourceActionDiscovery(ctx, testObj, []string{validDiscoveryLua})
 	require.NoError(t, err)
 	expectedActions := []appv1.ResourceAction{
 		{
@@ -406,9 +416,10 @@ func TestExecuteResourceActionDiscovery(t *testing.T) {
 }
 
 func TestExecuteResourceActionDiscoveryWithDuplicationActions(t *testing.T) {
+	ctx := t.Context()
 	testObj := StrToUnstructured(objJSON)
 	vm := VM{}
-	actions, err := vm.ExecuteResourceActionDiscovery(testObj, []string{validDiscoveryLua, additionalValidDiscoveryLua})
+	actions, err := vm.ExecuteResourceActionDiscovery(ctx, testObj, []string{validDiscoveryLua, additionalValidDiscoveryLua})
 	require.NoError(t, err)
 	expectedActions := []appv1.ResourceAction{
 		{
@@ -435,9 +446,10 @@ a = {resume = resume}
 return a`
 
 func TestExecuteResourceActionDiscoveryInvalidResourceAction(t *testing.T) {
+	ctx := t.Context()
 	testObj := StrToUnstructured(objJSON)
 	vm := VM{}
-	actions, err := vm.ExecuteResourceActionDiscovery(testObj, []string{discoveryLuaWithInvalidResourceAction})
+	actions, err := vm.ExecuteResourceActionDiscovery(ctx, testObj, []string{discoveryLuaWithInvalidResourceAction})
 	require.Error(t, err)
 	assert.Nil(t, actions)
 }
@@ -448,9 +460,10 @@ return a
 `
 
 func TestExecuteResourceActionDiscoveryInvalidReturn(t *testing.T) {
+	ctx := t.Context()
 	testObj := StrToUnstructured(objJSON)
 	vm := VM{}
-	actions, err := vm.ExecuteResourceActionDiscovery(testObj, []string{invalidDiscoveryLua})
+	actions, err := vm.ExecuteResourceActionDiscovery(ctx, testObj, []string{invalidDiscoveryLua})
 	assert.Nil(t, actions)
 	require.Error(t, err)
 }
@@ -474,10 +487,11 @@ metadata:
 
 // Test an action that returns a single k8s resource json
 func TestExecuteOldStyleResourceAction(t *testing.T) {
+	ctx := t.Context()
 	testObj := StrToUnstructured(objJSON)
 	expectedLuaUpdatedObj := StrToUnstructured(expectedLuaUpdatedResult)
 	vm := VM{}
-	newObjects, err := vm.ExecuteResourceAction(testObj, validActionLua, nil)
+	newObjects, err := vm.ExecuteResourceAction(ctx, testObj, validActionLua, nil)
 	require.NoError(t, err)
 	assert.Len(t, newObjects, 1)
 	assert.Equal(t, newObjects[0].K8SOperation, K8SOperation("patch"))
@@ -643,6 +657,7 @@ return result
 `
 
 func TestExecuteNewStyleCreateActionSingleResource(t *testing.T) {
+	ctx := t.Context()
 	testObj := StrToUnstructured(cronJobObjYaml)
 	jsonBytes, err := yaml.YAMLToJSON([]byte(expectedCreatedJobObjList))
 	require.NoError(t, err)
@@ -650,12 +665,13 @@ func TestExecuteNewStyleCreateActionSingleResource(t *testing.T) {
 	expectedObjects, err := UnmarshalToImpactedResources(bytes.NewBuffer(jsonBytes).String())
 	require.NoError(t, err)
 	vm := VM{}
-	newObjects, err := vm.ExecuteResourceAction(testObj, createJobActionLua, nil)
+	newObjects, err := vm.ExecuteResourceAction(ctx, testObj, createJobActionLua, nil)
 	require.NoError(t, err)
 	assert.Equal(t, expectedObjects, newObjects)
 }
 
 func TestExecuteNewStyleCreateActionMultipleResources(t *testing.T) {
+	ctx := t.Context()
 	testObj := StrToUnstructured(cronJobObjYaml)
 	jsonBytes, err := yaml.YAMLToJSON([]byte(expectedCreatedMultipleJobsObjList))
 	require.NoError(t, err)
@@ -663,12 +679,13 @@ func TestExecuteNewStyleCreateActionMultipleResources(t *testing.T) {
 	expectedObjects, err := UnmarshalToImpactedResources(bytes.NewBuffer(jsonBytes).String())
 	require.NoError(t, err)
 	vm := VM{}
-	newObjects, err := vm.ExecuteResourceAction(testObj, createMultipleJobsActionLua, nil)
+	newObjects, err := vm.ExecuteResourceAction(ctx, testObj, createMultipleJobsActionLua, nil)
 	require.NoError(t, err)
 	assert.Equal(t, expectedObjects, newObjects)
 }
 
 func TestExecuteNewStyleActionMixedOperationsOk(t *testing.T) {
+	ctx := t.Context()
 	testObj := StrToUnstructured(cronJobObjYaml)
 	jsonBytes, err := yaml.YAMLToJSON([]byte(expectedActionMixedOperationObjList))
 	require.NoError(t, err)
@@ -676,22 +693,24 @@ func TestExecuteNewStyleActionMixedOperationsOk(t *testing.T) {
 	expectedObjects, err := UnmarshalToImpactedResources(bytes.NewBuffer(jsonBytes).String())
 	require.NoError(t, err)
 	vm := VM{}
-	newObjects, err := vm.ExecuteResourceAction(testObj, mixedOperationActionLuaOk, nil)
+	newObjects, err := vm.ExecuteResourceAction(ctx, testObj, mixedOperationActionLuaOk, nil)
 	require.NoError(t, err)
 	assert.Equal(t, expectedObjects, newObjects)
 }
 
 func TestExecuteNewStyleActionMixedOperationsFailure(t *testing.T) {
+	ctx := t.Context()
 	testObj := StrToUnstructured(cronJobObjYaml)
 	vm := VM{}
-	_, err := vm.ExecuteResourceAction(testObj, createMixedOperationActionLuaFailing, nil)
+	_, err := vm.ExecuteResourceAction(ctx, testObj, createMixedOperationActionLuaFailing, nil)
 	assert.ErrorContains(t, err, "unsupported operation")
 }
 
 func TestExecuteResourceActionNonTableReturn(t *testing.T) {
+	ctx := t.Context()
 	testObj := StrToUnstructured(objJSON)
 	vm := VM{}
-	_, err := vm.ExecuteResourceAction(testObj, returnInt, nil)
+	_, err := vm.ExecuteResourceAction(ctx, testObj, returnInt, nil)
 	assert.Errorf(t, err, incorrectReturnType, "table", "number")
 }
 
@@ -701,14 +720,16 @@ return newObj
 `
 
 func TestExecuteResourceActionInvalidUnstructured(t *testing.T) {
+	ctx := t.Context()
 	testObj := StrToUnstructured(objJSON)
 	vm := VM{}
-	_, err := vm.ExecuteResourceAction(testObj, invalidTableReturn, nil)
+	_, err := vm.ExecuteResourceAction(ctx, testObj, invalidTableReturn, nil)
 	require.Error(t, err)
 }
 
 func TestCleanPatch(t *testing.T) {
 	t.Run("Empty Struct preserved", func(t *testing.T) {
+		ctx := t.Context()
 		const obj = `
 apiVersion: argoproj.io/v1alpha1
 kind: Test
@@ -757,7 +778,7 @@ return obj
 		testObj := StrToUnstructured(obj)
 		expectedObj := StrToUnstructured(expected)
 		vm := VM{}
-		newObjects, err := vm.ExecuteResourceAction(testObj, luaAction, nil)
+		newObjects, err := vm.ExecuteResourceAction(ctx, testObj, luaAction, nil)
 		require.NoError(t, err)
 		assert.Len(t, newObjects, 1)
 		assert.Equal(t, newObjects[0].K8SOperation, K8SOperation("patch"))
@@ -765,6 +786,7 @@ return obj
 	})
 
 	t.Run("New item added to array", func(t *testing.T) {
+		ctx := t.Context()
 		const obj = `
 apiVersion: argoproj.io/v1alpha1
 kind: Test
@@ -815,7 +837,7 @@ return obj
 		testObj := StrToUnstructured(obj)
 		expectedObj := StrToUnstructured(expected)
 		vm := VM{}
-		newObjects, err := vm.ExecuteResourceAction(testObj, luaAction, nil)
+		newObjects, err := vm.ExecuteResourceAction(ctx, testObj, luaAction, nil)
 		require.NoError(t, err)
 		assert.Len(t, newObjects, 1)
 		assert.Equal(t, newObjects[0].K8SOperation, K8SOperation("patch"))
@@ -823,6 +845,7 @@ return obj
 	})
 
 	t.Run("Last item removed from array", func(t *testing.T) {
+		ctx := t.Context()
 		const obj = `
 apiVersion: argoproj.io/v1alpha1
 kind: Test
@@ -871,7 +894,7 @@ return obj
 		testObj := StrToUnstructured(obj)
 		expectedObj := StrToUnstructured(expected)
 		vm := VM{}
-		newObjects, err := vm.ExecuteResourceAction(testObj, luaAction, nil)
+		newObjects, err := vm.ExecuteResourceAction(ctx, testObj, luaAction, nil)
 		require.NoError(t, err)
 		assert.Len(t, newObjects, 1)
 		assert.Equal(t, newObjects[0].K8SOperation, K8SOperation("patch"))
@@ -1018,7 +1041,8 @@ func TestExecuteResourceActionWithParams(t *testing.T) {
 
 	// Test with Deployment
 	t.Run("Test with Deployment", func(t *testing.T) {
-		impactedResources, err := vm.ExecuteResourceAction(deploymentObj, actionLua, params)
+		ctx := t.Context()
+		impactedResources, err := vm.ExecuteResourceAction(ctx, deploymentObj, actionLua, params)
 		require.NoError(t, err)
 
 		for _, impactedResource := range impactedResources {
@@ -1034,7 +1058,8 @@ func TestExecuteResourceActionWithParams(t *testing.T) {
 
 	// Test with StatefulSet
 	t.Run("Test with StatefulSet", func(t *testing.T) {
-		impactedResources, err := vm.ExecuteResourceAction(statefulSetObj, actionLua, params)
+		ctx := t.Context()
+		impactedResources, err := vm.ExecuteResourceAction(ctx, statefulSetObj, actionLua, params)
 		require.NoError(t, err)
 
 		for _, impactedResource := range impactedResources {

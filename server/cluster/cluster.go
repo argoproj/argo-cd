@@ -429,7 +429,7 @@ func (s *Server) RotateAuth(ctx context.Context, q *cluster.ClusterQuery) (*clus
 		if err != nil {
 			return nil, fmt.Errorf("failed to create Kubernetes clientset: %w", err)
 		}
-		newSecret, err := clusterauth.GenerateNewClusterManagerSecret(kubeclientset, claims)
+		newSecret, err := clusterauth.GenerateNewClusterManagerSecret(ctx, kubeclientset, claims)
 		if err != nil {
 			return nil, fmt.Errorf("failed to generate new cluster manager secret: %w", err)
 		}
@@ -461,7 +461,7 @@ func (s *Server) RotateAuth(ctx context.Context, q *cluster.ClusterQuery) (*clus
 		if err != nil {
 			return nil, fmt.Errorf("failed to set cluster info in cache: %w", err)
 		}
-		err = clusterauth.RotateServiceAccountSecrets(kubeclientset, claims, newSecret)
+		err = clusterauth.RotateServiceAccountSecrets(ctx, kubeclientset, claims, newSecret)
 		if err != nil {
 			return nil, fmt.Errorf("failed to rotate service account secrets: %w", err)
 		}

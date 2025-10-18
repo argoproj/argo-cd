@@ -205,7 +205,7 @@ func NewCommand() *cobra.Command {
 				errors.CheckError(err)
 
 				log.Infof("Populating GnuPG keyring with keys from %s", gnuPGSourcePath)
-				added, removed, err := gpg.SyncKeyRingFromDirectory(gnuPGSourcePath)
+				added, removed, err := gpg.SyncKeyRingFromDirectory(ctx, gnuPGSourcePath)
 				errors.CheckError(err)
 				log.Infof("Loaded %d (and removed %d) keys from keyring", len(added), len(removed))
 

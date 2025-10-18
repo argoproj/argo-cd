@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"context"
 	"log"
 
 	"github.com/spf13/cobra"
@@ -53,7 +52,8 @@ func NewGenerateCommand(opts *util.GenerateOpts) *cobra.Command {
 		Use:   "generate [-f file]",
 		Short: "Generate entities",
 		Long:  "Generate entities",
-		Run: func(_ *cobra.Command, _ []string) {
+		Run: func(c *cobra.Command, _ []string) {
+			ctx := c.Context()
 			log.Printf("Retrieve configuration from %s", file)
 			err := util.Parse(opts, file)
 			if err != nil {
@@ -62,7 +62,7 @@ func NewGenerateCommand(opts *util.GenerateOpts) *cobra.Command {
 			argoClientSet := util.ConnectToK8sArgoClientSet()
 			clientSet := util.ConnectToK8sClientSet()
 
-			settingsMgr := settings.NewSettingsManager(context.TODO(), clientSet, opts.Namespace)
+			settingsMgr := settings.NewSettingsManager(clientSet, opts.Namespace)
 			argoDB := db.NewDB(opts.Namespace, settingsMgr, clientSet)
 
 			pg := generator.NewProjectGenerator(argoClientSet)
@@ -70,19 +70,19 @@ func NewGenerateCommand(opts *util.GenerateOpts) *cobra.Command {
 			rg := generator.NewRepoGenerator(util.ConnectToK8sClientSet())
 			cg := generator.NewClusterGenerator(argoDB, util.ConnectToK8sClientSet(), util.ConnectToK8sConfig())
 
-			err = pg.Generate(opts)
+			err = pg.Generate(ctx, opts)
 			if err != nil {
 				log.Fatalf("Failed to generate projects, %v", err.Error())
 			}
-			err = rg.Generate(opts)
+			err = rg.Generate(ctx, opts)
 			if err != nil {
 				log.Fatalf("Failed to generate repositories, %v", err.Error())
 			}
-			err = cg.Generate(opts)
+			err = cg.Generate(ctx, opts)
 			if err != nil {
 				log.Fatalf("Failed to generate clusters, %v", err.Error())
 			}
-			err = ag.Generate(opts)
+			err = ag.Generate(ctx, opts)
 			if err != nil {
 				log.Fatalf("Failed to generate applications, %v", err.Error())
 			}
@@ -100,7 +100,7 @@ func NewCleanCommand(opts *util.GenerateOpts) *cobra.Command {
 		Run: func(_ *cobra.Command, _ []string) {
 			argoClientSet := util.ConnectToK8sArgoClientSet()
 			clientSet := util.ConnectToK8sClientSet()
-			settingsMgr := settings.NewSettingsManager(context.TODO(), clientSet, opts.Namespace)
+			settingsMgr := settings.NewSettingsManager(clientSet, opts.Namespace)
 			argoDB := db.NewDB(opts.Namespace, settingsMgr, clientSet)
 
 			pg := generator.NewProjectGenerator(argoClientSet)

@@ -2,6 +2,7 @@ package webhook
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -38,7 +39,7 @@ func (g *generatorMock) GetTemplate(_ *v1alpha1.ApplicationSetGenerator) *v1alph
 	return &v1alpha1.ApplicationSetTemplate{}
 }
 
-func (g *generatorMock) GenerateParams(_ *v1alpha1.ApplicationSetGenerator, _ *v1alpha1.ApplicationSet, _ client.Client) ([]map[string]any, error) {
+func (g *generatorMock) GenerateParams(_ context.Context, _ *v1alpha1.ApplicationSetGenerator, _ *v1alpha1.ApplicationSet, _ client.Client) ([]map[string]any, error) {
 	return []map[string]any{}, nil
 }
 
@@ -229,8 +230,8 @@ func TestWebhookHandler(t *testing.T) {
 				fakeAppWithMergeAndPullRequestGenerator("merge-pull-request-github", namespace, "Codertocat", "Hello-World"),
 				fakeAppWithMergeAndNestedGitGenerator("merge-nested-git-github", namespace, "https://github.com/org/repo"),
 			).Build()
-			set := argosettings.NewSettingsManager(t.Context(), fakeClient, namespace)
-			h, err := NewWebhookHandler(webhookParallelism, set, fc, mockGenerators())
+			set := argosettings.NewSettingsManager(fakeClient, namespace)
+			h, err := NewWebhookHandler(t.Context(), webhookParallelism, set, fc, mockGenerators())
 			require.NoError(t, err)
 
 			req := httptest.NewRequest(http.MethodPost, "/api/webhook", http.NoBody)

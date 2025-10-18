@@ -53,7 +53,7 @@ func TestCompareAppStateEmpty(t *testing.T) {
 	sources = append(sources, app.Spec.GetSource())
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
-	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
+	compRes, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, revisions, sources, false, false, nil, false)
 	require.NoError(t, err)
 	assert.NotNil(t, compRes)
 	assert.NotNil(t, compRes.syncStatus)
@@ -71,18 +71,18 @@ func TestCompareAppStateRepoError(t *testing.T) {
 	sources = append(sources, app.Spec.GetSource())
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
-	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
+	compRes, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, revisions, sources, false, false, nil, false)
 	assert.Nil(t, compRes)
 	require.EqualError(t, err, ErrCompareStateRepo.Error())
 
 	// expect to still get compare state error to as inside grace period
-	compRes, err = ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
+	compRes, err = ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, revisions, sources, false, false, nil, false)
 	assert.Nil(t, compRes)
 	require.EqualError(t, err, ErrCompareStateRepo.Error())
 
 	time.Sleep(10 * time.Second)
 	// expect to not get error as outside of grace period, but status should be unknown
-	compRes, err = ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
+	compRes, err = ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, revisions, sources, false, false, nil, false)
 	assert.NotNil(t, compRes)
 	require.NoError(t, err)
 	assert.Equal(t, v1alpha1.SyncStatusCodeUnknown, compRes.syncStatus.Status)
@@ -117,7 +117,7 @@ func TestCompareAppStateNamespaceMetadataDiffers(t *testing.T) {
 	sources = append(sources, app.Spec.GetSource())
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
-	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
+	compRes, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, revisions, sources, false, false, nil, false)
 	require.NoError(t, err)
 	assert.NotNil(t, compRes)
 	assert.NotNil(t, compRes.syncStatus)
@@ -166,7 +166,7 @@ func TestCompareAppStateNamespaceMetadataDiffersToManifest(t *testing.T) {
 	sources = append(sources, app.Spec.GetSource())
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
-	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
+	compRes, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, revisions, sources, false, false, nil, false)
 	require.NoError(t, err)
 	assert.NotNil(t, compRes)
 	assert.NotNil(t, compRes.syncStatus)
@@ -224,7 +224,7 @@ func TestCompareAppStateNamespaceMetadata(t *testing.T) {
 	sources = append(sources, app.Spec.GetSource())
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
-	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
+	compRes, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, revisions, sources, false, false, nil, false)
 	require.NoError(t, err)
 	assert.NotNil(t, compRes)
 	assert.NotNil(t, compRes.syncStatus)
@@ -283,7 +283,7 @@ func TestCompareAppStateNamespaceMetadataIsTheSame(t *testing.T) {
 	sources = append(sources, app.Spec.GetSource())
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
-	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
+	compRes, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, revisions, sources, false, false, nil, false)
 	require.NoError(t, err)
 	assert.NotNil(t, compRes)
 	assert.NotNil(t, compRes.syncStatus)
@@ -311,7 +311,7 @@ func TestCompareAppStateMissing(t *testing.T) {
 	sources = append(sources, app.Spec.GetSource())
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
-	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
+	compRes, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, revisions, sources, false, false, nil, false)
 	require.NoError(t, err)
 	assert.NotNil(t, compRes)
 	assert.NotNil(t, compRes.syncStatus)
@@ -343,7 +343,7 @@ func TestCompareAppStateExtra(t *testing.T) {
 	sources = append(sources, app.Spec.GetSource())
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
-	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
+	compRes, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, revisions, sources, false, false, nil, false)
 	require.NoError(t, err)
 	assert.NotNil(t, compRes)
 	assert.Equal(t, v1alpha1.SyncStatusCodeOutOfSync, compRes.syncStatus.Status)
@@ -374,7 +374,7 @@ func TestCompareAppStateHook(t *testing.T) {
 	sources = append(sources, app.Spec.GetSource())
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
-	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
+	compRes, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, revisions, sources, false, false, nil, false)
 	require.NoError(t, err)
 	assert.NotNil(t, compRes)
 	assert.Equal(t, v1alpha1.SyncStatusCodeSynced, compRes.syncStatus.Status)
@@ -406,7 +406,7 @@ func TestCompareAppStateSkipHook(t *testing.T) {
 	sources = append(sources, app.Spec.GetSource())
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
-	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
+	compRes, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, revisions, sources, false, false, nil, false)
 	require.NoError(t, err)
 	assert.NotNil(t, compRes)
 	assert.Equal(t, v1alpha1.SyncStatusCodeSynced, compRes.syncStatus.Status)
@@ -437,7 +437,7 @@ func TestCompareAppStateCompareOptionIgnoreExtraneous(t *testing.T) {
 	sources = append(sources, app.Spec.GetSource())
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
-	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
+	compRes, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, revisions, sources, false, false, nil, false)
 	require.NoError(t, err)
 
 	assert.NotNil(t, compRes)
@@ -470,7 +470,7 @@ func TestCompareAppStateExtraHook(t *testing.T) {
 	sources = append(sources, app.Spec.GetSource())
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
-	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
+	compRes, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, revisions, sources, false, false, nil, false)
 	require.NoError(t, err)
 
 	assert.NotNil(t, compRes)
@@ -499,7 +499,7 @@ func TestAppRevisionsSingleSource(t *testing.T) {
 	app := newFakeApp()
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
-	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, app.Spec.GetSources(), false, false, nil, app.Spec.HasMultipleSources())
+	compRes, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, revisions, app.Spec.GetSources(), false, false, nil, app.Spec.HasMultipleSources())
 	require.NoError(t, err)
 	assert.NotNil(t, compRes)
 	assert.NotNil(t, compRes.syncStatus)
@@ -539,7 +539,7 @@ func TestAppRevisionsMultiSource(t *testing.T) {
 	app := newFakeMultiSourceApp()
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
-	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, app.Spec.GetSources(), false, false, nil, app.Spec.HasMultipleSources())
+	compRes, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, revisions, app.Spec.GetSources(), false, false, nil, app.Spec.HasMultipleSources())
 	require.NoError(t, err)
 	assert.NotNil(t, compRes)
 	assert.NotNil(t, compRes.syncStatus)
@@ -588,7 +588,7 @@ func TestCompareAppStateDuplicatedNamespacedResources(t *testing.T) {
 	sources = append(sources, app.Spec.GetSource())
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
-	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
+	compRes, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, revisions, sources, false, false, nil, false)
 	require.NoError(t, err)
 
 	assert.NotNil(t, compRes)
@@ -625,7 +625,7 @@ func TestCompareAppStateManagedNamespaceMetadataWithLiveNsDoesNotGetPruned(t *te
 		},
 	}
 	ctrl := newFakeController(&data, nil)
-	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, []string{}, app.Spec.Sources, false, false, nil, false)
+	compRes, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, []string{}, app.Spec.Sources, false, false, nil, false)
 	require.NoError(t, err)
 
 	assert.NotNil(t, compRes)
@@ -679,7 +679,7 @@ func TestCompareAppStateWithManifestGeneratePath(t *testing.T) {
 	ctrl := newFakeController(&data, nil)
 	revisions := make([]string, 0)
 	revisions = append(revisions, "abc123")
-	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, app.Spec.GetSources(), false, false, nil, false)
+	compRes, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, revisions, app.Spec.GetSources(), false, false, nil, false)
 	require.NoError(t, err)
 	assert.NotNil(t, compRes)
 	assert.Equal(t, v1alpha1.SyncStatusCodeSynced, compRes.syncStatus.Status)
@@ -715,7 +715,7 @@ func TestSetHealth(t *testing.T) {
 	sources = append(sources, app.Spec.GetSource())
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
-	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
+	compRes, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, revisions, sources, false, false, nil, false)
 	require.NoError(t, err)
 
 	assert.Equal(t, health.HealthStatusHealthy, compRes.healthStatus)
@@ -751,7 +751,7 @@ func TestPreserveStatusTimestamp(t *testing.T) {
 	sources = append(sources, app.Spec.GetSource())
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
-	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
+	compRes, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, revisions, sources, false, false, nil, false)
 	require.NoError(t, err)
 
 	assert.Equal(t, health.HealthStatusHealthy, compRes.healthStatus)
@@ -788,13 +788,14 @@ func TestSetHealthSelfReferencedApp(t *testing.T) {
 	sources = append(sources, app.Spec.GetSource())
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
-	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
+	compRes, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, revisions, sources, false, false, nil, false)
 	require.NoError(t, err)
 
 	assert.Equal(t, health.HealthStatusHealthy, compRes.healthStatus)
 }
 
 func TestSetManagedResourcesWithOrphanedResources(t *testing.T) {
+	ctx := t.Context()
 	proj := defaultProj.DeepCopy()
 	proj.Spec.OrphanedResources = &v1alpha1.OrphanedResourcesMonitorSettings{}
 
@@ -811,7 +812,7 @@ func TestSetManagedResourcesWithOrphanedResources(t *testing.T) {
 		},
 	}, nil)
 
-	tree, err := ctrl.setAppManagedResources(&v1alpha1.Cluster{Server: "test", Name: "test"}, app, &comparisonResult{managedResources: make([]managedResource, 0)})
+	tree, err := ctrl.setAppManagedResources(ctx, &v1alpha1.Cluster{Server: "test", Name: "test"}, app, &comparisonResult{managedResources: make([]managedResource, 0)})
 
 	require.NoError(t, err)
 	assert.Len(t, tree.OrphanedNodes, 1)
@@ -820,6 +821,7 @@ func TestSetManagedResourcesWithOrphanedResources(t *testing.T) {
 }
 
 func TestSetManagedResourcesWithResourcesOfAnotherApp(t *testing.T) {
+	ctx := t.Context()
 	proj := defaultProj.DeepCopy()
 	proj.Spec.OrphanedResources = &v1alpha1.OrphanedResourcesMonitorSettings{}
 
@@ -840,7 +842,7 @@ func TestSetManagedResourcesWithResourcesOfAnotherApp(t *testing.T) {
 		},
 	}, nil)
 
-	tree, err := ctrl.setAppManagedResources(&v1alpha1.Cluster{Server: "test", Name: "test"}, app1, &comparisonResult{managedResources: make([]managedResource, 0)})
+	tree, err := ctrl.setAppManagedResources(ctx, &v1alpha1.Cluster{Server: "test", Name: "test"}, app1, &comparisonResult{managedResources: make([]managedResource, 0)})
 
 	require.NoError(t, err)
 	assert.Empty(t, tree.OrphanedNodes)
@@ -863,7 +865,7 @@ func TestReturnUnknownComparisonStateOnSettingLoadError(t *testing.T) {
 	sources = append(sources, app.Spec.GetSource())
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
-	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
+	compRes, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, revisions, sources, false, false, nil, false)
 	require.NoError(t, err)
 
 	assert.Equal(t, health.HealthStatusUnknown, compRes.healthStatus)
@@ -871,6 +873,7 @@ func TestReturnUnknownComparisonStateOnSettingLoadError(t *testing.T) {
 }
 
 func TestSetManagedResourcesKnownOrphanedResourceExceptions(t *testing.T) {
+	ctx := t.Context()
 	proj := defaultProj.DeepCopy()
 	proj.Spec.OrphanedResources = &v1alpha1.OrphanedResourcesMonitorSettings{}
 	proj.Spec.SourceNamespaces = []string{"default"}
@@ -893,7 +896,7 @@ func TestSetManagedResourcesKnownOrphanedResourceExceptions(t *testing.T) {
 		},
 	}, nil)
 
-	tree, err := ctrl.setAppManagedResources(&v1alpha1.Cluster{Server: "test", Name: "test"}, app, &comparisonResult{managedResources: make([]managedResource, 0)})
+	tree, err := ctrl.setAppManagedResources(ctx, &v1alpha1.Cluster{Server: "test", Name: "test"}, app, &comparisonResult{managedResources: make([]managedResource, 0)})
 
 	require.NoError(t, err)
 	assert.Len(t, tree.OrphanedNodes, 1)
@@ -914,7 +917,7 @@ func Test_appStateManager_persistRevisionHistory(t *testing.T) {
 		app.Spec.RevisionHistoryLimit = &i
 	}
 	addHistory := func() {
-		err := manager.persistRevisionHistory(app, "my-revision", v1alpha1.ApplicationSource{}, []string{}, []v1alpha1.ApplicationSource{}, false, metav1.Time{}, v1alpha1.OperationInitiator{})
+		err := manager.persistRevisionHistory(t.Context(), app, "my-revision", v1alpha1.ApplicationSource{}, []string{}, []v1alpha1.ApplicationSource{}, false, metav1.Time{}, v1alpha1.OperationInitiator{})
 		require.NoError(t, err)
 	}
 	addHistory()
@@ -950,7 +953,7 @@ func Test_appStateManager_persistRevisionHistory(t *testing.T) {
 	assert.Len(t, app.Status.History, 9)
 
 	metav1NowTime := metav1.NewTime(time.Now())
-	err := manager.persistRevisionHistory(app, "my-revision", v1alpha1.ApplicationSource{}, []string{}, []v1alpha1.ApplicationSource{}, false, metav1NowTime, v1alpha1.OperationInitiator{})
+	err := manager.persistRevisionHistory(t.Context(), app, "my-revision", v1alpha1.ApplicationSource{}, []string{}, []v1alpha1.ApplicationSource{}, false, metav1NowTime, v1alpha1.OperationInitiator{})
 	require.NoError(t, err)
 	assert.Equal(t, app.Status.History.LastRevisionHistory().DeployStartedAt, &metav1NowTime)
 
@@ -1012,7 +1015,7 @@ func TestSignedResponseNoSignatureRequired(t *testing.T) {
 		sources = append(sources, app.Spec.GetSource())
 		revisions := make([]string, 0)
 		revisions = append(revisions, "")
-		compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
+		compRes, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, revisions, sources, false, false, nil, false)
 		require.NoError(t, err)
 		assert.NotNil(t, compRes)
 		assert.NotNil(t, compRes.syncStatus)
@@ -1039,7 +1042,7 @@ func TestSignedResponseNoSignatureRequired(t *testing.T) {
 		sources = append(sources, app.Spec.GetSource())
 		revisions := make([]string, 0)
 		revisions = append(revisions, "")
-		compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
+		compRes, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, revisions, sources, false, false, nil, false)
 		require.NoError(t, err)
 		assert.NotNil(t, compRes)
 		assert.NotNil(t, compRes.syncStatus)
@@ -1071,7 +1074,7 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		sources = append(sources, app.Spec.GetSource())
 		revisions := make([]string, 0)
 		revisions = append(revisions, "")
-		compRes, err := ctrl.appStateManager.CompareAppState(app, &signedProj, revisions, sources, false, false, nil, false)
+		compRes, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &signedProj, revisions, sources, false, false, nil, false)
 		require.NoError(t, err)
 		assert.NotNil(t, compRes)
 		assert.NotNil(t, compRes.syncStatus)
@@ -1098,7 +1101,7 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		sources = append(sources, app.Spec.GetSource())
 		revisions := make([]string, 0)
 		revisions = append(revisions, "abc123")
-		compRes, err := ctrl.appStateManager.CompareAppState(app, &signedProj, revisions, sources, false, false, nil, false)
+		compRes, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &signedProj, revisions, sources, false, false, nil, false)
 		require.NoError(t, err)
 		assert.NotNil(t, compRes)
 		assert.NotNil(t, compRes.syncStatus)
@@ -1125,7 +1128,7 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		sources = append(sources, app.Spec.GetSource())
 		revisions := make([]string, 0)
 		revisions = append(revisions, "abc123")
-		compRes, err := ctrl.appStateManager.CompareAppState(app, &signedProj, revisions, sources, false, false, nil, false)
+		compRes, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &signedProj, revisions, sources, false, false, nil, false)
 		require.NoError(t, err)
 		assert.NotNil(t, compRes)
 		assert.NotNil(t, compRes.syncStatus)
@@ -1152,7 +1155,7 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		sources = append(sources, app.Spec.GetSource())
 		revisions := make([]string, 0)
 		revisions = append(revisions, "abc123")
-		compRes, err := ctrl.appStateManager.CompareAppState(app, &signedProj, revisions, sources, false, false, nil, false)
+		compRes, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &signedProj, revisions, sources, false, false, nil, false)
 		require.NoError(t, err)
 		assert.NotNil(t, compRes)
 		assert.NotNil(t, compRes.syncStatus)
@@ -1182,7 +1185,7 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		sources = append(sources, app.Spec.GetSource())
 		revisions := make([]string, 0)
 		revisions = append(revisions, "abc123")
-		compRes, err := ctrl.appStateManager.CompareAppState(app, &testProj, revisions, sources, false, false, nil, false)
+		compRes, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &testProj, revisions, sources, false, false, nil, false)
 		require.NoError(t, err)
 		assert.NotNil(t, compRes)
 		assert.NotNil(t, compRes.syncStatus)
@@ -1212,7 +1215,7 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		sources = append(sources, app.Spec.GetSource())
 		revisions := make([]string, 0)
 		revisions = append(revisions, "abc123")
-		compRes, err := ctrl.appStateManager.CompareAppState(app, &signedProj, revisions, sources, false, false, localManifests, false)
+		compRes, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &signedProj, revisions, sources, false, false, localManifests, false)
 		require.NoError(t, err)
 		assert.NotNil(t, compRes)
 		assert.NotNil(t, compRes.syncStatus)
@@ -1242,7 +1245,7 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		sources = append(sources, app.Spec.GetSource())
 		revisions := make([]string, 0)
 		revisions = append(revisions, "abc123")
-		compRes, err := ctrl.appStateManager.CompareAppState(app, &signedProj, revisions, sources, false, false, nil, false)
+		compRes, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &signedProj, revisions, sources, false, false, nil, false)
 		require.NoError(t, err)
 		assert.NotNil(t, compRes)
 		assert.NotNil(t, compRes.syncStatus)
@@ -1272,7 +1275,7 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		sources = append(sources, app.Spec.GetSource())
 		revisions := make([]string, 0)
 		revisions = append(revisions, "abc123")
-		compRes, err := ctrl.appStateManager.CompareAppState(app, &signedProj, revisions, sources, false, false, localManifests, false)
+		compRes, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &signedProj, revisions, sources, false, false, localManifests, false)
 		require.NoError(t, err)
 		assert.NotNil(t, compRes)
 		assert.NotNil(t, compRes.syncStatus)
@@ -1770,7 +1773,7 @@ func TestCompareAppStateDefaultRevisionUpdated(t *testing.T) {
 	sources = append(sources, app.Spec.GetSource())
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
-	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
+	compRes, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, revisions, sources, false, false, nil, false)
 	require.NoError(t, err)
 	assert.NotNil(t, compRes)
 	assert.NotNil(t, compRes.syncStatus)
@@ -1793,7 +1796,7 @@ func TestCompareAppStateRevisionUpdatedWithHelmSource(t *testing.T) {
 	sources = append(sources, app.Spec.GetSource())
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
-	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
+	compRes, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, revisions, sources, false, false, nil, false)
 	require.NoError(t, err)
 	assert.NotNil(t, compRes)
 	assert.NotNil(t, compRes.syncStatus)

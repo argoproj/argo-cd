@@ -94,7 +94,7 @@ func TestGetHydratorCommitMessageTemplate_WhenTemplateisNotDefined_FallbackToDef
 
 	ctrl := newFakeControllerWithResync(&data, time.Minute, nil, errors.New("this should not be called"))
 
-	tmpl, err := ctrl.GetHydratorCommitMessageTemplate()
+	tmpl, err := ctrl.GetHydratorCommitMessageTemplate(t.Context())
 	require.NoError(t, err)
 	assert.NotEmpty(t, tmpl) // should fallback to default
 	assert.Equal(t, settings.CommitMessageTemplate, tmpl)
@@ -117,7 +117,7 @@ func TestGetHydratorCommitMessageTemplate(t *testing.T) {
 
 	ctrl := newFakeControllerWithResync(&data, time.Minute, nil, errors.New("this should not be called"))
 
-	tmpl, err := ctrl.GetHydratorCommitMessageTemplate()
+	tmpl, err := ctrl.GetHydratorCommitMessageTemplate(t.Context())
 	require.NoError(t, err)
 	assert.NotEmpty(t, tmpl)
 }

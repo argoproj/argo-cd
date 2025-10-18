@@ -48,13 +48,14 @@ func TestLuaHealthScript(t *testing.T) {
 		for i := range resourceTest.Tests {
 			test := resourceTest.Tests[i]
 			t.Run(filepath.Join(strings.TrimPrefix(dir, "../../resource_customizations/"), test.InputPath), func(t *testing.T) {
+				ctx := t.Context()
 				vm := VM{
 					UseOpenLibs: true,
 				}
 				obj := getObj(t, filepath.Join(dir, test.InputPath))
 				script, _, err := vm.GetHealthScript(obj)
 				require.NoError(t, err)
-				result, err := vm.ExecuteHealthLua(obj, script)
+				result, err := vm.ExecuteHealthLua(ctx, obj, script)
 				require.NoError(t, err)
 				assert.Equal(t, &test.HealthStatus, result)
 			})

@@ -186,10 +186,10 @@ func Test_ChangedFiles(t *testing.T) {
 	err = runCmd(ctx, client.Root(), "git", "commit", "-m", "Changes", "-a")
 	require.NoError(t, err)
 
-	previousSHA, err := client.LsRemote("some-tag")
+	previousSHA, err := client.LsRemote(ctx, "some-tag")
 	require.NoError(t, err)
 
-	commitSHA, err := client.LsRemote("HEAD")
+	commitSHA, err := client.LsRemote(ctx, "HEAD")
 	require.NoError(t, err)
 
 	// Invalid commits, error
@@ -239,7 +239,7 @@ func Test_SemverTags(t *testing.T) {
 		err = runCmd(ctx, client.Root(), "git", "tag", tag)
 		require.NoError(t, err)
 
-		sha, err := client.LsRemote("HEAD")
+		sha, err := client.LsRemote(ctx, "HEAD")
 		require.NoError(t, err)
 
 		mapTagRefs[tag] = sha
@@ -342,7 +342,8 @@ func Test_SemverTags(t *testing.T) {
 		expected: mapTagRefs["2024-banana"],
 	}} {
 		t.Run(tc.name, func(t *testing.T) {
-			commitSHA, err := client.LsRemote(tc.ref)
+			ctx := t.Context()
+			commitSHA, err := client.LsRemote(ctx, tc.ref)
 			if tc.error {
 				require.Error(t, err)
 				return
@@ -400,7 +401,7 @@ func Test_nativeGitClient_Submodule(t *testing.T) {
 	err = client.Fetch("")
 	require.NoError(t, err)
 
-	commitSHA, err := client.LsRemote("HEAD")
+	commitSHA, err := client.LsRemote(ctx, "HEAD")
 	require.NoError(t, err)
 
 	// Call Checkout() with submoduleEnabled=false.
@@ -468,7 +469,7 @@ func Test_IsRevisionPresent(t *testing.T) {
 	err = runCmd(ctx, client.Root(), "git", "commit", "-m", "Initial Commit", "-a")
 	require.NoError(t, err)
 
-	commitSHA, err := client.LsRemote("HEAD")
+	commitSHA, err := client.LsRemote(ctx, "HEAD")
 	require.NoError(t, err)
 
 	// Ensure revision for HEAD is present locally.
@@ -909,12 +910,13 @@ func Test_nativeGitClient_CommitAndPush(t *testing.T) {
 }
 
 func Test_newAuth_AzureWorkloadIdentity(t *testing.T) {
+	ctx := t.Context()
 	tokenprovider := new(mocks.TokenProvider)
 	tokenprovider.On("GetToken", azureDevopsEntraResourceId).Return(&workloadidentity.Token{AccessToken: "accessToken"}, nil)
 
 	creds := AzureWorkloadIdentityCreds{store: NoopCredsStore{}, tokenProvider: tokenprovider}
 
-	auth, err := newAuth("", creds)
+	auth, err := newAuth(ctx, "", creds)
 	require.NoError(t, err)
 	_, ok := auth.(*githttp.TokenAuth)
 	require.Truef(t, ok, "expected TokenAuth but got %T", auth)
@@ -960,7 +962,8 @@ func TestNewAuth(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			auth, err := newAuth(tt.repoURL, tt.creds)
+			ctx := t.Context()
+			auth, err := newAuth(ctx, tt.repoURL, tt.creds)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("newAuth() error = %v, wantErr %v", err, tt.wantErr)
 				return

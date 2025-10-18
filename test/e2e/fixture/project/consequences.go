@@ -26,13 +26,13 @@ func (c *Consequences) And(block func(app *project.DetailedProjectsResponse, err
 }
 
 func (c *Consequences) detailedProject() (*project.DetailedProjectsResponse, error) {
-	prj, err := c.get()
+	prj, err := c.get(c.context.t.Context())
 	return prj, err
 }
 
-func (c *Consequences) get() (*project.DetailedProjectsResponse, error) {
-	_, projectClient, _ := fixture.ArgoCDClientset.NewProjectClient()
-	prj, err := projectClient.GetDetailedProject(context.Background(), &project.ProjectQuery{
+func (c *Consequences) get(ctx context.Context) (*project.DetailedProjectsResponse, error) {
+	_, projectClient, _ := fixture.ArgoCDClientset.NewProjectClient(ctx)
+	prj, err := projectClient.GetDetailedProject(ctx, &project.ProjectQuery{
 		Name: c.context.name,
 	})
 

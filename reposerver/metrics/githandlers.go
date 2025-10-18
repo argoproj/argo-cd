@@ -32,13 +32,13 @@ func NewGitClientEventHandlers(metricsServer *MetricsServer) git.EventHandlers {
 				metricsServer.ObserveGitRequestDuration(repo, GitRequestTypeFetch, time.Since(startTime))
 			}
 		},
-		OnLsRemote: func(repo string) func() {
+		OnLsRemote: func(ctx context.Context, repo string) func() {
 			startTime := time.Now()
 			metricsServer.IncGitRequest(repo, GitRequestTypeLsRemote)
 			if lsRemoteParallelismLimitSemaphore != nil {
 				// The `Acquire` method returns either `nil` or error of the provided context. The
 				// context.Background() is never canceled, so it is safe to ignore the error.
-				_ = lsRemoteParallelismLimitSemaphore.Acquire(context.Background(), 1)
+				_ = lsRemoteParallelismLimitSemaphore.Acquire(ctx, 1)
 			}
 			return func() {
 				if lsRemoteParallelismLimitSemaphore != nil {

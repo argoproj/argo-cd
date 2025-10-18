@@ -68,7 +68,7 @@ func (a *Actions) Create() *Actions {
 	return a
 }
 
-func (a *Actions) CreateWithRBAC() *Actions {
+func (a *Actions) CreateWithRBAC(ctx context.Context) *Actions {
 	pathOpts := clientcmd.NewDefaultPathOptions()
 	config, err := pathOpts.GetStartingConfig()
 	if err != nil {
@@ -83,7 +83,7 @@ func (a *Actions) CreateWithRBAC() *Actions {
 	}
 	client := kubernetes.NewForConfigOrDie(conf)
 
-	_, err = clusterauth.InstallClusterManagerRBAC(client, "kube-system", []string{}, common.BearerTokenTimeout)
+	_, err = clusterauth.InstallClusterManagerRBAC(ctx, client, "kube-system", []string{}, common.BearerTokenTimeout)
 	if err != nil {
 		a.lastError = err
 		return a

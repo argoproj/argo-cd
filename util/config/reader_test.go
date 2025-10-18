@@ -64,7 +64,8 @@ func TestUnmarshal(t *testing.T) {
 }
 
 func TestUnmarshalRemoteFile(t *testing.T) {
-	const (
+	ctx := t.Context()
+	const (		
 		field1 = "Hello, world!"
 		field2 = 42
 	)
@@ -97,14 +98,14 @@ func TestUnmarshalRemoteFile(t *testing.T) {
 	address := <-c
 	t.Logf("Listening at address: %s", address)
 
-	data, err := ReadRemoteFile("http://" + address)
+	data, err := ReadRemoteFile(ctx, "http://" + address)
 	assert.Equal(t, string(data), sentinel, "Test data did not match (err = %v)! Expected %q and received %q", err, sentinel, string(data))
 
 	var testStruct struct {
 		Field1 string
 		Field2 int
 	}
-	err = UnmarshalRemoteFile("http://"+address, &testStruct)
+	err = UnmarshalRemoteFile(ctx, "http://"+address, &testStruct)
 	require.NoError(t, err, "Could not unmarshal test data")
 
 	if testStruct.Field1 != field1 || testStruct.Field2 != field2 {

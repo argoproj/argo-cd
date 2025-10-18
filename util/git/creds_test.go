@@ -382,14 +382,16 @@ const invalidJSON = `{
 `
 
 func TestNewGoogleCloudCreds(t *testing.T) {
+	ctx := t.Context()
 	store := &memoryCredsStore{creds: make(map[string]cred)}
-	googleCloudCreds := NewGoogleCloudCreds(gcpServiceAccountKeyJSON, store)
+	googleCloudCreds := NewGoogleCloudCreds(ctx, gcpServiceAccountKeyJSON, store)
 	assert.NotNil(t, googleCloudCreds)
 }
 
 func TestNewGoogleCloudCreds_invalidJSON(t *testing.T) {
+	ctx := t.Context()
 	store := &memoryCredsStore{creds: make(map[string]cred)}
-	googleCloudCreds := NewGoogleCloudCreds(invalidJSON, store)
+	googleCloudCreds := NewGoogleCloudCreds(ctx, invalidJSON, store)
 	assert.Nil(t, googleCloudCreds.creds)
 
 	token, err := googleCloudCreds.getAccessToken()

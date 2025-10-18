@@ -602,6 +602,7 @@ func TestIsDiscoveryConfigured(t *testing.T) {
 }
 
 type MockGenerateManifestStream struct {
+	ctx             context.Context
 	metadataSent    bool
 	fileSent        bool
 	metadataRequest *apiclient.AppStreamRequest
@@ -609,7 +610,7 @@ type MockGenerateManifestStream struct {
 	response        *apiclient.ManifestResponse
 }
 
-func NewMockGenerateManifestStream(repoPath, appPath string, env []string) (*MockGenerateManifestStream, error) {
+func NewMockGenerateManifestStream(ctx context.Context, repoPath, appPath string, env []string) (*MockGenerateManifestStream, error) {
 	tgz, mr, err := cmp.GetCompressedRepoAndMetadata(repoPath, appPath, env, nil, nil)
 	if err != nil {
 		return nil, err
@@ -623,6 +624,7 @@ func NewMockGenerateManifestStream(repoPath, appPath string, env []string) (*Moc
 	}
 
 	return &MockGenerateManifestStream{
+		ctx:             ctx,
 		metadataRequest: mr,
 		fileRequest:     cmp.AppFileRequest(tgzBuffer.Bytes()),
 	}, nil
@@ -647,7 +649,7 @@ func (m *MockGenerateManifestStream) Recv() (*apiclient.AppStreamRequest, error)
 }
 
 func (m *MockGenerateManifestStream) Context() context.Context {
-	return context.Background()
+	return m.ctx
 }
 
 func TestService_GenerateManifest(t *testing.T) {
@@ -656,7 +658,7 @@ func TestService_GenerateManifest(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("successful generate", func(t *testing.T) {
-		s, err := NewMockGenerateManifestStream("./testdata/kustomize", "./testdata/kustomize", nil)
+		s, err := NewMockGenerateManifestStream(t.Context(), "./testdata/kustomize", "./testdata/kustomize", nil)
 		require.NoError(t, err)
 		err = service.generateManifestGeneric(s)
 		require.NoError(t, err)
@@ -665,7 +667,7 @@ func TestService_GenerateManifest(t *testing.T) {
 	})
 
 	t.Run("out-of-bounds app path", func(t *testing.T) {
-		s, err := NewMockGenerateManifestStream("./testdata/kustomize", "./testdata/kustomize", nil)
+		s, err := NewMockGenerateManifestStream(t.Context(), "./testdata/kustomize", "./testdata/kustomize", nil)
 		require.NoError(t, err)
 		// set a malicious app path on the metadata
 		s.metadataRequest.Request.(*apiclient.AppStreamRequest_Metadata).Metadata.AppRelPath = "../out-of-bounds"
@@ -676,6 +678,7 @@ func TestService_GenerateManifest(t *testing.T) {
 }
 
 type MockMatchRepositoryStream struct {
+	ctx             context.Context
 	metadataSent    bool
 	fileSent        bool
 	metadataRequest *apiclient.AppStreamRequest
@@ -683,7 +686,7 @@ type MockMatchRepositoryStream struct {
 	response        *apiclient.RepositoryResponse
 }
 
-func NewMockMatchRepositoryStream(repoPath, appPath string, env []string) (*MockMatchRepositoryStream, error) {
+func NewMockMatchRepositoryStream(ctx context.Context, repoPath, appPath string, env []string) (*MockMatchRepositoryStream, error) {
 	tgz, mr, err := cmp.GetCompressedRepoAndMetadata(repoPath, appPath, env, nil, nil)
 	if err != nil {
 		return nil, err
@@ -697,6 +700,7 @@ func NewMockMatchRepositoryStream(repoPath, appPath string, env []string) (*Mock
 	}
 
 	return &MockMatchRepositoryStream{
+		ctx:             ctx,
 		metadataRequest: mr,
 		fileRequest:     cmp.AppFileRequest(tgzBuffer.Bytes()),
 	}, nil
@@ -721,7 +725,7 @@ func (m *MockMatchRepositoryStream) Recv() (*apiclient.AppStreamRequest, error) 
 }
 
 func (m *MockMatchRepositoryStream) Context() context.Context {
-	return context.Background()
+	return m.ctx
 }
 
 func TestService_MatchRepository(t *testing.T) {
@@ -730,7 +734,7 @@ func TestService_MatchRepository(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("supported app", func(t *testing.T) {
-		s, err := NewMockMatchRepositoryStream("./testdata/kustomize", "./testdata/kustomize", nil)
+		s, err := NewMockMatchRepositoryStream(t.Context(), "./testdata/kustomize", "./testdata/kustomize", nil)
 		require.NoError(t, err)
 		err = service.matchRepositoryGeneric(s)
 		require.NoError(t, err)
@@ -739,7 +743,7 @@ func TestService_MatchRepository(t *testing.T) {
 	})
 
 	t.Run("unsupported app", func(t *testing.T) {
-		s, err := NewMockMatchRepositoryStream("./testdata/ksonnet", "./testdata/ksonnet", nil)
+		s, err := NewMockMatchRepositoryStream(t.Context(), "./testdata/ksonnet", "./testdata/ksonnet", nil)
 		require.NoError(t, err)
 		err = service.matchRepositoryGeneric(s)
 		require.NoError(t, err)
@@ -749,6 +753,7 @@ func TestService_MatchRepository(t *testing.T) {
 }
 
 type MockParametersAnnouncementStream struct {
+	ctx             context.Context
 	metadataSent    bool
 	fileSent        bool
 	metadataRequest *apiclient.AppStreamRequest
@@ -756,7 +761,7 @@ type MockParametersAnnouncementStream struct {
 	response        *apiclient.ParametersAnnouncementResponse
 }
 
-func NewMockParametersAnnouncementStream(repoPath, appPath string, env []string) (*MockParametersAnnouncementStream, error) {
+func NewMockParametersAnnouncementStream(ctx context.Context, repoPath, appPath string, env []string) (*MockParametersAnnouncementStream, error) {
 	tgz, mr, err := cmp.GetCompressedRepoAndMetadata(repoPath, appPath, env, nil, nil)
 	if err != nil {
 		return nil, err
@@ -770,6 +775,7 @@ func NewMockParametersAnnouncementStream(repoPath, appPath string, env []string)
 	}
 
 	return &MockParametersAnnouncementStream{
+		ctx:             ctx,
 		metadataRequest: mr,
 		fileRequest:     cmp.AppFileRequest(tgzBuffer.Bytes()),
 	}, nil
@@ -804,7 +810,7 @@ func (m *MockParametersAnnouncementStream) SendHeader(metadata.MD) error {
 func (m *MockParametersAnnouncementStream) SetTrailer(metadata.MD) {}
 
 func (m *MockParametersAnnouncementStream) Context() context.Context {
-	return context.Background()
+	return m.ctx
 }
 
 func (m *MockParametersAnnouncementStream) SendMsg(any) error {
@@ -821,7 +827,7 @@ func TestService_GetParametersAnnouncement(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("successful response", func(t *testing.T) {
-		s, err := NewMockParametersAnnouncementStream("./testdata/kustomize", "./testdata/kustomize", []string{"MUST_BE_SET=yep"})
+		s, err := NewMockParametersAnnouncementStream(t.Context(), "./testdata/kustomize", "./testdata/kustomize", []string{"MUST_BE_SET=yep"})
 		require.NoError(t, err)
 		err = service.GetParametersAnnouncement(s)
 		require.NoError(t, err)
@@ -831,7 +837,7 @@ func TestService_GetParametersAnnouncement(t *testing.T) {
 		assert.Equal(t, repoclient.ParameterAnnouncement{Name: "test-param", String_: "test-value"}, *s.response.ParameterAnnouncements[1])
 	})
 	t.Run("out of bounds app", func(t *testing.T) {
-		s, err := NewMockParametersAnnouncementStream("./testdata/kustomize", "./testdata/kustomize", []string{"MUST_BE_SET=yep"})
+		s, err := NewMockParametersAnnouncementStream(t.Context(), "./testdata/kustomize", "./testdata/kustomize", []string{"MUST_BE_SET=yep"})
 		require.NoError(t, err)
 		// set a malicious app path on the metadata
 		s.metadataRequest.Request.(*apiclient.AppStreamRequest_Metadata).Metadata.AppRelPath = "../out-of-bounds"
@@ -840,7 +846,7 @@ func TestService_GetParametersAnnouncement(t *testing.T) {
 		require.Nil(t, s.response)
 	})
 	t.Run("fails when script fails", func(t *testing.T) {
-		s, err := NewMockParametersAnnouncementStream("./testdata/kustomize", "./testdata/kustomize", []string{"WRONG_ENV_VAR=oops"})
+		s, err := NewMockParametersAnnouncementStream(t.Context(), "./testdata/kustomize", "./testdata/kustomize", []string{"WRONG_ENV_VAR=oops"})
 		require.NoError(t, err)
 		err = service.GetParametersAnnouncement(s)
 		require.ErrorContains(t, err, "error executing dynamic parameter output command")

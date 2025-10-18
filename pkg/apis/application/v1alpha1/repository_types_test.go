@@ -11,9 +11,10 @@ import (
 )
 
 func TestGetGitCredsShouldReturnAzureWorkloadIdentityCredsIfSpecified(t *testing.T) {
+	ctx := t.Context()
 	repository := Repository{UseAzureWorkloadIdentity: true}
 
-	creds := repository.GetGitCreds(git.NoopCredsStore{})
+	creds := repository.GetGitCreds(ctx, git.NoopCredsStore{})
 
 	_, ok := creds.(git.AzureWorkloadIdentityCreds)
 	require.Truef(t, ok, "expected AzureWorkloadIdentityCreds but got %T", creds)
@@ -84,7 +85,7 @@ func TestGetGitCreds(t *testing.T) {
 			repo: &Repository{
 				GCPServiceAccountKey: "gcp-key",
 			},
-			expected: git.NewGoogleCloudCreds("gcp-key", nil),
+			expected: git.NewGoogleCloudCreds(t.Context(), "gcp-key", nil),
 		},
 		{
 			name:     "No credentials",
@@ -95,7 +96,8 @@ func TestGetGitCreds(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			creds := tt.repo.GetGitCreds(nil)
+			ctx := t.Context()
+			creds := tt.repo.GetGitCreds(ctx, nil)
 			assert.Equal(t, tt.expected, creds)
 		})
 	}
