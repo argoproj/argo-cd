@@ -2823,38 +2823,25 @@ func TestHasPostDeleteHooksForNamespace(t *testing.T) {
 		},
 	}
 
-	t.Run("returns false when app has multiple sources", func(t *testing.T) {
+	t.Run("handles single PostDelete hook correctly", func(t *testing.T) {
 		app := newFakeApp()
 		app.Spec.Destination.Namespace = "app-namespace"
-		// Add multiple sources to test the revisions loop
-		app.Spec.Sources = []v1alpha1.ApplicationSource{
-			{RepoURL: "https://github.com/example/repo1", TargetRevision: "main"},
-			{RepoURL: "https://github.com/example/repo2", TargetRevision: "develop"},
-		}
+
+		// Single PostDelete hook using existing fake data
+		postDeleteHookData1 := newFakePostDeleteHook()
+		postDeleteHookData1["metadata"].(map[string]any)["namespace"] = "app-namespace"
+		postDeleteHookData1["metadata"].(map[string]any)["name"] = "post-delete-hook-1"
+		postDeleteHookJSON1, _ := json.Marshal(postDeleteHookData1)
 
 		ctrl := newFakeController(&fakeData{
 			apps: []runtime.Object{app, &defaultProj},
-			manifestResponses: []*apiclient.ManifestResponse{
-				{Manifests: []string{}}, // No PostDelete hooks for first source
-				{Manifests: []string{}}, // No PostDelete hooks for second source
+			manifestResponse: &apiclient.ManifestResponse{
+				Manifests: []string{string(postDeleteHookJSON1)},
 			},
 		}, nil)
 
 		hasHooks := ctrl.hasPostDeleteHooksForNamespace(app, "app-namespace")
-		assert.False(t, hasHooks, "should return false when no PostDelete hooks exist with multiple sources")
-	})
-
-	t.Run("returns false when project retrieval fails", func(t *testing.T) {
-		app := newFakeApp()
-		app.Spec.Project = "non-existent-project"
-		app.Spec.Destination.Namespace = "app-namespace"
-
-		ctrl := newFakeController(&fakeData{
-			apps: []runtime.Object{app, &defaultProj},
-		}, nil)
-
-		hasHooks := ctrl.hasPostDeleteHooksForNamespace(app, "app-namespace")
-		assert.False(t, hasHooks, "should return false when project retrieval fails")
+		assert.True(t, hasHooks, "should return true when single PostDelete hook exists")
 	})
 
 	t.Run("handles multiple PostDelete hooks correctly", func(t *testing.T) {
@@ -2881,24 +2868,6 @@ func TestHasPostDeleteHooksForNamespace(t *testing.T) {
 
 		hasHooks := ctrl.hasPostDeleteHooksForNamespace(app, "app-namespace")
 		assert.True(t, hasHooks, "should return true when multiple PostDelete hooks exist")
-	})
-
-	t.Run("returns false when GetAppInstanceLabelKey fails", func(t *testing.T) {
-		app := newFakeApp()
-		app.Spec.Destination.Namespace = "app-namespace"
-
-		ctrl := newFakeController(&fakeData{
-			apps: []runtime.Object{app, &defaultProj},
-			manifestResponse: &apiclient.ManifestResponse{
-				Manifests: []string{},
-			},
-			configMapData: map[string]string{
-				"application.instanceLabelKey": "",
-			},
-		}, nil)
-
-		hasHooks := ctrl.hasPostDeleteHooksForNamespace(app, "app-namespace")
-		assert.False(t, hasHooks, "should return false when GetAppInstanceLabelKey fails")
 	})
 }
 

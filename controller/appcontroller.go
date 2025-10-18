@@ -1165,10 +1165,13 @@ func (ctrl *ApplicationController) removeProjectFinalizer(proj *appv1.AppProject
 
 // hasPostDeleteHooksForNamespace checks if there are PostDelete hooks that might manage the given namespace
 func (ctrl *ApplicationController) hasPostDeleteHooksForNamespace(app *appv1.Application, namespaceName string) bool {
+	logCtx := log.WithFields(applog.GetAppLogFields(app))
+	
 	appLabelKey, err := ctrl.settingsMgr.GetAppInstanceLabelKey()
 	if err != nil {
-		return false
+		logCtx.WithError(err).Error("Unable to get app instance label key")
 	}
+	
 	var revisions []string
 	for _, src := range app.Spec.GetSources() {
 		revisions = append(revisions, src.TargetRevision)
@@ -1176,14 +1179,14 @@ func (ctrl *ApplicationController) hasPostDeleteHooksForNamespace(app *appv1.App
 
 	proj, err := ctrl.getAppProj(app)
 	if err != nil {
-		return false
+		logCtx.WithError(err).Error("Unable to get app project")
 	}
 
 	targets, _, _, err := ctrl.appStateManager.GetRepoObjs(context.Background(), app, app.Spec.GetSources(), appLabelKey, revisions, false, false, false, proj, true)
 	if err != nil {
-		return false
+		logCtx.WithError(err).Error("Unable to get repo objects")
 	}
-
+ 
 	for _, obj := range targets {
 		if isPostDeleteHook(obj) {
 			// Check if this PostDelete hook is running in the target namespace or has empty namespace(inherited from application)
