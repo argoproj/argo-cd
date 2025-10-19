@@ -3160,6 +3160,51 @@ func TestInit(t *testing.T) {
 	require.ErrorContains(t, err, ".git/index.lock: no such file or directory")
 }
 
+// TestInitWithIndexLockFile tests that when a .git/index.lock file exists,
+// the .git/index file is not present, but normally would be.
+func TestInitWithIndexLockFile(t *testing.T) {
+	dir := t.TempDir()
+
+	// service.Init sets permission to 0300. Restore permissions when the test
+	// finishes so dir can be removed properly.
+	t.Cleanup(func() {
+		require.NoError(t, os.Chmod(dir, 0o777))
+	})
+
+	repoPath := path.Join(dir, "repo")
+	initGitRepo(t, newGitRepoOptions{path: repoPath, remote: "https://github.com/argo-cd/test-repo", createPath: true, addEmptyCommit: true})
+
+	// Verify .git/index normally exists after git operations
+	indexFile := path.Join(repoPath, ".git", "index")
+	_, err := os.Stat(indexFile)
+	require.NoError(t, err, ".git/index should normally exist after git operations")
+
+	// Create index.lock file to simulate a git operation in progress
+	lockFile := path.Join(repoPath, ".git", "index.lock")
+	require.NoError(t, os.WriteFile(lockFile, []byte("test lock"), 0o644))
+
+	// Verify both files exist before Init
+	_, err = os.Stat(indexFile)
+	require.NoError(t, err, ".git/index should exist before Init")
+	_, err = os.Stat(lockFile)
+	require.NoError(t, err, ".git/index.lock should exist before Init")
+
+	service := newService(t, ".")
+	service.rootDir = dir
+
+	// Init should clean up the lock file
+	require.NoError(t, service.Init())
+
+	// After Init, lock file should be removed
+	_, err = os.Stat(lockFile)
+	require.Error(t, err, "lock file should be removed after Init()")
+	require.ErrorContains(t, err, ".git/index.lock: no such file or directory")
+
+	// The index file should still exist after lock cleanup
+	_, err = os.Stat(indexFile)
+	require.NoError(t, err, ".git/index should exist after lock file cleanup")
+}
+
 // TestCheckoutRevisionCanGetNonstandardRefs shows that we can fetch a revision that points to a non-standard ref. In
 // other words, we haven't regressed and caused this issue again: https://github.com/argoproj/argo-cd/issues/4935
 func TestCheckoutRevisionCanGetNonstandardRefs(t *testing.T) {
