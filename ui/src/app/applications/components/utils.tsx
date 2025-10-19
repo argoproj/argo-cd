@@ -8,6 +8,7 @@ import * as moment from 'moment';
 import {BehaviorSubject, combineLatest, concat, from, fromEvent, Observable, Observer, Subscription} from 'rxjs';
 import {debounceTime, map} from 'rxjs/operators';
 import {AppContext, Context, ContextApis} from '../../shared/context';
+import {isValidURL} from '../../shared/utils';
 import {ResourceTreeNode} from './application-resource-tree/application-resource-tree';
 
 import {CheckboxField, COLORS, ErrorNotification, Revision} from '../../shared/components';
@@ -29,6 +30,22 @@ type ActionMenuItem = MenuItem & {disabled?: boolean; tooltip?: string};
 
 export function nodeKey(node: NodeId) {
     return [node.group, node.kind, node.namespace, node.name].join('/');
+}
+
+// Convert ResourceStatus to ResourceNode for orphaned resources
+export function resourceStatusToResourceNode(res: appModels.ResourceStatus): appModels.ResourceNode {
+    return {
+        kind: res.kind,
+        name: res.name,
+        namespace: res.namespace,
+        group: res.group,
+        version: res.version,
+        uid: `${res.group}/${res.kind}/${res.namespace}/${res.name}`,
+        resourceVersion: '',
+        createdAt: res.createdAt,
+        parentRefs: [],
+        info: []
+    };
 }
 
 export function createdOrNodeKey(node: NodeId) {
@@ -546,65 +563,73 @@ export const deletePopup = async (
 };
 
 export async function getResourceActionsMenuItems(resource: ResourceTreeNode, metadata: models.ObjectMeta, apis: ContextApis): Promise<ActionMenuItem[]> {
-    return services.applications.getResourceActions(metadata.name, metadata.namespace, resource).then(actions => {
-        return actions.map(action => ({
-            title: action.displayName ?? action.name,
-            disabled: !!action.disabled,
-            iconClassName: action.iconClass,
-            action: async () => {
-                const confirmed = false;
-                const title = action.params ? `Enter input parameters for action: ${action.name}` : `Perform ${action.name} action?`;
-                await apis.popup.prompt(
-                    title,
-                    api => (
-                        <div>
-                            {!action.params && (
-                                <div className='argo-form-row'>
-                                    <div> Are you sure you want to perform {action.name} action?</div>
-                                </div>
-                            )}
-                            {action.params &&
-                                action.params.map((param, index) => (
-                                    <div className='argo-form-row' key={index}>
-                                        <FormField label={param.name} field={param.name} formApi={api} component={Text} />
+    // Don't call API for missing resources
+    if (!resource.uid) {
+        return [];
+    }
+
+    return services.applications
+        .getResourceActions(metadata.name, metadata.namespace, resource)
+        .then(actions => {
+            return actions.map(action => ({
+                title: action.displayName ?? action.name,
+                disabled: !!action.disabled,
+                iconClassName: action.iconClass,
+                action: async () => {
+                    const confirmed = false;
+                    const title = action.params ? `Enter input parameters for action: ${action.name}` : `Perform ${action.name} action?`;
+                    await apis.popup.prompt(
+                        title,
+                        api => (
+                            <div>
+                                {!action.params && (
+                                    <div className='argo-form-row'>
+                                        <div> Are you sure you want to perform {action.name} action?</div>
                                     </div>
-                                ))}
-                        </div>
-                    ),
-                    {
-                        submit: async (vals, _, close) => {
-                            try {
-                                const resourceActionParameters = action.params
-                                    ? action.params.map(param => ({
-                                          name: param.name,
-                                          value: vals[param.name] || param.default,
-                                          type: param.type,
-                                          default: param.default
-                                      }))
-                                    : [];
-                                await services.applications.runResourceAction(metadata.name, metadata.namespace, resource, action.name, resourceActionParameters);
-                                close();
-                            } catch (e) {
-                                apis.notifications.show({
-                                    content: <ErrorNotification title='Unable to execute resource action' e={e} />,
-                                    type: NotificationType.Error
-                                });
+                                )}
+                                {action.params &&
+                                    action.params.map((param, index) => (
+                                        <div className='argo-form-row' key={index}>
+                                            <FormField label={param.name} field={param.name} formApi={api} component={Text} />
+                                        </div>
+                                    ))}
+                            </div>
+                        ),
+                        {
+                            submit: async (vals, _, close) => {
+                                try {
+                                    const resourceActionParameters = action.params
+                                        ? action.params.map(param => ({
+                                              name: param.name,
+                                              value: vals[param.name] || param.default,
+                                              type: param.type,
+                                              default: param.default
+                                          }))
+                                        : [];
+                                    await services.applications.runResourceAction(metadata.name, metadata.namespace, resource, action.name, resourceActionParameters);
+                                    close();
+                                } catch (e) {
+                                    apis.notifications.show({
+                                        content: <ErrorNotification title='Unable to execute resource action' e={e} />,
+                                        type: NotificationType.Error
+                                    });
+                                }
                             }
-                        }
-                    },
-                    null,
-                    null,
-                    action.params
-                        ? action.params.reduce((acc, res) => {
-                              acc[res.name] = res.default;
-                              return acc;
-                          }, {} as any)
-                        : {}
-                );
-                return confirmed;
-            }
-        }));
-    });
+                        },
+                        null,
+                        null,
+                        action.params
+                            ? action.params.reduce((acc, res) => {
+                                  acc[res.name] = res.default;
+                                  return acc;
+                              }, {} as any)
+                            : {}
+                    );
+                    return confirmed;
+                }
+            }));
+        })
+        .catch(() => [] as ActionMenuItem[]);
 }
 
 function getActionItems(
@@ -692,20 +717,22 @@ function getActionItems(
 
     const resourceActions = getResourceActionsMenuItems(resource, application.metadata, apis);
 
-    const links = services.applications
-        .getResourceLinks(application.metadata.name, application.metadata.namespace, resource)
-        .then(data => {
-            return (data.items || []).map(
-                link =>
-                    ({
-                        title: link.title,
-                        iconClassName: `fa fa-fw ${link.iconClass ? link.iconClass : 'fa-external-link'}`,
-                        action: () => window.open(link.url, '_blank'),
-                        tooltip: link.description
-                    }) as MenuItem
-            );
-        })
-        .catch(() => [] as MenuItem[]);
+    const links = !resource.uid
+        ? Promise.resolve([])
+        : services.applications
+              .getResourceLinks(application.metadata.name, application.metadata.namespace, resource)
+              .then(data => {
+                  return (data.items || []).map(
+                      link =>
+                          ({
+                              title: link.title,
+                              iconClassName: `fa fa-fw ${link.iconClass ? link.iconClass : 'fa-external-link'}`,
+                              action: () => window.open(link.url, '_blank'),
+                              tooltip: link.description
+                          }) as MenuItem
+                  );
+              })
+              .catch(() => [] as MenuItem[]);
 
     return combineLatest(
         from([items]), // this resolves immediately
@@ -1706,6 +1733,10 @@ export const getProgressiveSyncStatusIcon = ({status, isButton}: {status: string
                 return {icon: 'fa-clock', color: COLORS.sync.out_of_sync};
             case 'Error':
                 return {icon: 'fa-times-circle', color: COLORS.health.degraded};
+            case 'Synced':
+                return {icon: 'fa-check-circle', color: COLORS.sync.synced};
+            case 'OutOfSync':
+                return {icon: 'fa-exclamation-triangle', color: COLORS.sync.out_of_sync};
             default:
                 return {icon: 'fa-question-circle', color: COLORS.sync.unknown};
         }
@@ -1728,6 +1759,10 @@ export const getProgressiveSyncStatusColor = (status: string): string => {
             return COLORS.health.healthy;
         case 'Error':
             return COLORS.health.degraded;
+        case 'Synced':
+            return COLORS.sync.synced;
+        case 'OutOfSync':
+            return COLORS.sync.out_of_sync;
         default:
             return COLORS.sync.unknown;
     }
@@ -1738,3 +1773,89 @@ export const podRequests = {
     CPU: 'Requests (CPU)',
     MEMORY: 'Requests (MEM)'
 } as const;
+
+/**
+ * Gets the managed-by-url annotation from an application if it exists
+ * @param app The application object
+ * @returns The managed-by-url value or null if not present
+ */
+export function getManagedByURL(app: any): string | null {
+    return app?.metadata?.annotations?.['argocd.argoproj.io/managed-by-url'] || null;
+}
+
+/**
+ * Gets the managed-by-url from a resource node's info field
+ * @param node The resource node object
+ * @returns The managed-by-url value or null if not present
+ */
+export function getManagedByURLFromNode(node: any): string | null {
+    if (!node?.info) {
+        return null;
+    }
+
+    const managedByURLInfo = node.info.find((info: any) => info.name === 'managed-by-url');
+    return managedByURLInfo?.value || null;
+}
+
+/**
+ * Gets the correct URL for an application link, considering managed-by-url annotation
+ * @param app The application object
+ * @param baseHref The current instance's base href
+ * @param node Optional resource node to get managed-by-url from info field
+ * @returns The URL to use for the application link
+ */
+export function getApplicationLinkURL(app: any, baseHref: string, node?: any): {url: string; isExternal: boolean} {
+    // First try to get managed-by-url from the node's info field (for nested applications)
+    let managedByURL = node ? getManagedByURLFromNode(node) : null;
+
+    // If not found in node, try the application's metadata
+    if (!managedByURL) {
+        managedByURL = getManagedByURL(app);
+    }
+
+    let url, isExternal;
+    if (managedByURL) {
+        // Validate the managed-by URL using the same validation as external links
+        if (!isValidURL(managedByURL)) {
+            // If URL is invalid, fall back to local URL for security
+            console.warn(`Invalid managed-by URL for application ${app.metadata.name}: ${managedByURL}`);
+            url = baseHref + 'applications/' + app.metadata.namespace + '/' + app.metadata.name;
+            isExternal = false;
+        } else {
+            url = managedByURL + '/applications/' + app.metadata.namespace + '/' + app.metadata.name;
+            isExternal = true;
+        }
+    } else {
+        url = baseHref + 'applications/' + app.metadata.namespace + '/' + app.metadata.name;
+        isExternal = false;
+    }
+    return {url, isExternal};
+}
+
+/**
+ * Gets the correct URL for an application link from a resource node, considering managed-by-url annotation
+ * @param node The resource node representing an application
+ * @param baseHref The current instance's base href
+ * @returns The URL to use for the application link
+ */
+export function getApplicationLinkURLFromNode(node: any, baseHref: string): {url: string; isExternal: boolean} {
+    const managedByURL = getManagedByURLFromNode(node);
+
+    let url, isExternal;
+    if (managedByURL) {
+        // Validate the managed-by URL using the same validation as external links
+        if (!isValidURL(managedByURL)) {
+            // If URL is invalid, fall back to local URL for security
+            console.warn(`Invalid managed-by URL for application ${node.name}: ${managedByURL}`);
+            url = baseHref + 'applications/' + node.namespace + '/' + node.name;
+            isExternal = false;
+        } else {
+            url = managedByURL + '/applications/' + node.namespace + '/' + node.name;
+            isExternal = true;
+        }
+    } else {
+        url = baseHref + 'applications/' + node.namespace + '/' + node.name;
+        isExternal = false;
+    }
+    return {url, isExternal};
+}

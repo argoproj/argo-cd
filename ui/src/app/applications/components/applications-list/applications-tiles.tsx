@@ -7,7 +7,7 @@ import {Consumer, Context, AuthSettingsCtx} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {ApplicationURLs} from '../application-urls';
 import * as AppUtils from '../utils';
-import {getAppDefaultSource, OperationState} from '../utils';
+import {getAppDefaultSource, OperationState, getApplicationLinkURL, getManagedByURL} from '../utils';
 import {services} from '../../../shared/services';
 
 import './applications-tiles.scss';
@@ -110,6 +110,7 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                     const source = getAppDefaultSource(app);
                                     const isOci = source?.repoURL?.startsWith('oci://');
                                     const targetRevision = source ? source.targetRevision || 'HEAD' : 'Unknown';
+                                    const linkInfo = getApplicationLinkURL(app, ctx.baseHref);
                                     return (
                                         <div
                                             key={AppUtils.appInstanceName(app)}
@@ -140,6 +141,18 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                                         <div className={app.status.summary.externalURLs?.length > 0 ? 'columns small-2' : 'columns small-1'}>
                                                             <div className='applications-list__external-link'>
                                                                 <ApplicationURLs urls={app.status.summary.externalURLs} />
+                                                                <button
+                                                                    onClick={e => {
+                                                                        e.stopPropagation();
+                                                                        if (linkInfo.isExternal) {
+                                                                            window.open(linkInfo.url, '_blank', 'noopener,noreferrer');
+                                                                        } else {
+                                                                            ctx.navigation.goto(`/${AppUtils.getAppUrl(app)}`);
+                                                                        }
+                                                                    }}
+                                                                    title={getManagedByURL(app) ? `Managed by: ${getManagedByURL(app)}` : 'Open application'}>
+                                                                    <i className='fa fa-external-link-alt' />
+                                                                </button>
                                                                 <Tooltip content={favList?.includes(app.metadata.name) ? 'Remove Favorite' : 'Add Favorite'}>
                                                                     <button
                                                                         className='large-text-height'
@@ -202,6 +215,13 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                                         <div className='columns small-9' qe-id='applications-tiles-health-status'>
                                                             <AppUtils.HealthStatusIcon state={app.status.health} /> {app.status.health.status}
                                                             &nbsp;
+                                                            {app.status.sourceHydrator?.currentOperation && (
+                                                                <>
+                                                                    <AppUtils.HydrateOperationPhaseIcon operationState={app.status.sourceHydrator.currentOperation} />{' '}
+                                                                    {app.status.sourceHydrator.currentOperation.phase}
+                                                                    &nbsp;
+                                                                </>
+                                                            )}
                                                             <AppUtils.ComparisonStatusIcon status={app.status.sync.status} /> {app.status.sync.status}
                                                             &nbsp;
                                                             <OperationState app={app} quiet={true} />
@@ -212,7 +232,7 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                                             Repository:
                                                         </div>
                                                         <div className='columns small-9'>
-                                                            <Tooltip content={source?.repoURL} zIndex={4}>
+                                                            <Tooltip content={source?.repoURL || ''} zIndex={4}>
                                                                 <span>{source?.repoURL}</span>
                                                             </Tooltip>
                                                         </div>

@@ -49,13 +49,14 @@ archives:
       - argocd-cli
     name_template: |-
       {{ .ProjectName }}-{{ .Os }}-{{ .Arch }}
-    formats: [ binary ]
+    formats: [binary]
 
 checksum:
   name_template: 'cli_checksums.txt'
   algorithm: sha256
 
 release:
+  make_latest: '{{ .Env.GORELEASER_MAKE_LATEST }}'
   prerelease: auto
   draft: false
   header: |

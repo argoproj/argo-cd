@@ -136,16 +136,25 @@ func untar(dstPath string, r io.Reader, preserveFileMode bool) error {
 		case tar.TypeSymlink:
 			// Sanity check to protect against symlink exploit
 			linkTarget := filepath.Join(filepath.Dir(target), header.Linkname)
-			realPath, err := filepath.EvalSymlinks(linkTarget)
+			realLinkTarget, err := filepath.EvalSymlinks(linkTarget)
 			if os.IsNotExist(err) {
-				realPath = linkTarget
+				realLinkTarget = linkTarget
 			} else if err != nil {
 				return fmt.Errorf("error checking symlink realpath: %w", err)
 			}
-			if !Inbound(realPath, dstPath) {
+			if !Inbound(realLinkTarget, dstPath) {
 				return fmt.Errorf("illegal filepath in symlink: %s", linkTarget)
 			}
-			err = os.Symlink(realPath, target)
+
+			// Relativizing all symlink targets because path.CheckOutOfBoundsSymlinks disallows any absolute symlinks
+			// and it makes more sense semantically to view symlinks in archives as relative.
+			// Inbound ensures that we never allow symlinks that break out of the target directory.
+			realLinkTarget, err = filepath.Rel(filepath.Dir(target), realLinkTarget)
+			if err != nil {
+				return fmt.Errorf("error relativizing link target: %w", err)
+			}
+
+			err = os.Symlink(realLinkTarget, target)
 			if err != nil {
 				return fmt.Errorf("error creating symlink: %w", err)
 			}

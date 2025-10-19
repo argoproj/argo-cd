@@ -2,6 +2,7 @@ package apiclient
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -52,7 +53,7 @@ func toFrame(msg []byte) []byte {
 	return frame
 }
 
-func (c *client) executeRequest(fullMethodName string, msg []byte, md metadata.MD) (*http.Response, error) {
+func (c *client) executeRequest(ctx context.Context, fullMethodName string, msg []byte, md metadata.MD) (*http.Response, error) {
 	schema := "https"
 	if c.PlainText {
 		schema = "http"
@@ -65,7 +66,8 @@ func (c *client) executeRequest(fullMethodName string, msg []byte, md metadata.M
 	} else {
 		requestURL = fmt.Sprintf("%s://%s%s", schema, c.ServerAddr, fullMethodName)
 	}
-	req, err := http.NewRequest(http.MethodPost, requestURL, bytes.NewReader(toFrame(msg)))
+	// Use context in the HTTP request
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, requestURL, bytes.NewReader(toFrame(msg)))
 	if err != nil {
 		return nil, err
 	}
@@ -101,13 +103,14 @@ func (c *client) executeRequest(fullMethodName string, msg []byte, md metadata.M
 	return resp, nil
 }
 
-func (c *client) startGRPCProxy() (*grpc.Server, net.Listener, error) {
+func (c *client) startGRPCProxy(ctx context.Context) (*grpc.Server, net.Listener, error) {
 	randSuffix, err := rand.String(16)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to generate random socket filename: %w", err)
 	}
 	serverAddr := fmt.Sprintf("%s/argocd-%s.sock", os.TempDir(), randSuffix)
-	ln, err := net.Listen("unix", serverAddr)
+	lc := &net.ListenConfig{}
+	ln, err := lc.Listen(ctx, "unix", serverAddr)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -137,7 +140,7 @@ func (c *client) startGRPCProxy() (*grpc.Server, net.Listener, error) {
 
 			md = metadata.Join(md, headersMD)
 
-			resp, err := c.executeRequest(fullMethodName, msg, md)
+			resp, err := c.executeRequest(stream.Context(), fullMethodName, msg, md)
 			if err != nil {
 				return err
 			}
@@ -186,13 +189,13 @@ func (c *client) startGRPCProxy() (*grpc.Server, net.Listener, error) {
 }
 
 // useGRPCProxy ensures that grpc proxy server is started and return closer which stops server when no one uses it
-func (c *client) useGRPCProxy() (net.Addr, io.Closer, error) {
+func (c *client) useGRPCProxy(ctx context.Context) (net.Addr, io.Closer, error) {
 	c.proxyMutex.Lock()
 	defer c.proxyMutex.Unlock()
 
 	if c.proxyListener == nil {
 		var err error
-		c.proxyServer, c.proxyListener, err = c.startGRPCProxy()
+		c.proxyServer, c.proxyListener, err = c.startGRPCProxy(ctx)
 		if err != nil {
 			return nil, nil, err
 		}

@@ -1,0 +1,11 @@
+apiVersion: capabilities.3scale.net/v1beta1
+kind: Backend
+status:
+  backendId: 59978
+  conditions:
+    - status: "False"
+      type: Failed
+    - status: "False"
+      type: Invalid
+    - status: "False"
+      type: Synced

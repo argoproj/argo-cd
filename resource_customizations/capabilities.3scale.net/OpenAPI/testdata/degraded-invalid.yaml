@@ -1,0 +1,7 @@
+apiVersion: capabilities.3scale.net/v1beta1
+kind: OpenAPI
+status:
+  conditions:
+    - type: Invalid
+      status: "True"
+      message: OpenAPI specification is invalid or malformed

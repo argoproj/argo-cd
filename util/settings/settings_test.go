@@ -1089,7 +1089,7 @@ func Test_validateExternalURL(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := validateExternalURL(tt.url)
+			err := ValidateExternalURL(tt.url)
 			if tt.errMsg != "" {
 				assert.EqualError(t, err, tt.errMsg)
 			} else {
@@ -1278,8 +1278,253 @@ func Test_GetTLSConfiguration(t *testing.T) {
 		)
 		settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
 		settings, err := settingsManager.GetSettings()
-		require.ErrorContains(t, err, "could not read from secret")
+		require.ErrorContains(t, err, "failed to find any PEM data in certificate input")
 		assert.NotNil(t, settings)
+	})
+	t.Run("Does not parse TLS cert key pair on cache hit", func(t *testing.T) {
+		cm := &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      common.ArgoCDConfigMapName,
+				Namespace: "default",
+				Labels: map[string]string{
+					"app.kubernetes.io/part-of": "argocd",
+				},
+			},
+		}
+		secret := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:            common.ArgoCDSecretName,
+				Namespace:       "default",
+				ResourceVersion: "1",
+				Labels: map[string]string{
+					"app.kubernetes.io/part-of": "argocd",
+				},
+			},
+			Data: map[string][]byte{
+				"server.secretkey": nil,
+			},
+		}
+		tlsSecret := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:            externalServerTLSSecretName,
+				Namespace:       "default",
+				ResourceVersion: "1",
+			},
+			Data: map[string][]byte{
+				"tls.crt": []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-test-server.crt")),
+				"tls.key": []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-test-server.key")),
+			},
+		}
+
+		kubeClient := fake.NewClientset(cm, secret, tlsSecret)
+		callCount := 0
+		settingsManager := NewSettingsManager(context.Background(), kubeClient, "default", func(mgr *SettingsManager) {
+			mgr.tlsCertParser = func(certpem []byte, keypem []byte) (tls.Certificate, error) {
+				callCount++
+
+				return tls.X509KeyPair(certpem, keypem)
+			}
+		})
+
+		// should not be called by initialization
+		assert.Equal(t, 0, callCount)
+
+		// should be called by first call to GetSettings
+		_, err := settingsManager.GetSettings()
+		require.NoError(t, err)
+		assert.Equal(t, 1, callCount)
+
+		// should not be called by subsequent call to GetSettings
+		_, err = settingsManager.GetSettings()
+		require.NoError(t, err)
+		assert.Equal(t, 1, callCount)
+	})
+	t.Run("Parses TLS cert key pair when TLS secret update causes cache miss", func(t *testing.T) {
+		cm := &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      common.ArgoCDConfigMapName,
+				Namespace: "default",
+				Labels: map[string]string{
+					"app.kubernetes.io/part-of": "argocd",
+				},
+			},
+		}
+		secret := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:            common.ArgoCDSecretName,
+				Namespace:       "default",
+				ResourceVersion: "1",
+				Labels: map[string]string{
+					"app.kubernetes.io/part-of": "argocd",
+				},
+			},
+			Data: map[string][]byte{
+				"server.secretkey": nil,
+			},
+		}
+		tlsSecret := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:            externalServerTLSSecretName,
+				Namespace:       "default",
+				ResourceVersion: "1",
+			},
+			Data: map[string][]byte{
+				"tls.crt": []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-test-server.crt")),
+				"tls.key": []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-test-server.key")),
+			},
+		}
+
+		kubeClient := fake.NewClientset(cm, secret, tlsSecret)
+		callCount := 0
+		settingsManager := NewSettingsManager(context.Background(), kubeClient, "default", func(mgr *SettingsManager) {
+			mgr.tlsCertParser = func(certpem []byte, keypem []byte) (tls.Certificate, error) {
+				callCount++
+
+				return tls.X509KeyPair(certpem, keypem)
+			}
+		})
+
+		// should be called by first call to GetSettings
+		settings, err := settingsManager.GetSettings()
+		require.NoError(t, err)
+		assert.Equal(t, 1, callCount)
+		assert.NotNil(t, settings.Certificate)
+		assert.True(t, settings.CertificateIsExternal)
+		assert.Equal(t, "localhost", getCNFromCertificate(settings.Certificate))
+
+		// update secret
+		tlsSecret.SetResourceVersion("2")
+		_, err = kubeClient.CoreV1().Secrets("default").Update(t.Context(), tlsSecret, metav1.UpdateOptions{})
+		require.NoError(t, err)
+
+		// allow time for the udpate to resolve to avoid timing issues below
+		time.Sleep(250 * time.Millisecond)
+
+		// should be called again after secret update resolves
+		settings, err = settingsManager.GetSettings()
+		require.NoError(t, err)
+		assert.Equal(t, 2, callCount)
+		assert.NotNil(t, settings.Certificate)
+		assert.True(t, settings.CertificateIsExternal)
+		assert.Equal(t, "localhost", getCNFromCertificate(settings.Certificate))
+	})
+	t.Run("Overrides cached internal TLS cert when external TLS secret added", func(t *testing.T) {
+		kubeClient := fake.NewClientset(
+			&corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      common.ArgoCDConfigMapName,
+					Namespace: "default",
+					Labels: map[string]string{
+						"app.kubernetes.io/part-of": "argocd",
+					},
+				},
+			},
+			&corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:            common.ArgoCDSecretName,
+					Namespace:       "default",
+					ResourceVersion: "1",
+					Labels: map[string]string{
+						"app.kubernetes.io/part-of": "argocd",
+					},
+				},
+				Data: map[string][]byte{
+					"server.secretkey": nil,
+					"tls.crt":          []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-e2e-server.crt")),
+					"tls.key":          []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-e2e-server.key")),
+				},
+			},
+		)
+		settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
+		settings, err := settingsManager.GetSettings()
+		require.NoError(t, err)
+		// should have internal cert at this point
+		assert.NotNil(t, settings.Certificate)
+		assert.False(t, settings.CertificateIsExternal)
+		assert.Equal(t, "Argo CD E2E", getCNFromCertificate(settings.Certificate))
+
+		externalTLSSecret := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:            externalServerTLSSecretName,
+				Namespace:       "default",
+				ResourceVersion: "1",
+			},
+			Data: map[string][]byte{
+				"tls.crt": []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-test-server.crt")),
+				"tls.key": []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-test-server.key")),
+			},
+		}
+		_, err = kubeClient.CoreV1().Secrets("default").Create(t.Context(), externalTLSSecret, metav1.CreateOptions{})
+		require.NoError(t, err)
+
+		// allow time for the create to resolve to avoid timing issues below
+		time.Sleep(250 * time.Millisecond)
+
+		settings, err = settingsManager.GetSettings()
+		require.NoError(t, err)
+		// should now have an external cert
+		assert.NotNil(t, settings.Certificate)
+		assert.True(t, settings.CertificateIsExternal)
+		assert.Equal(t, "localhost", getCNFromCertificate(settings.Certificate))
+	})
+	t.Run("Falls back to internal TLS cert when external TLS secret deleted", func(t *testing.T) {
+		kubeClient := fake.NewClientset(
+			&corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      common.ArgoCDConfigMapName,
+					Namespace: "default",
+					Labels: map[string]string{
+						"app.kubernetes.io/part-of": "argocd",
+					},
+				},
+			},
+			&corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:            common.ArgoCDSecretName,
+					Namespace:       "default",
+					ResourceVersion: "1",
+					Labels: map[string]string{
+						"app.kubernetes.io/part-of": "argocd",
+					},
+				},
+				Data: map[string][]byte{
+					"server.secretkey": nil,
+					"tls.crt":          []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-e2e-server.crt")),
+					"tls.key":          []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-e2e-server.key")),
+				},
+			},
+			&corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:            externalServerTLSSecretName,
+					Namespace:       "default",
+					ResourceVersion: "1",
+				},
+				Data: map[string][]byte{
+					"tls.crt": []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-test-server.crt")),
+					"tls.key": []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-test-server.key")),
+				},
+			},
+		)
+		settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
+		settings, err := settingsManager.GetSettings()
+		require.NoError(t, err)
+		// should have external cert at this point
+		assert.NotNil(t, settings.Certificate)
+		assert.True(t, settings.CertificateIsExternal)
+		assert.Equal(t, "localhost", getCNFromCertificate(settings.Certificate))
+
+		err = kubeClient.CoreV1().Secrets("default").Delete(t.Context(), externalServerTLSSecretName, metav1.DeleteOptions{})
+		require.NoError(t, err)
+
+		// allow time for the delete to resolve to avoid timing issues below
+		time.Sleep(250 * time.Millisecond)
+
+		settings, err = settingsManager.GetSettings()
+		require.NoError(t, err)
+		// should now have an internal cert
+		assert.NotNil(t, settings.Certificate)
+		assert.False(t, settings.CertificateIsExternal)
+		assert.Equal(t, "Argo CD E2E", getCNFromCertificate(settings.Certificate))
 	})
 	t.Run("No external TLS secret", func(t *testing.T) {
 		kubeClient := fake.NewClientset(
@@ -1676,16 +1921,10 @@ func TestReplaceStringSecret(t *testing.T) {
 }
 
 func TestRedirectURLForRequest(t *testing.T) {
-	generateRequest := func(url string) *http.Request {
-		r, err := http.NewRequest(http.MethodPost, url, http.NoBody)
-		require.NoError(t, err)
-		return r
-	}
-
 	testCases := []struct {
 		Name        string
 		Settings    *ArgoCDSettings
-		Request     *http.Request
+		RequestURL  string
 		ExpectedURL string
 		ExpectError bool
 	}{
@@ -1694,7 +1933,7 @@ func TestRedirectURLForRequest(t *testing.T) {
 			Settings: &ArgoCDSettings{
 				URL: "https://example.org",
 			},
-			Request:     generateRequest("https://example.org/login"),
+			RequestURL:  "https://example.org/login",
 			ExpectedURL: "https://example.org/auth/callback",
 			ExpectError: false,
 		},
@@ -1703,7 +1942,7 @@ func TestRedirectURLForRequest(t *testing.T) {
 			Settings: &ArgoCDSettings{
 				URL: "https://otherhost.org",
 			},
-			Request:     generateRequest("https://example.org/login"),
+			RequestURL:  "https://example.org/login",
 			ExpectedURL: "https://otherhost.org/auth/callback",
 			ExpectError: false,
 		},
@@ -1712,7 +1951,7 @@ func TestRedirectURLForRequest(t *testing.T) {
 			Settings: &ArgoCDSettings{
 				URL: ":httpsotherhostorg",
 			},
-			Request:     generateRequest("https://example.org/login"),
+			RequestURL:  "https://example.org/login",
 			ExpectedURL: "",
 			ExpectError: true,
 		},
@@ -1722,7 +1961,7 @@ func TestRedirectURLForRequest(t *testing.T) {
 				URL:            "https://otherhost.org",
 				AdditionalURLs: []string{"https://anotherhost.org"},
 			},
-			Request:     generateRequest("https://anotherhost.org/login"),
+			RequestURL:  "https://anotherhost.org/login",
 			ExpectedURL: "https://anotherhost.org/auth/callback",
 			ExpectError: false,
 		},
@@ -1730,7 +1969,9 @@ func TestRedirectURLForRequest(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
-			result, err := tc.Settings.RedirectURLForRequest(tc.Request)
+			request, err := http.NewRequestWithContext(t.Context(), http.MethodPost, tc.RequestURL, http.NoBody)
+			require.NoError(t, err)
+			result, err := tc.Settings.RedirectURLForRequest(request)
 			assert.Equal(t, tc.ExpectedURL, result)
 			if tc.ExpectError {
 				assert.Error(t, err)
@@ -1874,6 +2115,68 @@ func TestIsImpersonationEnabled(t *testing.T) {
 		"when user enables the flag in argocd-cm config map, IsImpersonationEnabled() must return user set value")
 	require.NoError(t, err,
 		"when user enables the flag in argocd-cm config map, IsImpersonationEnabled() must not return any error")
+}
+
+func TestRequireOverridePrivilegeForRevisionSyncNoConfigMap(t *testing.T) {
+	// When there is no argocd-cm itself,
+	// Then RequireOverridePrivilegeForRevisionSync() must return false (default value) and an error with appropriate error message.
+	kubeClient := fake.NewClientset()
+	settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
+	featureFlag, err := settingsManager.RequireOverridePrivilegeForRevisionSync()
+	require.False(t, featureFlag,
+		"with no argocd-cm config map, RequireOverridePrivilegeForRevisionSync() must return return false (default value)")
+	require.ErrorContains(t, err, "configmap \"argocd-cm\" not found",
+		"with no argocd-cm config map, RequireOverridePrivilegeForRevisionSync() must return an error")
+}
+
+func TestRequireOverridePrivilegeForRevisionSyncEmptyConfigMap(t *testing.T) {
+	// When there is no feature flag present in the argocd-cm,
+	// Then RequireOverridePrivilegeForRevisionSync() must return false (default value) and nil error.
+	_, settingsManager := fixtures(map[string]string{})
+	featureFlag, err := settingsManager.RequireOverridePrivilegeForRevisionSync()
+	require.False(t, featureFlag,
+		"with empty argocd-cm config map, RequireOverridePrivilegeForRevisionSync() must return false (default value)")
+	require.NoError(t, err,
+		"with empty argocd-cm config map, RequireOverridePrivilegeForRevisionSync() must not return any error")
+}
+
+func TestRequireOverridePrivilegeForRevisionSyncFalse(t *testing.T) {
+	// When user disables the feature explicitly,
+	// Then RequireOverridePrivilegeForRevisionSync() must return false and nil error.
+	_, settingsManager := fixtures(map[string]string{
+		"application.sync.RequireOverridePrivilegeForRevisionSync": "false",
+	})
+	featureFlag, err := settingsManager.RequireOverridePrivilegeForRevisionSync()
+	require.False(t, featureFlag,
+		"when user disables the flag in argocd-cm config map, RequireOverridePrivilegeForRevisionSync() must return user set value")
+	require.NoError(t, err,
+		"when user disables the flag in argocd-cm config map, RequireOverridePrivilegeForRevisionSync() must not return any error")
+}
+
+func TestRequireOverridePrivilegeForRevisionSyncTrue(t *testing.T) {
+	// When user enables the feature explicitly,
+	// Then RequireOverridePrivilegeForRevisionSync() must return true and nil error.
+	_, settingsManager := fixtures(map[string]string{
+		"application.sync.requireOverridePrivilegeForRevisionSync": "true",
+	})
+	featureFlag, err := settingsManager.RequireOverridePrivilegeForRevisionSync()
+	require.True(t, featureFlag,
+		"when user enables the flag in argocd-cm config map, RequireOverridePrivilegeForRevisionSync() must return user set value")
+	require.NoError(t, err,
+		"when user enables the flag in argocd-cm config map, RequireOverridePrivilegeForRevisionSync() must not return any error")
+}
+
+func TestRequireOverridePrivilegeForRevisionSyncParseError(t *testing.T) {
+	// When a value is set that cannot be parsed as boolean,
+	// Then RequireOverridePrivilegeForRevisionSync() must return false and nil error.
+	_, settingsManager := fixtures(map[string]string{
+		"application.sync.requireOverridePrivilegeForRevisionSync": "BANANA",
+	})
+	featureFlag, err := settingsManager.RequireOverridePrivilegeForRevisionSync()
+	require.False(t, featureFlag,
+		"when user set the flag to unparseable value in argocd-cm config map, RequireOverridePrivilegeForRevisionSync() must return false (default value)")
+	require.ErrorContains(t, err, "invalid syntax",
+		"when user set the flag to unparseable value in argocd-cm config map, RequireOverridePrivilegeForRevisionSync() must return an error")
 }
 
 func TestSettingsManager_GetHideSecretAnnotations(t *testing.T) {
