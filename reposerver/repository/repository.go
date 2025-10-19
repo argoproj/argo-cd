@@ -194,7 +194,6 @@ func (s *Service) Init() error {
 							Mode:   gogit.MixedReset,
 							Commit: headRef.Hash(),
 						})
-
 						if err != nil {
 							log.Errorf("Failed to reset git repo %s: %v", fullPath, err)
 						}
