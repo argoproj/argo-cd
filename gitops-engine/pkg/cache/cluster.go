@@ -25,6 +25,7 @@
 package cache
 
 import (
+	"maps"
 	"context"
 	"fmt"
 	"runtime/debug"
@@ -151,6 +152,8 @@ type ClusterCache interface {
 	GetGVKParser() *managedfields.GvkParser
 	// Invalidate cache and executes callback that optionally might update cache settings
 	Invalidate(opts ...UpdateSettingsFunc)
+	// AddNamespace incrementally syncs a new namespace to the cluster cache if incremental sync is enabled, otherwise falls back to full invalidation
+	AddNamespace(namespace string) error
 	// FindResources returns resources that matches given list of predicates from specified namespace or everywhere if specified namespace is empty
 	FindResources(namespace string, predicates ...func(r *Resource) bool) map[kube.ResourceKey]*Resource
 	// IterateHierarchyV2 iterates resource tree starting from the specified top level resources and executes callback for each resource in the tree.
@@ -259,6 +262,9 @@ type clusterCache struct {
 	namespaces       []string
 	clusterResources bool
 	settings         Settings
+
+	// incrementalNamespaceSync enables incremental namespace syncing instead of full cache invalidation
+	incrementalNamespaceSync bool
 
 	handlersLock                sync.Mutex
 	handlerKey                  uint64
@@ -608,6 +614,106 @@ func (c *clusterCache) Invalidate(opts ...UpdateSettingsFunc) {
 	c.apisMeta = nil
 	c.namespacedResources = nil
 	c.log.Info("Invalidated cluster")
+}
+
+// AddNamespace incrementally syncs a new namespace to the cluster cache if incremental sync is enabled,
+// otherwise falls back to full cluster cache invalidation
+func (c *clusterCache) AddNamespace(namespace string) error {
+	if !c.incrementalNamespaceSync {
+		c.Invalidate(func(cache *clusterCache) {
+			cache.namespaces = append(cache.namespaces, namespace)
+		})
+		return nil
+	}
+
+	// Feature enabled: incremental sync
+	c.lock.Lock()
+	c.namespaces = append(c.namespaces, namespace)
+	apisToSync := c.snapshotApisMeta()
+	c.lock.Unlock()
+
+	return c.syncNamespaceResources(namespace, apisToSync)
+}
+
+func (c *clusterCache) snapshotApisMeta() map[schema.GroupKind]*apiMeta {
+	snapshot := make(map[schema.GroupKind]*apiMeta)
+	maps.Copy(snapshot, c.apisMeta)
+	return snapshot
+}
+
+// syncNamespaceResources lists and caches resources for the given namespace across all watched APIs
+func (c *clusterCache) syncNamespaceResources(namespace string, apisToSync map[schema.GroupKind]*apiMeta) error {
+	client, err := c.kubectl.NewDynamicClient(c.config)
+	if err != nil {
+		return fmt.Errorf("failed to create client: %w", err)
+	}
+
+	apiMap, err := c.buildAPIMap()
+	if err != nil {
+		return err
+	}
+
+	ctx := context.Background()
+	for gk, meta := range apisToSync {
+		if !meta.namespaced {
+			continue
+		}
+
+		api, exists := apiMap[gk]
+		if !exists {
+			continue
+		}
+
+		if err := c.loadNamespaceResources(ctx, client, api, namespace); err != nil {
+			return fmt.Errorf("failed to load resources for %s in namespace %s: %w", gk.String(), namespace, err)
+		}
+	}
+
+	return nil
+}
+
+// buildAPIMap creates a lookup map from GroupKind to APIResourceInfo
+func (c *clusterCache) buildAPIMap() (map[schema.GroupKind]kube.APIResourceInfo, error) {
+	apis, err := c.kubectl.GetAPIResources(c.config, true, c.settings.ResourcesFilter)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get api resources: %w", err)
+	}
+
+	apiMap := make(map[schema.GroupKind]kube.APIResourceInfo)
+	for _, api := range apis {
+		apiMap[api.GroupKind] = api
+	}
+	return apiMap, nil
+}
+
+// loadNamespaceResources lists and caches all resources for a given API in a specific namespace,
+// and starts watching for changes
+func (c *clusterCache) loadNamespaceResources(ctx context.Context, client dynamic.Interface, api kube.APIResourceInfo, namespace string) error {
+	resClient := client.Resource(api.GroupVersionResource).Namespace(namespace)
+
+	resourceVersion, err := c.listResources(ctx, resClient, func(listPager *pager.ListPager) error {
+		return listPager.EachListItem(ctx, metav1.ListOptions{}, func(obj runtime.Object) error {
+			un, ok := obj.(*unstructured.Unstructured)
+			if !ok {
+				return fmt.Errorf("object %s/%s has an unexpected type", un.GroupVersionKind().String(), un.GetName())
+			}
+			newRes := c.newResource(un)
+			c.lock.Lock()
+			c.setNode(newRes)
+			c.lock.Unlock()
+			return nil
+		})
+	})
+	if err != nil {
+		if c.isRestrictedResource(err) {
+			return nil
+		}
+		return err
+	}
+
+	go c.watchEvents(ctx, api, resClient, namespace, resourceVersion)
+
+	return nil
 }
 
 // clusterCacheSync's lock should be held before calling this method
