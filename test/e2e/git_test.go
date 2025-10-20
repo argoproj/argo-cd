@@ -37,7 +37,7 @@ func TestGitSemverResolutionNotUsingConstraint(t *testing.T) {
 func TestGitShallowClone(t *testing.T) {
 	Given(t).
 		Path("deployment").
-		HTTPSInsecureRepoURLAdded(true, repos.WithShallowClone(true)).
+		HTTPSInsecureRepoURLAdded(true, repos.WithDepth(1)).
 		RepoURLType(fixture.RepoURLTypeHTTPS).
 		When().
 		CreateApp().

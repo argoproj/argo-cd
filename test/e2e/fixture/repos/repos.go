@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -32,10 +33,10 @@ func mustToAbsPath(t *testing.T, relativePath string) string {
 
 type AddRepoOpts func(args []string) []string
 
-func WithShallowClone(val bool) AddRepoOpts {
+func WithDepth(depth int64) AddRepoOpts {
 	return func(args []string) []string {
-		if val {
-			args = append(args, "--shallow-clone")
+		if depth > 0 {
+			args = append(args, "--depth", strconv.FormatInt(depth, 10))
 		}
 		return args
 	}

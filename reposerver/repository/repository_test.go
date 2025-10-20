@@ -3173,10 +3173,10 @@ func TestCheckoutRevisionCanGetNonstandardRefs(t *testing.T) {
 	pullSha, err := gitClient.LsRemote("refs/pull/123/head")
 	require.NoError(t, err)
 
-	err = checkoutRevision(gitClient, "does-not-exist", false, false)
+	err = checkoutRevision(gitClient, "does-not-exist", false, 0)
 	require.Error(t, err)
 
-	err = checkoutRevision(gitClient, pullSha, false, false)
+	err = checkoutRevision(gitClient, pullSha, false, 0)
 	require.NoError(t, err)
 }
 
@@ -3188,7 +3188,7 @@ func TestCheckoutRevisionPresentSkipFetch(t *testing.T) {
 	gitClient.EXPECT().IsRevisionPresent(revision).Return(true)
 	gitClient.EXPECT().Checkout(revision, mock.Anything).Return("", nil)
 
-	err := checkoutRevision(gitClient, revision, false, false)
+	err := checkoutRevision(gitClient, revision, false, 0)
 	require.NoError(t, err)
 }
 
@@ -3201,7 +3201,7 @@ func TestCheckoutRevisionNotPresentCallFetch(t *testing.T) {
 	gitClient.EXPECT().Fetch("", mock.Anything).Return(nil)
 	gitClient.EXPECT().Checkout(revision, mock.Anything).Return("", nil)
 
-	err := checkoutRevision(gitClient, revision, false, false)
+	err := checkoutRevision(gitClient, revision, false, 0)
 	require.NoError(t, err)
 }
 

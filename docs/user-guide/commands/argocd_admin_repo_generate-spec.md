@@ -51,6 +51,7 @@ argocd admin repo generate-spec REPOURL [flags]
 
 ```
       --bearer-token string                     bearer token to the Git BitBucket Data Center repository
+      --depth int                               Specify a custom depth for git clone operations. A depth of 0 performs a full clone.
       --enable-lfs                              enable git-lfs (Large File Support) on this repository
       --enable-oci                              enable helm-oci (Helm OCI-Based Repository) (only valid for helm type repositories)
       --force-http-basic-auth                   whether to force use of basic auth when connecting repository via HTTP
@@ -69,7 +70,6 @@ argocd admin repo generate-spec REPOURL [flags]
       --password string                         password to the repository
       --project string                          project of the repository
       --proxy string                            use proxy to access repository
-      --shallow-clone                           perform a shallow clone of the git repository
       --ssh-private-key-path string             path to the private ssh key (e.g. ~/.ssh/id_rsa)
       --tls-client-cert-key-path string         path to the TLS client cert's key (must be PEM format)
       --tls-client-cert-path string             path to the TLS client cert (must be PEM format)

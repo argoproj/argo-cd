@@ -536,12 +536,12 @@ $ go tool pprof http://localhost:8082/debug/pprof/heap
 
 ## Shallow Clone
 
-Monorepos can be large and slow to clone. To speed up the clone process, you can use the `shallow-clone=true` repository option:
+Monorepos can be large and slow to clone. To speed up the clone process, you can use the `depth: "1"` repository option:
 
 ```yaml
 apiVersion: v1
 stringData:
-  shallowClone: "true"
+  depth: "1"
   type: "git"
   url: "https://github.com/argoproj/argocd-example-apps.git"
 kind: Secret
@@ -555,6 +555,6 @@ metadata:
 type: Opaque
 ```
 
-> [!NOTE] You can use the `argocd repo add <repo-url> --shallow-clone` command to add a repository with shallow cloning enabled.
+> [!NOTE] You can use the `argocd repo add <repo-url> --depth` command to add a repository with shallow cloning enabled.
 
 When shallow cloning, the repository is cloned with a depth of 1, which means only the required commit is cloned as opposed to the full history. This approach makes sense when the repository has a large history.

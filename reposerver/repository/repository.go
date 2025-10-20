@@ -247,7 +247,7 @@ func (s *Service) ListApps(ctx context.Context, q *apiclient.ListAppsRequest) (*
 	defer s.metricsServer.DecPendingRepoRequest(q.Repo.Repo)
 
 	closer, err := s.repoLock.Lock(gitClient.Root(), commitSHA, true, func() (goio.Closer, error) {
-		return s.checkoutRevision(gitClient, commitSHA, s.initConstants.SubmoduleEnabled, q.Repo.ShallowClone)
+		return s.checkoutRevision(gitClient, commitSHA, s.initConstants.SubmoduleEnabled, q.Repo.Depth)
 	})
 	if err != nil {
 		return nil, fmt.Errorf("error acquiring repository lock: %w", err)
@@ -449,7 +449,7 @@ func (s *Service) runRepoOperation(
 		})
 	}
 	closer, err := s.repoLock.Lock(gitClient.Root(), revision, settings.allowConcurrent, func() (goio.Closer, error) {
-		return s.checkoutRevision(gitClient, revision, s.initConstants.SubmoduleEnabled, repo.ShallowClone)
+		return s.checkoutRevision(gitClient, revision, s.initConstants.SubmoduleEnabled, repo.Depth)
 	})
 	if err != nil {
 		return err
@@ -834,7 +834,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 							return
 						}
 						closer, err := s.repoLock.Lock(gitClient.Root(), referencedCommitSHA, true, func() (goio.Closer, error) {
-							return s.checkoutRevision(gitClient, referencedCommitSHA, s.initConstants.SubmoduleEnabled, q.Repo.ShallowClone)
+							return s.checkoutRevision(gitClient, referencedCommitSHA, s.initConstants.SubmoduleEnabled, q.Repo.Depth)
 						})
 						if err != nil {
 							log.Errorf("failed to acquire lock for referenced source %s", normalizedRepoURL)
@@ -2435,7 +2435,7 @@ func (s *Service) GetRevisionMetadata(_ context.Context, q *apiclient.RepoServer
 	defer s.metricsServer.DecPendingRepoRequest(q.Repo.Repo)
 
 	closer, err := s.repoLock.Lock(gitClient.Root(), q.Revision, true, func() (goio.Closer, error) {
-		return s.checkoutRevision(gitClient, q.Revision, s.initConstants.SubmoduleEnabled, q.Repo.ShallowClone)
+		return s.checkoutRevision(gitClient, q.Revision, s.initConstants.SubmoduleEnabled, q.Repo.Depth)
 	})
 	if err != nil {
 		return nil, fmt.Errorf("error acquiring repo lock: %w", err)
@@ -2658,9 +2658,9 @@ func directoryPermissionInitializer(rootPath string) goio.Closer {
 
 // checkoutRevision is a convenience function to initialize a repo, fetch, and checkout a revision
 // Returns the 40 character commit SHA after the checkout has been performed
-func (s *Service) checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bool, shallowClone bool) (goio.Closer, error) {
+func (s *Service) checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bool, depth int64) (goio.Closer, error) {
 	closer := s.gitRepoInitializer(gitClient.Root())
-	err := checkoutRevision(gitClient, revision, submoduleEnabled, shallowClone)
+	err := checkoutRevision(gitClient, revision, submoduleEnabled, depth)
 	if err != nil {
 		s.metricsServer.IncGitFetchFail(gitClient.Root(), revision)
 	}
@@ -2711,7 +2711,7 @@ func fetch(gitClient git.Client, targetRevisions []string) error {
 	return nil
 }
 
-func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bool, shallowClone bool) error {
+func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bool, depth int64) error {
 	err := gitClient.Init()
 	if err != nil {
 		return status.Errorf(codes.Internal, "Failed to initialize git repo: %v", err)
@@ -2723,13 +2723,9 @@ func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bo
 		"skipFetch": revisionPresent,
 	}).Debugf("Checking out revision %v", revision)
 
-	depth := 0
-	if shallowClone {
-		depth = 1
-	}
 	// Fetching can be skipped if the revision is already present locally.
 	if !revisionPresent {
-		if shallowClone {
+		if depth > 0 {
 			err = gitClient.Fetch(revision, depth)
 		} else {
 			// Fetching with no revision first. Fetching with an explicit version can cause repo bloat. https://github.com/argoproj/argo-cd/issues/8845
@@ -2894,7 +2890,7 @@ func (s *Service) GetGitFiles(_ context.Context, request *apiclient.GitFilesRequ
 
 	// cache miss, generate the results
 	closer, err := s.repoLock.Lock(gitClient.Root(), revision, true, func() (goio.Closer, error) {
-		return s.checkoutRevision(gitClient, revision, request.GetSubmoduleEnabled(), repo.ShallowClone)
+		return s.checkoutRevision(gitClient, revision, request.GetSubmoduleEnabled(), repo.Depth)
 	})
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "unable to checkout git repo %s with revision %s pattern %s: %v", repo.Repo, revision, gitPath, err)
@@ -2976,7 +2972,7 @@ func (s *Service) GetGitDirectories(_ context.Context, request *apiclient.GitDir
 
 	// cache miss, generate the results
 	closer, err := s.repoLock.Lock(gitClient.Root(), revision, true, func() (goio.Closer, error) {
-		return s.checkoutRevision(gitClient, revision, request.GetSubmoduleEnabled(), repo.ShallowClone)
+		return s.checkoutRevision(gitClient, revision, request.GetSubmoduleEnabled(), repo.Depth)
 	})
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "unable to checkout git repo %s with revision %s: %v", repo.Repo, revision, err)
@@ -3068,7 +3064,7 @@ func (s *Service) UpdateRevisionForPaths(_ context.Context, request *apiclient.U
 	defer s.metricsServer.DecPendingRepoRequest(repo.Repo)
 
 	closer, err := s.repoLock.Lock(gitClient.Root(), revision, true, func() (goio.Closer, error) {
-		return s.checkoutRevision(gitClient, revision, false, false)
+		return s.checkoutRevision(gitClient, revision, false, 0)
 	})
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "unable to checkout git repo %s with revision %s: %v", repo.Repo, revision, err)
