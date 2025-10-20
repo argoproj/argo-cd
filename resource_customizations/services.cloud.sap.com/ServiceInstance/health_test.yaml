@@ -1,8 +1,16 @@
 tests:
 - healthStatus:
     status: Progressing
-    message: Waiting for status
+    message: 'Waiting for status'
   inputPath: testdata/progressing.yaml
+- healthStatus:
+    status: Progressing
+    message: 'Waiting for spec update to be observed'
+  inputPath: testdata/observed-generation-outdated.yaml
+- healthStatus:
+    status: Progressing
+    message: 'Resource is being deleted'
+  inputPath: testdata/deleting.yaml
 - healthStatus:
     status: Degraded
     message: 'ServiceInstance update failed'
