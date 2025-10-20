@@ -7,8 +7,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/argoproj/argo-cd/v3/controller/hydrator"
-
 	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/v3/commitserver/apiclient"
@@ -165,26 +163,12 @@ func (s *Service) handleCommitRequest(logCtx *log.Entry, r *apiclient.CommitHydr
 		return out, "", fmt.Errorf("failed to checkout target branch: %w", err)
 	}
 
-	logCtx.Debug("Clearing and preparing paths")
-	var pathsToClear []string
-	// range over the paths configured and skip those application
-	// paths that are referencing to root path
-	for _, p := range r.Paths {
-		if hydrator.IsRootPath(p.Path) {
-			// skip adding paths that are referencing root directory
-			logCtx.Debugf("Path %s is referencing root directory, ignoring the path", p.Path)
-			continue
-		}
-		pathsToClear = append(pathsToClear, p.Path)
+	hydratedSha, err := gitClient.CommitSHA()
+	if err != nil {
+		return "", "", fmt.Errorf("failed to get commit SHA: %w", err)
 	}
 
-	if len(pathsToClear) > 0 {
-		logCtx.Debugf("Clearing paths: %v", pathsToClear)
-		out, err := gitClient.RemoveContents(pathsToClear)
-		if err != nil {
-			return out, "", fmt.Errorf("failed to clear paths %v: %w", pathsToClear, err)
-		}
-	}
+	logCtx.Debug("Clearing and preparing paths")
 
 	/* git note changes
 	1. Get the git note for the DRY SHA
@@ -194,7 +178,7 @@ func (s *Service) handleCommitRequest(logCtx *log.Entry, r *apiclient.CommitHydr
 	3b. Else, hydrate the manifest.
 	3c. Push the updated note
 	*/
-	isHydrated, err := IsHydrated(gitClient, r.DrySha)
+	isHydrated, err := IsHydrated(gitClient, r.DrySha, hydratedSha)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to get notes from git %w", err)
 	}
@@ -213,7 +197,7 @@ func (s *Service) handleCommitRequest(logCtx *log.Entry, r *apiclient.CommitHydr
 	if !shouldCommit {
 		// add the note and return
 		logCtx.Debug("Adding commit note")
-		err = AddNote(gitClient, r.DrySha)
+		err = AddNote(gitClient, r.DrySha, hydratedSha)
 		if err != nil {
 			return "", "", fmt.Errorf("failed to add commit note: %w", err)
 		}
@@ -232,7 +216,7 @@ func (s *Service) handleCommitRequest(logCtx *log.Entry, r *apiclient.CommitHydr
 	}
 	// add the commit note
 	logCtx.Debug("Adding commit note")
-	err = AddNote(gitClient, r.DrySha)
+	err = AddNote(gitClient, r.DrySha, sha)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to add commit note: %w", err)
 	}

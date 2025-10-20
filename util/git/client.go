@@ -1104,7 +1104,7 @@ func (m *nativeGitClient) AddAndPushNote(sha string, namespace string, note stri
 	}
 	ctx := context.Background()
 	ref := "--ref=" + namespace
-	_, err := m.runCmd(ctx, "notes", ref, "add", "-m", note, sha)
+	_, err := m.runCmd(ctx, "notes", ref, "add", "-f", "-m", note, sha)
 	if err != nil {
 		return fmt.Errorf("failed to push: %w", err)
 	}
@@ -1113,7 +1113,7 @@ func (m *nativeGitClient) AddAndPushNote(sha string, namespace string, note stri
 		defer done()
 	}
 
-	err = m.runCredentialedCmd(ctx, "push", "origin", "refs/notes/"+namespace)
+	err = m.runCredentialedCmd(ctx, "push", "-f", "origin", "refs/notes/"+namespace)
 	if err != nil {
 		return fmt.Errorf("failed to push: %w", err)
 	}
@@ -1123,10 +1123,16 @@ func (m *nativeGitClient) AddAndPushNote(sha string, namespace string, note stri
 
 // HasFileChanged returns the outout of git diff considering whether it is tracked or un-tracked
 func (m *nativeGitClient) HasFileChanged(filePath string) (bool, error) {
+	// Step 1: Is it UNTRACKED? (file is new to git)
+	_, err := m.runCmd(context.Background(), "cat-file", "-e", fmt.Sprintf("HEAD:%s", filePath))
+	if err != nil {
+		// File is NOT tracked by git → means it's new/unadded
+		return true, nil
+	}
 	// use git diff --quiet and check exit code .. --cached is to consider files staged for deletion
-	_, err := m.runCmd(context.Background(), "diff", "--cached", "--quiet", filePath)
+	_, err = m.runCmd(context.Background(), "diff", "--quiet", "--", filePath)
 	if err == nil {
-		return false, nil // no changes
+		return false, nil // No changes
 	}
 	// Exit code 1 indicates: changes found
 	if strings.Contains(err.Error(), "exit status 1") {

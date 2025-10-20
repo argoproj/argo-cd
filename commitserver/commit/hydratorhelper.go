@@ -218,7 +218,6 @@ func writeManifests(root *os.Root, dirPath string, manifests []*apiclient.Hydrat
 			return fmt.Errorf("failed to encode manifest: %w", err)
 		}
 	}
-
 	return nil
 }
 
@@ -235,8 +234,8 @@ func hasManifestChanged(dirPath string, gitClient git.Client) (bool, error) {
 	return gitClient.HasFileChanged(manifestPath)
 }
 
-func IsHydrated(gitClient git.Client, drySha string) (bool, error) {
-	note, err := gitClient.GetCommitNote(drySha, NoteNamespace)
+func IsHydrated(gitClient git.Client, drySha, hydratedSha string) (bool, error) {
+	note, err := gitClient.GetCommitNote(hydratedSha, NoteNamespace)
 	if err != nil {
 		// an empty note or note not found is a valid and acceptable outcome in this context
 		unwrappedError := errors.Unwrap(err)
@@ -253,13 +252,13 @@ func IsHydrated(gitClient git.Client, drySha string) (bool, error) {
 	return commitNote.DrySHA == drySha, nil
 }
 
-func AddNote(gitClient git.Client, drySha string) error {
+func AddNote(gitClient git.Client, drySha, hydratedSha string) error {
 	note := CommitNote{DrySHA: drySha}
 	jsonBytes, err := json.Marshal(note)
 	if err != nil {
 		return fmt.Errorf("failed to marshal commit note: %w", err)
 	}
-	err = gitClient.AddAndPushNote(drySha, NoteNamespace, string(jsonBytes))
+	err = gitClient.AddAndPushNote(hydratedSha, NoteNamespace, string(jsonBytes))
 	if err != nil {
 		return fmt.Errorf("failed to add commit note: %w", err)
 	}
