@@ -151,9 +151,17 @@ See [#1482](https://github.com/argoproj/argo-cd/issues/1482).
 
 ## How often does Argo CD check for changes to my Git or Helm repository ?
 
-The default maximum polling interval is 3 minutes (120 seconds + 60 seconds jitter).
-You can change the setting by updating the `timeout.reconciliation` value and the `timeout.reconciliation.jitter` in the [argocd-cm](https://github.com/argoproj/argo-cd/blob/2d6ce088acd4fb29271ffb6f6023dbb27594d59b/docs/operator-manual/argocd-cm.yaml#L279-L282) config map. If there are any Git changes, Argo CD will only update applications with the [auto-sync setting](user-guide/auto_sync.md) enabled. If you set it to `0` then Argo CD will stop polling Git repositories automatically and you can only use alternative methods such as [webhooks](operator-manual/webhook.md) and/or manual syncs for deploying applications.
+By default, Argo CD checks (polls) Git repositories every 3 minutes to detect changes.
+This default interval is calculated as 120 seconds + up to 60 seconds of jitter (a small random delay to avoid simultaneous polling). You can customize this behavior by updating the following keys in the `argocd-cm` ConfigMap:
+```yaml
+timeout.reconciliation: 180s          # Base interval (default: 120s)
+timeout.reconciliation.jitter: 60s    # Random delay added (default: 60s)
+```
+During each polling cycle, Argo CD checks whether your tracked repositories have changed. If changes are found:
+- Applications with auto-sync enabled will automatically sync to match the new state.
+- Applications without auto-sync will simply be marked as OutOfSync in the UI.
 
+Setting `timeout.reconciliation` to 0 completely disables automatic polling. In that case, Argo CD will only detect changes when triggered through webhooks or a manual sync.
 
 ## Why is my ArgoCD application `Out Of Sync` when there are no actual changes to the resource limits (or other fields with unit values)?
 
