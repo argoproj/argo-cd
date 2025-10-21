@@ -71,6 +71,7 @@ func runCommand(ctx context.Context, command Command, path string, env []string)
 
 	// Make sure the command is killed immediately on timeout by setting process group
 	// This maintains backward compatibility with the original plugin behavior
+	// https://stackoverflow.com/a/38133948/684776
 	cmd.SysProcAttr = newSysProcAttr(true)
 
 	// Use the argoexec package to run the command with proper ARGOCD_EXEC_TIMEOUT support
