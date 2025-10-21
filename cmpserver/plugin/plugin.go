@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
@@ -68,13 +69,27 @@ func runCommand(ctx context.Context, command Command, path string, env []string)
 	cmd.Env = env
 	cmd.Dir = path
 
+	// Make sure the command is killed immediately on timeout by setting process group
+	// This maintains backward compatibility with the original plugin behavior
+	cmd.SysProcAttr = newSysProcAttr(true)
+
 	// Use the argoexec package to run the command with proper ARGOCD_EXEC_TIMEOUT support
-	opts := argoexec.ExecRunOpts{
+	// Configure timeout behavior to maintain backward compatibility with 5-second cleanup timeout
+	cmdOpts := argoexec.CmdOpts{
+		// Use default timeout from ARGOCD_EXEC_TIMEOUT environment variable (90s default)
+		Timeout: 0, // 0 means use the global timeout from environment variable
+		// FatalTimeout maintains backward compatibility with original 5-second cleanup timeout
+		FatalTimeout: 5 * time.Second,
 		// CaptureStderr is set to true to include stderr in the output for better error reporting
 		CaptureStderr: true,
+		// TimeoutBehavior maintains backward compatibility: send SIGTERM first, then wait for cleanup
+		TimeoutBehavior: argoexec.TimeoutBehavior{
+			Signal:     syscall.SIGTERM, // Send SIGTERM first to allow cleanup
+			ShouldWait: true,            // Wait for process to cleanup before SIGKILL
+		},
 	}
 
-	return argoexec.RunWithExecRunOpts(cmd, opts)
+	return argoexec.RunCommandExt(cmd, cmdOpts)
 }
 
 // Environ returns a list of environment variables in name=value format from a list of variables
