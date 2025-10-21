@@ -1128,19 +1128,7 @@ func (server *ArgoCDServer) translateGrpcCookieHeader(ctx context.Context, w htt
 }
 
 func (server *ArgoCDServer) setTokenCookie(token string, w http.ResponseWriter) error {
-	cookiePath := "path=/" + strings.TrimRight(strings.TrimLeft(server.BaseHRef, "/"), "/")
-	flags := []string{cookiePath, "SameSite=lax", "httpOnly"}
-	if !server.Insecure {
-		flags = append(flags, "Secure")
-	}
-	cookies, err := httputil.MakeCookieMetadata(common.AuthCookieName, token, flags...)
-	if err != nil {
-		return fmt.Errorf("error creating cookie metadata: %w", err)
-	}
-	for _, cookie := range cookies {
-		w.Header().Add("Set-Cookie", cookie)
-	}
-	return nil
+	return httputil.SetTokenCookie(token, server.BaseHRef, !server.Insecure, w)
 }
 
 func withRootPath(handler http.Handler, a *ArgoCDServer) http.Handler {
@@ -1564,6 +1552,7 @@ func (server *ArgoCDServer) Authenticate(ctx context.Context) (context.Context, 
 	return ctx, nil
 }
 
+// getClaims extracts, validates and refreshes a JWT token from an incoming request context.
 func (server *ArgoCDServer) getClaims(ctx context.Context) (jwt.Claims, string, error) {
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
@@ -1573,6 +1562,8 @@ func (server *ArgoCDServer) getClaims(ctx context.Context) (jwt.Claims, string, 
 	if tokenString == "" {
 		return nil, "", ErrNoSession
 	}
+	// A valid argocd-issued token is automatically refreshed here prior to expiration.
+	// OIDC tokens will be verified but will not be refreshed here.
 	claims, newToken, err := server.sessionMgr.VerifyToken(ctx, tokenString)
 	if err != nil {
 		return claims, "", status.Errorf(codes.Unauthenticated, "invalid session: %v", err)
@@ -1585,6 +1576,7 @@ func (server *ArgoCDServer) getClaims(ctx context.Context) (jwt.Claims, string, 
 			return claims, "", status.Errorf(codes.Unauthenticated, "invalid session: %v", err)
 		}
 		finalClaims = updatedClaims
+		// OIDC tokens are automatically refreshed here prior to expiration
 		refreshedToken, err := server.ssoClientApp.CheckAndRefreshToken(ctx, updatedClaims, server.settings.OIDCRefreshTokenThreshold)
 		if err != nil {
 			log.Errorf("error checking and refreshing token: %v", err)
