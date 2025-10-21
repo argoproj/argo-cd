@@ -161,7 +161,7 @@ During each polling cycle, Argo CD checks whether your tracked repositories have
 - Applications with auto-sync enabled will automatically sync to match the new state.
 - Applications without auto-sync will simply be marked as OutOfSync in the UI.
 
-Setting `timeout.reconciliation` to 0 completely disables automatic polling. In that case, Argo CD will only detect changes when triggered through webhooks or a manual sync.
+Setting `timeout.reconciliation` to 0 completely disables automatic polling. In that case, Argo CD will only detect changes when triggered through webhooks or a manual refresh.
 
 ## Why is my ArgoCD application `Out Of Sync` when there are no actual changes to the resource limits (or other fields with unit values)?
 
