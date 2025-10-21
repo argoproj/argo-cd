@@ -19,7 +19,7 @@ const (
 	pipe            = `│ `
 )
 
-func extractHealthStatusAndReason(node v1alpha1.ResourceNode) (healthStatus health.HealthStatusCode, reason string) {
+func extractHealthStatusAndReason(node *v1alpha1.ResourceNode) (healthStatus health.HealthStatusCode, reason string) {
 	if node.Health != nil {
 		healthStatus = node.Health.Status
 		reason = node.Health.Message
@@ -27,7 +27,7 @@ func extractHealthStatusAndReason(node v1alpha1.ResourceNode) (healthStatus heal
 	return healthStatus, reason
 }
 
-func treeViewAppGet(prefix string, uidToNodeMap map[string]v1alpha1.ResourceNode, parentToChildMap map[string][]string, parent v1alpha1.ResourceNode, mapNodeNameToResourceState map[string]*resourceState, w *tabwriter.Writer) {
+func treeViewAppGet(prefix string, uidToNodeMap map[string]v1alpha1.ResourceNode, parentToChildMap map[string][]string, parent *v1alpha1.ResourceNode, mapNodeNameToResourceState map[string]*resourceState, w *tabwriter.Writer) {
 	healthStatus, _ := extractHealthStatusAndReason(parent)
 	if mapNodeNameToResourceState[parent.Kind+"/"+parent.Name] != nil {
 		value := mapNodeNameToResourceState[parent.Kind+"/"+parent.Name]
@@ -44,11 +44,12 @@ func treeViewAppGet(prefix string, uidToNodeMap map[string]v1alpha1.ResourceNode
 		default:
 			p = prefix + firstElemPrefix
 		}
-		treeViewAppGet(p, uidToNodeMap, parentToChildMap, uidToNodeMap[childUID], mapNodeNameToResourceState, w)
+		parent := uidToNodeMap[childUID]
+		treeViewAppGet(p, uidToNodeMap, parentToChildMap, &parent, mapNodeNameToResourceState, w)
 	}
 }
 
-func detailedTreeViewAppGet(prefix string, uidToNodeMap map[string]v1alpha1.ResourceNode, parentChildMap map[string][]string, parent v1alpha1.ResourceNode, mapNodeNameToResourceState map[string]*resourceState, w *tabwriter.Writer) {
+func detailedTreeViewAppGet(prefix string, uidToNodeMap map[string]v1alpha1.ResourceNode, parentChildMap map[string][]string, parent *v1alpha1.ResourceNode, mapNodeNameToResourceState map[string]*resourceState, w *tabwriter.Writer) {
 	healthStatus, reason := extractHealthStatusAndReason(parent)
 	age := "<unknown>"
 	if parent.CreatedAt != nil {
@@ -70,11 +71,12 @@ func detailedTreeViewAppGet(prefix string, uidToNodeMap map[string]v1alpha1.Reso
 		default:
 			p = prefix + firstElemPrefix
 		}
-		detailedTreeViewAppGet(p, uidToNodeMap, parentChildMap, uidToNodeMap[child], mapNodeNameToResourceState, w)
+		parent := uidToNodeMap[child]
+		detailedTreeViewAppGet(p, uidToNodeMap, parentChildMap, &parent, mapNodeNameToResourceState, w)
 	}
 }
 
-func treeViewAppResourcesNotOrphaned(prefix string, uidToNodeMap map[string]v1alpha1.ResourceNode, parentChildMap map[string][]string, parent v1alpha1.ResourceNode, w *tabwriter.Writer) {
+func treeViewAppResourcesNotOrphaned(prefix string, uidToNodeMap map[string]*v1alpha1.ResourceNode, parentChildMap map[string][]string, parent *v1alpha1.ResourceNode, w *tabwriter.Writer) {
 	if len(parent.ParentRefs) == 0 {
 		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", parent.Group, parent.Kind, parent.Namespace, parent.Name, "No")
 	}
@@ -91,7 +93,7 @@ func treeViewAppResourcesNotOrphaned(prefix string, uidToNodeMap map[string]v1al
 	}
 }
 
-func treeViewAppResourcesOrphaned(prefix string, uidToNodeMap map[string]v1alpha1.ResourceNode, parentChildMap map[string][]string, parent v1alpha1.ResourceNode, w *tabwriter.Writer) {
+func treeViewAppResourcesOrphaned(prefix string, uidToNodeMap map[string]*v1alpha1.ResourceNode, parentChildMap map[string][]string, parent *v1alpha1.ResourceNode, w *tabwriter.Writer) {
 	_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", parent.Group, parent.Kind, parent.Namespace, parent.Name, "Yes")
 	chs := parentChildMap[parent.UID]
 	for i, child := range chs {
@@ -106,7 +108,7 @@ func treeViewAppResourcesOrphaned(prefix string, uidToNodeMap map[string]v1alpha
 	}
 }
 
-func detailedTreeViewAppResourcesNotOrphaned(prefix string, uidToNodeMap map[string]v1alpha1.ResourceNode, parentChildMap map[string][]string, parent v1alpha1.ResourceNode, w *tabwriter.Writer) {
+func detailedTreeViewAppResourcesNotOrphaned(prefix string, uidToNodeMap map[string]*v1alpha1.ResourceNode, parentChildMap map[string][]string, parent *v1alpha1.ResourceNode, w *tabwriter.Writer) {
 	if len(parent.ParentRefs) == 0 {
 		healthStatus, reason := extractHealthStatusAndReason(parent)
 		age := "<unknown>"
@@ -128,7 +130,7 @@ func detailedTreeViewAppResourcesNotOrphaned(prefix string, uidToNodeMap map[str
 	}
 }
 
-func detailedTreeViewAppResourcesOrphaned(prefix string, uidToNodeMap map[string]v1alpha1.ResourceNode, parentChildMap map[string][]string, parent v1alpha1.ResourceNode, w *tabwriter.Writer) {
+func detailedTreeViewAppResourcesOrphaned(prefix string, uidToNodeMap map[string]*v1alpha1.ResourceNode, parentChildMap map[string][]string, parent *v1alpha1.ResourceNode, w *tabwriter.Writer) {
 	healthStatus, reason := extractHealthStatusAndReason(parent)
 	age := "<unknown>"
 	if parent.CreatedAt != nil {
