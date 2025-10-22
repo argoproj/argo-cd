@@ -92,13 +92,16 @@ jobs:
         run: |
           # Create cherry-pick PR
           TITLE="${PR_TITLE} (cherry-pick #${{ inputs.pr_number }} for ${{ inputs.version_number }})"
-          BODY="Cherry-picked ${PR_TITLE} (#${{ inputs.pr_number }})"
+          BODY=$(cat <<EOF
+          Cherry-picked ${PR_TITLE} (#${{ inputs.pr_number }})
+
+          ${{ steps.cherry-pick.outputs.signoff }}
+          EOF
+          )
 
           gh pr create \
             --title "$TITLE" \
-            --body "$BODY"
-
-          ${{ steps.cherry-pick.outputs.signoff }}" \
+            --body "$BODY" \
             --base "${{ steps.cherry-pick.outputs.target_branch }}" \
             --head "${{ steps.cherry-pick.outputs.branch_name }}"
 
