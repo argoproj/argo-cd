@@ -323,6 +323,60 @@ If for some reason authenticated Redis does not work for you and you want to use
 The Redis password is stored in Kubernetes secret `argocd-redis` with key `auth` in the namespace where Argo CD is installed.
 You can config your secret provider to generate Kubernetes secret accordingly.
 
+### Using file-based Redis credentials via `REDIS_CREDS_FILE_PATH`
+
+Argo CD components support reading Redis credentials from files mounted at a specified path inside the container.
+
+When the environment variable REDIS_CREDS_FILE_PATH is set, Argo CD loads Redis credentials only from the files located in that directory and does not read them from environment variables. If REDIS_CREDS_FILE_PATH is not set, the components fall back to reading credentials from environment variables such as REDIS_PASSWORD and REDIS_USERNAME (and their Sentinel variants).
+
+Expected files when using `REDIS_CREDS_FILE_PATH`:
+
+- `auth`: Redis password
+- `auth_username`: Redis username
+- `sentinel_auth`: Redis Sentinel password
+- `sentinel_username`: Redis Sentinel username
+
+You can store these keys in a Kubernetes Secret and mount it into each Argo CD component that needs Redis access. Then point `REDIS_CREDS_FILE_PATH` to the mount directory.
+
+Example Secret:
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: <secret-name>
+  namespace: argocd
+type: Opaque
+stringData:
+  auth: "<redis-password>"
+  auth_username: "<redis-username>"
+  sentinel_auth: "<sentinel-password>"
+  sentinel_username: "<sentinel-username>"
+```
+
+Example Argo CD component spec (e.g., add to `argocd-server`, `argocd-repo-server`, or `argocd-application-controller`):
+
+```yaml
+spec:
+    containers:
+    - name: argocd-server
+      image: quay.io/argoproj/argocd:<version>
+      env:
+      - name: REDIS_CREDS_FILE_PATH
+        value: "<mount-path>"
+        volumeMounts:
+        - name: redis-creds
+          mountPath: "<mount-path>"
+          readOnly: true
+    volumes:
+    - name: redis-creds
+      secret:
+      secretName: <secret-name>
+```
+
+> Note
+> This mechanism configures Argo CD components to authenticate to Redis. The Redis server itself should be configured independently (e.g., via `redis.conf`).
+
 ## How do I fix `Manifest generation error (cached)`?
 
 `Manifest generation error (cached)` means that there was an error when generating manifests and that the error message has been cached to avoid runaway retries.
