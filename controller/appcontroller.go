@@ -2450,7 +2450,7 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 			ListWithContextFunc: func(ctx context.Context, options metav1.ListOptions) (apiruntime.Object, error) {
 				// We are only interested in apps that exist in namespaces the
 				// user wants to be enabled.
-				appList, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(watchNamespace).List(context.TODO(), options)
+				appList, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(watchNamespace).List(ctx, options)
 				if err != nil {
 					return nil, err
 				}
@@ -2467,7 +2467,7 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 			// WatchFuncWithContext establishes a watch on Application objects.
 			// This continuously streams events (add/update/delete) to the informer.
 			WatchFuncWithContext: func(ctx context.Context, options metav1.ListOptions) (watch.Interface, error) {
-				return ctrl.applicationClientset.ArgoprojV1alpha1().Applications(watchNamespace).Watch(context.TODO(), options)
+				return ctrl.applicationClientset.ArgoprojV1alpha1().Applications(watchNamespace).Watch(ctx, options)
 			},
 		},
 		&appv1.Application{},
