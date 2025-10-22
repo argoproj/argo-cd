@@ -240,7 +240,7 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
                         <div style={{marginLeft: 'auto'}}>
                             <Filter options={Healths} filters={healthFilters} setFilters={setHealthFilters} title='HEALTH' style={{marginRight: '5px'}} />
                             <Filter options={Statuses} filters={filters} setFilters={setFilters} title='STATUS' style={{marginRight: '5px'}} />
-                            <Filter options={OperationPhases} filters={filters} setFilters={setFilters} title='HOOK' />
+                            <Filter options={OperationPhases} filters={filters} setFilters={setFilters} title='HOOK' style={{marginRight: '5px'}} />
                             <Tooltip placement='top-start' content='Filter on resources that have changed or remained unchanged'>
                                 <div style={{display: 'inline-block'}}>
                                     <Filter options={FilterableMessageStatuses} filters={messageFilters} setFilters={setMessageFilters} title='MESSAGE' />
@@ -286,10 +286,10 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
                                         </div>
                                         <div className='columns large-1 small-2'>
                                             {resource.health ? (
-                                                <div>
+                                                <span>
                                                     <utils.HealthStatusIcon state={resource?.health} /> {resource.health?.status}
                                                     {resource.health.message && <HelpIcon title={resource.health.message} />}
-                                                </div>
+                                                </span>
                                             ) : (
                                                 <>{'-'}</>
                                             )}
