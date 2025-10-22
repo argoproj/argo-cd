@@ -2520,6 +2520,8 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 				delApp, delOK := obj.(*appv1.Application)
 				if err == nil && delOK {
 					ctrl.clusterSharding.DeleteApp(delApp)
+					// Clear orphaned resources metric when application is deleted
+					ctrl.metricsServer.SetOrphanedResourcesMetric(delApp, 0)
 				}
 			},
 		},
