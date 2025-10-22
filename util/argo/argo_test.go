@@ -556,6 +556,49 @@ func TestFilterByProjectsP(t *testing.T) {
 	})
 }
 
+func TestFilterAppSetsByProjects(t *testing.T) {
+	appsets := []argoappv1.ApplicationSet{
+		{
+			Spec: argoappv1.ApplicationSetSpec{
+				Template: argoappv1.ApplicationSetTemplate{
+					Spec: argoappv1.ApplicationSpec{
+						Project: "fooproj",
+					},
+				},
+			},
+		},
+		{
+			Spec: argoappv1.ApplicationSetSpec{
+				Template: argoappv1.ApplicationSetTemplate{
+					Spec: argoappv1.ApplicationSpec{
+						Project: "barproj",
+					},
+				},
+			},
+		},
+	}
+
+	t.Run("No apps in single project", func(t *testing.T) {
+		res := FilterAppSetsByProjects(appsets, []string{"foobarproj"})
+		assert.Empty(t, res)
+	})
+
+	t.Run("Single app in single project", func(t *testing.T) {
+		res := FilterAppSetsByProjects(appsets, []string{"fooproj"})
+		assert.Len(t, res, 1)
+	})
+
+	t.Run("Single app in multiple project", func(t *testing.T) {
+		res := FilterAppSetsByProjects(appsets, []string{"fooproj", "foobarproj"})
+		assert.Len(t, res, 1)
+	})
+
+	t.Run("Multiple apps in multiple project", func(t *testing.T) {
+		res := FilterAppSetsByProjects(appsets, []string{"fooproj", "barproj"})
+		assert.Len(t, res, 2)
+	})
+}
+
 func TestFilterByRepo(t *testing.T) {
 	apps := []argoappv1.Application{
 		{
@@ -620,6 +663,40 @@ func TestFilterByRepoP(t *testing.T) {
 
 	t.Run("No match", func(t *testing.T) {
 		res := FilterByRepoP(apps, "git@github.com:owner/willnotmatch.git")
+		assert.Empty(t, res)
+	})
+}
+
+func TestFilterByPath(t *testing.T) {
+	apps := []argoappv1.Application{
+		{
+			Spec: argoappv1.ApplicationSpec{
+				Source: &argoappv1.ApplicationSource{
+					Path: "example/app/foo",
+				},
+			},
+		},
+		{
+			Spec: argoappv1.ApplicationSpec{
+				Source: &argoappv1.ApplicationSource{
+					Path: "example/app/existent",
+				},
+			},
+		},
+	}
+
+	t.Run("Empty filter", func(t *testing.T) {
+		res := FilterByPath(apps, "")
+		assert.Len(t, res, 2)
+	})
+
+	t.Run("Found one match", func(t *testing.T) {
+		res := FilterByPath(apps, "example/app/foo")
+		assert.Len(t, res, 1)
+	})
+
+	t.Run("No match found", func(t *testing.T) {
+		res := FilterByPath(apps, "example/app/non-existent")
 		assert.Empty(t, res)
 	})
 }
@@ -1074,6 +1151,59 @@ func TestFilterByNameP(t *testing.T) {
 		res := FilterByNameP(apps, "foobar")
 		assert.Empty(t, res)
 	})
+}
+
+func TestFilterByCluster(t *testing.T) {
+	apps := []argoappv1.Application{
+		{
+			Spec: argoappv1.ApplicationSpec{
+				Destination: argoappv1.ApplicationDestination{
+					Server: "https://cluster-1.example.com",
+				},
+			},
+		},
+		{
+			Spec: argoappv1.ApplicationSpec{
+				Destination: argoappv1.ApplicationDestination{
+					Name: "in-cluster",
+				},
+			},
+		},
+	}
+
+	tests := []struct {
+		name     string
+		cluster  string
+		expected int
+	}{
+		{
+			name:     "Empty filter returns all",
+			cluster:  "",
+			expected: 2,
+		},
+		{
+			name:     "Match by Server",
+			cluster:  "https://cluster-1.example.com",
+			expected: 1,
+		},
+		{
+			name:     "Match by Name",
+			cluster:  "in-cluster",
+			expected: 1,
+		},
+		{
+			name:     "No match found",
+			cluster:  "https://cluster-2.example.com",
+			expected: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			res := FilterByCluster(apps, tt.cluster)
+			assert.Len(t, res, tt.expected)
+		})
+	}
 }
 
 func TestGetGlobalProjects(t *testing.T) {
@@ -1701,6 +1831,173 @@ func TestGetAppEventLabels(t *testing.T) {
 				v, found := eventLabels[ek]
 				assert.True(t, found)
 				assert.Equal(t, ev, v)
+			}
+		})
+	}
+}
+
+func TestValidateManagedByURL(t *testing.T) {
+	tests := []struct {
+		name       string
+		app        *argoappv1.Application
+		wantErr    bool
+		wantErrMsg string
+	}{
+		{
+			name: "Valid HTTPS URL",
+			app: &argoappv1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						argoappv1.AnnotationKeyManagedByURL: "https://argocd.example.com",
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Valid HTTP URL",
+			app: &argoappv1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						argoappv1.AnnotationKeyManagedByURL: "http://argocd.example.com",
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Valid localhost HTTPS URL",
+			app: &argoappv1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						argoappv1.AnnotationKeyManagedByURL: "https://localhost:8081",
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Valid localhost HTTP URL",
+			app: &argoappv1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						argoappv1.AnnotationKeyManagedByURL: "http://localhost:8081",
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Valid 127.0.0.1 URL",
+			app: &argoappv1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						argoappv1.AnnotationKeyManagedByURL: "http://127.0.0.1:8081",
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "No annotations",
+			app: &argoappv1.Application{
+				ObjectMeta: metav1.ObjectMeta{},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Empty managed-by-url",
+			app: &argoappv1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						argoappv1.AnnotationKeyManagedByURL: "",
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Missing managed-by-url annotation",
+			app: &argoappv1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						"other.annotation": "value",
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Invalid protocol - javascript",
+			app: &argoappv1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						argoappv1.AnnotationKeyManagedByURL: "javascript:alert('xss')",
+					},
+				},
+			},
+			wantErr:    true,
+			wantErrMsg: "invalid managed-by URL: URL must include http or https protocol",
+		},
+		{
+			name: "Invalid protocol - data",
+			app: &argoappv1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						argoappv1.AnnotationKeyManagedByURL: "data:text/html,<script>alert('xss')</script>",
+					},
+				},
+			},
+			wantErr:    true,
+			wantErrMsg: "invalid managed-by URL: URL must include http or https protocol",
+		},
+		{
+			name: "Invalid protocol - file",
+			app: &argoappv1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						argoappv1.AnnotationKeyManagedByURL: "file:///etc/passwd",
+					},
+				},
+			},
+			wantErr:    true,
+			wantErrMsg: "invalid managed-by URL: URL must include http or https protocol",
+		},
+		{
+			name: "Invalid URL format",
+			app: &argoappv1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						argoappv1.AnnotationKeyManagedByURL: "not-a-url",
+					},
+				},
+			},
+			wantErr:    true,
+			wantErrMsg: "invalid managed-by URL: URL must include http or https protocol",
+		},
+		{
+			name: "URL with path and query",
+			app: &argoappv1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						argoappv1.AnnotationKeyManagedByURL: "https://argocd.example.com/applications?namespace=default",
+					},
+				},
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			conditions := ValidateManagedByURL(tt.app)
+
+			if tt.wantErr {
+				require.Len(t, conditions, 1, "Expected exactly one validation condition")
+				assert.Equal(t, argoappv1.ApplicationConditionInvalidSpecError, conditions[0].Type)
+				assert.Contains(t, conditions[0].Message, tt.wantErrMsg)
+			} else {
+				assert.Empty(t, conditions, "Expected no validation conditions for valid URL")
 			}
 		})
 	}

@@ -144,6 +144,9 @@ type ArgoCDSettings struct {
 	// ImpersonationEnabled indicates whether Application sync privileges can be decoupled from control plane
 	// privileges using impersonation
 	ImpersonationEnabled bool `json:"impersonationEnabled"`
+	// RequireOverridePrivilegeForRevisionSync indicates whether giving an external revision during snyc is considered an override.
+	// Up to revision 3.2, this was always false. It is now still false by default, in order to not breaking existing usage.
+	RequireOverridePrivilegeForRevisionSync bool `json:"requireOverridePrivilegeForRevisionSync"`
 }
 
 type GoogleAnalytics struct {
@@ -552,6 +555,8 @@ const (
 	RespectRBACValueNormal = "normal"
 	// impersonationEnabledKey is the key to configure whether the application sync decoupling through impersonation feature is enabled
 	impersonationEnabledKey = "application.sync.impersonation.enabled"
+	// requireOverridePrivilegeForRevisionSyncKey is the key to configure whether giving an external revision during sync is considered an override
+	requireOverridePrivilegeForRevisionSyncKey = "application.sync.requireOverridePrivilegeForRevisionSync"
 )
 
 const (
@@ -1269,6 +1274,26 @@ func (mgr *SettingsManager) GetHelp() (*Help, error) {
 	}, nil
 }
 
+func (mgr *SettingsManager) RequireOverridePrivilegeForRevisionSync() (bool, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return false, err
+	}
+
+	// false is default in order to not break existing installations
+	if argoCDCM.Data[requireOverridePrivilegeForRevisionSyncKey] == "" {
+		return false, nil
+	}
+
+	maybeBooleanFlagValue, err2 := strconv.ParseBool(
+		argoCDCM.Data[requireOverridePrivilegeForRevisionSyncKey])
+	if err2 != nil {
+		return false, fmt.Errorf("error parsing %s value: %w, expected true or false",
+			requireOverridePrivilegeForRevisionSyncKey, err2)
+	}
+	return maybeBooleanFlagValue, nil
+}
+
 // GetSettings retrieves settings from the ArgoCDConfigMap and secret.
 func (mgr *SettingsManager) GetSettings() (*ArgoCDSettings, error) {
 	argoCDCM, err := mgr.getConfigMap()
@@ -1426,11 +1451,11 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *corev1.Conf
 	settings.UiBannerPermanent = argoCDCM.Data[settingUIBannerPermanentKey] == "true"
 	settings.UiBannerPosition = argoCDCM.Data[settingUIBannerPositionKey]
 	settings.BinaryUrls = getDownloadBinaryUrlsFromConfigMap(argoCDCM)
-	if err := validateExternalURL(argoCDCM.Data[settingURLKey]); err != nil {
+	if err := ValidateExternalURL(argoCDCM.Data[settingURLKey]); err != nil {
 		log.Warnf("Failed to validate URL in configmap: %v", err)
 	}
 	settings.URL = argoCDCM.Data[settingURLKey]
-	if err := validateExternalURL(argoCDCM.Data[settingUIBannerURLKey]); err != nil {
+	if err := ValidateExternalURL(argoCDCM.Data[settingUIBannerURLKey]); err != nil {
 		log.Warnf("Failed to validate UI banner URL in configmap: %v", err)
 	}
 	if argoCDCM.Data[settingAdditionalUrlsKey] != "" {
@@ -1439,7 +1464,7 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *corev1.Conf
 		}
 	}
 	for _, url := range settings.AdditionalURLs {
-		if err := validateExternalURL(url); err != nil {
+		if err := ValidateExternalURL(url); err != nil {
 			log.Warnf("Failed to validate external URL in configmap: %v", err)
 		}
 	}
@@ -1476,6 +1501,7 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *corev1.Conf
 	settings.OIDCTLSInsecureSkipVerify = argoCDCM.Data[oidcTLSInsecureSkipVerifyKey] == "true"
 	settings.ExtensionConfig = getExtensionConfigs(argoCDCM.Data)
 	settings.ImpersonationEnabled = argoCDCM.Data[impersonationEnabledKey] == "true"
+	settings.RequireOverridePrivilegeForRevisionSync = argoCDCM.Data[requireOverridePrivilegeForRevisionSyncKey] == "true"
 }
 
 func getExtensionConfigs(cmData map[string]string) map[string]string {
@@ -1489,8 +1515,8 @@ func getExtensionConfigs(cmData map[string]string) map[string]string {
 	return result
 }
 
-// validateExternalURL ensures the external URL that is set on the configmap is valid
-func validateExternalURL(u string) error {
+// ValidateExternalURL ensures the external URL that is set on the configmap is valid
+func ValidateExternalURL(u string) error {
 	if u == "" {
 		return nil
 	}
