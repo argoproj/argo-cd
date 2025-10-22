@@ -80,7 +80,7 @@ type ClusterWithInfo struct {
 }
 
 func loadClusters(ctx context.Context, kubeClient kubernetes.Interface, appClient versioned.Interface, replicas int, shardingAlgorithm string, namespace string, portForwardRedis bool, cacheSrc func() (*appstatecache.Cache, error), shard int, redisName string, redisHaProxyName string, redisCompressionStr string) ([]ClusterWithInfo, error) {
-	settingsMgr := settings.NewSettingsManager(ctx, kubeClient, namespace)
+	settingsMgr := settings.NewSettingsManager(kubeClient, namespace)
 
 	argoDB := db.NewDB(namespace, settingsMgr, kubeClient)
 	clustersList, err := argoDB.ListClusters(ctx)
@@ -100,7 +100,7 @@ func loadClusters(ctx context.Context, kubeClient kubernetes.Interface, appClien
 		overrides := clientcmd.ConfigOverrides{}
 		redisHaProxyPodLabelSelector := common.LabelKeyAppName + "=" + redisHaProxyName
 		redisPodLabelSelector := common.LabelKeyAppName + "=" + redisName
-		port, err := kubeutil.PortForward(6379, namespace, &overrides,
+		port, err := kubeutil.PortForward(ctx, 6379, namespace, &overrides,
 			redisHaProxyPodLabelSelector, redisPodLabelSelector)
 		if err != nil {
 			return nil, err
@@ -266,7 +266,7 @@ func runClusterNamespacesCommand(ctx context.Context, clientConfig clientcmd.Cli
 	kubeClient := kubernetes.NewForConfigOrDie(clientCfg)
 	appClient := versioned.NewForConfigOrDie(clientCfg)
 
-	settingsMgr := settings.NewSettingsManager(ctx, kubeClient, namespace)
+	settingsMgr := settings.NewSettingsManager(kubeClient, namespace)
 	argoDB := db.NewDB(namespace, settingsMgr, kubeClient)
 	clustersList, err := argoDB.ListClusters(ctx)
 	if err != nil {
@@ -555,7 +555,7 @@ argocd admin cluster kubeconfig https://cluster-api-url:6443 /path/to/output/kub
 			kubeclientset, err := kubernetes.NewForConfig(conf)
 			errors.CheckError(err)
 
-			cluster, err := db.NewDB(namespace, settings.NewSettingsManager(ctx, kubeclientset, namespace), kubeclientset).GetCluster(ctx, serverURL)
+			cluster, err := db.NewDB(namespace, settings.NewSettingsManager(kubeclientset, namespace), kubeclientset).GetCluster(ctx, serverURL)
 			errors.CheckError(err)
 			rawConfig, err := cluster.RawRestConfig()
 			errors.CheckError(err)
@@ -653,7 +653,7 @@ func NewGenClusterConfigCommand(pathOpts *clientcmd.PathOptions) *cobra.Command 
 					InstallHint: clusterOpts.ExecProviderInstallHint,
 				}
 			case generateToken:
-				bearerToken, err = GenerateToken(clusterOpts, conf)
+				bearerToken, err = GenerateToken(ctx, clusterOpts, conf)
 				errors.CheckError(err)
 			case bearerToken == "":
 				bearerToken = "bearer-token"
@@ -679,7 +679,7 @@ func NewGenClusterConfigCommand(pathOpts *clientcmd.PathOptions) *cobra.Command 
 				clst.Shard = &clusterOpts.Shard
 			}
 
-			settingsMgr := settings.NewSettingsManager(ctx, kubeClientset, ArgoCDNamespace)
+			settingsMgr := settings.NewSettingsManager(kubeClientset, ArgoCDNamespace)
 			argoDB := db.NewDB(ArgoCDNamespace, settingsMgr, kubeClientset)
 
 			_, err = argoDB.CreateCluster(ctx, clst)
@@ -706,11 +706,11 @@ func NewGenClusterConfigCommand(pathOpts *clientcmd.PathOptions) *cobra.Command 
 	return command
 }
 
-func GenerateToken(clusterOpts cmdutil.ClusterOptions, conf *rest.Config) (string, error) {
+func GenerateToken(ctx context.Context, clusterOpts cmdutil.ClusterOptions, conf *rest.Config) (string, error) {
 	clientset, err := kubernetes.NewForConfig(conf)
 	errors.CheckError(err)
 
-	bearerToken, err := clusterauth.GetServiceAccountBearerToken(clientset, clusterOpts.SystemNamespace, clusterOpts.ServiceAccount, common.BearerTokenTimeout)
+	bearerToken, err := clusterauth.GetServiceAccountBearerToken(ctx, clientset, clusterOpts.SystemNamespace, clusterOpts.ServiceAccount, common.BearerTokenTimeout)
 	if err != nil {
 		return "", err
 	}

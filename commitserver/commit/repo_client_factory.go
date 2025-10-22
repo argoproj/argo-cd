@@ -1,6 +1,8 @@
 package commit
 
 import (
+	"context"
+
 	"github.com/argoproj/argo-cd/v3/commitserver/metrics"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/git"
@@ -8,7 +10,7 @@ import (
 
 // RepoClientFactory is a factory for creating git clients for a repository.
 type RepoClientFactory interface {
-	NewClient(repo *v1alpha1.Repository, rootPath string) (git.Client, error)
+	NewClient(ctx context.Context, repo *v1alpha1.Repository, rootPath string) (git.Client, error)
 }
 
 type repoClientFactory struct {
@@ -25,8 +27,8 @@ func NewRepoClientFactory(gitCredsStore git.CredsStore, metricsServer *metrics.S
 }
 
 // NewClient creates a new git client for the repository.
-func (r *repoClientFactory) NewClient(repo *v1alpha1.Repository, rootPath string) (git.Client, error) {
-	gitCreds := repo.GetGitCreds(r.gitCredsStore)
+func (r *repoClientFactory) NewClient(ctx context.Context, repo *v1alpha1.Repository, rootPath string) (git.Client, error) {
+	gitCreds := repo.GetGitCreds(ctx, r.gitCredsStore)
 	opts := git.WithEventHandlers(metrics.NewGitClientEventHandlers(r.metricsServer))
 	return git.NewClientExt(repo.Repo, rootPath, gitCreds, repo.IsInsecure(), repo.IsLFSEnabled(), repo.Proxy, repo.NoProxy, opts)
 }

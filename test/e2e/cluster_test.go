@@ -76,7 +76,7 @@ func TestClusterAddPermissionDenied(t *testing.T) {
 		Name("test").
 		When().
 		Create().
-		Login().
+		Login(t.Context()).
 		SetPermissions([]fixture.ACL{}, "org-admin")
 
 	clusterFixture.
@@ -98,7 +98,7 @@ func TestClusterAddAllowed(t *testing.T) {
 		Name("test").
 		When().
 		Create().
-		Login().
+		Login(t.Context()).
 		SetPermissions([]fixture.ACL{
 			{
 				Resource: "clusters",
@@ -132,7 +132,7 @@ func TestClusterListDenied(t *testing.T) {
 		Name("test").
 		When().
 		Create().
-		Login().
+		Login(t.Context()).
 		SetPermissions([]fixture.ACL{
 			{
 				Resource: "clusters",
@@ -229,7 +229,7 @@ func TestClusterDeleteDenied(t *testing.T) {
 		Name("test").
 		When().
 		Create().
-		Login().
+		Login(t.Context()).
 		SetPermissions([]fixture.ACL{
 			{
 				Resource: "clusters",
@@ -277,7 +277,7 @@ func TestClusterDelete(t *testing.T) {
 		Name("default").
 		When().
 		Create().
-		Login().
+		Login(t.Context()).
 		SetPermissions([]fixture.ACL{
 			{
 				Resource: "clusters",
@@ -303,7 +303,7 @@ func TestClusterDelete(t *testing.T) {
 		Upsert(true).
 		Server(KubernetesInternalAPIServerAddr).
 		When().
-		CreateWithRBAC()
+		CreateWithRBAC(t.Context())
 
 	// Check that RBAC is created
 	_, err := fixture.Run("", "kubectl", "get", "serviceaccount", "argocd-manager", "-n", "kube-system")

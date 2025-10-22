@@ -268,7 +268,8 @@ func TestLsRemote(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			commitSHA, err := clnt.LsRemote(tc.revision)
+			ctx := t.Context()
+			commitSHA, err := clnt.LsRemote(ctx, tc.revision)
 			require.NoError(t, err)
 			assert.True(t, IsCommitSHA(commitSHA))
 			if tc.expectedCommit != "" {
@@ -279,20 +280,22 @@ func TestLsRemote(t *testing.T) {
 
 	// We do not resolve truncated git hashes and return the commit as-is if it appears to be a commit
 	t.Run("truncated commit", func(t *testing.T) {
-		commitSHA, err := clnt.LsRemote("4e22a3c")
+		ctx := t.Context()
+		commitSHA, err := clnt.LsRemote(ctx, "4e22a3c")
 		require.NoError(t, err)
 		assert.False(t, IsCommitSHA(commitSHA))
 		assert.True(t, IsTruncatedCommitSHA(commitSHA))
 	})
 
 	t.Run("unresolvable revisions", func(t *testing.T) {
+		ctx := t.Context()
 		xfail := []string{
 			"unresolvable",
 			"4e22a3", // too short (6 characters)
 		}
 
 		for _, revision := range xfail {
-			_, err := clnt.LsRemote(revision)
+			_, err := clnt.LsRemote(ctx, revision)
 			assert.ErrorContains(t, err, "unable to resolve")
 		}
 	})
@@ -303,13 +306,13 @@ func TestLFSClient(t *testing.T) {
 	// temporary disable LFS test
 	// TODO(alexmt): dockerize tests in and enabled it
 	t.Skip()
-
+	ctx := t.Context()
 	tempDir := t.TempDir()
 
 	client, err := NewClientExt("https://github.com/argoproj-labs/argocd-testrepo-lfs", tempDir, NopCreds{}, false, true, "", "")
 	require.NoError(t, err)
 
-	commitSHA, err := client.LsRemote("HEAD")
+	commitSHA, err := client.LsRemote(ctx, "HEAD")
 	require.NoError(t, err)
 	assert.NotEmpty(t, commitSHA)
 
@@ -343,6 +346,7 @@ func TestLFSClient(t *testing.T) {
 }
 
 func TestVerifyCommitSignature(t *testing.T) {
+	ctx := t.Context()
 	p := t.TempDir()
 
 	client, err := NewClientExt("https://github.com/argoproj/argo-cd.git", p, NopCreds{}, false, false, "", "")
@@ -354,7 +358,7 @@ func TestVerifyCommitSignature(t *testing.T) {
 	err = client.Fetch("")
 	require.NoError(t, err)
 
-	commitSHA, err := client.LsRemote("HEAD")
+	commitSHA, err := client.LsRemote(ctx, "HEAD")
 	require.NoError(t, err)
 
 	_, err = client.Checkout(commitSHA, true)
@@ -378,6 +382,7 @@ func TestVerifyCommitSignature(t *testing.T) {
 }
 
 func TestNewFactory(t *testing.T) {
+	ctx := t.Context()
 	addBinDirToPath := path.NewBinDirToPath(t)
 	defer addBinDirToPath.Close()
 	closer := log.Debug()
@@ -401,7 +406,7 @@ func TestNewFactory(t *testing.T) {
 
 		client, err := NewClientExt(tt.args.url, dirName, NopCreds{}, tt.args.insecureIgnoreHostKey, false, "", "")
 		require.NoError(t, err)
-		commitSHA, err := client.LsRemote("HEAD")
+		commitSHA, err := client.LsRemote(ctx, "HEAD")
 		require.NoError(t, err)
 
 		err = client.Init()
@@ -433,13 +438,14 @@ func TestNewFactory(t *testing.T) {
 }
 
 func TestListRevisions(t *testing.T) {
+	ctx := t.Context()
 	dir := t.TempDir()
 
 	repoURL := "https://github.com/argoproj/argo-cd.git"
 	client, err := NewClientExt(repoURL, dir, NopCreds{}, false, false, "", "")
 	require.NoError(t, err)
 
-	lsResult, err := client.LsRefs()
+	lsResult, err := client.LsRefs(ctx)
 	require.NoError(t, err)
 
 	testBranch := "master"
@@ -691,6 +697,7 @@ func TestLsFilesForGitFileGeneratorGlobbingPatterns(t *testing.T) {
 }
 
 func TestAnnotatedTagHandling(t *testing.T) {
+	ctx := t.Context()
 	dir := t.TempDir()
 
 	client, err := NewClientExt("https://github.com/argoproj/argo-cd.git", dir, NopCreds{}, false, false, "", "")
@@ -700,14 +707,14 @@ func TestAnnotatedTagHandling(t *testing.T) {
 	require.NoError(t, err)
 
 	// Test annotated tag resolution
-	commitSHA, err := client.LsRemote("v1.0.0") // Known annotated tag
+	commitSHA, err := client.LsRemote(ctx, "v1.0.0") // Known annotated tag
 	require.NoError(t, err)
 
 	// Verify we get commit SHA, not tag SHA
 	assert.True(t, IsCommitSHA(commitSHA))
 
 	// Test tag reference handling
-	refs, err := client.LsRefs()
+	refs, err := client.LsRefs(ctx)
 	require.NoError(t, err)
 
 	// Verify tag exists in the list and points to a valid commit SHA

@@ -106,16 +106,16 @@ func (db *db) GetWriteRepository(ctx context.Context, repoURL, project string) (
 	return repository, err
 }
 
-func (db *db) GetProjectRepositories(project string) ([]*v1alpha1.Repository, error) {
-	return db.getRepositories(settings.ByProjectRepoIndexer, project)
+func (db *db) GetProjectRepositories(ctx context.Context, project string) ([]*v1alpha1.Repository, error) {
+	return db.getRepositories(ctx, settings.ByProjectRepoIndexer, project)
 }
 
-func (db *db) GetProjectWriteRepositories(project string) ([]*v1alpha1.Repository, error) {
-	return db.getRepositories(settings.ByProjectRepoWriteIndexer, project)
+func (db *db) GetProjectWriteRepositories(ctx context.Context, project string) ([]*v1alpha1.Repository, error) {
+	return db.getRepositories(ctx, settings.ByProjectRepoWriteIndexer, project)
 }
 
-func (db *db) getRepositories(indexer, project string) ([]*v1alpha1.Repository, error) {
-	informer, err := db.settingsMgr.GetSecretsInformer()
+func (db *db) getRepositories(ctx context.Context, indexer, project string) ([]*v1alpha1.Repository, error) {
+	informer, err := db.settingsMgr.GetSecretsInformer(ctx)
 	if err != nil {
 		return nil, err
 	}

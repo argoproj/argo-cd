@@ -30,14 +30,14 @@ const (
 )
 
 // return an AccountServer which returns fake data
-func newTestAccountServer(t *testing.T, ctx context.Context, opts ...func(cm *corev1.ConfigMap, secret *corev1.Secret)) (*Server, *session.Server) {
+func newTestAccountServer(t *testing.T, opts ...func(cm *corev1.ConfigMap, secret *corev1.Secret)) (*Server, *session.Server) {
 	t.Helper()
-	return newTestAccountServerExt(t, ctx, func(_ jwt.Claims, _ ...any) bool {
+	return newTestAccountServerExt(t, func(_ jwt.Claims, _ ...any) bool {
 		return true
 	}, opts...)
 }
 
-func newTestAccountServerExt(t *testing.T, ctx context.Context, enforceFn rbac.ClaimsEnforcerFunc, opts ...func(cm *corev1.ConfigMap, secret *corev1.Secret)) (*Server, *session.Server) {
+func newTestAccountServerExt(t *testing.T, enforceFn rbac.ClaimsEnforcerFunc, opts ...func(cm *corev1.ConfigMap, secret *corev1.Secret)) (*Server, *session.Server) {
 	t.Helper()
 	bcrypt, err := password.HashPassword("oldpassword")
 	require.NoError(t, err)
@@ -65,16 +65,16 @@ func newTestAccountServerExt(t *testing.T, ctx context.Context, enforceFn rbac.C
 		opts[i](cm, secret)
 	}
 	kubeclientset := fake.NewClientset(cm, secret)
-	settingsMgr := settings.NewSettingsManager(ctx, kubeclientset, testNamespace)
-	sessionMgr := sessionutil.NewSessionManager(settingsMgr, test.NewFakeProjLister(), "", nil, sessionutil.NewUserStateStorage(nil))
+	settingsMgr := settings.NewSettingsManager(kubeclientset, testNamespace)
+	sessionMgr := sessionutil.NewSessionManager(t.Context(), settingsMgr, test.NewFakeProjLister(), "", nil, sessionutil.NewUserStateStorage(nil))
 	enforcer := rbac.NewEnforcer(kubeclientset, testNamespace, common.ArgoCDRBACConfigMapName, nil)
 	enforcer.SetClaimsEnforcerFunc(enforceFn)
 
 	return NewServer(sessionMgr, settingsMgr, enforcer), session.NewServer(sessionMgr, settingsMgr, nil, nil, nil)
 }
 
-func getAdminAccount(mgr *settings.SettingsManager) (*settings.Account, error) {
-	accounts, err := mgr.GetAccounts()
+func getAdminAccount(ctx context.Context, mgr *settings.SettingsManager) (*settings.Account, error) {
+	accounts, err := mgr.GetAccounts(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -105,15 +105,15 @@ func projTokenContext(ctx context.Context) context.Context {
 }
 
 func TestUpdatePassword(t *testing.T) {
-	accountServer, sessionServer := newTestAccountServer(t, t.Context())
+	accountServer, sessionServer := newTestAccountServer(t)
 	ctx := adminContext(t.Context())
 	var err error
 
 	// ensure password is not allowed to be updated if given bad password
 	_, err = accountServer.UpdatePassword(ctx, &account.UpdatePasswordRequest{CurrentPassword: "badpassword", NewPassword: "newpassword"})
 	require.Error(t, err)
-	require.NoError(t, accountServer.sessionMgr.VerifyUsernamePassword("admin", "oldpassword"))
-	require.Error(t, accountServer.sessionMgr.VerifyUsernamePassword("admin", "newpassword"))
+	require.NoError(t, accountServer.sessionMgr.VerifyUsernamePassword(ctx, "admin", "oldpassword"))
+	require.Error(t, accountServer.sessionMgr.VerifyUsernamePassword(ctx, "admin", "newpassword"))
 	// verify old password works
 	_, err = sessionServer.Create(ctx, &sessionpkg.SessionCreateRequest{Username: "admin", Password: "oldpassword"})
 	require.NoError(t, err)
@@ -122,16 +122,16 @@ func TestUpdatePassword(t *testing.T) {
 	require.Error(t, err)
 
 	// ensure password can be updated with valid password and immediately be used
-	adminAccount, err := getAdminAccount(accountServer.settingsMgr)
+	adminAccount, err := getAdminAccount(ctx, accountServer.settingsMgr)
 	require.NoError(t, err)
 	prevHash := adminAccount.PasswordHash
 	_, err = accountServer.UpdatePassword(ctx, &account.UpdatePasswordRequest{CurrentPassword: "oldpassword", NewPassword: "newpassword"})
 	require.NoError(t, err)
-	adminAccount, err = getAdminAccount(accountServer.settingsMgr)
+	adminAccount, err = getAdminAccount(ctx, accountServer.settingsMgr)
 	require.NoError(t, err)
 	assert.NotEqual(t, prevHash, adminAccount.PasswordHash)
-	require.NoError(t, accountServer.sessionMgr.VerifyUsernamePassword("admin", "newpassword"))
-	require.Error(t, accountServer.sessionMgr.VerifyUsernamePassword("admin", "oldpassword"))
+	require.NoError(t, accountServer.sessionMgr.VerifyUsernamePassword(ctx, "admin", "newpassword"))
+	require.Error(t, accountServer.sessionMgr.VerifyUsernamePassword(ctx, "admin", "oldpassword"))
 	// verify old password is invalid
 	_, err = sessionServer.Create(ctx, &sessionpkg.SessionCreateRequest{Username: "admin", Password: "oldpassword"})
 	require.Error(t, err)
@@ -141,7 +141,7 @@ func TestUpdatePassword(t *testing.T) {
 }
 
 func TestUpdatePassword_AdminUpdatesAnotherUser(t *testing.T) {
-	accountServer, sessionServer := newTestAccountServer(t, t.Context(), func(cm *corev1.ConfigMap, _ *corev1.Secret) {
+	accountServer, sessionServer := newTestAccountServer(t, func(cm *corev1.ConfigMap, _ *corev1.Secret) {
 		cm.Data["accounts.anotherUser"] = "login"
 	})
 	ctx := adminContext(t.Context())
@@ -159,7 +159,7 @@ func TestUpdatePassword_DoesNotHavePermissions(t *testing.T) {
 	}
 
 	t.Run("LocalAccountUpdatesAnotherAccount", func(t *testing.T) {
-		accountServer, _ := newTestAccountServerExt(t, t.Context(), enforcer, func(cm *corev1.ConfigMap, _ *corev1.Secret) {
+		accountServer, _ := newTestAccountServerExt(t, enforcer, func(cm *corev1.ConfigMap, _ *corev1.Secret) {
 			cm.Data["accounts.anotherUser"] = "login"
 		})
 		ctx := adminContext(t.Context())
@@ -168,7 +168,7 @@ func TestUpdatePassword_DoesNotHavePermissions(t *testing.T) {
 	})
 
 	t.Run("SSOAccountWithTheSameName", func(t *testing.T) {
-		accountServer, _ := newTestAccountServerExt(t, t.Context(), enforcer)
+		accountServer, _ := newTestAccountServerExt(t, enforcer)
 		ctx := ssoAdminContext(t.Context(), time.Now())
 		_, err := accountServer.UpdatePassword(ctx, &account.UpdatePasswordRequest{CurrentPassword: "oldpassword", NewPassword: "newpassword", Name: "admin"})
 		assert.ErrorContains(t, err, "permission denied")
@@ -176,7 +176,7 @@ func TestUpdatePassword_DoesNotHavePermissions(t *testing.T) {
 }
 
 func TestUpdatePassword_ProjectToken(t *testing.T) {
-	accountServer, _ := newTestAccountServer(t, t.Context(), func(cm *corev1.ConfigMap, _ *corev1.Secret) {
+	accountServer, _ := newTestAccountServer(t, func(cm *corev1.ConfigMap, _ *corev1.Secret) {
 		cm.Data["accounts.anotherUser"] = "login"
 	})
 	ctx := projTokenContext(t.Context())
@@ -185,7 +185,7 @@ func TestUpdatePassword_ProjectToken(t *testing.T) {
 }
 
 func TestUpdatePassword_OldSSOToken(t *testing.T) {
-	accountServer, _ := newTestAccountServer(t, t.Context(), func(cm *corev1.ConfigMap, _ *corev1.Secret) {
+	accountServer, _ := newTestAccountServer(t, func(cm *corev1.ConfigMap, _ *corev1.Secret) {
 		cm.Data["accounts.anotherUser"] = "login"
 	})
 	ctx := ssoAdminContext(t.Context(), time.Now().Add(-2*common.ChangePasswordSSOTokenMaxAge))
@@ -195,7 +195,7 @@ func TestUpdatePassword_OldSSOToken(t *testing.T) {
 }
 
 func TestUpdatePassword_SSOUserUpdatesAnotherUser(t *testing.T) {
-	accountServer, sessionServer := newTestAccountServer(t, t.Context(), func(cm *corev1.ConfigMap, _ *corev1.Secret) {
+	accountServer, sessionServer := newTestAccountServer(t, func(cm *corev1.ConfigMap, _ *corev1.Secret) {
 		cm.Data["accounts.anotherUser"] = "login"
 	})
 	ctx := ssoAdminContext(t.Context(), time.Now())
@@ -210,7 +210,7 @@ func TestUpdatePassword_SSOUserUpdatesAnotherUser(t *testing.T) {
 func TestListAccounts_NoAccountsConfigured(t *testing.T) {
 	ctx := adminContext(t.Context())
 
-	accountServer, _ := newTestAccountServer(t, ctx)
+	accountServer, _ := newTestAccountServer(t)
 	resp, err := accountServer.ListAccounts(ctx, &account.ListAccountRequest{})
 	require.NoError(t, err)
 	assert.Len(t, resp.Items, 1)
@@ -218,7 +218,7 @@ func TestListAccounts_NoAccountsConfigured(t *testing.T) {
 
 func TestListAccounts_AccountsAreConfigured(t *testing.T) {
 	ctx := adminContext(t.Context())
-	accountServer, _ := newTestAccountServer(t, ctx, func(cm *corev1.ConfigMap, _ *corev1.Secret) {
+	accountServer, _ := newTestAccountServer(t, func(cm *corev1.ConfigMap, _ *corev1.Secret) {
 		cm.Data["accounts.account1"] = "apiKey"
 		cm.Data["accounts.account2"] = "login, apiKey"
 		cm.Data["accounts.account2.enabled"] = "false"
@@ -236,7 +236,7 @@ func TestListAccounts_AccountsAreConfigured(t *testing.T) {
 
 func TestGetAccount(t *testing.T) {
 	ctx := adminContext(t.Context())
-	accountServer, _ := newTestAccountServer(t, ctx, func(cm *corev1.ConfigMap, _ *corev1.Secret) {
+	accountServer, _ := newTestAccountServer(t, func(cm *corev1.ConfigMap, _ *corev1.Secret) {
 		cm.Data["accounts.account1"] = "apiKey"
 	})
 
@@ -256,7 +256,7 @@ func TestGetAccount(t *testing.T) {
 
 func TestCreateToken_SuccessfullyCreated(t *testing.T) {
 	ctx := adminContext(t.Context())
-	accountServer, _ := newTestAccountServer(t, ctx, func(cm *corev1.ConfigMap, _ *corev1.Secret) {
+	accountServer, _ := newTestAccountServer(t, func(cm *corev1.ConfigMap, _ *corev1.Secret) {
 		cm.Data["accounts.account1"] = "apiKey"
 	})
 
@@ -271,7 +271,7 @@ func TestCreateToken_SuccessfullyCreated(t *testing.T) {
 
 func TestCreateToken_DoesNotHaveCapability(t *testing.T) {
 	ctx := adminContext(t.Context())
-	accountServer, _ := newTestAccountServer(t, ctx, func(cm *corev1.ConfigMap, _ *corev1.Secret) {
+	accountServer, _ := newTestAccountServer(t, func(cm *corev1.ConfigMap, _ *corev1.Secret) {
 		cm.Data["accounts.account1"] = "login"
 	})
 
@@ -281,7 +281,7 @@ func TestCreateToken_DoesNotHaveCapability(t *testing.T) {
 
 func TestCreateToken_UserSpecifiedID(t *testing.T) {
 	ctx := adminContext(t.Context())
-	accountServer, _ := newTestAccountServer(t, ctx, func(cm *corev1.ConfigMap, _ *corev1.Secret) {
+	accountServer, _ := newTestAccountServer(t, func(cm *corev1.ConfigMap, _ *corev1.Secret) {
 		cm.Data["accounts.account1"] = "apiKey"
 	})
 
@@ -295,7 +295,7 @@ func TestCreateToken_UserSpecifiedID(t *testing.T) {
 
 func TestDeleteToken_SuccessfullyRemoved(t *testing.T) {
 	ctx := adminContext(t.Context())
-	accountServer, _ := newTestAccountServer(t, ctx, func(cm *corev1.ConfigMap, secret *corev1.Secret) {
+	accountServer, _ := newTestAccountServer(t, func(cm *corev1.ConfigMap, secret *corev1.Secret) {
 		cm.Data["accounts.account1"] = "apiKey"
 		secret.Data["accounts.account1.tokens"] = []byte(`[{"id":"123","iat":1583789194,"exp":1583789194}]`)
 	})
@@ -310,7 +310,7 @@ func TestDeleteToken_SuccessfullyRemoved(t *testing.T) {
 }
 
 func TestCanI_GetLogsAllow(t *testing.T) {
-	accountServer, _ := newTestAccountServer(t, t.Context(), func(_ *corev1.ConfigMap, _ *corev1.Secret) {
+	accountServer, _ := newTestAccountServer(t, func(_ *corev1.ConfigMap, _ *corev1.Secret) {
 	})
 
 	ctx := projTokenContext(t.Context())
@@ -324,7 +324,7 @@ func TestCanI_GetLogsDeny(t *testing.T) {
 		return false
 	}
 
-	accountServer, _ := newTestAccountServerExt(t, t.Context(), enforcer, func(_ *corev1.ConfigMap, _ *corev1.Secret) {
+	accountServer, _ := newTestAccountServerExt(t, enforcer, func(_ *corev1.ConfigMap, _ *corev1.Secret) {
 	})
 
 	ctx := projTokenContext(t.Context())

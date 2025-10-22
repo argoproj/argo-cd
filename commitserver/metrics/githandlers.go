@@ -1,6 +1,7 @@
 package metrics
 
 import (
+	"context"
 	"time"
 
 	"github.com/argoproj/argo-cd/v3/util/git"
@@ -16,7 +17,7 @@ func NewGitClientEventHandlers(metricsServer *Server) git.EventHandlers {
 				metricsServer.ObserveGitRequestDuration(repo, GitRequestTypeFetch, time.Since(startTime))
 			}
 		},
-		OnLsRemote: func(repo string) func() {
+		OnLsRemote: func(_ context.Context, repo string) func() {
 			startTime := time.Now()
 			metricsServer.IncGitRequest(repo, GitRequestTypeLsRemote)
 			return func() {

@@ -112,6 +112,7 @@ func GetE2EFixtureK8sClient(t *testing.T) *E2EFixtureK8sClient {
 func EnsureCleanState(t *testing.T) {
 	t.Helper()
 	start := time.Now()
+	ctx := t.Context()
 
 	fixtureClient := GetE2EFixtureK8sClient(t)
 
@@ -216,7 +217,7 @@ func EnsureCleanState(t *testing.T) {
 	errors.NewHandler(t).FailOnErr(Run("", "mkdir", "-p", TmpDir))
 
 	// We can switch user and as result in previous state we will have non-admin user, this case should be reset
-	require.NoError(t, fixture.LoginAs("admin"))
+	require.NoError(t, fixture.LoginAs(ctx, "admin"))
 
 	log.WithFields(log.Fields{"duration": time.Since(start), "name": t.Name(), "id": id, "username": "admin", "password": "password"}).Info("clean state")
 }

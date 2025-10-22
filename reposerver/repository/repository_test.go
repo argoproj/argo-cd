@@ -416,7 +416,7 @@ func TestGenerateManifest_RefOnlyShortCircuit(t *testing.T) {
 	service.newGitClient = func(rawRepoURL string, root string, creds git.Creds, insecure bool, enableLfs bool, proxy string, noProxy string, opts ...git.ClientOpts) (client git.Client, e error) {
 		opts = append(opts, git.WithEventHandlers(git.EventHandlers{
 			// Primary check, we want to make sure ls-remote is not called when the item is in cache
-			OnLsRemote: func(_ string) func() {
+			OnLsRemote: func(context.Context, string) func() {
 				return func() {
 					lsremoteCalled = true
 				}
@@ -482,7 +482,7 @@ func TestGenerateManifestsHelmWithRefs_CachedNoLsRemote(t *testing.T) {
 	service.newGitClient = func(rawRepoURL string, root string, creds git.Creds, insecure bool, enableLfs bool, proxy string, noProxy string, opts ...git.ClientOpts) (client git.Client, e error) {
 		opts = append(opts, git.WithEventHandlers(git.EventHandlers{
 			// Primary check, we want to make sure ls-remote is not called when the item is in cache
-			OnLsRemote: func(_ string) func() {
+			OnLsRemote: func(context.Context, string) func() {
 				return func() {
 					assert.Fail(t, "LsRemote should not be called when the item is in cache")
 				}
@@ -3148,6 +3148,7 @@ func TestInit(t *testing.T) {
 // TestCheckoutRevisionCanGetNonstandardRefs shows that we can fetch a revision that points to a non-standard ref. In
 // other words, we haven't regressed and caused this issue again: https://github.com/argoproj/argo-cd/issues/4935
 func TestCheckoutRevisionCanGetNonstandardRefs(t *testing.T) {
+	ctx := t.Context()
 	rootPath := t.TempDir()
 
 	sourceRepoPath, err := os.MkdirTemp(rootPath, "")
@@ -3171,7 +3172,7 @@ func TestCheckoutRevisionCanGetNonstandardRefs(t *testing.T) {
 	gitClient, err := git.NewClientExt("file://"+sourceRepoPath, destRepoPath, &git.NopCreds{}, true, false, "", "")
 	require.NoError(t, err)
 
-	pullSha, err := gitClient.LsRemote("refs/pull/123/head")
+	pullSha, err := gitClient.LsRemote(ctx, "refs/pull/123/head")
 	require.NoError(t, err)
 
 	err = checkoutRevision(gitClient, "does-not-exist", false)
@@ -3224,6 +3225,7 @@ func TestFetch(t *testing.T) {
 
 // TestFetchRevisionCanGetNonstandardRefs shows that we can fetch a revision that points to a non-standard ref. In
 func TestFetchRevisionCanGetNonstandardRefs(t *testing.T) {
+	ctx := t.Context()
 	rootPath := t.TempDir()
 
 	sourceRepoPath, err := os.MkdirTemp(rootPath, "")
@@ -3251,7 +3253,7 @@ func TestFetchRevisionCanGetNonstandardRefs(t *testing.T) {
 	err = gitClient.Init()
 	require.NoError(t, err)
 
-	pullSha, err := gitClient.LsRemote("refs/pull/123/head")
+	pullSha, err := gitClient.LsRemote(ctx, "refs/pull/123/head")
 	require.NoError(t, err)
 
 	err = fetch(gitClient, []string{"does-not-exist"})
@@ -3298,6 +3300,7 @@ func Test_walkHelmValueFilesInPath(t *testing.T) {
 }
 
 func Test_populateHelmAppDetails(t *testing.T) {
+	ctx := t.Context()
 	emptyTempPaths := utilio.NewRandomizedTempPaths(t.TempDir())
 	res := apiclient.RepoAppDetailsResponse{}
 	q := apiclient.RepoServerAppDetailsQuery{
@@ -3308,27 +3311,29 @@ func Test_populateHelmAppDetails(t *testing.T) {
 	}
 	appPath, err := filepath.Abs("./testdata/values-files/")
 	require.NoError(t, err)
-	err = populateHelmAppDetails(&res, appPath, appPath, &q, emptyTempPaths)
+	err = populateHelmAppDetails(ctx, &res, appPath, appPath, &q, emptyTempPaths)
 	require.NoError(t, err)
 	assert.Len(t, res.Helm.Parameters, 3)
 	assert.Len(t, res.Helm.ValueFiles, 5)
 }
 
 func Test_populateHelmAppDetails_values_symlinks(t *testing.T) {
+	ctx := t.Context()
 	emptyTempPaths := utilio.NewRandomizedTempPaths(t.TempDir())
 	t.Run("inbound", func(t *testing.T) {
 		res := apiclient.RepoAppDetailsResponse{}
 		q := apiclient.RepoServerAppDetailsQuery{Repo: &v1alpha1.Repository{}, Source: &v1alpha1.ApplicationSource{}}
-		err := populateHelmAppDetails(&res, "./testdata/in-bounds-values-file-link/", "./testdata/in-bounds-values-file-link/", &q, emptyTempPaths)
+		err := populateHelmAppDetails(ctx, &res, "./testdata/in-bounds-values-file-link/", "./testdata/in-bounds-values-file-link/", &q, emptyTempPaths)
 		require.NoError(t, err)
 		assert.NotEmpty(t, res.Helm.Values)
 		assert.NotEmpty(t, res.Helm.Parameters)
 	})
 
 	t.Run("out of bounds", func(t *testing.T) {
+		ctx := t.Context()
 		res := apiclient.RepoAppDetailsResponse{}
 		q := apiclient.RepoServerAppDetailsQuery{Repo: &v1alpha1.Repository{}, Source: &v1alpha1.ApplicationSource{}}
-		err := populateHelmAppDetails(&res, "./testdata/out-of-bounds-values-file-link/", "./testdata/out-of-bounds-values-file-link/", &q, emptyTempPaths)
+		err := populateHelmAppDetails(ctx, &res, "./testdata/out-of-bounds-values-file-link/", "./testdata/out-of-bounds-values-file-link/", &q, emptyTempPaths)
 		require.NoError(t, err)
 		assert.Empty(t, res.Helm.Values)
 		assert.Empty(t, res.Helm.Parameters)
@@ -4116,6 +4121,7 @@ func Test_getRepoSanitizerRegex(t *testing.T) {
 }
 
 func TestGetRefs_CacheWithLockDisabled(t *testing.T) {
+	ctx := t.Context()
 	// Test that when the lock is disabled the default behavior still works correctly
 	// Also shows the current issue with the git requests due to cache misses
 	dir := t.TempDir()
@@ -4132,16 +4138,16 @@ func TestGetRefs_CacheWithLockDisabled(t *testing.T) {
 	numberOfCallers := 10
 	for i := 0; i < numberOfCallers; i++ {
 		wg.Add(1)
-		go func() {
+		go func(ctx context.Context) {
 			defer wg.Done()
 			client, err := git.NewClient("file://"+dir, git.NopCreds{}, true, false, "", "", git.WithCache(cacheMocks.cache, true))
 			require.NoError(t, err)
-			refs, err := client.LsRefs()
+			refs, err := client.LsRefs(ctx)
 			require.NoError(t, err)
 			assert.NotNil(t, refs)
 			assert.NotEmpty(t, refs.Branches, "Expected branches to be populated")
 			assert.NotEmpty(t, refs.Branches[0])
-		}()
+		}(ctx)
 	}
 	wg.Wait()
 	// Unlock should not have been called
@@ -4151,6 +4157,7 @@ func TestGetRefs_CacheWithLockDisabled(t *testing.T) {
 }
 
 func TestGetRefs_CacheDisabled(t *testing.T) {
+	ctx := t.Context()
 	// Test that default get refs with cache disabled does not call GetOrLockGitReferences
 	dir := t.TempDir()
 	initGitRepo(t, newGitRepoOptions{
@@ -4163,7 +4170,7 @@ func TestGetRefs_CacheDisabled(t *testing.T) {
 	t.Cleanup(cacheMocks.mockCache.StopRedisCallback)
 	client, err := git.NewClient("file://"+dir, git.NopCreds{}, true, false, "", "", git.WithCache(cacheMocks.cache, false))
 	require.NoError(t, err)
-	refs, err := client.LsRefs()
+	refs, err := client.LsRefs(ctx)
 	require.NoError(t, err)
 	assert.NotNil(t, refs)
 	assert.NotEmpty(t, refs.Branches, "Expected branches to be populated")
@@ -4174,6 +4181,7 @@ func TestGetRefs_CacheDisabled(t *testing.T) {
 }
 
 func TestGetRefs_CacheWithLock(t *testing.T) {
+	ctx := t.Context()
 	// Test that there is only one call to SetGitReferences for the same repo which is done after the ls-remote
 	dir := t.TempDir()
 	initGitRepo(t, newGitRepoOptions{
@@ -4188,16 +4196,16 @@ func TestGetRefs_CacheWithLock(t *testing.T) {
 	numberOfCallers := 10
 	for i := 0; i < numberOfCallers; i++ {
 		wg.Add(1)
-		go func() {
+		go func(ctx context.Context) {
 			defer wg.Done()
 			client, err := git.NewClient("file://"+dir, git.NopCreds{}, true, false, "", "", git.WithCache(cacheMocks.cache, true))
 			require.NoError(t, err)
-			refs, err := client.LsRefs()
+			refs, err := client.LsRefs(ctx)
 			require.NoError(t, err)
 			assert.NotNil(t, refs)
 			assert.NotEmpty(t, refs.Branches, "Expected branches to be populated")
 			assert.NotEmpty(t, refs.Branches[0])
-		}()
+		}(ctx)
 	}
 	wg.Wait()
 	// Unlock should not have been called
@@ -4206,6 +4214,7 @@ func TestGetRefs_CacheWithLock(t *testing.T) {
 }
 
 func TestGetRefs_CacheUnlockedOnUpdateFailed(t *testing.T) {
+	ctx := t.Context()
 	// Worst case the ttl on the lock expires and the lock is removed
 	// however if the holder of the lock fails to update the cache the caller should remove the lock
 	// to allow other callers to attempt to update the cache as quickly as possible
@@ -4221,7 +4230,7 @@ func TestGetRefs_CacheUnlockedOnUpdateFailed(t *testing.T) {
 	repoURL := "file://" + dir
 	client, err := git.NewClient(repoURL, git.NopCreds{}, true, false, "", "", git.WithCache(cacheMocks.cache, true))
 	require.NoError(t, err)
-	refs, err := client.LsRefs()
+	refs, err := client.LsRefs(ctx)
 	require.NoError(t, err)
 	assert.NotNil(t, refs)
 	assert.NotEmpty(t, refs.Branches, "Expected branches to be populated")
@@ -4235,6 +4244,7 @@ func TestGetRefs_CacheUnlockedOnUpdateFailed(t *testing.T) {
 }
 
 func TestGetRefs_CacheLockTryLockGitRefCacheError(t *testing.T) {
+	ctx := t.Context()
 	// Worst case the ttl on the lock expires and the lock is removed
 	// however if the holder of the lock fails to update the cache the caller should remove the lock
 	// to allow other callers to attempt to update the cache as quickly as possible
@@ -4252,7 +4262,7 @@ func TestGetRefs_CacheLockTryLockGitRefCacheError(t *testing.T) {
 	// log.SetOutput(&buf)
 	client, err := git.NewClient(repoURL, git.NopCreds{}, true, false, "", "", git.WithCache(cacheMocks.cache, true))
 	require.NoError(t, err)
-	refs, err := client.LsRefs()
+	refs, err := client.LsRefs(ctx)
 	require.NoError(t, err)
 	assert.NotNil(t, refs)
 }

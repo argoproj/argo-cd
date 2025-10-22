@@ -1,6 +1,7 @@
 package settings
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strconv"
@@ -94,29 +95,29 @@ func (a *Account) HasCapability(capability AccountCapability) bool {
 	return false
 }
 
-func (mgr *SettingsManager) saveAccount(name string, account Account) error {
-	return mgr.updateSecret(func(secret *corev1.Secret) error {
-		return mgr.updateConfigMap(func(cm *corev1.ConfigMap) error {
+func (mgr *SettingsManager) saveAccount(ctx context.Context, name string, account Account) error {
+	return mgr.updateSecret(ctx, func(secret *corev1.Secret) error {
+		return mgr.updateConfigMap(ctx, func(cm *corev1.ConfigMap) error {
 			return saveAccount(secret, cm, name, account)
 		})
 	})
 }
 
 // AddAccount save an account with the given name and properties.
-func (mgr *SettingsManager) AddAccount(name string, account Account) error {
-	accounts, err := mgr.GetAccounts()
+func (mgr *SettingsManager) AddAccount(ctx context.Context, name string, account Account) error {
+	accounts, err := mgr.GetAccounts(ctx)
 	if err != nil {
 		return fmt.Errorf("error getting accounts: %w", err)
 	}
 	if _, ok := accounts[name]; ok {
 		return status.Errorf(codes.AlreadyExists, "account '%s' already exists", name)
 	}
-	return mgr.saveAccount(name, account)
+	return mgr.saveAccount(ctx, name, account)
 }
 
 // GetAccount return an account info by the specified name.
-func (mgr *SettingsManager) GetAccount(name string) (*Account, error) {
-	accounts, err := mgr.GetAccounts()
+func (mgr *SettingsManager) GetAccount(ctx context.Context, name string) (*Account, error) {
+	accounts, err := mgr.GetAccounts(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -129,27 +130,27 @@ func (mgr *SettingsManager) GetAccount(name string) (*Account, error) {
 
 // UpdateAccount runs the callback function against an account that matches to the specified name
 // and persist changes applied by the callback.
-func (mgr *SettingsManager) UpdateAccount(name string, callback func(account *Account) error) error {
+func (mgr *SettingsManager) UpdateAccount(ctx context.Context, name string, callback func(ctx context.Context, account *Account) error) error {
 	return retry.RetryOnConflict(retry.DefaultBackoff, func() error {
-		account, err := mgr.GetAccount(name)
+		account, err := mgr.GetAccount(ctx, name)
 		if err != nil {
 			return err
 		}
-		err = callback(account)
+		err = callback(ctx, account)
 		if err != nil {
 			return err
 		}
-		return mgr.saveAccount(name, *account)
+		return mgr.saveAccount(context.Background(), name, *account)
 	})
 }
 
 // GetAccounts returns list of configured accounts
-func (mgr *SettingsManager) GetAccounts() (map[string]Account, error) {
-	cm, err := mgr.getConfigMap()
+func (mgr *SettingsManager) GetAccounts(ctx context.Context) (map[string]Account, error) {
+	cm, err := mgr.getConfigMap(ctx)
 	if err != nil {
 		return nil, err
 	}
-	secret, err := mgr.getSecret()
+	secret, err := mgr.getSecret(ctx)
 	if err != nil {
 		return nil, err
 	}

@@ -170,7 +170,7 @@ func TestParseKustomizeBuildHelmOptions(t *testing.T) {
 }
 
 func TestVersion(t *testing.T) {
-	ver, err := Version()
+	ver, err := Version(t.Context())
 	require.NoError(t, err)
 	assert.NotEmpty(t, ver)
 }

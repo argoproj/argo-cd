@@ -105,7 +105,7 @@ ID          ISSUED-AT                                EXPIRES-AT
 			}
 			projName := args[0]
 			roleName := args[1]
-			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
+			conn, projIf := headless.NewClientOrDie(ctx, clientOpts, c).NewProjectClientOrDie(ctx)
 			defer utilio.Close(conn)
 
 			proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
@@ -180,7 +180,7 @@ ID          ISSUED-AT                                EXPIRES-AT
 			}
 			projName := args[0]
 			roleName := args[1]
-			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
+			conn, projIf := headless.NewClientOrDie(ctx, clientOpts, c).NewProjectClientOrDie(ctx)
 			defer utilio.Close(conn)
 
 			proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
@@ -237,7 +237,7 @@ func NewProjectRoleCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 			}
 			projName := args[0]
 			roleName := args[1]
-			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
+			conn, projIf := headless.NewClientOrDie(ctx, clientOpts, c).NewProjectClientOrDie(ctx)
 			defer utilio.Close(conn)
 
 			proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
@@ -274,7 +274,7 @@ func NewProjectRoleDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 			}
 			projName := args[0]
 			roleName := args[1]
-			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
+			conn, projIf := headless.NewClientOrDie(ctx, clientOpts, c).NewProjectClientOrDie(ctx)
 			defer utilio.Close(conn)
 
 			promptUtil := utils.NewPrompt(clientOpts.PromptsEnabled)
@@ -338,7 +338,7 @@ Create token succeeded for proj:test-project:test-role.
 			}
 			projName := args[0]
 			roleName := args[1]
-			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
+			conn, projIf := headless.NewClientOrDie(ctx, clientOpts, c).NewProjectClientOrDie(ctx)
 			defer utilio.Close(conn)
 			if expiresIn == "" {
 				expiresIn = "0s"
@@ -407,7 +407,7 @@ fa9d3517-c52d-434c-9bff-215b38508842    2023-10-08T11:08:18+01:00    Never
 			projName := args[0]
 			roleName := args[1]
 
-			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
+			conn, projIf := headless.NewClientOrDie(ctx, clientOpts, c).NewProjectClientOrDie(ctx)
 			defer utilio.Close(conn)
 
 			proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
@@ -490,7 +490,7 @@ $ argocd proj role delete-token test-project test-role 1696769937
 
 			promptUtil := utils.NewPrompt(clientOpts.PromptsEnabled)
 
-			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
+			conn, projIf := headless.NewClientOrDie(ctx, clientOpts, c).NewProjectClientOrDie(ctx)
 			defer utilio.Close(conn)
 
 			canDelete := promptUtil.Confirm(fmt.Sprintf("Are you sure you want to delete '%s' project token? [y/n]", tokenId))
@@ -545,7 +545,7 @@ func NewProjectRoleListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				os.Exit(1)
 			}
 			projName := args[0]
-			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
+			conn, projIf := headless.NewClientOrDie(ctx, clientOpts, c).NewProjectClientOrDie(ctx)
 			defer utilio.Close(conn)
 
 			project, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
@@ -591,7 +591,7 @@ ID          ISSUED-AT                                  EXPIRES-AT
 			}
 			projName := args[0]
 			roleName := args[1]
-			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
+			conn, projIf := headless.NewClientOrDie(ctx, clientOpts, c).NewProjectClientOrDie(ctx)
 			defer utilio.Close(conn)
 
 			proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
@@ -644,7 +644,7 @@ func NewProjectRoleAddGroupCommand(clientOpts *argocdclient.ClientOptions) *cobr
 				os.Exit(1)
 			}
 			projName, roleName, groupName := args[0], args[1], args[2]
-			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
+			conn, projIf := headless.NewClientOrDie(ctx, clientOpts, c).NewProjectClientOrDie(ctx)
 			defer utilio.Close(conn)
 			proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
@@ -675,7 +675,7 @@ func NewProjectRoleRemoveGroupCommand(clientOpts *argocdclient.ClientOptions) *c
 				os.Exit(1)
 			}
 			projName, roleName, groupName := args[0], args[1], args[2]
-			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
+			conn, projIf := headless.NewClientOrDie(ctx, clientOpts, c).NewProjectClientOrDie(ctx)
 			defer utilio.Close(conn)
 			proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)

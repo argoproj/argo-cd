@@ -51,7 +51,7 @@ func (g *PluginGenerator) GetTemplate(appSetGenerator *argoprojiov1alpha1.Applic
 	return &appSetGenerator.Plugin.Template
 }
 
-func (g *PluginGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, applicationSetInfo *argoprojiov1alpha1.ApplicationSet, _ client.Client) ([]map[string]any, error) {
+func (g *PluginGenerator) GenerateParams(ctx context.Context, appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, applicationSetInfo *argoprojiov1alpha1.ApplicationSet, _ client.Client) ([]map[string]any, error) {
 	if appSetGenerator == nil {
 		return nil, ErrEmptyAppSetGenerator
 	}
@@ -59,8 +59,6 @@ func (g *PluginGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.App
 	if appSetGenerator.Plugin == nil {
 		return nil, ErrEmptyAppSetGenerator
 	}
-
-	ctx := context.Background()
 
 	providerConfig := appSetGenerator.Plugin
 

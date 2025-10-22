@@ -187,7 +187,7 @@ func newTestAppServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforcer),
 		},
 	})
 	ctx := t.Context()
-	db := db.NewDB(testNamespace, settings.NewSettingsManager(ctx, kubeclientset, testNamespace), kubeclientset)
+	db := db.NewDB(testNamespace, settings.NewSettingsManager(kubeclientset, testNamespace), kubeclientset)
 	_, err := db.CreateRepository(ctx, fakeRepo())
 	require.NoError(t, err)
 	_, err = db.CreateCluster(ctx, fakeCluster())
@@ -236,7 +236,7 @@ func newTestAppServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforcer),
 	f(enforcer)
 	enforcer.SetClaimsEnforcerFunc(rbacpolicy.NewRBACPolicyEnforcer(enforcer, fakeProjLister).EnforceClaims)
 
-	settingsMgr := settings.NewSettingsManager(ctx, kubeclientset, testNamespace)
+	settingsMgr := settings.NewSettingsManager(kubeclientset, testNamespace)
 
 	// populate the app informer with the fake objects
 	appInformer := factory.Argoproj().V1alpha1().Applications().Informer()
@@ -352,7 +352,7 @@ func newTestAppServerWithEnforcerConfigureWithBenchmark(b *testing.B, f func(*rb
 		},
 	})
 	ctx := b.Context()
-	db := db.NewDB(testNamespace, settings.NewSettingsManager(ctx, kubeclientset, testNamespace), kubeclientset)
+	db := db.NewDB(testNamespace, settings.NewSettingsManager(kubeclientset, testNamespace), kubeclientset)
 	_, err := db.CreateRepository(ctx, fakeRepo())
 	require.NoError(b, err)
 	_, err = db.CreateCluster(ctx, fakeCluster())
@@ -400,7 +400,7 @@ func newTestAppServerWithEnforcerConfigureWithBenchmark(b *testing.B, f func(*rb
 	f(enforcer)
 	enforcer.SetClaimsEnforcerFunc(rbacpolicy.NewRBACPolicyEnforcer(enforcer, fakeProjLister).EnforceClaims)
 
-	settingsMgr := settings.NewSettingsManager(ctx, kubeclientset, testNamespace)
+	settingsMgr := settings.NewSettingsManager(kubeclientset, testNamespace)
 
 	// populate the app informer with the fake objects
 	appInformer := factory.Argoproj().V1alpha1().Applications().Informer()
@@ -1121,24 +1121,26 @@ func TestNoAppEnumeration(t *testing.T) {
 // setSyncRunningOperationState simulates starting a sync operation on the given app.
 func setSyncRunningOperationState(t *testing.T, appServer *Server) {
 	t.Helper()
+	ctx := t.Context()
 	appIf := appServer.appclientset.ArgoprojV1alpha1().Applications("default")
-	app, err := appIf.Get(t.Context(), "test", metav1.GetOptions{})
+	app, err := appIf.Get(ctx, "test", metav1.GetOptions{})
 	require.NoError(t, err)
 	// This sets the status that would be set by the controller usually.
 	app.Status.OperationState = &v1alpha1.OperationState{Phase: synccommon.OperationRunning, Operation: v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{}}}
-	_, err = appIf.Update(t.Context(), app, metav1.UpdateOptions{})
+	_, err = appIf.Update(ctx, app, metav1.UpdateOptions{})
 	require.NoError(t, err)
 }
 
 // unsetSyncRunningOperationState simulates finishing a sync operation on the given app.
 func unsetSyncRunningOperationState(t *testing.T, appServer *Server) {
 	t.Helper()
+	ctx := t.Context()
 	appIf := appServer.appclientset.ArgoprojV1alpha1().Applications("default")
-	app, err := appIf.Get(t.Context(), "test", metav1.GetOptions{})
+	app, err := appIf.Get(ctx, "test", metav1.GetOptions{})
 	require.NoError(t, err)
 	app.Operation = nil
 	app.Status.OperationState = nil
-	_, err = appIf.Update(t.Context(), app, metav1.UpdateOptions{})
+	_, err = appIf.Update(ctx, app, metav1.UpdateOptions{})
 	require.NoError(t, err)
 }
 
@@ -2367,7 +2369,7 @@ func TestSyncRBACSettingsError(t *testing.T) {
 			"server.secretkey": []byte("test"),
 		},
 	})
-	appServer.settingsMgr = settings.NewSettingsManager(ctx, brokenclientset, testNamespace)
+	appServer.settingsMgr = settings.NewSettingsManager(brokenclientset, testNamespace)
 	// and sync to different revision
 	syncReq := &application.ApplicationSyncRequest{
 		Name:     &app.Name,
@@ -3088,7 +3090,7 @@ func TestLogsGetSelectedPod(t *testing.T) {
 }
 
 func TestMaxPodLogsRender(t *testing.T) {
-	defaultMaxPodLogsToRender, _ := newTestAppServer(t).settingsMgr.GetMaxPodLogsToRender()
+	defaultMaxPodLogsToRender, _ := newTestAppServer(t).settingsMgr.GetMaxPodLogsToRender(t.Context())
 
 	// Case: number of pods to view logs is less than defaultMaxPodLogsToRender
 	podNumber := int(defaultMaxPodLogsToRender - 1)

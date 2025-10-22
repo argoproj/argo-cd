@@ -41,7 +41,7 @@ func TestSecretsRepositoryBackend_CreateRepository(t *testing.T) {
 	}
 	setupWithK8sObjects := func(objects ...runtime.Object) *fixture {
 		clientset := getClientset(objects...)
-		settingsMgr := settings.NewSettingsManager(t.Context(), clientset, testNamespace)
+		settingsMgr := settings.NewSettingsManager(clientset, testNamespace)
 		repoBackend := &secretsRepositoryBackend{db: &db{
 			ns:            testNamespace,
 			kubeclientset: clientset,
@@ -217,7 +217,7 @@ func TestSecretsRepositoryBackend_GetRepository(t *testing.T) {
 	testee := &secretsRepositoryBackend{db: &db{
 		ns:            testNamespace,
 		kubeclientset: clientset,
-		settingsMgr:   settings.NewSettingsManager(t.Context(), clientset, testNamespace),
+		settingsMgr:   settings.NewSettingsManager(clientset, testNamespace),
 	}}
 
 	repository, err := testee.GetRepository(t.Context(), "git@github.com:argoproj/argo-cd.git", "")
@@ -290,7 +290,7 @@ func TestSecretsRepositoryBackend_ListRepositories(t *testing.T) {
 	testee := &secretsRepositoryBackend{db: &db{
 		ns:            testNamespace,
 		kubeclientset: clientset,
-		settingsMgr:   settings.NewSettingsManager(t.Context(), clientset, testNamespace),
+		settingsMgr:   settings.NewSettingsManager(clientset, testNamespace),
 	}}
 
 	repositories, err := testee.ListRepositories(t.Context(), nil)
@@ -413,7 +413,7 @@ func TestSecretsRepositoryBackend_UpdateRepository(t *testing.T) {
 	testee := &secretsRepositoryBackend{db: &db{
 		ns:            testNamespace,
 		kubeclientset: clientset,
-		settingsMgr:   settings.NewSettingsManager(t.Context(), clientset, testNamespace),
+		settingsMgr:   settings.NewSettingsManager(clientset, testNamespace),
 	}}
 
 	managedRepository.Username = "newUsername"
@@ -522,7 +522,7 @@ func TestSecretsRepositoryBackend_DeleteRepository(t *testing.T) {
 	testee := &secretsRepositoryBackend{db: &db{
 		ns:            testNamespace,
 		kubeclientset: clientset,
-		settingsMgr:   settings.NewSettingsManager(t.Context(), clientset, testNamespace),
+		settingsMgr:   settings.NewSettingsManager(clientset, testNamespace),
 	}}
 
 	err := testee.DeleteRepository(t.Context(), "git@github.com:argoproj/argo-cd.git", "")
@@ -554,7 +554,7 @@ func TestSecretsRepositoryBackend_CreateRepoCreds(t *testing.T) {
 	testee := &secretsRepositoryBackend{db: &db{
 		ns:            testNamespace,
 		kubeclientset: clientset,
-		settingsMgr:   settings.NewSettingsManager(t.Context(), clientset, testNamespace),
+		settingsMgr:   settings.NewSettingsManager(clientset, testNamespace),
 	}}
 
 	testCases := []struct {
@@ -683,7 +683,7 @@ func TestSecretsRepositoryBackend_GetRepoCreds(t *testing.T) {
 	testee := &secretsRepositoryBackend{db: &db{
 		ns:            testNamespace,
 		kubeclientset: clientset,
-		settingsMgr:   settings.NewSettingsManager(t.Context(), clientset, testNamespace),
+		settingsMgr:   settings.NewSettingsManager(clientset, testNamespace),
 	}}
 
 	repoCred, err := testee.GetRepoCreds(t.Context(), "git@github.com:argoproj")
@@ -740,7 +740,7 @@ func TestSecretsRepositoryBackend_ListRepoCreds(t *testing.T) {
 	testee := &secretsRepositoryBackend{db: &db{
 		ns:            testNamespace,
 		kubeclientset: clientset,
-		settingsMgr:   settings.NewSettingsManager(t.Context(), clientset, testNamespace),
+		settingsMgr:   settings.NewSettingsManager(clientset, testNamespace),
 	}}
 
 	repoCreds, err := testee.ListRepoCreds(t.Context())
@@ -801,7 +801,7 @@ func TestSecretsRepositoryBackend_UpdateRepoCreds(t *testing.T) {
 	testee := &secretsRepositoryBackend{db: &db{
 		ns:            testNamespace,
 		kubeclientset: clientset,
-		settingsMgr:   settings.NewSettingsManager(t.Context(), clientset, testNamespace),
+		settingsMgr:   settings.NewSettingsManager(clientset, testNamespace),
 	}}
 
 	managedCreds.Username = "newUsername"
@@ -870,7 +870,7 @@ func TestSecretsRepositoryBackend_DeleteRepoCreds(t *testing.T) {
 	testee := &secretsRepositoryBackend{db: &db{
 		ns:            testNamespace,
 		kubeclientset: clientset,
-		settingsMgr:   settings.NewSettingsManager(t.Context(), clientset, testNamespace),
+		settingsMgr:   settings.NewSettingsManager(clientset, testNamespace),
 	}}
 
 	err := testee.DeleteRepoCreds(t.Context(), "git@github.com:argoproj")
@@ -924,7 +924,7 @@ func TestSecretsRepositoryBackend_GetAllHelmRepoCreds(t *testing.T) {
 	testee := &secretsRepositoryBackend{db: &db{
 		ns:            testNamespace,
 		kubeclientset: clientset,
-		settingsMgr:   settings.NewSettingsManager(t.Context(), clientset, testNamespace),
+		settingsMgr:   settings.NewSettingsManager(clientset, testNamespace),
 	}}
 
 	repoCreds, err := testee.GetAllHelmRepoCreds(t.Context())
@@ -937,7 +937,7 @@ func TestRepoCredsToSecret(t *testing.T) {
 	testee := &secretsRepositoryBackend{db: &db{
 		ns:            testNamespace,
 		kubeclientset: clientset,
-		settingsMgr:   settings.NewSettingsManager(t.Context(), clientset, testNamespace),
+		settingsMgr:   settings.NewSettingsManager(clientset, testNamespace),
 	}}
 	s := &corev1.Secret{}
 	creds := &appsv1.RepoCreds{
@@ -977,7 +977,7 @@ func TestRepoWriteCredsToSecret(t *testing.T) {
 		db: &db{
 			ns:            testNamespace,
 			kubeclientset: clientset,
-			settingsMgr:   settings.NewSettingsManager(t.Context(), clientset, testNamespace),
+			settingsMgr:   settings.NewSettingsManager(clientset, testNamespace),
 		},
 		writeCreds: true,
 	}

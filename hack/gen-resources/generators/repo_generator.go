@@ -50,10 +50,9 @@ func fetchRepos(ctx context.Context, token string, page int) ([]Repo, error) {
 	return repos, nil
 }
 
-func FetchRepos(token string, samples int) ([]Repo, error) {
+func FetchRepos(ctx context.Context, token string, samples int) ([]Repo, error) {
 	log.Print("Fetch repos started")
 	var (
-		ctx   = context.Background()
 		repos []Repo
 		page  = 1
 	)
@@ -79,8 +78,8 @@ func FetchRepos(token string, samples int) ([]Repo, error) {
 	return repos, nil
 }
 
-func (rg *RepoGenerator) Generate(opts *util.GenerateOpts) error {
-	repos, err := FetchRepos(opts.GithubToken, opts.RepositoryOpts.Samples)
+func (rg *RepoGenerator) Generate(ctx context.Context, opts *util.GenerateOpts) error {
+	repos, err := FetchRepos(ctx, opts.GithubToken, opts.RepositoryOpts.Samples)
 	if err != nil {
 		return err
 	}
@@ -88,7 +87,7 @@ func (rg *RepoGenerator) Generate(opts *util.GenerateOpts) error {
 	secrets := rg.clientSet.CoreV1().Secrets(opts.Namespace)
 	rg.bar.NewOption(0, int64(len(repos)))
 	for _, repo := range repos {
-		_, err = secrets.Create(context.TODO(), &corev1.Secret{
+		_, err = secrets.Create(ctx, &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
 				GenerateName: "repo-",
 				Namespace:    opts.Namespace,

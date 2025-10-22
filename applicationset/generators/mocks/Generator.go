@@ -5,6 +5,7 @@
 package mocks
 
 import (
+	"context"
 	"time"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -40,8 +41,8 @@ func (_m *Generator) EXPECT() *Generator_Expecter {
 }
 
 // GenerateParams provides a mock function for the type Generator
-func (_mock *Generator) GenerateParams(appSetGenerator *v1alpha1.ApplicationSetGenerator, applicationSetInfo *v1alpha1.ApplicationSet, client1 client.Client) ([]map[string]any, error) {
-	ret := _mock.Called(appSetGenerator, applicationSetInfo, client1)
+func (_mock *Generator) GenerateParams(ctx context.Context, appSetGenerator *v1alpha1.ApplicationSetGenerator, applicationSetInfo *v1alpha1.ApplicationSet, client1 client.Client) ([]map[string]any, error) {
+	ret := _mock.Called(ctx, appSetGenerator, applicationSetInfo, client1)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GenerateParams")
@@ -49,18 +50,18 @@ func (_mock *Generator) GenerateParams(appSetGenerator *v1alpha1.ApplicationSetG
 
 	var r0 []map[string]any
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(*v1alpha1.ApplicationSetGenerator, *v1alpha1.ApplicationSet, client.Client) ([]map[string]any, error)); ok {
-		return returnFunc(appSetGenerator, applicationSetInfo, client1)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *v1alpha1.ApplicationSetGenerator, *v1alpha1.ApplicationSet, client.Client) ([]map[string]any, error)); ok {
+		return returnFunc(ctx, appSetGenerator, applicationSetInfo, client1)
 	}
-	if returnFunc, ok := ret.Get(0).(func(*v1alpha1.ApplicationSetGenerator, *v1alpha1.ApplicationSet, client.Client) []map[string]any); ok {
-		r0 = returnFunc(appSetGenerator, applicationSetInfo, client1)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *v1alpha1.ApplicationSetGenerator, *v1alpha1.ApplicationSet, client.Client) []map[string]any); ok {
+		r0 = returnFunc(ctx, appSetGenerator, applicationSetInfo, client1)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]map[string]any)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(*v1alpha1.ApplicationSetGenerator, *v1alpha1.ApplicationSet, client.Client) error); ok {
-		r1 = returnFunc(appSetGenerator, applicationSetInfo, client1)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, *v1alpha1.ApplicationSetGenerator, *v1alpha1.ApplicationSet, client.Client) error); ok {
+		r1 = returnFunc(ctx, appSetGenerator, applicationSetInfo, client1)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -73,31 +74,37 @@ type Generator_GenerateParams_Call struct {
 }
 
 // GenerateParams is a helper method to define mock.On call
+//   - ctx context.Context
 //   - appSetGenerator *v1alpha1.ApplicationSetGenerator
 //   - applicationSetInfo *v1alpha1.ApplicationSet
 //   - client1 client.Client
-func (_e *Generator_Expecter) GenerateParams(appSetGenerator interface{}, applicationSetInfo interface{}, client1 interface{}) *Generator_GenerateParams_Call {
-	return &Generator_GenerateParams_Call{Call: _e.mock.On("GenerateParams", appSetGenerator, applicationSetInfo, client1)}
+func (_e *Generator_Expecter) GenerateParams(ctx interface{}, appSetGenerator interface{}, applicationSetInfo interface{}, client1 interface{}) *Generator_GenerateParams_Call {
+	return &Generator_GenerateParams_Call{Call: _e.mock.On("GenerateParams", ctx, appSetGenerator, applicationSetInfo, client1)}
 }
 
-func (_c *Generator_GenerateParams_Call) Run(run func(appSetGenerator *v1alpha1.ApplicationSetGenerator, applicationSetInfo *v1alpha1.ApplicationSet, client1 client.Client)) *Generator_GenerateParams_Call {
+func (_c *Generator_GenerateParams_Call) Run(run func(ctx context.Context, appSetGenerator *v1alpha1.ApplicationSetGenerator, applicationSetInfo *v1alpha1.ApplicationSet, client1 client.Client)) *Generator_GenerateParams_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 *v1alpha1.ApplicationSetGenerator
+		var arg0 context.Context
 		if args[0] != nil {
-			arg0 = args[0].(*v1alpha1.ApplicationSetGenerator)
+			arg0 = args[0].(context.Context)
 		}
-		var arg1 *v1alpha1.ApplicationSet
+		var arg1 *v1alpha1.ApplicationSetGenerator
 		if args[1] != nil {
-			arg1 = args[1].(*v1alpha1.ApplicationSet)
+			arg1 = args[1].(*v1alpha1.ApplicationSetGenerator)
 		}
-		var arg2 client.Client
+		var arg2 *v1alpha1.ApplicationSet
 		if args[2] != nil {
-			arg2 = args[2].(client.Client)
+			arg2 = args[2].(*v1alpha1.ApplicationSet)
+		}
+		var arg3 client.Client
+		if args[3] != nil {
+			arg3 = args[3].(client.Client)
 		}
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3,
 		)
 	})
 	return _c
@@ -108,7 +115,7 @@ func (_c *Generator_GenerateParams_Call) Return(stringToVs []map[string]any, err
 	return _c
 }
 
-func (_c *Generator_GenerateParams_Call) RunAndReturn(run func(appSetGenerator *v1alpha1.ApplicationSetGenerator, applicationSetInfo *v1alpha1.ApplicationSet, client1 client.Client) ([]map[string]any, error)) *Generator_GenerateParams_Call {
+func (_c *Generator_GenerateParams_Call) RunAndReturn(run func(ctx context.Context, appSetGenerator *v1alpha1.ApplicationSetGenerator, applicationSetInfo *v1alpha1.ApplicationSet, client1 client.Client) ([]map[string]any, error)) *Generator_GenerateParams_Call {
 	_c.Call.Return(run)
 	return _c
 }
