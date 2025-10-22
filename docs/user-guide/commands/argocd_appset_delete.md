@@ -18,8 +18,9 @@ argocd appset delete [flags]
 ### Options
 
 ```
-  -h, --help   help for delete
-  -y, --yes    Turn off prompting to confirm cascaded deletion of Application resources
+      --cascade   Allow the deletion of appsets without deleting the argocd applications
+  -h, --help      help for delete
+  -y, --yes       Turn off prompting to confirm cascaded deletion of Application resources
 ```
 
 ### Options inherited from parent commands
