@@ -1124,7 +1124,7 @@ func (m *nativeGitClient) AddAndPushNote(sha string, namespace string, note stri
 // HasFileChanged returns the outout of git diff considering whether it is tracked or un-tracked
 func (m *nativeGitClient) HasFileChanged(filePath string) (bool, error) {
 	// Step 1: Is it UNTRACKED? (file is new to git)
-	_, err := m.runCmd(context.Background(), "cat-file", "-e", fmt.Sprintf("HEAD:%s", filePath))
+	_, err := m.runCmd(context.Background(), "cat-file", "-e", "HEAD:"+filePath)
 	if err != nil {
 		// File is NOT tracked by git → means it's new/unadded
 		return true, nil
