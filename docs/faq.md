@@ -154,7 +154,7 @@ See [#1482](https://github.com/argoproj/argo-cd/issues/1482).
 By default, Argo CD checks (polls) Git repositories every 3 minutes to detect changes.
 This default interval is calculated as 120 seconds + up to 60 seconds of jitter (a small random delay to avoid simultaneous polling). You can customize this behavior by updating the following keys in the `argocd-cm` ConfigMap:
 ```yaml
-timeout.reconciliation: 180s          
+timeout.reconciliation: 120s
 timeout.reconciliation.jitter: 60s 
 ```
 During each polling cycle, Argo CD checks whether your tracked repositories have changed. If changes are found:
