@@ -390,6 +390,27 @@ func TestRunCommandContextTimeoutWithCleanup(t *testing.T) {
 	assert.Less(t, after.Sub(before), 2*time.Second)
 }
 
+func TestRunCommandNoContextTimeoutUsesGlobalTimeout(t *testing.T) {
+	// This test verifies that when no context timeout is set,
+	// the command respects ARGOCD_EXEC_TIMEOUT (default 90s).
+	// Since 90s is too long for a test, we'll verify that a command
+	// without context timeout doesn't get terminated immediately.
+
+	ctx := context.Background() // No timeout set
+	command := Command{
+		Command: []string{"sh", "-c"},
+		Args:    []string{"sleep 0.1"}, // Very short sleep
+	}
+
+	before := time.Now()
+	_, err := runCommand(ctx, command, "", []string{})
+	after := time.Now()
+
+	require.NoError(t, err) // Should complete successfully
+	// Should complete in around 100ms, not timeout
+	assert.Less(t, after.Sub(before), 500*time.Millisecond)
+}
+
 func Test_getParametersAnnouncement_empty_command(t *testing.T) {
 	staticYAML := `
 - name: static-a

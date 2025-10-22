@@ -74,19 +74,28 @@ func runCommand(ctx context.Context, command Command, path string, env []string)
 	// https://stackoverflow.com/a/38133948/684776
 	cmd.SysProcAttr = newSysProcAttr(true)
 
-	// Use the argoexec package to run the command with proper ARGOCD_EXEC_TIMEOUT support
-	// Configure timeout behavior to maintain backward compatibility with 5-second cleanup timeout
+	// The argoexec package handles both context cancellation and its own timeout mechanisms
+	// Context timeout takes precedence when it exists, ARGOCD_EXEC_TIMEOUT is used as fallback
+	var timeout time.Duration
+	if deadline, ok := ctx.Deadline(); ok {
+		contextTimeout := time.Until(deadline)
+		// If context is already expired, return immediately
+		if contextTimeout <= 0 {
+			return "", ctx.Err()
+		}
+		// Use context timeout for argoexec - this ensures consistency with Git/Helm/Kustomize operations
+		timeout = contextTimeout
+	}
+	// If no context timeout, argoexec will use ARGOCD_EXEC_TIMEOUT (by setting timeout to 0)
+
 	cmdOpts := argoexec.CmdOpts{
-		// Use default timeout from ARGOCD_EXEC_TIMEOUT environment variable (90s default)
-		Timeout: 0, // 0 means use the global timeout from environment variable
-		// FatalTimeout maintains backward compatibility with original 5-second cleanup timeout
-		FatalTimeout: 5 * time.Second,
+		// Use context timeout if present, otherwise argoexec will use ARGOCD_EXEC_TIMEOUT
+		Timeout: timeout,
 		// CaptureStderr is set to true to include stderr in the output for better error reporting
 		CaptureStderr: true,
 		// TimeoutBehavior maintains backward compatibility: send SIGTERM first, then wait for cleanup
 		TimeoutBehavior: argoexec.TimeoutBehavior{
-			Signal:     syscall.SIGTERM, // Send SIGTERM first to allow cleanup
-			ShouldWait: true,            // Wait for process to cleanup before SIGKILL
+			Signal: syscall.SIGTERM, // Send SIGTERM first to allow cleanup
 		},
 	}
 
