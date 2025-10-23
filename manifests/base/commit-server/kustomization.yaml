@@ -11,5 +11,5 @@ resources:
 # If/when commit-server is added to the base, this can be removed.
 images:
 - name: quay.io/argoproj/argocd
-  newName: quay.io/argoproj/argocd
+  newName: us-central1-docker.pkg.dev/maralder-anthos-dev/argocd-images/argocd
   newTag: latest

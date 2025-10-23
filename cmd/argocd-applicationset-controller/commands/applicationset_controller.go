@@ -36,6 +36,8 @@ import (
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
+	clusterv1alpha1 "sigs.k8s.io/cluster-inventory-api/apis/v1alpha1"
+
 	appsetmetrics "github.com/argoproj/argo-cd/v3/applicationset/metrics"
 	"github.com/argoproj/argo-cd/v3/applicationset/services"
 	appv1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -84,6 +86,7 @@ func NewCommand() *cobra.Command {
 	scheme := runtime.NewScheme()
 	_ = clientgoscheme.AddToScheme(scheme)
 	_ = appv1alpha1.AddToScheme(scheme)
+	_ = clusterv1alpha1.AddToScheme(scheme)
 	command := cobra.Command{
 		Use:               cliName,
 		Short:             "Starts Argo CD ApplicationSet controller",
