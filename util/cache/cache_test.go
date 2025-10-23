@@ -103,7 +103,8 @@ func TestLoadRedisCreds(t *testing.T) {
 	writeFile("sentinel_username", "sentineluser")
 	writeFile("sentinel_auth", "sentinelpass")
 
-	username, password, sentinelUsername, sentinelPassword := loadRedisCreds(dir, Options{})
+	username, password, sentinelUsername, sentinelPassword, err := loadRedisCreds(dir, Options{})
+	require.NoError(t, err)
 	assert.Equal(t, "mypassword", password)
 	assert.Equal(t, "myuser", username)
 	assert.Equal(t, "sentineluser", sentinelUsername)
@@ -118,7 +119,8 @@ func TestLoadRedisCredsFromEnv(t *testing.T) {
 	t.Setenv(envRedisSentinelUsername, "sentineluser")
 	t.Setenv(envRedisSentinelPassword, "sentinelpass")
 
-	username, password, sentinelUsername, sentinelPassword := loadRedisCreds("", Options{})
+	username, password, sentinelUsername, sentinelPassword, err := loadRedisCreds("", Options{})
+	require.NoError(t, err)
 	assert.Equal(t, "mypassword", password)
 	assert.Equal(t, "myuser", username)
 	assert.Equal(t, "sentineluser", sentinelUsername)
@@ -139,14 +141,47 @@ func TestLoadRedisCredsFromBothEnvAndFile(t *testing.T) {
 		require.NoError(t, os.WriteFile(filepath.Join(dir, name), []byte(content), 0o400))
 	}
 	// Write all files
-	writeFile("auth", "filepassword\n")
+	writeFile("auth", "filepassword")
 	writeFile("auth_username", "fileuser")
 	writeFile("sentinel_username", "filesentineluser")
 	writeFile("sentinel_auth", "filesentinelpass")
 
-	username, password, sentinelUsername, sentinelPassword := loadRedisCreds(dir, Options{})
+	username, password, sentinelUsername, sentinelPassword, err := loadRedisCreds(dir, Options{})
+	require.NoError(t, err)
 	assert.Equal(t, "filepassword", password)
 	assert.Equal(t, "fileuser", username)
 	assert.Equal(t, "filesentineluser", sentinelUsername)
 	assert.Equal(t, "filesentinelpass", sentinelPassword)
+}
+
+func TestLoadRedisCreds_MountPathMissing(t *testing.T) {
+	_, _, _, _, err := loadRedisCreds("not_existing_path", Options{})
+	require.Error(t, err)
+	require.ErrorContains(t, err, "failed to access Redis credentials")
+}
+
+func TestCredentialFileHandling(t *testing.T) {
+	t.Run("ReadAuthDetailsFromFile_Missing", func(t *testing.T) {
+		dir := t.TempDir()
+		val, err := readAuthDetailsFromFile(dir, "not_existing_path")
+		require.NoError(t, err)
+		assert.Equal(t, "", val)
+	})
+
+	t.Run("ReadAuthDetailsFromFile_Unreadable", func(t *testing.T) {
+		dir := t.TempDir()
+		file := filepath.Join(dir, "auth")
+		require.NoError(t, os.WriteFile(file, []byte("value"), 0o000))
+		_, err := readAuthDetailsFromFile(dir, "auth")
+		require.Error(t, err)
+	})
+
+	t.Run("ReadAuthDetailsFromFile_Normal", func(t *testing.T) {
+		dir := t.TempDir()
+		file := filepath.Join(dir, "auth")
+		require.NoError(t, os.WriteFile(file, []byte("value"), 0o400))
+		val, err := readAuthDetailsFromFile(dir, "auth")
+		require.NoError(t, err)
+		assert.Equal(t, "value", val)
+	})
 }

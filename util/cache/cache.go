@@ -134,34 +134,39 @@ func getFlagVal[T any](cmd *cobra.Command, o Options, name string, getVal func(n
 
 // loadRedisCreds loads Redis credentials either from file-based mounts or environment variables.
 // If a mount path is provided, Redis credentials are expected to be read only from the mounted files.
-// If no mount path is provided, the function falls back to reading credentials from environment variables.
-func loadRedisCreds(mountPath string, opt Options) (username, password, sentinelUsername, sentinelPassword string) {
+// If no mount path is provided, the function falls back to reading credentials from environment variables
+// to maintain backward compatibility.
+func loadRedisCreds(mountPath string, opt Options) (username, password, sentinelUsername, sentinelPassword string, err error) {
 	if mountPath != "" {
-		log.Infof("Loading Redis credentials from file: %s", mountPath)
-		readAuthDetailsFromFile := func(filename string) string {
-			path := filepath.Join(mountPath, filename)
-			data, err := os.ReadFile(path)
-			if errors.Is(err, os.ErrNotExist) {
-				log.Infof("Redis credential file %s not found", path)
-				return ""
-			}
-			if err != nil {
-				log.Warnf("Failed to read Redis credential file %s: %v", path, err)
-				return ""
-			}
-			return strings.TrimSpace(string(data))
+		log.Infof("Loading Redis credentials from mounted directory: %s", mountPath)
+		if _, statErr := os.Stat(mountPath); statErr != nil {
+			return "", "", "", "", fmt.Errorf("failed to access Redis credentials: mount path %q does not exist or is inaccessible: %w", mountPath, statErr)
 		}
-		password = readAuthDetailsFromFile("auth")
-		username = readAuthDetailsFromFile("auth_username")
-		sentinelUsername = readAuthDetailsFromFile("sentinel_username")
-		sentinelPassword = readAuthDetailsFromFile("sentinel_auth")
-		return username, password, sentinelUsername, sentinelPassword
+		password, err = readAuthDetailsFromFile(mountPath, "auth")
+		if err != nil {
+			return "", "", "", "", err
+		}
+		username, err = readAuthDetailsFromFile(mountPath, "auth_username")
+		if err != nil {
+			return "", "", "", "", err
+		}
+		sentinelUsername, err = readAuthDetailsFromFile(mountPath, "sentinel_username")
+		if err != nil {
+			return "", "", "", "", err
+		}
+		sentinelPassword, err = readAuthDetailsFromFile(mountPath, "sentinel_auth")
+		if err != nil {
+			return "", "", "", "", err
+		}
+
+		return username, password, sentinelUsername, sentinelPassword, nil
 	}
 	log.Info("Loading Redis credentials from environment variables")
 	username = os.Getenv(envRedisUsername)
 	password = os.Getenv(envRedisPassword)
 	sentinelUsername = os.Getenv(envRedisSentinelUsername)
 	sentinelPassword = os.Getenv(envRedisSentinelPassword)
+	// If a flag prefix is set, prefer prefixed env vars to allow component-specific overrides (e.g., REPOSERVER_REDIS_PASSWORD).
 	if opt.FlagPrefix != "" {
 		pref := opt.getEnvPrefix()
 		if val := os.Getenv(pref + envRedisUsername); val != "" {
@@ -177,7 +182,23 @@ func loadRedisCreds(mountPath string, opt Options) (username, password, sentinel
 			sentinelPassword = val
 		}
 	}
-	return username, password, sentinelUsername, sentinelPassword
+	return username, password, sentinelUsername, sentinelPassword, nil
+}
+
+func readAuthDetailsFromFile(mountPath, filename string) (string, error) {
+	path := filepath.Join(mountPath, filename)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			// Expected when a particular credential is not used
+			log.Infof("Redis credential file %s not found; using empty value for Redis credential %s", path, filename)
+			return "", nil
+		}
+		log.Errorf("Failed to access Redis credential file %s: %v", path, err)
+		return "", fmt.Errorf("Failed to access Redis credential file %s: %w", path, err)
+	}
+
+	return string(data), nil
 }
 
 // AddCacheFlagsToCmd adds flags which control caching to the specified command
@@ -264,7 +285,10 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...Options) func() (*Cache, err
 				credsFilePath = val
 			}
 		}
-		username, password, sentinelUsername, sentinelPassword = loadRedisCreds(credsFilePath, opt)
+		username, password, sentinelUsername, sentinelPassword, err := loadRedisCreds(credsFilePath, opt)
+		if err != nil {
+			return nil, err
+		}
 		maxRetries := env.ParseNumFromEnv(envRedisRetryCount, defaultRedisRetryCount, 0, math.MaxInt32)
 		compression, err := CompressionTypeFromString(compressionStr)
 		if err != nil {

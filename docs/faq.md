@@ -336,7 +336,7 @@ You can config your secret provider to generate Kubernetes secret accordingly.
 
 Argo CD components support reading Redis credentials from files mounted at a specified path inside the container.
 
-When the environment variable REDIS_CREDS_FILE_PATH is set, Argo CD loads Redis credentials only from the files located in that directory and does not read them from environment variables. If REDIS_CREDS_FILE_PATH is not set, the components fall back to reading credentials from environment variables such as REDIS_PASSWORD and REDIS_USERNAME (and their Sentinel variants).
+When the environment variable `REDIS_CREDS_FILE_PATH` is set, Argo CD components can loads Redis credentials only from the files located in that directory and does not read them from environment variables. If `REDIS_CREDS_FILE_PATH` is not set, the components fall back to reading credentials from environment variables such as `REDIS_PASSWORD` and `REDIS_USERNAME` (and their Sentinel variants).
 
 Expected files when using `REDIS_CREDS_FILE_PATH`:
 
@@ -363,7 +363,7 @@ stringData:
   sentinel_username: "<sentinel-username>"
 ```
 
-Example Argo CD component spec (e.g., add to `argocd-server`, `argocd-repo-server`, or `argocd-application-controller`):
+Example Argo CD component spec (e.g., add to `argocd-server`, `argocd-repo-server`, `argocd-application-controller`):
 
 ```yaml
 spec:
@@ -380,7 +380,7 @@ spec:
     volumes:
     - name: redis-creds
       secret:
-      secretName: <secret-name>
+       secretName: <secret-name>
 ```
 
 > Note
