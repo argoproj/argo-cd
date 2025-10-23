@@ -165,7 +165,7 @@ func TestCredentialFileHandling(t *testing.T) {
 		dir := t.TempDir()
 		val, err := readAuthDetailsFromFile(dir, "not_existing_path")
 		require.NoError(t, err)
-		assert.Equal(t, "", val)
+		assert.Empty(t, val)
 	})
 
 	t.Run("ReadAuthDetailsFromFile_Unreadable", func(t *testing.T) {

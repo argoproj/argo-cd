@@ -194,11 +194,10 @@ func readAuthDetailsFromFile(mountPath, filename string) (string, error) {
 			log.Infof("Redis credential file %s not found; using empty value for Redis credential %s", path, filename)
 			return "", nil
 		}
-		log.Errorf("Failed to access Redis credential file %s: %v", path, err)
-		return "", fmt.Errorf("Failed to access Redis credential file %s: %w", path, err)
+		return "", fmt.Errorf("failed to access Redis credential file %s: %w", path, err)
 	}
 
-	return string(data), nil
+	return strings.TrimSpace(string(data)), nil
 }
 
 // AddCacheFlagsToCmd adds flags which control caching to the specified command
