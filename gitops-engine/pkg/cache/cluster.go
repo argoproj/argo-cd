@@ -18,8 +18,7 @@
 // Cross-namespace hierarchy traversal:
 // The cache supports discovering namespaced resources that are owned by cluster-scoped resources.
 // This is essential for tracking resources like namespaced Deployments owned by cluster-scoped
-// custom resources. The feature can be disabled via the GITOPS_ENGINE_DISABLE_CLUSTER_SCOPED_PARENT_REFS
-// environment variable if performance issues are encountered.
+// custom resources.
 //
 // The parentUIDToChildren index enables efficient O(1) cross-namespace traversal by mapping
 // any resource's UID to its direct children, eliminating the need for O(n) graph building.
@@ -28,7 +27,6 @@ package cache
 import (
 	"context"
 	"fmt"
-	"os"
 	"runtime/debug"
 	"strings"
 	"sync"
@@ -83,15 +81,6 @@ const (
 	defaultListSemaphoreWeight = 50
 	// defaultEventProcessingInterval is the default interval for processing events
 	defaultEventProcessingInterval = 100 * time.Millisecond
-)
-
-// Environment variables
-const (
-	// EnvDisableClusterScopedParentRefs disables cluster-scoped parent owner reference resolution
-	// when set to any non-empty value. This provides an emergency fallback to disable the
-	// cluster-scoped to namespaced hierarchy traversal feature if performance issues are encountered.
-	// Default behavior (empty/unset) enables cluster-scoped parent owner reference resolution.
-	EnvDisableClusterScopedParentRefs = "GITOPS_ENGINE_DISABLE_CLUSTER_SCOPED_PARENT_REFS"
 )
 
 const (
@@ -219,12 +208,10 @@ func NewClusterCache(config *rest.Config, opts ...UpdateSettingsFunc) *clusterCa
 		eventHandlers:           map[uint64]OnEventHandler{},
 		processEventsHandlers:   map[uint64]OnProcessEventsHandler{},
 		log:                     log,
-		listRetryLimit:          1,
-		listRetryUseBackoff:     false,
-		listRetryFunc:           ListRetryFuncNever,
-		// Check environment variable once at startup for performance
-		disableClusterScopedParentRefs: os.Getenv(EnvDisableClusterScopedParentRefs) != "",
-		parentUIDToChildren:             make(map[types.UID][]kube.ResourceKey),
+		listRetryLimit:      1,
+		listRetryUseBackoff: false,
+		listRetryFunc:       ListRetryFuncNever,
+		parentUIDToChildren: make(map[types.UID][]kube.ResourceKey),
 	}
 	for i := range opts {
 		opts[i](cache)
@@ -283,10 +270,6 @@ type clusterCache struct {
 	gvkParser                   *managedfields.GvkParser
 
 	respectRBAC int
-
-	// disableClusterScopedParentRefs is set at initialization to cache the environment variable check
-	// When true, cluster-scoped parent owner reference resolution is disabled for emergency fallback
-	disableClusterScopedParentRefs bool
 
 	// Parent-to-children index for O(1) hierarchy traversal
 	// Maps any resource's UID to its direct children's ResourceKeys
@@ -524,10 +507,6 @@ func (c *clusterCache) setNode(n *Resource) {
 // rebuildParentToChildrenIndex rebuilds the parent-to-children index after a full sync
 // This is called after initial sync to ensure all parent-child relationships are tracked
 func (c *clusterCache) rebuildParentToChildrenIndex() {
-	if c.disableClusterScopedParentRefs {
-		return
-	}
-
 	// Clear existing index
 	c.parentUIDToChildren = make(map[types.UID][]kube.ResourceKey)
 
@@ -1227,11 +1206,9 @@ func (c *clusterCache) IterateHierarchyV2(keys []kube.ResourceKey, action func(r
 		c.processNamespaceHierarchy(namespaceKeys, nsNodes, graph, visited, action)
 	}
 
-	// Process pre-computed cross-namespace children (only if not disabled)
-	if !c.disableClusterScopedParentRefs {
-		if clusterKeys, ok := keysPerNamespace[""]; ok {
-			c.processCrossNamespaceChildren(clusterKeys, visited, action)
-		}
+	// Process pre-computed cross-namespace children
+	if clusterKeys, ok := keysPerNamespace[""]; ok {
+		c.processCrossNamespaceChildren(clusterKeys, visited, action)
 	}
 }
 
