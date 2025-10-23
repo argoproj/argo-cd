@@ -1,0 +1,4 @@
+#!/bin/bash
+
+echo "Fetching the version of Argo CD..."
+argocd version --short --client

@@ -4,34 +4,28 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
-	"github.com/argoproj/argo-cd/v2/util/env"
+	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 )
 
 // this implements the "given" part of given/when/then
 type Context struct {
-	t           *testing.T
-	path        string
-	repoURLType fixture.RepoURLType
-	// seconds
-	timeout int
+	t       *testing.T
+	path    string
 	name    string
 	project string
 }
 
-func Given(t *testing.T, sameState bool) *Context {
-	if !sameState {
-		fixture.EnsureCleanState(t)
-	}
-	// ARGOCE_E2E_DEFAULT_TIMEOUT can be used to override the default timeout
-	// for any context.
-	timeout := env.ParseNumFromEnv("ARGOCD_E2E_DEFAULT_TIMEOUT", 10, 0, 180)
-	return &Context{t: t, repoURLType: fixture.RepoURLTypeFile, name: fixture.Name(), timeout: timeout, project: "default"}
+func Given(t *testing.T) *Context {
+	t.Helper()
+	fixture.EnsureCleanState(t)
+	return GivenWithSameState(t)
 }
 
-func (c *Context) RepoURLType(urlType fixture.RepoURLType) *Context {
-	c.repoURLType = urlType
-	return c
+// GivenWithSameState skips cleaning state. Use this when you've already ensured you have a clean
+// state in your test setup don't want to waste time by doing so again.
+func GivenWithSameState(t *testing.T) *Context {
+	t.Helper()
+	return &Context{t: t, name: fixture.Name(), project: "default"}
 }
 
 func (c *Context) GetName() string {
@@ -49,8 +43,7 @@ func (c *Context) And(block func()) *Context {
 }
 
 func (c *Context) When() *Actions {
-	// in case any settings have changed, pause for 1s, not great, but fine
-	time.Sleep(1 * time.Second)
+	time.Sleep(fixture.WhenThenSleepInterval)
 	return &Actions{context: c}
 }
 

@@ -1,0 +1,53 @@
+name: Cherry Pick
+
+on:
+  pull_request_target:
+    branches:
+      - master
+    types: ["labeled", "closed"]
+
+jobs:
+  find-labels:
+    name: Find Cherry Pick Labels
+    if: |
+      github.event.pull_request.merged == true && (
+        (github.event.action == 'labeled' && startsWith(github.event.label.name, 'cherry-pick/')) ||
+        (github.event.action == 'closed' && contains(toJSON(github.event.pull_request.labels.*.name), 'cherry-pick/'))
+      )
+    runs-on: ubuntu-latest
+    outputs:
+      labels: ${{ steps.extract-labels.outputs.labels }}
+    steps:
+      - name: Extract cherry-pick labels
+        id: extract-labels
+        run: |
+          if [[ "${{ github.event.action }}" == "labeled" ]]; then
+            # Label was just added - use it directly
+            LABEL_NAME="${{ github.event.label.name }}"
+            VERSION="${LABEL_NAME#cherry-pick/}"
+            CHERRY_PICK_DATA='[{"label":"'$LABEL_NAME'","version":"'$VERSION'"}]'
+          else
+            # PR was closed - find all cherry-pick labels
+            CHERRY_PICK_DATA=$(echo '${{ toJSON(github.event.pull_request.labels) }}' | jq -c '[.[] | select(.name | startswith("cherry-pick/")) | {label: .name, version: (.name | sub("cherry-pick/"; ""))}]')
+          fi
+
+          echo "labels=$CHERRY_PICK_DATA" >> "$GITHUB_OUTPUT"
+          echo "Found cherry-pick data: $CHERRY_PICK_DATA"
+
+  cherry-pick:
+    name: Cherry Pick
+    needs: find-labels
+    if: needs.find-labels.outputs.labels != '[]'
+    strategy:
+      matrix:
+        include: ${{ fromJSON(needs.find-labels.outputs.labels) }}
+      fail-fast: false
+    uses: ./.github/workflows/cherry-pick-single.yml
+    with:
+      merge_commit_sha: ${{ github.event.pull_request.merge_commit_sha }}
+      version_number: ${{ matrix.version }}
+      pr_number: ${{ github.event.pull_request.number }}
+      pr_title: ${{ github.event.pull_request.title }}
+    secrets:
+      CHERRYPICK_APP_ID: ${{ vars.CHERRYPICK_APP_ID }}
+      CHERRYPICK_APP_PRIVATE_KEY: ${{ secrets.CHERRYPICK_APP_PRIVATE_KEY }}

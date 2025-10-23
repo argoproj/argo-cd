@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: client
+    appProcess: web
+  name: client
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: client
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        app: client
+        appProcess: web
+    spec:
+      containers:
+        - image: alpine:2
+          name: alpine
+          resources:
+            requests:
+              cpu: 400m
+          env:
+            - name: EV
+              value: here

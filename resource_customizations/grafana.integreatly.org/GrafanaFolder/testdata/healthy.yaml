@@ -1,0 +1,35 @@
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaFolder
+metadata:
+  annotations:
+    argocd.argoproj.io/installation-id: argocd.com
+    argocd.argoproj.io/tracking-id: >-
+      foo:grafana.integreatly.org/GrafanaFolder:grafana-operator/bar
+  creationTimestamp: '2025-03-26T14:50:23Z'
+  finalizers:
+    - operator.grafana.com/finalizer
+  generation: 1
+  labels:
+    argocd.argoproj.io/instance: foo
+  name: bar
+  namespace: grafana-operator
+  resourceVersion: '185974148'
+  uid: 226a9af3-4a5d-4ebb-9705-ddfec0f6db47
+spec:
+  allowCrossNamespaceImport: false
+  instanceSelector:
+    matchLabels:
+      dashboards: grafana
+  parentFolderRef: baz
+  resyncPeriod: 10m0s
+  title: Bar-Folder
+status:
+  conditions:
+    - lastTransitionTime: '2025-03-26T14:50:23Z'
+      message: Folder was successfully applied to 1 instances
+      observedGeneration: 1
+      reason: ApplySuccessful
+      status: 'True'
+      type: FolderSynchronized
+  hash: f929c3bb9a96dbba11dd9ecf049ab28f98d7f8fbf5403aee0877c2c7b6f2547f
+  lastResync: '2025-03-26T15:30:24Z'

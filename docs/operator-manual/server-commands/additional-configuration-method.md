@@ -23,6 +23,6 @@ To set `logformat` of `argocd-application-controller`, add below entry to the co
 
 ```
 data:
-    controller.log.format: "text"
+    controller.log.format: "json"
 ```
 

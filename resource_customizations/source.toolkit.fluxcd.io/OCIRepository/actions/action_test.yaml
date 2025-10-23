@@ -1,0 +1,35 @@
+discoveryTests:
+- inputPath: testdata/initial_ocirepository.yaml
+  result:
+    - name: reconcile
+      disabled: false
+    - name: suspend
+      disabled: false
+    - name: resume
+      disabled: true
+- inputPath: testdata/suspended_ocirepository.yaml
+  result:
+    - name: reconcile
+      disabled: true
+    - name: suspend
+      disabled: true
+    - name: resume
+      disabled: false
+- inputPath: testdata/resumed_ocirepository.yaml
+  result:
+    - name: reconcile
+      disabled: false
+    - name: suspend
+      disabled: false
+    - name: resume
+      disabled: true
+actionTests:
+- action: reconcile
+  inputPath: testdata/initial_ocirepository.yaml
+  expectedOutputPath: testdata/reconciled_ocirepository.yaml
+- action: suspend
+  inputPath: testdata/initial_ocirepository.yaml
+  expectedOutputPath: testdata/suspended_ocirepository.yaml
+- action: resume
+  inputPath: testdata/suspended_ocirepository.yaml
+  expectedOutputPath: testdata/resumed_ocirepository.yaml

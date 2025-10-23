@@ -1,0 +1,29 @@
+tests:
+- healthStatus:
+    status: Healthy
+    message: "CRD is healthy"
+  inputPath: testdata/crd-v1-healthy.yaml
+- healthStatus:
+    status: Degraded
+    message: "CRD names have not been accepted: the initial names have not been accepted"
+  inputPath: testdata/crd-v1-names-not-accepted-degraded.yaml
+- healthStatus:
+    status: Degraded
+    message: "Schema violations found: spec.preserveUnknownFields: Invalid value: true: must be false"
+  inputPath: testdata/crd-v1-non-structual-degraded.yaml
+- healthStatus:
+    status: Degraded
+    message: "CRD is not established"
+  inputPath: testdata/crd-v1-not-established-degraded.yaml
+- healthStatus:
+    status: Progressing
+    message: "CRD is terminating: user has deleted the CRD"
+  inputPath: testdata/crd-v1-terminating-condition-progressing.yaml
+- healthStatus:
+    status: Progressing
+    message: "CRD is terminating"
+  inputPath: testdata/crd-v1-terminating-timestamp-progressing.yaml
+- healthStatus:
+    status: Progressing
+    message: "Status conditions not found"
+  inputPath: testdata/crd-v1-no-conditions-progressing.yaml

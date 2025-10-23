@@ -1,0 +1,17 @@
+tests:
+  # - healthStatus:
+  #     status: Progressing
+  #     message: Progressing
+  #   inputPath: testdata/progressing.yaml
+  - healthStatus:
+      status: Degraded
+      message: Failed
+    inputPath: testdata/degraded.yaml
+  - healthStatus:
+      status: Healthy
+      message: Succeeded
+    inputPath: testdata/healthy.yaml
+  - healthStatus:
+      status: Healthy
+      message: "Helm repositories of type 'oci' do not contain any information in the status."
+    inputPath: testdata/oci.yaml

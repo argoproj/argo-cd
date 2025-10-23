@@ -19,5 +19,5 @@ func (c composableFS) Open(name string) (f fs.File, err error) {
 			break
 		}
 	}
-	return
+	return f, err
 }

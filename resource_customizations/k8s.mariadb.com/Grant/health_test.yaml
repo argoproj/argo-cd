@@ -1,0 +1,6 @@
+tests:
+- healthStatus:
+    status: Healthy
+    message: "Created"
+  inputPath: testdata/grant-ready.yaml
+

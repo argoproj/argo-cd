@@ -60,7 +60,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(increase(argocd_notifications_trigger_eval_total[$interval])) by (notifier)",
+          "expr": "sum(increase(argocd_notifications_trigger_eval_total[$interval])) by (name)",
           "refId": "A"
         }
       ],
@@ -146,7 +146,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(increase(argocd_notifications_deliveries_total[$interval])) by (notifier)",
+          "expr": "sum(increase(argocd_notifications_deliveries_total[$interval])) by (service)",
           "refId": "A"
         }
       ],

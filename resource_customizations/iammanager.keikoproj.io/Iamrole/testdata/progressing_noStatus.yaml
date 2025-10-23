@@ -1,0 +1,20 @@
+apiVersion: iammanager.keikoproj.io/v1alpha1
+kind: Iamrole
+metadata:
+  finalizers:
+    - iamrole.finalizers.iammanager.keikoproj.io
+  name: iamrole
+  namespace: default
+spec:
+  PolicyDocument:
+    Statement:
+      - Action:
+          - 'ec2:*'
+        Effect: Deny
+        Resource:
+          - '*'
+      - Action:
+          - 'iam:*'
+        Effect: Deny
+        Resource:
+          - '*'

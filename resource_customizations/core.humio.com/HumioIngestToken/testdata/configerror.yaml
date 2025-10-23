@@ -1,0 +1,20 @@
+apiVersion: core.humio.com/v1alpha1
+kind: HumioIngestToken
+metadata:
+  finalizers:
+    - core.humio.com/finalizer
+  generation: 1
+  labels:
+    app.kubernetes.io/instance: humio-deploy
+  name: test-token-1
+  namespace: humio
+  resourceVersion: '10768058'
+  uid: f0a51e3d-8b64-483c-99fa-d7184a840707
+spec:
+  managedClusterName: example-humiocluster
+  name: test-token
+  parserName: json
+  repositoryName: example-1
+  tokenSecretName: example-test-token-1
+status:
+  state: ConfigError

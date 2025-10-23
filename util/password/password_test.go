@@ -2,21 +2,21 @@ package password
 
 import (
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func testPasswordHasher(t *testing.T, h PasswordHasher) {
+	t.Helper()
 	// Use the default work factor
 	const (
 		defaultPassword = "Hello, world!"
 		pollution       = "extradata12345"
 	)
 	hashedPassword, _ := h.HashPassword(defaultPassword)
-	if !h.VerifyPassword(defaultPassword, hashedPassword) {
-		t.Errorf("Password %q should have validated against hash %q", defaultPassword, hashedPassword)
-	}
-	if h.VerifyPassword(defaultPassword, pollution+hashedPassword) {
-		t.Errorf("Password %q should NOT have validated against hash %q", defaultPassword, pollution+hashedPassword)
-	}
+	assert.True(t, h.VerifyPassword(defaultPassword, hashedPassword), "Password %q should have validated against hash %q", defaultPassword, hashedPassword)
+	assert.False(t, h.VerifyPassword(defaultPassword, pollution+hashedPassword), "Password %q should NOT have validated against hash %q", defaultPassword, pollution+hashedPassword)
 }
 
 func TestBcryptPasswordHasher(t *testing.T) {
@@ -42,27 +42,15 @@ func TestPasswordHashing(t *testing.T) {
 
 	hashedPassword, _ := hashPasswordWithHashers(defaultPassword, hashers)
 	valid, stale := verifyPasswordWithHashers(defaultPassword, hashedPassword, hashers)
-	if !valid {
-		t.Errorf("Password %q should have validated against hash %q", defaultPassword, hashedPassword)
-	}
-	if stale {
-		t.Errorf("Password %q should not have been marked stale against hash %q", defaultPassword, hashedPassword)
-	}
+	assert.True(t, valid, "Password %q should have validated against hash %q", defaultPassword, hashedPassword)
+	assert.False(t, stale, "Password %q should not have been marked stale against hash %q", defaultPassword, hashedPassword)
 	valid, stale = verifyPasswordWithHashers(defaultPassword, defaultPassword, hashers)
-	if !valid {
-		t.Errorf("Password %q should have validated against itself with dummy hasher", defaultPassword)
-	}
-	if !stale {
-		t.Errorf("Password %q should have been acknowledged stale against itself with dummy hasher", defaultPassword)
-	}
+	assert.True(t, valid, "Password %q should have validated against itself with dummy hasher", defaultPassword)
+	assert.True(t, stale, "Password %q should have been acknowledged stale against itself with dummy hasher", defaultPassword)
 
 	hashedPassword, err := hashPasswordWithHashers(blankPassword, hashers)
-	if err == nil {
-		t.Errorf("Blank password should have produced error, rather than hash %q", hashedPassword)
-	}
+	require.Error(t, err, "Blank password should have produced error, rather than hash %q", hashedPassword)
 
 	valid, _ = verifyPasswordWithHashers(blankPassword, "", hashers)
-	if valid != false {
-		t.Errorf("Blank password should have failed verification")
-	}
+	assert.False(t, valid, "Blank password should have failed verification")
 }

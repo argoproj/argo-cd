@@ -1,0 +1,114 @@
+apiVersion: numaplane.numaproj.io/v1alpha1
+kind: PipelineRollout
+metadata:
+  annotations:
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"numaplane.numaproj.io/v1alpha1","kind":"PipelineRollout","metadata":{"annotations":{},"labels":{"argocd.argoproj.io/instance":"demo-app"},"name":"my-pipeline-slow","namespace":"example-namespace"},"spec":{"pipeline":{"spec":{"edges":[{"from":"in","to":"cat"},{"from":"cat","to":"cat-2"},{"from":"cat-2","to":"out"}],"interStepBufferServiceName":"my-isbsvc","lifecycle":{"pauseGracePeriodSeconds":120},"limits":{"readBatchSize":1},"vertices":[{"containerTemplate":{"env":[{"name":"NUMAFLOW_DEBUG","value":"true"}]},"name":"in","scale":{"max":1,"min":1},"source":{"generator":{"duration":"1s","rpu":1}}},{"containerTemplate":{"env":[{"name":"NUMAFLOW_DEBUG","value":"true"}]},"limits":{"readBatchSize":1},"name":"cat","scale":{"max":1,"min":1},"udf":{"container":{"env":[{"name":"SLEEP_SECONDS","value":"1"}],"image":"quay.io/numaio/numaflow-go/map-slow-cat:stable"}}},{"containerTemplate":{"env":[{"name":"NUMAFLOW_DEBUG","value":"true"}],"max":1},"name":"cat-2","scale":{"min":1},"udf":{"builtin":{"name":"cat"}}},{"name":"out","scale":{"max":1,"min":1},"sink":{"log":{}}}]}}}}
+  creationTimestamp: "2025-01-26T05:38:04Z"
+  finalizers:
+  - numaplane.numaproj.io/numaplane-controller
+  generation: 2
+  labels:
+    argocd.argoproj.io/instance: demo-app
+  name: my-pipeline-slow
+  namespace: example-namespace
+  resourceVersion: "665712"
+  uid: 9c38589e-1ab5-43e3-a4a1-81a6d48dfddf
+spec:
+  pipeline:
+    metadata: {}
+    spec:
+      edges:
+      - from: in
+        to: cat
+      - from: cat
+        to: cat-2
+      - from: cat-2
+        to: out
+      interStepBufferServiceName: my-isbsvc
+      lifecycle:
+        pauseGracePeriodSeconds: 120
+      limits:
+        readBatchSize: 1
+      vertices:
+      - containerTemplate:
+          env:
+          - name: NUMAFLOW_DEBUG
+            value: "true"
+        name: in
+        scale:
+          max: 1
+          min: 1
+        source:
+          generator:
+            duration: 1s
+            rpu: 1
+      - containerTemplate:
+          env:
+          - name: NUMAFLOW_DEBUG
+            value: "true"
+        limits:
+          readBatchSize: 1
+        name: cat
+        scale:
+          max: 1
+          min: 1
+        udf:
+          container:
+            env:
+            - name: SLEEP_SECONDS
+              value: "1"
+            image: quay.io/numaio/numaflow-go/map-slow-cat:stable
+      - containerTemplate:
+          env:
+          - name: NUMAFLOW_DEBUG
+            value: "true"
+          max: 1
+        name: cat-2
+        scale:
+          min: 1
+        udf:
+          builtin:
+            name: cat
+      - name: out
+        scale:
+          max: 1
+          min: 1
+        sink:
+          log: {}
+status:
+  conditions:
+  - lastTransitionTime: "2025-01-26T05:38:04Z"
+    message: Successful
+    observedGeneration: 2
+    reason: Successful
+    status: "True"
+    type: ChildResourceDeployed
+  - lastTransitionTime: "2025-01-26T05:54:42Z"
+    message: Successful
+    observedGeneration: 2
+    reason: Successful
+    status: "True"
+    type: ChildResourcesHealthy
+  - lastTransitionTime: "2025-01-26T05:38:04Z"
+    message: Pipeline unpaused
+    observedGeneration: 2
+    reason: Unpaused
+    status: "False"
+    type: PipelinePausingOrPaused
+  - lastTransitionTime: "2025-01-26T05:48:41Z"
+    message: New Child Object example-namespace/my-pipeline-slow-2 Running
+    observedGeneration: 2
+    reason: "Progressive failed"
+    status: "False"
+    type: ProgressiveUpgradeSucceeded
+  message: Deployed
+  nameCount: 3
+  observedGeneration: 2
+  pauseStatus: {}
+  phase: Deployed
+  progressiveStatus:
+    upgradingChildStatus:
+      assessmentResult: Failure
+      name: my-pipeline-slow-2
+      nextAssessmentTime: "2025-01-26T05:48:05Z"

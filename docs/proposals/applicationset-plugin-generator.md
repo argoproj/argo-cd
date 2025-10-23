@@ -89,7 +89,7 @@ data:
   baseUrl: http://myplugin.plugin.svc.cluster.local
 ```
 
-- token is used a a bearer token in the RPC request. It could be a [sensitive reference](https://argo-cd.readthedocs.io/en/stable/operator-manual/user-management/#sensitive-data-and-sso-client-secrets).
+- token is used a bearer token in the RPC request. It could be a [sensitive reference](https://argo-cd.readthedocs.io/en/stable/operator-manual/user-management/#sensitive-data-and-sso-client-secrets).
 
 ### Reconciliation logic
 
@@ -213,4 +213,4 @@ No idea
 
     Some magic could have inject a container image for the plugin in the ApplicationSet controller in a similar way, Argo Workflow does when creating a pod to execute a job.
 
-    Require an external controler or manual configuration. The plugin would not scale independently of the ApplicationSet controller.
+    Require an external controller or manual configuration. The plugin would not scale independently of the ApplicationSet controller.

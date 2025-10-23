@@ -1,4 +1,11 @@
+@import 'node_modules/argo-ui/src/styles/config';
+
 .applications-table {
+
+    .application-name {
+        font-weight: bolder;
+    }
+
     .argo-table-list__row {
         line-height: 26px;
         padding-top: 4px;
@@ -15,6 +22,15 @@
         }
     }
 
+    .applications-list__table-row.applications-table-row--with-hydrator {
+        .columns.small-4,
+        .columns.small-6 {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+    }
+
     .applications-table-source {
         display: flex;
         justify-content: space-between;
@@ -24,8 +40,27 @@
             min-width: 0;
         }
         
-        .applications-table-source__labels {
-            max-width: 40%;
+            .applications-table-source__labels {
+        max-width: 40%;
+    }
+}
+
+.applications-list__external-link {
+    button {
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 0;
+        margin: 0;
+        color: inherit;
+        
+        &:hover {
+            color: $argo-color-teal-5;
+        }
+        
+        i {
+            font-size: 14px;
         }
     }
+}
 }

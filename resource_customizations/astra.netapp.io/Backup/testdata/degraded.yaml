@@ -1,0 +1,79 @@
+apiVersion: astra.netapp.io/v1
+kind: Backup
+metadata:
+  creationTimestamp: "2024-04-24T19:54:18Z"
+  finalizers:
+    - astra.netapp.io/finalizer
+  generation: 1
+  name: backup-20240424193746
+  namespace: astra-connector
+  ownerReferences:
+    - apiVersion: astra.netapp.io/v1
+      kind: Application
+      name: ghost
+      uid: 0af10ee8-772b-4367-8334-44f9e4ad2849
+  resourceVersion: "10641332"
+  uid: ad301b6a-6536-4313-89c1-d10ad0275430
+spec:
+  appVaultRef: astra-gcp-backup-743cfd150129
+  applicationRef: ghost
+status:
+  conditions:
+    - lastTransitionTime: "2024-04-24T19:54:18Z"
+      message: Successfully reconciled
+      reason: Done
+      status: "True"
+      type: AppOwnerReferenceCreated
+    - lastTransitionTime: "2024-04-24T19:54:18Z"
+      message: Successfully reconciled
+      reason: Done
+      status: "True"
+      type: SourceSnapshotExists
+    - lastTransitionTime: "2024-04-24T19:54:19Z"
+      message:
+        "Source snapshot failed with permanent error: reconcile timeout of 1h0m0s
+        exceeded"
+      reason: Failed
+      status: "False"
+      type: SourceSnapshotCompleted
+    - lastTransitionTime: "2024-04-24T19:54:18Z"
+      message: Not yet reconciled
+      reason: Pending
+      status: Unknown
+      type: SnapshotAppArchiveCopied
+    - lastTransitionTime: "2024-04-24T19:54:18Z"
+      message: Not yet reconciled
+      reason: Pending
+      status: Unknown
+      type: PreBackupExecHooksRunCompleted
+    - lastTransitionTime: "2024-04-24T19:54:18Z"
+      message: Not yet reconciled
+      reason: Pending
+      status: Unknown
+      type: VolumeBackupsCompleted
+    - lastTransitionTime: "2024-04-24T19:54:18Z"
+      message: Not yet reconciled
+      reason: Pending
+      status: Unknown
+      type: PostBackupExecHooksRunCompleted
+    - lastTransitionTime: "2024-04-24T19:54:18Z"
+      message: Not yet reconciled
+      reason: Pending
+      status: Unknown
+      type: TemporarySnapshotCleanedUp
+    - lastTransitionTime: "2024-04-24T19:54:18Z"
+      message: Not yet reconciled
+      reason: Pending
+      status: Unknown
+      type: Completed
+    - lastTransitionTime: "2024-04-24T19:54:18Z"
+      message: Not yet reconciled
+      reason: Pending
+      status: Unknown
+      type: OnFailurePostBackupExecHooksRunCompleted
+  error:
+    "Source snapshot failed with permanent error: reconcile timeout of 1h0m0s
+    exceeded"
+  progress: {}
+  sourceSnapshotName: backup-ad301b6a-6536-4313-89c1-d10ad0275430
+  state: Failed

@@ -4,29 +4,29 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 func TestGenerateListParams(t *testing.T) {
 	testCases := []struct {
 		elements []apiextensionsv1.JSON
-		expected []map[string]interface{}
+		expected []map[string]any
 	}{
 		{
 			elements: []apiextensionsv1.JSON{{Raw: []byte(`{"cluster": "cluster","url": "url"}`)}},
-			expected: []map[string]interface{}{{"cluster": "cluster", "url": "url"}},
+			expected: []map[string]any{{"cluster": "cluster", "url": "url"}},
 		}, {
 			elements: []apiextensionsv1.JSON{{Raw: []byte(`{"cluster": "cluster","url": "url","values":{"foo":"bar"}}`)}},
-			expected: []map[string]interface{}{{"cluster": "cluster", "url": "url", "values.foo": "bar"}},
+			expected: []map[string]any{{"cluster": "cluster", "url": "url", "values.foo": "bar"}},
 		},
 	}
 
 	for _, testCase := range testCases {
-
-		var listGenerator = NewListGenerator()
+		listGenerator := NewListGenerator()
 
 		applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
 			ObjectMeta: metav1.ObjectMeta{
@@ -38,31 +38,30 @@ func TestGenerateListParams(t *testing.T) {
 		got, err := listGenerator.GenerateParams(&argoprojiov1alpha1.ApplicationSetGenerator{
 			List: &argoprojiov1alpha1.ListGenerator{
 				Elements: testCase.elements,
-			}}, &applicationSetInfo)
+			},
+		}, &applicationSetInfo, nil)
 
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.ElementsMatch(t, testCase.expected, got)
-
 	}
 }
 
 func TestGenerateListParamsGoTemplate(t *testing.T) {
 	testCases := []struct {
 		elements []apiextensionsv1.JSON
-		expected []map[string]interface{}
+		expected []map[string]any
 	}{
 		{
 			elements: []apiextensionsv1.JSON{{Raw: []byte(`{"cluster": "cluster","url": "url"}`)}},
-			expected: []map[string]interface{}{{"cluster": "cluster", "url": "url"}},
+			expected: []map[string]any{{"cluster": "cluster", "url": "url"}},
 		}, {
 			elements: []apiextensionsv1.JSON{{Raw: []byte(`{"cluster": "cluster","url": "url","values":{"foo":"bar"}}`)}},
-			expected: []map[string]interface{}{{"cluster": "cluster", "url": "url", "values": map[string]interface{}{"foo": "bar"}}},
+			expected: []map[string]any{{"cluster": "cluster", "url": "url", "values": map[string]any{"foo": "bar"}}},
 		},
 	}
 
 	for _, testCase := range testCases {
-
-		var listGenerator = NewListGenerator()
+		listGenerator := NewListGenerator()
 
 		applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
 			ObjectMeta: metav1.ObjectMeta{
@@ -76,9 +75,10 @@ func TestGenerateListParamsGoTemplate(t *testing.T) {
 		got, err := listGenerator.GenerateParams(&argoprojiov1alpha1.ApplicationSetGenerator{
 			List: &argoprojiov1alpha1.ListGenerator{
 				Elements: testCase.elements,
-			}}, &applicationSetInfo)
+			},
+		}, &applicationSetInfo, nil)
 
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.ElementsMatch(t, testCase.expected, got)
 	}
 }

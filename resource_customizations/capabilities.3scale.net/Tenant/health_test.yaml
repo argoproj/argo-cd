@@ -1,0 +1,13 @@
+tests:
+  - healthStatus:
+      status: Healthy
+      message: "3scale Tenant is ready"
+    inputPath: testdata/healthy.yaml
+  - healthStatus:
+      status: Degraded
+      message: "Failed to create tenant - invalid credentials"
+    inputPath: testdata/degraded.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Waiting for 3scale Tenant status..."
+    inputPath: testdata/progressing.yaml

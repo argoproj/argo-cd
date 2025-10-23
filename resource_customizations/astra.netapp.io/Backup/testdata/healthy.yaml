@@ -1,0 +1,116 @@
+apiVersion: astra.netapp.io/v1
+kind: Backup
+metadata:
+  annotations:
+    astra.netapp.io/correlationid: 3c492b7e-8b1f-491a-af99-aa3fca9d54cf
+    created-by-astra-schedule-name: ghost-daily
+    created-by-astra-schedule-namespace: astra-connector
+  creationTimestamp: "2024-04-24T01:00:00Z"
+  finalizers:
+    - astra.netapp.io/finalizer
+  generation: 1
+  labels:
+    created-by-astra-schedule-uid: a2736922-6801-482c-a199-03ef8a3f35d7
+  name: daily-a4587-20240424010000
+  namespace: astra-connector
+  ownerReferences:
+    - apiVersion: astra.netapp.io/v1
+      kind: Application
+      name: ghost
+      uid: 0af10ee8-772b-4367-8334-44f9e4ad2849
+  resourceVersion: "9965658"
+  uid: d4b61932-5c8e-4310-82a5-37a0b671aa2d
+spec:
+  appVaultRef: astra-gcp-backup-743cfd150129
+  applicationRef: ghost
+  snapshotRef: daily-a4587-20240424010000
+status:
+  appArchivePath: ghost_0af10ee8-772b-4367-8334-44f9e4ad2849/backups/daily-a4587-20240424010000_d4b61932-5c8e-4310-82a5-37a0b671aa2d
+  completionTimestamp: "2024-04-24T01:02:30Z"
+  conditions:
+    - lastTransitionTime: "2024-04-24T01:00:00Z"
+      message: Successfully reconciled
+      reason: Done
+      status: "True"
+      type: AppOwnerReferenceCreated
+    - lastTransitionTime: "2024-04-24T01:00:00Z"
+      message: Successfully reconciled
+      reason: Done
+      status: "True"
+      type: SourceSnapshotExists
+    - lastTransitionTime: "2024-04-24T01:00:30Z"
+      message: Successfully reconciled
+      reason: Done
+      status: "True"
+      type: SourceSnapshotCompleted
+    - lastTransitionTime: "2024-04-24T01:00:33Z"
+      message: Successfully reconciled
+      reason: Done
+      status: "True"
+      type: SnapshotAppArchiveCopied
+    - lastTransitionTime: "2024-04-24T01:00:34Z"
+      message: Successfully reconciled
+      reason: Done
+      status: "True"
+      type: PreBackupExecHooksRunCompleted
+    - lastTransitionTime: "2024-04-24T01:02:30Z"
+      message: Successfully reconciled
+      reason: Done
+      status: "True"
+      type: VolumeBackupsCompleted
+    - lastTransitionTime: "2024-04-24T01:02:30Z"
+      message: Successfully reconciled
+      reason: Done
+      status: "True"
+      type: PostBackupExecHooksRunCompleted
+    - lastTransitionTime: "2024-04-24T01:02:30Z"
+      message: Successfully reconciled
+      reason: Done
+      status: "True"
+      type: TemporarySnapshotCleanedUp
+    - lastTransitionTime: "2024-04-24T01:02:31Z"
+      message: Successfully reconciled
+      reason: Done
+      status: "True"
+      type: Completed
+    - lastTransitionTime: "2024-04-24T01:00:00Z"
+      message: Not yet reconciled
+      reason: Pending
+      status: Unknown
+      type: OnFailurePostBackupExecHooksRunCompleted
+  postBackupExecHooksRunResults: []
+  postSnapshotExecHooksRunResults: []
+  preBackupExecHooksRunResults: []
+  preSnapshotExecHooksRunResults: []
+  progress:
+    volumeBackups:
+      - completionTimestamp: "2024-04-24T01:02:30Z"
+        pvcUid: b9ff9e05-5049-4862-82c6-dea080c2fe0d
+        resticRepositoryPath: gs:astra-gcp-backup-743cfd150129://ghost_0af10ee8-772b-4367-8334-44f9e4ad2849/restic/ghost/ghost_b9ff9e05-5049-4862-82c6-dea080c2fe0d
+        resticSnapshotID: 5d066ee6e4626ec2e3eff50d766f080ba90b2339df5b9f7baf46c281d0763da6
+        resticVolumeBackupCompleted: true
+        resticVolumeBackupCreated: true
+        sourceVolumeSnapshot:
+          name: snapshot-71804332-e19d-42a0-bc02-56bd606b9f66-pvc-b9ff9e05-5049-4862-82c6-dea080c2fe0d
+          namespace: ghost
+        volumeSnapshotContentCopyName: backup-d4b61932-5c8e-4310-82a5-37a0b671aa2d-vsc-ab718bad-fa67-4159-a761-6d1eb5de5330
+        volumeSnapshotCopied: true
+        volumeSnapshotCopyDeleted: true
+        volumeSnapshotCopyName: backup-d4b61932-5c8e-4310-82a5-37a0b671aa2d-vs-d55f9b97-11e5-4fb7-89c0-a2559eba753d
+        volumeSnapshotCopyReadyToUse: true
+      - completionTimestamp: "2024-04-24T01:02:30Z"
+        pvcUid: 38c468b3-eed6-48f2-b43b-15083dd1c030
+        resticRepositoryPath: gs:astra-gcp-backup-743cfd150129://ghost_0af10ee8-772b-4367-8334-44f9e4ad2849/restic/ghost/mysql-pv-claim_38c468b3-eed6-48f2-b43b-15083dd1c030
+        resticSnapshotID: dc601d5db3ed78823b134326c6cc9607f1636530783707eb8cd02a018b244e07
+        resticVolumeBackupCompleted: true
+        resticVolumeBackupCreated: true
+        sourceVolumeSnapshot:
+          name: snapshot-71804332-e19d-42a0-bc02-56bd606b9f66-pvc-38c468b3-eed6-48f2-b43b-15083dd1c030
+          namespace: ghost
+        volumeSnapshotContentCopyName: backup-d4b61932-5c8e-4310-82a5-37a0b671aa2d-vsc-df43df62-1501-406b-b7ba-90aafcd763d5
+        volumeSnapshotCopied: true
+        volumeSnapshotCopyDeleted: true
+        volumeSnapshotCopyName: backup-d4b61932-5c8e-4310-82a5-37a0b671aa2d-vs-ecf680cf-1665-4320-9f84-c99911b48a2b
+        volumeSnapshotCopyReadyToUse: true
+  sourceSnapshotName: daily-a4587-20240424010000
+  state: Completed

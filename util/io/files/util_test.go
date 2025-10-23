@@ -5,10 +5,12 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/argoproj/argo-cd/v2/util/io/files"
+	"github.com/argoproj/argo-cd/v3/util/io/files"
 )
 
 func TestRelativePath(t *testing.T) {
+	t.Parallel()
+
 	type testcase struct {
 		name        string
 		fullpath    string
@@ -43,7 +45,7 @@ func TestRelativePath(t *testing.T) {
 			fullpath:    "/home/test/app/readme.md",
 			basepath:    "/somewhere/else",
 			expected:    "",
-			expectedErr: files.RelativeOutOfBoundErr,
+			expectedErr: files.ErrRelativeOutOfBound,
 		},
 		{
 			name:        "will return relative path from dir path",
@@ -57,14 +59,14 @@ func TestRelativePath(t *testing.T) {
 			fullpath:    "./app/",
 			basepath:    "/home/test",
 			expected:    "",
-			expectedErr: files.RelativeOutOfBoundErr,
+			expectedErr: files.ErrRelativeOutOfBound,
 		},
 		{
 			name:        "will handle relative basepath",
 			fullpath:    "/home/test/app/",
 			basepath:    "./test",
 			expected:    "",
-			expectedErr: files.RelativeOutOfBoundErr,
+			expectedErr: files.ErrRelativeOutOfBound,
 		},
 		{
 			name:        "will handle relative paths",
@@ -91,6 +93,8 @@ func TestRelativePath(t *testing.T) {
 }
 
 func TestInbound(t *testing.T) {
+	t.Parallel()
+
 	type testcase struct {
 		name      string
 		candidate string

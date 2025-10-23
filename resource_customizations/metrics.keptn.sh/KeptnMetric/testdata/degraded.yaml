@@ -1,0 +1,24 @@
+apiVersion: metrics.keptn.sh/v1
+kind: KeptnMetric
+metadata:
+  annotations:
+    kubectl.kubernetes.io/last-applied-configuration: >
+      {"apiVersion":"metrics.keptn.sh/v1","kind":"KeptnMetric","metadata":{"annotations":{},"labels":{"app.kubernetes.io/instance":"podtato-head"},"name":"available-cpus","namespace":"podtato-kubectl"},"spec":{"fetchIntervalSeconds":10,"provider":{"name":"my-provider"},"query":"sum(kube_node_status_capacity{resource='cpu'})"}}
+  creationTimestamp: '2024-07-16T07:34:42Z'
+  generation: 1
+  labels:
+    app.kubernetes.io/instance: podtato-head
+  name: available-cpus
+  namespace: podtato-kubectl
+  resourceVersion: '405403'
+  uid: c448a014-b6b6-45a4-91ff-89949b9d0fce
+spec:
+  fetchIntervalSeconds: 10
+  provider:
+    name: my-provider
+  query: sum(kube_node_status_capacity{resource='cpu'})
+status:
+  errMsg: >-
+    Post "http://prometheus-k8s.monitoring.svc.cluster.local:9090/api/v1/query":
+    dial tcp: lookup prometheus-k8s.monitoring.svc.cluster.local on
+  lastUpdated: '2024-07-23T12:49:44Z'

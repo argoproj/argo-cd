@@ -1,0 +1,51 @@
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  annotations:
+  finalizers:
+    - finalizer.keda.sh
+  labels:
+    argocd.argoproj.io/instance: keda-default
+  name: keda
+  namespace: keda
+  resourceVersion: '160591442'
+  uid: 73ee438a-f383-43f3-9346-b901d9773f4b
+spec:
+  maxReplicaCount: 3
+  minReplicaCount: 0
+  scaleTargetRef:
+    name: backstage
+  triggers:
+    - metadata:
+        desiredReplicas: '1'
+        end: 00 17 * * 1-5
+        start: 00 08 * * 1-5
+        timezone: Europe/Stockholm
+      type: cron
+status:
+  conditions:
+    - message: ScaledObject is defined correctly and is ready for scaling
+      reason: ScaledObjectReady
+      status: 'True'
+      type: Ready
+    - message: ScaledObject check failed
+      reason: UnknownState
+      status: Unknown
+      type: Active
+    - status: Unknown
+      type: Fallback
+    - message: ScaledObject is paused
+      reason: ScaledObjectPaused
+      status: 'True'
+      type: Paused
+  externalMetricNames:
+    - s0-cron-Europe-Stockholm-0008xx1-5-0019xx1-5
+  hpaName: keda-hpa-backstage-kambi-standard-chart
+  lastActiveTime: '2023-12-18T17:59:55Z'
+  originalReplicaCount: 1
+  scaleTargetGVKR:
+    group: apps
+    kind: Deployment
+    resource: deployments
+    version: v1
+  scaleTargetKind: apps/v1.Deployment

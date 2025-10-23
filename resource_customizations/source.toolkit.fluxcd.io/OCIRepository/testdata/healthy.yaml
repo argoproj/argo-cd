@@ -1,0 +1,24 @@
+apiVersion: source.toolkit.fluxcd.io/v1beta2
+kind: OCIRepository
+metadata:
+  name: podinfo
+  namespace: default
+spec:
+  interval: 5m0s
+  url: oci://ghcr.io/stefanprodan/manifests/podinfo
+  ref:
+    tag: latest
+status:
+  conditions:
+    - lastTransitionTime: "2024-07-16T12:00:00Z"
+      message: stored artifact for digest 'latest@sha256:f74fa29c9ebfc7f55b0d829166812ce03c9e3951ab16954863cef1d12837c7a5'
+      observedGeneration: 1
+      reason: Succeeded
+      status: "True"
+      type: Ready
+    - lastTransitionTime: "2024-07-16T12:00:00Z"
+      message: stored artifact for digest 'latest@sha256:f74fa29c9ebfc7f55b0d829166812ce03c9e3951ab16954863cef1d12837c7a5'
+      observedGeneration: 1
+      reason: Succeeded
+      status: "True"
+      type: ArtifactInStorage

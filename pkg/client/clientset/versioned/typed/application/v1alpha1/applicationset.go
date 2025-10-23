@@ -3,15 +3,14 @@
 package v1alpha1
 
 import (
-	"context"
-	"time"
+	context "context"
 
-	v1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	scheme "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/scheme"
+	applicationv1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	scheme "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
-	rest "k8s.io/client-go/rest"
+	gentype "k8s.io/client-go/gentype"
 )
 
 // ApplicationSetsGetter has a method to return a ApplicationSetInterface.
@@ -22,141 +21,32 @@ type ApplicationSetsGetter interface {
 
 // ApplicationSetInterface has methods to work with ApplicationSet resources.
 type ApplicationSetInterface interface {
-	Create(ctx context.Context, applicationSet *v1alpha1.ApplicationSet, opts v1.CreateOptions) (*v1alpha1.ApplicationSet, error)
-	Update(ctx context.Context, applicationSet *v1alpha1.ApplicationSet, opts v1.UpdateOptions) (*v1alpha1.ApplicationSet, error)
+	Create(ctx context.Context, applicationSet *applicationv1alpha1.ApplicationSet, opts v1.CreateOptions) (*applicationv1alpha1.ApplicationSet, error)
+	Update(ctx context.Context, applicationSet *applicationv1alpha1.ApplicationSet, opts v1.UpdateOptions) (*applicationv1alpha1.ApplicationSet, error)
 	Delete(ctx context.Context, name string, opts v1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error
-	Get(ctx context.Context, name string, opts v1.GetOptions) (*v1alpha1.ApplicationSet, error)
-	List(ctx context.Context, opts v1.ListOptions) (*v1alpha1.ApplicationSetList, error)
+	Get(ctx context.Context, name string, opts v1.GetOptions) (*applicationv1alpha1.ApplicationSet, error)
+	List(ctx context.Context, opts v1.ListOptions) (*applicationv1alpha1.ApplicationSetList, error)
 	Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error)
-	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.ApplicationSet, err error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *applicationv1alpha1.ApplicationSet, err error)
 	ApplicationSetExpansion
 }
 
 // applicationSets implements ApplicationSetInterface
 type applicationSets struct {
-	client rest.Interface
-	ns     string
+	*gentype.ClientWithList[*applicationv1alpha1.ApplicationSet, *applicationv1alpha1.ApplicationSetList]
 }
 
 // newApplicationSets returns a ApplicationSets
 func newApplicationSets(c *ArgoprojV1alpha1Client, namespace string) *applicationSets {
 	return &applicationSets{
-		client: c.RESTClient(),
-		ns:     namespace,
+		gentype.NewClientWithList[*applicationv1alpha1.ApplicationSet, *applicationv1alpha1.ApplicationSetList](
+			"applicationsets",
+			c.RESTClient(),
+			scheme.ParameterCodec,
+			namespace,
+			func() *applicationv1alpha1.ApplicationSet { return &applicationv1alpha1.ApplicationSet{} },
+			func() *applicationv1alpha1.ApplicationSetList { return &applicationv1alpha1.ApplicationSetList{} },
+		),
 	}
-}
-
-// Get takes name of the applicationSet, and returns the corresponding applicationSet object, and an error if there is any.
-func (c *applicationSets) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.ApplicationSet, err error) {
-	result = &v1alpha1.ApplicationSet{}
-	err = c.client.Get().
-		Namespace(c.ns).
-		Resource("applicationsets").
-		Name(name).
-		VersionedParams(&options, scheme.ParameterCodec).
-		Do(ctx).
-		Into(result)
-	return
-}
-
-// List takes label and field selectors, and returns the list of ApplicationSets that match those selectors.
-func (c *applicationSets) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha1.ApplicationSetList, err error) {
-	var timeout time.Duration
-	if opts.TimeoutSeconds != nil {
-		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
-	}
-	result = &v1alpha1.ApplicationSetList{}
-	err = c.client.Get().
-		Namespace(c.ns).
-		Resource("applicationsets").
-		VersionedParams(&opts, scheme.ParameterCodec).
-		Timeout(timeout).
-		Do(ctx).
-		Into(result)
-	return
-}
-
-// Watch returns a watch.Interface that watches the requested applicationSets.
-func (c *applicationSets) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
-	var timeout time.Duration
-	if opts.TimeoutSeconds != nil {
-		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
-	}
-	opts.Watch = true
-	return c.client.Get().
-		Namespace(c.ns).
-		Resource("applicationsets").
-		VersionedParams(&opts, scheme.ParameterCodec).
-		Timeout(timeout).
-		Watch(ctx)
-}
-
-// Create takes the representation of a applicationSet and creates it.  Returns the server's representation of the applicationSet, and an error, if there is any.
-func (c *applicationSets) Create(ctx context.Context, applicationSet *v1alpha1.ApplicationSet, opts v1.CreateOptions) (result *v1alpha1.ApplicationSet, err error) {
-	result = &v1alpha1.ApplicationSet{}
-	err = c.client.Post().
-		Namespace(c.ns).
-		Resource("applicationsets").
-		VersionedParams(&opts, scheme.ParameterCodec).
-		Body(applicationSet).
-		Do(ctx).
-		Into(result)
-	return
-}
-
-// Update takes the representation of a applicationSet and updates it. Returns the server's representation of the applicationSet, and an error, if there is any.
-func (c *applicationSets) Update(ctx context.Context, applicationSet *v1alpha1.ApplicationSet, opts v1.UpdateOptions) (result *v1alpha1.ApplicationSet, err error) {
-	result = &v1alpha1.ApplicationSet{}
-	err = c.client.Put().
-		Namespace(c.ns).
-		Resource("applicationsets").
-		Name(applicationSet.Name).
-		VersionedParams(&opts, scheme.ParameterCodec).
-		Body(applicationSet).
-		Do(ctx).
-		Into(result)
-	return
-}
-
-// Delete takes name of the applicationSet and deletes it. Returns an error if one occurs.
-func (c *applicationSets) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
-	return c.client.Delete().
-		Namespace(c.ns).
-		Resource("applicationsets").
-		Name(name).
-		Body(&opts).
-		Do(ctx).
-		Error()
-}
-
-// DeleteCollection deletes a collection of objects.
-func (c *applicationSets) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	var timeout time.Duration
-	if listOpts.TimeoutSeconds != nil {
-		timeout = time.Duration(*listOpts.TimeoutSeconds) * time.Second
-	}
-	return c.client.Delete().
-		Namespace(c.ns).
-		Resource("applicationsets").
-		VersionedParams(&listOpts, scheme.ParameterCodec).
-		Timeout(timeout).
-		Body(&opts).
-		Do(ctx).
-		Error()
-}
-
-// Patch applies the patch and returns the patched applicationSet.
-func (c *applicationSets) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.ApplicationSet, err error) {
-	result = &v1alpha1.ApplicationSet{}
-	err = c.client.Patch(pt).
-		Namespace(c.ns).
-		Resource("applicationsets").
-		Name(name).
-		SubResource(subresources...).
-		VersionedParams(&opts, scheme.ParameterCodec).
-		Body(data).
-		Do(ctx).
-		Into(result)
-	return
 }

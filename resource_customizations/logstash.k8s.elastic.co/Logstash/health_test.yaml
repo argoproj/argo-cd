@@ -1,0 +1,17 @@
+tests:
+- healthStatus:
+    status: Healthy
+    message: "Logstash status is Green"
+  inputPath: testdata/green.yaml
+- healthStatus:
+    status: Progressing
+    message: "Logstash status is Yellow"
+  inputPath: testdata/yellow.yaml
+- healthStatus:
+    status: Degraded
+    message: "Logstash status is Red"
+  inputPath: testdata/red.yaml
+- healthStatus:
+    status: Progressing
+    message: "Waiting for Logstash"
+  inputPath: testdata/unknown.yaml

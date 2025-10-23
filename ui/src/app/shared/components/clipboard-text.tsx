@@ -6,21 +6,21 @@ export const ClipboardText = ({text}: {text: string}) => {
     const [justClicked, setJustClicked] = useState<boolean>(false);
 
     if (!text) {
-        return <></>;
+        return null;
     }
 
     return (
         <>
             {text}
             &nbsp; &nbsp;
-            <Tooltip content={justClicked ? 'Copied!' : 'Copy to clipboard'}>
+            <Tooltip content={justClicked ? 'Copied!' : 'Copy to clipboard'} hideOnClick={false}>
                 <a>
                     <i
                         className={'fa fa-clipboard'}
                         onClick={() => {
                             setJustClicked(true);
                             navigator.clipboard.writeText(text);
-                            setInterval(() => setJustClicked(false), 2000);
+                            setInterval(() => setJustClicked(false), 3000);
                         }}
                     />
                 </a>

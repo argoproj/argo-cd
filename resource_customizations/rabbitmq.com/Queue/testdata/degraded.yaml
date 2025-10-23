@@ -1,0 +1,21 @@
+apiVersion: rabbitmq.com/v1beta1
+kind: Queue
+metadata:
+  generation: 3
+  name: example-rabbit
+  namespace: example-rabbit
+spec:
+  autoDelete: false
+  durable: true
+  name: example-rabbit
+  rabbitmqClusterReference:
+    name: example-rabbit
+  type: quorum
+  vhost: /
+status:
+  conditions:
+    - lastTransitionTime: 2025-02-24T17:51:10Z
+      reason: FailedCreateOrUpdate
+      status: "False"
+      type: Ready
+  observedGeneration: 3

@@ -1,0 +1,12 @@
+apiVersion: gateway.solo.io/v1
+kind: MatchableHttpGateway
+status:
+  reportedBy: gateway
+  state: 1
+  subresourceStatuses:
+    '*v1.Proxy.gateway-proxy_gloo-system':
+      reportedBy: gloo
+      state: 1
+    '*v1.Proxy.internal-proxy_gloo-system':
+      reportedBy: gloo
+      state: 1

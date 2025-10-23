@@ -9,6 +9,9 @@ const (
 	// ResourcesFinalizerName is the finalizer value which we inject to finalize deletion of an application
 	ResourcesFinalizerName string = "resources-finalizer.argocd.argoproj.io"
 
+	// PostDeleteFinalizerName is the finalizer that controls post-delete hooks execution
+	PostDeleteFinalizerName string = "post-delete-finalizer.argocd.argoproj.io"
+
 	// ForegroundPropagationPolicyFinalizer is the finalizer we inject to delete application with foreground propagation policy
 	ForegroundPropagationPolicyFinalizer string = "resources-finalizer.argocd.argoproj.io/foreground"
 

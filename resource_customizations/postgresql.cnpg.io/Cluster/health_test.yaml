@@ -1,0 +1,17 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: "Creating primary instance cluster-example-1"
+  inputPath: testdata/cluster_progressing.yaml
+- healthStatus:
+    status: Healthy
+    message: ""
+  inputPath: testdata/cluster_healthy.yaml
+- healthStatus:
+    status: Suspended
+    message: "Cluster has been hibernated"
+  inputPath: testdata/cluster_suspended.yaml
+- healthStatus:
+    status: Degraded
+    message: "Initiating a failover from cluster-example-2"
+  inputPath: testdata/cluster_degraded.yaml

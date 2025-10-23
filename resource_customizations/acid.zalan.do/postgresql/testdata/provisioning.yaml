@@ -1,0 +1,21 @@
+apiVersion: acid.zalan.do/v1
+kind: postgresql
+metadata:
+  annotations:
+    argocd.argoproj.io/sync-wave: '1'
+    argocd.argoproj.io/tracking-id: foobar-db:acid.zalan.do/postgresql:foo/foobar-db
+  name: foobar-db
+  namespace: foo
+spec:
+  databases:
+    foobar: root
+  enableLogicalBackup: false
+  numberOfInstances: 1
+  postgresql:
+    parameters:
+      password_encryption: scram-sha-256
+    version: '15'
+  teamId: foobar
+  users: {}
+  volume:
+    size: 1Gi

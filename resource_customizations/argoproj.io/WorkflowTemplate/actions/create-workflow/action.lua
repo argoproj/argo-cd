@@ -8,7 +8,7 @@ local os = require("os")
 -- This code is written to mimic what the Argo Workflows API server does to create a Workflow from a WorkflowTemplate.
 -- https://github.com/argoproj/argo-workflows/blob/873a58de7dd9dad76d5577b8c4294a58b52849b8/workflow/common/convert.go#L34
 
-workflow = {}
+local workflow = {}
 workflow.apiVersion = "argoproj.io/v1alpha1"
 workflow.kind = "Workflow"
 
@@ -22,7 +22,7 @@ workflow.spec = {}
 workflow.spec.workflowTemplateRef = {}
 workflow.spec.workflowTemplateRef.name = obj.metadata.name
 
-ownerRef = {}
+local ownerRef = {}
 ownerRef.apiVersion = obj.apiVersion
 ownerRef.kind = obj.kind
 ownerRef.name = obj.metadata.name
@@ -30,10 +30,10 @@ ownerRef.uid = obj.metadata.uid
 workflow.metadata.ownerReferences = {}
 workflow.metadata.ownerReferences[1] = ownerRef
 
-impactedResource = {}
+local impactedResource = {}
 impactedResource.operation = "create"
 impactedResource.resource = workflow
-result = {}
+local result = {}
 result[1] = impactedResource
 
 return result

@@ -1,0 +1,47 @@
+apiVersion: numaplane.numaproj.io/v1alpha1
+kind: MonoVertexRollout
+metadata:
+  annotations:
+    kubectl.kubernetes.io/last-applied-configuration: >
+      {"apiVersion":"numaplane.numaproj.io/v1alpha1","kind":"MonoVertexRollout","metadata":{"annotations":{},"labels":{"argocd.argoproj.io/instance":"demo-app"},"name":"my-monovertex","namespace":"example-namespace"},"spec":{"monoVertex":{"spec":{"sink":{"udsink":{"container":{"image":"quay.io/numaio/numaflow-java/simple-sink:stable"}}},"source":{"transformer":{"container":{"image":"quay.io/numaio/numaflow-rs/source-transformer-now:stable"}},"udsource":{"container":{"image":"quay.io/numaio/numaflow-java/source-simple-source:stable"}}}}}}}
+  creationTimestamp: '2024-08-21T20:44:18Z'
+  finalizers:
+    - numaplane.numaproj.io/numaplane-controller
+  generation: 2
+  labels:
+    argocd.argoproj.io/instance: demo-app
+  name: my-monovertex
+  namespace: example-namespace
+  resourceVersion: '947414'
+  uid: a63f377e-1500-437e-9267-579f4a790518
+spec:
+  monoVertex:
+    spec:
+      sink:
+        udsink:
+          container:
+            image: 'quay.io/numaio/numaflow-java/simple-sink:stable'
+      source:
+        transformer:
+          container:
+            image: 'quay.io/numaio/numaflow-rs/source-transformer-now:stable'
+        udsource:
+          container:
+            image: 'quay.io/numaio/numaflow-java/source-simple-source:stable'
+status:
+  conditions:
+    - lastTransitionTime: '2024-08-21T20:44:18Z'
+      message: Successful
+      observedGeneration: 1
+      reason: Successful
+      status: 'True'
+      type: ChildResourceDeployed
+    - lastTransitionTime: '2024-08-22T21:10:23Z'
+      message: Successful
+      observedGeneration: 1
+      reason: Successful
+      status: 'True'
+      type: ChildResourcesHealthy
+  message: Deployed
+  observedGeneration: 1
+  phase: Deployed

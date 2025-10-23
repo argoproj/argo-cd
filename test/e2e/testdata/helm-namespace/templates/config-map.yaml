@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-map
+  namespace: {{.Release.Namespace}}
+data:
+  foo: bar

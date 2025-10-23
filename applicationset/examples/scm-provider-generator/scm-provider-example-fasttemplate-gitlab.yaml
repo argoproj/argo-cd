@@ -1,0 +1,26 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: guestbook
+spec:
+  generators:
+  - scmProvider:
+      gitlab:
+        api: https://gitlab.com
+        group: test-argocd-proton
+        includeSubgroups: true
+      cloneProtocol: https
+      filters:
+      - repositoryMatch: test-app
+  template:
+    metadata:
+      name: '{{ repository }}-guestbook'
+    spec:
+      project: "default"
+      source:
+        repoURL: '{{ url }}'
+        targetRevision: '{{ branch }}'
+        path: guestbook
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: guestbook

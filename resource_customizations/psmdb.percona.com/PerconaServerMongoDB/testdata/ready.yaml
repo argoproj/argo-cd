@@ -1,0 +1,25 @@
+apiVersion: psmdb.percona.com/v1
+kind: PerconaServerMongoDB
+metadata:
+  name: cluster
+spec: {}
+status:
+  mongos:
+    ready: 3
+    size: 3
+    status: ready
+  observedGeneration: 1
+  ready: 9
+  replsets:
+    cfg:
+      initialized: true
+      ready: 3
+      size: 3
+      status: ready
+    rs0:
+      initialized: true
+      ready: 3
+      size: 3
+      status: ready
+  size: 9
+  state: ready

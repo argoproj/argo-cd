@@ -11,6 +11,7 @@ export const resourceIcons = new Map<string, string>([
     ['DaemonSet', 'ds'],
     ['Endpoint', 'ep'],
     ['Endpoints', 'ep'],
+    ['EndpointSlice', 'ep'],
     ['Group', 'group'],
     ['HorizontalPodAutoscaler', 'hpa'],
     ['Ingress', 'ing'],

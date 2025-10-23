@@ -1,0 +1,13 @@
+tests:
+- healthStatus:
+    status: Degraded
+    message: RabbitMQ queue failed to be created or updated
+  inputPath: testdata/degraded.yaml
+- healthStatus:
+    status: Unknown
+    message: RabbitMQ queue status is unknown
+  inputPath: testdata/unknown.yaml
+- healthStatus:
+    status: Healthy
+    message: RabbitMQ queue ready
+  inputPath: testdata/healthy.yaml

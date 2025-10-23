@@ -4,31 +4,28 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
-	"github.com/argoproj/argo-cd/v2/util/env"
+	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 )
 
 // this implements the "given" part of given/when/then
 type Context struct {
-	t *testing.T
-	// seconds
-	timeout          int
-	name             string
-	destination      string
-	repos            []string
-	sourceNamespaces []string
+	t                          *testing.T
+	name                       string
+	destination                string
+	destinationServiceAccounts []string
+	repos                      []string
+	sourceNamespaces           []string
 }
 
 func Given(t *testing.T) *Context {
+	t.Helper()
 	fixture.EnsureCleanState(t)
 	return GivenWithSameState(t)
 }
 
 func GivenWithSameState(t *testing.T) *Context {
-	// ARGOCE_E2E_DEFAULT_TIMEOUT can be used to override the default timeout
-	// for any context.
-	timeout := env.ParseNumFromEnv("ARGOCD_E2E_DEFAULT_TIMEOUT", 10, 0, 180)
-	return &Context{t: t, name: fixture.Name(), timeout: timeout}
+	t.Helper()
+	return &Context{t: t, name: fixture.Name()}
 }
 
 func (c *Context) GetName() string {
@@ -42,6 +39,11 @@ func (c *Context) Name(name string) *Context {
 
 func (c *Context) Destination(destination string) *Context {
 	c.destination = destination
+	return c
+}
+
+func (c *Context) DestinationServiceAccounts(destinationServiceAccounts []string) *Context {
+	c.destinationServiceAccounts = destinationServiceAccounts
 	return c
 }
 
@@ -61,7 +63,6 @@ func (c *Context) And(block func()) *Context {
 }
 
 func (c *Context) When() *Actions {
-	// in case any settings have changed, pause for 1s, not great, but fine
-	time.Sleep(1 * time.Second)
+	time.Sleep(fixture.WhenThenSleepInterval)
 	return &Actions{context: c}
 }

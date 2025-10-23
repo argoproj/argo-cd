@@ -1,0 +1,13 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: "Waiting for InterStepBufferService status"
+  inputPath: testdata/progressing.yaml
+- healthStatus:
+    status: Healthy
+    message: "InterStepBufferService is healthy"
+  inputPath: testdata/healthy.yaml
+- healthStatus:
+    status: Degraded
+    message: "Waiting for 3 pods to be ready...\n"
+  inputPath: testdata/degraded.yaml

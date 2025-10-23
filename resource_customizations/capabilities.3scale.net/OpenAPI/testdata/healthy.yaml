@@ -1,0 +1,6 @@
+apiVersion: capabilities.3scale.net/v1beta1
+kind: OpenAPI
+status:
+  conditions:
+    - type: Ready
+      status: "True"

@@ -1,0 +1,39 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: GRPCRoute
+metadata:
+  name: example-grpcroute
+  namespace: default
+spec:
+  parentRefs:
+  - name: example-gateway
+    sectionName: grpc
+  rules:
+  - backendRefs:
+    - name: example-service
+      port: 9000
+status:
+  parents:
+  - conditions:
+    - lastTransitionTime: "2023-03-02T15:00:00Z"
+      message: Route is still being programmed
+      observedGeneration: 1
+      reason: ProgrammingInProgress
+      status: "False"
+      type: Programmed
+    - lastTransitionTime: "2023-03-02T15:00:00Z"
+      message: Route has been accepted
+      observedGeneration: 1
+      reason: Accepted
+      status: "True"
+      type: Accepted
+    - lastTransitionTime: "2023-03-02T15:00:00Z"
+      message: All references resolved
+      observedGeneration: 1
+      reason: ResolvedRefs
+      status: "True"
+      type: ResolvedRefs
+    controllerName: example.io/gateway-controller
+    parentRef:
+      name: example-gateway
+      namespace: default
+      sectionName: grpc

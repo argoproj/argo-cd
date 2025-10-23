@@ -5,6 +5,9 @@ metadata:
   name: clusterdummies.argoproj.io
   labels:
     e2e.argoproj.io: "true"
+  annotations:
+    # This needs to be synced first so that Argo CD knows these are cluster-scoped resources.
+    argocd.argoproj.io/sync-wave: "-1"
 spec:
   conversion:
     strategy: None

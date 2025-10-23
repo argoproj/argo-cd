@@ -30,7 +30,7 @@ in one of the following ways:
 ## Authorization
 
 Authorization is performed by iterating the list of group membership in a user's JWT groups claims,
-and comparing each group against the roles/rules in the [RBAC](../rbac) policy. Any matched rule
+and comparing each group against the roles/rules in the [RBAC](./rbac.md) policy. Any matched rule
 permits access to the API request.
 
 ## TLS
@@ -45,7 +45,7 @@ Communication with Redis is performed over plain HTTP by default. TLS can be set
 Git and helm repositories are managed by a stand-alone service, called the repo-server. The
 repo-server does not carry any Kubernetes privileges and does not store credentials to any services
 (including git). The repo-server is responsible for cloning repositories which have been permitted
-and trusted by Argo CD operators, and generating kubernetes manifests at a given path in the
+and trusted by Argo CD operators, and generating Kubernetes manifests at a given path in the
 repository. For performance and bandwidth efficiency, the repo-server maintains local clones of
 these repositories so that subsequent commits to the repository are efficiently downloaded.
 
@@ -109,7 +109,7 @@ The information is used to reconstruct a REST config and kubeconfig to the clust
 services.
 
 To rotate the bearer token used by Argo CD, the token can be deleted (e.g. using kubectl) which
-causes kubernetes to generate a new secret with a new bearer token. The new token can be re-inputted
+causes Kubernetes to generate a new secret with a new bearer token. The new token can be re-inputted
 to Argo CD by re-running `argocd cluster add`. Run the following commands against the *_managed_*
 cluster:
 
@@ -119,12 +119,12 @@ kubectl delete secret argocd-manager-token-XXXXXX -n kube-system
 argocd cluster add CONTEXTNAME
 ```
 
-!!! note
-    Kubernetes 1.24 [stopped automatically creating tokens for Service Accounts](https://github.com/kubernetes/kubernetes/blob/master/CHANGELOG/CHANGELOG-1.24.md#no-really-you-must-read-this-before-you-upgrade).
-    [Starting in Argo CD 2.4](https://github.com/argoproj/argo-cd/pull/9546), `argocd cluster add` creates a 
-    ServiceAccount _and_ a non-expiring Service Account token Secret when adding 1.24 clusters. In the future, Argo CD 
-    will [add support for the Kubernetes TokenRequest API](https://github.com/argoproj/argo-cd/issues/9610) to avoid 
-    using long-lived tokens.
+> [!NOTE]
+> Kubernetes 1.24 [stopped automatically creating tokens for Service Accounts](https://github.com/kubernetes/kubernetes/blob/master/CHANGELOG/CHANGELOG-1.24.md#no-really-you-must-read-this-before-you-upgrade).
+> [Starting in Argo CD 2.4](https://github.com/argoproj/argo-cd/pull/9546), `argocd cluster add` creates a 
+> ServiceAccount _and_ a non-expiring Service Account token Secret when adding 1.24 clusters. In the future, Argo CD 
+> will [add support for the Kubernetes TokenRequest API](https://github.com/argoproj/argo-cd/issues/9610) to avoid 
+> using long-lived tokens.
 
 To revoke Argo CD's access to a managed cluster, delete the RBAC artifacts against the *_managed_*
 cluster, and remove the cluster entry from Argo CD:
@@ -144,7 +144,7 @@ argocd cluster rm https://your-kubernetes-cluster-addr
 
 ## Cluster RBAC
 
-By default, Argo CD uses a [clusteradmin level role](https://github.com/argoproj/argo-cd/blob/master/manifests/base/application-controller/argocd-application-controller-role.yaml)
+By default, Argo CD uses a [clusteradmin level role](https://github.com/argoproj/argo-cd/blob/master/manifests/base/application-controller-roles/argocd-application-controller-role.yaml)
 in order to:
 
 1. watch & operate on cluster state
@@ -172,8 +172,8 @@ kubectl edit clusterrole argocd-server
 kubectl edit clusterrole argocd-application-controller
 ```
 
-!!! tip
-    If you want to deny ArgoCD access to a kind of resource then add it as an [excluded resource](declarative-setup.md#resource-exclusion).
+> [!TIP]
+> If you want to deny Argo CD access to a kind of resource then add it as an [excluded resource](declarative-setup.md#resource-exclusion).
 
 ## Auditing
 
@@ -226,8 +226,8 @@ Security-related logs are tagged with a `security` field to make them easier to 
 
 Where applicable, a `CWE` field is also added specifying the [Common Weakness Enumeration](https://cwe.mitre.org/index.html) number.
 
-!!! warning
-    Please be aware that not all security logs are comprehensively tagged yet and these examples are not necessarily implemented.
+> [!WARNING]
+> Please be aware that not all security logs are comprehensively tagged yet and these examples are not necessarily implemented.
 
 ### API Logs
 
@@ -237,6 +237,14 @@ can be found in [server/server.go](https://github.com/argoproj/argo-cd/blob/abba
 
 Argo CD does not log IP addresses of clients requesting API endpoints, since the API server is typically behind a proxy. Instead, it is recommended
 to configure IP addresses logging in the proxy server that sits in front of the API server.
+
+### Standard Application log fields
+
+For logs related to an Application, Argo CD will log the following standard fields :
+
+* *application*: the Application name, without the namespace
+* *app-namespace*: the Application's namespace
+* *project*: the Application's project
 
 ## ApplicationSets
 

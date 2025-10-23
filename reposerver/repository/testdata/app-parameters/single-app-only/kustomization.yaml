@@ -4,5 +4,5 @@ kind: Kustomization
 resources:
 - guestbook.yaml
 images:
-- name: gcr.io/heptio-images/ks-guestbook-demo
+- name: quay.io/argoprojlabs/argocd-e2e-container
   newTag: "0.1"

@@ -1,0 +1,13 @@
+apiVersion: image.toolkit.fluxcd.io/v1beta2
+kind: ImagePolicy
+metadata:
+  name: podinfo
+  namespace: argocd
+spec:
+  imageRepositoryRef:
+    name: podinfo
+  policy:
+    semver:
+      range: x.x.x
+status:
+  conditions: []

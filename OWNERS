@@ -1,10 +1,12 @@
 owners:
 - alexmt
+- crenshaw-dev
 - jessesuen
 
 approvers:
 - alexec
 - alexmt
+- gdsoumya
 - jannfis
 - jessesuen
 - jgwest

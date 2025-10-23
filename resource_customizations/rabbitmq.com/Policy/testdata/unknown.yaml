@@ -1,0 +1,15 @@
+apiVersion: rabbitmq.com/v1beta1
+kind: Policy
+metadata:
+  namespace: example-rabbit
+  name: example-rabbit
+spec:
+  name: example-rabbit
+  vhost: example-rabbit
+  pattern: .*
+  applyTo: queues
+  definition: {}
+  rabbitmqClusterReference:
+    name: example-rabbit
+    namespace: example-rabbit
+status: {}

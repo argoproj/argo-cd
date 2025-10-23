@@ -22,6 +22,8 @@ kind: ApplicationSet
 metadata:
   name: myplugin
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
     - plugin:
         # Specify the configMap where the plugin configuration is located.
@@ -51,18 +53,18 @@ spec:
     metadata:
       name: myplugin
       annotations:
-        example.from.input.parameters: "{{ generator.input.parameters.map.key1 }}"
-        example.from.values: "{{ values.value1 }}"
+        example.from.input.parameters: "{{ index .generator.input.parameters.map "key1" }}"
+        example.from.values: "{{ .values.value1 }}"
         # The plugin determines what else it produces.
-        example.from.plugin.output: "{{ something.from.the.plugin }}"
+        example.from.plugin.output: "{{ .something.from.the.plugin }}"
 ```
 
 - `configMapRef.name`: A `ConfigMap` name containing the plugin configuration to use for RPC call.
 - `input.parameters`: Input parameters included in the RPC call to the plugin. (Optional)
 
-!!! note
-    The concept of the plugin should not undermine the spirit of GitOps by externalizing data outside of Git. The goal is to be complementary in specific contexts.
-    For example, when using one of the PullRequest generators, it's impossible to retrieve parameters related to the CI (only the commit hash is available), which limits the possibilities. By using a plugin, it's possible to retrieve the necessary parameters from a separate data source and use them to extend the functionality of the generator.
+> [!NOTE]
+> The concept of the plugin should not undermine the spirit of GitOps by externalizing data outside of Git. The goal is to be complementary in specific contexts.
+> For example, when using one of the PullRequest generators, it's impossible to retrieve parameters related to the CI (only the commit hash is available), which limits the possibilities. By using a plugin, it's possible to retrieve the necessary parameters from a separate data source and use them to extend the functionality of the generator.
 
 ### Add a ConfigMap to configure the access of the plugin
 
@@ -75,10 +77,12 @@ metadata:
 data:
   token: "$plugin.myplugin.token" # Alternatively $<some_K8S_secret>:plugin.myplugin.token
   baseUrl: "http://myplugin.plugin-ns.svc.cluster.local."
+  requestTimeout: "60"
 ```
 
 - `token`: Pre-shared token used to authenticate HTTP request (points to the right key you created in the `argocd-secret` Secret)
 - `baseUrl`: BaseUrl of the k8s service exposing your plugin in the cluster.
+- `requestTimeout`: Timeout of the request to the plugin in seconds (default: 30)
 
 ### Store credentials
 
@@ -230,6 +234,7 @@ metadata:
   name: fb-matrix
 spec:
   goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
     - matrix:
         generators:

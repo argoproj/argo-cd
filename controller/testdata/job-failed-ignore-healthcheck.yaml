@@ -1,0 +1,36 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  annotations:
+    argocd.argoproj.io/ignore-healthcheck: "true"
+  labels:
+    job-name: fail
+  name: fail
+  namespace: argoci-workflows
+  selfLink: /apis/batch/v1/namespaces/argoci-workflows/jobs/fail
+spec:
+  backoffLimit: 0
+  completions: 1
+  parallelism: 1
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        job-name: fail
+    spec:
+      containers:
+      - command:
+        - sh
+        - -c
+        - exit 1
+        image: alpine:latest
+        imagePullPolicy: Always
+        name: fail
+        resources: {}
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+      dnsPolicy: ClusterFirst
+      restartPolicy: Never
+      schedulerName: default-scheduler
+      securityContext: {}
+      terminationGracePeriodSeconds: 30

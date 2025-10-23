@@ -1,0 +1,37 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: Waiting for AnsibleJob
+  inputPath: testdata/progressing_noStatus.yaml
+- healthStatus:
+    status: Progressing
+    message: 'new job - https://argocd.test.ansiblejob.custom.health.com/#/jobs/playbook/1'
+  inputPath: testdata/progressing_new.yaml
+- healthStatus:
+    status: Progressing
+    message: 'pending job - https://argocd.test.ansiblejob.custom.health.com/#/jobs/playbook/1'
+  inputPath: testdata/progressing_pending.yaml
+- healthStatus:
+    status: Progressing
+    message: 'running job - https://argocd.test.ansiblejob.custom.health.com/#/jobs/playbook/1'
+  inputPath: testdata/progressing_running.yaml
+- healthStatus:
+    status: Progressing
+    message: 'waiting job - https://argocd.test.ansiblejob.custom.health.com/#/jobs/playbook/1'
+  inputPath: testdata/progressing_waiting.yaml
+- healthStatus:
+    status: Degraded
+    message: 'canceled job - https://argocd.test.ansiblejob.custom.health.com/#/jobs/playbook/1'
+  inputPath: testdata/degraded_canceled.yaml
+- healthStatus:
+    status: Degraded
+    message: 'error job - https://argocd.test.ansiblejob.custom.health.com/#/jobs/playbook/1'
+  inputPath: testdata/degraded_error.yaml
+- healthStatus:
+    status: Degraded
+    message: 'failed job - https://argocd.test.ansiblejob.custom.health.com/#/jobs/playbook/1'
+  inputPath: testdata/degraded_failed.yaml
+- healthStatus:
+    status: Healthy
+    message: 'successful job - https://argocd.test.ansiblejob.custom.health.com/#/jobs/playbook/1'
+  inputPath: testdata/healthy.yaml

@@ -2,7 +2,7 @@
 name: Bug report
 about: Create a report to help us improve
 title: ''
-labels: 'bug'
+labels: ['bug', 'triage/pending']
 assignees: ''
 ---
 
@@ -10,9 +10,9 @@ assignees: ''
 
 Checklist:
 
-* [ ] I've searched in the docs and FAQ for my answer: https://bit.ly/argocd-faq.
-* [ ] I've included steps to reproduce the bug.
-* [ ] I've pasted the output of `argocd version`.
+- [ ] I've searched in the docs and FAQ for my answer: https://bit.ly/argocd-faq.
+- [ ] I've included steps to reproduce the bug.
+- [ ] I've pasted the output of `argocd version`.
 
 **Describe the bug**
 

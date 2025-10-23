@@ -1,0 +1,26 @@
+apiVersion: image.toolkit.fluxcd.io/v1beta2
+kind: ImageUpdateAutomation
+metadata:
+  name: podinfo-update
+  namespace: default
+spec:
+  interval: 30m
+  sourceRef:
+    kind: GitRepository
+    name: podinfo
+  git:
+    commit:
+      author:
+        email: fluxcdbot@users.noreply.github.com
+        name: fluxcdbot
+    push:
+      branch: main
+  update:
+    path: ./
+status:
+  conditions:
+    - lastTransitionTime: "2024-07-16T12:00:00Z"
+      message: no updates made; last commit a1b24e5 at 2024-07-16T12:00:00Z
+      reason: ReconciliationSucceeded
+      status: "True"
+      type: Ready

@@ -8,25 +8,26 @@ metadata:
   name: guestbook
   namespace: argocd
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
   - list:
       elements:
       - cluster: engineering-dev
         url: https://kubernetes.default.svc
-#     - cluster: engineering-prod
-#       url: https://kubernetes.default.svc
-#       foo: bar
+      # - cluster: engineering-prod
+      #   url: https://kubernetes.default.svc
   template:
     metadata:
-      name: '{{cluster}}-guestbook'
+      name: '{{.cluster}}-guestbook'
     spec:
       project: "my-project"
       source:
         repoURL: https://github.com/argoproj/argo-cd.git
         targetRevision: HEAD
-        path: applicationset/examples/list-generator/guestbook/{{cluster}}
+        path: applicationset/examples/list-generator/guestbook/{{.cluster}}
       destination:
-        server: '{{url}}'
+        server: '{{.url}}'
         namespace: guestbook
 ```
 (*The full example can be found [here](https://github.com/argoproj/argo-cd/tree/master/applicationset/examples/list-generator).*)
@@ -38,21 +39,23 @@ With the ApplicationSet v0.1.0 release, one could *only* specify `url` and `clus
 spec:
   generators:
   - list:
-    elements:
-      # v0.1.0 form - requires cluster/url keys:
-      - cluster: engineering-dev
-        url: https://kubernetes.default.svc
-        values:
-          additional: value
-      # v0.2.0+ form - does not require cluster/URL keys
-      # (but they are still supported).
-      - staging: "true"
-        gitRepo: https://kubernetes.default.svc   
+      elements:
+        # v0.1.0 form - requires cluster/url keys:
+        - cluster: engineering-dev
+          url: https://kubernetes.default.svc
+          values:
+            additional: value
+        # v0.2.0+ form - does not require cluster/URL keys
+        # (but they are still supported).
+        - staging: "true"
+          gitRepo: https://kubernetes.default.svc   
 # (...)
 ```
 
-!!! note "Clusters must be predefined in Argo CD"
-    These clusters *must* already be defined within Argo CD, in order to generate applications for these values. The ApplicationSet controller does not create clusters within Argo CD (for instance, it does not have the credentials to do so).
+> [!NOTE]
+> **Clusters must be predefined in Argo CD**
+>
+> These clusters *must* already be defined within Argo CD, in order to generate applications for these values. The ApplicationSet controller does not create clusters within Argo CD (for instance, it does not have the credentials to do so).
 
 ## Dynamically generated elements
 The List generator can also dynamically generate its elements based on a yaml/json it gets from a previous generator like git by combining the two with a matrix generator. In this example we are using the matrix generator with a git followed by a list generator and pass the content of a file in git as input to the `elementsYaml` field of the list generator:
@@ -60,7 +63,7 @@ The List generator can also dynamically generate its elements based on a yaml/js
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
-  name: elementsYaml
+  name: elements-yaml
   namespace: argocd
 spec:
   goTemplate: true
@@ -74,7 +77,6 @@ spec:
           files:
           - path: applicationset/examples/list-generator/list-elementsYaml-example.yaml
       - list:
-          elements: []
           elementsYaml: "{{ .key.components | toJson }}"
   template:
     metadata:

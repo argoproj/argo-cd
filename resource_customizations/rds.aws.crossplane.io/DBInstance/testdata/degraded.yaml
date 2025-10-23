@@ -1,0 +1,64 @@
+apiVersion: rds.aws.crossplane.io/v1alpha1
+kind: DBInstance
+metadata:
+  name: test-rds1-0
+spec:
+  deletionPolicy: Delete
+  forProvider:
+    autoMinorVersionUpgrade: true
+    caCertificateIdentifier: rds-ca-rsa2048-g1
+    dbClusterIdentifier: test-rds1
+    dbInstanceClass: db.t4g.foobar
+    dbName: app
+    dbSubnetGroupName: test-rds
+    enablePerformanceInsights: false
+    engine: aurora-postgresql
+    licenseModel: postgresql-license
+    masterUsername: root
+    multiAZ: false
+    preferredMaintenanceWindow: 'tue:00:36-tue:01:06'
+    promotionTier: 1
+    publiclyAccessible: false
+    region: eu-north-1
+    storageThroughput: 0
+  managementPolicies:
+    - '*'
+  providerConfigRef:
+    name: provider-aws
+status:
+  atProvider:
+    certificateDetails:
+      cAIdentifier: rds-ca-rsa2048-g1
+      validTill: "2025-07-15T16:06:53Z"
+    customerOwnedIPEnabled: false
+    dbInstanceARN: arn:aws:rds:123:db:test-rds1-app-0
+    dbInstanceIdentifier: test-rds1-app-0
+    dbInstancePort: 0
+    dbInstanceStatus: available
+    dbiResourceID: db-123
+    endpoint:
+      address: test-rds1-app-0.123.abc.rds.amazonaws.com
+      hostedZoneID: ABC213
+      port: 5432
+    engineVersion: "16.2"
+    iamDatabaseAuthenticationEnabled: false
+    instanceCreateTime: "2024-07-15T16:08:27Z"
+    optionGroupMemberships:
+    - optionGroupName: default:aurora-postgresql-16
+      status: in-sync
+    pendingModifiedValues: {}
+    performanceInsightsEnabled: false
+    vpcSecurityGroups:
+    - status: active
+      vpcSecurityGroupID: sg-abc123
+  conditions:
+  - lastTransitionTime: "2024-07-15T17:04:24Z"
+    reason: Available
+    status: "True"
+    type: Ready
+  - lastTransitionTime: "2024-07-17T17:57:38Z"
+    message: "update failed: cannot update DBInstance in AWS: InvalidParameterValue:
+      Invalid DB Instance class: db.t4g.foobar\n\tstatus code: 400, request id: "
+    reason: ReconcileError
+    status: "False"
+    type: Synced

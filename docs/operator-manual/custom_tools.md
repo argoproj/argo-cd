@@ -30,7 +30,7 @@ the helm binary with a different version than what is bundled in Argo CD:
         image: alpine:3.8
         command: [sh, -c]
         args:
-        - wget -qO- https://storage.googleapis.com/kubernetes-helm/helm-v2.12.3-linux-amd64.tar.gz | tar -xvzf - &&
+        - wget -qO- https://get.helm.sh/helm-v2.12.3-linux-amd64.tar.gz | tar -xvzf - &&
           mv linux-amd64/helm /custom-tools/
         volumeMounts:
         - mountPath: /custom-tools

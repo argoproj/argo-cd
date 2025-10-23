@@ -1,0 +1,35 @@
+discoveryTests:
+- inputPath: testdata/initial_imagerepository.yaml
+  result:
+    - name: reconcile
+      disabled: false
+    - name: suspend
+      disabled: false
+    - name: resume
+      disabled: true
+- inputPath: testdata/suspended_imagerepository.yaml
+  result:
+    - name: reconcile
+      disabled: true
+    - name: suspend
+      disabled: true
+    - name: resume
+      disabled: false
+- inputPath: testdata/resumed_imagerepository.yaml
+  result:
+    - name: reconcile
+      disabled: false
+    - name: suspend
+      disabled: false
+    - name: resume
+      disabled: true
+actionTests:
+- action: reconcile
+  inputPath: testdata/initial_imagerepository.yaml
+  expectedOutputPath: testdata/reconciled_imagerepository.yaml
+- action: suspend
+  inputPath: testdata/initial_imagerepository.yaml
+  expectedOutputPath: testdata/suspended_imagerepository.yaml
+- action: resume
+  inputPath: testdata/suspended_imagerepository.yaml
+  expectedOutputPath: testdata/resumed_imagerepository.yaml

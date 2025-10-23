@@ -1,0 +1,17 @@
+tests:
+- healthStatus:
+    status: Healthy
+    message: 'Control plane is ready'
+  inputPath: testdata/healthy.yaml
+- healthStatus:
+    status: Progressing
+    message: 'Control plane is not ready (.status.ready is false)'
+  inputPath: testdata/progressing_ready_false.yaml
+- healthStatus:
+    status: Progressing
+    message: 'Control plane is not ready'
+  inputPath: testdata/progressing_ready_true.yaml
+- healthStatus:
+    status: Degraded
+    message: '7 of 10 completed failed reconciling OIDC provider for cluster: failed to create OIDC provider: error creating provider: LimitExceeded: Cannot exceed quota for OpenIdConnectProvidersPerAccount: 100 '
+  inputPath: testdata/degraded.yaml

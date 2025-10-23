@@ -3,6 +3,12 @@
 $logoPath: 'assets/images/argologo.svg';
 $logoNegativePath: 'assets/images/argo.png';
 
+//for input fields
+
+.argo-field {
+    border-bottom: 2px solid $argo-color-gray-3;
+}
+
 .login {
     min-height:100vh;
     background: linear-gradient(to top left, 

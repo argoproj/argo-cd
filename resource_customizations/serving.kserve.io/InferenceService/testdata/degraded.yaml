@@ -28,3 +28,5 @@ status:
     reason: Predictor ingress not created
     status: "False"
     type: Ready
+  modelStatus:
+    transitionStatus: BlockedByFailedLoad

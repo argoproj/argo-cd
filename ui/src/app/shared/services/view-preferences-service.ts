@@ -2,6 +2,7 @@ import * as deepMerge from 'deepmerge';
 import {BehaviorSubject, Observable} from 'rxjs';
 
 import {PodGroupType} from '../../applications/components/application-pod-view/pod-view';
+import {UserMessages} from '../models';
 
 export type AppsDetailsViewType = 'tree' | 'network' | 'list' | 'pods';
 
@@ -19,20 +20,24 @@ export interface AppDetailsPreferences {
     inlineDiff: boolean;
     compactDiff: boolean;
     hideManagedFields?: boolean;
+    enableWordWrap?: boolean;
     orphanedResources: boolean;
     podView: PodViewPreferences;
     darkMode: boolean;
     followLogs: boolean;
     hideFilters: boolean;
+    matchCase: boolean;
     wrapLines: boolean;
     groupNodes?: boolean;
     zoom: number;
     podGroupCount: number;
+    userHelpTipMsgs: UserMessages[];
 }
 
 export interface PodViewPreferences {
     sortMode: PodGroupType;
     hideUnschedulable: boolean;
+    sortOrder?: 'asc' | 'desc';
 }
 
 export interface HealthStatusBarPreferences {
@@ -120,9 +125,11 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
         },
         darkMode: false,
         followLogs: false,
+        matchCase: false,
         wrapLines: false,
         zoom: 1.0,
-        podGroupCount: 15.0
+        podGroupCount: 15.0,
+        userHelpTipMsgs: []
     },
     appList: {
         view: 'tiles' as AppsListViewType,

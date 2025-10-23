@@ -1,0 +1,37 @@
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: User
+metadata:
+  creationTimestamp: "2024-04-12T13:43:56Z"
+  finalizers:
+  - user.k8s.mariadb.com/finalizer
+  generation: 1
+  labels:
+    db.bridge.a3p.com: mariadb
+  name: mariadb-metrics
+  namespace: bridge
+  ownerReferences:
+  - apiVersion: k8s.mariadb.com/v1alpha1
+    blockOwnerDeletion: true
+    controller: true
+    kind: MariaDB
+    name: mariadb
+    uid: a29fc76f-66a5-4612-9b15-16c405f7edd9
+  resourceVersion: "345121483"
+  uid: ecce1099-7b71-418b-b386-893db5fd7e59
+spec:
+  mariaDbRef:
+    name: mariadb
+    namespace: bridge
+    waitForIt: false
+  maxUserConnections: 3
+  name: mariadb-metrics
+  passwordSecretKeyRef:
+    key: password
+    name: mariadb-metrics-password
+status:
+  conditions:
+  - lastTransitionTime: "2024-04-12T13:43:57Z"
+    message: Created
+    reason: Created
+    status: "True"
+    type: Ready

@@ -2,18 +2,25 @@ import {By, WebDriver} from 'selenium-webdriver';
 import {ApplicationsList} from './applications-list/applications-list';
 import UiTestUtilities from './UiTestUtilities';
 import {Base} from './base';
+import {AuthLoginPage} from './auth/login-page';
 
-const NAVBAR_APPLICATIONS_BUTTON: By = By.css('#app .nav-bar .argo-icon-application');
-const NAVBAR_SETTINGS_BUTTON: By = By.css('#app .nav-bar .argo-icon-settings');
-const NAVBAR_USER_INFO_BUTTON: By = By.css('#app .nav-bar .fa-user-circle');
-const NAVBAR_DOCS_BUTTON: By = By.css('#app .nav-bar .argo-icon-docs');
+const NAVBAR_APPLICATIONS_BUTTON: By = By.css('#app .sidebar .argo-icon-application');
+const NAVBAR_SETTINGS_BUTTON: By = By.css('#app .sidebar .argo-icon-settings');
+const NAVBAR_USER_INFO_BUTTON: By = By.css('#app .sidebar .fa-user-circle');
+const NAVBAR_DOCS_BUTTON: By = By.css('#app .sidebar .argo-icon-docs');
 
 export class Navigation extends Base {
     private applicationsList: ApplicationsList;
+    private authLoginPage: AuthLoginPage;
 
     public constructor(driver: WebDriver) {
         super(driver);
         this.applicationsList = new ApplicationsList(this.driver);
+        this.authLoginPage = new AuthLoginPage(this.driver);
+    }
+
+    public getLoginPage(): AuthLoginPage {
+        return this.authLoginPage;
     }
 
     /**
@@ -24,7 +31,7 @@ export class Navigation extends Base {
         try {
             const navBarButton = await UiTestUtilities.findUiElement(this.driver, NAVBAR_APPLICATIONS_BUTTON);
             await navBarButton.click();
-        } catch (err) {
+        } catch (err: any) {
             throw new Error(err);
         }
         return this.applicationsList;
@@ -38,7 +45,7 @@ export class Navigation extends Base {
         try {
             const navBarButton = await UiTestUtilities.findUiElement(this.driver, NAVBAR_SETTINGS_BUTTON);
             await navBarButton.click();
-        } catch (err) {
+        } catch (err: any) {
             throw new Error(err);
         }
     }
@@ -51,7 +58,7 @@ export class Navigation extends Base {
         try {
             const navBarButton = await UiTestUtilities.findUiElement(this.driver, NAVBAR_USER_INFO_BUTTON);
             await navBarButton.click();
-        } catch (err) {
+        } catch (err: any) {
             throw new Error(err);
         }
     }
@@ -64,7 +71,7 @@ export class Navigation extends Base {
         try {
             const navBarButton = await UiTestUtilities.findUiElement(this.driver, NAVBAR_DOCS_BUTTON);
             await navBarButton.click();
-        } catch (err) {
+        } catch (err: any) {
             throw new Error(err);
         }
     }

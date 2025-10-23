@@ -2,8 +2,8 @@ PWD=$(shell pwd)
 TEST_ROOT=$(shell realpath $(PWD)/../..)
 
 IMAGE_NAMESPACE?=
-IMAGE_NAME=argocd-e2e-cluster
-IMAGE_TAG=latest
+IMAGE_NAME?=argocd-e2e-cluster
+IMAGE_TAG?=latest
 ifneq (${IMAGE_NAMESPACE},)
 IMAGE_PREFIX=$(IMAGE_NAMESPACE)/
 else

@@ -1,0 +1,9 @@
+tests:
+  - healthStatus:
+      status: Degraded
+      message: 'EC2NodeClass is not ready'
+    inputPath: testdata/degraded.yaml
+  - healthStatus:
+      status: Healthy
+      message: 'EC2NodeClass is ready'
+    inputPath: testdata/healthy.yaml

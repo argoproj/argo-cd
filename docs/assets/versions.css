@@ -53,7 +53,7 @@ div[data-md-component=announce]>div#announce-msg>a{
 }
 
 /* from https://assets.readthedocs.org/static/css/badge_only.css,
-most styles have to be overriden here */
+most styles have to be overridden here */
 .rst-versions{
   position: relative !important;
   bottom: 0;

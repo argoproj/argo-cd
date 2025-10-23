@@ -71,7 +71,7 @@ and the CLI functionalities.
 ### Application Controller
 
 The Application Controller is responsible for reconciling the
-Application resource in Kubernetes syncronizing the desired
+Application resource in Kubernetes synchronizing the desired
 application state (provided in Git) with the live state (in
 Kubernetes). The Application Controller is also responsible for
 reconciling the Project resource.

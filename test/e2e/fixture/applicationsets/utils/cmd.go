@@ -1,11 +1,12 @@
 package utils
 
 import (
+	"context"
 	"os"
 	"os/exec"
 	"strings"
 
-	argoexec "github.com/argoproj/pkg/exec"
+	argoexec "github.com/argoproj/argo-cd/v3/util/exec"
 )
 
 func Run(workDir, name string, args ...string) (string, error) {
@@ -13,7 +14,7 @@ func Run(workDir, name string, args ...string) (string, error) {
 }
 
 func RunWithStdin(stdin, workDir, name string, args ...string) (string, error) {
-	cmd := exec.Command(name, args...)
+	cmd := exec.CommandContext(context.Background(), name, args...)
 	if stdin != "" {
 		cmd.Stdin = strings.NewReader(stdin)
 	}

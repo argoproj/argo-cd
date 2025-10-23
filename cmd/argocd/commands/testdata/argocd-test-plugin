@@ -1,0 +1,16 @@
+#!/bin/bash
+
+# Ensure we receive the expected flags and values
+while [[ "$#" -gt 0 ]]; do
+    case $1 in
+        --flag1) FLAG1="$2"; shift ;;
+        --flag2) FLAG2="$2"; shift ;;
+        --help) echo "Usage: argocd test-plugin --flag1 value1 --flag2 value2"; exit 0 ;;
+        *) echo "Unknown argument: $1"; exit 1 ;;
+    esac
+    shift
+done
+
+# Output the parsed flag values
+echo "Flag1: ${FLAG1}"
+echo "Flag2: ${FLAG2}"

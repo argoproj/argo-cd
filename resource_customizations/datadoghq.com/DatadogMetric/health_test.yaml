@@ -1,0 +1,13 @@
+tests:
+  - healthStatus:
+      status: Degraded
+      message: "Unable to fetch data from Datadog: Processing data from API failed, reason: no serie was found for this query in API Response, check Cluster Agent logs for QueryIndex errors, query was: max:foo.bar.metric"
+    inputPath: testdata/degraded_error.yaml
+  - healthStatus:
+      status: Degraded
+      message: "The metric query is invalid"
+    inputPath: testdata/degraded_invalid.yaml
+  - healthStatus:
+      status: Healthy
+      message: "DatadogMetric is healthy"
+    inputPath: testdata/healthy.yaml
