@@ -2,9 +2,11 @@ package commit
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"text/template"
 
 	"github.com/Masterminds/sprig/v3"
@@ -15,6 +17,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/commitserver/apiclient"
 	"github.com/argoproj/argo-cd/v3/common"
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/hydrator"
 	"github.com/argoproj/argo-cd/v3/util/io"
 )
@@ -33,24 +36,24 @@ func init() {
 
 // WriteForPaths writes the manifests, hydrator.metadata, and README.md files for each path in the provided paths. It
 // also writes a root-level hydrator.metadata file containing the repo URL and dry SHA.
-func WriteForPaths(root *os.Root, repoUrl, drySha string, dryCommitMetadata *appv1.RevisionMetadata, paths []*apiclient.PathDetails) error { //nolint:revive //FIXME(var-naming)
+func WriteForPaths(root *os.Root, repoUrl, drySha string, dryCommitMetadata *appv1.RevisionMetadata, paths []*apiclient.PathDetails, gitClient git.Client) (bool, error) { //nolint:revive //FIXME(var-naming)
 	hydratorMetadata, err := hydrator.GetCommitMetadata(repoUrl, drySha, dryCommitMetadata)
 	if err != nil {
-		return fmt.Errorf("failed to retrieve hydrator metadata: %w", err)
+		return false, fmt.Errorf("failed to retrieve hydrator metadata: %w", err)
 	}
 
 	// Write the top-level readme.
 	err = writeMetadata(root, "", hydratorMetadata)
 	if err != nil {
-		return fmt.Errorf("failed to write top-level hydrator metadata: %w", err)
+		return false, fmt.Errorf("failed to write top-level hydrator metadata: %w", err)
 	}
 
 	// Write .gitattributes
 	err = writeGitAttributes(root)
 	if err != nil {
-		return fmt.Errorf("failed to write git attributes: %w", err)
+		return false, fmt.Errorf("failed to write git attributes: %w", err)
 	}
-
+	var atleastOneManifestChanged bool
 	for _, p := range paths {
 		hydratePath := p.Path
 		if hydratePath == "." {
@@ -61,15 +64,30 @@ func WriteForPaths(root *os.Root, repoUrl, drySha string, dryCommitMetadata *app
 		if hydratePath != "" {
 			err = root.MkdirAll(hydratePath, 0o755)
 			if err != nil {
-				return fmt.Errorf("failed to create path: %w", err)
+				return false, fmt.Errorf("failed to create path: %w", err)
 			}
 		}
 
 		// Write the manifests
-		err = writeManifests(root, hydratePath, p.Manifests)
+		err := writeManifests(root, hydratePath, p.Manifests)
 		if err != nil {
-			return fmt.Errorf("failed to write manifests: %w", err)
+			return false, fmt.Errorf("failed to write manifests: %w", err)
 		}
+		changed, err := hasManifestChanged(hydratePath, gitClient)
+		if err != nil {
+			return false, fmt.Errorf("failed to check if anything changed on the manifest: %w", err)
+		}
+
+		if !changed {
+			err = deleteManifest(root, hydratePath)
+			if err != nil {
+				return false, fmt.Errorf("failed to delete the un-changed manifest: %w", err)
+			}
+			continue
+		}
+		// If even one new manifest exists then commit needs to happen else skip commit
+		// once set to true do not override
+		atleastOneManifestChanged = changed
 
 		// Write hydrator.metadata containing information about the hydration process.
 		hydratorMetadata := hydrator.HydratorCommitMetadata{
@@ -79,16 +97,20 @@ func WriteForPaths(root *os.Root, repoUrl, drySha string, dryCommitMetadata *app
 		}
 		err = writeMetadata(root, hydratePath, hydratorMetadata)
 		if err != nil {
-			return fmt.Errorf("failed to write hydrator metadata: %w", err)
+			return false, fmt.Errorf("failed to write hydrator metadata: %w", err)
 		}
 
 		// Write README
 		err = writeReadme(root, hydratePath, hydratorMetadata)
 		if err != nil {
-			return fmt.Errorf("failed to write readme: %w", err)
+			return false, fmt.Errorf("failed to write readme: %w", err)
 		}
 	}
-	return nil
+	// if no manifest changes then skip commit
+	if !atleastOneManifestChanged {
+		return false, nil
+	}
+	return atleastOneManifestChanged, nil
 }
 
 // writeMetadata writes the metadata to the hydrator.metadata file.
@@ -196,6 +218,49 @@ func writeManifests(root *os.Root, dirPath string, manifests []*apiclient.Hydrat
 			return fmt.Errorf("failed to encode manifest: %w", err)
 		}
 	}
+	return nil
+}
 
+func deleteManifest(root *os.Root, dirPath string) error {
+	manifestPath := filepath.Join(dirPath, "manifest.yaml")
+	if err := root.Remove(manifestPath); err != nil {
+		return fmt.Errorf("failed to remove manifest: %w", err)
+	}
+	return nil
+}
+
+func hasManifestChanged(dirPath string, gitClient git.Client) (bool, error) {
+	manifestPath := filepath.Join(dirPath, "manifest.yaml")
+	return gitClient.HasFileChanged(manifestPath)
+}
+
+func IsHydrated(gitClient git.Client, drySha, hydratedSha string) (bool, error) {
+	note, err := gitClient.GetCommitNote(hydratedSha, NoteNamespace)
+	if err != nil {
+		// an empty note or note not found is a valid and acceptable outcome in this context
+		unwrappedError := errors.Unwrap(err)
+		if unwrappedError != nil && strings.Contains(unwrappedError.Error(), "no note found") {
+			return false, nil
+		}
+		return false, err
+	}
+	var commitNote CommitNote
+	err = json.Unmarshal([]byte(note), &commitNote)
+	if err != nil {
+		return false, fmt.Errorf("json unmarshal failed %w", err)
+	}
+	return commitNote.DrySHA == drySha, nil
+}
+
+func AddNote(gitClient git.Client, drySha, hydratedSha string) error {
+	note := CommitNote{DrySHA: drySha}
+	jsonBytes, err := json.Marshal(note)
+	if err != nil {
+		return fmt.Errorf("failed to marshal commit note: %w", err)
+	}
+	err = gitClient.AddAndPushNote(hydratedSha, NoteNamespace, string(jsonBytes))
+	if err != nil {
+		return fmt.Errorf("failed to add commit note: %w", err)
+	}
 	return nil
 }
