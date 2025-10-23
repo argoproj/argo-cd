@@ -176,7 +176,7 @@ func NewCommand() *cobra.Command {
 			profile.RegisterProfiler(pprofMux)
 			// This looks a little strange. Eg, not using ctrl.Options PprofBindAddress and then adding the pprof mux
 			// to the metrics server. However, it allows for the controller to dynamically expose the pprof endpoints
-			// and use the existing metrics server, the same pattern that the controller and server follow.
+			// and use the existing metrics server, the same pattern that the application controller and api-server follow.
 			if err = mgr.AddMetricsServerExtraHandler("/debug/pprof/", pprofMux); err != nil {
 				log.Error(err, "failed to register pprof handlers")
 			}
