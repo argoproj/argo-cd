@@ -5,17 +5,17 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	v1 "k8s.io/client-go/tools/clientcmd/api/v1"
+	clientcmdv1 "k8s.io/client-go/tools/clientcmd/api/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	clusterinventory "sigs.k8s.io/cluster-inventory-api/apis/v1alpha1"
-
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestClusterProfileGenerateParams(t *testing.T) {
@@ -36,7 +36,7 @@ func TestClusterProfileGenerateParams(t *testing.T) {
 				CredentialProviders: []clusterinventory.CredentialProvider{
 					{
 						Name: "kubeconfig",
-						Cluster: v1.Cluster{
+						Cluster: clientcmdv1.Cluster{
 							Server: "https://staging-01.example.com",
 						},
 					},
@@ -59,7 +59,7 @@ func TestClusterProfileGenerateParams(t *testing.T) {
 				CredentialProviders: []clusterinventory.CredentialProvider{
 					{
 						Name: "kubeconfig",
-						Cluster: v1.Cluster{
+						Cluster: clientcmdv1.Cluster{
 							Server: "https://production-01.example.com",
 						},
 					},
@@ -219,6 +219,7 @@ func TestClusterProfileGenerateParams(t *testing.T) {
 
 			s := runtime.NewScheme()
 			s.AddKnownTypes(clusterinventory.GroupVersion, &clusterinventory.ClusterProfile{}, &clusterinventory.ClusterProfileList{})
+			require.NoError(t, corev1.AddToScheme(s))
 			fakeClient := fake.NewClientBuilder().WithScheme(s).WithObjects(clusterProfiles...).Build()
 			cl := &possiblyErroringFakeCtrlRuntimeClient{
 				fakeClient,
@@ -270,7 +271,7 @@ func TestClusterProfileGenerateParamsGoTemplate(t *testing.T) {
 				CredentialProviders: []clusterinventory.CredentialProvider{
 					{
 						Name: "kubeconfig",
-						Cluster: v1.Cluster{
+						Cluster: clientcmdv1.Cluster{
 							Server: "https://staging-01.example.com",
 						},
 					},
@@ -293,7 +294,7 @@ func TestClusterProfileGenerateParamsGoTemplate(t *testing.T) {
 				CredentialProviders: []clusterinventory.CredentialProvider{
 					{
 						Name: "kubeconfig",
-						Cluster: v1.Cluster{
+						Cluster: clientcmdv1.Cluster{
 							Server: "https://production-01.example.com",
 						},
 					},
@@ -374,6 +375,7 @@ func TestClusterProfileGenerateParamsGoTemplate(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			s := runtime.NewScheme()
 			s.AddKnownTypes(clusterinventory.GroupVersion, &clusterinventory.ClusterProfile{}, &clusterinventory.ClusterProfileList{})
+			require.NoError(t, corev1.AddToScheme(s))
 			fakeClient := fake.NewClientBuilder().WithScheme(s).WithObjects(clusterProfiles...).Build()
 			cl := &possiblyErroringFakeCtrlRuntimeClient{
 				fakeClient,
@@ -407,4 +409,111 @@ func TestClusterProfileGenerateParamsGoTemplate(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestClusterProfileSecretSync(t *testing.T) {
+	clusterProfiles := []client.Object{
+		&clusterinventory.ClusterProfile{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "staging-01",
+				Namespace: "namespace",
+				Labels: map[string]string{
+					"environment": "staging",
+					"org":         "foo",
+				},
+				Annotations: map[string]string{
+					"foo.argoproj.io": "staging",
+				},
+			},
+			Status: clusterinventory.ClusterProfileStatus{
+				CredentialProviders: []clusterinventory.CredentialProvider{
+					{
+						Name: "kubeconfig",
+						Cluster: clientcmdv1.Cluster{
+							Server: "https://staging-01.example.com",
+						},
+					},
+				},
+			},
+		},
+		&clusterinventory.ClusterProfile{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "production-01",
+				Namespace: "namespace",
+				Labels: map[string]string{
+					"environment": "production",
+					"org":         "bar",
+				},
+				Annotations: map[string]string{
+					"foo.argoproj.io": "production",
+				},
+			},
+			Status: clusterinventory.ClusterProfileStatus{
+				CredentialProviders: []clusterinventory.CredentialProvider{
+					{
+						Name: "kubeconfig",
+						Cluster: clientcmdv1.Cluster{
+							Server: "https://production-01.example.com",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	s := runtime.NewScheme()
+	s.AddKnownTypes(clusterinventory.GroupVersion, &clusterinventory.ClusterProfile{}, &clusterinventory.ClusterProfileList{})
+	require.NoError(t, corev1.AddToScheme(s))
+	fakeClient := fake.NewClientBuilder().WithScheme(s).WithObjects(clusterProfiles...).Build()
+	cl := &possiblyErroringFakeCtrlRuntimeClient{
+		fakeClient,
+		false,
+	}
+
+	generator := NewClusterProfileGenerator(context.Background(), cl, "argocd").(*ClusterProfileGenerator)
+
+	applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "set",
+			Namespace: "argocd",
+		},
+		Spec: argoprojiov1alpha1.ApplicationSetSpec{},
+	}
+
+	_, err := generator.GenerateParams(&argoprojiov1alpha1.ApplicationSetGenerator{
+		ClusterProfiles: &argoprojiov1alpha1.ClusterProfileGenerator{},
+	}, &applicationSetInfo, nil)
+
+	require.NoError(t, err)
+
+	secretList := &corev1.SecretList{}
+	err = cl.List(context.Background(), secretList)
+	require.NoError(t, err)
+	assert.Len(t, secretList.Items, 2)
+
+	for _, secret := range secretList.Items {
+		assert.Equal(t, "cluster", secret.Labels["argocd.argoproj.io/secret-type"])
+		assert.Equal(t, "true", secret.Labels["argocd.argoproj.io/managed-by-applicationset-controller"])
+		assert.NotEmpty(t, secret.Annotations["clusterprofile.x-k8s.io/origin"])
+	}
+
+	// Test secret pruning
+	err = generator.PruneSecrets(&argoprojiov1alpha1.ApplicationSetGenerator{
+		ClusterProfiles: &argoprojiov1alpha1.ClusterProfileGenerator{
+			Selector: metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"environment": "staging",
+				},
+			},
+		},
+	}, &applicationSetInfo)
+
+	require.NoError(t, err)
+
+	secretList = &corev1.SecretList{}
+	err = cl.List(context.Background(), secretList)
+	require.NoError(t, err)
+	assert.Len(t, secretList.Items, 1)
+	assert.Equal(t, "staging-01", secretList.Items[0].Name)
+
 }
