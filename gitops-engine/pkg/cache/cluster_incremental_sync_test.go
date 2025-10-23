@@ -115,7 +115,7 @@ func TestAddNamespace(t *testing.T) {
 		cache.syncStatus.lock.Unlock()
 		assert.Equal(t, syncTimeBefore, syncTimeAfter, "sync time should be preserved")
 
-		//then: should have the pod from new namespace in the cache
+		// then: should have the pod from new namespace in the cache
 		assertPodInCache(t, cache, "new-namespace", "test-pod", "pod from new namespace should be in cache")
 	})
 
@@ -204,6 +204,111 @@ func TestAddNamespace(t *testing.T) {
 
 		// then: should return error (only RBAC errors should be ignored)
 		assert.Error(t, err, "AddNamespace should return error for non-RBAC errors")
+	})
+}
+
+func TestRemoveNamespace(t *testing.T) {
+	t.Run("feature disabled", func(t *testing.T) {
+		cache := NewClusterCache(
+			&rest.Config{},
+			SetKubectl(&kubetest.MockKubectlCmd{}),
+			SetNamespaces([]string{"ns-1", "ns-2"}),
+		)
+
+		// given: cache was previously synced
+		now := time.Now()
+		cache.syncStatus.lock.Lock()
+		cache.syncStatus.syncTime = &now
+		cache.syncStatus.lock.Unlock()
+
+		// when: removing a namespace with feature disabled
+		err := cache.RemoveNamespace("ns-2")
+
+		assert.NoError(t, err)
+
+		// then: should invalidate the cache (observable via syncTime being cleared)
+		cache.syncStatus.lock.Lock()
+		actual := cache.syncStatus.syncTime
+		cache.syncStatus.lock.Unlock()
+		assert.Nil(t, actual, "given feature disabled, should invalidate cache when namespace removed")
+
+		// then: should remove namespace from the list
+		assert.NotContains(t, cache.namespaces, "ns-2", "given feature disabled, should remove namespace from list")
+		assert.Contains(t, cache.namespaces, "ns-1", "given feature disabled, should preserve remaining namespaces")
+	})
+
+	t.Run("feature enabled", func(t *testing.T) {
+		cache := NewClusterCache(
+			&rest.Config{},
+			SetKubectl(&kubetest.MockKubectlCmd{}),
+			SetNamespaces([]string{"ns-1", "ns-2"}),
+			WithIncrementalNamespaceSync(true),
+		)
+
+		// given: cache was previously synced
+		now := time.Now()
+		cache.syncStatus.lock.Lock()
+		cache.syncStatus.syncTime = &now
+		cache.syncStatus.lock.Unlock()
+
+		// when: removing a namespace with feature enabled
+		err := cache.RemoveNamespace("ns-2")
+
+		// then: should not return error
+		assert.NoError(t, err)
+
+		// then: should NOT invalidate the cache (syncTime preserved)
+		cache.syncStatus.lock.Lock()
+		actual := cache.syncStatus.syncTime
+		cache.syncStatus.lock.Unlock()
+
+		assert.NotNil(t, actual, "given feature enabled, should preserve cache when namespace removed")
+		assert.Equal(t, now.Unix(), actual.Unix(), "given feature enabled, should not change syncTime")
+
+		// then: should remove namespace from the list
+		assert.NotContains(t, cache.namespaces, "ns-2", "given feature enabled, should remove namespace from list")
+		assert.Contains(t, cache.namespaces, "ns-1", "given feature enabled, should preserve remaining namespaces")
+	})
+
+	t.Run("feature enabled removes resources from removed namespace", func(t *testing.T) {
+		// given: pods exist in both namespaces
+		pod1 := &corev1.Pod{
+			TypeMeta:   metav1.TypeMeta{APIVersion: "v1", Kind: "Pod"},
+			ObjectMeta: metav1.ObjectMeta{Name: "pod-1", Namespace: "ns-1"},
+		}
+		pod2 := &corev1.Pod{
+			TypeMeta:   metav1.TypeMeta{APIVersion: "v1", Kind: "Pod"},
+			ObjectMeta: metav1.ObjectMeta{Name: "pod-2", Namespace: "ns-2"},
+		}
+
+		_, mockKubectl := setupFakeCluster(pod1, pod2)
+		cache := NewClusterCache(
+			&rest.Config{},
+			SetKubectl(mockKubectl),
+			SetNamespaces([]string{"ns-1", "ns-2"}),
+			WithIncrementalNamespaceSync(true),
+		)
+
+		// given: cache was previously synced (both pods in cache)
+		err := cache.EnsureSynced()
+		assert.NoError(t, err)
+
+		// given: verify both pods are in cache
+		assertPodInCache(t, cache, "ns-1", "pod-1", "pod-1 should be in cache before removal")
+		assertPodInCache(t, cache, "ns-2", "pod-2", "pod-2 should be in cache before removal")
+
+		// when: removing ns-2
+		err = cache.RemoveNamespace("ns-2")
+		assert.NoError(t, err)
+
+		// then: pod-2 from ns-2 should be removed from cache
+		cache.lock.RLock()
+		_, exists := cache.resources[kube.NewResourceKey("", "Pod", "ns-2", "pod-2")]
+		cache.lock.RUnlock()
+		assert.False(t, exists, "pod-2 from removed namespace should not be in cache")
+
+		// then: pod-1 from ns-1 should still be in cache
+		assertPodInCache(t, cache, "ns-1", "pod-1", "pod-1 from remaining namespace should still be in cache")
 	})
 }
 

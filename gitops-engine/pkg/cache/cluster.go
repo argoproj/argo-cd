@@ -25,9 +25,9 @@
 package cache
 
 import (
-	"maps"
 	"context"
 	"fmt"
+	"maps"
 	"runtime/debug"
 	"strings"
 	"sync"
@@ -154,6 +154,8 @@ type ClusterCache interface {
 	Invalidate(opts ...UpdateSettingsFunc)
 	// AddNamespace incrementally syncs a new namespace to the cluster cache if incremental sync is enabled, otherwise falls back to full invalidation
 	AddNamespace(namespace string) error
+	// RemoveNamespace incrementally removes a namespace from the cluster cache if incremental sync is enabled, otherwise falls back to full invalidation
+	RemoveNamespace(namespace string) error
 	// FindResources returns resources that matches given list of predicates from specified namespace or everywhere if specified namespace is empty
 	FindResources(namespace string, predicates ...func(r *Resource) bool) map[kube.ResourceKey]*Resource
 	// IterateHierarchyV2 iterates resource tree starting from the specified top level resources and executes callback for each resource in the tree.
@@ -633,6 +635,41 @@ func (c *clusterCache) AddNamespace(namespace string) error {
 	c.lock.Unlock()
 
 	return c.syncNamespaceResources(namespace, apisToSync)
+}
+
+// RemoveNamespace incrementally removes a namespace from the cluster cache if incremental sync is enabled,
+// otherwise falls back to full cluster cache invalidation
+func (c *clusterCache) RemoveNamespace(namespace string) error {
+	if !c.incrementalNamespaceSync {
+		c.Invalidate(func(cache *clusterCache) {
+			cache.namespaces = removeNamespaceFromList(cache.namespaces, namespace)
+		})
+		return nil
+	}
+
+	// Feature enabled: incremental removal
+	c.lock.Lock()
+	c.namespaces = removeNamespaceFromList(c.namespaces, namespace)
+
+	// Remove all resources from the removed namespace
+	for key := range c.resources {
+		if key.Namespace == namespace {
+			delete(c.resources, key)
+		}
+	}
+	c.lock.Unlock()
+
+	return nil
+}
+
+func removeNamespaceFromList(namespaces []string, namespace string) []string {
+	result := make([]string, 0, len(namespaces)-1)
+	for _, ns := range namespaces {
+		if ns != namespace {
+			result = append(result, ns)
+		}
+	}
+	return result
 }
 
 func (c *clusterCache) snapshotApisMeta() map[schema.GroupKind]*apiMeta {
