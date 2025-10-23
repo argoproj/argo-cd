@@ -221,3 +221,20 @@ Below is an example of a simple extension with a flyout widget:
   );
 })(window);
 ```
+
+## App View Extensions
+
+App View extensions allow you to create a new Application Details View for an application. This view would be selectable alongside the other views like the Node Tree, Pod, and Network views. When the extension's icon is clicked, the extension's component is rendered as the main content of the application view.
+
+Register this extension through the `extensionsAPI.registerAppViewExtension` method.
+
+
+```typescript
+registerAppViewExtension(
+  component: ExtensionComponent, // the component to be rendered
+  title: string, // the title of the page once the component is rendered
+  icon: string, // the favicon classname for the icon tab
+)
+```
+
+
