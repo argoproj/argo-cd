@@ -200,26 +200,18 @@ func Benchmark_sync_CrossNamespace(b *testing.B) {
 		resourcesPerNamespace        int
 		namespacesWithCrossNS        int // Number of namespaces with cross-NS children
 		crossNSResourcesPerNamespace int // Cross-NS children in each affected namespace
-		disableFeature               bool
 	}{
 		// Baseline
-		{"50NS_0pct_100perNS", 50, 100, 0, 0, false},
+		{"50NS_0pct_100perNS", 50, 100, 0, 0},
 
 		// Primary dimension: Percentage of namespaces with cross-NS children
-		{"50NS_2pct_100perNS", 50, 100, 1, 10, false},
-		{"50NS_10pct_100perNS", 50, 100, 5, 10, false},
-		{"50NS_20pct_100perNS", 50, 100, 10, 10, false},
-
-		// Feature flag validation
-		{"50NS_10pct_100perNS_Disabled", 50, 100, 5, 10, true},
-		{"50NS_20pct_100perNS_Disabled", 50, 100, 10, 10, true},
+		{"50NS_2pct_100perNS", 50, 100, 1, 10},
+		{"50NS_10pct_100perNS", 50, 100, 5, 10},
+		{"50NS_20pct_100perNS", 50, 100, 10, 10},
 	}
 
 	for _, tc := range testCases {
 		b.Run(tc.name, func(b *testing.B) {
-			if tc.disableFeature {
-				b.Setenv("GITOPS_ENGINE_DISABLE_CLUSTER_SCOPED_PARENT_REFS", "1")
-			}
 
 			resources := []runtime.Object{}
 
@@ -1416,30 +1408,6 @@ func TestIterateHierarchyV2_ClusterScopedParentOnly_InferredUID(t *testing.T) {
 	}, keys)
 }
 
-func TestIterateHierarchyV2_DisabledClusterScopedParents(t *testing.T) {
-	t.Setenv("GITOPS_ENGINE_DISABLE_CLUSTER_SCOPED_PARENT_REFS", "1")
-
-	cluster := newCluster(t, testClusterParent(), testNamespacedChild()).WithAPIResources([]kube.APIResourceInfo{{
-		GroupKind:            schema.GroupKind{Group: "", Kind: "Namespace"},
-		GroupVersionResource: schema.GroupVersionResource{Group: "", Version: "v1", Resource: "namespaces"},
-		Meta:                 metav1.APIResource{Namespaced: false},
-	}})
-	err := cluster.EnsureSynced()
-	require.NoError(t, err)
-
-	keys := []kube.ResourceKey{}
-	cluster.IterateHierarchyV2(
-		[]kube.ResourceKey{kube.GetResourceKey(mustToUnstructured(testClusterParent()))},
-		func(resource *Resource, _ map[kube.ResourceKey]*Resource) bool {
-			keys = append(keys, resource.ResourceKey())
-			return true
-		},
-	)
-
-	// When disabled, should only visit the parent
-	assert.Equal(t, []kube.ResourceKey{kube.GetResourceKey(mustToUnstructured(testClusterParent()))}, keys)
-}
-
 func TestOrphanedChildrenCleanup(t *testing.T) {
 	// Test that parent-to-children index is properly cleaned up when resources are deleted
 	clusterParent := testClusterParent()
@@ -1861,37 +1829,30 @@ func BenchmarkIterateHierarchyV2_ClusterParentTraversal(b *testing.B) {
 		resourcesPerNamespace        int
 		namespacesWithCrossNS        int // Number of namespaces with cross-NS children
 		crossNSResourcesPerNamespace int // Cross-NS children in each affected namespace
-		disableFeature               bool
 	}{
 		// Baseline: 0% of namespaces have cross-NS children
-		{"50NS_0pct_100perNS", 50, 100, 0, 0, false},
+		{"50NS_0pct_100perNS", 50, 100, 0, 0},
 
 		// Primary dimension: Percentage of namespaces with cross-NS children
 		// 5,000 total resources (50 NS × 100 resources/NS), 10 cross-NS children per affected namespace
-		{"50NS_2pct_100perNS_10cross", 50, 100, 1, 10, false},   // 2% of namespaces (1/50)
-		{"50NS_4pct_100perNS_10cross", 50, 100, 2, 10, false},   // 4% of namespaces (2/50)
-		{"50NS_10pct_100perNS_10cross", 50, 100, 5, 10, false},  // 10% of namespaces (5/50)
-		{"50NS_20pct_100perNS_10cross", 50, 100, 10, 10, false}, // 20% of namespaces (10/50)
+		{"50NS_2pct_100perNS_10cross", 50, 100, 1, 10},   // 2% of namespaces (1/50)
+		{"50NS_4pct_100perNS_10cross", 50, 100, 2, 10},   // 4% of namespaces (2/50)
+		{"50NS_10pct_100perNS_10cross", 50, 100, 5, 10},  // 10% of namespaces (5/50)
+		{"50NS_20pct_100perNS_10cross", 50, 100, 10, 10}, // 20% of namespaces (10/50)
 
 		// Secondary dimension: Within a namespace, % of resources that are cross-NS
 		// 5,000 total resources, 2% of namespaces (1/50) have cross-NS children
-		{"50NS_2pct_100perNS_10cross", 50, 100, 1, 10, false},  // 10% of namespace resources (10/100)
-		{"50NS_2pct_100perNS_25cross", 50, 100, 1, 25, false},  // 25% of namespace resources (25/100)
-		{"50NS_2pct_100perNS_50cross", 50, 100, 1, 50, false},  // 50% of namespace resources (50/100)
-
-		// Feature flag validation
-		{"50NS_10pct_100perNS_10cross_Disabled", 50, 100, 5, 10, true}, // 10% of namespaces, feature disabled
+		{"50NS_2pct_100perNS_10cross", 50, 100, 1, 10},  // 10% of namespace resources (10/100)
+		{"50NS_2pct_100perNS_25cross", 50, 100, 1, 25},  // 25% of namespace resources (25/100)
+		{"50NS_2pct_100perNS_50cross", 50, 100, 1, 50},  // 50% of namespace resources (50/100)
 
 		// Edge cases
-		{"100NS_1pct_100perNS_10cross", 100, 100, 1, 10, false},   // 1% of namespaces (1/100) - extreme clustering
-		{"50NS_100pct_100perNS_10cross", 50, 100, 50, 10, false},  // 100% of namespaces - worst case
+		{"100NS_1pct_100perNS_10cross", 100, 100, 1, 10},   // 1% of namespaces (1/100) - extreme clustering
+		{"50NS_100pct_100perNS_10cross", 50, 100, 50, 10},  // 100% of namespaces - worst case
 	}
 
 	for _, tc := range testCases {
 		b.Run(tc.name, func(b *testing.B) {
-			if tc.disableFeature {
-				b.Setenv("GITOPS_ENGINE_DISABLE_CLUSTER_SCOPED_PARENT_REFS", "1")
-			}
 
 			cluster := newCluster(b).WithAPIResources([]kube.APIResourceInfo{{
 				GroupKind:            schema.GroupKind{Group: "rbac.authorization.k8s.io", Kind: "ClusterRole"},
@@ -1925,7 +1886,7 @@ func BenchmarkIterateHierarchyV2_ClusterParentTraversal(b *testing.B) {
 			}
 
 			// Verify indexes are populated (sanity check)
-			if !tc.disableFeature && tc.namespacesWithCrossNS > 0 {
+			if tc.namespacesWithCrossNS > 0 {
 				if len(cluster.parentUIDToChildren) == 0 {
 					b.Fatal("parentUIDToChildren index not populated - benchmark setup is broken")
 				}
