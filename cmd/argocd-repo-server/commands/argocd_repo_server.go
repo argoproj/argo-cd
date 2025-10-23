@@ -53,41 +53,6 @@ var (
 
 func NewCommand() *cobra.Command {
 	var (
-<<<<<<< HEAD
-		parallelismLimit                  int64
-		listenPort                        int
-		listenHost                        string
-		metricsPort                       int
-		metricsHost                       string
-		otlpAddress                       string
-		cacheSrc                          func() (*reposervercache.Cache, error)
-		tlsConfigCustomizer               tls.ConfigCustomizer
-		tlsConfigCustomizerSrc            func() (tls.ConfigCustomizer, error)
-		redisClient                       redis.UniversalClient
-		disableTLS                        bool
-		maxCombinedDirectoryManifestsSize string
-		cmpTarExcludedGlobs               []string
-		allowOutOfBoundsSymlinks          bool
-		streamedManifestMaxTarSize        string
-		streamedManifestMaxExtractedSize  string
-||||||| ab9bfd6d
-		parallelismLimit                  int64
-		listenPort                        int
-		listenHost                        string
-		metricsPort                       int
-		metricsHost                       string
-		otlpAddress                       string
-		cacheSrc                          func() (*reposervercache.Cache, error)
-		tlsConfigCustomizer               tls.ConfigCustomizer
-		tlsConfigCustomizerSrc            func() (tls.ConfigCustomizer, error)
-		redisClient                       *redis.Client
-		disableTLS                        bool
-		maxCombinedDirectoryManifestsSize string
-		cmpTarExcludedGlobs               []string
-		allowOutOfBoundsSymlinks          bool
-		streamedManifestMaxTarSize        string
-		streamedManifestMaxExtractedSize  string
-=======
 		parallelismLimit                   int64
 		listenPort                         int
 		listenHost                         string
@@ -100,7 +65,7 @@ func NewCommand() *cobra.Command {
 		cacheSrc                           func() (*reposervercache.Cache, error)
 		tlsConfigCustomizer                tls.ConfigCustomizer
 		tlsConfigCustomizerSrc             func() (tls.ConfigCustomizer, error)
-		redisClient                        *redis.Client
+		redisClient                        redis.UniversalClient
 		disableTLS                         bool
 		maxCombinedDirectoryManifestsSize  string
 		cmpTarExcludedGlobs                []string
@@ -115,7 +80,6 @@ func NewCommand() *cobra.Command {
 		includeHiddenDirectories           bool
 		cmpUseManifestGeneratePaths        bool
 		ociMediaTypes                      []string
->>>>>>> master
 	)
 	command := cobra.Command{
 		Use:               cliName,
@@ -302,18 +266,10 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&cmpUseManifestGeneratePaths, "plugin-use-manifest-generate-paths", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_PLUGIN_USE_MANIFEST_GENERATE_PATHS", false), "Pass the resources described in argocd.argoproj.io/manifest-generate-paths value to the cmpserver to generate the application manifests.")
 	command.Flags().StringSliceVar(&ociMediaTypes, "oci-layer-media-types", env.StringsFromEnv("ARGOCD_REPO_SERVER_OCI_LAYER_MEDIA_TYPES", []string{"application/vnd.oci.image.layer.v1.tar", "application/vnd.oci.image.layer.v1.tar+gzip", "application/vnd.cncf.helm.chart.content.v1.tar+gzip"}, ","), "Comma separated list of allowed media types for OCI media types. This only accounts for media types within layers.")
 	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(&command)
-<<<<<<< HEAD
-	cacheSrc = reposervercache.AddCacheFlagsToCmd(&command, func(client redis.UniversalClient) {
-		redisClient = client
-||||||| ab9bfd6d
-	cacheSrc = reposervercache.AddCacheFlagsToCmd(&command, func(client *redis.Client) {
-		redisClient = client
-=======
 	cacheSrc = reposervercache.AddCacheFlagsToCmd(&command, cacheutil.Options{
-		OnClientCreated: func(client *redis.Client) {
+		OnClientCreated: func(client redis.UniversalClient) {
 			redisClient = client
 		},
->>>>>>> master
 	})
 	return &command
 }

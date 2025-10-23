@@ -338,18 +338,10 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&enableGitHubAPIMetrics, "appset-enable-github-api-metrics", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_GITHUB_API_METRICS", false), "Enable GitHub API metrics for generators that use the GitHub API")
 
 	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(command)
-<<<<<<< HEAD
-	cacheSrc = servercache.AddCacheFlagsToCmd(command, func(client redis.UniversalClient) {
-		redisClient = client
-||||||| ab9bfd6d
-	cacheSrc = servercache.AddCacheFlagsToCmd(command, func(client *redis.Client) {
-		redisClient = client
-=======
 	cacheSrc = servercache.AddCacheFlagsToCmd(command, cacheutil.Options{
-		OnClientCreated: func(client *redis.Client) {
+		OnClientCreated: func(client redis.UniversalClient) {
 			redisClient = client
 		},
->>>>>>> master
 	})
 	repoServerCacheSrc = reposervercache.AddCacheFlagsToCmd(command, cacheutil.Options{FlagPrefix: "repo-server-"})
 	return command

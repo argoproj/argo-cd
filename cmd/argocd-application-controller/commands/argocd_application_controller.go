@@ -55,51 +55,6 @@ const (
 
 func NewCommand() *cobra.Command {
 	var (
-<<<<<<< HEAD
-		clientConfig             clientcmd.ClientConfig
-		appResyncPeriod          int64
-		appHardResyncPeriod      int64
-		repoServerAddress        string
-		repoServerTimeoutSeconds int
-		selfHealTimeoutSeconds   int
-		statusProcessors         int
-		operationProcessors      int
-		glogLevel                int
-		metricsPort              int
-		metricsCacheExpiration   time.Duration
-		metricsAplicationLabels  []string
-		kubectlParallelismLimit  int64
-		cacheSource              func() (*appstatecache.Cache, error)
-		redisClient              redis.UniversalClient
-		repoServerPlaintext      bool
-		repoServerStrictTLS      bool
-		otlpAddress              string
-		applicationNamespaces    []string
-		persistResourceHealth    bool
-		shardingAlgorithm        string
-||||||| ab9bfd6d
-		clientConfig             clientcmd.ClientConfig
-		appResyncPeriod          int64
-		appHardResyncPeriod      int64
-		repoServerAddress        string
-		repoServerTimeoutSeconds int
-		selfHealTimeoutSeconds   int
-		statusProcessors         int
-		operationProcessors      int
-		glogLevel                int
-		metricsPort              int
-		metricsCacheExpiration   time.Duration
-		metricsAplicationLabels  []string
-		kubectlParallelismLimit  int64
-		cacheSource              func() (*appstatecache.Cache, error)
-		redisClient              *redis.Client
-		repoServerPlaintext      bool
-		repoServerStrictTLS      bool
-		otlpAddress              string
-		applicationNamespaces    []string
-		persistResourceHealth    bool
-		shardingAlgorithm        string
-=======
 		workqueueRateLimit               ratelimiter.AppControllerRateLimiterConfig
 		clientConfig                     clientcmd.ClientConfig
 		appResyncPeriod                  int64
@@ -125,7 +80,7 @@ func NewCommand() *cobra.Command {
 		metricsClusterLabels             []string
 		kubectlParallelismLimit          int64
 		cacheSource                      func() (*appstatecache.Cache, error)
-		redisClient                      *redis.Client
+		redisClient                      redis.UniversalClient
 		repoServerPlaintext              bool
 		repoServerStrictTLS              bool
 		otlpAddress                      string
@@ -142,7 +97,6 @@ func NewCommand() *cobra.Command {
 		// argocd k8s event logging flag
 		enableK8sEvent  []string
 		hydratorEnabled bool
->>>>>>> master
 	)
 	command := cobra.Command{
 		Use:               cliName,
@@ -333,17 +287,6 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringToStringVar(&otlpHeaders, "otlp-headers", env.ParseStringToStringFromEnv("ARGOCD_APPLICATION_CONTROLLER_OTLP_HEADERS", map[string]string{}, ","), "List of OpenTelemetry collector extra headers sent with traces, headers are comma-separated key-value pairs(e.g. key1=value1,key2=value2)")
 	command.Flags().StringSliceVar(&otlpAttrs, "otlp-attrs", env.StringsFromEnv("ARGOCD_APPLICATION_CONTROLLER_OTLP_ATTRS", []string{}, ","), "List of OpenTelemetry collector extra attrs when send traces, each attribute is separated by a colon(e.g. key:value)")
 	command.Flags().StringSliceVar(&applicationNamespaces, "application-namespaces", env.StringsFromEnv("ARGOCD_APPLICATION_NAMESPACES", []string{}, ","), "List of additional namespaces that applications are allowed to be reconciled from")
-<<<<<<< HEAD
-	command.Flags().BoolVar(&persistResourceHealth, "persist-resource-health", env.ParseBoolFromEnv("ARGOCD_APPLICATION_CONTROLLER_PERSIST_RESOURCE_HEALTH", true), "Enables storing the managed resources health in the Application CRD")
-	command.Flags().StringVar(&shardingAlgorithm, "sharding-method", env.StringFromEnv(common.EnvControllerShardingAlgorithm, common.DefaultShardingAlgorithm), "Enables choice of sharding method. Supported sharding methods are : [legacy, round-robin] ")
-	cacheSource = appstatecache.AddCacheFlagsToCmd(&command, func(client redis.UniversalClient) {
-		redisClient = client
-||||||| ab9bfd6d
-	command.Flags().BoolVar(&persistResourceHealth, "persist-resource-health", env.ParseBoolFromEnv("ARGOCD_APPLICATION_CONTROLLER_PERSIST_RESOURCE_HEALTH", true), "Enables storing the managed resources health in the Application CRD")
-	command.Flags().StringVar(&shardingAlgorithm, "sharding-method", env.StringFromEnv(common.EnvControllerShardingAlgorithm, common.DefaultShardingAlgorithm), "Enables choice of sharding method. Supported sharding methods are : [legacy, round-robin] ")
-	cacheSource = appstatecache.AddCacheFlagsToCmd(&command, func(client *redis.Client) {
-		redisClient = client
-=======
 	command.Flags().BoolVar(&persistResourceHealth, "persist-resource-health", env.ParseBoolFromEnv("ARGOCD_APPLICATION_CONTROLLER_PERSIST_RESOURCE_HEALTH", false), "Enables storing the managed resources health in the Application CRD")
 	command.Flags().StringVar(&shardingAlgorithm, "sharding-method", env.StringFromEnv(common.EnvControllerShardingAlgorithm, common.DefaultShardingAlgorithm), "Enables choice of sharding method. Supported sharding methods are : [legacy, round-robin, consistent-hashing] ")
 	// global queue rate limit config
@@ -362,10 +305,9 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringSliceVar(&enableK8sEvent, "enable-k8s-event", env.StringsFromEnv("ARGOCD_ENABLE_K8S_EVENT", argo.DefaultEnableEventList(), ","), "Enable ArgoCD to use k8s event. For disabling all events, set the value as `none`. (e.g --enable-k8s-event=none), For enabling specific events, set the value as `event reason`. (e.g --enable-k8s-event=StatusRefreshed,ResourceCreated)")
 	command.Flags().BoolVar(&hydratorEnabled, "hydrator-enabled", env.ParseBoolFromEnv("ARGOCD_HYDRATOR_ENABLED", false), "Feature flag to enable Hydrator. Default (\"false\")")
 	cacheSource = appstatecache.AddCacheFlagsToCmd(&command, cacheutil.Options{
-		OnClientCreated: func(client *redis.Client) {
+		OnClientCreated: func(client redis.UniversalClient) {
 			redisClient = client
 		},
->>>>>>> master
 	})
 	return &command
 }

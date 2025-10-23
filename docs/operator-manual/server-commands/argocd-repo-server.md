@@ -60,4 +60,3 @@ argocd-repo-server [flags]
       --tlsmaxversion string                           The maximum SSL/TLS version that is acceptable (one of: 1.0|1.1|1.2|1.3) (default "1.3")
       --tlsminversion string                           The minimum SSL/TLS version that is acceptable (one of: 1.0|1.1|1.2|1.3) (default "1.2")
 ```
-

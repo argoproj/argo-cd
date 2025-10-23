@@ -127,10 +127,10 @@ func buildFailoverRedisClient(sentinelMaster, sentinelUsername, sentinelPassword
 
 type Options struct {
 	FlagPrefix      string
-	OnClientCreated func(client *redis.UniversalClient)
+	OnClientCreated func(client redis.UniversalClient)
 }
 
-func (o *Options) callOnClientCreated(client *redis.UniversalClient) {
+func (o *Options) callOnClientCreated(client redis.UniversalClient) {
 	if o.OnClientCreated != nil {
 		o.OnClientCreated(client)
 	}
@@ -296,7 +296,7 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...Options) func() (*Cache, err
 				client = buildRedisClient(redisAddress, password, username, redisDB, maxRetries, tlsConfig)
 			}
 		}
-		opt.callOnClientCreated(&client)
+		opt.callOnClientCreated(client)
 		return NewCache(NewRedisCache(client, defaultCacheExpiration, compression)), nil
 	}
 }
