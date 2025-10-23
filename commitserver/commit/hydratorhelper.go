@@ -221,6 +221,9 @@ func writeManifests(root *os.Root, dirPath string, manifests []*apiclient.Hydrat
 	return nil
 }
 
+// deleteManifest attempts to remove the "manifest.yaml" file located in the specified directory path
+// within the given os.Root abstraction. If the file removal fails, it returns a wrapped error with context.
+// This helper is used to clean up files which are written to disk but are still un-staged and a similar file exists in index.
 func deleteManifest(root *os.Root, dirPath string) error {
 	manifestPath := filepath.Join(dirPath, "manifest.yaml")
 	if err := root.Remove(manifestPath); err != nil {
@@ -229,13 +232,21 @@ func deleteManifest(root *os.Root, dirPath string) error {
 	return nil
 }
 
+// hasManifestChanged checks whether the "manifest.yaml" file in the specified directory path
+// has been modified in the working tree compared to the version tracked in the current git index.
+// Returns true if the file has changes staged or unstaged; otherwise, returns false.
+// Relies on the provided git.Client's HasFileChanged method for underlying diff detection.
 func hasManifestChanged(dirPath string, gitClient git.Client) (bool, error) {
 	manifestPath := filepath.Join(dirPath, "manifest.yaml")
 	return gitClient.HasFileChanged(manifestPath)
 }
 
-func IsHydrated(gitClient git.Client, drySha, hydratedSha string) (bool, error) {
-	note, err := gitClient.GetCommitNote(hydratedSha, NoteNamespace)
+// IsHydrated checks whether the given commit (commitSha) has already been hydrated with the specified Dry SHA (drySha).
+// It does this by retrieving the commit note in the NoteNamespace and examining the DrySHA value.
+// Returns true if the stored DrySHA matches the provided drySha, false if not or if no note exists.
+// Gracefully handles missing notes as a normal outcome (not an error), but returns an error on retrieval or parse failures.
+func IsHydrated(gitClient git.Client, drySha, commitSha string) (bool, error) {
+	note, err := gitClient.GetCommitNote(commitSha, NoteNamespace)
 	if err != nil {
 		// an empty note or note not found is a valid and acceptable outcome in this context
 		unwrappedError := errors.Unwrap(err)
@@ -252,13 +263,16 @@ func IsHydrated(gitClient git.Client, drySha, hydratedSha string) (bool, error) 
 	return commitNote.DrySHA == drySha, nil
 }
 
-func AddNote(gitClient git.Client, drySha, hydratedSha string) error {
+// AddNote attaches a commit note containing the specified dry SHA (`drySha`) to the given commit (`commitSha`)
+// in the configured note namespace. The note is marshaled as JSON and pushed to the remote repository using
+// the provided gitClient. Returns an error if marshalling or note addition fails.
+func AddNote(gitClient git.Client, drySha, commitSha string) error {
 	note := CommitNote{DrySHA: drySha}
 	jsonBytes, err := json.Marshal(note)
 	if err != nil {
 		return fmt.Errorf("failed to marshal commit note: %w", err)
 	}
-	err = gitClient.AddAndPushNote(hydratedSha, NoteNamespace, string(jsonBytes))
+	err = gitClient.AddAndPushNote(commitSha, NoteNamespace, string(jsonBytes))
 	if err != nil {
 		return fmt.Errorf("failed to add commit note: %w", err)
 	}

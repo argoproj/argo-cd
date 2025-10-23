@@ -454,18 +454,18 @@ func TestHasManifestChanged_NoChange(t *testing.T) {
 func TestIsHydrated(t *testing.T) {
 	mockGitClient := gitmocks.NewClient(t)
 	drySha := "abc123"
-	hydratedSha := "fff456"
-	hydratedShaErr := "abc456"
+	commitSha := "fff456"
+	commitShaErr := "abc456"
 	strnote := "{\"drySha\":\"abc123\"}"
 	err := errors.New("test no note found for test")
-	mockGitClient.On("GetCommitNote", hydratedSha, mock.Anything).Return(strnote, nil).Once()
-	mockGitClient.On("GetCommitNote", hydratedShaErr, mock.Anything).Return("", err).Once()
+	mockGitClient.On("GetCommitNote", commitSha, mock.Anything).Return(strnote, nil).Once()
+	mockGitClient.On("GetCommitNote", commitShaErr, mock.Anything).Return("", err).Once()
 	// an existing note
-	isHydrated, err := IsHydrated(mockGitClient, drySha, hydratedSha)
+	isHydrated, err := IsHydrated(mockGitClient, drySha, commitSha)
 	require.NoError(t, err)
 	assert.True(t, isHydrated)
 
-	isHydrated, err = IsHydrated(mockGitClient, drySha, hydratedShaErr)
+	isHydrated, err = IsHydrated(mockGitClient, drySha, commitShaErr)
 	require.Error(t, err)
 	assert.False(t, isHydrated)
 	assert.Contains(t, err.Error(), "no note found")
@@ -474,17 +474,17 @@ func TestIsHydrated(t *testing.T) {
 func TestAddNote(t *testing.T) {
 	mockGitClient := gitmocks.NewClient(t)
 	drySha := "abc123"
-	hydratedSha := "fff456"
-	hydratedShaErr := "abc456"
+	commitSha := "fff456"
+	commitShaErr := "abc456"
 	err := errors.New("test error")
-	mockGitClient.On("AddAndPushNote", hydratedSha, mock.Anything, mock.Anything).Return(nil).Once()
-	mockGitClient.On("AddAndPushNote", hydratedShaErr, mock.Anything, mock.Anything).Return(err).Once()
+	mockGitClient.On("AddAndPushNote", commitSha, mock.Anything, mock.Anything).Return(nil).Once()
+	mockGitClient.On("AddAndPushNote", commitShaErr, mock.Anything, mock.Anything).Return(err).Once()
 
 	// success
-	err = AddNote(mockGitClient, drySha, hydratedSha)
+	err = AddNote(mockGitClient, drySha, commitSha)
 	require.NoError(t, err)
 
 	// failure
-	err = AddNote(mockGitClient, drySha, hydratedShaErr)
+	err = AddNote(mockGitClient, drySha, commitShaErr)
 	require.Error(t, err)
 }
