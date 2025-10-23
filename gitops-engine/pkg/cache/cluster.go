@@ -98,6 +98,11 @@ type apiMeta struct {
 	// watchCancel stops the watch of all resources for this API. This gets called when the cache is invalidated or when
 	// the watched API ceases to exist (e.g. a CRD gets deleted).
 	watchCancel context.CancelFunc
+	// watchCtx is the parent context for all watches of this API. Used to derive per-namespace contexts.
+	watchCtx context.Context
+	// namespaceCancels tracks per-namespace watch cancellation for incremental namespace operations.
+	// Only populated when using incremental namespace sync.
+	namespaceCancels map[string]context.CancelFunc
 }
 
 type eventMeta struct {
@@ -657,6 +662,15 @@ func (c *clusterCache) RemoveNamespace(namespace string) error {
 			delete(c.resources, key)
 		}
 	}
+
+	// Cancel watches for the removed namespace
+	for _, meta := range c.apisMeta {
+		if cancel, exists := meta.namespaceCancels[namespace]; exists {
+			cancel()
+			delete(meta.namespaceCancels, namespace)
+		}
+	}
+
 	c.lock.Unlock()
 
 	return nil
@@ -690,7 +704,6 @@ func (c *clusterCache) syncNamespaceResources(namespace string, apisToSync map[s
 		return err
 	}
 
-	ctx := context.Background()
 	for gk, meta := range apisToSync {
 		if !meta.namespaced {
 			continue
@@ -701,7 +714,11 @@ func (c *clusterCache) syncNamespaceResources(namespace string, apisToSync map[s
 			continue
 		}
 
-		if err := c.loadNamespaceResources(ctx, client, api, namespace); err != nil {
+		// Create per-namespace context derived from the API's parent context
+		nsCtx, nsCancel := context.WithCancel(meta.watchCtx)
+		meta.namespaceCancels[namespace] = nsCancel
+
+		if err := c.loadNamespaceResources(nsCtx, client, api, namespace); err != nil {
 			return fmt.Errorf("failed to load resources for %s in namespace %s: %w", gk.String(), namespace, err)
 		}
 	}
@@ -1196,7 +1213,12 @@ func (c *clusterCache) sync() error {
 
 		lock.Lock()
 		ctx, cancel := context.WithCancel(context.Background())
-		info := &apiMeta{namespaced: api.Meta.Namespaced, watchCancel: cancel}
+		info := &apiMeta{
+			namespaced:       api.Meta.Namespaced,
+			watchCancel:      cancel,
+			watchCtx:         ctx,
+			namespaceCancels: make(map[string]context.CancelFunc),
+		}
 		c.apisMeta[api.GroupKind] = info
 		c.namespacedResources[api.GroupKind] = api.Meta.Namespaced
 		lock.Unlock()
