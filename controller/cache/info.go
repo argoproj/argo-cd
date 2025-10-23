@@ -470,6 +470,10 @@ func populatePodInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 		res.Info = append(res.Info, v1alpha1.InfoItem{Name: common.PodRequestsMEM, Value: strconv.FormatInt(MemoryReq.MilliValue(), 10)})
 	}
 
+	if pod.Status.PodIP != "" {
+		res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Pod IP", Value: pod.Status.PodIP})
+	}
+
 	var urls []string
 	if res.NetworkingInfo != nil {
 		urls = res.NetworkingInfo.ExternalURLs
