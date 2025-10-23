@@ -231,10 +231,27 @@ Register this extension through the `extensionsAPI.registerAppViewExtension` met
 
 ```typescript
 registerAppViewExtension(
-  component: ExtensionComponent, // the component to be rendered
-  title: string, // the title of the page once the component is rendered
-  icon: string, // the favicon classname for the icon tab
+  component: ExtensionComponent,  // the component to be rendered
+  title: string,                  // the title of the page once the component is rendered
+  icon: string,                   // the favicon classname for the icon tab
 )
 ```
 
+Below is an example of a simple extension:
 
+```javascript
+((window) => {
+  const component = () => {
+    return React.createElement(
+      "div",
+      { style: { padding: "10px" } },
+      "Hello World"
+    );
+  };
+  window.extensionsAPI.registerStatusPanelExtension(
+    component,
+    "My Extension",
+    "fa-question-circle"
+  );
+})(window);
+```
