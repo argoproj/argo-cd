@@ -2373,8 +2373,8 @@ func (ctrl *ApplicationController) selfHealRemainingBackoff(app *appv1.Applicati
 }
 
 // selfHealBackoffCooldownElapsed returns true when the last successful sync has occurred since longer
-// than then self heal cooldown. This means that the application has been in sync for long enough to
-// reset the self healing backoff to its initial state
+// than then self-heal cooldown. This means that the application has been in sync for long enough to
+// reset the self-healing backoff to its initial state
 func (ctrl *ApplicationController) selfHealBackoffCooldownElapsed(app *appv1.Application) bool {
 	if app.Status.OperationState == nil || app.Status.OperationState.FinishedAt == nil {
 		// Something is in progress, or about to be. In that case, selfHeal attempt should be zero anyway
@@ -2597,7 +2597,9 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 			},
 		},
 	)
-	// if there's an error while registering event handler, simply return nil
+	// if there's an error while registering event handler,
+	// simply return nil informer and lister to indicate
+	// initialization failure
 	if err != nil {
 		return nil, nil
 	}
