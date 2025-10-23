@@ -21,23 +21,23 @@ import (
 	argov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
-func (m *mockAddRateLimitingInterface) AddAfter(item interface{}, duration time.Duration) {
+func (m *mockAddRateLimitingInterface) AddAfter(_ any, _ time.Duration) {
 	// Not implemented
 }
 
-func (m *mockAddRateLimitingInterface) AddRateLimited(item interface{}) {
+func (m *mockAddRateLimitingInterface) AddRateLimited(_ any) {
 	// Not implemented
 }
 
-func (m *mockAddRateLimitingInterface) Done(item interface{}) {
+func (m *mockAddRateLimitingInterface) Done(_ any) {
 	// Not implemented
 }
 
-func (m *mockAddRateLimitingInterface) Forget(item interface{}) {
+func (m *mockAddRateLimitingInterface) Forget(_ any) {
 	// Not implemented
 }
 
-func (m *mockAddRateLimitingInterface) Get() (item interface{}, shutdown bool) {
+func (m *mockAddRateLimitingInterface) Get() (_ any, _ bool) {
 	return nil, false
 }
 
@@ -45,7 +45,7 @@ func (m *mockAddRateLimitingInterface) Len() int {
 	return 0
 }
 
-func (m *mockAddRateLimitingInterface) NumRequeues(item interface{}) int {
+func (m *mockAddRateLimitingInterface) NumRequeues(_ any) int {
 	return 0
 }
 
