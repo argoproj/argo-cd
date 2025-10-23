@@ -155,7 +155,7 @@ func TestUpdateCluster_RejectInvalidParams(t *testing.T) {
 		},
 	}
 
-	db := &dbmocks.ArgoDB{}
+	db := dbmocks.NewArgoDB(t)
 
 	clusters := []appv1.Cluster{
 		{
@@ -178,51 +178,32 @@ func TestUpdateCluster_RejectInvalidParams(t *testing.T) {
 		},
 	}
 
-	db.On("ListClusters", mock.Anything).Return(
-		func(_ context.Context) *appv1.ClusterList {
+	db.EXPECT().ListClusters(mock.Anything).RunAndReturn(
+		func(_ context.Context) (*appv1.ClusterList, error) {
 			return &appv1.ClusterList{
 				ListMeta: metav1.ListMeta{},
 				Items:    clusters,
-			}
-		},
-		func(_ context.Context) error {
-			return nil
+			}, nil
 		},
 	)
-	db.On("UpdateCluster", mock.Anything, mock.Anything).Return(
-		func(_ context.Context, c *appv1.Cluster) *appv1.Cluster {
+	db.EXPECT().UpdateCluster(mock.Anything, mock.Anything).RunAndReturn(
+		func(_ context.Context, c *appv1.Cluster) (*appv1.Cluster, error) {
 			for _, cluster := range clusters {
 				if c.Server == cluster.Server {
-					return c
+					return c, nil
 				}
 			}
-			return nil
-		},
-		func(_ context.Context, c *appv1.Cluster) error {
-			for _, cluster := range clusters {
-				if c.Server == cluster.Server {
-					return nil
-				}
-			}
-			return fmt.Errorf("cluster '%s' not found", c.Server)
+			return nil, fmt.Errorf("cluster '%s' not found", c.Server)
 		},
 	)
-	db.On("GetCluster", mock.Anything, mock.Anything).Return(
-		func(_ context.Context, server string) *appv1.Cluster {
+	db.EXPECT().GetCluster(mock.Anything, mock.Anything).RunAndReturn(
+		func(_ context.Context, server string) (*appv1.Cluster, error) {
 			for _, cluster := range clusters {
 				if server == cluster.Server {
-					return &cluster
+					return &cluster, nil
 				}
 			}
-			return nil
-		},
-		func(_ context.Context, server string) error {
-			for _, cluster := range clusters {
-				if server == cluster.Server {
-					return nil
-				}
-			}
-			return fmt.Errorf("cluster '%s' not found", server)
+			return nil, fmt.Errorf("cluster '%s' not found", server)
 		},
 	)
 
@@ -244,7 +225,7 @@ p, role:test, clusters, *, allowed-project/*, allow`)
 }
 
 func TestGetCluster_UrlEncodedName(t *testing.T) {
-	db := &dbmocks.ArgoDB{}
+	db := dbmocks.NewArgoDB(t)
 
 	mockCluster := appv1.Cluster{
 		Name:       "test/ing",
@@ -258,7 +239,7 @@ func TestGetCluster_UrlEncodedName(t *testing.T) {
 		},
 	}
 
-	db.On("ListClusters", mock.Anything).Return(&mockClusterList, nil)
+	db.EXPECT().ListClusters(mock.Anything).Return(&mockClusterList, nil)
 
 	server := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{})
 
@@ -274,7 +255,7 @@ func TestGetCluster_UrlEncodedName(t *testing.T) {
 }
 
 func TestGetCluster_NameWithUrlEncodingButShouldNotBeUnescaped(t *testing.T) {
-	db := &dbmocks.ArgoDB{}
+	db := dbmocks.NewArgoDB(t)
 
 	mockCluster := appv1.Cluster{
 		Name:       "test%2fing",
@@ -288,7 +269,7 @@ func TestGetCluster_NameWithUrlEncodingButShouldNotBeUnescaped(t *testing.T) {
 		},
 	}
 
-	db.On("ListClusters", mock.Anything).Return(&mockClusterList, nil)
+	db.EXPECT().ListClusters(mock.Anything).Return(&mockClusterList, nil)
 
 	server := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{})
 
@@ -340,7 +321,7 @@ func TestGetCluster_CannotSetCADataAndInsecureTrue(t *testing.T) {
 }
 
 func TestUpdateCluster_NoFieldsPaths(t *testing.T) {
-	db := &dbmocks.ArgoDB{}
+	db := dbmocks.NewArgoDB(t)
 	var updated *appv1.Cluster
 
 	clusters := []appv1.Cluster{
@@ -356,8 +337,8 @@ func TestUpdateCluster_NoFieldsPaths(t *testing.T) {
 		Items:    clusters,
 	}
 
-	db.On("ListClusters", mock.Anything).Return(&clusterList, nil)
-	db.On("UpdateCluster", mock.Anything, mock.MatchedBy(func(c *appv1.Cluster) bool {
+	db.EXPECT().ListClusters(mock.Anything).Return(&clusterList, nil)
+	db.EXPECT().UpdateCluster(mock.Anything, mock.MatchedBy(func(c *appv1.Cluster) bool {
 		updated = c
 		return true
 	})).Return(&appv1.Cluster{}, nil)
@@ -378,14 +359,14 @@ func TestUpdateCluster_NoFieldsPaths(t *testing.T) {
 }
 
 func TestUpdateCluster_FieldsPathSet(t *testing.T) {
-	db := &dbmocks.ArgoDB{}
+	db := dbmocks.NewArgoDB(t)
 	var updated *appv1.Cluster
-	db.On("GetCluster", mock.Anything, "https://127.0.0.1").Return(&appv1.Cluster{
+	db.EXPECT().GetCluster(mock.Anything, "https://127.0.0.1").Return(&appv1.Cluster{
 		Name:       "minikube",
 		Server:     "https://127.0.0.1",
 		Namespaces: []string{"default", "kube-system"},
 	}, nil)
-	db.On("UpdateCluster", mock.Anything, mock.MatchedBy(func(c *appv1.Cluster) bool {
+	db.EXPECT().UpdateCluster(mock.Anything, mock.MatchedBy(func(c *appv1.Cluster) bool {
 		updated = c
 		return true
 	})).Return(&appv1.Cluster{}, nil)
@@ -609,7 +590,7 @@ func getClientset(config map[string]string, ns string, objects ...runtime.Object
 func TestListCluster(t *testing.T) {
 	t.Parallel()
 
-	db := &dbmocks.ArgoDB{}
+	db := dbmocks.NewArgoDB(t)
 
 	fooCluster := appv1.Cluster{
 		Name:       "foo",
@@ -632,7 +613,7 @@ func TestListCluster(t *testing.T) {
 		Items:    []appv1.Cluster{fooCluster, barCluster, bazCluster},
 	}
 
-	db.On("ListClusters", mock.Anything).Return(&mockClusterList, nil)
+	db.EXPECT().ListClusters(mock.Anything).Return(&mockClusterList, nil)
 
 	s := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{})
 
@@ -721,7 +702,7 @@ func TestListCluster(t *testing.T) {
 
 func TestGetClusterAndVerifyAccess(t *testing.T) {
 	t.Run("GetClusterAndVerifyAccess - No Cluster", func(t *testing.T) {
-		db := &dbmocks.ArgoDB{}
+		db := dbmocks.NewArgoDB(t)
 
 		mockCluster := appv1.Cluster{
 			Name:       "test/ing",
@@ -735,7 +716,7 @@ func TestGetClusterAndVerifyAccess(t *testing.T) {
 			},
 		}
 
-		db.On("ListClusters", mock.Anything).Return(&mockClusterList, nil)
+		db.EXPECT().ListClusters(mock.Anything).Return(&mockClusterList, nil)
 
 		server := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{})
 		localCluster, err := server.getClusterAndVerifyAccess(t.Context(), &cluster.ClusterQuery{
@@ -747,7 +728,7 @@ func TestGetClusterAndVerifyAccess(t *testing.T) {
 	})
 
 	t.Run("GetClusterAndVerifyAccess - Permissions Denied", func(t *testing.T) {
-		db := &dbmocks.ArgoDB{}
+		db := dbmocks.NewArgoDB(t)
 
 		mockCluster := appv1.Cluster{
 			Name:       "test/ing",
@@ -761,7 +742,7 @@ func TestGetClusterAndVerifyAccess(t *testing.T) {
 			},
 		}
 
-		db.On("ListClusters", mock.Anything).Return(&mockClusterList, nil)
+		db.EXPECT().ListClusters(mock.Anything).Return(&mockClusterList, nil)
 
 		server := NewServer(db, newEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{})
 		localCluster, err := server.getClusterAndVerifyAccess(t.Context(), &cluster.ClusterQuery{
@@ -774,7 +755,7 @@ func TestGetClusterAndVerifyAccess(t *testing.T) {
 }
 
 func TestNoClusterEnumeration(t *testing.T) {
-	db := &dbmocks.ArgoDB{}
+	db := dbmocks.NewArgoDB(t)
 
 	mockCluster := appv1.Cluster{
 		Name:       "test/ing",
@@ -788,8 +769,8 @@ func TestNoClusterEnumeration(t *testing.T) {
 		},
 	}
 
-	db.On("ListClusters", mock.Anything).Return(&mockClusterList, nil)
-	db.On("GetCluster", mock.Anything, mock.Anything).Return(&mockCluster, nil)
+	db.EXPECT().ListClusters(mock.Anything).Return(&mockClusterList, nil)
+	db.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(&mockCluster, nil)
 
 	server := NewServer(db, newEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{})
 

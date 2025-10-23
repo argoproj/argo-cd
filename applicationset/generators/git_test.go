@@ -320,11 +320,11 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 		t.Run(testCaseCopy.name, func(t *testing.T) {
 			t.Parallel()
 
-			argoCDServiceMock := mocks.Repos{}
+			argoCDServiceMock := mocks.NewRepos(t)
 
-			argoCDServiceMock.On("GetDirectories", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(testCaseCopy.repoApps, testCaseCopy.repoError)
+			argoCDServiceMock.EXPECT().GetDirectories(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(testCaseCopy.repoApps, testCaseCopy.repoError)
 
-			gitGenerator := NewGitGenerator(&argoCDServiceMock, "")
+			gitGenerator := NewGitGenerator(argoCDServiceMock, "")
 			applicationSetInfo := v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "set",
@@ -357,8 +357,6 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 				require.NoError(t, err)
 				assert.Equal(t, testCaseCopy.expected, got)
 			}
-
-			argoCDServiceMock.AssertExpectations(t)
 		})
 	}
 }
@@ -623,11 +621,11 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 		t.Run(testCaseCopy.name, func(t *testing.T) {
 			t.Parallel()
 
-			argoCDServiceMock := mocks.Repos{}
+			argoCDServiceMock := mocks.NewRepos(t)
 
-			argoCDServiceMock.On("GetDirectories", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(testCaseCopy.repoApps, testCaseCopy.repoError)
+			argoCDServiceMock.EXPECT().GetDirectories(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(testCaseCopy.repoApps, testCaseCopy.repoError)
 
-			gitGenerator := NewGitGenerator(&argoCDServiceMock, "")
+			gitGenerator := NewGitGenerator(argoCDServiceMock, "")
 			applicationSetInfo := v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "set",
@@ -660,8 +658,6 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 				require.NoError(t, err)
 				assert.Equal(t, testCaseCopy.expected, got)
 			}
-
-			argoCDServiceMock.AssertExpectations(t)
 		})
 	}
 }
@@ -1000,11 +996,11 @@ cluster:
 		t.Run(testCaseCopy.name, func(t *testing.T) {
 			t.Parallel()
 
-			argoCDServiceMock := mocks.Repos{}
-			argoCDServiceMock.On("GetFiles", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+			argoCDServiceMock := mocks.NewRepos(t)
+			argoCDServiceMock.EXPECT().GetFiles(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 				Return(testCaseCopy.repoFileContents, testCaseCopy.repoPathsError)
 
-			gitGenerator := NewGitGenerator(&argoCDServiceMock, "")
+			gitGenerator := NewGitGenerator(argoCDServiceMock, "")
 			applicationSetInfo := v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "set",
@@ -1036,8 +1032,6 @@ cluster:
 				require.NoError(t, err)
 				assert.ElementsMatch(t, testCaseCopy.expected, got)
 			}
-
-			argoCDServiceMock.AssertExpectations(t)
 		})
 	}
 }
@@ -1331,7 +1325,7 @@ env: testing
 		t.Run(testCaseCopy.name, func(t *testing.T) {
 			t.Parallel()
 
-			argoCDServiceMock := mocks.Repos{}
+			argoCDServiceMock := mocks.NewRepos(t)
 
 			// IMPORTANT: we try to get the files from the repo server that matches the patterns
 			// If we find those files also satisfy the exclude pattern, we remove them from map
@@ -1339,18 +1333,18 @@ env: testing
 			// With the below mock setup, we make sure that if the GetFiles() function gets called
 			// for a include or exclude pattern, it should always return the includeFiles or excludeFiles.
 			for _, pattern := range testCaseCopy.excludePattern {
-				argoCDServiceMock.
-					On("GetFiles", mock.Anything, mock.Anything, mock.Anything, mock.Anything, pattern, mock.Anything, mock.Anything).
+				argoCDServiceMock.EXPECT().
+					GetFiles(mock.Anything, mock.Anything, mock.Anything, mock.Anything, pattern, mock.Anything, mock.Anything).
 					Return(testCaseCopy.excludeFiles, testCaseCopy.repoPathsError)
 			}
 
 			for _, pattern := range testCaseCopy.includePattern {
-				argoCDServiceMock.
-					On("GetFiles", mock.Anything, mock.Anything, mock.Anything, mock.Anything, pattern, mock.Anything, mock.Anything).
+				argoCDServiceMock.EXPECT().
+					GetFiles(mock.Anything, mock.Anything, mock.Anything, mock.Anything, pattern, mock.Anything, mock.Anything).
 					Return(testCaseCopy.includeFiles, testCaseCopy.repoPathsError)
 			}
 
-			gitGenerator := NewGitGenerator(&argoCDServiceMock, "")
+			gitGenerator := NewGitGenerator(argoCDServiceMock, "")
 			applicationSetInfo := v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "set",
@@ -1382,8 +1376,6 @@ env: testing
 				require.NoError(t, err)
 				assert.ElementsMatch(t, testCaseCopy.expected, got)
 			}
-
-			argoCDServiceMock.AssertExpectations(t)
 		})
 	}
 }
@@ -1672,7 +1664,7 @@ env: testing
 		t.Run(testCaseCopy.name, func(t *testing.T) {
 			t.Parallel()
 
-			argoCDServiceMock := mocks.Repos{}
+			argoCDServiceMock := mocks.NewRepos(t)
 
 			// IMPORTANT: we try to get the files from the repo server that matches the patterns
 			// If we find those files also satisfy the exclude pattern, we remove them from map
@@ -1680,18 +1672,18 @@ env: testing
 			// With the below mock setup, we make sure that if the GetFiles() function gets called
 			// for a include or exclude pattern, it should always return the includeFiles or excludeFiles.
 			for _, pattern := range testCaseCopy.excludePattern {
-				argoCDServiceMock.
-					On("GetFiles", mock.Anything, mock.Anything, mock.Anything, mock.Anything, pattern, mock.Anything, mock.Anything).
+				argoCDServiceMock.EXPECT().
+					GetFiles(mock.Anything, mock.Anything, mock.Anything, mock.Anything, pattern, mock.Anything, mock.Anything).
 					Return(testCaseCopy.excludeFiles, testCaseCopy.repoPathsError)
 			}
 
 			for _, pattern := range testCaseCopy.includePattern {
-				argoCDServiceMock.
-					On("GetFiles", mock.Anything, mock.Anything, mock.Anything, mock.Anything, pattern, mock.Anything, mock.Anything).
+				argoCDServiceMock.EXPECT().
+					GetFiles(mock.Anything, mock.Anything, mock.Anything, mock.Anything, pattern, mock.Anything, mock.Anything).
 					Return(testCaseCopy.includeFiles, testCaseCopy.repoPathsError)
 			}
 
-			gitGenerator := NewGitGenerator(&argoCDServiceMock, "")
+			gitGenerator := NewGitGenerator(argoCDServiceMock, "")
 			applicationSetInfo := v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "set",
@@ -1723,8 +1715,6 @@ env: testing
 				require.NoError(t, err)
 				assert.ElementsMatch(t, testCaseCopy.expected, got)
 			}
-
-			argoCDServiceMock.AssertExpectations(t)
 		})
 	}
 }
@@ -1908,25 +1898,25 @@ func TestGitGeneratorParamsFromFilesWithExcludeOptionGoTemplate(t *testing.T) {
 		t.Run(testCaseCopy.name, func(t *testing.T) {
 			t.Parallel()
 
-			argoCDServiceMock := mocks.Repos{}
+			argoCDServiceMock := mocks.NewRepos(t)
 			// IMPORTANT: we try to get the files from the repo server that matches the patterns
 			// If we find those files also satisfy the exclude pattern, we remove them from map
 			// This is generally done by the g.repos.GetFiles() function.
 			// With the below mock setup, we make sure that if the GetFiles() function gets called
 			// for a include or exclude pattern, it should always return the includeFiles or excludeFiles.
 			for _, pattern := range testCaseCopy.excludePattern {
-				argoCDServiceMock.
-					On("GetFiles", mock.Anything, mock.Anything, mock.Anything, mock.Anything, pattern, mock.Anything, mock.Anything).
+				argoCDServiceMock.EXPECT().
+					GetFiles(mock.Anything, mock.Anything, mock.Anything, mock.Anything, pattern, mock.Anything, mock.Anything).
 					Return(testCaseCopy.excludeFiles, testCaseCopy.repoPathsError)
 			}
 
 			for _, pattern := range testCaseCopy.includePattern {
-				argoCDServiceMock.
-					On("GetFiles", mock.Anything, mock.Anything, mock.Anything, mock.Anything, pattern, mock.Anything, mock.Anything).
+				argoCDServiceMock.EXPECT().
+					GetFiles(mock.Anything, mock.Anything, mock.Anything, mock.Anything, pattern, mock.Anything, mock.Anything).
 					Return(testCaseCopy.includeFiles, testCaseCopy.repoPathsError)
 			}
 
-			gitGenerator := NewGitGenerator(&argoCDServiceMock, "")
+			gitGenerator := NewGitGenerator(argoCDServiceMock, "")
 			applicationSetInfo := v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "set",
@@ -1958,8 +1948,6 @@ func TestGitGeneratorParamsFromFilesWithExcludeOptionGoTemplate(t *testing.T) {
 				require.NoError(t, err)
 				assert.ElementsMatch(t, testCaseCopy.expected, got)
 			}
-
-			argoCDServiceMock.AssertExpectations(t)
 		})
 	}
 }
@@ -2279,11 +2267,11 @@ cluster:
 		t.Run(testCaseCopy.name, func(t *testing.T) {
 			t.Parallel()
 
-			argoCDServiceMock := mocks.Repos{}
-			argoCDServiceMock.On("GetFiles", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+			argoCDServiceMock := mocks.NewRepos(t)
+			argoCDServiceMock.EXPECT().GetFiles(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 				Return(testCaseCopy.repoFileContents, testCaseCopy.repoPathsError)
 
-			gitGenerator := NewGitGenerator(&argoCDServiceMock, "")
+			gitGenerator := NewGitGenerator(argoCDServiceMock, "")
 			applicationSetInfo := v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "set",
@@ -2315,8 +2303,6 @@ cluster:
 				require.NoError(t, err)
 				assert.ElementsMatch(t, testCaseCopy.expected, got)
 			}
-
-			argoCDServiceMock.AssertExpectations(t)
 		})
 	}
 }
@@ -2482,35 +2468,35 @@ func TestGitGenerator_GenerateParams(t *testing.T) {
 		},
 	}
 	for _, testCase := range cases {
-		argoCDServiceMock := mocks.Repos{}
+		t.Run(testCase.name, func(t *testing.T) {
+			argoCDServiceMock := mocks.NewRepos(t)
 
-		if testCase.callGetDirectories {
-			var project any
-			if testCase.expectedProject != nil {
-				project = *testCase.expectedProject
-			} else {
-				project = mock.Anything
+			if testCase.callGetDirectories {
+				var project any
+				if testCase.expectedProject != nil {
+					project = *testCase.expectedProject
+				} else {
+					project = mock.Anything
+				}
+
+				argoCDServiceMock.EXPECT().GetDirectories(mock.Anything, mock.Anything, mock.Anything, project, mock.Anything, mock.Anything).Return(testCase.repoApps, testCase.repoPathsError)
 			}
+			gitGenerator := NewGitGenerator(argoCDServiceMock, "argocd")
 
-			argoCDServiceMock.On("GetDirectories", mock.Anything, mock.Anything, mock.Anything, project, mock.Anything, mock.Anything).Return(testCase.repoApps, testCase.repoPathsError)
-		}
-		gitGenerator := NewGitGenerator(&argoCDServiceMock, "argocd")
-
-		scheme := runtime.NewScheme()
-		err := v1alpha1.AddToScheme(scheme)
-		require.NoError(t, err)
-
-		client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&testCase.appProject).Build()
-
-		got, err := gitGenerator.GenerateParams(&testCase.appset.Spec.Generators[0], &testCase.appset, client)
-
-		if testCase.expectedError != nil {
-			require.EqualError(t, err, testCase.expectedError.Error())
-		} else {
+			scheme := runtime.NewScheme()
+			err := v1alpha1.AddToScheme(scheme)
 			require.NoError(t, err)
-			assert.Equal(t, testCase.expected, got)
-		}
 
-		argoCDServiceMock.AssertExpectations(t)
+			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&testCase.appProject).Build()
+
+			got, err := gitGenerator.GenerateParams(&testCase.appset.Spec.Generators[0], &testCase.appset, client)
+
+			if testCase.expectedError != nil {
+				require.EqualError(t, err, testCase.expectedError.Error())
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, testCase.expected, got)
+			}
+		})
 	}
 }
