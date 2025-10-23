@@ -162,7 +162,7 @@ During each polling cycle, Argo CD checks whether your tracked repositories have
 - Applications without auto-sync will simply be marked as OutOfSync in the UI.
 
 Setting `timeout.reconciliation` to 0 completely disables automatic polling. In that case, Argo CD will only detect changes when triggered through webhooks or a manual refresh. When setting it to 0, it may also be required to configure ARGOCD_DEFAULT_CACHE_EXPIRATION.
-However, setting this value to 0 is not recommended for several reasons such as failure of webhooks due to network issues, misconfiguration etc.
+However, setting this value to 0 is not recommended for several reasons such as failure of webhooks due to network issues, misconfiguration etc. If you are using webhooks and are interested in improving Argo CD performance / resource consumption, you can set `timeout.reconciliation` to a lower-frequency interval to reduce the frequency of explicit polling, for example `15m`, `1h` or other interval that is appropriate for your case. 
 
 ## Why is my ArgoCD application `Out Of Sync` when there are no actual changes to the resource limits (or other fields with unit values)?
 
