@@ -315,31 +315,6 @@ const (
 	crdReadinessTimeout = time.Duration(3) * time.Second
 )
 
-// getOperationPhase returns a health status from a _live_ unstructured object
-func (sc *syncContext) getOperationPhase(obj *unstructured.Unstructured) (common.OperationPhase, string, error) {
-	phase := common.OperationSucceeded
-	message := obj.GetName() + " created"
-
-	resHealth, err := health.GetResourceHealth(obj, sc.healthOverride)
-	if err != nil {
-		return "", "", fmt.Errorf("failed to get resource health: %w", err)
-	}
-	if resHealth != nil {
-		switch resHealth.Status {
-		case health.HealthStatusUnknown, health.HealthStatusDegraded:
-			phase = common.OperationFailed
-			message = resHealth.Message
-		case health.HealthStatusProgressing, health.HealthStatusSuspended:
-			phase = common.OperationRunning
-			message = resHealth.Message
-		case health.HealthStatusHealthy:
-			phase = common.OperationSucceeded
-			message = resHealth.Message
-		}
-	}
-	return phase, message, nil
-}
-
 type syncContext struct {
 	healthOverride      health.HealthOverride
 	permissionValidator common.PermissionValidator
@@ -389,6 +364,31 @@ type syncContext struct {
 	applyOutOfSyncOnly bool
 	// stores whether the resource is modified or not
 	modificationResult map[kubeutil.ResourceKey]bool
+}
+
+// getOperationPhase returns a health status from a _live_ unstructured object
+func (sc *syncContext) getOperationPhase(obj *unstructured.Unstructured) (common.OperationPhase, string, error) {
+	phase := common.OperationSucceeded
+	message := obj.GetName() + " created"
+
+	resHealth, err := health.GetResourceHealth(obj, sc.healthOverride)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to get resource health: %w", err)
+	}
+	if resHealth != nil {
+		switch resHealth.Status {
+		case health.HealthStatusUnknown, health.HealthStatusDegraded:
+			phase = common.OperationFailed
+			message = resHealth.Message
+		case health.HealthStatusProgressing, health.HealthStatusSuspended:
+			phase = common.OperationRunning
+			message = resHealth.Message
+		case health.HealthStatusHealthy:
+			phase = common.OperationSucceeded
+			message = resHealth.Message
+		}
+	}
+	return phase, message, nil
 }
 
 func (sc *syncContext) setRunningPhase(tasks []*syncTask, isPendingDeletion bool) {

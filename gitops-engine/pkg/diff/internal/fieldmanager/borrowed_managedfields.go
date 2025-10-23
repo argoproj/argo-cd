@@ -18,6 +18,7 @@ package fieldmanager
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sort"
 
@@ -86,7 +87,7 @@ func EncodeObjectManagedFields(obj runtime.Object, managed ManagedInterface) err
 
 	encodedManagedFields, err := encodeManagedFields(managed)
 	if err != nil {
-		return fmt.Errorf("failed to convert back managed fields to API: %v", err)
+		return fmt.Errorf("failed to convert back managed fields to API: %w", err)
 	}
 	accessor.SetManagedFields(encodedManagedFields)
 
@@ -104,10 +105,10 @@ func DecodeManagedFields(encodedManagedFields []metav1.ManagedFieldsEntry) (Mana
 		switch encodedVersionedSet.Operation {
 		case metav1.ManagedFieldsOperationApply, metav1.ManagedFieldsOperationUpdate:
 		default:
-			return nil, fmt.Errorf("operation must be `Apply` or `Update`")
+			return nil, errors.New("operation must be `Apply` or `Update`")
 		}
 		if len(encodedVersionedSet.APIVersion) < 1 {
-			return nil, fmt.Errorf("apiVersion must not be empty")
+			return nil, errors.New("apiVersion must not be empty")
 		}
 		switch encodedVersionedSet.FieldsType {
 		case "FieldsV1":
@@ -119,11 +120,11 @@ func DecodeManagedFields(encodedManagedFields []metav1.ManagedFieldsEntry) (Mana
 		}
 		manager, err := BuildManagerIdentifier(&encodedVersionedSet)
 		if err != nil {
-			return nil, fmt.Errorf("error decoding manager from %v: %v", encodedVersionedSet, err)
+			return nil, fmt.Errorf("error decoding manager from %v: %w", encodedVersionedSet, err)
 		}
 		managed.fields[manager], err = decodeVersionedSet(&encodedVersionedSet)
 		if err != nil {
-			return nil, fmt.Errorf("error decoding versioned set from %v: %v", encodedVersionedSet, err)
+			return nil, fmt.Errorf("error decoding versioned set from %v: %w", encodedVersionedSet, err)
 		}
 		managed.times[manager] = encodedVersionedSet.Time
 	}
@@ -152,7 +153,7 @@ func BuildManagerIdentifier(encodedManager *metav1.ManagedFieldsEntry) (manager 
 	// Use the remaining fields to build the manager identifier
 	b, err := json.Marshal(&encodedManagerCopy)
 	if err != nil {
-		return "", fmt.Errorf("error marshalling manager identifier: %v", err)
+		return "", fmt.Errorf("error marshalling manager identifier: %w", err)
 	}
 
 	return string(b), nil
@@ -165,7 +166,7 @@ func decodeVersionedSet(encodedVersionedSet *metav1.ManagedFieldsEntry) (version
 	}
 	set, err := FieldsToSet(fields)
 	if err != nil {
-		return nil, fmt.Errorf("error decoding set: %v", err)
+		return nil, fmt.Errorf("error decoding set: %w", err)
 	}
 	return fieldpath.NewVersionedSet(&set, fieldpath.APIVersion(encodedVersionedSet.APIVersion), encodedVersionedSet.Operation == metav1.ManagedFieldsOperationApply), nil
 }
@@ -181,7 +182,7 @@ func encodeManagedFields(managed ManagedInterface) (encodedManagedFields []metav
 		versionedSet := managed.Fields()[manager]
 		v, err := encodeManagerVersionedSet(manager, versionedSet)
 		if err != nil {
-			return nil, fmt.Errorf("error encoding versioned set for %v: %v", manager, err)
+			return nil, fmt.Errorf("error encoding versioned set for %v: %w", manager, err)
 		}
 		if t, ok := managed.Times()[manager]; ok {
 			v.Time = t
@@ -229,7 +230,7 @@ func encodeManagerVersionedSet(manager string, versionedSet fieldpath.VersionedS
 	// Get as many fields as we can from the manager identifier
 	err = json.Unmarshal([]byte(manager), encodedVersionedSet)
 	if err != nil {
-		return nil, fmt.Errorf("error unmarshalling manager identifier %v: %v", manager, err)
+		return nil, fmt.Errorf("error unmarshalling manager identifier %v: %w", manager, err)
 	}
 
 	// Get the APIVersion, Operation, and Fields from the VersionedSet
@@ -240,7 +241,7 @@ func encodeManagerVersionedSet(manager string, versionedSet fieldpath.VersionedS
 	encodedVersionedSet.FieldsType = "FieldsV1"
 	fields, err := SetToFields(*versionedSet.Set())
 	if err != nil {
-		return nil, fmt.Errorf("error encoding set: %v", err)
+		return nil, fmt.Errorf("error encoding set: %w", err)
 	}
 	encodedVersionedSet.FieldsV1 = &fields
 

@@ -17,6 +17,7 @@ limitations under the License.
 package fieldmanager
 
 import (
+	"errors"
 	"fmt"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -125,6 +126,7 @@ func isNoCorrespondingTypeError(err error) bool {
 	if err == nil {
 		return false
 	}
-	_, ok := err.(*noCorrespondingTypeErr)
+	noCorrespondingTypeErr := &noCorrespondingTypeErr{}
+	ok := errors.As(err, &noCorrespondingTypeErr)
 	return ok
 }

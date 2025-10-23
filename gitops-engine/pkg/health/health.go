@@ -41,31 +41,6 @@ type HealthStatus struct {
 	Message string           `json:"message,omitempty"`
 }
 
-// healthOrder is a list of health codes in order of most healthy to least healthy
-var healthOrder = []HealthStatusCode{
-	HealthStatusHealthy,
-	HealthStatusSuspended,
-	HealthStatusProgressing,
-	HealthStatusMissing,
-	HealthStatusDegraded,
-	HealthStatusUnknown,
-}
-
-// IsWorse returns whether or not the new health status code is a worse condition than the current
-func IsWorse(current, new HealthStatusCode) bool {
-	currentIndex := 0
-	newIndex := 0
-	for i, code := range healthOrder {
-		if current == code {
-			currentIndex = i
-		}
-		if new == code {
-			newIndex = i
-		}
-	}
-	return newIndex > currentIndex
-}
-
 // GetResourceHealth returns the health of a k8s resource
 func GetResourceHealth(obj *unstructured.Unstructured, healthOverride HealthOverride) (health *HealthStatus, err error) {
 	if obj.GetDeletionTimestamp() != nil && !hook.HasHookFinalizer(obj) {

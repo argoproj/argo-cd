@@ -150,14 +150,14 @@ func checkConditions(conditions []hpaCondition, progressingStatus *HealthStatus)
 }
 
 func isDegraded(condition *hpaCondition) bool {
-	degraded_states := []hpaCondition{
+	degradedStates := []hpaCondition{
 		{Type: "AbleToScale", Reason: "FailedGetScale"},
 		{Type: "AbleToScale", Reason: "FailedUpdateScale"},
 		{Type: "ScalingActive", Reason: "FailedGetResourceMetric"},
 		{Type: "ScalingActive", Reason: "InvalidSelector"},
 	}
-	for _, degraded_state := range degraded_states {
-		if condition.Type == degraded_state.Type && condition.Reason == degraded_state.Reason {
+	for _, degradedState := range degradedStates {
+		if condition.Type == degradedState.Type && condition.Reason == degradedState.Reason {
 			return true
 		}
 	}

@@ -3,7 +3,7 @@ package main
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestFindPreviousTagRules(t *testing.T) {
@@ -90,10 +90,10 @@ func TestFindPreviousTagRules(t *testing.T) {
 			t.Parallel()
 			result, err := findPreviousTag(test.proposedTag, tags)
 			if test.expectError {
-				assert.Error(t, err)
+				require.Error(t, err)
 			} else {
-				assert.NoError(t, err)
-				assert.Equalf(t, test.expected, result, "for proposed tag %s expected %s but got %s", test.proposedTag, test.expected, result)
+				require.NoError(t, err)
+				require.Equalf(t, test.expected, result, "for proposed tag %s expected %s but got %s", test.proposedTag, test.expected, result)
 			}
 		})
 	}

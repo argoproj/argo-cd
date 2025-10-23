@@ -104,7 +104,7 @@ func newUniqueModels(models proto.Models) (proto.Models, []schema.GroupVersionKi
 
 			// Add GVKs to the map, so we can detect a duplicate GVK later.
 			for _, gvk := range gvkList {
-				if len(gvk.Kind) > 0 {
+				if gvk.Kind != "" {
 					gvks[gvk] = modelName
 				}
 			}
@@ -124,7 +124,7 @@ func modelGvkWasAlreadyProcessed(model proto.Schema, gvks map[schema.GroupVersio
 	for _, gvk := range gvkList {
 		// The kind length check is copied from managedfields.NewGVKParser. It's unclear what edge case it's handling,
 		// but the behavior of this function should match NewGVKParser.
-		if len(gvk.Kind) > 0 {
+		if gvk.Kind != "" {
 			_, ok := gvks[gvk]
 			if ok {
 				// This is the only condition under which NewGVKParser would return a duplicate GVK error.
