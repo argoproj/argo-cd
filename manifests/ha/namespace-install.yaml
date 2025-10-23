@@ -195,6 +195,14 @@ rules:
   - get
   - update
   - create
+- apiGroups:
+  - multicluster.x-k8s.io
+  resources:
+  - clusterprofiles
+  verbs:
+  - get
+  - list
+  - watch
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -2019,7 +2027,7 @@ spec:
         - -n
         - /usr/local/bin/argocd
         - /shared/argocd-dex
-        image: quay.io/argoproj/argocd:latest
+        image: us-central1-docker.pkg.dev/maralder-anthos-dev/argocd-images/argocd:latest
         imagePullPolicy: Always
         name: copyutil
         securityContext:
@@ -2115,7 +2123,7 @@ spec:
               key: notificationscontroller.repo.server.plaintext
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/argoproj/argocd:latest
+        image: us-central1-docker.pkg.dev/maralder-anthos-dev/argocd-images/argocd:latest
         imagePullPolicy: Always
         livenessProbe:
           tcpSocket:
@@ -2239,7 +2247,7 @@ spec:
         - argocd
         - admin
         - redis-initial-password
-        image: quay.io/argoproj/argocd:latest
+        image: us-central1-docker.pkg.dev/maralder-anthos-dev/argocd-images/argocd:latest
         imagePullPolicy: IfNotPresent
         name: secret-init
         securityContext:
@@ -2556,7 +2564,7 @@ spec:
           value: /helm-working-dir
         - name: HELM_DATA_HOME
           value: /helm-working-dir
-        image: quay.io/argoproj/argocd:latest
+        image: us-central1-docker.pkg.dev/maralder-anthos-dev/argocd-images/argocd:latest
         imagePullPolicy: Always
         livenessProbe:
           failureThreshold: 3
@@ -2983,7 +2991,7 @@ spec:
               key: server.sync.replace.allowed
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/argoproj/argocd:latest
+        image: us-central1-docker.pkg.dev/maralder-anthos-dev/argocd-images/argocd:latest
         imagePullPolicy: Always
         livenessProbe:
           httpGet:
@@ -3367,7 +3375,7 @@ spec:
               optional: true
         - name: KUBECACHEDIR
           value: /tmp/kubecache
-        image: quay.io/argoproj/argocd:latest
+        image: us-central1-docker.pkg.dev/maralder-anthos-dev/argocd-images/argocd:latest
         imagePullPolicy: Always
         name: argocd-application-controller
         ports:
