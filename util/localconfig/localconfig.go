@@ -153,7 +153,7 @@ func (l *LocalConfig) ResolveContext(name string) (*Context, error) {
 			User:   *user,
 		}, nil
 	}
-	return nil, fmt.Errorf("Context '%s' undefined", name)
+	return nil, fmt.Errorf("context '%s' undefined", name)
 }
 
 func (l *LocalConfig) GetServer(name string) (*Server, error) {
@@ -162,7 +162,7 @@ func (l *LocalConfig) GetServer(name string) (*Server, error) {
 			return &s, nil
 		}
 	}
-	return nil, fmt.Errorf("Server '%s' undefined", name)
+	return nil, fmt.Errorf("server '%s' undefined", name)
 }
 
 func (l *LocalConfig) UpsertServer(server Server) {
@@ -192,7 +192,7 @@ func (l *LocalConfig) GetUser(name string) (*User, error) {
 			return &u, nil
 		}
 	}
-	return nil, fmt.Errorf("User '%s' undefined", name)
+	return nil, fmt.Errorf("user '%s' undefined", name)
 }
 
 func (l *LocalConfig) UpsertUser(user User) {
@@ -205,7 +205,7 @@ func (l *LocalConfig) UpsertUser(user User) {
 	l.Users = append(l.Users, user)
 }
 
-// Returns true if user was removed successfully
+// RemoveUser Returns true if user was removed successfully
 func (l *LocalConfig) RemoveUser(serverName string) bool {
 	for i, u := range l.Users {
 		if u.Name == serverName {
@@ -216,7 +216,7 @@ func (l *LocalConfig) RemoveUser(serverName string) bool {
 	return false
 }
 
-// Returns true if user was removed successfully
+// RemoveToken Returns true if user was removed successfully
 func (l *LocalConfig) RemoveToken(serverName string) bool {
 	for i, u := range l.Users {
 		if u.Name == serverName {
@@ -238,7 +238,7 @@ func (l *LocalConfig) UpsertContext(context ContextRef) {
 	l.Contexts = append(l.Contexts, context)
 }
 
-// Returns true if context was removed successfully
+// RemoveContext Returns true if context was removed successfully
 func (l *LocalConfig) RemoveContext(serverName string) (string, bool) {
 	for i, c := range l.Contexts {
 		if c.Name == serverName {

@@ -18,38 +18,67 @@ import (
 
 // NewContextCommand returns a new instance of an `argocd ctx` command
 func NewContextCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var deletion bool
 	command := &cobra.Command{
 		Use:     "context [CONTEXT]",
 		Aliases: []string{"ctx"},
 		Short:   "Switch between contexts",
 		Example: `# List Argo CD Contexts
-argocd context
+# List Argo CD Contexts
+argocd context list
 
 # Switch Argo CD context
-argocd context cd.argoproj.io
+argocd context use cd.argoproj.io
+argocd context switch cd.argoproj.io
 
 # Delete Argo CD context
-argocd context cd.argoproj.io --delete`,
+argocd context delete cd.argoproj.io`,
+		Run: func(c *cobra.Command, args []string) {
+			c.HelpFunc()(c, args)
+			os.Exit(1)
+		},
+	}
+	command.AddCommand(NewContextListCommand(clientOpts))
+	command.AddCommand(NewContextUseCommand(clientOpts))
+	command.AddCommand(NewContextDeleteCommand(clientOpts))
+	command.AddCommand(NewContextLoginCommand(clientOpts))
+	return command
+}
+
+// NewContextListCommand lists the contexts
+func NewContextListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	command := &cobra.Command{
+		Use:   "list",
+		Short: "List Argo CD Contexts",
+		Example: `   # List Argo CD Contexts
+	argocd context list`,
+		Run: func(c *cobra.Command, args []string) {
+			if len(args) != 0 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+			printArgoCDContexts(clientOpts.ConfigPath)
+		},
+	}
+
+	return command
+}
+
+// NewContextUseCommand returns a new instance of `argocd context use` command
+func NewContextUseCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	command := &cobra.Command{
+		Use:     "use",
+		Aliases: []string{"switch"},
+		Short:   "Set Argo CD Context",
+		Example: `   # Set  Argo CD context
+	argocd context use cd.argoproj.io`,
 		Run: func(c *cobra.Command, args []string) {
 			localCfg, err := localconfig.ReadLocalConfig(clientOpts.ConfigPath)
 			errors.CheckError(err)
 
-			if deletion {
-				if len(args) == 0 {
-					c.HelpFunc()(c, args)
-					os.Exit(1)
-				}
-				err := deleteContext(args[0], clientOpts.ConfigPath)
-				errors.CheckError(err)
-				return
-			}
-
 			if len(args) == 0 {
-				printArgoCDContexts(clientOpts.ConfigPath)
-				return
+				c.HelpFunc()(c, args)
+				os.Exit(1)
 			}
-
 			ctxName := args[0]
 
 			argoCDDir, err := localconfig.DefaultConfigDir()
@@ -78,7 +107,60 @@ argocd context cd.argoproj.io --delete`,
 			fmt.Printf("Switched to context '%s'\n", localCfg.CurrentContext)
 		},
 	}
-	command.Flags().BoolVar(&deletion, "delete", false, "Delete the context instead of switching to it")
+	return command
+}
+
+// NewContextLoginCommand returns a new instance of `argocd context login` command
+func NewContextLoginCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	command := &cobra.Command{
+		Use:   "login",
+		Short: "Login using Argo CD Context",
+		Example: `  # Login using Argo CD Context
+	argocd context login cd.argoproj.io`,
+		RunE: func(c *cobra.Command, args []string) error {
+			if len(args) != 1 {
+				c.HelpFunc()(c, args)
+				return stderrors.New("invalid arguments")
+			}
+			localCfg, err := localconfig.ReadLocalConfig(clientOpts.ConfigPath)
+			errors.CheckError(err)
+			if localCfg == nil {
+				return stderrors.New("couldn't find local config")
+			}
+			ctx, err := localCfg.ResolveContext(args[0])
+			if err != nil {
+				return fmt.Errorf("context %s does not exist", args[0])
+			}
+			server, err := localCfg.GetServer(ctx.Server.Server)
+			if err != nil {
+				return fmt.Errorf("server %s does not exist", ctx.Server.Server)
+			}
+			loginCmd := NewLoginCommand(clientOpts)
+			loginCmd.SetArgs([]string{server.Server})
+			err = loginCmd.Execute()
+			errors.CheckError(err)
+			return nil
+		},
+	}
+	return command
+}
+
+// NewContextDeleteCommand returns a new instance of `argocd context delete` command
+func NewContextDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	command := &cobra.Command{
+		Use:   "delete",
+		Short: "Delete Argo CD Context",
+		Example: `  # Delete Argo CD Context
+	argocd context delete cd.argoproj.io`,
+		Run: func(c *cobra.Command, args []string) {
+			if len(args) == 0 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+			err := deleteContext(args[0], clientOpts.ConfigPath)
+			errors.CheckError(err)
+		},
+	}
 	return command
 }
 
@@ -88,7 +170,6 @@ func deleteContext(context, configPath string) error {
 	if localCfg == nil {
 		return stderrors.New("nothing to logout from")
 	}
-
 	serverName, ok := localCfg.RemoveContext(context)
 	if !ok {
 		return fmt.Errorf("context %s does not exist", context)
