@@ -768,6 +768,7 @@ func buildGVKParser(t *testing.T) *managedfields.GvkParser {
 }
 
 func TestStructuredMergeDiff(t *testing.T) {
+	t.Parallel()
 	buildParams := func(live, config *unstructured.Unstructured) *SMDParams {
 		gvkParser := buildGVKParser(t)
 		manager := "argocd-controller"
@@ -886,6 +887,7 @@ func TestStructuredMergeDiff(t *testing.T) {
 }
 
 func TestServerSideDiff(t *testing.T) {
+	t.Parallel()
 	buildOpts := func(predictedLive string) []Option {
 		gvkParser := buildGVKParser(t)
 		manager := "argocd-controller"
@@ -1501,7 +1503,7 @@ func TestHideSecretAnnotationsPreserveDifference(t *testing.T) {
 	assert.Equal(t, replacement1, v)
 }
 
-func getTargetSecretJsonBytes() []byte {
+func getTargetSecretJSONBytes() []byte {
 	return []byte(`
 {
     "apiVersion": "v1",
@@ -1521,7 +1523,7 @@ func getTargetSecretJsonBytes() []byte {
 }`)
 }
 
-func getLiveSecretJsonBytes() []byte {
+func getLiveSecretJSONBytes() []byte {
 	return []byte(`
 {
     "kind": "Secret",
@@ -1559,8 +1561,8 @@ func bytesToUnstructured(t *testing.T, jsonBytes []byte) *unstructured.Unstructu
 
 func TestHideSecretDataHandleEmptySecret(t *testing.T) {
 	// given
-	targetSecret := bytesToUnstructured(t, getTargetSecretJsonBytes())
-	liveSecret := bytesToUnstructured(t, getLiveSecretJsonBytes())
+	targetSecret := bytesToUnstructured(t, getTargetSecretJSONBytes())
+	liveSecret := bytesToUnstructured(t, getLiveSecretJSONBytes())
 
 	// when
 	target, live, err := HideSecretData(targetSecret, liveSecret, nil)
@@ -1735,6 +1737,7 @@ func StrToUnstructured(yamlStr string) *unstructured.Unstructured {
 }
 
 func TestDiffWithIgnoreDifferences(t *testing.T) {
+	t.Parallel()
 	t.Run("TwoWayDiff will respect ignoreDifferences for comparison but not output normalization", func(t *testing.T) {
 		// given
 		t.Parallel()

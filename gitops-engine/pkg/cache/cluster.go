@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"runtime/debug"
-	"strings"
 	"sync"
 	"time"
 
@@ -540,7 +539,7 @@ func (c *clusterCache) startMissingWatches() error {
 			ctx, cancel := context.WithCancel(context.Background())
 			c.apisMeta[api.GroupKind] = &apiMeta{namespaced: api.Meta.Namespaced, watchCancel: cancel}
 
-			err := c.processApi(client, api, func(resClient dynamic.ResourceInterface, ns string) error {
+			err := c.processAPI(client, api, func(resClient dynamic.ResourceInterface, ns string) error {
 				resourceVersion, err := c.loadInitialState(ctx, api, resClient, ns, false) // don't lock here, we are already in a lock before startMissingWatches is called inside watchEvents
 				if err != nil && c.isRestrictedResource(err) {
 					keep := false
@@ -783,10 +782,10 @@ func (c *clusterCache) watchEvents(ctx context.Context, api kube.APIResourceInfo
 	})
 }
 
-// processApi processes all the resources for a given API. First we construct an API client for the given API. Then we
+// processAPI processes all the resources for a given API. First we construct an API client for the given API. Then we
 // call the callback. If we're managing the whole cluster, we call the callback with the client and an empty namespace.
 // If we're managing specific namespaces, we call the callback for each namespace.
-func (c *clusterCache) processApi(client dynamic.Interface, api kube.APIResourceInfo, callback func(resClient dynamic.ResourceInterface, ns string) error) error {
+func (c *clusterCache) processAPI(client dynamic.Interface, api kube.APIResourceInfo, callback func(resClient dynamic.ResourceInterface, ns string) error) error {
 	resClient := client.Resource(api.GroupVersionResource)
 	switch {
 	// if manage whole cluster or resource is cluster level and cluster resources enabled
@@ -933,7 +932,7 @@ func (c *clusterCache) sync() error {
 		c.namespacedResources[api.GroupKind] = api.Meta.Namespaced
 		lock.Unlock()
 
-		return c.processApi(client, api, func(resClient dynamic.ResourceInterface, ns string) error {
+		return c.processAPI(client, api, func(resClient dynamic.ResourceInterface, ns string) error {
 			resourceVersion, err := c.listResources(ctx, resClient, func(listPager *pager.ListPager) error {
 				return listPager.EachListItem(context.Background(), metav1.ListOptions{}, func(obj runtime.Object) error {
 					if un, ok := obj.(*unstructured.Unstructured); !ok {
@@ -1140,7 +1139,7 @@ func buildGraph(nsNodes map[kube.ResourceKey]*Resource) map[kube.ResourceKey]map
 						// It is ok to pick any object, but we need to make sure we pick the same child after every refresh.
 						key1 := r.ResourceKey()
 						key2 := childNode.ResourceKey()
-						if strings.Compare(key1.String(), key2.String()) > 0 {
+						if key1.String() > key2.String() {
 							graph[uidNode.ResourceKey()][childNode.Ref.UID] = childNode
 						}
 					}
