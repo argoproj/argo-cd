@@ -255,3 +255,6 @@ Below is an example of a simple extension:
   );
 })(window);
 ```
+
+Example rendered extension:
+![destination](../../assets/application-view-extension.png)
