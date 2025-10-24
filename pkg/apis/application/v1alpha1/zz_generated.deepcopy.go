@@ -1732,6 +1732,13 @@ func (in *ClusterConfig) DeepCopy() *ClusterConfig {
 func (in *ClusterGenerator) DeepCopyInto(out *ClusterGenerator) {
 	*out = *in
 	in.Selector.DeepCopyInto(&out.Selector)
+	if in.ExcludeSelectors != nil {
+		in, out := &in.ExcludeSelectors, &out.ExcludeSelectors
+		*out = make([]v1.LabelSelector, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
 	in.Template.DeepCopyInto(&out.Template)
 	if in.Values != nil {
 		in, out := &in.Values, &out.Values

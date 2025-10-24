@@ -377,14 +377,15 @@ type ClusterGenerator struct {
 	// Selector defines a label selector to match against all clusters registered with ArgoCD.
 	// Clusters today are stored as Kubernetes Secrets, thus the Secret labels will be used
 	// for matching the selector.
-	Selector metav1.LabelSelector   `json:"selector,omitempty" protobuf:"bytes,1,name=selector"`
-	Template ApplicationSetTemplate `json:"template,omitempty" protobuf:"bytes,2,name=template"`
+	Selector         metav1.LabelSelector   `json:"selector,omitempty" protobuf:"bytes,1,name=selector"`
+	ExcludeSelectors []metav1.LabelSelector `json:"excludeSelectors,omitempty" protobuf:"bytes,2,name=ExcludeSelectors"`
+	Template         ApplicationSetTemplate `json:"template,omitempty" protobuf:"bytes,3,name=template"`
 
 	// Values contains key/value pairs which are passed directly as parameters to the template
-	Values map[string]string `json:"values,omitempty" protobuf:"bytes,3,name=values"`
+	Values map[string]string `json:"values,omitempty" protobuf:"bytes,4,name=values"`
 
 	// returns the clusters a single 'clusters' value in the template
-	FlatList bool `json:"flatList,omitempty" protobuf:"bytes,4,name=flatList"`
+	FlatList bool `json:"flatList,omitempty" protobuf:"bytes,5,name=flatList"`
 }
 
 // DuckType defines a generator to match against clusters registered with ArgoCD.

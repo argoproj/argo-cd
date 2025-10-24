@@ -902,13 +902,15 @@ message ClusterGenerator {
   // for matching the selector.
   optional .k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector selector = 1;
 
-  optional ApplicationSetTemplate template = 2;
+  repeated .k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector excludeSelectors = 2;
+
+  optional ApplicationSetTemplate template = 3;
 
   // Values contains key/value pairs which are passed directly as parameters to the template
-  map<string, string> values = 3;
+  map<string, string> values = 4;
 
   // returns the clusters a single 'clusters' value in the template
-  optional bool flatList = 4;
+  optional bool flatList = 5;
 }
 
 // ClusterInfo contains information about the cluster
