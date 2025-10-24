@@ -41,6 +41,57 @@ func (_m *ClusterCache) EXPECT() *ClusterCache_Expecter {
 	return &ClusterCache_Expecter{mock: &_m.Mock}
 }
 
+// AddNamespace provides a mock function for the type ClusterCache
+func (_mock *ClusterCache) AddNamespace(namespace string) error {
+	ret := _mock.Called(namespace)
+
+	if len(ret) == 0 {
+		panic("no return value specified for AddNamespace")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(string) error); ok {
+		r0 = returnFunc(namespace)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// ClusterCache_AddNamespace_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AddNamespace'
+type ClusterCache_AddNamespace_Call struct {
+	*mock.Call
+}
+
+// AddNamespace is a helper method to define mock.On call
+//   - namespace string
+func (_e *ClusterCache_Expecter) AddNamespace(namespace interface{}) *ClusterCache_AddNamespace_Call {
+	return &ClusterCache_AddNamespace_Call{Call: _e.mock.On("AddNamespace", namespace)}
+}
+
+func (_c *ClusterCache_AddNamespace_Call) Run(run func(namespace string)) *ClusterCache_AddNamespace_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 string
+		if args[0] != nil {
+			arg0 = args[0].(string)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *ClusterCache_AddNamespace_Call) Return(err error) *ClusterCache_AddNamespace_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *ClusterCache_AddNamespace_Call) RunAndReturn(run func(namespace string) error) *ClusterCache_AddNamespace_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // EnsureSynced provides a mock function for the type ClusterCache
 func (_mock *ClusterCache) EnsureSynced() error {
 	ret := _mock.Called()
@@ -764,6 +815,57 @@ func (_c *ClusterCache_OnResourceUpdated_Call) Return(unsubscribe cache.Unsubscr
 }
 
 func (_c *ClusterCache_OnResourceUpdated_Call) RunAndReturn(run func(handler cache.OnResourceUpdatedHandler) cache.Unsubscribe) *ClusterCache_OnResourceUpdated_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// RemoveNamespace provides a mock function for the type ClusterCache
+func (_mock *ClusterCache) RemoveNamespace(namespace string) error {
+	ret := _mock.Called(namespace)
+
+	if len(ret) == 0 {
+		panic("no return value specified for RemoveNamespace")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(string) error); ok {
+		r0 = returnFunc(namespace)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// ClusterCache_RemoveNamespace_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RemoveNamespace'
+type ClusterCache_RemoveNamespace_Call struct {
+	*mock.Call
+}
+
+// RemoveNamespace is a helper method to define mock.On call
+//   - namespace string
+func (_e *ClusterCache_Expecter) RemoveNamespace(namespace interface{}) *ClusterCache_RemoveNamespace_Call {
+	return &ClusterCache_RemoveNamespace_Call{Call: _e.mock.On("RemoveNamespace", namespace)}
+}
+
+func (_c *ClusterCache_RemoveNamespace_Call) Run(run func(namespace string)) *ClusterCache_RemoveNamespace_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 string
+		if args[0] != nil {
+			arg0 = args[0].(string)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *ClusterCache_RemoveNamespace_Call) Return(err error) *ClusterCache_RemoveNamespace_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *ClusterCache_RemoveNamespace_Call) RunAndReturn(run func(namespace string) error) *ClusterCache_RemoveNamespace_Call {
 	_c.Call.Return(run)
 	return _c
 }
