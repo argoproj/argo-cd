@@ -1259,7 +1259,7 @@ func Test_nativeGitClient_GetCommitNote(t *testing.T) {
 	require.NoError(t, err, "error output: ", out)
 
 	// Create and commit a test file
-	err = os.WriteFile(filepath.Join(client.Root(), "README.md"), []byte("content"), 0644)
+	err = os.WriteFile(filepath.Join(client.Root(), "README.md"), []byte("content"), 0o644)
 	require.NoError(t, err)
 	out, err = client.CommitAndPush(branch, "initial commit")
 	require.NoError(t, err, "error output: %s", out)
@@ -1311,7 +1311,7 @@ func Test_nativeGitClient_AddAndPushNote(t *testing.T) {
 	require.NoError(t, err, "error output: ", out)
 
 	// Create and commit a test file
-	err = os.WriteFile(filepath.Join(client.Root(), "README.md"), []byte("content"), 0644)
+	err = os.WriteFile(filepath.Join(client.Root(), "README.md"), []byte("content"), 0o644)
 	require.NoError(t, err)
 	out, err = client.CommitAndPush(branch, "initial commit")
 	require.NoError(t, err, "error output: %s", out)
@@ -1378,7 +1378,7 @@ func Test_nativeGitClient_HasFileChanged(t *testing.T) {
 	fileName := "sample.txt"
 	filePath := filepath.Join(client.Root(), fileName)
 
-	err = os.WriteFile(filePath, []byte("first version"), 0644)
+	err = os.WriteFile(filePath, []byte("first version"), 0o644)
 	require.NoError(t, err)
 
 	// Untracked file, should be reported as changed
@@ -1394,7 +1394,7 @@ func Test_nativeGitClient_HasFileChanged(t *testing.T) {
 	require.False(t, changed, "expected committed file to not be changed")
 
 	// Modify the file should be reported as changed
-	err = os.WriteFile(filePath, []byte("modified content"), 0644)
+	err = os.WriteFile(filePath, []byte("modified content"), 0o644)
 	require.NoError(t, err)
 	changed, err = client.HasFileChanged(filePath)
 	require.NoError(t, err)
