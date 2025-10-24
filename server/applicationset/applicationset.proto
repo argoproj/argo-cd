@@ -16,6 +16,8 @@ message ApplicationSetGetQuery {
 	string name = 1;
 	// The application set namespace. Default empty is argocd control plane namespace
 	string appsetNamespace = 2;
+	// Optional project to filter the applicationset by its template.spec.project
+	string project = 3;
 }
 
 message ApplicationSetListQuery {
@@ -26,7 +28,6 @@ message ApplicationSetListQuery {
 	// The application set namespace. Default empty is argocd control plane namespace
 	string appsetNamespace = 3;
 }
-
 
 message ApplicationSetResponse {
 	string project = 1;
@@ -92,7 +93,7 @@ service ApplicationSetService {
 		};
 	}
 
-	// Delete deletes an application set
+	// Delete deletes an applicationset
 	rpc Delete(ApplicationSetDeleteRequest) returns (ApplicationSetResponse) {
 		option (google.api.http).delete = "/api/v1/applicationsets/{name}";
 	}
