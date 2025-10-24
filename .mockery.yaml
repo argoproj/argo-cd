@@ -7,6 +7,9 @@ template-data:
   unroll-variadic: true
 
 packages:
+  github.com/argoproj/argo-cd/v3/pkg/apiclient/application:
+    interfaces:
+      ApplicationServiceClient: {}
   github.com/argoproj/argo-cd/v3/applicationset/generators:
     interfaces:
       Generator: {}
