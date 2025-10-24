@@ -483,6 +483,24 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	// Check for Azure AD groups overflow and resolve if needed
+	if a.settings.OIDCConfig() != nil && a.settings.OIDCConfig().Azure != nil {
+		azureConfig := a.settings.OIDCConfig().Azure
+		if azureConfig.EnableGroupsOverflowResolution {
+			// Attempt to resolve groups overflow via Graph API
+			resolvedGroups, err := ResolveAzureGroupsOverflow(r.Context(), claims, token.AccessToken, azureConfig)
+			if err != nil {
+				// Log the error but don't block authentication
+				log.Warnf("Failed to resolve Azure groups overflow: %v", err)
+			} else if len(resolvedGroups) > 0 {
+				// Add resolved groups to claims
+				claims["groups"] = resolvedGroups
+				log.Infof("Successfully added %d groups from Azure overflow resolution", len(resolvedGroups))
+			}
+		}
+	}
+
 	// save the accessToken in memory for later use
 	encToken, err := crypto.Encrypt([]byte(token.AccessToken), a.encryptionKey)
 	if err != nil {
@@ -655,19 +673,56 @@ func (a *ClientApp) SetGroupsFromUserInfo(claims jwt.Claims, sessionManagerClaim
 			}
 		}
 	}
+
+	// Note: The original behavior was to always try UserInfo endpoint, even if groups exist in claims.
+	// This maintains backward compatibility with existing tests and behavior.
+	// TODO: Consider changing this to prioritize inline groups in a future version.
+
 	iss := jwtutil.StringField(groupClaims, "iss")
-	if iss != sessionManagerClaimsIssuer && a.settings.UserInfoGroupsEnabled() && a.settings.UserInfoPath() != "" {
-		userInfo, unauthorized, err := a.GetUserInfo(groupClaims, a.settings.IssuerURL(), a.settings.UserInfoPath())
-		if unauthorized {
-			return groupClaims, fmt.Errorf("error while quering userinfo endpoint: %w", err)
+	if iss != sessionManagerClaimsIssuer {
+		// Priority 2: Try UserInfo endpoint if enabled
+		if a.settings.UserInfoGroupsEnabled() && a.settings.UserInfoPath() != "" {
+			userInfo, unauthorized, err := a.GetUserInfo(groupClaims, a.settings.IssuerURL(), a.settings.UserInfoPath())
+			if unauthorized {
+				return groupClaims, fmt.Errorf("error while quering userinfo endpoint: %w", err)
+			}
+			if err != nil {
+				return groupClaims, fmt.Errorf("error fetching user info endpoint: %w", err)
+			}
+			if groupClaims["sub"] != userInfo["sub"] {
+				return groupClaims, errors.New("subject of claims from user info endpoint didn't match subject of idToken, see https://openid.net/specs/openid-connect-core-1_0.html#UserInfo")
+			}
+			groupClaims["groups"] = userInfo["groups"]
+			return groupClaims, nil
 		}
-		if err != nil {
-			return groupClaims, fmt.Errorf("error fetching user info endpoint: %w", err)
+
+		// Priority 3: Try Azure AD overflow resolution if enabled
+		if a.settings.OIDCConfig() != nil && a.settings.OIDCConfig().Azure != nil {
+			azureConfig := a.settings.OIDCConfig().Azure
+			if azureConfig.EnableGroupsOverflowResolution {
+				// Check if we have an access token cached for this user
+				sub := jwtutil.StringField(groupClaims, "sub")
+				var encAccessToken []byte
+				err := a.clientCache.Get(FormatAccessTokenCacheKey(sub), &encAccessToken)
+				if err == nil {
+					// Decrypt the access token
+					accessToken, err := crypto.Decrypt(encAccessToken, a.encryptionKey)
+					if err == nil {
+						// Attempt to resolve groups overflow via Graph API
+						resolvedGroups, err := ResolveAzureGroupsOverflow(context.Background(), groupClaims, string(accessToken), azureConfig)
+						if err != nil {
+							// Log the error but don't fail the session
+							log.Warnf("Failed to resolve Azure groups overflow in SetGroupsFromUserInfo: %v", err)
+						} else if len(resolvedGroups) > 0 {
+							// Add resolved groups to claims
+							groupClaims["groups"] = resolvedGroups
+							log.Infof("Successfully added %d groups from Azure overflow resolution in SetGroupsFromUserInfo", len(resolvedGroups))
+							return groupClaims, nil
+						}
+					}
+				}
+			}
 		}
-		if groupClaims["sub"] != userInfo["sub"] {
-			return groupClaims, errors.New("subject of claims from user info endpoint didn't match subject of idToken, see https://openid.net/specs/openid-connect-core-1_0.html#UserInfo")
-		}
-		groupClaims["groups"] = userInfo["groups"]
 	}
 
 	return groupClaims, nil
