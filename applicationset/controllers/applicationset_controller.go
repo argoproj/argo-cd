@@ -63,6 +63,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
+	clusterinventoryv1alpha1 "sigs.k8s.io/cluster-inventory-api/apis/v1alpha1"
 )
 
 const (
@@ -655,6 +656,12 @@ func (r *ApplicationSetReconciler) SetupWithManager(mgr ctrl.Manager, enableProg
 			&clusterSecretEventHandler{
 				Client: mgr.GetClient(),
 				Log:    log.WithField("type", "createSecretEventHandler"),
+			}).
+		Watches(
+			&clusterinventoryv1alpha1.ClusterProfile{},
+			&clusterProfileEventHandler{
+				Client: mgr.GetClient(),
+				Log:    log.WithField("type", "createClusterProfileEventHandler"),
 			}).
 		Complete(r)
 }

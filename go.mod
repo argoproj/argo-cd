@@ -119,6 +119,8 @@ require (
 	sigs.k8s.io/yaml v1.6.0
 )
 
+require sigs.k8s.io/cluster-inventory-api v0.0.0-20250905200926-6d9c0fd21edd
+
 require (
 	cloud.google.com/go/auth v0.15.0 // indirect
 	cloud.google.com/go/auth/oauth2adapt v0.2.7 // indirect

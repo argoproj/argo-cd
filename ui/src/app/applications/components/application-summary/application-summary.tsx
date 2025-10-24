@@ -497,32 +497,26 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                             <p>SYNC POLICY</p>
                             <div className='row white-box__details-row'>
                                 <div className='columns small-3'>
-                                    {app.spec.syncPolicy?.automated && app.spec.syncPolicy.automated.enabled !== false ? <span>AUTOMATED</span> : <span>NONE</span>}
+                                    {(app.spec.syncPolicy && app.spec.syncPolicy.automated && app.spec.syncPolicy.automated.enabled !== false && <span>AUTOMATED</span>) || (
+                                        <span>NONE</span>
+                                    )}
                                 </div>
-                            </div>
-                            <div className='row white-box__details-row'>
-                                <div className='columns small-12'>
-                                    <div className='checkbox-container'>
-                                        <Checkbox
-                                            onChange={async (val: boolean) => {
-                                                const automated = app.spec.syncPolicy?.automated || {prune: false, selfHeal: false};
-                                                setAutoSync(
-                                                    ctx,
-                                                    val ? 'Enable Auto-Sync?' : 'Disable Auto-Sync?',
-                                                    val
-                                                        ? 'If checked, application will automatically sync when changes are detected'
-                                                        : 'Are you sure you want to disable automated application synchronization',
-                                                    automated.prune,
-                                                    automated.selfHeal,
-                                                    val
-                                                );
-                                            }}
-                                            checked={app.spec.syncPolicy?.automated && app.spec.syncPolicy.automated.enabled !== false}
-                                            id='enable-auto-sync'
-                                        />
-                                        <label htmlFor='enable-auto-sync'>ENABLE AUTO-SYNC</label>
-                                        <HelpIcon title='If checked, application will automatically sync when changes are detected' />
-                                    </div>
+                                <div className='columns small-9'>
+                                    {(app.spec.syncPolicy && app.spec.syncPolicy.automated && app.spec.syncPolicy.automated.enabled !== false && (
+                                        <button className='argo-button argo-button--base' onClick={() => unsetAutoSync(ctx)}>
+                                            <Spinner show={changeSync} style={{marginRight: '5px'}} />
+                                            Disable Auto-Sync
+                                        </button>
+                                    )) || (
+                                        <button
+                                            className='argo-button argo-button--base'
+                                            onClick={() =>
+                                                setAutoSync(ctx, 'Enable Auto-Sync?', 'Are you sure you want to enable automated application synchronization?', false, false, true)
+                                            }>
+                                            <Spinner show={changeSync} style={{marginRight: '5px'}} />
+                                            Enable Auto-Sync
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                             {app.spec.syncPolicy && app.spec.syncPolicy.automated && (
