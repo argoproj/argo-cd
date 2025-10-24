@@ -39,26 +39,36 @@ func (f *fakeGetClient) NewApplicationClientOrDie() (io.Closer, applicationpkg.A
 	return closer, client
 }
 
+func mockAppWithMultiSources(testAppName string, sources ...v1alpha1.ApplicationSource) *v1alpha1.Application {
+	return &v1alpha1.Application{
+		ObjectMeta: metav1.ObjectMeta{Name: testAppName},
+		Spec: v1alpha1.ApplicationSpec{
+			Sources: sources,
+		},
+	}
+}
+
+func mockAppWithSingleSource(testAppName string, source *v1alpha1.ApplicationSource) *v1alpha1.Application {
+	return &v1alpha1.Application{
+		ObjectMeta: metav1.ObjectMeta{Name: testAppName},
+		Spec: v1alpha1.ApplicationSpec{
+			Source: source,
+		},
+	}
+}
+
 // TestApplicationGetCommand_FatalErrors tests fatal errors using the 'exec' pattern.
 func TestApplicationGetCommand_FatalErrors(t *testing.T) {
-	// mock application with multiple sources
-	multiSourceApp := &v1alpha1.Application{
-		ObjectMeta: metav1.ObjectMeta{Name: "my-app"},
-		Spec: v1alpha1.ApplicationSpec{
-			Sources: v1alpha1.ApplicationSources{
-				{RepoURL: "https://one", Path: "one"},
-				{RepoURL: "https://two", Path: "two"},
-			},
-		},
-	}
-
-	// mock application with a single source
-	singleSourceApp := &v1alpha1.Application{
-		ObjectMeta: metav1.ObjectMeta{Name: "my-app"},
-		Spec: v1alpha1.ApplicationSpec{
-			Source: &v1alpha1.ApplicationSource{RepoURL: "https://one", Path: "one"},
-		},
-	}
+	const testAppName = "my-app"
+	multiSourceApp := mockAppWithMultiSources(
+		testAppName,
+		v1alpha1.ApplicationSource{RepoURL: "https://one", Path: "one"},
+		v1alpha1.ApplicationSource{RepoURL: "https://two", Path: "two"},
+	)
+	singleSourceApp := mockAppWithSingleSource(
+		testAppName,
+		&v1alpha1.ApplicationSource{RepoURL: "https://one", Path: "one"},
+	)
 
 	testCases := []struct {
 		name        string
@@ -68,19 +78,19 @@ func TestApplicationGetCommand_FatalErrors(t *testing.T) {
 	}{
 		{
 			name:        "ErrorOnUsingPositionAndNameFlagsTogether",
-			args:        []string{"my-app", "--source-position", "1", "--source-name", "test"},
+			args:        []string{testAppName, "--source-position", "1", "--source-name", "test"},
 			mockApp:     singleSourceApp,
 			expectedMsg: "Only one of source-position and source-name can be specified.",
 		},
 		{
 			name:        "ErrorOnInvalidPositionZero",
-			args:        []string{"my-app", "--show-params", "--source-position", "0"},
+			args:        []string{testAppName, "--show-params", "--source-position", "0"},
 			mockApp:     multiSourceApp,
 			expectedMsg: "Source position should be specified and must be greater than 0 for applications with multiple sources",
 		},
 		{
 			name:        "ErrorOnPositionOutOfRange",
-			args:        []string{"my-app", "--show-params", "--source-position", "3"},
+			args:        []string{testAppName, "--show-params", "--source-position", "3"},
 			mockApp:     multiSourceApp,
 			expectedMsg: "Source position should be less than the number of sources in the application",
 		},
@@ -114,14 +124,12 @@ func TestApplicationGetCommand_FatalErrors(t *testing.T) {
 			cmd := exec.CommandContext(context.Background(), os.Args[0], "-test.run=^"+regexp.QuoteMeta(t.Name())+"$")
 			cmd.Env = append(os.Environ(), "GO_TEST_SUBPROCESS=1")
 
-			// Capture stderr from the child process.
 			var stderr bytes.Buffer
 			cmd.Stderr = &stderr
 
 			// Run the child process. It should return an error because it exits with a non-zero code.
 			err := cmd.Run()
 
-			// Assert the results.
 			require.Error(t, err, "command should exit with an error")
 
 			var exitErr *exec.ExitError
