@@ -124,6 +124,98 @@
 
    Refer to [operator-manual/argocd-rbac-cm.yaml](https://github.com/argoproj/argo-cd/blob/master/docs/operator-manual/argocd-rbac-cm.yaml) for all of the available variables.
 
+## Azure AD Groups Overflow Resolution
+
+### Overview
+
+Azure AD access tokens can only contain up to 200 groups. When a user has more than 200 group memberships, Azure AD sets overflow indicators (`_claim_names` and `_claim_sources`) in the ID token and requires a separate Microsoft Graph API call to retrieve all groups (up to 11,000).
+
+Argo CD can automatically detect and resolve this overflow by calling the Microsoft Graph API to fetch the complete group list.
+
+### Prerequisites
+
+1. **User.Read Scope**: The Azure AD application must be granted the `User.Read` scope
+2. **Graph API Access**: The access token must contain the `User.Read` scope to call the Graph API
+3. **Overflow Resolution Enabled**: The feature must be enabled in the Argo CD configuration
+
+### Configuration
+
+Add the following to your `argocd-cm` configuration:
+
+```yaml
+oidc.config: |
+  name: Azure
+  issuer: https://login.microsoftonline.com/{tenant_id}/v2.0
+  clientID: {client_id}
+  clientSecret: $oidc.azure.clientSecret
+  azure:
+    useWorkloadIdentity: false
+    enableGroupsOverflowResolution: true  # Enable overflow resolution (default: false)
+    maxGroupsLimit: 1000                  # Maximum groups to add (default: 1000)
+  requestedScopes:
+    - openid
+    - profile
+    - email
+    - User.Read  # Required for groups overflow resolution
+```
+
+### Configuration Options
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `enableGroupsOverflowResolution` | `false` | Enable automatic overflow resolution for Azure AD |
+| `maxGroupsLimit` | `1000` | Maximum groups to add (discard all if exceeded) |
+
+### How It Works
+
+1. **Detection**: Argo CD checks the ID token for overflow indicators (`_claim_names` and `_claim_sources`)
+2. **Validation**: Verifies that the overflow indicators are properly formatted and no existing groups claim is present
+3. **Scope Check**: Ensures the access token contains the `User.Read` scope
+4. **Graph API Call**: Calls `https://graph.microsoft.com/v1.0/me/getMemberGroups` to fetch all groups
+5. **Limit Application**: Applies the configured maximum groups limit (default: 1,000)
+6. **Groups Integration**: Adds the resolved groups to the user's claims for RBAC
+
+### Security Considerations
+
+- **Non-blocking**: Graph API failures never prevent authentication
+- **Scope Validation**: Always verifies `User.Read` scope before making Graph API calls
+- **Deterministic Behavior**: Discards all groups if count exceeds the maximum limit
+- **Error Handling**: Internal errors are logged but never exposed to end users
+
+### Troubleshooting
+
+#### Common Issues
+
+1. **Missing User.Read Scope**
+   - **Symptom**: Logs show "access token missing User.Read scope"
+   - **Solution**: Ensure the Azure AD application has the `User.Read` scope granted
+
+2. **Graph API Permission Denied**
+   - **Symptom**: Logs show "insufficient permissions for Graph API"
+   - **Solution**: Verify the application has the necessary permissions in Azure AD
+
+3. **Groups Exceed Limit**
+   - **Symptom**: Logs show "group count X exceeds maximum limit Y"
+   - **Solution**: Adjust the `maxGroupsLimit` setting or reduce user's group memberships
+
+4. **No Overflow Detected**
+   - **Symptom**: User still has 0 groups despite having 200+ memberships
+   - **Solution**: Check that `enableGroupsOverflowResolution` is set to `true`
+
+#### Log Messages
+
+- **Info**: "Azure AD groups overflow detected for user {sub}, resolving via Graph API"
+- **Info**: "Successfully resolved {count} groups for user {sub}"
+- **Warning**: "User {sub} has {count} groups, exceeds limit of {maxLimit}, discarding all groups"
+- **Error**: "Failed to resolve groups via Graph API for user {sub}: {error}"
+
+### Performance Impact
+
+- **Graph API Calls**: One additional HTTP request per user login (when overflow is detected)
+- **Timeout**: 5-second timeout for Graph API calls
+- **Caching**: Groups are cached with the user's session (no additional caching needed)
+- **Rate Limiting**: Respects Microsoft Graph API rate limits
+
 ## Entra ID SAML Enterprise App Auth using Dex
 ### Configure a new Entra ID Enterprise App
 
