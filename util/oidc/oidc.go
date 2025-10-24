@@ -38,11 +38,12 @@ import (
 var ErrInvalidRedirectURL = errors.New("invalid return URL")
 
 const (
-	GrantTypeAuthorizationCode  = "authorization_code"
-	GrantTypeImplicit           = "implicit"
-	ResponseTypeCode            = "code"
-	UserInfoResponseCachePrefix = "userinfo_response"
-	AccessTokenCachePrefix      = "access_token"
+	GrantTypeAuthorizationCode            = "authorization_code"
+	GrantTypeImplicit                     = "implicit"
+	ResponseTypeCode                      = "code"
+	UserInfoResponseCachePrefix           = "userinfo_response"
+	AzureGroupsOverageResponseCachePrefix = "azure_groups_overage_response"
+	AccessTokenCachePrefix                = "access_token"
 )
 
 // OIDCConfiguration holds a subset of interested fields from the OIDC configuration spec
@@ -483,6 +484,7 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
 	// save the accessToken in memory for later use
 	encToken, err := crypto.Encrypt([]byte(token.AccessToken), a.encryptionKey)
 	if err != nil {
@@ -640,12 +642,14 @@ func createClaimsAuthenticationRequestParameter(requestedClaims map[string]*oidc
 	return oauth2.SetAuthURLParam("claims", string(claimsRequestRAW)), nil
 }
 
-// SetGroupsFromUserInfo takes a claims object and adds groups claim from userinfo endpoint if available
+// SetGroupsClaimFromEndpoint takes a claims object and adds groups claim from either:
+// - userinfo endpoint if enabled
+// - Azure Graph API endpoint if enabled and applicable (Azure groups overage claim)
 // This is required by some SSO implementations as they don't provide the groups claim in the ID token
-// If querying the UserInfo endpoint fails, we return an error to indicate the session is invalid
+// If querying the endpoint fails, we return an error to indicate the session is invalid
 // we assume that everywhere in argocd jwt.MapClaims is used as type for interface jwt.Claims
 // otherwise this would cause a panic
-func (a *ClientApp) SetGroupsFromUserInfo(claims jwt.Claims, sessionManagerClaimsIssuer string) (jwt.MapClaims, error) {
+func (a *ClientApp) SetGroupsClaimFromEndpoint(claims jwt.Claims, sessionManagerClaimsIssuer string) (jwt.MapClaims, error) {
 	var groupClaims jwt.MapClaims
 	var ok bool
 	if groupClaims, ok = claims.(jwt.MapClaims); !ok {
@@ -655,19 +659,31 @@ func (a *ClientApp) SetGroupsFromUserInfo(claims jwt.Claims, sessionManagerClaim
 			}
 		}
 	}
+
 	iss := jwtutil.StringField(groupClaims, "iss")
-	if iss != sessionManagerClaimsIssuer && a.settings.UserInfoGroupsEnabled() && a.settings.UserInfoPath() != "" {
-		userInfo, unauthorized, err := a.GetUserInfo(groupClaims, a.settings.IssuerURL(), a.settings.UserInfoPath())
-		if unauthorized {
-			return groupClaims, fmt.Errorf("error while quering userinfo endpoint: %w", err)
+	if iss != sessionManagerClaimsIssuer {
+		if a.settings.UserInfoGroupsEnabled() && a.settings.UserInfoPath() != "" {
+			userInfo, unauthorized, err := a.GetUserInfo(groupClaims, a.settings.IssuerURL(), a.settings.UserInfoPath())
+			if unauthorized {
+				return groupClaims, fmt.Errorf("error while querying userinfo endpoint: %w", err)
+			}
+			if err != nil {
+				return groupClaims, fmt.Errorf("error fetching user info endpoint: %w", err)
+			}
+			if groupClaims["sub"] != userInfo["sub"] {
+				return groupClaims, errors.New("subject of claims from user info endpoint didn't match subject of idToken, see https://openid.net/specs/openid-connect-core-1_0.html#UserInfo")
+			}
+			groupClaims["groups"] = userInfo["groups"]
+			return groupClaims, nil
+		} else if a.settings.AzureUserGroupOverageClaimEnabled() && a.settings.AzureGraphAPIEndpoint() != "" {
+			groupsFromAzure, err := a.GetUserGroupsFromAzureOverageClaim(groupClaims, a.settings.AzureGraphAPIEndpoint())
+			if err != nil {
+				return groupClaims, fmt.Errorf("error fetching user groups from Azure overage claim: %w", err)
+			} else if len(groupsFromAzure) > 0 {
+				groupClaims["groups"] = groupsFromAzure
+				return groupClaims, nil
+			}
 		}
-		if err != nil {
-			return groupClaims, fmt.Errorf("error fetching user info endpoint: %w", err)
-		}
-		if groupClaims["sub"] != userInfo["sub"] {
-			return groupClaims, errors.New("subject of claims from user info endpoint didn't match subject of idToken, see https://openid.net/specs/openid-connect-core-1_0.html#UserInfo")
-		}
-		groupClaims["groups"] = userInfo["groups"]
 	}
 
 	return groupClaims, nil
@@ -695,20 +711,9 @@ func (a *ClientApp) GetUserInfo(actualClaims jwt.MapClaims, issuerURL, userInfoP
 		}
 	}
 
-	// check if the accessToken for the user is still present
-	var encAccessToken []byte
-	err := a.clientCache.Get(FormatAccessTokenCacheKey(sub), &encAccessToken)
-	// without an accessToken we can't query the user info endpoint
-	// thus the user needs to reauthenticate for argocd to get a new accessToken
-	if errors.Is(err, cache.ErrCacheMiss) {
-		return claims, true, fmt.Errorf("no accessToken for %s: %w", sub, err)
-	} else if err != nil {
-		return claims, true, fmt.Errorf("could not read accessToken from cache for %s: %w", sub, err)
-	}
-
-	accessToken, err := crypto.Decrypt(encAccessToken, a.encryptionKey)
+	accessToken, err := a.getTokenFromCache(sub)
 	if err != nil {
-		return claims, true, fmt.Errorf("could not decrypt accessToken for %s: %w", sub, err)
+		return claims, true, fmt.Errorf("could not get accessToken from cache: %w", err)
 	}
 
 	url := issuerURL + userInfoPath
@@ -806,9 +811,30 @@ func getTokenExpiration(claims jwt.MapClaims) time.Duration {
 	return tokenExpiry
 }
 
+func (a *ClientApp) getTokenFromCache(sub string) ([]byte, error) {
+	var encAccessToken []byte
+	err := a.clientCache.Get(FormatAccessTokenCacheKey(sub), &encAccessToken)
+	if errors.Is(err, cache.ErrCacheMiss) {
+		return nil, fmt.Errorf("no accessToken for %s: %w", sub, err)
+	} else if err != nil {
+		return nil, fmt.Errorf("could not read accessToken from cache for %s: %w", sub, err)
+	}
+
+	accessToken, err := crypto.Decrypt(encAccessToken, a.encryptionKey)
+	if err != nil {
+		return nil, fmt.Errorf("could not decrypt accessToken for %s: %w", sub, err)
+	}
+	return accessToken, nil
+}
+
 // formatUserInfoResponseCacheKey returns the key which is used to store userinfo of user in cache
 func FormatUserInfoResponseCacheKey(sub string) string {
 	return fmt.Sprintf("%s_%s", UserInfoResponseCachePrefix, sub)
+}
+
+// formatAzureGroupsOverageResponseCacheKey returns the key which is used to store Azure AD groups overage response of user in cache
+func FormatAzureGroupsOverageResponseCacheKey(sub string) string {
+	return fmt.Sprintf("%s_%s", AzureGroupsOverageResponseCachePrefix, sub)
 }
 
 // formatAccessTokenCacheKey returns the key which is used to store the accessToken of a user in cache

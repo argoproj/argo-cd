@@ -1173,7 +1173,7 @@ func TestGetUserInfo(t *testing.T) {
 	}
 }
 
-func TestSetGroupsFromUserInfo(t *testing.T) {
+func TestSetGroupsClaimFromUserInfoEndpoint(t *testing.T) {
 	tests := []struct {
 		name           string
 		inputClaims    jwt.MapClaims // function input
@@ -1253,7 +1253,7 @@ userInfoPath: /`,
 				require.NoError(t, err, "failed setting item to in-memory cache")
 			}
 
-			receivedClaims, err := a.SetGroupsFromUserInfo(tt.inputClaims, "argocd")
+			receivedClaims, err := a.SetGroupsClaimFromEndpoint(tt.inputClaims, "argocd")
 			if tt.expectError {
 				require.Error(t, err)
 			} else {
