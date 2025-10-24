@@ -19,6 +19,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -245,6 +246,16 @@ func TestStatefulSetOwnershipInferred(t *testing.T) {
 		},
 	}
 
+	defaultNs := &corev1.Namespace{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Namespace",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "default",
+		},
+	}
+
 	tests := []struct {
 		name          string
 		cluster       *clusterCache
@@ -254,7 +265,7 @@ func TestStatefulSetOwnershipInferred(t *testing.T) {
 	}{
 		{
 			name:    "STSTemplateNameNotMatching",
-			cluster: newCluster(t, sts),
+			cluster: newCluster(t, sts, defaultNs),
 			pvc: &corev1.PersistentVolumeClaim{
 				TypeMeta:   metav1.TypeMeta{Kind: kube.PersistentVolumeClaimKind},
 				ObjectMeta: metav1.ObjectMeta{Name: "www1-web-0", Namespace: "default"},
@@ -263,7 +274,7 @@ func TestStatefulSetOwnershipInferred(t *testing.T) {
 		},
 		{
 			name:    "MatchingSTSExists",
-			cluster: newCluster(t, sts),
+			cluster: newCluster(t, sts, defaultNs),
 			pvc: &corev1.PersistentVolumeClaim{
 				TypeMeta:   metav1.TypeMeta{Kind: kube.PersistentVolumeClaimKind},
 				ObjectMeta: metav1.ObjectMeta{Name: "www-web-0", Namespace: "default"},
@@ -272,7 +283,7 @@ func TestStatefulSetOwnershipInferred(t *testing.T) {
 		},
 		{
 			name:    "STSTemplateNameNotMatchingWithBatchProcessing",
-			cluster: newClusterWithOptions(t, opts, sts),
+			cluster: newClusterWithOptions(t, opts, sts, defaultNs),
 			pvc: &corev1.PersistentVolumeClaim{
 				TypeMeta:   metav1.TypeMeta{Kind: kube.PersistentVolumeClaimKind},
 				ObjectMeta: metav1.ObjectMeta{Name: "www1-web-0", Namespace: "default"},
@@ -281,7 +292,7 @@ func TestStatefulSetOwnershipInferred(t *testing.T) {
 		},
 		{
 			name:    "MatchingSTSExistsWithBatchProcessing",
-			cluster: newClusterWithOptions(t, opts, sts),
+			cluster: newClusterWithOptions(t, opts, sts, defaultNs),
 			pvc: &corev1.PersistentVolumeClaim{
 				TypeMeta:   metav1.TypeMeta{Kind: kube.PersistentVolumeClaimKind},
 				ObjectMeta: metav1.ObjectMeta{Name: "www-web-0", Namespace: "default"},
@@ -334,7 +345,26 @@ func TestEnsureSyncedSingleNamespace(t *testing.T) {
 		},
 	}
 
-	cluster := newCluster(t, obj1, obj2)
+	ns1 := &corev1.Namespace{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Namespace",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "default1",
+		},
+	}
+	ns2 := &corev1.Namespace{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Namespace",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "default2",
+		},
+	}
+
+	cluster := newCluster(t, obj1, obj2, ns1, ns2)
 	cluster.namespaces = []string{"default1"}
 	err := cluster.EnsureSynced()
 	require.NoError(t, err)
@@ -420,7 +450,26 @@ metadata:
 }
 
 func TestGetManagedLiveObjsNamespacedModeClusterLevelResource(t *testing.T) {
-	cluster := newCluster(t, testPod1(), testRS(), testDeploy())
+	defaultNs := &corev1.Namespace{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Namespace",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "default",
+		},
+	}
+	productionNs := &corev1.Namespace{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Namespace",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "production",
+		},
+	}
+
+	cluster := newCluster(t, testPod1(), testRS(), testDeploy(), defaultNs, productionNs)
 	cluster.Invalidate(SetPopulateResourceInfoHandler(func(_ *unstructured.Unstructured, _ bool) (info any, cacheManifest bool) {
 		return nil, true
 	}))
@@ -445,7 +494,26 @@ metadata:
 }
 
 func TestGetManagedLiveObjsNamespacedModeClusterLevelResource_ClusterResourceEnabled(t *testing.T) {
-	cluster := newCluster(t, testPod1(), testRS(), testDeploy())
+	defaultNs := &corev1.Namespace{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Namespace",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "default",
+		},
+	}
+	productionNs := &corev1.Namespace{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Namespace",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "production",
+		},
+	}
+
+	cluster := newCluster(t, testPod1(), testRS(), testDeploy(), defaultNs, productionNs)
 	cluster.Invalidate(SetPopulateResourceInfoHandler(func(_ *unstructured.Unstructured, _ bool) (info any, cacheManifest bool) {
 		return nil, true
 	}))
@@ -514,7 +582,26 @@ metadata:
 }
 
 func TestGetManagedLiveObjsValidNamespace(t *testing.T) {
-	cluster := newCluster(t, testPod1(), testRS(), testDeploy())
+	defaultNs := &corev1.Namespace{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Namespace",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "default",
+		},
+	}
+	productionNs := &corev1.Namespace{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Namespace",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "production",
+		},
+	}
+
+	cluster := newCluster(t, testPod1(), testRS(), testDeploy(), defaultNs, productionNs)
 	cluster.Invalidate(SetPopulateResourceInfoHandler(func(_ *unstructured.Unstructured, _ bool) (info any, cacheManifest bool) {
 		return nil, true
 	}))
@@ -542,7 +629,26 @@ metadata:
 }
 
 func TestGetManagedLiveObjsInvalidNamespace(t *testing.T) {
-	cluster := newCluster(t, testPod1(), testRS(), testDeploy())
+	defaultNs := &corev1.Namespace{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Namespace",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "default",
+		},
+	}
+	developNs := &corev1.Namespace{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Namespace",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "develop",
+		},
+	}
+
+	cluster := newCluster(t, testPod1(), testRS(), testDeploy(), defaultNs, developNs)
 	cluster.Invalidate(SetPopulateResourceInfoHandler(func(_ *unstructured.Unstructured, _ bool) (info any, cacheManifest bool) {
 		return nil, true
 	}))
@@ -595,7 +701,18 @@ func TestGetManagedLiveObjsFailedConversion(t *testing.T) {
 		t.Run(testCaseCopy.name, func(t *testing.T) {
 			err := apiextensions.AddToScheme(scheme.Scheme)
 			require.NoError(t, err)
-			cluster := newCluster(t, testCRD(), testCronTab()).
+
+			defaultNs := &corev1.Namespace{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "v1",
+					Kind:       "Namespace",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "default",
+				},
+			}
+
+			cluster := newCluster(t, testCRD(), testCronTab(), defaultNs).
 				WithAPIResources([]kube.APIResourceInfo{
 					{
 						GroupKind:            schema.GroupKind{Group: cronTabGroup, Kind: "CronTab"},
@@ -1291,4 +1408,40 @@ func BenchmarkIterateHierarchyV2(b *testing.B) {
 			return true
 		})
 	}
+}
+
+func TestSyncWithDeletedNamespace(t *testing.T) {
+	deletedNamespace := "deleted-namespace"
+	validNamespace := "default"
+	pod := testPod1()
+	pod.SetNamespace(validNamespace)
+	validNs := &corev1.Namespace{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Namespace",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: validNamespace,
+		},
+	}
+	cluster := newCluster(t, pod, validNs)
+	cluster.namespaces = []string{validNamespace, deletedNamespace}
+	client := cluster.kubectl.(*kubetest.MockKubectlCmd).DynamicClient.(*fake.FakeDynamicClient)
+
+	// Simulate namespace not found (deleted)
+	client.PrependReactor("get", "namespaces", func(action testcore.Action) (handled bool, ret runtime.Object, err error) {
+		getAction := action.(testcore.GetAction)
+		if getAction.GetName() == deletedNamespace {
+			return true, nil, apierrors.NewNotFound(
+				schema.GroupResource{Group: "", Resource: "namespaces"},
+				deletedNamespace)
+		}
+		return false, nil, nil
+	})
+
+	err := cluster.sync()
+
+	require.NoError(t, err)
+	assert.NotContains(t, cluster.namespaces, deletedNamespace)
+	assert.Contains(t, cluster.namespaces, validNamespace)
 }
