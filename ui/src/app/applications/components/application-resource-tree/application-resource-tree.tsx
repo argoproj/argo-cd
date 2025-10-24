@@ -548,7 +548,11 @@ function renderPodGroup(props: ApplicationResourceTreeProps, id: string, node: R
                                         // Use common formatting function for CPU and Memory
                                         if (i.name === 'cpu' || i.name === 'memory') {
                                             const {tooltipValue} = formatResourceInfo(i.name, `${i.value}`);
-                                            return <div key={i.name}>{tooltipValue}</div>;
+                                            return (
+                                                <div key={i.name}>
+                                                    {tooltipValue}
+                                                </div>
+                                            );
                                         } else {
                                             return (
                                                 <div key={i.name}>
@@ -842,7 +846,7 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                 ) : null}
                 {(node.info || [])
                     .filter(tag => !tag.name.includes('Node') && tag.name !== 'managed-by-url')
-                    .slice(0, 4)
+                    .slice(0, 2)
                     .map((tag, i) => {
                         return <NodeInfoDetails tag={tag} kind={node.kind} key={i} />;
                     })}
@@ -850,19 +854,23 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                     <Tooltip
                         content={
                             <>
-                                {(node.info || []).map(i => {
-                                    // Use common formatting function for CPU and Memory
-                                    if (i.name === 'cpu' || i.name === 'memory') {
-                                        const {tooltipValue} = formatResourceInfo(i.name, `${i.value}`);
-                                        return <div key={i.name}>{tooltipValue}</div>;
-                                    } else {
-                                        return (
-                                            <div key={i.name}>
-                                                {i.name}: {i.value}
-                                            </div>
-                                        );
-                                    }
-                                })}
+                                    {(node.info || []).map(i => {
+                                        // Use common formatting function for CPU and Memory
+                                        if (i.name === 'cpu' || i.name === 'memory') {
+                                            const {tooltipValue} = formatResourceInfo(i.name, `${i.value}`);
+                                            return (
+                                                <div key={i.name}>
+                                                    {tooltipValue}
+                                                </div>
+                                            );
+                                        } else {
+                                            return (
+                                                <div key={i.name}>
+                                                    {i.name}: {i.value}
+                                                </div>
+                                            );
+                                        }
+                                    })}
                             </>
                         }
                         key={node.uid}>
