@@ -85,8 +85,7 @@ func WriteForPaths(root *os.Root, repoUrl, drySha string, dryCommitMetadata *app
 			}
 			continue
 		}
-		// If even one new manifest exists then commit needs to happen else skip commit
-		// once set to true do not override
+		//  If any manifest has changed, signal that a commit should occur. If none have changed, skip committing.
 		atleastOneManifestChanged = changed
 
 		// Write hydrator.metadata containing information about the hydration process.

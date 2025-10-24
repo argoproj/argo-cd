@@ -168,13 +168,11 @@ func (s *Service) handleCommitRequest(logCtx *log.Entry, r *apiclient.CommitHydr
 		return "", "", fmt.Errorf("failed to get commit SHA: %w", err)
 	}
 
-	logCtx.Debug("Clearing and preparing paths")
-
 	/* git note changes
-	1. Get the git note for the DRY SHA
+	1. Get the git note
 	2. If found, short-circuit, log a warn and return
 	3. If not, get the last manifest from git  for every path, compare it with the hydrated manifest
-	3a. If manifest has no changes, continue.. no need to push it
+	3a. If manifest has no changes, continue.. no need to commit it
 	3b. Else, hydrate the manifest.
 	3c. Push the updated note
 	*/
@@ -182,7 +180,7 @@ func (s *Service) handleCommitRequest(logCtx *log.Entry, r *apiclient.CommitHydr
 	if err != nil {
 		return "", "", fmt.Errorf("failed to get notes from git %w", err)
 	}
-	// short-circuit if hydrated already
+	// short-circuit if already hydrated
 	if isHydrated {
 		logCtx.Debugf("this dry sha %s is already hydrated", r.DrySha)
 		return "", "", nil
