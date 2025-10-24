@@ -1859,3 +1859,43 @@ export function getApplicationLinkURLFromNode(node: any, baseHref: string): {url
     }
     return {url, isExternal};
 }
+
+export function formatResourceInfo(name: string, value: string): {displayValue: string; tooltipValue: string} {
+    const numValue = parseInt(value, 10);
+
+    const formatCPUValue = (milliCpu: number): string => {
+        return milliCpu >= 1000 ? `${(milliCpu / 1000).toFixed(1)}` : `${milliCpu}m`;
+    };
+
+    const formatMemoryValue = (milliBytes: number): string => {
+        const mib = Math.round(milliBytes / (1024 * 1024 * 1000));
+        return `${mib}Mi`;
+    };
+
+    const formatCPUTooltip = (milliCpu: number): string => {
+        const displayValue = milliCpu >= 1000 ? `${(milliCpu / 1000).toFixed(1)} cores` : `${milliCpu}m`;
+        return `CPU Request: ${displayValue}`;
+    };
+
+    const formatMemoryTooltip = (milliBytes: number): string => {
+        const mib = Math.round(milliBytes / (1024 * 1024 * 1000));
+        return `Memory Request: ${mib}Mi`;
+    };
+
+    if (name === 'cpu') {
+        return {
+            displayValue: formatCPUValue(numValue),
+            tooltipValue: formatCPUTooltip(numValue)
+        };
+    } else if (name === 'memory') {
+        return {
+            displayValue: formatMemoryValue(numValue),
+            tooltipValue: formatMemoryTooltip(numValue)
+        };
+    }
+
+    return {
+        displayValue: value,
+        tooltipValue: `${name}: ${value}`
+    };
+}
