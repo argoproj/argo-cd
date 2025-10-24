@@ -2,6 +2,7 @@ package generator
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"math/rand"
 	"time"
@@ -63,27 +64,33 @@ func (generator *ApplicationGenerator) buildDestination(opts *util.GenerateOpts,
 
 func (generator *ApplicationGenerator) Generate(opts *util.GenerateOpts) error {
 	settingsMgr := settings.NewSettingsManager(context.TODO(), generator.clientSet, opts.Namespace)
+
 	repositories, err := db.NewDB(opts.Namespace, settingsMgr, generator.clientSet).ListRepositories(context.TODO())
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to list repositories for namespace %s: %w", opts.Namespace, err)
 	}
+
 	clusters, err := db.NewDB(opts.Namespace, settingsMgr, generator.clientSet).ListClusters(context.TODO())
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to list clusters for namespace %s: %w", opts.Namespace, err)
 	}
+
 	applications := generator.argoClientSet.ArgoprojV1alpha1().Applications(opts.Namespace)
 	for i := 0; i < opts.ApplicationOpts.Samples; i++ {
 		log.Printf("Generate application #%v", i)
+
 		source, err := generator.buildSource(opts, repositories)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to build source for application #%d: %w", i, err)
 		}
 		log.Printf("Pick source %q", source)
+
 		destination, err := generator.buildDestination(opts, clusters.Items)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to build destination for application #%d: %w", i, err)
 		}
 		log.Printf("Pick destination %q", destination)
+
 		log.Printf("Create application")
 		_, err = applications.Create(context.TODO(), &v1alpha1.Application{
 			ObjectMeta: metav1.ObjectMeta{
@@ -98,9 +105,10 @@ func (generator *ApplicationGenerator) Generate(opts *util.GenerateOpts) error {
 			},
 		}, metav1.CreateOptions{})
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to create application #%d in namespace %s: %w", i, opts.Namespace, err)
 		}
 	}
+
 	return nil
 }
 

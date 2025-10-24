@@ -347,7 +347,7 @@ func (m *MetricsServer) SetExpiration(cacheExpiration time.Duration) error {
 		kubectl.ResetAll()
 	})
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to add cron job for metrics expiration (%s): %w", cacheExpiration, err)
 	}
 
 	m.cron.Start()

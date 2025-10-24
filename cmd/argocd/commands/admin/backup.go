@@ -347,7 +347,8 @@ func NewImportCommand() *cobra.Command {
 									}
 									newLive.SetResourceVersion(liveObj.GetResourceVersion())
 									_, err = dynClient.Update(ctx, newLive, metav1.UpdateOptions{})
-									return err
+									return fmt.Errorf("failed to update resource for Group: %s, Kind: %s, Name: %s, Namespace: %s: %w",
+										gvk.Group, gvk.Kind, bakObj.GetName(), bakObj.GetNamespace(), err)
 								})
 							}
 						}
