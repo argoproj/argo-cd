@@ -1,30 +1,24 @@
-# `argocd context` Command Reference
+# `argocd context login` Command Reference
 
-## argocd context
+## argocd context login
 
-Switch between contexts
+Login using ArgoCD Context
 
 ```
-argocd context [CONTEXT] [flags]
+argocd context login [flags]
 ```
 
 ### Examples
 
 ```
-# List Argo CD Contexts
-argocd context list
-
-# Switch Argo CD context
-argocd context switch cd.argoproj.io
-
-# Delete Argo CD context
-argocd context delete cd.argoproj.io
+  # Login using ArgoCD Context
+	argocd context login cd.argoproj.io
 ```
 
 ### Options
 
 ```
-  -h, --help   help for context
+  -h, --help   help for login
 ```
 
 ### Options inherited from parent commands
@@ -60,9 +54,5 @@ argocd context delete cd.argoproj.io
 
 ### SEE ALSO
 
-* [argocd](argocd.md)	 - argocd controls a Argo CD server
-* [argocd context delete](argocd_context_delete.md)	 - Delete ArgoCD Context
-* [argocd context list](argocd_context_list.md)	 - List ArgoCD Contexts
-* [argocd context login](argocd_context_login.md)	 - Login using ArgoCD Context
-* [argocd context switch](argocd_context_switch.md)	 - Switch ArgoCD Context
+* [argocd context](argocd_context.md)	 - Switch between contexts
 
