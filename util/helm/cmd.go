@@ -228,9 +228,14 @@ func writeToTmp(data []byte) (string, utilio.Closer, error) {
 
 func (c *Cmd) Fetch(repo, chartName, version, destination string, creds Creds, passCredentials bool) (string, error) {
 	args := []string{"pull", "--destination", destination}
-	if version != "" {
+	if version != "" && !strings.HasPrefix(version, "sha256:") {
+		// it is ok to use version flag
 		args = append(args, "--version", version)
+	} else if version != "" && strings.HasPrefix(version, "sha256:") {
+		// For sha256 digest, append it to the chart name
+		chartName = fmt.Sprintf("%s@%s", chartName, version)
 	}
+
 	if creds.GetUsername() != "" {
 		args = append(args, "--username", creds.GetUsername())
 	}
@@ -279,12 +284,16 @@ func (c *Cmd) Fetch(repo, chartName, version, destination string, creds Creds, p
 }
 
 func (c *Cmd) PullOCI(repo string, chart string, version string, destination string, creds Creds) (string, error) {
-	args := []string{
-		"pull", fmt.Sprintf("oci://%s/%s", repo, chart), "--version",
-		version,
-		"--destination",
-		destination,
+	args := []string{"pull"}
+	chartRef := fmt.Sprintf("oci://%s/%s", repo, chart)
+
+	if strings.HasPrefix(version, "sha256:") {
+		args = append(args, fmt.Sprintf("%s@%s", chartRef, version))
+	} else {
+		args = append(args, chartRef, "--version", version)
 	}
+	args = append(args, "--destination", destination)
+
 	if creds.GetCAPath() != "" {
 		args = append(args, "--ca-file", creds.GetCAPath())
 	}
