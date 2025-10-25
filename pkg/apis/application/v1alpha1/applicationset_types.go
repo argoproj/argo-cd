@@ -41,6 +41,21 @@ type ConfigMapKeyRef struct {
 }
 
 // ApplicationSet is a set of Application resources
+//
+// COMMON PROPERTIES (shared with Application, used by frontend AbstractApplication):
+// - TypeMeta (apiVersion, kind): Kubernetes type metadata
+// - ObjectMeta (metadata): Standard Kubernetes object metadata (name, namespace, labels, annotations, etc.)
+// - Spec: Desired application set state (type differs: ApplicationSetSpec vs ApplicationSpec)
+// - Status: Observed application set state (type differs: ApplicationSetStatus vs ApplicationStatus)
+//
+// APPLICATIONSET-SPECIFIC PROPERTIES:
+// ApplicationSet currently has no type-specific fields beyond the common properties listed above.
+//
+// WARNING: The frontend UI abstracts Application and ApplicationSet via the AbstractApplication interface
+// to enable shared UI components and logic. Changes to the common properties listed above should maintain
+// compatibility across both types. Adding new common fields requires corresponding updates to Application.
+// If adding ApplicationSet-specific fields, ensure the frontend abstraction can handle them appropriately.
+//
 // +genclient
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
