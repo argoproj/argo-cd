@@ -45,8 +45,8 @@ argocd context delete cd.argoproj.io`,
 func NewContextListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	command := &cobra.Command{
 		Use:   "list",
-		Short: "List ArgoCD Contexts",
-		Example: `   # List ArgoCD Contexts
+		Short: "List Argo CD Contexts",
+		Example: `   # List Argo CD Contexts
 	argocd context list`,
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 0 {
@@ -63,8 +63,8 @@ func NewContextListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 func NewContextSwitchCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	command := &cobra.Command{
 		Use:   "switch",
-		Short: "Switch ArgoCD Context",
-		Example: `   # Switch ArgoCD Context
+		Short: "Switch Argo CD Context",
+		Example: `   # Switch Argo CD Context
 	argocd context switch cd.argoproj.io`,
 		Run: func(c *cobra.Command, args []string) {
 			localCfg, err := localconfig.ReadLocalConfig(clientOpts.ConfigPath)
@@ -108,8 +108,8 @@ func NewContextSwitchCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 func NewContextLoginCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	command := &cobra.Command{
 		Use:   "login",
-		Short: "Login using ArgoCD Context",
-		Example: `  # Login using ArgoCD Context
+		Short: "Login using Argo CD Context",
+		Example: `  # Login using Argo CD Context
 	argocd context login cd.argoproj.io`,
 		RunE: func(c *cobra.Command, args []string) error {
 			if len(args) == 0 {
@@ -119,7 +119,7 @@ func NewContextLoginCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comma
 			localCfg, err := localconfig.ReadLocalConfig(clientOpts.ConfigPath)
 			errors.CheckError(err)
 			if localCfg == nil {
-				return fmt.Errorf("couldn't find local config")
+				return errors.New("couldn't find local config")
 			}
 			ctx, err := localCfg.GetContext(args[0])
 			if err != nil {
@@ -142,8 +142,8 @@ func NewContextLoginCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comma
 func NewContextDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	command := &cobra.Command{
 		Use:   "delete",
-		Short: "Delete ArgoCD Context",
-		Example: `  # Delete ArgoCD Context
+		Short: "Delete Argo CD Context",
+		Example: `  # Delete Argo CD Context
 	argocd context delete cd.argoproj.io`,
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) == 0 {
