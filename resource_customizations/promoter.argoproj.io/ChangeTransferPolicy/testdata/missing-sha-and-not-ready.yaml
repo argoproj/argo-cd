@@ -1,0 +1,87 @@
+apiVersion: promoter.argoproj.io/v1alpha1
+kind: ChangeTransferPolicy
+metadata:
+  annotations:
+    promoter.argoproj.io/reconcile-at: '2025-10-15T17:11:51.672763364Z'
+  creationTimestamp: '2025-10-15T16:26:17Z'
+  generation: 1
+  labels:
+    promoter.argoproj.io/environment: environments-qal-usw2
+    promoter.argoproj.io/promotion-strategy: strategy
+  name: strategy-environments-qal-usw2-27894e05
+  namespace: test
+  ownerReferences:
+    - apiVersion: promoter.argoproj.io/v1alpha1
+      blockOwnerDeletion: true
+      controller: true
+      kind: PromotionStrategy
+      name: strategy
+      uid: 146aaaba-72d5-4155-bf5b-b5fd03b8a6d0
+  resourceVersion: '116412858'
+  uid: 62e1ed12-d808-4c78-9217-f80822f930ae
+spec:
+  activeBranch: environments/qal-usw2
+  activeCommitStatuses:
+    - key: argocd-health
+  autoMerge: true
+  gitRepositoryRef:
+    name: repo
+  proposedBranch: environments/qal-usw2-next
+status:
+  active:
+    commitStatuses:
+      - key: argocd-health
+        phase: pending
+    dry: {}
+    hydrated:
+      author: ServiceAccount
+      commitTime: '2025-10-15T15:38:20Z'
+      sha: b060fc7f5079a5aa7364a3844cfe26ee3084e282
+      subject: '[Changed] - infrastructure deployment'
+  conditions:
+    - lastTransitionTime: '2025-10-15T17:34:14Z'
+      message: 'PullRequest "deployment-environments-qal-usw2-next-environments-qal-usw2-7a8e7b70" is not Ready because "ReconciliationError": Reconciliation failed: failed to merge pull request: failed to merge pull request: failed to merge pull request: PUT https://github.example.com/api/v3/repos/org/deployment/pulls/3/merge: 405 At least 2 approving reviews are required by reviewers with write access. Required status check "continuous-integration/jenkins/pr-head" is expected. You''re not authorized to push to this branch.'
+      observedGeneration: 1
+      reason: PullRequestNotReady
+      status: 'False'
+      type: Ready
+  history:
+    - active:
+        dry: {}
+        hydrated:
+          author: ServiceAccount
+          commitTime: '2025-10-15T15:38:20Z'
+          sha: b060fc7f5079a5aa7364a3844cfe26ee3084e282
+          subject: '[Changed] - infrastructure deployment'
+      proposed:
+        hydrated: {}
+      pullRequest: {}
+    - active:
+        dry: {}
+        hydrated:
+          author: ServiceAccount
+          commitTime: '2025-10-15T15:15:27Z'
+          sha: bb607f8854d83de1724bcc5515f685adf9d8a704
+          subject: Initial commit
+      proposed:
+        hydrated: {}
+      pullRequest: {}
+  proposed:
+    dry:
+      author: user <user@example.com>
+      commitTime: '2025-10-15T16:24:35Z'
+      repoURL: https://github.example.com/org/deployment.git
+      sha: ac7866685e376f32aaf09dced3cf2d39dc1ba50e
+      subject: Create promotion-strategy.yaml
+    hydrated:
+      author: Argo CD
+      body: 'Co-authored-by: user <user@example.com>'
+      commitTime: '2025-10-15T16:26:18Z'
+      sha: 2e8097c049a97c05e6f787f46aabfe3cc2a8af21
+      subject: 'ac78666: Create promotion-strategy.yaml'
+  pullRequest:
+    id: '3'
+    prCreationTime: '2025-10-15T17:11:53Z'
+    state: open
+    url: https://github.example.com/org/deployment/pull/3
+

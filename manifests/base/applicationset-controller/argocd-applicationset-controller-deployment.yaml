@@ -206,6 +206,8 @@ spec:
               name: tmp
             - name: argocd-repo-server-tls
               mountPath: /app/config/reposerver/tls
+            - name: argocd-cmd-params-cm
+              mountPath: /home/argocd/params
           securityContext:
             capabilities:
               drop:
@@ -241,5 +243,12 @@ spec:
                 path: tls.key
               - key: ca.crt
                 path: ca.crt
+        - name: argocd-cmd-params-cm
+          configMap:
+            optional: true
+            name: argocd-cmd-params-cm
+            items:
+              - key: applicationsetcontroller.profile.enabled
+                path: profiler.enabled
       nodeSelector:
         kubernetes.io/os: linux

@@ -294,6 +294,8 @@ data:
   applicationsetcontroller.enable.github.api.metrics: "false"
   # The maximum number of resources stored in the status of an ApplicationSet. This is a safeguard to prevent the status from growing too large.
   applicationsetcontroller.status.max.resources.count: "5000"
+  # Enables profile endpoint on the internal metrics port
+  applicationsetcontroller.profile.enabled: "false"
 
   ## Argo CD Notifications Controller Properties
   # Set the logging level. One of: debug|info|warn|error (default "info")
