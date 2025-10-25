@@ -18,38 +18,61 @@ import (
 
 // NewContextCommand returns a new instance of an `argocd ctx` command
 func NewContextCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var deletion bool
 	command := &cobra.Command{
 		Use:     "context [CONTEXT]",
 		Aliases: []string{"ctx"},
 		Short:   "Switch between contexts",
 		Example: `# List Argo CD Contexts
-argocd context
+argocd context list
 
 # Switch Argo CD context
-argocd context cd.argoproj.io
+argocd context switch cd.argoproj.io
 
 # Delete Argo CD context
-argocd context cd.argoproj.io --delete`,
+argocd context delete cd.argoproj.io`,
+		Run: func(c *cobra.Command, args []string) {
+			c.HelpFunc()(c, args)
+			os.Exit(1)
+		},
+	}
+	command.AddCommand(NewContextListCommand(clientOpts))
+	command.AddCommand(NewContextSwitchCommand(clientOpts))
+	command.AddCommand(NewContextDeleteCommand(clientOpts))
+	return command
+}
+
+func NewContextListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	command := &cobra.Command{
+		Use:   "list",
+		Short: "List ArgoCD Contexts",
+		Example: `   # List ArgoCD Contexts
+	argocd context list`,
+		Run: func(c *cobra.Command, args []string) {
+			if len(args) != 0 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+			printArgoCDContexts(clientOpts.ConfigPath)
+		},
+	}
+
+	return command
+}
+
+func NewContextSwitchCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	command := &cobra.Command{
+		Use:   "switch",
+		Short: "Switch ArgoCD Context",
+		Example: `   # Switch ArgoCD Context
+	argocd context switch cd.argoproj.io`,
 		Run: func(c *cobra.Command, args []string) {
 			localCfg, err := localconfig.ReadLocalConfig(clientOpts.ConfigPath)
 			errors.CheckError(err)
 
-			if deletion {
-				if len(args) == 0 {
-					c.HelpFunc()(c, args)
-					os.Exit(1)
-				}
-				err := deleteContext(args[0], clientOpts.ConfigPath)
-				errors.CheckError(err)
-				return
-			}
-
 			if len(args) == 0 {
-				printArgoCDContexts(clientOpts.ConfigPath)
-				return
+				c.HelpFunc()(c, args)
+				os.Exit(1)
 			}
-
 			ctxName := args[0]
 
 			argoCDDir, err := localconfig.DefaultConfigDir()
@@ -78,7 +101,24 @@ argocd context cd.argoproj.io --delete`,
 			fmt.Printf("Switched to context '%s'\n", localCfg.CurrentContext)
 		},
 	}
-	command.Flags().BoolVar(&deletion, "delete", false, "Delete the context instead of switching to it")
+	return command
+}
+
+func NewContextDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	command := &cobra.Command{
+		Use:   "delete",
+		Short: "Delete ArgoCD Context",
+		Example: `  # Delete ArgoCD Context
+	argocd context delete cd.argoproj.io`,
+		Run: func(c *cobra.Command, args []string) {
+			if len(args) == 0 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+			err := deleteContext(args[0], clientOpts.ConfigPath)
+			errors.CheckError(err)
+		},
+	}
 	return command
 }
 
