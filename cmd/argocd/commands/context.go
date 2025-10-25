@@ -129,8 +129,6 @@ func NewContextLoginCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comma
 			if err != nil {
 				return fmt.Errorf("server %s does not exist", ctx.Server)
 			}
-			clientOpts.ServerAddr = server.Server
-			clientOpts.Context = ctx.Name
 			loginCmd := NewLoginCommand(clientOpts)
 			loginCmd.SetArgs([]string{server.Server})
 			err = loginCmd.Execute()
