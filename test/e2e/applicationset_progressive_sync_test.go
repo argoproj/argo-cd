@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"log"
 	"testing"
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -8,12 +9,15 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/applicationsets"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
+	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/applicationsets"
 )
 
 func init() {
-	fixture.SetParamInSettingConfigMap("applicationsetcontroller.enable.progressive.syncs", "true")
+	// Enable progressive sync feature for all tests in this file
+	if err := fixture.SetParamInSettingConfigMap("applicationsetcontroller.enable.progressive.syncs", "true"); err != nil {
+		log.Fatalf("failed to enable progressive sync: %v", err)
+	}
 }
 
 func TestProgressiveSyncBasicTwoStepRollout(t *testing.T) {
