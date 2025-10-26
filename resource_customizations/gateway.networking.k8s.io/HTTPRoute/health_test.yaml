@@ -15,3 +15,7 @@ tests:
     status: Progressing
     message: "Parent example-gateway: Route is still being programmed"
   inputPath: testdata/progressing.yaml
+- healthStatus:
+    status: Healthy
+    message: HTTPRoute is healthy
+  inputPath: testdata/healthy_multiple_generations.yaml

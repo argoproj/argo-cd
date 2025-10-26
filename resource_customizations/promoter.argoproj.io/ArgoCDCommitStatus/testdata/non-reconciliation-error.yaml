@@ -1,0 +1,21 @@
+apiVersion: promoter.argoproj.io/v1alpha1
+kind: ArgoCDCommitStatus
+metadata:
+  name: test-commit-status
+  namespace: test
+  generation: 1
+spec:
+  applicationSelector:
+    matchLabels:
+      environment: production
+  promotionStrategyRef:
+    name: test
+status:
+  conditions:
+    - lastTransitionTime: '2025-10-15T16:00:00Z'
+      message: 'Failed to query Argo CD applications: connection timeout'
+      observedGeneration: 1
+      reason: ReconciliationError
+      status: 'False'
+      type: Ready
+

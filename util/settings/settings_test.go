@@ -1089,7 +1089,7 @@ func Test_validateExternalURL(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := validateExternalURL(tt.url)
+			err := ValidateExternalURL(tt.url)
 			if tt.errMsg != "" {
 				assert.EqualError(t, err, tt.errMsg)
 			} else {
