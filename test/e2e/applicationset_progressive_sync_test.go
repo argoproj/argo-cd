@@ -166,11 +166,7 @@ func TestProgressiveSyncBasicTwoStepRollout(t *testing.T) {
 		Expect(OnlyApplicationsExist([]v1alpha1.Application{appStep1}, []v1alpha1.Application{appStep2})).
 		Expect(ApplicationSetHasProgressiveStatus("progressive-sync-basic", "progressive-sync-dev", v1alpha1.ProgressiveSyncHealthy)).
 		Expect(ApplicationSetHasConditions("progressive-sync-basic", expectedConditionSuccess)).
-		And(func() {
-		}).
 		When().
-		And(func() {
-		}).
 		Then().
 		Expect(ApplicationsExist([]v1alpha1.Application{appStep1, appStep2})).
 		Expect(ApplicationSetHasProgressiveStatus("progressive-sync-basic", "progressive-sync-prod", v1alpha1.ProgressiveSyncHealthy))
@@ -359,14 +355,10 @@ func TestProgressiveSyncThreeStepRollout(t *testing.T) {
 		Expect(OnlyApplicationsExist([]v1alpha1.Application{appStep1}, []v1alpha1.Application{appStep2, appStep3})).
 		Expect(ApplicationSetHasProgressiveStatus("progressive-sync-three-step", "three-step-dev", v1alpha1.ProgressiveSyncHealthy)).
 		When().
-		And(func() {
-		}).
 		Then().
 		Expect(OnlyApplicationsExist([]v1alpha1.Application{appStep1, appStep2}, []v1alpha1.Application{appStep3})).
 		Expect(ApplicationSetHasProgressiveStatus("progressive-sync-three-step", "three-step-staging", v1alpha1.ProgressiveSyncHealthy)).
 		When().
-		And(func() {
-		}).
 		Then().
 		Expect(ApplicationsExist([]v1alpha1.Application{appStep1, appStep2, appStep3})).
 		Expect(ApplicationSetHasProgressiveStatus("progressive-sync-three-step", "three-step-prod", v1alpha1.ProgressiveSyncHealthy)).
