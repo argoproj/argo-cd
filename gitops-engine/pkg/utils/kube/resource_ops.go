@@ -244,7 +244,7 @@ func (k *kubectlResourceOperations) ReplaceResource(ctx context.Context, obj *un
 		}
 
 		if err := replaceOptions.Run(k.fact); err != nil {
-			return fmt.Errorf("failed to execute replace for resource %s/%s: %w", obj.GetKind(), obj.GetName(), err)
+			return fmt.Errorf("failed to execute replace for resource %s/%s: %w", obj.GetKind(), obj.GetName(), errors.New(cleanKubectlOutput(err.Error())))
 		}
 
 		return nil
@@ -280,7 +280,7 @@ func (k *kubectlResourceOperations) CreateResource(ctx context.Context, obj *uns
 		}
 
 		if err := createOptions.RunCreate(k.fact, command); err != nil {
-			return fmt.Errorf("failed to execute create for resource %s/%s: %w", gvk.Kind, obj.GetName(), err)
+			return fmt.Errorf("failed to execute create for resource %s/%s: %w", gvk.Kind, obj.GetName(), errors.New(cleanKubectlOutput(err.Error())))
 		}
 
 		return nil
@@ -352,7 +352,7 @@ func (k *kubectlServerSideDiffDryRunApplier) ApplyResource(
 		}
 
 		if err := applyOpts.Run(); err != nil {
-			return fmt.Errorf("failed to execute apply for resource %s/%s: %w", obj.GetKind(), obj.GetName(), err)
+			return fmt.Errorf("failed to execute apply for resource %s/%s: %w", obj.GetKind(), obj.GetName(), errors.New(cleanKubectlOutput(err.Error())))
 		}
 
 		return nil
@@ -400,7 +400,7 @@ func (k *kubectlResourceOperations) ApplyResource(
 		}
 
 		if err := applyOpts.Run(); err != nil {
-			return fmt.Errorf("failed to execute apply for resource %s/%s: %w", obj.GetKind(), obj.GetName(), err)
+			return fmt.Errorf("failed to execute apply for resource %s/%s: %w", obj.GetKind(), obj.GetName(), errors.New(cleanKubectlOutput(err.Error())))
 		}
 
 		return nil

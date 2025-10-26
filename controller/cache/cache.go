@@ -670,9 +670,8 @@ func (c *liveStateCache) IsNamespaced(server *appv1.Cluster, gk schema.GroupKind
 func (c *liveStateCache) IterateHierarchyV2(server *appv1.Cluster, keys []kube.ResourceKey, action func(child appv1.ResourceNode, appName string) bool) error {
 	clusterInfo, err := c.getSyncedCluster(server)
 	if err != nil {
-		return fmt.Errorf("failed to get synced cluster %s: %w", server.Name, err)
+		return err
 	}
-
 	clusterInfo.IterateHierarchyV2(keys, func(resource *clustercache.Resource, namespaceResources map[kube.ResourceKey]*clustercache.Resource) bool {
 		return action(asResourceNode(resource), getApp(resource, namespaceResources))
 	})
@@ -683,7 +682,7 @@ func (c *liveStateCache) IterateHierarchyV2(server *appv1.Cluster, keys []kube.R
 func (c *liveStateCache) IterateResources(server *appv1.Cluster, callback func(res *clustercache.Resource, info *ResourceInfo)) error {
 	clusterInfo, err := c.getSyncedCluster(server)
 	if err != nil {
-		return fmt.Errorf("failed to get synced cluster %s: %w", server.Name, err)
+		return err
 	}
 
 	_ = clusterInfo.FindResources("", func(r *clustercache.Resource) bool {

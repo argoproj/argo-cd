@@ -701,12 +701,12 @@ func (sc *syncContext) updateResource(task *syncTask) error {
 
 	resIf, err := sc.getResourceIf(task, "update")
 	if err != nil {
-		return fmt.Errorf("failed to get resource interface for update (task: %+v): %w", task, err)
+		return err
 	}
 
 	_, err = resIf.Update(context.TODO(), task.liveObj, metav1.UpdateOptions{})
 	if err != nil {
-		return fmt.Errorf("failed to update resource (task: %+v): %w", task, err)
+		return err
 	}
 
 	return nil
@@ -1329,12 +1329,12 @@ func (sc *syncContext) deleteResource(task *syncTask) error {
 
 	resIf, err := sc.getResourceIf(task, "delete")
 	if err != nil {
-		return fmt.Errorf("failed to get resource interface for delete (task: %+v): %w", task, err)
+		return err
 	}
 
 	err = resIf.Delete(context.TODO(), task.name(), sc.getDeleteOptions())
 	if err != nil {
-		return fmt.Errorf("failed to delete resource (task: %+v): %w", task, err)
+		return err
 	}
 
 	return nil

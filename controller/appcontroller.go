@@ -1201,7 +1201,7 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 	}
 	proj, err := ctrl.getAppProj(app)
 	if err != nil {
-		return fmt.Errorf("failed to get AppProject for app %s: %w", app.Name, err)
+		return err
 	}
 
 	destCluster, err := argo.GetDestinationCluster(context.Background(), app.Spec.Destination, ctrl.db)
