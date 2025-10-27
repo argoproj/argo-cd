@@ -328,6 +328,11 @@ If for some reason authenticated Redis does not work for you and you want to use
     * Deployment: argocd-server
     * StatefulSet: argocd-application-controller
 
+5. If you have configured file-based Redis credentials using the `REDIS_CREDS_FILE_PATH` environment variable, remove this environment variable and delete the corresponding volume and volumeMount entries that mount the credentials directory from the following manifests:
+    * Deployment: argocd-repo-server
+    * Deployment: argocd-server
+    * StatefulSet: argocd-application-controller
+
 ## How do I provide my own Redis credentials?
 The Redis password is stored in Kubernetes secret `argocd-redis` with key `auth` in the namespace where Argo CD is installed.
 You can config your secret provider to generate Kubernetes secret accordingly.
