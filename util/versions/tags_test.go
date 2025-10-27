@@ -60,6 +60,28 @@ func TestTags_MaxVersion(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "0.7.2", version)
 	})
+	t.Run("Constraint wildcard suffix", func(t *testing.T) {
+		qaTags := []string{
+			"1.1.0-qa",
+			"1.1.1-qa",
+			"1.1.2",
+		}
+		version, err := MaxVersion("*.*.*-qa", qaTags)
+		require.NoError(t, err)
+		assert.Equal(t, "1.1.1-qa", version)
+	})
+	t.Run("Constraint wildcard stable only", func(t *testing.T) {
+		mixedTags := []string{
+			"1.1.0-qa",
+			"1.1.1-qa",
+			"1.1.2",
+			"1.2.0-qa.1",
+			"1.2.0",
+		}
+		version, err := MaxVersion("*.*.*", mixedTags)
+		require.NoError(t, err)
+		assert.Equal(t, "1.2.0", version)
+	})
 	t.Run("Constraint missing", func(t *testing.T) {
 		_, err := MaxVersion("0.7.*", []string{})
 		require.Error(t, err)

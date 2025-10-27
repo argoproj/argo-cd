@@ -3,6 +3,7 @@ package versions
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	log "github.com/sirupsen/logrus"
 
@@ -37,6 +38,8 @@ func MaxVersion(revision string, tags []string) (string, error) {
 		return "", fmt.Errorf("failed to determine semver constraint: %w", err)
 	}
 
+	suffix, requireSuffix, preferStable := constraintFilters(revision)
+
 	var maxVersion *semver.Version
 	for _, tag := range tags {
 		v, err := semver.NewVersion(tag)
@@ -49,6 +52,15 @@ func MaxVersion(revision string, tags []string) (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("invalid semver version in tags: %w", err)
 		}
+		if requireSuffix {
+			prerelease := v.Prerelease()
+			if prerelease == "" || !matchesPrereleaseSuffix(prerelease, suffix) {
+				continue
+			}
+		} else if preferStable && v.Prerelease() != "" {
+			continue
+		}
+
 		if constraints.Check(v) {
 			if maxVersion == nil || v.GreaterThan(maxVersion) {
 				maxVersion = v
@@ -70,4 +82,89 @@ func IsConstraint(revision string) bool {
 	}
 	_, err := semver.NewConstraint(revision)
 	return err == nil
+}
+
+func constraintFilters(revision string) (suffix string, requireSuffix bool, preferStable bool) {
+	trimmed := strings.TrimSpace(revision)
+	if trimmed == "" || !containsWildcard(trimmed) {
+		return "", false, false
+	}
+
+	lastWildcard := lastWildcardIndex(trimmed)
+	if lastWildcard < 0 {
+		return "", false, false
+	}
+
+	suffixStart := -1
+	for i := lastWildcard; i < len(trimmed); i++ {
+		ch := trimmed[i]
+		switch ch {
+		case '-':
+			suffixStart = i + 1
+			goto finishSuffixSearch
+		case '*', 'x', 'X', '.':
+			continue
+		default:
+			// encountered a delimiter before suffix was identified
+			goto finishSuffixSearch
+		}
+	}
+
+finishSuffixSearch:
+	if suffixStart > 0 && suffixStart < len(trimmed) {
+		suffixEnd := suffixStart
+		for suffixEnd < len(trimmed) {
+			ch := trimmed[suffixEnd]
+			if isPrereleaseChar(ch) {
+				suffixEnd++
+				continue
+			}
+			break
+		}
+		if suffixEnd > suffixStart {
+			return trimmed[suffixStart:suffixEnd], true, false
+		}
+	}
+
+	// No explicit suffix detected – prefer stable tags when wildcard used.
+	return "", false, true
+}
+
+func containsWildcard(revision string) bool {
+	return strings.ContainsAny(revision, "*xX")
+}
+
+func lastWildcardIndex(revision string) int {
+	last := -1
+	for i := 0; i < len(revision); i++ {
+		if revision[i] == '*' || revision[i] == 'x' || revision[i] == 'X' {
+			last = i
+		}
+	}
+	return last
+}
+
+func isPrereleaseChar(ch byte) bool {
+	switch {
+	case ch >= '0' && ch <= '9':
+		return true
+	case ch >= 'a' && ch <= 'z':
+		return true
+	case ch >= 'A' && ch <= 'Z':
+		return true
+	case ch == '.' || ch == '-':
+		return true
+	default:
+		return false
+	}
+}
+
+func matchesPrereleaseSuffix(prerelease, suffix string) bool {
+	if prerelease == suffix {
+		return true
+	}
+	if suffix == "" {
+		return false
+	}
+	return strings.HasPrefix(prerelease, suffix+".")
 }
