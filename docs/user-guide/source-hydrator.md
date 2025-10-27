@@ -318,9 +318,9 @@ stringData:
   username: my-username
 ```
 
-## Git Note-based Hydration State Tracking (Introduced in 3.3)
+## Git Note-based Hydration State Tracking
 
-Starting with v3.3, the Source Hydrator no longer creates a new hydrated commit for each DRY commit or for every hydration run. Instead, the hydration state (the DRY SHA last hydrated) is tracked using a [git note](https://git-scm.com/docs/git-notes) in a dedicated namespace.
+The Source Hydrator does not create a new hydrated commit for a DRY commit if the commit doesn't affect the hydrated manifests. Instead, the hydration state (the DRY SHA last hydrated) is tracked using a [git note](https://git-scm.com/docs/git-notes) in a dedicated `source-hydrator` namespace.
 
 On each run, the hydrator:
 - Checks the git note for the last hydrated DRY SHA.
