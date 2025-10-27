@@ -1696,7 +1696,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 			"time_ms":  reconcileDuration.Milliseconds(),
 			"patch_ms": patchDuration.Milliseconds(),
 			"setop_ms": setOpDuration.Milliseconds(),
-		}).Info("Reconciliation completed")
+		}).Debug("Reconciliation completed")
 	}()
 
 	if comparisonLevel == ComparisonWithNothing {

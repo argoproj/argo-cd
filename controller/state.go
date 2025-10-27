@@ -344,7 +344,7 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 		logCtx = logCtx.WithField(k, v.Milliseconds())
 	}
 	logCtx = logCtx.WithField("time_ms", time.Since(ts.StartTime).Milliseconds())
-	logCtx.Info("GetRepoObjs stats")
+	logCtx.Debug("GetRepoObjs stats")
 
 	return targetObjs, manifestInfos, revisionsMayHaveChanges, nil
 }
