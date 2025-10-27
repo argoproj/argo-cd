@@ -216,6 +216,6 @@ func TestGetContext(t *testing.T) {
 
 	ctx, err := localCfg.GetContext("localhost:8080")
 	require.NoError(t, err)
-	assert.Equal(t, ctx.Name, "localhost:8080")
-	assert.NotEqual(t, ctx.Name, "non-existent-context")
+	assert.Equal(t, "localhost:8080", ctx.Name)
+	assert.NotEqual(t, "non-existent-context", ctx.Name)
 }

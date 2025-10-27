@@ -2,7 +2,7 @@
 
 ## argocd context list
 
-List ArgoCD Contexts
+List Argo CD Contexts
 
 ```
 argocd context list [flags]
@@ -11,7 +11,7 @@ argocd context list [flags]
 ### Examples
 
 ```
-   # List ArgoCD Contexts
+   # List Argo CD Contexts
 	argocd context list
 ```
 

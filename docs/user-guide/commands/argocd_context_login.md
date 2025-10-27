@@ -2,7 +2,7 @@
 
 ## argocd context login
 
-Login using ArgoCD Context
+Login using Argo CD Context
 
 ```
 argocd context login [flags]
@@ -11,7 +11,7 @@ argocd context login [flags]
 ### Examples
 
 ```
-  # Login using ArgoCD Context
+  # Login using Argo CD Context
 	argocd context login cd.argoproj.io
 ```
 

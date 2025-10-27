@@ -2,7 +2,7 @@
 
 ## argocd context switch
 
-Switch ArgoCD Context
+Switch Argo CD Context
 
 ```
 argocd context switch [flags]
@@ -11,7 +11,7 @@ argocd context switch [flags]
 ### Examples
 
 ```
-   # Switch ArgoCD Context
+   # Switch Argo CD Context
 	argocd context switch cd.argoproj.io
 ```
 

@@ -12,6 +12,7 @@ argocd context [CONTEXT] [flags]
 
 ```
 # List Argo CD Contexts
+# List Argo CD Contexts
 argocd context list
 
 # Switch Argo CD context
@@ -61,8 +62,8 @@ argocd context delete cd.argoproj.io
 ### SEE ALSO
 
 * [argocd](argocd.md)	 - argocd controls a Argo CD server
-* [argocd context delete](argocd_context_delete.md)	 - Delete ArgoCD Context
-* [argocd context list](argocd_context_list.md)	 - List ArgoCD Contexts
-* [argocd context login](argocd_context_login.md)	 - Login using ArgoCD Context
-* [argocd context switch](argocd_context_switch.md)	 - Switch ArgoCD Context
+* [argocd context delete](argocd_context_delete.md)	 - Delete Argo CD Context
+* [argocd context list](argocd_context_list.md)	 - List Argo CD Contexts
+* [argocd context login](argocd_context_login.md)	 - Login using Argo CD Context
+* [argocd context switch](argocd_context_switch.md)	 - Switch Argo CD Context
 

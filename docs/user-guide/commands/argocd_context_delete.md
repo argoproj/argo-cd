@@ -2,7 +2,7 @@
 
 ## argocd context delete
 
-Delete ArgoCD Context
+Delete Argo CD Context
 
 ```
 argocd context delete [flags]
@@ -11,7 +11,7 @@ argocd context delete [flags]
 ### Examples
 
 ```
-  # Delete ArgoCD Context
+  # Delete Argo CD Context
 	argocd context delete cd.argoproj.io
 ```
 

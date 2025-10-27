@@ -123,7 +123,7 @@ func NewContextLoginCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comma
 			localCfg, err := localconfig.ReadLocalConfig(clientOpts.ConfigPath)
 			errors.CheckError(err)
 			if localCfg == nil {
-				return fmt.Errorf("couldn't find local config")
+				return stderrors.New("couldn't find local config")
 			}
 			ctx, err := localCfg.GetContext(args[0])
 			if err != nil {
