@@ -94,7 +94,8 @@ func TestProgressiveSyncBasicTwoStepRollout(t *testing.T) {
 		When().
 		Create(v1alpha1.ApplicationSet{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: "progressive-sync-basic",
+				Name:      "progressive-sync-basic",
+				Namespace: "argocd-e2e",
 			},
 			Spec: v1alpha1.ApplicationSetSpec{
 				GoTemplate: true,
@@ -269,7 +270,8 @@ func TestProgressiveSyncThreeStepRollout(t *testing.T) {
 		When().
 		Create(v1alpha1.ApplicationSet{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: "progressive-sync-three-step",
+				Name:      "progressive-sync-three-step",
+				Namespace: "argocd-e2e",
 			},
 			Spec: v1alpha1.ApplicationSetSpec{
 				GoTemplate: true,
@@ -461,7 +463,8 @@ func TestProgressiveSyncWithMaxUpdatePercentage(t *testing.T) {
 		When().
 		Create(v1alpha1.ApplicationSet{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: "progressive-sync-max-update-percent",
+				Name:      "progressive-sync-max-update-percent",
+				Namespace: "argocd-e2e",
 			},
 			Spec: v1alpha1.ApplicationSetSpec{
 				GoTemplate: true,
@@ -579,7 +582,8 @@ func TestProgressiveSyncDeletionAllAtOnce(t *testing.T) {
 		When().
 		Create(v1alpha1.ApplicationSet{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: "progressive-sync-deletion-allatonce",
+				Name:      "progressive-sync-deletion-allatonce",
+				Namespace: "argocd-e2e",
 			},
 			Spec: v1alpha1.ApplicationSetSpec{
 				GoTemplate: true,
@@ -707,7 +711,8 @@ func TestProgressiveSyncDeletionReverse(t *testing.T) {
 		When().
 		Create(v1alpha1.ApplicationSet{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: "progressive-sync-deletion-reverse",
+				Name:      "progressive-sync-deletion-reverse",
+				Namespace: "argocd-e2e",
 			},
 			Spec: v1alpha1.ApplicationSetSpec{
 				GoTemplate: true,
