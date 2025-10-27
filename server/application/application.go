@@ -1771,7 +1771,7 @@ func (s *Server) ManagedResources(ctx context.Context, q *application.ResourcesQ
 		return s.cache.GetAppManagedResources(a.InstanceName(s.ns), &items)
 	})
 	if err != nil {
-		log.Warnf("Cache unavailable for %s/%s: %v. Returning empty managed resources.", a.Namespace, a.Name, err)
+		log.Warnf("error getting cached app managed resources, Cache unavailable for %s/%s: %v. Returning empty managed resources.", a.Namespace, a.Name, err)
 		return &application.ManagedResourcesResponse{Items: []*v1alpha1.ResourceDiff{}}, nil
 	}
 	res := &application.ManagedResourcesResponse{}
