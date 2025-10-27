@@ -23,6 +23,7 @@ func NewContextCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 		Aliases: []string{"ctx"},
 		Short:   "Switch between contexts",
 		Example: `# List Argo CD Contexts
+# List Argo CD Contexts
 argocd context list
 
 # Switch Argo CD context
