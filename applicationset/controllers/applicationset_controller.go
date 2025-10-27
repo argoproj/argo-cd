@@ -231,9 +231,11 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	}
 
 	// appSyncMap tracks which apps will be synced during this reconciliation.
-	appSyncMap := map[string]bool{}
-	var appDependencyList [][]string
-	var appStepMap map[string]int
+	var (
+		appSyncMap        = map[string]bool{}
+		appDependencyList [][]string
+		appStepMap        map[string]int
+	)
 
 	if r.EnableProgressiveSyncs {
 		if !isRollingSyncStrategy(&applicationSetInfo) && len(applicationSetInfo.Status.ApplicationStatus) > 0 {
@@ -948,12 +950,20 @@ func (r *ApplicationSetReconciler) removeOwnerReferencesOnDeleteAppSet(ctx conte
 	return nil
 }
 
+// performProgressiveSyncs orchestrates the progressive sync of applications in an ApplicationSet.
+// It builds a dependency graph to determine the sync order, updates application status, and syncs applications
+// according to their step order and rollout strategy.
+// Returns:
+//   - map[string]bool: appSyncMap - tracks which applications will be synced during this reconciliation
+//   - [][]string: appDependencyList - slice of slices representing sync steps, where each inner slice contains application names in that step
+//   - map[string]int: appStepMap - maps application names to their step index in the progressive sync sequence
+//   - error: any error encountered during progressive sync reconciliation
 func (r *ApplicationSetReconciler) performProgressiveSyncs(ctx context.Context, logCtx *log.Entry, appset argov1alpha1.ApplicationSet, applications []argov1alpha1.Application, desiredApplications []argov1alpha1.Application) (map[string]bool, [][]string, map[string]int, error) {
 	appDependencyList, appStepMap := r.buildAppDependencyList(logCtx, appset, desiredApplications)
 
 	_, err := r.updateApplicationSetApplicationStatus(ctx, logCtx, &appset, applications, appStepMap)
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("failed to update applicationset app status: %w", err)
+		return nil, appDependencyList, appStepMap, fmt.Errorf("failed to update applicationset app status: %w", err)
 	}
 
 	logCtx.Infof("ApplicationSet %v step list:", appset.Name)
@@ -966,7 +976,7 @@ func (r *ApplicationSetReconciler) performProgressiveSyncs(ctx context.Context, 
 
 	_, err = r.updateApplicationSetApplicationStatusProgress(ctx, logCtx, &appset, appsToSync, appStepMap)
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("failed to update applicationset application status progress: %w", err)
+		return appsToSync, appDependencyList, appStepMap, fmt.Errorf("failed to update applicationset application status progress: %w", err)
 	}
 
 	_ = r.updateApplicationSetApplicationStatusConditions(ctx, &appset)
