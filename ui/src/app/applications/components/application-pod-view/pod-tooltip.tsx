@@ -1,8 +1,7 @@
 import * as React from 'react';
 import Moment from 'react-moment';
 import {Pod, ResourceName} from '../../../shared/models';
-import {isYoungerThanXMinutes} from '../utils';
-import {formatMetric} from './pod-view';
+import {isYoungerThanXMinutes, formatResourceInfo} from '../utils';
 
 export const PodTooltip = (props: {pod: Pod}) => {
     const pod = props.pod;
@@ -23,10 +22,20 @@ export const PodTooltip = (props: {pod: Pod}) => {
                 })
                 .map(i => {
                     const isPodRequests = i.name === ResourceName.ResourceCPU || i.name === ResourceName.ResourceMemory;
-                    const formattedValue = isPodRequests ? formatMetric(i.name as ResourceName, parseInt(i.value, 10)) : i.value;
+                    let formattedValue = i.value;
+                    let label = `${i.name}:`;
 
-                    //this is just to show cpu and mem info with "Requests" as prefix
-                    const label = i.name === ResourceName.ResourceCPU ? 'Requests CPU:' : i.name === ResourceName.ResourceMemory ? 'Requests MEM:' : `${i.name}:`;
+                    if (isPodRequests) {
+                        if (i.name === ResourceName.ResourceCPU) {
+                            const {displayValue} = formatResourceInfo('cpu', i.value);
+                            formattedValue = displayValue;
+                            label = 'Requests CPU:';
+                        } else if (i.name === ResourceName.ResourceMemory) {
+                            const {displayValue} = formatResourceInfo('memory', i.value);
+                            formattedValue = displayValue;
+                            label = 'Requests MEM:';
+                        }
+                    }
 
                     return (
                         <div className='row' key={i.name}>
