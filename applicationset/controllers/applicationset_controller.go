@@ -1625,11 +1625,10 @@ func (r *ApplicationSetReconciler) filterApplicationsByProgressiveStep(logCtx *l
 			}
 		}
 
-		if previousStepComplete {
-			maxCreateableStep = stepIndex
-		} else {
+		if !previousStepComplete {
 			break // Stop checking further steps if current step's prerequisite isn't complete
 		}
+		maxCreateableStep = stepIndex
 	}
 
 	logCtx.Infof("Progressive sync: max creatable step is %d (out of %d)", maxCreateableStep, len(appDependencyList)-1)
