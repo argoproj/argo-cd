@@ -202,3 +202,20 @@ func TestGetPromptsEnabled_useCLIOpts_true_forcePromptsEnabled_false(t *testing.
 
 	assert.False(t, GetPromptsEnabled(true))
 }
+
+func TestGetContext(t *testing.T) {
+	// Write the test config file
+	err := os.WriteFile(testConfigFilePath, []byte(testConfig), os.ModePerm)
+	require.NoError(t, err)
+	defer os.Remove(testConfigFilePath)
+
+	err = os.Chmod(testConfigFilePath, 0o600)
+	require.NoError(t, err, "Could not change the file permission to 0600 %v", err)
+	localCfg, err := ReadLocalConfig(testConfigFilePath)
+	require.NoError(t, err)
+
+	ctx, err := localCfg.GetContext("localhost:8080")
+	require.NoError(t, err)
+	assert.Equal(t, ctx.Name, "localhost:8080")
+	assert.NotEqual(t, ctx.Name, "non-existent-context")
+}

@@ -43,6 +43,7 @@ argocd context delete cd.argoproj.io`,
 	return command
 }
 
+// NewContextListCommand returns a new instance of `argocd context list` command
 func NewContextListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	command := &cobra.Command{
 		Use:   "list",
@@ -61,6 +62,7 @@ func NewContextListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 	return command
 }
 
+// NewContextSwitchCommand returns a new instance of `argocd context switch` command
 func NewContextSwitchCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	command := &cobra.Command{
 		Use:   "switch",
@@ -106,6 +108,7 @@ func NewContextSwitchCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 	return command
 }
 
+// NewContextLoginCommand returns a new instance of `argocd context login` command
 func NewContextLoginCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	command := &cobra.Command{
 		Use:   "login",
@@ -126,9 +129,9 @@ func NewContextLoginCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comma
 			if err != nil {
 				return fmt.Errorf("context %s does not exist", args[0])
 			}
-			server, err := localCfg.GetServer(ctx.Server)
+			server, err := localCfg.GetServer(ctx.Server.Server)
 			if err != nil {
-				return fmt.Errorf("server %s does not exist", ctx.Server)
+				return fmt.Errorf("server %s does not exist", ctx.Server.Server)
 			}
 			loginCmd := NewLoginCommand(clientOpts)
 			loginCmd.SetArgs([]string{server.Server})
@@ -140,6 +143,7 @@ func NewContextLoginCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comma
 	return command
 }
 
+// NewContextDeleteCommand returns a new instance of `argocd context delete` command
 func NewContextDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	command := &cobra.Command{
 		Use:   "delete",
