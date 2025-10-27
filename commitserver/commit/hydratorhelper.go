@@ -184,7 +184,7 @@ func writeGitAttributes(root *os.Root) error {
 func writeManifests(root *os.Root, dirPath string, manifests []*apiclient.HydratedManifestDetails) error {
 	// If the file exists, truncate it.
 	// No need to use SecureJoin here, as the path is already sanitized.
-	manifestPath := filepath.Join(dirPath, "manifest.yaml")
+	manifestPath := filepath.Join(dirPath, ManifestYaml)
 
 	file, err := root.OpenFile(manifestPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.ModePerm)
 	if err != nil {
@@ -224,7 +224,7 @@ func writeManifests(root *os.Root, dirPath string, manifests []*apiclient.Hydrat
 // within the given os.Root abstraction. If the file removal fails, it returns a wrapped error with context.
 // This helper is used to clean up files which are written to disk but are still un-staged and a similar file exists in index.
 func deleteManifest(root *os.Root, dirPath string) error {
-	manifestPath := filepath.Join(dirPath, "manifest.yaml")
+	manifestPath := filepath.Join(dirPath, ManifestYaml)
 	if err := root.Remove(manifestPath); err != nil {
 		return fmt.Errorf("failed to remove manifest: %w", err)
 	}
@@ -236,7 +236,7 @@ func deleteManifest(root *os.Root, dirPath string) error {
 // Returns true if the file has changes staged or unstaged; otherwise, returns false.
 // Relies on the provided git.Client's HasFileChanged method for underlying diff detection.
 func hasManifestChanged(dirPath string, gitClient git.Client) (bool, error) {
-	manifestPath := filepath.Join(dirPath, "manifest.yaml")
+	manifestPath := filepath.Join(dirPath, ManifestYaml)
 	return gitClient.HasFileChanged(manifestPath)
 }
 

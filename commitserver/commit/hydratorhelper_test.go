@@ -455,20 +455,28 @@ func TestIsHydrated(t *testing.T) {
 	mockGitClient := gitmocks.NewClient(t)
 	drySha := "abc123"
 	commitSha := "fff456"
-	commitShaErr := "abc456"
+	commitShaNoNoteFoundErr := "abc456"
+	commitShaErr := "abc999"
 	strnote := "{\"drySha\":\"abc123\"}"
 	err := errors.New("test no note found for test")
 	mockGitClient.On("GetCommitNote", commitSha, mock.Anything).Return(strnote, nil).Once()
-	mockGitClient.On("GetCommitNote", commitShaErr, mock.Anything).Return("", err).Once()
+	mockGitClient.On("GetCommitNote", commitShaNoNoteFoundErr, mock.Anything).Return("", fmt.Errorf("wrapped error %w", err)).Once()
 	// an existing note
 	isHydrated, err := IsHydrated(mockGitClient, drySha, commitSha)
 	require.NoError(t, err)
 	assert.True(t, isHydrated)
 
+	// no note found treated as success.. no error returned
+	isHydrated, err = IsHydrated(mockGitClient, drySha, commitShaNoNoteFoundErr)
+	require.NoError(t, err)
+	assert.False(t, isHydrated)
+
+	// some other error and not "no error found".. Should return an error
+	err = errors.New("some other error")
+	mockGitClient.On("GetCommitNote", commitShaErr, mock.Anything).Return("", fmt.Errorf("wrapped error %w", err)).Once()
 	isHydrated, err = IsHydrated(mockGitClient, drySha, commitShaErr)
 	require.Error(t, err)
 	assert.False(t, isHydrated)
-	assert.Contains(t, err.Error(), "no note found")
 }
 
 func TestAddNote(t *testing.T) {

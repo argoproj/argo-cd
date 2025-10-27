@@ -18,7 +18,8 @@ import (
 )
 
 const (
-	NoteNamespace = "source-hydrator"
+	NoteNamespace = "source-hydrator" // NoteNamespace is the custom git notes namespace used by the hydrator to store and retrieve commit-related metadata.
+	ManifestYaml  = "manifest.yaml"   // ManifestYaml constant for the manifest yaml
 )
 
 // Service is the service that handles commit requests.
@@ -49,8 +50,11 @@ type hydratorMetadataFile struct {
 	References []v1alpha1.RevisionReference `json:"references,omitempty"`
 }
 
+// CommitNote represents the structure of the git note associated with a hydrated commit.
+// This struct is used to serialize/deserialize commit metadata (such as the dry run SHA)
+// stored in the custom note namespace by the hydrator.
 type CommitNote struct {
-	DrySHA string `json:"drySha"`
+	DrySHA string `json:"drySha"` // SHA of original commit that triggerd the hydrator
 }
 
 // TODO: make this configurable via ConfigMap.
