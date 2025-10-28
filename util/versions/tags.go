@@ -17,7 +17,7 @@ import (
 // If the revision is a constraint, but no tag satisfies that constraint, then it returns an error.
 func MaxVersion(revision string, tags []string) (string, error) {
 	// Check if the revision is a SHA256 digest (used in OCI repositories)
-	if len(revision) > 7 && revision[:7] == "sha256:" {
+	if IsDigest(revision) {
 		log.Debugf("Revision '%s' is a SHA256 digest, returning as is", revision)
 		return revision, nil
 	}
@@ -72,9 +72,10 @@ func MaxVersion(revision string, tags []string) (string, error) {
 // Returns true if the given revision is not an exact semver and can be parsed as a semver constraint
 func IsConstraint(revision string) bool {
 	// SHA256 digests are not constraints
-	if len(revision) > 7 && revision[:7] == "sha256:" {
+	if IsDigest(revision) {
 		return false
 	}
+
 	if _, err := semver.NewVersion(revision); err == nil {
 		return false
 	}
