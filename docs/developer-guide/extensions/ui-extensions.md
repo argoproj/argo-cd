@@ -129,33 +129,30 @@ It is also possible to add an optional flyout widget to your extension. It can b
 
 Below is an example of an extension using the flyout widget:
 
-
 ```javascript
 ((window) => {
-  const component = (props: {
-    openFlyout: () => any
-  }) => {
+  const component = (props: { openFlyout: () => any }) => {
     return React.createElement(
-            "div",
-            {
-              style: { padding: "10px" },
-              onClick: () => props.openFlyout()
-            },
-            "Hello World"
+      "div",
+      {
+        style: { padding: "10px" },
+        onClick: () => props.openFlyout(),
+      },
+      "Hello World"
     );
   };
   const flyout = () => {
     return React.createElement(
-            "div",
-            { style: { padding: "10px" } },
-            "This is a flyout"
+      "div",
+      { style: { padding: "10px" } },
+      "This is a flyout"
     );
   };
   window.extensionsAPI.registerStatusPanelExtension(
-          component,
-          "My Extension",
-          "my_extension",
-          flyout
+    component,
+    "My Extension",
+    "my_extension",
+    flyout
   );
 })(window);
 ```
@@ -183,7 +180,9 @@ The callback function `shouldDisplay` should return true if the extension should
 
 ```typescript
 const shouldDisplay = (app: Application) => {
-  return application.metadata?.labels?.['application.environmentLabelKey'] === "prd";
+  return (
+    application.metadata?.labels?.["application.environmentLabelKey"] === "prd"
+  );
 };
 ```
 
@@ -196,28 +195,28 @@ Below is an example of a simple extension with a flyout widget:
   };
   const flyout = () => {
     return React.createElement(
-            "div",
-            { style: { padding: "10px" } },
-            "This is a flyout"
+      "div",
+      { style: { padding: "10px" } },
+      "This is a flyout"
     );
   };
   const component = () => {
     return React.createElement(
-            "div",
-            {
-              onClick: () => flyout()
-            },
-            "Toolbar Extension Test"
+      "div",
+      {
+        onClick: () => flyout(),
+      },
+      "Toolbar Extension Test"
     );
   };
   window.extensionsAPI.registerTopBarActionMenuExt(
-          component,
-          "Toolbar Extension Test",
-          "Toolbar_Extension_Test",
-          flyout,
-          shouldDisplay,
-          '',
-          true
+    component,
+    "Toolbar Extension Test",
+    "Toolbar_Extension_Test",
+    flyout,
+    shouldDisplay,
+    "",
+    true
   );
 })(window);
 ```
@@ -227,7 +226,6 @@ Below is an example of a simple extension with a flyout widget:
 App View extensions allow you to create a new Application Details View for an application. This view would be selectable alongside the other views like the Node Tree, Pod, and Network views. When the extension's icon is clicked, the extension's component is rendered as the main content of the application view.
 
 Register this extension through the `extensionsAPI.registerAppViewExtension` method.
-
 
 ```typescript
 registerAppViewExtension(
@@ -248,7 +246,7 @@ Below is an example of a simple extension:
       "Hello World"
     );
   };
-  window.extensionsAPI.registerStatusPanelExtension(
+  window.extensionsAPI.registerAppViewExtension(
     component,
     "My Extension",
     "fa-question-circle"
