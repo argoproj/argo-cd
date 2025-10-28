@@ -32,15 +32,6 @@ export const CheckboxRow = (props: {value: boolean; onChange?: (value: boolean) 
         setValue(props.value);
     }, [props.value]);
 
-    const tooltipProps = {
-        placement: 'top' as any,
-        popperOptions: {
-            modifiers: {
-                preventOverflow: {
-                    boundariesElement: 'window' as any
-                }
-            }
-        }
     const tooltipProps: Partial<React.ComponentProps<typeof Tooltip>> = {
         placement: 'top',
         popperOptions: {
