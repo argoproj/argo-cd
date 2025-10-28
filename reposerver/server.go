@@ -9,7 +9,6 @@ import (
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/recovery"
-	"github.com/prometheus/client_golang/prometheus"
 	log "github.com/sirupsen/logrus"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
@@ -26,7 +25,6 @@ import (
 	"github.com/argoproj/argo-cd/v3/reposerver/metrics"
 	"github.com/argoproj/argo-cd/v3/reposerver/repository"
 	"github.com/argoproj/argo-cd/v3/server/version"
-	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/env"
 	"github.com/argoproj/argo-cd/v3/util/git"
 	grpc_util "github.com/argoproj/argo-cd/v3/util/grpc"
@@ -35,13 +33,8 @@ import (
 
 // ArgoCDRepoServer is the repo server implementation
 type ArgoCDRepoServer struct {
-	log           *log.Entry
-	repoService   *repository.Service
-	metricsServer *metrics.MetricsServer
-	gitCredsStore git.CredsStore
-	cache         *reposervercache.Cache
-	opts          []grpc.ServerOption
-	initConstants repository.RepoServerInitConstants
+	repoService *repository.Service
+	opts        []grpc.ServerOption
 }
 
 // The hostnames to generate self-signed issues with
@@ -69,18 +62,15 @@ func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cach
 		serverMetricsOptions = append(serverMetricsOptions, grpc_prometheus.WithServerHandlingTimeHistogram())
 	}
 	serverMetrics := grpc_prometheus.NewServerMetrics(serverMetricsOptions...)
-	reg := prometheus.NewRegistry()
-	reg.MustRegister(serverMetrics)
+	metricsServer.PrometheusRegistry.MustRegister(serverMetrics)
 
 	serverLog := log.NewEntry(log.StandardLogger())
 	streamInterceptors := []grpc.StreamServerInterceptor{
-		otelgrpc.StreamServerInterceptor(), //nolint:staticcheck // TODO: ignore SA1019 for depreciation: see https://github.com/argoproj/argo-cd/issues/18258
 		logging.StreamServerInterceptor(grpc_util.InterceptorLogger(serverLog)),
 		serverMetrics.StreamServerInterceptor(),
 		recovery.StreamServerInterceptor(recovery.WithRecoveryHandler(grpc_util.LoggerRecoveryHandler(serverLog))),
 	}
 	unaryInterceptors := []grpc.UnaryServerInterceptor{
-		otelgrpc.UnaryServerInterceptor(), //nolint:staticcheck // TODO: ignore SA1019 for depreciation: see https://github.com/argoproj/argo-cd/issues/18258
 		logging.UnaryServerInterceptor(grpc_util.InterceptorLogger(serverLog)),
 		serverMetrics.UnaryServerInterceptor(),
 		recovery.UnaryServerInterceptor(recovery.WithRecoveryHandler(grpc_util.LoggerRecoveryHandler(serverLog))),
@@ -97,6 +87,7 @@ func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cach
 				MinTime: common.GetGRPCKeepAliveEnforcementMinimum(),
 			},
 		),
+		grpc.StatsHandler(otelgrpc.NewServerHandler()),
 	}
 
 	// We do allow for non-TLS servers to be created, in case of mTLS will be
@@ -104,19 +95,14 @@ func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cach
 	if tlsConfig != nil {
 		serverOpts = append(serverOpts, grpc.Creds(credentials.NewTLS(tlsConfig)))
 	}
-	repoService := repository.NewService(metricsServer, cache, initConstants, argo.NewResourceTracking(), gitCredsStore, filepath.Join(os.TempDir(), "_argocd-repo"))
+	repoService := repository.NewService(metricsServer, cache, initConstants, gitCredsStore, filepath.Join(os.TempDir(), "_argocd-repo"))
 	if err := repoService.Init(); err != nil {
 		return nil, fmt.Errorf("failed to initialize the repo service: %w", err)
 	}
 
 	return &ArgoCDRepoServer{
-		log:           serverLog,
-		metricsServer: metricsServer,
-		cache:         cache,
-		initConstants: initConstants,
-		opts:          serverOpts,
-		gitCredsStore: gitCredsStore,
-		repoService:   repoService,
+		opts:        serverOpts,
+		repoService: repoService,
 	}, nil
 }
 

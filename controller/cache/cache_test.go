@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"context"
 	"errors"
 	"net"
 	"net/url"
@@ -39,6 +40,36 @@ func (n netError) Error() string   { return string(n) }
 func (n netError) Timeout() bool   { return false }
 func (n netError) Temporary() bool { return false }
 
+func fixtures(data map[string]string, opts ...func(secret *corev1.Secret)) (*fake.Clientset, *argosettings.SettingsManager) {
+	cm := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      common.ArgoCDConfigMapName,
+			Namespace: "default",
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
+			},
+		},
+		Data: data,
+	}
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      common.ArgoCDSecretName,
+			Namespace: "default",
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
+			},
+		},
+		Data: map[string][]byte{},
+	}
+	for i := range opts {
+		opts[i](secret)
+	}
+	kubeClient := fake.NewClientset(cm, secret)
+	settingsManager := argosettings.NewSettingsManager(context.Background(), kubeClient, "default")
+
+	return kubeClient, settingsManager
+}
+
 func TestHandleModEvent_HasChanges(_ *testing.T) {
 	clusterCache := &mocks.ClusterCache{}
 	clusterCache.On("Invalidate", mock.Anything, mock.Anything).Return(nil).Once()
@@ -73,7 +104,6 @@ func TestHandleModEvent_ClusterExcluded(t *testing.T) {
 		appInformer: nil,
 		onObjectUpdated: func(_ map[string]bool, _ corev1.ObjectReference) {
 		},
-		kubectl:       nil,
 		settingsMgr:   &argosettings.SettingsManager{},
 		metricsServer: &metrics.MetricsServer{},
 		// returns a shard that never process any cluster
@@ -142,7 +172,6 @@ func TestHandleDeleteEvent_CacheDeadlock(t *testing.T) {
 	db.On("GetApplicationControllerReplicas").Return(1)
 	fakeClient := fake.NewClientset()
 	settingsMgr := argosettings.NewSettingsManager(t.Context(), fakeClient, "argocd")
-	liveStateCacheLock := sync.RWMutex{}
 	gitopsEngineClusterCache := &mocks.ClusterCache{}
 	clustersCache := liveStateCache{
 		clusters: map[string]cache.ClusterCache{
@@ -150,9 +179,7 @@ func TestHandleDeleteEvent_CacheDeadlock(t *testing.T) {
 		},
 		clusterSharding: sharding.NewClusterSharding(db, 0, 1, common.DefaultShardingAlgorithm),
 		settingsMgr:     settingsMgr,
-		// Set the lock here so we can reference it later
-		//nolint:govet // We need to overwrite here to have access to the lock
-		lock: liveStateCacheLock,
+		lock:            sync.RWMutex{},
 	}
 	channel := make(chan string)
 	// Mocked lock held by the gitops-engine cluster cache
@@ -303,14 +330,16 @@ func Test_asResourceNode_owner_refs(t *testing.T) {
 		},
 		ParentRefs: []appv1.ResourceRef{
 			{
-				Group: "",
-				Kind:  "ConfigMap",
-				Name:  "cm-1",
+				Group:   "",
+				Kind:    "ConfigMap",
+				Version: "v1",
+				Name:    "cm-1",
 			},
 			{
-				Group: "",
-				Kind:  "ConfigMap",
-				Name:  "cm-2",
+				Group:   "",
+				Kind:    "ConfigMap",
+				Version: "v1",
+				Name:    "cm-2",
 			},
 		},
 		Info:            nil,
@@ -743,4 +772,73 @@ func Test_GetVersionsInfo_error_redacted(t *testing.T) {
 	_, _, err := c.GetVersionsInfo(cluster)
 	require.Error(t, err)
 	assert.NotContains(t, err.Error(), "password")
+}
+
+func TestLoadCacheSettings(t *testing.T) {
+	_, settingsManager := fixtures(map[string]string{
+		"application.instanceLabelKey":       "testLabel",
+		"application.resourceTrackingMethod": string(appv1.TrackingMethodLabel),
+		"installationID":                     "123456789",
+	})
+	ch := liveStateCache{
+		settingsMgr: settingsManager,
+	}
+	label, err := settingsManager.GetAppInstanceLabelKey()
+	require.NoError(t, err)
+	trackingMethod, err := settingsManager.GetTrackingMethod()
+	require.NoError(t, err)
+	res, err := ch.loadCacheSettings()
+	require.NoError(t, err)
+
+	assert.Equal(t, label, res.appInstanceLabelKey)
+	assert.Equal(t, string(appv1.TrackingMethodLabel), trackingMethod)
+	assert.Equal(t, "123456789", res.installationID)
+
+	// By default the values won't be nil
+	assert.NotNil(t, res.resourceOverrides)
+	assert.NotNil(t, res.clusterSettings)
+	assert.True(t, res.ignoreResourceUpdatesEnabled)
+}
+
+func Test_ownerRefGV(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    metav1.OwnerReference
+		expected schema.GroupVersion
+	}{
+		{
+			name: "valid API Version",
+			input: metav1.OwnerReference{
+				APIVersion: "apps/v1",
+			},
+			expected: schema.GroupVersion{
+				Group:   "apps",
+				Version: "v1",
+			},
+		},
+		{
+			name: "custom defined version",
+			input: metav1.OwnerReference{
+				APIVersion: "custom-version",
+			},
+			expected: schema.GroupVersion{
+				Version: "custom-version",
+				Group:   "",
+			},
+		},
+		{
+			name: "empty APIVersion",
+			input: metav1.OwnerReference{
+				APIVersion: "",
+			},
+			expected: schema.GroupVersion{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			res := ownerRefGV(tt.input)
+			assert.Equal(t, tt.expected, res)
+		})
+	}
 }

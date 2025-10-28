@@ -1,0 +1,40 @@
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaFolder
+metadata:
+  annotations:
+    argocd.argoproj.io/installation-id: argocd.com
+    argocd.argoproj.io/tracking-id: >-
+      foo:grafana.integreatly.org/GrafanaFolder:grafana-operator/bar
+  creationTimestamp: '2025-03-21T19:55:18Z'
+  finalizers:
+    - operator.grafana.com/finalizer
+  generation: 1
+  labels:
+    argocd.argoproj.io/instance: foo
+  name: bar
+  namespace: grafana-operator
+  resourceVersion: '185973434'
+  uid: ada2bab9-613e-4a1c-98c0-75094b72978e
+spec:
+  allowCrossNamespaceImport: false
+  instanceSelector:
+    matchLabels:
+      dashboards: grafana
+  resyncPeriod: 10m0s
+  title: Baz-Folder
+status:
+  conditions:
+    - lastTransitionTime: '2025-03-21T19:55:38Z'
+      message: >-
+        Folder failed to be applied for 1 out of 1 instances. Errors:
+
+        - grafana-operator/grafana: Get
+        "https://dashboards.grafana.com/api/folders?limit=10000&page=1":
+        net/http: request canceled while waiting for connection (Client.Timeout
+        exceeded while awaiting headers)
+      observedGeneration: 1
+      reason: ApplyFailed
+      status: 'False'
+      type: FolderSynchronized
+  hash: d6cea1a429ba926fb709e2ac7f468f5a99e534049a96eecc28e1d881f49d93f2
+  lastResync: '2025-03-26T15:29:24Z'

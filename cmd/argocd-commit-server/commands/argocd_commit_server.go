@@ -23,7 +23,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/env"
 	"github.com/argoproj/argo-cd/v3/util/errors"
 	"github.com/argoproj/argo-cd/v3/util/healthz"
-	ioutil "github.com/argoproj/argo-cd/v3/util/io"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
 )
 
 // NewCommand returns a new instance of an argocd-commit-server command
@@ -38,7 +38,7 @@ func NewCommand() *cobra.Command {
 		Use:   "argocd-commit-server",
 		Short: "Run Argo CD Commit Server",
 		Long:  "Argo CD Commit Server is an internal service which commits and pushes hydrated manifests to git. This command runs Commit Server in the foreground.",
-		RunE: func(_ *cobra.Command, _ []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			vers := common.GetVersion()
 			vers.LogStartupInfo(
 				"Argo CD Commit Server",
@@ -59,8 +59,10 @@ func NewCommand() *cobra.Command {
 
 			server := commitserver.NewServer(askPassServer, metricsServer)
 			grpc := server.CreateGRPC()
+			ctx := cmd.Context()
 
-			listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", listenHost, listenPort))
+			lc := &net.ListenConfig{}
+			listener, err := lc.Listen(ctx, "tcp", fmt.Sprintf("%s:%d", listenHost, listenPort))
 			errors.CheckError(err)
 
 			healthz.ServeHealthCheck(http.DefaultServeMux, func(r *http.Request) error {
@@ -71,7 +73,7 @@ func NewCommand() *cobra.Command {
 					if err != nil {
 						return err
 					}
-					defer ioutil.Close(conn)
+					defer utilio.Close(conn)
 					client := grpc_health_v1.NewHealthClient(conn)
 					res, err := client.Check(r.Context(), &grpc_health_v1.HealthCheckRequest{})
 					if err != nil {

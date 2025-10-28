@@ -13,10 +13,9 @@ import (
 // none of the func implement error checks, and that is complete intended, you should check for errors
 // using the Then()
 type Actions struct {
-	context      *Context
-	ignoreErrors bool
-	lastOutput   string
-	lastError    error
+	context    *Context
+	lastOutput string
+	lastError  error
 }
 
 func (a *Actions) prepareCanIGetLogsArgs() []string {
@@ -29,16 +28,6 @@ func (a *Actions) prepareCanIGetLogsArgs() []string {
 func (a *Actions) CanIGetLogs() *Actions {
 	a.context.t.Helper()
 	a.runCli(a.prepareCanIGetLogsArgs()...)
-	return a
-}
-
-func (a *Actions) IgnoreErrors() *Actions {
-	a.ignoreErrors = true
-	return a
-}
-
-func (a *Actions) DoNotIgnoreErrors() *Actions {
-	a.ignoreErrors = false
 	return a
 }
 

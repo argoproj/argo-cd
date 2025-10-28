@@ -8,6 +8,7 @@ import * as moment from 'moment';
 import {BehaviorSubject, combineLatest, concat, from, fromEvent, Observable, Observer, Subscription} from 'rxjs';
 import {debounceTime, map} from 'rxjs/operators';
 import {AppContext, Context, ContextApis} from '../../shared/context';
+import {isValidURL} from '../../shared/utils';
 import {ResourceTreeNode} from './application-resource-tree/application-resource-tree';
 
 import {CheckboxField, COLORS, ErrorNotification, Revision} from '../../shared/components';
@@ -31,6 +32,22 @@ export function nodeKey(node: NodeId) {
     return [node.group, node.kind, node.namespace, node.name].join('/');
 }
 
+// Convert ResourceStatus to ResourceNode for orphaned resources
+export function resourceStatusToResourceNode(res: appModels.ResourceStatus): appModels.ResourceNode {
+    return {
+        kind: res.kind,
+        name: res.name,
+        namespace: res.namespace,
+        group: res.group,
+        version: res.version,
+        uid: `${res.group}/${res.kind}/${res.namespace}/${res.name}`,
+        resourceVersion: '',
+        createdAt: res.createdAt,
+        parentRefs: [],
+        info: []
+    };
+}
+
 export function createdOrNodeKey(node: NodeId) {
     return node?.createdAt || nodeKey(node);
 }
@@ -49,6 +66,22 @@ export function helpTip(text: string) {
         </Tooltip>
     );
 }
+
+//CLassic Solid circle-notch icon
+//<!--!Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2025 Fonticons, Inc.-->
+//this will replace all <i> fa-spin </i> icons as they are currently misbehaving with no fix available.
+
+export const SpinningIcon = ({color, qeId}: {color: string; qeId: string}) => {
+    return (
+        <svg className='icon spin' xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512' style={{color}} qe-id={qeId}>
+            <path
+                fill={color}
+                d='M222.7 32.1c5 16.9-4.6 34.8-21.5 39.8C121.8 95.6 64 169.1 64 256c0 106 86 192 192 192s192-86 192-192c0-86.9-57.8-160.4-137.1-184.1c-16.9-5-26.6-22.9-21.5-39.8s22.9-26.6 39.8-21.5C434.9 42.1 512 140 512 256c0 141.4-114.6 256-256 256S0 397.4 0 256C0 140 77.1 42.1 182.9 10.6c16.9-5 34.8 4.6 39.8 21.5z'
+            />
+        </svg>
+    );
+};
+
 export async function deleteApplication(appName: string, appNamespace: string, apis: ContextApis): Promise<boolean> {
     let confirmed = false;
     const propagationPolicies: {name: string; message: string}[] = [
@@ -199,7 +232,7 @@ const PropagationPolicyOption = ReactForm.FormField((props: {fieldApi: ReactForm
 export const OperationPhaseIcon = ({app, isButton}: {app: appModels.Application; isButton?: boolean}) => {
     const operationState = getAppOperationState(app);
     if (operationState === undefined) {
-        return <React.Fragment />;
+        return null;
     }
     let className = '';
     let color = '';
@@ -221,12 +254,16 @@ export const OperationPhaseIcon = ({app, isButton}: {app: appModels.Application;
             color = COLORS.operation.running;
             break;
     }
-    return <i title={getOperationStateTitle(app)} qe-id='utils-operations-status-title' className={className} style={{color}} />;
+    return className.includes('fa-spin') ? (
+        <SpinningIcon color={color} qeId='utils-operations-status-title' />
+    ) : (
+        <i title={getOperationStateTitle(app)} qe-id='utils-operations-status-title' className={className} style={{color}} />
+    );
 };
 
 export const HydrateOperationPhaseIcon = ({operationState, isButton}: {operationState?: appModels.HydrateOperation; isButton?: boolean}) => {
     if (operationState === undefined) {
-        return <React.Fragment />;
+        return null;
     }
     let className = '';
     let color = '';
@@ -244,7 +281,11 @@ export const HydrateOperationPhaseIcon = ({operationState, isButton}: {operation
             color = COLORS.operation.running;
             break;
     }
-    return <i title={operationState.phase} qe-id='utils-operations-status-title' className={className} style={{color}} />;
+    return className.includes('fa-spin') ? (
+        <SpinningIcon color={color} qeId='utils-operations-status-title' />
+    ) : (
+        <i title={operationState.phase} qe-id='utils-operations-status-title' className={className} style={{color}} />
+    );
 };
 
 export const ComparisonStatusIcon = ({
@@ -283,7 +324,9 @@ export const ComparisonStatusIcon = ({
             className = `fa fa-circle-notch ${noSpin ? '' : 'fa-spin'}${isButton ? ' status-button' : ''}`;
             break;
     }
-    return (
+    return className.includes('fa-spin') ? (
+        <SpinningIcon color={color} qeId='utils-sync-status-title' />
+    ) : (
         <React.Fragment>
             <i qe-id='utils-sync-status-title' title={title} className={className} style={{color}} /> {label && title}
         </React.Fragment>
@@ -377,17 +420,15 @@ export const deleteSourceAction = (app: appModels.Application, source: appModels
         () => (
             <div>
                 <p>
-                    <>
-                        Are you sure you want to delete the source with URL: <kbd>{source.repoURL}</kbd>
-                        {source.path ? (
-                            <>
-                                {' '}
-                                and path: <kbd>{source.path}</kbd>?
-                            </>
-                        ) : (
-                            <>?</>
-                        )}
-                    </>
+                    Are you sure you want to delete the source with URL: <kbd>{source.repoURL}</kbd>
+                    {source.path ? (
+                        <>
+                            {' '}
+                            and path: <kbd>{source.path}</kbd>?
+                        </>
+                    ) : (
+                        <>?</>
+                    )}
                 </p>
             </div>
         ),
@@ -521,33 +562,74 @@ export const deletePopup = async (
     );
 };
 
-export function getResourceActionsMenuItems(resource: ResourceTreeNode, metadata: models.ObjectMeta, apis: ContextApis): Promise<ActionMenuItem[]> {
+export async function getResourceActionsMenuItems(resource: ResourceTreeNode, metadata: models.ObjectMeta, apis: ContextApis): Promise<ActionMenuItem[]> {
+    // Don't call API for missing resources
+    if (!resource.uid) {
+        return [];
+    }
+
     return services.applications
         .getResourceActions(metadata.name, metadata.namespace, resource)
         .then(actions => {
-            return actions.map(
-                action =>
-                    ({
-                        title: action.displayName ?? action.name,
-                        disabled: !!action.disabled,
-                        iconClassName: action.iconClass,
-                        action: async () => {
-                            try {
-                                const confirmed = await apis.popup.confirm(`Execute '${action.name}' action?`, `Are you sure you want to execute '${action.name}' action?`);
-                                if (confirmed) {
-                                    await services.applications.runResourceAction(metadata.name, metadata.namespace, resource, action.name);
+            return actions.map(action => ({
+                title: action.displayName ?? action.name,
+                disabled: !!action.disabled,
+                iconClassName: action.iconClass,
+                action: async () => {
+                    const confirmed = false;
+                    const title = action.params ? `Enter input parameters for action: ${action.name}` : `Perform ${action.name} action?`;
+                    await apis.popup.prompt(
+                        title,
+                        api => (
+                            <div>
+                                {!action.params && (
+                                    <div className='argo-form-row'>
+                                        <div> Are you sure you want to perform {action.name} action?</div>
+                                    </div>
+                                )}
+                                {action.params &&
+                                    action.params.map((param, index) => (
+                                        <div className='argo-form-row' key={index}>
+                                            <FormField label={param.name} field={param.name} formApi={api} component={Text} />
+                                        </div>
+                                    ))}
+                            </div>
+                        ),
+                        {
+                            submit: async (vals, _, close) => {
+                                try {
+                                    const resourceActionParameters = action.params
+                                        ? action.params.map(param => ({
+                                              name: param.name,
+                                              value: vals[param.name] || param.default,
+                                              type: param.type,
+                                              default: param.default
+                                          }))
+                                        : [];
+                                    await services.applications.runResourceAction(metadata.name, metadata.namespace, resource, action.name, resourceActionParameters);
+                                    close();
+                                } catch (e) {
+                                    apis.notifications.show({
+                                        content: <ErrorNotification title='Unable to execute resource action' e={e} />,
+                                        type: NotificationType.Error
+                                    });
                                 }
-                            } catch (e) {
-                                apis.notifications.show({
-                                    content: <ErrorNotification title='Unable to execute resource action' e={e} />,
-                                    type: NotificationType.Error
-                                });
                             }
-                        }
-                    }) as MenuItem
-            );
+                        },
+                        null,
+                        null,
+                        action.params
+                            ? action.params.reduce((acc, res) => {
+                                  acc[res.name] = res.default;
+                                  return acc;
+                              }, {} as any)
+                            : {}
+                    );
+                    return confirmed;
+                }
+            }));
         })
-        .catch(() => [] as MenuItem[]);
+        .catch(() => [] as ActionMenuItem[]);
 }
 
 function getActionItems(
@@ -635,20 +717,22 @@ function getActionItems(
 
     const resourceActions = getResourceActionsMenuItems(resource, application.metadata, apis);
 
-    const links = services.applications
-        .getResourceLinks(application.metadata.name, application.metadata.namespace, resource)
-        .then(data => {
-            return (data.items || []).map(
-                link =>
-                    ({
-                        title: link.title,
-                        iconClassName: `fa fa-fw ${link.iconClass ? link.iconClass : 'fa-external-link'}`,
-                        action: () => window.open(link.url, '_blank'),
-                        tooltip: link.description
-                    }) as MenuItem
-            );
-        })
-        .catch(() => [] as MenuItem[]);
+    const links = !resource.uid
+        ? Promise.resolve([])
+        : services.applications
+              .getResourceLinks(application.metadata.name, application.metadata.namespace, resource)
+              .then(data => {
+                  return (data.items || []).map(
+                      link =>
+                          ({
+                              title: link.title,
+                              iconClassName: `fa fa-fw ${link.iconClass ? link.iconClass : 'fa-external-link'}`,
+                              action: () => window.open(link.url, '_blank'),
+                              tooltip: link.description
+                          }) as MenuItem
+                  );
+              })
+              .catch(() => [] as MenuItem[]);
 
     return combineLatest(
         from([items]), // this resolves immediately
@@ -681,12 +765,22 @@ export function renderResourceMenu(
                     {items.map((item, i) => (
                         <li
                             className={classNames('application-details__action-menu', {disabled: item.disabled})}
+                            tabIndex={item.disabled ? undefined : 0}
                             key={i}
                             onClick={e => {
                                 e.stopPropagation();
                                 if (!item.disabled) {
                                     item.action();
                                     document.body.click();
+                                }
+                            }}
+                            onKeyDown={e => {
+                                if (e.keyCode === 13 || e.key === 'Enter') {
+                                    e.stopPropagation();
+                                    setTimeout(() => {
+                                        item.action();
+                                        document.body.click();
+                                    });
                                 }
                             }}>
                             {item.tooltip ? (
@@ -772,7 +866,16 @@ export function syncStatusMessage(app: appModels.Application) {
         if (source.chart) {
             message += ' (' + revision + ')';
         } else if (revision.length >= 7 && !revision.startsWith(source.targetRevision)) {
-            message += ' (' + revision.substr(0, 7) + ')';
+            if (source.repoURL.startsWith('oci://')) {
+                // Show "sha256: " plus the first 7 actual characters of the digest.
+                if (revision.startsWith('sha256:')) {
+                    message += ' (' + revision.substring(0, 14) + ')';
+                } else {
+                    message += ' (' + revision.substring(0, 7) + ')';
+                }
+            } else {
+                message += ' (' + revision.substring(0, 7) + ')';
+            }
         }
     }
 
@@ -892,7 +995,11 @@ export const HealthStatusIcon = ({state, noSpin}: {state: appModels.HealthStatus
     if (state.message) {
         title = `${state.status}: ${state.message}`;
     }
-    return <i qe-id='utils-health-status-title' title={title} className={'fa ' + icon + ' utils-health-status-icon'} style={{color}} />;
+    return icon.includes('fa-spin') ? (
+        <SpinningIcon color={color} qeId='utils-health-status-title' />
+    ) : (
+        <i qe-id='utils-health-status-title' title={title} className={'fa ' + icon + ' utils-health-status-icon'} style={{color}} />
+    );
 };
 
 export const PodHealthIcon = ({state}: {state: appModels.HealthStatus}) => {
@@ -916,7 +1023,11 @@ export const PodHealthIcon = ({state}: {state: appModels.HealthStatus}) => {
     if (state.message) {
         title = `${state.status}: ${state.message}`;
     }
-    return <i qe-id='utils-health-status-title' title={title} className={'fa ' + icon} />;
+    return icon.includes('fa-spin') ? (
+        <SpinningIcon color={'white'} qeId='utils-health-status-title' />
+    ) : (
+        <i qe-id='utils-health-status-title' title={title} className={'fa ' + icon} />
+    );
 };
 
 export const PodPhaseIcon = ({state}: {state: appModels.PodPhase}) => {
@@ -938,7 +1049,7 @@ export const PodPhaseIcon = ({state}: {state: appModels.PodPhase}) => {
             className = 'fa fa-question-circle';
             break;
     }
-    return <i qe-id='utils-pod-phase-icon' className={className} />;
+    return className.includes('fa-spin') ? <SpinningIcon color={'white'} qeId='utils-pod-phase-icon' /> : <i qe-id='utils-pod-phase-icon' className={className} />;
 };
 
 export const ResourceResultIcon = ({resource}: {resource: appModels.ResourceResult}) => {
@@ -997,7 +1108,7 @@ export const ResourceResultIcon = ({resource}: {resource: appModels.ResourceResu
         if (resource.message) {
             title = `${resource.hookPhase}: ${resource.message}`;
         }
-        return <i title={title} className={className} style={{color}} />;
+        return className.includes('fa-spin') ? <SpinningIcon color={color} qeId='utils-resource-result-icon' /> : <i title={title} className={className} style={{color}} />;
     }
     return null;
 };
@@ -1059,10 +1170,10 @@ const getOperationStateTitle = (app: appModels.Application) => {
 export const OperationState = ({app, quiet, isButton}: {app: appModels.Application; quiet?: boolean; isButton?: boolean}) => {
     const appOperationState = getAppOperationState(app);
     if (appOperationState === undefined) {
-        return <React.Fragment />;
+        return null;
     }
     if (quiet && [appModels.OperationPhases.Running, appModels.OperationPhases.Failed, appModels.OperationPhases.Error].indexOf(appOperationState.phase) === -1) {
-        return <React.Fragment />;
+        return null;
     }
 
     return (
@@ -1607,4 +1718,184 @@ export function getAppUrl(app: appModels.Application): string {
         return `applications/${app.metadata.name}`;
     }
     return `applications/${app.metadata.namespace}/${app.metadata.name}`;
+}
+
+export const getProgressiveSyncStatusIcon = ({status, isButton}: {status: string; isButton?: boolean}) => {
+    const getIconProps = () => {
+        switch (status) {
+            case 'Healthy':
+                return {icon: 'fa-check-circle', color: COLORS.health.healthy};
+            case 'Progressing':
+                return {icon: 'fa-circle-notch fa-spin', color: COLORS.health.progressing};
+            case 'Pending':
+                return {icon: 'fa-clock', color: COLORS.health.degraded};
+            case 'Waiting':
+                return {icon: 'fa-clock', color: COLORS.sync.out_of_sync};
+            case 'Error':
+                return {icon: 'fa-times-circle', color: COLORS.health.degraded};
+            case 'Synced':
+                return {icon: 'fa-check-circle', color: COLORS.sync.synced};
+            case 'OutOfSync':
+                return {icon: 'fa-exclamation-triangle', color: COLORS.sync.out_of_sync};
+            default:
+                return {icon: 'fa-question-circle', color: COLORS.sync.unknown};
+        }
+    };
+
+    const {icon, color} = getIconProps();
+    const className = `fa ${icon}${isButton ? ' application-status-panel__item-value__status-button' : ''}`;
+    return <i className={className} style={{color}} />;
+};
+
+export const getProgressiveSyncStatusColor = (status: string): string => {
+    switch (status) {
+        case 'Waiting':
+            return COLORS.sync.out_of_sync;
+        case 'Pending':
+            return COLORS.health.degraded;
+        case 'Progressing':
+            return COLORS.health.progressing;
+        case 'Healthy':
+            return COLORS.health.healthy;
+        case 'Error':
+            return COLORS.health.degraded;
+        case 'Synced':
+            return COLORS.sync.synced;
+        case 'OutOfSync':
+            return COLORS.sync.out_of_sync;
+        default:
+            return COLORS.sync.unknown;
+    }
+};
+
+// constant for podrequests
+export const podRequests = {
+    CPU: 'Requests (CPU)',
+    MEMORY: 'Requests (MEM)'
+} as const;
+
+/**
+ * Gets the managed-by-url annotation from an application if it exists
+ * @param app The application object
+ * @returns The managed-by-url value or null if not present
+ */
+export function getManagedByURL(app: any): string | null {
+    return app?.metadata?.annotations?.['argocd.argoproj.io/managed-by-url'] || null;
+}
+
+/**
+ * Gets the managed-by-url from a resource node's info field
+ * @param node The resource node object
+ * @returns The managed-by-url value or null if not present
+ */
+export function getManagedByURLFromNode(node: any): string | null {
+    if (!node?.info) {
+        return null;
+    }
+
+    const managedByURLInfo = node.info.find((info: any) => info.name === 'managed-by-url');
+    return managedByURLInfo?.value || null;
+}
+
+/**
+ * Gets the correct URL for an application link, considering managed-by-url annotation
+ * @param app The application object
+ * @param baseHref The current instance's base href
+ * @param node Optional resource node to get managed-by-url from info field
+ * @returns The URL to use for the application link
+ */
+export function getApplicationLinkURL(app: any, baseHref: string, node?: any): {url: string; isExternal: boolean} {
+    // First try to get managed-by-url from the node's info field (for nested applications)
+    let managedByURL = node ? getManagedByURLFromNode(node) : null;
+
+    // If not found in node, try the application's metadata
+    if (!managedByURL) {
+        managedByURL = getManagedByURL(app);
+    }
+
+    let url, isExternal;
+    if (managedByURL) {
+        // Validate the managed-by URL using the same validation as external links
+        if (!isValidURL(managedByURL)) {
+            // If URL is invalid, fall back to local URL for security
+            console.warn(`Invalid managed-by URL for application ${app.metadata.name}: ${managedByURL}`);
+            url = baseHref + 'applications/' + app.metadata.namespace + '/' + app.metadata.name;
+            isExternal = false;
+        } else {
+            url = managedByURL + '/applications/' + app.metadata.namespace + '/' + app.metadata.name;
+            isExternal = true;
+        }
+    } else {
+        url = baseHref + 'applications/' + app.metadata.namespace + '/' + app.metadata.name;
+        isExternal = false;
+    }
+    return {url, isExternal};
+}
+
+/**
+ * Gets the correct URL for an application link from a resource node, considering managed-by-url annotation
+ * @param node The resource node representing an application
+ * @param baseHref The current instance's base href
+ * @returns The URL to use for the application link
+ */
+export function getApplicationLinkURLFromNode(node: any, baseHref: string): {url: string; isExternal: boolean} {
+    const managedByURL = getManagedByURLFromNode(node);
+
+    let url, isExternal;
+    if (managedByURL) {
+        // Validate the managed-by URL using the same validation as external links
+        if (!isValidURL(managedByURL)) {
+            // If URL is invalid, fall back to local URL for security
+            console.warn(`Invalid managed-by URL for application ${node.name}: ${managedByURL}`);
+            url = baseHref + 'applications/' + node.namespace + '/' + node.name;
+            isExternal = false;
+        } else {
+            url = managedByURL + '/applications/' + node.namespace + '/' + node.name;
+            isExternal = true;
+        }
+    } else {
+        url = baseHref + 'applications/' + node.namespace + '/' + node.name;
+        isExternal = false;
+    }
+    return {url, isExternal};
+}
+
+export function formatResourceInfo(name: string, value: string): {displayValue: string; tooltipValue: string} {
+    const numValue = parseInt(value, 10);
+
+    const formatCPUValue = (milliCpu: number): string => {
+        return milliCpu >= 1000 ? `${(milliCpu / 1000).toFixed(1)}` : `${milliCpu}m`;
+    };
+
+    const formatMemoryValue = (milliBytes: number): string => {
+        const mib = Math.round(milliBytes / (1024 * 1024 * 1000));
+        return `${mib}Mi`;
+    };
+
+    const formatCPUTooltip = (milliCpu: number): string => {
+        const displayValue = milliCpu >= 1000 ? `${(milliCpu / 1000).toFixed(1)} cores` : `${milliCpu}m`;
+        return `CPU Request: ${displayValue}`;
+    };
+
+    const formatMemoryTooltip = (milliBytes: number): string => {
+        const mib = Math.round(milliBytes / (1024 * 1024 * 1000));
+        return `Memory Request: ${mib}Mi`;
+    };
+
+    if (name === 'cpu') {
+        return {
+            displayValue: formatCPUValue(numValue),
+            tooltipValue: formatCPUTooltip(numValue)
+        };
+    } else if (name === 'memory') {
+        return {
+            displayValue: formatMemoryValue(numValue),
+            tooltipValue: formatMemoryTooltip(numValue)
+        };
+    }
+
+    return {
+        displayValue: value,
+        tooltipValue: `${name}: ${value}`
+    };
 }

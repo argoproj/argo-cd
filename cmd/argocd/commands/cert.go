@@ -18,7 +18,7 @@ import (
 	appsv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	certutil "github.com/argoproj/argo-cd/v3/util/cert"
 	"github.com/argoproj/argo-cd/v3/util/errors"
-	"github.com/argoproj/argo-cd/v3/util/io"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
 )
 
 // NewCertCommand returns a new instance of an `argocd repo` command
@@ -69,7 +69,7 @@ func NewCertAddTLSCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 			ctx := c.Context()
 
 			conn, certIf := headless.NewClientOrDie(clientOpts, c).NewCertClientOrDie()
-			defer io.Close(conn)
+			defer utilio.Close(conn)
 
 			if len(args) != 1 {
 				c.HelpFunc()(c, args)
@@ -152,7 +152,7 @@ func NewCertAddSSHCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 			ctx := c.Context()
 
 			conn, certIf := headless.NewClientOrDie(clientOpts, c).NewCertClientOrDie()
-			defer io.Close(conn)
+			defer utilio.Close(conn)
 
 			var sshKnownHostsLists []string
 			var err error
@@ -226,7 +226,7 @@ func NewCertRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 				os.Exit(1)
 			}
 			conn, certIf := headless.NewClientOrDie(clientOpts, c).NewCertClientOrDie()
-			defer io.Close(conn)
+			defer utilio.Close(conn)
 			hostNamePattern := args[0]
 
 			// Prevent the user from specifying a wildcard as hostname as precaution
@@ -289,7 +289,7 @@ func NewCertListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			}
 
 			conn, certIf := headless.NewClientOrDie(clientOpts, c).NewCertClientOrDie()
-			defer io.Close(conn)
+			defer utilio.Close(conn)
 			certificates, err := certIf.ListCertificates(ctx, &certificatepkg.RepositoryCertificateQuery{HostNamePattern: hostNamePattern, CertType: certType})
 			errors.CheckError(err)
 

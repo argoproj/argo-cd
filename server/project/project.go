@@ -60,7 +60,7 @@ type Server struct {
 func NewServer(ns string, kubeclientset kubernetes.Interface, appclientset appclientset.Interface, enf *rbac.Enforcer, projectLock sync.KeyLock, sessionMgr *session.SessionManager, policyEnf *rbacpolicy.RBACPolicyEnforcer,
 	projInformer cache.SharedIndexInformer, settingsMgr *settings.SettingsManager, db db.ArgoDB, enableK8sEvent []string,
 ) *Server {
-	auditLogger := argo.NewAuditLogger(ns, kubeclientset, "argocd-server", enableK8sEvent)
+	auditLogger := argo.NewAuditLogger(kubeclientset, "argocd-server", enableK8sEvent)
 	return &Server{
 		enf: enf, policyEnf: policyEnf, appclientset: appclientset, kubeclientset: kubeclientset, ns: ns, projectLock: projectLock, auditLogger: auditLogger, sessionMgr: sessionMgr,
 		projInformer: projInformer, settingsMgr: settingsMgr, db: db,
@@ -310,12 +310,20 @@ func (s *Server) GetDetailedProject(ctx context.Context, q *project.ProjectQuery
 	}
 	proj.NormalizeJWTTokens()
 	globalProjects := argo.GetGlobalProjects(proj, listersv1alpha1.NewAppProjectLister(s.projInformer.GetIndexer()), s.settingsMgr)
+	var apiRepos []*v1alpha1.Repository
+	for _, repo := range repositories {
+		apiRepos = append(apiRepos, repo.Normalize().Sanitized())
+	}
+	var apiClusters []*v1alpha1.Cluster
+	for _, cluster := range clusters {
+		apiClusters = append(apiClusters, cluster.Sanitized())
+	}
 
 	return &project.DetailedProjectsResponse{
 		GlobalProjects: globalProjects,
 		Project:        proj,
-		Repositories:   repositories,
-		Clusters:       clusters,
+		Repositories:   apiRepos,
+		Clusters:       apiClusters,
 	}, err
 }
 
@@ -412,7 +420,8 @@ func (s *Server) Update(ctx context.Context, q *project.ProjectUpdateRequest) (*
 		destCluster, err := argo.GetDestinationCluster(ctx, a.Spec.Destination, s.db)
 		if err != nil {
 			if err.Error() != argo.ErrDestinationMissing {
-				return nil, err
+				// If cluster is not found, we should discard this app, as it's most likely already in error
+				continue
 			}
 			invalidDstCount++
 		}

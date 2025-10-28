@@ -19,11 +19,11 @@ spec:
         # ...
 ```
 
-!!! note
-    Know the security implications of PR generators in ApplicationSets.
-    [Only admins may create ApplicationSets](./Security.md#only-admins-may-createupdatedelete-applicationsets) to avoid
-    leaking Secrets, and [only admins may create PRs](./Security.md#templated-project-field) if the `project` field of
-    an ApplicationSet with a PR generator is templated, to avoid granting management of out-of-bounds resources.
+> [!NOTE]
+> Know the security implications of PR generators in ApplicationSets.
+> [Only admins may create ApplicationSets](./Security.md#only-admins-may-createupdatedelete-applicationsets) to avoid
+> leaking Secrets, and [only admins may create PRs](./Security.md#templated-project-field) if the `project` field of
+> an ApplicationSet with a PR generator is templated, to avoid granting management of out-of-bounds resources.
 
 ## GitHub
 
@@ -112,7 +112,7 @@ spec:
 * `api`: If using self-hosted GitLab, the URL to access it. (Optional)
 * `tokenRef`: A `Secret` name and key containing the GitLab access token to use for requests. If not specified, will make anonymous requests which have a lower rate limit and can only see public repositories. (Optional)
 * `labels`: Labels is used to filter the MRs that you want to target. (Optional)
-* `pullRequestState`: PullRequestState is an additional MRs filter to get only those with a certain state. Default: "" (all states)
+* `pullRequestState`: PullRequestState is an additional MRs filter to get only those with a certain state. By default all states. Default: "" (all states). Valid values: `""`, `opened`, `closed`, `merged` or `locked`. (Optional)
 * `insecure`: By default (false) - Skip checking the validity of the SCM's certificate - useful for self-signed TLS certificates.
 * `caRef`: Optional `ConfigMap` name and key containing the GitLab certificates to trust - useful for self-signed TLS certificates. Possibly reference the ArgoCD CM holding the trusted certs.
 
@@ -236,7 +236,7 @@ spec:
   generators:
     - pullRequest:
         bitbucket:
-          # Workspace name where the repoistory is stored under. Required.
+          # Workspace name where the repository is stored under. Required.
           owner: myproject
           # Repository slug. Required.
           repo: myrepository
@@ -262,6 +262,14 @@ spec:
         # Filter PRs using the source branch name. (optional)
         filters:
           - branchMatch: ".*-argocd"
+          
+          # If you need to filter destination branch too, you can use this
+          - targetBranchMatch: "master"
+            
+          # Also you can combine source and target branch filters like
+          # This case will match any pull-request where source branch ends with "-argocd" and destination branch is master
+          - branchMatch: ".*-argocd"
+            targetBranchMatch: "master"
   template:
   # ...
 ```
@@ -269,7 +277,12 @@ spec:
 - `owner`: Required name of the Bitbucket workspace
 - `repo`: Required name of the Bitbucket repository.
 - `api`: Optional URL to access the Bitbucket REST API. For the example above, an API request would be made to `https://api.bitbucket.org/2.0/repositories/{workspace}/{repo_slug}/pullrequests`. If not set, defaults to `https://api.bitbucket.org/2.0`
-- `branchMatch`: Optional regexp filter which should match the source branch name. This is an alternative to labels which are not supported by Bitbucket server.
+
+You can use branch `filters` like
+- `branchMatch`: Optional regexp filter which should match the source branch name.
+- `targetBranchMatch`: Optional regexp filter which should match destination branch name.
+
+> Note: Labels are not supported by Bitbucket.
 
 If you want to access a private repository, Argo CD will need credentials to access repository in Bitbucket Cloud. You can use Bitbucket App Password (generated per user, with access to whole workspace), or Bitbucket App Token (generated per repository, with access limited to repository scope only). If both App Password and App Token are defined, App Token will be used.
 
@@ -338,15 +351,18 @@ spec:
   generators:
   - pullRequest:
       # ...
-      # Include any pull request ending with "argocd". (optional)
+      # Include any pull request branch ending with "argocd" 
+      # and pull request title starting with "feat:". (optional)
       filters:
       - branchMatch: ".*-argocd"
+      - titleMatch: "^feat:"
   template:
   # ...
 ```
 
 * `branchMatch`: A regexp matched against source branch names.
 * `targetBranchMatch`: A regexp matched against target branch names.
+* `titleMatch`: A regexp matched against Pull Request title. 
 
 [GitHub](#github) and [GitLab](#gitlab) also support a `labels` filter.
 
@@ -436,8 +452,8 @@ When using a Pull Request generator, the ApplicationSet controller polls every `
 
 The configuration is almost the same as the one described [in the Git generator](Generators-Git.md), but there is one difference: if you want to use the Pull Request Generator as well, additionally configure the following settings.
 
-!!! note
-    The ApplicationSet controller webhook does not use the same webhook as the API server as defined [here](../webhook.md). ApplicationSet exposes a webhook server as a service of type ClusterIP. An ApplicationSet specific Ingress resource needs to be created to expose this service to the webhook source.
+> [!NOTE]
+> The ApplicationSet controller webhook does not use the same webhook as the API server as defined [here](../webhook.md). ApplicationSet exposes a webhook server as a service of type ClusterIP. An ApplicationSet specific Ingress resource needs to be created to expose this service to the webhook source.
 
 ### Github webhook configuration
 
@@ -512,7 +528,7 @@ spec:
         namespace: default
 ```
 
-!!! note
-    The `values.` prefix is always prepended to values provided via `generators.pullRequest.values` field. Ensure you include this prefix in the parameter name within the `template` when using it.
+> [!NOTE]
+> The `values.` prefix is always prepended to values provided via `generators.pullRequest.values` field. Ensure you include this prefix in the parameter name within the `template` when using it.
 
 In `values` we can also interpolate all fields set by the Pull Request generator as mentioned above.

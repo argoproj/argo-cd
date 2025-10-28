@@ -81,7 +81,7 @@ slsa-verifier verify-image "$IMAGE" \
     --source-tag v2.7.0
 ```
 
-If you only want to verify up to the major or minor verion of the source repository tag (instead of the full tag), use the `--source-versioned-tag` which performs semantic versioning verification:
+If you only want to verify up to the major or minor version of the source repository tag (instead of the full tag), use the `--source-versioned-tag` which performs semantic versioning verification:
 
 ```shell
 slsa-verifier verify-image "$IMAGE" \
@@ -100,9 +100,9 @@ slsa-verifier verify-image "$IMAGE" \
 
 If you prefer using cosign, follow these [instructions](https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#cosign).
 
-!!! tip
-    `cosign` or `slsa-verifier` can both be used to verify image attestations.
-    Check the documentation of each binary for detailed instructions.
+> [!TIP]
+> `cosign` or `slsa-verifier` can both be used to verify image attestations.
+> Check the documentation of each binary for detailed instructions.
 
 ***
 
@@ -117,7 +117,7 @@ slsa-verifier verify-artifact argocd-linux-amd64 \
   --source-tag v2.7.0
 ```
 
-If you only want to verify up to the major or minor verion of the source repository tag (instead of the full tag), use the `--source-versioned-tag` which performs semantic versioning verification:
+If you only want to verify up to the major or minor version of the source repository tag (instead of the full tag), use the `--source-versioned-tag` which performs semantic versioning verification:
 
 ```shell
 slsa-verifier verify-artifact argocd-linux-amd64 \
@@ -151,7 +151,7 @@ slsa-verifier verify-artifact sbom.tar.gz \
 ## Verification on Kubernetes
 
 ### Policy controllers
-!!! note
-    We encourage all users to verify signatures and provenances with your admission/policy controller of choice. Doing so will verify that an image was built by us before it's deployed on your Kubernetes cluster.
+> [!NOTE]
+> We encourage all users to verify signatures and provenances with your admission/policy controller of choice. Doing so will verify that an image was built by us before it's deployed on your Kubernetes cluster.
 
 Cosign signatures and SLSA provenances are compatible with several types of admission controllers. Please see the [cosign documentation](https://docs.sigstore.dev/cosign/overview/#kubernetes-integrations) and [slsa-github-generator](https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#verification) for supported controllers.

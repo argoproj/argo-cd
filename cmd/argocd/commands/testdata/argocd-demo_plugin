@@ -1,0 +1,15 @@
+#!/bin/bash
+
+if [[ "$1" == "version" ]]
+then
+    echo "1.0.0"
+    exit 0
+fi
+
+if [[ "$1" == "config" ]]
+then
+    echo "$KUBECONFIG"
+    exit 0
+fi
+
+echo "I am a plugin named argocd-demo_plugin"

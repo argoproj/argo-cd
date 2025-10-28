@@ -209,45 +209,45 @@ func Test_AddGPGPublicKey(t *testing.T) {
 		db := NewDB(testNamespace, settings, clientset)
 
 		// Key should be added
-		new, skipped, err := db.AddGPGPublicKey(t.Context(), testdata.Github_asc)
+		keys, skipped, err := db.AddGPGPublicKey(t.Context(), testdata.Github_asc)
 		require.NoError(t, err)
-		assert.Len(t, new, 1)
+		assert.Len(t, keys, 1)
 		assert.Empty(t, skipped)
 		cm, err := settings.GetConfigMapByName(common.ArgoCDGPGKeysConfigMapName)
 		require.NoError(t, err)
 		assert.Len(t, cm.Data, 1)
 
 		// Same key should not be added, but skipped
-		new, skipped, err = db.AddGPGPublicKey(t.Context(), testdata.Github_asc)
+		keys, skipped, err = db.AddGPGPublicKey(t.Context(), testdata.Github_asc)
 		require.NoError(t, err)
-		assert.Empty(t, new)
+		assert.Empty(t, keys)
 		assert.Len(t, skipped, 1)
 		cm, err = settings.GetConfigMapByName(common.ArgoCDGPGKeysConfigMapName)
 		require.NoError(t, err)
 		assert.Len(t, cm.Data, 1)
 
 		// New keys should be added
-		new, skipped, err = db.AddGPGPublicKey(t.Context(), testdata.Multi_asc)
+		keys, skipped, err = db.AddGPGPublicKey(t.Context(), testdata.Multi_asc)
 		require.NoError(t, err)
-		assert.Len(t, new, 2)
+		assert.Len(t, keys, 2)
 		assert.Empty(t, skipped)
 		cm, err = settings.GetConfigMapByName(common.ArgoCDGPGKeysConfigMapName)
 		require.NoError(t, err)
 		assert.Len(t, cm.Data, 3)
 
 		// Same new keys should be skipped
-		new, skipped, err = db.AddGPGPublicKey(t.Context(), testdata.Multi_asc)
+		keys, skipped, err = db.AddGPGPublicKey(t.Context(), testdata.Multi_asc)
 		require.NoError(t, err)
-		assert.Empty(t, new)
+		assert.Empty(t, keys)
 		assert.Len(t, skipped, 2)
 		cm, err = settings.GetConfigMapByName(common.ArgoCDGPGKeysConfigMapName)
 		require.NoError(t, err)
 		assert.Len(t, cm.Data, 3)
 
 		// Garbage input should result in error
-		new, skipped, err = db.AddGPGPublicKey(t.Context(), testdata.Garbage_asc)
+		keys, skipped, err = db.AddGPGPublicKey(t.Context(), testdata.Garbage_asc)
 		require.Error(t, err)
-		assert.Nil(t, new)
+		assert.Nil(t, keys)
 		assert.Nil(t, skipped)
 		cm, err = settings.GetConfigMapByName(common.ArgoCDGPGKeysConfigMapName)
 		require.NoError(t, err)

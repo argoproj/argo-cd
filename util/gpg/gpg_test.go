@@ -78,7 +78,7 @@ func Test_GPG_InitializeGnuPG(t *testing.T) {
 
 	// During unit-tests, we need to also kill gpg-agent so we can create a new key.
 	// In real world scenario -- i.e. container crash -- gpg-agent is not running yet.
-	cmd := exec.Command("gpgconf", "--kill", "gpg-agent")
+	cmd := exec.CommandContext(t.Context(), "gpgconf", "--kill", "gpg-agent")
 	cmd.Env = []string{"GNUPGHOME=" + p}
 	err = cmd.Run()
 	require.NoError(t, err)
@@ -550,9 +550,9 @@ func Test_SyncKeyRingFromDirectory(t *testing.T) {
 	tempDir := t.TempDir()
 
 	{
-		new, removed, err := SyncKeyRingFromDirectory(tempDir)
+		newKeys, removed, err := SyncKeyRingFromDirectory(tempDir)
 		require.NoError(t, err)
-		assert.Empty(t, new)
+		assert.Empty(t, newKeys)
 		assert.Empty(t, removed)
 	}
 
@@ -575,15 +575,15 @@ func Test_SyncKeyRingFromDirectory(t *testing.T) {
 			dst.Close()
 		}
 
-		new, removed, err := SyncKeyRingFromDirectory(tempDir)
+		newKeys, removed, err := SyncKeyRingFromDirectory(tempDir)
 		require.NoError(t, err)
-		assert.Len(t, new, 3)
+		assert.Len(t, newKeys, 3)
 		assert.Empty(t, removed)
 
-		installed, err := GetInstalledPGPKeys(new)
+		installed, err := GetInstalledPGPKeys(newKeys)
 		require.NoError(t, err)
 		for _, k := range installed {
-			assert.Contains(t, new, k.KeyID)
+			assert.Contains(t, newKeys, k.KeyID)
 		}
 	}
 
@@ -592,12 +592,12 @@ func Test_SyncKeyRingFromDirectory(t *testing.T) {
 		if err != nil {
 			panic(err.Error())
 		}
-		new, removed, err := SyncKeyRingFromDirectory(tempDir)
+		newKeys, removed, err := SyncKeyRingFromDirectory(tempDir)
 		require.NoError(t, err)
-		assert.Empty(t, new)
+		assert.Empty(t, newKeys)
 		assert.Len(t, removed, 1)
 
-		installed, err := GetInstalledPGPKeys(new)
+		installed, err := GetInstalledPGPKeys(newKeys)
 		require.NoError(t, err)
 		for _, k := range installed {
 			assert.NotEqual(t, k.KeyID, removed[0])

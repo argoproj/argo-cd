@@ -3,7 +3,7 @@ kind: Rollout
 metadata:
   annotations:
     kubectl.kubernetes.io/last-applied-configuration: |
-      {"apiVersion":"argoproj.io/v1alpha1","kind":"Rollout","metadata":{"annotations":{},"name":"example-rollout-canary","namespace":"default"},"spec":{"minReadySeconds":30,"replicas":5,"revisionHistoryLimit":3,"selector":{"matchLabels":{"app":"guestbook"}},"strategy":{"canary":{"steps":[{"setWeight":20},{"pause":{"duration":20}},{"setWeight":40},{"pause":{}}]}},"template":{"metadata":{"labels":{"app":"guestbook"}},"spec":{"containers":[{"image":"gcr.io/heptio-images/ks-guestbook-demo:0.1","name":"guestbook","ports":[{"containerPort":80}]}]}}}}
+      {"apiVersion":"argoproj.io/v1alpha1","kind":"Rollout","metadata":{"annotations":{},"name":"example-rollout-canary","namespace":"default"},"spec":{"minReadySeconds":30,"replicas":5,"revisionHistoryLimit":3,"selector":{"matchLabels":{"app":"guestbook"}},"strategy":{"canary":{"steps":[{"setWeight":20},{"pause":{"duration":20}},{"setWeight":40},{"pause":{}}]}},"template":{"metadata":{"labels":{"app":"guestbook"}},"spec":{"containers":[{"image":"quay.io/argoprojlabs/argocd-e2e-container:0.1","name":"guestbook","ports":[{"containerPort":80}]}]}}}}
     rollout.argoproj.io/revision: "3"
   creationTimestamp: "2019-10-20T15:42:26Z"
   generation: 101
@@ -28,7 +28,7 @@ spec:
         app: guestbook
     spec:
       containers:
-      - image: gcr.io/heptio-images/ks-guestbook-demo:0.1
+      - image: quay.io/argoprojlabs/argocd-e2e-container:0.1
         name: guestbook
         ports:
         - containerPort: 80

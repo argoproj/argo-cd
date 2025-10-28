@@ -13,7 +13,7 @@ import (
 	applicationpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
-	util "github.com/argoproj/argo-cd/v3/util/io"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
 )
 
 // this implements the "then" part of given/when/then
@@ -120,7 +120,7 @@ func (c *Consequences) resource(kind, name, namespace string) v1alpha1.ResourceS
 	c.context.t.Helper()
 	closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
 	require.NoError(c.context.t, err)
-	defer util.Close(closer)
+	defer utilio.Close(closer)
 	app, err := client.Get(context.Background(), &applicationpkg.ApplicationQuery{
 		Name:         ptr.To(c.context.AppName()),
 		Projects:     []string{c.context.project},

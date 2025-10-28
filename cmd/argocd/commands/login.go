@@ -12,6 +12,8 @@ import (
 	"strings"
 	"time"
 
+	jwtutil "github.com/argoproj/argo-cd/v3/util/jwt"
+
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/golang-jwt/jwt/v5"
 	log "github.com/sirupsen/logrus"
@@ -23,11 +25,10 @@ import (
 	argocdclient "github.com/argoproj/argo-cd/v3/pkg/apiclient"
 	sessionpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/session"
 	settingspkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/settings"
-	claimsutil "github.com/argoproj/argo-cd/v3/util/claims"
 	"github.com/argoproj/argo-cd/v3/util/cli"
 	"github.com/argoproj/argo-cd/v3/util/errors"
 	grpc_util "github.com/argoproj/argo-cd/v3/util/grpc"
-	"github.com/argoproj/argo-cd/v3/util/io"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/localconfig"
 	oidcutil "github.com/argoproj/argo-cd/v3/util/oidc"
 	"github.com/argoproj/argo-cd/v3/util/rand"
@@ -41,6 +42,7 @@ func NewLoginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comman
 		username         string
 		password         string
 		sso              bool
+		callback         string
 		ssoPort          int
 		skipTestTLS      bool
 		ssoLaunchBrowser bool
@@ -126,7 +128,7 @@ argocd login cd.argoproj.io --core`,
 			if !globalClientOpts.Core {
 				acdClient := headless.NewClientOrDie(&clientOpts, c)
 				setConn, setIf := acdClient.NewSettingsClientOrDie()
-				defer io.Close(setConn)
+				defer utilio.Close(setConn)
 				if !sso {
 					tokenString = passwordLogin(ctx, acdClient, username, password)
 				} else {
@@ -137,15 +139,13 @@ argocd login cd.argoproj.io --core`,
 					errors.CheckError(err)
 					oauth2conf, provider, err := acdClient.OIDCConfig(ctx, acdSet)
 					errors.CheckError(err)
-					tokenString, refreshToken = oauth2Login(ctx, ssoPort, acdSet.GetOIDCConfig(), oauth2conf, provider, ssoLaunchBrowser)
+					tokenString, refreshToken = oauth2Login(ctx, callback, ssoPort, acdSet.GetOIDCConfig(), oauth2conf, provider, ssoLaunchBrowser)
 				}
 				parser := jwt.NewParser(jwt.WithoutClaimsValidation())
 				claims := jwt.MapClaims{}
 				_, _, err := parser.ParseUnverified(tokenString, &claims)
 				errors.CheckError(err)
-				argoClaims, err := claimsutil.MapClaimsToArgoClaims(claims)
-				errors.CheckError(err)
-				fmt.Printf("'%s' logged in successfully\n", userDisplayName(argoClaims))
+				fmt.Printf("'%s' logged in successfully\n", userDisplayName(claims))
 			}
 
 			// login successful. Persist the config
@@ -186,36 +186,39 @@ argocd login cd.argoproj.io --core`,
 	command.Flags().StringVar(&password, "password", "", "The password of an account to authenticate")
 	command.Flags().BoolVar(&sso, "sso", false, "Perform SSO login")
 	command.Flags().IntVar(&ssoPort, "sso-port", DefaultSSOLocalPort, "Port to run local OAuth2 login application")
-	command.Flags().
-		BoolVar(&skipTestTLS, "skip-test-tls", false, "Skip testing whether the server is configured with TLS (this can help when the command hangs for no apparent reason)")
+	command.Flags().StringVar(&callback, "callback", "", "Scheme, Host and Port for the callback URL")
+	command.Flags().BoolVar(&skipTestTLS, "skip-test-tls", false, "Skip testing whether the server is configured with TLS (this can help when the command hangs for no apparent reason)")
 	command.Flags().BoolVar(&ssoLaunchBrowser, "sso-launch-browser", true, "Automatically launch the system default browser when performing SSO login")
 	return command
 }
 
-func userDisplayName(claims *claimsutil.ArgoClaims) string {
-	if claims == nil {
-		return ""
+func userDisplayName(claims jwt.MapClaims) string {
+	if email := jwtutil.StringField(claims, "email"); email != "" {
+		return email
 	}
-	if claims.Email != "" {
-		return claims.Email
+	if name := jwtutil.StringField(claims, "name"); name != "" {
+		return name
 	}
-	if claims.Name != "" {
-		return claims.Name
-	}
-	return claims.GetUserIdentifier()
+	return jwtutil.GetUserIdentifier(claims)
 }
 
 // oauth2Login opens a browser, runs a temporary HTTP server to delegate OAuth2 login flow and
 // returns the JWT token and a refresh token (if supported)
 func oauth2Login(
 	ctx context.Context,
+	callback string,
 	port int,
 	oidcSettings *settingspkg.OIDCConfig,
 	oauth2conf *oauth2.Config,
 	provider *oidc.Provider,
 	ssoLaunchBrowser bool,
 ) (string, string) {
-	oauth2conf.RedirectURL = fmt.Sprintf("http://localhost:%d/auth/callback", port)
+	redirectBase := callback
+	if redirectBase == "" {
+		redirectBase = "http://localhost:" + strconv.Itoa(port)
+	}
+
+	oauth2conf.RedirectURL = redirectBase + "/auth/callback"
 	oidcConf, err := oidcutil.ParseConfig(provider)
 	errors.CheckError(err)
 	log.Debug("OIDC Configuration:")
@@ -360,7 +363,7 @@ func oauth2Login(
 func passwordLogin(ctx context.Context, acdClient argocdclient.Client, username, password string) string {
 	username, password = cli.PromptCredentials(username, password)
 	sessConn, sessionIf := acdClient.NewSessionClientOrDie()
-	defer io.Close(sessConn)
+	defer utilio.Close(sessConn)
 	sessionRequest := sessionpkg.SessionCreateRequest{
 		Username: username,
 		Password: password,
