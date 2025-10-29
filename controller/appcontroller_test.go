@@ -205,6 +205,7 @@ func newFakeControllerWithResync(ctx context.Context, data *fakeData, appResyncP
 		nil,
 		false,
 		false,
+		false,
 		normalizers.IgnoreNormalizerOpts{},
 		testEnableEventList,
 		false,

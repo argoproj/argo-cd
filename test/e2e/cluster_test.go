@@ -167,6 +167,26 @@ func TestClusterSet(t *testing.T) {
 		})
 }
 
+func TestClusterSet_WithIncrementalNamespaceSync(t *testing.T) {
+	fixture.EnsureCleanState(t)
+	defer fixture.RecordTestRun(t)
+	t.Setenv("ARGOCD_ENABLE_INCREMENTAL_NAMESPACE_SYNC", "true")
+	clusterFixture.
+		GivenWithSameState(t).
+		Project(fixture.ProjectName).
+		Name("in-cluster").
+		Namespaces([]string{"namespace-edit-1", "namespace-edit-2"}).
+		Server(KubernetesInternalAPIServerAddr).
+		When().
+		SetNamespaces().
+		GetByName("in-cluster").
+		Then().
+		AndCLIOutput(func(output string, _ error) {
+			assert.Contains(t, output, "namespace-edit-1")
+			assert.Contains(t, output, "namespace-edit-2")
+		})
+}
+
 func TestClusterGet(t *testing.T) {
 	fixture.SkipIfAlreadyRun(t)
 	fixture.EnsureCleanState(t)
