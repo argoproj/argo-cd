@@ -548,6 +548,30 @@ func newTestApp(opts ...func(app *v1alpha1.Application)) *v1alpha1.Application {
 	return createTestApp(fakeApp, opts...)
 }
 
+func newMultiSourceTestApp(opts ...func(app *v1alpha1.Application)) *v1alpha1.Application {
+	multiSourceApp := newTestApp(opts...)
+	multiSourceApp.Name = "multi-source-app"
+	multiSourceApp.Spec = v1alpha1.ApplicationSpec{
+		Sources: []v1alpha1.ApplicationSource{
+			{
+				RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+				Path:           "helm-guestbook",
+				TargetRevision: "appbranch1",
+			},
+			{
+				RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+				Path:           "kustomize-guestbook",
+				TargetRevision: "appbranch2",
+			},
+		},
+		Destination: v1alpha1.ApplicationDestination{
+			Server:    "https://cluster-api.example.com",
+			Namespace: test.FakeDestNamespace,
+		},
+	}
+	return multiSourceApp
+}
+
 func newTestAppWithAnnotations(opts ...func(app *v1alpha1.Application)) *v1alpha1.Application {
 	return createTestApp(fakeAppWithAnnotations, opts...)
 }
@@ -2039,6 +2063,545 @@ p, test-user, applications, update/fake.io/PodTest/*, default/test-app, deny
 	})
 }
 
+func TestSyncRBACOverrideRequired_DiffRevDenied(t *testing.T) {
+	ctx := t.Context()
+	//nolint:staticcheck
+	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "test-user"})
+
+	f := func(enf *rbac.Enforcer) {
+		_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
+		enf.SetDefaultRole("role:admin")
+	}
+	appServer := newTestAppServerWithEnforcerConfigure(t, f,
+		map[string]string{"application.sync.requireOverridePrivilegeForRevisionSync": "true"})
+
+	_ = appServer.enf.SetBuiltinPolicy(`
+        p, test-user, applications, get, default/*, allow
+        p, test-user, applications, create, default/*, allow
+        p, test-user, applications, sync, default/*, allow
+        p, test-user, applications, override, default/*, deny
+    `)
+
+	testApp := newTestApp()
+	app, err := appServer.Create(ctx,
+		&application.ApplicationCreateRequest{Application: testApp})
+	require.NoError(t, err)
+	syncReq := &application.ApplicationSyncRequest{
+		Name:     &app.Name,
+		Revision: ptr.To("revisionbranch"),
+	}
+	_, err = appServer.Sync(ctx, syncReq)
+	assert.Equal(t, codes.PermissionDenied.String(), status.Code(err).String(),
+		"should not be able to sync to different revision without override permission")
+
+	// same for multi-source app
+	multiSourceApp := newMultiSourceTestApp()
+	app, err = appServer.Create(ctx,
+		&application.ApplicationCreateRequest{Application: multiSourceApp})
+	require.NoError(t, err)
+	syncReq = &application.ApplicationSyncRequest{
+		Name:            &app.Name,
+		SourcePositions: []int64{1},
+		Revisions:       []string{"revisionbranch1"},
+	}
+	_, err = appServer.Sync(ctx, syncReq)
+	assert.Equal(t, codes.PermissionDenied.String(), status.Code(err).String(),
+		"should not be able to sync to different revision without override permission, multi-source app")
+}
+
+func TestSyncRBACOverrideRequired_SameRevisionAllowed(t *testing.T) {
+	ctx := t.Context()
+	//nolint:staticcheck
+	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "test-user"})
+
+	f := func(enf *rbac.Enforcer) {
+		_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
+		enf.SetDefaultRole("role:admin")
+	}
+	appServer := newTestAppServerWithEnforcerConfigure(t, f,
+		map[string]string{"application.sync.requireOverridePrivilegeForRevisionSync": "true"})
+	_ = appServer.enf.SetBuiltinPolicy(`
+        p, test-user, applications, get, default/*, allow
+        p, test-user, applications, create, default/*, allow
+        p, test-user, applications, sync, default/*, allow
+        p, test-user, applications, override, default/*, deny
+    `)
+
+	// create an app and sync to the same revision
+	testApp := newTestApp()
+	app, err := appServer.Create(ctx,
+		&application.ApplicationCreateRequest{Application: testApp})
+	require.NoError(t, err)
+	syncReq := &application.ApplicationSyncRequest{
+		Name:     &app.Name,
+		Revision: ptr.To("HEAD"),
+	}
+	syncedApp, err := appServer.Sync(ctx, syncReq)
+	require.NoError(t, err,
+		"should be able to sync to the same revision without override permission")
+	assert.NotNil(t, syncedApp)
+
+	// same for multi-source app
+	multiSourceApp := newMultiSourceTestApp()
+	app, err = appServer.Create(ctx,
+		&application.ApplicationCreateRequest{Application: multiSourceApp})
+	require.NoError(t, err)
+	syncReq = &application.ApplicationSyncRequest{
+		Name:            &app.Name,
+		SourcePositions: []int64{1, 2},
+		Revisions:       []string{"appbranch1", "appbranch2"},
+	}
+	syncedApp, err = appServer.Sync(ctx, syncReq)
+	require.NoError(t, err,
+		"should be able to sync to the same revision without override permission, multi-source app")
+	assert.NotNil(t, syncedApp)
+}
+
+func TestSyncRBACOverrideRequired_WithoutRevisionAllowed(t *testing.T) {
+	ctx := t.Context()
+	//nolint:staticcheck
+	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "test-user"})
+
+	f := func(enf *rbac.Enforcer) {
+		_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
+		enf.SetDefaultRole("role:admin")
+	}
+	appServer := newTestAppServerWithEnforcerConfigure(t, f,
+		map[string]string{"application.sync.requireOverridePrivilegeForRevisionSync": "true"})
+
+	_ = appServer.enf.SetBuiltinPolicy(`
+        p, test-user, applications, get, default/*, allow
+        p, test-user, applications, create, default/*, allow
+        p, test-user, applications, sync, default/*, allow
+        p, test-user, applications, override, default/*, deny
+    `)
+
+	testApp := newTestApp()
+	app, err := appServer.Create(ctx,
+		&application.ApplicationCreateRequest{Application: testApp})
+	require.NoError(t, err)
+	syncReq := &application.ApplicationSyncRequest{
+		Name: &app.Name,
+	}
+	syncedApp, err := appServer.Sync(ctx, syncReq)
+	require.NoError(t, err)
+	assert.NotNil(t, syncedApp)
+	assert.Equal(t, app.Spec, testApp.Spec)
+
+	// same for multi-source app
+	multiSourceApp := newMultiSourceTestApp()
+	app, err = appServer.Create(ctx,
+		&application.ApplicationCreateRequest{Application: multiSourceApp})
+	require.NoError(t, err)
+	syncReq = &application.ApplicationSyncRequest{
+		Name: &app.Name,
+	}
+	syncedApp, err = appServer.Sync(ctx, syncReq)
+	require.NoError(t, err)
+	assert.NotNil(t, syncedApp)
+}
+
+func TestSyncRBACOverrideGranted_DiffRevisionAllowed(t *testing.T) {
+	ctx := t.Context()
+	//nolint:staticcheck
+	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "test-user"})
+
+	f := func(enf *rbac.Enforcer) {
+		_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
+		enf.SetDefaultRole("role:admin")
+	}
+	appServer := newTestAppServerWithEnforcerConfigure(t, f,
+		map[string]string{"application.sync.requireOverridePrivilegeForRevisionSync": "true"})
+
+	_ = appServer.enf.SetBuiltinPolicy(`
+        p, test-user, applications, get, default/*, allow
+        p, test-user, applications, create, default/*, allow
+        p, test-user, applications, sync, default/*, allow
+        p, test-user, applications, override, default/*, allow
+    `)
+
+	testApp := newTestApp()
+
+	app, err := appServer.Create(ctx,
+		&application.ApplicationCreateRequest{Application: testApp})
+	require.NoError(t, err)
+	syncReq := &application.ApplicationSyncRequest{
+		Name:     &app.Name,
+		Revision: ptr.To("revisionbranch"),
+	}
+	syncedApp, err := appServer.Sync(ctx, syncReq)
+	require.NoError(t, err,
+		"should be able to sync to different revision with override permission")
+	assert.NotNil(t, syncedApp)
+	assert.Equal(t, "HEAD", syncedApp.Spec.Source.TargetRevision)
+
+	// same for multi-source app
+	multiSourceApp := newMultiSourceTestApp()
+	app, err = appServer.Create(ctx,
+		&application.ApplicationCreateRequest{Application: multiSourceApp})
+	require.NoError(t, err)
+	syncReq = &application.ApplicationSyncRequest{
+		Name:            &app.Name,
+		SourcePositions: []int64{1, 2},
+		Revisions:       []string{"appbranch1", "appbranch2"},
+	}
+	syncedApp, err = appServer.Sync(ctx, syncReq)
+	require.NoError(t, err,
+		"should be able to sync to different revision with override permission, multi-source app")
+	assert.NotNil(t, syncedApp)
+}
+
+func TestSyncMultiSource_PosTooLarge(t *testing.T) {
+	ctx := t.Context()
+	//nolint:staticcheck
+	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "test-user"})
+	appServer := newTestAppServer(t)
+
+	_ = appServer.enf.SetBuiltinPolicy(`
+    p, test-user, applications, get, default/*, allow
+    p, test-user, applications, create, default/*, allow
+    p, test-user, applications, sync, default/*, allow
+    `)
+	// create a new app
+	multiSourceApp := newMultiSourceTestApp()
+	app, err := appServer.Create(ctx,
+		&application.ApplicationCreateRequest{Application: multiSourceApp})
+	require.NoError(t, err)
+	// sync with source position greater than the number of sources
+	syncReq := &application.ApplicationSyncRequest{
+		Name:            &app.Name,
+		SourcePositions: []int64{3, 2},
+		Revisions:       []string{"appbranch1", "appbranch2"},
+	}
+	_, err = appServer.Sync(ctx, syncReq)
+	require.EqualError(t, err, "source position is out of range",
+		"should fail because source position is greater than the number of sources")
+}
+
+func TestSyncMultiSource_PosTooSmall(t *testing.T) {
+	ctx := t.Context()
+	//nolint:staticcheck
+	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "test-user"})
+	appServer := newTestAppServer(t)
+
+	_ = appServer.enf.SetBuiltinPolicy(`
+    p, test-user, applications, get, default/*, allow
+    p, test-user, applications, create, default/*, allow
+    p, test-user, applications, sync, default/*, allow
+    `)
+	// create a new app
+	multiSourceApp := newMultiSourceTestApp()
+	app, err := appServer.Create(ctx,
+		&application.ApplicationCreateRequest{Application: multiSourceApp})
+	require.NoError(t, err)
+	// sync with source position less than 1
+	// this should fail because source positions are 1-based
+	syncReq := &application.ApplicationSyncRequest{
+		Name:            &app.Name,
+		SourcePositions: []int64{0, 2},
+		Revisions:       []string{"appbranch1", "appbranch2"},
+	}
+	_, err = appServer.Sync(ctx, syncReq)
+	require.EqualError(t, err, "source position is out of range",
+		"should fail because source position is less than 1")
+}
+
+func TestSync_SyncWithoutSyncPermissionShouldFail(t *testing.T) {
+	ctx := t.Context()
+	//nolint:staticcheck
+	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "test-user"})
+	appServer := newTestAppServer(t)
+	_ = appServer.enf.SetBuiltinPolicy(`
+		p, test-user, applications, get, default/*, allow
+		p, test-user, applications, create, default/*, allow
+		p, test-user, applications, sync, default/*, deny`)
+
+	testApp := newTestApp()
+	app, err := appServer.Create(ctx,
+		&application.ApplicationCreateRequest{Application: testApp})
+	require.NoError(t, err)
+	syncReq := &application.ApplicationSyncRequest{
+		Name: &app.Name,
+	}
+	_, err = appServer.Sync(ctx, syncReq)
+	assert.Equal(t, codes.PermissionDenied.String(), status.Code(err).String())
+
+	// same for multi-source app
+	multiSourceApp := newMultiSourceTestApp()
+	app, err = appServer.Create(ctx,
+		&application.ApplicationCreateRequest{Application: multiSourceApp})
+	require.NoError(t, err)
+	syncReq = &application.ApplicationSyncRequest{
+		Name: &app.Name,
+	}
+	_, err = appServer.Sync(ctx, syncReq)
+	assert.Equal(t, codes.PermissionDenied.String(), status.Code(err).String())
+}
+
+func TestSyncRBACSettingsError(t *testing.T) {
+	ctx := t.Context()
+	//nolint:staticcheck
+	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "test-user"})
+	appServer := newTestAppServer(t)
+	_ = appServer.enf.SetBuiltinPolicy(`
+		p, test-user, applications, get, default/*, allow
+		p, test-user, applications, create, default/*, allow
+		p, test-user, applications, sync, default/*, allow
+		p, test-user, applications, override, default/*, deny
+	`)
+
+	// create a new app
+	testApp := newTestApp()
+	app, err := appServer.Create(ctx,
+		&application.ApplicationCreateRequest{Application: testApp})
+	require.NoError(t, err)
+
+	// override settings manager to return error
+	brokenclientset := fake.NewClientset(&corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "argocd-secret",
+			Namespace: testNamespace,
+		},
+		Data: map[string][]byte{
+			"admin.password":   []byte("test"),
+			"server.secretkey": []byte("test"),
+		},
+	})
+	appServer.settingsMgr = settings.NewSettingsManager(ctx, brokenclientset, testNamespace)
+	// and sync to different revision
+	syncReq := &application.ApplicationSyncRequest{
+		Name:     &app.Name,
+		Revision: ptr.To("revisionbranch"),
+	}
+
+	_, err2 := appServer.Sync(ctx, syncReq)
+	require.Error(t, err2)
+	require.ErrorContains(t, err2, "error getting setting")
+}
+
+func TestSyncRBACOverrideFalse_DiffRevNoOverrideAllowed(t *testing.T) {
+	ctx := t.Context()
+	//nolint:staticcheck
+	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "test-user"})
+	appServer := newTestAppServer(t)
+	_ = appServer.enf.SetBuiltinPolicy(`
+        p, test-user, applications, get, default/*, allow
+        p, test-user, applications, create, default/*, allow
+        p, test-user, applications, sync, default/*, allow
+        p, test-user, applications, override, default/*, deny
+    `)
+
+	// create a new app
+	testApp := newTestApp()
+	app, err := appServer.Create(ctx,
+		&application.ApplicationCreateRequest{Application: testApp})
+	require.NoError(t, err)
+	// and sync to different revision
+	syncReq := &application.ApplicationSyncRequest{
+		Name:     &app.Name,
+		Revision: ptr.To("revisionbranch"),
+	}
+
+	syncedApp, err := appServer.Sync(ctx, syncReq)
+	require.NoError(t, err)
+	assert.NotNil(t, syncedApp)
+	assert.Equal(t, "HEAD", syncedApp.Spec.Source.TargetRevision)
+
+	// same for multi-source app
+
+	multiSourceApp := newMultiSourceTestApp()
+	app, err = appServer.Create(ctx,
+		&application.ApplicationCreateRequest{Application: multiSourceApp})
+	require.NoError(t, err)
+	syncReq = &application.ApplicationSyncRequest{
+		Name:            &app.Name,
+		SourcePositions: []int64{1},
+		Revisions:       []string{"revisionbranch1"},
+	}
+	syncedApp, err = appServer.Sync(ctx, syncReq)
+	require.NoError(t, err)
+	assert.NotNil(t, syncedApp)
+	// Sync to different revision must not change app spec
+	assert.Equal(t, "appbranch1", syncedApp.Spec.Sources[0].TargetRevision)
+	assert.Equal(t, "appbranch2", syncedApp.Spec.Sources[1].TargetRevision)
+}
+
+func TestSyncRBACOverrideNotRequired_SameRevisionAllowed(t *testing.T) {
+	ctx := t.Context()
+	//nolint:staticcheck
+	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "test-user"})
+	appServer := newTestAppServer(t)
+	_ = appServer.enf.SetBuiltinPolicy(`
+        p, test-user, applications, get, default/*, allow
+        p, test-user, applications, create, default/*, allow
+        p, test-user, applications, sync, default/*, allow
+        p, test-user, applications, override, default/*, deny`)
+
+	// create a new app
+	testApp := newTestApp()
+	app, err := appServer.Create(ctx, &application.ApplicationCreateRequest{Application: testApp})
+	require.NoError(t, err)
+	syncReq := &application.ApplicationSyncRequest{
+		Name:     &app.Name,
+		Revision: ptr.To("HEAD"),
+	}
+
+	syncedApp, err := appServer.Sync(ctx, syncReq)
+	require.NoError(t, err,
+		"should be able to sync to the same revision without override permission")
+	assert.NotNil(t, syncedApp)
+
+	// same for multi-source app
+	multiSourceApp := newMultiSourceTestApp()
+	app, err = appServer.Create(ctx, &application.ApplicationCreateRequest{Application: multiSourceApp})
+	require.NoError(t, err)
+	syncReq = &application.ApplicationSyncRequest{
+		Name:            &app.Name,
+		SourcePositions: []int64{1, 2},
+		Revisions:       []string{"appbranch1", "appbranch2"},
+	}
+	syncedApp, err = appServer.Sync(ctx, syncReq)
+	require.NoError(t, err,
+		"should be able to sync to the same revision without override permission, multi-source app")
+	assert.NotNil(t, syncedApp)
+}
+
+func TestSyncRBACOverrideNotRequired_EmptyRevisionAllowed(t *testing.T) {
+	ctx := t.Context()
+	//nolint:staticcheck
+	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "test-user"})
+	appServer := newTestAppServer(t)
+	_ = appServer.enf.SetBuiltinPolicy(`
+        p, test-user, applications, get, default/*, allow
+        p, test-user, applications, create, default/*, allow
+        p, test-user, applications, sync, default/*, allow
+        p, test-user, applications, override, default/*, deny
+    `)
+
+	// create a new app
+	testApp := newTestApp()
+	app, err := appServer.Create(ctx, &application.ApplicationCreateRequest{Application: testApp})
+	require.NoError(t, err)
+	syncReq := &application.ApplicationSyncRequest{
+		Name: &app.Name,
+	}
+
+	syncedApp, err := appServer.Sync(ctx, syncReq)
+	require.NoError(t, err,
+		"should be able to sync with empty revision without override permission")
+	assert.NotNil(t, app)
+	assert.Equal(t, "HEAD", syncedApp.Spec.Source.TargetRevision)
+
+	// same for multi-source app
+	multiSourceApp := newMultiSourceTestApp()
+	app, err = appServer.Create(ctx, &application.ApplicationCreateRequest{Application: multiSourceApp})
+	require.NoError(t, err)
+	syncReq = &application.ApplicationSyncRequest{
+		Name: &app.Name,
+	}
+	syncedApp, err = appServer.Sync(ctx, syncReq)
+	require.NoError(t, err,
+		"should be able to sync with empty revision without override permission, multi-source app")
+	assert.NotNil(t, syncedApp)
+	assert.Equal(t, "appbranch1", syncedApp.Spec.Sources[0].TargetRevision)
+	assert.Equal(t, "appbranch2", syncedApp.Spec.Sources[1].TargetRevision)
+}
+
+func TestSyncRBACOverrideNotRequired_DiffRevisionAllowed(t *testing.T) {
+	ctx := t.Context()
+	//nolint:staticcheck
+	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "test-user"})
+	appServer := newTestAppServer(t)
+	_ = appServer.enf.SetBuiltinPolicy(`
+        p, test-user, applications, get, default/*, allow
+        p, test-user, applications, create, default/*, allow
+        p, test-user, applications, sync, default/*, allow
+        p, test-user, applications, override, default/*, allow
+    `)
+	// create a new app
+	testApp := newTestApp()
+	app, err := appServer.Create(ctx, &application.ApplicationCreateRequest{Application: testApp})
+	require.NoError(t, err)
+
+	syncReq := &application.ApplicationSyncRequest{
+		Name:     &app.Name,
+		Revision: ptr.To("revisionbranch"),
+	}
+
+	syncedApp, err := appServer.Sync(ctx, syncReq)
+	require.NoError(t, err,
+		"should be able to sync to different revision with override permission")
+	assert.NotNil(t, syncedApp)
+	// Sync must not change app spec
+	assert.Equal(t, "HEAD", syncedApp.Spec.Source.TargetRevision)
+
+	// same for multi-source app
+	multiSourceApp := newMultiSourceTestApp()
+	app, err = appServer.Create(ctx, &application.ApplicationCreateRequest{Application: multiSourceApp})
+	require.NoError(t, err)
+	syncReq = &application.ApplicationSyncRequest{
+		Name: &app.Name,
+	}
+	syncedApp, err = appServer.Sync(ctx, syncReq)
+	require.NoError(t, err,
+		"should be able to sync to different revision with override permission, multi-source app")
+	assert.NotNil(t, syncedApp)
+	assert.Equal(t, "appbranch1", syncedApp.Spec.Sources[0].TargetRevision)
+	assert.Equal(t, "appbranch2", syncedApp.Spec.Sources[1].TargetRevision)
+}
+
+func TestSyncRBACOverrideNotRequired_DiffRevisionWithAutosyncPrevented(t *testing.T) {
+	ctx := t.Context()
+	//nolint:staticcheck
+	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "test-user"})
+	appServer := newTestAppServer(t)
+	_ = appServer.enf.SetBuiltinPolicy(`
+        p, test-user, applications, get, default/*, allow
+        p, test-user, applications, create, default/*, allow
+        p, test-user, applications, sync, default/*, allow
+        p, test-user, applications, override, default/*, allow
+    `)
+
+	// create a new app
+	testApp := newTestApp()
+	testApp.Spec.SyncPolicy = &v1alpha1.SyncPolicy{
+		Automated: &v1alpha1.SyncPolicyAutomated{
+			Prune:    true,
+			SelfHeal: true,
+		},
+	}
+	app, err := appServer.Create(ctx, &application.ApplicationCreateRequest{Application: testApp})
+	require.NoError(t, err)
+	syncReq := &application.ApplicationSyncRequest{
+		Name:     &app.Name,
+		Revision: ptr.To("revisionbranch"),
+	}
+
+	_, err = appServer.Sync(ctx, syncReq)
+	require.EqualError(t, err, "rpc error: code = FailedPrecondition desc = Cannot sync to revisionbranch: auto-sync currently set to HEAD",
+		"should not be able to sync to different revision with auto-sync enabled")
+
+	// same for multi-source app
+	multiSourceApp := newMultiSourceTestApp()
+	multiSourceApp.Spec.SyncPolicy = &v1alpha1.SyncPolicy{
+		Automated: &v1alpha1.SyncPolicyAutomated{
+			Prune:    true,
+			SelfHeal: true,
+		},
+	}
+
+	app, err = appServer.Create(ctx, &application.ApplicationCreateRequest{Application: multiSourceApp})
+	require.NoError(t, err)
+	syncReq = &application.ApplicationSyncRequest{
+		Name:            &app.Name,
+		SourcePositions: []int64{1},
+		Revisions:       []string{"revisionbranch1"},
+	}
+	_, err = appServer.Sync(ctx, syncReq)
+	assert.EqualError(t, err, "rpc error: code = FailedPrecondition desc = Cannot sync source https://github.com/argoproj/argocd-example-apps.git to revisionbranch1: auto-sync currently set to appbranch1",
+		"should not be able to sync to different revision with auto-sync enabled, multi-source app")
+}
+
 func TestSyncAndTerminate(t *testing.T) {
 	ctx := t.Context()
 	appServer := newTestAppServer(t)
@@ -2709,6 +3272,99 @@ func TestGetAppRefresh_HardRefresh(t *testing.T) {
 	case <-time.After(10 * time.Second):
 		assert.Fail(t, "Out of time ( 10 seconds )")
 	}
+}
+
+func TestGetApp_HealthStatusPropagation(t *testing.T) {
+	newServerWithTree := func(t *testing.T) (*Server, *v1alpha1.Application) {
+		t.Helper()
+		cacheClient := cache.NewCache(cache.NewInMemoryCache(1 * time.Hour))
+
+		testApp := newTestApp()
+		testApp.Status.ResourceHealthSource = v1alpha1.ResourceHealthLocationAppTree
+		testApp.Status.Resources = []v1alpha1.ResourceStatus{
+			{
+				Group:     "apps",
+				Kind:      "Deployment",
+				Name:      "guestbook",
+				Namespace: "default",
+			},
+		}
+
+		appServer := newTestAppServer(t, testApp)
+
+		appStateCache := appstate.NewCache(cacheClient, time.Minute)
+		appInstanceName := testApp.InstanceName(appServer.appNamespaceOrDefault(testApp.Namespace))
+		err := appStateCache.SetAppResourcesTree(appInstanceName, &v1alpha1.ApplicationTree{
+			Nodes: []v1alpha1.ResourceNode{{
+				ResourceRef: v1alpha1.ResourceRef{
+					Group:     "apps",
+					Kind:      "Deployment",
+					Name:      "guestbook",
+					Namespace: "default",
+				},
+				Health: &v1alpha1.HealthStatus{Status: health.HealthStatusDegraded},
+			}},
+		})
+		require.NoError(t, err)
+		appServer.cache = servercache.NewCache(appStateCache, time.Minute, time.Minute)
+
+		return appServer, testApp
+	}
+
+	t.Run("propagated health status on get with no refresh", func(t *testing.T) {
+		appServer, testApp := newServerWithTree(t)
+		fetchedApp, err := appServer.Get(t.Context(), &application.ApplicationQuery{
+			Name: &testApp.Name,
+		})
+		require.NoError(t, err)
+		assert.Equal(t, health.HealthStatusDegraded, fetchedApp.Status.Resources[0].Health.Status)
+	})
+
+	t.Run("propagated health status on normal refresh", func(t *testing.T) {
+		appServer, testApp := newServerWithTree(t)
+		var patched int32
+		ch := make(chan string, 1)
+		ctx, cancel := context.WithCancel(t.Context())
+		defer cancel()
+		go refreshAnnotationRemover(t, ctx, &patched, appServer, testApp.Name, ch)
+
+		fetchedApp, err := appServer.Get(t.Context(), &application.ApplicationQuery{
+			Name:    &testApp.Name,
+			Refresh: ptr.To(string(v1alpha1.RefreshTypeNormal)),
+		})
+		require.NoError(t, err)
+
+		select {
+		case <-ch:
+			assert.Equal(t, int32(1), atomic.LoadInt32(&patched))
+		case <-time.After(10 * time.Second):
+			assert.Fail(t, "Out of time ( 10 seconds )")
+		}
+		assert.Equal(t, health.HealthStatusDegraded, fetchedApp.Status.Resources[0].Health.Status)
+	})
+
+	t.Run("propagated health status on hard refresh", func(t *testing.T) {
+		appServer, testApp := newServerWithTree(t)
+		var patched int32
+		ch := make(chan string, 1)
+		ctx, cancel := context.WithCancel(t.Context())
+		defer cancel()
+		go refreshAnnotationRemover(t, ctx, &patched, appServer, testApp.Name, ch)
+
+		fetchedApp, err := appServer.Get(t.Context(), &application.ApplicationQuery{
+			Name:    &testApp.Name,
+			Refresh: ptr.To(string(v1alpha1.RefreshTypeHard)),
+		})
+		require.NoError(t, err)
+
+		select {
+		case <-ch:
+			assert.Equal(t, int32(1), atomic.LoadInt32(&patched))
+		case <-time.After(10 * time.Second):
+			assert.Fail(t, "Out of time ( 10 seconds )")
+		}
+		assert.Equal(t, health.HealthStatusDegraded, fetchedApp.Status.Resources[0].Health.Status)
+	})
 }
 
 func TestInferResourcesStatusHealth(t *testing.T) {

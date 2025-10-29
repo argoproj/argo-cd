@@ -39,6 +39,7 @@ import (
 	"k8s.io/client-go/informers"
 	informerv1 "k8s.io/client-go/informers/apps/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/utils/ptr"
@@ -1218,6 +1219,11 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 		return err
 	}
 	config := metrics.AddMetricsTransportWrapper(ctrl.metricsServer, app, clusterRESTConfig)
+
+	// Apply impersonation config if necessary
+	if err := ctrl.applyImpersonationConfig(config, proj, app, destCluster); err != nil {
+		return fmt.Errorf("cannot apply impersonation: %w", err)
+	}
 
 	if app.CascadedDeletion() {
 		deletionApproved := app.IsDeletionConfirmed(app.DeletionTimestamp.Time)
@@ -2614,6 +2620,24 @@ func (ctrl *ApplicationController) getAppList(options metav1.ListOptions) (*appv
 func (ctrl *ApplicationController) logAppEvent(ctx context.Context, a *appv1.Application, eventInfo argo.EventInfo, message string) {
 	eventLabels := argo.GetAppEventLabels(ctx, a, applisters.NewAppProjectLister(ctrl.projInformer.GetIndexer()), ctrl.namespace, ctrl.settingsMgr, ctrl.db)
 	ctrl.auditLogger.LogAppEvent(a, eventInfo, message, "", eventLabels)
+}
+
+func (ctrl *ApplicationController) applyImpersonationConfig(config *rest.Config, proj *appv1.AppProject, app *appv1.Application, destCluster *appv1.Cluster) error {
+	impersonationEnabled, err := ctrl.settingsMgr.IsImpersonationEnabled()
+	if err != nil {
+		return fmt.Errorf("error getting impersonation setting: %w", err)
+	}
+	if !impersonationEnabled {
+		return nil
+	}
+	user, err := deriveServiceAccountToImpersonate(proj, app, destCluster)
+	if err != nil {
+		return fmt.Errorf("error deriving service account to impersonate: %w", err)
+	}
+	config.Impersonate = rest.ImpersonationConfig{
+		UserName: user,
+	}
+	return nil
 }
 
 type ClusterFilterFunction func(c *appv1.Cluster, distributionFunction sharding.DistributionFunction) bool
