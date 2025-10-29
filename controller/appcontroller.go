@@ -143,7 +143,9 @@ type ApplicationController struct {
 
 	// dynamicClusterDistributionEnabled if disabled deploymentInformer is never initialized
 	dynamicClusterDistributionEnabled bool
-	deploymentInformer                informerv1.DeploymentInformer
+	// enableIncrementalNamespaceSync enables incremental namespace sync in cluster cache
+	enableIncrementalNamespaceSync bool
+	deploymentInformer             informerv1.DeploymentInformer
 
 	hydrator *hydrator.Hydrator
 }
@@ -177,6 +179,7 @@ func NewApplicationController(
 	rateLimiterConfig *ratelimiter.AppControllerRateLimiterConfig,
 	serverSideDiff bool,
 	dynamicClusterDistributionEnabled bool,
+	enableIncrementalNamespaceSync bool,
 	ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts,
 	enableK8sEvent []string,
 	hydratorEnabled bool,
@@ -214,6 +217,7 @@ func NewApplicationController(
 		projByNameCache:                   sync.Map{},
 		applicationNamespaces:             applicationNamespaces,
 		dynamicClusterDistributionEnabled: dynamicClusterDistributionEnabled,
+		enableIncrementalNamespaceSync:    enableIncrementalNamespaceSync,
 		ignoreNormalizerOpts:              ignoreNormalizerOpts,
 		metricsClusterLabels:              metricsClusterLabels,
 	}
@@ -326,7 +330,7 @@ func NewApplicationController(
 			return nil, err
 		}
 	}
-	stateCache := statecache.NewLiveStateCache(db, appInformer, ctrl.settingsMgr, ctrl.metricsServer, ctrl.handleObjectUpdated, clusterSharding, argo.NewResourceTracking())
+	stateCache := statecache.NewLiveStateCache(db, appInformer, ctrl.settingsMgr, ctrl.metricsServer, ctrl.handleObjectUpdated, clusterSharding, argo.NewResourceTracking(), enableIncrementalNamespaceSync)
 	appStateManager := NewAppStateManager(db, applicationClientset, repoClientset, namespace, kubectl, ctrl.onKubectlRun, ctrl.settingsMgr, stateCache, ctrl.metricsServer, argoCache, ctrl.statusRefreshTimeout, argo.NewResourceTracking(), persistResourceHealth, repoErrorGracePeriod, serverSideDiff, ignoreNormalizerOpts)
 	ctrl.appInformer = appInformer
 	ctrl.appLister = appLister
