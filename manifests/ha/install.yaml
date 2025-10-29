@@ -36,7 +36,11 @@ spec:
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: Application is a definition of Application resource.
+        description: |-
+          Application is a definition of Application resource.
+          Note: Application and ApplicationSet share the same field structure (TypeMeta, ObjectMeta, spec, status)
+          for frontend abstraction (AbstractApplication), but spec and status have different types.
+          Operation is Application-specific and not present in ApplicationSet.
         properties:
           apiVersion:
             description: |-
