@@ -29,6 +29,17 @@ argocd app set guestbook -p ingress.hosts[0]=guestbook.myclusterurl
 The `argocd app set` [command](./commands/argocd_app_set.md) supports more tool-specific flags such as `--kustomize-image`, `--jsonnet-ext-var-str`, etc.
 You can also specify overrides directly in the source field on the application spec. Read more about supported options in the corresponding tool [documentation](./application_sources.md).
 
+## Overrides in Multi-Source Applications
+
+For multi-source applications, Argo CD allows you to override parameters for a specific source using the `--source-position` flag.
+Each source in the application spec is indexed starting from `0`.
+
+For example, to override a parameter in the **second source (index 1)** of a multi-source app:
+
+```bash
+argocd app set my-app --source-position 1 -p replicaCount=2
+```
+
 ## When To Use Overrides?
 
 The following are situations where parameter overrides would be useful:
