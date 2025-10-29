@@ -25756,10 +25756,10 @@ spec:
               key: redis.db
               name: argocd-cmd-params-cm
               optional: true
-        - name: REDISCLUSTERMODE
+        - name: REDIS_CLUSTER_MODE
           valueFrom:
             configMapKeyRef:
-              key: redis.clustermode
+              key: redis.cluster.mode
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_DEFAULT_CACHE_EXPIRATION
@@ -26199,10 +26199,10 @@ spec:
               key: redis.db
               name: argocd-cmd-params-cm
               optional: true
-        - name: REDISCLUSTERMODE
+        - name: REDIS_CLUSTER_MODE
           valueFrom:
             configMapKeyRef:
-              key: redis.clustermode
+              key: redis.cluster.mode
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_DEFAULT_CACHE_EXPIRATION
@@ -26617,10 +26617,10 @@ spec:
               key: redis.db
               name: argocd-cmd-params-cm
               optional: true
-        - name: REDISCLUSTERMODE
+        - name: REDIS_CLUSTER_MODE
           valueFrom:
             configMapKeyRef:
-              key: redis.clustermode
+              key: redis.cluster.mode
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_DEFAULT_CACHE_EXPIRATION
