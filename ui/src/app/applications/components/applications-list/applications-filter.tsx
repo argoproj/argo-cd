@@ -301,7 +301,6 @@ const HydrationFilter = (props: AppFilterProps) => (
     />
 );
 
-
 const LabelsFilter = React.memo(
     (props: {apps: Array<{metadata: {labels?: {[key: string]: string}}}>; pref: {labelsFilter: string[]}; onChange: (labelsFilter: string[]) => void}) => {
         const labelOptions = React.useMemo(() => {
