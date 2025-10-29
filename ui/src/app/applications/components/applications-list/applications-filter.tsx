@@ -43,7 +43,7 @@ export function getHydrationStatus(app: Application) {
     return app.status.sourceHydrator.currentOperation.phase;
 }
 
-export function getFilterResults(applications: Application[], pref: AppsListPreferences): FilteredApp[] {
+export function getFilterResults(applications: Application[], pref: AppsListPreferences, hydratorEnabled: boolean = true): FilteredApp[] {
     return applications.map(app => ({
         ...app,
         filterResult: {
@@ -51,7 +51,7 @@ export function getFilterResults(applications: Application[], pref: AppsListPref
             sync: pref.syncFilter.length === 0 || pref.syncFilter.includes(app.status.sync.status),
             autosync: pref.autoSyncFilter.length === 0 || pref.autoSyncFilter.includes(getAutoSyncStatus(app.spec.syncPolicy)),
             health: pref.healthFilter.length === 0 || pref.healthFilter.includes(app.status.health.status),
-            hydration: pref.hydrationFilter.length === 0 || pref.hydrationFilter.includes(getHydrationStatus(app)),
+            hydration: !hydratorEnabled || pref.hydrationFilter.length === 0 || pref.hydrationFilter.includes(getHydrationStatus(app)),
             namespaces: pref.namespacesFilter.length === 0 || pref.namespacesFilter.some(ns => app.spec.destination.namespace && minimatch(app.spec.destination.namespace, ns)),
             favourite: !pref.showFavorites || (pref.favoritesAppList && pref.favoritesAppList.includes(app.metadata.name)),
             clusters:
@@ -82,9 +82,10 @@ const optionsFrom = (options: string[], filter: string[]) => {
 interface AppFilterProps {
     apps: FilteredApp[];
     pref: AppsListPreferences;
-    onChange: (newPrefs: AppsListPreferences) => void;
-    children?: React.ReactNode;
+    onChange: (newPref: AppsListPreferences) => void;
     collapsed?: boolean;
+    hydratorEnabled?: boolean;
+    children?: React.ReactNode;
 }
 
 const getCounts = (apps: FilteredApp[], filterType: keyof FilterResult, filter: (app: Application) => string, init?: string[]) => {
@@ -342,7 +343,7 @@ export const ApplicationsFilter = (props: AppFilterProps) => {
             <FavoriteFilter {...props} />
             <SyncFilter {...props} />
             <HealthFilter {...props} />
-            <HydrationFilter {...props} collapsed={true} />
+            {props.hydratorEnabled && <HydrationFilter {...props} collapsed={true} />}
             <LabelsFilter {...props} />
             <ProjectFilter {...props} />
             <ClusterFilter {...props} />
