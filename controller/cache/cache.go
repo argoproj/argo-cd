@@ -194,16 +194,18 @@ func NewLiveStateCache(
 	onObjectUpdated ObjectUpdatedHandler,
 	clusterSharding sharding.ClusterShardingCache,
 	resourceTracking argo.ResourceTracking,
+	enableIncrementalNamespaceSync bool,
 ) LiveStateCache {
 	return &liveStateCache{
-		appInformer:      appInformer,
-		db:               db,
-		clusters:         make(map[string]clustercache.ClusterCache),
-		onObjectUpdated:  onObjectUpdated,
-		settingsMgr:      settingsMgr,
-		metricsServer:    metricsServer,
-		clusterSharding:  clusterSharding,
-		resourceTracking: resourceTracking,
+		appInformer:                    appInformer,
+		db:                             db,
+		clusters:                       make(map[string]clustercache.ClusterCache),
+		onObjectUpdated:                onObjectUpdated,
+		settingsMgr:                    settingsMgr,
+		metricsServer:                  metricsServer,
+		clusterSharding:                clusterSharding,
+		resourceTracking:               resourceTracking,
+		enableIncrementalNamespaceSync: enableIncrementalNamespaceSync,
 	}
 }
 
@@ -228,6 +230,8 @@ type liveStateCache struct {
 	clusterSharding      sharding.ClusterShardingCache
 	resourceTracking     argo.ResourceTracking
 	ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts
+	// enableIncrementalNamespaceSync configures all cluster caches with incremental namespace sync
+	enableIncrementalNamespaceSync bool
 
 	clusters      map[string]clustercache.ClusterCache
 	cacheSettings cacheSettings
@@ -586,6 +590,7 @@ func (c *liveStateCache) getCluster(cluster *appv1.Cluster) (clustercache.Cluste
 		clustercache.SetRespectRBAC(respectRBAC),
 		clustercache.SetBatchEventsProcessing(clusterCacheBatchEventsProcessing),
 		clustercache.SetEventProcessingInterval(clusterCacheEventsProcessingInterval),
+		clustercache.WithIncrementalNamespaceSync(c.enableIncrementalNamespaceSync),
 	}
 
 	clusterCache = clustercache.NewClusterCache(clusterCacheConfig, clusterCacheOpts...)
@@ -845,6 +850,35 @@ func (c *liveStateCache) handleAddEvent(cluster *appv1.Cluster) {
 	}
 }
 
+// namespaceDiff calculates the added and removed namespaces between old and new lists.
+func namespaceDiff(oldNamespaces, newNamespaces []string) (added, removed []string) {
+	oldNsSet := make(map[string]bool)
+	for _, ns := range oldNamespaces {
+		oldNsSet[ns] = true
+	}
+
+	newNsSet := make(map[string]bool)
+	for _, ns := range newNamespaces {
+		newNsSet[ns] = true
+	}
+
+	// Find added namespaces
+	for _, ns := range newNamespaces {
+		if !oldNsSet[ns] {
+			added = append(added, ns)
+		}
+	}
+
+	// Find removed namespaces
+	for _, ns := range oldNamespaces {
+		if !newNsSet[ns] {
+			removed = append(removed, ns)
+		}
+	}
+
+	return added, removed
+}
+
 func (c *liveStateCache) handleModEvent(oldCluster *appv1.Cluster, newCluster *appv1.Cluster) {
 	c.clusterSharding.Update(oldCluster, newCluster)
 	c.lock.Lock()
@@ -869,7 +903,33 @@ func (c *liveStateCache) handleModEvent(oldCluster *appv1.Cluster, newCluster *a
 			}
 		}
 		if !reflect.DeepEqual(oldCluster.Namespaces, newCluster.Namespaces) {
-			updateSettings = append(updateSettings, clustercache.SetNamespaces(newCluster.Namespaces))
+			if c.enableIncrementalNamespaceSync {
+				added, removed := namespaceDiff(oldCluster.Namespaces, newCluster.Namespaces)
+
+				hasErrors := false
+				for _, ns := range added {
+					if err := cluster.AddNamespace(ns); err != nil {
+						log.Warnf("Failed to incrementally add namespace %s: %v", ns, err)
+						hasErrors = true
+					}
+				}
+
+				for _, ns := range removed {
+					if err := cluster.RemoveNamespace(ns); err != nil {
+						log.Warnf("Failed to incrementally remove namespace %s: %v", ns, err)
+						hasErrors = true
+					}
+				}
+
+				// If any incremental operation failed, fall back to full cache invalidation
+				if hasErrors {
+					log.Warnf("Incremental namespace sync failed, falling back to full cache invalidation")
+					updateSettings = append(updateSettings, clustercache.SetNamespaces(newCluster.Namespaces))
+				}
+			} else {
+				// Fall back to full cluster cache invalidation
+				updateSettings = append(updateSettings, clustercache.SetNamespaces(newCluster.Namespaces))
+			}
 		}
 		if !reflect.DeepEqual(oldCluster.ClusterResources, newCluster.ClusterResources) {
 			updateSettings = append(updateSettings, clustercache.SetClusterResources(newCluster.ClusterResources))
