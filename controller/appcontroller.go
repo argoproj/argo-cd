@@ -144,9 +144,7 @@ type ApplicationController struct {
 
 	// dynamicClusterDistributionEnabled if disabled deploymentInformer is never initialized
 	dynamicClusterDistributionEnabled bool
-	// enableIncrementalNamespaceSync enables incremental namespace sync in cluster cache
-	enableIncrementalNamespaceSync bool
-	deploymentInformer             informerv1.DeploymentInformer
+	deploymentInformer                informerv1.DeploymentInformer
 
 	hydrator *hydrator.Hydrator
 }
@@ -218,7 +216,6 @@ func NewApplicationController(
 		projByNameCache:                   sync.Map{},
 		applicationNamespaces:             applicationNamespaces,
 		dynamicClusterDistributionEnabled: dynamicClusterDistributionEnabled,
-		enableIncrementalNamespaceSync:    enableIncrementalNamespaceSync,
 		ignoreNormalizerOpts:              ignoreNormalizerOpts,
 		metricsClusterLabels:              metricsClusterLabels,
 	}
