@@ -467,10 +467,12 @@ export const ApplicationsList = () => {
                                                 <MockupList height={100} marginTop={30} />
                                             </div>
                                         )}>
-                                        {(applications: models.Application[]) => {
-                                            const healthBarPrefs = pref.statusBarView || ({} as HealthStatusBarPreferences);
-                                            const {filteredApps, filterResults} = filterApps(applications, pref, pref.search);
-                                            const handleCreatePanelClose = async () => {
+                                        {(applications: models.Application[]) => (
+                                            <AuthSettingsCtx.Consumer>
+                                                {authSettings => {
+                                                    const healthBarPrefs = pref.statusBarView || ({} as HealthStatusBarPreferences);
+                                                    const {filteredApps, filterResults} = filterApps(applications, pref, pref.search, authSettings?.hydratorEnabled);
+                                                    const handleCreatePanelClose = async () => {
                                                 const outsideDiv = document.querySelector('.sliding-panel__outside');
                                                 const closeButton = document.querySelector('.sliding-panel__close');
 
@@ -528,12 +530,21 @@ export const ApplicationsList = () => {
                                                                 {ReactDOM.createPortal(
                                                                     <DataLoader load={() => services.viewPreferences.getPreferences()}>
                                                                         {allpref => (
-                                                                            <ApplicationsFilter
-                                                                                apps={filterResults}
-                                                                                onChange={newPrefs => onFilterPrefChanged(ctx, newPrefs)}
-                                                                                pref={pref}
-                                                                                collapsed={allpref.hideSidebar}
-                                                                            />
+                                                                            <Consumer>
+                                                                                {() => (
+                                                                                    <AuthSettingsCtx.Consumer>
+                                                                                        {authSettings => (
+                                                                                            <ApplicationsFilter
+                                                                                                apps={filterResults}
+                                                                                                onChange={newPrefs => onFilterPrefChanged(ctx, newPrefs)}
+                                                                                                pref={pref}
+                                                                                                collapsed={allpref.hideSidebar}
+                                                                                                hydratorEnabled={authSettings?.hydratorEnabled}
+                                                                                            />
+                                                                                        )}
+                                                                                    </AuthSettingsCtx.Consumer>
+                                                                                )}
+                                                                            </Consumer>
                                                                         )}
                                                                     </DataLoader>,
                                                                     sidebarTarget?.current
@@ -685,7 +696,9 @@ export const ApplicationsList = () => {
                                                     </SlidingPanel>
                                                 </React.Fragment>
                                             );
-                                        }}
+                                                }}
+                                            </AuthSettingsCtx.Consumer>
+                                        )}
                                     </DataLoader>
                                 </Page>
                             )}
