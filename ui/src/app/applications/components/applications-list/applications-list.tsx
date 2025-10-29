@@ -6,7 +6,7 @@ import {Key, KeybindingContext, KeybindingProvider} from 'argo-ui/v2';
 import {RouteComponentProps} from 'react-router';
 import {combineLatest, from, merge, Observable} from 'rxjs';
 import {bufferTime, delay, filter, map, mergeMap, repeat, retryWhen} from 'rxjs/operators';
-import {AddAuthToToolbar, ClusterCtx, DataLoader, EmptyState, ObservableQuery, Page, Paginate, Spinner} from '../../../shared/components';
+import {AddAuthToToolbar, ClusterCtx, DataLoader, EmptyState, Page, Paginate, Spinner} from '../../../shared/components';
 import {AuthSettingsCtx, Consumer, Context, ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {AppsListViewKey, AppsListPreferences, AppSetsListPreferences, AppsListViewType, HealthStatusBarPreferences, services} from '../../../shared/services';
@@ -558,9 +558,11 @@ export const ApplicationsList = (props: RouteComponentProps<any> & {objectListKi
                                                 <MockupList height={100} marginTop={30} />
                                             </div>
                                         )}>
-                                        {(applications: models.AbstractApplication[]) => {
-                                            const healthBarPrefs = pref.statusBarView || ({} as HealthStatusBarPreferences);
-                                            const handleCreatePanelClose = async () => {
+                                        {(applications: models.AbstractApplication[]) => (
+                                            <AuthSettingsCtx.Consumer>
+                                                {authSettings => {
+                                                    const healthBarPrefs = pref.statusBarView || ({} as HealthStatusBarPreferences);
+                                                    const handleCreatePanelClose = async () => {
                                                 const outsideDiv = document.querySelector('.sliding-panel__outside');
                                                 const closeButton = document.querySelector('.sliding-panel__close');
 
@@ -578,7 +580,7 @@ export const ApplicationsList = (props: RouteComponentProps<any> & {objectListKi
                                             if (isListOfApplications) {
                                                 // Applications path - fully type-safe
                                                 const apps = applications as models.Application[];
-                                                const {filteredApps, filterResults} = filterApplications(apps, pref, pref.search);
+                                                const {filteredApps, filterResults} = filterApplications(apps, pref, pref.search, authSettings?.hydratorEnabled);
 
                                                 return (
                                                     <React.Fragment>
@@ -632,12 +634,21 @@ export const ApplicationsList = (props: RouteComponentProps<any> & {objectListKi
                                                                     {ReactDOM.createPortal(
                                                                         <DataLoader load={() => services.viewPreferences.getPreferences()}>
                                                                             {allpref => (
-                                                                                <ApplicationsFilter
-                                                                                    apps={filterResults}
-                                                                                    onChange={newPrefs => onAppFilterPrefChanged(ctx, newPrefs)}
-                                                                                    pref={pref}
-                                                                                    collapsed={allpref.hideSidebar}
-                                                                                />
+                                                                            <Consumer>
+                                                                                {() => (
+                                                                                    <AuthSettingsCtx.Consumer>
+                                                                                        {authSettings => (
+                                                                                            <ApplicationsFilter
+                                                                                                apps={filterResults}
+                                                                                                onChange={newPrefs => onAppFilterPrefChanged(ctx, newPrefs)}
+                                                                                                pref={pref}
+                                                                                                collapsed={allpref.hideSidebar}
+                                                                                                hydratorEnabled={authSettings?.hydratorEnabled}
+                                                                                            />
+                                                                                        )}
+                                                                                    </AuthSettingsCtx.Consumer>
+                                                                                )}
+                                                                            </Consumer>
                                                                             )}
                                                                         </DataLoader>,
                                                                         sidebarTarget?.current
@@ -899,8 +910,9 @@ export const ApplicationsList = (props: RouteComponentProps<any> & {objectListKi
                                                         </div>
                                                     </React.Fragment>
                                                 );
-                                            }
-                                        }}
+                                                }}
+                                            </AuthSettingsCtx.Consumer>
+                                        )}
                                     </DataLoader>
                                 </Page>
                             )}
