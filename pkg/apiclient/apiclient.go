@@ -401,7 +401,8 @@ func (c *client) refreshAuthToken(localCfg *localconfig.LocalConfig, ctxName, co
 	}
 	parser := jwt.NewParser(jwt.WithoutClaimsValidation())
 	var claims jwt.RegisteredClaims
-	_, _, err = parser.ParseUnverified(configCtx.User.AuthToken, &claims)
+	// Ok not to verify here, auth client extracting the name
+	_, _, err = parser.ParseUnverified(configCtx.User.AuthToken, &claims) //nolint //NOSONAR
 	if err != nil {
 		return err
 	}
