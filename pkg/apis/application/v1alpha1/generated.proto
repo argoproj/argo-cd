@@ -120,9 +120,6 @@ message AppProjectStatus {
 }
 
 // Application is a definition of Application resource.
-// Note: Application and ApplicationSet share the same field structure (TypeMeta, ObjectMeta, spec, status)
-// for frontend abstraction (AbstractApplication), but spec and status have different types.
-// Operation is Application-specific and not present in ApplicationSet.
 // +genclient
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -132,7 +129,6 @@ message AppProjectStatus {
 // +kubebuilder:printcolumn:name="Revision",type=string,JSONPath=`.status.sync.revision`,priority=10
 // +kubebuilder:printcolumn:name="Project",type=string,JSONPath=`.spec.project`,priority=10
 message Application {
-  // Common: shared with ApplicationSet
   optional .k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
 
   // Common: shared with ApplicationSet
@@ -205,15 +201,12 @@ message ApplicationPreservedFields {
 }
 
 // ApplicationSet is a set of Application resources.
-// Note: ApplicationSet and Application share the same field structure (TypeMeta, ObjectMeta, spec, status)
-// for frontend abstraction (AbstractApplication), but spec and status have different types.
 // +genclient
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:resource:path=applicationsets,shortName=appset;appsets
 // +kubebuilder:subresource:status
 message ApplicationSet {
-  // Common: shared with Application
   optional .k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
 
   // Common: shared with Application
@@ -346,8 +339,6 @@ message ApplicationSetRolloutStrategy {
 }
 
 // ApplicationSetSpec represents a class of application set state.
-// Note: All fields are ApplicationSet-specific. The Template field contains an ApplicationSpec
-// which defines the spec for generated Applications.
 message ApplicationSetSpec {
   optional bool goTemplate = 1;
 

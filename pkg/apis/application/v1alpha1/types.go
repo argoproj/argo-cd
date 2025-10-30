@@ -51,10 +51,11 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/security"
 )
 
-// Application is a definition of Application resource.
 // Note: Application and ApplicationSet share the same field structure (TypeMeta, ObjectMeta, spec, status)
 // for frontend abstraction (AbstractApplication), but spec and status have different types.
 // Operation is Application-specific and not present in ApplicationSet.
+
+// Application is a definition of Application resource.
 // +genclient
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
