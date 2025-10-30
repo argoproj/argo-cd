@@ -79,7 +79,7 @@ func TestAddingApp(t *testing.T) {
 		DrySourcePath("guestbook").
 		DrySourceRevision("HEAD").
 		SyncSourcePath("guestbook-2").
-		SyncSourceBranch("env/test").
+		SyncSourceBranch("env/test2").
 		When().
 		CreateApp().
 		Refresh(RefreshTypeNormal).
