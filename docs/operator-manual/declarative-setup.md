@@ -717,7 +717,7 @@ metadata:
   name: argocd-server
 ```
 
-Note: In an air-gapped environment, argocd-k8s-auth will need to trust the cloud providers CA certificates and it will not inherit trust from the default /app/config/tls directory as is defaulted in the helm chart. Instead, the certificates will need to be manually mounted in to the /etc/ssl/certs directory. Specifically, it will need to trust the cloud provider certs - not the cert on the actual API server endpoint. 
+Note: In an air-gapped environment, argocd-k8s-auth will need to trust the cloud providers CA certificates and it will not inherit trust from the default /app/config/tls directory as is defaulted in the helm chart. Instead, the certificates will need to be manually mounted in to the /etc/ssl/certs directory. Specifically, it will need to trust the cloud providers CA certificates as opposed to the certs on the actual Kubernetes API server endpoint. 
 
 #### IAM Permission Policy
 
