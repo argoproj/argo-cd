@@ -74,27 +74,29 @@ argocd-server [flags]
       --password string                                 Password for basic authentication to the API server
       --port int                                        Listen on given port (default 8080)
       --proxy-url string                                If provided, this URL will be used to connect via proxy
-      --redis string                                    Redis server hostname and port (e.g. argocd-redis:6379). 
+      --redis string                                    Redis server hostname and port (e.g. argocd-redis:6379); comma-separated for Redis cluster (e.g. argocd-redis1:6379,argocd-redis2:6379).
       --redis-ca-certificate string                     Path to Redis server CA certificate (e.g. /etc/certs/redis/ca.crt). If not specified, system trusted CAs will be used for server certificate validation.
       --redis-client-certificate string                 Path to Redis client certificate (e.g. /etc/certs/redis/client.crt).
       --redis-client-key string                         Path to Redis client key (e.g. /etc/certs/redis/client.crt).
+      --redis-cluster-mode                              Redis cluster mode.
       --redis-compress string                           Enable compression for data sent to Redis with the required compression algorithm. (possible values: gzip, none) (default "gzip")
       --redis-insecure-skip-tls-verify                  Skip Redis server certificate validation.
-      --redis-use-tls                                   Use TLS when connecting to Redis. 
+      --redis-use-tls                                   Use TLS when connecting to Redis.
       --redisdb int                                     Redis database.
       --repo-cache-expiration duration                  Cache expiration for repo state, incl. app lists, app details, manifest generation, revision meta-data (default 24h0m0s)
       --repo-server string                              Repo server address (default "argocd-repo-server:8081")
       --repo-server-default-cache-expiration duration   Cache expiration default (default 24h0m0s)
       --repo-server-plaintext                           Use a plaintext client (non-TLS) to connect to repository server
-      --repo-server-redis string                        Redis server hostname and port (e.g. argocd-redis:6379). 
+      --repo-server-redis string                        Redis server hostname and port (e.g. argocd-redis:6379); comma-separated for Redis cluster (e.g. argocd-redis1:6379,argocd-redis2:6379).
       --repo-server-redis-ca-certificate string         Path to Redis server CA certificate (e.g. /etc/certs/redis/ca.crt). If not specified, system trusted CAs will be used for server certificate validation.
       --repo-server-redis-client-certificate string     Path to Redis client certificate (e.g. /etc/certs/redis/client.crt).
       --repo-server-redis-client-key string             Path to Redis client key (e.g. /etc/certs/redis/client.crt).
+      --repo-server-redis-cluster-mode                  Redis cluster mode.
       --repo-server-redis-compress string               Enable compression for data sent to Redis with the required compression algorithm. (possible values: gzip, none) (default "gzip")
       --repo-server-redis-insecure-skip-tls-verify      Skip Redis server certificate validation.
-      --repo-server-redis-use-tls                       Use TLS when connecting to Redis. 
+      --repo-server-redis-use-tls                       Use TLS when connecting to Redis.
       --repo-server-redisdb int                         Redis database.
-      --repo-server-sentinel stringArray                Redis sentinel hostname and port (e.g. argocd-redis-ha-announce-0:6379). 
+      --repo-server-sentinel stringArray                Redis sentinel hostname and port (e.g. argocd-redis-ha-announce-0:6379).
       --repo-server-sentinelmaster string               Redis sentinel master group name. (default "master")
       --repo-server-strict-tls                          Perform strict validation of TLS certificates when connecting to repo server
       --repo-server-timeout-seconds int                 Repo server RPC call timeout seconds. (default 60)
@@ -102,7 +104,7 @@ argocd-server [flags]
       --revision-cache-expiration duration              Cache expiration for cached revision (default 3m0s)
       --revision-cache-lock-timeout duration            Cache TTL for locks to prevent duplicate requests on revisions, set to 0 to disable (default 10s)
       --rootpath string                                 Used if Argo CD is running behind reverse proxy under subpath different from /
-      --sentinel stringArray                            Redis sentinel hostname and port (e.g. argocd-redis-ha-announce-0:6379). 
+      --sentinel stringArray                            Redis sentinel hostname and port (e.g. argocd-redis-ha-announce-0:6379).
       --sentinelmaster string                           Redis sentinel master group name. (default "master")
       --server string                                   The address and port of the Kubernetes API server
       --staticassets string                             Directory path that contains additional static assets (default "/shared/app")
