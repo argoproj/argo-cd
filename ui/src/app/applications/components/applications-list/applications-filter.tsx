@@ -2,7 +2,17 @@ import {useData, Checkbox} from 'argo-ui/v2';
 import * as minimatch from 'minimatch';
 import * as React from 'react';
 import {Context} from '../../../shared/context';
-import {Application, ApplicationDestination, Cluster, HealthStatusCode, HealthStatuses, SyncPolicy, SyncStatusCode, SyncStatuses} from '../../../shared/models';
+import {
+    Application,
+    ApplicationDestination,
+    ApplicationListStats,
+    Cluster,
+    HealthStatusCode,
+    HealthStatuses,
+    SyncPolicy,
+    SyncStatusCode,
+    SyncStatuses
+} from '../../../shared/models';
 import {AppsListPreferences, services} from '../../../shared/services';
 import {Filter, FiltersGroup} from '../filter/filter';
 import * as LabelSelector from '../label-selector';
@@ -69,6 +79,7 @@ const optionsFrom = (options: string[], filter: string[]) => {
 
 interface AppFilterProps {
     apps: FilteredApp[];
+    stats?: ApplicationListStats;
     pref: AppsListPreferences;
     onChange: (newPrefs: AppsListPreferences) => void;
     children?: React.ReactNode;
@@ -87,8 +98,15 @@ const getCounts = (apps: FilteredApp[], filterType: keyof FilterResult, filter: 
     return map;
 };
 
-const getOptions = (apps: FilteredApp[], filterType: keyof FilterResult, filter: (app: Application) => string, keys: string[], getIcon?: (k: string) => React.ReactNode) => {
-    const counts = getCounts(apps, filterType, filter, keys);
+const getOptions = (
+    apps: FilteredApp[],
+    filterType: keyof FilterResult,
+    filter: (app: Application) => string,
+    keys: string[],
+    getIcon?: (k: string) => React.ReactNode,
+    statsMap?: {[key: string]: number}
+) => {
+    const counts = statsMap ? new Map(Object.entries(statsMap)) : getCounts(apps, filterType, filter, keys);
     return keys.map(k => {
         return {
             label: k,
@@ -110,7 +128,8 @@ const SyncFilter = (props: AppFilterProps) => (
             Object.keys(SyncStatuses),
             s => (
                 <ComparisonStatusIcon status={s as SyncStatusCode} noSpin={true} />
-            )
+            ),
+            props.stats?.totalBySyncStatus
         )}
     />
 );
@@ -127,30 +146,40 @@ const HealthFilter = (props: AppFilterProps) => (
             Object.keys(HealthStatuses),
             s => (
                 <HealthStatusIcon state={{status: s as HealthStatusCode, message: ''}} noSpin={true} />
-            )
+            ),
+            props.stats?.totalByHealthStatus
         )}
     />
 );
 
 const LabelsFilter = (props: AppFilterProps) => {
-    const labels = new Map<string, Set<string>>();
-    props.apps
-        .filter(app => app.metadata && app.metadata.labels)
-        .forEach(app =>
-            Object.keys(app.metadata.labels).forEach(label => {
-                let values = labels.get(label);
-                if (!values) {
-                    values = new Set<string>();
-                    labels.set(label, values);
-                }
-                values.add(app.metadata.labels[label]);
-            })
-        );
+    // Use server stats if available
     const suggestions = new Array<string>();
-    Array.from(labels.entries()).forEach(([label, values]) => {
-        suggestions.push(label);
-        values.forEach(val => suggestions.push(`${label}=${val}`));
-    });
+
+    if (props.stats?.labels) {
+        props.stats.labels.forEach(labelStat => {
+            suggestions.push(labelStat.key);
+            labelStat.values.forEach(val => suggestions.push(`${labelStat.key}=${val}`));
+        });
+    } else {
+        const labels = new Map<string, Set<string>>();
+        props.apps
+            .filter(app => app.metadata && app.metadata.labels)
+            .forEach(app =>
+                Object.keys(app.metadata.labels).forEach(label => {
+                    let values = labels.get(label);
+                    if (!values) {
+                        values = new Set<string>();
+                        labels.set(label, values);
+                    }
+                    values.add(app.metadata.labels[label]);
+                })
+            );
+        Array.from(labels.entries()).forEach(([label, values]) => {
+            suggestions.push(label);
+            values.forEach(val => suggestions.push(`${label}=${val}`));
+        });
+    }
     const labelOptions = suggestions.map(s => {
         return {label: s};
     });
@@ -191,10 +220,11 @@ const ClusterFilter = (props: AppFilterProps) => {
     };
 
     const [clusters, loading, error] = useData(() => services.clusters.list());
-    const clusterOptions = optionsFrom(
-        Array.from(new Set(props.apps.map(app => getClusterDetail(app.spec.destination, clusters)).filter(item => !!item))),
-        props.pref.clustersFilter
-    );
+    const clusterList =
+        props.stats?.destinations.map(dest => getClusterDetail(dest, clusters)).filter(item => !!item) ||
+        props.apps.map(app => getClusterDetail(app.spec.destination, clusters)).filter(item => !!item);
+
+    const clusterOptions = optionsFrom(Array.from(new Set(clusterList)), props.pref.clustersFilter);
 
     return (
         <Filter
@@ -211,7 +241,8 @@ const ClusterFilter = (props: AppFilterProps) => {
 };
 
 const NamespaceFilter = (props: AppFilterProps) => {
-    const namespaceOptions = optionsFrom(Array.from(new Set(props.apps.map(app => app.spec.destination.namespace).filter(item => !!item))), props.pref.namespacesFilter);
+    const namespaces = props.stats?.namespaces || Array.from(new Set(props.apps.map(app => app.spec.destination.namespace).filter(item => !!item)));
+    const namespaceOptions = optionsFrom(namespaces, props.pref.namespacesFilter);
     return (
         <Filter
             label='NAMESPACES'
@@ -226,8 +257,9 @@ const NamespaceFilter = (props: AppFilterProps) => {
 const FavoriteFilter = (props: AppFilterProps) => {
     const ctx = React.useContext(Context);
     const onChange = (val: boolean) => {
-        ctx.navigation.goto('.', {showFavorites: val}, {replace: true});
-        services.viewPreferences.updatePreferences({appList: {...props.pref, showFavorites: val}});
+        if (services.viewPreferences.updatePreferences({appList: {...props.pref, showFavorites: val}})) {
+            ctx.navigation.goto('.', {showFavorites: val, page: 0}, {replace: true});
+        }
     };
     return (
         <div
@@ -249,18 +281,29 @@ const FavoriteFilter = (props: AppFilterProps) => {
     );
 };
 
-function getAutoSyncOptions(apps: FilteredApp[]) {
-    const counts = getCounts(apps, 'autosync', app => getAutoSyncStatus(app.spec.syncPolicy), ['Enabled', 'Disabled']);
+function getAutoSyncOptions(apps: FilteredApp[], stats?: ApplicationListStats) {
+    let enabledCount: number;
+    let disabledCount: number;
+
+    if (stats?.autoSyncCount) {
+        enabledCount = stats.autoSyncCount['Enabled'] || 0;
+        disabledCount = stats.autoSyncCount['Disabled'] || 0;
+    } else {
+        const counts = getCounts(apps, 'autosync', app => getAutoSyncStatus(app.spec.syncPolicy), ['Enabled', 'Disabled']);
+        enabledCount = counts.get('Enabled') || 0;
+        disabledCount = counts.get('Disabled') || 0;
+    }
+
     return [
         {
             label: 'Enabled',
             icon: <i className='fa fa-circle-play' style={{color: COLORS.sync.synced}} />,
-            count: counts.get('Enabled')
+            count: enabledCount
         },
         {
             label: 'Disabled',
             icon: <i className='fa fa-ban' style={{color: COLORS.sync.out_of_sync}} />,
-            count: counts.get('Disabled')
+            count: disabledCount
         }
     ];
 }
@@ -270,7 +313,7 @@ const AutoSyncFilter = (props: AppFilterProps) => (
         label='AUTO SYNC'
         selected={props.pref.autoSyncFilter}
         setSelected={s => props.onChange({...props.pref, autoSyncFilter: s})}
-        options={getAutoSyncOptions(props.apps)}
+        options={getAutoSyncOptions(props.apps, props.stats)}
         collapsed={props.collapsed || false}
     />
 );

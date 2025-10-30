@@ -25,41 +25,50 @@ hydratorColors.set('Hydrated', COLORS.operation.success);
 hydratorColors.set('Failed', COLORS.operation.failed);
 hydratorColors.set('None', COLORS.sync.unknown);
 
-export const ApplicationsSummary = ({applications}: {applications: models.Application[]}) => {
+export const ApplicationsSummary = ({applications, stats}: {applications: models.Application[]; stats: models.ApplicationListStats}) => {
     const sync = new Map<string, number>();
-    applications.forEach(app => sync.set(app.status.sync.status, (sync.get(app.status.sync.status) || 0) + 1));
+    if (stats.totalBySyncStatus) {
+        Object.entries(stats.totalBySyncStatus).forEach(([key, value]) => sync.set(key, value));
+    }
+
     const health = new Map<string, number>();
-    applications.forEach(app => health.set(app.status.health.status, (health.get(app.status.health.status) || 0) + 1));
+    if (stats.totalByHealthStatus) {
+        Object.entries(stats.totalByHealthStatus).forEach(([key, value]) => health.set(key, value));
+    }
+
     const hydrator = new Map<string, number>();
     applications.forEach(app => {
         const phase = app.status.sourceHydrator?.currentOperation?.phase || 'None';
         hydrator.set(phase, (hydrator.get(phase) || 0) + 1);
     });
 
+    const clustersCount = new Set(stats.destinations.map(dest => dest.server || dest.name)).size;
+    const namespacesCount = stats.namespaces.length;
+
     const attributes = [
         {
             title: 'APPLICATIONS',
-            value: applications.length
+            value: stats.total
         },
         {
             title: 'SYNCED',
-            value: applications.filter(app => app.status.sync.status === 'Synced').length
+            value: sync.get('Synced') || 0
         },
         {
             title: 'HEALTHY',
-            value: applications.filter(app => app.status.health.status === 'Healthy').length
+            value: health.get('Healthy') || 0
         },
         {
             title: 'HYDRATED',
-            value: applications.filter(app => app.status.sourceHydrator?.currentOperation?.phase === 'Hydrated').length
+            value: hydrator.get('Hydrated') || 0
         },
         {
             title: 'CLUSTERS',
-            value: new Set(applications.map(app => app.spec.destination.server || app.spec.destination.name)).size
+            value: clustersCount
         },
         {
             title: 'NAMESPACES',
-            value: new Set(applications.map(app => app.spec.destination.namespace)).size
+            value: namespacesCount
         }
     ];
 

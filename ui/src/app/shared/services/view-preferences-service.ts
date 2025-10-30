@@ -171,10 +171,18 @@ export class ViewPreferencesService {
         return this.preferencesSubj;
     }
 
-    public updatePreferences(change: Partial<ViewPreferences>) {
+    public updatePreferences(change: Partial<ViewPreferences>): boolean {
+        const currentPref = this.preferencesSubj.getValue();
         const nextPref = Object.assign({}, this.preferencesSubj.getValue(), change, {version: minVer});
+
+        // Only update if preferences actually changed (deep equality check)
+        if (JSON.stringify(currentPref) === JSON.stringify(nextPref)) {
+            return false; // No change, don't trigger updates
+        }
+
         window.localStorage.setItem(VIEW_PREFERENCES_KEY, JSON.stringify(nextPref));
         this.preferencesSubj.next(nextPref);
+        return true;
     }
 
     private loadPreferences(): ViewPreferences {

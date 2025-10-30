@@ -239,6 +239,118 @@ func FilterByNameP(apps []*argoappv1.Application, name string) []*argoappv1.Appl
 	return items
 }
 
+func MatchesNames(app *argoappv1.Application, names []string) bool {
+	for _, name := range names {
+		if app.Name == name {
+			return true
+		}
+	}
+	return false
+}
+
+func MatchesRepos(app *argoappv1.Application, repos []string) bool {
+	sources := app.Spec.GetSources()
+	for _, source := range sources {
+		for _, repo := range repos {
+			if source.RepoURL == repo {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func MatchesClusters(app *argoappv1.Application, clusters []string) bool {
+	for _, cluster := range clusters {
+		if app.Spec.Destination.Server == cluster || app.Spec.Destination.Name == cluster {
+			return true
+		}
+	}
+	return false
+}
+
+func MatchesNamespaces(app *argoappv1.Application, namespaces []string) bool {
+	for _, ns := range namespaces {
+		if app.Spec.Destination.Namespace == ns {
+			return true
+		}
+	}
+	return false
+}
+
+func MatchesLabels(app *argoappv1.Application, labelSelectors []string) bool {
+	for _, selector := range labelSelectors {
+		if !matchesLabelSelector(app.Labels, selector) {
+			return false
+		}
+	}
+	return true
+}
+
+func matchesLabelSelector(labels map[string]string, selector string) bool {
+	selector = strings.TrimSpace(selector)
+
+	if strings.Contains(selector, "=") {
+		parts := strings.SplitN(selector, "=", 2)
+		key := strings.TrimSpace(parts[0])
+		value := strings.TrimSpace(parts[1])
+		return labels[key] == value
+	}
+
+	_, exists := labels[selector]
+
+	return exists
+}
+
+func MatchesAutoSync(app *argoappv1.Application, autoSyncs []string) bool {
+	hasAutoSync := app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.Automated != nil
+	for _, autoSync := range autoSyncs {
+		if (autoSync == "Enabled" && hasAutoSync) || (autoSync == "Disabled" && !hasAutoSync) {
+			return true
+		}
+	}
+	return false
+}
+
+func MatchesSyncStatuses(app *argoappv1.Application, statuses []string) bool {
+	for _, syncStatus := range statuses {
+		if string(app.Status.Sync.Status) == syncStatus {
+			return true
+		}
+	}
+	return false
+}
+
+func MatchesHealthStatuses(app *argoappv1.Application, statuses []string) bool {
+	for _, healthStatus := range statuses {
+		if string(app.Status.Health.Status) == healthStatus {
+			return true
+		}
+	}
+	return false
+}
+
+func MatchesSearch(app *argoappv1.Application, search string) bool {
+	searchLower := strings.ToLower(search)
+
+	// Search in name, namespace, project
+	if strings.Contains(strings.ToLower(app.Name), searchLower) ||
+		strings.Contains(strings.ToLower(app.Namespace), searchLower) ||
+		strings.Contains(strings.ToLower(app.Spec.Project), searchLower) {
+		return true
+	}
+
+	// Search in source repos
+	sources := app.Spec.GetSources()
+	for _, source := range sources {
+		if strings.Contains(strings.ToLower(source.RepoURL), searchLower) {
+			return true
+		}
+	}
+
+	return false
+}
+
 // RefreshApp updates the refresh annotation of an application to coerce the controller to process it
 func RefreshApp(appIf v1alpha1.ApplicationInterface, name string, refreshType argoappv1.RefreshType, hydrate bool) (*argoappv1.Application, error) {
 	metadata := map[string]any{

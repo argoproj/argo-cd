@@ -19,7 +19,10 @@ argocd app list [flags]
   argocd app list -l app.kubernetes.io/instance!=my-app
   argocd app list -l app.kubernetes.io/instance
   argocd app list -l '!app.kubernetes.io/instance'
-  argocd app list -l 'app.kubernetes.io/instance notin (my-app,other-app)'
+  argocd app list -l 'app.kubernetes.io/instance notin (my-app,other-app)
+
+  # List apps with pagination
+  argocd app list --limit 50 --offset 100'
 ```
 
 ### Options
@@ -28,6 +31,8 @@ argocd app list [flags]
   -N, --app-namespace string   Only list applications in namespace
   -c, --cluster string         List apps by cluster name or url
   -h, --help                   help for list
+      --limit int              Limit the number of results (0 = no limit)
+      --offset int             Offset for pagination (requires --limit)
   -o, --output string          Output format. One of: wide|name|json|yaml (default "wide")
   -P, --path string            List apps by path
   -p, --project stringArray    Filter by project name

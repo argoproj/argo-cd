@@ -299,10 +299,11 @@ func (s *Server) List(ctx context.Context, q *application.ApplicationQuery) (*v1
 	// Filter applications by projects
 	filteredApps = argo.FilterByProjectsP(filteredApps, getProjectsFromApplicationQuery(*q))
 
-	// Filter applications by source repo URL
+	// Filter applications by source repo URL (legacy single repo filter)
 	filteredApps = argo.FilterByRepoP(filteredApps, q.GetRepo())
 
-	newItems := make([]v1alpha1.Application, 0)
+	// Apply RBAC filtering first so those apps don't get counted in stats
+	permittedApps := make([]*v1alpha1.Application, 0)
 	for _, a := range filteredApps {
 		// Skip any application that is neither in the control plane's namespace
 		// nor in the list of enabled namespaces.
@@ -310,28 +311,213 @@ func (s *Server) List(ctx context.Context, q *application.ApplicationQuery) (*v1
 			continue
 		}
 		if s.enf.Enforce(ctx.Value("claims"), rbac.ResourceApplications, rbac.ActionGet, a.RBACName(s.ns)) {
-			// Create a deep copy to ensure all metadata fields including annotations are preserved
-			appCopy := a.DeepCopy()
-			// Explicitly copy annotations in case DeepCopy does not preserve them
-			if a.Annotations != nil {
-				appCopy.Annotations = a.Annotations
-			}
-			newItems = append(newItems, *appCopy)
+			permittedApps = append(permittedApps, a)
 		}
 	}
 
-	// Sort found applications by name
-	sort.Slice(newItems, func(i, j int) bool {
-		return newItems[i].Name < newItems[j].Name
-	})
+	filteredApps = permittedApps
+
+	// Build stats from all apps
+	stats := s.buildInterdependentStats(filteredApps, q)
+
+	// Server-side filtering
+	filteredApps = s.filterApplicationsByQuery(filteredApps, q)
+
+	s.sort(filteredApps, q.GetSortBy())
+
+	// Apply pagination
+	paginatedApps := s.paginate(filteredApps, q)
+
+	// Create response items with deep copies
+	newItems := make([]v1alpha1.Application, 0, len(paginatedApps))
+	for _, a := range paginatedApps {
+		// Create a deep copy to ensure all metadata fields including annotations are preserved
+		appCopy := a.DeepCopy()
+		// Explicitly copy annotations in case DeepCopy does not preserve them
+		if a.Annotations != nil {
+			appCopy.Annotations = a.Annotations
+		}
+		newItems = append(newItems, *appCopy)
+	}
 
 	appList := v1alpha1.ApplicationList{
 		ListMeta: metav1.ListMeta{
 			ResourceVersion: s.appInformer.LastSyncResourceVersion(),
 		},
 		Items: newItems,
+		Stats: *stats,
 	}
 	return &appList, nil
+}
+
+const (
+	sortCreatedAt      = "createdAt"
+	sortSynchronizedAt = "synchronizedAt"
+)
+
+func (s *Server) sort(apps []*v1alpha1.Application, sortBy string) {
+	switch sortBy {
+	case sortCreatedAt:
+		// Created At: descending (newest first)
+		sort.Slice(apps, func(i, j int) bool {
+			return apps[i].CreationTimestamp.After(apps[j].CreationTimestamp.Time)
+		})
+	case sortSynchronizedAt:
+		// Synchronized: descending (most recent first)
+		sort.Slice(apps, func(i, j int) bool {
+			var timeI, timeJ time.Time
+			if apps[i].Status.OperationState != nil && apps[i].Status.OperationState.FinishedAt != nil {
+				timeI = apps[i].Status.OperationState.FinishedAt.Time
+			}
+			if apps[j].Status.OperationState != nil && apps[j].Status.OperationState.FinishedAt != nil {
+				timeJ = apps[j].Status.OperationState.FinishedAt.Time
+			}
+
+			// Un-synced apps go to the end
+			if timeI.IsZero() && !timeJ.IsZero() {
+				return false
+			}
+			if !timeI.IsZero() && timeJ.IsZero() {
+				return true
+			}
+			if timeI.IsZero() && timeJ.IsZero() {
+				return false
+			}
+
+			return timeI.After(timeJ)
+		})
+	default:
+		// Sort by Name: ascending
+		sort.Slice(apps, func(i, j int) bool {
+			return apps[i].Name < apps[j].Name
+		})
+	}
+}
+
+func (s *Server) paginate(apps []*v1alpha1.Application, q *application.ApplicationQuery) []*v1alpha1.Application {
+	offset := int64(0)
+	if q.Offset != nil {
+		offset = *q.Offset
+	}
+
+	limit := int64(len(apps))
+	if q.Limit != nil && *q.Limit > 0 {
+		limit = *q.Limit
+	}
+
+	start := offset
+	if start > int64(len(apps)) {
+		start = int64(len(apps))
+	}
+
+	end := start + limit
+	if end > int64(len(apps)) {
+		end = int64(len(apps))
+	}
+
+	paginatedApps := apps[start:end]
+	return paginatedApps
+}
+
+// buildInterdependentStats calculates stats with interdependent filtering
+// For each stat category, it applies all filters EXCEPT that category
+func (s *Server) buildInterdependentStats(apps []*v1alpha1.Application, q *application.ApplicationQuery) *v1alpha1.ApplicationListStats {
+	stats := &v1alpha1.ApplicationListStats{
+		TotalBySyncStatus:   make(map[v1alpha1.SyncStatusCode]int64),
+		TotalByHealthStatus: make(map[health.HealthStatusCode]int64),
+		AutoSyncCount:       make(map[string]int64),
+		Destinations:        make([]v1alpha1.ApplicationDestination, 0),
+		Namespaces:          make([]string, 0),
+		Labels:              make([]v1alpha1.ApplicationLabelStats, 0),
+	}
+
+	destinationSet := make(map[string]v1alpha1.ApplicationDestination)
+	namespaceSet := make(map[string]bool)
+	labelMap := make(map[string]map[string]bool)
+
+	// Calculate TotalBySyncStatus: apply all filters EXCEPT syncStatuses
+	qWithoutSync := *q
+	qWithoutSync.SyncStatuses = nil
+	appsForSyncStats := s.filterApplicationsByQuery(apps, &qWithoutSync)
+
+	for _, app := range appsForSyncStats {
+		stats.TotalBySyncStatus[app.Status.Sync.Status]++
+	}
+
+	// Calculate TotalByHealthStatus: apply all filters EXCEPT healthStatuses
+	qWithoutHealth := *q
+	qWithoutHealth.HealthStatuses = nil
+	appsForHealthStats := s.filterApplicationsByQuery(apps, &qWithoutHealth)
+
+	for _, app := range appsForHealthStats {
+		stats.TotalByHealthStatus[app.Status.Health.Status]++
+	}
+
+	// Calculate AutoSyncCount: apply all filters EXCEPT autoSyncEnabled
+	qWithoutAutoSync := *q
+	qWithoutAutoSync.AutoSyncs = nil
+	appsForAutoSyncStats := s.filterApplicationsByQuery(apps, &qWithoutAutoSync)
+	for _, app := range appsForAutoSyncStats {
+		if app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.Automated != nil {
+			stats.AutoSyncCount["Enabled"]++
+		} else {
+			stats.AutoSyncCount["Disabled"]++
+		}
+	}
+
+	for _, app := range apps {
+		// Collect unique destinations
+		destKey := app.Spec.Destination.Server + "/" + app.Spec.Destination.Namespace
+		if _, exists := destinationSet[destKey]; !exists {
+			destinationSet[destKey] = app.Spec.Destination
+		}
+
+		// Collect unique namespaces
+		if app.Spec.Destination.Namespace != "" {
+			namespaceSet[app.Spec.Destination.Namespace] = true
+		}
+
+		// Collect labels
+		for key, value := range app.Labels {
+			if labelMap[key] == nil {
+				labelMap[key] = make(map[string]bool)
+			}
+			labelMap[key][value] = true
+		}
+	}
+
+	for _, dest := range destinationSet {
+		stats.Destinations = append(stats.Destinations, dest)
+	}
+	sort.Slice(stats.Destinations, func(i, j int) bool {
+		return stats.Destinations[i].Server < stats.Destinations[j].Server
+	})
+
+	for ns := range namespaceSet {
+		stats.Namespaces = append(stats.Namespaces, ns)
+	}
+	sort.Strings(stats.Namespaces)
+
+	for key, valuesMap := range labelMap {
+		values := make([]string, 0, len(valuesMap))
+		for value := range valuesMap {
+			values = append(values, value)
+		}
+		sort.Strings(values)
+		stats.Labels = append(stats.Labels, v1alpha1.ApplicationLabelStats{
+			Key:    key,
+			Values: values,
+		})
+	}
+	sort.Slice(stats.Labels, func(i, j int) bool {
+		return stats.Labels[i].Key < stats.Labels[j].Key
+	})
+
+	// For other stats (destinations, namespaces, labels), apply ALL filters
+	appsWithAllFilters := s.filterApplicationsByQuery(apps, q)
+	stats.Total = int64(len(appsWithAllFilters))
+
+	return stats
 }
 
 // Create creates an application
@@ -1249,6 +1435,12 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 		if !permitted {
 			return
 		}
+
+		// Apply server-side filters
+		if !s.matchesApplicationQuery(&a, q) {
+			return
+		}
+
 		s.inferResourcesStatusHealth(&a)
 		err := ws.Send(&v1alpha1.ApplicationWatchEvent{
 			Type:        eventType,
@@ -1286,6 +1478,150 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 		case <-ws.Context().Done():
 			return nil
 		}
+	}
+}
+
+// filterApplicationsByQuery filters a slice of applications based on query parameters
+func (s *Server) filterApplicationsByQuery(apps []*v1alpha1.Application, q *application.ApplicationQuery) []*v1alpha1.Application {
+	filtered := make([]*v1alpha1.Application, 0, len(apps))
+	for _, app := range apps {
+		if s.matchesApplicationQuery(app, q) {
+			filtered = append(filtered, app)
+		}
+	}
+	return filtered
+}
+
+// matchesApplicationQuery checks if a single application matches all query filter criteria
+func (s *Server) matchesApplicationQuery(app *v1alpha1.Application, q *application.ApplicationQuery) bool {
+	// Filter by app names
+	if len(q.Names) > 0 {
+		if !argo.MatchesNames(app, q.Names) {
+			return false
+		}
+	}
+
+	// Filter by repos
+	if len(q.Repos) > 0 {
+		if !argo.MatchesRepos(app, q.Repos) {
+			return false
+		}
+	}
+
+	// Filter by clusters
+	if len(q.Clusters) > 0 {
+		if !argo.MatchesClusters(app, q.Clusters) {
+			return false
+		}
+	}
+
+	// Filter by namespaces
+	if len(q.Namespaces) > 0 {
+		if !argo.MatchesNamespaces(app, q.Namespaces) {
+			return false
+		}
+	}
+
+	// Filter by labels
+	if len(q.Labels) > 0 {
+		if !argo.MatchesLabels(app, q.Labels) {
+			return false
+		}
+	}
+
+	// Filter by auto sync
+	if len(q.AutoSyncs) > 0 {
+		if !argo.MatchesAutoSync(app, q.AutoSyncs) {
+			return false
+		}
+	}
+
+	// Filter by sync statuses
+	if len(q.SyncStatuses) > 0 {
+		if !argo.MatchesSyncStatuses(app, q.SyncStatuses) {
+			return false
+		}
+	}
+
+	// Filter by health statuses
+	if len(q.HealthStatuses) > 0 {
+		if !argo.MatchesHealthStatuses(app, q.HealthStatuses) {
+			return false
+		}
+	}
+
+	// Filter by search
+	if q.Search != nil && *q.Search != "" {
+		if !argo.MatchesSearch(app, *q.Search) {
+			return false
+		}
+	}
+
+	filterByName := func() bool {
+		// Filter by minName/maxName (for pagination)
+		if q.MinName != nil && app.Name < *q.MinName {
+			return false
+		}
+
+		if q.MaxName != nil && app.Name > *q.MaxName {
+			return false
+		}
+		return true
+	}
+
+	filterByCreatedAt := func() bool {
+		if q.MinCreatedAt != nil && *q.MinCreatedAt != "" {
+			minTime, err := time.Parse(time.RFC3339, *q.MinCreatedAt)
+			if err == nil && app.CreationTimestamp.Time.Before(minTime) {
+				return false
+			}
+		}
+
+		if q.MaxCreatedAt != nil && *q.MaxCreatedAt != "" {
+			maxTime, err := time.Parse(time.RFC3339, *q.MaxCreatedAt)
+			if err == nil && app.CreationTimestamp.After(maxTime) {
+				return false
+			}
+		}
+		return true
+	}
+
+	filterBySynchronizedAt := func() bool {
+		if q.MinSynchronizedAt != nil && *q.MinSynchronizedAt != "" {
+			minTime, err := time.Parse(time.RFC3339, *q.MinSynchronizedAt)
+			if err == nil {
+				// Un-synced apps don't match
+				if app.Status.OperationState == nil || app.Status.OperationState.FinishedAt == nil {
+					return false
+				}
+				if app.Status.OperationState.FinishedAt.Time.Before(minTime) {
+					return false
+				}
+			}
+		}
+
+		if q.MaxSynchronizedAt != nil && *q.MaxSynchronizedAt != "" {
+			maxTime, err := time.Parse(time.RFC3339, *q.MaxSynchronizedAt)
+			if err == nil {
+				// Un-synced apps don't match
+				if app.Status.OperationState == nil || app.Status.OperationState.FinishedAt == nil {
+					return false
+				}
+				if app.Status.OperationState.FinishedAt.After(maxTime) {
+					return false
+				}
+			}
+		}
+		return true
+	}
+
+	switch q.GetSortBy() {
+	case sortCreatedAt:
+		return filterByCreatedAt()
+	case sortSynchronizedAt:
+		return filterBySynchronizedAt()
+	default:
+		return filterByName()
 	}
 }
 
