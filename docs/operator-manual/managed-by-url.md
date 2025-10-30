@@ -8,10 +8,10 @@ The `argocd.argoproj.io/managed-by-url` annotation allows an Application resourc
 
 When using multiple Argo CD instances with the [app-of-apps pattern](cluster-bootstrapping.md):
 
-1. A primary Argo CD instance creates a parent Application
-2. That parent Application deploys child Applications managed by a secondary Argo CD instance
-3. Without the annotation, clicking on child Applications in the primary instance's UI tries to open them in the primary instance (incorrect)
-4. The child Applications should open in the secondary instance instead
+- A primary Argo CD instance creates a parent Application
+- The parent Application deploys child Applications that are managed by a secondary Argo CD instance
+- Without the annotation, clicking on child Applications in the primary instance's UI tries to open them in the primary instance (incorrect)
+- With the annotation, child Applications correctly open in the secondary instance
 
 The `managed-by-url` annotation ensures application links redirect to the correct Argo CD instance.
 
