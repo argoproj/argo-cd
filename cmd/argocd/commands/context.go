@@ -28,6 +28,7 @@ argocd context list
 
 # Switch Argo CD context
 argocd context switch cd.argoproj.io
+argocd context use cd.argoproj.io
 
 # Delete Argo CD context
 argocd context delete cd.argoproj.io`,
@@ -65,8 +66,9 @@ func NewContextListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 // NewContextSwitchCommand returns a new instance of `argocd context switch` command
 func NewContextSwitchCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	command := &cobra.Command{
-		Use:   "switch",
-		Short: "Switch Argo CD Context",
+		Use:     "switch",
+		Aliases: []string{"use"},
+		Short:   "Switch Argo CD Context",
 		Example: `   # Switch Argo CD Context
 	argocd context switch cd.argoproj.io`,
 		Run: func(c *cobra.Command, args []string) {
