@@ -7,7 +7,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/utils"
 	argocdclient "github.com/argoproj/argo-cd/v3/pkg/apiclient"
 	"github.com/argoproj/argo-cd/v3/util/errors"
 	"github.com/argoproj/argo-cd/v3/util/localconfig"
@@ -39,7 +38,7 @@ argocd logout cd.argoproj.io
 				}
 			} else {
 				// TODO: What if we have multiple arguments, not only one?
-				context := args[0]
+				context := args
 				err := logoutContext(globalClientOpts, context)
 				if err != nil {
 					log.Fatalf("error while logging out from context '%s'. %s'", context, err)
@@ -63,32 +62,24 @@ func logoutAllContext(globalClientOpts *argocdclient.ClientOptions) error {
 		if err != nil {
 			return fmt.Errorf("context '%s' had error: %v", contextRef.Name, err)
 		}
-		globalClientOpts.PromptsEnabled = true
-		promptUtil := utils.NewPrompt(globalClientOpts.PromptsEnabled)
 
-		canLogout := promptUtil.Confirm(fmt.Sprintf("Are you sure you want to log out from '%s'?", context.Name))
-		if canLogout {
-			ok := localCfg.RemoveToken(context.Server.Server)
-			if !ok {
-				return fmt.Errorf("context '%s' does not exist", context)
-			}
-			err = localconfig.ValidateLocalConfig(*localCfg)
-			if err != nil {
-				return fmt.Errorf("error in logging out: %s", err)
-			}
-			err = localconfig.WriteLocalConfig(*localCfg, globalClientOpts.ConfigPath)
-			errors.CheckError(err)
-
-			fmt.Printf("Logged out from '%s'\n", context.Name)
-		} else {
-			// TODO: This should not be treated as error
-			return fmt.Errorf("logout from '%s' cancelled", context.Name)
+		ok := localCfg.RemoveToken(context.Server.Server)
+		if !ok {
+			return fmt.Errorf("context '%s' does not exist", context.Server.Server)
 		}
+		err = localconfig.ValidateLocalConfig(*localCfg)
+		if err != nil {
+			return fmt.Errorf("error in logging out: %s", err)
+		}
+		err = localconfig.WriteLocalConfig(*localCfg, globalClientOpts.ConfigPath)
+		errors.CheckError(err)
+
+		fmt.Printf("Logged out from '%s'\n", context.Name)
 	}
 	return nil
 }
 
-func logoutContext(globalClientOpts *argocdclient.ClientOptions, contexts ...string) error {
+func logoutContext(globalClientOpts *argocdclient.ClientOptions, contexts []string) error {
 	localCfg, err := localconfig.ReadLocalConfig(globalClientOpts.ConfigPath)
 	errors.CheckError(err)
 	if localCfg == nil {
@@ -102,29 +93,24 @@ func logoutContext(globalClientOpts *argocdclient.ClientOptions, contexts ...str
 		}
 		localCfg.UpsertContext(*ctxRef)
 
-		globalClientOpts.PromptsEnabled = true
-		promptUtil := utils.NewPrompt(globalClientOpts.PromptsEnabled)
-
-		canLogout := promptUtil.Confirm(fmt.Sprintf("Are you sure you want to log out from '%s'?", ctxRef.Name))
-		if canLogout {
-			ok := localCfg.RemoveToken(ctxRef.Server)
-			if !ok {
-				return fmt.Errorf("context %s does not exist", ctxRef.Server)
-			}
-
-			err = localconfig.ValidateLocalConfig(*localCfg)
-			if err != nil {
-				return fmt.Errorf("error in logging out: %s", err)
-			}
-			err = localconfig.WriteLocalConfig(*localCfg, globalClientOpts.ConfigPath)
-			errors.CheckError(err)
-
-			fmt.Printf("Logged out from '%s'\n", ctxRef.Name)
-			return nil
-		} else {
-			// TODO: This should not be treated as error
-			return fmt.Errorf("logout from '%s' cancelled", ctxRef.Name)
+		context, err := localCfg.ResolveContext(ctxRef.Name)
+		if err != nil {
+			return fmt.Errorf("couldn't resolve context '%s'", ctxRef.Name)
 		}
+		//if canLogout {
+		ok := localCfg.RemoveToken(context.Server.Server)
+		if !ok {
+			return fmt.Errorf("context %s does not exist", context.Server.Server)
+		}
+
+		err = localconfig.ValidateLocalConfig(*localCfg)
+		if err != nil {
+			return fmt.Errorf("error in logging out: %s", err)
+		}
+		err = localconfig.WriteLocalConfig(*localCfg, globalClientOpts.ConfigPath)
+		errors.CheckError(err)
+
+		fmt.Printf("Logged out from '%s'\n", context.Name)
 	}
 	return nil
 }
