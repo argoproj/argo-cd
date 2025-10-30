@@ -114,6 +114,8 @@ type Repository struct {
 	BearerToken string `json:"bearerToken,omitempty" protobuf:"bytes,25,opt,name=bearerToken"`
 	// InsecureOCIForceHttp specifies whether the connection to the repository uses TLS at _all_. If true, no TLS. This flag is applicable for OCI repos only.
 	InsecureOCIForceHttp bool `json:"insecureOCIForceHttp,omitempty" protobuf:"bytes,26,opt,name=insecureOCIForceHttp"` //nolint:revive //FIXME(var-naming)
+	// Depth specifies the depth for shallow clones. A value of 0 or omitting the field indicates a full clone.
+	Depth int64 `json:"depth,omitempty" protobuf:"bytes,27,opt,name=depth"`
 }
 
 // IsInsecure returns true if the repository has been configured to skip server verification or set to HTTP only
@@ -330,6 +332,7 @@ func (repo *Repository) CopySettingsFrom(source *Repository) {
 		repo.InsecureIgnoreHostKey = source.InsecureIgnoreHostKey
 		repo.Insecure = source.Insecure
 		repo.InheritedCreds = source.InheritedCreds
+		repo.Depth = source.Depth
 	}
 }
 

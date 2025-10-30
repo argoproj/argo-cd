@@ -1916,6 +1916,9 @@ message Repository {
 
   // InsecureOCIForceHttp specifies whether the connection to the repository uses TLS at _all_. If true, no TLS. This flag is applicable for OCI repos only.
   optional bool insecureOCIForceHttp = 26;
+
+  // Depth specifies the depth for shallow clones. A value of 0 or omitting the field indicates a full clone.
+  optional int64 depth = 27;
 }
 
 // A RepositoryCertificate is either SSH known hosts entry or TLS certificate
