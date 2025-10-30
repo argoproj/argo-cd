@@ -146,7 +146,7 @@ Then:
 4. Click on the `child-app` in the resource tree
 5. It should redirect to `http://localhost:8081/applications/namespace-b/child-app`
 
-You will need to repeat the command to get the password for secondary instance to login and access the child-app
+You will need to repeat the command to get the password for the secondary instance to login and access the child-app
 
 ```bash
 # Get the admin password for secondary instance
