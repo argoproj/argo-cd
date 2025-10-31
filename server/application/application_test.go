@@ -133,8 +133,9 @@ func fakeResolveRevisionResponseHelm() *apiclient.ResolveRevisionResponse {
 	}
 }
 
-func fakeRepoServerClient(isHelm bool) *mocks.RepoServerServiceClient {
-	mockRepoServiceClient := mocks.RepoServerServiceClient{}
+func fakeRepoServerClient(tb testing.TB, isHelm bool) *mocks.RepoServerServiceClient {
+	tb.Helper()
+	mockRepoServiceClient := mocks.NewRepoServerServiceClient(tb)
 	mockRepoServiceClient.On("GetProcessableApps", mock.Anything, mock.Anything).Return(fakeAppList(), nil)
 	mockRepoServiceClient.On("GenerateManifest", mock.Anything, mock.Anything).Return(&apiclient.ManifestResponse{}, nil)
 	mockRepoServiceClient.On("GetAppDetails", mock.Anything, mock.Anything).Return(&apiclient.RepoAppDetailsResponse{}, nil)
@@ -152,7 +153,7 @@ func fakeRepoServerClient(isHelm bool) *mocks.RepoServerServiceClient {
 		mockRepoServiceClient.On("ResolveRevision", mock.Anything, mock.Anything).Return(fakeResolveRevisionResponse(), nil)
 	}
 
-	return &mockRepoServiceClient
+	return mockRepoServiceClient
 }
 
 // return an ApplicationServiceServer which returns fake data
@@ -193,7 +194,7 @@ func newTestAppServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforcer),
 	_, err = db.CreateCluster(ctx, fakeCluster())
 	require.NoError(t, err)
 
-	mockRepoClient := &mocks.Clientset{RepoServerServiceClient: fakeRepoServerClient(false)}
+	mockRepoClient := &mocks.Clientset{RepoServerServiceClient: fakeRepoServerClient(t, false)}
 
 	defaultProj := &v1alpha1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: "default"},
@@ -358,7 +359,7 @@ func newTestAppServerWithEnforcerConfigureWithBenchmark(b *testing.B, f func(*rb
 	_, err = db.CreateCluster(ctx, fakeCluster())
 	require.NoError(b, err)
 
-	mockRepoClient := &mocks.Clientset{RepoServerServiceClient: fakeRepoServerClient(false)}
+	mockRepoClient := &mocks.Clientset{RepoServerServiceClient: fakeRepoServerClient(b, false)}
 
 	defaultProj := &v1alpha1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: "default"},
@@ -2652,7 +2653,7 @@ func TestSyncHelm(t *testing.T) {
 	testApp.Spec.Source.Chart = "argo-cd"
 	testApp.Spec.Source.TargetRevision = "0.7.*"
 
-	appServer.repoClientset = &mocks.Clientset{RepoServerServiceClient: fakeRepoServerClient(true)}
+	appServer.repoClientset = &mocks.Clientset{RepoServerServiceClient: fakeRepoServerClient(t, true)}
 
 	app, err := appServer.Create(ctx, &application.ApplicationCreateRequest{Application: testApp})
 	require.NoError(t, err)
@@ -2721,20 +2722,19 @@ func TestGetManifests_WithNoCache(t *testing.T) {
 	testApp := newTestApp()
 	appServer := newTestAppServer(t, testApp)
 
-	mockRepoServiceClient := mocks.RepoServerServiceClient{}
+	mockRepoServiceClient := mocks.NewRepoServerServiceClient(t)
 	mockRepoServiceClient.On("GenerateManifest", mock.Anything, mock.MatchedBy(func(mr *apiclient.ManifestRequest) bool {
 		// expected to be true because given NoCache in the ApplicationManifestQuery
 		return mr.NoCache
 	})).Return(&apiclient.ManifestResponse{}, nil)
 
-	appServer.repoClientset = &mocks.Clientset{RepoServerServiceClient: &mockRepoServiceClient}
+	appServer.repoClientset = &mocks.Clientset{RepoServerServiceClient: mockRepoServiceClient}
 
 	_, err := appServer.GetManifests(t.Context(), &application.ApplicationManifestQuery{
 		Name:    &testApp.Name,
 		NoCache: ptr.To(true),
 	})
 	require.NoError(t, err)
-	mockRepoServiceClient.AssertExpectations(t)
 }
 
 func TestRollbackApp(t *testing.T) {
@@ -3243,12 +3243,12 @@ func TestGetAppRefresh_HardRefresh(t *testing.T) {
 	appServer := newTestAppServer(t, testApp)
 
 	var getAppDetailsQuery *apiclient.RepoServerAppDetailsQuery
-	mockRepoServiceClient := mocks.RepoServerServiceClient{}
+	mockRepoServiceClient := mocks.NewRepoServerServiceClient(t)
 	mockRepoServiceClient.On("GetAppDetails", mock.Anything, mock.MatchedBy(func(q *apiclient.RepoServerAppDetailsQuery) bool {
 		getAppDetailsQuery = q
 		return true
 	})).Return(&apiclient.RepoAppDetailsResponse{}, nil)
-	appServer.repoClientset = &mocks.Clientset{RepoServerServiceClient: &mockRepoServiceClient}
+	appServer.repoClientset = &mocks.Clientset{RepoServerServiceClient: mockRepoServiceClient}
 
 	var patched int32
 

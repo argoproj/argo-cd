@@ -64,7 +64,7 @@ func TestNotificationServer(t *testing.T) {
 	if !k8scache.WaitForCacheSync(ctx.Done(), configMapInformer.HasSynced) {
 		panic("Timed out waiting for caches to sync")
 	}
-	mockRepoClient := &mocks.Clientset{RepoServerServiceClient: &mocks.RepoServerServiceClient{}}
+	mockRepoClient := &mocks.Clientset{RepoServerServiceClient: mocks.NewRepoServerServiceClient(t)}
 
 	argocdService, err := service.NewArgoCDService(kubeclientset, testNamespace, mockRepoClient)
 	require.NoError(t, err)

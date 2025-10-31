@@ -162,8 +162,6 @@ func TestGetDefaultBranchOnDisabledRepo(t *testing.T) {
 			}
 
 			assert.Empty(t, branches)
-
-			gitClientMock.AssertExpectations(t)
 		})
 	}
 }
@@ -221,8 +219,6 @@ func TestGetAllBranchesOnDisabledRepo(t *testing.T) {
 			}
 
 			assert.Empty(t, branches)
-
-			gitClientMock.AssertExpectations(t)
 		})
 	}
 }
@@ -497,8 +493,6 @@ func TestGetAzureDevopsRepositories(t *testing.T) {
 				assert.NotEmpty(t, repositories)
 				assert.Len(t, repositories, testCase.expectedNumberOfRepos)
 			}
-
-			gitClientMock.AssertExpectations(t)
 		})
 	}
 }

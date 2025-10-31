@@ -58,7 +58,7 @@ func TestInitGetVars(t *testing.T) {
 			},
 			Data: notificationsSecret.Data,
 		})
-	mockRepoClient := &mocks.Clientset{RepoServerServiceClient: &mocks.RepoServerServiceClient{}}
+	mockRepoClient := &mocks.Clientset{RepoServerServiceClient: mocks.NewRepoServerServiceClient(t)}
 	argocdService, err := service.NewArgoCDService(kubeclientset, testNamespace, mockRepoClient)
 	require.NoError(t, err)
 	defer argocdService.Close()

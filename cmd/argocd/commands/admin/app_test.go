@@ -105,15 +105,15 @@ func TestGetReconcileResults_Refresh(t *testing.T) {
 	appClientset := appfake.NewSimpleClientset(app, proj)
 	deployment := test.NewDeployment()
 	kubeClientset := kubefake.NewClientset(deployment, argoCM, argoCDSecret)
-	clusterCache := clustermocks.ClusterCache{}
+	clusterCache := clustermocks.NewClusterCache(t)
 	clusterCache.On("IsNamespaced", mock.Anything).Return(true, nil)
 	clusterCache.On("GetGVKParser", mock.Anything).Return(nil)
-	repoServerClient := mocks.RepoServerServiceClient{}
+	repoServerClient := mocks.NewRepoServerServiceClient(t)
 	repoServerClient.On("GenerateManifest", mock.Anything, mock.Anything).Return(&argocdclient.ManifestResponse{
 		Manifests: []string{test.DeploymentManifest},
 	}, nil)
-	repoServerClientset := mocks.Clientset{RepoServerServiceClient: &repoServerClient}
-	liveStateCache := cachemocks.LiveStateCache{}
+	repoServerClientset := mocks.Clientset{RepoServerServiceClient: repoServerClient}
+	liveStateCache := cachemocks.NewLiveStateCache(t)
 	liveStateCache.On("GetManagedLiveObjs", mock.Anything, mock.Anything, mock.Anything).Return(map[kube.ResourceKey]*unstructured.Unstructured{
 		kube.GetResourceKey(deployment): deployment,
 	}, nil)
@@ -124,7 +124,7 @@ func TestGetReconcileResults_Refresh(t *testing.T) {
 
 	result, err := reconcileApplications(ctx, kubeClientset, appClientset, "default", &repoServerClientset, "",
 		func(_ db.ArgoDB, _ cache.SharedIndexInformer, _ *settings.SettingsManager, _ *metrics.MetricsServer) statecache.LiveStateCache {
-			return &liveStateCache
+			return liveStateCache
 		},
 		false,
 		normalizers.IgnoreNormalizerOpts{},

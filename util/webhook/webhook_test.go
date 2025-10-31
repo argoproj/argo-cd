@@ -69,17 +69,20 @@ type reactorDef struct {
 	reaction kubetesting.ReactionFunc
 }
 
-func NewMockHandler(reactor *reactorDef, applicationNamespaces []string, objects ...runtime.Object) *ArgoCDWebhookHandler {
+func NewMockHandler(t *testing.T, reactor *reactorDef, applicationNamespaces []string, objects ...runtime.Object) *ArgoCDWebhookHandler {
+	t.Helper()
 	defaultMaxPayloadSize := int64(50) * 1024 * 1024
-	return NewMockHandlerWithPayloadLimit(reactor, applicationNamespaces, defaultMaxPayloadSize, objects...)
+	return NewMockHandlerWithPayloadLimit(t, reactor, applicationNamespaces, defaultMaxPayloadSize, objects...)
 }
 
-func NewMockHandlerWithPayloadLimit(reactor *reactorDef, applicationNamespaces []string, maxPayloadSize int64, objects ...runtime.Object) *ArgoCDWebhookHandler {
-	return newMockHandler(reactor, applicationNamespaces, maxPayloadSize, &mocks.ArgoDB{}, &settings.ArgoCDSettings{}, objects...)
+func NewMockHandlerWithPayloadLimit(t *testing.T, reactor *reactorDef, applicationNamespaces []string, maxPayloadSize int64, objects ...runtime.Object) *ArgoCDWebhookHandler {
+	t.Helper()
+	return newMockHandler(reactor, applicationNamespaces, maxPayloadSize, mocks.NewArgoDB(t), &settings.ArgoCDSettings{}, objects...)
 }
 
-func NewMockHandlerForBitbucketCallback(reactor *reactorDef, applicationNamespaces []string, objects ...runtime.Object) *ArgoCDWebhookHandler {
-	mockDB := mocks.ArgoDB{}
+func NewMockHandlerForBitbucketCallback(t *testing.T, reactor *reactorDef, applicationNamespaces []string, objects ...runtime.Object) *ArgoCDWebhookHandler {
+	t.Helper()
+	mockDB := mocks.NewArgoDB(t)
 	mockDB.On("ListRepositories", mock.Anything).Return(
 		[]*v1alpha1.Repository{
 			{
@@ -99,7 +102,7 @@ func NewMockHandlerForBitbucketCallback(reactor *reactorDef, applicationNamespac
 		}, nil)
 	argoSettings := settings.ArgoCDSettings{WebhookBitbucketUUID: "abcd-efgh-ijkl-mnop"}
 	defaultMaxPayloadSize := int64(50) * 1024 * 1024
-	return newMockHandler(reactor, applicationNamespaces, defaultMaxPayloadSize, &mockDB, &argoSettings, objects...)
+	return newMockHandler(reactor, applicationNamespaces, defaultMaxPayloadSize, mockDB, &argoSettings, objects...)
 }
 
 type fakeAppsLister struct {
@@ -148,7 +151,7 @@ func newMockHandler(reactor *reactorDef, applicationNamespaces []string, maxPayl
 
 func TestGitHubCommitEvent(t *testing.T) {
 	hook := test.NewGlobal()
-	h := NewMockHandler(nil, []string{})
+	h := NewMockHandler(t, nil, []string{})
 	req := httptest.NewRequest(http.MethodPost, "/api/webhook", http.NoBody)
 	req.Header.Set("X-GitHub-Event", "push")
 	eventJSON, err := os.ReadFile("testdata/github-commit-event.json")
@@ -166,7 +169,7 @@ func TestGitHubCommitEvent(t *testing.T) {
 
 func TestAzureDevOpsCommitEvent(t *testing.T) {
 	hook := test.NewGlobal()
-	h := NewMockHandler(nil, []string{})
+	h := NewMockHandler(t, nil, []string{})
 	req := httptest.NewRequest(http.MethodPost, "/api/webhook", http.NoBody)
 	req.Header.Set("X-Vss-Activityid", "abc")
 	eventJSON, err := os.ReadFile("testdata/azuredevops-git-push-event.json")
@@ -193,7 +196,7 @@ func TestGitHubCommitEvent_MultiSource_Refresh(t *testing.T) {
 		patched = true
 		return true, nil, nil
 	}
-	h := NewMockHandler(&reactorDef{"patch", "applications", reaction}, []string{}, &v1alpha1.Application{
+	h := NewMockHandler(t, &reactorDef{"patch", "applications", reaction}, []string{}, &v1alpha1.Application{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "app-to-refresh",
 			Namespace: "argocd",
@@ -252,7 +255,7 @@ func TestGitHubCommitEvent_AppsInOtherNamespaces(t *testing.T) {
 		return true, nil, nil
 	}
 
-	h := NewMockHandler(&reactorDef{"patch", "applications", reaction}, []string{"end-to-end-tests", "app-team-*"},
+	h := NewMockHandler(t, &reactorDef{"patch", "applications", reaction}, []string{"end-to-end-tests", "app-team-*"},
 		&v1alpha1.Application{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "app-to-refresh-in-default-namespace",
@@ -348,7 +351,7 @@ func TestGitHubCommitEvent_Hydrate(t *testing.T) {
 		patched = true
 		return true, nil, nil
 	}
-	h := NewMockHandler(&reactorDef{"patch", "applications", reaction}, []string{}, &v1alpha1.Application{
+	h := NewMockHandler(t, &reactorDef{"patch", "applications", reaction}, []string{}, &v1alpha1.Application{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "app-to-hydrate",
 			Namespace: "argocd",
@@ -406,7 +409,7 @@ func TestGitHubCommitEvent_Hydrate(t *testing.T) {
 
 func TestGitHubTagEvent(t *testing.T) {
 	hook := test.NewGlobal()
-	h := NewMockHandler(nil, []string{})
+	h := NewMockHandler(t, nil, []string{})
 	req := httptest.NewRequest(http.MethodPost, "/api/webhook", http.NoBody)
 	req.Header.Set("X-GitHub-Event", "push")
 	eventJSON, err := os.ReadFile("testdata/github-tag-event.json")
@@ -424,7 +427,7 @@ func TestGitHubTagEvent(t *testing.T) {
 
 func TestGitHubPingEvent(t *testing.T) {
 	hook := test.NewGlobal()
-	h := NewMockHandler(nil, []string{})
+	h := NewMockHandler(t, nil, []string{})
 	req := httptest.NewRequest(http.MethodPost, "/api/webhook", http.NoBody)
 	req.Header.Set("X-GitHub-Event", "ping")
 	eventJSON, err := os.ReadFile("testdata/github-ping-event.json")
@@ -442,7 +445,7 @@ func TestGitHubPingEvent(t *testing.T) {
 
 func TestBitbucketServerRepositoryReferenceChangedEvent(t *testing.T) {
 	hook := test.NewGlobal()
-	h := NewMockHandler(nil, []string{})
+	h := NewMockHandler(t, nil, []string{})
 	req := httptest.NewRequest(http.MethodPost, "/api/webhook", http.NoBody)
 	req.Header.Set("X-Event-Key", "repo:refs_changed")
 	eventJSON, err := os.ReadFile("testdata/bitbucket-server-event.json")
@@ -462,7 +465,7 @@ func TestBitbucketServerRepositoryReferenceChangedEvent(t *testing.T) {
 
 func TestBitbucketServerRepositoryDiagnosticPingEvent(t *testing.T) {
 	hook := test.NewGlobal()
-	h := NewMockHandler(nil, []string{})
+	h := NewMockHandler(t, nil, []string{})
 	eventJSON := "{\"test\": true}"
 	req := httptest.NewRequest(http.MethodPost, "/api/webhook", bytes.NewBufferString(eventJSON))
 	req.Header.Set("X-Event-Key", "diagnostics:ping")
@@ -478,7 +481,7 @@ func TestBitbucketServerRepositoryDiagnosticPingEvent(t *testing.T) {
 
 func TestGogsPushEvent(t *testing.T) {
 	hook := test.NewGlobal()
-	h := NewMockHandler(nil, []string{})
+	h := NewMockHandler(t, nil, []string{})
 	req := httptest.NewRequest(http.MethodPost, "/api/webhook", http.NoBody)
 	req.Header.Set("X-Gogs-Event", "push")
 	eventJSON, err := os.ReadFile("testdata/gogs-event.json")
@@ -496,7 +499,7 @@ func TestGogsPushEvent(t *testing.T) {
 
 func TestGitLabPushEvent(t *testing.T) {
 	hook := test.NewGlobal()
-	h := NewMockHandler(nil, []string{})
+	h := NewMockHandler(t, nil, []string{})
 	req := httptest.NewRequest(http.MethodPost, "/api/webhook", http.NoBody)
 	req.Header.Set("X-Gitlab-Event", "Push Hook")
 	eventJSON, err := os.ReadFile("testdata/gitlab-event.json")
@@ -514,7 +517,7 @@ func TestGitLabPushEvent(t *testing.T) {
 
 func TestGitLabSystemEvent(t *testing.T) {
 	hook := test.NewGlobal()
-	h := NewMockHandler(nil, []string{})
+	h := NewMockHandler(t, nil, []string{})
 	req := httptest.NewRequest(http.MethodPost, "/api/webhook", http.NoBody)
 	req.Header.Set("X-Gitlab-Event", "System Hook")
 	eventJSON, err := os.ReadFile("testdata/gitlab-event.json")
@@ -532,7 +535,7 @@ func TestGitLabSystemEvent(t *testing.T) {
 
 func TestInvalidMethod(t *testing.T) {
 	hook := test.NewGlobal()
-	h := NewMockHandler(nil, []string{})
+	h := NewMockHandler(t, nil, []string{})
 	req := httptest.NewRequest(http.MethodGet, "/api/webhook", http.NoBody)
 	req.Header.Set("X-GitHub-Event", "push")
 	w := httptest.NewRecorder()
@@ -548,7 +551,7 @@ func TestInvalidMethod(t *testing.T) {
 
 func TestInvalidEvent(t *testing.T) {
 	hook := test.NewGlobal()
-	h := NewMockHandler(nil, []string{})
+	h := NewMockHandler(t, nil, []string{})
 	req := httptest.NewRequest(http.MethodPost, "/api/webhook", http.NoBody)
 	req.Header.Set("X-GitHub-Event", "push")
 	w := httptest.NewRecorder()
@@ -564,7 +567,7 @@ func TestInvalidEvent(t *testing.T) {
 
 func TestUnknownEvent(t *testing.T) {
 	hook := test.NewGlobal()
-	h := NewMockHandler(nil, []string{})
+	h := NewMockHandler(t, nil, []string{})
 	req := httptest.NewRequest(http.MethodPost, "/api/webhook", http.NoBody)
 	req.Header.Set("X-Unknown-Event", "push")
 	w := httptest.NewRecorder()
@@ -755,7 +758,7 @@ func Test_affectedRevisionInfo_appRevisionHasChanged(t *testing.T) {
 		testCopy := testCase
 		t.Run(testCopy.name, func(t *testing.T) {
 			t.Parallel()
-			h := NewMockHandler(nil, []string{})
+			h := NewMockHandler(t, nil, []string{})
 			_, revisionFromHook, _, _, _ := h.affectedRevisionInfo(testCopy.hookPayload)
 			if got := sourceRevisionHasChanged(sourceWithRevision(testCopy.targetRevision), revisionFromHook, false); got != testCopy.hasChanged {
 				t.Errorf("sourceRevisionHasChanged() = %v, want %v", got, testCopy.hasChanged)
@@ -862,7 +865,7 @@ func Test_GetAPIURLRegex(t *testing.T) {
 func TestGitHubCommitEventMaxPayloadSize(t *testing.T) {
 	hook := test.NewGlobal()
 	maxPayloadSize := int64(100)
-	h := NewMockHandlerWithPayloadLimit(nil, []string{}, maxPayloadSize)
+	h := NewMockHandlerWithPayloadLimit(t, nil, []string{}, maxPayloadSize)
 	req := httptest.NewRequest(http.MethodPost, "/api/webhook", http.NoBody)
 	req.Header.Set("X-GitHub-Event", "push")
 	eventJSON, err := os.ReadFile("testdata/github-commit-event.json")
@@ -965,7 +968,7 @@ func Test_affectedRevisionInfo_bitbucket_changed_files(t *testing.T) {
 	}
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
-			h := NewMockHandlerForBitbucketCallback(nil, []string{})
+			h := NewMockHandlerForBitbucketCallback(t, nil, []string{})
 			_, revisionFromHook, change, touchHead, changedFiles := h.affectedRevisionInfo(testCase.hookPayload)
 			require.Equal(t, testCase.revision, revisionFromHook)
 			require.Equal(t, testCase.expectedTouchHead, touchHead)
@@ -978,7 +981,7 @@ func Test_affectedRevisionInfo_bitbucket_changed_files(t *testing.T) {
 func TestLookupRepository(t *testing.T) {
 	mockCtx, cancel := context.WithDeadline(t.Context(), time.Now().Add(10*time.Second))
 	defer cancel()
-	h := NewMockHandlerForBitbucketCallback(nil, []string{})
+	h := NewMockHandlerForBitbucketCallback(t, nil, []string{})
 	data := []string{
 		"https://bitbucket.org/test/argocd-examples-pub.git",
 		"https://bitbucket.org/test/argocd-examples-pub",

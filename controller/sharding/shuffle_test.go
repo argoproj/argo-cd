@@ -16,7 +16,7 @@ import (
 
 func TestLargeShuffle(t *testing.T) {
 	t.Skip()
-	db := dbmocks.ArgoDB{}
+	db := dbmocks.NewArgoDB(t)
 	clusterList := &v1alpha1.ClusterList{Items: []v1alpha1.Cluster{}}
 	for i := 0; i < math.MaxInt/4096; i += 256 {
 		// fmt.Fprintf(os.Stdout, "%d", i)
@@ -36,7 +36,7 @@ func TestLargeShuffle(t *testing.T) {
 
 func TestShuffle(t *testing.T) {
 	t.Skip()
-	db := dbmocks.ArgoDB{}
+	db := dbmocks.NewArgoDB(t)
 	cluster1 := createCluster("cluster1", "10")
 	cluster2 := createCluster("cluster2", "20")
 	cluster3 := createCluster("cluster3", "30")

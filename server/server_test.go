@@ -57,7 +57,7 @@ func fakeServer(t *testing.T) (*FakeArgoCDServer, func()) {
 	kubeclientset := fake.NewClientset(cm, secret)
 	appClientSet := apps.NewSimpleClientset()
 	redis, closer := test.NewInMemoryRedis()
-	mockRepoClient := &mocks.Clientset{RepoServerServiceClient: &mocks.RepoServerServiceClient{}}
+	mockRepoClient := &mocks.Clientset{RepoServerServiceClient: mocks.NewRepoServerServiceClient(t)}
 	tmpAssetsDir := t.TempDir()
 	dynamicClient := dynfake.NewSimpleDynamicClient(runtime.NewScheme())
 	fakeClient := clientfake.NewClientBuilder().Build()
@@ -123,7 +123,7 @@ func TestEnforceProjectToken(t *testing.T) {
 	cm := test.NewFakeConfigMap()
 	secret := test.NewFakeSecret()
 	kubeclientset := fake.NewClientset(cm, secret)
-	mockRepoClient := &mocks.Clientset{RepoServerServiceClient: &mocks.RepoServerServiceClient{}}
+	mockRepoClient := &mocks.Clientset{RepoServerServiceClient: mocks.NewRepoServerServiceClient(t)}
 
 	t.Run("TestEnforceProjectTokenSuccessful", func(t *testing.T) {
 		s := NewServer(t.Context(), ArgoCDServerOpts{Namespace: test.FakeArgoCDNamespace, KubeClientset: kubeclientset, AppClientset: apps.NewSimpleClientset(&existingProj), RepoClientset: mockRepoClient}, ApplicationSetOpts{})
@@ -267,7 +267,7 @@ func TestInitializingExistingDefaultProject(t *testing.T) {
 	}
 	appClientSet := apps.NewSimpleClientset(defaultProj)
 
-	mockRepoClient := &mocks.Clientset{RepoServerServiceClient: &mocks.RepoServerServiceClient{}}
+	mockRepoClient := &mocks.Clientset{RepoServerServiceClient: mocks.NewRepoServerServiceClient(t)}
 
 	argoCDOpts := ArgoCDServerOpts{
 		Namespace:     test.FakeArgoCDNamespace,
@@ -290,7 +290,7 @@ func TestInitializingNotExistingDefaultProject(t *testing.T) {
 	secret := test.NewFakeSecret()
 	kubeclientset := fake.NewClientset(cm, secret)
 	appClientSet := apps.NewSimpleClientset()
-	mockRepoClient := &mocks.Clientset{RepoServerServiceClient: &mocks.RepoServerServiceClient{}}
+	mockRepoClient := &mocks.Clientset{RepoServerServiceClient: mocks.NewRepoServerServiceClient(t)}
 
 	argoCDOpts := ArgoCDServerOpts{
 		Namespace:     test.FakeArgoCDNamespace,
@@ -339,7 +339,7 @@ func TestEnforceProjectGroups(t *testing.T) {
 			},
 		},
 	}
-	mockRepoClient := &mocks.Clientset{RepoServerServiceClient: &mocks.RepoServerServiceClient{}}
+	mockRepoClient := &mocks.Clientset{RepoServerServiceClient: mocks.NewRepoServerServiceClient(t)}
 	kubeclientset := fake.NewClientset(test.NewFakeConfigMap(), test.NewFakeSecret())
 	s := NewServer(t.Context(), ArgoCDServerOpts{Namespace: test.FakeArgoCDNamespace, KubeClientset: kubeclientset, AppClientset: apps.NewSimpleClientset(&existingProj), RepoClientset: mockRepoClient}, ApplicationSetOpts{})
 	cancel := test.StartInformer(s.projInformer)
@@ -375,7 +375,7 @@ func TestRevokedToken(t *testing.T) {
 	defaultSub := fmt.Sprintf(subFormat, projectName, roleName)
 	defaultPolicy := fmt.Sprintf(policyTemplate, defaultSub, projectName, defaultObject, defaultEffect)
 	kubeclientset := fake.NewClientset(test.NewFakeConfigMap(), test.NewFakeSecret())
-	mockRepoClient := &mocks.Clientset{RepoServerServiceClient: &mocks.RepoServerServiceClient{}}
+	mockRepoClient := &mocks.Clientset{RepoServerServiceClient: mocks.NewRepoServerServiceClient(t)}
 
 	jwtTokenByRole := make(map[string]v1alpha1.JWTTokens)
 	jwtTokenByRole[roleName] = v1alpha1.JWTTokens{Items: []v1alpha1.JWTToken{{IssuedAt: defaultIssuedAt}}}
@@ -421,7 +421,7 @@ func TestCertsAreNotGeneratedInInsecureMode(t *testing.T) {
 func TestGracefulShutdown(t *testing.T) {
 	port, err := test.GetFreePort()
 	require.NoError(t, err)
-	mockRepoClient := &mocks.Clientset{RepoServerServiceClient: &mocks.RepoServerServiceClient{}}
+	mockRepoClient := &mocks.Clientset{RepoServerServiceClient: mocks.NewRepoServerServiceClient(t)}
 	kubeclientset := fake.NewSimpleClientset(test.NewFakeConfigMap(), test.NewFakeSecret())
 	redis, redisCloser := test.NewInMemoryRedis()
 	defer redisCloser()
@@ -517,7 +517,7 @@ func TestAuthenticate(t *testing.T) {
 			secret := test.NewFakeSecret()
 			kubeclientset := fake.NewSimpleClientset(cm, secret)
 			appClientSet := apps.NewSimpleClientset()
-			mockRepoClient := &mocks.Clientset{RepoServerServiceClient: &mocks.RepoServerServiceClient{}}
+			mockRepoClient := &mocks.Clientset{RepoServerServiceClient: mocks.NewRepoServerServiceClient(t)}
 			argoCDOpts := ArgoCDServerOpts{
 				Namespace:     test.FakeArgoCDNamespace,
 				KubeClientset: kubeclientset,
@@ -653,7 +653,7 @@ connectors:
 	secret := test.NewFakeSecret()
 	kubeclientset := fake.NewSimpleClientset(cm, secret)
 	appClientSet := apps.NewSimpleClientset()
-	mockRepoClient := &mocks.Clientset{RepoServerServiceClient: &mocks.RepoServerServiceClient{}}
+	mockRepoClient := &mocks.Clientset{RepoServerServiceClient: mocks.NewRepoServerServiceClient(t)}
 	argoCDOpts := ArgoCDServerOpts{
 		Namespace:     test.FakeArgoCDNamespace,
 		KubeClientset: kubeclientset,
@@ -1171,7 +1171,7 @@ func TestTranslateGrpcCookieHeader(t *testing.T) {
 		Namespace:     test.FakeArgoCDNamespace,
 		KubeClientset: fake.NewSimpleClientset(test.NewFakeConfigMap(), test.NewFakeSecret()),
 		AppClientset:  apps.NewSimpleClientset(),
-		RepoClientset: &mocks.Clientset{RepoServerServiceClient: &mocks.RepoServerServiceClient{}},
+		RepoClientset: &mocks.Clientset{RepoServerServiceClient: mocks.NewRepoServerServiceClient(t)},
 	}
 	argocd := NewServer(t.Context(), argoCDOpts, ApplicationSetOpts{})
 
@@ -1210,7 +1210,7 @@ func TestInitializeDefaultProject_ProjectDoesNotExist(t *testing.T) {
 		Namespace:     test.FakeArgoCDNamespace,
 		KubeClientset: fake.NewSimpleClientset(test.NewFakeConfigMap(), test.NewFakeSecret()),
 		AppClientset:  apps.NewSimpleClientset(),
-		RepoClientset: &mocks.Clientset{RepoServerServiceClient: &mocks.RepoServerServiceClient{}},
+		RepoClientset: &mocks.Clientset{RepoServerServiceClient: mocks.NewRepoServerServiceClient(t)},
 	}
 
 	err := initializeDefaultProject(argoCDOpts)
@@ -1244,7 +1244,7 @@ func TestInitializeDefaultProject_ProjectAlreadyInitialized(t *testing.T) {
 		Namespace:     test.FakeArgoCDNamespace,
 		KubeClientset: fake.NewSimpleClientset(test.NewFakeConfigMap(), test.NewFakeSecret()),
 		AppClientset:  apps.NewSimpleClientset(&existingDefaultProject),
-		RepoClientset: &mocks.Clientset{RepoServerServiceClient: &mocks.RepoServerServiceClient{}},
+		RepoClientset: &mocks.Clientset{RepoServerServiceClient: mocks.NewRepoServerServiceClient(t)},
 	}
 
 	err := initializeDefaultProject(argoCDOpts)

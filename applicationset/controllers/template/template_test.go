@@ -86,7 +86,7 @@ func TestGenerateApplications(t *testing.T) {
 		}
 
 		t.Run(cc.name, func(t *testing.T) {
-			generatorMock := genmock.Generator{}
+			generatorMock := genmock.NewGenerator(t)
 			generator := v1alpha1.ApplicationSetGenerator{
 				List: &v1alpha1.ListGenerator{},
 			}
@@ -97,7 +97,7 @@ func TestGenerateApplications(t *testing.T) {
 			generatorMock.On("GetTemplate", &generator).
 				Return(&v1alpha1.ApplicationSetTemplate{})
 
-			rendererMock := rendmock.Renderer{}
+			rendererMock := rendmock.NewRenderer(t)
 
 			var expectedApps []v1alpha1.Application
 
@@ -115,9 +115,9 @@ func TestGenerateApplications(t *testing.T) {
 			}
 
 			generators := map[string]generators.Generator{
-				"List": &generatorMock,
+				"List": generatorMock,
 			}
-			renderer := &rendererMock
+			renderer := rendererMock
 
 			got, reason, err := GenerateApplications(log.NewEntry(log.StandardLogger()), v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
@@ -200,7 +200,7 @@ func TestMergeTemplateApplications(t *testing.T) {
 		cc := c
 
 		t.Run(cc.name, func(t *testing.T) {
-			generatorMock := genmock.Generator{}
+			generatorMock := genmock.NewGenerator(t)
 			generator := v1alpha1.ApplicationSetGenerator{
 				List: &v1alpha1.ListGenerator{},
 			}
@@ -211,15 +211,15 @@ func TestMergeTemplateApplications(t *testing.T) {
 			generatorMock.On("GetTemplate", &generator).
 				Return(&cc.overrideTemplate)
 
-			rendererMock := rendmock.Renderer{}
+			rendererMock := rendmock.NewRenderer(t)
 
 			rendererMock.On("RenderTemplateParams", GetTempApplication(cc.expectedMerged), mock.AnythingOfType("*v1alpha1.ApplicationSetSyncPolicy"), cc.params[0], false, []string(nil)).
 				Return(&cc.expectedApps[0], nil)
 
 			generators := map[string]generators.Generator{
-				"List": &generatorMock,
+				"List": generatorMock,
 			}
-			renderer := &rendererMock
+			renderer := rendererMock
 
 			got, _, _ := GenerateApplications(log.NewEntry(log.StandardLogger()), v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{

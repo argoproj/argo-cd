@@ -70,11 +70,11 @@ func fixtures(data map[string]string, opts ...func(secret *corev1.Secret)) (*fak
 	return kubeClient, settingsManager
 }
 
-func TestHandleModEvent_HasChanges(_ *testing.T) {
-	clusterCache := &mocks.ClusterCache{}
+func TestHandleModEvent_HasChanges(t *testing.T) {
+	clusterCache := mocks.NewClusterCache(t)
 	clusterCache.On("Invalidate", mock.Anything, mock.Anything).Return(nil).Once()
 	clusterCache.On("EnsureSynced").Return(nil).Once()
-	db := &dbmocks.ArgoDB{}
+	db := dbmocks.NewArgoDB(t)
 	db.On("GetApplicationControllerReplicas").Return(1)
 	clustersCache := liveStateCache{
 		clusters: map[string]cache.ClusterCache{
@@ -94,10 +94,10 @@ func TestHandleModEvent_HasChanges(_ *testing.T) {
 }
 
 func TestHandleModEvent_ClusterExcluded(t *testing.T) {
-	clusterCache := &mocks.ClusterCache{}
+	clusterCache := mocks.NewClusterCache(t)
 	clusterCache.On("Invalidate", mock.Anything, mock.Anything).Return(nil).Once()
 	clusterCache.On("EnsureSynced").Return(nil).Once()
-	db := &dbmocks.ArgoDB{}
+	db := dbmocks.NewArgoDB(t)
 	db.On("GetApplicationControllerReplicas").Return(1)
 	clustersCache := liveStateCache{
 		db:          nil,
@@ -126,11 +126,11 @@ func TestHandleModEvent_ClusterExcluded(t *testing.T) {
 	assert.Len(t, clustersCache.clusters, 1)
 }
 
-func TestHandleModEvent_NoChanges(_ *testing.T) {
-	clusterCache := &mocks.ClusterCache{}
+func TestHandleModEvent_NoChanges(t *testing.T) {
+	clusterCache := mocks.NewClusterCache(t)
 	clusterCache.On("Invalidate", mock.Anything).Panic("should not invalidate")
 	clusterCache.On("EnsureSynced").Return(nil).Panic("should not re-sync")
-	db := &dbmocks.ArgoDB{}
+	db := dbmocks.NewArgoDB(t)
 	db.On("GetApplicationControllerReplicas").Return(1)
 	clustersCache := liveStateCache{
 		clusters: map[string]cache.ClusterCache{
@@ -149,7 +149,7 @@ func TestHandleModEvent_NoChanges(_ *testing.T) {
 }
 
 func TestHandleAddEvent_ClusterExcluded(t *testing.T) {
-	db := &dbmocks.ArgoDB{}
+	db := dbmocks.NewArgoDB(t)
 	db.On("GetApplicationControllerReplicas").Return(1)
 	clustersCache := liveStateCache{
 		clusters:        map[string]cache.ClusterCache{},
@@ -168,11 +168,11 @@ func TestHandleDeleteEvent_CacheDeadlock(t *testing.T) {
 		Server: "https://mycluster",
 		Config: appv1.ClusterConfig{Username: "bar"},
 	}
-	db := &dbmocks.ArgoDB{}
+	db := dbmocks.NewArgoDB(t)
 	db.On("GetApplicationControllerReplicas").Return(1)
 	fakeClient := fake.NewClientset()
 	settingsMgr := argosettings.NewSettingsManager(t.Context(), fakeClient, "argocd")
-	gitopsEngineClusterCache := &mocks.ClusterCache{}
+	gitopsEngineClusterCache := mocks.NewClusterCache(t)
 	clustersCache := liveStateCache{
 		clusters: map[string]cache.ClusterCache{
 			testCluster.Server: gitopsEngineClusterCache,

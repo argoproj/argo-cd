@@ -9,16 +9,17 @@ import (
 	dbmocks "github.com/argoproj/argo-cd/v3/util/db/mocks"
 )
 
-func setupTestSharding(shard int, replicas int) *ClusterSharding {
+func setupTestSharding(t *testing.T, shard int, replicas int) *ClusterSharding {
+	t.Helper()
 	shardingAlgorithm := "legacy" // we are using the legacy algorithm as it is deterministic based on the cluster id which is easier to test
-	db := &dbmocks.ArgoDB{}
+	db := dbmocks.NewArgoDB(t)
 	return NewClusterSharding(db, shard, replicas, shardingAlgorithm).(*ClusterSharding)
 }
 
 func TestNewClusterSharding(t *testing.T) {
 	shard := 1
 	replicas := 2
-	sharding := setupTestSharding(shard, replicas)
+	sharding := setupTestSharding(t, shard, replicas)
 
 	assert.NotNil(t, sharding)
 	assert.Equal(t, shard, sharding.Shard)
@@ -30,7 +31,7 @@ func TestNewClusterSharding(t *testing.T) {
 func TestClusterSharding_Add(t *testing.T) {
 	shard := 1
 	replicas := 2
-	sharding := setupTestSharding(shard, replicas)
+	sharding := setupTestSharding(t, shard, replicas)
 
 	clusterA := &v1alpha1.Cluster{
 		ID:     "2",
@@ -66,7 +67,7 @@ func TestClusterSharding_AddRoundRobin_Redistributes(t *testing.T) {
 	shard := 1
 	replicas := 2
 
-	db := &dbmocks.ArgoDB{}
+	db := dbmocks.NewArgoDB(t)
 
 	sharding := NewClusterSharding(db, shard, replicas, "round-robin").(*ClusterSharding)
 
@@ -125,7 +126,7 @@ func TestClusterSharding_AddRoundRobin_Redistributes(t *testing.T) {
 func TestClusterSharding_Delete(t *testing.T) {
 	shard := 1
 	replicas := 2
-	sharding := setupTestSharding(shard, replicas)
+	sharding := setupTestSharding(t, shard, replicas)
 
 	sharding.Init(
 		&v1alpha1.ClusterList{
@@ -156,7 +157,7 @@ func TestClusterSharding_Delete(t *testing.T) {
 func TestClusterSharding_Update(t *testing.T) {
 	shard := 1
 	replicas := 2
-	sharding := setupTestSharding(shard, replicas)
+	sharding := setupTestSharding(t, shard, replicas)
 
 	sharding.Init(
 		&v1alpha1.ClusterList{
@@ -205,7 +206,7 @@ func TestClusterSharding_Update(t *testing.T) {
 func TestClusterSharding_UpdateServerName(t *testing.T) {
 	shard := 1
 	replicas := 2
-	sharding := setupTestSharding(shard, replicas)
+	sharding := setupTestSharding(t, shard, replicas)
 
 	sharding.Init(
 		&v1alpha1.ClusterList{
@@ -255,7 +256,7 @@ func TestClusterSharding_UpdateServerName(t *testing.T) {
 
 func TestClusterSharding_IsManagedCluster(t *testing.T) {
 	replicas := 2
-	sharding0 := setupTestSharding(0, replicas)
+	sharding0 := setupTestSharding(t, 0, replicas)
 
 	sharding0.Init(
 		&v1alpha1.ClusterList{
@@ -288,7 +289,7 @@ func TestClusterSharding_IsManagedCluster(t *testing.T) {
 		Server: "https://127.0.0.1:6443",
 	}))
 
-	sharding1 := setupTestSharding(1, replicas)
+	sharding1 := setupTestSharding(t, 1, replicas)
 
 	sharding1.Init(
 		&v1alpha1.ClusterList{
@@ -325,7 +326,7 @@ func TestClusterSharding_IsManagedCluster(t *testing.T) {
 func TestClusterSharding_ClusterShardOfResourceShouldNotBeChanged(t *testing.T) {
 	shard := 1
 	replicas := 2
-	sharding := setupTestSharding(shard, replicas)
+	sharding := setupTestSharding(t, shard, replicas)
 
 	Int64Ptr := func(i int64) *int64 {
 		return &i

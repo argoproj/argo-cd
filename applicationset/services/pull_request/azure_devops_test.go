@@ -250,7 +250,7 @@ func TestAzureDevOpsListReturnsRepositoryNotFoundError(t *testing.T) {
 	clientFactoryMock.mock.On("GetClient", mock.Anything).Return(&gitClientMock, nil)
 
 	// Mock the GetPullRequestsByProject to return an error containing "404"
-	gitClientMock.On("GetPullRequestsByProject", t.Context(), args).Return(&pullRequestMock,
+	gitClientMock.On("GetPullRequestsByProject", mock.Anything, args).Return(&pullRequestMock,
 		errors.New("The following project does not exist:"))
 
 	provider := AzureDevOpsService{

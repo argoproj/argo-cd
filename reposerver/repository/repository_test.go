@@ -150,10 +150,10 @@ func newServiceWithMocks(t *testing.T, root string, signed bool) (*Service, *git
 
 func newServiceWithOpt(t *testing.T, cf clientFunc, root string) (*Service, *gitmocks.Client, *repoCacheMocks) {
 	t.Helper()
-	helmClient := &helmmocks.Client{}
-	gitClient := &gitmocks.Client{}
-	ociClient := &ocimocks.Client{}
-	paths := &iomocks.TempPaths{}
+	helmClient := helmmocks.NewClient(t)
+	gitClient := gitmocks.NewClient(t)
+	ociClient := ocimocks.NewClient(t)
+	paths := iomocks.NewTempPaths(t)
 	cf(gitClient, helmClient, ociClient, paths)
 	cacheMocks := newCacheMocks()
 	t.Cleanup(cacheMocks.mockCache.StopRedisCallback)
@@ -3184,7 +3184,7 @@ func TestCheckoutRevisionCanGetNonstandardRefs(t *testing.T) {
 func TestCheckoutRevisionPresentSkipFetch(t *testing.T) {
 	revision := "0123456789012345678901234567890123456789"
 
-	gitClient := &gitmocks.Client{}
+	gitClient := gitmocks.NewClient(t)
 	gitClient.On("Init").Return(nil)
 	gitClient.On("IsRevisionPresent", revision).Return(true)
 	gitClient.On("Checkout", revision, mock.Anything).Return("", nil)
@@ -3196,7 +3196,7 @@ func TestCheckoutRevisionPresentSkipFetch(t *testing.T) {
 func TestCheckoutRevisionNotPresentCallFetch(t *testing.T) {
 	revision := "0123456789012345678901234567890123456789"
 
-	gitClient := &gitmocks.Client{}
+	gitClient := gitmocks.NewClient(t)
 	gitClient.On("Init").Return(nil)
 	gitClient.On("IsRevisionPresent", revision).Return(false)
 	gitClient.On("Fetch", "").Return(nil)
@@ -3210,7 +3210,7 @@ func TestFetch(t *testing.T) {
 	revision1 := "0123456789012345678901234567890123456789"
 	revision2 := "abcdefabcdefabcdefabcdefabcdefabcdefabcd"
 
-	gitClient := &gitmocks.Client{}
+	gitClient := gitmocks.NewClient(t)
 	gitClient.On("Init").Return(nil)
 	gitClient.On("IsRevisionPresent", revision1).Once().Return(true)
 	gitClient.On("IsRevisionPresent", revision2).Once().Return(false)
@@ -4306,7 +4306,7 @@ func TestVerifyCommitSignature(t *testing.T) {
 
 	t.Run("VerifyCommitSignature with valid signature", func(t *testing.T) {
 		t.Setenv("ARGOCD_GPG_ENABLED", "true")
-		mockGitClient := &gitmocks.Client{}
+		mockGitClient := gitmocks.NewClient(t)
 		mockGitClient.On("VerifyCommitSignature", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 			Return(testSignature, nil)
 		err := verifyCommitSignature(true, mockGitClient, "abcd1234", repo)
@@ -4315,7 +4315,7 @@ func TestVerifyCommitSignature(t *testing.T) {
 
 	t.Run("VerifyCommitSignature with invalid signature", func(t *testing.T) {
 		t.Setenv("ARGOCD_GPG_ENABLED", "true")
-		mockGitClient := &gitmocks.Client{}
+		mockGitClient := gitmocks.NewClient(t)
 		mockGitClient.On("VerifyCommitSignature", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 			Return("", nil)
 		err := verifyCommitSignature(true, mockGitClient, "abcd1234", repo)
@@ -4324,7 +4324,7 @@ func TestVerifyCommitSignature(t *testing.T) {
 
 	t.Run("VerifyCommitSignature with unknown signature", func(t *testing.T) {
 		t.Setenv("ARGOCD_GPG_ENABLED", "true")
-		mockGitClient := &gitmocks.Client{}
+		mockGitClient := gitmocks.NewClient(t)
 		mockGitClient.On("VerifyCommitSignature", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 			Return("", errors.New("UNKNOWN signature: gpg: Unknown signature from ABCDEFGH"))
 		err := verifyCommitSignature(true, mockGitClient, "abcd1234", repo)
@@ -4333,7 +4333,7 @@ func TestVerifyCommitSignature(t *testing.T) {
 
 	t.Run("VerifyCommitSignature with error verifying signature", func(t *testing.T) {
 		t.Setenv("ARGOCD_GPG_ENABLED", "true")
-		mockGitClient := &gitmocks.Client{}
+		mockGitClient := gitmocks.NewClient(t)
 		mockGitClient.On("VerifyCommitSignature", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 			Return("", errors.New("error verifying signature of commit 'abcd1234' in repo 'https://github.com/example/repo.git': failed to verify signature"))
 		err := verifyCommitSignature(true, mockGitClient, "abcd1234", repo)
@@ -4342,7 +4342,7 @@ func TestVerifyCommitSignature(t *testing.T) {
 
 	t.Run("VerifyCommitSignature with signature verification disabled", func(t *testing.T) {
 		t.Setenv("ARGOCD_GPG_ENABLED", "false")
-		mockGitClient := &gitmocks.Client{}
+		mockGitClient := gitmocks.NewClient(t)
 		err := verifyCommitSignature(false, mockGitClient, "abcd1234", repo)
 		require.NoError(t, err)
 	})

@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
@@ -39,9 +40,9 @@ func Test_deepCopyAppProjectClient_Get(t *testing.T) {
 			name: "Error getting an app project",
 			fields: fields{
 				AppProjectInterface: func() clientset.AppProjectInterface {
-					appProject := mocks.AppProjectInterface{}
-					appProject.On("Get", t.Context(), "appproject2", metav1.GetOptions{}).Return(nil, errors.New("error"))
-					return &appProject
+					appProject := mocks.NewAppProjectInterface(t)
+					appProject.On("Get", mock.Anything, "appproject2", metav1.GetOptions{}).Return(nil, errors.New("error"))
+					return appProject
 				}(),
 			},
 			args: args{
@@ -84,9 +85,9 @@ func Test_deepCopyAppProjectClient_List(t *testing.T) {
 		},
 		{name: "Error listing app project", fields: fields{
 			AppProjectInterface: func() clientset.AppProjectInterface {
-				appProject := mocks.AppProjectInterface{}
-				appProject.On("List", t.Context(), metav1.ListOptions{}).Return(nil, errors.New("error"))
-				return &appProject
+				appProject := mocks.NewAppProjectInterface(t)
+				appProject.On("List", mock.Anything, metav1.ListOptions{}).Return(nil, errors.New("error"))
+				return appProject
 			}(),
 		}, want: nil, wantErr: assert.Error},
 	}

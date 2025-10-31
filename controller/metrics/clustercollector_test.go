@@ -13,7 +13,7 @@ import (
 )
 
 func TestMetricClusterConnectivity(t *testing.T) {
-	db := dbmocks.ArgoDB{}
+	db := dbmocks.NewArgoDB(t)
 	cluster1 := v1alpha1.Cluster{Name: "cluster1", Server: "server1", Labels: map[string]string{"env": "dev", "team": "team1"}}
 	cluster2 := v1alpha1.Cluster{Name: "cluster2", Server: "server2", Labels: map[string]string{"env": "staging", "team": "team2"}}
 	cluster3 := v1alpha1.Cluster{Name: "cluster3", Server: "server3", Labels: map[string]string{"env": "production", "team": "team3"}}

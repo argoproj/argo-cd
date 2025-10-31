@@ -1832,15 +1832,15 @@ func TestGetMinRequeueAfter(t *testing.T) {
 		Clusters: &v1alpha1.ClusterGenerator{},
 	}
 
-	generatorMock0 := mocks.Generator{}
+	generatorMock0 := mocks.NewGenerator(t)
 	generatorMock0.On("GetRequeueAfter", &generator).
 		Return(generators.NoRequeueAfter)
 
-	generatorMock1 := mocks.Generator{}
+	generatorMock1 := mocks.NewGenerator(t)
 	generatorMock1.On("GetRequeueAfter", &generator).
 		Return(time.Duration(1) * time.Second)
 
-	generatorMock10 := mocks.Generator{}
+	generatorMock10 := mocks.NewGenerator(t)
 	generatorMock10.On("GetRequeueAfter", &generator).
 		Return(time.Duration(10) * time.Second)
 
@@ -1850,9 +1850,9 @@ func TestGetMinRequeueAfter(t *testing.T) {
 		Recorder: record.NewFakeRecorder(0),
 		Metrics:  metrics,
 		Generators: map[string]generators.Generator{
-			"List":     &generatorMock10,
-			"Git":      &generatorMock1,
-			"Clusters": &generatorMock1,
+			"List":     generatorMock10,
+			"Git":      generatorMock1,
+			"Clusters": generatorMock1,
 		},
 	}
 
@@ -1889,7 +1889,7 @@ func TestRequeueGeneratorFails(t *testing.T) {
 		PullRequest: &v1alpha1.PullRequestGenerator{},
 	}
 
-	generatorMock := mocks.Generator{}
+	generatorMock := mocks.NewGenerator(t)
 	generatorMock.On("GetTemplate", &generator).
 		Return(&v1alpha1.ApplicationSetTemplate{})
 	generatorMock.On("GenerateParams", &generator, mock.AnythingOfType("*v1alpha1.ApplicationSet"), mock.Anything).
@@ -1902,7 +1902,7 @@ func TestRequeueGeneratorFails(t *testing.T) {
 		Scheme:   scheme,
 		Recorder: record.NewFakeRecorder(0),
 		Generators: map[string]generators.Generator{
-			"PullRequest": &generatorMock,
+			"PullRequest": generatorMock,
 		},
 		Metrics: metrics,
 	}

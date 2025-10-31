@@ -22,7 +22,7 @@ import (
 )
 
 func TestRequeueAfter(t *testing.T) {
-	mockServer := &mocks.Repos{}
+	mockServer := mocks.NewRepos(t)
 	ctx := t.Context()
 	scheme := runtime.NewScheme()
 	err := argov1alpha1.AddToScheme(scheme)
