@@ -54,7 +54,7 @@ Also available in Mac, Linux and WSL Homebrew:
 brew install argocd
 ```
 
-## 3. Expose the Argo CD API Server to enable CLI access
+## 3. Access Argo CD
 
 By default, the Argo CD API server is not exposed with an external IP. To access the API server,
 choose one of the following techniques to expose the Argo CD API server:
