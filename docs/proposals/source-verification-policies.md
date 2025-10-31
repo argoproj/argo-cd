@@ -12,196 +12,86 @@ approvers:
   - TBD
 
 creation-date: 2023-08-08
-last-updated: 2023-08-08
 ---
 
 # Source Verification Policies
 
 This proposal introduces an evolution to the existing GnuPG commit verification feature.
 
-## Open Questions [optional]
-
-* Do we really need `progressive` verification level (see below)?
-* Should repository pattern matching be regexp based instead of shell-glob?
-
 ## Summary
 
 Argo CD has had a feature to verify OpenPGP signatures on Git commits using GnuPG for a while.
 However, this feature is limited and in some ways may behave unexpectedly.
 Argo CD would ever only verify the signature on the commit that's pointed to by the `HEAD` of the `Application`'s resolved `targetRevision`.
-This allows for unsigned commits to slip in, and requires thorough verification of the source by the user prior to signing a commit.
 
 Source verification policies are an evolution of the legacy signature verification in Argo CD.
-A source verification policy defines the cryptographic requirements to be met in order for a source to be allowed to sync.
-It brings new verification levels, the possibility of treating multiple sources in an Application with different policies,
-and it sets the foundation for the ability to implement more verification methods in the future.
+It brings new verification modes, the possibility of treating multiple sources in an Application with different strictness.
+It also sets the foundation to implement more verification methods in the future that are not gpg, nor git specific.
 
 ## Motivation
 
 As a deployment tool, Argo CD sits in a prominent spot to enforce secure supply chain requirements.
 The cryptographic verification of sources and artifacts becomes more and more important to organizations and is heavily regulated in some fields.
 
-While having Argo CD verifying the `HEAD` commit to be synced is of course better than nothing, it is not a sufficient level of verification for many organisations and individuals anymore.
+Verifying the `HEAD` commit before syncing is not a sufficient level of verification for many organizations and individuals anymore.
 
-Also, the current approach is an "all-or-nothing" approach for any given AppProject.
-The reality different repositories might have different trust levels, different sets of contributors or contributor guidelines.
-Especially with the advent of multi-source applications, the current approach of defining the trusted signers for all Applications in a given AppProject is not viable anymore.
+Also, the current approach is an "all-or-nothing" for any given AppProject.
+Different repositories might have different trust levels, different sets of contributors or contribution/signing guidelines.
+Especially with the advent of multi-source applications, the current approach of defining the trusted signers for all project repositories/Applications is not flexible enough.
 
 ### Goals
 
 * Increase confidence in Git commit verification
-* Attach signer trust to sources, instead of at the app project level
-* Properly support multi-source applications as well as unique settings per source in multi-source applications
-* Be flexible enough to support other verification providers (e.g. Helm provenance, Git signed using sigstore, etc.)
+* Manage signer trust based on source repositories (more fine-grained compared to application projects)
+* Be flexible enough to support other verification providers in the future (e.g. Helm provenance, Git signed using sigstore, etc.)
 * Make it easy for users to migrate to a more secure verification policy
 * Fully backwards compatibility to existing GnuPG commit verification mechanisms
 
 ### Non-Goals
 
 * Implement other verification methods than GnuPG for Git commits.
-* This may come in at a later stage, and the design of SVPs would allow those to integrate rather easily.
+  * This may come in later, and the design of SVPs would allow those to integrate rather easily.
 
 ## Proposal
 
 ### Use cases
 
-Add a list of detailed use cases this enhancement intends to take care of.
+1. As an Argo CD user, I need to **ensure that my applications only sync if every single commit in my source repository has been cryptographically signed** by a trusted contributor.
+    - This effectively prevents unsigned/untrusted commits in the git history.
+1. As an Argo CD user, I need to apply a **different level of trust to different source repositories**, especially with multi-source applications.
+    - Permitting different source repositories to have a different signing policy, and their flexible evolution in time (gradually introduce signing to multiple repositories, for example).
+1. As an Argo CD admin, I need to restrict **distinct sets of contributors in different repositories**.
+    - Rather than trusting all the contributors in all project's repositories. This becomes another line of defense in the event of a key compromise.
 
-#### Use case 1:
-
-As an Argo CD user, I would like to ensure that my applications only sync if every single commit in my source repository has been cryptographically signed by a trusted party.
-
-#### Use case 2:
-
-As an Argo CD user, I need to apply a different level of trust to different source repositories, especially with multi-source applications.
-
-## Implementation Details/Notes/Constraints
-
-There is a PoC implementation for this proposal, which is linked from the issue's description.
-This section describes the inner-workings of that PoC as envisioned by the authors.
-
-Under the hood, getting the revision history is performed using [git rev-list](https://git-scm.com/docs/git-rev-list), which can be consulted for more information.
+## Source verification policy
 
 ### Overview
 
-Source verification policies are configured in the `sourceVerificationPolicies` field of an AppProject's spec.
-The field itself is a list, and you can configure an arbitrary number of source verification policies.
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+spec:
+  sourceIntegrity:
+    # Out of scope, demonstrating the declaration structure permits extending to different
+    # source types and whatever integrity verification turns out suitable in the future
+    # helm: {}
+    git:
+      policies:
+        - repos:
+            - "https://github.com/foo/*"
+          gpg:
+            mode: "none|head|strict"
+            keys:
+             - "0xDEAD"
+             - "0xBEEF"
+```
 
-Each entry in the list has the following mandatory fields:
+#### Policy repos
 
-* `repositoryPattern` defines a glob-style pattern that an Application's source repository URL must be matched against in order for the policy to apply
-* `verificationLevel` is the verification level for the policy
-* `verificationMethod` is the verification method for the policy
-* `allowedSigners` is the list of allowed signers
-
-### Anatomy of a source verification policy
-
-A source verification policy describes requirements for a source, as used by an Argo CD Application, that have to be met before syncing.
-
-A source verification policy has the following properties:
-
-* A repository pattern (shell-glob type) that is matched against the URL of the source (mandatory)
-* A repository type that is matched against the application's repository type (mandatory)
-* A verification level that describes at with which level the verification should be performed (mandatory)
-* A verification method that describes how the source should be verified (mandatory)
-* A list of trusted signers identities (optional, if omitted, any known signer is trusted)
-
-Additionally, there are some optional properties you can set for a policy that depend on the verification level, method and repository type.
-
-Source verification policies are configured within an AppProject and should be considered an admin-level configuration.
-
-#### Repository pattern
-
-This is a glob-style pattern matched against the URL of the source to verify.
+List of glob-style patterns matched against the URL of the source to verify.
 When the pattern matches a source, it will be verified, otherwise verification of the source will be skipped.
 
-#### Repository type
-
-The type of repository.
-Right now, only "git" is supported.
-
-#### Verification levels
-
-Each source verification policy currently knows about four levels of verification:
-
-* `none`: As the name implies, verification will be disabled at this verification level.
-* `head`: This verification level will verify the commit pointed to by the HEAD of the target revision.
-    In case `targetRevision` is an annotated tag, only the signature of the tag will be verified.
-* `progressive`: This verification level will verify all commits between the application's target revision and the revision it was last synced to, but not beyond that.
-    The revision that the application is currently synced to does not necessarily need to be signed, so that a migration path from level `head` to the more secure method `progressive` is possible.
-    However, if the application hasn't synced before (i.e. there is no previous revision in the application's sync history), the `progressive` level will inhibit the same behaviour as the `strict` verification level (see below).
-* `strict`: This verification level will always verify all commits in the history of the repository that led to the application's target revision.
-    The `strict` level effectively enforces that all commits in your repository need to be signed from the beginning of your repository's history, without allowing _any_ unsigned commit in the history.
-    This is the most secure policy.
-
-For the `strict` and `progressive` verification levels, if the target revision is an annotated tag, then that tag's signature will also be verified in addition to the specific commits verified as defined by the respective level.
-
-#### Verification method
-
-This specifies the method to use when verifying signatures.
-Currently, the only available method available is `gpg`, which uses GnuPG to verify OpenPGP signatures on commits in Git.
-
-#### Trusted signers
-
-This is a list of signer IDs that are considered trusted.
-If a commit in the repository is signed by an ID that is not specified in the list of trusted signers, the verification will fail.
-
-If no trusted signers are configured, all signers known to Argo CD will be trusted.
-
-The format of the key is dependent on the verification method.
-
-### Verification levels
-
-The verification level controls the depth of verification.
-
-As a simple example, consider the following revision history:
-
-```
-                   HEAD
-       1.0         2.0
-        |           |
-A---B---C---D---E---F
-```
-
-In the above diagram, `A` through `F` represent the commits making up the repository's history, and `1.0` and `2.0` are annotated tags pointing to `C` and `F` respectively.
-In this example, `HEAD` is pointing to `F`.
-
-#### Verification level "none"
-
-With this level, an Application can sync to any of the above revisions regardless of whether there are valid signatures on the source.
-Verification will not be performed.
-
-#### Verification level "head"
-
-With verification level `head`, if the `targetRevision` is set to one of the commits `A` through `F` (or a symbolic reference to one, such as `HEAD`), only a valid signature on that particular commit is required.
-
-If `targetRevision` is set to the tag `1.0` or `2.0`, only a valid signature on the particular tag will be required, but not on the commit which the tag points to. 
-
-For example, if `targetRevision` would be `F`, all commits from `A` to `E` won't require a signature for a successful sync.
-This is the same behavior as the legacy GnuPG verification mode implements.
-
-#### Verification level "progressive"
-
-In verification level `progressive`, the commits that need to be signed depend on the previous state of the Application. 
-
-Consider we want to sync to target revision `F` (or `HEAD`).
-If the Application has never synced before, all commits from `A` to `F` will need to be signed by an allowed entity in order for the sync to proceed.
-
-However, if the Application previously has been successfully synced to commit `C` (regardless of whether it was a verified sync), only the commits `D`, `E` and `F` will need to be signed.
-If the target revision is set to the annotated tag `2.0` instead of to the commit `F` (or a symbolic reference to that commit, such as `HEAD`), the signature on that tag is verified in addition.
-So the tag `2.0` and commits `F`, `E` and `D` need to be verified successfully for the application to be allowed to sync.
-
-#### Verification level "strict"
-
-In verification level `strict`, `targetRevision` and all its ancestors in the repository's history need to be signed.
-In the above example history, this means all commits `A` through `F` need to be verified successfully.
-
-If the target revision is set to the annotated tag `2.0` instead of to the commit `F` (or a symbolic reference to that commit, such as `HEAD`), the signature on that tag is verified in addition.
-So the tag `2.0` and commits `A` through `F` need to be verified successfully for the application to be allowed to sync.
-
-### Verification methods
-
-#### Verification method "gpg"
+#### GPG verification policy
 
 Right now, this is the only supported verification method.
 It will use GnuPG to verify PGP signatures on commits in Git.
@@ -210,16 +100,63 @@ Using this method, the list of allowed signers is a list of PGP key IDs.
 Commits signed by keys other than those specified in the list of allowed signers will not verify successfully.
 In addition to the key IDs to be listed as allowed signers, the keys themselves need to be imported into Argo CD as well using existing mechanisms.
 
+The `mode` defines how thorough the GPG verification is:
+
+* `none`: No gpg verification performed.
+* `head`: Verify the commit pointed to by the HEAD of the target revision.
+* `strict`: Verify all ancestor commits from target revisions to init. This makes sure there is no unsigned change whatsoever.
+
+`keys` lists the set of key IDs to trust for signed commits
+If a commit in the repository is signed by an ID not specified in the list of trusted signers, the verification will fail.
+If no trusted keys are configured, all signers from `argocd-gpg-keys-cm` ConfigMap are trusted.
+
+### Verification modes explained
+
+As a simple example, consider the following revision history:
+
+```
+                   HEAD
+       1.0         2.0
+        +           +
+        |           |
+A---B---C---D---E---F
+-   -   -   +   +   +
+```
+
+In the above diagram, `A` through `F` represent the commits making up the repository's history, and `1.0` and `2.0` are annotated tags pointing to respective commits.
+In this example, `HEAD` is pointing to `F`, aka `2.0`.
+The `+`/`-` indicate if the commit or tag are signed by a trusted key - commits `D`, `E` and `F` are signed, and so are the two tags.
+
+#### Verification mode "none"
+
+With this mode, an Application can sync to any of the above revisions regardless of whether there are valid signatures on the source.
+Verification is not performed.
+
+#### Verification mode "head"
+
+If the `targetRevision` is set to one of the commits `A`, `B` or `C` it will not be trusted, because the commits are not signed.
+On commit `D`, `E` or `F`, it will.
+
+Specifying `HEAD` (tip of the named branch), `1.0` or `2.0` will successfully validate.
+`HEAD` because the revision it points to is signed.
+`1.0` and `2.0` because they are signed tags.
+
+#### Verification mode "strict"
+
+Strict mode is not going to trust any point of this git history, because it contains unsigned commits `A`, `B` and `C`.
+
 ### Significance of policy order
 
 Policies are not accumulative.
-Only one policy will be applied per source, and therefore the order of how policies are defined is significant.
+Only one policy is applied per source repository, and therefore the order of definitions is significant.
 
-Argo CD will select the first policy that matches an Application's source URL, and will ignore any other policies that follow.
+Note that a multi-source application can have its source repositories validated based on different SVPs each.
+
+Argo CD will select the first policy that matches a repository source URL, and will ignore any other policies that follow.
 Policies are being evaluated top-down, so your more specific policies must come before the more broad ones.
 
 As an example, consider you want to verify that all commits across all repositories you source from `github.com` have a valid signature from GitHub's web signing key.
-However, on a specific repository, you want to have a different policy, using `strict` level and allowing a different signer in addition.
+However, on a specific repository, you want to have a different policy, using `strict` mode and allowing a different signer in addition.
 You would set up the more specific policy first, and then the broad one:
 
 ```yaml
@@ -229,91 +166,35 @@ metadata:
   name: gpg
   namespace: argocd
 spec:
-  sourceVerificationPolicies:
-  - repositoryPattern: 'https://github.com/example/super-secure'
-    verificationLevel: strict
-    verificationMethod: gpg
-    allowedSigners:
-    - keyID: D56C4FCA57A46444
-    - keyID: 4AEE18F83AFDEB23
-  - repositoryPattern: 'https://github.com/*'
-    verificationLevel: progressive
-    verificationMethod: gpg
-    allowedSigners:
-    - keyID: 4AEE18F83AFDEB23
+  sourceIntegrity:
+    git:
+      policies:
+        - repos: ['https://github.com/example/super-secure']
+          gpg:
+            mode: strict
+            keys:
+              - 4AEE18F83AFDEB23
+              - D56C4FCA57A46444
+        - repos: ['https://github.com/*']
+          gpg:
+            mode: head
+            keys:
+              - 4AEE18F83AFDEB23
 ```
 
 If the policies had been defined in the opposite order, the specific policy for `https://github.com/example/super-secure` would never match, because that repository URL is already matched by the other policy's `https://github.com/*` pattern, thus that policy would be applied.
 
-### Creating a new Application from a "mixed-signed" source repository
-
-Having all commits in a Git repository cryptographically signed from the repository's inception is an ideal situation however, the reality often looks different.
-Oftentimes, the requirement to cryptographically sign commits comes at some point in time of a repository's life.
-
-This is what we call `mixed-signed`, and is explained in the below diagram:
-
-```
-                   HEAD
-       1.0         2.0
-        |           |
-A---B---C---D---E---F
--   -   -   +   +   +
-```
-
-Again, the letters `A` through `F` represents commits in the revision history.
-The dash and plus signs below the commits denote whether a commit is signed (`+`) or unsigned (`-`).
-So as we can see, the repository is in a `mixed-signed` state, where some commits are signed and others are not.
-
-A revision history such as shown above has a few implications when it comes to commit verification:
-
-1. If an Application under a verification policy that enforces the `strict` verification level tries to sync, it will not be able to succeed, as the `strict` level requires every commit in the history to be signed, but commits `A`, `B` and `C` are not.
-
-3. If an Application under a verification policy that enforces the `progressive` verification level tries to sync, it _may_ succeed under certain conditions:
-
-   For example, if the Application is currently synced to revision `C` (potentially before the source verification policy was in place) can sync successfully to target revision `F`, as all of the subsequent commits `D`, `E` and `F` are signed.
-   However, if the Application would currently be synced to revision `B`, it can't sync successfully because `C` is not signed.
-   There just is no way forward.
-   
-   Similarly, if the Application has never synced before (i.e. is a new Application), it won't be able to sync at all, because the verification level `progressive` would behave the same as level `strict`, thus _all_ commits in the history needs to be signed, but commits `A`, `B` and `C` are not.
-   
-3. An Application under a policy which enforces the verification level `head` can sync to any of the commits `D`, `E` and `F` regardless of whether it has synced before.
-
-So as it seems from that explanation of the impact of verification level, a new Application could only ever be synced with a verification level of `head`. 
-
-### Detailed examples
+There needs to be a visual indicator in Argo CD CLI and UI, pointing out project repositories that do not perform GPG verification.
+This is to provide an administrator with feedback on the repository matching evaluation.
 
 ### Security Considerations
 
-Implementing this proposal would significantly increase resilience against breached Git repositories.
-However, it won't add any resilience against identity theft, e.g. when someone compromises a developer's credentials as well as signature keys.
+Implementing this proposal would significantly increase resilience against breached Git repositories:
 
-### Risks and Mitigations
+- An unauthorized contributor has commit access.
+- Signing key was compromised.
 
-The new verification levels (i.e. `progressive` and `full`) make source verification a lot more robust and thorough compared to the current implementation. 
-
-However, for `progressive` mode, there are at least two risk factors I can see which I'd like to rise for validation: 
-
-1. The information stored in the sync history needs to be trusted.
-   The PoC implements storing & verifying a HMAC for the _last synced revision_ in the Application's `.status` field.
-   The HMAC is calculated out of the Application's `name` and `namespace` as well as the last synced `revision` itself, and uses Argo CD's `server.secretkey` as the secret key for calculating the HMAC.
-   The `progressive` mode verifies all commits between the resolved `targetRevision` at time of sync and the last synced `revision`.
-   Obviously, the history information can be copied manually when a user has access to the `Application` resource.
-   The idea behind the HMAC is that it _has had to exist_ before, i.e. it's been calculated and written to the CR after a successful sync.
-
-    Since every commit between the last synced revision and the target revision requires to be signed, an adversary modifying the `Application` CR in a non-intended way could only ever move _backwards_ in time (i.e. take values from a commit that has synced before), there would be no way to slip in an unsigned commit somewhere.
-
-    **Risk:** Using the progressive verification level could allow an adversary to sync 
-    
-2. The `progressive` level has a "bootstrap" feature to allow creating an `Application` in `progressive` level.
-   Obviously, when an `Application` is created, it does not have any history information unless it is synced initially.
-   The bootstrap feature defines a time window, the `bootstrapPeriod`, in which an `Application` without history can temporarily sync using the `head` level (i.e. only with the HEAD of `targetRevision` being signed).
-   The bootstrap feature assumes that the `.metadata.creationTimestamp` of the `Application` resource is immutable, or rather be reset by the Kubernetes API server upon modification.
-   During the timeframe in the `bootstrapPeriod`, an adversary could delete the `Application`'s history and sync to any signed commit in the repository.
-
-3. The `progressive` level doesn't allow roll-backs, as it verifies the commits between the previous synced state and the target revision.
-   If the application is on `F`, and wants to roll back to `C`, it cannot find any revision history for this path (because `C` existed prior to `F`).
-   This must be properly documented.
-   For `head` and `full`, this is not a concern as long as the level's requirements are met in the repository.
+When someone compromises a developer's credentials as well as signature keys, the adversaries can force Argo CD to trust their commits only in those repositories, where the compromised keys had been added, but not elsewhere.
 
 ### Upgrade / Downgrade Strategy
 
@@ -322,32 +203,44 @@ However, for `progressive` mode, there are at least two risk factors I can see w
 Upgrade will be seamless.
 When Argo CD detects the prior configuration for Git commit verification (i.e. `.spec.signatureKeys` is populated in the `AppProject`), the new implementation will behave like the current one.
 
-Internally, this will create a single verification policy similar to the following and ignore all other configured policies: 
+Internally, this will create a single verification policy similar to the one illustrated earlier taking the keys from `.spec.signatureKeys`.
 
-```
-repositoryPattern: '*'
-repositoryType: git
-verificationLevel: head
-verificationMethod: gpg
-trustedSigners:
-- # taken from .spec.signatureKeys
-```
+If a user wants to migrate from the current implementation to the new source verification policies, they will first have to remove `.spec.signatureKeys` and can then go ahead and define desired policies in `.spec.sourceIntegrity.git.policies`.
 
-If a user wants to migrate from the current implementation to the new source verification policies, they will first have to remove `.spec.signatureKeys` and can then go ahead and define desired policies in `.spec.sourceVerificationPolicies`.
+To achieve the legacy Argo CD verification behavior in a project, use the following config:
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+spec:
+  sourceIntegrity:
+    git:
+      policies:
+        - repos: ["*"] # For any repository in the project
+          gpg:
+            mode: "head" # Verify only the HEAD of the targetRevision
+            keys:
+              - "..." # Keys from .spec.signatureKeys
+```
 
 #### Downgrade
 
-At downgrade time, people will have to reconfigure `.spec.signatureKeys` into any AppProject where it has been removed and remove `.spec.sourceVerificationPolicies` at the same time.
+At downgrade time, people will have to reconfigure `.spec.signatureKeys` into any AppProject where it has been removed and remove `.spec.sourceIntegrity.git.policies` at the same time.
+
+Unless the user motivation for the downgrade is a bug in Argo CD implementation, moving the mode to `head` or `none` (depending on what they are downgrading to) is sufficient.
 
 ## Drawbacks
 
-* Configuring source verification policies is a little bit more involved than just configuring the trusted signature keys.
-* The algorithms behind source verification policies are a little more complex than those for enforcing commits signed by a hard-coded list of keys.
-  There might be more mistakes in these algorithms that could be exploited.
+* Configuring source verification policies adds some complexity to both Argo CD implementation and used configuration.
+* Configuring or implementing those incorrectly can be a source of security incidents.
 
 ## Alternatives
 
-There are a couple of alternative locations to where verification policies could be configured:
+### How to handle local manifests?
+
+The current implementation rejects them when GPG is turned on and projest's signing keys are declared.
+Can be done selectively based on source integrity criteria applicability (Git/OCI/Helm & repo).
+
+### Where to configure verification policies?
 
 * A verification policy could be directly configured in a repository configuration instead of being configured in the AppProject.
   This feels like the more natural and logical place however, repository configuration is not strongly typed due to residing completely in a secret.
@@ -355,18 +248,134 @@ There are a couple of alternative locations to where verification policies could
    
    Furthermore, a repository configuration might be a user-controllable asset, while source verification is more of a governance topic.
    
-* Verification policies could be placed in the AppProject's allowed source repositories, for example:
+* Verification policies could be placed in the `AppProject`'s `sourceRepos`, for example:
 
    ```
    spec:
      sourceRepos:
-     - repo: https://github.com/*
-       verificationLevel: full
-       trustedSigners:
-       - keyID: a
        # ...
    ```
    
    However, this would be a breaking change, as currently the type of entry in `sourceRepos` is just `string`, and it would have to become a complex type.
    
-We might want to consider moving SVPs into either of those places with the next major Argo CD release.
+We might want to consider moving `sourceIntegrity` into either of those places with the next major Argo CD release.
+
+
+
+### Dealing with unsigned commits in the history using `strict` verification mode
+
+**!!! This is a proposal extension. The whole can be approved with, or without it !!!**
+
+Having all commits in a Git repository cryptographically signed from init is an ideal situation.
+However, the reality often looks different.
+There are a number of reasons why unsigned, or signed but untrusted commits can be found in git history, and it is almost impossible to avoid such situations in large and/or long-running repository.
+
+- User forgot to sign the commit / used other key than intended
+- Commit was created unsigned by a (misconfigured) tool
+    - Such has merge&squash, automation/IDE created
+- Key once approved was rotated after it was compromised, expired, cryptographically obsoleted
+- Former contributor is no longer trusted (ex-employee, etc.)
+- It is desirable to accept Pull Request from untrusted parties and merge them without resigning by trusted GPG keys.
+- Repository policy has not required GPG signing in the past.
+
+Dealing with such commits with the expectation to validate the entire history requires git history rewrites (rebase, force-push) that are problematic on a number of technical and organizational fronts.
+Force pushing is often prohibited also as a security measure, so asking users to relax security in order to improve security proposes them with a Sophie's choice.
+
+Some of these can be prevented by requiring gpg signatures on git push, but not all.
+Also, preventing force pushing is easier to configure in git hosting sites, than restricting only a fixed set of GPG signing keys can push commits.
+
+While retroactively signing commits without a signature is a somewhat straightforward chore (`git rebase --signoff XXX`),
+identifying all commits signed by a particular key and re-signing it by a new/valid one is more cumbersome and error-prone.
+Hence, this proposal is treating git history rewriting as an undesirable and possibly even technically disallowed procedure.
+
+In fact, it does not harm UX *and* improves security with:
+
+#### Git history *sealing* for strict verification mode
+
+A sealing commit is a gpg signed commit that works as a "seal of approval" attesting that all its ancestor commits were either signed by a trusted key, or reviewed and trusted by the commit author.
+Argo CD verifying gpg signatures would then progres only as far back in the history as the most recent "seal" commits in each individual ancestral branch.
+
+In practice, a commiter reviews all commits that are not signed or signed with untrusted keys from the previous "seal" and creates a (possibly empty) commit with a custom trailer.
+Such commits can have the following organization level semantics:
+
+- "From now on, we are going to gpg sign all commits in this repository. There is no point in verifying the unsigned ones from before."
+- "I merge these changes from untrusted external contributor, and I approve of them."
+- "I am removing the GPG key of Bob. All his previous commits are trusted, but no new ones will be. Happy retirement, Bob!"
+- "I am replacing my old key with a new one. Trust my commit signed with the old one before this commit, trust my new one from now on."
+
+To make a "seal" commit, run `git commit --signoff --gpg-sign --trailer="Argocd-gpg-seal: <justification>"` and push to branch pulled by Argo CD.
+The advantage is the exact same procedure deals with all the identified situations of unsigned or untrusted commits in the history, eliminating the room for eventual rebasing mistakes that would jeopardize security or correctness.
+It is possible to introduce tooling to help identify all previous "seal" commits and all the untrusted commits made since then, so the administrator knows exactly what are they "seal-signing".
+
+Git history sealing can be part of the `strict` mode, eventually enabled through a flag, or be enabled in a separate "less-strict" mode.
+Either way, it requires no force-pushing.
+
+Example:
+
+```
+## head mode
+
+T     <- verified
+| \
+|  o  
+|  |
+o  |
+|  |
+|  o
+| /
+o
+|
+o
+
+
+## strict mode
+
+T     <- verified
+| \
+|  o  <- verified
+|  |
+o  |  <- verified
+|  |
+|  o  <- verified
+| /
+o     <- verified
+|
+o     <- verified
+
+
+## strict mode - with seal commits
+
+T     <- verified
+| \
+|  S  <- verified (seal)
+|  |
+S  |  <- verified (seal)
+|  |
+|  o
+| /
+o
+|
+o
+
+```
+
+#### Comparison with the original `progressive` mode
+
+The "seal-signing" is inspired by the original mode that verified commits from `targetRevision` to a commit of last successful Argo CD Application sync.
+They both verify the history backwards only until a certain point, from which it is considered inherently trusted.
+
+The non-trivial N:M mapping between repositories and Applications (or even Argo CD instances) was a cause of a number of corner cases identified in the original proposal.
+
+Seal-signing marks the point(s) from where not to verify commits *inside* the repository itself, and thus is making sure that all Argo CD instances and their applications have a consistent view of what they are, regardless of application removal from Argo CD, Argo CD migration, etc.
+
+Both approaches, in fact, work as an optimization mechanism by limiting the number of commits to verify.
+For sealing, a commiter needs to add a seal commit manually even if there are no unsigned changes to speed things up.
+Additionally, the implementation can cache the last `strict`-verified commit per repository & strategy, to optimize verification speed on a best effort basis.
+
+#### To merge or not to merge?
+
+While complex, @olivergondza suggests incorporating this extension, as it improves the UX of `strict` mode significantly.
+Without it, users that are facing one of the anticipated difficulties (employee leaving, key is rotated, etc.) can be tempted to switch to `head` or `none` mode to escape the risks of the non-trivial maintenance task.
+Or keep the old, leaked, unused keys in place compromising their security posture.
+
+**!!! End of proposal extension. !!!**
