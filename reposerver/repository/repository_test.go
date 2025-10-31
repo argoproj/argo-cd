@@ -26,6 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 
 	"github.com/argoproj/argo-cd/v3/util/oci"
+	"github.com/argoproj/argo-cd/v3/util/versions"
 
 	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
 
@@ -113,7 +114,7 @@ func newServiceWithMocks(t *testing.T, root string, signed bool) (*Service, *git
 		gitClient.On("IsRevisionPresent", mock.Anything).Return(false)
 		gitClient.On("Fetch", mock.Anything).Return(nil)
 		gitClient.On("Checkout", mock.Anything, mock.Anything).Return("", nil)
-		gitClient.On("LsRemote", mock.Anything).Return(mock.Anything, nil)
+		gitClient.On("LsRemote", mock.Anything).Return(mock.Anything, nil, nil)
 		gitClient.On("CommitSHA").Return(mock.Anything, nil)
 		gitClient.On("Root").Return(root)
 		gitClient.On("IsAnnotatedTag").Return(false)
@@ -138,7 +139,7 @@ func newServiceWithMocks(t *testing.T, root string, signed bool) (*Service, *git
 		helmClient.On("DependencyBuild").Return(nil)
 
 		ociClient.On("GetTags", mock.Anything, mock.Anything).Return(nil)
-		ociClient.On("ResolveRevision", mock.Anything, mock.Anything, mock.Anything).Return("", nil)
+		ociClient.On("ResolveRevision", mock.Anything, mock.Anything, mock.Anything).Return("", &versions.RevisionMetadata{}, nil)
 		ociClient.On("Extract", mock.Anything, mock.Anything).Return("./testdata/my-chart", utilio.NopCloser, nil)
 
 		paths.On("Add", mock.Anything, mock.Anything).Return(root, nil)
@@ -187,6 +188,26 @@ func newServiceWithSignature(t *testing.T, root string) *Service {
 	return service
 }
 
+func newServiceWithRealGitClient(t *testing.T, root string) *Service {
+	t.Helper()
+	// Create service with real git client instead of mocked one
+	root, err := filepath.Abs(root)
+	if err != nil {
+		panic(err)
+	}
+
+	cacheMocks := newCacheMocks()
+	t.Cleanup(cacheMocks.mockCache.StopRedisCallback)
+
+	return NewService(
+		metrics.NewMetricsServer(),
+		cacheMocks.cache,
+		RepoServerInitConstants{ParallelismLimit: 1},
+		&git.NoopCredsStore{},
+		root,
+	)
+}
+
 func newServiceWithCommitSHA(t *testing.T, root, revision string) *Service {
 	t.Helper()
 	var revisionErr error
@@ -201,7 +222,7 @@ func newServiceWithCommitSHA(t *testing.T, root, revision string) *Service {
 		gitClient.On("IsRevisionPresent", mock.Anything).Return(false)
 		gitClient.On("Fetch", mock.Anything).Return(nil)
 		gitClient.On("Checkout", mock.Anything, mock.Anything).Return("", nil)
-		gitClient.On("LsRemote", revision).Return(revision, revisionErr)
+		gitClient.On("LsRemote", revision).Return(revision, nil, revisionErr)
 		gitClient.On("CommitSHA").Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
 		gitClient.On("Root").Return(root)
 		paths.On("GetPath", mock.Anything).Return(root, nil)
@@ -235,7 +256,7 @@ func TestGenerateYamlManifestInDir(t *testing.T) {
 	assert.Len(t, res1.Manifests, countOfManifests)
 
 	// this will test concatenated manifests to verify we split YAMLs correctly
-	res2, err := GenerateManifests(t.Context(), "./testdata/concatenated", "/", "", &q, false, &git.NoopCredsStore{}, resource.MustParse("0"), nil)
+	res2, err := GenerateManifests(t.Context(), "./testdata/concatenated", "/", "", &q, false, &git.NoopCredsStore{}, resource.MustParse("0"), nil, nil)
 	require.NoError(t, err)
 	assert.Len(t, res2.Manifests, 3)
 }
@@ -327,7 +348,7 @@ func Test_GenerateManifests_NoOutOfBoundsAccess(t *testing.T) {
 				Repo: &v1alpha1.Repository{}, ApplicationSource: &v1alpha1.ApplicationSource{}, ProjectName: "something",
 				ProjectSourceRepos: []string{"*"},
 			}
-			res, err := GenerateManifests(t.Context(), repoDir, "", "", &q, false, &git.NoopCredsStore{}, resource.MustParse("0"), nil)
+			res, err := GenerateManifests(t.Context(), repoDir, "", "", &q, false, &git.NoopCredsStore{}, resource.MustParse("0"), nil, nil)
 			require.Error(t, err)
 			assert.NotContains(t, err.Error(), mustNotContain)
 			require.ErrorContains(t, err, "illegal filepath")
@@ -345,7 +366,7 @@ func TestGenerateManifests_MissingSymlinkDestination(t *testing.T) {
 		Repo: &v1alpha1.Repository{}, ApplicationSource: &v1alpha1.ApplicationSource{}, ProjectName: "something",
 		ProjectSourceRepos: []string{"*"},
 	}
-	_, err = GenerateManifests(t.Context(), repoDir, "", "", &q, false, &git.NoopCredsStore{}, resource.MustParse("0"), nil)
+	_, err = GenerateManifests(t.Context(), repoDir, "", "", &q, false, &git.NoopCredsStore{}, resource.MustParse("0"), nil, nil)
 	require.NoError(t, err)
 }
 
@@ -451,7 +472,7 @@ func TestGenerateManifest_RefOnlyShortCircuit(t *testing.T) {
 	_, err := service.GenerateManifest(t.Context(), &q)
 	require.NoError(t, err)
 	cacheMocks.mockCache.AssertCacheCalledTimes(t, &repositorymocks.CacheCallCounts{
-		ExternalSets: 2,
+		ExternalSets: 3,
 		ExternalGets: 2,
 	})
 	assert.True(t, lsremoteCalled, "ls-remote should be called when the source is ref only")
@@ -521,7 +542,7 @@ func TestGenerateManifestsHelmWithRefs_CachedNoLsRemote(t *testing.T) {
 	_, err = service.GenerateManifest(t.Context(), &q)
 	require.NoError(t, err)
 	cacheMocks.mockCache.AssertCacheCalledTimes(t, &repositorymocks.CacheCallCounts{
-		ExternalSets: 2,
+		ExternalSets: 3,
 		ExternalGets: 5,
 	})
 }
@@ -1622,7 +1643,7 @@ func TestGenerateFromUTF16(t *testing.T) {
 		ProjectName:        "something",
 		ProjectSourceRepos: []string{"*"},
 	}
-	res1, err := GenerateManifests(t.Context(), "./testdata/utf-16", "/", "", &q, false, &git.NoopCredsStore{}, resource.MustParse("0"), nil)
+	res1, err := GenerateManifests(t.Context(), "./testdata/utf-16", "/", "", &q, false, &git.NoopCredsStore{}, resource.MustParse("0"), nil, nil)
 	require.NoError(t, err)
 	assert.Len(t, res1.Manifests, 2)
 }
@@ -1939,18 +1960,225 @@ func Test_newEnv(t *testing.T) {
 			Path:           "my-path",
 			TargetRevision: "my-target-revision",
 		},
-	}, "my-revision"))
+	}, "my-revision", nil))
+}
+
+func Test_newEnv_BuildMetadata(t *testing.T) {
+	metadata := &BuildMetadata{
+		RevisionMetadata: versions.NewRevisionMetadata("latest", versions.RevisionResolutionDirect).WithResolved("v1.2.3"),
+	}
+	envWithMetadata := newEnv(&apiclient.ManifestRequest{
+		AppName:     "my-app-name",
+		Namespace:   "my-namespace",
+		ProjectName: "my-project-name",
+		Repo:        &v1alpha1.Repository{Repo: "https://github.com/my-org/my-repo"},
+		ApplicationSource: &v1alpha1.ApplicationSource{
+			Path:           "my-path",
+			TargetRevision: "my-target-revision",
+		},
+	}, "my-revision", metadata)
+
+	expected := &v1alpha1.Env{
+		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_NAME", Value: "my-app-name"},
+		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_NAMESPACE", Value: "my-namespace"},
+		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_PROJECT_NAME", Value: "my-project-name"},
+		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_REVISION", Value: "my-revision"},
+		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_REVISION_SHORT", Value: "my-revi"},
+		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_REVISION_SHORT_8", Value: "my-revis"},
+		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_SOURCE_REPO_URL", Value: "https://github.com/my-org/my-repo"},
+		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_SOURCE_PATH", Value: "my-path"},
+		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_SOURCE_TARGET_REVISION", Value: "my-target-revision"},
+		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_ORIGINAL_REVISION", Value: "latest"},
+		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_RESOLUTION_TYPE", Value: "direct"},
+		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_RESOLVED", Value: "v1.2.3"},
+	}
+	assert.Equal(t, expected, envWithMetadata)
+}
+
+func Test_newEnv_RevisionMetadata_AllResolutionTypes(t *testing.T) {
+	baseRequest := &apiclient.ManifestRequest{
+		AppName:     "test-app",
+		Namespace:   "test-namespace",
+		ProjectName: "test-project",
+		Repo:        &v1alpha1.Repository{Repo: "https://github.com/test/repo"},
+		ApplicationSource: &v1alpha1.ApplicationSource{
+			Path:           "test-path",
+			TargetRevision: "test-target",
+		},
+	}
+
+	testCases := []struct {
+		name                     string
+		revisionMetadata         *versions.RevisionMetadata
+		expectedOriginalRevision string
+		expectedResolutionType   string
+		expectedResolved         string
+	}{
+		{
+			name: "Direct resolution",
+			revisionMetadata: versions.NewRevisionMetadata("v1.2.3", versions.RevisionResolutionDirect).
+				WithResolved("v1.2.3"),
+			expectedOriginalRevision: "v1.2.3",
+			expectedResolutionType:   string(versions.RevisionResolutionDirect),
+			expectedResolved:         "v1.2.3",
+		},
+		{
+			name: "Range resolution",
+			revisionMetadata: versions.NewRevisionMetadata("^1.0.0", versions.RevisionResolutionRange).
+				WithResolved("1.2.3"),
+			expectedOriginalRevision: "^1.0.0",
+			expectedResolutionType:   string(versions.RevisionResolutionRange),
+			expectedResolved:         "1.2.3",
+		},
+		{
+			name: "Symbolic reference resolution (Git)",
+			revisionMetadata: versions.NewRevisionMetadata("HEAD", versions.RevisionResolutionSymbolicReference).
+				WithResolved("refs/heads/main"),
+			expectedOriginalRevision: "HEAD",
+			expectedResolutionType:   string(versions.RevisionResolutionSymbolicReference),
+			expectedResolved:         "refs/heads/main",
+		},
+		{
+			name: "Truncated commit SHA resolution (Git)",
+			revisionMetadata: versions.NewRevisionMetadata("abc1234", versions.RevisionResolutionTruncatedCommitSHA).
+				WithResolved("abc1234"),
+			expectedOriginalRevision: "abc1234",
+			expectedResolutionType:   string(versions.RevisionResolutionTruncatedCommitSHA),
+			expectedResolved:         "abc1234",
+		},
+		{
+			name: "Version resolution OCI/Helm",
+			revisionMetadata: versions.NewRevisionMetadata("latest", versions.RevisionResolutionVersion).
+				WithResolved("sha256:abc123"),
+			expectedOriginalRevision: "latest",
+			expectedResolutionType:   string(versions.RevisionResolutionVersion),
+			expectedResolved:         "sha256:abc123",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			metadata := &BuildMetadata{
+				RevisionMetadata: tc.revisionMetadata,
+			}
+
+			env := newEnv(baseRequest, "test-revision", metadata)
+
+			// Convert to map for easier testing
+			envMap := make(map[string]string)
+			for _, entry := range *env {
+				envMap[entry.Name] = entry.Value
+			}
+
+			// Check that all expected environment variables are present
+			if tc.expectedOriginalRevision != "" {
+				assert.Equal(t, tc.expectedOriginalRevision, envMap["ARGOCD_APP_ORIGINAL_REVISION"], "ARGOCD_APP_ORIGINAL_REVISION mismatch")
+			} else {
+				assert.NotContains(t, envMap, "ARGOCD_APP_ORIGINAL_REVISION", "ARGOCD_APP_ORIGINAL_REVISION should not be present")
+			}
+
+			if tc.expectedResolutionType != "" {
+				assert.Equal(t, tc.expectedResolutionType, envMap["ARGOCD_APP_RESOLUTION_TYPE"], "ARGOCD_APP_RESOLUTION_TYPE mismatch")
+			} else {
+				assert.NotContains(t, envMap, "ARGOCD_APP_RESOLUTION_TYPE", "ARGOCD_APP_RESOLUTION_TYPE should not be present")
+			}
+
+			if tc.expectedResolved != "" {
+				assert.Equal(t, tc.expectedResolved, envMap["ARGOCD_APP_RESOLVED"], "ARGOCD_APP_RESOLVED mismatch")
+			} else {
+				assert.NotContains(t, envMap, "ARGOCD_APP_RESOLVED", "ARGOCD_APP_RESOLVED should not be present")
+			}
+
+			// Verify basic environment variables are still present
+			assert.Equal(t, "test-app", envMap["ARGOCD_APP_NAME"])
+			assert.Equal(t, "test-namespace", envMap["ARGOCD_APP_NAMESPACE"])
+			assert.Equal(t, "test-project", envMap["ARGOCD_APP_PROJECT_NAME"])
+		})
+	}
+}
+
+func Test_newEnv_RevisionMetadata_EmptyAndNil(t *testing.T) {
+	baseRequest := &apiclient.ManifestRequest{
+		AppName:     "test-app",
+		Namespace:   "test-namespace",
+		ProjectName: "test-project",
+		Repo:        &v1alpha1.Repository{Repo: "https://github.com/test/repo"},
+		ApplicationSource: &v1alpha1.ApplicationSource{
+			Path:           "test-path",
+			TargetRevision: "test-target",
+		},
+	}
+
+	t.Run("Nil metadata", func(t *testing.T) {
+		env := newEnv(baseRequest, "test-revision", nil)
+
+		envMap := make(map[string]string)
+		for _, entry := range *env {
+			envMap[entry.Name] = entry.Value
+		}
+
+		// Should not contain any revision metadata environment variables
+		assert.NotContains(t, envMap, "ARGOCD_APP_ORIGINAL_REVISION")
+		assert.NotContains(t, envMap, "ARGOCD_APP_RESOLUTION_TYPE")
+		assert.NotContains(t, envMap, "ARGOCD_APP_RESOLVED")
+		assert.NotContains(t, envMap, "ARGOCD_APP_RESOLVED_TO")
+
+		// But should still contain basic app environment variables
+		assert.Equal(t, "test-app", envMap["ARGOCD_APP_NAME"])
+	})
+
+	t.Run("Empty RevisionMetadata", func(t *testing.T) {
+		metadata := &BuildMetadata{
+			RevisionMetadata: &versions.RevisionMetadata{}, // Empty struct
+		}
+
+		env := newEnv(baseRequest, "test-revision", metadata)
+
+		envMap := make(map[string]string)
+		for _, entry := range *env {
+			envMap[entry.Name] = entry.Value
+		}
+
+		// Should not contain revision metadata environment variables for empty metadata
+		assert.NotContains(t, envMap, "ARGOCD_APP_ORIGINAL_REVISION")
+		assert.NotContains(t, envMap, "ARGOCD_APP_RESOLUTION_TYPE")
+		assert.NotContains(t, envMap, "ARGOCD_APP_RESOLVED")
+		assert.NotContains(t, envMap, "ARGOCD_APP_RESOLVED_TO")
+	})
+
+	t.Run("Partial metadata", func(t *testing.T) {
+		metadata := &BuildMetadata{
+			RevisionMetadata: &versions.RevisionMetadata{
+				OriginalRevision: "v1.0.0",
+				ResolutionType:   versions.RevisionResolutionDirect,
+				// ResolvedTag and ResolvedTo intentionally left empty
+			},
+		}
+
+		env := newEnv(baseRequest, "test-revision", metadata)
+
+		envMap := make(map[string]string)
+		for _, entry := range *env {
+			envMap[entry.Name] = entry.Value
+		}
+
+		// Should contain only the non-empty fields
+		assert.Equal(t, "v1.0.0", envMap["ARGOCD_APP_ORIGINAL_REVISION"])
+		assert.Equal(t, "direct", envMap["ARGOCD_APP_RESOLUTION_TYPE"])
+		assert.NotContains(t, envMap, "ARGOCD_APP_RESOLVED")
+		assert.NotContains(t, envMap, "ARGOCD_APP_RESOLVED_TO")
+	})
 }
 
 func TestService_newHelmClientResolveRevision(t *testing.T) {
 	service := newService(t, ".")
 
 	t.Run("EmptyRevision", func(t *testing.T) {
-		_, _, err := service.newHelmClientResolveRevision(&v1alpha1.Repository{}, "", "my-chart", true)
+		_, _, _, err := service.newHelmClientResolveRevision(&v1alpha1.Repository{}, "", "my-chart", "", true)
 		assert.EqualError(t, err, "invalid revision: failed to determine semver constraint: improper constraint: ")
 	})
 	t.Run("InvalidRevision", func(t *testing.T) {
-		_, _, err := service.newHelmClientResolveRevision(&v1alpha1.Repository{}, "???", "my-chart", true)
+		_, _, _, err := service.newHelmClientResolveRevision(&v1alpha1.Repository{}, "???", "my-chart", "", true)
 		assert.EqualError(t, err, "invalid revision: failed to determine semver constraint: improper constraint: ???")
 	})
 }
@@ -3000,7 +3228,7 @@ func Test_getHelmDependencyRepos(t *testing.T) {
 }
 
 func TestResolveRevision(t *testing.T) {
-	service := newService(t, ".")
+	service := newServiceWithRealGitClient(t, ".")
 	repo := &v1alpha1.Repository{Repo: "https://github.com/argoproj/argo-cd"}
 	app := &v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{Source: &v1alpha1.ApplicationSource{}}}
 	resolveRevisionResponse, err := service.ResolveRevision(t.Context(), &apiclient.ResolveRevisionRequest{
@@ -3020,7 +3248,7 @@ func TestResolveRevision(t *testing.T) {
 }
 
 func TestResolveRevisionNegativeScenarios(t *testing.T) {
-	service := newService(t, ".")
+	service := newServiceWithRealGitClient(t, ".")
 	repo := &v1alpha1.Repository{Repo: "https://github.com/argoproj/argo-cd"}
 	app := &v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{Source: &v1alpha1.ApplicationSource{}}}
 	resolveRevisionResponse, err := service.ResolveRevision(t.Context(), &apiclient.ResolveRevisionRequest{
@@ -3171,7 +3399,7 @@ func TestCheckoutRevisionCanGetNonstandardRefs(t *testing.T) {
 	gitClient, err := git.NewClientExt("file://"+sourceRepoPath, destRepoPath, &git.NopCreds{}, true, false, "", "")
 	require.NoError(t, err)
 
-	pullSha, err := gitClient.LsRemote("refs/pull/123/head")
+	pullSha, _, err := gitClient.LsRemote("refs/pull/123/head")
 	require.NoError(t, err)
 
 	err = checkoutRevision(gitClient, "does-not-exist", false)
@@ -3251,7 +3479,7 @@ func TestFetchRevisionCanGetNonstandardRefs(t *testing.T) {
 	err = gitClient.Init()
 	require.NoError(t, err)
 
-	pullSha, err := gitClient.LsRemote("refs/pull/123/head")
+	pullSha, _, err := gitClient.LsRemote("refs/pull/123/head")
 	require.NoError(t, err)
 
 	err = fetch(gitClient, []string{"does-not-exist"})
@@ -3609,7 +3837,7 @@ func TestErrorGetGitDirectories(t *testing.T) {
 		{name: "InvalidResolveRevision", fields: fields{service: func() *Service {
 			s, _, _ := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
 				gitClient.On("Checkout", mock.Anything, mock.Anything).Return("", nil)
-				gitClient.On("LsRemote", mock.Anything).Return("", errors.New("ah error"))
+				gitClient.On("LsRemote", mock.Anything).Return("", nil, errors.New("ah error"))
 				gitClient.On("Root").Return(root)
 				paths.On("GetPath", mock.Anything).Return(".", nil)
 				paths.On("GetPathIfExists", mock.Anything).Return(".", nil)
@@ -3626,7 +3854,7 @@ func TestErrorGetGitDirectories(t *testing.T) {
 		{name: "ErrorVerifyCommit", fields: fields{service: func() *Service {
 			s, _, _ := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
 				gitClient.On("Checkout", mock.Anything, mock.Anything).Return("", nil)
-				gitClient.On("LsRemote", mock.Anything).Return("", errors.New("ah error"))
+				gitClient.On("LsRemote", mock.Anything).Return("", nil, errors.New("ah error"))
 				gitClient.On("VerifyCommitSignature", mock.Anything).Return("", fmt.Errorf("revision %s is not signed", "sadfsadf"))
 				gitClient.On("Root").Return(root)
 				paths.On("GetPath", mock.Anything).Return(".", nil)
@@ -3663,7 +3891,7 @@ func TestGetGitDirectories(t *testing.T) {
 		gitClient.On("IsRevisionPresent", mock.Anything).Return(false)
 		gitClient.On("Fetch", mock.Anything).Return(nil)
 		gitClient.On("Checkout", mock.Anything, mock.Anything).Once().Return("", nil)
-		gitClient.On("LsRemote", "HEAD").Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
+		gitClient.On("LsRemote", "HEAD").Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil, nil)
 		gitClient.On("Root").Return(root)
 		paths.On("GetPath", mock.Anything).Return(root, nil)
 		paths.On("GetPathIfExists", mock.Anything).Return(root, nil)
@@ -3696,7 +3924,7 @@ func TestGetGitDirectoriesWithHiddenDirSupported(t *testing.T) {
 		gitClient.On("IsRevisionPresent", mock.Anything).Return(false)
 		gitClient.On("Fetch", mock.Anything).Return(nil)
 		gitClient.On("Checkout", mock.Anything, mock.Anything).Once().Return("", nil)
-		gitClient.On("LsRemote", "HEAD").Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
+		gitClient.On("LsRemote", "HEAD").Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil, nil)
 		gitClient.On("Root").Return(root)
 		paths.On("GetPath", mock.Anything).Return(root, nil)
 		paths.On("GetPathIfExists", mock.Anything).Return(root, nil)
@@ -3751,7 +3979,7 @@ func TestErrorGetGitFiles(t *testing.T) {
 		{name: "InvalidResolveRevision", fields: fields{service: func() *Service {
 			s, _, _ := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
 				gitClient.On("Checkout", mock.Anything, mock.Anything).Return("", nil)
-				gitClient.On("LsRemote", mock.Anything).Return("", errors.New("ah error"))
+				gitClient.On("LsRemote", mock.Anything).Return("", nil, errors.New("ah error"))
 				gitClient.On("Root").Return(root)
 				paths.On("GetPath", mock.Anything).Return(".", nil)
 				paths.On("GetPathIfExists", mock.Anything).Return(".", nil)
@@ -3790,7 +4018,7 @@ func TestGetGitFiles(t *testing.T) {
 		gitClient.On("IsRevisionPresent", mock.Anything).Return(false)
 		gitClient.On("Fetch", mock.Anything).Return(nil)
 		gitClient.On("Checkout", mock.Anything, mock.Anything).Once().Return("", nil)
-		gitClient.On("LsRemote", "HEAD").Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
+		gitClient.On("LsRemote", "HEAD").Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil, nil)
 		gitClient.On("Root").Return(root)
 		gitClient.On("LsFiles", mock.Anything, mock.Anything).Once().Return(files, nil)
 		paths.On("GetPath", mock.Anything).Return(root, nil)
@@ -3854,7 +4082,7 @@ func TestErrorUpdateRevisionForPaths(t *testing.T) {
 		{name: "InvalidResolveRevision", fields: fields{service: func() *Service {
 			s, _, _ := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
 				gitClient.On("Checkout", mock.Anything, mock.Anything).Return("", nil)
-				gitClient.On("LsRemote", mock.Anything).Return("", errors.New("ah error"))
+				gitClient.On("LsRemote", mock.Anything).Return("", nil, errors.New("ah error"))
 				gitClient.On("Root").Return(root)
 				paths.On("GetPath", mock.Anything).Return(".", nil)
 				paths.On("GetPathIfExists", mock.Anything).Return(".", nil)
@@ -3872,8 +4100,8 @@ func TestErrorUpdateRevisionForPaths(t *testing.T) {
 		{name: "InvalidResolveSyncedRevision", fields: fields{service: func() *Service {
 			s, _, _ := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
 				gitClient.On("Checkout", mock.Anything, mock.Anything).Return("", nil)
-				gitClient.On("LsRemote", "HEAD").Once().Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
-				gitClient.On("LsRemote", mock.Anything).Return("", errors.New("ah error"))
+				gitClient.On("LsRemote", "HEAD").Once().Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil, nil)
+				gitClient.On("LsRemote", mock.Anything).Return("", nil, errors.New("ah error"))
 				gitClient.On("Root").Return(root)
 				paths.On("GetPath", mock.Anything).Return(".", nil)
 				paths.On("GetPathIfExists", mock.Anything).Return(".", nil)
@@ -3940,8 +4168,8 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 		{name: "SameResolvedRevisionAbort", fields: func() fields {
 			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
 				gitClient.On("Checkout", mock.Anything, mock.Anything).Return("", nil)
-				gitClient.On("LsRemote", "HEAD").Once().Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
-				gitClient.On("LsRemote", "SYNCEDHEAD").Once().Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
+				gitClient.On("LsRemote", "HEAD").Once().Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil, nil)
+				gitClient.On("LsRemote", "SYNCEDHEAD").Once().Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil, nil)
 				paths.On("GetPath", mock.Anything).Return(".", nil)
 				paths.On("GetPathIfExists", mock.Anything).Return(".", nil)
 			}, ".")
@@ -3970,8 +4198,11 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 				gitClient.On("IsRevisionPresent", "1e67a504d03def3a6a1125d934cb511680f72555").Once().Return(false)
 				gitClient.On("Fetch", mock.Anything).Once().Return(nil)
 				gitClient.On("IsRevisionPresent", "1e67a504d03def3a6a1125d934cb511680f72555").Once().Return(true)
-				gitClient.On("LsRemote", "HEAD").Once().Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
-				gitClient.On("LsRemote", "SYNCEDHEAD").Once().Return("1e67a504d03def3a6a1125d934cb511680f72555", nil)
+				gitClient.On("LsRemote", "HEAD").Once().Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil, nil)
+				gitClient.On("LsRemote", "SYNCEDHEAD").Once().Return("1e67a504d03def3a6a1125d934cb511680f72555", nil, nil)
+				// buildMetadataHasChanged calls LsRemote with resolved commit SHAs
+				gitClient.On("LsRemote", "1e67a504d03def3a6a1125d934cb511680f72555").Once().Return("1e67a504d03def3a6a1125d934cb511680f72555", nil, nil)
+				gitClient.On("LsRemote", "632039659e542ed7de0c170a4fcc1c571b288fc0").Once().Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil, nil)
 				paths.On("GetPath", mock.Anything).Return(".", nil)
 				paths.On("GetPathIfExists", mock.Anything).Return(".", nil)
 				gitClient.On("Root").Return("")
@@ -4003,8 +4234,11 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 				// fetch
 				gitClient.On("Fetch", mock.Anything).Once().Return(nil)
 				gitClient.On("IsRevisionPresent", "1e67a504d03def3a6a1125d934cb511680f72555").Once().Return(true)
-				gitClient.On("LsRemote", "HEAD").Once().Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
-				gitClient.On("LsRemote", "SYNCEDHEAD").Once().Return("1e67a504d03def3a6a1125d934cb511680f72555", nil)
+				gitClient.On("LsRemote", "HEAD").Once().Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil, nil)
+				gitClient.On("LsRemote", "SYNCEDHEAD").Once().Return("1e67a504d03def3a6a1125d934cb511680f72555", nil, nil)
+				// buildMetadataHasChanged calls LsRemote with resolved commit SHAs
+				gitClient.On("LsRemote", "1e67a504d03def3a6a1125d934cb511680f72555").Once().Return("1e67a504d03def3a6a1125d934cb511680f72555", nil, nil)
+				gitClient.On("LsRemote", "632039659e542ed7de0c170a4fcc1c571b288fc0").Once().Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil, nil)
 				paths.On("GetPath", mock.Anything).Return(".", nil)
 				paths.On("GetPathIfExists", mock.Anything).Return(".", nil)
 				gitClient.On("Root").Return("")
@@ -4044,8 +4278,11 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 				// fetch
 				gitClient.On("IsRevisionPresent", "1e67a504d03def3a6a1125d934cb511680f72555").Once().Return(true)
 				gitClient.On("Fetch", mock.Anything).Once().Return(nil)
-				gitClient.On("LsRemote", "HEAD").Once().Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
-				gitClient.On("LsRemote", "SYNCEDHEAD").Once().Return("1e67a504d03def3a6a1125d934cb511680f72555", nil)
+				gitClient.On("LsRemote", "HEAD").Once().Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil, nil)
+				gitClient.On("LsRemote", "SYNCEDHEAD").Once().Return("1e67a504d03def3a6a1125d934cb511680f72555", nil, nil)
+				// buildMetadataHasChanged calls LsRemote with resolved commit SHAs
+				gitClient.On("LsRemote", "1e67a504d03def3a6a1125d934cb511680f72555").Once().Return("1e67a504d03def3a6a1125d934cb511680f72555", nil, nil)
+				gitClient.On("LsRemote", "632039659e542ed7de0c170a4fcc1c571b288fc0").Once().Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil, nil)
 				paths.On("GetPath", mock.Anything).Return(".", nil)
 				paths.On("GetPathIfExists", mock.Anything).Return(".", nil)
 				gitClient.On("Root").Return("")
@@ -4281,6 +4518,12 @@ func TestGetRevisionChartDetails(t *testing.T) {
 			Description: "test-description",
 			Home:        "test-home",
 			Maintainers: []string{"test-maintainer"},
+		})
+		require.NoError(t, err)
+		err = service.cache.SetSemverMetadataForHelm(repoURL, "my-chart", "1.1.0", "test-revision", &versions.RevisionMetadata{
+			OriginalRevision: "test-revision",
+			ResolutionType:   versions.RevisionResolutionDirect,
+			Resolved:         "test-tag",
 		})
 		require.NoError(t, err)
 		chartDetails, err := service.GetRevisionChartDetails(t.Context(), &apiclient.RepoServerRevisionChartDetailsRequest{

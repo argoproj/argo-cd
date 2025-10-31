@@ -21,6 +21,7 @@ import (
 	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
 	"github.com/argoproj/argo-cd/v3/util/env"
 	"github.com/argoproj/argo-cd/v3/util/hash"
+	"github.com/argoproj/argo-cd/v3/util/versions"
 )
 
 var (
@@ -549,4 +550,36 @@ func (cmr *CachedManifestResponse) generateCacheEntryHash() (string, error) {
 	}
 	fnvHash := h.Sum(nil)
 	return base64.URLEncoding.EncodeToString(fnvHash), nil
+}
+
+func semverMetadataKey(repoURL string, commitSHA string, targetRevision string) string {
+	return fmt.Sprintf("semver|%s|%s|%s", repoURL, commitSHA, targetRevision)
+}
+
+func semverMetadataHelmKey(repoURL string, chart string, commitSHA string, targetRevision string) string {
+	return fmt.Sprintf("semver|%s|%s|%s|%s", repoURL, chart, commitSHA, targetRevision)
+}
+
+func (c *Cache) GetSemverMetadata(repoURL string, commitSHA string, targetRevision string) (*versions.RevisionMetadata, error) {
+	item := &versions.RevisionMetadata{}
+	return item, c.cache.GetItem(semverMetadataKey(repoURL, commitSHA, targetRevision), item)
+}
+
+func (c *Cache) GetSemverMetadataForHelm(repoURL string, chart string, commitSHA string, targetRevision string) (*versions.RevisionMetadata, error) {
+	item := &versions.RevisionMetadata{}
+	return item, c.cache.GetItem(semverMetadataHelmKey(repoURL, chart, commitSHA, targetRevision), item)
+}
+
+func (c *Cache) SetSemverMetadata(repoURL string, commitSHA string, targetRevision string, metadata *versions.RevisionMetadata) error {
+	return c.cache.SetItem(
+		semverMetadataKey(repoURL, commitSHA, targetRevision),
+		metadata,
+		&cacheutil.CacheActionOpts{Expiration: c.repoCacheExpiration})
+}
+
+func (c *Cache) SetSemverMetadataForHelm(repoURL string, chart string, commitSHA string, targetRevision string, metadata *versions.RevisionMetadata) error {
+	return c.cache.SetItem(
+		semverMetadataHelmKey(repoURL, chart, commitSHA, targetRevision),
+		metadata,
+		&cacheutil.CacheActionOpts{Expiration: c.repoCacheExpiration})
 }
