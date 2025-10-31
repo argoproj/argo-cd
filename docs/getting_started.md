@@ -56,8 +56,7 @@ brew install argocd
 
 ## 3. Access Argo CD
 
-By default, the Argo CD API server is not exposed with an external IP. To access the API server,
-choose one of the following techniques to expose the Argo CD API server:
+By default, Argo CD isn’t exposed outside the cluster. To access the Argo CD UI and CLI, choose one of the following methods to make it reachable from your environment.
 
 ### Service Type Load Balancer
 Change the argocd-server service type to `LoadBalancer`:
