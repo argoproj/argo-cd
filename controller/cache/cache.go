@@ -886,7 +886,8 @@ func (c *liveStateCache) handleNamespaceChanges(
 	cluster clustercache.ClusterCache,
 	oldNamespaces, newNamespaces []string,
 ) []clustercache.UpdateSettingsFunc {
-	if reflect.DeepEqual(oldNamespaces, newNamespaces) {
+	added, removed := namespaceDiff(oldNamespaces, newNamespaces)
+	if len(added) == 0 && len(removed) == 0 {
 		return nil
 	}
 
@@ -896,25 +897,23 @@ func (c *liveStateCache) handleNamespaceChanges(
 		}
 	}
 
-	added, removed := namespaceDiff(oldNamespaces, newNamespaces)
-
 	hasErrors := false
 	for _, ns := range added {
 		if err := cluster.AddNamespace(ns); err != nil {
-			log.Warnf("Failed to incrementally add namespace %s: %v", ns, err)
+			log.Warnf("Failed to incrementally add namespace %s for cluster %s: %v", ns, cluster.GetClusterInfo().Server, err)
 			hasErrors = true
 		}
 	}
 
 	for _, ns := range removed {
 		if err := cluster.RemoveNamespace(ns); err != nil {
-			log.Warnf("Failed to incrementally remove namespace %s: %v", ns, err)
+			log.Warnf("Failed to incrementally remove namespace %s for cluster %s: %v", ns, cluster.GetClusterInfo().Server, err)
 			hasErrors = true
 		}
 	}
 
 	if hasErrors {
-		log.Warnf("Incremental namespace sync failed, falling back to full cache invalidation")
+		log.Warnf("Incremental namespace sync failed for cluster %s, falling back to full cache invalidation", cluster.GetClusterInfo().Server)
 		return []clustercache.UpdateSettingsFunc{
 			clustercache.SetNamespaces(newNamespaces),
 		}

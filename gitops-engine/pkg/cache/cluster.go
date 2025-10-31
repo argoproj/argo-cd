@@ -693,7 +693,16 @@ func (c *clusterCache) snapshotApisMeta() map[schema.GroupKind]*apiMeta {
 }
 
 // syncNamespaceResources lists and caches resources for the given namespace across all watched APIs
-func (c *clusterCache) syncNamespaceResources(namespace string, apisToSync map[schema.GroupKind]*apiMeta) error {
+func (c *clusterCache) syncNamespaceResources(namespace string, apisToSync map[schema.GroupKind]*apiMeta) (err error) {
+	c.log.Info("Start syncing namespace", "namespace", namespace)
+	defer func() {
+		if err != nil {
+			c.log.Error(err, "Failed to sync namespace", "namespace", namespace)
+		} else {
+			c.log.Info("Namespace successfully synced", "namespace", namespace)
+		}
+	}()
+
 	client, err := c.kubectl.NewDynamicClient(c.config)
 	if err != nil {
 		return fmt.Errorf("failed to create client: %w", err)
