@@ -256,6 +256,8 @@ const (
 	EnvGitRetryFactor = "ARGOCD_GIT_RETRY_FACTOR"
 	// EnvGitSubmoduleEnabled overrides git submodule support, true by default
 	EnvGitSubmoduleEnabled = "ARGOCD_GIT_MODULES_ENABLED"
+	// EnvGitBuiltinConfigDisabled disables ArgoCD mandatory builtin git configuration options, false by default
+	EnvGitBuiltinConfigDisabled = "ARGOCD_GIT_BUILTIN_CONFIG_DISABLED"
 	// EnvGnuPGHome is the path to ArgoCD's GnuPG keyring for signature verification
 	EnvGnuPGHome = "ARGOCD_GNUPGHOME"
 	// EnvWatchAPIBufferSize is the buffer size used to transfer K8S watch events to watch API consumer

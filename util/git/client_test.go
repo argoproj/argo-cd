@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 	"testing"
@@ -23,6 +24,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/util/env"
 	"github.com/argoproj/argo-cd/v3/util/workloadidentity"
 	"github.com/argoproj/argo-cd/v3/util/workloadidentity/mocks"
 )
@@ -1225,5 +1228,24 @@ Argocd-reference-commit-repourl: https://github.com/another/repo.git`,
 			assert.Equal(t, tt.expectedReferences, result)
 			assert.Equal(t, tt.expectedMessage, message)
 		})
+	}
+}
+
+func Test_BuiltinConfig(t *testing.T) {
+	tempDir := t.TempDir()
+	ctx := t.Context()
+
+	client, err := NewClientExt("file://"+tempDir, tempDir, NopCreds{}, true, false, "", "")
+	require.NoError(t, err)
+	assert.False(t, env.ParseBoolFromEnv(common.EnvGitBuiltinConfigDisabled, false),
+		"env. var. "+common.EnvGitBuiltinConfigDisabled+" should not be set to true when running this test")
+	native := client.(*nativeGitClient)
+
+	configOut, err := native.config(ctx, "--list", "--show-origin")
+	require.NoError(t, err)
+	for k, v := range builtinGitConfig {
+		r := regexp.MustCompile(fmt.Sprintf("(?m)^command line:\\s+%s=%s$", strings.ToLower(k), regexp.QuoteMeta(v)))
+		matches := r.FindString(configOut)
+		assert.NotEmpty(t, matches, "missing builtin configuration option %s=%s", k, v)
 	}
 }

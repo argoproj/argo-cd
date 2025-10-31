@@ -46,6 +46,18 @@ import (
 
 var ErrInvalidRepoURL = errors.New("repo URL is invalid")
 
+// builtinGitConfig configuration contains statements that are needed
+// for correct ArgoCD operation. These settings will override any
+// user-provided configuration of same options.
+var builtinGitConfig = map[string]string{
+	"maintenance.autoDetach": "false",
+	"gc.autoDetach":          "false",
+}
+
+// builtinGitConfigEnv contains builtin git configuration in the
+// format acceptable by Git.  initialized in init()
+var builtinGitConfigEnv []string
+
 // CommitMetadata contains metadata about a commit that is related in some way to another commit.
 type CommitMetadata struct {
 	// Author is the author of the commit.
@@ -175,6 +187,7 @@ var (
 	maxRetryDuration time.Duration
 	retryDuration    time.Duration
 	factor           int64
+	// disableBuiltinGitConfig bool
 )
 
 func init() {
@@ -189,6 +202,16 @@ func init() {
 	maxRetryDuration = env.ParseDurationFromEnv(common.EnvGitRetryMaxDuration, common.DefaultGitRetryMaxDuration, 0, math.MaxInt64)
 	retryDuration = env.ParseDurationFromEnv(common.EnvGitRetryDuration, common.DefaultGitRetryDuration, 0, math.MaxInt64)
 	factor = env.ParseInt64FromEnv(common.EnvGitRetryFactor, common.DefaultGitRetryFactor, 0, math.MaxInt64)
+	disableBuiltinGitConfig := env.ParseBoolFromEnv(common.EnvGitBuiltinConfigDisabled, false)
+	if !disableBuiltinGitConfig {
+		builtinGitConfigEnv = append(builtinGitConfigEnv, fmt.Sprintf("GIT_CONFIG_COUNT=%d", len(builtinGitConfig)))
+		idx := 0
+		for k, v := range builtinGitConfig {
+			builtinGitConfigEnv = append(builtinGitConfigEnv, fmt.Sprintf("GIT_CONFIG_KEY_%d=%s", idx, k))
+			builtinGitConfigEnv = append(builtinGitConfigEnv, fmt.Sprintf("GIT_CONFIG_VALUE_%d=%s", idx, v))
+			idx++
+		}
+	}
 }
 
 type ClientOpts func(c *nativeGitClient)
@@ -1120,7 +1143,8 @@ func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd, ropts runOpts) (string, er
 	cmd.Env = append(cmd.Env, "GIT_LFS_SKIP_SMUDGE=1")
 	// Disable Git terminal prompts in case we're running with a tty
 	cmd.Env = append(cmd.Env, "GIT_TERMINAL_PROMPT=false")
-
+	// Add git configuration options that are essential for ArgoCD operation
+	cmd.Env = append(cmd.Env, builtinGitConfigEnv...)
 	// For HTTPS repositories, we need to consider insecure repositories as well
 	// as custom CA bundles from the cert database.
 	if IsHTTPSURL(m.repoURL) {
