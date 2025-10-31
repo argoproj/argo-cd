@@ -1570,13 +1570,15 @@ export const SyncWindowStatusIcon = ({state, window}: {state: appModels.SyncWind
     );
 };
 
-export const ApplicationSyncWindowStatusIcon = ({project, state}: {project: string; state: appModels.ApplicationSyncWindowState}) => {
+export const ApplicationSyncWindowStatusIcon = ({project, state}: {project: string; state?: appModels.ApplicationSyncWindowState}) => {
     let className = '';
     let color = '';
     let deny = false;
     let allow = false;
     let inactiveAllow = false;
-    if (state.assignedWindows !== undefined && state.assignedWindows.length > 0) {
+    if (!state) {
+        allow = true;
+    } else if (state.assignedWindows !== undefined && state.assignedWindows.length > 0) {
         if (state.activeWindows !== undefined && state.activeWindows.length > 0) {
             for (const w of state.activeWindows) {
                 if (w.kind === 'deny') {
