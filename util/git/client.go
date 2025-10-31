@@ -55,7 +55,7 @@ var builtinGitConfig = map[string]string{
 }
 
 // builtinGitConfigEnv contains builtin git configuration in the
-// format acceptable by Git.  initialized in init()
+// format acceptable by Git.  Initialized in init()
 var builtinGitConfigEnv []string
 
 // CommitMetadata contains metadata about a commit that is related in some way to another commit.
@@ -187,7 +187,6 @@ var (
 	maxRetryDuration time.Duration
 	retryDuration    time.Duration
 	factor           int64
-	// disableBuiltinGitConfig bool
 )
 
 func init() {
