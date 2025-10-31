@@ -56,7 +56,7 @@ brew install argocd
 
 ## 3. Access Argo CD
 
-By default, Argo CD isn’t exposed outside the cluster. To access the Argo CD UI and CLI, choose one of the following methods to make it reachable from your environment.
+By default, Argo CD isn’t exposed outside the cluster. To access Argo CD from your browser or CLI, use one of the following methods:
 
 ### Service Type Load Balancer
 Change the argocd-server service type to `LoadBalancer`:
