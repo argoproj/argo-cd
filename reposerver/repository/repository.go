@@ -3089,12 +3089,15 @@ func (s *Service) UpdateRevisionForPaths(_ context.Context, request *apiclient.U
 			// Only warn with the error, no need to block anything if there is a caching error.
 			logCtx.Warnf("error updating cached revision for repo %s with revision %s: %v", repo.Repo, revision, err)
 			return &apiclient.UpdateRevisionForPathsResponse{
-				Revision: revision,
+				Revision: syncedRevision,
 			}, nil
 		}
 
+		// Return the synced revision when no changes are detected in the manifest-generate-paths.
+		// This ensures that sync history only records revisions with actual relevant changes,
+		// avoiding clutter from commits in unrelated paths.
 		return &apiclient.UpdateRevisionForPathsResponse{
-			Revision: revision,
+			Revision: syncedRevision,
 		}, nil
 	}
 
