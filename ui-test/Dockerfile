@@ -18,8 +18,8 @@ RUN dpkg-divert --add --rename --divert /opt/google/chrome/google-chrome.real /o
      && chmod 755 /opt/google/chrome/google-chrome
 
 WORKDIR /usr/src/app
-COPY package*.json ./
-COPY yarn.lock ./
+COPY package*.json \
+     yarn.lock \
+     ./
 RUN yarn install && yarn cache clean
 COPY . .
-
