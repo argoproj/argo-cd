@@ -137,19 +137,16 @@ func FilterByFile(apps []argoappv1.Application, file []string) []argoappv1.Appli
 				}
 				var targetPath string
 
-				switch annotation {
-				case ".":
+				switch {
+				case annotation == ".":
 					targetPath = appPath
-				case "..":
+				case annotation == "..":
 					targetPath = filepath.Dir(appPath)
-
+				case filepath.IsAbs(annotation):
+					targetPath = filepath.Clean(annotation)
 				default:
-					if filepath.IsAbs(annotation) {
-						targetPath = filepath.Clean(annotation)
-					} else {
-						targetPath = filepath.Join(appPath, annotation)
-						targetPath = filepath.Clean(targetPath)
-					}
+					targetPath = filepath.Join(appPath, annotation)
+					targetPath = filepath.Clean(targetPath)
 				}
 				relativePath, err := filepath.Rel(targetPath, filePath)
 				if err != nil {
