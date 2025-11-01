@@ -74,19 +74,35 @@ func (g *ClusterGenerator) GenerateParams(appSetGenerator *argoappsetv1alpha1.Ap
 		return nil, nil
 	}
 
-	clusterSecrets, err := g.getSecretsByClusterName(logCtx, appSetGenerator)
+	clusterSecrets, err := g.getSecretsByClusterName(logCtx, &appSetGenerator.Clusters.Selector)
 	if err != nil {
 		return nil, fmt.Errorf("error getting cluster secrets: %w", err)
+	}
+
+	// Remove cluster secrets based on exclude selectors
+	for _, excludedSelector := range appSetGenerator.Clusters.ExcludeSelectors {
+		cs, err := g.getSecretsByClusterName(logCtx, &excludedSelector)
+		if err != nil {
+			return nil, fmt.Errorf("error getting excluded cluster secrets: %w", err)
+		}
+		for name := range cs {
+			if _, exists := clusterSecrets[name]; exists {
+				delete(clusterSecrets, name)
+				logCtx.WithField("excludedClusterSecret", name).Info("Excluding cluster secret based on exclude selector")
+			}
+		}
 	}
 
 	paramHolder := &paramHolder{isFlatMode: appSetGenerator.Clusters.FlatList}
 	logCtx.Debugf("Using flat mode = %t for cluster generator", paramHolder.isFlatMode)
 
 	secretsFound := []corev1.Secret{}
+	logCtx.WithField("clusterSecrets", clusterSecrets).Info("clusterSecrets list")
 	for _, cluster := range clustersFromArgoCD {
-		// If there is a secret for this cluster, then it's a non-local cluster, so it will be
-		// handled by the next step.
+		// If there is a secret for this cluster, then it's a non-local cluster, we check that
+		// we don't want to exclude it and pass it down to be handled by the next step.
 		if secretForCluster, exists := clusterSecrets[cluster.Name]; exists {
+			logCtx.WithField("secret", cluster.Name).Info("Found secret for cluster")
 			secretsFound = append(secretsFound, secretForCluster)
 		} else if !ignoreLocalClusters {
 			// If there is no secret for the cluster, it's the local cluster, so handle it here.
@@ -177,10 +193,10 @@ func (g *ClusterGenerator) getClusterParameters(cluster corev1.Secret, appSet *a
 	return params
 }
 
-func (g *ClusterGenerator) getSecretsByClusterName(log *log.Entry, appSetGenerator *argoappsetv1alpha1.ApplicationSetGenerator) (map[string]corev1.Secret, error) {
+func (g *ClusterGenerator) getSecretsByClusterName(log *log.Entry, selectorLabel *metav1.LabelSelector) (map[string]corev1.Secret, error) {
 	clusterSecretList := &corev1.SecretList{}
 
-	selector := metav1.AddLabelToSelector(&appSetGenerator.Clusters.Selector, common.LabelKeySecretType, common.LabelValueSecretTypeCluster)
+	selector := metav1.AddLabelToSelector(selectorLabel, common.LabelKeySecretType, common.LabelValueSecretTypeCluster)
 	secretSelector, err := metav1.LabelSelectorAsSelector(selector)
 	if err != nil {
 		return nil, fmt.Errorf("error converting label selector: %w", err)
