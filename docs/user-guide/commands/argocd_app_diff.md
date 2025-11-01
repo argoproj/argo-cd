@@ -8,12 +8,44 @@ Perform a diff against the target and live state.
 
 Perform a diff against the target and live state.
 Uses 'diff' to render the difference. KUBECTL_EXTERNAL_DIFF environment variable can be used to select your own diff tool.
-Returns the following exit codes: 2 on general errors, 1 when a diff is found, and 0 when no diff is found
+Returns the following exit codes: 3 when validation fails (with --validate flag), 2 on general errors, 1 when a diff is found, and 0 when no diff is found
 Kubernetes Secrets are ignored from this diff.
 
 ```
 argocd app diff APPNAME [flags]
 ```
+
+### Examples
+
+```bash
+# Compare live state to target state
+argocd app diff my-app
+
+# Compare live state to target state with validation
+argocd app diff my-app --validate
+
+# Compare live state in a specific revision
+argocd app diff my-app --revision 1.0.0
+
+# Use lint as an alias for validate
+argocd app diff my-app --lint
+```
+
+### Validation Flag Details
+
+The `--validate` (or `--lint`) flag performs server-side validation of manifests before applying them:
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--validate` | `false` | Validates manifests using Kubernetes API server-side dry-run |
+| `--lint` | `false` | Alias for `--validate` |
+
+#### Exit Codes
+
+- `0` - No differences found and validation passed (if enabled)
+- `1` - Differences found (default, can be changed with `--diff-exit-code`)
+- `2` - General error
+- `3` - Validation failed (only with `--validate` flag)
 
 ### Options
 
@@ -34,6 +66,8 @@ argocd app diff APPNAME [flags]
       --server-side-generate                              Used with --local, this will send your manifests to the server for diffing
       --source-names stringArray                          List of source names. Default is an empty array.
       --source-positions int64Slice                       List of source positions. Default is empty array. Counting start at 1. (default [])
+      --validate                                          Validate manifests using kubectl apply --server-side --dry-run
+      --lint                                              Alias for --validate
 ```
 
 ### Options inherited from parent commands
