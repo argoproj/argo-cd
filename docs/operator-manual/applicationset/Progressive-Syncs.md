@@ -115,7 +115,9 @@ This strategy is particularly useful when you need to tear down dependent servic
 - Requires `rollingSync.steps` to be defined
 - Applications are deleted in reverse order of step sequence
 
-**Important:** The ApplicationSet finalizer is not removed until all applications are successfully deleted. This ensures proper cleanup and prevents the ApplicationSet from being removed before its managed applications.
+**Important:** The ApplicationSet finalizer is not removed until all applications are successfully deleted. This ensures proper cleanup and prevents the ApplicationSet from being removed before its managed applications. 
+
+**Note:** ApplicationSet controller ensures there is a finalizer when deletionOrder is set as Reverse with progressive sync enabled. That is - if the applicationset is missing the required finalizer, the controller adds the finalizer to ApplicationSet before generating applications.
 
 ```yaml
 spec:
