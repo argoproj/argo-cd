@@ -23,11 +23,11 @@ import (
 	"sort"
 
 	hashutil "github.com/argoproj/gitops-engine/internal/kubernetes_vendor/pkg/util/hash"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 )
 
 // LessEndpointAddress compares IP addresses lexicographically and returns true if first argument is lesser than second
-func LessEndpointAddress(a, b *v1.EndpointAddress) bool {
+func LessEndpointAddress(a, b *corev1.EndpointAddress) bool {
 	ipComparison := bytes.Compare([]byte(a.IP), []byte(b.IP))
 	if ipComparison != 0 {
 		return ipComparison < 0
@@ -43,7 +43,7 @@ func LessEndpointAddress(a, b *v1.EndpointAddress) bool {
 
 // SortSubsets sorts an array of EndpointSubset objects in place.  For ease of
 // use it returns the input slice.
-func SortSubsets(subsets []v1.EndpointSubset) []v1.EndpointSubset {
+func SortSubsets(subsets []corev1.EndpointSubset) []corev1.EndpointSubset {
 	for i := range subsets {
 		ss := &subsets[i]
 		sort.Sort(addrsByIPAndUID(ss.Addresses))
@@ -54,12 +54,12 @@ func SortSubsets(subsets []v1.EndpointSubset) []v1.EndpointSubset {
 	return subsets
 }
 
-func hashObject(hasher hash.Hash, obj interface{}) []byte {
+func hashObject(hasher hash.Hash, obj any) []byte {
 	hashutil.DeepHashObject(hasher, obj)
 	return hasher.Sum(nil)
 }
 
-type subsetsByHash []v1.EndpointSubset
+type subsetsByHash []corev1.EndpointSubset
 
 func (sl subsetsByHash) Len() int      { return len(sl) }
 func (sl subsetsByHash) Swap(i, j int) { sl[i], sl[j] = sl[j], sl[i] }
@@ -70,7 +70,7 @@ func (sl subsetsByHash) Less(i, j int) bool {
 	return bytes.Compare(h1, h2) < 0
 }
 
-type addrsByIPAndUID []v1.EndpointAddress
+type addrsByIPAndUID []corev1.EndpointAddress
 
 func (sl addrsByIPAndUID) Len() int      { return len(sl) }
 func (sl addrsByIPAndUID) Swap(i, j int) { sl[i], sl[j] = sl[j], sl[i] }
@@ -78,7 +78,7 @@ func (sl addrsByIPAndUID) Less(i, j int) bool {
 	return LessEndpointAddress(&sl[i], &sl[j])
 }
 
-type portsByHash []v1.EndpointPort
+type portsByHash []corev1.EndpointPort
 
 func (sl portsByHash) Len() int      { return len(sl) }
 func (sl portsByHash) Swap(i, j int) { sl[i], sl[j] = sl[j], sl[i] }

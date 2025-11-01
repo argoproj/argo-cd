@@ -424,6 +424,17 @@ test: test-tools-image
 	mkdir -p $(GOCACHE)
 	$(call run-in-test-client,make TEST_MODULE=$(TEST_MODULE) test-local)
 
+.PHONY: format-go
+format-go:
+	{ \
+		set -e; \
+		for mod in $$(find . -maxdepth 4 -type f -name 'go.mod' | grep -v tools); do \
+			echo "Fixing $$(dirname $${mod}) ..."; \
+			cd $$(dirname $${mod}); \
+			golangci-lint run --fix --config $(CURDIR)/.golangci.yaml; \
+			cd - > /dev/null; \
+		done; \
+	}
 # Run all unit tests (local version)
 .PHONY: test-local
 test-local:

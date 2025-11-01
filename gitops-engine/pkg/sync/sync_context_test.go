@@ -617,7 +617,7 @@ type APIServerMock struct {
 	errorBody   []byte
 }
 
-func (s *APIServerMock) newHttpServer(t *testing.T, apiFailuresCount int) *httptest.Server {
+func (s *APIServerMock) newHTTPServer(t *testing.T, apiFailuresCount int) *httptest.Server {
 	t.Helper()
 	stable := metav1.APIResourceList{
 		GroupVersion: "v1",
@@ -661,6 +661,7 @@ func (s *APIServerMock) newHttpServer(t *testing.T, apiFailuresCount int) *httpt
 }
 
 func TestServerResourcesRetry(t *testing.T) {
+	t.Parallel()
 	type fixture struct {
 		apiServerMock *APIServerMock
 		httpServer    *httptest.Server
@@ -685,7 +686,7 @@ func TestServerResourcesRetry(t *testing.T) {
 			errorStatus: http.StatusUnauthorized,
 			errorBody:   unauthorizedJSON,
 		}
-		httpServer := server.newHttpServer(t, apiFailuresCount)
+		httpServer := server.newHTTPServer(t, apiFailuresCount)
 
 		syncCtx.disco = discovery.NewDiscoveryClientForConfigOrDie(&rest.Config{Host: httpServer.URL})
 		testSvc := testingutils.NewService()
@@ -955,6 +956,7 @@ func TestSync_HookWithReplaceAndBeforeHookCreation_AlreadyDeleted(t *testing.T) 
 }
 
 func TestSync_ServerSideApply(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name            string
 		target          *unstructured.Unstructured
