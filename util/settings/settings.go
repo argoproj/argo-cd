@@ -221,7 +221,9 @@ type OIDCConfig struct {
 }
 
 type AzureOIDCConfig struct {
-	UseWorkloadIdentity bool `json:"useWorkloadIdentity,omitempty"`
+	UseWorkloadIdentity            bool `json:"useWorkloadIdentity,omitempty"`
+	EnableGroupsOverflowResolution bool `json:"enableGroupsOverflowResolution,omitempty"`
+	MaxGroupsLimit                 int  `json:"maxGroupsLimit,omitempty"`
 }
 
 // DEPRECATED. Helm repository credentials are now managed using RepoCredentials
