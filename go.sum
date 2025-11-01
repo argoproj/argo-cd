@@ -37,8 +37,8 @@ cloud.google.com/go/storage v1.5.0/go.mod h1:tpKbwo567HUNpVclU5sGELwQWBDZ8gh0Zeo
 cloud.google.com/go/storage v1.6.0/go.mod h1:N7U0C8pVQ/+NIKOBQyamJIeKQKkZ+mxpohlUTyfDhBk=
 cloud.google.com/go/storage v1.8.0/go.mod h1:Wv1Oy7z6Yz3DshWRJFhqM/UCfaWIRTdp0RXyy7KQOVs=
 cloud.google.com/go/storage v1.10.0/go.mod h1:FLPqc6j+Ki4BU591ie1oL6qBQGu2Bl/tZ9ullr3+Kg0=
-code.gitea.io/sdk/gitea v0.22.0 h1:HCKq7bX/HQ85Nw7c/HAhWgRye+vBp5nQOE8Md1+9Ef0=
-code.gitea.io/sdk/gitea v0.22.0/go.mod h1:yyF5+GhljqvA30sRDreoyHILruNiy4ASufugzYg0VHM=
+code.gitea.io/sdk/gitea v0.22.1 h1:7K05KjRORyTcTYULQ/AwvlVS6pawLcWyXZcTr7gHFyA=
+code.gitea.io/sdk/gitea v0.22.1/go.mod h1:yyF5+GhljqvA30sRDreoyHILruNiy4ASufugzYg0VHM=
 dario.cat/mergo v1.0.2 h1:85+piFYR1tMbRrLcDwR18y4UKJ3aH1Tbzi24VRW1TK8=
 dario.cat/mergo v1.0.2/go.mod h1:E/hbnu0NxMFBjpMIE34DRGLWqDy0g5FuKDhCb31ngxA=
 dmitri.shuralyov.com/gpu/mtl v0.0.0-20190408044501-666a987793e9/go.mod h1:H6x//7gZCb22OMCxBHrMx7a5I7Hp++hsVxbQ4BYO7hU=
