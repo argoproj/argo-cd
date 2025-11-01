@@ -1,7 +1,6 @@
 package services
 
 import (
-	"context"
 	"crypto/tls"
 	"net/http"
 	"testing"
@@ -12,7 +11,7 @@ import (
 )
 
 func TestSetupBitbucketClient(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	cfg := &bitbucketv1.Configuration{}
 
 	// Act
