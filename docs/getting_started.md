@@ -15,8 +15,7 @@
 kubectl create namespace argocd
 kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
 ```
-
-This will create a new namespace, `argocd`, where Argo CD services and application resources will live.
+Install Argo CD by applying the official manifests from the stable branch, which is recommended for production; this will create a new `argocd` namespace where all Argo CD services and application resources will reside.
 
 > [!WARNING]
 > The installation manifests include `ClusterRoleBinding` resources that reference `argocd` namespace. If you are installing Argo CD into a different
@@ -55,10 +54,9 @@ Also available in Mac, Linux and WSL Homebrew:
 brew install argocd
 ```
 
-## 3. Access The Argo CD API Server
+## 3. Access Argo CD
 
-By default, the Argo CD API server is not exposed with an external IP. To access the API server,
-choose one of the following techniques to expose the Argo CD API server:
+By default, Argo CD isn’t exposed outside the cluster. To access Argo CD from your browser or CLI, use one of the following methods:
 
 ### Service Type Load Balancer
 Change the argocd-server service type to `LoadBalancer`:
