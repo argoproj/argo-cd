@@ -275,13 +275,15 @@ export const ApplicationNodeInfo = (props: {
                                         )}
                                         {`${props.node.name}`}
                                         <br />
-                                        {props?.controlled?.state?.normalizedLiveState?.apiVersion && (
-                                            <span>
-                                                Please update your resource specification to use the latest Kubernetes API resources supported by the target cluster. The
-                                                recommended syntax is{' '}
-                                                {`${props.controlled.state.normalizedLiveState.apiVersion}/${props?.controlled.state.normalizedLiveState?.kind}:${props.node.name}`}
-                                            </span>
-                                        )}
+                                        {props?.controlled?.state?.normalizedLiveState?.apiVersion &&
+                                            `${props?.controlled?.state?.targetState?.apiVersion}/${props?.controlled?.state?.targetState?.kind}:${props.node.name}` !==
+                                                `${props.controlled.state.normalizedLiveState.apiVersion}/${props?.controlled.state.normalizedLiveState?.kind}:${props.node.name}` && (
+                                                <span>
+                                                    Please update your resource specification to use the latest Kubernetes API resources supported by the target cluster. The
+                                                    recommended syntax is{' '}
+                                                    {`${props.controlled.state.normalizedLiveState.apiVersion}/${props?.controlled.state.normalizedLiveState?.kind}:${props.node.name}`}
+                                                </span>
+                                            )}
                                     </div>
                                 )}
                             </React.Fragment>
