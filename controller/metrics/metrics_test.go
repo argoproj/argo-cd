@@ -322,8 +322,8 @@ func runTest(t *testing.T, cfg TestMetricServerConfig) {
 	cancel, appLister := newFakeLister(cfg.FakeAppYAMLs...)
 	defer cancel()
 	mockDB := mocks.NewArgoDB(t)
-	mockDB.On("GetClusterServersByName", mock.Anything, "cluster1").Return([]string{"https://localhost:6443"}, nil)
-	mockDB.On("GetCluster", mock.Anything, "https://localhost:6443").Return(&argoappv1.Cluster{Name: "cluster1", Server: "https://localhost:6443"}, nil)
+	mockDB.EXPECT().GetClusterServersByName(mock.Anything, "cluster1").Return([]string{"https://localhost:6443"}, nil).Maybe()
+	mockDB.EXPECT().GetCluster(mock.Anything, "https://localhost:6443").Return(&argoappv1.Cluster{Name: "cluster1", Server: "https://localhost:6443"}, nil).Maybe()
 	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, cfg.AppLabels, cfg.AppConditions, mockDB)
 	require.NoError(t, err)
 
