@@ -41,6 +41,7 @@ type AppOptions struct {
 	Parameters                      []string
 	valuesFiles                     []string
 	ignoreMissingValueFiles         bool
+	ignoreMissingFileParameters     bool
 	values                          string
 	releaseName                     string
 	helmSets                        []string
@@ -120,6 +121,7 @@ func AddAppFlags(command *cobra.Command, opts *AppOptions) {
 	command.Flags().StringArrayVarP(&opts.Parameters, "parameter", "p", []string{}, "set a parameter override (e.g. -p guestbook=image=example/guestbook:latest)")
 	command.Flags().StringArrayVar(&opts.valuesFiles, "values", []string{}, "Helm values file(s) to use")
 	command.Flags().BoolVar(&opts.ignoreMissingValueFiles, "ignore-missing-value-files", false, "Ignore locally missing valueFiles when setting helm template --values")
+	command.Flags().BoolVar(&opts.ignoreMissingFileParameters, "ignore-missing-file-parameters", false, "Ignore locally missing fileParameters when setting helm template --helm-set-file")
 	command.Flags().StringVar(&opts.values, "values-literal-file", "", "Filename or URL to import as a literal Helm values block")
 	command.Flags().StringVar(&opts.releaseName, "release-name", "", "Helm release-name")
 	command.Flags().StringVar(&opts.helmVersion, "helm-version", "", "Helm version")
@@ -399,21 +401,22 @@ func setPluginOptEnvs(src *argoappv1.ApplicationSource, envs []string) {
 }
 
 type helmOpts struct {
-	valueFiles              []string
-	ignoreMissingValueFiles bool
-	values                  string
-	releaseName             string
-	version                 string
-	helmSets                []string
-	helmSetStrings          []string
-	helmSetFiles            []string
-	passCredentials         bool
-	skipCrds                bool
-	skipSchemaValidation    bool
-	skipTests               bool
-	namespace               string
-	kubeVersion             string
-	apiVersions             []string
+	valueFiles                  []string
+	ignoreMissingValueFiles     bool
+	ignoreMissingFileParameters bool
+	values                      string
+	releaseName                 string
+	version                     string
+	helmSets                    []string
+	helmSetStrings              []string
+	helmSetFiles                []string
+	passCredentials             bool
+	skipCrds                    bool
+	skipSchemaValidation        bool
+	skipTests                   bool
+	namespace                   string
+	kubeVersion                 string
+	apiVersions                 []string
 }
 
 func setHelmOpt(src *argoappv1.ApplicationSource, opts helmOpts) {
@@ -425,6 +428,9 @@ func setHelmOpt(src *argoappv1.ApplicationSource, opts helmOpts) {
 	}
 	if opts.ignoreMissingValueFiles {
 		src.Helm.IgnoreMissingValueFiles = opts.ignoreMissingValueFiles
+	}
+	if opts.ignoreMissingFileParameters {
+		src.Helm.IgnoreMissingFileParameters = opts.ignoreMissingFileParameters
 	}
 	if opts.values != "" {
 		err := src.Helm.SetValuesString(opts.values)
@@ -690,6 +696,8 @@ func ConstructSource(source *argoappv1.ApplicationSource, appOpts AppOptions, fl
 			setHelmOpt(source, helmOpts{valueFiles: appOpts.valuesFiles})
 		case "ignore-missing-value-files":
 			setHelmOpt(source, helmOpts{ignoreMissingValueFiles: appOpts.ignoreMissingValueFiles})
+		case "ignore-missing-file-parameters":
+			setHelmOpt(source, helmOpts{ignoreMissingFileParameters: appOpts.ignoreMissingFileParameters})
 		case "values-literal-file":
 			var data []byte
 			// read uri

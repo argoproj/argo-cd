@@ -549,6 +549,9 @@ message ApplicationSourceHelm {
 
   // SkipSchemaValidation skips JSON schema validation (Helm's --skip-schema-validation)
   optional bool skipSchemaValidation = 15;
+
+  // IgnoreMissingFileParameters prevents helm template from failing when fileParameters do not exist locally by not appending them to helm template --set-file
+  optional bool ignoreMissingFileParameters = 16;
 }
 
 // ApplicationSourceJsonnet holds options specific to applications of type Jsonnet
