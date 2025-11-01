@@ -317,11 +317,11 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, project *v1alp
 					return m.db.GetProjectClusters(context.TODO(), project)
 				})
 				if err != nil {
-					return err
+					return fmt.Errorf("failed to check if namespace %s is permitted in project %s: %w", un.GetNamespace(), project.Name, err)
 				}
 
 				if !permitted {
-					return fmt.Errorf("namespace %v is not permitted in project '%s'", un.GetNamespace(), project.Name)
+					return fmt.Errorf("namespace %s is not permitted in project '%s'", un.GetNamespace(), project.Name)
 				}
 			}
 			return nil

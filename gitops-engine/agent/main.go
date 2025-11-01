@@ -70,7 +70,7 @@ func (s *settings) parseManifests(ctx context.Context) ([]*unstructured.Unstruct
 	for i := range s.paths {
 		if err := filepath.Walk(filepath.Join(s.repoPath, s.paths[i]), func(path string, info os.FileInfo, err error) error {
 			if err != nil {
-				return err
+				return fmt.Errorf("error walking path %s: %w", path, err)
 			}
 			if info.IsDir() {
 				return nil
@@ -157,7 +157,7 @@ func newCmd(log logr.Logger) *cobra.Command {
 					info = &resourceInfo{gcMark: un.GetAnnotations()[annotationGCMark]}
 					// cache resources that has that mark to improve performance
 					cacheManifest = gcMark != ""
-					return
+					return info, cacheManifest
 				}),
 			)
 			gitOpsEngine := engine.NewEngine(config, clusterCache, engine.WithLogr(log))

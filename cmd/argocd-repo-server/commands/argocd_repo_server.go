@@ -178,23 +178,32 @@ func NewCommand() *cobra.Command {
 					// connect to itself to make sure repo server is able to serve connection
 					// used by liveness probe to auto restart repo server
 					// see https://github.com/argoproj/argo-cd/issues/5110 for more information
-					conn, err := apiclient.NewConnection(fmt.Sprintf("localhost:%d", listenPort), 60, &apiclient.TLSConfiguration{DisableTLS: disableTLS})
+
+					conn, err := apiclient.NewConnection(
+						fmt.Sprintf("localhost:%d", listenPort),
+						60,
+						&apiclient.TLSConfiguration{DisableTLS: disableTLS},
+					)
 					if err != nil {
-						return err
+						return fmt.Errorf("failed to establish connection to repo server at localhost:%d: %w", listenPort, err)
 					}
 					defer utilio.Close(conn)
+
 					client := grpc_health_v1.NewHealthClient(conn)
 					res, err := client.Check(r.Context(), &grpc_health_v1.HealthCheckRequest{})
 					if err != nil {
-						return err
+						return fmt.Errorf("failed to perform gRPC health check request: %w", err)
 					}
+
 					if res.Status != grpc_health_v1.HealthCheckResponse_SERVING {
-						return fmt.Errorf("grpc health check status is '%v'", res.Status)
+						return fmt.Errorf("repo server gRPC health check returned non-serving status: '%v'", res.Status)
 					}
+
 					return nil
 				}
 				return nil
 			})
+
 			http.Handle("/metrics", metricsServer.GetHandler())
 			go func() { errors.CheckError(http.ListenAndServe(fmt.Sprintf("%s:%d", metricsHost, metricsPort), nil)) }()
 			go func() { errors.CheckError(askPassServer.Run()) }()

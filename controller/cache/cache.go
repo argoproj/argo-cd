@@ -675,6 +675,7 @@ func (c *liveStateCache) IterateHierarchyV2(server *appv1.Cluster, keys []kube.R
 	clusterInfo.IterateHierarchyV2(keys, func(resource *clustercache.Resource, namespaceResources map[kube.ResourceKey]*clustercache.Resource) bool {
 		return action(asResourceNode(resource), getApp(resource, namespaceResources))
 	})
+
 	return nil
 }
 
@@ -683,12 +684,14 @@ func (c *liveStateCache) IterateResources(server *appv1.Cluster, callback func(r
 	if err != nil {
 		return err
 	}
+
 	_ = clusterInfo.FindResources("", func(r *clustercache.Resource) bool {
 		if info, ok := r.Info.(*ResourceInfo); ok {
 			callback(r, info)
 		}
 		return false
 	})
+
 	return nil
 }
 
