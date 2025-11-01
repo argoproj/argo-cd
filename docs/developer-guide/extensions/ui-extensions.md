@@ -232,6 +232,7 @@ registerAppViewExtension(
   component: ExtensionComponent,  // the component to be rendered
   title: string,                  // the title of the page once the component is rendered
   icon: string,                   // the favicon classname for the icon tab
+  shouldDisplay?: (app: Application): boolean // returns true if the view should be available
 )
 ```
 
@@ -249,7 +250,10 @@ Below is an example of a simple extension:
   window.extensionsAPI.registerAppViewExtension(
     component,
     "My Extension",
-    "fa-question-circle"
+    "fa-question-circle",
+    (app) =>
+      application.metadata?.labels?.["application.environmentLabelKey"] ===
+      "prd"
   );
 })(window);
 ```
