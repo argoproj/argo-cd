@@ -22,11 +22,18 @@ argocd logout CONTEXT
 # Logout from a specific context named 'cd.argoproj.io'
 argocd logout cd.argoproj.io
 
+# Logout from multiple named contexts 'localhost:8080' and 'cd.argoproj.io'
+argocd logout localhost:8080 cd.argoproj.io
+
+# Logout from all contexts
+argocd logout --all
+
 ```
 
 ### Options
 
 ```
+      --all    To log out from all Argo CD Contexts
   -h, --help   help for logout
 ```
 

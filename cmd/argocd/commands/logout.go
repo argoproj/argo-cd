@@ -1,10 +1,9 @@
 package commands
 
 import (
+	stderrors "errors"
 	"fmt"
-	"os"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	argocdclient "github.com/argoproj/argo-cd/v3/pkg/apiclient"
@@ -25,42 +24,48 @@ argocd logout CONTEXT
 
 # Logout from a specific context named 'cd.argoproj.io'
 argocd logout cd.argoproj.io
+
+# Logout from multiple named contexts 'localhost:8080' and 'cd.argoproj.io'
+argocd logout localhost:8080 cd.argoproj.io
+
+# Logout from all contexts
+argocd logout --all
 `,
-		Run: func(c *cobra.Command, args []string) {
+		RunE: func(c *cobra.Command, args []string) error {
 			if len(args) == 0 {
 				if !allContexts {
 					c.HelpFunc()(c, args)
-					os.Exit(1)
+					return stderrors.New("context name is required or use --all flag")
 				}
-				err := logoutAllContext(globalClientOpts)
+				err := LogoutAllContext(globalClientOpts)
 				if err != nil {
-					log.Fatalf("error while logging out from all contexts")
+					return fmt.Errorf("error while logging out from all contexts. %w", err)
 				}
 			} else {
-				// TODO: What if we have multiple arguments, not only one?
 				context := args
-				err := logoutContext(globalClientOpts, context)
+				err := LogoutContext(globalClientOpts, context)
 				if err != nil {
-					log.Fatalf("error while logging out from context '%s'. %s'", context, err)
+					return fmt.Errorf("error while logging out from context '%s': %w", context, err)
 				}
 			}
+			return nil
 		},
 	}
 	command.Flags().BoolVar(&allContexts, "all", false, "To log out from all Argo CD Contexts")
 	return command
 }
 
-func logoutAllContext(globalClientOpts *argocdclient.ClientOptions) error {
+func LogoutAllContext(globalClientOpts *argocdclient.ClientOptions) error {
 	localCfg, err := localconfig.ReadLocalConfig(globalClientOpts.ConfigPath)
 	errors.CheckError(err)
 	if localCfg == nil {
-		return fmt.Errorf("nothing to logout from")
+		return stderrors.New("nothing to logout from")
 	}
 
 	for _, contextRef := range localCfg.Contexts {
 		context, err := localCfg.ResolveContext(contextRef.Name)
 		if err != nil {
-			return fmt.Errorf("context '%s' had error: %v", contextRef.Name, err)
+			return fmt.Errorf("context '%s' had error: %w", contextRef.Name, err)
 		}
 
 		ok := localCfg.RemoveToken(context.Server.Server)
@@ -69,7 +74,7 @@ func logoutAllContext(globalClientOpts *argocdclient.ClientOptions) error {
 		}
 		err = localconfig.ValidateLocalConfig(*localCfg)
 		if err != nil {
-			return fmt.Errorf("error in logging out: %s", err)
+			return fmt.Errorf("error in logging out: %w", err)
 		}
 		err = localconfig.WriteLocalConfig(*localCfg, globalClientOpts.ConfigPath)
 		errors.CheckError(err)
@@ -79,11 +84,11 @@ func logoutAllContext(globalClientOpts *argocdclient.ClientOptions) error {
 	return nil
 }
 
-func logoutContext(globalClientOpts *argocdclient.ClientOptions, contexts []string) error {
+func LogoutContext(globalClientOpts *argocdclient.ClientOptions, contexts []string) error {
 	localCfg, err := localconfig.ReadLocalConfig(globalClientOpts.ConfigPath)
 	errors.CheckError(err)
 	if localCfg == nil {
-		return fmt.Errorf("nothing to logout from")
+		return stderrors.New("nothing to logout from")
 	}
 
 	for _, c := range contexts {
@@ -97,7 +102,7 @@ func logoutContext(globalClientOpts *argocdclient.ClientOptions, contexts []stri
 		if err != nil {
 			return fmt.Errorf("couldn't resolve context '%s'", ctxRef.Name)
 		}
-		//if canLogout {
+		// if canLogout {
 		ok := localCfg.RemoveToken(context.Server.Server)
 		if !ok {
 			return fmt.Errorf("context %s does not exist", context.Server.Server)
@@ -105,7 +110,7 @@ func logoutContext(globalClientOpts *argocdclient.ClientOptions, contexts []stri
 
 		err = localconfig.ValidateLocalConfig(*localCfg)
 		if err != nil {
-			return fmt.Errorf("error in logging out: %s", err)
+			return fmt.Errorf("error in logging out: %w", err)
 		}
 		err = localconfig.WriteLocalConfig(*localCfg, globalClientOpts.ConfigPath)
 		errors.CheckError(err)
