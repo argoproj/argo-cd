@@ -223,7 +223,7 @@ func TestTransForm(t *testing.T) {
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
 			testGenerators := map[string]Generator{
-				"Clusters": getMockClusterGenerator(),
+				"Clusters": getMockClusterGenerator(t.Context()),
 			}
 
 			applicationSetInfo := argov1alpha1.ApplicationSet{
@@ -260,7 +260,7 @@ func emptyTemplate() argov1alpha1.ApplicationSetTemplate {
 	}
 }
 
-func getMockClusterGenerator() Generator {
+func getMockClusterGenerator(ctx context.Context) Generator {
 	clusters := []crtclient.Object{
 		&corev1.Secret{
 			TypeMeta: metav1.TypeMeta{
@@ -342,7 +342,7 @@ func getMockClusterGenerator() Generator {
 	appClientset := kubefake.NewSimpleClientset(runtimeClusters...)
 
 	fakeClient := fake.NewClientBuilder().WithObjects(clusters...).Build()
-	return NewClusterGenerator(context.Background(), fakeClient, appClientset, "namespace")
+	return NewClusterGenerator(ctx, fakeClient, appClientset, "namespace")
 }
 
 func getMockGitGenerator() Generator {
@@ -354,7 +354,7 @@ func getMockGitGenerator() Generator {
 
 func TestGetRelevantGenerators(t *testing.T) {
 	testGenerators := map[string]Generator{
-		"Clusters": getMockClusterGenerator(),
+		"Clusters": getMockClusterGenerator(t.Context()),
 		"Git":      getMockGitGenerator(),
 	}
 
