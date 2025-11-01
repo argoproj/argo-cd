@@ -84,7 +84,7 @@ Transforms given GIT URL into HTTPs format.
 <hr>
 **`repo.FullNameByRepoURL(url string) string`**
 
-Returns repository URL full name `(<owner>/<repoName>)`. Currently supports only Github, GitLab and Bitbucket.
+Returns repository URL full name `(<group>/[<nestedGroup...>/]<repoName>)`. Currently supports only Github, GitLab and Bitbucket.
 
 <hr>
 **`repo.QueryEscape(s string) string`**
