@@ -107,33 +107,33 @@ func newFakeControllerWithResync(data *fakeData, appResyncPeriod time.Duration, 
 	}
 
 	// Mock out call to GenerateManifest
-	mockRepoClient := mockrepoclient.RepoServerServiceClient{}
+	mockRepoClient := &mockrepoclient.RepoServerServiceClient{}
 
 	if len(data.manifestResponses) > 0 {
 		for _, response := range data.manifestResponses {
 			if repoErr != nil {
-				mockRepoClient.On("GenerateManifest", mock.Anything, mock.Anything).Return(response, repoErr).Once()
+				mockRepoClient.EXPECT().GenerateManifest(mock.Anything, mock.Anything).Return(response, repoErr).Once()
 			} else {
-				mockRepoClient.On("GenerateManifest", mock.Anything, mock.Anything).Return(response, nil).Once()
+				mockRepoClient.EXPECT().GenerateManifest(mock.Anything, mock.Anything).Return(response, nil).Once()
 			}
 		}
 	} else {
 		if repoErr != nil {
-			mockRepoClient.On("GenerateManifest", mock.Anything, mock.Anything).Return(data.manifestResponse, repoErr).Once()
+			mockRepoClient.EXPECT().GenerateManifest(mock.Anything, mock.Anything).Return(data.manifestResponse, repoErr).Once()
 		} else {
-			mockRepoClient.On("GenerateManifest", mock.Anything, mock.Anything).Return(data.manifestResponse, nil).Once()
+			mockRepoClient.EXPECT().GenerateManifest(mock.Anything, mock.Anything).Return(data.manifestResponse, nil).Once()
 		}
 	}
 
 	if revisionPathsErr != nil {
-		mockRepoClient.On("UpdateRevisionForPaths", mock.Anything, mock.Anything).Return(nil, revisionPathsErr)
+		mockRepoClient.EXPECT().UpdateRevisionForPaths(mock.Anything, mock.Anything).Return(nil, revisionPathsErr)
 	} else {
-		mockRepoClient.On("UpdateRevisionForPaths", mock.Anything, mock.Anything).Return(data.updateRevisionForPathsResponse, nil)
+		mockRepoClient.EXPECT().UpdateRevisionForPaths(mock.Anything, mock.Anything).Return(data.updateRevisionForPathsResponse, nil)
 	}
 
-	mockRepoClientset := mockrepoclient.Clientset{RepoServerServiceClient: &mockRepoClient}
+	mockRepoClientset := &mockrepoclient.Clientset{RepoServerServiceClient: mockRepoClient}
 
-	mockCommitClientset := mockcommitclient.Clientset{}
+	mockCommitClientset := &mockcommitclient.Clientset{}
 
 	secret := corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -165,8 +165,8 @@ func newFakeControllerWithResync(data *fakeData, appResyncPeriod time.Duration, 
 		settingsMgr,
 		kubeClient,
 		appclientset.NewSimpleClientset(data.apps...),
-		&mockRepoClientset,
-		&mockCommitClientset,
+		mockRepoClientset,
+		mockCommitClientset,
 		appstatecache.NewCache(
 			cacheutil.NewCache(cacheutil.NewInMemoryCache(1*time.Minute)),
 			1*time.Minute,
@@ -197,7 +197,7 @@ func newFakeControllerWithResync(data *fakeData, appResyncPeriod time.Duration, 
 		false,
 	)
 	db := &dbmocks.ArgoDB{}
-	db.On("GetApplicationControllerReplicas").Return(1)
+	db.EXPECT().GetApplicationControllerReplicas().Return(1).Maybe()
 	// Setting a default sharding algorithm for the tests where we cannot set it.
 	ctrl.clusterSharding = sharding.NewClusterSharding(db, 0, 1, common.DefaultShardingAlgorithm)
 	if err != nil {
@@ -207,27 +207,25 @@ func newFakeControllerWithResync(data *fakeData, appResyncPeriod time.Duration, 
 	defer cancelProj()
 	cancelApp := test.StartInformer(ctrl.appInformer)
 	defer cancelApp()
-	clusterCacheMock := mocks.ClusterCache{}
-	clusterCacheMock.On("IsNamespaced", mock.Anything).Return(true, nil)
-	clusterCacheMock.On("GetOpenAPISchema").Return(nil, nil)
-	clusterCacheMock.On("GetGVKParser").Return(nil)
+	clusterCacheMock := &mocks.ClusterCache{}
+	clusterCacheMock.EXPECT().IsNamespaced(mock.Anything).Return(true, nil)
+	clusterCacheMock.EXPECT().GetOpenAPISchema().Return(nil)
+	clusterCacheMock.EXPECT().GetGVKParser().Return(nil)
 
-	mockStateCache := mockstatecache.LiveStateCache{}
-	ctrl.appStateManager.(*appStateManager).liveStateCache = &mockStateCache
-	ctrl.stateCache = &mockStateCache
-	mockStateCache.On("IsNamespaced", mock.Anything, mock.Anything).Return(true, nil)
-	mockStateCache.On("GetManagedLiveObjs", mock.Anything, mock.Anything, mock.Anything).Return(data.managedLiveObjs, nil)
-	mockStateCache.On("GetVersionsInfo", mock.Anything).Return("v1.2.3", nil, nil)
+	mockStateCache := &mockstatecache.LiveStateCache{}
+	ctrl.appStateManager.(*appStateManager).liveStateCache = mockStateCache
+	ctrl.stateCache = mockStateCache
+	mockStateCache.EXPECT().IsNamespaced(mock.Anything, mock.Anything).Return(true, nil)
+	mockStateCache.EXPECT().GetManagedLiveObjs(mock.Anything, mock.Anything, mock.Anything).Return(data.managedLiveObjs, nil)
+	mockStateCache.EXPECT().GetVersionsInfo(mock.Anything).Return("v1.2.3", nil, nil)
 	response := make(map[kube.ResourceKey]v1alpha1.ResourceNode)
 	for k, v := range data.namespacedResources {
 		response[k] = v.ResourceNode
 	}
-	mockStateCache.On("GetNamespaceTopLevelResources", mock.Anything, mock.Anything).Return(response, nil)
-	mockStateCache.On("IterateResources", mock.Anything, mock.Anything).Return(nil)
-	mockStateCache.On("GetClusterCache", mock.Anything).Return(&clusterCacheMock, nil)
-	mockStateCache.On("IterateHierarchyV2", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
-		keys := args[1].([]kube.ResourceKey)
-		action := args[2].(func(child v1alpha1.ResourceNode, appName string) bool)
+	mockStateCache.EXPECT().GetNamespaceTopLevelResources(mock.Anything, mock.Anything).Return(response, nil)
+	mockStateCache.EXPECT().IterateResources(mock.Anything, mock.Anything).Return(nil)
+	mockStateCache.EXPECT().GetClusterCache(mock.Anything).Return(clusterCacheMock, nil)
+	mockStateCache.EXPECT().IterateHierarchyV2(mock.Anything, mock.Anything, mock.Anything).Run(func(_ *v1alpha1.Cluster, keys []kube.ResourceKey, action func(_ v1alpha1.ResourceNode, _ string) bool) {
 		for _, key := range keys {
 			appName := ""
 			if res, ok := data.namespacedResources[key]; ok {
@@ -2531,7 +2529,7 @@ func TestGetAppHosts(t *testing.T) {
 	}
 	ctrl := newFakeController(data, nil)
 	mockStateCache := &mockstatecache.LiveStateCache{}
-	mockStateCache.On("IterateResources", mock.Anything, mock.MatchedBy(func(callback func(res *clustercache.Resource, info *statecache.ResourceInfo)) bool {
+	mockStateCache.EXPECT().IterateResources(mock.Anything, mock.MatchedBy(func(callback func(res *clustercache.Resource, info *statecache.ResourceInfo)) bool {
 		// node resource
 		callback(&clustercache.Resource{
 			Ref: corev1.ObjectReference{Name: "minikube", Kind: "Node", APIVersion: "v1"},
@@ -2557,7 +2555,7 @@ func TestGetAppHosts(t *testing.T) {
 			ResourceRequests: map[corev1.ResourceName]resource.Quantity{corev1.ResourceCPU: resource.MustParse("2")},
 		}})
 		return true
-	})).Return(nil)
+	})).Return(nil).Maybe()
 	ctrl.stateCache = mockStateCache
 
 	hosts, err := ctrl.getAppHosts(&v1alpha1.Cluster{Server: "test", Name: "test"}, app, []v1alpha1.ResourceNode{{
