@@ -156,7 +156,7 @@ func TestRegisterExtensions(t *testing.T) {
 				"another-ext": getSingleExtensionConfigString(),
 			},
 		}
-		f.settingsGetterMock.On("Get", mock.Anything).Return(settings, nil)
+		f.settingsGetterMock.EXPECT().Get().Return(settings, nil)
 		expectedProxyRegistries := []string{
 			"external-backend",
 			"some-backend",
@@ -220,7 +220,7 @@ func TestRegisterExtensions(t *testing.T) {
 						"": tc.configYaml,
 					},
 				}
-				f.settingsGetterMock.On("Get", mock.Anything).Return(settings, nil)
+				f.settingsGetterMock.EXPECT().Get().Return(settings, nil)
 
 				// when
 				err := f.manager.RegisterExtensions()
@@ -257,8 +257,8 @@ func TestCallExtension(t *testing.T) {
 		userMock := &mocks.UserGetter{}
 
 		dbMock := &dbmocks.ArgoDB{}
-		dbMock.On("GetClusterServersByName", mock.Anything, mock.Anything).Return([]string{"cluster1"}, nil)
-		dbMock.On("GetCluster", mock.Anything, mock.Anything).Return(&v1alpha1.Cluster{Server: "some-url", Name: "cluster1"}, nil)
+		dbMock.EXPECT().GetClusterServersByName(mock.Anything, mock.Anything).Return([]string{"cluster1"}, nil).Maybe()
+		dbMock.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(&v1alpha1.Cluster{Server: "some-url", Name: "cluster1"}, nil).Maybe()
 
 		logger, _ := test.NewNullLogger()
 		logEntry := logger.WithContext(t.Context())
@@ -331,12 +331,12 @@ func TestCallExtension(t *testing.T) {
 	}
 
 	withProject := func(prj *v1alpha1.AppProject, f *fixture) {
-		f.projMock.On("Get", prj.GetName()).Return(prj, nil)
+		f.projMock.EXPECT().Get(prj.GetName()).Return(prj, nil).Maybe()
 	}
 
 	withMetrics := func(f *fixture) {
-		f.metricsMock.On("IncExtensionRequestCounter", mock.Anything, mock.Anything)
-		f.metricsMock.On("ObserveExtensionRequestDuration", mock.Anything, mock.Anything)
+		f.metricsMock.EXPECT().IncExtensionRequestCounter(mock.Anything, mock.Anything).Maybe()
+		f.metricsMock.EXPECT().ObserveExtensionRequestDuration(mock.Anything, mock.Anything).Maybe()
 	}
 
 	withRbac := func(f *fixture, allowApp, allowExt bool) {
@@ -348,14 +348,14 @@ func TestCallExtension(t *testing.T) {
 		if !allowExt {
 			extAccessError = errors.New("no extension permission")
 		}
-		f.rbacMock.On("EnforceErr", mock.Anything, rbac.ResourceApplications, rbac.ActionGet, mock.Anything).Return(appAccessError)
-		f.rbacMock.On("EnforceErr", mock.Anything, rbac.ResourceExtensions, rbac.ActionInvoke, mock.Anything).Return(extAccessError)
+		f.rbacMock.EXPECT().EnforceErr(mock.Anything, rbac.ResourceApplications, rbac.ActionGet, mock.Anything).Return(appAccessError).Maybe()
+		f.rbacMock.EXPECT().EnforceErr(mock.Anything, rbac.ResourceExtensions, rbac.ActionInvoke, mock.Anything).Return(extAccessError).Maybe()
 	}
 
 	withUser := func(f *fixture, userId string, username string, groups []string) {
-		f.userMock.On("GetUserId", mock.Anything).Return(userId)
-		f.userMock.On("GetUsername", mock.Anything).Return(username)
-		f.userMock.On("GetGroups", mock.Anything).Return(groups)
+		f.userMock.EXPECT().GetUserId(mock.Anything).Return(userId).Maybe()
+		f.userMock.EXPECT().GetUsername(mock.Anything).Return(username).Maybe()
+		f.userMock.EXPECT().GetGroups(mock.Anything).Return(groups).Maybe()
 	}
 
 	withExtensionConfig := func(configYaml string, f *fixture) {
@@ -370,7 +370,7 @@ func TestCallExtension(t *testing.T) {
 			},
 			Secrets: secrets,
 		}
-		f.settingsGetterMock.On("Get", mock.Anything).Return(settings, nil)
+		f.settingsGetterMock.EXPECT().Get().Return(settings, nil).Maybe()
 	}
 
 	startTestServer := func(t *testing.T, f *fixture) *httptest.Server {
@@ -419,7 +419,7 @@ func TestCallExtension(t *testing.T) {
 		r := newExtensionRequest(t, "Get", fmt.Sprintf("%s/extensions/%s/", ts.URL, backendEndpoint))
 		app := getApp("", clusterURL, defaultProjectName)
 		proj := getProjectWithDestinations("project-name", nil, []string{clusterURL})
-		f.appGetterMock.On("Get", mock.Anything, mock.Anything).Return(app, nil)
+		f.appGetterMock.EXPECT().Get(mock.Anything, mock.Anything).Return(app, nil).Maybe()
 		withProject(proj, f)
 		var wg sync.WaitGroup
 		wg.Add(2)
@@ -468,7 +468,7 @@ func TestCallExtension(t *testing.T) {
 		withMetrics(f)
 		withUser(f, "some-user-id", "some-user", []string{"group1", "group2"})
 		cluster1Name := "cluster1"
-		f.appGetterMock.On("Get", "namespace", "app-name").Return(getApp(cluster1Name, "", defaultProjectName), nil)
+		f.appGetterMock.EXPECT().Get("namespace", "app-name").Return(getApp(cluster1Name, "", defaultProjectName), nil).Maybe()
 		withProject(getProjectWithDestinations("project-name", []string{cluster1Name}, []string{"some-url"}), f)
 
 		ts := startTestServer(t, f)
@@ -502,8 +502,8 @@ func TestCallExtension(t *testing.T) {
 		beSrv2 := startBackendTestSrv(response2)
 		defer beSrv2.Close()
 
-		f.appGetterMock.On("Get", "ns1", "app1").Return(getApp(cluster1Name, "", defaultProjectName), nil)
-		f.appGetterMock.On("Get", "ns2", "app2").Return(getApp("", cluster2URL, defaultProjectName), nil)
+		f.appGetterMock.EXPECT().Get("ns1", "app1").Return(getApp(cluster1Name, "", defaultProjectName), nil).Maybe()
+		f.appGetterMock.EXPECT().Get("ns2", "app2").Return(getApp("", cluster2URL, defaultProjectName), nil).Maybe()
 
 		withRbac(f, true, true)
 		withExtensionConfig(getExtensionConfigWith2Backends(extName, beSrv1.URL, cluster1Name, cluster1URL, beSrv2.URL, cluster2Name, cluster2URL), f)
@@ -560,7 +560,7 @@ func TestCallExtension(t *testing.T) {
 		ts := startTestServer(t, f)
 		defer ts.Close()
 		r := newExtensionRequest(t, "Get", fmt.Sprintf("%s/extensions/%s/", ts.URL, extName))
-		f.appGetterMock.On("Get", mock.Anything, mock.Anything).Return(getApp("", "", defaultProjectName), nil)
+		f.appGetterMock.EXPECT().Get(mock.Anything, mock.Anything).Return(getApp("", "", defaultProjectName), nil).Maybe()
 
 		// when
 		resp, err := http.DefaultClient.Do(r)
@@ -584,7 +584,7 @@ func TestCallExtension(t *testing.T) {
 		ts := startTestServer(t, f)
 		defer ts.Close()
 		r := newExtensionRequest(t, "Get", fmt.Sprintf("%s/extensions/%s/", ts.URL, extName))
-		f.appGetterMock.On("Get", mock.Anything, mock.Anything).Return(getApp("", "", defaultProjectName), nil)
+		f.appGetterMock.EXPECT().Get(mock.Anything, mock.Anything).Return(getApp("", "", defaultProjectName), nil).Maybe()
 
 		// when
 		resp, err := http.DefaultClient.Do(r)
@@ -609,7 +609,7 @@ func TestCallExtension(t *testing.T) {
 		ts := startTestServer(t, f)
 		defer ts.Close()
 		r := newExtensionRequest(t, "Get", fmt.Sprintf("%s/extensions/%s/", ts.URL, extName))
-		f.appGetterMock.On("Get", mock.Anything, mock.Anything).Return(getApp("", "", defaultProjectName), nil)
+		f.appGetterMock.EXPECT().Get(mock.Anything, mock.Anything).Return(getApp("", "", defaultProjectName), nil).Maybe()
 		proj := getProjectWithDestinations("project-name", nil, noCluster)
 		withProject(proj, f)
 
@@ -635,8 +635,8 @@ func TestCallExtension(t *testing.T) {
 		ts := startTestServer(t, f)
 		defer ts.Close()
 		r := newExtensionRequest(t, "Get", fmt.Sprintf("%s/extensions/%s/", ts.URL, extName))
-		f.appGetterMock.On("Get", mock.Anything, mock.Anything).Return(getApp("", "", defaultProjectName), nil)
-		f.projMock.On("Get", defaultProjectName).Return(nil, nil)
+		f.appGetterMock.EXPECT().Get(mock.Anything, mock.Anything).Return(getApp("", "", defaultProjectName), nil).Maybe()
+		f.projMock.EXPECT().Get(defaultProjectName).Return(nil, nil).Maybe()
 
 		// when
 		resp, err := http.DefaultClient.Do(r)
@@ -661,7 +661,7 @@ func TestCallExtension(t *testing.T) {
 		ts := startTestServer(t, f)
 		defer ts.Close()
 		r := newExtensionRequest(t, "Get", fmt.Sprintf("%s/extensions/%s/", ts.URL, extName))
-		f.appGetterMock.On("Get", mock.Anything, mock.Anything).Return(getApp("", "", differentProject), nil)
+		f.appGetterMock.EXPECT().Get(mock.Anything, mock.Anything).Return(getApp("", "", differentProject), nil).Maybe()
 
 		// when
 		resp, err := http.DefaultClient.Do(r)
@@ -683,7 +683,7 @@ func TestCallExtension(t *testing.T) {
 		maliciousName := "srv1"
 		destinationServer := "some-valid-server"
 
-		f.appGetterMock.On("Get", "ns1", "app1").Return(getApp(maliciousName, destinationServer, defaultProjectName), nil)
+		f.appGetterMock.EXPECT().Get("ns1", "app1").Return(getApp(maliciousName, destinationServer, defaultProjectName), nil).Maybe()
 
 		withRbac(f, true, true)
 		withExtensionConfig(getExtensionConfigWith2Backends(extName, "url1", "cluster1Name", "cluster1URL", "url2", "cluster2Name", "cluster2URL"), f)
@@ -727,7 +727,7 @@ func TestCallExtension(t *testing.T) {
 		ts := startTestServer(t, f)
 		defer ts.Close()
 		r := newExtensionRequest(t, "Get", ts.URL+"/extensions/")
-		f.appGetterMock.On("Get", mock.Anything, mock.Anything).Return(getApp("", "", differentProject), nil)
+		f.appGetterMock.EXPECT().Get(mock.Anything, mock.Anything).Return(getApp("", "", differentProject), nil).Maybe()
 
 		// when
 		resp, err := http.DefaultClient.Do(r)

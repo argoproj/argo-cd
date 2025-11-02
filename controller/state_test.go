@@ -1807,10 +1807,10 @@ func Test_normalizeClusterScopeTracking(t *testing.T) {
 			Namespace: "test",
 		},
 	})
-	c := cachemocks.ClusterCache{}
-	c.On("IsNamespaced", mock.Anything).Return(false, nil)
+	c := &cachemocks.ClusterCache{}
+	c.EXPECT().IsNamespaced(mock.Anything).Return(false, nil)
 	var called bool
-	err := normalizeClusterScopeTracking([]*unstructured.Unstructured{obj}, &c, func(u *unstructured.Unstructured) error {
+	err := normalizeClusterScopeTracking([]*unstructured.Unstructured{obj}, c, func(u *unstructured.Unstructured) error {
 		// We expect that the normalization function will call this callback with an obj that has had the namespace set
 		// to empty.
 		called = true

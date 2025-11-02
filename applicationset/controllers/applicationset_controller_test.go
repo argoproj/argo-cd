@@ -1832,16 +1832,16 @@ func TestGetMinRequeueAfter(t *testing.T) {
 		Clusters: &v1alpha1.ClusterGenerator{},
 	}
 
-	generatorMock0 := mocks.Generator{}
-	generatorMock0.On("GetRequeueAfter", &generator).
+	generatorMock0 := &mocks.Generator{}
+	generatorMock0.EXPECT().GetRequeueAfter(&generator).
 		Return(generators.NoRequeueAfter)
 
-	generatorMock1 := mocks.Generator{}
-	generatorMock1.On("GetRequeueAfter", &generator).
+	generatorMock1 := &mocks.Generator{}
+	generatorMock1.EXPECT().GetRequeueAfter(&generator).
 		Return(time.Duration(1) * time.Second)
 
-	generatorMock10 := mocks.Generator{}
-	generatorMock10.On("GetRequeueAfter", &generator).
+	generatorMock10 := &mocks.Generator{}
+	generatorMock10.EXPECT().GetRequeueAfter(&generator).
 		Return(time.Duration(10) * time.Second)
 
 	r := ApplicationSetReconciler{
@@ -1850,9 +1850,9 @@ func TestGetMinRequeueAfter(t *testing.T) {
 		Recorder: record.NewFakeRecorder(0),
 		Metrics:  metrics,
 		Generators: map[string]generators.Generator{
-			"List":     &generatorMock10,
-			"Git":      &generatorMock1,
-			"Clusters": &generatorMock1,
+			"List":     generatorMock10,
+			"Git":      generatorMock1,
+			"Clusters": generatorMock1,
 		},
 	}
 
@@ -1889,10 +1889,10 @@ func TestRequeueGeneratorFails(t *testing.T) {
 		PullRequest: &v1alpha1.PullRequestGenerator{},
 	}
 
-	generatorMock := mocks.Generator{}
-	generatorMock.On("GetTemplate", &generator).
+	generatorMock := &mocks.Generator{}
+	generatorMock.EXPECT().GetTemplate(&generator).
 		Return(&v1alpha1.ApplicationSetTemplate{})
-	generatorMock.On("GenerateParams", &generator, mock.AnythingOfType("*v1alpha1.ApplicationSet"), mock.Anything).
+	generatorMock.EXPECT().GenerateParams(&generator, mock.AnythingOfType("*v1alpha1.ApplicationSet"), mock.Anything).
 		Return([]map[string]any{}, errors.New("Simulated error generating params that could be related to an external service/API call"))
 
 	metrics := appsetmetrics.NewFakeAppsetMetrics()
@@ -1902,7 +1902,7 @@ func TestRequeueGeneratorFails(t *testing.T) {
 		Scheme:   scheme,
 		Recorder: record.NewFakeRecorder(0),
 		Generators: map[string]generators.Generator{
-			"PullRequest": &generatorMock,
+			"PullRequest": generatorMock,
 		},
 		Metrics: metrics,
 	}
