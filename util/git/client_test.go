@@ -913,7 +913,7 @@ func Test_nativeGitClient_CommitAndPush(t *testing.T) {
 
 func Test_newAuth_AzureWorkloadIdentity(t *testing.T) {
 	tokenprovider := new(mocks.TokenProvider)
-	tokenprovider.EXPECT().GetToken(azureDevopsEntraResourceId).Return(&workloadidentity.Token{AccessToken: "accessToken"}, nil).Maybe()
+	tokenprovider.On("GetToken", azureDevopsEntraResourceId).Return(&workloadidentity.Token{AccessToken: "accessToken"}, nil)
 
 	creds := AzureWorkloadIdentityCreds{store: NoopCredsStore{}, tokenProvider: tokenprovider}
 
@@ -1248,4 +1248,33 @@ func Test_BuiltinConfig(t *testing.T) {
 		matches := r.FindString(configOut)
 		assert.NotEmpty(t, matches, "missing builtin configuration option %s=%s", k, v)
 	}
+}
+
+func Test_GitNoDetachedMaintenance(t *testing.T) {
+	tempDir := t.TempDir()
+	ctx := t.Context()
+
+	client, err := NewClientExt("file://"+tempDir, tempDir, NopCreds{}, true, false, "", "")
+	require.NoError(t, err)
+	assert.False(t, env.ParseBoolFromEnv(common.EnvGitBuiltinConfigDisabled, false),
+		"env. var. "+common.EnvGitBuiltinConfigDisabled+" should not be set to true when running this test")
+	native := client.(*nativeGitClient)
+
+	err = client.Init()
+	require.NoError(t, err)
+
+	cmd := exec.CommandContext(ctx, "git", "fetch")
+	cmd.Env = append(cmd.Env, "GIT_TRACE=true")
+	output, err := native.runCmdOutput(cmd, runOpts{CaptureStderr: true})
+	require.NoError(t, err)
+
+	lines := strings.Split(output, "\n")
+	for _, line := range lines {
+		if strings.Contains(line, "git maintenance run") {
+			assert.False(t, strings.Contains(output, "--detach"), "Unexpected --detach when running git maintenance")
+			return
+		}
+
+	}
+	assert.Fail(t, "Expected to see `git maintenance` run after `git fetch`")
 }
