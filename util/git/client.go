@@ -163,6 +163,8 @@ type nativeGitClient struct {
 	proxy string
 	// list of targets that shouldn't use the proxy, applies only if the proxy is set
 	noProxy string
+	// sparsePaths are the paths to include in sparse-checkout (cone mode)
+	sparsePaths []string
 }
 
 type runOpts struct {
@@ -205,6 +207,17 @@ func WithCache(cache gitRefCache, loadRefFromCache bool) ClientOpts {
 func WithEventHandlers(handlers EventHandlers) ClientOpts {
 	return func(c *nativeGitClient) {
 		c.EventHandlers = handlers
+	}
+}
+
+// WithSparse configures sparse-checkout with the given paths (cone mode)
+// Paths should be directory paths relative to the repository root.
+// Requires Git >= 2.25 for cone mode support.
+func WithSparse(paths []string) ClientOpts {
+	return func(c *nativeGitClient) {
+		if len(paths) > 0 {
+			c.sparsePaths = append([]string{}, paths...)
+		}
 	}
 }
 
