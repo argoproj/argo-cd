@@ -1264,7 +1264,10 @@ func Test_GitNoDetachedMaintenance(t *testing.T) {
 	require.NoError(t, err)
 
 	cmd := exec.CommandContext(ctx, "git", "fetch")
+	// trace execution of Git subcommands and their arguments to stderr
 	cmd.Env = append(cmd.Env, "GIT_TRACE=true")
+	// Ignore system config in case it disables auto maintenance
+	cmd.Env = append(cmd.Env, "GIT_CONFIG_NOSYSTEM=true")
 	output, err := native.runCmdOutput(cmd, runOpts{CaptureStderr: true})
 	require.NoError(t, err)
 
