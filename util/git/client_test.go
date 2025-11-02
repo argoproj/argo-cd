@@ -913,7 +913,6 @@ func Test_nativeGitClient_CommitAndPush(t *testing.T) {
 
 func Test_newAuth_AzureWorkloadIdentity(t *testing.T) {
 	tokenprovider := new(mocks.TokenProvider)
-
 	tokenprovider.EXPECT().GetToken(azureDevopsEntraResourceId).Return(&workloadidentity.Token{AccessToken: "accessToken"}, nil).Maybe()
 
 	creds := AzureWorkloadIdentityCreds{store: NoopCredsStore{}, tokenProvider: tokenprovider}
