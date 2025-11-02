@@ -118,16 +118,16 @@ func NewContextLoginCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comma
 		Example: `  # Login using Argo CD Context
 	argocd context login cd.argoproj.io`,
 		RunE: func(c *cobra.Command, args []string) error {
-			if len(args) == 0 {
+			if len(args) != 1 {
 				c.HelpFunc()(c, args)
-				os.Exit(1)
+				return stderrors.New("invalid arguments")
 			}
 			localCfg, err := localconfig.ReadLocalConfig(clientOpts.ConfigPath)
 			errors.CheckError(err)
 			if localCfg == nil {
 				return stderrors.New("couldn't find local config")
 			}
-			ctx, err := localCfg.GetContext(args[0])
+			ctx, err := localCfg.ResolveContext(args[0])
 			if err != nil {
 				return fmt.Errorf("context %s does not exist", args[0])
 			}

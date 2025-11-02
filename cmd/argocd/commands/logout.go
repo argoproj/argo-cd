@@ -92,17 +92,10 @@ func LogoutContext(globalClientOpts *argocdclient.ClientOptions, contexts []stri
 	}
 
 	for _, c := range contexts {
-		ctxRef, err := localCfg.GetContext(c)
+		context, err := localCfg.ResolveContext(c)
 		if err != nil {
 			return fmt.Errorf("context '%s' undefined", c)
 		}
-		localCfg.UpsertContext(*ctxRef)
-
-		context, err := localCfg.ResolveContext(ctxRef.Name)
-		if err != nil {
-			return fmt.Errorf("couldn't resolve context '%s'", ctxRef.Name)
-		}
-		// if canLogout {
 		ok := localCfg.RemoveToken(context.Server.Server)
 		if !ok {
 			return fmt.Errorf("context %s does not exist", context.Server.Server)

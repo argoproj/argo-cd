@@ -228,19 +228,6 @@ func (l *LocalConfig) RemoveToken(serverName string) bool {
 	return false
 }
 
-func (l *LocalConfig) GetContext(ctxName string) (*Context, error) {
-	for _, ctxRef := range l.Contexts {
-		if ctxRef.Name == ctxName {
-			c, err := l.ResolveContext(ctxRef.Name)
-			if err != nil {
-				return nil, fmt.Errorf("couldn't resolve context '%s'", ctxRef.Name)
-			}
-			return c, nil
-		}
-	}
-	return nil, fmt.Errorf("context '%s' undefined", ctxName)
-}
-
 func (l *LocalConfig) UpsertContext(context ContextRef) {
 	for i, c := range l.Contexts {
 		if c.Name == context.Name {
