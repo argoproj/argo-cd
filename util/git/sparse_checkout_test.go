@@ -3,6 +3,7 @@ package git
 import (
 	"context"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -69,8 +70,6 @@ func fileURL(path string) string {
 // Test_nativeGitClient_SparseCheckout_BasicPaths tests that only specified paths
 // are checked out when sparse checkout is enabled
 func Test_nativeGitClient_SparseCheckout_BasicPaths(t *testing.T) {
-	t.Skip("TODO: Implement sparse checkout support first")
-	
 	ctx := context.Background()
 	
 	// Create source repo
@@ -97,8 +96,15 @@ func Test_nativeGitClient_SparseCheckout_BasicPaths(t *testing.T) {
 	err = client.Fetch("")
 	require.NoError(t, err)
 
-	// Checkout HEAD
-	_, err = client.Checkout("HEAD", false)
+	// Get the commit SHA from the source repo to checkout
+	// (can't use origin/HEAD in a local test repo)
+	cmd := exec.CommandContext(ctx, "git", "-C", srcRepo, "rev-parse", "HEAD")
+	output, err := cmd.CombinedOutput()
+	require.NoError(t, err)
+	commitSHA := strings.TrimSpace(string(output))
+
+	// Checkout the commit
+	_, err = client.Checkout(commitSHA, false)
 	require.NoError(t, err)
 
 	// Assert: Only apps/frontend should exist (cone mode includes parent dirs)
@@ -116,8 +122,6 @@ func Test_nativeGitClient_SparseCheckout_BasicPaths(t *testing.T) {
 // Test_nativeGitClient_SparseCheckout_MultiplePaths tests checking out multiple
 // sparse paths
 func Test_nativeGitClient_SparseCheckout_MultiplePaths(t *testing.T) {
-	t.Skip("TODO: Implement sparse checkout support first")
-	
 	ctx := context.Background()
 	
 	srcRepo := createTestRepoWithStructure(t, ctx)
@@ -137,7 +141,13 @@ func Test_nativeGitClient_SparseCheckout_MultiplePaths(t *testing.T) {
 	err = client.Fetch("")
 	require.NoError(t, err)
 
-	_, err = client.Checkout("HEAD", false)
+	// Get commit SHA to checkout
+	cmd := exec.CommandContext(ctx, "git", "-C", srcRepo, "rev-parse", "HEAD")
+	output, err := cmd.CombinedOutput()
+	require.NoError(t, err)
+	commitSHA := strings.TrimSpace(string(output))
+
+	_, err = client.Checkout(commitSHA, false)
 	require.NoError(t, err)
 
 	// Both frontend and backend should exist

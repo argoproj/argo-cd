@@ -395,6 +395,7 @@ func (m *nativeGitClient) Root() string {
 }
 
 // Init initializes a local git repository and sets the remote origin
+// If sparse paths are configured, sets up sparse-checkout in cone mode
 func (m *nativeGitClient) Init() error {
 	_, err := git.PlainOpen(m.root)
 	if err == nil {
@@ -420,7 +421,49 @@ func (m *nativeGitClient) Init() error {
 		Name: git.DefaultRemoteName,
 		URLs: []string{m.repoURL},
 	})
-	return err
+	if err != nil {
+		return err
+	}
+
+	// Configure sparse-checkout if paths are specified
+	if len(m.sparsePaths) > 0 {
+		if err := m.configureSparseCheckout(); err != nil {
+			return fmt.Errorf("failed to configure sparse-checkout: %w", err)
+		}
+	}
+
+	return nil
+}
+
+// configureSparseCheckout sets up sparse-checkout in cone mode
+// Must be called after Init() and before Checkout()
+func (m *nativeGitClient) configureSparseCheckout() error {
+	ctx := context.Background()
+
+	// Enable sparse-checkout config
+	if _, err := m.runCmd(ctx, "config", "core.sparseCheckout", "true"); err != nil {
+		return fmt.Errorf("failed to enable sparse-checkout config: %w", err)
+	}
+
+	// Enable cone mode
+	if _, err := m.runCmd(ctx, "config", "core.sparseCheckoutCone", "true"); err != nil {
+		return fmt.Errorf("failed to enable cone mode: %w", err)
+	}
+
+	// Create .git/info/sparse-checkout file with cone patterns
+	sparseFile := filepath.Join(m.root, ".git", "info", "sparse-checkout")
+	if err := os.MkdirAll(filepath.Dir(sparseFile), 0o755); err != nil {
+		return fmt.Errorf("failed to create sparse-checkout dir: %w", err)
+	}
+
+	// Write paths to sparse-checkout file (one per line)
+	content := strings.Join(m.sparsePaths, "\n") + "\n"
+	if err := os.WriteFile(sparseFile, []byte(content), 0o644); err != nil {
+		return fmt.Errorf("failed to write sparse-checkout file: %w", err)
+	}
+
+	log.Infof("Configured sparse-checkout with paths: %v", m.sparsePaths)
+	return nil
 }
 
 // IsLFSEnabled returns true if the repository is LFS enabled
@@ -553,6 +596,13 @@ func (m *nativeGitClient) Checkout(revision string, submoduleEnabled bool) (stri
 	ctx := context.Background()
 	if out, err := m.runCmd(ctx, "checkout", "--force", revision); err != nil {
 		return out, fmt.Errorf("failed to checkout %s: %w", revision, err)
+	}
+
+	// If sparse-checkout is enabled, ensure working tree matches patterns
+	if len(m.sparsePaths) > 0 {
+		if _, err := m.runCmd(ctx, "sparse-checkout", "reapply"); err != nil {
+			log.Warnf("Failed to reapply sparse-checkout after checkout: %v", err)
+		}
 	}
 	// We must populate LFS content by using lfs checkout, if we have at least
 	// one LFS reference in the current revision.
