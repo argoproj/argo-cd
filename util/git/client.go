@@ -1144,6 +1144,7 @@ func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd, ropts runOpts) (string, er
 	cmd.Env = append(cmd.Env, "GIT_TERMINAL_PROMPT=false")
 	// Add Git configuration options that are essential for ArgoCD operation
 	cmd.Env = append(cmd.Env, builtinGitConfigEnv...)
+
 	// For HTTPS repositories, we need to consider insecure repositories as well
 	// as custom CA bundles from the cert database.
 	if IsHTTPSURL(m.repoURL) {
