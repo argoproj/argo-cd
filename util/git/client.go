@@ -1142,7 +1142,7 @@ func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd, ropts runOpts) (string, er
 	cmd.Env = append(cmd.Env, "GIT_LFS_SKIP_SMUDGE=1")
 	// Disable Git terminal prompts in case we're running with a tty
 	cmd.Env = append(cmd.Env, "GIT_TERMINAL_PROMPT=false")
-	// Add git configuration options that are essential for ArgoCD operation
+	// Add Git configuration options that are essential for ArgoCD operation
 	cmd.Env = append(cmd.Env, builtinGitConfigEnv...)
 	// For HTTPS repositories, we need to consider insecure repositories as well
 	// as custom CA bundles from the cert database.
