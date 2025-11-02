@@ -334,7 +334,14 @@ func (s *Service) runRepoOperation(
 	var gitClient git.Client
 	var helmClient helm.Client
 	var err error
-	gitClientOpts := git.WithCache(s.cache, !settings.noRevisionCache && !settings.noCache)
+	gitClientOpts := []git.ClientOpts{git.WithCache(s.cache, !settings.noRevisionCache && !settings.noCache)}
+
+	// Add sparse checkout paths if configured
+	if source.Directory != nil && len(source.Directory.SparseCheckoutPaths) > 0 {
+		gitClientOpts = append(gitClientOpts, git.WithSparse(source.Directory.SparseCheckoutPaths))
+		log.Infof("Enabling sparse checkout for %s with paths: %v", repo.Repo, source.Directory.SparseCheckoutPaths)
+	}
+
 	revision = textutils.FirstNonEmpty(revision, source.TargetRevision)
 	unresolvedRevision := revision
 
@@ -344,14 +351,14 @@ func (s *Service) runRepoOperation(
 	case source.IsHelm():
 		helmClient, revision, err = s.newHelmClientResolveRevision(repo, revision, source.Chart, settings.noCache || settings.noRevisionCache)
 	default:
-		gitClient, revision, err = s.newClientResolveRevision(repo, revision, gitClientOpts)
+		gitClient, revision, err = s.newClientResolveRevision(repo, revision, gitClientOpts...)
 	}
 
 	if err != nil {
 		return err
 	}
 
-	repoRefs, err := resolveReferencedSources(hasMultipleSources, source.Helm, refSources, s.newClientResolveRevision, gitClientOpts)
+	repoRefs, err := resolveReferencedSources(hasMultipleSources, source.Helm, refSources, s.newClientResolveRevision, gitClientOpts...)
 	if err != nil {
 		return err
 	}
@@ -535,7 +542,7 @@ type gitClientGetter func(repo *v1alpha1.Repository, revision string, opts ...gi
 //
 // Much of this logic is duplicated in runManifestGenAsync. If making changes here, check whether runManifestGenAsync
 // should be updated.
-func resolveReferencedSources(hasMultipleSources bool, source *v1alpha1.ApplicationSourceHelm, refSources map[string]*v1alpha1.RefTarget, newClientResolveRevision gitClientGetter, gitClientOpts git.ClientOpts) (map[string]string, error) {
+func resolveReferencedSources(hasMultipleSources bool, source *v1alpha1.ApplicationSourceHelm, refSources map[string]*v1alpha1.RefTarget, newClientResolveRevision gitClientGetter, gitClientOpts ...git.ClientOpts) (map[string]string, error) {
 	repoRefs := make(map[string]string)
 	if !hasMultipleSources || source == nil {
 		return repoRefs, nil
@@ -570,7 +577,7 @@ func resolveReferencedSources(hasMultipleSources bool, source *v1alpha1.Applicat
 		normalizedRepoURL := git.NormalizeGitURL(refSourceMapping.Repo.Repo)
 		_, ok = repoRefs[normalizedRepoURL]
 		if !ok {
-			_, referencedCommitSHA, err := newClientResolveRevision(&refSourceMapping.Repo, refSourceMapping.TargetRevision, gitClientOpts)
+			_, referencedCommitSHA, err := newClientResolveRevision(&refSourceMapping.Repo, refSourceMapping.TargetRevision, gitClientOpts...)
 			if err != nil {
 				log.Errorf("Failed to get git client for repo %s: %v", refSourceMapping.Repo.Repo, err)
 				return nil, fmt.Errorf("failed to get git client for repo %s", refSourceMapping.Repo.Repo)
