@@ -189,3 +189,82 @@ func Test_nativeGitClient_SparseCheckout_WildcardPatterns(t *testing.T) {
 	// - "*.yaml" - all yaml files
 	// - "!apps/backend" - negative pattern (exclude)
 }
+
+// Test_nativeGitClient_SparseCheckout_EmptyPaths tests that empty sparse paths
+// are handled gracefully (should behave like normal checkout)
+func Test_nativeGitClient_SparseCheckout_EmptyPaths(t *testing.T) {
+	ctx := context.Background()
+
+	srcRepo := createTestRepoWithStructure(t, ctx)
+
+	// Create client with empty sparse paths
+	client, err := NewClient(
+		fileURL(srcRepo),
+		NopCreds{},
+		true, false, "", "",
+		WithSparse([]string{}), // empty array
+	)
+	require.NoError(t, err)
+
+	err = client.Init()
+	require.NoError(t, err)
+
+	err = client.Fetch("")
+	require.NoError(t, err)
+
+	cmd := exec.CommandContext(ctx, "git", "-C", srcRepo, "rev-parse", "HEAD")
+	output, err := cmd.CombinedOutput()
+	require.NoError(t, err)
+	commitSHA := strings.TrimSpace(string(output))
+
+	_, err = client.Checkout(commitSHA, false)
+	require.NoError(t, err)
+
+	// With empty sparse paths, all files should be checked out
+	assert.FileExists(t, filepath.Join(client.Root(), "apps", "frontend", "test.txt"))
+	assert.FileExists(t, filepath.Join(client.Root(), "apps", "backend", "test.txt"))
+	assert.FileExists(t, filepath.Join(client.Root(), "README.md"))
+}
+
+// Test_nativeGitClient_SparseCheckout_ReapplyAfterCheckout tests that
+// sparse patterns are reapplied after checkout
+func Test_nativeGitClient_SparseCheckout_ReapplyAfterCheckout(t *testing.T) {
+	ctx := context.Background()
+
+	srcRepo := createTestRepoWithStructure(t, ctx)
+
+	client, err := NewClient(
+		fileURL(srcRepo),
+		NopCreds{},
+		true, false, "", "",
+		WithSparse([]string{"apps/frontend"}),
+	)
+	require.NoError(t, err)
+
+	err = client.Init()
+	require.NoError(t, err)
+
+	err = client.Fetch("")
+	require.NoError(t, err)
+
+	cmd := exec.CommandContext(ctx, "git", "-C", srcRepo, "rev-parse", "HEAD")
+	output, err := cmd.CombinedOutput()
+	require.NoError(t, err)
+	commitSHA := strings.TrimSpace(string(output))
+
+	// First checkout
+	_, err = client.Checkout(commitSHA, false)
+	require.NoError(t, err)
+
+	// Verify sparse checkout is working
+	assert.FileExists(t, filepath.Join(client.Root(), "apps", "frontend", "test.txt"))
+	assert.NoFileExists(t, filepath.Join(client.Root(), "apps", "backend", "test.txt"))
+
+	// Second checkout (should reapply sparse patterns)
+	_, err = client.Checkout(commitSHA, false)
+	require.NoError(t, err)
+
+	// Sparse checkout should still be active
+	assert.FileExists(t, filepath.Join(client.Root(), "apps", "frontend", "test.txt"))
+	assert.NoFileExists(t, filepath.Join(client.Root(), "apps", "backend", "test.txt"))
+}

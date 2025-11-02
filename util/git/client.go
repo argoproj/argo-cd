@@ -221,6 +221,20 @@ func WithSparse(paths []string) ClientOpts {
 	}
 }
 
+// GetSparseCheckoutKey returns a cache key component for sparse checkout paths.
+// Returns empty string if no sparse paths are configured.
+// The paths are sorted to ensure consistent cache keys regardless of path order.
+func GetSparseCheckoutKey(paths []string) string {
+	if len(paths) == 0 {
+		return ""
+	}
+	// Sort to ensure consistent cache keys regardless of path order
+	sortedPaths := make([]string, len(paths))
+	copy(sortedPaths, paths)
+	sort.Strings(sortedPaths)
+	return "sparse:" + strings.Join(sortedPaths, ",")
+}
+
 func NewClient(rawRepoURL string, creds Creds, insecure bool, enableLfs bool, proxy string, noProxy string, opts ...ClientOpts) (Client, error) {
 	r := regexp.MustCompile(`([/:])`)
 	normalizedGitURL := NormalizeGitURL(rawRepoURL)

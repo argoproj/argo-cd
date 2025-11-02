@@ -351,7 +351,12 @@ func (s *Service) runRepoOperation(
 	case source.IsHelm():
 		helmClient, revision, err = s.newHelmClientResolveRevision(repo, revision, source.Chart, settings.noCache || settings.noRevisionCache)
 	default:
-		gitClient, revision, err = s.newClientResolveRevision(repo, revision, gitClientOpts...)
+		// Extract sparse paths to use in cache key
+		var sparsePaths []string
+		if source.Directory != nil {
+			sparsePaths = source.Directory.SparseCheckoutPaths
+		}
+		gitClient, revision, err = s.newClientResolveRevisionWithSparse(repo, revision, sparsePaths, gitClientOpts...)
 	}
 
 	if err != nil {
@@ -2569,7 +2574,18 @@ func fileParameters(q *apiclient.RepoServerAppDetailsQuery) []v1alpha1.HelmFileP
 }
 
 func (s *Service) newClient(repo *v1alpha1.Repository, opts ...git.ClientOpts) (git.Client, error) {
-	repoPath, err := s.gitRepoPaths.GetPath(git.NormalizeGitURL(repo.Repo))
+	return s.newClientWithSparseCheckoutPaths(repo, nil, opts...)
+}
+
+func (s *Service) newClientWithSparseCheckoutPaths(repo *v1alpha1.Repository, sparsePaths []string, opts ...git.ClientOpts) (git.Client, error) {
+	// Build cache key that includes sparse checkout paths
+	cacheKey := git.NormalizeGitURL(repo.Repo)
+	sparseKey := git.GetSparseCheckoutKey(sparsePaths)
+	if sparseKey != "" {
+		cacheKey = cacheKey + "|" + sparseKey
+	}
+
+	repoPath, err := s.gitRepoPaths.GetPath(cacheKey)
 	if err != nil {
 		return nil, err
 	}
@@ -2580,7 +2596,12 @@ func (s *Service) newClient(repo *v1alpha1.Repository, opts ...git.ClientOpts) (
 // newClientResolveRevision is a helper to perform the common task of instantiating a git client
 // and resolving a revision to a commit SHA
 func (s *Service) newClientResolveRevision(repo *v1alpha1.Repository, revision string, opts ...git.ClientOpts) (git.Client, string, error) {
-	gitClient, err := s.newClient(repo, opts...)
+	return s.newClientResolveRevisionWithSparse(repo, revision, nil, opts...)
+}
+
+// newClientResolveRevisionWithSparse is like newClientResolveRevision but includes sparse checkout paths in the cache key
+func (s *Service) newClientResolveRevisionWithSparse(repo *v1alpha1.Repository, revision string, sparsePaths []string, opts ...git.ClientOpts) (git.Client, string, error) {
+	gitClient, err := s.newClientWithSparseCheckoutPaths(repo, sparsePaths, opts...)
 	if err != nil {
 		return nil, "", err
 	}
