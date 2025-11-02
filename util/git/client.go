@@ -473,11 +473,22 @@ func (m *nativeGitClient) IsLFSEnabled() bool {
 
 func (m *nativeGitClient) fetch(ctx context.Context, revision string) error {
 	var err error
+	// Build fetch args - add partial clone filter when using sparse checkout
+	args := []string{"fetch", "origin"}
 	if revision != "" {
-		err = m.runCredentialedCmd(ctx, "fetch", "origin", revision, "--tags", "--force", "--prune")
-	} else {
-		err = m.runCredentialedCmd(ctx, "fetch", "origin", "--tags", "--force", "--prune")
+		args = append(args, revision)
 	}
+	args = append(args, "--tags", "--force", "--prune")
+	
+	// Enable partial clone when sparse checkout is configured
+	// This avoids downloading blobs for files outside the sparse paths
+	// while preserving commit history for features like ChangedFiles()
+	if len(m.sparsePaths) > 0 {
+		args = append(args, "--filter=blob:none")
+		log.Infof("Using partial clone (--filter=blob:none) with sparse checkout")
+	}
+	
+	err = m.runCredentialedCmd(ctx, args...)
 	return err
 }
 
