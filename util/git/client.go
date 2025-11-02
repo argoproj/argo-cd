@@ -479,7 +479,7 @@ func (m *nativeGitClient) fetch(ctx context.Context, revision string) error {
 		args = append(args, revision)
 	}
 	args = append(args, "--tags", "--force", "--prune")
-	
+
 	// Enable partial clone when sparse checkout is configured
 	// This avoids downloading blobs for files outside the sparse paths
 	// while preserving commit history for features like ChangedFiles()
@@ -487,7 +487,7 @@ func (m *nativeGitClient) fetch(ctx context.Context, revision string) error {
 		args = append(args, "--filter=blob:none")
 		log.Infof("Using partial clone (--filter=blob:none) with sparse checkout")
 	}
-	
+
 	err = m.runCredentialedCmd(ctx, args...)
 	return err
 }

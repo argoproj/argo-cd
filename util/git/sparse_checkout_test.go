@@ -16,6 +16,7 @@ import (
 // createTestRepoWithStructure creates a git repo with multiple directories
 // to simulate a monorepo with different app paths
 func createTestRepoWithStructure(t *testing.T, ctx context.Context) string {
+	t.Helper()
 	tempDir := t.TempDir()
 
 	// Initialize git repo
@@ -33,17 +34,17 @@ func createTestRepoWithStructure(t *testing.T, ctx context.Context) string {
 
 	for _, dir := range dirs {
 		fullPath := filepath.Join(tempDir, dir)
-		err := os.MkdirAll(fullPath, 0755)
+		err := os.MkdirAll(fullPath, 0o755)
 		require.NoError(t, err)
 
 		// Add a file in each directory
 		testFile := filepath.Join(fullPath, "test.txt")
-		err = os.WriteFile(testFile, []byte("test content for "+dir), 0644)
+		err = os.WriteFile(testFile, []byte("test content for "+dir), 0o644)
 		require.NoError(t, err)
 	}
 
 	// Add a root-level file
-	err = os.WriteFile(filepath.Join(tempDir, "README.md"), []byte("# Monorepo"), 0644)
+	err = os.WriteFile(filepath.Join(tempDir, "README.md"), []byte("# Monorepo"), 0o644)
 	require.NoError(t, err)
 
 	// Commit everything
@@ -71,7 +72,7 @@ func fileURL(path string) string {
 // are checked out when sparse checkout is enabled
 func Test_nativeGitClient_SparseCheckout_BasicPaths(t *testing.T) {
 	ctx := context.Background()
-	
+
 	// Create source repo
 	srcRepo := createTestRepoWithStructure(t, ctx)
 
@@ -80,10 +81,10 @@ func Test_nativeGitClient_SparseCheckout_BasicPaths(t *testing.T) {
 	client, err := NewClient(
 		fileURL(srcRepo),
 		NopCreds{},
-		true,  // insecure
-		false, // enableLfs
-		"",    // proxy
-		"",    // noProxy
+		true,                                  // insecure
+		false,                                 // enableLfs
+		"",                                    // proxy
+		"",                                    // noProxy
 		WithSparse([]string{"apps/frontend"}), // cone mode directory
 	)
 	require.NoError(t, err)
@@ -123,7 +124,7 @@ func Test_nativeGitClient_SparseCheckout_BasicPaths(t *testing.T) {
 // sparse paths
 func Test_nativeGitClient_SparseCheckout_MultiplePaths(t *testing.T) {
 	ctx := context.Background()
-	
+
 	srcRepo := createTestRepoWithStructure(t, ctx)
 
 	// Multiple directories in cone mode
@@ -163,7 +164,7 @@ func Test_nativeGitClient_SparseCheckout_MultiplePaths(t *testing.T) {
 // is not configured, all files are checked out (current behavior)
 func Test_nativeGitClient_SparseCheckout_Disabled(t *testing.T) {
 	ctx := context.Background()
-	
+
 	srcRepo := createTestRepoWithStructure(t, ctx)
 
 	// Simply verify files exist in the created repo
@@ -181,7 +182,7 @@ func Test_nativeGitClient_SparseCheckout_Disabled(t *testing.T) {
 // checkout pattern syntaxes
 func Test_nativeGitClient_SparseCheckout_WildcardPatterns(t *testing.T) {
 	t.Skip("TODO: Implement after basic sparse checkout works")
-	
+
 	// Test cases for different pattern types:
 	// - "apps/frontend" - specific directory
 	// - "apps/*" - all subdirectories of apps
