@@ -1274,10 +1274,9 @@ func Test_GitNoDetachedMaintenance(t *testing.T) {
 	lines := strings.Split(output, "\n")
 	for _, line := range lines {
 		if strings.Contains(line, "git maintenance run") {
-			assert.False(t, strings.Contains(output, "--detach"), "Unexpected --detach when running git maintenance")
+			assert.NotContains(t, output, "--detach", "Unexpected --detach when running git maintenance")
 			return
 		}
-
 	}
 	assert.Fail(t, "Expected to see `git maintenance` run after `git fetch`")
 }
