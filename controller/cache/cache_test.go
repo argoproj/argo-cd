@@ -40,7 +40,7 @@ func (n netError) Error() string   { return string(n) }
 func (n netError) Timeout() bool   { return false }
 func (n netError) Temporary() bool { return false }
 
-func fixtures(data map[string]string, opts ...func(secret *corev1.Secret)) (*fake.Clientset, *argosettings.SettingsManager) {
+func fixtures(ctx context.Context, data map[string]string, opts ...func(secret *corev1.Secret)) (*fake.Clientset, *argosettings.SettingsManager) {
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      common.ArgoCDConfigMapName,
@@ -65,7 +65,7 @@ func fixtures(data map[string]string, opts ...func(secret *corev1.Secret)) (*fak
 		opts[i](secret)
 	}
 	kubeClient := fake.NewClientset(cm, secret)
-	settingsManager := argosettings.NewSettingsManager(context.Background(), kubeClient, "default")
+	settingsManager := argosettings.NewSettingsManager(ctx, kubeClient, "default")
 
 	return kubeClient, settingsManager
 }
@@ -775,7 +775,7 @@ func Test_GetVersionsInfo_error_redacted(t *testing.T) {
 }
 
 func TestLoadCacheSettings(t *testing.T) {
-	_, settingsManager := fixtures(map[string]string{
+	_, settingsManager := fixtures(t.Context(), map[string]string{
 		"application.instanceLabelKey":       "testLabel",
 		"application.resourceTrackingMethod": string(appv1.TrackingMethodLabel),
 		"installationID":                     "123456789",
