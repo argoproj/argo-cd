@@ -340,6 +340,8 @@ The filename can always be accessed using `{{.path.filename}}`.
 
 **Note**: If the `pathParamPrefix` option is specified, all `path`-related parameter names above will be prefixed with the specified value and a dot separator. E.g., if `pathParamPrefix` is `myRepo`, then the generated parameter name would be `myRepo.path` instead of `path`. Using this option is necessary in a Matrix generator where both child generators are Git generators (to avoid conflicts when merging the child generators’ items).
 
+**Note**: If the `paramPrefix` option is specified, all data included from the contents of files will be prefixed with the specified value and a dot separator. E.g., if `paramPrefix` is `myRepo`, and the file included the key `aws_account`, then the generated parameter name would be `myRepo.aws_account` instead of `aws_account`. Using this option is necessary in a Matrix generator where both child generators are Git generators (to avoid conflicts when merging the child generators’ items), or if the file contents would conflict with the generated `path` or `values` parameters.
+
 **Note**: The default behavior of the Git file generator is very greedy. Please see [Git File Generator Globbing](./Generators-Git-File-Globbing.md) for more information.
 
 ### Exclude files

@@ -61,6 +61,8 @@ spec:
         template:
         # OPTIONAL: all path-related parameter names will be prefixed with the specified value and a dot separator
         pathParamPrefix: myRepo
+        # OPTIONAL: all data included from file contents will be prefixed with the specified value and a dot separator
+        paramPrefix: fileContents
         # OPTIONAL: Values contains key/value pairs which are passed directly as parameters to the template
         values:
           cluster: '{{.path.basename}}'
