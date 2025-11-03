@@ -263,8 +263,8 @@ func newFakeApp(fakeAppYAML string) *argoappv1.Application {
 	return &app
 }
 
-func newFakeLister(fakeAppYAMLs ...string) (context.CancelFunc, applister.ApplicationLister) {
-	ctx, cancel := context.WithCancel(context.Background())
+func newFakeLister(ctx context.Context, fakeAppYAMLs ...string) (context.CancelFunc, applister.ApplicationLister) {
+	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	var fakeApps []runtime.Object
 	for _, appYAML := range fakeAppYAMLs {
@@ -319,11 +319,11 @@ func testMetricServer(t *testing.T, fakeAppYAMLs []string, expectedResponse stri
 
 func runTest(t *testing.T, cfg TestMetricServerConfig) {
 	t.Helper()
-	cancel, appLister := newFakeLister(cfg.FakeAppYAMLs...)
+	cancel, appLister := newFakeLister(t.Context(), cfg.FakeAppYAMLs...)
 	defer cancel()
 	mockDB := mocks.NewArgoDB(t)
-	mockDB.On("GetClusterServersByName", mock.Anything, "cluster1").Return([]string{"https://localhost:6443"}, nil)
-	mockDB.On("GetCluster", mock.Anything, "https://localhost:6443").Return(&argoappv1.Cluster{Name: "cluster1", Server: "https://localhost:6443"}, nil)
+	mockDB.EXPECT().GetClusterServersByName(mock.Anything, "cluster1").Return([]string{"https://localhost:6443"}, nil).Maybe()
+	mockDB.EXPECT().GetCluster(mock.Anything, "https://localhost:6443").Return(&argoappv1.Cluster{Name: "cluster1", Server: "https://localhost:6443"}, nil).Maybe()
 	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, cfg.AppLabels, cfg.AppConditions, mockDB)
 	require.NoError(t, err)
 
@@ -472,7 +472,7 @@ argocd_app_condition{condition="ExcludedResourceWarning",name="my-app-4",namespa
 }
 
 func TestMetricsSyncCounter(t *testing.T) {
-	cancel, appLister := newFakeLister()
+	cancel, appLister := newFakeLister(t.Context())
 	defer cancel()
 	mockDB := mocks.NewArgoDB(t)
 	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{}, mockDB)
@@ -526,7 +526,7 @@ func assertMetricsNotPrinted(t *testing.T, expectedLines, body string) {
 }
 
 func TestMetricsSyncDuration(t *testing.T) {
-	cancel, appLister := newFakeLister()
+	cancel, appLister := newFakeLister(t.Context())
 	defer cancel()
 	mockDB := mocks.NewArgoDB(t)
 	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{}, mockDB)
@@ -567,7 +567,7 @@ argocd_app_sync_duration_seconds_total{dest_server="https://localhost:6443",name
 }
 
 func TestReconcileMetrics(t *testing.T) {
-	cancel, appLister := newFakeLister()
+	cancel, appLister := newFakeLister(t.Context())
 	defer cancel()
 	mockDB := mocks.NewArgoDB(t)
 	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{}, mockDB)
@@ -601,7 +601,7 @@ argocd_app_reconcile_count{dest_server="https://localhost:6443",namespace="argoc
 }
 
 func TestOrphanedResourcesMetric(t *testing.T) {
-	cancel, appLister := newFakeLister()
+	cancel, appLister := newFakeLister(t.Context())
 	defer cancel()
 	mockDB := mocks.NewArgoDB(t)
 	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{}, mockDB)
@@ -627,7 +627,7 @@ argocd_app_orphaned_resources_count{name="my-app-4",namespace="argocd",project="
 }
 
 func TestMetricsReset(t *testing.T) {
-	cancel, appLister := newFakeLister()
+	cancel, appLister := newFakeLister(t.Context())
 	defer cancel()
 	mockDB := mocks.NewArgoDB(t)
 	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{}, mockDB)
@@ -665,7 +665,7 @@ argocd_app_sync_total{dest_server="https://localhost:6443",dry_run="false",name=
 }
 
 func TestWorkqueueMetrics(t *testing.T) {
-	cancel, appLister := newFakeLister()
+	cancel, appLister := newFakeLister(t.Context())
 	defer cancel()
 	mockDB := mocks.NewArgoDB(t)
 	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{}, mockDB)
@@ -696,7 +696,7 @@ workqueue_unfinished_work_seconds{controller="test",name="test"}
 }
 
 func TestGoMetrics(t *testing.T) {
-	cancel, appLister := newFakeLister()
+	cancel, appLister := newFakeLister(t.Context())
 	defer cancel()
 	mockDB := mocks.NewArgoDB(t)
 	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{}, mockDB)
