@@ -285,6 +285,9 @@ func (s *Server) Create(ctx context.Context, q *project.ProjectCreateRequest) (*
 
 // List returns list of projects
 func (s *Server) List(ctx context.Context, _ *project.ProjectQuery) (*v1alpha1.AppProjectList, error) {
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceProjects, rbac.ActionList); err != nil {
+		return nil, err
+	}
 	list, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).List(ctx, metav1.ListOptions{})
 	if list != nil {
 		newItems := make([]v1alpha1.AppProject, 0)
