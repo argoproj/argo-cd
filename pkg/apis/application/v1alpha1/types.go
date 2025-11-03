@@ -535,6 +535,8 @@ type ApplicationSourceHelm struct {
 	SkipTests bool `json:"skipTests,omitempty" protobuf:"bytes,14,opt,name=skipTests"`
 	// SkipSchemaValidation skips JSON schema validation (Helm's --skip-schema-validation)
 	SkipSchemaValidation bool `json:"skipSchemaValidation,omitempty" protobuf:"bytes,15,opt,name=skipSchemaValidation"`
+	// IgnoreMissingFileParameters prevents helm template from failing when fileParameters do not exist locally by not appending them to helm template --set-file
+	IgnoreMissingFileParameters bool `json:"ignoreMissingFileParameters,omitempty" protobuf:"bytes,16,opt,name=ignoreMissingFileParameters"`
 }
 
 // HelmParameter is a parameter that's passed to helm template during manifest generation
@@ -616,7 +618,7 @@ func (ash *ApplicationSourceHelm) AddFileParameter(p HelmFileParameter) {
 
 // IsZero Returns true if the Helm options in an application source are considered zero
 func (ash *ApplicationSourceHelm) IsZero() bool {
-	return ash == nil || (ash.Version == "") && (ash.ReleaseName == "") && len(ash.ValueFiles) == 0 && len(ash.Parameters) == 0 && len(ash.FileParameters) == 0 && ash.ValuesIsEmpty() && !ash.PassCredentials && !ash.IgnoreMissingValueFiles && !ash.SkipCrds && !ash.SkipTests && !ash.SkipSchemaValidation && ash.KubeVersion == "" && len(ash.APIVersions) == 0 && ash.Namespace == ""
+	return ash == nil || (ash.Version == "") && (ash.ReleaseName == "") && len(ash.ValueFiles) == 0 && len(ash.Parameters) == 0 && len(ash.FileParameters) == 0 && ash.ValuesIsEmpty() && !ash.PassCredentials && !ash.IgnoreMissingValueFiles && !ash.SkipCrds && !ash.SkipTests && !ash.SkipSchemaValidation && ash.KubeVersion == "" && len(ash.APIVersions) == 0 && ash.Namespace == "" && !ash.IgnoreMissingFileParameters
 }
 
 // KustomizeImage represents a Kustomize image definition in the format [old_image_name=]<image_name>:<image_tag>

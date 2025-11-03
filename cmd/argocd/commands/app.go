@@ -934,20 +934,21 @@ func NewApplicationSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 
 // unsetOpts describe what to unset in an Application.
 type unsetOpts struct {
-	namePrefix              bool
-	nameSuffix              bool
-	kustomizeVersion        bool
-	kustomizeNamespace      bool
-	kustomizeImages         []string
-	kustomizeReplicas       []string
-	ignoreMissingComponents bool
-	parameters              []string
-	valuesFiles             []string
-	valuesLiteral           bool
-	ignoreMissingValueFiles bool
-	pluginEnvs              []string
-	passCredentials         bool
-	ref                     bool
+	namePrefix                  bool
+	nameSuffix                  bool
+	kustomizeVersion            bool
+	kustomizeNamespace          bool
+	kustomizeImages             []string
+	kustomizeReplicas           []string
+	ignoreMissingComponents     bool
+	parameters                  []string
+	valuesFiles                 []string
+	valuesLiteral               bool
+	ignoreMissingValueFiles     bool
+	ignoreMissingFileParameters bool
+	pluginEnvs                  []string
+	passCredentials             bool
+	ref                         bool
 }
 
 // IsZero returns true when the Application options for kustomize are considered empty
@@ -1057,6 +1058,7 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 	command.Flags().StringArrayVar(&opts.valuesFiles, "values", []string{}, "Unset one or more Helm values files")
 	command.Flags().BoolVar(&opts.valuesLiteral, "values-literal", false, "Unset literal Helm values block")
 	command.Flags().BoolVar(&opts.ignoreMissingValueFiles, "ignore-missing-value-files", false, "Unset the helm ignore-missing-value-files option (revert to false)")
+	command.Flags().BoolVar(&opts.ignoreMissingFileParameters, "ignore-missing-file-parameters", false, "Unset the helm ignore-missing-file-parameters option (revert to false)")
 	command.Flags().BoolVar(&opts.nameSuffix, "namesuffix", false, "Kustomize namesuffix")
 	command.Flags().BoolVar(&opts.namePrefix, "nameprefix", false, "Kustomize nameprefix")
 	command.Flags().BoolVar(&opts.kustomizeVersion, "kustomize-version", false, "Kustomize version")
@@ -1136,7 +1138,7 @@ func unset(source *argoappv1.ApplicationSource, opts unsetOpts) (updated bool, n
 		}
 	}
 	if source.Helm != nil {
-		if len(opts.parameters) == 0 && len(opts.valuesFiles) == 0 && !opts.valuesLiteral && !opts.ignoreMissingValueFiles && !opts.passCredentials {
+		if len(opts.parameters) == 0 && len(opts.valuesFiles) == 0 && !opts.valuesLiteral && !opts.ignoreMissingValueFiles && !opts.ignoreMissingFileParameters && !opts.passCredentials {
 			return updated, !needToUnsetRef
 		}
 		for _, paramStr := range opts.parameters {
@@ -1167,6 +1169,10 @@ func unset(source *argoappv1.ApplicationSource, opts unsetOpts) (updated bool, n
 		}
 		if opts.ignoreMissingValueFiles && source.Helm.IgnoreMissingValueFiles {
 			source.Helm.IgnoreMissingValueFiles = false
+			updated = true
+		}
+		if opts.ignoreMissingFileParameters && source.Helm.IgnoreMissingFileParameters {
+			source.Helm.IgnoreMissingFileParameters = false
 			updated = true
 		}
 		if opts.passCredentials && source.Helm.PassCredentials {

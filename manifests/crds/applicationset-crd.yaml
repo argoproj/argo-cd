@@ -208,6 +208,8 @@ spec:
                                                 type: string
                                             type: object
                                           type: array
+                                        ignoreMissingFileParameters:
+                                          type: boolean
                                         ignoreMissingValueFiles:
                                           type: boolean
                                         kubeVersion:
@@ -486,6 +488,8 @@ spec:
                                                   type: string
                                               type: object
                                             type: array
+                                          ignoreMissingFileParameters:
+                                            type: boolean
                                           ignoreMissingValueFiles:
                                             type: boolean
                                           kubeVersion:
@@ -894,6 +898,8 @@ spec:
                                                 type: string
                                             type: object
                                           type: array
+                                        ignoreMissingFileParameters:
+                                          type: boolean
                                         ignoreMissingValueFiles:
                                           type: boolean
                                         kubeVersion:
@@ -1172,6 +1178,8 @@ spec:
                                                   type: string
                                               type: object
                                             type: array
+                                          ignoreMissingFileParameters:
+                                            type: boolean
                                           ignoreMissingValueFiles:
                                             type: boolean
                                           kubeVersion:
@@ -1581,6 +1589,8 @@ spec:
                                                 type: string
                                             type: object
                                           type: array
+                                        ignoreMissingFileParameters:
+                                          type: boolean
                                         ignoreMissingValueFiles:
                                           type: boolean
                                         kubeVersion:
@@ -1859,6 +1869,8 @@ spec:
                                                   type: string
                                               type: object
                                             type: array
+                                          ignoreMissingFileParameters:
+                                            type: boolean
                                           ignoreMissingValueFiles:
                                             type: boolean
                                           kubeVersion:
@@ -2246,6 +2258,8 @@ spec:
                                                 type: string
                                             type: object
                                           type: array
+                                        ignoreMissingFileParameters:
+                                          type: boolean
                                         ignoreMissingValueFiles:
                                           type: boolean
                                         kubeVersion:
@@ -2524,6 +2538,8 @@ spec:
                                                   type: string
                                               type: object
                                             type: array
+                                          ignoreMissingFileParameters:
+                                            type: boolean
                                           ignoreMissingValueFiles:
                                             type: boolean
                                           kubeVersion:
@@ -2936,6 +2952,8 @@ spec:
                                                           type: string
                                                       type: object
                                                     type: array
+                                                  ignoreMissingFileParameters:
+                                                    type: boolean
                                                   ignoreMissingValueFiles:
                                                     type: boolean
                                                   kubeVersion:
@@ -3214,6 +3232,8 @@ spec:
                                                             type: string
                                                         type: object
                                                       type: array
+                                                    ignoreMissingFileParameters:
+                                                      type: boolean
                                                     ignoreMissingValueFiles:
                                                       type: boolean
                                                     kubeVersion:
@@ -3622,6 +3642,8 @@ spec:
                                                           type: string
                                                       type: object
                                                     type: array
+                                                  ignoreMissingFileParameters:
+                                                    type: boolean
                                                   ignoreMissingValueFiles:
                                                     type: boolean
                                                   kubeVersion:
@@ -3900,6 +3922,8 @@ spec:
                                                             type: string
                                                         type: object
                                                       type: array
+                                                    ignoreMissingFileParameters:
+                                                      type: boolean
                                                     ignoreMissingValueFiles:
                                                       type: boolean
                                                     kubeVersion:
@@ -4309,6 +4333,8 @@ spec:
                                                           type: string
                                                       type: object
                                                     type: array
+                                                  ignoreMissingFileParameters:
+                                                    type: boolean
                                                   ignoreMissingValueFiles:
                                                     type: boolean
                                                   kubeVersion:
@@ -4587,6 +4613,8 @@ spec:
                                                             type: string
                                                         type: object
                                                       type: array
+                                                    ignoreMissingFileParameters:
+                                                      type: boolean
                                                     ignoreMissingValueFiles:
                                                       type: boolean
                                                     kubeVersion:
@@ -4974,6 +5002,8 @@ spec:
                                                           type: string
                                                       type: object
                                                     type: array
+                                                  ignoreMissingFileParameters:
+                                                    type: boolean
                                                   ignoreMissingValueFiles:
                                                     type: boolean
                                                   kubeVersion:
@@ -5252,6 +5282,8 @@ spec:
                                                             type: string
                                                         type: object
                                                       type: array
+                                                    ignoreMissingFileParameters:
+                                                      type: boolean
                                                     ignoreMissingValueFiles:
                                                       type: boolean
                                                     kubeVersion:
@@ -5647,6 +5679,8 @@ spec:
                                                           type: string
                                                       type: object
                                                     type: array
+                                                  ignoreMissingFileParameters:
+                                                    type: boolean
                                                   ignoreMissingValueFiles:
                                                     type: boolean
                                                   kubeVersion:
@@ -5925,6 +5959,8 @@ spec:
                                                             type: string
                                                         type: object
                                                       type: array
+                                                    ignoreMissingFileParameters:
+                                                      type: boolean
                                                     ignoreMissingValueFiles:
                                                       type: boolean
                                                     kubeVersion:
@@ -6547,6 +6583,8 @@ spec:
                                                           type: string
                                                       type: object
                                                     type: array
+                                                  ignoreMissingFileParameters:
+                                                    type: boolean
                                                   ignoreMissingValueFiles:
                                                     type: boolean
                                                   kubeVersion:
@@ -6825,6 +6863,8 @@ spec:
                                                             type: string
                                                         type: object
                                                       type: array
+                                                    ignoreMissingFileParameters:
+                                                      type: boolean
                                                     ignoreMissingValueFiles:
                                                       type: boolean
                                                     kubeVersion:
@@ -7438,6 +7478,8 @@ spec:
                                                           type: string
                                                       type: object
                                                     type: array
+                                                  ignoreMissingFileParameters:
+                                                    type: boolean
                                                   ignoreMissingValueFiles:
                                                     type: boolean
                                                   kubeVersion:
@@ -7716,6 +7758,8 @@ spec:
                                                             type: string
                                                         type: object
                                                       type: array
+                                                    ignoreMissingFileParameters:
+                                                      type: boolean
                                                     ignoreMissingValueFiles:
                                                       type: boolean
                                                     kubeVersion:
@@ -8120,6 +8164,8 @@ spec:
                                                 type: string
                                             type: object
                                           type: array
+                                        ignoreMissingFileParameters:
+                                          type: boolean
                                         ignoreMissingValueFiles:
                                           type: boolean
                                         kubeVersion:
@@ -8398,6 +8444,8 @@ spec:
                                                   type: string
                                               type: object
                                             type: array
+                                          ignoreMissingFileParameters:
+                                            type: boolean
                                           ignoreMissingValueFiles:
                                             type: boolean
                                           kubeVersion:
@@ -8812,6 +8860,8 @@ spec:
                                                           type: string
                                                       type: object
                                                     type: array
+                                                  ignoreMissingFileParameters:
+                                                    type: boolean
                                                   ignoreMissingValueFiles:
                                                     type: boolean
                                                   kubeVersion:
@@ -9090,6 +9140,8 @@ spec:
                                                             type: string
                                                         type: object
                                                       type: array
+                                                    ignoreMissingFileParameters:
+                                                      type: boolean
                                                     ignoreMissingValueFiles:
                                                       type: boolean
                                                     kubeVersion:
@@ -9498,6 +9550,8 @@ spec:
                                                           type: string
                                                       type: object
                                                     type: array
+                                                  ignoreMissingFileParameters:
+                                                    type: boolean
                                                   ignoreMissingValueFiles:
                                                     type: boolean
                                                   kubeVersion:
@@ -9776,6 +9830,8 @@ spec:
                                                             type: string
                                                         type: object
                                                       type: array
+                                                    ignoreMissingFileParameters:
+                                                      type: boolean
                                                     ignoreMissingValueFiles:
                                                       type: boolean
                                                     kubeVersion:
@@ -10185,6 +10241,8 @@ spec:
                                                           type: string
                                                       type: object
                                                     type: array
+                                                  ignoreMissingFileParameters:
+                                                    type: boolean
                                                   ignoreMissingValueFiles:
                                                     type: boolean
                                                   kubeVersion:
@@ -10463,6 +10521,8 @@ spec:
                                                             type: string
                                                         type: object
                                                       type: array
+                                                    ignoreMissingFileParameters:
+                                                      type: boolean
                                                     ignoreMissingValueFiles:
                                                       type: boolean
                                                     kubeVersion:
@@ -10850,6 +10910,8 @@ spec:
                                                           type: string
                                                       type: object
                                                     type: array
+                                                  ignoreMissingFileParameters:
+                                                    type: boolean
                                                   ignoreMissingValueFiles:
                                                     type: boolean
                                                   kubeVersion:
@@ -11128,6 +11190,8 @@ spec:
                                                             type: string
                                                         type: object
                                                       type: array
+                                                    ignoreMissingFileParameters:
+                                                      type: boolean
                                                     ignoreMissingValueFiles:
                                                       type: boolean
                                                     kubeVersion:
@@ -11523,6 +11587,8 @@ spec:
                                                           type: string
                                                       type: object
                                                     type: array
+                                                  ignoreMissingFileParameters:
+                                                    type: boolean
                                                   ignoreMissingValueFiles:
                                                     type: boolean
                                                   kubeVersion:
@@ -11801,6 +11867,8 @@ spec:
                                                             type: string
                                                         type: object
                                                       type: array
+                                                    ignoreMissingFileParameters:
+                                                      type: boolean
                                                     ignoreMissingValueFiles:
                                                       type: boolean
                                                     kubeVersion:
@@ -12423,6 +12491,8 @@ spec:
                                                           type: string
                                                       type: object
                                                     type: array
+                                                  ignoreMissingFileParameters:
+                                                    type: boolean
                                                   ignoreMissingValueFiles:
                                                     type: boolean
                                                   kubeVersion:
@@ -12701,6 +12771,8 @@ spec:
                                                             type: string
                                                         type: object
                                                       type: array
+                                                    ignoreMissingFileParameters:
+                                                      type: boolean
                                                     ignoreMissingValueFiles:
                                                       type: boolean
                                                     kubeVersion:
@@ -13314,6 +13386,8 @@ spec:
                                                           type: string
                                                       type: object
                                                     type: array
+                                                  ignoreMissingFileParameters:
+                                                    type: boolean
                                                   ignoreMissingValueFiles:
                                                     type: boolean
                                                   kubeVersion:
@@ -13592,6 +13666,8 @@ spec:
                                                             type: string
                                                         type: object
                                                       type: array
+                                                    ignoreMissingFileParameters:
+                                                      type: boolean
                                                     ignoreMissingValueFiles:
                                                       type: boolean
                                                     kubeVersion:
@@ -14000,6 +14076,8 @@ spec:
                                                 type: string
                                             type: object
                                           type: array
+                                        ignoreMissingFileParameters:
+                                          type: boolean
                                         ignoreMissingValueFiles:
                                           type: boolean
                                         kubeVersion:
@@ -14278,6 +14356,8 @@ spec:
                                                   type: string
                                               type: object
                                             type: array
+                                          ignoreMissingFileParameters:
+                                            type: boolean
                                           ignoreMissingValueFiles:
                                             type: boolean
                                           kubeVersion:
@@ -14672,6 +14752,8 @@ spec:
                                                 type: string
                                             type: object
                                           type: array
+                                        ignoreMissingFileParameters:
+                                          type: boolean
                                         ignoreMissingValueFiles:
                                           type: boolean
                                         kubeVersion:
@@ -14950,6 +15032,8 @@ spec:
                                                   type: string
                                               type: object
                                             type: array
+                                          ignoreMissingFileParameters:
+                                            type: boolean
                                           ignoreMissingValueFiles:
                                             type: boolean
                                           kubeVersion:
@@ -15572,6 +15656,8 @@ spec:
                                                 type: string
                                             type: object
                                           type: array
+                                        ignoreMissingFileParameters:
+                                          type: boolean
                                         ignoreMissingValueFiles:
                                           type: boolean
                                         kubeVersion:
@@ -15850,6 +15936,8 @@ spec:
                                                   type: string
                                               type: object
                                             type: array
+                                          ignoreMissingFileParameters:
+                                            type: boolean
                                           ignoreMissingValueFiles:
                                             type: boolean
                                           kubeVersion:
@@ -16463,6 +16551,8 @@ spec:
                                                 type: string
                                             type: object
                                           type: array
+                                        ignoreMissingFileParameters:
+                                          type: boolean
                                         ignoreMissingValueFiles:
                                           type: boolean
                                         kubeVersion:
@@ -16741,6 +16831,8 @@ spec:
                                                   type: string
                                               type: object
                                             type: array
+                                          ignoreMissingFileParameters:
+                                            type: boolean
                                           ignoreMissingValueFiles:
                                             type: boolean
                                           kubeVersion:
@@ -17222,6 +17314,8 @@ spec:
                                       type: string
                                   type: object
                                 type: array
+                              ignoreMissingFileParameters:
+                                type: boolean
                               ignoreMissingValueFiles:
                                 type: boolean
                               kubeVersion:
@@ -17500,6 +17594,8 @@ spec:
                                         type: string
                                     type: object
                                   type: array
+                                ignoreMissingFileParameters:
+                                  type: boolean
                                 ignoreMissingValueFiles:
                                   type: boolean
                                 kubeVersion:

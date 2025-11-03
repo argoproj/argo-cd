@@ -30,23 +30,24 @@ argocd app unset APPNAME parameters [flags]
 ### Options
 
 ```
-  -N, --app-namespace string            Unset application parameters in namespace
-  -h, --help                            help for unset
-      --ignore-missing-components       Unset the kustomize ignore-missing-components option (revert to false)
-      --ignore-missing-value-files      Unset the helm ignore-missing-value-files option (revert to false)
-      --kustomize-image stringArray     Kustomize images name (e.g. --kustomize-image node --kustomize-image mysql)
-      --kustomize-namespace             Kustomize namespace
-      --kustomize-replica stringArray   Kustomize replicas name (e.g. --kustomize-replica my-deployment --kustomize-replica my-statefulset)
-      --kustomize-version               Kustomize version
-      --nameprefix                      Kustomize nameprefix
-      --namesuffix                      Kustomize namesuffix
-  -p, --parameter stringArray           Unset a parameter override (e.g. -p guestbook=image)
-      --pass-credentials                Unset passCredentials
-      --plugin-env stringArray          Unset plugin env variables (e.g --plugin-env name)
-      --ref                             Unset ref on the source
-      --source-position int             Position of the source from the list of sources of the app. Counting starts at 1. (default -1)
-      --values stringArray              Unset one or more Helm values files
-      --values-literal                  Unset literal Helm values block
+  -N, --app-namespace string             Unset application parameters in namespace
+  -h, --help                             help for unset
+      --ignore-missing-components        Unset the kustomize ignore-missing-components option (revert to false)
+      --ignore-missing-file-parameters   Unset the helm ignore-missing-file-parameters option (revert to false)
+      --ignore-missing-value-files       Unset the helm ignore-missing-value-files option (revert to false)
+      --kustomize-image stringArray      Kustomize images name (e.g. --kustomize-image node --kustomize-image mysql)
+      --kustomize-namespace              Kustomize namespace
+      --kustomize-replica stringArray    Kustomize replicas name (e.g. --kustomize-replica my-deployment --kustomize-replica my-statefulset)
+      --kustomize-version                Kustomize version
+      --nameprefix                       Kustomize nameprefix
+      --namesuffix                       Kustomize namesuffix
+  -p, --parameter stringArray            Unset a parameter override (e.g. -p guestbook=image)
+      --pass-credentials                 Unset passCredentials
+      --plugin-env stringArray           Unset plugin env variables (e.g --plugin-env name)
+      --ref                              Unset ref on the source
+      --source-position int              Position of the source from the list of sources of the app. Counting starts at 1. (default -1)
+      --values stringArray               Unset one or more Helm values files
+      --values-literal                   Unset literal Helm values block
 ```
 
 ### Options inherited from parent commands

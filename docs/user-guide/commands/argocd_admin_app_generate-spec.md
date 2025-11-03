@@ -65,6 +65,7 @@ argocd admin app generate-spec APPNAME [flags]
   -h, --help                                       help for generate-spec
       --hydrate-to-branch string                   The branch to hydrate the app to
       --ignore-missing-components                  Ignore locally missing component directories when setting Kustomize components
+      --ignore-missing-file-parameters             Ignore locally missing fileParameters when setting helm template --helm-set-file
       --ignore-missing-value-files                 Ignore locally missing valueFiles when setting helm template --values
   -i, --inline                                     If set then generated resource is written back to the file specified in --file flag
       --jsonnet-ext-var-code stringArray           Jsonnet ext var

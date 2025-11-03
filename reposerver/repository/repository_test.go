@@ -1217,6 +1217,35 @@ func TestHelmWithMissingValueFiles(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestHelmWithMissingFileParameters(t *testing.T) {
+	service := newService(t, "../../util/helm/testdata/redis")
+	missingFileParametersFile := "parameter-file.yaml"
+
+	req := &apiclient.ManifestRequest{
+		Repo:    &v1alpha1.Repository{},
+		AppName: "test",
+		ApplicationSource: &v1alpha1.ApplicationSource{
+			Path: ".",
+			Helm: &v1alpha1.ApplicationSourceHelm{
+				FileParameters: []v1alpha1.HelmFileParameter{
+					{Name: "some.key", Path: missingFileParametersFile},
+				},
+			},
+		},
+		ProjectName:        "something",
+		ProjectSourceRepos: []string{"*"},
+	}
+
+	// Should fail since we're passing a non-existent parameter file, and error should indicate that
+	_, err := service.GenerateManifest(t.Context(), req)
+	require.ErrorContains(t, err, missingFileParametersFile+": no such file or directory")
+
+	// Should template without error even if defining a non-existent parameter file
+	req.ApplicationSource.Helm.IgnoreMissingFileParameters = true
+	_, err = service.GenerateManifest(t.Context(), req)
+	require.NoError(t, err)
+}
+
 func TestGenerateHelmWithEnvVars(t *testing.T) {
 	service := newService(t, "../../util/helm/testdata/redis")
 
