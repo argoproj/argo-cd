@@ -10,6 +10,14 @@ cmd_button(
     text='make codegen-local',
 )
 
+cmd_button(
+    'make test-local',
+    argv=['sh', '-c', 'make test-local'],
+    location=location.NAV,
+    icon_name='science',
+    text='make test-local',
+)
+
 # add ui button in web ui to run make codegen-local (top nav)
 cmd_button(
     'make cli-local',
@@ -69,7 +77,7 @@ docker_build_with_restart(
     ],
     platform=platform,
     live_update=[
-        sync('.tilt-bin/argocd_linux_amd64', '/usr/local/bin/argocd'),
+        sync('.tilt-bin/argocd_linux', '/usr/local/bin/argocd'),
     ],
     only=[
         '.tilt-bin',
@@ -260,6 +268,7 @@ local_resource(
     'make lint-local',
     deps = code_deps,
     allow_parallel=True,
+    resource_deps=['vendor']
 )
 
 local_resource(

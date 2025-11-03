@@ -39,9 +39,13 @@ import (
 	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/headless"
 	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/utils"
 	cmdutil "github.com/argoproj/argo-cd/v3/cmd/util"
+	argocommon "github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/controller"
 	argocdclient "github.com/argoproj/argo-cd/v3/pkg/apiclient"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
+
+	resourceutil "github.com/argoproj/gitops-engine/pkg/sync/resource"
+
 	clusterpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/cluster"
 	projectpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/project"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/settings"
@@ -95,6 +99,7 @@ func NewApplicationCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 	command.AddCommand(NewApplicationTerminateOpCommand(clientOpts))
 	command.AddCommand(NewApplicationEditCommand(clientOpts))
 	command.AddCommand(NewApplicationPatchCommand(clientOpts))
+	command.AddCommand(NewApplicationGetResourceCommand(clientOpts))
 	command.AddCommand(NewApplicationPatchResourceCommand(clientOpts))
 	command.AddCommand(NewApplicationDeleteResourceCommand(clientOpts))
 	command.AddCommand(NewApplicationResourceActionsCommand(clientOpts))
@@ -348,7 +353,7 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 	command := &cobra.Command{
 		Use:   "get APPNAME",
 		Short: "Get application details",
-		Example: templates.Examples(`  
+		Example: templates.Examples(`
   # Get basic details about the application "my-app" in wide format
   argocd app get my-app -o wide
 
@@ -378,7 +383,7 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 
   # Get application details and display them in a tree format
   argocd app get my-app --output tree
-  
+
   # Get application details and display them in a detailed tree format
   argocd app get my-app --output tree=detailed
   		`),
@@ -536,7 +541,7 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command := &cobra.Command{
 		Use:   "logs APPNAME",
 		Short: "Get logs of application pods",
-		Example: templates.Examples(`  
+		Example: templates.Examples(`
   # Get logs of pods associated with the application "my-app"
   argocd app logs my-app
 
@@ -850,7 +855,7 @@ func NewApplicationSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 	command := &cobra.Command{
 		Use:   "set APPNAME",
 		Short: "Set application parameters",
-		Example: templates.Examples(`  
+		Example: templates.Examples(`
   # Set application parameters for the application "my-app"
   argocd app set my-app --parameter key1=value1 --parameter key2=value2
 
@@ -1281,6 +1286,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		revision             string
 		localRepoRoot        string
 		serverSideGenerate   bool
+		serverSideDiff       bool
 		localIncludes        []string
 		appNamespace         string
 		revisions            []string
@@ -1343,6 +1349,22 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			argoSettings, err := settingsIf.Get(ctx, &settings.SettingsQuery{})
 			errors.CheckError(err)
 			diffOption := &DifferenceOption{}
+
+			hasServerSideDiffAnnotation := resourceutil.HasAnnotationOption(app, argocommon.AnnotationCompareOptions, "ServerSideDiff=true")
+
+			// Use annotation if flag not explicitly set
+			if !c.Flags().Changed("server-side-diff") {
+				serverSideDiff = hasServerSideDiffAnnotation
+			} else if serverSideDiff && !hasServerSideDiffAnnotation {
+				// Flag explicitly set to true, but app annotation is not set
+				fmt.Fprintf(os.Stderr, "Warning: Application does not have ServerSideDiff=true annotation.\n")
+			}
+
+			// Server side diff with local requires server side generate to be set as there will be a mismatch with client-generated manifests.
+			if serverSideDiff && local != "" && !serverSideGenerate {
+				log.Fatal("--server-side-diff with --local requires --server-side-generate.")
+			}
+
 			switch {
 			case app.Spec.HasMultipleSources() && len(revisions) > 0 && len(sourcePositions) > 0:
 				numOfSources := int64(len(app.Spec.GetSources()))
@@ -1357,6 +1379,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					AppNamespace:    &appNs,
 					Revisions:       revisions,
 					SourcePositions: sourcePositions,
+					NoCache:         &hardRefresh,
 				}
 				res, err := appIf.GetManifests(ctx, &q)
 				errors.CheckError(err)
@@ -1368,6 +1391,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					Name:         &appName,
 					Revision:     &revision,
 					AppNamespace: &appNs,
+					NoCache:      &hardRefresh,
 				}
 				res, err := appIf.GetManifests(ctx, &q)
 				errors.CheckError(err)
@@ -1398,7 +1422,8 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				}
 			}
 			proj := getProject(ctx, c, clientOpts, app.Spec.Project)
-			foundDiffs := findandPrintDiff(ctx, app, proj.Project, resources, argoSettings, diffOption, ignoreNormalizerOpts)
+
+			foundDiffs := findAndPrintDiff(ctx, app, proj.Project, resources, argoSettings, diffOption, ignoreNormalizerOpts, serverSideDiff, appIf, app.GetName(), app.GetNamespace())
 			if foundDiffs && exitCode {
 				os.Exit(diffExitCode)
 			}
@@ -1407,11 +1432,12 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().BoolVar(&refresh, "refresh", false, "Refresh application data when retrieving")
 	command.Flags().BoolVar(&hardRefresh, "hard-refresh", false, "Refresh application data as well as target manifests cache")
 	command.Flags().BoolVar(&exitCode, "exit-code", true, "Return non-zero exit code when there is a diff. May also return non-zero exit code if there is an error.")
-	command.Flags().IntVar(&diffExitCode, "diff-exit-code", 1, "Return specified exit code when there is a diff. Typical error code is 20.")
+	command.Flags().IntVar(&diffExitCode, "diff-exit-code", 1, "Return specified exit code when there is a diff. Typical error code is 20 but use another exit code if you want to differentiate from the generic exit code (20) returned by all CLI commands.")
 	command.Flags().StringVar(&local, "local", "", "Compare live app to a local manifests")
 	command.Flags().StringVar(&revision, "revision", "", "Compare live app to a particular revision")
 	command.Flags().StringVar(&localRepoRoot, "local-repo-root", "/", "Path to the repository root. Used together with --local allows setting the repository root")
 	command.Flags().BoolVar(&serverSideGenerate, "server-side-generate", false, "Used with --local, this will send your manifests to the server for diffing")
+	command.Flags().BoolVar(&serverSideDiff, "server-side-diff", false, "Use server-side diff to calculate the diff. This will default to true if the ServerSideDiff annotation is set on the application.")
 	command.Flags().StringArrayVar(&localIncludes, "local-include", []string{"*.yaml", "*.yml", "*.json"}, "Used with --server-side-generate, specify patterns of filenames to send. Matching is based on filename and not path.")
 	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Only render the difference in namespace")
 	command.Flags().StringArrayVar(&revisions, "revisions", []string{}, "Show manifests at specific revisions for source position in source-positions")
@@ -1419,6 +1445,101 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().StringArrayVar(&sourceNames, "source-names", []string{}, "List of source names. Default is an empty array.")
 	command.Flags().DurationVar(&ignoreNormalizerOpts.JQExecutionTimeout, "ignore-normalizer-jq-execution-timeout", normalizers.DefaultJQExecutionTimeout, "Set ignore normalizer JQ execution timeout")
 	return command
+}
+
+// printResourceDiff prints the diff header and calls cli.PrintDiff for a resource
+func printResourceDiff(group, kind, namespace, name string, live, target *unstructured.Unstructured) {
+	fmt.Printf("\n===== %s/%s %s/%s ======\n", group, kind, namespace, name)
+	_ = cli.PrintDiff(name, live, target)
+}
+
+// findAndPrintServerSideDiff performs a server-side diff by making requests to the api server and prints the response
+func findAndPrintServerSideDiff(ctx context.Context, app *argoappv1.Application, items []objKeyLiveTarget, resources *application.ManagedResourcesResponse, appIf application.ApplicationServiceClient, appName, appNs string) bool {
+	// Process each item for server-side diff
+	foundDiffs := false
+	for _, item := range items {
+		if item.target != nil && hook.IsHook(item.target) || item.live != nil && hook.IsHook(item.live) {
+			continue
+		}
+
+		// For server-side diff, we need to create aligned arrays for this specific resource
+		var liveResource *argoappv1.ResourceDiff
+		var targetManifest string
+
+		if item.live != nil {
+			for _, res := range resources.Items {
+				if res.Group == item.key.Group && res.Kind == item.key.Kind &&
+					res.Namespace == item.key.Namespace && res.Name == item.key.Name {
+					liveResource = res
+					break
+				}
+			}
+		}
+
+		if liveResource == nil {
+			// Create empty live resource for creation case
+			liveResource = &argoappv1.ResourceDiff{
+				Group:       item.key.Group,
+				Kind:        item.key.Kind,
+				Namespace:   item.key.Namespace,
+				Name:        item.key.Name,
+				LiveState:   "",
+				TargetState: "",
+				Modified:    true,
+			}
+		}
+
+		if item.target != nil {
+			jsonBytes, err := json.Marshal(item.target)
+			if err != nil {
+				errors.CheckError(fmt.Errorf("error marshaling target object: %w", err))
+			}
+			targetManifest = string(jsonBytes)
+		}
+
+		// Call server-side diff for this individual resource
+		serverSideDiffQuery := &application.ApplicationServerSideDiffQuery{
+			AppName:         &appName,
+			AppNamespace:    &appNs,
+			Project:         &app.Spec.Project,
+			LiveResources:   []*argoappv1.ResourceDiff{liveResource},
+			TargetManifests: []string{targetManifest},
+		}
+
+		serverSideDiffRes, err := appIf.ServerSideDiff(ctx, serverSideDiffQuery)
+		if err != nil {
+			errors.CheckError(err)
+		}
+
+		// Extract diff for this resource
+		for _, resultItem := range serverSideDiffRes.Items {
+			if resultItem.Hook || (!resultItem.Modified && resultItem.TargetState != "" && resultItem.LiveState != "") {
+				continue
+			}
+
+			if resultItem.Modified || resultItem.TargetState == "" || resultItem.LiveState == "" {
+				var live, target *unstructured.Unstructured
+
+				if resultItem.TargetState != "" && resultItem.TargetState != "null" {
+					target = &unstructured.Unstructured{}
+					err = json.Unmarshal([]byte(resultItem.TargetState), target)
+					errors.CheckError(err)
+				}
+
+				if resultItem.LiveState != "" && resultItem.LiveState != "null" {
+					live = &unstructured.Unstructured{}
+					err = json.Unmarshal([]byte(resultItem.LiveState), live)
+					errors.CheckError(err)
+				}
+
+				// Print resulting diff for this resource
+				foundDiffs = true
+				printResourceDiff(resultItem.Group, resultItem.Kind, resultItem.Namespace, resultItem.Name, live, target)
+			}
+		}
+	}
+
+	return foundDiffs
 }
 
 // DifferenceOption struct to store diff options
@@ -1432,47 +1553,15 @@ type DifferenceOption struct {
 	revisions     []string
 }
 
-// findandPrintDiff ... Prints difference between application current state and state stored in git or locally, returns boolean as true if difference is found else returns false
-func findandPrintDiff(ctx context.Context, app *argoappv1.Application, proj *argoappv1.AppProject, resources *application.ManagedResourcesResponse, argoSettings *settings.Settings, diffOptions *DifferenceOption, ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts) bool {
+// findAndPrintDiff ... Prints difference between application current state and state stored in git or locally, returns boolean as true if difference is found else returns false
+func findAndPrintDiff(ctx context.Context, app *argoappv1.Application, proj *argoappv1.AppProject, resources *application.ManagedResourcesResponse, argoSettings *settings.Settings, diffOptions *DifferenceOption, ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts, useServerSideDiff bool, appIf application.ApplicationServiceClient, appName, appNs string) bool {
 	var foundDiffs bool
-	liveObjs, err := cmdutil.LiveObjects(resources.Items)
+
+	items, err := prepareObjectsForDiff(ctx, app, proj, resources, argoSettings, diffOptions)
 	errors.CheckError(err)
-	items := make([]objKeyLiveTarget, 0)
-	switch {
-	case diffOptions.local != "":
-		localObjs := groupObjsByKey(getLocalObjects(ctx, app, proj, diffOptions.local, diffOptions.localRepoRoot, argoSettings.AppLabelKey, diffOptions.cluster.Info.ServerVersion, diffOptions.cluster.Info.APIVersions, argoSettings.KustomizeOptions, argoSettings.TrackingMethod), liveObjs, app.Spec.Destination.Namespace)
-		items = groupObjsForDiff(resources, localObjs, items, argoSettings, app.InstanceName(argoSettings.ControllerNamespace), app.Spec.Destination.Namespace)
-	case diffOptions.revision != "" || len(diffOptions.revisions) > 0:
-		var unstructureds []*unstructured.Unstructured
-		for _, mfst := range diffOptions.res.Manifests {
-			obj, err := argoappv1.UnmarshalToUnstructured(mfst)
-			errors.CheckError(err)
-			unstructureds = append(unstructureds, obj)
-		}
-		groupedObjs := groupObjsByKey(unstructureds, liveObjs, app.Spec.Destination.Namespace)
-		items = groupObjsForDiff(resources, groupedObjs, items, argoSettings, app.InstanceName(argoSettings.ControllerNamespace), app.Spec.Destination.Namespace)
-	case diffOptions.serversideRes != nil:
-		var unstructureds []*unstructured.Unstructured
-		for _, mfst := range diffOptions.serversideRes.Manifests {
-			obj, err := argoappv1.UnmarshalToUnstructured(mfst)
-			errors.CheckError(err)
-			unstructureds = append(unstructureds, obj)
-		}
-		groupedObjs := groupObjsByKey(unstructureds, liveObjs, app.Spec.Destination.Namespace)
-		items = groupObjsForDiff(resources, groupedObjs, items, argoSettings, app.InstanceName(argoSettings.ControllerNamespace), app.Spec.Destination.Namespace)
-	default:
-		for i := range resources.Items {
-			res := resources.Items[i]
-			live := &unstructured.Unstructured{}
-			err := json.Unmarshal([]byte(res.NormalizedLiveState), &live)
-			errors.CheckError(err)
 
-			target := &unstructured.Unstructured{}
-			err = json.Unmarshal([]byte(res.TargetState), &target)
-			errors.CheckError(err)
-
-			items = append(items, objKeyLiveTarget{kube.NewResourceKey(res.Group, res.Kind, res.Namespace, res.Name), live, target})
-		}
+	if useServerSideDiff {
+		return findAndPrintServerSideDiff(ctx, app, items, resources, appIf, appName, appNs)
 	}
 
 	for _, item := range items {
@@ -1499,7 +1588,6 @@ func findandPrintDiff(ctx context.Context, app *argoappv1.Application, proj *arg
 		errors.CheckError(err)
 
 		if diffRes.Modified || item.target == nil || item.live == nil {
-			fmt.Printf("\n===== %s/%s %s/%s ======\n", item.key.Group, item.key.Kind, item.key.Namespace, item.key.Name)
 			var live *unstructured.Unstructured
 			var target *unstructured.Unstructured
 			if item.target != nil && item.live != nil {
@@ -1511,10 +1599,8 @@ func findandPrintDiff(ctx context.Context, app *argoappv1.Application, proj *arg
 				live = item.live
 				target = item.target
 			}
-			if !foundDiffs {
-				foundDiffs = true
-			}
-			_ = cli.PrintDiff(item.key.Name, live, target)
+			foundDiffs = true
+			printResourceDiff(item.key.Group, item.key.Kind, item.key.Namespace, item.key.Name, live, target)
 		}
 	}
 	return foundDiffs
@@ -1708,6 +1794,7 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		repo         string
 		appNamespace string
 		cluster      string
+		path         string
 	)
 	command := &cobra.Command{
 		Use:   "list",
@@ -1743,6 +1830,9 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			if cluster != "" {
 				appList = argo.FilterByCluster(appList, cluster)
 			}
+			if path != "" {
+				appList = argo.FilterByPath(appList, path)
+			}
 
 			switch output {
 			case "yaml", "json":
@@ -1763,6 +1853,7 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().StringVarP(&repo, "repo", "r", "", "List apps by source repo URL")
 	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Only list applications in namespace")
 	command.Flags().StringVarP(&cluster, "cluster", "c", "", "List apps by cluster name or url")
+	command.Flags().StringVarP(&path, "path", "P", "", "List apps by path")
 	return command
 }
 
@@ -2001,6 +2092,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		applyOutOfSyncOnly      bool
 		async                   bool
 		retryLimit              int64
+		retryRefresh            bool
 		retryBackoffDuration    time.Duration
 		retryBackoffMaxDuration time.Duration
 		retryBackoffFactor      int64
@@ -2272,9 +2364,10 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				default:
 					log.Fatalf("Unknown sync strategy: '%s'", strategy)
 				}
-				if retryLimit > 0 {
+				if retryLimit != 0 {
 					syncReq.RetryStrategy = &argoappv1.RetryStrategy{
-						Limit: retryLimit,
+						Limit:   retryLimit,
+						Refresh: retryRefresh,
 						Backoff: &argoappv1.Backoff{
 							Duration:    retryBackoffDuration.String(),
 							MaxDuration: retryBackoffMaxDuration.String(),
@@ -2296,7 +2389,11 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					fmt.Printf("====== Previewing differences between live and desired state of application %s ======\n", appQualifiedName)
 
 					proj := getProject(ctx, c, clientOpts, app.Spec.Project)
-					foundDiffs = findandPrintDiff(ctx, app, proj.Project, resources, argoSettings, diffOption, ignoreNormalizerOpts)
+
+					// Check if application has ServerSideDiff annotation
+					serverSideDiff := resourceutil.HasAnnotationOption(app, argocommon.AnnotationCompareOptions, "ServerSideDiff=true")
+
+					foundDiffs = findAndPrintDiff(ctx, app, proj.Project, resources, argoSettings, diffOption, ignoreNormalizerOpts, serverSideDiff, appIf, appName, appNs)
 					if !foundDiffs {
 						fmt.Printf("====== No Differences found ======\n")
 						// if no differences found, then no need to sync
@@ -2339,6 +2436,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().StringArrayVar(&labels, "label", []string{}, "Sync only specific resources with a label. This option may be specified repeatedly.")
 	command.Flags().UintVar(&timeout, "timeout", defaultCheckTimeoutSeconds, "Time out after this many seconds")
 	command.Flags().Int64Var(&retryLimit, "retry-limit", 0, "Max number of allowed sync retries")
+	command.Flags().BoolVar(&retryRefresh, "retry-refresh", false, "Indicates if the latest revision should be used on retry instead of the initial one")
 	command.Flags().DurationVar(&retryBackoffDuration, "retry-backoff-duration", argoappv1.DefaultSyncRetryDuration, "Retry backoff base duration. Input needs to be a duration (e.g. 2m, 1h)")
 	command.Flags().DurationVar(&retryBackoffMaxDuration, "retry-backoff-max-duration", argoappv1.DefaultSyncRetryMaxDuration, "Max retry backoff duration. Input needs to be a duration (e.g. 2m, 1h)")
 	command.Flags().Int64Var(&retryBackoffFactor, "retry-backoff-factor", argoappv1.DefaultSyncRetryFactor, "Factor multiplies the base duration after each failed retry")
@@ -3396,7 +3494,7 @@ func NewApplicationRemoveSourceCommand(clientOpts *argocdclient.ClientOptions) *
 		Short: "Remove a source from multiple sources application.",
 		Example: `  # Remove the source at position 1 from application's sources. Counting starts at 1.
   argocd app remove-source myapplication --source-position 1
-  
+
   # Remove the source named "test" from application's sources.
   argocd app remove-source myapplication --source-name test`,
 		Run: func(c *cobra.Command, args []string) {
@@ -3518,4 +3616,61 @@ func NewApplicationConfirmDeletionCommand(clientOpts *argocdclient.ClientOptions
 	}
 	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Namespace of the target application where the source will be appended")
 	return command
+}
+
+// prepareObjectsForDiff prepares objects for diffing using the switch statement
+// to handle different diff options and building the objKeyLiveTarget items
+func prepareObjectsForDiff(ctx context.Context, app *argoappv1.Application, proj *argoappv1.AppProject, resources *application.ManagedResourcesResponse, argoSettings *settings.Settings, diffOptions *DifferenceOption) ([]objKeyLiveTarget, error) {
+	liveObjs, err := cmdutil.LiveObjects(resources.Items)
+	if err != nil {
+		return nil, err
+	}
+	items := make([]objKeyLiveTarget, 0)
+
+	switch {
+	case diffOptions.local != "":
+		localObjs := groupObjsByKey(getLocalObjects(ctx, app, proj, diffOptions.local, diffOptions.localRepoRoot, argoSettings.AppLabelKey, diffOptions.cluster.Info.ServerVersion, diffOptions.cluster.Info.APIVersions, argoSettings.KustomizeOptions, argoSettings.TrackingMethod), liveObjs, app.Spec.Destination.Namespace)
+		items = groupObjsForDiff(resources, localObjs, items, argoSettings, app.InstanceName(argoSettings.ControllerNamespace), app.Spec.Destination.Namespace)
+	case diffOptions.revision != "" || len(diffOptions.revisions) > 0:
+		var unstructureds []*unstructured.Unstructured
+		for _, mfst := range diffOptions.res.Manifests {
+			obj, err := argoappv1.UnmarshalToUnstructured(mfst)
+			if err != nil {
+				return nil, err
+			}
+			unstructureds = append(unstructureds, obj)
+		}
+		groupedObjs := groupObjsByKey(unstructureds, liveObjs, app.Spec.Destination.Namespace)
+		items = groupObjsForDiff(resources, groupedObjs, items, argoSettings, app.InstanceName(argoSettings.ControllerNamespace), app.Spec.Destination.Namespace)
+	case diffOptions.serversideRes != nil:
+		var unstructureds []*unstructured.Unstructured
+		for _, mfst := range diffOptions.serversideRes.Manifests {
+			obj, err := argoappv1.UnmarshalToUnstructured(mfst)
+			if err != nil {
+				return nil, err
+			}
+			unstructureds = append(unstructureds, obj)
+		}
+		groupedObjs := groupObjsByKey(unstructureds, liveObjs, app.Spec.Destination.Namespace)
+		items = groupObjsForDiff(resources, groupedObjs, items, argoSettings, app.InstanceName(argoSettings.ControllerNamespace), app.Spec.Destination.Namespace)
+	default:
+		for i := range resources.Items {
+			res := resources.Items[i]
+			live := &unstructured.Unstructured{}
+			err := json.Unmarshal([]byte(res.NormalizedLiveState), &live)
+			if err != nil {
+				return nil, err
+			}
+
+			target := &unstructured.Unstructured{}
+			err = json.Unmarshal([]byte(res.TargetState), &target)
+			if err != nil {
+				return nil, err
+			}
+
+			items = append(items, objKeyLiveTarget{kube.NewResourceKey(res.Group, res.Kind, res.Namespace, res.Name), live, target})
+		}
+	}
+
+	return items, nil
 }

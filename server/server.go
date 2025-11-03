@@ -44,10 +44,14 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/soheilhy/cmux"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/health"
+	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/reflection"
@@ -491,8 +495,9 @@ func (server *ArgoCDServer) logInClusterWarnings() error {
 func startListener(host string, port int) (net.Listener, error) {
 	var conn net.Listener
 	var realErr error
+	lc := net.ListenConfig{}
 	_ = wait.ExponentialBackoff(backoff, func() (bool, error) {
-		conn, realErr = net.Listen("tcp", fmt.Sprintf("%s:%d", host, port))
+		conn, realErr = lc.Listen(context.Background(), "tcp", fmt.Sprintf("%s:%d", host, port))
 		if realErr != nil {
 			return false, nil
 		}
@@ -514,8 +519,7 @@ func (server *ArgoCDServer) Listen() (*Listeners, error) {
 	var dOpts []grpc.DialOption
 	dOpts = append(dOpts, grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(apiclient.MaxGRPCMessageSize)))
 	dOpts = append(dOpts, grpc.WithUserAgent(fmt.Sprintf("%s/%s", common.ArgoCDUserAgentName, common.GetVersion().Version)))
-	dOpts = append(dOpts, grpc.WithUnaryInterceptor(grpc_util.OTELUnaryClientInterceptor()))
-	dOpts = append(dOpts, grpc.WithStreamInterceptor(grpc_util.OTELStreamClientInterceptor()))
+	dOpts = append(dOpts, grpc.WithStatsHandler(otelgrpc.NewClientHandler()))
 	if server.useTLS() {
 		// The following sets up the dial Options for grpc-gateway to talk to gRPC server over TLS.
 		// grpc-gateway is just translating HTTP/HTTPS requests as gRPC requests over localhost,
@@ -531,8 +535,8 @@ func (server *ArgoCDServer) Listen() (*Listeners, error) {
 	} else {
 		dOpts = append(dOpts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	}
-	//nolint:staticcheck
-	conn, err := grpc.Dial(fmt.Sprintf("localhost:%d", server.ListenPort), dOpts...)
+
+	conn, err := grpc.NewClient(fmt.Sprintf("localhost:%d", server.ListenPort), dOpts...)
 	if err != nil {
 		utilio.Close(mainLn)
 		utilio.Close(metricsLn)
@@ -562,7 +566,6 @@ func (server *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 			server.Shutdown()
 		}
 	}()
-
 	metricsServ := metrics.NewMetricsServer(server.MetricsHost, server.MetricsPort)
 	if server.RedisClient != nil {
 		cacheutil.CollectMetrics(server.RedisClient, metricsServ, server.userStateStorage.GetLockObject())
@@ -573,8 +576,11 @@ func (server *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 	server.userStateStorage.Init(ctx)
 
 	svcSet := newArgoCDServiceSet(server)
+	if server.sessionMgr != nil {
+		server.sessionMgr.CollectMetrics(metricsServ)
+	}
 	server.serviceSet = svcSet
-	grpcS, appResourceTreeFn := server.newGRPCServer()
+	grpcS, appResourceTreeFn := server.newGRPCServer(metricsServ.PrometheusRegistry)
 	grpcWebS := grpcweb.WrapServer(grpcS)
 	var httpS *http.Server
 	var httpsS *http.Server
@@ -793,11 +799,11 @@ func (server *ArgoCDServer) watchSettings() {
 	prevOIDCConfig := server.settings.OIDCConfig()
 	prevDexCfgBytes, err := dexutil.GenerateDexConfigYAML(server.settings, server.DexTLSConfig == nil || server.DexTLSConfig.DisableTLS)
 	errorsutil.CheckError(err)
-	prevGitHubSecret := server.settings.WebhookGitHubSecret
-	prevGitLabSecret := server.settings.WebhookGitLabSecret
-	prevBitbucketUUID := server.settings.WebhookBitbucketUUID
-	prevBitbucketServerSecret := server.settings.WebhookBitbucketServerSecret
-	prevGogsSecret := server.settings.WebhookGogsSecret
+	prevGitHubSecret := server.settings.GetWebhookGitHubSecret()
+	prevGitLabSecret := server.settings.GetWebhookGitLabSecret()
+	prevBitbucketUUID := server.settings.GetWebhookBitbucketUUID()
+	prevBitbucketServerSecret := server.settings.GetWebhookBitbucketServerSecret()
+	prevGogsSecret := server.settings.GetWebhookGogsSecret()
 	prevExtConfig := server.settings.ExtensionConfig
 	var prevCert, prevCertKey string
 	if server.settings.Certificate != nil && !server.Insecure {
@@ -825,23 +831,23 @@ func (server *ArgoCDServer) watchSettings() {
 			log.Infof("additionalURLs modified. restarting")
 			break
 		}
-		if prevGitHubSecret != server.settings.WebhookGitHubSecret {
+		if prevGitHubSecret != server.settings.GetWebhookGitHubSecret() {
 			log.Infof("github secret modified. restarting")
 			break
 		}
-		if prevGitLabSecret != server.settings.WebhookGitLabSecret {
+		if prevGitLabSecret != server.settings.GetWebhookGitLabSecret() {
 			log.Infof("gitlab secret modified. restarting")
 			break
 		}
-		if prevBitbucketUUID != server.settings.WebhookBitbucketUUID {
+		if prevBitbucketUUID != server.settings.GetWebhookBitbucketUUID() {
 			log.Infof("bitbucket uuid modified. restarting")
 			break
 		}
-		if prevBitbucketServerSecret != server.settings.WebhookBitbucketServerSecret {
+		if prevBitbucketServerSecret != server.settings.GetWebhookBitbucketServerSecret() {
 			log.Infof("bitbucket server secret modified. restarting")
 			break
 		}
-		if prevGogsSecret != server.settings.WebhookGogsSecret {
+		if prevGogsSecret != server.settings.GetWebhookGogsSecret() {
 			log.Infof("gogs secret modified. restarting")
 			break
 		}
@@ -897,14 +903,13 @@ func (server *ArgoCDServer) useTLS() bool {
 	return true
 }
 
-func (server *ArgoCDServer) newGRPCServer() (*grpc.Server, application.AppResourceTreeFn) {
+func (server *ArgoCDServer) newGRPCServer(prometheusRegistry *prometheus.Registry) (*grpc.Server, application.AppResourceTreeFn) {
 	var serverMetricsOptions []grpc_prometheus.ServerMetricsOption
 	if enableGRPCTimeHistogram {
 		serverMetricsOptions = append(serverMetricsOptions, grpc_prometheus.WithServerHandlingTimeHistogram())
 	}
 	serverMetrics := grpc_prometheus.NewServerMetrics(serverMetricsOptions...)
-	reg := prometheus.NewRegistry()
-	reg.MustRegister(serverMetrics)
+	prometheusRegistry.MustRegister(serverMetrics)
 
 	sOpts := []grpc.ServerOption{
 		// Set the both send and receive the bytes limit to be 100MB
@@ -944,7 +949,6 @@ func (server *ArgoCDServer) newGRPCServer() (*grpc.Server, application.AppResour
 	// NOTE: notice we do not configure the gRPC server here with TLS (e.g. grpc.Creds(creds))
 	// This is because TLS handshaking occurs in cmux handling
 	sOpts = append(sOpts, grpc.ChainStreamInterceptor(
-		otelgrpc.StreamServerInterceptor(), //nolint:staticcheck // TODO: ignore SA1019 for depreciation: see https://github.com/argoproj/argo-cd/issues/18258
 		logging.StreamServerInterceptor(grpc_util.InterceptorLogger(server.log)),
 		serverMetrics.StreamServerInterceptor(),
 		grpc_auth.StreamServerInterceptor(server.Authenticate),
@@ -958,7 +962,6 @@ func (server *ArgoCDServer) newGRPCServer() (*grpc.Server, application.AppResour
 	))
 	sOpts = append(sOpts, grpc.ChainUnaryInterceptor(
 		bug21955WorkaroundInterceptor,
-		otelgrpc.UnaryServerInterceptor(), //nolint:staticcheck // TODO: ignore SA1019 for depreciation: see https://github.com/argoproj/argo-cd/issues/18258
 		logging.UnaryServerInterceptor(grpc_util.InterceptorLogger(server.log)),
 		serverMetrics.UnaryServerInterceptor(),
 		grpc_auth.UnaryServerInterceptor(server.Authenticate),
@@ -970,7 +973,11 @@ func (server *ArgoCDServer) newGRPCServer() (*grpc.Server, application.AppResour
 		grpc_util.ErrorCodeGitUnaryServerInterceptor(),
 		recovery.UnaryServerInterceptor(recovery.WithRecoveryHandler(grpc_util.LoggerRecoveryHandler(server.log))),
 	))
+	sOpts = append(sOpts, grpc.StatsHandler(otelgrpc.NewServerHandler()))
 	grpcS := grpc.NewServer(sOpts...)
+
+	healthService := health.NewServer()
+	grpc_health_v1.RegisterHealthServer(grpcS, healthService)
 
 	versionpkg.RegisterVersionServiceServer(grpcS, server.serviceSet.VersionService)
 	clusterpkg.RegisterClusterServiceServer(grpcS, server.serviceSet.ClusterService)
@@ -1064,7 +1071,7 @@ func newArgoCDServiceSet(a *ArgoCDServer) *ArgoCDServiceSet {
 
 	projectService := project.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.enf, projectLock, a.sessionMgr, a.policyEnforcer, a.projInformer, a.settingsMgr, a.db, a.EnableK8sEvent)
 	appsInAnyNamespaceEnabled := len(a.ApplicationNamespaces) > 0
-	settingsService := settings.NewServer(a.settingsMgr, a.RepoClientset, a, a.DisableAuth, appsInAnyNamespaceEnabled, a.HydratorEnabled)
+	settingsService := settings.NewServer(a.settingsMgr, a.RepoClientset, a, a.DisableAuth, appsInAnyNamespaceEnabled, a.HydratorEnabled, a.SyncWithReplaceAllowed)
 	accountService := account.NewServer(a.sessionMgr, a.settingsMgr, a.enf)
 
 	notificationService := notification.NewServer(a.apiFactory)
@@ -1194,6 +1201,17 @@ func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWeb
 	if server.EnableGZip {
 		handler = compressHandler(handler)
 	}
+	// withTracingHandler is a middleware that extracts OpenTelemetry trace context from HTTP headers
+	// and injects it into the request context. This enables trace context propagation from HTTP clients
+	// to gRPC services, allowing for better distributed tracing across the ArgoCD server.
+	withTracingHandler := func(h http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			propagator := otel.GetTextMapPropagator()
+			ctx := propagator.Extract(r.Context(), propagation.HeaderCarrier(r.Header))
+			h.ServeHTTP(w, r.WithContext(ctx))
+		})
+	}
+	handler = withTracingHandler(handler)
 	if len(server.ContentTypes) > 0 {
 		handler = enforceContentTypes(handler, server.ContentTypes)
 	} else {
@@ -1203,9 +1221,12 @@ func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWeb
 
 	terminalOpts := application.TerminalOptions{DisableAuth: server.DisableAuth, Enf: server.enf}
 
+	// SSO ClientApp
+	server.ssoClientApp, _ = oidc.NewClientApp(server.settings, server.DexServerAddr, server.DexTLSConfig, server.BaseHRef, cacheutil.NewRedisCache(server.RedisClient, server.settings.UserInfoCacheExpiration(), cacheutil.RedisCompressionNone))
+
 	terminal := application.NewHandler(server.appLister, server.Namespace, server.ApplicationNamespaces, server.db, appResourceTreeFn, server.settings.ExecShells, server.sessionMgr, &terminalOpts).
 		WithFeatureFlagMiddleware(server.settingsMgr.GetSettings)
-	th := util_session.WithAuthMiddleware(server.DisableAuth, server.sessionMgr, terminal)
+	th := util_session.WithAuthMiddleware(server.DisableAuth, server.settings.IsSSOConfigured(), server.ssoClientApp, server.sessionMgr, terminal)
 	mux.Handle("/terminal", th)
 
 	// Proxy extension is currently an alpha feature and is disabled
@@ -1235,12 +1256,12 @@ func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWeb
 	swagger.ServeSwaggerUI(mux, assets.SwaggerJSON, "/swagger-ui", server.RootPath)
 	healthz.ServeHealthCheck(mux, server.healthCheck)
 
-	// Dex reverse proxy and client app and OAuth2 login/callback
+	// Dex reverse proxy and OAuth2 login/callback
 	server.registerDexHandlers(mux)
 
 	// Webhook handler for git events (Note: cache timeouts are hardcoded because API server does not write to cache and not really using them)
 	argoDB := db.NewDB(server.Namespace, server.settingsMgr, server.KubeClientset)
-	acdWebhookHandler := webhook.NewHandler(server.Namespace, server.ApplicationNamespaces, server.WebhookParallelism, server.AppClientset, server.settings, server.settingsMgr, server.RepoServerCache, server.Cache, argoDB, server.settingsMgr.GetMaxWebhookPayloadSize())
+	acdWebhookHandler := webhook.NewHandler(server.Namespace, server.ApplicationNamespaces, server.WebhookParallelism, server.AppClientset, server.appLister, server.settings, server.settingsMgr, server.RepoServerCache, server.Cache, argoDB, server.settingsMgr.GetMaxWebhookPayloadSize())
 
 	mux.HandleFunc("/api/webhook", acdWebhookHandler.Handler)
 
@@ -1287,7 +1308,7 @@ func enforceContentTypes(handler http.Handler, types []string) http.Handler {
 func registerExtensions(mux *http.ServeMux, a *ArgoCDServer, metricsReg HTTPMetricsRegistry) {
 	a.log.Info("Registering extensions...")
 	extHandler := http.HandlerFunc(a.extensionManager.CallExtension())
-	authMiddleware := a.sessionMgr.AuthMiddlewareFunc(a.DisableAuth)
+	authMiddleware := a.sessionMgr.AuthMiddlewareFunc(a.DisableAuth, a.settings.IsSSOConfigured(), a.ssoClientApp)
 	// auth middleware ensures that requests to all extensions are authenticated first
 	mux.Handle(extension.URLPrefix+"/", authMiddleware(extHandler))
 
@@ -1341,7 +1362,7 @@ func (server *ArgoCDServer) serveExtensions(extensionsSharedPath string, w http.
 	}
 }
 
-// registerDexHandlers will register dex HTTP handlers, creating the OAuth client app
+// registerDexHandlers will register dex HTTP handlers
 func (server *ArgoCDServer) registerDexHandlers(mux *http.ServeMux) {
 	if !server.settings.IsSSOConfigured() {
 		return
@@ -1349,7 +1370,6 @@ func (server *ArgoCDServer) registerDexHandlers(mux *http.ServeMux) {
 	// Run dex OpenID Connect Identity Provider behind a reverse proxy (served at /api/dex)
 	var err error
 	mux.HandleFunc(common.DexAPIEndpoint+"/", dexutil.NewDexHTTPReverseProxy(server.DexServerAddr, server.BaseHRef, server.DexTLSConfig))
-	server.ssoClientApp, err = oidc.NewClientApp(server.settings, server.DexServerAddr, server.DexTLSConfig, server.BaseHRef, cacheutil.NewRedisCache(server.RedisClient, server.settings.UserInfoCacheExpiration(), cacheutil.RedisCompressionNone))
 	errorsutil.CheckError(err)
 	mux.HandleFunc(common.LoginEndpoint, server.ssoClientApp.HandleLogin)
 	mux.HandleFunc(common.CallbackEndpoint, server.ssoClientApp.HandleCallback)
@@ -1560,34 +1580,15 @@ func (server *ArgoCDServer) getClaims(ctx context.Context) (jwt.Claims, string, 
 		return claims, "", status.Errorf(codes.Unauthenticated, "invalid session: %v", err)
 	}
 
-	// Some SSO implementations (Okta) require a call to
-	// the OIDC user info path to get attributes like groups
-	// we assume that everywhere in argocd jwt.MapClaims is used as type for interface jwt.Claims
-	// otherwise this would cause a panic
-	var groupClaims jwt.MapClaims
-	if groupClaims, ok = claims.(jwt.MapClaims); !ok {
-		if tmpClaims, ok := claims.(*jwt.MapClaims); ok {
-			groupClaims = *tmpClaims
-		}
-	}
-	iss := jwtutil.StringField(groupClaims, "iss")
-	if iss != util_session.SessionManagerClaimsIssuer && server.settings.UserInfoGroupsEnabled() && server.settings.UserInfoPath() != "" {
-		userInfo, unauthorized, err := server.ssoClientApp.GetUserInfo(groupClaims, server.settings.IssuerURL(), server.settings.UserInfoPath())
-		if unauthorized {
-			log.Errorf("error while quering userinfo endpoint: %v", err)
-			return claims, "", status.Errorf(codes.Unauthenticated, "invalid session")
-		}
+	finalClaims := claims
+	if server.settings.IsSSOConfigured() {
+		finalClaims, err = server.ssoClientApp.SetGroupsFromUserInfo(claims, util_session.SessionManagerClaimsIssuer)
 		if err != nil {
-			log.Errorf("error fetching user info endpoint: %v", err)
-			return claims, "", status.Errorf(codes.Internal, "invalid userinfo response")
+			return claims, "", status.Errorf(codes.Unauthenticated, "invalid session: %v", err)
 		}
-		if groupClaims["sub"] != userInfo["sub"] {
-			return claims, "", status.Error(codes.Unknown, "subject of claims from user info endpoint didn't match subject of idToken, see https://openid.net/specs/openid-connect-core-1_0.html#UserInfo")
-		}
-		groupClaims["groups"] = userInfo["groups"]
 	}
 
-	return groupClaims, newToken, nil
+	return finalClaims, newToken, nil
 }
 
 // getToken extracts the token from gRPC metadata or cookie headers

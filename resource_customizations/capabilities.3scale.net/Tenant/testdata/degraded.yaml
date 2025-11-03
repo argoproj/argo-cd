@@ -1,0 +1,9 @@
+apiVersion: capabilities.3scale.net/v1alpha1
+kind: Tenant
+status:
+  tenantId: 0
+  adminId: 0
+  conditions:
+    - type: Ready
+      status: "False"
+      message: Failed to create tenant - invalid credentials
