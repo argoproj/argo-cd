@@ -117,7 +117,7 @@ This strategy is particularly useful when you need to tear down dependent servic
 
 **Important:** The ApplicationSet finalizer is not removed until all applications are successfully deleted. This ensures proper cleanup and prevents the ApplicationSet from being removed before its managed applications. 
 
-**Note:** ApplicationSet controller ensures there is a finalizer when deletionOrder is set as Reverse with progressive sync enabled. That is - if the applicationset is missing the required finalizer, the controller adds the finalizer to ApplicationSet before generating applications.
+**Note:** ApplicationSet controller ensures there is a finalizer when `deletionOrder` is set as `Reverse` with progressive sync enabled. This means that if the applicationset is missing the required finalizer, the applicationset controller adds the finalizer to ApplicationSet before generating applications.
 
 ```yaml
 spec:
