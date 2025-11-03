@@ -125,7 +125,7 @@ spec:
 
 ### Deleting child applications
 
-When working with the App of Apps pattern, you may need to delete individual child applications. Argo CD provides consistent deletion behaviour whether you delete from the Applications List or from the parent application's Resource Tree.
+When working with the App of Apps pattern, you may need to delete individual child applications. Starting in 3.2, Argo CD provides consistent deletion behaviour whether you delete from the Applications List or from the parent application's Resource Tree.
 
 For detailed information about deletion options and behaviour, including:
 - Consistent deletion across UI views
