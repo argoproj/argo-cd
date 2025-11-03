@@ -15,7 +15,9 @@ interface ItemsList<T> {
     metadata: models.ListMeta;
 }
 
-export interface ApplicationList extends ItemsList<Application> {}
+export interface ApplicationList extends ItemsList<Application> {
+    stats?: ApplicationListStats;
+}
 
 export interface SyncOperationResource {
     group: string;
@@ -160,6 +162,16 @@ export interface Application {
     status: ApplicationStatus;
     operation?: Operation;
     isAppOfAppsPattern?: boolean;
+}
+
+export interface ApplicationListStats {
+    total: number;
+    totalBySyncStatus?: {[key: string]: number};
+    totalByHealthStatus?: {[key: string]: number};
+    autoSyncCount: {[key: string]: number};
+    destinations: ApplicationDestination[];
+    namespaces: string[];
+    labels: Array<{key: string; values: string[]}>;
 }
 
 export type WatchType = 'ADDED' | 'MODIFIED' | 'DELETED' | 'ERROR';

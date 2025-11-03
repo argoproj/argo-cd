@@ -5,23 +5,149 @@ import {map, repeat, retry} from 'rxjs/operators';
 import * as models from '../models';
 import {isValidURL} from '../utils';
 import requests from './requests';
+import {AppsListPreferences} from './view-preferences-service';
 
-interface QueryOptions {
+export interface QueryOptions {
     fields: string[];
     exclude?: boolean;
     selector?: string;
     appNamespace?: string;
+
+    favorites?: string[];
+    clusters?: string[];
+    namespaces?: string[];
+    labels?: string[];
+    syncStatuses?: string[];
+    healthStatuses?: string[];
+    autoSyncEnabled?: boolean;
+    search?: string;
+    sortBy?: 'name' | 'createdAt' | 'synchronizedAt';
+    minName?: string;
+    maxName?: string;
+    minCreatedAt?: string;
+    maxCreatedAt?: string;
+    minSynchronizedAt?: string;
+    maxSynchronizedAt?: string;
+    offset?: number;
+    limit?: number;
 }
 
 function optionsToSearch(options?: QueryOptions) {
-    if (options) {
-        return {fields: (options.exclude ? '-' : '') + options.fields.join(','), selector: options.selector || '', appNamespace: options.appNamespace || ''};
+    if (!options) {
+        return {};
     }
-    return {};
+
+    const search: any = {
+        fields: (options.exclude ? '-' : '') + options.fields.join(','),
+        selector: options.selector || '',
+        appNamespace: options.appNamespace || ''
+    };
+
+    // Add new server-side filter params
+    if (options.clusters && options.clusters.length > 0) {
+        search.clusters = options.clusters;
+    }
+    if (options.namespaces && options.namespaces.length > 0) {
+        search.namespaces = options.namespaces;
+    }
+    if (options.labels && options.labels.length > 0) {
+        search.labels = options.labels;
+    }
+    if (options.syncStatuses && options.syncStatuses.length > 0) {
+        search.syncStatuses = options.syncStatuses;
+    }
+    if (options.healthStatuses && options.healthStatuses.length > 0) {
+        search.healthStatuses = options.healthStatuses;
+    }
+    if (options.autoSyncEnabled !== undefined) {
+        search.autoSyncs = options.autoSyncEnabled ? 'Enabled' : 'Disabled';
+    }
+    if (options.favorites && options.favorites.length > 0) {
+        search.names = options.favorites;
+    }
+    if (options.search) {
+        search.search = options.search;
+    }
+    if (options.sortBy) {
+        search.sortBy = options.sortBy;
+    }
+    if (options.minName) {
+        search.minName = options.minName;
+    }
+    if (options.maxName) {
+        search.maxName = options.maxName;
+    }
+    if (options.minCreatedAt) {
+        search.minCreatedAt = options.minCreatedAt;
+    }
+    if (options.maxCreatedAt) {
+        search.maxCreatedAt = options.maxCreatedAt;
+    }
+    if (options.minSynchronizedAt) {
+        search.minSynchronizedAt = options.minSynchronizedAt;
+    }
+    if (options.maxSynchronizedAt) {
+        search.maxSynchronizedAt = options.maxSynchronizedAt;
+    }
+    if (options.offset !== undefined) {
+        search.offset = options.offset;
+    }
+    if (options.limit !== undefined) {
+        search.limit = options.limit;
+    }
+
+    return search;
+}
+
+function filtersToQueryOptions(pref: AppsListPreferences, search: string): Partial<QueryOptions> {
+    const options: Partial<QueryOptions> = {};
+
+    if (pref.clustersFilter && pref.clustersFilter.length > 0) {
+        // Extract server URLs from cluster filter format
+        options.clusters = pref.clustersFilter.map(filterString => {
+            const match = filterString.match('^(.*) [(](http.*)[)]$');
+            if (match?.length === 3) {
+                return match[2]; // Return URL
+            }
+            return filterString;
+        });
+    }
+    if (pref.namespacesFilter && pref.namespacesFilter.length > 0) {
+        options.namespaces = pref.namespacesFilter;
+    }
+    if (pref.labelsFilter && pref.labelsFilter.length > 0) {
+        options.labels = pref.labelsFilter;
+    }
+    if (pref.syncFilter && pref.syncFilter.length > 0) {
+        options.syncStatuses = pref.syncFilter;
+    }
+    if (pref.healthFilter && pref.healthFilter.length > 0) {
+        options.healthStatuses = pref.healthFilter;
+    }
+    if (pref.autoSyncFilter && pref.autoSyncFilter.length > 0) {
+        // Convert "Enabled"/"Disabled" to boolean
+        if (pref.autoSyncFilter.includes('Enabled') && !pref.autoSyncFilter.includes('Disabled')) {
+            options.autoSyncEnabled = true;
+        } else if (pref.autoSyncFilter.includes('Disabled') && !pref.autoSyncFilter.includes('Enabled')) {
+            options.autoSyncEnabled = false;
+        }
+    }
+
+    if (pref.showFavorites && pref.favoritesAppList && pref.favoritesAppList.length > 0) {
+        options.favorites = pref.favoritesAppList;
+    }
+
+    if (search && search.trim() !== '') {
+        options.search = search;
+    }
+
+    return options;
 }
 
 export class ApplicationsService {
     constructor() {}
+
+    public filtersToQueryOptions = filtersToQueryOptions;
 
     public list(projects: string[], options?: QueryOptions): Promise<models.ApplicationList> {
         return requests
@@ -195,9 +321,9 @@ export class ApplicationsService {
         }
         if (options) {
             const searchOptions = optionsToSearch(options);
-            search.set('fields', searchOptions.fields);
-            search.set('selector', searchOptions.selector);
-            search.set('appNamespace', searchOptions.appNamespace);
+            Object.entries(searchOptions).forEach(([key, value]) => {
+                search.set(key, String(value));
+            });
             query?.projects?.forEach(project => search.append('projects', project));
         }
         const searchStr = search.toString();

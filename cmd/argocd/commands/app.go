@@ -1795,6 +1795,8 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		appNamespace string
 		cluster      string
 		path         string
+		limit        int64
+		offset       int64
 	)
 	command := &cobra.Command{
 		Use:   "list",
@@ -1807,16 +1809,30 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
   argocd app list -l app.kubernetes.io/instance!=my-app
   argocd app list -l app.kubernetes.io/instance
   argocd app list -l '!app.kubernetes.io/instance'
-  argocd app list -l 'app.kubernetes.io/instance notin (my-app,other-app)'`,
+  argocd app list -l 'app.kubernetes.io/instance notin (my-app,other-app)
+
+  # List apps with pagination
+  argocd app list --limit 50 --offset 100'`,
 		Run: func(c *cobra.Command, _ []string) {
 			ctx := c.Context()
 
 			conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
 			defer utilio.Close(conn)
-			apps, err := appIf.List(ctx, &application.ApplicationQuery{
+
+			query := application.ApplicationQuery{
 				Selector:     ptr.To(selector),
 				AppNamespace: &appNamespace,
-			})
+			}
+
+			if limit > 0 {
+				if offset < 0 {
+					offset = 0
+				}
+				query.Limit = &limit
+				query.Offset = &offset
+			}
+
+			apps, err := appIf.List(ctx, &query)
 
 			errors.CheckError(err)
 			appList := apps.Items
@@ -1854,6 +1870,8 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Only list applications in namespace")
 	command.Flags().StringVarP(&cluster, "cluster", "c", "", "List apps by cluster name or url")
 	command.Flags().StringVarP(&path, "path", "P", "", "List apps by path")
+	command.Flags().Int64Var(&limit, "limit", 0, "Limit the number of results (0 = no limit)")
+	command.Flags().Int64Var(&offset, "offset", 0, "Offset for pagination (requires --limit)")
 	return command
 }
 

@@ -69,10 +69,10 @@ export const ApplicationsTable = (props: {
                                                                     <button
                                                                         onClick={e => {
                                                                             e.stopPropagation();
-                                                                            favList?.includes(app.metadata.name)
-                                                                                ? favList.splice(favList.indexOf(app.metadata.name), 1)
-                                                                                : favList.push(app.metadata.name);
-                                                                            services.viewPreferences.updatePreferences({appList: {...pref.appList, favoritesAppList: favList}});
+                                                                            const newFavList = favList?.includes(app.metadata.name)
+                                                                                ? favList.filter(name => name !== app.metadata.name)
+                                                                                : [...(favList || []), app.metadata.name];
+                                                                            services.viewPreferences.updatePreferences({appList: {...pref.appList, favoritesAppList: newFavList}});
                                                                         }}>
                                                                         <i
                                                                             className={favList?.includes(app.metadata.name) ? 'fas fa-star' : 'far fa-star'}

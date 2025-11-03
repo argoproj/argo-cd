@@ -281,6 +281,143 @@
             "description": "the project names to restrict returned list applications (legacy name for backwards-compatibility).",
             "name": "project",
             "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi",
+            "description": "the names of application.",
+            "name": "names",
+            "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi",
+            "description": "the repos filter.",
+            "name": "repos",
+            "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi",
+            "description": "the clusters filter.",
+            "name": "clusters",
+            "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi",
+            "description": "the namespaces filter.",
+            "name": "namespaces",
+            "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi",
+            "description": "the labels filter.",
+            "name": "labels",
+            "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi",
+            "description": "the auto sync filter.",
+            "name": "autoSyncs",
+            "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi",
+            "description": "the sync status filter.",
+            "name": "syncStatuses",
+            "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi",
+            "description": "the health status filter.",
+            "name": "healthStatuses",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "search.",
+            "name": "search",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "format": "int64",
+            "description": "offset.",
+            "name": "offset",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "format": "int64",
+            "description": "limit.",
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "sort.",
+            "name": "sortBy",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Range filters for watch optimization (min and max are included in response).",
+            "name": "minName",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "maxName",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "minCreatedAt",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "maxCreatedAt",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "minSynchronizedAt",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "maxSynchronizedAt",
+            "in": "query"
           }
         ],
         "responses": {
@@ -669,6 +806,143 @@
             "collectionFormat": "multi",
             "description": "the project names to restrict returned list applications (legacy name for backwards-compatibility).",
             "name": "project",
+            "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi",
+            "description": "the names of application.",
+            "name": "names",
+            "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi",
+            "description": "the repos filter.",
+            "name": "repos",
+            "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi",
+            "description": "the clusters filter.",
+            "name": "clusters",
+            "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi",
+            "description": "the namespaces filter.",
+            "name": "namespaces",
+            "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi",
+            "description": "the labels filter.",
+            "name": "labels",
+            "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi",
+            "description": "the auto sync filter.",
+            "name": "autoSyncs",
+            "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi",
+            "description": "the sync status filter.",
+            "name": "syncStatuses",
+            "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi",
+            "description": "the health status filter.",
+            "name": "healthStatuses",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "search.",
+            "name": "search",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "format": "int64",
+            "description": "offset.",
+            "name": "offset",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "format": "int64",
+            "description": "limit.",
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "sort.",
+            "name": "sortBy",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Range filters for watch optimization (min and max are included in response).",
+            "name": "minName",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "maxName",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "minCreatedAt",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "maxCreatedAt",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "minSynchronizedAt",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "maxSynchronizedAt",
             "in": "query"
           }
         ],
@@ -4245,6 +4519,143 @@
             "description": "the project names to restrict returned list applications (legacy name for backwards-compatibility).",
             "name": "project",
             "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi",
+            "description": "the names of application.",
+            "name": "names",
+            "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi",
+            "description": "the repos filter.",
+            "name": "repos",
+            "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi",
+            "description": "the clusters filter.",
+            "name": "clusters",
+            "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi",
+            "description": "the namespaces filter.",
+            "name": "namespaces",
+            "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi",
+            "description": "the labels filter.",
+            "name": "labels",
+            "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi",
+            "description": "the auto sync filter.",
+            "name": "autoSyncs",
+            "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi",
+            "description": "the sync status filter.",
+            "name": "syncStatuses",
+            "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi",
+            "description": "the health status filter.",
+            "name": "healthStatuses",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "search.",
+            "name": "search",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "format": "int64",
+            "description": "offset.",
+            "name": "offset",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "format": "int64",
+            "description": "limit.",
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "sort.",
+            "name": "sortBy",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Range filters for watch optimization (min and max are included in response).",
+            "name": "minName",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "maxName",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "minCreatedAt",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "maxCreatedAt",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "minSynchronizedAt",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "maxSynchronizedAt",
+            "in": "query"
           }
         ],
         "responses": {
@@ -6999,6 +7410,21 @@
         }
       }
     },
+    "v1alpha1ApplicationLabelStats": {
+      "type": "object",
+      "title": "ApplicationLabelStats holds label key and its values",
+      "properties": {
+        "key": {
+          "type": "string"
+        },
+        "values": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
     "v1alpha1ApplicationList": {
       "type": "object",
       "title": "ApplicationList is list of Application resources\n+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object",
@@ -7011,6 +7437,58 @@
         },
         "metadata": {
           "$ref": "#/definitions/v1ListMeta"
+        },
+        "stats": {
+          "$ref": "#/definitions/v1alpha1ApplicationListStats"
+        }
+      }
+    },
+    "v1alpha1ApplicationListStats": {
+      "type": "object",
+      "title": "ApplicationListStats holds additional information about the list of applications",
+      "properties": {
+        "autoSyncCount": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "format": "int64"
+          }
+        },
+        "destinations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ApplicationDestination"
+          }
+        },
+        "labels": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ApplicationLabelStats"
+          }
+        },
+        "namespaces": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "total": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "totalByHealthStatus": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "format": "int64"
+          }
+        },
+        "totalBySyncStatus": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "format": "int64"
+          }
         }
       }
     },

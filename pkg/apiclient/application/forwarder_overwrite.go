@@ -107,6 +107,7 @@ func processApplicationListField(v any, fields map[string]any, exclude bool) (an
 		return map[string]any{
 			"items":    items,
 			"metadata": appList.ListMeta,
+			"stats":    appList.Stats,
 		}, nil
 	}
 	return nil, errors.New("not an application list")

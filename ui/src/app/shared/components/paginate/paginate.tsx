@@ -6,11 +6,6 @@ import {services} from '../../services';
 
 require('./paginate.scss');
 
-export interface SortOption<T> {
-    title: string;
-    compare: (a: T, b: T) => number;
-}
-
 export interface PaginateProps<T> {
     page: number;
     onPageChange: (page: number) => any;
@@ -20,17 +15,21 @@ export interface PaginateProps<T> {
     preferencesKey?: string;
     header?: React.ReactNode;
     showHeader?: boolean;
-    sortOptions?: SortOption<T>[];
+    sortOptions?: string[];
+    totalItems?: number;
 }
 
-export function Paginate<T>({page, onPageChange, children, data, emptyState, preferencesKey, header, showHeader, sortOptions}: PaginateProps<T>) {
+export function Paginate<T>({page, onPageChange, children, data, emptyState, preferencesKey, header, showHeader, sortOptions, totalItems}: PaginateProps<T>) {
     return (
         <DataLoader load={() => services.viewPreferences.getPreferences()}>
             {pref => {
                 preferencesKey = preferencesKey || 'default';
                 const pageSize = pref.pageSizes[preferencesKey] || 10;
-                const sortOption = sortOptions ? (pref.sortOptions && pref.sortOptions[preferencesKey]) || sortOptions[0].title : '';
-                const pageCount = pageSize === -1 ? 1 : Math.ceil(data.length / pageSize);
+                const sortOption = sortOptions ? (pref.sortOptions && pref.sortOptions[preferencesKey]) || sortOptions[0] : '';
+
+                // Use totalItems if provided (server-side), otherwise use data.length (client-side)
+                const itemCount = totalItems !== undefined ? totalItems : data.length;
+                const pageCount = pageSize === -1 ? 1 : Math.ceil(itemCount / pageSize);
                 if (pageCount <= page) {
                     page = pageCount - 1;
                 }
@@ -61,14 +60,17 @@ export function Paginate<T>({page, onPageChange, children, data, emptyState, pre
                                                 </>
                                             )}
                                             items={sortOptions.map(so => ({
-                                                title: so.title,
+                                                title: so,
                                                 action: () => {
+                                                    const updatedPref = {
+                                                        ...pref,
+                                                        sortOptions: {
+                                                            ...pref.sortOptions,
+                                                            [preferencesKey]: so
+                                                        }
+                                                    };
                                                     // sortOptions might not be set in the browser storage
-                                                    if (!pref.sortOptions) {
-                                                        pref.sortOptions = {};
-                                                    }
-                                                    pref.sortOptions[preferencesKey] = so.title;
-                                                    services.viewPreferences.updatePreferences(pref);
+                                                    services.viewPreferences.updatePreferences(updatedPref);
                                                 }
                                             }))}
                                         />
@@ -82,8 +84,16 @@ export function Paginate<T>({page, onPageChange, children, data, emptyState, pre
                                         items={[5, 10, 15, 20, -1].map(count => ({
                                             title: count === -1 ? 'all' : count.toString(),
                                             action: () => {
-                                                pref.pageSizes[preferencesKey] = count;
-                                                services.viewPreferences.updatePreferences(pref);
+                                                const updatedPref = {
+                                                    ...pref,
+                                                    pageSizes: {
+                                                        ...pref.pageSizes,
+                                                        [preferencesKey]: count
+                                                    }
+                                                };
+                                                if (services.viewPreferences.updatePreferences(updatedPref)) {
+                                                    onPageChange(0);
+                                                }
                                             }
                                         }))}
                                     />
@@ -93,13 +103,18 @@ export function Paginate<T>({page, onPageChange, children, data, emptyState, pre
                         </div>
                     );
                 }
-                if (sortOption) {
-                    sortOptions
-                        .filter(o => o.title === sortOption)
-                        .forEach(so => {
-                            data.sort(so.compare);
-                        });
+
+                // For server-side pagination, don't sort or slice - server already did it
+                if (totalItems !== undefined) {
+                    return (
+                        <React.Fragment>
+                            <div className='paginate'>{paginator()}</div>
+                            {data.length === 0 && emptyState ? emptyState() : children(data)}
+                            <div className='paginate'>{pageCount > 1 && paginator()}</div>
+                        </React.Fragment>
+                    );
                 }
+
                 return (
                     <React.Fragment>
                         <div className='paginate'>{paginator()}</div>
