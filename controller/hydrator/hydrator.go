@@ -367,6 +367,12 @@ func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application, project
 	}
 	paths := []*commitclient.PathDetails{pathDetails}
 
+	// de-dupe, if the drySha was already hydrated log a debug and return using the data from the last successful hydration run
+	if apps[0].Status.SourceHydrator.LastSuccessfulOperation != nil && targetRevision == apps[0].Status.SourceHydrator.LastSuccessfulOperation.DrySHA {
+		logCtx.Debugf("this dry sha %s is already hydrated", targetRevision)
+		return targetRevision, apps[0].Status.SourceHydrator.LastSuccessfulOperation.HydratedSHA, nil, nil
+	}
+
 	eg, ctx := errgroup.WithContext(context.Background())
 	var mu sync.Mutex
 
