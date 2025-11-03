@@ -68,7 +68,7 @@ Argo CD provides a consistent deletion experience across different views in the 
 
 ### Consistent Deletion Behaviour
 
-The deletion behaviour is now **consistent** across all UI views. Whether you delete an application from the Applications List or from the Resource Tree view, the same deletion mechanism and options are used.
+STarting in Argo CD 3.2, deletion behavior is now **consistent** across all UI views. Whether you delete an application from the Applications List or from the Resource Tree view, the same deletion mechanism and options are used.
 
 Previously, deleting an application from the Resource Tree treated it as a generic Kubernetes resource, which could lead to unexpected behaviour with non-cascading deletes. Now, Argo CD properly detects Application resources and uses the standard Application deletion API in all contexts.
 
