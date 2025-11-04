@@ -24,8 +24,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/argoproj/argo-cd/v3/common"
-	"github.com/argoproj/argo-cd/v3/util/env"
 	"github.com/argoproj/argo-cd/v3/util/workloadidentity"
 	"github.com/argoproj/argo-cd/v3/util/workloadidentity/mocks"
 )
@@ -1232,32 +1230,35 @@ Argocd-reference-commit-repourl: https://github.com/another/repo.git`,
 }
 
 func Test_BuiltinConfig(t *testing.T) {
-	tempDir := t.TempDir()
 	ctx := t.Context()
-
+	tempDir := t.TempDir()
 	client, err := NewClientExt("file://"+tempDir, tempDir, NopCreds{}, true, false, "", "")
 	require.NoError(t, err)
-	assert.False(t, env.ParseBoolFromEnv(common.EnvGitBuiltinConfigDisabled, false),
-		"env. var. "+common.EnvGitBuiltinConfigDisabled+" should not be set to true when running this test")
 	native := client.(*nativeGitClient)
+	for _, enabled := range []bool{false, true} {
+		InitBuiltinGitConfig(enabled)
+		configOut, err := native.config(ctx, "--list", "--show-origin")
+		require.NoError(t, err)
+		for k, v := range builtinGitConfig {
+			r := regexp.MustCompile(fmt.Sprintf("(?m)^command line:\\s+%s=%s$", strings.ToLower(k), regexp.QuoteMeta(v)))
+			matches := r.FindString(configOut)
+			if enabled {
+				assert.NotEmpty(t, matches, "missing builtin configuration option: %s=%s", k, v)
+			} else {
+				assert.Empty(t, matches, "unexpected builtin configuration when builtin config is disabled: %s=%s", k, v)
+			}
 
-	configOut, err := native.config(ctx, "--list", "--show-origin")
-	require.NoError(t, err)
-	for k, v := range builtinGitConfig {
-		r := regexp.MustCompile(fmt.Sprintf("(?m)^command line:\\s+%s=%s$", strings.ToLower(k), regexp.QuoteMeta(v)))
-		matches := r.FindString(configOut)
-		assert.NotEmpty(t, matches, "missing builtin configuration option %s=%s", k, v)
+		}
 	}
 }
 
 func Test_GitNoDetachedMaintenance(t *testing.T) {
+	InitBuiltinGitConfig(true)
 	tempDir := t.TempDir()
 	ctx := t.Context()
 
 	client, err := NewClientExt("file://"+tempDir, tempDir, NopCreds{}, true, false, "", "")
 	require.NoError(t, err)
-	assert.False(t, env.ParseBoolFromEnv(common.EnvGitBuiltinConfigDisabled, false),
-		"env. var. "+common.EnvGitBuiltinConfigDisabled+" should not be set to true when running this test")
 	native := client.(*nativeGitClient)
 
 	err = client.Init()

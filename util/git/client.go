@@ -55,8 +55,22 @@ var builtinGitConfig = map[string]string{
 }
 
 // builtinGitConfigEnv contains builtin git configuration in the
-// format acceptable by Git.  Initialized in init()
+// format acceptable by Git.
 var builtinGitConfigEnv []string
+
+// InitBuiltinGitConfig initializes builtinGitConfigEnv on server startup
+func InitBuiltinGitConfig(enabled bool) {
+	builtinGitConfigEnv = []string{}
+	if enabled {
+		builtinGitConfigEnv = append(builtinGitConfigEnv, fmt.Sprintf("GIT_CONFIG_COUNT=%d", len(builtinGitConfig)))
+		idx := 0
+		for k, v := range builtinGitConfig {
+			builtinGitConfigEnv = append(builtinGitConfigEnv, fmt.Sprintf("GIT_CONFIG_KEY_%d=%s", idx, k))
+			builtinGitConfigEnv = append(builtinGitConfigEnv, fmt.Sprintf("GIT_CONFIG_VALUE_%d=%s", idx, v))
+			idx++
+		}
+	}
+}
 
 // CommitMetadata contains metadata about a commit that is related in some way to another commit.
 type CommitMetadata struct {
@@ -175,6 +189,8 @@ type nativeGitClient struct {
 	proxy string
 	// list of targets that shouldn't use the proxy, applies only if the proxy is set
 	noProxy string
+	// enable using mandatory builtin Git config for Git subprocesses
+	enableBuiltinGitConfig bool
 }
 
 type runOpts struct {
@@ -201,16 +217,6 @@ func init() {
 	maxRetryDuration = env.ParseDurationFromEnv(common.EnvGitRetryMaxDuration, common.DefaultGitRetryMaxDuration, 0, math.MaxInt64)
 	retryDuration = env.ParseDurationFromEnv(common.EnvGitRetryDuration, common.DefaultGitRetryDuration, 0, math.MaxInt64)
 	factor = env.ParseInt64FromEnv(common.EnvGitRetryFactor, common.DefaultGitRetryFactor, 0, math.MaxInt64)
-	disableBuiltinGitConfig := env.ParseBoolFromEnv(common.EnvGitBuiltinConfigDisabled, false)
-	if !disableBuiltinGitConfig {
-		builtinGitConfigEnv = append(builtinGitConfigEnv, fmt.Sprintf("GIT_CONFIG_COUNT=%d", len(builtinGitConfig)))
-		idx := 0
-		for k, v := range builtinGitConfig {
-			builtinGitConfigEnv = append(builtinGitConfigEnv, fmt.Sprintf("GIT_CONFIG_KEY_%d=%s", idx, k))
-			builtinGitConfigEnv = append(builtinGitConfigEnv, fmt.Sprintf("GIT_CONFIG_VALUE_%d=%s", idx, v))
-			idx++
-		}
-	}
 }
 
 type ClientOpts func(c *nativeGitClient)
