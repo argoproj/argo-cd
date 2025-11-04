@@ -1247,7 +1247,6 @@ func Test_BuiltinConfig(t *testing.T) {
 			} else {
 				assert.Empty(t, matches, "unexpected builtin configuration when builtin config is disabled: %s=%s", k, v)
 			}
-
 		}
 	}
 }
