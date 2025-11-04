@@ -189,8 +189,6 @@ type nativeGitClient struct {
 	proxy string
 	// list of targets that shouldn't use the proxy, applies only if the proxy is set
 	noProxy string
-	// enable using mandatory builtin Git config for Git subprocesses
-	enableBuiltinGitConfig bool
 }
 
 type runOpts struct {
