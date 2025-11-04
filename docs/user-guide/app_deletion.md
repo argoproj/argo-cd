@@ -148,7 +148,7 @@ When working with the App of Apps pattern:
 #### Scenario 1: Deleting a child application and all its resources
 
 1. Navigate to the parent application's Resource Tree
-2. Click the three-dot menu on a child Application resource
+2. Click the kebab menu (button with the three vertical dots) on a child Application resource
 3. Select "Delete"
 4. Choose **Foreground** or **Background** propagation policy
 5. Confirm the deletion
@@ -158,7 +158,7 @@ When working with the App of Apps pattern:
 #### Scenario 2: Removing Argo CD management but keeping resources
 
 1. Navigate to the Applications List or the parent application's Resource Tree
-2. Click the three-dot menu on the child Application
+2. Click the kebab menu (button with the three vertical dots) on a child Application resource
 3. Select "Delete"
 4. Choose **Non-Cascading** propagation policy
 5. Confirm the deletion
