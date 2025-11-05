@@ -3430,43 +3430,43 @@ spec:
         - name: ARGOCD_K8S_CLIENT_QPS
           valueFrom:
             configMapKeyRef:
-              key: applicationcontroller.k8s.client.qps
+              key: controller.k8s.client.qps
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_K8S_CLIENT_BURST
           valueFrom:
             configMapKeyRef:
-              key: applicationcontroller.k8s.client.burst
+              key: controller.k8s.client.burst
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_K8S_CLIENT_MAX_IDLE_CONNECTIONS
           valueFrom:
             configMapKeyRef:
-              key: applicationcontroller.k8s.client.max.idle.connections
+              key: controller.k8s.client.max.idle.connections
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_K8S_TCP_TIMEOUT
           valueFrom:
             configMapKeyRef:
-              key: applicationcontroller.k8s.tcp.timeout
+              key: controller.k8s.tcp.timeout
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_K8S_TCP_KEEPALIVE
           valueFrom:
             configMapKeyRef:
-              key: applicationcontroller.k8s.tcp.keepalive
+              key: controller.k8s.tcp.keepalive
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_K8S_TLS_HANDSHAKE_TIMEOUT
           valueFrom:
             configMapKeyRef:
-              key: applicationcontroller.k8s.tls.handshake.timeout
+              key: controller.k8s.tls.handshake.timeout
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_K8S_TCP_IDLE_TIMEOUT
           valueFrom:
             configMapKeyRef:
-              key: applicationcontroller.k8s.tcp.idle.timeout
+              key: controller.k8s.tcp.idle.timeout
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_APPLICATION_CONTROLLER_METRICS_CACHE_EXPIRATION
