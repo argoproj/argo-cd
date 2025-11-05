@@ -7,7 +7,7 @@ import {Consumer, Context, AuthSettingsCtx} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {ApplicationURLs} from '../application-urls';
 import * as AppUtils from '../utils';
-import {getAppDefaultSource, OperationState} from '../utils';
+import {getAppDefaultSource, OperationState, getApplicationLinkURL, getManagedByURL} from '../utils';
 import {services} from '../../../shared/services';
 
 import './applications-tiles.scss';
@@ -110,6 +110,7 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                     const source = getAppDefaultSource(app);
                                     const isOci = source?.repoURL?.startsWith('oci://');
                                     const targetRevision = source ? source.targetRevision || 'HEAD' : 'Unknown';
+                                    const linkInfo = getApplicationLinkURL(app, ctx.baseHref);
                                     return (
                                         <div
                                             key={AppUtils.appInstanceName(app)}
@@ -140,26 +141,37 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                                         <div className={app.status.summary.externalURLs?.length > 0 ? 'columns small-2' : 'columns small-1'}>
                                                             <div className='applications-list__external-link'>
                                                                 <ApplicationURLs urls={app.status.summary.externalURLs} />
-                                                                <Tooltip content={favList?.includes(app.metadata.name) ? 'Remove Favorite' : 'Add Favorite'}>
-                                                                    <button
-                                                                        className='large-text-height'
-                                                                        onClick={e => {
-                                                                            e.stopPropagation();
-                                                                            favList?.includes(app.metadata.name)
-                                                                                ? favList.splice(favList.indexOf(app.metadata.name), 1)
-                                                                                : favList.push(app.metadata.name);
-                                                                            services.viewPreferences.updatePreferences({appList: {...pref.appList, favoritesAppList: favList}});
-                                                                        }}>
-                                                                        <i
-                                                                            className={favList?.includes(app.metadata.name) ? 'fas fa-star fa-lg' : 'far fa-star fa-lg'}
-                                                                            style={{
-                                                                                cursor: 'pointer',
-                                                                                marginLeft: '7px',
-                                                                                color: favList?.includes(app.metadata.name) ? '#FFCE25' : '#8fa4b1'
-                                                                            }}
-                                                                        />
-                                                                    </button>
-                                                                </Tooltip>
+                                                                <button
+                                                                    onClick={e => {
+                                                                        e.stopPropagation();
+                                                                        if (linkInfo.isExternal) {
+                                                                            window.open(linkInfo.url, '_blank', 'noopener,noreferrer');
+                                                                        } else {
+                                                                            ctx.navigation.goto(`/${AppUtils.getAppUrl(app)}`);
+                                                                        }
+                                                                    }}
+                                                                    title={getManagedByURL(app) ? `Managed by: ${getManagedByURL(app)}` : 'Open application'}>
+                                                                    <i className='fa fa-external-link-alt' />
+                                                                </button>
+                                                                <button
+                                                                    title={favList?.includes(app.metadata.name) ? 'Remove Favorite' : 'Add Favorite'}
+                                                                    className='large-text-height'
+                                                                    onClick={e => {
+                                                                        e.stopPropagation();
+                                                                        favList?.includes(app.metadata.name)
+                                                                            ? favList.splice(favList.indexOf(app.metadata.name), 1)
+                                                                            : favList.push(app.metadata.name);
+                                                                        services.viewPreferences.updatePreferences({appList: {...pref.appList, favoritesAppList: favList}});
+                                                                    }}>
+                                                                    <i
+                                                                        className={favList?.includes(app.metadata.name) ? 'fas fa-star fa-lg' : 'far fa-star fa-lg'}
+                                                                        style={{
+                                                                            cursor: 'pointer',
+                                                                            margin: '-1px 0px 0px 7px',
+                                                                            color: favList?.includes(app.metadata.name) ? '#FFCE25' : '#8fa4b1'
+                                                                        }}
+                                                                    />
+                                                                </button>
                                                             </div>
                                                         </div>
                                                     </div>

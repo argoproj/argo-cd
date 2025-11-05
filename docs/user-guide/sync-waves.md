@@ -47,6 +47,8 @@ This can take the following values:
 | `HookFailed` | The hook resource is deleted after the hook failed. |
 | `BeforeHookCreation` | Any existing hook resource is deleted before the new one is created (since v1.3). It is meant to be used with `/metadata/name`. |
 
+Note that if no deletion policy is specified, Argo CD will automatically assume `BeforeHookCreation` rules.
+
 ## PreDelete and PostDelete Hooks
 
 ### PreDelete Hooks

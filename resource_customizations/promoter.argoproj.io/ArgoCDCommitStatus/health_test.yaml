@@ -16,6 +16,10 @@ tests:
     message: "Argo CD commit status reconciliation failed: Something went wrong"
   inputPath: testdata/reconcile-error.yaml
 - healthStatus:
+    status: Degraded
+    message: "Argo CD commit status reconciliation failed: Failed to query Argo CD applications: connection timeout"
+  inputPath: testdata/non-reconciliation-error.yaml
+- healthStatus:
     status: Progressing
     message: Argo CD commit status is not ready yet
   inputPath: testdata/no-ready-condition.yaml
