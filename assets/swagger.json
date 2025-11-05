@@ -9480,6 +9480,11 @@
         "connectionState": {
           "$ref": "#/definitions/v1alpha1ConnectionState"
         },
+        "depth": {
+          "description": "Depth specifies the depth for shallow clones. A value of 0 or omitting the field indicates a full clone.",
+          "type": "integer",
+          "format": "int64"
+        },
         "enableLfs": {
           "description": "EnableLFS specifies whether git-lfs support should be enabled for this repo. Only valid for Git repositories.",
           "type": "boolean"

@@ -123,6 +123,18 @@ spec:
  ...
 ```
 
+### Deleting child applications
+
+When working with the App of Apps pattern, you may need to delete individual child applications. Starting in 3.2, Argo CD provides consistent deletion behaviour whether you delete from the Applications List or from the parent application's Resource Tree.
+
+For detailed information about deletion options and behaviour, including:
+- Consistent deletion across UI views
+- Non-cascading (orphan) deletion to preserve managed resources
+- Child application detection and improved dialog messages
+- Best practices and example scenarios
+
+See [Deleting Applications in the UI](../user-guide/app_deletion.md#deleting-applications-in-the-ui).
+
 ### Ignoring differences in child applications
 
 To allow changes in child apps without triggering an out-of-sync status, or modification for debugging etc, the app of apps pattern works with [diff customization](../user-guide/diffing/). The example below shows how to ignore changes to syncPolicy and other common values.
