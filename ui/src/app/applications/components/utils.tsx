@@ -1576,7 +1576,7 @@ export const ApplicationSyncWindowStatusIcon = ({project, state}: {project: stri
     let deny = false;
     let allow = false;
     let inactiveAllow = false;
-    if (state.assignedWindows !== undefined && state.assignedWindows.length > 0) {
+    if (state?.assignedWindows !== undefined && state?.assignedWindows.length > 0) {
         if (state.activeWindows !== undefined && state.activeWindows.length > 0) {
             for (const w of state.activeWindows) {
                 if (w.kind === 'deny') {
