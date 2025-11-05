@@ -388,7 +388,7 @@ spec:
        secretName: <secret-name>
 ```
 
-> Note
+> [!NOTE]
 > This mechanism configures Argo CD components to authenticate to Redis. The Redis server itself should be configured independently (e.g., via `redis.conf`).
 
 ## How do I fix `Manifest generation error (cached)`?
