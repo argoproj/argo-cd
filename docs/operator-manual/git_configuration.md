@@ -30,7 +30,7 @@ Currently, the following built-in configuration options are set:
 
 These settings force Git's repository maintenance tasks to run in the
 foreground. This prevents Git from running detached background
-processes that could modifyi the repository and interfere with
+processes that could modify the repository and interfere with
 subsequent Git invocations from `argocd-repo-server`.
 
 You can disable these built-in settings by setting the
