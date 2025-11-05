@@ -1062,6 +1062,9 @@ func (ctrl *ApplicationController) processAppOperationQueueItem() (processNext b
 			})
 			message := fmt.Sprintf("Unable to delete application resources: %v", err.Error())
 			ctrl.logAppEvent(context.TODO(), app, argo.EventInfo{Reason: argo.EventReasonStatusRefreshed, Type: corev1.EventTypeWarning}, message)
+		} else {
+			// Clear DeletionError condition if deletion is progressing successfully
+			app.Status.SetConditions([]appv1.ApplicationCondition{}, map[appv1.ApplicationConditionType]bool{appv1.ApplicationConditionDeletionError: true})
 		}
 		ts.AddCheckpoint("finalize_application_deletion_ms")
 	}
@@ -1877,9 +1880,8 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	app.Status.SourceTypes = compareResult.appSourceTypes
 	app.Status.ControllerNamespace = ctrl.namespace
 	ts.AddCheckpoint("app_status_update_ms")
-	patchDuration = ctrl.persistAppStatus(origApp, &app.Status)
-	// This is a partly a duplicate of patch_ms, but more descriptive and allows to have measurement for the next step.
-	ts.AddCheckpoint("persist_app_status_ms")
+	// Update finalizers BEFORE persisting status to avoid race condition where app shows "Synced"
+	// but doesn't have finalizers yet, which would allow deletion without running pre-delete hooks
 	if (compareResult.hasPreDeleteHooks != app.HasPreDeleteFinalizer() ||
 		compareResult.hasPreDeleteHooks != app.HasPreDeleteFinalizer("cleanup")) &&
 		app.GetDeletionTimestamp() == nil {
@@ -1892,7 +1894,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		}
 
 		if err := ctrl.updateFinalizers(app); err != nil {
-			logCtx.Errorf("Failed to update finalizers: %v", err)
+			logCtx.Errorf("Failed to update pre-delete finalizers: %v", err)
 		}
 	}
 	if (compareResult.hasPostDeleteHooks != app.HasPostDeleteFinalizer() ||
@@ -1907,10 +1909,13 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		}
 
 		if err := ctrl.updateFinalizers(app); err != nil {
-			logCtx.WithError(err).Error("Failed to update finalizers")
+			logCtx.WithError(err).Error("Failed to update post-delete finalizers")
 		}
 	}
 	ts.AddCheckpoint("process_finalizers_ms")
+	patchDuration = ctrl.persistAppStatus(origApp, &app.Status)
+	// This is a partly a duplicate of patch_ms, but more descriptive and allows to have measurement for the next step.
+	ts.AddCheckpoint("persist_app_status_ms")
 	return processNext
 }
 

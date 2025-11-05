@@ -2,6 +2,8 @@ package controller
 
 import (
 	"context"
+	"fmt"
+	"strings"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
@@ -111,6 +113,14 @@ func (ctrl *ApplicationController) executeHooks(hookType HookType, app *appv1.Ap
 	// Create hooks that don't exist yet
 	createdCnt := 0
 	for _, obj := range expectedHook {
+		// Add app instance label so the hook can be tracked and cleaned up
+		labels := obj.GetLabels()
+		if labels == nil {
+			labels = make(map[string]string)
+		}
+		labels[appLabelKey] = app.InstanceName(ctrl.namespace)
+		obj.SetLabels(labels)
+
 		_, err = ctrl.kubectl.CreateResource(context.Background(), config, obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace(), obj, metav1.CreateOptions{})
 		if err != nil {
 			return false, err
@@ -131,6 +141,8 @@ func (ctrl *ApplicationController) executeHooks(hookType HookType, app *appv1.Ap
 	healthOverrides := lua.ResourceHealthOverrides(resourceOverrides)
 
 	progressingHooksCount := 0
+	var failedHooks []string
+	var failedHookObjects []*unstructured.Unstructured
 	for _, obj := range runningHooks {
 		hookHealth, err := health.GetResourceHealth(obj, healthOverrides)
 		if err != nil {
@@ -150,7 +162,22 @@ func (ctrl *ApplicationController) executeHooks(hookType HookType, app *appv1.Ap
 		}
 		if hookHealth.Status == health.HealthStatusProgressing {
 			progressingHooksCount++
+		} else if hookHealth.Status == health.HealthStatusDegraded {
+			failedHooks = append(failedHooks, fmt.Sprintf("%s/%s", obj.GetNamespace(), obj.GetName()))
+			failedHookObjects = append(failedHookObjects, obj)
 		}
+	}
+
+	if len(failedHooks) > 0 {
+		// Delete failed hooks to allow retry with potentially fixed hook definitions
+		logCtx.Infof("Deleting %d failed %s hook(s) to allow retry", len(failedHookObjects), hookType)
+		for _, obj := range failedHookObjects {
+			err = ctrl.kubectl.DeleteResource(context.Background(), config, obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace(), metav1.DeleteOptions{})
+			if err != nil {
+				logCtx.WithError(err).Warnf("Failed to delete failed hook %s/%s", obj.GetNamespace(), obj.GetName())
+			}
+		}
+		return false, fmt.Errorf("%s hook(s) failed: %s", hookType, strings.Join(failedHooks, ", "))
 	}
 
 	if progressingHooksCount > 0 {
@@ -195,10 +222,24 @@ func (ctrl *ApplicationController) cleanupHooks(hookType HookType, liveObjs map[
 
 	// Process hooks for deletion
 	for _, obj := range hooks {
-		for _, policy := range hook.DeletePolicies(obj) {
-			if (policy != common.HookDeletePolicyHookFailed || aggregatedHealth != health.HealthStatusDegraded) && (policy != common.HookDeletePolicyHookSucceeded || aggregatedHealth != health.HealthStatusHealthy) {
-				continue
+		deletePolicies := hook.DeletePolicies(obj)
+		shouldDelete := false
+
+		if len(deletePolicies) == 0 {
+			// If no delete policy is specified, always delete hooks during cleanup phase
+			shouldDelete = true
+		} else {
+			// Check if any delete policy matches the current hook state
+			for _, policy := range deletePolicies {
+				if (policy == common.HookDeletePolicyHookFailed && aggregatedHealth == health.HealthStatusDegraded) ||
+					(policy == common.HookDeletePolicyHookSucceeded && aggregatedHealth == health.HealthStatusHealthy) {
+					shouldDelete = true
+					break
+				}
 			}
+		}
+
+		if shouldDelete {
 			pendingDeletionCount++
 			if obj.GetDeletionTimestamp() != nil {
 				continue
