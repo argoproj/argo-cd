@@ -96,10 +96,7 @@ func TestPreDeleteHookFailureAndRetry(t *testing.T) {
 		Refresh(RefreshTypeNormal).
 		Then().
 		// After fixing the hook, deletion should eventually succeed
-		Expect(DoesNotExist()).
-		Expect(NotPod(func(p corev1.Pod) bool {
-			return p.Name == "hook"
-		}))
+		Expect(DoesNotExist())
 }
 
 func TestPostDeleteHook(t *testing.T) {

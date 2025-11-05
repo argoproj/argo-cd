@@ -1158,7 +1158,7 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		app := newFakeApp()
 		app.SetPreDeleteFinalizer()
 		app.Spec.Destination.Namespace = test.FakeArgoCDNamespace
-		ctrl := newFakeController(&fakeData{
+		ctrl := newFakeController(context.Background(), &fakeData{
 			manifestResponses: []*apiclient.ManifestResponse{{
 				Manifests: []string{fakePreDeleteHook},
 			}},
@@ -1228,7 +1228,7 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		app.Spec.Destination.Namespace = test.FakeArgoCDNamespace
 		liveHook := &unstructured.Unstructured{Object: newFakePreDeleteHook()}
 		require.NoError(t, unstructured.SetNestedField(liveHook.Object, "Succeeded", "status", "phase"))
-		ctrl := newFakeController(&fakeData{
+		ctrl := newFakeController(context.Background(), &fakeData{
 			manifestResponses: []*apiclient.ManifestResponse{{
 				Manifests: []string{fakePreDeleteHook},
 			}},
