@@ -46,6 +46,15 @@ Target GA date: ___. __, ____
  - [ ] At GA release date, evaluate if any bugs justify delaying the release
  - [ ] Prepare for EOL version (version that is 3 releases old)
     - [ ] If unreleased changes are on the release branch for {current minor version minus 3}, cut a final patch release for that series (or delegate this task to an Approver and coordinate timing)
+    - [ ] Edit the final patch release on GitHub and add the following notice at the top:
+     ```markdown
+     > [!IMPORTANT]
+     > **END OF LIFE NOTICE**
+     > 
+     > This is the final release of the {EOL_SERIES} release series. As of {GA_DATE}, this version has reached end of life and will no longer receive bug fixes or security updates.
+     > 
+     > **Action Required**: Please upgrade to a [supported version](https://argo-cd.readthedocs.io/en/stable/operator-manual/upgrading/overview/) (v{SUPPORTED_VERSION_1}, v{SUPPORTED_VERSION_2}, or v{NEW_VERSION}).
+     ```
  - [ ] Cut GA release (or delegate this task to an Approver and coordinate timing)
     - [ ] Run the [Init ArgoCD Release workflow](https://github.com/argoproj/argo-cd/actions/workflows/init-release.yaml) from the release branch
     - [ ] Review and merge the generated version bump PR
@@ -70,16 +79,6 @@ Target GA date: ___. __, ____
      :warning: IMPORTANT: With the release of Argo CD v{MAJOR}.{MINOR}, support for Argo CD v{EOL_VERSION} has officially reached End of Life (EOL).
      
      Thanks to all the folks who spent their time contributing to this release in any way possible!
-     ```
- - [ ] Update EOL version's final release notes
-   - [ ] Edit the final patch release on GitHub and add the following notice at the top:
-     ```markdown
-     > [!IMPORTANT]
-     > **END OF LIFE NOTICE**
-     > 
-     > This is the final release of the {EOL_SERIES} release series. As of {GA_DATE}, this version has reached end of life and will no longer receive bug fixes or security updates.
-     > 
-     > **Action Required**: Please upgrade to a [supported version](https://argo-cd.readthedocs.io/en/stable/operator-manual/upgrading/overview/) (v{SUPPORTED_VERSION_1}, v{SUPPORTED_VERSION_2}, or v{NEW_VERSION}).
      ```
  - [ ] (For the next release champion) Review the [items scheduled for the next release](https://github.com/orgs/argoproj/projects/25). If any item does not have an assignee who can commit to finish the feature, move it to the next release.
  - [ ] (For the next release champion) Schedule a time mid-way through the release cycle to review items again.
