@@ -23,7 +23,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/structured-merge-diff/v6/fieldpath"
-	"sigs.k8s.io/structured-merge-diff/v6/merge"
 	"sigs.k8s.io/structured-merge-diff/v6/typed"
 
 	"github.com/argoproj/gitops-engine/internal/kubernetes_vendor/pkg/api/v1/endpoints"
@@ -343,49 +342,6 @@ func jsonStrToUnstructured(jsonString string) (*unstructured.Unstructured, error
 		return nil, fmt.Errorf("unmarshal error: %w", err)
 	}
 	return &unstructured.Unstructured{Object: res}, nil
-}
-
-// SSAParams defines the parameters required by the structuredMergeDiff
-// function
-type SSAParams struct {
-	config    *unstructured.Unstructured
-	live      *unstructured.Unstructured
-	gvkParser *managedfields.GvkParser
-	manager   string
-}
-
-// apply will build all the dependency required to invoke the smd.merge.updater.Apply
-// to correctly calculate the diff with the same logic used in k8s with server-side
-// apply.
-func apply(tvConfig, tvLive *typed.TypedValue, p *SSAParams) (*typed.TypedValue, error) {
-	// Build the structured-merge-diff Updater
-	updater := merge.Updater{
-		Converter: fieldmanager.NewVersionConverter(p.gvkParser, scheme.Scheme, p.config.GroupVersionKind().GroupVersion()),
-	}
-
-	// Build a list of managers and which API version they own
-	managed, err := fieldmanager.DecodeManagedFields(p.live.GetManagedFields())
-	if err != nil {
-		return nil, fmt.Errorf("error decoding managed fields: %w", err)
-	}
-
-	// Use the desired manifest to extract the target resource version
-	version := fieldpath.APIVersion(p.config.GetAPIVersion())
-
-	// The manager string needs to be converted to the internal manager
-	// key used inside structured-merge-diff apply logic
-	managerKey, err := buildManagerInfoForApply(p.manager)
-	if err != nil {
-		return nil, fmt.Errorf("error building manager info: %w", err)
-	}
-
-	// Finally invoke Apply to execute the same function used in k8s
-	// server-side applies
-	mergedLive, _, err := updater.Apply(tvLive, tvConfig, version, managed.Fields(), managerKey, true)
-	if err != nil {
-		return nil, fmt.Errorf("error while running updater.Apply: %w", err)
-	}
-	return mergedLive, nil
 }
 
 func buildManagerInfoForApply(manager string) (string, error) {
