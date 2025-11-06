@@ -768,10 +768,10 @@ func buildGVKParser(t *testing.T) *managedfields.GvkParser {
 }
 
 func TestStructuredMergeDiff(t *testing.T) {
-	buildParams := func(live, config *unstructured.Unstructured) *SMDParams {
+	buildParams := func(live, config *unstructured.Unstructured) *SSAParams {
 		gvkParser := buildGVKParser(t)
 		manager := "argocd-controller"
-		return &SMDParams{
+		return &SSAParams{
 			config:    config,
 			live:      live,
 			gvkParser: gvkParser,
