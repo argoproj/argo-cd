@@ -8,46 +8,54 @@ import (
 
 func TestGetSparseCheckoutKey(t *testing.T) {
 	tests := []struct {
-		name     string
-		paths    []string
-		expected string
+		name          string
+		paths         []string
+		expectEmpty   bool
+		expectPrefix  string
 	}{
 		{
-			name:     "no sparse paths returns empty string",
-			paths:    []string{},
-			expected: "",
+			name:        "no sparse paths returns empty string",
+			paths:       []string{},
+			expectEmpty: true,
 		},
 		{
-			name:     "nil sparse paths returns empty string",
-			paths:    nil,
-			expected: "",
+			name:        "nil sparse paths returns empty string",
+			paths:       nil,
+			expectEmpty: true,
 		},
 		{
-			name:     "single path",
-			paths:    []string{"apps/frontend"},
-			expected: "sparse:apps/frontend",
+			name:         "single path produces hash",
+			paths:        []string{"apps/frontend"},
+			expectPrefix: "sparse:",
 		},
 		{
-			name:     "multiple paths sorted alphabetically",
-			paths:    []string{"apps/backend", "apps/frontend"},
-			expected: "sparse:apps/backend,apps/frontend",
+			name:         "multiple paths produce hash",
+			paths:        []string{"apps/backend", "apps/frontend"},
+			expectPrefix: "sparse:",
 		},
 		{
-			name:     "paths sorted regardless of input order",
-			paths:    []string{"apps/frontend", "apps/backend", "apps/database"},
-			expected: "sparse:apps/backend,apps/database,apps/frontend",
+			name:         "paths with whitespace are trimmed",
+			paths:        []string{" apps/frontend ", "apps/backend"},
+			expectPrefix: "sparse:",
 		},
 		{
-			name:     "paths with different prefixes",
-			paths:    []string{"infrastructure/terraform", "apps/frontend"},
-			expected: "sparse:apps/frontend,infrastructure/terraform",
+			name:         "paths with trailing slashes are normalized",
+			paths:        []string{"apps/frontend/", "apps/backend"},
+			expectPrefix: "sparse:",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := GetSparseCheckoutKey(tt.paths)
-			assert.Equal(t, tt.expected, result)
+			if tt.expectEmpty {
+				assert.Empty(t, result)
+			} else {
+				assert.NotEmpty(t, result)
+				assert.Contains(t, result, tt.expectPrefix)
+				// Hash output should be 16 hex chars (8 bytes) + prefix
+				assert.Len(t, result, len("sparse:")+16)
+			}
 		})
 	}
 }
@@ -64,7 +72,12 @@ func TestGetSparseCheckoutKey_Consistency(t *testing.T) {
 
 	assert.Equal(t, key1, key2)
 	assert.Equal(t, key2, key3)
-	assert.Equal(t, "sparse:apps/backend,apps/database,apps/frontend", key1)
+	assert.Contains(t, key1, "sparse:")
+	
+	// Test that whitespace and trailing slashes don't affect the hash
+	paths4 := []string{" apps/frontend/ ", "apps/backend/", "  apps/database  "}
+	key4 := GetSparseCheckoutKey(paths4)
+	assert.Equal(t, key1, key4)
 }
 
 func TestGetSparseCheckoutKey_DifferentPathsProduceDifferentKeys(t *testing.T) {
@@ -82,8 +95,11 @@ func TestGetSparseCheckoutKey_DifferentPathsProduceDifferentKeys(t *testing.T) {
 	assert.NotEqual(t, key1, key3)
 	assert.NotEqual(t, key2, key3)
 
-	// Verify they have expected format
-	assert.Equal(t, "sparse:apps/frontend", key1)
-	assert.Equal(t, "sparse:apps/backend", key2)
-	assert.Equal(t, "sparse:apps/backend,apps/frontend", key3)
+	// Verify they all have expected format (sparse: prefix + 16 hex chars)
+	assert.Contains(t, key1, "sparse:")
+	assert.Contains(t, key2, "sparse:")
+	assert.Contains(t, key3, "sparse:")
+	assert.Len(t, key1, len("sparse:")+16)
+	assert.Len(t, key2, len("sparse:")+16)
+	assert.Len(t, key3, len("sparse:")+16)
 }

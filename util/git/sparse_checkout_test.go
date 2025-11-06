@@ -13,6 +13,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const (
+	testPathAppsFrontend          = "apps/frontend"
+	testPathAppsBackend           = "apps/backend"
+	testPathAppsDatabase          = "apps/database"
+	testPathInfrastructureTerraform = "infrastructure/terraform"
+	testPathLargeAssetsVideos     = "large-assets/videos"
+)
+
 // createTestRepoWithStructure creates a git repo with multiple directories
 // to simulate a monorepo with different app paths
 func createTestRepoWithStructure(t *testing.T, ctx context.Context) string {
@@ -20,16 +28,15 @@ func createTestRepoWithStructure(t *testing.T, ctx context.Context) string {
 	tempDir := t.TempDir()
 
 	// Initialize git repo
-	err := runCmd(ctx, tempDir, "git", "init")
-	require.NoError(t, err)
+	require.NoError(t, runCmd(ctx, tempDir, "git", "init"))
 
 	// Create directory structure simulating a monorepo
 	dirs := []string{
-		"apps/frontend",
-		"apps/backend",
-		"apps/database",
-		"infrastructure/terraform",
-		"large-assets/videos",
+		testPathAppsFrontend,
+		testPathAppsBackend,
+		testPathAppsDatabase,
+		testPathInfrastructureTerraform,
+		testPathLargeAssetsVideos,
 	}
 
 	for _, dir := range dirs {
@@ -49,9 +56,7 @@ func createTestRepoWithStructure(t *testing.T, ctx context.Context) string {
 
 	// Commit everything
 	require.NoError(t, runCmd(ctx, tempDir, "git", "add", "."))
-
-	err = runCmd(ctx, tempDir, "git", "commit", "-m", "Initial monorepo structure")
-	require.NoError(t, err)
+	require.NoError(t, runCmd(ctx, tempDir, "git", "commit", "-m", "Initial monorepo structure"))
 
 	return tempDir
 }
@@ -67,6 +72,15 @@ func fileURL(path string) string {
 	return "file://" + path
 }
 
+// getCommitSHA is a helper to fetch the HEAD commit SHA from a git repo
+func getCommitSHA(t *testing.T, ctx context.Context, repoPath string) string {
+	t.Helper()
+	cmd := exec.CommandContext(ctx, "git", "-C", repoPath, "rev-parse", "HEAD")
+	output, err := cmd.CombinedOutput()
+	require.NoError(t, err)
+	return strings.TrimSpace(string(output))
+}
+
 // Test_nativeGitClient_SparseCheckout_BasicPaths tests that only specified paths
 // are checked out when sparse checkout is enabled
 func Test_nativeGitClient_SparseCheckout_BasicPaths(t *testing.T) {
@@ -80,11 +94,11 @@ func Test_nativeGitClient_SparseCheckout_BasicPaths(t *testing.T) {
 	client, err := NewClient(
 		fileURL(srcRepo),
 		NopCreds{},
-		true,                                  // insecure
-		false,                                 // enableLfs
-		"",                                    // proxy
-		"",                                    // noProxy
-		WithSparse([]string{"apps/frontend"}), // cone mode directory
+		true,                                        // insecure
+		false,                                       // enableLfs
+		"",                                          // proxy
+		"",                                          // noProxy
+		WithSparse([]string{testPathAppsFrontend}), // cone mode directory
 	)
 	require.NoError(t, err)
 
@@ -98,10 +112,7 @@ func Test_nativeGitClient_SparseCheckout_BasicPaths(t *testing.T) {
 
 	// Get the commit SHA from the source repo to checkout
 	// (can't use origin/HEAD in a local test repo)
-	cmd := exec.CommandContext(ctx, "git", "-C", srcRepo, "rev-parse", "HEAD")
-	output, err := cmd.CombinedOutput()
-	require.NoError(t, err)
-	commitSHA := strings.TrimSpace(string(output))
+	commitSHA := getCommitSHA(t, ctx, srcRepo)
 
 	// Checkout the commit
 	_, err = client.Checkout(commitSHA, false)
@@ -131,7 +142,7 @@ func Test_nativeGitClient_SparseCheckout_MultiplePaths(t *testing.T) {
 		fileURL(srcRepo),
 		NopCreds{},
 		true, false, "", "",
-		WithSparse([]string{"apps/frontend", "apps/backend"}),
+		WithSparse([]string{testPathAppsFrontend, testPathAppsBackend}),
 	)
 	require.NoError(t, err)
 
@@ -142,10 +153,7 @@ func Test_nativeGitClient_SparseCheckout_MultiplePaths(t *testing.T) {
 	require.NoError(t, err)
 
 	// Get commit SHA to checkout
-	cmd := exec.CommandContext(ctx, "git", "-C", srcRepo, "rev-parse", "HEAD")
-	output, err := cmd.CombinedOutput()
-	require.NoError(t, err)
-	commitSHA := strings.TrimSpace(string(output))
+	commitSHA := getCommitSHA(t, ctx, srcRepo)
 
 	_, err = client.Checkout(commitSHA, false)
 	require.NoError(t, err)
@@ -211,10 +219,7 @@ func Test_nativeGitClient_SparseCheckout_EmptyPaths(t *testing.T) {
 	err = client.Fetch("")
 	require.NoError(t, err)
 
-	cmd := exec.CommandContext(ctx, "git", "-C", srcRepo, "rev-parse", "HEAD")
-	output, err := cmd.CombinedOutput()
-	require.NoError(t, err)
-	commitSHA := strings.TrimSpace(string(output))
+	commitSHA := getCommitSHA(t, ctx, srcRepo)
 
 	_, err = client.Checkout(commitSHA, false)
 	require.NoError(t, err)
@@ -236,7 +241,7 @@ func Test_nativeGitClient_SparseCheckout_ReapplyAfterCheckout(t *testing.T) {
 		fileURL(srcRepo),
 		NopCreds{},
 		true, false, "", "",
-		WithSparse([]string{"apps/frontend"}),
+		WithSparse([]string{testPathAppsFrontend}),
 	)
 	require.NoError(t, err)
 
@@ -246,10 +251,7 @@ func Test_nativeGitClient_SparseCheckout_ReapplyAfterCheckout(t *testing.T) {
 	err = client.Fetch("")
 	require.NoError(t, err)
 
-	cmd := exec.CommandContext(ctx, "git", "-C", srcRepo, "rev-parse", "HEAD")
-	output, err := cmd.CombinedOutput()
-	require.NoError(t, err)
-	commitSHA := strings.TrimSpace(string(output))
+	commitSHA := getCommitSHA(t, ctx, srcRepo)
 
 	// First checkout
 	_, err = client.Checkout(commitSHA, false)

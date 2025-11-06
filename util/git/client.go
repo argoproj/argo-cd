@@ -3,6 +3,7 @@ package git
 import (
 	"bufio"
 	"context"
+	"crypto/sha256"
 	"crypto/tls"
 	"encoding/json"
 	"errors"
@@ -216,23 +217,41 @@ func WithEventHandlers(handlers EventHandlers) ClientOpts {
 func WithSparse(paths []string) ClientOpts {
 	return func(c *nativeGitClient) {
 		if len(paths) > 0 {
-			c.sparsePaths = append([]string{}, paths...)
+			// Normalize and trim paths for consistency
+			normalized := make([]string, 0, len(paths))
+			for _, p := range paths {
+				trimmed := strings.TrimSpace(p)
+				if trimmed != "" {
+					// Normalize path separators and remove trailing slashes
+					normalized = append(normalized, strings.Trim(filepath.ToSlash(trimmed), "/"))
+				}
+			}
+			c.sparsePaths = normalized
 		}
 	}
 }
 
 // GetSparseCheckoutKey returns a cache key component for sparse checkout paths.
 // Returns empty string if no sparse paths are configured.
-// The paths are sorted to ensure consistent cache keys regardless of path order.
+// The paths are hashed to keep cache keys manageable even with many paths.
 func GetSparseCheckoutKey(paths []string) string {
 	if len(paths) == 0 {
 		return ""
 	}
-	// Sort to ensure consistent cache keys regardless of path order
-	sortedPaths := make([]string, len(paths))
-	copy(sortedPaths, paths)
-	sort.Strings(sortedPaths)
-	return "sparse:" + strings.Join(sortedPaths, ",")
+	// Normalize, trim and sort paths for consistent hashing
+	normalized := make([]string, 0, len(paths))
+	for _, p := range paths {
+		trimmed := strings.TrimSpace(p)
+		if trimmed != "" {
+			normalized = append(normalized, strings.Trim(filepath.ToSlash(trimmed), "/"))
+		}
+	}
+	sort.Strings(normalized)
+	
+	// Hash the paths to keep cache key manageable
+	h := sha256.New()
+	h.Write([]byte(strings.Join(normalized, ",")))
+	return fmt.Sprintf("sparse:%x", h.Sum(nil)[:8]) // Use first 8 bytes for readability
 }
 
 func NewClient(rawRepoURL string, creds Creds, insecure bool, enableLfs bool, proxy string, noProxy string, opts ...ClientOpts) (Client, error) {
