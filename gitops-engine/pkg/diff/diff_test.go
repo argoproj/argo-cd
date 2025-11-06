@@ -891,10 +891,8 @@ func TestServerSideDiff(t *testing.T) {
 		manager := "argocd-controller"
 		dryRunner := mocks.NewServerSideDryRunner(t)
 
-		dryRunner.On("Run", mock.Anything, mock.AnythingOfType("*unstructured.Unstructured"), manager).
-			Return(func(_ context.Context, _ *unstructured.Unstructured, _ string) (string, error) {
-				return predictedLive, nil
-			})
+		dryRunner.EXPECT().Run(mock.Anything, mock.AnythingOfType("*unstructured.Unstructured"), manager).
+			Return(predictedLive, nil)
 		opts := []Option{
 			WithGVKParser(gvkParser),
 			WithManager(manager),
