@@ -1329,13 +1329,12 @@ func getImmutableFieldChanges(currentSpec, desiredSpec map[string]any) []string 
 
 // formatVolumeClaimChanges handles the special case of formatting changes to volumeClaimTemplates
 func formatVolumeClaimChanges(currentVal, desiredVal any) []string {
-	// Guard type assertion for currentVal
+
 	currentTemplates, ok := currentVal.([]any)
 	if !ok {
 		return []string{formatFieldChange("volumeClaimTemplates", currentVal, desiredVal)}
 	}
 
-	// Guard type assertion for desiredVal
 	desiredTemplates, ok := desiredVal.([]any)
 	if !ok {
 		return []string{formatFieldChange("volumeClaimTemplates", currentVal, desiredVal)}
@@ -1347,35 +1346,29 @@ func formatVolumeClaimChanges(currentVal, desiredVal any) []string {
 
 	var changes []string
 	for i := range desiredTemplates {
-		// Guard type assertion for each desiredTemplate element
+
 		desiredTemplate, ok := desiredTemplates[i].(map[string]any)
 		if !ok {
-			// Fallback: return generic change if element type is unexpected
 			return []string{formatFieldChange("volumeClaimTemplates", currentVal, desiredVal)}
 		}
 
-		// Guard type assertion for each currentTemplate element
 		currentTemplate, ok := currentTemplates[i].(map[string]any)
 		if !ok {
-			// Fallback: return generic change if element type is unexpected
 			return []string{formatFieldChange("volumeClaimTemplates", currentVal, desiredVal)}
 		}
 
-		// Guard type assertion for metadata map
 		metadata, ok := desiredTemplate["metadata"].(map[string]any)
 		if !ok {
 			// Skip this template if metadata is not a map
 			continue
 		}
 
-		// Guard type assertion for name string
 		name, ok := metadata["name"].(string)
 		if !ok {
 			// Skip this template if name is not a string
 			continue
 		}
 
-		// getTemplateStorage already handles validation internally
 		desiredStorage := getTemplateStorage(desiredTemplate)
 		currentStorage := getTemplateStorage(currentTemplate)
 
