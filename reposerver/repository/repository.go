@@ -234,11 +234,24 @@ func (s *Service) ListRefs(_ context.Context, q *apiclient.ListRefsRequest) (*ap
 
 // ListApps lists the contents of a GitHub repo
 func (s *Service) ListApps(ctx context.Context, q *apiclient.ListAppsRequest) (*apiclient.AppList, error) {
-	gitClient, commitSHA, err := s.newClientResolveRevision(q.Repo, q.Revision)
+	// Use sparse checkout if paths are provided
+	var gitClientOpts []git.ClientOpts
+	if len(q.SparseCheckoutPaths) > 0 {
+		gitClientOpts = append(gitClientOpts, git.WithSparse(q.SparseCheckoutPaths))
+	}
+
+	gitClient, commitSHA, err := s.newClientResolveRevisionWithSparse(q.Repo, q.Revision, q.SparseCheckoutPaths, gitClientOpts...)
 	if err != nil {
 		return nil, fmt.Errorf("error setting up git client and resolving given revision: %w", err)
 	}
-	if apps, err := s.cache.ListApps(q.Repo.Repo, commitSHA); err == nil {
+
+	// Include sparse checkout paths in cache key to avoid collisions
+	cacheKey := commitSHA
+	if sparseKey := git.GetSparseCheckoutKey(q.SparseCheckoutPaths); sparseKey != "" {
+		cacheKey = commitSHA + "|" + sparseKey
+	}
+
+	if apps, err := s.cache.ListApps(q.Repo.Repo, cacheKey); err == nil {
 		log.Infof("cache hit: %s/%s", q.Repo.Repo, q.Revision)
 		return &apiclient.AppList{Apps: apps}, nil
 	}
@@ -258,9 +271,9 @@ func (s *Service) ListApps(ctx context.Context, q *apiclient.ListAppsRequest) (*
 	if err != nil {
 		return nil, fmt.Errorf("error discovering applications: %w", err)
 	}
-	err = s.cache.SetApps(q.Repo.Repo, commitSHA, apps)
+	err = s.cache.SetApps(q.Repo.Repo, cacheKey, apps)
 	if err != nil {
-		log.Warnf("cache set error %s/%s: %v", q.Repo.Repo, commitSHA, err)
+		log.Warnf("cache set error %s/%s: %v", q.Repo.Repo, cacheKey, err)
 	}
 	res := apiclient.AppList{Apps: apps}
 	return &res, nil

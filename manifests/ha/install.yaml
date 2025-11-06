@@ -239,6 +239,16 @@ spec:
                             description: Recurse specifies whether to scan a directory
                               recursively for manifests
                             type: boolean
+                          sparseCheckoutPaths:
+                            description: |-
+                              SparseCheckoutPaths defines directory paths to include in a sparse git checkout.
+                              When specified, only these paths (and parent directories) will be checked out from the repository,
+                              significantly reducing clone time and disk usage for large monorepos.
+                              Paths should be relative to the repository root. Uses cone mode for optimal performance.
+                              Requires git >= 2.25.
+                            items:
+                              type: string
+                            type: array
                         type: object
                       helm:
                         description: Helm holds helm specific options
@@ -625,6 +635,16 @@ spec:
                               description: Recurse specifies whether to scan a directory
                                 recursively for manifests
                               type: boolean
+                            sparseCheckoutPaths:
+                              description: |-
+                                SparseCheckoutPaths defines directory paths to include in a sparse git checkout.
+                                When specified, only these paths (and parent directories) will be checked out from the repository,
+                                significantly reducing clone time and disk usage for large monorepos.
+                                Paths should be relative to the repository root. Uses cone mode for optimal performance.
+                                Requires git >= 2.25.
+                              items:
+                                type: string
+                              type: array
                           type: object
                         helm:
                           description: Helm holds helm specific options
@@ -1130,6 +1150,16 @@ spec:
                         description: Recurse specifies whether to scan a directory
                           recursively for manifests
                         type: boolean
+                      sparseCheckoutPaths:
+                        description: |-
+                          SparseCheckoutPaths defines directory paths to include in a sparse git checkout.
+                          When specified, only these paths (and parent directories) will be checked out from the repository,
+                          significantly reducing clone time and disk usage for large monorepos.
+                          Paths should be relative to the repository root. Uses cone mode for optimal performance.
+                          Requires git >= 2.25.
+                        items:
+                          type: string
+                        type: array
                     type: object
                   helm:
                     description: Helm holds helm specific options
@@ -1568,6 +1598,16 @@ spec:
                           description: Recurse specifies whether to scan a directory
                             recursively for manifests
                           type: boolean
+                        sparseCheckoutPaths:
+                          description: |-
+                            SparseCheckoutPaths defines directory paths to include in a sparse git checkout.
+                            When specified, only these paths (and parent directories) will be checked out from the repository,
+                            significantly reducing clone time and disk usage for large monorepos.
+                            Paths should be relative to the repository root. Uses cone mode for optimal performance.
+                            Requires git >= 2.25.
+                          items:
+                            type: string
+                          type: array
                       type: object
                     helm:
                       description: Helm holds helm specific options
@@ -2124,6 +2164,16 @@ spec:
                               description: Recurse specifies whether to scan a directory
                                 recursively for manifests
                               type: boolean
+                            sparseCheckoutPaths:
+                              description: |-
+                                SparseCheckoutPaths defines directory paths to include in a sparse git checkout.
+                                When specified, only these paths (and parent directories) will be checked out from the repository,
+                                significantly reducing clone time and disk usage for large monorepos.
+                                Paths should be relative to the repository root. Uses cone mode for optimal performance.
+                                Requires git >= 2.25.
+                              items:
+                                type: string
+                              type: array
                           type: object
                         helm:
                           description: Helm holds helm specific options
@@ -2512,6 +2562,16 @@ spec:
                                 description: Recurse specifies whether to scan a directory
                                   recursively for manifests
                                 type: boolean
+                              sparseCheckoutPaths:
+                                description: |-
+                                  SparseCheckoutPaths defines directory paths to include in a sparse git checkout.
+                                  When specified, only these paths (and parent directories) will be checked out from the repository,
+                                  significantly reducing clone time and disk usage for large monorepos.
+                                  Paths should be relative to the repository root. Uses cone mode for optimal performance.
+                                  Requires git >= 2.25.
+                                items:
+                                  type: string
+                                type: array
                             type: object
                           helm:
                             description: Helm holds helm specific options
@@ -3054,6 +3114,16 @@ spec:
                                     description: Recurse specifies whether to scan
                                       a directory recursively for manifests
                                     type: boolean
+                                  sparseCheckoutPaths:
+                                    description: |-
+                                      SparseCheckoutPaths defines directory paths to include in a sparse git checkout.
+                                      When specified, only these paths (and parent directories) will be checked out from the repository,
+                                      significantly reducing clone time and disk usage for large monorepos.
+                                      Paths should be relative to the repository root. Uses cone mode for optimal performance.
+                                      Requires git >= 2.25.
+                                    items:
+                                      type: string
+                                    type: array
                                 type: object
                               helm:
                                 description: Helm holds helm specific options
@@ -3464,6 +3534,16 @@ spec:
                                       description: Recurse specifies whether to scan
                                         a directory recursively for manifests
                                       type: boolean
+                                    sparseCheckoutPaths:
+                                      description: |-
+                                        SparseCheckoutPaths defines directory paths to include in a sparse git checkout.
+                                        When specified, only these paths (and parent directories) will be checked out from the repository,
+                                        significantly reducing clone time and disk usage for large monorepos.
+                                        Paths should be relative to the repository root. Uses cone mode for optimal performance.
+                                        Requires git >= 2.25.
+                                      items:
+                                        type: string
+                                      type: array
                                   type: object
                                 helm:
                                   description: Helm holds helm specific options
@@ -4003,6 +4083,16 @@ spec:
                                 description: Recurse specifies whether to scan a directory
                                   recursively for manifests
                                 type: boolean
+                              sparseCheckoutPaths:
+                                description: |-
+                                  SparseCheckoutPaths defines directory paths to include in a sparse git checkout.
+                                  When specified, only these paths (and parent directories) will be checked out from the repository,
+                                  significantly reducing clone time and disk usage for large monorepos.
+                                  Paths should be relative to the repository root. Uses cone mode for optimal performance.
+                                  Requires git >= 2.25.
+                                items:
+                                  type: string
+                                type: array
                             type: object
                           helm:
                             description: Helm holds helm specific options
@@ -4402,6 +4492,16 @@ spec:
                                   description: Recurse specifies whether to scan a
                                     directory recursively for manifests
                                   type: boolean
+                                sparseCheckoutPaths:
+                                  description: |-
+                                    SparseCheckoutPaths defines directory paths to include in a sparse git checkout.
+                                    When specified, only these paths (and parent directories) will be checked out from the repository,
+                                    significantly reducing clone time and disk usage for large monorepos.
+                                    Paths should be relative to the repository root. Uses cone mode for optimal performance.
+                                    Requires git >= 2.25.
+                                  items:
+                                    type: string
+                                  type: array
                               type: object
                             helm:
                               description: Helm holds helm specific options
@@ -5158,6 +5258,16 @@ spec:
                                 description: Recurse specifies whether to scan a directory
                                   recursively for manifests
                                 type: boolean
+                              sparseCheckoutPaths:
+                                description: |-
+                                  SparseCheckoutPaths defines directory paths to include in a sparse git checkout.
+                                  When specified, only these paths (and parent directories) will be checked out from the repository,
+                                  significantly reducing clone time and disk usage for large monorepos.
+                                  Paths should be relative to the repository root. Uses cone mode for optimal performance.
+                                  Requires git >= 2.25.
+                                items:
+                                  type: string
+                                type: array
                             type: object
                           helm:
                             description: Helm holds helm specific options
@@ -5557,6 +5667,16 @@ spec:
                                   description: Recurse specifies whether to scan a
                                     directory recursively for manifests
                                   type: boolean
+                                sparseCheckoutPaths:
+                                  description: |-
+                                    SparseCheckoutPaths defines directory paths to include in a sparse git checkout.
+                                    When specified, only these paths (and parent directories) will be checked out from the repository,
+                                    significantly reducing clone time and disk usage for large monorepos.
+                                    Paths should be relative to the repository root. Uses cone mode for optimal performance.
+                                    Requires git >= 2.25.
+                                  items:
+                                    type: string
+                                  type: array
                               type: object
                             helm:
                               description: Helm holds helm specific options
@@ -6109,6 +6229,10 @@ spec:
                                           type: object
                                         recurse:
                                           type: boolean
+                                        sparseCheckoutPaths:
+                                          items:
+                                            type: string
+                                          type: array
                                       type: object
                                     helm:
                                       properties:
@@ -6387,6 +6511,10 @@ spec:
                                             type: object
                                           recurse:
                                             type: boolean
+                                          sparseCheckoutPaths:
+                                            items:
+                                              type: string
+                                            type: array
                                         type: object
                                       helm:
                                         properties:
@@ -6795,6 +6923,10 @@ spec:
                                           type: object
                                         recurse:
                                           type: boolean
+                                        sparseCheckoutPaths:
+                                          items:
+                                            type: string
+                                          type: array
                                       type: object
                                     helm:
                                       properties:
@@ -7073,6 +7205,10 @@ spec:
                                             type: object
                                           recurse:
                                             type: boolean
+                                          sparseCheckoutPaths:
+                                            items:
+                                              type: string
+                                            type: array
                                         type: object
                                       helm:
                                         properties:
@@ -7482,6 +7618,10 @@ spec:
                                           type: object
                                         recurse:
                                           type: boolean
+                                        sparseCheckoutPaths:
+                                          items:
+                                            type: string
+                                          type: array
                                       type: object
                                     helm:
                                       properties:
@@ -7760,6 +7900,10 @@ spec:
                                             type: object
                                           recurse:
                                             type: boolean
+                                          sparseCheckoutPaths:
+                                            items:
+                                              type: string
+                                            type: array
                                         type: object
                                       helm:
                                         properties:
@@ -8147,6 +8291,10 @@ spec:
                                           type: object
                                         recurse:
                                           type: boolean
+                                        sparseCheckoutPaths:
+                                          items:
+                                            type: string
+                                          type: array
                                       type: object
                                     helm:
                                       properties:
@@ -8425,6 +8573,10 @@ spec:
                                             type: object
                                           recurse:
                                             type: boolean
+                                          sparseCheckoutPaths:
+                                            items:
+                                              type: string
+                                            type: array
                                         type: object
                                       helm:
                                         properties:
@@ -8837,6 +8989,10 @@ spec:
                                                     type: object
                                                   recurse:
                                                     type: boolean
+                                                  sparseCheckoutPaths:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                 type: object
                                               helm:
                                                 properties:
@@ -9115,6 +9271,10 @@ spec:
                                                       type: object
                                                     recurse:
                                                       type: boolean
+                                                    sparseCheckoutPaths:
+                                                      items:
+                                                        type: string
+                                                      type: array
                                                   type: object
                                                 helm:
                                                   properties:
@@ -9523,6 +9683,10 @@ spec:
                                                     type: object
                                                   recurse:
                                                     type: boolean
+                                                  sparseCheckoutPaths:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                 type: object
                                               helm:
                                                 properties:
@@ -9801,6 +9965,10 @@ spec:
                                                       type: object
                                                     recurse:
                                                       type: boolean
+                                                    sparseCheckoutPaths:
+                                                      items:
+                                                        type: string
+                                                      type: array
                                                   type: object
                                                 helm:
                                                   properties:
@@ -10210,6 +10378,10 @@ spec:
                                                     type: object
                                                   recurse:
                                                     type: boolean
+                                                  sparseCheckoutPaths:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                 type: object
                                               helm:
                                                 properties:
@@ -10488,6 +10660,10 @@ spec:
                                                       type: object
                                                     recurse:
                                                       type: boolean
+                                                    sparseCheckoutPaths:
+                                                      items:
+                                                        type: string
+                                                      type: array
                                                   type: object
                                                 helm:
                                                   properties:
@@ -10875,6 +11051,10 @@ spec:
                                                     type: object
                                                   recurse:
                                                     type: boolean
+                                                  sparseCheckoutPaths:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                 type: object
                                               helm:
                                                 properties:
@@ -11153,6 +11333,10 @@ spec:
                                                       type: object
                                                     recurse:
                                                       type: boolean
+                                                    sparseCheckoutPaths:
+                                                      items:
+                                                        type: string
+                                                      type: array
                                                   type: object
                                                 helm:
                                                   properties:
@@ -11548,6 +11732,10 @@ spec:
                                                     type: object
                                                   recurse:
                                                     type: boolean
+                                                  sparseCheckoutPaths:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                 type: object
                                               helm:
                                                 properties:
@@ -11826,6 +12014,10 @@ spec:
                                                       type: object
                                                     recurse:
                                                       type: boolean
+                                                    sparseCheckoutPaths:
+                                                      items:
+                                                        type: string
+                                                      type: array
                                                   type: object
                                                 helm:
                                                   properties:
@@ -12448,6 +12640,10 @@ spec:
                                                     type: object
                                                   recurse:
                                                     type: boolean
+                                                  sparseCheckoutPaths:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                 type: object
                                               helm:
                                                 properties:
@@ -12726,6 +12922,10 @@ spec:
                                                       type: object
                                                     recurse:
                                                       type: boolean
+                                                    sparseCheckoutPaths:
+                                                      items:
+                                                        type: string
+                                                      type: array
                                                   type: object
                                                 helm:
                                                   properties:
@@ -13339,6 +13539,10 @@ spec:
                                                     type: object
                                                   recurse:
                                                     type: boolean
+                                                  sparseCheckoutPaths:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                 type: object
                                               helm:
                                                 properties:
@@ -13617,6 +13821,10 @@ spec:
                                                       type: object
                                                     recurse:
                                                       type: boolean
+                                                    sparseCheckoutPaths:
+                                                      items:
+                                                        type: string
+                                                      type: array
                                                   type: object
                                                 helm:
                                                   properties:
@@ -14021,6 +14229,10 @@ spec:
                                           type: object
                                         recurse:
                                           type: boolean
+                                        sparseCheckoutPaths:
+                                          items:
+                                            type: string
+                                          type: array
                                       type: object
                                     helm:
                                       properties:
@@ -14299,6 +14511,10 @@ spec:
                                             type: object
                                           recurse:
                                             type: boolean
+                                          sparseCheckoutPaths:
+                                            items:
+                                              type: string
+                                            type: array
                                         type: object
                                       helm:
                                         properties:
@@ -14713,6 +14929,10 @@ spec:
                                                     type: object
                                                   recurse:
                                                     type: boolean
+                                                  sparseCheckoutPaths:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                 type: object
                                               helm:
                                                 properties:
@@ -14991,6 +15211,10 @@ spec:
                                                       type: object
                                                     recurse:
                                                       type: boolean
+                                                    sparseCheckoutPaths:
+                                                      items:
+                                                        type: string
+                                                      type: array
                                                   type: object
                                                 helm:
                                                   properties:
@@ -15399,6 +15623,10 @@ spec:
                                                     type: object
                                                   recurse:
                                                     type: boolean
+                                                  sparseCheckoutPaths:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                 type: object
                                               helm:
                                                 properties:
@@ -15677,6 +15905,10 @@ spec:
                                                       type: object
                                                     recurse:
                                                       type: boolean
+                                                    sparseCheckoutPaths:
+                                                      items:
+                                                        type: string
+                                                      type: array
                                                   type: object
                                                 helm:
                                                   properties:
@@ -16086,6 +16318,10 @@ spec:
                                                     type: object
                                                   recurse:
                                                     type: boolean
+                                                  sparseCheckoutPaths:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                 type: object
                                               helm:
                                                 properties:
@@ -16364,6 +16600,10 @@ spec:
                                                       type: object
                                                     recurse:
                                                       type: boolean
+                                                    sparseCheckoutPaths:
+                                                      items:
+                                                        type: string
+                                                      type: array
                                                   type: object
                                                 helm:
                                                   properties:
@@ -16751,6 +16991,10 @@ spec:
                                                     type: object
                                                   recurse:
                                                     type: boolean
+                                                  sparseCheckoutPaths:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                 type: object
                                               helm:
                                                 properties:
@@ -17029,6 +17273,10 @@ spec:
                                                       type: object
                                                     recurse:
                                                       type: boolean
+                                                    sparseCheckoutPaths:
+                                                      items:
+                                                        type: string
+                                                      type: array
                                                   type: object
                                                 helm:
                                                   properties:
@@ -17424,6 +17672,10 @@ spec:
                                                     type: object
                                                   recurse:
                                                     type: boolean
+                                                  sparseCheckoutPaths:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                 type: object
                                               helm:
                                                 properties:
@@ -17702,6 +17954,10 @@ spec:
                                                       type: object
                                                     recurse:
                                                       type: boolean
+                                                    sparseCheckoutPaths:
+                                                      items:
+                                                        type: string
+                                                      type: array
                                                   type: object
                                                 helm:
                                                   properties:
@@ -18324,6 +18580,10 @@ spec:
                                                     type: object
                                                   recurse:
                                                     type: boolean
+                                                  sparseCheckoutPaths:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                 type: object
                                               helm:
                                                 properties:
@@ -18602,6 +18862,10 @@ spec:
                                                       type: object
                                                     recurse:
                                                       type: boolean
+                                                    sparseCheckoutPaths:
+                                                      items:
+                                                        type: string
+                                                      type: array
                                                   type: object
                                                 helm:
                                                   properties:
@@ -19215,6 +19479,10 @@ spec:
                                                     type: object
                                                   recurse:
                                                     type: boolean
+                                                  sparseCheckoutPaths:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                 type: object
                                               helm:
                                                 properties:
@@ -19493,6 +19761,10 @@ spec:
                                                       type: object
                                                     recurse:
                                                       type: boolean
+                                                    sparseCheckoutPaths:
+                                                      items:
+                                                        type: string
+                                                      type: array
                                                   type: object
                                                 helm:
                                                   properties:
@@ -19901,6 +20173,10 @@ spec:
                                           type: object
                                         recurse:
                                           type: boolean
+                                        sparseCheckoutPaths:
+                                          items:
+                                            type: string
+                                          type: array
                                       type: object
                                     helm:
                                       properties:
@@ -20179,6 +20455,10 @@ spec:
                                             type: object
                                           recurse:
                                             type: boolean
+                                          sparseCheckoutPaths:
+                                            items:
+                                              type: string
+                                            type: array
                                         type: object
                                       helm:
                                         properties:
@@ -20573,6 +20853,10 @@ spec:
                                           type: object
                                         recurse:
                                           type: boolean
+                                        sparseCheckoutPaths:
+                                          items:
+                                            type: string
+                                          type: array
                                       type: object
                                     helm:
                                       properties:
@@ -20851,6 +21135,10 @@ spec:
                                             type: object
                                           recurse:
                                             type: boolean
+                                          sparseCheckoutPaths:
+                                            items:
+                                              type: string
+                                            type: array
                                         type: object
                                       helm:
                                         properties:
@@ -21473,6 +21761,10 @@ spec:
                                           type: object
                                         recurse:
                                           type: boolean
+                                        sparseCheckoutPaths:
+                                          items:
+                                            type: string
+                                          type: array
                                       type: object
                                     helm:
                                       properties:
@@ -21751,6 +22043,10 @@ spec:
                                             type: object
                                           recurse:
                                             type: boolean
+                                          sparseCheckoutPaths:
+                                            items:
+                                              type: string
+                                            type: array
                                         type: object
                                       helm:
                                         properties:
@@ -22364,6 +22660,10 @@ spec:
                                           type: object
                                         recurse:
                                           type: boolean
+                                        sparseCheckoutPaths:
+                                          items:
+                                            type: string
+                                          type: array
                                       type: object
                                     helm:
                                       properties:
@@ -22642,6 +22942,10 @@ spec:
                                             type: object
                                           recurse:
                                             type: boolean
+                                          sparseCheckoutPaths:
+                                            items:
+                                              type: string
+                                            type: array
                                         type: object
                                       helm:
                                         properties:
@@ -23123,6 +23427,10 @@ spec:
                                 type: object
                               recurse:
                                 type: boolean
+                              sparseCheckoutPaths:
+                                items:
+                                  type: string
+                                type: array
                             type: object
                           helm:
                             properties:
@@ -23401,6 +23709,10 @@ spec:
                                   type: object
                                 recurse:
                                   type: boolean
+                                sparseCheckoutPaths:
+                                  items:
+                                    type: string
+                                  type: array
                               type: object
                             helm:
                               properties:
