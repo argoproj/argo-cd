@@ -646,7 +646,7 @@ The service accounts that need to assume this role are:
 If we create role `arn:aws:iam::<AWS_ACCOUNT_ID>:role/<ARGO_CD_MANAGEMENT_IAM_ROLE_NAME>` for this purpose, the following
 is an example trust policy suitable for this need. Ensure that the Argo CD cluster has an [IAM OIDC provider configured](https://docs.aws.amazon.com/eks/latest/userguide/enable-iam-roles-for-service-accounts.html) or [Pod Identity agent running](https://docs.aws.amazon.com/eks/latest/userguide/pod-id-agent-setup.html)
 
-*if using IRSA*
+**for IRSA:**
 ```json
 {
     "Version": "2012-10-17",
@@ -686,7 +686,7 @@ is an example trust policy suitable for this need. Ensure that the Argo CD clust
 }
 ```
 
-*if using Pod Identity*
+**for Pod Identity:**
 ```json
 {
     "Version":"2012-10-17",		 	 	 
@@ -1050,33 +1050,6 @@ stringData:
 ```
 
 > ⚠️ Secret mounts are updated on an interval, not real time. If rotation is a requirement ensure the token lifetime outlives the mount update interval and the rotation process doesn't immediately invalidate the existing token
-
-##### Using EKS Pod Identity instead of IRSA
-
-*Argo CD Management Role*
-
-Trusted relationship:
-```json
-{
-    "Version": "2012-10-17",
-    "Statement": [
-        {
-            "Sid": "EKSPodIdentityAssumeRole",
-            "Effect": "Allow",
-            "Principal": {
-                "Service": "pods.eks.amazonaws.com"
-            },
-            "Action": [
-                "sts:TagSession",
-                "sts:AssumeRole"
-            ]
-        }
-    ]
-}
-```
-
-It can be 
-
 
 ### GKE
 
