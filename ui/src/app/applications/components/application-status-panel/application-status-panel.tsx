@@ -342,7 +342,7 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                 }}>
                 {(data: models.ApplicationSyncWindowState) => (
                     <React.Fragment>
-                        {data.assignedWindows && (
+                        {data?.assignedWindows && (
                             <div className='application-status-panel__item' style={{position: 'relative'}}>
                                 {sectionLabel({
                                     title: 'SYNC WINDOWS',

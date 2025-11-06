@@ -50,8 +50,8 @@ function registerSystemLevelExtension(component: ExtensionComponent, title: stri
     extensions.eventTarget.emit('systemLevel', ext);
 }
 
-function registerAppViewExtension(component: ExtensionComponent, title: string, icon: string) {
-    const ext = {component, title, icon};
+function registerAppViewExtension(component: AppViewExtensionComponent, title: string, icon: string, shouldDisplay?: (app: Application) => boolean) {
+    const ext = {component, title, icon, shouldDisplay: shouldDisplay || (() => true)};
     extensions.appViewExtensions.push(ext);
     extensions.eventTarget.emit('appView', ext);
 }
@@ -109,6 +109,7 @@ export interface AppViewExtension {
     component: AppViewExtensionComponent;
     title: string;
     icon?: string;
+    shouldDisplay: (app: Application) => boolean;
 }
 
 export interface StatusPanelExtension {

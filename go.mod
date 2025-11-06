@@ -20,7 +20,7 @@ require (
 	github.com/bmatcuk/doublestar/v4 v4.9.1
 	github.com/bombsimon/logrusr/v4 v4.1.0
 	github.com/bradleyfalzon/ghinstallation/v2 v2.17.0
-	github.com/casbin/casbin/v2 v2.131.0
+	github.com/casbin/casbin/v2 v2.132.0
 	github.com/casbin/govaluate v1.10.0
 	github.com/cespare/xxhash/v2 v2.3.0
 	github.com/chainguard-dev/git-urls v1.0.2
@@ -57,7 +57,7 @@ require (
 	github.com/gorilla/websocket v1.5.4-0.20250319132907-e064f32e3674
 	github.com/gosimple/slug v1.15.0
 	github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus v1.1.0
-	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.3.2
+	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.3.3
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0
 	github.com/hashicorp/go-retryablehttp v0.7.8
 	github.com/improbable-eng/grpc-web v0.15.1-0.20230209220825-1d9bbb09a099
