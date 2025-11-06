@@ -48,8 +48,7 @@ func createTestRepoWithStructure(t *testing.T, ctx context.Context) string {
 	require.NoError(t, err)
 
 	// Commit everything
-	err = runCmd(ctx, tempDir, "git", "add", ".")
-	require.NoError(t, err)
+	require.NoError(t, runCmd(ctx, tempDir, "git", "add", "."))
 
 	err = runCmd(ctx, tempDir, "git", "commit", "-m", "Initial monorepo structure")
 	require.NoError(t, err)
