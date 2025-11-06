@@ -41,10 +41,10 @@ Argo CD offers several methods to clean up hooks and decide how much history wil
 In the most basic case you can use the argocd.argoproj.io/hook-delete-policy to decide when a hook will be deleted.
 This can take the following values:
 
-| Policy | Description |
-|--------|-------------|
-| `HookSucceeded` | The hook resource is deleted after the hook succeeded (e.g. Job/Workflow completed successfully). |
-| `HookFailed` | The hook resource is deleted after the hook failed. |
+| Policy               | Description                                                                                                                     |
+|----------------------|---------------------------------------------------------------------------------------------------------------------------------|
+| `HookSucceeded`      | The hook resource is deleted after the hook succeeded (e.g. Job/Workflow completed successfully).                               |
+| `HookFailed`         | The hook resource is deleted after the hook failed.                                                                             |
 | `BeforeHookCreation` | Any existing hook resource is deleted before the new one is created (since v1.3). It is meant to be used with `/metadata/name`. |
 
 Note that if no deletion policy is specified, Argo CD will automatically assume `BeforeHookCreation` rules.
@@ -219,20 +219,20 @@ spec:
 
 Upgrading ingress-nginx controller (managed by helm) with ArgoCD 2.x sometimes fails to work resulting in:
 
-.|.
--|-
-OPERATION|Sync
-PHASE|Running
-MESSAGE|waiting for completion of hook batch/Job/ingress-nginx-admission-create
+| .         | .                                                                       |
+|-----------|-------------------------------------------------------------------------|
+| OPERATION | Sync                                                                    |
+| PHASE     | Running                                                                 |
+| MESSAGE   | waiting for completion of hook batch/Job/ingress-nginx-admission-create |
 
-.|.
--|-
-KIND     |batch/v1/Job
-NAMESPACE|ingress-nginx
-NAME     |ingress-nginx-admission-create
-STATUS   |Running
-HOOK     |PreSync
-MESSAGE  |Pending deletion
+| .         | .                              |
+|-----------|--------------------------------|
+| KIND      | batch/v1/Job                   |
+| NAMESPACE | ingress-nginx                  |
+| NAME      | ingress-nginx-admission-create |
+| STATUS    | Running                        |
+| HOOK      | PreSync                        |
+| MESSAGE   | Pending deletion               |
 
 To work around this, a helm user can add:
 
