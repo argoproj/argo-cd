@@ -90,14 +90,6 @@ func Diff(config, live *unstructured.Unstructured, opts ...Option) (*DiffResult,
 		Normalize(live, preDiffOpts...)
 	}
 
-	if o.serverSideDiff {
-		r, err := ServerSideDiff(config, live, opts...)
-		if err != nil {
-			return nil, fmt.Errorf("error calculating server side diff: %w", err)
-		}
-		return r, nil
-	}
-
 	// TODO The two variables bellow are necessary because there is a cyclic
 	// dependency with the kube package that blocks the usage of constants
 	// from common package. common package needs to be refactored and exclude
@@ -105,20 +97,18 @@ func Diff(config, live *unstructured.Unstructured, opts ...Option) (*DiffResult,
 	syncOptAnnotation := "argocd.argoproj.io/sync-options"
 	ssaAnnotation := "ServerSideApply=true"
 
-	// structuredMergeDiff is mainly used as a feature flag to enable
-	// calculating diffs using the structured-merge-diff library
-	// used in k8s while performing server-side applies. It checks the
-	// given diff Option or if the desired state resource has the
-	// Server-Side apply sync option annotation enabled.
-	structuredMergeDiff := o.structuredMergeDiff ||
+	// ServerSideDiff should always be used when syncing with SSA
+	serverSideDiff := o.serverSideDiff ||
 		(config != nil && resource.HasAnnotationOption(config, syncOptAnnotation, ssaAnnotation))
-	if structuredMergeDiff {
-		r, err := StructuredMergeDiff(config, live, o.gvkParser, o.manager)
+
+	if serverSideDiff {
+		r, err := ServerSideDiff(config, live, opts...)
 		if err != nil {
-			return nil, fmt.Errorf("error calculating structured merge diff: %w", err)
+			return nil, fmt.Errorf("error calculating server side diff: %w", err)
 		}
 		return r, nil
 	}
+
 	orig, err := GetLastAppliedConfigAnnotation(live)
 	if err != nil {
 		o.log.V(1).Info(fmt.Sprintf("Failed to get last applied configuration: %v", err))
@@ -355,84 +345,19 @@ func jsonStrToUnstructured(jsonString string) (*unstructured.Unstructured, error
 	return &unstructured.Unstructured{Object: res}, nil
 }
 
-// StructuredMergeDiff will calculate the diff using the structured-merge-diff
-// k8s library (https://github.com/kubernetes-sigs/structured-merge-diff).
-func StructuredMergeDiff(config, live *unstructured.Unstructured, gvkParser *managedfields.GvkParser, manager string) (*DiffResult, error) {
-	if live != nil && config != nil {
-		params := &SMDParams{
-			config:    config,
-			live:      live,
-			gvkParser: gvkParser,
-			manager:   manager,
-		}
-		return structuredMergeDiff(params)
-	}
-	return handleResourceCreateOrDeleteDiff(config, live)
-}
-
-// SMDParams defines the parameters required by the structuredMergeDiff
+// SSAParams defines the parameters required by the structuredMergeDiff
 // function
-type SMDParams struct {
+type SSAParams struct {
 	config    *unstructured.Unstructured
 	live      *unstructured.Unstructured
 	gvkParser *managedfields.GvkParser
 	manager   string
 }
 
-func structuredMergeDiff(p *SMDParams) (*DiffResult, error) {
-	gvk := p.config.GetObjectKind().GroupVersionKind()
-	pt := gescheme.ResolveParseableType(gvk, p.gvkParser)
-	if pt == nil {
-		return nil, fmt.Errorf("unable to resolve parseableType for GroupVersionKind: %s", gvk)
-	}
-
-	// Build typed value from live and config unstructures
-	tvLive, err := pt.FromUnstructured(p.live.Object)
-	if err != nil {
-		return nil, fmt.Errorf("error building typed value from live resource: %w", err)
-	}
-	tvConfig, err := pt.FromUnstructured(p.config.Object)
-	if err != nil {
-		return nil, fmt.Errorf("error building typed value from config resource: %w", err)
-	}
-
-	// Invoke the apply function to calculate the diff using
-	// the structured-merge-diff library
-	mergedLive, err := apply(tvConfig, tvLive, p)
-	if err != nil {
-		return nil, fmt.Errorf("error calculating diff: %w", err)
-	}
-
-	// When mergedLive is nil it means that there is no change
-	if mergedLive == nil {
-		liveBytes, err := json.Marshal(p.live)
-		if err != nil {
-			return nil, fmt.Errorf("error marshaling live resource: %w", err)
-		}
-		// In this case diff result will have live state for both,
-		// predicted and live.
-		return buildDiffResult(liveBytes, liveBytes), nil
-	}
-
-	// Normalize merged live
-	predictedLive, err := normalizeTypedValue(mergedLive)
-	if err != nil {
-		return nil, fmt.Errorf("error applying default values in predicted live: %w", err)
-	}
-
-	// Normalize live
-	taintedLive, err := normalizeTypedValue(tvLive)
-	if err != nil {
-		return nil, fmt.Errorf("error applying default values in live: %w", err)
-	}
-
-	return buildDiffResult(predictedLive, taintedLive), nil
-}
-
 // apply will build all the dependency required to invoke the smd.merge.updater.Apply
 // to correctly calculate the diff with the same logic used in k8s with server-side
 // apply.
-func apply(tvConfig, tvLive *typed.TypedValue, p *SMDParams) (*typed.TypedValue, error) {
+func apply(tvConfig, tvLive *typed.TypedValue, p *SSAParams) (*typed.TypedValue, error) {
 	// Build the structured-merge-diff Updater
 	updater := merge.Updater{
 		Converter: fieldmanager.NewVersionConverter(p.gvkParser, scheme.Scheme, p.config.GroupVersionKind().GroupVersion()),
