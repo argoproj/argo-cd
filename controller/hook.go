@@ -160,9 +160,10 @@ func (ctrl *ApplicationController) executeHooks(hookType HookType, app *appv1.Ap
 				Status: health.HealthStatusHealthy,
 			}
 		}
-		if hookHealth.Status == health.HealthStatusProgressing {
+		switch hookHealth.Status {
+		case health.HealthStatusProgressing:
 			progressingHooksCount++
-		} else if hookHealth.Status == health.HealthStatusDegraded {
+		case health.HealthStatusDegraded:
 			failedHooks = append(failedHooks, fmt.Sprintf("%s/%s", obj.GetNamespace(), obj.GetName()))
 			failedHookObjects = append(failedHookObjects, obj)
 		}
