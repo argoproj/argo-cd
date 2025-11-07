@@ -330,23 +330,72 @@ func (s *Service) runRepoOperation(
 		sanitizer.AddRegexReplacement(getRepoSanitizerRegex(s.rootDir), "<path to cached source>")
 	}
 
-	var ociClient oci.Client
-	var gitClient git.Client
-	var helmClient helm.Client
-	var err error
 	gitClientOpts := git.WithCache(s.cache, !settings.noRevisionCache && !settings.noCache)
 	revision = textutils.FirstNonEmpty(revision, source.TargetRevision)
 	unresolvedRevision := revision
+	noCache := settings.noCache || settings.noRevisionCache
+
+	// Step 1: Create appropriate SourceClient
+	var sourceClient SourceClient
+	var gitClient git.Client
+	var err error
 
 	switch {
 	case source.IsOCI():
-		ociClient, revision, err = s.newOCIClientResolveRevision(ctx, repo, revision, settings.noCache || settings.noRevisionCache)
+		ociClient, err := s.newOCIClient(
+			repo.Repo,
+			repo.GetOCICreds(),
+			repo.Proxy,
+			repo.NoProxy,
+			s.initConstants.OCIMediaTypes,
+			oci.WithIndexCache(s.cache),
+			oci.WithImagePaths(s.ociPaths),
+			oci.WithManifestMaxExtractedSize(s.initConstants.OCIManifestMaxExtractedSize),
+			oci.WithDisableManifestMaxExtractedSize(s.initConstants.DisableOCIManifestMaxExtractedSize),
+		)
+		if err != nil {
+			return err
+		}
+		sourceClient = NewOCISourceClient(ociClient, repo)
+
 	case source.IsHelm():
-		helmClient, revision, err = s.newHelmClientResolveRevision(repo, revision, source.Chart, settings.noCache || settings.noRevisionCache)
+		enableOCI := repo.EnableOCI || helm.IsHelmOciRepo(repo.Repo)
+		helmClient := s.newHelmClient(
+			repo.Repo,
+			repo.GetHelmCreds(),
+			enableOCI,
+			repo.Proxy,
+			repo.NoProxy,
+			helm.WithIndexCache(s.cache),
+			helm.WithChartPaths(s.chartPaths),
+		)
+		helmPassCredentials := false
+		if source.Helm != nil {
+			helmPassCredentials = source.Helm.PassCredentials
+		}
+		sourceClient = NewHelmSourceClient(helmClient, repo, HelmSourceClientOpts{
+			Chart:                           source.Chart,
+			PassCredentials:                 helmPassCredentials,
+			HelmManifestMaxExtractedSize:    s.initConstants.HelmManifestMaxExtractedSize,
+			DisableHelmManifestMaxExtracted: s.initConstants.DisableHelmManifestMaxExtractedSize,
+			HelmRegistryMaxIndexSize:        s.initConstants.HelmRegistryMaxIndexSize,
+		})
+
 	default:
-		gitClient, revision, err = s.newClientResolveRevision(repo, revision, gitClientOpts)
+		gitClient, err = s.newClient(repo, gitClientOpts)
+		if err != nil {
+			return err
+		}
+		sourceClient = NewGitSourceClient(gitClient, repo, s.repoLock, s.checkoutRevision, GitSourceClientOpts{
+			SubmoduleEnabled: s.initConstants.SubmoduleEnabled,
+			Depth:            repo.Depth,
+			AllowConcurrent:  settings.allowConcurrent,
+			MetricsServer:    s.metricsServer,
+		})
 	}
 
+	// Step 2: Resolve revision
+	revision, err = sourceClient.ResolveRevision(ctx, revision, noCache)
 	if err != nil {
 		return err
 	}
@@ -373,130 +422,66 @@ func (s *Service) runRepoOperation(
 		defer settings.sem.Release(1)
 	}
 
-	if source.IsOCI() {
-		if settings.noCache {
-			err = ociClient.CleanCache(revision)
-			if err != nil {
-				return err
-			}
-		}
-
-		ociPath, closer, err := ociClient.Extract(ctx, revision)
-		if err != nil {
+	// Step 2: Clean cache if needed (unified!)
+	if settings.noCache {
+		if err := sourceClient.CleanCache(revision); err != nil {
 			return err
 		}
-		defer utilio.Close(closer)
-
-		if !s.initConstants.AllowOutOfBoundsSymlinks {
-			err := apppathutil.CheckOutOfBoundsSymlinks(ociPath)
-			if err != nil {
-				oobError := &apppathutil.OutOfBoundsSymlinkError{}
-				if errors.As(err, &oobError) {
-					log.WithFields(log.Fields{
-						common.SecurityField: common.SecurityHigh,
-						"repo":               repo.Repo,
-						"digest":             revision,
-						"file":               oobError.File,
-					}).Warn("oci image contains out-of-bounds symlink")
-					return fmt.Errorf("oci image contains out-of-bounds symlinks. file: %s", oobError.File)
-				}
-				return err
-			}
-		}
-
-		appPath, err := apppathutil.Path(ociPath, source.Path)
-		if err != nil {
-			return err
-		}
-
-		return operation(ociPath, revision, revision, func() (*operationContext, error) {
-			return &operationContext{appPath, ""}, nil
-		})
-	} else if source.IsHelm() {
-		if settings.noCache {
-			err = helmClient.CleanChartCache(source.Chart, revision)
-			if err != nil {
-				return err
-			}
-		}
-		helmPassCredentials := false
-		if source.Helm != nil {
-			helmPassCredentials = source.Helm.PassCredentials
-		}
-		chartPath, closer, err := helmClient.ExtractChart(source.Chart, revision, helmPassCredentials, s.initConstants.HelmManifestMaxExtractedSize, s.initConstants.DisableHelmManifestMaxExtractedSize)
-		if err != nil {
-			return err
-		}
-		defer utilio.Close(closer)
-		if !s.initConstants.AllowOutOfBoundsSymlinks {
-			err := apppathutil.CheckOutOfBoundsSymlinks(chartPath)
-			if err != nil {
-				oobError := &apppathutil.OutOfBoundsSymlinkError{}
-				if errors.As(err, &oobError) {
-					log.WithFields(log.Fields{
-						common.SecurityField: common.SecurityHigh,
-						"chart":              source.Chart,
-						"revision":           revision,
-						"file":               oobError.File,
-					}).Warn("chart contains out-of-bounds symlink")
-					return fmt.Errorf("chart contains out-of-bounds symlinks. file: %s", oobError.File)
-				}
-				return err
-			}
-		}
-		return operation(chartPath, revision, revision, func() (*operationContext, error) {
-			return &operationContext{chartPath, ""}, nil
-		})
 	}
-	closer, err := s.repoLock.Lock(gitClient.Root(), revision, settings.allowConcurrent, func() (goio.Closer, error) {
-		return s.checkoutRevision(gitClient, revision, s.initConstants.SubmoduleEnabled, repo.Depth)
-	})
+
+	// Step 3: Extract content (unified!)
+	rootPath, closer, err := sourceClient.Extract(ctx, revision)
+	if err != nil {
+		return err
+	}
+	defer utilio.Close(closer)
+
+	// Step 4: Validate symlinks (unified!)
+	if !s.initConstants.AllowOutOfBoundsSymlinks {
+		if err := sourceClient.CheckOutOfBoundsSymlinks(rootPath, repo, revision); err != nil {
+			return err
+		}
+	}
+
+	// Step 5: Resolve app path
+	appPath, err := apppathutil.Path(rootPath, source.Path)
 	if err != nil {
 		return err
 	}
 
-	defer utilio.Close(closer)
-
-	if !s.initConstants.AllowOutOfBoundsSymlinks {
-		err := apppathutil.CheckOutOfBoundsSymlinks(gitClient.Root())
-		if err != nil {
-			oobError := &apppathutil.OutOfBoundsSymlinkError{}
-			if errors.As(err, &oobError) {
-				log.WithFields(log.Fields{
-					common.SecurityField: common.SecurityHigh,
-					"repo":               repo.Repo,
-					"revision":           revision,
-					"file":               oobError.File,
-				}).Warn("repository contains out-of-bounds symlink")
-				return fmt.Errorf("repository contains out-of-bounds symlinks. file: %s", oobError.File)
-			}
-			return err
-		}
-	}
-
+	// Step 6: Handle Git-specific logic (commit SHA and signature verification)
 	var commitSHA string
-	if hasMultipleSources {
+	var cacheKey string
+	if source.IsOCI() || source.IsHelm() {
+		// For OCI and Helm, commitSHA and cacheKey are the same as revision
 		commitSHA = revision
+		cacheKey = revision
 	} else {
-		commit, err := gitClient.CommitSHA()
-		if err != nil {
-			return fmt.Errorf("failed to get commit SHA: %w", err)
+		// Git-specific handling
+		if hasMultipleSources {
+			commitSHA = revision
+		} else {
+			commit, err := gitClient.CommitSHA()
+			if err != nil {
+				return fmt.Errorf("failed to get commit SHA: %w", err)
+			}
+			commitSHA = commit
 		}
-		commitSHA = commit
+		cacheKey = revision
+
+		// double-check locking for git
+		if !settings.noCache {
+			if ok, err := cacheFn(revision, repoRefs, false); ok {
+				return err
+			}
+		}
 	}
 
-	// double-check locking
-	if !settings.noCache {
-		if ok, err := cacheFn(revision, repoRefs, false); ok {
-			return err
-		}
-	}
-
-	// Here commitSHA refers to the SHA of the actual commit, whereas revision refers to the branch/tag name etc
-	// We use the commitSHA to generate manifests and store them in cache, and revision to retrieve them from cache
-	return operation(gitClient.Root(), commitSHA, revision, func() (*operationContext, error) {
+	// Step 7: Execute operation with appropriate context
+	return operation(rootPath, commitSHA, cacheKey, func() (*operationContext, error) {
 		var signature string
-		if verifyCommit {
+		// Git-specific signature verification
+		if verifyCommit && gitClient != nil {
 			// When the revision is an annotated tag, we need to pass the unresolved revision (i.e. the tag name)
 			// to the verification routine. For everything else, we work with the SHA that the target revision is
 			// pointing to (i.e. the resolved revision).
@@ -510,10 +495,6 @@ func (s *Service) runRepoOperation(
 			if err != nil {
 				return nil, err
 			}
-		}
-		appPath, err := apppathutil.Path(gitClient.Root(), source.Path)
-		if err != nil {
-			return nil, err
 		}
 		return &operationContext{appPath, signature}, nil
 	})
