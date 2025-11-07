@@ -8,10 +8,12 @@ import (
 	"os"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials/stscreds"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/sts"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials/stscreds"
+	"github.com/aws/aws-sdk-go-v2/service/sts"
+	"github.com/aws/smithy-go/middleware"
+	smithyhttp "github.com/aws/smithy-go/transport/http"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	clientauthv1beta1 "k8s.io/client-go/pkg/apis/clientauthentication/v1beta1"
@@ -77,24 +79,50 @@ func getSignedRequestWithRetry(ctx context.Context, timeout, interval time.Durat
 }
 
 func getSignedRequest(clusterName, roleARN string, profile string) (string, error) {
-	sess, err := session.NewSessionWithOptions(session.Options{
-		Profile: profile,
-	})
+	ctx := context.Background()
+
+	// Build config options
+	var configOpts []func(*config.LoadOptions) error
+	if profile != "" {
+		configOpts = append(configOpts, config.WithSharedConfigProfile(profile))
+	}
+
+	// Load AWS config
+	cfg, err := config.LoadDefaultConfig(ctx, configOpts...)
 	if err != nil {
-		return "", fmt.Errorf("error creating new AWS session: %w", err)
+		return "", fmt.Errorf("error loading AWS config: %w", err)
 	}
-	stsAPI := sts.New(sess)
+
+	// Assume role if provided
 	if roleARN != "" {
-		creds := stscreds.NewCredentials(sess, roleARN)
-		stsAPI = sts.New(sess, &aws.Config{Credentials: creds})
+		stsClient := sts.NewFromConfig(cfg)
+		creds := stscreds.NewAssumeRoleProvider(stsClient, roleARN)
+		cfg.Credentials = aws.NewCredentialsCache(creds)
 	}
-	request, _ := stsAPI.GetCallerIdentityRequest(&sts.GetCallerIdentityInput{})
-	request.HTTPRequest.Header.Add(clusterIDHeader, clusterName)
-	signed, err := request.Presign(requestPresignParam)
+
+	// Create STS client with custom header middleware
+	stsClient := sts.NewFromConfig(cfg, func(o *sts.Options) {
+		o.APIOptions = append(o.APIOptions, func(stack *middleware.Stack) error {
+			return stack.Build.Add(middleware.BuildMiddlewareFunc("AddClusterIDHeader", func(
+				ctx context.Context, in middleware.BuildInput, next middleware.BuildHandler,
+			) (middleware.BuildOutput, middleware.Metadata, error) {
+				req, ok := in.Request.(*smithyhttp.Request)
+				if ok {
+					req.Header.Add(clusterIDHeader, clusterName)
+				}
+				return next.HandleBuild(ctx, in)
+			}), middleware.After)
+		})
+	})
+
+	// Create presign client and presign the request
+	presignClient := sts.NewPresignClient(stsClient)
+	presigned, err := presignClient.PresignGetCallerIdentity(ctx, &sts.GetCallerIdentityInput{})
 	if err != nil {
 		return "", fmt.Errorf("error presigning AWS request: %w", err)
 	}
-	return signed, nil
+
+	return presigned.URL, nil
 }
 
 func formatJSON(token string, expiration time.Time) string {
