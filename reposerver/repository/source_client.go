@@ -31,12 +31,23 @@ type SourceClient interface {
 	// - any error that occurred
 	Extract(ctx context.Context, revision string) (rootPath string, closer io.Closer, err error)
 
-	// GetRootPath returns the root path where this client stores its content
-	// For git this is the git repository root, for OCI/Helm it's a temp directory
-	GetRootPath() string
-
 	// CheckOutOfBoundsSymlinks validates that no symlinks point outside the root path
 	CheckOutOfBoundsSymlinks(rootPath string, repo *v1alpha1.Repository, revision string) error
+
+	// GetDigest returns the canonical digest/SHA for the content
+	// Must be called after Extract() for Git sources (to ensure checkout has occurred)
+	// For Git: returns the actual commit SHA after checkout
+	// For OCI/Helm: returns the revision parameter as-is (digest or version)
+	// hasMultipleSources: for Git only, if true, returns the revision parameter instead of calling CommitSHA()
+	GetDigest(revision string, hasMultipleSources bool) (string, error)
+
+	// VerifySignature verifies the signature of the given revision
+	// For Git: verifies GPG signature of commit/tag (handles annotated tag logic internally)
+	// For OCI/Helm: returns empty string (signature verification not applicable)
+	// Parameters:
+	//   - resolvedRevision: the concrete revision (commit SHA, digest, version)
+	//   - unresolvedRevision: the original revision reference (branch, tag name, etc.)
+	VerifySignature(resolvedRevision string, unresolvedRevision string) (string, error)
 }
 
 // ociSourceClient adapts an OCI client to the SourceClient interface
@@ -68,11 +79,6 @@ func (c *ociSourceClient) Extract(ctx context.Context, revision string) (string,
 	return c.client.Extract(ctx, revision)
 }
 
-func (c *ociSourceClient) GetRootPath() string {
-	// OCI doesn't have a persistent root path like git
-	return ""
-}
-
 func (c *ociSourceClient) CheckOutOfBoundsSymlinks(rootPath string, repo *v1alpha1.Repository, revision string) error {
 	err := apppathutil.CheckOutOfBoundsSymlinks(rootPath)
 	if err != nil {
@@ -90,6 +96,16 @@ func (c *ociSourceClient) CheckOutOfBoundsSymlinks(rootPath string, repo *v1alph
 		return err
 	}
 	return nil
+}
+
+func (c *ociSourceClient) GetDigest(revision string, hasMultipleSources bool) (string, error) {
+	// For OCI, the digest IS the revision (already resolved from ResolveRevision)
+	return revision, nil
+}
+
+func (c *ociSourceClient) VerifySignature(resolvedRevision string, unresolvedRevision string) (string, error) {
+	// OCI doesn't support signature verification through this interface
+	return "", nil
 }
 
 // helmSourceClient adapts a Helm client to the SourceClient interface
@@ -166,11 +182,6 @@ func (c *helmSourceClient) Extract(ctx context.Context, revision string) (string
 	return c.client.ExtractChart(c.chart, revision, c.passCredentials, c.helmManifestMaxExtractedSize, c.disableHelmManifestMaxExtracted)
 }
 
-func (c *helmSourceClient) GetRootPath() string {
-	// Helm doesn't have a persistent root path like git
-	return ""
-}
-
 func (c *helmSourceClient) CheckOutOfBoundsSymlinks(rootPath string, repo *v1alpha1.Repository, revision string) error {
 	err := apppathutil.CheckOutOfBoundsSymlinks(rootPath)
 	if err != nil {
@@ -190,6 +201,16 @@ func (c *helmSourceClient) CheckOutOfBoundsSymlinks(rootPath string, repo *v1alp
 	return nil
 }
 
+func (c *helmSourceClient) GetDigest(revision string, hasMultipleSources bool) (string, error) {
+	// For Helm, the version IS the revision (already resolved from ResolveRevision)
+	return revision, nil
+}
+
+func (c *helmSourceClient) VerifySignature(resolvedRevision string, unresolvedRevision string) (string, error) {
+	// Helm doesn't support signature verification through this interface
+	return "", nil
+}
+
 // gitSourceClient adapts a Git client to the SourceClient interface
 type gitSourceClient struct {
 	client           git.Client
@@ -199,14 +220,18 @@ type gitSourceClient struct {
 	depth            int64
 	allowConcurrent  bool
 	checkoutFn       func(git.Client, string, bool, int64) (io.Closer, error)
-	metricsServer    interface{ IncGitLsRemoteFail(repoURL, revision string) }
+	metricsServer    interface {
+		IncGitLsRemoteFail(repoURL, revision string)
+	}
 }
 
 type GitSourceClientOpts struct {
 	SubmoduleEnabled bool
 	Depth            int64
 	AllowConcurrent  bool
-	MetricsServer    interface{ IncGitLsRemoteFail(repoURL, revision string) }
+	MetricsServer    interface {
+		IncGitLsRemoteFail(repoURL, revision string)
+	}
 }
 
 func NewGitSourceClient(client git.Client, repo *v1alpha1.Repository, repoLock *repositoryLock, checkoutFn func(git.Client, string, bool, int64) (io.Closer, error), opts GitSourceClientOpts) SourceClient {
@@ -248,10 +273,6 @@ func (c *gitSourceClient) Extract(ctx context.Context, revision string) (string,
 	return c.client.Root(), closer, nil
 }
 
-func (c *gitSourceClient) GetRootPath() string {
-	return c.client.Root()
-}
-
 func (c *gitSourceClient) CheckOutOfBoundsSymlinks(rootPath string, repo *v1alpha1.Repository, revision string) error {
 	err := apppathutil.CheckOutOfBoundsSymlinks(rootPath)
 	if err != nil {
@@ -269,4 +290,30 @@ func (c *gitSourceClient) CheckOutOfBoundsSymlinks(rootPath string, repo *v1alph
 		return err
 	}
 	return nil
+}
+
+func (c *gitSourceClient) GetDigest(revision string, hasMultipleSources bool) (string, error) {
+	// For Git with multiple sources, use the revision as-is
+	if hasMultipleSources {
+		return revision, nil
+	}
+	// For single source, get the actual commit SHA after checkout
+	return c.client.CommitSHA()
+}
+
+func (c *gitSourceClient) VerifySignature(resolvedRevision string, unresolvedRevision string) (string, error) {
+	// Determine which revision to verify:
+	// When the revision is an annotated tag, we need to pass the unresolved revision (i.e. the tag name)
+	// For everything else, we work with the SHA that the target revision is pointing to (i.e. the resolved revision)
+	revisionToVerify := resolvedRevision
+	if c.client.IsAnnotatedTag(resolvedRevision) {
+		revisionToVerify = unresolvedRevision
+	}
+
+	return c.client.VerifyCommitSignature(revisionToVerify)
+}
+
+// GetGitClient returns the underlying git client (for operations that need the git.Client interface)
+func (c *gitSourceClient) GetGitClient() git.Client {
+	return c.client
 }
