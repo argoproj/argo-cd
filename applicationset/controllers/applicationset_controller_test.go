@@ -3782,7 +3782,7 @@ func TestBuildAppDependencyList(t *testing.T) {
 			},
 		},
 		{
-			name: "multiple 'NotIn' selectors remove Applications with mising labels on any match",
+			name: "multiple 'NotIn' selectors remove Applications with missing labels on any match",
 			appSet: v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
@@ -4909,7 +4909,7 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 						Conditions: []v1alpha1.ApplicationCondition{
 							{
 								Type:               v1alpha1.ApplicationConditionInvalidSpecError,
-								Message:            "Fake invalid specs preventing app updates and sync to be trigerred",
+								Message:            "Fake invalid specs preventing app updates and sync to be triggered",
 								LastTransitionTime: &metav1.Time{Time: time.Now()},
 							},
 						},
@@ -5073,7 +5073,7 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 			},
 		},
 		{
-			name: "application status is removed when applciation is deleted",
+			name: "application status is removed when application is deleted",
 			appSet: newDefaultAppSet(2, []v1alpha1.ApplicationSetApplicationStatus{
 				{
 					Application:     "app1",

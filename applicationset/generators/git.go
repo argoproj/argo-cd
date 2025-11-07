@@ -316,7 +316,7 @@ func (g *GitGenerator) filterApps(directories []argoprojiov1alpha1.GitDirectoryG
 				appExclude = true
 			}
 		}
-		// Whenever there is a path with exclude: true it wont be included, even if it is included in a different path pattern
+		// Whenever there is a path with exclude: true it won't be included, even if it is included in a different path pattern
 		if appInclude && !appExclude {
 			res = append(res, appPath)
 		}

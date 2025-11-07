@@ -1192,7 +1192,7 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatus(ctx con
 			if currentAppStatus.Status == argov1alpha1.ProgressiveSyncPending {
 				// No need to evaluate status health further if the application did not change since our last transition
 				if app.Status.ReconciledAt == nil || (newAppStatus.LastTransitionTime != nil && app.Status.ReconciledAt.After(newAppStatus.LastTransitionTime.Time)) {
-					// Validate that at least one sync was trigerred after the pending transition time
+					// Validate that at least one sync was triggered after the pending transition time
 					if app.Status.OperationState != nil && app.Status.OperationState.StartedAt.After(currentAppStatus.LastTransitionTime.Time) {
 						statusLogCtx = statusLogCtx.WithField("app.operation", app.Status.OperationState.Phase)
 						newAppStatus.LastTransitionTime = &now

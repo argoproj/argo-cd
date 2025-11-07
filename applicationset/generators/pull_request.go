@@ -119,7 +119,7 @@ func (g *PullRequestGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 			"author":             pull.Author,
 		}
 
-		// PR lables will only be supported for Go Template appsets, since fasttemplate will be deprecated.
+		// PR labels will only be supported for Go Template appsets, since fasttemplate will be deprecated.
 		if applicationSetInfo != nil && applicationSetInfo.Spec.GoTemplate {
 			paramMap["labels"] = pull.Labels
 		}
