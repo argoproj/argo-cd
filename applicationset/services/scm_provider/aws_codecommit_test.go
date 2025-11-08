@@ -424,9 +424,7 @@ func TestAWSCodeCommitGetBranches(t *testing.T) {
 			ctx := t.Context()
 			if testCase.allBranches {
 				branches := make([]string, len(testCase.branches))
-				for i, b := range testCase.branches {
-					branches[i] = b
-				}
+				copy(branches, testCase.branches)
 				codeCommitClient.EXPECT().ListBranches(mock.Anything, &codecommit.ListBranchesInput{
 					RepositoryName: aws.String(name),
 				}).
