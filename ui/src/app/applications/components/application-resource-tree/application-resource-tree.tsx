@@ -817,7 +817,7 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                     </span>
                 ) : null}
                 {(node.info || [])
-                    .filter(tag => !tag.name.includes('Node') && tag.name !== 'managed-by-url')
+                    .filter(tag => !tag.name.includes('Node'))
                     .slice(0, 2)
                     .map((tag, i) => {
                         return <NodeInfoDetails tag={tag} kind={node.kind} key={i} />;
