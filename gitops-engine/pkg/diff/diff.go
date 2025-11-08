@@ -175,8 +175,6 @@ func serverSideDiff(config, live *unstructured.Unstructured, opts ...Option) (*D
 	if err != nil {
 		return nil, fmt.Errorf("error converting json string to unstructured for resource %s/%s: %w", config.GetKind(), config.GetName(), err)
 	}
-	// Remarshal predictedLive to ensure it receives the same normalization as live.
-	predictedLive = remarshal(predictedLive, o)
 
 	if o.ignoreMutationWebhook {
 		predictedLive, err = removeWebhookMutation(predictedLive, live, o.gvkParser, o.manager)
@@ -184,6 +182,9 @@ func serverSideDiff(config, live *unstructured.Unstructured, opts ...Option) (*D
 			return nil, fmt.Errorf("error removing non config mutations for resource %s/%s: %w", config.GetKind(), config.GetName(), err)
 		}
 	}
+
+	// Remarshal predictedLive to ensure it receives the same normalization as live.
+	predictedLive = remarshal(predictedLive, o)
 
 	Normalize(predictedLive, opts...)
 	unstructured.RemoveNestedField(predictedLive.Object, "metadata", "managedFields")
