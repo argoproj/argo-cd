@@ -1,0 +1,13 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: argocd-application-controller
+  namespace: argocd
+spec:
+  template:
+    spec:
+      containers:
+      - name: argocd-application-controller
+        env:
+        - name: ARGOCD_ENABLE_INCREMENTAL_NAMESPACE_SYNC
+          value: "true"
