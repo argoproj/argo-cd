@@ -25,7 +25,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.3.0
 	github.com/chainguard-dev/git-urls v1.0.2
 	github.com/coreos/go-oidc/v3 v3.14.1
-	github.com/cyphar/filepath-securejoin v0.4.1
+	github.com/cyphar/filepath-securejoin v0.6.0
 	github.com/dlclark/regexp2 v1.11.5
 	github.com/dustin/go-humanize v1.0.1
 	github.com/evanphx/json-patch v5.9.11+incompatible
@@ -123,6 +123,7 @@ require (
 	cloud.google.com/go/auth v0.15.0 // indirect
 	cloud.google.com/go/auth/oauth2adapt v0.2.7 // indirect
 	cloud.google.com/go/compute/metadata v0.7.0 // indirect
+	cyphar.com/go-pathrs v0.2.1 // indirect
 	github.com/42wim/httpsig v1.2.3 // indirect
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity/cache v0.3.2 // indirect
 	github.com/Azure/azure-sdk-for-go/sdk/internal v1.11.2 // indirect
