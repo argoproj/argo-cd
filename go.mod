@@ -3,9 +3,9 @@ module github.com/argoproj/argo-cd/v3
 go 1.25.0
 
 require (
-	code.gitea.io/sdk/gitea v0.22.0
+	code.gitea.io/sdk/gitea v0.22.1
 	dario.cat/mergo v1.0.2
-	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.19.1
+	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.20.0
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.13.0
 	github.com/Azure/kubelogin v0.2.12
 	github.com/Masterminds/semver/v3 v3.4.0
@@ -13,7 +13,7 @@ require (
 	github.com/TomOnTime/utfutil v1.0.0
 	github.com/alicebob/miniredis/v2 v2.35.0
 	github.com/argoproj/gitops-engine v0.7.1-0.20250908182407-97ad5b59a627
-	github.com/argoproj/notifications-engine v0.5.1-0.20251028200032-58cdc54685b4
+	github.com/argoproj/notifications-engine v0.5.1-0.20251105183712-783b97d496ca
 	github.com/argoproj/pkg v0.13.6
 	github.com/argoproj/pkg/v2 v2.0.1
 	github.com/aws/aws-sdk-go v1.55.7
@@ -87,7 +87,7 @@ require (
 	github.com/stretchr/testify v1.11.1
 	github.com/valyala/fasttemplate v1.2.2
 	github.com/yuin/gopher-lua v1.1.1
-	gitlab.com/gitlab-org/api/client-go v0.157.1
+	gitlab.com/gitlab-org/api/client-go v0.159.0
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.63.0
 	go.opentelemetry.io/otel v1.38.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.38.0
