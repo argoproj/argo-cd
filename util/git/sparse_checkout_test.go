@@ -51,8 +51,7 @@ func createTestRepoWithStructure(t *testing.T, ctx context.Context) string {
 	}
 
 	// Add a root-level file
-	err = os.WriteFile(filepath.Join(tempDir, "README.md"), []byte("# Monorepo"), 0o644)
-	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(filepath.Join(tempDir, "README.md"), []byte("# Monorepo"), 0o644))
 
 	// Commit everything
 	require.NoError(t, runCmd(ctx, tempDir, "git", "add", "."))
@@ -107,7 +106,7 @@ func Test_nativeGitClient_SparseCheckout_BasicPaths(t *testing.T) {
 	require.NoError(t, err)
 
 	// Fetch the repo
-	err = client.Fetch("")
+	err = client.Fetch("", 0)
 	require.NoError(t, err)
 
 	// Get the commit SHA from the source repo to checkout
@@ -149,7 +148,7 @@ func Test_nativeGitClient_SparseCheckout_MultiplePaths(t *testing.T) {
 	err = client.Init()
 	require.NoError(t, err)
 
-	err = client.Fetch("")
+	err = client.Fetch("", 0)
 	require.NoError(t, err)
 
 	// Get commit SHA to checkout
@@ -216,7 +215,7 @@ func Test_nativeGitClient_SparseCheckout_EmptyPaths(t *testing.T) {
 	err = client.Init()
 	require.NoError(t, err)
 
-	err = client.Fetch("")
+	err = client.Fetch("", 0)
 	require.NoError(t, err)
 
 	commitSHA := getCommitSHA(t, ctx, srcRepo)
@@ -248,7 +247,7 @@ func Test_nativeGitClient_SparseCheckout_ReapplyAfterCheckout(t *testing.T) {
 	err = client.Init()
 	require.NoError(t, err)
 
-	err = client.Fetch("")
+	err = client.Fetch("", 0)
 	require.NoError(t, err)
 
 	commitSHA := getCommitSHA(t, ctx, srcRepo)
