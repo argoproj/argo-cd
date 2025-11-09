@@ -2909,7 +2909,7 @@ func (s *Service) GetGitFiles(_ context.Context, request *apiclient.GitFilesRequ
 		return nil, status.Error(codes.InvalidArgument, "must pass a valid repo")
 	}
 
-	gitClient, revision, err := s.newClientResolveRevision(repo, revision, git.WithCache(s.cache, !noRevisionCache))
+	gitClient, revision, err := s.newClientResolveRevisionWithSparse(repo, revision, request.GetSparseCheckoutPaths(), git.WithCache(s.cache, !noRevisionCache))
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "unable to resolve git revision %s: %v", revision, err)
 	}
@@ -2918,9 +2918,15 @@ func (s *Service) GetGitFiles(_ context.Context, request *apiclient.GitFilesRequ
 		return nil, err
 	}
 
+	cacheKey := revision
+	if len(request.GetSparseCheckoutPaths()) > 0 {
+		sparseKey := git.GetSparseCheckoutKey(request.GetSparseCheckoutPaths())
+		cacheKey = revision + "|" + sparseKey
+	}
+
 	// check the cache and return the results if present
-	if cachedFiles, err := s.cache.GetGitFiles(repo.Repo, revision, gitPath); err == nil {
-		log.Debugf("cache hit for repo: %s revision: %s pattern: %s", repo.Repo, revision, gitPath)
+	if cachedFiles, err := s.cache.GetGitFiles(repo.Repo, cacheKey, gitPath); err == nil {
+		log.Debugf("cache hit for repo: %s revision: %s pattern: %s", repo.Repo, cacheKey, gitPath)
 		return &apiclient.GitFilesResponse{
 			Map: cachedFiles,
 		}, nil
@@ -2953,9 +2959,9 @@ func (s *Service) GetGitFiles(_ context.Context, request *apiclient.GitFilesRequ
 		res[filePath] = fileContents
 	}
 
-	err = s.cache.SetGitFiles(repo.Repo, revision, gitPath, res)
+	err = s.cache.SetGitFiles(repo.Repo, cacheKey, gitPath, res)
 	if err != nil {
-		log.Warnf("error caching git files for repo %s with revision %s pattern %s: %v", repo.Repo, revision, gitPath, err)
+		log.Warnf("error caching git files for repo %s with revision %s pattern %s: %v", repo.Repo, cacheKey, gitPath, err)
 	}
 
 	return &apiclient.GitFilesResponse{
@@ -2991,7 +2997,7 @@ func (s *Service) GetGitDirectories(_ context.Context, request *apiclient.GitDir
 		return nil, status.Error(codes.InvalidArgument, "must pass a valid repo")
 	}
 
-	gitClient, revision, err := s.newClientResolveRevision(repo, revision, git.WithCache(s.cache, !noRevisionCache))
+	gitClient, revision, err := s.newClientResolveRevisionWithSparse(repo, revision, request.GetSparseCheckoutPaths(), git.WithCache(s.cache, !noRevisionCache))
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "unable to resolve git revision %s: %v", revision, err)
 	}
@@ -3000,9 +3006,15 @@ func (s *Service) GetGitDirectories(_ context.Context, request *apiclient.GitDir
 		return nil, err
 	}
 
+	cacheKey := revision
+	if len(request.GetSparseCheckoutPaths()) > 0 {
+		sparseKey := git.GetSparseCheckoutKey(request.GetSparseCheckoutPaths())
+		cacheKey = revision + "|" + sparseKey
+	}
+
 	// check the cache and return the results if present
-	if cachedPaths, err := s.cache.GetGitDirectories(repo.Repo, revision); err == nil {
-		log.Debugf("cache hit for repo: %s revision: %s", repo.Repo, revision)
+	if cachedPaths, err := s.cache.GetGitDirectories(repo.Repo, cacheKey); err == nil {
+		log.Debugf("cache hit for repo: %s revision: %s", repo.Repo, cacheKey)
 		return &apiclient.GitDirectoriesResponse{
 			Paths: cachedPaths,
 		}, nil
@@ -3051,9 +3063,9 @@ func (s *Service) GetGitDirectories(_ context.Context, request *apiclient.GitDir
 	}
 
 	log.Debugf("found %d git paths from %s", len(paths), repo.Repo)
-	err = s.cache.SetGitDirectories(repo.Repo, revision, paths)
+	err = s.cache.SetGitDirectories(repo.Repo, cacheKey, paths)
 	if err != nil {
-		log.Warnf("error caching git directories for repo %s with revision %s: %v", repo.Repo, revision, err)
+		log.Warnf("error caching git directories for repo %s with revision %s: %v", repo.Repo, cacheKey, err)
 	}
 
 	return &apiclient.GitDirectoriesResponse{

@@ -248,6 +248,7 @@ message GitFilesRequest {
     bool NewGitFileGlobbingEnabled = 5;
     bool noRevisionCache = 6;
     bool verifyCommit = 7;
+    repeated string sparseCheckoutPaths = 8;
 }
 
 message GitFilesResponse {
@@ -261,6 +262,7 @@ message GitDirectoriesRequest {
     string revision = 3;
     bool noRevisionCache = 4;
     bool verifyCommit = 5;
+    repeated string sparseCheckoutPaths = 6;
 }
 
 message GitDirectoriesResponse {
