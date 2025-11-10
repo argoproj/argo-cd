@@ -111,7 +111,7 @@ type Client interface {
 	Init() error
 	Fetch(revision string, depth int64) error
 	Submodule() error
-	Checkout(revision string, submoduleEnabled bool) (string, error)
+	Checkout(revision string) (string, error)
 	LsRefs() (*Refs, error)
 	LsRemote(revision string) (string, error)
 	LsFiles(path string, enableNewGitFileGlobbing bool) ([]string, error)
@@ -125,10 +125,10 @@ type Client interface {
 	// SetAuthor sets the author name and email in the git configuration.
 	SetAuthor(name, email string) (string, error)
 	// CheckoutOrOrphan checks out the branch. If the branch does not exist, it creates an orphan branch.
-	CheckoutOrOrphan(branch string, submoduleEnabled bool) (string, error)
+	CheckoutOrOrphan(branch string) (string, error)
 	// CheckoutOrNew checks out the given branch. If the branch does not exist, it creates an empty branch based on
 	// the base branch.
-	CheckoutOrNew(branch, base string, submoduleEnabled bool) (string, error)
+	CheckoutOrNew(branch, base string) (string, error)
 	// RemoveContents removes all files from the given paths in the git repository.
 	RemoveContents(paths []string) (string, error)
 	// CommitAndPush commits and pushes changes to the target branch.
@@ -163,6 +163,8 @@ type nativeGitClient struct {
 	proxy string
 	// list of targets that shouldn't use the proxy, applies only if the proxy is set
 	noProxy string
+
+	submoduleEnabled bool
 }
 
 type runOpts struct {
@@ -192,6 +194,12 @@ func init() {
 }
 
 type ClientOpts func(c *nativeGitClient)
+
+func WithSubmoduleEnabled(submoduleEnabled bool) ClientOpts {
+	return func(c *nativeGitClient) {
+		c.submoduleEnabled = submoduleEnabled
+	}
+}
 
 // WithCache sets git revisions cacher as well as specifies if client should tries to use cached resolved revision
 func WithCache(cache gitRefCache, loadRefFromCache bool) ClientOpts {
@@ -538,7 +546,7 @@ func (m *nativeGitClient) Submodule() error {
 }
 
 // Checkout checks out the specified revision
-func (m *nativeGitClient) Checkout(revision string, submoduleEnabled bool) (string, error) {
+func (m *nativeGitClient) Checkout(revision string) (string, error) {
 	if revision == "" || revision == "HEAD" {
 		revision = "origin/HEAD"
 	}
@@ -560,7 +568,7 @@ func (m *nativeGitClient) Checkout(revision string, submoduleEnabled bool) (stri
 		}
 	}
 	if _, err := os.Stat(m.root + "/.gitmodules"); !os.IsNotExist(err) {
-		if submoduleEnabled {
+		if m.submoduleEnabled {
 			if err := m.Submodule(); err != nil {
 				return "", fmt.Errorf("failed to update submodules: %w", err)
 			}
@@ -984,8 +992,8 @@ func (m *nativeGitClient) SetAuthor(name, email string) (string, error) {
 }
 
 // CheckoutOrOrphan checks out the branch. If the branch does not exist, it creates an orphan branch.
-func (m *nativeGitClient) CheckoutOrOrphan(branch string, submoduleEnabled bool) (string, error) {
-	out, err := m.Checkout(branch, submoduleEnabled)
+func (m *nativeGitClient) CheckoutOrOrphan(branch string) (string, error) {
+	out, err := m.Checkout(branch)
 	if err != nil {
 		// If the branch doesn't exist, create it as an orphan branch.
 		if !strings.Contains(err.Error(), "did not match any file(s) known to git") {
@@ -1014,15 +1022,15 @@ func (m *nativeGitClient) CheckoutOrOrphan(branch string, submoduleEnabled bool)
 
 // CheckoutOrNew checks out the given branch. If the branch does not exist, it creates an empty branch based on
 // the base branch.
-func (m *nativeGitClient) CheckoutOrNew(branch, base string, submoduleEnabled bool) (string, error) {
-	out, err := m.Checkout(branch, submoduleEnabled)
+func (m *nativeGitClient) CheckoutOrNew(branch, base string) (string, error) {
+	out, err := m.Checkout(branch)
 	if err != nil {
 		if !strings.Contains(err.Error(), "did not match any file(s) known to git") {
 			return out, fmt.Errorf("failed to checkout branch: %w", err)
 		}
 		// If the branch does not exist, create any empty branch based on the sync branch
 		// First, checkout the sync branch.
-		out, err = m.Checkout(base, submoduleEnabled)
+		out, err = m.Checkout(base)
 		if err != nil {
 			return out, fmt.Errorf("failed to checkout sync branch: %w", err)
 		}

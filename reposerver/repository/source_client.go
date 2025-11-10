@@ -5,15 +5,16 @@ import (
 	"fmt"
 	"io"
 
-	log "github.com/sirupsen/logrus"
-
-	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	apppathutil "github.com/argoproj/argo-cd/v3/util/app/path"
+	"github.com/argoproj/argo-cd/v3/reposerver/metrics"
 	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/helm"
 	"github.com/argoproj/argo-cd/v3/util/oci"
 	"github.com/argoproj/argo-cd/v3/util/versions"
+	"github.com/argoproj/pkg/v2/sync"
+	log "github.com/sirupsen/logrus"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // SourceClient is a unified interface for interacting with different source types (Git, Helm, OCI).
@@ -30,9 +31,6 @@ type SourceClient interface {
 	// - a closer to clean up resources
 	// - any error that occurred
 	Extract(ctx context.Context, revision string) (rootPath string, closer io.Closer, err error)
-
-	// CheckOutOfBoundsSymlinks validates that no symlinks point outside the root path
-	CheckOutOfBoundsSymlinks(rootPath string, repo *v1alpha1.Repository, revision string) error
 
 	// GetDigest returns the canonical digest/SHA for the content
 	// Must be called after Extract() for Git sources (to ensure checkout has occurred)
@@ -56,11 +54,23 @@ type ociSourceClient struct {
 	repo   *v1alpha1.Repository
 }
 
-func NewOCISourceClient(client oci.Client, repo *v1alpha1.Repository) SourceClient {
+func NewOCISourceClient(repo *v1alpha1.Repository, opts ...oci.ClientOpts) (SourceClient, error) {
+	client, err := oci.NewClient(
+		repo.Repo,
+		repo.GetOCICreds(),
+		repo.Proxy,
+		repo.NoProxy,
+		opts...,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
 	return &ociSourceClient{
 		client: client,
 		repo:   repo,
-	}
+	}, nil
 }
 
 func (c *ociSourceClient) ResolveRevision(ctx context.Context, revision string, noCache bool) (string, error) {
@@ -79,25 +89,6 @@ func (c *ociSourceClient) Extract(ctx context.Context, revision string) (string,
 	return c.client.Extract(ctx, revision)
 }
 
-func (c *ociSourceClient) CheckOutOfBoundsSymlinks(rootPath string, repo *v1alpha1.Repository, revision string) error {
-	err := apppathutil.CheckOutOfBoundsSymlinks(rootPath)
-	if err != nil {
-		oobError := &apppathutil.OutOfBoundsSymlinkError{}
-		if serr, ok := err.(*apppathutil.OutOfBoundsSymlinkError); ok {
-			oobError = serr
-			log.WithFields(log.Fields{
-				common.SecurityField: common.SecurityHigh,
-				"repo":               repo.Repo,
-				"digest":             revision,
-				"file":               oobError.File,
-			}).Warn("oci image contains out-of-bounds symlink")
-			return fmt.Errorf("oci image contains out-of-bounds symlinks. file: %s", oobError.File)
-		}
-		return err
-	}
-	return nil
-}
-
 func (c *ociSourceClient) GetDigest(revision string, hasMultipleSources bool) (string, error) {
 	// For OCI, the digest IS the revision (already resolved from ResolveRevision)
 	return revision, nil
@@ -110,32 +101,24 @@ func (c *ociSourceClient) VerifySignature(resolvedRevision string, unresolvedRev
 
 // helmSourceClient adapts a Helm client to the SourceClient interface
 type helmSourceClient struct {
-	client                          helm.Client
-	repo                            *v1alpha1.Repository
-	chart                           string
-	passCredentials                 bool
-	helmManifestMaxExtractedSize    int64
-	disableHelmManifestMaxExtracted bool
-	helmRegistryMaxIndexSize        int64
+	client helm.Client
+	repo   *v1alpha1.Repository
+	chart  string
 }
 
-type HelmSourceClientOpts struct {
-	Chart                           string
-	PassCredentials                 bool
-	HelmManifestMaxExtractedSize    int64
-	DisableHelmManifestMaxExtracted bool
-	HelmRegistryMaxIndexSize        int64
-}
-
-func NewHelmSourceClient(client helm.Client, repo *v1alpha1.Repository, opts HelmSourceClientOpts) SourceClient {
+func NewHelmSourceClient(repo *v1alpha1.Repository, chart string, opts ...helm.ClientOpts) SourceClient {
 	return &helmSourceClient{
-		client:                          client,
-		repo:                            repo,
-		chart:                           opts.Chart,
-		passCredentials:                 opts.PassCredentials,
-		helmManifestMaxExtractedSize:    opts.HelmManifestMaxExtractedSize,
-		disableHelmManifestMaxExtracted: opts.DisableHelmManifestMaxExtracted,
-		helmRegistryMaxIndexSize:        opts.HelmRegistryMaxIndexSize,
+		client: helm.NewClientWithLock(
+			repo.Repo,
+			repo.GetHelmCreds(),
+			sync.NewKeyLock(),
+			repo.EnableOCI || helm.IsHelmOciRepo(repo.Repo),
+			repo.Proxy,
+			repo.NoProxy,
+			opts...,
+		),
+		chart: chart,
+		repo:  repo,
 	}
 }
 
@@ -155,7 +138,7 @@ func (c *helmSourceClient) ResolveRevision(ctx context.Context, revision string,
 			return "", fmt.Errorf("unable to get tags: %w", err)
 		}
 	} else {
-		index, err := c.client.GetIndex(noCache, c.helmRegistryMaxIndexSize)
+		index, err := c.client.GetIndex(noCache)
 		if err != nil {
 			return "", err
 		}
@@ -179,26 +162,7 @@ func (c *helmSourceClient) CleanCache(revision string) error {
 }
 
 func (c *helmSourceClient) Extract(ctx context.Context, revision string) (string, io.Closer, error) {
-	return c.client.ExtractChart(c.chart, revision, c.passCredentials, c.helmManifestMaxExtractedSize, c.disableHelmManifestMaxExtracted)
-}
-
-func (c *helmSourceClient) CheckOutOfBoundsSymlinks(rootPath string, repo *v1alpha1.Repository, revision string) error {
-	err := apppathutil.CheckOutOfBoundsSymlinks(rootPath)
-	if err != nil {
-		oobError := &apppathutil.OutOfBoundsSymlinkError{}
-		if serr, ok := err.(*apppathutil.OutOfBoundsSymlinkError); ok {
-			oobError = serr
-			log.WithFields(log.Fields{
-				common.SecurityField: common.SecurityHigh,
-				"chart":              c.chart,
-				"revision":           revision,
-				"file":               oobError.File,
-			}).Warn("chart contains out-of-bounds symlink")
-			return fmt.Errorf("chart contains out-of-bounds symlinks. file: %s", oobError.File)
-		}
-		return err
-	}
-	return nil
+	return c.client.ExtractChart(c.chart, revision)
 }
 
 func (c *helmSourceClient) GetDigest(revision string, hasMultipleSources bool) (string, error) {
@@ -213,83 +177,109 @@ func (c *helmSourceClient) VerifySignature(resolvedRevision string, unresolvedRe
 
 // gitSourceClient adapts a Git client to the SourceClient interface
 type gitSourceClient struct {
-	client           git.Client
-	repo             *v1alpha1.Repository
-	repoLock         *repositoryLock
-	submoduleEnabled bool
-	depth            int64
-	allowConcurrent  bool
-	checkoutFn       func(git.Client, string, bool, int64) (io.Closer, error)
-	metricsServer    interface {
-		IncGitLsRemoteFail(repoURL, revision string)
-	}
+	client                         git.Client
+	depth                          int64
+	repo                           *v1alpha1.Repository
+	metrics                        *metrics.MetricsServer
+	repositoryLock                 *repositoryLock
+	directoryPermissionInitializer func(rootPath string) io.Closer
 }
 
-type GitSourceClientOpts struct {
-	SubmoduleEnabled bool
-	Depth            int64
-	AllowConcurrent  bool
-	MetricsServer    interface {
-		IncGitLsRemoteFail(repoURL, revision string)
-	}
-}
+func NewGitSourceClient(repo *v1alpha1.Repository, root string, depth int64, metrics *metrics.MetricsServer, creds git.Creds, repoLock *repositoryLock, initializer func(rootPath string) io.Closer, opts ...git.ClientOpts) (SourceClient, error) {
+	client, err := git.NewClientExt(
+		repo.Repo,
+		root,
+		creds,
+		repo.IsInsecure(),
+		repo.EnableLFS,
+		repo.Proxy,
+		repo.NoProxy,
+		opts...,
+	)
 
-func NewGitSourceClient(client git.Client, repo *v1alpha1.Repository, repoLock *repositoryLock, checkoutFn func(git.Client, string, bool, int64) (io.Closer, error), opts GitSourceClientOpts) SourceClient {
+	if err != nil {
+		return nil, err
+	}
+
 	return &gitSourceClient{
-		client:           client,
-		repo:             repo,
-		repoLock:         repoLock,
-		submoduleEnabled: opts.SubmoduleEnabled,
-		depth:            opts.Depth,
-		allowConcurrent:  opts.AllowConcurrent,
-		checkoutFn:       checkoutFn,
-		metricsServer:    opts.MetricsServer,
-	}
+		client:                         client,
+		repo:                           repo,
+		depth:                          depth,
+		metrics:                        metrics,
+		repositoryLock:                 repoLock,
+		directoryPermissionInitializer: initializer,
+	}, nil
 }
 
 func (c *gitSourceClient) ResolveRevision(ctx context.Context, revision string, noCache bool) (string, error) {
 	commitSHA, err := c.client.LsRemote(revision)
 	if err != nil {
-		if c.metricsServer != nil {
-			c.metricsServer.IncGitLsRemoteFail(c.client.Root(), revision)
+		if c.metrics != nil {
+			c.metrics.IncGitLsRemoteFail(c.client.Root(), revision)
 		}
 		return "", err
 	}
 	return commitSHA, nil
 }
 
-func (c *gitSourceClient) CleanCache(revision string) error {
+func (c *gitSourceClient) CleanCache(_ string) error {
 	// Git doesn't support cache cleaning in the same way as OCI/Helm
 	return nil
 }
 
 func (c *gitSourceClient) Extract(ctx context.Context, revision string) (string, io.Closer, error) {
-	closer, err := c.repoLock.Lock(c.client.Root(), revision, c.allowConcurrent, func() (io.Closer, error) {
-		return c.checkoutFn(c.client, revision, c.submoduleEnabled, c.depth)
+	closer, err := c.repositoryLock.Lock(c.client.Root(), revision, true, func() (io.Closer, error) {
+		closer := c.directoryPermissionInitializer(c.client.Root())
+		err := c.client.Init()
+		if err != nil {
+			return closer, status.Errorf(codes.Internal, "Failed to initialize git repo: %v", err)
+		}
+
+		revisionPresent := c.client.IsRevisionPresent(revision)
+
+		log.WithFields(map[string]any{
+			"skipFetch": revisionPresent,
+		}).Debugf("Checking out revision %v", revision)
+
+		// Fetching can be skipped if the revision is already present locally.
+		if !revisionPresent {
+			if c.depth > 0 {
+				err = c.client.Fetch(revision, c.depth)
+			} else {
+				// Fetching with no revision first. Fetching with an explicit version can cause repo bloat. https://github.com/argoproj/argo-cd/issues/8845
+				err = c.client.Fetch("", c.depth)
+			}
+
+			if err != nil {
+				return closer, status.Errorf(codes.Internal, "Failed to fetch default: %v", err)
+			}
+		}
+
+		_, err = c.client.Checkout(revision)
+		if err != nil {
+			// When fetching with no revision, only refs/heads/* and refs/remotes/origin/* are fetched. If checkout fails
+			// for the given revision, try explicitly fetching it.
+			log.Infof("Failed to checkout revision %s: %v", revision, err)
+			log.Infof("Fallback to fetching specific revision %s. ref might not have been in the default refspec fetched.", revision)
+			err = c.client.Fetch(revision, c.depth)
+			if err != nil {
+				return closer, status.Errorf(codes.Internal, "Failed to checkout revision %s: %v", revision, err)
+			}
+
+			_, err = c.client.Checkout("FETCH_HEAD")
+			if err != nil {
+				return closer, status.Errorf(codes.Internal, "Failed to checkout FETCH_HEAD: %v", err)
+			}
+		}
+
+		return closer, err
 	})
+
 	if err != nil {
 		return "", nil, err
 	}
-	return c.client.Root(), closer, nil
-}
 
-func (c *gitSourceClient) CheckOutOfBoundsSymlinks(rootPath string, repo *v1alpha1.Repository, revision string) error {
-	err := apppathutil.CheckOutOfBoundsSymlinks(rootPath)
-	if err != nil {
-		oobError := &apppathutil.OutOfBoundsSymlinkError{}
-		if serr, ok := err.(*apppathutil.OutOfBoundsSymlinkError); ok {
-			oobError = serr
-			log.WithFields(log.Fields{
-				common.SecurityField: common.SecurityHigh,
-				"repo":               repo.Repo,
-				"revision":           revision,
-				"file":               oobError.File,
-			}).Warn("repository contains out-of-bounds symlink")
-			return fmt.Errorf("repository contains out-of-bounds symlinks. file: %s", oobError.File)
-		}
-		return err
-	}
-	return nil
+	return c.client.Root(), closer, nil
 }
 
 func (c *gitSourceClient) GetDigest(revision string, hasMultipleSources bool) (string, error) {
@@ -311,9 +301,4 @@ func (c *gitSourceClient) VerifySignature(resolvedRevision string, unresolvedRev
 	}
 
 	return c.client.VerifyCommitSignature(revisionToVerify)
-}
-
-// GetGitClient returns the underlying git client (for operations that need the git.Client interface)
-func (c *gitSourceClient) GetGitClient() git.Client {
-	return c.client
 }
