@@ -838,17 +838,19 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                                             }}
                                                         />
                                                         {state.extensions &&
-                                                            (state.extensions || []).map(ext => (
-                                                                <i
-                                                                    key={ext.title}
-                                                                    className={classNames(`fa ${ext.icon}`, {selected: pref.view === ext.title})}
-                                                                    title={ext.title}
-                                                                    onClick={() => {
-                                                                        appContext.navigation.goto('.', {view: ext.title});
-                                                                        services.viewPreferences.updatePreferences({appDetails: {...pref, view: ext.title}});
-                                                                    }}
-                                                                />
-                                                            ))}
+                                                            (state.extensions || [])
+                                                                .filter(ext => ext.shouldDisplay(application))
+                                                                .map(ext => (
+                                                                    <i
+                                                                        key={ext.title}
+                                                                        className={classNames(`fa ${ext.icon}`, {selected: pref.view === ext.title})}
+                                                                        title={ext.title}
+                                                                        onClick={() => {
+                                                                            appContext.navigation.goto('.', {view: ext.title});
+                                                                            services.viewPreferences.updatePreferences({appDetails: {...pref, view: ext.title}});
+                                                                        }}
+                                                                    />
+                                                                ))}
                                                     </div>
                                                 </React.Fragment>
                                             )
