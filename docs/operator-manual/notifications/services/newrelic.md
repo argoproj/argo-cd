@@ -4,6 +4,10 @@
 
 * `apiURL` - the api server url, e.g. https://api.newrelic.com
 * `apiKey` - a [NewRelic ApiKey](https://docs.newrelic.com/docs/apis/rest-api-v2/get-started/introduction-new-relic-rest-api-v2/#api_key)
+* `maxIdleConns` - optional, maximum number of idle (keep-alive) connections across all hosts.
+* `maxIdleConnsPerHost` - optional, maximum number of idle (keep-alive) connections per host.
+* `maxConnsPerHost` - optional, maximum total connections per host.
+* `idleConnTimeout` - optional, maximum amount of time an idle (keep-alive) connection will remain open before closing, e.g. '90s'.
 
 ## Configuration
 

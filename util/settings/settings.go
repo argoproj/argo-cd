@@ -224,16 +224,6 @@ type AzureOIDCConfig struct {
 	UseWorkloadIdentity bool `json:"useWorkloadIdentity,omitempty"`
 }
 
-// DEPRECATED. Helm repository credentials are now managed using RepoCredentials
-type HelmRepoCredentials struct {
-	URL            string                    `json:"url,omitempty"`
-	Name           string                    `json:"name,omitempty"`
-	UsernameSecret *corev1.SecretKeySelector `json:"usernameSecret,omitempty"`
-	PasswordSecret *corev1.SecretKeySelector `json:"passwordSecret,omitempty"`
-	CertSecret     *corev1.SecretKeySelector `json:"certSecret,omitempty"`
-	KeySecret      *corev1.SecretKeySelector `json:"keySecret,omitempty"`
-}
-
 var (
 	ByClusterURLIndexer     = "byClusterURL"
 	byClusterURLIndexerFunc = func(obj any) ([]string, error) {
