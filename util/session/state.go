@@ -19,7 +19,7 @@ const (
 
 type userStateStorage struct {
 	attempts            map[string]LoginAttempts
-	redis               *redis.Client
+	redis               redis.UniversalClient
 	revokedTokens       map[string]bool
 	recentRevokedTokens map[string]bool
 	lock                sync.RWMutex
@@ -28,7 +28,7 @@ type userStateStorage struct {
 
 var _ UserStateStorage = &userStateStorage{}
 
-func NewUserStateStorage(redis *redis.Client) *userStateStorage {
+func NewUserStateStorage(redis redis.UniversalClient) *userStateStorage {
 	return &userStateStorage{
 		attempts:            map[string]LoginAttempts{},
 		revokedTokens:       map[string]bool{},
