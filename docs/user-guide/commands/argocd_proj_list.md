@@ -14,14 +14,8 @@ argocd proj list [flags]
   # List all available projects
   argocd proj list
   
-  # List all available projects in yaml format
+  # List all available projects in yaml format (other options are "json" and "name")
   argocd proj list -o yaml
-  
-  # List all available projects in json format
-  argocd proj list -o json
-  
-  # List names of all available projects
-  argocd proj list -o name
 ```
 
 ### Options
