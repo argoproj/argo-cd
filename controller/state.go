@@ -1008,7 +1008,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		v1alpha1.ApplicationConditionSharedResourceWarning:   true,
 		v1alpha1.ApplicationConditionRepeatedResourceWarning: true,
 		v1alpha1.ApplicationConditionExcludedResourceWarning: true,
-	})
+	}, app.Generation)
 	ts.AddCheckpoint("health_ms")
 	compRes.timings = ts.Timings()
 	return &compRes, nil

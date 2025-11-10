@@ -3121,16 +3121,161 @@ func TestSyncWindow_Validate(t *testing.T) {
 }
 
 func TestApplicationStatus_GetConditions(t *testing.T) {
+	gen1 := int64(1)
+	gen2 := int64(2)
 	status := ApplicationStatus{
 		Conditions: []ApplicationCondition{
-			{Type: ApplicationConditionInvalidSpecError},
-			{Type: ApplicationConditionRepeatedResourceWarning},
+			{Type: ApplicationConditionInvalidSpecError, ObservedGeneration: &gen1},
+			{Type: ApplicationConditionRepeatedResourceWarning, ObservedGeneration: &gen1},
 		},
 	}
 	conditions := status.GetConditions(map[ApplicationConditionType]bool{
 		ApplicationConditionInvalidSpecError: true,
-	})
-	assert.Equal(t, []ApplicationCondition{{Type: ApplicationConditionInvalidSpecError}}, conditions)
+	}, 1)
+	assert.Equal(t, []ApplicationCondition{{Type: ApplicationConditionInvalidSpecError, ObservedGeneration: &gen1}}, conditions)
+	
+	// Test that stale conditions (with different observedGeneration) are filtered out
+	status.Conditions[0].ObservedGeneration = &gen2
+	conditions = status.GetConditions(map[ApplicationConditionType]bool{
+		ApplicationConditionInvalidSpecError: true,
+	}, 1)
+	assert.Empty(t, conditions, "stale conditions should be filtered out")
+	
+	// Test that conditions without observedGeneration are included for backward compatibility
+	status.Conditions[0].ObservedGeneration = nil
+	conditions = status.GetConditions(map[ApplicationConditionType]bool{
+		ApplicationConditionInvalidSpecError: true,
+	}, 1)
+	assert.Equal(t, []ApplicationCondition{{Type: ApplicationConditionInvalidSpecError, ObservedGeneration: nil}}, conditions)
+}
+
+func TestApplicationStatus_GetConditions_MixedGenerations(t *testing.T) {
+	gen1 := int64(1)
+	gen2 := int64(2)
+	gen3 := int64(3)
+	status := ApplicationStatus{
+		Conditions: []ApplicationCondition{
+			{Type: ApplicationConditionInvalidSpecError, ObservedGeneration: &gen1},      // stale
+			{Type: ApplicationConditionComparisonError, ObservedGeneration: &gen2},        // current
+			{Type: ApplicationConditionSharedResourceWarning, ObservedGeneration: &gen3},   // future (shouldn't happen but test it)
+			{Type: ApplicationConditionRepeatedResourceWarning, ObservedGeneration: nil},   // backward compat
+		},
+	}
+	
+	// Get all error conditions - should only get current and backward compat ones
+	conditions := status.GetConditions(map[ApplicationConditionType]bool{
+		ApplicationConditionInvalidSpecError: true,
+		ApplicationConditionComparisonError:  true,
+	}, 2)
+	assert.Len(t, conditions, 1, "should only return current conditions")
+	assert.Equal(t, ApplicationConditionComparisonError, conditions[0].Type)
+	
+	// Get all warning conditions - should only get backward compat (gen3 is future, so filtered out)
+	conditions = status.GetConditions(map[ApplicationConditionType]bool{
+		ApplicationConditionSharedResourceWarning:   true,
+		ApplicationConditionRepeatedResourceWarning: true,
+	}, 2)
+	assert.Len(t, conditions, 1, "should only return backward compat condition (gen3 is filtered as future)")
+	assert.Equal(t, ApplicationConditionRepeatedResourceWarning, conditions[0].Type)
+	assert.Nil(t, conditions[0].ObservedGeneration, "backward compat condition should have nil observedGeneration")
+	
+	// Test with generation 3 - should get the SharedResourceWarning condition
+	conditions = status.GetConditions(map[ApplicationConditionType]bool{
+		ApplicationConditionSharedResourceWarning:   true,
+		ApplicationConditionRepeatedResourceWarning: true,
+	}, 3)
+	assert.Len(t, conditions, 2, "should return both conditions at gen 3")
+	
+	// Verify both conditions are present
+	hasSharedWarning := false
+	hasRepeatedWarning := false
+	for _, c := range conditions {
+		if c.Type == ApplicationConditionSharedResourceWarning {
+			hasSharedWarning = true
+			assert.NotNil(t, c.ObservedGeneration)
+			assert.Equal(t, int64(3), *c.ObservedGeneration)
+		}
+		if c.Type == ApplicationConditionRepeatedResourceWarning {
+			hasRepeatedWarning = true
+			assert.Nil(t, c.ObservedGeneration)
+		}
+	}
+	assert.True(t, hasSharedWarning, "should have SharedResourceWarning at gen 3")
+	assert.True(t, hasRepeatedWarning, "backward compat condition should be included")
+}
+
+func TestApplicationStatus_SetConditions_GenerationUpdate(t *testing.T) {
+	// Start with conditions at generation 1
+	app := newTestApp()
+	app.Generation = 1
+	app.Status.SetConditions([]ApplicationCondition{
+		{Type: ApplicationConditionInvalidSpecError, Message: "error at gen 1"},
+		{Type: ApplicationConditionSharedResourceWarning, Message: "warning at gen 1"},
+	}, map[ApplicationConditionType]bool{
+		ApplicationConditionInvalidSpecError:      true,
+		ApplicationConditionSharedResourceWarning: true,
+	}, app.Generation)
+	
+	// Verify conditions have gen 1
+	for _, c := range app.Status.Conditions {
+		assert.NotNil(t, c.ObservedGeneration)
+		assert.Equal(t, int64(1), *c.ObservedGeneration)
+	}
+	
+	// Update app generation and set new conditions
+	app.Generation = 2
+	app.Status.SetConditions([]ApplicationCondition{
+		{Type: ApplicationConditionInvalidSpecError, Message: "error at gen 2"},
+	}, map[ApplicationConditionType]bool{
+		ApplicationConditionInvalidSpecError: true,
+	}, app.Generation)
+	
+	// Verify all conditions now have gen 2 (including preserved ones)
+	for _, c := range app.Status.Conditions {
+		assert.NotNil(t, c.ObservedGeneration, "all conditions should have observedGeneration")
+		assert.Equal(t, int64(2), *c.ObservedGeneration, "all conditions should be updated to gen 2")
+	}
+	
+	// Verify that GetConditions with gen 2 returns the conditions
+	conditions := app.Status.GetConditions(map[ApplicationConditionType]bool{
+		ApplicationConditionInvalidSpecError:      true,
+		ApplicationConditionSharedResourceWarning: true,
+	}, 2)
+	assert.Len(t, conditions, 2, "should return both conditions at gen 2")
+	
+	// But GetConditions with gen 1 should return nothing (they're stale)
+	conditions = app.Status.GetConditions(map[ApplicationConditionType]bool{
+		ApplicationConditionInvalidSpecError:      true,
+		ApplicationConditionSharedResourceWarning: true,
+	}, 1)
+	assert.Empty(t, conditions, "should not return conditions that are now stale")
+}
+
+func TestApplicationStatus_GetConditions_ZeroGeneration(t *testing.T) {
+	gen0 := int64(0)
+	gen1 := int64(1)
+	status := ApplicationStatus{
+		Conditions: []ApplicationCondition{
+			{Type: ApplicationConditionInvalidSpecError, ObservedGeneration: &gen0},
+			{Type: ApplicationConditionComparisonError, ObservedGeneration: &gen1},
+		},
+	}
+	
+	// Get conditions for generation 0
+	conditions := status.GetConditions(map[ApplicationConditionType]bool{
+		ApplicationConditionInvalidSpecError: true,
+		ApplicationConditionComparisonError:  true,
+	}, 0)
+	assert.Len(t, conditions, 1, "should return condition with gen 0")
+	assert.Equal(t, ApplicationConditionInvalidSpecError, conditions[0].Type)
+	
+	// Get conditions for generation 1
+	conditions = status.GetConditions(map[ApplicationConditionType]bool{
+		ApplicationConditionInvalidSpecError: true,
+		ApplicationConditionComparisonError:  true,
+	}, 1)
+	assert.Len(t, conditions, 1, "should return condition with gen 1")
+	assert.Equal(t, ApplicationConditionComparisonError, conditions[0].Type)
 }
 
 type projectBuilder struct {
@@ -3214,7 +3359,10 @@ func newTestProjectWithSyncWindowsAndOperator() *AppProject {
 
 func newTestApp() *Application {
 	a := &Application{
-		ObjectMeta: metav1.ObjectMeta{Name: "test-app"},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:       "test-app",
+			Generation: 1,
+		},
 		Spec: ApplicationSpec{
 			Destination: ApplicationDestination{
 				Namespace: "default",
@@ -3396,14 +3544,19 @@ func TestSetConditions(t *testing.T) {
 			},
 		},
 	}
-	for _, tt := range tests {
+		for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			a := newTestApp()
 			a.Status.Conditions = tt.existing
-			a.Status.SetConditions(tt.incoming, tt.evaluatedTypes)
+			a.Status.SetConditions(tt.incoming, tt.evaluatedTypes, a.Generation)
 			assertConditions(t, tt.expected, a.Status.Conditions)
 			if tt.validate != nil {
 				tt.validate(t, a)
+			}
+			// Verify that all conditions have observedGeneration set
+			for i := range a.Status.Conditions {
+				assert.NotNil(t, a.Status.Conditions[i].ObservedGeneration, "condition %d should have observedGeneration set", i)
+				assert.Equal(t, a.Generation, *a.Status.Conditions[i].ObservedGeneration, "condition %d observedGeneration should match app generation", i)
 			}
 		})
 	}

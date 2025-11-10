@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"slices"
 	"strconv"
 	"time"
 
@@ -461,10 +460,14 @@ func (c *appCollector) collectApps(ch chan<- prometheus.Metric, app *argoappv1.A
 
 	if len(c.appConditions) > 0 {
 		conditionCount := make(map[string]int)
-		for _, condition := range app.Status.Conditions {
-			if slices.Contains(c.appConditions, condition.Type) {
-				conditionCount[condition.Type]++
-			}
+		conditionTypes := make(map[argoappv1.ApplicationConditionType]bool)
+		for _, conditionType := range c.appConditions {
+			conditionTypes[conditionType] = true
+		}
+		// Only count current (non-stale) conditions
+		conditions := app.Status.GetConditions(conditionTypes, app.Generation)
+		for _, condition := range conditions {
+			conditionCount[string(condition.Type)]++
 		}
 
 		for conditionType, count := range conditionCount {

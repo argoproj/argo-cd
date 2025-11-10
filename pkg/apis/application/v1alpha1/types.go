@@ -1824,6 +1824,9 @@ type ApplicationCondition struct {
 	Message string `json:"message" protobuf:"bytes,2,opt,name=message"`
 	// LastTransitionTime is the time the condition was last observed
 	LastTransitionTime *metav1.Time `json:"lastTransitionTime,omitempty" protobuf:"bytes,3,opt,name=lastTransitionTime"`
+	// ObservedGeneration is the most recent generation of the Application that this condition was observed for.
+	// When this value is not set, the condition may be stale and should not be relied upon.
+	ObservedGeneration *int64 `json:"observedGeneration,omitempty" protobuf:"varint,4,opt,name=observedGeneration"`
 }
 
 // ComparedTo contains application source and target which was used for resources comparison
@@ -3394,7 +3397,9 @@ func (app *Application) IsFinalizerPresent(finalizer string) bool {
 // If the application has a pre-existing condition of a type that is not in the evaluated list,
 // it will be preserved. If the application has a pre-existing condition of a type that
 // is in the evaluated list, but not in the incoming conditions list, it will be removed.
-func (status *ApplicationStatus) SetConditions(conditions []ApplicationCondition, evaluatedTypes map[ApplicationConditionType]bool) {
+// observedGeneration should be set to the Application's metadata.generation to indicate
+// that the condition is based on the most recent configuration.
+func (status *ApplicationStatus) SetConditions(conditions []ApplicationCondition, evaluatedTypes map[ApplicationConditionType]bool, observedGeneration int64) {
 	appConditions := make([]ApplicationCondition, 0)
 	now := metav1.Now()
 	for i := 0; i < len(status.Conditions); i++ {
@@ -3403,6 +3408,8 @@ func (status *ApplicationStatus) SetConditions(conditions []ApplicationCondition
 			if condition.LastTransitionTime == nil {
 				condition.LastTransitionTime = &now
 			}
+			// Update observedGeneration for preserved conditions to reflect current generation
+			condition.ObservedGeneration = &observedGeneration
 			appConditions = append(appConditions, condition)
 		}
 	}
@@ -3411,11 +3418,15 @@ func (status *ApplicationStatus) SetConditions(conditions []ApplicationCondition
 		if condition.LastTransitionTime == nil {
 			condition.LastTransitionTime = &now
 		}
+		// Set observedGeneration to indicate this condition is based on the current generation
+		condition.ObservedGeneration = &observedGeneration
 		eci := findConditionIndexByType(status.Conditions, condition.Type)
 		if eci >= 0 && status.Conditions[eci].Message == condition.Message {
 			// If we already have a condition of this type, only update the timestamp if something
-			// has changed.
-			appConditions = append(appConditions, status.Conditions[eci])
+			// has changed. Also update the observedGeneration to reflect the current generation.
+			existingCondition := status.Conditions[eci]
+			existingCondition.ObservedGeneration = &observedGeneration
+			appConditions = append(appConditions, existingCondition)
 		} else {
 			// Otherwise we use the new incoming condition with an updated timestamp:
 			appConditions = append(appConditions, condition)
@@ -3438,13 +3449,19 @@ func findConditionIndexByType(conditions []ApplicationCondition, t ApplicationCo
 	return -1
 }
 
-// GetConditions returns list of application error conditions
-func (status *ApplicationStatus) GetConditions(conditionTypes map[ApplicationConditionType]bool) []ApplicationCondition {
+// GetConditions returns list of application error conditions that are current (not stale).
+// Conditions are considered stale if their observedGeneration does not match the current generation.
+// currentGeneration should be set to the Application's metadata.generation.
+func (status *ApplicationStatus) GetConditions(conditionTypes map[ApplicationConditionType]bool, currentGeneration int64) []ApplicationCondition {
 	result := make([]ApplicationCondition, 0)
 	for i := range status.Conditions {
 		condition := status.Conditions[i]
 		if ok := conditionTypes[condition.Type]; ok {
-			result = append(result, condition)
+			// Only include conditions that are current (observedGeneration matches currentGeneration)
+			// or have no observedGeneration set (for backward compatibility with old conditions)
+			if condition.ObservedGeneration == nil || *condition.ObservedGeneration == currentGeneration {
+				result = append(result, condition)
+			}
 		}
 	}
 	return result
