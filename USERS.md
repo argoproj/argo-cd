@@ -86,7 +86,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Codefresh](https://www.codefresh.io/)
 1. [Codility](https://www.codility.com/)
 1. [Cognizant](https://www.cognizant.com/)
-1. [Collins Aerospace] (https://www.collinsaerospace.com/)
+1. [Collins Aerospace](https://www.collinsaerospace.com/)
 1. [Commonbond](https://commonbond.co/)
 1. [Compatio.AI](https://compatio.ai/)
 1. [Contlo](https://contlo.com/)
