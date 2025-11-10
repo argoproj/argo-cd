@@ -891,10 +891,8 @@ func TestServerSideDiff(t *testing.T) {
 		manager := "argocd-controller"
 		dryRunner := mocks.NewServerSideDryRunner(t)
 
-		dryRunner.On("Run", mock.Anything, mock.AnythingOfType("*unstructured.Unstructured"), manager).
-			Return(func(_ context.Context, _ *unstructured.Unstructured, _ string) (string, error) {
-				return predictedLive, nil
-			})
+		dryRunner.EXPECT().Run(mock.Anything, mock.AnythingOfType("*unstructured.Unstructured"), manager).
+			Return(predictedLive, nil)
 		opts := []Option{
 			WithGVKParser(gvkParser),
 			WithManager(manager),
@@ -1607,6 +1605,68 @@ metadata:
 	metadata := newUn.Object["metadata"].(map[string]any)
 	_, ok = metadata["creationTimestamp"]
 	assert.False(t, ok)
+}
+
+func TestRemarshalStatefulSetCreationTimestamp(t *testing.T) {
+	manifest := []byte(`
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: test-sts
+  creationTimestamp: "2025-11-06T19:35:31Z"
+spec:
+  serviceName: test
+  selector:
+    matchLabels:
+      app: test
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: test
+    spec:
+      containers:
+      - name: test
+        image: nginx
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+      creationTimestamp: null
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 1Gi
+`)
+	var un unstructured.Unstructured
+	require.NoError(t, yaml.Unmarshal(manifest, &un))
+
+	// Verify creationTimestamp exists in nested metadata before remarshal
+	spec := un.Object["spec"].(map[string]any)
+	templateMetadata := spec["template"].(map[string]any)["metadata"].(map[string]any)
+	_, ok := templateMetadata["creationTimestamp"]
+	assert.True(t, ok, "creationTimestamp should exist in template.metadata before remarshal")
+
+	volumeClaimTemplates := spec["volumeClaimTemplates"].([]any)
+	vctMetadata := volumeClaimTemplates[0].(map[string]any)["metadata"].(map[string]any)
+	_, ok = vctMetadata["creationTimestamp"]
+	assert.True(t, ok, "creationTimestamp should exist in volumeClaimTemplates[0].metadata before remarshal")
+
+	// Remarshal
+	newUn := remarshal(&un, applyOptions(diffOptionsForTest()))
+
+	// Verify creationTimestamp is removed from nested metadata after remarshal
+	// (top-level metadata.creationTimestamp is preserved as it's part of the resource identity)
+	spec = newUn.Object["spec"].(map[string]any)
+	templateMetadata = spec["template"].(map[string]any)["metadata"].(map[string]any)
+	_, ok = templateMetadata["creationTimestamp"]
+	assert.False(t, ok, "creationTimestamp should be removed from template.metadata after remarshal")
+
+	volumeClaimTemplates = spec["volumeClaimTemplates"].([]any)
+	vctMetadata = volumeClaimTemplates[0].(map[string]any)["metadata"].(map[string]any)
+	_, ok = vctMetadata["creationTimestamp"]
+	assert.False(t, ok, "creationTimestamp should be removed from volumeClaimTemplates[0].metadata after remarshal")
 }
 
 func TestRemarshalResources(t *testing.T) {

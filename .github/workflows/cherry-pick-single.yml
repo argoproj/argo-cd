@@ -91,11 +91,17 @@ jobs:
       - name: Create Pull Request
         run: |
           # Create cherry-pick PR
-          gh pr create \
-            --title "${{ inputs.pr_title }} (cherry-pick #${{ inputs.pr_number }} for ${{ inputs.version_number }})" \
-            --body "Cherry-picked ${{ inputs.pr_title }} (#${{ inputs.pr_number }})
+          TITLE="${PR_TITLE} (cherry-pick #${{ inputs.pr_number }} for ${{ inputs.version_number }})"
+          BODY=$(cat <<EOF
+          Cherry-picked ${PR_TITLE} (#${{ inputs.pr_number }})
 
-          ${{ steps.cherry-pick.outputs.signoff }}" \
+          ${{ steps.cherry-pick.outputs.signoff }}
+          EOF
+          )
+
+          gh pr create \
+            --title "$TITLE" \
+            --body "$BODY" \
             --base "${{ steps.cherry-pick.outputs.target_branch }}" \
             --head "${{ steps.cherry-pick.outputs.branch_name }}"
 
@@ -103,6 +109,7 @@ jobs:
           gh pr comment ${{ inputs.pr_number }} \
             --body "🍒 Cherry-pick PR created for ${{ inputs.version_number }}: #$(gh pr list --head ${{ steps.cherry-pick.outputs.branch_name }} --json number --jq '.[0].number')"
         env:
+          PR_TITLE: ${{ inputs.pr_title }}
           GH_TOKEN: ${{ steps.generate-token.outputs.token }}
 
       - name: Comment on failure
