@@ -334,8 +334,13 @@ func (s *Service) runRepoOperation(
 	unresolvedRevision := revision
 	noCache := settings.noCache || settings.noRevisionCache
 
-	// Step 1: Create appropriate SourceClient using factory
-	sourceClient, err := s.newSourceClient(repo, source, !settings.noRevisionCache && !settings.noCache, settings.allowConcurrent)
+	sourceClient, err := s.newSourceClient(repo, source, settings.noCache, settings.noRevisionCache)
+	if err != nil {
+		return err
+	}
+
+	// First resolve the referenced sources to get repoRefs
+	repoRefs, err := resolveReferencedSources(hasMultipleSources, source.Helm, refSources, s.newClientResolveRevision, gitClientOpts)
 	if err != nil {
 		return err
 	}
@@ -346,12 +351,7 @@ func (s *Service) runRepoOperation(
 		return err
 	}
 
-	repoRefs, err := resolveReferencedSources(hasMultipleSources, source.Helm, refSources, s.newClientResolveRevision, gitClientOpts)
-	if err != nil {
-		return err
-	}
-
-	if !settings.noCache {
+	if !source.IsOCI() && !source.IsHelm() && !settings.noCache {
 		if ok, err := cacheFn(resolvedRevision, repoRefs, true); ok {
 			return err
 		}
@@ -382,9 +382,40 @@ func (s *Service) runRepoOperation(
 	}
 	defer utilio.Close(closer)
 
-	// Step 4: Validate symlinks (unified!)
+	// Validate symlinks
 	if !s.initConstants.AllowOutOfBoundsSymlinks {
-		if err := sourceClient.CheckOutOfBoundsSymlinks(rootPath, repo, resolvedRevision); err != nil {
+		if err = apppathutil.CheckOutOfBoundsSymlinks(rootPath); err != nil {
+			oobError := &apppathutil.OutOfBoundsSymlinkError{}
+			var serr *apppathutil.OutOfBoundsSymlinkError
+			if errors.As(err, &serr) {
+				oobError = serr
+				switch {
+				case source.IsOCI():
+					log.WithFields(log.Fields{
+						common.SecurityField: common.SecurityHigh,
+						"repo":               repo.Repo,
+						"digest":             revision,
+						"file":               oobError.File,
+					}).Warn("oci image contains out-of-bounds symlink")
+					return fmt.Errorf("oci image contains out-of-bounds symlinks. file: %s", oobError.File)
+				case source.IsHelm():
+					log.WithFields(log.Fields{
+						common.SecurityField: common.SecurityHigh,
+						"chart":              source.Chart,
+						"revision":           revision,
+						"file":               oobError.File,
+					}).Warn("chart contains out-of-bounds symlink")
+					return fmt.Errorf("chart contains out-of-bounds symlinks. file: %s", oobError.File)
+				default:
+					log.WithFields(log.Fields{
+						common.SecurityField: common.SecurityHigh,
+						"repo":               repo.Repo,
+						"revision":           revision,
+						"file":               oobError.File,
+					}).Warn("repository contains out-of-bounds symlink")
+					return fmt.Errorf("repository contains out-of-bounds symlinks. file: %s", oobError.File)
+				}
+			}
 			return err
 		}
 	}
@@ -2435,7 +2466,7 @@ func (s *Service) GetRevisionChartDetails(_ context.Context, q *apiclient.RepoSe
 	if err != nil {
 		return nil, fmt.Errorf("helm client error: %w", err)
 	}
-	chartPath, closer, err := helmClient.ExtractChart(q.Name, revision, false, s.initConstants.HelmManifestMaxExtractedSize, s.initConstants.DisableHelmManifestMaxExtractedSize)
+	chartPath, closer, err := helmClient.ExtractChart(q.Name, revision)
 	if err != nil {
 		return nil, fmt.Errorf("error extracting chart: %w", err)
 	}
@@ -2504,7 +2535,18 @@ func (s *Service) newOCIClientResolveRevision(ctx context.Context, repo *v1alpha
 
 func (s *Service) newHelmClientResolveRevision(repo *v1alpha1.Repository, revision string, chart string, noRevisionCache bool) (helm.Client, string, error) {
 	enableOCI := repo.EnableOCI || helm.IsHelmOciRepo(repo.Repo)
-	helmClient := s.newHelmClient(repo.Repo, repo.GetHelmCreds(), enableOCI, repo.Proxy, repo.NoProxy, helm.WithIndexCache(s.cache), helm.WithChartPaths(s.chartPaths))
+	helmClient := s.newHelmClient(
+		repo.Repo,
+		repo.GetHelmCreds(),
+		enableOCI,
+		repo.Proxy,
+		repo.NoProxy,
+		helm.WithIndexCache(s.cache),
+		helm.WithChartPaths(s.chartPaths),
+		helm.WithPassCredentials(false),
+		helm.WithHelmRegistryMaxIndexSize(s.initConstants.HelmRegistryMaxIndexSize),
+		helm.WithHelmManifestMaxExtractedSize(s.initConstants.HelmManifestMaxExtractedSize),
+		helm.WithDisableHelmManifestMaxExtractedSize(s.initConstants.DisableHelmManifestMaxExtractedSize))
 
 	// Note: This check runs the risk of returning a version which is not found in the helm registry.
 	if versions.IsVersion(revision) {
@@ -2519,7 +2561,7 @@ func (s *Service) newHelmClientResolveRevision(repo *v1alpha1.Repository, revisi
 			return nil, "", fmt.Errorf("unable to get tags: %w", err)
 		}
 	} else {
-		index, err := helmClient.GetIndex(noRevisionCache, s.initConstants.HelmRegistryMaxIndexSize)
+		index, err := helmClient.GetIndex(noRevisionCache)
 		if err != nil {
 			return nil, "", err
 		}
@@ -2540,62 +2582,55 @@ func (s *Service) newHelmClientResolveRevision(repo *v1alpha1.Repository, revisi
 
 // newSourceClient creates a SourceClient for the given repository and source.
 // This is a factory method that handles the branching logic for different source types.
+// The opts parameters now contain all the information needed to create the inner clients (git.Client, oci.Client, helm.Client).
 func (s *Service) newSourceClient(
 	repo *v1alpha1.Repository,
 	source *v1alpha1.ApplicationSource,
-	loadRefFromCache bool,
-	allowConcurrent bool,
+	noCache bool,
+	noRevisionCache bool,
 ) (SourceClient, error) {
 	switch {
 	case source.IsOCI():
-		ociClient, err := s.newOCIClient(
-			repo.Repo,
-			repo.GetOCICreds(),
-			repo.Proxy,
-			repo.NoProxy,
-			s.initConstants.OCIMediaTypes,
+		return NewOCISourceClient(
+			repo,
 			oci.WithIndexCache(s.cache),
 			oci.WithImagePaths(s.ociPaths),
+			oci.WithAllowedMediaTypes(s.initConstants.OCIMediaTypes),
 			oci.WithManifestMaxExtractedSize(s.initConstants.OCIManifestMaxExtractedSize),
 			oci.WithDisableManifestMaxExtractedSize(s.initConstants.DisableOCIManifestMaxExtractedSize),
 		)
-		if err != nil {
-			return nil, err
-		}
-		return NewOCISourceClient(ociClient, repo), nil
 	case source.IsHelm():
-		enableOCI := repo.EnableOCI || helm.IsHelmOciRepo(repo.Repo)
-		helmClient := s.newHelmClient(
-			repo.Repo,
-			repo.GetHelmCreds(),
-			enableOCI,
-			repo.Proxy,
-			repo.NoProxy,
-			helm.WithIndexCache(s.cache),
-			helm.WithChartPaths(s.chartPaths),
-		)
 		helmPassCredentials := false
 		if source.Helm != nil {
 			helmPassCredentials = source.Helm.PassCredentials
 		}
-		return NewHelmSourceClient(helmClient, repo, HelmSourceClientOpts{
-			Chart:                           source.Chart,
-			PassCredentials:                 helmPassCredentials,
-			HelmManifestMaxExtractedSize:    s.initConstants.HelmManifestMaxExtractedSize,
-			DisableHelmManifestMaxExtracted: s.initConstants.DisableHelmManifestMaxExtractedSize,
-			HelmRegistryMaxIndexSize:        s.initConstants.HelmRegistryMaxIndexSize,
-		}), nil
+		return NewHelmSourceClient(
+			repo,
+			source.Chart,
+			helm.WithIndexCache(s.cache),
+			helm.WithChartPaths(s.chartPaths),
+			helm.WithPassCredentials(helmPassCredentials),
+			helm.WithHelmRegistryMaxIndexSize(s.initConstants.HelmRegistryMaxIndexSize),
+			helm.WithDisableHelmManifestMaxExtractedSize(s.initConstants.DisableHelmManifestMaxExtractedSize),
+			helm.WithHelmManifestMaxExtractedSize(s.initConstants.HelmManifestMaxExtractedSize),
+		), nil
 	default:
-		gitClient, err := s.newClient(repo, git.WithCache(s.cache, loadRefFromCache))
+		root, err := s.gitRepoPaths.GetPath(git.NormalizeGitURL(repo.Repo))
 		if err != nil {
 			return nil, err
 		}
-		return NewGitSourceClient(gitClient, repo, s.repoLock, s.checkoutRevision, GitSourceClientOpts{
-			SubmoduleEnabled: s.initConstants.SubmoduleEnabled,
-			Depth:            repo.Depth,
-			AllowConcurrent:  allowConcurrent,
-			MetricsServer:    s.metricsServer,
-		}), nil
+		return NewGitSourceClient(
+			repo,
+			root,
+			repo.Depth,
+			s.metricsServer,
+			repo.GetGitCreds(s.gitCredsStore),
+			s.repoLock,
+			directoryPermissionInitializer,
+			git.WithSubmoduleEnabled(s.initConstants.SubmoduleEnabled),
+			git.WithCache(s.cache, !noRevisionCache && !noCache),
+			git.WithEventHandlers(metrics.NewGitClientEventHandlers(s.metricsServer)),
+		)
 	}
 }
 
@@ -2701,7 +2736,7 @@ func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bo
 		}
 	}
 
-	_, err = gitClient.Checkout(revision, submoduleEnabled)
+	_, err = gitClient.Checkout(revision)
 	if err != nil {
 		// When fetching with no revision, only refs/heads/* and refs/remotes/origin/* are fetched. If checkout fails
 		// for the given revision, try explicitly fetching it.
@@ -2712,7 +2747,7 @@ func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bo
 			return status.Errorf(codes.Internal, "Failed to checkout revision %s: %v", revision, err)
 		}
 
-		_, err = gitClient.Checkout("FETCH_HEAD", submoduleEnabled)
+		_, err = gitClient.Checkout("FETCH_HEAD")
 		if err != nil {
 			return status.Errorf(codes.Internal, "Failed to checkout FETCH_HEAD: %v", err)
 		}
@@ -2722,7 +2757,7 @@ func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bo
 }
 
 func (s *Service) GetHelmCharts(_ context.Context, q *apiclient.HelmChartsRequest) (*apiclient.HelmChartsResponse, error) {
-	index, err := s.newHelmClient(q.Repo.Repo, q.Repo.GetHelmCreds(), q.Repo.EnableOCI, q.Repo.Proxy, q.Repo.NoProxy, helm.WithIndexCache(s.cache), helm.WithChartPaths(s.chartPaths)).GetIndex(true, s.initConstants.HelmRegistryMaxIndexSize)
+	index, err := s.newHelmClient(q.Repo.Repo, q.Repo.GetHelmCreds(), q.Repo.EnableOCI, q.Repo.Proxy, q.Repo.NoProxy, helm.WithIndexCache(s.cache), helm.WithChartPaths(s.chartPaths), helm.WithHelmRegistryMaxIndexSize(s.initConstants.HelmRegistryMaxIndexSize)).GetIndex(true)
 	if err != nil {
 		return nil, err
 	}
@@ -2747,7 +2782,7 @@ func (s *Service) TestRepository(ctx context.Context, q *apiclient.TestRepositor
 			return git.TestRepo(repo.Repo, repo.GetGitCreds(s.gitCredsStore), repo.IsInsecure(), repo.IsLFSEnabled(), repo.Proxy, repo.NoProxy)
 		},
 		"oci": func() error {
-			client, err := oci.NewClient(repo.Repo, repo.GetOCICreds(), repo.Proxy, repo.NoProxy, s.initConstants.OCIMediaTypes)
+			client, err := oci.NewClient(repo.Repo, repo.GetOCICreds(), repo.Proxy, repo.NoProxy, oci.WithAllowedMediaTypes(s.initConstants.OCIMediaTypes))
 			if err != nil {
 				return err
 			}
@@ -2762,7 +2797,7 @@ func (s *Service) TestRepository(ctx context.Context, q *apiclient.TestRepositor
 				_, err := helm.NewClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI, repo.Proxy, repo.NoProxy).TestHelmOCI()
 				return err
 			}
-			_, err := helm.NewClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI, repo.Proxy, repo.NoProxy).GetIndex(false, s.initConstants.HelmRegistryMaxIndexSize)
+			_, err := helm.NewClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI, repo.Proxy, repo.NoProxy, helm.WithHelmRegistryMaxIndexSize(s.initConstants.HelmRegistryMaxIndexSize)).GetIndex(false)
 			return err
 		},
 	}
@@ -2781,9 +2816,7 @@ func (s *Service) ResolveRevision(ctx context.Context, q *apiclient.ResolveRevis
 	app := q.App
 	ambiguousRevision := q.AmbiguousRevision
 	source := app.Spec.GetSourcePtrByIndex(int(q.SourceIndex))
-
-	// Create SourceClient using factory
-	sourceClient, err := s.newSourceClient(repo, source, false, false)
+	sourceClient, err := s.newSourceClient(repo, source, true, true)
 	if err != nil {
 		return &apiclient.ResolveRevisionResponse{Revision: "", AmbiguousRevision: ""}, err
 	}
