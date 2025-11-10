@@ -107,6 +107,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [DigitalOcean](https://www.digitalocean.com)
 1. [Divar](https://divar.ir)
 1. [Divistant](https://divistant.com)
+2. [DocNetwork](https://docnetwork.org/)
 1. [Dott](https://ridedott.com)
 1. [Doubble](https://www.doubble.app)
 1. [Doximity](https://www.doximity.com/)
