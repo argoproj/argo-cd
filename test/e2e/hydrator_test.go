@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"context"
 	"os"
 	"os/exec"
 	"testing"
@@ -309,7 +310,7 @@ func startCMPServerForHydrator(t *testing.T, configFile string) {
 		require.NoError(t, err)
 	}
 
-	cmd := exec.Command("../../dist/argocd", "--config-dir-path", configFile)
+	cmd := exec.CommandContext(context.Background(), "../../dist/argocd", "--config-dir-path", configFile)
 	cmd.Env = append(os.Environ(),
 		"ARGOCD_BINARY_NAME=argocd-cmp-server",
 		"ARGOCD_PLUGINSOCKFILEPATH="+pluginSockFilePath)
