@@ -1861,7 +1861,7 @@ message RepoCreds {
   // InsecureOCIForceHttp specifies whether the connection to the repository uses TLS at _all_. If true, no TLS. This flag is applicable for OCI repos only.
   optional bool insecureOCIForceHttp = 26;
 
-  // AzureCloud specifies which Azure cloud this repository is hosted in. Options are AzurePublic, AzureChina, AzureGovernment.
+  // AzureCloud specifies which Azure cloud this repository is hosted in. Options are AzurePublic, AzureChina, AzureUSGovernment.
   optional string azureCloud = 27;
 }
 
@@ -1955,6 +1955,9 @@ message Repository {
 
   // Depth specifies the depth for shallow clones. A value of 0 or omitting the field indicates a full clone.
   optional int64 depth = 27;
+
+  // AzureCloud specifies which Azure cloud this repository is hosted in. Options are AzurePublic, AzureChina, AzureUSGovernment.
+  optional string azureCloud = 28;
 }
 
 // A RepositoryCertificate is either SSH known hosts entry or TLS certificate

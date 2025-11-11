@@ -223,7 +223,7 @@ func (creds AzureWorkloadIdentityCreds) getAccessTokenAfterChallenge(ctx context
 	body, err := io.ReadAll(resp.Body)
 
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("failed to get refresh token: %s, Service %s, Access token: %s", resp.Status, service, armAccessToken.AccessToken)
+		return "", fmt.Errorf("failed to get refresh token: %s", resp.Status)
 	}
 
 	if err != nil {

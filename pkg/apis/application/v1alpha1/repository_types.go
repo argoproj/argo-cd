@@ -121,7 +121,7 @@ type Repository struct {
 	// Depth specifies the depth for shallow clones. A value of 0 or omitting the field indicates a full clone.
 	Depth int64 `json:"depth,omitempty" protobuf:"bytes,27,opt,name=depth"`
 	// AzureCloud specifies which Azure cloud this repository is hosted in. Options are AzurePublic, AzureChina, AzureUSGovernment.
-	AzureCloud string `json:"azureCloud,omitempty" protobuf:"bytes,27,opt,name=azureCloud"`
+	AzureCloud string `json:"azureCloud,omitempty" protobuf:"bytes,28,opt,name=azureCloud"`
 }
 
 // IsInsecure returns true if the repository has been configured to skip server verification or set to HTTP only

@@ -189,10 +189,10 @@ Using CLI for Helm OCI with Azure workload identity:
 argocd repo add contoso.azurecr.io/charts --type helm --enable-oci --use-azure-workload-identity
 ```
 
-Using CLI for Helm OCI with Azure workload identity in the Azure Government Cloud:
+Using CLI for Helm OCI with Azure workload identity in the Azure US Government Cloud:
 
 ```
-argocd repo add contoso.azurecr.io/charts --type helm --enable-oci --use-azure-workload-identity --azure-cloud AzureGovernment
+argocd repo add contoso.azurecr.io/charts --type helm --enable-oci --use-azure-workload-identity --azure-cloud AzureUSGovernment
 ```
 
 Using CLI for Azure Repos with Azure workload identity:
@@ -249,7 +249,7 @@ stringData:
   name: contosocharts
   enableOCI: "true"
   useAzureWorkloadIdentity: "true"
-  azureCloud: AzureGovernment # Possible values are AzurePublic, AzureChina or AzureGovernment. Defaults to AzurePublic
+  azureCloud: AzureUSGovernment # Possible values are AzurePublic, AzureChina or AzureUSGovernment. Defaults to AzurePublic
 ---
 apiVersion: v1
 kind: Secret
@@ -269,13 +269,13 @@ stringData:
 There's now support for Azure Workload Identity authentication in the following Azure clouds:
 
 - `AzurePublic` (the default cloud)
-- `AzureGovernment`
+- `AzureUSGovernment`
 - `AzureChina`
 
-Using CLI for Helm OCI with Azure workload identity in the Azure government cloud:
+Using CLI for Helm OCI with Azure workload identity in the Azure US Government Cloud:
 
 ```
-argocd repo add contoso.azurecr.io/charts --type helm --enable-oci --use-azure-workload-identity --azure-cloud AzureGovernment
+argocd repo add contoso.azurecr.io/charts --type helm --enable-oci --use-azure-workload-identity --azure-cloud AzureUSGovernment
 ```
 
 Using the UI:
@@ -310,7 +310,7 @@ stringData:
   name: contosocharts
   enableOCI: "true"
   useAzureWorkloadIdentity: "true"
-  azureCloud: AzureGovernment # Possible values are AzurePublic, AzureChina or AzureGovernment. Defaults to AzurePublic
+  azureCloud: AzureUSGovernment # Possible values are AzurePublic, AzureChina or AzureUSGovernment. Defaults to AzurePublic
 ```
 
 ## Credential templates
