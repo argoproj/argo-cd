@@ -148,6 +148,10 @@ message ApplicationCondition {
 
   // LastTransitionTime is the time the condition was last observed
   optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time lastTransitionTime = 3;
+
+  // ObservedGeneration is the most recent generation of the Application that this condition was observed for.
+  // When this value is not set, the condition may be stale and should not be relied upon.
+  optional int64 observedGeneration = 4;
 }
 
 // ApplicationDestination holds information about the application's destination
