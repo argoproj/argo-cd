@@ -1889,30 +1889,30 @@ func TestSecretNormalizingApplier(t *testing.T) {
 	settingsMgr := settings.NewSettingsManager(ctx, kubeclientset, "argocd")
 
 	desired := &unstructured.Unstructured{
-		Object: map[string]interface{}{
+		Object: map[string]any{
 			"apiVersion": "v1",
 			"kind":       "Secret",
-			"metadata": map[string]interface{}{
+			"metadata": map[string]any{
 				"name":      "test-secret",
 				"namespace": "default",
 			},
 			"type": "Opaque",
-			"data": map[string]interface{}{
+			"data": map[string]any{
 				"password": base64.StdEncoding.EncodeToString([]byte("vault:test/data/test#TEST")),
 			},
 		},
 	}
 
 	live := &unstructured.Unstructured{
-		Object: map[string]interface{}{
+		Object: map[string]any{
 			"apiVersion": "v1",
 			"kind":       "Secret",
-			"metadata": map[string]interface{}{
+			"metadata": map[string]any{
 				"name":      "test-secret",
 				"namespace": "default",
 			},
 			"type": "Opaque",
-			"data": map[string]interface{}{
+			"data": map[string]any{
 				"password": base64.StdEncoding.EncodeToString([]byte("actual-password-from-vault")),
 			},
 		},
@@ -1994,10 +1994,10 @@ type simpleKubeApplier struct {
 	applyResult func(*unstructured.Unstructured) string
 }
 
-func (s *simpleKubeApplier) ApplyResource(_ context.Context, obj *unstructured.Unstructured, dryRunStrategy cmdutil.DryRunStrategy, force, validate, serverSideApply bool, manager string) (string, error) {
+func (s *simpleKubeApplier) ApplyResource(_ context.Context, obj *unstructured.Unstructured, _ cmdutil.DryRunStrategy, force, validate, serverSideApply bool, manager string) (string, error) {
 	return s.applyResult(obj), nil
 }
 
-func (s *simpleKubeApplier) ConvertToVersion(obj *unstructured.Unstructured, _, version string) (*unstructured.Unstructured, error) {
+func (s *simpleKubeApplier) ConvertToVersion(obj *unstructured.Unstructured, _, _ string) (*unstructured.Unstructured, error) {
 	return obj, nil
 }
