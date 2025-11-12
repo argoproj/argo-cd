@@ -1994,7 +1994,7 @@ type simpleKubeApplier struct {
 	applyResult func(*unstructured.Unstructured) string
 }
 
-func (s *simpleKubeApplier) ApplyResource(_ context.Context, obj *unstructured.Unstructured, _ cmdutil.DryRunStrategy, force, validate, serverSideApply bool, manager string) (string, error) {
+func (s *simpleKubeApplier) ApplyResource(_ context.Context, obj *unstructured.Unstructured, _ cmdutil.DryRunStrategy, _, _, _ bool, _ string) (string, error) {
 	return s.applyResult(obj), nil
 }
 
