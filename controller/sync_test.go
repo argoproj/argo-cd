@@ -1885,7 +1885,7 @@ func TestSecretNormalizingApplier(t *testing.T) {
 		},
 	})
 
-	ctx := context.Background()
+	ctx := t.Context()
 	settingsMgr := settings.NewSettingsManager(ctx, kubeclientset, "argocd")
 
 	desired := &unstructured.Unstructured{
@@ -1936,7 +1936,7 @@ func TestSecretNormalizingApplier(t *testing.T) {
 	}
 
 	result, err := normalizer.ApplyResource(
-		context.Background(),
+		t.Context(),
 		desired,
 		cmdutil.DryRunServer,
 		false, false, true, "argocd",
@@ -1994,10 +1994,10 @@ type simpleKubeApplier struct {
 	applyResult func(*unstructured.Unstructured) string
 }
 
-func (s *simpleKubeApplier) ApplyResource(ctx context.Context, obj *unstructured.Unstructured, dryRunStrategy cmdutil.DryRunStrategy, force, validate, serverSideApply bool, manager string) (string, error) {
+func (s *simpleKubeApplier) ApplyResource(_ context.Context, obj *unstructured.Unstructured, dryRunStrategy cmdutil.DryRunStrategy, force, validate, serverSideApply bool, manager string) (string, error) {
 	return s.applyResult(obj), nil
 }
 
-func (s *simpleKubeApplier) ConvertToVersion(obj *unstructured.Unstructured, group, version string) (*unstructured.Unstructured, error) {
+func (s *simpleKubeApplier) ConvertToVersion(obj *unstructured.Unstructured, _, version string) (*unstructured.Unstructured, error) {
 	return obj, nil
 }
