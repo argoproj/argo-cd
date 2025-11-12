@@ -154,14 +154,29 @@ argocd login cd.argoproj.io --core`,
 			if localCfg == nil {
 				localCfg = &localconfig.LocalConfig{}
 			}
-			localCfg.UpsertServer(localconfig.Server{
-				Server:          server,
-				PlainText:       globalClientOpts.PlainText,
-				Insecure:        globalClientOpts.Insecure,
-				GRPCWeb:         globalClientOpts.GRPCWeb,
-				GRPCWebRootPath: globalClientOpts.GRPCWebRootPath,
-				Core:            globalClientOpts.Core,
-			})
+
+			if globalClientOpts.PortForward && globalClientOpts.PortForwardNamespace != "" {
+				localCfg.UpsertServer(localconfig.Server{
+					Server:               server,
+					PlainText:            globalClientOpts.PlainText,
+					Insecure:             globalClientOpts.Insecure,
+					GRPCWeb:              globalClientOpts.GRPCWeb,
+					GRPCWebRootPath:      globalClientOpts.GRPCWebRootPath,
+					Core:                 globalClientOpts.Core,
+					PortForward:          globalClientOpts.PortForward,
+					PortForwardNamespace: globalClientOpts.PortForwardNamespace,
+				})
+			} else {
+				localCfg.UpsertServer(localconfig.Server{
+					Server:          server,
+					PlainText:       globalClientOpts.PlainText,
+					Insecure:        globalClientOpts.Insecure,
+					GRPCWeb:         globalClientOpts.GRPCWeb,
+					GRPCWebRootPath: globalClientOpts.GRPCWebRootPath,
+					Core:            globalClientOpts.Core,
+				})
+			}
+
 			localCfg.UpsertUser(localconfig.User{
 				Name:         ctxName,
 				AuthToken:    tokenString,
