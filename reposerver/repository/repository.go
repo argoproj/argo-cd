@@ -90,7 +90,6 @@ type Service struct {
 	cache                     *cache.Cache
 	parallelismLimitSemaphore *semaphore.Weighted
 	metricsServer             *metrics.MetricsServer
-	newOCIClient              func(repoURL string, creds oci.Creds, proxy string, noProxy string, mediaTypes []string, opts ...oci.ClientOpts) (oci.Client, error)
 	newGitClient              func(rawRepoURL string, root string, creds git.Creds, insecure bool, enableLfs bool, proxy string, noProxy string, opts ...git.ClientOpts) (git.Client, error)
 	newHelmClient             func(repoURL string, creds helm.Creds, enableOci bool, proxy string, noProxy string, opts ...helm.ClientOpts) helm.Client
 	initConstants             RepoServerInitConstants
@@ -137,7 +136,6 @@ func NewService(metricsServer *metrics.MetricsServer, cache *cache.Cache, initCo
 		cache:                     cache,
 		metricsServer:             metricsServer,
 		newGitClient:              git.NewClientExt,
-		newOCIClient:              oci.NewClient,
 		newHelmClient: func(repoURL string, creds helm.Creds, enableOci bool, proxy string, noProxy string, opts ...helm.ClientOpts) helm.Client {
 			return helm.NewClientWithLock(repoURL, creds, sync.NewKeyLock(), enableOci, proxy, noProxy, opts...)
 		},
@@ -338,8 +336,7 @@ func (s *Service) runRepoOperation(
 		return err
 	}
 
-	// Step 2: Resolve revision
-	resolvedRevision, err := sourceClient.ResolveRevision(ctx, textutils.FirstNonEmpty(revision, source.TargetRevision), noCache)
+	commitSHA, resolvedRevision, err := sourceClient.ResolveRevision(ctx, textutils.FirstNonEmpty(revision, source.TargetRevision), noCache)
 	if err != nil {
 		return err
 	}
@@ -355,14 +352,12 @@ func (s *Service) runRepoOperation(
 		defer settings.sem.Release(1)
 	}
 
-	// Step 2: Clean cache if needed (unified!)
 	if settings.noCache {
 		if err := sourceClient.CleanCache(resolvedRevision); err != nil {
 			return err
 		}
 	}
 
-	// Step 3: Extract content (unified!)
 	rootPath, closer, err := sourceClient.Extract(ctx, resolvedRevision)
 	if err != nil {
 		return err
@@ -407,21 +402,7 @@ func (s *Service) runRepoOperation(
 		}
 	}
 
-	// Step 5: Resolve app path
-	appPath, err := apppathutil.Path(rootPath, source.Path)
-	if err != nil {
-		return err
-	}
-
-	// Step 6: Get commit digest/SHA (unified!)
-	commitSHA, err := sourceClient.GetDigest(resolvedRevision, hasMultipleSources)
-	if err != nil {
-		return fmt.Errorf("failed to get digest: %w", err)
-	}
-	cacheKey := resolvedRevision
-
-	// Step 7: Execute operation with appropriate context (unified!)
-	return operation(rootPath, commitSHA, cacheKey, func() (*operationContext, error) {
+	return operation(rootPath, commitSHA, resolvedRevision, func() (*operationContext, error) {
 		var signature string
 		if verifyCommit {
 			signature, err = sourceClient.VerifySignature(resolvedRevision, unresolvedRevision)
@@ -429,6 +410,12 @@ func (s *Service) runRepoOperation(
 				return nil, err
 			}
 		}
+
+		appPath, err := apppathutil.Path(rootPath, source.Path)
+		if err != nil {
+			return nil, err
+		}
+
 		return &operationContext{appPath, signature}, nil
 	})
 }
@@ -2313,7 +2300,7 @@ func populatePluginAppDetails(ctx context.Context, res *apiclient.RepoAppDetails
 	return nil
 }
 
-func (s *Service) GetRevisionMetadata(_ context.Context, q *apiclient.RepoServerRevisionMetadataRequest) (*v1alpha1.RevisionMetadata, error) {
+func (s *Service) GetRevisionMetadata(ctx context.Context, q *apiclient.RepoServerRevisionMetadataRequest) (*v1alpha1.RevisionMetadata, error) {
 	if !git.IsCommitSHA(q.Revision) && !git.IsTruncatedCommitSHA(q.Revision) {
 		return nil, fmt.Errorf("revision %s must be resolved", q.Revision)
 	}
@@ -2340,98 +2327,34 @@ func (s *Service) GetRevisionMetadata(_ context.Context, q *apiclient.RepoServer
 		}
 	}
 
-	gitClient, _, err := s.newClientResolveRevision(q.Repo, q.Revision)
+	client, err := s.newGitSourceClient(q.Repo, false, false, nil, nil, nil, false)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to initialize git client: %w", err)
 	}
 
 	s.metricsServer.IncPendingRepoRequest(q.Repo.Repo)
 	defer s.metricsServer.DecPendingRepoRequest(q.Repo.Repo)
 
-	closer, err := s.repoLock.Lock(gitClient.Root(), q.Revision, true, func() (goio.Closer, error) {
-		return s.checkoutRevision(gitClient, q.Revision, s.initConstants.SubmoduleEnabled, q.Repo.Depth)
-	})
-	if err != nil {
-		return nil, fmt.Errorf("error acquiring repo lock: %w", err)
-	}
-
-	defer utilio.Close(closer)
-
-	m, err := gitClient.RevisionMetadata(q.Revision)
+	metadata, err = client.GetRevisionMetadata(ctx, q.Revision, q.CheckSignature)
 	if err != nil {
 		return nil, err
 	}
 
-	// Run gpg verify-commit on the revision
-	signatureInfo := ""
-	if gpg.IsGPGEnabled() && q.CheckSignature {
-		cs, err := gitClient.VerifyCommitSignature(q.Revision)
-		if err != nil {
-			log.Errorf("error verifying signature of commit '%s' in repo '%s': %v", q.Revision, q.Repo.Repo, err)
-			return nil, err
-		}
-
-		if cs != "" {
-			vr := gpg.ParseGitCommitVerification(cs)
-			if vr.Result == gpg.VerifyResultUnknown {
-				signatureInfo = "UNKNOWN signature: " + vr.Message
-			} else {
-				signatureInfo = fmt.Sprintf("%s signature from %s key %s", vr.Result, vr.Cipher, gpg.KeyID(vr.KeyID))
-			}
-		} else {
-			signatureInfo = "Revision is not signed."
-		}
-	}
-
-	relatedRevisions := make([]v1alpha1.RevisionReference, len(m.References))
-	for i := range m.References {
-		if m.References[i].Commit == nil {
-			continue
-		}
-
-		relatedRevisions[i] = v1alpha1.RevisionReference{
-			Commit: &v1alpha1.CommitMetadata{
-				Author:  m.References[i].Commit.Author.String(),
-				Date:    m.References[i].Commit.Date,
-				Subject: m.References[i].Commit.Subject,
-				Body:    m.References[i].Commit.Body,
-				SHA:     m.References[i].Commit.SHA,
-				RepoURL: m.References[i].Commit.RepoURL,
-			},
-		}
-	}
-	metadata = &v1alpha1.RevisionMetadata{Author: m.Author, Date: &metav1.Time{Time: m.Date}, Tags: m.Tags, Message: m.Message, SignatureInfo: signatureInfo, References: relatedRevisions}
 	_ = s.cache.SetRevisionMetadata(q.Repo.Repo, q.Revision, metadata)
 	return metadata, nil
 }
 
 func (s *Service) GetOCIMetadata(ctx context.Context, q *apiclient.RepoServerRevisionChartDetailsRequest) (*v1alpha1.OCIMetadata, error) {
-	client, err := s.newOCIClient(q.Repo.Repo, q.Repo.GetOCICreds(), q.Repo.Proxy, q.Repo.NoProxy, s.initConstants.OCIMediaTypes, oci.WithIndexCache(s.cache), oci.WithImagePaths(s.ociPaths), oci.WithManifestMaxExtractedSize(s.initConstants.OCIManifestMaxExtractedSize), oci.WithDisableManifestMaxExtractedSize(s.initConstants.DisableOCIManifestMaxExtractedSize))
+	client, err := s.newOCISourceClient(q.Repo)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize oci client: %w", err)
 	}
 
-	metadata, err := client.DigestMetadata(ctx, q.Revision)
-	if err != nil {
-		return nil, fmt.Errorf("failed to extract digest metadata for revision %q: %w", q.Revision, err)
-	}
-
-	a := metadata.Annotations
-
-	return &v1alpha1.OCIMetadata{
-		CreatedAt: a["org.opencontainers.image.created"],
-		Authors:   a["org.opencontainers.image.authors"],
-		// TODO: add this field at a later stage
-		// ImageURL:    a["org.opencontainers.image.url"],
-		DocsURL:     a["org.opencontainers.image.documentation"],
-		SourceURL:   a["org.opencontainers.image.source"],
-		Version:     a["org.opencontainers.image.version"],
-		Description: a["org.opencontainers.image.description"],
-	}, nil
+	return client.GetRevisionMetadata(ctx, q.Revision, false)
 }
 
 // GetRevisionChartDetails returns the helm chart details of a given version
-func (s *Service) GetRevisionChartDetails(_ context.Context, q *apiclient.RepoServerRevisionChartDetailsRequest) (*v1alpha1.ChartDetails, error) {
+func (s *Service) GetRevisionChartDetails(ctx context.Context, q *apiclient.RepoServerRevisionChartDetailsRequest) (*v1alpha1.ChartDetails, error) {
 	details, err := s.cache.GetRevisionChartDetails(q.Repo.Repo, q.Name, q.Revision)
 	if err == nil {
 		log.Infof("revision chart details cache hit: %s/%s/%s", q.Repo.Repo, q.Name, q.Revision)
@@ -2442,28 +2365,20 @@ func (s *Service) GetRevisionChartDetails(_ context.Context, q *apiclient.RepoSe
 	} else {
 		log.Warnf("revision metadata cache error %s/%s/%s: %v", q.Repo.Repo, q.Name, q.Revision, err)
 	}
-	helmClient, revision, err := s.newHelmClientResolveRevision(q.Repo, q.Revision, q.Name, true)
+
+	client := s.newHelmSourceClient(q.Repo, q.Name, false)
+
+	// Resolve the revision to a concrete version
+	_, revision, err := client.ResolveRevision(ctx, q.Revision, true)
 	if err != nil {
-		return nil, fmt.Errorf("helm client error: %w", err)
+		return nil, fmt.Errorf("failed to resolve revision: %w", err)
 	}
-	chartPath, closer, err := helmClient.ExtractChart(q.Name, revision)
+
+	details, err = client.GetRevisionMetadata(ctx, revision, false)
 	if err != nil {
-		return nil, fmt.Errorf("error extracting chart: %w", err)
+		return nil, err
 	}
-	defer utilio.Close(closer)
-	helmCmd, err := helm.NewCmdWithVersion(chartPath, q.Repo.EnableOCI, q.Repo.Proxy, q.Repo.NoProxy)
-	if err != nil {
-		return nil, fmt.Errorf("error creating helm cmd: %w", err)
-	}
-	defer helmCmd.Close()
-	helmDetails, err := helmCmd.InspectChart()
-	if err != nil {
-		return nil, fmt.Errorf("error inspecting chart: %w", err)
-	}
-	details, err = getChartDetails(helmDetails)
-	if err != nil {
-		return nil, fmt.Errorf("error getting chart details: %w", err)
-	}
+
 	_ = s.cache.SetRevisionChartDetails(q.Repo.Repo, q.Name, q.Revision, details)
 	return details, nil
 }
@@ -2499,112 +2414,63 @@ func (s *Service) newClientResolveRevision(repo *v1alpha1.Repository, revision s
 	return gitClient, commitSHA, nil
 }
 
-func (s *Service) newOCIClientResolveRevision(ctx context.Context, repo *v1alpha1.Repository, revision string, noRevisionCache bool) (oci.Client, string, error) {
-	ociClient, err := s.newOCIClient(repo.Repo, repo.GetOCICreds(), repo.Proxy, repo.NoProxy, s.initConstants.OCIMediaTypes, oci.WithIndexCache(s.cache), oci.WithImagePaths(s.ociPaths), oci.WithManifestMaxExtractedSize(s.initConstants.OCIManifestMaxExtractedSize), oci.WithDisableManifestMaxExtractedSize(s.initConstants.DisableOCIManifestMaxExtractedSize))
-	if err != nil {
-		return nil, "", fmt.Errorf("failed to initialize oci client: %w", err)
-	}
-
-	digest, err := ociClient.ResolveRevision(ctx, revision, noRevisionCache)
-	if err != nil {
-		return nil, "", fmt.Errorf("failed to resolve revision %q: %w", revision, err)
-	}
-
-	return ociClient, digest, nil
-}
-
-func (s *Service) newHelmClientResolveRevision(repo *v1alpha1.Repository, revision string, chart string, noRevisionCache bool) (helm.Client, string, error) {
-	enableOCI := repo.EnableOCI || helm.IsHelmOciRepo(repo.Repo)
-	helmClient := s.newHelmClient(
-		repo.Repo,
-		repo.GetHelmCreds(),
-		enableOCI,
-		repo.Proxy,
-		repo.NoProxy,
-		helm.WithIndexCache(s.cache),
-		helm.WithChartPaths(s.chartPaths),
-		helm.WithPassCredentials(false),
-		helm.WithHelmRegistryMaxIndexSize(s.initConstants.HelmRegistryMaxIndexSize),
-		helm.WithHelmManifestMaxExtractedSize(s.initConstants.HelmManifestMaxExtractedSize),
-		helm.WithDisableHelmManifestMaxExtractedSize(s.initConstants.DisableHelmManifestMaxExtractedSize))
-
-	// Note: This check runs the risk of returning a version which is not found in the helm registry.
-	if versions.IsVersion(revision) {
-		return helmClient, revision, nil
-	}
-
-	var tags []string
-	if enableOCI {
-		var err error
-		tags, err = helmClient.GetTags(chart, noRevisionCache)
-		if err != nil {
-			return nil, "", fmt.Errorf("unable to get tags: %w", err)
-		}
-	} else {
-		index, err := helmClient.GetIndex(noRevisionCache)
-		if err != nil {
-			return nil, "", err
-		}
-		entries, err := index.GetEntries(chart)
-		if err != nil {
-			return nil, "", err
-		}
-		tags = entries.Tags()
-	}
-
-	maxV, err := versions.MaxVersion(revision, tags)
-	if err != nil {
-		return nil, "", fmt.Errorf("invalid revision: %w", err)
-	}
-
-	return helmClient, maxV, nil
-}
-
-// newSourceClient creates a SourceClient for the given repository and source.
+// newSourceClient creates a BaseSourceClient for the given repository and source.
 // This is a factory method that handles the branching logic for different source types.
 // The opts parameters now contain all the information needed to create the inner clients (git.Client, oci.Client, helm.Client).
-func (s *Service) newSourceClient(repo *v1alpha1.Repository, source *v1alpha1.ApplicationSource, noCache bool, noRevisionCache bool, cacheFn func(cacheKey string, refSourceCommitSHAs cache.ResolvedRevisions, firstInvocation bool) (bool, error), sourceHelm *v1alpha1.ApplicationSourceHelm, refSources map[string]*v1alpha1.RefTarget, hasMultipleSources bool) (SourceClient, error) {
+func (s *Service) newSourceClient(repo *v1alpha1.Repository, source *v1alpha1.ApplicationSource, noCache bool, noRevisionCache bool, cacheFn func(cacheKey string, refSourceCommitSHAs cache.ResolvedRevisions, firstInvocation bool) (bool, error), sourceHelm *v1alpha1.ApplicationSourceHelm, refSources map[string]*v1alpha1.RefTarget, hasMultipleSources bool) (BaseSourceClient, error) {
 	switch {
 	case source.IsOCI():
-		return NewOCISourceClient(
-			repo,
-			oci.WithIndexCache(s.cache),
-			oci.WithImagePaths(s.ociPaths),
-			oci.WithAllowedMediaTypes(s.initConstants.OCIMediaTypes),
-			oci.WithManifestMaxExtractedSize(s.initConstants.OCIManifestMaxExtractedSize),
-			oci.WithDisableManifestMaxExtractedSize(s.initConstants.DisableOCIManifestMaxExtractedSize),
-		)
+		return s.newOCISourceClient(repo)
 	case source.IsHelm():
 		helmPassCredentials := false
 		if source.Helm != nil {
 			helmPassCredentials = source.Helm.PassCredentials
 		}
-		return NewHelmSourceClient(
-			repo,
-			source.Chart,
-			helm.WithIndexCache(s.cache),
-			helm.WithChartPaths(s.chartPaths),
-			helm.WithPassCredentials(helmPassCredentials),
-			helm.WithHelmRegistryMaxIndexSize(s.initConstants.HelmRegistryMaxIndexSize),
-			helm.WithDisableHelmManifestMaxExtractedSize(s.initConstants.DisableHelmManifestMaxExtractedSize),
-			helm.WithHelmManifestMaxExtractedSize(s.initConstants.HelmManifestMaxExtractedSize),
-		), nil
+		return s.newHelmSourceClient(repo, source.Chart, helmPassCredentials), nil
 	default:
-		return NewGitSourceClient(
-			repo,
-			s.gitRepoPaths,
-			s.metricsServer,
-			s.gitCredsStore,
-			s.repoLock,
-			directoryPermissionInitializer,
-			hasMultipleSources,
-			WithSubmoduleEnabled(s.initConstants.SubmoduleEnabled),
-			WithCacheFn(cacheFn),
-			WithCache(s.cache, !noRevisionCache && !noCache),
-			WithHelmSource(sourceHelm),
-			WithRefSources(refSources),
-		)
+		return s.newGitSourceClient(repo, noCache, noRevisionCache, cacheFn, sourceHelm, refSources, hasMultipleSources)
 	}
+}
+
+func (s *Service) newHelmSourceClient(repo *v1alpha1.Repository, chart string, passCredentials bool) SourceClient[*v1alpha1.ChartDetails] {
+	return NewHelmSourceClient(
+		repo,
+		chart,
+		helm.WithIndexCache(s.cache),
+		helm.WithChartPaths(s.chartPaths),
+		helm.WithPassCredentials(passCredentials),
+		helm.WithHelmRegistryMaxIndexSize(s.initConstants.HelmRegistryMaxIndexSize),
+		helm.WithDisableHelmManifestMaxExtractedSize(s.initConstants.DisableHelmManifestMaxExtractedSize),
+		helm.WithHelmManifestMaxExtractedSize(s.initConstants.HelmManifestMaxExtractedSize),
+	)
+}
+
+func (s *Service) newOCISourceClient(repo *v1alpha1.Repository) (SourceClient[*v1alpha1.OCIMetadata], error) {
+	return NewOCISourceClient(
+		repo,
+		oci.WithIndexCache(s.cache),
+		oci.WithImagePaths(s.ociPaths),
+		oci.WithAllowedMediaTypes(s.initConstants.OCIMediaTypes),
+		oci.WithManifestMaxExtractedSize(s.initConstants.OCIManifestMaxExtractedSize),
+		oci.WithDisableManifestMaxExtractedSize(s.initConstants.DisableOCIManifestMaxExtractedSize),
+	)
+}
+
+func (s *Service) newGitSourceClient(repo *v1alpha1.Repository, noCache bool, noRevisionCache bool, cacheFn func(cacheKey string, refSourceCommitSHAs cache.ResolvedRevisions, firstInvocation bool) (bool, error), sourceHelm *v1alpha1.ApplicationSourceHelm, refSources map[string]*v1alpha1.RefTarget, hasMultipleSources bool) (SourceClient[*v1alpha1.RevisionMetadata], error) {
+	return NewGitSourceClient(
+		repo,
+		s.gitRepoPaths,
+		s.metricsServer,
+		s.gitCredsStore,
+		s.repoLock,
+		directoryPermissionInitializer,
+		hasMultipleSources,
+		WithSubmoduleEnabled(s.initConstants.SubmoduleEnabled),
+		WithCacheFn(cacheFn),
+		WithCache(s.cache, !noRevisionCache && !noCache),
+		WithHelmSource(sourceHelm),
+		WithRefSources(refSources),
+	)
 }
 
 // directoryPermissionInitializer ensures the directory has read/write/execute permissions and returns
@@ -2794,7 +2660,7 @@ func (s *Service) ResolveRevision(ctx context.Context, q *apiclient.ResolveRevis
 		return &apiclient.ResolveRevisionResponse{Revision: "", AmbiguousRevision: ""}, err
 	}
 
-	revision, err := sourceClient.ResolveRevision(ctx, ambiguousRevision, true)
+	_, revision, err := sourceClient.ResolveRevision(ctx, ambiguousRevision, true)
 	if err != nil {
 		return &apiclient.ResolveRevisionResponse{Revision: "", AmbiguousRevision: ""}, err
 	}
