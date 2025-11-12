@@ -15,6 +15,8 @@ import (
 	cdcommon "github.com/argoproj/argo-cd/v3/common"
 
 	gitopsDiff "github.com/argoproj/gitops-engine/pkg/diff"
+	cmdutil "k8s.io/kubectl/pkg/cmd/util"
+
 	"github.com/argoproj/gitops-engine/pkg/sync"
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
@@ -38,6 +40,7 @@ import (
 	kubeutil "github.com/argoproj/argo-cd/v3/util/kube"
 	logutils "github.com/argoproj/argo-cd/v3/util/log"
 	"github.com/argoproj/argo-cd/v3/util/lua"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 const (
@@ -84,7 +87,47 @@ func (m *appStateManager) getServerSideDiffDryRunApplier(cluster *v1alpha1.Clust
 	if err != nil {
 		return nil, nil, fmt.Errorf("error creating kubectl ResourceOperations: %w", err)
 	}
-	return ops, cleanup, nil
+
+	wrappedOps := &secretNormalizingApplier{
+		inner:       ops,
+		settingsMgr: m.settingsMgr,
+	}
+
+	return wrappedOps, cleanup, nil
+}
+
+// secretNormalizingApplier wraps a KubeApplier to normalize Secret data
+type secretNormalizingApplier struct {
+	inner       gitopsDiff.KubeApplier
+	settingsMgr *settings.SettingsManager
+}
+
+func (s *secretNormalizingApplier) ApplyResource(ctx context.Context, obj *unstructured.Unstructured, dryRunStrategy cmdutil.DryRunStrategy, force, validate, serverSideApply bool, manager string) (string, error) {
+	result, err := s.inner.ApplyResource(ctx, obj, dryRunStrategy, force, validate, serverSideApply, manager)
+	if err != nil {
+		return result, err
+	}
+
+	resultObj := &unstructured.Unstructured{}
+	if err := json.Unmarshal([]byte(result), resultObj); err != nil {
+		return result, err
+	}
+
+	// Apply hideSecretData
+	if resultObj.GetKind() == kube.SecretKind && resultObj.GroupVersionKind().Group == "" {
+		_, normalized, err := gitopsDiff.HideSecretData(nil, resultObj, s.settingsMgr.GetSensitiveAnnotations())
+		if err != nil {
+			return result, fmt.Errorf("error normalizing secret data: %w", err)
+		}
+
+		normalizedBytes, err := json.Marshal(normalized)
+		if err != nil {
+			return result, fmt.Errorf("error marshaling normalized secret: %w", err)
+		}
+		return string(normalizedBytes), nil
+	}
+
+	return result, nil
 }
 
 func NewOperationState(operation v1alpha1.Operation) *v1alpha1.OperationState {

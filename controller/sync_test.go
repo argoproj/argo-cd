@@ -1,6 +1,9 @@
 package controller
 
 import (
+	"context"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"os"
 	"strconv"
@@ -29,6 +32,11 @@ import (
 	"github.com/argoproj/argo-cd/v3/test"
 	"github.com/argoproj/argo-cd/v3/util/argo/diff"
 	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
+	"github.com/argoproj/argo-cd/v3/util/settings"
+
+	gitopsDiff "github.com/argoproj/gitops-engine/pkg/diff"
+	kubefake "k8s.io/client-go/kubernetes/fake"
+	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 )
 
 type fakeDiscovery struct {
@@ -1859,4 +1867,137 @@ func dig(obj any, path ...any) any {
 	}
 
 	return i
+}
+
+func TestSecretNormalizingApplier(t *testing.T) {
+	kubeclientset := kubefake.NewSimpleClientset(&corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "argocd",
+			Name:      "argocd-cm",
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
+			},
+		},
+	}, &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "argocd-secret",
+			Namespace: "argocd",
+		},
+	})
+
+	ctx := context.Background()
+	settingsMgr := settings.NewSettingsManager(ctx, kubeclientset, "argocd")
+
+	desired := &unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": "v1",
+			"kind":       "Secret",
+			"metadata": map[string]interface{}{
+				"name":      "test-secret",
+				"namespace": "default",
+			},
+			"type": "Opaque",
+			"data": map[string]interface{}{
+				"password": base64.StdEncoding.EncodeToString([]byte("vault:test/data/test#TEST")),
+			},
+		},
+	}
+
+	live := &unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": "v1",
+			"kind":       "Secret",
+			"metadata": map[string]interface{}{
+				"name":      "test-secret",
+				"namespace": "default",
+			},
+			"type": "Opaque",
+			"data": map[string]interface{}{
+				"password": base64.StdEncoding.EncodeToString([]byte("actual-password-from-vault")),
+			},
+		},
+	}
+
+	mockApplier := &simpleKubeApplier{
+		applyResult: func(obj *unstructured.Unstructured) string {
+			if obj.GetKind() == "Secret" {
+				result := live.DeepCopy()
+				bytes, _ := json.Marshal(result)
+				return string(bytes)
+			}
+			bytes, _ := json.Marshal(obj)
+			return string(bytes)
+		},
+	}
+
+	normalizer := &secretNormalizingApplier{
+		inner:       mockApplier,
+		settingsMgr: settingsMgr,
+	}
+
+	result, err := normalizer.ApplyResource(
+		context.Background(),
+		desired,
+		cmdutil.DryRunServer,
+		false, false, true, "argocd",
+	)
+
+	require.NoError(t, err)
+	assert.Contains(t, result, "Secret")
+
+	// verify that the result is normalized
+	resultObj := &unstructured.Unstructured{}
+	err = json.Unmarshal([]byte(result), resultObj)
+	require.NoError(t, err)
+
+	assert.Equal(t, "Secret", resultObj.GetKind())
+	assert.Equal(t, "test-secret", resultObj.GetName())
+
+	// verify that HideSecretData was applied
+	data, found, err := unstructured.NestedMap(resultObj.Object, "data")
+	require.NoError(t, err)
+	assert.True(t, found, "data field should exist")
+
+	// password should exist, but may be normalized
+	_, passwordExists := data["password"]
+	assert.True(t, passwordExists, "password should exist after normalization")
+
+	// normalize both using HideSecretData
+	_, normalizedGit, err := gitopsDiff.HideSecretData(nil, desired, settingsMgr.GetSensitiveAnnotations())
+	require.NoError(t, err)
+
+	_, normalizedResult, err := gitopsDiff.HideSecretData(nil, resultObj, settingsMgr.GetSensitiveAnnotations())
+	require.NoError(t, err)
+
+	// diff between normalized secrets
+	diffResult, _ := gitopsDiff.Diff(normalizedGit, normalizedResult)
+
+	// verify that there is NO diff after normalization (mutation webhook changes don't cause OutOfSync)
+	assert.False(t, diffResult.Modified, "normalized secrets should not show as modified")
+	if diffResult.Modified {
+		t.Logf("NormalizedLive: %s", string(diffResult.NormalizedLive))
+		t.Logf("PredictedLive: %s", string(diffResult.PredictedLive))
+	}
+
+	// both have the same structure
+	gitData, _, _ := unstructured.NestedMap(normalizedGit.Object, "data")
+	resultData, _, _ := unstructured.NestedMap(normalizedResult.Object, "data")
+
+	// should have password  after normalization
+	_, gitHasPassword := gitData["password"]
+	_, resultHasPassword := resultData["password"]
+	assert.True(t, gitHasPassword, "Git secret should have password field after normalization")
+	assert.True(t, resultHasPassword, "Result secret should have password field after normalization")
+}
+
+type simpleKubeApplier struct {
+	applyResult func(*unstructured.Unstructured) string
+}
+
+func (s *simpleKubeApplier) ApplyResource(ctx context.Context, obj *unstructured.Unstructured, dryRunStrategy cmdutil.DryRunStrategy, force, validate, serverSideApply bool, manager string) (string, error) {
+	return s.applyResult(obj), nil
+}
+
+func (s *simpleKubeApplier) ConvertToVersion(obj *unstructured.Unstructured, group, version string) (*unstructured.Unstructured, error) {
+	return obj, nil
 }
