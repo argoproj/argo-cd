@@ -890,10 +890,10 @@ metadata:
 	const script = `
 hs = {}
 str = "Using lua standard library"
-if string.find(str, "standard") then
-  hs.message = "Standard lib was used"
+if math.random(10) > 5 then
+  hs.message = "Random number generated"
 else
-  hs.message = "Standard lib was not used"
+  hs.message = "Random number generated"
 end
 hs.status = "Healthy"
 return hs`
@@ -945,7 +945,7 @@ return hs`
 		require.NoError(t, err)
 		expectedStatus := &health.HealthStatus{
 			Status:  health.HealthStatusHealthy,
-			Message: "Standard lib was used",
+			Message: "Random number generated",
 		}
 		assert.Equal(t, expectedStatus, status)
 	})
@@ -956,7 +956,7 @@ return hs`
 		status, err := overrides.GetResourceHealth(testObj)
 		var target *lua.ApiError
 		require.ErrorAs(t, err, &target)
-		expectedErr := "<string>:4: attempt to index a non-table object(nil) with key 'find'"
+		expectedErr := "<string>:4: attempt to index a non-table object(nil) with key 'random'"
 		require.EqualError(t, err, expectedErr)
 		assert.Nil(t, status)
 	})
