@@ -2,13 +2,17 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/reposerver/cache"
 	"github.com/argoproj/argo-cd/v3/reposerver/metrics"
 	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/helm"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/oci"
 	"github.com/argoproj/argo-cd/v3/util/versions"
 	"github.com/argoproj/pkg/v2/sync"
@@ -16,6 +20,17 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
+
+// CacheFn defines the signature for a cache checking function.
+// Parameters:
+//   - cacheKey: the cache key to check
+//   - refSourceCommitSHAs: map of reference source names to their commit SHAs
+//   - firstInvocation: true if this is the first cache check, false for double-check locking
+//
+// Returns:
+//   - bool: true if cache hit and operation should skip, false if cache miss
+//   - error: any error that occurred during cache checking
+type CacheFn func(cacheKey string, refSourceCommitSHAs cache.ResolvedRevisions, firstInvocation bool) (bool, error)
 
 // SourceClient is a unified interface for interacting with different source types (Git, Helm, OCI).
 // It abstracts the common operations needed to retrieve and process application sources.
@@ -183,43 +198,157 @@ type gitSourceClient struct {
 	metrics                        *metrics.MetricsServer
 	repositoryLock                 *repositoryLock
 	directoryPermissionInitializer func(rootPath string) io.Closer
+	cacheFn                        CacheFn
+	submoduleEnabled               bool
+	cache                          *cache.Cache
+	loadRefFromCache               bool
+	gitRepoPaths                   utilio.TempPaths
+	credsStore                     git.CredsStore
 }
 
-func NewGitSourceClient(repo *v1alpha1.Repository, root string, depth int64, metrics *metrics.MetricsServer, creds git.Creds, repoLock *repositoryLock, initializer func(rootPath string) io.Closer, opts ...git.ClientOpts) (SourceClient, error) {
-	client, err := git.NewClientExt(
-		repo.Repo,
-		root,
-		creds,
-		repo.IsInsecure(),
-		repo.EnableLFS,
-		repo.Proxy,
-		repo.NoProxy,
-		opts...,
-	)
+// GitSourceClientOpt is a functional option for configuring gitSourceClient
+type GitSourceClientOpt func(*gitSourceClient)
 
+// WithCacheFn configures the cache checking function for the git source client.
+// The cache function will be called to check if cached manifests exist before
+// performing expensive git operations.
+func WithCacheFn(fn CacheFn) GitSourceClientOpt {
+	return func(c *gitSourceClient) {
+		c.cacheFn = fn
+	}
+}
+
+func WithSubmoduleEnabled(submoduleEnabled bool) GitSourceClientOpt {
+	return func(c *gitSourceClient) {
+		c.submoduleEnabled = submoduleEnabled
+	}
+}
+
+// WithCache sets git revisions cacher as well as specifies if client should tries to use cached resolved revision
+func WithCache(cache *cache.Cache, loadRefFromCache bool) GitSourceClientOpt {
+	return func(c *gitSourceClient) {
+		c.cache = cache
+		c.loadRefFromCache = loadRefFromCache
+	}
+}
+
+func NewGitSourceClient(repo *v1alpha1.Repository, depth int64, gitRepoPaths utilio.TempPaths, metrics *metrics.MetricsServer, credStore git.CredsStore, repoLock *repositoryLock, initializer func(rootPath string) io.Closer, sourceOpts ...GitSourceClientOpt) (SourceClient, error) {
+	root, err := gitRepoPaths.GetPath(git.NormalizeGitURL(repo.Repo))
 	if err != nil {
 		return nil, err
 	}
 
-	return &gitSourceClient{
-		client:                         client,
+	gsc := &gitSourceClient{
 		repo:                           repo,
 		depth:                          depth,
 		metrics:                        metrics,
 		repositoryLock:                 repoLock,
 		directoryPermissionInitializer: initializer,
-	}, nil
+		gitRepoPaths:                   gitRepoPaths,
+		credsStore:                     credStore,
+	}
+
+	for _, opt := range sourceOpts {
+		opt(gsc)
+	}
+
+	client, err := newGitClient(repo, root, credStore, gsc)
+	if err != nil {
+		return nil, err
+	}
+
+	gsc.client = client
+
+	return gsc, nil
 }
 
 func (c *gitSourceClient) ResolveRevision(ctx context.Context, revision string, noCache bool) (string, error) {
-	commitSHA, err := c.client.LsRemote(revision)
+	commitSHA, err := c.resolveRevision(c.client, revision)
+	if err != nil {
+		return "", err
+	}
+
+	if c.cacheFn != nil && !noCache {
+		// TODO: add params
+		repoRefs, err := c.resolveReferencedSources(true, nil, nil)
+		if err != nil {
+			return "", err
+		}
+
+		if ok, err := c.cacheFn(commitSHA, repoRefs, true); ok {
+			return "", err
+		}
+	}
+
+	return commitSHA, nil
+}
+
+func (c *gitSourceClient) resolveRevision(client git.Client, revision string) (string, error) {
+	commitSHA, err := client.LsRemote(revision)
 	if err != nil {
 		if c.metrics != nil {
 			c.metrics.IncGitLsRemoteFail(c.client.Root(), revision)
 		}
 		return "", err
 	}
+
 	return commitSHA, nil
+}
+
+func (c *gitSourceClient) resolveReferencedSources(hasMultipleSources bool, source *v1alpha1.ApplicationSourceHelm, refSources map[string]*v1alpha1.RefTarget) (map[string]string, error) {
+	repoRefs := make(map[string]string)
+	if !hasMultipleSources || source == nil {
+		return repoRefs, nil
+	}
+
+	refFileParams := make([]string, 0)
+	for _, fileParam := range source.FileParameters {
+		refFileParams = append(refFileParams, fileParam.Path)
+	}
+	refCandidates := append(source.ValueFiles, refFileParams...)
+
+	for _, valueFile := range refCandidates {
+		if !strings.HasPrefix(valueFile, "$") {
+			continue
+		}
+		refVar := strings.Split(valueFile, "/")[0]
+
+		refSourceMapping, ok := refSources[refVar]
+		if !ok {
+			if len(refSources) == 0 {
+				return nil, fmt.Errorf("source referenced %q, but no source has a 'ref' field defined", refVar)
+			}
+			refKeys := make([]string, 0)
+			for refKey := range refSources {
+				refKeys = append(refKeys, refKey)
+			}
+			return nil, fmt.Errorf("source referenced %q, which is not one of the available sources (%s)", refVar, strings.Join(refKeys, ", "))
+		}
+		if refSourceMapping.Chart != "" {
+			return nil, errors.New("source has a 'chart' field defined, but Helm charts are not yet not supported for 'ref' sources")
+		}
+		normalizedRepoURL := git.NormalizeGitURL(refSourceMapping.Repo.Repo)
+		_, ok = repoRefs[normalizedRepoURL]
+		if !ok {
+			repo := refSourceMapping.Repo
+			root, err := c.gitRepoPaths.GetPath(git.NormalizeGitURL(repo.Repo))
+			if err != nil {
+				return nil, err
+			}
+
+			client, err := newGitClient(&repo, root, c.credsStore, c)
+			if err != nil {
+				return nil, err
+			}
+			referencedCommitSHA, err := c.resolveRevision(client, refSourceMapping.TargetRevision)
+			if err != nil {
+				log.Errorf("Failed to get git client for repo %s: %v", refSourceMapping.Repo.Repo, err)
+				return nil, fmt.Errorf("failed to get git client for repo %s", refSourceMapping.Repo.Repo)
+			}
+			repoRefs[normalizedRepoURL] = referencedCommitSHA
+		}
+	}
+	return repoRefs, nil
 }
 
 func (c *gitSourceClient) CleanCache(_ string) error {
@@ -255,7 +384,7 @@ func (c *gitSourceClient) Extract(ctx context.Context, revision string) (string,
 			}
 		}
 
-		_, err = c.client.Checkout(revision)
+		_, err = c.client.Checkout(revision, c.submoduleEnabled)
 		if err != nil {
 			// When fetching with no revision, only refs/heads/* and refs/remotes/origin/* are fetched. If checkout fails
 			// for the given revision, try explicitly fetching it.
@@ -266,7 +395,7 @@ func (c *gitSourceClient) Extract(ctx context.Context, revision string) (string,
 				return closer, status.Errorf(codes.Internal, "Failed to checkout revision %s: %v", revision, err)
 			}
 
-			_, err = c.client.Checkout("FETCH_HEAD")
+			_, err = c.client.Checkout("FETCH_HEAD", c.submoduleEnabled)
 			if err != nil {
 				return closer, status.Errorf(codes.Internal, "Failed to checkout FETCH_HEAD: %v", err)
 			}
@@ -301,4 +430,18 @@ func (c *gitSourceClient) VerifySignature(resolvedRevision string, unresolvedRev
 	}
 
 	return c.client.VerifyCommitSignature(revisionToVerify)
+}
+
+func newGitClient(repo *v1alpha1.Repository, root string, credStore git.CredsStore, gsc *gitSourceClient) (git.Client, error) {
+	return git.NewClientExt(
+		repo.Repo,
+		root,
+		repo.GetGitCreds(credStore),
+		repo.IsInsecure(),
+		repo.EnableLFS,
+		repo.Proxy,
+		repo.NoProxy,
+		git.WithCache(gsc.cache, gsc.loadRefFromCache),
+		git.WithEventHandlers(metrics.NewGitClientEventHandlers(gsc.metrics)),
+	)
 }
