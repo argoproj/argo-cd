@@ -49,6 +49,7 @@ argocd-server [flags]
       --dex-server string                               Dex server address (default "argocd-dex-server:5556")
       --dex-server-plaintext                            Use a plaintext client (non-TLS) to connect to dex server
       --dex-server-strict-tls                           Perform strict validation of TLS certificates when connecting to dex server
+      --disable-admin-user                              Disable admin user and password. Use this when relying solely on SSO for authentication. Default ("false")
       --disable-auth                                    Disable client authentication
       --disable-compression                             If true, opt-out of response compression for all requests to the server
       --enable-gzip                                     Enable GZIP compression (default true)

@@ -2081,46 +2081,51 @@ func isIncompleteSettingsError(err error) bool {
 }
 
 // InitializeSettings is used to initialize empty admin password, signature, certificate etc if missing
-func (mgr *SettingsManager) InitializeSettings(insecureModeEnabled bool) (*ArgoCDSettings, error) {
+func (mgr *SettingsManager) InitializeSettings(insecureModeEnabled bool, disableAdminUser bool) (*ArgoCDSettings, error) {
 	const letters = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-"
-	err := mgr.UpdateAccount(common.ArgoCDAdminUsername, func(adminAccount *Account) error {
-		if adminAccount.Enabled {
-			now := time.Now().UTC()
-			if adminAccount.PasswordHash == "" {
-				randBytes := make([]byte, initialPasswordLength)
-				for i := 0; i < initialPasswordLength; i++ {
-					num, err := rand.Int(rand.Reader, big.NewInt(int64(len(letters))))
+
+	if disableAdminUser {
+		log.Info("Admin user and password creation disabled via --disable-admin-user flag")
+	} else {
+		err := mgr.UpdateAccount(common.ArgoCDAdminUsername, func(adminAccount *Account) error {
+			if adminAccount.Enabled {
+				now := time.Now().UTC()
+				if adminAccount.PasswordHash == "" {
+					randBytes := make([]byte, initialPasswordLength)
+					for i := 0; i < initialPasswordLength; i++ {
+						num, err := rand.Int(rand.Reader, big.NewInt(int64(len(letters))))
+						if err != nil {
+							return err
+						}
+						randBytes[i] = letters[num.Int64()]
+					}
+					initialPassword := string(randBytes)
+
+					hashedPassword, err := password.HashPassword(initialPassword)
 					if err != nil {
 						return err
 					}
-					randBytes[i] = letters[num.Int64()]
+					ku := kube.NewKubeUtil(mgr.ctx, mgr.clientset)
+					err = ku.CreateOrUpdateSecretField(mgr.namespace, initialPasswordSecretName, initialPasswordSecretField, initialPassword)
+					if err != nil {
+						return err
+					}
+					adminAccount.PasswordHash = hashedPassword
+					adminAccount.PasswordMtime = &now
+					log.Info("Initialized admin password")
 				}
-				initialPassword := string(randBytes)
-
-				hashedPassword, err := password.HashPassword(initialPassword)
-				if err != nil {
-					return err
+				if adminAccount.PasswordMtime == nil || adminAccount.PasswordMtime.IsZero() {
+					adminAccount.PasswordMtime = &now
+					log.Info("Initialized admin mtime")
 				}
-				ku := kube.NewKubeUtil(mgr.ctx, mgr.clientset)
-				err = ku.CreateOrUpdateSecretField(mgr.namespace, initialPasswordSecretName, initialPasswordSecretField, initialPassword)
-				if err != nil {
-					return err
-				}
-				adminAccount.PasswordHash = hashedPassword
-				adminAccount.PasswordMtime = &now
-				log.Info("Initialized admin password")
+			} else {
+				log.Info("admin disabled")
 			}
-			if adminAccount.PasswordMtime == nil || adminAccount.PasswordMtime.IsZero() {
-				adminAccount.PasswordMtime = &now
-				log.Info("Initialized admin mtime")
-			}
-		} else {
-			log.Info("admin disabled")
+			return nil
+		})
+		if err != nil {
+			return nil, err
 		}
-		return nil
-	})
-	if err != nil {
-		return nil, err
 	}
 
 	cdSettings, err := mgr.GetSettings()

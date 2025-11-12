@@ -2251,3 +2251,80 @@ func TestSettingsManager_GetAllowedNodeLabels(t *testing.T) {
 		})
 	}
 }
+
+func TestInitializeSettings_DisableAdminUserDisabled(t *testing.T) {
+	// When admin user is not disabled, admin user and password should be created
+	kubeClient := fake.NewClientset(test.NewFakeConfigMap(), test.NewFakeSecret())
+	settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
+
+	settings, err := settingsManager.InitializeSettings(false, false)
+	require.NoError(t, err)
+	require.NotNil(t, settings)
+
+	// Verify that admin password was created
+	secret, err := kubeClient.CoreV1().Secrets("default").Get(t.Context(), common.ArgoCDInitialAdminSecretName, metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.NotEmpty(t, secret.Data[common.ArgoCDInitialAdminSecretKey], "admin password should have been created")
+
+	// Verify that admin account was created in argocd-cm
+	cm, err := kubeClient.CoreV1().ConfigMaps("default").Get(t.Context(), common.ArgoCDConfigMapName, metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.Contains(t, cm.Data, "accounts.admin", "admin account should be present in configmap")
+}
+
+func TestInitializeSettings_DisableAdminUserEnabled(t *testing.T) {
+	// When admin user is disabled, admin user and password should NOT be created
+	kubeClient := fake.NewClientset(test.NewFakeConfigMap(), test.NewFakeSecret())
+	settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
+
+	settings, err := settingsManager.InitializeSettings(false, true)
+	require.NoError(t, err)
+	require.NotNil(t, settings)
+
+	// Verify that admin password secret was NOT created
+	_, err = kubeClient.CoreV1().Secrets("default").Get(t.Context(), common.ArgoCDInitialAdminSecretName, metav1.GetOptions{})
+	assert.True(t, apierrors.IsNotFound(err), "admin password secret should not have been created when admin user is disabled")
+
+	// Verify that admin account was NOT created in argocd-cm
+	cm, err := kubeClient.CoreV1().ConfigMaps("default").Get(t.Context(), common.ArgoCDConfigMapName, metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.NotContains(t, cm.Data, "accounts.admin", "admin account should not be present in configmap when admin user is disabled")
+}
+
+func TestInitializeSettings_DisableAdminUserEnabledServerSignatureStillCreated(t *testing.T) {
+	// When admin user is disabled, other settings like server signature should still be created
+	kubeClient := fake.NewClientset(test.NewFakeConfigMap(), test.NewFakeSecret())
+	settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
+
+	settings, err := settingsManager.InitializeSettings(false, true)
+	require.NoError(t, err)
+	require.NotNil(t, settings)
+
+	// Verify that server signature was still created even when admin user is disabled
+	assert.NotNil(t, settings.ServerSignature, "server signature should be created even when admin user is disabled")
+	assert.NotEmpty(t, settings.ServerSignature, "server signature should not be empty")
+
+	// Verify it was saved to the secret
+	secret, err := kubeClient.CoreV1().Secrets("default").Get(t.Context(), common.ArgoCDSecretName, metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.NotEmpty(t, secret.Data["server.secretkey"], "server signature should be saved to secret")
+}
+
+func TestInitializeSettings_DisableAdminUserEnabledCertificateStillCreated(t *testing.T) {
+	// When admin user is disabled and insecure mode is disabled, TLS certificate should still be created
+	kubeClient := fake.NewClientset(test.NewFakeConfigMap(), test.NewFakeSecret())
+	settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
+
+	settings, err := settingsManager.InitializeSettings(false, true)
+	require.NoError(t, err)
+	require.NotNil(t, settings)
+
+	// Verify that TLS certificate was still created even when admin user is disabled
+	assert.NotNil(t, settings.Certificate, "TLS certificate should be created even when admin user is disabled")
+
+	// Verify it was saved to the secret
+	secret, err := kubeClient.CoreV1().Secrets("default").Get(t.Context(), common.ArgoCDSecretName, metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.NotEmpty(t, secret.Data["tls.crt"], "TLS certificate should be saved to secret")
+	assert.NotEmpty(t, secret.Data["tls.key"], "TLS key should be saved to secret")
+}

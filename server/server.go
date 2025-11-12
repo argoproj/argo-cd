@@ -243,6 +243,7 @@ type ArgoCDServerOpts struct {
 	EnableK8sEvent          []string
 	HydratorEnabled         bool
 	SyncWithReplaceAllowed  bool
+	DisableAdminUser        bool
 }
 
 type ApplicationSetOpts struct {
@@ -301,7 +302,7 @@ func initializeDefaultProject(opts ArgoCDServerOpts) error {
 // NewServer returns a new instance of the Argo CD API server
 func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts ApplicationSetOpts) *ArgoCDServer {
 	settingsMgr := settings_util.NewSettingsManager(ctx, opts.KubeClientset, opts.Namespace)
-	settings, err := settingsMgr.InitializeSettings(opts.Insecure)
+	settings, err := settingsMgr.InitializeSettings(opts.Insecure, opts.DisableAdminUser)
 	errorsutil.CheckError(err)
 	err = initializeDefaultProject(opts)
 	errorsutil.CheckError(err)

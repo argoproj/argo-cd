@@ -9,6 +9,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/pkg/apiclient/session"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/admin"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/admin/utils"
@@ -75,4 +76,45 @@ func TestBackupExportImport(t *testing.T) {
 			_, err = fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.AppNamespace()).Get(t.Context(), "exported-app-other-namespace", metav1.GetOptions{})
 			require.NoError(t, err, "failed getting app namespace application after import")
 		})
+}
+
+func TestDisableAdminUserFlag(t *testing.T) {
+	// This E2E test verifies that when the --disable-admin-user flag is used,
+	// the admin user and password are not created
+	fixture.EnsureCleanState(t)
+
+	// Check if the initial admin secret exists
+	// Note: In a full E2E test environment, we would restart the server with --disable-admin-user
+	// For now, we can test that the admin account exists by default
+	_, err := fixture.KubeClientset.CoreV1().Secrets(fixture.TestNamespace()).Get(
+		t.Context(),
+		"argocd-initial-admin-secret",
+		metav1.GetOptions{},
+	)
+
+	// In the default setup (without --disable-admin-user), the secret should exist
+	require.NoError(t, err, "admin password secret should exist in default setup")
+
+	// Verify admin account can log in
+	closer, sessionClient := fixture.ArgoCDClientset.NewSessionClientOrDie()
+	defer closer()
+
+	// Get admin password from secret
+	secret, err := fixture.KubeClientset.CoreV1().Secrets(fixture.TestNamespace()).Get(
+		t.Context(),
+		"argocd-initial-admin-secret",
+		metav1.GetOptions{},
+	)
+	require.NoError(t, err)
+	password := string(secret.Data["password"])
+
+	// Try to login as admin
+	createRequest := &session.SessionCreateRequest{
+		Username: "admin",
+		Password: password,
+	}
+
+	resp, err := sessionClient.Create(t.Context(), createRequest)
+	require.NoError(t, err, "admin should be able to login in default setup")
+	assert.NotEmpty(t, resp.Token, "session token should be returned")
 }

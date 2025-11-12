@@ -1710,3 +1710,66 @@ func Test_StaticAssetsDir_no_symlink_traversal(t *testing.T) {
 	resp = w.Result()
 	assert.Equal(t, http.StatusOK, resp.StatusCode, "should have been able to access the normal file")
 }
+
+func TestNewServer_DisableAdminUserDisabled(t *testing.T) {
+	// When DisableAdminUser is false (default), admin account should be initialized
+	cm := test.NewFakeConfigMap()
+	secret := test.NewFakeSecret()
+	kubeclientset := fake.NewClientset(cm, secret)
+	appClientSet := apps.NewSimpleClientset()
+	mockRepoClient := &mocks.Clientset{RepoServerServiceClient: &mocks.RepoServerServiceClient{}}
+
+	argoCDOpts := ArgoCDServerOpts{
+		Namespace:        test.FakeArgoCDNamespace,
+		KubeClientset:    kubeclientset,
+		AppClientset:     appClientSet,
+		RepoClientset:    mockRepoClient,
+		DisableAdminUser: false,
+	}
+
+	argocd := NewServer(t.Context(), argoCDOpts, ApplicationSetOpts{})
+	assert.NotNil(t, argocd)
+
+	// Verify that admin password was created
+	initialAdminSecret, err := kubeclientset.CoreV1().Secrets(test.FakeArgoCDNamespace).Get(t.Context(), common.ArgoCDInitialAdminSecretName, metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.NotEmpty(t, initialAdminSecret.Data[common.ArgoCDInitialAdminSecretKey], "admin password should have been created")
+
+	// Verify that admin account was created in argocd-cm
+	configMap, err := kubeclientset.CoreV1().ConfigMaps(test.FakeArgoCDNamespace).Get(t.Context(), common.ArgoCDConfigMapName, metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.Contains(t, configMap.Data, "accounts.admin", "admin account should be present in configmap")
+}
+
+func TestNewServer_DisableAdminUserEnabled(t *testing.T) {
+	// When DisableAdminUser is true, admin account should NOT be initialized
+	cm := test.NewFakeConfigMap()
+	secret := test.NewFakeSecret()
+	kubeclientset := fake.NewClientset(cm, secret)
+	appClientSet := apps.NewSimpleClientset()
+	mockRepoClient := &mocks.Clientset{RepoServerServiceClient: &mocks.RepoServerServiceClient{}}
+
+	argoCDOpts := ArgoCDServerOpts{
+		Namespace:        test.FakeArgoCDNamespace,
+		KubeClientset:    kubeclientset,
+		AppClientset:     appClientSet,
+		RepoClientset:    mockRepoClient,
+		DisableAdminUser: true,
+	}
+
+	argocd := NewServer(t.Context(), argoCDOpts, ApplicationSetOpts{})
+	assert.NotNil(t, argocd)
+
+	// Verify that admin password secret was NOT created
+	_, err := kubeclientset.CoreV1().Secrets(test.FakeArgoCDNamespace).Get(t.Context(), common.ArgoCDInitialAdminSecretName, metav1.GetOptions{})
+	assert.True(t, apierrors.IsNotFound(err), "admin password secret should not have been created when admin is disabled")
+
+	// Verify that admin account was NOT created in argocd-cm
+	configMap, err := kubeclientset.CoreV1().ConfigMaps(test.FakeArgoCDNamespace).Get(t.Context(), common.ArgoCDConfigMapName, metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.NotContains(t, configMap.Data, "accounts.admin", "admin account should not be present in configmap when admin is disabled")
+
+	// Verify that other settings like ServerSignature are still created
+	assert.NotNil(t, argocd.settings.ServerSignature, "server signature should be created even when admin is disabled")
+	assert.NotEmpty(t, argocd.settings.ServerSignature, "server signature should not be empty")
+}
