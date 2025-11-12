@@ -517,7 +517,7 @@ func WithAuthMiddleware(disabled bool, isSSOConfigured bool, ssoClientApp *oidcu
 
 		finalClaims := claims
 		if isSSOConfigured {
-			finalClaims, err = ssoClientApp.SetGroupsFromUserInfo(claims, SessionManagerClaimsIssuer)
+			finalClaims, err = ssoClientApp.SetGroupsClaimFromEndpoint(claims, SessionManagerClaimsIssuer)
 			if err != nil {
 				http.Error(w, "Invalid session", http.StatusUnauthorized)
 				return
