@@ -7,10 +7,13 @@ import (
 	"io"
 	"strings"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/reposerver/cache"
 	"github.com/argoproj/argo-cd/v3/reposerver/metrics"
 	"github.com/argoproj/argo-cd/v3/util/git"
+	"github.com/argoproj/argo-cd/v3/util/gpg"
 	"github.com/argoproj/argo-cd/v3/util/helm"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/oci"
@@ -32,9 +35,9 @@ import (
 //   - error: any error that occurred during cache checking
 type CacheFn func(cacheKey string, refSourceCommitSHAs cache.ResolvedRevisions, firstInvocation bool) (bool, error)
 
-// SourceClient is a unified interface for interacting with different source types (Git, Helm, OCI).
+// BaseSourceClient is the base interface for interacting with different source types (Git, Helm, OCI).
 // It abstracts the common operations needed to retrieve and process application sources.
-type SourceClient interface {
+type BaseSourceClient interface {
 	// ResolveRevision resolves a revision reference (branch, tag, version, etc.) to a concrete revision identifier
 	ResolveRevision(ctx context.Context, revision string, noCache bool) (string, string, error)
 
@@ -56,13 +59,26 @@ type SourceClient interface {
 	VerifySignature(resolvedRevision string, unresolvedRevision string) (string, error)
 }
 
+// SourceClient is a generic interface that extends BaseSourceClient with type-safe metadata retrieval.
+// The type parameter T represents the metadata type specific to each source type:
+//   - Git: *v1alpha1.RevisionMetadata
+//   - OCI: *v1alpha1.OCIMetadata
+//   - Helm: *v1alpha1.ChartDetails
+type SourceClient[T any] interface {
+	BaseSourceClient
+
+	// GetRevisionMetadata retrieves metadata for a specific revision
+	// The concrete return type T depends on the implementation.
+	GetRevisionMetadata(ctx context.Context, revision string, checkSignature bool) (T, error)
+}
+
 // ociSourceClient adapts an OCI client to the SourceClient interface
 type ociSourceClient struct {
 	client oci.Client
 	repo   *v1alpha1.Repository
 }
 
-func NewOCISourceClient(repo *v1alpha1.Repository, opts ...oci.ClientOpts) (SourceClient, error) {
+func NewOCISourceClient(repo *v1alpha1.Repository, opts ...oci.ClientOpts) (SourceClient[*v1alpha1.OCIMetadata], error) {
 	client, err := oci.NewClient(
 		repo.Repo,
 		repo.GetOCICreds(),
@@ -102,6 +118,26 @@ func (c *ociSourceClient) VerifySignature(resolvedRevision string, unresolvedRev
 	return "", nil
 }
 
+func (c *ociSourceClient) GetRevisionMetadata(ctx context.Context, revision string, checkSignature bool) (*v1alpha1.OCIMetadata, error) {
+	metadata, err := c.client.DigestMetadata(ctx, revision)
+	if err != nil {
+		return nil, fmt.Errorf("failed to extract digest metadata for revision %q: %w", revision, err)
+	}
+
+	a := metadata.Annotations
+
+	return &v1alpha1.OCIMetadata{
+		CreatedAt: a["org.opencontainers.image.created"],
+		Authors:   a["org.opencontainers.image.authors"],
+		// TODO: add this field at a later stage
+		// ImageURL:    a["org.opencontainers.image.url"],
+		DocsURL:     a["org.opencontainers.image.documentation"],
+		SourceURL:   a["org.opencontainers.image.source"],
+		Version:     a["org.opencontainers.image.version"],
+		Description: a["org.opencontainers.image.description"],
+	}, nil
+}
+
 // helmSourceClient adapts a Helm client to the SourceClient interface
 type helmSourceClient struct {
 	client helm.Client
@@ -109,7 +145,7 @@ type helmSourceClient struct {
 	chart  string
 }
 
-func NewHelmSourceClient(repo *v1alpha1.Repository, chart string, opts ...helm.ClientOpts) SourceClient {
+func NewHelmSourceClient(repo *v1alpha1.Repository, chart string, opts ...helm.ClientOpts) SourceClient[*v1alpha1.ChartDetails] {
 	return &helmSourceClient{
 		client: helm.NewClientWithLock(
 			repo.Repo,
@@ -173,6 +209,32 @@ func (c *helmSourceClient) VerifySignature(resolvedRevision string, unresolvedRe
 	return "", nil
 }
 
+func (c *helmSourceClient) GetRevisionMetadata(ctx context.Context, revision string, checkSignature bool) (*v1alpha1.ChartDetails, error) {
+	chartPath, closer, err := c.client.ExtractChart(c.chart, revision)
+	if err != nil {
+		return nil, fmt.Errorf("error extracting chart: %w", err)
+	}
+	defer utilio.Close(closer)
+
+	helmCmd, err := helm.NewCmdWithVersion(chartPath, c.repo.EnableOCI, c.repo.Proxy, c.repo.NoProxy)
+	if err != nil {
+		return nil, fmt.Errorf("error creating helm cmd: %w", err)
+	}
+	defer helmCmd.Close()
+
+	helmDetails, err := helmCmd.InspectChart()
+	if err != nil {
+		return nil, fmt.Errorf("error inspecting chart: %w", err)
+	}
+
+	details, err := getChartDetails(helmDetails)
+	if err != nil {
+		return nil, fmt.Errorf("error getting chart details: %w", err)
+	}
+
+	return details, nil
+}
+
 // gitSourceClient adapts a Git client to the SourceClient interface
 type gitSourceClient struct {
 	client                         git.Client
@@ -231,7 +293,7 @@ func WithRefSources(refSources map[string]*v1alpha1.RefTarget) GitSourceClientOp
 	}
 }
 
-func NewGitSourceClient(repo *v1alpha1.Repository, gitRepoPaths utilio.TempPaths, metrics *metrics.MetricsServer, credStore git.CredsStore, repoLock *repositoryLock, initializer func(rootPath string) io.Closer, hasMultipleSources bool, sourceOpts ...GitSourceClientOpt) (SourceClient, error) {
+func NewGitSourceClient(repo *v1alpha1.Repository, gitRepoPaths utilio.TempPaths, metrics *metrics.MetricsServer, credStore git.CredsStore, repoLock *repositoryLock, initializer func(rootPath string) io.Closer, hasMultipleSources bool, sourceOpts ...GitSourceClientOpt) (SourceClient[*v1alpha1.RevisionMetadata], error) {
 	root, err := gitRepoPaths.GetPath(git.NormalizeGitURL(repo.Repo))
 	if err != nil {
 		return nil, err
@@ -441,6 +503,111 @@ func (c *gitSourceClient) VerifySignature(resolvedRevision string, unresolvedRev
 	}
 
 	return c.client.VerifyCommitSignature(revisionToVerify)
+}
+
+func (c *gitSourceClient) GetRevisionMetadata(ctx context.Context, revision string, checkSignature bool) (*v1alpha1.RevisionMetadata, error) {
+	// Validate that the revision is a commit SHA
+	if !git.IsCommitSHA(revision) && !git.IsTruncatedCommitSHA(revision) {
+		return nil, fmt.Errorf("revision %s must be resolved", revision)
+	}
+
+	// Lock and checkout the revision
+	closer, err := c.repositoryLock.Lock(c.client.Root(), revision, true, func() (io.Closer, error) {
+		closer := c.directoryPermissionInitializer(c.client.Root())
+		err := c.client.Init()
+		if err != nil {
+			return closer, status.Errorf(codes.Internal, "Failed to initialize git repo: %v", err)
+		}
+
+		revisionPresent := c.client.IsRevisionPresent(revision)
+		if !revisionPresent {
+			if c.repo.Depth > 0 {
+				err = c.client.Fetch(revision, c.repo.Depth)
+			} else {
+				err = c.client.Fetch("", c.repo.Depth)
+			}
+
+			if err != nil {
+				return closer, status.Errorf(codes.Internal, "Failed to fetch default: %v", err)
+			}
+		}
+
+		_, err = c.client.Checkout(revision, c.submoduleEnabled)
+		if err != nil {
+			log.Infof("Failed to checkout revision %s: %v", revision, err)
+			log.Infof("Fallback to fetching specific revision %s", revision)
+			err = c.client.Fetch(revision, c.repo.Depth)
+			if err != nil {
+				return closer, status.Errorf(codes.Internal, "Failed to checkout revision %s: %v", revision, err)
+			}
+
+			_, err = c.client.Checkout("FETCH_HEAD", c.submoduleEnabled)
+			if err != nil {
+				return closer, status.Errorf(codes.Internal, "Failed to checkout FETCH_HEAD: %v", err)
+			}
+		}
+
+		return closer, err
+	})
+	if err != nil {
+		return nil, fmt.Errorf("error acquiring repo lock: %w", err)
+	}
+	defer utilio.Close(closer)
+
+	// Get the basic revision metadata
+	m, err := c.client.RevisionMetadata(revision)
+	if err != nil {
+		return nil, err
+	}
+
+	// Optionally verify the signature
+	signatureInfo := ""
+	if checkSignature {
+		cs, err := c.client.VerifyCommitSignature(revision)
+		if err != nil {
+			log.Errorf("error verifying signature of commit '%s' in repo '%s': %v", revision, c.repo.Repo, err)
+			return nil, err
+		}
+
+		if cs != "" {
+			vr := gpg.ParseGitCommitVerification(cs)
+			if vr.Result == gpg.VerifyResultUnknown {
+				signatureInfo = "UNKNOWN signature: " + vr.Message
+			} else {
+				signatureInfo = fmt.Sprintf("%s signature from %s key %s", vr.Result, vr.Cipher, gpg.KeyID(vr.KeyID))
+			}
+		} else {
+			signatureInfo = "Revision is not signed."
+		}
+	}
+
+	// Build related revisions
+	relatedRevisions := make([]v1alpha1.RevisionReference, len(m.References))
+	for i := range m.References {
+		if m.References[i].Commit == nil {
+			continue
+		}
+
+		relatedRevisions[i] = v1alpha1.RevisionReference{
+			Commit: &v1alpha1.CommitMetadata{
+				Author:  m.References[i].Commit.Author.String(),
+				Date:    m.References[i].Commit.Date,
+				Subject: m.References[i].Commit.Subject,
+				Body:    m.References[i].Commit.Body,
+				SHA:     m.References[i].Commit.SHA,
+				RepoURL: m.References[i].Commit.RepoURL,
+			},
+		}
+	}
+
+	return &v1alpha1.RevisionMetadata{
+		Author:        m.Author,
+		Date:          &metav1.Time{Time: m.Date},
+		Tags:          m.Tags,
+		Message:       m.Message,
+		SignatureInfo: signatureInfo,
+		References:    relatedRevisions,
+	}, nil
 }
 
 func newGitClient(repo *v1alpha1.Repository, root string, credStore git.CredsStore, gsc *gitSourceClient) (git.Client, error) {
