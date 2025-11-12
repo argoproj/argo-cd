@@ -193,7 +193,6 @@ func (c *helmSourceClient) VerifySignature(resolvedRevision string, unresolvedRe
 // gitSourceClient adapts a Git client to the SourceClient interface
 type gitSourceClient struct {
 	client                         git.Client
-	depth                          int64
 	repo                           *v1alpha1.Repository
 	metrics                        *metrics.MetricsServer
 	repositoryLock                 *repositoryLock
@@ -204,6 +203,11 @@ type gitSourceClient struct {
 	loadRefFromCache               bool
 	gitRepoPaths                   utilio.TempPaths
 	credsStore                     git.CredsStore
+	hasMultipleSources             bool
+	helmSource                     *v1alpha1.ApplicationSourceHelm
+	refSources                     map[string]*v1alpha1.RefTarget
+	noCache                        bool
+	repoRefs                       map[string]string
 }
 
 // GitSourceClientOpt is a functional option for configuring gitSourceClient
@@ -232,7 +236,19 @@ func WithCache(cache *cache.Cache, loadRefFromCache bool) GitSourceClientOpt {
 	}
 }
 
-func NewGitSourceClient(repo *v1alpha1.Repository, depth int64, gitRepoPaths utilio.TempPaths, metrics *metrics.MetricsServer, credStore git.CredsStore, repoLock *repositoryLock, initializer func(rootPath string) io.Closer, sourceOpts ...GitSourceClientOpt) (SourceClient, error) {
+func WithHelmSource(source *v1alpha1.ApplicationSourceHelm) GitSourceClientOpt {
+	return func(c *gitSourceClient) {
+		c.helmSource = source
+	}
+}
+
+func WithRefSources(refSources map[string]*v1alpha1.RefTarget) GitSourceClientOpt {
+	return func(c *gitSourceClient) {
+		c.refSources = refSources
+	}
+}
+
+func NewGitSourceClient(repo *v1alpha1.Repository, gitRepoPaths utilio.TempPaths, metrics *metrics.MetricsServer, credStore git.CredsStore, repoLock *repositoryLock, initializer func(rootPath string) io.Closer, hasMultipleSources bool, sourceOpts ...GitSourceClientOpt) (SourceClient, error) {
 	root, err := gitRepoPaths.GetPath(git.NormalizeGitURL(repo.Repo))
 	if err != nil {
 		return nil, err
@@ -240,12 +256,12 @@ func NewGitSourceClient(repo *v1alpha1.Repository, depth int64, gitRepoPaths uti
 
 	gsc := &gitSourceClient{
 		repo:                           repo,
-		depth:                          depth,
 		metrics:                        metrics,
 		repositoryLock:                 repoLock,
 		directoryPermissionInitializer: initializer,
 		gitRepoPaths:                   gitRepoPaths,
 		credsStore:                     credStore,
+		hasMultipleSources:             hasMultipleSources,
 	}
 
 	for _, opt := range sourceOpts {
@@ -263,14 +279,16 @@ func NewGitSourceClient(repo *v1alpha1.Repository, depth int64, gitRepoPaths uti
 }
 
 func (c *gitSourceClient) ResolveRevision(ctx context.Context, revision string, noCache bool) (string, error) {
+	// TODO: This is ugly, but can't think of a better way atm
+	c.noCache = noCache
+
 	commitSHA, err := c.resolveRevision(c.client, revision)
 	if err != nil {
 		return "", err
 	}
 
 	if c.cacheFn != nil && !noCache {
-		// TODO: add params
-		repoRefs, err := c.resolveReferencedSources(true, nil, nil)
+		repoRefs, err := c.resolveReferencedSources(c.hasMultipleSources, c.helmSource, c.refSources)
 		if err != nil {
 			return "", err
 		}
@@ -278,6 +296,9 @@ func (c *gitSourceClient) ResolveRevision(ctx context.Context, revision string, 
 		if ok, err := c.cacheFn(commitSHA, repoRefs, true); ok {
 			return "", err
 		}
+
+		// TODO: This is ugly, but can't think of a better way atm
+		c.repoRefs = repoRefs
 	}
 
 	return commitSHA, nil
@@ -372,11 +393,11 @@ func (c *gitSourceClient) Extract(ctx context.Context, revision string) (string,
 
 		// Fetching can be skipped if the revision is already present locally.
 		if !revisionPresent {
-			if c.depth > 0 {
-				err = c.client.Fetch(revision, c.depth)
+			if c.repo.Depth > 0 {
+				err = c.client.Fetch(revision, c.repo.Depth)
 			} else {
 				// Fetching with no revision first. Fetching with an explicit version can cause repo bloat. https://github.com/argoproj/argo-cd/issues/8845
-				err = c.client.Fetch("", c.depth)
+				err = c.client.Fetch("", c.repo.Depth)
 			}
 
 			if err != nil {
@@ -390,7 +411,7 @@ func (c *gitSourceClient) Extract(ctx context.Context, revision string) (string,
 			// for the given revision, try explicitly fetching it.
 			log.Infof("Failed to checkout revision %s: %v", revision, err)
 			log.Infof("Fallback to fetching specific revision %s. ref might not have been in the default refspec fetched.", revision)
-			err = c.client.Fetch(revision, c.depth)
+			err = c.client.Fetch(revision, c.repo.Depth)
 			if err != nil {
 				return closer, status.Errorf(codes.Internal, "Failed to checkout revision %s: %v", revision, err)
 			}
@@ -406,6 +427,12 @@ func (c *gitSourceClient) Extract(ctx context.Context, revision string) (string,
 
 	if err != nil {
 		return "", nil, err
+	}
+
+	if c.cacheFn != nil && !c.noCache {
+		if ok, err := c.cacheFn(revision, c.repoRefs, false); ok {
+			return "", closer, err
+		}
 	}
 
 	return c.client.Root(), closer, nil
