@@ -330,17 +330,10 @@ func (s *Service) runRepoOperation(
 		sanitizer.AddRegexReplacement(getRepoSanitizerRegex(s.rootDir), "<path to cached source>")
 	}
 
-	gitClientOpts := git.WithCache(s.cache, !settings.noRevisionCache && !settings.noCache)
 	unresolvedRevision := revision
 	noCache := settings.noCache || settings.noRevisionCache
 
-	sourceClient, err := s.newSourceClient(repo, source, settings.noCache, settings.noRevisionCache)
-	if err != nil {
-		return err
-	}
-
-	// First resolve the referenced sources to get repoRefs
-	repoRefs, err := resolveReferencedSources(hasMultipleSources, source.Helm, refSources, s.newClientResolveRevision, gitClientOpts)
+	sourceClient, err := s.newSourceClient(repo, source, settings.noCache, settings.noRevisionCache, cacheFn, source.Helm, refSources, hasMultipleSources)
 	if err != nil {
 		return err
 	}
@@ -349,12 +342,6 @@ func (s *Service) runRepoOperation(
 	resolvedRevision, err := sourceClient.ResolveRevision(ctx, textutils.FirstNonEmpty(revision, source.TargetRevision), noCache)
 	if err != nil {
 		return err
-	}
-
-	if !source.IsOCI() && !source.IsHelm() && !settings.noCache {
-		if ok, err := cacheFn(resolvedRevision, repoRefs, true); ok {
-			return err
-		}
 	}
 
 	s.metricsServer.IncPendingRepoRequest(repo.Repo)
@@ -432,13 +419,6 @@ func (s *Service) runRepoOperation(
 		return fmt.Errorf("failed to get digest: %w", err)
 	}
 	cacheKey := resolvedRevision
-
-	// Git-specific: double-check locking
-	if !source.IsOCI() && !source.IsHelm() && !settings.noCache {
-		if ok, err := cacheFn(resolvedRevision, repoRefs, false); ok {
-			return err
-		}
-	}
 
 	// Step 7: Execute operation with appropriate context (unified!)
 	return operation(rootPath, commitSHA, cacheKey, func() (*operationContext, error) {
@@ -2583,12 +2563,7 @@ func (s *Service) newHelmClientResolveRevision(repo *v1alpha1.Repository, revisi
 // newSourceClient creates a SourceClient for the given repository and source.
 // This is a factory method that handles the branching logic for different source types.
 // The opts parameters now contain all the information needed to create the inner clients (git.Client, oci.Client, helm.Client).
-func (s *Service) newSourceClient(
-	repo *v1alpha1.Repository,
-	source *v1alpha1.ApplicationSource,
-	noCache bool,
-	noRevisionCache bool,
-) (SourceClient, error) {
+func (s *Service) newSourceClient(repo *v1alpha1.Repository, source *v1alpha1.ApplicationSource, noCache bool, noRevisionCache bool, cacheFn func(cacheKey string, refSourceCommitSHAs cache.ResolvedRevisions, firstInvocation bool) (bool, error), sourceHelm *v1alpha1.ApplicationSourceHelm, refSources map[string]*v1alpha1.RefTarget, hasMultipleSources bool) (SourceClient, error) {
 	switch {
 	case source.IsOCI():
 		return NewOCISourceClient(
@@ -2615,21 +2590,19 @@ func (s *Service) newSourceClient(
 			helm.WithHelmManifestMaxExtractedSize(s.initConstants.HelmManifestMaxExtractedSize),
 		), nil
 	default:
-		root, err := s.gitRepoPaths.GetPath(git.NormalizeGitURL(repo.Repo))
-		if err != nil {
-			return nil, err
-		}
 		return NewGitSourceClient(
 			repo,
-			root,
-			repo.Depth,
+			s.gitRepoPaths,
 			s.metricsServer,
-			repo.GetGitCreds(s.gitCredsStore),
+			s.gitCredsStore,
 			s.repoLock,
 			directoryPermissionInitializer,
-			git.WithSubmoduleEnabled(s.initConstants.SubmoduleEnabled),
-			git.WithCache(s.cache, !noRevisionCache && !noCache),
-			git.WithEventHandlers(metrics.NewGitClientEventHandlers(s.metricsServer)),
+			hasMultipleSources,
+			WithSubmoduleEnabled(s.initConstants.SubmoduleEnabled),
+			WithCacheFn(cacheFn),
+			WithCache(s.cache, !noRevisionCache && !noCache),
+			WithHelmSource(sourceHelm),
+			WithRefSources(refSources),
 		)
 	}
 }
@@ -2736,7 +2709,7 @@ func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bo
 		}
 	}
 
-	_, err = gitClient.Checkout(revision)
+	_, err = gitClient.Checkout(revision, submoduleEnabled)
 	if err != nil {
 		// When fetching with no revision, only refs/heads/* and refs/remotes/origin/* are fetched. If checkout fails
 		// for the given revision, try explicitly fetching it.
@@ -2747,7 +2720,7 @@ func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bo
 			return status.Errorf(codes.Internal, "Failed to checkout revision %s: %v", revision, err)
 		}
 
-		_, err = gitClient.Checkout("FETCH_HEAD")
+		_, err = gitClient.Checkout("FETCH_HEAD", submoduleEnabled)
 		if err != nil {
 			return status.Errorf(codes.Internal, "Failed to checkout FETCH_HEAD: %v", err)
 		}
@@ -2816,7 +2789,7 @@ func (s *Service) ResolveRevision(ctx context.Context, q *apiclient.ResolveRevis
 	app := q.App
 	ambiguousRevision := q.AmbiguousRevision
 	source := app.Spec.GetSourcePtrByIndex(int(q.SourceIndex))
-	sourceClient, err := s.newSourceClient(repo, source, true, true)
+	sourceClient, err := s.newSourceClient(repo, source, true, true, nil, nil, nil, false)
 	if err != nil {
 		return &apiclient.ResolveRevisionResponse{Revision: "", AmbiguousRevision: ""}, err
 	}
