@@ -36,7 +36,7 @@ type CacheFn func(cacheKey string, refSourceCommitSHAs cache.ResolvedRevisions, 
 // It abstracts the common operations needed to retrieve and process application sources.
 type SourceClient interface {
 	// ResolveRevision resolves a revision reference (branch, tag, version, etc.) to a concrete revision identifier
-	ResolveRevision(ctx context.Context, revision string, noCache bool) (string, error)
+	ResolveRevision(ctx context.Context, revision string, noCache bool) (string, string, error)
 
 	// CleanCache removes cached artifacts for the specified revision
 	CleanCache(revision string) error
@@ -46,13 +46,6 @@ type SourceClient interface {
 	// - a closer to clean up resources
 	// - any error that occurred
 	Extract(ctx context.Context, revision string) (rootPath string, closer io.Closer, err error)
-
-	// GetDigest returns the canonical digest/SHA for the content
-	// Must be called after Extract() for Git sources (to ensure checkout has occurred)
-	// For Git: returns the actual commit SHA after checkout
-	// For OCI/Helm: returns the revision parameter as-is (digest or version)
-	// hasMultipleSources: for Git only, if true, returns the revision parameter instead of calling CommitSHA()
-	GetDigest(revision string, hasMultipleSources bool) (string, error)
 
 	// VerifySignature verifies the signature of the given revision
 	// For Git: verifies GPG signature of commit/tag (handles annotated tag logic internally)
@@ -88,12 +81,12 @@ func NewOCISourceClient(repo *v1alpha1.Repository, opts ...oci.ClientOpts) (Sour
 	}, nil
 }
 
-func (c *ociSourceClient) ResolveRevision(ctx context.Context, revision string, noCache bool) (string, error) {
+func (c *ociSourceClient) ResolveRevision(ctx context.Context, revision string, noCache bool) (string, string, error) {
 	digest, err := c.client.ResolveRevision(ctx, revision, noCache)
 	if err != nil {
-		return "", fmt.Errorf("failed to resolve revision %q: %w", revision, err)
+		return "", "", fmt.Errorf("failed to resolve revision %q: %w", revision, err)
 	}
-	return digest, nil
+	return digest, digest, nil
 }
 
 func (c *ociSourceClient) CleanCache(revision string) error {
@@ -102,11 +95,6 @@ func (c *ociSourceClient) CleanCache(revision string) error {
 
 func (c *ociSourceClient) Extract(ctx context.Context, revision string) (string, io.Closer, error) {
 	return c.client.Extract(ctx, revision)
-}
-
-func (c *ociSourceClient) GetDigest(revision string, hasMultipleSources bool) (string, error) {
-	// For OCI, the digest IS the revision (already resolved from ResolveRevision)
-	return revision, nil
 }
 
 func (c *ociSourceClient) VerifySignature(resolvedRevision string, unresolvedRevision string) (string, error) {
@@ -137,12 +125,12 @@ func NewHelmSourceClient(repo *v1alpha1.Repository, chart string, opts ...helm.C
 	}
 }
 
-func (c *helmSourceClient) ResolveRevision(ctx context.Context, revision string, noCache bool) (string, error) {
+func (c *helmSourceClient) ResolveRevision(ctx context.Context, revision string, noCache bool) (string, string, error) {
 	enableOCI := c.repo.EnableOCI || helm.IsHelmOciRepo(c.repo.Repo)
 
 	// If it's already a version, return it
 	if versions.IsVersion(revision) {
-		return revision, nil
+		return revision, revision, nil
 	}
 
 	var tags []string
@@ -150,26 +138,26 @@ func (c *helmSourceClient) ResolveRevision(ctx context.Context, revision string,
 		var err error
 		tags, err = c.client.GetTags(c.chart, noCache)
 		if err != nil {
-			return "", fmt.Errorf("unable to get tags: %w", err)
+			return "", "", fmt.Errorf("unable to get tags: %w", err)
 		}
 	} else {
 		index, err := c.client.GetIndex(noCache)
 		if err != nil {
-			return "", err
+			return "", "", err
 		}
 		entries, err := index.GetEntries(c.chart)
 		if err != nil {
-			return "", err
+			return "", "", err
 		}
 		tags = entries.Tags()
 	}
 
 	maxV, err := versions.MaxVersion(revision, tags)
 	if err != nil {
-		return "", fmt.Errorf("invalid revision: %w", err)
+		return "", "", fmt.Errorf("invalid revision: %w", err)
 	}
 
-	return maxV, nil
+	return maxV, maxV, nil
 }
 
 func (c *helmSourceClient) CleanCache(revision string) error {
@@ -178,11 +166,6 @@ func (c *helmSourceClient) CleanCache(revision string) error {
 
 func (c *helmSourceClient) Extract(ctx context.Context, revision string) (string, io.Closer, error) {
 	return c.client.ExtractChart(c.chart, revision)
-}
-
-func (c *helmSourceClient) GetDigest(revision string, hasMultipleSources bool) (string, error) {
-	// For Helm, the version IS the revision (already resolved from ResolveRevision)
-	return revision, nil
 }
 
 func (c *helmSourceClient) VerifySignature(resolvedRevision string, unresolvedRevision string) (string, error) {
@@ -278,30 +261,40 @@ func NewGitSourceClient(repo *v1alpha1.Repository, gitRepoPaths utilio.TempPaths
 	return gsc, nil
 }
 
-func (c *gitSourceClient) ResolveRevision(ctx context.Context, revision string, noCache bool) (string, error) {
+func (c *gitSourceClient) ResolveRevision(ctx context.Context, revision string, noCache bool) (string, string, error) {
 	// TODO: This is ugly, but can't think of a better way atm
 	c.noCache = noCache
 
 	commitSHA, err := c.resolveRevision(c.client, revision)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 
 	if c.cacheFn != nil && !noCache {
 		repoRefs, err := c.resolveReferencedSources(c.hasMultipleSources, c.helmSource, c.refSources)
 		if err != nil {
-			return "", err
+			return "", "", err
 		}
 
 		if ok, err := c.cacheFn(commitSHA, repoRefs, true); ok {
-			return "", err
+			return "", "", err
 		}
 
 		// TODO: This is ugly, but can't think of a better way atm
 		c.repoRefs = repoRefs
 	}
 
-	return commitSHA, nil
+	// For Git with multiple sources, use the revision as-is
+	if c.hasMultipleSources {
+		return revision, revision, nil
+	}
+	// For single source, get the actual commit SHA after checkout
+	sha, err := c.client.CommitSHA()
+	if err != nil {
+		return "", "", err
+	}
+
+	return sha, revision, nil
 }
 
 func (c *gitSourceClient) resolveRevision(client git.Client, revision string) (string, error) {
@@ -436,15 +429,6 @@ func (c *gitSourceClient) Extract(ctx context.Context, revision string) (string,
 	}
 
 	return c.client.Root(), closer, nil
-}
-
-func (c *gitSourceClient) GetDigest(revision string, hasMultipleSources bool) (string, error) {
-	// For Git with multiple sources, use the revision as-is
-	if hasMultipleSources {
-		return revision, nil
-	}
-	// For single source, get the actual commit SHA after checkout
-	return c.client.CommitSHA()
 }
 
 func (c *gitSourceClient) VerifySignature(resolvedRevision string, unresolvedRevision string) (string, error) {
