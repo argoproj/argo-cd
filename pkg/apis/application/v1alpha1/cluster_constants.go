@@ -34,7 +34,7 @@ const (
 	// EnvK8sTCPIdleConnTimeout is the duration when idle TCP connection to the K8s API servers should timeout
 	EnvK8sTCPIdleConnTimeout = "ARGOCD_K8S_TCP_IDLE_TIMEOUT"
 
-	// EnvK8sServerSideTimeout is the duration for the server side timeout to send with each API request
+	// EnvK8sServerSideTimeout is the duration for the server side timeout for each API request
 	EnvK8sServerSideTimeout = "ARGOCD_K8S_SERVER_SIDE_TIMEOUT"
 )
 
