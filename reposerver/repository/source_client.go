@@ -10,6 +10,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v3/reposerver/cache"
 	"github.com/argoproj/argo-cd/v3/reposerver/metrics"
 	"github.com/argoproj/argo-cd/v3/util/git"
@@ -57,6 +58,11 @@ type BaseSourceClient interface {
 	//   - resolvedRevision: the concrete revision (commit SHA, digest, version)
 	//   - unresolvedRevision: the original revision reference (branch, tag name, etc.)
 	VerifySignature(resolvedRevision string, unresolvedRevision string) (string, error)
+
+	// ListRefs lists the available references (branches and/or tags) for the source
+	// For Git: returns both branches and tags
+	// For OCI/Helm: returns only tags
+	ListRefs(ctx context.Context, noCache bool) (*apiclient.Refs, error)
 }
 
 // SourceClient is a generic interface that extends BaseSourceClient with type-safe metadata retrieval.
@@ -135,6 +141,17 @@ func (c *ociSourceClient) GetRevisionMetadata(ctx context.Context, revision stri
 		SourceURL:   a["org.opencontainers.image.source"],
 		Version:     a["org.opencontainers.image.version"],
 		Description: a["org.opencontainers.image.description"],
+	}, nil
+}
+
+func (c *ociSourceClient) ListRefs(ctx context.Context, noCache bool) (*apiclient.Refs, error) {
+	tags, err := c.client.GetTags(ctx, noCache)
+	if err != nil {
+		return nil, err
+	}
+
+	return &apiclient.Refs{
+		Tags: tags,
 	}, nil
 }
 
@@ -233,6 +250,33 @@ func (c *helmSourceClient) GetRevisionMetadata(ctx context.Context, revision str
 	}
 
 	return details, nil
+}
+
+func (c *helmSourceClient) ListRefs(ctx context.Context, noCache bool) (*apiclient.Refs, error) {
+	enableOCI := c.repo.EnableOCI || helm.IsHelmOciRepo(c.repo.Repo)
+
+	var tags []string
+	if enableOCI {
+		var err error
+		tags, err = c.client.GetTags(c.chart, noCache)
+		if err != nil {
+			return nil, fmt.Errorf("unable to get tags: %w", err)
+		}
+	} else {
+		index, err := c.client.GetIndex(noCache)
+		if err != nil {
+			return nil, err
+		}
+		entries, err := index.GetEntries(c.chart)
+		if err != nil {
+			return nil, err
+		}
+		tags = entries.Tags()
+	}
+
+	return &apiclient.Refs{
+		Tags: tags,
+	}, nil
 }
 
 // gitSourceClient adapts a Git client to the SourceClient interface
@@ -607,6 +651,18 @@ func (c *gitSourceClient) GetRevisionMetadata(ctx context.Context, revision stri
 		Message:       m.Message,
 		SignatureInfo: signatureInfo,
 		References:    relatedRevisions,
+	}, nil
+}
+
+func (c *gitSourceClient) ListRefs(ctx context.Context, noCache bool) (*apiclient.Refs, error) {
+	refs, err := c.client.LsRefs()
+	if err != nil {
+		return nil, err
+	}
+
+	return &apiclient.Refs{
+		Branches: refs.Branches,
+		Tags:     refs.Tags,
 	}, nil
 }
 

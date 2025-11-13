@@ -37,7 +37,6 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	k8sversion "k8s.io/apimachinery/pkg/util/version"
@@ -64,7 +63,6 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/kustomize"
 	"github.com/argoproj/argo-cd/v3/util/manifeststream"
 	"github.com/argoproj/argo-cd/v3/util/settings"
-	"github.com/argoproj/argo-cd/v3/util/versions"
 )
 
 const (
@@ -187,47 +185,28 @@ func (s *Service) Init() error {
 
 // ListOCITags List a subset of the refs (currently, branches and tags) of a git repo
 func (s *Service) ListOCITags(ctx context.Context, q *apiclient.ListRefsRequest) (*apiclient.Refs, error) {
-	ociClient, err := s.newOCIClient(q.Repo.Repo, q.Repo.GetOCICreds(), q.Repo.Proxy, q.Repo.NoProxy, s.initConstants.OCIMediaTypes, oci.WithIndexCache(s.cache), oci.WithImagePaths(s.ociPaths), oci.WithManifestMaxExtractedSize(s.initConstants.OCIManifestMaxExtractedSize), oci.WithDisableManifestMaxExtractedSize(s.initConstants.DisableOCIManifestMaxExtractedSize))
+	client, err := s.newOCISourceClient(q.Repo)
 	if err != nil {
-		return nil, fmt.Errorf("error creating oci client: %w", err)
+		return nil, fmt.Errorf("failed to initialize oci client: %w", err)
 	}
 
 	s.metricsServer.IncPendingRepoRequest(q.Repo.Repo)
 	defer s.metricsServer.DecPendingRepoRequest(q.Repo.Repo)
 
-	tags, err := ociClient.GetTags(ctx, false)
-	if err != nil {
-		return nil, err
-	}
-
-	res := apiclient.Refs{
-		Tags: tags,
-	}
-
-	return &res, nil
+	return client.ListRefs(ctx, false)
 }
 
 // ListRefs List a subset of the refs (currently, branches and tags) of a git repo
-func (s *Service) ListRefs(_ context.Context, q *apiclient.ListRefsRequest) (*apiclient.Refs, error) {
-	gitClient, err := s.newClient(q.Repo)
+func (s *Service) ListRefs(ctx context.Context, q *apiclient.ListRefsRequest) (*apiclient.Refs, error) {
+	client, err := s.newGitSourceClient(q.Repo, false, false, nil, nil, nil, false)
 	if err != nil {
-		return nil, fmt.Errorf("error creating git client: %w", err)
+		return nil, fmt.Errorf("failed to initialize git client: %w", err)
 	}
 
 	s.metricsServer.IncPendingRepoRequest(q.Repo.Repo)
 	defer s.metricsServer.DecPendingRepoRequest(q.Repo.Repo)
 
-	refs, err := gitClient.LsRefs()
-	if err != nil {
-		return nil, err
-	}
-
-	res := apiclient.Refs{
-		Branches: refs.Branches,
-		Tags:     refs.Tags,
-	}
-
-	return &res, nil
+	return client.ListRefs(ctx, false)
 }
 
 // ListApps lists the contents of a GitHub repo
