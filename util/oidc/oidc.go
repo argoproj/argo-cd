@@ -656,18 +656,35 @@ func (a *ClientApp) SetGroupsFromUserInfo(claims jwt.Claims, sessionManagerClaim
 		}
 	}
 	iss := jwtutil.StringField(groupClaims, "iss")
-	if iss != sessionManagerClaimsIssuer && a.settings.UserInfoGroupsEnabled() && a.settings.UserInfoPath() != "" {
-		userInfo, unauthorized, err := a.GetUserInfo(groupClaims, a.settings.IssuerURL(), a.settings.UserInfoPath())
-		if unauthorized {
-			return groupClaims, fmt.Errorf("error while quering userinfo endpoint: %w", err)
+
+	// Only process external OIDC tokens (not internal session manager tokens)
+	if iss != sessionManagerClaimsIssuer {
+		// First, try to fetch Azure AD groups overflow if enabled
+		if a.settings.AzureGroupsOverflowEnabled() && jwtutil.HasAzureGroupsOverflow(groupClaims) {
+			enrichedClaims, err := a.FetchAzureGroupsOverflow(groupClaims)
+			if err != nil {
+				log.Warnf("Failed to fetch Azure AD groups overflow: %v", err)
+				// Continue with original claims if Azure groups overflow fetch fails
+			} else {
+				groupClaims = enrichedClaims
+				log.Debug("Successfully fetched and merged Azure AD groups overflow")
+			}
 		}
-		if err != nil {
-			return groupClaims, fmt.Errorf("error fetching user info endpoint: %w", err)
+
+		// Then, fetch from userinfo endpoint if enabled
+		if a.settings.UserInfoGroupsEnabled() && a.settings.UserInfoPath() != "" {
+			userInfo, unauthorized, err := a.GetUserInfo(groupClaims, a.settings.IssuerURL(), a.settings.UserInfoPath())
+			if unauthorized {
+				return groupClaims, fmt.Errorf("error while quering userinfo endpoint: %w", err)
+			}
+			if err != nil {
+				return groupClaims, fmt.Errorf("error fetching user info endpoint: %w", err)
+			}
+			if groupClaims["sub"] != userInfo["sub"] {
+				return groupClaims, errors.New("subject of claims from user info endpoint didn't match subject of idToken, see https://openid.net/specs/openid-connect-core-1_0.html#UserInfo")
+			}
+			groupClaims["groups"] = userInfo["groups"]
 		}
-		if groupClaims["sub"] != userInfo["sub"] {
-			return groupClaims, errors.New("subject of claims from user info endpoint didn't match subject of idToken, see https://openid.net/specs/openid-connect-core-1_0.html#UserInfo")
-		}
-		groupClaims["groups"] = userInfo["groups"]
 	}
 
 	return groupClaims, nil
@@ -795,6 +812,135 @@ func (a *ClientApp) GetUserInfo(actualClaims jwt.MapClaims, issuerURL, userInfoP
 	}
 
 	return claims, false, nil
+}
+
+// FetchAzureGroupsOverflow fetches Azure AD groups when groups overflow to distributed claims
+func (a *ClientApp) FetchAzureGroupsOverflow(claims jwt.MapClaims) (jwt.MapClaims, error) {
+	if !jwtutil.HasAzureGroupsOverflow(claims) {
+		log.Debug("No Azure AD groups overflow detected in JWT")
+		return claims, nil
+	}
+
+	// Check if Azure groups overflow is enabled in settings
+	if !a.settings.AzureGroupsOverflowEnabled() {
+		log.Debug("Azure AD groups overflow is disabled in configuration, skipping")
+		return claims, nil
+	}
+
+	sub := jwtutil.StringField(claims, "sub")
+	log.Debugf("Processing Azure AD groups overflow for subject: %s", sub)
+
+	azureInfo, err := jwtutil.GetAzureGroupsOverflowInfo(claims)
+	if err != nil {
+		log.Warnf("Failed to parse Azure AD groups overflow info for subject %s: %v", sub, err)
+		return claims, nil // Graceful fallback
+	}
+
+	if azureInfo == nil {
+		log.Debug("No Azure AD groups overflow info found, returning original claims")
+		return claims, nil
+	}
+
+	log.Debugf("Fetching groups from Azure Graph endpoint: %s", azureInfo.GraphEndpoint)
+
+	// Fetch groups from Azure Graph API
+	groups, err := a.fetchAzureGroups(azureInfo, claims)
+	if err != nil {
+		log.Warnf("Failed to fetch Azure AD groups for subject %s: %v", sub, err)
+		return claims, nil // Graceful fallback
+	}
+
+	// Create enriched claims with the fetched groups
+	enrichedClaims := make(jwt.MapClaims)
+	for k, v := range claims {
+		enrichedClaims[k] = v
+	}
+	enrichedClaims["groups"] = groups
+
+	log.Infof("Successfully fetched %d Azure AD groups for subject %s", len(groups), sub)
+	return enrichedClaims, nil
+}
+
+// fetchAzureGroups fetches groups from Azure AD Graph API using the groups overflow endpoint
+func (a *ClientApp) fetchAzureGroups(azureInfo *jwtutil.AzureGroupsOverflowInfo, originalClaims jwt.MapClaims) ([]string, error) {
+	timeout := a.settings.AzureGroupsOverflowTimeout()
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	// Azure AD Graph API requires POST with JSON body
+	requestBody := map[string]interface{}{
+		"securityEnabledOnly": true,
+	}
+	jsonBody, err := json.Marshal(requestBody)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal Azure Graph API request body: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, azureInfo.GraphEndpoint, strings.NewReader(string(jsonBody)))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create HTTP POST request to %s: %w", azureInfo.GraphEndpoint, err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	// Add authorization header
+	if azureInfo.AccessToken != "" {
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", azureInfo.AccessToken))
+		log.Debug("Using access token for Azure Graph API request")
+	} else {
+		return nil, fmt.Errorf("no access token provided for Azure Graph API request")
+	}
+
+	// Set headers for Azure Graph API
+	req.Header.Set("User-Agent", "ArgoCD/azure-groups-overflow")
+	req.Header.Set("Accept", "application/json")
+
+	log.Debugf("Fetching Azure AD groups from %s with timeout %v", azureInfo.GraphEndpoint, timeout)
+
+	resp, err := a.client.Do(req)
+	if err != nil {
+		if ctx.Err() == context.DeadlineExceeded {
+			return nil, fmt.Errorf("timeout fetching Azure AD groups from %s after %v", azureInfo.GraphEndpoint, timeout)
+		}
+		return nil, fmt.Errorf("HTTP request failed for %s: %w", azureInfo.GraphEndpoint, err)
+	}
+	defer resp.Body.Close()
+
+	log.Debugf("Azure Graph API response status: %d from %s", resp.StatusCode, azureInfo.GraphEndpoint)
+
+	if resp.StatusCode == http.StatusUnauthorized {
+		return nil, fmt.Errorf("unauthorized access to Azure Graph API endpoint %s - access token may be invalid or expired", azureInfo.GraphEndpoint)
+	}
+
+	if resp.StatusCode == http.StatusForbidden {
+		return nil, fmt.Errorf("forbidden access to Azure Graph API endpoint %s - insufficient permissions", azureInfo.GraphEndpoint)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("Azure Graph API endpoint %s returned status %d", azureInfo.GraphEndpoint, resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body from %s: %w", azureInfo.GraphEndpoint, err)
+	}
+
+	if len(body) == 0 {
+		return nil, fmt.Errorf("empty response body from Azure Graph API endpoint %s", azureInfo.GraphEndpoint)
+	}
+
+	log.Debug("Parsing Azure Graph API response as JSON")
+
+	// Parse Azure Graph API response format: {"value": ["group-id-1", "group-id-2", ...]}
+	var azureResponse struct {
+		Value []string `json:"value"`
+	}
+
+	if err := json.Unmarshal(body, &azureResponse); err != nil {
+		return nil, fmt.Errorf("failed to parse Azure Graph API response from %s: %w", azureInfo.GraphEndpoint, err)
+	}
+
+	log.Debugf("Successfully parsed Azure Graph API response from %s with %d groups", azureInfo.GraphEndpoint, len(azureResponse.Value))
+	return azureResponse.Value, nil
 }
 
 // getTokenExpiration returns a time.Duration until the token expires
