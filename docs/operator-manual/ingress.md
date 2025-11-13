@@ -1070,7 +1070,7 @@ server:
 
 ##### Routing gRPC and HTTP through the same domain
 
-Although officially [discouraged](https://gateway-api.sigs.k8s.io/api-types/grpcroute/#cross-serving),
+Although officially [discouraged](https://gateway-api.sigs.k8s.io/reference/api-types/grpcroute/#cross-serving),
 attaching the `HTTPRoute` and `GRPCRoute` to the same domain may be supported by some implementations.
 Matching requests headers become necessary to disambiguate the destination, as shown below:
 
@@ -1092,6 +1092,42 @@ spec:
           port: 443
       matches:
         - headers:
+            - name: Content-Type
+              type: RegularExpression
+              value: "^application/grpc.*$"
+```
+
+In cases where this is not supported, the `HTTPRoute` can be used to route gRPC requests too:
+
+```yaml
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: argocd-http-route
+  namespace: argocd
+spec:
+  parentRefs:
+    - name: cluster-gateway
+      namespace: gateway
+      sectionName: https
+  hostnames:
+    - "argocd.local.example.com"
+  rules:
+    - backendRefs:
+        - name: argocd-server
+          port: 80
+      matches:
+        - path:
+            type: PathPrefix
+            value: /
+    - backendRefs:
+        - name: argocd-server
+          port: 8008
+      matches:
+        - path:
+            type: PathPrefix
+            value: /
+          headers:
             - name: Content-Type
               type: RegularExpression
               value: "^application/grpc.*$"
