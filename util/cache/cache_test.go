@@ -1,6 +1,8 @@
 package cache
 
 import (
+	"context"
+	"crypto/tls"
 	"os"
 	"path/filepath"
 	"testing"
@@ -19,6 +21,116 @@ func TestAddCacheFlagsToCmd(t *testing.T) {
 	cache, err := AddCacheFlagsToCmd(&cobra.Command{})()
 	require.NoError(t, err)
 	assert.Equal(t, 24*time.Hour, cache.client.(*redisCache).expiration)
+}
+
+// Test the 4 possible Redis client types
+func TestBuildRedisClient(t *testing.T) {
+	tests := []struct {
+		name              string
+		description       string
+		redisClusterMode  bool
+		sentinelAddresses []string
+		sentinelMaster    string
+		sentinelUsername  string
+		sentinelPassword  string
+		redisAddress      string
+		username          string
+		password          string
+		redisDB           int
+		maxRetries        int
+		tlsConfig         *tls.Config
+	}{
+		{
+			name:              "FailoverClusterClient",
+			description:       "Redis sentinels in cluster mode",
+			redisClusterMode:  true,
+			sentinelAddresses: []string{"invalidsentinel1.invalid:12345", "invalidsentinel2.invalid:12345"},
+			sentinelMaster:    "master",
+			sentinelUsername:  "sentinel-user",
+			sentinelPassword:  "sentinel-pass",
+			redisAddress:      "", // ignored when using sentinels
+			username:          "redis-user",
+			password:          "redis-pass",
+			redisDB:           0, // must be 0 in cluster mode
+			maxRetries:        3,
+			tlsConfig:         nil,
+		},
+		{
+			name:              "FailoverClient",
+			description:       "Redis sentinels not in cluster mode",
+			redisClusterMode:  false,
+			sentinelAddresses: []string{"invalidsentinel1.invalid:12345", "invalidsentinel2.invalid:12345"},
+			sentinelMaster:    "master",
+			sentinelUsername:  "sentinel-user",
+			sentinelPassword:  "sentinel-pass",
+			redisAddress:      "", // ignored when using sentinels
+			username:          "redis-user",
+			password:          "redis-pass",
+			redisDB:           1,
+			maxRetries:        3,
+			tlsConfig:         nil,
+		},
+		{
+			name:              "ClusterClient",
+			description:       "Redis client in cluster mode",
+			redisClusterMode:  true,
+			sentinelAddresses: []string{},
+			sentinelMaster:    "",
+			sentinelUsername:  "",
+			sentinelPassword:  "",
+			redisAddress:      "invalidredis1.invalid:12345,invalidredis2.invalid:12345,invalidredis3.invalid:12345",
+			username:          "redis-user",
+			password:          "redis-pass",
+			redisDB:           0, // must be 0 in cluster mode
+			maxRetries:        2,
+			tlsConfig:         &tls.Config{InsecureSkipVerify: true},
+		},
+		{
+			name:              "SingleClient",
+			description:       "Redis client in single server mode",
+			redisClusterMode:  false,
+			sentinelAddresses: []string{},
+			sentinelMaster:    "",
+			sentinelUsername:  "",
+			sentinelPassword:  "",
+			redisAddress:      "invalidredishost.invalid:12345",
+			username:          "redis-user",
+			password:          "redis-pass",
+			redisDB:           15,
+			maxRetries:        2,
+			tlsConfig:         &tls.Config{ServerName: "invalidredishost.invalid"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			client := buildRedisClient(
+				tt.redisClusterMode,
+				tt.sentinelAddresses,
+				tt.sentinelMaster,
+				tt.sentinelUsername,
+				tt.sentinelPassword,
+				tt.redisAddress,
+				tt.username,
+				tt.password,
+				tt.redisDB,
+				tt.maxRetries,
+				tt.tlsConfig,
+			)
+			assert.NotNil(t, client, "Client should not be nil for scenario: %s", tt.description)
+
+			if tt.redisClusterMode {
+				_, isClusterClient := client.(*redis.ClusterClient)
+				assert.True(t, isClusterClient, "Should be *redis.ClusterClient for cluster scenario: %s", tt.description)
+			} else {
+				_, isNonClusterClient := client.(*redis.Client)
+				assert.True(t, isNonClusterClient, "Should be *redis.Client for non-cluster scenario: %s", tt.description)
+			}
+
+			cmd := client.Ping(context.Background())
+			assert.NotNil(t, cmd, "Should be able to create Ping command for scenario: %s", tt.description)
+		})
+	}
 }
 
 func NewInMemoryRedis() (*redis.Client, func()) {
