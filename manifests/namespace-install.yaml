@@ -728,7 +728,8 @@ metadata:
   name: argocd-server
 spec:
   ports:
-  - name: http
+  - appProtocol: kubernetes.io/h2c
+    name: http
     port: 80
     protocol: TCP
     targetPort: 8080
