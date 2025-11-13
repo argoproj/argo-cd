@@ -81,6 +81,59 @@ func (_c *TempPaths_Add_Call) RunAndReturn(run func(key string, value string)) *
 	return _c
 }
 
+// GeneratePath provides a mock function for the type TempPaths
+func (_mock *TempPaths) GeneratePath() (string, error) {
+	ret := _mock.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for GeneratePath")
+	}
+
+	var r0 string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func() (string, error)); ok {
+		return returnFunc()
+	}
+	if returnFunc, ok := ret.Get(0).(func() string); ok {
+		r0 = returnFunc()
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+	if returnFunc, ok := ret.Get(1).(func() error); ok {
+		r1 = returnFunc()
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// TempPaths_GeneratePath_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GeneratePath'
+type TempPaths_GeneratePath_Call struct {
+	*mock.Call
+}
+
+// GeneratePath is a helper method to define mock.On call
+func (_e *TempPaths_Expecter) GeneratePath() *TempPaths_GeneratePath_Call {
+	return &TempPaths_GeneratePath_Call{Call: _e.mock.On("GeneratePath")}
+}
+
+func (_c *TempPaths_GeneratePath_Call) Run(run func()) *TempPaths_GeneratePath_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run()
+	})
+	return _c
+}
+
+func (_c *TempPaths_GeneratePath_Call) Return(s string, err error) *TempPaths_GeneratePath_Call {
+	_c.Call.Return(s, err)
+	return _c
+}
+
+func (_c *TempPaths_GeneratePath_Call) RunAndReturn(run func() (string, error)) *TempPaths_GeneratePath_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetPath provides a mock function for the type TempPaths
 func (_mock *TempPaths) GetPath(key string) (string, error) {
 	ret := _mock.Called(key)

@@ -126,6 +126,8 @@ type Client interface {
 	Root() string
 	Init() error
 	Fetch(revision string, depth int64) error
+	FetchPartial(revision string) error
+	ConfigureSparseCheckout(paths []string) error
 	Submodule() error
 	Checkout(revision string, submoduleEnabled bool) (string, error)
 	LsRefs() (*Refs, error)
@@ -509,6 +511,50 @@ func (m *nativeGitClient) Fetch(revision string, depth int64) error {
 	}
 
 	return err
+}
+
+// FetchPartial fetches updates using partial clone (--filter=blob:none)
+// This downloads only commits and trees, not blobs, for minimal network transfer
+func (m *nativeGitClient) FetchPartial(revision string) error {
+	if m.OnFetch != nil {
+		done := m.OnFetch(m.repoURL)
+		defer done()
+	}
+	ctx := context.Background()
+
+	args := []string{"fetch", "origin", "--filter=blob:none", "--force", "--prune"}
+	if revision != "" {
+		args = append(args, revision)
+	}
+
+	return m.runCredentialedCmd(ctx, args...)
+}
+
+// ConfigureSparseCheckout configures git sparse-checkout with the given paths
+// This limits which files are checked out in the working directory
+func (m *nativeGitClient) ConfigureSparseCheckout(paths []string) error {
+	if len(paths) == 0 {
+		return fmt.Errorf("sparse checkout requires at least one path")
+	}
+
+	ctx := context.Background()
+
+	// Initialize sparse-checkout
+	if _, err := m.runCmd(ctx, "sparse-checkout", "init", "--cone"); err != nil {
+		log.Warnf("Failed to initialize sparse-checkout in cone mode, trying without cone: %v", err)
+		if _, err := m.runCmd(ctx, "sparse-checkout", "init"); err != nil {
+			return fmt.Errorf("failed to initialize sparse-checkout: %w", err)
+		}
+	}
+
+	// Set the sparse-checkout paths
+	args := append([]string{"sparse-checkout", "set"}, paths...)
+	if _, err := m.runCmd(ctx, args...); err != nil {
+		return fmt.Errorf("failed to set sparse-checkout paths: %w", err)
+	}
+
+	log.Debugf("Configured sparse checkout with paths: %v", paths)
+	return nil
 }
 
 // LsFiles lists the local working tree, including only files that are under source control

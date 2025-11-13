@@ -1,9 +1,11 @@
 package git
 
 import (
+	"context"
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 
@@ -721,4 +723,234 @@ func TestAnnotatedTagHandling(t *testing.T) {
 
 	// Verify tag exists in the list and points to a valid commit SHA
 	assert.Contains(t, refs.Tags, "v1.0.0", "Tag v1.0.0 should exist in refs")
+}
+
+// Partial Clone / Sparse Checkout Tests
+
+func TestComputePathHash(t *testing.T) {
+	tests := []struct {
+		name     string
+		paths    []string
+		expected string
+	}{
+		{
+			name:     "Single path",
+			paths:    []string{"app/deployment"},
+			expected: "0e7c69d8133a98d2",
+		},
+		{
+			name:     "Multiple paths sorted",
+			paths:    []string{"app", "deployment", "helm"},
+			expected: "b8305263b1960b6c",
+		},
+		{
+			name:     "Multiple paths unsorted (should produce same hash as sorted)",
+			paths:    []string{"helm", "app", "deployment"},
+			expected: "b8305263b1960b6c", // Same as sorted
+		},
+		{
+			name:     "Empty paths",
+			paths:    []string{},
+			expected: "",
+		},
+		{
+			name:     "Nil paths",
+			paths:    nil,
+			expected: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			hash := ComputePathHash(tt.paths)
+			// Just verify it's a valid hex string and consistent
+			if len(tt.paths) > 0 {
+				assert.NotEmpty(t, hash)
+				assert.Len(t, hash, 16)
+				assert.Regexp(t, "^[a-f0-9]{16}$", hash)
+				assert.Equal(t, tt.expected, hash)
+
+				// Verify it's deterministic
+				hash2 := ComputePathHash(tt.paths)
+				assert.Equal(t, hash, hash2, "Hash should be deterministic")
+			} else {
+				assert.Empty(t, hash)
+			}
+		})
+	}
+}
+
+func TestComputePathHashDeterministic(t *testing.T) {
+	// Verify that the same paths in different orders produce the same hash
+	paths1 := []string{"app", "deployment", "helm", "kustomize"}
+	paths2 := []string{"kustomize", "helm", "deployment", "app"}
+	paths3 := []string{"deployment", "app", "kustomize", "helm"}
+
+	hash1 := ComputePathHash(paths1)
+	hash2 := ComputePathHash(paths2)
+	hash3 := ComputePathHash(paths3)
+
+	assert.Equal(t, hash1, hash2, "Hashes should be equal regardless of order")
+	assert.Equal(t, hash2, hash3, "Hashes should be equal regardless of order")
+}
+
+func TestSparseCheckoutConfiguration(t *testing.T) {
+	tmpDir := t.TempDir()
+	ctx := t.Context()
+
+	client, err := NewClientExt("", tmpDir, NopCreds{}, false, false, "", "")
+	require.NoError(t, err)
+
+	// Initialize a git repo
+	require.NoError(t, runCmd(ctx, tmpDir, "git", "init"))
+
+	// Create directory structure
+	require.NoError(t, os.MkdirAll(filepath.Join(tmpDir, "app1"), 0o755))
+	require.NoError(t, os.MkdirAll(filepath.Join(tmpDir, "app2"), 0o755))
+	require.NoError(t, os.MkdirAll(filepath.Join(tmpDir, "common"), 0o755))
+
+	// Create files
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "app1", "config.yaml"), []byte("app1"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "app2", "config.yaml"), []byte("app2"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "common", "shared.yaml"), []byte("common"), 0o644))
+
+	// Commit files
+	require.NoError(t, runCmd(ctx, tmpDir, "git", "add", "."))
+	require.NoError(t, runCmd(ctx, tmpDir, "git", "commit", "-m", "Initial commit"))
+
+	// Test configuring sparse checkout
+	sparsePaths := []string{"app1", "common"}
+	err = client.ConfigureSparseCheckout(sparsePaths)
+	require.NoError(t, err)
+
+	// Verify sparse-checkout file was created
+	sparseCheckoutFile := filepath.Join(tmpDir, ".git", "info", "sparse-checkout")
+	assert.FileExists(t, sparseCheckoutFile)
+
+	// Read and verify sparse-checkout contents
+	content, err := os.ReadFile(sparseCheckoutFile)
+	require.NoError(t, err)
+	contentStr := string(content)
+	assert.Contains(t, contentStr, "app1")
+	assert.Contains(t, contentStr, "common")
+	assert.NotContains(t, contentStr, "app2")
+}
+
+func TestPartialCloneFetch(t *testing.T) {
+	// This test requires a real git repository with partial clone support
+	// We'll use the ArgoCD repo as it's publicly accessible
+	tmpDir := t.TempDir()
+
+	client, err := NewClientExt("https://github.com/argoproj/argo-cd.git", tmpDir, NopCreds{}, false, false, "", "")
+	require.NoError(t, err)
+
+	err = client.Init()
+	require.NoError(t, err)
+
+	// Configure sparse checkout for a specific path
+	sparsePaths := []string{"cmd/argocd"}
+	err = client.ConfigureSparseCheckout(sparsePaths)
+	require.NoError(t, err)
+
+	// Perform partial fetch
+	err = client.FetchPartial("HEAD")
+	require.NoError(t, err)
+
+	// Verify that the repo was cloned with partial clone
+	// Check for filter configuration
+	output, err := runCmdOutput(t.Context(), tmpDir, "git", "config", "remote.origin.promisor")
+	if err == nil {
+		// If promisor is configured, verify it's true
+		assert.Contains(t, string(output), "true")
+	}
+}
+
+func TestSparseCheckoutWithMultiplePaths(t *testing.T) {
+	tmpDir := t.TempDir()
+	ctx := t.Context()
+
+	client, err := NewClientExt("", tmpDir, NopCreds{}, false, false, "", "")
+	require.NoError(t, err)
+
+	// Initialize a git repo
+	require.NoError(t, runCmd(ctx, tmpDir, "git", "init"))
+
+	// Create complex directory structure
+	dirs := []string{
+		"app1/deployment",
+		"app1/service",
+		"app2/deployment",
+		"app2/service",
+		"shared/common",
+		"docs",
+	}
+	for _, dir := range dirs {
+		require.NoError(t, os.MkdirAll(filepath.Join(tmpDir, dir), 0o755))
+		require.NoError(t, os.WriteFile(
+			filepath.Join(tmpDir, dir, "file.yaml"),
+			[]byte(dir),
+			0o644,
+		))
+	}
+
+	// Commit files
+	require.NoError(t, runCmd(ctx, tmpDir, "git", "add", "."))
+	require.NoError(t, runCmd(ctx, tmpDir, "git", "commit", "-m", "Initial commit"))
+
+	// Test configuring sparse checkout with multiple paths
+	sparsePaths := []string{"app1", "shared/common"}
+	err = client.ConfigureSparseCheckout(sparsePaths)
+	require.NoError(t, err)
+
+	// Verify sparse-checkout file was created with all paths
+	sparseCheckoutFile := filepath.Join(tmpDir, ".git", "info", "sparse-checkout")
+	content, err := os.ReadFile(sparseCheckoutFile)
+	require.NoError(t, err)
+
+	contentStr := string(content)
+	for _, path := range sparsePaths {
+		assert.Contains(t, contentStr, path, "Sparse checkout file should contain path: %s", path)
+	}
+
+	// Verify paths not in sparse list are not included
+	assert.NotContains(t, contentStr, "app2")
+	assert.NotContains(t, contentStr, "docs")
+}
+
+func TestNormalizeGitURLConsistency(t *testing.T) {
+	// Test that normalizing the same URL multiple times produces consistent results
+	urls := []string{
+		"https://github.com/argoproj/argo-cd.git",
+		"git@github.com:argoproj/argo-cd.git",
+		"ssh://git@github.com/argoproj/argo-cd.git",
+	}
+
+	for _, url := range urls {
+		normalized1 := NormalizeGitURL(url)
+		normalized2 := NormalizeGitURL(url)
+		assert.Equal(t, normalized1, normalized2, "Normalization should be consistent for: %s", url)
+		assert.NotEmpty(t, normalized1, "Normalized URL should not be empty")
+	}
+}
+
+func TestSparseCheckoutEmpty(t *testing.T) {
+	tmpDir := t.TempDir()
+	ctx := t.Context()
+
+	client, err := NewClientExt("", tmpDir, NopCreds{}, false, false, "", "")
+	require.NoError(t, err)
+
+	// Initialize a git repo
+	require.NoError(t, runCmd(ctx, tmpDir, "git", "init"))
+
+	// Test configuring sparse checkout with empty paths (should be error)
+	err = client.ConfigureSparseCheckout([]string{})
+	assert.Error(t, err)
+}
+
+// Helper function to run a command and get output
+func runCmdOutput(ctx context.Context, workDir string, name string, args ...string) ([]byte, error) {
+	cmd := exec.CommandContext(ctx, name, args...)
+	cmd.Dir = workDir
+	return cmd.Output()
 }
