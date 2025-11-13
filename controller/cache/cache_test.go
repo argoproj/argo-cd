@@ -40,7 +40,7 @@ func (n netError) Error() string   { return string(n) }
 func (n netError) Timeout() bool   { return false }
 func (n netError) Temporary() bool { return false }
 
-func fixtures(data map[string]string, opts ...func(secret *corev1.Secret)) (*fake.Clientset, *argosettings.SettingsManager) {
+func fixtures(ctx context.Context, data map[string]string, opts ...func(secret *corev1.Secret)) (*fake.Clientset, *argosettings.SettingsManager) {
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      common.ArgoCDConfigMapName,
@@ -65,17 +65,17 @@ func fixtures(data map[string]string, opts ...func(secret *corev1.Secret)) (*fak
 		opts[i](secret)
 	}
 	kubeClient := fake.NewClientset(cm, secret)
-	settingsManager := argosettings.NewSettingsManager(context.Background(), kubeClient, "default")
+	settingsManager := argosettings.NewSettingsManager(ctx, kubeClient, "default")
 
 	return kubeClient, settingsManager
 }
 
 func TestHandleModEvent_HasChanges(_ *testing.T) {
 	clusterCache := &mocks.ClusterCache{}
-	clusterCache.On("Invalidate", mock.Anything, mock.Anything).Return(nil).Once()
-	clusterCache.On("EnsureSynced").Return(nil).Once()
+	clusterCache.EXPECT().Invalidate(mock.Anything, mock.Anything).Return().Once()
+	clusterCache.EXPECT().EnsureSynced().Return(nil).Once()
 	db := &dbmocks.ArgoDB{}
-	db.On("GetApplicationControllerReplicas").Return(1)
+	db.EXPECT().GetApplicationControllerReplicas().Return(1)
 	clustersCache := liveStateCache{
 		clusters: map[string]cache.ClusterCache{
 			"https://mycluster": clusterCache,
@@ -95,10 +95,10 @@ func TestHandleModEvent_HasChanges(_ *testing.T) {
 
 func TestHandleModEvent_ClusterExcluded(t *testing.T) {
 	clusterCache := &mocks.ClusterCache{}
-	clusterCache.On("Invalidate", mock.Anything, mock.Anything).Return(nil).Once()
-	clusterCache.On("EnsureSynced").Return(nil).Once()
+	clusterCache.EXPECT().Invalidate(mock.Anything, mock.Anything).Return().Once()
+	clusterCache.EXPECT().EnsureSynced().Return(nil).Once()
 	db := &dbmocks.ArgoDB{}
-	db.On("GetApplicationControllerReplicas").Return(1)
+	db.EXPECT().GetApplicationControllerReplicas().Return(1).Maybe()
 	clustersCache := liveStateCache{
 		db:          nil,
 		appInformer: nil,
@@ -128,10 +128,10 @@ func TestHandleModEvent_ClusterExcluded(t *testing.T) {
 
 func TestHandleModEvent_NoChanges(_ *testing.T) {
 	clusterCache := &mocks.ClusterCache{}
-	clusterCache.On("Invalidate", mock.Anything).Panic("should not invalidate")
-	clusterCache.On("EnsureSynced").Return(nil).Panic("should not re-sync")
+	clusterCache.EXPECT().Invalidate(mock.Anything).Panic("should not invalidate").Maybe()
+	clusterCache.EXPECT().EnsureSynced().Return(nil).Panic("should not re-sync").Maybe()
 	db := &dbmocks.ArgoDB{}
-	db.On("GetApplicationControllerReplicas").Return(1)
+	db.EXPECT().GetApplicationControllerReplicas().Return(1).Maybe()
 	clustersCache := liveStateCache{
 		clusters: map[string]cache.ClusterCache{
 			"https://mycluster": clusterCache,
@@ -150,7 +150,7 @@ func TestHandleModEvent_NoChanges(_ *testing.T) {
 
 func TestHandleAddEvent_ClusterExcluded(t *testing.T) {
 	db := &dbmocks.ArgoDB{}
-	db.On("GetApplicationControllerReplicas").Return(1)
+	db.EXPECT().GetApplicationControllerReplicas().Return(1).Maybe()
 	clustersCache := liveStateCache{
 		clusters:        map[string]cache.ClusterCache{},
 		clusterSharding: sharding.NewClusterSharding(db, 0, 2, common.DefaultShardingAlgorithm),
@@ -169,10 +169,9 @@ func TestHandleDeleteEvent_CacheDeadlock(t *testing.T) {
 		Config: appv1.ClusterConfig{Username: "bar"},
 	}
 	db := &dbmocks.ArgoDB{}
-	db.On("GetApplicationControllerReplicas").Return(1)
+	db.EXPECT().GetApplicationControllerReplicas().Return(1)
 	fakeClient := fake.NewClientset()
 	settingsMgr := argosettings.NewSettingsManager(t.Context(), fakeClient, "argocd")
-	liveStateCacheLock := sync.RWMutex{}
 	gitopsEngineClusterCache := &mocks.ClusterCache{}
 	clustersCache := liveStateCache{
 		clusters: map[string]cache.ClusterCache{
@@ -180,9 +179,7 @@ func TestHandleDeleteEvent_CacheDeadlock(t *testing.T) {
 		},
 		clusterSharding: sharding.NewClusterSharding(db, 0, 1, common.DefaultShardingAlgorithm),
 		settingsMgr:     settingsMgr,
-		// Set the lock here so we can reference it later
-		//nolint:govet // We need to overwrite here to have access to the lock
-		lock: liveStateCacheLock,
+		lock:            sync.RWMutex{},
 	}
 	channel := make(chan string)
 	// Mocked lock held by the gitops-engine cluster cache
@@ -203,7 +200,7 @@ func TestHandleDeleteEvent_CacheDeadlock(t *testing.T) {
 	handleDeleteWasCalled.Lock()
 	engineHoldsEngineLock.Lock()
 
-	gitopsEngineClusterCache.On("EnsureSynced").Run(func(_ mock.Arguments) {
+	gitopsEngineClusterCache.EXPECT().EnsureSynced().Run(func() {
 		gitopsEngineClusterCacheLock.Lock()
 		t.Log("EnsureSynced: Engine has engine lock")
 		engineHoldsEngineLock.Unlock()
@@ -217,7 +214,7 @@ func TestHandleDeleteEvent_CacheDeadlock(t *testing.T) {
 		ensureSyncedCompleted.Unlock()
 	}).Return(nil).Once()
 
-	gitopsEngineClusterCache.On("Invalidate").Run(func(_ mock.Arguments) {
+	gitopsEngineClusterCache.EXPECT().Invalidate().Run(func(_ ...cache.UpdateSettingsFunc) {
 		// Allow EnsureSynced to continue now that we're in the deadlock condition
 		handleDeleteWasCalled.Unlock()
 		// Wait until gitops engine holds the gitops lock
@@ -230,7 +227,7 @@ func TestHandleDeleteEvent_CacheDeadlock(t *testing.T) {
 		t.Log("Invalidate: Invalidate has engine lock")
 		gitopsEngineClusterCacheLock.Unlock()
 		invalidateCompleted.Unlock()
-	}).Return()
+	}).Return().Maybe()
 	go func() {
 		// Start the gitops-engine lock holds
 		go func() {
@@ -778,7 +775,7 @@ func Test_GetVersionsInfo_error_redacted(t *testing.T) {
 }
 
 func TestLoadCacheSettings(t *testing.T) {
-	_, settingsManager := fixtures(map[string]string{
+	_, settingsManager := fixtures(t.Context(), map[string]string{
 		"application.instanceLabelKey":       "testLabel",
 		"application.resourceTrackingMethod": string(appv1.TrackingMethodLabel),
 		"installationID":                     "123456789",
