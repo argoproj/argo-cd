@@ -6,7 +6,6 @@ import (
 	stderrors "errors"
 	"fmt"
 	"math"
-	"math/rand"
 	"net/http"
 	"reflect"
 	"runtime/debug"
@@ -26,6 +25,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/sync/semaphore"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -2486,14 +2486,44 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 				oldApp, oldOK := old.(*appv1.Application)
 				newApp, newOK := new.(*appv1.Application)
 				if oldOK && newOK {
+					// Skip refresh requests for informer resync events (same ResourceVersion)
+					if oldApp.ResourceVersion == newApp.ResourceVersion {
+						// Only update sharding and hydration queue, don't trigger refresh
+						if ctrl.hydrator != nil {
+							ctrl.appHydrateQueue.AddRateLimited(newApp.QualifiedName())
+						}
+						ctrl.clusterSharding.UpdateApp(newApp)
+						return
+					}
+
+					// Skip refresh requests for status-only updates (spec unchanged)
+					// This prevents feedback loop: status update → UpdateFunc → requestAppRefresh → refresh → status update
+					if equality.Semantic.DeepEqual(oldApp.Spec, newApp.Spec) {
+						// Check if user requested refresh/hydrate via annotations
+						// Don't skip if user explicitly requested refresh/hydrate
+						oldAnnotations := oldApp.GetAnnotations()
+						newAnnotations := newApp.GetAnnotations()
+						refreshAdded := (oldAnnotations == nil || oldAnnotations[appv1.AnnotationKeyRefresh] == "") &&
+							(newAnnotations != nil && newAnnotations[appv1.AnnotationKeyRefresh] != "")
+						hydrateAdded := (oldAnnotations == nil || oldAnnotations[appv1.AnnotationKeyHydrate] == "") &&
+							(newAnnotations != nil && newAnnotations[appv1.AnnotationKeyHydrate] != "")
+
+						if !refreshAdded && !hydrateAdded {
+							// Status-only update with no annotation changes - skip refresh to prevent feedback loop
+							// Still update sharding and hydration queue for status changes
+							if ctrl.hydrator != nil {
+								ctrl.appHydrateQueue.AddRateLimited(newApp.QualifiedName())
+							}
+							ctrl.clusterSharding.UpdateApp(newApp)
+							return
+						}
+						// User explicitly requested refresh/hydrate - fall through to normal processing
+					}
+
+					// Spec changed - legitimate update, proceed with refresh
 					if automatedSyncEnabled(oldApp, newApp) {
 						log.WithFields(applog.GetAppLogFields(newApp)).Info("Enabled automated sync")
 						compareWith = CompareWithLatest.Pointer()
-					}
-					if ctrl.statusRefreshJitter != 0 && oldApp.ResourceVersion == newApp.ResourceVersion {
-						// Handler is refreshing the apps, add a random jitter to spread the load and avoid spikes
-						jitter := time.Duration(float64(ctrl.statusRefreshJitter) * rand.Float64())
-						delay = &jitter
 					}
 				}
 
