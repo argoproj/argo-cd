@@ -75,3 +75,11 @@ rules:
       - get
       - update
       - create
+  - apiGroups:
+      - multicluster.x-k8s.io
+    resources:
+      - clusterprofiles
+    verbs:
+      - get
+      - list
+      - watch

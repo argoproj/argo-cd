@@ -7127,6 +7127,9 @@
         "clusterDecisionResource": {
           "$ref": "#/definitions/v1alpha1DuckTypeGenerator"
         },
+        "clusterProfiles": {
+          "$ref": "#/definitions/v1alpha1ClusterProfileGenerator"
+        },
         "clusters": {
           "$ref": "#/definitions/v1alpha1ClusterGenerator"
         },
@@ -7177,6 +7180,9 @@
       "properties": {
         "clusterDecisionResource": {
           "$ref": "#/definitions/v1alpha1DuckTypeGenerator"
+        },
+        "clusterProfiles": {
+          "$ref": "#/definitions/v1alpha1ClusterProfileGenerator"
         },
         "clusters": {
           "$ref": "#/definitions/v1alpha1ClusterGenerator"
@@ -8161,6 +8167,29 @@
         },
         "metadata": {
           "$ref": "#/definitions/v1ListMeta"
+        }
+      }
+    },
+    "v1alpha1ClusterProfileGenerator": {
+      "description": "ClusterProfileGenerator defines a generator to match against clusters registered with ArgoCD.",
+      "type": "object",
+      "properties": {
+        "flatList": {
+          "type": "boolean",
+          "title": "returns the clusters a single 'clusters' value in the template"
+        },
+        "selector": {
+          "$ref": "#/definitions/v1LabelSelector"
+        },
+        "template": {
+          "$ref": "#/definitions/v1alpha1ApplicationSetTemplate"
+        },
+        "values": {
+          "type": "object",
+          "title": "Values contains key/value pairs which are passed directly as parameters to the template",
+          "additionalProperties": {
+            "type": "string"
+          }
         }
       }
     },
