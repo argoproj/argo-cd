@@ -6,7 +6,6 @@ import (
 	stderrors "errors"
 	"fmt"
 	"math"
-	"math/rand"
 	"net/http"
 	"reflect"
 	"runtime/debug"
@@ -26,6 +25,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/sync/semaphore"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -125,7 +125,6 @@ type ApplicationController struct {
 	stateCache                    statecache.LiveStateCache
 	statusRefreshTimeout          time.Duration
 	statusHardRefreshTimeout      time.Duration
-	statusRefreshJitter           time.Duration
 	selfHealTimeout               time.Duration
 	selfHealBackoff               *wait.Backoff
 	syncTimeout                   time.Duration
@@ -202,7 +201,6 @@ func NewApplicationController(
 		db:                                db,
 		statusRefreshTimeout:              appResyncPeriod,
 		statusHardRefreshTimeout:          appHardResyncPeriod,
-		statusRefreshJitter:               appResyncJitter,
 		refreshRequestedApps:              make(map[string]CompareWith),
 		refreshRequestedAppsMutex:         &sync.Mutex{},
 		auditLogger:                       argo.NewAuditLogger(kubeClientset, common.ApplicationController, enableK8sEvent),
@@ -1016,17 +1014,71 @@ func (ctrl *ApplicationController) processAppOperationQueueItem() (processNext b
 		log.WithField("appkey", appKey).WithError(err).Error("Failed to get application from informer index")
 		return processNext
 	}
+
+	var app *appv1.Application
+	var logCtx *log.Entry
+
 	if !exists {
-		// This happens after app was deleted, but the work queue still had an entry for it.
-		return processNext
+		// App not in informer - this can happen if:
+		// 1. App was just created and informer hasn't synced yet
+		// 2. App is in a namespace not watched by informer (external namespace)
+		// 3. App was deleted
+		// Try to get it directly from API server to check for operations
+		parts := strings.Split(appKey, "/")
+		if len(parts) != 2 {
+			log.WithField("appkey", appKey).Warn("Unexpected appKey format, expected namespace/name")
+			return processNext
+		}
+		appNamespace, appName := parts[0], parts[1]
+		freshApp, apiErr := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(appNamespace).Get(context.Background(), appName, metav1.GetOptions{})
+		if apiErr != nil {
+			if apierrors.IsNotFound(apiErr) {
+				// App was deleted, skip processing
+				return processNext
+			}
+			log.WithField("appkey", appKey).WithError(apiErr).Error("Failed to retrieve application from API server")
+			return processNext
+		}
+		// Only process if there's an operation - operations are the reason items are queued
+		// If there's no operation, it was likely queued before the app was created or the operation was cleared
+		if freshApp.Operation == nil {
+			// No operation, skip processing
+			return processNext
+		}
+		// We already have fresh data from API server, use it directly
+		app = freshApp
+		logCtx = log.WithFields(applog.GetAppLogFields(app))
+	} else {
+		origApp, ok := obj.(*appv1.Application)
+		if !ok {
+			log.WithField("appkey", appKey).Warn("Key in index is not an application")
+			return processNext
+		}
+		app = origApp.DeepCopy()
+		logCtx = log.WithFields(applog.GetAppLogFields(app))
+
+		// Always retrieve fresh data from API server when processing operations
+		// The informer might have stale data, and operations are time-sensitive
+		// We cannot rely on informer since applications might be updated by both application controller and api server
+		if app.Operation != nil {
+			freshApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.ObjectMeta.Namespace).Get(context.Background(), app.Name, metav1.GetOptions{})
+			if err != nil {
+				if apierrors.IsNotFound(err) {
+					// App was deleted, skip processing
+					return processNext
+				}
+				logCtx.WithError(err).Error("Failed to retrieve latest application state")
+				return processNext
+			}
+			// Check if operation was cleared (e.g., already processed by another worker)
+			if freshApp.Operation == nil {
+				// Operation was cleared, skip processing
+				return processNext
+			}
+			app = freshApp
+		}
 	}
-	origApp, ok := obj.(*appv1.Application)
-	if !ok {
-		log.WithField("appkey", appKey).Warn("Key in index is not an application")
-		return processNext
-	}
-	app := origApp.DeepCopy()
-	logCtx := log.WithFields(applog.GetAppLogFields(app))
+
 	ts := stats.NewTimingStats()
 	defer func() {
 		for k, v := range ts.Timings() {
@@ -1035,18 +1087,6 @@ func (ctrl *ApplicationController) processAppOperationQueueItem() (processNext b
 		logCtx = logCtx.WithField("time_ms", time.Since(ts.StartTime).Milliseconds())
 		logCtx.Debug("Finished processing app operation queue item")
 	}()
-
-	if app.Operation != nil {
-		// If we get here, we are about to process an operation, but we cannot rely on informer since it might have stale data.
-		// So always retrieve the latest version to ensure it is not stale to avoid unnecessary syncing.
-		// We cannot rely on informer since applications might be updated by both application controller and api server.
-		freshApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.ObjectMeta.Namespace).Get(context.Background(), app.Name, metav1.GetOptions{})
-		if err != nil {
-			logCtx.WithError(err).Error("Failed to retrieve latest application state")
-			return processNext
-		}
-		app = freshApp
-	}
 	ts.AddCheckpoint("get_fresh_app_ms")
 
 	if app.Operation != nil {
@@ -2517,34 +2557,82 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 				}
 			},
 			UpdateFunc: func(old, new any) {
-				if !ctrl.canProcessApp(new) {
+				key, err := cache.MetaNamespaceKeyFunc(new)
+				if err != nil {
 					return
 				}
 
-				key, err := cache.MetaNamespaceKeyFunc(new)
-				if err != nil {
+				oldApp, oldOK := old.(*appv1.Application)
+				newApp, newOK := new.(*appv1.Application)
+
+				// Always queue operations if present, regardless of canProcessApp result
+				// Operations are explicit user actions and must be processed
+				if newOK && newApp.Operation != nil {
+					ctrl.appOperationQueue.AddRateLimited(key)
+				}
+
+				if !ctrl.canProcessApp(new) {
 					return
 				}
 
 				var compareWith *CompareWith
 				var delay *time.Duration
 
-				oldApp, oldOK := old.(*appv1.Application)
-				newApp, newOK := new.(*appv1.Application)
 				if oldOK && newOK {
+					// Skip refresh requests for informer resync events (same ResourceVersion)
+					if oldApp.ResourceVersion == newApp.ResourceVersion {
+						// Only update sharding and hydration queue, don't trigger refresh
+						// Operations are already queued above if present
+						if ctrl.hydrator != nil {
+							ctrl.appHydrateQueue.AddRateLimited(newApp.QualifiedName())
+						}
+						ctrl.clusterSharding.UpdateApp(newApp)
+						return
+					}
+
+					// Check if operation was added or changed - always process operations
+					operationChanged := (oldApp.Operation == nil && newApp.Operation != nil) ||
+						(oldApp.Operation != nil && newApp.Operation != nil && !equality.Semantic.DeepEqual(oldApp.Operation, newApp.Operation))
+
+					deletionTimestampChanged := (oldApp.DeletionTimestamp == nil && newApp.DeletionTimestamp != nil) ||
+						(oldApp.DeletionTimestamp != nil && newApp.DeletionTimestamp != nil && !oldApp.DeletionTimestamp.Equal(newApp.DeletionTimestamp))
+					appBeingDeleted := newApp.DeletionTimestamp != nil
+
+					// Skip refresh requests for status-only updates (spec unchanged)
+					// This prevents feedback loop: status update → UpdateFunc → requestAppRefresh → refresh → status update
+					if equality.Semantic.DeepEqual(oldApp.Spec, newApp.Spec) && !operationChanged && !deletionTimestampChanged && !appBeingDeleted {
+						// Check if user requested refresh/hydrate via annotations
+						// Don't skip if user explicitly requested refresh/hydrate
+						oldAnnotations := oldApp.GetAnnotations()
+						newAnnotations := newApp.GetAnnotations()
+						refreshAdded := (oldAnnotations == nil || oldAnnotations[appv1.AnnotationKeyRefresh] == "") &&
+							(newAnnotations != nil && newAnnotations[appv1.AnnotationKeyRefresh] != "")
+						hydrateAdded := (oldAnnotations == nil || oldAnnotations[appv1.AnnotationKeyHydrate] == "") &&
+							(newAnnotations != nil && newAnnotations[appv1.AnnotationKeyHydrate] != "")
+
+						if !refreshAdded && !hydrateAdded {
+							// Status-only update with no annotation changes - skip refresh to prevent feedback loop
+							// Operations are already queued above if present
+							// Still update sharding and hydration queue for status changes
+							if ctrl.hydrator != nil {
+								ctrl.appHydrateQueue.AddRateLimited(newApp.QualifiedName())
+							}
+							ctrl.clusterSharding.UpdateApp(newApp)
+							return
+						}
+						// User explicitly requested refresh/hydrate - fall through to normal processing
+					}
+
+					// Spec changed - legitimate update, proceed with refresh
 					if automatedSyncEnabled(oldApp, newApp) {
 						log.WithFields(applog.GetAppLogFields(newApp)).Info("Enabled automated sync")
 						compareWith = CompareWithLatest.Pointer()
 					}
-					if ctrl.statusRefreshJitter != 0 && oldApp.ResourceVersion == newApp.ResourceVersion {
-						// Handler is refreshing the apps, add a random jitter to spread the load and avoid spikes
-						jitter := time.Duration(float64(ctrl.statusRefreshJitter) * rand.Float64())
-						delay = &jitter
-					}
 				}
 
 				ctrl.requestAppRefresh(newApp.QualifiedName(), compareWith, delay)
-				if !newOK || (delay != nil && *delay != time.Duration(0)) {
+				// Operations are already queued at the beginning of UpdateFunc if present
+				if !newOK {
 					ctrl.appOperationQueue.AddRateLimited(key)
 				}
 				if ctrl.hydrator != nil {
