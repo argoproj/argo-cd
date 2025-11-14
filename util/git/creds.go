@@ -18,6 +18,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/cloud"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
+	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	giturls "github.com/chainguard-dev/git-urls"
 	"github.com/google/go-github/v69/github"
 
@@ -50,6 +54,8 @@ var (
 	// installationIdCache caches installation IDs for organizations to avoid redundant API calls.
 	githubInstallationIdCache      *gocache.Cache
 	githubInstallationIdCacheMutex sync.RWMutex // For bulk API call coordination
+	// In memory cache for storing Azure Service Principal tokens
+	azureServicePrincipalTokenCache *gocache.Cache
 )
 
 const (
@@ -68,12 +74,19 @@ func init() {
 			githubAppCredsExp = time.Duration(qps) * time.Minute
 		}
 	}
+	azureServicePrincipalCredsExp := common.AzureServicePrincipalCredsExpirationDuration
+	if exp := os.Getenv(common.EnvAzureServicePrincipalCredsExpirationDuration); exp != "" {
+		if qps, err := strconv.Atoi(exp); err != nil {
+			azureServicePrincipalCredsExp = time.Duration(qps) * time.Minute
+		}
+	}
 
 	githubAppTokenCache = gocache.New(githubAppCredsExp, 1*time.Minute)
 	// oauth2.TokenSource handles fetching new Tokens once they are expired. The oauth2.TokenSource itself does not expire.
 	googleCloudTokenSource = gocache.New(gocache.NoExpiration, 0)
 	azureTokenCache = gocache.New(gocache.NoExpiration, 0)
 	githubInstallationIdCache = gocache.New(60*time.Minute, 60*time.Minute)
+	azureServicePrincipalTokenCache = gocache.New(azureServicePrincipalCredsExp, 1*time.Minute)
 }
 
 type NoopCredsStore struct{}
@@ -946,4 +959,97 @@ func (creds AzureWorkloadIdentityCreds) getAccessToken(scope string) (string, er
 func (creds AzureWorkloadIdentityCreds) GetAzureDevOpsAccessToken() (string, error) {
 	accessToken, err := creds.getAccessToken(azureDevopsEntraResourceId) // wellknown resourceid of Azure DevOps
 	return accessToken, err
+}
+
+var _ Creds = AzureServicePrincipalCreds{}
+
+// AzureServicePrincipalCreds to authenticate to Azure DevOps using a Service Principal
+type AzureServicePrincipalCreds struct {
+	tenantID                string
+	clientID                string
+	clientSecret            string
+	activeDirectoryEndpoint string
+	clientCertData          string
+	clientCertKey           string
+	proxy                   string
+	noProxy                 string
+	store                   CredsStore
+}
+
+func NewAzureServicePrincipalCreds(tenantID string, clientID string, clientSecret string, activeDirectoryEndpoint string, clientCertData string, clientCertKey string, proxy string, noProxy string, store CredsStore) GenericHTTPSCreds {
+	return AzureServicePrincipalCreds{tenantID: tenantID, clientID: clientID, clientSecret: clientSecret, activeDirectoryEndpoint: activeDirectoryEndpoint, clientCertData: clientCertData, clientCertKey: clientCertKey, proxy: proxy, noProxy: noProxy, store: store}
+}
+
+// GetUserInfo returns the username and email address for the credentials, if they're available.
+func (a AzureServicePrincipalCreds) GetUserInfo(_ context.Context) (string, string, error) {
+	// Email not implemented for HTTPS creds.
+	return workloadidentity.EmptyGuid, "", nil
+}
+
+func (a AzureServicePrincipalCreds) Environ() (io.Closer, []string, error) {
+	token, err := a.getAccessToken()
+	if err != nil {
+		return NopCloser{}, nil, err
+	}
+	nonce := a.store.Add("", token)
+	env := a.store.Environ(nonce)
+	env = append(env, fmt.Sprintf("%s=Authorization: Bearer %s", bearerAuthHeaderEnv, token))
+
+	return utilio.NewCloser(func() error {
+		a.store.Remove(nonce)
+		return nil
+	}), env, nil
+}
+
+func (a AzureServicePrincipalCreds) getAccessToken() (string, error) {
+	// Override the default active directory endpoint if present
+	activeDirectoryEndpoint := "https://login.microsoftonline.com"
+	disableInstanceDiscovery := false
+	if a.activeDirectoryEndpoint != "" {
+		activeDirectoryEndpoint = a.activeDirectoryEndpoint
+		disableInstanceDiscovery = true
+	}
+
+	// Generate cache key for creds
+	key, err := argoutils.GenerateCacheKey("%s %s %s %s", a.tenantID, a.clientID, a.clientSecret, activeDirectoryEndpoint)
+	if err != nil {
+		return "", fmt.Errorf("failed to get get SHA256 hash for Azure Service Principal credentials: %w", err)
+	}
+
+	t, found := azureServicePrincipalTokenCache.Get(key)
+	if found {
+		return t.(string), nil
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	opts := azcore.ClientOptions{}
+	opts.Cloud = cloud.Configuration{
+		ActiveDirectoryAuthorityHost: activeDirectoryEndpoint,
+	}
+	cred, err := azidentity.NewClientSecretCredential(a.tenantID, a.clientID, a.clientSecret, &azidentity.ClientSecretCredentialOptions{ClientOptions: opts, DisableInstanceDiscovery: disableInstanceDiscovery})
+	if err != nil {
+		return "", fmt.Errorf("failed to create Azure client secret credential: %w", err)
+	}
+	token, err := cred.GetToken(ctx, policy.TokenRequestOptions{
+		Scopes: []string{azureDevopsEntraResourceId},
+	})
+	if err != nil {
+		return "", fmt.Errorf("failed to get Azure access token: %w", err)
+	}
+	azureServicePrincipalTokenCache.Set(key, token.Token, 0)
+	return token.Token, nil
+}
+
+func (a AzureServicePrincipalCreds) HasClientCert() bool {
+	return a.clientCertData != "" && a.clientCertKey != ""
+}
+
+func (a AzureServicePrincipalCreds) GetClientCertData() string {
+	return a.clientCertData
+}
+
+func (a AzureServicePrincipalCreds) GetClientCertKey() string {
+	return a.clientCertKey
 }

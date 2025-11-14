@@ -315,6 +315,9 @@ func (repo *Repository) GetGitCreds(store git.CredsStore) git.Creds {
 	if repo.UseAzureWorkloadIdentity {
 		return git.NewAzureWorkloadIdentityCreds(store, workloadidentity.NewWorkloadIdentityTokenProvider())
 	}
+	if repo.AzureServicePrincipalClientId != "" && repo.AzureServicePrincipalClientSecret != "" && repo.AzureServicePrincipalTenantId != "" {
+		return git.NewAzureServicePrincipalCreds(repo.AzureServicePrincipalTenantId, repo.AzureServicePrincipalClientId, repo.AzureServicePrincipalClientSecret, repo.AzureActiveDirectoryEndpoint, repo.TLSClientCertData, repo.TLSClientCertKey, repo.Proxy, repo.NoProxy, store)
+	}
 	return git.NopCreds{}
 }
 
