@@ -2508,9 +2508,7 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 						hydrateAdded := (oldAnnotations == nil || oldAnnotations[appv1.AnnotationKeyHydrate] == "") &&
 							(newAnnotations != nil && newAnnotations[appv1.AnnotationKeyHydrate] != "")
 
-						if refreshAdded || hydrateAdded {
-							// User explicitly requested refresh/hydrate - don't skip, fall through to normal processing
-						} else {
+						if !refreshAdded && !hydrateAdded {
 							// Status-only update with no annotation changes - skip refresh to prevent feedback loop
 							// Still update sharding and hydration queue for status changes
 							if ctrl.hydrator != nil {
@@ -2519,6 +2517,7 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 							ctrl.clusterSharding.UpdateApp(newApp)
 							return
 						}
+						// User explicitly requested refresh/hydrate - fall through to normal processing
 					}
 
 					// Spec changed - legitimate update, proceed with refresh
