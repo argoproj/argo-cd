@@ -2511,12 +2511,7 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 						if refreshAdded || hydrateAdded {
 							// User explicitly requested refresh/hydrate - don't skip, fall through to normal processing
 						} else {
-							// Only process if automated sync was enabled (legitimate change)
-							if automatedSyncEnabled(oldApp, newApp) {
-								log.WithFields(applog.GetAppLogFields(newApp)).Info("Enabled automated sync")
-								compareWith = CompareWithLatest.Pointer()
-								ctrl.requestAppRefresh(newApp.QualifiedName(), compareWith, nil)
-							}
+							// Status-only update with no annotation changes - skip refresh to prevent feedback loop
 							// Still update sharding and hydration queue for status changes
 							if ctrl.hydrator != nil {
 								ctrl.appHydrateQueue.AddRateLimited(newApp.QualifiedName())
@@ -2531,7 +2526,7 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 						log.WithFields(applog.GetAppLogFields(newApp)).Info("Enabled automated sync")
 						compareWith = CompareWithLatest.Pointer()
 					}
-					if ctrl.statusRefreshJitter != 0 && oldApp.ResourceVersion == newApp.ResourceVersion {
+					if ctrl.statusRefreshJitter != 0 {
 						// Handler is refreshing the apps, add a random jitter to spread the load and avoid spikes
 						jitter := time.Duration(float64(ctrl.statusRefreshJitter) * rand.Float64())
 						delay = &jitter
