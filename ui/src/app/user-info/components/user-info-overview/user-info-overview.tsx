@@ -108,7 +108,7 @@ export const UserInfoComponent = ({userInfo}: {userInfo: UserInfo}) => {
                                         <>
                                             <p>Groups:</p>
                                             <ul>
-                                                {userInfo.groups.map(group => (
+                                                {userInfo.groups.sort().map(group => (
                                                     <li key={group}>{group}</li>
                                                 ))}
                                             </ul>
