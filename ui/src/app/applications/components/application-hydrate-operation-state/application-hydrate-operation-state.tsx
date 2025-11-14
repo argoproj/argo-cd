@@ -13,6 +13,8 @@ interface Props {
 }
 
 export const ApplicationHydrateOperationState: React.FunctionComponent<Props> = ({hydrateOperationState}) => {
+    const repoURL = hydrateOperationState?.sourceHydrator?.drySource?.repoURL;
+
     const operationAttributes = [
         {title: 'PHASE', value: hydrateOperationState.phase},
         ...(hydrateOperationState.message ? [{title: 'MESSAGE', value: hydrateOperationState.message}] : []),
@@ -37,23 +39,27 @@ export const ApplicationHydrateOperationState: React.FunctionComponent<Props> = 
     if (hydrateOperationState.finishedAt && hydrateOperationState.phase !== 'Hydrating') {
         operationAttributes.push({title: 'FINISHED AT', value: <Timestamp date={hydrateOperationState.finishedAt} />});
     }
-    operationAttributes.push({
-        title: 'DRY REVISION',
-        value: (
-            <div>
-                <Revision repoUrl={hydrateOperationState.sourceHydrator.drySource.repoURL} revision={hydrateOperationState.drySHA} />
-            </div>
-        )
-    });
-    if (hydrateOperationState.finishedAt) {
+
+    if (repoURL) {
         operationAttributes.push({
-            title: 'HYDRATED REVISION',
+            title: 'DRY REVISION',
             value: (
                 <div>
-                    <Revision repoUrl={hydrateOperationState.sourceHydrator.drySource.repoURL} revision={hydrateOperationState.hydratedSHA} />
+                    <Revision repoUrl={hydrateOperationState.sourceHydrator.drySource.repoURL} revision={hydrateOperationState.drySHA} />
                 </div>
             )
         });
+
+        if (hydrateOperationState.finishedAt) {
+            operationAttributes.push({
+                title: 'HYDRATED REVISION',
+                value: (
+                    <div>
+                        <Revision repoUrl={hydrateOperationState.sourceHydrator.drySource.repoURL} revision={hydrateOperationState.hydratedSHA} />
+                    </div>
+                )
+            });
+        }
     }
     return (
         <div>
