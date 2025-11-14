@@ -26,6 +26,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/sync/semaphore"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -2498,7 +2499,7 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 
 					// Skip refresh requests for status-only updates (spec unchanged)
 					// This prevents feedback loop: status update → UpdateFunc → requestAppRefresh → refresh → status update
-					if reflect.DeepEqual(oldApp.Spec, newApp.Spec) {
+					if equality.Semantic.DeepEqual(oldApp.Spec, newApp.Spec) {
 						// Check if user requested refresh/hydrate via annotations
 						// Don't skip if user explicitly requested refresh/hydrate
 						oldAnnotations := oldApp.GetAnnotations()
