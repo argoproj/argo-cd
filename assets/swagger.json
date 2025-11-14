@@ -9402,6 +9402,22 @@
       "type": "object",
       "title": "RepoCreds holds the definition for repository credentials",
       "properties": {
+        "azureActiveDirectoryEndpoint": {
+          "type": "string",
+          "title": "AzureActiveDirectoryEndpoint specifies the Azure Active Directory endpoint used for Service Principal authentication. If empty will default to https://login.microsoftonline.com"
+        },
+        "azureServicePrincipalClientId": {
+          "type": "string",
+          "title": "AzureServicePrincipalClientId specifies the client ID of the Azure Service Principal used to access the repo"
+        },
+        "azureServicePrincipalClientSecret": {
+          "type": "string",
+          "title": "AzureServicePrincipalClientSecret specifies the client secret of the Azure Service Principal used to access the repo"
+        },
+        "azureServicePrincipalTenantId": {
+          "type": "string",
+          "title": "AzureServicePrincipalTenantId specifies the tenant ID of the Azure Service Principal used to access the repo"
+        },
         "bearerToken": {
           "type": "string",
           "title": "BearerToken contains the bearer token used for Git BitBucket Data Center auth at the repo server"
@@ -9501,6 +9517,22 @@
       "type": "object",
       "title": "Repository is a repository holding application configurations",
       "properties": {
+        "azureActiveDirectoryEndpoint": {
+          "type": "string",
+          "title": "AzureActiveDirectoryEndpoint specifies the Azure Active Directory endpoint used for Service Principal authentication. If empty will default to https://login.microsoftonline.com"
+        },
+        "azureServicePrincipalClientId": {
+          "type": "string",
+          "title": "AzureServicePrincipalClientId specifies the client ID of the Azure Service Principal used to access the repo"
+        },
+        "azureServicePrincipalClientSecret": {
+          "type": "string",
+          "title": "AzureServicePrincipalClientSecret specifies the client secret of the Azure Service Principal used to access the repo"
+        },
+        "azureServicePrincipalTenantId": {
+          "type": "string",
+          "title": "AzureServicePrincipalTenantId specifies the tenant ID of the Azure Service Principal used to access the repo"
+        },
         "bearerToken": {
           "type": "string",
           "title": "BearerToken contains the bearer token used for Git BitBucket Data Center auth at the repo server"
