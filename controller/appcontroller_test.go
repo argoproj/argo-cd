@@ -1836,7 +1836,7 @@ func TestRefreshAppConditions(t *testing.T) {
 
 	t.Run("PreserveExistingWarningCondition", func(t *testing.T) {
 		app := newFakeApp()
-		app.Status.SetConditions([]v1alpha1.ApplicationCondition{{Type: v1alpha1.ApplicationConditionExcludedResourceWarning}}, nil)
+		app.Status.SetConditions([]v1alpha1.ApplicationCondition{{Type: v1alpha1.ApplicationConditionExcludedResourceWarning}}, nil, app.Generation)
 
 		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app, &defaultProj}}, nil)
 
@@ -1849,7 +1849,7 @@ func TestRefreshAppConditions(t *testing.T) {
 	t.Run("ReplacesSpecErrorCondition", func(t *testing.T) {
 		app := newFakeApp()
 		app.Spec.Project = "wrong project"
-		app.Status.SetConditions([]v1alpha1.ApplicationCondition{{Type: v1alpha1.ApplicationConditionInvalidSpecError, Message: "old message"}}, nil)
+		app.Status.SetConditions([]v1alpha1.ApplicationCondition{{Type: v1alpha1.ApplicationConditionInvalidSpecError, Message: "old message"}}, nil, app.Generation)
 
 		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app, &defaultProj}}, nil)
 

@@ -1980,6 +1980,12 @@ spec:
                       description: Message contains human-readable message indicating
                         details about condition
                       type: string
+                    observedGeneration:
+                      description: |-
+                        ObservedGeneration is the most recent generation of the Application that this condition was observed for.
+                        When this value is not set, the condition may be stale and should not be relied upon.
+                      format: int64
+                      type: integer
                     type:
                       description: Type is an application condition type
                       type: string

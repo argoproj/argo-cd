@@ -1389,7 +1389,7 @@ func (s *Server) getCachedAppState(ctx context.Context, a *v1alpha1.Application,
 		conditions := a.Status.GetConditions(map[v1alpha1.ApplicationConditionType]bool{
 			v1alpha1.ApplicationConditionComparisonError:  true,
 			v1alpha1.ApplicationConditionInvalidSpecError: true,
-		})
+		}, a.Generation)
 		if len(conditions) > 0 {
 			return errors.New(argo.FormatAppConditions(conditions))
 		}

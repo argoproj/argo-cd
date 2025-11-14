@@ -183,7 +183,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, project *v1alp
 	if errConditions := app.Status.GetConditions(map[v1alpha1.ApplicationConditionType]bool{
 		v1alpha1.ApplicationConditionComparisonError:  true,
 		v1alpha1.ApplicationConditionInvalidSpecError: true,
-	}); len(errConditions) > 0 {
+	}, app.Generation); len(errConditions) > 0 {
 		state.Phase = common.OperationError
 		state.Message = argo.FormatAppConditions(errConditions)
 		return
@@ -555,10 +555,11 @@ func applyMergePatch(obj *unstructured.Unstructured, patch []byte, versionedObje
 // been synced by another Application. If the resource is found in another Application it returns
 // true along with a human readable message of which specific resource has this condition.
 func hasSharedResourceCondition(app *v1alpha1.Application) (bool, string) {
-	for _, condition := range app.Status.Conditions {
-		if condition.Type == v1alpha1.ApplicationConditionSharedResourceWarning {
-			return true, condition.Message
-		}
+	conditions := app.Status.GetConditions(map[v1alpha1.ApplicationConditionType]bool{
+		v1alpha1.ApplicationConditionSharedResourceWarning: true,
+	}, app.Generation)
+	if len(conditions) > 0 {
+		return true, conditions[0].Message
 	}
 	return false, ""
 }

@@ -672,7 +672,7 @@ func (ctrl *ApplicationController) getResourceTree(destCluster *appv1.Cluster, a
 		}}
 	}
 	ctrl.metricsServer.SetOrphanedResourcesMetric(a, len(orphanedNodes))
-	a.Status.SetConditions(conditions, map[appv1.ApplicationConditionType]bool{appv1.ApplicationConditionOrphanedResourceWarning: true})
+	a.Status.SetConditions(conditions, map[appv1.ApplicationConditionType]bool{appv1.ApplicationConditionOrphanedResourceWarning: true}, a.Generation)
 	sort.Slice(orphanedNodes, func(i, j int) bool {
 		return orphanedNodes[i].ResourceRef.String() < orphanedNodes[j].ResourceRef.String()
 	})
@@ -1361,7 +1361,7 @@ func (ctrl *ApplicationController) setAppCondition(app *appv1.Application, condi
 		}
 	}
 
-	app.Status.SetConditions([]appv1.ApplicationCondition{condition}, map[appv1.ApplicationConditionType]bool{condition.Type: true})
+	app.Status.SetConditions([]appv1.ApplicationCondition{condition}, map[appv1.ApplicationConditionType]bool{condition.Type: true}, app.Generation)
 
 	var patch []byte
 	patch, err := json.Marshal(map[string]any{
@@ -1810,11 +1810,13 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 			app.Status.SetConditions(
 				[]appv1.ApplicationCondition{*syncErrCond},
 				map[appv1.ApplicationConditionType]bool{appv1.ApplicationConditionSyncError: true},
+				app.Generation,
 			)
 		} else {
 			app.Status.SetConditions(
 				[]appv1.ApplicationCondition{},
 				map[appv1.ApplicationConditionType]bool{appv1.ApplicationConditionSyncError: true},
+				app.Generation,
 			)
 		}
 	} else {
@@ -2007,7 +2009,7 @@ func (ctrl *ApplicationController) refreshAppConditions(app *appv1.Application) 
 	app.Status.SetConditions(errorConditions, map[appv1.ApplicationConditionType]bool{
 		appv1.ApplicationConditionInvalidSpecError: true,
 		appv1.ApplicationConditionUnknownError:     true,
-	})
+	}, app.Generation)
 	return proj, len(errorConditions) > 0
 }
 

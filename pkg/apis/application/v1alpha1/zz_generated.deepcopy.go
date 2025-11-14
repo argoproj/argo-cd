@@ -270,6 +270,11 @@ func (in *ApplicationCondition) DeepCopyInto(out *ApplicationCondition) {
 		in, out := &in.LastTransitionTime, &out.LastTransitionTime
 		*out = (*in).DeepCopy()
 	}
+	if in.ObservedGeneration != nil {
+		in, out := &in.ObservedGeneration, &out.ObservedGeneration
+		*out = new(int64)
+		**out = **in
+	}
 	return
 }
 

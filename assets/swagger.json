@@ -6957,6 +6957,11 @@
           "type": "string",
           "title": "Message contains human-readable message indicating details about condition"
         },
+        "observedGeneration": {
+          "description": "ObservedGeneration is the most recent generation of the Application that this condition was observed for.\nWhen this value is not set, the condition may be stale and should not be relied upon.",
+          "type": "integer",
+          "format": "int64"
+        },
         "type": {
           "type": "string",
           "title": "Type is an application condition type"
