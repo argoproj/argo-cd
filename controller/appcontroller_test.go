@@ -1888,7 +1888,7 @@ func TestApplicationInformerUpdateFunc(t *testing.T) {
 		}
 
 		ctrl.requestAppRefresh(newApp.QualifiedName(), compareWith, delay)
-		if !newOK || (delay != nil && *delay != time.Duration(0)) {
+		if !newOK {
 			ctrl.appOperationQueue.AddRateLimited(key)
 		}
 		if ctrl.hydrator != nil {
@@ -1909,7 +1909,7 @@ func TestApplicationInformerUpdateFunc(t *testing.T) {
 		assert.Equal(t, shouldBeRequested, isRequested, "%s: Refresh request state mismatch for app %s (key: %s)", msg, appName, key)
 	}
 
-	t.Run("Status-only update without annotation should NOT trigger refresh", func(t *testing.T) {
+	t.Run("Status-only update without annotation should NOT trigger refresh", func(_ *testing.T) {
 		// Reset refresh state
 		ctrl.refreshRequestedAppsMutex.Lock()
 		ctrl.refreshRequestedApps = make(map[string]CompareWith)
@@ -1930,7 +1930,7 @@ func TestApplicationInformerUpdateFunc(t *testing.T) {
 		checkRefreshRequested(app.QualifiedName(), false, "Status-only update without annotation")
 	})
 
-	t.Run("Status-only update WITH refresh annotation SHOULD trigger refresh", func(t *testing.T) {
+	t.Run("Status-only update WITH refresh annotation SHOULD trigger refresh", func(_ *testing.T) {
 		// Reset refresh state
 		ctrl.refreshRequestedAppsMutex.Lock()
 		ctrl.refreshRequestedApps = make(map[string]CompareWith)
@@ -1956,7 +1956,7 @@ func TestApplicationInformerUpdateFunc(t *testing.T) {
 		checkRefreshRequested(app.QualifiedName(), true, "Status-only update WITH refresh annotation")
 	})
 
-	t.Run("Status-only update WITH hydrate annotation SHOULD trigger refresh", func(t *testing.T) {
+	t.Run("Status-only update WITH hydrate annotation SHOULD trigger refresh", func(_ *testing.T) {
 		// Reset refresh state
 		ctrl.refreshRequestedAppsMutex.Lock()
 		ctrl.refreshRequestedApps = make(map[string]CompareWith)
@@ -1982,7 +1982,7 @@ func TestApplicationInformerUpdateFunc(t *testing.T) {
 		checkRefreshRequested(app.QualifiedName(), true, "Status-only update WITH hydrate annotation")
 	})
 
-	t.Run("Spec change SHOULD trigger refresh", func(t *testing.T) {
+	t.Run("Spec change SHOULD trigger refresh", func(_ *testing.T) {
 		// Reset refresh state
 		ctrl.refreshRequestedAppsMutex.Lock()
 		ctrl.refreshRequestedApps = make(map[string]CompareWith)
@@ -2002,7 +2002,7 @@ func TestApplicationInformerUpdateFunc(t *testing.T) {
 		checkRefreshRequested(app.QualifiedName(), true, "Spec change")
 	})
 
-	t.Run("Informer resync (same ResourceVersion) should NOT trigger refresh", func(t *testing.T) {
+	t.Run("Informer resync (same ResourceVersion) should NOT trigger refresh", func(_ *testing.T) {
 		// Reset refresh state
 		ctrl.refreshRequestedAppsMutex.Lock()
 		ctrl.refreshRequestedApps = make(map[string]CompareWith)
