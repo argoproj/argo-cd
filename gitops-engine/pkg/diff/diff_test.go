@@ -1164,6 +1164,82 @@ func TestServerSideDiff(t *testing.T) {
 		assert.Empty(t, predictedDeploy.Annotations[AnnotationLastAppliedConfig])
 		assert.Empty(t, liveDeploy.Annotations[AnnotationLastAppliedConfig])
 	})
+
+	t.Run("will detect ConfigMap data key removal", func(t *testing.T) {
+		// given
+		t.Parallel()
+		liveState := StrToUnstructured(testdata.ConfigMapLiveYAMLSSD)
+		desiredState := StrToUnstructured(testdata.ConfigMapConfigYAMLSSD)
+		opts := buildOpts(testdata.ConfigMapPredictedLiveJSONSSD)
+
+		// when
+		result, err := serverSideDiff(desiredState, liveState, opts...)
+
+		// then
+		require.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.True(t, result.Modified, "Diff should detect key removal as a modification")
+
+		// Parse the results
+		var predictedCM map[string]any
+		err = json.Unmarshal(result.PredictedLive, &predictedCM)
+		require.NoError(t, err)
+
+		var liveCM map[string]any
+		err = json.Unmarshal(result.NormalizedLive, &liveCM)
+		require.NoError(t, err)
+
+		// Verify predicted live has only key1 and key2 (key3 removed)
+		predictedData, ok := predictedCM["data"].(map[string]any)
+		require.True(t, ok, "Predicted ConfigMap should have data field")
+		assert.Len(t, predictedData, 2, "Predicted data should have 2 keys")
+		assert.Contains(t, predictedData, "key1")
+		assert.Contains(t, predictedData, "key2")
+		assert.NotContains(t, predictedData, "key3", "key3 should be removed from predicted live")
+
+		// Verify live still has all 3 keys
+		liveData, ok := liveCM["data"].(map[string]any)
+		require.True(t, ok, "Live ConfigMap should have data field")
+		assert.Len(t, liveData, 3, "Live data should still have 3 keys")
+		assert.Contains(t, liveData, "key1")
+		assert.Contains(t, liveData, "key2")
+		assert.Contains(t, liveData, "key3", "key3 should still be in live state")
+	})
+
+	t.Run("will detect ConfigMap key removal even when SSA doesnt remove it", func(t *testing.T) {
+		// This test verifies the fix for issue #24882
+		// When Kubernetes server-side apply doesn't remove the key from the predicted live
+		// (due to field ownership conflicts), ArgoCD should still detect it by comparing
+		// the desired state with the predicted state and filtering out extra keys.
+
+		// given
+		t.Parallel()
+		liveState := StrToUnstructured(testdata.ConfigMapLiveYAMLSSD)
+		desiredState := StrToUnstructured(testdata.ConfigMapConfigYAMLSSD)
+		// Simulate server-side apply NOT removing key3 (field ownership conflict)
+		opts := buildOpts(testdata.ConfigMapPredictedLiveWithKey3JSONSSD)
+
+		// when
+		result, err := serverSideDiff(desiredState, liveState, opts...)
+
+		// then
+		require.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.True(t, result.Modified, "Diff should detect that predicted live has extra keys not in config")
+
+		// Parse the results
+		var predictedCM map[string]any
+		err = json.Unmarshal(result.PredictedLive, &predictedCM)
+		require.NoError(t, err)
+
+		// Verify that key3 was removed from predicted live even though SSA didn't remove it
+		predictedData, ok := predictedCM["data"].(map[string]any)
+		require.True(t, ok, "Predicted ConfigMap should have data field")
+		assert.Len(t, predictedData, 2, "Predicted data should have 2 keys (key3 removed)")
+		assert.Contains(t, predictedData, "key1")
+		assert.Contains(t, predictedData, "key2")
+		assert.NotContains(t, predictedData, "key3", "key3 should be removed by removeExtraMapKeys")
+	})
 }
 
 // testIgnoreDifferencesNormalizer implements a simple normalizer that removes specified fields
