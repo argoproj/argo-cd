@@ -1,13 +1,23 @@
 # Plugin Generator
 
-Plugins allow you to provide your own generator.
+The Plugin generator allows you to provide your own custom generator through a plugin.
 
 - You can write in any language
 - Simple: a plugin just responds to RPC HTTP requests.
 - You can use it in a sidecar, or standalone deployment.
 - You can get your plugin running today, no need to wait 3-5 months for review, approval, merge and an Argo software
   release.
-- You can combine it with Matrix or Merge.
+- You can combine it with [Matrix](Generators-Matrix.md) or [Merge](Generators-Merge.md)
+
+Note for those new to Argo CD development: the wording "Plugin generator" means "a generator of the plugin type" (in contrast to [Cluster generator](Generators-Cluster.md), [Git generator](Generators-Git.md), etc.), not "a generator which generates plugins."
+
+In general, the flow of an ApplicationSet with a Plugin generator is as follows:
+
+- The ApplicationSet controller sends an HTTP POST to `baseUrl` every `requeueAfterSeconds`. The request includes `input.parameters` defined in the ApplicationSet.
+- Your custom plugin service receives the request, reads the input parameters and executes its custom logic to fetch any necessary data and construct a list of output parameter objects.
+- The plugin service returns the parameter list in a response to the ApplicationSet controller.
+- The ApplicationSet controller iterates through the parameter objects and uses each one to fill out the template (defined in the ApplicationSet object) to create an Application.
+- This allows for dynamic creation of Argo CD Applications based on custom user-created defined templates, parameters, and logic.
 
 To start working on your own plugin, you can generate a new repository based on the example
 [applicationset-hello-plugin](https://github.com/argoproj-labs/applicationset-hello-plugin).
@@ -285,7 +295,7 @@ To illustrate :
 
 - The generator pullRequest would return, for example, 2 branches: `feature-branch-1` and `feature-branch-2`.
 
-- The generator plugin would then perform 2 requests as follows :
+- The plugin would then perform 2 requests as follows :
 
 ```shell
 curl http://localhost:4355/api/v1/getparams.execute -H "Authorization: Bearer strong-password" -d \
