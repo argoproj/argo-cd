@@ -2411,3 +2411,112 @@ func TestCreateAppInNotAllowedNamespace(t *testing.T) {
 		Expect(DoesNotExist()).
 		Expect(Error("", "namespace 'default' is not permitted"))
 }
+
+// TestZeroReconciliationTimeoutNoExcessiveRefreshes verifies that when timeout.reconciliation=0s,
+// applications do not trigger excessive automatic refreshes from status-only updates.
+func TestZeroReconciliationTimeoutNoExcessiveRefreshes(t *testing.T) {
+	// Set timeout.reconciliation to 0s to disable comparison expiry
+	ctx := t.Context()
+	namespace := fixture.TestNamespace()
+
+	// Update the ConfigMap
+	require.NoError(t, fixture.SetParamInSettingConfigMap("timeout.reconciliation", "0s"))
+	require.NoError(t, fixture.SetParamInSettingConfigMap("timeout.reconciliation.jitter", "0s"))
+	defer func() {
+		// Restore default timeout after test
+		_ = fixture.SetParamInSettingConfigMap("timeout.reconciliation", "")
+		_ = fixture.SetParamInSettingConfigMap("timeout.reconciliation.jitter", "")
+	}()
+
+	// Verify ConfigMap was updated
+	configMap, err := fixture.KubeClientset.CoreV1().ConfigMaps(namespace).Get(ctx, common.ArgoCDConfigMapName, metav1.GetOptions{})
+	require.NoError(t, err, "Failed to get ConfigMap to verify update")
+	require.Equal(t, "0s", configMap.Data["timeout.reconciliation"], "ConfigMap timeout.reconciliation should be 0s")
+	require.Equal(t, "0s", configMap.Data["timeout.reconciliation.jitter"], "ConfigMap timeout.reconciliation.jitter should be 0s")
+	configMapResourceVersion := configMap.ResourceVersion
+	configMapUpdateTime := time.Now()
+
+	require.Eventually(t, func() bool {
+		// Verify ConfigMap resourceVersion is stable (update has propagated)
+		currentConfigMap, err := fixture.KubeClientset.CoreV1().ConfigMaps(namespace).Get(ctx, common.ArgoCDConfigMapName, metav1.GetOptions{})
+		if err != nil {
+			return false
+		}
+		if currentConfigMap.ResourceVersion != configMapResourceVersion {
+			// ConfigMap was updated again, update our reference and reset timer
+			configMapResourceVersion = currentConfigMap.ResourceVersion
+			configMapUpdateTime = time.Now()
+			return false
+		}
+
+		// Wait at least 5 seconds after ConfigMap update for informer to process
+		timeSinceUpdate := time.Since(configMapUpdateTime)
+		if timeSinceUpdate < 5*time.Second {
+			return false
+		}
+
+		// Check if controller is actively processing applications by looking for recently reconciled apps
+		apps, err := fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.AppNamespace()).List(ctx, metav1.ListOptions{})
+		if err != nil {
+			return false
+		}
+
+		now := time.Now()
+		for _, app := range apps.Items {
+			if app.Status.ReconciledAt != nil {
+				reconciledTime := app.Status.ReconciledAt.Time
+				// If reconciled within last 30 seconds, controller is active
+				if now.Sub(reconciledTime) < 30*time.Second {
+					return true
+				}
+			}
+		}
+
+		return true
+	}, 30*time.Second, 1*time.Second, "Controller did not pick up ConfigMap changes within expected time. The controller may need more time to sync via informers.")
+	t.Logf("Verified controller has synced ConfigMap changes")
+
+	Given(t).
+		Path(guestbookPath).
+		SetTrackingMethod("annotation").
+		SetAppNamespace(fixture.AppNamespace()).
+		When().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(a *Application) {
+			// Wait for initial reconciliation to complete after sync
+			time.Sleep(5 * time.Second)
+
+			// Get the initial reconciledAt timestamp after sync
+			app, err := fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.AppNamespace()).Get(context.Background(), a.Name, metav1.GetOptions{})
+			require.NoError(t, err)
+			initialReconciledAt := app.Status.ReconciledAt
+			require.NotNil(t, initialReconciledAt, "Application should have reconciledAt timestamp after sync")
+
+			// Monitor application for 4 minutes to detect any automatic refreshes
+			ctx, cancel := context.WithTimeout(t.Context(), 4*time.Minute)
+			defer cancel()
+
+			refreshCount := 0
+			lastReconciledAt := initialReconciledAt.DeepCopy()
+
+			// Watch for changes to reconciledAt
+			for event := range fixture.ArgoCDClientset.WatchApplicationWithRetry(ctx, a.QualifiedName(), app.ResourceVersion) {
+				reconciledAt := event.Application.Status.ReconciledAt
+				if reconciledAt == nil {
+					continue
+				}
+				if !lastReconciledAt.Equal(reconciledAt) {
+					refreshCount++
+					t.Logf("Refresh detected #%d: reconciledAt changed from %v to %v", refreshCount, lastReconciledAt.Time, reconciledAt.Time)
+					lastReconciledAt = reconciledAt.DeepCopy()
+				}
+			}
+
+			assert.LessOrEqual(t, refreshCount, 1,
+				"Application refreshed %d times (expected ≤1). With timeout.reconciliation=0s, refreshes should only occur from spec changes or explicit requests, not status-only updates.", refreshCount)
+		})
+}
