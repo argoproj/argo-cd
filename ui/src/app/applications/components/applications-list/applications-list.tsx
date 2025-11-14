@@ -21,6 +21,7 @@ import {ApplicationTiles} from './applications-tiles';
 import {ApplicationsRefreshPanel} from '../applications-refresh-panel/applications-refresh-panel';
 import {useSidebarTarget} from '../../../sidebar/sidebar';
 import {useQuery, useObservableQuery} from '../../../shared/hooks/query';
+import minimatch from 'minimatch';
 
 import './applications-list.scss';
 import './flex-top-bar.scss';
@@ -173,11 +174,18 @@ function filterApps(applications: models.Application[], pref: AppsListPreference
         return {...app, isAppOfAppsPattern};
     });
     const filterResults = getFilterResults(applications, pref);
+
+    const normalizedSearch = search.trim();
+    const isSearchActive = normalizedSearch.length > 0;
+
     return {
         filterResults,
-        filteredApps: filterResults.filter(
-            app => (search === '' || app.metadata.name.includes(search) || app.metadata.namespace.includes(search)) && Object.values(app.filterResult).every(val => val)
-        )
+        filteredApps: filterResults.filter(app => {
+            const nameMatch = !isSearchActive || minimatch(app.metadata.name, normalizedSearch);
+            const namespaceMatch = !isSearchActive || minimatch(app.metadata.namespace, normalizedSearch);
+
+            return (nameMatch || namespaceMatch) && Object.values(app.filterResult).every(val => val);
+        })
     };
 }
 
