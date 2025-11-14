@@ -873,6 +873,13 @@ type ApplicationSourceDirectory struct {
 	Exclude string `json:"exclude,omitempty" protobuf:"bytes,3,opt,name=exclude"`
 	// Include contains a glob pattern to match paths against that should be explicitly included during manifest generation
 	Include string `json:"include,omitempty" protobuf:"bytes,4,opt,name=include"`
+	// SparseCheckoutPaths defines directory paths to include in a sparse git checkout.
+	// When specified, only these paths (and parent directories) will be checked out from the repository,
+	// significantly reducing clone time and disk usage for large monorepos.
+	// Paths should be relative to the repository root. Uses cone mode for optimal performance.
+	// Requires git >= 2.25.
+	// +optional
+	SparseCheckoutPaths []string `json:"sparseCheckoutPaths,omitempty" protobuf:"bytes,5,rep,name=sparseCheckoutPaths"`
 }
 
 // IsZero returns true if the ApplicationSourceDirectory is considered empty

@@ -497,6 +497,14 @@ message ApplicationSourceDirectory {
 
   // Include contains a glob pattern to match paths against that should be explicitly included during manifest generation
   optional string include = 4;
+
+  // SparseCheckoutPaths defines directory paths to include in a sparse git checkout.
+  // When specified, only these paths (and parent directories) will be checked out from the repository,
+  // significantly reducing clone time and disk usage for large monorepos.
+  // Paths should be relative to the repository root. Uses cone mode for optimal performance.
+  // Requires git >= 2.25.
+  // +optional
+  repeated string sparseCheckoutPaths = 5;
 }
 
 // ApplicationSourceHelm holds helm specific options
