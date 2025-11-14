@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -107,7 +108,7 @@ func findPreviousTag(proposedTag string, tags []string) (string, error) {
 
 	previousTag := getMostRecentTag(tags)
 	if previousTag == "" {
-		return "", fmt.Errorf("no matching tag found for tags: " + strings.Join(tags, ", "))
+		return "", errors.New("no matching tag found for tags: " + strings.Join(tags, ", "))
 	}
 	return previousTag, nil
 }
@@ -116,7 +117,7 @@ func getGitTags(ctx context.Context) ([]string, error) {
 	cmd := exec.CommandContext(ctx, "git", "tag", "--sort=-v:refname")
 	output, err := cmd.Output()
 	if err != nil {
-		return nil, fmt.Errorf("error executing git command: %v", err)
+		return nil, fmt.Errorf("error executing git command: %w", err)
 	}
 
 	tags := strings.Split(string(output), "\n")

@@ -48,17 +48,6 @@ func newVersionConverter(t TypeConverter, o runtime.ObjectConvertor, h schema.Gr
 	}
 }
 
-// NewCRDVersionConverter builds a VersionConverter for CRDs from a TypeConverter and an ObjectConvertor.
-func newCRDVersionConverter(t TypeConverter, o runtime.ObjectConvertor, h schema.GroupVersion) merge.Converter {
-	return &versionConverter{
-		typeConverter:   t,
-		objectConvertor: o,
-		hubGetter: func(from schema.GroupVersion) schema.GroupVersion {
-			return h
-		},
-	}
-}
-
 // Convert implements sigs.k8s.io/structured-merge-diff/merge.Converter
 func (v *versionConverter) Convert(object *typed.TypedValue, version fieldpath.APIVersion) (*typed.TypedValue, error) {
 	// Convert the smd typed value to a kubernetes object.

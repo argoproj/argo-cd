@@ -2,7 +2,7 @@ package text
 
 func FirstNonEmpty(args ...string) string {
 	for _, value := range args {
-		if len(value) > 0 {
+		if value != "" {
 			return value
 		}
 	}
@@ -11,7 +11,7 @@ func FirstNonEmpty(args ...string) string {
 
 // WithDefault return defaultValue when val is blank
 func WithDefault(val string, defaultValue string) string {
-	if len(val) == 0 {
+	if val == "" {
 		return defaultValue
 	}
 	return val
