@@ -40,7 +40,10 @@ type ConfigMapKeyRef struct {
 	Key           string `json:"key" protobuf:"bytes,2,opt,name=key"`
 }
 
-// ApplicationSet is a set of Application resources
+// Note: ApplicationSet and Application share the same field structure (TypeMeta, ObjectMeta, spec, status)
+// for frontend abstraction (AbstractApplication), but spec and status have different types.
+
+// ApplicationSet is a set of Application resources.
 // +genclient
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -48,9 +51,9 @@ type ConfigMapKeyRef struct {
 // +kubebuilder:subresource:status
 type ApplicationSet struct {
 	metav1.TypeMeta   `json:",inline"`
-	metav1.ObjectMeta `json:"metadata" protobuf:"bytes,1,opt,name=metadata"`
-	Spec              ApplicationSetSpec   `json:"spec" protobuf:"bytes,2,opt,name=spec"`
-	Status            ApplicationSetStatus `json:"status,omitempty" protobuf:"bytes,3,opt,name=status"`
+	metav1.ObjectMeta `json:"metadata" protobuf:"bytes,1,opt,name=metadata"` // Common: shared with Application
+	Spec              ApplicationSetSpec                                     `json:"spec" protobuf:"bytes,2,opt,name=spec"`               // Common: shared with Application (different type)
+	Status            ApplicationSetStatus                                   `json:"status,omitempty" protobuf:"bytes,3,opt,name=status"` // Common: shared with Application (different type)
 }
 
 // RBACName formats fully qualified application name for RBAC check.
