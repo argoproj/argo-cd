@@ -2499,18 +2499,31 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 					// Skip refresh requests for status-only updates (spec unchanged)
 					// This prevents feedback loop: status update → UpdateFunc → requestAppRefresh → refresh → status update
 					if reflect.DeepEqual(oldApp.Spec, newApp.Spec) {
-						// Only process if automated sync was enabled (legitimate change)
-						if automatedSyncEnabled(oldApp, newApp) {
-							log.WithFields(applog.GetAppLogFields(newApp)).Info("Enabled automated sync")
-							compareWith = CompareWithLatest.Pointer()
-							ctrl.requestAppRefresh(newApp.QualifiedName(), compareWith, nil)
+						// Check if user requested refresh/hydrate via annotations
+						// Don't skip if user explicitly requested refresh/hydrate
+						oldAnnotations := oldApp.GetAnnotations()
+						newAnnotations := newApp.GetAnnotations()
+						refreshAdded := (oldAnnotations == nil || oldAnnotations[appv1.AnnotationKeyRefresh] == "") &&
+							(newAnnotations != nil && newAnnotations[appv1.AnnotationKeyRefresh] != "")
+						hydrateAdded := (oldAnnotations == nil || oldAnnotations[appv1.AnnotationKeyHydrate] == "") &&
+							(newAnnotations != nil && newAnnotations[appv1.AnnotationKeyHydrate] != "")
+
+						if refreshAdded || hydrateAdded {
+							// User explicitly requested refresh/hydrate - don't skip, fall through to normal processing
+						} else {
+							// Only process if automated sync was enabled (legitimate change)
+							if automatedSyncEnabled(oldApp, newApp) {
+								log.WithFields(applog.GetAppLogFields(newApp)).Info("Enabled automated sync")
+								compareWith = CompareWithLatest.Pointer()
+								ctrl.requestAppRefresh(newApp.QualifiedName(), compareWith, nil)
+							}
+							// Still update sharding and hydration queue for status changes
+							if ctrl.hydrator != nil {
+								ctrl.appHydrateQueue.AddRateLimited(newApp.QualifiedName())
+							}
+							ctrl.clusterSharding.UpdateApp(newApp)
+							return
 						}
-						// Still update sharding and hydration queue for status changes
-						if ctrl.hydrator != nil {
-							ctrl.appHydrateQueue.AddRateLimited(newApp.QualifiedName())
-						}
-						ctrl.clusterSharding.UpdateApp(newApp)
-						return
 					}
 
 					// Spec changed - legitimate update, proceed with refresh
