@@ -2486,6 +2486,34 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 				oldApp, oldOK := old.(*appv1.Application)
 				newApp, newOK := new.(*appv1.Application)
 				if oldOK && newOK {
+					// Skip refresh requests for informer resync events (same ResourceVersion)
+					if oldApp.ResourceVersion == newApp.ResourceVersion {
+						// Only update sharding and hydration queue, don't trigger refresh
+						if ctrl.hydrator != nil {
+							ctrl.appHydrateQueue.AddRateLimited(newApp.QualifiedName())
+						}
+						ctrl.clusterSharding.UpdateApp(newApp)
+						return
+					}
+
+					// Skip refresh requests for status-only updates (spec unchanged)
+					// This prevents feedback loop: status update → UpdateFunc → requestAppRefresh → refresh → status update
+					if reflect.DeepEqual(oldApp.Spec, newApp.Spec) {
+						// Only process if automated sync was enabled (legitimate change)
+						if automatedSyncEnabled(oldApp, newApp) {
+							log.WithFields(applog.GetAppLogFields(newApp)).Info("Enabled automated sync")
+							compareWith = CompareWithLatest.Pointer()
+							ctrl.requestAppRefresh(newApp.QualifiedName(), compareWith, nil)
+						}
+						// Still update sharding and hydration queue for status changes
+						if ctrl.hydrator != nil {
+							ctrl.appHydrateQueue.AddRateLimited(newApp.QualifiedName())
+						}
+						ctrl.clusterSharding.UpdateApp(newApp)
+						return
+					}
+
+					// Spec changed - legitimate update, proceed with refresh
 					if automatedSyncEnabled(oldApp, newApp) {
 						log.WithFields(applog.GetAppLogFields(newApp)).Info("Enabled automated sync")
 						compareWith = CompareWithLatest.Pointer()
