@@ -404,6 +404,62 @@ func TestGitHubCommitEvent_Hydrate(t *testing.T) {
 	hook.Reset()
 }
 
+func TestGitHubCommitEvent_SyncSourceRefresh(t *testing.T) {
+	hook := test.NewGlobal()
+	var patched bool
+	reaction := func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		patchAction := action.(kubetesting.PatchAction)
+		assert.Equal(t, "app-to-refresh", patchAction.GetName())
+		patched = true
+		return true, nil, nil
+	}
+	h := NewMockHandler(&reactorDef{"patch", "applications", reaction}, []string{}, &v1alpha1.Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "app-to-refresh",
+			Namespace: "argocd",
+			Annotations: map[string]string{
+				"argocd.argoproj.io/manifest-generate-paths": ".",
+			},
+		},
+		Spec: v1alpha1.ApplicationSpec{
+			SourceHydrator: &v1alpha1.SourceHydrator{
+				DrySource: v1alpha1.DrySource{
+					RepoURL:        "https://github.com/jessesuen/test-repo",
+					TargetRevision: "main",
+					Path:           ".",
+				},
+				SyncSource: v1alpha1.SyncSource{
+					TargetBranch: "environments/dev",
+					Path:         ".",
+				},
+				HydrateTo: nil,
+			},
+		},
+	},
+	)
+	req := httptest.NewRequest(http.MethodPost, "/api/webhook", http.NoBody)
+	req.Header.Set("X-GitHub-Event", "push")
+	eventJSON, err := os.ReadFile("testdata/github-commit-syncsource-event.json")
+	require.NoError(t, err)
+	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
+	w := httptest.NewRecorder()
+	h.Handler(w, req)
+	close(h.queue)
+	h.Wait()
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.True(t, patched)
+
+	logMessages := make([]string, 0, len(hook.Entries))
+	for _, entry := range hook.Entries {
+		logMessages = append(logMessages, entry.Message)
+	}
+
+	assert.Contains(t, logMessages, "webhook trigger refresh app from syncSource 'app-to-refresh'")
+	// Should not hydrate the app
+	assert.NotContains(t, logMessages, "hydrate 'app-to-refresh'")
+	hook.Reset()
+}
+
 func TestGitHubTagEvent(t *testing.T) {
 	hook := test.NewGlobal()
 	h := NewMockHandler(nil, []string{})

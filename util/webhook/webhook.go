@@ -368,7 +368,8 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 		for _, app := range filteredApps {
 			if app.Spec.SourceHydrator != nil {
 				drySource := app.Spec.SourceHydrator.GetDrySource()
-				if sourceRevisionHasChanged(drySource, revision, touchedHead) && sourceUsesURL(drySource, webURL, repoRegexp) {
+				syncSource := app.Spec.SourceHydrator.GetSyncSource()
+				if sourceRevisionHasChanged(drySource, revision, touchedHead) && sourceUsesURL(drySource, webURL, repoRegexp) { // handle webhook for drySource
 					refreshPaths := path.GetAppRefreshPaths(&app)
 					if path.AppFilesHaveChanged(refreshPaths, changedFiles) {
 						namespacedAppInterface := a.appClientset.ArgoprojV1alpha1().Applications(app.Namespace)
@@ -378,6 +379,17 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 							log.Warnf("Failed to hydrate app '%s' for controller reprocessing: %v", app.Name, err)
 							continue
 						}
+					}
+				} else if sourceRevisionHasChanged(syncSource, revision, touchedHead) && sourceUsesURL(syncSource, webURL, repoRegexp) { // handle webhook for syncSource
+
+					// syncSource webhook events only trigger sync, not hydration. Unlike drySource events,
+					// skip the manifest_generate_path file check since hydration is not required here.
+					namespacedAppInterface := a.appClientset.ArgoprojV1alpha1().Applications(app.Namespace)
+					log.Infof("webhook trigger refresh app from syncSource '%s'", app.Name)
+					_, err = argo.RefreshApp(namespacedAppInterface, app.Name, v1alpha1.RefreshTypeNormal, true)
+					if err != nil {
+						log.Warnf("Failed to refresh app '%s' after syncSource change: %v", app.Name, err)
+						continue
 					}
 				}
 			}
