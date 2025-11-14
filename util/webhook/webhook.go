@@ -381,7 +381,6 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 						}
 					}
 				} else if sourceRevisionHasChanged(syncSource, revision, touchedHead) && sourceUsesURL(syncSource, webURL, repoRegexp) { // handle webhook for syncSource
-
 					// syncSource webhook events only trigger sync, not hydration. Unlike drySource events,
 					// skip the manifest_generate_path file check since hydration is not required here.
 					namespacedAppInterface := a.appClientset.ArgoprojV1alpha1().Applications(app.Namespace)
