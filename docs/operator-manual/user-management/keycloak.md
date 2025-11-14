@@ -30,7 +30,7 @@ Configure the client by setting the __Root URL__, __Web origins__, __Admin URL__
 
 Also you can set __Home URL__ to _/applications_ path and __Valid Post logout redirect URIs__ to "https://{hostname}/applications".
 
-The Valid Redirect URIs should be set to https://{hostname}/auth/callback (you can also set the less secure https://{hostname}/* for testing/development purposes,
+The __Valid Redirect URIs__ should be set to https://{hostname}/auth/callback (you can also set the less secure https://{hostname}/* for testing/development purposes,
 but it's not recommended in production).
 
 ![Keycloak configure client](../../assets/keycloak-configure-client.png "Keycloak configure client")
@@ -106,15 +106,19 @@ Configure the client by setting the __Root URL__, __Web origins__, __Admin URL__
 
 Also you can set __Home URL__ to _/applications_ path and __Valid Post logout redirect URIs__ to "https://{hostname}/applications".
 
-The Valid Redirect URIs should be set to:
+The __Valid Redirect URIs__ should be set to:
+
 - http://localhost:8085/auth/callback (needed for argo-cd cli, depends on value from [--sso-port](../../user-guide/commands/argocd_login.md))
 - https://{hostname}/auth/callback
+- https://{hostname}/pkce/verify (needed for argo-cd UI)
 
 ![Keycloak configure client](../../assets/keycloak-configure-client-pkce.png "Keycloak configure client")
 
 Make sure to click __Save__.
 
-Now go to a tab called __Advanced__, look for parameter named __Proof Key for Code Exchange Code Challenge Method__ and set it to __S256__
+Now go to the first tab called __Settings__, look for parameter named __PKCE Method__ in __Capability config__ and set it to __S256__.
+
+For older Keycloak versions: Go to a tab called __Advanced__, look for parameter named __Proof Key for Code Exchange Code Challenge Method__ and set it to __S256__.
 
 ![Keycloak configure client Step 2](../../assets/keycloak-configure-client-pkce_2.png "Keycloak configure client Step 2")
 Make sure to click __Save__.
