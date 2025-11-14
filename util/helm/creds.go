@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	azcloud "github.com/Azure/azure-sdk-for-go/sdk/azcore/cloud"
 	"github.com/golang-jwt/jwt/v5"
 	gocache "github.com/patrickmn/go-cache"
 	log "github.com/sirupsen/logrus"
@@ -181,8 +182,10 @@ func (creds AzureWorkloadIdentityCreds) getAccessTokenAfterChallenge(ctx context
 	realm := tokenParams["realm"]
 	service := tokenParams["service"]
 
-	armTokenScope := env.StringFromEnv("AZURE_ARM_TOKEN_RESOURCE", "https://management.core.windows.net")
-	armAccessToken, err := creds.tokenProvider.GetToken(armTokenScope + "/.default")
+	cloudConfig := creds.tokenProvider.GetCloudConfiguration()
+	armService := cloudConfig.Services[azcloud.ResourceManager]
+	armAudience := env.StringFromEnv("AZURE_ARM_TOKEN_RESOURCE", armService.Audience)
+	armAccessToken, err := creds.tokenProvider.GetToken(strings.TrimSuffix(armAudience, "/") + "/.default")
 	if err != nil {
 		return "", fmt.Errorf("failed to get Azure access token: %w", err)
 	}
@@ -220,7 +223,7 @@ func (creds AzureWorkloadIdentityCreds) getAccessTokenAfterChallenge(ctx context
 	body, err := io.ReadAll(resp.Body)
 
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("failed to get refresh token: %s", resp.Status)
+		return "", fmt.Errorf("failed to get refresh token: %s, Service %s, Access token: %s", resp.Status, service, armAccessToken.AccessToken)
 	}
 
 	if err != nil {
