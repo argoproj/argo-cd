@@ -11,5 +11,9 @@ import (
 func TestWave(t *testing.T) {
 	assert.Equal(t, 0, Wave(testingutils.NewPod()))
 	assert.Equal(t, 1, Wave(testingutils.Annotate(testingutils.NewPod(), "argocd.argoproj.io/sync-wave", "1")))
+	assert.Equal(t, "Default", WaveGroup(testingutils.NewPod()))
+	assert.Equal(t, "1", WaveGroup(testingutils.Annotate(testingutils.NewPod(), "argocd.argoproj.io/sync-wave-group", "1")))
+	assert.Equal(t, []string{}, WaveGroupDependencies(testingutils.NewPod()))
+	assert.Equal(t, []string{"1", "2"}, WaveGroupDependencies(testingutils.Annotate(testingutils.NewPod(), "argocd.argoproj.io/depends-on", "1,2")))
 	assert.Equal(t, 1, Wave(testingutils.Annotate(testingutils.NewPod(), "helm.sh/hook-weight", "1")))
 }
