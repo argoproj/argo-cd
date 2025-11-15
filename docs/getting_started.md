@@ -55,6 +55,12 @@ Also available in Mac, Linux and WSL Homebrew:
 brew install argocd
 ```
 
+Installing with mise:
+
+```bash
+mise use -g argo-cd@latest
+```
+
 ## 3. Access The Argo CD API Server
 
 By default, the Argo CD API server is not exposed with an external IP. To access the API server,

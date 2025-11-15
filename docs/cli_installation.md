@@ -16,6 +16,14 @@ pacman -S argocd
 brew install argocd
 ```
 
+### Using mise
+
+If you are an enthusiast user of [mise](https://github.com/jdx/mise) a polyglot tool version manager you can use a command like this one (example for last version here) :
+
+```bash
+mise use -g argo-cd@latest
+```
+
 ### Download With Curl
 
 #### Download latest version
