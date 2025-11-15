@@ -94,7 +94,7 @@ export const ApplicationsRefreshPanel = ({show, apps, hide}: {show: boolean; app
                                         ))}
                                     </div>
                                 </div>
-                                <ApplicationSelector apps={apps} formApi={formApi} />
+                                {show && <ApplicationSelector apps={apps} formApi={formApi} />}
                             </div>
                         )}
                     </Form>
