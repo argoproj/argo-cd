@@ -1,0 +1,7 @@
+actionTests:
+  - action: pause
+    inputPath: testdata/scaledobject.yaml
+    expectedOutputPath: testdata/scaledobject-pause.yaml
+  - action: resume
+    inputPath: testdata/scaledobject-pause.yaml
+    expectedOutputPath: testdata/scaledobject-resume.yaml
