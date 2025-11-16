@@ -14,7 +14,7 @@ recent minor releases.
 |    | Critical | High | Medium | Low |
 |---:|:--------:|:----:|:------:|:---:|
 | [go.mod](master/argocd-test.html) | 0 | 0 | 5 | 0 |
-| [ui/yarn.lock](master/argocd-test.html) | 0 | 0 | 1 | 2 |
+| [ui/yarn.lock](master/argocd-test.html) | 0 | 0 | 2 | 2 |
 | [dex:v2.43.0](master/ghcr.io_dexidp_dex_v2.43.0.html) | 0 | 0 | 0 | 3 |
 | [haproxy:3.0.8-alpine](master/public.ecr.aws_docker_library_haproxy_3.0.8-alpine.html) | 0 | 0 | 0 | 3 |
 | [redis:8.2.1-alpine](master/public.ecr.aws_docker_library_redis_8.2.1-alpine.html) | 0 | 0 | 0 | 3 |
@@ -27,7 +27,7 @@ recent minor releases.
 |    | Critical | High | Medium | Low |
 |---:|:--------:|:----:|:------:|:---:|
 | [go.mod](v3.2.0-rc4/argocd-test.html) | 0 | 1 | 5 | 0 |
-| [ui/yarn.lock](v3.2.0-rc4/argocd-test.html) | 0 | 0 | 2 | 2 |
+| [ui/yarn.lock](v3.2.0-rc4/argocd-test.html) | 0 | 0 | 3 | 2 |
 | [dex:v2.43.0](v3.2.0-rc4/ghcr.io_dexidp_dex_v2.43.0.html) | 0 | 0 | 0 | 3 |
 | [haproxy:3.0.8-alpine](v3.2.0-rc4/public.ecr.aws_docker_library_haproxy_3.0.8-alpine.html) | 0 | 0 | 0 | 3 |
 | [redis:8.2.2-alpine](v3.2.0-rc4/public.ecr.aws_docker_library_redis_8.2.2-alpine.html) | 0 | 0 | 0 | 0 |
@@ -40,7 +40,7 @@ recent minor releases.
 |    | Critical | High | Medium | Low |
 |---:|:--------:|:----:|:------:|:---:|
 | [go.mod](v3.1.9/argocd-test.html) | 0 | 1 | 5 | 0 |
-| [ui/yarn.lock](v3.1.9/argocd-test.html) | 1 | 0 | 2 | 2 |
+| [ui/yarn.lock](v3.1.9/argocd-test.html) | 1 | 0 | 3 | 2 |
 | [dex:v2.43.0](v3.1.9/ghcr.io_dexidp_dex_v2.43.0.html) | 0 | 0 | 0 | 3 |
 | [haproxy:3.0.8-alpine](v3.1.9/public.ecr.aws_docker_library_haproxy_3.0.8-alpine.html) | 0 | 0 | 0 | 3 |
 | [redis:7.2.11-alpine](v3.1.9/public.ecr.aws_docker_library_redis_7.2.11-alpine.html) | 0 | 0 | 0 | 0 |
@@ -53,7 +53,7 @@ recent minor releases.
 |    | Critical | High | Medium | Low |
 |---:|:--------:|:----:|:------:|:---:|
 | [go.mod](v3.0.20/argocd-test.html) | 0 | 4 | 5 | 0 |
-| [ui/yarn.lock](v3.0.20/argocd-test.html) | 1 | 1 | 3 | 4 |
+| [ui/yarn.lock](v3.0.20/argocd-test.html) | 1 | 1 | 4 | 4 |
 | [dex:v2.41.1](v3.0.20/ghcr.io_dexidp_dex_v2.41.1.html) | 0 | 1 | 0 | 7 |
 | [haproxy:3.0.8-alpine](v3.0.20/public.ecr.aws_docker_library_haproxy_3.0.8-alpine.html) | 0 | 0 | 0 | 3 |
 | [redis:7.2.11-alpine](v3.0.20/public.ecr.aws_docker_library_redis_7.2.11-alpine.html) | 0 | 0 | 0 | 0 |
@@ -67,7 +67,7 @@ recent minor releases.
 |    | Critical | High | Medium | Low |
 |---:|:--------:|:----:|:------:|:---:|
 | [go.mod](v2.14.21/argocd-test.html) | 0 | 2 | 8 | 0 |
-| [ui/yarn.lock](v2.14.21/argocd-test.html) | 1 | 0 | 3 | 3 |
+| [ui/yarn.lock](v2.14.21/argocd-test.html) | 1 | 0 | 4 | 3 |
 | [dex:v2.41.1](v2.14.21/ghcr.io_dexidp_dex_v2.41.1.html) | 0 | 1 | 0 | 7 |
 | [haproxy:2.6.17-alpine](v2.14.21/public.ecr.aws_docker_library_haproxy_2.6.17-alpine.html) | 0 | 1 | 2 | 9 |
 | [redis:7.2.11-alpine](v2.14.21/public.ecr.aws_docker_library_redis_7.2.11-alpine.html) | 0 | 0 | 0 | 0 |
