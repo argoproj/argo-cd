@@ -606,6 +606,10 @@ func (c *clusterCache) listResources(ctx context.Context, resClient dynamic.Reso
 					retryCount++
 					c.log.Info(fmt.Sprintf("Error while listing resources: %v (try %d/%d)", ierr, retryCount, c.listRetryLimit))
 				}
+				// Ensure res is never nil even when there's an error
+				if res == nil {
+					res = &unstructured.UnstructuredList{}
+				}
 				//nolint:wrapcheck // wrap outside the retry
 				return ierr
 			}
