@@ -59,32 +59,36 @@ argocd admin repo generate-spec REPOURL [flags]
 ### Options
 
 ```
-      --bearer-token string                     bearer token to the Git BitBucket Data Center repository
-      --depth int                               Specify a custom depth for git clone operations. Unless specified, a full clone is performed using the depth of 0
-      --enable-lfs                              enable git-lfs (Large File Support) on this repository
-      --enable-oci                              enable helm-oci (Helm OCI-Based Repository) (only valid for helm type repositories)
-      --force-http-basic-auth                   whether to force use of basic auth when connecting repository via HTTP
-      --gcp-service-account-key-path string     service account key for the Google Cloud Platform
-      --github-app-enterprise-base-url string   base url to use when using GitHub Enterprise (e.g. https://ghe.example.com/api/v3
-      --github-app-id int                       id of the GitHub Application
-      --github-app-installation-id int          installation id of the GitHub Application (optional, will be auto-discovered if not provided)
-      --github-app-private-key-path string      private key of the GitHub Application
-  -h, --help                                    help for generate-spec
-      --insecure-ignore-host-key                disables SSH strict host key checking (deprecated, use --insecure-skip-server-verification instead)
-      --insecure-oci-force-http                 Use http when accessing an OCI repository
-      --insecure-skip-server-verification       disables server certificate and host key checks
-      --name string                             name of the repository, mandatory for repositories of type helm
-      --no-proxy string                         don't access these targets via proxy
-  -o, --output string                           Output format. One of: json|yaml (default "yaml")
-      --password string                         password to the repository
-      --project string                          project of the repository
-      --proxy string                            use proxy to access repository
-      --ssh-private-key-path string             path to the private ssh key (e.g. ~/.ssh/id_rsa)
-      --tls-client-cert-key-path string         path to the TLS client cert's key (must be PEM format)
-      --tls-client-cert-path string             path to the TLS client cert (must be PEM format)
-      --type string                             type of the repository, "git", "oci" or "helm" (default "git")
-      --use-azure-workload-identity             whether to use azure workload identity for authentication
-      --username string                         username to the repository
+      --azure-active-directory-endpoint string         Active Directory endpoint when not using default Azure public cloud (e.g. https://login.microsoftonline.de)
+      --azure-service-principal-client-id string       client id of the Azure Service Principal
+      --azure-service-principal-client-secret string   client secret of the Azure Service Principal
+      --azure-service-principal-tenant-id string       tenant id of the Azure Service Principal
+      --bearer-token string                            bearer token to the Git BitBucket Data Center repository
+      --depth int                                      Specify a custom depth for git clone operations. Unless specified, a full clone is performed using the depth of 0
+      --enable-lfs                                     enable git-lfs (Large File Support) on this repository
+      --enable-oci                                     enable helm-oci (Helm OCI-Based Repository) (only valid for helm type repositories)
+      --force-http-basic-auth                          whether to force use of basic auth when connecting repository via HTTP
+      --gcp-service-account-key-path string            service account key for the Google Cloud Platform
+      --github-app-enterprise-base-url string          base url to use when using GitHub Enterprise (e.g. https://ghe.example.com/api/v3
+      --github-app-id int                              id of the GitHub Application
+      --github-app-installation-id int                 installation id of the GitHub Application
+      --github-app-private-key-path string             private key of the GitHub Application
+  -h, --help                                           help for generate-spec
+      --insecure-ignore-host-key                       disables SSH strict host key checking (deprecated, use --insecure-skip-server-verification instead)
+      --insecure-oci-force-http                        Use http when accessing an OCI repository
+      --insecure-skip-server-verification              disables server certificate and host key checks
+      --name string                                    name of the repository, mandatory for repositories of type helm
+      --no-proxy string                                don't access these targets via proxy
+  -o, --output string                                  Output format. One of: json|yaml (default "yaml")
+      --password string                                password to the repository
+      --project string                                 project of the repository
+      --proxy string                                   use proxy to access repository
+      --ssh-private-key-path string                    path to the private ssh key (e.g. ~/.ssh/id_rsa)
+      --tls-client-cert-key-path string                path to the TLS client cert's key (must be PEM format)
+      --tls-client-cert-path string                    path to the TLS client cert (must be PEM format)
+      --type string                                    type of the repository, "git", "oci" or "helm" (default "git")
+      --use-azure-workload-identity                    whether to use azure workload identity for authentication
+      --username string                                username to the repository
 ```
 
 ### Options inherited from parent commands

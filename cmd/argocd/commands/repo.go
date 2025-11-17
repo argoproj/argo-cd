@@ -102,6 +102,12 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 
   # Add a private Git repository on Google Cloud Sources via GCP service account credentials
   argocd repo add https://source.developers.google.com/p/my-google-cloud-project/r/my-repo --gcp-service-account-key-path service-account-key.json
+
+  # Add a private Git repository on Azure Devops via Azure Service Principal credentials
+  argocd repo add https://dev.azure.com/my-devops-organization/my-devops-project/_git/my-devops-repo --azure-service-principal-client-id 12345678-1234-1234-1234-123456789012 --azure-service-principal-client-secret test --azure-service-principal-tenant-id 12345678-1234-1234-1234-123456789012
+
+  # Add a private Git repository on Azure Devops via Azure Service Principal credentials when not using default Azure public cloud
+  argocd repo add https://dev.azure.com/my-devops-organization/my-devops-project/_git/my-devops-repo --azure-service-principal-client-id 12345678-1234-1234-1234-123456789012 --azure-service-principal-client-secret test --azure-service-principal-tenant-id 12345678-1234-1234-1234-123456789012 --azure-active-directory-endpoint https://login.microsoftonline.de
 `
 
 	command := &cobra.Command{
@@ -191,6 +197,10 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			repoOpts.Repo.NoProxy = repoOpts.NoProxy
 			repoOpts.Repo.ForceHttpBasicAuth = repoOpts.ForceHttpBasicAuth
 			repoOpts.Repo.UseAzureWorkloadIdentity = repoOpts.UseAzureWorkloadIdentity
+			repoOpts.Repo.AzureServicePrincipalTenantId = repoOpts.AzureServicePrincipalTenantId
+			repoOpts.Repo.AzureServicePrincipalClientId = repoOpts.AzureServicePrincipalClientId
+			repoOpts.Repo.AzureServicePrincipalClientSecret = repoOpts.AzureServicePrincipalClientSecret
+			repoOpts.Repo.AzureActiveDirectoryEndpoint = repoOpts.AzureActiveDirectoryEndpoint
 			repoOpts.Repo.Depth = repoOpts.Depth
 
 			if repoOpts.Repo.Type == "helm" && repoOpts.Repo.Name == "" {
@@ -225,27 +235,31 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			// are high that we do not have the given URL pointing to a valid Git
 			// repo anyway.
 			repoAccessReq := repositorypkg.RepoAccessQuery{
-				Repo:                       repoOpts.Repo.Repo,
-				Type:                       repoOpts.Repo.Type,
-				Name:                       repoOpts.Repo.Name,
-				Username:                   repoOpts.Repo.Username,
-				Password:                   repoOpts.Repo.Password,
-				BearerToken:                repoOpts.Repo.BearerToken,
-				SshPrivateKey:              repoOpts.Repo.SSHPrivateKey,
-				TlsClientCertData:          repoOpts.Repo.TLSClientCertData,
-				TlsClientCertKey:           repoOpts.Repo.TLSClientCertKey,
-				Insecure:                   repoOpts.Repo.IsInsecure(),
-				EnableOci:                  repoOpts.Repo.EnableOCI,
-				GithubAppPrivateKey:        repoOpts.Repo.GithubAppPrivateKey,
-				GithubAppID:                repoOpts.Repo.GithubAppId,
-				GithubAppInstallationID:    repoOpts.Repo.GithubAppInstallationId,
-				GithubAppEnterpriseBaseUrl: repoOpts.Repo.GitHubAppEnterpriseBaseURL,
-				Proxy:                      repoOpts.Proxy,
-				Project:                    repoOpts.Repo.Project,
-				GcpServiceAccountKey:       repoOpts.Repo.GCPServiceAccountKey,
-				ForceHttpBasicAuth:         repoOpts.Repo.ForceHttpBasicAuth,
-				UseAzureWorkloadIdentity:   repoOpts.Repo.UseAzureWorkloadIdentity,
-				InsecureOciForceHttp:       repoOpts.Repo.InsecureOCIForceHttp,
+				Repo:                              repoOpts.Repo.Repo,
+				Type:                              repoOpts.Repo.Type,
+				Name:                              repoOpts.Repo.Name,
+				Username:                          repoOpts.Repo.Username,
+				Password:                          repoOpts.Repo.Password,
+				BearerToken:                       repoOpts.Repo.BearerToken,
+				SshPrivateKey:                     repoOpts.Repo.SSHPrivateKey,
+				TlsClientCertData:                 repoOpts.Repo.TLSClientCertData,
+				TlsClientCertKey:                  repoOpts.Repo.TLSClientCertKey,
+				Insecure:                          repoOpts.Repo.IsInsecure(),
+				EnableOci:                         repoOpts.Repo.EnableOCI,
+				GithubAppPrivateKey:               repoOpts.Repo.GithubAppPrivateKey,
+				GithubAppID:                       repoOpts.Repo.GithubAppId,
+				GithubAppInstallationID:           repoOpts.Repo.GithubAppInstallationId,
+				GithubAppEnterpriseBaseUrl:        repoOpts.Repo.GitHubAppEnterpriseBaseURL,
+				Proxy:                             repoOpts.Proxy,
+				Project:                           repoOpts.Repo.Project,
+				GcpServiceAccountKey:              repoOpts.Repo.GCPServiceAccountKey,
+				ForceHttpBasicAuth:                repoOpts.Repo.ForceHttpBasicAuth,
+				UseAzureWorkloadIdentity:          repoOpts.Repo.UseAzureWorkloadIdentity,
+				InsecureOciForceHttp:              repoOpts.Repo.InsecureOCIForceHttp,
+				AzureServicePrincipalTenantId:     repoOpts.Repo.AzureServicePrincipalTenantId,
+				AzureServicePrincipalClientId:     repoOpts.Repo.AzureServicePrincipalClientId,
+				AzureServicePrincipalClientSecret: repoOpts.Repo.AzureServicePrincipalClientSecret,
+				AzureActiveDirectoryEndpoint:      repoOpts.Repo.AzureActiveDirectoryEndpoint,
 			}
 			_, err = repoIf.ValidateAccess(ctx, &repoAccessReq)
 			errors.CheckError(err)
