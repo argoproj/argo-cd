@@ -5,3 +5,16 @@ actionTests:
   - action: resume
     inputPath: testdata/scaledobject-pause.yaml
     expectedOutputPath: testdata/scaledobject-resume.yaml
+  - action: paused-replicas
+    inputPath: testdata/scaledobject.yaml
+    expectedOutputPath: testdata/scaledobject-paused-replicas.yaml
+    parameters:
+      replicas: '6'
+  - action: paused-replicas
+    inputPath: testdata/scaledobject.yaml
+    expectedErrorMessage: 'invalid number: not_a_number (must be >= 0)'
+    parameters:
+      replicas: 'not_a_number'
+  - action: resume
+    inputPath: testdata/scaledobject-paused-replicas.yaml
+    expectedOutputPath: testdata/scaledobject-resume.yaml
