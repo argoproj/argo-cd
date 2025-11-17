@@ -121,8 +121,7 @@ func (h *clusterSecretEventHandler) queueRelatedAppGenerators(ctx context.Contex
 	}
 }
 
-// clusterSelectorMatches checks if the provided cluster secret labels match the cluster generator's selector.
-// If the selector is empty, it returns true (matches all clusters).
+// clusterSelectorMatches returns true if the cluster secret labels match the generator's selector (or selector is empty).
 func (h *clusterSecretEventHandler) clusterSelectorMatches(selector metav1.LabelSelector, secretLabels map[string]string) bool {
 
 	if len(selector.MatchLabels) == 0 && len(selector.MatchExpressions) == 0 {
@@ -140,8 +139,7 @@ func (h *clusterSecretEventHandler) clusterSelectorMatches(selector metav1.Label
 	return kubeSelector.Matches(secretLabelSet)
 }
 
-// nestedGeneratorsHaveMatchingClusterGenerator checks if any of the nested generators have a cluster generator
-// whose selector matches the provided secret labels.
+// nestedGeneratorsHaveMatchingClusterGenerator returns true if any nested generator's selector matches the secret labels.
 func (h *clusterSecretEventHandler) nestedGeneratorsHaveMatchingClusterGenerator(generators []argoprojiov1alpha1.ApplicationSetNestedGenerator, secretLabels map[string]string) (bool, error) {
 	for _, generator := range generators {
 		if ok, err := h.nestedGeneratorHasMatchingClusterGenerator(generator, secretLabels); ok || err != nil {
@@ -151,8 +149,7 @@ func (h *clusterSecretEventHandler) nestedGeneratorsHaveMatchingClusterGenerator
 	return false, nil
 }
 
-// nestedGeneratorHasMatchingClusterGenerator checks if the provided nested generator has a cluster generator
-// whose selector matches the provided secret labels.
+// nestedGeneratorHasMatchingClusterGenerator returns true if the nested generator's selector matches the secret labels.
 func (h *clusterSecretEventHandler) nestedGeneratorHasMatchingClusterGenerator(nested argoprojiov1alpha1.ApplicationSetNestedGenerator, secretLabels map[string]string) (bool, error) {
 	if nested.Clusters != nil {
 		return h.clusterSelectorMatches(nested.Clusters.Selector, secretLabels), nil
