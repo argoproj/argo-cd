@@ -148,7 +148,7 @@ func (repo *Repository) IsLFSEnabled() bool {
 
 // HasCredentials returns true when the repository has been configured with any credentials
 func (repo *Repository) HasCredentials() bool {
-	return repo.Username != "" || repo.Password != "" || repo.BearerToken != "" || repo.SSHPrivateKey != "" || repo.TLSClientCertData != "" || repo.GithubAppPrivateKey != "" || repo.UseAzureWorkloadIdentity
+	return repo.Username != "" || repo.Password != "" || repo.BearerToken != "" || repo.SSHPrivateKey != "" || repo.TLSClientCertData != "" || repo.GithubAppPrivateKey != "" || repo.UseAzureWorkloadIdentity || repo.AzureServicePrincipalClientSecret != ""
 }
 
 // CopyCredentialsFromRepo copies all credential information from source repository to receiving repository
