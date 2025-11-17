@@ -528,7 +528,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
 
     // Connect a new repository or create a repository credentials for Azure Service Principal repositories
     const connectAzureServicePrincipalRepo = async (params: NewAzureServicePrincipalRepoParams) => {
-        if (credsTemplate) {
+        if (credsTemplate.current) {
             createAzureServicePrincipalCreds({
                 url: params.url,
                 azureServicePrincipalClientId: params.azureServicePrincipalClientId,
