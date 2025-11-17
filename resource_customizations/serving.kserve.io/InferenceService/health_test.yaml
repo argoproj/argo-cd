@@ -24,6 +24,10 @@ tests:
     message: "0: transitionStatus | BlockedByFailedLoad"
   inputPath: testdata/degraded_modelmesh.yaml
 - healthStatus:
+    status: Suspended
+    message: InferenceService is Stopped
+  inputPath: testdata/stopped.yaml
+- healthStatus:
     status: Healthy
     message: InferenceService is healthy.
   inputPath: testdata/healthy.yaml
