@@ -35,7 +35,7 @@ const (
 	// envRedisSentinelUsername is an env variable name which stores redis sentinel username
 	envRedisSentinelUsername = "REDIS_SENTINEL_USERNAME"
 	// envRedisCredsFilePath is an env variable name which stores path to redis credentials file
-	envRedisCredsFilePath = "REDIS_CREDS_FILE_PATH"
+	envRedisCredsDirPath = "REDIS_CREDS_DIR_PATH"
 )
 
 const (
@@ -185,6 +185,13 @@ func loadRedisCreds(mountPath string, opt Options) (username, password, sentinel
 	return username, password, sentinelUsername, sentinelPassword, nil
 }
 
+// readAuthDetailsFromFile reads authentication file from the given
+// mount path. If the file does not exist, it returns an empty string and no error.
+// which is the expected behavior for optional secrets.
+//
+// An error is returned only when the file exists but cannot be accessed (e.g.,
+// permission issues or other filesystem errors). This helps distinguish between
+// a missing optional credential (valid case) and a real misconfiguration
 func readAuthDetailsFromFile(mountPath, filename string) (string, error) {
 	path := filepath.Join(mountPath, filename)
 	data, err := os.ReadFile(path)
@@ -278,13 +285,13 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...Options) func() (*Cache, err
 			}
 		}
 		var password, username, sentinelUsername, sentinelPassword string
-		credsFilePath := os.Getenv(envRedisCredsFilePath)
+		credsDirPath := os.Getenv(envRedisCredsDirPath)
 		if opt.FlagPrefix != "" {
-			if val := os.Getenv(opt.getEnvPrefix() + envRedisCredsFilePath); val != "" {
-				credsFilePath = val
+			if val := os.Getenv(opt.getEnvPrefix() + envRedisCredsDirPath); val != "" {
+				credsDirPath = val
 			}
 		}
-		username, password, sentinelUsername, sentinelPassword, err := loadRedisCreds(credsFilePath, opt)
+		username, password, sentinelUsername, sentinelPassword, err := loadRedisCreds(credsDirPath, opt)
 		if err != nil {
 			return nil, err
 		}
