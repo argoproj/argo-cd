@@ -1055,7 +1055,7 @@ func TestHydrator_getManifests_Success(t *testing.T) {
 		Commands: []string{"cmd1", "cmd2"},
 	}, nil)
 
-	rev, pathDetails, err := h.getManifests(context.Background(), app, "sha123", proj)
+	rev, pathDetails, err := h.getManifests(t.Context(), app, "sha123", proj)
 	require.NoError(t, err)
 	assert.Equal(t, "sha123", rev)
 	assert.Equal(t, app.Spec.SourceHydrator.SyncSource.Path, pathDetails.Path)
@@ -1073,7 +1073,7 @@ func TestHydrator_getManifests_EmptyTargetRevision(t *testing.T) {
 
 	d.EXPECT().GetRepoObjs(mock.Anything, app, mock.Anything, "main", proj).Return([]*unstructured.Unstructured{}, &repoclient.ManifestResponse{Revision: "sha123"}, nil)
 
-	rev, pathDetails, err := h.getManifests(context.Background(), app, "", proj)
+	rev, pathDetails, err := h.getManifests(t.Context(), app, "", proj)
 	require.NoError(t, err)
 	assert.Equal(t, "sha123", rev)
 	assert.NotNil(t, pathDetails)
@@ -1088,7 +1088,7 @@ func TestHydrator_getManifests_GetRepoObjsError(t *testing.T) {
 
 	d.EXPECT().GetRepoObjs(mock.Anything, app, mock.Anything, "main", proj).Return(nil, nil, errors.New("repo error"))
 
-	rev, pathDetails, err := h.getManifests(context.Background(), app, "main", proj)
+	rev, pathDetails, err := h.getManifests(t.Context(), app, "main", proj)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "repo error")
 	assert.Empty(t, rev)
