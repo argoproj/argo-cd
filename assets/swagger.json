@@ -4001,6 +4001,30 @@
             "description": "Whether https should be disabled for an OCI repo.",
             "name": "insecureOciForceHttp",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Azure Service Principal Client ID.",
+            "name": "azureServicePrincipalClientId",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Azure Service Principal Client Secret.",
+            "name": "azureServicePrincipalClientSecret",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Azure Service Principal Tenant ID.",
+            "name": "azureServicePrincipalTenantId",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Azure Active Directory Endpoint.",
+            "name": "azureActiveDirectoryEndpoint",
+            "in": "query"
           }
         ],
         "responses": {
@@ -4844,6 +4868,30 @@
             "type": "boolean",
             "description": "Whether https should be disabled for an OCI repo.",
             "name": "insecureOciForceHttp",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Azure Service Principal Client ID.",
+            "name": "azureServicePrincipalClientId",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Azure Service Principal Client Secret.",
+            "name": "azureServicePrincipalClientSecret",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Azure Service Principal Tenant ID.",
+            "name": "azureServicePrincipalTenantId",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Azure Active Directory Endpoint.",
+            "name": "azureActiveDirectoryEndpoint",
             "in": "query"
           }
         ],
