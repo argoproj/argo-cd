@@ -345,9 +345,9 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
         return url.replace('https://', '').replace('oci://', '');
     };
 
-    // only connections of git type which is not via GitHub App are updatable
+    // only connections of git type which are not via GitHub App or Azure Service Principal are updatable
     const isRepoUpdatable = (repo: models.Repository) => {
-        return isHTTPOrHTTPSUrl(repo.repo) && repo.type === 'git' && !repo.githubAppId;
+        return isHTTPOrHTTPSUrl(repo.repo) && repo.type === 'git' && !repo.githubAppId && !repo.azureServicePrincipalClientId;
     };
 
     // Forces a reload of configured repositories, circumventing the cache
