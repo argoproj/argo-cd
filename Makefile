@@ -311,7 +311,7 @@ manifests-local:
 
 .PHONY: manifests
 manifests: test-tools-image
-	$(call run-in-test-client,make manifests-local IMAGE_NAMESPACE='${IMAGE_NAMESPACE}' IMAGE_TAG='${IMAGE_TAG}')
+	$(call run-in-test-client,make manifests-local IMAGE_REGISTRY='${IMAGE_REGISTRY}' IMAGE_NAMESPACE='${IMAGE_NAMESPACE}' IMAGE_REPOSITORY='${IMAGE_REPOSITORY}' IMAGE_TAG='${IMAGE_TAG}')
 
 # consolidated binary for cli, util, server, repo-server, controller
 .PHONY: argocd-all
