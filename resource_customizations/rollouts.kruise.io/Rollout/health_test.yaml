@@ -1,0 +1,17 @@
+tests:
+  - healthStatus:
+      status: Healthy
+      message: "Rollout is Completed"
+    inputPath: testdata/healthy.yaml
+  - healthStatus:
+      status: Degraded
+      message: "Rollout is Disabled or Terminating"
+    inputPath: testdata/degraded.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Rollout is still progressing"
+    inputPath: testdata/progressing.yaml
+  - healthStatus:
+      status: Suspended
+      message: "Rollout is Paused need manual intervention"
+    inputPath: testdata/suspended.yaml

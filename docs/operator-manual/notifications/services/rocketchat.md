@@ -4,7 +4,7 @@
 
 The Rocket.Chat notification service configuration includes following settings:
 
-* `email` - the Rocker.Chat user's email
+* `email` - the Rocker.Chat user's SAMAccountName
 * `password` - the Rocker.Chat user's password
 * `alias` - optional alias that should be used to post message
 * `icon` - optional message icon
@@ -25,7 +25,7 @@ The Rocket.Chat notification service configuration includes following settings:
 4. Copy username and password that you was created for bot user
 5. Create a public or private channel, or a team, for this example `my_channel`
 6. Add your bot to this channel **otherwise it won't work**
-7. Store email and password in argocd_notifications-secret Secret
+7. Store email and password in argocd-notifications-secret Secret
  
 ```yaml
 apiVersion: v1
@@ -43,7 +43,7 @@ stringData:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: <config-map-name>
+  name: argocd-notifications-cm
 data:
   service.rocketchat: |
     email: $rocketchat-email
@@ -64,7 +64,7 @@ metadata:
 
 ## Templates
 
-Notification templates can be customized with RocketChat [attachments](https://developer.rocket.chat/api/rest-api/methods/chat/postmessage#attachments-detail).
+[Notification templates](../templates.md) can be customized with RocketChat [attachments](https://developer.rocket.chat/api/rest-api/methods/chat/postmessage#attachments-detail).
 
 *Note: Attachments structure in Rocketchat is same with Slack attachments [feature](https://api.slack.com/messaging/composing/layouts).*
 

@@ -1,14 +1,14 @@
 package admin
 
 import (
-	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"github.com/stretchr/testify/require"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/fake"
 )
 
 const (
@@ -20,7 +20,7 @@ func newProj(name string, roleNames ...string) *v1alpha1.AppProject {
 	for i := range roleNames {
 		roles = append(roles, v1alpha1.ProjectRole{Name: roleNames[i]})
 	}
-	return &v1alpha1.AppProject{ObjectMeta: v1.ObjectMeta{
+	return &v1alpha1.AppProject{ObjectMeta: metav1.ObjectMeta{
 		Name:      name,
 		Namespace: namespace,
 	}, Spec: v1alpha1.AppProjectSpec{
@@ -29,52 +29,52 @@ func newProj(name string, roleNames ...string) *v1alpha1.AppProject {
 }
 
 func TestUpdateProjects_FindMatchingProject(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	clientset := fake.NewSimpleClientset(newProj("foo", "test"), newProj("bar", "test"))
 
 	modification, err := getModification("set", "*", "*", "allow")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	err = updateProjects(ctx, clientset.ArgoprojV1alpha1().AppProjects(namespace), "ba*", "*", "set", modification, false)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
-	fooProj, err := clientset.ArgoprojV1alpha1().AppProjects(namespace).Get(ctx, "foo", v1.GetOptions{})
-	assert.NoError(t, err)
-	assert.Len(t, fooProj.Spec.Roles[0].Policies, 0)
+	fooProj, err := clientset.ArgoprojV1alpha1().AppProjects(namespace).Get(ctx, "foo", metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.Empty(t, fooProj.Spec.Roles[0].Policies)
 
-	barProj, err := clientset.ArgoprojV1alpha1().AppProjects(namespace).Get(ctx, "bar", v1.GetOptions{})
-	assert.NoError(t, err)
-	assert.EqualValues(t, barProj.Spec.Roles[0].Policies, []string{"p, proj:bar:test, *, set, bar/*, allow"})
+	barProj, err := clientset.ArgoprojV1alpha1().AppProjects(namespace).Get(ctx, "bar", metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, []string{"p, proj:bar:test, *, set, bar/*, allow"}, barProj.Spec.Roles[0].Policies)
 }
 
 func TestUpdateProjects_FindMatchingRole(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	clientset := fake.NewSimpleClientset(newProj("proj", "foo", "bar"))
 
 	modification, err := getModification("set", "*", "*", "allow")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	err = updateProjects(ctx, clientset.ArgoprojV1alpha1().AppProjects(namespace), "*", "fo*", "set", modification, false)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
-	proj, err := clientset.ArgoprojV1alpha1().AppProjects(namespace).Get(ctx, "proj", v1.GetOptions{})
-	assert.NoError(t, err)
-	assert.EqualValues(t, proj.Spec.Roles[0].Policies, []string{"p, proj:proj:foo, *, set, proj/*, allow"})
-	assert.Len(t, proj.Spec.Roles[1].Policies, 0)
+	proj, err := clientset.ArgoprojV1alpha1().AppProjects(namespace).Get(ctx, "proj", metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, []string{"p, proj:proj:foo, *, set, proj/*, allow"}, proj.Spec.Roles[0].Policies)
+	assert.Empty(t, proj.Spec.Roles[1].Policies)
 }
 
 func TestGetModification_SetPolicy(t *testing.T) {
 	modification, err := getModification("set", "*", "*", "allow")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	policy := modification("proj", "myaction")
 	assert.Equal(t, "*, myaction, proj/*, allow", policy)
 }
 
 func TestGetModification_RemovePolicy(t *testing.T) {
 	modification, err := getModification("remove", "*", "*", "allow")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	policy := modification("proj", "myaction")
-	assert.Equal(t, "", policy)
+	assert.Empty(t, policy)
 }
 
 func TestGetModification_NotSupported(t *testing.T) {

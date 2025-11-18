@@ -1,0 +1,13 @@
+tests:
+- healthStatus:
+    status: Degraded
+    message: RabbitMQ binding failed to be created or updated
+  inputPath: testdata/degraded.yaml
+- healthStatus:
+    status: Unknown
+    message: RabbitMQ binding status is unknown
+  inputPath: testdata/unknown.yaml
+- healthStatus:
+    status: Healthy
+    message: RabbitMQ binding ready
+  inputPath: testdata/healthy.yaml

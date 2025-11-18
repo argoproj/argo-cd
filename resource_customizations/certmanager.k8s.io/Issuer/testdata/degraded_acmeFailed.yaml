@@ -10,7 +10,7 @@ metadata:
   uid: 37f408e3-3157-11e9-be3f-42010a800011
 spec:
   acme:
-    email: myemail@test.com
+    email: myemail@example.com
     http01: {}
     privateKeySecretRef:
       key: ""

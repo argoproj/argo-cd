@@ -1,0 +1,37 @@
+apiVersion: rds.aws.crossplane.io/v1alpha1
+kind: DBCluster
+metadata:
+  name: test-rds1
+spec:
+  deletionPolicy: Delete
+  forProvider:
+    allowMajorVersionUpgrade: true
+    applyImmediately: true
+    autogeneratePassword: true
+    databaseName: app
+    dbSubnetGroupName: test-rds
+    engine: foobar
+    engineVersion: '16.2'
+    masterUsername: root
+    skipFinalSnapshot: true
+  managementPolicies:
+    - '*'
+  providerConfigRef:
+    name: provider-aws
+  publishConnectionDetailsTo:
+    configRef:
+      name: store-config
+    name: test-rds1-rds
+status:
+  atProvider: {}
+  conditions:
+  - lastTransitionTime: "2024-07-17T18:03:12Z"
+    reason: Creating
+    status: "False"
+    type: Ready
+  - lastTransitionTime: "2024-07-17T18:03:12Z"
+    message: "create failed: cannot create DBCluster in AWS: InvalidParameterValue:
+      Invalid DB engine\n\tstatus code: 400, request id: "
+    reason: ReconcileError
+    status: "False"
+    type: Synced

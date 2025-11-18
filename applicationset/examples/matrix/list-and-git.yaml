@@ -8,6 +8,7 @@ metadata:
   name: list-git
 spec:
   goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
   - matrix:
       generators:

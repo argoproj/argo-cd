@@ -1,0 +1,26 @@
+apiVersion: astra.netapp.io/v1
+kind: Application
+metadata:
+  creationTimestamp: "2024-04-15T20:59:56Z"
+  finalizers:
+    - astra.netapp.io/finalizer
+  generation: 2
+  name: wordpress
+  namespace: astra-connector
+  resourceVersion: "10484469"
+  uid: 5ab7cd7d-7a9b-4508-9da2-c7dcb10a69b3
+spec:
+  includedNamespaces:
+    - labelSelector: {}
+      namespace: wordpress
+status:
+  conditions:
+    - lastTransitionTime: "2024-04-24T16:13:26Z"
+      message: namespace wordpress is in terminating state
+      reason: Ready
+      status: "False"
+      type: Ready
+  protectionState: partial
+  protectionStateDetails:
+    - Active backup schedule missing
+    - Application unavailable

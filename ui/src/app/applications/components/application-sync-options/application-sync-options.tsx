@@ -1,12 +1,14 @@
-import {Checkbox, Select, Tooltip} from 'argo-ui';
+import {Checkbox, DataLoader, Select, Tooltip} from 'argo-ui';
 import * as classNames from 'classnames';
 import * as React from 'react';
 import * as ReactForm from 'react-form';
 
 import './application-sync-options.scss';
+import {services} from '../../../shared/services';
 
-export const REPLACE_WARNING = `The resources will be synced using 'kubectl replace/create' command that is a potentially destructive action and might cause resources recreation.`;
+export const REPLACE_WARNING = `The resources will be synced using 'kubectl replace/create' command that is a potentially destructive action and might cause resources recreation. For example, it might cause a number of pods to be reset to the minimum number of replicas and cause them to become overloaded.`;
 export const FORCE_WARNING = `The resources will be synced using '--force' that is a potentially destructive action and will immediately remove resources from the API and bypasses graceful deletion. Immediate deletion of some resources may result in inconsistency or data loss.`;
+export const PRUNE_ALL_WARNING = `The resources will be synced using '--prune', and all resources are marked to be pruned. Only continue if you want to delete all of the Application's resources.`;
 
 export interface ApplicationSyncOptionProps {
     options: string[];
@@ -110,9 +112,20 @@ export const ApplicationSyncOptions = (props: ApplicationSyncOptionProps) => (
                 {render(props)}
             </div>
         ))}
-        <div className='small-12' style={optionStyle}>
-            {booleanOption('Replace', 'Replace', false, props, false, REPLACE_WARNING)}
-        </div>
+        <DataLoader
+            load={async () => {
+                const settings = await services.authService.settings();
+                return settings.syncWithReplaceAllowed;
+            }}>
+            {syncWithReplaceAllowed =>
+                (syncWithReplaceAllowed && (
+                    <div className='small-12' style={optionStyle}>
+                        {booleanOption('Replace', 'Replace', false, props, false, REPLACE_WARNING)}
+                    </div>
+                )) ||
+                null
+            }
+        </DataLoader>
     </div>
 );
 

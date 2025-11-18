@@ -1,0 +1,23 @@
+apiVersion: astra.netapp.io/v1
+kind: AppVault
+metadata:
+  creationTimestamp: "2024-04-26T14:25:45Z"
+  generation: 1
+  name: astra-gcp-backup-743cfd150129
+  namespace: astra-connector
+  resourceVersion: "12094908"
+  uid: 12943b68-323a-4e8a-ba78-604da0801d11
+spec:
+  providerConfig:
+    bucketName: astra-gcp-backup-743cfd150129
+  providerCredentials:
+    credentials:
+      valueFromSecret:
+        key: credentials.json
+        name: astra-gcp-backup-734ced050128-5rdt4
+  providerType: gcp
+status:
+  error:
+    'failed to close GCP object "appVault.json" in bucket "astra-gcp-backup-743cfd150129":
+    googleapi: Error 404: The specified bucket does not exist., notFound'
+  state: failed

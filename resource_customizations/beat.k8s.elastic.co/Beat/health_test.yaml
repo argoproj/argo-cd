@@ -1,0 +1,29 @@
+tests:
+- healthStatus:
+    status: Healthy
+    message: "Elastic Beat status is Green"
+  inputPath: testdata/ready_green.yaml
+- healthStatus:
+    status: Progressing
+    message: "Elastic Beat phase is progressing"
+  inputPath: testdata/ready_yellow_single_node.yaml
+- healthStatus:
+    status: Progressing
+    message: "Elastic Beat status is deploying, there is 1 instance(s) on 2 expected"
+  inputPath: testdata/ready_yellow.yaml
+- healthStatus:
+    status: Progressing
+    message: "Elastic Beat phase is progressing"
+  inputPath: testdata/progressing.yaml
+- healthStatus:
+    status: Degraded
+    message: "Elastic Beat status is Red"
+  inputPath: testdata/ready_red.yaml
+- healthStatus:
+    status: Unknown
+    message: "Elastic Beat status is unknown. Ensure your ArgoCD is current and then check for/file a bug report: https://github.com/argoproj/argo-cd/issues"
+  inputPath: testdata/unknown.yaml
+- healthStatus:
+    status: Unknown
+    message: "Elastic Beat status is unknown. Ensure your ArgoCD is current and then check for/file a bug report: https://github.com/argoproj/argo-cd/issues"
+  inputPath: testdata/invalid.yaml

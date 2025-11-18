@@ -1,0 +1,15 @@
+[[IgnoredVulns]]
+id = "GHSA-93q8-gq69-wqmw"
+reason = "CVE-2021-3807 Code is only run client-side in the swagger-ui endpoint. No risk of server-side DoS."
+
+[[IgnoredVulns]]
+id = "GHSA-36fh-84j7-cv5h"
+reason = "Used in testing, does not affect a release"
+
+[[IgnoredVulns]]
+id = "GHSA-f8q6-p94x-37v3"
+reason = "Used in testing, does not affect a release"
+
+[[IgnoredVulns]]
+id = "GHSA-qrpm-p2h7-hrv2"
+reason = "Used in testing, does not affect a release"

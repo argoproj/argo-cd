@@ -1,0 +1,45 @@
+apiVersion: iam.aws.crossplane.io/v1beta1
+kind: Policy
+metadata:
+  name: example
+spec:
+  deletionPolicy: Delete
+  forProvider:
+    description: example
+    document: |
+      {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Action": ["s3:ListBucket"],
+              "Resource": ["arn:aws:s3:::examples"]
+            }
+          ]
+      }
+    name: examples-s3-hello-s3
+    tags:
+    - key: crossplane-name
+      value: example
+    - key: crossplane-providerconfig
+      value: provider-aws
+    - key: crossplane-kind
+      value: policy.iam.aws.crossplane.io
+  providerConfigRef:
+    name: provider-aws
+status:
+  atProvider:
+    arn: arn:aws:iam::123:policy/examples-s3-hello-s3
+    attachmentCount: 1
+    defaultVersionId: v2
+    isAttachable: true
+    policyId: 123
+  conditions:
+  - lastTransitionTime: "2024-07-11T08:18:16Z"
+    reason: Available
+    status: "True"
+    type: Ready
+  - lastTransitionTime: "2024-07-11T08:18:07Z"
+    reason: ReconcileSuccess
+    status: "True"
+    type: Synced

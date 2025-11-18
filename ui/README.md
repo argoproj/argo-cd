@@ -23,3 +23,24 @@ Make sure your code passes the lint checks:
 ```
 yarn lint --fix
 ```
+
+If you are using VSCode, add this configuration to `.vscode/settings.json` in the root of this repository to identify and fix lint issues automatically before you save file.
+
+Install [Eslint Extension](https://marketplace.visualstudio.com/items?itemName=dbaeumer.vscode-eslint) in VSCode.
+
+`.vscode/settings.json`
+```json
+{
+  "eslint.format.enable": true,
+    "editor.codeActionsOnSave": {
+        "source.fixAll.eslint": "always"
+    },
+    "eslint.workingDirectories": [
+        {
+            "directory": "./ui",
+            "!cwd": false
+        }
+    ],
+    "eslint.experimental.useFlatConfig": true
+}
+```

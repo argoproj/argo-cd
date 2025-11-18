@@ -1,7 +1,7 @@
-hs = {}
+local hs = {}
 if obj.status ~= nil then
   if obj.status.racks ~= nil then
-    all_racks_good = true
+    local all_racks_good = true
     for key, value in pairs(obj.status.racks) do
       if all_racks_good and value.members ~= nil and value.readyMembers ~= nil and value.members ~= value.readyMembers then
         all_racks_good = false

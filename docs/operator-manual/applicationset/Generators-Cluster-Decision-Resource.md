@@ -1,6 +1,6 @@
 # Cluster Decision Resource Generator
 
-The cluster decision resource generates a list of Argo CD clusters. This is done using [duck-typing](https://pkg.go.dev/knative.dev/pkg/apis/duck), which does not require knowledge of the full shape of the referenced kubernetes resource. The following is an example of a cluster-decision-resource-based ApplicationSet generator:
+The cluster decision resource generates a list of Argo CD clusters. This is done using [duck-typing](https://pkg.go.dev/knative.dev/pkg/apis/duck), which does not require knowledge of the full shape of the referenced Kubernetes resource. The following is an example of a cluster-decision-resource-based ApplicationSet generator:
 ```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
@@ -8,6 +8,8 @@ metadata:
  name: guestbook
  namespace: argocd
 spec:
+ goTemplate: true
+ goTemplateOptions: ["missingkey=error"]
  generators:
  - clusterDecisionResource:
     # ConfigMap with GVK information for the duck type resource
@@ -26,7 +28,7 @@ spec:
     requeueAfterSeconds: 60
  template:
    metadata:
-     name: '{{name}}-guestbook'
+     name: '{{.name}}-guestbook'
    spec:
       project: "default"
       source:
@@ -34,7 +36,7 @@ spec:
         targetRevision: HEAD
         path: guestbook
       destination:
-        server: '{{clusterName}}' # 'server' field of the secret
+        server: '{{.clusterName}}' # 'server' field of the secret
         namespace: guestbook
 ```
 The `quak` resource, referenced by the ApplicationSet `clusterDecisionResource` generator:
@@ -77,7 +79,9 @@ The ApplicationSet needs to be created in the Argo CD namespace, placing the `Co
 
 The ClusterDecisionResource generator passes the 'name', 'server' and any other key/value in the duck-type resource's status list as parameters into the ApplicationSet template. In this example, the decision array contained an additional key `clusterName`, which is now available to the ApplicationSet template.
 
-!!! note "Clusters listed as `Status.Decisions` must be predefined in Argo CD"
-    The cluster names listed in the `Status.Decisions` *must* be defined within Argo CD, in order to generate applications for these values. The ApplicationSet controller does not create clusters within Argo CD.
-
-    The Default Cluster list key is `clusters`.
+> [!NOTE]
+> **Clusters listed as `Status.Decisions` must be predefined in Argo CD**
+>
+> The cluster names listed in the `Status.Decisions` *must* be defined within Argo CD, in order to generate applications for these values. The ApplicationSet controller does not create clusters within Argo CD.
+>
+> The Default Cluster list key is `clusters`.

@@ -1,0 +1,11 @@
+apiVersion: flink.apache.org/v1alpha1
+kind: FlinkDeployment
+spec:
+  job:
+    state: running
+status:
+  jobManagerDeploymentStatus: READY
+  jobStatus:
+    state: RUNNING
+  reconciliationStatus:
+    state: DEPLOYED

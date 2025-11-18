@@ -1,24 +1,31 @@
 kind: NetworkPolicy
 apiVersion: networking.k8s.io/v1
 metadata:
+  labels:
+    app.kubernetes.io/name: argocd-repo-server
+    app.kubernetes.io/part-of: argocd
+    app.kubernetes.io/component: repo-server
   name: argocd-repo-server-network-policy
 spec:
   podSelector:
     matchLabels:
       app.kubernetes.io/name: argocd-repo-server
   policyTypes:
-  - Ingress
+    - Ingress
   ingress:
     - from:
-      - podSelector:
-          matchLabels:
-            app.kubernetes.io/name: argocd-server
-      - podSelector:
-          matchLabels:
-            app.kubernetes.io/name: argocd-application-controller
-      - podSelector:
-          matchLabels:
-            app.kubernetes.io/name: argocd-notifications-controller
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: argocd-server
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: argocd-application-controller
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: argocd-notifications-controller
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: argocd-applicationset-controller
       ports:
         - protocol: TCP
           port: 8081

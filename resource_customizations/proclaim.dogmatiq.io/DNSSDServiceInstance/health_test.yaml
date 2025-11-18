@@ -1,0 +1,29 @@
+tests:
+  - healthStatus:
+      status: Healthy
+      message: DNS-SD browse and lookup results match the advertised DNS records
+    inputPath: testdata/healthy.yaml
+  - healthStatus:
+      status: Progressing
+      message: DNS-SD browse could not find this instance
+    inputPath: testdata/progressing_negativeBrowse.yaml
+  - healthStatus:
+      status: Progressing
+      message: DNS-SD lookup could not find this instance
+    inputPath: testdata/progressing_negativeLookup.yaml
+  - healthStatus:
+      status: Degraded
+      message: none of the configured providers can advertise on "example.org"
+    inputPath: testdata/degraded_notAdopted.yaml
+  - healthStatus:
+      status: Degraded
+      message: "<provider-specific error message>"
+    inputPath: testdata/degraded_advertiseError.yaml
+  - healthStatus:
+      status: Degraded
+      message: "<provider-specific error message>"
+    inputPath: testdata/degraded_unadvertiseError.yaml
+  - healthStatus:
+      status: Unknown
+      message: "<DNS configuration error message>"
+    inputPath: testdata/unknown_discoveryError.yaml

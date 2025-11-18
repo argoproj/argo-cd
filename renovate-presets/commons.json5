@@ -1,0 +1,74 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "Contains rules that makes sense to enforce by default.",
+  "dependencyDashboard": true,
+  "dependencyDashboardOSVVulnerabilitySummary": "all",
+  "osvVulnerabilityAlerts": true,
+  "vulnerabilityAlerts": {
+    "description": "Settings specific to PRs of type security",
+    "addLabels": ["security"]
+  },
+  "extends": [
+    "config:best-practices",
+    ":gitSignOff",
+    ":labels(dependencies)",
+    "customManagers:dockerfileVersions",
+    "security:openssf-scorecard",
+    "mergeConfidence:all-badges",
+    "github>argoproj/argo-cd//renovate-presets/fix/openssf-merge-confidence-columns.json5",
+  ],
+  "packageRules": [
+    {
+      "description": "Define the label to make Renovate stop updating a PR.",
+      "stopUpdatingLabel": "renovate:stop-updating"
+    },
+    {
+      "description": "Define the label to make Renovate rebase a PR.",
+      "rebaseLabel": "renovate:do-rebase"
+    },
+    {
+      "description": "Define labels of the dependency dashboard issues.",
+      "dependencyDashboardLabels": [
+        "dependencies",
+      ]
+    },
+    {
+      "description": "Add label major to PRs with major updates",
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "addLabels": [
+        "major"
+      ]
+    },
+    {
+      "description": "Add labels for PRs related to javascript",
+      "matchDatasources": [
+        "node-version",
+        "npm"
+      ],
+      "addLabels": [
+        "javascript"
+      ]
+    },
+    {
+      "description": "Add labels for PRs related to go",
+      "matchDatasources": [
+        "golang-version",
+        "go"
+      ],
+      "addLabels": [
+        "go"
+      ]
+    },
+    {
+      "description": "Add labels for PRs related to python",
+      "matchCategories": [
+        "python"
+      ],
+      "addLabels": [
+        "python"
+      ]
+    }
+  ]
+}

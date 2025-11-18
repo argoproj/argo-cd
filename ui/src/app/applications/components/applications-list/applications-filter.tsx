@@ -7,6 +7,8 @@ import {AppsListPreferences, services} from '../../../shared/services';
 import {Filter, FiltersGroup} from '../filter/filter';
 import * as LabelSelector from '../label-selector';
 import {ComparisonStatusIcon, getAppDefaultSource, HealthStatusIcon} from '../utils';
+import {formatClusterQueryParam} from '../../../shared/utils';
+import {COLORS} from '../../../shared/components/colors';
 
 export interface FilterResult {
     repos: boolean;
@@ -23,8 +25,8 @@ export interface FilteredApp extends Application {
     filterResult: FilterResult;
 }
 
-function getAutoSyncStatus(syncPolicy?: SyncPolicy) {
-    if (!syncPolicy || !syncPolicy.automated) {
+export function getAutoSyncStatus(syncPolicy?: SyncPolicy) {
+    if (!syncPolicy || !syncPolicy.automated || syncPolicy.automated.enabled === false) {
         return 'Disabled';
     }
     return 'Enabled';
@@ -185,10 +187,7 @@ const ClusterFilter = (props: AppFilterProps) => {
         if (!cluster) {
             return dest.server || dest.name;
         }
-        if (cluster.name === cluster.server) {
-            return cluster.name;
-        }
-        return `${cluster.name} (${cluster.server})`;
+        return formatClusterQueryParam(cluster);
     };
 
     const [clusters, loading, error] = useData(() => services.clusters.list());
@@ -233,7 +232,7 @@ const FavoriteFilter = (props: AppFilterProps) => {
     return (
         <div
             className={`filter filter__item ${props.pref.showFavorites ? 'filter__item--selected' : ''}`}
-            style={{margin: '0.5em 0'}}
+            style={{margin: '0.5em 0', marginTop: '0.5em'}}
             onClick={() => onChange(!props.pref.showFavorites)}>
             <Checkbox
                 value={!!props.pref.showFavorites}
@@ -242,7 +241,7 @@ const FavoriteFilter = (props: AppFilterProps) => {
                     marginRight: '8px'
                 }}
             />
-            <div style={{marginRight: '5px'}}>
+            <div style={{marginRight: '5px', textAlign: 'center', width: '25px'}}>
                 <i style={{color: '#FFCE25'}} className='fas fa-star' />
             </div>
             <div className='filter__item__label'>Favorites Only</div>
@@ -255,12 +254,12 @@ function getAutoSyncOptions(apps: FilteredApp[]) {
     return [
         {
             label: 'Enabled',
-            icon: <i className='fa fa-circle-play' />,
+            icon: <i className='fa fa-circle-play' style={{color: COLORS.sync.synced}} />,
             count: counts.get('Enabled')
         },
         {
             label: 'Disabled',
-            icon: <i className='fa fa-ban' />,
+            icon: <i className='fa fa-ban' style={{color: COLORS.sync.out_of_sync}} />,
             count: counts.get('Disabled')
         }
     ];
@@ -278,7 +277,7 @@ const AutoSyncFilter = (props: AppFilterProps) => (
 
 export const ApplicationsFilter = (props: AppFilterProps) => {
     return (
-        <FiltersGroup content={props.children} collapsed={props.collapsed}>
+        <FiltersGroup title='Application filters' content={props.children} collapsed={props.collapsed}>
             <FavoriteFilter {...props} />
             <SyncFilter {...props} />
             <HealthFilter {...props} />

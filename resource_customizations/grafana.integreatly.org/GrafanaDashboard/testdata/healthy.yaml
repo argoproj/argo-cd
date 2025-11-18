@@ -1,0 +1,38 @@
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDashboard
+metadata:
+  annotations:
+    argocd.argoproj.io/installation-id: argocd.com
+    argocd.argoproj.io/tracking-id: >-
+      foo:grafana.integreatly.org/GrafanaDashboard:grafana-operator/healthy
+  creationTimestamp: '2025-03-21T20:19:50Z'
+  finalizers:
+    - operator.grafana.com/finalizer
+  generation: 1
+  labels:
+    argocd.argoproj.io/instance: foo
+  name: healthy
+  namespace: grafana-operator
+  resourceVersion: '185954752'
+  uid: a7d497f7-5a8d-450b-8b44-50d5f50ce72e
+spec:
+  allowCrossNamespaceImport: false
+  folderRef: barfolder
+  instanceSelector:
+    matchLabels:
+      dashboards: grafana
+  json: |
+    {
+    }
+  resyncPeriod: 10m0s
+status:
+  conditions:
+    - lastTransitionTime: '2025-03-21T20:27:27Z'
+      message: Dashboard was successfully applied to 1 instances
+      observedGeneration: 1
+      reason: ApplySuccessful
+      status: 'True'
+      type: DashboardSynchronized
+  hash: 783fb827a235e91feb4a5a38c90b36bc072015970789b334724dfc42b6f1a3f6
+  lastResync: '2025-03-26T15:05:34Z'
+  uid: 72e0e05bef5099e5f049b05fdc429ed4

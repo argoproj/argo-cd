@@ -3,8 +3,8 @@
 const MonacoWebpackPlugin = require('monaco-editor-webpack-plugin');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
+const {codecovWebpackPlugin} = require("@codecov/webpack-plugin");
 const webpack = require('webpack');
-const path = require('path');
 
 const isProd = process.env.NODE_ENV === 'production';
 
@@ -28,9 +28,9 @@ const config = {
         alias: { react: require.resolve('react') },
         fallback: { fs: false }
     },
-    ignoreWarnings: [
-        (warning) => true,
-    ],
+    ignoreWarnings: [{
+        module: new RegExp('/node_modules/argo-ui/.*')
+    }],
     module: {
         rules: [
             {
@@ -95,7 +95,12 @@ const config = {
         new MonacoWebpackPlugin({
             // https://github.com/microsoft/monaco-editor-webpack-plugin#options
             languages: ['yaml']
-        })
+        }),
+        codecovWebpackPlugin({
+            enableBundleAnalysis: process.env.CODECOV_TOKEN !== undefined,
+            bundleName: "argo-cd-ui",
+            uploadToken: process.env.CODECOV_TOKEN,
+        }),
     ],
     devServer: {
         compress: false,
@@ -117,6 +122,15 @@ const config = {
         }
     }
 };
+
+if (isProd) {
+    config.performance = {
+        hints: 'error',
+        // Max size is 6MB before gzip.
+        maxEntrypointSize: 6 * 1024 * 1024,
+        maxAssetSize: 6 * 1024 * 1024,
+    };
+}
 
 if (! isProd) {
     config.devtool = 'eval-source-map';

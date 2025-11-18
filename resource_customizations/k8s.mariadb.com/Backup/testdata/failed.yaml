@@ -1,0 +1,30 @@
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: Backup
+metadata:
+  name: backup-local
+spec:
+  backoffLimit: 5
+  logLevel: info
+  mariaDbRef:
+    name: mariadb
+    waitForIt: true
+  maxRetention: 168h
+  restartPolicy: OnFailure
+  schedule:
+    cron: 0 */2 * * *
+    suspend: false
+  serviceAccountName: backup-local
+  storage:
+    persistentVolumeClaim:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 80Gi
+status:
+  conditions:
+  - lastTransitionTime: "2024-04-22T20:00:00Z"
+    message: Failed
+    reason: CronJobScheduled
+    status: "False"
+    type: Complete

@@ -11,5 +11,5 @@ roleRef:
   kind: Role
   name: argocd-redis
 subjects:
-- kind: ServiceAccount
-  name: argocd-redis
+  - kind: ServiceAccount
+    name: argocd-redis

@@ -6,13 +6,13 @@ import (
 
 	"github.com/spf13/cobra"
 
-	generator "github.com/argoproj/argo-cd/v2/hack/gen-resources/generators"
-	"github.com/argoproj/argo-cd/v2/util/db"
-	"github.com/argoproj/argo-cd/v2/util/settings"
+	generator "github.com/argoproj/argo-cd/v3/hack/gen-resources/generators"
+	"github.com/argoproj/argo-cd/v3/util/db"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 
-	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
-	"github.com/argoproj/argo-cd/v2/hack/gen-resources/util"
-	"github.com/argoproj/argo-cd/v2/util/cli"
+	cmdutil "github.com/argoproj/argo-cd/v3/cmd/util"
+	"github.com/argoproj/argo-cd/v3/hack/gen-resources/util"
+	"github.com/argoproj/argo-cd/v3/util/cli"
 )
 
 const (
@@ -30,10 +30,9 @@ func initConfig() {
 
 // NewCommand returns a new instance of an argocd command
 func NewCommand() *cobra.Command {
-
 	var generateOpts util.GenerateOpts
 
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   cliName,
 		Short: "Generator for argocd resources",
 		Run: func(c *cobra.Command, args []string) {
@@ -50,11 +49,11 @@ func NewCommand() *cobra.Command {
 
 func NewGenerateCommand(opts *util.GenerateOpts) *cobra.Command {
 	var file string
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "generate [-f file]",
 		Short: "Generate entities",
 		Long:  "Generate entities",
-		Run: func(c *cobra.Command, args []string) {
+		Run: func(_ *cobra.Command, _ []string) {
 			log.Printf("Retrieve configuration from %s", file)
 			err := util.Parse(opts, file)
 			if err != nil {
@@ -67,7 +66,7 @@ func NewGenerateCommand(opts *util.GenerateOpts) *cobra.Command {
 			argoDB := db.NewDB(opts.Namespace, settingsMgr, clientSet)
 
 			pg := generator.NewProjectGenerator(argoClientSet)
-			ag := generator.NewApplicationGenerator(argoClientSet, clientSet, argoDB)
+			ag := generator.NewApplicationGenerator(argoClientSet, clientSet)
 			rg := generator.NewRepoGenerator(util.ConnectToK8sClientSet())
 			cg := generator.NewClusterGenerator(argoDB, util.ConnectToK8sClientSet(), util.ConnectToK8sConfig())
 
@@ -94,18 +93,18 @@ func NewGenerateCommand(opts *util.GenerateOpts) *cobra.Command {
 }
 
 func NewCleanCommand(opts *util.GenerateOpts) *cobra.Command {
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "clean",
 		Short: "Clean entities",
 		Long:  "Clean entities",
-		Run: func(c *cobra.Command, args []string) {
+		Run: func(_ *cobra.Command, _ []string) {
 			argoClientSet := util.ConnectToK8sArgoClientSet()
 			clientSet := util.ConnectToK8sClientSet()
 			settingsMgr := settings.NewSettingsManager(context.TODO(), clientSet, opts.Namespace)
 			argoDB := db.NewDB(opts.Namespace, settingsMgr, clientSet)
 
 			pg := generator.NewProjectGenerator(argoClientSet)
-			ag := generator.NewApplicationGenerator(argoClientSet, clientSet, argoDB)
+			ag := generator.NewApplicationGenerator(argoClientSet, clientSet)
 			cg := generator.NewClusterGenerator(argoDB, clientSet, util.ConnectToK8sConfig())
 			rg := generator.NewRepoGenerator(clientSet)
 

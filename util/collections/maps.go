@@ -1,23 +1,16 @@
 package collections
 
-import "reflect"
+import "maps"
 
-// CopyStringMap creates copy of a string map
-func CopyStringMap(in map[string]string) map[string]string {
-	out := map[string]string{}
-	for k, v := range in {
-		out[k] = v
+// Merge takes a collection of maps and returns a single map, where by items are merged of all given sets.
+// If any keys overlap, Then the last specified key takes precedence.
+// Example:
+//
+//	data := collections.Merge(map[string]string{"foo": "bar1", "baz": "bar1"}, map[string]string{"foo": "bar2"}) // returns: map[string]string{"foo": "bar2", "empty": "bar1"}
+func Merge[K comparable, V any](items ...map[K]V) map[K]V {
+	res := make(map[K]V)
+	for _, m := range items {
+		maps.Copy(res, m)
 	}
-	return out
-}
-
-// StringMapsEqual compares two string maps assuming that nil and empty map are considered equal
-func StringMapsEqual(first map[string]string, second map[string]string) bool {
-	if first == nil {
-		first = map[string]string{}
-	}
-	if second == nil {
-		second = map[string]string{}
-	}
-	return reflect.DeepEqual(first, second)
+	return res
 }

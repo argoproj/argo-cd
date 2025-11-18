@@ -4,6 +4,8 @@ metadata:
   name: cmp-plugin
 spec:
   version: v1.0
+  init:
+    command: [env]
   generate:
     command: [sh, -c, 'kustomize build']
   discover:

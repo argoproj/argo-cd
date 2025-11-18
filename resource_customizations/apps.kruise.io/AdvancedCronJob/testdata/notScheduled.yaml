@@ -1,0 +1,22 @@
+apiVersion: apps.kruise.io/v1alpha1
+kind: AdvancedCronJob
+metadata:
+  name: acj-test
+spec:
+  schedule: "*/1 * * * *"
+  template:
+    broadcastJobTemplate:
+      spec:
+        template:
+          spec:
+            containers:
+              - name: pi
+                image: perl
+                command: ["perl",  "-Mbignum=bpi", "-wle", "print bpi(2000)"]
+            restartPolicy: Never
+        completionPolicy:
+          type: Always
+          ttlSecondsAfterFinished: 30
+
+status:
+  lastScheduleTime: null

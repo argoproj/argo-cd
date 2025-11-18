@@ -1,0 +1,21 @@
+apiVersion: image.toolkit.fluxcd.io/v1beta2
+kind: ImageUpdateAutomation
+metadata:
+  name: podinfo-update
+  namespace: default
+  annotations:
+    reconcile.fluxcd.io/requestedAt: 'By Argo CD at: 0001-01-01T00:00:00'
+spec:
+  interval: 30m
+  sourceRef:
+    kind: GitRepository
+    name: podinfo
+  git:
+    commit:
+      author:
+        email: fluxcdbot@users.noreply.github.com
+        name: fluxcdbot
+    push:
+      branch: main
+  update:
+    path: ./

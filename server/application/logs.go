@@ -2,6 +2,7 @@ package application
 
 import (
 	"bufio"
+	"errors"
 	"io"
 	"strings"
 	"sync"
@@ -22,13 +23,13 @@ func parseLogsStream(podName string, stream io.ReadCloser, ch chan logEntry) {
 	eof := false
 	for !eof {
 		line, err := bufReader.ReadString('\n')
-		if err == io.EOF {
+		if err != nil && errors.Is(err, io.EOF) {
 			eof = true
 			// stop if we reached end of stream and the next line is empty
 			if line == "" {
 				break
 			}
-		} else if err != nil && err != io.EOF {
+		} else if err != nil && !errors.Is(err, io.EOF) {
 			ch <- logEntry{err: err}
 			break
 		}
@@ -46,7 +47,6 @@ func parseLogsStream(podName string, stream io.ReadCloser, ch chan logEntry) {
 		for _, line := range strings.Split(lines, "\r") {
 			ch <- logEntry{line: line, timeStamp: logTime, podName: podName}
 		}
-
 	}
 }
 
@@ -120,16 +120,22 @@ func mergeLogStreams(streams []chan logEntry, bufferingDuration time.Duration) c
 	var sentAt time.Time
 
 	ticker := time.NewTicker(bufferingDuration)
+	done := make(chan struct{})
 	go func() {
-		for range ticker.C {
-			sentAtLock.Lock()
-			// waited long enough for logs from each streams, send everything accumulated
-			if sentAt.Add(bufferingDuration).Before(time.Now()) {
-				_ = send(true)
-				sentAt = time.Now()
-			}
+		for {
+			select {
+			case <-done:
+				return
+			case <-ticker.C:
+				sentAtLock.Lock()
+				// waited long enough for logs from each streams, send everything accumulated
+				if sentAt.Add(bufferingDuration).Before(time.Now()) {
+					_ = send(true)
+					sentAt = time.Now()
+				}
 
-			sentAtLock.Unlock()
+				sentAtLock.Unlock()
+			}
 		}
 	}()
 
@@ -144,8 +150,13 @@ func mergeLogStreams(streams []chan logEntry, bufferingDuration time.Duration) c
 
 		_ = send(true)
 
-		close(merged)
 		ticker.Stop()
+		// ticker.Stop() does not close the channel, and it does not wait for the channel to be drained. So we need to
+		// explicitly prevent the gorountine from leaking by closing the channel. We also need to prevent the goroutine
+		// from calling `send` again, because `send` pushes to the `merged` channel which we're about to close.
+		// This describes the approach nicely: https://stackoverflow.com/questions/17797754/ticker-stop-behaviour-in-golang
+		done <- struct{}{}
+		close(merged)
 	}()
 	return merged
 }

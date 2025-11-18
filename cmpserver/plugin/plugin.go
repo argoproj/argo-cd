@@ -3,6 +3,8 @@ package plugin
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,16 +14,18 @@ import (
 	"strings"
 	"time"
 
-	"github.com/argoproj/pkg/rand"
+	"github.com/golang/protobuf/ptypes/empty"
 
-	"github.com/argoproj/argo-cd/v2/cmpserver/apiclient"
-	"github.com/argoproj/argo-cd/v2/common"
-	repoclient "github.com/argoproj/argo-cd/v2/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/v2/util/buffered_context"
-	"github.com/argoproj/argo-cd/v2/util/cmp"
-	"github.com/argoproj/argo-cd/v2/util/io/files"
+	"github.com/argoproj/argo-cd/v3/cmpserver/apiclient"
+	"github.com/argoproj/argo-cd/v3/common"
+	repoclient "github.com/argoproj/argo-cd/v3/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v3/util/buffered_context"
+	"github.com/argoproj/argo-cd/v3/util/cmp"
+	argoexec "github.com/argoproj/argo-cd/v3/util/exec"
+	"github.com/argoproj/argo-cd/v3/util/io/files"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	securejoin "github.com/cyphar/filepath-securejoin"
 	"github.com/mattn/go-zglob"
 	log "github.com/sirupsen/logrus"
 )
@@ -51,31 +55,40 @@ func (s *Service) Init(workDir string) error {
 	if err != nil {
 		return fmt.Errorf("error removing workdir %q: %w", workDir, err)
 	}
-	err = os.MkdirAll(workDir, 0700)
+	err = os.MkdirAll(workDir, 0o700)
 	if err != nil {
 		return fmt.Errorf("error creating workdir %q: %w", workDir, err)
 	}
 	return nil
 }
 
+const execIDLen = 5
+
+func randExecID() (string, error) {
+	execIDBytes := make([]byte, execIDLen/2+1) // we need one extra letter to discard
+	if _, err := rand.Read(execIDBytes); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(execIDBytes)[0:execIDLen], nil
+}
+
 func runCommand(ctx context.Context, command Command, path string, env []string) (string, error) {
 	if len(command.Command) == 0 {
-		return "", fmt.Errorf("Command is empty")
+		return "", errors.New("Command is empty")
 	}
 	cmd := exec.CommandContext(ctx, command.Command[0], append(command.Command[1:], command.Args...)...)
 
 	cmd.Env = env
 	cmd.Dir = path
 
-	execId, err := rand.RandString(5)
+	execId, err := randExecID()
 	if err != nil {
 		return "", err
 	}
 	logCtx := log.WithFields(log.Fields{"execID": execId})
 
-	// log in a way we can copy-and-paste into a terminal
-	args := strings.Join(cmd.Args, " ")
-	logCtx.WithFields(log.Fields{"dir": cmd.Dir}).Info(args)
+	argsToLog := argoexec.GetCommandArgsToLog(cmd)
+	logCtx.WithFields(log.Fields{"dir": cmd.Dir}).Info(argsToLog)
 
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
@@ -95,6 +108,14 @@ func runCommand(ctx context.Context, command Command, path string, env []string)
 		<-ctx.Done()
 		// Kill by group ID to make sure child processes are killed. The - tells `kill` that it's a group ID.
 		// Since we didn't set Pgid in SysProcAttr, the group ID is the same as the process ID. https://pkg.go.dev/syscall#SysProcAttr
+
+		// Sending a TERM signal first to allow any potential cleanup if needed, and then sending a KILL signal
+		_ = sysCallTerm(-cmd.Process.Pid)
+
+		// modify cleanup timeout to allow process to cleanup
+		cleanupTimeout := 5 * time.Second
+		time.Sleep(cleanupTimeout)
+
 		_ = sysCallKill(-cmd.Process.Pid)
 	}()
 
@@ -106,9 +127,20 @@ func runCommand(ctx context.Context, command Command, path string, env []string)
 	logCtx.WithFields(log.Fields{"duration": duration}).Debug(output)
 
 	if err != nil {
-		err := newCmdError(args, errors.New(err.Error()), strings.TrimSpace(stderr.String()))
+		err := newCmdError(argsToLog, errors.New(err.Error()), strings.TrimSpace(stderr.String()))
 		logCtx.Error(err.Error())
 		return strings.TrimSuffix(output, "\n"), err
+	}
+
+	logCtx = logCtx.WithFields(log.Fields{
+		"stderr":  stderr.String(),
+		"command": command,
+	})
+	if output == "" {
+		logCtx.Warn("Plugin command returned zero output")
+	} else {
+		// Log stderr even on successful commands to help develop plugins
+		logCtx.Info("Plugin command successful")
 	}
 
 	return strings.TrimSuffix(output, "\n"), nil
@@ -136,7 +168,7 @@ func newCmdError(args string, cause error, stderr string) *CmdError {
 func environ(envVars []*apiclient.EnvEntry) []string {
 	var environ []string
 	for _, item := range envVars {
-		if item != nil && item.Name != "" && item.Value != "" {
+		if item != nil && item.Name != "" {
 			environ = append(environ, fmt.Sprintf("%s=%s", item.Name, item.Value))
 		}
 	}
@@ -151,9 +183,9 @@ func getTempDirMustCleanup(baseDir string) (workDir string, cleanup func(), err 
 	}
 	cleanup = func() {
 		if err := os.RemoveAll(workDir); err != nil {
-			log.WithFields(map[string]interface{}{
+			log.WithFields(map[string]any{
 				common.SecurityField:    common.SecurityHigh,
-				common.SecurityCWEField: 459,
+				common.SecurityCWEField: common.SecurityCWEIncompleteCleanup,
 			}).Errorf("Failed to clean up temp directory: %s", err)
 		}
 	}
@@ -184,19 +216,22 @@ func (s *Service) generateManifestGeneric(stream GenerateManifestStream) error {
 	}
 	defer cleanup()
 
-	metadata, err := cmp.ReceiveRepoStream(ctx, stream, workDir)
+	metadata, err := cmp.ReceiveRepoStream(ctx, stream, workDir, s.initConstants.PluginConfig.Spec.PreserveFileMode)
 	if err != nil {
 		return fmt.Errorf("generate manifest error receiving stream: %w", err)
 	}
 
 	appPath := filepath.Clean(filepath.Join(workDir, metadata.AppRelPath))
 	if !strings.HasPrefix(appPath, workDir) {
-		return fmt.Errorf("illegal appPath: out of workDir bound")
+		return errors.New("illegal appPath: out of workDir bound")
 	}
 	response, err := s.generateManifest(ctx, appPath, metadata.GetEnv())
 	if err != nil {
 		return fmt.Errorf("error generating manifests: %w", err)
 	}
+
+	log.Tracef("Generated manifests result: %s", response.Manifests)
+
 	err = stream.SendAndClose(response)
 	if err != nil {
 		return fmt.Errorf("error sending manifest response: %w", err)
@@ -268,16 +303,16 @@ func (s *Service) matchRepositoryGeneric(stream MatchRepositoryStream) error {
 	}
 	defer cleanup()
 
-	metadata, err := cmp.ReceiveRepoStream(bufferedCtx, stream, workDir)
+	metadata, err := cmp.ReceiveRepoStream(bufferedCtx, stream, workDir, s.initConstants.PluginConfig.Spec.PreserveFileMode)
 	if err != nil {
 		return fmt.Errorf("match repository error receiving stream: %w", err)
 	}
 
-	isSupported, err := s.matchRepository(bufferedCtx, workDir, metadata.GetEnv())
+	isSupported, isDiscoveryEnabled, err := s.matchRepository(bufferedCtx, workDir, metadata.GetEnv(), metadata.GetAppRelPath())
 	if err != nil {
 		return fmt.Errorf("match repository error: %w", err)
 	}
-	repoResponse := &apiclient.RepositoryResponse{IsSupported: isSupported}
+	repoResponse := &apiclient.RepositoryResponse{IsSupported: isSupported, IsDiscoveryEnabled: isDiscoveryEnabled}
 
 	err = stream.SendAndClose(repoResponse)
 	if err != nil {
@@ -286,50 +321,55 @@ func (s *Service) matchRepositoryGeneric(stream MatchRepositoryStream) error {
 	return nil
 }
 
-func (s *Service) matchRepository(ctx context.Context, workdir string, envEntries []*apiclient.EnvEntry) (bool, error) {
+func (s *Service) matchRepository(ctx context.Context, workdir string, envEntries []*apiclient.EnvEntry, appRelPath string) (isSupported bool, isDiscoveryEnabled bool, err error) {
 	config := s.initConstants.PluginConfig
+
+	appPath, err := securejoin.SecureJoin(workdir, appRelPath)
+	if err != nil {
+		log.WithFields(map[string]any{
+			common.SecurityField:    common.SecurityHigh,
+			common.SecurityCWEField: common.SecurityCWEIncompleteCleanup,
+		}).Errorf("error joining workdir %q and appRelPath %q: %v", workdir, appRelPath, err)
+	}
+
 	if config.Spec.Discover.FileName != "" {
 		log.Debugf("config.Spec.Discover.FileName is provided")
-		pattern := filepath.Join(workdir, config.Spec.Discover.FileName)
+		pattern := filepath.Join(appPath, config.Spec.Discover.FileName)
 		matches, err := filepath.Glob(pattern)
 		if err != nil {
 			e := fmt.Errorf("error finding filename match for pattern %q: %w", pattern, err)
 			log.Debug(e)
-			return false, e
+			return false, true, e
 		}
-		return len(matches) > 0, nil
+		return len(matches) > 0, true, nil
 	}
 
 	if config.Spec.Discover.Find.Glob != "" {
 		log.Debugf("config.Spec.Discover.Find.Glob is provided")
-		pattern := filepath.Join(workdir, config.Spec.Discover.Find.Glob)
+		pattern := filepath.Join(appPath, config.Spec.Discover.Find.Glob)
 		// filepath.Glob doesn't have '**' support hence selecting third-party lib
 		// https://github.com/golang/go/issues/11862
 		matches, err := zglob.Glob(pattern)
 		if err != nil {
 			e := fmt.Errorf("error finding glob match for pattern %q: %w", pattern, err)
 			log.Debug(e)
-			return false, e
+			return false, true, e
 		}
 
-		if len(matches) > 0 {
-			return true, nil
+		return len(matches) > 0, true, nil
+	}
+
+	if len(config.Spec.Discover.Find.Command.Command) > 0 {
+		log.Debugf("Going to try runCommand.")
+		env := append(os.Environ(), environ(envEntries)...)
+		find, err := runCommand(ctx, config.Spec.Discover.Find.Command, appPath, env)
+		if err != nil {
+			return false, true, fmt.Errorf("error running find command: %w", err)
 		}
-		return false, nil
+		return find != "", true, nil
 	}
 
-	log.Debugf("Going to try runCommand.")
-	env := append(os.Environ(), environ(envEntries)...)
-
-	find, err := runCommand(ctx, config.Spec.Discover.Find.Command, workdir, env)
-	if err != nil {
-		return false, fmt.Errorf("error running find command: %w", err)
-	}
-
-	if find != "" {
-		return true, nil
-	}
-	return false, nil
+	return false, false, nil
 }
 
 // ParametersAnnouncementStream defines an interface able to send/receive a stream of parameter announcements.
@@ -349,16 +389,16 @@ func (s *Service) GetParametersAnnouncement(stream apiclient.ConfigManagementPlu
 	}
 	defer cleanup()
 
-	metadata, err := cmp.ReceiveRepoStream(bufferedCtx, stream, workDir)
+	metadata, err := cmp.ReceiveRepoStream(bufferedCtx, stream, workDir, s.initConstants.PluginConfig.Spec.PreserveFileMode)
 	if err != nil {
 		return fmt.Errorf("parameters announcement error receiving stream: %w", err)
 	}
 	appPath := filepath.Clean(filepath.Join(workDir, metadata.AppRelPath))
 	if !strings.HasPrefix(appPath, workDir) {
-		return fmt.Errorf("illegal appPath: out of workDir bound")
+		return errors.New("illegal appPath: out of workDir bound")
 	}
 
-	repoResponse, err := getParametersAnnouncement(bufferedCtx, appPath, s.initConstants.PluginConfig.Spec.Parameters.Static, s.initConstants.PluginConfig.Spec.Parameters.Dynamic)
+	repoResponse, err := getParametersAnnouncement(bufferedCtx, appPath, s.initConstants.PluginConfig.Spec.Parameters.Static, s.initConstants.PluginConfig.Spec.Parameters.Dynamic, metadata.GetEnv())
 	if err != nil {
 		return fmt.Errorf("get parameters announcement error: %w", err)
 	}
@@ -370,11 +410,12 @@ func (s *Service) GetParametersAnnouncement(stream apiclient.ConfigManagementPlu
 	return nil
 }
 
-func getParametersAnnouncement(ctx context.Context, appDir string, announcements []*repoclient.ParameterAnnouncement, command Command) (*apiclient.ParametersAnnouncementResponse, error) {
+func getParametersAnnouncement(ctx context.Context, appDir string, announcements []*repoclient.ParameterAnnouncement, command Command, envEntries []*apiclient.EnvEntry) (*apiclient.ParametersAnnouncementResponse, error) {
 	augmentedAnnouncements := announcements
 
 	if len(command.Command) > 0 {
-		stdout, err := runCommand(ctx, command, appDir, os.Environ())
+		env := append(os.Environ(), environ(envEntries)...)
+		stdout, err := runCommand(ctx, command, appDir, env)
 		if err != nil {
 			return nil, fmt.Errorf("error executing dynamic parameter output command: %w", err)
 		}
@@ -393,4 +434,16 @@ func getParametersAnnouncement(ctx context.Context, appDir string, announcements
 		ParameterAnnouncements: augmentedAnnouncements,
 	}
 	return repoResponse, nil
+}
+
+func (s *Service) CheckPluginConfiguration(_ context.Context, _ *empty.Empty) (*apiclient.CheckPluginConfigurationResponse, error) {
+	isDiscoveryConfigured := s.isDiscoveryConfigured()
+	response := &apiclient.CheckPluginConfigurationResponse{IsDiscoveryConfigured: isDiscoveryConfigured, ProvideGitCreds: s.initConstants.PluginConfig.Spec.ProvideGitCreds}
+
+	return response, nil
+}
+
+func (s *Service) isDiscoveryConfigured() (isDiscoveryConfigured bool) {
+	config := s.initConstants.PluginConfig
+	return config.Spec.Discover.FileName != "" || config.Spec.Discover.Find.Glob != "" || len(config.Spec.Discover.Find.Command.Command) > 0
 }

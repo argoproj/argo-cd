@@ -1,0 +1,12 @@
+version: 2
+formats: all
+mkdocs:
+  fail_on_warning: false
+  configuration: mkdocs.yml
+python:
+  install:
+    - requirements: docs/requirements.txt
+build:
+  os: "ubuntu-22.04"
+  tools:
+    python: "3.12"

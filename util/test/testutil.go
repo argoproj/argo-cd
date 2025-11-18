@@ -1,18 +1,25 @@
 package test
 
 import (
+	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"testing"
+	"time"
 
+	log "github.com/sirupsen/logrus"
+
+	"github.com/go-jose/go-jose/v4"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/require"
 )
 
 // Cert is a certificate for tests. It was generated like this:
-// 		opts := tls.CertOptions{Hosts: []string{"localhost"}, Organization: "Acme"}
-//		certBytes, privKey, err := tls.generatePEM(opts)
+//
+//	opts := tls.CertOptions{Hosts: []string{"localhost"}, Organization: "Acme"}
+//	certBytes, privKey, err := tls.generatePEM(opts)
 var Cert = []byte(`-----BEGIN CERTIFICATE-----
 MIIC8zCCAdugAwIBAgIQCSoocl6e/FR4mQy1wX6NbjANBgkqhkiG9w0BAQsFADAP
 MQ0wCwYDVQQKEwRBY21lMB4XDTIyMDYyMjE3Mjk1MloXDTIzMDYyMjE3Mjk1Mlow
@@ -61,12 +68,55 @@ SDpz4h+Bov5qTKkzcxuu1QWtA4M0K8Iy6IYLwb83DZEm1OsAf4i0pODz21PY/I+O
 VHzjB10oYgaInHZgMUdyb6F571UdiYSB6a/IlZ3ngj5touy3VIM=
 -----END RSA PRIVATE KEY-----`)
 
+// PrivateKey2 is a second RSA key used only for tests. You can use it to see if signing a JWT with a different key
+// fails validation (as it should).
+var PrivateKey2 = []byte(`-----BEGIN RSA PRIVATE KEY-----
+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
+-----END RSA PRIVATE KEY-----`)
+
 func dexMockHandler(t *testing.T, url string) func(http.ResponseWriter, *http.Request) {
+	t.Helper()
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		switch r.RequestURI {
 		case "/api/dex/.well-known/openid-configuration":
-			_, err := io.WriteString(w, fmt.Sprintf(`
+			_, err := fmt.Fprintf(w, `
 {
   "issuer": "%[1]s/api/dex",
   "authorization_endpoint": "%[1]s/api/dex/auth",
@@ -82,16 +132,17 @@ func dexMockHandler(t *testing.T, url string) func(http.ResponseWriter, *http.Re
   "scopes_supported": ["openid"],
   "token_endpoint_auth_methods_supported": ["client_secret_basic", "client_secret_post"],
   "claims_supported": ["sub", "aud", "exp"]
-}`, url))
+}`, url)
 			require.NoError(t, err)
 		default:
-			w.WriteHeader(404)
+			w.WriteHeader(http.StatusNotFound)
 		}
 	}
 }
 
 func GetDexTestServer(t *testing.T) *httptest.Server {
-	ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	t.Helper()
+	ts := httptest.NewTLSServer(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
 		// Start with a placeholder. We need the server URL before setting up the real handler.
 	}))
 	ts.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -100,12 +151,13 @@ func GetDexTestServer(t *testing.T) *httptest.Server {
 	return ts
 }
 
-func oidcMockHandler(t *testing.T, url string) func(http.ResponseWriter, *http.Request) {
+func oidcMockHandler(t *testing.T, url string, tokenRequestPreHandler func(r *http.Request)) func(http.ResponseWriter, *http.Request) {
+	t.Helper()
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		switch r.RequestURI {
 		case "/.well-known/openid-configuration":
-			_, err := io.WriteString(w, fmt.Sprintf(`
+			_, err := fmt.Fprintf(w, `
 {
   "issuer": "%[1]s",
   "authorization_endpoint": "%[1]s/auth",
@@ -121,20 +173,130 @@ func oidcMockHandler(t *testing.T, url string) func(http.ResponseWriter, *http.R
   "scopes_supported": ["openid"],
   "token_endpoint_auth_methods_supported": ["client_secret_basic", "client_secret_post"],
   "claims_supported": ["sub", "aud", "exp"]
-}`, url))
+}`, url)
+			require.NoError(t, err)
+		case "/userinfo":
+			w.Header().Set("content-type", "application/json")
+			_, err := fmt.Fprintf(w, `
+{
+	"groups":["githubOrg:engineers"],
+	"iss": "%[1]s",
+	"sub": "randomUser"
+}`, url)
+
+			require.NoError(t, err)
+		case "/keys":
+			pubKey, err := jwt.ParseRSAPublicKeyFromPEM(Cert)
+			require.NoError(t, err)
+			jwks := jose.JSONWebKeySet{
+				Keys: []jose.JSONWebKey{
+					{
+						Key: pubKey,
+					},
+				},
+			}
+			out, err := json.Marshal(jwks)
+			require.NoError(t, err)
+			_, err = w.Write(out)
+			require.NoError(t, err)
+		case "/token":
+			if tokenRequestPreHandler != nil {
+				tokenRequestPreHandler(r)
+			}
+			response, err := mockTokenEndpointResponse(url)
+			require.NoError(t, err)
+			out, err := json.Marshal(response)
+			require.NoError(t, err)
+			_, err = w.Write(out)
 			require.NoError(t, err)
 		default:
-			w.WriteHeader(404)
+			w.WriteHeader(http.StatusNotFound)
 		}
 	}
 }
 
-func GetOIDCTestServer(t *testing.T) *httptest.Server {
-	ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func GetOIDCTestServer(t *testing.T, tokenRequestPreHandler func(r *http.Request)) *httptest.Server {
+	t.Helper()
+	ts := httptest.NewTLSServer(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
 		// Start with a placeholder. We need the server URL before setting up the real handler.
 	}))
 	ts.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		oidcMockHandler(t, ts.URL)(w, r)
+		oidcMockHandler(t, ts.URL, tokenRequestPreHandler)(w, r)
 	})
 	return ts
+}
+
+func GetAzureOIDCTestServer(t *testing.T, tokenRequestPreHandler func(r *http.Request)) *httptest.Server {
+	t.Helper()
+	ts := httptest.NewTLSServer(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
+		// Start with a placeholder. We need the server URL before setting up the real handler.
+	}))
+	ts.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		oidcMockHandler(t, ts.URL, tokenRequestPreHandler)(w, r)
+	})
+	return ts
+}
+
+type TokenResponse struct {
+	AccessToken  string `json:"access_token"`
+	TokenType    string `json:"token_type"`
+	ExpiresIn    int    `json:"expires_in"`
+	IDToken      string `json:"id_token"`
+	RefreshToken string `json:"refresh_token"`
+}
+
+func mockTokenEndpointResponse(issuer string) (TokenResponse, error) {
+	token, err := generateJWTToken(issuer)
+	return TokenResponse{
+		AccessToken:  token,
+		TokenType:    "Bearer",
+		ExpiresIn:    3600,
+		IDToken:      token,
+		RefreshToken: token,
+	}, err
+}
+
+// Helper function to generate a JWT token
+func generateJWTToken(issuer string) (string, error) {
+	token := jwt.NewWithClaims(jwt.SigningMethodRS512, jwt.MapClaims{
+		"sub":  "1234567890",
+		"aud":  "test-client-id",
+		"name": "John Doe",
+		"iat":  time.Now().Unix(),
+		"iss":  issuer,
+		"exp":  time.Now().Add(time.Hour).Unix(), // Set the expiration time
+	})
+	key, err := jwt.ParseRSAPrivateKeyFromPEM(PrivateKey)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse RSA private key: %w", err)
+	}
+	tokenString, err := token.SignedString(key)
+	if err != nil {
+		return "", err
+	}
+	return tokenString, nil
+}
+
+type LogHook struct {
+	Entries []log.Entry
+}
+
+func (h *LogHook) Levels() []log.Level {
+	return []log.Level{log.WarnLevel}
+}
+
+func (h *LogHook) Fire(entry *log.Entry) error {
+	h.Entries = append(h.Entries, *entry)
+	return nil
+}
+
+func (h *LogHook) GetRegexMatchesInEntries(match string) []string {
+	re := regexp.MustCompile(match)
+	matches := make([]string, 0)
+	for _, entry := range h.Entries {
+		if re.MatchString(entry.Message) {
+			matches = append(matches, entry.Message)
+		}
+	}
+	return matches
 }

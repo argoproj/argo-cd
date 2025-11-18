@@ -1,0 +1,61 @@
+apiVersion: numaflow.numaproj.io/v1alpha1
+kind: MonoVertex
+metadata:
+  annotations:
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"numaflow.numaproj.io/v1alpha1","kind":"MonoVertex","metadata":{"annotations":{},"name":"simple-mono-vertex","namespace":"numaflow-system"},"spec":{"sink":{"udsink":{"container":{"image":"quay.io/numaio/numaflow-java/simple-sink:stable"}}},"source":{"transformer":{"container":{"image":"quay.io/numaio/numaflow-rs/source-transformer-now:stable"}},"udsource":{"container":{"image":"quay.io/numaio/numaflow-java/source-simple-source:stable"}}}}}
+  creationTimestamp: "2024-10-08T20:34:32Z"
+  generation: 1
+  name: simple-mono-vertex
+  namespace: numaflow-system
+  resourceVersion: "367420"
+  uid: 7bc9291a-9c80-4ec1-8b06-46fac8f7e507
+spec:
+  lifecycle:
+    desiredPhase: Running
+  replicas: 1
+  sink:
+    udsink:
+      container:
+        image: quay.io/numaio/numaflow-java/simple-sink:stable
+  source:
+    transformer:
+      container:
+        image: quay.io/numaio/numaflow-rs/source-transformer-now:stable
+    udsource:
+      container:
+        image: quay.io/numaio/numaflow-java/source-simple-source:stable
+  updateStrategy:
+    rollingUpdate:
+      maxUnavailable: 25%
+    type: RollingUpdate
+status:
+  conditions:
+  - lastTransitionTime: "2024-10-08T20:34:36Z"
+    message: 'Waiting for deployment "simple-mono-vertex-mv-daemon" rollout to
+      finish: 0 out of 1 new replicas have been updated...'
+    reason: Progressing
+    status: "False"
+    type: DaemonHealthy
+  - lastTransitionTime: "2024-10-08T20:34:32Z"
+    message: Successful
+    reason: Successful
+    status: "True"
+    type: Deployed
+  - lastTransitionTime: "2024-10-08T21:58:03Z"
+    message: All pods are healthy
+    reason: Running
+    status: "True"
+    type: PodsHealthy
+  currentHash: 8ed34d9058faa60997ee13083ccb3d80691df37b45a34eaa347af99f237e8df6
+  desiredReplicas: 1
+  lastScaledAt: "2024-10-08T20:34:32Z"
+  lastUpdated: "2024-10-08T21:58:13Z"
+  observedGeneration: 1
+  phase: Running
+  readyReplicas: 1
+  replicas: 1
+  selector: app.kubernetes.io/component=mono-vertex,numaflow.numaproj.io/mono-vertex-name=simple-mono-vertex
+  updateHash: 8ed34d9058faa60997ee13083ccb3d80691df37b45a34eaa347af99f237e8df6
+  updatedReadyReplicas: 1
+  updatedReplicas: 1

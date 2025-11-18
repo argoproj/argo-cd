@@ -1,4 +1,4 @@
-actions = {}
+local actions = {}
 actions["restart"] = {}
 
 local paused = false
@@ -7,4 +7,12 @@ if obj.spec.paused ~= nil then
     actions["pause"] = {paused}
 end
 actions["resume"] = {["disabled"] = not(paused)}
+
+actions["scale"] = {
+    ["params"] = {
+        {
+            ["name"] = "replicas"
+        }
+    },
+}
 return actions

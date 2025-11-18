@@ -1,0 +1,23 @@
+apiVersion: iam.aws.crossplane.io/v1beta1
+kind: RolePolicyAttachment
+metadata:
+  name: example
+spec:
+  deletionPolicy: Delete
+  forProvider:
+    policyArn: arn:aws:iam::123:policy/example
+    roleName: example
+  providerConfigRef:
+    name: provider-aws
+status:
+  atProvider:
+    attachedPolicyArn: arn:aws:iam::123:policy/example
+  conditions:
+  - lastTransitionTime: "2024-07-11T08:19:17Z"
+    reason: Available
+    status: "True"
+    type: Ready
+  - lastTransitionTime: "2024-07-11T08:18:16Z"
+    reason: ReconcileSuccess
+    status: "True"
+    type: Synced

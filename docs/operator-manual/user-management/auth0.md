@@ -39,6 +39,7 @@ data:
     issuer: https://<yourtenant>.<eu|us>.auth0.com/
     clientID: <theClientId>
     clientSecret: <theClientSecret>
+    domain_hint: <theDomainHint>
     requestedScopes:
     - openid
     - profile
@@ -69,5 +70,7 @@ data:
 
 <br>
 
-!!! note "Storing Client Secrets"
-    Details on storing your clientSecret securely and correctly can be found on the [User Management Overview page](index.md#sensitive-data-and-sso-client-secrets).
+> [!NOTE]
+> **Storing Client Secrets**
+>
+> Details on storing your clientSecret securely and correctly can be found on the [User Management Overview page](index.md#sensitive-data-and-sso-client-secrets).

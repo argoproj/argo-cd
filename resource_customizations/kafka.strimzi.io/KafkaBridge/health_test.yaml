@@ -1,0 +1,12 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: "Waiting for KafkaBridge"
+  inputPath: testdata/progressing_noStatus.yaml
+- healthStatus:
+    status: Degraded
+    message: "Error"
+  inputPath: testdata/degraded.yaml
+- healthStatus:
+    status: Healthy
+  inputPath: testdata/healthy.yaml

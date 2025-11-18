@@ -10,7 +10,7 @@ import './edit-notification-subscriptions.scss';
 
 export const NOTIFICATION_SUBSCRIPTION_ANNOTATION_PREFIX = 'notifications.argoproj.io/subscribe';
 
-export const NOTIFICATION_SUBSCRIPTION_ANNOTATION_REGEX = new RegExp(`^notifications\.argoproj\.io\/subscribe\.[a-zA-Z-]{1,100}\.[a-zA-Z-]{1,100}$`);
+export const NOTIFICATION_SUBSCRIPTION_ANNOTATION_REGEX = new RegExp(`^notifications\\.argoproj\\.io/subscribe\\.[a-zA-Z-]{1,100}\\.[a-zA-Z-]{1,100}$`);
 
 export type TNotificationSubscription = {
     trigger: string;
@@ -96,20 +96,22 @@ export const useEditNotificationSubscriptions = (annotations: models.Application
 
     const onRemoveSubscription = (idx: number) => idx >= 0 && setSubscriptions(subscriptions.filter((_, i) => i !== idx));
 
-    const withNotificationSubscriptions = (updateApp: ApplicationSummaryProps['updateApp']) => (...args: Parameters<ApplicationSummaryProps['updateApp']>) => {
-        const app = args[0];
+    const withNotificationSubscriptions =
+        (updateApp: ApplicationSummaryProps['updateApp']) =>
+        (...args: Parameters<ApplicationSummaryProps['updateApp']>) => {
+            const app = args[0];
 
-        const notificationSubscriptionsRaw = notificationSubscriptionsParser.subscriptionsToAnnotations(subscriptions);
+            const notificationSubscriptionsRaw = notificationSubscriptionsParser.subscriptionsToAnnotations(subscriptions);
 
-        if (Object.keys(notificationSubscriptionsRaw)?.length) {
-            app.metadata.annotations = {
-                ...notificationSubscriptionsRaw,
-                ...(app.metadata.annotations || {})
-            };
-        }
+            if (Object.keys(notificationSubscriptionsRaw)?.length) {
+                app.metadata.annotations = {
+                    ...notificationSubscriptionsRaw,
+                    ...(app.metadata.annotations || {})
+                };
+            }
 
-        return updateApp(app, args[1]);
-    };
+            return updateApp(app, args[1]);
+        };
 
     const onResetNotificationSubscriptions = () => setSubscriptions(notificationSubscriptionsParser.annotationsToSubscriptions(annotations));
 

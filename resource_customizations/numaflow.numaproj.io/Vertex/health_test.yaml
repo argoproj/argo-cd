@@ -1,0 +1,13 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: "Waiting for Vertex status"
+  inputPath: testdata/progressing.yaml
+- healthStatus:
+    status: Healthy
+    message: "Vertex is healthy"
+  inputPath: testdata/healthy.yaml
+- healthStatus:
+    status: Degraded
+    message: "No Pods found"
+  inputPath: testdata/degraded.yaml

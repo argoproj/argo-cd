@@ -1,0 +1,13 @@
+tests:
+  - healthStatus:
+      status: Progressing
+      message: "No status available"
+    inputPath: testdata/progressing.yaml
+  - healthStatus:
+      status: Healthy
+      message: "Astra Application Ready, protectionState: protected"
+    inputPath: testdata/healthy.yaml
+  - healthStatus:
+      status: Degraded
+      message: "Astra Application Degraded, message: namespace wordpress is in terminating state"
+    inputPath: testdata/degraded.yaml

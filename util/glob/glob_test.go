@@ -3,7 +3,7 @@ package glob
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func Test_Match(t *testing.T) {
@@ -24,34 +24,65 @@ func Test_Match(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			res := Match(tt.pattern, tt.input)
-			assert.Equal(t, tt.result, res)
+			require.Equal(t, tt.result, res)
 		})
 	}
 }
 
 func Test_MatchList(t *testing.T) {
 	tests := []struct {
-		name   string
-		input  string
-		list   []string
-		exact  bool
-		result bool
+		name         string
+		input        string
+		list         []string
+		patternMatch string
+		result       bool
 	}{
-		{"Exact name in list", "test", []string{"test"}, true, true},
-		{"Exact name not in list", "test", []string{"other"}, true, false},
-		{"Exact name not in list, multiple elements", "test", []string{"some", "other"}, true, false},
-		{"Exact name not in list, list empty", "test", []string{}, true, false},
-		{"Exact name not in list, empty element", "test", []string{""}, true, false},
-		{"Glob name in list, but exact wanted", "test", []string{"*"}, true, false},
-		{"Glob name in list with simple wildcard", "test", []string{"*"}, false, true},
-		{"Glob name in list without wildcard", "test", []string{"test"}, false, true},
-		{"Glob name in list, multiple elements", "test", []string{"other*", "te*"}, false, true},
+		{"Exact name in list", "test", []string{"test"}, EXACT, true},
+		{"Exact name not in list", "test", []string{"other"}, EXACT, false},
+		{"Exact name not in list, multiple elements", "test", []string{"some", "other"}, EXACT, false},
+		{"Exact name not in list, list empty", "test", []string{}, EXACT, false},
+		{"Exact name not in list, empty element", "test", []string{""}, EXACT, false},
+		{"Glob name in list, but exact wanted", "test", []string{"*"}, EXACT, false},
+		{"Glob name in list with simple wildcard", "test", []string{"*"}, GLOB, true},
+		{"Glob name in list without wildcard", "test", []string{"test"}, GLOB, true},
+		{"Glob name in list, multiple elements", "test", []string{"other*", "te*"}, GLOB, true},
+		{"match everything but specified word: fail", "disallowed", []string{"/^((?!disallowed).)*$/"}, REGEXP, false},
+		{"match everything but specified word: pass", "allowed", []string{"/^((?!disallowed).)*$/"}, REGEXP, true},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			res := MatchStringInList(tt.list, tt.input, tt.exact)
-			assert.Equal(t, tt.result, res)
+			res := MatchStringInList(tt.list, tt.input, tt.patternMatch)
+			require.Equal(t, tt.result, res)
+		})
+	}
+}
+
+func Test_MatchWithError(t *testing.T) {
+	tests := []struct {
+		name        string
+		input       string
+		pattern     string
+		result      bool
+		expectedErr string
+	}{
+		{"Exact match", "hello", "hello", true, ""},
+		{"Non-match exact", "hello", "hell", false, ""},
+		{"Long glob match", "hello", "hell*", true, ""},
+		{"Short glob match", "hello", "h*", true, ""},
+		{"Glob non-match", "hello", "e*", false, ""},
+		{"Invalid pattern", "e[[a*", "e[[a*", false, "unexpected end of input"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			res, err := MatchWithError(tt.pattern, tt.input)
+			require.Equal(t, tt.result, res)
+			if tt.expectedErr == "" {
+				require.NoError(t, err)
+			} else {
+				require.ErrorContains(t, err, tt.expectedErr)
+			}
 		})
 	}
 }

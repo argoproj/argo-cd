@@ -1,0 +1,43 @@
+apiVersion: kafka.strimzi.io/v1beta1
+kind: KafkaConnector
+metadata:
+  creationTimestamp: "2020-02-13T14:03:15Z"
+  deletionGracePeriodSeconds: 0
+  deletionTimestamp: "2020-05-28T10:29:44Z"
+  finalizers:
+  - foregroundDeletion
+  generation: 25
+  labels:
+    app.kubernetes.io/instance: kafka-connect
+    strimzi.io/cluster: strimzi-connect-cluster
+  name: my-connector
+  namespace: strimzi
+  resourceVersion: "43088521"
+  selfLink: /apis/kafka.strimzi.io/v1beta1/namespaces/strimzi/kafkaconnector/kafka
+  uid: 941ae21d-4e69-11ea-a53d-06e66a171f98
+spec:
+  class: org.apache.kafka.connect.file.FileStreamSourceConnector
+  tasksMax: 2
+  config:
+    file: "/opt/kafka/LICENSE"
+    topic: my-topic
+status:
+  conditions:
+    - lastTransitionTime: '2024-05-17T15:55:22.356665885Z'
+      status: 'True'
+      type: Ready
+  connectorStatus:
+    connector:
+      state: RUNNING
+      worker_id: >-
+        kafka-connect-cluster-connect-0.kafka-connect-cluster-connect.strimzi.svc:8083
+    name: my-connector
+    tasks:
+      - id: 0
+        state: RUNNING
+        worker_id: >-
+          kafka-connect-cluster-connect-0.kafka-connect-cluster-connect.strimzi.svc:8083
+    type: source
+  observedGeneration: 1
+  tasksMax: 1
+  topics: []

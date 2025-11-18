@@ -1,0 +1,59 @@
+apiVersion: numaplane.numaproj.io/v1alpha1
+kind: PipelineRollout
+metadata:
+  annotations:
+    argocd.argoproj.io/sync-wave: '3'
+    kubectl.kubernetes.io/last-applied-configuration: >
+      {"apiVersion":"numaplane.numaproj.io/v1alpha1","kind":"PipelineRollout","metadata":{"annotations":{"argocd.argoproj.io/sync-wave":"3"},"labels":{"argocd.argoproj.io/instance":"demo-app"},"name":"my-other-pipeline","namespace":"demo-app"},"spec":{"pipeline":{"edges":[{"from":"in","to":"cat"},{"from":"cat","to":"out"},{"from":"cat","to":"out2"}],"interStepBufferServiceName":"my-isbsvc","vertices":[{"name":"in","source":{"generator":{"duration":"15s","rpu":5}}},{"name":"cat","udf":{"builtin":{"name":"cat"}}},{"name":"out","sink":{"log":{}}},{"name":"out2","sink":{"log":{}}}]}}}
+  creationTimestamp: '2024-07-12T20:56:24Z'
+  finalizers:
+    - numaplane.numaproj.io/numaplane-controller
+  generation: 1
+  labels:
+    argocd.argoproj.io/instance: demo-app
+  name: my-other-pipeline
+  namespace: demo-app
+  resourceVersion: '5456110'
+  uid: 472d6284-b2d9-45ee-a159-fd4c3ad08d8c
+spec:
+  pipeline:
+    edges:
+      - from: in
+        to: cat
+      - from: cat
+        to: out
+      - from: cat
+        to: out2
+    interStepBufferServiceName: my-isbsvc
+    vertices:
+      - name: in
+        source:
+          generator:
+            duration: 15s
+            rpu: 5
+      # - name: cat
+      #   udf:
+      #     builtin:
+      #       name: cat
+      - name: out
+        sink:
+          log: {}
+      - name: out2
+        sink:
+          log: {}
+status:
+  conditions:
+    - lastTransitionTime: '2024-07-12T20:56:24Z'
+      message: Successful
+      observedGeneration: 1
+      reason: Successful
+      status: 'True'
+      type: ChildResourceDeployed
+    - lastTransitionTime: '2024-07-12T20:56:24Z'
+      message: Pipeline Failed
+      observedGeneration: 1
+      reason: PipelineFailed
+      status: 'False'
+      type: ChildResourcesHealthy
+  observedGeneration: 1
+  phase: Deployed

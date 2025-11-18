@@ -1,31 +1,33 @@
 package commands
 
 import (
-	"context"
-	"fmt"
+	"errors"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestGetSignedRequestWithRetry(t *testing.T) {
-	ctx := context.Background()
+	t.Parallel()
+
+	ctx := t.Context()
 
 	t.Run("will return signed request on first attempt", func(t *testing.T) {
 		// given
 		t.Parallel()
 		mock := &signedRequestMock{
-			returnFunc: func(m *signedRequestMock) (string, error) {
+			returnFunc: func(_ *signedRequestMock) (string, error) {
 				return "token", nil
 			},
 		}
 
 		// when
-		signed, err := getSignedRequestWithRetry(ctx, time.Second, time.Millisecond, "cluster-name", "", mock.getSignedRequestMock)
+		signed, err := getSignedRequestWithRetry(ctx, time.Second, time.Millisecond, "cluster-name", "", "", mock.getSignedRequestMock)
 
 		// then
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, "token", signed)
 	})
 	t.Run("will return signed request on third attempt", func(t *testing.T) {
@@ -34,34 +36,34 @@ func TestGetSignedRequestWithRetry(t *testing.T) {
 		mock := &signedRequestMock{
 			returnFunc: func(m *signedRequestMock) (string, error) {
 				if m.getSignedRequestCalls < 3 {
-					return "", fmt.Errorf("some error")
+					return "", errors.New("some error")
 				}
 				return "token", nil
 			},
 		}
 
 		// when
-		signed, err := getSignedRequestWithRetry(ctx, time.Second, time.Millisecond, "cluster-name", "", mock.getSignedRequestMock)
+		signed, err := getSignedRequestWithRetry(ctx, time.Second, time.Millisecond, "cluster-name", "", "", mock.getSignedRequestMock)
 
 		// then
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, "token", signed)
 	})
 	t.Run("will return error on timeout", func(t *testing.T) {
 		// given
 		t.Parallel()
 		mock := &signedRequestMock{
-			returnFunc: func(m *signedRequestMock) (string, error) {
-				return "", fmt.Errorf("some error")
+			returnFunc: func(_ *signedRequestMock) (string, error) {
+				return "", errors.New("some error")
 			},
 		}
 
 		// when
-		signed, err := getSignedRequestWithRetry(ctx, time.Second, time.Millisecond, "cluster-name", "", mock.getSignedRequestMock)
+		signed, err := getSignedRequestWithRetry(ctx, time.Second, time.Millisecond, "cluster-name", "", "", mock.getSignedRequestMock)
 
 		// then
-		assert.Error(t, err)
-		assert.Equal(t, "", signed)
+		require.Error(t, err)
+		assert.Empty(t, signed)
 	})
 }
 
@@ -70,7 +72,7 @@ type signedRequestMock struct {
 	returnFunc            func(m *signedRequestMock) (string, error)
 }
 
-func (m *signedRequestMock) getSignedRequestMock(clusterName, roleARN string) (string, error) {
+func (m *signedRequestMock) getSignedRequestMock(_, _ string, _ string) (string, error) {
 	m.getSignedRequestCalls++
 	return m.returnFunc(m)
 }

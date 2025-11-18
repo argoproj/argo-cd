@@ -1,0 +1,13 @@
+tests:
+  - healthStatus:
+      status: Progressing
+      message: Waiting for PushSecret
+    inputPath: testdata/progressing.yaml
+  - healthStatus:
+      status: Degraded
+      message: 'set secret failed: could not write remote ref test to target secretstore my-store: Error making API request.'
+    inputPath: testdata/degraded.yaml
+  - healthStatus:
+      status: Healthy
+      message: 'PushSecret synced successfully'
+    inputPath: testdata/healthy.yaml

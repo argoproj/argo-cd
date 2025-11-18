@@ -1,0 +1,26 @@
+apiVersion: astra.netapp.io/v1
+kind: Backup
+metadata:
+  annotations:
+    astra.netapp.io/correlationid: 3c492b7e-8b1f-491a-af99-aa3fca9d54cf
+    created-by-astra-schedule-name: ghost-daily
+    created-by-astra-schedule-namespace: astra-connector
+  creationTimestamp: "2024-04-24T01:00:00Z"
+  finalizers:
+    - astra.netapp.io/finalizer
+  generation: 1
+  labels:
+    created-by-astra-schedule-uid: a2736922-6801-482c-a199-03ef8a3f35d7
+  name: daily-a4587-20240424010000
+  namespace: astra-connector
+  ownerReferences:
+    - apiVersion: astra.netapp.io/v1
+      kind: Application
+      name: ghost
+      uid: 0af10ee8-772b-4367-8334-44f9e4ad2849
+  resourceVersion: "9965658"
+  uid: d4b61932-5c8e-4310-82a5-37a0b671aa2d
+spec:
+  appVaultRef: astra-gcp-backup-743cfd150129
+  applicationRef: ghost
+  snapshotRef: daily-a4587-20240424010000

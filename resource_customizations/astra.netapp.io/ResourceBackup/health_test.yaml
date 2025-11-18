@@ -1,0 +1,17 @@
+tests:
+  - healthStatus:
+      status: Progressing
+      message: "No status available"
+    inputPath: testdata/progressing_nostatus.yaml
+  - healthStatus:
+      status: Progressing
+      message: "ResourceBackup Running"
+    inputPath: testdata/progressing_status.yaml
+  - healthStatus:
+      status: Healthy
+      message: "ResourceBackup Completed"
+    inputPath: testdata/healthy.yaml
+  - healthStatus:
+      status: Degraded
+      message: "Error"
+    inputPath: testdata/degraded.yaml

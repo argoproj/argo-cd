@@ -1,26 +1,35 @@
 package controller
 
 import (
+	"fmt"
+
 	"github.com/argoproj/gitops-engine/pkg/health"
 	hookutil "github.com/argoproj/gitops-engine/pkg/sync/hook"
 	"github.com/argoproj/gitops-engine/pkg/sync/ignore"
 	kubeutil "github.com/argoproj/gitops-engine/pkg/utils/kube"
+	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
-	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/lua"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
+	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	applog "github.com/argoproj/argo-cd/v3/util/app/log"
+	"github.com/argoproj/argo-cd/v3/util/lua"
 )
 
 // setApplicationHealth updates the health statuses of all resources performed in the comparison
-func setApplicationHealth(resources []managedResource, statuses []appv1.ResourceStatus, resourceOverrides map[string]appv1.ResourceOverride, app *appv1.Application, persistResourceHealth bool) (*appv1.HealthStatus, error) {
+func setApplicationHealth(resources []managedResource, statuses []appv1.ResourceStatus, resourceOverrides map[string]appv1.ResourceOverride, app *appv1.Application, persistResourceHealth bool) (health.HealthStatusCode, error) {
 	var savedErr error
-	appHealth := appv1.HealthStatus{Status: health.HealthStatusHealthy}
+	var errCount uint
+
+	appHealthStatus := health.HealthStatusHealthy
 	for i, res := range resources {
 		if res.Target != nil && hookutil.Skip(res.Target) {
 			continue
 		}
-
+		if res.Live != nil && res.Live.GetAnnotations() != nil && res.Live.GetAnnotations()[common.AnnotationIgnoreHealthCheck] == "true" {
+			continue
+		}
 		if res.Live != nil && (hookutil.IsHook(res.Live) || ignore.Ignore(res.Live)) {
 			continue
 		}
@@ -38,7 +47,10 @@ func setApplicationHealth(resources []managedResource, statuses []appv1.Resource
 			}
 			healthStatus, err = health.GetResourceHealth(res.Live, healthOverrides)
 			if err != nil && savedErr == nil {
-				savedErr = err
+				errCount++
+				savedErr = fmt.Errorf("failed to get resource health for %q with name %q in namespace %q: %w", res.Live.GetKind(), res.Live.GetName(), res.Live.GetNamespace(), err)
+				// also log so we don't lose the message
+				log.WithFields(applog.GetAppLogFields(app)).Warn(savedErr)
 			}
 		}
 
@@ -63,8 +75,8 @@ func setApplicationHealth(resources []managedResource, statuses []appv1.Resource
 			continue
 		}
 
-		if health.IsWorse(appHealth.Status, healthStatus.Status) {
-			appHealth.Status = healthStatus.Status
+		if health.IsWorse(appHealthStatus, healthStatus.Status) {
+			appHealthStatus = healthStatus.Status
 		}
 	}
 	if persistResourceHealth {
@@ -72,5 +84,8 @@ func setApplicationHealth(resources []managedResource, statuses []appv1.Resource
 	} else {
 		app.Status.ResourceHealthSource = appv1.ResourceHealthLocationAppTree
 	}
-	return &appHealth, savedErr
+	if savedErr != nil && errCount > 1 {
+		savedErr = fmt.Errorf("see application-controller logs for %d other errors; most recent error was: %w", errCount-1, savedErr)
+	}
+	return appHealthStatus, savedErr
 }

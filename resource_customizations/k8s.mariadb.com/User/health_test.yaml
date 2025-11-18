@@ -1,0 +1,5 @@
+tests:
+- healthStatus:
+    status: Healthy
+    message: "Created"
+  inputPath: testdata/user-created.yaml

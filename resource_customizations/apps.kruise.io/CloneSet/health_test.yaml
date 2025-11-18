@@ -1,0 +1,21 @@
+tests:
+  - healthStatus:
+      status: Healthy
+      message: "All Cloneset workloads are ready and updated"
+    inputPath: testdata/healthy.yaml
+  - healthStatus:
+      status: Degraded
+      message: "Some replicas are not ready or available"
+    inputPath: testdata/degraded.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Waiting for initialization"
+    inputPath: testdata/unknown.yaml
+  - healthStatus: 
+      status: Suspended
+      message: "Cloneset is paused"
+    inputpath: testdata/suspended.yaml
+  - healthStatus: 
+      status: Suspended
+      message: "Cloneset needs manual intervention"
+    inputpath: testdata/partition_suspended.yaml

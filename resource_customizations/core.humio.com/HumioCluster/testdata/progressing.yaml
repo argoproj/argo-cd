@@ -1,0 +1,28 @@
+apiVersion: core.humio.com/v1alpha1
+kind: HumioCluster
+metadata:
+  creationTimestamp: '2022-12-09T05:48:10Z'
+  generation: 1
+  labels:
+    app: humio
+    app.kubernetes.io/instance: humio-cluster-failtest
+  name: example-humiocluster
+  namespace: failtes
+spec:
+  dataVolumePersistentVolumeClaimSpecTemplate:
+    accessModes:
+      - ReadWriteOnce
+    resources:
+      requests:
+        storage: 100Gi
+    storageClassName: longhorn
+  digestPartitionsCount: 2
+  image: 'humio/humio-core:latest'
+  license:
+    secretKeyRef:
+      key: data
+      name: example-humiocluster-license
+  storagePartitionsCount: 2
+  targetReplicationFactor: 1
+  tls:
+    enabled: false

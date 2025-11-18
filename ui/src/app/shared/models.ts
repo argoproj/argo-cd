@@ -44,6 +44,7 @@ export interface RetryBackoff {
 export interface RetryStrategy {
     limit: number;
     backoff: RetryBackoff;
+    refresh: boolean;
 }
 
 export interface RollbackOperation {
@@ -62,14 +63,17 @@ export interface Operation {
     initiatedBy: OperationInitiator;
 }
 
-export type OperationPhase = 'Running' | 'Error' | 'Failed' | 'Succeeded' | 'Terminating';
+export type OperationPhase = 'Running' | 'Error' | 'Failed' | 'Succeeded' | 'Terminating' | 'Progressing' | 'Pending' | 'Waiting';
 
 export const OperationPhases = {
     Running: 'Running' as OperationPhase,
     Failed: 'Failed' as OperationPhase,
     Error: 'Error' as OperationPhase,
     Succeeded: 'Succeeded' as OperationPhase,
-    Terminating: 'Terminating' as OperationPhase
+    Terminating: 'Terminating' as OperationPhase,
+    Progressing: 'Progressing' as OperationPhase,
+    Pending: 'Pending' as OperationPhase,
+    Waiting: 'Waiting' as OperationPhase
 };
 
 /**
@@ -94,9 +98,25 @@ export interface RevisionMetadata {
     signatureInfo?: string;
 }
 
+export interface OCIMetadata {
+    createdAt: string;
+    authors: string;
+    docsUrl: string;
+    sourceUrl: string;
+    version: string;
+    description: string;
+}
+
+export interface ChartDetails {
+    description?: string;
+    maintainers?: string[];
+    home?: string;
+}
+
 export interface SyncOperationResult {
     resources: ResourceResult[];
     revision: string;
+    revisions: string[];
 }
 
 export type ResultCode = 'Synced' | 'SyncFailed' | 'Pruned' | 'PruneSkipped';
@@ -118,11 +138,19 @@ export interface ResourceResult {
     message: string;
     hookType: HookType;
     hookPhase: OperationPhase;
+    images?: string[];
 }
+
+export type SyncResourceResult = ResourceResult & {
+    health?: HealthStatus;
+    syncWave?: number;
+};
 
 export const AnnotationRefreshKey = 'argocd.argoproj.io/refresh';
 export const AnnotationHookKey = 'argocd.argoproj.io/hook';
 export const AnnotationSyncWaveKey = 'argocd.argoproj.io/sync-wave';
+export const AnnotationDefaultView = 'pref.argocd.argoproj.io/default-view';
+export const AnnotationDefaultPodSort = 'pref.argocd.argoproj.io/default-pod-sort';
 
 export interface Application {
     apiVersion?: string;
@@ -162,6 +190,12 @@ export interface ApplicationDestination {
     name: string;
 }
 
+export interface ApplicationDestinationServiceAccount {
+    server: string;
+    namespace: string;
+    defaultServiceAccount: string;
+}
+
 export interface OrphanedResource {
     group: string;
     kind: string;
@@ -189,11 +223,37 @@ export interface ApplicationSource {
     plugin?: ApplicationSourcePlugin;
 
     directory?: ApplicationSourceDirectory;
+
+    ref?: string;
+
+    name?: string;
+}
+
+export interface SourceHydrator {
+    drySource: DrySource;
+    syncSource: SyncSource;
+    hydrateTo?: HydrateTo;
+}
+
+export interface DrySource {
+    repoURL: string;
+    targetRevision: string;
+    path: string;
+}
+
+export interface SyncSource {
+    targetBranch: string;
+    path: string;
+}
+
+export interface HydrateTo {
+    targetBranch: string;
 }
 
 export interface ApplicationSourceHelm {
     valueFiles: string[];
     values?: string;
+    valuesObject?: any;
     parameters: HelmParameter[];
     fileParameters: HelmFileParameter[];
 }
@@ -203,6 +263,7 @@ export interface ApplicationSourceKustomize {
     nameSuffix: string;
     images: string[];
     version: string;
+    namespace: string;
 }
 export interface EnvEntry {
     name: string;
@@ -243,6 +304,7 @@ export interface ApplicationSourceDirectory {
 export interface Automated {
     prune: boolean;
     selfHeal: boolean;
+    enabled: boolean;
 }
 
 export interface SyncPolicy {
@@ -260,6 +322,7 @@ export interface ApplicationSpec {
     project: string;
     source: ApplicationSource;
     sources: ApplicationSource[];
+    sourceHydrator?: SourceHydrator;
     destination: ApplicationDestination;
     syncPolicy?: SyncPolicy;
     ignoreDifferences?: ResourceIgnoreDifferences[];
@@ -287,6 +350,7 @@ export interface RevisionHistory {
     sources: ApplicationSource[];
     deployStartedAt: models.Time;
     deployedAt: models.Time;
+    initiatedBy: OperationInitiator;
 }
 
 export type SyncStatusCode = 'Unknown' | 'Synced' | 'OutOfSync';
@@ -297,15 +361,30 @@ export const SyncStatuses: {[key: string]: SyncStatusCode} = {
     OutOfSync: 'OutOfSync'
 };
 
+export const SyncPriority: Record<SyncStatusCode, number> = {
+    Unknown: 0,
+    OutOfSync: 1,
+    Synced: 2
+};
+
 export type HealthStatusCode = 'Unknown' | 'Progressing' | 'Healthy' | 'Suspended' | 'Degraded' | 'Missing';
 
 export const HealthStatuses: {[key: string]: HealthStatusCode} = {
-    Unknown: 'Unknown',
     Progressing: 'Progressing',
     Suspended: 'Suspended',
     Healthy: 'Healthy',
     Degraded: 'Degraded',
-    Missing: 'Missing'
+    Missing: 'Missing',
+    Unknown: 'Unknown'
+};
+
+export const HealthPriority: Record<HealthStatusCode, number> = {
+    Missing: 0,
+    Degraded: 1,
+    Unknown: 2,
+    Progressing: 3,
+    Suspended: 4,
+    Healthy: 5
 };
 
 export interface HealthStatus {
@@ -314,6 +393,10 @@ export interface HealthStatus {
 }
 
 export type State = models.TypeMeta & {metadata: models.ObjectMeta} & {status: any; spec: any};
+
+export type ReadinessGate = {
+    conditionType: string;
+};
 
 export interface ResourceStatus {
     group: string;
@@ -326,7 +409,9 @@ export interface ResourceStatus {
     createdAt?: models.Time;
     hook?: boolean;
     requiresPruning?: boolean;
+    requiresDeletionConfirmation?: boolean;
     syncWave?: number;
+    orphaned?: boolean;
 }
 
 export interface ResourceRef {
@@ -413,7 +498,37 @@ export interface ApplicationStatus {
     health: HealthStatus;
     operationState?: OperationState;
     summary?: ApplicationSummary;
+    sourceHydrator?: SourceHydratorStatus;
 }
+
+export interface SourceHydratorStatus {
+    lastSuccessfulOperation?: SuccessfulHydrateOperation;
+    currentOperation?: HydrateOperation;
+}
+
+export interface HydrateOperation {
+    startedAt: models.Time;
+    finishedAt?: models.Time;
+    phase: HydrateOperationPhase;
+    message: string;
+    drySHA: string;
+    hydratedSHA: string;
+    sourceHydrator: SourceHydrator;
+}
+
+export interface SuccessfulHydrateOperation {
+    drySHA: string;
+    hydratedSHA: string;
+    sourceHydrator: SourceHydrator;
+}
+
+export type HydrateOperationPhase = 'Hydrating' | 'Failed' | 'Hydrated';
+
+export const HydrateOperationPhases = {
+    Hydrating: 'Hydrating' as OperationPhase,
+    Failed: 'Failed' as OperationPhase,
+    Hydrated: 'Hydrated' as OperationPhase
+};
 
 export interface JwtTokens {
     items: JwtToken[];
@@ -459,7 +574,6 @@ export interface AuthSettings {
         chatText: string;
         binaryUrls: Record<string, string>;
     };
-    plugins: Plugin[];
     userLoginsDisabled: boolean;
     kustomizeVersions: string[];
     uiCssURL: string;
@@ -469,6 +583,8 @@ export interface AuthSettings {
     uiBannerPosition: string;
     execEnabled: boolean;
     appsInAnyNamespaceEnabled: boolean;
+    hydratorEnabled: boolean;
+    syncWithReplaceAllowed: boolean;
 }
 
 export interface UserInfo {
@@ -510,12 +626,18 @@ export interface Repository {
     project?: string;
     username?: string;
     password?: string;
+    bearerToken?: string;
     tlsClientCertData?: string;
     tlsClientCertKey?: string;
     proxy?: string;
+    noProxy?: string;
     insecure?: boolean;
     enableLfs?: boolean;
     githubAppId?: string;
+    forceHttpBasicAuth?: boolean;
+    insecureOCIForceHttp?: boolean;
+    enableOCI: boolean;
+    useAzureWorkloadIdentity: boolean;
 }
 
 export interface RepositoryList extends ItemsList<Repository> {}
@@ -523,6 +645,7 @@ export interface RepositoryList extends ItemsList<Repository> {}
 export interface RepoCreds {
     url: string;
     username?: string;
+    bearerToken?: string;
 }
 
 export interface RepoCredsList extends ItemsList<RepoCreds> {}
@@ -606,6 +729,7 @@ export interface HelmAppSpec {
 export interface KustomizeAppSpec {
     path: string;
     images?: string[];
+    namespace?: string;
 }
 
 export interface PluginAppSpec {
@@ -693,7 +817,9 @@ export interface ProjectSignatureKey {
 
 export interface ProjectSpec {
     sourceRepos: string[];
+    sourceNamespaces: string[];
     destinations: ApplicationDestination[];
+    destinationServiceAccounts: ApplicationDestinationServiceAccount[];
     description: string;
     roles: ProjectRole[];
     clusterResourceWhitelist: GroupKind[];
@@ -716,6 +842,8 @@ export interface SyncWindow {
     clusters: string[];
     manualSync: boolean;
     timeZone: string;
+    andOperator: boolean;
+    description: string;
 }
 
 export interface Project {
@@ -755,6 +883,8 @@ export interface ResourceAction {
     name: string;
     params: ResourceActionParam[];
     disabled: boolean;
+    iconClass: string;
+    displayName: string;
 }
 
 export interface SyncWindowsState {
@@ -889,6 +1019,7 @@ export interface Node {
     name: string;
     systemInfo: NodeSystemInfo;
     resourcesInfo: HostResourceInfo[];
+    labels: {[name: string]: string};
 }
 
 export interface NodeSystemInfo {
@@ -935,4 +1066,77 @@ export interface LinkInfo {
 
 export interface LinksResponse {
     items: LinkInfo[];
+}
+
+export interface UserMessages {
+    appName: string;
+    msgKey: string;
+    display: boolean;
+    condition?: HealthStatusCode;
+    duration?: number;
+    animation?: string;
+}
+
+export const AppDeletionConfirmedAnnotation = 'argocd.argoproj.io/deletion-approved';
+
+export interface ApplicationSetSpec {
+    strategy?: {
+        type: 'AllAtOnce' | 'RollingSync';
+        rollingSync?: {
+            steps: Array<{
+                matchExpressions: Array<{
+                    key: string;
+                    operator: string;
+                    values: string[];
+                }>;
+                maxUpdate: number;
+            }>;
+        };
+    };
+}
+
+export interface ApplicationSetCondition {
+    type: string;
+    status: string;
+    message: string;
+    lastTransitionTime: string;
+    reason: string;
+}
+
+export interface ApplicationSetResource {
+    group: string;
+    version: string;
+    kind: string;
+    name: string;
+    namespace: string;
+    status: string;
+    health?: {
+        status: string;
+        lastTransitionTime: models.Time;
+    };
+    labels?: {[key: string]: string};
+}
+
+export interface ApplicationSet {
+    apiVersion?: string;
+    kind?: string;
+    metadata: models.ObjectMeta;
+    spec: ApplicationSetSpec;
+    status?: {
+        conditions?: ApplicationSetCondition[];
+        applicationStatus?: Array<{
+            application: string;
+            status: 'Waiting' | 'Pending' | 'Progressing' | 'Healthy';
+            message?: string;
+            lastTransitionTime?: string;
+            step?: string;
+            targetRevisions?: string[];
+        }>;
+        resources?: ApplicationSetResource[];
+    };
+}
+
+export interface ApplicationSetList {
+    metadata: models.ListMeta;
+    items: ApplicationSet[];
 }
