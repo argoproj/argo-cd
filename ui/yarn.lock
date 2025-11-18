@@ -2445,7 +2445,7 @@ arg@^4.1.0:
 
 "argo-ui@git+https://github.com/jwinters01/argo-ui.git#react-18-upgrade":
   version "1.0.0"
-  resolved "git+https://github.com/jwinters01/argo-ui.git#07f217668d4f0b8e19c994b57b4ecb3f3fe865ea"
+  resolved "git+https://github.com/jwinters01/argo-ui.git#2885b72521527dd4b9d1c491a08e62723846546a"
   dependencies:
     "@fortawesome/fontawesome-free" "^6.2.1"
     "@tippy.js/react" "^3.1.1"
