@@ -1254,10 +1254,20 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 		}
 		for _, p := range appHelm.FileParameters {
 			var resolvedPath pathutil.ResolvedFilePath
-			referencedSource := getReferencedSource(p.Path, q.RefSources)
+			referencedSource, err := getReferencedSource(p.Path, q.RefSources, regexSourceReference)
+			if err != nil {
+					return nil, "", fmt.Errorf("error resolving set-file path: %w", err)
+			}
 			if referencedSource != nil {
 				// If the $-prefixed path appears to reference another source, do env substitution _after_ resolving the source
-				resolvedPath, err = getResolvedRefValueFile(p.Path, env, q.GetValuesFileSchemes(), referencedSource.Repo.Repo, gitRepoPaths, regexSourceReference)
+				resolvedPath, err = getResolvedRefValueFile(
+						p.Path,
+						env,
+						q.GetValuesFileSchemes(),
+						referencedSource.Repo.Repo,
+						gitRepoPaths,
+						regexSourceReference,
+				)
 				if err != nil {
 					return nil, "", fmt.Errorf("error resolving set-file path: %w", err)
 				}
@@ -1416,7 +1426,7 @@ func getResolvedRefValueFile(
 	env *v1alpha1.Env,
 	allowedValueFilesSchemas []string,
 	refSourceRepo string,
-	gitRepoPaths io.TempPaths,
+	gitRepoPaths utilio.TempPaths,
 	regexSourceReference *regexp.Regexp,
 ) (pathutil.ResolvedFilePath, error) {
 	matched := regexSourceReference.FindStringSubmatch(rawValueFile)
