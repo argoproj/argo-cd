@@ -20,7 +20,8 @@ export const Help = () => {
                     })
                 )
             }>
-            {({binaryUrls}: {binaryUrls: Record<string, string>}) => {
+            {(settings?: {binaryUrls: Record<string, string>}) => {
+                const binaryUrls = settings?.binaryUrls || {};
                 return (
                     <Consumer>
                         {() => (
