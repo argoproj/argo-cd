@@ -10,6 +10,12 @@ on:
 permissions: {}
 
 env:
+  # Image repository configuration - can be overridden in forks
+  IMAGE_REGISTRY: ${{ vars.IMAGE_REGISTRY || 'quay.io' }}
+  IMAGE_NAMESPACE: ${{ vars.IMAGE_NAMESPACE || 'argoproj' }}
+  IMAGE_REPOSITORY: ${{ vars.IMAGE_REPOSITORY || 'argocd' }}
+  # Fork release control - set to 'true' in fork to enable release workflows
+  ENABLE_FORK_RELEASES: ${{ vars.ENABLE_FORK_RELEASES || 'false' }}
   # renovate: datasource=golang-version packageName=golang
   GOLANG_VERSION: '1.25.3' # Note: go-version must also be set in job argocd-image.with.go-version
 
@@ -19,10 +25,10 @@ jobs:
       contents: read
       id-token: write # for creating OIDC tokens for signing.
       packages: write # used to push images to `ghcr.io` if used.
-    if: github.repository == 'argoproj/argo-cd'
+    if: github.repository == 'argoproj/argo-cd' || (github.repository_owner != 'argoproj' && env.ENABLE_FORK_RELEASES == 'true' && startsWith(github.ref, 'refs/tags/') && env.IMAGE_NAMESPACE != 'argoproj')
     uses: ./.github/workflows/image-reuse.yaml
     with:
-      quay_image_name: quay.io/argoproj/argocd:${{ github.ref_name }}
+      quay_image_name: ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_REPOSITORY }}:${{ github.ref_name }}
       # Note: cannot use env variables to set go-version (https://docs.github.com/en/actions/using-workflows/reusing-workflows#limitations)
       # renovate: datasource=golang-version packageName=golang
       go-version: 1.25.3
@@ -34,7 +40,7 @@ jobs:
 
   setup-variables:
     name: Setup Release Variables
-    if: github.repository == 'argoproj/argo-cd'
+    if: github.repository == 'argoproj/argo-cd' || (github.repository_owner != 'argoproj' && env.ENABLE_FORK_RELEASES == 'true' && startsWith(github.ref, 'refs/tags/') && env.IMAGE_NAMESPACE != 'argoproj')
     runs-on: ubuntu-22.04
     outputs:
       is_pre_release: ${{ steps.var.outputs.is_pre_release }}
@@ -75,10 +81,10 @@ jobs:
       id-token: write # for creating OIDC tokens for signing.
       packages: write # for uploading attestations. (https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#known-issues)
     # Must be refernced by a tag. https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#referencing-the-slsa-generator
-    if: github.repository == 'argoproj/argo-cd'
+    if: github.repository == 'argoproj/argo-cd' || (github.repository_owner != 'argoproj' && env.ENABLE_FORK_RELEASES == 'true' && startsWith(github.ref, 'refs/tags/') && env.IMAGE_NAMESPACE != 'argoproj')
     uses: slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@v2.1.0
     with:
-      image: quay.io/argoproj/argocd
+      image: ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_REPOSITORY }}
       digest: ${{ needs.argocd-image.outputs.image-digest }}
     secrets:
       registry-username: ${{ secrets.RELEASE_QUAY_USERNAME }}
@@ -91,7 +97,7 @@ jobs:
       - argocd-image-provenance
     permissions:
       contents: write # used for uploading assets
-    if: github.repository == 'argoproj/argo-cd'
+    if: github.repository == 'argoproj/argo-cd' || (github.repository_owner != 'argoproj' && env.ENABLE_FORK_RELEASES == 'true' && startsWith(github.ref, 'refs/tags/') && env.IMAGE_NAMESPACE != 'argoproj')
     runs-on: ubuntu-22.04
     env:
       GORELEASER_MAKE_LATEST: ${{ needs.setup-variables.outputs.is_latest_release }}
@@ -164,7 +170,7 @@ jobs:
       actions: read # for detecting the Github Actions environment
       id-token: write # Needed for provenance signing and ID
       contents: write #  Needed for release uploads
-    if: github.repository == 'argoproj/argo-cd'
+    if: github.repository == 'argoproj/argo-cd' || (github.repository_owner != 'argoproj' && env.ENABLE_FORK_RELEASES == 'true' && startsWith(github.ref, 'refs/tags/') && env.IMAGE_NAMESPACE != 'argoproj')
     # Must be refernced by a tag. https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#referencing-the-slsa-generator
     uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
     with:
@@ -181,7 +187,7 @@ jobs:
       contents: write # Needed for release uploads
     outputs:
       hashes: ${{ steps.sbom-hash.outputs.hashes }}
-    if: github.repository == 'argoproj/argo-cd'
+    if: github.repository == 'argoproj/argo-cd' || (github.repository_owner != 'argoproj' && env.ENABLE_FORK_RELEASES == 'true' && startsWith(github.ref, 'refs/tags/') && env.IMAGE_NAMESPACE != 'argoproj')
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout code
@@ -207,7 +213,7 @@ jobs:
           # managers (gomod, yarn, npm).
           PROJECT_FOLDERS: '.,./ui'
           # full qualified name of the docker image to be inspected
-          DOCKER_IMAGE: quay.io/argoproj/argocd:${{ github.ref_name }}
+          DOCKER_IMAGE: ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_REPOSITORY }}:${{ github.ref_name }}
         run: |
           yarn install --cwd ./ui
           go install github.com/spdx/spdx-sbom-generator/cmd/generator@$SPDX_GEN_VERSION
@@ -249,7 +255,7 @@ jobs:
       actions: read # for detecting the Github Actions environment
       id-token: write # Needed for provenance signing and ID
       contents: write #  Needed for release uploads
-    if: github.repository == 'argoproj/argo-cd'
+    if: github.repository == 'argoproj/argo-cd' || (github.repository_owner != 'argoproj' && env.ENABLE_FORK_RELEASES == 'true' && startsWith(github.ref, 'refs/tags/') && env.IMAGE_NAMESPACE != 'argoproj')
     # Must be referenced by a tag. https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#referencing-the-slsa-generator
     uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
     with:
@@ -266,7 +272,7 @@ jobs:
     permissions:
       contents: write # Needed to push commit to update stable tag
       pull-requests: write # Needed to create PR for VERSION update.
-    if: github.repository == 'argoproj/argo-cd'
+    if: github.repository == 'argoproj/argo-cd' || (github.repository_owner != 'argoproj' && env.ENABLE_FORK_RELEASES == 'true' && startsWith(github.ref, 'refs/tags/') && env.IMAGE_NAMESPACE != 'argoproj')
     runs-on: ubuntu-22.04
     env:
       TAG_STABLE: ${{ needs.setup-variables.outputs.is_latest_release }}
