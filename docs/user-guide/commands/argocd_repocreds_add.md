@@ -20,10 +20,10 @@ argocd repocreds add REPOURL [flags]
   # Add credentials with SSH private key authentication to use for all repositories under ssh://git@git.example.com/repos
   argocd repocreds add ssh://git@git.example.com/repos/ --ssh-private-key-path ~/.ssh/id_rsa
 
-  # Add credentials with GitHub App authentication to use for all repositories under https://github.com/repos
+  # Add credentials with GitHub App authentication to use for all repositories under https://github.com/repos (github-app-installation-id is optional and will be auto-discovered if omitted)
   argocd repocreds add https://github.com/repos/ --github-app-id 1 --github-app-installation-id 2 --github-app-private-key-path test.private-key.pem
 
-  # Add credentials with GitHub App authentication to use for all repositories under https://ghe.example.com/repos
+  # Add credentials with GitHub App authentication to use for all repositories under https://ghe.example.com/repos (github-app-installation-id is optional and will be auto-discovered if omitted)
   argocd repocreds add https://ghe.example.com/repos/ --github-app-id 1 --github-app-installation-id 2 --github-app-private-key-path test.private-key.pem --github-app-enterprise-base-url https://ghe.example.com/api/v3
 
   # Add credentials with helm oci registry so that these oci registry urls do not need to be added as repos individually.

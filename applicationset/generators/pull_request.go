@@ -243,9 +243,9 @@ func (g *PullRequestGenerator) github(ctx context.Context, cfg *argoprojiov1alph
 		}
 
 		if g.enableGitHubAPIMetrics {
-			return pullrequest.NewGithubAppService(*auth, cfg.API, cfg.Owner, cfg.Repo, cfg.Labels, httpClient)
+			return pullrequest.NewGithubAppService(ctx, *auth, cfg.API, cfg.Owner, cfg.Repo, cfg.Labels, httpClient)
 		}
-		return pullrequest.NewGithubAppService(*auth, cfg.API, cfg.Owner, cfg.Repo, cfg.Labels)
+		return pullrequest.NewGithubAppService(ctx, *auth, cfg.API, cfg.Owner, cfg.Repo, cfg.Labels)
 	}
 
 	// always default to token, even if not set (public access)

@@ -94,10 +94,10 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
   # Add a private HTTP OCI repository named 'stable'
   argocd repo add oci://helm-oci-registry.cn-zhangjiakou.cr.aliyuncs.com --type oci --name stable --username test --password test --insecure-oci-force-http
 
-  # Add a private Git repository on GitHub.com via GitHub App
+  # Add a private Git repository on GitHub.com via GitHub App. github-app-installation-id is optional, if not provided, the installation id will be fetched from the GitHub API.
   argocd repo add https://git.example.com/repos/repo --github-app-id 1 --github-app-installation-id 2 --github-app-private-key-path test.private-key.pem
 
-  # Add a private Git repository on GitHub Enterprise via GitHub App
+  # Add a private Git repository on GitHub Enterprise via GitHub App. github-app-installation-id is optional, if not provided, the installation id will be fetched from the GitHub API.
   argocd repo add https://ghe.example.com/repos/repo --github-app-id 1 --github-app-installation-id 2 --github-app-private-key-path test.private-key.pem --github-app-enterprise-base-url https://ghe.example.com/api/v3
 
   # Add a private Git repository on Google Cloud Sources via GCP service account credentials

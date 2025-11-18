@@ -1,6 +1,7 @@
 package pull_request
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/argoproj/argo-cd/v3/applicationset/services/github_app_auth"
@@ -8,9 +9,9 @@ import (
 	appsetutils "github.com/argoproj/argo-cd/v3/applicationset/utils"
 )
 
-func NewGithubAppService(g github_app_auth.Authentication, url, owner, repo string, labels []string, optionalHTTPClient ...*http.Client) (PullRequestService, error) {
+func NewGithubAppService(ctx context.Context, g github_app_auth.Authentication, url, owner, repo string, labels []string, optionalHTTPClient ...*http.Client) (PullRequestService, error) {
 	httpClient := appsetutils.GetOptionalHTTPClient(optionalHTTPClient...)
-	client, err := github_app.Client(g, url, httpClient)
+	client, err := github_app.Client(ctx, g, url, owner, httpClient)
 	if err != nil {
 		return nil, err
 	}

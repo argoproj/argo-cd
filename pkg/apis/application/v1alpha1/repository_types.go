@@ -239,7 +239,7 @@ func (repo *Repository) GetGitCreds(store git.CredsStore) git.Creds {
 	if repo.SSHPrivateKey != "" {
 		return git.NewSSHCreds(repo.SSHPrivateKey, getCAPath(repo.Repo), repo.IsInsecure(), repo.Proxy)
 	}
-	if repo.GithubAppPrivateKey != "" && repo.GithubAppId != 0 && repo.GithubAppInstallationId != 0 {
+	if repo.GithubAppPrivateKey != "" && repo.GithubAppId != 0 { // Promoter MVP: remove github-app-installation-id check since it is no longer a required field
 		return git.NewGitHubAppCreds(repo.GithubAppId, repo.GithubAppInstallationId, repo.GithubAppPrivateKey, repo.GitHubAppEnterpriseBaseURL, repo.TLSClientCertData, repo.TLSClientCertKey, repo.IsInsecure(), repo.Proxy, repo.NoProxy, store)
 	}
 	if repo.GCPServiceAccountKey != "" {
