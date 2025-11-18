@@ -198,7 +198,13 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                         </p>
                     )}
                     items={[ConnectionMethod.SSH, ConnectionMethod.HTTPS, ConnectionMethod.GITHUBAPP, ConnectionMethod.GOOGLECLOUD, ConnectionMethod.AZURESERVICEPRINCIPAL].map(
-                        (connectMethod: ConnectionMethod.SSH | ConnectionMethod.HTTPS | ConnectionMethod.GITHUBAPP | ConnectionMethod.GOOGLECLOUD | ConnectionMethod.AZURESERVICEPRINCIPAL) => ({
+                        (connectMethod: 
+                            | ConnectionMethod.SSH
+                            | ConnectionMethod.HTTPS
+                            | ConnectionMethod.GITHUBAPP
+                            | ConnectionMethod.GOOGLECLOUD
+                            | ConnectionMethod.AZURESERVICEPRINCIPAL
+                        ) => ({
                             title: connectMethod.toUpperCase(),
                             action: () => {
                                 onSelection(connectMethod);
@@ -257,7 +263,8 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
             case ConnectionMethod.AZURESERVICEPRINCIPAL:
                 const azureServicePrincipalValues = params as NewAzureServicePrincipalRepoParams;
                 return {
-                    url: (!azureServicePrincipalValues.url && 'Repository URL is required') || (credsTemplate && !isHTTPOrHTTPSUrl(azureServicePrincipalValues.url) && 'Not a valid HTTP/HTTPS URL'),
+                    url: (!azureServicePrincipalValues.url && 'Repository URL is required') ||
+                        (credsTemplate && !isHTTPOrHTTPSUrl(azureServicePrincipalValues.url) && 'Not a valid HTTP/HTTPS URL'),
                     azureServicePrincipalClientId: !azureServicePrincipalValues.azureServicePrincipalClientId && 'Azure Service Principal Client ID is required',
                     azureServicePrincipalClientSecret: !azureServicePrincipalValues.azureServicePrincipalClientSecret && 'Azure Service Principal Client Secret is required',
                     azureServicePrincipalTenantId: !azureServicePrincipalValues.azureServicePrincipalTenantId && 'Azure Service Principal Tenant ID is required'
@@ -537,7 +544,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                 azureActiveDirectoryEndpoint: params.azureActiveDirectoryEndpoint,
                 proxy: params.proxy,
                 noProxy: params.noProxy,
-                write: params.write,
+                write: params.write
             });
         } else {
             setConnecting(true);
