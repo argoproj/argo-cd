@@ -553,10 +553,10 @@ func TestHelmManifestFromChartRepo(t *testing.T) {
 }
 
 func TestHelmChartReferencingExternalValues(t *testing.T) {
-	service := newService(".")
-	spec := argoappv1.ApplicationSpec{
-		Sources: []argoappv1.ApplicationSource{
-			{RepoURL: "https://helm.example.com", Chart: "my-chart", TargetRevision: ">= 1.0.0", Helm: &argoappv1.ApplicationSourceHelm{
+	service := newService(t, ".")
+	spec := v1alpha1.ApplicationSpec{
+		Sources: []v1alpha1.ApplicationSource{
+			{RepoURL: "https://helm.example.com", Chart: "my-chart", TargetRevision: ">= 1.0.0", Helm: &v1alpha1.ApplicationSourceHelm{
 				ValueFiles: []string{"$(ref)/testdata/my-chart/my-chart-values.yaml"},
 			}},
 			{Ref: "ref", RepoURL: "https://git.example.com/test/repo"},
@@ -3446,7 +3446,7 @@ func Test_getResolvedValueFiles(t *testing.T) {
 		{
 			name:    "simple ref",
 			rawPath: "$(ref)/values.yaml",
-			env:     &argoappv1.Env{},
+			env:     &v1alpha1.Env{},
 			refSources: map[string]*argoappv1.RefTarget{
 				"ref": {
 					Repo: argoappv1.Repository{
