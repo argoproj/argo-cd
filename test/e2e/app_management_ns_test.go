@@ -2437,12 +2437,6 @@ func TestZeroReconciliationTimeoutNoExcessiveRefreshes(t *testing.T) {
 	configMapResourceVersion := configMap.ResourceVersion
 	configMapUpdateTime := time.Now()
 
-	// Poll to verify controller has synced ConfigMap changes
-	// The controller uses Kubernetes informers to watch ConfigMap changes. We verify the controller
-	// has processed the update by checking that:
-	// 1. The ConfigMap update has propagated (resourceVersion is stable)
-	// 2. Enough time has passed for the informer to process the update (typically 3-5 seconds)
-	// This approach is more reliable than a fixed sleep and adapts to different environment speeds.
 	require.Eventually(t, func() bool {
 		// Verify ConfigMap resourceVersion is stable (update has propagated)
 		currentConfigMap, err := fixture.KubeClientset.CoreV1().ConfigMaps(namespace).Get(ctx, common.ArgoCDConfigMapName, metav1.GetOptions{})
@@ -2457,21 +2451,17 @@ func TestZeroReconciliationTimeoutNoExcessiveRefreshes(t *testing.T) {
 		}
 
 		// Wait at least 5 seconds after ConfigMap update for informer to process
-		// Informers typically process updates within a few seconds via watch events
 		timeSinceUpdate := time.Since(configMapUpdateTime)
 		if timeSinceUpdate < 5*time.Second {
 			return false
 		}
 
 		// Check if controller is actively processing applications by looking for recently reconciled apps
-		// This indicates the controller is running and has likely processed ConfigMap changes
 		apps, err := fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.AppNamespace()).List(ctx, metav1.ListOptions{})
 		if err != nil {
 			return false
 		}
 
-		// If there are any applications, check if any have been reconciled recently (within last 30 seconds)
-		// This indicates the controller is active and processing
 		now := time.Now()
 		for _, app := range apps.Items {
 			if app.Status.ReconciledAt != nil {
@@ -2483,8 +2473,6 @@ func TestZeroReconciliationTimeoutNoExcessiveRefreshes(t *testing.T) {
 			}
 		}
 
-		// If no apps exist yet, we've waited long enough for the informer to process the ConfigMap update
-		// The informer processes updates immediately via watch, so 5+ seconds should be sufficient
 		return true
 	}, 30*time.Second, 1*time.Second, "Controller did not pick up ConfigMap changes within expected time. The controller may need more time to sync via informers.")
 	t.Logf("Verified controller has synced ConfigMap changes")
