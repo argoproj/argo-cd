@@ -261,5 +261,7 @@ sigs.k8s.io/randfill v1.0.0 h1:JfjMILfT8A6RbawdsK2JXGBR5AQVfd+9TbzrlneTyrU=
 sigs.k8s.io/randfill v1.0.0/go.mod h1:XeLlZ/jmk4i1HRopwe7/aU3H5n1zNUcX6TM94b3QxOY=
 sigs.k8s.io/structured-merge-diff/v6 v6.3.1-0.20251003215857-446d8398e19c h1:RCkxmWwPjOw2O1RiDgBgI6tfISvB07jAh+GEztp7TWk=
 sigs.k8s.io/structured-merge-diff/v6 v6.3.1-0.20251003215857-446d8398e19c/go.mod h1:M3W8sfWvn2HhQDIbGWj3S099YozAsymCo/wrT5ohRUE=
+sigs.k8s.io/structured-merge-diff/v6 v6.3.1-0.20251030181204-3392408e4daa h1:SmRvYLCMtWgrjE2YdtzWqJUL9lnNvqTmg9l9uVXI3qw=
+sigs.k8s.io/structured-merge-diff/v6 v6.3.1-0.20251030181204-3392408e4daa/go.mod h1:M3W8sfWvn2HhQDIbGWj3S099YozAsymCo/wrT5ohRUE=
 sigs.k8s.io/yaml v1.6.0 h1:G8fkbMSAFqgEFgh4b1wmtzDnioxFCUgTZhlbj5P9QYs=
 sigs.k8s.io/yaml v1.6.0/go.mod h1:796bPqUfzR/0jLAl6XjHl3Ck7MiyVv8dbTdyT3/pMf4=
