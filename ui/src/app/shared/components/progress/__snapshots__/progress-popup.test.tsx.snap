@@ -12,9 +12,7 @@ exports[`ProgressPopup.0% 1`] = `
     >
       <span
         className="progress-popup__title"
-      >
-        
-      </span>
+      />
     </div>
     <div
       className="row popup-container__body"
@@ -136,9 +134,7 @@ exports[`ProgressPopup.100% 1`] = `
     >
       <span
         className="progress-popup__title"
-      >
-        
-      </span>
+      />
     </div>
     <div
       className="row popup-container__body"
