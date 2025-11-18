@@ -169,7 +169,7 @@ export class ApplicationsService {
         return requests
             .put(`${getRootPathByApp(app)}/${app.metadata.name}`)
             .query(query)
-            .send(isAnApp ? (app as models.Application) : (app as models.ApplicationSet))
+            .send(isAnApp ? (app as models.Application) : (app as models.ApplicationSet)) // Will always be an Application as AppSet UI is not yet implemented
             .then(res => this.parseAppFields(res.body, isAnApp));
     }
 
@@ -184,7 +184,7 @@ export class ApplicationsService {
         }
         return requests
             .post(getRootPathByApp(app))
-            .send(isAnApp ? (app as models.Application) : (app as models.ApplicationSet))
+            .send(isAnApp ? (app as models.Application) : (app as models.ApplicationSet)) // Will always be an Application as AppSet UI is not yet implemented
             .then(res => this.parseAppFields(res.body, isAnApp));
     }
 
