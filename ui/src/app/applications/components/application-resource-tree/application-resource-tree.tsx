@@ -22,7 +22,8 @@ import {
     NodeId,
     nodeKey,
     PodHealthIcon,
-    getUsrMsgKeyToDisplay
+    getUsrMsgKeyToDisplay,
+    formatResourceInfo
 } from '../utils';
 import {NodeUpdateAnimation} from './node-update-animation';
 import {PodGroup} from '../application-pod-view/pod-view';
@@ -530,11 +531,19 @@ function renderPodGroup(props: ApplicationResourceTreeProps, id: string, node: R
                         <Tooltip
                             content={
                                 <>
-                                    {(node.info || []).map(i => (
-                                        <div key={i.name}>
-                                            {i.name}: {i.value}
-                                        </div>
-                                    ))}
+                                    {(node.info || []).map(i => {
+                                        // Use common formatting function for CPU and Memory
+                                        if (i.name === 'cpu' || i.name === 'memory') {
+                                            const {tooltipValue} = formatResourceInfo(i.name, `${i.value}`);
+                                            return <div key={i.name}>{tooltipValue}</div>;
+                                        } else {
+                                            return (
+                                                <div key={i.name}>
+                                                    {i.name}: {i.value}
+                                                </div>
+                                            );
+                                        }
+                                    })}
                                 </>
                             }
                             key={node.uid}>
@@ -662,9 +671,9 @@ function expandCollapse(node: ResourceTreeNode, props: ApplicationResourceTreePr
 
 function NodeInfoDetails({tag: tag, kind: kind}: {tag: models.InfoItem; kind: string}) {
     if (kind === 'Pod') {
-        const val = `${tag.name}`;
+        const val = tag.name;
         if (val === 'Status Reason') {
-            if (`${tag.value}` !== 'ImagePullBackOff')
+            if (String(tag.value) !== 'ImagePullBackOff')
                 return (
                     <span className='application-resource-tree__node-label' title={`Status: ${tag.value}`}>
                         {tag.value}
@@ -680,10 +689,10 @@ function NodeInfoDetails({tag: tag, kind: kind}: {tag: models.InfoItem; kind: st
                 );
             }
         } else if (val === 'Containers') {
-            const arr = `${tag.value}`.split('/');
+            const arr = String(tag.value).split('/');
             const title = `Number of containers in total: ${arr[1]} \nNumber of ready containers: ${arr[0]}`;
             return (
-                <span className='application-resource-tree__node-label' title={`${title}`}>
+                <span className='application-resource-tree__node-label' title={title}>
                     {tag.value}
                 </span>
             );
@@ -697,6 +706,14 @@ function NodeInfoDetails({tag: tag, kind: kind}: {tag: models.InfoItem; kind: st
             return (
                 <span className='application-resource-tree__node-label' title={`The revision in which pod present is: ${tag.value}`}>
                     {tag.value}
+                </span>
+            );
+        } else if (val === 'cpu' || val === 'memory') {
+            // Use common formatting function for CPU and Memory
+            const {displayValue, tooltipValue} = formatResourceInfo(val, String(tag.value));
+            return (
+                <span className='application-resource-tree__node-label' title={tooltipValue}>
+                    {displayValue}
                 </span>
             );
         } else {
@@ -801,19 +818,27 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                 ) : null}
                 {(node.info || [])
                     .filter(tag => !tag.name.includes('Node'))
-                    .slice(0, 4)
+                    .slice(0, 2)
                     .map((tag, i) => {
                         return <NodeInfoDetails tag={tag} kind={node.kind} key={i} />;
                     })}
-                {(node.info || []).length > 4 && (
+                {(node.info || []).length > 3 && (
                     <Tooltip
                         content={
                             <>
-                                {(node.info || []).map(i => (
-                                    <div key={i.name}>
-                                        {i.name}: {i.value}
-                                    </div>
-                                ))}
+                                {(node.info || []).map(i => {
+                                    // Use common formatting function for CPU and Memory
+                                    if (i.name === 'cpu' || i.name === 'memory') {
+                                        const {tooltipValue} = formatResourceInfo(i.name, `${i.value}`);
+                                        return <div key={i.name}>{tooltipValue}</div>;
+                                    } else {
+                                        return (
+                                            <div key={i.name}>
+                                                {i.name}: {i.value}
+                                            </div>
+                                        );
+                                    }
+                                })}
                             </>
                         }
                         key={node.uid}>
