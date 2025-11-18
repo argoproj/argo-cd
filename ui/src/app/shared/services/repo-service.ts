@@ -323,7 +323,7 @@ export class RepositoriesService {
                 azureActiveDirectoryEndpoint: q.azureActiveDirectoryEndpoint,
                 proxy: q.proxy,
                 noProxy: q.noProxy,
-                project: q.project,
+                project: q.project
             })
             .then(res => res.body as models.Repository);
     }
