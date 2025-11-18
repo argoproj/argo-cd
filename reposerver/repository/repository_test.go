@@ -3447,9 +3447,9 @@ func Test_getResolvedValueFiles(t *testing.T) {
 			name:    "simple ref",
 			rawPath: "$(ref)/values.yaml",
 			env:     &v1alpha1.Env{},
-			refSources: map[string]*argoappv1.RefTarget{
+			refSources: map[string]*v1alpha1.RefTarget{
 				"ref": {
-					Repo: argoappv1.Repository{
+					Repo: v1alpha1.Repository{
 						Repo: "https://github.com/org/repo1",
 					},
 				},
@@ -3459,10 +3459,10 @@ func Test_getResolvedValueFiles(t *testing.T) {
 		{
 			name:    "url ref",
 			rawPath: "https://$(ref)/values.yaml",
-			env:     &argoappv1.Env{},
-			refSources: map[string]*argoappv1.RefTarget{
+			env:     &v1alpha1.Env{},
+			refSources: map[string]*v1alpha1.RefTarget{
 				"ref": {
-					Repo: argoappv1.Repository{
+					Repo: v1alpha1.Repository{
 						Repo: "https://github.com/org/repo1",
 					},
 				},
@@ -3472,10 +3472,10 @@ func Test_getResolvedValueFiles(t *testing.T) {
 		{
 			name:    "multiple ref",
 			rawPath: "https://$(ref)/values.yaml?$(ref)/other-values.yaml",
-			env:     &argoappv1.Env{},
-			refSources: map[string]*argoappv1.RefTarget{
+			env:     &v1alpha1.Env{},
+			refSources: map[string]*v1alpha1.RefTarget{
 				"ref": {
-					Repo: argoappv1.Repository{
+					Repo: v1alpha1.Repository{
 						Repo: "https://github.com/org/repo1",
 					},
 				},
@@ -3485,10 +3485,10 @@ func Test_getResolvedValueFiles(t *testing.T) {
 		{
 			name:    "only ref",
 			rawPath: "$(ref)",
-			env:     &argoappv1.Env{},
-			refSources: map[string]*argoappv1.RefTarget{
+			env:     &v1alpha1.Env{},
+			refSources: map[string]*v1alpha1.RefTarget{
 				"ref": {
-					Repo: argoappv1.Repository{
+					Repo: v1alpha1.Repository{
 						Repo: "https://github.com/org/repo1",
 					},
 				},
@@ -3498,10 +3498,10 @@ func Test_getResolvedValueFiles(t *testing.T) {
 		{
 			name:    "attempted traversal",
 			rawPath: "$(ref)/../values.yaml",
-			env:     &argoappv1.Env{},
-			refSources: map[string]*argoappv1.RefTarget{
+			env:     &v1alpha1.Env{},
+			refSources: map[string]*v1alpha1.RefTarget{
 				"ref": {
-					Repo: argoappv1.Repository{
+					Repo: v1alpha1.Repository{
 						Repo: "https://github.com/org/repo1",
 					},
 				},
@@ -3511,17 +3511,17 @@ func Test_getResolvedValueFiles(t *testing.T) {
 		{
 			name:        "ref doesn't exist",
 			rawPath:     "$(ref)/values.yaml",
-			env:         &argoappv1.Env{},
-			refSources:  map[string]*argoappv1.RefTarget{},
+			env:         &v1alpha1.Env{},
+			refSources:  map[string]*v1alpha1.RefTarget{},
 			expectedErr: true,
 		},
 		{
 			name:    "repo doesn't exist",
 			rawPath: "$(ref)/values.yaml",
-			env:     &argoappv1.Env{},
-			refSources: map[string]*argoappv1.RefTarget{
+			env:     &v1alpha1.Env{},
+			refSources: map[string]*v1alpha1.RefTarget{
 				"ref": {
-					Repo: argoappv1.Repository{
+					Repo: v1alpha1.Repository{
 						Repo: "https://github.com/org/repo2",
 					},
 				},
@@ -3531,15 +3531,15 @@ func Test_getResolvedValueFiles(t *testing.T) {
 		{
 			name:    "env var is resolved",
 			rawPath: "$(ref)/$APP_PATH/values.yaml",
-			env: &argoappv1.Env{
-				&argoappv1.EnvEntry{
+			env: &v1alpha1.Env{
+				&v1alpha1.EnvEntry{
 					Name:  "APP_PATH",
 					Value: "app-path",
 				},
 			},
-			refSources: map[string]*argoappv1.RefTarget{
+			refSources: map[string]*v1alpha1.RefTarget{
 				"ref": {
-					Repo: argoappv1.Repository{
+					Repo: v1alpha1.Repository{
 						Repo: "https://github.com/org/repo1",
 					},
 				},
@@ -3549,15 +3549,15 @@ func Test_getResolvedValueFiles(t *testing.T) {
 		{
 			name:    "traversal in env var is blocked",
 			rawPath: "$(ref)/$APP_PATH/values.yaml",
-			env: &argoappv1.Env{
-				&argoappv1.EnvEntry{
+			env: &v1alpha1.Env{
+				&v1alpha1.EnvEntry{
 					Name:  "APP_PATH",
 					Value: "..",
 				},
 			},
-			refSources: map[string]*argoappv1.RefTarget{
+			refSources: map[string]*v1alpha1.RefTarget{
 				"ref": {
-					Repo: argoappv1.Repository{
+					Repo: v1alpha1.Repository{
 						Repo: "https://github.com/org/repo1",
 					},
 				},
