@@ -16,7 +16,7 @@ import (
 
 const testNamespace = "default"
 
-func fixtures(data map[string]string) (*fake.Clientset, *settings.SettingsManager) {
+func fixtures(ctx context.Context, data map[string]string) (*fake.Clientset, *settings.SettingsManager) {
 	kubeClient := fake.NewClientset(&corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      common.ArgoCDConfigMapName,
@@ -36,14 +36,14 @@ func fixtures(data map[string]string) (*fake.Clientset, *settings.SettingsManage
 			"server.secretkey": []byte("test"),
 		},
 	})
-	settingsManager := settings.NewSettingsManager(context.Background(), kubeClient, testNamespace)
+	settingsManager := settings.NewSettingsManager(ctx, kubeClient, testNamespace)
 	return kubeClient, settingsManager
 }
 
 func TestSettingsServer(t *testing.T) {
 	newServer := func(data map[string]string) *Server {
-		_, settingsMgr := fixtures(data)
-		return NewServer(settingsMgr, nil, nil, false, false, false)
+		_, settingsMgr := fixtures(t.Context(), data)
+		return NewServer(settingsMgr, nil, nil, false, false, false, false)
 	}
 
 	t.Run("TestGetInstallationID", func(t *testing.T) {

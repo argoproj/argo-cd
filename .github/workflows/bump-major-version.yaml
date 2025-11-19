@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout code
-        uses: actions/checkout@8410ad0602e1e429cee44a835ae9f77f654a6694  # v4.0.0
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd  # v5.0.1
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -50,7 +50,7 @@ jobs:
         run: |
           # We need to vendor go modules for codegen yet
           go mod download
-          go work vendor -v
+          go mod vendor -v
         working-directory: /home/runner/go/src/github.com/argoproj/argo-cd
       - name: Install toolchain for codegen
         run: |

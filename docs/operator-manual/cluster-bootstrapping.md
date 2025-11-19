@@ -87,7 +87,7 @@ The parent app will appear as in-sync but the child apps will be out of sync:
 
 ![New App Of Apps](../assets/new-app-of-apps.png)
 
-> NOTE: You may want to modify this behavior to bootstrap your cluster in waves; see [v1.8 upgrade notes](upgrading/1.7-1.8.md) for information on changing this.
+> NOTE: You may want to modify this behavior to bootstrap your cluster in waves; see [the health assessment of Applications](./health.md#argocd-app) for information on changing this.
 
 You can either sync via the UI, firstly filter by the correct label:
 
@@ -122,6 +122,18 @@ metadata:
 spec:
  ...
 ```
+
+### Deleting child applications
+
+When working with the App of Apps pattern, you may need to delete individual child applications. Starting in 3.2, Argo CD provides consistent deletion behaviour whether you delete from the Applications List or from the parent application's Resource Tree.
+
+For detailed information about deletion options and behaviour, including:
+- Consistent deletion across UI views
+- Non-cascading (orphan) deletion to preserve managed resources
+- Child application detection and improved dialog messages
+- Best practices and example scenarios
+
+See [Deleting Applications in the UI](../user-guide/app_deletion.md#deleting-applications-in-the-ui).
 
 ### Ignoring differences in child applications
 
