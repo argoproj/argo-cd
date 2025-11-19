@@ -28,7 +28,7 @@ jobs:
   set-vars:
     permissions:
       contents: read
-    if: github.repository == 'argoproj/argo-cd' || env.IMAGE_NAMESPACE != 'argoproj'
+    if: github.repository == 'argoproj/argo-cd' || vars.IMAGE_NAMESPACE != 'argoproj'
     runs-on: ubuntu-22.04
     outputs:
       image-tag: ${{ steps.image.outputs.tag}}
@@ -57,7 +57,7 @@ jobs:
       contents: read
       packages: write # for pushing packages to GHCR, which is used by cd.apps.argoproj.io to avoid polluting Quay with tags
       id-token: write # for creating OIDC tokens for signing.
-    if: ${{ (github.repository == 'argoproj/argo-cd' || env.IMAGE_NAMESPACE != 'argoproj') && github.event_name != 'push' }}
+    if: ${{ (github.repository == 'argoproj/argo-cd' || vars.IMAGE_NAMESPACE != 'argoproj') && github.event_name != 'push' }}
     uses: ./.github/workflows/image-reuse.yaml
     with:
       # Note: cannot use env variables to set go-version (https://docs.github.com/en/actions/using-workflows/reusing-workflows#limitations)
@@ -72,7 +72,7 @@ jobs:
       contents: read
       packages: write # for pushing packages to GHCR, which is used by cd.apps.argoproj.io to avoid polluting Quay with tags
       id-token: write # for creating OIDC tokens for signing.
-    if: ${{ (github.repository == 'argoproj/argo-cd' || env.IMAGE_NAMESPACE != 'argoproj') && github.event_name == 'push' }}
+    if: ${{ (github.repository == 'argoproj/argo-cd' || vars.IMAGE_NAMESPACE != 'argoproj') && github.event_name == 'push' }}
     uses: ./.github/workflows/image-reuse.yaml
     with:
       quay_image_name: ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_REPOSITORY }}:latest
@@ -95,7 +95,7 @@ jobs:
       actions: read # for detecting the Github Actions environment.
       id-token: write # for creating OIDC tokens for signing.
       packages: write # for uploading attestations. (https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#known-issues)
-    if: ${{ (github.repository == 'argoproj/argo-cd' || env.IMAGE_NAMESPACE != 'argoproj') && github.event_name == 'push' }}
+    if: ${{ (github.repository == 'argoproj/argo-cd' || vars.IMAGE_NAMESPACE != 'argoproj') && github.event_name == 'push' }}
     # Must be refernced by a tag. https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#referencing-the-slsa-generator
     uses: slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@v2.1.0
     with:
