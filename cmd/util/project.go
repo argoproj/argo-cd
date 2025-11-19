@@ -27,12 +27,14 @@ type ProjectOpts struct {
 	SignatureKeys              []string
 	SourceNamespaces           []string
 
-	orphanedResourcesEnabled   bool
-	orphanedResourcesWarn      bool
-	allowedClusterResources    []string
-	deniedClusterResources     []string
-	allowedNamespacedResources []string
-	deniedNamespacedResources  []string
+	orphanedResourcesEnabled    bool
+	orphanedResourcesWarn       bool
+	allowedClusterResources     []string
+	deniedClusterResources      []string
+	allowedNamespacedResources  []string
+	deniedNamespacedResources   []string
+	hiddenWhitelistedResources  []string
+	visibleBlacklistedResources []string
 }
 
 func AddProjFlags(command *cobra.Command, opts *ProjectOpts) {
@@ -47,6 +49,8 @@ func AddProjFlags(command *cobra.Command, opts *ProjectOpts) {
 	command.Flags().StringArrayVar(&opts.deniedClusterResources, "deny-cluster-resource", []string{}, "List of denied cluster level resources")
 	command.Flags().StringArrayVar(&opts.allowedNamespacedResources, "allow-namespaced-resource", []string{}, "List of allowed namespaced resources")
 	command.Flags().StringArrayVar(&opts.deniedNamespacedResources, "deny-namespaced-resource", []string{}, "List of denied namespaced resources")
+	command.Flags().StringArrayVar(&opts.hiddenWhitelistedResources, "hidden-whitelisted-resource", []string{}, "List of hidden whitelisted resources")
+	command.Flags().StringArrayVar(&opts.visibleBlacklistedResources, "visible-blacklisted-resource", []string{}, "List of visible blacklisted resources")
 	command.Flags().StringSliceVar(&opts.SourceNamespaces, "source-namespaces", []string{}, "List of source namespaces for applications")
 	command.Flags().StringArrayVar(&opts.destinationServiceAccounts, "dest-service-accounts", []string{},
 		"Destination server, namespace and target service account (e.g. https://192.168.99.100:8443,default,default-sa)")
@@ -78,6 +82,14 @@ func (opts *ProjectOpts) GetAllowedNamespacedResources() []metav1.GroupKind {
 
 func (opts *ProjectOpts) GetDeniedNamespacedResources() []metav1.GroupKind {
 	return getGroupKindList(opts.deniedNamespacedResources)
+}
+
+func (opts *ProjectOpts) GetHiddenWhitelistedResources() []metav1.GroupKind {
+	return getGroupKindList(opts.hiddenWhitelistedResources)
+}
+
+func (opts *ProjectOpts) GetVisibleBlacklistedResources() []metav1.GroupKind {
+	return getGroupKindList(opts.visibleBlacklistedResources)
 }
 
 func (opts *ProjectOpts) GetDestinations() []v1alpha1.ApplicationDestination {
@@ -182,6 +194,10 @@ func SetProjSpecOptions(flags *pflag.FlagSet, spec *v1alpha1.AppProjectSpec, pro
 			spec.NamespaceResourceWhitelist = projOpts.GetAllowedNamespacedResources()
 		case "deny-namespaced-resource":
 			spec.NamespaceResourceBlacklist = projOpts.GetDeniedNamespacedResources()
+		case "hidden-whitelisted-resource":
+			spec.HiddenWhitelistedResources = projOpts.GetHiddenWhitelistedResources()
+		case "visible-blacklisted-resource":
+			spec.VisibleBlacklistedResources = projOpts.GetVisibleBlacklistedResources()
 		case "source-namespaces":
 			spec.SourceNamespaces = projOpts.GetSourceNamespaces()
 		case "dest-service-accounts":

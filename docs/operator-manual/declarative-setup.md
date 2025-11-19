@@ -150,6 +150,12 @@ spec:
     kind: Deployment
   - group: 'apps'
     kind: StatefulSet
+  hiddenWhitelistedResources:
+  - group: ''
+    kind: CustomResourceDefinition
+  visibleBlacklistedResources:
+  - group: ''
+    kind: NetworkPolicy
   roles:
   # A role which provides read-only access to all applications in the project
   - name: read-only

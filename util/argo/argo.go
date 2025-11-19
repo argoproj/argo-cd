@@ -1148,6 +1148,9 @@ func mergeVirtualProject(proj *argoappv1.AppProject, globalProj *argoappv1.AppPr
 	proj.Spec.NamespaceResourceWhitelist = append(proj.Spec.NamespaceResourceWhitelist, globalProj.Spec.NamespaceResourceWhitelist...)
 	proj.Spec.NamespaceResourceBlacklist = append(proj.Spec.NamespaceResourceBlacklist, globalProj.Spec.NamespaceResourceBlacklist...)
 
+	proj.Spec.VisibleBlacklistedResources = append(proj.Spec.VisibleBlacklistedResources, globalProj.Spec.VisibleBlacklistedResources...)
+	proj.Spec.HiddenWhitelistedResources = append(proj.Spec.HiddenWhitelistedResources, globalProj.Spec.HiddenWhitelistedResources...)
+
 	proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, globalProj.Spec.SyncWindows...)
 
 	proj.Spec.SourceRepos = append(proj.Spec.SourceRepos, globalProj.Spec.SourceRepos...)

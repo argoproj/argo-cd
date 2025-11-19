@@ -194,6 +194,16 @@ func (in *AppProjectSpec) DeepCopyInto(out *AppProjectSpec) {
 		*out = make([]ApplicationDestinationServiceAccount, len(*in))
 		copy(*out, *in)
 	}
+	if in.HiddenWhitelistedResources != nil {
+		in, out := &in.HiddenWhitelistedResources, &out.HiddenWhitelistedResources
+		*out = make([]v1.GroupKind, len(*in))
+		copy(*out, *in)
+	}
+	if in.VisibleBlacklistedResources != nil {
+		in, out := &in.VisibleBlacklistedResources, &out.VisibleBlacklistedResources
+		*out = make([]v1.GroupKind, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 

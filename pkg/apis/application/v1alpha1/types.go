@@ -2727,6 +2727,10 @@ type AppProjectSpec struct {
 	PermitOnlyProjectScopedClusters bool `json:"permitOnlyProjectScopedClusters,omitempty" protobuf:"bytes,13,opt,name=permitOnlyProjectScopedClusters"`
 	// DestinationServiceAccounts holds information about the service accounts to be impersonated for the application sync operation for each destination.
 	DestinationServiceAccounts []ApplicationDestinationServiceAccount `json:"destinationServiceAccounts,omitempty" protobuf:"bytes,14,name=destinationServiceAccounts"`
+	// HiddenWhitelistedResources contains list of resources that should be hidden from the UI but still allowed to be managed
+	HiddenWhitelistedResources []metav1.GroupKind `json:"hiddenWhitelistedResources,omitempty" protobuf:"bytes,15,opt,name=hiddenWhitelistedResources"`
+	// VisibleBlacklistedResources contains list of resources that should be visible in the UI but still disallowed to be managed
+	VisibleBlacklistedResources []metav1.GroupKind `json:"visibleBlacklistedResources,omitempty" protobuf:"bytes,16,opt,name=visibleBlacklistedResources"`
 }
 
 // SyncWindows is a collection of sync windows in this project

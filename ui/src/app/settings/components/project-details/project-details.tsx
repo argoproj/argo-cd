@@ -46,6 +46,8 @@ function reduceGlobal(projs: Project[]): ProjectSpec & {count: number} {
             merged.clusterResourceWhitelist = merged.clusterResourceWhitelist.concat(proj.spec.clusterResourceWhitelist || []);
             merged.namespaceResourceBlacklist = merged.namespaceResourceBlacklist.concat(proj.spec.namespaceResourceBlacklist || []);
             merged.namespaceResourceWhitelist = merged.namespaceResourceWhitelist.concat(proj.spec.namespaceResourceWhitelist || []);
+            merged.visibleBlacklistedResources = merged.visibleBlacklistedResources.concat(proj.spec.visibleBlacklistedResources || []);
+            merged.hiddenWhitelistedResources = merged.hiddenWhitelistedResources.concat(proj.spec.hiddenWhitelistedResources || []);
             merged.sourceRepos = merged.sourceRepos.concat(proj.spec.sourceRepos || []);
             merged.destinations = merged.destinations.concat(proj.spec.destinations || []);
             merged.sourceNamespaces = merged.sourceNamespaces.concat(proj.spec.sourceNamespaces || []);
@@ -113,6 +115,24 @@ function reduceGlobal(projs: Project[]): ProjectSpec & {count: number} {
                 );
             });
 
+            merged.hiddenWhitelistedResources = merged.hiddenWhitelistedResources.filter((item, index) => {
+                return (
+                    index ===
+                    merged.hiddenWhitelistedResources.findIndex(obj => {
+                        return obj.kind === item.kind && obj.group === item.group;
+                    })
+                );
+            });
+
+            merged.visibleBlacklistedResources = merged.visibleBlacklistedResources.filter((item, index) => {
+                return (
+                    index ===
+                    merged.visibleBlacklistedResources.findIndex(obj => {
+                        return obj.kind === item.kind && obj.group === item.group;
+                    })
+                );
+            });
+
             merged.sourceNamespaces = merged.sourceNamespaces.filter((item, index) => {
                 return (
                     index ===
@@ -130,6 +150,8 @@ function reduceGlobal(projs: Project[]): ProjectSpec & {count: number} {
             namespaceResourceBlacklist: new Array<GroupKind>(),
             namespaceResourceWhitelist: new Array<GroupKind>(),
             clusterResourceWhitelist: new Array<GroupKind>(),
+            visibleBlacklistedResources: new Array<GroupKind>(),
+            hiddenWhitelistedResources: new Array<GroupKind>(),
             sourceRepos: [],
             sourceNamespaces: [],
             signatureKeys: [],

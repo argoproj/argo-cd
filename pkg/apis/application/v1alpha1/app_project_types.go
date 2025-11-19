@@ -418,6 +418,18 @@ func (proj AppProject) IsGroupKindPermitted(gk schema.GroupKind, namespaced bool
 	return isWhiteListed && !isBlackListed
 }
 
+// IsGroupKindVisible validates if the given resource group/kind is visible in the project UI
+func (proj AppProject) IsGroupKindVisible(gk schema.GroupKind, namespaced bool) bool {
+	isPermittedToBeManaged := proj.IsGroupKindPermitted(gk, namespaced)
+	res := metav1.GroupKind{Group: gk.Group, Kind: gk.Kind}
+
+	if isPermittedToBeManaged {
+		return !isResourceInList(res, proj.Spec.HiddenWhitelistedResources)
+	}
+
+	return isResourceInList(res, proj.Spec.VisibleBlacklistedResources)
+}
+
 // IsLiveResourcePermitted returns whether a live resource found in the cluster is permitted by an AppProject
 func (proj AppProject) IsLiveResourcePermitted(un *unstructured.Unstructured, destCluster *Cluster, projectClusters func(project string) ([]*Cluster, error)) (bool, error) {
 	return proj.IsResourcePermitted(un.GroupVersionKind().GroupKind(), un.GetNamespace(), destCluster, projectClusters)

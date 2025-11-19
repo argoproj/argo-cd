@@ -136,6 +136,23 @@ spec:
                       type: string
                   type: object
                 type: array
+              hiddenWhitelistedResources:
+                description: HiddenWhitelistedResources contains list of resources
+                  that should be hidden from the UI but still allowed to be managed
+                items:
+                  description: |-
+                    GroupKind specifies a Group and a Kind, but does not force a version.  This is useful for identifying
+                    concepts during lookup stages without having partially valid types
+                  properties:
+                    group:
+                      type: string
+                    kind:
+                      type: string
+                  required:
+                  - group
+                  - kind
+                  type: object
+                type: array
               namespaceResourceBlacklist:
                 description: NamespaceResourceBlacklist contains list of blacklisted
                   namespace level resources
@@ -325,6 +342,23 @@ spec:
                       description: TimeZone of the sync that will be applied to the
                         schedule
                       type: string
+                  type: object
+                type: array
+              visibleBlacklistedResources:
+                description: VisibleBlacklistedResources contains list of resources
+                  that should be visible in the UI but still disallowed to be managed
+                items:
+                  description: |-
+                    GroupKind specifies a Group and a Kind, but does not force a version.  This is useful for identifying
+                    concepts during lookup stages without having partially valid types
+                  properties:
+                    group:
+                      type: string
+                    kind:
+                      type: string
+                  required:
+                  - group
+                  - kind
                   type: object
                 type: array
             type: object

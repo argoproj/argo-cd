@@ -557,6 +557,55 @@ func TestAppProject_IsGroupKindPermitted(t *testing.T) {
 	assert.True(t, proj6.IsGroupKindPermitted(schema.GroupKind{Group: "apps", Kind: "Action"}, true))
 }
 
+func TestAppProject_IsGroupKindVisible(t *testing.T) {
+	proj := AppProject{
+		Spec: AppProjectSpec{
+			NamespaceResourceWhitelist: []metav1.GroupKind{{Group: "apps", Kind: "ReplicaSet"}},
+			NamespaceResourceBlacklist: []metav1.GroupKind{{Group: "apps", Kind: "Deployment"}},
+			ClusterResourceWhitelist:   []metav1.GroupKind{{Group: "", Kind: "Namespace"}},
+			ClusterResourceBlacklist:   []metav1.GroupKind{{Group: "rbac.authorization.k8s.io", Kind: "Role"}},
+		},
+	}
+	assert.True(t, proj.IsGroupKindVisible(schema.GroupKind{Group: "apps", Kind: "ReplicaSet"}, true))
+	assert.False(t, proj.IsGroupKindVisible(schema.GroupKind{Group: "apps", Kind: "Deployment"}, true))
+	assert.True(t, proj.IsGroupKindVisible(schema.GroupKind{Group: "", Kind: "Namespace"}, false))
+	assert.False(t, proj.IsGroupKindVisible(schema.GroupKind{Group: "rbac.authorization.k8s.io", Kind: "Role"}, false))
+
+	proj2 := AppProject{
+		Spec: AppProjectSpec{
+			NamespaceResourceBlacklist:  []metav1.GroupKind{{Group: "apps", Kind: "Deployment"}, {Group: "apps", Kind: "ReplicaSet"}},
+			VisibleBlacklistedResources: []metav1.GroupKind{{Group: "apps", Kind: "Deployment"}},
+		},
+	}
+	assert.True(t, proj2.IsGroupKindVisible(schema.GroupKind{Group: "apps", Kind: "Deployment"}, true))
+	assert.False(t, proj2.IsGroupKindVisible(schema.GroupKind{Group: "apps", Kind: "ReplicaSet"}, true))
+
+	proj3 := AppProject{
+		Spec: AppProjectSpec{
+			ClusterResourceBlacklist:    []metav1.GroupKind{{Group: "", Kind: "Namespace"}},
+			VisibleBlacklistedResources: []metav1.GroupKind{{Group: "", Kind: "Namespace"}},
+		},
+	}
+	assert.True(t, proj3.IsGroupKindVisible(schema.GroupKind{Group: "", Kind: "Namespace"}, false))
+
+	proj4 := AppProject{
+		Spec: AppProjectSpec{
+			NamespaceResourceWhitelist: []metav1.GroupKind{{Group: "apps", Kind: "Deployment"}, {Group: "apps", Kind: "ReplicaSet"}},
+			HiddenWhitelistedResources: []metav1.GroupKind{{Group: "apps", Kind: "Deployment"}},
+		},
+	}
+	assert.False(t, proj4.IsGroupKindVisible(schema.GroupKind{Group: "apps", Kind: "Deployment"}, true))
+	assert.True(t, proj4.IsGroupKindVisible(schema.GroupKind{Group: "apps", Kind: "ReplicaSet"}, true))
+
+	proj5 := AppProject{
+		Spec: AppProjectSpec{
+			ClusterResourceWhitelist:   []metav1.GroupKind{{Group: "", Kind: "Namespace"}},
+			HiddenWhitelistedResources: []metav1.GroupKind{{Group: "", Kind: "Namespace"}},
+		},
+	}
+	assert.False(t, proj5.IsGroupKindVisible(schema.GroupKind{Group: "", Kind: "Namespace"}, true))
+}
+
 func TestAppProject_GetRoleByName(t *testing.T) {
 	t.Run("NotExists", func(t *testing.T) {
 		p := &AppProject{}

@@ -6857,6 +6857,13 @@
             "$ref": "#/definitions/v1alpha1ApplicationDestination"
           }
         },
+        "hiddenWhitelistedResources": {
+          "type": "array",
+          "title": "HiddenWhitelistedResources contains list of resources that should be hidden from the UI but still allowed to be managed",
+          "items": {
+            "$ref": "#/definitions/v1GroupKind"
+          }
+        },
         "namespaceResourceBlacklist": {
           "type": "array",
           "title": "NamespaceResourceBlacklist contains list of blacklisted namespace level resources",
@@ -6911,6 +6918,13 @@
           "title": "SyncWindows controls when syncs can be run for apps in this project",
           "items": {
             "$ref": "#/definitions/v1alpha1SyncWindow"
+          }
+        },
+        "visibleBlacklistedResources": {
+          "type": "array",
+          "title": "VisibleBlacklistedResources contains list of resources that should be visible in the UI but still disallowed to be managed",
+          "items": {
+            "$ref": "#/definitions/v1GroupKind"
           }
         }
       }

@@ -21,19 +21,21 @@ argocd proj set PROJECT [flags]
 ### Options
 
 ```
-      --allow-cluster-resource stringArray      List of allowed cluster level resources
-      --allow-namespaced-resource stringArray   List of allowed namespaced resources
-      --deny-cluster-resource stringArray       List of denied cluster level resources
-      --deny-namespaced-resource stringArray    List of denied namespaced resources
-      --description string                      Project description
-  -d, --dest stringArray                        Permitted destination server and namespace (e.g. https://192.168.99.100:8443,default)
-      --dest-service-accounts stringArray       Destination server, namespace and target service account (e.g. https://192.168.99.100:8443,default,default-sa)
-  -h, --help                                    help for set
-      --orphaned-resources                      Enables orphaned resources monitoring
-      --orphaned-resources-warn                 Specifies if applications should have a warning condition when orphaned resources detected
-      --signature-keys strings                  GnuPG public key IDs for commit signature verification
-      --source-namespaces strings               List of source namespaces for applications
-  -s, --src stringArray                         Permitted source repository URL
+      --allow-cluster-resource stringArray         List of allowed cluster level resources
+      --allow-namespaced-resource stringArray      List of allowed namespaced resources
+      --deny-cluster-resource stringArray          List of denied cluster level resources
+      --deny-namespaced-resource stringArray       List of denied namespaced resources
+      --description string                         Project description
+  -d, --dest stringArray                           Permitted destination server and namespace (e.g. https://192.168.99.100:8443,default)
+      --dest-service-accounts stringArray          Destination server, namespace and target service account (e.g. https://192.168.99.100:8443,default,default-sa)
+  -h, --help                                       help for set
+      --hidden-whitelisted-resource stringArray    List of hidden whitelisted resources
+      --orphaned-resources                         Enables orphaned resources monitoring
+      --orphaned-resources-warn                    Specifies if applications should have a warning condition when orphaned resources detected
+      --signature-keys strings                     GnuPG public key IDs for commit signature verification
+      --source-namespaces strings                  List of source namespaces for applications
+  -s, --src stringArray                            Permitted source repository URL
+      --visible-blacklisted-resource stringArray   List of visible blacklisted resources
 ```
 
 ### Options inherited from parent commands

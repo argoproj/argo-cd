@@ -620,7 +620,8 @@ func (ctrl *ApplicationController) getResourceTree(destCluster *appv1.Cluster, a
 			}
 			return clusters, nil
 		})
-		if !permitted {
+		visible := proj.IsGroupKindVisible(schema.GroupKind{Group: child.Group, Kind: child.Kind}, child.Namespace != "")
+		if (!permitted && !visible) || (permitted && !visible) {
 			return false
 		}
 		nodes = append(nodes, child)
@@ -654,7 +655,8 @@ func (ctrl *ApplicationController) getResourceTree(destCluster *appv1.Cluster, a
 			return ctrl.db.GetProjectClusters(context.TODO(), project)
 		})
 
-		if !permitted {
+		visible := proj.IsGroupKindVisible(schema.GroupKind{Group: child.Group, Kind: child.Kind}, child.Namespace != "")
+		if (permitted && visible) || (!permitted && visible) {
 			return false
 		}
 		orphanedNodes = append(orphanedNodes, child)

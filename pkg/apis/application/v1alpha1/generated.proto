@@ -111,6 +111,12 @@ message AppProjectSpec {
 
   // DestinationServiceAccounts holds information about the service accounts to be impersonated for the application sync operation for each destination.
   repeated ApplicationDestinationServiceAccount destinationServiceAccounts = 14;
+
+  // HiddenWhitelistedResources contains list of resources that should be hidden from the UI but still allowed to be managed
+  repeated .k8s.io.apimachinery.pkg.apis.meta.v1.GroupKind hiddenWhitelistedResources = 15;
+
+  // VisibleBlacklistedResources contains list of resources that should be visible in the UI but still disallowed to be managed
+  repeated .k8s.io.apimachinery.pkg.apis.meta.v1.GroupKind visibleBlacklistedResources = 16;
 }
 
 // AppProjectStatus contains status information for AppProject CRs

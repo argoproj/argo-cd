@@ -38,6 +38,14 @@ const infoByField: {[type: string]: {title: string; helpText: string}} = {
     namespaceResourceBlacklist: {
         title: 'namespace resource deny list',
         helpText: 'Namespace-scoped K8s API Groups and Kinds which are prohibited from being deployed'
+    },
+    hiddenWhitelistedResources: {
+        title: 'hidden whitelisted resources',
+        helpText: 'Resources that are hidden but whitelisted for the project'
+    },
+    visibleBlacklistedResources: {
+        title: 'visible blacklisted resources',
+        helpText: 'Resources that are visible but blacklisted for the project'
     }
 };
 
