@@ -31,7 +31,6 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/cli"
 	"github.com/argoproj/argo-cd/v3/util/env"
 	"github.com/argoproj/argo-cd/v3/util/errors"
-	gitutil "github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/gpg"
 	"github.com/argoproj/argo-cd/v3/util/healthz"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
@@ -139,7 +138,6 @@ func NewCommand() *cobra.Command {
 			askPassServer := askpass.NewServer(askpass.SocketPath)
 			metricsServer := metrics.NewMetricsServer()
 			cacheutil.CollectMetrics(redisClient, metricsServer, nil)
-			gitutil.InitBuiltinGitConfig(enableBuiltinGitConfig)
 			server, err := reposerver.NewServer(metricsServer, cache, tlsConfigCustomizer, repository.RepoServerInitConstants{
 				ParallelismLimit: parallelismLimit,
 				PauseGenerationAfterFailedGenerationAttempts: pauseGenerationAfterFailedGenerationAttempts,
@@ -158,6 +156,7 @@ func NewCommand() *cobra.Command {
 				IncludeHiddenDirectories:                     includeHiddenDirectories,
 				CMPUseManifestGeneratePaths:                  cmpUseManifestGeneratePaths,
 				OCIMediaTypes:                                ociMediaTypes,
+				EnableBuiltinGitConfig:                       enableBuiltinGitConfig,
 			}, askPassServer)
 			errors.CheckError(err)
 

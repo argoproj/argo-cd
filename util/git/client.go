@@ -54,23 +54,9 @@ var builtinGitConfig = map[string]string{
 	"gc.autoDetach":          "false",
 }
 
-// builtinGitConfigEnv contains builtin git configuration in the
+// BuiltinGitConfigEnv contains builtin git configuration in the
 // format acceptable by Git.
-var builtinGitConfigEnv []string
-
-// InitBuiltinGitConfig initializes builtinGitConfigEnv on server startup
-func InitBuiltinGitConfig(enabled bool) {
-	builtinGitConfigEnv = []string{}
-	if enabled {
-		builtinGitConfigEnv = append(builtinGitConfigEnv, fmt.Sprintf("GIT_CONFIG_COUNT=%d", len(builtinGitConfig)))
-		idx := 0
-		for k, v := range builtinGitConfig {
-			builtinGitConfigEnv = append(builtinGitConfigEnv, fmt.Sprintf("GIT_CONFIG_KEY_%d=%s", idx, k))
-			builtinGitConfigEnv = append(builtinGitConfigEnv, fmt.Sprintf("GIT_CONFIG_VALUE_%d=%s", idx, v))
-			idx++
-		}
-	}
-}
+var BuiltinGitConfigEnv []string
 
 // CommitMetadata contains metadata about a commit that is related in some way to another commit.
 type CommitMetadata struct {
@@ -189,6 +175,8 @@ type nativeGitClient struct {
 	proxy string
 	// list of targets that shouldn't use the proxy, applies only if the proxy is set
 	noProxy string
+	// git configuration environment variables
+	gitConfigEnv []string
 }
 
 type runOpts struct {
@@ -215,6 +203,14 @@ func init() {
 	maxRetryDuration = env.ParseDurationFromEnv(common.EnvGitRetryMaxDuration, common.DefaultGitRetryMaxDuration, 0, math.MaxInt64)
 	retryDuration = env.ParseDurationFromEnv(common.EnvGitRetryDuration, common.DefaultGitRetryDuration, 0, math.MaxInt64)
 	factor = env.ParseInt64FromEnv(common.EnvGitRetryFactor, common.DefaultGitRetryFactor, 0, math.MaxInt64)
+
+	BuiltinGitConfigEnv = append(BuiltinGitConfigEnv, fmt.Sprintf("GIT_CONFIG_COUNT=%d", len(builtinGitConfig)))
+	idx := 0
+	for k, v := range builtinGitConfig {
+		BuiltinGitConfigEnv = append(BuiltinGitConfigEnv, fmt.Sprintf("GIT_CONFIG_KEY_%d=%s", idx, k))
+		BuiltinGitConfigEnv = append(BuiltinGitConfigEnv, fmt.Sprintf("GIT_CONFIG_VALUE_%d=%s", idx, v))
+		idx++
+	}
 }
 
 type ClientOpts func(c *nativeGitClient)
@@ -224,6 +220,16 @@ func WithCache(cache gitRefCache, loadRefFromCache bool) ClientOpts {
 	return func(c *nativeGitClient) {
 		c.gitRefCache = cache
 		c.loadRefFromCache = loadRefFromCache
+	}
+}
+
+func WithBuiltinGitConfig(enable bool) ClientOpts {
+	return func(c *nativeGitClient) {
+		if enable {
+			c.gitConfigEnv = BuiltinGitConfigEnv
+		} else {
+			c.gitConfigEnv = nil
+		}
 	}
 }
 
@@ -249,13 +255,14 @@ func NewClient(rawRepoURL string, creds Creds, insecure bool, enableLfs bool, pr
 
 func NewClientExt(rawRepoURL string, root string, creds Creds, insecure bool, enableLfs bool, proxy string, noProxy string, opts ...ClientOpts) (Client, error) {
 	client := &nativeGitClient{
-		repoURL:   rawRepoURL,
-		root:      root,
-		creds:     creds,
-		insecure:  insecure,
-		enableLfs: enableLfs,
-		proxy:     proxy,
-		noProxy:   noProxy,
+		repoURL:      rawRepoURL,
+		root:         root,
+		creds:        creds,
+		insecure:     insecure,
+		enableLfs:    enableLfs,
+		proxy:        proxy,
+		noProxy:      noProxy,
+		gitConfigEnv: BuiltinGitConfigEnv,
 	}
 	for i := range opts {
 		opts[i](client)
@@ -1152,7 +1159,7 @@ func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd, ropts runOpts) (string, er
 	// Disable Git terminal prompts in case we're running with a tty
 	cmd.Env = append(cmd.Env, "GIT_TERMINAL_PROMPT=false")
 	// Add Git configuration options that are essential for ArgoCD operation
-	cmd.Env = append(cmd.Env, builtinGitConfigEnv...)
+	cmd.Env = append(cmd.Env, m.gitConfigEnv...)
 
 	// For HTTPS repositories, we need to consider insecure repositories as well
 	// as custom CA bundles from the cert database.

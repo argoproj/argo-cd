@@ -1232,11 +1232,11 @@ Argocd-reference-commit-repourl: https://github.com/another/repo.git`,
 func Test_BuiltinConfig(t *testing.T) {
 	ctx := t.Context()
 	tempDir := t.TempDir()
-	client, err := NewClientExt("file://"+tempDir, tempDir, NopCreds{}, true, false, "", "")
-	require.NoError(t, err)
-	native := client.(*nativeGitClient)
 	for _, enabled := range []bool{false, true} {
-		InitBuiltinGitConfig(enabled)
+		client, err := NewClientExt("file://"+tempDir, tempDir, NopCreds{}, true, false, "", "", WithBuiltinGitConfig(enabled))
+		require.NoError(t, err)
+		native := client.(*nativeGitClient)
+
 		configOut, err := native.config(ctx, "--list", "--show-origin")
 		require.NoError(t, err)
 		for k, v := range builtinGitConfig {
@@ -1252,7 +1252,6 @@ func Test_BuiltinConfig(t *testing.T) {
 }
 
 func Test_GitNoDetachedMaintenance(t *testing.T) {
-	InitBuiltinGitConfig(true)
 	tempDir := t.TempDir()
 	ctx := t.Context()
 
