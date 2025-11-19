@@ -15,8 +15,9 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
-const testNamespace = "default"
-const resourceOverrides = `{
+const (
+	testNamespace     = "default"
+	resourceOverrides = `{
     "jsonPointers": [
         ""
     ],
@@ -27,6 +28,7 @@ const resourceOverrides = `{
         ""
     ]
 }`
+)
 
 func fixtures(ctx context.Context, data map[string]string) (*fake.Clientset, *settings.SettingsManager) {
 	kubeClient := fake.NewClientset(&corev1.ConfigMap{
@@ -102,6 +104,7 @@ func TestSettingsServer(t *testing.T) {
 	})
 
 	t.Run("TestGetResourceOverridesLoggedIn", func(t *testing.T) {
+		//nolint:staticcheck // it's ok to use built-in type string as key for value for testing purposes
 		loggedInContext := context.WithValue(t.Context(), "claims", &jwt.MapClaims{"iss": "qux", "sub": "foo", "email": "bar", "groups": []string{"baz"}})
 		settingsServer := newServer(map[string]string{
 			"resource.customizations.ignoreResourceUpdates.all": resourceOverrides,
