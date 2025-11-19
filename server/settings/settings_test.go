@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -15,6 +16,17 @@ import (
 )
 
 const testNamespace = "default"
+const resourceOverrides = `{
+    "jsonPointers": [
+        ""
+    ],
+    "jqPathExpressions": [
+        ""
+    ],
+    "managedFieldsManagers": [
+        ""
+    ]
+}`
 
 func fixtures(ctx context.Context, data map[string]string) (*fake.Clientset, *settings.SettingsManager) {
 	kubeClient := fake.NewClientset(&corev1.ConfigMap{
@@ -78,5 +90,25 @@ func TestSettingsServer(t *testing.T) {
 		resp, err := settingsServer.Get(t.Context(), nil)
 		require.NoError(t, err)
 		assert.Equal(t, "instance", resp.AppLabelKey)
+	})
+
+	t.Run("TestGetResourceOverridesNotLoggedIn", func(t *testing.T) {
+		settingsServer := newServer(map[string]string{
+			"resource.customizations.ignoreResourceUpdates.all": resourceOverrides,
+		})
+		resp, err := settingsServer.Get(t.Context(), nil)
+		require.NoError(t, err)
+		assert.Nil(t, resp.ResourceOverrides)
+	})
+
+	t.Run("TestGetResourceOverridesLoggedIn", func(t *testing.T) {
+		loggedInContext := context.WithValue(t.Context(), "claims", &jwt.MapClaims{"iss": "qux", "sub": "foo", "email": "bar", "groups": []string{"baz"}})
+		settingsServer := newServer(map[string]string{
+			"resource.customizations.ignoreResourceUpdates.all": resourceOverrides,
+		})
+		resp, err := settingsServer.Get(loggedInContext, nil)
+		require.NoError(t, err)
+		assert.NotNil(t, resp.ResourceOverrides)
+		assert.NotEmpty(t, resp.ResourceOverrides["*/*"])
 	})
 }
