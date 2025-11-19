@@ -87,6 +87,15 @@ func TestGetGitCreds(t *testing.T) {
 			expected: git.NewGoogleCloudCreds("gcp-key", nil),
 		},
 		{
+			name: "Azure Service Principal credentials",
+			repo: &Repository{
+				AzureServicePrincipalClientId:     "client-id",
+				AzureServicePrincipalClientSecret: "client-secret",
+				AzureServicePrincipalTenantId:     "tenant-id",
+			},
+			expected: git.NewAzureServicePrincipalCreds("tenant-id", "client-id", "client-secret", "", "", "", "", "", nil),
+		},
+		{
 			name:     "No credentials",
 			repo:     &Repository{},
 			expected: git.NopCreds{},
@@ -97,6 +106,75 @@ func TestGetGitCreds(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			creds := tt.repo.GetGitCreds(nil)
 			assert.Equal(t, tt.expected, creds)
+		})
+	}
+}
+
+func TestRepositorySanitized(t *testing.T) {
+	tests := []struct {
+		name     string
+		repo     *Repository
+		expected *Repository
+	}{
+		{
+			name: "HTTPS credentials",
+			repo: &Repository{
+				Username: "user",
+				Password: "pass",
+			},
+			expected: &Repository{},
+		},
+		{
+			name: "Bearer token credentials",
+			repo: &Repository{
+				BearerToken: "token",
+			},
+			expected: &Repository{},
+		},
+		{
+			name: "SSH credentials",
+			repo: &Repository{
+				SSHPrivateKey: "ssh-key",
+			},
+			expected: &Repository{},
+		},
+		{
+			name: "GitHub App credentials",
+			repo: &Repository{
+				GithubAppPrivateKey:     "github-key",
+				GithubAppId:             123,
+				GithubAppInstallationId: 456,
+			},
+			expected: &Repository{
+				GithubAppId:             123,
+				GithubAppInstallationId: 456,
+			},
+		},
+		{
+			name: "Google Cloud credentials",
+			repo: &Repository{
+				GCPServiceAccountKey: "gcp-key",
+			},
+			expected: &Repository{},
+		},
+		{
+			name: "Azure Service Principal credentials",
+			repo: &Repository{
+				AzureServicePrincipalClientId:     "client-id",
+				AzureServicePrincipalClientSecret: "client-secret",
+				AzureServicePrincipalTenantId:     "tenant-id",
+			},
+			expected: &Repository{
+				AzureServicePrincipalClientId: "client-id",
+				AzureServicePrincipalTenantId: "tenant-id",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			sanitized := tt.repo.Sanitized()
+			assert.Equal(t, tt.expected, sanitized)
 		})
 	}
 }
