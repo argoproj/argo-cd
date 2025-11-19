@@ -39,6 +39,23 @@ function initHandlers(req: agent.Request) {
     return req;
 }
 
+function initVisibilityRecovery(getEventSource: () => EventSource | null, triggerReconnect: () => void) {
+    if (typeof document === 'undefined' || typeof document.addEventListener !== 'function') {
+        return null;
+    }
+    const handler = () => {
+        if (document.visibilityState !== 'visible') {
+            return;
+        }
+        const source = getEventSource();
+        if (source && source.readyState !== ReadyState.OPEN) {
+            triggerReconnect();
+        }
+    };
+    document.addEventListener('visibilitychange', handler);
+    return () => document.removeEventListener('visibilitychange', handler);
+}
+
 export default {
     setBaseHRef(val: string) {
         baseHRef = val;
@@ -71,6 +88,7 @@ export default {
             const fullUrl = `${apiRoot()}${url}`;
 
             const abortController = new AbortController();
+            let visibilityCleanup: (() => void) | null = null;
 
             // If there is an error, show it beforehand
             fetch(fullUrl, {signal: abortController.signal})
@@ -95,6 +113,16 @@ export default {
                 onError.next(e);
             };
 
+            visibilityCleanup = initVisibilityRecovery(
+                () => eventSource,
+                () => {
+                    if (eventSource) {
+                        eventSource.close();
+                    }
+                    observer.error('event source not open after visibility change');
+                }
+            );
+
             // EventSource does not provide easy way to get notification when connection closed.
             // check readyState periodically instead.
             const interval = setInterval(() => {
@@ -104,6 +132,10 @@ export default {
             }, 500);
             return () => {
                 clearInterval(interval);
+                if (visibilityCleanup) {
+                    visibilityCleanup();
+                    visibilityCleanup = null;
+                }
                 eventSource.close();
                 abortController.abort();
                 eventSource = null;
