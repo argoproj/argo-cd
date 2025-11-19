@@ -23,3 +23,7 @@ status:
   - lastTransitionTime: "2023-06-20T22:44:51Z"
     status: "True"
     type: Ready
+  - lastTransitionTime: "2023-06-20T22:44:51Z"
+    severity: Info
+    status: 'False'
+    type: Stopped

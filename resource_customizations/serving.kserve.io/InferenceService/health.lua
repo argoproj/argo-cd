@@ -24,14 +24,23 @@ if obj.status ~= nil then
   
   if obj.status.conditions ~= nil then
     for i, condition in pairs(obj.status.conditions) do
+      -- Check if the InferenceService is Stopped
+      if condition.type == "Stopped" and condition.status == "True" then 
+        health_status.status = "Suspended"
+        health_status.message = "InferenceService is Stopped"
+        return health_status
+      end
 
+      -- Check for unhealthy statuses
+      -- Note: The Stopped condition's healthy status is False
       if condition.status == "Unknown" then
         status_unknown = status_unknown + 1
-      elseif condition.status == "False" then
+      elseif condition.status == "False" and condition.type ~= "Stopped" then
         status_false = status_false + 1
       end
 
-      if condition.status ~= "True" then
+      -- Add the error messages if the status is unhealthy
+      if condition.status ~= "True" and condition.type ~= "Stopped" then
         msg = msg .. " | " .. i .. ": " .. condition.type .. " | " .. condition.status
         if condition.reason ~= nil and condition.reason ~= "" then
           msg = msg .. " | " .. condition.reason
