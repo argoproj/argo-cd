@@ -130,7 +130,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
       - name: Create symlink in GOPATH
-        run: ln -s $(pwd) ~/go/src/github.com/argoproj/${{ github.repository }}
+        run: ln -s $(pwd) ~/go/src/github.com/argoproj/${{ github.event.repository.name }}
       - name: Setup Golang
         uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 # v6.0.0
         with:
@@ -194,7 +194,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
       - name: Create symlink in GOPATH
-        run: ln -s $(pwd) ~/go/src/github.com/argoproj/${{ github.repository }}
+        run: ln -s $(pwd) ~/go/src/github.com/argoproj/${{ github.event.repository.name }} 
       - name: Setup Golang
         uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 # v6.0.0
         with:
@@ -275,7 +275,7 @@ jobs:
         run: |
           make install-codegen-tools-local
           make install-go-tools-local
-        working-directory: /home/runner/go/src/github.com/argoproj/${{ github.repository }}
+        working-directory: /home/runner/go/src/github.com/argoproj/${{ github.event.repository.name }}
         # We install kustomize in the dist directory
       - name: Add dist to PATH
         run: |
@@ -286,12 +286,12 @@ jobs:
           export GOPATH=$(go env GOPATH)
           git checkout -- go.mod go.sum
           make codegen-local
-        working-directory: /home/runner/go/src/github.com/argoproj/${{ github.repository }}
+        working-directory: /home/runner/go/src/github.com/argoproj/${{ github.event.repository.name }}
       - name: Check nothing has changed
         run: |
           set -xo pipefail
           git diff --exit-code -- . ':!go.sum' ':!go.mod' ':!assets/swagger.json' | tee codegen.patch
-        working-directory: /home/runner/go/src/github.com/argoproj/${{ github.repository }}
+        working-directory: /home/runner/go/src/github.com/argoproj/${{ github.event.repository.name }} 
 
   build-ui:
     name: Build, test & lint UI code
