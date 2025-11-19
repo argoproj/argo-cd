@@ -258,7 +258,7 @@ jobs:
       - name: Create symlink in GOPATH
         run: |
           mkdir -p ~/go/src/github.com/argoproj
-          cp -a ../${{ github.repository }} ~/go/src/github.com/argoproj
+          cp -a ../${{ github.event.repository.name }} ~/go/src/github.com/argoproj
       - name: Add ~/go/bin to PATH
         run: |
           echo "/home/runner/go/bin" >> $GITHUB_PATH
@@ -270,7 +270,7 @@ jobs:
           # We need to vendor go modules for codegen yet
           go mod download
           go mod vendor -v
-        working-directory: /home/runner/go/src/github.com/argoproj/${{ github.repository }}
+        working-directory: /home/runner/go/src/github.com/argoproj/${{ github.event.repository.name }} 
       - name: Install toolchain for codegen
         run: |
           make install-codegen-tools-local
