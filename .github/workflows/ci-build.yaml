@@ -130,7 +130,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
       - name: Create symlink in GOPATH
-        run: ln -s $(pwd) ~/go/src/github.com/argoproj/argo-cd
+        run: ln -s $(pwd) ~/go/src/github.com/argoproj/${{ github.repository }}
       - name: Setup Golang
         uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 # v6.0.0
         with:
@@ -194,7 +194,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
       - name: Create symlink in GOPATH
-        run: ln -s $(pwd) ~/go/src/github.com/argoproj/argo-cd
+        run: ln -s $(pwd) ~/go/src/github.com/argoproj/${{ github.repository }}
       - name: Setup Golang
         uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 # v6.0.0
         with:
@@ -258,7 +258,7 @@ jobs:
       - name: Create symlink in GOPATH
         run: |
           mkdir -p ~/go/src/github.com/argoproj
-          cp -a ../argo-cd ~/go/src/github.com/argoproj
+          cp -a ../${{ github.repository }} ~/go/src/github.com/argoproj
       - name: Add ~/go/bin to PATH
         run: |
           echo "/home/runner/go/bin" >> $GITHUB_PATH
@@ -270,12 +270,12 @@ jobs:
           # We need to vendor go modules for codegen yet
           go mod download
           go mod vendor -v
-        working-directory: /home/runner/go/src/github.com/argoproj/argo-cd
+        working-directory: /home/runner/go/src/github.com/argoproj/${{ github.repository }}
       - name: Install toolchain for codegen
         run: |
           make install-codegen-tools-local
           make install-go-tools-local
-        working-directory: /home/runner/go/src/github.com/argoproj/argo-cd
+        working-directory: /home/runner/go/src/github.com/argoproj/${{ github.repository }}
         # We install kustomize in the dist directory
       - name: Add dist to PATH
         run: |
@@ -286,12 +286,12 @@ jobs:
           export GOPATH=$(go env GOPATH)
           git checkout -- go.mod go.sum
           make codegen-local
-        working-directory: /home/runner/go/src/github.com/argoproj/argo-cd
+        working-directory: /home/runner/go/src/github.com/argoproj/${{ github.repository }}
       - name: Check nothing has changed
         run: |
           set -xo pipefail
           git diff --exit-code -- . ':!go.sum' ':!go.mod' ':!assets/swagger.json' | tee codegen.patch
-        working-directory: /home/runner/go/src/github.com/argoproj/argo-cd
+        working-directory: /home/runner/go/src/github.com/argoproj/${{ github.repository }}
 
   build-ui:
     name: Build, test & lint UI code
