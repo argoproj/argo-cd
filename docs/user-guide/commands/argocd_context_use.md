@@ -1,24 +1,24 @@
-# `argocd context switch` Command Reference
+# `argocd context use` Command Reference
 
-## argocd context switch
+## argocd context use
 
-Switch Argo CD Context
+Set Argo CD Context
 
 ```
-argocd context switch [flags]
+argocd context use [flags]
 ```
 
 ### Examples
 
 ```
-   # Switch Argo CD Context
-	argocd context switch cd.argoproj.io
+   # Set  Argo CD context
+	argocd context use cd.argoproj.io
 ```
 
 ### Options
 
 ```
-  -h, --help   help for switch
+  -h, --help   help for use
 ```
 
 ### Options inherited from parent commands

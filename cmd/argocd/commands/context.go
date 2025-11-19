@@ -38,13 +38,13 @@ argocd context delete cd.argoproj.io`,
 		},
 	}
 	command.AddCommand(NewContextListCommand(clientOpts))
-	command.AddCommand(NewContextSwitchCommand(clientOpts))
+	command.AddCommand(NewContextUseCommand(clientOpts))
 	command.AddCommand(NewContextDeleteCommand(clientOpts))
 	command.AddCommand(NewContextLoginCommand(clientOpts))
 	return command
 }
 
-// NewContextListCommand returns a new instance of `argocd context list` command
+// NewContextListCommand lists the contexts
 func NewContextListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	command := &cobra.Command{
 		Use:   "list",
@@ -63,7 +63,7 @@ func NewContextListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 	return command
 }
 
-// NewContextSwitchCommand returns a new instance of `argocd context switch` command
+// NewContextUseCommand returns a new instance of `argocd context use` command
 func NewContextUseCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	command := &cobra.Command{
 		Use:     "use",

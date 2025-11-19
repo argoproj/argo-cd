@@ -66,5 +66,5 @@ argocd context delete cd.argoproj.io
 * [argocd context delete](argocd_context_delete.md)	 - Delete Argo CD Context
 * [argocd context list](argocd_context_list.md)	 - List Argo CD Contexts
 * [argocd context login](argocd_context_login.md)	 - Login using Argo CD Context
-* [argocd context switch](argocd_context_switch.md)	 - Switch Argo CD Context
+* [argocd context use](argocd_context_use.md)	 - Set Argo CD Context
 
