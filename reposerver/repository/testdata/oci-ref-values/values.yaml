@@ -1,0 +1,8 @@
+# Test values file for OCI ref values functionality
+replicaCount: 2
+image:
+  repository: nginx
+  tag: "1.21"
+service:
+  type: ClusterIP
+  port: 80

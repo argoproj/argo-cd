@@ -1,0 +1,8 @@
+# OCI ref values for e2e test
+replicas: 3
+image:
+  repository: nginx
+  tag: "1.21-alpine"
+service:
+  type: ClusterIP
+  port: 80
