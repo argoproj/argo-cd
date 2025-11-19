@@ -75,8 +75,8 @@ jobs:
     if: ${{ (github.repository == 'argoproj/argo-cd' || vars.IMAGE_NAMESPACE != 'argoproj') && github.event_name == 'push' }}
     uses: ./.github/workflows/image-reuse.yaml
     with:
-      quay_image_name: ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_REPOSITORY }}:latest
-      ghcr_image_name: ${{ env.GHCR_REGISTRY }}/${{ env.GHCR_NAMESPACE }}/${{ env.GHCR_REPOSITORY }}:${{ needs.set-vars.outputs.image-tag }}
+      quay_image_name: ${{ vars.IMAGE_REGISTRY }}/${{ vars.IMAGE_NAMESPACE }}/${{ vars.IMAGE_REPOSITORY }}:latest
+      ghcr_image_name: ${{ vars.GHCR_REGISTRY }}/${{ vars.GHCR_NAMESPACE }}/${{ vars.GHCR_REPOSITORY }}:${{ needs.set-vars.outputs.image-tag }}
       # Note: cannot use env variables to set go-version (https://docs.github.com/en/actions/using-workflows/reusing-workflows#limitations)
       # renovate: datasource=golang-version packageName=golang
       go-version: 1.25.3
@@ -99,7 +99,7 @@ jobs:
     # Must be refernced by a tag. https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#referencing-the-slsa-generator
     uses: slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@v2.1.0
     with:
-      image: ${{ env.GHCR_REGISTRY }}/${{ env.GHCR_NAMESPACE }}/${{ env.GHCR_REPOSITORY }}
+      image: ${{ vars.GHCR_REGISTRY }}/${{ vars.GHCR_NAMESPACE }}/${{ vars.GHCR_REPOSITORY }}
       digest: ${{ needs.build-and-publish.outputs.image-digest }}
       registry-username: ${{ github.actor }}
     secrets:
