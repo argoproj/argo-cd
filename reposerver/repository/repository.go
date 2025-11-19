@@ -1252,21 +1252,24 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 				templateOpts.Set[p.Name] = p.Value
 			}
 		}
+
+		regexSourceReference := regexp.MustCompile(`\$\(([a-z]+)\)(?:/|$)`)
+
 		for _, p := range appHelm.FileParameters {
 			var resolvedPath pathutil.ResolvedFilePath
 			referencedSource, err := getReferencedSource(p.Path, q.RefSources, regexSourceReference)
 			if err != nil {
-					return nil, "", fmt.Errorf("error resolving set-file path: %w", err)
+				return nil, "", fmt.Errorf("error resolving set-file path: %w", err)
 			}
 			if referencedSource != nil {
 				// If the $-prefixed path appears to reference another source, do env substitution _after_ resolving the source
 				resolvedPath, err = getResolvedRefValueFile(
-						p.Path,
-						env,
-						q.GetValuesFileSchemes(),
-						referencedSource.Repo.Repo,
-						gitRepoPaths,
-						regexSourceReference,
+					p.Path,
+					env,
+					q.GetValuesFileSchemes(),
+					referencedSource.Repo.Repo,
+					gitRepoPaths,
+					regexSourceReference,
 				)
 				if err != nil {
 					return nil, "", fmt.Errorf("error resolving set-file path: %w", err)
@@ -1385,7 +1388,7 @@ func getResolvedValueFiles(
 		var resolvedPath pathutil.ResolvedFilePath
 		var err error
 
-		regexSourceReference, _ := regexp.Compile(`\$\(([a-z]+)\)(?:/|$)`)
+		regexSourceReference := regexp.MustCompile(`\$\(([a-z]+)\)(?:/|$)`)
 
 		referencedSource, err := getReferencedSource(rawValueFile, refSources, regexSourceReference)
 		if err != nil {
