@@ -1001,16 +1001,6 @@ func (a AzureServicePrincipalCreds) Environ() (io.Closer, []string, error) {
 	}), env, nil
 }
 
-// httpClientTransportAdapter adapts an http.Client to policy.Transporter interface
-type httpClientTransportAdapter struct {
-	client *http.Client
-}
-
-// Do implements policy.Transporter interface
-func (t *httpClientTransportAdapter) Do(req *http.Request) (*http.Response, error) {
-	return t.client.Do(req)
-}
-
 func (a AzureServicePrincipalCreds) getAccessToken() (string, error) {
 	// Override the default active directory endpoint if present
 	activeDirectoryEndpoint := "https://login.microsoftonline.com"
@@ -1040,11 +1030,7 @@ func (a AzureServicePrincipalCreds) getAccessToken() (string, error) {
 	}
 	// Configure HTTP client with proxy if proxy is set
 	if a.proxy != "" {
-		httpClient := GetRepoHTTPClient(activeDirectoryEndpoint, false, a, a.proxy, a.noProxy)
-		if httpClient != nil {
-			// Create a transport adapter that wraps the HTTP client
-			opts.Transport = &httpClientTransportAdapter{client: httpClient}
-		}
+		opts.Transport = GetRepoHTTPClient(activeDirectoryEndpoint, false, a, a.proxy, a.noProxy)
 	}
 	cred, err := azidentity.NewClientSecretCredential(a.tenantID, a.clientID, a.clientSecret, &azidentity.ClientSecretCredentialOptions{ClientOptions: opts, DisableInstanceDiscovery: disableInstanceDiscovery})
 	if err != nil {
