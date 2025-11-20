@@ -545,6 +545,7 @@ func TestDiscoverGitHubAppInstallationId(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if r.URL.Path == "/app/installations" {
 				w.WriteHeader(http.StatusOK)
+				//nolint:errcheck
 				json.NewEncoder(w).Encode([]map[string]any{
 					{"id": 12345, "account": map[string]any{"login": "test-org"}},
 				})

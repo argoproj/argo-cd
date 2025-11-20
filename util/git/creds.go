@@ -583,6 +583,8 @@ func (g GitHubAppCreds) GetClientCertKey() string {
 var githubInstallationIdCache = make(map[githubOrgAppId]int64)
 
 // githubOrgAppId is a composite key of organization and app ID for caching installation IDs.
+//
+//nolint:unused
 type githubOrgAppId struct {
 	org string
 	id  int64
