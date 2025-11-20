@@ -26,6 +26,7 @@ to indicate their stability and maturity. These are the statuses of non-stable f
 | [Cluster Sharding: consistent-hashing][9] | v2.12.0    | Alpha  |
 | [Service Account Impersonation][10]       | v2.13.0    | Alpha  |
 | [Source Hydrator][11]                     | v2.14.0    | Alpha  |
+| [Incremental Namespace Sync][12]          | v3.3.0     | Alpha  |
 
 ## Unstable Configurations
 
@@ -65,6 +66,8 @@ to indicate their stability and maturity. These are the statuses of non-stable f
 | [Proxy Extensions][3]                     | `ConfigMap/argocd-cm`                         | `extension.config`                                          | Alpha  |
 | [Dynamic Cluster Distribution][7]         | `Deployment/argocd-application-controller`    | `ARGOCD_ENABLE_DYNAMIC_CLUSTER_DISTRIBUTION`                | Alpha  |
 | [Dynamic Cluster Distribution][7]         | `Deployment/argocd-application-controller`    | `ARGOCD_CONTROLLER_HEARTBEAT_TIME`                          | Alpha  |
+| [Incremental Namespace Sync][12]          | `StatefulSet/argocd-application-controller`   | `ARGOCD_ENABLE_INCREMENTAL_NAMESPACE_SYNC`                  | Alpha  |
+| [Incremental Namespace Sync][12]          | `ConfigMap/argocd-cmd-params-cm`              | `controller.incremental.namespace.sync.enabled`             | Alpha  |
 | [Cluster Sharding: round-robin][6]        | `ConfigMap/argocd-cmd-params-cm`              | `controller.sharding.algorithm: round-robin`                | Alpha  |
 | [Cluster Sharding: round-robin][6]        | `StatefulSet/argocd-application-controller`   | `ARGOCD_CONTROLLER_SHARDING_ALGORITHM=round-robin`          | Alpha  |
 | [Cluster Sharding: consistent-hashing][9] | `ConfigMap/argocd-cmd-params-cm`              | `controller.sharding.algorithm: consistent-hashing`         | Alpha  |
@@ -81,3 +84,4 @@ to indicate their stability and maturity. These are the statuses of non-stable f
 [9]: ./high_availability.md#argocd-application-controller
 [10]: app-sync-using-impersonation.md
 [11]: ../user-guide/source-hydrator.md
+[12]: incremental-namespace-sync.md
