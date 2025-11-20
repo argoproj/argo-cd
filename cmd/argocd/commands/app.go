@@ -2098,6 +2098,8 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		retryBackoffFactor      int64
 		local                   string
 		localRepoRoot           string
+		serverSideGenerate      bool
+		localIncludes           []string
 		infos                   []string
 		diffChanges             bool
 		diffChangesConfirm      bool
@@ -2311,9 +2313,25 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					errors.CheckError(err)
 					utilio.Close(conn)
 
-					proj := getProject(ctx, c, clientOpts, app.Spec.Project)
-					localObjsStrings = getLocalObjectsString(ctx, app, proj.Project, local, localRepoRoot, argoSettings.AppLabelKey, cluster.Info.ServerVersion, cluster.Info.APIVersions, argoSettings.KustomizeOptions, argoSettings.TrackingMethod)
-					errors.CheckError(err)
+					if serverSideGenerate {
+						client, err := appIf.GetManifestsWithFiles(ctx, grpc_retry.Disable())
+						errors.CheckError(err)
+
+						err = manifeststream.SendApplicationManifestQueryWithFiles(ctx, client, appName, appNs, local, localIncludes)
+						errors.CheckError(err)
+
+						res, err := client.CloseAndRecv()
+						errors.CheckError(err)
+
+						localObjsStrings = res.Manifests
+						diffOption.serversideRes = res
+					} else {
+						fmt.Fprintf(os.Stderr, "Warning: local sync without --server-side-generate is deprecated and does not work with plugins.")
+						proj := getProject(ctx, c, clientOpts, app.Spec.Project)
+						localObjsStrings = getLocalObjectsString(ctx, app, proj.Project, local, localRepoRoot, argoSettings.AppLabelKey, cluster.Info.ServerVersion, cluster.Info.APIVersions, argoSettings.KustomizeOptions, argoSettings.TrackingMethod)
+						errors.CheckError(err)
+					}
+
 					diffOption.local = local
 					diffOption.localRepoRoot = localRepoRoot
 					diffOption.cluster = cluster
@@ -2448,6 +2466,8 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().BoolVar(&async, "async", false, "Do not wait for application to sync before continuing")
 	command.Flags().StringVar(&local, "local", "", "Path to a local directory. When this flag is present no git queries will be made")
 	command.Flags().StringVar(&localRepoRoot, "local-repo-root", "/", "Path to the repository root. Used together with --local allows setting the repository root")
+	command.Flags().BoolVar(&serverSideGenerate, "server-side-generate", false, "Used with --local, this will send your manifests to the server for generation")
+	command.Flags().StringArrayVar(&localIncludes, "local-include", []string{"*.yaml", "*.yml", "*.json"}, "Used with --server-side-generate, specify patterns of filenames to send. Matching is based on filename and not path.")
 	command.Flags().StringArrayVar(&infos, "info", []string{}, "A list of key-value pairs during sync process. These infos will be persisted in app.")
 	command.Flags().BoolVar(&diffChangesConfirm, "assumeYes", false, "Assume yes as answer for all user queries or prompts")
 	command.Flags().BoolVar(&diffChanges, "preview-changes", false, "Preview difference against the target and live state before syncing app and wait for user confirmation")
