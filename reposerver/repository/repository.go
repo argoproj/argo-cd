@@ -568,12 +568,12 @@ func resolveReferencedSources(ctx context.Context, hasMultipleSources bool, sour
 		}
 
 		// Allow OCI ref sources with chart field, but still restrict Git ref sources with chart field
-		if refSourceMapping.Chart != "" && !strings.HasPrefix(refSourceMapping.Repo.Repo, "oci://") {
+		if refSourceMapping.Chart != "" && !refSourceMapping.Repo.IsOCI() {
 			return nil, errors.New("source has a 'chart' field defined, but Helm charts are not yet supported for Git 'ref' sources")
 		}
 
 		var normalizedRepoURL string
-		if strings.HasPrefix(refSourceMapping.Repo.Repo, "oci://") {
+		if v1alpha1.IsOCIURL(refSourceMapping.Repo.Repo) {
 			// For OCI repositories, use the URL as-is without normalization
 			normalizedRepoURL = refSourceMapping.Repo.Repo
 		} else {
@@ -586,15 +586,13 @@ func resolveReferencedSources(ctx context.Context, hasMultipleSources bool, sour
 			var referencedCommitSHA string
 			var err error
 
-			if strings.HasPrefix(refSourceMapping.Repo.Repo, "oci://") {
-				// Handle OCI repositories
+			if refSourceMapping.Repo.IsOCI() {
 				_, referencedCommitSHA, err = newOCIClientResolveRevision(ctx, &refSourceMapping.Repo, refSourceMapping.TargetRevision, false)
 				if err != nil {
 					log.Errorf("Failed to get OCI client for repo %s: %v", refSourceMapping.Repo.Repo, err)
 					return nil, fmt.Errorf("failed to get OCI client for repo %s", refSourceMapping.Repo.Repo)
 				}
 			} else {
-				// Handle Git repositories
 				_, referencedCommitSHA, err = newClientResolveRevision(&refSourceMapping.Repo, refSourceMapping.TargetRevision, gitClientOpts)
 				if err != nil {
 					log.Errorf("Failed to get git client for repo %s: %v", refSourceMapping.Repo.Repo, err)
@@ -837,19 +835,12 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 						return
 					}
 					// Allow OCI ref sources with chart field, but still restrict Git ref sources with chart field
-					if refSourceMapping.Chart != "" && !strings.HasPrefix(refSourceMapping.Repo.Repo, "oci://") {
+					if refSourceMapping.Chart != "" && !v1alpha1.IsOCIURL(refSourceMapping.Repo.Repo) {
 						ch.errCh <- errors.New("source has a 'chart' field defined, but Helm charts are not yet supported for Git 'ref' sources")
 						return
 					}
 
-					var normalizedRepoURL string
-					if strings.HasPrefix(refSourceMapping.Repo.Repo, "oci://") {
-						// For OCI repositories, use the URL as-is without normalization
-						normalizedRepoURL = refSourceMapping.Repo.Repo
-					} else {
-						// For Git repositories, normalize the URL
-						normalizedRepoURL = git.NormalizeGitURL(refSourceMapping.Repo.Repo)
-					}
+					normalizedRepoURL := refSourceMapping.Repo.NormalizeRepoURL()
 					closer, ok := repoRefs[normalizedRepoURL]
 					if ok {
 						if closer.revision != refSourceMapping.TargetRevision {
@@ -857,8 +848,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 							return
 						}
 					} else {
-						if strings.HasPrefix(refSourceMapping.Repo.Repo, "oci://") {
-							// Handle OCI ref sources
+						if refSourceMapping.Repo.IsOCI() {
 							ociClient, err := s.newOCIClient(refSourceMapping.Repo.Repo, refSourceMapping.Repo.GetOCICreds(), refSourceMapping.Repo.Proxy, refSourceMapping.Repo.NoProxy, s.initConstants.OCIMediaTypes, oci.WithIndexCache(s.cache), oci.WithImagePaths(s.ociPaths), oci.WithManifestMaxExtractedSize(s.initConstants.OCIManifestMaxExtractedSize), oci.WithDisableManifestMaxExtractedSize(s.initConstants.DisableOCIManifestMaxExtractedSize))
 							if err != nil {
 								log.Errorf("Failed to create OCI client for repo %s: %v", refSourceMapping.Repo.Repo, err)
@@ -910,7 +900,6 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 							s.ociPaths.Add(normalizedRepoURL, ociPath)
 							repoRefs[normalizedRepoURL] = repoRef{revision: refSourceMapping.TargetRevision, commitSHA: referencedDigest, key: refVar}
 						} else {
-							// Handle Git ref sources
 							gitClient, referencedCommitSHA, err := s.newClientResolveRevision(&refSourceMapping.Repo, refSourceMapping.TargetRevision, git.WithCache(s.cache, !q.NoRevisionCache && !q.NoCache))
 							if err != nil {
 								log.Errorf("Failed to get git client for repo %s: %v", refSourceMapping.Repo.Repo, err)
@@ -1273,7 +1262,7 @@ func parseKubeVersion(version string) (string, error) {
 	return kubeVersion.String(), nil
 }
 
-func helmTemplate(_ context.Context, appPath string, repoRoot string, env *v1alpha1.Env, q *apiclient.ManifestRequest, isLocal bool, gitRepoPaths utilio.TempPaths, ociPaths utilio.TempPaths) ([]*unstructured.Unstructured, string, error) {
+func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclient.ManifestRequest, isLocal bool, gitRepoPaths utilio.TempPaths, ociPaths utilio.TempPaths) ([]*unstructured.Unstructured, string, error) {
 	// We use the app name as Helm's release name property, which must not
 	// contain any underscore characters and must not exceed 53 characters.
 	// We are not interested in the fully qualified application name while
@@ -1347,11 +1336,9 @@ func helmTemplate(_ context.Context, appPath string, repoRoot string, env *v1alp
 			referencedSource := getReferencedSource(p.Path, q.RefSources)
 			if referencedSource != nil {
 				// If the $-prefixed path appears to reference another source, do env substitution _after_ resolving the source
-				if strings.HasPrefix(referencedSource.Repo.Repo, "oci://") {
-					// Handle OCI ref values
+				if referencedSource.Repo.IsOCI() {
 					resolvedPath, err = getResolvedOCIRefValueFile(p.Path, env, q.GetValuesFileSchemes(), referencedSource.Repo.Repo, ociPaths)
 				} else {
-					// Handle Git ref values
 					resolvedPath, err = getResolvedRefValueFile(p.Path, env, q.GetValuesFileSchemes(), referencedSource.Repo.Repo, gitRepoPaths)
 				}
 				if err != nil {
@@ -1501,7 +1488,7 @@ func getResolvedValueFiles(
 	return resolvedValueFiles, nil
 }
 
-// getResolvedValueFilesWithOCI handles both Git and OCI ref values
+// getResolvedValueFilesWithOCI handles both Git and OCI ref values using the ValueFileResolver
 func getResolvedValueFilesWithOCI(
 	appPath string,
 	repoRoot string,
@@ -1513,49 +1500,18 @@ func getResolvedValueFilesWithOCI(
 	ociPaths utilio.TempPaths,
 	ignoreMissingValueFiles bool,
 ) ([]pathutil.ResolvedFilePath, error) {
-	var resolvedValueFiles []pathutil.ResolvedFilePath
-	for _, rawValueFile := range rawValueFiles {
-		isRemote := false
-		var resolvedPath pathutil.ResolvedFilePath
-		var err error
+	resolver := NewValueFileResolver(
+		appPath,
+		repoRoot,
+		env,
+		allowedValueFilesSchemas,
+		refSources,
+		gitRepoPaths,
+		ociPaths,
+		ignoreMissingValueFiles,
+	)
 
-		referencedSource := getReferencedSource(rawValueFile, refSources)
-		if referencedSource != nil {
-			// If the $-prefixed path appears to reference another source, do env substitution _after_ resolving that source.
-			if strings.HasPrefix(referencedSource.Repo.Repo, "oci://") {
-				// Handle OCI ref values
-				resolvedPath, err = getResolvedOCIRefValueFile(rawValueFile, env, allowedValueFilesSchemas, referencedSource.Repo.Repo, ociPaths)
-				if err != nil {
-					return nil, fmt.Errorf("error resolving OCI value file path: %w", err)
-				}
-			} else {
-				// Handle Git ref values
-				resolvedPath, err = getResolvedRefValueFile(rawValueFile, env, allowedValueFilesSchemas, referencedSource.Repo.Repo, gitRepoPaths)
-				if err != nil {
-					return nil, fmt.Errorf("error resolving value file path: %w", err)
-				}
-			}
-		} else {
-			// This will resolve val to an absolute path (or a URL)
-			resolvedPath, isRemote, err = pathutil.ResolveValueFilePathOrUrl(appPath, repoRoot, env.Envsubst(rawValueFile), allowedValueFilesSchemas)
-			if err != nil {
-				return nil, fmt.Errorf("error resolving value file path: %w", err)
-			}
-		}
-
-		if !isRemote {
-			_, err = os.Stat(string(resolvedPath))
-			if os.IsNotExist(err) {
-				if ignoreMissingValueFiles {
-					log.Debugf(" %s values file does not exist", resolvedPath)
-					continue
-				}
-			}
-		}
-
-		resolvedValueFiles = append(resolvedValueFiles, resolvedPath)
-	}
-	return resolvedValueFiles, nil
+	return resolver.ResolveValueFiles(rawValueFiles)
 }
 
 func getResolvedRefValueFile(
@@ -1568,8 +1524,7 @@ func getResolvedRefValueFile(
 	pathStrings := strings.Split(rawValueFile, "/")
 
 	// Check if the reference source is an OCI repository
-	if strings.HasPrefix(refSourceRepo, "oci://") {
-		// For OCI repositories, we need to handle them differently
+	if v1alpha1.IsOCIURL(refSourceRepo) {
 		// Since this function doesn't have access to the OCI client or revision info,
 		// we need to return an error that indicates this needs to be handled at a higher level
 		return "", errors.New("OCI ref values require OCI client and revision information - not implemented in this context")
@@ -1719,7 +1674,7 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 	switch appSourceType {
 	case v1alpha1.ApplicationSourceTypeHelm:
 		var command string
-		targetObjs, command, err = helmTemplate(ctx, appPath, repoRoot, env, q, isLocal, gitRepoPaths, opt.ociPaths)
+		targetObjs, command, err = helmTemplate(appPath, repoRoot, env, q, isLocal, gitRepoPaths, opt.ociPaths)
 		commands = append(commands, command)
 	case v1alpha1.ApplicationSourceTypeKustomize:
 		var kustomizeBinary string
