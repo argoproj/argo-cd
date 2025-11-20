@@ -93,7 +93,7 @@ func TestGetGitCreds(t *testing.T) {
 				AzureServicePrincipalClientSecret: "client-secret",
 				AzureServicePrincipalTenantId:     "tenant-id",
 			},
-			expected: git.NewAzureServicePrincipalCreds("tenant-id", "client-id", "client-secret", "", "", "", "", "", nil),
+			expected: git.NewAzureServicePrincipalCreds("tenant-id", "client-id", "client-secret", nil),
 		},
 		{
 			name:     "No credentials",
