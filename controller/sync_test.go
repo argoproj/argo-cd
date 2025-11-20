@@ -167,11 +167,14 @@ func TestSyncComparisonError(t *testing.T) {
 	data := fakeData{
 		apps: []runtime.Object{app, defaultProject},
 		manifestResponse: &apiclient.ManifestResponse{
-			Manifests:    []string{},
-			Namespace:    test.FakeDestNamespace,
-			Server:       test.FakeClusterURL,
-			Revision:     "abc123",
-			VerifyResult: "something went wrong",
+			Manifests: []string{},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+			SourceIntegrityResult: &v1alpha1.SourceIntegrityCheckResult{Checks: []v1alpha1.SourceIntegrityCheckResultItem{{
+				Name:     "GIT/GPG",
+				Problems: []string{"Unknown key 'XXX'"},
+			}}},
 		},
 		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 	}

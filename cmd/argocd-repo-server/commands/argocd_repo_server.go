@@ -12,6 +12,7 @@ import (
 	"syscall"
 	"time"
 
+	argoappsv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/pkg/v2/stats"
 	"github.com/redis/go-redis/v9"
 	log "github.com/sirupsen/logrus"
@@ -199,7 +200,7 @@ func NewCommand() *cobra.Command {
 			go func() { errors.CheckError(http.ListenAndServe(fmt.Sprintf("%s:%d", metricsHost, metricsPort), nil)) }()
 			go func() { errors.CheckError(askPassServer.Run()) }()
 
-			if gpg.IsGPGEnabled() {
+			if argoappsv1.IsGPGEnabled() {
 				log.Infof("Initializing GnuPG keyring at %s", common.GetGnuPGHomePath())
 				err = gpg.InitializeGnuPG()
 				errors.CheckError(err)

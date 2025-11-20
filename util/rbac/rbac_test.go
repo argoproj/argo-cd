@@ -285,9 +285,8 @@ g, depB, role:depB
 `
 	hook := test.LogHook{}
 	log.AddHook(&hook)
-	t.Cleanup(func() {
-		log.StandardLogger().ReplaceHooks(log.LevelHooks{})
-	})
+	t.Cleanup(hook.CleanupHook)
+
 	require.NoError(t, ValidatePolicy(policy))
 	assert.Empty(t, hook.GetRegexMatchesInEntries("user defined roles not found in policies"))
 
