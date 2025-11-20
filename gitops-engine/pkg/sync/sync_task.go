@@ -2,6 +2,7 @@ package sync
 
 import (
 	"fmt"
+	"slices"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -61,6 +62,54 @@ func (t *syncTask) wave() int {
 		return *t.waveOverride
 	}
 	return syncwaves.Wave(t.obj())
+}
+
+func (t *syncTask) waveGroup() int {
+	return syncwaves.WaveGroup(t.obj())
+}
+
+func (t *syncTask) identity() common.SyncIdentity {
+	return common.SyncIdentity{Phase: t.phase, Wave: t.wave(), WaveGroup: t.waveGroup()}
+}
+
+func (t *syncTask) dependendsOn(u *syncTask) bool {
+	d := syncPhaseOrder[u.phase] - syncPhaseOrder[t.phase]
+	if d != 0 {
+		return d < 0
+	}
+
+	if slices.Contains(t.waveGroupDependencies(), u.waveGroup()) {
+		return true
+	}
+
+	if slices.Contains(u.waveGroupDependencies(), t.waveGroup()) {
+		return false
+	}
+
+	if u.waveGroup() != t.waveGroup() {
+		return false
+	}
+
+	d = u.wave() - t.wave()
+	if d != 0 {
+		return d < 0
+	}
+
+	a := u.obj()
+	b := t.obj()
+
+	// we take advantage of the fact that if the kind is not in the kindOrder map,
+	// then it will return the default int value of zero, which is the highest value
+	d = kindOrder[a.GetKind()] - kindOrder[b.GetKind()]
+	if d != 0 {
+		return d < 0
+	}
+
+	return a.GetName() < b.GetName()
+}
+
+func (t *syncTask) waveGroupDependencies() []int {
+	return syncwaves.WaveGroupDependencies(t.obj())
 }
 
 func (t *syncTask) isHook() bool {
