@@ -15,29 +15,58 @@ concurrency:
 
 permissions: {}
 
-env:
-  # Image repository configuration - can be overridden in forks via repository variables
-  IMAGE_REGISTRY: ${{ vars.IMAGE_REGISTRY || 'quay.io' }}
-  IMAGE_NAMESPACE: ${{ vars.IMAGE_NAMESPACE || 'argoproj' }}
-  IMAGE_REPOSITORY: ${{ vars.IMAGE_REPOSITORY || 'argocd' }}
-  GHCR_REGISTRY: ${{ vars.GHCR_REGISTRY || 'ghcr.io' }}
-  GHCR_NAMESPACE: ${{ vars.GHCR_NAMESPACE || 'argoproj/argo-cd' }}
-  GHCR_REPOSITORY: ${{ vars.GHCR_REPOSITORY || 'argocd' }}
-
 jobs:
   set-vars:
     permissions:
       contents: read
-    if: github.repository == 'argoproj/argo-cd' || (vars.IMAGE_NAMESPACE && vars.IMAGE_NAMESPACE != 'argoproj')
+    # Always run to calculate variables - other jobs check outputs
     runs-on: ubuntu-22.04
     outputs:
       image-tag: ${{ steps.image.outputs.tag}}
       platforms: ${{ steps.platforms.outputs.platforms }}
+      image_registry: ${{ steps.image.outputs.image_registry }}
+      image_namespace: ${{ steps.image.outputs.image_namespace }}
+      image_repository: ${{ steps.image.outputs.image_repository }}
+      quay_image_name: ${{ steps.image.outputs.quay_image_name }}
+      docker_image_name: ${{ steps.image.outputs.docker_image_name }}
+      ghcr_image_name: ${{ steps.image.outputs.ghcr_image_name }}
+      ghcr_provenance_image: ${{ steps.image.outputs.ghcr_provenance_image }}
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
-      - name: Set image tag for ghcr
-        run: echo "tag=$(cat ./VERSION)-${GITHUB_SHA::8}" >> $GITHUB_OUTPUT
+      - name: Set image tag and names
+        run: |
+          # Calculate image tag
+          TAG="$(cat ./VERSION)-${GITHUB_SHA::8}"
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          
+          # Calculate image names with defaults
+          IMAGE_REGISTRY="${{ vars.IMAGE_REGISTRY || 'quay.io' }}"
+          IMAGE_NAMESPACE="${{ vars.IMAGE_NAMESPACE || 'argoproj' }}"
+          IMAGE_REPOSITORY="${{ vars.IMAGE_REPOSITORY || 'argocd' }}"
+          GHCR_REGISTRY="${{ vars.GHCR_REGISTRY || 'ghcr.io' }}"
+          GHCR_NAMESPACE="${{ vars.GHCR_NAMESPACE || 'argoproj/argo-cd' }}"
+          GHCR_REPOSITORY="${{ vars.GHCR_REPOSITORY || 'argocd' }}"
+          
+          echo "image_registry=$IMAGE_REGISTRY" >> $GITHUB_OUTPUT
+          echo "image_namespace=$IMAGE_NAMESPACE" >> $GITHUB_OUTPUT
+          echo "image_repository=$IMAGE_REPOSITORY" >> $GITHUB_OUTPUT
+          
+          # Construct image names based on registry type
+          if [[ "$IMAGE_REGISTRY" == "quay.io" ]]; then
+            echo "quay_image_name=$IMAGE_REGISTRY/$IMAGE_NAMESPACE/$IMAGE_REPOSITORY:latest" >> $GITHUB_OUTPUT
+            echo "docker_image_name=" >> $GITHUB_OUTPUT
+          elif [[ "$IMAGE_REGISTRY" == "docker.io" ]]; then
+            echo "quay_image_name=" >> $GITHUB_OUTPUT
+            echo "docker_image_name=$IMAGE_REGISTRY/$IMAGE_NAMESPACE/$IMAGE_REPOSITORY:latest" >> $GITHUB_OUTPUT
+          else
+            # For other registries, use quay parameter
+            echo "quay_image_name=$IMAGE_REGISTRY/$IMAGE_NAMESPACE/$IMAGE_REPOSITORY:latest" >> $GITHUB_OUTPUT
+            echo "docker_image_name=" >> $GITHUB_OUTPUT
+          fi
+          
+          echo "ghcr_image_name=$GHCR_REGISTRY/$GHCR_NAMESPACE/$GHCR_REPOSITORY:$TAG" >> $GITHUB_OUTPUT
+          echo "ghcr_provenance_image=$GHCR_REGISTRY/$GHCR_NAMESPACE/$GHCR_REPOSITORY" >> $GITHUB_OUTPUT
         id: image
 
       - name: Determine image platforms to use
@@ -57,7 +86,7 @@ jobs:
       contents: read
       packages: write # for pushing packages to GHCR, which is used by cd.apps.argoproj.io to avoid polluting Quay with tags
       id-token: write # for creating OIDC tokens for signing.
-    if: ${{ (github.repository == 'argoproj/argo-cd' || (vars.IMAGE_NAMESPACE && vars.IMAGE_NAMESPACE != 'argoproj')) && github.event_name != 'push' }}
+    if: ${{ (github.repository == 'argoproj/argo-cd' || needs.set-vars.outputs.image_namespace != 'argoproj') && github.event_name != 'push' }}
     uses: ./.github/workflows/image-reuse.yaml
     with:
       # Note: cannot use env variables to set go-version (https://docs.github.com/en/actions/using-workflows/reusing-workflows#limitations)
@@ -72,11 +101,12 @@ jobs:
       contents: read
       packages: write # for pushing packages to GHCR, which is used by cd.apps.argoproj.io to avoid polluting Quay with tags
       id-token: write # for creating OIDC tokens for signing.
-    if: ${{ (github.repository == 'argoproj/argo-cd' || (vars.IMAGE_NAMESPACE && vars.IMAGE_NAMESPACE != 'argoproj')) && github.event_name == 'push' }}
+    if: ${{ (github.repository == 'argoproj/argo-cd' || needs.set-vars.outputs.image_namespace != 'argoproj') && github.event_name == 'push' }}
     uses: ./.github/workflows/image-reuse.yaml
     with:
-      quay_image_name: ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_REPOSITORY }}:latest
-      ghcr_image_name: ${{ env.GHCR_REGISTRY }}/${{ env.GHCR_NAMESPACE }}/${{ env.GHCR_REPOSITORY }}:${{ needs.set-vars.outputs.image-tag }}
+      quay_image_name: ${{ needs.set-vars.outputs.quay_image_name }}
+      docker_image_name: ${{ needs.set-vars.outputs.docker_image_name }}
+      ghcr_image_name: ${{ needs.set-vars.outputs.ghcr_image_name }}
       # Note: cannot use env variables to set go-version (https://docs.github.com/en/actions/using-workflows/reusing-workflows#limitations)
       # renovate: datasource=golang-version packageName=golang
       go-version: 1.25.3
@@ -90,16 +120,17 @@ jobs:
 
   build-and-publish-provenance: # Push attestations to GHCR, latest image is polluting quay.io
     needs:
+      - set-vars
       - build-and-publish
     permissions:
       actions: read # for detecting the Github Actions environment.
       id-token: write # for creating OIDC tokens for signing.
       packages: write # for uploading attestations. (https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#known-issues)
-    if: ${{ (github.repository == 'argoproj/argo-cd' || (vars.IMAGE_NAMESPACE && vars.IMAGE_NAMESPACE != 'argoproj')) && github.event_name == 'push' }}
+    if: ${{ (github.repository == 'argoproj/argo-cd' || needs.set-vars.outputs.image_namespace != 'argoproj') && github.event_name == 'push' }}
     # Must be refernced by a tag. https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#referencing-the-slsa-generator
     uses: slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@v2.1.0
     with:
-      image: ${{ env.GHCR_REGISTRY }}/${{ env.GHCR_NAMESPACE }}/${{ env.GHCR_REPOSITORY }}
+      image: ${{ needs.set-vars.outputs.ghcr_provenance_image }}
       digest: ${{ needs.build-and-publish.outputs.image-digest }}
       registry-username: ${{ github.actor }}
     secrets:
