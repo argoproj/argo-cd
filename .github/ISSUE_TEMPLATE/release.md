@@ -23,6 +23,7 @@ Target GA date: ___. __, ____
     - [ ] Verify the release on [GitHub releases](https://github.com/argoproj/argo-cd/releases)
     - [ ] Verify the container image on [Quay.io](https://quay.io/repository/argoproj/argocd?tab=tags)
     - [ ] Confirm the new version appears in [Read the Docs](https://argo-cd.readthedocs.io/)
+    - [ ] Verify the docs release build in https://app.readthedocs.org/projects/argo-cd/ succeeded and retry if failed (requires an Approver with admin creds to readthedocs)
  - [ ] Announce RC1 release
    - [ ] Confirm that tweet and blog post are ready
    - [ ] Publish tweet and blog post
@@ -64,6 +65,7 @@ Target GA date: ___. __, ____
     - [ ] Verify the container image on [Quay.io](https://quay.io/repository/argoproj/argocd?tab=tags)
     - [ ] Verify the `stable` tag has been updated
     - [ ] Confirm the new version appears in [Read the Docs](https://argo-cd.readthedocs.io/)
+    - [ ] Verify the docs release build in https://app.readthedocs.org/projects/argo-cd/ succeeded and retry if failed (requires an Approver with admin creds to readthedocs)
  - [ ] Announce GA release with EOL notice
    - [ ] Confirm that tweet and blog post are ready
    - [ ] Publish tweet and blog post

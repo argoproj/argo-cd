@@ -9437,7 +9437,7 @@
           "title": "TLSClientCertKey specifies the TLS client cert key for authenticating at the repo server"
         },
         "type": {
-          "description": "Type specifies the type of the repoCreds. Can be either \"git\" or \"helm. \"git\" is assumed if empty or absent.",
+          "description": "Type specifies the type of the repoCreds. Can be either \"git\", \"helm\" or \"oci\". \"git\" is assumed if empty or absent.",
           "type": "string"
         },
         "url": {
