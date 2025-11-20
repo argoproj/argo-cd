@@ -976,13 +976,38 @@ type AzureServicePrincipalCreds struct {
 	store                   CredsStore
 }
 
-func NewAzureServicePrincipalCreds(tenantID string, clientID string, clientSecret string, activeDirectoryEndpoint string, clientCertData string, clientCertKey string, proxy string, noProxy string, store CredsStore) GenericHTTPSCreds {
-	return AzureServicePrincipalCreds{tenantID: tenantID, clientID: clientID, clientSecret: clientSecret, activeDirectoryEndpoint: activeDirectoryEndpoint, clientCertData: clientCertData, clientCertKey: clientCertKey, proxy: proxy, noProxy: noProxy, store: store}
+// NewAzureServicePrincipalCreds creates new Azure Service Principal credentials
+func NewAzureServicePrincipalCreds(tenantID string, clientID string, clientSecret string, store CredsStore) AzureServicePrincipalCreds {
+	return AzureServicePrincipalCreds{tenantID: tenantID, clientID: clientID, clientSecret: clientSecret, store: store}
 }
 
-// GetUserInfo returns the username and email address for the credentials, if they're available.
+// WithActiveDirectoryEndpoint sets a custom Active Directory endpoint. When not set, the default Azure public cloud is used.
+func (a AzureServicePrincipalCreds) WithActiveDirectoryEndpoint(activeDirectoryEndpoint string) AzureServicePrincipalCreds {
+	a.activeDirectoryEndpoint = activeDirectoryEndpoint
+	return a
+}
+
+// WithClientCert sets the client certificate data and key
+func (a AzureServicePrincipalCreds) WithClientCert(data string, key string) AzureServicePrincipalCreds {
+	a.clientCertData = data
+	a.clientCertKey = key
+	return a
+}
+
+// WithProxy sets the HTTP/HTTPS proxy used to access the repo
+func (a AzureServicePrincipalCreds) WithProxy(proxy string) AzureServicePrincipalCreds {
+	a.proxy = proxy
+	return a
+}
+
+// WithNoProxy sets a comma separated list of IPs/hostnames that should not use the proxy
+func (a AzureServicePrincipalCreds) WithNoProxy(noProxy string) AzureServicePrincipalCreds {
+	a.noProxy = noProxy
+	return a
+}
+
+// GetUserInfo doesn't return any user info as they are not present for Azure Service Principals.
 func (a AzureServicePrincipalCreds) GetUserInfo(_ context.Context) (string, string, error) {
-	// Email not implemented for HTTPS creds.
 	return workloadidentity.EmptyGuid, "", nil
 }
 

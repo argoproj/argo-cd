@@ -316,7 +316,20 @@ func (repo *Repository) GetGitCreds(store git.CredsStore) git.Creds {
 		return git.NewAzureWorkloadIdentityCreds(store, workloadidentity.NewWorkloadIdentityTokenProvider())
 	}
 	if repo.AzureServicePrincipalClientId != "" && repo.AzureServicePrincipalClientSecret != "" && repo.AzureServicePrincipalTenantId != "" {
-		return git.NewAzureServicePrincipalCreds(repo.AzureServicePrincipalTenantId, repo.AzureServicePrincipalClientId, repo.AzureServicePrincipalClientSecret, repo.AzureActiveDirectoryEndpoint, repo.TLSClientCertData, repo.TLSClientCertKey, repo.Proxy, repo.NoProxy, store)
+		creds := git.NewAzureServicePrincipalCreds(repo.AzureServicePrincipalTenantId, repo.AzureServicePrincipalClientId, repo.AzureServicePrincipalClientSecret, store)
+		if repo.AzureActiveDirectoryEndpoint != "" {
+			creds = creds.WithActiveDirectoryEndpoint(repo.AzureActiveDirectoryEndpoint)
+		}
+		if repo.TLSClientCertData != "" && repo.TLSClientCertKey != "" {
+			creds = creds.WithClientCert(repo.TLSClientCertData, repo.TLSClientCertKey)
+		}
+		if repo.Proxy != "" {
+			creds = creds.WithProxy(repo.Proxy)
+		}
+		if repo.NoProxy != "" {
+			creds = creds.WithNoProxy(repo.NoProxy)
+		}
+		return creds
 	}
 	return git.NopCreds{}
 }
