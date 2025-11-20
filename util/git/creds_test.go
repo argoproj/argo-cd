@@ -1,8 +1,12 @@
 package git
 
 import (
+	"context"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path"
 	"regexp"
@@ -514,4 +518,73 @@ func TestAzureWorkloadIdentityCreds_ReuseTokenIfExistingIsNotExpired(t *testing.
 
 func resetAzureTokenCache() {
 	azureTokenCache = gocache.New(gocache.NoExpiration, 0)
+}
+
+func TestDiscoverGitHubAppInstallationId(t *testing.T) {
+	t.Run("returns cached installation ID", func(t *testing.T) {
+		// Setup: prepopulate cache
+		org := "test-org"
+		appId := int64(12345)
+		expectedId := int64(98765)
+
+		githubInstallationIdCacheMutex.Lock()
+		githubInstallationIdCache[githubOrgAppId{org: org, id: appId}] = expectedId
+		githubInstallationIdCacheMutex.Unlock()
+
+		// Execute
+		ctx := context.Background()
+		actualId, err := DiscoverGitHubAppInstallationId(ctx, appId, "fake-key", "", org)
+
+		// Assert
+		require.NoError(t, err)
+		assert.Equal(t, expectedId, actualId)
+	})
+
+	t.Run("discovers installation ID from GitHub API", func(t *testing.T) {
+		// Setup: mock GitHub API server
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path == "/app/installations" {
+				w.WriteHeader(http.StatusOK)
+				json.NewEncoder(w).Encode([]map[string]any{
+					{"id": 12345, "account": map[string]any{"login": "test-org"}},
+				})
+			}
+		}))
+		defer server.Close()
+
+		// Execute & Assert
+		ctx := context.Background()
+		actualId, err := DiscoverGitHubAppInstallationId(ctx, 12345, "fake-key", server.URL, "test-org")
+		require.NoError(t, err)
+		assert.Equal(t, int64(98765), actualId)
+	})
+}
+
+func TestExtractOrgFromRepoURL(t *testing.T) {
+	tests := []struct {
+		name     string
+		repoURL  string
+		expected string
+	}{
+		{"HTTPS URL", "https://github.com/argoproj/argo-cd", "argoproj"},
+		{"HTTPS URL with .git", "https://github.com/argoproj/argo-cd.git", "argoproj"},
+		{"HTTPS URL with port", "https://github.com:443/argoproj/argo-cd.git", "argoproj"},
+		{"SSH URL", "git@github.com:argoproj/argo-cd.git", "argoproj"},
+		{"SSH URL without .git", "git@github.com:argoproj/argo-cd", "argoproj"},
+		{"SSH URL with ssh:// prefix", "ssh://git@github.com:argoproj/argo-cd.git", "argoproj"},
+		{"SSH URL with port", "ssh://git@github.com:22/argoproj/argo-cd.git", "argoproj"},
+		{"GitHub Enterprise HTTPS", "https://github.example.com/myorg/myrepo.git", "myorg"},
+		{"GitHub Enterprise SSH", "git@github.example.com:myorg/myrepo.git", "myorg"},
+		{"Invalid URL", "not-a-url", ""},
+		{"Empty string", "", ""},
+		{"URL without org/repo", "https://github.com", ""},
+		{"URL with only org", "https://github.com/argoproj", ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			actual := ExtractOrgFromRepoURL(tt.repoURL)
+			assert.Equal(t, tt.expected, actual)
+		})
+	}
 }
