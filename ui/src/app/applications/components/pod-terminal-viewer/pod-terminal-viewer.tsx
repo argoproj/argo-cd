@@ -183,7 +183,7 @@ export const PodTerminalViewer: React.FC<PodTerminalViewerProps> = ({
     }
 
     const setTerminalRef = useCallback(
-        node => {
+        (node: HTMLElement) => {
             if (terminal && connected) {
                 disconnect();
             }

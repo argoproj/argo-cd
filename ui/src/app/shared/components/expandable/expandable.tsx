@@ -3,8 +3,9 @@ import * as React from 'react';
 
 require('./expandable.scss');
 
-export interface Props extends React.Props<any> {
+export interface Props {
     height?: number;
+    children?: React.ReactNode;
 }
 
 export const Expandable = (props: Props) => {

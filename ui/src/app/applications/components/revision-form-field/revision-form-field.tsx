@@ -35,7 +35,7 @@ export function RevisionFormField(props: RevisionFormFieldProps) {
                             return services.repos
                                 .ociTags(src.repoURL)
                                 .then(revisionsRes => ['HEAD'].concat(revisionsRes.tags || []))
-                                .catch(() => []);
+                                .catch((): string[] => []);
                         } else if (src.repoURL) {
                             return services.repos
                                 .revisions(src.repoURL)
@@ -44,7 +44,7 @@ export function RevisionFormField(props: RevisionFormFieldProps) {
                                         .concat(selectedFilter === 'Branches' ? revisionsRes.branches || [] : [])
                                         .concat(selectedFilter === 'Tags' ? revisionsRes.tags || [] : [])
                                 )
-                                .catch(() => []);
+                                .catch((): string[] => []);
                         }
                         return [];
                     }}>
