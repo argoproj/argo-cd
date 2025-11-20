@@ -10,17 +10,12 @@ on:
 permissions: {}
 
 env:
-  # Image repository configuration - can be overridden in forks
-  IMAGE_REGISTRY: ${{ vars.IMAGE_REGISTRY || 'quay.io' }}
-  IMAGE_NAMESPACE: ${{ vars.IMAGE_NAMESPACE || 'argoproj' }}
-  IMAGE_REPOSITORY: ${{ vars.IMAGE_REPOSITORY || 'argocd' }}
-  # Fork release control - set to 'true' in fork to enable release workflows
-  ENABLE_FORK_RELEASES: ${{ vars.ENABLE_FORK_RELEASES || 'false' }}
   # renovate: datasource=golang-version packageName=golang
   GOLANG_VERSION: '1.25.3' # Note: go-version must also be set in job argocd-image.with.go-version
 
 jobs:
   argocd-image:
+    needs: [setup-variables]
     permissions:
       contents: read
       id-token: write # for creating OIDC tokens for signing.
@@ -28,7 +23,7 @@ jobs:
     if: github.repository == 'argoproj/argo-cd' || (github.repository_owner != 'argoproj' && vars.ENABLE_FORK_RELEASES == 'true' && startsWith(github.ref, 'refs/tags/') && vars.IMAGE_NAMESPACE && vars.IMAGE_NAMESPACE != 'argoproj')
     uses: ./.github/workflows/image-reuse.yaml
     with:
-      quay_image_name: ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_REPOSITORY }}:${{ github.ref_name }}
+      quay_image_name: ${{ needs.setup-variables.outputs.quay_image_name }}
       # Note: cannot use env variables to set go-version (https://docs.github.com/en/actions/using-workflows/reusing-workflows#limitations)
       # renovate: datasource=golang-version packageName=golang
       go-version: 1.25.3
@@ -45,6 +40,12 @@ jobs:
     outputs:
       is_pre_release: ${{ steps.var.outputs.is_pre_release }}
       is_latest_release: ${{ steps.var.outputs.is_latest_release }}
+      image_registry: ${{ steps.var.outputs.image_registry }}
+      image_namespace: ${{ steps.var.outputs.image_namespace }}
+      image_repository: ${{ steps.var.outputs.image_repository }}
+      quay_image_name: ${{ steps.var.outputs.quay_image_name }}
+      provenance_image: ${{ steps.var.outputs.provenance_image }}
+      sbom_image: ${{ steps.var.outputs.sbom_image }}
     steps:
       - name: Checkout code
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
@@ -73,9 +74,21 @@ jobs:
           fi
           echo "is_pre_release=$PRE_RELEASE" >> $GITHUB_OUTPUT
           echo "is_latest_release=$IS_LATEST" >> $GITHUB_OUTPUT
+          
+          # Calculate image names with defaults (single source of truth)
+          IMAGE_REGISTRY="${{ vars.IMAGE_REGISTRY || 'quay.io' }}"
+          IMAGE_NAMESPACE="${{ vars.IMAGE_NAMESPACE || 'argoproj' }}"
+          IMAGE_REPOSITORY="${{ vars.IMAGE_REPOSITORY || 'argocd' }}"
+          
+          echo "image_registry=$IMAGE_REGISTRY" >> $GITHUB_OUTPUT
+          echo "image_namespace=$IMAGE_NAMESPACE" >> $GITHUB_OUTPUT
+          echo "image_repository=$IMAGE_REPOSITORY" >> $GITHUB_OUTPUT
+          echo "quay_image_name=$IMAGE_REGISTRY/$IMAGE_NAMESPACE/$IMAGE_REPOSITORY:${{ github.ref_name }}" >> $GITHUB_OUTPUT
+          echo "provenance_image=$IMAGE_REGISTRY/$IMAGE_NAMESPACE/$IMAGE_REPOSITORY" >> $GITHUB_OUTPUT
+          echo "sbom_image=$IMAGE_REGISTRY/$IMAGE_NAMESPACE/$IMAGE_REPOSITORY:${{ github.ref_name }}" >> $GITHUB_OUTPUT
 
   argocd-image-provenance:
-    needs: [argocd-image]
+    needs: [setup-variables, argocd-image]
     permissions:
       actions: read # for detecting the Github Actions environment.
       id-token: write # for creating OIDC tokens for signing.
@@ -84,7 +97,7 @@ jobs:
     if: github.repository == 'argoproj/argo-cd' || (github.repository_owner != 'argoproj' && vars.ENABLE_FORK_RELEASES == 'true' && startsWith(github.ref, 'refs/tags/') && vars.IMAGE_NAMESPACE && vars.IMAGE_NAMESPACE != 'argoproj')
     uses: slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@v2.1.0
     with:
-      image: ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_REPOSITORY }}
+      image: ${{ needs.setup-variables.outputs.provenance_image }}
       digest: ${{ needs.argocd-image.outputs.image-digest }}
     secrets:
       registry-username: ${{ secrets.RELEASE_QUAY_USERNAME }}
@@ -213,7 +226,7 @@ jobs:
           # managers (gomod, yarn, npm).
           PROJECT_FOLDERS: '.,./ui'
           # full qualified name of the docker image to be inspected
-          DOCKER_IMAGE: ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_REPOSITORY }}:${{ github.ref_name }}
+          DOCKER_IMAGE: ${{ needs.setup-variables.outputs.sbom_image }}
         run: |
           yarn install --cwd ./ui
           go install github.com/spdx/spdx-sbom-generator/cmd/generator@$SPDX_GEN_VERSION
