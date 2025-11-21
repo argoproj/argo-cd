@@ -1,6 +1,7 @@
 package kustomize
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/url"
@@ -15,6 +16,8 @@ import (
 	"github.com/Masterminds/semver/v3"
 	"sigs.k8s.io/yaml"
 
+	"github.com/argoproj/argo-cd/v3/util/io"
+
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -24,8 +27,6 @@ import (
 	executil "github.com/argoproj/argo-cd/v3/util/exec"
 	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/proxy"
-
-	securejoin "github.com/cyphar/filepath-securejoin"
 )
 
 // Image represents a Docker image in the format NAME[:TAG].
@@ -105,9 +106,9 @@ func (k *kustomize) getBinaryPath() string {
 
 // kustomize v3.8.5 patch release introduced a breaking change in "edit add <label/annotation>" commands:
 // https://github.com/kubernetes-sigs/kustomize/commit/b214fa7d5aa51d7c2ae306ec15115bf1c044fed8#diff-0328c59bcd29799e365ff0647653b886f17c8853df008cd54e7981db882c1b36
-func mapToEditAddArgs(val map[string]string) []string {
+func mapToEditAddArgs(ctx context.Context, val map[string]string) []string {
 	var args []string
-	if getSemverSafe(&kustomize{}).LessThan(semver.MustParse("v3.8.5")) {
+	if getSemverSafe(ctx, &kustomize{}).LessThan(semver.MustParse("v3.8.5")) {
 		arg := ""
 		for labelName, labelValue := range val {
 			if arg != "" {
@@ -125,6 +126,7 @@ func mapToEditAddArgs(val map[string]string) []string {
 }
 
 func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOptions *v1alpha1.KustomizeOptions, envVars *v1alpha1.Env, buildOpts *BuildOpts) ([]*unstructured.Unstructured, []Image, []string, error) {
+	ctx := context.Background()
 	// commands stores all the commands that were run as part of this build.
 	var commands []string
 
@@ -165,7 +167,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 
 	if opts != nil {
 		if opts.NamePrefix != "" {
-			cmd := exec.Command(k.getBinaryPath(), "edit", "set", "nameprefix", "--", opts.NamePrefix)
+			cmd := exec.CommandContext(ctx, k.getBinaryPath(), "edit", "set", "nameprefix", "--", opts.NamePrefix)
 			cmd.Dir = k.path
 			commands = append(commands, executil.GetCommandArgsToLog(cmd))
 			_, err := executil.Run(cmd)
@@ -174,7 +176,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 			}
 		}
 		if opts.NameSuffix != "" {
-			cmd := exec.Command(k.getBinaryPath(), "edit", "set", "namesuffix", "--", opts.NameSuffix)
+			cmd := exec.CommandContext(ctx, k.getBinaryPath(), "edit", "set", "namesuffix", "--", opts.NameSuffix)
 			cmd.Dir = k.path
 			commands = append(commands, executil.GetCommandArgsToLog(cmd))
 			_, err := executil.Run(cmd)
@@ -191,7 +193,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 				envSubstitutedImage := envVars.Envsubst(string(image))
 				args = append(args, envSubstitutedImage)
 			}
-			cmd := exec.Command(k.getBinaryPath(), args...)
+			cmd := exec.CommandContext(ctx, k.getBinaryPath(), args...)
 			cmd.Dir = k.path
 			commands = append(commands, executil.GetCommandArgsToLog(cmd))
 			_, err := executil.Run(cmd)
@@ -212,7 +214,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 				args = append(args, arg)
 			}
 
-			cmd := exec.Command(k.getBinaryPath(), args...)
+			cmd := exec.CommandContext(ctx, k.getBinaryPath(), args...)
 			cmd.Dir = k.path
 			commands = append(commands, executil.GetCommandArgsToLog(cmd))
 			_, err := executil.Run(cmd)
@@ -237,7 +239,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 			for name, value := range opts.CommonLabels {
 				commonLabels[name] = envVars.Envsubst(value)
 			}
-			cmd := exec.Command(k.getBinaryPath(), append(args, mapToEditAddArgs(commonLabels)...)...)
+			cmd := exec.CommandContext(ctx, k.getBinaryPath(), append(args, mapToEditAddArgs(ctx, commonLabels)...)...)
 			cmd.Dir = k.path
 			commands = append(commands, executil.GetCommandArgsToLog(cmd))
 			_, err := executil.Run(cmd)
@@ -261,7 +263,8 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 			} else {
 				commonAnnotations = opts.CommonAnnotations
 			}
-			cmd := exec.Command(k.getBinaryPath(), append(args, mapToEditAddArgs(commonAnnotations)...)...)
+			args = append(args, mapToEditAddArgs(ctx, commonAnnotations)...)
+			cmd := exec.CommandContext(ctx, k.getBinaryPath(), args...)
 			cmd.Dir = k.path
 			commands = append(commands, executil.GetCommandArgsToLog(cmd))
 			_, err := executil.Run(cmd)
@@ -271,7 +274,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 		}
 
 		if opts.Namespace != "" {
-			cmd := exec.Command(k.getBinaryPath(), "edit", "set", "namespace", "--", opts.Namespace)
+			cmd := exec.CommandContext(ctx, k.getBinaryPath(), "edit", "set", "namespace", "--", opts.Namespace)
 			cmd.Dir = k.path
 			commands = append(commands, executil.GetCommandArgsToLog(cmd))
 			_, err := executil.Run(cmd)
@@ -338,7 +341,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 		if len(opts.Components) > 0 {
 			// components only supported in kustomize >= v3.7.0
 			// https://github.com/kubernetes-sigs/kustomize/blob/master/examples/components.md
-			if getSemverSafe(k).LessThan(semver.MustParse("v3.7.0")) {
+			if getSemverSafe(ctx, k).LessThan(semver.MustParse("v3.7.0")) {
 				return nil, nil, nil, errors.New("kustomize components require kustomize v3.7.0 and above")
 			}
 
@@ -346,12 +349,18 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 			foundComponents := opts.Components
 			if opts.IgnoreMissingComponents {
 				foundComponents = make([]string, 0)
+				root, err := os.OpenRoot(k.repoRoot)
+				defer io.Close(root)
+				if err != nil {
+					return nil, nil, nil, fmt.Errorf("failed to open the repo folder: %w", err)
+				}
+
 				for _, c := range opts.Components {
-					resolvedPath, err := securejoin.SecureJoin(k.path, c)
+					resolvedPath, err := filepath.Rel(k.repoRoot, filepath.Join(k.path, c))
 					if err != nil {
-						return nil, nil, nil, fmt.Errorf("Kustomize components path failed: %w", err)
+						return nil, nil, nil, fmt.Errorf("kustomize components path failed: %w", err)
 					}
-					_, err = os.Stat(resolvedPath)
+					_, err = root.Stat(resolvedPath)
 					if err != nil {
 						log.Debugf("%s component directory does not exist", resolvedPath)
 						continue
@@ -359,25 +368,28 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 					foundComponents = append(foundComponents, c)
 				}
 			}
-			args := []string{"edit", "add", "component"}
-			args = append(args, foundComponents...)
-			cmd := exec.Command(k.getBinaryPath(), args...)
-			cmd.Dir = k.path
-			cmd.Env = env
-			commands = append(commands, executil.GetCommandArgsToLog(cmd))
-			_, err := executil.Run(cmd)
-			if err != nil {
-				return nil, nil, nil, err
+
+			if len(foundComponents) > 0 {
+				args := []string{"edit", "add", "component"}
+				args = append(args, foundComponents...)
+				cmd := exec.CommandContext(ctx, k.getBinaryPath(), args...)
+				cmd.Dir = k.path
+				cmd.Env = env
+				commands = append(commands, executil.GetCommandArgsToLog(cmd))
+				_, err := executil.Run(cmd)
+				if err != nil {
+					return nil, nil, nil, err
+				}
 			}
 		}
 	}
 
 	var cmd *exec.Cmd
 	if kustomizeOptions != nil && kustomizeOptions.BuildOptions != "" {
-		params := parseKustomizeBuildOptions(k, kustomizeOptions.BuildOptions, buildOpts)
-		cmd = exec.Command(k.getBinaryPath(), params...)
+		params := parseKustomizeBuildOptions(ctx, k, kustomizeOptions.BuildOptions, buildOpts)
+		cmd = exec.CommandContext(ctx, k.getBinaryPath(), params...)
 	} else {
-		cmd = exec.Command(k.getBinaryPath(), "build", k.path)
+		cmd = exec.CommandContext(ctx, k.getBinaryPath(), "build", k.path)
 	}
 	cmd.Env = env
 	cmd.Env = proxy.UpsertEnv(cmd, k.proxy, k.noProxy)
@@ -401,10 +413,10 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 	return objs, getImageParameters(objs), redactedCommands, nil
 }
 
-func parseKustomizeBuildOptions(k *kustomize, buildOptions string, buildOpts *BuildOpts) []string {
+func parseKustomizeBuildOptions(ctx context.Context, k *kustomize, buildOptions string, buildOpts *BuildOpts) []string {
 	buildOptsParams := append([]string{"build", k.path}, strings.Fields(buildOptions)...)
 
-	if buildOpts != nil && !getSemverSafe(k).LessThan(semver.MustParse("v5.3.0")) && isHelmEnabled(buildOptions) {
+	if buildOpts != nil && !getSemverSafe(ctx, k).LessThan(semver.MustParse("v5.3.0")) && isHelmEnabled(buildOptions) {
 		if buildOpts.KubeVersion != "" {
 			buildOptsParams = append(buildOptsParams, "--helm-kube-version", buildOpts.KubeVersion)
 		}
@@ -435,8 +447,8 @@ var (
 )
 
 // getSemver returns parsed kustomize version
-func getSemver(k *kustomize) (*semver.Version, error) {
-	verStr, err := versionWithBinaryPath(k)
+func getSemver(ctx context.Context, k *kustomize) (*semver.Version, error) {
+	verStr, err := versionWithBinaryPath(ctx, k)
 	if err != nil {
 		return nil, err
 	}
@@ -452,12 +464,12 @@ func getSemver(k *kustomize) (*semver.Version, error) {
 // getSemverSafe returns parsed kustomize version;
 // if version cannot be parsed assumes that "kustomize version" output format changed again
 // and fallback to latest ( v99.99.99 )
-func getSemverSafe(k *kustomize) *semver.Version {
+func getSemverSafe(ctx context.Context, k *kustomize) *semver.Version {
 	if semVer == nil {
 		semVerLock.Lock()
 		defer semVerLock.Unlock()
 
-		if ver, err := getSemver(k); err != nil {
+		if ver, err := getSemver(ctx, k); err != nil {
 			semVer = unknownVersion
 			log.Warnf("Failed to parse kustomize version: %v", err)
 		} else {
@@ -468,12 +480,12 @@ func getSemverSafe(k *kustomize) *semver.Version {
 }
 
 func Version() (string, error) {
-	return versionWithBinaryPath(&kustomize{})
+	return versionWithBinaryPath(context.Background(), &kustomize{})
 }
 
-func versionWithBinaryPath(k *kustomize) (string, error) {
+func versionWithBinaryPath(ctx context.Context, k *kustomize) (string, error) {
 	executable := k.getBinaryPath()
-	cmd := exec.Command(executable, "version", "--short")
+	cmd := exec.CommandContext(ctx, executable, "version", "--short")
 	// example version output:
 	// short: "{kustomize/v3.8.1  2020-07-16T00:58:46Z  }"
 	version, err := executil.Run(cmd)

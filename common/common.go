@@ -100,6 +100,12 @@ const (
 	PluginConfigFileName = "plugin.yaml"
 )
 
+// consts for podrequests metrics in cache/info
+const (
+	PodRequestsCPU = "cpu"
+	PodRequestsMEM = "memory"
+)
+
 // Argo CD application related constants
 const (
 
@@ -186,6 +192,8 @@ const (
 	LabelValueSecretTypeRepoCreds = "repo-creds"
 	// LabelValueSecretTypeRepositoryWrite indicates a secret type of repository credentials for writing
 	LabelValueSecretTypeRepositoryWrite = "repository-write"
+	// LabelValueSecretTypeRepoCredsWrite indicates a secret type of repository credentials for writing for templating
+	LabelValueSecretTypeRepoCredsWrite = "repo-write-creds"
 	// LabelValueSecretTypeSCMCreds indicates a secret type of SCM credentials
 	LabelValueSecretTypeSCMCreds = "scm-creds"
 
@@ -221,6 +229,7 @@ const (
 	// AnnotationKeyAppSkipReconcile tells the Application to skip the Application controller reconcile.
 	// Skip reconcile when the value is "true" or any other string values that can be strconv.ParseBool() to be true.
 	AnnotationKeyAppSkipReconcile = "argocd.argoproj.io/skip-reconcile"
+
 	// LabelKeyComponentRepoServer is the label key to identify the component as repo-server
 	LabelKeyComponentRepoServer = "app.kubernetes.io/component"
 	// LabelValueComponentRepoServer is the label value for the repo-server component

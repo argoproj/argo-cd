@@ -428,16 +428,16 @@ func (_c *Client_CommitSHA_Call) RunAndReturn(run func() (string, error)) *Clien
 }
 
 // Fetch provides a mock function for the type Client
-func (_mock *Client) Fetch(revision string) error {
-	ret := _mock.Called(revision)
+func (_mock *Client) Fetch(revision string, depth int64) error {
+	ret := _mock.Called(revision, depth)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Fetch")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(string) error); ok {
-		r0 = returnFunc(revision)
+	if returnFunc, ok := ret.Get(0).(func(string, int64) error); ok {
+		r0 = returnFunc(revision, depth)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -451,18 +451,24 @@ type Client_Fetch_Call struct {
 
 // Fetch is a helper method to define mock.On call
 //   - revision string
-func (_e *Client_Expecter) Fetch(revision interface{}) *Client_Fetch_Call {
-	return &Client_Fetch_Call{Call: _e.mock.On("Fetch", revision)}
+//   - depth int64
+func (_e *Client_Expecter) Fetch(revision interface{}, depth interface{}) *Client_Fetch_Call {
+	return &Client_Fetch_Call{Call: _e.mock.On("Fetch", revision, depth)}
 }
 
-func (_c *Client_Fetch_Call) Run(run func(revision string)) *Client_Fetch_Call {
+func (_c *Client_Fetch_Call) Run(run func(revision string, depth int64)) *Client_Fetch_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 string
 		if args[0] != nil {
 			arg0 = args[0].(string)
 		}
+		var arg1 int64
+		if args[1] != nil {
+			arg1 = args[1].(int64)
+		}
 		run(
 			arg0,
+			arg1,
 		)
 	})
 	return _c
@@ -473,7 +479,7 @@ func (_c *Client_Fetch_Call) Return(err error) *Client_Fetch_Call {
 	return _c
 }
 
-func (_c *Client_Fetch_Call) RunAndReturn(run func(revision string) error) *Client_Fetch_Call {
+func (_c *Client_Fetch_Call) RunAndReturn(run func(revision string, depth int64) error) *Client_Fetch_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -863,8 +869,8 @@ func (_c *Client_LsRemote_Call) RunAndReturn(run func(revision string) (string, 
 }
 
 // RemoveContents provides a mock function for the type Client
-func (_mock *Client) RemoveContents() (string, error) {
-	ret := _mock.Called()
+func (_mock *Client) RemoveContents(paths []string) (string, error) {
+	ret := _mock.Called(paths)
 
 	if len(ret) == 0 {
 		panic("no return value specified for RemoveContents")
@@ -872,16 +878,16 @@ func (_mock *Client) RemoveContents() (string, error) {
 
 	var r0 string
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func() (string, error)); ok {
-		return returnFunc()
+	if returnFunc, ok := ret.Get(0).(func([]string) (string, error)); ok {
+		return returnFunc(paths)
 	}
-	if returnFunc, ok := ret.Get(0).(func() string); ok {
-		r0 = returnFunc()
+	if returnFunc, ok := ret.Get(0).(func([]string) string); ok {
+		r0 = returnFunc(paths)
 	} else {
 		r0 = ret.Get(0).(string)
 	}
-	if returnFunc, ok := ret.Get(1).(func() error); ok {
-		r1 = returnFunc()
+	if returnFunc, ok := ret.Get(1).(func([]string) error); ok {
+		r1 = returnFunc(paths)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -894,13 +900,20 @@ type Client_RemoveContents_Call struct {
 }
 
 // RemoveContents is a helper method to define mock.On call
-func (_e *Client_Expecter) RemoveContents() *Client_RemoveContents_Call {
-	return &Client_RemoveContents_Call{Call: _e.mock.On("RemoveContents")}
+//   - paths []string
+func (_e *Client_Expecter) RemoveContents(paths interface{}) *Client_RemoveContents_Call {
+	return &Client_RemoveContents_Call{Call: _e.mock.On("RemoveContents", paths)}
 }
 
-func (_c *Client_RemoveContents_Call) Run(run func()) *Client_RemoveContents_Call {
+func (_c *Client_RemoveContents_Call) Run(run func(paths []string)) *Client_RemoveContents_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run()
+		var arg0 []string
+		if args[0] != nil {
+			arg0 = args[0].([]string)
+		}
+		run(
+			arg0,
+		)
 	})
 	return _c
 }
@@ -910,7 +923,7 @@ func (_c *Client_RemoveContents_Call) Return(s string, err error) *Client_Remove
 	return _c
 }
 
-func (_c *Client_RemoveContents_Call) RunAndReturn(run func() (string, error)) *Client_RemoveContents_Call {
+func (_c *Client_RemoveContents_Call) RunAndReturn(run func(paths []string) (string, error)) *Client_RemoveContents_Call {
 	_c.Call.Return(run)
 	return _c
 }

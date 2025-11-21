@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	timeutil "github.com/argoproj/pkg/time"
+
 	log "github.com/sirupsen/logrus"
 )
 
@@ -99,7 +101,7 @@ func ParseFloat64FromEnv(env string, defaultValue, minimum, maximum float64) flo
 
 	num, err := strconv.ParseFloat(str, 64)
 	if err != nil {
-		log.Warnf("Could not parse '%s' as a float32 from environment %s", str, env)
+		log.Warnf("Could not parse '%s' as a float64 from environment %s", str, env)
 		return defaultValue
 	}
 	if num < minimum {
@@ -117,7 +119,7 @@ func ParseFloat64FromEnv(env string, defaultValue, minimum, maximum float64) flo
 // default if env is not set, is not parseable to a duration, exceeds maximum (if
 // maximum is greater than 0) or is less than minimum.
 //
-// nolinit:unparam
+// nolint:unparam
 func ParseDurationFromEnv(env string, defaultValue, minimum, maximum time.Duration) time.Duration {
 	str := os.Getenv(env)
 	if str == "" {
@@ -125,8 +127,13 @@ func ParseDurationFromEnv(env string, defaultValue, minimum, maximum time.Durati
 	}
 	dur, err := time.ParseDuration(str)
 	if err != nil {
-		log.Warnf("Could not parse '%s' as a duration string from environment %s", str, env)
-		return defaultValue
+		// provides backwards compatibility for durations defined in days, see: https://github.com/argoproj/argo-cd/issues/24740
+		durPtr, err2 := timeutil.ParseDuration(str)
+		if err2 != nil {
+			log.Warnf("Could not parse '%s' as a duration from environment %s", str, env)
+			return defaultValue
+		}
+		dur = *durPtr
 	}
 
 	if dur < minimum {
@@ -173,7 +180,7 @@ func StringsFromEnv(env string, defaultValue []string, separator string) []strin
 // ParseBoolFromEnv retrieves a boolean value from given environment envVar.
 // Returns default value if envVar is not set.
 //
-// nolinit:unparam
+// nolint:unparam
 func ParseBoolFromEnv(envVar string, defaultValue bool) bool {
 	if val := os.Getenv(envVar); val != "" {
 		if strings.EqualFold(val, "true") {
@@ -185,7 +192,7 @@ func ParseBoolFromEnv(envVar string, defaultValue bool) bool {
 	return defaultValue
 }
 
-// ParseStringToStringVar parses given value from the environment as a map of string.
+// ParseStringToStringFromEnv parses given value from the environment as a map of string.
 // Returns default value if envVar is not set.
 func ParseStringToStringFromEnv(envVar string, defaultValue map[string]string, separator string) map[string]string {
 	str := os.Getenv(envVar)

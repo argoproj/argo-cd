@@ -40,6 +40,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	k8sversion "k8s.io/apimachinery/pkg/util/version"
 	kubeyaml "k8s.io/apimachinery/pkg/util/yaml"
 
 	pluginclient "github.com/argoproj/argo-cd/v3/cmpserver/apiclient"
@@ -62,6 +63,7 @@ import (
 	pathutil "github.com/argoproj/argo-cd/v3/util/io/path"
 	"github.com/argoproj/argo-cd/v3/util/kustomize"
 	"github.com/argoproj/argo-cd/v3/util/manifeststream"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 	"github.com/argoproj/argo-cd/v3/util/versions"
 )
 
@@ -245,7 +247,7 @@ func (s *Service) ListApps(ctx context.Context, q *apiclient.ListAppsRequest) (*
 	defer s.metricsServer.DecPendingRepoRequest(q.Repo.Repo)
 
 	closer, err := s.repoLock.Lock(gitClient.Root(), commitSHA, true, func() (goio.Closer, error) {
-		return s.checkoutRevision(gitClient, commitSHA, s.initConstants.SubmoduleEnabled)
+		return s.checkoutRevision(gitClient, commitSHA, s.initConstants.SubmoduleEnabled, q.Repo.Depth)
 	})
 	if err != nil {
 		return nil, fmt.Errorf("error acquiring repository lock: %w", err)
@@ -447,7 +449,7 @@ func (s *Service) runRepoOperation(
 		})
 	}
 	closer, err := s.repoLock.Lock(gitClient.Root(), revision, settings.allowConcurrent, func() (goio.Closer, error) {
-		return s.checkoutRevision(gitClient, revision, s.initConstants.SubmoduleEnabled)
+		return s.checkoutRevision(gitClient, revision, s.initConstants.SubmoduleEnabled, repo.Depth)
 	})
 	if err != nil {
 		return err
@@ -585,7 +587,7 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 	var err error
 
 	// Skip this path for ref only sources
-	if q.HasMultipleSources && q.ApplicationSource.Path == "" && !q.ApplicationSource.IsHelm() && q.ApplicationSource.IsRef() {
+	if q.HasMultipleSources && q.ApplicationSource.Path == "" && !q.ApplicationSource.IsOCI() && !q.ApplicationSource.IsHelm() && q.ApplicationSource.IsRef() {
 		log.Debugf("Skipping manifest generation for ref only source for application: %s and ref %s", q.AppName, q.ApplicationSource.Ref)
 		_, revision, err := s.newClientResolveRevision(q.Repo, q.Revision, git.WithCache(s.cache, !q.NoRevisionCache && !q.NoCache))
 		res = &apiclient.ManifestResponse{
@@ -832,7 +834,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 							return
 						}
 						closer, err := s.repoLock.Lock(gitClient.Root(), referencedCommitSHA, true, func() (goio.Closer, error) {
-							return s.checkoutRevision(gitClient, referencedCommitSHA, s.initConstants.SubmoduleEnabled)
+							return s.checkoutRevision(gitClient, referencedCommitSHA, s.initConstants.SubmoduleEnabled, q.Repo.Depth)
 						})
 						if err != nil {
 							log.Errorf("failed to acquire lock for referenced source %s", normalizedRepoURL)
@@ -1167,6 +1169,20 @@ func isSourcePermitted(url string, repos []string) bool {
 	return p.IsSourcePermitted(v1alpha1.ApplicationSource{RepoURL: url})
 }
 
+// parseKubeVersion is an helper function to remove the non-semantic information supported by kubernetes
+// that may not be supported in all helm versions: https://github.com/helm/helm/pull/31091
+func parseKubeVersion(version string) (string, error) {
+	if version == "" {
+		return "", nil
+	}
+
+	kubeVersion, err := k8sversion.ParseGeneric(version)
+	if err != nil {
+		return "", err
+	}
+	return kubeVersion.String(), nil
+}
+
 func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclient.ManifestRequest, isLocal bool, gitRepoPaths utilio.TempPaths) ([]*unstructured.Unstructured, string, error) {
 	// We use the app name as Helm's release name property, which must not
 	// contain any underscore characters and must not exceed 53 characters.
@@ -1174,10 +1190,15 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 	// templating, thus, we just use the name part of the identifier.
 	appName, _ := argo.ParseInstanceName(q.AppName, "")
 
+	kubeVersion, err := parseKubeVersion(q.ApplicationSource.GetKubeVersionOrDefault(q.KubeVersion))
+	if err != nil {
+		return nil, "", fmt.Errorf("could not parse kubernetes version %s: %w", q.ApplicationSource.GetKubeVersionOrDefault(q.KubeVersion), err)
+	}
+
 	templateOpts := &helm.TemplateOpts{
 		Name:        appName,
 		Namespace:   q.ApplicationSource.GetNamespaceOrDefault(q.Namespace),
-		KubeVersion: q.ApplicationSource.GetKubeVersionOrDefault(q.KubeVersion),
+		KubeVersion: kubeVersion,
 		APIVersions: q.ApplicationSource.GetAPIVersionsOrDefault(q.ApiVersions),
 		Set:         map[string]string{},
 		SetString:   map[string]string{},
@@ -1498,13 +1519,19 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 		targetObjs, command, err = helmTemplate(appPath, repoRoot, env, q, isLocal, gitRepoPaths)
 		commands = append(commands, command)
 	case v1alpha1.ApplicationSourceTypeKustomize:
-		kustomizeBinary := ""
-		if q.KustomizeOptions != nil {
-			kustomizeBinary = q.KustomizeOptions.BinaryPath
+		var kustomizeBinary string
+		kustomizeBinary, err = settings.GetKustomizeBinaryPath(q.KustomizeOptions, *q.ApplicationSource)
+		if err != nil {
+			return nil, fmt.Errorf("error getting kustomize binary path: %w", err)
+		}
+		var kubeVersion string
+		kubeVersion, err = parseKubeVersion(q.ApplicationSource.GetKubeVersionOrDefault(q.KubeVersion))
+		if err != nil {
+			return nil, fmt.Errorf("could not parse kubernetes version %s: %w", q.ApplicationSource.GetKubeVersionOrDefault(q.KubeVersion), err)
 		}
 		k := kustomize.NewKustomizeApp(repoRoot, appPath, q.Repo.GetGitCreds(gitCredsStore), repoURL, kustomizeBinary, q.Repo.Proxy, q.Repo.NoProxy)
 		targetObjs, _, commands, err = k.Build(q.ApplicationSource.Kustomize, q.KustomizeOptions, env, &kustomize.BuildOpts{
-			KubeVersion: q.ApplicationSource.GetKubeVersionOrDefault(q.KubeVersion),
+			KubeVersion: kubeVersion,
 			APIVersions: q.ApplicationSource.GetAPIVersionsOrDefault(q.ApiVersions),
 		})
 	case v1alpha1.ApplicationSourceTypePlugin:
@@ -1515,7 +1542,7 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 		// if pluginName is provided it has to be `<metadata.name>-<spec.version>` or just `<metadata.name>` if plugin version is empty
 		targetObjs, err = runConfigManagementPluginSidecars(ctx, appPath, repoRoot, pluginName, env, q, q.Repo.GetGitCreds(gitCredsStore), opt.cmpTarDoneCh, opt.cmpTarExcludedGlobs, opt.cmpUseManifestGeneratePaths)
 		if err != nil {
-			err = fmt.Errorf("plugin sidecar failed. %s", err.Error())
+			err = fmt.Errorf("CMP processing failed for application %q: %w", q.AppName, err)
 		}
 	case v1alpha1.ApplicationSourceTypeDirectory:
 		var directory *v1alpha1.ApplicationSourceDirectory
@@ -1669,7 +1696,8 @@ func mergeSourceParameters(source *v1alpha1.ApplicationSource, path, appName str
 	return nil
 }
 
-// GetAppSourceType returns explicit application source type or examines a directory and determines its application source type
+// GetAppSourceType returns explicit application source type or examines a directory and determines its application source type.
+// Overrides are applied as a side effect on the given source.
 func GetAppSourceType(ctx context.Context, source *v1alpha1.ApplicationSource, appPath, repoPath, appName string, enableGenerateManifests map[string]bool, tarExcludedGlobs []string, env []string) (v1alpha1.ApplicationSourceType, error) {
 	err := mergeSourceParameters(source, appPath, appName)
 	if err != nil {
@@ -2023,8 +2051,12 @@ func makeJsonnetVM(appPath string, repoRoot string, sourceJsonnet v1alpha1.Appli
 }
 
 func getPluginEnvs(env *v1alpha1.Env, q *apiclient.ManifestRequest) ([]string, error) {
+	kubeVersion, err := parseKubeVersion(q.KubeVersion)
+	if err != nil {
+		return nil, fmt.Errorf("could not parse kubernetes version %s: %w", q.KubeVersion, err)
+	}
 	envVars := env.Environ()
-	envVars = append(envVars, "KUBE_VERSION="+q.KubeVersion)
+	envVars = append(envVars, "KUBE_VERSION="+kubeVersion)
 	envVars = append(envVars, "KUBE_API_VERSIONS="+strings.Join(q.ApiVersions, ","))
 
 	return getPluginParamEnvs(envVars, q.ApplicationSource.Plugin)
@@ -2300,9 +2332,9 @@ func walkHelmValueFilesInPath(root string, valueFiles *[]string) filepath.WalkFu
 
 func populateKustomizeAppDetails(res *apiclient.RepoAppDetailsResponse, q *apiclient.RepoServerAppDetailsQuery, repoRoot string, appPath string, reversion string, credsStore git.CredsStore) error {
 	res.Kustomize = &apiclient.KustomizeAppSpec{}
-	kustomizeBinary := ""
-	if q.KustomizeOptions != nil {
-		kustomizeBinary = q.KustomizeOptions.BinaryPath
+	kustomizeBinary, err := settings.GetKustomizeBinaryPath(q.KustomizeOptions, *q.Source)
+	if err != nil {
+		return fmt.Errorf("failed to get kustomize binary path: %w", err)
 	}
 	k := kustomize.NewKustomizeApp(repoRoot, appPath, q.Repo.GetGitCreds(credsStore), q.Repo.Repo, kustomizeBinary, q.Repo.Proxy, q.Repo.NoProxy)
 	fakeManifestRequest := apiclient.ManifestRequest{
@@ -2403,7 +2435,7 @@ func (s *Service) GetRevisionMetadata(_ context.Context, q *apiclient.RepoServer
 	defer s.metricsServer.DecPendingRepoRequest(q.Repo.Repo)
 
 	closer, err := s.repoLock.Lock(gitClient.Root(), q.Revision, true, func() (goio.Closer, error) {
-		return s.checkoutRevision(gitClient, q.Revision, s.initConstants.SubmoduleEnabled)
+		return s.checkoutRevision(gitClient, q.Revision, s.initConstants.SubmoduleEnabled, q.Repo.Depth)
 	})
 	if err != nil {
 		return nil, fmt.Errorf("error acquiring repo lock: %w", err)
@@ -2626,9 +2658,9 @@ func directoryPermissionInitializer(rootPath string) goio.Closer {
 
 // checkoutRevision is a convenience function to initialize a repo, fetch, and checkout a revision
 // Returns the 40 character commit SHA after the checkout has been performed
-func (s *Service) checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bool) (goio.Closer, error) {
+func (s *Service) checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bool, depth int64) (goio.Closer, error) {
 	closer := s.gitRepoInitializer(gitClient.Root())
-	err := checkoutRevision(gitClient, revision, submoduleEnabled)
+	err := checkoutRevision(gitClient, revision, submoduleEnabled, depth)
 	if err != nil {
 		s.metricsServer.IncGitFetchFail(gitClient.Root(), revision)
 	}
@@ -2660,7 +2692,7 @@ func fetch(gitClient git.Client, targetRevisions []string) error {
 		return nil
 	}
 	// Fetching with no revision first. Fetching with an explicit version can cause repo bloat. https://github.com/argoproj/argo-cd/issues/8845
-	err := gitClient.Fetch("")
+	err := gitClient.Fetch("", 0)
 	if err != nil {
 		return err
 	}
@@ -2671,7 +2703,7 @@ func fetch(gitClient git.Client, targetRevisions []string) error {
 			log.Infof("Failed to fetch revision %s: %v", revision, err)
 			log.Infof("Fallback to fetching specific revision %s. ref might not have been in the default refspec fetched.", revision)
 
-			if err := gitClient.Fetch(revision); err != nil {
+			if err := gitClient.Fetch(revision, 0); err != nil {
 				return status.Errorf(codes.Internal, "Failed to fetch revision %s: %v", revision, err)
 			}
 		}
@@ -2679,7 +2711,7 @@ func fetch(gitClient git.Client, targetRevisions []string) error {
 	return nil
 }
 
-func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bool) error {
+func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bool, depth int64) error {
 	err := gitClient.Init()
 	if err != nil {
 		return status.Errorf(codes.Internal, "Failed to initialize git repo: %v", err)
@@ -2693,8 +2725,13 @@ func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bo
 
 	// Fetching can be skipped if the revision is already present locally.
 	if !revisionPresent {
-		// Fetching with no revision first. Fetching with an explicit version can cause repo bloat. https://github.com/argoproj/argo-cd/issues/8845
-		err = gitClient.Fetch("")
+		if depth > 0 {
+			err = gitClient.Fetch(revision, depth)
+		} else {
+			// Fetching with no revision first. Fetching with an explicit version can cause repo bloat. https://github.com/argoproj/argo-cd/issues/8845
+			err = gitClient.Fetch("", depth)
+		}
+
 		if err != nil {
 			return status.Errorf(codes.Internal, "Failed to fetch default: %v", err)
 		}
@@ -2706,8 +2743,7 @@ func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bo
 		// for the given revision, try explicitly fetching it.
 		log.Infof("Failed to checkout revision %s: %v", revision, err)
 		log.Infof("Fallback to fetching specific revision %s. ref might not have been in the default refspec fetched.", revision)
-
-		err = gitClient.Fetch(revision)
+		err = gitClient.Fetch(revision, depth)
 		if err != nil {
 			return status.Errorf(codes.Internal, "Failed to checkout revision %s: %v", revision, err)
 		}
@@ -2854,7 +2890,7 @@ func (s *Service) GetGitFiles(_ context.Context, request *apiclient.GitFilesRequ
 
 	// cache miss, generate the results
 	closer, err := s.repoLock.Lock(gitClient.Root(), revision, true, func() (goio.Closer, error) {
-		return s.checkoutRevision(gitClient, revision, request.GetSubmoduleEnabled())
+		return s.checkoutRevision(gitClient, revision, request.GetSubmoduleEnabled(), repo.Depth)
 	})
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "unable to checkout git repo %s with revision %s pattern %s: %v", repo.Repo, revision, gitPath, err)
@@ -2936,7 +2972,7 @@ func (s *Service) GetGitDirectories(_ context.Context, request *apiclient.GitDir
 
 	// cache miss, generate the results
 	closer, err := s.repoLock.Lock(gitClient.Root(), revision, true, func() (goio.Closer, error) {
-		return s.checkoutRevision(gitClient, revision, request.GetSubmoduleEnabled())
+		return s.checkoutRevision(gitClient, revision, request.GetSubmoduleEnabled(), repo.Depth)
 	})
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "unable to checkout git repo %s with revision %s: %v", repo.Repo, revision, err)
@@ -3028,7 +3064,7 @@ func (s *Service) UpdateRevisionForPaths(_ context.Context, request *apiclient.U
 	defer s.metricsServer.DecPendingRepoRequest(repo.Repo)
 
 	closer, err := s.repoLock.Lock(gitClient.Root(), revision, true, func() (goio.Closer, error) {
-		return s.checkoutRevision(gitClient, revision, false)
+		return s.checkoutRevision(gitClient, revision, false, 0)
 	})
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "unable to checkout git repo %s with revision %s: %v", repo.Repo, revision, err)

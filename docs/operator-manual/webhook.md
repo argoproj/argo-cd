@@ -7,10 +7,12 @@ this delay from polling, the API server can be configured to receive webhook eve
 Git webhook notifications from GitHub, GitLab, Bitbucket, Bitbucket Server, Azure DevOps and Gogs. The following explains how to configure
 a Git webhook for GitHub, but the same process should be applicable to other providers.
 
-!!! note
-    The webhook handler does not differentiate between branch events and tag events where the branch and tag names are
-    the same. A hook event for a push to branch `x` will trigger a refresh for an app pointing at the same repo with
-    `targetRevision: refs/tags/x`.
+Application Sets use a separate webhook configuration for generating applications. [Webhook support for the Git Generator can be found here](applicationset/Generators-Git/#webhook-configuration).
+
+> [!NOTE]
+> The webhook handler does not differentiate between branch events and tag events where the branch and tag names are
+> the same. A hook event for a push to branch `x` will trigger a refresh for an app pointing at the same repo with
+> `targetRevision: refs/tags/x`.
 
 ## 1. Create The WebHook In The Git Provider
 
@@ -25,8 +27,8 @@ To prevent DDoS attacks with unauthenticated webhook events (the `/api/webhook` 
 
 ![Add Webhook](../assets/webhook-config.png "Add Webhook")
 
-!!! note
-    When creating the webhook in GitHub, the "Content type" needs to be set to "application/json". The default value "application/x-www-form-urlencoded" is not supported by the library used to handle the hooks
+> [!NOTE]
+> When creating the webhook in GitHub, the "Content type" needs to be set to "application/json". The default value "application/x-www-form-urlencoded" is not supported by the library used to handle the hooks
 
 ### Azure DevOps
 

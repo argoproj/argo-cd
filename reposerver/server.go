@@ -9,7 +9,6 @@ import (
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/recovery"
-	"github.com/prometheus/client_golang/prometheus"
 	log "github.com/sirupsen/logrus"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
@@ -63,18 +62,15 @@ func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cach
 		serverMetricsOptions = append(serverMetricsOptions, grpc_prometheus.WithServerHandlingTimeHistogram())
 	}
 	serverMetrics := grpc_prometheus.NewServerMetrics(serverMetricsOptions...)
-	reg := prometheus.NewRegistry()
-	reg.MustRegister(serverMetrics)
+	metricsServer.PrometheusRegistry.MustRegister(serverMetrics)
 
 	serverLog := log.NewEntry(log.StandardLogger())
 	streamInterceptors := []grpc.StreamServerInterceptor{
-		otelgrpc.StreamServerInterceptor(), //nolint:staticcheck // TODO: ignore SA1019 for depreciation: see https://github.com/argoproj/argo-cd/issues/18258
 		logging.StreamServerInterceptor(grpc_util.InterceptorLogger(serverLog)),
 		serverMetrics.StreamServerInterceptor(),
 		recovery.StreamServerInterceptor(recovery.WithRecoveryHandler(grpc_util.LoggerRecoveryHandler(serverLog))),
 	}
 	unaryInterceptors := []grpc.UnaryServerInterceptor{
-		otelgrpc.UnaryServerInterceptor(), //nolint:staticcheck // TODO: ignore SA1019 for depreciation: see https://github.com/argoproj/argo-cd/issues/18258
 		logging.UnaryServerInterceptor(grpc_util.InterceptorLogger(serverLog)),
 		serverMetrics.UnaryServerInterceptor(),
 		recovery.UnaryServerInterceptor(recovery.WithRecoveryHandler(grpc_util.LoggerRecoveryHandler(serverLog))),
@@ -91,6 +87,7 @@ func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cach
 				MinTime: common.GetGRPCKeepAliveEnforcementMinimum(),
 			},
 		),
+		grpc.StatsHandler(otelgrpc.NewServerHandler()),
 	}
 
 	// We do allow for non-TLS servers to be created, in case of mTLS will be

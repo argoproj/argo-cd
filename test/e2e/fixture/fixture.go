@@ -414,6 +414,13 @@ func updateGenericConfigMap(name string, updater func(cm *corev1.ConfigMap) erro
 	return nil
 }
 
+func RegisterKustomizeVersion(version, path string) error {
+	return updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+		cm.Data["kustomize.version."+version] = path
+		return nil
+	})
+}
+
 func SetEnableManifestGeneration(val map[v1alpha1.ApplicationSourceType]bool) error {
 	return updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
 		for k, v := range val {
@@ -1045,7 +1052,18 @@ func RunCliWithStdin(stdin string, isKubeConextOnlyCli bool, args ...string) (st
 
 	args = append(args, "--insecure")
 
-	return RunWithStdin(stdin, "", "../../dist/argocd", args...)
+	// Create a redactor that only redacts the auth token value
+	redactor := func(text string) string {
+		if token == "" {
+			return text
+		}
+		// Use a more precise approach to only redact the exact auth token
+		// Look for --auth-token followed by the exact token value
+		authTokenPattern := "--auth-token " + token
+		return strings.ReplaceAll(text, authTokenPattern, "--auth-token ******")
+	}
+
+	return RunWithStdinWithRedactor(stdin, "", "../../dist/argocd", redactor, args...)
 }
 
 // RunPluginCli executes an Argo CD CLI plugin with optional stdin input.

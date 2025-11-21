@@ -121,9 +121,9 @@ func (c *nativeHelmChart) CleanChartCache(chart string, version string) error {
 	return nil
 }
 
-func untarChart(tempDir string, cachedChartPath string, manifestMaxExtractedSize int64, disableManifestMaxExtractedSize bool) error {
+func untarChart(ctx context.Context, tempDir string, cachedChartPath string, manifestMaxExtractedSize int64, disableManifestMaxExtractedSize bool) error {
 	if disableManifestMaxExtractedSize {
-		cmd := exec.Command("tar", "-zxvf", cachedChartPath)
+		cmd := exec.CommandContext(ctx, "tar", "-zxvf", cachedChartPath)
 		cmd.Dir = tempDir
 		_, err := executil.Run(cmd)
 		if err != nil {
@@ -225,7 +225,7 @@ func (c *nativeHelmChart) ExtractChart(chart string, version string, passCredent
 		}
 	}
 
-	err = untarChart(tempDir, cachedChartPath, manifestMaxExtractedSize, disableManifestMaxExtractedSize)
+	err = untarChart(context.Background(), tempDir, cachedChartPath, manifestMaxExtractedSize, disableManifestMaxExtractedSize)
 	if err != nil {
 		_ = os.RemoveAll(tempDir)
 		return "", nil, fmt.Errorf("error untarring chart: %w", err)
@@ -248,8 +248,9 @@ func (c *nativeHelmChart) GetIndex(noCache bool, maxIndexSize int64) (*Index, er
 
 	if len(data) == 0 {
 		start := time.Now()
+		ctx := context.Background()
 		var err error
-		data, err = c.loadRepoIndex(maxIndexSize)
+		data, err = c.loadRepoIndex(ctx, maxIndexSize)
 		if err != nil {
 			return nil, fmt.Errorf("error loading repo index: %w", err)
 		}
@@ -306,13 +307,13 @@ func (c *nativeHelmChart) TestHelmOCI() (bool, error) {
 	return true, nil
 }
 
-func (c *nativeHelmChart) loadRepoIndex(maxIndexSize int64) ([]byte, error) {
+func (c *nativeHelmChart) loadRepoIndex(ctx context.Context, maxIndexSize int64) ([]byte, error) {
 	indexURL, err := getIndexURL(c.repoURL)
 	if err != nil {
 		return nil, fmt.Errorf("error getting index URL: %w", err)
 	}
 
-	req, err := http.NewRequest(http.MethodGet, indexURL, http.NoBody)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, indexURL, http.NoBody)
 	if err != nil {
 		return nil, fmt.Errorf("error creating HTTP request: %w", err)
 	}
@@ -496,7 +497,11 @@ func (c *nativeHelmChart) GetTags(chart string, noCache bool) ([]string, error) 
 		).Info("took to get tags")
 
 		if c.indexCache != nil {
-			if err := c.indexCache.SetHelmIndex(tagsURL, data); err != nil {
+			cacheData, err := json.Marshal(entries)
+			if err != nil {
+				return nil, fmt.Errorf("failed to encode tags: %w", err)
+			}
+			if err := c.indexCache.SetHelmIndex(tagsURL, cacheData); err != nil {
 				log.Warnf("Failed to store tags list cache for repo: %s: %v", tagsURL, err)
 			}
 		}

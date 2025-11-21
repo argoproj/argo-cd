@@ -71,7 +71,7 @@ export const FiltersGroup = (props: {
                         </button>
                     </div>
                 )}
-                <>{props.children}</>
+                {props.children}
                 <div className='filters-group__content'>{props.content}</div>
             </div>
         )
@@ -95,8 +95,25 @@ export const Filter = (props: FilterProps) => {
     const labels = props.labels || options.map(o => o.label);
 
     React.useEffect(() => {
-        const map: string[] = Object.keys(values).filter(s => values[s]);
-        props.setSelected(map);
+        const {cleanedValues, selectedKeys} = Object.entries(values).reduce(
+            (acc, [key, value]) => {
+                if (value !== undefined) {
+                    acc.cleanedValues[key] = value;
+                    if (value) {
+                        acc.selectedKeys.push(key);
+                    }
+                }
+                return acc;
+            },
+            {cleanedValues: {} as {[label: string]: boolean}, selectedKeys: [] as string[]}
+        );
+
+        if (Object.keys(cleanedValues).length !== Object.keys(values).length) {
+            setValues(cleanedValues);
+            return;
+        }
+
+        props.setSelected(selectedKeys);
         if (props.field) {
             setTags(
                 Object.keys(values).map(v => {
@@ -121,7 +138,9 @@ export const Filter = (props: FilterProps) => {
     return (
         <div className='filter' key={totalCount + props.label}>
             <div className='filter__header'>
-                {props.label || 'FILTER'}
+                <span className='filter__header__label' title={props.label || 'FILTER'}>
+                    {props.label || 'FILTER'}
+                </span>
                 {(props.selected || []).length > 0 || (props.field && Object.keys(values).length > 0) ? (
                     <button
                         className='argo-button argo-button--base argo-button--sm argo-button--right'

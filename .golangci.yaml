@@ -22,6 +22,7 @@ linters:
     - govet
     - importas
     - misspell
+    - noctx
     - perfsprint
     - revive
     - staticcheck
@@ -58,13 +59,10 @@ linters:
         - commentedOutCode
         - deferInLoop
         - exitAfterDefer
-        - exposedSyncMutex
-        - filepathJoin
         - hugeParam
         - importShadow
         - paramTypeCombine # Leave disabled, there are too many failures to be worth fixing.
         - rangeValCopy
-        - sloppyReassign
         - tooManyResultsChecker
         - unnamedResult
         - whyNoLint

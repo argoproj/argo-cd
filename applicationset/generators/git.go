@@ -29,10 +29,10 @@ type GitGenerator struct {
 }
 
 // NewGitGenerator creates a new instance of Git Generator
-func NewGitGenerator(repos services.Repos, namespace string) Generator {
+func NewGitGenerator(repos services.Repos, controllerNamespace string) Generator {
 	g := &GitGenerator{
 		repos:     repos,
-		namespace: namespace,
+		namespace: controllerNamespace,
 	}
 
 	return g
@@ -78,11 +78,11 @@ func (g *GitGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Applic
 	if !strings.Contains(appSet.Spec.Template.Spec.Project, "{{") {
 		project := appSet.Spec.Template.Spec.Project
 		appProject := &argoprojiov1alpha1.AppProject{}
-		namespace := g.namespace
-		if namespace == "" {
-			namespace = appSet.Namespace
+		controllerNamespace := g.namespace
+		if controllerNamespace == "" {
+			controllerNamespace = appSet.Namespace
 		}
-		if err := client.Get(context.TODO(), types.NamespacedName{Name: project, Namespace: namespace}, appProject); err != nil {
+		if err := client.Get(context.TODO(), types.NamespacedName{Name: project, Namespace: controllerNamespace}, appProject); err != nil {
 			return nil, fmt.Errorf("error getting project %s: %w", project, err)
 		}
 		// we need to verify the signature on the Git revision if GPG is enabled
@@ -222,19 +222,18 @@ func (g *GitGenerator) generateParamsForGitFiles(appSetGenerator *argoprojiov1al
 func (g *GitGenerator) generateParamsFromGitFile(filePath string, fileContent []byte, values map[string]string, useGoTemplate bool, goTemplateOptions []string, pathParamPrefix string) ([]map[string]any, error) {
 	objectsFound := []map[string]any{}
 
-	// First, we attempt to parse as an array
-	err := yaml.Unmarshal(fileContent, &objectsFound)
-	if err != nil {
-		// If unable to parse as an array, attempt to parse as a single object
-		singleObj := make(map[string]any)
-		err = yaml.Unmarshal(fileContent, &singleObj)
+	// First, we attempt to parse as a single object.
+	// This will also succeed for empty files.
+	singleObj := map[string]any{}
+	err := yaml.Unmarshal(fileContent, &singleObj)
+	if err == nil {
+		objectsFound = append(objectsFound, singleObj)
+	} else {
+		// If unable to parse as an object, try to parse as an array
+		err = yaml.Unmarshal(fileContent, &objectsFound)
 		if err != nil {
 			return nil, fmt.Errorf("unable to parse file: %w", err)
 		}
-		objectsFound = append(objectsFound, singleObj)
-	} else if len(objectsFound) == 0 {
-		// If file is valid but empty, add a default empty item
-		objectsFound = append(objectsFound, map[string]any{})
 	}
 
 	res := []map[string]any{}
