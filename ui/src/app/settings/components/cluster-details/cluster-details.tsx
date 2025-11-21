@@ -21,12 +21,13 @@ export const NamespacesEditor = ReactFormField((props: {fieldApi: FieldApi; clas
     return <input className={props.className} value={val} onChange={event => props.fieldApi.setValue(event.target.value.split(','))} />;
 });
 
-export const ClusterDetails = (props: RouteComponentProps<{server: string}>) => {
+export const ClusterDetails = (props: RouteComponentProps<{server: string; name: string}>) => {
     const server = decodeURIComponent(props.match.params.server);
+    const name = decodeURIComponent(props.match.params.name);
     const loaderRef = React.useRef<DataLoader>();
     const [updating, setUpdating] = React.useState(false);
     return (
-        <DataLoader ref={loaderRef} input={server} load={(url: string) => timer(0, 1000).pipe(mergeMap(() => from(services.clusters.get(url, ''))))}>
+        <DataLoader ref={loaderRef} input={{ server, name }} load={(input: { server: string; name: string }) => timer(0, 1000).pipe(mergeMap(() => from(services.clusters.get(input.server, input.name))))}>
             {(cluster: Cluster) => (
                 <Page
                     title='Clusters'

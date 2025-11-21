@@ -252,6 +252,69 @@ func TestGetCluster_UrlEncodedName(t *testing.T) {
 	assert.Equal(t, "test/ing", localCluster.Name)
 }
 
+func TestGetCluster_UrlNameEscapedType(t *testing.T) {
+	db := &dbmocks.ArgoDB{}
+
+	mockCluster := appv1.Cluster{
+		Name:       "my-test-cluster",
+		Server:     "https://127.0.0.1",
+		Namespaces: []string{"default", "kube-system"},
+	}
+	mockClusterList := appv1.ClusterList{
+		ListMeta: metav1.ListMeta{},
+		Items: []appv1.Cluster{
+			mockCluster,
+		},
+	}
+
+	db.EXPECT().ListClusters(mock.Anything).Return(&mockClusterList, nil)
+	db.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(&mockCluster, nil)
+
+	server := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{})
+
+	localCluster, err := server.Get(t.Context(), &cluster.ClusterQuery{
+		Id: &cluster.ClusterID{
+			Type:  "url_name_escaped",
+			Value: "https://127.0.0.1,my-test-cluster",
+		},
+	})
+	require.NoError(t, err)
+
+	assert.Equal(t, "https://127.0.0.1", localCluster.Server)
+	assert.Equal(t, "my-test-cluster", localCluster.Name)
+}
+
+func TestGetCluster_NameWithCommaCanBeIdentified(t *testing.T) {
+	db := &dbmocks.ArgoDB{}
+
+	mockCluster := appv1.Cluster{
+		Name:       ",test,clustername,",
+		Server:     "https://127.0.0.1",
+		Namespaces: []string{"default", "kube-system"},
+	}
+	mockClusterList := appv1.ClusterList{
+		ListMeta: metav1.ListMeta{},
+		Items: []appv1.Cluster{
+			mockCluster,
+		},
+	}
+
+	db.EXPECT().ListClusters(mock.Anything).Return(&mockClusterList, nil)
+	db.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(&mockCluster, nil)
+
+	server := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{})
+
+	localCluster, err := server.Get(t.Context(), &cluster.ClusterQuery{
+		Id: &cluster.ClusterID{
+			Type:  "url_name_escaped",
+			Value: "https://127.0.0.1,,test,clustername,",
+		},
+	})
+	require.NoError(t, err)
+
+	assert.Equal(t, ",test,clustername,", localCluster.Name)
+}
+
 func TestGetCluster_NameWithUrlEncodingButShouldNotBeUnescaped(t *testing.T) {
 	db := &dbmocks.ArgoDB{}
 
