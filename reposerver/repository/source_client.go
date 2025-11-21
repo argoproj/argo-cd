@@ -42,14 +42,11 @@ type BaseSourceClient interface {
 	// ResolveRevision resolves a revision reference (branch, tag, version, etc.) to a concrete revision identifier
 	ResolveRevision(ctx context.Context, revision string, noCache bool) (string, string, error)
 
-	// CleanCache removes cached artifacts for the specified revision
-	CleanCache(revision string) error
-
 	// Extract retrieves the source content for the specified revision and returns:
 	// - root path where the content was extracted
 	// - a closer to clean up resources
 	// - any error that occurred
-	Extract(ctx context.Context, revision string) (rootPath string, closer io.Closer, err error)
+	Extract(ctx context.Context, revision string, noCache bool) (rootPath string, closer io.Closer, err error)
 
 	// VerifySignature verifies the signature of the given revision
 	// For Git: verifies GPG signature of commit/tag (handles annotated tag logic internally)
@@ -111,11 +108,14 @@ func (c *ociSourceClient) ResolveRevision(ctx context.Context, revision string, 
 	return digest, digest, nil
 }
 
-func (c *ociSourceClient) CleanCache(revision string) error {
-	return c.client.CleanCache(revision)
-}
+func (c *ociSourceClient) Extract(ctx context.Context, revision string, noCache bool) (string, io.Closer, error) {
+	if noCache {
+		err := c.client.CleanCache(revision)
+		if err != nil {
+			return "", nil, err
+		}
+	}
 
-func (c *ociSourceClient) Extract(ctx context.Context, revision string) (string, io.Closer, error) {
 	return c.client.Extract(ctx, revision)
 }
 
@@ -213,11 +213,13 @@ func (c *helmSourceClient) ResolveRevision(ctx context.Context, revision string,
 	return maxV, maxV, nil
 }
 
-func (c *helmSourceClient) CleanCache(revision string) error {
-	return c.client.CleanChartCache(c.chart, revision)
-}
-
-func (c *helmSourceClient) Extract(ctx context.Context, revision string) (string, io.Closer, error) {
+func (c *helmSourceClient) Extract(ctx context.Context, revision string, noCache bool) (string, io.Closer, error) {
+	if noCache {
+		err := c.client.CleanChartCache(c.chart, revision)
+		if err != nil {
+			return "", nil, err
+		}
+	}
 	return c.client.ExtractChart(c.chart, revision)
 }
 
@@ -295,7 +297,6 @@ type gitSourceClient struct {
 	hasMultipleSources             bool
 	helmSource                     *v1alpha1.ApplicationSourceHelm
 	refSources                     map[string]*v1alpha1.RefTarget
-	noCache                        bool
 	repoRefs                       map[string]string
 }
 
@@ -368,9 +369,6 @@ func NewGitSourceClient(repo *v1alpha1.Repository, gitRepoPaths utilio.TempPaths
 }
 
 func (c *gitSourceClient) ResolveRevision(ctx context.Context, revision string, noCache bool) (string, string, error) {
-	// TODO: This is ugly, but can't think of a better way atm
-	c.noCache = noCache
-
 	commitSHA, err := c.resolveRevision(c.client, revision)
 	if err != nil {
 		return "", "", err
@@ -476,7 +474,7 @@ func (c *gitSourceClient) CleanCache(_ string) error {
 	return nil
 }
 
-func (c *gitSourceClient) Extract(ctx context.Context, revision string) (string, io.Closer, error) {
+func (c *gitSourceClient) Extract(ctx context.Context, revision string, noCache bool) (string, io.Closer, error) {
 	closer, err := c.repositoryLock.Lock(c.client.Root(), revision, true, func() (io.Closer, error) {
 		closer := c.directoryPermissionInitializer(c.client.Root())
 		err := c.client.Init()
@@ -528,7 +526,7 @@ func (c *gitSourceClient) Extract(ctx context.Context, revision string) (string,
 		return "", nil, err
 	}
 
-	if c.cacheFn != nil && !c.noCache {
+	if c.cacheFn != nil && !noCache {
 		if ok, err := c.cacheFn(revision, c.repoRefs, false); ok {
 			return "", closer, err
 		}
