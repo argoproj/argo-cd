@@ -241,8 +241,6 @@ stringData:
 
 ### Azure Devops using Service Principal
 
-Private repositories that are hosted on GitHub.com or GitHub Enterprise can be accessed using credentials from a GitHub Application. Consult the [GitHub documentation](https://docs.github.com/en/developers/apps/about-apps#about-github-apps) on how to create an application.
-
 Azure DevOps repositories can be accessed using credentials from a Service Principal. Refer to steps 1,2 and 3 from the [Use service principals and managed identities in Azure DevOps](https://learn.microsoft.com/en-us/azure/devops/integrate/get-started/authentication/service-principal-managed-identity?view=azure-devops) documentation on how to create a service principal and configure access to Azure DevOps.
 
 > [!NOTE]
