@@ -72,7 +72,7 @@
     "@eslint/js": "^9.1.1",
     "@types/classnames": "^2.2.3",
     "@types/cookie": "^0.5.1",
-    "@types/dagre": "^0.7.40",
+    "@types/dagre": "^0.7.53",
     "@types/deepmerge": "^2.2.0",
     "@types/git-url-parse": "^9.0.1",
     "@types/jest": "^29.5.14",
