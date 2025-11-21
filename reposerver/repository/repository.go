@@ -331,13 +331,7 @@ func (s *Service) runRepoOperation(
 		defer settings.sem.Release(1)
 	}
 
-	if settings.noCache {
-		if err := sourceClient.CleanCache(resolvedRevision); err != nil {
-			return err
-		}
-	}
-
-	rootPath, closer, err := sourceClient.Extract(ctx, resolvedRevision)
+	rootPath, closer, err := sourceClient.Extract(ctx, resolvedRevision, settings.noCache)
 	if err != nil {
 		return err
 	}
