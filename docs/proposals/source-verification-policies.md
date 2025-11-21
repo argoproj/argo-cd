@@ -1,15 +1,18 @@
 ---
 title: Source Verification Policies
 authors:
-  - "@olivergondza" # Authors' github accounts here.
+  - "@olivergondza"
 sponsors:
   - "@jannfis"
-  - TBD
+  - "@pasha-codefresh"
+  - "@blakepettersson"
 reviewers:
   - "@jannfis"
-  - TBD
+  - "@pasha-codefresh"
+  - "@blakepettersson"
 approvers:
-  - TBD
+  - "@jannfis"
+  - "@pasha-codefresh"
 
 creation-date: 2023-08-08
 ---
