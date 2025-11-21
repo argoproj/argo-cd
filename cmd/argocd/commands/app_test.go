@@ -46,6 +46,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v3/util/localconfig"
 )
 
 func Test_getInfos(t *testing.T) {
@@ -2355,6 +2356,10 @@ func (c *fakeAcdClient) NewVersionClient() (io.Closer, versionpkg.VersionService
 
 func (c *fakeAcdClient) NewVersionClientOrDie() (io.Closer, versionpkg.VersionServiceClient) {
 	return nil, nil
+}
+
+func (c *fakeAcdClient) RefreshAuthToken(_ *localconfig.LocalConfig, _, _ string) error {
+	return nil
 }
 
 func (c *fakeAcdClient) NewProjectClient() (io.Closer, projectpkg.ProjectServiceClient, error) {
