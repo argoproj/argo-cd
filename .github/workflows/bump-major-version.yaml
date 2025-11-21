@@ -23,18 +23,18 @@ jobs:
         id: get-target-version
         run: |
           set -ue
-          CURRENT_VERSION=$(grep 'module github.com/argoproj/${{ github.event.repository.name }}  go.mod | awk '{print $2}' | sed 's/.*\/v//')
+          CURRENT_VERSION=$(grep 'module github.com/argoproj/argo-cd' go.mod | awk '{print $2}' | sed 's/.*\/v//')
           echo "TARGET_VERSION=$((CURRENT_VERSION + 1))" >> $GITHUB_OUTPUT
 
       - name: Copy source code to GOPATH
         run: |
           mkdir -p ~/go/src/github.com/argoproj
-          cp -a ../${{ github.event.repository.name }}  ~/go/src/github.com/argoproj
+          cp -a ../argo-cd ~/go/src/github.com/argoproj
 
       - name: Run script to bump the version
         run: |
           hack/bump-major-version.sh
-        working-directory: /home/runner/go/src/github.com/argoproj/${{ github.event.repository.name }}
+        working-directory: /home/runner/go/src/github.com/argoproj/argo-cd
 
       - name: Setup Golang
         uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
@@ -51,12 +51,12 @@ jobs:
           # We need to vendor go modules for codegen yet
           go mod download
           go mod vendor -v
-        working-directory: /home/runner/go/src/github.com/argoproj/${{ github.event.repository.name }}
+        working-directory: /home/runner/go/src/github.com/argoproj/argo-cd
       - name: Install toolchain for codegen
         run: |
           make install-codegen-tools-local
           make install-go-tools-local
-        working-directory: /home/runner/go/src/github.com/argoproj/${{ github.event.repository.name }}
+        working-directory: /home/runner/go/src/github.com/argoproj/argo-cd
         # We install kustomize in the dist directory
       - name: Add dist to PATH
         run: |
@@ -66,12 +66,12 @@ jobs:
           set -x
           export GOPATH=$(go env GOPATH)
           make codegen-local
-        working-directory: /home/runner/go/src/github.com/argoproj/${{ github.event.repository.name }}
+        working-directory: /home/runner/go/src/github.com/argoproj/argo-cd
 
       - name: Copy changes back
         run: |
           # Copy the contents back, but skip the .git directory
-          rsync -a --exclude=.git /home/runner/go/src/github.com/argoproj/${{ github.event.repository.name }}/ ../${{ github.event.repository.name }}
+          rsync -a --exclude=.git /home/runner/go/src/github.com/argoproj/argo-cd/ ../argo-cd
 
       - name: Create pull request
         uses: peter-evans/create-pull-request@271a8d0340265f705b14b6d32b9829c1cb33d45e  # v7.0.8
