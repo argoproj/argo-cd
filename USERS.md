@@ -318,6 +318,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [RightRev](https://rightrev.com/)
 1. [Rijkswaterstaat](https://www.rijkswaterstaat.nl/en)
 1. Rise
+1. [RISK IDENT](https://riskident.com/)
 1. [Riskified](https://www.riskified.com/)
 1. [Robotinfra](https://www.robotinfra.com)
 1. [Rocket.Chat](https://rocket.chat)
