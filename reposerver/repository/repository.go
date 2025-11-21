@@ -2640,7 +2640,7 @@ func (s *Service) ResolveRevision(ctx context.Context, q *apiclient.ResolveRevis
 
 	return &apiclient.ResolveRevisionResponse{
 		Revision:          revision,
-		AmbiguousRevision: fmt.Sprintf("%v (%v)", ambiguousRevision, revision),
+		AmbiguousRevision: fmt.Sprintf("%s (%s)", ambiguousRevision, revision),
 	}, nil
 }
 
