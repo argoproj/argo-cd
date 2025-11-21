@@ -1,5 +1,5 @@
 # API Docs
-cvfb
+
 You can find the Swagger docs by setting the path to `/swagger-ui` in your Argo CD UI. E.g. [http://localhost:8080/swagger-ui](http://localhost:8080/swagger-ui).
 
 ## Authorization
