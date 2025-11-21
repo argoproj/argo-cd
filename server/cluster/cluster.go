@@ -2,8 +2,10 @@ package cluster
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
@@ -236,6 +238,11 @@ func (s *Server) getCluster(ctx context.Context, q *cluster.ClusterQuery) (*appv
 				return nil, fmt.Errorf("failed to unescape cluster name: %w", err)
 			}
 			q.Name = nameUnescaped
+		case "url_name_escaped":
+			found := false
+			if q.Server, q.Name, found = strings.Cut(q.Id.Value, ","); !found {
+				return nil, errors.New("failed to parse cluster url and name")
+			}
 		default:
 			q.Server = q.Id.Value
 		}
@@ -246,7 +253,20 @@ func (s *Server) getCluster(ctx context.Context, q *cluster.ClusterQuery) (*appv
 		if err != nil {
 			return nil, fmt.Errorf("failed to get cluster by server: %w", err)
 		}
-		return c, nil
+		if strings.TrimSpace(c.Name) == strings.TrimSpace(q.Name) || q.Name == "" {
+			return c, nil
+		}
+		// for clusters with same server and different names
+		clusterList, err := s.db.ListClusters(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to list clusters: %w", err)
+		}
+		for _, item := range clusterList.Items {
+			// exactly match the server and name
+			if strings.TrimSpace(item.Name) == strings.TrimSpace(q.Name) && strings.TrimSpace(item.Server) == strings.TrimSpace(q.Server) {
+				return &item, nil
+			}
+		}
 	}
 
 	// we only get the name when we specify Name in ApplicationDestination and next
