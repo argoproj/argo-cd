@@ -14,7 +14,7 @@ export class ClustersService {
         let idValue = '';
         if (name && url) {
             idType = 'url_name_escaped';
-            idValue = encodeURIComponent(url+","+name);
+            idValue = encodeURIComponent(url + ',' + name);
         } else if (url) {
             idType = 'url';
             idValue = encodeURIComponent(url);
