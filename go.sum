@@ -1469,6 +1469,8 @@ k8s.io/utils v0.0.0-20250604170112-4c0f3b243397 h1:hwvWFiBzdWw1FhfY1FooPn3kzWuJ8
 k8s.io/utils v0.0.0-20250604170112-4c0f3b243397/go.mod h1:OLgZIPagt7ERELqWJFomSt595RzquPNLL48iOWgYOg0=
 layeh.com/gopher-json v0.0.0-20190114024228-97fed8db8427 h1:RZkKxMR3jbQxdCEcglq3j7wY3PRJIopAwBlx1RE71X0=
 layeh.com/gopher-json v0.0.0-20190114024228-97fed8db8427/go.mod h1:ivKkcY8Zxw5ba0jldhZCYYQfGdb2K6u9tbYK1AwMIBc=
+layeh.com/gopher-json v0.0.0-20201124131017-552bb3c4c3bf h1:rRz0YsF7VXj9fXRF6yQgFI7DzST+hsI3TeFSGupntu0=
+layeh.com/gopher-json v0.0.0-20201124131017-552bb3c4c3bf/go.mod h1:ivKkcY8Zxw5ba0jldhZCYYQfGdb2K6u9tbYK1AwMIBc=
 nhooyr.io/websocket v1.8.7 h1:usjR2uOr/zjjkVMy0lW+PPohFok7PCow5sDjLgX4P4g=
 nhooyr.io/websocket v1.8.7/go.mod h1:B70DZP8IakI65RVQ51MsWP/8jndNma26DVA/nFSCgW0=
 oras.land/oras-go/v2 v2.6.0 h1:X4ELRsiGkrbeox69+9tzTu492FMUu7zJQW6eJU+I2oc=
