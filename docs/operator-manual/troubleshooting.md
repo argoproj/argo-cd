@@ -76,3 +76,4 @@ argocd admin cluster kubeconfig https://<api-server-url> /tmp/kubeconfig --names
 export KUBECONFIG=/tmp/kubeconfig
 kubectl get pods -v 9
 ```
+
