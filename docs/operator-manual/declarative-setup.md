@@ -144,6 +144,7 @@ spec:
     kind: LimitRange
   - group: ''
     kind: NetworkPolicy
+    visible: true
   # Deny all namespaced-scoped resources from being created, except for Deployment and StatefulSet
   namespaceResourceWhitelist:
   - group: 'apps'

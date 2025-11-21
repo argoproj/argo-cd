@@ -86,7 +86,7 @@ message AppProjectSpec {
   repeated .k8s.io.apimachinery.pkg.apis.meta.v1.GroupKind clusterResourceWhitelist = 5;
 
   // NamespaceResourceBlacklist contains list of blacklisted namespace level resources
-  repeated .k8s.io.apimachinery.pkg.apis.meta.v1.GroupKind namespaceResourceBlacklist = 6;
+  repeated BlacklistEntry namespaceResourceBlacklist = 6;
 
   // OrphanedResources specifies if controller should monitor orphaned resources of apps in this project
   optional OrphanedResourcesMonitorSettings orphanedResources = 7;
@@ -101,7 +101,7 @@ message AppProjectSpec {
   repeated SignatureKey signatureKeys = 10;
 
   // ClusterResourceBlacklist contains list of blacklisted cluster level resources
-  repeated .k8s.io.apimachinery.pkg.apis.meta.v1.GroupKind clusterResourceBlacklist = 11;
+  repeated BlacklistEntry clusterResourceBlacklist = 11;
 
   // SourceNamespaces defines the namespaces application resources are allowed to be created in
   repeated string sourceNamespaces = 12;
@@ -797,6 +797,15 @@ message BearerTokenBitbucket {
 message BearerTokenBitbucketCloud {
   // Password (or personal access token) reference.
   optional SecretRef tokenRef = 1;
+}
+
+// BlacklistEntry is a reference to a resource to be blacklisted
+message BlacklistEntry {
+  optional string group = 1;
+
+  optional string kind = 2;
+
+  optional bool visible = 3;
 }
 
 // ChartDetails contains helm chart metadata for a specific version

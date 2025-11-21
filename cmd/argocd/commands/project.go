@@ -618,10 +618,44 @@ func modifyResourcesList(list *[]metav1.GroupKind, add bool, listDesc string, gr
 	return true
 }
 
+func modifyResourcesDenyList(list *[]v1alpha1.BlacklistEntry, add bool, visible bool, listDesc string, group string, kind string) bool {
+	if add {
+		for _, item := range *list {
+			if item.Group == group && item.Kind == kind {
+				if item.Visible == visible {
+					fmt.Printf("Group '%s' and kind '%s' already present in %s resources and visibility is %v\n", group, kind, listDesc, visible)
+					return false
+				}
+				item.Visible = visible
+				fmt.Printf("Group '%s' and kind '%s' already present in %s resources. Updated visibility to %v\n", group, kind, listDesc, visible)
+				return true
+			}
+		}
+		fmt.Printf("Group '%s' and kind '%s' is added to %s resources with visibility %v\n", group, kind, listDesc, visible)
+		*list = append(*list, v1alpha1.BlacklistEntry{Group: group, Kind: kind, Visible: visible})
+		return true
+	}
+	index := -1
+	for i, item := range *list {
+		if item.Group == group && item.Kind == kind {
+			index = i
+			break
+		}
+	}
+	if index == -1 {
+		fmt.Printf("Group '%s' and kind '%s' not in %s resources\n", group, kind, listDesc)
+		return false
+	}
+	*list = append((*list)[:index], (*list)[index+1:]...)
+	fmt.Printf("Group '%s' and kind '%s' is removed from %s resources\n", group, kind, listDesc)
+	return true
+}
+
 func modifyResourceListCmd(cmdUse, cmdDesc, examples string, clientOpts *argocdclient.ClientOptions, allow bool, namespacedList bool) *cobra.Command {
 	var (
 		listType    string
 		defaultList string
+		visible     bool
 	)
 	if namespacedList {
 		defaultList = "deny"
@@ -639,15 +673,20 @@ func modifyResourceListCmd(cmdUse, cmdDesc, examples string, clientOpts *argocdc
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
+
+			if listType != "deny" && visible {
+				log.Fatal("The 'visible' flag can only be set when modifying the deny list")
+			}
+
 			projName, group, kind := args[0], args[1], args[2]
 			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
 			defer utilio.Close(conn)
 
 			proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
-			var list, allowList, denyList *[]metav1.GroupKind
-			var listAction, listDesc string
-			var add bool
+			var allowList *[]metav1.GroupKind
+			var denyList *[]v1alpha1.BlacklistEntry
+			var listDesc string
 			if namespacedList {
 				allowList, denyList = &proj.Spec.NamespaceResourceWhitelist, &proj.Spec.NamespaceResourceBlacklist
 				listDesc = "namespaced"
@@ -657,22 +696,22 @@ func modifyResourceListCmd(cmdUse, cmdDesc, examples string, clientOpts *argocdc
 			}
 
 			if (listType == "allow") || (listType == "white") {
-				list = allowList
-				listAction = "allowed"
-				add = allow
+				if modifyResourcesList(allowList, allow, "allowed "+listDesc, group, kind) {
+					_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
+					errors.CheckError(err)
+				}
 			} else {
-				list = denyList
-				listAction = "denied"
-				add = !allow
-			}
-
-			if modifyResourcesList(list, add, listAction+" "+listDesc, group, kind) {
-				_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
-				errors.CheckError(err)
+				if modifyResourcesDenyList(denyList, visible, !allow, "denied "+listDesc, group, kind) {
+					_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
+					errors.CheckError(err)
+				}
 			}
 		},
 	}
 	command.Flags().StringVarP(&listType, "list", "l", defaultList, "Use deny list or allow list. This can only be 'allow' or 'deny'")
+	if !allow {
+		command.Flags().BoolVarP(&visible, "visible", "v", false, "Whether to make the resource visible in the UI even if it is denied. Only applicable when modifying the deny list.")
+	}
 	return command
 }
 
@@ -982,11 +1021,19 @@ func printProject(p *v1alpha1.AppProject, scopedRepositories []*v1alpha1.Reposit
 	// Print denied namespaced resources
 	rbl0 := "<none>"
 	if len(p.Spec.NamespaceResourceBlacklist) > 0 {
-		rbl0 = fmt.Sprintf("%s/%s", p.Spec.NamespaceResourceBlacklist[0].Group, p.Spec.NamespaceResourceBlacklist[0].Kind)
+		if !p.Spec.NamespaceResourceBlacklist[0].Visible {
+			rbl0 = fmt.Sprintf("%s/%s", p.Spec.NamespaceResourceBlacklist[0].Group, p.Spec.NamespaceResourceBlacklist[0].Kind)
+		} else {
+			rbl0 = fmt.Sprintf("%s/%s (visible)", p.Spec.NamespaceResourceBlacklist[0].Group, p.Spec.NamespaceResourceBlacklist[0].Kind)
+		}
 	}
 	fmt.Printf(printProjFmtStr, "Denied Namespaced Resources:", rbl0)
 	for i := 1; i < len(p.Spec.NamespaceResourceBlacklist); i++ {
-		fmt.Printf(printProjFmtStr, "", fmt.Sprintf("%s/%s", p.Spec.NamespaceResourceBlacklist[i].Group, p.Spec.NamespaceResourceBlacklist[i].Kind))
+		if !p.Spec.NamespaceResourceBlacklist[i].Visible {
+			fmt.Printf(printProjFmtStr, "", fmt.Sprintf("%s/%s", p.Spec.NamespaceResourceBlacklist[i].Group, p.Spec.NamespaceResourceBlacklist[i].Kind))
+		} else {
+			fmt.Printf(printProjFmtStr, "", fmt.Sprintf("%s/%s (visible)", p.Spec.NamespaceResourceBlacklist[i].Group, p.Spec.NamespaceResourceBlacklist[i].Kind))
+		}
 	}
 
 	// Print required signature keys

@@ -188,7 +188,7 @@ func TestProjectServer(t *testing.T) {
 		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(&existingProj, &existingApp), enforcer, sync.NewKeyLock(), nil, nil, projInformer, settingsMgr, argoDB, testEnableEventList)
 
 		updatedProj := existingProj.DeepCopy()
-		updatedProj.Spec.NamespaceResourceBlacklist = []metav1.GroupKind{{}}
+		updatedProj.Spec.NamespaceResourceBlacklist = []v1alpha1.BlacklistEntry{{}}
 
 		_, err := projectServer.Update(t.Context(), &project.ProjectUpdateRequest{Project: updatedProj})
 

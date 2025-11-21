@@ -445,6 +445,96 @@ func TestRemoveOrphanedIgnore(t *testing.T) {
 	assertProjHasEvent(t, proj, "update", argo.EventReasonResourceUpdated)
 }
 
+func TestDenyNamespaceResource(t *testing.T) {
+	fixture.EnsureCleanState(t)
+
+	projectName := "proj-" + strconv.FormatInt(time.Now().Unix(), 10)
+	_, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Create(t.Context(), &v1alpha1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{Name: projectName},
+		Spec:       v1alpha1.AppProjectSpec{},
+	}, metav1.CreateOptions{})
+	require.NoError(t, err, "Unable to create project")
+
+	_, err = fixture.RunCli("proj", "deny-namespace-resource", projectName,
+		"group",
+		"kind",
+		"--list allow",
+	)
+	require.ErrorContains(t, err, "The 'visible' flag can only be set when modifying the deny list")
+
+	_, err = fixture.RunCli("proj", "deny-namespace-resource", projectName,
+		"group",
+		"kind",
+	)
+	require.NoError(t, err, "Unable to add resource to namespace resource blacklist")
+	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Get(t.Context(), projectName, metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, 1, len(proj.Spec.NamespaceResourceBlacklist))
+	assert.Equal(t, "group", proj.Spec.NamespaceResourceBlacklist[0].Group)
+	assert.Equal(t, "kind", proj.Spec.NamespaceResourceBlacklist[0].Kind)
+	assert.Equal(t, false, proj.Spec.NamespaceResourceBlacklist[0].Visible)
+	assertProjHasEvent(t, proj, "update", argo.EventReasonResourceUpdated)
+
+	_, err = fixture.RunCli("proj", "deny-namespace-resource", projectName,
+		"group",
+		"kind",
+		"--visible",
+	)
+	require.NoError(t, err, "Unable to add resource to namespace resource blacklist")
+	proj1, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Get(t.Context(), projectName, metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, 1, len(proj1.Spec.NamespaceResourceBlacklist))
+	assert.Equal(t, "group", proj1.Spec.NamespaceResourceBlacklist[0].Group)
+	assert.Equal(t, "kind", proj1.Spec.NamespaceResourceBlacklist[0].Kind)
+	assert.Equal(t, true, proj1.Spec.NamespaceResourceBlacklist[0].Visible)
+	assertProjHasEvent(t, proj1, "update", argo.EventReasonResourceUpdated)
+}
+
+func TestDenyClusterResource(t *testing.T) {
+	fixture.EnsureCleanState(t)
+
+	projectName := "proj-" + strconv.FormatInt(time.Now().Unix(), 10)
+	_, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Create(t.Context(), &v1alpha1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{Name: projectName},
+		Spec:       v1alpha1.AppProjectSpec{},
+	}, metav1.CreateOptions{})
+	require.NoError(t, err, "Unable to create project")
+
+	_, err = fixture.RunCli("proj", "deny-cluster-resource", projectName,
+		"group",
+		"kind",
+		"--list allow",
+	)
+	require.ErrorContains(t, err, "The 'visible' flag can only be set when modifying the deny list")
+
+	_, err = fixture.RunCli("proj", "deny-cluster-resource", projectName,
+		"group",
+		"kind",
+	)
+	require.NoError(t, err, "Unable to add resource to cluster resource blacklist")
+	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Get(t.Context(), projectName, metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, 1, len(proj.Spec.ClusterResourceBlacklist))
+	assert.Equal(t, "group", proj.Spec.ClusterResourceBlacklist[0].Group)
+	assert.Equal(t, "kind", proj.Spec.ClusterResourceBlacklist[0].Kind)
+	assert.Equal(t, false, proj.Spec.ClusterResourceBlacklist[0].Visible)
+	assertProjHasEvent(t, proj, "update", argo.EventReasonResourceUpdated)
+
+	_, err = fixture.RunCli("proj", "deny-cluster-resource", projectName,
+		"group",
+		"kind",
+		"--visible",
+	)
+	require.NoError(t, err, "Unable to add resource to cluster resource blacklist")
+	proj1, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Get(t.Context(), projectName, metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, 1, len(proj1.Spec.ClusterResourceBlacklist))
+	assert.Equal(t, "group", proj1.Spec.ClusterResourceBlacklist[0].Group)
+	assert.Equal(t, "kind", proj1.Spec.ClusterResourceBlacklist[0].Kind)
+	assert.Equal(t, true, proj1.Spec.ClusterResourceBlacklist[0].Visible)
+	assertProjHasEvent(t, proj1, "update", argo.EventReasonResourceUpdated)
+}
+
 func createAndConfigGlobalProject(ctx context.Context) error {
 	// Create global project
 	projectGlobalName := "proj-g-" + fixture.Name()
@@ -463,7 +553,7 @@ func createAndConfigGlobalProject(ctx context.Context) error {
 		return err
 	}
 
-	projGlobal.Spec.NamespaceResourceBlacklist = []metav1.GroupKind{
+	projGlobal.Spec.NamespaceResourceBlacklist = []v1alpha1.BlacklistEntry{
 		{Group: "", Kind: "Service"},
 	}
 
@@ -475,7 +565,7 @@ func createAndConfigGlobalProject(ctx context.Context) error {
 		{Group: "", Kind: "Job"},
 	}
 
-	projGlobal.Spec.ClusterResourceBlacklist = []metav1.GroupKind{
+	projGlobal.Spec.ClusterResourceBlacklist = []v1alpha1.BlacklistEntry{
 		{Group: "", Kind: "Pod"},
 	}
 

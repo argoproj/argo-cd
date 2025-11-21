@@ -2,7 +2,7 @@
 
 Projects provide a logical grouping of applications, which is useful when Argo CD is used by multiple teams. Projects provide the following features:
 
-* restrict what may be deployed (trusted Git source repositories)
+* restrict what may be deployed (trusted Git source repositories) and what should be visible in the Argo CD UI
 * restrict where apps may be deployed to (destination clusters and namespaces)
 * restrict what kinds of objects may or may not be deployed (e.g. RBAC, CRDs, DaemonSets, NetworkPolicy etc...)
 * defining project roles to provide application RBAC (bound to OIDC groups and/or JWT tokens)
@@ -124,7 +124,7 @@ As with sources, a destination is considered valid if the following conditions h
 
 Keep in mind that `!*` is an invalid rule, since it doesn't make any sense to disallow everything.
 
-Permitted destination K8s resource kinds are managed with the commands. Note that namespaced-scoped resources are restricted via a deny list, whereas cluster-scoped resources are restricted via allow list.
+Permitted destination K8s resource kinds can be managed with the commands. Note that namespaced-scoped resources are restricted via a deny list, whereas cluster-scoped resources are restricted via allow list.
 
 ```bash
 argocd proj allow-cluster-resource <PROJECT> <GROUP> <KIND>
@@ -132,6 +132,22 @@ argocd proj allow-namespace-resource <PROJECT> <GROUP> <KIND>
 argocd proj deny-cluster-resource <PROJECT> <GROUP> <KIND>
 argocd proj deny-namespace-resource <PROJECT> <GROUP> <KIND>
 ```
+
+When managing a deny list, a resource can also be marked as visible for the UI, by adding a `--visible` flag:
+```bash
+argocd proj deny-cluster-resource <PROJECT> <GROUP> <KIND> -l deny --visible
+argocd proj deny-namespace-resource <PROJECT> <GROUP> <KIND> --visible
+```
+
+With these configuration options there are in total 3 possible states with different behaviours of a resource:
+1. **Allowed**: The resource is allowed to be managed by Argo CD applications. 
+It will be synchronized from Git repositories and visible in the UI. Unless RBAC rules prevent access, users can perform operations like update/delete/exec or other actions on the resource.
+2. **Denied**: The resource is denied to be managed by Argo CD applications. 
+It will not be synchronized from Git repositories and not visible in the UI. 
+3. **Denied + Visible**: The resource is denied to be managed by Argo CD applications. 
+It will not be synchronized from Git repositories but visible in the UI.
+This is useful for resources that are managed by a controller outside of Argo CD, but users still want to see their status in the Argo CD UI. For example, users might not to manage `ReplicaSet` resources directly, but want to see them in the UI to understand the status of a `Deployment`.
+Unless RBAC rules prevent access, users can perform operations like update/delete/exec or other actions on the resource.
 
 ### Assign Application To A Project
 

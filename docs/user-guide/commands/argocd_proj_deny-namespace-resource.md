@@ -20,6 +20,7 @@ argocd proj deny-namespace-resource PROJECT GROUP KIND [flags]
 ```
   -h, --help          help for deny-namespace-resource
   -l, --list string   Use deny list or allow list. This can only be 'allow' or 'deny' (default "deny")
+  -v, --visible       Whether to make the resource visible in the UI even if it is denied. Only applicable when modifying the deny list.
 ```
 
 ### Options inherited from parent commands

@@ -132,8 +132,8 @@ func TestGetReconcileResults_Refresh(t *testing.T) {
 
 	require.NoError(t, err)
 
-	assert.Equal(t, health.HealthStatusMissing, result[0].Health)
-	assert.Equal(t, v1alpha1.SyncStatusCodeOutOfSync, result[0].Sync.Status)
+	assert.Equal(t, health.HealthStatusProgressing, result[0].Health)
+	assert.Equal(t, v1alpha1.SyncStatusCodeSynced, result[0].Sync.Status)
 }
 
 func TestDiffReconcileResults_NoDifferences(t *testing.T) {
