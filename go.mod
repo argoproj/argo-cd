@@ -25,7 +25,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.3.0
 	github.com/chainguard-dev/git-urls v1.0.2
 	github.com/coreos/go-oidc/v3 v3.14.1
-	github.com/cyphar/filepath-securejoin v0.6.0
+	github.com/cyphar/filepath-securejoin v0.6.1
 	github.com/dlclark/regexp2 v1.11.5
 	github.com/dustin/go-humanize v1.0.1
 	github.com/evanphx/json-patch v5.9.11+incompatible
@@ -92,7 +92,7 @@ require (
 	go.opentelemetry.io/otel v1.38.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.38.0
 	go.opentelemetry.io/otel/sdk v1.38.0
-	golang.org/x/crypto v0.44.0
+	golang.org/x/crypto v0.45.0
 	golang.org/x/net v0.47.0
 	golang.org/x/oauth2 v0.33.0
 	golang.org/x/sync v0.18.0
