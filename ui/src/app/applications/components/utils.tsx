@@ -493,12 +493,13 @@ export const deletePopup = async (
     // Detect if this is an Application resource
     const isApplication = isApplicationResource(resource);
 
+    const hasApplicationContext = isApp(application);
     // Check if we're in a parent-child context (used for both Application and non-Application resources)
-    const isInParentContext = isChildApplication(application);
+    const isInParentContext = hasApplicationContext ? isChildApplication(application) : false;
 
     // For Application resources, use the deleteApplication function with resource tree context
     if (isApplication) {
-        return deleteApplication(resource.name, resource.namespace || '', ctx, application);
+        return deleteApplication(resource.name, resource.namespace || '', ctx, hasApplicationContext ? application : undefined);
     }
 
     const deleteOptions = {
