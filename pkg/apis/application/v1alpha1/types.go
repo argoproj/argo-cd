@@ -3536,13 +3536,29 @@ func isResourceInBlacklist(res metav1.GroupKind, list []BlacklistEntry) bool {
 }
 
 func isResourceVisibleInBlacklist(res metav1.GroupKind, list []BlacklistEntry) bool {
-	visible := false
+	// First we look for exact matches
 	for _, item := range list {
-		if item.Visible {
-			visible = true
-			break
+		exactMatch := item.Group == res.Group && item.Kind == res.Kind
+		if exactMatch {
+			return item.Visible
 		}
 	}
+
+	visible := false
+	for _, item := range list {
+		ok, err := filepath.Match(item.Kind, res.Kind)
+		if ok && err == nil {
+			ok, err = filepath.Match(item.Group, res.Group)
+			if ok && err == nil {
+				if visible && !item.Visible {
+					// If there are multiple glob matches, Visible=false takes precedence
+					return false
+				}
+				visible = item.Visible
+			}
+		}
+	}
+
 	return visible
 }
 
