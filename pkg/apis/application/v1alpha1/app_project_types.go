@@ -428,9 +428,9 @@ func (proj AppProject) IsGroupKindVisible(gk schema.GroupKind, namespaced bool) 
 
 	if namespaced {
 		return isResourceVisibleInBlacklist(res, proj.Spec.NamespaceResourceBlacklist)
-	} else {
-		return isResourceVisibleInBlacklist(res, proj.Spec.ClusterResourceBlacklist)
 	}
+
+	return isResourceVisibleInBlacklist(res, proj.Spec.ClusterResourceBlacklist)
 }
 
 // IsLiveResourcePermitted returns whether a live resource found in the cluster is permitted by an AppProject
