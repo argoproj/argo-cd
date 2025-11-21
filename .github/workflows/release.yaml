@@ -166,6 +166,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           KUBECTL_VERSION: ${{ env.KUBECTL_VERSION }}
           GIT_TREE_STATE: ${{ env.GIT_TREE_STATE }}
+          # Used to determine the current repository in the goreleaser config to display correct manifest links
           GORELEASER_CURRENT_REPOSITORY: ${{ github.repository }}
 
       - name: Generate subject for provenance
