@@ -159,6 +159,7 @@ func (c *ociSourceClient) ListRefs(ctx context.Context, noCache bool) (*apiclien
 type helmSourceClient struct {
 	client helm.Client
 	repo   *v1alpha1.Repository
+	cache  *cache.Cache
 	chart  string
 }
 
@@ -229,7 +230,24 @@ func (c *helmSourceClient) VerifySignature(resolvedRevision string, unresolvedRe
 }
 
 func (c *helmSourceClient) GetRevisionMetadata(ctx context.Context, revision string, checkSignature bool) (*v1alpha1.ChartDetails, error) {
-	chartPath, closer, err := c.client.ExtractChart(c.chart, revision)
+	repo := c.repo.Repo
+	details, err := c.cache.GetRevisionChartDetails(repo, c.chart, revision)
+	if err == nil {
+		log.Infof("revision chart details cache hit: %s/%s/%s", repo, c.chart, revision)
+		return details, nil
+	}
+	if errors.Is(err, cache.ErrCacheMiss) {
+		log.Infof("revision metadata cache miss: %s/%s/%s", repo, c.chart, revision)
+	} else {
+		log.Warnf("revision metadata cache error %s/%s/%s: %v", repo, c.chart, revision, err)
+	}
+
+	_, resolvedRevision, err := c.ResolveRevision(ctx, revision, checkSignature)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve revision: %w", err)
+	}
+
+	chartPath, closer, err := c.client.ExtractChart(c.chart, resolvedRevision)
 	if err != nil {
 		return nil, fmt.Errorf("error extracting chart: %w", err)
 	}
@@ -246,11 +264,12 @@ func (c *helmSourceClient) GetRevisionMetadata(ctx context.Context, revision str
 		return nil, fmt.Errorf("error inspecting chart: %w", err)
 	}
 
-	details, err := getChartDetails(helmDetails)
+	details, err = getChartDetails(helmDetails)
 	if err != nil {
 		return nil, fmt.Errorf("error getting chart details: %w", err)
 	}
 
+	_ = c.cache.SetRevisionChartDetails(repo, c.chart, revision, details)
 	return details, nil
 }
 
@@ -553,6 +572,33 @@ func (c *gitSourceClient) GetRevisionMetadata(ctx context.Context, revision stri
 		return nil, fmt.Errorf("revision %s must be resolved", revision)
 	}
 
+	repo := c.repo.Repo
+	metadata, err := c.cache.GetRevisionMetadata(repo, revision)
+	if err == nil {
+		// The logic here is that if a signature check on metadata is requested,
+		// but there is none in the cache, we handle as if we have a cache miss
+		// and re-generate the metadata. Otherwise, if there is signature info
+		// in the metadata, but none was requested, we remove it from the data
+		// that we return.
+		if !checkSignature || metadata.SignatureInfo != "" {
+			log.Infof("revision metadata cache hit: %s/%s", repo, revision)
+			if !checkSignature {
+				metadata.SignatureInfo = ""
+			}
+			return metadata, nil
+		}
+		log.Infof("revision metadata cache hit, but need to regenerate due to missing signature info: %s/%s", repo, revision)
+	} else {
+		if !errors.Is(err, cache.ErrCacheMiss) {
+			log.Warnf("revision metadata cache error %s/%s: %v", repo, revision, err)
+		} else {
+			log.Infof("revision metadata cache miss: %s/%s", repo, revision)
+		}
+	}
+
+	c.metrics.IncPendingRepoRequest(repo)
+	defer c.metrics.DecPendingRepoRequest(repo)
+
 	// Lock and checkout the revision
 	closer, err := c.repositoryLock.Lock(c.client.Root(), revision, true, func() (io.Closer, error) {
 		closer := c.directoryPermissionInitializer(c.client.Root())
@@ -607,7 +653,7 @@ func (c *gitSourceClient) GetRevisionMetadata(ctx context.Context, revision stri
 	if checkSignature {
 		cs, err := c.client.VerifyCommitSignature(revision)
 		if err != nil {
-			log.Errorf("error verifying signature of commit '%s' in repo '%s': %v", revision, c.repo.Repo, err)
+			log.Errorf("error verifying signature of commit '%s' in repo '%s': %v", revision, repo, err)
 			return nil, err
 		}
 
@@ -642,14 +688,17 @@ func (c *gitSourceClient) GetRevisionMetadata(ctx context.Context, revision stri
 		}
 	}
 
-	return &v1alpha1.RevisionMetadata{
+	details := &v1alpha1.RevisionMetadata{
 		Author:        m.Author,
 		Date:          &metav1.Time{Time: m.Date},
 		Tags:          m.Tags,
 		Message:       m.Message,
 		SignatureInfo: signatureInfo,
 		References:    relatedRevisions,
-	}, nil
+	}
+
+	_ = c.cache.SetRevisionMetadata(repo, revision, details)
+	return details, nil
 }
 
 func (c *gitSourceClient) ListRefs(ctx context.Context, noCache bool) (*apiclient.Refs, error) {

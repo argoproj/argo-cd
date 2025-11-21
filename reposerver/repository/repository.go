@@ -2274,46 +2274,16 @@ func populatePluginAppDetails(ctx context.Context, res *apiclient.RepoAppDetails
 }
 
 func (s *Service) GetRevisionMetadata(ctx context.Context, q *apiclient.RepoServerRevisionMetadataRequest) (*v1alpha1.RevisionMetadata, error) {
-	if !git.IsCommitSHA(q.Revision) && !git.IsTruncatedCommitSHA(q.Revision) {
-		return nil, fmt.Errorf("revision %s must be resolved", q.Revision)
-	}
-	metadata, err := s.cache.GetRevisionMetadata(q.Repo.Repo, q.Revision)
-	if err == nil {
-		// The logic here is that if a signature check on metadata is requested,
-		// but there is none in the cache, we handle as if we have a cache miss
-		// and re-generate the metadata. Otherwise, if there is signature info
-		// in the metadata, but none was requested, we remove it from the data
-		// that we return.
-		if !q.CheckSignature || metadata.SignatureInfo != "" {
-			log.Infof("revision metadata cache hit: %s/%s", q.Repo.Repo, q.Revision)
-			if !q.CheckSignature {
-				metadata.SignatureInfo = ""
-			}
-			return metadata, nil
-		}
-		log.Infof("revision metadata cache hit, but need to regenerate due to missing signature info: %s/%s", q.Repo.Repo, q.Revision)
-	} else {
-		if !errors.Is(err, cache.ErrCacheMiss) {
-			log.Warnf("revision metadata cache error %s/%s: %v", q.Repo.Repo, q.Revision, err)
-		} else {
-			log.Infof("revision metadata cache miss: %s/%s", q.Repo.Repo, q.Revision)
-		}
-	}
-
 	client, err := s.newGitSourceClient(q.Repo, false, false, nil, nil, nil, false)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize git client: %w", err)
 	}
 
-	s.metricsServer.IncPendingRepoRequest(q.Repo.Repo)
-	defer s.metricsServer.DecPendingRepoRequest(q.Repo.Repo)
-
-	metadata, err = client.GetRevisionMetadata(ctx, q.Revision, q.CheckSignature)
+	metadata, err := client.GetRevisionMetadata(ctx, q.Revision, q.CheckSignature)
 	if err != nil {
 		return nil, err
 	}
 
-	_ = s.cache.SetRevisionMetadata(q.Repo.Repo, q.Revision, metadata)
 	return metadata, nil
 }
 
@@ -2322,37 +2292,16 @@ func (s *Service) GetOCIMetadata(ctx context.Context, q *apiclient.RepoServerRev
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize oci client: %w", err)
 	}
-
 	return client.GetRevisionMetadata(ctx, q.Revision, false)
 }
 
 // GetRevisionChartDetails returns the helm chart details of a given version
 func (s *Service) GetRevisionChartDetails(ctx context.Context, q *apiclient.RepoServerRevisionChartDetailsRequest) (*v1alpha1.ChartDetails, error) {
-	details, err := s.cache.GetRevisionChartDetails(q.Repo.Repo, q.Name, q.Revision)
-	if err == nil {
-		log.Infof("revision chart details cache hit: %s/%s/%s", q.Repo.Repo, q.Name, q.Revision)
-		return details, nil
-	}
-	if errors.Is(err, cache.ErrCacheMiss) {
-		log.Infof("revision metadata cache miss: %s/%s/%s", q.Repo.Repo, q.Name, q.Revision)
-	} else {
-		log.Warnf("revision metadata cache error %s/%s/%s: %v", q.Repo.Repo, q.Name, q.Revision, err)
-	}
-
 	client := s.newHelmSourceClient(q.Repo, q.Name, false)
-
-	// Resolve the revision to a concrete version
-	_, revision, err := client.ResolveRevision(ctx, q.Revision, true)
-	if err != nil {
-		return nil, fmt.Errorf("failed to resolve revision: %w", err)
-	}
-
-	details, err = client.GetRevisionMetadata(ctx, revision, false)
+	details, err := client.GetRevisionMetadata(ctx, q.Revision, false)
 	if err != nil {
 		return nil, err
 	}
-
-	_ = s.cache.SetRevisionChartDetails(q.Repo.Repo, q.Name, q.Revision, details)
 	return details, nil
 }
 
