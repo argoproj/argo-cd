@@ -7,8 +7,12 @@ RUN go install github.com/mattn/goreman@latest && \
 
 FROM $BASE_IMAGE
 
-ENV DEBIAN_FRONTEND=noninteractive
-RUN  apt-get update && apt-get install --no-install-recommends -y \
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    HOME=/home/user
+
+RUN apt-get update && apt-get install --no-install-recommends -y \
     ca-certificates \
     curl \
     openssh-server \
@@ -27,8 +31,9 @@ RUN  apt-get update && apt-get install --no-install-recommends -y \
 
 # These are required for running end-to-end tests
 COPY ./test/fixture/testrepos/id_rsa.pub /root/.ssh/authorized_keys
-COPY ./test/fixture/testrepos/nginx.conf /etc/nginx/nginx.conf
-COPY ./test/fixture/testrepos/.htpasswd /etc/nginx/.htpasswd
+COPY ./test/fixture/testrepos/nginx.conf \
+     ./test/fixture/testrepos/.htpasswd \
+     /etc/nginx/
 COPY ./test/fixture/testrepos/sudoers.conf /etc/sudoers
 COPY ./test/fixture/testrepos/ssh_host_*_key* /etc/ssh/
 COPY ./test/fixture/certs/argocd-e2e-server.crt /etc/certs/argocd-test-server.crt
@@ -45,32 +50,32 @@ COPY --from=go /go/bin/goreman /usr/local/bin/goreman
 COPY ./test/e2e/testdata/ /app/config/testdata/
 
 # Prepare user configuration & build environments
-RUN useradd -l -u 1000 -d /home/user -s /bin/bash user && \
+RUN useradd -l -u 1000 -d "$HOME" -s /bin/bash user && \
     echo "user ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/user && \
-    mkdir -p /home/user && \
-    HOME=/home/user git config --global user.name "ArgoCD Test User" && \
-    HOME=/home/user git config --global user.email "noreply@example.com" && \
+    mkdir -p "$HOME" && \
+    git config --global user.name "ArgoCD Test User" && \
+    git config --global user.email "noreply@example.com" && \
     mkdir -p /var/run/sshd && \
     mkdir -p /root/.ssh && \
-    chown -R user /home/user && \
-    chgrp -R user /home/user && \
+    chown -R user "$HOME" && \
+    chgrp -R user "$HOME" && \
     chown root /etc/ssh/ssh_host_*_key* && \
     chmod 0600 /etc/ssh/ssh_host_*_key  && \
     mkdir -p /tmp/argo-e2e/testdata.git && \
     cd /tmp/argo-e2e/testdata.git && \
-    HOME=/home/user git init --bare && \
+    git init --bare && \
     cd /app/config/testdata && \
-    HOME=/home/user git init && \
-    HOME=/home/user git add . && \
-    HOME=/home/user git commit -a -m "Initial commit" && \
-    HOME=/home/user git remote add origin file:///tmp/argo-e2e/testdata.git && \
-    HOME=/home/user git push origin master && \
+    git init && \
+    git add . && \
+    git commit -a -m "Initial commit" && \
+    git remote add origin file:///tmp/argo-e2e/testdata.git && \
+    git push origin master && \
     mkdir -p /tmp/argo-e2e/submodule.git && \
     cd /tmp/argo-e2e/submodule.git && \
-    HOME=/home/user git init --bare && \
+    git init --bare && \
     mkdir -p /tmp/argo-e2e/submoduleParent.git && \
     cd /tmp/argo-e2e/submoduleParent.git && \
-    HOME=/home/user git init --bare && \
+    git init --bare && \
     chown -R user /tmp/argo-e2e/testdata.git && \
     chown -R user /tmp/argo-e2e/submodule.git && \
     chown -R user /tmp/argo-e2e/submoduleParent.git && \
@@ -82,5 +87,3 @@ RUN echo "[http]" >> /tmp/argo-e2e/submodule.git/config && \
     echo "  receivepack = true" >> /tmp/argo-e2e/submodule.git/config 
 RUN echo "[http]" >> /tmp/argo-e2e/submoduleParent.git/config && \
     echo "  receivepack = true" >> /tmp/argo-e2e/submoduleParent.git/config 
-
-ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
