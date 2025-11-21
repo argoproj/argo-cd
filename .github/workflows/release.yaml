@@ -166,6 +166,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           KUBECTL_VERSION: ${{ env.KUBECTL_VERSION }}
           GIT_TREE_STATE: ${{ env.GIT_TREE_STATE }}
+          GORELEASER_CURRENT_REPOSITORY: ${{ github.repository }}
 
       - name: Generate subject for provenance
         id: hash
