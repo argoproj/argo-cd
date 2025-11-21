@@ -738,21 +738,23 @@ function getActionItems(
         });
     }
 
-    const logsAction = services.accounts
-        .canI('logs', 'get', application.spec.project + '/' + application.metadata.name)
-        .then(async allowed => {
-            if (allowed && (isPod || (isApp(application) && findChildPod(resource, tree as appModels.ApplicationTree)))) {
-                return [
-                    {
-                        title: 'Logs',
-                        iconClassName: 'fa fa-fw fa-align-left',
-                        action: () => apis.navigation.goto('.', {node: nodeKey(resource), tab: 'logs'}, {replace: true})
-                    } as MenuItem
-                ];
-            }
-            return [] as MenuItem[];
-        })
-        .catch(() => [] as MenuItem[]);
+    const logsAction = isApp(application)
+        ? services.accounts
+              .canI('logs', 'get', application.spec.project + '/' + application.metadata.name)
+              .then(async allowed => {
+                  if (allowed && (isPod || findChildPod(resource, tree as appModels.ApplicationTree))) {
+                      return [
+                          {
+                              title: 'Logs',
+                              iconClassName: 'fa fa-fw fa-align-left',
+                              action: () => apis.navigation.goto('.', {node: nodeKey(resource), tab: 'logs'}, {replace: true})
+                          } as MenuItem
+                      ];
+                  }
+                  return [] as MenuItem[];
+              })
+              .catch(() => [] as MenuItem[])
+        : Promise.resolve([] as MenuItem[]);
 
     if (isQuickStart) {
         return combineLatest(
@@ -761,22 +763,24 @@ function getActionItems(
         ).pipe(map(res => ([] as MenuItem[]).concat(...res)));
     }
 
-    const execAction = services.authService
-        .settings()
-        .then(async settings => {
-            const execAllowed = settings.execEnabled && (await services.accounts.canI('exec', 'create', application.spec.project + '/' + application.metadata.name));
-            if (isPod && execAllowed) {
-                return [
-                    {
-                        title: 'Exec',
-                        iconClassName: 'fa fa-fw fa-terminal',
-                        action: async () => apis.navigation.goto('.', {node: nodeKey(resource), tab: 'exec'}, {replace: true})
-                    } as MenuItem
-                ];
-            }
-            return [] as MenuItem[];
-        })
-        .catch(() => [] as MenuItem[]);
+    const execAction = isApp(application)
+        ? services.authService
+              .settings()
+              .then(async settings => {
+                  const execAllowed = settings.execEnabled && (await services.accounts.canI('exec', 'create', application.spec.project + '/' + application.metadata.name));
+                  if (isPod && execAllowed) {
+                      return [
+                          {
+                              title: 'Exec',
+                              iconClassName: 'fa fa-fw fa-terminal',
+                              action: async () => apis.navigation.goto('.', {node: nodeKey(resource), tab: 'exec'}, {replace: true})
+                          } as MenuItem
+                      ];
+                  }
+                  return [] as MenuItem[];
+              })
+              .catch(() => [] as MenuItem[])
+        : Promise.resolve([] as MenuItem[]);
 
     const resourceActions = getResourceActionsMenuItems(resource, application.metadata, apis);
 

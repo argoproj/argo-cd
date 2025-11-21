@@ -7,7 +7,7 @@ import {ApplicationsList} from './applications-list/applications-list';
 export const ApplicationsContainer = (props: RouteComponentProps<any>) => {
     // Determine objectListKind from the route path
     const objectListKind = props.match.path.includes('/applicationsets') ? 'applicationset' : 'application';
-    
+
     return (
         <Switch>
             <Route exact={true} path={`${props.match.path}`} render={() => <ApplicationsList objectListKind={objectListKind} {...props} />} />
