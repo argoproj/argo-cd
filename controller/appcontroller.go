@@ -656,7 +656,7 @@ func (ctrl *ApplicationController) getResourceTree(destCluster *appv1.Cluster, a
 		})
 
 		visible := proj.IsGroupKindVisible(schema.GroupKind{Group: child.Group, Kind: child.Kind}, child.Namespace != "")
-		if (permitted && visible) || (!permitted && visible) {
+		if (!permitted && !visible) || (permitted && !visible) {
 			return false
 		}
 		orphanedNodes = append(orphanedNodes, child)
