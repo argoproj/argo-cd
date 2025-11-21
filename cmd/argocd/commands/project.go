@@ -85,6 +85,8 @@ func NewProjectCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	command.AddCommand(NewProjectRemoveSourceNamespace(clientOpts))
 	command.AddCommand(NewProjectAddDestinationServiceAccountCommand(clientOpts))
 	command.AddCommand(NewProjectRemoveDestinationServiceAccountCommand(clientOpts))
+	command.AddCommand(NewShowBlacklistedResourceCommand(clientOpts))
+	command.AddCommand(NewHideWhitelistedResourceCommand(clientOpts))
 	return command
 }
 
@@ -720,6 +722,59 @@ func NewProjectAllowClusterResourceCommand(clientOpts *argocdclient.ClientOption
 	return modifyResourceListCmd(use, desc, examples, clientOpts, true, false)
 }
 
+func modifyVisibleResourceListCmd(cmdUse, cmdDesc, examples string, clientOpts *argocdclient.ClientOptions, visible bool) *cobra.Command {
+	command := &cobra.Command{
+		Use:     cmdUse,
+		Short:   cmdDesc,
+		Example: templates.Examples(examples),
+		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
+			if len(args) != 3 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+			projName, group, kind := args[0], args[1], args[2]
+			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
+			defer utilio.Close(conn)
+
+			proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
+			errors.CheckError(err)
+			visibleList, hiddenList := &proj.Spec.VisibleBlacklistedResources, &proj.Spec.HiddenWhitelistedResources
+
+			_ = modifyResourcesList(visibleList, visible, "visible blacklisted", group, kind)
+			_ = modifyResourcesList(hiddenList, !visible, "hidden whitelisted", group, kind)
+
+			_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
+			errors.CheckError(err)
+		},
+	}
+	return command
+}
+
+// NewShowBlacklistedResourceCommand returns a new instance of an `argocd proj show-blacklisted-resource` command
+func NewShowBlacklistedResourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	use := "show-blacklisted-resource PROJECT GROUP KIND"
+	desc := "Adds a API resource to the visible blacklisted resource list and removes it from hidden whitelisted resource list"
+	examples := `
+	# Adds a API resource with specified GROUP and KIND to the visible blacklisted resource list and removes it from hidden whitelisted resource list for project PROJECT
+	argocd proj show-blacklisted-resource PROJECT GROUP KIND
+	`
+	return modifyVisibleResourceListCmd(use, desc, examples, clientOpts, true)
+}
+
+// NewHideWhitelistedResourceCommand returns a new instance of an `argocd proj hide-whitelisted-resource` command
+func NewHideWhitelistedResourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	use := "hide-whitelisted-resource PROJECT GROUP KIND"
+	desc := "Adds a API resource to the hidden whitelisted resource list and removes it from visible blacklisted resource list"
+	examples := `
+	# Adds a API resource with specified GROUP and KIND to the hidden whitelisted resource list and removes it from visible blacklisted resource list for project PROJECT
+	argocd proj hide-whitelisted-resource PROJECT GROUP KIND
+	`
+	return modifyVisibleResourceListCmd(use, desc, examples, clientOpts, false)
+}
+
+
 // NewProjectRemoveSourceCommand returns a new instance of an `argocd proj remove-src` command
 func NewProjectRemoveSourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	command := &cobra.Command{
@@ -914,7 +969,7 @@ func printProjectLine(w io.Writer, p *v1alpha1.AppProject) {
 }
 
 func printProject(p *v1alpha1.AppProject, scopedRepositories []*v1alpha1.Repository, scopedClusters []*v1alpha1.Cluster) {
-	const printProjFmtStr = "%-29s%s\n"
+	const printProjFmtStr = "%-31s%s\n"
 
 	fmt.Printf(printProjFmtStr, "Name:", p.Name)
 	fmt.Printf(printProjFmtStr, "Description:", p.Spec.Description)
@@ -987,6 +1042,26 @@ func printProject(p *v1alpha1.AppProject, scopedRepositories []*v1alpha1.Reposit
 	fmt.Printf(printProjFmtStr, "Denied Namespaced Resources:", rbl0)
 	for i := 1; i < len(p.Spec.NamespaceResourceBlacklist); i++ {
 		fmt.Printf(printProjFmtStr, "", fmt.Sprintf("%s/%s", p.Spec.NamespaceResourceBlacklist[i].Group, p.Spec.NamespaceResourceBlacklist[i].Kind))
+	}
+
+	// Print visible blacklisted resources
+	visibleRbl0 := "<none>"
+	if len(p.Spec.VisibleBlacklistedResources) > 0 {
+		visibleRbl0 = fmt.Sprintf("%s/%s", p.Spec.VisibleBlacklistedResources[0].Group, p.Spec.VisibleBlacklistedResources[0].Kind)
+	}
+	fmt.Printf(printProjFmtStr, "Visible Blacklisted Resources:", visibleRbl0)
+	for i := 1; i < len(p.Spec.VisibleBlacklistedResources); i++ {
+		fmt.Printf(printProjFmtStr, "", fmt.Sprintf("%s/%s", p.Spec.VisibleBlacklistedResources[i].Group, p.Spec.VisibleBlacklistedResources[i].Kind))
+	}
+
+	// Print hidden whitelisted resources
+	hiddenWll0 := "<none>"
+	if len(p.Spec.HiddenWhitelistedResources) > 0 {
+		hiddenWll0 = fmt.Sprintf("%s/%s", p.Spec.HiddenWhitelistedResources[0].Group, p.Spec.HiddenWhitelistedResources[0].Kind)
+	}
+	fmt.Printf(printProjFmtStr, "Hidden Whitelisted Resources:", hiddenWll0)
+	for i := 1; i < len(p.Spec.HiddenWhitelistedResources); i++ {
+		fmt.Printf(printProjFmtStr, "", fmt.Sprintf("%s/%s", p.Spec.HiddenWhitelistedResources[i].Group, p.Spec.HiddenWhitelistedResources[i].Kind))
 	}
 
 	// Print required signature keys

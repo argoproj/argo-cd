@@ -6,6 +6,7 @@ Projects provide a logical grouping of applications, which is useful when Argo C
 * restrict where apps may be deployed to (destination clusters and namespaces)
 * restrict what kinds of objects may or may not be deployed (e.g. RBAC, CRDs, DaemonSets, NetworkPolicy etc...)
 * defining project roles to provide application RBAC (bound to OIDC groups and/or JWT tokens)
+* defining which resources are visible in the Argo CD UI
 
 ### The Default Project
 
@@ -124,13 +125,50 @@ As with sources, a destination is considered valid if the following conditions h
 
 Keep in mind that `!*` is an invalid rule, since it doesn't make any sense to disallow everything.
 
-Permitted destination K8s resource kinds are managed with the commands. Note that namespaced-scoped resources are restricted via a deny list, whereas cluster-scoped resources are restricted via allow list.
+Permitted destination K8s resource kinds can be managed with the commands. Note that namespaced-scoped resources are restricted via a deny list, whereas cluster-scoped resources are restricted via allow list.
 
 ```bash
 argocd proj allow-cluster-resource <PROJECT> <GROUP> <KIND>
 argocd proj allow-namespace-resource <PROJECT> <GROUP> <KIND>
 argocd proj deny-cluster-resource <PROJECT> <GROUP> <KIND>
 argocd proj deny-namespace-resource <PROJECT> <GROUP> <KIND>
+```
+
+or declaratively:
+
+```yaml
+spec:
+  clusterResourceWhitelist:
+  - group: <GROUP>
+    kind: <KIND>
+  namespaceResourceWhitelist:
+  - group: <GROUP>
+    kind: <KIND>
+  clusterResourceBlacklist:
+  - group: <GROUP>
+    kind: <KIND>
+  namespaceResourceBlacklist:
+  - group: <GROUP>
+    kind: <KIND>
+```
+
+Note that resources that are blacklisted, are not visible in the Argo CD UI either. To make a resource visible (or hide it), use the follwing commands:
+
+```bash
+argocd proj show-blacklisted-resource <PROJECT> <GROUP> <KIND>
+argocd proj hide-whitelisted-resource <PROJECT> <GROUP> <KIND>
+```
+
+or declaratively:
+
+```yaml
+spec:
+  visibleBlacklistedResources:
+  - group: <GROUP>
+    kind: <KIND>
+  hiddenWhitelistedResources:
+  - group: <GROUP>
+    kind: <KIND>
 ```
 
 ### Assign Application To A Project

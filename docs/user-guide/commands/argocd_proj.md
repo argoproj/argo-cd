@@ -97,6 +97,7 @@ argocd proj [flags]
 * [argocd proj deny-namespace-resource](argocd_proj_deny-namespace-resource.md)	 - Adds a namespaced API resource to the deny list or removes a namespaced API resource from the allow list
 * [argocd proj edit](argocd_proj_edit.md)	 - Edit project
 * [argocd proj get](argocd_proj_get.md)	 - Get project details
+* [argocd proj hide-whitelisted-resource](argocd_proj_hide-whitelisted-resource.md)	 - Adds a API resource to the hidden whitelisted resource list and removes it from visible blacklisted resource list
 * [argocd proj list](argocd_proj_list.md)	 - List projects
 * [argocd proj remove-destination](argocd_proj_remove-destination.md)	 - Remove project destination
 * [argocd proj remove-destination-service-account](argocd_proj_remove-destination-service-account.md)	 - Remove default destination service account from the project
@@ -106,5 +107,6 @@ argocd proj [flags]
 * [argocd proj remove-source-namespace](argocd_proj_remove-source-namespace.md)	 - Removes the source namespace from the AppProject
 * [argocd proj role](argocd_proj_role.md)	 - Manage a project's roles
 * [argocd proj set](argocd_proj_set.md)	 - Set project parameters
+* [argocd proj show-blacklisted-resource](argocd_proj_show-blacklisted-resource.md)	 - Adds a API resource to the visible blacklisted resource list and removes it from hidden whitelisted resource list
 * [argocd proj windows](argocd_proj_windows.md)	 - Manage a project's sync windows
 
