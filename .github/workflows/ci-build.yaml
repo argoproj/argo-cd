@@ -130,7 +130,8 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
       - name: Create symlink in GOPATH
-        run: ln -s $(pwd) ~/go/src/github.com/argoproj/argo-cd
+        # generalizing repo name for forks:  ${{ github.event.repository.name }}
+        run: ln -s $(pwd) ~/go/src/github.com/argoproj/${{ github.event.repository.name }}
       - name: Setup Golang
         uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
         with:
@@ -194,7 +195,8 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
       - name: Create symlink in GOPATH
-        run: ln -s $(pwd) ~/go/src/github.com/argoproj/argo-cd
+        # generalizing repo name for forks:  ${{ github.event.repository.name }}
+        run: ln -s $(pwd) ~/go/src/github.com/argoproj/${{ github.event.repository.name }} 
       - name: Setup Golang
         uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
         with:
@@ -256,9 +258,10 @@ jobs:
         with:
           go-version: ${{ env.GOLANG_VERSION }}
       - name: Create symlink in GOPATH
+        # generalizing repo name for forks:  ${{ github.event.repository.name }}
         run: |
           mkdir -p ~/go/src/github.com/argoproj
-          cp -a ../argo-cd ~/go/src/github.com/argoproj
+          cp -a ../${{ github.event.repository.name }} ~/go/src/github.com/argoproj
       - name: Add ~/go/bin to PATH
         run: |
           echo "/home/runner/go/bin" >> $GITHUB_PATH
@@ -270,12 +273,14 @@ jobs:
           # We need to vendor go modules for codegen yet
           go mod download
           go mod vendor -v
-        working-directory: /home/runner/go/src/github.com/argoproj/argo-cd
+        # generalizing repo name for forks:  ${{ github.event.repository.name }}  
+        working-directory: /home/runner/go/src/github.com/argoproj/${{ github.event.repository.name }} 
       - name: Install toolchain for codegen
         run: |
           make install-codegen-tools-local
           make install-go-tools-local
-        working-directory: /home/runner/go/src/github.com/argoproj/argo-cd
+        # generalizing repo name for forks:  ${{ github.event.repository.name }}  
+        working-directory: /home/runner/go/src/github.com/argoproj/${{ github.event.repository.name }}
         # We install kustomize in the dist directory
       - name: Add dist to PATH
         run: |
@@ -286,12 +291,14 @@ jobs:
           export GOPATH=$(go env GOPATH)
           git checkout -- go.mod go.sum
           make codegen-local
-        working-directory: /home/runner/go/src/github.com/argoproj/argo-cd
+        # generalizing repo name for forks:  ${{ github.event.repository.name }}
+        working-directory: /home/runner/go/src/github.com/argoproj/${{ github.event.repository.name }}
       - name: Check nothing has changed
         run: |
           set -xo pipefail
           git diff --exit-code -- . ':!go.sum' ':!go.mod' ':!assets/swagger.json' | tee codegen.patch
-        working-directory: /home/runner/go/src/github.com/argoproj/argo-cd
+        # generalizing repo name for forks:  ${{ github.event.repository.name }}
+        working-directory: /home/runner/go/src/github.com/argoproj/${{ github.event.repository.name }} 
 
   build-ui:
     name: Build, test & lint UI code
