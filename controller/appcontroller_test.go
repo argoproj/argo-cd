@@ -1519,7 +1519,6 @@ func TestGetResourceTree_HasOrphanedResources(t *testing.T) {
 func TestGetResourceTree_RespectsVisibility(t *testing.T) {
 	type fixture struct {
 		application *v1alpha1.Application
-		project     *v1alpha1.AppProject
 		controller  *ApplicationController
 	}
 
@@ -1570,7 +1569,6 @@ func TestGetResourceTree_RespectsVisibility(t *testing.T) {
 
 		return &fixture{
 			application: app,
-			project:     proj,
 			controller:  ctrl,
 		}
 	}
