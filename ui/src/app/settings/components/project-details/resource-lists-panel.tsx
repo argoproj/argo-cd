@@ -64,11 +64,7 @@ function viewList(type: field, proj: Project) {
                             <div className={`columns small-${info.visibilityToggle ? '7' : '8'}`}>{resource.group}</div>
                             {info.visibilityToggle && (
                                 <div className='columns small-1'>
-                                    {'visible' in resource && resource.visible ? (
-                                        <i className={`fa fa-eye`} />
-                                    ) : (
-                                        <i className={`fa fa-eye-slash`} />
-                                    )}
+                                    {'visible' in resource && resource.visible ? <i className={`fa fa-eye`} /> : <i className={`fa fa-eye-slash`} />}
                                 </div>
                             )}
                         </div>
@@ -242,7 +238,10 @@ function editList(type: field, formApi: FormApi) {
 
                     {info.visibilityToggle && (
                         <div className='columns small-1'>
-                            <i className={`fa fa-eye${Boolean(formApi.values.spec[type][i].visible) ? '' : '-slash'}`} onClick={() => formApi.setValue(`spec.${type}[${i}].visible`, !Boolean(formApi.values.spec[type][i].visible))} />
+                            <i
+                                className={`fa fa-eye${formApi.values.spec[type][i].visible ? '' : '-slash'}`}
+                                onClick={() => formApi.setValue(`spec.${type}[${i}].visible`, !formApi.values.spec[type][i].visible)}
+                            />
                         </div>
                     )}
 
