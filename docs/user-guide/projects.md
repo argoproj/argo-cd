@@ -149,6 +149,36 @@ It will not be synchronized from Git repositories but visible in the UI.
 This is useful for resources that are managed by a controller outside of Argo CD, but users still want to see their status in the Argo CD UI. For example, users might not to manage `ReplicaSet` resources directly, but want to see them in the UI to understand the status of a `Deployment`.
 Unless RBAC rules prevent access, users can perform operations like update/delete/exec or other actions on the resource.
 
+When configuring the deny list, the following precedence rules apply when multiple glob patterns match a resource:
+* Exact match has higher precedence than glob patterns with wildcards.
+* In case multiple matching globs exist where at least one marks the resource is **Denied**, the resource is classified as **Denied**.
+
+The following example project configuration demonstrates these rules:
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: my-project
+  namespace: argocd
+spec:
+  description: Example Project
+  namespaceResourceBlacklist:
+  # Exact match has highest precedence, so ReplicaSet is denied and visible
+  - group: 'apps'
+    kind: 'ReplicaSet'
+    visible: true
+  # Both globs match DaemonSet, therefore the resource is denied (due to at least one match denying it)
+  - group: 'apps'
+    kind: '*'
+  - group: '*'
+    kind: 'DaemonSet'
+    visible: true
+  namespaceResourceWhitelist:
+  # Deployments are allowed
+  - group: 'apps'
+    kind: Deployment
+```
+
 ### Assign Application To A Project
 
 The application project can be changed using `app set` command. In order to change the project of an app, the user must have permissions to access the new project.
