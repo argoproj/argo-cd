@@ -1,0 +1,7 @@
+actionTests:
+  - action: pause
+    inputPath: testdata/scaledjob.yaml
+    expectedOutputPath: testdata/scaledjob-pause.yaml
+  - action: resume
+    inputPath: testdata/scaledjob-pause.yaml
+    expectedOutputPath: testdata/scaledjob-resume.yaml
