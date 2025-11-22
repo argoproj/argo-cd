@@ -3,7 +3,7 @@ import * as React from 'react';
 import {FormApi} from 'react-form';
 
 import {EditablePanel} from '../../../shared/components';
-import {ApplicationDestination, ApplicationDestinationServiceAccount, GroupKind, Groups, Project, ProjectSpec, ResourceKinds} from '../../../shared/models';
+import {ApplicationDestination, ApplicationDestinationServiceAccount, BlacklistEntry, GroupKind, Groups, Project, ProjectSpec, ResourceKinds} from '../../../shared/models';
 
 function removeEl(items: any[], index: number) {
     return items.slice(0, index).concat(items.slice(index + 1));
@@ -22,14 +22,15 @@ function helpTip(text: string) {
 
 type field = keyof ProjectSpec;
 
-const infoByField: {[type: string]: {title: string; helpText: string}} = {
+const infoByField: {[type: string]: {title: string; helpText: string; visibilityToggle?: boolean}} = {
     clusterResourceWhitelist: {
         title: 'cluster resource allow list',
         helpText: 'Cluster-scoped K8s API Groups and Kinds which are permitted to be deployed'
     },
     clusterResourceBlacklist: {
         title: 'cluster resource deny list',
-        helpText: 'Cluster-scoped K8s API Groups and Kinds which are not permitted to be deployed'
+        helpText: 'Cluster-scoped K8s API Groups and Kinds which are not permitted to be deployed',
+        visibilityToggle: true
     },
     namespaceResourceWhitelist: {
         title: 'namespace resource allow list',
@@ -37,13 +38,14 @@ const infoByField: {[type: string]: {title: string; helpText: string}} = {
     },
     namespaceResourceBlacklist: {
         title: 'namespace resource deny list',
-        helpText: 'Namespace-scoped K8s API Groups and Kinds which are prohibited from being deployed'
+        helpText: 'Namespace-scoped K8s API Groups and Kinds which are prohibited from being deployed',
+        visibilityToggle: true
     }
 };
 
 function viewList(type: field, proj: Project) {
     const info = infoByField[type];
-    const list = proj.spec[type] as Array<GroupKind>;
+    const list = proj.spec[type] as Array<GroupKind | BlacklistEntry>;
     return (
         <React.Fragment>
             <p className='project-details__list-title'>
@@ -53,12 +55,22 @@ function viewList(type: field, proj: Project) {
                 <React.Fragment>
                     <div className='row white-box__details-row'>
                         <div className='columns small-4'>Kind</div>
-                        <div className='columns small-8'>Group</div>
+                        <div className={`columns small-${info.visibilityToggle ? '7' : '8'}`}>Group</div>
+                        {info.visibilityToggle && <div className='columns small-1'>Visibility</div>}
                     </div>
                     {list.map((resource, i) => (
                         <div className='row white-box__details-row' key={i}>
                             <div className='columns small-4'>{resource.kind}</div>
-                            <div className='columns small-8'>{resource.group}</div>
+                            <div className={`columns small-${info.visibilityToggle ? '7' : '8'}`}>{resource.group}</div>
+                            {info.visibilityToggle && (
+                                <div className='columns small-1'>
+                                    {'visible' in resource && resource.visible ? (
+                                        <i className={`fa fa-eye`} />
+                                    ) : (
+                                        <i className={`fa fa-eye-slash`} />
+                                    )}
+                                </div>
+                            )}
                         </div>
                     ))}
                 </React.Fragment>
@@ -211,7 +223,8 @@ function editList(type: field, formApi: FormApi) {
             </p>
             <div className='row white-box__details-row'>
                 <div className='columns small-4'>Kind</div>
-                <div className='columns small-8'>Group</div>
+                <div className={`columns small-${info.visibilityToggle ? '7' : '8'}`}>Group</div>
+                {info.visibilityToggle && <div className='columns small-1'>Visibility</div>}
             </div>
             {(formApi.values.spec[type] || []).map((_: Project, i: number) => (
                 <div className='row white-box__details-row' key={i}>
@@ -223,9 +236,16 @@ function editList(type: field, formApi: FormApi) {
                             componentProps={{items: ResourceKinds, filterSuggestions: true}}
                         />
                     </div>
-                    <div className='columns small-8'>
+                    <div className={`columns small-${info.visibilityToggle ? '7' : '8'}`}>
                         <FormField formApi={formApi} field={`spec.${type}[${i}].group`} component={AutocompleteField} componentProps={{items: Groups, filterSuggestions: true}} />
                     </div>
+
+                    {info.visibilityToggle && (
+                        <div className='columns small-1'>
+                            <i className={`fa fa-eye${Boolean(formApi.values.spec[type][i].visible) ? '' : '-slash'}`} onClick={() => formApi.setValue(`spec.${type}[${i}].visible`, !Boolean(formApi.values.spec[type][i].visible))} />
+                        </div>
+                    )}
+
                     <i className='fa fa-times' onClick={() => formApi.setValue(`spec.${type}`, removeEl(formApi.values.spec[type], i))} />
                 </div>
             ))}

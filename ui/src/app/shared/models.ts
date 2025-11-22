@@ -811,7 +811,7 @@ export interface GroupKind {
     kind: string;
 }
 
-export type BlacklistEntry = GroupKind & {visible: boolean};
+export type BlacklistEntry = GroupKind & {visible?: boolean};
 
 export interface ProjectSignatureKey {
     keyID: string;
