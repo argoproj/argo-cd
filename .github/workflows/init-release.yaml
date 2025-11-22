@@ -23,9 +23,9 @@ jobs:
     runs-on: ubuntu-22.04
     env:
       # Calculate image names with defaults
-      IMAGE_REGISTRY="${{ vars.IMAGE_REGISTRY || 'quay.io' }}"
-      IMAGE_NAMESPACE="${{ vars.IMAGE_NAMESPACE || 'argoproj' }}"
-      IMAGE_REPOSITORY="${{ vars.IMAGE_REPOSITORY || 'argocd' }}"
+      IMAGE_REGISTRY: ${{ vars.IMAGE_REGISTRY || 'quay.io' }}
+      IMAGE_NAMESPACE: ${{ vars.IMAGE_NAMESPACE || 'argoproj' }}
+      IMAGE_REPOSITORY: ${{ vars.IMAGE_REPOSITORY || 'argocd' }}
     steps:
       - name: Checkout code
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd  # v5.0.1
