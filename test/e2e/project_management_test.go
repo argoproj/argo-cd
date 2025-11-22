@@ -469,10 +469,10 @@ func TestDenyNamespaceResource(t *testing.T) {
 	require.NoError(t, err, "Unable to add resource to namespace resource blacklist")
 	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Get(t.Context(), projectName, metav1.GetOptions{})
 	require.NoError(t, err)
-	assert.Equal(t, 1, len(proj.Spec.NamespaceResourceBlacklist))
+	assert.Len(t, proj.Spec.NamespaceResourceBlacklist, 1)
 	assert.Equal(t, "group", proj.Spec.NamespaceResourceBlacklist[0].Group)
 	assert.Equal(t, "kind", proj.Spec.NamespaceResourceBlacklist[0].Kind)
-	assert.Equal(t, false, proj.Spec.NamespaceResourceBlacklist[0].Visible)
+	assert.False(t, proj.Spec.NamespaceResourceBlacklist[0].Visible)
 	assertProjHasEvent(t, proj, "update", argo.EventReasonResourceUpdated)
 
 	_, err = fixture.RunCli("proj", "deny-namespace-resource", projectName,
@@ -483,10 +483,10 @@ func TestDenyNamespaceResource(t *testing.T) {
 	require.NoError(t, err, "Unable to add resource to namespace resource blacklist")
 	proj1, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Get(t.Context(), projectName, metav1.GetOptions{})
 	require.NoError(t, err)
-	assert.Equal(t, 1, len(proj1.Spec.NamespaceResourceBlacklist))
+	assert.Len(t, proj1.Spec.NamespaceResourceBlacklist, 1)
 	assert.Equal(t, "group", proj1.Spec.NamespaceResourceBlacklist[0].Group)
 	assert.Equal(t, "kind", proj1.Spec.NamespaceResourceBlacklist[0].Kind)
-	assert.Equal(t, true, proj1.Spec.NamespaceResourceBlacklist[0].Visible)
+	assert.True(t, proj1.Spec.NamespaceResourceBlacklist[0].Visible)
 	assertProjHasEvent(t, proj1, "update", argo.EventReasonResourceUpdated)
 }
 
@@ -514,10 +514,10 @@ func TestDenyClusterResource(t *testing.T) {
 	require.NoError(t, err, "Unable to add resource to cluster resource blacklist")
 	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Get(t.Context(), projectName, metav1.GetOptions{})
 	require.NoError(t, err)
-	assert.Equal(t, 1, len(proj.Spec.ClusterResourceBlacklist))
+	assert.Len(t, proj.Spec.ClusterResourceBlacklist, 1)
 	assert.Equal(t, "group", proj.Spec.ClusterResourceBlacklist[0].Group)
 	assert.Equal(t, "kind", proj.Spec.ClusterResourceBlacklist[0].Kind)
-	assert.Equal(t, false, proj.Spec.ClusterResourceBlacklist[0].Visible)
+	assert.False(t, proj.Spec.ClusterResourceBlacklist[0].Visible)
 	assertProjHasEvent(t, proj, "update", argo.EventReasonResourceUpdated)
 
 	_, err = fixture.RunCli("proj", "deny-cluster-resource", projectName,
@@ -528,10 +528,10 @@ func TestDenyClusterResource(t *testing.T) {
 	require.NoError(t, err, "Unable to add resource to cluster resource blacklist")
 	proj1, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Get(t.Context(), projectName, metav1.GetOptions{})
 	require.NoError(t, err)
-	assert.Equal(t, 1, len(proj1.Spec.ClusterResourceBlacklist))
+	assert.Len(t, proj1.Spec.ClusterResourceBlacklist, 1)
 	assert.Equal(t, "group", proj1.Spec.ClusterResourceBlacklist[0].Group)
 	assert.Equal(t, "kind", proj1.Spec.ClusterResourceBlacklist[0].Kind)
-	assert.Equal(t, true, proj1.Spec.ClusterResourceBlacklist[0].Visible)
+	assert.True(t, proj1.Spec.ClusterResourceBlacklist[0].Visible)
 	assertProjHasEvent(t, proj1, "update", argo.EventReasonResourceUpdated)
 }
 
