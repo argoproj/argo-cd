@@ -27,7 +27,13 @@ if obj.status.ceph ~= nil and obj.status.ceph.health ~= nil then
     -- Build details message from status.ceph.details if available
     if obj.status.ceph.details ~= nil then
         local detail_parts = {}
-        for detail_type, detail_info in pairs(obj.status.ceph.details) do
+        local sorted_detail_types = {}
+        for detail_type, _ in pairs(obj.status.ceph.details) do
+            table.insert(sorted_detail_types, detail_type)
+        end
+        table.sort(sorted_detail_types)
+        for _, detail_type in ipairs(sorted_detail_types) do
+            local detail_info = obj.status.ceph.details[detail_type]
             if detail_info.message ~= nil then
                 table.insert(detail_parts, detail_info.message)
             end
