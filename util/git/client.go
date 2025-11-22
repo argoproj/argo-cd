@@ -4,9 +4,11 @@ import (
 	"bufio"
 	"context"
 	"crypto/tls"
+	"encoding/csv"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"math"
 	"net/http"
 	"net/mail"
@@ -108,6 +110,7 @@ type gitRefCache interface {
 // Client is a generic git client interface
 type Client interface {
 	Root() string
+	RepoURL() string
 	Init() error
 	Fetch(revision string, depth int64) error
 	Submodule() error
@@ -118,7 +121,8 @@ type Client interface {
 	LsLargeFiles() ([]string, error)
 	CommitSHA() (string, error)
 	RevisionMetadata(revision string) (*RevisionMetadata, error)
-	VerifyCommitSignature(string) (string, error)
+	TagSignature(tagRevision string) (*RevisionSignatureInfo, error)
+	LsSignatures(revision string, deep bool) ([]RevisionSignatureInfo, error)
 	IsAnnotatedTag(string) bool
 	ChangedFiles(revision string, targetRevision string) ([]string, error)
 	IsRevisionPresent(revision string) bool
@@ -379,6 +383,10 @@ func newAuth(repoURL string, creds Creds) (transport.AuthMethod, error) {
 
 func (m *nativeGitClient) Root() string {
 	return m.root
+}
+
+func (m *nativeGitClient) RepoURL() string {
+	return m.repoURL
 }
 
 // Init initializes a local git repository and sets the remote origin
@@ -912,14 +920,242 @@ func updateCommitMetadata(logCtx *log.Entry, relatedCommit *CommitMetadata, line
 	return true
 }
 
-// VerifyCommitSignature Runs verify-commit on a given revision and returns the output
-func (m *nativeGitClient) VerifyCommitSignature(revision string) (string, error) {
-	out, err := m.runGnuPGWrapper(context.Background(), "git-verify-wrapper.sh", revision)
-	if err != nil {
-		log.Errorf("error verifying commit signature: %v", err)
-		return "", errors.New("permission denied")
+type GPGVerificationResult string
+type RevisionSignatureInfo struct {
+	Revision           string
+	VerificationResult GPGVerificationResult
+	SignatureKeyID     string
+	Date               string
+	AuthorIdentity     string
+}
+
+// TODO: Redesign. Need to map from one-letters in rev-parse, the gpg codes, and need a human readable explenation and a constant
+const (
+	GPGVerificationResultGood             GPGVerificationResult = "signed"
+	GPGVerificationResultBad              GPGVerificationResult = "bad signature"
+	GPGVerificationResultUntrusted        GPGVerificationResult = "signed with untrusted key"
+	GPGVerificationResultExpiredSignature GPGVerificationResult = "signature expired"
+	GPGVerificationResultExpiredKey       GPGVerificationResult = "signed with expired key"
+	GPGVerificationResultRevokedKey       GPGVerificationResult = "signed with revoked key"
+	GPGVerificationResultMissingKey       GPGVerificationResult = "signed with key not in keyring"
+	GPGVerificationResultUnsigned         GPGVerificationResult = "unsigned"
+)
+
+var (
+	gpgVerificationRevParseToGpgCode = map[string]GPGVerificationResult{
+		"G": GPGVerificationResultGood,
+		"B": GPGVerificationResultBad,
+		"U": GPGVerificationResultUntrusted,
+		"X": GPGVerificationResultExpiredSignature,
+		"Y": GPGVerificationResultExpiredKey,
+		"R": GPGVerificationResultRevokedKey,
+		"E": GPGVerificationResultMissingKey,
+		"N": GPGVerificationResultUnsigned,
 	}
-	return out, nil
+)
+
+func gpgVerificationFromGpgCode(gpgCode string) GPGVerificationResult {
+	// GPG code presented by `git verify-tag --raw`
+	// https://github.com/gpg/gnupg/blob/master/doc/DETAILS#general-status-codes
+	switch gpgCode {
+	case "GOODSIG":
+		return GPGVerificationResultGood
+	case "BADSIG":
+		return GPGVerificationResultBad
+	case "U":
+		return GPGVerificationResultUntrusted // TODO!
+	case "EXPSIG":
+		return GPGVerificationResultExpiredSignature
+	case "EXPKEYSIG":
+		return GPGVerificationResultExpiredKey
+	case "REVKEYSIG":
+		return GPGVerificationResultRevokedKey
+	case "ERRSIG":
+		return GPGVerificationResultMissingKey
+	default:
+		panic(fmt.Sprintf("Unable to parse VerificationResult from '%s'", gpgCode))
+	}
+}
+
+func gpgVerificationFromGitRevParse(oneLetter string) GPGVerificationResult {
+	// The letters each represent a given verification result, as output by git rev-parse pretty format.
+	// See PRETTY FORMAT in git-rev-list(1) for more information.
+	// https://github.com/git/git/blob/5e6e4854e086ba0025bc7dc11e6b475c92a2f556/gpg-interface.c#L188
+	switch oneLetter {
+	case "G":
+		return GPGVerificationResultGood
+	case "B":
+		return GPGVerificationResultBad
+	case "U":
+		return GPGVerificationResultUntrusted
+	case "X":
+		return GPGVerificationResultExpiredSignature
+	case "Y":
+		return GPGVerificationResultExpiredKey
+	case "R":
+		return GPGVerificationResultRevokedKey
+	case "E":
+		return GPGVerificationResultMissingKey
+	case "N":
+		return GPGVerificationResultUnsigned
+	default:
+		panic(fmt.Sprintf("Unable to parse VerificationResult from '%s'", oneLetter))
+	}
+}
+
+func (m *nativeGitClient) TagSignature(tagRevision string) (*RevisionSignatureInfo, error) {
+	// Unlike for tags, there is no nice way to slurp all signature info for tag. So this extracts parts from 2 different commands.
+	cmd := exec.Command("git", "for-each-ref", "refs/tags/"+tagRevision, `--format=%(taggerdate),%(taggername) "%(taggeremail)"`)
+	cmd.Env = append(cmd.Env, fmt.Sprintf("GNUPGHOME=%s", common.GetGnuPGHomePath()))
+	tagOut, err := m.runCmdOutput(cmd, runOpts{})
+	if err != nil {
+		return nil, err
+	}
+	if len(tagOut) == 0 {
+		return nil, fmt.Errorf("no tag found: %q", tagRevision)
+	}
+	tagInfo := strings.Split(tagOut, ",")
+	if len(tagInfo) != 2 {
+		return nil, fmt.Errorf("failed to parse tag %q for revisions %q", tagOut, tagRevision)
+	}
+
+	cmd = exec.Command("git", "verify-tag", tagRevision, "--raw")
+	cmd.Env = append(cmd.Env, fmt.Sprintf("GNUPGHOME=%s", common.GetGnuPGHomePath()))
+	tagGpgOut, err := m.runCmdOutput(cmd, runOpts{
+		CaptureStderr:    true, // The structured --raw output is printed to stderr only
+		SkipErrorLogging: true, // Unsigned returns rc=1
+	})
+	if err != nil {
+		// Commit is not signed
+		if tagGpgOut == "error: no signature found" {
+			return &RevisionSignatureInfo{
+				Revision:           tagRevision,
+				VerificationResult: GPGVerificationResultUnsigned,
+				SignatureKeyID:     "",
+				Date:               tagInfo[0],
+				AuthorIdentity:     tagInfo[1],
+			}, nil
+		}
+
+		// Parse the output to extract info, ERRSIG causes `rc!=0`
+		if !strings.Contains(tagGpgOut, "[GNUPG:] ERRSIG ") {
+			return nil, err
+		}
+	}
+
+	// https://github.com/gpg/gnupg/blob/master/doc/DETAILS#general-status-codes
+	re := regexp.MustCompile("^\\[GNUPG:] (GOODSIG|BADSIG|EXPSIG|EXPKEYSIG|REVKEYSIG|ERRSIG) ([0-9A-F]+) ")
+	for line := range strings.Lines(tagGpgOut) {
+		match := re.FindAllStringSubmatch(line, -1)
+		switch len(match) {
+		case 0:
+			continue
+		case 1:
+			return &RevisionSignatureInfo{
+				Revision:           tagRevision,
+				VerificationResult: gpgVerificationFromGpgCode(match[0][1]),
+				SignatureKeyID:     match[0][2],
+				Date:               tagInfo[0],
+				AuthorIdentity:     tagInfo[1],
+			}, nil
+		default:
+			return nil, fmt.Errorf("too many matches parsing line %q for revisions %q", line, tagRevision)
+		}
+	}
+
+	// TODO what does this mean? Unsigned?
+	return nil, err
+}
+
+// LsSignatures gets a list of revisions including their signature info.
+//
+// If deep==true, This needs to traverse history backwards following all commit parents from revision recursively;
+// it stops the branch search on a "seal commit" or repo init commit.
+func (m *nativeGitClient) LsSignatures(revision string, deep bool) ([]RevisionSignatureInfo, error) {
+	// See git-rev-list(1) for description of the format string
+	const revListFormat = `--pretty=format:%H,%G?,%GK,"%aD","%an <%ae>"`
+	const revListNumFields = 5
+
+	var commitFilterArgs []string
+	if deep {
+		// Find all seal commits - not necessarily the most recent ones
+		cmd := exec.Command("git", "rev-list", "--grep=Argocd-gpg-seal", "--regexp-ignore-case", revision)
+		cmd.Env = append(cmd.Env, fmt.Sprintf("GNUPGHOME=%s", common.GetGnuPGHomePath()), "LANG=C")
+		sealCommitsRawOut, err := m.runCmdOutput(cmd, runOpts{})
+		if err != nil {
+			return nil, err
+		}
+
+		commitFilterArgs, err = m.getSealRevListFilter(revision, sealCommitsRawOut)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		// List only the one revision
+		commitFilterArgs = []string{revision, "-1", "--"}
+	}
+
+	// Find all commits until the seal(s) including
+	lsArgs := append([]string{"rev-list", revListFormat, "--no-commit-header"}, commitFilterArgs...)
+	cmd := exec.Command("git", lsArgs...)
+	cmd.Env = append(cmd.Env, fmt.Sprintf("GNUPGHOME=%s", common.GetGnuPGHomePath()), "LANG=C")
+	commitSignaturesRawOut, err := m.runCmdOutput(cmd, runOpts{})
+	if err != nil {
+		return nil, err
+	}
+
+	// Final LF will be cut by executil
+	var commits []RevisionSignatureInfo
+	csvR := csv.NewReader(strings.NewReader(commitSignaturesRawOut))
+	for {
+		r, err := csvR.Read()
+		// EOF means parsing had ended
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+
+		if len(r) < revListNumFields {
+			return nil, fmt.Errorf("invalid rev-list output, refusing to continue (fields=%d)", len(r))
+		}
+
+		commits = append(commits, RevisionSignatureInfo{
+			Revision:           r[0],
+			VerificationResult: gpgVerificationFromGitRevParse(r[1]),
+			SignatureKeyID:     r[2],
+			Date:               r[3],
+			AuthorIdentity:     r[4],
+		})
+	}
+
+	return commits, nil
+}
+
+func (m *nativeGitClient) getSealRevListFilter(revision string, sealCommitsRawOut string) ([]string, error) {
+	// No seal commits found - verify all ancestry
+	if sealCommitsRawOut == "" {
+		log.Debugf("Found no seal commits for %s", revision)
+		return []string{revision, "--"}, nil
+	}
+
+	sealCommits := strings.Split(sealCommitsRawOut, "\n")
+	sealCommitsLen := len(sealCommits)
+	log.Debugf("Found %d seal commits for %s", sealCommitsLen, revision)
+
+	// Resolve, in case revision is not a commit number
+	sha, err := m.CommitSHA()
+	if err != nil {
+		return nil, err
+	}
+	if sha == sealCommits[0] {
+		// Currently on seal commit - verify just this one
+		return []string{revision, "-1", "--"}, nil
+	}
+
+	// Some seal commits in history - filter until those
+	return append([]string{"--boundary", revision, "--not"}, sealCommits...), nil
 }
 
 // IsAnnotatedTag returns true if the revision points to an annotated tag

@@ -287,7 +287,12 @@ func (h *LogHook) Levels() []log.Level {
 
 func (h *LogHook) Fire(entry *log.Entry) error {
 	h.Entries = append(h.Entries, *entry)
+	fmt.Printf("FLARE(entry.Message): %+v\n", entry)
 	return nil
+}
+
+func (h *LogHook) CleanupHook() {
+	log.StandardLogger().ReplaceHooks(log.LevelHooks{})
 }
 
 func (h *LogHook) GetRegexMatchesInEntries(match string) []string {
@@ -297,6 +302,13 @@ func (h *LogHook) GetRegexMatchesInEntries(match string) []string {
 		if re.MatchString(entry.Message) {
 			matches = append(matches, entry.Message)
 		}
+	}
+	return matches
+}
+
+func (h *LogHook) GetEntries() (matches []string) {
+	for _, entry := range h.Entries {
+		matches = append(matches, entry.Message)
 	}
 	return matches
 }
