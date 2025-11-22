@@ -7,7 +7,7 @@ import {Link} from 'react-router-dom';
 
 import {BadgePanel, CheckboxField, DataLoader, EditablePanel, ErrorNotification, MapInputField, Page, Query} from '../../../shared/components';
 import {Context, ContextApis, AuthSettingsCtx} from '../../../shared/context';
-import {GroupKind, Groups, Project, DetailedProjectsResponse, ProjectSpec, ResourceKinds} from '../../../shared/models';
+import {GroupKind, Groups, Project, DetailedProjectsResponse, ProjectSpec, ResourceKinds, BlacklistEntry} from '../../../shared/models';
 import {CreateJWTTokenParams, DeleteJWTTokenParams, ProjectRoleParams, services} from '../../../shared/services';
 
 import {SyncWindowStatusIcon} from '../../../applications/components/utils';
@@ -126,8 +126,8 @@ function reduceGlobal(projs: Project[]): ProjectSpec & {count: number} {
             return merged;
         },
         {
-            clusterResourceBlacklist: new Array<GroupKind>(),
-            namespaceResourceBlacklist: new Array<GroupKind>(),
+            clusterResourceBlacklist: new Array<BlacklistEntry>(),
+            namespaceResourceBlacklist: new Array<BlacklistEntry>(),
             namespaceResourceWhitelist: new Array<GroupKind>(),
             clusterResourceWhitelist: new Array<GroupKind>(),
             sourceRepos: [],

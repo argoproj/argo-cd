@@ -1516,6 +1516,152 @@ func TestGetResourceTree_HasOrphanedResources(t *testing.T) {
 	assert.Equal(t, []v1alpha1.ResourceNode{orphanedDeploy1, orphanedDeploy2}, tree.OrphanedNodes)
 }
 
+func TestGetResourceTree_RespectsVisibility(t *testing.T) {
+	type fixture struct {
+		application *v1alpha1.Application
+		controller  *ApplicationController
+	}
+
+	managedDeploy := v1alpha1.ResourceNode{
+		ResourceRef: v1alpha1.ResourceRef{Group: "apps", Kind: "Deployment", Namespace: "default", Name: "nginx-deployment", Version: "v1"},
+		Health: &v1alpha1.HealthStatus{
+			Status: health.HealthStatusMissing,
+		},
+	}
+	managedReplicaSet := v1alpha1.ResourceNode{
+		ResourceRef: v1alpha1.ResourceRef{Group: "apps", Kind: "ReplicaSet", Namespace: "default", Name: "nginx-replicaset"},
+		ParentRefs: []v1alpha1.ResourceRef{
+			{Group: "apps", Kind: "Deployment", Namespace: "default", Name: "nginx-deployment", Version: "v1"},
+		},
+		Health: &v1alpha1.HealthStatus{
+			Status: health.HealthStatusMissing,
+		},
+	}
+	managedPod := v1alpha1.ResourceNode{
+		ResourceRef: v1alpha1.ResourceRef{Group: "", Kind: "Pod", Namespace: "default", Name: "nginx-pod"},
+		ParentRefs: []v1alpha1.ResourceRef{
+			{Group: "apps", Kind: "ReplicaSet", Namespace: "default", Name: "nginx-replicaset"},
+		},
+		Health: &v1alpha1.HealthStatus{
+			Status: health.HealthStatusMissing,
+		},
+	}
+
+	setup := func(blacklist []v1alpha1.BlacklistEntry, whitelist []metav1.GroupKind) *fixture {
+		app := newFakeApp()
+		proj := defaultProj.DeepCopy()
+		proj.Spec.Destinations = []v1alpha1.ApplicationDestination{
+			{
+				Server:    "*",
+				Namespace: "*",
+			},
+		}
+		proj.Spec.NamespaceResourceWhitelist = whitelist
+		proj.Spec.NamespaceResourceBlacklist = blacklist
+		ctrl := newFakeController(t.Context(), &fakeData{
+			apps: []runtime.Object{app, proj},
+			namespacedResources: map[kube.ResourceKey]namespacedResource{
+				kube.NewResourceKey("apps", "Deployment", "default", "nginx-deployment"): {ResourceNode: managedDeploy},
+				kube.NewResourceKey("apps", "ReplicaSet", "default", "nginx-replicaset"): {ResourceNode: managedReplicaSet},
+				kube.NewResourceKey("", "Pod", "default", "nginx-pod"):                   {ResourceNode: managedPod},
+			},
+		}, nil)
+
+		return &fixture{
+			application: app,
+			controller:  ctrl,
+		}
+	}
+
+	getResourceTree := func(ctrl *ApplicationController, app *v1alpha1.Application) (*v1alpha1.ApplicationTree, error) {
+		return ctrl.getResourceTree(&v1alpha1.Cluster{Server: "https://localhost:6443", Name: "fake-cluster"}, app, []*v1alpha1.ResourceDiff{
+			{
+				Namespace:   "default",
+				Name:        "nginx-deployment",
+				Kind:        "Deployment",
+				Group:       "apps",
+				LiveState:   test.DeploymentManifest,
+				TargetState: test.DeploymentManifest,
+			},
+			{
+				Namespace:   "default",
+				Name:        "nginx-replicaset",
+				Kind:        "ReplicaSet",
+				Group:       "apps",
+				LiveState:   test.ReplicaSetManifest,
+				TargetState: test.ReplicaSetManifest,
+			},
+			{
+				Namespace:   "default",
+				Name:        "nginx-pod",
+				Kind:        "Pod",
+				Group:       "",
+				LiveState:   test.PodManifest,
+				TargetState: test.PodManifest,
+			},
+		})
+	}
+
+	containsReplicaSet := func(tree *v1alpha1.ApplicationTree) bool {
+		for _, node := range tree.Nodes {
+			if node.Kind == "ReplicaSet" && node.Name == "nginx-replicaset" {
+				return true
+			}
+		}
+		return false
+	}
+
+	t.Run("blacklisted replicaset should not be included", func(t *testing.T) {
+		blacklist := []v1alpha1.BlacklistEntry{
+			{Group: "apps", Kind: "ReplicaSet"},
+		}
+		whitelist := []metav1.GroupKind{
+			{Group: "apps", Kind: "Deployment"},
+		}
+		fixture := setup(blacklist, whitelist)
+		ctrl := fixture.controller
+		app := fixture.application
+
+		tree, err := getResourceTree(ctrl, app)
+		require.NoError(t, err)
+
+		assert.False(t, containsReplicaSet(tree))
+	})
+
+	t.Run("blacklisted replicaset should be included when visibility is set", func(t *testing.T) {
+		blacklist := []v1alpha1.BlacklistEntry{
+			{Group: "apps", Kind: "ReplicaSet", Visible: true},
+		}
+		whitelist := []metav1.GroupKind{
+			{Group: "apps", Kind: "Deployment"},
+		}
+		fixture := setup(blacklist, whitelist)
+		ctrl := fixture.controller
+		app := fixture.application
+
+		tree, err := getResourceTree(ctrl, app)
+		require.NoError(t, err)
+
+		assert.True(t, containsReplicaSet(tree))
+	})
+
+	t.Run("whitelisted replicaset should be included", func(t *testing.T) {
+		blacklist := []v1alpha1.BlacklistEntry{}
+		whitelist := []metav1.GroupKind{
+			{Group: "apps", Kind: "Deployment"},
+			{Group: "apps", Kind: "ReplicaSet"},
+		}
+		fixture := setup(blacklist, whitelist)
+		ctrl := fixture.controller
+		app := fixture.application
+
+		tree, err := getResourceTree(ctrl, app)
+		require.NoError(t, err)
+
+		assert.True(t, containsReplicaSet(tree))
+	})
+}
+
 func TestSetOperationStateOnDeletedApp(t *testing.T) {
 	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{}}, nil)
 	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)

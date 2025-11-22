@@ -23807,17 +23807,14 @@ spec:
                 description: ClusterResourceBlacklist contains list of blacklisted
                   cluster level resources
                 items:
-                  description: |-
-                    GroupKind specifies a Group and a Kind, but does not force a version.  This is useful for identifying
-                    concepts during lookup stages without having partially valid types
+                  description: BlacklistEntry is a reference to a resource to be blacklisted
                   properties:
                     group:
                       type: string
                     kind:
                       type: string
-                  required:
-                  - group
-                  - kind
+                    visible:
+                      type: boolean
                   type: object
                 type: array
               clusterResourceWhitelist:
@@ -23895,17 +23892,14 @@ spec:
                 description: NamespaceResourceBlacklist contains list of blacklisted
                   namespace level resources
                 items:
-                  description: |-
-                    GroupKind specifies a Group and a Kind, but does not force a version.  This is useful for identifying
-                    concepts during lookup stages without having partially valid types
+                  description: BlacklistEntry is a reference to a resource to be blacklisted
                   properties:
                     group:
                       type: string
                     kind:
                       type: string
-                  required:
-                  - group
-                  - kind
+                    visible:
+                      type: boolean
                   type: object
                 type: array
               namespaceResourceWhitelist:

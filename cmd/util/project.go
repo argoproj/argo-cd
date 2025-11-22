@@ -64,20 +64,32 @@ func getGroupKindList(values []string) []metav1.GroupKind {
 	return res
 }
 
+func getBlacklistEntryList(values []string) []v1alpha1.BlacklistEntry {
+	var res []v1alpha1.BlacklistEntry
+	for _, val := range values {
+		if parts := strings.Split(val, "/"); len(parts) == 2 {
+			res = append(res, v1alpha1.BlacklistEntry{Group: parts[0], Kind: parts[1]})
+		} else if len(parts) == 1 {
+			res = append(res, v1alpha1.BlacklistEntry{Kind: parts[0]})
+		}
+	}
+	return res
+}
+
 func (opts *ProjectOpts) GetAllowedClusterResources() []metav1.GroupKind {
 	return getGroupKindList(opts.allowedClusterResources)
 }
 
-func (opts *ProjectOpts) GetDeniedClusterResources() []metav1.GroupKind {
-	return getGroupKindList(opts.deniedClusterResources)
+func (opts *ProjectOpts) GetDeniedClusterResources() []v1alpha1.BlacklistEntry {
+	return getBlacklistEntryList(opts.deniedClusterResources)
 }
 
 func (opts *ProjectOpts) GetAllowedNamespacedResources() []metav1.GroupKind {
 	return getGroupKindList(opts.allowedNamespacedResources)
 }
 
-func (opts *ProjectOpts) GetDeniedNamespacedResources() []metav1.GroupKind {
-	return getGroupKindList(opts.deniedNamespacedResources)
+func (opts *ProjectOpts) GetDeniedNamespacedResources() []v1alpha1.BlacklistEntry {
+	return getBlacklistEntryList(opts.deniedNamespacedResources)
 }
 
 func (opts *ProjectOpts) GetDestinations() []v1alpha1.ApplicationDestination {

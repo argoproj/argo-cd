@@ -400,6 +400,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Universidad Mesoamericana](https://www.umes.edu.gt/)
 1. [Upsider Inc.](https://up-sider.com/lp/)
 1. [Urbantz](https://urbantz.com/)
+1. [Vaillant Group](https://www.vaillant-group.com/)
 1. [Vectra](https://www.vectra.ai)
 1. [Veepee](https://www.veepee.com)
 1. [Verkada](https://www.verkada.com)
