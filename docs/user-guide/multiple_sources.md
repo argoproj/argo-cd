@@ -6,7 +6,7 @@ files from multiple locations to form a single Application.
 Argo CD has the ability to specify multiple sources for a single Application. Argo CD compiles all the sources
 and reconciles the combined resources.
 
-You can provide multiple sources using the `sources` field. When you specify the `sources` field, Argo CD will ignore 
+You can provide multiple sources using the `sources` field. When you specify the `sources` field, Argo CD will ignore
 the `source` (singular) field.
 
 See the below example for specifying multiple sources:
@@ -31,7 +31,7 @@ spec:
       targetRevision: HEAD
 ```
 
-The above example has two sources specified that need to be combined in order to create the "billing" application. Argo CD will generate the manifests for each source separately and combine 
+The above example has two sources specified that need to be combined in order to create the "billing" application. Argo CD will generate the manifests for each source separately and combine
 the resulting manifests.
 
 > [!WARNING]
@@ -39,8 +39,8 @@ the resulting manifests.
 >
 > Note this feature is **NOT** destined as a generic way to group different/unrelated applications. Take a look at [applicationsets](../user-guide/application-set.md) and the [app-of-apps](../../operator-manual/cluster-bootstrapping/) pattern if you want to have a single entity for multiple applications. If you find yourself using more than 2-3 items in the `sources` array then you are almost certainly abusing this feature and you need to rethink your application grouping strategy.
 
-If multiple sources produce the same resource (same `group`, `kind`, `name`, and `namespace`), the last source to 
-produce the resource will take precedence. Argo CD will produce a `RepeatedResourceWarning` in this case, but it will 
+If multiple sources produce the same resource (same `group`, `kind`, `name`, and `namespace`), the last source to
+produce the resource will take precedence. Argo CD will produce a `RepeatedResourceWarning` in this case, but it will
 sync the resources. This provides a convenient way to override a resource from a chart with a resource from a Git repo.
 
 ## Helm value files from external Git repository
@@ -66,19 +66,21 @@ spec:
     targetRevision: 15.7.1
     helm:
       valueFiles:
-      - $values/charts/prometheus/values.yaml
-  - repoURL: 'https://git.example.com/org/value-files.git'
+      - '$(values)/charts/prometheus/values.yaml'
+      - 'secrets://$(values)/charts/prometheus/values.yaml'
+  - repoURL: 'https://git.example.gom/org/value-files.git'
     targetRevision: dev
     ref: values
 ```
 
-In the above example, the `prometheus` chart will use the value file from `git.example.com/org/value-files.git`. 
+In the above example, the `prometheus` chart will use the value file from `git.example.com/org/value-files.git`.
 For Argo to reference the external Git repository containing the value files, you must set the `ref` parameter on
-the repository. In the above example, the parameter `ref: values` maps to the variable `$values`, which resolves
-to the root of the `value-files` repository. 
-Note that the `$values` variable can only be used at the beginning of the value file path and that its path is always relative to the root of the referenced source.
+the repository. In the above example, the parameter `ref: values` maps to the variable `$(values)`, which resolves
+to the root of the `value-files` repository.
+Note that the `$(values)` variable can only be used at the beginning of the value file path and that its path is always relative to the root of the referenced source.
+To prevent the evaluation inside of `$(values)` inside URL, you have to url-encode the string, e.g. `%24%28values%29`
 
-If the `path` field is set in the `$values` source, Argo CD will attempt to generate resources from the git repository
+If the `path` field is set in the `$(values)` source, Argo CD will attempt to generate resources from the git repository
 at that URL. If the `path` field is not set, Argo CD will use the repository solely as a source of value files.
 
 > [!NOTE]

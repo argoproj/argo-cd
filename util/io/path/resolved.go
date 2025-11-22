@@ -148,7 +148,7 @@ func resolveFileOrDirectory(appPath string, repoRoot string, fileOrDirectory str
 			return "", resolveFailure(repoRoot, err)
 		}
 		path = filepath.Join(absWorkDir, path)
-	} else {
+	} else if !strings.HasPrefix(path, absRepoPath) {
 		path = filepath.Join(absRepoPath, path)
 	}
 

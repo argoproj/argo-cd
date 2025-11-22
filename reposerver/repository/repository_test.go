@@ -557,7 +557,7 @@ func TestHelmChartReferencingExternalValues(t *testing.T) {
 	spec := v1alpha1.ApplicationSpec{
 		Sources: []v1alpha1.ApplicationSource{
 			{RepoURL: "https://helm.example.com", Chart: "my-chart", TargetRevision: ">= 1.0.0", Helm: &v1alpha1.ApplicationSourceHelm{
-				ValueFiles: []string{"$ref/testdata/my-chart/my-chart-values.yaml"},
+				ValueFiles: []string{"$(ref)/testdata/my-chart/my-chart-values.yaml"},
 			}},
 			{Ref: "ref", RepoURL: "https://git.example.com/test/repo"},
 		},
@@ -666,7 +666,7 @@ func TestHelmChartReferencingExternalValues_OutOfBounds_Symlink(t *testing.T) {
 			{RepoURL: "https://helm.example.com", Chart: "my-chart", TargetRevision: ">= 1.0.0", Helm: &v1alpha1.ApplicationSourceHelm{
 				// Reference `ref` but do not use the oob symlink. The mere existence of the link should be enough to
 				// cause an error.
-				ValueFiles: []string{"$ref/testdata/oob-symlink/values.yaml"},
+				ValueFiles: []string{"$(ref)/testdata/oob-symlink/values.yaml"},
 			}},
 			{Ref: "ref", RepoURL: "https://git.example.com/test/repo"},
 		},
@@ -3445,10 +3445,10 @@ func Test_getResolvedValueFiles(t *testing.T) {
 		},
 		{
 			name:    "simple ref",
-			rawPath: "$ref/values.yaml",
+			rawPath: "$(ref)/values.yaml",
 			env:     &v1alpha1.Env{},
 			refSources: map[string]*v1alpha1.RefTarget{
-				"$ref": {
+				"ref": {
 					Repo: v1alpha1.Repository{
 						Repo: "https://github.com/org/repo1",
 					},
@@ -3457,11 +3457,37 @@ func Test_getResolvedValueFiles(t *testing.T) {
 			expectedPath: path.Join(tempDir, "repo1", "values.yaml"),
 		},
 		{
-			name:    "only ref",
-			rawPath: "$ref",
+			name:    "url ref",
+			rawPath: "https://$(ref)/values.yaml",
 			env:     &v1alpha1.Env{},
 			refSources: map[string]*v1alpha1.RefTarget{
-				"$ref": {
+				"ref": {
+					Repo: v1alpha1.Repository{
+						Repo: "https://github.com/org/repo1",
+					},
+				},
+			},
+			expectedPath: "https://" + path.Join(tempDir, "repo1", "values.yaml"),
+		},
+		{
+			name:    "multiple ref",
+			rawPath: "https://$(ref)/values.yaml?$(ref)/other-values.yaml",
+			env:     &v1alpha1.Env{},
+			refSources: map[string]*v1alpha1.RefTarget{
+				"ref": {
+					Repo: v1alpha1.Repository{
+						Repo: "https://github.com/org/repo1",
+					},
+				},
+			},
+			expectedPath: "https://" + path.Join(tempDir, "repo1", "values.yaml") + "?" + path.Join(tempDir, "repo1", "other-values.yaml"),
+		},
+		{
+			name:    "only ref",
+			rawPath: "$(ref)",
+			env:     &v1alpha1.Env{},
+			refSources: map[string]*v1alpha1.RefTarget{
+				"ref": {
 					Repo: v1alpha1.Repository{
 						Repo: "https://github.com/org/repo1",
 					},
@@ -3471,10 +3497,10 @@ func Test_getResolvedValueFiles(t *testing.T) {
 		},
 		{
 			name:    "attempted traversal",
-			rawPath: "$ref/../values.yaml",
+			rawPath: "$(ref)/../values.yaml",
 			env:     &v1alpha1.Env{},
 			refSources: map[string]*v1alpha1.RefTarget{
-				"$ref": {
+				"ref": {
 					Repo: v1alpha1.Repository{
 						Repo: "https://github.com/org/repo1",
 					},
@@ -3483,21 +3509,18 @@ func Test_getResolvedValueFiles(t *testing.T) {
 			expectedErr: true,
 		},
 		{
-			// Since $ref doesn't resolve to a ref target, we assume it's an env var. Since the env var isn't specified,
-			// it's replaced with an empty string. This is necessary for backwards compatibility with behavior before
-			// ref targets were introduced.
-			name:         "ref doesn't exist",
-			rawPath:      "$ref/values.yaml",
-			env:          &v1alpha1.Env{},
-			refSources:   map[string]*v1alpha1.RefTarget{},
-			expectedPath: path.Join(tempDir, "main-repo", "values.yaml"),
+			name:        "ref doesn't exist",
+			rawPath:     "$(ref)/values.yaml",
+			env:         &v1alpha1.Env{},
+			refSources:  map[string]*v1alpha1.RefTarget{},
+			expectedErr: true,
 		},
 		{
 			name:    "repo doesn't exist",
-			rawPath: "$ref/values.yaml",
+			rawPath: "$(ref)/values.yaml",
 			env:     &v1alpha1.Env{},
 			refSources: map[string]*v1alpha1.RefTarget{
-				"$ref": {
+				"ref": {
 					Repo: v1alpha1.Repository{
 						Repo: "https://github.com/org/repo2",
 					},
@@ -3507,7 +3530,7 @@ func Test_getResolvedValueFiles(t *testing.T) {
 		},
 		{
 			name:    "env var is resolved",
-			rawPath: "$ref/$APP_PATH/values.yaml",
+			rawPath: "$(ref)/$APP_PATH/values.yaml",
 			env: &v1alpha1.Env{
 				&v1alpha1.EnvEntry{
 					Name:  "APP_PATH",
@@ -3515,7 +3538,7 @@ func Test_getResolvedValueFiles(t *testing.T) {
 				},
 			},
 			refSources: map[string]*v1alpha1.RefTarget{
-				"$ref": {
+				"ref": {
 					Repo: v1alpha1.Repository{
 						Repo: "https://github.com/org/repo1",
 					},
@@ -3525,7 +3548,7 @@ func Test_getResolvedValueFiles(t *testing.T) {
 		},
 		{
 			name:    "traversal in env var is blocked",
-			rawPath: "$ref/$APP_PATH/values.yaml",
+			rawPath: "$(ref)/$APP_PATH/values.yaml",
 			env: &v1alpha1.Env{
 				&v1alpha1.EnvEntry{
 					Name:  "APP_PATH",
@@ -3533,7 +3556,7 @@ func Test_getResolvedValueFiles(t *testing.T) {
 				},
 			},
 			refSources: map[string]*v1alpha1.RefTarget{
-				"$ref": {
+				"ref": {
 					Repo: v1alpha1.Repository{
 						Repo: "https://github.com/org/repo1",
 					},
@@ -3566,7 +3589,7 @@ func Test_getResolvedValueFiles(t *testing.T) {
 		tcc := tc
 		t.Run(tcc.name, func(t *testing.T) {
 			t.Parallel()
-			resolvedPaths, err := getResolvedValueFiles(path.Join(tempDir, "main-repo"), path.Join(tempDir, "main-repo"), tcc.env, []string{}, []string{tcc.rawPath}, tcc.refSources, paths, false)
+			resolvedPaths, err := getResolvedValueFiles(path.Join(tempDir, "main-repo"), path.Join(tempDir, "main-repo"), tcc.env, []string{"https"}, []string{tcc.rawPath}, tcc.refSources, paths, false)
 			if !tcc.expectedErr {
 				require.NoError(t, err)
 				require.Len(t, resolvedPaths, 1)
