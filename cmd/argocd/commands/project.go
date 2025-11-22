@@ -620,13 +620,13 @@ func modifyResourcesList(list *[]metav1.GroupKind, add bool, listDesc string, gr
 
 func modifyResourcesDenyList(list *[]v1alpha1.BlacklistEntry, add bool, visible bool, listDesc string, group string, kind string) bool {
 	if add {
-		for _, item := range *list {
+		for i, item := range *list {
 			if item.Group == group && item.Kind == kind {
 				if item.Visible == visible {
 					fmt.Printf("Group '%s' and kind '%s' already present in %s resources and visibility is %v\n", group, kind, listDesc, visible)
 					return false
 				}
-				item.Visible = visible
+				(*list)[i].Visible = visible
 				fmt.Printf("Group '%s' and kind '%s' already present in %s resources. Updated visibility to %v\n", group, kind, listDesc, visible)
 				return true
 			}
@@ -701,7 +701,7 @@ func modifyResourceListCmd(cmdUse, cmdDesc, examples string, clientOpts *argocdc
 					errors.CheckError(err)
 				}
 			} else {
-				if modifyResourcesDenyList(denyList, visible, !allow, "denied "+listDesc, group, kind) {
+				if modifyResourcesDenyList(denyList, !allow, visible, "denied "+listDesc, group, kind) {
 					_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
 					errors.CheckError(err)
 				}
