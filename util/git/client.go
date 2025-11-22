@@ -3,6 +3,7 @@ package git
 import (
 	"bufio"
 	"context"
+	"crypto/sha256"
 	"crypto/tls"
 	"encoding/json"
 	"errors"
@@ -163,6 +164,8 @@ type nativeGitClient struct {
 	proxy string
 	// list of targets that shouldn't use the proxy, applies only if the proxy is set
 	noProxy string
+	// sparsePaths are the paths to include in sparse-checkout (cone mode)
+	sparsePaths []string
 }
 
 type runOpts struct {
@@ -206,6 +209,49 @@ func WithEventHandlers(handlers EventHandlers) ClientOpts {
 	return func(c *nativeGitClient) {
 		c.EventHandlers = handlers
 	}
+}
+
+// WithSparse configures sparse-checkout with the given paths (cone mode)
+// Paths should be directory paths relative to the repository root.
+// Requires Git >= 2.25 for cone mode support.
+func WithSparse(paths []string) ClientOpts {
+	return func(c *nativeGitClient) {
+		if len(paths) > 0 {
+			// Normalize and trim paths for consistency
+			normalized := make([]string, 0, len(paths))
+			for _, p := range paths {
+				trimmed := strings.TrimSpace(p)
+				if trimmed != "" {
+					// Normalize path separators and remove trailing slashes
+					normalized = append(normalized, strings.Trim(filepath.ToSlash(trimmed), "/"))
+				}
+			}
+			c.sparsePaths = normalized
+		}
+	}
+}
+
+// GetSparseCheckoutKey returns a cache key component for sparse checkout paths.
+// Returns empty string if no sparse paths are configured.
+// The paths are hashed to keep cache keys manageable even with many paths.
+func GetSparseCheckoutKey(paths []string) string {
+	if len(paths) == 0 {
+		return ""
+	}
+	// Normalize, trim and sort paths for consistent hashing
+	normalized := make([]string, 0, len(paths))
+	for _, p := range paths {
+		trimmed := strings.TrimSpace(p)
+		if trimmed != "" {
+			normalized = append(normalized, strings.Trim(filepath.ToSlash(trimmed), "/"))
+		}
+	}
+	sort.Strings(normalized)
+	
+	// Hash the paths to keep cache key manageable
+	h := sha256.New()
+	h.Write([]byte(strings.Join(normalized, ",")))
+	return fmt.Sprintf("sparse:%x", h.Sum(nil)[:8]) // Use first 8 bytes for readability
 }
 
 func NewClient(rawRepoURL string, creds Creds, insecure bool, enableLfs bool, proxy string, noProxy string, opts ...ClientOpts) (Client, error) {
@@ -382,6 +428,7 @@ func (m *nativeGitClient) Root() string {
 }
 
 // Init initializes a local git repository and sets the remote origin
+// If sparse paths are configured, sets up sparse-checkout in cone mode
 func (m *nativeGitClient) Init() error {
 	_, err := git.PlainOpen(m.root)
 	if err == nil {
@@ -407,7 +454,49 @@ func (m *nativeGitClient) Init() error {
 		Name: git.DefaultRemoteName,
 		URLs: []string{m.repoURL},
 	})
-	return err
+	if err != nil {
+		return err
+	}
+
+	// Configure sparse-checkout if paths are specified
+	if len(m.sparsePaths) > 0 {
+		if err := m.configureSparseCheckout(); err != nil {
+			return fmt.Errorf("failed to configure sparse-checkout: %w", err)
+		}
+	}
+
+	return nil
+}
+
+// configureSparseCheckout sets up sparse-checkout in cone mode
+// Must be called after Init() and before Checkout()
+func (m *nativeGitClient) configureSparseCheckout() error {
+	ctx := context.Background()
+
+	// Enable sparse-checkout config
+	if _, err := m.runCmd(ctx, "config", "core.sparseCheckout", "true"); err != nil {
+		return fmt.Errorf("failed to enable sparse-checkout config: %w", err)
+	}
+
+	// Enable cone mode
+	if _, err := m.runCmd(ctx, "config", "core.sparseCheckoutCone", "true"); err != nil {
+		return fmt.Errorf("failed to enable cone mode: %w", err)
+	}
+
+	// Create .git/info/sparse-checkout file with cone patterns
+	sparseFile := filepath.Join(m.root, ".git", "info", "sparse-checkout")
+	if err := os.MkdirAll(filepath.Dir(sparseFile), 0o755); err != nil {
+		return fmt.Errorf("failed to create sparse-checkout dir: %w", err)
+	}
+
+	// Write paths to sparse-checkout file (one per line)
+	content := strings.Join(m.sparsePaths, "\n") + "\n"
+	if err := os.WriteFile(sparseFile, []byte(content), 0o644); err != nil {
+		return fmt.Errorf("failed to write sparse-checkout file: %w", err)
+	}
+
+	log.Infof("Configured sparse-checkout with paths: %v", m.sparsePaths)
+	return nil
 }
 
 // IsLFSEnabled returns true if the repository is LFS enabled
@@ -427,6 +516,15 @@ func (m *nativeGitClient) fetch(ctx context.Context, revision string, depth int6
 		args = append(args, "--tags")
 	}
 	args = append(args, "--force", "--prune")
+
+	// Enable partial clone when sparse checkout is configured
+	// This avoids downloading blobs for files outside the sparse paths
+	// while preserving commit history for features like ChangedFiles()
+	if len(m.sparsePaths) > 0 {
+		args = append(args, "--filter=blob:none")
+		log.Infof("Using partial clone (--filter=blob:none) with sparse checkout")
+	}
+
 	return m.runCredentialedCmd(ctx, args...)
 }
 
@@ -545,6 +643,13 @@ func (m *nativeGitClient) Checkout(revision string, submoduleEnabled bool) (stri
 	ctx := context.Background()
 	if out, err := m.runCmd(ctx, "checkout", "--force", revision); err != nil {
 		return out, fmt.Errorf("failed to checkout %s: %w", revision, err)
+	}
+
+	// If sparse-checkout is enabled, ensure working tree matches patterns
+	if len(m.sparsePaths) > 0 {
+		if _, err := m.runCmd(ctx, "sparse-checkout", "reapply"); err != nil {
+			log.Warnf("Failed to reapply sparse-checkout after checkout: %v", err)
+		}
 	}
 	// We must populate LFS content by using lfs checkout, if we have at least
 	// one LFS reference in the current revision.

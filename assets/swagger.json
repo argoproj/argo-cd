@@ -7478,6 +7478,13 @@
         "recurse": {
           "type": "boolean",
           "title": "Recurse specifies whether to scan a directory recursively for manifests"
+        },
+        "sparseCheckoutPaths": {
+          "type": "array",
+          "title": "SparseCheckoutPaths defines directory paths to include in a sparse git checkout.\nWhen specified, only these paths (and parent directories) will be checked out from the repository,\nsignificantly reducing clone time and disk usage for large monorepos.\nPaths should be relative to the repository root. Uses cone mode for optimal performance.\nRequires git >= 2.25.\n+optional",
+          "items": {
+            "type": "string"
+          }
         }
       }
     },
