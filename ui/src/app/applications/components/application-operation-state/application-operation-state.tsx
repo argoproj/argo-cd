@@ -52,7 +52,7 @@ const Filter = (props: {filters: string[]; setFilters: (f: string[]) => void; op
     );
 };
 
-export const ApplicationOperationState: React.StatelessComponent<Props> = ({application, operationState}, ctx: AppContext) => {
+export const ApplicationOperationState: React.FC<Props> = ({application, operationState}, ctx: AppContext) => {
     const [messageFilters, setMessageFilters] = React.useState([]);
 
     const operationAttributes = [
