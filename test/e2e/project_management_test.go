@@ -460,6 +460,7 @@ func TestDenyNamespaceResource(t *testing.T) {
 		"kind",
 		"--list",
 		"allow",
+		"--visible",
 	)
 	require.ErrorContains(t, err, "The 'visible' flag can only be set when modifying the deny list")
 
@@ -506,6 +507,7 @@ func TestDenyClusterResource(t *testing.T) {
 		"kind",
 		"--list",
 		"allow",
+		"--visible",
 	)
 	require.ErrorContains(t, err, "The 'visible' flag can only be set when modifying the deny list")
 
