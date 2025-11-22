@@ -458,7 +458,8 @@ func TestDenyNamespaceResource(t *testing.T) {
 	_, err = fixture.RunCli("proj", "deny-namespace-resource", projectName,
 		"group",
 		"kind",
-		"--list allow",
+		"--list",
+		"allow",
 	)
 	require.ErrorContains(t, err, "The 'visible' flag can only be set when modifying the deny list")
 
@@ -503,13 +504,16 @@ func TestDenyClusterResource(t *testing.T) {
 	_, err = fixture.RunCli("proj", "deny-cluster-resource", projectName,
 		"group",
 		"kind",
-		"--list allow",
+		"--list",
+		"allow",
 	)
 	require.ErrorContains(t, err, "The 'visible' flag can only be set when modifying the deny list")
 
 	_, err = fixture.RunCli("proj", "deny-cluster-resource", projectName,
 		"group",
 		"kind",
+		"--list",
+		"deny",
 	)
 	require.NoError(t, err, "Unable to add resource to cluster resource blacklist")
 	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Get(t.Context(), projectName, metav1.GetOptions{})
@@ -523,6 +527,8 @@ func TestDenyClusterResource(t *testing.T) {
 	_, err = fixture.RunCli("proj", "deny-cluster-resource", projectName,
 		"group",
 		"kind",
+		"--list",
+		"deny",
 		"--visible",
 	)
 	require.NoError(t, err, "Unable to add resource to cluster resource blacklist")
