@@ -31,6 +31,7 @@ jobs:
       docker_image_name: ${{ steps.image.outputs.docker_image_name }}
       ghcr_image_name: ${{ steps.image.outputs.ghcr_image_name }}
       ghcr_provenance_image: ${{ steps.image.outputs.ghcr_provenance_image }}
+      allow_ghcr_publish: ${{ steps.image.outputs.allow_ghcr_publish }}
     steps:
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
 
@@ -45,7 +46,7 @@ jobs:
           IMAGE_NAMESPACE="${{ vars.IMAGE_NAMESPACE || 'argoproj' }}"
           IMAGE_REPOSITORY="${{ vars.IMAGE_REPOSITORY || 'argocd' }}"
           GHCR_REGISTRY="${{ vars.GHCR_REGISTRY || 'ghcr.io' }}"
-          GHCR_NAMESPACE="${{ vars.GHCR_NAMESPACE || 'argoproj/argo-cd' }}"
+          GHCR_NAMESPACE="${{ vars.GHCR_NAMESPACE || github.repository }}"
           GHCR_REPOSITORY="${{ vars.GHCR_REPOSITORY || 'argocd' }}"
           
           echo "image_registry=$IMAGE_REGISTRY" >> $GITHUB_OUTPUT
@@ -65,8 +66,17 @@ jobs:
             echo "docker_image_name=" >> $GITHUB_OUTPUT
           fi
           
-          echo "ghcr_image_name=$GHCR_REGISTRY/$GHCR_NAMESPACE/$GHCR_REPOSITORY:$TAG" >> $GITHUB_OUTPUT
-          echo "ghcr_provenance_image=$GHCR_REGISTRY/$GHCR_NAMESPACE/$GHCR_REPOSITORY" >> $GITHUB_OUTPUT
+          ALLOW_GHCR_PUBLISH=false
+          if [[ "${{ github.repository }}" == "argoproj/argo-cd" || ( "$GHCR_REGISTRY" == "ghcr.io" && "$GHCR_NAMESPACE" != argoproj/* ) ]]; then
+            ALLOW_GHCR_PUBLISH=true
+            echo "ghcr_image_name=$GHCR_REGISTRY/$GHCR_NAMESPACE/$GHCR_REPOSITORY:$TAG" >> $GITHUB_OUTPUT
+            echo "ghcr_provenance_image=$GHCR_REGISTRY/$GHCR_NAMESPACE/$GHCR_REPOSITORY" >> $GITHUB_OUTPUT
+          else
+            echo "GhCR publish skipped: refusing to push to namespace '$GHCR_NAMESPACE'. Please override GHCR_* for forks." >&2
+            echo "ghcr_image_name=" >> $GITHUB_OUTPUT
+            echo "ghcr_provenance_image=" >> $GITHUB_OUTPUT
+          fi
+          echo "allow_ghcr_publish=$ALLOW_GHCR_PUBLISH" >> $GITHUB_OUTPUT
         id: image
 
       - name: Determine image platforms to use
@@ -126,7 +136,7 @@ jobs:
       actions: read # for detecting the Github Actions environment.
       id-token: write # for creating OIDC tokens for signing.
       packages: write # for uploading attestations. (https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#known-issues)
-    if: ${{ (github.repository == 'argoproj/argo-cd' || needs.set-vars.outputs.image_namespace != 'argoproj') && github.event_name == 'push' }}
+    if: ${{ (github.repository == 'argoproj/argo-cd' || needs.set-vars.outputs.image_namespace != 'argoproj') && github.event_name == 'push' && needs.set-vars.outputs.allow_ghcr_publish == 'true'}}
     # Must be refernced by a tag. https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#referencing-the-slsa-generator
     uses: slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@v2.1.0
     with:
