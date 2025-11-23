@@ -252,6 +252,102 @@ func TestGetCluster_UrlEncodedName(t *testing.T) {
 	assert.Equal(t, "test/ing", localCluster.Name)
 }
 
+func TestGetCluster_UrlEncodedNameClustersWithSameServer(t *testing.T) {
+	db := &dbmocks.ArgoDB{}
+
+	mockCluster := appv1.Cluster{
+		Name:       "testing",
+		Server:     "https://127.0.0.1",
+		Namespaces: []string{"default", "kube-system"},
+	}
+	mockCluster2nd := appv1.Cluster{
+		Name:       "testing2nd",
+		Server:     "https://127.0.0.1",
+		Namespaces: []string{"default", "kube-system"},
+	}
+	mockCluster3rd := appv1.Cluster{
+		Name:       "testing3rd",
+		Server:     "https://127.0.0.1",
+		Namespaces: []string{"default", "kube-system"},
+	}
+	mockClusterList := appv1.ClusterList{
+		ListMeta: metav1.ListMeta{},
+		Items: []appv1.Cluster{
+			mockCluster,
+			mockCluster2nd,
+			mockCluster3rd,
+		},
+	}
+
+	db.EXPECT().ListClusters(mock.Anything).Return(&mockClusterList, nil)
+	db.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(&mockCluster, nil)
+
+	server := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{})
+
+	localCluster, err := server.Get(t.Context(), &cluster.ClusterQuery{
+		Id: &cluster.ClusterID{
+			Type:  "url_name_escaped",
+			Value: "https://127.0.0.1,testing3rd",
+		},
+	})
+	require.NoError(t, err)
+
+	assert.Equal(t, "https://127.0.0.1", localCluster.Server)
+	assert.Equal(t, "testing3rd", localCluster.Name)
+}
+
+func TestGetCluster_UrlNameEscapedTypeFailToListCluster(t *testing.T) {
+	db := &dbmocks.ArgoDB{}
+
+	mockCluster := appv1.Cluster{
+		Name:       "my-test-cluster",
+		Server:     "https://127.0.0.1",
+		Namespaces: []string{"default", "kube-system"},
+	}
+
+	db.EXPECT().ListClusters(mock.Anything).Return(nil, fmt.Errorf("failed to list clusters"))
+	db.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(&mockCluster, nil)
+
+	server := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{})
+
+	_, err := server.Get(t.Context(), &cluster.ClusterQuery{
+		Id: &cluster.ClusterID{
+			Type:  "url_name_escaped",
+			Value: "https://127.0.0.1my-test-cluster",
+		},
+	})
+	require.Error(t, err)
+}
+
+func TestGetCluster_UrlNameEscapedTypeFailToParse(t *testing.T) {
+	db := &dbmocks.ArgoDB{}
+
+	mockCluster := appv1.Cluster{
+		Name:       "my-test-cluster",
+		Server:     "https://127.0.0.1",
+		Namespaces: []string{"default", "kube-system"},
+	}
+	mockClusterList := appv1.ClusterList{
+		ListMeta: metav1.ListMeta{},
+		Items: []appv1.Cluster{
+			mockCluster,
+		},
+	}
+
+	db.EXPECT().ListClusters(mock.Anything).Return(&mockClusterList, nil)
+	db.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(&mockCluster, nil)
+
+	server := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{})
+
+	_, err := server.Get(t.Context(), &cluster.ClusterQuery{
+		Id: &cluster.ClusterID{
+			Type:  "url_name_escaped",
+			Value: "https://127.0.0.1my-test-cluster",
+		},
+	})
+	require.Error(t, err)
+}
+
 func TestGetCluster_UrlNameEscapedType(t *testing.T) {
 	db := &dbmocks.ArgoDB{}
 
