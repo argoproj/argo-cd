@@ -1,0 +1,31 @@
+{
+  "apiVersion": "v1",
+  "kind": "ConfigMap",
+  "metadata": {
+    "name": "test-configmap",
+    "namespace": "default",
+    "uid": "12345678-1234-1234-1234-123456789012",
+    "resourceVersion": "1000",
+    "managedFields": [
+      {
+        "manager": "argocd-controller",
+        "operation": "Apply",
+        "apiVersion": "v1",
+        "time": "2024-01-01T00:00:00Z",
+        "fieldsType": "FieldsV1",
+        "fieldsV1": {
+          "f:data": {
+            "f:key1": {},
+            "f:key2": {},
+            "f:key3": {}
+          }
+        }
+      }
+    ]
+  },
+  "data": {
+    "key1": "value1",
+    "key2": "value2",
+    "key3": "value3"
+  }
+}
