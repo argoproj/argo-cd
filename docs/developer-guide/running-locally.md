@@ -239,7 +239,7 @@ make manifests-local
 (depending on your toolchain) to build a new set of installation manifests which include your specific image reference.
 
 > [!NOTE]
-> Do not commit these manifests to your repository. If you want to revert the changes, the easiest way is to unset `IMAGE_REGISTRY`, `IMAGE_NAMESPACE` and `IMAGE_TAG` from your environment and run `make manifests` again. This will re-create the default manifests.
+> Do not commit these manifests to your repository. If you want to revert the changes, the easiest way is to unset `IMAGE_REGISTRY=docker.io`, `IMAGE_NAMESPACE` and `IMAGE_TAG` from your environment and run `make manifests` again. This will re-create the default manifests.
 
 #### Configure your cluster with custom manifests
 
