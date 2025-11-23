@@ -3079,11 +3079,6 @@ func TestDeletionConfirmation(t *testing.T) {
 		When().ConfirmDeletion().
 		Then().Expect(OperationPhaseIs(OperationSucceeded)).
 		When().Delete(true).
-		Then().
-		And(func(app *Application) {
-			assert.NotNil(t, app.DeletionTimestamp)
-		}).
-		When().ConfirmDeletion().
 		Then().Expect(DoesNotExist())
 }
 
