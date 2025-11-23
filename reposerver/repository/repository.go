@@ -1422,10 +1422,46 @@ func getResolvedRefValueFile(
 
 	// Resolve the path relative to the referenced repo and block any attempt at traversal.
 	resolvedPath, _, err := pathutil.ResolveValueFilePathOrUrl(repoPath, repoPath, env.Envsubst(substitutedPath), allowedValueFilesSchemas)
-	if err != nil {
-		return "", fmt.Errorf("error resolving value file path: %w", err)
+	if err == nil {
+		return resolvedPath, nil
 	}
-	return resolvedPath, nil
+
+	// Fallback: search the referenced repository for a file whose path ends with the substitutedPath.
+	// This is a non-breaking, best-effort fallback that helps when the value file resides under a
+	// subdirectory (for example, a source `path`) and the `valueFiles` entry omitted that prefix.
+	// Use filepath.Walk to find the first matching file.
+	var found string
+	targetSuffix := filepath.ToSlash(env.Envsubst(substitutedPath))
+	errWalk := filepath.WalkDir(repoPath, func(p string, d fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return nil
+		}
+		if d.IsDir() {
+			return nil
+		}
+		// Compare using slash-separated paths to be OS-independent
+		if strings.HasSuffix(filepath.ToSlash(p), targetSuffix) {
+			found = p
+			return errors.New("found") // use error to short-circuit WalkDir
+		}
+		return nil
+	})
+	if found != "" {
+		// Ensure the found path is a valid resolved path (Run through ResolveValueFilePathOrUrl to validate)
+		resolvedFound, _, rerr := pathutil.ResolveValueFilePathOrUrl(repoPath, repoPath, strings.TrimPrefix(filepath.ToSlash(found), filepath.ToSlash(repoPath)+"/"), allowedValueFilesSchemas)
+		if rerr == nil {
+			return resolvedFound, nil
+		}
+	}
+	if errWalk != nil && errWalk.Error() == "found" && found != "" {
+		// handled above; but keep for safety
+		resolvedFound, _, rerr := pathutil.ResolveValueFilePathOrUrl(repoPath, repoPath, strings.TrimPrefix(filepath.ToSlash(found), filepath.ToSlash(repoPath)+"/"), allowedValueFilesSchemas)
+		if rerr == nil {
+			return resolvedFound, nil
+		}
+	}
+
+	return "", fmt.Errorf("error resolving value file path: %w", err)
 }
 
 func getReferencedSource(rawValueFile string, refSources map[string]*v1alpha1.RefTarget) *v1alpha1.RefTarget {

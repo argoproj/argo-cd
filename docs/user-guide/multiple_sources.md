@@ -76,10 +76,20 @@ In the above example, the `prometheus` chart will use the value file from `git.e
 For Argo to reference the external Git repository containing the value files, you must set the `ref` parameter on
 the repository. In the above example, the parameter `ref: values` maps to the variable `$values`, which resolves
 to the root of the `value-files` repository. 
-Note that the `$values` variable can only be used at the beginning of the value file path and that its path is always relative to the root of the referenced source.
+Note that the `$values` variable can only be used at the beginning of the value file path and that it resolves
+to the root of the referenced repository. In other words, `$values` is expanded relative to the repository root
+that was checked out for the referenced source, not the value of the referenced source's `path` field.
 
-If the `path` field is set in the `$values` source, Argo CD will attempt to generate resources from the git repository
-at that URL. If the `path` field is not set, Argo CD will use the repository solely as a source of value files.
+If the `path` field is set in the `$values` source, Argo CD will still use that `path` when attempting to
+generate manifests from that source. However, `valueFiles` paths that begin with `$values/` are resolved
+against the repository root of the referenced source. To reference files that live under a `path` inside the
+referenced repository, either:
+
+- include the path segment in the `valueFiles` entry (for example: `$values/kubeform/apps/{{name}}/values/{{env}}.yaml`), or
+- omit the `path` field from the referenced source and instead supply the intended subpath in the `valueFiles` entries.
+
+This distinction explains why using a `ref` source that specifies a `path` may not find `$values/...` files unless the
+valueFiles paths include that path segment or the `path` is omitted from the `ref` source.
 
 > [!NOTE]
 > Sources with the `ref` field set cannot include the `chart` field. Currently, Argo CD does not support using another Helm chart as a source for value files.
