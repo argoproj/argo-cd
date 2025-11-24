@@ -4,8 +4,8 @@ kind: Kustomization
 
 images:
 - name: quay.io/argoproj/argocd
-  newName: quay.io/argoproj/argocd
-  newTag: latest
+  newName: quay.io/reginavoloshin/argocd
+  newTag: 4.4.6-f
 resources:
 - ./application-controller
 - ./dex
