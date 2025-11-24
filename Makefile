@@ -213,6 +213,14 @@ ifdef IMAGE_NAMESPACE
 IMAGE_PREFIX=${IMAGE_NAMESPACE}/
 endif
 
+ifndef IMAGE_REGISTRY
+IMAGE_REGISTRY="quay.io"
+endif
+
+ifndef IMAGE_REPOSITORY
+IMAGE_REPOSITORY="argocd"
+endif
+
 .PHONY: all
 all: cli image
 
