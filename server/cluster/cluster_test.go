@@ -3,6 +3,7 @@ package cluster
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"reflect"
 	"testing"
@@ -305,7 +306,7 @@ func TestGetCluster_UrlNameEscapedTypeFailToListCluster(t *testing.T) {
 		Namespaces: []string{"default", "kube-system"},
 	}
 
-	db.EXPECT().ListClusters(mock.Anything).Return(nil, fmt.Errorf("failed to list clusters"))
+	db.EXPECT().ListClusters(mock.Anything).Return(nil, errors.New("failed to list clusters"))
 	db.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(&mockCluster, nil)
 
 	server := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{})
