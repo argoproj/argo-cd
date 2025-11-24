@@ -877,3 +877,89 @@ http {
     }
 }
 ```
+
+## Cilium Gateway API Example
+
+This section provides a working example of using Cilium Gateway API with Argo CD, including HTTP and gRPC routes.
+
+### Prerequisites
+
+- API server run with TLS disabled (set `server.insecure: "true"` in argocd-cmd-params-cm ConfigMap)
+
+### Gateway Example
+
+```yaml
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: cluster-gateway
+  namespace: gateway
+  annotations:
+    cert-manager.io/issuer: cloudflare-dns-issuer
+spec:
+  gatewayClassName: cilium
+  addresses:
+    - type: IPAddress
+      value: "192.168.0.130"
+  listeners:
+    - protocol: HTTPS
+      port: 443
+      name: https-cluster
+      hostname: "*.local.example.com"
+      allowedRoutes:
+        namespaces:
+          from: All
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: cluster-gateway-tls
+            kind: Secret
+            group: ""
+```
+
+### HTTPRoute Example
+```yaml
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: argocd-http-route
+  namespace: argocd
+spec:
+  parentRefs:
+    - name: cluster-gateway
+      namespace: gateway
+  hostnames:
+    - "argocd.local.example.com"
+  rules:
+    - backendRefs:
+        - name: argocd-server
+          port: 80
+      matches:
+        - path:
+            type: PathPrefix
+            value: /
+```
+
+### GRPCRoute Example
+```yaml
+apiVersion: gateway.networking.k8s.io/v1
+kind: GRPCRoute
+metadata:
+  name: argocd-grpc-route
+  namespace: argocd
+spec:
+  parentRefs:
+    - name: cluster-gateway
+      namespace: gateway
+  hostnames:
+    - "argocd.local.example.com"
+  rules:
+    - backendRefs:
+        - name: argocd-server
+          port: 443
+      matches:
+        - headers:
+            - name: Content-Type
+              type: RegularExpression
+              value: "^application/grpc.*$"
+```
