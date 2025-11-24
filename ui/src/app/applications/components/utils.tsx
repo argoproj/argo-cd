@@ -1927,7 +1927,7 @@ export function formatResourceInfo(name: string, value: string): {displayValue: 
     };
 
     const formatMemoryValue = (milliBytes: number): string => {
-        const mib = Math.round(milliBytes / (1024 * 1024 * 1000));
+        const mib = Math.round(milliBytes / (1024 * 1024));
         return `${mib}Mi`;
     };
 
@@ -1937,7 +1937,7 @@ export function formatResourceInfo(name: string, value: string): {displayValue: 
     };
 
     const formatMemoryTooltip = (milliBytes: number): string => {
-        const mib = Math.round(milliBytes / (1024 * 1024 * 1000));
+        const mib = Math.round(milliBytes / (1024 * 1024));
         return `Memory Request: ${mib}Mi`;
     };
 
