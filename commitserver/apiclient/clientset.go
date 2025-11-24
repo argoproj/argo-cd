@@ -2,6 +2,10 @@ package apiclient
 
 import (
 	"fmt"
+	"math"
+
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/util/env"
 
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
@@ -9,6 +13,9 @@ import (
 
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 )
+
+// MaxGRPCMessageSize contains max grpc message size
+var MaxGRPCMessageSize = env.ParseNumFromEnv(common.EnvGRPCMaxSizeMB, 100, 0, math.MaxInt32) * 1024 * 1024
 
 // Clientset represents commit server api clients
 type Clientset interface {
@@ -33,9 +40,7 @@ func NewConnection(address string) (*grpc.ClientConn, error) {
 	var opts []grpc.DialOption
 	opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 
-	// TODO: switch to grpc.NewClient.
-	//nolint:staticcheck
-	conn, err := grpc.Dial(address, opts...)
+	conn, err := grpc.NewClient(address, opts...)
 	if err != nil {
 		log.Errorf("Unable to connect to commit service with address %s", address)
 		return nil, err

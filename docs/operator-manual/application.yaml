@@ -208,6 +208,7 @@ spec:
       targetRevision: HEAD  # For Helm, this refers to the chart version.
       path: guestbook  # This has no meaning for Helm charts pulled directly from a Helm repo instead of git.
       ref: my-repo  # For Helm, acts as a reference to this source for fetching values files from this source. Has no meaning when under `source` field
+      name: 'guestbook' # Optional source name. Can be used instead of the source position in multi-source Applications CLI
 
   # Destination cluster and namespace to deploy the application
   destination:
@@ -226,6 +227,7 @@ spec:
   # Sync policy
   syncPolicy:
     automated: # automated sync by default retries failed attempts 5 times with following delays between attempts ( 5s, 10s, 20s, 40s, 80s ); retry controlled using `retry` field.
+      enabled: true # Enables automated syncing of the application ( true by default ).
       prune: true # Specifies if resources should be pruned during auto-syncing ( false by default ).
       selfHeal: true # Specifies if partial app sync should be executed when resources are changed only in target Kubernetes cluster and no git change detected ( false by default ).
       allowEmpty: false # Allows deleting all application resources during automatic syncing ( false by default ).
@@ -237,6 +239,7 @@ spec:
     - RespectIgnoreDifferences=true # When syncing changes, respect fields ignored by the ignoreDifferences configuration
     - ApplyOutOfSyncOnly=true # Only sync out-of-sync resources, rather than applying every object in the application
     - SkipDryRunOnMissingResource=true # Allow skip dry run on missing resource
+    - Replace=true # Argo CD will use kubectl replace or kubectl create command to apply changes.
     managedNamespaceMetadata: # Sets the metadata for the application namespace. Only valid if CreateNamespace=true (see above), otherwise it's a no-op.
       labels: # The labels to set on the application namespace
         any: label
@@ -264,7 +267,8 @@ spec:
     - /spec/replicas
   - kind: ConfigMap
     jqPathExpressions:
-    - '.data["config.yaml"].auth'
+    # Example: Ignore changes to a specific key inside a ConfigMap
+    - '.data["config.yaml"]'
   # for the specified managedFields managers
   - group: "*"
     kind: "*"

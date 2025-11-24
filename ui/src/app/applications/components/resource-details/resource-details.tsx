@@ -291,16 +291,14 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                         <React.Fragment>
                             <div className='resource-details__header'>
                                 <div style={{display: 'flex', flexDirection: 'column', marginRight: '15px', alignItems: 'center', fontSize: '12px'}}>
-                                    <ResourceIcon kind={selectedNode.kind} />
+                                    <ResourceIcon group={selectedNode.group} kind={selectedNode.kind} />
                                     {ResourceLabel({kind: selectedNode.kind})}
                                 </div>
                                 <h1>{selectedNode.name}</h1>
                                 {data.controlledState && (
-                                    <React.Fragment>
-                                        <span style={{marginRight: '5px'}}>
-                                            <AppUtils.ComparisonStatusIcon status={data.controlledState.summary.status} resource={data.controlledState.summary} />
-                                        </span>
-                                    </React.Fragment>
+                                    <span style={{marginRight: '5px'}}>
+                                        <AppUtils.ComparisonStatusIcon status={data.controlledState.summary.status} resource={data.controlledState.summary} />
+                                    </span>
                                 )}
                                 {(selectedNode as ResourceTreeNode).health && <AppUtils.HealthStatusIcon state={(selectedNode as ResourceTreeNode).health} />}
                                 <button

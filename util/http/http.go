@@ -123,7 +123,7 @@ func JoinCookies(key string, cookieList []*http.Cookie) (string, error) {
 }
 
 func maxCookieValueLength(key, attributes string) int {
-	if len(attributes) > 0 {
+	if attributes != "" {
 		return maxCookieLength - (len(key) + 3) - (len(attributes) + 2)
 	}
 	return maxCookieLength - (len(key) + 3)
@@ -240,4 +240,24 @@ func drainBody(body io.ReadCloser) {
 	if err != nil {
 		log.Warnf("error reading response body: %s", err.Error())
 	}
+}
+
+func SetTokenCookie(token string, baseHRef string, isSecure bool, w http.ResponseWriter) error {
+	var path string
+	if baseHRef != "" {
+		path = strings.TrimRight(strings.TrimLeft(baseHRef, "/"), "/")
+	}
+	cookiePath := "path=/" + path
+	flags := []string{cookiePath, "SameSite=lax", "httpOnly"}
+	if isSecure {
+		flags = append(flags, "Secure")
+	}
+	cookies, err := MakeCookieMetadata(common.AuthCookieName, token, flags...)
+	if err != nil {
+		return fmt.Errorf("error creating cookie metadata: %w", err)
+	}
+	for _, cookie := range cookies {
+		w.Header().Add("Set-Cookie", cookie)
+	}
+	return nil
 }

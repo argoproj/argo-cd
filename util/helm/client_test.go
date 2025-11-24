@@ -18,6 +18,7 @@ import (
 	"gopkg.in/yaml.v2"
 
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
+	"github.com/argoproj/argo-cd/v3/util/workloadidentity"
 	"github.com/argoproj/argo-cd/v3/util/workloadidentity/mocks"
 )
 
@@ -307,15 +308,15 @@ func TestGetTagsFromURLPrivateRepoWithAzureWorkloadIdentityAuthentication(t *tes
 		return mockServerURL
 	}
 
-	workloadIdentityMock := new(mocks.TokenProvider)
-	workloadIdentityMock.On("GetToken", "https://management.core.windows.net/.default").Return("accessToken", nil)
+	workloadIdentityMock := &mocks.TokenProvider{}
+	workloadIdentityMock.EXPECT().GetToken("https://management.core.windows.net/.default").Return(&workloadidentity.Token{AccessToken: "accessToken"}, nil)
 
 	mockServer := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		t.Logf("called %s", r.URL.Path)
 
 		switch r.URL.Path {
 		case "/v2/":
-			w.Header().Set("Www-Authenticate", fmt.Sprintf(`Bearer realm="%s",service="%s"`, mockedServerURL(), mockedServerURL()[8:]))
+			w.Header().Set("Www-Authenticate", fmt.Sprintf(`Bearer realm=%q,service=%q`, mockedServerURL(), mockedServerURL()[8:]))
 			w.WriteHeader(http.StatusUnauthorized)
 
 		case "/oauth2/exchange":
@@ -436,7 +437,7 @@ func TestGetTagsFromURLEnvironmentAuthentication(t *testing.T) {
 	configPath := filepath.Join(tempDir, "config.json")
 	t.Setenv("DOCKER_CONFIG", tempDir)
 
-	config := fmt.Sprintf(`{"auths":{"%s":{"auth":"%s"}}}`, server.URL, bearerToken)
+	config := fmt.Sprintf(`{"auths":{%q:{"auth":%q}}}`, server.URL, bearerToken)
 	require.NoError(t, os.WriteFile(configPath, []byte(config), 0o666))
 
 	testCases := []struct {
@@ -479,4 +480,96 @@ func TestGetTagsFromURLEnvironmentAuthentication(t *testing.T) {
 			})
 		})
 	}
+}
+
+func TestGetTagsCaching(t *testing.T) {
+	requestCount := 0
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestCount++
+		t.Logf("request %d called %s", requestCount, r.URL.Path)
+
+		responseTags := fakeTagsList{
+			Tags: []string{
+				"1.0.0",
+				"1.1.0",
+				"2.0.0_beta",
+			},
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		require.NoError(t, json.NewEncoder(w).Encode(responseTags))
+	}))
+	t.Cleanup(server.Close)
+
+	serverURL, err := url.Parse(server.URL)
+	require.NoError(t, err)
+
+	t.Run("should cache tags correctly", func(t *testing.T) {
+		cache := &fakeIndexCache{}
+		client := NewClient(serverURL.Host, HelmCreds{
+			InsecureSkipVerify: true,
+		}, true, "", "", WithIndexCache(cache))
+
+		tags1, err := client.GetTags("mychart", false)
+		require.NoError(t, err)
+		assert.ElementsMatch(t, tags1, []string{
+			"1.0.0",
+			"1.1.0",
+			"2.0.0+beta",
+		})
+		assert.Equal(t, 1, requestCount)
+
+		requestCount = 0
+
+		tags2, err := client.GetTags("mychart", false)
+		require.NoError(t, err)
+		assert.ElementsMatch(t, tags2, []string{
+			"1.0.0",
+			"1.1.0",
+			"2.0.0+beta",
+		})
+		assert.Equal(t, 0, requestCount)
+
+		assert.NotEmpty(t, cache.data)
+
+		type entriesStruct struct {
+			Tags []string
+		}
+		var entries entriesStruct
+		err = json.Unmarshal(cache.data, &entries)
+		require.NoError(t, err)
+		assert.ElementsMatch(t, entries.Tags, []string{
+			"1.0.0",
+			"1.1.0",
+			"2.0.0+beta",
+		})
+	})
+
+	t.Run("should bypass cache when noCache is true", func(t *testing.T) {
+		cache := &fakeIndexCache{}
+		client := NewClient(serverURL.Host, HelmCreds{
+			InsecureSkipVerify: true,
+		}, true, "", "", WithIndexCache(cache))
+
+		requestCount = 0
+
+		tags1, err := client.GetTags("mychart", true)
+		require.NoError(t, err)
+		assert.ElementsMatch(t, tags1, []string{
+			"1.0.0",
+			"1.1.0",
+			"2.0.0+beta",
+		})
+		assert.Equal(t, 1, requestCount)
+
+		tags2, err := client.GetTags("mychart", true)
+		require.NoError(t, err)
+		assert.ElementsMatch(t, tags2, []string{
+			"1.0.0",
+			"1.1.0",
+			"2.0.0+beta",
+		})
+		assert.Equal(t, 2, requestCount)
+	})
 }

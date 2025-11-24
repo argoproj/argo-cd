@@ -5,6 +5,8 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/argoproj/argo-cd/v3/util/oci"
+
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/util/cert"
 	"github.com/argoproj/argo-cd/v3/util/git"
@@ -39,7 +41,7 @@ type RepoCreds struct {
 	GitHubAppEnterpriseBaseURL string `json:"githubAppEnterpriseBaseUrl,omitempty" protobuf:"bytes,10,opt,name=githubAppEnterpriseBaseUrl"`
 	// EnableOCI specifies whether helm-oci support should be enabled for this repo
 	EnableOCI bool `json:"enableOCI,omitempty" protobuf:"bytes,11,opt,name=enableOCI"`
-	// Type specifies the type of the repoCreds. Can be either "git" or "helm. "git" is assumed if empty or absent.
+	// Type specifies the type of the repoCreds. Can be either "git", "helm" or "oci". "git" is assumed if empty or absent.
 	Type string `json:"type,omitempty" protobuf:"bytes,12,opt,name=type"`
 	// GCPServiceAccountKey specifies the service account key in JSON format to be used for getting credentials to Google Cloud Source repos
 	GCPServiceAccountKey string `json:"gcpServiceAccountKey,omitempty" protobuf:"bytes,13,opt,name=gcpServiceAccountKey"`
@@ -53,6 +55,8 @@ type RepoCreds struct {
 	UseAzureWorkloadIdentity bool `json:"useAzureWorkloadIdentity,omitempty" protobuf:"bytes,24,opt,name=useAzureWorkloadIdentity"`
 	// BearerToken contains the bearer token used for Git BitBucket Data Center auth at the repo server
 	BearerToken string `json:"bearerToken,omitempty" protobuf:"bytes,25,opt,name=bearerToken"`
+	// InsecureOCIForceHttp specifies whether the connection to the repository uses TLS at _all_. If true, no TLS. This flag is applicable for OCI repos only.
+	InsecureOCIForceHttp bool `json:"insecureOCIForceHttp,omitempty" protobuf:"bytes,26,opt,name=insecureOCIForceHttp"` //nolint:revive //FIXME(var-naming)
 }
 
 // Repository is a repository holding application configurations
@@ -108,11 +112,15 @@ type Repository struct {
 	UseAzureWorkloadIdentity bool `json:"useAzureWorkloadIdentity,omitempty" protobuf:"bytes,24,opt,name=useAzureWorkloadIdentity"`
 	// BearerToken contains the bearer token used for Git BitBucket Data Center auth at the repo server
 	BearerToken string `json:"bearerToken,omitempty" protobuf:"bytes,25,opt,name=bearerToken"`
+	// InsecureOCIForceHttp specifies whether the connection to the repository uses TLS at _all_. If true, no TLS. This flag is applicable for OCI repos only.
+	InsecureOCIForceHttp bool `json:"insecureOCIForceHttp,omitempty" protobuf:"bytes,26,opt,name=insecureOCIForceHttp"` //nolint:revive //FIXME(var-naming)
+	// Depth specifies the depth for shallow clones. A value of 0 or omitting the field indicates a full clone.
+	Depth int64 `json:"depth,omitempty" protobuf:"bytes,27,opt,name=depth"`
 }
 
-// IsInsecure returns true if the repository has been configured to skip server verification
+// IsInsecure returns true if the repository has been configured to skip server verification or set to HTTP only
 func (repo *Repository) IsInsecure() bool {
-	return repo.InsecureIgnoreHostKey || repo.Insecure
+	return repo.InsecureIgnoreHostKey || repo.Insecure || repo.InsecureOCIForceHttp
 }
 
 // IsLFSEnabled returns true if LFS support is enabled on repository
@@ -161,6 +169,7 @@ func (repo *Repository) CopyCredentialsFromRepo(source *Repository) {
 		if repo.GCPServiceAccountKey == "" {
 			repo.GCPServiceAccountKey = source.GCPServiceAccountKey
 		}
+		repo.InsecureOCIForceHttp = source.InsecureOCIForceHttp
 		repo.ForceHttpBasicAuth = source.ForceHttpBasicAuth
 		repo.UseAzureWorkloadIdentity = source.UseAzureWorkloadIdentity
 	}
@@ -208,6 +217,12 @@ func (repo *Repository) CopyCredentialsFrom(source *RepoCreds) {
 		if repo.NoProxy == "" {
 			repo.NoProxy = source.NoProxy
 		}
+		if repo.Type == "" {
+			repo.Type = source.Type
+		}
+
+		repo.EnableOCI = source.EnableOCI
+		repo.InsecureOCIForceHttp = source.InsecureOCIForceHttp
 		repo.ForceHttpBasicAuth = source.ForceHttpBasicAuth
 		repo.UseAzureWorkloadIdentity = source.UseAzureWorkloadIdentity
 	}
@@ -219,13 +234,13 @@ func (repo *Repository) GetGitCreds(store git.CredsStore) git.Creds {
 		return git.NopCreds{}
 	}
 	if repo.Password != "" || repo.BearerToken != "" {
-		return git.NewHTTPSCreds(repo.Username, repo.Password, repo.BearerToken, repo.TLSClientCertData, repo.TLSClientCertKey, repo.IsInsecure(), repo.Proxy, repo.NoProxy, store, repo.ForceHttpBasicAuth)
+		return git.NewHTTPSCreds(repo.Username, repo.Password, repo.BearerToken, repo.TLSClientCertData, repo.TLSClientCertKey, repo.IsInsecure(), store, repo.ForceHttpBasicAuth)
 	}
 	if repo.SSHPrivateKey != "" {
-		return git.NewSSHCreds(repo.SSHPrivateKey, getCAPath(repo.Repo), repo.IsInsecure(), store, repo.Proxy, repo.NoProxy)
+		return git.NewSSHCreds(repo.SSHPrivateKey, getCAPath(repo.Repo), repo.IsInsecure(), repo.Proxy)
 	}
 	if repo.GithubAppPrivateKey != "" && repo.GithubAppId != 0 && repo.GithubAppInstallationId != 0 {
-		return git.NewGitHubAppCreds(repo.GithubAppId, repo.GithubAppInstallationId, repo.GithubAppPrivateKey, repo.GitHubAppEnterpriseBaseURL, repo.Repo, repo.TLSClientCertData, repo.TLSClientCertKey, repo.IsInsecure(), repo.Proxy, repo.NoProxy, store)
+		return git.NewGitHubAppCreds(repo.GithubAppId, repo.GithubAppInstallationId, repo.GithubAppPrivateKey, repo.GitHubAppEnterpriseBaseURL, repo.TLSClientCertData, repo.TLSClientCertKey, repo.IsInsecure(), repo.Proxy, repo.NoProxy, store)
 	}
 	if repo.GCPServiceAccountKey != "" {
 		return git.NewGoogleCloudCreds(repo.GCPServiceAccountKey, store)
@@ -236,7 +251,7 @@ func (repo *Repository) GetGitCreds(store git.CredsStore) git.Creds {
 	return git.NopCreds{}
 }
 
-// GetHelmCreds returns the credentials from a repository configuration used to authenticate at a Helm repository
+// GetHelmCreds returns the credentials from a repository configuration used to authenticate a Helm repository
 func (repo *Repository) GetHelmCreds() helm.Creds {
 	if repo.UseAzureWorkloadIdentity {
 		return helm.NewAzureWorkloadIdentityCreds(
@@ -256,6 +271,19 @@ func (repo *Repository) GetHelmCreds() helm.Creds {
 		CertData:           []byte(repo.TLSClientCertData),
 		KeyData:            []byte(repo.TLSClientCertKey),
 		InsecureSkipVerify: repo.Insecure,
+	}
+}
+
+// GetOCICreds returns the credentials from a repository configuration used to authenticate an OCI repository
+func (repo *Repository) GetOCICreds() oci.Creds {
+	return oci.Creds{
+		Username:           repo.Username,
+		Password:           repo.Password,
+		CAPath:             getCAPath(repo.Repo),
+		CertData:           []byte(repo.TLSClientCertData),
+		KeyData:            []byte(repo.TLSClientCertKey),
+		InsecureSkipVerify: repo.Insecure,
+		InsecureHTTPOnly:   repo.InsecureOCIForceHttp,
 	}
 }
 
@@ -304,6 +332,7 @@ func (repo *Repository) CopySettingsFrom(source *Repository) {
 		repo.InsecureIgnoreHostKey = source.InsecureIgnoreHostKey
 		repo.Insecure = source.Insecure
 		repo.InheritedCreds = source.InheritedCreds
+		repo.Depth = source.Depth
 	}
 }
 
@@ -321,7 +350,6 @@ func (repo *Repository) Sanitized() *Repository {
 		Repo:                       repo.Repo,
 		Type:                       repo.Type,
 		Name:                       repo.Name,
-		Username:                   repo.Username,
 		Insecure:                   repo.IsInsecure(),
 		EnableLFS:                  repo.EnableLFS,
 		EnableOCI:                  repo.EnableOCI,
@@ -402,7 +430,7 @@ type GnuPGPublicKey struct {
 	Owner string `json:"owner,omitempty" protobuf:"bytes,3,opt,name=owner"`
 	// Trust holds the level of trust assigned to this key
 	Trust string `json:"trust,omitempty" protobuf:"bytes,4,opt,name=trust"`
-	// SubType holds the key's sub type (e.g. rsa4096)
+	// SubType holds the key's subtype (e.g. rsa4096)
 	SubType string `json:"subType,omitempty" protobuf:"bytes,5,opt,name=subType"`
 	// KeyData holds the raw key data, in base64 encoded format
 	KeyData string `json:"keyData,omitempty" protobuf:"bytes,6,opt,name=keyData"`

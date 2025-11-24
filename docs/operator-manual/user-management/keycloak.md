@@ -67,6 +67,7 @@ data:
     issuer: https://keycloak.example.com/realms/master
     clientID: argocd
     clientSecret: $oidc.keycloak.clientSecret
+    refreshTokenThreshold: 2m
     requestedScopes: ["openid", "profile", "email", "groups"]
 ```
 
@@ -77,6 +78,7 @@ Make sure that:
 - __clientID__ is set to the Client ID you configured in Keycloak
 - __clientSecret__ points to the right key you created in the _argocd-secret_ Secret
 - __requestedScopes__ contains the _groups_ claim if you didn't add it to the Default scopes
+- __refreshTokenThreshold__ is less than the client token lifetime.  If this setting is not less than the token lifetime, a new token will be obtained for every request.  Keycloak sets the client token lifetime to 5 minutes by default.
 
 ## Keycloak and ArgoCD with PKCE
 
@@ -107,7 +109,6 @@ Also you can set __Home URL__ to _/applications_ path and __Valid Post logout re
 The Valid Redirect URIs should be set to:
 - http://localhost:8085/auth/callback (needed for argo-cd cli, depends on value from [--sso-port](../../user-guide/commands/argocd_login.md))
 - https://{hostname}/auth/callback
-- https://{hostname}/pkce/verify
 
 ![Keycloak configure client](../../assets/keycloak-configure-client-pkce.png "Keycloak configure client")
 
@@ -136,6 +137,7 @@ data:
     issuer: https://keycloak.example.com/realms/master
     clientID: argocd
     enablePKCEAuthentication: true
+    refreshTokenThreshold: 2m
     requestedScopes: ["openid", "profile", "email", "groups"]
 ```
 
@@ -146,6 +148,7 @@ Make sure that:
 - __clientID__ is set to the Client ID you configured in Keycloak
 - __enablePKCEAuthentication__ must be set to true to enable correct ArgoCD behaviour with PKCE
 - __requestedScopes__ contains the _groups_ claim if you didn't add it to the Default scopes
+- __refreshTokenThreshold__ is less than the client token lifetime.  If this setting is not less than the token lifetime, a new token will be obtained for every request.  Keycloak sets the client token lifetime to 5 minutes by default.
 
 ## Configuring the groups claim
 
@@ -221,6 +224,6 @@ If ArgoCD auth returns 401 or when the login attempt leads to the loop, then res
 kubectl rollout restart deployment argocd-server -n argocd
 ```
 
-If you migrate from Client authentification to PKCE, you can have the following error `invalid_request: Missing parameter: code_challenge_method`.
+If you migrate from Client authentication to PKCE, you can have the following error `invalid_request: Missing parameter: code_challenge_method`.
 
 It could be a redirect issue, try in private browsing or clean browser cookies.

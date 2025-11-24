@@ -17,11 +17,12 @@ Adding the argocd.argoproj.io/hook annotation to a resource will assign it to a 
 
 ## How phases work?
 
-Argo CD will respect resources assigned to different phases, during a sync operation Argo CD will do the following.
+Argo CD will respect resources assigned to different phases, during a sync operation Argo CD will do the following:
 
-Apply all the resources marked as PreSync hooks. If any of them fails the whole sync process will stop and will be marked as failed
-Apply all the resources marked as Sync hooks. If any of them fails the whole sync process will be marked as failed. Hooks marked with SyncFail will also run
-Apply all the resources marked as PostSync hooks. If any of them fails the whole sync process will be marked as failed.
+1. Apply all the resources marked as PreSync hooks. If any of them fails the whole sync process will stop and will be marked as failed
+2. Apply all the resources marked as Sync hooks. If any of them fails the whole sync process will be marked as failed. Hooks marked with SyncFail will also run
+3. Apply all the resources marked as PostSync hooks. If any of them fails the whole sync process will be marked as failed.
+
 Hooks marked with Skip will not be applied.
 
 Here is a graphical overview of the sync process:
@@ -46,6 +47,7 @@ This can take the following values:
 | `HookFailed` | The hook resource is deleted after the hook failed. |
 | `BeforeHookCreation` | Any existing hook resource is deleted before the new one is created (since v1.3). It is meant to be used with `/metadata/name`. |
 
+Note that if no deletion policy is specified, Argo CD will automatically assume `BeforeHookCreation` rules.
 
 ## How sync waves work?
 
@@ -54,8 +56,9 @@ Argo CD also offers an alternative method of changing the sync order of resource
 Hooks and resources are assigned to wave 0 by default. The wave can be negative, so you can create a wave that runs before all other resources.
 
 When a sync operation takes place, Argo CD will:
-Order all resources according to their wave (lowest to highest)
-Apply the resources according to the resulting sequence
+
+1. Order all resources according to their wave (lowest to highest)
+2. Apply the resources according to the resulting sequence
 
 There is currently a delay between each sync wave in order to give other controllers a chance to react to the spec change that was just applied. This also prevents Argo CD from assessing resource health too quickly (against the stale object), causing hooks to fire prematurely. The current delay between each sync wave is 2 seconds and can be configured via the environment variable ARGOCD_SYNC_WAVE_DELAY.
 
@@ -67,16 +70,16 @@ While you can use sync waves on their own, for maximum flexibility you can combi
 
 When Argo CD starts a sync, it orders the resources in the following precedence:
 
-The phase
-The wave they are in (lower values first)
-By kind (e.g. namespaces first and then other Kubernetes resources, followed by custom resources)
-By name
+1. The phase
+2. The wave they are in (lower values first)
+3. By kind (e.g. namespaces first and then other Kubernetes resources, followed by custom resources)
+4. By name
 
 Once the order is defined:
 
-First Argo CD determines the number of the first wave to apply. This is the first number where any resource is out-of-sync or unhealthy.
-It applies resources in that wave.
-It repeats this process until all phases and waves are in-sync and healthy.
+1. First Argo CD determines the number of the first wave to apply. This is the first number where any resource is out-of-sync or unhealthy.
+2. It applies resources in that wave.
+3. It repeats this process until all phases and waves are in-sync and healthy.
 
 Because an application can have resources that are unhealthy in the first wave, it may be that the app can never get to healthy.
 
@@ -105,6 +108,8 @@ metadata:
 Hooks and resources are assigned to wave zero by default. The wave can be negative, so you can create a wave that runs before all other resources.
 
 ## Examples
+
+### Send message to Slack when sync completes
 
 The following example uses the Slack API to send a a Slack message when sync completes:
 
@@ -166,3 +171,34 @@ spec:
       restartPolicy: Never
   backoffLimit: 1
 ```
+
+### Work around ArgoCD sync failure
+
+Upgrading ingress-nginx controller (managed by helm) with ArgoCD 2.x sometimes fails to work resulting in:
+
+.|.
+-|-
+OPERATION|Sync
+PHASE|Running
+MESSAGE|waiting for completion of hook batch/Job/ingress-nginx-admission-create
+
+.|.
+-|-
+KIND     |batch/v1/Job
+NAMESPACE|ingress-nginx
+NAME     |ingress-nginx-admission-create
+STATUS   |Running
+HOOK     |PreSync
+MESSAGE  |Pending deletion
+
+To work around this, a helm user can add:
+
+```yaml
+ingress-nginx:
+  controller:
+    admissionWebhooks:
+      annotations:
+        argocd.argoproj.io/hook: Skip
+```
+
+Which results in a successful sync.

@@ -136,21 +136,22 @@ func (l *LocalConfig) ResolveContext(name string) (*Context, error) {
 		name = l.CurrentContext
 	}
 	for _, ctx := range l.Contexts {
-		if ctx.Name == name {
-			server, err := l.GetServer(ctx.Server)
-			if err != nil {
-				return nil, err
-			}
-			user, err := l.GetUser(ctx.User)
-			if err != nil {
-				return nil, err
-			}
-			return &Context{
-				Name:   ctx.Name,
-				Server: *server,
-				User:   *user,
-			}, nil
+		if ctx.Name != name {
+			continue
 		}
+		server, err := l.GetServer(ctx.Server)
+		if err != nil {
+			return nil, err
+		}
+		user, err := l.GetUser(ctx.User)
+		if err != nil {
+			return nil, err
+		}
+		return &Context{
+			Name:   ctx.Name,
+			Server: *server,
+			User:   *user,
+		}, nil
 	}
 	return nil, fmt.Errorf("Context '%s' undefined", name)
 }

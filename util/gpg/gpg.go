@@ -2,6 +2,7 @@ package gpg
 
 import (
 	"bufio"
+	"context"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -206,7 +207,7 @@ func removeKeyRing(path string) error {
 
 // IsGPGEnabled returns true if GPG feature is enabled
 func IsGPGEnabled() bool {
-	if en := os.Getenv("ARGOCD_GPG_ENABLED"); strings.ToLower(en) == "false" || strings.ToLower(en) == "no" {
+	if en := os.Getenv("ARGOCD_GPG_ENABLED"); strings.EqualFold(en, "false") || strings.EqualFold(en, "no") {
 		return false
 	}
 	return true
@@ -216,6 +217,7 @@ func IsGPGEnabled() bool {
 // transient private key so that the trust DB will work correctly.
 func InitializeGnuPG() error {
 	gnuPgHome := common.GetGnuPGHomePath()
+	ctx := context.Background()
 
 	// We only operate if ARGOCD_GNUPGHOME is set
 	if gnuPgHome == "" {
@@ -273,7 +275,7 @@ func InitializeGnuPG() error {
 		}
 	}()
 
-	cmd := exec.Command("gpg", "--no-permission-warning", "--logger-fd", "1", "--batch", "--gen-key", f.Name())
+	cmd := exec.CommandContext(ctx, "gpg", "--no-permission-warning", "--logger-fd", "1", "--batch", "--gen-key", f.Name())
 	cmd.Env = getGPGEnviron()
 
 	_, err = executil.Run(cmd)
@@ -306,8 +308,9 @@ func ImportPGPKeysFromString(keyData string) ([]*appsv1.GnuPGPublicKey, error) {
 // signs them with the transient private key for leveraging the trust DB.
 func ImportPGPKeys(keyFile string) ([]*appsv1.GnuPGPublicKey, error) {
 	keys := make([]*appsv1.GnuPGPublicKey, 0)
+	ctx := context.Background()
 
-	cmd := exec.Command("gpg", "--no-permission-warning", "--logger-fd", "1", "--import", keyFile)
+	cmd := exec.CommandContext(ctx, "gpg", "--no-permission-warning", "--logger-fd", "1", "--import", keyFile)
 	cmd.Env = getGPGEnviron()
 
 	out, err := executil.Run(cmd)
@@ -410,6 +413,7 @@ func SetPGPTrustLevel(pgpKeys []*appsv1.GnuPGPublicKey, trustLevel string) error
 	}
 
 	defer os.Remove(f.Name())
+	ctx := context.Background()
 
 	for _, k := range pgpKeys {
 		_, err := fmt.Fprintf(f, "%s:%d\n", k.KeyID, trust)
@@ -429,7 +433,7 @@ func SetPGPTrustLevel(pgpKeys []*appsv1.GnuPGPublicKey, trustLevel string) error
 	}()
 
 	// Load ownertrust from the file we have constructed and instruct gpg to update the trustdb
-	cmd := exec.Command("gpg", "--no-permission-warning", "--import-ownertrust", f.Name())
+	cmd := exec.CommandContext(ctx, "gpg", "--no-permission-warning", "--import-ownertrust", f.Name())
 	cmd.Env = getGPGEnviron()
 
 	_, err = executil.Run(cmd)
@@ -438,7 +442,7 @@ func SetPGPTrustLevel(pgpKeys []*appsv1.GnuPGPublicKey, trustLevel string) error
 	}
 
 	// Update the trustdb once we updated the ownertrust, to prevent gpg to do it once we validate a signature
-	cmd = exec.Command("gpg", "--no-permission-warning", "--update-trustdb")
+	cmd = exec.CommandContext(ctx, "gpg", "--no-permission-warning", "--update-trustdb")
 	cmd.Env = getGPGEnviron()
 	_, err = executil.Run(cmd)
 	if err != nil {
@@ -451,7 +455,7 @@ func SetPGPTrustLevel(pgpKeys []*appsv1.GnuPGPublicKey, trustLevel string) error
 // DeletePGPKey deletes a key from our GnuPG key ring
 func DeletePGPKey(keyID string) error {
 	args := append([]string{}, "--no-permission-warning", "--yes", "--batch", "--delete-keys", keyID)
-	cmd := exec.Command("gpg", args...)
+	cmd := exec.CommandContext(context.Background(), "gpg", args...)
 	cmd.Env = getGPGEnviron()
 
 	_, err := executil.Run(cmd)
@@ -465,7 +469,7 @@ func DeletePGPKey(keyID string) error {
 // IsSecretKey returns true if the keyID also has a private key in the keyring
 func IsSecretKey(keyID string) (bool, error) {
 	args := append([]string{}, "--no-permission-warning", "--list-secret-keys", keyID)
-	cmd := exec.Command("gpg-wrapper.sh", args...)
+	cmd := exec.CommandContext(context.Background(), "gpg-wrapper.sh", args...)
 	cmd.Env = getGPGEnviron()
 	out, err := executil.Run(cmd)
 	if err != nil {
@@ -480,13 +484,14 @@ func IsSecretKey(keyID string) (bool, error) {
 // GetInstalledPGPKeys() runs gpg to retrieve public keys from our keyring. If kids is non-empty, limit result to those key IDs
 func GetInstalledPGPKeys(kids []string) ([]*appsv1.GnuPGPublicKey, error) {
 	keys := make([]*appsv1.GnuPGPublicKey, 0)
+	ctx := context.Background()
 
 	args := append([]string{}, "--no-permission-warning", "--list-public-keys")
 	// kids can contain an arbitrary list of key IDs we want to list. If empty, we list all keys.
 	if len(kids) > 0 {
 		args = append(args, kids...)
 	}
-	cmd := exec.Command("gpg", args...)
+	cmd := exec.CommandContext(ctx, "gpg", args...)
 	cmd.Env = getGPGEnviron()
 
 	out, err := executil.Run(cmd)
@@ -497,61 +502,62 @@ func GetInstalledPGPKeys(kids []string) ([]*appsv1.GnuPGPublicKey, error) {
 	scanner := bufio.NewScanner(strings.NewReader(out))
 	var curKey *appsv1.GnuPGPublicKey
 	for scanner.Scan() {
-		if strings.HasPrefix(scanner.Text(), "pub ") {
-			// This is the beginning of a new key, time to store the previously parsed one in our list and start fresh.
-			if curKey != nil {
-				keys = append(keys, curKey)
-				curKey = nil
-			}
-
-			key := appsv1.GnuPGPublicKey{}
-
-			// Second field in pub output denotes key sub type (cipher and length)
-			token := subTypeMatch.FindStringSubmatch(scanner.Text())
-			if len(token) != 2 {
-				return nil, fmt.Errorf("invalid line: %s (len=%d)", scanner.Text(), len(token))
-			}
-			key.SubType = token[1]
-
-			// Next line should be the key ID, no prefix
-			if !scanner.Scan() {
-				return nil, errors.New("invalid output from gpg, end of text after primary key")
-			}
-
-			token = keyIdMatch.FindStringSubmatch(scanner.Text())
-			if len(token) != 2 {
-				return nil, errors.New("invalid output from gpg, no key ID for primary key")
-			}
-
-			key.Fingerprint = token[1]
-			// KeyID is just the last bytes of the fingerprint
-			key.KeyID = token[1][24:]
-
-			if curKey == nil {
-				curKey = &key
-			}
-
-			// Next line should be UID
-			if !scanner.Scan() {
-				return nil, errors.New("invalid output from gpg, end of text after key ID")
-			}
-
-			if !strings.HasPrefix(scanner.Text(), "uid ") {
-				return nil, errors.New("invalid output from gpg, no identity for primary key")
-			}
-
-			token = uidMatch.FindStringSubmatch(scanner.Text())
-
-			if len(token) < 3 {
-				return nil, fmt.Errorf("malformed identity line: %s (len=%d)", scanner.Text(), len(token))
-			}
-
-			// Store trust level
-			key.Trust = token[1]
-
-			// Identity - we are only interested in the first uid
-			key.Owner = token[2]
+		if !strings.HasPrefix(scanner.Text(), "pub ") {
+			continue
 		}
+		// This is the beginning of a new key, time to store the previously parsed one in our list and start fresh.
+		if curKey != nil {
+			keys = append(keys, curKey)
+			curKey = nil
+		}
+
+		key := appsv1.GnuPGPublicKey{}
+
+		// Second field in pub output denotes key sub type (cipher and length)
+		token := subTypeMatch.FindStringSubmatch(scanner.Text())
+		if len(token) != 2 {
+			return nil, fmt.Errorf("invalid line: %s (len=%d)", scanner.Text(), len(token))
+		}
+		key.SubType = token[1]
+
+		// Next line should be the key ID, no prefix
+		if !scanner.Scan() {
+			return nil, errors.New("invalid output from gpg, end of text after primary key")
+		}
+
+		token = keyIdMatch.FindStringSubmatch(scanner.Text())
+		if len(token) != 2 {
+			return nil, errors.New("invalid output from gpg, no key ID for primary key")
+		}
+
+		key.Fingerprint = token[1]
+		// KeyID is just the last bytes of the fingerprint
+		key.KeyID = token[1][24:]
+
+		if curKey == nil {
+			curKey = &key
+		}
+
+		// Next line should be UID
+		if !scanner.Scan() {
+			return nil, errors.New("invalid output from gpg, end of text after key ID")
+		}
+
+		if !strings.HasPrefix(scanner.Text(), "uid ") {
+			return nil, errors.New("invalid output from gpg, no identity for primary key")
+		}
+
+		token = uidMatch.FindStringSubmatch(scanner.Text())
+
+		if len(token) < 3 {
+			return nil, fmt.Errorf("malformed identity line: %s (len=%d)", scanner.Text(), len(token))
+		}
+
+		// Store trust level
+		key.Trust = token[1]
+
+		// Identity - we are only interested in the first uid
+		key.Owner = token[2]
 	}
 
 	// Also store the last processed key into our list to be returned
@@ -561,7 +567,7 @@ func GetInstalledPGPKeys(kids []string) ([]*appsv1.GnuPGPublicKey, error) {
 
 	// We need to get the final key for each imported key, so we run --export on each key
 	for _, key := range keys {
-		cmd := exec.Command("gpg", "--no-permission-warning", "-a", "--export", key.KeyID)
+		cmd := exec.CommandContext(ctx, "gpg", "--no-permission-warning", "-a", "--export", key.KeyID)
 		cmd.Env = getGPGEnviron()
 
 		out, err := executil.Run(cmd)
@@ -724,23 +730,24 @@ func SyncKeyRingFromDirectory(basePath string) ([]string, []string, error) {
 
 	// First, add all keys that are found in the configuration but are not yet in the keyring
 	for key := range configured {
-		if _, ok := installed[key]; !ok {
-			addedKey, err := ImportPGPKeys(path.Join(basePath, key))
-			if err != nil {
-				return nil, nil, fmt.Errorf("error import PGP keys: %w", err)
-			}
-			if len(addedKey) != 1 {
-				return nil, nil, fmt.Errorf("invalid key found in %s", path.Join(basePath, key))
-			}
-			importedKey, err := GetInstalledPGPKeys([]string{addedKey[0].KeyID})
-			if err != nil {
-				return nil, nil, fmt.Errorf("error get installed PGP keys: %w", err)
-			} else if len(importedKey) != 1 {
-				return nil, nil, fmt.Errorf("could not get details of imported key ID %s", importedKey)
-			}
-			newKeys = append(newKeys, key)
-			fingerprints = append(fingerprints, importedKey[0].Fingerprint)
+		if _, ok := installed[key]; ok {
+			continue
 		}
+		addedKey, err := ImportPGPKeys(path.Join(basePath, key))
+		if err != nil {
+			return nil, nil, fmt.Errorf("error import PGP keys: %w", err)
+		}
+		if len(addedKey) != 1 {
+			return nil, nil, fmt.Errorf("invalid key found in %s", path.Join(basePath, key))
+		}
+		importedKey, err := GetInstalledPGPKeys([]string{addedKey[0].KeyID})
+		if err != nil {
+			return nil, nil, fmt.Errorf("error get installed PGP keys: %w", err)
+		} else if len(importedKey) != 1 {
+			return nil, nil, fmt.Errorf("could not get details of imported key ID %s", importedKey)
+		}
+		newKeys = append(newKeys, key)
+		fingerprints = append(fingerprints, importedKey[0].Fingerprint)
 	}
 
 	// Delete all keys from the keyring that are not found in the configuration anymore.

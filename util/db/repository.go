@@ -6,6 +6,7 @@ import (
 	"hash/fnv"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/utils/ptr"
 
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -47,6 +48,7 @@ type repositoryBackend interface {
 	RepoCredsExists(ctx context.Context, repoURL string) (bool, error)
 
 	GetAllHelmRepoCreds(ctx context.Context) ([]*v1alpha1.RepoCreds, error)
+	GetAllOCIRepoCreds(ctx context.Context) ([]*v1alpha1.RepoCreds, error)
 }
 
 func (db *db) CreateRepository(ctx context.Context, r *v1alpha1.Repository) (*v1alpha1.Repository, error) {
@@ -97,10 +99,9 @@ func (db *db) GetWriteRepository(ctx context.Context, repoURL, project string) (
 		return repository, fmt.Errorf("unable to get write repository %q: %w", repoURL, err)
 	}
 
-	// TODO: enrich with write credentials.
-	// if err := db.enrichCredsToRepo(ctx, repository); err != nil {
-	//	 return repository, fmt.Errorf("unable to enrich write repository %q info with credentials: %w", repoURL, err)
-	// }
+	if err := db.enrichWriteCredsToRepo(ctx, repository); err != nil {
+		return repository, fmt.Errorf("unable to enrich write repository %q info with credentials: %w", repoURL, err)
+	}
 
 	return repository, err
 }
@@ -178,11 +179,24 @@ func (db *db) listRepositories(ctx context.Context, repoType *string, writeCreds
 	if err != nil {
 		return nil, err
 	}
-	if err = db.enrichCredsToRepos(ctx, repositories); err != nil {
+	err = db.enrichCredsToRepos(ctx, repositories)
+	if err != nil {
 		return nil, err
 	}
 
 	return repositories, nil
+}
+
+func (db *db) ListOCIRepositories(ctx context.Context) ([]*v1alpha1.Repository, error) {
+	var result []*v1alpha1.Repository
+	repos, err := db.listRepositories(ctx, ptr.To("oci"), false)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list OCI repositories: %w", err)
+	}
+	result = append(result, v1alpha1.Repositories(repos).Filter(func(r *v1alpha1.Repository) bool {
+		return r.Type == "oci"
+	})...)
+	return result, nil
 }
 
 // UpdateRepository updates a repository
@@ -277,23 +291,15 @@ func (db *db) GetRepositoryCredentials(ctx context.Context, repoURL string) (*v1
 // GetWriteRepositoryCredentials retrieves a repository write credential set
 func (db *db) GetWriteRepositoryCredentials(ctx context.Context, repoURL string) (*v1alpha1.RepoCreds, error) {
 	secretBackend := db.repoWriteBackend()
-	exists, err := secretBackend.RepoCredsExists(ctx, repoURL)
-	if err != nil {
-		return nil, fmt.Errorf("unable to check if repository write credentials for %q exists from secrets backend: %w", repoURL, err)
-	}
-
-	if !exists {
-		return nil, nil
-	}
-
-	// TODO: enrich with write credentials.
-	// if err := db.enrichCredsToRepo(ctx, repository); err != nil {
-	//	 return repository, fmt.Errorf("unable to enrich write repository %q info with credentials: %w", repoURL, err)
-	// }
-
 	creds, err := secretBackend.GetRepoCreds(ctx, repoURL)
 	if err != nil {
-		return nil, fmt.Errorf("unable to get repository write credentials for %q from secrets backend: %w", repoURL, err)
+		if creds == nil {
+			return nil, fmt.Errorf("unable to check if repo write credentials for %q exists from secrets backend: %w", repoURL, err)
+		}
+		return nil, fmt.Errorf("unable to get repo write credentials for %q from secrets backend: %w", repoURL, err)
+	}
+	if creds == nil { // to cover for not found. In that case both creds and err are nil
+		return nil, nil
 	}
 
 	return creds, nil
@@ -302,6 +308,16 @@ func (db *db) GetWriteRepositoryCredentials(ctx context.Context, repoURL string)
 // GetAllHelmRepositoryCredentials retrieves all repository credentials
 func (db *db) GetAllHelmRepositoryCredentials(ctx context.Context) ([]*v1alpha1.RepoCreds, error) {
 	secretRepoCreds, err := db.repoBackend().GetAllHelmRepoCreds(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get all Helm repo creds: %w", err)
+	}
+
+	return secretRepoCreds, nil
+}
+
+// GetAllOCIRepositoryCredentials retrieves all repository credentials
+func (db *db) GetAllOCIRepositoryCredentials(ctx context.Context) ([]*v1alpha1.RepoCreds, error) {
+	secretRepoCreds, err := db.repoBackend().GetAllOCIRepoCreds(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get all Helm repo creds: %w", err)
 	}
@@ -415,6 +431,23 @@ func (db *db) repoWriteBackend() repositoryBackend {
 func (db *db) enrichCredsToRepo(ctx context.Context, repository *v1alpha1.Repository) error {
 	if !repository.HasCredentials() {
 		creds, err := db.GetRepositoryCredentials(ctx, repository.Repo)
+		if err != nil {
+			return fmt.Errorf("failed to get repository credentials for %q: %w", repository.Repo, err)
+		}
+		if creds != nil {
+			repository.CopyCredentialsFrom(creds)
+			repository.InheritedCreds = true
+		}
+	} else {
+		log.Debugf("%s has credentials", repository.Repo)
+	}
+
+	return nil
+}
+
+func (db *db) enrichWriteCredsToRepo(ctx context.Context, repository *v1alpha1.Repository) error {
+	if !repository.HasCredentials() {
+		creds, err := db.GetWriteRepositoryCredentials(ctx, repository.Repo)
 		if err != nil {
 			return fmt.Errorf("failed to get repository credentials for %q: %w", repository.Repo, err)
 		}

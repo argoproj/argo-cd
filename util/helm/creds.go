@@ -1,6 +1,7 @@
 package helm
 
 import (
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"errors"
@@ -11,7 +12,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	gocache "github.com/patrickmn/go-cache"
+	log "github.com/sirupsen/logrus"
 
 	argoutils "github.com/argoproj/argo-cd/v3/util"
 	"github.com/argoproj/argo-cd/v3/util/env"
@@ -122,6 +125,7 @@ func NewAzureWorkloadIdentityCreds(repoURL string, caPath string, certData []byt
 
 func (creds AzureWorkloadIdentityCreds) GetAccessToken() (string, error) {
 	registryHost := strings.Split(creds.repoURL, "/")[0]
+	ctx := context.Background()
 
 	// Compute hash as key for refresh token in the cache
 	key, err := argoutils.GenerateCacheKey("accesstoken-%s", registryHost)
@@ -136,22 +140,44 @@ func (creds AzureWorkloadIdentityCreds) GetAccessToken() (string, error) {
 		return t.(string), nil
 	}
 
-	tokenParams, err := creds.challengeAzureContainerRegistry(registryHost)
+	tokenParams, err := creds.challengeAzureContainerRegistry(ctx, registryHost)
 	if err != nil {
 		return "", fmt.Errorf("failed to challenge Azure Container Registry: %w", err)
 	}
 
-	token, err := creds.getAccessTokenAfterChallenge(tokenParams)
+	token, err := creds.getAccessTokenAfterChallenge(ctx, tokenParams)
 	if err != nil {
 		return "", fmt.Errorf("failed to get Azure access token after challenge: %w", err)
 	}
 
-	// Access token has a lifetime of 3 hours
-	storeAzureToken(key, token, 2*time.Hour)
+	tokenExpiry, err := getJWTExpiry(token)
+	if err != nil {
+		log.Warnf("failed to get token expiry from JWT: %v, using current time as fallback", err)
+		tokenExpiry = time.Now()
+	}
+
+	cacheExpiry := workloadidentity.CalculateCacheExpiryBasedOnTokenExpiry(tokenExpiry)
+	if cacheExpiry > 0 {
+		storeAzureToken(key, token, cacheExpiry)
+	}
 	return token, nil
 }
 
-func (creds AzureWorkloadIdentityCreds) getAccessTokenAfterChallenge(tokenParams map[string]string) (string, error) {
+func getJWTExpiry(token string) (time.Time, error) {
+	parser := jwt.NewParser()
+	claims := jwt.MapClaims{}
+	_, _, err := parser.ParseUnverified(token, claims)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("failed to parse JWT: %w", err)
+	}
+	exp, err := claims.GetExpirationTime()
+	if err != nil {
+		return time.Time{}, fmt.Errorf("'exp' claim not found or invalid in token: %w", err)
+	}
+	return time.UnixMilli(exp.UnixMilli()), nil
+}
+
+func (creds AzureWorkloadIdentityCreds) getAccessTokenAfterChallenge(ctx context.Context, tokenParams map[string]string) (string, error) {
 	realm := tokenParams["realm"]
 	service := tokenParams["service"]
 
@@ -177,9 +203,15 @@ func (creds AzureWorkloadIdentityCreds) getAccessTokenAfterChallenge(tokenParams
 	formValues := url.Values{}
 	formValues.Add("grant_type", "access_token")
 	formValues.Add("service", service)
-	formValues.Add("access_token", armAccessToken)
+	formValues.Add("access_token", armAccessToken.AccessToken)
 
-	resp, err := client.PostForm(refreshTokenURL, formValues)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, refreshTokenURL, strings.NewReader(formValues.Encode()))
+	if err != nil {
+		return "", fmt.Errorf("failed to create request to get refresh token: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	resp, err := client.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("unable to connect to registry '%w'", err)
 	}
@@ -208,7 +240,7 @@ func (creds AzureWorkloadIdentityCreds) getAccessTokenAfterChallenge(tokenParams
 	return res.RefreshToken, nil
 }
 
-func (creds AzureWorkloadIdentityCreds) challengeAzureContainerRegistry(azureContainerRegistry string) (map[string]string, error) {
+func (creds AzureWorkloadIdentityCreds) challengeAzureContainerRegistry(ctx context.Context, azureContainerRegistry string) (map[string]string, error) {
 	requestURL := fmt.Sprintf("https://%s/v2/", azureContainerRegistry)
 
 	client := &http.Client{
@@ -220,7 +252,7 @@ func (creds AzureWorkloadIdentityCreds) challengeAzureContainerRegistry(azureCon
 		},
 	}
 
-	req, err := http.NewRequest(http.MethodGet, requestURL, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, requestURL, http.NoBody)
 	if err != nil {
 		return nil, err
 	}
@@ -239,7 +271,7 @@ func (creds AzureWorkloadIdentityCreds) challengeAzureContainerRegistry(azureCon
 	authenticate := resp.Header.Get("Www-Authenticate")
 	tokens := strings.Split(authenticate, " ")
 
-	if strings.ToLower(tokens[0]) != "bearer" {
+	if !strings.EqualFold(tokens[0], "bearer") {
 		return nil, fmt.Errorf("registry does not allow 'Bearer' authentication, got '%s'", tokens[0])
 	}
 

@@ -26,6 +26,10 @@ export const RepoDetails = (props: {repo: models.Repository; save?: (params: New
                 edit: (formApi: FormApi) => <FormField formApi={formApi} field='name' component={Text} />
             },
             {
+                title: 'Connection State Details',
+                view: repository.connectionState.message
+            },
+            {
                 title: 'Username (optional)',
                 view: repository.username || '',
                 edit: (formApi: FormApi) => <FormField formApi={formApi} field='username' component={Text} />
@@ -95,7 +99,8 @@ export const RepoDetails = (props: {repo: models.Repository; save?: (params: New
         project: repo.project || '',
         enableOCI: repo.enableOCI || false,
         forceHttpBasicAuth: repo.forceHttpBasicAuth || false,
-        useAzureWorkloadIdentity: repo.useAzureWorkloadIdentity || false
+        useAzureWorkloadIdentity: repo.useAzureWorkloadIdentity || false,
+        insecureOCIForceHttp: repo.insecureOCIForceHttp || false
     };
 
     return (

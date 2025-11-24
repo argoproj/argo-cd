@@ -1,6 +1,7 @@
 package logout
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -9,7 +10,6 @@ import (
 	"testing"
 
 	"github.com/argoproj/argo-cd/v3/common"
-	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/fake"
 	"github.com/argoproj/argo-cd/v3/test"
 	"github.com/argoproj/argo-cd/v3/util/session"
 	"github.com/argoproj/argo-cd/v3/util/settings"
@@ -284,44 +284,44 @@ func TestHandlerConstructLogoutURL(t *testing.T) {
 	defer closer()
 	sessionManager := session.NewSessionManager(settingsManagerWithOIDCConfig, test.NewFakeProjLister(), "", nil, session.NewUserStateStorage(redisClient))
 
-	dexHandler := NewHandler(appclientset.NewSimpleClientset(), settingsManagerWithDexConfig, sessionManager, rootPath, baseHRef, "default")
-	dexHandler.verifyToken = func(tokenString string) (jwt.Claims, string, error) {
+	dexHandler := NewHandler(settingsManagerWithDexConfig, sessionManager, rootPath, baseHRef)
+	dexHandler.verifyToken = func(_ context.Context, tokenString string) (jwt.Claims, string, error) {
 		if !validJWTPattern.MatchString(tokenString) {
 			return nil, "", errors.New("invalid jwt")
 		}
 		return &jwt.RegisteredClaims{Issuer: "dev"}, "", nil
 	}
-	oidcHandler := NewHandler(appclientset.NewSimpleClientset(), settingsManagerWithOIDCConfig, sessionManager, rootPath, baseHRef, "default")
-	oidcHandler.verifyToken = func(tokenString string) (jwt.Claims, string, error) {
+	oidcHandler := NewHandler(settingsManagerWithOIDCConfig, sessionManager, rootPath, baseHRef)
+	oidcHandler.verifyToken = func(_ context.Context, tokenString string) (jwt.Claims, string, error) {
 		if !validJWTPattern.MatchString(tokenString) {
 			return nil, "", errors.New("invalid jwt")
 		}
 		return &jwt.RegisteredClaims{Issuer: "okta"}, "", nil
 	}
-	nonoidcHandler := NewHandler(appclientset.NewSimpleClientset(), settingsManagerWithoutOIDCConfig, sessionManager, "", baseHRef, "default")
-	nonoidcHandler.verifyToken = func(tokenString string) (jwt.Claims, string, error) {
+	nonoidcHandler := NewHandler(settingsManagerWithoutOIDCConfig, sessionManager, "", baseHRef)
+	nonoidcHandler.verifyToken = func(_ context.Context, tokenString string) (jwt.Claims, string, error) {
 		if !validJWTPattern.MatchString(tokenString) {
 			return nil, "", errors.New("invalid jwt")
 		}
 		return &jwt.RegisteredClaims{Issuer: session.SessionManagerClaimsIssuer}, "", nil
 	}
-	oidcHandlerWithoutLogoutURL := NewHandler(appclientset.NewSimpleClientset(), settingsManagerWithOIDCConfigButNoLogoutURL, sessionManager, "", baseHRef, "default")
-	oidcHandlerWithoutLogoutURL.verifyToken = func(tokenString string) (jwt.Claims, string, error) {
+	oidcHandlerWithoutLogoutURL := NewHandler(settingsManagerWithOIDCConfigButNoLogoutURL, sessionManager, "", baseHRef)
+	oidcHandlerWithoutLogoutURL.verifyToken = func(_ context.Context, tokenString string) (jwt.Claims, string, error) {
 		if !validJWTPattern.MatchString(tokenString) {
 			return nil, "", errors.New("invalid jwt")
 		}
 		return &jwt.RegisteredClaims{Issuer: "okta"}, "", nil
 	}
-	nonoidcHandlerWithMultipleURLs := NewHandler(appclientset.NewSimpleClientset(), settingsManagerWithoutOIDCAndMultipleURLs, sessionManager, "", baseHRef, "default")
-	nonoidcHandlerWithMultipleURLs.verifyToken = func(tokenString string) (jwt.Claims, string, error) {
+	nonoidcHandlerWithMultipleURLs := NewHandler(settingsManagerWithoutOIDCAndMultipleURLs, sessionManager, "", baseHRef)
+	nonoidcHandlerWithMultipleURLs.verifyToken = func(_ context.Context, tokenString string) (jwt.Claims, string, error) {
 		if !validJWTPattern.MatchString(tokenString) {
 			return nil, "", errors.New("invalid jwt")
 		}
 		return &jwt.RegisteredClaims{Issuer: "okta"}, "", nil
 	}
 
-	oidcHandlerWithoutBaseURL := NewHandler(appclientset.NewSimpleClientset(), settingsManagerWithOIDCConfigButNoURL, sessionManager, "argocd", baseHRef, "default")
-	oidcHandlerWithoutBaseURL.verifyToken = func(tokenString string) (jwt.Claims, string, error) {
+	oidcHandlerWithoutBaseURL := NewHandler(settingsManagerWithOIDCConfigButNoURL, sessionManager, "argocd", baseHRef)
+	oidcHandlerWithoutBaseURL.verifyToken = func(_ context.Context, tokenString string) (jwt.Claims, string, error) {
 		if !validJWTPattern.MatchString(tokenString) {
 			return nil, "", errors.New("invalid jwt")
 		}
@@ -336,6 +336,7 @@ func TestHandlerConstructLogoutURL(t *testing.T) {
 	nonOidcTokenHeader["Cookie"] = []string{"argocd.token=" + nonOidcToken}
 	invalidHeader := make(map[string][]string)
 	invalidHeader["Cookie"] = []string{"argocd.token=" + invalidToken}
+	ctx := t.Context()
 
 	dexRequest, err := http.NewRequest(http.MethodGet, "http://localhost:4000/api/logout", nil)
 	require.NoError(t, err)
@@ -343,7 +344,7 @@ func TestHandlerConstructLogoutURL(t *testing.T) {
 	oidcRequest, err := http.NewRequest(http.MethodGet, "http://localhost:4000/api/logout", nil)
 	require.NoError(t, err)
 	oidcRequest.Header = oidcTokenHeader
-	nonoidcRequest, err := http.NewRequest(http.MethodGet, "http://localhost:4000/api/logout", nil)
+	nonoidcRequest, err := http.NewRequestWithContext(ctx, http.MethodGet, "http://localhost:4000/api/logout", http.NoBody)
 	require.NoError(t, err)
 	nonoidcRequest.Header = nonOidcTokenHeader
 	nonoidcRequestOnSecondHost, err := http.NewRequest(http.MethodGet, "http://argocd.my-corp.tld/api/logout", nil)
@@ -353,7 +354,7 @@ func TestHandlerConstructLogoutURL(t *testing.T) {
 	requestWithInvalidToken, err := http.NewRequest(http.MethodGet, "http://localhost:4000/api/logout", nil)
 	require.NoError(t, err)
 	requestWithInvalidToken.Header = invalidHeader
-	invalidRequest, err := http.NewRequest(http.MethodGet, "http://localhost:4000/api/logout", nil)
+	invalidRequest, err := http.NewRequestWithContext(ctx, http.MethodGet, "http://localhost:4000/api/logout", http.NoBody)
 	require.NoError(t, err)
 
 	tests := []struct {
