@@ -1,6 +1,7 @@
 package commands
 
 import (
+	ctx "context"
 	"crypto/tls"
 	"fmt"
 	"net/http"
@@ -85,7 +86,7 @@ argocd logout cd.argoproj.io
 			}
 
 			logoutURL := fmt.Sprintf("%s://%s%s", scheme, context, common.LogoutEndpoint)
-			req, err := http.NewRequest(http.MethodPost, logoutURL, nil)
+			req, err := http.NewRequestWithContext(ctx.Background(), http.MethodPost, logoutURL, http.NoBody)
 			errors.CheckError(err)
 			cookie := &http.Cookie{
 				Name:  common.AuthCookieName,
