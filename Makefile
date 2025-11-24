@@ -307,9 +307,6 @@ endif
 
 .PHONY: manifests-local
 manifests-local:
-    # echo "IMAGE_REGISTRY=${IMAGE_REGISTRY}"
-    # echo "IMAGE_NAMESPACE=${IMAGE_NAMESPACE}"
-    # echo "IMAGE_REPOSITORY=${IMAGE_REPOSITORY}"
 	env | grep IMAGE_
 	./hack/update-manifests.sh 
 

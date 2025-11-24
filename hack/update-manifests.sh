@@ -13,6 +13,10 @@ KUSTOMIZE=kustomize
 cd "${SRCROOT}/manifests/ha/base/redis-ha" && ./generate.sh
 
 # Image repository configuration - can be overridden in forks
+echo "ipdate manifests: IMAGE_REGISTRY=${IMAGE_REGISTRY}"
+echo "ipdate manifests: IMAGE_NAMESPACE=${IMAGE_NAMESPACE}"
+echo "ipdate manifests: IMAGE_REPOSITORY=${IMAGE_REPOSITORY}"
+echo "ipdate manifests: IMAGE_TAG=${IMAGE_TAG}"
 IMAGE_REGISTRY="${IMAGE_REGISTRY:-quay.io}"
 IMAGE_NAMESPACE="${IMAGE_NAMESPACE:-argoproj}"
 IMAGE_REPOSITORY="${IMAGE_REPOSITORY:-argocd}"
