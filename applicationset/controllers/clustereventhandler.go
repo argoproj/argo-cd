@@ -122,7 +122,6 @@ func (h *clusterSecretEventHandler) queueRelatedAppGenerators(ctx context.Contex
 
 // clusterSelectorMatches returns true if the cluster secret labels match the generator's selector (or selector is empty).
 func (h *clusterSecretEventHandler) clusterSelectorMatches(selector metav1.LabelSelector, secretLabels map[string]string) bool {
-
 	if len(selector.MatchLabels) == 0 && len(selector.MatchExpressions) == 0 {
 		return true
 	}
