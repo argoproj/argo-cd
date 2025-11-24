@@ -1338,7 +1338,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		require.NoError(t, err)
 		tokenString, err := token.SignedString(key)
 		require.NoError(t, err)
-		_, _, err = mgr.VerifyToken(t.Context(), tokenString)
+
 		_, _, err = mgr.VerifyToken(t.Context(), tokenString)
 		require.Error(t, err)
 		assert.Equal(t, "token has been revoked, please re-login", err.Error())
@@ -1382,7 +1382,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		require.NoError(t, err)
 		tokenString, err := token.SignedString(key)
 		require.NoError(t, err)
-		_, _, err = mgr.VerifyToken(t.Context(), tokenString)
+
 		_, _, err = mgr.VerifyToken(t.Context(), tokenString)
 		require.Error(t, err)
 		assert.Equal(t, "token has been revoked, please re-login", err.Error())
