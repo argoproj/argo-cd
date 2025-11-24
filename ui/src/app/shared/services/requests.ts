@@ -41,7 +41,7 @@ function initHandlers(req: agent.Request) {
     return req;
 }
 
-function initVisibilityRecovery(getEventSource: () => EventSource | null, getLastMessage: () => number, triggerReconnect: () => void) {
+export function initVisibilityRecovery(getEventSource: () => EventSource | null, getLastMessage: () => number, triggerReconnect: () => void) {
     if (typeof document === 'undefined' || typeof document.addEventListener !== 'function') {
         return null;
     }
