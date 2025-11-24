@@ -307,9 +307,7 @@ endif
 
 .PHONY: manifests-local
 manifests-local:
-	env | grep IMAGE_
-	./hack/update-manifests.sh 
-
+	IMAGE_REGISTRY=$(IMAGE_REGISTRY) IMAGE_NAMESPACE=$(IMAGE_NAMESPACE) IMAGE_REPOSITORY=$(IMAGE_REPOSITORY) ./hack/update-manifests.sh
 
 .PHONY: manifests
 manifests: test-tools-image
