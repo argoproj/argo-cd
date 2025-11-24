@@ -24850,7 +24850,7 @@ spec:
               key: applicationsetcontroller.status.max.resources.count
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/reginavoloshin/argocd:4.4.6-f
+        image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         name: argocd-applicationset-controller
         ports:
@@ -24985,7 +24985,7 @@ spec:
               key: log.format.timestamp
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/reginavoloshin/argocd:4.4.6-f
+        image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         livenessProbe:
           failureThreshold: 3
@@ -25113,7 +25113,7 @@ spec:
         - argocd
         - admin
         - redis-initial-password
-        image: quay.io/reginavoloshin/argocd:4.4.6-f
+        image: quay.io/argoproj/argocd:latest
         imagePullPolicy: IfNotPresent
         name: secret-init
         securityContext:
@@ -25404,7 +25404,7 @@ spec:
           value: /helm-working-dir
         - name: HELM_DATA_HOME
           value: /helm-working-dir
-        image: quay.io/reginavoloshin/argocd:4.4.6-f
+        image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         livenessProbe:
           failureThreshold: 3
@@ -25457,7 +25457,7 @@ spec:
         command:
         - sh
         - -c
-        image: quay.io/reginavoloshin/argocd:4.4.6-f
+        image: quay.io/argoproj/argocd:latest
         name: copyutil
         securityContext:
           allowPrivilegeEscalation: false
@@ -25805,7 +25805,7 @@ spec:
               optional: true
         - name: KUBECACHEDIR
           value: /tmp/kubecache
-        image: quay.io/reginavoloshin/argocd:4.4.6-f
+        image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         name: argocd-application-controller
         ports:

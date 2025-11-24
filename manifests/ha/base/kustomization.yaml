@@ -11,8 +11,8 @@ patches:
 
 images:
 - name: quay.io/argoproj/argocd
-  newName: quay.io/reginavoloshin/argocd
-  newTag: 4.4.6-f
+  newName: quay.io/argoproj/argocd
+  newTag: latest
 resources:
 - ../../base/application-controller
 - ../../base/applicationset-controller
