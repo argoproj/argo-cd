@@ -24,11 +24,9 @@ jobs:
     outputs:
       image-tag: ${{ steps.image.outputs.tag}}
       platforms: ${{ steps.platforms.outputs.platforms }}
-      image_registry: ${{ steps.image.outputs.image_registry }}
       image_namespace: ${{ steps.image.outputs.image_namespace }}
       image_repository: ${{ steps.image.outputs.image_repository }}
       quay_image_name: ${{ steps.image.outputs.quay_image_name }}
-      docker_image_name: ${{ steps.image.outputs.docker_image_name }}
       ghcr_image_name: ${{ steps.image.outputs.ghcr_image_name }}
       ghcr_provenance_image: ${{ steps.image.outputs.ghcr_provenance_image }}
       allow_ghcr_publish: ${{ steps.image.outputs.allow_ghcr_publish }}
@@ -42,35 +40,22 @@ jobs:
           echo "tag=$TAG" >> $GITHUB_OUTPUT
           
           # Calculate image names with defaults
-          IMAGE_REGISTRY="${{ vars.IMAGE_REGISTRY || 'quay.io' }}"
           IMAGE_NAMESPACE="${{ vars.IMAGE_NAMESPACE || 'argoproj' }}"
           IMAGE_REPOSITORY="${{ vars.IMAGE_REPOSITORY || 'argocd' }}"
-          GHCR_REGISTRY="${{ vars.GHCR_REGISTRY || 'ghcr.io' }}"
           GHCR_NAMESPACE="${{ vars.GHCR_NAMESPACE || github.repository }}"
           GHCR_REPOSITORY="${{ vars.GHCR_REPOSITORY || 'argocd' }}"
           
-          echo "image_registry=$IMAGE_REGISTRY" >> $GITHUB_OUTPUT
           echo "image_namespace=$IMAGE_NAMESPACE" >> $GITHUB_OUTPUT
           echo "image_repository=$IMAGE_REPOSITORY" >> $GITHUB_OUTPUT
           
-          # Construct image names based on registry type
-          if [[ "$IMAGE_REGISTRY" == "quay.io" ]]; then
-            echo "quay_image_name=$IMAGE_REGISTRY/$IMAGE_NAMESPACE/$IMAGE_REPOSITORY:latest" >> $GITHUB_OUTPUT
-            echo "docker_image_name=" >> $GITHUB_OUTPUT
-          elif [[ "$IMAGE_REGISTRY" == "docker.io" ]]; then
-            echo "quay_image_name=" >> $GITHUB_OUTPUT
-            echo "docker_image_name=$IMAGE_REGISTRY/$IMAGE_NAMESPACE/$IMAGE_REPOSITORY:latest" >> $GITHUB_OUTPUT
-          else
-            # For other registries, use quay parameter
-            echo "quay_image_name=$IMAGE_REGISTRY/$IMAGE_NAMESPACE/$IMAGE_REPOSITORY:latest" >> $GITHUB_OUTPUT
-            echo "docker_image_name=" >> $GITHUB_OUTPUT
-          fi
+          # Construct image name
+          echo "quay_image_name=quay.io/$IMAGE_NAMESPACE/$IMAGE_REPOSITORY:latest" >> $GITHUB_OUTPUT
           
           ALLOW_GHCR_PUBLISH=false
-          if [[ "${{ github.repository }}" == "argoproj/argo-cd" || ( "$GHCR_REGISTRY" == "ghcr.io" && "$GHCR_NAMESPACE" != argoproj/* ) ]]; then
+          if [[ "${{ github.repository }}" == "argoproj/argo-cd" || "$GHCR_NAMESPACE" != argoproj/* ]]; then
             ALLOW_GHCR_PUBLISH=true
-            echo "ghcr_image_name=$GHCR_REGISTRY/$GHCR_NAMESPACE/$GHCR_REPOSITORY:$TAG" >> $GITHUB_OUTPUT
-            echo "ghcr_provenance_image=$GHCR_REGISTRY/$GHCR_NAMESPACE/$GHCR_REPOSITORY" >> $GITHUB_OUTPUT
+            echo "ghcr_image_name=ghcr.io/$GHCR_NAMESPACE/$GHCR_REPOSITORY:$TAG" >> $GITHUB_OUTPUT
+            echo "ghcr_provenance_image=ghcr.io/$GHCR_NAMESPACE/$GHCR_REPOSITORY" >> $GITHUB_OUTPUT
           else
             echo "GhCR publish skipped: refusing to push to namespace '$GHCR_NAMESPACE'. Please override GHCR_* for forks." >&2
             echo "ghcr_image_name=" >> $GITHUB_OUTPUT
@@ -115,7 +100,6 @@ jobs:
     uses: ./.github/workflows/image-reuse.yaml
     with:
       quay_image_name: ${{ needs.set-vars.outputs.quay_image_name }}
-      docker_image_name: ${{ needs.set-vars.outputs.docker_image_name }}
       ghcr_image_name: ${{ needs.set-vars.outputs.ghcr_image_name }}
       # Note: cannot use env variables to set go-version (https://docs.github.com/en/actions/using-workflows/reusing-workflows#limitations)
       # renovate: datasource=golang-version packageName=golang

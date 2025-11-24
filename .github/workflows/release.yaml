@@ -41,7 +41,6 @@ jobs:
       is_pre_release: ${{ steps.var.outputs.is_pre_release }}
       is_latest_release: ${{ steps.var.outputs.is_latest_release }}
       enable_fork_releases: ${{ steps.var.outputs.enable_fork_releases }}
-      image_registry: ${{ steps.var.outputs.image_registry }}
       image_namespace: ${{ steps.var.outputs.image_namespace }}
       image_repository: ${{ steps.var.outputs.image_repository }}
       quay_image_name: ${{ steps.var.outputs.quay_image_name }}
@@ -78,17 +77,15 @@ jobs:
           
           # Calculate configuration with defaults
           ENABLE_FORK_RELEASES="${{ vars.ENABLE_FORK_RELEASES || 'false' }}"
-          IMAGE_REGISTRY="${{ vars.IMAGE_REGISTRY || 'quay.io' }}"
           IMAGE_NAMESPACE="${{ vars.IMAGE_NAMESPACE || 'argoproj' }}"
           IMAGE_REPOSITORY="${{ vars.IMAGE_REPOSITORY || 'argocd' }}"
           
           echo "enable_fork_releases=$ENABLE_FORK_RELEASES" >> $GITHUB_OUTPUT
           
-          echo "image_registry=$IMAGE_REGISTRY" >> $GITHUB_OUTPUT
           echo "image_namespace=$IMAGE_NAMESPACE" >> $GITHUB_OUTPUT
           echo "image_repository=$IMAGE_REPOSITORY" >> $GITHUB_OUTPUT
-          echo "quay_image_name=$IMAGE_REGISTRY/$IMAGE_NAMESPACE/$IMAGE_REPOSITORY:${{ github.ref_name }}" >> $GITHUB_OUTPUT
-          echo "provenance_image=$IMAGE_REGISTRY/$IMAGE_NAMESPACE/$IMAGE_REPOSITORY" >> $GITHUB_OUTPUT
+          echo "quay_image_name=quay.io/$IMAGE_NAMESPACE/$IMAGE_REPOSITORY:${{ github.ref_name }}" >> $GITHUB_OUTPUT
+          echo "provenance_image=quay.io/$IMAGE_NAMESPACE/$IMAGE_REPOSITORY" >> $GITHUB_OUTPUT
           
           ALLOW_FORK_RELEASE=false
           if [[ "${{ github.repository_owner }}" != "argoproj" && "$ENABLE_FORK_RELEASES" == "true" && "$IMAGE_NAMESPACE" != "argoproj" && "${{ github.ref }}" == refs/tags/* ]]; then
