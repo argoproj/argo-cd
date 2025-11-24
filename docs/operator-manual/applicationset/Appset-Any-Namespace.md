@@ -126,7 +126,7 @@ The `--applicationset-namespaces` parameter takes a comma-separated list of name
 - shell-style wildcards such as `*`, so for example the entry `app-team-*` would match `app-team-one` and `app-team-two`. To enable all namespaces on the cluster where Argo CD is running on, you can just specify `*`, i.e. `--application-namespaces=*`.
 - regex, requires wrapping the string in ```/```, example to allow all namespaces except a particular one: ```/^((?!not-allowed).)*$/```.
 
-The startup parameters for, the `argocd-applicationset-controller` can also be conveniently set up and kept in sync by specifying the `applicationsetcontroller.namespaces` settings in the `argocd-cmd-params-cm` ConfigMap _instead_ of changing the manifests for the `ApplicationSet`. For example:
+The startup parameters for the `argocd-applicationset-controller` can also be conveniently set up and kept in sync by specifying the `applicationsetcontroller.namespaces` settings in the `argocd-cmd-params-cm` ConfigMap _instead_ of changing the manifests for the `ApplicationSet`. For example:
 
 ```yaml
 data:
