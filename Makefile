@@ -307,12 +307,17 @@ endif
 
 .PHONY: manifests-local
 manifests-local:
-	./hack/update-manifests.sh
+    # echo "IMAGE_REGISTRY=${IMAGE_REGISTRY}"
+    # echo "IMAGE_NAMESPACE=${IMAGE_NAMESPACE}"
+    # echo "IMAGE_REPOSITORY=${IMAGE_REPOSITORY}"
+	env | grep IMAGE_
+	./hack/update-manifests.sh 
+
 
 .PHONY: manifests
 manifests: test-tools-image
 	$(call run-in-test-client,make manifests-local IMAGE_REGISTRY='${IMAGE_REGISTRY}' IMAGE_NAMESPACE='${IMAGE_NAMESPACE}' IMAGE_REPOSITORY='${IMAGE_REPOSITORY}' IMAGE_TAG='${IMAGE_TAG}')
-
+ 
 # consolidated binary for cli, util, server, repo-server, controller
 .PHONY: argocd-all
 argocd-all: clean-debug
