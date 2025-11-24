@@ -33,10 +33,7 @@ func TestClusterEventHandler(t *testing.T) {
 	scheme := runtime.NewScheme()
 	err := argov1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)
-
-	err = argov1alpha1.AddToScheme(scheme)
-	require.NoError(t, err)
-
+	
 	tests := []struct {
 		name             string
 		items            []argov1alpha1.ApplicationSet
@@ -541,6 +538,118 @@ func TestClusterEventHandler(t *testing.T) {
 			},
 			expectedRequests: []reconcile.Request{},
 		},
+		{
+			name: "cluster generator with specific selector matches secret",
+			items: []argov1alpha1.ApplicationSet{
+				{
+					ObjectMeta: metav1.ObjectMeta{Name: "app1", Namespace: "argocd"},
+					Spec: argov1alpha1.ApplicationSetSpec{
+						Generators: []argov1alpha1.ApplicationSetGenerator{
+							{
+								Clusters: &argov1alpha1.ClusterGenerator{
+									Selector: metav1.LabelSelector{
+										MatchLabels: map[string]string{
+											"environment": "prod",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			secret: corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "prod-cluster-secret",
+					Namespace: "argocd",
+					Labels: map[string]string{
+						"environment": "prod",
+						argocommon.LabelKeySecretType: argocommon.LabelValueSecretTypeCluster,
+					},
+				},
+			},
+			expectedRequests: []reconcile.Request{
+				{NamespacedName: types.NamespacedName{Namespace: "argocd", Name: "app1"}},
+			},
+		},
+		{
+			name: "selector does not match secret labels",
+			items: []argov1alpha1.ApplicationSet{
+				{
+					ObjectMeta: metav1.ObjectMeta{Name: "app-mismatch", Namespace: "argocd"},
+					Spec: argov1alpha1.ApplicationSetSpec{
+						Generators: []argov1alpha1.ApplicationSetGenerator{
+							{
+								Clusters: &argov1alpha1.ClusterGenerator{
+									Selector: metav1.LabelSelector{
+										MatchLabels: map[string]string{"environment": "staging"},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			secret: corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "prod-secret",
+					Namespace: "argocd",
+					Labels: map[string]string{
+						"environment":                  "prod",
+						argocommon.LabelKeySecretType:  argocommon.LabelValueSecretTypeCluster,
+					},
+				},
+			},
+			expectedRequests: []reconcile.Request{}, // should not queue
+		},
+		{
+			name: "empty selector matches any secret",
+			items: []argov1alpha1.ApplicationSet{
+				{
+					ObjectMeta: metav1.ObjectMeta{Name: "app-empty-selector", Namespace: "argocd"},
+					Spec: argov1alpha1.ApplicationSetSpec{
+						Generators: []argov1alpha1.ApplicationSetGenerator{
+							{ Clusters: &argov1alpha1.ClusterGenerator{} }, // empty selector
+						},
+					},
+				},
+			},
+			secret: corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "any-secret",
+					Namespace: "argocd",
+					Labels: map[string]string{
+						"any-label":                    "value",
+						argocommon.LabelKeySecretType:  argocommon.LabelValueSecretTypeCluster,
+					},
+				},
+			},
+			expectedRequests: []reconcile.Request{
+				{NamespacedName: types.NamespacedName{Namespace: "argocd", Name: "app-empty-selector"}},
+			},
+		},
+		{
+			name: "secret without cluster label is ignored",
+			items: []argov1alpha1.ApplicationSet{
+				{
+					ObjectMeta: metav1.ObjectMeta{Name: "app1", Namespace: "argocd"},
+					Spec: argov1alpha1.ApplicationSetSpec{
+						Generators: []argov1alpha1.ApplicationSetGenerator{
+							{ Clusters: &argov1alpha1.ClusterGenerator{} },
+						},
+					},
+				},
+			},
+			secret: corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "non-cluster-secret",
+					Namespace: "argocd",
+					Labels: map[string]string{"foo": "bar"}, // missing cluster type label
+				},
+			},
+			expectedRequests: []reconcile.Request{}, // should be ignored
+		},
+
 	}
 
 	for _, test := range tests {
