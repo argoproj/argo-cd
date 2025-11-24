@@ -253,6 +253,35 @@ func TestGetCluster_UrlEncodedName(t *testing.T) {
 	assert.Equal(t, "test/ing", localCluster.Name)
 }
 
+func TestGetCluster_UrlEncodedNameFailToUnescape(t *testing.T) {
+	db := &dbmocks.ArgoDB{}
+
+	mockCluster := appv1.Cluster{
+		Name:       "testing",
+		Server:     "https://127.0.0.1",
+		Namespaces: []string{"default", "kube-system"},
+	}
+	mockClusterList := appv1.ClusterList{
+		ListMeta: metav1.ListMeta{},
+		Items: []appv1.Cluster{
+			mockCluster,
+		},
+	}
+
+	db.EXPECT().ListClusters(mock.Anything).Return(&mockClusterList, nil)
+	db.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(&mockCluster, nil)
+
+	server := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{})
+
+	_, err := server.Get(t.Context(), &cluster.ClusterQuery{
+		Id: &cluster.ClusterID{
+			Type:  "name_escaped",
+			Value: "testing%F%23rd",
+		},
+	})
+	require.Error(t, err)
+}
+
 func TestGetCluster_UrlEncodedNameClustersWithSameServer(t *testing.T) {
 	db := &dbmocks.ArgoDB{}
 
@@ -297,6 +326,22 @@ func TestGetCluster_UrlEncodedNameClustersWithSameServer(t *testing.T) {
 	assert.Equal(t, "testing3rd", localCluster.Name)
 }
 
+func TestGetCluster_UrlNameEscapedTypeFailToGetCluster(t *testing.T) {
+	db := &dbmocks.ArgoDB{}
+
+	db.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(nil, errors.New("failed to get clusters by server"))
+
+	server := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{})
+
+	_, err := server.Get(t.Context(), &cluster.ClusterQuery{
+		Id: &cluster.ClusterID{
+			Type:  "url_name_escaped",
+			Value: "https://127.0.0.1,my-test-cluster",
+		},
+	})
+	require.Error(t, err)
+}
+
 func TestGetCluster_UrlNameEscapedTypeFailToListCluster(t *testing.T) {
 	db := &dbmocks.ArgoDB{}
 
@@ -314,7 +359,7 @@ func TestGetCluster_UrlNameEscapedTypeFailToListCluster(t *testing.T) {
 	_, err := server.Get(t.Context(), &cluster.ClusterQuery{
 		Id: &cluster.ClusterID{
 			Type:  "url_name_escaped",
-			Value: "https://127.0.0.1my-test-cluster",
+			Value: "https://127.0.0.1,my-test-cluster2nd",
 		},
 	})
 	require.Error(t, err)
