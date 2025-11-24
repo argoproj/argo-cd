@@ -59,10 +59,11 @@ jobs:
         run: |
           set -ue
           make install-codegen-tools-local
-          export IMAGE_REGISTRY='${{ env.IMAGE_REGISTRY }}'
-          export IMAGE_NAMESPACE='${{ env.IMAGE_NAMESPACE }}'
-          export IMAGE_REPOSITORY='${{ env.IMAGE_REPOSITORY }}'
-          make manifests-local VERSION=${{ inputs.TARGET_VERSION }}
+          make manifests-local \
+            IMAGE_REGISTRY='${{ env.IMAGE_REGISTRY }}' \
+            IMAGE_NAMESPACE='${{ env.IMAGE_NAMESPACE }}' \
+            IMAGE_REPOSITORY='${{ env.IMAGE_REPOSITORY }}' \
+            VERSION=${{ inputs.TARGET_VERSION }}
           git diff
 
       - name: Generate version compatibility table
