@@ -33,7 +33,7 @@ func TestClusterEventHandler(t *testing.T) {
 	scheme := runtime.NewScheme()
 	err := argov1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)
-	
+
 	tests := []struct {
 		name             string
 		items            []argov1alpha1.ApplicationSet
@@ -563,7 +563,7 @@ func TestClusterEventHandler(t *testing.T) {
 					Name:      "prod-cluster-secret",
 					Namespace: "argocd",
 					Labels: map[string]string{
-						"environment": "prod",
+						"environment":                 "prod",
 						argocommon.LabelKeySecretType: argocommon.LabelValueSecretTypeCluster,
 					},
 				},
@@ -595,8 +595,8 @@ func TestClusterEventHandler(t *testing.T) {
 					Name:      "prod-secret",
 					Namespace: "argocd",
 					Labels: map[string]string{
-						"environment":                  "prod",
-						argocommon.LabelKeySecretType:  argocommon.LabelValueSecretTypeCluster,
+						"environment":                 "prod",
+						argocommon.LabelKeySecretType: argocommon.LabelValueSecretTypeCluster,
 					},
 				},
 			},
@@ -609,7 +609,7 @@ func TestClusterEventHandler(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{Name: "app-empty-selector", Namespace: "argocd"},
 					Spec: argov1alpha1.ApplicationSetSpec{
 						Generators: []argov1alpha1.ApplicationSetGenerator{
-							{ Clusters: &argov1alpha1.ClusterGenerator{} }, // empty selector
+							{Clusters: &argov1alpha1.ClusterGenerator{}}, // empty selector
 						},
 					},
 				},
@@ -619,8 +619,8 @@ func TestClusterEventHandler(t *testing.T) {
 					Name:      "any-secret",
 					Namespace: "argocd",
 					Labels: map[string]string{
-						"any-label":                    "value",
-						argocommon.LabelKeySecretType:  argocommon.LabelValueSecretTypeCluster,
+						"any-label":                   "value",
+						argocommon.LabelKeySecretType: argocommon.LabelValueSecretTypeCluster,
 					},
 				},
 			},
@@ -635,7 +635,7 @@ func TestClusterEventHandler(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{Name: "app1", Namespace: "argocd"},
 					Spec: argov1alpha1.ApplicationSetSpec{
 						Generators: []argov1alpha1.ApplicationSetGenerator{
-							{ Clusters: &argov1alpha1.ClusterGenerator{} },
+							{Clusters: &argov1alpha1.ClusterGenerator{}},
 						},
 					},
 				},
@@ -644,12 +644,11 @@ func TestClusterEventHandler(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "non-cluster-secret",
 					Namespace: "argocd",
-					Labels: map[string]string{"foo": "bar"}, // missing cluster type label
+					Labels:    map[string]string{"foo": "bar"}, // missing cluster type label
 				},
 			},
 			expectedRequests: []reconcile.Request{}, // should be ignored
 		},
-
 	}
 
 	for _, test := range tests {
