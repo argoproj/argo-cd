@@ -93,7 +93,6 @@ Need help? Start with the [Contributors FAQ](faq/)
 
 ## Contributing to Argo CD dependencies
 - [Contributing to argo-ui](dependencies.md#argo-ui-components-githubcomargoprojargo-ui)
-- [Contributing to gitops-engine](dependencies.md#gitops-engine-githubcomargoprojgitops-engine)
 - [Contributing to notifications-engine](dependencies.md#notifications-engine-githubcomargoprojnotifications-engine)
 
 ## Extensions and Third-Party Applications
