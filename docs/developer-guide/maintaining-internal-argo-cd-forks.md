@@ -19,17 +19,15 @@ Fork builds can publish their own containers once workflow variables point at yo
 ### Configuring GitHub Actions variables
 Adjust the variables below to match your setup (overriding `IMAGE_NAMESPACE` is required, because it flips the workflows out of “upstream” mode):
 
-- `IMAGE_REGISTRY` – defaults to `quay.io`
 - `IMAGE_NAMESPACE` – defaults to `argoproj` (overriding required)
 - `IMAGE_REPOSITORY` – defaults to `argocd` (may need overriding)
-- `GHCR_REGISTRY` – defaults to `ghcr.io` (rarely needs overriding)
 - `GHCR_NAMESPACE` – defaults to `${{ github.repository }}`, which translates to `<YOUR_GITHUB_USERNAME>/<YOUR_FORK_REPO>`, rarely needs overriding)
 - `GHCR_REPOSITORY` – defaults to `argocd` (may need overriding)
 
 These values produce the final image names:
 
-- `$IMAGE_REGISTRY/$IMAGE_NAMESPACE/$IMAGE_REPOSITORY`
-- `$GHCR_REGISTRY/$GHCR_NAMESPACE/$GHCR_REPOSITORY`
+- `quay.io/$IMAGE_NAMESPACE/$IMAGE_REPOSITORY`
+- `ghcr.io/$GHCR_NAMESPACE/$GHCR_REPOSITORY`
 
 Example: if your GitHub account is `my-user`, your fork is `my-argo-cd-fork`, and you want to push release images to `quay.io/my-quay-user/argocd`, configure:
 
