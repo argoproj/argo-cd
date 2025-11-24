@@ -30,7 +30,7 @@ if obj.status ~= nil then
     else
         if obj.spec.mode == "sidecar" then
             hs.status = "Healthy"
-            hs.message = "All replicas are ready"
+            hs.message = "Collector is running in sidecar mode"
         else
             hs.status = "Progressing"
             hs.message = "Scale status not available"

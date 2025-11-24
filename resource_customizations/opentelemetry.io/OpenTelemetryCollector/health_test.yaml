@@ -13,5 +13,5 @@ tests:
     inputPath: testdata/progressing.yaml
   - healthStatus:
       status: Healthy
-      message: "All replicas are ready"
+      message: "Collector is running in sidecar mode"
     inputPath: testdata/sidecar.yaml
