@@ -58,11 +58,11 @@ jobs:
       - name: Generate new set of manifests
         run: |
           set -ue
-          make install-codegen-tools-local
           export VERSION=${{ inputs.TARGET_VERSION }}
           export IMAGE_REGISTRY=quay.io
           export IMAGE_NAMESPACE=reggie-k  
           export IMAGE_REPOSITORY=argocd-test
+          make install-codegen-tools-local
           bash hack/update-manifests.sh
           git diff
 
