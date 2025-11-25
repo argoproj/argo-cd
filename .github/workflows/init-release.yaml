@@ -59,11 +59,11 @@ jobs:
         run: |
           set -ue
           make install-codegen-tools-local
-          make manifests-local \
-            IMAGE_REGISTRY=${{ env.IMAGE_REGISTRY }} \
-            IMAGE_NAMESPACE=${{ env.IMAGE_NAMESPACE }} \
-            IMAGE_REPOSITORY=${{ env.IMAGE_REPOSITORY }} \
-            VERSION=${{ inputs.TARGET_VERSION }}
+          VERSION=${{ inputs.TARGET_VERSION }}
+          IMAGE_REGISTRY=${{ env.IMAGE_REGISTRY }}
+          IMAGE_NAMESPACE=${{ env.IMAGE_NAMESPACE }}
+          IMAGE_REPOSITORY=${{ env.IMAGE_REPOSITORY }}
+          bash hack/update-manifests.sh
           git diff
 
       - name: Generate version compatibility table

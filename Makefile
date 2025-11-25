@@ -317,7 +317,9 @@ endif
 
 .PHONY: manifests-local
 manifests-local:
-	IMAGE_REGISTRY=$(IMAGE_REGISTRY) IMAGE_NAMESPACE=$(IMAGE_NAMESPACE) IMAGE_REPOSITORY=$(IMAGE_REPOSITORY) ./hack/update-manifests.sh
+#DIST_DIR=${DIST_DIR} RERUN_FAILS=5 PACKAGES="./test/e2e" ARGOCD_E2E_RECORD=${ARGOCD_E2E_RECORD} ARGOCD_CONFIG_DIR=$(HOME)/.config/argocd-e2e ARGOCD_GPG_ENABLED=true NO_PROXY=* ./hack/test.sh -timeout $(ARGOCD_E2E_TEST_TIMEOUT) -v -args -test.gocoverdir="$(PWD)/test-results"
+
+	IMAGE_REGISTRY=${IMAGE_REGISTRY} IMAGE_NAMESPACE=${IMAGE_NAMESPACE} IMAGE_REPOSITORY=${IMAGE_REPOSITORY} ./hack/update-manifests.sh
 
 .PHONY: manifests
 manifests: test-tools-image
