@@ -166,8 +166,6 @@ PATH:=$(PATH):$(PWD)/hack
 # docker image publishing options
 DOCKER_PUSH?=false
 IMAGE_NAMESPACE?=
-IMAGE_REGISTRY?=
-IMAGE_REPOSITORY?=
 # perform static compilation
 DEFAULT_STATIC_BUILD:=true
 ifeq ($(IS_DARWIN),true)
@@ -217,10 +215,6 @@ endif
 
 ifndef IMAGE_REGISTRY
 IMAGE_REGISTRY="quay.io"
-endif
-
-ifndef IMAGE_REPOSITORY
-IMAGE_REPOSITORY="argocd"
 endif
 
 .PHONY: all
@@ -317,15 +311,12 @@ endif
 
 .PHONY: manifests-local
 manifests-local:
-#DIST_DIR=${DIST_DIR} RERUN_FAILS=5 PACKAGES="./test/e2e" ARGOCD_E2E_RECORD=${ARGOCD_E2E_RECORD} ARGOCD_CONFIG_DIR=$(HOME)/.config/argocd-e2e ARGOCD_GPG_ENABLED=true NO_PROXY=* ./hack/test.sh -timeout $(ARGOCD_E2E_TEST_TIMEOUT) -v -args -test.gocoverdir="$(PWD)/test-results"
-
-	IMAGE_REGISTRY=${IMAGE_REGISTRY} IMAGE_NAMESPACE=${IMAGE_NAMESPACE} IMAGE_REPOSITORY=${IMAGE_REPOSITORY} ./hack/update-manifests.sh
-
+	./hack/update-manifests.sh
 .PHONY: manifests
 manifests: test-tools-image
 	$(call run-in-test-client,make manifests-local IMAGE_REGISTRY='${IMAGE_REGISTRY}' IMAGE_NAMESPACE='${IMAGE_NAMESPACE}' IMAGE_REPOSITORY='${IMAGE_REPOSITORY}' IMAGE_TAG='${IMAGE_TAG}')
- 
 # consolidated binary for cli, util, server, repo-server, controller
+
 .PHONY: argocd-all
 argocd-all: clean-debug
 	CGO_ENABLED=${CGO_FLAG} GOOS=${GOOS} GOARCH=${GOARCH} GODEBUG="tarinsecurepath=0,zipinsecurepath=0" go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${BIN_NAME} ./cmd
