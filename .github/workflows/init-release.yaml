@@ -59,10 +59,10 @@ jobs:
         run: |
           set -ue
           make install-codegen-tools-local
-          VERSION=${{ inputs.TARGET_VERSION }}
-          IMAGE_REGISTRY=${{ env.IMAGE_REGISTRY }}
-          IMAGE_NAMESPACE=${{ env.IMAGE_NAMESPACE }}
-          IMAGE_REPOSITORY=${{ env.IMAGE_REPOSITORY }}
+          export VERSION=${{ inputs.TARGET_VERSION }}
+          export IMAGE_REGISTRY=${{ env.IMAGE_REGISTRY }}
+          export IMAGE_NAMESPACE=${{ env.IMAGE_NAMESPACE }}
+          export IMAGE_REPOSITORY=${{ env.IMAGE_REPOSITORY }}
           bash hack/update-manifests.sh
           git diff
 
