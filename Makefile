@@ -166,6 +166,8 @@ PATH:=$(PATH):$(PWD)/hack
 # docker image publishing options
 DOCKER_PUSH?=false
 IMAGE_NAMESPACE?=
+IMAGE_REGISTRY?=
+IMAGE_REPOSITORY?=
 # perform static compilation
 DEFAULT_STATIC_BUILD:=true
 ifeq ($(IS_DARWIN),true)
