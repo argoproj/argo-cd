@@ -38,10 +38,7 @@ if [ -n "$DETECTED_IMAGE" ] && [ "$DETECTED_IMAGE" != "quay.io/argoproj/argocd" 
   echo "Detected existing custom image in manifests: $SOURCE_IMAGE_NAME"
 else
   # Use default source image (fresh fork or manual override)
-  SOURCE_IMAGE_REGISTRY="${SOURCE_IMAGE_REGISTRY:-quay.io}"
-  SOURCE_IMAGE_NAMESPACE="${SOURCE_IMAGE_NAMESPACE:-argoproj}"
-  SOURCE_IMAGE_REPOSITORY="${SOURCE_IMAGE_REPOSITORY:-argocd}"
-  SOURCE_IMAGE_NAME="${SOURCE_IMAGE_REGISTRY}/${SOURCE_IMAGE_NAMESPACE}/${SOURCE_IMAGE_REPOSITORY}"
+  SOURCE_IMAGE_NAME="quay.io/argoproj/argocd"
   echo "Using default source image: $SOURCE_IMAGE_NAME"
 fi
 
