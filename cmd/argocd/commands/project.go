@@ -618,7 +618,7 @@ func removeResourceFromAllowList(list []metav1.GroupKind, listDesc string, group
 	return list, true
 }
 
-func removeResourceFromDenyList(list []v1alpha1.BlacklistEntry, visible bool, listDesc string, group string, kind string) ([]v1alpha1.BlacklistEntry, bool) {
+func removeResourceFromDenyList(list []v1alpha1.BlacklistEntry, listDesc string, group string, kind string) ([]v1alpha1.BlacklistEntry, bool) {
 	index := -1
 	for i, item := range list {
 		if item.Group == group && item.Kind == kind {
@@ -710,7 +710,7 @@ func modifyResourceListCmd(cmdUse, cmdDesc, examples string, clientOpts *argocdc
 				}
 			} else {
 				if allow {
-					*denyList, updated = removeResourceFromDenyList(*denyList, visible, "denied "+listDesc, group, kind)
+					*denyList, updated = removeResourceFromDenyList(*denyList, "denied "+listDesc, group, kind)
 				} else {
 					*denyList, updated = addResourceToDenyList(*denyList, visible, "denied "+listDesc, group, kind)
 				}
