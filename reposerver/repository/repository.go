@@ -186,7 +186,7 @@ func (s *Service) Init() error {
 		if repo, err := gogit.PlainOpen(fullPath); err == nil {
 			if remotes, err := repo.Remotes(); err == nil && len(remotes) > 0 && len(remotes[0].Config().URLs) > 0 {
 				var pathSHA string
-				sparsePaths, err := getSparseCheckoutPathsFromRepo(fullPath)
+				sparsePaths, err := getSparseCheckoutPathsFromRepo(context.Background(), fullPath)
 				if err != nil {
 					log.Warnf("Failed to get sparse checkout paths from %s: %v", fullPath, err)
 				} else if len(sparsePaths) > 0 {
@@ -209,14 +209,14 @@ func (s *Service) Init() error {
 }
 
 // getSparseCheckoutPathsFromRepo reads the sparse checkout configuration from a git repository
-func getSparseCheckoutPathsFromRepo(repoPath string) ([]string, error) {
+func getSparseCheckoutPathsFromRepo(ctx context.Context, repoPath string) ([]string, error) {
 	// Use git sparse-checkout list command to get the configured paths
 	// This is more robust than parsing the file directly as it handles all git's internal logic
-	cmd := exec.Command("git", "-C", repoPath, "sparse-checkout", "list")
+	cmd := exec.CommandContext(ctx, "git", "-C", repoPath, "sparse-checkout", "list")
 	output, err := cmd.Output()
 	if err != nil {
 		// If the command fails, sparse checkout is likely not configured
-		return nil, nil
+		return nil, err
 	}
 
 	var paths []string
@@ -2653,7 +2653,6 @@ func (s *Service) newClient(repo *v1alpha1.Repository, opts ...git.ClientOpts) (
 	}
 
 	repoPath, err := s.gitRepoPaths.GetPath(string(keyData))
-
 	if err != nil {
 		return nil, err
 	}
@@ -2821,12 +2820,13 @@ func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bo
 
 	// Fetching can be skipped if the revision is already present locally.
 	if !revisionPresent {
-		if enablePartialClone && len(sparsePaths) > 0 {
+		switch {
+		case enablePartialClone && len(sparsePaths) > 0:
 			// Use partial clone (--filter=blob:none) for minimal network transfer
 			log.Infof("Using partial clone with %d sparse paths for revision %s", len(sparsePaths), revision)
 
 			// Configure sparse checkout before fetching
-			if err := gitClient.ConfigureSparseCheckout(sparsePaths); err != nil {
+			if err = gitClient.ConfigureSparseCheckout(sparsePaths); err != nil {
 				log.Warnf("Failed to configure sparse checkout, falling back to full checkout: %v", err)
 				// Fall back to regular fetch
 				if depth > 0 {
@@ -2842,9 +2842,9 @@ func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bo
 					err = gitClient.Fetch("", 0, true)
 				}
 			}
-		} else if depth > 0 {
+		case depth > 0:
 			err = gitClient.Fetch(revision, depth, false)
-		} else {
+		default:
 			// Fetching with no revision first. Fetching with an explicit version can cause repo bloat. https://github.com/argoproj/argo-cd/issues/8845
 			err = gitClient.Fetch("", depth, false)
 		}

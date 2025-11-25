@@ -526,7 +526,7 @@ func (m *nativeGitClient) Fetch(revision string, depth int64, usePartialClone bo
 // This limits which files are checked out in the working directory
 func (m *nativeGitClient) ConfigureSparseCheckout(paths []string) error {
 	if len(paths) == 0 {
-		return fmt.Errorf("sparse checkout requires at least one path")
+		return errors.New("sparse checkout requires at least one path")
 	}
 
 	ctx := context.Background()

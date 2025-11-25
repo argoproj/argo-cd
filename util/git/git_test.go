@@ -959,34 +959,34 @@ func runCmdOutput(ctx context.Context, workDir string, name string, args ...stri
 // Test_nativeGitClient_Fetch_Combinations tests all combinations of fetch parameters
 func Test_nativeGitClient_Fetch_Combinations(t *testing.T) {
 	tests := []struct {
-		name             string
+		name            string
 		usePartialClone bool
 		depth           int64
-		description      string
+		description     string
 	}{
 		{
-			name:             "Full clone (no partial, no depth)",
+			name:            "Full clone (no partial, no depth)",
 			usePartialClone: false,
 			depth:           0,
-			description:      "Should fetch all history with all blobs using --tags",
+			description:     "Should fetch all history with all blobs using --tags",
 		},
 		{
-			name:             "Shallow clone only",
+			name:            "Shallow clone only",
 			usePartialClone: false,
 			depth:           10,
-			description:      "Should fetch limited history (10 commits) with all blobs using --depth",
+			description:     "Should fetch limited history (10 commits) with all blobs using --depth",
 		},
 		{
-			name:             "Partial clone only",
+			name:            "Partial clone only",
 			usePartialClone: true,
 			depth:           0,
-			description:      "Should fetch all history but no blobs using --filter=blob:none",
+			description:     "Should fetch all history but no blobs using --filter=blob:none",
 		},
 		{
-			name:             "Both partial and shallow",
+			name:            "Both partial and shallow",
 			usePartialClone: true,
 			depth:           10,
-			description:      "Should fetch limited history (10 commits) with no blobs using both --filter and --depth",
+			description:     "Should fetch limited history (10 commits) with no blobs using both --filter and --depth",
 		},
 	}
 
@@ -1025,7 +1025,7 @@ func Test_nativeGitClient_Fetch_Combinations(t *testing.T) {
 				shallowFile := filepath.Join(clientDir, ".git", "shallow")
 				_, err := os.Stat(shallowFile)
 				// Shallow file should exist for shallow clones
-				assert.NoError(t, err, "Expected shallow file to exist for depth-limited fetch")
+				require.NoError(t, err, "Expected shallow file to exist for depth-limited fetch")
 			}
 
 			// If partial clone is specified, verify promisor remote was configured
@@ -1117,7 +1117,7 @@ func Test_nativeGitClient_Fetch_ShallowAndPartial_Together(t *testing.T) {
 	// Verify it's both shallow and partial
 	shallowFile := filepath.Join(clientDir, ".git", "shallow")
 	_, err = os.Stat(shallowFile)
-	assert.NoError(t, err, "Expected shallow file for depth-limited fetch")
+	require.NoError(t, err, "Expected shallow file for depth-limited fetch")
 
 	output, err := runCmdOutput(ctx, clientDir, "git", "config", "remote.origin.promisor")
 	if err == nil {

@@ -117,7 +117,7 @@ export class RepositoriesService {
                 useAzureWorkloadIdentity: q.useAzureWorkloadIdentity,
                 insecureOCIForceHttp: q.insecureOCIForceHttp,
                 enablePartialClone: q.enablePartialClone,
-                sparsePaths: q.sparsePaths.split(','),
+                sparsePaths: q.sparsePaths.split(',')
             })
             .then(res => res.body as models.Repository);
     }

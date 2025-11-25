@@ -717,7 +717,7 @@ func TestGetGitFiles(t *testing.T) {
 	t.Run("GetGitFiles cache miss", func(t *testing.T) {
 		fixtures := newFixtures()
 		t.Cleanup(fixtures.mockCache.StopRedisCallback)
-		directories, err := fixtures.cache.GetGitFiles("test-repo", "test-revision", "*.json")
+		directories, err := fixtures.cache.GetGitFiles("test-repo", "test-revision", "", "*.json")
 		require.ErrorIs(t, err, ErrCacheMiss)
 		assert.Empty(t, directories)
 		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalGets: 1})
@@ -728,11 +728,11 @@ func TestGetGitFiles(t *testing.T) {
 		cache := fixtures.cache
 		expectedItem := map[string][]byte{"test/file.json": []byte("\"test\":\"contents\""), "test/file1.json": []byte("\"test1\":\"contents1\"")}
 		err := cache.cache.SetItem(
-			gitFilesKey("test-repo", "test-revision", "*.json"),
+			gitFilesKey("test-repo", "test-revision", "", "*.json"),
 			expectedItem,
 			&cacheutil.CacheActionOpts{Expiration: 30 * time.Second})
 		require.NoError(t, err)
-		files, err := fixtures.cache.GetGitFiles("test-repo", "test-revision", "*.json")
+		files, err := fixtures.cache.GetGitFiles("test-repo", "test-revision", "", "*.json")
 		require.NoError(t, err)
 		assert.Equal(t, expectedItem, files)
 		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalGets: 1, ExternalSets: 1})
@@ -742,9 +742,9 @@ func TestGetGitFiles(t *testing.T) {
 		fixtures := newFixtures()
 		t.Cleanup(fixtures.mockCache.StopRedisCallback)
 		expectedItem := map[string][]byte{"test/file.json": []byte("\"test\":\"contents\""), "test/file1.json": []byte("\"test1\":\"contents1\"")}
-		err := fixtures.cache.SetGitFiles("test-repo", "test-revision", "*.json", expectedItem)
+		err := fixtures.cache.SetGitFiles("test-repo", "test-revision", "", "*.json", expectedItem)
 		require.NoError(t, err)
-		files, err := fixtures.cache.GetGitFiles("test-repo", "test-revision", "*.json")
+		files, err := fixtures.cache.GetGitFiles("test-repo", "test-revision", "", "*.json")
 		require.NoError(t, err)
 		assert.Equal(t, expectedItem, files)
 		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalGets: 1, ExternalSets: 1})
