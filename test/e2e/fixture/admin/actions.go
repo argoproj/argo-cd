@@ -1,7 +1,9 @@
 package admin
 
 import (
-	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
+	"time"
+
+	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 )
 
 // this implements the "when" part of given/when/then
@@ -9,10 +11,9 @@ import (
 // none of the func implement error checks, and that is complete intended, you should check for errors
 // using the Then()
 type Actions struct {
-	context      *Context
-	ignoreErrors bool
-	lastOutput   string
-	lastError    error
+	context    *Context
+	lastOutput string
+	lastError  error
 }
 
 func (a *Actions) prepareExportCommand() []string {
@@ -41,16 +42,6 @@ func (a *Actions) RunImport(stdin string) *Actions {
 	return a
 }
 
-func (a *Actions) IgnoreErrors() *Actions {
-	a.ignoreErrors = true
-	return a
-}
-
-func (a *Actions) DoNotIgnoreErrors() *Actions {
-	a.ignoreErrors = false
-	return a
-}
-
 func (a *Actions) runCli(args ...string) {
 	a.context.t.Helper()
 	a.lastOutput, a.lastError = RunCli(args...)
@@ -63,5 +54,6 @@ func (a *Actions) runCliWithStdin(stdin string, args ...string) {
 
 func (a *Actions) Then() *Consequences {
 	a.context.t.Helper()
+	time.Sleep(fixture.WhenThenSleepInterval)
 	return &Consequences{a.context, a}
 }

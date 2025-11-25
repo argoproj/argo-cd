@@ -5,7 +5,7 @@ tests:
   inputPath: testdata/ISBServiceRollout/progressing-observedgen.yaml
 - healthStatus:
     status: Healthy
-    message: "Successful"
+    message: "Healthy"
   inputPath: testdata/ISBServiceRollout/healthy.yaml
 - healthStatus:
     status: Degraded
@@ -17,9 +17,13 @@ tests:
   inputPath: testdata/ISBServiceRollout/progressing-nostatus.yaml
 - healthStatus:
     status: Progressing
-    message: "Progressing"
+    message: "Child Progressing"
   inputPath: testdata/ISBServiceRollout/progressing-reason.yaml
 - healthStatus:
     status: Progressing
-    message: "Phase=Pending"
+    message: "Update in progress"
   inputPath: testdata/ISBServiceRollout/pending-upgrade-in-progress.yaml
+- healthStatus:
+    status: Degraded
+    message: "Progressive upgrade failed"
+  inputPath: testdata/ISBServiceRollout/progressive-failed.yaml

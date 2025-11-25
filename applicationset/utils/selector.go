@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/util/validation"
@@ -69,11 +69,11 @@ func (s internalSelector) Add(reqs ...Requirement) Selector {
 
 type nothingSelector struct{}
 
-func (n nothingSelector) Matches(l labels.Labels) bool {
+func (n nothingSelector) Matches(_ labels.Labels) bool {
 	return false
 }
 
-func (n nothingSelector) Add(r ...Requirement) Selector {
+func (n nothingSelector) Add(_ ...Requirement) Selector {
 	return n
 }
 
@@ -90,7 +90,7 @@ func everything() Selector {
 // LabelSelectorAsSelector converts the LabelSelector api type into a struct that implements
 // labels.Selector
 // Note: This function should be kept in sync with the selector methods in pkg/labels/selector.go
-func LabelSelectorAsSelector(ps *v1.LabelSelector) (Selector, error) {
+func LabelSelectorAsSelector(ps *metav1.LabelSelector) (Selector, error) {
 	if ps == nil {
 		return nothing(), nil
 	}
@@ -108,13 +108,13 @@ func LabelSelectorAsSelector(ps *v1.LabelSelector) (Selector, error) {
 	for _, expr := range ps.MatchExpressions {
 		var op selection.Operator
 		switch expr.Operator {
-		case v1.LabelSelectorOpIn:
+		case metav1.LabelSelectorOpIn:
 			op = selection.In
-		case v1.LabelSelectorOpNotIn:
+		case metav1.LabelSelectorOpNotIn:
 			op = selection.NotIn
-		case v1.LabelSelectorOpExists:
+		case metav1.LabelSelectorOpExists:
 			op = selection.Exists
-		case v1.LabelSelectorOpDoesNotExist:
+		case metav1.LabelSelectorOpDoesNotExist:
 			op = selection.DoesNotExist
 		default:
 			return nil, fmt.Errorf("%q is not a valid pod selector operator", expr.Operator)

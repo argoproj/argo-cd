@@ -15,7 +15,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 // StartInformer is a helper to start an informer, wait for its cache to sync and return a cancel func
@@ -30,7 +30,8 @@ func StartInformer(informer cache.SharedIndexInformer) context.CancelFunc {
 
 // GetFreePort finds an available free port on the OS
 func GetFreePort() (int, error) {
-	ln, err := net.Listen("tcp", "[::]:0")
+	lc := &net.ListenConfig{}
+	ln, err := lc.Listen(context.Background(), "tcp", "[::]:0")
 	if err != nil {
 		return 0, err
 	}
@@ -60,7 +61,8 @@ func WaitForPortListen(addr string, timeout time.Duration) error {
 }
 
 func portIsOpen(addr string) bool {
-	conn, err := net.Dial("tcp", addr)
+	d := &net.Dialer{}
+	conn, err := d.DialContext(context.Background(), "tcp", addr)
 	if err != nil {
 		return false
 	}
@@ -78,7 +80,7 @@ func MustLoadFileToString(path string) string {
 }
 
 func YamlToUnstructured(yamlStr string) *unstructured.Unstructured {
-	obj := make(map[string]interface{})
+	obj := make(map[string]any)
 	err := yaml.Unmarshal([]byte(yamlStr), &obj)
 	if err != nil {
 		panic(err)
@@ -95,13 +97,13 @@ func YamlToApplication(yamlStr string) *v1alpha1.Application {
 	return &app
 }
 
-// ToMap converts any object to a map[string]interface{}
-func ToMap(obj interface{}) map[string]interface{} {
+// ToMap converts any object to a map[string]any
+func ToMap(obj any) map[string]any {
 	data, err := json.Marshal(obj)
 	if err != nil {
 		panic(err)
 	}
-	var res map[string]interface{}
+	var res map[string]any
 	err = json.Unmarshal(data, &res)
 	if err != nil {
 		panic(err)

@@ -1,6 +1,7 @@
 package helm
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -12,11 +13,11 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	executil "github.com/argoproj/argo-cd/v2/util/exec"
-	argoio "github.com/argoproj/argo-cd/v2/util/io"
-	pathutil "github.com/argoproj/argo-cd/v2/util/io/path"
-	"github.com/argoproj/argo-cd/v2/util/proxy"
+	"github.com/argoproj/argo-cd/v3/common"
+	executil "github.com/argoproj/argo-cd/v3/util/exec"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
+	pathutil "github.com/argoproj/argo-cd/v3/util/io/path"
+	"github.com/argoproj/argo-cd/v3/util/proxy"
 )
 
 // A thin wrapper around the "helm" command, adding logging and error translation.
@@ -50,8 +51,8 @@ var redactor = func(text string) string {
 	return regexp.MustCompile("(--username|--password) [^ ]*").ReplaceAllString(text, "$1 ******")
 }
 
-func (c Cmd) run(args ...string) (string, string, error) {
-	cmd := exec.Command("helm", args...)
+func (c Cmd) run(ctx context.Context, args ...string) (string, string, error) {
+	cmd := exec.CommandContext(ctx, "helm", args...)
 	cmd.Dir = c.WorkDir
 	cmd.Env = os.Environ()
 	if !c.IsLocal {
@@ -80,50 +81,54 @@ func (c *Cmd) RegistryLogin(repo string, creds Creds) (string, error) {
 	args := []string{"registry", "login"}
 	args = append(args, repo)
 
-	if creds.Username != "" {
-		args = append(args, "--username", creds.Username)
+	if creds.GetUsername() != "" {
+		args = append(args, "--username", creds.GetUsername())
 	}
 
-	if creds.Password != "" {
-		args = append(args, "--password", creds.Password)
+	helmPassword, err := creds.GetPassword()
+	if err != nil {
+		return "", fmt.Errorf("failed to get password for helm registry: %w", err)
+	}
+	if helmPassword != "" {
+		args = append(args, "--password", helmPassword)
 	}
 
-	if creds.CAPath != "" {
-		args = append(args, "--ca-file", creds.CAPath)
+	if creds.GetCAPath() != "" {
+		args = append(args, "--ca-file", creds.GetCAPath())
 	}
 
-	if len(creds.CertData) > 0 {
-		filePath, closer, err := writeToTmp(creds.CertData)
+	if len(creds.GetCertData()) > 0 {
+		filePath, closer, err := writeToTmp(creds.GetCertData())
 		if err != nil {
 			return "", fmt.Errorf("failed to write certificate data to temporary file: %w", err)
 		}
-		defer argoio.Close(closer)
+		defer utilio.Close(closer)
 		args = append(args, "--cert-file", filePath)
 	}
 
-	if len(creds.KeyData) > 0 {
-		filePath, closer, err := writeToTmp(creds.KeyData)
+	if len(creds.GetKeyData()) > 0 {
+		filePath, closer, err := writeToTmp(creds.GetKeyData())
 		if err != nil {
 			return "", fmt.Errorf("failed to write key data to temporary file: %w", err)
 		}
-		defer argoio.Close(closer)
+		defer utilio.Close(closer)
 		args = append(args, "--key-file", filePath)
 	}
 
-	if creds.InsecureSkipVerify {
+	if creds.GetInsecureSkipVerify() {
 		args = append(args, "--insecure")
 	}
-	out, _, err := c.run(args...)
+	out, _, err := c.run(context.Background(), args...)
 	if err != nil {
 		return "", fmt.Errorf("failed to login to registry: %w", err)
 	}
 	return out, nil
 }
 
-func (c *Cmd) RegistryLogout(repo string, creds Creds) (string, error) {
+func (c *Cmd) RegistryLogout(repo string, _ Creds) (string, error) {
 	args := []string{"registry", "logout"}
 	args = append(args, repo)
-	out, _, err := c.run(args...)
+	out, _, err := c.run(context.Background(), args...)
 	if err != nil {
 		return "", fmt.Errorf("failed to logout from registry: %w", err)
 	}
@@ -139,28 +144,32 @@ func (c *Cmd) RepoAdd(name string, url string, opts Creds, passCredentials bool)
 
 	args := []string{"repo", "add"}
 
-	if opts.Username != "" {
-		args = append(args, "--username", opts.Username)
+	if opts.GetUsername() != "" {
+		args = append(args, "--username", opts.GetUsername())
 	}
 
-	if opts.Password != "" {
-		args = append(args, "--password", opts.Password)
+	helmPassword, err := opts.GetPassword()
+	if err != nil {
+		return "", fmt.Errorf("failed to get password for helm registry: %w", err)
+	}
+	if helmPassword != "" {
+		args = append(args, "--password", helmPassword)
 	}
 
-	if opts.CAPath != "" {
-		args = append(args, "--ca-file", opts.CAPath)
+	if opts.GetCAPath() != "" {
+		args = append(args, "--ca-file", opts.GetCAPath())
 	}
 
-	if opts.InsecureSkipVerify {
+	if opts.GetInsecureSkipVerify() {
 		args = append(args, "--insecure-skip-tls-verify")
 	}
 
-	if len(opts.CertData) > 0 {
+	if len(opts.GetCertData()) > 0 {
 		certFile, err := os.CreateTemp("", "helm")
 		if err != nil {
 			return "", fmt.Errorf("failed to create temporary certificate file: %w", err)
 		}
-		_, err = certFile.Write(opts.CertData)
+		_, err = certFile.Write(opts.GetCertData())
 		if err != nil {
 			return "", fmt.Errorf("failed to write certificate data: %w", err)
 		}
@@ -168,12 +177,12 @@ func (c *Cmd) RepoAdd(name string, url string, opts Creds, passCredentials bool)
 		args = append(args, "--cert-file", certFile.Name())
 	}
 
-	if len(opts.KeyData) > 0 {
+	if len(opts.GetKeyData()) > 0 {
 		keyFile, err := os.CreateTemp("", "helm")
 		if err != nil {
 			return "", fmt.Errorf("failed to create temporary key file: %w", err)
 		}
-		_, err = keyFile.Write(opts.KeyData)
+		_, err = keyFile.Write(opts.GetKeyData())
 		if err != nil {
 			return "", fmt.Errorf("failed to write key data: %w", err)
 		}
@@ -187,14 +196,14 @@ func (c *Cmd) RepoAdd(name string, url string, opts Creds, passCredentials bool)
 
 	args = append(args, name, url)
 
-	out, _, err := c.run(args...)
+	out, _, err := c.run(context.Background(), args...)
 	if err != nil {
 		return "", fmt.Errorf("failed to add repository: %w", err)
 	}
 	return out, err
 }
 
-func writeToTmp(data []byte) (string, argoio.Closer, error) {
+func writeToTmp(data []byte) (string, utilio.Closer, error) {
 	file, err := os.CreateTemp("", "")
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to create temporary file: %w", err)
@@ -212,7 +221,7 @@ func writeToTmp(data []byte) (string, argoio.Closer, error) {
 			}).Errorf("error closing file %q: %v", file.Name(), err)
 		}
 	}()
-	return file.Name(), argoio.NewCloser(func() error {
+	return file.Name(), utilio.NewCloser(func() error {
 		return os.RemoveAll(file.Name())
 	}), nil
 }
@@ -222,42 +231,47 @@ func (c *Cmd) Fetch(repo, chartName, version, destination string, creds Creds, p
 	if version != "" {
 		args = append(args, "--version", version)
 	}
-	if creds.Username != "" {
-		args = append(args, "--username", creds.Username)
+	if creds.GetUsername() != "" {
+		args = append(args, "--username", creds.GetUsername())
 	}
-	if creds.Password != "" {
-		args = append(args, "--password", creds.Password)
+
+	helmPassword, err := creds.GetPassword()
+	if err != nil {
+		return "", fmt.Errorf("failed to get password for helm registry: %w", err)
 	}
-	if creds.InsecureSkipVerify {
+	if helmPassword != "" {
+		args = append(args, "--password", helmPassword)
+	}
+	if creds.GetInsecureSkipVerify() {
 		args = append(args, "--insecure-skip-tls-verify")
 	}
 
 	args = append(args, "--repo", repo, chartName)
 
-	if creds.CAPath != "" {
-		args = append(args, "--ca-file", creds.CAPath)
+	if creds.GetCAPath() != "" {
+		args = append(args, "--ca-file", creds.GetCAPath())
 	}
-	if len(creds.CertData) > 0 {
-		filePath, closer, err := writeToTmp(creds.CertData)
+	if len(creds.GetCertData()) > 0 {
+		filePath, closer, err := writeToTmp(creds.GetCertData())
 		if err != nil {
 			return "", fmt.Errorf("failed to write certificate data to temporary file: %w", err)
 		}
-		defer argoio.Close(closer)
+		defer utilio.Close(closer)
 		args = append(args, "--cert-file", filePath)
 	}
-	if len(creds.KeyData) > 0 {
-		filePath, closer, err := writeToTmp(creds.KeyData)
+	if len(creds.GetKeyData()) > 0 {
+		filePath, closer, err := writeToTmp(creds.GetKeyData())
 		if err != nil {
 			return "", fmt.Errorf("failed to write key data to temporary file: %w", err)
 		}
-		defer argoio.Close(closer)
+		defer utilio.Close(closer)
 		args = append(args, "--key-file", filePath)
 	}
 	if passCredentials {
 		args = append(args, "--pass-credentials")
 	}
 
-	out, _, err := c.run(args...)
+	out, _, err := c.run(context.Background(), args...)
 	if err != nil {
 		return "", fmt.Errorf("failed to fetch chart: %w", err)
 	}
@@ -271,32 +285,32 @@ func (c *Cmd) PullOCI(repo string, chart string, version string, destination str
 		"--destination",
 		destination,
 	}
-	if creds.CAPath != "" {
-		args = append(args, "--ca-file", creds.CAPath)
+	if creds.GetCAPath() != "" {
+		args = append(args, "--ca-file", creds.GetCAPath())
 	}
 
-	if len(creds.CertData) > 0 {
-		filePath, closer, err := writeToTmp(creds.CertData)
+	if len(creds.GetCertData()) > 0 {
+		filePath, closer, err := writeToTmp(creds.GetCertData())
 		if err != nil {
 			return "", fmt.Errorf("failed to write certificate data to temporary file: %w", err)
 		}
-		defer argoio.Close(closer)
+		defer utilio.Close(closer)
 		args = append(args, "--cert-file", filePath)
 	}
 
-	if len(creds.KeyData) > 0 {
-		filePath, closer, err := writeToTmp(creds.KeyData)
+	if len(creds.GetKeyData()) > 0 {
+		filePath, closer, err := writeToTmp(creds.GetKeyData())
 		if err != nil {
 			return "", fmt.Errorf("failed to write key data to temporary file: %w", err)
 		}
-		defer argoio.Close(closer)
+		defer utilio.Close(closer)
 		args = append(args, "--key-file", filePath)
 	}
 
-	if creds.InsecureSkipVerify {
+	if creds.GetInsecureSkipVerify() {
 		args = append(args, "--insecure-skip-tls-verify")
 	}
-	out, _, err := c.run(args...)
+	out, _, err := c.run(context.Background(), args...)
 	if err != nil {
 		return "", fmt.Errorf("failed to pull OCI chart: %w", err)
 	}
@@ -304,7 +318,7 @@ func (c *Cmd) PullOCI(repo string, chart string, version string, destination str
 }
 
 func (c *Cmd) dependencyBuild() (string, error) {
-	out, _, err := c.run("dependency", "build")
+	out, _, err := c.run(context.Background(), "dependency", "build")
 	if err != nil {
 		return "", fmt.Errorf("failed to build dependencies: %w", err)
 	}
@@ -312,7 +326,7 @@ func (c *Cmd) dependencyBuild() (string, error) {
 }
 
 func (c *Cmd) inspectValues(values string) (string, error) {
-	out, _, err := c.run("show", "values", values)
+	out, _, err := c.run(context.Background(), "show", "values", values)
 	if err != nil {
 		return "", fmt.Errorf("failed to inspect values: %w", err)
 	}
@@ -320,7 +334,7 @@ func (c *Cmd) inspectValues(values string) (string, error) {
 }
 
 func (c *Cmd) InspectChart() (string, error) {
-	out, _, err := c.run("show", "chart", ".")
+	out, _, err := c.run(context.Background(), "show", "chart", ".")
 	if err != nil {
 		return "", fmt.Errorf("failed to inspect chart: %w", err)
 	}
@@ -354,13 +368,13 @@ func cleanSetParameters(val string) string {
 	return val
 }
 
-func replaceAllWithLookbehind(val string, old rune, new string, lookbehind rune) string {
+func replaceAllWithLookbehind(val string, old rune, newV string, lookbehind rune) string {
 	var result strings.Builder
 	var prevR rune
 	for _, r := range val {
 		if r == old {
 			if prevR != lookbehind {
-				result.WriteString(new)
+				result.WriteString(newV)
 			} else {
 				result.WriteRune(old)
 			}
@@ -417,7 +431,7 @@ func (c *Cmd) template(chartPath string, opts *TemplateOpts) (string, string, er
 		args = append(args, "--skip-tests")
 	}
 
-	out, command, err := c.run(args...)
+	out, command, err := c.run(context.Background(), args...)
 	if err != nil {
 		msg := err.Error()
 		if strings.Contains(msg, "--api-versions") {
@@ -436,11 +450,10 @@ func cleanupChartLockFile(chartPath string) (func(), error) {
 	exists := true
 	lockPath := path.Join(chartPath, "Chart.lock")
 	if _, err := os.Stat(lockPath); err != nil {
-		if os.IsNotExist(err) {
-			exists = false
-		} else {
+		if !os.IsNotExist(err) {
 			return nil, fmt.Errorf("failed to check lock file status: %w", err)
 		}
+		exists = false
 	}
 	return func() {
 		if !exists {
@@ -450,7 +463,7 @@ func cleanupChartLockFile(chartPath string) (func(), error) {
 }
 
 func (c *Cmd) Freestyle(args ...string) (string, error) {
-	out, _, err := c.run(args...)
+	out, _, err := c.run(context.Background(), args...)
 	if err != nil {
 		return "", fmt.Errorf("failed to execute freestyle helm command: %w", err)
 	}

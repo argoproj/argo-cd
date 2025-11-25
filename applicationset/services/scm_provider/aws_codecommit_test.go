@@ -1,7 +1,6 @@
 package scm_provider
 
 import (
-	"context"
 	"errors"
 	"sort"
 	"testing"
@@ -13,8 +12,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
-	"github.com/argoproj/argo-cd/v2/applicationset/services/scm_provider/aws_codecommit/mocks"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/applicationset/services/scm_provider/mocks"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 type awsCodeCommitTestRepository struct {
@@ -23,7 +22,7 @@ type awsCodeCommitTestRepository struct {
 	arn                      string
 	accountId                string
 	defaultBranch            string
-	expectedCloneUrl         string
+	expectedCloneURL         string
 	getRepositoryError       error
 	getRepositoryNilMetadata bool
 	valid                    bool
@@ -49,7 +48,7 @@ func TestAWSCodeCommitListRepos(t *testing.T) {
 					id:               "8235624d-d248-4df9-a983-2558b01dbe83",
 					arn:              "arn:aws:codecommit:us-east-1:111111111111:repo1",
 					defaultBranch:    "main",
-					expectedCloneUrl: "https://git-codecommit.us-east-1.amazonaws.com/v1/repos/repo1",
+					expectedCloneURL: "https://git-codecommit.us-east-1.amazonaws.com/v1/repos/repo1",
 					valid:            true,
 				},
 			},
@@ -74,7 +73,7 @@ func TestAWSCodeCommitListRepos(t *testing.T) {
 					id:               "8235624d-d248-4df9-a983-2558b01dbe83",
 					arn:              "arn:aws:codecommit:us-east-1:111111111111:repo1",
 					defaultBranch:    "main",
-					expectedCloneUrl: "https://git-codecommit-fips.us-east-1.amazonaws.com/v1/repos/repo1",
+					expectedCloneURL: "https://git-codecommit-fips.us-east-1.amazonaws.com/v1/repos/repo1",
 					valid:            true,
 				},
 			},
@@ -96,7 +95,7 @@ func TestAWSCodeCommitListRepos(t *testing.T) {
 					id:               "8235624d-d248-4df9-a983-2558b01dbe83",
 					arn:              "arn:aws:codecommit:us-east-1:111111111111:repo1",
 					defaultBranch:    "main",
-					expectedCloneUrl: "ssh://git-codecommit.us-east-1.amazonaws.com/v1/repos/repo1",
+					expectedCloneURL: "ssh://git-codecommit.us-east-1.amazonaws.com/v1/repos/repo1",
 					valid:            true,
 				},
 				{
@@ -160,7 +159,7 @@ func TestAWSCodeCommitListRepos(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			codeCommitClient := mocks.NewAWSCodeCommitClient(t)
 			taggingClient := mocks.NewAWSTaggingClient(t)
-			ctx := context.Background()
+			ctx := t.Context()
 			codecommitRepoNameIdPairs := make([]*codecommit.RepositoryNameIdPair, 0)
 			resourceTaggings := make([]*resourcegroupstaggingapi.ResourceTagMapping, 0)
 			validRepositories := make([]*awsCodeCommitTestRepository, 0)
@@ -178,9 +177,8 @@ func TestAWSCodeCommitListRepos(t *testing.T) {
 				if repo.getRepositoryNilMetadata {
 					repoMetadata = nil
 				}
-				codeCommitClient.
-					On("GetRepositoryWithContext", ctx, &codecommit.GetRepositoryInput{RepositoryName: aws.String(repo.name)}).
-					Return(&codecommit.GetRepositoryOutput{RepositoryMetadata: repoMetadata}, repo.getRepositoryError)
+				codeCommitClient.EXPECT().GetRepositoryWithContext(mock.Anything, &codecommit.GetRepositoryInput{RepositoryName: aws.String(repo.name)}).
+					Return(&codecommit.GetRepositoryOutput{RepositoryMetadata: repoMetadata}, repo.getRepositoryError).Maybe()
 				codecommitRepoNameIdPairs = append(codecommitRepoNameIdPairs, &codecommit.RepositoryNameIdPair{
 					RepositoryId:   aws.String(repo.id),
 					RepositoryName: aws.String(repo.name),
@@ -194,20 +192,18 @@ func TestAWSCodeCommitListRepos(t *testing.T) {
 			}
 
 			if testCase.expectListAtCodeCommit {
-				codeCommitClient.
-					On("ListRepositoriesWithContext", ctx, &codecommit.ListRepositoriesInput{}).
+				codeCommitClient.EXPECT().ListRepositoriesWithContext(mock.Anything, &codecommit.ListRepositoriesInput{}).
 					Return(&codecommit.ListRepositoriesOutput{
 						Repositories: codecommitRepoNameIdPairs,
-					}, testCase.listRepositoryError)
+					}, testCase.listRepositoryError).Maybe()
 			} else {
-				taggingClient.
-					On("GetResourcesWithContext", ctx, mock.MatchedBy(equalIgnoringTagFilterOrder(&resourcegroupstaggingapi.GetResourcesInput{
-						TagFilters:          testCase.expectTagFilters,
-						ResourceTypeFilters: aws.StringSlice([]string{resourceTypeCodeCommitRepository}),
-					}))).
+				taggingClient.EXPECT().GetResourcesWithContext(mock.Anything, mock.MatchedBy(equalIgnoringTagFilterOrder(&resourcegroupstaggingapi.GetResourcesInput{
+					TagFilters:          testCase.expectTagFilters,
+					ResourceTypeFilters: aws.StringSlice([]string{resourceTypeCodeCommitRepository}),
+				}))).
 					Return(&resourcegroupstaggingapi.GetResourcesOutput{
 						ResourceTagMappingList: resourceTaggings,
-					}, testCase.listRepositoryError)
+					}, testCase.listRepositoryError).Maybe()
 			}
 
 			provider := &AWSCodeCommitProvider{
@@ -226,7 +222,7 @@ func TestAWSCodeCommitListRepos(t *testing.T) {
 					assert.Equal(t, originRepo.name, repo.Repository)
 					assert.Equal(t, originRepo.id, repo.RepositoryId)
 					assert.Equal(t, originRepo.defaultBranch, repo.Branch)
-					assert.Equal(t, originRepo.expectedCloneUrl, repo.URL)
+					assert.Equal(t, originRepo.expectedCloneURL, repo.URL)
 					assert.Empty(t, repo.SHA, "SHA is always empty")
 				}
 			}
@@ -349,15 +345,14 @@ func TestAWSCodeCommitRepoHasPath(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			codeCommitClient := mocks.NewAWSCodeCommitClient(t)
 			taggingClient := mocks.NewAWSTaggingClient(t)
-			ctx := context.Background()
+			ctx := t.Context()
 			if testCase.expectedGetFolderPath != "" {
-				codeCommitClient.
-					On("GetFolderWithContext", ctx, &codecommit.GetFolderInput{
-						CommitSpecifier: aws.String(branch),
-						FolderPath:      aws.String(testCase.expectedGetFolderPath),
-						RepositoryName:  aws.String(repoName),
-					}).
-					Return(testCase.getFolderOutput, testCase.getFolderError)
+				codeCommitClient.EXPECT().GetFolderWithContext(mock.Anything, &codecommit.GetFolderInput{
+					CommitSpecifier: aws.String(branch),
+					FolderPath:      aws.String(testCase.expectedGetFolderPath),
+					RepositoryName:  aws.String(repoName),
+				}).
+					Return(testCase.getFolderOutput, testCase.getFolderError).Maybe()
 			}
 			provider := &AWSCodeCommitProvider{
 				codeCommitClient: codeCommitClient,
@@ -382,7 +377,7 @@ func TestAWSCodeCommitGetBranches(t *testing.T) {
 	id := "1a64adc4-2fb5-4abd-afe7-127984ba83c0"
 	defaultBranch := "main"
 	organization := "111111111111"
-	cloneUrl := "https://git-codecommit.us-east-1.amazonaws.com/v1/repos/repo1"
+	cloneURL := "https://git-codecommit.us-east-1.amazonaws.com/v1/repos/repo1"
 
 	testCases := []struct {
 		name               string
@@ -422,20 +417,18 @@ func TestAWSCodeCommitGetBranches(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			codeCommitClient := mocks.NewAWSCodeCommitClient(t)
 			taggingClient := mocks.NewAWSTaggingClient(t)
-			ctx := context.Background()
+			ctx := t.Context()
 			if testCase.allBranches {
-				codeCommitClient.
-					On("ListBranchesWithContext", ctx, &codecommit.ListBranchesInput{
-						RepositoryName: aws.String(name),
-					}).
-					Return(&codecommit.ListBranchesOutput{Branches: aws.StringSlice(testCase.branches)}, testCase.apiError)
+				codeCommitClient.EXPECT().ListBranchesWithContext(mock.Anything, &codecommit.ListBranchesInput{
+					RepositoryName: aws.String(name),
+				}).
+					Return(&codecommit.ListBranchesOutput{Branches: aws.StringSlice(testCase.branches)}, testCase.apiError).Maybe()
 			} else {
-				codeCommitClient.
-					On("GetRepositoryWithContext", ctx, &codecommit.GetRepositoryInput{RepositoryName: aws.String(name)}).
+				codeCommitClient.EXPECT().GetRepositoryWithContext(mock.Anything, &codecommit.GetRepositoryInput{RepositoryName: aws.String(name)}).
 					Return(&codecommit.GetRepositoryOutput{RepositoryMetadata: &codecommit.RepositoryMetadata{
 						AccountId:     aws.String(organization),
 						DefaultBranch: aws.String(defaultBranch),
-					}}, testCase.apiError)
+					}}, testCase.apiError).Maybe()
 			}
 			provider := &AWSCodeCommitProvider{
 				codeCommitClient: codeCommitClient,
@@ -445,7 +438,7 @@ func TestAWSCodeCommitGetBranches(t *testing.T) {
 			actual, err := provider.GetBranches(ctx, &Repository{
 				Organization: organization,
 				Repository:   name,
-				URL:          cloneUrl,
+				URL:          cloneURL,
 				RepositoryId: id,
 			})
 			if testCase.expectOverallError {
@@ -454,7 +447,7 @@ func TestAWSCodeCommitGetBranches(t *testing.T) {
 				assertCopiedProperties := func(repo *Repository) {
 					assert.Equal(t, id, repo.RepositoryId)
 					assert.Equal(t, name, repo.Repository)
-					assert.Equal(t, cloneUrl, repo.URL)
+					assert.Equal(t, cloneURL, repo.URL)
 					assert.Equal(t, organization, repo.Organization)
 					assert.Empty(t, repo.SHA)
 				}

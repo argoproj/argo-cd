@@ -17,10 +17,10 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/argo-cd/v2/util/errors"
+	"github.com/argoproj/argo-cd/v3/util/errors"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/cli"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/cli"
 
 	// load the gcp plugin (required to authenticate against GKE clusters).
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
@@ -29,7 +29,7 @@ import (
 	// load the azure plugin (required to authenticate with AKS clusters).
 	_ "k8s.io/client-go/plugin/pkg/client/auth/azure"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
 )
 
 // NewProjectAllowListGenCommand generates a project from clusterRole
@@ -136,17 +136,17 @@ func generateProjectAllowList(serverResources []*metav1.APIResourceList, cluster
 			continue
 		}
 
-		ruleApiGroup := rule.APIGroups[0]
+		ruleAPIGroup := rule.APIGroups[0]
 		for _, ruleResource := range rule.Resources {
 			for _, apiResourcesList := range serverResources {
 				gv, err := schema.ParseGroupVersion(apiResourcesList.GroupVersion)
 				if err != nil {
 					gv = schema.GroupVersion{}
 				}
-				if ruleApiGroup == gv.Group {
+				if ruleAPIGroup == gv.Group {
 					for _, apiResource := range apiResourcesList.APIResources {
 						if apiResource.Name == ruleResource {
-							resourceList = append(resourceList, metav1.GroupKind{Group: ruleApiGroup, Kind: apiResource.Kind})
+							resourceList = append(resourceList, metav1.GroupKind{Group: ruleAPIGroup, Kind: apiResource.Kind})
 						}
 					}
 				}

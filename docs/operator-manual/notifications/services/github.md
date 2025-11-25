@@ -8,6 +8,10 @@ The GitHub notification service changes commit status using [GitHub Apps](https:
 - `installationID` - the app installation id
 - `privateKey` - the app private key
 - `enterpriseBaseURL` - optional URL, e.g. https://git.example.com/api/v3
+- `maxIdleConns` - optional, maximum number of idle (keep-alive) connections across all hosts.
+- `maxIdleConnsPerHost` - optional, maximum number of idle (keep-alive) connections per host.
+- `maxConnsPerHost` - optional, maximum total connections per host.
+- `idleConnTimeout` - optional, maximum amount of time an idle (keep-alive) connection will remain open before closing.
 
 > ⚠️ _NOTE:_ Specifying `/api/v3` in the `enterpriseBaseURL` is required until [argoproj/notifications-engine#205](https://github.com/argoproj/notifications-engine/issues/205) is resolved.
 
@@ -84,6 +88,20 @@ template.app-deployed: |
       content: |
         Application {{.app.metadata.name}} is now running new version of deployments manifests.
         See more here: {{.context.argocdUrl}}/applications/{{.app.metadata.name}}?operation=true
+      commentTag: "continuous-delivery/{{.app.metadata.name}}"
+    checkRun:
+      name: "continuous-delivery/{{.app.metadata.name}}"
+      details_url: "{{.context.argocdUrl}}/applications/{{.app.metadata.name}}?operation=true"
+      status: completed
+      conclusion: success
+      started_at: "YYYY-MM-DDTHH:MM:SSZ"
+      completed_at: "YYYY-MM-DDTHH:MM:SSZ"
+      output:
+        title: "Deployment of {{.app.metadata.name}} on ArgoCD"
+        summary: "Application {{.app.metadata.name}} is now running new version of deployments manifests."
+        text: |
+          Application {{.app.metadata.name}} is now running new version of deployments manifests.
+          See more here: {{.context.argocdUrl}}/applications/{{.app.metadata.name}}?operation=true
 ```
 
 **Notes**:
@@ -94,4 +112,6 @@ template.app-deployed: |
   Setting this option to `false` is required if you would like to deploy older refs in your default branch.
   For more information see the [GitHub Deployment API Docs](https://docs.github.com/en/rest/deployments/deployments?apiVersion=2022-11-28#create-a-deployment).
 - If `github.pullRequestComment.content` is set to 65536 characters or more, it will be truncated.
+- The `github.pullRequestComment.commentTag` parameter is used to identify the comment. If a comment with the specified tag is found, it will be updated (upserted). If no comment with the tag is found, a new comment will be created.
 - Reference is optional. When set, it will be used as the ref to deploy. If not set, the revision will be used as the ref to deploy.
+

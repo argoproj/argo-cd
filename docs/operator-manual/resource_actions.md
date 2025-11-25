@@ -96,10 +96,10 @@ resource.customizations.actions.argoproj.io_Rollout: |
 
 #### Creating new resources with a custom action
 
-!!! important
-    Creating resources via the Argo CD UI is an intentional, strategic departure from GitOps principles. We recommend 
-    that you use this feature sparingly and only for resources that are not part of the desired state of the 
-    application.
+> [!IMPORTANT]
+> Creating resources via the Argo CD UI is an intentional, strategic departure from GitOps principles. We recommend 
+> that you use this feature sparingly and only for resources that are not part of the desired state of the 
+> application.
 
 The resource the action is invoked on would be referred to as the `source resource`.  
 The new resource and all the resources implicitly created as a result, must be permitted on the AppProject level, otherwise the creation will fail.
@@ -203,3 +203,35 @@ resource.customizations.actions.ConfigMap: |
       result[2] = impactedResource2
       return result		  
 ```
+
+### Action Icons and Display Names
+
+By default, an action will appear in the UI by the name specified in the `actions` key, and it will have no icon. You 
+can customize the display name and icon of an action by adding the `iconClass` and `displayName` keys to the action 
+definition.
+
+The icon class name is the name of a FontAwesome icon from [the set of free icons](https://fontawesome.com/search?ic=free).
+The `fa-fw` class ensures that the icon is displayed with a fixed width, to avoid alignment issues with other icons.
+
+```lua
+local actions = {}
+actions["create-workflow"] = {
+  ["iconClass"] = "fa fa-fw fa-plus",
+  ["displayName"] = "Create Workflow"
+}
+return actions
+```
+
+### Action Parameters
+
+You can define parameters for your custom actions. The parameters are defined in the `parameters` key of the action discovery definition.
+
+<!-- Link directly to the script for people reading the docs in GitHub where embedding doesn't work. -->
+See the [Deployment actions discovery script](https://github.com/argoproj/argo-cd/blob/master/resource_customizations/apps/Deployment/actions/discovery.lua):
+
+<!-- Embed the actual script so ReadTheDocs always has an up-to-date example. -->
+```lua
+{!resource_customizations/apps/Deployment/actions/discovery.lua!}
+```
+
+The [resource scale actions](../user-guide/scale_application_resources.md) documentation shows how this function behaves in the UI.

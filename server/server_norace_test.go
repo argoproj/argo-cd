@@ -15,10 +15,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
-	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
-	"github.com/argoproj/argo-cd/v2/test"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/pkg/apiclient"
+	applicationpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
+	"github.com/argoproj/argo-cd/v3/test"
 )
 
 func TestUserAgent(t *testing.T) {
@@ -34,11 +34,11 @@ func TestUserAgent(t *testing.T) {
 
 	cancelInformer := test.StartInformer(s.projInformer)
 	defer cancelInformer()
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 	s.Init(ctx)
 	go s.Run(ctx, lns)
-	defer func() { time.Sleep(3 * time.Second) }()
+	defer time.Sleep(3 * time.Second)
 
 	type testData struct {
 		userAgent string
@@ -50,7 +50,7 @@ func TestUserAgent(t *testing.T) {
 	tests := []testData{
 		{
 			// Reject out-of-date user-agent
-			userAgent: fmt.Sprintf("%s/0.10.0", common.ArgoCDUserAgentName),
+			userAgent: common.ArgoCDUserAgentName + "/0.10.0",
 			errorMsg:  "unsatisfied client version constraint",
 		},
 		{
@@ -99,23 +99,23 @@ func Test_StaticHeaders(t *testing.T) {
 		require.NoError(t, err)
 		cancelInformer := test.StartInformer(s.projInformer)
 		defer cancelInformer()
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := context.WithCancel(t.Context())
 		defer cancel()
 		s.Init(ctx)
 		go s.Run(ctx, lns)
-		defer func() { time.Sleep(3 * time.Second) }()
+		defer time.Sleep(3 * time.Second)
 
 		// Allow server startup
 		time.Sleep(1 * time.Second)
 
-		client := http.Client{}
 		url := fmt.Sprintf("http://127.0.0.1:%d/test.html", s.ListenPort)
-		req, err := http.NewRequest(http.MethodGet, url, nil)
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, url, http.NoBody)
 		require.NoError(t, err)
-		resp, err := client.Do(req)
+		resp, err := http.DefaultClient.Do(req)
 		require.NoError(t, err)
 		assert.Equal(t, "sameorigin", resp.Header.Get("X-Frame-Options"))
 		assert.Equal(t, "frame-ancestors 'self';", resp.Header.Get("Content-Security-Policy"))
+		require.NoError(t, resp.Body.Close())
 	}
 
 	// Test custom policy for X-Frame-Options and Content-Security-Policy
@@ -128,23 +128,23 @@ func Test_StaticHeaders(t *testing.T) {
 		defer cancelInformer()
 		lns, err := s.Listen()
 		require.NoError(t, err)
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := context.WithCancel(t.Context())
 		defer cancel()
 		s.Init(ctx)
 		go s.Run(ctx, lns)
-		defer func() { time.Sleep(3 * time.Second) }()
+		defer time.Sleep(3 * time.Second)
 
 		// Allow server startup
 		time.Sleep(1 * time.Second)
 
-		client := http.Client{}
 		url := fmt.Sprintf("http://127.0.0.1:%d/test.html", s.ListenPort)
-		req, err := http.NewRequest(http.MethodGet, url, nil)
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, url, http.NoBody)
 		require.NoError(t, err)
-		resp, err := client.Do(req)
+		resp, err := http.DefaultClient.Do(req)
 		require.NoError(t, err)
 		assert.Equal(t, "deny", resp.Header.Get("X-Frame-Options"))
 		assert.Equal(t, "frame-ancestors 'none';", resp.Header.Get("Content-Security-Policy"))
+		require.NoError(t, resp.Body.Close())
 	}
 
 	// Test disabled X-Frame-Options and Content-Security-Policy
@@ -157,11 +157,11 @@ func Test_StaticHeaders(t *testing.T) {
 		defer cancelInformer()
 		lns, err := s.Listen()
 		require.NoError(t, err)
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := context.WithCancel(t.Context())
 		defer cancel()
 		s.Init(ctx)
 		go s.Run(ctx, lns)
-		defer func() { time.Sleep(3 * time.Second) }()
+		defer time.Sleep(3 * time.Second)
 
 		err = test.WaitForPortListen(fmt.Sprintf("127.0.0.1:%d", s.ListenPort), 10*time.Second)
 		require.NoError(t, err)
@@ -169,13 +169,13 @@ func Test_StaticHeaders(t *testing.T) {
 		// Allow server startup
 		time.Sleep(1 * time.Second)
 
-		client := http.Client{}
 		url := fmt.Sprintf("http://127.0.0.1:%d/test.html", s.ListenPort)
-		req, err := http.NewRequest(http.MethodGet, url, nil)
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, url, http.NoBody)
 		require.NoError(t, err)
-		resp, err := client.Do(req)
+		resp, err := http.DefaultClient.Do(req)
 		require.NoError(t, err)
 		assert.Empty(t, resp.Header.Get("X-Frame-Options"))
 		assert.Empty(t, resp.Header.Get("Content-Security-Policy"))
+		require.NoError(t, resp.Body.Close())
 	}
 }

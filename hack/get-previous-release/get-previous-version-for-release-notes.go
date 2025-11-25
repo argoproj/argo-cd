@@ -1,13 +1,14 @@
 package main
 
 import (
+	"context"
 	"fmt"
-	"golang.org/x/mod/semver"
 	"os"
 	"os/exec"
 	"regexp"
-	"strconv"
 	"strings"
+
+	"golang.org/x/mod/semver"
 )
 
 /**
@@ -23,7 +24,7 @@ func main() {
 
 	proposedTag := os.Args[1]
 
-	tags, err := getGitTags()
+	tags, err := getGitTags(context.Background())
 	if err != nil {
 		fmt.Printf("Error getting git tags: %v\n", err)
 		return
@@ -52,69 +53,67 @@ func extractPatchAndRC(tag string) (string, string, error) {
 	return patch, rc, nil
 }
 
-func findPreviousTag(proposedTag string, tags []string) (string, error) {
-	var previousTag string
-	proposedMajor := semver.Major(proposedTag)
-	proposedMinor := semver.MajorMinor(proposedTag)
-
-	proposedPatch, proposedRC, err := extractPatchAndRC(proposedTag)
-	if err != nil {
-		return "", err
-	}
-
-	// If the current tag is a .0 patch release or a 1 release candidate, adjust to the previous minor release series.
-	if (proposedPatch == "0" && proposedRC == "0") || proposedRC == "1" {
-		proposedMinorInt, err := strconv.Atoi(strings.TrimPrefix(proposedMinor, proposedMajor+"."))
-		if err != nil {
-			return "", fmt.Errorf("invalid minor version: %v", err)
-		}
-		if proposedMinorInt > 0 {
-			proposedMinor = fmt.Sprintf("%s.%d", proposedMajor, proposedMinorInt-1)
-		}
-	}
-
+func removeInvalidTags(tags []string) []string {
+	var validTags []string
 	for _, tag := range tags {
-		if tag == proposedTag {
-			continue
-		}
-		tagMajor := semver.Major(tag)
-		tagMinor := semver.MajorMinor(tag)
-		tagPatch, tagRC, err := extractPatchAndRC(tag)
-		if err != nil {
-			continue
-		}
-
-		// Only bother considering tags with the same major and minor version.
-		if tagMajor == proposedMajor && tagMinor == proposedMinor {
-			// If it's a non-RC release...
-			if proposedRC == "0" {
-				// Only consider non-RC tags.
-				if tagRC == "0" {
-					if semver.Compare(tag, previousTag) > 0 {
-						previousTag = tag
-					}
-				}
-			} else {
-				if tagRC != "0" && tagPatch == proposedPatch {
-					if semver.Compare(tag, previousTag) > 0 {
-						previousTag = tag
-					}
-				} else if tagRC == "0" {
-					if semver.Compare(tag, previousTag) > 0 {
-						previousTag = tag
-					}
-				}
-			}
+		if _, _, err := extractPatchAndRC(tag); err == nil {
+			validTags = append(validTags, tag)
 		}
 	}
+	return validTags
+}
+
+func removeNewerOrEqualTags(proposedTag string, tags []string) []string {
+	var validTags []string
+	for _, tag := range tags {
+		if semver.Compare(tag, proposedTag) < 0 {
+			validTags = append(validTags, tag)
+		}
+	}
+	return validTags
+}
+
+func removeTagsFromSameMinorSeries(proposedTag string, tags []string) []string {
+	var validTags []string
+	proposedMinor := semver.MajorMinor(proposedTag)
+	for _, tag := range tags {
+		if semver.MajorMinor(tag) != proposedMinor {
+			validTags = append(validTags, tag)
+		}
+	}
+	return validTags
+}
+
+func getMostRecentTag(tags []string) string {
+	var mostRecentTag string
+	for _, tag := range tags {
+		if mostRecentTag == "" || semver.Compare(tag, mostRecentTag) > 0 {
+			mostRecentTag = tag
+		}
+	}
+	return mostRecentTag
+}
+
+func findPreviousTag(proposedTag string, tags []string) (string, error) {
+	tags = removeInvalidTags(tags)
+	tags = removeNewerOrEqualTags(proposedTag, tags)
+
+	proposedPatch, proposedRC, _ := extractPatchAndRC(proposedTag) // Ignore the error, we already filtered out invalid tags.
+	if proposedRC == "0" && proposedPatch == "0" {
+		// If we're cutting the first patch of a new minor release series, don't consider tags in the same minor release
+		// series. We want to compare to the latest tag in the previous minor release series.
+		tags = removeTagsFromSameMinorSeries(proposedTag, tags)
+	}
+
+	previousTag := getMostRecentTag(tags)
 	if previousTag == "" {
 		return "", fmt.Errorf("no matching tag found for tags: " + strings.Join(tags, ", "))
 	}
 	return previousTag, nil
 }
 
-func getGitTags() ([]string, error) {
-	cmd := exec.Command("git", "tag", "--sort=-v:refname")
+func getGitTags(ctx context.Context) ([]string, error) {
+	cmd := exec.CommandContext(ctx, "git", "tag", "--sort=-v:refname")
 	output, err := cmd.Output()
 	if err != nil {
 		return nil, fmt.Errorf("error executing git command: %v", err)

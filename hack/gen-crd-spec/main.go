@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -8,10 +9,10 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	extensionsobj "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/yaml"
 )
@@ -22,8 +23,8 @@ var kindToCRDPath = map[string]string{
 	application.ApplicationSetFullName: "manifests/crds/applicationset-crd.yaml",
 }
 
-func getCustomResourceDefinitions() map[string]*extensionsobj.CustomResourceDefinition {
-	crdYamlBytes, err := exec.Command(
+func getCustomResourceDefinitions(ctx context.Context) map[string]*apiextensionsv1.CustomResourceDefinition {
+	crdYamlBytes, err := exec.CommandContext(ctx,
 		"controller-gen",
 		"paths=./pkg/apis/application/...",
 		"crd:crdVersions=v1",
@@ -41,7 +42,7 @@ func getCustomResourceDefinitions() map[string]*extensionsobj.CustomResourceDefi
 
 	objs, err := kube.SplitYAML(crdYamlBytes)
 	checkErr(err)
-	crds := make(map[string]*extensionsobj.CustomResourceDefinition)
+	crds := make(map[string]*apiextensionsv1.CustomResourceDefinition)
 	for i := range objs {
 		un := objs[i]
 
@@ -80,27 +81,27 @@ func removeValidation(un *unstructured.Unstructured, path string) {
 	unstructured.RemoveNestedField(un.Object, schemaPath...)
 }
 
-func toCRD(un *unstructured.Unstructured, removeDesc bool) *extensionsobj.CustomResourceDefinition {
+func toCRD(un *unstructured.Unstructured, removeDesc bool) *apiextensionsv1.CustomResourceDefinition {
 	if removeDesc {
 		removeDescription(un.Object)
 	}
 	unBytes, err := json.Marshal(un)
 	checkErr(err)
 
-	var crd extensionsobj.CustomResourceDefinition
+	var crd apiextensionsv1.CustomResourceDefinition
 	err = json.Unmarshal(unBytes, &crd)
 	checkErr(err)
 
 	return &crd
 }
 
-func removeDescription(v interface{}) {
+func removeDescription(v any) {
 	switch v := v.(type) {
-	case []interface{}:
+	case []any:
 		for _, v := range v {
 			removeDescription(v)
 		}
-	case map[string]interface{}:
+	case map[string]any:
 		if _, ok := v["description"]; ok {
 			_, ok := v["description"].(string)
 			if ok {
@@ -124,7 +125,7 @@ func checkErr(err error) {
 }
 
 func main() {
-	crdsapp := getCustomResourceDefinitions()
+	crdsapp := getCustomResourceDefinitions(context.Background())
 	for kind, path := range kindToCRDPath {
 		crd := crdsapp[kind]
 		if crd == nil {
@@ -134,7 +135,7 @@ func main() {
 	}
 }
 
-func writeCRDintoFile(crd *extensionsobj.CustomResourceDefinition, path string) {
+func writeCRDintoFile(crd *apiextensionsv1.CustomResourceDefinition, path string) {
 	jsonBytes, err := json.Marshal(crd)
 	checkErr(err)
 

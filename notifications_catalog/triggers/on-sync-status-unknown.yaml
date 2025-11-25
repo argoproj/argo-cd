@@ -1,3 +1,4 @@
 - when: app.status.sync.status == 'Unknown'
   description: Application status is 'Unknown'
   send: [app-sync-status-unknown]
+  oncePer: app.status.operationState?.syncResult?.revision

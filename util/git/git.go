@@ -1,6 +1,7 @@
 package git
 
 import (
+	"fmt"
 	"net/url"
 	"regexp"
 	"strings"
@@ -40,7 +41,7 @@ func SameURL(leftRepo, rightRepo string) bool {
 	return normalLeft != "" && normalRight != "" && normalLeft == normalRight
 }
 
-// Similar to NormalizeGitURL, except returning an original url if the url is invalid.
+// NormalizeGitURLAllowInvalid is similar to NormalizeGitURL, except returning an original url if the url is invalid.
 // Needed to allow a deletion of repos with invalid urls. See https://github.com/argoproj/argo-cd/issues/20921.
 func NormalizeGitURLAllowInvalid(repo string) string {
 	normalized := NormalizeGitURL(repo)
@@ -94,10 +95,13 @@ func IsHTTPURL(url string) bool {
 
 // TestRepo tests if a repo exists and is accessible with the given credentials
 func TestRepo(repo string, creds Creds, insecure bool, enableLfs bool, proxy string, noProxy string) error {
-	clnt, err := NewClient(repo, creds, insecure, enableLfs, proxy, noProxy)
+	client, err := NewClient(repo, creds, insecure, enableLfs, proxy, noProxy)
 	if err != nil {
-		return err
+		return fmt.Errorf("unable to initialize git client: %w", err)
 	}
-	_, err = clnt.LsRemote("HEAD")
-	return err
+	_, err = client.LsRemote("HEAD")
+	if err != nil {
+		return fmt.Errorf("unable to ls-remote HEAD on repository: %w", err)
+	}
+	return nil
 }

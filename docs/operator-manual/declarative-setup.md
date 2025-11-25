@@ -21,8 +21,10 @@ All resources, including `Application` and `AppProject` specs, have to be instal
 
 For each specific kind of ConfigMap and Secret resource, there is only a single supported resource name (as listed in the above table) - if you need to merge things you need to do it before creating them.
 
-!!!warning "A note about ConfigMap resources"
-    Be sure to annotate your ConfigMap resources using the label `app.kubernetes.io/part-of: argocd`, otherwise Argo CD will not be able to use them.
+> [!WARNING]
+> **A note about ConfigMap resources**
+>
+> Be sure to annotate your ConfigMap resources using the label `app.kubernetes.io/part-of: argocd`, otherwise Argo CD will not be able to use them.
 
 ### Multiple configuration objects
 
@@ -63,21 +65,22 @@ spec:
 
 See [application.yaml](application.yaml) for additional fields. As long as you have completed the first step of [Getting Started](../getting_started.md#1-install-argo-cd), you can apply this with `kubectl apply -n argocd -f application.yaml` and Argo CD will start deploying the guestbook application.
 
-!!! note
-    The namespace must match the namespace of your Argo CD instance - typically this is `argocd`.
+> [!NOTE]
+> The namespace must match the namespace of your Argo CD instance - typically this is `argocd`.
 
-!!! note
-    When creating an application from a Helm repository, the `chart` attribute must be specified instead of the `path` attribute within `spec.source`.
+> [!NOTE]
+> When creating an application from a Helm repository, the `chart` attribute must be specified instead of the `path` attribute within `spec.source`.
 
 ```yaml
 spec:
+  project: default
   source:
     repoURL: https://argoproj.github.io/argo-helm
     chart: argo
 ```
 
-!!! warning
-    Without the `resources-finalizer.argocd.argoproj.io` finalizer, deleting an application will not delete the resources it manages. To perform a cascading delete, you must add the finalizer. See [App Deletion](../user-guide/app_deletion.md#about-the-deletion-finalizer).
+> [!WARNING]
+> Without the `resources-finalizer.argocd.argoproj.io` finalizer, deleting an application will not delete the resources it manages. To perform a cascading delete, you must add the finalizer. See [App Deletion](../user-guide/app_deletion.md#about-the-deletion-finalizer).
 
 ```yaml
 metadata:
@@ -101,11 +104,13 @@ It is defined by the following key pieces of information:
 * `destinations` reference to clusters and namespaces that applications within the project can deploy into.
 * `roles` list of entities with definitions of their access to resources within the project.
 
-!!!warning "Projects which can deploy to the Argo CD namespace grant admin access"
-    If a Project's `destinations` configuration allows deploying to the namespace in which Argo CD is installed, then
-    Applications under that project have admin-level access. [RBAC access](https://argo-cd.readthedocs.io/en/stable/operator-manual/rbac/)
-    to admin-level Projects should be carefully restricted, and push access to allowed `sourceRepos` should be limited
-    to only admins.
+> [!WARNING]
+> **Projects which can deploy to the Argo CD namespace grant admin access**
+>
+> If a Project's `destinations` configuration allows deploying to the namespace in which Argo CD is installed, then
+> Applications under that project have admin-level access. [RBAC access](https://argo-cd.readthedocs.io/en/stable/operator-manual/rbac/)
+> to admin-level Projects should be carefully restricted, and push access to allowed `sourceRepos` should be limited
+> to only admins.
 
 An example spec is as follows:
 
@@ -167,19 +172,19 @@ spec:
 
 ## Repositories
 
-!!!note
-    Some Git hosters - notably GitLab and possibly on-premise GitLab instances as well - require you to
-    specify the `.git` suffix in the repository URL, otherwise they will send a HTTP 301 redirect to the
-    repository URL suffixed with `.git`. Argo CD will **not** follow these redirects, so you have to
-    adjust your repository URL to be suffixed with `.git`.
+> [!NOTE]
+> Some Git hosters - notably GitLab and possibly on-premise GitLab instances as well - require you to
+> specify the `.git` suffix in the repository URL, otherwise they will send a HTTP 301 redirect to the
+> repository URL suffixed with `.git`. Argo CD will **not** follow these redirects, so you have to
+> adjust your repository URL to be suffixed with `.git`.
 
 Repository details are stored in secrets. To configure a repo, create a secret which contains repository details.
 Consider using [bitnami-labs/sealed-secrets](https://github.com/bitnami-labs/sealed-secrets) to store an encrypted secret definition as a Kubernetes manifest.
 Each repository must have a `url` field and, depending on whether you connect using HTTPS, SSH, or GitHub App, `username` and `password` (for HTTPS), `sshPrivateKey` (for SSH), or `githubAppPrivateKey` (for GitHub App).
 Credentials can be scoped to a project using the optional `project` field. When omitted, the credential will be used as the default for all projects without a scoped credential.
 
-!!!warning
-    When using [bitnami-labs/sealed-secrets](https://github.com/bitnami-labs/sealed-secrets) the labels will be removed and have to be readded as described here: https://github.com/bitnami-labs/sealed-secrets#sealedsecrets-as-templates-for-secrets
+> [!WARNING]
+> When using [bitnami-labs/sealed-secrets](https://github.com/bitnami-labs/sealed-secrets) the labels will be removed and have to be readded as described here: https://github.com/bitnami-labs/sealed-secrets#sealedsecrets-as-templates-for-secrets
 
 Example for HTTPS:
 
@@ -284,8 +289,12 @@ stringData:
     }
 ```
 
-!!! tip
-    The Kubernetes documentation has [instructions for creating a secret containing a private key](https://kubernetes.io/docs/concepts/configuration/secret/#use-case-pod-with-ssh-keys).
+> [!TIP]
+> The Kubernetes documentation has [instructions for creating a secret containing a private key](https://kubernetes.io/docs/concepts/configuration/secret/#use-case-pod-with-ssh-keys).
+
+Example for Azure Container Registry/ Azure Devops repositories using Azure workload identity:
+
+Refer to [Azure Container Registry/Azure Repos using Azure Workload Identity](../user-guide/private-repositories.md#azure-container-registryazure-repos-using-azure-workload-identity)
 
 ### Repository Credentials
 
@@ -335,8 +344,8 @@ In order for Argo CD to use a credential template for any given repository, the 
 * The repository must either not be configured at all, or if configured, must not contain any credential information (i.e. contain none of `sshPrivateKey`, `username`, `password` )
 * The URL configured for a credential template (e.g. `https://github.com/argoproj`) must match as prefix for the repository URL (e.g. `https://github.com/argoproj/argocd-example-apps`).
 
-!!! note
-    Matching credential template URL prefixes is done on a _best match_ effort, so the longest (best) match will take precedence. The order of definition is not important, as opposed to pre v1.4 configuration.
+> [!NOTE]
+> Matching credential template URL prefixes is done on a _best match_ effort, so the longest (best) match will take precedence. The order of definition is not important, as opposed to pre v1.4 configuration.
 
 The following keys are valid to refer to credential secrets:
 
@@ -356,6 +365,10 @@ The following keys are valid to refer to credential secrets:
 * `githubAppInstallationID` refers to the Installation ID of the GitHub app you created and installed.
 * `githubAppEnterpriseBaseUrl` refers to the base api URL for GitHub Enterprise (e.g. `https://ghe.example.com/api/v3`)
 * `tlsClientCertData` and `tlsClientCertKey` refer to secrets where a TLS client certificate (`tlsClientCertData`) and the corresponding private key `tlsClientCertKey` are stored for accessing GitHub Enterprise if custom certificates are used.
+
+#### Helm Chart repositories
+
+See the [Helm](#helm) section for the properties that apply to Helm repositories and charts sourced from OCI registries.
 
 ### Repositories using self-signed TLS certificates (or are signed by custom CA)
 
@@ -413,8 +426,8 @@ data:
 
 ```
 
-!!! note
-    The `argocd-tls-certs-cm` ConfigMap will be mounted as a volume at the mount path `/app/config/tls` in the pods of `argocd-server` and `argocd-repo-server`. It will create files for each data key in the mount path directory, so above example would leave the file `/app/config/tls/server.example.com`, which contains the certificate data. It might take a while for changes in the ConfigMap to be reflected in your pods, depending on your Kubernetes configuration.
+> [!NOTE]
+> The `argocd-tls-certs-cm` ConfigMap will be mounted as a volume at the mount path `/app/config/tls` in the pods of `argocd-server` and `argocd-repo-server`. It will create files for each data key in the mount path directory, so above example would leave the file `/app/config/tls/server.example.com`, which contains the certificate data. It might take a while for changes in the ConfigMap to be reflected in your pods, depending on your Kubernetes configuration.
 
 ### SSH known host public keys
 
@@ -465,8 +478,8 @@ data:
     vs-ssh.visualstudio.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7Hr1oTWqNqOlzGJOfGJ4NakVyIzf1rXYd4d7wo6jBlkLvCA4odBlL0mDUyZ0/QUfTTqeu+tm22gOsv+VrVTMk6vwRU75gY/y9ut5Mb3bR5BV58dKXyq9A9UeB5Cakehn5Zgm6x1mKoVyf+FFn26iYqXJRgzIZZcZ5V6hrE0Qg39kZm4az48o0AUbf6Sp4SLdvnuMa2sVNwHBboS7EJkm57XQPVU3/QpyNLHbWDdzwtrlS+ez30S3AdYhLKEOxAG8weOnyrtLJAUen9mTkol8oII1edf7mWWbWVf0nBmly21+nZcmCTISQBtdcyPaEno7fFQMDD26/s0lfKob4Kw8H
 ```
 
-!!! note
-    The `argocd-ssh-known-hosts-cm` ConfigMap will be mounted as a volume at the mount path `/app/config/ssh` in the pods of `argocd-server` and `argocd-repo-server`. It will create a file `ssh_known_hosts` in that directory, which contains the SSH known hosts data used by Argo CD for connecting to Git repositories via SSH. It might take a while for changes in the ConfigMap to be reflected in your pods, depending on your Kubernetes configuration.
+> [!NOTE]
+> The `argocd-ssh-known-hosts-cm` ConfigMap will be mounted as a volume at the mount path `/app/config/ssh` in the pods of `argocd-server` and `argocd-repo-server`. It will create a file `ssh_known_hosts` in that directory, which contains the SSH known hosts data used by Argo CD for connecting to Git repositories via SSH. It might take a while for changes in the ConfigMap to be reflected in your pods, depending on your Kubernetes configuration.
 
 ### Configure repositories with proxy
 
@@ -493,43 +506,6 @@ stringData:
 
 A note on noProxy: Argo CD uses exec to interact with different tools such as helm and kustomize. Not all of these tools support the same noProxy syntax as the [httpproxy go package](https://cs.opensource.google/go/x/net/+/internal-branch.go1.21-vendor:http/httpproxy/proxy.go;l=38-50) does. In case you run in trouble with noProxy not beeing respected you might want to try using the full domain instead of a wildcard pattern or IP range to find a common syntax that all tools support.
 
-### Legacy behaviour
-
-In Argo CD version 2.0 and earlier, repositories were stored as part of the `argocd-cm` config map. For
-backward-compatibility, Argo CD will still honor repositories in the config map, but this style of repository
-configuration is deprecated and support for it will be removed in a future version.
-
-```yaml
-apiVersion: v1
-kind: ConfigMap
-data:
-  repositories: |
-    - url: https://github.com/argoproj/my-private-repository
-      passwordSecret:
-        name: my-secret
-        key: password
-      usernameSecret:
-        name: my-secret
-        key: username
-  repository.credentials: |
-    - url: https://github.com/argoproj
-      passwordSecret:
-        name: my-secret
-        key: password
-      usernameSecret:
-        name: my-secret
-        key: username
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: my-secret
-  namespace: argocd
-stringData:
-  password: my-password
-  username: my-username
-```
-
 ## Clusters
 
 Cluster credentials are stored in secrets same as repositories or repository credentials. Each secret must have label
@@ -539,10 +515,10 @@ The secret data must include following fields:
 
 * `name` - cluster name
 * `server` - cluster api server url
-* `namespaces` - optional comma-separated list of namespaces which are accessible in that cluster. Cluster level resources would be ignored if namespace list is not empty.
-* `clusterResources` - optional boolean string (`"true"` or `"false"`) determining whether Argo CD can manage cluster-level resources on this cluster. This setting is used only if the list of managed namespaces is not empty.
+* `namespaces` - optional comma-separated list of namespaces which are accessible in that cluster. Setting namespace values will cause cluster-level resources to be ignored unless `clusterResources` is set to `true`.
+* `clusterResources` - optional boolean string (`"true"` or `"false"`) determining whether Argo CD can manage cluster-level resources on this cluster. This setting is only used when namespaces are restricted using the `namespaces` list.
 * `project` - optional string to designate this as a project-scoped cluster.
-* `config` - JSON representation of following data structure:
+* `config` - JSON representation of the following data structure:
 
 ```yaml
 # Basic authentication settings
@@ -587,7 +563,14 @@ tlsClientConfig:
 disableCompression: boolean
 ```
 
-Note that if you specify a command to run under `execProviderConfig`, that command must be available in the Argo CD image. See [BYOI (Build Your Own Image)](custom_tools.md#byoi-build-your-own-image).
+> [!IMPORTANT]
+> When `namespaces` is set, Argo CD will perform a separate list/watch operation for each namespace. This can cause
+> the Application controller to exceed the maximum number of idle connections allowed for the Kubernetes API server.
+> To resolve this issue, you can increase the `ARGOCD_K8S_CLIENT_MAX_IDLE_CONNECTIONS` environment variable in the
+> Application controller.
+
+> [!IMPORTANT]
+> Note that if you specify a command to run under `execProviderConfig`, that command must be available in the Argo CD image. See [BYOI (Build Your Own Image)](custom_tools.md#byoi-build-your-own-image).
 
 Cluster secret example:
 
@@ -708,7 +691,7 @@ The 3 service accounts need to be modified to include an annotation with the Arg
 
 Here's an example service account configurations for `argocd-application-controller`, `argocd-applicationset-controller`, and `argocd-server`.
 
-!!! warning
+> [!WARNING]
 Once the annotations has been set on the service accounts, the application controller and server pods need to be restarted.
 
 ```yaml
@@ -816,7 +799,7 @@ The above role is granted cluster admin permissions via `AmazonEKSClusterAdminPo
 assume this role is therefore granted the same cluster admin permissions when it generates an API token when adding the 
 associated EKS cluster.
 
-**AWS Auth (Depreciated)**
+**AWS Auth (Deprecated)**
 
 Instead of using Access Entries, you may need to use the depreciated `aws-auth`.
 
@@ -1028,15 +1011,15 @@ Azure cluster secret example using argocd-k8s-auth and [kubelogin](https://githu
 |Variable Name|Description|
 |-------------|-----------|
 |AAD_LOGIN_METHOD|One of devicecode, spn, ropc, msi, azurecli, or workloadidentity|
-|AAD_SERVICE_PRINCIPAL_CLIENT_CERTIFICATE|AAD client cert in pfx.  Used in spn login|
-|AAD_SERVICE_PRINCIPAL_CLIENT_ID|AAD client application ID|
-|AAD_SERVICE_PRINCIPAL_CLIENT_SECRET|AAD client application secret|
+|AZURE_CLIENT_CERTIFICATE_PATH|Path to AAD client cert in pfx.  Used in spn login and WorkloadIdentityLogin flow|
+|AZURE_CLIENT_CERTIFICATE_PASSWORD|Password for the client cert in pfx.  Used in spn login|
+|AZURE_CLIENT_ID|AAD client application ID|
+|AZURE_CLIENT_SECRET|AAD client application secret|
 |AAD_USER_PRINCIPAL_NAME|Used in the ropc flow|
 |AAD_USER_PRINCIPAL_PASSWORD|Used in the ropc flow|
 |AZURE_TENANT_ID|The AAD tenant ID.|
 |AZURE_AUTHORITY_HOST|Used in the WorkloadIdentityLogin flow|
 |AZURE_FEDERATED_TOKEN_FILE|Used in the WorkloadIdentityLogin flow|
-|AZURE_CLIENT_ID|Used in the WorkloadIdentityLogin flow|
 
 In addition to the environment variables above, argocd-k8s-auth accepts two extra environment variables to set the AAD environment, and to set the AAD server application ID.  The AAD server application ID will default to 6dae42f8-4368-4678-94ff-3960e28e3630 if not specified.  See [here](https://github.com/azure/kubelogin#exec-plugin-format) for details.
 
@@ -1110,9 +1093,9 @@ stringData:
         "command": "argocd-k8s-auth",
         "env": {
           "AAD_ENVIRONMENT_NAME": "AzurePublicCloud",
-          "AAD_SERVICE_PRINCIPAL_CLIENT_SECRET": "fill in your service principal client secret",
+          "AZURE_CLIENT_SECRET": "fill in your service principal client secret",
           "AZURE_TENANT_ID": "fill in tenant id",
-          "AAD_SERVICE_PRINCIPAL_CLIENT_ID": "fill in your service principal client id",
+          "AZURE_CLIENT_ID": "fill in your service principal client id",
           "AAD_LOGIN_METHOD": "spn"
         },
         "args": ["azure"],
@@ -1125,27 +1108,54 @@ stringData:
     }
 ```
 
-## Helm Chart Repositories
+## Helm
 
-Non standard Helm Chart repositories have to be registered explicitly.
-Each repository must have `url`, `type` and `name` fields. For private Helm repos you may need to configure access credentials and HTTPS settings using `username`, `password`,
-`tlsClientCertData` and `tlsClientCertKey` fields.
+Helm charts can be sourced from a Helm repository or OCI registry.
 
-Example:
+This is an example of a Helm chart being sourced from a Helm repository. The `releaseName` property is used to customize the name of the Helm _release_.
 
 ```yaml
-apiVersion: v1
-kind: Secret
+apiVersion: argoproj.io/v1alpha1
+kind: Application
 metadata:
-  name: istio
+  name: sealed-secrets
   namespace: argocd
-  labels:
-    argocd.argoproj.io/secret-type: repository
-stringData:
-  name: istio.io
-  url: https://storage.googleapis.com/istio-prerelease/daily-build/master-latest-daily/charts
-  type: helm
----
+spec:
+  project: default
+  source:
+    chart: sealed-secrets
+    repoURL: https://bitnami-labs.github.io/sealed-secrets
+    targetRevision: 1.16.1
+    helm:
+      releaseName: sealed-secrets
+  destination:
+    server: "https://kubernetes.default.svc"
+    namespace: kubeseal
+```
+
+Another example using a public OCI helm chart:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: nginx
+spec:
+  project: default
+  source:
+    chart: nginx
+    repoURL: registry-1.docker.io/bitnamicharts  # note: the oci:// syntax is not included.
+    targetRevision: 15.9.0
+  destination:
+    name: "in-cluster"
+    namespace: nginx
+```
+
+Helm charts located in sources that require additional configuration, such as authentication or TLS connection details, are defined within a _repository_ Secret. Each Secret must specify the `url`, `type` and `name` fields. Additional fields including `username`, `password`, `tlsClientCertData` and `tlsClientCertKey` can be specified as desired.
+
+Helm Chart Repository:
+
+```yaml
 apiVersion: v1
 kind: Secret
 metadata:
@@ -1161,6 +1171,23 @@ stringData:
   password: my-password
   tlsClientCertData: ...
   tlsClientCertKey: ...
+```
+
+Helm charts sourced from OCI registries should utilize the fields described previously as well as set the `enableOCI` field as `true`.
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: oci-helm-chart
+  namespace: oci-helm-chart
+  labels:
+    argocd.argoproj.io/secret-type: repository
+stringData:
+  name: oci-helm-chart
+  url: myregistry.example.com
+  type: helm
+  enableOCI: "true"
 ```
 
 ## Resource Exclusion/Inclusion
@@ -1196,7 +1223,7 @@ The `resource.exclusions` node is a list of objects. Each object can have:
 
 * `apiGroups` A list of globs to match the API group.
 * `kinds` A list of kinds to match. Can be `"*"` to match all.
-* `clusters` A list of globs to match the cluster.
+* `clusters` A list of globs to match the cluster URL.
 
 If all three match, then the resource is ignored.
 
@@ -1224,6 +1251,7 @@ Notes:
 * Quote globs in your YAML to avoid parsing errors.
 * Invalid globs result in the whole rule being ignored.
 * If you add a rule that matches existing resources, these will appear in the interface as `OutOfSync`.
+* Some excluded objects may already be in the controller cache. A restart of the controller will be necessary to remove them from the Application View.
 
 ## Mask sensitive Annotations on Secrets
 
@@ -1235,7 +1263,7 @@ An optional comma-separated list of `metadata.annotations` keys can be configure
 
 ## Auto respect RBAC for controller
 
-Argocd controller can be restricted from discovering/syncing specific resources using just controller rbac, without having to manually configure resource exclusions.
+Argo CD controller can be restricted from discovering/syncing specific resources using just controller RBAC, without having to manually configure resource exclusions.
 This feature can be enabled by setting `resource.respectRBAC` key in argocd cm, once it is set the controller will automatically stop watching for resources 
 that it does not have the permission to list/access. Possible values for `resource.respectRBAC` are:
     - `strict` : This setting checks whether the list call made by controller is forbidden/unauthorized and if it is, it will cross-check the permission by making a `SelfSubjectAccessReview` call for the resource.
@@ -1246,7 +1274,7 @@ Users who are comfortable with an increase in kube api-server calls can opt for 
 
 Notes:
 
-* When set to use `strict` mode controller must have rbac permission to `create` a `SelfSubjectAccessReview` resource 
+* When set to use `strict` mode controller must have RBAC permission to `create` a `SelfSubjectAccessReview` resource 
 * The `SelfSubjectAccessReview` request will be only made for the `list` verb, it is assumed that if `list` is allowed for a resource then all other permissions are also available to the controller.
 
 Example argocd cm with `resource.respectRBAC` set to `strict`:
@@ -1307,5 +1335,5 @@ patches:
 The live example of self managed Argo CD config is available at [https://cd.apps.argoproj.io](https://cd.apps.argoproj.io) and with configuration
 stored at [argoproj/argoproj-deployments](https://github.com/argoproj/argoproj-deployments/tree/master/argocd).
 
-!!! note
-    You will need to sign-in using your GitHub account to get access to [https://cd.apps.argoproj.io](https://cd.apps.argoproj.io)
+> [!NOTE]
+> You will need to sign-in using your GitHub account to get access to [https://cd.apps.argoproj.io](https://cd.apps.argoproj.io)

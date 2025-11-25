@@ -111,6 +111,10 @@ spec:
                       a failed sync. If set to 0, no retries will be performed.
                     format: int64
                     type: integer
+                  refresh:
+                    description: 'Refresh indicates if the latest revision should
+                      be used on retry instead of the initial one (default: false)'
+                    type: boolean
                 type: object
               sync:
                 description: Sync contains parameters for the operation
@@ -380,6 +384,11 @@ spec:
                             description: ForceCommonLabels specifies whether to force
                               applying common labels to resources for Kustomize apps
                             type: boolean
+                          ignoreMissingComponents:
+                            description: IgnoreMissingComponents prevents kustomize
+                              from failing when components do not exist locally by
+                              not appending them to kustomization file
+                            type: boolean
                           images:
                             description: Images is a list of Kustomize image override
                               specifications
@@ -393,6 +402,10 @@ spec:
                               KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
                               uses the Kubernetes version of the target cluster.
                             type: string
+                          labelIncludeTemplates:
+                            description: LabelIncludeTemplates specifies whether to
+                              apply common labels to resource templates or not
+                            type: boolean
                           labelWithoutSelector:
                             description: LabelWithoutSelector specifies whether to
                               apply common labels to resource selectors or not
@@ -760,6 +773,11 @@ spec:
                                 force applying common labels to resources for Kustomize
                                 apps
                               type: boolean
+                            ignoreMissingComponents:
+                              description: IgnoreMissingComponents prevents kustomize
+                                from failing when components do not exist locally
+                                by not appending them to kustomization file
+                              type: boolean
                             images:
                               description: Images is a list of Kustomize image override
                                 specifications
@@ -773,6 +791,10 @@ spec:
                                 KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
                                 uses the Kubernetes version of the target cluster.
                               type: string
+                            labelIncludeTemplates:
+                              description: LabelIncludeTemplates specifies whether
+                                to apply common labels to resource templates or not
+                              type: boolean
                             labelWithoutSelector:
                               description: LabelWithoutSelector specifies whether
                                 to apply common labels to resource selectors or not
@@ -1250,6 +1272,11 @@ spec:
                         description: ForceCommonLabels specifies whether to force
                           applying common labels to resources for Kustomize apps
                         type: boolean
+                      ignoreMissingComponents:
+                        description: IgnoreMissingComponents prevents kustomize from
+                          failing when components do not exist locally by not appending
+                          them to kustomization file
+                        type: boolean
                       images:
                         description: Images is a list of Kustomize image override
                           specifications
@@ -1263,6 +1290,10 @@ spec:
                           KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
                           uses the Kubernetes version of the target cluster.
                         type: string
+                      labelIncludeTemplates:
+                        description: LabelIncludeTemplates specifies whether to apply
+                          common labels to resource templates or not
+                        type: boolean
                       labelWithoutSelector:
                         description: LabelWithoutSelector specifies whether to apply
                           common labels to resource selectors or not
@@ -1403,6 +1434,68 @@ spec:
                     type: string
                 required:
                 - repoURL
+                type: object
+              sourceHydrator:
+                description: SourceHydrator provides a way to push hydrated manifests
+                  back to git before syncing them to the cluster.
+                properties:
+                  drySource:
+                    description: DrySource specifies where the dry "don't repeat yourself"
+                      manifest source lives.
+                    properties:
+                      path:
+                        description: Path is a directory path within the Git repository
+                          where the manifests are located
+                        type: string
+                      repoURL:
+                        description: RepoURL is the URL to the git repository that
+                          contains the application manifests
+                        type: string
+                      targetRevision:
+                        description: TargetRevision defines the revision of the source
+                          to hydrate
+                        type: string
+                    required:
+                    - path
+                    - repoURL
+                    - targetRevision
+                    type: object
+                  hydrateTo:
+                    description: |-
+                      HydrateTo specifies an optional "staging" location to push hydrated manifests to. An external system would then
+                      have to move manifests to the SyncSource, e.g. by pull request.
+                    properties:
+                      targetBranch:
+                        description: TargetBranch is the branch to which hydrated
+                          manifests should be committed
+                        type: string
+                    required:
+                    - targetBranch
+                    type: object
+                  syncSource:
+                    description: SyncSource specifies where to sync hydrated manifests
+                      from.
+                    properties:
+                      path:
+                        description: |-
+                          Path is a directory path within the git repository where hydrated manifests should be committed to and synced
+                          from. The Path should never point to the root of the repo. If hydrateTo is set, this is just the path from which
+                          hydrated manifests will be synced.
+                        minLength: 1
+                        pattern: ^.{2,}|[^./]$
+                        type: string
+                      targetBranch:
+                        description: |-
+                          TargetBranch is the branch from which hydrated manifests will be synced.
+                          If HydrateTo is not set, this is also the branch to which hydrated manifests are committed.
+                        type: string
+                    required:
+                    - path
+                    - targetBranch
+                    type: object
+                required:
+                - drySource
+                - syncSource
                 type: object
               sources:
                 description: Sources is a reference to the location of the application's
@@ -1620,6 +1713,11 @@ spec:
                           description: ForceCommonLabels specifies whether to force
                             applying common labels to resources for Kustomize apps
                           type: boolean
+                        ignoreMissingComponents:
+                          description: IgnoreMissingComponents prevents kustomize
+                            from failing when components do not exist locally by not
+                            appending them to kustomization file
+                          type: boolean
                         images:
                           description: Images is a list of Kustomize image override
                             specifications
@@ -1633,6 +1731,10 @@ spec:
                             KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
                             uses the Kubernetes version of the target cluster.
                           type: string
+                        labelIncludeTemplates:
+                          description: LabelIncludeTemplates specifies whether to
+                            apply common labels to resource templates or not
+                          type: boolean
                         labelWithoutSelector:
                           description: LabelWithoutSelector specifies whether to apply
                             common labels to resource selectors or not
@@ -1789,6 +1891,10 @@ spec:
                         description: 'AllowEmpty allows apps have zero live resources
                           (default: false)'
                         type: boolean
+                      enabled:
+                        description: Enable allows apps to explicitly control automated
+                          sync
+                        type: boolean
                       prune:
                         description: 'Prune specifies whether to delete resources
                           from the cluster that are not found in the sources anymore
@@ -1840,6 +1946,10 @@ spec:
                           a failed sync. If set to 0, no retries will be performed.
                         format: int64
                         type: integer
+                      refresh:
+                        description: 'Refresh indicates if the latest revision should
+                          be used on retry instead of the initial one (default: false)'
+                        type: boolean
                     type: object
                   syncOptions:
                     description: Options allow you to specify whole app sync-options
@@ -1886,13 +1996,19 @@ spec:
                 description: Health contains information about the application's current
                   health status
                 properties:
+                  lastTransitionTime:
+                    description: LastTransitionTime is the time the HealthStatus was
+                      set or updated
+                    format: date-time
+                    type: string
                   message:
-                    description: Message is a human-readable informational message
-                      describing the health status
+                    description: |-
+                      Message is a human-readable informational message describing the health status
+
+                      Deprecated: this field is not used and will be removed in a future release.
                     type: string
                   status:
-                    description: Status holds the status code of the application or
-                      resource
+                    description: Status holds the status code of the application
                     type: string
                 type: object
               history:
@@ -2156,6 +2272,11 @@ spec:
                                 force applying common labels to resources for Kustomize
                                 apps
                               type: boolean
+                            ignoreMissingComponents:
+                              description: IgnoreMissingComponents prevents kustomize
+                                from failing when components do not exist locally
+                                by not appending them to kustomization file
+                              type: boolean
                             images:
                               description: Images is a list of Kustomize image override
                                 specifications
@@ -2169,6 +2290,10 @@ spec:
                                 KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
                                 uses the Kubernetes version of the target cluster.
                               type: string
+                            labelIncludeTemplates:
+                              description: LabelIncludeTemplates specifies whether
+                                to apply common labels to resource templates or not
+                              type: boolean
                             labelWithoutSelector:
                               description: LabelWithoutSelector specifies whether
                                 to apply common labels to resource selectors or not
@@ -2538,6 +2663,11 @@ spec:
                                   force applying common labels to resources for Kustomize
                                   apps
                                 type: boolean
+                              ignoreMissingComponents:
+                                description: IgnoreMissingComponents prevents kustomize
+                                  from failing when components do not exist locally
+                                  by not appending them to kustomization file
+                                type: boolean
                               images:
                                 description: Images is a list of Kustomize image override
                                   specifications
@@ -2551,6 +2681,11 @@ spec:
                                   KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
                                   uses the Kubernetes version of the target cluster.
                                 type: string
+                              labelIncludeTemplates:
+                                description: LabelIncludeTemplates specifies whether
+                                  to apply common labels to resource templates or
+                                  not
+                                type: boolean
                               labelWithoutSelector:
                                 description: LabelWithoutSelector specifies whether
                                   to apply common labels to resource selectors or
@@ -2783,6 +2918,11 @@ spec:
                               be performed.
                             format: int64
                             type: integer
+                          refresh:
+                            description: 'Refresh indicates if the latest revision
+                              should be used on retry instead of the initial one (default:
+                              false)'
+                            type: boolean
                         type: object
                       sync:
                         description: Sync contains parameters for the operation
@@ -3070,6 +3210,12 @@ spec:
                                       to force applying common labels to resources
                                       for Kustomize apps
                                     type: boolean
+                                  ignoreMissingComponents:
+                                    description: IgnoreMissingComponents prevents
+                                      kustomize from failing when components do not
+                                      exist locally by not appending them to kustomization
+                                      file
+                                    type: boolean
                                   images:
                                     description: Images is a list of Kustomize image
                                       override specifications
@@ -3083,6 +3229,11 @@ spec:
                                       KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
                                       uses the Kubernetes version of the target cluster.
                                     type: string
+                                  labelIncludeTemplates:
+                                    description: LabelIncludeTemplates specifies whether
+                                      to apply common labels to resource templates
+                                      or not
+                                    type: boolean
                                   labelWithoutSelector:
                                     description: LabelWithoutSelector specifies whether
                                       to apply common labels to resource selectors
@@ -3472,6 +3623,12 @@ spec:
                                         to force applying common labels to resources
                                         for Kustomize apps
                                       type: boolean
+                                    ignoreMissingComponents:
+                                      description: IgnoreMissingComponents prevents
+                                        kustomize from failing when components do
+                                        not exist locally by not appending them to
+                                        kustomization file
+                                      type: boolean
                                     images:
                                       description: Images is a list of Kustomize image
                                         override specifications
@@ -3485,6 +3642,11 @@ spec:
                                         KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
                                         uses the Kubernetes version of the target cluster.
                                       type: string
+                                    labelIncludeTemplates:
+                                      description: LabelIncludeTemplates specifies
+                                        whether to apply common labels to resource
+                                        templates or not
+                                      type: boolean
                                     labelWithoutSelector:
                                       description: LabelWithoutSelector specifies
                                         whether to apply common labels to resource
@@ -3720,6 +3882,12 @@ spec:
                               description: HookType specifies the type of the hook.
                                 Empty for non-hook resources
                               type: string
+                            images:
+                              description: Images contains the images related to the
+                                ResourceResult
+                              items:
+                                type: string
+                              type: array
                             kind:
                               description: Kind specifies the API kind of the resource
                               type: string
@@ -3986,6 +4154,11 @@ spec:
                                   force applying common labels to resources for Kustomize
                                   apps
                                 type: boolean
+                              ignoreMissingComponents:
+                                description: IgnoreMissingComponents prevents kustomize
+                                  from failing when components do not exist locally
+                                  by not appending them to kustomization file
+                                type: boolean
                               images:
                                 description: Images is a list of Kustomize image override
                                   specifications
@@ -3999,6 +4172,11 @@ spec:
                                   KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
                                   uses the Kubernetes version of the target cluster.
                                 type: string
+                              labelIncludeTemplates:
+                                description: LabelIncludeTemplates specifies whether
+                                  to apply common labels to resource templates or
+                                  not
+                                type: boolean
                               labelWithoutSelector:
                                 description: LabelWithoutSelector specifies whether
                                   to apply common labels to resource selectors or
@@ -4380,6 +4558,11 @@ spec:
                                     to force applying common labels to resources for
                                     Kustomize apps
                                   type: boolean
+                                ignoreMissingComponents:
+                                  description: IgnoreMissingComponents prevents kustomize
+                                    from failing when components do not exist locally
+                                    by not appending them to kustomization file
+                                  type: boolean
                                 images:
                                   description: Images is a list of Kustomize image
                                     override specifications
@@ -4393,6 +4576,11 @@ spec:
                                     KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
                                     uses the Kubernetes version of the target cluster.
                                   type: string
+                                labelIncludeTemplates:
+                                  description: LabelIncludeTemplates specifies whether
+                                    to apply common labels to resource templates or
+                                    not
+                                  type: boolean
                                 labelWithoutSelector:
                                   description: LabelWithoutSelector specifies whether
                                     to apply common labels to resource selectors or
@@ -4565,48 +4753,251 @@ spec:
                 description: Resources is a list of Kubernetes resources managed by
                   this application
                 items:
-                  description: |-
-                    ResourceStatus holds the current sync and health status of a resource
-                    TODO: describe members of this type
+                  description: ResourceStatus holds the current synchronization and
+                    health status of a Kubernetes resource.
                   properties:
                     group:
+                      description: Group represents the API group of the resource
+                        (e.g., "apps" for Deployments).
                       type: string
                     health:
-                      description: HealthStatus contains information about the currently
-                        observed health state of an application or resource
+                      description: Health indicates the health status of the resource
+                        (e.g., Healthy, Degraded, Progressing).
                       properties:
+                        lastTransitionTime:
+                          description: |-
+                            LastTransitionTime is the time the HealthStatus was set or updated
+
+                            Deprecated: this field is not used and will be removed in a future release.
+                          format: date-time
+                          type: string
                         message:
                           description: Message is a human-readable informational message
                             describing the health status
                           type: string
                         status:
-                          description: Status holds the status code of the application
-                            or resource
+                          description: Status holds the status code of the resource
                           type: string
                       type: object
                     hook:
+                      description: Hook is true if the resource is used as a lifecycle
+                        hook in an Argo CD application.
                       type: boolean
                     kind:
+                      description: Kind specifies the type of the resource (e.g.,
+                        "Deployment", "Service").
                       type: string
                     name:
+                      description: Name is the unique name of the resource within
+                        the namespace.
                       type: string
                     namespace:
+                      description: Namespace defines the Kubernetes namespace where
+                        the resource is located.
                       type: string
                     requiresDeletionConfirmation:
+                      description: RequiresDeletionConfirmation is true if the resource
+                        requires explicit user confirmation before deletion.
                       type: boolean
                     requiresPruning:
+                      description: RequiresPruning is true if the resource needs to
+                        be pruned (deleted) as part of synchronization.
                       type: boolean
                     status:
-                      description: SyncStatusCode is a type which represents possible
-                        comparison results
+                      description: Status represents the synchronization state of
+                        the resource (e.g., Synced, OutOfSync).
                       type: string
                     syncWave:
+                      description: |-
+                        SyncWave determines the order in which resources are applied during a sync operation.
+                        Lower values are applied first.
                       format: int64
                       type: integer
                     version:
+                      description: Version indicates the API version of the resource
+                        (e.g., "v1", "v1beta1").
                       type: string
                   type: object
                 type: array
+              sourceHydrator:
+                description: SourceHydrator stores information about the current state
+                  of source hydration
+                properties:
+                  currentOperation:
+                    description: CurrentOperation holds the status of the hydrate
+                      operation
+                    properties:
+                      drySHA:
+                        description: DrySHA holds the resolved revision (sha) of the
+                          dry source as of the most recent reconciliation
+                        type: string
+                      finishedAt:
+                        description: FinishedAt indicates when the hydrate operation
+                          finished
+                        format: date-time
+                        type: string
+                      hydratedSHA:
+                        description: HydratedSHA holds the resolved revision (sha)
+                          of the hydrated source as of the most recent reconciliation
+                        type: string
+                      message:
+                        description: Message contains a message describing the current
+                          status of the hydrate operation
+                        type: string
+                      phase:
+                        description: Phase indicates the status of the hydrate operation
+                        enum:
+                        - Hydrating
+                        - Failed
+                        - Hydrated
+                        type: string
+                      sourceHydrator:
+                        description: SourceHydrator holds the hydrator config used
+                          for the hydrate operation
+                        properties:
+                          drySource:
+                            description: DrySource specifies where the dry "don't
+                              repeat yourself" manifest source lives.
+                            properties:
+                              path:
+                                description: Path is a directory path within the Git
+                                  repository where the manifests are located
+                                type: string
+                              repoURL:
+                                description: RepoURL is the URL to the git repository
+                                  that contains the application manifests
+                                type: string
+                              targetRevision:
+                                description: TargetRevision defines the revision of
+                                  the source to hydrate
+                                type: string
+                            required:
+                            - path
+                            - repoURL
+                            - targetRevision
+                            type: object
+                          hydrateTo:
+                            description: |-
+                              HydrateTo specifies an optional "staging" location to push hydrated manifests to. An external system would then
+                              have to move manifests to the SyncSource, e.g. by pull request.
+                            properties:
+                              targetBranch:
+                                description: TargetBranch is the branch to which hydrated
+                                  manifests should be committed
+                                type: string
+                            required:
+                            - targetBranch
+                            type: object
+                          syncSource:
+                            description: SyncSource specifies where to sync hydrated
+                              manifests from.
+                            properties:
+                              path:
+                                description: |-
+                                  Path is a directory path within the git repository where hydrated manifests should be committed to and synced
+                                  from. The Path should never point to the root of the repo. If hydrateTo is set, this is just the path from which
+                                  hydrated manifests will be synced.
+                                minLength: 1
+                                pattern: ^.{2,}|[^./]$
+                                type: string
+                              targetBranch:
+                                description: |-
+                                  TargetBranch is the branch from which hydrated manifests will be synced.
+                                  If HydrateTo is not set, this is also the branch to which hydrated manifests are committed.
+                                type: string
+                            required:
+                            - path
+                            - targetBranch
+                            type: object
+                        required:
+                        - drySource
+                        - syncSource
+                        type: object
+                      startedAt:
+                        description: StartedAt indicates when the hydrate operation
+                          started
+                        format: date-time
+                        type: string
+                    required:
+                    - message
+                    - phase
+                    type: object
+                  lastSuccessfulOperation:
+                    description: LastSuccessfulOperation holds info about the most
+                      recent successful hydration
+                    properties:
+                      drySHA:
+                        description: DrySHA holds the resolved revision (sha) of the
+                          dry source as of the most recent reconciliation
+                        type: string
+                      hydratedSHA:
+                        description: HydratedSHA holds the resolved revision (sha)
+                          of the hydrated source as of the most recent reconciliation
+                        type: string
+                      sourceHydrator:
+                        description: SourceHydrator holds the hydrator config used
+                          for the hydrate operation
+                        properties:
+                          drySource:
+                            description: DrySource specifies where the dry "don't
+                              repeat yourself" manifest source lives.
+                            properties:
+                              path:
+                                description: Path is a directory path within the Git
+                                  repository where the manifests are located
+                                type: string
+                              repoURL:
+                                description: RepoURL is the URL to the git repository
+                                  that contains the application manifests
+                                type: string
+                              targetRevision:
+                                description: TargetRevision defines the revision of
+                                  the source to hydrate
+                                type: string
+                            required:
+                            - path
+                            - repoURL
+                            - targetRevision
+                            type: object
+                          hydrateTo:
+                            description: |-
+                              HydrateTo specifies an optional "staging" location to push hydrated manifests to. An external system would then
+                              have to move manifests to the SyncSource, e.g. by pull request.
+                            properties:
+                              targetBranch:
+                                description: TargetBranch is the branch to which hydrated
+                                  manifests should be committed
+                                type: string
+                            required:
+                            - targetBranch
+                            type: object
+                          syncSource:
+                            description: SyncSource specifies where to sync hydrated
+                              manifests from.
+                            properties:
+                              path:
+                                description: |-
+                                  Path is a directory path within the git repository where hydrated manifests should be committed to and synced
+                                  from. The Path should never point to the root of the repo. If hydrateTo is set, this is just the path from which
+                                  hydrated manifests will be synced.
+                                minLength: 1
+                                pattern: ^.{2,}|[^./]$
+                                type: string
+                              targetBranch:
+                                description: |-
+                                  TargetBranch is the branch from which hydrated manifests will be synced.
+                                  If HydrateTo is not set, this is also the branch to which hydrated manifests are committed.
+                                type: string
+                            required:
+                            - path
+                            - targetBranch
+                            type: object
+                        required:
+                        - drySource
+                        - syncSource
+                        type: object
+                    type: object
+                type: object
               sourceType:
                 description: SourceType specifies the type of this application
                 type: string
@@ -4918,6 +5309,11 @@ spec:
                                   force applying common labels to resources for Kustomize
                                   apps
                                 type: boolean
+                              ignoreMissingComponents:
+                                description: IgnoreMissingComponents prevents kustomize
+                                  from failing when components do not exist locally
+                                  by not appending them to kustomization file
+                                type: boolean
                               images:
                                 description: Images is a list of Kustomize image override
                                   specifications
@@ -4931,6 +5327,11 @@ spec:
                                   KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
                                   uses the Kubernetes version of the target cluster.
                                 type: string
+                              labelIncludeTemplates:
+                                description: LabelIncludeTemplates specifies whether
+                                  to apply common labels to resource templates or
+                                  not
+                                type: boolean
                               labelWithoutSelector:
                                 description: LabelWithoutSelector specifies whether
                                   to apply common labels to resource selectors or
@@ -5312,6 +5713,11 @@ spec:
                                     to force applying common labels to resources for
                                     Kustomize apps
                                   type: boolean
+                                ignoreMissingComponents:
+                                  description: IgnoreMissingComponents prevents kustomize
+                                    from failing when components do not exist locally
+                                    by not appending them to kustomization file
+                                  type: boolean
                                 images:
                                   description: Images is a list of Kustomize image
                                     override specifications
@@ -5325,6 +5731,11 @@ spec:
                                     KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
                                     uses the Kubernetes version of the target cluster.
                                   type: string
+                                labelIncludeTemplates:
+                                  description: LabelIncludeTemplates specifies whether
+                                    to apply common labels to resource templates or
+                                    not
+                                  type: boolean
                                 labelWithoutSelector:
                                   description: LabelWithoutSelector specifies whether
                                     to apply common labels to resource selectors or
@@ -5777,12 +6188,16 @@ spec:
                                           type: boolean
                                         forceCommonLabels:
                                           type: boolean
+                                        ignoreMissingComponents:
+                                          type: boolean
                                         images:
                                           items:
                                             type: string
                                           type: array
                                         kubeVersion:
                                           type: string
+                                        labelIncludeTemplates:
+                                          type: boolean
                                         labelWithoutSelector:
                                           type: boolean
                                         namePrefix:
@@ -5885,6 +6300,44 @@ spec:
                                       type: string
                                   required:
                                   - repoURL
+                                  type: object
+                                sourceHydrator:
+                                  properties:
+                                    drySource:
+                                      properties:
+                                        path:
+                                          type: string
+                                        repoURL:
+                                          type: string
+                                        targetRevision:
+                                          type: string
+                                      required:
+                                      - path
+                                      - repoURL
+                                      - targetRevision
+                                      type: object
+                                    hydrateTo:
+                                      properties:
+                                        targetBranch:
+                                          type: string
+                                      required:
+                                      - targetBranch
+                                      type: object
+                                    syncSource:
+                                      properties:
+                                        path:
+                                          minLength: 1
+                                          pattern: ^.{2,}|[^./]$
+                                          type: string
+                                        targetBranch:
+                                          type: string
+                                      required:
+                                      - path
+                                      - targetBranch
+                                      type: object
+                                  required:
+                                  - drySource
+                                  - syncSource
                                   type: object
                                 sources:
                                   items:
@@ -6013,12 +6466,16 @@ spec:
                                             type: boolean
                                           forceCommonLabels:
                                             type: boolean
+                                          ignoreMissingComponents:
+                                            type: boolean
                                           images:
                                             items:
                                               type: string
                                             type: array
                                           kubeVersion:
                                             type: string
+                                          labelIncludeTemplates:
+                                            type: boolean
                                           labelWithoutSelector:
                                             type: boolean
                                           namePrefix:
@@ -6129,6 +6586,8 @@ spec:
                                       properties:
                                         allowEmpty:
                                           type: boolean
+                                        enabled:
+                                          type: boolean
                                         prune:
                                           type: boolean
                                         selfHeal:
@@ -6160,6 +6619,8 @@ spec:
                                         limit:
                                           format: int64
                                           type: integer
+                                        refresh:
+                                          type: boolean
                                       type: object
                                     syncOptions:
                                       items:
@@ -6413,12 +6874,16 @@ spec:
                                           type: boolean
                                         forceCommonLabels:
                                           type: boolean
+                                        ignoreMissingComponents:
+                                          type: boolean
                                         images:
                                           items:
                                             type: string
                                           type: array
                                         kubeVersion:
                                           type: string
+                                        labelIncludeTemplates:
+                                          type: boolean
                                         labelWithoutSelector:
                                           type: boolean
                                         namePrefix:
@@ -6521,6 +6986,44 @@ spec:
                                       type: string
                                   required:
                                   - repoURL
+                                  type: object
+                                sourceHydrator:
+                                  properties:
+                                    drySource:
+                                      properties:
+                                        path:
+                                          type: string
+                                        repoURL:
+                                          type: string
+                                        targetRevision:
+                                          type: string
+                                      required:
+                                      - path
+                                      - repoURL
+                                      - targetRevision
+                                      type: object
+                                    hydrateTo:
+                                      properties:
+                                        targetBranch:
+                                          type: string
+                                      required:
+                                      - targetBranch
+                                      type: object
+                                    syncSource:
+                                      properties:
+                                        path:
+                                          minLength: 1
+                                          pattern: ^.{2,}|[^./]$
+                                          type: string
+                                        targetBranch:
+                                          type: string
+                                      required:
+                                      - path
+                                      - targetBranch
+                                      type: object
+                                  required:
+                                  - drySource
+                                  - syncSource
                                   type: object
                                 sources:
                                   items:
@@ -6649,12 +7152,16 @@ spec:
                                             type: boolean
                                           forceCommonLabels:
                                             type: boolean
+                                          ignoreMissingComponents:
+                                            type: boolean
                                           images:
                                             items:
                                               type: string
                                             type: array
                                           kubeVersion:
                                             type: string
+                                          labelIncludeTemplates:
+                                            type: boolean
                                           labelWithoutSelector:
                                             type: boolean
                                           namePrefix:
@@ -6765,6 +7272,8 @@ spec:
                                       properties:
                                         allowEmpty:
                                           type: boolean
+                                        enabled:
+                                          type: boolean
                                         prune:
                                           type: boolean
                                         selfHeal:
@@ -6796,6 +7305,8 @@ spec:
                                         limit:
                                           format: int64
                                           type: integer
+                                        refresh:
+                                          type: boolean
                                       type: object
                                     syncOptions:
                                       items:
@@ -6831,6 +7342,8 @@ spec:
                         files:
                           items:
                             properties:
+                              exclude:
+                                type: boolean
                               path:
                                 type: string
                             required:
@@ -7048,12 +7561,16 @@ spec:
                                           type: boolean
                                         forceCommonLabels:
                                           type: boolean
+                                        ignoreMissingComponents:
+                                          type: boolean
                                         images:
                                           items:
                                             type: string
                                           type: array
                                         kubeVersion:
                                           type: string
+                                        labelIncludeTemplates:
+                                          type: boolean
                                         labelWithoutSelector:
                                           type: boolean
                                         namePrefix:
@@ -7156,6 +7673,44 @@ spec:
                                       type: string
                                   required:
                                   - repoURL
+                                  type: object
+                                sourceHydrator:
+                                  properties:
+                                    drySource:
+                                      properties:
+                                        path:
+                                          type: string
+                                        repoURL:
+                                          type: string
+                                        targetRevision:
+                                          type: string
+                                      required:
+                                      - path
+                                      - repoURL
+                                      - targetRevision
+                                      type: object
+                                    hydrateTo:
+                                      properties:
+                                        targetBranch:
+                                          type: string
+                                      required:
+                                      - targetBranch
+                                      type: object
+                                    syncSource:
+                                      properties:
+                                        path:
+                                          minLength: 1
+                                          pattern: ^.{2,}|[^./]$
+                                          type: string
+                                        targetBranch:
+                                          type: string
+                                      required:
+                                      - path
+                                      - targetBranch
+                                      type: object
+                                  required:
+                                  - drySource
+                                  - syncSource
                                   type: object
                                 sources:
                                   items:
@@ -7284,12 +7839,16 @@ spec:
                                             type: boolean
                                           forceCommonLabels:
                                             type: boolean
+                                          ignoreMissingComponents:
+                                            type: boolean
                                           images:
                                             items:
                                               type: string
                                             type: array
                                           kubeVersion:
                                             type: string
+                                          labelIncludeTemplates:
+                                            type: boolean
                                           labelWithoutSelector:
                                             type: boolean
                                           namePrefix:
@@ -7400,6 +7959,8 @@ spec:
                                       properties:
                                         allowEmpty:
                                           type: boolean
+                                        enabled:
+                                          type: boolean
                                         prune:
                                           type: boolean
                                         selfHeal:
@@ -7431,6 +7992,8 @@ spec:
                                         limit:
                                           format: int64
                                           type: integer
+                                        refresh:
+                                          type: boolean
                                       type: object
                                     syncOptions:
                                       items:
@@ -7663,12 +8226,16 @@ spec:
                                           type: boolean
                                         forceCommonLabels:
                                           type: boolean
+                                        ignoreMissingComponents:
+                                          type: boolean
                                         images:
                                           items:
                                             type: string
                                           type: array
                                         kubeVersion:
                                           type: string
+                                        labelIncludeTemplates:
+                                          type: boolean
                                         labelWithoutSelector:
                                           type: boolean
                                         namePrefix:
@@ -7771,6 +8338,44 @@ spec:
                                       type: string
                                   required:
                                   - repoURL
+                                  type: object
+                                sourceHydrator:
+                                  properties:
+                                    drySource:
+                                      properties:
+                                        path:
+                                          type: string
+                                        repoURL:
+                                          type: string
+                                        targetRevision:
+                                          type: string
+                                      required:
+                                      - path
+                                      - repoURL
+                                      - targetRevision
+                                      type: object
+                                    hydrateTo:
+                                      properties:
+                                        targetBranch:
+                                          type: string
+                                      required:
+                                      - targetBranch
+                                      type: object
+                                    syncSource:
+                                      properties:
+                                        path:
+                                          minLength: 1
+                                          pattern: ^.{2,}|[^./]$
+                                          type: string
+                                        targetBranch:
+                                          type: string
+                                      required:
+                                      - path
+                                      - targetBranch
+                                      type: object
+                                  required:
+                                  - drySource
+                                  - syncSource
                                   type: object
                                 sources:
                                   items:
@@ -7899,12 +8504,16 @@ spec:
                                             type: boolean
                                           forceCommonLabels:
                                             type: boolean
+                                          ignoreMissingComponents:
+                                            type: boolean
                                           images:
                                             items:
                                               type: string
                                             type: array
                                           kubeVersion:
                                             type: string
+                                          labelIncludeTemplates:
+                                            type: boolean
                                           labelWithoutSelector:
                                             type: boolean
                                           namePrefix:
@@ -8015,6 +8624,8 @@ spec:
                                       properties:
                                         allowEmpty:
                                           type: boolean
+                                        enabled:
+                                          type: boolean
                                         prune:
                                           type: boolean
                                         selfHeal:
@@ -8046,6 +8657,8 @@ spec:
                                         limit:
                                           format: int64
                                           type: integer
+                                        refresh:
+                                          type: boolean
                                       type: object
                                     syncOptions:
                                       items:
@@ -8303,12 +8916,16 @@ spec:
                                                     type: boolean
                                                   forceCommonLabels:
                                                     type: boolean
+                                                  ignoreMissingComponents:
+                                                    type: boolean
                                                   images:
                                                     items:
                                                       type: string
                                                     type: array
                                                   kubeVersion:
                                                     type: string
+                                                  labelIncludeTemplates:
+                                                    type: boolean
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -8411,6 +9028,44 @@ spec:
                                                 type: string
                                             required:
                                             - repoURL
+                                            type: object
+                                          sourceHydrator:
+                                            properties:
+                                              drySource:
+                                                properties:
+                                                  path:
+                                                    type: string
+                                                  repoURL:
+                                                    type: string
+                                                  targetRevision:
+                                                    type: string
+                                                required:
+                                                - path
+                                                - repoURL
+                                                - targetRevision
+                                                type: object
+                                              hydrateTo:
+                                                properties:
+                                                  targetBranch:
+                                                    type: string
+                                                required:
+                                                - targetBranch
+                                                type: object
+                                              syncSource:
+                                                properties:
+                                                  path:
+                                                    minLength: 1
+                                                    pattern: ^.{2,}|[^./]$
+                                                    type: string
+                                                  targetBranch:
+                                                    type: string
+                                                required:
+                                                - path
+                                                - targetBranch
+                                                type: object
+                                            required:
+                                            - drySource
+                                            - syncSource
                                             type: object
                                           sources:
                                             items:
@@ -8539,12 +9194,16 @@ spec:
                                                       type: boolean
                                                     forceCommonLabels:
                                                       type: boolean
+                                                    ignoreMissingComponents:
+                                                      type: boolean
                                                     images:
                                                       items:
                                                         type: string
                                                       type: array
                                                     kubeVersion:
                                                       type: string
+                                                    labelIncludeTemplates:
+                                                      type: boolean
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -8655,6 +9314,8 @@ spec:
                                                 properties:
                                                   allowEmpty:
                                                     type: boolean
+                                                  enabled:
+                                                    type: boolean
                                                   prune:
                                                     type: boolean
                                                   selfHeal:
@@ -8686,6 +9347,8 @@ spec:
                                                   limit:
                                                     format: int64
                                                     type: integer
+                                                  refresh:
+                                                    type: boolean
                                                 type: object
                                               syncOptions:
                                                 items:
@@ -8939,12 +9602,16 @@ spec:
                                                     type: boolean
                                                   forceCommonLabels:
                                                     type: boolean
+                                                  ignoreMissingComponents:
+                                                    type: boolean
                                                   images:
                                                     items:
                                                       type: string
                                                     type: array
                                                   kubeVersion:
                                                     type: string
+                                                  labelIncludeTemplates:
+                                                    type: boolean
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -9047,6 +9714,44 @@ spec:
                                                 type: string
                                             required:
                                             - repoURL
+                                            type: object
+                                          sourceHydrator:
+                                            properties:
+                                              drySource:
+                                                properties:
+                                                  path:
+                                                    type: string
+                                                  repoURL:
+                                                    type: string
+                                                  targetRevision:
+                                                    type: string
+                                                required:
+                                                - path
+                                                - repoURL
+                                                - targetRevision
+                                                type: object
+                                              hydrateTo:
+                                                properties:
+                                                  targetBranch:
+                                                    type: string
+                                                required:
+                                                - targetBranch
+                                                type: object
+                                              syncSource:
+                                                properties:
+                                                  path:
+                                                    minLength: 1
+                                                    pattern: ^.{2,}|[^./]$
+                                                    type: string
+                                                  targetBranch:
+                                                    type: string
+                                                required:
+                                                - path
+                                                - targetBranch
+                                                type: object
+                                            required:
+                                            - drySource
+                                            - syncSource
                                             type: object
                                           sources:
                                             items:
@@ -9175,12 +9880,16 @@ spec:
                                                       type: boolean
                                                     forceCommonLabels:
                                                       type: boolean
+                                                    ignoreMissingComponents:
+                                                      type: boolean
                                                     images:
                                                       items:
                                                         type: string
                                                       type: array
                                                     kubeVersion:
                                                       type: string
+                                                    labelIncludeTemplates:
+                                                      type: boolean
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -9291,6 +10000,8 @@ spec:
                                                 properties:
                                                   allowEmpty:
                                                     type: boolean
+                                                  enabled:
+                                                    type: boolean
                                                   prune:
                                                     type: boolean
                                                   selfHeal:
@@ -9322,6 +10033,8 @@ spec:
                                                   limit:
                                                     format: int64
                                                     type: integer
+                                                  refresh:
+                                                    type: boolean
                                                 type: object
                                               syncOptions:
                                                 items:
@@ -9357,6 +10070,8 @@ spec:
                                   files:
                                     items:
                                       properties:
+                                        exclude:
+                                          type: boolean
                                         path:
                                           type: string
                                       required:
@@ -9574,12 +10289,16 @@ spec:
                                                     type: boolean
                                                   forceCommonLabels:
                                                     type: boolean
+                                                  ignoreMissingComponents:
+                                                    type: boolean
                                                   images:
                                                     items:
                                                       type: string
                                                     type: array
                                                   kubeVersion:
                                                     type: string
+                                                  labelIncludeTemplates:
+                                                    type: boolean
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -9682,6 +10401,44 @@ spec:
                                                 type: string
                                             required:
                                             - repoURL
+                                            type: object
+                                          sourceHydrator:
+                                            properties:
+                                              drySource:
+                                                properties:
+                                                  path:
+                                                    type: string
+                                                  repoURL:
+                                                    type: string
+                                                  targetRevision:
+                                                    type: string
+                                                required:
+                                                - path
+                                                - repoURL
+                                                - targetRevision
+                                                type: object
+                                              hydrateTo:
+                                                properties:
+                                                  targetBranch:
+                                                    type: string
+                                                required:
+                                                - targetBranch
+                                                type: object
+                                              syncSource:
+                                                properties:
+                                                  path:
+                                                    minLength: 1
+                                                    pattern: ^.{2,}|[^./]$
+                                                    type: string
+                                                  targetBranch:
+                                                    type: string
+                                                required:
+                                                - path
+                                                - targetBranch
+                                                type: object
+                                            required:
+                                            - drySource
+                                            - syncSource
                                             type: object
                                           sources:
                                             items:
@@ -9810,12 +10567,16 @@ spec:
                                                       type: boolean
                                                     forceCommonLabels:
                                                       type: boolean
+                                                    ignoreMissingComponents:
+                                                      type: boolean
                                                     images:
                                                       items:
                                                         type: string
                                                       type: array
                                                     kubeVersion:
                                                       type: string
+                                                    labelIncludeTemplates:
+                                                      type: boolean
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -9926,6 +10687,8 @@ spec:
                                                 properties:
                                                   allowEmpty:
                                                     type: boolean
+                                                  enabled:
+                                                    type: boolean
                                                   prune:
                                                     type: boolean
                                                   selfHeal:
@@ -9957,6 +10720,8 @@ spec:
                                                   limit:
                                                     format: int64
                                                     type: integer
+                                                  refresh:
+                                                    type: boolean
                                                 type: object
                                               syncOptions:
                                                 items:
@@ -10189,12 +10954,16 @@ spec:
                                                     type: boolean
                                                   forceCommonLabels:
                                                     type: boolean
+                                                  ignoreMissingComponents:
+                                                    type: boolean
                                                   images:
                                                     items:
                                                       type: string
                                                     type: array
                                                   kubeVersion:
                                                     type: string
+                                                  labelIncludeTemplates:
+                                                    type: boolean
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -10297,6 +11066,44 @@ spec:
                                                 type: string
                                             required:
                                             - repoURL
+                                            type: object
+                                          sourceHydrator:
+                                            properties:
+                                              drySource:
+                                                properties:
+                                                  path:
+                                                    type: string
+                                                  repoURL:
+                                                    type: string
+                                                  targetRevision:
+                                                    type: string
+                                                required:
+                                                - path
+                                                - repoURL
+                                                - targetRevision
+                                                type: object
+                                              hydrateTo:
+                                                properties:
+                                                  targetBranch:
+                                                    type: string
+                                                required:
+                                                - targetBranch
+                                                type: object
+                                              syncSource:
+                                                properties:
+                                                  path:
+                                                    minLength: 1
+                                                    pattern: ^.{2,}|[^./]$
+                                                    type: string
+                                                  targetBranch:
+                                                    type: string
+                                                required:
+                                                - path
+                                                - targetBranch
+                                                type: object
+                                            required:
+                                            - drySource
+                                            - syncSource
                                             type: object
                                           sources:
                                             items:
@@ -10425,12 +11232,16 @@ spec:
                                                       type: boolean
                                                     forceCommonLabels:
                                                       type: boolean
+                                                    ignoreMissingComponents:
+                                                      type: boolean
                                                     images:
                                                       items:
                                                         type: string
                                                       type: array
                                                     kubeVersion:
                                                       type: string
+                                                    labelIncludeTemplates:
+                                                      type: boolean
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -10541,6 +11352,8 @@ spec:
                                                 properties:
                                                   allowEmpty:
                                                     type: boolean
+                                                  enabled:
+                                                    type: boolean
                                                   prune:
                                                     type: boolean
                                                   selfHeal:
@@ -10572,6 +11385,8 @@ spec:
                                                   limit:
                                                     format: int64
                                                     type: integer
+                                                  refresh:
+                                                    type: boolean
                                                 type: object
                                               syncOptions:
                                                 items:
@@ -10812,12 +11627,16 @@ spec:
                                                     type: boolean
                                                   forceCommonLabels:
                                                     type: boolean
+                                                  ignoreMissingComponents:
+                                                    type: boolean
                                                   images:
                                                     items:
                                                       type: string
                                                     type: array
                                                   kubeVersion:
                                                     type: string
+                                                  labelIncludeTemplates:
+                                                    type: boolean
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -10920,6 +11739,44 @@ spec:
                                                 type: string
                                             required:
                                             - repoURL
+                                            type: object
+                                          sourceHydrator:
+                                            properties:
+                                              drySource:
+                                                properties:
+                                                  path:
+                                                    type: string
+                                                  repoURL:
+                                                    type: string
+                                                  targetRevision:
+                                                    type: string
+                                                required:
+                                                - path
+                                                - repoURL
+                                                - targetRevision
+                                                type: object
+                                              hydrateTo:
+                                                properties:
+                                                  targetBranch:
+                                                    type: string
+                                                required:
+                                                - targetBranch
+                                                type: object
+                                              syncSource:
+                                                properties:
+                                                  path:
+                                                    minLength: 1
+                                                    pattern: ^.{2,}|[^./]$
+                                                    type: string
+                                                  targetBranch:
+                                                    type: string
+                                                required:
+                                                - path
+                                                - targetBranch
+                                                type: object
+                                            required:
+                                            - drySource
+                                            - syncSource
                                             type: object
                                           sources:
                                             items:
@@ -11048,12 +11905,16 @@ spec:
                                                       type: boolean
                                                     forceCommonLabels:
                                                       type: boolean
+                                                    ignoreMissingComponents:
+                                                      type: boolean
                                                     images:
                                                       items:
                                                         type: string
                                                       type: array
                                                     kubeVersion:
                                                       type: string
+                                                    labelIncludeTemplates:
+                                                      type: boolean
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -11164,6 +12025,8 @@ spec:
                                                 properties:
                                                   allowEmpty:
                                                     type: boolean
+                                                  enabled:
+                                                    type: boolean
                                                   prune:
                                                     type: boolean
                                                   selfHeal:
@@ -11195,6 +12058,8 @@ spec:
                                                   limit:
                                                     format: int64
                                                     type: integer
+                                                  refresh:
+                                                    type: boolean
                                                 type: object
                                               syncOptions:
                                                 items:
@@ -11350,12 +12215,16 @@ spec:
                                     - project
                                     - repo
                                     type: object
+                                  continueOnRepoNotFoundError:
+                                    type: boolean
                                   filters:
                                     items:
                                       properties:
                                         branchMatch:
                                           type: string
                                         targetBranchMatch:
+                                          type: string
+                                        titleMatch:
                                           type: string
                                       type: object
                                     type: array
@@ -11365,6 +12234,10 @@ spec:
                                         type: string
                                       insecure:
                                         type: boolean
+                                      labels:
+                                        items:
+                                          type: string
+                                        type: array
                                       owner:
                                         type: string
                                       repo:
@@ -11654,12 +12527,16 @@ spec:
                                                     type: boolean
                                                   forceCommonLabels:
                                                     type: boolean
+                                                  ignoreMissingComponents:
+                                                    type: boolean
                                                   images:
                                                     items:
                                                       type: string
                                                     type: array
                                                   kubeVersion:
                                                     type: string
+                                                  labelIncludeTemplates:
+                                                    type: boolean
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -11762,6 +12639,44 @@ spec:
                                                 type: string
                                             required:
                                             - repoURL
+                                            type: object
+                                          sourceHydrator:
+                                            properties:
+                                              drySource:
+                                                properties:
+                                                  path:
+                                                    type: string
+                                                  repoURL:
+                                                    type: string
+                                                  targetRevision:
+                                                    type: string
+                                                required:
+                                                - path
+                                                - repoURL
+                                                - targetRevision
+                                                type: object
+                                              hydrateTo:
+                                                properties:
+                                                  targetBranch:
+                                                    type: string
+                                                required:
+                                                - targetBranch
+                                                type: object
+                                              syncSource:
+                                                properties:
+                                                  path:
+                                                    minLength: 1
+                                                    pattern: ^.{2,}|[^./]$
+                                                    type: string
+                                                  targetBranch:
+                                                    type: string
+                                                required:
+                                                - path
+                                                - targetBranch
+                                                type: object
+                                            required:
+                                            - drySource
+                                            - syncSource
                                             type: object
                                           sources:
                                             items:
@@ -11890,12 +12805,16 @@ spec:
                                                       type: boolean
                                                     forceCommonLabels:
                                                       type: boolean
+                                                    ignoreMissingComponents:
+                                                      type: boolean
                                                     images:
                                                       items:
                                                         type: string
                                                       type: array
                                                     kubeVersion:
                                                       type: string
+                                                    labelIncludeTemplates:
+                                                      type: boolean
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -12006,6 +12925,8 @@ spec:
                                                 properties:
                                                   allowEmpty:
                                                     type: boolean
+                                                  enabled:
+                                                    type: boolean
                                                   prune:
                                                     type: boolean
                                                   selfHeal:
@@ -12037,6 +12958,8 @@ spec:
                                                   limit:
                                                     format: int64
                                                     type: integer
+                                                  refresh:
+                                                    type: boolean
                                                 type: object
                                               syncOptions:
                                                 items:
@@ -12050,6 +12973,10 @@ spec:
                                     required:
                                     - metadata
                                     - spec
+                                    type: object
+                                  values:
+                                    additionalProperties:
+                                      type: string
                                     type: object
                                 type: object
                               scmProvider:
@@ -12491,12 +13418,16 @@ spec:
                                                     type: boolean
                                                   forceCommonLabels:
                                                     type: boolean
+                                                  ignoreMissingComponents:
+                                                    type: boolean
                                                   images:
                                                     items:
                                                       type: string
                                                     type: array
                                                   kubeVersion:
                                                     type: string
+                                                  labelIncludeTemplates:
+                                                    type: boolean
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -12599,6 +13530,44 @@ spec:
                                                 type: string
                                             required:
                                             - repoURL
+                                            type: object
+                                          sourceHydrator:
+                                            properties:
+                                              drySource:
+                                                properties:
+                                                  path:
+                                                    type: string
+                                                  repoURL:
+                                                    type: string
+                                                  targetRevision:
+                                                    type: string
+                                                required:
+                                                - path
+                                                - repoURL
+                                                - targetRevision
+                                                type: object
+                                              hydrateTo:
+                                                properties:
+                                                  targetBranch:
+                                                    type: string
+                                                required:
+                                                - targetBranch
+                                                type: object
+                                              syncSource:
+                                                properties:
+                                                  path:
+                                                    minLength: 1
+                                                    pattern: ^.{2,}|[^./]$
+                                                    type: string
+                                                  targetBranch:
+                                                    type: string
+                                                required:
+                                                - path
+                                                - targetBranch
+                                                type: object
+                                            required:
+                                            - drySource
+                                            - syncSource
                                             type: object
                                           sources:
                                             items:
@@ -12727,12 +13696,16 @@ spec:
                                                       type: boolean
                                                     forceCommonLabels:
                                                       type: boolean
+                                                    ignoreMissingComponents:
+                                                      type: boolean
                                                     images:
                                                       items:
                                                         type: string
                                                       type: array
                                                     kubeVersion:
                                                       type: string
+                                                    labelIncludeTemplates:
+                                                      type: boolean
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -12843,6 +13816,8 @@ spec:
                                                 properties:
                                                   allowEmpty:
                                                     type: boolean
+                                                  enabled:
+                                                    type: boolean
                                                   prune:
                                                     type: boolean
                                                   selfHeal:
@@ -12874,6 +13849,8 @@ spec:
                                                   limit:
                                                     format: int64
                                                     type: integer
+                                                  refresh:
+                                                    type: boolean
                                                 type: object
                                               syncOptions:
                                                 items:
@@ -13123,12 +14100,16 @@ spec:
                                           type: boolean
                                         forceCommonLabels:
                                           type: boolean
+                                        ignoreMissingComponents:
+                                          type: boolean
                                         images:
                                           items:
                                             type: string
                                           type: array
                                         kubeVersion:
                                           type: string
+                                        labelIncludeTemplates:
+                                          type: boolean
                                         labelWithoutSelector:
                                           type: boolean
                                         namePrefix:
@@ -13231,6 +14212,44 @@ spec:
                                       type: string
                                   required:
                                   - repoURL
+                                  type: object
+                                sourceHydrator:
+                                  properties:
+                                    drySource:
+                                      properties:
+                                        path:
+                                          type: string
+                                        repoURL:
+                                          type: string
+                                        targetRevision:
+                                          type: string
+                                      required:
+                                      - path
+                                      - repoURL
+                                      - targetRevision
+                                      type: object
+                                    hydrateTo:
+                                      properties:
+                                        targetBranch:
+                                          type: string
+                                      required:
+                                      - targetBranch
+                                      type: object
+                                    syncSource:
+                                      properties:
+                                        path:
+                                          minLength: 1
+                                          pattern: ^.{2,}|[^./]$
+                                          type: string
+                                        targetBranch:
+                                          type: string
+                                      required:
+                                      - path
+                                      - targetBranch
+                                      type: object
+                                  required:
+                                  - drySource
+                                  - syncSource
                                   type: object
                                 sources:
                                   items:
@@ -13359,12 +14378,16 @@ spec:
                                             type: boolean
                                           forceCommonLabels:
                                             type: boolean
+                                          ignoreMissingComponents:
+                                            type: boolean
                                           images:
                                             items:
                                               type: string
                                             type: array
                                           kubeVersion:
                                             type: string
+                                          labelIncludeTemplates:
+                                            type: boolean
                                           labelWithoutSelector:
                                             type: boolean
                                           namePrefix:
@@ -13475,6 +14498,8 @@ spec:
                                       properties:
                                         allowEmpty:
                                           type: boolean
+                                        enabled:
+                                          type: boolean
                                         prune:
                                           type: boolean
                                         selfHeal:
@@ -13506,6 +14531,8 @@ spec:
                                         limit:
                                           format: int64
                                           type: integer
+                                        refresh:
+                                          type: boolean
                                       type: object
                                     syncOptions:
                                       items:
@@ -13765,12 +14792,16 @@ spec:
                                                     type: boolean
                                                   forceCommonLabels:
                                                     type: boolean
+                                                  ignoreMissingComponents:
+                                                    type: boolean
                                                   images:
                                                     items:
                                                       type: string
                                                     type: array
                                                   kubeVersion:
                                                     type: string
+                                                  labelIncludeTemplates:
+                                                    type: boolean
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -13873,6 +14904,44 @@ spec:
                                                 type: string
                                             required:
                                             - repoURL
+                                            type: object
+                                          sourceHydrator:
+                                            properties:
+                                              drySource:
+                                                properties:
+                                                  path:
+                                                    type: string
+                                                  repoURL:
+                                                    type: string
+                                                  targetRevision:
+                                                    type: string
+                                                required:
+                                                - path
+                                                - repoURL
+                                                - targetRevision
+                                                type: object
+                                              hydrateTo:
+                                                properties:
+                                                  targetBranch:
+                                                    type: string
+                                                required:
+                                                - targetBranch
+                                                type: object
+                                              syncSource:
+                                                properties:
+                                                  path:
+                                                    minLength: 1
+                                                    pattern: ^.{2,}|[^./]$
+                                                    type: string
+                                                  targetBranch:
+                                                    type: string
+                                                required:
+                                                - path
+                                                - targetBranch
+                                                type: object
+                                            required:
+                                            - drySource
+                                            - syncSource
                                             type: object
                                           sources:
                                             items:
@@ -14001,12 +15070,16 @@ spec:
                                                       type: boolean
                                                     forceCommonLabels:
                                                       type: boolean
+                                                    ignoreMissingComponents:
+                                                      type: boolean
                                                     images:
                                                       items:
                                                         type: string
                                                       type: array
                                                     kubeVersion:
                                                       type: string
+                                                    labelIncludeTemplates:
+                                                      type: boolean
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -14117,6 +15190,8 @@ spec:
                                                 properties:
                                                   allowEmpty:
                                                     type: boolean
+                                                  enabled:
+                                                    type: boolean
                                                   prune:
                                                     type: boolean
                                                   selfHeal:
@@ -14148,6 +15223,8 @@ spec:
                                                   limit:
                                                     format: int64
                                                     type: integer
+                                                  refresh:
+                                                    type: boolean
                                                 type: object
                                               syncOptions:
                                                 items:
@@ -14401,12 +15478,16 @@ spec:
                                                     type: boolean
                                                   forceCommonLabels:
                                                     type: boolean
+                                                  ignoreMissingComponents:
+                                                    type: boolean
                                                   images:
                                                     items:
                                                       type: string
                                                     type: array
                                                   kubeVersion:
                                                     type: string
+                                                  labelIncludeTemplates:
+                                                    type: boolean
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -14509,6 +15590,44 @@ spec:
                                                 type: string
                                             required:
                                             - repoURL
+                                            type: object
+                                          sourceHydrator:
+                                            properties:
+                                              drySource:
+                                                properties:
+                                                  path:
+                                                    type: string
+                                                  repoURL:
+                                                    type: string
+                                                  targetRevision:
+                                                    type: string
+                                                required:
+                                                - path
+                                                - repoURL
+                                                - targetRevision
+                                                type: object
+                                              hydrateTo:
+                                                properties:
+                                                  targetBranch:
+                                                    type: string
+                                                required:
+                                                - targetBranch
+                                                type: object
+                                              syncSource:
+                                                properties:
+                                                  path:
+                                                    minLength: 1
+                                                    pattern: ^.{2,}|[^./]$
+                                                    type: string
+                                                  targetBranch:
+                                                    type: string
+                                                required:
+                                                - path
+                                                - targetBranch
+                                                type: object
+                                            required:
+                                            - drySource
+                                            - syncSource
                                             type: object
                                           sources:
                                             items:
@@ -14637,12 +15756,16 @@ spec:
                                                       type: boolean
                                                     forceCommonLabels:
                                                       type: boolean
+                                                    ignoreMissingComponents:
+                                                      type: boolean
                                                     images:
                                                       items:
                                                         type: string
                                                       type: array
                                                     kubeVersion:
                                                       type: string
+                                                    labelIncludeTemplates:
+                                                      type: boolean
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -14753,6 +15876,8 @@ spec:
                                                 properties:
                                                   allowEmpty:
                                                     type: boolean
+                                                  enabled:
+                                                    type: boolean
                                                   prune:
                                                     type: boolean
                                                   selfHeal:
@@ -14784,6 +15909,8 @@ spec:
                                                   limit:
                                                     format: int64
                                                     type: integer
+                                                  refresh:
+                                                    type: boolean
                                                 type: object
                                               syncOptions:
                                                 items:
@@ -14819,6 +15946,8 @@ spec:
                                   files:
                                     items:
                                       properties:
+                                        exclude:
+                                          type: boolean
                                         path:
                                           type: string
                                       required:
@@ -15036,12 +16165,16 @@ spec:
                                                     type: boolean
                                                   forceCommonLabels:
                                                     type: boolean
+                                                  ignoreMissingComponents:
+                                                    type: boolean
                                                   images:
                                                     items:
                                                       type: string
                                                     type: array
                                                   kubeVersion:
                                                     type: string
+                                                  labelIncludeTemplates:
+                                                    type: boolean
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -15144,6 +16277,44 @@ spec:
                                                 type: string
                                             required:
                                             - repoURL
+                                            type: object
+                                          sourceHydrator:
+                                            properties:
+                                              drySource:
+                                                properties:
+                                                  path:
+                                                    type: string
+                                                  repoURL:
+                                                    type: string
+                                                  targetRevision:
+                                                    type: string
+                                                required:
+                                                - path
+                                                - repoURL
+                                                - targetRevision
+                                                type: object
+                                              hydrateTo:
+                                                properties:
+                                                  targetBranch:
+                                                    type: string
+                                                required:
+                                                - targetBranch
+                                                type: object
+                                              syncSource:
+                                                properties:
+                                                  path:
+                                                    minLength: 1
+                                                    pattern: ^.{2,}|[^./]$
+                                                    type: string
+                                                  targetBranch:
+                                                    type: string
+                                                required:
+                                                - path
+                                                - targetBranch
+                                                type: object
+                                            required:
+                                            - drySource
+                                            - syncSource
                                             type: object
                                           sources:
                                             items:
@@ -15272,12 +16443,16 @@ spec:
                                                       type: boolean
                                                     forceCommonLabels:
                                                       type: boolean
+                                                    ignoreMissingComponents:
+                                                      type: boolean
                                                     images:
                                                       items:
                                                         type: string
                                                       type: array
                                                     kubeVersion:
                                                       type: string
+                                                    labelIncludeTemplates:
+                                                      type: boolean
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -15388,6 +16563,8 @@ spec:
                                                 properties:
                                                   allowEmpty:
                                                     type: boolean
+                                                  enabled:
+                                                    type: boolean
                                                   prune:
                                                     type: boolean
                                                   selfHeal:
@@ -15419,6 +16596,8 @@ spec:
                                                   limit:
                                                     format: int64
                                                     type: integer
+                                                  refresh:
+                                                    type: boolean
                                                 type: object
                                               syncOptions:
                                                 items:
@@ -15651,12 +16830,16 @@ spec:
                                                     type: boolean
                                                   forceCommonLabels:
                                                     type: boolean
+                                                  ignoreMissingComponents:
+                                                    type: boolean
                                                   images:
                                                     items:
                                                       type: string
                                                     type: array
                                                   kubeVersion:
                                                     type: string
+                                                  labelIncludeTemplates:
+                                                    type: boolean
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -15759,6 +16942,44 @@ spec:
                                                 type: string
                                             required:
                                             - repoURL
+                                            type: object
+                                          sourceHydrator:
+                                            properties:
+                                              drySource:
+                                                properties:
+                                                  path:
+                                                    type: string
+                                                  repoURL:
+                                                    type: string
+                                                  targetRevision:
+                                                    type: string
+                                                required:
+                                                - path
+                                                - repoURL
+                                                - targetRevision
+                                                type: object
+                                              hydrateTo:
+                                                properties:
+                                                  targetBranch:
+                                                    type: string
+                                                required:
+                                                - targetBranch
+                                                type: object
+                                              syncSource:
+                                                properties:
+                                                  path:
+                                                    minLength: 1
+                                                    pattern: ^.{2,}|[^./]$
+                                                    type: string
+                                                  targetBranch:
+                                                    type: string
+                                                required:
+                                                - path
+                                                - targetBranch
+                                                type: object
+                                            required:
+                                            - drySource
+                                            - syncSource
                                             type: object
                                           sources:
                                             items:
@@ -15887,12 +17108,16 @@ spec:
                                                       type: boolean
                                                     forceCommonLabels:
                                                       type: boolean
+                                                    ignoreMissingComponents:
+                                                      type: boolean
                                                     images:
                                                       items:
                                                         type: string
                                                       type: array
                                                     kubeVersion:
                                                       type: string
+                                                    labelIncludeTemplates:
+                                                      type: boolean
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -16003,6 +17228,8 @@ spec:
                                                 properties:
                                                   allowEmpty:
                                                     type: boolean
+                                                  enabled:
+                                                    type: boolean
                                                   prune:
                                                     type: boolean
                                                   selfHeal:
@@ -16034,6 +17261,8 @@ spec:
                                                   limit:
                                                     format: int64
                                                     type: integer
+                                                  refresh:
+                                                    type: boolean
                                                 type: object
                                               syncOptions:
                                                 items:
@@ -16274,12 +17503,16 @@ spec:
                                                     type: boolean
                                                   forceCommonLabels:
                                                     type: boolean
+                                                  ignoreMissingComponents:
+                                                    type: boolean
                                                   images:
                                                     items:
                                                       type: string
                                                     type: array
                                                   kubeVersion:
                                                     type: string
+                                                  labelIncludeTemplates:
+                                                    type: boolean
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -16382,6 +17615,44 @@ spec:
                                                 type: string
                                             required:
                                             - repoURL
+                                            type: object
+                                          sourceHydrator:
+                                            properties:
+                                              drySource:
+                                                properties:
+                                                  path:
+                                                    type: string
+                                                  repoURL:
+                                                    type: string
+                                                  targetRevision:
+                                                    type: string
+                                                required:
+                                                - path
+                                                - repoURL
+                                                - targetRevision
+                                                type: object
+                                              hydrateTo:
+                                                properties:
+                                                  targetBranch:
+                                                    type: string
+                                                required:
+                                                - targetBranch
+                                                type: object
+                                              syncSource:
+                                                properties:
+                                                  path:
+                                                    minLength: 1
+                                                    pattern: ^.{2,}|[^./]$
+                                                    type: string
+                                                  targetBranch:
+                                                    type: string
+                                                required:
+                                                - path
+                                                - targetBranch
+                                                type: object
+                                            required:
+                                            - drySource
+                                            - syncSource
                                             type: object
                                           sources:
                                             items:
@@ -16510,12 +17781,16 @@ spec:
                                                       type: boolean
                                                     forceCommonLabels:
                                                       type: boolean
+                                                    ignoreMissingComponents:
+                                                      type: boolean
                                                     images:
                                                       items:
                                                         type: string
                                                       type: array
                                                     kubeVersion:
                                                       type: string
+                                                    labelIncludeTemplates:
+                                                      type: boolean
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -16626,6 +17901,8 @@ spec:
                                                 properties:
                                                   allowEmpty:
                                                     type: boolean
+                                                  enabled:
+                                                    type: boolean
                                                   prune:
                                                     type: boolean
                                                   selfHeal:
@@ -16657,6 +17934,8 @@ spec:
                                                   limit:
                                                     format: int64
                                                     type: integer
+                                                  refresh:
+                                                    type: boolean
                                                 type: object
                                               syncOptions:
                                                 items:
@@ -16812,12 +18091,16 @@ spec:
                                     - project
                                     - repo
                                     type: object
+                                  continueOnRepoNotFoundError:
+                                    type: boolean
                                   filters:
                                     items:
                                       properties:
                                         branchMatch:
                                           type: string
                                         targetBranchMatch:
+                                          type: string
+                                        titleMatch:
                                           type: string
                                       type: object
                                     type: array
@@ -16827,6 +18110,10 @@ spec:
                                         type: string
                                       insecure:
                                         type: boolean
+                                      labels:
+                                        items:
+                                          type: string
+                                        type: array
                                       owner:
                                         type: string
                                       repo:
@@ -17116,12 +18403,16 @@ spec:
                                                     type: boolean
                                                   forceCommonLabels:
                                                     type: boolean
+                                                  ignoreMissingComponents:
+                                                    type: boolean
                                                   images:
                                                     items:
                                                       type: string
                                                     type: array
                                                   kubeVersion:
                                                     type: string
+                                                  labelIncludeTemplates:
+                                                    type: boolean
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -17224,6 +18515,44 @@ spec:
                                                 type: string
                                             required:
                                             - repoURL
+                                            type: object
+                                          sourceHydrator:
+                                            properties:
+                                              drySource:
+                                                properties:
+                                                  path:
+                                                    type: string
+                                                  repoURL:
+                                                    type: string
+                                                  targetRevision:
+                                                    type: string
+                                                required:
+                                                - path
+                                                - repoURL
+                                                - targetRevision
+                                                type: object
+                                              hydrateTo:
+                                                properties:
+                                                  targetBranch:
+                                                    type: string
+                                                required:
+                                                - targetBranch
+                                                type: object
+                                              syncSource:
+                                                properties:
+                                                  path:
+                                                    minLength: 1
+                                                    pattern: ^.{2,}|[^./]$
+                                                    type: string
+                                                  targetBranch:
+                                                    type: string
+                                                required:
+                                                - path
+                                                - targetBranch
+                                                type: object
+                                            required:
+                                            - drySource
+                                            - syncSource
                                             type: object
                                           sources:
                                             items:
@@ -17352,12 +18681,16 @@ spec:
                                                       type: boolean
                                                     forceCommonLabels:
                                                       type: boolean
+                                                    ignoreMissingComponents:
+                                                      type: boolean
                                                     images:
                                                       items:
                                                         type: string
                                                       type: array
                                                     kubeVersion:
                                                       type: string
+                                                    labelIncludeTemplates:
+                                                      type: boolean
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -17468,6 +18801,8 @@ spec:
                                                 properties:
                                                   allowEmpty:
                                                     type: boolean
+                                                  enabled:
+                                                    type: boolean
                                                   prune:
                                                     type: boolean
                                                   selfHeal:
@@ -17499,6 +18834,8 @@ spec:
                                                   limit:
                                                     format: int64
                                                     type: integer
+                                                  refresh:
+                                                    type: boolean
                                                 type: object
                                               syncOptions:
                                                 items:
@@ -17512,6 +18849,10 @@ spec:
                                     required:
                                     - metadata
                                     - spec
+                                    type: object
+                                  values:
+                                    additionalProperties:
+                                      type: string
                                     type: object
                                 type: object
                               scmProvider:
@@ -17953,12 +19294,16 @@ spec:
                                                     type: boolean
                                                   forceCommonLabels:
                                                     type: boolean
+                                                  ignoreMissingComponents:
+                                                    type: boolean
                                                   images:
                                                     items:
                                                       type: string
                                                     type: array
                                                   kubeVersion:
                                                     type: string
+                                                  labelIncludeTemplates:
+                                                    type: boolean
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -18061,6 +19406,44 @@ spec:
                                                 type: string
                                             required:
                                             - repoURL
+                                            type: object
+                                          sourceHydrator:
+                                            properties:
+                                              drySource:
+                                                properties:
+                                                  path:
+                                                    type: string
+                                                  repoURL:
+                                                    type: string
+                                                  targetRevision:
+                                                    type: string
+                                                required:
+                                                - path
+                                                - repoURL
+                                                - targetRevision
+                                                type: object
+                                              hydrateTo:
+                                                properties:
+                                                  targetBranch:
+                                                    type: string
+                                                required:
+                                                - targetBranch
+                                                type: object
+                                              syncSource:
+                                                properties:
+                                                  path:
+                                                    minLength: 1
+                                                    pattern: ^.{2,}|[^./]$
+                                                    type: string
+                                                  targetBranch:
+                                                    type: string
+                                                required:
+                                                - path
+                                                - targetBranch
+                                                type: object
+                                            required:
+                                            - drySource
+                                            - syncSource
                                             type: object
                                           sources:
                                             items:
@@ -18189,12 +19572,16 @@ spec:
                                                       type: boolean
                                                     forceCommonLabels:
                                                       type: boolean
+                                                    ignoreMissingComponents:
+                                                      type: boolean
                                                     images:
                                                       items:
                                                         type: string
                                                       type: array
                                                     kubeVersion:
                                                       type: string
+                                                    labelIncludeTemplates:
+                                                      type: boolean
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -18305,6 +19692,8 @@ spec:
                                                 properties:
                                                   allowEmpty:
                                                     type: boolean
+                                                  enabled:
+                                                    type: boolean
                                                   prune:
                                                     type: boolean
                                                   selfHeal:
@@ -18336,6 +19725,8 @@ spec:
                                                   limit:
                                                     format: int64
                                                     type: integer
+                                                  refresh:
+                                                    type: boolean
                                                 type: object
                                               syncOptions:
                                                 items:
@@ -18589,12 +19980,16 @@ spec:
                                           type: boolean
                                         forceCommonLabels:
                                           type: boolean
+                                        ignoreMissingComponents:
+                                          type: boolean
                                         images:
                                           items:
                                             type: string
                                           type: array
                                         kubeVersion:
                                           type: string
+                                        labelIncludeTemplates:
+                                          type: boolean
                                         labelWithoutSelector:
                                           type: boolean
                                         namePrefix:
@@ -18697,6 +20092,44 @@ spec:
                                       type: string
                                   required:
                                   - repoURL
+                                  type: object
+                                sourceHydrator:
+                                  properties:
+                                    drySource:
+                                      properties:
+                                        path:
+                                          type: string
+                                        repoURL:
+                                          type: string
+                                        targetRevision:
+                                          type: string
+                                      required:
+                                      - path
+                                      - repoURL
+                                      - targetRevision
+                                      type: object
+                                    hydrateTo:
+                                      properties:
+                                        targetBranch:
+                                          type: string
+                                      required:
+                                      - targetBranch
+                                      type: object
+                                    syncSource:
+                                      properties:
+                                        path:
+                                          minLength: 1
+                                          pattern: ^.{2,}|[^./]$
+                                          type: string
+                                        targetBranch:
+                                          type: string
+                                      required:
+                                      - path
+                                      - targetBranch
+                                      type: object
+                                  required:
+                                  - drySource
+                                  - syncSource
                                   type: object
                                 sources:
                                   items:
@@ -18825,12 +20258,16 @@ spec:
                                             type: boolean
                                           forceCommonLabels:
                                             type: boolean
+                                          ignoreMissingComponents:
+                                            type: boolean
                                           images:
                                             items:
                                               type: string
                                             type: array
                                           kubeVersion:
                                             type: string
+                                          labelIncludeTemplates:
+                                            type: boolean
                                           labelWithoutSelector:
                                             type: boolean
                                           namePrefix:
@@ -18941,6 +20378,8 @@ spec:
                                       properties:
                                         allowEmpty:
                                           type: boolean
+                                        enabled:
+                                          type: boolean
                                         prune:
                                           type: boolean
                                         selfHeal:
@@ -18972,6 +20411,8 @@ spec:
                                         limit:
                                           format: int64
                                           type: integer
+                                        refresh:
+                                          type: boolean
                                       type: object
                                     syncOptions:
                                       items:
@@ -19211,12 +20652,16 @@ spec:
                                           type: boolean
                                         forceCommonLabels:
                                           type: boolean
+                                        ignoreMissingComponents:
+                                          type: boolean
                                         images:
                                           items:
                                             type: string
                                           type: array
                                         kubeVersion:
                                           type: string
+                                        labelIncludeTemplates:
+                                          type: boolean
                                         labelWithoutSelector:
                                           type: boolean
                                         namePrefix:
@@ -19319,6 +20764,44 @@ spec:
                                       type: string
                                   required:
                                   - repoURL
+                                  type: object
+                                sourceHydrator:
+                                  properties:
+                                    drySource:
+                                      properties:
+                                        path:
+                                          type: string
+                                        repoURL:
+                                          type: string
+                                        targetRevision:
+                                          type: string
+                                      required:
+                                      - path
+                                      - repoURL
+                                      - targetRevision
+                                      type: object
+                                    hydrateTo:
+                                      properties:
+                                        targetBranch:
+                                          type: string
+                                      required:
+                                      - targetBranch
+                                      type: object
+                                    syncSource:
+                                      properties:
+                                        path:
+                                          minLength: 1
+                                          pattern: ^.{2,}|[^./]$
+                                          type: string
+                                        targetBranch:
+                                          type: string
+                                      required:
+                                      - path
+                                      - targetBranch
+                                      type: object
+                                  required:
+                                  - drySource
+                                  - syncSource
                                   type: object
                                 sources:
                                   items:
@@ -19447,12 +20930,16 @@ spec:
                                             type: boolean
                                           forceCommonLabels:
                                             type: boolean
+                                          ignoreMissingComponents:
+                                            type: boolean
                                           images:
                                             items:
                                               type: string
                                             type: array
                                           kubeVersion:
                                             type: string
+                                          labelIncludeTemplates:
+                                            type: boolean
                                           labelWithoutSelector:
                                             type: boolean
                                           namePrefix:
@@ -19563,6 +21050,8 @@ spec:
                                       properties:
                                         allowEmpty:
                                           type: boolean
+                                        enabled:
+                                          type: boolean
                                         prune:
                                           type: boolean
                                         selfHeal:
@@ -19594,6 +21083,8 @@ spec:
                                         limit:
                                           format: int64
                                           type: integer
+                                        refresh:
+                                          type: boolean
                                       type: object
                                     syncOptions:
                                       items:
@@ -19749,12 +21240,16 @@ spec:
                           - project
                           - repo
                           type: object
+                        continueOnRepoNotFoundError:
+                          type: boolean
                         filters:
                           items:
                             properties:
                               branchMatch:
                                 type: string
                               targetBranchMatch:
+                                type: string
+                              titleMatch:
                                 type: string
                             type: object
                           type: array
@@ -19764,6 +21259,10 @@ spec:
                               type: string
                             insecure:
                               type: boolean
+                            labels:
+                              items:
+                                type: string
+                              type: array
                             owner:
                               type: string
                             repo:
@@ -20053,12 +21552,16 @@ spec:
                                           type: boolean
                                         forceCommonLabels:
                                           type: boolean
+                                        ignoreMissingComponents:
+                                          type: boolean
                                         images:
                                           items:
                                             type: string
                                           type: array
                                         kubeVersion:
                                           type: string
+                                        labelIncludeTemplates:
+                                          type: boolean
                                         labelWithoutSelector:
                                           type: boolean
                                         namePrefix:
@@ -20161,6 +21664,44 @@ spec:
                                       type: string
                                   required:
                                   - repoURL
+                                  type: object
+                                sourceHydrator:
+                                  properties:
+                                    drySource:
+                                      properties:
+                                        path:
+                                          type: string
+                                        repoURL:
+                                          type: string
+                                        targetRevision:
+                                          type: string
+                                      required:
+                                      - path
+                                      - repoURL
+                                      - targetRevision
+                                      type: object
+                                    hydrateTo:
+                                      properties:
+                                        targetBranch:
+                                          type: string
+                                      required:
+                                      - targetBranch
+                                      type: object
+                                    syncSource:
+                                      properties:
+                                        path:
+                                          minLength: 1
+                                          pattern: ^.{2,}|[^./]$
+                                          type: string
+                                        targetBranch:
+                                          type: string
+                                      required:
+                                      - path
+                                      - targetBranch
+                                      type: object
+                                  required:
+                                  - drySource
+                                  - syncSource
                                   type: object
                                 sources:
                                   items:
@@ -20289,12 +21830,16 @@ spec:
                                             type: boolean
                                           forceCommonLabels:
                                             type: boolean
+                                          ignoreMissingComponents:
+                                            type: boolean
                                           images:
                                             items:
                                               type: string
                                             type: array
                                           kubeVersion:
                                             type: string
+                                          labelIncludeTemplates:
+                                            type: boolean
                                           labelWithoutSelector:
                                             type: boolean
                                           namePrefix:
@@ -20405,6 +21950,8 @@ spec:
                                       properties:
                                         allowEmpty:
                                           type: boolean
+                                        enabled:
+                                          type: boolean
                                         prune:
                                           type: boolean
                                         selfHeal:
@@ -20436,6 +21983,8 @@ spec:
                                         limit:
                                           format: int64
                                           type: integer
+                                        refresh:
+                                          type: boolean
                                       type: object
                                     syncOptions:
                                       items:
@@ -20449,6 +21998,10 @@ spec:
                           required:
                           - metadata
                           - spec
+                          type: object
+                        values:
+                          additionalProperties:
+                            type: string
                           type: object
                       type: object
                     scmProvider:
@@ -20890,12 +22443,16 @@ spec:
                                           type: boolean
                                         forceCommonLabels:
                                           type: boolean
+                                        ignoreMissingComponents:
+                                          type: boolean
                                         images:
                                           items:
                                             type: string
                                           type: array
                                         kubeVersion:
                                           type: string
+                                        labelIncludeTemplates:
+                                          type: boolean
                                         labelWithoutSelector:
                                           type: boolean
                                         namePrefix:
@@ -20998,6 +22555,44 @@ spec:
                                       type: string
                                   required:
                                   - repoURL
+                                  type: object
+                                sourceHydrator:
+                                  properties:
+                                    drySource:
+                                      properties:
+                                        path:
+                                          type: string
+                                        repoURL:
+                                          type: string
+                                        targetRevision:
+                                          type: string
+                                      required:
+                                      - path
+                                      - repoURL
+                                      - targetRevision
+                                      type: object
+                                    hydrateTo:
+                                      properties:
+                                        targetBranch:
+                                          type: string
+                                      required:
+                                      - targetBranch
+                                      type: object
+                                    syncSource:
+                                      properties:
+                                        path:
+                                          minLength: 1
+                                          pattern: ^.{2,}|[^./]$
+                                          type: string
+                                        targetBranch:
+                                          type: string
+                                      required:
+                                      - path
+                                      - targetBranch
+                                      type: object
+                                  required:
+                                  - drySource
+                                  - syncSource
                                   type: object
                                 sources:
                                   items:
@@ -21126,12 +22721,16 @@ spec:
                                             type: boolean
                                           forceCommonLabels:
                                             type: boolean
+                                          ignoreMissingComponents:
+                                            type: boolean
                                           images:
                                             items:
                                               type: string
                                             type: array
                                           kubeVersion:
                                             type: string
+                                          labelIncludeTemplates:
+                                            type: boolean
                                           labelWithoutSelector:
                                             type: boolean
                                           namePrefix:
@@ -21242,6 +22841,8 @@ spec:
                                       properties:
                                         allowEmpty:
                                           type: boolean
+                                        enabled:
+                                          type: boolean
                                         prune:
                                           type: boolean
                                         selfHeal:
@@ -21273,6 +22874,8 @@ spec:
                                         limit:
                                           format: int64
                                           type: integer
+                                        refresh:
+                                          type: boolean
                                       type: object
                                     syncOptions:
                                       items:
@@ -21354,6 +22957,8 @@ spec:
                 type: object
               strategy:
                 properties:
+                  deletionOrder:
+                    type: string
                   rollingSync:
                     properties:
                       steps:
@@ -21597,12 +23202,16 @@ spec:
                                 type: boolean
                               forceCommonLabels:
                                 type: boolean
+                              ignoreMissingComponents:
+                                type: boolean
                               images:
                                 items:
                                   type: string
                                 type: array
                               kubeVersion:
                                 type: string
+                              labelIncludeTemplates:
+                                type: boolean
                               labelWithoutSelector:
                                 type: boolean
                               namePrefix:
@@ -21705,6 +23314,44 @@ spec:
                             type: string
                         required:
                         - repoURL
+                        type: object
+                      sourceHydrator:
+                        properties:
+                          drySource:
+                            properties:
+                              path:
+                                type: string
+                              repoURL:
+                                type: string
+                              targetRevision:
+                                type: string
+                            required:
+                            - path
+                            - repoURL
+                            - targetRevision
+                            type: object
+                          hydrateTo:
+                            properties:
+                              targetBranch:
+                                type: string
+                            required:
+                            - targetBranch
+                            type: object
+                          syncSource:
+                            properties:
+                              path:
+                                minLength: 1
+                                pattern: ^.{2,}|[^./]$
+                                type: string
+                              targetBranch:
+                                type: string
+                            required:
+                            - path
+                            - targetBranch
+                            type: object
+                        required:
+                        - drySource
+                        - syncSource
                         type: object
                       sources:
                         items:
@@ -21833,12 +23480,16 @@ spec:
                                   type: boolean
                                 forceCommonLabels:
                                   type: boolean
+                                ignoreMissingComponents:
+                                  type: boolean
                                 images:
                                   items:
                                     type: string
                                   type: array
                                 kubeVersion:
                                   type: string
+                                labelIncludeTemplates:
+                                  type: boolean
                                 labelWithoutSelector:
                                   type: boolean
                                 namePrefix:
@@ -21949,6 +23600,8 @@ spec:
                             properties:
                               allowEmpty:
                                 type: boolean
+                              enabled:
+                                type: boolean
                               prune:
                                 type: boolean
                               selfHeal:
@@ -21980,6 +23633,8 @@ spec:
                               limit:
                                 format: int64
                                 type: integer
+                              refresh:
+                                type: boolean
                             type: object
                           syncOptions:
                             items:
@@ -22056,6 +23711,9 @@ spec:
                       type: string
                     health:
                       properties:
+                        lastTransitionTime:
+                          format: date-time
+                          type: string
                         message:
                           type: string
                         status:
@@ -22082,6 +23740,9 @@ spec:
                       type: string
                   type: object
                 type: array
+              resourcesCount:
+                format: int64
+                type: integer
             type: object
         required:
         - metadata
@@ -22178,6 +23839,7 @@ spec:
                 type: array
               description:
                 description: Description contains optional project description
+                maxLength: 255
                 type: string
               destinationServiceAccounts:
                 description: DestinationServiceAccounts holds information about the
@@ -22372,6 +24034,10 @@ spec:
                   description: SyncWindow contains the kind, time, duration and attributes
                     that are used to assign the syncWindows to apps
                   properties:
+                    andOperator:
+                      description: UseAndOperator use AND operator for matching applications,
+                        namespaces and clusters instead of the default OR operator
+                      type: boolean
                     applications:
                       description: Applications contains a list of applications that
                         the window will apply to
@@ -22384,6 +24050,11 @@ spec:
                       items:
                         type: string
                       type: array
+                    description:
+                      description: Description of the sync that will be applied to
+                        the schedule, can be used to add any information such as a
+                        ticket number for example
+                      type: string
                     duration:
                       description: Duration is the amount of time the sync window
                         will be open
@@ -22507,6 +24178,7 @@ rules:
   - argoproj.io
   resources:
   - applications
+  - applicationsets
   - appprojects
   verbs:
   - create
@@ -22591,14 +24263,21 @@ rules:
   - list
   - watch
 - apiGroups:
-  - apps
-  - extensions
+  - coordination.k8s.io
   resources:
-  - deployments
+  - leases
+  verbs:
+  - create
+- apiGroups:
+  - coordination.k8s.io
+  resourceNames:
+  - 58ac56fa.applicationsets.argoproj.io
+  resources:
+  - leases
   verbs:
   - get
-  - list
-  - watch
+  - update
+  - create
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -22710,6 +24389,100 @@ subjects:
   namespace: argocd
 ---
 apiVersion: v1
+data:
+  resource.customizations.ignoreResourceUpdates.ConfigMap: |
+    jqPathExpressions:
+      # Ignore the cluster-autoscaler status
+      - '.metadata.annotations."cluster-autoscaler.kubernetes.io/last-updated"'
+      # Ignore the annotation of the legacy Leases election
+      - '.metadata.annotations."control-plane.alpha.kubernetes.io/leader"'
+  resource.customizations.ignoreResourceUpdates.Endpoints: |
+    jsonPointers:
+      - /metadata
+      - /subsets
+  resource.customizations.ignoreResourceUpdates.all: |
+    jsonPointers:
+      - /status
+  resource.customizations.ignoreResourceUpdates.apps_ReplicaSet: |
+    jqPathExpressions:
+      - '.metadata.annotations."deployment.kubernetes.io/desired-replicas"'
+      - '.metadata.annotations."deployment.kubernetes.io/max-replicas"'
+      - '.metadata.annotations."rollout.argoproj.io/desired-replicas"'
+  resource.customizations.ignoreResourceUpdates.argoproj.io_Application: |
+    jqPathExpressions:
+      - '.metadata.annotations."notified.notifications.argoproj.io"'
+      - '.metadata.annotations."argocd.argoproj.io/refresh"'
+      - '.metadata.annotations."argocd.argoproj.io/hydrate"'
+      - '.operation'
+  resource.customizations.ignoreResourceUpdates.argoproj.io_Rollout: |
+    jqPathExpressions:
+      - '.metadata.annotations."notified.notifications.argoproj.io"'
+  resource.customizations.ignoreResourceUpdates.autoscaling_HorizontalPodAutoscaler: |
+    jqPathExpressions:
+      - '.metadata.annotations."autoscaling.alpha.kubernetes.io/behavior"'
+      - '.metadata.annotations."autoscaling.alpha.kubernetes.io/conditions"'
+      - '.metadata.annotations."autoscaling.alpha.kubernetes.io/metrics"'
+      - '.metadata.annotations."autoscaling.alpha.kubernetes.io/current-metrics"'
+  resource.customizations.ignoreResourceUpdates.discovery.k8s.io_EndpointSlice: |
+    jsonPointers:
+      - /metadata
+      - /endpoints
+      - /ports
+  resource.exclusions: |
+    ### Network resources created by the Kubernetes control plane and excluded to reduce the number of watched events and UI clutter
+    - apiGroups:
+      - ''
+      - discovery.k8s.io
+      kinds:
+      - Endpoints
+      - EndpointSlice
+    ### Internal Kubernetes resources excluded reduce the number of watched events
+    - apiGroups:
+      - coordination.k8s.io
+      kinds:
+      - Lease
+    ### Internal Kubernetes Authz/Authn resources excluded reduce the number of watched events
+    - apiGroups:
+      - authentication.k8s.io
+      - authorization.k8s.io
+      kinds:
+      - SelfSubjectReview
+      - TokenReview
+      - LocalSubjectAccessReview
+      - SelfSubjectAccessReview
+      - SelfSubjectRulesReview
+      - SubjectAccessReview
+    ### Intermediate Certificate Request excluded reduce the number of watched events
+    - apiGroups:
+      - certificates.k8s.io
+      kinds:
+      - CertificateSigningRequest
+    - apiGroups:
+      - cert-manager.io
+      kinds:
+      - CertificateRequest
+    ### Cilium internal resources excluded reduce the number of watched events and UI Clutter
+    - apiGroups:
+      - cilium.io
+      kinds:
+      - CiliumIdentity
+      - CiliumEndpoint
+      - CiliumEndpointSlice
+    ### Kyverno intermediate and reporting resources excluded reduce the number of watched events and improve performance
+    - apiGroups:
+      - kyverno.io
+      - reports.kyverno.io
+      - wgpolicyk8s.io
+      kinds:
+      - PolicyReport
+      - ClusterPolicyReport
+      - EphemeralReport
+      - ClusterEphemeralReport
+      - AdmissionReport
+      - ClusterAdmissionReport
+      - BackgroundScanReport
+      - ClusterBackgroundScanReport
+      - UpdateRequest
 kind: ConfigMap
 metadata:
   labels:
@@ -22937,6 +24710,12 @@ spec:
               key: applicationsetcontroller.log.level
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_LOG_FORMAT_TIMESTAMP
+          valueFrom:
+            configMapKeyRef:
+              key: log.format.timestamp
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_APPLICATIONSET_CONTROLLER_DRY_RUN
           valueFrom:
             configMapKeyRef:
@@ -23015,6 +24794,12 @@ spec:
               key: applicationsetcontroller.enable.scm.providers
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_GITHUB_API_METRICS
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.enable.github.api.metrics
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_APPLICATIONSET_CONTROLLER_WEBHOOK_PARALLELISM_LIMIT
           valueFrom:
             configMapKeyRef:
@@ -23025,6 +24810,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: applicationsetcontroller.requeue.after
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_MAX_RESOURCES_STATUS_COUNT
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.status.max.resources.count
               name: argocd-cmd-params-cm
               optional: true
         image: quay.io/argoproj/argocd:latest
@@ -23057,6 +24848,8 @@ spec:
           name: tmp
         - mountPath: /app/config/reposerver/tls
           name: argocd-repo-server-tls
+        - mountPath: /home/argocd/params
+          name: argocd-cmd-params-cm
       nodeSelector:
         kubernetes.io/os: linux
       serviceAccountName: argocd-applicationset-controller
@@ -23085,6 +24878,13 @@ spec:
             path: ca.crt
           optional: true
           secretName: argocd-repo-server-tls
+      - configMap:
+          items:
+          - key: applicationsetcontroller.profile.enabled
+            path: profiler.enabled
+          name: argocd-cmd-params-cm
+          optional: true
+        name: argocd-cmd-params-cm
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -23131,7 +24931,7 @@ spec:
             secretKeyRef:
               key: auth
               name: argocd-redis
-        image: redis:7.0.15-alpine
+        image: public.ecr.aws/docker/library/redis:8.2.3-alpine
         imagePullPolicy: Always
         name: redis
         ports:
@@ -23228,6 +25028,12 @@ spec:
               key: reposerver.log.level
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_LOG_FORMAT_TIMESTAMP
+          valueFrom:
+            configMapKeyRef:
+              key: log.format.timestamp
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_REPO_SERVER_PARALLELISM_LIMIT
           valueFrom:
             configMapKeyRef:
@@ -23318,6 +25124,12 @@ spec:
               key: otlp.headers
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_REPO_SERVER_OTLP_ATTRS
+          valueFrom:
+            configMapKeyRef:
+              key: otlp.attrs
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_REPO_SERVER_MAX_COMBINED_DIRECTORY_MANIFESTS_SIZE
           valueFrom:
             configMapKeyRef:
@@ -23364,6 +25176,24 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: reposerver.disable.helm.manifest.max.extracted.size
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_REPO_SERVER_OCI_MANIFEST_MAX_EXTRACTED_SIZE
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.oci.manifest.max.extracted.size
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_REPO_SERVER_DISABLE_OCI_MANIFEST_MAX_EXTRACTED_SIZE
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.disable.oci.manifest.max.extracted.size
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_REPO_SERVER_OCI_LAYER_MEDIA_TYPES
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.oci.layer.media.types
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_REVISION_CACHE_LOCK_TIMEOUT
@@ -23455,11 +25285,12 @@ spec:
         - mountPath: /home/argocd/cmp-server/plugins
           name: plugins
       initContainers:
-      - command:
-        - /bin/cp
-        - -n
-        - /usr/local/bin/argocd
-        - /var/run/argocd/argocd-cmp-server
+      - args:
+        - /bin/cp --update=none /usr/local/bin/argocd /var/run/argocd/argocd && /bin/ln
+          -s /var/run/argocd/argocd /var/run/argocd/argocd-cmp-server
+        command:
+        - sh
+        - -c
         image: quay.io/argoproj/argocd:latest
         name: copyutil
         securityContext:
@@ -23614,6 +25445,12 @@ spec:
               key: controller.log.level
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_LOG_FORMAT_TIMESTAMP
+          valueFrom:
+            configMapKeyRef:
+              key: log.format.timestamp
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_APPLICATION_CONTROLLER_METRICS_CACHE_EXPIRATION
           valueFrom:
             configMapKeyRef:
@@ -23642,6 +25479,24 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: controller.self.heal.backoff.cap.seconds
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_SELF_HEAL_BACKOFF_COOLDOWN_SECONDS
+          valueFrom:
+            configMapKeyRef:
+              key: controller.self.heal.backoff.cooldown.seconds
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_SYNC_WAVE_DELAY
+          valueFrom:
+            configMapKeyRef:
+              key: controller.sync.wave.delay.seconds
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_SYNC_TIMEOUT
+          valueFrom:
+            configMapKeyRef:
+              key: controller.sync.timeout.seconds
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_PLAINTEXT
@@ -23710,6 +25565,12 @@ spec:
               key: otlp.headers
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_OTLP_ATTRS
+          valueFrom:
+            configMapKeyRef:
+              key: otlp.attrs
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_APPLICATION_NAMESPACES
           valueFrom:
             configMapKeyRef:
@@ -23750,6 +25611,30 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: controller.ignore.normalizer.jq.timeout
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_HYDRATOR_ENABLED
+          valueFrom:
+            configMapKeyRef:
+              key: hydrator.enabled
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_CLUSTER_CACHE_BATCH_EVENTS_PROCESSING
+          valueFrom:
+            configMapKeyRef:
+              key: controller.cluster.cache.batch.events.processing
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_CLUSTER_CACHE_EVENTS_PROCESSING_INTERVAL
+          valueFrom:
+            configMapKeyRef:
+              key: controller.cluster.cache.events.processing.interval
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_COMMIT_SERVER
+          valueFrom:
+            configMapKeyRef:
+              key: commit.server
               name: argocd-cmd-params-cm
               optional: true
         - name: KUBECACHEDIR
@@ -23814,6 +25699,10 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
+  labels:
+    app.kubernetes.io/component: application-controller
+    app.kubernetes.io/name: argocd-application-controller
+    app.kubernetes.io/part-of: argocd
   name: argocd-application-controller-network-policy
 spec:
   ingress:
@@ -23830,6 +25719,10 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
+  labels:
+    app.kubernetes.io/component: applicationset-controller
+    app.kubernetes.io/name: argocd-applicationset-controller
+    app.kubernetes.io/part-of: argocd
   name: argocd-applicationset-controller-network-policy
 spec:
   ingress:
@@ -23849,6 +25742,10 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
+  labels:
+    app.kubernetes.io/component: redis
+    app.kubernetes.io/name: argocd-redis
+    app.kubernetes.io/part-of: argocd
   name: argocd-redis-network-policy
 spec:
   ingress:
@@ -23874,6 +25771,10 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
+  labels:
+    app.kubernetes.io/component: repo-server
+    app.kubernetes.io/name: argocd-repo-server
+    app.kubernetes.io/part-of: argocd
   name: argocd-repo-server-network-policy
 spec:
   ingress:
