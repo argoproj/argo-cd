@@ -2,6 +2,7 @@ package git
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -327,7 +328,7 @@ func TestLFSClient(t *testing.T) {
 	err = client.Init()
 	require.NoError(t, err)
 
-	err = client.Fetch("", 0)
+	err = client.Fetch("", 0, false)
 	require.NoError(t, err)
 
 	_, err = client.Checkout(commitSHA, true)
@@ -362,7 +363,7 @@ func TestVerifyCommitSignature(t *testing.T) {
 	err = client.Init()
 	require.NoError(t, err)
 
-	err = client.Fetch("", 0)
+	err = client.Fetch("", 0, false)
 	require.NoError(t, err)
 
 	commitSHA, err := client.LsRemote("HEAD")
@@ -418,11 +419,11 @@ func TestNewFactory(t *testing.T) {
 		err = client.Init()
 		require.NoError(t, err)
 
-		err = client.Fetch("", 0)
+		err = client.Fetch("", 0, false)
 		require.NoError(t, err)
 
 		// Do a second fetch to make sure we can treat `already up-to-date` error as not an error
-		err = client.Fetch("", 0)
+		err = client.Fetch("", 0, false)
 		require.NoError(t, err)
 
 		_, err = client.Checkout(commitSHA, true)
@@ -852,8 +853,8 @@ func TestPartialCloneFetch(t *testing.T) {
 	err = client.ConfigureSparseCheckout(sparsePaths)
 	require.NoError(t, err)
 
-	// Perform partial fetch
-	err = client.FetchPartial("HEAD")
+	// Perform partial fetch using consolidated Fetch method
+	err = client.Fetch("HEAD", 0, true)
 	require.NoError(t, err)
 
 	// Verify that the repo was cloned with partial clone
@@ -953,4 +954,186 @@ func runCmdOutput(ctx context.Context, workDir string, name string, args ...stri
 	cmd := exec.CommandContext(ctx, name, args...)
 	cmd.Dir = workDir
 	return cmd.Output()
+}
+
+// Test_nativeGitClient_Fetch_Combinations tests all combinations of fetch parameters
+func Test_nativeGitClient_Fetch_Combinations(t *testing.T) {
+	tests := []struct {
+		name             string
+		usePartialClone bool
+		depth           int64
+		description      string
+	}{
+		{
+			name:             "Full clone (no partial, no depth)",
+			usePartialClone: false,
+			depth:           0,
+			description:      "Should fetch all history with all blobs using --tags",
+		},
+		{
+			name:             "Shallow clone only",
+			usePartialClone: false,
+			depth:           10,
+			description:      "Should fetch limited history (10 commits) with all blobs using --depth",
+		},
+		{
+			name:             "Partial clone only",
+			usePartialClone: true,
+			depth:           0,
+			description:      "Should fetch all history but no blobs using --filter=blob:none",
+		},
+		{
+			name:             "Both partial and shallow",
+			usePartialClone: true,
+			depth:           10,
+			description:      "Should fetch limited history (10 commits) with no blobs using both --filter and --depth",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := t.Context()
+			tempDir, err := _createEmptyGitRepo(ctx)
+			require.NoError(t, err)
+
+			// Add some commits to the origin repo to test depth
+			for i := 0; i < 15; i++ {
+				err = runCmd(ctx, tempDir, "git", "commit", "--allow-empty", "-m", fmt.Sprintf("Commit %d", i))
+				require.NoError(t, err)
+			}
+
+			// Create a client for a different directory
+			clientDir := t.TempDir()
+			client, err := NewClientExt("file://"+tempDir, clientDir, NopCreds{}, true, false, "", "")
+			require.NoError(t, err)
+
+			err = client.Init()
+			require.NoError(t, err)
+
+			// Perform fetch with specified parameters
+			err = client.Fetch("", tt.depth, tt.usePartialClone)
+			require.NoError(t, err, tt.description)
+
+			// Verify fetch succeeded by checking we can get HEAD
+			commitSHA, err := client.LsRemote("HEAD")
+			require.NoError(t, err)
+			assert.True(t, IsCommitSHA(commitSHA))
+
+			// If depth is specified, verify shallow clone was created
+			if tt.depth > 0 {
+				// Check if it's a shallow repository
+				shallowFile := filepath.Join(clientDir, ".git", "shallow")
+				_, err := os.Stat(shallowFile)
+				// Shallow file should exist for shallow clones
+				assert.NoError(t, err, "Expected shallow file to exist for depth-limited fetch")
+			}
+
+			// If partial clone is specified, verify promisor remote was configured
+			if tt.usePartialClone {
+				output, err := runCmdOutput(ctx, clientDir, "git", "config", "remote.origin.promisor")
+				if err == nil {
+					assert.Contains(t, string(output), "true", "Expected promisor to be configured for partial clone")
+				}
+			}
+		})
+	}
+}
+
+// Test_nativeGitClient_Fetch_PartialClone_WithCheckout tests that partial clone works with checkout
+func Test_nativeGitClient_Fetch_PartialClone_WithCheckout(t *testing.T) {
+	ctx := t.Context()
+	tempDir, err := _createEmptyGitRepo(ctx)
+	require.NoError(t, err)
+
+	// Create a file in the origin repo
+	testFile := filepath.Join(tempDir, "test.txt")
+	err = os.WriteFile(testFile, []byte("test content"), 0o644)
+	require.NoError(t, err)
+
+	err = runCmd(ctx, tempDir, "git", "add", "test.txt")
+	require.NoError(t, err)
+
+	err = runCmd(ctx, tempDir, "git", "commit", "-m", "Add test file")
+	require.NoError(t, err)
+
+	// Create a client with partial clone
+	clientDir := t.TempDir()
+	client, err := NewClientExt("file://"+tempDir, clientDir, NopCreds{}, true, false, "", "")
+	require.NoError(t, err)
+
+	err = client.Init()
+	require.NoError(t, err)
+
+	// Fetch with partial clone
+	err = client.Fetch("", 0, true)
+	require.NoError(t, err)
+
+	// Checkout should trigger blob download on demand
+	commitSHA, err := client.LsRemote("HEAD")
+	require.NoError(t, err)
+
+	_, err = client.Checkout(commitSHA, false)
+	require.NoError(t, err)
+
+	// Verify file was checked out (blob downloaded on demand)
+	checkedOutFile := filepath.Join(clientDir, "test.txt")
+	content, err := os.ReadFile(checkedOutFile)
+	require.NoError(t, err)
+	assert.Equal(t, "test content", string(content), "File should be checked out despite partial clone")
+}
+
+// Test_nativeGitClient_Fetch_ShallowAndPartial_Together tests combining both options
+func Test_nativeGitClient_Fetch_ShallowAndPartial_Together(t *testing.T) {
+	ctx := t.Context()
+	tempDir, err := _createEmptyGitRepo(ctx)
+	require.NoError(t, err)
+
+	// Create multiple commits with files
+	for i := 0; i < 20; i++ {
+		testFile := filepath.Join(tempDir, fmt.Sprintf("file%d.txt", i))
+		err = os.WriteFile(testFile, []byte(fmt.Sprintf("content %d", i)), 0o644)
+		require.NoError(t, err)
+
+		err = runCmd(ctx, tempDir, "git", "add", fmt.Sprintf("file%d.txt", i))
+		require.NoError(t, err)
+
+		err = runCmd(ctx, tempDir, "git", "commit", "-m", fmt.Sprintf("Add file %d", i))
+		require.NoError(t, err)
+	}
+
+	// Create a client with both shallow and partial clone
+	clientDir := t.TempDir()
+	client, err := NewClientExt("file://"+tempDir, clientDir, NopCreds{}, true, false, "", "")
+	require.NoError(t, err)
+
+	err = client.Init()
+	require.NoError(t, err)
+
+	// Fetch with both depth and partial clone
+	depth := int64(5)
+	err = client.Fetch("", depth, true)
+	require.NoError(t, err)
+
+	// Verify it's both shallow and partial
+	shallowFile := filepath.Join(clientDir, ".git", "shallow")
+	_, err = os.Stat(shallowFile)
+	assert.NoError(t, err, "Expected shallow file for depth-limited fetch")
+
+	output, err := runCmdOutput(ctx, clientDir, "git", "config", "remote.origin.promisor")
+	if err == nil {
+		assert.Contains(t, string(output), "true", "Expected promisor for partial clone")
+	}
+
+	// Verify checkout still works
+	commitSHA, err := client.LsRemote("HEAD")
+	require.NoError(t, err)
+
+	_, err = client.Checkout(commitSHA, false)
+	require.NoError(t, err)
+
+	// Latest file should exist
+	latestFile := filepath.Join(clientDir, "file19.txt")
+	content, err := os.ReadFile(latestFile)
+	require.NoError(t, err)
+	assert.Equal(t, "content 19", string(content))
 }

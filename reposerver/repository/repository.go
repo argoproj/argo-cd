@@ -2785,7 +2785,7 @@ func fetch(gitClient git.Client, targetRevisions []string) error {
 		return nil
 	}
 	// Fetching with no revision first. Fetching with an explicit version can cause repo bloat. https://github.com/argoproj/argo-cd/issues/8845
-	err := gitClient.Fetch("", 0)
+	err := gitClient.Fetch("", 0, false)
 	if err != nil {
 		return err
 	}
@@ -2796,7 +2796,7 @@ func fetch(gitClient git.Client, targetRevisions []string) error {
 			log.Infof("Failed to fetch revision %s: %v", revision, err)
 			log.Infof("Fallback to fetching specific revision %s. ref might not have been in the default refspec fetched.", revision)
 
-			if err := gitClient.Fetch(revision, 0); err != nil {
+			if err := gitClient.Fetch(revision, 0, false); err != nil {
 				return status.Errorf(codes.Internal, "Failed to fetch revision %s: %v", revision, err)
 			}
 		}
@@ -2830,23 +2830,23 @@ func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bo
 				log.Warnf("Failed to configure sparse checkout, falling back to full checkout: %v", err)
 				// Fall back to regular fetch
 				if depth > 0 {
-					err = gitClient.Fetch(revision, depth)
+					err = gitClient.Fetch(revision, depth, false)
 				} else {
-					err = gitClient.Fetch("", depth)
+					err = gitClient.Fetch("", depth, false)
 				}
 			} else {
 				// Perform partial fetch
 				if revision != "" {
-					err = gitClient.FetchPartial(revision)
+					err = gitClient.Fetch(revision, 0, true)
 				} else {
-					err = gitClient.FetchPartial("")
+					err = gitClient.Fetch("", 0, true)
 				}
 			}
 		} else if depth > 0 {
-			err = gitClient.Fetch(revision, depth)
+			err = gitClient.Fetch(revision, depth, false)
 		} else {
 			// Fetching with no revision first. Fetching with an explicit version can cause repo bloat. https://github.com/argoproj/argo-cd/issues/8845
-			err = gitClient.Fetch("", depth)
+			err = gitClient.Fetch("", depth, false)
 		}
 
 		if err != nil {
@@ -2862,9 +2862,9 @@ func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bo
 		log.Infof("Fallback to fetching specific revision %s. ref might not have been in the default refspec fetched.", revision)
 
 		if enablePartialClone && len(sparsePaths) > 0 {
-			err = gitClient.FetchPartial(revision)
+			err = gitClient.Fetch(revision, 0, true)
 		} else {
-			err = gitClient.Fetch(revision, depth)
+			err = gitClient.Fetch(revision, depth, false)
 		}
 		if err != nil {
 			return status.Errorf(codes.Internal, "Failed to checkout revision %s: %v", revision, err)

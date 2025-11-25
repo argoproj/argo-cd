@@ -125,8 +125,7 @@ type gitRefCache interface {
 type Client interface {
 	Root() string
 	Init() error
-	Fetch(revision string, depth int64) error
-	FetchPartial(revision string) error
+	Fetch(revision string, depth int64, usePartialClone bool) error
 	ConfigureSparseCheckout(paths []string) error
 	Submodule() error
 	Checkout(revision string, submoduleEnabled bool) (string, error)
@@ -460,17 +459,23 @@ func (m *nativeGitClient) IsLFSEnabled() bool {
 	return m.enableLfs
 }
 
-func (m *nativeGitClient) fetch(ctx context.Context, revision string, depth int64) error {
+func (m *nativeGitClient) fetch(ctx context.Context, revision string, depth int64, usePartialClone bool) error {
 	args := []string{"fetch", "origin"}
 	if revision != "" {
 		args = append(args, revision)
 	}
 
+	if usePartialClone {
+		args = append(args, "--filter=blob:none")
+	}
+
 	if depth > 0 {
 		args = append(args, "--depth", strconv.FormatInt(depth, 10))
-	} else {
+	} else if !usePartialClone {
+		// Only add --tags if we're doing a full fetch (no partial clone, no depth limit)
 		args = append(args, "--tags")
 	}
+
 	args = append(args, "--force", "--prune")
 	return m.runCredentialedCmd(ctx, args...)
 }
@@ -489,18 +494,22 @@ func (m *nativeGitClient) IsRevisionPresent(revision string) bool {
 	return false
 }
 
-// Fetch fetches latest updates from origin
-func (m *nativeGitClient) Fetch(revision string, depth int64) error {
+// Fetch fetches latest updates from origin.
+// If usePartialClone is true, uses --filter=blob:none for partial clone (downloads commits/trees but not blobs).
+// If depth > 0, uses --depth for shallow clone (limits history depth).
+// Both options can be used together for maximum bandwidth savings.
+func (m *nativeGitClient) Fetch(revision string, depth int64, usePartialClone bool) error {
 	if m.OnFetch != nil {
 		done := m.OnFetch(m.repoURL)
 		defer done()
 	}
 	ctx := context.Background()
 
-	err := m.fetch(ctx, revision, depth)
+	err := m.fetch(ctx, revision, depth, usePartialClone)
 
 	// When we have LFS support enabled, check for large files and fetch them too.
-	if err == nil && m.IsLFSEnabled() {
+	// Note: LFS and partial clone don't work well together, so we skip LFS fetch when using partial clone
+	if err == nil && m.IsLFSEnabled() && !usePartialClone {
 		largeFiles, err := m.LsLargeFiles()
 		if err == nil && len(largeFiles) > 0 {
 			err = m.runCredentialedCmd(ctx, "lfs", "fetch", "--all")
@@ -511,23 +520,6 @@ func (m *nativeGitClient) Fetch(revision string, depth int64) error {
 	}
 
 	return err
-}
-
-// FetchPartial fetches updates using partial clone (--filter=blob:none)
-// This downloads only commits and trees, not blobs, for minimal network transfer
-func (m *nativeGitClient) FetchPartial(revision string) error {
-	if m.OnFetch != nil {
-		done := m.OnFetch(m.repoURL)
-		defer done()
-	}
-	ctx := context.Background()
-
-	args := []string{"fetch", "origin", "--filter=blob:none", "--force", "--prune"}
-	if revision != "" {
-		args = append(args, revision)
-	}
-
-	return m.runCredentialedCmd(ctx, args...)
 }
 
 // ConfigureSparseCheckout configures git sparse-checkout with the given paths
