@@ -20,7 +20,7 @@ dex.config: |
       name: GitLab CI
       config:
         issuer: https://gitlab.com
-        # If using GitLab self-hosted Server, then use your GitLab issuer:
+        # If using GitLab self-hosted, then use your GitLab issuer
         scopes: [openid]
         userNameKey: sub
         insecureSkipEmailVerified: true
