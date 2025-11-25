@@ -421,10 +421,11 @@ func (proj AppProject) IsGroupKindPermitted(gk schema.GroupKind, namespaced bool
 // IsGroupKindVisible validates if the given resource group/kind is visible in the project
 func (proj AppProject) IsGroupKindVisible(gk schema.GroupKind, namespaced bool) bool {
 	permitted := proj.IsGroupKindPermitted(gk, namespaced)
-	res := metav1.GroupKind{Group: gk.Group, Kind: gk.Kind}
 	if permitted {
 		return true
 	}
+
+	res := metav1.GroupKind{Group: gk.Group, Kind: gk.Kind}
 
 	if namespaced {
 		return isResourceVisibleInBlacklist(res, proj.Spec.NamespaceResourceBlacklist)
