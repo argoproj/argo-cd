@@ -590,18 +590,19 @@ func NewProjectRemoveSourceNamespace(clientOpts *argocdclient.ClientOptions) *co
 	return command
 }
 
-func modifyResourcesList(list *[]metav1.GroupKind, add bool, listDesc string, group string, kind string) bool {
-	if add {
-		for _, item := range *list {
-			if item.Group == group && item.Kind == kind {
-				fmt.Printf("Group '%s' and kind '%s' already present in %s resources\n", group, kind, listDesc)
-				return false
-			}
+func addResourceToAllowList(list *[]metav1.GroupKind, listDesc string, group string, kind string) bool {
+	for _, item := range *list {
+		if item.Group == group && item.Kind == kind {
+			fmt.Printf("Group '%s' and kind '%s' already present in %s resources\n", group, kind, listDesc)
+			return false
 		}
-		fmt.Printf("Group '%s' and kind '%s' is added to %s resources\n", group, kind, listDesc)
-		*list = append(*list, metav1.GroupKind{Group: group, Kind: kind})
-		return true
 	}
+	fmt.Printf("Group '%s' and kind '%s' is added to %s resources\n", group, kind, listDesc)
+	*list = append(*list, metav1.GroupKind{Group: group, Kind: kind})
+	return true
+}
+
+func removeResourceFromAllowList(list *[]metav1.GroupKind, listDesc string, group string, kind string) bool {
 	index := -1
 	for i, item := range *list {
 		if item.Group == group && item.Kind == kind {
@@ -618,23 +619,7 @@ func modifyResourcesList(list *[]metav1.GroupKind, add bool, listDesc string, gr
 	return true
 }
 
-func modifyResourcesDenyList(list *[]v1alpha1.BlacklistEntry, add bool, visible bool, listDesc string, group string, kind string) bool {
-	if add {
-		for i, item := range *list {
-			if item.Group == group && item.Kind == kind {
-				if item.Visible == visible {
-					fmt.Printf("Group '%s' and kind '%s' already present in %s resources and visibility is %v\n", group, kind, listDesc, visible)
-					return false
-				}
-				(*list)[i].Visible = visible
-				fmt.Printf("Group '%s' and kind '%s' already present in %s resources. Updated visibility to %v\n", group, kind, listDesc, visible)
-				return true
-			}
-		}
-		fmt.Printf("Group '%s' and kind '%s' is added to %s resources with visibility %v\n", group, kind, listDesc, visible)
-		*list = append(*list, v1alpha1.BlacklistEntry{Group: group, Kind: kind, Visible: visible})
-		return true
-	}
+func removeResourceFromDenyList(list *[]v1alpha1.BlacklistEntry, visible bool, listDesc string, group string, kind string) bool {
 	index := -1
 	for i, item := range *list {
 		if item.Group == group && item.Kind == kind {
@@ -648,6 +633,23 @@ func modifyResourcesDenyList(list *[]v1alpha1.BlacklistEntry, add bool, visible 
 	}
 	*list = append((*list)[:index], (*list)[index+1:]...)
 	fmt.Printf("Group '%s' and kind '%s' is removed from %s resources\n", group, kind, listDesc)
+	return true
+}
+
+func addResourceToDenyList(list *[]v1alpha1.BlacklistEntry, visible bool, listDesc string, group string, kind string) bool {
+	for i, item := range *list {
+		if item.Group == group && item.Kind == kind {
+			if item.Visible == visible {
+				fmt.Printf("Group '%s' and kind '%s' already present in %s resources and visibility is %v\n", group, kind, listDesc, visible)
+				return false
+			}
+			(*list)[i].Visible = visible
+			fmt.Printf("Group '%s' and kind '%s' already present in %s resources. Updated visibility to %v\n", group, kind, listDesc, visible)
+			return true
+		}
+	}
+	fmt.Printf("Group '%s' and kind '%s' is added to %s resources with visibility %v\n", group, kind, listDesc, visible)
+	*list = append(*list, v1alpha1.BlacklistEntry{Group: group, Kind: kind, Visible: visible})
 	return true
 }
 
@@ -696,12 +698,28 @@ func modifyResourceListCmd(cmdUse, cmdDesc, examples string, clientOpts *argocdc
 			}
 
 			if (listType == "allow") || (listType == "white") {
-				if modifyResourcesList(allowList, allow, "allowed "+listDesc, group, kind) {
+				if allow {
+					if addResourceToAllowList(allowList, "allowed "+listDesc, group, kind) {
+						_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
+						errors.CheckError(err)
+					}
+					return
+				}
+
+				if removeResourceFromAllowList(allowList, "allowed "+listDesc, group, kind) {
 					_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
 					errors.CheckError(err)
 				}
 			} else {
-				if modifyResourcesDenyList(denyList, !allow, visible, "denied "+listDesc, group, kind) {
+				if allow {
+					if removeResourceFromDenyList(denyList, visible, "denied "+listDesc, group, kind) {
+						_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
+						errors.CheckError(err)
+					}
+					return
+				}
+
+				if addResourceToDenyList(denyList, visible, "denied "+listDesc, group, kind) {
 					_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
 					errors.CheckError(err)
 				}
