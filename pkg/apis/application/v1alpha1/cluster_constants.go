@@ -63,5 +63,5 @@ var (
 	K8sTCPIdleConnTimeout = env.ParseDurationFromEnv(EnvK8sTCPIdleConnTimeout, 5*time.Minute, 0, math.MaxInt32*time.Second)
 
 	// K8sServerSideTimeout defines which server side timeout to send with each API request
-	K8sServerSideTimeout = env.ParseDurationFromEnv(EnvK8sServerSideTimeout, 30*time.Second, 0, math.MaxInt32*time.Second)
+	K8sServerSideTimeout = env.ParseDurationFromEnv(EnvK8sServerSideTimeout, 0, 0, math.MaxInt32*time.Second)
 )
