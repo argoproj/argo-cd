@@ -185,28 +185,21 @@ func (s *Service) Init() error {
 		closer := s.gitRepoInitializer(fullPath)
 		if repo, err := gogit.PlainOpen(fullPath); err == nil {
 			if remotes, err := repo.Remotes(); err == nil && len(remotes) > 0 && len(remotes[0].Config().URLs) > 0 {
-				normalizedURL := git.NormalizeGitURL(remotes[0].Config().URLs[0])
-
-				// Try to extract sparse checkout paths to construct the same key that newClientWithPaths would use
+				var pathSHA string
 				sparsePaths, err := getSparseCheckoutPathsFromRepo(fullPath)
 				if err != nil {
 					log.Warnf("Failed to get sparse checkout paths from %s: %v", fullPath, err)
-
-					// Add discovered repo path using new cache structure
-					if err := s.addRepoPath(normalizedURL, "", fullPath); err != nil {
-						log.Warnf("Failed to add repo path for %s: %v", fullPath, err)
-					}
-				} else {
-					var pathSHA string
-					if len(sparsePaths) > 0 {
-						pathSHA = git.ComputePathHash(sparsePaths)
-					}
-
-					// Add discovered repo path using new cache structure
-					if err := s.addRepoPath(normalizedURL, pathSHA, fullPath); err != nil {
-						log.Warnf("Failed to add repo path for %s: %v", fullPath, err)
-					}
+				} else if len(sparsePaths) > 0 {
+					pathSHA = git.ComputePathHash(sparsePaths)
 				}
+
+				normalizedURL := git.NormalizeGitURL(remotes[0].Config().URLs[0])
+				keyData, err := json.Marshal(map[string]string{"url": normalizedURL, "pathSHA": pathSHA})
+				if err != nil {
+					log.Warnf("Failed to marshal repo URL cache string %s: %v", normalizedURL, err)
+				}
+
+				s.gitRepoPaths.Add(string(keyData), fullPath)
 			}
 		}
 		utilio.Close(closer)
@@ -1457,23 +1450,42 @@ func getResolvedValueFiles(
 
 func getResolvedRefValueFile(rawValueFile string, env *v1alpha1.Env, allowedValueFilesSchemas []string, refSourceRepo string, repo v1alpha1.Repository, gitRepoPaths utilio.TempPaths) (pathutil.ResolvedFilePath, error) {
 	pathStrings := strings.Split(rawValueFile, "/")
-	normalizedURL := git.NormalizeGitURL(refSourceRepo)
-	cacheValue := gitRepoPaths.GetPathIfExists(normalizedURL)
-	if cacheValue == "" {
-		return "", fmt.Errorf("failed to find repo %q", refSourceRepo)
-	}
+	/*
+		normalizedURL := git.NormalizeGitURL(refSourceRepo)
+		cacheValue := gitRepoPaths.GetPathIfExists(normalizedURL)
+		if cacheValue == "" {
+			return "", fmt.Errorf("failed to find repo %q", refSourceRepo)
+		}
 
-	var pathMap map[string]string
-	if err := json.Unmarshal([]byte(cacheValue), &pathMap); err != nil {
-		return "", fmt.Errorf("failed to unmarshal cache entry for %s: %w", normalizedURL, err)
-	}
+		var pathMap map[string]string
+		if err := json.Unmarshal([]byte(cacheValue), &pathMap); err != nil {
+			return "", fmt.Errorf("failed to unmarshal cache entry for %s: %w", normalizedURL, err)
+		}
 
-	var pathSHA string
+		var pathSHA string
+		if repo.EnablePartialClone && len(repo.SparsePaths) > 0 {
+			pathSHA = git.ComputePathHash(repo.SparsePaths)
+		}
+
+
+		repoPath := pathMap[pathSHA]
+	*/
+
+	var pathsSHA string
+
+	// We want a unique checkout per unique path permutation if partial clones are enabled and paths have been set.
+	// Otherwise we'll do a plain old checkout.
 	if repo.EnablePartialClone && len(repo.SparsePaths) > 0 {
-		pathSHA = git.ComputePathHash(repo.SparsePaths)
+		pathsSHA = git.ComputePathHash(repo.SparsePaths)
 	}
 
-	repoPath := pathMap[pathSHA]
+	normalizedURL := git.NormalizeGitURL(repo.Repo)
+	keyData, err := json.Marshal(map[string]string{"url": normalizedURL, "pathSHA": pathsSHA})
+	if err != nil {
+		log.Warnf("Failed to marshal repo URL cache string %s: %v", normalizedURL, err)
+	}
+
+	repoPath := gitRepoPaths.GetPathIfExists(string(keyData))
 
 	if repoPath == "" {
 		return "", fmt.Errorf("failed to find repo %q", refSourceRepo)
@@ -2625,97 +2637,23 @@ func fileParameters(q *apiclient.RepoServerAppDetailsQuery) []v1alpha1.HelmFileP
 	return q.Source.Helm.FileParameters
 }
 
-// getOrCreateRepoPath retrieves or creates a filesystem path for a repo with a specific pathSHA.
-// The cache is keyed by normalized URL, and the value is a JSON map of pathSHA -> filesystem path.
-// This allows multiple sparse checkout configurations of the same repo to coexist.
-func (s *Service) getOrCreateRepoPath(url string, pathSHA string) (string, error) {
-	// Get the current cache entry for this URL
-	normalizedURL := git.NormalizeGitURL(url)
-	cacheValue := s.gitRepoPaths.GetPathIfExists(normalizedURL)
-
-	var pathMap map[string]string
-	if cacheValue != "" {
-		// Parse existing cache entry
-		if err := json.Unmarshal([]byte(cacheValue), &pathMap); err != nil {
-			return "", fmt.Errorf("failed to unmarshal cache entry for %s: %w", normalizedURL, err)
-		}
-
-		// Check if we already have a path for this pathSHA
-		if repoPath, exists := pathMap[pathSHA]; exists {
-			return repoPath, nil
-		}
-	} else {
-		pathMap = make(map[string]string)
-	}
-
-	repoPath, err := s.gitRepoPaths.GeneratePath()
-	if err != nil {
-		return "", err
-	}
-
-	// Update our map and save back to cache
-	pathMap[pathSHA] = repoPath
-	updatedValue, err := json.Marshal(pathMap)
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal cache entry for %s: %w", normalizedURL, err)
-	}
-
-	s.gitRepoPaths.Add(normalizedURL, string(updatedValue))
-	return repoPath, nil
-}
-
-// addRepoPath adds a discovered repo path to the cache for a specific URL and pathSHA.
-func (s *Service) addRepoPath(url string, pathSHA string, repoPath string) error {
-	normalizedURL := git.NormalizeGitURL(url)
-	cacheValue := s.gitRepoPaths.GetPathIfExists(normalizedURL)
-
-	var pathMap map[string]string
-	if cacheValue != "" {
-		if err := json.Unmarshal([]byte(cacheValue), &pathMap); err != nil {
-			return fmt.Errorf("failed to unmarshal cache entry for %s: %w", normalizedURL, err)
-		}
-	} else {
-		pathMap = make(map[string]string)
-	}
-
-	pathMap[pathSHA] = repoPath
-	updatedValue, err := json.Marshal(pathMap)
-	if err != nil {
-		return fmt.Errorf("failed to marshal cache entry for %s: %w", normalizedURL, err)
-	}
-
-	s.gitRepoPaths.Add(normalizedURL, string(updatedValue))
-	return nil
-}
-
-// getRepoPathsForURL returns all filesystem paths for all sparse checkout variants of a given URL.
-// Returns a map of pathSHA -> filesystem path.
-func (s *Service) getRepoPathsForURL(url string) (map[string]string, error) {
-	normalizedURL := git.NormalizeGitURL(url)
-	cacheValue := s.gitRepoPaths.GetPathIfExists(normalizedURL)
-	if cacheValue == "" {
-		return nil, nil
-	}
-
-	var pathMap map[string]string
-	if err := json.Unmarshal([]byte(cacheValue), &pathMap); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal cache entry for %s: %w", normalizedURL, err)
-	}
-
-	return pathMap, nil
-}
-
 func (s *Service) newClient(repo *v1alpha1.Repository, opts ...git.ClientOpts) (git.Client, error) {
-	var pathSHA string
+	var pathsSHA string
 
 	// We want a unique checkout per unique path permutation if partial clones are enabled and paths have been set.
 	// Otherwise we'll do a plain old checkout.
 	if repo.EnablePartialClone && len(repo.SparsePaths) > 0 {
-		pathSHA = git.ComputePathHash(repo.SparsePaths)
+		pathsSHA = git.ComputePathHash(repo.SparsePaths)
 	}
 
 	normalizedURL := git.NormalizeGitURL(repo.Repo)
-	repoPath, err := s.getOrCreateRepoPath(normalizedURL, pathSHA)
+	keyData, err := json.Marshal(map[string]string{"url": normalizedURL, "pathSHA": pathsSHA})
+	if err != nil {
+		log.Warnf("Failed to marshal repo URL cache string %s: %v", normalizedURL, err)
+	}
+
+	repoPath, err := s.gitRepoPaths.GetPath(string(keyData))
+
 	if err != nil {
 		return nil, err
 	}
@@ -3062,90 +3000,53 @@ func (s *Service) GetGitFiles(_ context.Context, request *apiclient.GitFilesRequ
 		return nil, err
 	}
 
+	var pathsSHA string
+	if repo.EnablePartialClone && len(repo.SparsePaths) > 0 {
+		pathsSHA = git.ComputePathHash(repo.SparsePaths)
+	}
+
 	// check the cache and return the results if present
-	if cachedFiles, err := s.cache.GetGitFiles(repo.Repo, revision, gitPath); err == nil {
+	if cachedFiles, err := s.cache.GetGitFiles(repo.Repo, revision, pathsSHA, gitPath); err == nil {
 		log.Debugf("cache hit for repo: %s revision: %s pattern: %s", repo.Repo, revision, gitPath)
 		return &apiclient.GitFilesResponse{
 			Map: cachedFiles,
 		}, nil
 	}
 
-	// Try to fetch files from all cached sparse path permutations
-	pathMap, err := s.getRepoPathsForURL(repo.Repo)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "unable to get cached repo paths for %s: %v", repo.Repo, err)
-	}
-
-	if len(pathMap) == 0 {
-		// No cached paths found, return error
-		return nil, status.Errorf(codes.Internal, "no cached paths found for repo %s", repo.Repo)
-	}
-
 	s.metricsServer.IncPendingRepoRequest(repo.Repo)
 	defer s.metricsServer.DecPendingRepoRequest(repo.Repo)
 
-	mergedFiles := make(map[string][]byte)
-	var lastError error
-
-	// Iterate through each cached sparse path permutation
-	for pathSHA, fsPath := range pathMap {
-		// Create a git client for this filesystem path
-		gitClient, err = s.newGitClient(repo.Repo, fsPath, repo.GetGitCreds(s.gitCredsStore), repo.IsInsecure(), repo.EnableLFS, repo.Proxy, repo.NoProxy, git.WithEventHandlers(metrics.NewGitClientEventHandlers(s.metricsServer)))
-		if err != nil {
-			log.Warnf("failed to create git client for path %s (pathSHA: %s): %v", fsPath, pathSHA, err)
-			lastError = err
-			continue
-		}
-
-		// Acquire lock and checkout the revision
-		closer, err := s.repoLock.Lock(gitClient.Root(), revision, true, func() (goio.Closer, error) {
-			return s.checkoutRevision(gitClient, revision, request.SubmoduleEnabled, repo.Depth, repo.EnablePartialClone, repo.SparsePaths)
-		})
-		if err != nil {
-			log.Warnf("failed to checkout revision %s for path %s (pathSHA: %s): %v", revision, fsPath, pathSHA, err)
-			lastError = err
-			continue
-		}
-
-		// List files matching the pattern
-		gitFiles, err := gitClient.LsFiles(gitPath, enableNewGitFileGlobbing)
-		if err != nil {
-			utilio.Close(closer)
-			log.Warnf("failed to list files for path %s (pathSHA: %s): %v", fsPath, pathSHA, err)
-			lastError = err
-			continue
-		}
-
-		// Read file contents and add to merged result
-		for _, filePath := range gitFiles {
-			fileContents, err := os.ReadFile(filepath.Join(gitClient.Root(), filePath))
-			if err != nil {
-				log.Warnf("failed to read file %s from path %s (pathSHA: %s): %v", filePath, fsPath, pathSHA, err)
-				continue
-			}
-			// Add file to merged map (later permutations overwrite earlier ones if there are conflicts)
-			mergedFiles[filePath] = fileContents
-		}
-
-		utilio.Close(closer)
-		log.Debugf("collected %d files from sparse path permutation %s", len(gitFiles), pathSHA)
-	}
-
-	// If we failed to get files from all permutations, return an error
-	if len(mergedFiles) == 0 && lastError != nil {
-		return nil, status.Errorf(codes.Internal, "failed to fetch files from all permutations: %v", lastError)
-	}
-
-	log.Debugf("merged %d total files from %d sparse path permutations for repo %s", len(mergedFiles), len(pathMap), repo.Repo)
-
-	// Cache the merged result
-	err = s.cache.SetGitFiles(repo.Repo, revision, gitPath, mergedFiles)
+	// cache miss, generate the results
+	closer, err := s.repoLock.Lock(gitClient.Root(), revision, true, func() (goio.Closer, error) {
+		return s.checkoutRevision(gitClient, revision, request.GetSubmoduleEnabled(), repo.Depth, repo.EnablePartialClone, repo.SparsePaths)
+	})
 	if err != nil {
-		log.Warnf("error caching merged git files for repo %s with revision %s pattern %s: %v", repo.Repo, revision, gitPath, err)
+		return nil, status.Errorf(codes.Internal, "unable to checkout git repo %s with revision %s pattern %s: %v", repo.Repo, revision, gitPath, err)
+	}
+	defer utilio.Close(closer)
+
+	gitFiles, err := gitClient.LsFiles(gitPath, enableNewGitFileGlobbing)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "unable to list files. repo %s with revision %s pattern %s: %v", repo.Repo, revision, gitPath, err)
+	}
+	log.Debugf("listed %d git files from %s under %s", len(gitFiles), repo.Repo, gitPath)
+
+	res := make(map[string][]byte)
+	for _, filePath := range gitFiles {
+		fileContents, err := os.ReadFile(filepath.Join(gitClient.Root(), filePath))
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "unable to read files. repo %s with revision %s pattern %s: %v", repo.Repo, revision, gitPath, err)
+		}
+		res[filePath] = fileContents
+	}
+
+	err = s.cache.SetGitFiles(repo.Repo, revision, pathsSHA, gitPath, res)
+	if err != nil {
+		log.Warnf("error caching git files for repo %s with revision %s pattern %s: %v", repo.Repo, revision, gitPath, err)
 	}
 
 	return &apiclient.GitFilesResponse{
-		Map: mergedFiles,
+		Map: res,
 	}, nil
 }
 
@@ -3194,96 +3095,49 @@ func (s *Service) GetGitDirectories(_ context.Context, request *apiclient.GitDir
 		}, nil
 	}
 
-	// Try to fetch directories from all cached sparse path permutations
-	pathMap, err := s.getRepoPathsForURL(repo.Repo)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "unable to get cached repo paths for %s: %v", repo.Repo, err)
-	}
-
-	if len(pathMap) == 0 {
-		// No cached paths found, return error
-		return nil, status.Errorf(codes.Internal, "no cached paths found for repo %s", repo.Repo)
-	}
-
 	s.metricsServer.IncPendingRepoRequest(repo.Repo)
 	defer s.metricsServer.DecPendingRepoRequest(repo.Repo)
 
-	// Use a map to deduplicate directories from multiple permutations
-	mergedDirs := make(map[string]bool)
-	var lastError error
+	// cache miss, generate the results
+	closer, err := s.repoLock.Lock(gitClient.Root(), revision, true, func() (goio.Closer, error) {
+		return s.checkoutRevision(gitClient, revision, request.GetSubmoduleEnabled(), repo.Depth, repo.EnablePartialClone, repo.SparsePaths)
+	})
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "unable to checkout git repo %s with revision %s: %v", repo.Repo, revision, err)
+	}
+	defer utilio.Close(closer)
 
-	// Iterate through each cached sparse path permutation
-	for pathSHA, fsPath := range pathMap {
-		// Create a git client for this filesystem path
-		gitClient, err = s.newGitClient(repo.Repo, fsPath, repo.GetGitCreds(s.gitCredsStore), repo.IsInsecure(), repo.EnableLFS, repo.Proxy, repo.NoProxy, git.WithEventHandlers(metrics.NewGitClientEventHandlers(s.metricsServer)))
-		if err != nil {
-			log.Warnf("failed to create git client for path %s (pathSHA: %s): %v", fsPath, pathSHA, err)
-			lastError = err
-			continue
+	repoRoot := gitClient.Root()
+	var paths []string
+	if err := filepath.WalkDir(repoRoot, func(path string, entry fs.DirEntry, fnErr error) error {
+		if fnErr != nil {
+			return fmt.Errorf("error walking the file tree: %w", fnErr)
 		}
-
-		// Acquire lock and checkout the revision
-		closer, err := s.repoLock.Lock(gitClient.Root(), revision, true, func() (goio.Closer, error) {
-			return s.checkoutRevision(gitClient, revision, request.GetSubmoduleEnabled(), repo.Depth, repo.EnablePartialClone, repo.SparsePaths)
-		})
-		if err != nil {
-			log.Warnf("failed to checkout revision %s for path %s (pathSHA: %s): %v", revision, fsPath, pathSHA, err)
-			lastError = err
-			continue
-		}
-
-		// Walk directory tree and collect directories
-		repoRoot := gitClient.Root()
-		if err := filepath.WalkDir(repoRoot, func(path string, entry fs.DirEntry, fnErr error) error {
-			if fnErr != nil {
-				return fmt.Errorf("error walking the file tree: %w", fnErr)
-			}
-			if !entry.IsDir() { // Skip files: directories only
-				return nil
-			}
-
-			if !s.initConstants.IncludeHiddenDirectories && strings.HasPrefix(entry.Name(), ".") {
-				return filepath.SkipDir // Skip hidden directory
-			}
-
-			relativePath, err := filepath.Rel(repoRoot, path)
-			if err != nil {
-				return fmt.Errorf("error constructing relative repo path: %w", err)
-			}
-
-			if relativePath == "." { // Exclude '.' from results
-				return nil
-			}
-
-			// Add to merged directories (map automatically deduplicates)
-			mergedDirs[relativePath] = true
-
+		if !entry.IsDir() { // Skip files: directories only
 			return nil
-		}); err != nil {
-			utilio.Close(closer)
-			log.Warnf("failed to walk directories for path %s (pathSHA: %s): %v", fsPath, pathSHA, err)
-			lastError = err
-			continue
 		}
 
-		utilio.Close(closer)
-		log.Debugf("collected %d directories from path permutation %s", len(mergedDirs), pathSHA)
+		if !s.initConstants.IncludeHiddenDirectories && strings.HasPrefix(entry.Name(), ".") {
+			return filepath.SkipDir // Skip hidden directory
+		}
+
+		relativePath, err := filepath.Rel(repoRoot, path)
+		if err != nil {
+			return fmt.Errorf("error constructing relative repo path: %w", err)
+		}
+
+		if relativePath == "." { // Exclude '.' from results
+			return nil
+		}
+
+		paths = append(paths, relativePath)
+
+		return nil
+	}); err != nil {
+		return nil, err
 	}
 
-	// If we failed to get directories from all permutations, return an error
-	if len(mergedDirs) == 0 && lastError != nil {
-		return nil, status.Errorf(codes.Internal, "failed to fetch directories from all permutations: %v", lastError)
-	}
-
-	// Convert map to slice
-	paths := make([]string, 0, len(mergedDirs))
-	for path := range mergedDirs {
-		paths = append(paths, path)
-	}
-
-	log.Debugf("merged %d total directories from %d path permutations for repo %s", len(paths), len(pathMap), repo.Repo)
-
-	// Cache the merged result
+	log.Debugf("found %d git paths from %s", len(paths), repo.Repo)
 	err = s.cache.SetGitDirectories(repo.Repo, revision, paths)
 	if err != nil {
 		log.Warnf("error caching git directories for repo %s with revision %s: %v", repo.Repo, revision, err)
@@ -3338,7 +3192,7 @@ func (s *Service) UpdateRevisionForPaths(_ context.Context, request *apiclient.U
 	defer s.metricsServer.DecPendingRepoRequest(repo.Repo)
 
 	closer, err := s.repoLock.Lock(gitClient.Root(), revision, true, func() (goio.Closer, error) {
-		return s.checkoutRevision(gitClient, revision, false, 0, true, refreshPaths)
+		return s.checkoutRevision(gitClient, revision, false, repo.Depth, repo.EnablePartialClone, repo.SparsePaths)
 	})
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "unable to checkout git repo %s with revision %s: %v", repo.Repo, revision, err)

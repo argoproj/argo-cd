@@ -9,7 +9,6 @@ import (
 
 type TempPaths interface {
 	Add(key string, value string)
-	GeneratePath() (string, error)
 	GetPath(key string) (string, error)
 	GetPathIfExists(key string) string
 	GetPaths() map[string]string
@@ -42,20 +41,13 @@ func (p *RandomizedTempPaths) GetPath(key string) (string, error) {
 	if val, ok := p.paths[key]; ok {
 		return val, nil
 	}
-	repoPath, err := p.GeneratePath()
-	if err != nil {
-		return "", err
-	}
-	p.paths[key] = repoPath
-	return repoPath, nil
-}
-
-func (p *RandomizedTempPaths) GeneratePath() (string, error) {
 	uniqueId, err := uuid.NewRandom()
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(p.root, uniqueId.String()), nil
+	repoPath := filepath.Join(p.root, uniqueId.String())
+	p.paths[key] = repoPath
+	return repoPath, nil
 }
 
 // GetPathIfExists gets a path for the given key if it exists. Otherwise, returns an empty string.
