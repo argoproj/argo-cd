@@ -47,8 +47,8 @@ data:
 ## Accessing Optional Manifest Sections and Fields
 
 Note that in the trigger example above, the `?.` (optional chaining) operator is used to access the Application's
-`status.operationState` section. This section is optional; it's empty when an operation has been initiated but has not yet started
-by the Application Controller.
+`status.operationState` section. This section is optional; it is not present when an operation has been initiated but has not yet
+started by the Application Controller.
 
 If the `?.` operator were not used, `status.operationState` would resolve to `nil` and the evaluation of the
 `app.status.operationState.phase` expression would fail.  The `app.status?.operationState.phase` expression is equivalent to
