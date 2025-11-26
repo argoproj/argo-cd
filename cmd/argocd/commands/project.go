@@ -714,11 +714,11 @@ func modifyResourceListCmd(cmdUse, cmdDesc, examples string, clientOpts *argocdc
 				} else {
 					*denyList, updated = addResourceToDenyList(*denyList, visible, "denied "+listDesc, group, kind)
 				}
+			}
 
-				if updated {
-					_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
-					errors.CheckError(err)
-				}
+			if updated {
+				_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
+				errors.CheckError(err)
 			}
 		},
 	}
