@@ -572,14 +572,7 @@ func resolveReferencedSources(ctx context.Context, hasMultipleSources bool, sour
 			return nil, errors.New("source has a 'chart' field defined, but Helm charts are not yet supported for Git 'ref' sources")
 		}
 
-		var normalizedRepoURL string
-		if v1alpha1.IsOCIURL(refSourceMapping.Repo.Repo) {
-			// For OCI repositories, use the URL as-is without normalization
-			normalizedRepoURL = refSourceMapping.Repo.Repo
-		} else {
-			// For Git repositories, normalize the URL
-			normalizedRepoURL = git.NormalizeGitURL(refSourceMapping.Repo.Repo)
-		}
+		normalizedRepoURL := git.NormalizeGitURL(refSourceMapping.Repo.Repo)
 
 		_, ok = repoRefs[normalizedRepoURL]
 		if !ok {
