@@ -1554,8 +1554,6 @@ func getResolvedOCIRefValueFile(
 	refSourceRepo string,
 	ociPaths utilio.TempPaths,
 ) (pathutil.ResolvedFilePath, error) {
-	pathStrings := strings.Split(rawValueFile, "/")
-
 	// Get the OCI path from the ociPaths
 	ociPath := ociPaths.GetPathIfExists(refSourceRepo)
 	if ociPath == "" {
@@ -1563,6 +1561,10 @@ func getResolvedOCIRefValueFile(
 	}
 
 	// Remove first segment (the ref variable name) and resolve the path
+	pathStrings := strings.Split(rawValueFile, "/")
+	if len(pathStrings) == 0 {
+		return "", fmt.Errorf("invalid OCI value file path %q: path is empty", rawValueFile)
+	}
 	pathStrings[0] = "" // Remove first segment. It will be inserted by pathutil.ResolveValueFilePathOrUrl.
 	substitutedPath := strings.Join(pathStrings, "/")
 
