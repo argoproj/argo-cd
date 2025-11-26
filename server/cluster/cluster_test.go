@@ -300,12 +300,18 @@ func TestGetCluster_UrlEncodedNameClustersWithSameServer(t *testing.T) {
 		Server:     "https://127.0.0.1",
 		Namespaces: []string{"default", "kube-system"},
 	}
+	mockCluster4th := appv1.Cluster{
+		Name:       "testing4th",
+		Server:     "https://127.0.0.1",
+		Namespaces: []string{"default", "kube-system"},
+	}
 	mockClusterList := appv1.ClusterList{
 		ListMeta: metav1.ListMeta{},
 		Items: []appv1.Cluster{
 			mockCluster,
 			mockCluster2nd,
 			mockCluster3rd,
+			mockCluster4th,
 		},
 	}
 
