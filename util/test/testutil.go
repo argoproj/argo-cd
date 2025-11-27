@@ -278,11 +278,20 @@ func generateJWTToken(issuer string) (string, error) {
 }
 
 type LogHook struct {
-	Entries []log.Entry
+	Entries  []log.Entry
+	minLevel log.Level
+}
+
+func NewLogHook(minLevel log.Level) *LogHook {
+	return &LogHook{minLevel: minLevel}
 }
 
 func (h *LogHook) Levels() []log.Level {
-	return []log.Level{log.WarnLevel}
+	var levels []log.Level
+	for i := log.PanicLevel; i <= h.minLevel; i++ {
+		levels = append(levels, i)
+	}
+	return levels
 }
 
 func (h *LogHook) Fire(entry *log.Entry) error {
