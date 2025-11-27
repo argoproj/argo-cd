@@ -1,3 +1,31 @@
+discoveryTests:
+  - inputPath: testdata/scaledobject.yaml
+    result:
+      - name: pause
+        disabled: false
+      - name: resume
+        disabled: true
+      - name: paused-replicas
+        disabled: false
+  
+  - inputPath: testdata/scaledobject-pause.yaml
+    result:
+      - name: pause
+        disabled: true
+      - name: resume
+        disabled: false
+      - name: paused-replicas
+        disabled: false
+  
+  - inputPath: testdata/scaledobject-paused-replicas.yaml
+    result:
+      - name: pause
+        disabled: true
+      - name: resume
+        disabled: false
+      - name: paused-replicas
+        disabled: false
+
 actionTests:
   - action: pause
     inputPath: testdata/scaledobject.yaml
