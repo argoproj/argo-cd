@@ -3,20 +3,35 @@ discoveryTests:
     result:
       - name: pause
         disabled: false
+        iconClass: fa fa-fw fa-pause-circle
       - name: resume
         disabled: true
-  
+        iconClass: fa fa-fw fa-play-circle
+
   - inputPath: testdata/scaledjob-pause.yaml
     result:
       - name: pause
         disabled: true
+        iconClass: fa fa-fw fa-pause-circle
       - name: resume
         disabled: false
+        iconClass: fa fa-fw fa-play-circle
+
+  - inputPath: testdata/scaledjob-resume.yaml
+    result:
+      - name: pause
+        disabled: false
+        iconClass: fa fa-fw fa-pause-circle
+      - name: resume
+        disabled: true
+        iconClass: fa fa-fw fa-play-circle
 
 actionTests:
   - action: pause
     inputPath: testdata/scaledjob.yaml
     expectedOutputPath: testdata/scaledjob-pause.yaml
+
   - action: resume
     inputPath: testdata/scaledjob-pause.yaml
     expectedOutputPath: testdata/scaledjob-resume.yaml
+
