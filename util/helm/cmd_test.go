@@ -12,9 +12,9 @@ import (
 )
 
 func Test_cmd_redactor(t *testing.T) {
-	require.Equal(t, "--foo bar", redactor("--foo bar"))
-	require.Equal(t, "--username ******", redactor("--username bar"))
-	require.Equal(t, "--password ******", redactor("--password bar"))
+	assert.Equal(t, "--foo bar", redactor("--foo bar"))
+	assert.Equal(t, "--username ******", redactor("--username bar"))
+	assert.Equal(t, "--password ******", redactor("--password bar"))
 }
 
 func TestCmd_template_kubeVersion(t *testing.T) {
@@ -24,7 +24,7 @@ func TestCmd_template_kubeVersion(t *testing.T) {
 		KubeVersion: "1.14",
 	})
 	require.NoError(t, err)
-	require.NotEmpty(t, s)
+	assert.NotEmpty(t, s)
 }
 
 func TestCmd_template_noApiVersionsInError(t *testing.T) {
