@@ -2,6 +2,8 @@ import {DataLoader, DropDownMenu} from 'argo-ui';
 
 import * as React from 'react';
 import ReactPaginate from 'react-paginate';
+import {combineLatest} from 'rxjs';
+import {map} from 'rxjs/operators';
 import {services} from '../../services';
 
 require('./paginate.scss');
@@ -25,10 +27,26 @@ export interface PaginateProps<T> {
 
 export function Paginate<T>({page, onPageChange, children, data, emptyState, preferencesKey, header, showHeader, sortOptions}: PaginateProps<T>) {
     return (
-        <DataLoader load={() => services.viewPreferences.getPreferences()}>
-            {pref => {
+        <DataLoader
+            load={() =>
+                combineLatest([services.viewPreferences.getPreferences(), services.authService.settings()]).pipe(
+                    map(items => ({
+                        pref: items[0],
+                        authSettings: items[1]
+                    }))
+                )
+            }>
+            {({pref, authSettings}) => {
                 preferencesKey = preferencesKey || 'default';
-                const pageSize = pref.pageSizes[preferencesKey] || 10;
+                let pageSize = pref.pageSizes[preferencesKey] || 10;
+                
+                // If "all" option is disabled but user has "all" selected, reset to default (20)
+                if (authSettings?.uiPaginateAllDisabled && pageSize === -1) {
+                    pageSize = 20;
+                    pref.pageSizes[preferencesKey] = 20;
+                    services.viewPreferences.updatePreferences(pref);
+                }
+                
                 const sortOption = sortOptions ? (pref.sortOptions && pref.sortOptions[preferencesKey]) || sortOptions[0].title : '';
                 const pageCount = pageSize === -1 ? 1 : Math.ceil(data.length / pageSize);
                 if (pageCount <= page) {
@@ -79,7 +97,7 @@ export function Paginate<T>({page, onPageChange, children, data, emptyState, pre
                                                 Items per page: {pageSize === -1 ? 'all' : pageSize} <i className='fa fa-caret-down' />
                                             </a>
                                         )}
-                                        items={[5, 10, 15, 20, -1].map(count => ({
+                                        items={(authSettings?.uiPaginateAllDisabled ? [5, 10, 15, 20] : [5, 10, 15, 20, -1]).map(count => ({
                                             title: count === -1 ? 'all' : count.toString(),
                                             action: () => {
                                                 pref.pageSizes[preferencesKey] = count;

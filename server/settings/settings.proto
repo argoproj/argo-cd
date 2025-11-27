@@ -47,6 +47,7 @@ message Settings {
     repeated string additionalUrls = 27 [(gogoproto.customname) = "AdditionalURLs"];
     bool hydratorEnabled = 28;
     bool syncWithReplaceAllowed = 29;
+    bool uiPaginateAllDisabled = 30;
 }
 
 message GoogleAnalyticsConfig {

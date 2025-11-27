@@ -118,3 +118,26 @@ data:
 ```
 
 ![banner with link](../assets/banner.png)
+
+## Disabling "All" Option in Items Per Page
+
+For large ArgoCD instances with thousands of applications, allowing users to select "all" items per page can cause significant UI performance issues. You can disable the "all" option from the items per page dropdown by setting `ui.paginateAllEnabled` to `false` in the `argocd-cm` ConfigMap.
+
+### argocd-cm
+```yaml
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  ...
+  name: argocd-cm
+data:
+  ui.paginateAllDisabled: "true"
+```
+
+When set to `"true"` (`ui.paginateAllDisabled: "true"`):
+- The items per page dropdown will only show: 5, 10, 15, 20
+- Users who previously selected "all" will be automatically reset to 20 items per page
+- This helps prevent performance issues in environments with many applications (e.g., 5000+ apps)
+
+By default (when not set), the "all" option is shown.
