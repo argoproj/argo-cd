@@ -99,14 +99,54 @@ func TestPolicyMatching(t *testing.T) {
 		Policies: []*SourceIntegrityGitPolicy{eitherOr, group, prefix},
 	}
 
-	assert.Equal(t, p(eitherOr, group, prefix), sig.findMatchingPolicies("https://github.com/group/either.git"))
-	assert.Equal(t, p(eitherOr, group, prefix), sig.findMatchingPolicies("https://github.com/group/or.git"))
+	testCases := []struct {
+		repo             string
+		expectedPolicies []*SourceIntegrityGitPolicy
+		expectedLogs     []string
+	}{
+		{
+			repo:             "https://github.com/group/either.git",
+			expectedPolicies: p(eitherOr, group, prefix),
+			expectedLogs:     []string{"Multiple (3) policies found for repo URL: https://github.com/group/either.git. Using the first matching one"},
+		},
+		{
+			repo:             "https://github.com/group/or.git",
+			expectedPolicies: p(eitherOr, group, prefix),
+			expectedLogs:     []string{"Multiple (3) policies found for repo URL: https://github.com/group/or.git. Using the first matching one"},
+		},
+		{
+			repo:             "https://github.com/group/fork.git",
+			expectedPolicies: p(group, prefix),
+			expectedLogs:     []string{"Multiple (2) policies found for repo URL: https://github.com/group/fork.git. Using the first matching one"},
+		}, {
+			repo:             "https://github.com/grouplette/main.git",
+			expectedPolicies: p(prefix),
+		}, {
+			repo:             "https://gitlab.com/foo/bar.git",
+			expectedPolicies: p(),
+			expectedLogs:     []string{"No policies found for repo URL: https://gitlab.com/foo/bar.git"},
+		},
+	}
 
-	assert.Equal(t, p(group, prefix), sig.findMatchingPolicies("https://github.com/group/fork.git"))
+	for _, tt := range testCases {
+		t.Run(tt.repo, func(t *testing.T) {
+			actual := sig.findMatchingPolicies(tt.repo)
 
-	assert.Equal(t, p(prefix), sig.findMatchingPolicies("https://github.com/grouplette/main.git"))
+			assert.Equal(t, tt.expectedPolicies, actual)
 
-	assert.Equal(t, p(), sig.findMatchingPolicies("https://gitlab.com/foo/bar.git"))
+			hook := utilTest.NewLogHook(logrus.TraceLevel)
+			logrus.AddHook(hook)
+			defer hook.CleanupHook()
+			si := SourceIntegrity{Git: sig}
+			forGitFunc := si.ForGit(tt.repo)
+			if len(tt.expectedPolicies) > 0 {
+				assert.NotNil(t, forGitFunc)
+			} else {
+				assert.Nil(t, forGitFunc)
+			}
+			assert.Equal(t, tt.expectedLogs, hook.GetEntries())
+		})
+	}
 }
 
 func TestGPGHeadValid(t *testing.T) {

@@ -2857,11 +2857,11 @@ func (s *Service) GetGitFiles(_ context.Context, request *apiclient.GitFilesRequ
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "unable to resolve git revision %s: %v", revision, err)
 	}
+
 	sourceIntegrityResult, err := request.SourceIntegrity.ForGit(request.Repo.Repo).Verify(gitClient, revision)
 	if err != nil {
 		return nil, err
 	}
-
 	if sourceIntegrityResult != nil && !sourceIntegrityResult.IsValid() {
 		return nil, sourceIntegrityResult.Error()
 	}
