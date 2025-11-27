@@ -460,7 +460,7 @@ const (
 	// settingsWebhookMaxPayloadSize is the key for the maximum payload size for webhooks in MB
 	settingsWebhookMaxPayloadSizeMB = "webhook.maxPayloadSizeMB"
 	// settingsWebhookRefreshJitter is the key for the maximum jitter duration for webhook-triggered refreshes
-	settingsWebhookRefreshJitter = "webhook.jitter"
+	settingsWebhookRefreshJitter = "webhook.reconciliation.jitter"
 	// settingsApplicationInstanceLabelKey is the key to configure injected app instance label key
 	settingsApplicationInstanceLabelKey = "application.instanceLabelKey"
 	// settingsResourceTrackingMethodKey is the key to configure tracking method for application resources

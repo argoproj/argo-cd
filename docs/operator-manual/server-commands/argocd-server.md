@@ -115,6 +115,7 @@ argocd-server [flags]
       --user string                                     The name of the kubeconfig user to use
       --username string                                 Username for basic authentication to the API server
       --webhook-parallelism-limit int                   Number of webhook requests processed concurrently (default 50)
+      --webhook-refresh-workers int                     Number of webhook refresh requests processed concurrently (default 20)
       --x-frame-options value                           Set X-Frame-Options header in HTTP responses to value. To disable, set to "". (default "sameorigin")
 ```
 
