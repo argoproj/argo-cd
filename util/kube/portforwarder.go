@@ -18,7 +18,7 @@ import (
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/podutils"
 
-	"github.com/argoproj/argo-cd/v3/util/io"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
 )
 
 func selectPodForPortForward(clientSet kubernetes.Interface, namespace string, podSelectors ...string) (*corev1.Pod, error) {
@@ -40,6 +40,7 @@ func selectPodForPortForward(clientSet kubernetes.Interface, namespace string, p
 }
 
 func PortForward(targetPort int, namespace string, overrides *clientcmd.ConfigOverrides, podSelectors ...string) (int, error) {
+	ctx := context.Background()
 	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
 	loadingRules.DefaultClientConfig = &clientcmd.DefaultClientConfig
 	clientConfig := clientcmd.NewInteractiveDeferredLoadingClientConfig(loadingRules, overrides, os.Stdin)
@@ -93,13 +94,14 @@ func PortForward(targetPort int, namespace string, overrides *clientcmd.ConfigOv
 	failedChan := make(chan error, 1)
 	out := new(bytes.Buffer)
 	errOut := new(bytes.Buffer)
+	lc := &net.ListenConfig{}
 
-	ln, err := net.Listen("tcp", "localhost:0")
+	ln, err := lc.Listen(ctx, "tcp", "localhost:0")
 	if err != nil {
 		return -1, err
 	}
 	port := ln.Addr().(*net.TCPAddr).Port
-	io.Close(ln)
+	utilio.Close(ln)
 	forwarder, err := portforward.NewOnAddresses(dialer, []string{"localhost"}, []string{fmt.Sprintf("%d:%d", port, targetPort)}, context.Background().Done(), readyChan, out, errOut)
 	if err != nil {
 		return -1, err
@@ -116,7 +118,7 @@ func PortForward(targetPort int, namespace string, overrides *clientcmd.ConfigOv
 		return -1, err
 	case <-readyChan:
 	}
-	if len(errOut.String()) != 0 {
+	if errOut.String() != "" {
 		return -1, fmt.Errorf("%s", errOut.String())
 	}
 	return port, nil

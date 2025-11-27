@@ -24,8 +24,6 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/util/cache/appstate"
-	claimsutil "github.com/argoproj/argo-cd/v3/util/claims"
 	"github.com/argoproj/argo-cd/v3/util/dex"
 	"github.com/argoproj/argo-cd/v3/util/env"
 	httputil "github.com/argoproj/argo-cd/v3/util/http"
@@ -45,6 +43,7 @@ type SessionManager struct {
 	sleep                         func(d time.Duration)
 	verificationDelayNoiseEnabled bool
 	failedLock                    sync.RWMutex
+	metricsRegistry               MetricsRegistry
 }
 
 // LoginAttempts is a timestamped counter for failed login attempts
@@ -53,6 +52,10 @@ type LoginAttempts struct {
 	LastFailed time.Time `json:"lastFailed"`
 	// Number of consecutive login failures
 	FailCount int `json:"failCount"`
+}
+
+type MetricsRegistry interface {
+	IncLoginRequestCounter(status string)
 }
 
 const (
@@ -159,14 +162,12 @@ func NewSessionManager(settingsMgr *settings.SettingsManager, projectsLister v1a
 // The id parameter holds an optional unique JWT token identifier and stored as a standard claim "jti" in the JWT token.
 func (mgr *SessionManager) Create(subject string, secondsBeforeExpiry int64, id string) (string, error) {
 	now := time.Now().UTC()
-	claims := claimsutil.ArgoClaims{
-		RegisteredClaims: jwt.RegisteredClaims{
-			IssuedAt:  jwt.NewNumericDate(now),
-			Issuer:    SessionManagerClaimsIssuer,
-			NotBefore: jwt.NewNumericDate(now),
-			Subject:   subject,
-			ID:        id,
-		},
+	claims := jwt.RegisteredClaims{
+		IssuedAt:  jwt.NewNumericDate(now),
+		Issuer:    SessionManagerClaimsIssuer,
+		NotBefore: jwt.NewNumericDate(now),
+		Subject:   subject,
+		ID:        id,
 	}
 	if secondsBeforeExpiry > 0 {
 		expires := now.Add(time.Duration(secondsBeforeExpiry) * time.Second)
@@ -174,6 +175,20 @@ func (mgr *SessionManager) Create(subject string, secondsBeforeExpiry int64, id 
 	}
 
 	return mgr.signClaims(claims)
+}
+
+func (mgr *SessionManager) CollectMetrics(registry MetricsRegistry) {
+	mgr.metricsRegistry = registry
+	if mgr.metricsRegistry == nil {
+		log.Warn("Metrics registry is not set, metrics will not be collected")
+		return
+	}
+}
+
+func (mgr *SessionManager) IncLoginRequestCounter(status string) {
+	if mgr.metricsRegistry != nil {
+		mgr.metricsRegistry.IncLoginRequestCounter(status)
+	}
 }
 
 func (mgr *SessionManager) signClaims(claims jwt.Claims) (string, error) {
@@ -222,17 +237,13 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, string, error)
 	if err != nil {
 		return nil, "", err
 	}
-	argoClaims, err := claimsutil.MapClaimsToArgoClaims(claims)
-	if err != nil {
-		return nil, "", err
-	}
 
 	issuedAt, err := jwtutil.IssuedAtTime(claims)
 	if err != nil {
 		return nil, "", err
 	}
 
-	subject := argoClaims.GetUserIdentifier()
+	subject := jwtutil.GetUserIdentifier(claims)
 	id := jwtutil.StringField(claims, "jti")
 
 	if projName, role, ok := rbacpolicy.GetProjectRoleFromSubject(subject); ok {
@@ -293,16 +304,7 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, string, error)
 // GetLoginFailures retrieves the login failure information from the cache. Any modifications to the LoginAttemps map must be done in a thread-safe manner.
 func (mgr *SessionManager) GetLoginFailures() map[string]LoginAttempts {
 	// Get failures from the cache
-	var failures map[string]LoginAttempts
-	err := mgr.storage.GetLoginAttempts(&failures)
-	if err != nil {
-		if !errors.Is(err, appstate.ErrCacheMiss) {
-			log.Errorf("Could not retrieve login attempts: %v", err)
-		}
-		failures = make(map[string]LoginAttempts)
-	}
-
-	return failures
+	return mgr.storage.GetLoginAttempts()
 }
 
 func expireOldFailedAttempts(maxAge time.Duration, failures map[string]LoginAttempts) int {
@@ -478,48 +480,62 @@ func (mgr *SessionManager) VerifyUsernamePassword(username string, password stri
 
 // AuthMiddlewareFunc returns a function that can be used as an
 // authentication middleware for HTTP requests.
-func (mgr *SessionManager) AuthMiddlewareFunc(disabled bool) func(http.Handler) http.Handler {
+func (mgr *SessionManager) AuthMiddlewareFunc(disabled bool, isSSOConfigured bool, ssoClientApp *oidcutil.ClientApp) func(http.Handler) http.Handler {
 	return func(h http.Handler) http.Handler {
-		return WithAuthMiddleware(disabled, mgr, h)
+		return WithAuthMiddleware(disabled, isSSOConfigured, ssoClientApp, mgr, h)
 	}
 }
 
 // TokenVerifier defines the contract to invoke token
 // verification logic
 type TokenVerifier interface {
-	VerifyToken(token string) (jwt.Claims, string, error)
+	VerifyToken(ctx context.Context, token string) (jwt.Claims, string, error)
 }
 
 // WithAuthMiddleware is an HTTP middleware used to ensure incoming
 // requests are authenticated before invoking the target handler. If
 // disabled is true, it will just invoke the next handler in the chain.
-func WithAuthMiddleware(disabled bool, authn TokenVerifier, next http.Handler) http.Handler {
+func WithAuthMiddleware(disabled bool, isSSOConfigured bool, ssoClientApp *oidcutil.ClientApp, authn TokenVerifier, next http.Handler) http.Handler {
+	if disabled {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			next.ServeHTTP(w, r)
+		})
+	}
+
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !disabled {
-			cookies := r.Cookies()
-			tokenString, err := httputil.JoinCookies(common.AuthCookieName, cookies)
-			if err != nil {
-				http.Error(w, "Auth cookie not found", http.StatusBadRequest)
-				return
-			}
-			claims, _, err := authn.VerifyToken(tokenString)
-			if err != nil {
-				http.Error(w, "Invalid token", http.StatusUnauthorized)
-				return
-			}
-			ctx := r.Context()
-			// Add claims to the context to inspect for RBAC
-			//nolint:staticcheck
-			ctx = context.WithValue(ctx, "claims", claims)
-			r = r.WithContext(ctx)
+		cookies := r.Cookies()
+		ctx := r.Context()
+		tokenString, err := httputil.JoinCookies(common.AuthCookieName, cookies)
+		if err != nil {
+			http.Error(w, "Auth cookie not found", http.StatusBadRequest)
+			return
 		}
+		claims, _, err := authn.VerifyToken(ctx, tokenString)
+		if err != nil {
+			http.Error(w, "Invalid token", http.StatusUnauthorized)
+			return
+		}
+
+		finalClaims := claims
+		if isSSOConfigured {
+			finalClaims, err = ssoClientApp.SetGroupsFromUserInfo(ctx, claims, SessionManagerClaimsIssuer)
+			if err != nil {
+				http.Error(w, "Invalid session", http.StatusUnauthorized)
+				return
+			}
+		}
+		// Add claims to the context to inspect for RBAC
+		//nolint:staticcheck
+		ctx = context.WithValue(ctx, "claims", finalClaims)
+		r = r.WithContext(ctx)
+
 		next.ServeHTTP(w, r)
 	})
 }
 
 // VerifyToken verifies if a token is correct. Tokens can be issued either from us or by an IDP.
 // We choose how to verify based on the issuer.
-func (mgr *SessionManager) VerifyToken(tokenString string) (jwt.Claims, string, error) {
+func (mgr *SessionManager) VerifyToken(ctx context.Context, tokenString string) (jwt.Claims, string, error) {
 	parser := jwt.NewParser(jwt.WithoutClaimsValidation())
 	claims := jwt.MapClaims{}
 	_, _, err := parser.ParseUnverified(tokenString, &claims)
@@ -547,12 +563,12 @@ func (mgr *SessionManager) VerifyToken(tokenString string) (jwt.Claims, string, 
 			return nil, "", errors.New("settings are not available while verifying the token")
 		}
 
-		idToken, err := prov.Verify(tokenString, argoSettings)
+		idToken, err := prov.Verify(ctx, tokenString, argoSettings)
 		// The token verification has failed. If the token has expired, we will
 		// return a dummy claims only containing a value for the issuer, so the
 		// UI can handle expired tokens appropriately.
 		if err != nil {
-			log.Warnf("Failed to verify token: %s", err)
+			log.Warnf("Failed to verify session token: %s", err)
 			tokenExpiredError := &oidc.TokenExpiredError{}
 			if errors.As(err, &tokenExpiredError) {
 				claims = jwt.MapClaims{
@@ -597,18 +613,19 @@ func LoggedIn(ctx context.Context) bool {
 
 // Username is a helper to extract a human readable username from a context
 func Username(ctx context.Context) string {
-	argoClaims, ok := argoClaims(ctx)
+	mapClaims, ok := mapClaims(ctx)
 	if !ok {
 		return ""
 	}
-	switch argoClaims.Issuer {
+	switch jwtutil.StringField(mapClaims, "iss") {
 	case SessionManagerClaimsIssuer:
-		return argoClaims.GetUserIdentifier()
+		return jwtutil.GetUserIdentifier(mapClaims)
 	default:
-		if argoClaims.Email != "" {
-			return argoClaims.Email
+		e := jwtutil.StringField(mapClaims, "email")
+		if e != "" {
+			return e
 		}
-		return argoClaims.GetUserIdentifier()
+		return jwtutil.GetUserIdentifier(mapClaims)
 	}
 }
 
@@ -634,11 +651,7 @@ func GetUserIdentifier(ctx context.Context) string {
 	if !ok {
 		return ""
 	}
-	argoClaims, err := claimsutil.MapClaimsToArgoClaims(mapClaims)
-	if err != nil {
-		return ""
-	}
-	return argoClaims.GetUserIdentifier()
+	return jwtutil.GetUserIdentifier(mapClaims)
 }
 
 func Groups(ctx context.Context, scopes []string) []string {
@@ -659,16 +672,4 @@ func mapClaims(ctx context.Context) (jwt.MapClaims, bool) {
 		return nil, false
 	}
 	return mapClaims, true
-}
-
-func argoClaims(ctx context.Context) (*claimsutil.ArgoClaims, bool) {
-	mapClaims, ok := mapClaims(ctx)
-	if !ok {
-		return nil, false
-	}
-	argoClaims, err := claimsutil.MapClaimsToArgoClaims(mapClaims)
-	if err != nil {
-		return nil, false
-	}
-	return argoClaims, true
 }

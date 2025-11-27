@@ -13,6 +13,10 @@
     &__item {
         display: flex;
         flex-direction: column;
+        &__small {
+            font-size: 14px;
+            margin-bottom: 3px;
+        }
     }
 
     &__actions {
@@ -45,5 +49,30 @@
 @media screen and (min-width: calc(map-get($breakpoints, xxlarge) - 1px)) {
     .custom-tooltip {
         display: none !important;
+    }
+}
+
+.applications-list__external-link {
+    align-items: center;
+    display: flex;
+    
+    button {
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 0;
+        margin: 0;
+        color: inherit;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        
+        &:hover {
+            color: $argo-color-teal-5;
+        }
+        
+        i {
+            font-size: 14px;
+        }
     }
 }

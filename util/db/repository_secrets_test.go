@@ -1,7 +1,9 @@
 package db
 
 import (
+	"fmt"
 	"strconv"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -23,6 +25,8 @@ import (
 )
 
 func TestSecretsRepositoryBackend_CreateRepository(t *testing.T) {
+	t.Parallel()
+
 	type fixture struct {
 		clientSet   *fake.Clientset
 		repoBackend *secretsRepositoryBackend
@@ -83,9 +87,9 @@ func TestSecretsRepositoryBackend_CreateRepository(t *testing.T) {
 		t.Parallel()
 		secret := &corev1.Secret{}
 		s := secretsRepositoryBackend{}
-		s.repositoryToSecret(repo, secret)
-		delete(secret.Labels, common.LabelKeySecretType)
-		f := setupWithK8sObjects(secret)
+		updatedSecret := s.repositoryToSecret(repo, secret)
+		delete(updatedSecret.Labels, common.LabelKeySecretType)
+		f := setupWithK8sObjects(updatedSecret)
 		f.clientSet.ReactionChain = nil
 		f.clientSet.AddReactor("create", "secrets", func(_ k8stesting.Action) (handled bool, ret runtime.Object, err error) {
 			gr := schema.GroupResource{
@@ -120,8 +124,8 @@ func TestSecretsRepositoryBackend_CreateRepository(t *testing.T) {
 			},
 		}
 		s := secretsRepositoryBackend{}
-		s.repositoryToSecret(repo, secret)
-		f := setupWithK8sObjects(secret)
+		updatedSecret := s.repositoryToSecret(repo, secret)
+		f := setupWithK8sObjects(updatedSecret)
 		f.clientSet.ReactionChain = nil
 		f.clientSet.WatchReactionChain = nil
 		f.clientSet.AddReactor("create", "secrets", func(_ k8stesting.Action) (handled bool, ret runtime.Object, err error) {
@@ -132,7 +136,7 @@ func TestSecretsRepositoryBackend_CreateRepository(t *testing.T) {
 			return true, nil, apierrors.NewAlreadyExists(gr, "already exists")
 		})
 		watcher := watch.NewFakeWithChanSize(1, true)
-		watcher.Add(secret)
+		watcher.Add(updatedSecret)
 		f.clientSet.AddWatchReactor("secrets", func(_ k8stesting.Action) (handled bool, ret watch.Interface, err error) {
 			return true, watcher, nil
 		})
@@ -929,6 +933,12 @@ func TestSecretsRepositoryBackend_GetAllHelmRepoCreds(t *testing.T) {
 }
 
 func TestRepoCredsToSecret(t *testing.T) {
+	clientset := getClientset()
+	testee := &secretsRepositoryBackend{db: &db{
+		ns:            testNamespace,
+		kubeclientset: clientset,
+		settingsMgr:   settings.NewSettingsManager(t.Context(), clientset, testNamespace),
+	}}
 	s := &corev1.Secret{}
 	creds := &appsv1.RepoCreds{
 		URL:                        "URL",
@@ -944,7 +954,7 @@ func TestRepoCredsToSecret(t *testing.T) {
 		GithubAppInstallationId:    456,
 		GitHubAppEnterpriseBaseURL: "GitHubAppEnterpriseBaseURL",
 	}
-	repoCredsToSecret(creds, s)
+	s = testee.repoCredsToSecret(creds, s)
 	assert.Equal(t, []byte(creds.URL), s.Data["url"])
 	assert.Equal(t, []byte(creds.Username), s.Data["username"])
 	assert.Equal(t, []byte(creds.Password), s.Data["password"])
@@ -959,4 +969,212 @@ func TestRepoCredsToSecret(t *testing.T) {
 	assert.Equal(t, []byte(creds.GitHubAppEnterpriseBaseURL), s.Data["githubAppEnterpriseBaseUrl"])
 	assert.Equal(t, map[string]string{common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD}, s.Annotations)
 	assert.Equal(t, map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepoCreds}, s.Labels)
+}
+
+func TestRepoWriteCredsToSecret(t *testing.T) {
+	clientset := getClientset()
+	testee := &secretsRepositoryBackend{
+		db: &db{
+			ns:            testNamespace,
+			kubeclientset: clientset,
+			settingsMgr:   settings.NewSettingsManager(t.Context(), clientset, testNamespace),
+		},
+		writeCreds: true,
+	}
+	s := &corev1.Secret{}
+	creds := &appsv1.RepoCreds{
+		URL:                        "URL",
+		Username:                   "Username",
+		Password:                   "Password",
+		SSHPrivateKey:              "SSHPrivateKey",
+		EnableOCI:                  true,
+		TLSClientCertData:          "TLSClientCertData",
+		TLSClientCertKey:           "TLSClientCertKey",
+		Type:                       "Type",
+		GithubAppPrivateKey:        "GithubAppPrivateKey",
+		GithubAppId:                123,
+		GithubAppInstallationId:    456,
+		GitHubAppEnterpriseBaseURL: "GitHubAppEnterpriseBaseURL",
+	}
+	s = testee.repoCredsToSecret(creds, s)
+	assert.Equal(t, []byte(creds.URL), s.Data["url"])
+	assert.Equal(t, []byte(creds.Username), s.Data["username"])
+	assert.Equal(t, []byte(creds.Password), s.Data["password"])
+	assert.Equal(t, []byte(creds.SSHPrivateKey), s.Data["sshPrivateKey"])
+	assert.Equal(t, []byte(strconv.FormatBool(creds.EnableOCI)), s.Data["enableOCI"])
+	assert.Equal(t, []byte(creds.TLSClientCertData), s.Data["tlsClientCertData"])
+	assert.Equal(t, []byte(creds.TLSClientCertKey), s.Data["tlsClientCertKey"])
+	assert.Equal(t, []byte(creds.Type), s.Data["type"])
+	assert.Equal(t, []byte(creds.GithubAppPrivateKey), s.Data["githubAppPrivateKey"])
+	assert.Equal(t, []byte(strconv.FormatInt(creds.GithubAppId, 10)), s.Data["githubAppID"])
+	assert.Equal(t, []byte(strconv.FormatInt(creds.GithubAppInstallationId, 10)), s.Data["githubAppInstallationID"])
+	assert.Equal(t, []byte(creds.GitHubAppEnterpriseBaseURL), s.Data["githubAppEnterpriseBaseUrl"])
+	assert.Equal(t, map[string]string{common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD}, s.Annotations)
+	assert.Equal(t, map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepoCredsWrite}, s.Labels)
+}
+
+func TestRaceConditionInRepoCredsOperations(t *testing.T) {
+	// Create a single shared secret that will be accessed concurrently
+	sharedSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      RepoURLToSecretName(repoSecretPrefix, "git@github.com:argoproj/argo-cd.git", ""),
+			Namespace: testNamespace,
+			Labels: map[string]string{
+				common.LabelKeySecretType: common.LabelValueSecretTypeRepoCreds,
+			},
+		},
+		Data: map[string][]byte{
+			"url":      []byte("git@github.com:argoproj/argo-cd.git"),
+			"username": []byte("test-user"),
+			"password": []byte("test-pass"),
+		},
+	}
+
+	// Create test credentials that we'll use for conversion
+	repoCreds := &appsv1.RepoCreds{
+		URL:      "git@github.com:argoproj/argo-cd.git",
+		Username: "test-user",
+		Password: "test-pass",
+	}
+
+	backend := &secretsRepositoryBackend{}
+
+	var wg sync.WaitGroup
+	concurrentOps := 50
+	errChan := make(chan error, concurrentOps*2) // Channel to collect errors
+
+	// Launch goroutines that perform concurrent operations
+	for i := 0; i < concurrentOps; i++ {
+		wg.Add(2)
+
+		// One goroutine converts from RepoCreds to Secret
+		go func() {
+			defer wg.Done()
+			defer func() {
+				if r := recover(); r != nil {
+					errChan <- fmt.Errorf("panic in repoCredsToSecret: %v", r)
+				}
+			}()
+			_ = backend.repoCredsToSecret(repoCreds, sharedSecret)
+		}()
+
+		// Another goroutine converts from Secret to RepoCreds
+		go func() {
+			defer wg.Done()
+			defer func() {
+				if r := recover(); r != nil {
+					errChan <- fmt.Errorf("panic in secretToRepoCred: %v", r)
+				}
+			}()
+			creds, err := backend.secretToRepoCred(sharedSecret)
+			if err != nil {
+				errChan <- fmt.Errorf("error in secretToRepoCred: %w", err)
+				return
+			}
+			// Verify data integrity
+			if creds.URL != repoCreds.URL || creds.Username != repoCreds.Username || creds.Password != repoCreds.Password {
+				errChan <- fmt.Errorf("data mismatch in conversion: expected %v, got %v", repoCreds, creds)
+			}
+		}()
+	}
+
+	wg.Wait()
+	close(errChan)
+
+	// Check for any errors that occurred during concurrent operations
+	for err := range errChan {
+		t.Errorf("concurrent operation error: %v", err)
+	}
+
+	// Verify final state
+	finalCreds, err := backend.secretToRepoCred(sharedSecret)
+	require.NoError(t, err)
+	assert.Equal(t, repoCreds.URL, finalCreds.URL)
+	assert.Equal(t, repoCreds.Username, finalCreds.Username)
+	assert.Equal(t, repoCreds.Password, finalCreds.Password)
+}
+
+func TestRaceConditionInRepositoryOperations(t *testing.T) {
+	// Create a single shared secret that will be accessed concurrently
+	sharedSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      RepoURLToSecretName(repoSecretPrefix, "git@github.com:argoproj/argo-cd.git", ""),
+			Namespace: testNamespace,
+			Labels: map[string]string{
+				common.LabelKeySecretType: common.LabelValueSecretTypeRepository,
+			},
+		},
+		Data: map[string][]byte{
+			"url":      []byte("git@github.com:argoproj/argo-cd.git"),
+			"name":     []byte("test-repo"),
+			"username": []byte("test-user"),
+			"password": []byte("test-pass"),
+		},
+	}
+
+	// Create test repository that we'll use for conversion
+	repo := &appsv1.Repository{
+		Name:     "test-repo",
+		Repo:     "git@github.com:argoproj/argo-cd.git",
+		Username: "test-user",
+		Password: "test-pass",
+	}
+
+	backend := &secretsRepositoryBackend{}
+
+	var wg sync.WaitGroup
+	concurrentOps := 50
+	errChan := make(chan error, concurrentOps*2) // Channel to collect errors
+
+	// Launch goroutines that perform concurrent operations
+	for i := 0; i < concurrentOps; i++ {
+		wg.Add(2)
+
+		// One goroutine converts from Repository to Secret
+		go func() {
+			defer wg.Done()
+			defer func() {
+				if r := recover(); r != nil {
+					errChan <- fmt.Errorf("panic in repositoryToSecret: %v", r)
+				}
+			}()
+			_ = backend.repositoryToSecret(repo, sharedSecret)
+		}()
+
+		// Another goroutine converts from Secret to Repository
+		go func() {
+			defer wg.Done()
+			defer func() {
+				if r := recover(); r != nil {
+					errChan <- fmt.Errorf("panic in secretToRepository: %v", r)
+				}
+			}()
+			repository, err := secretToRepository(sharedSecret)
+			if err != nil {
+				errChan <- fmt.Errorf("error in secretToRepository: %w", err)
+				return
+			}
+			// Verify data integrity
+			if repository.Name != repo.Name || repository.Repo != repo.Repo ||
+				repository.Username != repo.Username || repository.Password != repo.Password {
+				errChan <- fmt.Errorf("data mismatch in conversion: expected %v, got %v", repo, repository)
+			}
+		}()
+	}
+
+	wg.Wait()
+	close(errChan)
+
+	// Check for any errors that occurred during concurrent operations
+	for err := range errChan {
+		t.Errorf("concurrent operation error: %v", err)
+	}
+
+	// Verify final state
+	finalRepo, err := secretToRepository(sharedSecret)
+	require.NoError(t, err)
+	assert.Equal(t, repo.Name, finalRepo.Name)
+	assert.Equal(t, repo.Repo, finalRepo.Repo)
+	assert.Equal(t, repo.Username, finalRepo.Username)
+	assert.Equal(t, repo.Password, finalRepo.Password)
 }

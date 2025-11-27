@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/argoproj/argo-cd/v3/common"
-	utils "github.com/argoproj/argo-cd/v3/util/io"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 
 	"github.com/stretchr/testify/assert"
@@ -31,7 +31,7 @@ func captureStdout(callback func()) (string, error) {
 	}()
 
 	callback()
-	utils.Close(w)
+	utilio.Close(w)
 
 	data, err := io.ReadAll(r)
 	if err != nil {
@@ -40,9 +40,7 @@ func captureStdout(callback func()) (string, error) {
 	return string(data), err
 }
 
-func newSettingsManager(data map[string]string) *settings.SettingsManager {
-	ctx := context.Background()
-
+func newSettingsManager(ctx context.Context, data map[string]string) *settings.SettingsManager {
 	clientset := fake.NewClientset(&corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: "default",
@@ -69,8 +67,8 @@ type fakeCmdContext struct {
 	mgr *settings.SettingsManager
 }
 
-func newCmdContext(data map[string]string) *fakeCmdContext {
-	return &fakeCmdContext{mgr: newSettingsManager(data)}
+func newCmdContext(ctx context.Context, data map[string]string) *fakeCmdContext {
+	return &fakeCmdContext{mgr: newSettingsManager(ctx, data)}
 }
 
 func (ctx *fakeCmdContext) createSettingsManager(context.Context) (*settings.SettingsManager, error) {
@@ -94,7 +92,7 @@ metadata:
 data:
   url: https://myargocd.com`)
 	require.NoError(t, err)
-	defer utils.Close(closer)
+	defer utilio.Close(closer)
 
 	opts := settingsOpts{argocdCMPath: f}
 	settingsManager, err := opts.createSettingsManager(ctx)
@@ -182,7 +180,7 @@ admissionregistration.k8s.io/MutatingWebhookConfiguration:
 			if !assert.True(t, ok) {
 				return
 			}
-			summary, err := validator(newSettingsManager(tc.data))
+			summary, err := validator(newSettingsManager(t.Context(), tc.data))
 			if tc.containsSummary != "" {
 				require.NoError(t, err)
 				assert.Contains(t, summary, tc.containsSummary)
@@ -233,7 +231,7 @@ func tempFile(content string) (string, io.Closer, error) {
 	if err != nil {
 		return "", nil, err
 	}
-	_, err = f.Write([]byte(content))
+	_, err = f.WriteString(content)
 	if err != nil {
 		_ = os.Remove(f.Name())
 		return "", nil, err
@@ -243,13 +241,13 @@ func tempFile(content string) (string, io.Closer, error) {
 			panic(err)
 		}
 	}()
-	return f.Name(), utils.NewCloser(func() error {
+	return f.Name(), utilio.NewCloser(func() error {
 		return os.Remove(f.Name())
 	}), nil
 }
 
 func TestValidateSettingsCommand_NoErrors(t *testing.T) {
-	cmd := NewValidateSettingsCommand(newCmdContext(map[string]string{}))
+	cmd := NewValidateSettingsCommand(newCmdContext(t.Context(), map[string]string{}))
 	out, err := captureStdout(func() {
 		err := cmd.Execute()
 		require.NoError(t, err)
@@ -264,10 +262,10 @@ func TestValidateSettingsCommand_NoErrors(t *testing.T) {
 func TestResourceOverrideIgnoreDifferences(t *testing.T) {
 	f, closer, err := tempFile(testDeploymentYAML)
 	require.NoError(t, err)
-	defer utils.Close(closer)
+	defer utilio.Close(closer)
 
 	t.Run("NoOverridesConfigured", func(t *testing.T) {
-		cmd := NewResourceOverridesCommand(newCmdContext(map[string]string{}))
+		cmd := NewResourceOverridesCommand(newCmdContext(t.Context(), map[string]string{}))
 		out, err := captureStdout(func() {
 			cmd.SetArgs([]string{"ignore-differences", f})
 			err := cmd.Execute()
@@ -278,7 +276,7 @@ func TestResourceOverrideIgnoreDifferences(t *testing.T) {
 	})
 
 	t.Run("DataIgnored", func(t *testing.T) {
-		cmd := NewResourceOverridesCommand(newCmdContext(map[string]string{
+		cmd := NewResourceOverridesCommand(newCmdContext(t.Context(), map[string]string{
 			"resource.customizations": `apps/Deployment:
   ignoreDifferences: |
     jsonPointers:
@@ -297,10 +295,10 @@ func TestResourceOverrideIgnoreDifferences(t *testing.T) {
 func TestResourceOverrideHealth(t *testing.T) {
 	f, closer, err := tempFile(testCustomResourceYAML)
 	require.NoError(t, err)
-	defer utils.Close(closer)
+	defer utilio.Close(closer)
 
 	t.Run("NoHealthAssessment", func(t *testing.T) {
-		cmd := NewResourceOverridesCommand(newCmdContext(map[string]string{
+		cmd := NewResourceOverridesCommand(newCmdContext(t.Context(), map[string]string{
 			"resource.customizations": `example.com/ExampleResource: {}`,
 		}))
 		out, err := captureStdout(func() {
@@ -313,7 +311,7 @@ func TestResourceOverrideHealth(t *testing.T) {
 	})
 
 	t.Run("HealthAssessmentConfigured", func(t *testing.T) {
-		cmd := NewResourceOverridesCommand(newCmdContext(map[string]string{
+		cmd := NewResourceOverridesCommand(newCmdContext(t.Context(), map[string]string{
 			"resource.customizations": `example.com/ExampleResource:
   health.lua: |
     return { status = "Progressing" }
@@ -329,7 +327,7 @@ func TestResourceOverrideHealth(t *testing.T) {
 	})
 
 	t.Run("HealthAssessmentConfiguredWildcard", func(t *testing.T) {
-		cmd := NewResourceOverridesCommand(newCmdContext(map[string]string{
+		cmd := NewResourceOverridesCommand(newCmdContext(t.Context(), map[string]string{
 			"resource.customizations": `example.com/*:
   health.lua: |
     return { status = "Progressing" }
@@ -348,14 +346,14 @@ func TestResourceOverrideHealth(t *testing.T) {
 func TestResourceOverrideAction(t *testing.T) {
 	f, closer, err := tempFile(testDeploymentYAML)
 	require.NoError(t, err)
-	defer utils.Close(closer)
+	defer utilio.Close(closer)
 
 	cronJobFile, closer, err := tempFile(testCronJobYAML)
 	require.NoError(t, err)
-	defer utils.Close(closer)
+	defer utilio.Close(closer)
 
 	t.Run("NoActions", func(t *testing.T) {
-		cmd := NewResourceOverridesCommand(newCmdContext(map[string]string{
+		cmd := NewResourceOverridesCommand(newCmdContext(t.Context(), map[string]string{
 			"resource.customizations": `apps/Deployment: {}`,
 		}))
 		out, err := captureStdout(func() {
@@ -368,7 +366,7 @@ func TestResourceOverrideAction(t *testing.T) {
 	})
 
 	t.Run("OldStyleActionConfigured", func(t *testing.T) {
-		cmd := NewResourceOverridesCommand(newCmdContext(map[string]string{
+		cmd := NewResourceOverridesCommand(newCmdContext(t.Context(), map[string]string{
 			"resource.customizations": `apps/Deployment:
   actions: |
     discovery.lua: |
@@ -404,7 +402,7 @@ resume   false
 	})
 
 	t.Run("NewStyleActionConfigured", func(t *testing.T) {
-		cmd := NewResourceOverridesCommand(newCmdContext(map[string]string{
+		cmd := NewResourceOverridesCommand(newCmdContext(t.Context(), map[string]string{
 			"resource.customizations": `batch/CronJob:
   actions: |
     discovery.lua: |

@@ -55,6 +55,17 @@ export class ApplicationsService {
             .then(res => res.body as models.ApplicationSyncWindowState);
     }
 
+    public ociMetadata(name: string, appNamespace: string, revision: string, sourceIndex: number, versionId: number): Promise<models.OCIMetadata> {
+        let r = requests.get(`/applications/${name}/revisions/${revision || 'HEAD'}/ocimetadata`).query({appNamespace});
+        if (sourceIndex !== null) {
+            r = r.query({sourceIndex});
+        }
+        if (versionId !== null) {
+            r = r.query({versionId});
+        }
+        return r.then(res => res.body as models.OCIMetadata);
+    }
+
     public revisionMetadata(name: string, appNamespace: string, revision: string, sourceIndex: number | null, versionId: number | null): Promise<models.RevisionMetadata> {
         let r = requests.get(`/applications/${name}/revisions/${revision || 'HEAD'}/metadata`).query({appNamespace});
         if (sourceIndex !== null) {
@@ -230,10 +241,10 @@ export class ApplicationsService {
             .then(() => true);
     }
 
-    public rollback(name: string, appNamespace: string, id: number): Promise<boolean> {
+    public rollback(name: string, appNamespace: string, id: number, prune?: boolean): Promise<boolean> {
         return requests
             .post(`/applications/${name}/rollback`)
-            .send({id, appNamespace})
+            .send({id, appNamespace, prune})
             .then(() => true);
     }
 
@@ -336,7 +347,7 @@ export class ApplicationsService {
         resourceActionParameters: models.ResourceActionParam[]
     ): Promise<models.ResourceAction[]> {
         return requests
-            .post(`/applications/${name}/resource/actions`)
+            .post(`/applications/${name}/resource/actions/v2`)
             .send(
                 JSON.stringify({
                     appNamespace,
@@ -536,7 +547,11 @@ export class ApplicationsService {
     public async getApplicationSet(name: string, namespace: string): Promise<models.ApplicationSet> {
         return requests
             .get(`/applicationsets/${name}`)
-            .query({namespace})
+            .query({appsetNamespace: namespace})
             .then(res => res.body as models.ApplicationSet);
+    }
+
+    public async listApplicationSets(): Promise<models.ApplicationSetList> {
+        return requests.get(`/applicationsets`).then(res => res.body as models.ApplicationSetList);
     }
 }

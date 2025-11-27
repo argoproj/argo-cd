@@ -1,6 +1,7 @@
 package helm
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/url"
@@ -15,7 +16,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/common"
 	executil "github.com/argoproj/argo-cd/v3/util/exec"
-	argoio "github.com/argoproj/argo-cd/v3/util/io"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	pathutil "github.com/argoproj/argo-cd/v3/util/io/path"
 	"github.com/argoproj/argo-cd/v3/util/proxy"
 )
@@ -56,8 +57,8 @@ var redactor = func(text string) string {
 	return regexp.MustCompile("(--username|--password) [^ ]*").ReplaceAllString(text, "$1 ******")
 }
 
-func (c Cmd) run(args ...string) (string, string, error) {
-	cmd := exec.Command("helm", args...)
+func (c Cmd) run(ctx context.Context, args ...string) (string, string, error) {
+	cmd := exec.CommandContext(ctx, "helm", args...)
 	cmd.Dir = c.WorkDir
 	cmd.Env = os.Environ()
 	if !c.IsLocal {
@@ -107,7 +108,7 @@ func (c *Cmd) RegistryLogin(repo string, creds Creds) (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("failed to write certificate data to temporary file: %w", err)
 		}
-		defer argoio.Close(closer)
+		defer utilio.Close(closer)
 		args = append(args, "--cert-file", filePath)
 	}
 
@@ -116,14 +117,14 @@ func (c *Cmd) RegistryLogin(repo string, creds Creds) (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("failed to write key data to temporary file: %w", err)
 		}
-		defer argoio.Close(closer)
+		defer utilio.Close(closer)
 		args = append(args, "--key-file", filePath)
 	}
 
 	if creds.GetInsecureSkipVerify() {
 		args = append(args, "--insecure")
 	}
-	out, _, err := c.run(args...)
+	out, _, err := c.run(context.Background(), args...)
 	if err != nil {
 		return "", fmt.Errorf("failed to login to registry: %w", err)
 	}
@@ -137,7 +138,7 @@ func (c *Cmd) RegistryLogout(repo string, _ Creds) (string, error) {
 		return "", fmt.Errorf("failed to parse registry URL: %w", err)
 	}
 	args = append(args, registry)
-	out, _, err := c.run(args...)
+	out, _, err := c.run(context.Background(), args...)
 	if err != nil {
 		return "", fmt.Errorf("failed to logout from registry: %w", err)
 	}
@@ -205,14 +206,14 @@ func (c *Cmd) RepoAdd(name string, url string, opts Creds, passCredentials bool)
 
 	args = append(args, name, url)
 
-	out, _, err := c.run(args...)
+	out, _, err := c.run(context.Background(), args...)
 	if err != nil {
 		return "", fmt.Errorf("failed to add repository: %w", err)
 	}
 	return out, err
 }
 
-func writeToTmp(data []byte) (string, argoio.Closer, error) {
+func writeToTmp(data []byte) (string, utilio.Closer, error) {
 	file, err := os.CreateTemp("", "")
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to create temporary file: %w", err)
@@ -230,7 +231,7 @@ func writeToTmp(data []byte) (string, argoio.Closer, error) {
 			}).Errorf("error closing file %q: %v", file.Name(), err)
 		}
 	}()
-	return file.Name(), argoio.NewCloser(func() error {
+	return file.Name(), utilio.NewCloser(func() error {
 		return os.RemoveAll(file.Name())
 	}), nil
 }
@@ -265,7 +266,7 @@ func (c *Cmd) Fetch(repo, chartName, version, destination string, creds Creds, p
 		if err != nil {
 			return "", fmt.Errorf("failed to write certificate data to temporary file: %w", err)
 		}
-		defer argoio.Close(closer)
+		defer utilio.Close(closer)
 		args = append(args, "--cert-file", filePath)
 	}
 	if len(creds.GetKeyData()) > 0 {
@@ -273,14 +274,14 @@ func (c *Cmd) Fetch(repo, chartName, version, destination string, creds Creds, p
 		if err != nil {
 			return "", fmt.Errorf("failed to write key data to temporary file: %w", err)
 		}
-		defer argoio.Close(closer)
+		defer utilio.Close(closer)
 		args = append(args, "--key-file", filePath)
 	}
 	if passCredentials {
 		args = append(args, "--pass-credentials")
 	}
 
-	out, _, err := c.run(args...)
+	out, _, err := c.run(context.Background(), args...)
 	if err != nil {
 		return "", fmt.Errorf("failed to fetch chart: %w", err)
 	}
@@ -303,7 +304,7 @@ func (c *Cmd) PullOCI(repo string, chart string, version string, destination str
 		if err != nil {
 			return "", fmt.Errorf("failed to write certificate data to temporary file: %w", err)
 		}
-		defer argoio.Close(closer)
+		defer utilio.Close(closer)
 		args = append(args, "--cert-file", filePath)
 	}
 
@@ -312,14 +313,14 @@ func (c *Cmd) PullOCI(repo string, chart string, version string, destination str
 		if err != nil {
 			return "", fmt.Errorf("failed to write key data to temporary file: %w", err)
 		}
-		defer argoio.Close(closer)
+		defer utilio.Close(closer)
 		args = append(args, "--key-file", filePath)
 	}
 
 	if creds.GetInsecureSkipVerify() {
 		args = append(args, "--insecure-skip-tls-verify")
 	}
-	out, _, err := c.run(args...)
+	out, _, err := c.run(context.Background(), args...)
 	if err != nil {
 		return "", fmt.Errorf("failed to pull OCI chart: %w", err)
 	}
@@ -327,7 +328,7 @@ func (c *Cmd) PullOCI(repo string, chart string, version string, destination str
 }
 
 func (c *Cmd) dependencyBuild() (string, error) {
-	out, _, err := c.run("dependency", "build")
+	out, _, err := c.run(context.Background(), "dependency", "build")
 	if err != nil {
 		return "", fmt.Errorf("failed to build dependencies: %w", err)
 	}
@@ -335,7 +336,7 @@ func (c *Cmd) dependencyBuild() (string, error) {
 }
 
 func (c *Cmd) inspectValues(values string) (string, error) {
-	out, _, err := c.run("show", "values", values)
+	out, _, err := c.run(context.Background(), "show", "values", values)
 	if err != nil {
 		return "", fmt.Errorf("failed to inspect values: %w", err)
 	}
@@ -343,7 +344,7 @@ func (c *Cmd) inspectValues(values string) (string, error) {
 }
 
 func (c *Cmd) InspectChart() (string, error) {
-	out, _, err := c.run("show", "chart", ".")
+	out, _, err := c.run(context.Background(), "show", "chart", ".")
 	if err != nil {
 		return "", fmt.Errorf("failed to inspect chart: %w", err)
 	}
@@ -377,13 +378,13 @@ func cleanSetParameters(val string) string {
 	return val
 }
 
-func replaceAllWithLookbehind(val string, old rune, new string, lookbehind rune) string {
+func replaceAllWithLookbehind(val string, old rune, newV string, lookbehind rune) string {
 	var result strings.Builder
 	var prevR rune
 	for _, r := range val {
 		if r == old {
 			if prevR != lookbehind {
-				result.WriteString(new)
+				result.WriteString(newV)
 			} else {
 				result.WriteRune(old)
 			}
@@ -440,7 +441,7 @@ func (c *Cmd) template(chartPath string, opts *TemplateOpts) (string, string, er
 		args = append(args, "--skip-tests")
 	}
 
-	out, command, err := c.run(args...)
+	out, command, err := c.run(context.Background(), args...)
 	if err != nil {
 		msg := err.Error()
 		if strings.Contains(msg, "--api-versions") {
@@ -472,7 +473,7 @@ func cleanupChartLockFile(chartPath string) (func(), error) {
 }
 
 func (c *Cmd) Freestyle(args ...string) (string, error) {
-	out, _, err := c.run(args...)
+	out, _, err := c.run(context.Background(), args...)
 	if err != nil {
 		return "", fmt.Errorf("failed to execute freestyle helm command: %w", err)
 	}

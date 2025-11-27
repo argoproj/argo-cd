@@ -41,7 +41,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/config"
 	"github.com/argoproj/argo-cd/v3/util/db"
 	"github.com/argoproj/argo-cd/v3/util/errors"
-	"github.com/argoproj/argo-cd/v3/util/io"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	kubeutil "github.com/argoproj/argo-cd/v3/util/kube"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
@@ -117,11 +117,11 @@ func NewGenAppSpecCommand() *cobra.Command {
 				os.Exit(1)
 			}
 			if setFinalizer {
-				app.Finalizers = append(app.Finalizers, "resources-finalizer.argocd.argoproj.io")
+				app.Finalizers = append(app.Finalizers, v1alpha1.ResourcesFinalizerName)
 			}
 			out, closer, err := getOutWriter(inline, fileURL)
 			errors.CheckError(err)
-			defer io.Close(closer)
+			defer utilio.Close(closer)
 
 			errors.CheckError(PrintResources(outputFormat, out, app))
 		},
@@ -390,7 +390,7 @@ func reconcileApplications(
 		return true
 	}, func(_ *http.Request) error {
 		return nil
-	}, []string{}, []string{})
+	}, []string{}, []string{}, argoDB)
 	if err != nil {
 		return nil, fmt.Errorf("error starting new metrics server: %w", err)
 	}
@@ -415,7 +415,6 @@ func reconcileApplications(
 		},
 		settingsMgr,
 		stateCache,
-		projInformer,
 		server,
 		cache,
 		time.Second,
@@ -464,7 +463,7 @@ func reconcileApplications(
 		sources = append(sources, app.Spec.GetSource())
 		revisions = append(revisions, app.Spec.GetSource().TargetRevision)
 
-		res, err := appStateManager.CompareAppState(&app, proj, revisions, sources, false, false, nil, false, false)
+		res, err := appStateManager.CompareAppState(&app, proj, revisions, sources, false, false, nil, false)
 		if err != nil {
 			return nil, fmt.Errorf("error comparing app states: %w", err)
 		}
@@ -479,5 +478,5 @@ func reconcileApplications(
 }
 
 func newLiveStateCache(argoDB db.ArgoDB, appInformer kubecache.SharedIndexInformer, settingsMgr *settings.SettingsManager, server *metrics.MetricsServer) cache.LiveStateCache {
-	return cache.NewLiveStateCache(argoDB, appInformer, settingsMgr, kubeutil.NewKubectl(), server, func(_ map[string]bool, _ corev1.ObjectReference) {}, &sharding.ClusterSharding{}, argo.NewResourceTracking())
+	return cache.NewLiveStateCache(argoDB, appInformer, settingsMgr, server, func(_ map[string]bool, _ corev1.ObjectReference) {}, &sharding.ClusterSharding{}, argo.NewResourceTracking())
 }

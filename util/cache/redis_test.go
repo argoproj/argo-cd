@@ -33,7 +33,6 @@ var (
 )
 
 type MockMetricsServer struct {
-	registry              *prometheus.Registry
 	redisRequestCounter   *prometheus.CounterVec
 	redisRequestHistogram *prometheus.HistogramVec
 }
@@ -43,7 +42,6 @@ func NewMockMetricsServer() *MockMetricsServer {
 	registry.MustRegister(redisRequestCounter)
 	registry.MustRegister(redisRequestHistogram)
 	return &MockMetricsServer{
-		registry:              registry,
 		redisRequestCounter:   redisRequestCounter,
 		redisRequestHistogram: redisRequestHistogram,
 	}

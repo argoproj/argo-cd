@@ -46,6 +46,7 @@ This can take the following values:
 | `HookFailed` | The hook resource is deleted after the hook failed. |
 | `BeforeHookCreation` | Any existing hook resource is deleted before the new one is created (since v1.3). It is meant to be used with `/metadata/name`. |
 
+Note that if no deletion policy is specified, Argo CD will automatically assume `BeforeHookCreation` rules.
 
 ## How sync waves work?
 
@@ -105,6 +106,8 @@ metadata:
 Hooks and resources are assigned to wave zero by default. The wave can be negative, so you can create a wave that runs before all other resources.
 
 ## Examples
+
+### Send message to Slack when sync completes
 
 The following example uses the Slack API to send a a Slack message when sync completes:
 
@@ -166,3 +169,34 @@ spec:
       restartPolicy: Never
   backoffLimit: 1
 ```
+
+### Work around ArgoCD sync failure
+
+Upgrading ingress-nginx controller (managed by helm) with ArgoCD 2.x sometimes fails to work resulting in:
+
+.|.
+-|-
+OPERATION|Sync
+PHASE|Running
+MESSAGE|waiting for completion of hook batch/Job/ingress-nginx-admission-create
+
+.|.
+-|-
+KIND     |batch/v1/Job
+NAMESPACE|ingress-nginx
+NAME     |ingress-nginx-admission-create
+STATUS   |Running
+HOOK     |PreSync
+MESSAGE  |Pending deletion
+
+To work around this, a helm user can add:
+
+```yaml
+ingress-nginx:
+  controller:
+    admissionWebhooks:
+      annotations:
+        argocd.argoproj.io/hook: Skip
+```
+
+Which results in a successful sync.

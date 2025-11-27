@@ -25,6 +25,7 @@ const (
 	kustomization6 = "kustomization_yaml_components"
 	kustomization7 = "label_without_selector"
 	kustomization8 = "kustomization_yaml_patches_empty"
+	kustomization9 = "kustomization_yaml_components_monorepo"
 )
 
 func testDataDir(tb testing.TB, testData string) (string, error) {
@@ -148,7 +149,7 @@ func TestIsKustomization(t *testing.T) {
 }
 
 func TestParseKustomizeBuildOptions(t *testing.T) {
-	built := parseKustomizeBuildOptions(&kustomize{path: "guestbook"}, "-v 6 --logtostderr", &BuildOpts{
+	built := parseKustomizeBuildOptions(t.Context(), &kustomize{path: "guestbook"}, "-v 6 --logtostderr", &BuildOpts{
 		KubeVersion: "1.27", APIVersions: []string{"foo", "bar"},
 	})
 	// Helm is not enabled so helm options are not in the params
@@ -156,7 +157,7 @@ func TestParseKustomizeBuildOptions(t *testing.T) {
 }
 
 func TestParseKustomizeBuildHelmOptions(t *testing.T) {
-	built := parseKustomizeBuildOptions(&kustomize{path: "guestbook"}, "-v 6 --logtostderr --enable-helm", &BuildOpts{
+	built := parseKustomizeBuildOptions(t.Context(), &kustomize{path: "guestbook"}, "-v 6 --logtostderr --enable-helm", &BuildOpts{
 		KubeVersion: "1.27",
 		APIVersions: []string{"foo", "bar"},
 	})
@@ -175,13 +176,13 @@ func TestVersion(t *testing.T) {
 }
 
 func TestVersionWithBinaryPath(t *testing.T) {
-	ver, err := versionWithBinaryPath(&kustomize{binaryPath: "kustomize"})
+	ver, err := versionWithBinaryPath(t.Context(), &kustomize{binaryPath: "kustomize"})
 	require.NoError(t, err)
 	assert.NotEmpty(t, ver)
 }
 
 func TestGetSemver(t *testing.T) {
-	ver, err := getSemver(&kustomize{})
+	ver, err := getSemver(t.Context(), &kustomize{})
 	require.NoError(t, err)
 	assert.NotEmpty(t, ver)
 }
@@ -512,6 +513,31 @@ func TestKustomizeBuildComponents(t *testing.T) {
 	assert.Equal(t, int64(3), replicas)
 }
 
+func TestKustomizeBuildComponentsMonoRepo(t *testing.T) {
+	rootPath, err := testDataDir(t, kustomization9)
+	require.NoError(t, err)
+	appPath := path.Join(rootPath, "envs/inseng-pdx-egert-sandbox/namespaces/inst-system/apps/hello-world")
+	kustomize := NewKustomizeApp(rootPath, appPath, git.NopCreds{}, "", "", "", "")
+	kustomizeSource := v1alpha1.ApplicationSourceKustomize{
+		Components:              []string{"../../../../../../kustomize/components/all"},
+		IgnoreMissingComponents: true,
+	}
+	objs, _, _, err := kustomize.Build(&kustomizeSource, nil, nil, nil)
+	require.NoError(t, err)
+	obj := objs[2]
+	require.Equal(t, "hello-world-kustomize", obj.GetName())
+	require.Equal(t, map[string]string{
+		"app.kubernetes.io/name":  "hello-world-kustomize",
+		"app.kubernetes.io/owner": "fire-team",
+	}, obj.GetLabels())
+	replicas, ok, err := unstructured.NestedSlice(obj.Object, "spec", "template", "spec", "tolerations")
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.Len(t, replicas, 1)
+	require.Equal(t, "my-special-toleration", replicas[0].(map[string]any)["key"])
+	require.Equal(t, "Exists", replicas[0].(map[string]any)["operator"])
+}
+
 func TestKustomizeBuildPatches(t *testing.T) {
 	appPath, err := testDataDir(t, kustomization5)
 	require.NoError(t, err)
@@ -587,4 +613,65 @@ func TestFailKustomizeBuildPatches(t *testing.T) {
 
 	_, _, _, err = kustomize.Build(&kustomizeSource, nil, nil, nil)
 	require.EqualError(t, err, "kustomization file not found in the path")
+}
+
+func TestKustomizeBuildComponentsNoFoundComponents(t *testing.T) {
+	appPath, err := testDataDir(t, kustomization6)
+	require.NoError(t, err)
+	kustomize := NewKustomizeApp(appPath, appPath, git.NopCreds{}, "", "", "", "")
+
+	// Test with non-existent components and IgnoreMissingComponents = true
+	// This should result in foundComponents being empty, so no "edit add component" command should be executed
+	kustomizeSource := v1alpha1.ApplicationSourceKustomize{
+		Components:              []string{"./non-existent-component1", "./non-existent-component2"},
+		IgnoreMissingComponents: true,
+	}
+	_, _, commands, err := kustomize.Build(&kustomizeSource, nil, nil, nil)
+	require.NoError(t, err)
+
+	// Verify that no "edit add component" command was executed
+	for _, cmd := range commands {
+		assert.NotContains(t, cmd, "edit add component", "kustomize edit add component should not be invoked when foundComponents is empty")
+	}
+}
+
+func Test_getImageParameters_sorted(t *testing.T) {
+	apps := []*unstructured.Unstructured{
+		{
+			Object: map[string]any{
+				"kind": "Deployment",
+				"spec": map[string]any{
+					"template": map[string]any{
+						"spec": map[string]any{
+							"containers": []any{
+								map[string]any{
+									"name":  "nginx",
+									"image": "nginx:1.15.6",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			Object: map[string]any{
+				"kind": "Deployment",
+				"spec": map[string]any{
+					"template": map[string]any{
+						"spec": map[string]any{
+							"containers": []any{
+								map[string]any{
+									"name":  "nginx",
+									"image": "nginx:1.15.5",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	params := getImageParameters(apps)
+	assert.Equal(t, []string{"nginx:1.15.5", "nginx:1.15.6"}, params)
 }

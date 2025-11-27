@@ -132,7 +132,11 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			status = app.Status.Sync.Status
 			applicationName = name[0]
 			if app.Status.OperationState != nil && app.Status.OperationState.SyncResult != nil {
-				revision = app.Status.OperationState.SyncResult.Revision
+				if len(app.Status.OperationState.SyncResult.Revisions) > 0 {
+					revision = app.Status.OperationState.SyncResult.Revisions[0]
+				} else {
+					revision = app.Status.OperationState.SyncResult.Revision
+				}
 			}
 		} else if errors.IsNotFound(err) {
 			notFound = true
@@ -141,7 +145,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Sample url: http://localhost:8080/api/badge?project=default
 	if projects, ok := r.URL.Query()["project"]; ok && enabled && !notFound {
 		for _, p := range projects {
-			if errs := validation.NameIsDNSLabel(strings.ToLower(p), false); len(p) > 0 && len(errs) != 0 {
+			if errs := validation.NameIsDNSLabel(strings.ToLower(p), false); p != "" && len(errs) != 0 {
 				w.WriteHeader(http.StatusBadRequest)
 				return
 			}
@@ -192,15 +196,15 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	badge := assets.BadgeSVG
-	badge = leftRectColorPattern.ReplaceAllString(badge, fmt.Sprintf(`id="leftRect" fill="%s" $2`, leftColorString))
-	badge = rightRectColorPattern.ReplaceAllString(badge, fmt.Sprintf(`id="rightRect" fill="%s" $2`, rightColorString))
+	badge = leftRectColorPattern.ReplaceAllString(badge, fmt.Sprintf(`id="leftRect" fill=%q $2`, leftColorString))
+	badge = rightRectColorPattern.ReplaceAllString(badge, fmt.Sprintf(`id="rightRect" fill=%q $2`, rightColorString))
 	badge = replaceFirstGroupSubMatch(leftTextPattern, badge, leftText)
 	badge = replaceFirstGroupSubMatch(rightTextPattern, badge, rightText)
 
 	if !notFound && revisionEnabled && revision != "" {
 		// Enable display of revision components
 		badge = displayNonePattern.ReplaceAllString(badge, `display="inline"`)
-		badge = revisionRectColorPattern.ReplaceAllString(badge, fmt.Sprintf(`id="revisionRect" fill="%s" $2`, rightColorString))
+		badge = revisionRectColorPattern.ReplaceAllString(badge, fmt.Sprintf(`id="revisionRect" fill=%q $2`, rightColorString))
 
 		adjustWidth = true
 		displayedRevision = revision

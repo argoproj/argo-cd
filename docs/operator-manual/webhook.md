@@ -7,10 +7,10 @@ this delay from polling, the API server can be configured to receive webhook eve
 Git webhook notifications from GitHub, GitLab, Bitbucket, Bitbucket Server, Azure DevOps and Gogs. The following explains how to configure
 a Git webhook for GitHub, but the same process should be applicable to other providers.
 
-!!! note
-    The webhook handler does not differentiate between branch events and tag events where the branch and tag names are
-    the same. A hook event for a push to branch `x` will trigger a refresh for an app pointing at the same repo with
-    `targetRevision: refs/tags/x`.
+> [!NOTE]
+> The webhook handler does not differentiate between branch events and tag events where the branch and tag names are
+> the same. A hook event for a push to branch `x` will trigger a refresh for an app pointing at the same repo with
+> `targetRevision: refs/tags/x`.
 
 ## 1. Create The WebHook In The Git Provider
 
@@ -21,14 +21,14 @@ arbitrary value in the secret. This value will be used when configuring the webh
 
 To prevent DDoS attacks with unauthenticated webhook events (the `/api/webhook` endpoint currently lacks rate limiting protection), it is recommended to limit the payload size. You can achieve this by configuring the `argocd-cm` ConfigMap with the `webhook.maxPayloadSizeMB` attribute. The default value is 50MB.
 
-## Github
+### Github
 
 ![Add Webhook](../assets/webhook-config.png "Add Webhook")
 
-!!! note
-    When creating the webhook in GitHub, the "Content type" needs to be set to "application/json". The default value "application/x-www-form-urlencoded" is not supported by the library used to handle the hooks
+> [!NOTE]
+> When creating the webhook in GitHub, the "Content type" needs to be set to "application/json". The default value "application/x-www-form-urlencoded" is not supported by the library used to handle the hooks
 
-## Azure DevOps
+### Azure DevOps
 
 ![Add Webhook](../assets/azure-devops-webhook-config.png "Add Webhook")
 
