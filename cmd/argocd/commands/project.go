@@ -591,24 +591,16 @@ func NewProjectRemoveSourceNamespace(clientOpts *argocdclient.ClientOptions) *co
 }
 
 func addResourceToAllowList(list []metav1.GroupKind, listDesc string, group string, kind string) ([]metav1.GroupKind, bool) {
-	for _, item := range list {
-		if item.Group == group && item.Kind == kind {
-			fmt.Printf("Group '%s' and kind '%s' already present in %s resources\n", group, kind, listDesc)
-			return list, false
-		}
+	if slices.Contains(list, metav1.GroupKind{Group: group, Kind: kind}) {
+		fmt.Printf("Group '%s' and kind '%s' already present in %s resources\n", group, kind, listDesc)
+		return list, false
 	}
 	fmt.Printf("Group '%s' and kind '%s' is added to %s resources\n", group, kind, listDesc)
 	return append(list, metav1.GroupKind{Group: group, Kind: kind}), true
 }
 
 func removeResourceFromAllowList(list []metav1.GroupKind, listDesc string, group string, kind string) ([]metav1.GroupKind, bool) {
-	index := -1
-	for i, item := range list {
-		if item.Group == group && item.Kind == kind {
-			index = i
-			break
-		}
-	}
+	index := slices.Index(list, metav1.GroupKind{Group: group, Kind: kind})
 	if index == -1 {
 		fmt.Printf("Group '%s' and kind '%s' not in %s resources\n", group, kind, listDesc)
 		return list, false
@@ -619,13 +611,7 @@ func removeResourceFromAllowList(list []metav1.GroupKind, listDesc string, group
 }
 
 func removeResourceFromDenyList(list []v1alpha1.BlacklistEntry, listDesc string, group string, kind string) ([]v1alpha1.BlacklistEntry, bool) {
-	index := -1
-	for i, item := range list {
-		if item.Group == group && item.Kind == kind {
-			index = i
-			break
-		}
-	}
+	index := slices.Index(list, v1alpha1.BlacklistEntry{Group: group, Kind: kind})
 	if index == -1 {
 		fmt.Printf("Group '%s' and kind '%s' not in %s resources\n", group, kind, listDesc)
 		return list, false
@@ -636,17 +622,17 @@ func removeResourceFromDenyList(list []v1alpha1.BlacklistEntry, listDesc string,
 }
 
 func addResourceToDenyList(list []v1alpha1.BlacklistEntry, visible bool, listDesc string, group string, kind string) ([]v1alpha1.BlacklistEntry, bool) {
-	for i, item := range list {
-		if item.Group == group && item.Kind == kind {
-			if item.Visible == visible {
-				fmt.Printf("Group '%s' and kind '%s' already present in %s resources and visibility is %v\n", group, kind, listDesc, visible)
-				return list, false
-			}
-			list[i].Visible = visible
-			fmt.Printf("Group '%s' and kind '%s' already present in %s resources. Updated visibility to %v\n", group, kind, listDesc, visible)
-			return list, true
+	index := slices.Index(list, v1alpha1.BlacklistEntry{Group: group, Kind: kind})
+	if index != -1 {
+		if list[index].Visible == visible {
+			fmt.Printf("Group '%s' and kind '%s' already present in %s resources and visibility is %v\n", group, kind, listDesc, visible)
+			return list, false
 		}
+		list[index].Visible = visible
+		fmt.Printf("Group '%s' and kind '%s' already present in %s resources. Updated visibility to %v\n", group, kind, listDesc, visible)
+		return list, true
 	}
+
 	fmt.Printf("Group '%s' and kind '%s' is added to %s resources with visibility %v\n", group, kind, listDesc, visible)
 	list = append(list, v1alpha1.BlacklistEntry{Group: group, Kind: kind, Visible: visible})
 	return list, true
@@ -702,11 +688,6 @@ func modifyResourceListCmd(cmdUse, cmdDesc, examples string, clientOpts *argocdc
 					*allowList, updated = addResourceToAllowList(*allowList, "allowed "+listDesc, group, kind)
 				} else {
 					*allowList, updated = removeResourceFromAllowList(*allowList, "allowed "+listDesc, group, kind)
-				}
-
-				if updated {
-					_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
-					errors.CheckError(err)
 				}
 			} else {
 				if allow {
