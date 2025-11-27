@@ -39,14 +39,14 @@ export function Paginate<T>({page, onPageChange, children, data, emptyState, pre
             {({pref, authSettings}) => {
                 preferencesKey = preferencesKey || 'default';
                 let pageSize = pref.pageSizes[preferencesKey] || 10;
-                
+
                 // If "all" option is disabled but user has "all" selected, reset to default (20)
                 if (authSettings?.uiPaginateAllDisabled && pageSize === -1) {
                     pageSize = 20;
                     pref.pageSizes[preferencesKey] = 20;
                     services.viewPreferences.updatePreferences(pref);
                 }
-                
+
                 const sortOption = sortOptions ? (pref.sortOptions && pref.sortOptions[preferencesKey]) || sortOptions[0].title : '';
                 const pageCount = pageSize === -1 ? 1 : Math.ceil(data.length / pageSize);
                 if (pageCount <= page) {
