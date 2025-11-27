@@ -38,7 +38,7 @@ func (si *SourceIntegrity) ForGit(repoURL string) SourceIntegrityGitFunc {
 	policies := si.Git.findMatchingPolicies(repoURL)
 	nPolicies := len(policies)
 	if nPolicies == 0 {
-		log.Debugf("No policies found for repo URL: %s", repoURL)
+		log.Infof("No policies found for repo URL: %s", repoURL)
 		return nil
 	}
 	if nPolicies > 1 {
@@ -121,39 +121,32 @@ func (g *SourceIntegrityGitPolicyGPG) verify(gitClient git.Client, unresolvedRev
 	var revisions []git.RevisionSignatureInfo
 
 	verifyingTag := gitClient.IsAnnotatedTag(unresolvedRevision)
+	// If on tag, verify tag in both head and strict mode
+	if verifyingTag {
+		tagRev, err := gitClient.TagSignature(unresolvedRevision)
+		if err != nil {
+			return nil, err
+		}
+		revisions = append(revisions, *tagRev)
+	}
+
+	commitSHA, err := gitClient.CommitSHA()
+	if err != nil {
+		return nil, err
+	}
 
 	switch g.Mode {
 	case SourceIntegrityGitPolicyGPGModeHead:
 		// verify tag if on tag, latest revision otherwise
-		if verifyingTag {
-			tagRev, err := gitClient.TagSignature(unresolvedRevision)
-			if err != nil {
-				return nil, err
-			}
-			revisions = append(revisions, *tagRev)
-		} else {
-			tagRevs, err := gitClient.LsSignatures(unresolvedRevision, false)
+		if !verifyingTag {
+			tagRevs, err := gitClient.LsSignatures(commitSHA, false)
 			if err != nil {
 				return nil, err
 			}
 			revisions = append(revisions, tagRevs...)
 		}
 	case SourceIntegrityGitPolicyGPGModeStrict:
-		// verify tag if on tag
-		if verifyingTag {
-			tagRev, err := gitClient.TagSignature(unresolvedRevision)
-			if err != nil {
-				return nil, err
-			}
-			revisions = append(revisions, *tagRev)
-		}
-
 		// verify history from the current commit
-		commitSHA, err := gitClient.CommitSHA()
-		if err != nil {
-			return nil, err
-		}
-
 		deepRevs, err := gitClient.LsSignatures(commitSHA, true)
 		if err != nil {
 			return nil, err
