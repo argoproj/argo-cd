@@ -1574,11 +1574,10 @@ func findAndPrintDiff(ctx context.Context, app *argoappv1.Application, proj *arg
 			overrides[k] = *val
 		}
 
-		// TODO remove hardcoded IgnoreAggregatedRoles and retrieve the
-		// compareOptions in the protobuf
-		ignoreAggregatedRoles := false
+		compareOptions, err := argoSettings.GetResourceCompareOptions()
+		errors.CheckError(err)
 		diffConfig, err := argodiff.NewDiffConfigBuilder().
-			WithDiffSettings(app.Spec.IgnoreDifferences, overrides, ignoreAggregatedRoles, ignoreNormalizerOpts).
+			WithDiffSettings(app.Spec.IgnoreDifferences, overrides, compareOptions.IgnoreAggregatedRoles, ignoreNormalizerOpts).
 			WithTracking(argoSettings.AppLabelKey, argoSettings.TrackingMethod).
 			WithNoCache().
 			WithLogger(logutils.NewLogrusLogger(logutils.NewWithCurrentConfig())).
