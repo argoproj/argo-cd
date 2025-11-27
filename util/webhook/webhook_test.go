@@ -161,12 +161,12 @@ func newMockHandler(reactor *reactorDef, applicationNamespaces []string, maxPayl
 		appClientset.AddReactor(reactor.verb, reactor.resource, reactor.reaction)
 	}
 	cacheClient := cacheutil.NewCache(cacheutil.NewInMemoryCache(1 * time.Hour))
-	return NewHandler("argocd", applicationNamespaces, 10, appClientset, &fakeAppsLister{clientset: appClientset}, argoSettings, &fakeSettingsSrc{}, cache.NewCache(
+	return NewHandler("argocd", applicationNamespaces, 10, 10, appClientset, &fakeAppsLister{clientset: appClientset}, argoSettings, &fakeSettingsSrc{}, cache.NewCache(
 		cacheClient,
 		1*time.Minute,
 		1*time.Minute,
 		10*time.Second,
-	), servercache.NewCache(appstate.NewCache(cacheClient, time.Minute), time.Minute, time.Minute), argoDB, maxPayloadSize)
+	), servercache.NewCache(appstate.NewCache(cacheClient, time.Minute), time.Minute, time.Minute), argoDB, maxPayloadSize, 0)
 }
 
 func TestGitHubCommitEvent(t *testing.T) {
@@ -179,8 +179,7 @@ func TestGitHubCommitEvent(t *testing.T) {
 	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
-	close(h.queue)
-	h.Wait()
+	h.Shutdown()
 	assert.Equal(t, http.StatusOK, w.Code)
 	expectedLogResult := "Received push event repo: https://github.com/jessesuen/test-repo, revision: master, touchedHead: true"
 	assertLogContains(t, hook, expectedLogResult)
@@ -197,11 +196,69 @@ func TestAzureDevOpsCommitEvent(t *testing.T) {
 	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
-	close(h.queue)
-	h.Wait()
+	h.Shutdown()
 	assert.Equal(t, http.StatusOK, w.Code)
 	expectedLogResult := "Received push event repo: https://dev.azure.com/alexander0053/alex-test/_git/alex-test, revision: master, touchedHead: true"
 	assertLogContains(t, hook, expectedLogResult)
+	hook.Reset()
+}
+
+// TestGitHubCommitEvent_MultiSource_Refresh makes sure that a webhook will refresh a multi-source app when at least
+// one source matches.
+func TestGitHubCommitEvent_MultiSource_Refresh(t *testing.T) {
+	hook := test.NewGlobal()
+	var patched bool
+	reaction := func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		patchAction := action.(kubetesting.PatchAction)
+		assert.Equal(t, "app-to-refresh", patchAction.GetName())
+		patched = true
+		return true, nil, nil
+	}
+	h := NewMockHandler(&reactorDef{"patch", "applications", reaction}, []string{}, &v1alpha1.Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "app-to-refresh",
+			Namespace: "argocd",
+		},
+		Spec: v1alpha1.ApplicationSpec{
+			Sources: v1alpha1.ApplicationSources{
+				{
+					RepoURL: "https://github.com/some/unrelated-repo",
+					Path:    ".",
+				},
+				{
+					RepoURL: "https://github.com/jessesuen/test-repo",
+					Path:    ".",
+				},
+			},
+		},
+	}, &v1alpha1.Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "app-to-ignore",
+		},
+		Spec: v1alpha1.ApplicationSpec{
+			Sources: v1alpha1.ApplicationSources{
+				{
+					RepoURL: "https://github.com/some/unrelated-repo",
+					Path:    ".",
+				},
+			},
+		},
+	},
+	)
+	req := httptest.NewRequest(http.MethodPost, "/api/webhook", http.NoBody)
+	req.Header.Set("X-GitHub-Event", "push")
+	eventJSON, err := os.ReadFile("testdata/github-commit-event.json")
+	require.NoError(t, err)
+	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
+	w := httptest.NewRecorder()
+	h.Handler(w, req)
+	h.Shutdown()
+	assert.Equal(t, http.StatusOK, w.Code)
+	expectedLogResult := "Requested app 'app-to-refresh' refresh"
+	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
+	assert.True(t, patched)
+	hook.Reset()
+}
 	hook.Reset()
 }
 
@@ -279,8 +336,7 @@ func TestGitHubCommitEvent_AppsInOtherNamespaces(t *testing.T) {
 	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
-	close(h.queue)
-	h.Wait()
+	h.Shutdown()
 	assert.Equal(t, http.StatusOK, w.Code)
 
 	logMessages := make([]string, 0, len(hook.Entries))
@@ -303,6 +359,71 @@ func TestGitHubCommitEvent_AppsInOtherNamespaces(t *testing.T) {
 	hook.Reset()
 }
 
+// TestGitHubCommitEvent_Hydrate makes sure that a webhook will hydrate an app when dry source changed.
+func TestGitHubCommitEvent_Hydrate(t *testing.T) {
+	hook := test.NewGlobal()
+	var patched bool
+	reaction := func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		patchAction := action.(kubetesting.PatchAction)
+		assert.Equal(t, "app-to-hydrate", patchAction.GetName())
+		patched = true
+		return true, nil, nil
+	}
+	h := NewMockHandler(&reactorDef{"patch", "applications", reaction}, []string{}, &v1alpha1.Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "app-to-hydrate",
+			Namespace: "argocd",
+		},
+		Spec: v1alpha1.ApplicationSpec{
+			SourceHydrator: &v1alpha1.SourceHydrator{
+				DrySource: v1alpha1.DrySource{
+					RepoURL:        "https://github.com/jessesuen/test-repo",
+					TargetRevision: "HEAD",
+					Path:           ".",
+				},
+				SyncSource: v1alpha1.SyncSource{
+					TargetBranch: "environments/dev",
+					Path:         ".",
+				},
+				HydrateTo: nil,
+			},
+		},
+	}, &v1alpha1.Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "app-to-ignore",
+		},
+		Spec: v1alpha1.ApplicationSpec{
+			Sources: v1alpha1.ApplicationSources{
+				{
+					RepoURL: "https://github.com/some/unrelated-repo",
+					Path:    ".",
+				},
+			},
+		},
+	},
+	)
+	req := httptest.NewRequest(http.MethodPost, "/api/webhook", http.NoBody)
+	req.Header.Set("X-GitHub-Event", "push")
+	eventJSON, err := os.ReadFile("testdata/github-commit-event.json")
+	require.NoError(t, err)
+	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
+	w := httptest.NewRecorder()
+	h.Handler(w, req)
+	h.Shutdown()
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.True(t, patched)
+
+	logMessages := make([]string, 0, len(hook.Entries))
+	for _, entry := range hook.Entries {
+		logMessages = append(logMessages, entry.Message)
+	}
+
+	assert.Contains(t, logMessages, "webhook trigger refresh app to hydrate 'app-to-hydrate'")
+	assert.NotContains(t, logMessages, "webhook trigger refresh app to hydrate 'app-to-ignore'")
+
+	hook.Reset()
+}
+
 func TestGitHubTagEvent(t *testing.T) {
 	hook := test.NewGlobal()
 	h := NewMockHandler(nil, []string{})
@@ -313,8 +434,7 @@ func TestGitHubTagEvent(t *testing.T) {
 	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
-	close(h.queue)
-	h.Wait()
+	h.Shutdown()
 	assert.Equal(t, http.StatusOK, w.Code)
 	expectedLogResult := "Received push event repo: https://github.com/jessesuen/test-repo, revision: v1.0, touchedHead: false"
 	assertLogContains(t, hook, expectedLogResult)
@@ -331,8 +451,7 @@ func TestGitHubPingEvent(t *testing.T) {
 	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
-	close(h.queue)
-	h.Wait()
+	h.Shutdown()
 	assert.Equal(t, http.StatusOK, w.Code)
 	expectedLogResult := "Ignoring webhook event"
 	assertLogContains(t, hook, expectedLogResult)
@@ -349,8 +468,7 @@ func TestBitbucketServerRepositoryReferenceChangedEvent(t *testing.T) {
 	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
-	close(h.queue)
-	h.Wait()
+	h.Shutdown()
 	assert.Equal(t, http.StatusOK, w.Code)
 	expectedLogResultSSH := "Received push event repo: ssh://git@bitbucketserver:7999/myproject/test-repo.git, revision: master, touchedHead: true"
 	assertLogContains(t, hook, expectedLogResultSSH)
@@ -367,8 +485,7 @@ func TestBitbucketServerRepositoryDiagnosticPingEvent(t *testing.T) {
 	req.Header.Set("X-Event-Key", "diagnostics:ping")
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
-	close(h.queue)
-	h.Wait()
+	h.Shutdown()
 	assert.Equal(t, http.StatusOK, w.Code)
 	expectedLogResult := "Ignoring webhook event"
 	assertLogContains(t, hook, expectedLogResult)
@@ -385,8 +502,7 @@ func TestGogsPushEvent(t *testing.T) {
 	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
-	close(h.queue)
-	h.Wait()
+	h.Shutdown()
 	assert.Equal(t, http.StatusOK, w.Code)
 	expectedLogResult := "Received push event repo: http://gogs-server/john/repo-test, revision: master, touchedHead: true"
 	assertLogContains(t, hook, expectedLogResult)
@@ -403,8 +519,7 @@ func TestGitLabPushEvent(t *testing.T) {
 	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
-	close(h.queue)
-	h.Wait()
+	h.Shutdown()
 	assert.Equal(t, http.StatusOK, w.Code)
 	expectedLogResult := "Received push event repo: https://gitlab.com/group/name, revision: master, touchedHead: true"
 	assertLogContains(t, hook, expectedLogResult)
@@ -421,8 +536,7 @@ func TestGitLabSystemEvent(t *testing.T) {
 	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
-	close(h.queue)
-	h.Wait()
+	h.Shutdown()
 	assert.Equal(t, http.StatusOK, w.Code)
 	expectedLogResult := "Received push event repo: https://gitlab.com/group/name, revision: master, touchedHead: true"
 	assertLogContains(t, hook, expectedLogResult)
@@ -436,8 +550,7 @@ func TestInvalidMethod(t *testing.T) {
 	req.Header.Set("X-GitHub-Event", "push")
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
-	close(h.queue)
-	h.Wait()
+	h.Shutdown()
 	assert.Equal(t, http.StatusMethodNotAllowed, w.Code)
 	assertLogContains(t, hook, "Webhook processing failed: invalid HTTP Method")
 	assert.Equal(t, "Webhook processing failed\n", w.Body.String())
@@ -451,8 +564,7 @@ func TestInvalidEvent(t *testing.T) {
 	req.Header.Set("X-GitHub-Event", "push")
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
-	close(h.queue)
-	h.Wait()
+	h.Shutdown()
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 	assertLogContainsSubstr(t, hook, "Webhook processing failed: payload too large or corrupted (limit 50 MB)")
 	assert.Equal(t, "Webhook processing failed: payload must be valid JSON under 50 MB\n", w.Body.String())
@@ -466,8 +578,7 @@ func TestUnknownEvent(t *testing.T) {
 	req.Header.Set("X-Unknown-Event", "push")
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
-	close(h.queue)
-	h.Wait()
+	h.Shutdown()
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 	assert.Equal(t, "Unknown webhook event\n", w.Body.String())
 	hook.Reset()
@@ -768,8 +879,7 @@ func TestGitHubCommitEventMaxPayloadSize(t *testing.T) {
 	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
-	close(h.queue)
-	h.Wait()
+	h.Shutdown()
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 	assertLogContainsSubstr(t, hook, "Webhook processing failed: payload too large or corrupted (limit 0 MB)")
 	hook.Reset()
