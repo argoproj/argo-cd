@@ -82,10 +82,13 @@ func (g *GitGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Applic
 		if controllerNamespace == "" {
 			controllerNamespace = appSet.Namespace
 		}
+
 		if err := client.Get(context.TODO(), types.NamespacedName{Name: project, Namespace: controllerNamespace}, appProject); err != nil {
 			return nil, fmt.Errorf("error getting project %s: %w", project, err)
 		}
 		sourceIntegrity = appProject.EffectiveSourceIntegrity()
+	} else {
+		log.WithField("appset", appSet.Name).Infof("Cannot detect source integrity, project name templated")
 	}
 
 	// If the project field is templated, we cannot resolve the project name, so we pass an empty string to the repo-server.
