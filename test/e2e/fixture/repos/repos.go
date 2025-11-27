@@ -57,8 +57,8 @@ func WithPartialClone(enable bool) AddRepoOpts {
 
 func WithSparsePaths(paths ...string) AddRepoOpts {
 	return func(args []string) []string {
-		if len(paths) > 0 {
-			args = append(args, "--sparse-paths", strings.Join(paths, ","))
+		for _, path := range paths {
+			args = append(args, "--sparse-paths", path)
 		}
 		return args
 	}
