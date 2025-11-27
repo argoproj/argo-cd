@@ -683,18 +683,17 @@ func modifyResourceListCmd(cmdUse, cmdDesc, examples string, clientOpts *argocdc
 			}
 
 			var updated bool
-			if (listType == "allow") || (listType == "white") {
-				if allow {
-					*allowList, updated = addResourceToAllowList(*allowList, "allowed "+listDesc, group, kind)
-				} else {
-					*allowList, updated = removeResourceFromAllowList(*allowList, "allowed "+listDesc, group, kind)
-				}
-			} else {
-				if allow {
-					*denyList, updated = removeResourceFromDenyList(*denyList, "denied "+listDesc, group, kind)
-				} else {
-					*denyList, updated = addResourceToDenyList(*denyList, visible, "denied "+listDesc, group, kind)
-				}
+			shouldModifyAllowList := (listType == "allow") || (listType == "white")
+
+			switch {
+			case shouldModifyAllowList && allow:
+				*allowList, updated = addResourceToAllowList(*allowList, "allowed "+listDesc, group, kind)
+			case shouldModifyAllowList && !allow:
+				*allowList, updated = removeResourceFromAllowList(*allowList, "allowed "+listDesc, group, kind)
+			case !shouldModifyAllowList && allow:
+				*denyList, updated = removeResourceFromDenyList(*denyList, "denied "+listDesc, group, kind)
+			case !shouldModifyAllowList && !allow:
+				*denyList, updated = addResourceToDenyList(*denyList, visible, "denied "+listDesc, group, kind)
 			}
 
 			if updated {
