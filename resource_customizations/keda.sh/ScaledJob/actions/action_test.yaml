@@ -1,3 +1,18 @@
+discoveryTests:
+  - inputPath: testdata/scaledjob.yaml
+    result:
+      - name: pause
+        disabled: false
+      - name: resume
+        disabled: true
+  
+  - inputPath: testdata/scaledjob-pause.yaml
+    result:
+      - name: pause
+        disabled: true
+      - name: resume
+        disabled: false
+
 actionTests:
   - action: pause
     inputPath: testdata/scaledjob.yaml
