@@ -347,6 +347,13 @@ data:
   # be between 3 and 4 minutes. Disabled when the value is 0, defaults to 1 minute.
   timeout.reconciliation.jitter: 60s
 
+  # webhook.jitter is the maximum jitter duration that can be added to the webhook-triggered application refresh.
+  # When multiple webhook events are received simultaneously (e.g., after a bulk merge), this jitter helps spread out the
+  # refresh load over time to prevent spikes in the repo-server component. The jitter is a random delay between 0 and the
+  # configured duration that is applied before refreshing each application. For example, if set to 60s, each webhook-triggered
+  # refresh will wait between 0 and 60 seconds before processing. Disabled when the value is 0 (default).
+  webhook.jitter: 0s
+
   # cluster.inClusterEnabled indicates whether to allow in-cluster server address. This is enabled by default.
   cluster.inClusterEnabled: "true"
 
