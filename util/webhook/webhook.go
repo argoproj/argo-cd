@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"html"
+	"math/rand"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -14,6 +15,7 @@ import (
 
 	bb "github.com/ktrysmt/go-bitbucket"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/client-go/util/workqueue"
 
 	alpha1 "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
 
@@ -57,6 +59,13 @@ const panicMsgServer = "panic while processing api-server webhook event"
 
 var _ settingsSource = &settings.SettingsManager{}
 
+// appRefreshRequest represents a request to refresh an application with optional jitter
+type appRefreshRequest struct {
+	appName      string
+	appNamespace string
+	hydrate      bool
+}
+
 type ArgoCDWebhookHandler struct {
 	sync.WaitGroup         // for testing
 	repoCache              *cache.Cache
@@ -75,10 +84,12 @@ type ArgoCDWebhookHandler struct {
 	settings               *settings.ArgoCDSettings
 	settingsSrc            settingsSource
 	queue                  chan any
+	refreshQueue           workqueue.TypedDelayingInterface[any]
 	maxWebhookPayloadSizeB int64
+	webhookRefreshJitter   time.Duration
 }
 
-func NewHandler(namespace string, applicationNamespaces []string, webhookParallelism int, appClientset appclientset.Interface, appsLister alpha1.ApplicationLister, set *settings.ArgoCDSettings, settingsSrc settingsSource, repoCache *cache.Cache, serverCache *servercache.Cache, argoDB db.ArgoDB, maxWebhookPayloadSizeB int64) *ArgoCDWebhookHandler {
+func NewHandler(namespace string, applicationNamespaces []string, webhookParallelism int, webhookRefreshWorkers int, appClientset appclientset.Interface, appsLister alpha1.ApplicationLister, set *settings.ArgoCDSettings, settingsSrc settingsSource, repoCache *cache.Cache, serverCache *servercache.Cache, argoDB db.ArgoDB, maxWebhookPayloadSizeB int64, webhookRefreshJitter time.Duration) *ArgoCDWebhookHandler {
 	githubWebhook, err := github.New(github.Options.Secret(set.GetWebhookGitHubSecret()))
 	if err != nil {
 		log.Warnf("Unable to init the GitHub webhook")
@@ -104,6 +115,8 @@ func NewHandler(namespace string, applicationNamespaces []string, webhookParalle
 		log.Warnf("Unable to init the Azure DevOps webhook")
 	}
 
+	log.Infof("webhookRefreshJitter=%v", webhookRefreshJitter)
+
 	acdWebhook := ArgoCDWebhookHandler{
 		ns:                     namespace,
 		appNs:                  applicationNamespaces,
@@ -120,11 +133,14 @@ func NewHandler(namespace string, applicationNamespaces []string, webhookParalle
 		settings:               set,
 		db:                     argoDB,
 		queue:                  make(chan any, payloadQueueSize),
+		refreshQueue:           workqueue.NewTypedDelayingQueue[any](),
 		maxWebhookPayloadSizeB: maxWebhookPayloadSizeB,
 		appsLister:             appsLister,
+		webhookRefreshJitter:   webhookRefreshJitter,
 	}
 
 	acdWebhook.startWorkerPool(webhookParallelism)
+	acdWebhook.startRefreshWorkers(webhookRefreshWorkers)
 
 	return &acdWebhook
 }
@@ -143,6 +159,50 @@ func (a *ArgoCDWebhookHandler) startWorkerPool(webhookParallelism int) {
 				guard.RecoverAndLog(func() { a.HandleEvent(payload) }, compLog, panicMsgServer)
 			}
 		}()
+	}
+}
+
+// startRefreshWorkers starts worker goroutines to process app refresh requests from the refresh queue
+func (a *ArgoCDWebhookHandler) startRefreshWorkers(count int) {
+	for i := 0; i < count; i++ {
+		a.Add(1)
+		go func() {
+			defer a.Done()
+			for {
+				item, shutdown := a.refreshQueue.Get()
+				if shutdown {
+					return
+				}
+				guard.RecoverAndLog(func() { a.processAppRefresh(item) }, log.WithField("component", "api-server-webhook-refresh"), panicMsgServer)
+				a.refreshQueue.Done(item)
+			}
+		}()
+	}
+}
+
+// processAppRefresh processes a single app refresh request
+func (a *ArgoCDWebhookHandler) processAppRefresh(item any) {
+	req, ok := item.(*appRefreshRequest)
+	if !ok {
+		log.Warnf("Invalid refresh request type: %T", item)
+		return
+	}
+
+	namespacedAppInterface := a.appClientset.ArgoprojV1alpha1().Applications(req.appNamespace)
+	_, err := argo.RefreshApp(namespacedAppInterface, req.appName, v1alpha1.RefreshTypeNormal, req.hydrate)
+	if err != nil {
+		if req.hydrate {
+			log.Warnf("Failed to hydrate app '%s' for controller reprocessing: %v", req.appName, err)
+		} else {
+			log.Warnf("Failed to refresh app '%s' for controller reprocessing: %v", req.appName, err)
+		}
+		return
+	}
+
+	if req.hydrate {
+		log.Infof("Requested app '%s' hydration", req.appName)
+	} else {
+		log.Infof("Requested app '%s' refresh", req.appName)
 	}
 }
 
@@ -394,9 +454,16 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 							// log if we need to hydrate the app
 							log.Infof("webhook trigger refresh app to hydrate '%s'", app.Name)
 						}
-						namespacedAppInterface := a.appClientset.ArgoprojV1alpha1().Applications(app.Namespace)
-						if _, err := argo.RefreshApp(namespacedAppInterface, app.Name, v1alpha1.RefreshTypeNormal, hydrate); err != nil {
-							log.Errorf("Failed to refresh app '%s': %v", app.Name, err)
+						req := &appRefreshRequest{
+							appName:      app.Name,
+							appNamespace: app.Namespace,
+							hydrate:      hydrate,
+						}
+						if a.webhookRefreshJitter != 0 {
+							jitter := time.Duration(float64(a.webhookRefreshJitter) * rand.Float64())
+							a.refreshQueue.AddAfter(req, jitter)
+						} else {
+							a.refreshQueue.Add(req)
 						}
 						break // we don't need to check other sources
 					} else if change.shaBefore != "" && change.shaAfter != "" {
@@ -700,4 +767,23 @@ func (a *ArgoCDWebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 		log.Info("Queue is full, discarding webhook payload")
 		http.Error(w, "Queue is full, discarding webhook payload", http.StatusServiceUnavailable)
 	}
+}
+
+// Shutdown gracefully shuts down the webhook handler by closing queues and waiting for workers
+func (a *ArgoCDWebhookHandler) Shutdown() {
+	close(a.queue)
+	// Wait for refresh queue to drain and finish processing all items
+	for a.refreshQueue.Len() > 0 || !a.refreshQueue.ShuttingDown() {
+		time.Sleep(10 * time.Millisecond)
+		// If queue is empty and not processing, we can break
+		if a.refreshQueue.Len() == 0 {
+			// Give a small grace period for items being processed
+			time.Sleep(50 * time.Millisecond)
+			if a.refreshQueue.Len() == 0 {
+				break
+			}
+		}
+	}
+	a.refreshQueue.ShutDown()
+	a.Wait()
 }

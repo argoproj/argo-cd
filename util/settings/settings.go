@@ -459,6 +459,8 @@ const (
 	settingsWebhookAzureDevOpsPasswordKey = "webhook.azuredevops.password"
 	// settingsWebhookMaxPayloadSize is the key for the maximum payload size for webhooks in MB
 	settingsWebhookMaxPayloadSizeMB = "webhook.maxPayloadSizeMB"
+	// settingsWebhookRefreshJitter is the key for the maximum jitter duration for webhook-triggered refreshes
+	settingsWebhookRefreshJitter = "webhook.jitter"
 	// settingsApplicationInstanceLabelKey is the key to configure injected app instance label key
 	settingsApplicationInstanceLabelKey = "application.instanceLabelKey"
 	// settingsResourceTrackingMethodKey is the key to configure tracking method for application resources
@@ -2394,6 +2396,25 @@ func (mgr *SettingsManager) GetMaxWebhookPayloadSize() int64 {
 	}
 
 	return maxPayloadSizeMB * 1024 * 1024
+}
+
+func (mgr *SettingsManager) GetWebhookRefreshJitter() time.Duration {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return 0
+	}
+
+	if argoCDCM.Data[settingsWebhookRefreshJitter] == "" {
+		return 0
+	}
+
+	jitter, err := timeutil.ParseDuration(argoCDCM.Data[settingsWebhookRefreshJitter])
+	if err != nil {
+		log.Warnf("Failed to parse '%s' key: %v", settingsWebhookRefreshJitter, err)
+		return 0
+	}
+
+	return *jitter
 }
 
 // IsImpersonationEnabled returns true if application sync with impersonation feature is enabled in argocd-cm configmap
