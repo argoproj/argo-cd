@@ -1102,29 +1102,35 @@ func evaluateGpgSignStatus(cmdErr error, tagGpgOut string) (result GPGVerificati
 //
 // If deep==true, This needs to traverse history backwards following all commit parents from revision recursively;
 // it stops the branch search on a "seal commit" or repo init commit.
-func (m *nativeGitClient) LsSignatures(revision string, deep bool) ([]RevisionSignatureInfo, error) {
+func (m *nativeGitClient) LsSignatures(revisionSha string, deep bool) ([]RevisionSignatureInfo, error) {
 	// See git-rev-list(1) for description of the format string
 	const revListFormat = `--pretty=format:%H,%G?,%GK,"%aD","%an <%ae>"`
 	const revListNumFields = 5
+
+	// In repo-server, the repository is in detached-head state and branch names cannot be looked up.
+	// Make sure it has been done by the client calling this.
+	if !IsCommitSHA(revisionSha) {
+		return nil, fmt.Errorf("invalid revision sha %q", revisionSha)
+	}
 
 	ctx := context.Background()
 
 	var commitFilterArgs []string
 	if deep {
 		// Find all seal commits - not necessarily the most recent ones
-		cmd := m.cmdWithGPG(ctx, "rev-list", "--grep=Argocd-gpg-seal", "--regexp-ignore-case", revision)
+		cmd := m.cmdWithGPG(ctx, "rev-list", "--grep=Argocd-gpg-seal", "--regexp-ignore-case", revisionSha)
 		sealCommitsRawOut, err := m.runCmdOutput(cmd, runOpts{})
 		if err != nil {
 			return nil, err
 		}
 
-		commitFilterArgs, err = m.getSealRevListFilter(revision, sealCommitsRawOut)
+		commitFilterArgs, err = m.getSealRevListFilter(revisionSha, sealCommitsRawOut)
 		if err != nil {
 			return nil, err
 		}
 	} else {
 		// List only the one revision
-		commitFilterArgs = []string{revision, "-1", "--"}
+		commitFilterArgs = []string{revisionSha, "-1", "--"}
 	}
 
 	// Find all commits until the seal(s) including
