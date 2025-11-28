@@ -1083,6 +1083,11 @@ func (in *ApplicationSource) DeepCopy() *ApplicationSource {
 func (in *ApplicationSourceDirectory) DeepCopyInto(out *ApplicationSourceDirectory) {
 	*out = *in
 	in.Jsonnet.DeepCopyInto(&out.Jsonnet)
+	if in.SparseCheckoutPaths != nil {
+		in, out := &in.SparseCheckoutPaths, &out.SparseCheckoutPaths
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 
