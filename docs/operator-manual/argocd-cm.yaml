@@ -332,7 +332,7 @@ data:
   # Set to "true" to hide the "all" option. This is useful for large ArgoCD instances
   # with thousands of applications to prevent performance issues when users accidentally
   # select "all" items per page. By default (when not set), the "all" option is shown.
-  ui.paginateAllDisabled: "true"
+  # ui.paginateAllDisabled: "true"
 
   # Application reconciliation timeout is the amount of time spent before Argo tries to discover if a new manifests version got
   # published to the repository. Reconciliation by timeout is disabled if timeout is set to 0. Two minutes by default with additional jitter.
