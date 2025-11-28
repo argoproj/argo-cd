@@ -599,54 +599,6 @@ func TestFilterAppSetsByProjects(t *testing.T) {
 	})
 }
 
-func TestFilterByAnnotationsP(t *testing.T) {
-	apps := []*argoappv1.Application{
-		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "app1",
-				Annotations: map[string]string{
-					argoappv1.AnnotationKeyRefresh: "normal",
-				},
-			},
-		},
-		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "app2",
-				Annotations: map[string]string{
-					argoappv1.AnnotationKeyRefresh: "normal",
-				},
-			},
-		},
-		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "app3",
-				Annotations: map[string]string{
-					common.AnnotationKeyHook: "PreSync",
-				},
-			},
-		},
-	}
-
-	t.Run("No match", func(t *testing.T) {
-		res := FilterByAnnotationsP(apps, "argocd.argoproj.io/refresh=hard")
-
-		assert.Empty(t, res)
-	})
-
-	t.Run("2 annotations matched", func(t *testing.T) {
-		res := FilterByAnnotationsP(apps, "argocd.argoproj.io/refresh=normal")
-
-		assert.Len(t, res, 2)
-		assert.Equal(t, "normal", res[0].Annotations["argocd.argoproj.io/refresh"])
-	})
-
-	t.Run("No annotation with all apps returned", func(t *testing.T) {
-		res := FilterByAnnotationsP(apps, "")
-
-		assert.Len(t, res, 3)
-	})
-}
-
 func TestFilterByAnnotations(t *testing.T) {
 	apps := []argoappv1.Application{
 		{

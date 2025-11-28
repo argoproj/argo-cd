@@ -182,26 +182,6 @@ func FilterByRepoP(apps []*argoappv1.Application, repo string) []*argoappv1.Appl
 	return items
 }
 
-// FilterByAnnotationsP returns application pointers
-func FilterByAnnotationsP(apps []*argoappv1.Application, annotations string) []*argoappv1.Application {
-	if annotations == "" {
-		return apps
-	}
-	items := make([]*argoappv1.Application, 0)
-	inputAnnotationMap := annotation.Parse([]string{annotations})
-	for i := 0; i < len(apps); i++ {
-		savedAnnotations := apps[i].Annotations
-		for key, savedValue := range savedAnnotations {
-			inputValue, ok := inputAnnotationMap[key]
-			// This means, we have got exact values, or we received only an annotation key without a value.
-			if savedValue == inputValue || (ok && inputValue == "") {
-				items = append(items, apps[i])
-			}
-		}
-	}
-	return items
-}
-
 // FilterByAnnotations returns an application
 func FilterByAnnotations(apps []argoappv1.Application, annotations string) []argoappv1.Application {
 	if annotations == "" {

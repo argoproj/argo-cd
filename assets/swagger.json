@@ -281,11 +281,6 @@
             "description": "the project names to restrict returned list applications (legacy name for backwards-compatibility).",
             "name": "project",
             "in": "query"
-          },
-          {
-            "type": "string",
-            "name": "annotation",
-            "in": "query"
           }
         ],
         "responses": {
@@ -674,11 +669,6 @@
             "collectionFormat": "multi",
             "description": "the project names to restrict returned list applications (legacy name for backwards-compatibility).",
             "name": "project",
-            "in": "query"
-          },
-          {
-            "type": "string",
-            "name": "annotation",
             "in": "query"
           }
         ],
@@ -4254,11 +4244,6 @@
             "collectionFormat": "multi",
             "description": "the project names to restrict returned list applications (legacy name for backwards-compatibility).",
             "name": "project",
-            "in": "query"
-          },
-          {
-            "type": "string",
-            "name": "annotation",
             "in": "query"
           }
         ],
