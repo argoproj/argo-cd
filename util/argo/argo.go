@@ -3,13 +3,15 @@ package argo
 import (
 	"context"
 	"encoding/json"
-	"errors"
+	stderrors "errors"
 	"fmt"
 	"regexp"
 	"slices"
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/argoproj/argo-cd/v3/util/text/annotation"
 
 	"github.com/argoproj/gitops-engine/pkg/cache"
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
@@ -175,6 +177,45 @@ func FilterByRepoP(apps []*argoappv1.Application, repo string) []*argoappv1.Appl
 	for i := 0; i < len(apps); i++ {
 		if apps[i].Spec.GetSource().RepoURL == repo {
 			items = append(items, apps[i])
+		}
+	}
+	return items
+}
+
+// FilterByAnnotationsP returns application pointers
+func FilterByAnnotationsP(apps []*argoappv1.Application, annotations string) []*argoappv1.Application {
+	if annotations == "" {
+		return apps
+	}
+	items := make([]*argoappv1.Application, 0)
+	inputAnnotationMap := annotation.Parse([]string{annotations})
+	for i := 0; i < len(apps); i++ {
+		savedAnnotations := apps[i].Annotations
+		for key, savedValue := range savedAnnotations {
+			inputValue, ok := inputAnnotationMap[key]
+			// This means, we have got exact values, or we received only an annotation key without a value.
+			if savedValue == inputValue || (ok && inputValue == "") {
+				items = append(items, apps[i])
+			}
+		}
+	}
+	return items
+}
+
+// FilterByAnnotations returns an application
+func FilterByAnnotations(apps []argoappv1.Application, annotations string) []argoappv1.Application {
+	if annotations == "" {
+		return apps
+	}
+	items := make([]argoappv1.Application, 0)
+	inputAnnotationMap := annotation.Parse([]string{annotations})
+	for i := 0; i < len(apps); i++ {
+		savedAnnotations := apps[i].Annotations
+		for key, savedValue := range savedAnnotations {
+			inputValue, ok := inputAnnotationMap[key]
+			if savedValue == inputValue || (ok && inputValue == "") {
+				items = append(items, apps[i])
+			}
 		}
 	}
 	return items
@@ -530,7 +571,7 @@ func GetRefSources(ctx context.Context, sources argoappv1.ApplicationSources, pr
 			}
 			refKey := "$" + source.Ref
 			if _, ok := refKeys[refKey]; ok {
-				return nil, errors.New("invalid sources: multiple sources had the same `ref` key")
+				return nil, stderrors.New("invalid sources: multiple sources had the same `ref` key")
 			}
 			refKeys[refKey] = true
 		}
@@ -1081,7 +1122,7 @@ func GetDestinationCluster(ctx context.Context, destination argoappv1.Applicatio
 		return cluster, nil
 	}
 	// nolint:staticcheck // Error constant is very old, shouldn't lowercase the first letter.
-	return nil, errors.New(ErrDestinationMissing)
+	return nil, stderrors.New(ErrDestinationMissing)
 }
 
 func GetGlobalProjects(proj *argoappv1.AppProject, projLister applicationsv1.AppProjectLister, settingsManager *settings.SettingsManager) []*argoappv1.AppProject {
