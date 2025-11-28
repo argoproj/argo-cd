@@ -7,11 +7,12 @@ actions["restart"] = {
 local paused = false
 if obj.spec.paused ~= nil then
     paused = obj.spec.paused
-    actions["pause"] = {
-        ["disabled"] = paused,
-        ["iconClass"] = "fa fa-fw fa-pause-circle"
-    }
 end
+
+actions["pause"] = {
+    ["disabled"] = paused,
+    ["iconClass"] = "fa fa-fw fa-pause-circle"
+}
  
 actions["resume"] = {
     ["disabled"] = not(paused),
