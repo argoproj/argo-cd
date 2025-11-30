@@ -64,6 +64,7 @@ nav:
   - operator-manual/web_based_terminal.md
   - operator-manual/config-management-plugins.md
   - operator-manual/deep_links.md
+  - operator-manual/git_configuration.md
   - operator-manual/managed-by-url.md
   - Notifications:
     - Overview: operator-manual/notifications/index.md
