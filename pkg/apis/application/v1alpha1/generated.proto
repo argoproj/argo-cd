@@ -1725,6 +1725,10 @@ message PullRequestGeneratorFilter {
   optional string targetBranchMatch = 2;
 
   optional string titleMatch = 3;
+
+  optional string createdWithin = 4;
+
+  optional string updatedWithin = 5;
 }
 
 // PullRequestGeneratorGitLab defines connection info specific to GitLab.

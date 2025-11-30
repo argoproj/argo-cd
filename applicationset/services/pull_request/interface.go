@@ -3,6 +3,7 @@ package pull_request
 import (
 	"context"
 	"regexp"
+	"time"
 )
 
 type PullRequest struct {
@@ -21,6 +22,10 @@ type PullRequest struct {
 	Labels []string
 	// Author is the author of the pull request.
 	Author string
+	// Time when pull request was created
+	CreatedAt time.Time
+	// Time when pull request was updated
+	UpdatedAt time.Time
 }
 
 type PullRequestService interface {
@@ -32,4 +37,6 @@ type Filter struct {
 	BranchMatch       *regexp.Regexp
 	TargetBranchMatch *regexp.Regexp
 	TitleMatch        *regexp.Regexp
+	CreatedWithin     time.Duration
+	UpdatedWithin     time.Duration
 }
