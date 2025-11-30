@@ -18,6 +18,7 @@ argocd appset list [flags]
 ### Options
 
 ```
+  -a, --annotation string         List appset by annotations. currently '=' is only supported.
   -N, --appset-namespace string   Only list applicationsets in namespace
   -h, --help                      help for list
   -o, --output string             Output format. One of: wide|name|json|yaml (default "wide")

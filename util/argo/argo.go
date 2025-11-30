@@ -190,7 +190,45 @@ func FilterByAnnotations(apps []argoappv1.Application, annotations string) []arg
 	items := make([]argoappv1.Application, 0)
 	inputAnnotationMap := annotation.Parse([]string{annotations})
 	for i := 0; i < len(apps); i++ {
-		savedAnnotations := apps[i].Annotations
+		savedAnnotations := apps[i].GetAnnotations()
+		for key, savedValue := range savedAnnotations {
+			inputValue, ok := inputAnnotationMap[key]
+			if savedValue == inputValue || (ok && inputValue == "") {
+				items = append(items, apps[i])
+			}
+		}
+	}
+	return items
+}
+
+// FilterByAnnotationsP returns application pointers
+func FilterByAnnotationsP(apps []*argoappv1.Application, annotations string) []*argoappv1.Application {
+	if annotations == "" {
+		return apps
+	}
+	items := make([]*argoappv1.Application, 0)
+	inputAnnotationMap := annotation.Parse([]string{annotations})
+	for i := 0; i < len(apps); i++ {
+		savedAnnotations := apps[i].GetAnnotations()
+		for key, savedValue := range savedAnnotations {
+			inputValue, ok := inputAnnotationMap[key]
+			if savedValue == inputValue || (ok && inputValue == "") {
+				items = append(items, apps[i])
+			}
+		}
+	}
+	return items
+}
+
+// FilterAppSetByAnnotations returns an application
+func FilterAppSetByAnnotations(apps []argoappv1.ApplicationSet, annotations string) []argoappv1.ApplicationSet {
+	if annotations == "" {
+		return apps
+	}
+	items := make([]argoappv1.ApplicationSet, 0)
+	inputAnnotationMap := annotation.Parse([]string{annotations})
+	for i := 0; i < len(apps); i++ {
+		savedAnnotations := apps[i].GetAnnotations()
 		for key, savedValue := range savedAnnotations {
 			inputValue, ok := inputAnnotationMap[key]
 			if savedValue == inputValue || (ok && inputValue == "") {
@@ -207,6 +245,20 @@ func FilterByPath(apps []argoappv1.Application, path string) []argoappv1.Applica
 		return apps
 	}
 	items := make([]argoappv1.Application, 0)
+	for i := 0; i < len(apps); i++ {
+		if apps[i].Spec.GetSource().Path == path {
+			items = append(items, apps[i])
+		}
+	}
+	return items
+}
+
+// FilterByPathP returns application pointers
+func FilterByPathP(apps []*argoappv1.Application, path string) []*argoappv1.Application {
+	if path == "" {
+		return apps
+	}
+	items := make([]*argoappv1.Application, 0)
 	for i := 0; i < len(apps); i++ {
 		if apps[i].Spec.GetSource().Path == path {
 			items = append(items, apps[i])

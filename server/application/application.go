@@ -302,6 +302,12 @@ func (s *Server) List(ctx context.Context, q *application.ApplicationQuery) (*v1
 	// Filter applications by source repo URL
 	filteredApps = argo.FilterByRepoP(filteredApps, q.GetRepo())
 
+	// Filter applications by annotations
+	filteredApps = argo.FilterByAnnotationsP(filteredApps, q.GetAnnotation())
+
+	// Filter application by path
+	filteredApps = argo.FilterByPathP(filteredApps, q.GetPath())
+
 	newItems := make([]v1alpha1.Application, 0)
 	for _, a := range filteredApps {
 		// Skip any application that is neither in the control plane's namespace

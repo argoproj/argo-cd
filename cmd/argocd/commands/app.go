@@ -1863,7 +1863,7 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Only list applications in namespace")
 	command.Flags().StringVarP(&cluster, "cluster", "c", "", "List apps by cluster name or url")
 	command.Flags().StringVarP(&path, "path", "P", "", "List apps by path")
-	command.Flags().StringVarP(&annotation, "annotation", "a", "", "List apps by annotations. Currently we support '=' operator only.")
+	command.Flags().StringVarP(&annotation, "annotation", "a", "", "List apps by annotations. currently '=' is only supported.")
 	return command
 }
 
