@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"time"
 
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
@@ -31,6 +32,18 @@ func compileFilters(filters []argoprojiov1alpha1.PullRequestGeneratorFilter) ([]
 				return nil, fmt.Errorf("error compiling TitleMatch regexp %q: %w", *filter.TitleMatch, err)
 			}
 		}
+		if filter.CreatedWithin != nil {
+			outFilter.CreatedWithin, err = time.ParseDuration(*filter.CreatedWithin)
+			if err != nil {
+				return nil, fmt.Errorf("error parsing CreatedWithin duration %s: %w", *filter.CreatedWithin, err)
+			}
+		}
+		if filter.UpdatedWithin != nil {
+			outFilter.UpdatedWithin, err = time.ParseDuration(*filter.UpdatedWithin)
+			if err != nil {
+				return nil, fmt.Errorf("error parsing UpdatedWithin duration %s: %w", *filter.UpdatedWithin, err)
+			}
+		}
 		outFilters = append(outFilters, outFilter)
 	}
 	return outFilters, nil
@@ -44,6 +57,12 @@ func matchFilter(pullRequest *PullRequest, filter *Filter) bool {
 		return false
 	}
 	if filter.TitleMatch != nil && !filter.TitleMatch.MatchString(pullRequest.Title) {
+		return false
+	}
+	if filter.CreatedWithin != 0 && pullRequest.CreatedAt.Before(time.Now().Add(-filter.CreatedWithin)) {
+		return false
+	}
+	if filter.UpdatedWithin != 0 && pullRequest.UpdatedAt.Before(time.Now().Add(-filter.UpdatedWithin)) {
 		return false
 	}
 

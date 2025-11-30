@@ -6305,9 +6305,13 @@ spec:
                                       properties:
                                         branchMatch:
                                           type: string
+                                        createdWithin:
+                                          type: string
                                         targetBranchMatch:
                                           type: string
                                         titleMatch:
+                                          type: string
+                                        updatedWithin:
                                           type: string
                                       type: object
                                     type: array
@@ -12181,9 +12185,13 @@ spec:
                                       properties:
                                         branchMatch:
                                           type: string
+                                        createdWithin:
+                                          type: string
                                         targetBranchMatch:
                                           type: string
                                         titleMatch:
+                                          type: string
+                                        updatedWithin:
                                           type: string
                                       type: object
                                     type: array
@@ -15330,9 +15338,13 @@ spec:
                             properties:
                               branchMatch:
                                 type: string
+                              createdWithin:
+                                type: string
                               targetBranchMatch:
                                 type: string
                               titleMatch:
+                                type: string
+                              updatedWithin:
                                 type: string
                             type: object
                           type: array

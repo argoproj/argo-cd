@@ -9263,10 +9263,16 @@
         "branchMatch": {
           "type": "string"
         },
+        "createdWithin": {
+          "type": "string"
+        },
         "targetBranchMatch": {
           "type": "string"
         },
         "titleMatch": {
+          "type": "string"
+        },
+        "updatedWithin": {
           "type": "string"
         }
       }
