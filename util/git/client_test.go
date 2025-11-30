@@ -1213,14 +1213,13 @@ Argocd-reference-commit-repourl: https://github.com/another/repo.git`,
 }
 
 func Test_BuiltinConfig(t *testing.T) {
-	ctx := t.Context()
 	tempDir := t.TempDir()
 	for _, enabled := range []bool{false, true} {
 		client, err := NewClientExt("file://"+tempDir, tempDir, NopCreds{}, true, false, "", "", WithBuiltinGitConfig(enabled))
 		require.NoError(t, err)
 		native := client.(*nativeGitClient)
 
-		configOut, err := native.config(ctx, "--list", "--show-origin")
+		configOut, err := native.config("--list", "--show-origin")
 		require.NoError(t, err)
 		for k, v := range builtinGitConfig {
 			r := regexp.MustCompile(fmt.Sprintf("(?m)^command line:\\s+%s=%s$", strings.ToLower(k), regexp.QuoteMeta(v)))
