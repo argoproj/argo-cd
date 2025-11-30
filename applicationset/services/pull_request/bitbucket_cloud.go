@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/ktrysmt/go-bitbucket"
 )
@@ -23,6 +24,8 @@ type BitbucketCloudPullRequest struct {
 	Source      BitbucketCloudPullRequestSource      `json:"source"`
 	Author      BitbucketCloudPullRequestAuthor      `json:"author"`
 	Destination BitbucketCloudPullRequestDestination `json:"destination"`
+	CreatedOn   string                               `json:"created_on"`
+	UpdatedOn   string                               `json:"updated_on"`
 }
 
 type BitbucketCloudPullRequestDestination struct {
@@ -49,6 +52,11 @@ type BitbucketCloudPullRequestSourceCommit struct {
 // Also have display_name and uuid, but don't plan to use them.
 type BitbucketCloudPullRequestAuthor struct {
 	Nickname string `json:"nickname"`
+}
+
+type BitbucketCloudPullRequestTime struct {
+	CreatedAt string `json:"created_at"`
+	UpdatedAt string `json:"updated_at"`
 }
 
 type PullRequestResponse struct {
@@ -162,6 +170,8 @@ func (b *BitbucketCloudService) List(_ context.Context) ([]*PullRequest, error) 
 			TargetBranch: pull.Destination.Branch.Name,
 			HeadSHA:      pull.Source.Commit.Hash,
 			Author:       pull.Author.Nickname,
+			CreatedAt:    time.Parse(time.RFC3339, pull.CreatedOn),
+			UpdatedAt:    time.Parse(time.RFC3339, pull.UpdatedOn),
 		})
 	}
 
