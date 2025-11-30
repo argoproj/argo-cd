@@ -1214,7 +1214,11 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                         action: () => !refreshing && services.applications.get(app.metadata.name, app.metadata.namespace, 'hard')
                                     }
                                 ]}
-                                anchor={() => <i className='fa fa-caret-down' />}
+                                anchor={() =>
+                                    <button className='argo-button--base application-details__dropdown-anchor-inner'>
+                                        <i className='fa fa-caret-down' />
+                                    </button>
+                                }
                             />
                         </React.Fragment>
                     ),
