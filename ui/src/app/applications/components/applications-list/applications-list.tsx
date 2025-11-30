@@ -34,21 +34,20 @@ const WATCH_RETRY_TIMEOUT = 500;
 const APP_FIELDS = [
     'metadata.name',
     'metadata.namespace',
-    'metadata.annotations',
     'metadata.labels',
     'metadata.creationTimestamp',
     'metadata.deletionTimestamp',
-    'spec',
+    'spec.destination',
+    'spec.project',
+    'spec.source',
+    'spec.sources',
     'operation.sync',
     'status.sourceHydrator',
     'status.sync.status',
     'status.sync.revision',
     'status.health',
     'status.operationState.phase',
-    'status.operationState.finishedAt',
-    'status.operationState.operation.sync',
-    'status.summary',
-    'status.resources'
+    'status.operationState.finishedAt'
 ];
 const APP_LIST_FIELDS = ['metadata.resourceVersion', ...APP_FIELDS.map(field => `items.${field}`)];
 const APP_WATCH_FIELDS = ['result.type', ...APP_FIELDS.map(field => `result.application.${field}`)];
