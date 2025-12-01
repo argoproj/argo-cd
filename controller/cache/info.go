@@ -226,13 +226,13 @@ func populateIngressInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 		urls = res.NetworkingInfo.ExternalURLs
 	}
 
-	skipDefaultExternalURLs := false
+	enableDefaultExternalURLs := true
 	if ignoreVal, ok := un.GetAnnotations()[common.AnnotationKeyIgnoreDefaultLinks]; ok {
 		if ignoreDefaultLinks, err := strconv.ParseBool(ignoreVal); err == nil {
-			skipDefaultExternalURLs = ignoreDefaultLinks
+			enableDefaultExternalURLs = !ignoreDefaultLinks
 		}
 	}
-	if !skipDefaultExternalURLs {
+	if enableDefaultExternalURLs {
 		for url := range urlsSet {
 			urls = append(urls, url)
 		}
