@@ -24,19 +24,17 @@ import (
 var appFields = map[string]func(app *v1alpha1.Application) any{
 	"metadata.name":              func(app *v1alpha1.Application) any { return app.Name },
 	"metadata.namespace":         func(app *v1alpha1.Application) any { return app.Namespace },
-	"metadata.annotations":       func(app *v1alpha1.Application) any { return app.Annotations },
 	"metadata.labels":            func(app *v1alpha1.Application) any { return app.Labels },
 	"metadata.creationTimestamp": func(app *v1alpha1.Application) any { return app.CreationTimestamp },
 	"metadata.deletionTimestamp": func(app *v1alpha1.Application) any { return app.DeletionTimestamp },
-	"spec":                       func(app *v1alpha1.Application) any { return app.Spec },
+	"spec.destination":           func(app *v1alpha1.Application) any { return app.Spec.Destination },
 	"spec.project":               func(app *v1alpha1.Application) any { return app.Spec.Project },
 	"spec.source":                func(app *v1alpha1.Application) any { return app.Spec.Source },
 	"spec.sources":               func(app *v1alpha1.Application) any { return app.Spec.Sources },
-	"spec.destination":           func(app *v1alpha1.Application) any { return app.Spec.Destination },
 	"status.sourceHydrator":      func(app *v1alpha1.Application) any { return app.Status.SourceHydrator },
 	"status.sync.status":         func(app *v1alpha1.Application) any { return app.Status.Sync.Status },
+	"status.sync.revision":       func(app *v1alpha1.Application) any { return app.Status.Sync.Revision },
 	"status.health":              func(app *v1alpha1.Application) any { return app.Status.Health },
-	"status.summary":             func(app *v1alpha1.Application) any { return app.Status.Summary },
 	"status.operationState.startedAt": func(app *v1alpha1.Application) any {
 		if app.Status.OperationState != nil {
 			return app.Status.OperationState.StartedAt
@@ -49,12 +47,6 @@ var appFields = map[string]func(app *v1alpha1.Application) any{
 		}
 		return nil
 	},
-	"status.resources": func(app *v1alpha1.Application) any {
-		if len(app.Status.Resources) > 0 {
-			return app.Status.Resources
-		}
-		return nil
-	},
 	"operation.sync": func(app *v1alpha1.Application) any {
 		if app.Operation != nil {
 			return app.Operation.Sync
@@ -64,12 +56,6 @@ var appFields = map[string]func(app *v1alpha1.Application) any{
 	"status.operationState.phase": func(app *v1alpha1.Application) any {
 		if app.Status.OperationState != nil {
 			return app.Status.OperationState.Phase
-		}
-		return nil
-	},
-	"status.operationState.operation.sync": func(app *v1alpha1.Application) any {
-		if app.Status.OperationState != nil {
-			return app.Status.OperationState.SyncResult
 		}
 		return nil
 	},
