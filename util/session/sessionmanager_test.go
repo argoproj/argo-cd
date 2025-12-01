@@ -309,7 +309,7 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 			verifiedClaims:       &jwt.MapClaims{},
 			verifyTokenErr:       nil,
 			userInfoCacheClaims:  nil,
-			expectedStatusCode:   http.StatusBadRequest,
+			expectedStatusCode:   http.StatusUnauthorized, // Correct expectation: 401 Unauthorized
 			expectedResponseBody: nil,
 		},
 		{

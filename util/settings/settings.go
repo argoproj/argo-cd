@@ -68,6 +68,8 @@ type ArgoCDSettings struct {
 	// URLs is a list of externally facing URLs users will visit to reach Argo CD.
 	// The value here is used when configuring SSO reachable from multiple domains.
 	AdditionalURLs []string `json:"additionalUrls,omitempty"`
+	// JWTConfig contains JWT authentication settings
+	JWTConfig *JWTConfig `json:"jwtConfig,omitempty"`
 	// Indicates if status badge is enabled or not.
 	StatusBadgeEnabled bool `json:"statusBadgeEnable"`
 	// Indicates if status badge custom root URL should be used.
@@ -204,6 +206,25 @@ func (o *oidcConfig) toExported() *OIDCConfig {
 		EnablePKCEAuthentication: o.EnablePKCEAuthentication,
 		DomainHint:               o.DomainHint,
 	}
+}
+
+type JWTConfig struct {
+	// HeaderName is the HTTP header name to extract JWT from
+	HeaderName string `json:"headerName,omitempty"`
+	// EmailClaim is the JWT claim to use for the user's email
+	EmailClaim string `json:"emailClaim,omitempty"`
+	// UsernameClaim is the JWT claim to use for the username
+	UsernameClaim string `json:"usernameClaim,omitempty"`
+	// JWKSetURL is the URL to fetch the JWKS from
+	JWKSetURL string `json:"jwkSetURL,omitempty"`
+	// CacheTTL is how long to cache the JWKS
+	CacheTTL string `json:"cacheTTL,omitempty"`
+	// Audience is the expected audience for the JWT
+	Audience string `json:"audience,omitempty"`
+	// Issuer is the expected issuer for the JWT
+	Issuer string `json:"issuer,omitempty"`
+	// GroupsClaim is the JWT claim to use for groups
+	GroupsClaim string `json:"groupsClaim,omitempty"`
 }
 
 type OIDCConfig struct {
@@ -1438,6 +1459,17 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *corev1.Conf
 	settings.DexConfig = argoCDCM.Data[settingDexConfigKey]
 	settings.OIDCConfigRAW = argoCDCM.Data[settingsOIDCConfigKey]
 	settings.OIDCRefreshTokenThreshold = settings.RefreshTokenThreshold()
+
+	// Parse JWT config if present
+	if jwtConfigStr, ok := argoCDCM.Data["jwt.config"]; ok && jwtConfigStr != "" {
+		var jwtConfig JWTConfig
+		err := yaml.Unmarshal([]byte(jwtConfigStr), &jwtConfig)
+		if err != nil {
+			log.Warnf("Failed to parse JWT config: %v", err)
+		} else {
+			settings.JWTConfig = &jwtConfig
+		}
+	}
 	settings.KustomizeBuildOptions = argoCDCM.Data[kustomizeBuildOptionsKey]
 	settings.StatusBadgeEnabled = argoCDCM.Data[statusBadgeEnabledKey] == "true"
 	settings.StatusBadgeRootUrl = argoCDCM.Data[statusBadgeRootURLKey]

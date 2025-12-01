@@ -9,19 +9,28 @@ import (
 	jwtgo "github.com/golang-jwt/jwt/v5"
 )
 
-// MapClaims converts a jwt.Claims to a MapClaims
+// MapClaims converts jwtgo.Claims (which might be a struct like jwtgo.RegisteredClaims or a custom struct embedding it)
+// into jwtgo.MapClaims for easier field access, especially for custom claims.
 func MapClaims(claims jwtgo.Claims) (jwtgo.MapClaims, error) {
-	if mapClaims, ok := claims.(*jwtgo.MapClaims); ok {
-		return *mapClaims, nil
+	// If it's already MapClaims, return it directly.
+	if mapClaims, ok := claims.(jwtgo.MapClaims); ok {
+		return mapClaims, nil
 	}
+	// If it's *MapClaims (less common but possible), dereference and return.
+	if mapClaimsPtr, ok := claims.(*jwtgo.MapClaims); ok {
+		return *mapClaimsPtr, nil
+	}
+
+	// Otherwise, marshal the claims struct to JSON and unmarshal back into MapClaims.
+	// This handles RegisteredClaims and custom structs embedding RegisteredClaims.
 	claimsBytes, err := json.Marshal(claims)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to marshal claims to JSON: %w", err)
 	}
 	var mapClaims jwtgo.MapClaims
 	err = json.Unmarshal(claimsBytes, &mapClaims)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to unmarshal claims JSON to MapClaims: %w", err)
 	}
 	return mapClaims, nil
 }
@@ -46,65 +55,84 @@ func Float64Field(claims jwtgo.MapClaims, fieldName string) float64 {
 	return 0
 }
 
-// GetScopeValues extracts the values of specified scopes from the claims
+// GetScopeValues extracts the values of specified scopes (claim names) from the claims map.
+// It handles cases where the claim value is a single string or a slice of strings/interfaces.
 func GetScopeValues(claims jwtgo.MapClaims, scopes []string) []string {
-	groups := make([]string, 0)
-	for i := range scopes {
-		scopeIf, ok := claims[scopes[i]]
+	values := make([]string, 0)
+	for _, scope := range scopes {
+		scopeIf, ok := claims[scope]
 		if !ok {
 			continue
 		}
 
-		switch val := scopeIf.(type) {
-		case []any:
-			for _, groupIf := range val {
-				group, ok := groupIf.(string)
-				if ok {
-					groups = append(groups, group)
+		switch v := scopeIf.(type) {
+		case string:
+			values = append(values, v)
+		case []string:
+			values = append(values, v...)
+		case []any: // Handle JSON arrays which often unmarshal to []interface{}
+			for _, item := range v {
+				if strVal, ok := item.(string); ok {
+					values = append(values, strVal)
 				}
 			}
-		case []string:
-			groups = append(groups, val...)
-		case string:
-			groups = append(groups, val)
+			// Could add handling for other types like []float64 if needed
 		}
 	}
-
-	return groups
+	// Deduplicate results? Depending on usage, might be useful.
+	// Example:
+	// seen := make(map[string]struct{})
+	// uniqueValues := make([]string, 0, len(values))
+	// for _, val := range values {
+	//	 if _, exists := seen[val]; !exists {
+	//		 seen[val] = struct{}{}
+	//		 uniqueValues = append(uniqueValues, val)
+	//	 }
+	// }
+	// return uniqueValues
+	return values
 }
 
-func numField(m jwtgo.MapClaims, key string) (int64, error) {
-	field, ok := m[key]
-	if !ok {
-		return 0, fmt.Errorf("token does not have %s claim", key)
+// IssuedAtTime returns the issued at ("iat") claim as a time.Time pointer.
+// Returns nil, nil if the claim is not present.
+// Returns nil, error if the claim is present but invalid.
+func IssuedAtTime(m jwtgo.MapClaims) (*time.Time, error) {
+	claim, err := m.GetIssuedAt()
+	if err != nil {
+		// Check if the error is specifically because the claim is missing
+		if _, ok := m["iat"]; !ok {
+			return nil, nil // Claim is missing, return nil, nil as per test expectation
+		}
+		// Otherwise, the claim exists but is invalid
+		return nil, fmt.Errorf("failed to get 'iat' claim: %w", err)
 	}
-	switch val := field.(type) {
-	case float64:
-		return int64(val), nil
-	case json.Number:
-		return val.Int64()
-	case int64:
-		return val, nil
-	default:
-		return 0, fmt.Errorf("%s '%v' is not a number", key, val)
+	if claim == nil {
+		// This case might occur if GetIssuedAt returns nil without error (unlikely but safe to handle)
+		return nil, nil
 	}
+	t := claim.Time
+	return &t, nil
 }
 
-// IssuedAt returns the issued at as an int64
-func IssuedAt(m jwtgo.MapClaims) (int64, error) {
-	return numField(m, "iat")
-}
-
-// IssuedAtTime returns the issued at as a time.Time
-func IssuedAtTime(m jwtgo.MapClaims) (time.Time, error) {
-	iat, err := IssuedAt(m)
-	return time.Unix(iat, 0), err
-}
-
-// ExpirationTime returns the expiration as a time.Time
-func ExpirationTime(m jwtgo.MapClaims) (time.Time, error) {
-	exp, err := numField(m, "exp")
-	return time.Unix(exp, 0), err
+// ExpirationTime returns the expiration ("exp") claim as a time.Time pointer.
+// Returns nil, nil if the claim is not present.
+// Returns nil, error if the claim is present but invalid.
+func ExpirationTime(m jwtgo.MapClaims) (*time.Time, error) {
+	claim, err := m.GetExpirationTime()
+	if err != nil {
+		// Check if the error is specifically because the claim is missing
+		if _, ok := m["exp"]; !ok {
+			return nil, nil // Claim is missing, return nil, nil
+		}
+		// Otherwise, the claim exists but is invalid
+		return nil, fmt.Errorf("failed to get 'exp' claim: %w", err)
+	}
+	if claim == nil {
+		// This case might occur if GetExpirationTime returns nil without error
+		return nil, nil
+	}
+	t := claim.Time
+	return &t, nil
 }
 
 func Claims(in any) jwtgo.Claims {
@@ -132,6 +160,8 @@ func IsMember(claims jwtgo.Claims, groups []string, scopes []string) bool {
 	return false
 }
 
+// GetGroups retrieves group information from claims using specified scope names.
+// This is essentially an alias for GetScopeValues, assuming scopes represent group claims.
 func GetGroups(mapClaims jwtgo.MapClaims, scopes []string) []string {
 	return GetScopeValues(mapClaims, scopes)
 }

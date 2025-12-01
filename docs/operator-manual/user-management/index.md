@@ -445,6 +445,59 @@ Add a `rootCA` to your `oidc.config` which contains the PEM encoded root certifi
       -----END CERTIFICATE-----
 ```
 
+## External JWT Authentication Current Status: Alpha (Since v3.0.0)
+
+Argo CD can be configured to verify JSON Web Tokens (JWTs) issued by an external authentication provider. This allows you to integrate Argo CD with existing authentication systems that issue JWTs.
+
+To configure external JWT authentication, add the JWT configuration to the `argocd-cm` ConfigMap:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd-cm
+    app.kubernetes.io/part-of: argocd
+data:
+  jwt.config: |
+    # The HTTP header name to extract JWT from
+    headerName: "X-Auth-Token"
+    # The JWT claim to use for the user's email
+    emailClaim: "email"
+    # The JWT claim to use for the username
+    usernameClaim: "preferred_username"
+    # The URL to fetch the JWKS from
+    jwkSetURL: "https://auth.example.com/.well-known/jwks.json"
+    # Optional: How long to cache the JWKS
+    cacheTTL: "1h"
+    # Optional: Expected audience for the JWT
+    audience: "https://argocd.example.com"
+```
+
+The following configuration options are available:
+
+* `headerName`: The HTTP header name to extract the JWT from (required)
+* `emailClaim`: The JWT claim to use for the user's email (required)
+* `usernameClaim`: The JWT claim to use for the username (required) 
+* `jwkSetURL`: The URL to fetch the JSON Web Key Set (JWKS) from (required)
+* `cacheTTL`: How long to cache the JWKS before refetching (optional, default: 5m)
+* `audience`: Expected audience value in the JWT claims (optional)
+
+When JWT authentication is configured, Argo CD will:
+
+1. Extract the JWT from the specified HTTP header
+2. Verify the JWT signature using the public keys from the JWKS endpoint
+3. Validate the token expiry and audience (if configured)
+4. Extract the username and email from the specified claims
+5. Use these values to identify the user within Argo CD
+
+The external authentication provider must:
+
+1. Issue valid JWTs signed with RSA
+2. Expose a JWKS endpoint that provides the public keys
+3. Include the configured username and email claims in the JWT payload
 
 ## SSO Further Reading
 

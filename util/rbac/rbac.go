@@ -337,15 +337,19 @@ func (e *Enforcer) EnforceErr(rvals ...any) error {
 			for i, rval := range rvals[1:] {
 				rvalsStrs[i] = fmt.Sprintf("%s", rval)
 			}
-			if s, ok := rvals[0].(jwt.Claims); ok {
-				claims, err := jwtutil.MapClaims(s)
-				if err == nil {
-					userId := jwtutil.GetUserIdentifier(claims)
-					if userId != "" {
-						rvalsStrs = append(rvalsStrs, "sub: "+userId)
-					}
-					if issuedAtTime, err := jwtutil.IssuedAtTime(claims); err == nil {
-						rvalsStrs = append(rvalsStrs, "iat: "+issuedAtTime.Format(time.RFC3339))
+			if rvals[0] != nil {
+				if s, ok := rvals[0].(jwt.Claims); ok {
+					claims, err := jwtutil.MapClaims(s)
+					if err == nil {
+						claims, err := jwtutil.MapClaims(claims)
+						if err == nil {
+							if jwtutil.GetUserIdentifier(claims) != "" {
+								rvalsStrs = append(rvalsStrs, "sub: "+jwtutil.GetUserIdentifier(claims))
+							}
+							if issuedAtTime, err := jwtutil.IssuedAtTime(claims); err == nil && issuedAtTime != nil {
+								rvalsStrs = append(rvalsStrs, "iat: "+issuedAtTime.Format(time.RFC3339))
+							}
+						}
 					}
 				}
 			}
