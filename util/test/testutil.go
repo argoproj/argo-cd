@@ -318,7 +318,8 @@ func (h *LogHook) GetRegexMatchesInEntries(match string) []string {
 	return matches
 }
 
-func (h *LogHook) GetEntries() (matches []string) {
+func (h *LogHook) GetEntries() []string {
+	matches := make([]string, 0)
 	for _, entry := range h.Entries {
 		matches = append(matches, entry.Message)
 	}
