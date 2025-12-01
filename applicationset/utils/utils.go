@@ -344,7 +344,7 @@ func (r *Render) Replace(tmpl string, replaceMap map[string]any, useGoTemplate b
 	return replacedTmpl, nil
 }
 
-// Log a warning if there are unrecognized generators
+// CheckInvalidGenerators logs a warning if there are unrecognized generators
 func CheckInvalidGenerators(applicationSetInfo *argoappsv1.ApplicationSet) error {
 	hasInvalidGenerators, invalidGenerators := invalidGenerators(applicationSetInfo)
 	var errorMessage error
