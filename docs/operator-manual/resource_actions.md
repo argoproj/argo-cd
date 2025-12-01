@@ -160,9 +160,6 @@ newObj.metadata.annotations["argocd.argoproj.io/compare-options"] = "IgnoreExtra
 -- ...
 ```
 
-
-
-
 #### An action that produces a list of resources - a complete example:
 
 ```yaml
