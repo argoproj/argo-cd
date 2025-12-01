@@ -153,7 +153,7 @@ func (g *SourceIntegrityGitPolicyGPG) verify(gitClient git.Client, unresolvedRev
 		}
 		revisions = append(revisions, deepRevs...)
 	default:
-		panic("Unknown GPG mode " + g.Mode)
+		return nil, fmt.Errorf("unknown GPG mode %q configured for GIT source integrity", g.Mode)
 	}
 
 	var problems []string
