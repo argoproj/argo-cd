@@ -98,3 +98,19 @@ stringData:
   project: myproject
   type: oci
   url: oci://my.registry.com/namespace/service
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: oci-helm-private-repo-in-azure-government
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
+stringData:
+  type: helm
+  url: contoso.azurecr.us/charts
+  name: contosocharts
+  enableOCI: "true"
+  useAzureWorkloadIdentity: "true"
+  azureCloud: AzureUSGovernment # Possible values are AzurePublic, AzureChina or AzureUSGovernment. Defaults to AzurePublic

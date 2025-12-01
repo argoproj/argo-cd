@@ -20,6 +20,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/errors"
 	"github.com/argoproj/argo-cd/v3/util/git"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
+	"github.com/argoproj/argo-cd/v3/util/workloadidentity"
 )
 
 // NewRepoCommand returns a new instance of an `argocd repo` command
@@ -192,6 +193,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			repoOpts.Repo.ForceHttpBasicAuth = repoOpts.ForceHttpBasicAuth
 			repoOpts.Repo.UseAzureWorkloadIdentity = repoOpts.UseAzureWorkloadIdentity
 			repoOpts.Repo.Depth = repoOpts.Depth
+			repoOpts.Repo.AzureCloud = repoOpts.AzureCloud
 
 			if repoOpts.Repo.Type == "helm" && repoOpts.Repo.Name == "" {
 				errors.Fatal(errors.ErrorGeneric, "Must specify --name for repos of type 'helm'")
@@ -199,6 +201,17 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 
 			if repoOpts.Repo.Type == "oci" && repoOpts.InsecureOCIForceHTTP {
 				repoOpts.Repo.InsecureOCIForceHttp = repoOpts.InsecureOCIForceHTTP
+			}
+
+			if repoOpts.Repo.AzureCloud != "" {
+				if !repoOpts.Repo.UseAzureWorkloadIdentity {
+					errors.Fatal(errors.ErrorGeneric, "Must specify --use-azure-workload-identity when using --azure-cloud")
+				}
+
+				_, err := workloadidentity.GetAzureCloudConfigByName(repoOpts.Repo.AzureCloud)
+				if err != nil {
+					errors.Fatal(errors.ErrorGeneric, err.Error())
+				}
 			}
 
 			conn, repoIf := headless.NewClientOrDie(clientOpts, c).NewRepoClientOrDie()

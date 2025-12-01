@@ -5,6 +5,7 @@
 package mocks
 
 import (
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/cloud"
 	"github.com/argoproj/argo-cd/v3/util/workloadidentity"
 	mock "github.com/stretchr/testify/mock"
 )
@@ -34,6 +35,50 @@ type TokenProvider_Expecter struct {
 
 func (_m *TokenProvider) EXPECT() *TokenProvider_Expecter {
 	return &TokenProvider_Expecter{mock: &_m.Mock}
+}
+
+// GetCloudConfiguration provides a mock function for the type TokenProvider
+func (_mock *TokenProvider) GetCloudConfiguration() cloud.Configuration {
+	ret := _mock.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetCloudConfiguration")
+	}
+
+	var r0 cloud.Configuration
+	if returnFunc, ok := ret.Get(0).(func() cloud.Configuration); ok {
+		r0 = returnFunc()
+	} else {
+		r0 = ret.Get(0).(cloud.Configuration)
+	}
+	return r0
+}
+
+// TokenProvider_GetCloudConfiguration_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetCloudConfiguration'
+type TokenProvider_GetCloudConfiguration_Call struct {
+	*mock.Call
+}
+
+// GetCloudConfiguration is a helper method to define mock.On call
+func (_e *TokenProvider_Expecter) GetCloudConfiguration() *TokenProvider_GetCloudConfiguration_Call {
+	return &TokenProvider_GetCloudConfiguration_Call{Call: _e.mock.On("GetCloudConfiguration")}
+}
+
+func (_c *TokenProvider_GetCloudConfiguration_Call) Run(run func()) *TokenProvider_GetCloudConfiguration_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run()
+	})
+	return _c
+}
+
+func (_c *TokenProvider_GetCloudConfiguration_Call) Return(configuration cloud.Configuration) *TokenProvider_GetCloudConfiguration_Call {
+	_c.Call.Return(configuration)
+	return _c
+}
+
+func (_c *TokenProvider_GetCloudConfiguration_Call) RunAndReturn(run func() cloud.Configuration) *TokenProvider_GetCloudConfiguration_Call {
+	_c.Call.Return(run)
+	return _c
 }
 
 // GetToken provides a mock function for the type TokenProvider
