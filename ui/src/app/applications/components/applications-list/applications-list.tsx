@@ -47,6 +47,7 @@ const APP_FIELDS = [
     'status.sync.revision',
     'status.health',
     'status.operationState.phase',
+    'status.operationState.startedAt',
     'status.operationState.finishedAt'
 ];
 const APP_LIST_FIELDS = ['metadata.resourceVersion', ...APP_FIELDS.map(field => `items.${field}`)];
