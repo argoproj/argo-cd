@@ -592,7 +592,6 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	} else {
 		// Prevent applying local manifests for now when source integrity is enforced
 		// This is also enforced on API level, but as a last resort, we also enforce it here
-		// TODO: Worth checking is the source integrity matches the repo and the source type
 		if project.EffectiveSourceIntegrity().ForGit(sources[0].RepoURL) != nil {
 			msg := "Cannot use local manifests when source integrity is enforced"
 			targetObjs = make([]*unstructured.Unstructured, 0)

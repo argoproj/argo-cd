@@ -267,7 +267,7 @@ func TestGPGStrictValid(t *testing.T) {
 		{
 			revision:       shaThird,
 			expectedPassed: []string{},
-			expectedErr:    fmt.Sprintf("GIT/GPG: Revision %s by 'ignored': signed with disallowed key 'KEY_OF_THIRD'", shaThird),
+			expectedErr:    fmt.Sprintf("GIT/GPG: Failed verifying revision %s by 'ignored': signed with unallowed key (key_id=KEY_OF_THIRD)", shaThird),
 			expectedLsArgs: []any{shaThird, true},
 		},
 		{
@@ -285,8 +285,8 @@ func TestGPGStrictValid(t *testing.T) {
 		{
 			revision:       tagThird,
 			expectedPassed: []string{},
-			expectedErr: fmt.Sprintf(`GIT/GPG: Revision %s by 'ignored': signed with disallowed key 'KEY_OF_THIRD'
-GIT/GPG: Revision %s by 'ignored': signed with disallowed key 'KEY_OF_THIRD'`, tagThird, shaThird),
+			expectedErr: fmt.Sprintf(`GIT/GPG: Failed verifying revision %s by 'ignored': signed with unallowed key (key_id=KEY_OF_THIRD)
+GIT/GPG: Failed verifying revision %s by 'ignored': signed with unallowed key (key_id=KEY_OF_THIRD)`, tagThird, shaThird),
 			expectedTagArgs: []any{tagThird},
 			expectedLsArgs:  []any{shaThird, true},
 		},
