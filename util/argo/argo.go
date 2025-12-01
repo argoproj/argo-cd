@@ -3,7 +3,7 @@ package argo
 import (
 	"context"
 	"encoding/json"
-	stderrors "errors"
+	"errors"
 	"fmt"
 	"regexp"
 	"slices"
@@ -184,7 +184,7 @@ func FilterByRepoP(apps []*argoappv1.Application, repo string) []*argoappv1.Appl
 
 // FilterByAnnotations returns an application filtered based on annotation
 func FilterByAnnotations(apps []argoappv1.Application, annotations string) []argoappv1.Application {
-    // if no annotation is specified, return all the applications
+	// if no annotation is specified, return all the applications
 	if annotations == "" {
 		return apps
 	}
@@ -604,7 +604,7 @@ func GetRefSources(ctx context.Context, sources argoappv1.ApplicationSources, pr
 			}
 			refKey := "$" + source.Ref
 			if _, ok := refKeys[refKey]; ok {
-				return nil, stderrors.New("invalid sources: multiple sources had the same `ref` key")
+				return nil, errors.New("invalid sources: multiple sources had the same `ref` key")
 			}
 			refKeys[refKey] = true
 		}
@@ -1155,7 +1155,7 @@ func GetDestinationCluster(ctx context.Context, destination argoappv1.Applicatio
 		return cluster, nil
 	}
 	// nolint:staticcheck // Error constant is very old, shouldn't lowercase the first letter.
-	return nil, stderrors.New(ErrDestinationMissing)
+	return nil, errors.New(ErrDestinationMissing)
 }
 
 func GetGlobalProjects(proj *argoappv1.AppProject, projLister applicationsv1.AppProjectLister, settingsManager *settings.SettingsManager) []*argoappv1.AppProject {
