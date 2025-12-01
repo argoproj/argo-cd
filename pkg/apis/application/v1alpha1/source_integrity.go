@@ -182,7 +182,7 @@ func gpgProblemMessage(signatureInfo git.RevisionSignatureInfo, allowedKeys []st
 
 	if !slices.Contains(allowedKeys, signatureInfo.SignatureKeyID) {
 		return fmt.Sprintf(
-			"Revision %s by '%s': signed with disallowed key '%s'",
+			"Failed verifying revision %s by '%s': signed with unallowed key (key_id=%s)",
 			signatureInfo.Revision, signatureInfo.AuthorIdentity, signatureInfo.SignatureKeyID,
 		)
 	}
