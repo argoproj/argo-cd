@@ -34,6 +34,10 @@ argocd context cd.argoproj.io --delete`,
 		Run: func(c *cobra.Command, args []string) {
 			localCfg, err := localconfig.ReadLocalConfig(clientOpts.ConfigPath)
 			errors.CheckError(err)
+			if localCfg == nil {
+				fmt.Println("No local configuration found")
+				os.Exit(1)
+			}
 
 			if deletion {
 				if len(args) == 0 {

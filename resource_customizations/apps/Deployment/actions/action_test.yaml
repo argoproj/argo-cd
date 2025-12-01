@@ -1,20 +1,131 @@
+discoveryTests:
+  - inputPath: testdata/deployment.yaml
+    result:
+      - name: restart
+        disabled: false
+        iconClass: "fa fa-fw fa-redo"
+        displayName: ""
+      - name: pause
+        disabled: false
+        iconClass: "fa fa-fw fa-pause-circle"
+        displayName: ""
+      - name: resume
+        disabled: true
+        iconClass: "fa fa-fw fa-play-circle"
+        displayName: ""
+      - name: scale
+        disabled: false
+        iconClass: "fa fa-fw fa-plus-circle"
+        displayName: ""
+        params:
+          - name: replicas
+
+  - inputPath: testdata/deployment-pause.yaml
+    result:
+      - name: restart
+        disabled: false
+        iconClass: "fa fa-fw fa-redo"
+        displayName: ""
+      - name: pause
+        disabled: true
+        iconClass: "fa fa-fw fa-pause-circle"
+        displayName: ""
+      - name: resume
+        disabled: false
+        iconClass: "fa fa-fw fa-play-circle"
+        displayName: ""
+      - name: scale
+        disabled: false
+        iconClass: "fa fa-fw fa-plus-circle"
+        displayName: ""
+        params:
+          - name: replicas
+
+  - inputPath: testdata/deployment-restarted.yaml
+    result:
+      - name: restart
+        disabled: false
+        iconClass: "fa fa-fw fa-redo"
+        displayName: ""
+      - name: pause
+        disabled: false
+        iconClass: "fa fa-fw fa-pause-circle"
+        displayName: ""
+      - name: resume
+        disabled: true
+        iconClass: "fa fa-fw fa-play-circle"
+        displayName: ""
+      - name: scale
+        disabled: false
+        iconClass: "fa fa-fw fa-plus-circle"
+        displayName: ""
+        params:
+          - name: replicas
+
+  - inputPath: testdata/deployment-resume.yaml
+    result:
+      - name: restart
+        disabled: false
+        iconClass: "fa fa-fw fa-redo"
+        displayName: ""
+      - name: pause
+        disabled: false
+        iconClass: "fa fa-fw fa-pause-circle"
+        displayName: ""
+      - name: resume
+        disabled: true
+        iconClass: "fa fa-fw fa-play-circle"
+        displayName: ""
+      - name: scale
+        disabled: false
+        iconClass: "fa fa-fw fa-plus-circle"
+        displayName: ""
+        params:
+          - name: replicas
+
+  - inputPath: testdata/deployment-scaled.yaml
+    result:
+      - name: restart
+        disabled: false
+        iconClass: "fa fa-fw fa-redo"
+        displayName: ""
+      - name: pause
+        disabled: false
+        iconClass: "fa fa-fw fa-pause-circle"
+        displayName: ""
+      - name: resume
+        disabled: true
+        iconClass: "fa fa-fw fa-play-circle"
+        displayName: ""
+      - name: scale
+        disabled: false
+        iconClass: "fa fa-fw fa-plus-circle"
+        displayName: ""
+        params:
+          - name: replicas
+
 actionTests:
   - action: restart
     inputPath: testdata/deployment.yaml
     expectedOutputPath: testdata/deployment-restarted.yaml
+
   - action: pause
     inputPath: testdata/deployment.yaml
     expectedOutputPath: testdata/deployment-pause.yaml
+
   - action: resume
     inputPath: testdata/deployment-pause.yaml
     expectedOutputPath: testdata/deployment-resume.yaml
+
   - action: scale
     inputPath: testdata/deployment.yaml
     expectedOutputPath: testdata/deployment-scaled.yaml
     parameters:
-      replicas: '6'
+      replicas: "6"
+
   - action: scale
     inputPath: testdata/deployment.yaml
-    expectedErrorMessage: 'invalid number: not_a_number'
+    expectedErrorMessage: "invalid number: not_a_number"
     parameters:
-      replicas: 'not_a_number'
+      replicas: "not_a_number"
+

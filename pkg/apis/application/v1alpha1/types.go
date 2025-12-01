@@ -2566,15 +2566,14 @@ type ResourceActionParam struct {
 	Name string `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
 }
 
-// TODO: refactor to use rbac.ActionGet, rbac.ActionCreate, without import cycle
 var validActions = map[string]bool{
-	"get":      true,
-	"create":   true,
-	"update":   true,
-	"delete":   true,
-	"sync":     true,
-	"override": true,
-	"*":        true,
+	rbac.ActionGet:      true,
+	rbac.ActionCreate:   true,
+	rbac.ActionUpdate:   true,
+	rbac.ActionDelete:   true,
+	rbac.ActionSync:     true,
+	rbac.ActionOverride: true,
+	"*":                 true,
 }
 
 var validActionPatterns = []*regexp.Regexp{
