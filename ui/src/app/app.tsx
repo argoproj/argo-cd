@@ -11,6 +11,7 @@ import login from './login';
 import settings from './settings';
 import {Layout, ThemeWrapper} from './shared/components/layout/layout';
 import {Page} from './shared/components/page/page';
+import {ProtectedRoute} from './shared/components';
 import {VersionPanel} from './shared/components/version-info/version-info-panel';
 import {AuthSettingsCtx, Provider} from './shared/context';
 import {services} from './shared/services';
@@ -192,27 +193,35 @@ export class App extends React.Component<{}, {popupProps: PopupProps; showVersio
                                     <Redirect exact={true} path='/' to='/applications' />
                                     {Object.keys(this.routes).map(path => {
                                         const route = this.routes[path];
-                                        return (
-                                            <Route
-                                                key={path}
-                                                path={path}
-                                                render={routeProps =>
-                                                    route.noLayout ? (
+                                        // Login route doesn't need protection
+                                        if (route.noLayout) {
+                                            return (
+                                                <Route
+                                                    key={path}
+                                                    path={path}
+                                                    render={routeProps => (
                                                         <div>
                                                             <route.component {...routeProps} />
                                                         </div>
-                                                    ) : (
-                                                        <DataLoader load={() => services.viewPreferences.getPreferences()}>
-                                                            {pref => (
-                                                                <Layout onVersionClick={() => this.setState({showVersionPanel: true})} navItems={this.navItems} pref={pref}>
-                                                                    <Banner>
-                                                                        <route.component {...routeProps} />
-                                                                    </Banner>
-                                                                </Layout>
-                                                            )}
-                                                        </DataLoader>
-                                                    )
-                                                }
+                                                    )}
+                                                />
+                                            );
+                                        }
+                                        // All other routes need authentication check before rendering Layout
+                                        return (
+                                            <ProtectedRoute
+                                                key={path}
+                                                path={path}
+                                                component={route.component}
+                                                renderWithLayout={component => (
+                                                    <DataLoader load={() => services.viewPreferences.getPreferences()}>
+                                                        {pref => (
+                                                            <Layout onVersionClick={() => this.setState({showVersionPanel: true})} navItems={this.navItems} pref={pref}>
+                                                                <Banner>{component}</Banner>
+                                                            </Layout>
+                                                        )}
+                                                    </DataLoader>
+                                                )}
                                             />
                                         );
                                     })}
