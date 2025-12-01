@@ -3,12 +3,29 @@ package e2e
 import (
 	"testing"
 
+	"github.com/argoproj/gitops-engine/pkg/health"
+	. "github.com/argoproj/gitops-engine/pkg/sync/common"
+
 	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
-	"github.com/argoproj/gitops-engine/pkg/health"
-	. "github.com/argoproj/gitops-engine/pkg/sync/common"
 )
+
+var projectWithNoKeys = AppProjectSpec{
+	SourceRepos:  []string{"*"},
+	Destinations: []ApplicationDestination{{Namespace: "*", Server: "*"}},
+	SourceIntegrity: &SourceIntegrity{
+		Git: &SourceIntegrityGit{
+			Policies: []*SourceIntegrityGitPolicy{{
+				Repos: []string{"*"},
+				GPG: &SourceIntegrityGitPolicyGPG{
+					Keys: []string{}, // Verifying but permitting no keys
+					Mode: "head",
+				},
+			}},
+		},
+	},
+}
 
 func TestSyncToUnsignedCommit(t *testing.T) {
 	fixture.SkipOnEnv(t, "GPG")
@@ -42,7 +59,7 @@ func TestSyncToSignedCommitWithoutKnownKey(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		Expect(HealthIs(health.HealthStatusMissing)).
 		Expect(Condition(ApplicationConditionComparisonError, "GIT/GPG: Failed verifying revision")).
-		Expect(Condition(ApplicationConditionComparisonError, "signed with key not in keyring (key_id=D56C4FCA57A46444)"))
+		Expect(Condition(ApplicationConditionComparisonError, "signed with key not in keyring (key_id="+fixture.GpgGoodKeyID+")"))
 }
 
 func TestSyncToSignedCommitWithKnownKey(t *testing.T) {
@@ -62,6 +79,26 @@ func TestSyncToSignedCommitWithKnownKey(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		Expect(NoConditions())
+}
+
+func TestSyncToSignedCommitWithUnallowedKey(t *testing.T) {
+	fixture.SkipOnEnv(t, "GPG")
+	Given(t).
+		ProjectSpec(projectWithNoKeys).
+		Path(guestbookPath).
+		GPGPublicKeyAdded().
+		Sleep(2).
+		When().
+		AddSignedFile("test.yaml", "null").
+		IgnoreErrors().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationError)).
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		Expect(HealthIs(health.HealthStatusMissing)).
+		Expect(Condition(ApplicationConditionComparisonError, "GIT/GPG: Failed verifying revision")).
+		Expect(Condition(ApplicationConditionComparisonError, "signed with unallowed key (key_id="+fixture.GpgGoodKeyID+")"))
 }
 
 func TestSyncToSignedBranchWithKnownKey(t *testing.T) {
@@ -207,6 +244,28 @@ func TestSyncToUnsignedSimpleTag(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		Expect(NoConditions())
+}
+
+func TestSyncToSignedAnnotatedTagWithUnallowedKey(t *testing.T) {
+	fixture.SkipOnEnv(t, "GPG")
+	Given(t).
+		ProjectSpec(projectWithNoKeys).
+		Revision("v1.0").
+		Path(guestbookPath).
+		GPGPublicKeyAdded().
+		Sleep(2).
+		When().
+		AddFile("test.yaml", "null").
+		AddSignedTag("v1.0").
+		IgnoreErrors().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationError)).
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		Expect(HealthIs(health.HealthStatusMissing)).
+		Expect(Condition(ApplicationConditionComparisonError, "GIT/GPG: Failed verifying revision v1.0")).
+		Expect(Condition(ApplicationConditionComparisonError, "signed with unallowed key (key_id="+fixture.GpgGoodKeyID+")"))
 }
 
 func TestNamespacedSyncToUnsignedCommit(t *testing.T) {
