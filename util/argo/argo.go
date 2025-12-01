@@ -184,6 +184,7 @@ func FilterByRepoP(apps []*argoappv1.Application, repo string) []*argoappv1.Appl
 
 // FilterByAnnotations returns an application filtered based on annotation
 func FilterByAnnotations(apps []argoappv1.Application, annotations string) []argoappv1.Application {
+    // if no annotation is specified, return all the applications
 	if annotations == "" {
 		return apps
 	}
