@@ -32,6 +32,32 @@ func Test_IsGPGEnabled(t *testing.T) {
 	})
 }
 
+func Test_GPGDisabledLogging(t *testing.T) {
+	t.Setenv("ARGOCD_GPG_ENABLED", "false")
+
+	si := &SourceIntegrity{Git: &SourceIntegrityGit{Policies: []*SourceIntegrityGitPolicy{{
+		Repos: []string{"*"},
+		GPG: &SourceIntegrityGitPolicyGPG{
+			Mode: SourceIntegrityGitPolicyGPGModeStrict,
+			Keys: []string{"SOME_KEY_ID"},
+		},
+	}}}}
+
+	logger := utilTest.LogHook{}
+	logrus.AddHook(&logger)
+	t.Cleanup(logger.CleanupHook)
+
+	fun := si.ForGit("https://github.com/argoproj/argo-cd.git")
+	assert.Equal(t, []string{"SourceIntegrity criteria for git+gpg declared, but it is turned off by ARGOCD_GPG_ENABLED"}, logger.GetEntries())
+	assert.Nil(t, fun)
+
+	// No logs on the second call
+	logger.Entries = []logrus.Entry{}
+	si.ForGit("https://github.com/argoproj/argo-cd-ext.git")
+	assert.Equal(t, []string{}, logger.GetEntries())
+	assert.Nil(t, fun)
+}
+
 func TestGPGUnknownMode(t *testing.T) {
 	gitClient := &gitmocks.Client{}
 	gitClient.EXPECT().IsAnnotatedTag(mock.Anything).Return(false)
@@ -54,20 +80,23 @@ func TestNullOrEmptyDoesNothing(t *testing.T) {
 		logged []string
 	}{
 		{
-			name: "nil",
-			si:   nil,
+			name:   "nil",
+			si:     nil,
+			logged: []string{},
 		},
 		{
 			name: "No GIT",
-			si: &SourceIntegrity{
+			si:   &SourceIntegrity{
 				// No Git or alternative specified
 			},
+			logged: []string{},
 		},
 		{
 			name: "No matching policy",
-			si: &SourceIntegrity{Git: &SourceIntegrityGit{
+			si:   &SourceIntegrity{Git: &SourceIntegrityGit{
 				// No policies configured here
 			}},
+			logged: []string{},
 		},
 		{
 			name: "Matching policy does nothing",
@@ -129,10 +158,13 @@ func TestPolicyMatching(t *testing.T) {
 			repo:             "https://github.com/group/fork.git",
 			expectedPolicies: p(group, prefix),
 			expectedLogs:     []string{"Multiple (2) policies found for repo URL: https://github.com/group/fork.git. Using the first matching one"},
-		}, {
+		},
+		{
 			repo:             "https://github.com/grouplette/main.git",
 			expectedPolicies: p(prefix),
-		}, {
+			expectedLogs:     []string{},
+		},
+		{
 			repo:             "https://gitlab.com/foo/bar.git",
 			expectedPolicies: p(),
 			expectedLogs:     []string{"No policies found for repo URL: https://gitlab.com/foo/bar.git"},
