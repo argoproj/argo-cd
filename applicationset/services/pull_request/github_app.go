@@ -10,14 +10,14 @@ import (
 
 func NewGithubAppService(g github_app_auth.Authentication, url, owner, repo string, labels []string, optionalHTTPClient ...*http.Client) (PullRequestService, error) {
 	httpClient := appsetutils.GetOptionalHTTPClient(optionalHTTPClient...)
-	client, err := github_app.Client(g, url, httpClient)
+	v4Client, err := github_app.V4Client(g, url, httpClient)
 	if err != nil {
 		return nil, err
 	}
 	return &GithubService{
-		client: client,
-		owner:  owner,
-		repo:   repo,
-		labels: labels,
+		v4Client: v4Client,
+		owner:    owner,
+		repo:     repo,
+		labels:   labels,
 	}, nil
 }
