@@ -287,6 +287,10 @@ func NewLogHook(minLevel log.Level) *LogHook {
 }
 
 func (h *LogHook) Levels() []log.Level {
+	if h.minLevel == 0 {
+		h.minLevel = log.WarnLevel
+	}
+
 	var levels []log.Level
 	for i := log.PanicLevel; i <= h.minLevel; i++ {
 		levels = append(levels, i)
