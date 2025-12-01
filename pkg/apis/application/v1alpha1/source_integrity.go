@@ -80,8 +80,13 @@ func (gp *SourceIntegrityGitPolicy) ForGit(repoURL string) SourceIntegrityGitFun
 type SourceIntegrityGitPolicyGPGMode string
 
 var (
-	SourceIntegrityGitPolicyGPGModeNone   SourceIntegrityGitPolicyGPGMode = "none"
-	SourceIntegrityGitPolicyGPGModeHead   SourceIntegrityGitPolicyGPGMode = "head"
+	// SourceIntegrityGitPolicyGPGModeNone performs no verification at all. This is useful to declare exceptions in more
+	// general policies declared later (i.e.: verify in repositories in an organization, except for one).
+	SourceIntegrityGitPolicyGPGModeNone SourceIntegrityGitPolicyGPGMode = "none"
+	// SourceIntegrityGitPolicyGPGModeHead verifies the current target revision, an annotated tag or a commit.
+	SourceIntegrityGitPolicyGPGModeHead SourceIntegrityGitPolicyGPGMode = "head"
+	// SourceIntegrityGitPolicyGPGModeStrict verifies all ancestry of target revision all the way to git init or a seal commits.
+	// If pointing to an annotated tag, it verified both the tag signature and the commit one.
 	SourceIntegrityGitPolicyGPGModeStrict SourceIntegrityGitPolicyGPGMode = "strict"
 )
 
@@ -90,15 +95,17 @@ type SourceIntegrityGitPolicyGPG struct {
 	Keys []string                        `json:"keys" protobuf:"bytes,3,name=keys"`
 }
 
-func (g *SourceIntegrityGitPolicyGPG) forGit(repoURL string) SourceIntegrityGitFunc {
-	if !IsGPGEnabled() {
-		log.Warnf("SourceIntegrity criteria for %s declared, but GPG verification is turned off by ARGOCD_GPG_ENABLED", repoURL)
+var _disabledLoggedAlready bool
+
+func (g *SourceIntegrityGitPolicyGPG) forGit(_ string) SourceIntegrityGitFunc {
+	if g.Mode == SourceIntegrityGitPolicyGPGModeNone {
+		// Declare missing check because there is no verification performed
 		return nil
 	}
 
-	if g.Mode == SourceIntegrityGitPolicyGPGModeNone {
-		// Declare passing check - we have validated based on a policy that happens to do nothing
-		// TODO, think uf not to report as unchecked, instead
+	if !_disabledLoggedAlready && !IsGPGEnabled() {
+		log.Warnf("SourceIntegrity criteria for git+gpg declared, but it is turned off by ARGOCD_GPG_ENABLED")
+		_disabledLoggedAlready = true
 		return nil
 	}
 
@@ -108,15 +115,6 @@ func (g *SourceIntegrityGitPolicyGPG) forGit(repoURL string) SourceIntegrityGitF
 // verify reports if the repository satisfies the criteria specified. It performs no checks when disabled through ARGOCD_GPG_ENABLED.
 func (g *SourceIntegrityGitPolicyGPG) verify(gitClient git.Client, unresolvedRevision string) (result *SourceIntegrityCheckResult, err error) {
 	const checkName = "GIT/GPG"
-
-	if g.Mode == SourceIntegrityGitPolicyGPGModeNone {
-		// Declare passing check - we have validated based on a policy that happens to do nothing
-		return &SourceIntegrityCheckResult{
-			Checks: []SourceIntegrityCheckResultItem{
-				{checkName, []string{}},
-			},
-		}, nil
-	}
 
 	var revisions []git.RevisionSignatureInfo
 
