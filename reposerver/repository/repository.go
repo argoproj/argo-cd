@@ -117,6 +117,7 @@ type RepoServerInitConstants struct {
 	DisableHelmManifestMaxExtractedSize          bool
 	IncludeHiddenDirectories                     bool
 	CMPUseManifestGeneratePaths                  bool
+	EnableBuiltinGitConfig                       bool
 }
 
 var manifestGenerateLock = sync.NewKeyLock()
@@ -2566,7 +2567,9 @@ func (s *Service) newClient(repo *v1alpha1.Repository, opts ...git.ClientOpts) (
 	if err != nil {
 		return nil, err
 	}
-	opts = append(opts, git.WithEventHandlers(metrics.NewGitClientEventHandlers(s.metricsServer)))
+	opts = append(opts,
+		git.WithEventHandlers(metrics.NewGitClientEventHandlers(s.metricsServer)),
+		git.WithBuiltinGitConfig(s.initConstants.EnableBuiltinGitConfig))
 	return s.newGitClient(repo.Repo, repoPath, repo.GetGitCreds(s.gitCredsStore), repo.IsInsecure(), repo.EnableLFS, repo.Proxy, repo.NoProxy, opts...)
 }
 
