@@ -32,6 +32,17 @@ func Test_IsGPGEnabled(t *testing.T) {
 	})
 }
 
+func TestGPGUnknownMode(t *testing.T) {
+	gitClient := &gitmocks.Client{}
+	gitClient.EXPECT().IsAnnotatedTag(mock.Anything).Return(false)
+	gitClient.EXPECT().CommitSHA().Return("DEADBEEF", nil)
+
+	s := &SourceIntegrityGitPolicyGPG{Mode: "foobar", Keys: []string{}}
+	result, err := s.verify(gitClient, "https://github.com/argoproj/argo-cd.git")
+	require.ErrorContains(t, err, `unknown GPG mode "foobar" configured for GIT source integrity`)
+	assert.Nil(t, result)
+}
+
 func TestNullOrEmptyDoesNothing(t *testing.T) {
 	gitClient := &gitmocks.Client{}
 	repoURL := "https://github.com/argoproj/argo-cd"
@@ -48,13 +59,13 @@ func TestNullOrEmptyDoesNothing(t *testing.T) {
 		},
 		{
 			name: "No GIT",
-			si:   &SourceIntegrity{
+			si: &SourceIntegrity{
 				// No Git or alternative specified
 			},
 		},
 		{
 			name: "No matching policy",
-			si:   &SourceIntegrity{Git: &SourceIntegrityGit{
+			si: &SourceIntegrity{Git: &SourceIntegrityGit{
 				// No policies configured here
 			}},
 		},
@@ -134,7 +145,7 @@ func TestPolicyMatching(t *testing.T) {
 
 			assert.Equal(t, tt.expectedPolicies, actual)
 
-			hook := utilTest.NewLogHook(logrus.TraceLevel)
+			hook := utilTest.NewLogHook(logrus.InfoLevel)
 			logrus.AddHook(hook)
 			defer hook.CleanupHook()
 			si := SourceIntegrity{Git: sig}
