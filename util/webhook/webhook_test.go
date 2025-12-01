@@ -1752,4 +1752,95 @@ func setupTestCache(t *testing.T, repoCache *cache.Cache, appName string, source
 	}
 	err := repoCache.SetManifests(testBeforeSHA, source, nil, clusterInfo, "", "", testAppLabelKey, appName, dummyManifests, nil, "")
 	require.NoError(t, err)
+func TestWebhookRefreshWithJitter(t *testing.T) {
+	app := v1alpha1.Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-app",
+			Namespace: "argocd",
+		},
+		Spec: v1alpha1.ApplicationSpec{
+			Source: &v1alpha1.ApplicationSource{
+				RepoURL:        "https://github.com/test/repo",
+				TargetRevision: "main",
+			},
+		},
+	}
+
+	t.Run("items are delayed when jitter is configured", func(t *testing.T) {
+		appClientset := appclientset.NewSimpleClientset(&app)
+		cacheClient := cacheutil.NewCache(cacheutil.NewInMemoryCache(1 * time.Hour))
+		h := NewHandler(
+			"argocd",
+			[]string{},
+			10,
+			5,
+			appClientset,
+			&fakeAppsLister{clientset: appClientset},
+			&settings.ArgoCDSettings{},
+			&fakeSettingsSrc{},
+			cache.NewCache(cacheClient, 1*time.Minute, 1*time.Minute, 10*time.Second),
+			servercache.NewCache(appstate.NewCache(cacheClient, time.Minute), time.Minute, time.Minute),
+			&mocks.ArgoDB{},
+			int64(50)*1024*1024,
+			2*time.Second,
+		)
+
+		req := &appRefreshRequest{
+			appName:      "test-app",
+			appNamespace: "argocd",
+			hydrate:      false,
+		}
+
+		startTime := time.Now()
+		h.refreshQueue.AddAfter(req, 1*time.Second)
+
+		time.Sleep(1200 * time.Millisecond)
+		h.Shutdown()
+
+		elapsed := time.Since(startTime)
+		assert.GreaterOrEqual(t, elapsed.Milliseconds(), int64(1000))
+	})
+}
+
+func TestProcessAppRefresh(t *testing.T) {
+	app := v1alpha1.Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-app",
+			Namespace: "argocd",
+		},
+		Spec: v1alpha1.ApplicationSpec{
+			Source: &v1alpha1.ApplicationSource{
+				RepoURL:        "https://github.com/test/repo",
+				TargetRevision: "main",
+			},
+		},
+	}
+
+	t.Run("processes valid refresh request", func(t *testing.T) {
+		hook := test.NewGlobal()
+		defer hook.Reset()
+
+		h := NewMockHandler(nil, []string{}, &app)
+		req := &appRefreshRequest{
+			appName:      "test-app",
+			appNamespace: "argocd",
+			hydrate:      false,
+		}
+
+		h.processAppRefresh(req)
+		h.Shutdown()
+
+		assert.Contains(t, hook.LastEntry().Message, "Requested app 'test-app' refresh")
+	})
+
+	t.Run("logs warning for invalid request type", func(t *testing.T) {
+		hook := test.NewGlobal()
+		defer hook.Reset()
+
+		h := NewMockHandler(nil, []string{}, &app)
+		h.processAppRefresh("invalid-type")
+		h.Shutdown()
+
+		assert.Contains(t, hook.LastEntry().Message, "Invalid refresh request type")
+	})
 }
