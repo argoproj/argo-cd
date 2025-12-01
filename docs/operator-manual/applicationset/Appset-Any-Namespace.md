@@ -121,6 +121,23 @@ It can be achieved by setting the environment variable `ARGOCD_APPLICATIONSET_CO
 
 In order to enable this feature, the Argo CD administrator must reconfigure the `argocd-applicationset-controller` workloads to add the `--applicationset-namespaces` parameter to the container's startup command.
 
+The `--applicationset-namespaces` parameter takes a comma-separated list of namespaces where `ApplicationSet` are to be allowed in. Each entry of the list supports:
+
+- shell-style wildcards such as `*`, so for example the entry `app-team-*` would match `app-team-one` and `app-team-two`. To enable all namespaces on the cluster where Argo CD is running on, you can just specify `*`, i.e. `--application-namespaces=*`.
+- regex, requires wrapping the string in ```/```, example to allow all namespaces except a particular one: ```/^((?!not-allowed).)*$/```.
+
+The startup parameters for the `argocd-applicationset-controller` can also be conveniently set up and kept in sync by specifying the `applicationsetcontroller.namespaces` settings in the `argocd-cmd-params-cm` ConfigMap _instead_ of changing the manifests for the `ApplicationSet`. For example:
+
+```yaml
+data:
+  applicationsetcontroller.namespaces: "app-team-one, app-team-two"
+```
+would allow the `app-team-one` and `app-team-two` namespaces for managing `ApplicationSet` resources. After a change to the `argocd-cmd-params-cm` namespace, the `ApplicationSet` workload need to be restarted:
+
+```bash
+kubectl rollout restart -n argocd deployment argocd-applicationset-controller
+```
+
 ### Safely template project
 
 As [App in any namespace](../app-any-namespace.md) is a prerequisite, it is possible to safely template project. 
