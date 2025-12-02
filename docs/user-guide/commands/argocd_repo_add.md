@@ -86,6 +86,7 @@ argocd repo add REPOURL [flags]
       --type string                             type of the repository, "git", "oci" or "helm" (default "git")
       --upsert                                  Override an existing repository with the same name even if the spec differs
       --use-azure-workload-identity             whether to use azure workload identity for authentication
+      --user-agent string                       custom HTTP User-Agent header for repository requests
       --username string                         username to the repository
 ```
 

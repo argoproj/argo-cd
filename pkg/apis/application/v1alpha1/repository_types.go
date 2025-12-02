@@ -57,6 +57,9 @@ type RepoCreds struct {
 	BearerToken string `json:"bearerToken,omitempty" protobuf:"bytes,25,opt,name=bearerToken"`
 	// InsecureOCIForceHttp specifies whether the connection to the repository uses TLS at _all_. If true, no TLS. This flag is applicable for OCI repos only.
 	InsecureOCIForceHttp bool `json:"insecureOCIForceHttp,omitempty" protobuf:"bytes,26,opt,name=insecureOCIForceHttp"` //nolint:revive //FIXME(var-naming)
+	// UserAgent specifies a custom User-Agent string for HTTP requests to Helm repositories.
+	// If not set, a default User-Agent will be used.
+	UserAgent string `json:"userAgent,omitempty" protobuf:"bytes,27,opt,name=userAgent"`
 }
 
 // Repository is a repository holding application configurations
@@ -116,6 +119,9 @@ type Repository struct {
 	InsecureOCIForceHttp bool `json:"insecureOCIForceHttp,omitempty" protobuf:"bytes,26,opt,name=insecureOCIForceHttp"` //nolint:revive //FIXME(var-naming)
 	// Depth specifies the depth for shallow clones. A value of 0 or omitting the field indicates a full clone.
 	Depth int64 `json:"depth,omitempty" protobuf:"bytes,27,opt,name=depth"`
+	// UserAgent specifies a custom User-Agent string for HTTP requests to this Helm repository.
+	// If not set, a default User-Agent will be used.
+	UserAgent string `json:"userAgent,omitempty" protobuf:"bytes,28,opt,name=userAgent"`
 }
 
 // IsInsecure returns true if the repository has been configured to skip server verification or set to HTTP only
@@ -169,6 +175,9 @@ func (repo *Repository) CopyCredentialsFromRepo(source *Repository) {
 		if repo.GCPServiceAccountKey == "" {
 			repo.GCPServiceAccountKey = source.GCPServiceAccountKey
 		}
+		if repo.UserAgent == "" {
+			repo.UserAgent = source.UserAgent
+		}
 		repo.InsecureOCIForceHttp = source.InsecureOCIForceHttp
 		repo.ForceHttpBasicAuth = source.ForceHttpBasicAuth
 		repo.UseAzureWorkloadIdentity = source.UseAzureWorkloadIdentity
@@ -220,6 +229,9 @@ func (repo *Repository) CopyCredentialsFrom(source *RepoCreds) {
 		if repo.Type == "" {
 			repo.Type = source.Type
 		}
+		if repo.UserAgent == "" {
+			repo.UserAgent = source.UserAgent
+		}
 
 		repo.EnableOCI = source.EnableOCI
 		repo.InsecureOCIForceHttp = source.InsecureOCIForceHttp
@@ -254,7 +266,7 @@ func (repo *Repository) GetGitCreds(store git.CredsStore) git.Creds {
 // GetHelmCreds returns the credentials from a repository configuration used to authenticate a Helm repository
 func (repo *Repository) GetHelmCreds() helm.Creds {
 	if repo.UseAzureWorkloadIdentity {
-		return helm.NewAzureWorkloadIdentityCreds(
+		creds := helm.NewAzureWorkloadIdentityCreds(
 			repo.Repo,
 			getCAPath(repo.Repo),
 			[]byte(repo.TLSClientCertData),
@@ -262,6 +274,8 @@ func (repo *Repository) GetHelmCreds() helm.Creds {
 			repo.Insecure,
 			workloadidentity.NewWorkloadIdentityTokenProvider(),
 		)
+		creds.UserAgent = repo.UserAgent
+		return creds
 	}
 
 	return helm.HelmCreds{
@@ -271,6 +285,7 @@ func (repo *Repository) GetHelmCreds() helm.Creds {
 		CertData:           []byte(repo.TLSClientCertData),
 		KeyData:            []byte(repo.TLSClientCertKey),
 		InsecureSkipVerify: repo.Insecure,
+		UserAgent:          repo.UserAgent,
 	}
 }
 

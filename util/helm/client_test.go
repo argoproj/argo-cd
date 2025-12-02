@@ -573,3 +573,165 @@ func TestGetTagsCaching(t *testing.T) {
 		assert.Equal(t, 2, requestCount)
 	})
 }
+
+func TestUserAgentIsSet(t *testing.T) {
+	t.Run("Default User-Agent for traditional Helm repo", func(t *testing.T) {
+		// Create a test server that captures the User-Agent header
+		receivedUserAgent := ""
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			receivedUserAgent = r.Header.Get("User-Agent")
+			
+			// Return a valid minimal index.yaml
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`apiVersion: v1
+entries: {}
+`))
+		}))
+		defer ts.Close()
+
+		// Create client and make a request
+		client := NewClient(ts.URL, HelmCreds{}, false, "", "")
+		_, err := client.GetIndex(false, 10000)
+		require.NoError(t, err)
+
+		// Verify User-Agent was set and contains expected components
+		assert.NotEmpty(t, receivedUserAgent, "User-Agent header should be set")
+		assert.Contains(t, receivedUserAgent, "argocd-repo-server", "User-Agent should contain 'argocd-repo-server'")
+		t.Logf("User-Agent sent: %s", receivedUserAgent)
+	})
+
+	t.Run("Custom User-Agent via WithUserAgent option", func(t *testing.T) {
+		// Create a test server that captures the User-Agent header
+		receivedUserAgent := ""
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			receivedUserAgent = r.Header.Get("User-Agent")
+			
+			// Return a valid minimal index.yaml
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`apiVersion: v1
+entries: {}
+`))
+		}))
+		defer ts.Close()
+
+		// Create client with custom User-Agent
+		customUA := "my-custom-app/1.2.3 (contact@example.com)"
+		client := NewClient(ts.URL, HelmCreds{}, false, "", "", WithUserAgent(customUA))
+		_, err := client.GetIndex(false, 10000)
+		require.NoError(t, err)
+
+		// Verify custom User-Agent was used
+		assert.Equal(t, customUA, receivedUserAgent, "Custom User-Agent should be used")
+		t.Logf("Custom User-Agent sent: %s", receivedUserAgent)
+	})
+}
+
+func TestUserAgentRequiredByServer(t *testing.T) {
+	t.Run("Server rejects requests without User-Agent", func(t *testing.T) {
+		// Create a test server that mimics Wikimedia's behavior
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			userAgent := r.Header.Get("User-Agent")
+			
+			t.Logf("Server received User-Agent: '%s'", userAgent)
+			
+			if userAgent == "" {
+				// Mimic Wikimedia's rejection of empty User-Agent
+				w.WriteHeader(http.StatusForbidden)
+				_, _ = w.Write([]byte(`authorization failed: Please set a user-agent and respect our robot policy`))
+				return
+			}
+			
+			// Accept request with User-Agent
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`apiVersion: v1
+entries: {}
+`))
+		}))
+		defer ts.Close()
+
+		// Create client (should automatically set User-Agent)
+		client := NewClient(ts.URL, HelmCreds{}, false, "", "")
+		_, err := client.GetIndex(false, 10000)
+		
+		// Should succeed because our implementation sets User-Agent
+		require.NoError(t, err, "Request should succeed with User-Agent set")
+		t.Logf("Success! Server accepted request with User-Agent")
+	})
+}
+
+func TestUserAgentPriority(t *testing.T) {
+	t.Run("Per-repository User-Agent takes priority over default", func(t *testing.T) {
+		// Create a test server that captures the User-Agent header
+		receivedUserAgent := ""
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			receivedUserAgent = r.Header.Get("User-Agent")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`apiVersion: v1
+entries: {}
+`))
+		}))
+		defer ts.Close()
+
+		// Create creds with per-repository User-Agent
+		creds := HelmCreds{
+			UserAgent: "PerRepo/1.0 (team-a@company.com)",
+		}
+		client := NewClient(ts.URL, creds, false, "", "")
+		_, err := client.GetIndex(false, 10000)
+		require.NoError(t, err)
+
+		// Verify per-repository User-Agent was used
+		assert.Equal(t, "PerRepo/1.0 (team-a@company.com)", receivedUserAgent, "Per-repository User-Agent should be used")
+		t.Logf("Per-repository User-Agent sent: %s", receivedUserAgent)
+	})
+
+	t.Run("Code-level WithUserAgent takes priority over per-repository", func(t *testing.T) {
+		// Create a test server that captures the User-Agent header
+		receivedUserAgent := ""
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			receivedUserAgent = r.Header.Get("User-Agent")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`apiVersion: v1
+entries: {}
+`))
+		}))
+		defer ts.Close()
+
+		// Create creds with per-repository User-Agent
+		creds := HelmCreds{
+			UserAgent: "PerRepo/1.0 (should-be-overridden)",
+		}
+		
+		// But override with WithUserAgent (highest priority)
+		customUA := "CodeLevel/2.0 (dev-override)"
+		client := NewClient(ts.URL, creds, false, "", "", WithUserAgent(customUA))
+		_, err := client.GetIndex(false, 10000)
+		require.NoError(t, err)
+
+		// Verify code-level User-Agent was used (highest priority)
+		assert.Equal(t, customUA, receivedUserAgent, "Code-level WithUserAgent should take priority")
+		t.Logf("Code-level User-Agent sent: %s", receivedUserAgent)
+	})
+
+	t.Run("Default User-Agent used when no custom values provided", func(t *testing.T) {
+		// Create a test server that captures the User-Agent header
+		receivedUserAgent := ""
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			receivedUserAgent = r.Header.Get("User-Agent")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`apiVersion: v1
+entries: {}
+`))
+		}))
+		defer ts.Close()
+
+		// Create client with empty creds (no User-Agent)
+		client := NewClient(ts.URL, HelmCreds{}, false, "", "")
+		_, err := client.GetIndex(false, 10000)
+		require.NoError(t, err)
+
+		// Verify default User-Agent was used
+		assert.Contains(t, receivedUserAgent, "argocd-repo-server", "Should use default User-Agent format")
+		t.Logf("Default User-Agent sent: %s", receivedUserAgent)
+	})
+}

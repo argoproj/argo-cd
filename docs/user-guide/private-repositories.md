@@ -480,6 +480,39 @@ Using the UI:
 
 Select the _Enable OCI_ checkbox when adding a HTTPS based _helm_ repository.
 
+### Custom User Agent
+
+You can configure a custom HTTP User-Agent header for Helm repository requests. This can be useful for tracking requests, debugging, or meeting specific server requirements.
+
+Using CLI:
+
+Specify the `--user-agent` flag when adding a Helm repository:
+
+```bash
+argocd repo add https://argoproj.github.io/argo-helm --type=helm --user-agent="my-custom-agent/1.0"
+```
+
+Using declarative configuration:
+
+Add the `userAgent` field to your repository Secret:
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: helm-repo
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
+stringData:
+  name: my-helm-repo
+  url: https://charts.example.com
+  type: helm
+  userAgent: my-custom-agent/1.0
+```
+
+The custom user agent will be used for all HTTP requests to the Helm repository, including chart downloads and index file retrieval.
+
 ## Git Submodules
 
 Submodules are supported and will be picked up automatically. If the submodule repository requires authentication then the credentials will need to match the credentials of the parent repository. Set ARGOCD_GIT_MODULES_ENABLED=false to disable submodule support
