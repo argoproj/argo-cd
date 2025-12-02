@@ -228,7 +228,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                                   </DataLoader>
                               )
                       }
-                ]
+                  ]
                 : [
                       {
                           title: 'TARGET REVISION',
@@ -261,7 +261,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                                   <FormField formApi={formApi} field={getPathField(isHydrator)} component={Text} />
                               )
                       }
-                ]
+                  ]
             : []),
         {
             title: 'REVISION HISTORY LIMIT',
@@ -271,7 +271,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                     <FormField
                         formApi={formApi}
                         field='spec.revisionHistoryLimit'
-                        componentProps={{style: { paddingRight: '1em', right: '1em' }, placeholder: '10'}}
+                        componentProps={{style: {paddingRight: '1em', right: '1em'}, placeholder: '10'}}
                         component={NumberField}
                     />
                     <div style={{position: 'absolute', right: '0', top: '0'}}>
