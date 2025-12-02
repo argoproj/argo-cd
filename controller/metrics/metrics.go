@@ -156,6 +156,14 @@ var (
 		Name: "argocd_resource_events_processed_in_batch",
 		Help: "Number of resource events processed in batch",
 	}, []string{"server"})
+
+	argoVersion = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "argocd_info",
+			Help: "ArgoCD version information",
+		},
+		[]string{"version"},
+	)
 )
 
 // NewMetricsServer returns a new prometheus server which collects application metrics
@@ -193,9 +201,11 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 		// contains workqueue metrics, process and golang metrics
 		ctrlmetrics.Registry,
 	}, promhttp.HandlerOpts{}))
+	argoVersion.WithLabelValues(common.GetVersion().Version).Set(1)
 	profile.RegisterProfiler(mux)
 	healthz.ServeHealthCheck(mux, healthCheck)
 
+	registry.MustRegister(argoVersion)
 	registry.MustRegister(syncCounter)
 	registry.MustRegister(syncDuration)
 	registry.MustRegister(k8sRequestCounter)
