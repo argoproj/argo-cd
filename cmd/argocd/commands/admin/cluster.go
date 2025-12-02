@@ -653,7 +653,7 @@ func NewGenClusterConfigCommand(pathOpts *clientcmd.PathOptions) *cobra.Command 
 					InstallHint: clusterOpts.ExecProviderInstallHint,
 				}
 			case generateToken:
-				bearerToken, err = GenerateToken(clusterOpts, conf)
+				bearerToken, err = GenerateToken(&clusterOpts, conf)
 				errors.CheckError(err)
 			case bearerToken == "":
 				bearerToken = "bearer-token"
@@ -706,7 +706,7 @@ func NewGenClusterConfigCommand(pathOpts *clientcmd.PathOptions) *cobra.Command 
 	return command
 }
 
-func GenerateToken(clusterOpts cmdutil.ClusterOptions, conf *rest.Config) (string, error) {
+func GenerateToken(clusterOpts *cmdutil.ClusterOptions, conf *rest.Config) (string, error) {
 	clientset, err := kubernetes.NewForConfig(conf)
 	errors.CheckError(err)
 

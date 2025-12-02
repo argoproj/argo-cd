@@ -15,13 +15,59 @@ import (
 )
 
 func TestPrintTreeViewAppResources(t *testing.T) {
-	var nodes [3]v1alpha1.ResourceNode
-	nodes[0].ResourceRef = v1alpha1.ResourceRef{Group: "", Version: "v1", Kind: "Pod", Namespace: "sandbox-rollout-numalogic-demo", Name: "numalogic-rollout-demo-5dcd5457d5-6trpt", UID: "92c3a5fe-d13e-4ae2-b8ec-c10dd3543b28"}
-	nodes[0].ParentRefs = []v1alpha1.ResourceRef{{Group: "apps", Version: "v1", Kind: "ReplicaSet", Namespace: "sandbox-rollout-numalogic-demo", Name: "numalogic-rollout-demo-5dcd5457d5", UID: "75c30dce-1b66-414f-a86c-573a74be0f40"}}
-	nodes[1].ResourceRef = v1alpha1.ResourceRef{Group: "apps", Version: "v1", Kind: "ReplicaSet", Namespace: "sandbox-rollout-numalogic-demo", Name: "numalogic-rollout-demo-5dcd5457d5", UID: "75c30dce-1b66-414f-a86c-573a74be0f40"}
-	nodes[1].ParentRefs = []v1alpha1.ResourceRef{{Group: "argoproj.io", Version: "", Kind: "Rollout", Namespace: "sandbox-rollout-numalogic-demo", Name: "numalogic-rollout-demo", UID: "87f3aab0-f634-4b2c-959a-7ddd30675ed0"}}
-	nodes[2].ResourceRef = v1alpha1.ResourceRef{Group: "argoproj.io", Version: "", Kind: "Rollout", Namespace: "sandbox-rollout-numalogic-demo", Name: "numalogic-rollout-demo", UID: "87f3aab0-f634-4b2c-959a-7ddd30675ed0"}
-	nodeMapping := make(map[string]v1alpha1.ResourceNode)
+	nodes := []*v1alpha1.ResourceNode{
+		{
+			ResourceRef: v1alpha1.ResourceRef{
+				Group:     "",
+				Version:   "v1",
+				Kind:      "Pod",
+				Namespace: "sandbox-rollout-numalogic-demo",
+				Name:      "numalogic-rollout-demo-5dcd5457d5-6trpt",
+				UID:       "92c3a5fe-d13e-4ae2-b8ec-c10dd3543b28",
+			},
+			ParentRefs: []v1alpha1.ResourceRef{
+				{
+					Group:     "apps",
+					Version:   "v1",
+					Kind:      "ReplicaSet",
+					Namespace: "sandbox-rollout-numalogic-demo",
+					Name:      "numalogic-rollout-demo-5dcd5457d5",
+					UID:       "75c30dce-1b66-414f-a86c-573a74be0f40",
+				},
+			},
+		},
+		{
+			ResourceRef: v1alpha1.ResourceRef{
+				Group:     "apps",
+				Version:   "v1",
+				Kind:      "ReplicaSet",
+				Namespace: "sandbox-rollout-numalogic-demo",
+				Name:      "numalogic-rollout-demo-5dcd5457d5",
+				UID:       "75c30dce-1b66-414f-a86c-573a74be0f40",
+			},
+			ParentRefs: []v1alpha1.ResourceRef{
+				{
+					Group:     "argoproj.io",
+					Version:   "",
+					Kind:      "Rollout",
+					Namespace: "sandbox-rollout-numalogic-demo",
+					Name:      "numalogic-rollout-demo",
+					UID:       "87f3aab0-f634-4b2c-959a-7ddd30675ed0",
+				},
+			},
+		},
+		{
+			ResourceRef: v1alpha1.ResourceRef{
+				Group:     "argoproj.io",
+				Version:   "",
+				Kind:      "Rollout",
+				Namespace: "sandbox-rollout-numalogic-demo",
+				Name:      "numalogic-rollout-demo",
+				UID:       "87f3aab0-f634-4b2c-959a-7ddd30675ed0",
+			},
+		},
+	}
+	nodeMapping := make(map[string]*v1alpha1.ResourceNode)
 	mapParentToChild := make(map[string][]string)
 	parentNode := make(map[string]struct{})
 	for _, node := range nodes {
@@ -49,18 +95,64 @@ func TestPrintTreeViewAppResources(t *testing.T) {
 }
 
 func TestPrintTreeViewDetailedAppResources(t *testing.T) {
-	var nodes [3]v1alpha1.ResourceNode
-	nodes[0].ResourceRef = v1alpha1.ResourceRef{Group: "", Version: "v1", Kind: "Pod", Namespace: "sandbox-rollout-numalogic-demo", Name: "numalogic-rollout-demo-5dcd5457d5-6trpt", UID: "92c3a5fe-d13e-4ae2-b8ec-c10dd3543b28"}
-	nodes[0].ParentRefs = []v1alpha1.ResourceRef{{Group: "apps", Version: "v1", Kind: "ReplicaSet", Namespace: "sandbox-rollout-numalogic-demo", Name: "numalogic-rollout-demo-5dcd5457d5", UID: "75c30dce-1b66-414f-a86c-573a74be0f40"}}
-	nodes[1].ResourceRef = v1alpha1.ResourceRef{Group: "apps", Version: "v1", Kind: "ReplicaSet", Namespace: "sandbox-rollout-numalogic-demo", Name: "numalogic-rollout-demo-5dcd5457d5", UID: "75c30dce-1b66-414f-a86c-573a74be0f40"}
-	nodes[1].ParentRefs = []v1alpha1.ResourceRef{{Group: "argoproj.io", Version: "", Kind: "Rollout", Namespace: "sandbox-rollout-numalogic-demo", Name: "numalogic-rollout-demo", UID: "87f3aab0-f634-4b2c-959a-7ddd30675ed0"}}
-	nodes[2].ResourceRef = v1alpha1.ResourceRef{Group: "argoproj.io", Version: "", Kind: "Rollout", Namespace: "sandbox-rollout-numalogic-demo", Name: "numalogic-rollout-demo", UID: "87f3aab0-f634-4b2c-959a-7ddd30675ed0"}
-	nodes[2].Health = &v1alpha1.HealthStatus{
-		Status:  "Degraded",
-		Message: "Readiness Gate failed",
+	nodes := []*v1alpha1.ResourceNode{
+		{
+			ResourceRef: v1alpha1.ResourceRef{
+				Group:     "",
+				Version:   "v1",
+				Kind:      "Pod",
+				Namespace: "sandbox-rollout-numalogic-demo",
+				Name:      "numalogic-rollout-demo-5dcd5457d5-6trpt",
+				UID:       "92c3a5fe-d13e-4ae2-b8ec-c10dd3543b28",
+			},
+			ParentRefs: []v1alpha1.ResourceRef{
+				{
+					Group:     "apps",
+					Version:   "v1",
+					Kind:      "ReplicaSet",
+					Namespace: "sandbox-rollout-numalogic-demo",
+					Name:      "numalogic-rollout-demo-5dcd5457d5",
+					UID:       "75c30dce-1b66-414f-a86c-573a74be0f40",
+				},
+			},
+		},
+		{
+			ResourceRef: v1alpha1.ResourceRef{
+				Group:     "apps",
+				Version:   "v1",
+				Kind:      "ReplicaSet",
+				Namespace: "sandbox-rollout-numalogic-demo",
+				Name:      "numalogic-rollout-demo-5dcd5457d5",
+				UID:       "75c30dce-1b66-414f-a86c-573a74be0f40",
+			},
+			ParentRefs: []v1alpha1.ResourceRef{
+				{
+					Group:     "argoproj.io",
+					Version:   "",
+					Kind:      "Rollout",
+					Namespace: "sandbox-rollout-numalogic-demo",
+					Name:      "numalogic-rollout-demo",
+					UID:       "87f3aab0-f634-4b2c-959a-7ddd30675ed0",
+				},
+			},
+		},
+		{
+			ResourceRef: v1alpha1.ResourceRef{
+				Group:     "argoproj.io",
+				Version:   "",
+				Kind:      "Rollout",
+				Namespace: "sandbox-rollout-numalogic-demo",
+				Name:      "numalogic-rollout-demo",
+				UID:       "87f3aab0-f634-4b2c-959a-7ddd30675ed0",
+			},
+			Health: &v1alpha1.HealthStatus{
+				Status:  "Degraded",
+				Message: "Readiness Gate failed",
+			},
+		},
 	}
 
-	nodeMapping := make(map[string]v1alpha1.ResourceNode)
+	nodeMapping := make(map[string]*v1alpha1.ResourceNode)
 	mapParentToChild := make(map[string][]string)
 	parentNode := make(map[string]struct{})
 	for _, node := range nodes {

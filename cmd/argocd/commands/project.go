@@ -121,7 +121,7 @@ func NewProjectCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
-			proj, err := cmdutil.ConstructAppProj(fileURL, args, opts, c)
+			proj, err := cmdutil.ConstructAppProj(fileURL, args, &opts, c)
 			errors.CheckError(err)
 
 			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
