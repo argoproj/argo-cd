@@ -36,21 +36,49 @@ export function Login(props: RouteComponentProps<{}>) {
             setLoginError('');
             setLoginInProgress(true);
             appContext.navigation.goto('.', {sso_error: null});
+
             await services.users.login(username, password);
-            setLoginInProgress(false);
-            if (returnURL) {
-                const url = new URL(returnURL);
-                let redirectURL = url.pathname + url.search;
-                // return url already contains baseHref, so we need to remove it
-                if (appContext.baseHref != '/' && redirectURL.startsWith(appContext.baseHref)) {
-                    redirectURL = redirectURL.substring(appContext.baseHref.length);
-                }
-                appContext.navigation.goto(redirectURL);
-            } else {
-                appContext.navigation.goto('/applications');
+
+            // Verify session is established before navigating
+            const userInfo = await services.users.get();
+            if (!userInfo.loggedIn) {
+                throw new Error('Session not established after login');
             }
-        } catch (e) {
-            setLoginError(e.response.body.error);
+
+            // Use window.location.replace to force full page reload and ensure cookie is available
+            // This also clears any cached DataLoader results
+            const basehref = appContext.baseHref === '/' ? '' : appContext.baseHref;
+            let redirectPath = '/applications';
+
+            if (returnURL) {
+                try {
+                    // Handle both absolute and relative URLs
+                    let url: URL;
+                    if (returnURL.startsWith('http://') || returnURL.startsWith('https://')) {
+                        url = new URL(returnURL);
+                    } else {
+                        // Relative URL - use current origin
+                        url = new URL(returnURL, window.location.origin);
+                    }
+                    redirectPath = url.pathname + url.search;
+                    // return url already contains baseHref, so we need to remove it
+                    if (appContext.baseHref != '/' && redirectPath.startsWith(appContext.baseHref)) {
+                        redirectPath = redirectPath.substring(appContext.baseHref.length);
+                    }
+                } catch (e) {
+                    // If URL parsing fails, use default
+                    console.error('Failed to parse return URL:', e, 'returnURL:', returnURL);
+                }
+            }
+
+            const finalUrl = basehref + redirectPath;
+
+            // Navigate immediately - don't set loginInProgress to false as page will reload
+            // Use replace to avoid adding to history
+            window.location.replace(finalUrl);
+        } catch (e: any) {
+            const errorMessage = e?.response?.body?.error || e?.response?.data?.error || e?.message || 'Login failed';
+            setLoginError(errorMessage);
             setLoginInProgress(false);
         }
     };
@@ -88,6 +116,7 @@ export function Login(props: RouteComponentProps<{}>) {
                 {authSettings && !authSettings.userLoginsDisabled && (
                     <Form
                         onSubmit={(params: LoginForm) => login(params.username, params.password, returnUrl)}
+                        onSubmitFailure={() => {}}
                         validateError={(params: LoginForm) => ({
                             username: !params.username && 'Username is required',
                             password: !params.password && 'Password is required'
