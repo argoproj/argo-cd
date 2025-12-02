@@ -1827,6 +1827,10 @@ message RepoCreds {
 
   // InsecureOCIForceHttp specifies whether the connection to the repository uses TLS at _all_. If true, no TLS. This flag is applicable for OCI repos only.
   optional bool insecureOCIForceHttp = 26;
+
+  // UserAgent specifies a custom User-Agent string for HTTP requests to Helm repositories.
+  // If not set, a default User-Agent will be used.
+  optional string userAgent = 27;
 }
 
 // RepositoryList is a collection of Repositories.
@@ -1919,6 +1923,10 @@ message Repository {
 
   // Depth specifies the depth for shallow clones. A value of 0 or omitting the field indicates a full clone.
   optional int64 depth = 27;
+
+  // UserAgent specifies a custom User-Agent string for HTTP requests to this Helm repository.
+  // If not set, a default User-Agent will be used.
+  optional string userAgent = 28;
 }
 
 // A RepositoryCertificate is either SSH known hosts entry or TLS certificate
