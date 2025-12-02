@@ -1,7 +1,7 @@
 /* eslint-disable no-prototype-builtins */
-import {AutocompleteField, Checkbox, DropDownMenu, ErrorNotification, FormField, FormSelect, HelpIcon, NotificationType} from 'argo-ui';
+import { AutocompleteField, Checkbox, DropDownMenu, ErrorNotification, FormField, FormSelect, HelpIcon, NotificationType } from 'argo-ui';
 import * as React from 'react';
-import {FormApi, Text} from 'react-form';
+import { FormApi, Text } from 'react-form';
 import {
     ClipboardText,
     Cluster,
@@ -15,22 +15,22 @@ import {
     Revision,
     RevisionHelpIcon
 } from '../../../shared/components';
-import {BadgePanel} from '../../../shared/components';
-import {AuthSettingsCtx, Consumer, ContextApis} from '../../../shared/context';
+import { BadgePanel } from '../../../shared/components';
+import { AuthSettingsCtx, Consumer, ContextApis } from '../../../shared/context';
 import * as models from '../../../shared/models';
-import {services} from '../../../shared/services';
+import { services } from '../../../shared/services';
 
-import {ApplicationSyncOptionsField} from '../application-sync-options/application-sync-options';
-import {RevisionFormField} from '../revision-form-field/revision-form-field';
-import {ComparisonStatusIcon, HealthStatusIcon, syncStatusMessage, urlPattern, formatCreationTimestamp, getAppDefaultSource, getAppSpecDefaultSource, helpTip} from '../utils';
-import {ApplicationRetryOptions} from '../application-retry-options/application-retry-options';
-import {ApplicationRetryView} from '../application-retry-view/application-retry-view';
-import {Link} from 'react-router-dom';
-import {EditNotificationSubscriptions, useEditNotificationSubscriptions} from './edit-notification-subscriptions';
-import {EditAnnotations} from './edit-annotations';
+import { ApplicationSyncOptionsField } from '../application-sync-options/application-sync-options';
+import { RevisionFormField } from '../revision-form-field/revision-form-field';
+import { ComparisonStatusIcon, HealthStatusIcon, syncStatusMessage, urlPattern, formatCreationTimestamp, getAppDefaultSource, getAppSpecDefaultSource, helpTip } from '../utils';
+import { ApplicationRetryOptions } from '../application-retry-options/application-retry-options';
+import { ApplicationRetryView } from '../application-retry-view/application-retry-view';
+import { Link } from 'react-router-dom';
+import { EditNotificationSubscriptions, useEditNotificationSubscriptions } from './edit-notification-subscriptions';
+import { EditAnnotations } from './edit-annotations';
 
 import './application-summary.scss';
-import {DeepLinks} from '../../../shared/components/deep-links';
+import { DeepLinks } from '../../../shared/components/deep-links';
 
 function swap(array: any[], a: number, b: number) {
     array = array.slice();
@@ -50,7 +50,7 @@ function processPath(path: string) {
 
 export interface ApplicationSummaryProps {
     app: models.Application;
-    updateApp: (app: models.Application, query: {validate?: boolean}) => Promise<any>;
+    updateApp: (app: models.Application, query: { validate?: boolean }) => Promise<any>;
 }
 
 export const ApplicationSummary = (props: ApplicationSummaryProps) => {
@@ -75,7 +75,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
             view: <Link to={'/settings/projects/' + app.spec.project}>{app.spec.project}</Link>,
             edit: (formApi: FormApi) => (
                 <DataLoader load={() => services.projects.list('items.metadata.name').then(projs => projs.map(item => item.metadata.name))}>
-                    {projects => <FormField formApi={formApi} field='spec.project' component={FormSelect} componentProps={{options: projects}} />}
+                    {projects => <FormField formApi={formApi} field='spec.project' component={FormSelect} componentProps={{ options: projects }} />}
                 </DataLoader>
             )
         },
@@ -115,20 +115,20 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                                         <FormField
                                             formApi={formApi}
                                             field='spec.destination.server'
-                                            componentProps={{items: clusters.map(cluster => cluster.server)}}
+                                            componentProps={{ items: clusters.map(cluster => cluster.server) }}
                                             component={AutocompleteField}
                                         />
                                     </div>
                                 )) || (
-                                    <div className='columns small-10'>
-                                        <FormField
-                                            formApi={formApi}
-                                            field='spec.destination.name'
-                                            componentProps={{items: clusters.map(cluster => cluster.name)}}
-                                            component={AutocompleteField}
-                                        />
-                                    </div>
-                                )}
+                                        <div className='columns small-10'>
+                                            <FormField
+                                                formApi={formApi}
+                                                field='spec.destination.name'
+                                                componentProps={{ items: clusters.map(cluster => cluster.name) }}
+                                                component={AutocompleteField}
+                                            />
+                                        </div>
+                                    )}
                                 <div className='columns small-2'>
                                     <div>
                                         <DropDownMenu
@@ -180,101 +180,101 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
         ...(!hasMultipleSources
             ? isHelm
                 ? [
-                      {
-                          title: 'CHART',
-                          view: <span>{source && `${source.chart}:${source.targetRevision}`}</span>,
-                          edit: (formApi: FormApi) =>
-                              hasMultipleSources ? (
-                                  helpTip('CHART is not editable for applications with multiple sources. You can edit them in the "Manifest" tab.')
-                              ) : (
-                                  <DataLoader
-                                      input={{repoURL: getAppSpecDefaultSource(formApi.getFormState().values.spec).repoURL}}
-                                      load={src => services.repos.charts(src.repoURL).catch(() => new Array<models.HelmChart>())}>
-                                      {(charts: models.HelmChart[]) => (
-                                          <div className='row'>
-                                              <div className='columns small-8'>
-                                                  <FormField
-                                                      formApi={formApi}
-                                                      field='spec.source.chart'
-                                                      component={AutocompleteField}
-                                                      componentProps={{
-                                                          items: charts.map(chart => chart.name),
-                                                          filterSuggestions: true
-                                                      }}
-                                                  />
-                                              </div>
-                                              <DataLoader
-                                                  input={{charts, chart: getAppSpecDefaultSource(formApi.getFormState().values.spec).chart}}
-                                                  load={async data => {
-                                                      const chartInfo = data.charts.find(chart => chart.name === data.chart);
-                                                      return (chartInfo && chartInfo.versions) || new Array<string>();
-                                                  }}>
-                                                  {(versions: string[]) => (
-                                                      <div className='columns small-4'>
-                                                          <FormField
-                                                              formApi={formApi}
-                                                              field='spec.source.targetRevision'
-                                                              component={AutocompleteField}
-                                                              componentProps={{
-                                                                  items: versions
-                                                              }}
-                                                          />
-                                                          <RevisionHelpIcon type='helm' top='0' />
-                                                      </div>
-                                                  )}
-                                              </DataLoader>
-                                          </div>
-                                      )}
-                                  </DataLoader>
-                              )
-                      }
-                  ]
+                    {
+                        title: 'CHART',
+                        view: <span>{source && `${source.chart}:${source.targetRevision}`}</span>,
+                        edit: (formApi: FormApi) =>
+                            hasMultipleSources ? (
+                                helpTip('CHART is not editable for applications with multiple sources. You can edit them in the "Manifest" tab.')
+                            ) : (
+                                <DataLoader
+                                    input={{ repoURL: getAppSpecDefaultSource(formApi.getFormState().values.spec).repoURL }}
+                                    load={src => services.repos.charts(src.repoURL).catch(() => new Array<models.HelmChart>())}>
+                                    {(charts: models.HelmChart[]) => (
+                                        <div className='row'>
+                                            <div className='columns small-8'>
+                                                <FormField
+                                                    formApi={formApi}
+                                                    field='spec.source.chart'
+                                                    component={AutocompleteField}
+                                                    componentProps={{
+                                                        items: charts.map(chart => chart.name),
+                                                        filterSuggestions: true
+                                                    }}
+                                                />
+                                            </div>
+                                            <DataLoader
+                                                input={{ charts, chart: getAppSpecDefaultSource(formApi.getFormState().values.spec).chart }}
+                                                load={async data => {
+                                                    const chartInfo = data.charts.find(chart => chart.name === data.chart);
+                                                    return (chartInfo && chartInfo.versions) || new Array<string>();
+                                                }}>
+                                                {(versions: string[]) => (
+                                                    <div className='columns small-4'>
+                                                        <FormField
+                                                            formApi={formApi}
+                                                            field='spec.source.targetRevision'
+                                                            component={AutocompleteField}
+                                                            componentProps={{
+                                                                items: versions
+                                                            }}
+                                                        />
+                                                        <RevisionHelpIcon type='helm' top='0' />
+                                                    </div>
+                                                )}
+                                            </DataLoader>
+                                        </div>
+                                    )}
+                                </DataLoader>
+                            )
+                    }
+                ]
                 : [
-                      {
-                          title: 'TARGET REVISION',
-                          view: <Revision repoUrl={source.repoURL} revision={source.targetRevision || 'HEAD'} />,
-                          edit: (formApi: FormApi) =>
-                              hasMultipleSources ? (
-                                  helpTip('TARGET REVISION is not editable for applications with multiple sources. You can edit them in the "Manifest" tab.')
-                              ) : (
-                                  <RevisionFormField
-                                      helpIconTop={'0'}
-                                      hideLabel={true}
-                                      formApi={formApi}
-                                      fieldValue={getTargetRevisionField(isHydrator)}
-                                      repoURL={source.repoURL}
-                                      repoType={repoType}
-                                  />
-                              )
-                      },
-                      {
-                          title: 'PATH',
-                          view: (
-                              <Revision repoUrl={source.repoURL} revision={source.targetRevision || 'HEAD'} path={source.path} isForPath={true}>
-                                  {processPath(source.path)}
-                              </Revision>
-                          ),
-                          edit: (formApi: FormApi) =>
-                              hasMultipleSources ? (
-                                  helpTip('PATH is not editable for applications with multiple sources. You can edit them in the "Manifest" tab.')
-                              ) : (
-                                  <FormField formApi={formApi} field={getPathField(isHydrator)} component={Text} />
-                              )
-                      }
-                  ]
+                    {
+                        title: 'TARGET REVISION',
+                        view: <Revision repoUrl={source.repoURL} revision={source.targetRevision || 'HEAD'} />,
+                        edit: (formApi: FormApi) =>
+                            hasMultipleSources ? (
+                                helpTip('TARGET REVISION is not editable for applications with multiple sources. You can edit them in the "Manifest" tab.')
+                            ) : (
+                                <RevisionFormField
+                                    helpIconTop={'0'}
+                                    hideLabel={true}
+                                    formApi={formApi}
+                                    fieldValue={getTargetRevisionField(isHydrator)}
+                                    repoURL={source.repoURL}
+                                    repoType={repoType}
+                                />
+                            )
+                    },
+                    {
+                        title: 'PATH',
+                        view: (
+                            <Revision repoUrl={source.repoURL} revision={source.targetRevision || 'HEAD'} path={source.path} isForPath={true}>
+                                {processPath(source.path)}
+                            </Revision>
+                        ),
+                        edit: (formApi: FormApi) =>
+                            hasMultipleSources ? (
+                                helpTip('PATH is not editable for applications with multiple sources. You can edit them in the "Manifest" tab.')
+                            ) : (
+                                <FormField formApi={formApi} field={getPathField(isHydrator)} component={Text} />
+                            )
+                    }
+                ]
             : []),
         {
             title: 'REVISION HISTORY LIMIT',
             view: app.spec.revisionHistoryLimit,
             edit: (formApi: FormApi) => (
-                <div style={{position: 'relative'}}>
+                <div style={{ position: 'relative' }}>
                     <FormField
                         formApi={formApi}
                         field='spec.revisionHistoryLimit'
-                        componentProps={{style: {paddingRight: '1em', right: '1em'}, placeholder: '10'}}
+                        componentProps={{ style: { paddingRight: '1em', right: '1em' }, placeholder: '10' }}
                         component={NumberField}
                     />
-                    <div style={{position: 'absolute', right: '0', top: '0'}}>
+                    <div style={{ position: 'absolute', right: '0', top: '0' }}>
                         <HelpIcon
                             title='This limits the number of items kept in the apps revision history.
     This should only be changed in exceptional circumstances.
@@ -289,14 +289,14 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
         {
             title: 'SYNC OPTIONS',
             view: (
-                <div style={{display: 'flex', flexWrap: 'wrap'}}>
+                <div style={{ display: 'flex', flexWrap: 'wrap' }}>
                     {((app.spec.syncPolicy || {}).syncOptions || []).map(opt =>
                         opt.endsWith('=true') || opt.endsWith('=false') ? (
-                            <div key={opt} style={{marginRight: '10px'}}>
+                            <div key={opt} style={{ marginRight: '10px' }}>
                                 <i className={`fa fa-${opt.includes('=true') ? 'check-square' : 'times'}`} /> {opt.replace('=true', '').replace('=false', '')}
                             </div>
                         ) : (
-                            <div key={opt} style={{marginRight: '10px'}}>
+                            <div key={opt} style={{ marginRight: '10px' }}>
                                 {opt}
                             </div>
                         )
@@ -385,11 +385,16 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
             try {
                 setChangeSync(true);
                 const updatedApp = JSON.parse(JSON.stringify(props.app)) as models.Application;
-                if (!updatedApp.spec.syncPolicy) {
-                    updatedApp.spec.syncPolicy = {};
+                if (enable) {
+                    if (!updatedApp.spec.syncPolicy) {
+                        updatedApp.spec.syncPolicy = {};
+                    }
+                    updatedApp.spec.syncPolicy.automated = {prune, selfHeal, enabled: enable};
+                } else {
+                    if (updatedApp.spec.syncPolicy) {
+                        delete updatedApp.spec.syncPolicy;
+                    }
                 }
-
-                updatedApp.spec.syncPolicy.automated = {prune, selfHeal, enabled: enable};
                 await updateApp(updatedApp, {validate: false});
             } catch (e) {
                 ctx.notifications.show({
@@ -405,9 +410,9 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
     const items = app.spec.info || [];
     const [adjustedCount, setAdjustedCount] = React.useState(0);
 
-    const added = new Array<{name: string; value: string; key: string}>();
+    const added = new Array<{ name: string; value: string; key: string }>();
     for (let i = 0; i < adjustedCount; i++) {
-        added.push({name: '', value: '', key: (items.length + i).toString()});
+        added.push({ name: '', value: '', key: (items.length + i).toString() });
     }
     for (let i = 0; i > adjustedCount; i--) {
         items.pop();
@@ -434,7 +439,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                             }}
                         />
                     )}
-                    <FormField formApi={formApi} field={`spec.info[${[i]}].name`} component={Text} componentProps={{style: {width: '99%'}}} />
+                    <FormField formApi={formApi} field={`spec.info[${[i]}].name`} component={Text} componentProps={{ style: { width: '99%' } }} />
                     {i < allItems.length - 1 && (
                         <i
                             className='fa fa-sort-down application-summary__sort-icon'
@@ -505,7 +510,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                                     <div className='checkbox-container'>
                                         <Checkbox
                                             onChange={async (val: boolean) => {
-                                                const automated = app.spec.syncPolicy?.automated || {prune: false, selfHeal: false};
+                                                const automated = app.spec.syncPolicy?.automated || { prune: false, selfHeal: false };
                                                 setAutoSync(
                                                     ctx,
                                                     val ? 'Enable Auto-Sync?' : 'Disable Auto-Sync?',
@@ -532,7 +537,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                                             <div className='checkbox-container'>
                                                 <Checkbox
                                                     onChange={async (prune: boolean) => {
-                                                        const automated = app.spec.syncPolicy?.automated || {selfHeal: false, enabled: false};
+                                                        const automated = app.spec.syncPolicy?.automated || { selfHeal: false, enabled: false };
                                                         setAutoSync(
                                                             ctx,
                                                             prune ? 'Enable Prune Resources?' : 'Disable Prune Resources?',
@@ -556,7 +561,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                                             <div className='checkbox-container'>
                                                 <Checkbox
                                                     onChange={async (selfHeal: boolean) => {
-                                                        const automated = app.spec.syncPolicy?.automated || {prune: false, enabled: false};
+                                                        const automated = app.spec.syncPolicy?.automated || { prune: false, enabled: false };
                                                         setAutoSync(
                                                             ctx,
                                                             selfHeal ? 'Enable Self Heal?' : 'Disable Self Heal?',
