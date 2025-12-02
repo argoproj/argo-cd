@@ -955,12 +955,14 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	}
 
 	for _, manifestInfo := range manifestInfos {
-		if manifestInfo != nil && manifestInfo.SourceIntegrityResult != nil && !manifestInfo.SourceIntegrityResult.IsValid() {
-			conditions = append(conditions, v1alpha1.ApplicationCondition{
-				Type:               v1alpha1.ApplicationConditionComparisonError,
-				Message:            manifestInfo.SourceIntegrityResult.Error().Error(),
-				LastTransitionTime: &now,
-			})
+		if manifestInfo != nil {
+			if err = manifestInfo.SourceIntegrityResult.AsError(); err != nil {
+				conditions = append(conditions, v1alpha1.ApplicationCondition{
+					Type:               v1alpha1.ApplicationConditionComparisonError,
+					Message:            err.Error(),
+					LastTransitionTime: &now,
+				})
+			}
 		}
 	}
 
