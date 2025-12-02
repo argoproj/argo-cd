@@ -6,30 +6,41 @@ import {services} from '../../services';
 
 interface ProtectedRouteProps extends RouteProps {
     component: React.ComponentType<RouteComponentProps<any>>;
-    noLayout?: boolean;
     renderWithLayout?: (component: React.ReactElement) => React.ReactElement;
 }
 
 async function isExpiredSSO(): Promise<boolean> {
     try {
-        const {iss} = await services.users.get();
-        const authSettings = await services.authService.settings();
-        if (iss && iss !== 'argocd') {
+        // Combine both async calls into one Promise.all for better performance
+        const [userInfo, authSettings] = await Promise.all([services.users.get(), services.authService.settings()]);
+
+        if (userInfo.iss && userInfo.iss !== 'argocd') {
             return ((authSettings.dexConfig && authSettings.dexConfig.connectors) || []).length > 0 || !!authSettings.oidcConfig;
         }
-    } catch {
+    } catch (err) {
+        console.error('Failed to check SSO configuration:', err);
         return false;
     }
     return false;
 }
 
-export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({component: Component, noLayout, renderWithLayout, ...rest}) => {
+export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({component: Component, renderWithLayout, ...rest}) => {
     return (
         <Route
             {...rest}
             render={routeProps => {
+                // Never protect the login route - render it directly without auth check
+                if (routeProps.location.pathname === '/login') {
+                    return <Component {...routeProps} />;
+                }
+
+                // Use pathname only in cache key to avoid re-checking auth on query param changes
+                // This prevents conflicts when filters update URL query params
+                const cacheKey = routeProps.location.pathname;
+
                 return (
                     <DataLoader
+                        input={cacheKey}
                         load={async () => {
                             try {
                                 const userInfo = await services.users.get();
@@ -45,17 +56,21 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({component: Compon
                         }}>
                         {({loggedIn}) => {
                             if (!loggedIn) {
-                                // User is not logged in, redirect to login immediately
+                                // Prevent redirect loop - if already on login page, just render nothing
+                                if (routeProps.location.pathname === '/login') {
+                                    return null;
+                                }
+                                // User is not logged in, check if SSO is configured
                                 const currentPath = routeProps.location.pathname + routeProps.location.search;
                                 const returnUrl = encodeURIComponent(currentPath);
 
-                                // Check if SSO is configured
                                 return (
                                     <DataLoader
                                         load={async () => {
                                             try {
                                                 return await isExpiredSSO();
-                                            } catch {
+                                            } catch (err) {
+                                                console.error('Failed to check SSO expiration status:', err);
                                                 return false;
                                             }
                                         }}>
@@ -72,11 +87,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({component: Compon
                                 );
                             }
 
-                            // User is logged in, render the component
-                            if (noLayout) {
-                                return <Component {...routeProps} />;
-                            }
-
+                            // User is logged in, render with layout
                             if (renderWithLayout) {
                                 return renderWithLayout(<Component {...routeProps} />);
                             }
