@@ -2850,8 +2850,8 @@ func (s *Service) GetGitFiles(_ context.Context, request *apiclient.GitFilesRequ
 	if err != nil {
 		return nil, err
 	}
-	if sourceIntegrityResult != nil && !sourceIntegrityResult.IsValid() {
-		return nil, sourceIntegrityResult.Error()
+	if err = sourceIntegrityResult.AsError(); err != nil {
+		return nil, err
 	}
 
 	// check the cache and return the results if present
@@ -2916,8 +2916,8 @@ func (s *Service) GetGitDirectories(_ context.Context, request *apiclient.GitDir
 	if err != nil {
 		return nil, err
 	}
-	if sourceIntegrityResult != nil && !sourceIntegrityResult.IsValid() {
-		return nil, sourceIntegrityResult.Error()
+	if err = sourceIntegrityResult.AsError(); err != nil {
+		return nil, err
 	}
 
 	// check the cache and return the results if present

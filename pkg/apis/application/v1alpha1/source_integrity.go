@@ -38,11 +38,11 @@ func (si *SourceIntegrity) ForGit(repoURL string) SourceIntegrityGitFunc {
 	policies := si.Git.findMatchingPolicies(repoURL)
 	nPolicies := len(policies)
 	if nPolicies == 0 {
-		log.Infof("No policies found for repo URL: %s", repoURL)
+		log.Infof("No git source integrity policies found for repo URL: %s", repoURL)
 		return nil
 	}
 	if nPolicies > 1 {
-		log.Infof("Multiple (%d) policies found for repo URL: %s. Using the first matching one", nPolicies, repoURL)
+		log.Infof("Multiple (%d) git source integrity policies found for repo URL: %s. Using the first matching one", nPolicies, repoURL)
 	}
 	return policies[0].ForGit(repoURL)
 }
@@ -90,6 +90,15 @@ var (
 	SourceIntegrityGitPolicyGPGModeStrict SourceIntegrityGitPolicyGPGMode = "strict"
 )
 
+// SourceIntegrityGitPolicyGPG verifies that the commit(s) are both correctly signed by a key in the repo-server keyring,
+// and that they are signed by one of the key listed in Keys.
+//
+// This policy can be deactivated through the ARGOCD_GPG_ENABLED environment variable.
+//
+// Note the listing of problematic commits/signatures reported when "strict" mode validation fails may not be complete.
+// This means that a user that has addressed all problems reported by source integrity check can run into
+// further problematic signatures on a subsequent attempt. That happens namely when history contains seal commits signed
+// with gpg keys that are in the keyring, but not listed in Keys.
 type SourceIntegrityGitPolicyGPG struct {
 	Mode SourceIntegrityGitPolicyGPGMode `json:"mode" protobuf:"bytes,1,name=mode"`
 	Keys []string                        `json:"keys" protobuf:"bytes,3,name=keys"`
@@ -112,7 +121,6 @@ func (g *SourceIntegrityGitPolicyGPG) forGit(_ string) SourceIntegrityGitFunc {
 	return g.verify
 }
 
-// verify reports if the repository satisfies the criteria specified. It performs no checks when disabled through ARGOCD_GPG_ENABLED.
 func (g *SourceIntegrityGitPolicyGPG) verify(gitClient git.Client, unresolvedRevision string) (result *SourceIntegrityCheckResult, err error) {
 	const checkName = "GIT/GPG"
 
@@ -215,8 +223,10 @@ func (r *SourceIntegrityCheckResult) PassedChecks() (names []string) {
 	return names
 }
 
-// Error returns a string describing the integrity problems found, or "" if the sources are valid
-func (r *SourceIntegrityCheckResult) Error() error {
+func (r *SourceIntegrityCheckResult) AsError() error {
+	if r == nil {
+		return nil
+	}
 	var errs []error
 	for _, check := range r.Checks {
 		for _, p := range check.Problems {
