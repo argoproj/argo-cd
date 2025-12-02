@@ -30,7 +30,7 @@ jobs:
           go-version: 1.25.3
 
       - name: Self-hosted Renovate
-        uses: renovatebot/github-action@c91a61c730fa166439cd3e2c300c041590002b1d #44.0.3
+        uses: renovatebot/github-action@5712c6a41dea6cdf32c72d92a763bd417e6606aa #44.0.5
         with:
           configurationFile: .github/configs/renovate-config.js
           token: '${{ steps.get_token.outputs.token }}'
