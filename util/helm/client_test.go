@@ -580,7 +580,7 @@ func TestUserAgentIsSet(t *testing.T) {
 		receivedUserAgent := ""
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			receivedUserAgent = r.Header.Get("User-Agent")
-			
+
 			// Return a valid minimal index.yaml
 			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write([]byte(`apiVersion: v1
@@ -605,7 +605,7 @@ entries: {}
 		receivedUserAgent := ""
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			receivedUserAgent = r.Header.Get("User-Agent")
-			
+
 			// Return a valid minimal index.yaml
 			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write([]byte(`apiVersion: v1
@@ -631,16 +631,16 @@ func TestUserAgentRequiredByServer(t *testing.T) {
 		// Create a test server that mimics Wikimedia's behavior
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			userAgent := r.Header.Get("User-Agent")
-			
+
 			t.Logf("Server received User-Agent: '%s'", userAgent)
-			
+
 			if userAgent == "" {
 				// Mimic Wikimedia's rejection of empty User-Agent
 				w.WriteHeader(http.StatusForbidden)
 				_, _ = w.Write([]byte(`authorization failed: Please set a user-agent and respect our robot policy`))
 				return
 			}
-			
+
 			// Accept request with User-Agent
 			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write([]byte(`apiVersion: v1
@@ -652,7 +652,7 @@ entries: {}
 		// Create client (should automatically set User-Agent)
 		client := NewClient(ts.URL, HelmCreds{}, false, "", "")
 		_, err := client.GetIndex(false, 10000)
-		
+
 		// Should succeed because our implementation sets User-Agent
 		require.NoError(t, err, "Request should succeed with User-Agent set")
 		t.Logf("Success! Server accepted request with User-Agent")
@@ -701,7 +701,7 @@ entries: {}
 		creds := HelmCreds{
 			UserAgent: "PerRepo/1.0 (should-be-overridden)",
 		}
-		
+
 		// But override with WithUserAgent (highest priority)
 		customUA := "CodeLevel/2.0 (dev-override)"
 		client := NewClient(ts.URL, creds, false, "", "", WithUserAgent(customUA))

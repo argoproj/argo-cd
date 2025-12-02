@@ -129,14 +129,14 @@ func (c *nativeHelmChart) getUserAgent() string {
 	if c.customUserAgent != "" {
 		return c.customUserAgent
 	}
-	
+
 	// 2. Per-repository User-Agent (from Repository.userAgent field)
 	if c.creds != nil {
 		if repoUA := c.creds.GetUserAgent(); repoUA != "" {
 			return repoUA
 		}
 	}
-	
+
 	// 3. Default User-Agent with version and platform info
 	version := common.GetVersion()
 	return fmt.Sprintf("argocd-repo-server/%s (%s)", version.Version, version.Platform)
@@ -359,10 +359,10 @@ func (c *nativeHelmChart) loadRepoIndex(ctx context.Context, maxIndexSize int64)
 	if err != nil {
 		return nil, fmt.Errorf("error creating HTTP request: %w", err)
 	}
-	
+
 	// Set User-Agent header to comply with robot policies
 	req.Header.Set("User-Agent", c.getUserAgent())
-	
+
 	helmPassword, err := c.creds.GetPassword()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get password for helm registry: %w", err)
@@ -494,14 +494,14 @@ func (c *nativeHelmChart) GetTags(chart string, noCache bool) ([]string, error) 
 		if err != nil {
 			return nil, fmt.Errorf("failed setup tlsConfig: %w", err)
 		}
-		
+
 		// Create base transport with TLS config and proxy
 		baseTransport := &http.Transport{
 			Proxy:             proxy.GetCallback(c.proxy, c.noProxy),
 			TLSClientConfig:   tlsConf,
 			DisableKeepAlives: true,
 		}
-		
+
 		// Wrap transport to add User-Agent header to all requests
 		client := &http.Client{
 			Transport: &userAgentTransport{
