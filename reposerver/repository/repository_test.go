@@ -1922,7 +1922,7 @@ func TestGetSignatureVerificationResult(t *testing.T) {
 		res, err := service.GenerateManifest(t.Context(), &q)
 		require.NoError(t, err)
 		assert.True(t, res.SourceIntegrityResult.IsValid())
-		require.NoError(t, res.SourceIntegrityResult.Error())
+		require.NoError(t, res.SourceIntegrityResult.AsError())
 	}
 	// Commit with signature and verification not requested
 	{
@@ -1960,7 +1960,7 @@ func TestGetSignatureVerificationResult(t *testing.T) {
 		res, err := service.GenerateManifest(t.Context(), &q)
 		require.NoError(t, err)
 		assert.Equal(t, sourceIntegrityResultGitError, res.SourceIntegrityResult)
-		require.Error(t, res.SourceIntegrityResult.Error())
+		require.Error(t, res.SourceIntegrityResult.AsError())
 	}
 	// Commit without signature and verification not requested
 	{

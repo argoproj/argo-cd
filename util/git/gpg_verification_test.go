@@ -188,6 +188,41 @@ func Test_LsSignatures_Sealed_linear(t *testing.T) {
 	repo.assertSignedAs(repo.commitSHA(), "signed="+trustedKeyID)
 }
 
+func Test_LsSignatures_UnsignedSealedCommitDoesNotStopHistorySearch(t *testing.T) {
+	// The seal commit must be signed and trusted. When it is not, it is not considered a seal commit and the history is searched further.
+	repo := newGPGReadyRepo(t)
+	trustedKeyID := repo.generateGPGKey("trusted")
+
+	// Will not be listed
+	require.NoError(t, repo.cmd("commit", "--allow-empty", "--no-edit", "--message=unsigned init"))
+	// The seal commit we stop on
+	require.NoError(t, repo.cmd("commit", "--allow-empty", "--no-edit", "--message=signed seal", "--trailer=ArgoCD-gpg-seal: XXX", "--gpg-sign="+trustedKeyID))
+	signedSealSha := repo.commitSHA()
+	require.NoError(t, repo.cmd("commit", "--allow-empty", "--no-edit", "--message=unsigned past"))
+	unsignedPastSha := repo.commitSHA()
+	// The wannabe seal commit we ignore - unsigned
+	require.NoError(t, repo.cmd("commit", "--allow-empty", "--no-edit", "--message=unsigned seal", "--trailer=ArgoCD-gpg-seal: XXX"))
+	unsignedSealSha := repo.commitSHA()
+	require.NoError(t, repo.cmd("commit", "--allow-empty", "--no-edit", "--message=signed", "--gpg-sign="+trustedKeyID))
+	signedSha := repo.commitSHA()
+
+	info, err := repo.git.LsSignatures(signedSha, true)
+	require.NoError(t, err)
+
+	assert.Len(t, info, 4)
+	assert.Equal(t, GPGVerificationResultGood, info[0].VerificationResult)
+	assert.Equal(t, signedSha, info[0].Revision)
+
+	assert.Equal(t, GPGVerificationResultUnsigned, info[1].VerificationResult)
+	assert.Equal(t, unsignedSealSha, info[1].Revision)
+
+	assert.Equal(t, GPGVerificationResultUnsigned, info[2].VerificationResult)
+	assert.Equal(t, unsignedPastSha, info[2].Revision)
+
+	assert.Equal(t, GPGVerificationResultGood, info[3].VerificationResult)
+	assert.Equal(t, signedSealSha, info[3].Revision)
+}
+
 func Test_SignedTag(t *testing.T) {
 	repo := newGPGReadyRepo(t)
 	commitKeyId := repo.generateGPGKey("commit gpg")
