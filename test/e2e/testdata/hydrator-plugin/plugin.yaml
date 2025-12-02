@@ -5,6 +5,6 @@ metadata:
 spec:
   version: v1.0
   generate:
-    command: [sh, -c, 'echo "{\"kind\": \"ConfigMap\", \"apiVersion\": \"v1\", \"metadata\": { \"name\": \"plugin-generated-map\", \"namespace\": \"$ARGOCD_APP_NAMESPACE\" }, \"data\": { \"message\": \"plugin-hydrated\", \"source\": \"hydrator-plugin\", \"content\": \"$(cat data.txt)\" }}"']
+    command: [sh, -c, 'echo "{\"kind\": \"ConfigMap\", \"apiVersion\": \"v1\", \"metadata\": { \"name\": \"plugin-generated-map\", \"namespace\": \"$ARGOCD_APP_NAMESPACE\" }, \"data\": { \"message\": \"plugin-hydrated\", \"source\": \"hydrator-plugin\", \"content\": \"$(cat data.txt)\", \"plugin-env\": \"$PLUGIN_ENV\" }}"']
   discover:
     fileName: "data.txt"

@@ -1,9 +1,6 @@
 package e2e
 
 import (
-	"context"
-	"os"
-	"os/exec"
 	"testing"
 	"time"
 
@@ -149,6 +146,11 @@ func TestHydratorWithHelm(t *testing.T) {
 					RepoURL:        fixture.RepoURL(fixture.RepoURLTypeFile),
 					Path:           "hydrator-helm",
 					TargetRevision: "HEAD",
+					Helm: &ApplicationSourceHelm{
+						Parameters: []HelmParameter{
+							{Name: "message", Value: "helm-hydrated-with-inline-params"},
+						},
+					},
 				},
 				SyncSource: SyncSource{
 					TargetBranch: "env/test",
@@ -161,7 +163,15 @@ func TestHydratorWithHelm(t *testing.T) {
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
-		Expect(SyncStatusIs(SyncStatusCodeSynced))
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(_ *Application) {
+			// Verify that the inline helm parameter was applied
+			output, err := fixture.Run("", "kubectl", "-n="+fixture.DeploymentNamespace(),
+				"get", "configmap", "my-map",
+				"-ojsonpath={.data.message}")
+			require.NoError(t, err)
+			require.Equal(t, "helm-hydrated-with-inline-params", output)
+		})
 }
 
 func TestHydratorWithKustomize(t *testing.T) {
@@ -174,6 +184,9 @@ func TestHydratorWithKustomize(t *testing.T) {
 					RepoURL:        fixture.RepoURL(fixture.RepoURLTypeFile),
 					Path:           "hydrator-kustomize",
 					TargetRevision: "HEAD",
+					Kustomize: &ApplicationSourceKustomize{
+						NameSuffix: "-inline",
+					},
 				},
 				SyncSource: SyncSource{
 					TargetBranch: "env/test",
@@ -186,7 +199,15 @@ func TestHydratorWithKustomize(t *testing.T) {
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
-		Expect(SyncStatusIs(SyncStatusCodeSynced))
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(_ *Application) {
+			// Verify that the inline kustomize nameSuffix was applied
+			// kustomization.yaml has namePrefix: kustomize-, and we added nameSuffix: -inline
+			// So the ConfigMap name should be kustomize-my-map-inline
+			_, err := fixture.Run("", "kubectl", "-n="+fixture.DeploymentNamespace(),
+				"get", "configmap", "kustomize-my-map-inline")
+			require.NoError(t, err)
+		})
 }
 
 func TestHydratorWithDirectory(t *testing.T) {
@@ -199,6 +220,9 @@ func TestHydratorWithDirectory(t *testing.T) {
 					RepoURL:        fixture.RepoURL(fixture.RepoURLTypeFile),
 					Path:           "hydrator-directory",
 					TargetRevision: "HEAD",
+					Directory: &ApplicationSourceDirectory{
+						Recurse: true,
+					},
 				},
 				SyncSource: SyncSource{
 					TargetBranch: "env/test",
@@ -211,15 +235,22 @@ func TestHydratorWithDirectory(t *testing.T) {
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
-		Expect(SyncStatusIs(SyncStatusCodeSynced))
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(_ *Application) {
+			// Verify that the recurse option was applied by checking the ConfigMap from subdir
+			_, err := fixture.Run("", "kubectl", "-n="+fixture.DeploymentNamespace(),
+				"get", "configmap", "my-map-subdir")
+			require.NoError(t, err)
+		})
 }
 
 func TestHydratorWithPlugin(t *testing.T) {
 	Given(t).
 		Path("hydrator-plugin").
 		And(func() {
-			startCMPServerForHydrator(t, "./testdata/hydrator-plugin")
+			go startCMPServer(t, "./testdata/hydrator-plugin")
 			time.Sleep(100 * time.Millisecond)
+			t.Setenv("ARGOCD_BINARY_NAME", "argocd")
 		}).
 		When().
 		CreateFromFile(func(app *Application) {
@@ -228,6 +259,11 @@ func TestHydratorWithPlugin(t *testing.T) {
 					RepoURL:        fixture.RepoURL(fixture.RepoURLTypeFile),
 					Path:           "hydrator-plugin",
 					TargetRevision: "HEAD",
+					Plugin: &ApplicationSourcePlugin{
+						Env: Env{
+							{Name: "PLUGIN_ENV", Value: "inline-plugin-value"},
+						},
+					},
 				},
 				SyncSource: SyncSource{
 					TargetBranch: "env/test",
@@ -240,7 +276,15 @@ func TestHydratorWithPlugin(t *testing.T) {
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
-		Expect(SyncStatusIs(SyncStatusCodeSynced))
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(_ *Application) {
+			// Verify that the inline plugin env was applied
+			output, err := fixture.Run("", "kubectl", "-n="+fixture.DeploymentNamespace(),
+				"get", "configmap", "plugin-generated-map",
+				"-ojsonpath={.data.plugin-env}")
+			require.NoError(t, err)
+			require.Equal(t, "inline-plugin-value", output)
+		})
 }
 
 func TestHydratorWithMixedSources(t *testing.T) {
@@ -300,28 +344,4 @@ func TestHydratorWithMixedSources(t *testing.T) {
 		Delete(true).
 		Then().
 		Expect(DoesNotExist())
-}
-
-func startCMPServerForHydrator(t *testing.T, configFile string) {
-	t.Helper()
-	pluginSockFilePath := fixture.TmpDir + fixture.PluginSockFilePath
-	if _, err := os.Stat(pluginSockFilePath); os.IsNotExist(err) {
-		err := os.Mkdir(pluginSockFilePath, 0o700)
-		require.NoError(t, err)
-	}
-
-	cmd := exec.CommandContext(context.Background(), "../../dist/argocd", "--config-dir-path", configFile)
-	cmd.Env = append(os.Environ(),
-		"ARGOCD_BINARY_NAME=argocd-cmp-server",
-		"ARGOCD_PLUGINSOCKFILEPATH="+pluginSockFilePath)
-
-	if err := cmd.Start(); err != nil {
-		require.NoError(t, err, "Failed to start CMP server")
-	}
-
-	t.Cleanup(func() {
-		if cmd.Process != nil {
-			_ = cmd.Process.Kill()
-		}
-	})
 }
