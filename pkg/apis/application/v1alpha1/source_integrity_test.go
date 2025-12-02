@@ -125,6 +125,12 @@ func TestPolicyMatching(t *testing.T) {
 		Repos: []string{"https://github.com/group/either.git", "https://github.com/group/or.git"},
 		GPG:   &SourceIntegrityGitPolicyGPG{},
 	}
+	ignored := &SourceIntegrityGitPolicy{
+		Repos: []string{"https://github.com/group/ignored.git"},
+		GPG: &SourceIntegrityGitPolicyGPG{
+			Mode: SourceIntegrityGitPolicyGPGModeNone,
+		},
+	}
 	group := &SourceIntegrityGitPolicy{
 		Repos: []string{"https://github.com/group/*"},
 		GPG:   &SourceIntegrityGitPolicyGPG{},
@@ -133,31 +139,31 @@ func TestPolicyMatching(t *testing.T) {
 		Repos: []string{"https://github.com/group*"},
 		GPG:   &SourceIntegrityGitPolicyGPG{},
 	}
-	p := func(ps ...*SourceIntegrityGitPolicy) []*SourceIntegrityGitPolicy { return ps }
-
 	sig := &SourceIntegrityGit{
-		Policies: []*SourceIntegrityGitPolicy{eitherOr, group, prefix},
+		Policies: []*SourceIntegrityGitPolicy{eitherOr, ignored, group, prefix},
 	}
 
+	p := func(ps ...*SourceIntegrityGitPolicy) []*SourceIntegrityGitPolicy { return ps }
 	testCases := []struct {
 		repo             string
 		expectedPolicies []*SourceIntegrityGitPolicy
 		expectedLogs     []string
+		expectedNoFunc   bool
 	}{
 		{
 			repo:             "https://github.com/group/either.git",
 			expectedPolicies: p(eitherOr, group, prefix),
-			expectedLogs:     []string{"Multiple (3) policies found for repo URL: https://github.com/group/either.git. Using the first matching one"},
+			expectedLogs:     []string{"Multiple (3) git source integrity policies found for repo URL: https://github.com/group/either.git. Using the first matching one"},
 		},
 		{
 			repo:             "https://github.com/group/or.git",
 			expectedPolicies: p(eitherOr, group, prefix),
-			expectedLogs:     []string{"Multiple (3) policies found for repo URL: https://github.com/group/or.git. Using the first matching one"},
+			expectedLogs:     []string{"Multiple (3) git source integrity policies found for repo URL: https://github.com/group/or.git. Using the first matching one"},
 		},
 		{
 			repo:             "https://github.com/group/fork.git",
 			expectedPolicies: p(group, prefix),
-			expectedLogs:     []string{"Multiple (2) policies found for repo URL: https://github.com/group/fork.git. Using the first matching one"},
+			expectedLogs:     []string{"Multiple (2) git source integrity policies found for repo URL: https://github.com/group/fork.git. Using the first matching one"},
 		},
 		{
 			repo:             "https://github.com/grouplette/main.git",
@@ -167,7 +173,14 @@ func TestPolicyMatching(t *testing.T) {
 		{
 			repo:             "https://gitlab.com/foo/bar.git",
 			expectedPolicies: p(),
-			expectedLogs:     []string{"No policies found for repo URL: https://gitlab.com/foo/bar.git"},
+			expectedLogs:     []string{"No git source integrity policies found for repo URL: https://gitlab.com/foo/bar.git"},
+			expectedNoFunc:   true,
+		},
+		{
+			repo:             "https://github.com/group/ignored.git",
+			expectedPolicies: p(ignored, group, prefix),
+			expectedLogs:     []string{"Multiple (3) git source integrity policies found for repo URL: https://github.com/group/ignored.git. Using the first matching one"},
+			expectedNoFunc:   true,
 		},
 	}
 
@@ -182,10 +195,10 @@ func TestPolicyMatching(t *testing.T) {
 			defer hook.CleanupHook()
 			si := SourceIntegrity{Git: sig}
 			forGitFunc := si.ForGit(tt.repo)
-			if len(tt.expectedPolicies) > 0 {
-				assert.NotNil(t, forGitFunc)
-			} else {
+			if tt.expectedNoFunc {
 				assert.Nil(t, forGitFunc)
+			} else {
+				assert.NotNil(t, forGitFunc)
 			}
 			assert.Equal(t, tt.expectedLogs, hook.GetEntries())
 		})
@@ -249,7 +262,7 @@ func TestGPGHeadValid(t *testing.T) {
 			assert.True(t, result.IsValid())
 			assert.Equal(t, []string{"GIT/GPG"}, result.PassedChecks())
 			test.check(gitClient, logger)
-			require.NoError(t, result.Error())
+			require.NoError(t, result.AsError())
 		})
 	}
 }
@@ -392,7 +405,7 @@ GIT/GPG: Failed verifying revision %s by 'ignored': signed with unallowed key (k
 			result, err := gpgWithTag.verify(gitClient, test.revision)
 			require.NoError(t, err)
 			// Then it is checked and valid
-			err = result.Error()
+			err = result.AsError()
 			if test.expectedErr == "" {
 				require.NoError(t, err)
 				assert.True(t, result.IsValid())
