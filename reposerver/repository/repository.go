@@ -331,49 +331,11 @@ func (s *Service) runRepoOperation(
 		defer settings.sem.Release(1)
 	}
 
-	rootPath, closer, err := sourceClient.Extract(ctx, resolvedRevision, settings.noCache)
+	rootPath, closer, err := sourceClient.Extract(ctx, resolvedRevision, settings.noCache, s.initConstants.AllowOutOfBoundsSymlinks)
 	if err != nil {
 		return err
 	}
 	defer utilio.Close(closer)
-
-	// Validate symlinks
-	if !s.initConstants.AllowOutOfBoundsSymlinks {
-		if err = apppathutil.CheckOutOfBoundsSymlinks(rootPath); err != nil {
-			oobError := &apppathutil.OutOfBoundsSymlinkError{}
-			var serr *apppathutil.OutOfBoundsSymlinkError
-			if errors.As(err, &serr) {
-				oobError = serr
-				switch {
-				case source.IsOCI():
-					log.WithFields(log.Fields{
-						common.SecurityField: common.SecurityHigh,
-						"repo":               repo.Repo,
-						"digest":             revision,
-						"file":               oobError.File,
-					}).Warn("oci image contains out-of-bounds symlink")
-					return fmt.Errorf("oci image contains out-of-bounds symlinks. file: %s", oobError.File)
-				case source.IsHelm():
-					log.WithFields(log.Fields{
-						common.SecurityField: common.SecurityHigh,
-						"chart":              source.Chart,
-						"revision":           revision,
-						"file":               oobError.File,
-					}).Warn("chart contains out-of-bounds symlink")
-					return fmt.Errorf("chart contains out-of-bounds symlinks. file: %s", oobError.File)
-				default:
-					log.WithFields(log.Fields{
-						common.SecurityField: common.SecurityHigh,
-						"repo":               repo.Repo,
-						"revision":           revision,
-						"file":               oobError.File,
-					}).Warn("repository contains out-of-bounds symlink")
-					return fmt.Errorf("repository contains out-of-bounds symlinks. file: %s", oobError.File)
-				}
-			}
-			return err
-		}
-	}
 
 	return operation(rootPath, commitSHA, resolvedRevision, func() (*operationContext, error) {
 		var signature string
@@ -400,60 +362,6 @@ func getRepoSanitizerRegex(rootDir string) *regexp.Regexp {
 	// The no-spaces assumption holds for our actual use case, which is "/tmp/_argocd-repo/{random UUID}". The UUID will
 	// only ever contain digits and hyphens.
 	return regexp.MustCompile(regexp.QuoteMeta(rootDir) + `/[^ /]*`)
-}
-
-type gitClientGetter func(repo *v1alpha1.Repository, revision string, opts ...git.ClientOpts) (git.Client, string, error)
-
-// resolveReferencedSources resolves the revisions for the given referenced sources. This lets us invalidate the cached
-// when one or more referenced sources change.
-//
-// Much of this logic is duplicated in runManifestGenAsync. If making changes here, check whether runManifestGenAsync
-// should be updated.
-func resolveReferencedSources(hasMultipleSources bool, source *v1alpha1.ApplicationSourceHelm, refSources map[string]*v1alpha1.RefTarget, newClientResolveRevision gitClientGetter, gitClientOpts git.ClientOpts) (map[string]string, error) {
-	repoRefs := make(map[string]string)
-	if !hasMultipleSources || source == nil {
-		return repoRefs, nil
-	}
-
-	refFileParams := make([]string, 0)
-	for _, fileParam := range source.FileParameters {
-		refFileParams = append(refFileParams, fileParam.Path)
-	}
-	refCandidates := append(source.ValueFiles, refFileParams...)
-
-	for _, valueFile := range refCandidates {
-		if !strings.HasPrefix(valueFile, "$") {
-			continue
-		}
-		refVar := strings.Split(valueFile, "/")[0]
-
-		refSourceMapping, ok := refSources[refVar]
-		if !ok {
-			if len(refSources) == 0 {
-				return nil, fmt.Errorf("source referenced %q, but no source has a 'ref' field defined", refVar)
-			}
-			refKeys := make([]string, 0)
-			for refKey := range refSources {
-				refKeys = append(refKeys, refKey)
-			}
-			return nil, fmt.Errorf("source referenced %q, which is not one of the available sources (%s)", refVar, strings.Join(refKeys, ", "))
-		}
-		if refSourceMapping.Chart != "" {
-			return nil, errors.New("source has a 'chart' field defined, but Helm charts are not yet not supported for 'ref' sources")
-		}
-		normalizedRepoURL := git.NormalizeGitURL(refSourceMapping.Repo.Repo)
-		_, ok = repoRefs[normalizedRepoURL]
-		if !ok {
-			_, referencedCommitSHA, err := newClientResolveRevision(&refSourceMapping.Repo, refSourceMapping.TargetRevision, gitClientOpts)
-			if err != nil {
-				log.Errorf("Failed to get git client for repo %s: %v", refSourceMapping.Repo.Repo, err)
-				return nil, fmt.Errorf("failed to get git client for repo %s", refSourceMapping.Repo.Repo)
-			}
-
-			repoRefs[normalizedRepoURL] = referencedCommitSHA
-		}
-	}
-	return repoRefs, nil
 }
 
 func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestRequest) (*apiclient.ManifestResponse, error) {
@@ -651,100 +559,95 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 	// key. Overrides will break the cache anyway, because changes to overrides will change the revision.
 	appSourceCopy := q.ApplicationSource.DeepCopy()
 	repoRefs := make(map[string]repoRef)
+	var refSourceClosers []goio.Closer
+	defer func() {
+		for _, closer := range refSourceClosers {
+			utilio.Close(closer)
+		}
+	}()
 
 	var manifestGenResult *apiclient.ManifestResponse
 	opContext, err := opContextSrc()
 	if err == nil {
-		// Much of the multi-source handling logic is duplicated in resolveReferencedSources. If making changes here,
-		// check whether they should be replicated in resolveReferencedSources.
-		if q.HasMultipleSources {
-			if q.ApplicationSource.Helm != nil {
-				refFileParams := make([]string, 0)
-				for _, fileParam := range q.ApplicationSource.Helm.FileParameters {
-					refFileParams = append(refFileParams, fileParam.Path)
+		if q.HasMultipleSources && q.ApplicationSource.Helm != nil {
+			// Create a temporary git source client to resolve referenced sources
+			sourceClient, clientErr := s.newGitSourceClient(
+				q.Repo,
+				q.NoCache,
+				q.NoRevisionCache,
+				nil, // cacheFn
+				q.ApplicationSource.Helm,
+				q.RefSources,
+				q.HasMultipleSources,
+			)
+			if clientErr != nil {
+				ch.errCh <- fmt.Errorf("failed to create source client for application %s in repo %s: %w", q.AppName, q.Repo.Repo, clientErr)
+				return
+			}
+
+			// Use BaseSourceClient to resolve referenced sources and get their commit SHAs
+			resolvedRefs, resolveErr := sourceClient.ResolveReferencedSources(q.HasMultipleSources, q.ApplicationSource.Helm, q.RefSources)
+			if resolveErr != nil {
+				ch.errCh <- resolveErr
+				return
+			}
+
+			// Now checkout each referenced repository using BaseSourceClient.Extract()
+			refFileParams := make([]string, 0)
+			for _, fileParam := range q.ApplicationSource.Helm.FileParameters {
+				refFileParams = append(refFileParams, fileParam.Path)
+			}
+			refCandidates := append(q.ApplicationSource.Helm.ValueFiles, refFileParams...)
+
+			for _, valueFile := range refCandidates {
+				if !strings.HasPrefix(valueFile, "$") {
+					continue
 				}
-				refCandidates := append(q.ApplicationSource.Helm.ValueFiles, refFileParams...)
+				refVar := strings.Split(valueFile, "/")[0]
+				refSourceMapping := q.RefSources[refVar]
+				normalizedRepoURL := git.NormalizeGitURL(refSourceMapping.Repo.Repo)
+				referencedCommitSHA := resolvedRefs[normalizedRepoURL]
 
-				// Checkout every one of the referenced sources to the target revision before generating Manifests
-				for _, valueFile := range refCandidates {
-					if !strings.HasPrefix(valueFile, "$") {
-						continue
-					}
-					refVar := strings.Split(valueFile, "/")[0]
-
-					refSourceMapping, ok := q.RefSources[refVar]
-					if !ok {
-						if len(q.RefSources) == 0 {
-							ch.errCh <- fmt.Errorf("source referenced %q, but no source has a 'ref' field defined", refVar)
-						}
-						refKeys := make([]string, 0)
-						for refKey := range q.RefSources {
-							refKeys = append(refKeys, refKey)
-						}
-						ch.errCh <- fmt.Errorf("source referenced %q, which is not one of the available sources (%s)", refVar, strings.Join(refKeys, ", "))
+				// Check if we've already processed this repository
+				existingRef, ok := repoRefs[normalizedRepoURL]
+				if ok {
+					if existingRef.revision != refSourceMapping.TargetRevision {
+						ch.errCh <- fmt.Errorf("cannot reference multiple revisions for the same repository (%s references %q while %s references %q)", refVar, refSourceMapping.TargetRevision, existingRef.key, existingRef.revision)
 						return
 					}
-					if refSourceMapping.Chart != "" {
-						ch.errCh <- errors.New("source has a 'chart' field defined, but Helm charts are not yet not supported for 'ref' sources")
-						return
-					}
-					normalizedRepoURL := git.NormalizeGitURL(refSourceMapping.Repo.Repo)
-					closer, ok := repoRefs[normalizedRepoURL]
-					if ok {
-						if closer.revision != refSourceMapping.TargetRevision {
-							ch.errCh <- fmt.Errorf("cannot reference multiple revisions for the same repository (%s references %q while %s references %q)", refVar, refSourceMapping.TargetRevision, closer.key, closer.revision)
-							return
-						}
-					} else {
-						gitClient, referencedCommitSHA, err := s.newClientResolveRevision(&refSourceMapping.Repo, refSourceMapping.TargetRevision, git.WithCache(s.cache, !q.NoRevisionCache && !q.NoCache))
-						if err != nil {
-							log.Errorf("Failed to get git client for repo %s: %v", refSourceMapping.Repo.Repo, err)
-							ch.errCh <- fmt.Errorf("failed to get git client for repo %s", refSourceMapping.Repo.Repo)
-							return
-						}
-
-						if git.NormalizeGitURL(q.ApplicationSource.RepoURL) == normalizedRepoURL && commitSHA != referencedCommitSHA {
-							ch.errCh <- fmt.Errorf("cannot reference a different revision of the same repository (%s references %q which resolves to %q while the application references %q which resolves to %q)", refVar, refSourceMapping.TargetRevision, referencedCommitSHA, q.Revision, commitSHA)
-							return
-						}
-						closer, err := s.repoLock.Lock(gitClient.Root(), referencedCommitSHA, true, func() (goio.Closer, error) {
-							return s.checkoutRevision(gitClient, referencedCommitSHA, s.initConstants.SubmoduleEnabled, q.Repo.Depth)
-						})
-						if err != nil {
-							log.Errorf("failed to acquire lock for referenced source %s", normalizedRepoURL)
-							ch.errCh <- err
-							return
-						}
-						defer func(closer goio.Closer) {
-							err := closer.Close()
-							if err != nil {
-								log.Errorf("Failed to release repo lock: %v", err)
-							}
-						}(closer)
-
-						// Symlink check must happen after acquiring lock.
-						if !s.initConstants.AllowOutOfBoundsSymlinks {
-							err := apppathutil.CheckOutOfBoundsSymlinks(gitClient.Root())
-							if err != nil {
-								oobError := &apppathutil.OutOfBoundsSymlinkError{}
-								if errors.As(err, &oobError) {
-									log.WithFields(log.Fields{
-										common.SecurityField: common.SecurityHigh,
-										"repo":               refSourceMapping.Repo,
-										"revision":           refSourceMapping.TargetRevision,
-										"file":               oobError.File,
-									}).Warn("repository contains out-of-bounds symlink")
-									ch.errCh <- fmt.Errorf("repository contains out-of-bounds symlinks. file: %s", oobError.File)
-									return
-								}
-								ch.errCh <- err
-								return
-							}
-						}
-
-						repoRefs[normalizedRepoURL] = repoRef{revision: refSourceMapping.TargetRevision, commitSHA: referencedCommitSHA, key: refVar}
-					}
+					continue
 				}
+
+				// Validate that we're not referencing a different revision of the same repository as the main source
+				if git.NormalizeGitURL(q.ApplicationSource.RepoURL) == normalizedRepoURL && commitSHA != referencedCommitSHA {
+					ch.errCh <- fmt.Errorf("cannot reference a different revision of the same repository (%s references %q which resolves to %q while the application references %q which resolves to %q)", refVar, refSourceMapping.TargetRevision, referencedCommitSHA, q.Revision, commitSHA)
+					return
+				}
+
+				// Create a source client for this referenced repository
+				refSourceClient, refClientErr := s.newGitSourceClient(
+					&refSourceMapping.Repo,
+					q.NoCache,
+					q.NoRevisionCache,
+					nil, // cacheFn
+					nil, // no helm source for ref repos
+					nil, // no nested refs
+					false,
+				)
+				if refClientErr != nil {
+					ch.errCh <- fmt.Errorf("failed to create source client for referenced repo %s: %w", refSourceMapping.Repo.Repo, refClientErr)
+					return
+				}
+
+				// Use Extract to checkout the referenced repository (handles locking, checkout, and symlink validation)
+				_, closer, extractErr := refSourceClient.Extract(ctx, refSourceMapping.TargetRevision, q.NoCache, s.initConstants.AllowOutOfBoundsSymlinks)
+				if extractErr != nil {
+					ch.errCh <- fmt.Errorf("failed to extract referenced repo %s at revision %s: %w", refSourceMapping.Repo.Repo, refSourceMapping.TargetRevision, extractErr)
+					return
+				}
+
+				refSourceClosers = append(refSourceClosers, closer)
+				repoRefs[normalizedRepoURL] = repoRef{revision: refSourceMapping.TargetRevision, commitSHA: referencedCommitSHA, key: refVar}
 			}
 		}
 
@@ -2851,8 +2754,21 @@ func (s *Service) UpdateRevisionForPaths(_ context.Context, request *apiclient.U
 func (s *Service) updateCachedRevision(logCtx *log.Entry, oldRev string, newRev string, request *apiclient.UpdateRevisionForPathsRequest, gitClientOpts git.ClientOpts) error {
 	repoRefs := make(map[string]string)
 	if request.HasMultipleSources && request.ApplicationSource.Helm != nil {
-		var err error
-		repoRefs, err = resolveReferencedSources(true, request.ApplicationSource.Helm, request.RefSources, s.newClientResolveRevision, gitClientOpts)
+		// Create a temporary git source client to resolve referenced sources
+		sourceClient, err := s.newGitSourceClient(
+			request.GetRepo(),
+			false, // noCache
+			false, // noRevisionCache
+			nil,   // cacheFn
+			request.ApplicationSource.Helm,
+			request.RefSources,
+			request.HasMultipleSources,
+		)
+		if err != nil {
+			return fmt.Errorf("failed to create source client for application %s in repo %s: %w", request.AppName, request.GetRepo().Repo, err)
+		}
+
+		repoRefs, err = sourceClient.ResolveReferencedSources(request.HasMultipleSources, request.ApplicationSource.Helm, request.RefSources)
 		if err != nil {
 			return fmt.Errorf("failed to get repo refs for application %s in repo %s from revision %s: %w", request.AppName, request.GetRepo().Repo, request.Revision, err)
 		}

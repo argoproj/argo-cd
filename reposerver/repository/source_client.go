@@ -7,6 +7,8 @@ import (
 	"io"
 	"strings"
 
+	"github.com/argoproj/argo-cd/v3/common"
+	apppathutil "github.com/argoproj/argo-cd/v3/util/app/path"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -46,7 +48,7 @@ type BaseSourceClient interface {
 	// - root path where the content was extracted
 	// - a closer to clean up resources
 	// - any error that occurred
-	Extract(ctx context.Context, revision string, noCache bool) (rootPath string, closer io.Closer, err error)
+	Extract(ctx context.Context, revision string, noCache bool, allowOutOfBoundsSymlinks bool) (rootPath string, closer io.Closer, err error)
 
 	// VerifySignature verifies the signature of the given revision
 	// For Git: verifies GPG signature of commit/tag (handles annotated tag logic internally)
@@ -60,6 +62,19 @@ type BaseSourceClient interface {
 	// For Git: returns both branches and tags
 	// For OCI/Helm: returns only tags
 	ListRefs(ctx context.Context, noCache bool) (*apiclient.Refs, error)
+
+	// ResolveReferencedSources resolves the revisions for referenced sources in multi-source applications.
+	// This is used to invalidate the cache when one or more referenced sources change.
+	// For Git: resolves referenced Git repositories and returns their commit SHAs
+	// For OCI/Helm: returns empty map (not yet supported for ref sources)
+	// Parameters:
+	//   - hasMultipleSources: whether the application has multiple sources
+	//   - source: the Helm source configuration (may be nil)
+	//   - refSources: map of ref variable names to their target repositories and revisions
+	// Returns:
+	//   - map of normalized repository URLs to their resolved commit SHAs
+	//   - error if resolution fails
+	ResolveReferencedSources(hasMultipleSources bool, source *v1alpha1.ApplicationSourceHelm, refSources map[string]*v1alpha1.RefTarget) (map[string]string, error)
 }
 
 // SourceClient is a generic interface that extends BaseSourceClient with type-safe metadata retrieval.
@@ -108,7 +123,7 @@ func (c *ociSourceClient) ResolveRevision(ctx context.Context, revision string, 
 	return digest, digest, nil
 }
 
-func (c *ociSourceClient) Extract(ctx context.Context, revision string, noCache bool) (string, io.Closer, error) {
+func (c *ociSourceClient) Extract(ctx context.Context, revision string, noCache bool, allowOutOfBoundsSymlinks bool) (string, io.Closer, error) {
 	if noCache {
 		err := c.client.CleanCache(revision)
 		if err != nil {
@@ -116,7 +131,25 @@ func (c *ociSourceClient) Extract(ctx context.Context, revision string, noCache 
 		}
 	}
 
-	return c.client.Extract(ctx, revision)
+	rootPath, closer, err := c.client.Extract(ctx, revision)
+	if err == nil && !allowOutOfBoundsSymlinks {
+		if err = apppathutil.CheckOutOfBoundsSymlinks(rootPath); err != nil {
+			oobError := &apppathutil.OutOfBoundsSymlinkError{}
+			var serr *apppathutil.OutOfBoundsSymlinkError
+			if errors.As(err, &serr) {
+				oobError = serr
+				log.WithFields(log.Fields{
+					common.SecurityField: common.SecurityHigh,
+					"repo":               c.repo.Repo,
+					"digest":             revision,
+					"file":               oobError.File,
+				}).Warn("oci image contains out-of-bounds symlink")
+				return rootPath, closer, fmt.Errorf("oci image contains out-of-bounds symlinks. file: %s", oobError.File)
+			}
+		}
+	}
+
+	return rootPath, closer, err
 }
 
 func (c *ociSourceClient) VerifySignature(resolvedRevision string, unresolvedRevision string) (string, error) {
@@ -153,6 +186,10 @@ func (c *ociSourceClient) ListRefs(ctx context.Context, noCache bool) (*apiclien
 	return &apiclient.Refs{
 		Tags: tags,
 	}, nil
+}
+
+func (c *ociSourceClient) ResolveReferencedSources(hasMultipleSources bool, source *v1alpha1.ApplicationSourceHelm, refSources map[string]*v1alpha1.RefTarget) (map[string]string, error) {
+	return make(map[string]string), nil
 }
 
 // helmSourceClient adapts a Helm client to the SourceClient interface
@@ -214,14 +251,30 @@ func (c *helmSourceClient) ResolveRevision(ctx context.Context, revision string,
 	return maxV, maxV, nil
 }
 
-func (c *helmSourceClient) Extract(ctx context.Context, revision string, noCache bool) (string, io.Closer, error) {
+func (c *helmSourceClient) Extract(ctx context.Context, revision string, noCache bool, allowOutOfBoundsSymlinks bool) (string, io.Closer, error) {
 	if noCache {
 		err := c.client.CleanChartCache(c.chart, revision)
 		if err != nil {
 			return "", nil, err
 		}
 	}
-	return c.client.ExtractChart(c.chart, revision)
+	rootPath, closer, err := c.client.ExtractChart(c.chart, revision)
+	if err == nil && !allowOutOfBoundsSymlinks {
+		if err = apppathutil.CheckOutOfBoundsSymlinks(rootPath); err != nil {
+			oobError := &apppathutil.OutOfBoundsSymlinkError{}
+			var serr *apppathutil.OutOfBoundsSymlinkError
+			if errors.As(err, &serr) {
+				oobError = serr
+				log.WithFields(log.Fields{
+					common.SecurityField: common.SecurityHigh,
+					"chart":              c.chart,
+					"revision":           revision,
+					"file":               oobError.File,
+				}).Warn("chart contains out-of-bounds symlink")
+			}
+		}
+	}
+	return rootPath, closer, err
 }
 
 func (c *helmSourceClient) VerifySignature(resolvedRevision string, unresolvedRevision string) (string, error) {
@@ -298,6 +351,10 @@ func (c *helmSourceClient) ListRefs(ctx context.Context, noCache bool) (*apiclie
 	return &apiclient.Refs{
 		Tags: tags,
 	}, nil
+}
+
+func (c *helmSourceClient) ResolveReferencedSources(hasMultipleSources bool, source *v1alpha1.ApplicationSourceHelm, refSources map[string]*v1alpha1.RefTarget) (map[string]string, error) {
+	return make(map[string]string), nil
 }
 
 // gitSourceClient adapts a Git client to the SourceClient interface
@@ -394,7 +451,7 @@ func (c *gitSourceClient) ResolveRevision(ctx context.Context, revision string, 
 	}
 
 	if c.cacheFn != nil && !noCache {
-		repoRefs, err := c.resolveReferencedSources(c.hasMultipleSources, c.helmSource, c.refSources)
+		repoRefs, err := c.ResolveReferencedSources(c.hasMultipleSources, c.helmSource, c.refSources)
 		if err != nil {
 			return "", "", err
 		}
@@ -432,7 +489,7 @@ func (c *gitSourceClient) resolveRevision(client git.Client, revision string) (s
 	return commitSHA, nil
 }
 
-func (c *gitSourceClient) resolveReferencedSources(hasMultipleSources bool, source *v1alpha1.ApplicationSourceHelm, refSources map[string]*v1alpha1.RefTarget) (map[string]string, error) {
+func (c *gitSourceClient) ResolveReferencedSources(hasMultipleSources bool, source *v1alpha1.ApplicationSourceHelm, refSources map[string]*v1alpha1.RefTarget) (map[string]string, error) {
 	repoRefs := make(map[string]string)
 	if !hasMultipleSources || source == nil {
 		return repoRefs, nil
@@ -493,7 +550,7 @@ func (c *gitSourceClient) CleanCache(_ string) error {
 	return nil
 }
 
-func (c *gitSourceClient) Extract(ctx context.Context, revision string, noCache bool) (string, io.Closer, error) {
+func (c *gitSourceClient) Extract(ctx context.Context, revision string, noCache bool, allowOutOfBoundsSymlinks bool) (string, io.Closer, error) {
 	closer, err := c.repositoryLock.Lock(c.client.Root(), revision, true, func() (io.Closer, error) {
 		closer := c.directoryPermissionInitializer(c.client.Root())
 		err := c.client.Init()
@@ -543,6 +600,23 @@ func (c *gitSourceClient) Extract(ctx context.Context, revision string, noCache 
 
 	if err != nil {
 		return "", nil, err
+	}
+
+	if !allowOutOfBoundsSymlinks {
+		if err = apppathutil.CheckOutOfBoundsSymlinks(c.client.Root()); err != nil {
+			oobError := &apppathutil.OutOfBoundsSymlinkError{}
+			var serr *apppathutil.OutOfBoundsSymlinkError
+			if errors.As(err, &serr) {
+				oobError = serr
+				log.WithFields(log.Fields{
+					common.SecurityField: common.SecurityHigh,
+					"repo":               c.repo.Repo,
+					"revision":           revision,
+					"file":               oobError.File,
+				}).Warn("repository contains out-of-bounds symlink")
+				return "", nil, fmt.Errorf("repository contains out-of-bounds symlinks. file: %s", oobError.File)
+			}
+		}
 	}
 
 	if c.cacheFn != nil && !noCache {
