@@ -1100,25 +1100,32 @@ func evaluateGpgSignStatus(cmdErr error, tagGpgOut string) (result GPGVerificati
 
 // LsSignatures gets a list of revisions including their signature info.
 //
-// If deep==true, This needs to traverse history backwards following all commit parents from revision recursively;
-// it stops the branch search on a "seal commit" or repo init commit.
+// If deep==true, list the commits backwards in history until "seal commit" or repo init commit. The listing includes those seal commits.
+// If deep==false, examines the revisionSha only.
 func (m *nativeGitClient) LsSignatures(revisionSha string, deep bool) ([]RevisionSignatureInfo, error) {
-	// See git-rev-list(1) for description of the format string
-	const revListFormat = `--pretty=format:%H,%G?,%GK,"%aD","%an <%ae>"`
-	const revListNumFields = 5
 
-	// In repo-server, the repository is in detached-head state and branch names cannot be looked up.
-	// Make sure it has been done by the client calling this.
+	// In repo-server, the repository is check out in detached-head state and branch names cannot be looked up.
+	// Make sure the revision has been resolved by the client calling this.
 	if !IsCommitSHA(revisionSha) {
-		return nil, fmt.Errorf("invalid revision sha %q", revisionSha)
+		return nil, fmt.Errorf("invalid revision sha for LsSignatures %q", revisionSha)
 	}
 
 	ctx := context.Background()
 
+	// This is using a two-step approach to solve the following problem: find all ancestors of a given revision in git history DAG,
+	// stopping on a signed seal commit, or an init commit. Note there might be multiple seal commits that separate the revision
+	// form init commit in case the history merged past the most recent seal commit.
+	//
+	// 1) Find all seal commits based on the trailer in their message. This searches the entire git history, which is unnecessary,
+	//    but there does not seem to be a decent way to stop on the most recent ones in each branch with a single git invocation.
+	//    Found commits are later eliminated to the correctly signed and trusted ones - this is to make sure that unsigned
+	//    or untrusted seal commits do not stop the search.
+	// 2) Find all the ancestor commits from the given revision stopping on any of the identified seal commits.
+
 	var commitFilterArgs []string
 	if deep {
-		// Find all seal commits - not necessarily the most recent ones
-		cmd := m.cmdWithGPG(ctx, "rev-list", "--grep=Argocd-gpg-seal", "--regexp-ignore-case", revisionSha)
+		// Find all seal commits with their signing indicator
+		cmd := m.cmdWithGPG(ctx, "rev-list", `--pretty=format:%G?,%H`, "--no-commit-header", "--grep=Argocd-gpg-seal:", "--regexp-ignore-case", revisionSha)
 		sealCommitsRawOut, err := m.runCmdOutput(cmd, runOpts{})
 		if err != nil {
 			return nil, err
@@ -1129,12 +1136,14 @@ func (m *nativeGitClient) LsSignatures(revisionSha string, deep bool) ([]Revisio
 			return nil, err
 		}
 	} else {
-		// List only the one revision
+		// List only the one revision - no seal commit search done
 		commitFilterArgs = []string{revisionSha, "-1", "--"}
 	}
 
-	// Find all commits until the seal(s) including
-	lsArgs := append([]string{"rev-list", revListFormat, "--no-commit-header"}, commitFilterArgs...)
+	// Find all commits until the most recent seal commits(s), including
+
+	// See git-rev-list(1) for description of the format string
+	lsArgs := append([]string{"rev-list", `--pretty=format:%H,%G?,%GK,"%aD","%an <%ae>"`, "--no-commit-header"}, commitFilterArgs...)
 	commitSignaturesRawOut, err := m.runCmdOutput(m.cmdWithGPG(ctx, lsArgs...), runOpts{})
 	if err != nil {
 		return nil, err
@@ -1153,7 +1162,7 @@ func (m *nativeGitClient) LsSignatures(revisionSha string, deep bool) ([]Revisio
 			return nil, err
 		}
 
-		if len(r) < revListNumFields {
+		if len(r) < 5 {
 			return nil, fmt.Errorf("invalid rev-list output, refusing to continue (fields=%d)", len(r))
 		}
 
@@ -1176,7 +1185,13 @@ func (m *nativeGitClient) getSealRevListFilter(revision string, sealCommitsRawOu
 		return []string{revision, "--"}, nil
 	}
 
-	sealCommits := strings.Split(sealCommitsRawOut, "\n")
+	// Keep only seal commits with a valid signature
+	var sealCommits []string
+	for line := range strings.SplitSeq(sealCommitsRawOut, "\n") {
+		if strings.HasPrefix(line, "G,") {
+			sealCommits = append(sealCommits, line[2:])
+		}
+	}
 	sealCommitsLen := len(sealCommits)
 	log.Debugf("Found %d seal commits for %s", sealCommitsLen, revision)
 
