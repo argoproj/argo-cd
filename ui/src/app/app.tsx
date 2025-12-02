@@ -75,12 +75,14 @@ const versionLoader = services.version.version();
 
 async function isExpiredSSO() {
     try {
-        const {iss} = await services.users.get();
-        const authSettings = await services.authService.settings();
-        if (iss && iss !== 'argocd') {
-            return ((authSettings.dexConfig && authSettings.dexConfig.connectors) || []).length > 0 || authSettings.oidcConfig;
+        // Combine both async calls into one Promise.all for better performance
+        const [userInfo, authSettings] = await Promise.all([services.users.get(), services.authService.settings()]);
+
+        if (userInfo.iss && userInfo.iss !== 'argocd') {
+            return ((authSettings.dexConfig && authSettings.dexConfig.connectors) || []).length > 0 || !!authSettings.oidcConfig;
         }
-    } catch {
+    } catch (err) {
+        console.error('Failed to check SSO configuration:', err);
         return false;
     }
     return false;
@@ -193,19 +195,9 @@ export class App extends React.Component<{}, {popupProps: PopupProps; showVersio
                                     <Redirect exact={true} path='/' to='/applications' />
                                     {Object.keys(this.routes).map(path => {
                                         const route = this.routes[path];
-                                        // Login route doesn't need protection
+                                        // Login route doesn't need protection - render directly
                                         if (route.noLayout) {
-                                            return (
-                                                <Route
-                                                    key={path}
-                                                    path={path}
-                                                    render={routeProps => (
-                                                        <div>
-                                                            <route.component {...routeProps} />
-                                                        </div>
-                                                    )}
-                                                />
-                                            );
+                                            return <Route key={path} path={path} render={routeProps => <route.component {...routeProps} />} />;
                                         }
                                         // All other routes need authentication check before rendering Layout
                                         return (
