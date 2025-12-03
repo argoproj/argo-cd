@@ -743,6 +743,9 @@ message ApplicationSummary {
 
   // Images holds all images of application child resources.
   repeated string images = 2;
+
+  // IsAppOfApps holds true if the application has any application for child resource.
+  optional bool isAppOfApps = 3;
 }
 
 // ApplicationTree represents the hierarchical structure of resources associated with an Argo CD application.
