@@ -22961,6 +22961,8 @@ spec:
                     type: string
                   rollingSync:
                     properties:
+                      defaultPrune:
+                        type: boolean
                       steps:
                         items:
                           properties:
