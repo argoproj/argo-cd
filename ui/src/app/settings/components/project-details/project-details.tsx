@@ -8,7 +8,7 @@ import {Link} from 'react-router-dom';
 
 import {BadgePanel, CheckboxField, DataLoader, EditablePanel, ErrorNotification, MapInputField, Page, Query} from '../../../shared/components';
 import {AppContext, Consumer, AuthSettingsCtx} from '../../../shared/context';
-import {GroupKind, Groups, Project, DetailedProjectsResponse, ProjectSpec, ResourceKinds} from '../../../shared/models';
+import {ClusterResourceRestrictionItem, GroupKind, Groups, Project, DetailedProjectsResponse, ProjectSpec, ResourceKinds} from '../../../shared/models';
 import {CreateJWTTokenParams, DeleteJWTTokenParams, ProjectRoleParams, services} from '../../../shared/services';
 
 import {SyncWindowStatusIcon} from '../../../applications/components/utils';
@@ -86,7 +86,7 @@ function reduceGlobal(projs: Project[]): ProjectSpec & {count: number} {
                 return (
                     index ===
                     merged.clusterResourceBlacklist.findIndex(obj => {
-                        return obj.kind === item.kind && obj.group === item.group;
+                        return obj.kind === item.kind && obj.group === item.group && obj.name === item.name;
                     })
                 );
             });
@@ -95,7 +95,7 @@ function reduceGlobal(projs: Project[]): ProjectSpec & {count: number} {
                 return (
                     index ===
                     merged.clusterResourceWhitelist.findIndex(obj => {
-                        return obj.kind === item.kind && obj.group === item.group;
+                        return obj.kind === item.kind && obj.group === item.group && obj.name === item.name;
                     })
                 );
             });
@@ -131,10 +131,10 @@ function reduceGlobal(projs: Project[]): ProjectSpec & {count: number} {
             return merged;
         },
         {
-            clusterResourceBlacklist: new Array<GroupKind>(),
+            clusterResourceBlacklist: new Array<ClusterResourceRestrictionItem>(),
             namespaceResourceBlacklist: new Array<GroupKind>(),
             namespaceResourceWhitelist: new Array<GroupKind>(),
-            clusterResourceWhitelist: new Array<GroupKind>(),
+            clusterResourceWhitelist: new Array<ClusterResourceRestrictionItem>(),
             sourceRepos: [],
             sourceNamespaces: [],
             signatureKeys: [],
