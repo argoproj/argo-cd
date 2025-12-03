@@ -223,13 +223,13 @@ function editList(type: field, formApi: FormApi) {
                 {info.title} {helpTip(info.helpText)}
             </p>
             <div className='row white-box__details-row'>
-                <div className={isClusterResourceList ? 'columns small-4' : 'columns small-4'}>Kind</div>
+                <div className='columns small-4'>Kind</div>
                 <div className={isClusterResourceList ? 'columns small-4' : 'columns small-8'}>Group</div>
                 {isClusterResourceList && <div className='columns small-4'>Name (optional)</div>}
             </div>
             {(formApi.values.spec[type] || []).map((_: Project, i: number) => (
                 <div className='row white-box__details-row' key={i}>
-                    <div className={isClusterResourceList ? 'columns small-4' : 'columns small-4'}>
+                    <div className='columns small-4'>
                         <FormField
                             formApi={formApi}
                             field={`spec.${type}[${i}].kind`}
