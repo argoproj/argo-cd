@@ -1855,14 +1855,13 @@ func TestApplicationInformerUpdateFunc(t *testing.T) {
 			operationChanged := (oldApp.Operation == nil && newApp.Operation != nil) ||
 				(oldApp.Operation != nil && newApp.Operation != nil && !equality.Semantic.DeepEqual(oldApp.Operation, newApp.Operation))
 
-			// Check if DeletionTimestamp was added or changed - always process deletions
 			deletionTimestampChanged := (oldApp.DeletionTimestamp == nil && newApp.DeletionTimestamp != nil) ||
 				(oldApp.DeletionTimestamp != nil && newApp.DeletionTimestamp != nil && !oldApp.DeletionTimestamp.Equal(newApp.DeletionTimestamp))
+			appBeingDeleted := newApp.DeletionTimestamp != nil
 
 			// Skip refresh requests for status-only updates (spec unchanged)
 			// This prevents feedback loop: status update → UpdateFunc → requestAppRefresh → refresh → status update
-			// Use equality.Semantic.DeepEqual like in the actual code
-			if equality.Semantic.DeepEqual(oldApp.Spec, newApp.Spec) && !operationChanged && !deletionTimestampChanged {
+			if equality.Semantic.DeepEqual(oldApp.Spec, newApp.Spec) && !operationChanged && !deletionTimestampChanged && !appBeingDeleted {
 				// Check if user requested refresh/hydrate via annotations
 				// Don't skip if user explicitly requested refresh/hydrate
 				oldAnnotations := oldApp.GetAnnotations()
