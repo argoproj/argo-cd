@@ -59,7 +59,7 @@ metadata:
     argocd.argoproj.io/secret-type: repository-write
 type: Opaque
 stringData:
-  url: "https://github.com"
+  url: "https://github.com/<your org or user>/<your repo>"
   type: "git"
   githubAppID: "<your app ID here>"
   githubAppInstallationID: "<your installation ID here>"
@@ -75,7 +75,7 @@ metadata:
     argocd.argoproj.io/secret-type: repository
 type: Opaque
 stringData:
-  url: "https://github.com"
+  url: "https://github.com/<your org or user>/<your repo>"
   type: "git"
   githubAppID: "<your app ID here>"
   githubAppInstallationID: "<your installation ID here>"
