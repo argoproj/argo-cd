@@ -3,8 +3,9 @@ package metrics
 import (
 	"time"
 
-	"github.com/argoproj/argo-cd/v3/util/oci"
 	log "github.com/sirupsen/logrus"
+
+	"github.com/argoproj/argo-cd/v3/util/oci"
 )
 
 type OCIRequestType string
@@ -39,9 +40,9 @@ func NewOCIClientEventHandlers(metricsServer *MetricsServer) oci.EventHandlers {
 }
 
 func processMetricFunc(metricsServer *MetricsServer, repo string, requestType OCIRequestType) func() {
-	log.Warnf("processing metric %s for repo %s", requestType, repo)
 	startTime := time.Now()
 	metricsServer.IncOCIRequest(repo, requestType)
+	log.Warnf("processing metric %s for repo %s", requestType, repo)
 	return func() {
 		metricsServer.ObserveOCIRequestDuration(repo, requestType, time.Since(startTime))
 	}
