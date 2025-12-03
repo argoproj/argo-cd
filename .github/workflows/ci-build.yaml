@@ -413,7 +413,7 @@ jobs:
   test-e2e:
     name: Run end-to-end tests
     if: ${{ needs.changes.outputs.backend == 'true' }}
-    runs-on: oracle-vm-16cpu-64gb-x86-64
+    runs-on: ${{ github.repository == 'argoproj/argo-cd' && 'oracle-vm-16cpu-64gb-x86-64' || 'ubuntu-22.04' }}
     strategy:
       fail-fast: false
       matrix:
@@ -432,7 +432,7 @@ jobs:
       - build-go
       - changes
     env:
-      GOPATH: /home/ubuntu/go
+      GOPATH: ${{ github.repository == 'argoproj/argo-cd' && '/home/ubuntu/go' || '/home/runner/go' }}
       ARGOCD_FAKE_IN_CLUSTER: 'true'
       ARGOCD_SSH_DATA_PATH: '/tmp/argo-e2e/app/config/ssh'
       ARGOCD_TLS_DATA_PATH: '/tmp/argo-e2e/app/config/tls'
@@ -468,9 +468,9 @@ jobs:
           set -x
           curl -sfL https://get.k3s.io | sh -
           sudo chmod -R a+rw /etc/rancher/k3s
-          sudo mkdir -p $HOME/.kube && sudo chown -R ubuntu $HOME/.kube
+          sudo mkdir -p $HOME/.kube && sudo chown -R $(whoami) $HOME/.kube
           sudo k3s kubectl config view --raw > $HOME/.kube/config
-          sudo chown ubuntu $HOME/.kube/config
+          sudo chown $(whoami) $HOME/.kube/config
           sudo chmod go-r $HOME/.kube/config
           kubectl version
       - name: Restore go build cache
@@ -480,7 +480,7 @@ jobs:
           key: ${{ runner.os }}-go-build-v1-${{ github.run_id }}
       - name: Add ~/go/bin to PATH
         run: |
-          echo "/home/ubuntu/go/bin" >> $GITHUB_PATH
+          echo "$HOME/go/bin" >> $GITHUB_PATH
       - name: Add /usr/local/bin to PATH
         run: |
           echo "/usr/local/bin" >> $GITHUB_PATH
@@ -506,7 +506,7 @@ jobs:
       - name: Create target directory for binaries in the build-process
         run: |
           mkdir -p dist
-          chown ubuntu dist
+          chown $(whoami) dist
       - name: Run E2E server and wait for it being available
         timeout-minutes: 30
         run: |
