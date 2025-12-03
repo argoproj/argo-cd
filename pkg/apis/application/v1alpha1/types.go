@@ -2695,6 +2695,13 @@ type SignatureKey struct {
 	KeyID string `json:"keyID" protobuf:"bytes,1,name=keyID"`
 }
 
+// BlacklistEntry is a reference to a resource to be blacklisted
+type BlacklistEntry struct {
+	Group   string `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
+	Kind    string `json:"kind,omitempty" protobuf:"bytes,2,opt,name=kind"`
+	Visible bool   `json:"visible,omitempty" protobuf:"bytes,3,opt,name=visible"`
+}
+
 // AppProjectSpec is the specification of an AppProject
 type AppProjectSpec struct {
 	// SourceRepos contains list of repository URLs which can be used for deployment
@@ -2709,7 +2716,7 @@ type AppProjectSpec struct {
 	// ClusterResourceWhitelist contains list of whitelisted cluster level resources
 	ClusterResourceWhitelist []metav1.GroupKind `json:"clusterResourceWhitelist,omitempty" protobuf:"bytes,5,opt,name=clusterResourceWhitelist"`
 	// NamespaceResourceBlacklist contains list of blacklisted namespace level resources
-	NamespaceResourceBlacklist []metav1.GroupKind `json:"namespaceResourceBlacklist,omitempty" protobuf:"bytes,6,opt,name=namespaceResourceBlacklist"`
+	NamespaceResourceBlacklist []BlacklistEntry `json:"namespaceResourceBlacklist,omitempty" protobuf:"bytes,6,opt,name=namespaceResourceBlacklist"`
 	// OrphanedResources specifies if controller should monitor orphaned resources of apps in this project
 	OrphanedResources *OrphanedResourcesMonitorSettings `json:"orphanedResources,omitempty" protobuf:"bytes,7,opt,name=orphanedResources"`
 	// SyncWindows controls when syncs can be run for apps in this project
@@ -2719,7 +2726,7 @@ type AppProjectSpec struct {
 	// SignatureKeys contains a list of PGP key IDs that commits in Git must be signed with in order to be allowed for sync
 	SignatureKeys []SignatureKey `json:"signatureKeys,omitempty" protobuf:"bytes,10,opt,name=signatureKeys"`
 	// ClusterResourceBlacklist contains list of blacklisted cluster level resources
-	ClusterResourceBlacklist []metav1.GroupKind `json:"clusterResourceBlacklist,omitempty" protobuf:"bytes,11,opt,name=clusterResourceBlacklist"`
+	ClusterResourceBlacklist []BlacklistEntry `json:"clusterResourceBlacklist,omitempty" protobuf:"bytes,11,opt,name=clusterResourceBlacklist"`
 	// SourceNamespaces defines the namespaces application resources are allowed to be created in
 	SourceNamespaces []string `json:"sourceNamespaces,omitempty" protobuf:"bytes,12,opt,name=sourceNamespaces"`
 	// PermitOnlyProjectScopedClusters determines whether destinations can only reference clusters which are project-scoped
@@ -3517,6 +3524,41 @@ func (spec ApplicationSpec) GetRevisionHistoryLimit() int {
 		return int(*spec.RevisionHistoryLimit)
 	}
 	return RevisionHistoryLimit
+}
+
+func isResourceInBlacklist(res metav1.GroupKind, list []BlacklistEntry) bool {
+	groupKinds := make([]metav1.GroupKind, len(list))
+	for i, item := range list {
+		groupKinds[i] = metav1.GroupKind{Group: item.Group, Kind: item.Kind}
+	}
+	return isResourceInList(res, groupKinds)
+}
+
+func isResourceVisibleInBlacklist(res metav1.GroupKind, list []BlacklistEntry) bool {
+	// First we look for exact matches
+	for _, item := range list {
+		exactMatch := item.Group == res.Group && item.Kind == res.Kind
+		if exactMatch {
+			return item.Visible
+		}
+	}
+
+	visible := false
+	for _, item := range list {
+		ok, err := filepath.Match(item.Kind, res.Kind)
+		if ok && err == nil {
+			ok, err = filepath.Match(item.Group, res.Group)
+			if ok && err == nil {
+				if visible && !item.Visible {
+					// If there are multiple glob matches, Visible=false takes precedence
+					return false
+				}
+				visible = item.Visible
+			}
+		}
+	}
+
+	return visible
 }
 
 func isResourceInList(res metav1.GroupKind, list []metav1.GroupKind) bool {

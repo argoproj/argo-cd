@@ -406,7 +406,7 @@ func (proj AppProject) IsGroupKindPermitted(gk schema.GroupKind, namespaced bool
 		namespaceBlacklist := proj.Spec.NamespaceResourceBlacklist
 
 		isWhiteListed = namespaceWhitelist == nil || len(namespaceWhitelist) != 0 && isResourceInList(res, namespaceWhitelist)
-		isBlackListed = len(namespaceBlacklist) != 0 && isResourceInList(res, namespaceBlacklist)
+		isBlackListed = len(namespaceBlacklist) != 0 && isResourceInBlacklist(res, namespaceBlacklist)
 		return isWhiteListed && !isBlackListed
 	}
 
@@ -414,8 +414,24 @@ func (proj AppProject) IsGroupKindPermitted(gk schema.GroupKind, namespaced bool
 	clusterBlacklist := proj.Spec.ClusterResourceBlacklist
 
 	isWhiteListed = len(clusterWhitelist) != 0 && isResourceInList(res, clusterWhitelist)
-	isBlackListed = len(clusterBlacklist) != 0 && isResourceInList(res, clusterBlacklist)
+	isBlackListed = len(clusterBlacklist) != 0 && isResourceInBlacklist(res, clusterBlacklist)
 	return isWhiteListed && !isBlackListed
+}
+
+// IsGroupKindVisible validates if the given resource group/kind is visible in the project
+func (proj AppProject) IsGroupKindVisible(gk schema.GroupKind, namespaced bool) bool {
+	permitted := proj.IsGroupKindPermitted(gk, namespaced)
+	if permitted {
+		return true
+	}
+
+	res := metav1.GroupKind{Group: gk.Group, Kind: gk.Kind}
+
+	if namespaced {
+		return isResourceVisibleInBlacklist(res, proj.Spec.NamespaceResourceBlacklist)
+	}
+
+	return isResourceVisibleInBlacklist(res, proj.Spec.ClusterResourceBlacklist)
 }
 
 // IsLiveResourcePermitted returns whether a live resource found in the cluster is permitted by an AppProject
@@ -431,6 +447,19 @@ func (proj AppProject) IsResourcePermitted(groupKind schema.GroupKind, namespace
 		return proj.IsDestinationPermitted(destCluster, namespace, projectClusters)
 	}
 	return true, nil
+}
+
+// IsResourceActionable returns true if a resource is actionable in the project
+func (proj AppProject) IsResourceActionable(groupKind schema.GroupKind, namespace string, destCluster *Cluster, projectClusters func(project string) ([]*Cluster, error)) (bool, error) {
+	permitted, err := proj.IsResourcePermitted(groupKind, namespace, destCluster, projectClusters)
+	if err != nil {
+		return false, err
+	}
+
+	if permitted {
+		return true, nil
+	}
+	return proj.IsGroupKindVisible(groupKind, namespace != ""), nil
 }
 
 // HasFinalizer returns true if a resource finalizer is set on an AppProject

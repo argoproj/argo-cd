@@ -6829,7 +6829,7 @@
           "type": "array",
           "title": "ClusterResourceBlacklist contains list of blacklisted cluster level resources",
           "items": {
-            "$ref": "#/definitions/v1GroupKind"
+            "$ref": "#/definitions/v1alpha1BlacklistEntry"
           }
         },
         "clusterResourceWhitelist": {
@@ -6861,7 +6861,7 @@
           "type": "array",
           "title": "NamespaceResourceBlacklist contains list of blacklisted namespace level resources",
           "items": {
-            "$ref": "#/definitions/v1GroupKind"
+            "$ref": "#/definitions/v1alpha1BlacklistEntry"
           }
         },
         "namespaceResourceWhitelist": {
@@ -7958,6 +7958,21 @@
       "properties": {
         "tokenRef": {
           "$ref": "#/definitions/v1alpha1SecretRef"
+        }
+      }
+    },
+    "v1alpha1BlacklistEntry": {
+      "type": "object",
+      "title": "BlacklistEntry is a reference to a resource to be blacklisted",
+      "properties": {
+        "group": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "visible": {
+          "type": "boolean"
         }
       }
     },

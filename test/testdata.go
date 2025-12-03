@@ -46,6 +46,7 @@ var DeploymentManifest = `
   "kind": "Deployment",
   "metadata": {
     "name": "nginx-deployment",
+	"namespace": "default",
     "labels": {
       "app": "nginx"
     }
@@ -84,6 +85,74 @@ var DeploymentManifest = `
 func NewDeployment() *unstructured.Unstructured {
 	return testing.Unstructured(DeploymentManifest)
 }
+
+var ReplicaSetManifest = `
+{
+  "apiVersion": "apps/v1",
+  "kind": "ReplicaSet",
+  "metadata": {
+    "name": "nginx-replicaset",
+	"namespace": "default",
+    "labels": {
+      "app": "nginx"
+    }
+  },
+  "spec": {
+    "selector": {
+	  "matchLabels": {
+		"app": "nginx"
+	  }
+	},
+	"template": {
+	  "metadata": {
+		"labels": {
+		  "app": "nginx"
+		}
+	  },
+	  "spec": {
+		"containers": [
+		  {
+			"name": "nginx",
+			"image": "nginx:1.15.4",
+			"ports": [
+			  {
+				"containerPort": 80
+			  }
+			]
+		  }
+		]
+	  }
+	}
+  }
+}
+`
+
+var PodManifest = `
+{
+  "apiVersion": "v1",
+  "kind": "Pod",
+  "metadata": {
+	"name": "nginx-pod",
+	"namespace": "default",
+	"labels": {
+	  "app": "nginx"
+	}
+  },
+  "spec": {
+	"containers": [
+	  {
+		"name": "nginx",
+		"image": "nginx:1.15.4",
+		"ports": [
+		  {
+			"containerPort": 80
+		  }
+		]
+	  }
+	]
+  }
+}
+`
 
 var ConfigMapManifest = `
 {	

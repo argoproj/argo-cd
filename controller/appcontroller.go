@@ -613,14 +613,16 @@ func (ctrl *ApplicationController) getResourceTree(destCluster *appv1.Cluster, a
 		}
 	}
 	err = ctrl.stateCache.IterateHierarchyV2(destCluster, managedResourcesKeys, func(child appv1.ResourceNode, _ string) bool {
-		permitted, _ := proj.IsResourcePermitted(schema.GroupKind{Group: child.Group, Kind: child.Kind}, child.Namespace, destCluster, func(project string) ([]*appv1.Cluster, error) {
+		gk := schema.GroupKind{Group: child.Group, Kind: child.Kind}
+		permitted, _ := proj.IsResourcePermitted(gk, child.Namespace, destCluster, func(project string) ([]*appv1.Cluster, error) {
 			clusters, err := ctrl.db.GetProjectClusters(context.TODO(), project)
 			if err != nil {
 				return nil, fmt.Errorf("failed to get project clusters: %w", err)
 			}
 			return clusters, nil
 		})
-		if !permitted {
+		visible := proj.IsGroupKindVisible(gk, child.Namespace != "")
+		if !permitted && !visible {
 			return false
 		}
 		nodes = append(nodes, child)
@@ -650,11 +652,13 @@ func (ctrl *ApplicationController) getResourceTree(destCluster *appv1.Cluster, a
 			return false
 		}
 
-		permitted, _ := proj.IsResourcePermitted(schema.GroupKind{Group: child.Group, Kind: child.Kind}, child.Namespace, destCluster, func(project string) ([]*appv1.Cluster, error) {
+		gk := schema.GroupKind{Group: child.Group, Kind: child.Kind}
+		permitted, _ := proj.IsResourcePermitted(gk, child.Namespace, destCluster, func(project string) ([]*appv1.Cluster, error) {
 			return ctrl.db.GetProjectClusters(context.TODO(), project)
 		})
+		visible := proj.IsGroupKindVisible(gk, child.Namespace != "")
 
-		if !permitted {
+		if !permitted && !visible {
 			return false
 		}
 		orphanedNodes = append(orphanedNodes, child)

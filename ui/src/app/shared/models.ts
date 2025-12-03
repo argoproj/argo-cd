@@ -811,6 +811,8 @@ export interface GroupKind {
     kind: string;
 }
 
+export type BlacklistEntry = GroupKind & {visible?: boolean};
+
 export interface ProjectSignatureKey {
     keyID: string;
 }
@@ -823,8 +825,8 @@ export interface ProjectSpec {
     description: string;
     roles: ProjectRole[];
     clusterResourceWhitelist: GroupKind[];
-    clusterResourceBlacklist: GroupKind[];
-    namespaceResourceBlacklist: GroupKind[];
+    clusterResourceBlacklist: BlacklistEntry[];
+    namespaceResourceBlacklist: BlacklistEntry[];
     namespaceResourceWhitelist: GroupKind[];
     signatureKeys: ProjectSignatureKey[];
     orphanedResources?: {warn?: boolean; ignore: OrphanedResource[]};
