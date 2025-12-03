@@ -198,7 +198,7 @@ func (s *Service) ListOCITags(ctx context.Context, q *apiclient.ListRefsRequest)
 
 // ListRefs List a subset of the refs (currently, branches and tags) of a git repo
 func (s *Service) ListRefs(ctx context.Context, q *apiclient.ListRefsRequest) (*apiclient.Refs, error) {
-	client, err := s.newGitSourceClient(q.Repo, false, false, nil, nil, nil, false)
+	client, err := s.newGitSourceClient(q.Repo, false)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize git client: %w", err)
 	}
@@ -310,7 +310,11 @@ func (s *Service) runRepoOperation(
 	unresolvedRevision := revision
 	noCache := settings.noCache || settings.noRevisionCache
 
-	sourceClient, err := s.newSourceClient(repo, source, settings.noCache, settings.noRevisionCache, cacheFn, source.Helm, refSources, hasMultipleSources)
+	sourceClient, err := s.newSourceClient(repo, source, hasMultipleSources,
+		WithCacheFn(cacheFn),
+		WithCache(s.cache, noCache),
+		WithHelmSource(source.Helm),
+		WithRefSources(refSources))
 	if err != nil {
 		return err
 	}
@@ -573,13 +577,12 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 			// Create a temporary git source client to resolve referenced sources
 			sourceClient, clientErr := s.newGitSourceClient(
 				q.Repo,
-				q.NoCache,
-				q.NoRevisionCache,
-				nil, // cacheFn
-				q.ApplicationSource.Helm,
-				q.RefSources,
 				q.HasMultipleSources,
+				WithRefSources(q.RefSources),
+				WithCache(s.cache, !q.NoRevisionCache && !q.NoCache),
+				WithHelmSource(q.ApplicationSource.Helm),
 			)
+
 			if clientErr != nil {
 				ch.errCh <- fmt.Errorf("failed to create source client for application %s in repo %s: %w", q.AppName, q.Repo.Repo, clientErr)
 				return
@@ -627,12 +630,10 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 				// Create a source client for this referenced repository
 				refSourceClient, refClientErr := s.newGitSourceClient(
 					&refSourceMapping.Repo,
-					q.NoCache,
-					q.NoRevisionCache,
-					nil, // cacheFn
-					nil, // no helm source for ref repos
-					nil, // no nested refs
-					false,
+					q.HasMultipleSources,
+					WithRefSources(q.RefSources),
+					WithCache(s.cache, !q.NoRevisionCache && !q.NoCache),
+					WithHelmSource(q.ApplicationSource.Helm),
 				)
 				if refClientErr != nil {
 					ch.errCh <- fmt.Errorf("failed to create source client for referenced repo %s: %w", refSourceMapping.Repo.Repo, refClientErr)
@@ -2177,7 +2178,7 @@ func populatePluginAppDetails(ctx context.Context, res *apiclient.RepoAppDetails
 }
 
 func (s *Service) GetRevisionMetadata(ctx context.Context, q *apiclient.RepoServerRevisionMetadataRequest) (*v1alpha1.RevisionMetadata, error) {
-	client, err := s.newGitSourceClient(q.Repo, false, false, nil, nil, nil, false)
+	client, err := s.newGitSourceClient(q.Repo, false)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize git client: %w", err)
 	}
@@ -2242,7 +2243,7 @@ func (s *Service) newClientResolveRevision(repo *v1alpha1.Repository, revision s
 // newSourceClient creates a BaseSourceClient for the given repository and source.
 // This is a factory method that handles the branching logic for different source types.
 // The opts parameters now contain all the information needed to create the inner clients (git.Client, oci.Client, helm.Client).
-func (s *Service) newSourceClient(repo *v1alpha1.Repository, source *v1alpha1.ApplicationSource, noCache bool, noRevisionCache bool, cacheFn func(cacheKey string, refSourceCommitSHAs cache.ResolvedRevisions, firstInvocation bool) (bool, error), sourceHelm *v1alpha1.ApplicationSourceHelm, refSources map[string]*v1alpha1.RefTarget, hasMultipleSources bool) (BaseSourceClient, error) {
+func (s *Service) newSourceClient(repo *v1alpha1.Repository, source *v1alpha1.ApplicationSource, hasMultipleSources bool, sourceOpts ...GitSourceClientOpt) (BaseSourceClient, error) {
 	switch {
 	case source.IsOCI():
 		return s.newOCISourceClient(repo)
@@ -2253,7 +2254,7 @@ func (s *Service) newSourceClient(repo *v1alpha1.Repository, source *v1alpha1.Ap
 		}
 		return s.newHelmSourceClient(repo, source.Chart, helmPassCredentials), nil
 	default:
-		return s.newGitSourceClient(repo, noCache, noRevisionCache, cacheFn, sourceHelm, refSources, hasMultipleSources)
+		return s.newGitSourceClient(repo, hasMultipleSources, sourceOpts...)
 	}
 }
 
@@ -2281,7 +2282,7 @@ func (s *Service) newOCISourceClient(repo *v1alpha1.Repository) (SourceClient[*v
 	)
 }
 
-func (s *Service) newGitSourceClient(repo *v1alpha1.Repository, noCache bool, noRevisionCache bool, cacheFn func(cacheKey string, refSourceCommitSHAs cache.ResolvedRevisions, firstInvocation bool) (bool, error), sourceHelm *v1alpha1.ApplicationSourceHelm, refSources map[string]*v1alpha1.RefTarget, hasMultipleSources bool) (SourceClient[*v1alpha1.RevisionMetadata], error) {
+func (s *Service) newGitSourceClient(repo *v1alpha1.Repository, hasMultipleSources bool, sourceOpts ...GitSourceClientOpt) (SourceClient[*v1alpha1.RevisionMetadata], error) {
 	return NewGitSourceClient(
 		repo,
 		s.gitRepoPaths,
@@ -2290,11 +2291,7 @@ func (s *Service) newGitSourceClient(repo *v1alpha1.Repository, noCache bool, no
 		s.repoLock,
 		directoryPermissionInitializer,
 		hasMultipleSources,
-		WithSubmoduleEnabled(s.initConstants.SubmoduleEnabled),
-		WithCacheFn(cacheFn),
-		WithCache(s.cache, !noRevisionCache && !noCache),
-		WithHelmSource(sourceHelm),
-		WithRefSources(refSources),
+		append(sourceOpts, WithSubmoduleEnabled(s.initConstants.SubmoduleEnabled))...,
 	)
 }
 
@@ -2480,7 +2477,8 @@ func (s *Service) ResolveRevision(ctx context.Context, q *apiclient.ResolveRevis
 	app := q.App
 	ambiguousRevision := q.AmbiguousRevision
 	source := app.Spec.GetSourcePtrByIndex(int(q.SourceIndex))
-	sourceClient, err := s.newSourceClient(repo, source, true, true, nil, nil, nil, false)
+
+	sourceClient, err := s.newSourceClient(repo, source, false)
 	if err != nil {
 		return &apiclient.ResolveRevisionResponse{Revision: "", AmbiguousRevision: ""}, err
 	}
@@ -2757,12 +2755,10 @@ func (s *Service) updateCachedRevision(logCtx *log.Entry, oldRev string, newRev 
 		// Create a temporary git source client to resolve referenced sources
 		sourceClient, err := s.newGitSourceClient(
 			request.GetRepo(),
-			false, // noCache
-			false, // noRevisionCache
-			nil,   // cacheFn
-			request.ApplicationSource.Helm,
-			request.RefSources,
 			request.HasMultipleSources,
+			WithCache(s.cache, request.NoRevisionCache),
+			WithHelmSource(request.ApplicationSource.Helm),
+			WithRefSources(request.RefSources),
 		)
 		if err != nil {
 			return fmt.Errorf("failed to create source client for application %s in repo %s: %w", request.AppName, request.GetRepo().Repo, err)
