@@ -555,32 +555,32 @@ func (c *clusterCache) removeFromParentUIDToChildren(parentUID types.UID, childK
 // updateParentUIDToChildren updates the parent-to-children index when a resource's owner refs change
 func (c *clusterCache) updateParentUIDToChildren(childKey kube.ResourceKey, oldResource *Resource, newResource *Resource) {
 	// Build sets of old and new parent UIDs
-	oldParents := make(map[types.UID]bool)
+	oldParents := make(map[types.UID]struct{})
 	if oldResource != nil {
 		for _, ref := range oldResource.OwnerRefs {
 			if ref.UID != "" {
-				oldParents[ref.UID] = true
+				oldParents[ref.UID] = struct{}{}
 			}
 		}
 	}
 
-	newParents := make(map[types.UID]bool)
+	newParents := make(map[types.UID]struct{})
 	for _, ref := range newResource.OwnerRefs {
 		if ref.UID != "" {
-			newParents[ref.UID] = true
+			newParents[ref.UID] = struct{}{}
 		}
 	}
 
 	// Remove from parents that are no longer in owner refs
 	for oldUID := range oldParents {
-		if !newParents[oldUID] {
+		if _, exists := newParents[oldUID]; !exists {
 			c.removeFromParentUIDToChildren(oldUID, childKey)
 		}
 	}
 
 	// Add to parents that are new in owner refs
 	for newUID := range newParents {
-		if !oldParents[newUID] {
+		if _, exists := oldParents[newUID]; !exists {
 			c.addToParentUIDToChildren(newUID, childKey)
 		}
 	}
