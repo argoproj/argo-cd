@@ -21,6 +21,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/commitserver/apiclient"
 	appsv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/git"
 	gitmocks "github.com/argoproj/argo-cd/v3/util/git/mocks"
 	"github.com/argoproj/argo-cd/v3/util/hydrator"
 )
@@ -458,9 +459,8 @@ func TestIsHydrated(t *testing.T) {
 	commitShaNoNoteFoundErr := "abc456"
 	commitShaErr := "abc999"
 	strnote := "{\"drySha\":\"abc123\"}"
-	err := errors.New("test no note found for test")
 	mockGitClient.On("GetCommitNote", commitSha, mock.Anything).Return(strnote, nil).Once()
-	mockGitClient.On("GetCommitNote", commitShaNoNoteFoundErr, mock.Anything).Return("", fmt.Errorf("wrapped error %w", err)).Once()
+	mockGitClient.On("GetCommitNote", commitShaNoNoteFoundErr, mock.Anything).Return("", fmt.Errorf("wrapped error %w", git.ErrNoNoteFound)).Once()
 	// an existing note
 	isHydrated, err := IsHydrated(mockGitClient, drySha, commitSha)
 	require.NoError(t, err)
@@ -471,7 +471,8 @@ func TestIsHydrated(t *testing.T) {
 	require.NoError(t, err)
 	assert.False(t, isHydrated)
 
-	// some other error and not "no error found".. Should return an error
+	// Test that non-ErrNoNoteFound errors are propagated: when GetCommitNote fails with
+	// an error other than "no note found", IsHydrated should return that error to the caller
 	err = errors.New("some other error")
 	mockGitClient.On("GetCommitNote", commitShaErr, mock.Anything).Return("", fmt.Errorf("wrapped error %w", err)).Once()
 	isHydrated, err = IsHydrated(mockGitClient, drySha, commitShaErr)

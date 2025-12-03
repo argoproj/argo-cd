@@ -1269,13 +1269,19 @@ func Test_nativeGitClient_GetCommitNote(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, sha)
 
+	// No note found, should return ErrNoNoteFound
+	got, err := client.GetCommitNote(sha, "")
+	require.Empty(t, got)
+	unwrappedError := errors.Unwrap(err)
+	require.ErrorIs(t, unwrappedError, ErrNoNoteFound)
+
 	// Add a git note for this commit manually
 	noteMsg := "this is a test note"
 	err = runCmd(ctx, client.Root(), "git", "notes", "--ref=commit", "add", "-m", noteMsg, sha)
 	require.NoError(t, err)
 
 	// Call the method under test
-	got, err := client.GetCommitNote(sha, "")
+	got, err = client.GetCommitNote(sha, "")
 	require.NoError(t, err)
 	require.Equal(t, noteMsg, got)
 }

@@ -45,6 +45,7 @@ import (
 )
 
 var ErrInvalidRepoURL = errors.New("repo URL is invalid")
+var ErrNoNoteFound = errors.New("no note found")
 
 // CommitMetadata contains metadata about a commit that is related in some way to another commit.
 type CommitMetadata struct {
@@ -1092,6 +1093,9 @@ func (m *nativeGitClient) GetCommitNote(sha string, namespace string) (string, e
 	ref := "--ref=" + namespace
 	out, err := m.runCmd(ctx, "notes", ref, "show", sha)
 	if err != nil {
+		if strings.Contains(err.Error(), "no note found") {
+			return out, fmt.Errorf("failed to get commit note: %w", ErrNoNoteFound)
+		}
 		return out, fmt.Errorf("failed to get commit note: %w", err)
 	}
 	return strings.TrimSpace(out), nil

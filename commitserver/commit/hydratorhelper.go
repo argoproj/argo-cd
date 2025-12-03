@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"text/template"
 
 	"github.com/Masterminds/sprig/v3"
@@ -247,9 +246,9 @@ func hasManifestChanged(dirPath string, gitClient git.Client) (bool, error) {
 func IsHydrated(gitClient git.Client, drySha, commitSha string) (bool, error) {
 	note, err := gitClient.GetCommitNote(commitSha, NoteNamespace)
 	if err != nil {
-		// an empty note or note not found is a valid and acceptable outcome in this context
+		// note not found is a valid and acceptable outcome in this context so returning false and nil to let the hydration continue
 		unwrappedError := errors.Unwrap(err)
-		if unwrappedError != nil && strings.Contains(unwrappedError.Error(), "no note found") {
+		if unwrappedError != nil && errors.Is(unwrappedError, git.ErrNoNoteFound) {
 			return false, nil
 		}
 		return false, err
