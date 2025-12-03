@@ -226,7 +226,7 @@ func newFakeControllerWithResync(ctx context.Context, data *fakeData, appResyncP
 	mockStateCache.EXPECT().GetNamespaceTopLevelResources(mock.Anything, mock.Anything).Return(response, nil)
 	mockStateCache.EXPECT().IterateResources(mock.Anything, mock.Anything).Return(nil)
 	mockStateCache.EXPECT().GetClusterCache(mock.Anything).Return(clusterCacheMock, nil)
-	mockStateCache.EXPECT().IterateHierarchyV2(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Run(func(_ *v1alpha1.Cluster, keys []kube.ResourceKey, action func(_ v1alpha1.ResourceNode, _ string) bool) {
+	mockStateCache.EXPECT().IterateHierarchyV2(mock.Anything, mock.Anything, mock.Anything).Run(func(_ *v1alpha1.Cluster, keys []kube.ResourceKey, action func(_ v1alpha1.ResourceNode, _ string) bool) {
 		for _, key := range keys {
 			appName := ""
 			if res, ok := data.namespacedResources[key]; ok {
