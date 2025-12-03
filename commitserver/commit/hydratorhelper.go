@@ -72,7 +72,8 @@ func WriteForPaths(root *os.Root, repoUrl, drySha string, dryCommitMetadata *app
 		if err != nil {
 			return false, fmt.Errorf("failed to write manifests: %w", err)
 		}
-		changed, err := hasManifestChanged(hydratePath, gitClient)
+		// Check if the manifest file has been modified compared to the git index
+		changed, err := gitClient.HasFileChanged(filepath.Join(hydratePath, ManifestYaml))
 		if err != nil {
 			return false, fmt.Errorf("failed to check if anything changed on the manifest: %w", err)
 		}
@@ -228,15 +229,6 @@ func deleteManifest(root *os.Root, dirPath string) error {
 		return fmt.Errorf("failed to remove manifest: %w", err)
 	}
 	return nil
-}
-
-// hasManifestChanged checks whether the "manifest.yaml" file in the specified directory path
-// has been modified in the working tree compared to the version tracked in the current git index.
-// Returns true if the file has changes staged or unstaged; otherwise, returns false.
-// Relies on the provided git.Client's HasFileChanged method for underlying diff detection.
-func hasManifestChanged(dirPath string, gitClient git.Client) (bool, error) {
-	manifestPath := filepath.Join(dirPath, ManifestYaml)
-	return gitClient.HasFileChanged(manifestPath)
 }
 
 // IsHydrated checks whether the given commit (commitSha) has already been hydrated with the specified Dry SHA (drySha).
