@@ -322,6 +322,16 @@ func (a *Actions) prepareCreateAppArgs(args []string) []string {
 	if a.context.helmSkipTests {
 		args = append(args, "--helm-skip-tests")
 	}
+	if a.context.directoryRecurse {
+		args = append(args, "--directory-recurse")
+	}
+	if a.context.directoryExclude != "" {
+		args = append(args, "--directory-exclude", a.context.directoryExclude)
+	}
+	if a.context.directoryInclude != "" {
+		args = append(args, "--directory-include", a.context.directoryInclude)
+	}
+
 	return args
 }
 

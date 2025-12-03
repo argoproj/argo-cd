@@ -116,6 +116,12 @@ type Repository struct {
 	InsecureOCIForceHttp bool `json:"insecureOCIForceHttp,omitempty" protobuf:"bytes,26,opt,name=insecureOCIForceHttp"` //nolint:revive //FIXME(var-naming)
 	// Depth specifies the depth for shallow clones. A value of 0 or omitting the field indicates a full clone.
 	Depth int64 `json:"depth,omitempty" protobuf:"bytes,27,opt,name=depth"`
+	// EnablePartialClone enables partial clone (--filter=blob:none) combined with sparse checkout for manifest-generate-paths
+	EnablePartialClone bool `json:"enablePartialClone,omitempty" protobuf:"bytes,28,opt,name=enablePartialClone"`
+	// SparsePaths specifies which paths to checkout when using sparse checkout with partial clone.
+	// Paths can be absolute (e.g., "/charts") or relative to the repository root.
+	// If empty and EnablePartialClone=true, a full checkout will be used.
+	SparsePaths []string `json:"sparsePaths,omitempty" protobuf:"bytes,29,rep,name=sparsePaths"`
 }
 
 // IsInsecure returns true if the repository has been configured to skip server verification or set to HTTP only
@@ -333,6 +339,8 @@ func (repo *Repository) CopySettingsFrom(source *Repository) {
 		repo.Insecure = source.Insecure
 		repo.InheritedCreds = source.InheritedCreds
 		repo.Depth = source.Depth
+		repo.EnablePartialClone = source.EnablePartialClone
+		repo.SparsePaths = source.SparsePaths
 	}
 }
 
@@ -362,6 +370,9 @@ func (repo *Repository) Sanitized() *Repository {
 		GithubAppInstallationId:    repo.GithubAppInstallationId,
 		GitHubAppEnterpriseBaseURL: repo.GitHubAppEnterpriseBaseURL,
 		UseAzureWorkloadIdentity:   repo.UseAzureWorkloadIdentity,
+		Depth:                      repo.Depth,
+		EnablePartialClone:         repo.EnablePartialClone,
+		SparsePaths:                repo.SparsePaths,
 	}
 }
 

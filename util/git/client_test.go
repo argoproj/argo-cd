@@ -68,7 +68,7 @@ func Test_nativeGitClient_Fetch(t *testing.T) {
 	err = client.Init()
 	require.NoError(t, err)
 
-	err = client.Fetch("", 0)
+	err = client.Fetch("", 0, false)
 	require.NoError(t, err)
 }
 
@@ -86,7 +86,7 @@ func Test_nativeGitClient_Fetch_Prune(t *testing.T) {
 	err = runCmd(ctx, tempDir, "git", "branch", "test/foo")
 	require.NoError(t, err)
 
-	err = client.Fetch("", 0)
+	err = client.Fetch("", 0, false)
 	require.NoError(t, err)
 
 	err = runCmd(ctx, tempDir, "git", "branch", "-d", "test/foo")
@@ -94,7 +94,7 @@ func Test_nativeGitClient_Fetch_Prune(t *testing.T) {
 	err = runCmd(ctx, tempDir, "git", "branch", "test/foo/bar")
 	require.NoError(t, err)
 
-	err = client.Fetch("", 0)
+	err = client.Fetch("", 0, false)
 	require.NoError(t, err)
 }
 
@@ -398,7 +398,7 @@ func Test_nativeGitClient_Submodule(t *testing.T) {
 	err = client.Init()
 	require.NoError(t, err)
 
-	err = client.Fetch("", 0)
+	err = client.Fetch("", 0, false)
 	require.NoError(t, err)
 
 	commitSHA, err := client.LsRemote("HEAD")
@@ -667,7 +667,7 @@ func Test_nativeGitClient_CheckoutOrOrphan(t *testing.T) {
 		out, err := client.SetAuthor("test", "test@example.com")
 		require.NoError(t, err, "error output: %s", out)
 
-		err = client.Fetch("", 0)
+		err = client.Fetch("", 0, false)
 		require.NoError(t, err)
 
 		// checkout to origin base branch
@@ -885,7 +885,7 @@ func Test_nativeGitClient_CommitAndPush(t *testing.T) {
 	out, err := client.SetAuthor("test", "test@example.com")
 	require.NoError(t, err, "error output: ", out)
 
-	err = client.Fetch(branch, 0)
+	err = client.Fetch(branch, 0, false)
 	require.NoError(t, err)
 
 	out, err = client.Checkout(branch, false)

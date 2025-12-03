@@ -9493,6 +9493,10 @@
           "type": "boolean",
           "title": "EnableOCI specifies whether helm-oci support should be enabled for this repo"
         },
+        "enablePartialClone": {
+          "type": "boolean",
+          "title": "EnablePartialClone enables partial clone (--filter=blob:none) combined with sparse checkout for manifest-generate-paths"
+        },
         "forceHttpBasicAuth": {
           "type": "boolean",
           "title": "ForceHttpBasicAuth specifies whether Argo CD should attempt to force basic auth for HTTP connections"
@@ -9558,6 +9562,13 @@
         "repo": {
           "type": "string",
           "title": "Repo contains the URL to the remote repository"
+        },
+        "sparsePaths": {
+          "description": "SparsePaths specifies which paths to checkout when using sparse checkout with partial clone.\nPaths can be absolute (e.g., \"/charts\") or relative to the repository root.\nIf empty and EnablePartialClone=true, a full checkout will be used.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         },
         "sshPrivateKey": {
           "description": "SSHPrivateKey contains the PEM data for authenticating at the repo server. Only used with Git repos.",

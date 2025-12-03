@@ -54,6 +54,7 @@ argocd admin repo generate-spec REPOURL [flags]
       --depth int                               Specify a custom depth for git clone operations. Unless specified, a full clone is performed using the depth of 0
       --enable-lfs                              enable git-lfs (Large File Support) on this repository
       --enable-oci                              enable helm-oci (Helm OCI-Based Repository) (only valid for helm type repositories)
+      --enable-partial-clone                    If Git partial clones are enabled. Requires at least one sparse path to be set.
       --force-http-basic-auth                   whether to force use of basic auth when connecting repository via HTTP
       --gcp-service-account-key-path string     service account key for the Google Cloud Platform
       --github-app-enterprise-base-url string   base url to use when using GitHub Enterprise (e.g. https://ghe.example.com/api/v3
@@ -70,6 +71,7 @@ argocd admin repo generate-spec REPOURL [flags]
       --password string                         password to the repository
       --project string                          project of the repository
       --proxy string                            use proxy to access repository
+      --sparse-paths stringArray                Specify the sparse paths to checkout. Only valid if repo.EnabledPartialClone == true
       --ssh-private-key-path string             path to the private ssh key (e.g. ~/.ssh/id_rsa)
       --tls-client-cert-key-path string         path to the TLS client cert's key (must be PEM format)
       --tls-client-cert-path string             path to the TLS client cert (must be PEM format)

@@ -1919,6 +1919,14 @@ message Repository {
 
   // Depth specifies the depth for shallow clones. A value of 0 or omitting the field indicates a full clone.
   optional int64 depth = 27;
+
+  // EnablePartialClone enables partial clone (--filter=blob:none) combined with sparse checkout for manifest-generate-paths
+  optional bool enablePartialClone = 28;
+
+  // SparsePaths specifies which paths to checkout when using sparse checkout with partial clone.
+  // Paths can be absolute (e.g., "/charts") or relative to the repository root.
+  // If empty and EnablePartialClone=true, a full checkout will be used.
+  repeated string sparsePaths = 29;
 }
 
 // A RepositoryCertificate is either SSH known hosts entry or TLS certificate

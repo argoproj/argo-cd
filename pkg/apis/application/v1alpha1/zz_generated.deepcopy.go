@@ -3515,6 +3515,11 @@ func (in Repositories) DeepCopy() Repositories {
 func (in *Repository) DeepCopyInto(out *Repository) {
 	*out = *in
 	in.ConnectionState.DeepCopyInto(&out.ConnectionState)
+	if in.SparsePaths != nil {
+		in, out := &in.SparsePaths, &out.SparsePaths
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 

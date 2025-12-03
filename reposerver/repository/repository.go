@@ -10,6 +10,7 @@ import (
 	"io/fs"
 	"net/url"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"regexp"
@@ -179,13 +180,49 @@ func (s *Service) Init() error {
 		closer := s.gitRepoInitializer(fullPath)
 		if repo, err := gogit.PlainOpen(fullPath); err == nil {
 			if remotes, err := repo.Remotes(); err == nil && len(remotes) > 0 && len(remotes[0].Config().URLs) > 0 {
-				s.gitRepoPaths.Add(git.NormalizeGitURL(remotes[0].Config().URLs[0]), fullPath)
+				var pathSHA string
+				sparsePaths, err := getSparseCheckoutPathsFromRepo(context.Background(), fullPath)
+				if err != nil {
+					log.Warnf("Failed to get sparse checkout paths from %s: %v", fullPath, err)
+				} else if len(sparsePaths) > 0 {
+					pathSHA = git.ComputePathHash(sparsePaths)
+				}
+
+				normalizedURL := git.NormalizeGitURL(remotes[0].Config().URLs[0])
+				keyData, err := json.Marshal(map[string]string{"url": normalizedURL, "pathSHA": pathSHA})
+				if err != nil {
+					log.Warnf("Failed to marshal repo URL cache string %s: %v", normalizedURL, err)
+				}
+
+				s.gitRepoPaths.Add(string(keyData), fullPath)
 			}
 		}
 		utilio.Close(closer)
 	}
 	// remove read permissions since no-one should be able to list the directories
 	return os.Chmod(s.rootDir, 0o300)
+}
+
+// getSparseCheckoutPathsFromRepo reads the sparse checkout configuration from a git repository
+func getSparseCheckoutPathsFromRepo(ctx context.Context, repoPath string) ([]string, error) {
+	// Use git sparse-checkout list command to get the configured paths
+	// This is more robust than parsing the file directly as it handles all git's internal logic
+	cmd := exec.CommandContext(ctx, "git", "-C", repoPath, "sparse-checkout", "list")
+	output, err := cmd.Output()
+	if err != nil {
+		// If the command fails, sparse checkout is likely not configured
+		return nil, err
+	}
+
+	var paths []string
+	for _, line := range strings.Split(string(output), "\n") {
+		line = strings.TrimSpace(line)
+		if line != "" {
+			paths = append(paths, line)
+		}
+	}
+
+	return paths, nil
 }
 
 // ListOCITags List a subset of the refs (currently, branches and tags) of a git repo
@@ -233,7 +270,7 @@ func (s *Service) ListRefs(_ context.Context, q *apiclient.ListRefsRequest) (*ap
 	return &res, nil
 }
 
-// ListApps lists the contents of a GitHub repo
+// ListApps lists the contents of a Git repo
 func (s *Service) ListApps(ctx context.Context, q *apiclient.ListAppsRequest) (*apiclient.AppList, error) {
 	gitClient, commitSHA, err := s.newClientResolveRevision(q.Repo, q.Revision)
 	if err != nil {
@@ -248,7 +285,7 @@ func (s *Service) ListApps(ctx context.Context, q *apiclient.ListAppsRequest) (*
 	defer s.metricsServer.DecPendingRepoRequest(q.Repo.Repo)
 
 	closer, err := s.repoLock.Lock(gitClient.Root(), commitSHA, true, func() (goio.Closer, error) {
-		return s.checkoutRevision(gitClient, commitSHA, s.initConstants.SubmoduleEnabled, q.Repo.Depth)
+		return s.checkoutRevision(gitClient, commitSHA, s.initConstants.SubmoduleEnabled, q.Repo.Depth, q.Repo.EnablePartialClone, q.Repo.SparsePaths)
 	})
 	if err != nil {
 		return nil, fmt.Errorf("error acquiring repository lock: %w", err)
@@ -450,7 +487,7 @@ func (s *Service) runRepoOperation(
 		})
 	}
 	closer, err := s.repoLock.Lock(gitClient.Root(), revision, settings.allowConcurrent, func() (goio.Closer, error) {
-		return s.checkoutRevision(gitClient, revision, s.initConstants.SubmoduleEnabled, repo.Depth)
+		return s.checkoutRevision(gitClient, revision, s.initConstants.SubmoduleEnabled, repo.Depth, repo.EnablePartialClone, repo.SparsePaths)
 	})
 	if err != nil {
 		return err
@@ -835,7 +872,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 							return
 						}
 						closer, err := s.repoLock.Lock(gitClient.Root(), referencedCommitSHA, true, func() (goio.Closer, error) {
-							return s.checkoutRevision(gitClient, referencedCommitSHA, s.initConstants.SubmoduleEnabled, q.Repo.Depth)
+							return s.checkoutRevision(gitClient, referencedCommitSHA, s.initConstants.SubmoduleEnabled, q.Repo.Depth, q.Repo.EnablePartialClone, q.Repo.SparsePaths)
 						})
 						if err != nil {
 							log.Errorf("failed to acquire lock for referenced source %s", normalizedRepoURL)
@@ -1258,7 +1295,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 			referencedSource := getReferencedSource(p.Path, q.RefSources)
 			if referencedSource != nil {
 				// If the $-prefixed path appears to reference another source, do env substitution _after_ resolving the source
-				resolvedPath, err = getResolvedRefValueFile(p.Path, env, q.GetValuesFileSchemes(), referencedSource.Repo.Repo, gitRepoPaths)
+				resolvedPath, err = getResolvedRefValueFile(p.Path, env, q.GetValuesFileSchemes(), referencedSource.Repo.Repo, referencedSource.Repo, gitRepoPaths)
 				if err != nil {
 					return nil, "", fmt.Errorf("error resolving set-file path: %w", err)
 				}
@@ -1379,7 +1416,7 @@ func getResolvedValueFiles(
 		referencedSource := getReferencedSource(rawValueFile, refSources)
 		if referencedSource != nil {
 			// If the $-prefixed path appears to reference another source, do env substitution _after_ resolving that source.
-			resolvedPath, err = getResolvedRefValueFile(rawValueFile, env, allowedValueFilesSchemas, referencedSource.Repo.Repo, gitRepoPaths)
+			resolvedPath, err = getResolvedRefValueFile(rawValueFile, env, allowedValueFilesSchemas, referencedSource.Repo.Repo, referencedSource.Repo, gitRepoPaths)
 			if err != nil {
 				return nil, fmt.Errorf("error resolving value file path: %w", err)
 			}
@@ -1406,15 +1443,45 @@ func getResolvedValueFiles(
 	return resolvedValueFiles, nil
 }
 
-func getResolvedRefValueFile(
-	rawValueFile string,
-	env *v1alpha1.Env,
-	allowedValueFilesSchemas []string,
-	refSourceRepo string,
-	gitRepoPaths utilio.TempPaths,
-) (pathutil.ResolvedFilePath, error) {
+func getResolvedRefValueFile(rawValueFile string, env *v1alpha1.Env, allowedValueFilesSchemas []string, refSourceRepo string, repo v1alpha1.Repository, gitRepoPaths utilio.TempPaths) (pathutil.ResolvedFilePath, error) {
 	pathStrings := strings.Split(rawValueFile, "/")
-	repoPath := gitRepoPaths.GetPathIfExists(git.NormalizeGitURL(refSourceRepo))
+	/*
+		normalizedURL := git.NormalizeGitURL(refSourceRepo)
+		cacheValue := gitRepoPaths.GetPathIfExists(normalizedURL)
+		if cacheValue == "" {
+			return "", fmt.Errorf("failed to find repo %q", refSourceRepo)
+		}
+
+		var pathMap map[string]string
+		if err := json.Unmarshal([]byte(cacheValue), &pathMap); err != nil {
+			return "", fmt.Errorf("failed to unmarshal cache entry for %s: %w", normalizedURL, err)
+		}
+
+		var pathSHA string
+		if repo.EnablePartialClone && len(repo.SparsePaths) > 0 {
+			pathSHA = git.ComputePathHash(repo.SparsePaths)
+		}
+
+
+		repoPath := pathMap[pathSHA]
+	*/
+
+	var pathsSHA string
+
+	// We want a unique checkout per unique path permutation if partial clones are enabled and paths have been set.
+	// Otherwise we'll do a plain old checkout.
+	if repo.EnablePartialClone && len(repo.SparsePaths) > 0 {
+		pathsSHA = git.ComputePathHash(repo.SparsePaths)
+	}
+
+	normalizedURL := git.NormalizeGitURL(repo.Repo)
+	keyData, err := json.Marshal(map[string]string{"url": normalizedURL, "pathSHA": pathsSHA})
+	if err != nil {
+		log.Warnf("Failed to marshal repo URL cache string %s: %v", normalizedURL, err)
+	}
+
+	repoPath := gitRepoPaths.GetPathIfExists(string(keyData))
+
 	if repoPath == "" {
 		return "", fmt.Errorf("failed to find repo %q", refSourceRepo)
 	}
@@ -2436,7 +2503,7 @@ func (s *Service) GetRevisionMetadata(_ context.Context, q *apiclient.RepoServer
 	defer s.metricsServer.DecPendingRepoRequest(q.Repo.Repo)
 
 	closer, err := s.repoLock.Lock(gitClient.Root(), q.Revision, true, func() (goio.Closer, error) {
-		return s.checkoutRevision(gitClient, q.Revision, s.initConstants.SubmoduleEnabled, q.Repo.Depth)
+		return s.checkoutRevision(gitClient, q.Revision, s.initConstants.SubmoduleEnabled, q.Repo.Depth, q.Repo.EnablePartialClone, q.Repo.SparsePaths)
 	})
 	if err != nil {
 		return nil, fmt.Errorf("error acquiring repo lock: %w", err)
@@ -2563,7 +2630,21 @@ func fileParameters(q *apiclient.RepoServerAppDetailsQuery) []v1alpha1.HelmFileP
 }
 
 func (s *Service) newClient(repo *v1alpha1.Repository, opts ...git.ClientOpts) (git.Client, error) {
-	repoPath, err := s.gitRepoPaths.GetPath(git.NormalizeGitURL(repo.Repo))
+	var pathsSHA string
+
+	// We want a unique checkout per unique path permutation if partial clones are enabled and paths have been set.
+	// Otherwise we'll do a plain old checkout.
+	if repo.EnablePartialClone && len(repo.SparsePaths) > 0 {
+		pathsSHA = git.ComputePathHash(repo.SparsePaths)
+	}
+
+	normalizedURL := git.NormalizeGitURL(repo.Repo)
+	keyData, err := json.Marshal(map[string]string{"url": normalizedURL, "pathSHA": pathsSHA})
+	if err != nil {
+		log.Warnf("Failed to marshal repo URL cache string %s: %v", normalizedURL, err)
+	}
+
+	repoPath, err := s.gitRepoPaths.GetPath(string(keyData))
 	if err != nil {
 		return nil, err
 	}
@@ -2661,9 +2742,9 @@ func directoryPermissionInitializer(rootPath string) goio.Closer {
 
 // checkoutRevision is a convenience function to initialize a repo, fetch, and checkout a revision
 // Returns the 40 character commit SHA after the checkout has been performed
-func (s *Service) checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bool, depth int64) (goio.Closer, error) {
+func (s *Service) checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bool, depth int64, enablePartialClone bool, paths []string) (goio.Closer, error) {
 	closer := s.gitRepoInitializer(gitClient.Root())
-	err := checkoutRevision(gitClient, revision, submoduleEnabled, depth)
+	err := checkoutRevision(gitClient, revision, submoduleEnabled, depth, enablePartialClone, paths)
 	if err != nil {
 		s.metricsServer.IncGitFetchFail(gitClient.Root(), revision)
 	}
@@ -2695,7 +2776,7 @@ func fetch(gitClient git.Client, targetRevisions []string) error {
 		return nil
 	}
 	// Fetching with no revision first. Fetching with an explicit version can cause repo bloat. https://github.com/argoproj/argo-cd/issues/8845
-	err := gitClient.Fetch("", 0)
+	err := gitClient.Fetch("", 0, false)
 	if err != nil {
 		return err
 	}
@@ -2706,7 +2787,7 @@ func fetch(gitClient git.Client, targetRevisions []string) error {
 			log.Infof("Failed to fetch revision %s: %v", revision, err)
 			log.Infof("Fallback to fetching specific revision %s. ref might not have been in the default refspec fetched.", revision)
 
-			if err := gitClient.Fetch(revision, 0); err != nil {
+			if err := gitClient.Fetch(revision, 0, false); err != nil {
 				return status.Errorf(codes.Internal, "Failed to fetch revision %s: %v", revision, err)
 			}
 		}
@@ -2714,7 +2795,7 @@ func fetch(gitClient git.Client, targetRevisions []string) error {
 	return nil
 }
 
-func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bool, depth int64) error {
+func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bool, depth int64, enablePartialClone bool, sparsePaths []string) error {
 	err := gitClient.Init()
 	if err != nil {
 		return status.Errorf(codes.Internal, "Failed to initialize git repo: %v", err)
@@ -2723,16 +2804,41 @@ func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bo
 	revisionPresent := gitClient.IsRevisionPresent(revision)
 
 	log.WithFields(map[string]any{
-		"skipFetch": revisionPresent,
+		"skipFetch":        revisionPresent,
+		"partialClone":     enablePartialClone,
+		"sparseCheckout":   len(sparsePaths) > 0,
+		"sparsePathsCount": len(sparsePaths),
 	}).Debugf("Checking out revision %v", revision)
 
 	// Fetching can be skipped if the revision is already present locally.
 	if !revisionPresent {
-		if depth > 0 {
-			err = gitClient.Fetch(revision, depth)
-		} else {
+		switch {
+		case enablePartialClone && len(sparsePaths) > 0:
+			// Use partial clone (--filter=blob:none) for minimal network transfer
+			log.Infof("Using partial clone with %d sparse paths for revision %s", len(sparsePaths), revision)
+
+			// Configure sparse checkout before fetching
+			if err = gitClient.ConfigureSparseCheckout(sparsePaths); err != nil {
+				log.Warnf("Failed to configure sparse checkout, falling back to full checkout: %v", err)
+				// Fall back to regular fetch
+				if depth > 0 {
+					err = gitClient.Fetch(revision, depth, false)
+				} else {
+					err = gitClient.Fetch("", depth, false)
+				}
+			} else {
+				// Perform partial fetch
+				if revision != "" {
+					err = gitClient.Fetch(revision, 0, true)
+				} else {
+					err = gitClient.Fetch("", 0, true)
+				}
+			}
+		case depth > 0:
+			err = gitClient.Fetch(revision, depth, false)
+		default:
 			// Fetching with no revision first. Fetching with an explicit version can cause repo bloat. https://github.com/argoproj/argo-cd/issues/8845
-			err = gitClient.Fetch("", depth)
+			err = gitClient.Fetch("", depth, false)
 		}
 
 		if err != nil {
@@ -2746,7 +2852,12 @@ func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bo
 		// for the given revision, try explicitly fetching it.
 		log.Infof("Failed to checkout revision %s: %v", revision, err)
 		log.Infof("Fallback to fetching specific revision %s. ref might not have been in the default refspec fetched.", revision)
-		err = gitClient.Fetch(revision, depth)
+
+		if enablePartialClone && len(sparsePaths) > 0 {
+			err = gitClient.Fetch(revision, 0, true)
+		} else {
+			err = gitClient.Fetch(revision, depth, false)
+		}
 		if err != nil {
 			return status.Errorf(codes.Internal, "Failed to checkout revision %s: %v", revision, err)
 		}
@@ -2880,8 +2991,13 @@ func (s *Service) GetGitFiles(_ context.Context, request *apiclient.GitFilesRequ
 		return nil, err
 	}
 
+	var pathsSHA string
+	if repo.EnablePartialClone && len(repo.SparsePaths) > 0 {
+		pathsSHA = git.ComputePathHash(repo.SparsePaths)
+	}
+
 	// check the cache and return the results if present
-	if cachedFiles, err := s.cache.GetGitFiles(repo.Repo, revision, gitPath); err == nil {
+	if cachedFiles, err := s.cache.GetGitFiles(repo.Repo, revision, pathsSHA, gitPath); err == nil {
 		log.Debugf("cache hit for repo: %s revision: %s pattern: %s", repo.Repo, revision, gitPath)
 		return &apiclient.GitFilesResponse{
 			Map: cachedFiles,
@@ -2893,7 +3009,7 @@ func (s *Service) GetGitFiles(_ context.Context, request *apiclient.GitFilesRequ
 
 	// cache miss, generate the results
 	closer, err := s.repoLock.Lock(gitClient.Root(), revision, true, func() (goio.Closer, error) {
-		return s.checkoutRevision(gitClient, revision, request.GetSubmoduleEnabled(), repo.Depth)
+		return s.checkoutRevision(gitClient, revision, request.GetSubmoduleEnabled(), repo.Depth, repo.EnablePartialClone, repo.SparsePaths)
 	})
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "unable to checkout git repo %s with revision %s pattern %s: %v", repo.Repo, revision, gitPath, err)
@@ -2915,7 +3031,7 @@ func (s *Service) GetGitFiles(_ context.Context, request *apiclient.GitFilesRequ
 		res[filePath] = fileContents
 	}
 
-	err = s.cache.SetGitFiles(repo.Repo, revision, gitPath, res)
+	err = s.cache.SetGitFiles(repo.Repo, revision, pathsSHA, gitPath, res)
 	if err != nil {
 		log.Warnf("error caching git files for repo %s with revision %s pattern %s: %v", repo.Repo, revision, gitPath, err)
 	}
@@ -2975,7 +3091,7 @@ func (s *Service) GetGitDirectories(_ context.Context, request *apiclient.GitDir
 
 	// cache miss, generate the results
 	closer, err := s.repoLock.Lock(gitClient.Root(), revision, true, func() (goio.Closer, error) {
-		return s.checkoutRevision(gitClient, revision, request.GetSubmoduleEnabled(), repo.Depth)
+		return s.checkoutRevision(gitClient, revision, request.GetSubmoduleEnabled(), repo.Depth, repo.EnablePartialClone, repo.SparsePaths)
 	})
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "unable to checkout git repo %s with revision %s: %v", repo.Repo, revision, err)
@@ -3067,7 +3183,7 @@ func (s *Service) UpdateRevisionForPaths(_ context.Context, request *apiclient.U
 	defer s.metricsServer.DecPendingRepoRequest(repo.Repo)
 
 	closer, err := s.repoLock.Lock(gitClient.Root(), revision, true, func() (goio.Closer, error) {
-		return s.checkoutRevision(gitClient, revision, false, 0)
+		return s.checkoutRevision(gitClient, revision, false, repo.Depth, repo.EnablePartialClone, repo.SparsePaths)
 	})
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "unable to checkout git repo %s with revision %s: %v", repo.Repo, revision, err)

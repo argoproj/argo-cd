@@ -356,12 +356,12 @@ func TestGetRepository(t *testing.T) {
 		{
 			name:    "TestKnownRepo",
 			repoURL: "https://known/repo",
-			want:    &v1alpha1.Repository{Repo: "https://known/repo"},
+			want:    &v1alpha1.Repository{Repo: "https://known/repo", SparsePaths: []string{}},
 		},
 		{
 			name:    "TestSecuredRepo",
 			repoURL: "https://secured/repo",
-			want:    &v1alpha1.Repository{Repo: "https://secured/repo", Username: "test-username", Password: "test-password", InheritedCreds: true},
+			want:    &v1alpha1.Repository{Repo: "https://secured/repo", Username: "test-username", Password: "test-password", InheritedCreds: true, SparsePaths: []string{}},
 		},
 	}
 	for _, tt := range tests {
@@ -434,12 +434,12 @@ func TestGetWriteRepository(t *testing.T) {
 		{
 			name:    "TestKnownRepo",
 			repoURL: "https://known/repo",
-			want:    &v1alpha1.Repository{Repo: "https://known/repo"},
+			want:    &v1alpha1.Repository{Repo: "https://known/repo", SparsePaths: []string{}},
 		},
 		{
 			name:    "TestSecuredRepo",
 			repoURL: "https://secured/repo",
-			want:    &v1alpha1.Repository{Repo: "https://secured/repo", Username: "test-username", Password: "test-password", InheritedCreds: true},
+			want:    &v1alpha1.Repository{Repo: "https://secured/repo", Username: "test-username", Password: "test-password", InheritedCreds: true, SparsePaths: []string{}},
 		},
 	}
 	for _, tt := range tests {

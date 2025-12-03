@@ -199,7 +199,8 @@ func ResourceHealthWithNamespaceIs(kind, resource, namespace string, expected he
 
 func ResourceResultNumbering(num int) Expectation {
 	return func(c *Consequences) (state, string) {
-		actualNum := len(c.app().Status.OperationState.SyncResult.Resources)
+		resources := c.app().Status.OperationState.SyncResult.Resources
+		actualNum := len(resources)
 		if actualNum < num {
 			return pending, fmt.Sprintf("not enough results yet, want %d, got %d", num, actualNum)
 		} else if actualNum == num {
