@@ -16,6 +16,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/cloud"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
+	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/google/go-github/v69/github"
 
 	"golang.org/x/oauth2"
@@ -43,6 +47,8 @@ var (
 
 	// In memory cache for storing Azure tokens
 	azureTokenCache *gocache.Cache
+	// In memory cache for storing Azure Service Principal tokens
+	azureServicePrincipalTokenCache *gocache.Cache
 )
 
 const (
@@ -61,11 +67,18 @@ func init() {
 			githubAppCredsExp = time.Duration(qps) * time.Minute
 		}
 	}
+	azureServicePrincipalCredsExp := common.AzureServicePrincipalCredsExpirationDuration
+	if exp := os.Getenv(common.EnvAzureServicePrincipalCredsExpirationDuration); exp != "" {
+		if qps, err := strconv.Atoi(exp); err != nil {
+			azureServicePrincipalCredsExp = time.Duration(qps) * time.Minute
+		}
+	}
 
 	githubAppTokenCache = gocache.New(githubAppCredsExp, 1*time.Minute)
 	// oauth2.TokenSource handles fetching new Tokens once they are expired. The oauth2.TokenSource itself does not expire.
 	googleCloudTokenSource = gocache.New(gocache.NoExpiration, 0)
 	azureTokenCache = gocache.New(gocache.NoExpiration, 0)
+	azureServicePrincipalTokenCache = gocache.New(azureServicePrincipalCredsExp, 1*time.Minute)
 }
 
 type NoopCredsStore struct{}
@@ -745,4 +758,126 @@ func (creds AzureWorkloadIdentityCreds) getAccessToken(scope string) (string, er
 func (creds AzureWorkloadIdentityCreds) GetAzureDevOpsAccessToken() (string, error) {
 	accessToken, err := creds.getAccessToken(azureDevopsEntraResourceId) // wellknown resourceid of Azure DevOps
 	return accessToken, err
+}
+
+var _ Creds = AzureServicePrincipalCreds{}
+
+// AzureServicePrincipalCreds to authenticate to Azure DevOps using a Service Principal
+type AzureServicePrincipalCreds struct {
+	tenantID                string
+	clientID                string
+	clientSecret            string
+	activeDirectoryEndpoint string
+	clientCertData          string
+	clientCertKey           string
+	proxy                   string
+	noProxy                 string
+	store                   CredsStore
+}
+
+// NewAzureServicePrincipalCreds creates new Azure Service Principal credentials
+func NewAzureServicePrincipalCreds(tenantID string, clientID string, clientSecret string, store CredsStore) AzureServicePrincipalCreds {
+	return AzureServicePrincipalCreds{tenantID: tenantID, clientID: clientID, clientSecret: clientSecret, store: store}
+}
+
+// WithActiveDirectoryEndpoint sets a custom Active Directory endpoint. When not set, the default Azure public cloud is used.
+func (a AzureServicePrincipalCreds) WithActiveDirectoryEndpoint(activeDirectoryEndpoint string) AzureServicePrincipalCreds {
+	a.activeDirectoryEndpoint = activeDirectoryEndpoint
+	return a
+}
+
+// WithClientCert sets the client certificate data and key
+func (a AzureServicePrincipalCreds) WithClientCert(data string, key string) AzureServicePrincipalCreds {
+	a.clientCertData = data
+	a.clientCertKey = key
+	return a
+}
+
+// WithProxy sets the HTTP/HTTPS proxy used to access the repo
+func (a AzureServicePrincipalCreds) WithProxy(proxy string) AzureServicePrincipalCreds {
+	a.proxy = proxy
+	return a
+}
+
+// WithNoProxy sets a comma separated list of IPs/hostnames that should not use the proxy
+func (a AzureServicePrincipalCreds) WithNoProxy(noProxy string) AzureServicePrincipalCreds {
+	a.noProxy = noProxy
+	return a
+}
+
+// GetUserInfo doesn't return any user info as they are not present for Azure Service Principals.
+func (a AzureServicePrincipalCreds) GetUserInfo(_ context.Context) (string, string, error) {
+	return workloadidentity.EmptyGuid, "", nil
+}
+
+func (a AzureServicePrincipalCreds) Environ() (io.Closer, []string, error) {
+	token, err := a.getAccessToken()
+	if err != nil {
+		return NopCloser{}, nil, err
+	}
+	nonce := a.store.Add("", token)
+	env := a.store.Environ(nonce)
+	env = append(env, fmt.Sprintf("%s=Authorization: Bearer %s", bearerAuthHeaderEnv, token))
+
+	return utilio.NewCloser(func() error {
+		a.store.Remove(nonce)
+		return nil
+	}), env, nil
+}
+
+func (a AzureServicePrincipalCreds) getAccessToken() (string, error) {
+	// Override the default active directory endpoint if present
+	activeDirectoryEndpoint := "https://login.microsoftonline.com"
+	disableInstanceDiscovery := false
+	if a.activeDirectoryEndpoint != "" {
+		activeDirectoryEndpoint = a.activeDirectoryEndpoint
+		disableInstanceDiscovery = true
+	}
+
+	// Generate cache key for creds
+	key, err := argoutils.GenerateCacheKey("%s %s %s %s", a.tenantID, a.clientID, a.clientSecret, activeDirectoryEndpoint)
+	if err != nil {
+		return "", fmt.Errorf("failed to get get SHA256 hash for Azure Service Principal credentials: %w", err)
+	}
+
+	t, found := azureServicePrincipalTokenCache.Get(key)
+	if found {
+		return t.(string), nil
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	opts := azcore.ClientOptions{}
+	opts.Cloud = cloud.Configuration{
+		ActiveDirectoryAuthorityHost: activeDirectoryEndpoint,
+	}
+	// Configure HTTP client with proxy if proxy is set
+	if a.proxy != "" {
+		opts.Transport = GetRepoHTTPClient(activeDirectoryEndpoint, false, a, a.proxy, a.noProxy)
+	}
+	cred, err := azidentity.NewClientSecretCredential(a.tenantID, a.clientID, a.clientSecret, &azidentity.ClientSecretCredentialOptions{ClientOptions: opts, DisableInstanceDiscovery: disableInstanceDiscovery})
+	if err != nil {
+		return "", fmt.Errorf("failed to create Azure client secret credential: %w", err)
+	}
+	token, err := cred.GetToken(ctx, policy.TokenRequestOptions{
+		Scopes: []string{azureDevopsEntraResourceId},
+	})
+	if err != nil {
+		return "", fmt.Errorf("failed to get Azure access token: %w", err)
+	}
+	azureServicePrincipalTokenCache.Set(key, token.Token, 0)
+	return token.Token, nil
+}
+
+func (a AzureServicePrincipalCreds) HasClientCert() bool {
+	return a.clientCertData != "" && a.clientCertKey != ""
+}
+
+func (a AzureServicePrincipalCreds) GetClientCertData() string {
+	return a.clientCertData
+}
+
+func (a AzureServicePrincipalCreds) GetClientCertKey() string {
+	return a.clientCertKey
 }
