@@ -192,8 +192,18 @@ func newClientWithLock(repoURL string, repoLock sync.KeyLock, repo oras.ReadOnly
 	return c
 }
 
+type EventHandlers struct {
+	OnExtract         func(repo string) func()
+	OnResolveRevision func(repo string) func()
+	OnDigestMetadata  func(repo string) func()
+	OnTestRepo        func(repo string) func()
+	OnGetTags         func(repo string) func()
+}
+
 // nativeOCIClient implements Client interface using oras-go
 type nativeOCIClient struct {
+	EventHandlers
+
 	repoURL                         string
 	repo                            oras.ReadOnlyTarget
 	tagsFunc                        func(context.Context, string) ([]string, error)
@@ -208,11 +218,20 @@ type nativeOCIClient struct {
 
 // TestRepo verifies that the remote OCI repo can be connected to.
 func (c *nativeOCIClient) TestRepo(ctx context.Context) (bool, error) {
+	if c.OnTestRepo != nil {
+		done := c.OnTestRepo(c.repoURL)
+		defer done()
+	}
+
 	err := c.pingFunc(ctx)
 	return err == nil, err
 }
 
 func (c *nativeOCIClient) Extract(ctx context.Context, digest string) (string, utilio.Closer, error) {
+	if c.OnExtract != nil {
+		done := c.OnExtract(c.repoURL)
+		defer done()
+	}
 	cachedPath, err := c.getCachedPath(digest)
 	if err != nil {
 		return "", nil, fmt.Errorf("error getting oci path for digest %s: %w", digest, err)
@@ -295,6 +314,11 @@ func (c *nativeOCIClient) CleanCache(revision string) error {
 
 // DigestMetadata extracts the OCI manifest for a given revision and returns it to the caller.
 func (c *nativeOCIClient) DigestMetadata(ctx context.Context, digest string) (*imagev1.Manifest, error) {
+	if c.OnDigestMetadata != nil {
+		done := c.OnDigestMetadata(c.repoURL)
+		defer done()
+	}
+
 	path, err := c.getCachedPath(digest)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching oci metadata path for digest %s: %w", digest, err)
@@ -309,6 +333,11 @@ func (c *nativeOCIClient) DigestMetadata(ctx context.Context, digest string) (*i
 }
 
 func (c *nativeOCIClient) ResolveRevision(ctx context.Context, revision string, noCache bool) (string, error) {
+	if c.OnResolveRevision != nil {
+		done := c.OnResolveRevision(c.repoURL)
+		defer done()
+	}
+
 	digest, err := c.resolveDigest(ctx, revision) // Lookup explicit revision
 	if err != nil {
 		// If the revision is not a semver constraint, just return the error
@@ -334,6 +363,10 @@ func (c *nativeOCIClient) ResolveRevision(ctx context.Context, revision string, 
 }
 
 func (c *nativeOCIClient) GetTags(ctx context.Context, noCache bool) ([]string, error) {
+	if c.OnGetTags != nil {
+		done := c.OnGetTags(c.repoURL)
+		defer done()
+	}
 	indexLock.Lock(c.repoURL)
 	defer indexLock.Unlock(c.repoURL)
 
@@ -610,4 +643,11 @@ func getOCIManifest(ctx context.Context, digest string, repo oras.ReadOnlyTarget
 	}
 
 	return &manifest, nil
+}
+
+// WithEventHandlers sets the git client event handlers
+func WithEventHandlers(handlers EventHandlers) ClientOpts {
+	return func(c *nativeOCIClient) {
+		c.EventHandlers = handlers
+	}
 }
