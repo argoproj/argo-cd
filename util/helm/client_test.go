@@ -42,13 +42,13 @@ func (f *fakeIndexCache) GetHelmIndex(_ string, indexData *[]byte) error {
 
 func TestIndex(t *testing.T) {
 	t.Run("Invalid", func(t *testing.T) {
-		client := NewClient("", HelmCreds{}, false, "", "")
-		_, err := client.GetIndex(false, 10000)
+		client := NewClient("", HelmCreds{}, false, "", "", WithHelmRegistryMaxIndexSize(10000))
+		_, err := client.GetIndex(false)
 		require.Error(t, err)
 	})
 	t.Run("Stable", func(t *testing.T) {
-		client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{}, false, "", "")
-		index, err := client.GetIndex(false, 10000)
+		client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{}, false, "", "", WithHelmRegistryMaxIndexSize(10000))
+		index, err := client.GetIndex(false)
 		require.NoError(t, err)
 		assert.NotNil(t, index)
 	})
@@ -56,8 +56,8 @@ func TestIndex(t *testing.T) {
 		client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{
 			Username: "my-password",
 			Password: "my-username",
-		}, false, "", "")
-		index, err := client.GetIndex(false, 10000)
+		}, false, "", "", WithHelmRegistryMaxIndexSize(10000))
+		index, err := client.GetIndex(false)
 		require.NoError(t, err)
 		assert.NotNil(t, index)
 	})
@@ -68,24 +68,24 @@ func TestIndex(t *testing.T) {
 		err := yaml.NewEncoder(&data).Encode(fakeIndex)
 		require.NoError(t, err)
 
-		client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{}, false, "", "", WithIndexCache(&fakeIndexCache{data: data.Bytes()}))
-		index, err := client.GetIndex(false, 10000)
+		client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{}, false, "", "", WithIndexCache(&fakeIndexCache{data: data.Bytes()}), WithHelmRegistryMaxIndexSize(10000))
+		index, err := client.GetIndex(false)
 
 		require.NoError(t, err)
 		assert.Equal(t, fakeIndex, *index)
 	})
 
 	t.Run("Limited", func(t *testing.T) {
-		client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{}, false, "", "")
-		_, err := client.GetIndex(false, 100)
+		client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{}, false, "", "", WithHelmRegistryMaxIndexSize(100))
+		_, err := client.GetIndex(false)
 
 		assert.ErrorContains(t, err, "unexpected end of stream")
 	})
 }
 
 func Test_nativeHelmChart_ExtractChart(t *testing.T) {
-	client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{}, false, "", "")
-	path, closer, err := client.ExtractChart("argo-cd", "0.7.1", false, math.MaxInt64, true)
+	client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{}, false, "", "", WithHelmManifestMaxExtractedSize(math.MaxInt64), WithDisableHelmManifestMaxExtractedSize(true))
+	path, closer, err := client.ExtractChart("argo-cd", "0.7.1")
 	require.NoError(t, err)
 	defer utilio.Close(closer)
 	info, err := os.Stat(path)
@@ -94,14 +94,14 @@ func Test_nativeHelmChart_ExtractChart(t *testing.T) {
 }
 
 func Test_nativeHelmChart_ExtractChartWithLimiter(t *testing.T) {
-	client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{}, false, "", "")
-	_, _, err := client.ExtractChart("argo-cd", "0.7.1", false, 100, false)
+	client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{}, false, "", "", WithHelmManifestMaxExtractedSize(100), WithDisableHelmManifestMaxExtractedSize(false))
+	_, _, err := client.ExtractChart("argo-cd", "0.7.1")
 	require.Error(t, err, "error while iterating on tar reader: unexpected EOF")
 }
 
 func Test_nativeHelmChart_ExtractChart_insecure(t *testing.T) {
-	client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{InsecureSkipVerify: true}, false, "", "")
-	path, closer, err := client.ExtractChart("argo-cd", "0.7.1", false, math.MaxInt64, true)
+	client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{InsecureSkipVerify: true}, false, "", "", WithHelmManifestMaxExtractedSize(math.MaxInt64), WithDisableHelmManifestMaxExtractedSize(true))
+	path, closer, err := client.ExtractChart("argo-cd", "0.7.1")
 	require.NoError(t, err)
 	defer utilio.Close(closer)
 	info, err := os.Stat(path)

@@ -7,9 +7,15 @@ import (
 	"io"
 	"strings"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"github.com/argoproj/argo-cd/v3/common"
 	apppathutil "github.com/argoproj/argo-cd/v3/util/app/path"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/argoproj/pkg/v2/sync"
+	log "github.com/sirupsen/logrus"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
@@ -21,10 +27,6 @@ import (
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/oci"
 	"github.com/argoproj/argo-cd/v3/util/versions"
-	"github.com/argoproj/pkg/v2/sync"
-	log "github.com/sirupsen/logrus"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 // CacheFn defines the signature for a cache checking function.
@@ -104,7 +106,6 @@ func NewOCISourceClient(repo *v1alpha1.Repository, opts ...oci.ClientOpts) (Sour
 		repo.NoProxy,
 		opts...,
 	)
-
 	if err != nil {
 		return nil, err
 	}
@@ -152,12 +153,12 @@ func (c *ociSourceClient) Extract(ctx context.Context, revision string, noCache 
 	return rootPath, closer, err
 }
 
-func (c *ociSourceClient) VerifySignature(resolvedRevision string, unresolvedRevision string) (string, error) {
+func (c *ociSourceClient) VerifySignature(_ string, _ string) (string, error) {
 	// OCI doesn't support signature verification through this interface
 	return "", nil
 }
 
-func (c *ociSourceClient) GetRevisionMetadata(ctx context.Context, revision string, checkSignature bool) (*v1alpha1.OCIMetadata, error) {
+func (c *ociSourceClient) GetRevisionMetadata(ctx context.Context, revision string, _ bool) (*v1alpha1.OCIMetadata, error) {
 	metadata, err := c.client.DigestMetadata(ctx, revision)
 	if err != nil {
 		return nil, fmt.Errorf("failed to extract digest metadata for revision %q: %w", revision, err)
@@ -188,7 +189,7 @@ func (c *ociSourceClient) ListRefs(ctx context.Context, noCache bool) (*apiclien
 	}, nil
 }
 
-func (c *ociSourceClient) ResolveReferencedSources(hasMultipleSources bool, source *v1alpha1.ApplicationSourceHelm, refSources map[string]*v1alpha1.RefTarget) (map[string]string, error) {
+func (c *ociSourceClient) ResolveReferencedSources(_ bool, _ *v1alpha1.ApplicationSourceHelm, _ map[string]*v1alpha1.RefTarget) (map[string]string, error) {
 	return make(map[string]string), nil
 }
 
@@ -216,7 +217,7 @@ func NewHelmSourceClient(repo *v1alpha1.Repository, chart string, opts ...helm.C
 	}
 }
 
-func (c *helmSourceClient) ResolveRevision(ctx context.Context, revision string, noCache bool) (string, string, error) {
+func (c *helmSourceClient) ResolveRevision(_ context.Context, revision string, noCache bool) (string, string, error) {
 	enableOCI := c.repo.EnableOCI || helm.IsHelmOciRepo(c.repo.Repo)
 
 	// If it's already a version, return it
@@ -251,7 +252,7 @@ func (c *helmSourceClient) ResolveRevision(ctx context.Context, revision string,
 	return maxV, maxV, nil
 }
 
-func (c *helmSourceClient) Extract(ctx context.Context, revision string, noCache bool, allowOutOfBoundsSymlinks bool) (string, io.Closer, error) {
+func (c *helmSourceClient) Extract(_ context.Context, revision string, noCache bool, allowOutOfBoundsSymlinks bool) (string, io.Closer, error) {
 	if noCache {
 		err := c.client.CleanChartCache(c.chart, revision)
 		if err != nil {
@@ -277,7 +278,7 @@ func (c *helmSourceClient) Extract(ctx context.Context, revision string, noCache
 	return rootPath, closer, err
 }
 
-func (c *helmSourceClient) VerifySignature(resolvedRevision string, unresolvedRevision string) (string, error) {
+func (c *helmSourceClient) VerifySignature(_ string, _ string) (string, error) {
 	// Helm doesn't support signature verification through this interface
 	return "", nil
 }
@@ -326,7 +327,7 @@ func (c *helmSourceClient) GetRevisionMetadata(ctx context.Context, revision str
 	return details, nil
 }
 
-func (c *helmSourceClient) ListRefs(ctx context.Context, noCache bool) (*apiclient.Refs, error) {
+func (c *helmSourceClient) ListRefs(_ context.Context, noCache bool) (*apiclient.Refs, error) {
 	enableOCI := c.repo.EnableOCI || helm.IsHelmOciRepo(c.repo.Repo)
 
 	var tags []string
@@ -353,7 +354,7 @@ func (c *helmSourceClient) ListRefs(ctx context.Context, noCache bool) (*apiclie
 	}, nil
 }
 
-func (c *helmSourceClient) ResolveReferencedSources(hasMultipleSources bool, source *v1alpha1.ApplicationSourceHelm, refSources map[string]*v1alpha1.RefTarget) (map[string]string, error) {
+func (c *helmSourceClient) ResolveReferencedSources(_ bool, _ *v1alpha1.ApplicationSourceHelm, _ map[string]*v1alpha1.RefTarget) (map[string]string, error) {
 	return make(map[string]string), nil
 }
 
@@ -444,7 +445,7 @@ func NewGitSourceClient(repo *v1alpha1.Repository, gitRepoPaths utilio.TempPaths
 	return gsc, nil
 }
 
-func (c *gitSourceClient) ResolveRevision(ctx context.Context, revision string, noCache bool) (string, string, error) {
+func (c *gitSourceClient) ResolveRevision(_ context.Context, revision string, noCache bool) (string, string, error) {
 	commitSHA, err := c.resolveRevision(c.client, revision)
 	if err != nil {
 		return "", "", err
@@ -550,7 +551,7 @@ func (c *gitSourceClient) CleanCache(_ string) error {
 	return nil
 }
 
-func (c *gitSourceClient) Extract(ctx context.Context, revision string, noCache bool, allowOutOfBoundsSymlinks bool) (string, io.Closer, error) {
+func (c *gitSourceClient) Extract(_ context.Context, revision string, noCache bool, allowOutOfBoundsSymlinks bool) (string, io.Closer, error) {
 	closer, err := c.repositoryLock.Lock(c.client.Root(), revision, true, func() (io.Closer, error) {
 		closer := c.directoryPermissionInitializer(c.client.Root())
 		err := c.client.Init()
@@ -597,7 +598,6 @@ func (c *gitSourceClient) Extract(ctx context.Context, revision string, noCache 
 
 		return closer, err
 	})
-
 	if err != nil {
 		return "", nil, err
 	}
@@ -640,7 +640,7 @@ func (c *gitSourceClient) VerifySignature(resolvedRevision string, unresolvedRev
 	return c.client.VerifyCommitSignature(revisionToVerify)
 }
 
-func (c *gitSourceClient) GetRevisionMetadata(ctx context.Context, revision string, checkSignature bool) (*v1alpha1.RevisionMetadata, error) {
+func (c *gitSourceClient) GetRevisionMetadata(_ context.Context, revision string, checkSignature bool) (*v1alpha1.RevisionMetadata, error) {
 	// Validate that the revision is a commit SHA
 	if !git.IsCommitSHA(revision) && !git.IsTruncatedCommitSHA(revision) {
 		return nil, fmt.Errorf("revision %s must be resolved", revision)
@@ -775,7 +775,7 @@ func (c *gitSourceClient) GetRevisionMetadata(ctx context.Context, revision stri
 	return details, nil
 }
 
-func (c *gitSourceClient) ListRefs(ctx context.Context, noCache bool) (*apiclient.Refs, error) {
+func (c *gitSourceClient) ListRefs(_ context.Context, _ bool) (*apiclient.Refs, error) {
 	refs, err := c.client.LsRefs()
 	if err != nil {
 		return nil, err

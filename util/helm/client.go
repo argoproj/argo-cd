@@ -78,6 +78,7 @@ func WithHelmManifestMaxExtractedSize(helmManifestMaxExtractedSize int64) Client
 		c.helmManifestMaxExtractedSize = helmManifestMaxExtractedSize
 	}
 }
+
 func WithDisableHelmManifestMaxExtractedSize(disableHelmManifestMaxExtractedSize bool) ClientOpts {
 	return func(c *nativeHelmChart) {
 		c.disableHelmManifestMaxExtractedSize = disableHelmManifestMaxExtractedSize

@@ -95,8 +95,8 @@ func (_c *Client_CleanChartCache_Call) RunAndReturn(run func(chart string, versi
 }
 
 // ExtractChart provides a mock function for the type Client
-func (_mock *Client) ExtractChart(chart string, version string, passCredentials bool, manifestMaxExtractedSize int64, disableManifestMaxExtractedSize bool) (string, io.Closer, error) {
-	ret := _mock.Called(chart, version, passCredentials, manifestMaxExtractedSize, disableManifestMaxExtractedSize)
+func (_mock *Client) ExtractChart(chart string, version string) (string, io.Closer, error) {
+	ret := _mock.Called(chart, version)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ExtractChart")
@@ -105,23 +105,23 @@ func (_mock *Client) ExtractChart(chart string, version string, passCredentials 
 	var r0 string
 	var r1 io.Closer
 	var r2 error
-	if returnFunc, ok := ret.Get(0).(func(string, string, bool, int64, bool) (string, io.Closer, error)); ok {
-		return returnFunc(chart, version, passCredentials, manifestMaxExtractedSize, disableManifestMaxExtractedSize)
+	if returnFunc, ok := ret.Get(0).(func(string, string) (string, io.Closer, error)); ok {
+		return returnFunc(chart, version)
 	}
-	if returnFunc, ok := ret.Get(0).(func(string, string, bool, int64, bool) string); ok {
-		r0 = returnFunc(chart, version, passCredentials, manifestMaxExtractedSize, disableManifestMaxExtractedSize)
+	if returnFunc, ok := ret.Get(0).(func(string, string) string); ok {
+		r0 = returnFunc(chart, version)
 	} else {
 		r0 = ret.Get(0).(string)
 	}
-	if returnFunc, ok := ret.Get(1).(func(string, string, bool, int64, bool) io.Closer); ok {
-		r1 = returnFunc(chart, version, passCredentials, manifestMaxExtractedSize, disableManifestMaxExtractedSize)
+	if returnFunc, ok := ret.Get(1).(func(string, string) io.Closer); ok {
+		r1 = returnFunc(chart, version)
 	} else {
 		if ret.Get(1) != nil {
 			r1 = ret.Get(1).(io.Closer)
 		}
 	}
-	if returnFunc, ok := ret.Get(2).(func(string, string, bool, int64, bool) error); ok {
-		r2 = returnFunc(chart, version, passCredentials, manifestMaxExtractedSize, disableManifestMaxExtractedSize)
+	if returnFunc, ok := ret.Get(2).(func(string, string) error); ok {
+		r2 = returnFunc(chart, version)
 	} else {
 		r2 = ret.Error(2)
 	}
@@ -136,14 +136,11 @@ type Client_ExtractChart_Call struct {
 // ExtractChart is a helper method to define mock.On call
 //   - chart string
 //   - version string
-//   - passCredentials bool
-//   - manifestMaxExtractedSize int64
-//   - disableManifestMaxExtractedSize bool
-func (_e *Client_Expecter) ExtractChart(chart interface{}, version interface{}, passCredentials interface{}, manifestMaxExtractedSize interface{}, disableManifestMaxExtractedSize interface{}) *Client_ExtractChart_Call {
-	return &Client_ExtractChart_Call{Call: _e.mock.On("ExtractChart", chart, version, passCredentials, manifestMaxExtractedSize, disableManifestMaxExtractedSize)}
+func (_e *Client_Expecter) ExtractChart(chart interface{}, version interface{}) *Client_ExtractChart_Call {
+	return &Client_ExtractChart_Call{Call: _e.mock.On("ExtractChart", chart, version)}
 }
 
-func (_c *Client_ExtractChart_Call) Run(run func(chart string, version string, passCredentials bool, manifestMaxExtractedSize int64, disableManifestMaxExtractedSize bool)) *Client_ExtractChart_Call {
+func (_c *Client_ExtractChart_Call) Run(run func(chart string, version string)) *Client_ExtractChart_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 string
 		if args[0] != nil {
@@ -153,24 +150,9 @@ func (_c *Client_ExtractChart_Call) Run(run func(chart string, version string, p
 		if args[1] != nil {
 			arg1 = args[1].(string)
 		}
-		var arg2 bool
-		if args[2] != nil {
-			arg2 = args[2].(bool)
-		}
-		var arg3 int64
-		if args[3] != nil {
-			arg3 = args[3].(int64)
-		}
-		var arg4 bool
-		if args[4] != nil {
-			arg4 = args[4].(bool)
-		}
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3,
-			arg4,
 		)
 	})
 	return _c
@@ -181,14 +163,14 @@ func (_c *Client_ExtractChart_Call) Return(s string, closer io.Closer, err error
 	return _c
 }
 
-func (_c *Client_ExtractChart_Call) RunAndReturn(run func(chart string, version string, passCredentials bool, manifestMaxExtractedSize int64, disableManifestMaxExtractedSize bool) (string, io.Closer, error)) *Client_ExtractChart_Call {
+func (_c *Client_ExtractChart_Call) RunAndReturn(run func(chart string, version string) (string, io.Closer, error)) *Client_ExtractChart_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetIndex provides a mock function for the type Client
-func (_mock *Client) GetIndex(noCache bool, maxIndexSize int64) (*helm.Index, error) {
-	ret := _mock.Called(noCache, maxIndexSize)
+func (_mock *Client) GetIndex(noCache bool) (*helm.Index, error) {
+	ret := _mock.Called(noCache)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetIndex")
@@ -196,18 +178,18 @@ func (_mock *Client) GetIndex(noCache bool, maxIndexSize int64) (*helm.Index, er
 
 	var r0 *helm.Index
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(bool, int64) (*helm.Index, error)); ok {
-		return returnFunc(noCache, maxIndexSize)
+	if returnFunc, ok := ret.Get(0).(func(bool) (*helm.Index, error)); ok {
+		return returnFunc(noCache)
 	}
-	if returnFunc, ok := ret.Get(0).(func(bool, int64) *helm.Index); ok {
-		r0 = returnFunc(noCache, maxIndexSize)
+	if returnFunc, ok := ret.Get(0).(func(bool) *helm.Index); ok {
+		r0 = returnFunc(noCache)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*helm.Index)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(bool, int64) error); ok {
-		r1 = returnFunc(noCache, maxIndexSize)
+	if returnFunc, ok := ret.Get(1).(func(bool) error); ok {
+		r1 = returnFunc(noCache)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -221,24 +203,18 @@ type Client_GetIndex_Call struct {
 
 // GetIndex is a helper method to define mock.On call
 //   - noCache bool
-//   - maxIndexSize int64
-func (_e *Client_Expecter) GetIndex(noCache interface{}, maxIndexSize interface{}) *Client_GetIndex_Call {
-	return &Client_GetIndex_Call{Call: _e.mock.On("GetIndex", noCache, maxIndexSize)}
+func (_e *Client_Expecter) GetIndex(noCache interface{}) *Client_GetIndex_Call {
+	return &Client_GetIndex_Call{Call: _e.mock.On("GetIndex", noCache)}
 }
 
-func (_c *Client_GetIndex_Call) Run(run func(noCache bool, maxIndexSize int64)) *Client_GetIndex_Call {
+func (_c *Client_GetIndex_Call) Run(run func(noCache bool)) *Client_GetIndex_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 bool
 		if args[0] != nil {
 			arg0 = args[0].(bool)
 		}
-		var arg1 int64
-		if args[1] != nil {
-			arg1 = args[1].(int64)
-		}
 		run(
 			arg0,
-			arg1,
 		)
 	})
 	return _c
@@ -249,7 +225,7 @@ func (_c *Client_GetIndex_Call) Return(index *helm.Index, err error) *Client_Get
 	return _c
 }
 
-func (_c *Client_GetIndex_Call) RunAndReturn(run func(noCache bool, maxIndexSize int64) (*helm.Index, error)) *Client_GetIndex_Call {
+func (_c *Client_GetIndex_Call) RunAndReturn(run func(noCache bool) (*helm.Index, error)) *Client_GetIndex_Call {
 	_c.Call.Return(run)
 	return _c
 }
