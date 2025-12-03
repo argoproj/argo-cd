@@ -41,8 +41,9 @@ type policyOpts struct {
 // NewProjectCommand returns a new instance of an `argocd proj` command
 func NewProjectCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	command := &cobra.Command{
-		Use:   "proj",
-		Short: "Manage projects",
+		Use:     "proj",
+		Short:   "Manage projects",
+		Aliases: []string{"project"},
 		Example: templates.Examples(`
 			# List all available projects
 			argocd proj list
@@ -884,7 +885,7 @@ func NewProjectListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 			# List all available projects
 			argocd proj list
 
-			# List all available projects in yaml format
+			# List all available projects in yaml format (other options are "json" and "name")
 			argocd proj list -o yaml
 		`),
 		Run: func(c *cobra.Command, _ []string) {

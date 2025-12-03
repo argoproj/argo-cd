@@ -14,7 +14,11 @@ tests:
 - healthStatus:
     status: Degraded
     message: "Pull request reconciliation failed: Something went wrong"
-  inputPath: testdata/reconcile-error.yaml
+  inputPath: testdata/reconciliation-error.yaml
+- healthStatus:
+    status: Degraded
+    message: "Pull request reconciliation failed: Failed to create pull request: authentication failed"
+  inputPath: testdata/non-reconciliation-error.yaml
 - healthStatus:
     status: Progressing
     message: Pull request is not ready yet

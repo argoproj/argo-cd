@@ -5619,6 +5619,9 @@
         "statusBadgeRootUrl": {
           "type": "string"
         },
+        "syncWithReplaceAllowed": {
+          "type": "boolean"
+        },
         "trackingMethod": {
           "type": "string"
         },
@@ -9450,7 +9453,7 @@
           "title": "TLSClientCertKey specifies the TLS client cert key for authenticating at the repo server"
         },
         "type": {
-          "description": "Type specifies the type of the repoCreds. Can be either \"git\" or \"helm. \"git\" is assumed if empty or absent.",
+          "description": "Type specifies the type of the repoCreds. Can be either \"git\", \"helm\" or \"oci\". \"git\" is assumed if empty or absent.",
           "type": "string"
         },
         "url": {
@@ -9492,6 +9495,11 @@
         },
         "connectionState": {
           "$ref": "#/definitions/v1alpha1ConnectionState"
+        },
+        "depth": {
+          "description": "Depth specifies the depth for shallow clones. A value of 0 or omitting the field indicates a full clone.",
+          "type": "integer",
+          "format": "int64"
         },
         "enableLfs": {
           "description": "EnableLFS specifies whether git-lfs support should be enabled for this repo. Only valid for Git repositories.",
@@ -10593,8 +10601,8 @@
           "type": "string"
         },
         "targetBranch": {
-          "type": "string",
-          "title": "TargetBranch is the branch to which hydrated manifests should be committed"
+          "description": "TargetBranch is the branch from which hydrated manifests will be synced.\nIf HydrateTo is not set, this is also the branch to which hydrated manifests are committed.",
+          "type": "string"
         }
       }
     },

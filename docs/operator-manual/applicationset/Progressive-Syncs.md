@@ -1,12 +1,12 @@
 # Progressive Syncs
 
 > [!WARNING]
-> **Alpha Feature (Since v2.6.0)**
+> **Beta Feature (Since v2.6.0)**
 >
 
-    This is an experimental, [alpha-quality](https://github.com/argoproj/argoproj/blob/main/community/feature-status.md#alpha)
-    feature that allows you to control the order in which the ApplicationSet controller will create or update the Applications
-    owned by an ApplicationSet resource. It may be removed in future releases or modified in backwards-incompatible ways.
+    This feature is in the [Beta](https://github.com/argoproj/argoproj/blob/main/community/feature-status.md#beta) stage. It is generally considered stable, but there may be unhandled edge cases.
+    This feature allows you to control the order in which the ApplicationSet controller will create or update the Applications
+    owned by an ApplicationSet resource. 
 
 ## Use Cases
 
@@ -115,7 +115,9 @@ This strategy is particularly useful when you need to tear down dependent servic
 - Requires `rollingSync.steps` to be defined
 - Applications are deleted in reverse order of step sequence
 
-**Important:** The ApplicationSet finalizer is not removed until all applications are successfully deleted. This ensures proper cleanup and prevents the ApplicationSet from being removed before its managed applications.
+**Important:** The ApplicationSet finalizer is not removed until all applications are successfully deleted. This ensures proper cleanup and prevents the ApplicationSet from being removed before its managed applications. 
+
+**Note:** ApplicationSet controller ensures there is a finalizer when `deletionOrder` is set as `Reverse` with progressive sync enabled. This means that if the applicationset is missing the required finalizer, the applicationset controller adds the finalizer to ApplicationSet before generating applications.
 
 ```yaml
 spec:

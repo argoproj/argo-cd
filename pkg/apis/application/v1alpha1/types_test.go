@@ -3783,6 +3783,44 @@ func Test_validatePolicy_ValidResource(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestIsValidAction(t *testing.T) {
+	tests := []struct {
+		name   string
+		action string
+		want   bool
+	}{
+		// validActions direct matches
+		{"ValidGet", "get", true},
+		{"ValidCreate", "create", true},
+		{"ValidUpdate", "update", true},
+		{"ValidDelete", "delete", true},
+		{"ValidSync", "sync", true},
+		{"ValidOverride", "override", true},
+		{"ValidWildcard", "*", true},
+
+		// pattern matches
+		{"MatchActionPattern", "action/foo", true},
+		{"MatchUpdatePattern", "update/bar", true},
+		{"MatchDeletePattern", "delete/baz", true},
+
+		// near matches
+		{"NoMatchActionSuffix", "actionfoo", false},
+		{"NoMatchUpdateSuffix", "updatebar", false},
+		{"NoMatchDeleteSuffix", "deletebaz", false},
+
+		// invalid
+		{"RandomString", "random", false},
+		{"Empty", "", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := isValidAction(tt.action)
+			assert.Equal(t, tt.want, got, "isValidAction(%q)", tt.action)
+		})
+	}
+}
+
 func TestEnvsubst(t *testing.T) {
 	env := Env{
 		&EnvEntry{"foo", "bar"},

@@ -1815,7 +1815,7 @@ message RepoCreds {
   // EnableOCI specifies whether helm-oci support should be enabled for this repo
   optional bool enableOCI = 11;
 
-  // Type specifies the type of the repoCreds. Can be either "git" or "helm. "git" is assumed if empty or absent.
+  // Type specifies the type of the repoCreds. Can be either "git", "helm" or "oci". "git" is assumed if empty or absent.
   optional string type = 12;
 
   // GCPServiceAccountKey specifies the service account key in JSON format to be used for getting credentials to Google Cloud Source repos
@@ -1927,6 +1927,9 @@ message Repository {
 
   // InsecureOCIForceHttp specifies whether the connection to the repository uses TLS at _all_. If true, no TLS. This flag is applicable for OCI repos only.
   optional bool insecureOCIForceHttp = 26;
+
+  // Depth specifies the depth for shallow clones. A value of 0 or omitting the field indicates a full clone.
+  optional int64 depth = 27;
 }
 
 // A RepositoryCertificate is either SSH known hosts entry or TLS certificate
@@ -2650,7 +2653,8 @@ message SyncPolicyAutomated {
 // SyncSource specifies a location from which hydrated manifests may be synced. RepoURL is assumed based on the
 // associated DrySource config in the SourceHydrator.
 message SyncSource {
-  // TargetBranch is the branch to which hydrated manifests should be committed
+  // TargetBranch is the branch from which hydrated manifests will be synced.
+  // If HydrateTo is not set, this is also the branch to which hydrated manifests are committed.
   optional string targetBranch = 1;
 
   // Path is a directory path within the git repository where hydrated manifests should be committed to and synced

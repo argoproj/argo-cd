@@ -208,6 +208,13 @@ If you don't set `IMAGE_TAG` in your environment, the default of `:latest` will 
 export IMAGE_TAG=1.5.0-myrc
 ```
 
+> [!NOTE]
+> The image will be built for `linux/amd64` platform by default. If you are running on Mac with Apple chip (ARM),
+> you need to specify the correct buld platform by running:
+> ```bash
+> export TARGET_ARCH=linux/arm64 
+> ```
+
 Then you can build & push the image in one step:
 
 ```bash
