@@ -62,7 +62,8 @@ export const ApplicationResourceList = (props: ApplicationResourceListProps) => 
     };
 
     const sortedResources = React.useMemo(() => {
-        const resourcesToSort = [...props.resources];
+        // Filter out resources that no longer exist in the tree (e.g., deleted resources)
+        const resourcesToSort = props.resources.filter(res => nodeByKey.has(nodeKey(res)));
         resourcesToSort.sort((a, b) => {
             let compare = 0;
             switch (sortConfig.key) {
@@ -114,7 +115,7 @@ export const ApplicationResourceList = (props: ApplicationResourceListProps) => 
             return sortConfig.direction === 'asc' ? compare : -compare;
         });
         return resourcesToSort;
-    }, [props.resources, sortConfig]);
+    }, [props.resources, sortConfig, props.tree]);
 
     const firstParentNode = props.resources.length > 0 && (nodeByKey.get(nodeKey(props.resources[0])) as ResourceNode)?.parentRefs?.[0];
     const isSameParent = firstParentNode && props.resources?.every(x => (nodeByKey.get(nodeKey(x)) as ResourceNode)?.parentRefs?.every(p => isSameNode(p, firstParentNode)));
@@ -189,7 +190,7 @@ export const ApplicationResourceList = (props: ApplicationResourceListProps) => 
                                             <div>{ResourceLabel({kind: res.kind})}</div>
                                         </div>
                                     </div>
-                                    <Tooltip content={res.name} enabled={!!res.name}>
+                                    <Tooltip content={res.name ?? ''} enabled={!!res.name}>
                                         <div className='columns small-2 xxxlarge-2 application-details__item'>
                                             <span className='application-details__item_text'>{res.name}</span>
                                             {res.kind === 'Application' && (
@@ -218,18 +219,18 @@ export const ApplicationResourceList = (props: ApplicationResourceListProps) => 
                                             )}
                                         </div>
                                     </Tooltip>
-                                    <Tooltip content={groupkindjoin}>
-                                        <div className='columns small-1 xxxlarge-1'>{groupkindjoin}</div>
+                                    <Tooltip content={groupkindjoin} enabled={!!groupkindjoin}>
+                                        <div className='columns small-1 xxxlarge-1'>{groupkindjoin || '-'}</div>
                                     </Tooltip>
-                                    <Tooltip content={res.syncWave} enabled={!!res.syncWave}>
+                                    <Tooltip content={res.syncWave ?? ''} enabled={!!res.syncWave}>
                                         <div className='columns small-1 xxxlarge-1'>{res.syncWave || '-'}</div>
                                     </Tooltip>
-                                    <Tooltip content={res.namespace} enabled={!!res.namespace}>
+                                    <Tooltip content={res.namespace ?? ''} enabled={!!res.namespace}>
                                         <div className='columns small-2 xxxlarge-1'>{res.namespace}</div>
                                     </Tooltip>
                                     {isSameKind &&
                                         res.kind === 'ReplicaSet' &&
-                                        ((nodeByKey.get(nodeKey(res)) as ResourceNode).info || [])
+                                        ((nodeByKey.get(nodeKey(res)) as ResourceNode)?.info || [])
                                             .filter(tag => !tag.name.includes('Node'))
                                             .slice(0, 4)
                                             .map((tag, i) => {
@@ -239,7 +240,7 @@ export const ApplicationResourceList = (props: ApplicationResourceListProps) => 
                                                     </div>
                                                 );
                                             })}
-                                    <Tooltip content={res.createdAt} enabled={!!res.createdAt}>
+                                    <Tooltip content={res.createdAt ?? ''} enabled={!!res.createdAt}>
                                         <div className='columns small-2 xxxlarge-2'>
                                             {res.createdAt && (
                                                 <span>
