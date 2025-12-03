@@ -266,6 +266,12 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 			app.Status.SourceType != v1alpha1.ApplicationSourceTypeDirectory
 
 		if updateRevisions && repo.Depth == 0 && !source.IsHelm() && !source.IsOCI() && syncedRevision != "" && syncedRevision != revision && keyManifestGenerateAnnotationExists && keyManifestGenerateAnnotationVal != "" {
+
+			updateSource := argo.GetRelatedRefAppSource(source, sources)
+			if updateSource == nil {
+				updateSource = &source
+			}
+
 			// Validate the manifest-generate-path annotation to avoid generating manifests if it has not changed.
 			updateRevisionResult, err := repoClient.UpdateRevisionForPaths(ctx, &apiclient.UpdateRevisionForPathsRequest{
 				Repo:               repo,
@@ -276,7 +282,7 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 				AppLabelKey:        appLabelKey,
 				AppName:            app.InstanceName(m.namespace),
 				Namespace:          appNamespace,
-				ApplicationSource:  &source,
+				ApplicationSource:  updateSource,
 				KubeVersion:        serverVersion,
 				ApiVersions:        apiVersions,
 				TrackingMethod:     trackingMethod,
