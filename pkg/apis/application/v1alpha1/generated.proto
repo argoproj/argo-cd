@@ -83,7 +83,7 @@ message AppProjectSpec {
   repeated ProjectRole roles = 4;
 
   // ClusterResourceWhitelist contains list of whitelisted cluster level resources
-  repeated .k8s.io.apimachinery.pkg.apis.meta.v1.GroupKind clusterResourceWhitelist = 5;
+  repeated ClusterResourceRestrictionItem clusterResourceWhitelist = 5;
 
   // NamespaceResourceBlacklist contains list of blacklisted namespace level resources
   repeated .k8s.io.apimachinery.pkg.apis.meta.v1.GroupKind namespaceResourceBlacklist = 6;
@@ -101,7 +101,7 @@ message AppProjectSpec {
   repeated SignatureKey signatureKeys = 10;
 
   // ClusterResourceBlacklist contains list of blacklisted cluster level resources
-  repeated .k8s.io.apimachinery.pkg.apis.meta.v1.GroupKind clusterResourceBlacklist = 11;
+  repeated ClusterResourceRestrictionItem clusterResourceBlacklist = 11;
 
   // SourceNamespaces defines the namespaces application resources are allowed to be created in
   repeated string sourceNamespaces = 12;
@@ -934,6 +934,17 @@ message ClusterList {
   optional .k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
 
   repeated Cluster items = 2;
+}
+
+// ClusterResourceRestrictionItem is a cluster resource that is restricted by the project's whitelist or blacklist
+message ClusterResourceRestrictionItem {
+  optional string group = 1;
+
+  optional string kind = 2;
+
+  // Name is the name of the restricted resource. Glob patterns using Go's filepath.Match syntax are supported.
+  // Unlike the group and kind fields, if no name is specified, all resources of the specified group/kind are matched.
+  optional string name = 3;
 }
 
 // Command holds binary path and arguments list
@@ -1804,7 +1815,7 @@ message RepoCreds {
   // EnableOCI specifies whether helm-oci support should be enabled for this repo
   optional bool enableOCI = 11;
 
-  // Type specifies the type of the repoCreds. Can be either "git" or "helm. "git" is assumed if empty or absent.
+  // Type specifies the type of the repoCreds. Can be either "git", "helm" or "oci". "git" is assumed if empty or absent.
   optional string type = 12;
 
   // GCPServiceAccountKey specifies the service account key in JSON format to be used for getting credentials to Google Cloud Source repos
@@ -1916,6 +1927,9 @@ message Repository {
 
   // InsecureOCIForceHttp specifies whether the connection to the repository uses TLS at _all_. If true, no TLS. This flag is applicable for OCI repos only.
   optional bool insecureOCIForceHttp = 26;
+
+  // Depth specifies the depth for shallow clones. A value of 0 or omitting the field indicates a full clone.
+  optional int64 depth = 27;
 }
 
 // A RepositoryCertificate is either SSH known hosts entry or TLS certificate

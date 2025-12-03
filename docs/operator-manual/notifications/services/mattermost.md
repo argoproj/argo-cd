@@ -5,6 +5,10 @@
 * `apiURL` - the server url, e.g. https://mattermost.example.com
 * `token` - the bot token
 * `insecureSkipVerify` - optional bool, true or false
+* `maxIdleConns` - optional, maximum number of idle (keep-alive) connections across all hosts.
+* `maxIdleConnsPerHost` - optional, maximum number of idle (keep-alive) connections per host.
+* `maxConnsPerHost` - optional, maximum total connections per host.
+* `idleConnTimeout` - optional, maximum amount of time an idle (keep-alive) connection will remain open before closing, e.g. '90s'.
 
 ## Configuration
 

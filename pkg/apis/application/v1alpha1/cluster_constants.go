@@ -25,7 +25,7 @@ const (
 	// EnvK8sTCPTimeout is the duration for TCP timeouts when communicating with K8s API servers
 	EnvK8sTCPTimeout = "ARGOCD_K8S_TCP_TIMEOUT"
 
-	// EnvK8sTCPKeepalive is the interval for TCP keep alive probes to be sent when communicating with K8s API servers
+	// EnvK8sTCPKeepAlive is the interval for TCP keep alive probes to be sent when communicating with K8s API servers
 	EnvK8sTCPKeepAlive = "ARGOCD_K8S_TCP_KEEPALIVE"
 
 	// EnvK8sTLSHandshakeTimeout is the duration for TLS handshake timeouts when establishing connections to K8s API servers
@@ -33,6 +33,9 @@ const (
 
 	// EnvK8sTCPIdleConnTimeout is the duration when idle TCP connection to the K8s API servers should timeout
 	EnvK8sTCPIdleConnTimeout = "ARGOCD_K8S_TCP_IDLE_TIMEOUT"
+
+	// EnvK8sServerSideTimeout is the duration for the server side timeout for each API request
+	EnvK8sServerSideTimeout = "ARGOCD_K8S_SERVER_SIDE_TIMEOUT"
 )
 
 // Configuration variables associated with the Cluster API
@@ -60,5 +63,5 @@ var (
 	K8sTCPIdleConnTimeout = env.ParseDurationFromEnv(EnvK8sTCPIdleConnTimeout, 5*time.Minute, 0, math.MaxInt32*time.Second)
 
 	// K8sServerSideTimeout defines which server side timeout to send with each API request
-	K8sServerSideTimeout = env.ParseDurationFromEnv(EnvK8sTCPTimeout, 0, 0, math.MaxInt32*time.Second)
+	K8sServerSideTimeout = env.ParseDurationFromEnv(EnvK8sServerSideTimeout, 0, 0, math.MaxInt32*time.Second)
 )

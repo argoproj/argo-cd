@@ -21,9 +21,9 @@ argocd proj create PROJECT [flags]
 ### Options
 
 ```
-      --allow-cluster-resource stringArray      List of allowed cluster level resources
+      --allow-cluster-resource stringArray      List of allowed cluster level resources, optionally with group and name (e.g. ClusterRole, apiextensions.k8s.io/CustomResourceDefinition, /Namespace/team1-*)
       --allow-namespaced-resource stringArray   List of allowed namespaced resources
-      --deny-cluster-resource stringArray       List of denied cluster level resources
+      --deny-cluster-resource stringArray       List of denied cluster level resources, optionally with group and name (e.g. ClusterRole, apiextensions.k8s.io/CustomResourceDefinition, /Namespace/kube-*)
       --deny-namespaced-resource stringArray    List of denied namespaced resources
       --description string                      Project description
   -d, --dest stringArray                        Permitted destination server and namespace (e.g. https://192.168.99.100:8443,default)

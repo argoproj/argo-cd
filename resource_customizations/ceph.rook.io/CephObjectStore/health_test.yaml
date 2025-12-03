@@ -1,0 +1,13 @@
+tests:
+- healthStatus:
+    status: Healthy
+    message: "Ceph object store phase is Ready - endpoint: http://rook-ceph-rgw-ceph-objectstore.rook-ceph.svc:80"
+  inputPath: testdata/healthy.yaml
+- healthStatus:
+    status: Progressing
+    message: "Ceph object store phase is Pending"
+  inputPath: testdata/progressing.yaml
+- healthStatus:
+    status: Degraded
+    message: "Ceph object store phase is Failure"
+  inputPath: testdata/degraded.yaml
