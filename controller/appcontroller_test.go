@@ -1851,10 +1851,18 @@ func TestApplicationInformerUpdateFunc(t *testing.T) {
 				return
 			}
 
+			// Check if operation was added or changed - always process operations
+			operationChanged := (oldApp.Operation == nil && newApp.Operation != nil) ||
+				(oldApp.Operation != nil && newApp.Operation != nil && !equality.Semantic.DeepEqual(oldApp.Operation, newApp.Operation))
+
+			// Check if DeletionTimestamp was added or changed - always process deletions
+			deletionTimestampChanged := (oldApp.DeletionTimestamp == nil && newApp.DeletionTimestamp != nil) ||
+				(oldApp.DeletionTimestamp != nil && newApp.DeletionTimestamp != nil && !oldApp.DeletionTimestamp.Equal(newApp.DeletionTimestamp))
+
 			// Skip refresh requests for status-only updates (spec unchanged)
 			// This prevents feedback loop: status update → UpdateFunc → requestAppRefresh → refresh → status update
 			// Use equality.Semantic.DeepEqual like in the actual code
-			if equality.Semantic.DeepEqual(oldApp.Spec, newApp.Spec) {
+			if equality.Semantic.DeepEqual(oldApp.Spec, newApp.Spec) && !operationChanged && !deletionTimestampChanged {
 				// Check if user requested refresh/hydrate via annotations
 				// Don't skip if user explicitly requested refresh/hydrate
 				oldAnnotations := oldApp.GetAnnotations()
@@ -2075,6 +2083,26 @@ func TestApplicationInformerUpdateFunc(t *testing.T) {
 
 		// Check that refresh was NOT requested (resync should be skipped)
 		checkRefreshRequested(app.QualifiedName(), false, "Informer resync")
+	})
+
+	t.Run("DeletionTimestamp added SHOULD trigger refresh", func(_ *testing.T) {
+		// Reset refresh state
+		ctrl.refreshRequestedAppsMutex.Lock()
+		ctrl.refreshRequestedApps = make(map[string]CompareWith)
+		ctrl.refreshRequestedAppsMutex.Unlock()
+
+		oldApp := app.DeepCopy()
+		oldApp.ResourceVersion = "14"
+		oldApp.DeletionTimestamp = nil
+
+		newApp := oldApp.DeepCopy()
+		newApp.ResourceVersion = "15"
+		newApp.DeletionTimestamp = &metav1.Time{Time: time.Now()}
+		newApp.Status.ReconciledAt = &metav1.Time{Time: time.Now()}
+
+		simulateUpdateFunc(oldApp, newApp)
+
+		checkRefreshRequested(app.QualifiedName(), true, "DeletionTimestamp added")
 	})
 }
 
