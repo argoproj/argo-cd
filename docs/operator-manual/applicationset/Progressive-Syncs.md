@@ -94,7 +94,7 @@ before proceeding to the next step.
 2. Next, Applications with the label `envLabel=env-prod` will be selected to sync. Here, only 10% of the matched Applications will be synced at a time.
 Once each batch of Applications reaches a `Healthy` status, the next batch is synced until all matched
 
-If there are any applications without the `envLabel` label, they will not be synced by the RollingSync strategy and must be manually synced as describe above.
+If there are any applications that don't match the listed expressions, they will not be synced by the RollingSync strategy and must be manually synced as describe above.
 
 ### Deletion Strategies
 
