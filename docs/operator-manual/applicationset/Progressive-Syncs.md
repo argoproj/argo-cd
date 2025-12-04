@@ -86,6 +86,17 @@ spec:
           maxUpdate: 10%
 ```
 
+In the above example, the sync will be performed in two steps:
+
+1. All Applications with the label `envLabel=env-dev` will be selected to sync first. Since `maxUpdate` is not defined,
+so a default of 100% applies and all matched Applications will be synced simultaneously. The controller waits until every selected Application reaches a `Healthy` status
+before proceeding to the next step.
+
+2. Next, Applications with the label `envLabel=env-prod` will be selected to sync. Here, only 10% of the matched Applications will be synced at a time.
+Once each batch of Applications reaches a `Healthy` status, the next batch is synced until all matched
+
+If there are any applications without the `envLabel` label, they will not be synced by the RollingSync strategy and must be manually synced as describe above.
+
 ### Deletion Strategies
 
 The `deletionOrder` field controls the order in which applications are deleted when they are removed from the ApplicationSet. Available values:
