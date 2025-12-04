@@ -2293,9 +2293,9 @@ func TestAppProjectSpec_AddWindow(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			switch tt.want {
 			case "error":
-				require.Error(t, tt.p.Spec.AddWindow(tt.k, tt.s, tt.d, tt.a, tt.n, tt.c, tt.m, tt.t, tt.o, tt.description))
+				require.Error(t, tt.p.Spec.AddWindow(tt.k, tt.s, tt.d, tt.a, tt.n, tt.c, tt.m, tt.t, tt.o, tt.description, false))
 			case "noError":
-				require.NoError(t, tt.p.Spec.AddWindow(tt.k, tt.s, tt.d, tt.a, tt.n, tt.c, tt.m, tt.t, tt.o, tt.description))
+				require.NoError(t, tt.p.Spec.AddWindow(tt.k, tt.s, tt.d, tt.a, tt.n, tt.c, tt.m, tt.t, tt.o, tt.description, false))
 				require.NoError(t, tt.p.Spec.DeleteWindow(0))
 			}
 		})
@@ -2304,7 +2304,7 @@ func TestAppProjectSpec_AddWindow(t *testing.T) {
 
 func TestAppProjectSpecWindowWithDescription(t *testing.T) {
 	proj := newTestProjectWithSyncWindows()
-	require.NoError(t, proj.Spec.AddWindow("allow", "* * * * *", "1h", []string{"app1"}, []string{}, []string{}, false, "error", false, "Ticket AAAAA"))
+	require.NoError(t, proj.Spec.AddWindow("allow", "* * * * *", "1h", []string{"app1"}, []string{}, []string{}, false, "error", false, "Ticket AAAAA", false))
 	require.Equal(t, "Ticket AAAAA", proj.Spec.SyncWindows[1].Description)
 
 	require.NoError(t, proj.Spec.SyncWindows[1].Update("", "", []string{}, []string{}, []string{}, "", "Ticket BBBBB"))
@@ -2546,7 +2546,7 @@ func TestSyncWindows_CanSync(t *testing.T) {
 		proj := newProjectBuilder().withInactiveDenyWindow(true).build()
 
 		// when
-		canSync, err := proj.Spec.SyncWindows.CanSync(true)
+		canSync, err := proj.Spec.SyncWindows.CanSync(true, nil)
 
 		// then
 		require.NoError(t, err)
@@ -2558,7 +2558,7 @@ func TestSyncWindows_CanSync(t *testing.T) {
 		proj := newProjectBuilder().withInactiveDenyWindow(false).build()
 
 		// when
-		canSync, err := proj.Spec.SyncWindows.CanSync(true)
+		canSync, err := proj.Spec.SyncWindows.CanSync(true, nil)
 
 		// then
 		require.NoError(t, err)
@@ -2573,7 +2573,7 @@ func TestSyncWindows_CanSync(t *testing.T) {
 			build()
 
 		// when
-		canSync, err := proj.Spec.SyncWindows.CanSync(true)
+		canSync, err := proj.Spec.SyncWindows.CanSync(true, nil)
 
 		// then
 		require.NoError(t, err)
@@ -2587,7 +2587,7 @@ func TestSyncWindows_CanSync(t *testing.T) {
 			build()
 
 		// when
-		canSync, err := proj.Spec.SyncWindows.CanSync(true)
+		canSync, err := proj.Spec.SyncWindows.CanSync(true, nil)
 
 		// then
 		require.NoError(t, err)
@@ -2601,7 +2601,7 @@ func TestSyncWindows_CanSync(t *testing.T) {
 			build()
 
 		// when
-		canSync, err := proj.Spec.SyncWindows.CanSync(true)
+		canSync, err := proj.Spec.SyncWindows.CanSync(true, nil)
 
 		// then
 		require.NoError(t, err)
@@ -2615,7 +2615,7 @@ func TestSyncWindows_CanSync(t *testing.T) {
 			build()
 
 		// when
-		canSync, err := proj.Spec.SyncWindows.CanSync(false)
+		canSync, err := proj.Spec.SyncWindows.CanSync(false, nil)
 
 		// then
 		require.NoError(t, err)
@@ -2630,7 +2630,7 @@ func TestSyncWindows_CanSync(t *testing.T) {
 			build()
 
 		// when
-		canSync, err := proj.Spec.SyncWindows.CanSync(true)
+		canSync, err := proj.Spec.SyncWindows.CanSync(true, nil)
 
 		// then
 		require.NoError(t, err)
@@ -2645,7 +2645,7 @@ func TestSyncWindows_CanSync(t *testing.T) {
 			build()
 
 		// when
-		canSync, err := proj.Spec.SyncWindows.CanSync(false)
+		canSync, err := proj.Spec.SyncWindows.CanSync(false, nil)
 
 		// then
 		require.NoError(t, err)
@@ -2659,7 +2659,7 @@ func TestSyncWindows_CanSync(t *testing.T) {
 			build()
 
 		// when
-		canSync, err := proj.Spec.SyncWindows.CanSync(true)
+		canSync, err := proj.Spec.SyncWindows.CanSync(true, nil)
 
 		// then
 		require.NoError(t, err)
@@ -2673,7 +2673,7 @@ func TestSyncWindows_CanSync(t *testing.T) {
 			build()
 
 		// when
-		canSync, err := proj.Spec.SyncWindows.CanSync(false)
+		canSync, err := proj.Spec.SyncWindows.CanSync(false, nil)
 
 		// then
 		require.NoError(t, err)
@@ -2687,7 +2687,7 @@ func TestSyncWindows_CanSync(t *testing.T) {
 			build()
 
 		// when
-		canSync, err := proj.Spec.SyncWindows.CanSync(true)
+		canSync, err := proj.Spec.SyncWindows.CanSync(true, nil)
 
 		// then
 		require.NoError(t, err)
@@ -2701,7 +2701,7 @@ func TestSyncWindows_CanSync(t *testing.T) {
 			build()
 
 		// when
-		canSync, err := proj.Spec.SyncWindows.CanSync(false)
+		canSync, err := proj.Spec.SyncWindows.CanSync(false, nil)
 
 		// then
 		require.NoError(t, err)
@@ -2716,7 +2716,7 @@ func TestSyncWindows_CanSync(t *testing.T) {
 			build()
 
 		// when
-		canSync, err := proj.Spec.SyncWindows.CanSync(true)
+		canSync, err := proj.Spec.SyncWindows.CanSync(true, nil)
 
 		// then
 		require.NoError(t, err)
@@ -2731,7 +2731,7 @@ func TestSyncWindows_CanSync(t *testing.T) {
 			build()
 
 		// when
-		canSync, err := proj.Spec.SyncWindows.CanSync(false)
+		canSync, err := proj.Spec.SyncWindows.CanSync(false, nil)
 
 		// then
 		require.NoError(t, err)
@@ -2746,7 +2746,7 @@ func TestSyncWindows_CanSync(t *testing.T) {
 			build()
 
 		// when
-		canSync, err := proj.Spec.SyncWindows.CanSync(false)
+		canSync, err := proj.Spec.SyncWindows.CanSync(false, nil)
 
 		// then
 		require.NoError(t, err)
@@ -2760,7 +2760,7 @@ func TestSyncWindows_CanSync(t *testing.T) {
 			build()
 
 		// when
-		canSync, err := proj.Spec.SyncWindows.CanSync(true)
+		canSync, err := proj.Spec.SyncWindows.CanSync(true, nil)
 
 		// then
 		require.NoError(t, err)
@@ -2774,7 +2774,7 @@ func TestSyncWindows_CanSync(t *testing.T) {
 			build()
 
 		// when
-		canSync, err := proj.Spec.SyncWindows.CanSync(false)
+		canSync, err := proj.Spec.SyncWindows.CanSync(false, nil)
 
 		// then
 		require.NoError(t, err)
@@ -2788,7 +2788,7 @@ func TestSyncWindows_CanSync(t *testing.T) {
 			build()
 
 		// when
-		canSync, err := proj.Spec.SyncWindows.CanSync(true)
+		canSync, err := proj.Spec.SyncWindows.CanSync(true, nil)
 
 		// then
 		require.NoError(t, err)
@@ -2802,7 +2802,7 @@ func TestSyncWindows_CanSync(t *testing.T) {
 			build()
 
 		// when
-		canSync, err := proj.Spec.SyncWindows.CanSync(false)
+		canSync, err := proj.Spec.SyncWindows.CanSync(false, nil)
 
 		// then
 		require.NoError(t, err)
@@ -2819,7 +2819,7 @@ func TestSyncWindows_CanSync(t *testing.T) {
 			build()
 
 		// when
-		canSync, err := proj.Spec.SyncWindows.CanSync(true)
+		canSync, err := proj.Spec.SyncWindows.CanSync(true, nil)
 
 		// then
 		require.NoError(t, err)
@@ -2836,7 +2836,7 @@ func TestSyncWindows_CanSync(t *testing.T) {
 			build()
 
 		// when
-		canSync, err := proj.Spec.SyncWindows.CanSync(false)
+		canSync, err := proj.Spec.SyncWindows.CanSync(false, nil)
 
 		// then
 		require.NoError(t, err)
@@ -2851,7 +2851,7 @@ func TestSyncWindows_CanSync(t *testing.T) {
 			build()
 
 		// when
-		canSync, err := proj.Spec.SyncWindows.CanSync(true)
+		canSync, err := proj.Spec.SyncWindows.CanSync(true, nil)
 
 		// then
 		require.NoError(t, err)
@@ -2866,7 +2866,7 @@ func TestSyncWindows_CanSync(t *testing.T) {
 			build()
 
 		// when
-		canSync, err := proj.Spec.SyncWindows.CanSync(true)
+		canSync, err := proj.Spec.SyncWindows.CanSync(true, nil)
 
 		// then
 		require.NoError(t, err)
@@ -2881,7 +2881,7 @@ func TestSyncWindows_CanSync(t *testing.T) {
 			build()
 
 		// when
-		canSync, err := proj.Spec.SyncWindows.CanSync(false)
+		canSync, err := proj.Spec.SyncWindows.CanSync(false, nil)
 
 		// then
 		require.NoError(t, err)
@@ -2895,7 +2895,7 @@ func TestSyncWindows_CanSync(t *testing.T) {
 			build()
 
 		// when
-		canSync, err := proj.Spec.SyncWindows.CanSync(false)
+		canSync, err := proj.Spec.SyncWindows.CanSync(false, nil)
 
 		// then
 		require.Error(t, err)
@@ -4864,4 +4864,156 @@ func TestSourceHydrator_Equals(t *testing.T) {
 			assert.Equal(t, testCopy.expected, testCopy.a.DeepEquals(testCopy.b))
 		})
 	}
+}
+
+func TestSyncWindows_SyncOverrun(t *testing.T) {
+	t.Run("DenyWindowWithoutOverrunBlocksContinuingSync", func(t *testing.T) {
+		// given - a deny window without allowSyncOverrun
+		proj := newTestProjectWithSyncWindows()
+		deny := &SyncWindow{
+			Kind:         "deny",
+			Schedule:     "* * * * *",
+			Duration:     "1h",
+			Applications: []string{"*"},
+			SyncOverrun:  false,
+		}
+		proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, deny)
+
+		// Operation started 5 minutes ago
+		operationStartTime := time.Now().Add(-5 * time.Minute)
+
+		// when - checking if sync can continue
+		canSync, err := proj.Spec.SyncWindows.CanSync(false, &operationStartTime)
+
+		// then - sync should be blocked
+		require.NoError(t, err)
+		assert.False(t, canSync)
+	})
+
+	t.Run("DenyWindowWithOverrunBlocksNewSync", func(t *testing.T) {
+		// given - a deny window with allowSyncOverrun enabled
+		proj := newTestProjectWithSyncWindows()
+		deny := &SyncWindow{
+			Kind:         "deny",
+			Schedule:     "* * * * *",
+			Duration:     "1h",
+			Applications: []string{"*"},
+			SyncOverrun:  true,
+		}
+		proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, deny)
+
+		// when - checking if new sync can start (no operation start time)
+		canSync, err := proj.Spec.SyncWindows.CanSync(false, nil)
+
+		// then - new sync should be blocked
+		require.NoError(t, err)
+		assert.False(t, canSync)
+	})
+
+	t.Run("DenyWindowWithOverrunBlocksSyncThatStartedDuringDeny", func(t *testing.T) {
+		// given - a deny window with allowSyncOverrun enabled
+		proj := newTestProjectWithSyncWindows()
+		deny := &SyncWindow{
+			Kind:         "deny",
+			Schedule:     "* * * * *", // Always active
+			Duration:     "1h",
+			Applications: []string{"*"},
+			SyncOverrun:  true,
+		}
+		proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, deny)
+
+		// Operation started 5 minutes ago (during the deny window, which was already active)
+		operationStartTime := time.Now().Add(-5 * time.Minute)
+
+		// when - checking if sync can continue
+		canSync, err := proj.Spec.SyncWindows.CanSync(false, &operationStartTime)
+
+		// then - sync should be blocked because it wasn't allowed when it started
+		require.NoError(t, err)
+		assert.False(t, canSync)
+	})
+
+	t.Run("AllowsOverrunWhenAllDenyWindowsHaveIt", func(t *testing.T) {
+		// given - all deny windows have syncOverrun enabled
+		windows := SyncWindows{
+			&SyncWindow{Kind: "deny", SyncOverrun: true},
+			&SyncWindow{Kind: "deny", SyncOverrun: true},
+		}
+
+		// when - checking if overrun is allowed
+		allowsOverrun := windows.allowsOverrun()
+
+		// then - should return true (all deny windows allow it)
+		assert.True(t, allowsOverrun)
+	})
+
+	t.Run("DisallowsOverrunWhenOneDenyWindowDoesntHaveIt", func(t *testing.T) {
+		// given - mixed deny windows, one without syncOverrun
+		windows := SyncWindows{
+			&SyncWindow{Kind: "deny", SyncOverrun: false},
+			&SyncWindow{Kind: "deny", SyncOverrun: true},
+		}
+
+		// when - checking if overrun is allowed
+		allowsOverrun := windows.allowsOverrun()
+
+		// then - should return false (not all deny windows allow it)
+		assert.False(t, allowsOverrun)
+	})
+
+	t.Run("DisallowsOverrunWhenNoDenyWindowsHaveIt", func(t *testing.T) {
+		// given - deny windows without syncOverrun
+		windows := SyncWindows{
+			&SyncWindow{Kind: "deny", SyncOverrun: false},
+		}
+
+		// when - checking if overrun is allowed
+		allowsOverrun := windows.allowsOverrun()
+
+		// then - should return false
+		assert.False(t, allowsOverrun)
+	})
+
+	t.Run("AllowsOverrunIgnoresAllowWindows", func(t *testing.T) {
+		// given - deny window with syncOverrun and allow windows
+		windows := SyncWindows{
+			&SyncWindow{Kind: "allow", SyncOverrun: false},
+			&SyncWindow{Kind: "deny", SyncOverrun: true},
+		}
+
+		// when - checking if overrun is allowed
+		allowsOverrun := windows.allowsOverrun()
+
+		// then - should return true (only deny windows matter)
+		assert.True(t, allowsOverrun)
+	})
+
+	t.Run("AllowsSyncToContinueWhenStartedBeforeDenyWindowWithOverrun", func(t *testing.T) {
+		// given - a deny window with syncOverrun that became active after operation started
+		proj := newTestProjectWithSyncWindows() // Has an always-active allow window
+
+		// Create a deny window that's currently active
+		// Using current time to create a schedule that's active now
+		now := time.Now().In(time.UTC)
+		// Duration of 15 minutes means it will be active for 15 minutes starting from this minute
+		schedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Hour())
+		deny := &SyncWindow{
+			Kind:         "deny",
+			Schedule:     schedule,
+			Duration:     "15m",
+			Applications: []string{"*"},
+			SyncOverrun:  true,
+		}
+		proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, deny)
+
+		// Operation started 25 minutes ago, before this deny window became active
+		operationStartTime := now.Add(-25 * time.Minute)
+
+		// when - checking if sync can continue
+		canSync, err := proj.Spec.SyncWindows.CanSync(false, &operationStartTime)
+
+		// then - sync should be allowed to continue (overrun)
+		require.NoError(t, err)
+		assert.True(t, canSync)
+	})
 }
