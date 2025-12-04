@@ -261,7 +261,7 @@ jobs:
         # generalizing repo name for forks:  ${{ github.event.repository.name }}
         run: |
           mkdir -p ~/go/src/github.com/argoproj
-          cp -a ../argo-cd ~/go/src/github.com/argoproj
+          cp -a ../${{ github.event.repository.name }} ~/go/src/github.com/argoproj
       - name: Add ~/go/bin to PATH
         run: |
           echo "/home/runner/go/bin" >> $GITHUB_PATH
