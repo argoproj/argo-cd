@@ -113,6 +113,8 @@ github.com/anmitsu/go-shlex v0.0.0-20200514113438-38f4b401e2be h1:9AeTilPcZAjCFI
 github.com/anmitsu/go-shlex v0.0.0-20200514113438-38f4b401e2be/go.mod h1:ySMOLuWl6zY27l47sB3qLNK6tF2fkHG55UZxx8oIVo4=
 github.com/antihax/optional v1.0.0/go.mod h1:uupD/76wgC+ih3iEmQUL+0Ugr19nfwCT1kdvxnR2qWY=
 github.com/appscode/go v0.0.0-20191119085241-0887d8ec2ecc/go.mod h1:OawnOmAL4ZX3YaPdN+8HTNwBveT1jMsqP74moa9XUbE=
+github.com/argoproj/gitops-engine v0.7.1-0.20251204185240-472beb85d743 h1:5EZzIuql6CDPttyuflp1/Iaf+TrsOd/wp+sDvnucj7Q=
+github.com/argoproj/gitops-engine v0.7.1-0.20251204185240-472beb85d743/go.mod h1:2nqYZBhj8CfVZb3ATakZpi1KNb/yc7mpadIHslicTFI=
 github.com/argoproj/notifications-engine v0.4.1-0.20250908182349-da04400446ff h1:pGGAeHIktPuYCRl1Z540XdxPFnedqyUhJK4VgpyJZfY=
 github.com/argoproj/notifications-engine v0.4.1-0.20250908182349-da04400446ff/go.mod h1:d1RazGXWvKRFv9//rg4MRRR7rbvbE7XLgTSMT5fITTE=
 github.com/argoproj/pkg v0.13.6 h1:36WPD9MNYECHcO1/R1pj6teYspiK7uMQLCgLGft2abM=
@@ -537,8 +539,6 @@ github.com/itchyny/gojq v0.12.17 h1:8av8eGduDb5+rvEdaOO+zQUjA04MS0m3Ps8HiD+fceg=
 github.com/itchyny/gojq v0.12.17/go.mod h1:WBrEMkgAfAGO1LUcGOckBl5O726KPp+OlkKug0I/FEY=
 github.com/itchyny/timefmt-go v0.1.6 h1:ia3s54iciXDdzWzwaVKXZPbiXzxxnv1SPGFfM/myJ5Q=
 github.com/itchyny/timefmt-go v0.1.6/go.mod h1:RRDZYC5s9ErkjQvTvvU7keJjxUYzIISJGxm9/mAERQg=
-github.com/ivanpedersen/gitops-engine v0.0.0-20251124154415-7d694cd4d1eb h1:m0JYj+BIthNRRT/gOrq9znPlA0piXus0TAaAJKj/o/A=
-github.com/ivanpedersen/gitops-engine v0.0.0-20251124154415-7d694cd4d1eb/go.mod h1:2nqYZBhj8CfVZb3ATakZpi1KNb/yc7mpadIHslicTFI=
 github.com/jarcoal/httpmock v1.4.1 h1:0Ju+VCFuARfFlhVXFc2HxlcQkfB+Xq12/EotHko+x2A=
 github.com/jarcoal/httpmock v1.4.1/go.mod h1:ftW1xULwo+j0R0JJkJIIi7UKigZUXCLLanykgjwBXL0=
 github.com/jaytaylor/html2text v0.0.0-20190408195923-01ec452cbe43/go.mod h1:CVKlgaMiht+LXvHG173ujK6JUhZXKb2u/BQtjPDIvyk=
