@@ -1,52 +1,32 @@
-# `argocd proj windows add` Command Reference
+# `argocd proj windows enable-sync-overrun` Command Reference
 
-## argocd proj windows add
+## argocd proj windows enable-sync-overrun
 
-Add a sync window to a project
+Enable sync overrun for a sync window
+
+### Synopsis
+
+Enable sync overrun for a sync window. When enabled on a deny window, syncs that started before the deny window will be allowed to continue. When enabled on an allow window, syncs that started during the allow window can continue after the window ends. Requires ID which can be found by running "argocd proj windows list PROJECT"
 
 ```
-argocd proj windows add PROJECT [flags]
+argocd proj windows enable-sync-overrun PROJECT ID [flags]
 ```
 
 ### Examples
 
 ```
 
-#Add a 1 hour allow sync window
-argocd proj windows add PROJECT \
-    --kind allow \
-    --schedule "0 22 * * *" \
-    --duration 1h \
-    --applications "*" \
-    --description "Ticket 123"
+#Enable sync overrun for a sync window
+argocd proj windows enable-sync-overrun PROJECT ID
 
-#Add a deny sync window with the ability to manually sync.
-argocd proj windows add PROJECT \
-    --kind deny \
-    --schedule "30 10 * * *" \
-    --duration 30m \
-    --applications "prod-\\*,website" \
-    --namespaces "default,\\*-prod" \
-    --clusters "prod,staging" \
-    --manual-sync \
-    --description "Ticket 123"
+#Enabling sync overrun for a window set on the default project with Id 2
+argocd proj windows enable-sync-overrun default 2
 ```
 
 ### Options
 
 ```
-      --applications strings   Applications that the schedule will be applied to. Comma separated, wildcards supported (e.g. --applications prod-\*,website)
-      --clusters strings       Clusters that the schedule will be applied to. Comma separated, wildcards supported (e.g. --clusters prod,staging)
-      --description string     Sync window description
-      --duration string        Sync window duration. (e.g. --duration 1h)
-  -h, --help                   help for add
-  -k, --kind string            Sync window kind, either allow or deny
-      --manual-sync            Allow manual syncs for both deny and allow windows
-      --namespaces strings     Namespaces that the schedule will be applied to. Comma separated, wildcards supported (e.g. --namespaces default,\*-prod)
-      --schedule string        Sync window schedule in cron format. (e.g. --schedule "0 22 * * *")
-      --sync-overrun           Allow syncs to continue: for deny windows, syncs that started before the window; for allow windows, syncs that started during the window
-      --time-zone string       Time zone of the sync window (default "UTC")
-      --use-and-operator       Use AND operator for matching applications, namespaces and clusters instead of the default OR operator
+  -h, --help   help for enable-sync-overrun
 ```
 
 ### Options inherited from parent commands

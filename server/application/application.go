@@ -2017,7 +2017,7 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 
 	s.inferResourcesStatusHealth(a)
 
-	canSync, err := proj.Spec.SyncWindows.Matches(a).CanSync(true)
+	canSync, err := proj.Spec.SyncWindows.Matches(a).CanSync(true, nil)
 	if err != nil {
 		return a, status.Errorf(codes.PermissionDenied, "cannot sync: invalid sync window: %v", err)
 	}
@@ -2805,7 +2805,7 @@ func (s *Server) GetApplicationSyncWindows(ctx context.Context, q *application.A
 	}
 
 	windows := proj.Spec.SyncWindows.Matches(a)
-	sync, err := windows.CanSync(true)
+	sync, err := windows.CanSync(true, nil)
 	if err != nil {
 		return nil, fmt.Errorf("invalid sync windows: %w", err)
 	}

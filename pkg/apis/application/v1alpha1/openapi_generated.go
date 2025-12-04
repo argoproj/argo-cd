@@ -8457,6 +8457,13 @@ func schema_pkg_apis_application_v1alpha1_SyncWindow(ref common.ReferenceCallbac
 							Format:      "",
 						},
 					},
+					"syncOverrun": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SyncOverrun allows syncs that started before this deny window to continue running",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 				},
 			},
 		},

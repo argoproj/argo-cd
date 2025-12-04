@@ -68,7 +68,9 @@ argocd proj windows list <project-name>
 * [argocd proj windows add](argocd_proj_windows_add.md)	 - Add a sync window to a project
 * [argocd proj windows delete](argocd_proj_windows_delete.md)	 - Delete a sync window from a project. Requires ID which can be found by running "argocd proj windows list PROJECT"
 * [argocd proj windows disable-manual-sync](argocd_proj_windows_disable-manual-sync.md)	 - Disable manual sync for a sync window
+* [argocd proj windows disable-sync-overrun](argocd_proj_windows_disable-sync-overrun.md)	 - Disable sync overrun for a sync window
 * [argocd proj windows enable-manual-sync](argocd_proj_windows_enable-manual-sync.md)	 - Enable manual sync for a sync window
+* [argocd proj windows enable-sync-overrun](argocd_proj_windows_enable-sync-overrun.md)	 - Enable sync overrun for a sync window
 * [argocd proj windows list](argocd_proj_windows_list.md)	 - List project sync windows
 * [argocd proj windows update](argocd_proj_windows_update.md)	 - Update a project sync window
 

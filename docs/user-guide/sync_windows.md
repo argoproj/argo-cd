@@ -28,8 +28,8 @@ then the Application is affected by the Sync Window.
 
 ## Effect of Sync Windows
 
-These windows affect the running of both manual and automated syncs but allow an override 
-for manual syncs which is useful if you are only interested in preventing automated syncs or if you need to temporarily 
+These windows affect the running of both manual and automated syncs but allow an override
+for manual syncs which is useful if you are only interested in preventing automated syncs or if you need to temporarily
 override a window to perform a sync.
 
 The windows work in the following way:
@@ -38,6 +38,43 @@ The windows work in the following way:
 - If there are any `allow` windows matching an application then syncs will only be allowed when there is an active `allow` window.
 - If there are any `deny` windows matching an application then all syncs will be denied when the `deny` windows are active.
 - If there is an active matching `allow` and an active matching `deny` then syncs will be denied as `deny` windows override `allow` windows.
+
+### Sync Overrun
+
+The `syncOverrun` option allows automatic syncs that are already running to continue even when they transition out of their allowed window. This is particularly useful when you want to prevent new syncs from starting during maintenance windows but don't want to interrupt syncs that are already in progress.
+
+Sync overrun can be configured on both `allow` and `deny` windows:
+
+#### Deny Window Overrun
+
+When `syncOverrun` is enabled on a deny window:
+- Syncs that started **before** the deny window became active will be allowed to complete
+- New syncs will still be blocked during the deny window
+- **All active deny windows must have syncOverrun enabled** for the overrun to be allowed
+
+#### Allow Window Overrun
+
+When `syncOverrun` is enabled on an allow window:
+- Syncs that started **during** the allow window will be allowed to continue even after the window ends
+- This is useful for long-running syncs that may extend beyond the scheduled window
+- **All inactive allow windows must have syncOverrun enabled** for the overrun to be allowed
+- The sync can continue as long as:
+  - No deny window without overrun becomes active
+  - If a deny window becomes active, it must also have syncOverrun enabled
+
+#### Transition Scenarios
+
+Here are some common scenarios and their behavior:
+
+1. **No window → Deny with overrun**: Sync continues (deny supports overrun, sync was permitted when it started)
+1. **No window → Deny without overrun**: Sync is **blocked** (deny doesn't support overrun)
+1. **Allow with overrun → Deny with overrun**: Sync continues (both windows support overrun)
+1. **Allow with overrun → Deny without overrun**: Sync is **blocked** (deny doesn't support overrun)
+1. **Allow without overrun → Deny with overrun**: Sync is **allowed** (deny supports overrun, sync was permitted when it started)
+1. **Allow without overrun → Deny without overrun**: Sync is **blocked** (neither supports overrun)
+1. **Allow with overrun → Allow ends**: Sync continues (overrun enabled on original allow window)
+1. **Multiple allows with overrun → All end**: Sync continues (all allow windows have overrun)
+1. **Multiple allows, one without overrun → All end**: Sync is **blocked** (not all allow windows have overrun)
 
 The UI and the CLI will both display the state of the sync windows. The UI has a panel which will display different colours depending
 on the state. The colours are as follows. `Red: sync denied`, `Orange: manual allowed` and `Green: sync allowed`.
@@ -76,8 +113,28 @@ argocd proj windows add PROJECT \
     --applications "*"
 ```
 
+To create a window with sync overrun enabled (allowing in-progress syncs to continue):
+
+```bash
+# Allow window with overrun - syncs can continue after window ends
+argocd proj windows add PROJECT \
+    --kind allow \
+    --schedule "0 9 * * *" \
+    --duration 8h \
+    --applications "*" \
+    --sync-overrun
+
+# Deny window with overrun - in-progress syncs can continue during deny window
+argocd proj windows add PROJECT \
+    --kind deny \
+    --schedule "0 22 * * *" \
+    --duration 1h \
+    --applications "*" \
+    --sync-overrun
+```
+
 Alternatively, they can be created directly in the `AppProject` manifest:
- 
+
 ```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: AppProject
@@ -91,12 +148,19 @@ spec:
     applications:
     - '*-prod'
     manualSync: true
+  - kind: allow
+    schedule: '0 9 * * *'
+    duration: 8h
+    applications:
+    - '*'
+    syncOverrun: true  # Allow syncs to continue after window ends
   - kind: deny
     schedule: '0 22 * * *'
     timeZone: "Europe/Amsterdam"
     duration: 1h
     namespaces:
     - default
+    syncOverrun: true  # Allow in-progress syncs to continue during deny window
   - kind: allow
     schedule: '0 23 * * *'
     duration: 1h
@@ -112,10 +176,22 @@ using the CLI, UI or directly in the `AppProject` manifest:
 argocd proj windows enable-manual-sync PROJECT ID
 ```
 
-To disable
+To disable:
 
 ```bash
 argocd proj windows disable-manual-sync PROJECT ID
+```
+
+Similarly, you can enable or disable sync overrun for existing windows:
+
+```bash
+argocd proj windows enable-sync-overrun PROJECT ID
+```
+
+To disable:
+
+```bash
+argocd proj windows disable-sync-overrun PROJECT ID
 ```
 
 Windows can be listed using the CLI or viewed in the UI:
@@ -125,11 +201,11 @@ argocd proj windows list PROJECT
 ```
 
 ```bash
-ID  STATUS    KIND   SCHEDULE    DURATION  APPLICATIONS  NAMESPACES  CLUSTERS  MANUALSYNC
-0   Active    allow  * * * * *   1h        -             -           prod1     Disabled
-1   Inactive  deny   * * * * 1   3h        -             default     -         Disabled
-2   Inactive  allow  1 2 * * *   1h        prod-*        -           -         Enabled
-3   Active    deny   * * * * *   1h        -             default     -         Disabled
+ID  STATUS    KIND   SCHEDULE    DURATION  APPLICATIONS  NAMESPACES  CLUSTERS  MANUALSYNC  SYNCOVERRUN  TIMEZONE  USEANDOPERATOR
+0   Active    allow  * * * * *   1h        -             -           prod1     Disabled    Disabled     UTC       Disabled
+1   Inactive  deny   * * * * 1   3h        -             default     -         Disabled    Enabled      UTC       Disabled
+2   Inactive  allow  1 2 * * *   1h        prod-*        -           -         Enabled     Disabled     UTC       Disabled
+3   Active    deny   * * * * *   1h        -             default     -         Disabled    Disabled     UTC       Disabled
 ```
 
 All fields of a window can be updated using either the CLI or UI. The `applications`, `namespaces` and `clusters` fields
