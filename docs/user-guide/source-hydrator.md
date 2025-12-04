@@ -118,6 +118,11 @@ During each hydration run, Argo CD cleans the application's configured path befo
 
 It is important to note that hydration only cleans the currently configured application path. If an application’s path changes, the old directory is not removed automatically. Likewise, if an application is deleted, its output path remains in the repository and must be cleaned up manually by the repository owner if desired. This design is intentional: it prevents accidental deletion of files when applications are restructured or removed, and it protects critical files like CI pipelines that may coexist in the repository.
 
+> [!NOTE] 
+> The hydrator triggers only when a new commit is detected in the dry source.  
+> Adding or removing Applications does not on its own cause hydration to run.  
+> If the set of Applications changes but the dry-source commit does not, hydration will wait until the next commit.  
+
 > [!IMPORTANT]
 > **Project-Scoped Repositories**
 >
