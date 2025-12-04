@@ -12,7 +12,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/errors"
 )
 
-// Add GPG public key via API and create appropriate file where the ConfigMap mount would de it as well
+// AddGPGPublicKey adds public key via API and creates the appropriate file where the ConfigMap mount would do it as well
 func AddGPGPublicKey(t *testing.T) {
 	t.Helper()
 	keyPath, err := filepath.Abs("../fixture/gpg/" + fixture.GpgGoodKeyID)
