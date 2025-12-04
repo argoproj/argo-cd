@@ -50,10 +50,10 @@ if echo "${REMOTE_URL}" | grep -q "argoproj/argo-cd"; then
 	echo "!!   1. Press Ctrl+C now" >&2
 	echo "!!   2. Use your fork remote: ./hack/trigger-release.sh ${NEW_TAG} origin" >&2
 	echo "!!" >&2
-	echo "!! To proceed with OFFICIAL release, type 'OFFICIAL' (30 second timeout):" >&2
+	echo "!! To proceed with OFFICIAL release, type 'y' (30 second timeout):" >&2
 	read -t 30 -r confirmation
-	if [ "$confirmation" != "OFFICIAL" ]; then
-		echo "!! Cancelled. Did not receive 'OFFICIAL' confirmation." >&2
+	if [ "$confirmation" != "y" ]; then
+		echo "!! Cancelled. Did not receive 'y' confirmation." >&2
 		exit 1
 	fi
 	echo ">> Confirmed official release. Proceeding..." >&2

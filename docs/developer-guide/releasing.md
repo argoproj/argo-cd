@@ -71,7 +71,7 @@ Example:
 ./hack/trigger-release.sh v2.7.2 upstream
 ```
 
-The script will ask for confirmation, type `OFFICIAL` to proceed. If no confirmation is received within 30 seconds, the script will abort.
+The script will ask for confirmation, type `y` to proceed. If no confirmation is received within 30 seconds, the script will abort.
 
 > [!TIP]
 > The tag must be in one of the following formats to trigger the GH workflow:<br>
