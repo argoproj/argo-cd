@@ -172,17 +172,22 @@ func NewMetricsServer() *MetricsServer {
 	registry.MustRegister(ociRequestHistogram)
 
 	return &MetricsServer{
-		handler:                  promhttp.HandlerFor(registry, promhttp.HandlerOpts{}),
-		gitFetchFailCounter:      gitFetchFailCounter,
-		gitLsRemoteFailCounter:   gitLsRemoteFailCounter,
-		gitRequestCounter:        gitRequestCounter,
-		gitRequestHistogram:      gitRequestHistogram,
-		repoPendingRequestsGauge: repoPendingRequestsGauge,
-		redisRequestCounter:      redisRequestCounter,
-		redisRequestHistogram:    redisRequestHistogram,
-		ociRequestCounter:        ociRequestCounter,
-		ociRequestHistogram:      ociRequestHistogram,
-		PrometheusRegistry:       registry,
+		handler:                       promhttp.HandlerFor(registry, promhttp.HandlerOpts{}),
+		gitFetchFailCounter:           gitFetchFailCounter,
+		gitLsRemoteFailCounter:        gitLsRemoteFailCounter,
+		gitRequestCounter:             gitRequestCounter,
+		gitRequestHistogram:           gitRequestHistogram,
+		repoPendingRequestsGauge:      repoPendingRequestsGauge,
+		redisRequestCounter:           redisRequestCounter,
+		redisRequestHistogram:         redisRequestHistogram,
+		ociRequestCounter:             ociRequestCounter,
+		ociRequestHistogram:           ociRequestHistogram,
+		ociExtractFailCounter:         ociExtractFailCounter,
+		ociResolveRevisionFailCounter: ociResolveRevisionFailCounter,
+		ociGetTagsFailCounter:         ociGetTagsFailCounter,
+		ociDigestMetadataCounter:      ociDigestMetadataCounter,
+		ociTestRepoFailCounter:        ociTestRepoFailCounter,
+		PrometheusRegistry:            registry,
 	}
 }
 
