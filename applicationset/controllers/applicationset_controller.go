@@ -1572,14 +1572,35 @@ func (r *ApplicationSetReconciler) setAppSetApplicationStatus(ctx context.Contex
 }
 
 func (r *ApplicationSetReconciler) syncDesiredApplications(logCtx *log.Entry, applicationSet *argov1alpha1.ApplicationSet, appsToSync map[string]bool, desiredApplications []argov1alpha1.Application) []argov1alpha1.Application {
-	rolloutApps := []argov1alpha1.Application{}
+	var rolloutApps []argov1alpha1.Application
 	for i := range desiredApplications {
+		// Determine the default prune behavior:
+		// 1. Start with false (backward compatible default).
+		// 2. Override with ApplicationSet-level defaultPrune if specified.
+		// 3. Override with Application-level syncPolicy.automated.prune if specified.
 		pruneEnabled := false
 
-		// ensure that Applications generated with RollingSync do not have an automated sync policy, since the AppSet controller will handle triggering the sync operation instead
-		if desiredApplications[i].Spec.SyncPolicy != nil && desiredApplications[i].Spec.SyncPolicy.IsAutomatedSyncEnabled() {
-			pruneEnabled = desiredApplications[i].Spec.SyncPolicy.Automated.Prune
-			desiredApplications[i].Spec.SyncPolicy.Automated.Enabled = ptr.To(false)
+		// Check if ApplicationSet specifies a default prune behavior.
+		if applicationSet.Spec.Strategy != nil &&
+			applicationSet.Spec.Strategy.RollingSync != nil &&
+			applicationSet.Spec.Strategy.RollingSync.DefaultPrune != nil {
+			pruneEnabled = *applicationSet.Spec.Strategy.RollingSync.DefaultPrune
+			logCtx.Debugf("Using ApplicationSet defaultPrune setting: %v for application: %v", pruneEnabled, desiredApplications[i].Name)
+		}
+
+		// Ensure that Applications generated with RollingSync do not have an automated sync policy,
+		// since the AppSet controller will handle triggering the sync operation instead.
+		if desiredApplications[i].Spec.SyncPolicy != nil {
+			if desiredApplications[i].Spec.SyncPolicy.IsAutomatedSyncEnabled() {
+				// Application-level setting takes precedence over ApplicationSet default.
+				pruneEnabled = desiredApplications[i].Spec.SyncPolicy.Automated.Prune
+				logCtx.Debugf("Application %v has automated sync enabled, using its prune setting: %v", desiredApplications[i].Name, pruneEnabled)
+				desiredApplications[i].Spec.SyncPolicy.Automated.Enabled = ptr.To(false)
+			} else if desiredApplications[i].Spec.SyncPolicy.Automated != nil {
+				// Even if automated sync is disabled, respect explicit prune setting if Automated block exists.
+				pruneEnabled = desiredApplications[i].Spec.SyncPolicy.Automated.Prune
+				logCtx.Debugf("Application %v has explicit prune setting: %v", desiredApplications[i].Name, pruneEnabled)
+			}
 		}
 
 		appSetStatusPending := false
@@ -1627,8 +1648,11 @@ func syncApplication(application argov1alpha1.Application, prune bool) argov1alp
 		if application.Spec.SyncPolicy.SyncOptions != nil {
 			operation.Sync.SyncOptions = application.Spec.SyncPolicy.SyncOptions
 		}
-		operation.Sync.Prune = prune
 	}
+
+	// Set this regardless of whether SyncPolicy exists.
+	operation.Sync.Prune = prune
+
 	application.Operation = &operation
 
 	return application
