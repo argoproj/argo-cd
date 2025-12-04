@@ -200,7 +200,6 @@ func (s *Service) ListOCITags(ctx context.Context, q *apiclient.ListRefsRequest)
 
 	tags, err := ociClient.GetTags(ctx, false)
 	if err != nil {
-		s.metricsServer.IncOCIGetTagsFailCounter(q.Repo.Repo)
 		return nil, err
 	}
 
@@ -385,7 +384,6 @@ func (s *Service) runRepoOperation(
 
 		ociPath, closer, err := ociClient.Extract(ctx, revision)
 		if err != nil {
-			s.metricsServer.IncOCIExtractFail(repo.Repo, revision)
 			return err
 		}
 		defer utilio.Close(closer)
@@ -2599,7 +2597,6 @@ func (s *Service) newOCIClientResolveRevision(ctx context.Context, repo *v1alpha
 
 	digest, err := ociClient.ResolveRevision(ctx, revision, noRevisionCache)
 	if err != nil {
-		s.metricsServer.IncOCIResolveRevisionFailCounter(repo.Repo, revision)
 		return nil, "", fmt.Errorf("failed to resolve revision %q: %w", revision, err)
 	}
 
@@ -2796,10 +2793,6 @@ func (s *Service) TestRepository(ctx context.Context, q *apiclient.TestRepositor
 				return err
 			}
 			_, err = client.TestRepo(ctx)
-			if err != nil {
-				s.metricsServer.IncOCITestRepoFailCounter(q.Repo.Repo)
-			}
-
 			return err
 		},
 		"helm": func() error {

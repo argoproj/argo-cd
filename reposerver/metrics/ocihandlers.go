@@ -34,6 +34,21 @@ func NewOCIClientEventHandlers(metricsServer *MetricsServer) oci.EventHandlers {
 		OnTestRepo: func(repo string) func() {
 			return processMetricFunc(metricsServer, repo, OCIRequestTypeTestRepo)
 		},
+		OnExtractFail: func(repo string) func(revision string) {
+			return func(revision string) { metricsServer.IncOCIExtractFailCounter(repo, revision) }
+		},
+		OnResolveRevisionFail: func(repo string) func(revision string) {
+			return func(revision string) { metricsServer.IncOCIResolveRevisionFailCounter(repo, revision) }
+		},
+		OnDigestMetadataFail: func(repo string) func(revision string) {
+			return func(revision string) { metricsServer.IncOCIDigestMetadataCounter(repo, revision) }
+		},
+		OnGetTagsFail: func(repo string) func() {
+			return func() { metricsServer.IncOCIGetTagsFailCounter(repo) }
+		},
+		OnTestRepoFail: func(repo string) func() {
+			return func() { metricsServer.IncOCITestRepoFailCounter(repo) }
+		},
 	}
 }
 

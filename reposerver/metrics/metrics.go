@@ -237,8 +237,8 @@ func (m *MetricsServer) ObserveOCIRequestDuration(repo string, requestType OCIRe
 	m.ociRequestHistogram.WithLabelValues(repo, string(requestType)).Observe(duration.Seconds())
 }
 
-// IncOCIExtractFail increments the OCI failed extract requests counter
-func (m *MetricsServer) IncOCIExtractFail(repo string, revision string) {
+// IncOCIExtractFailCounter increments the OCI failed extract requests counter
+func (m *MetricsServer) IncOCIExtractFailCounter(repo string, revision string) {
 	m.ociExtractFailCounter.WithLabelValues(repo, revision).Inc()
 }
 

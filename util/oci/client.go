@@ -193,11 +193,16 @@ func newClientWithLock(repoURL string, repoLock sync.KeyLock, repo oras.ReadOnly
 }
 
 type EventHandlers struct {
-	OnExtract         func(repo string) func()
-	OnResolveRevision func(repo string) func()
-	OnDigestMetadata  func(repo string) func()
-	OnTestRepo        func(repo string) func()
-	OnGetTags         func(repo string) func()
+	OnExtract             func(repo string) func()
+	OnResolveRevision     func(repo string) func()
+	OnDigestMetadata      func(repo string) func()
+	OnTestRepo            func(repo string) func()
+	OnGetTags             func(repo string) func()
+	OnExtractFail         func(repo string) func(revision string)
+	OnResolveRevisionFail func(repo string) func(revision string)
+	OnDigestMetadataFail  func(repo string) func(revision string)
+	OnTestRepoFail        func(repo string) func()
+	OnGetTagsFail         func(repo string) func()
 }
 
 // nativeOCIClient implements Client interface using oras-go
@@ -221,6 +226,9 @@ func (c *nativeOCIClient) TestRepo(ctx context.Context) (bool, error) {
 	defer c.OnTestRepo(c.repoURL)
 
 	err := c.pingFunc(ctx)
+	if err != nil {
+		defer c.OnTestRepoFail(c.repoURL)()
+	}
 	return err == nil, err
 }
 
@@ -243,6 +251,7 @@ func (c *nativeOCIClient) Extract(ctx context.Context, digest string) (string, u
 	if !exists {
 		ociManifest, err := getOCIManifest(ctx, digest, c.repo)
 		if err != nil {
+			defer c.OnExtractFail(c.repoURL)(digest)
 			return "", nil, err
 		}
 
@@ -368,6 +377,7 @@ func (c *nativeOCIClient) GetTags(ctx context.Context, noCache bool) ([]string, 
 		start := time.Now()
 		result, err := c.tagsFunc(ctx, "")
 		if err != nil {
+			defer c.OnDigestMetadataFail(c.repoURL)
 			return nil, fmt.Errorf("failed to get tags: %w", err)
 		}
 
@@ -397,6 +407,7 @@ func (c *nativeOCIClient) GetTags(ctx context.Context, noCache bool) ([]string, 
 func (c *nativeOCIClient) resolveDigest(ctx context.Context, revision string) (string, error) {
 	descriptor, err := c.repo.Resolve(ctx, revision)
 	if err != nil {
+		defer c.OnResolveRevisionFail(c.repoURL)(revision)
 		return "", fmt.Errorf("cannot get digest for revision %s: %w", revision, err)
 	}
 
