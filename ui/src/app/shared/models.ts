@@ -831,6 +831,12 @@ export interface GroupKind {
     kind: string;
 }
 
+export interface ClusterResourceRestrictionItem {
+    group: string;
+    kind: string;
+    name?: string;
+}
+
 export interface ProjectSignatureKey {
     keyID: string;
 }
@@ -842,8 +848,8 @@ export interface ProjectSpec {
     destinationServiceAccounts: ApplicationDestinationServiceAccount[];
     description: string;
     roles: ProjectRole[];
-    clusterResourceWhitelist: GroupKind[];
-    clusterResourceBlacklist: GroupKind[];
+    clusterResourceWhitelist: ClusterResourceRestrictionItem[];
+    clusterResourceBlacklist: ClusterResourceRestrictionItem[];
     namespaceResourceBlacklist: GroupKind[];
     namespaceResourceWhitelist: GroupKind[];
     signatureKeys: ProjectSignatureKey[];

@@ -1094,3 +1094,36 @@ func TestHydrator_getManifests_GetRepoObjsError(t *testing.T) {
 	assert.Empty(t, rev)
 	assert.Nil(t, pathDetails)
 }
+
+func TestHydrator_hydrate_DeDupe_Success(t *testing.T) {
+	t.Parallel()
+
+	d := mocks.NewDependencies(t)
+	h := &Hydrator{dependencies: d}
+
+	app1 := newTestApp("app1")
+	app2 := newTestApp("app2")
+	lastSuccessfulOperation := &v1alpha1.SuccessfulHydrateOperation{
+		DrySHA:      "sha123",
+		HydratedSHA: "hydrated123",
+	}
+	app1.Status.SourceHydrator = v1alpha1.SourceHydratorStatus{
+		LastSuccessfulOperation: lastSuccessfulOperation,
+	}
+
+	apps := []*v1alpha1.Application{app1, app2}
+	proj := newTestProject()
+	projects := map[string]*v1alpha1.AppProject{app1.Spec.Project: proj}
+
+	// Asserting .Once() confirms that we only make one call to repo-server to get the last hydrated DRY
+	// sha, and then we quit early.
+	d.On("GetRepoObjs", mock.Anything, app1, app1.Spec.SourceHydrator.GetDrySource(), "main", proj).Return(nil, &repoclient.ManifestResponse{Revision: "sha123"}, nil).Once()
+	logCtx := log.NewEntry(log.StandardLogger())
+
+	sha, hydratedSha, errs, err := h.hydrate(logCtx, apps, projects)
+
+	require.NoError(t, err)
+	assert.Equal(t, "sha123", sha)
+	assert.Equal(t, "hydrated123", hydratedSha)
+	assert.Empty(t, errs)
+}
