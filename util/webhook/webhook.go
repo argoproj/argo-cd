@@ -330,23 +330,23 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 	appIf := a.appsLister.Applications(nsFilter)
 	apps, err := appIf.List(labels.Everything())
 	if err != nil {
-		log.Warnf("Failed to list applications: %v", err)
+		log.Errorf("Failed to list applications: %v", err)
 		return
 	}
 
 	installationID, err := a.settingsSrc.GetInstallationID()
 	if err != nil {
-		log.Warnf("Failed to get installation ID: %v", err)
+		log.Errorf("Failed to get installation ID: %v", err)
 		return
 	}
 	trackingMethod, err := a.settingsSrc.GetTrackingMethod()
 	if err != nil {
-		log.Warnf("Failed to get trackingMethod: %v", err)
+		log.Errorf("Failed to get trackingMethod: %v", err)
 		return
 	}
 	appInstanceLabelKey, err := a.settingsSrc.GetAppInstanceLabelKey()
 	if err != nil {
-		log.Warnf("Failed to get appInstanceLabelKey: %v", err)
+		log.Errorf("Failed to get appInstanceLabelKey: %v", err)
 		return
 	}
 
@@ -362,52 +362,47 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 	for _, webURL := range webURLs {
 		repoRegexp, err := GetWebURLRegex(webURL)
 		if err != nil {
-			log.Warnf("Failed to get repoRegexp: %s", err)
+			log.Errorf("Failed to get repoRegexp: %s", err)
 			continue
 		}
+
+		// iterate over apps and check if any files specified in their sources have changed
 		for _, app := range filteredApps {
+			// get all sources, including sync source and dry source if source hydrator is configured
+			sources := app.Spec.GetSources()
 			if app.Spec.SourceHydrator != nil {
-				drySource := app.Spec.SourceHydrator.GetDrySource()
-				syncSource := app.Spec.SourceHydrator.GetSyncSource()
-				if sourceRevisionHasChanged(drySource, revision, touchedHead) && sourceUsesURL(drySource, webURL, repoRegexp) { // handle webhook for drySource
-					refreshPaths := path.GetAppRefreshPaths(&app)
-					if path.AppFilesHaveChanged(refreshPaths, changedFiles) {
-						namespacedAppInterface := a.appClientset.ArgoprojV1alpha1().Applications(app.Namespace)
-						log.Infof("webhook trigger refresh app to hydrate '%s'", app.Name)
-						_, err = argo.RefreshApp(namespacedAppInterface, app.Name, v1alpha1.RefreshTypeNormal, true)
-						if err != nil {
-							log.Warnf("Failed to hydrate app '%s' for controller reprocessing: %v", app.Name, err)
-							continue
-						}
-					}
-				} else if sourceRevisionHasChanged(syncSource, revision, touchedHead) && sourceUsesURL(syncSource, webURL, repoRegexp) { // handle webhook for syncSource
-					// syncSource webhook events only trigger sync, not hydration. Unlike drySource events,
-					// skip the manifest_generate_path file check since hydration is not required here.
-					namespacedAppInterface := a.appClientset.ArgoprojV1alpha1().Applications(app.Namespace)
-					log.Infof("webhook trigger refresh app from syncSource '%s'", app.Name)
-					_, err = argo.RefreshApp(namespacedAppInterface, app.Name, v1alpha1.RefreshTypeNormal, true)
-					if err != nil {
-						log.Warnf("Failed to refresh app '%s' after syncSource change: %v", app.Name, err)
-						continue
-					}
-				}
+				// we already have sync source, so add dry source if source hydrator is configured
+				sources = append(sources, app.Spec.SourceHydrator.GetDrySource())
 			}
 
-			for _, source := range app.Spec.GetSources() {
+			// iterate over all sources and check if any files specified in refresh paths have changed
+			for _, source := range sources {
 				if sourceRevisionHasChanged(source, revision, touchedHead) && sourceUsesURL(source, webURL, repoRegexp) {
-					refreshPaths := path.GetAppRefreshPaths(&app)
+					refreshPaths := path.GetSourceRefreshPaths(&app, source)
 					if path.AppFilesHaveChanged(refreshPaths, changedFiles) {
-						namespacedAppInterface := a.appClientset.ArgoprojV1alpha1().Applications(app.Namespace)
-						_, err = argo.RefreshApp(namespacedAppInterface, app.Name, v1alpha1.RefreshTypeNormal, true)
-						if err != nil {
-							log.Warnf("Failed to refresh app '%s' for controller reprocessing: %v", app.Name, err)
-							continue
+						hydrate := false
+						if app.Spec.SourceHydrator != nil {
+							drySource := app.Spec.SourceHydrator.GetDrySource()
+							if (&source).Equals(&drySource) {
+								hydrate = true
+							}
 						}
-						// No need to refresh multiple times if multiple sources match.
-						break
+
+						// refresh paths have changed, so we need to refresh the app
+						log.Infof("refreshing app '%s' from webhook", app.Name)
+						if hydrate {
+							// log if we need to hydrate the app
+							log.Infof("webhook trigger refresh app to hydrate '%s'", app.Name)
+						}
+						namespacedAppInterface := a.appClientset.ArgoprojV1alpha1().Applications(app.Namespace)
+						if _, err := argo.RefreshApp(namespacedAppInterface, app.Name, v1alpha1.RefreshTypeNormal, hydrate); err != nil {
+							log.Errorf("Failed to refresh app '%s': %v", app.Name, err)
+						}
+						break // we don't need to check other sources
 					} else if change.shaBefore != "" && change.shaAfter != "" {
-						if err := a.storePreviouslyCachedManifests(&app, change, trackingMethod, appInstanceLabelKey, installationID); err != nil {
-							log.Warnf("Failed to store cached manifests of previous revision for app '%s': %v", app.Name, err)
+						// update the cached manifests with the new revision cache key
+						if err := a.storePreviouslyCachedManifests(&app, change, trackingMethod, appInstanceLabelKey, installationID, source); err != nil {
+							log.Errorf("Failed to store cached manifests of previous revision for app '%s': %v", app.Name, err)
 						}
 					}
 				}
@@ -460,7 +455,7 @@ func getURLRegex(originalURL string, regexpFormat string) (*regexp.Regexp, error
 	return repoRegexp, nil
 }
 
-func (a *ArgoCDWebhookHandler) storePreviouslyCachedManifests(app *v1alpha1.Application, change changeInfo, trackingMethod string, appInstanceLabelKey string, installationID string) error {
+func (a *ArgoCDWebhookHandler) storePreviouslyCachedManifests(app *v1alpha1.Application, change changeInfo, trackingMethod string, appInstanceLabelKey string, installationID string, source v1alpha1.ApplicationSource) error {
 	destCluster, err := argo.GetDestinationCluster(context.Background(), app.Spec.Destination, a.db)
 	if err != nil {
 		return fmt.Errorf("error validating destination: %w", err)
@@ -483,7 +478,7 @@ func (a *ArgoCDWebhookHandler) storePreviouslyCachedManifests(app *v1alpha1.Appl
 	if err != nil {
 		return fmt.Errorf("error getting ref sources: %w", err)
 	}
-	source := app.Spec.GetSource()
+
 	cache.LogDebugManifestCacheKeyFields("moving manifests cache", "webhook app revision changed", change.shaBefore, &source, refSources, &clusterInfo, app.Spec.Destination.Namespace, trackingMethod, appInstanceLabelKey, app.Name, nil)
 
 	if err := a.repoCache.SetNewRevisionManifests(change.shaAfter, change.shaBefore, &source, refSources, &clusterInfo, app.Spec.Destination.Namespace, trackingMethod, appInstanceLabelKey, app.Name, nil, installationID); err != nil {
