@@ -129,10 +129,7 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                         'Synchronize using replace?',
                                         () => (
                                             <div>
-                                                <p>
-                                                    <i className='fa fa-exclamation-triangle' style={{color: ARGO_WARNING_COLOR}} /> {REPLACE_WARNING} Are you sure you want to
-                                                    continue?
-                                                </p>
+                                                <p>{REPLACE_WARNING} Are you sure you want to continue?</p>
                                             </div>
                                         ),
                                         {name: 'argo-icon-warning', color: 'warning'},
