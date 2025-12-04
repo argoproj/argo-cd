@@ -380,6 +380,7 @@ func TestDeleteManifest_FileNotExist(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "no such file or directory")
 }
+
 func TestIsHydrated(t *testing.T) {
 	mockGitClient := gitmocks.NewClient(t)
 	drySha := "abc123"

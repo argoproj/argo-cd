@@ -44,8 +44,10 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/versions"
 )
 
-var ErrInvalidRepoURL = errors.New("repo URL is invalid")
-var ErrNoNoteFound = errors.New("no note found")
+var (
+	ErrInvalidRepoURL = errors.New("repo URL is invalid")
+	ErrNoNoteFound    = errors.New("no note found")
+)
 
 // builtinGitConfig configuration contains statements that are needed
 // for correct ArgoCD operation. These settings will override any
