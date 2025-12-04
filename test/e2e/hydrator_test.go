@@ -319,7 +319,9 @@ func TestHydratorWithMixedSources(t *testing.T) {
 			}
 		}).
 		Refresh(RefreshTypeNormal).
-		Wait("--hydrated").
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		When().
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
