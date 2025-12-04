@@ -130,7 +130,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
       - name: Create symlink in GOPATH
-        # generalizing repo name for forks:  ${{ github.event.repository.name }}
         run: ln -s $(pwd) ~/go/src/github.com/argoproj/argo-cd
       - name: Setup Golang
         uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
@@ -195,7 +194,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
       - name: Create symlink in GOPATH
-        # generalizing repo name for forks:  ${{ github.event.repository.name }}
         run: ln -s $(pwd) ~/go/src/github.com/argoproj/argo-cd 
       - name: Setup Golang
         uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
@@ -292,13 +290,13 @@ jobs:
           git checkout -- go.mod go.sum
           make codegen-local
         # generalizing repo name for forks:  ${{ github.event.repository.name }}
-        working-directory: /home/runner/go/src/github.com/argoproj/argo-cd
+        working-directory: /home/runner/go/src/github.com/${{ github.event.repository.name }}
       - name: Check nothing has changed
         run: |
           set -xo pipefail
           git diff --exit-code -- . ':!go.sum' ':!go.mod' ':!assets/swagger.json' | tee codegen.patch
         # generalizing repo name for forks:  ${{ github.event.repository.name }}
-        working-directory: /home/runner/go/src/github.com/argoproj/argo-cd 
+        working-directory: /home/runner/go/src/github.com/argoproj/${{ github.event.repository.name }}
 
   build-ui:
     name: Build, test & lint UI code
