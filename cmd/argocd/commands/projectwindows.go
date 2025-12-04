@@ -42,6 +42,8 @@ argocd proj windows list <project-name>`,
 	}
 	roleCommand.AddCommand(NewProjectWindowsDisableManualSyncCommand(clientOpts))
 	roleCommand.AddCommand(NewProjectWindowsEnableManualSyncCommand(clientOpts))
+	roleCommand.AddCommand(NewProjectWindowsDisableSyncOverrunCommand(clientOpts))
+	roleCommand.AddCommand(NewProjectWindowsEnableSyncOverrunCommand(clientOpts))
 	roleCommand.AddCommand(NewProjectWindowsAddWindowCommand(clientOpts))
 	roleCommand.AddCommand(NewProjectWindowsDeleteCommand(clientOpts))
 	roleCommand.AddCommand(NewProjectWindowsListCommand(clientOpts))
@@ -138,6 +140,92 @@ argocd proj windows enable-manual-sync my-app-project --message "Manual sync ini
 	return command
 }
 
+// NewProjectWindowsDisableSyncOverrunCommand returns a new instance of an `argocd proj windows disable-sync-overrun` command
+func NewProjectWindowsDisableSyncOverrunCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	command := &cobra.Command{
+		Use:   "disable-sync-overrun PROJECT ID",
+		Short: "Disable sync overrun for a sync window",
+		Long:  "Disable sync overrun for a sync window. Requires ID which can be found by running \"argocd proj windows list PROJECT\"",
+		Example: `
+#Disable sync overrun for a sync window for the Project
+argocd proj windows disable-sync-overrun PROJECT ID
+
+#Disabling sync overrun for a window set on the default project with Id 0
+argocd proj windows disable-sync-overrun default 0`,
+		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
+			if len(args) != 2 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+
+			projName := args[0]
+			id, err := strconv.Atoi(args[1])
+			errors.CheckError(err)
+
+			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
+			defer utilio.Close(conn)
+
+			proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
+			errors.CheckError(err)
+
+			for i, window := range proj.Spec.SyncWindows {
+				if id == i {
+					window.SyncOverrun = false
+				}
+			}
+
+			_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
+			errors.CheckError(err)
+		},
+	}
+	return command
+}
+
+// NewProjectWindowsEnableSyncOverrunCommand returns a new instance of an `argocd proj windows enable-sync-overrun` command
+func NewProjectWindowsEnableSyncOverrunCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	command := &cobra.Command{
+		Use:   "enable-sync-overrun PROJECT ID",
+		Short: "Enable sync overrun for a sync window",
+		Long:  "Enable sync overrun for a sync window. When enabled on a deny window, syncs that started before the deny window will be allowed to continue. When enabled on an allow window, syncs that started during the allow window can continue after the window ends. Requires ID which can be found by running \"argocd proj windows list PROJECT\"",
+		Example: `
+#Enable sync overrun for a sync window
+argocd proj windows enable-sync-overrun PROJECT ID
+
+#Enabling sync overrun for a window set on the default project with Id 2
+argocd proj windows enable-sync-overrun default 2`,
+		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
+			if len(args) != 2 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+
+			projName := args[0]
+			id, err := strconv.Atoi(args[1])
+			errors.CheckError(err)
+
+			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
+			defer utilio.Close(conn)
+
+			proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
+			errors.CheckError(err)
+
+			for i, window := range proj.Spec.SyncWindows {
+				if id == i {
+					window.SyncOverrun = true
+				}
+			}
+
+			_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
+			errors.CheckError(err)
+		},
+	}
+	return command
+}
+
 // NewProjectWindowsAddWindowCommand returns a new instance of an `argocd proj windows add` command
 func NewProjectWindowsAddWindowCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
@@ -148,6 +236,7 @@ func NewProjectWindowsAddWindowCommand(clientOpts *argocdclient.ClientOptions) *
 		namespaces   []string
 		clusters     []string
 		manualSync   bool
+		syncOverrun  bool
 		timeZone     string
 		andOperator  bool
 		description  string
@@ -173,8 +262,7 @@ argocd proj windows add PROJECT \
     --namespaces "default,\\*-prod" \
     --clusters "prod,staging" \
     --manual-sync \
-    --description "Ticket 123"
-	`,
+    --description "Ticket 123"`,
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
@@ -189,7 +277,7 @@ argocd proj windows add PROJECT \
 			proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
 
-			err = proj.Spec.AddWindow(kind, schedule, duration, applications, namespaces, clusters, manualSync, timeZone, andOperator, description)
+			err = proj.Spec.AddWindow(kind, schedule, duration, applications, namespaces, clusters, manualSync, timeZone, andOperator, description, syncOverrun)
 			errors.CheckError(err)
 
 			_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
@@ -203,6 +291,7 @@ argocd proj windows add PROJECT \
 	command.Flags().StringSliceVar(&namespaces, "namespaces", []string{}, "Namespaces that the schedule will be applied to. Comma separated, wildcards supported (e.g. --namespaces default,\\*-prod)")
 	command.Flags().StringSliceVar(&clusters, "clusters", []string{}, "Clusters that the schedule will be applied to. Comma separated, wildcards supported (e.g. --clusters prod,staging)")
 	command.Flags().BoolVar(&manualSync, "manual-sync", false, "Allow manual syncs for both deny and allow windows")
+	command.Flags().BoolVar(&syncOverrun, "sync-overrun", false, "Allow syncs to continue: for deny windows, syncs that started before the window; for allow windows, syncs that started during the window")
 	command.Flags().StringVar(&timeZone, "time-zone", "UTC", "Time zone of the sync window")
 	command.Flags().BoolVar(&andOperator, "use-and-operator", false, "Use AND operator for matching applications, namespaces and clusters instead of the default OR operator")
 	command.Flags().StringVar(&description, "description", "", `Sync window description`)
@@ -362,7 +451,11 @@ argocd proj windows list test-project`,
 func printSyncWindows(proj *v1alpha1.AppProject) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	var fmtStr string
+<<<<<<< HEAD
 	headers := []any{"ID", "STATUS", "KIND", "SCHEDULE", "DURATION", "APPLICATIONS", "NAMESPACES", "CLUSTERS", "MANUALSYNC", "TIMEZONE", "USEANDOPERATOR"}
+=======
+	headers := []any{"ID", "STATUS", "KIND", "SCHEDULE", "DURATION", "APPLICATIONS", "NAMESPACES", "CLUSTERS", "MANUALSYNC", "SYNCOVERRUN", "TIMEZONE", "USEANDOPERATOR"}
+>>>>>>> 4fc69c5276 (feat: add sync overrun option to sync windows)
 	fmtStr = strings.Repeat("%s\t", len(headers)) + "\n"
 	fmt.Fprintf(w, fmtStr, headers...)
 	if proj.Spec.SyncWindows.HasWindows() {
@@ -378,6 +471,7 @@ func printSyncWindows(proj *v1alpha1.AppProject) {
 				formatListOutput(window.Namespaces),
 				formatListOutput(window.Clusters),
 				formatBoolEnabledOutput(window.ManualSync),
+				formatBoolEnabledOutput(window.SyncOverrun),
 				window.TimeZone,
 				formatBoolEnabledOutput(window.UseAndOperator),
 			}
