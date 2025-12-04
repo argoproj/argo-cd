@@ -108,11 +108,15 @@ func GetAppRefreshPaths(app *v1alpha1.Application) []string {
 			if filepath.IsAbs(item) {
 				paths = append(paths, item[1:])
 			} else {
-				// For sourceHydrator apps, resolve paths relative to the DRY source
-				// since webhook events contain files changed in the dry source repository
+				// For sourceHydrator apps, resolve paths relative to both DRY source and SYNC source
+				// since webhook events can come from either repository
 				if app.Spec.SourceHydrator != nil {
+					// Resolve relative to dry source (for dry source webhooks)
 					drySource := app.Spec.SourceHydrator.GetDrySource()
 					paths = append(paths, filepath.Clean(filepath.Join(drySource.Path, item)))
+					// Resolve relative to sync source (for sync source webhooks)
+					syncSource := app.Spec.SourceHydrator.GetSyncSource()
+					paths = append(paths, filepath.Clean(filepath.Join(syncSource.Path, item)))
 				} else {
 					// For non-hydrator apps, use the regular source(s)
 					for _, source := range app.Spec.GetSources() {
