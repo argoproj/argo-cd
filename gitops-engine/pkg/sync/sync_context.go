@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"sort"
 	"strings"
 	"sync"
@@ -1155,6 +1156,231 @@ func (sc *syncContext) performClientSideApplyMigration(targetObj *unstructured.U
 	return nil
 }
 
+// formatValue converts any value to its string representation with special handling for
+// templates, maps, and strings. Returns "<nil>" for nil values.
+func formatValue(v any) string {
+	if v == nil {
+		return "<nil>"
+	}
+	switch val := v.(type) {
+	case []any:
+		return formatTemplates(val)
+	case map[string]any:
+		return formatMap(val)
+	case string:
+		return fmt.Sprintf("%q", val)
+	default:
+		return fmt.Sprintf("%v", val)
+	}
+}
+
+// formatTemplates handles the formatting of volumeClaimTemplates arrays.
+// For single templates with storage, returns the storage value.
+// For multiple templates, returns a formatted list of template names with storage.
+func formatTemplates(templates []any) string {
+	if len(templates) == 1 {
+		if storage := getSingleTemplateStorage(templates[0]); storage != "" {
+			return fmt.Sprintf("%q", storage)
+		}
+	}
+	return formatMultipleTemplates(templates)
+}
+
+// getSingleTemplateStorage extracts storage value from a single template.
+// Returns empty string if template is invalid or has no storage.
+func getSingleTemplateStorage(t any) string {
+	template, ok := t.(map[string]any)
+	if !ok {
+		return ""
+	}
+	return getTemplateStorage(template)
+}
+
+// formatMultipleTemplates formats an array of templates into a string list
+// of template names, optionally including storage information.
+func formatMultipleTemplates(templates []any) string {
+	var names []string
+	for _, t := range templates {
+		if name := getTemplateName(t); name != "" {
+			names = append(names, name)
+		}
+	}
+	return fmt.Sprintf("[%s]", strings.Join(names, ", "))
+}
+
+// getTemplateName extracts and formats the name from a template.
+// If template has storage, appends it to the name in parentheses.
+func getTemplateName(t any) string {
+	template, ok := t.(map[string]any)
+	if !ok {
+		return ""
+	}
+	metadata, ok := template["metadata"].(map[string]any)
+	if !ok {
+		return ""
+	}
+	name, ok := metadata["name"].(string)
+	if !ok {
+		return ""
+	}
+	if storage := getTemplateStorage(template); storage != "" {
+		return fmt.Sprintf("%s(%s)", name, storage)
+	}
+	return name
+}
+
+// formatMap handles special case formatting for maps, particularly for matchLabels.
+// Returns standard string representation for non-matchLabel maps.
+func formatMap(m map[string]any) string {
+	if matchLabels, exists := m["matchLabels"].(map[string]any); exists {
+		return formatMatchLabels(matchLabels)
+	}
+	return fmt.Sprintf("%v", m)
+}
+
+// formatMatchLabels converts a matchLabels map into a sorted string list
+// of key:value pairs enclosed in curly braces.
+func formatMatchLabels(matchLabels map[string]any) string {
+	var labels []string
+	for k, v := range matchLabels {
+		labels = append(labels, fmt.Sprintf("%s:%s", k, v))
+	}
+	sort.Strings(labels)
+	return fmt.Sprintf("{%s}", strings.Join(labels, ", "))
+}
+
+// Get storage size from template
+func getTemplateStorage(template map[string]any) string {
+	spec, ok := template["spec"].(map[string]any)
+	if !ok {
+		return ""
+	}
+	resources, ok := spec["resources"].(map[string]any)
+	if !ok {
+		return ""
+	}
+	requests, ok := resources["requests"].(map[string]any)
+	if !ok {
+		return ""
+	}
+	storage, ok := requests["storage"].(string)
+	if !ok {
+		return ""
+	}
+	return storage
+}
+
+// Format field changes for error messages
+func formatFieldChange(field string, currentVal, desiredVal any) string {
+	return fmt.Sprintf("   - %s:\n      from: %s\n      to:   %s",
+		field, formatValue(currentVal), formatValue(desiredVal))
+}
+
+// validateStatefulSetUpdate checks for changes to immutable fields in a StatefulSet
+// Returns the formatted error message and true if immutable fields were changed
+func (sc *syncContext) validateStatefulSetUpdate(current, desired *unstructured.Unstructured) (string, bool) {
+	currentSpec, _, _ := unstructured.NestedMap(current.Object, "spec")
+	desiredSpec, _, _ := unstructured.NestedMap(desired.Object, "spec")
+
+	changes := getImmutableFieldChanges(currentSpec, desiredSpec)
+	if len(changes) == 0 {
+		return "", false
+	}
+
+	sort.Strings(changes)
+
+	message := fmt.Sprintf("attempting to change immutable fields:\n%s\n\nForbidden: updates to statefulset spec for fields other than 'replicas', 'ordinals', 'template', 'updateStrategy', 'persistentVolumeClaimRetentionPolicy' and 'minReadySeconds' are forbidden",
+		strings.Join(changes, "\n"))
+
+	return message, true
+}
+
+// getImmutableFieldChanges compares specs and returns a list of changes to immutable fields
+func getImmutableFieldChanges(currentSpec, desiredSpec map[string]any) []string {
+	mutableFields := map[string]bool{
+		"replicas": true, "ordinals": true, "template": true,
+		"updateStrategy": true, "persistentVolumeClaimRetentionPolicy": true,
+		"minReadySeconds": true,
+	}
+
+	var changes []string
+	for k, desiredVal := range desiredSpec {
+		if mutableFields[k] {
+			continue
+		}
+
+		currentVal, exists := currentSpec[k]
+		if !exists {
+			changes = append(changes, formatFieldChange(k, nil, desiredVal))
+			continue
+		}
+
+		if !reflect.DeepEqual(currentVal, desiredVal) {
+			if k == "volumeClaimTemplates" {
+				changes = append(changes, formatVolumeClaimChanges(currentVal, desiredVal)...)
+			} else {
+				changes = append(changes, formatFieldChange(k, currentVal, desiredVal))
+			}
+		}
+	}
+
+	return changes
+}
+
+// formatVolumeClaimChanges handles the special case of formatting changes to volumeClaimTemplates
+func formatVolumeClaimChanges(currentVal, desiredVal any) []string {
+
+	currentTemplates, ok := currentVal.([]any)
+	if !ok {
+		return []string{formatFieldChange("volumeClaimTemplates", currentVal, desiredVal)}
+	}
+
+	desiredTemplates, ok := desiredVal.([]any)
+	if !ok {
+		return []string{formatFieldChange("volumeClaimTemplates", currentVal, desiredVal)}
+	}
+
+	if len(currentTemplates) != len(desiredTemplates) {
+		return []string{formatFieldChange("volumeClaimTemplates", currentVal, desiredVal)}
+	}
+
+	var changes []string
+	for i := range desiredTemplates {
+
+		desiredTemplate, ok := desiredTemplates[i].(map[string]any)
+		if !ok {
+			return []string{formatFieldChange("volumeClaimTemplates", currentVal, desiredVal)}
+		}
+
+		currentTemplate, ok := currentTemplates[i].(map[string]any)
+		if !ok {
+			return []string{formatFieldChange("volumeClaimTemplates", currentVal, desiredVal)}
+		}
+
+		metadata, ok := desiredTemplate["metadata"].(map[string]any)
+		if !ok {
+			// Skip this template if metadata is not a map
+			continue
+		}
+
+		name, ok := metadata["name"].(string)
+		if !ok {
+			// Skip this template if name is not a string
+			continue
+		}
+
+		desiredStorage := getTemplateStorage(desiredTemplate)
+		currentStorage := getTemplateStorage(currentTemplate)
+
+		if currentStorage != desiredStorage {
+			changes = append(changes, fmt.Sprintf("   - volumeClaimTemplates.%s:\n      from: %q\n      to:   %q",
+				name, currentStorage, desiredStorage))
+		}
+	}
+
+	return changes
+}
+
 func (sc *syncContext) applyObject(t *syncTask, dryRun, validate bool) (common.ResultCode, string) {
 	dryRunStrategy := cmdutil.DryRunNone
 	if dryRun {
@@ -1206,6 +1432,13 @@ func (sc *syncContext) applyObject(t *syncTask, dryRun, validate bool) (common.R
 		message, err = sc.resourceOps.ApplyResource(context.TODO(), t.targetObj, dryRunStrategy, force, validate, serverSideApply, sc.serverSideApplyManager)
 	}
 	if err != nil {
+		if strings.Contains(err.Error(), "updates to statefulset spec for fields other than") {
+			if t.liveObj != nil && t.targetObj != nil {
+				if message, hasChanges := sc.validateStatefulSetUpdate(t.liveObj, t.targetObj); hasChanges {
+					return common.ResultCodeSyncFailed, message
+				}
+			}
+		}
 		return common.ResultCodeSyncFailed, err.Error()
 	}
 	if kubeutil.IsCRD(t.targetObj) && !dryRun {
