@@ -132,6 +132,26 @@ func getMultiSourceApp(annotation string, paths ...string) *v1alpha1.Application
 	}
 }
 
+func getSourceHydratorApp(annotation string, drySourcePath string, syncSourcePath string) *v1alpha1.Application {
+	return &v1alpha1.Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Annotations: map[string]string{
+				v1alpha1.AnnotationKeyManifestGeneratePaths: annotation,
+			},
+		},
+		Spec: v1alpha1.ApplicationSpec{
+			SourceHydrator: &v1alpha1.SourceHydrator{
+				DrySource: v1alpha1.DrySource{
+					Path: drySourcePath,
+				},
+				SyncSource: v1alpha1.SyncSource{
+					Path: syncSourcePath,
+				},
+			},
+		},
+	}
+}
+
 func Test_AppFilesHaveChanged(t *testing.T) {
 	t.Parallel()
 
@@ -181,6 +201,11 @@ func Test_AppFilesHaveChanged(t *testing.T) {
 		{"file two relative paths - not matching", getApp(".README.md;../shared/my-deployment.yaml", "my-app"), []string{"kustomization.yaml"}, false},
 		{"file two relative paths, multi source - not matching", getMultiSourceApp(".README.md;../shared/my-deployment.yaml", "my-app", "other-path"), []string{"kustomization.yaml"}, false},
 		{"changed file absolute path - matching", getApp(".", "source/path"), []string{"/source/path/my-deployment.yaml"}, true},
+		// SourceHydrator tests - paths should be resolved relative to DRY source, not SYNC source
+		{"sourceHydrator relative path - matching", getSourceHydratorApp(".", "source/envs/dev", "sync/path"), []string{"source/envs/dev/my-deployment.yaml"}, true},
+		{"sourceHydrator relative path - not matching sync path", getSourceHydratorApp(".", "source/envs/dev", "sync/path"), []string{"sync/path/my-deployment.yaml"}, false},
+		{"sourceHydrator ../base - matching dry base", getSourceHydratorApp(".;../base", "source/envs/dev", "sync/path"), []string{"source/envs/base/kustomization.yaml"}, true},
+		{"sourceHydrator ../base - not matching sync base", getSourceHydratorApp(".;../base", "source/envs/dev", "sync/path"), []string{"sync/base/kustomization.yaml"}, false},
 	}
 	for _, tt := range tests {
 		ttc := tt
@@ -209,6 +234,10 @@ func Test_GetAppRefreshPaths(t *testing.T) {
 		{"file two relative paths", getApp("./README.md;../shared/my-deployment.yaml", "my-app"), []string{"my-app/README.md", "shared/my-deployment.yaml"}},
 		{"glob path", getApp("/source/*/my-deployment.yaml", "source/path"), []string{"source/*/my-deployment.yaml"}},
 		{"empty path", getApp(".;", "source/path"), []string{"source/path"}},
+		// SourceHydrator tests - paths should be resolved relative to DRY source
+		{"sourceHydrator relative path", getSourceHydratorApp(".", "argocd-kustomize/envs/dev/usw2", "argocd/dev"), []string{"argocd-kustomize/envs/dev/usw2"}},
+		{"sourceHydrator ../base", getSourceHydratorApp(".;../base", "argocd-kustomize/envs/dev/usw2", "argocd/dev"), []string{"argocd-kustomize/envs/dev/usw2", "argocd-kustomize/envs/dev/base"}},
+		{"sourceHydrator absolute path", getSourceHydratorApp("/argocd-kustomize/base", "argocd-kustomize/envs/dev/usw2", "argocd/dev"), []string{"argocd-kustomize/base"}},
 	}
 	for _, tt := range tests {
 		ttc := tt
