@@ -274,7 +274,7 @@ jobs:
           go mod download
           go mod vendor -v
         # generalizing repo name for forks:  ${{ github.event.repository.name }}  
-        working-directory: /home/runner/go/src/github.com/argoproj/argo-cd 
+        working-directory: /home/runner/go/src/github.com/argoproj/${{ github.event.repository.name }}  
       - name: Install toolchain for codegen
         run: |
           make install-codegen-tools-local
