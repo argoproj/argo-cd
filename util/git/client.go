@@ -1103,7 +1103,6 @@ func evaluateGpgSignStatus(cmdErr error, tagGpgOut string) (result GPGVerificati
 // If deep==true, list the commits backwards in history until a signed "seal commit" or repo init commit. The listing includes those seal commits.
 // If deep==false, examines the revisionSha only.
 func (m *nativeGitClient) LsSignatures(revisionSha string, deep bool) ([]RevisionSignatureInfo, error) {
-
 	// In repo-server, the repository is check out in detached-head state and branch names cannot be looked up.
 	// Make sure the revision has been resolved by the client calling this.
 	if !IsCommitSHA(revisionSha) {
