@@ -141,6 +141,7 @@ func TestHydratorWithHelm(t *testing.T) {
 		Path("hydrator-helm").
 		When().
 		CreateFromFile(func(app *Application) {
+			app.Spec.Source = nil
 			app.Spec.SourceHydrator = &SourceHydrator{
 				DrySource: DrySource{
 					RepoURL:        fixture.RepoURL(fixture.RepoURLTypeFile),
@@ -159,7 +160,9 @@ func TestHydratorWithHelm(t *testing.T) {
 			}
 		}).
 		Refresh(RefreshTypeNormal).
-		Wait("--hydrated").
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		When().
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
@@ -179,6 +182,7 @@ func TestHydratorWithKustomize(t *testing.T) {
 		Path("hydrator-kustomize").
 		When().
 		CreateFromFile(func(app *Application) {
+			app.Spec.Source = nil
 			app.Spec.SourceHydrator = &SourceHydrator{
 				DrySource: DrySource{
 					RepoURL:        fixture.RepoURL(fixture.RepoURLTypeFile),
@@ -195,7 +199,9 @@ func TestHydratorWithKustomize(t *testing.T) {
 			}
 		}).
 		Refresh(RefreshTypeNormal).
-		Wait("--hydrated").
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		When().
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
@@ -215,6 +221,7 @@ func TestHydratorWithDirectory(t *testing.T) {
 		Path("hydrator-directory").
 		When().
 		CreateFromFile(func(app *Application) {
+			app.Spec.Source = nil
 			app.Spec.SourceHydrator = &SourceHydrator{
 				DrySource: DrySource{
 					RepoURL:        fixture.RepoURL(fixture.RepoURLTypeFile),
@@ -231,7 +238,9 @@ func TestHydratorWithDirectory(t *testing.T) {
 			}
 		}).
 		Refresh(RefreshTypeNormal).
-		Wait("--hydrated").
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		When().
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
@@ -254,6 +263,7 @@ func TestHydratorWithPlugin(t *testing.T) {
 		}).
 		When().
 		CreateFromFile(func(app *Application) {
+			app.Spec.Source = nil
 			app.Spec.SourceHydrator = &SourceHydrator{
 				DrySource: DrySource{
 					RepoURL:        fixture.RepoURL(fixture.RepoURLTypeFile),
@@ -272,7 +282,9 @@ func TestHydratorWithPlugin(t *testing.T) {
 			}
 		}).
 		Refresh(RefreshTypeNormal).
-		Wait("--hydrated").
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		When().
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
@@ -293,6 +305,7 @@ func TestHydratorWithMixedSources(t *testing.T) {
 		Path("hydrator-helm").
 		When().
 		CreateFromFile(func(app *Application) {
+			app.Spec.Source = nil
 			app.Spec.SourceHydrator = &SourceHydrator{
 				DrySource: DrySource{
 					RepoURL:        fixture.RepoURL(fixture.RepoURLTypeFile),
@@ -316,6 +329,7 @@ func TestHydratorWithMixedSources(t *testing.T) {
 		Path("hydrator-kustomize").
 		When().
 		CreateFromFile(func(app *Application) {
+			app.Spec.Source = nil
 			app.Spec.SourceHydrator = &SourceHydrator{
 				DrySource: DrySource{
 					RepoURL:        fixture.RepoURL(fixture.RepoURLTypeFile),
