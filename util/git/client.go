@@ -1100,7 +1100,7 @@ func evaluateGpgSignStatus(cmdErr error, tagGpgOut string) (result GPGVerificati
 
 // LsSignatures gets a list of revisions including their signature info.
 //
-// If deep==true, list the commits backwards in history until "seal commit" or repo init commit. The listing includes those seal commits.
+// If deep==true, list the commits backwards in history until a signed "seal commit" or repo init commit. The listing includes those seal commits.
 // If deep==false, examines the revisionSha only.
 func (m *nativeGitClient) LsSignatures(revisionSha string, deep bool) ([]RevisionSignatureInfo, error) {
 
@@ -1117,7 +1117,7 @@ func (m *nativeGitClient) LsSignatures(revisionSha string, deep bool) ([]Revisio
 	// form init commit in case the history merged past the most recent seal commit.
 	//
 	// 1) Find all seal commits based on the trailer in their message. This searches the entire git history, which is unnecessary,
-	//    but there does not seem to be a decent way to stop on the most recent ones in each branch with a single git invocation.
+	//    but there does not seem to be a decent way to stop on the most recent signed ones in each branch with a single git invocation.
 	//    Found commits are later eliminated to the correctly signed and trusted ones - this is to make sure that unsigned
 	//    or untrusted seal commits do not stop the search.
 	// 2) Find all the ancestor commits from the given revision stopping on any of the identified seal commits.
