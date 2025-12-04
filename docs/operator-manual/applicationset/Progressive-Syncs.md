@@ -88,8 +88,7 @@ spec:
 
 In the above example, the sync will be performed in two steps:
 
-1. All Applications with the label `envLabel=env-dev` will be selected to sync first. Since `maxUpdate` is not defined,
-so a default of 100% applies and all matched Applications will be synced simultaneously. The controller waits until every selected Application reaches a `Healthy` status
+1. All Applications with the label `envLabel=env-dev` will be selected to sync first. Since `maxUpdate` is not defined, a default of 100% applies and all matched Applications will be synced simultaneously. The controller waits until every selected Application reaches a `Healthy` status
 before proceeding to the next step.
 
 2. Next, Applications with the label `envLabel=env-prod` will be selected to sync. Here, only 10% of the matched Applications will be synced at a time.
