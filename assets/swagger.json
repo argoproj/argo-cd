@@ -10722,6 +10722,10 @@
           "type": "string",
           "title": "Schedule is the time the window will begin, specified in cron format"
         },
+        "syncOverrun": {
+          "type": "boolean",
+          "title": "SyncOverrun allows syncs that started before this deny window to continue running"
+        },
         "timeZone": {
           "type": "string",
           "title": "TimeZone of the sync that will be applied to the schedule"
