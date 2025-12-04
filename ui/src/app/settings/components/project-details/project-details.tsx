@@ -147,7 +147,7 @@ export const ProjectDetails: React.FC<RouteComponentProps<{name: string}> & {obj
     const projectRoleFormApi = React.useRef<FormApi>(null);
     const projectSyncWindowsFormApi = React.useRef<FormApi>(null);
     const loader = React.useRef<DataLoader>(null);
-    const ctx = React.useContext(Context);
+    const ctx = React.useContext(Context) as ContextApis;
     const objectListKind = props.objectListKind || 'application';
 
     const deleteJWTToken = async (params: DeleteJWTTokenParams, notifications: NotificationsApi) => {
