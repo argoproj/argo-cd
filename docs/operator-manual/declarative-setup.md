@@ -1171,7 +1171,6 @@ stringData:
   password: my-password
   tlsClientCertData: ...
   tlsClientCertKey: ...
-  userAgent: custom-user-agent/1.0
 ```
 
 Helm charts sourced from OCI registries should utilize the fields described previously as well as set the `enableOCI` field as `true`.

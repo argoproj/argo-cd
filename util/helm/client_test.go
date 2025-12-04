@@ -660,7 +660,11 @@ entries: {}
 }
 
 func TestUserAgentPriority(t *testing.T) {
-	t.Run("Per-repository User-Agent takes priority over default", func(t *testing.T) {
+	t.Run("Environment variable User-Agent takes priority over default", func(t *testing.T) {
+		// Set environment variable
+		envUserAgent := "EnvVar/1.0 (from-environment)"
+		t.Setenv("ARGOCD_HELM_USER_AGENT", envUserAgent)
+
 		// Create a test server that captures the User-Agent header
 		receivedUserAgent := ""
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -672,20 +676,20 @@ entries: {}
 		}))
 		defer ts.Close()
 
-		// Create creds with per-repository User-Agent
-		creds := HelmCreds{
-			UserAgent: "PerRepo/1.0 (team-a@company.com)",
-		}
-		client := NewClient(ts.URL, creds, false, "", "")
+		// Create client without custom User-Agent
+		client := NewClient(ts.URL, HelmCreds{}, false, "", "")
 		_, err := client.GetIndex(false, 10000)
 		require.NoError(t, err)
 
-		// Verify per-repository User-Agent was used
-		assert.Equal(t, "PerRepo/1.0 (team-a@company.com)", receivedUserAgent, "Per-repository User-Agent should be used")
-		t.Logf("Per-repository User-Agent sent: %s", receivedUserAgent)
+		// Verify environment variable User-Agent was used
+		assert.Equal(t, envUserAgent, receivedUserAgent, "Environment variable User-Agent should be used")
+		t.Logf("Environment variable User-Agent sent: %s", receivedUserAgent)
 	})
 
-	t.Run("Code-level WithUserAgent takes priority over per-repository", func(t *testing.T) {
+	t.Run("Code-level WithUserAgent takes priority over environment variable", func(t *testing.T) {
+		// Set environment variable
+		t.Setenv("ARGOCD_HELM_USER_AGENT", "EnvVar/1.0 (should-be-overridden)")
+
 		// Create a test server that captures the User-Agent header
 		receivedUserAgent := ""
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -697,14 +701,9 @@ entries: {}
 		}))
 		defer ts.Close()
 
-		// Create creds with per-repository User-Agent
-		creds := HelmCreds{
-			UserAgent: "PerRepo/1.0 (should-be-overridden)",
-		}
-
-		// But override with WithUserAgent (highest priority)
-		customUA := "CodeLevel/2.0 (dev-override)"
-		client := NewClient(ts.URL, creds, false, "", "", WithUserAgent(customUA))
+		// Override with WithUserAgent (highest priority)
+		customUA := "CodeLevel/2.0 (test-override)"
+		client := NewClient(ts.URL, HelmCreds{}, false, "", "", WithUserAgent(customUA))
 		_, err := client.GetIndex(false, 10000)
 		require.NoError(t, err)
 
@@ -714,6 +713,9 @@ entries: {}
 	})
 
 	t.Run("Default User-Agent used when no custom values provided", func(t *testing.T) {
+		// Clear environment variable to ensure default is used
+		t.Setenv("ARGOCD_HELM_USER_AGENT", "")
+
 		// Create a test server that captures the User-Agent header
 		receivedUserAgent := ""
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

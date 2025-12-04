@@ -9448,10 +9448,6 @@
           "type": "boolean",
           "title": "UseAzureWorkloadIdentity specifies whether to use Azure Workload Identity for authentication"
         },
-        "userAgent": {
-          "description": "UserAgent specifies a custom User-Agent string for HTTP requests to Helm repositories.\nIf not set, a default User-Agent will be used.",
-          "type": "string"
-        },
         "username": {
           "type": "string",
           "title": "Username for authenticating at the repo server"
@@ -9582,10 +9578,6 @@
         "useAzureWorkloadIdentity": {
           "type": "boolean",
           "title": "UseAzureWorkloadIdentity specifies whether to use Azure Workload Identity for authentication"
-        },
-        "userAgent": {
-          "description": "UserAgent specifies a custom User-Agent string for HTTP requests to this Helm repository.\nIf not set, a default User-Agent will be used.",
-          "type": "string"
         },
         "username": {
           "type": "string",

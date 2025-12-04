@@ -480,38 +480,28 @@ Using the UI:
 
 Select the _Enable OCI_ checkbox when adding a HTTPS based _helm_ repository.
 
-### Custom User Agent
+### Custom HTTP User-Agent
 
-You can configure a custom HTTP User-Agent header for Helm repository requests. This can be useful for tracking requests, debugging, or meeting specific server requirements.
+Some Helm repository providers (like Wikimedia) require a specific User-Agent header as part of their robot access policies. Argo CD automatically sends a default User-Agent header (`argocd-repo-server/<version> (<platform>)`) for all Helm repository requests.
 
-Using CLI:
-
-Specify the `--user-agent` flag when adding a Helm repository:
-
-```bash
-argocd repo add https://argoproj.github.io/argo-helm --type=helm --user-agent="my-custom-agent/1.0"
-```
-
-Using declarative configuration:
-
-Add the `userAgent` field to your repository Secret:
+If you need to customize the User-Agent (for example, to include your organization name or contact information), set the `ARGOCD_HELM_USER_AGENT` environment variable on the `argocd-repo-server` deployment:
 
 ```yaml
-apiVersion: v1
-kind: Secret
+apiVersion: apps/v1
+kind: Deployment
 metadata:
-  name: helm-repo
-  namespace: argocd
-  labels:
-    argocd.argoproj.io/secret-type: repository
-stringData:
-  name: my-helm-repo
-  url: https://charts.example.com
-  type: helm
-  userAgent: my-custom-agent/1.0
+  name: argocd-repo-server
+spec:
+  template:
+    spec:
+      containers:
+      - name: argocd-repo-server
+        env:
+        - name: ARGOCD_HELM_USER_AGENT
+          value: "my-org/argocd (team@example.com)"
 ```
 
-The custom user agent will be used for all HTTP requests to the Helm repository, including chart downloads and index file retrieval.
+This environment variable applies globally to all Helm repository requests.
 
 ## Git Submodules
 

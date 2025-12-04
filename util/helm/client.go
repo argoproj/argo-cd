@@ -123,18 +123,16 @@ type nativeHelmChart struct {
 }
 
 // getUserAgent returns the User-Agent string to use for HTTP requests.
-// Priority: code-level (WithUserAgent) > per-repository > default
+// Priority: code-level (WithUserAgent) > environment variable > default
 func (c *nativeHelmChart) getUserAgent() string {
-	// 1. Code-level custom User-Agent (WithUserAgent option)
+	// 1. Code-level custom User-Agent (WithUserAgent option, primarily for testing)
 	if c.customUserAgent != "" {
 		return c.customUserAgent
 	}
 
-	// 2. Per-repository User-Agent (from Repository.userAgent field)
-	if c.creds != nil {
-		if repoUA := c.creds.GetUserAgent(); repoUA != "" {
-			return repoUA
-		}
+	// 2. Global User-Agent from environment variable
+	if envUA := os.Getenv("ARGOCD_HELM_USER_AGENT"); envUA != "" {
+		return envUA
 	}
 
 	// 3. Default User-Agent with version and platform info

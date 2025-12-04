@@ -40,7 +40,6 @@ type Creds interface {
 	GetCertData() []byte
 	GetKeyData() []byte
 	GetInsecureSkipVerify() bool
-	GetUserAgent() string
 }
 
 var _ Creds = HelmCreds{}
@@ -52,7 +51,6 @@ type HelmCreds struct {
 	CertData           []byte
 	KeyData            []byte
 	InsecureSkipVerify bool
-	UserAgent          string
 }
 
 func (creds HelmCreds) GetUsername() string {
@@ -79,10 +77,6 @@ func (creds HelmCreds) GetInsecureSkipVerify() bool {
 	return creds.InsecureSkipVerify
 }
 
-func (creds HelmCreds) GetUserAgent() string {
-	return creds.UserAgent
-}
-
 var _ Creds = AzureWorkloadIdentityCreds{}
 
 type AzureWorkloadIdentityCreds struct {
@@ -92,7 +86,6 @@ type AzureWorkloadIdentityCreds struct {
 	KeyData            []byte
 	InsecureSkipVerify bool
 	tokenProvider      workloadidentity.TokenProvider
-	UserAgent          string
 }
 
 func (creds AzureWorkloadIdentityCreds) GetUsername() string {
@@ -117,10 +110,6 @@ func (creds AzureWorkloadIdentityCreds) GetKeyData() []byte {
 
 func (creds AzureWorkloadIdentityCreds) GetInsecureSkipVerify() bool {
 	return creds.InsecureSkipVerify
-}
-
-func (creds AzureWorkloadIdentityCreds) GetUserAgent() string {
-	return creds.UserAgent
 }
 
 func NewAzureWorkloadIdentityCreds(repoURL string, caPath string, certData []byte, keyData []byte, insecureSkipVerify bool, tokenProvider workloadidentity.TokenProvider) AzureWorkloadIdentityCreds {

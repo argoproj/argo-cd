@@ -75,7 +75,6 @@ argocd admin repo generate-spec REPOURL [flags]
       --tls-client-cert-path string             path to the TLS client cert (must be PEM format)
       --type string                             type of the repository, "git", "oci" or "helm" (default "git")
       --use-azure-workload-identity             whether to use azure workload identity for authentication
-      --user-agent string                       custom HTTP User-Agent header for repository requests
       --username string                         username to the repository
 ```
 

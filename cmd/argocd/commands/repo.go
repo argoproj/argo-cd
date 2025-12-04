@@ -192,7 +192,6 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			repoOpts.Repo.ForceHttpBasicAuth = repoOpts.ForceHttpBasicAuth
 			repoOpts.Repo.UseAzureWorkloadIdentity = repoOpts.UseAzureWorkloadIdentity
 			repoOpts.Repo.Depth = repoOpts.Depth
-			repoOpts.Repo.UserAgent = repoOpts.UserAgent
 
 			if repoOpts.Repo.Type == "helm" && repoOpts.Repo.Name == "" {
 				errors.Fatal(errors.ErrorGeneric, "Must specify --name for repos of type 'helm'")
