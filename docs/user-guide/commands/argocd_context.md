@@ -16,8 +16,8 @@ argocd context [CONTEXT] [flags]
 argocd context list
 
 # Switch Argo CD context
-argocd context switch cd.argoproj.io
 argocd context use cd.argoproj.io
+argocd context switch cd.argoproj.io
 
 # Delete Argo CD context
 argocd context delete cd.argoproj.io
