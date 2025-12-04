@@ -13,7 +13,8 @@ import {
     FORCE_WARNING,
     SyncFlags,
     REPLACE_WARNING,
-    PRUNE_ALL_WARNING
+    PRUNE_ALL_WARNING,
+    PRUNE_SOME_WARNING
 } from '../application-sync-options/application-sync-options';
 import {ComparisonStatusIcon, getAppDefaultSource, nodeKey} from '../utils';
 
@@ -68,17 +69,55 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                 const allResourcesAreSelected = selectedResources.length === appResources.length;
                                 const syncFlags = {...params.syncFlags} as SyncFlags;
 
-                                const allRequirePruning = !selectedResources.some(resource => !resource?.requiresPruning);
-                                if (syncFlags.Prune && allRequirePruning && allResourcesAreSelected) {
-                                    const confirmed = await ctx.popup.confirm('Prune all resources?', () => (
-                                        <div>
-                                            <i className='fa fa-exclamation-triangle' style={{color: ARGO_WARNING_COLOR}} />
-                                            {PRUNE_ALL_WARNING} Are you sure you want to continue?
-                                        </div>
-                                    ));
-                                    if (!confirmed) {
-                                        setPending(false);
-                                        return;
+                                const pruningStats = selectedResources.reduce(
+                                    (acc, resource) => {
+                                        if (resource?.requiresPruning) {
+                                            acc.requiresPruningCount++;
+                                        }
+                                        return acc;
+                                    },
+                                    {requiresPruningCount: 0}
+                                );
+                                const allRequirePruning = pruningStats.requiresPruningCount === selectedResources.length;
+                                const anyRequirePruning = pruningStats.requiresPruningCount > 0;
+
+                                if (syncFlags.Prune) {
+                                    if (allRequirePruning && allResourcesAreSelected) {
+                                        const confirmed = await ctx.popup.confirm(
+                                            'Prune all resources?',
+                                            () => (
+                                                <div>
+                                                    <p>
+                                                        <i className='fa fa-exclamation-triangle' style={{color: ARGO_WARNING_COLOR}} />
+                                                        {PRUNE_ALL_WARNING} Are you sure you want to continue?
+                                                    </p>
+                                                </div>
+                                            ),
+                                            {name: 'argo-icon-warning', color: 'warning'},
+                                            'yellow'
+                                        );
+                                        if (!confirmed) {
+                                            setPending(false);
+                                            return;
+                                        }
+                                    } else if (anyRequirePruning && !allRequirePruning) {
+                                        const confirmed = await ctx.popup.confirm(
+                                            'Prune resources?',
+                                            () => (
+                                                <div>
+                                                    <p>
+                                                        <i className='fa fa-exclamation-triangle' style={{color: ARGO_WARNING_COLOR}} />
+                                                        {PRUNE_SOME_WARNING} Are you sure you want to continue?
+                                                    </p>
+                                                </div>
+                                            ),
+                                            {name: 'argo-icon-warning', color: 'warning'},
+                                            'yellow'
+                                        );
+                                        if (!confirmed) {
+                                            setPending(false);
+                                            return;
+                                        }
                                     }
                                 }
                                 if (allResourcesAreSelected) {
@@ -86,11 +125,19 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                 }
                                 const replace = params.syncOptions?.findIndex((opt: string) => opt === 'Replace=true') > -1;
                                 if (replace) {
-                                    const confirmed = await ctx.popup.confirm('Synchronize using replace?', () => (
-                                        <div>
-                                            <i className='fa fa-exclamation-triangle' style={{color: ARGO_WARNING_COLOR}} /> {REPLACE_WARNING} Are you sure you want to continue?
-                                        </div>
-                                    ));
+                                    const confirmed = await ctx.popup.confirm(
+                                        'Synchronize using replace?',
+                                        () => (
+                                            <div>
+                                                <p>
+                                                    <i className='fa fa-exclamation-triangle' style={{color: ARGO_WARNING_COLOR}} /> {REPLACE_WARNING} Are you sure you want to
+                                                    continue?
+                                                </p>
+                                            </div>
+                                        ),
+                                        {name: 'argo-icon-warning', color: 'warning'},
+                                        'yellow'
+                                    );
                                     if (!confirmed) {
                                         setPending(false);
                                         return;
