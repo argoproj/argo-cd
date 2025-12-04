@@ -1223,7 +1223,7 @@ The `resource.exclusions` node is a list of objects. Each object can have:
 
 * `apiGroups` A list of globs to match the API group.
 * `kinds` A list of kinds to match. Can be `"*"` to match all.
-* `clusters` A list of globs to match the cluster.
+* `clusters` A list of globs to match the cluster URL.
 
 If all three match, then the resource is ignored.
 

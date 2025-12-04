@@ -39,3 +39,7 @@ tests:
     status: Healthy
     message: "Environment is up-to-date, but there are non-successful active commit statuses: 1 pending, 0 successful, 0 failed. Pending commit statuses: argocd-health. "
   inputPath: testdata/non-successful-environments.yaml
+- healthStatus:
+    status: Degraded
+    message: "Change transfer policy reconciliation failed (PullRequestNotReady): PullRequest \"deployment-environments-qal-usw2-next-environments-qal-usw2-7a8e7b70\" is not Ready because \"ReconciliationError\": Reconciliation failed: failed to merge pull request: failed to merge pull request: failed to merge pull request: PUT https://github.example.com/api/v3/repos/org/deployment/pulls/3/merge: 405 At least 2 approving reviews are required by reviewers with write access. Required status check \"continuous-integration/jenkins/pr-head\" is expected. You're not authorized to push to this branch."
+  inputPath: testdata/missing-sha-and-not-ready.yaml

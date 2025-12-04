@@ -279,6 +279,69 @@ const SearchBar = (props: {content: string; ctx: ContextApis; apps: models.Appli
     );
 };
 
+interface ApplicationsToolbarProps {
+    applications: models.Application[];
+    pref: AppsListPreferences & {page: number; search: string};
+    ctx: ContextApis;
+    healthBarPrefs: HealthStatusBarPreferences;
+}
+
+const ApplicationsToolbar: React.FC<ApplicationsToolbarProps> = ({applications, pref, ctx, healthBarPrefs}) => {
+    const {List, Summary, Tiles} = AppsListViewKey;
+    const query = useQuery();
+
+    return (
+        <React.Fragment key='app-list-tools'>
+            <SearchBar content={query.get('search')} apps={applications} ctx={ctx} />
+            <Tooltip content='Toggle Health Status Bar'>
+                <button
+                    className={`applications-list__accordion argo-button argo-button--base${healthBarPrefs.showHealthStatusBar ? '-o' : ''}`}
+                    style={{border: 'none'}}
+                    onClick={() => {
+                        healthBarPrefs.showHealthStatusBar = !healthBarPrefs.showHealthStatusBar;
+                        services.viewPreferences.updatePreferences({
+                            appList: {
+                                ...pref,
+                                statusBarView: {
+                                    ...healthBarPrefs,
+                                    showHealthStatusBar: healthBarPrefs.showHealthStatusBar
+                                }
+                            }
+                        });
+                    }}>
+                    <i className={`fas fa-ruler-horizontal`} />
+                </button>
+            </Tooltip>
+            <div className='applications-list__view-type' style={{marginLeft: 'auto'}}>
+                <i
+                    className={classNames('fa fa-th', {selected: pref.view === Tiles}, 'menu_icon')}
+                    title='Tiles'
+                    onClick={() => {
+                        ctx.navigation.goto('.', {view: Tiles});
+                        services.viewPreferences.updatePreferences({appList: {...pref, view: Tiles}});
+                    }}
+                />
+                <i
+                    className={classNames('fa fa-th-list', {selected: pref.view === List}, 'menu_icon')}
+                    title='List'
+                    onClick={() => {
+                        ctx.navigation.goto('.', {view: List});
+                        services.viewPreferences.updatePreferences({appList: {...pref, view: List}});
+                    }}
+                />
+                <i
+                    className={classNames('fa fa-chart-pie', {selected: pref.view === Summary}, 'menu_icon')}
+                    title='Summary'
+                    onClick={() => {
+                        ctx.navigation.goto('.', {view: Summary});
+                        services.viewPreferences.updatePreferences({appList: {...pref, view: Summary}});
+                    }}
+                />
+            </div>
+        </React.Fragment>
+    );
+};
+
 const FlexTopBar = (props: {toolbar: Toolbar | Observable<Toolbar>}) => {
     const ctx = React.useContext(Context);
     const loadToolbar = AddAuthToToolbar(props.toolbar, ctx);
@@ -418,58 +481,7 @@ export const ApplicationsList = () => {
                                                 <React.Fragment>
                                                     <FlexTopBar
                                                         toolbar={{
-                                                            tools: (
-                                                                <React.Fragment key='app-list-tools'>
-                                                                    <SearchBar content={query.get('search')} apps={applications} ctx={ctx} />
-                                                                    <Tooltip content='Toggle Health Status Bar'>
-                                                                        <button
-                                                                            className={`applications-list__accordion argo-button argo-button--base${
-                                                                                healthBarPrefs.showHealthStatusBar ? '-o' : ''
-                                                                            }`}
-                                                                            style={{border: 'none'}}
-                                                                            onClick={() => {
-                                                                                healthBarPrefs.showHealthStatusBar = !healthBarPrefs.showHealthStatusBar;
-                                                                                services.viewPreferences.updatePreferences({
-                                                                                    appList: {
-                                                                                        ...pref,
-                                                                                        statusBarView: {
-                                                                                            ...healthBarPrefs,
-                                                                                            showHealthStatusBar: healthBarPrefs.showHealthStatusBar
-                                                                                        }
-                                                                                    }
-                                                                                });
-                                                                            }}>
-                                                                            <i className={`fas fa-ruler-horizontal`} />
-                                                                        </button>
-                                                                    </Tooltip>
-                                                                    <div className='applications-list__view-type' style={{marginLeft: 'auto'}}>
-                                                                        <i
-                                                                            className={classNames('fa fa-th', {selected: pref.view === Tiles}, 'menu_icon')}
-                                                                            title='Tiles'
-                                                                            onClick={() => {
-                                                                                ctx.navigation.goto('.', {view: Tiles});
-                                                                                services.viewPreferences.updatePreferences({appList: {...pref, view: Tiles}});
-                                                                            }}
-                                                                        />
-                                                                        <i
-                                                                            className={classNames('fa fa-th-list', {selected: pref.view === List}, 'menu_icon')}
-                                                                            title='List'
-                                                                            onClick={() => {
-                                                                                ctx.navigation.goto('.', {view: List});
-                                                                                services.viewPreferences.updatePreferences({appList: {...pref, view: List}});
-                                                                            }}
-                                                                        />
-                                                                        <i
-                                                                            className={classNames('fa fa-chart-pie', {selected: pref.view === Summary}, 'menu_icon')}
-                                                                            title='Summary'
-                                                                            onClick={() => {
-                                                                                ctx.navigation.goto('.', {view: Summary});
-                                                                                services.viewPreferences.updatePreferences({appList: {...pref, view: Summary}});
-                                                                            }}
-                                                                        />
-                                                                    </div>
-                                                                </React.Fragment>
-                                                            ),
+                                                            tools: <ApplicationsToolbar applications={applications} pref={pref} ctx={ctx} healthBarPrefs={healthBarPrefs} />,
                                                             actionMenu: {
                                                                 items: [
                                                                     {

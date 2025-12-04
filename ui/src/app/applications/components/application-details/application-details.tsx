@@ -838,17 +838,19 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                                             }}
                                                         />
                                                         {state.extensions &&
-                                                            (state.extensions || []).map(ext => (
-                                                                <i
-                                                                    key={ext.title}
-                                                                    className={classNames(`fa ${ext.icon}`, {selected: pref.view === ext.title})}
-                                                                    title={ext.title}
-                                                                    onClick={() => {
-                                                                        appContext.navigation.goto('.', {view: ext.title});
-                                                                        services.viewPreferences.updatePreferences({appDetails: {...pref, view: ext.title}});
-                                                                    }}
-                                                                />
-                                                            ))}
+                                                            (state.extensions || [])
+                                                                .filter(ext => ext.shouldDisplay(application))
+                                                                .map(ext => (
+                                                                    <i
+                                                                        key={ext.title}
+                                                                        className={classNames(`fa ${ext.icon}`, {selected: pref.view === ext.title})}
+                                                                        title={ext.title}
+                                                                        onClick={() => {
+                                                                            appContext.navigation.goto('.', {view: ext.title});
+                                                                            services.viewPreferences.updatePreferences({appDetails: {...pref, view: ext.title}});
+                                                                        }}
+                                                                    />
+                                                                ))}
                                                     </div>
                                                 </React.Fragment>
                                             )
@@ -1212,7 +1214,11 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                         action: () => !refreshing && services.applications.get(app.metadata.name, app.metadata.namespace, 'hard')
                                     }
                                 ]}
-                                anchor={() => <i className='fa fa-caret-down' />}
+                                anchor={() => (
+                                    <button className='argo-button--base application-details__dropdown-anchor-inner'>
+                                        <i className='fa fa-caret-down' />
+                                    </button>
+                                )}
                             />
                         </React.Fragment>
                     ),
@@ -1267,7 +1273,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                 .pipe(
                     mergeMap(app => {
                         const fallbackTree = {
-                            nodes: app.status.resources.map(res => ({...res, parentRefs: [], info: [], resourceVersion: '', uid: ''})),
+                            nodes: app.status.resources.map(res => ({...res, parentRefs: [] as any[], info: [] as any[], resourceVersion: '', uid: ''})),
                             orphanedNodes: [],
                             hosts: []
                         } as appModels.ApplicationTree;

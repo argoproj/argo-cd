@@ -11,6 +11,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
@@ -208,4 +209,105 @@ func TestDeepLinks(t *testing.T) {
 			assert.True(t, reflect.DeepEqual(output.Items, tcc.outputLinks))
 		})
 	}
+}
+
+// TestManagedByURLAnnotation tests the managed-by-url annotation logic
+func TestManagedByURLAnnotation(t *testing.T) {
+	t.Run("application with managed-by-url annotation", func(t *testing.T) {
+		managedByURL := "https://argocd-instance-b.example.com"
+
+		// Create an application with managed-by-url annotation
+		app := &v1alpha1.Application{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test-app",
+				Annotations: map[string]string{
+					v1alpha1.AnnotationKeyManagedByURL: managedByURL,
+				},
+			},
+		}
+
+		// Convert to unstructured for the deeplinks function
+		obj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(app)
+		require.NoError(t, err)
+		unstructuredObj := &unstructured.Unstructured{Object: obj}
+
+		// Test the deeplinks logic
+		deeplinksObj := CreateDeepLinksObject(nil, unstructuredObj, nil, nil)
+
+		// Verify that the managed-by-url is included
+		assert.Equal(t, managedByURL, deeplinksObj[ManagedByURLKey])
+	})
+
+	t.Run("application without managed-by-url annotation", func(t *testing.T) {
+		// Create an application without managed-by-url annotation
+		app := &v1alpha1.Application{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test-app",
+			},
+		}
+
+		// Convert to unstructured for the deeplinks function
+		obj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(app)
+		require.NoError(t, err)
+		unstructuredObj := &unstructured.Unstructured{Object: obj}
+
+		// Test the deeplinks logic
+		deeplinksObj := CreateDeepLinksObject(nil, unstructuredObj, nil, nil)
+
+		// Verify that no managed-by-url is set
+		assert.Empty(t, deeplinksObj[ManagedByURLKey])
+	})
+
+	t.Run("application with empty managed-by-url annotation", func(t *testing.T) {
+		// Create an application with empty managed-by-url annotation
+		app := &v1alpha1.Application{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test-app",
+				Annotations: map[string]string{
+					v1alpha1.AnnotationKeyManagedByURL: "",
+				},
+			},
+		}
+
+		// Convert to unstructured for the deeplinks function
+		obj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(app)
+		require.NoError(t, err)
+		unstructuredObj := &unstructured.Unstructured{Object: obj}
+
+		// Test the deeplinks logic
+		deeplinksObj := CreateDeepLinksObject(nil, unstructuredObj, nil, nil)
+
+		// Verify that empty managed-by-url is set
+		assert.Empty(t, deeplinksObj[ManagedByURLKey])
+	})
+
+	t.Run("application with managed-by-url and other annotations", func(t *testing.T) {
+		managedByURL := "https://argocd-instance-b.example.com"
+
+		// Create an application with managed-by-url and other annotations
+		app := &v1alpha1.Application{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test-app",
+				Annotations: map[string]string{
+					v1alpha1.AnnotationKeyManagedByURL: managedByURL,
+					"argocd.argoproj.io/deep-link-1":   "https://grafana.example.com/d/argo/argo-cd-application-dashboard",
+					"argocd.argoproj.io/deep-link-2":   "https://kibana.example.com/app/kibana#/discover",
+				},
+			},
+		}
+
+		// Convert to unstructured for the deeplinks function
+		obj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(app)
+		require.NoError(t, err)
+		unstructuredObj := &unstructured.Unstructured{Object: obj}
+
+		// Test the deeplinks logic
+		deeplinksObj := CreateDeepLinksObject(nil, unstructuredObj, nil, nil)
+
+		// Verify that managed-by-url is included
+		assert.Equal(t, managedByURL, deeplinksObj[ManagedByURLKey])
+
+		// Note: Other deep link annotations are not processed by CreateDeepLinksObject
+		// They are processed separately by the EvaluateDeepLinksResponse function
+	})
 }

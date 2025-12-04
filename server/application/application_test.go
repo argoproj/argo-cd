@@ -111,14 +111,6 @@ func fakeCluster() *v1alpha1.Cluster {
 	}
 }
 
-func fakeAppList() *apiclient.AppList {
-	return &apiclient.AppList{
-		Apps: map[string]string{
-			"some/path": "Ksonnet",
-		},
-	}
-}
-
 func fakeResolveRevisionResponse() *apiclient.ResolveRevisionResponse {
 	return &apiclient.ResolveRevisionResponse{
 		Revision:          "f9ba9e98119bf8c1176fbd65dbae26a71d044add",
@@ -134,25 +126,24 @@ func fakeResolveRevisionResponseHelm() *apiclient.ResolveRevisionResponse {
 }
 
 func fakeRepoServerClient(isHelm bool) *mocks.RepoServerServiceClient {
-	mockRepoServiceClient := mocks.RepoServerServiceClient{}
-	mockRepoServiceClient.On("GetProcessableApps", mock.Anything, mock.Anything).Return(fakeAppList(), nil)
-	mockRepoServiceClient.On("GenerateManifest", mock.Anything, mock.Anything).Return(&apiclient.ManifestResponse{}, nil)
-	mockRepoServiceClient.On("GetAppDetails", mock.Anything, mock.Anything).Return(&apiclient.RepoAppDetailsResponse{}, nil)
-	mockRepoServiceClient.On("TestRepository", mock.Anything, mock.Anything).Return(&apiclient.TestRepositoryResponse{}, nil)
-	mockRepoServiceClient.On("GetRevisionMetadata", mock.Anything, mock.Anything).Return(&v1alpha1.RevisionMetadata{}, nil)
+	mockRepoServiceClient := &mocks.RepoServerServiceClient{}
+	mockRepoServiceClient.EXPECT().GenerateManifest(mock.Anything, mock.Anything).Return(&apiclient.ManifestResponse{}, nil)
+	mockRepoServiceClient.EXPECT().GetAppDetails(mock.Anything, mock.Anything).Return(&apiclient.RepoAppDetailsResponse{}, nil)
+	mockRepoServiceClient.EXPECT().TestRepository(mock.Anything, mock.Anything).Return(&apiclient.TestRepositoryResponse{}, nil)
+	mockRepoServiceClient.EXPECT().GetRevisionMetadata(mock.Anything, mock.Anything).Return(&v1alpha1.RevisionMetadata{}, nil)
 	mockWithFilesClient := &mocks.RepoServerService_GenerateManifestWithFilesClient{}
-	mockWithFilesClient.On("Send", mock.Anything).Return(nil)
-	mockWithFilesClient.On("CloseAndRecv").Return(&apiclient.ManifestResponse{}, nil)
-	mockRepoServiceClient.On("GenerateManifestWithFiles", mock.Anything, mock.Anything).Return(mockWithFilesClient, nil)
-	mockRepoServiceClient.On("GetRevisionChartDetails", mock.Anything, mock.Anything).Return(&v1alpha1.ChartDetails{}, nil)
+	mockWithFilesClient.EXPECT().Send(mock.Anything).Return(nil).Maybe()
+	mockWithFilesClient.EXPECT().CloseAndRecv().Return(&apiclient.ManifestResponse{}, nil).Maybe()
+	mockRepoServiceClient.EXPECT().GenerateManifestWithFiles(mock.Anything, mock.Anything).Return(mockWithFilesClient, nil)
+	mockRepoServiceClient.EXPECT().GetRevisionChartDetails(mock.Anything, mock.Anything).Return(&v1alpha1.ChartDetails{}, nil)
 
 	if isHelm {
-		mockRepoServiceClient.On("ResolveRevision", mock.Anything, mock.Anything).Return(fakeResolveRevisionResponseHelm(), nil)
+		mockRepoServiceClient.EXPECT().ResolveRevision(mock.Anything, mock.Anything).Return(fakeResolveRevisionResponseHelm(), nil)
 	} else {
-		mockRepoServiceClient.On("ResolveRevision", mock.Anything, mock.Anything).Return(fakeResolveRevisionResponse(), nil)
+		mockRepoServiceClient.EXPECT().ResolveRevision(mock.Anything, mock.Anything).Return(fakeResolveRevisionResponse(), nil)
 	}
 
-	return &mockRepoServiceClient
+	return mockRepoServiceClient
 }
 
 // return an ApplicationServiceServer which returns fake data
@@ -2721,20 +2712,18 @@ func TestGetManifests_WithNoCache(t *testing.T) {
 	testApp := newTestApp()
 	appServer := newTestAppServer(t, testApp)
 
-	mockRepoServiceClient := mocks.RepoServerServiceClient{}
-	mockRepoServiceClient.On("GenerateManifest", mock.Anything, mock.MatchedBy(func(mr *apiclient.ManifestRequest) bool {
-		// expected to be true because given NoCache in the ApplicationManifestQuery
+	mockRepoServiceClient := mocks.NewRepoServerServiceClient(t)
+	mockRepoServiceClient.EXPECT().GenerateManifest(mock.Anything, mock.MatchedBy(func(mr *apiclient.ManifestRequest) bool {
 		return mr.NoCache
 	})).Return(&apiclient.ManifestResponse{}, nil)
 
-	appServer.repoClientset = &mocks.Clientset{RepoServerServiceClient: &mockRepoServiceClient}
+	appServer.repoClientset = &mocks.Clientset{RepoServerServiceClient: mockRepoServiceClient}
 
 	_, err := appServer.GetManifests(t.Context(), &application.ApplicationManifestQuery{
 		Name:    &testApp.Name,
 		NoCache: ptr.To(true),
 	})
 	require.NoError(t, err)
-	mockRepoServiceClient.AssertExpectations(t)
 }
 
 func TestRollbackApp(t *testing.T) {
@@ -3243,12 +3232,12 @@ func TestGetAppRefresh_HardRefresh(t *testing.T) {
 	appServer := newTestAppServer(t, testApp)
 
 	var getAppDetailsQuery *apiclient.RepoServerAppDetailsQuery
-	mockRepoServiceClient := mocks.RepoServerServiceClient{}
-	mockRepoServiceClient.On("GetAppDetails", mock.Anything, mock.MatchedBy(func(q *apiclient.RepoServerAppDetailsQuery) bool {
+	mockRepoServiceClient := &mocks.RepoServerServiceClient{}
+	mockRepoServiceClient.EXPECT().GetAppDetails(mock.Anything, mock.MatchedBy(func(q *apiclient.RepoServerAppDetailsQuery) bool {
 		getAppDetailsQuery = q
 		return true
 	})).Return(&apiclient.RepoAppDetailsResponse{}, nil)
-	appServer.repoClientset = &mocks.Clientset{RepoServerServiceClient: &mockRepoServiceClient}
+	appServer.repoClientset = &mocks.Clientset{RepoServerServiceClient: mockRepoServiceClient}
 
 	var patched int32
 

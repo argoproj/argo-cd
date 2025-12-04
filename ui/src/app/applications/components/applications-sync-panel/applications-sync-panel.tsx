@@ -146,7 +146,7 @@ export const ApplicationsSyncPanel = ({show, apps, hide}: {show: boolean; apps: 
 
                                 <ApplicationRetryOptions id='applications-sync-panel' formApi={formApi} />
 
-                                <ApplicationSelector apps={apps} formApi={formApi} />
+                                {show && <ApplicationSelector apps={apps} formApi={formApi} />}
                             </div>
                         )}
                     </Form>

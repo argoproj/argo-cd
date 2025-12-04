@@ -46,6 +46,18 @@ import (
 
 var ErrInvalidRepoURL = errors.New("repo URL is invalid")
 
+// builtinGitConfig configuration contains statements that are needed
+// for correct ArgoCD operation. These settings will override any
+// user-provided configuration of same options.
+var builtinGitConfig = map[string]string{
+	"maintenance.autoDetach": "false",
+	"gc.autoDetach":          "false",
+}
+
+// BuiltinGitConfigEnv contains builtin git configuration in the
+// format acceptable by Git.
+var BuiltinGitConfigEnv []string
+
 // CommitMetadata contains metadata about a commit that is related in some way to another commit.
 type CommitMetadata struct {
 	// Author is the author of the commit.
@@ -109,7 +121,7 @@ type gitRefCache interface {
 type Client interface {
 	Root() string
 	Init() error
-	Fetch(revision string) error
+	Fetch(revision string, depth int64) error
 	Submodule() error
 	Checkout(revision string, submoduleEnabled bool) (string, error)
 	LsRefs() (*Refs, error)
@@ -163,6 +175,8 @@ type nativeGitClient struct {
 	proxy string
 	// list of targets that shouldn't use the proxy, applies only if the proxy is set
 	noProxy string
+	// git configuration environment variables
+	gitConfigEnv []string
 }
 
 type runOpts struct {
@@ -189,6 +203,14 @@ func init() {
 	maxRetryDuration = env.ParseDurationFromEnv(common.EnvGitRetryMaxDuration, common.DefaultGitRetryMaxDuration, 0, math.MaxInt64)
 	retryDuration = env.ParseDurationFromEnv(common.EnvGitRetryDuration, common.DefaultGitRetryDuration, 0, math.MaxInt64)
 	factor = env.ParseInt64FromEnv(common.EnvGitRetryFactor, common.DefaultGitRetryFactor, 0, math.MaxInt64)
+
+	BuiltinGitConfigEnv = append(BuiltinGitConfigEnv, fmt.Sprintf("GIT_CONFIG_COUNT=%d", len(builtinGitConfig)))
+	idx := 0
+	for k, v := range builtinGitConfig {
+		BuiltinGitConfigEnv = append(BuiltinGitConfigEnv, fmt.Sprintf("GIT_CONFIG_KEY_%d=%s", idx, k))
+		BuiltinGitConfigEnv = append(BuiltinGitConfigEnv, fmt.Sprintf("GIT_CONFIG_VALUE_%d=%s", idx, v))
+		idx++
+	}
 }
 
 type ClientOpts func(c *nativeGitClient)
@@ -198,6 +220,16 @@ func WithCache(cache gitRefCache, loadRefFromCache bool) ClientOpts {
 	return func(c *nativeGitClient) {
 		c.gitRefCache = cache
 		c.loadRefFromCache = loadRefFromCache
+	}
+}
+
+func WithBuiltinGitConfig(enable bool) ClientOpts {
+	return func(c *nativeGitClient) {
+		if enable {
+			c.gitConfigEnv = BuiltinGitConfigEnv
+		} else {
+			c.gitConfigEnv = nil
+		}
 	}
 }
 
@@ -223,13 +255,14 @@ func NewClient(rawRepoURL string, creds Creds, insecure bool, enableLfs bool, pr
 
 func NewClientExt(rawRepoURL string, root string, creds Creds, insecure bool, enableLfs bool, proxy string, noProxy string, opts ...ClientOpts) (Client, error) {
 	client := &nativeGitClient{
-		repoURL:   rawRepoURL,
-		root:      root,
-		creds:     creds,
-		insecure:  insecure,
-		enableLfs: enableLfs,
-		proxy:     proxy,
-		noProxy:   noProxy,
+		repoURL:      rawRepoURL,
+		root:         root,
+		creds:        creds,
+		insecure:     insecure,
+		enableLfs:    enableLfs,
+		proxy:        proxy,
+		noProxy:      noProxy,
+		gitConfigEnv: BuiltinGitConfigEnv,
 	}
 	for i := range opts {
 		opts[i](client)
@@ -415,14 +448,19 @@ func (m *nativeGitClient) IsLFSEnabled() bool {
 	return m.enableLfs
 }
 
-func (m *nativeGitClient) fetch(ctx context.Context, revision string) error {
-	var err error
+func (m *nativeGitClient) fetch(ctx context.Context, revision string, depth int64) error {
+	args := []string{"fetch", "origin"}
 	if revision != "" {
-		err = m.runCredentialedCmd(ctx, "fetch", "origin", revision, "--tags", "--force", "--prune")
-	} else {
-		err = m.runCredentialedCmd(ctx, "fetch", "origin", "--tags", "--force", "--prune")
+		args = append(args, revision)
 	}
-	return err
+
+	if depth > 0 {
+		args = append(args, "--depth", strconv.FormatInt(depth, 10))
+	} else {
+		args = append(args, "--tags")
+	}
+	args = append(args, "--force", "--prune")
+	return m.runCredentialedCmd(ctx, args...)
 }
 
 // IsRevisionPresent checks to see if the given revision already exists locally.
@@ -440,14 +478,14 @@ func (m *nativeGitClient) IsRevisionPresent(revision string) bool {
 }
 
 // Fetch fetches latest updates from origin
-func (m *nativeGitClient) Fetch(revision string) error {
+func (m *nativeGitClient) Fetch(revision string, depth int64) error {
 	if m.OnFetch != nil {
 		done := m.OnFetch(m.repoURL)
 		defer done()
 	}
 	ctx := context.Background()
 
-	err := m.fetch(ctx, revision)
+	err := m.fetch(ctx, revision, depth)
 
 	// When we have LFS support enabled, check for large files and fetch them too.
 	if err == nil && m.IsLFSEnabled() {
@@ -1120,6 +1158,8 @@ func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd, ropts runOpts) (string, er
 	cmd.Env = append(cmd.Env, "GIT_LFS_SKIP_SMUDGE=1")
 	// Disable Git terminal prompts in case we're running with a tty
 	cmd.Env = append(cmd.Env, "GIT_TERMINAL_PROMPT=false")
+	// Add Git configuration options that are essential for ArgoCD operation
+	cmd.Env = append(cmd.Env, m.gitConfigEnv...)
 
 	// For HTTPS repositories, we need to consider insecure repositories as well
 	// as custom CA bundles from the cert database.

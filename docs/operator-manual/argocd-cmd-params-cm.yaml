@@ -219,6 +219,8 @@ data:
   reposerver.git.lsremote.parallelism.limit: "0"
   # Git requests timeout.
   reposerver.git.request.timeout: "15s"
+  # Enable builtin git configuration options that are required for correct argocd-repo-server operation (default "true")
+  reposerver.enable.builtin.git.config: "true"
   # Include hidden directories from Git
   reposerver.include.hidden.directories: "false"
 
@@ -294,6 +296,8 @@ data:
   applicationsetcontroller.enable.github.api.metrics: "false"
   # The maximum number of resources stored in the status of an ApplicationSet. This is a safeguard to prevent the status from growing too large.
   applicationsetcontroller.status.max.resources.count: "5000"
+  # Enables profile endpoint on the internal metrics port
+  applicationsetcontroller.profile.enabled: "false"
 
   ## Argo CD Notifications Controller Properties
   # Set the logging level. One of: debug|info|warn|error (default "info")

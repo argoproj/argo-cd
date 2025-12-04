@@ -314,7 +314,7 @@ func TestValidateChartWithoutRevision(t *testing.T) {
 	cluster := &argoappv1.Cluster{Server: "https://kubernetes.default.svc"}
 	db := &dbmocks.ArgoDB{}
 	ctx := t.Context()
-	db.On("GetCluster", ctx, appSpec.Destination.Server).Return(cluster, nil)
+	db.EXPECT().GetCluster(ctx, appSpec.Destination.Server).Return(cluster, nil).Maybe()
 
 	conditions, err := ValidatePermissions(ctx, appSpec, &argoappv1.AppProject{
 		Spec: argoappv1.AppProjectSpec{
@@ -384,39 +384,39 @@ func TestValidateRepo(t *testing.T) {
 
 	repoClient := &mocks.RepoServerServiceClient{}
 	source := app.Spec.GetSource()
-	repoClient.On("GetAppDetails", t.Context(), &apiclient.RepoServerAppDetailsQuery{
+	repoClient.EXPECT().GetAppDetails(mock.Anything, &apiclient.RepoServerAppDetailsQuery{
 		Repo:             repo,
 		Source:           &source,
 		Repos:            helmRepos,
 		KustomizeOptions: kustomizeOptions,
 		HelmOptions:      &argoappv1.HelmOptions{ValuesFileSchemes: []string{"https", "http"}},
 		NoRevisionCache:  true,
-	}).Return(&apiclient.RepoAppDetailsResponse{}, nil)
+	}).Return(&apiclient.RepoAppDetailsResponse{}, nil).Maybe()
 
 	repo.Type = "git"
-	repoClient.On("TestRepository", t.Context(), &apiclient.TestRepositoryRequest{
+	repoClient.EXPECT().TestRepository(mock.Anything, &apiclient.TestRepositoryRequest{
 		Repo: repo,
 	}).Return(&apiclient.TestRepositoryResponse{
 		VerifiedRepository: true,
-	}, nil)
+	}, nil).Maybe()
 
 	repoClientSet := &mocks.Clientset{RepoServerServiceClient: repoClient}
 
 	db := &dbmocks.ArgoDB{}
 
-	db.On("GetRepository", t.Context(), app.Spec.Source.RepoURL, "").Return(repo, nil)
-	db.On("ListHelmRepositories", t.Context()).Return(helmRepos, nil)
-	db.On("ListOCIRepositories", t.Context()).Return([]*argoappv1.Repository{}, nil)
-	db.On("GetCluster", t.Context(), app.Spec.Destination.Server).Return(cluster, nil)
-	db.On("GetAllHelmRepositoryCredentials", t.Context()).Return(nil, nil)
-	db.On("GetAllOCIRepositoryCredentials", t.Context()).Return([]*argoappv1.RepoCreds{}, nil)
+	db.EXPECT().GetRepository(mock.Anything, app.Spec.Source.RepoURL, "").Return(repo, nil).Maybe()
+	db.EXPECT().ListHelmRepositories(mock.Anything).Return(helmRepos, nil).Maybe()
+	db.EXPECT().ListOCIRepositories(mock.Anything).Return([]*argoappv1.Repository{}, nil).Maybe()
+	db.EXPECT().GetCluster(mock.Anything, app.Spec.Destination.Server).Return(cluster, nil).Maybe()
+	db.EXPECT().GetAllHelmRepositoryCredentials(mock.Anything).Return(nil, nil).Maybe()
+	db.EXPECT().GetAllOCIRepositoryCredentials(mock.Anything).Return([]*argoappv1.RepoCreds{}, nil).Maybe()
 
 	var receivedRequest *apiclient.ManifestRequest
 
-	repoClient.On("GenerateManifest", t.Context(), mock.MatchedBy(func(req *apiclient.ManifestRequest) bool {
+	repoClient.EXPECT().GenerateManifest(mock.Anything, mock.MatchedBy(func(req *apiclient.ManifestRequest) bool {
 		receivedRequest = req
 		return true
-	})).Return(nil, nil)
+	})).Return(nil, nil).Maybe()
 
 	cm := corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
@@ -552,6 +552,49 @@ func TestFilterByProjectsP(t *testing.T) {
 
 	t.Run("Multiple apps in multiple project", func(t *testing.T) {
 		res := FilterByProjectsP(apps, []string{"fooproj", "barproj"})
+		assert.Len(t, res, 2)
+	})
+}
+
+func TestFilterAppSetsByProjects(t *testing.T) {
+	appsets := []argoappv1.ApplicationSet{
+		{
+			Spec: argoappv1.ApplicationSetSpec{
+				Template: argoappv1.ApplicationSetTemplate{
+					Spec: argoappv1.ApplicationSpec{
+						Project: "fooproj",
+					},
+				},
+			},
+		},
+		{
+			Spec: argoappv1.ApplicationSetSpec{
+				Template: argoappv1.ApplicationSetTemplate{
+					Spec: argoappv1.ApplicationSpec{
+						Project: "barproj",
+					},
+				},
+			},
+		},
+	}
+
+	t.Run("No apps in single project", func(t *testing.T) {
+		res := FilterAppSetsByProjects(appsets, []string{"foobarproj"})
+		assert.Empty(t, res)
+	})
+
+	t.Run("Single app in single project", func(t *testing.T) {
+		res := FilterAppSetsByProjects(appsets, []string{"fooproj"})
+		assert.Len(t, res, 1)
+	})
+
+	t.Run("Single app in multiple project", func(t *testing.T) {
+		res := FilterAppSetsByProjects(appsets, []string{"fooproj", "foobarproj"})
+		assert.Len(t, res, 1)
+	})
+
+	t.Run("Multiple apps in multiple project", func(t *testing.T) {
+		res := FilterAppSetsByProjects(appsets, []string{"fooproj", "barproj"})
 		assert.Len(t, res, 2)
 	})
 }
@@ -734,7 +777,7 @@ func TestValidatePermissions(t *testing.T) {
 		}
 		cluster := &argoappv1.Cluster{Server: "https://127.0.0.1:6443", Name: "test"}
 		db := &dbmocks.ArgoDB{}
-		db.On("GetCluster", t.Context(), spec.Destination.Server).Return(cluster, nil)
+		db.EXPECT().GetCluster(mock.Anything, spec.Destination.Server).Return(cluster, nil).Maybe()
 		conditions, err := ValidatePermissions(t.Context(), &spec, &proj, db)
 		require.NoError(t, err)
 		assert.Len(t, conditions, 1)
@@ -767,7 +810,7 @@ func TestValidatePermissions(t *testing.T) {
 		}
 		cluster := &argoappv1.Cluster{Server: "https://127.0.0.1:6443", Name: "test"}
 		db := &dbmocks.ArgoDB{}
-		db.On("GetCluster", t.Context(), spec.Destination.Server).Return(cluster, nil)
+		db.EXPECT().GetCluster(mock.Anything, spec.Destination.Server).Return(cluster, nil).Maybe()
 		conditions, err := ValidatePermissions(t.Context(), &spec, &proj, db)
 		require.NoError(t, err)
 		assert.Len(t, conditions, 1)
@@ -799,7 +842,7 @@ func TestValidatePermissions(t *testing.T) {
 			},
 		}
 		db := &dbmocks.ArgoDB{}
-		db.On("GetCluster", t.Context(), spec.Destination.Server).Return(nil, status.Errorf(codes.NotFound, "Cluster does not exist"))
+		db.EXPECT().GetCluster(mock.Anything, spec.Destination.Server).Return(nil, status.Errorf(codes.NotFound, "Cluster does not exist")).Maybe()
 		conditions, err := ValidatePermissions(t.Context(), &spec, &proj, db)
 		require.NoError(t, err)
 		assert.Len(t, conditions, 1)
@@ -831,7 +874,7 @@ func TestValidatePermissions(t *testing.T) {
 			},
 		}
 		db := &dbmocks.ArgoDB{}
-		db.On("GetClusterServersByName", t.Context(), "does-not-exist").Return(nil, nil)
+		db.EXPECT().GetClusterServersByName(mock.Anything, "does-not-exist").Return(nil, nil).Maybe()
 		conditions, err := ValidatePermissions(t.Context(), &spec, &proj, db)
 		require.NoError(t, err)
 		assert.Len(t, conditions, 1)
@@ -863,7 +906,7 @@ func TestValidatePermissions(t *testing.T) {
 			},
 		}
 		db := &dbmocks.ArgoDB{}
-		db.On("GetCluster", t.Context(), spec.Destination.Server).Return(nil, errors.New("Unknown error occurred"))
+		db.EXPECT().GetCluster(mock.Anything, spec.Destination.Server).Return(nil, errors.New("Unknown error occurred")).Maybe()
 		conditions, err := ValidatePermissions(t.Context(), &spec, &proj, db)
 		require.NoError(t, err)
 		assert.Len(t, conditions, 1)
@@ -899,8 +942,8 @@ func TestValidatePermissions(t *testing.T) {
 			Name:   "does-exist",
 			Server: "https://127.0.0.1:6443",
 		}
-		db.On("GetClusterServersByName", t.Context(), "does-exist").Return([]string{"https://127.0.0.1:6443"}, nil)
-		db.On("GetCluster", t.Context(), "https://127.0.0.1:6443").Return(&cluster, nil)
+		db.EXPECT().GetClusterServersByName(mock.Anything, "does-exist").Return([]string{"https://127.0.0.1:6443"}, nil).Maybe()
+		db.EXPECT().GetCluster(mock.Anything, "https://127.0.0.1:6443").Return(&cluster, nil).Maybe()
 		conditions, err := ValidatePermissions(t.Context(), &spec, &proj, db)
 		require.NoError(t, err)
 		assert.Empty(t, conditions)
@@ -965,7 +1008,7 @@ func TestGetDestinationCluster(t *testing.T) {
 
 		expectedCluster := &argoappv1.Cluster{Server: "https://127.0.0.1:6443"}
 		db := &dbmocks.ArgoDB{}
-		db.On("GetCluster", t.Context(), "https://127.0.0.1:6443").Return(expectedCluster, nil)
+		db.EXPECT().GetCluster(mock.Anything, "https://127.0.0.1:6443").Return(expectedCluster, nil).Maybe()
 
 		destCluster, err := GetDestinationCluster(t.Context(), dest, db)
 		require.NoError(t, err)
@@ -979,8 +1022,8 @@ func TestGetDestinationCluster(t *testing.T) {
 		}
 
 		db := &dbmocks.ArgoDB{}
-		db.On("GetClusterServersByName", t.Context(), "minikube").Return([]string{"https://127.0.0.1:6443"}, nil)
-		db.On("GetCluster", t.Context(), "https://127.0.0.1:6443").Return(&argoappv1.Cluster{Server: "https://127.0.0.1:6443", Name: "minikube"}, nil)
+		db.EXPECT().GetClusterServersByName(mock.Anything, "minikube").Return([]string{"https://127.0.0.1:6443"}, nil).Maybe()
+		db.EXPECT().GetCluster(mock.Anything, "https://127.0.0.1:6443").Return(&argoappv1.Cluster{Server: "https://127.0.0.1:6443", Name: "minikube"}, nil).Maybe()
 
 		destCluster, err := GetDestinationCluster(t.Context(), dest, db)
 		require.NoError(t, err)
@@ -1004,7 +1047,7 @@ func TestGetDestinationCluster(t *testing.T) {
 		}
 
 		db := &dbmocks.ArgoDB{}
-		db.On("GetClusterServersByName", t.Context(), mock.Anything).Return(nil, errors.New("an error occurred"))
+		db.EXPECT().GetClusterServersByName(mock.Anything, "minikube").Return(nil, errors.New("an error occurred"))
 
 		_, err := GetDestinationCluster(t.Context(), dest, db)
 		require.ErrorContains(t, err, "an error occurred")
@@ -1016,7 +1059,7 @@ func TestGetDestinationCluster(t *testing.T) {
 		}
 
 		db := &dbmocks.ArgoDB{}
-		db.On("GetClusterServersByName", t.Context(), "minikube").Return(nil, nil)
+		db.EXPECT().GetClusterServersByName(mock.Anything, "minikube").Return(nil, nil)
 
 		_, err := GetDestinationCluster(t.Context(), dest, db)
 		assert.EqualError(t, err, "there are no clusters with this name: minikube")
@@ -1028,7 +1071,7 @@ func TestGetDestinationCluster(t *testing.T) {
 		}
 
 		db := &dbmocks.ArgoDB{}
-		db.On("GetClusterServersByName", t.Context(), "dind").Return([]string{"https://127.0.0.1:2443", "https://127.0.0.1:8443"}, nil)
+		db.EXPECT().GetClusterServersByName(mock.Anything, "dind").Return([]string{"https://127.0.0.1:2443", "https://127.0.0.1:8443"}, nil)
 
 		_, err := GetDestinationCluster(t.Context(), dest, db)
 		assert.EqualError(t, err, "there are 2 clusters with the same name: [https://127.0.0.1:2443 https://127.0.0.1:8443]")
@@ -1110,6 +1153,59 @@ func TestFilterByNameP(t *testing.T) {
 	})
 }
 
+func TestFilterByCluster(t *testing.T) {
+	apps := []argoappv1.Application{
+		{
+			Spec: argoappv1.ApplicationSpec{
+				Destination: argoappv1.ApplicationDestination{
+					Server: "https://cluster-1.example.com",
+				},
+			},
+		},
+		{
+			Spec: argoappv1.ApplicationSpec{
+				Destination: argoappv1.ApplicationDestination{
+					Name: "in-cluster",
+				},
+			},
+		},
+	}
+
+	tests := []struct {
+		name     string
+		cluster  string
+		expected int
+	}{
+		{
+			name:     "Empty filter returns all",
+			cluster:  "",
+			expected: 2,
+		},
+		{
+			name:     "Match by Server",
+			cluster:  "https://cluster-1.example.com",
+			expected: 1,
+		},
+		{
+			name:     "Match by Name",
+			cluster:  "in-cluster",
+			expected: 1,
+		},
+		{
+			name:     "No match found",
+			cluster:  "https://cluster-2.example.com",
+			expected: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			res := FilterByCluster(apps, tt.cluster)
+			assert.Len(t, res, tt.expected)
+		})
+	}
+}
+
 func TestGetGlobalProjects(t *testing.T) {
 	t.Run("Multiple global projects", func(t *testing.T) {
 		namespace := "default"
@@ -1141,10 +1237,10 @@ func TestGetGlobalProjects(t *testing.T) {
 		defaultX := &argoappv1.AppProject{
 			ObjectMeta: metav1.ObjectMeta{Name: "default-x", Namespace: namespace},
 			Spec: argoappv1.AppProjectSpec{
-				ClusterResourceWhitelist: []metav1.GroupKind{
+				ClusterResourceWhitelist: []argoappv1.ClusterResourceRestrictionItem{
 					{Group: "*", Kind: "*"},
 				},
-				ClusterResourceBlacklist: []metav1.GroupKind{
+				ClusterResourceBlacklist: []argoappv1.ClusterResourceRestrictionItem{
 					{Kind: "Volume"},
 				},
 			},
@@ -1153,7 +1249,7 @@ func TestGetGlobalProjects(t *testing.T) {
 		defaultNonX := &argoappv1.AppProject{
 			ObjectMeta: metav1.ObjectMeta{Name: "default-non-x", Namespace: namespace},
 			Spec: argoappv1.AppProjectSpec{
-				ClusterResourceBlacklist: []metav1.GroupKind{
+				ClusterResourceBlacklist: []argoappv1.ClusterResourceRestrictionItem{
 					{Group: "*", Kind: "*"},
 				},
 			},
@@ -1455,7 +1551,7 @@ func TestValidatePermissionsMultipleSources(t *testing.T) {
 		}
 		cluster := &argoappv1.Cluster{Server: "https://127.0.0.1:6443", Name: "test"}
 		db := &dbmocks.ArgoDB{}
-		db.On("GetCluster", t.Context(), spec.Destination.Server).Return(cluster, nil)
+		db.EXPECT().GetCluster(mock.Anything, spec.Destination.Server).Return(cluster, nil)
 		conditions, err := ValidatePermissions(t.Context(), &spec, &proj, db)
 		require.NoError(t, err)
 		assert.Len(t, conditions, 1)
@@ -1493,8 +1589,8 @@ func TestValidatePermissionsMultipleSources(t *testing.T) {
 			Name:   "does-exist",
 			Server: "https://127.0.0.1:6443",
 		}
-		db.On("GetClusterServersByName", t.Context(), "does-exist").Return([]string{"https://127.0.0.1:6443"}, nil)
-		db.On("GetCluster", t.Context(), "https://127.0.0.1:6443").Return(&cluster, nil)
+		db.EXPECT().GetClusterServersByName(mock.Anything, "does-exist").Return([]string{"https://127.0.0.1:6443"}, nil).Maybe()
+		db.EXPECT().GetCluster(mock.Anything, "https://127.0.0.1:6443").Return(&cluster, nil).Maybe()
 		conditions, err := ValidatePermissions(t.Context(), &spec, &proj, db)
 		require.NoError(t, err)
 		assert.Empty(t, conditions)
@@ -1735,6 +1831,173 @@ func TestGetAppEventLabels(t *testing.T) {
 				v, found := eventLabels[ek]
 				assert.True(t, found)
 				assert.Equal(t, ev, v)
+			}
+		})
+	}
+}
+
+func TestValidateManagedByURL(t *testing.T) {
+	tests := []struct {
+		name       string
+		app        *argoappv1.Application
+		wantErr    bool
+		wantErrMsg string
+	}{
+		{
+			name: "Valid HTTPS URL",
+			app: &argoappv1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						argoappv1.AnnotationKeyManagedByURL: "https://argocd.example.com",
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Valid HTTP URL",
+			app: &argoappv1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						argoappv1.AnnotationKeyManagedByURL: "http://argocd.example.com",
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Valid localhost HTTPS URL",
+			app: &argoappv1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						argoappv1.AnnotationKeyManagedByURL: "https://localhost:8081",
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Valid localhost HTTP URL",
+			app: &argoappv1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						argoappv1.AnnotationKeyManagedByURL: "http://localhost:8081",
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Valid 127.0.0.1 URL",
+			app: &argoappv1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						argoappv1.AnnotationKeyManagedByURL: "http://127.0.0.1:8081",
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "No annotations",
+			app: &argoappv1.Application{
+				ObjectMeta: metav1.ObjectMeta{},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Empty managed-by-url",
+			app: &argoappv1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						argoappv1.AnnotationKeyManagedByURL: "",
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Missing managed-by-url annotation",
+			app: &argoappv1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						"other.annotation": "value",
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Invalid protocol - javascript",
+			app: &argoappv1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						argoappv1.AnnotationKeyManagedByURL: "javascript:alert('xss')",
+					},
+				},
+			},
+			wantErr:    true,
+			wantErrMsg: "invalid managed-by URL: URL must include http or https protocol",
+		},
+		{
+			name: "Invalid protocol - data",
+			app: &argoappv1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						argoappv1.AnnotationKeyManagedByURL: "data:text/html,<script>alert('xss')</script>",
+					},
+				},
+			},
+			wantErr:    true,
+			wantErrMsg: "invalid managed-by URL: URL must include http or https protocol",
+		},
+		{
+			name: "Invalid protocol - file",
+			app: &argoappv1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						argoappv1.AnnotationKeyManagedByURL: "file:///etc/passwd",
+					},
+				},
+			},
+			wantErr:    true,
+			wantErrMsg: "invalid managed-by URL: URL must include http or https protocol",
+		},
+		{
+			name: "Invalid URL format",
+			app: &argoappv1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						argoappv1.AnnotationKeyManagedByURL: "not-a-url",
+					},
+				},
+			},
+			wantErr:    true,
+			wantErrMsg: "invalid managed-by URL: URL must include http or https protocol",
+		},
+		{
+			name: "URL with path and query",
+			app: &argoappv1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						argoappv1.AnnotationKeyManagedByURL: "https://argocd.example.com/applications?namespace=default",
+					},
+				},
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			conditions := ValidateManagedByURL(tt.app)
+
+			if tt.wantErr {
+				require.Len(t, conditions, 1, "Expected exactly one validation condition")
+				assert.Equal(t, argoappv1.ApplicationConditionInvalidSpecError, conditions[0].Type)
+				assert.Contains(t, conditions[0].Message, tt.wantErrMsg)
+			} else {
+				assert.Empty(t, conditions, "Expected no validation conditions for valid URL")
 			}
 		})
 	}

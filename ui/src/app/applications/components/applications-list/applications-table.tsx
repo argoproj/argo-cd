@@ -7,7 +7,7 @@ import {Consumer, Context} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {ApplicationURLs} from '../application-urls';
 import * as AppUtils from '../utils';
-import {getAppDefaultSource, OperationState} from '../utils';
+import {getAppDefaultSource, OperationState, getApplicationLinkURL, getManagedByURL} from '../utils';
 import {ApplicationsLabels} from './applications-labels';
 import {ApplicationsSource} from './applications-source';
 import {services} from '../../../shared/services';
@@ -52,121 +52,142 @@ export const ApplicationsTable = (props: {
                         const favList = pref.appList.favoritesAppList || [];
                         return (
                             <div className='applications-table argo-table-list argo-table-list--clickable'>
-                                {props.applications.map((app, i) => (
-                                    <div
-                                        key={AppUtils.appInstanceName(app)}
-                                        className={`argo-table-list__row
-                applications-list__entry applications-list__entry--health-${app.status.health.status} ${selectedApp === i ? 'applications-tiles__selected' : ''}`}>
+                                {props.applications.map((app, i) => {
+                                    return (
                                         <div
-                                            className={`row applications-list__table-row ${app.status.sourceHydrator?.currentOperation ? 'applications-table-row--with-hydrator' : ''}`}
-                                            onClick={e => ctx.navigation.goto(`/${AppUtils.getAppUrl(app)}`, {}, {event: e})}>
-                                            <div className='columns small-4'>
-                                                <div className='row'>
-                                                    <div className=' columns small-2'>
-                                                        <div>
-                                                            <Tooltip content={favList?.includes(app.metadata.name) ? 'Remove Favorite' : 'Add Favorite'}>
-                                                                <button
-                                                                    onClick={e => {
-                                                                        e.stopPropagation();
-                                                                        favList?.includes(app.metadata.name)
-                                                                            ? favList.splice(favList.indexOf(app.metadata.name), 1)
-                                                                            : favList.push(app.metadata.name);
-                                                                        services.viewPreferences.updatePreferences({appList: {...pref.appList, favoritesAppList: favList}});
-                                                                    }}>
-                                                                    <i
-                                                                        className={favList?.includes(app.metadata.name) ? 'fas fa-star' : 'far fa-star'}
-                                                                        style={{
-                                                                            cursor: 'pointer',
-                                                                            marginRight: '7px',
-                                                                            color: favList?.includes(app.metadata.name) ? '#FFCE25' : '#8fa4b1'
-                                                                        }}
-                                                                    />
-                                                                </button>
+                                            key={AppUtils.appInstanceName(app)}
+                                            className={`argo-table-list__row
+                applications-list__entry applications-list__entry--health-${app.status.health.status} ${selectedApp === i ? 'applications-tiles__selected' : ''}`}>
+                                            <div
+                                                className={`row applications-list__table-row ${app.status.sourceHydrator?.currentOperation ? 'applications-table-row--with-hydrator' : ''}`}
+                                                onClick={e => ctx.navigation.goto(`/${AppUtils.getAppUrl(app)}`, {}, {event: e})}>
+                                                <div className='columns small-4'>
+                                                    <div className='row'>
+                                                        <div className=' columns small-2'>
+                                                            <div>
+                                                                <Tooltip content={favList?.includes(app.metadata.name) ? 'Remove Favorite' : 'Add Favorite'}>
+                                                                    <button
+                                                                        onClick={e => {
+                                                                            e.stopPropagation();
+                                                                            favList?.includes(app.metadata.name)
+                                                                                ? favList.splice(favList.indexOf(app.metadata.name), 1)
+                                                                                : favList.push(app.metadata.name);
+                                                                            services.viewPreferences.updatePreferences({appList: {...pref.appList, favoritesAppList: favList}});
+                                                                        }}>
+                                                                        <i
+                                                                            className={favList?.includes(app.metadata.name) ? 'fas fa-star' : 'far fa-star'}
+                                                                            style={{
+                                                                                cursor: 'pointer',
+                                                                                marginRight: '7px',
+                                                                                color: favList?.includes(app.metadata.name) ? '#FFCE25' : '#8fa4b1'
+                                                                            }}
+                                                                        />
+                                                                    </button>
+                                                                </Tooltip>
+                                                                <ApplicationURLs urls={app.status.summary.externalURLs} />
+                                                            </div>
+                                                        </div>
+                                                        <div className='show-for-xxlarge columns small-4'>Project:</div>
+                                                        <div className='columns small-12 xxlarge-6'>{app.spec.project}</div>
+                                                    </div>
+                                                    <div className='row'>
+                                                        <div className=' columns small-2' />
+                                                        <div className='show-for-xxlarge columns small-4'>Name:</div>
+                                                        <div className='columns small-12 xxlarge-6'>
+                                                            <Tooltip
+                                                                content={
+                                                                    <>
+                                                                        {app.metadata.name}
+                                                                        <br />
+                                                                        <Moment fromNow={true} ago={true}>
+                                                                            {app.metadata.creationTimestamp}
+                                                                        </Moment>
+                                                                    </>
+                                                                }>
+                                                                <span>{app.metadata.name}</span>
                                                             </Tooltip>
-                                                            <ApplicationURLs urls={app.status.summary.externalURLs} />
+                                                            {/* External link icon for managed-by-url */}
+                                                            {(() => {
+                                                                const linkInfo = getApplicationLinkURL(app, ctx.baseHref);
+                                                                return (
+                                                                    <button
+                                                                        onClick={e => {
+                                                                            e.stopPropagation();
+                                                                            if (linkInfo.isExternal) {
+                                                                                window.open(linkInfo.url, '_blank', 'noopener,noreferrer');
+                                                                            } else {
+                                                                                ctx.navigation.goto(`/${AppUtils.getAppUrl(app)}`);
+                                                                            }
+                                                                        }}
+                                                                        style={{marginLeft: '0.5em'}}
+                                                                        title={`Link: ${linkInfo.url}\nmanaged-by-url: ${getManagedByURL(app) || 'none'}`}>
+                                                                        <i className='fa fa-external-link-alt' />
+                                                                    </button>
+                                                                );
+                                                            })()}
                                                         </div>
                                                     </div>
-                                                    <div className='show-for-xxlarge columns small-4'>Name:</div>
-                                                    <div className='columns small-12 xxlarge-6'>
-                                                        <Tooltip
-                                                            content={
-                                                                <>
-                                                                    {app.metadata.name}
-                                                                    <br />
-                                                                    <Moment fromNow={true} ago={true}>
-                                                                        {app.metadata.creationTimestamp}
-                                                                    </Moment>
-                                                                </>
-                                                            }>
-                                                            <span className='application-name'>{app.metadata.name}</span>
-                                                        </Tooltip>
-                                                    </div>
                                                 </div>
-                                                <div className='row'>
-                                                    <div className=' columns small-2' />
-                                                    <div className='show-for-xxlarge columns small-4'>Project:</div>
-                                                    <div className='columns small-12 xxlarge-6'>{app.spec.project}</div>
-                                                </div>
-                                            </div>
 
-                                            <div className='columns small-6'>
-                                                <div className='row'>
-                                                    <div className='show-for-xxlarge columns small-2'>Source:</div>
-                                                    <div className='columns small-12 xxlarge-10 applications-table-source' style={{position: 'relative'}}>
-                                                        <div className='applications-table-source__link'>
-                                                            <ApplicationsSource source={getAppDefaultSource(app)} />
+                                                <div className='columns small-6'>
+                                                    <div className='row'>
+                                                        <div className='show-for-xxlarge columns small-2'>Source:</div>
+                                                        <div className='columns small-12 xxlarge-10 applications-table-source' style={{position: 'relative'}}>
+                                                            <div className='applications-table-source__link'>
+                                                                <ApplicationsSource source={getAppDefaultSource(app)} />
+                                                            </div>
+                                                            <div className='applications-table-source__labels'>
+                                                                <ApplicationsLabels app={app} />
+                                                            </div>
                                                         </div>
-                                                        <div className='applications-table-source__labels'>
-                                                            <ApplicationsLabels app={app} />
+                                                    </div>
+                                                    <div className='row'>
+                                                        <div className='show-for-xxlarge columns small-2'>Destination:</div>
+                                                        <div className='columns small-12 xxlarge-10'>
+                                                            <Cluster server={app.spec.destination.server} name={app.spec.destination.name} />/{app.spec.destination.namespace}
                                                         </div>
                                                     </div>
                                                 </div>
-                                                <div className='row'>
-                                                    <div className='show-for-xxlarge columns small-2'>Destination:</div>
-                                                    <div className='columns small-12 xxlarge-10'>
-                                                        <Cluster server={app.spec.destination.server} name={app.spec.destination.name} />/{app.spec.destination.namespace}
-                                                    </div>
-                                                </div>
-                                            </div>
 
-                                            <div className='columns small-2'>
-                                                <AppUtils.HealthStatusIcon state={app.status.health} /> <span>{app.status.health.status}</span> <br />
-                                                {app.status.sourceHydrator?.currentOperation && (
-                                                    <>
-                                                        <AppUtils.HydrateOperationPhaseIcon operationState={app.status.sourceHydrator.currentOperation} />{' '}
-                                                        <span>{app.status.sourceHydrator.currentOperation.phase}</span> <br />
-                                                    </>
-                                                )}
-                                                <AppUtils.ComparisonStatusIcon status={app.status.sync.status} />
-                                                <span>{app.status.sync.status}</span> <OperationState app={app} quiet={true} />
-                                                <DropDownMenu
-                                                    anchor={() => (
-                                                        <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
-                                                            <i className='fa fa-ellipsis-v' />
-                                                        </button>
+                                                <div className='columns small-2'>
+                                                    <AppUtils.HealthStatusIcon state={app.status.health} /> <span>{app.status.health.status}</span> <br />
+                                                    {app.status.sourceHydrator?.currentOperation && (
+                                                        <>
+                                                            <AppUtils.HydrateOperationPhaseIcon operationState={app.status.sourceHydrator.currentOperation} />{' '}
+                                                            <span>{app.status.sourceHydrator.currentOperation.phase}</span> <br />
+                                                        </>
                                                     )}
-                                                    items={[
-                                                        {
-                                                            title: 'Sync',
-                                                            iconClassName: 'fa fa-fw fa-sync',
-                                                            action: () => props.syncApplication(app.metadata.name, app.metadata.namespace)
-                                                        },
-                                                        {
-                                                            title: 'Refresh',
-                                                            iconClassName: 'fa fa-fw fa-redo',
-                                                            action: () => props.refreshApplication(app.metadata.name, app.metadata.namespace)
-                                                        },
-                                                        {
-                                                            title: 'Delete',
-                                                            iconClassName: 'fa fa-fw fa-times-circle',
-                                                            action: () => props.deleteApplication(app.metadata.name, app.metadata.namespace)
-                                                        }
-                                                    ]}
-                                                />
+                                                    <AppUtils.ComparisonStatusIcon status={app.status.sync.status} />
+                                                    <span>{app.status.sync.status}</span> <OperationState app={app} quiet={true} />
+                                                    <DropDownMenu
+                                                        anchor={() => (
+                                                            <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
+                                                                <i className='fa fa-ellipsis-v' />
+                                                            </button>
+                                                        )}
+                                                        items={[
+                                                            {
+                                                                title: 'Sync',
+                                                                iconClassName: 'fa fa-fw fa-sync',
+                                                                action: () => props.syncApplication(app.metadata.name, app.metadata.namespace)
+                                                            },
+                                                            {
+                                                                title: 'Refresh',
+                                                                iconClassName: 'fa fa-fw fa-redo',
+                                                                action: () => props.refreshApplication(app.metadata.name, app.metadata.namespace)
+                                                            },
+                                                            {
+                                                                title: 'Delete',
+                                                                iconClassName: 'fa fa-fw fa-times-circle',
+                                                                action: () => props.deleteApplication(app.metadata.name, app.metadata.namespace)
+                                                            }
+                                                        ]}
+                                                    />
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         );
                     }}

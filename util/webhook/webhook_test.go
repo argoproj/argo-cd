@@ -79,8 +79,8 @@ func NewMockHandlerWithPayloadLimit(reactor *reactorDef, applicationNamespaces [
 }
 
 func NewMockHandlerForBitbucketCallback(reactor *reactorDef, applicationNamespaces []string, objects ...runtime.Object) *ArgoCDWebhookHandler {
-	mockDB := mocks.ArgoDB{}
-	mockDB.On("ListRepositories", mock.Anything).Return(
+	mockDB := &mocks.ArgoDB{}
+	mockDB.EXPECT().ListRepositories(mock.Anything).Return(
 		[]*v1alpha1.Repository{
 			{
 				Repo:     "https://bitbucket.org/test/argocd-examples-pub.git",
@@ -99,7 +99,7 @@ func NewMockHandlerForBitbucketCallback(reactor *reactorDef, applicationNamespac
 		}, nil)
 	argoSettings := settings.ArgoCDSettings{WebhookBitbucketUUID: "abcd-efgh-ijkl-mnop"}
 	defaultMaxPayloadSize := int64(50) * 1024 * 1024
-	return newMockHandler(reactor, applicationNamespaces, defaultMaxPayloadSize, &mockDB, &argoSettings, objects...)
+	return newMockHandler(reactor, applicationNamespaces, defaultMaxPayloadSize, mockDB, &argoSettings, objects...)
 }
 
 type fakeAppsLister struct {

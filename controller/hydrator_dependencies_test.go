@@ -43,7 +43,7 @@ func TestGetRepoObjs(t *testing.T) {
 		},
 	}
 
-	ctrl := newFakeControllerWithResync(&data, time.Minute, nil, errors.New("this should not be called"))
+	ctrl := newFakeControllerWithResync(t.Context(), &data, time.Minute, nil, errors.New("this should not be called"))
 	source := app.Spec.GetSource()
 	source.RepoURL = "oci://example.com/argo/argo-cd"
 
@@ -92,7 +92,7 @@ func TestGetHydratorCommitMessageTemplate_WhenTemplateisNotDefined_FallbackToDef
 		},
 	}
 
-	ctrl := newFakeControllerWithResync(&data, time.Minute, nil, errors.New("this should not be called"))
+	ctrl := newFakeControllerWithResync(t.Context(), &data, time.Minute, nil, errors.New("this should not be called"))
 
 	tmpl, err := ctrl.GetHydratorCommitMessageTemplate()
 	require.NoError(t, err)
@@ -115,7 +115,7 @@ func TestGetHydratorCommitMessageTemplate(t *testing.T) {
 		configMapData: cm.Data,
 	}
 
-	ctrl := newFakeControllerWithResync(&data, time.Minute, nil, errors.New("this should not be called"))
+	ctrl := newFakeControllerWithResync(t.Context(), &data, time.Minute, nil, errors.New("this should not be called"))
 
 	tmpl, err := ctrl.GetHydratorCommitMessageTemplate()
 	require.NoError(t, err)

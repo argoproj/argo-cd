@@ -151,9 +151,18 @@ See [#1482](https://github.com/argoproj/argo-cd/issues/1482).
 
 ## How often does Argo CD check for changes to my Git or Helm repository ?
 
-The default maximum polling interval is 3 minutes (120 seconds + 60 seconds jitter).
-You can change the setting by updating the `timeout.reconciliation` value and the `timeout.reconciliation.jitter` in the [argocd-cm](https://github.com/argoproj/argo-cd/blob/2d6ce088acd4fb29271ffb6f6023dbb27594d59b/docs/operator-manual/argocd-cm.yaml#L279-L282) config map. If there are any Git changes, Argo CD will only update applications with the [auto-sync setting](user-guide/auto_sync.md) enabled. If you set it to `0` then Argo CD will stop polling Git repositories automatically and you can only use alternative methods such as [webhooks](operator-manual/webhook.md) and/or manual syncs for deploying applications.
+By default, Argo CD checks (polls) Git repositories every 3 minutes to detect changes.
+This default interval is calculated as 120 seconds + up to 60 seconds of jitter (a small random delay to avoid simultaneous polling). You can customize this behavior by updating the following keys in the `argocd-cm` ConfigMap:
+```yaml
+timeout.reconciliation: 120s
+timeout.reconciliation.jitter: 60s 
+```
+During each polling cycle, Argo CD checks whether your tracked repositories have changed. If changes are found:
+- Applications with auto-sync enabled will automatically sync to match the new state.
+- Applications without auto-sync will simply be marked as OutOfSync in the UI.
 
+Setting `timeout.reconciliation` to 0 completely disables automatic polling. In that case, Argo CD will only detect changes when triggered through webhooks or a manual refresh. When setting it to 0, it may also be required to configure ARGOCD_DEFAULT_CACHE_EXPIRATION.
+However, setting this value to 0 is not recommended for several reasons such as failure of webhooks due to network issues, misconfiguration etc. If you are using webhooks and are interested in improving Argo CD performance / resource consumption, you can set `timeout.reconciliation` to a lower-frequency interval to reduce the frequency of explicit polling, for example `15m`, `1h` or other interval that is appropriate for your case. 
 
 ## Why is my ArgoCD application `Out Of Sync` when there are no actual changes to the resource limits (or other fields with unit values)?
 
@@ -319,9 +328,68 @@ If for some reason authenticated Redis does not work for you and you want to use
     * Deployment: argocd-server
     * StatefulSet: argocd-application-controller
 
+5. If you have configured file-based Redis credentials using the `REDIS_CREDS_DIR_PATH` environment variable, remove this environment variable and delete the corresponding volume and volumeMount entries that mount the credentials directory from the following manifests:
+    * Deployment: argocd-repo-server
+    * Deployment: argocd-server
+    * StatefulSet: argocd-application-controller
+
 ## How do I provide my own Redis credentials?
 The Redis password is stored in Kubernetes secret `argocd-redis` with key `auth` in the namespace where Argo CD is installed.
 You can config your secret provider to generate Kubernetes secret accordingly.
+
+### Using file-based Redis credentials via `REDIS_CREDS_DIR_PATH`
+
+Argo CD components support reading Redis credentials from files mounted at a specified path inside the container.
+
+When the environment variable `REDIS_CREDS_DIR_PATH` is specified, it takes precedence and Argo CD components that require redis connectivity ( application-controller, repo-server and server) loads the redis credentials from the files located in the specified directory path and ignores any values set in the  environment variables
+
+Expected files when using `REDIS_CREDS_DIR_PATH`:
+
+- `auth`: Redis password (mandatory)
+- `auth_username`: Redis username
+- `sentinel_auth`: Redis Sentinel password
+- `sentinel_username`: Redis Sentinel username
+
+You can store these keys in a Kubernetes Secret and mount it into each Argo CD component that needs Redis access. Then point `REDIS_CREDS_DIR_PATH` to the mount directory.
+
+Example Secret:
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: <secret-name>
+  namespace: argocd
+type: Opaque
+stringData:
+  auth: "<redis-password>"
+  auth_username: "<redis-username>"
+  sentinel_auth: "<sentinel-password>"
+  sentinel_username: "<sentinel-username>"
+```
+
+Example Argo CD component spec (e.g., add to `argocd-server`, `argocd-repo-server`, `argocd-application-controller`):
+
+```yaml
+spec:
+    containers:
+    - name: argocd-server
+      image: quay.io/argoproj/argocd:<version>
+      env:
+      - name: REDIS_CREDS_DIR_PATH
+        value: "/var/run/secrets/redis"
+        volumeMounts:
+        - name: redis-creds
+          mountPath: "/var/run/secrets/redis"
+          readOnly: true
+    volumes:
+    - name: redis-creds
+      secret:
+       secretName: <secret-name>
+```
+
+> [!NOTE]
+> This mechanism configures authentication for Argo CD components that connect to Redis. The Redis server itself should be configured independently (e.g., via `redis.conf`).
 
 ## How do I fix `Manifest generation error (cached)`?
 

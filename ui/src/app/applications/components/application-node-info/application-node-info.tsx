@@ -270,7 +270,10 @@ export const ApplicationNodeInfo = (props: {
                                 ) : (
                                     <div className='application-node-info__err_msg'>
                                         Resource not found in cluster:{' '}
-                                        {`${props?.controlled?.state?.targetState?.apiVersion}/${props?.controlled?.state?.targetState?.kind}:${props.node.name}`}
+                                        {typeof props?.controlled?.state?.targetState !== 'undefined' && (
+                                            <span>{`${props.controlled.state.targetState.apiVersion}/${props.controlled.state.targetState.kind}:`}</span>
+                                        )}
+                                        {`${props.node.name}`}
                                         <br />
                                         {props?.controlled?.state?.normalizedLiveState?.apiVersion && (
                                             <span>
