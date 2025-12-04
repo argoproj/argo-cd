@@ -2797,6 +2797,10 @@ type SyncWindow struct {
 	UseAndOperator bool `json:"andOperator,omitempty" protobuf:"bytes,9,opt,name=andOperator"`
 	// Description of the sync that will be applied to the schedule, can be used to add any information such as a ticket number for example
 	Description string `json:"description,omitempty" protobuf:"bytes,10,opt,name=description"`
+	// SyncOverrun allows ongoing syncs to continue in two scenarios:
+	// For deny windows: allows syncs that started before the deny window became active to continue running
+	// For allow windows: allows syncs that started during the allow window to continue after the window ends
+	SyncOverrun bool `json:"syncOverrun,omitempty" protobuf:"bytes,11,opt,name=syncOverrun"`
 }
 
 // HasWindows returns true if SyncWindows has one or more SyncWindow
@@ -2894,7 +2898,7 @@ func (w *SyncWindow) scheduleOffsetByTimeZone() time.Duration {
 }
 
 // AddWindow adds a sync window with the given parameters to the AppProject
-func (spec *AppProjectSpec) AddWindow(knd string, sch string, dur string, app []string, ns []string, cl []string, ms bool, timeZone string, andOperator bool, description string) error {
+func (spec *AppProjectSpec) AddWindow(knd string, sch string, dur string, app []string, ns []string, cl []string, ms bool, timeZone string, andOperator bool, description string, syncOverrun bool) error {
 	if knd == "" || sch == "" || dur == "" {
 		return errors.New("cannot create window: require kind, schedule, duration and one or more of applications, namespaces and clusters")
 	}
@@ -2907,6 +2911,7 @@ func (spec *AppProjectSpec) AddWindow(knd string, sch string, dur string, app []
 		TimeZone:       timeZone,
 		UseAndOperator: andOperator,
 		Description:    description,
+		SyncOverrun:    syncOverrun,
 	}
 
 	if len(app) > 0 {
@@ -3022,7 +3027,12 @@ func (w *SyncWindows) Matches(app *Application) *SyncWindows {
 }
 
 // CanSync returns true if a sync window currently allows a sync. isManual indicates whether the sync has been triggered manually.
-func (w *SyncWindows) CanSync(isManual bool) (bool, error) {
+// The operationStartTime parameter supports sync overrun functionality, which allows ongoing syncs to continue in two scenarios:
+//  1. When a deny window becomes active: If the operation started when sync was allowed and the deny window has syncOverrun enabled,
+//     the sync can continue even though a deny window is now active.
+//  2. When an allow window ends: If the operation started during an allow window with syncOverrun enabled, the sync can continue
+//     even after the allow window has ended (and no other allow windows are active).
+func (w *SyncWindows) CanSync(isManual bool, operationStartTime *time.Time) (bool, error) {
 	if !w.HasWindows() {
 		return true, nil
 	}
@@ -3034,6 +3044,14 @@ func (w *SyncWindows) CanSync(isManual bool) (bool, error) {
 	hasActiveDeny, manualEnabled := active.hasDeny()
 
 	if hasActiveDeny {
+		// Check if operation started before deny window and overrun is allowed
+		if operationStartTime != nil && !operationStartTime.IsZero() && active.allowsOverrun() {
+			wasAllowed, err := w.canSyncAtTime(isManual, *operationStartTime)
+			if err == nil && wasAllowed {
+				return true, nil // Allow sync to continue (overrun into deny window)
+			}
+		}
+
 		if isManual && manualEnabled {
 			return true, nil
 		}
@@ -3049,6 +3067,14 @@ func (w *SyncWindows) CanSync(isManual bool) (bool, error) {
 		return false, fmt.Errorf("invalid sync windows: %w", err)
 	}
 	if inactiveAllows.HasWindows() {
+		// Check if operation started during an allow window and overrun is allowed
+		if operationStartTime != nil && !operationStartTime.IsZero() && inactiveAllows.inactiveAllowsAllowOverrun() {
+			wasAllowed, err := w.canSyncAtTime(isManual, *operationStartTime)
+			if err == nil && wasAllowed {
+				return true, nil // Allow sync to continue (overrun out of allow window)
+			}
+		}
+
 		if isManual && inactiveAllows.manualEnabled() {
 			return true, nil
 		}
@@ -3107,6 +3133,82 @@ func (w *SyncWindows) manualEnabled() bool {
 		}
 	}
 	return true
+}
+
+// allowsOverrun will iterate over the SyncWindows and return true if all deny windows have
+// SyncOverrun set to true. Returns false if it finds at least one deny window with
+// SyncOverrun set to false. This is used to determine if a sync can continue when a deny
+// window becomes active after the operation started.
+func (w *SyncWindows) allowsOverrun() bool {
+	if !w.HasWindows() {
+		return false
+	}
+	hasDeny := false
+	for _, s := range *w {
+		if s.Kind == "deny" {
+			hasDeny = true
+			if !s.SyncOverrun {
+				return false
+			}
+		}
+	}
+	return hasDeny
+}
+
+// inactiveAllowsAllowOverrun checks if all inactive allow windows have SyncOverrun enabled.
+// This is used to determine if a sync can continue after an allow window has ended.
+// Similar to allowsOverrun() for deny windows, ALL allow windows must have SyncOverrun enabled.
+func (w *SyncWindows) inactiveAllowsAllowOverrun() bool {
+	if !w.HasWindows() {
+		return false
+	}
+	hasAllow := false
+	for _, s := range *w {
+		if s.Kind == "allow" {
+			hasAllow = true
+			if !s.SyncOverrun {
+				return false
+			}
+		}
+	}
+	return hasAllow
+}
+
+// canSyncAtTime checks if a sync would have been allowed at a specific time
+func (w *SyncWindows) canSyncAtTime(isManual bool, checkTime time.Time) (bool, error) {
+	if !w.HasWindows() {
+		return true, nil
+	}
+
+	active, err := w.active(checkTime)
+	if err != nil {
+		return false, fmt.Errorf("invalid sync windows: %w", err)
+	}
+	hasActiveDeny, manualEnabled := active.hasDeny()
+
+	if hasActiveDeny {
+		if isManual && manualEnabled {
+			return true, nil
+		}
+		return false, nil
+	}
+
+	if active.hasAllow() {
+		return true, nil
+	}
+
+	inactiveAllows, err := w.InactiveAllows()
+	if err != nil {
+		return false, fmt.Errorf("invalid sync windows: %w", err)
+	}
+	if inactiveAllows.HasWindows() {
+		if isManual && inactiveAllows.manualEnabled() {
+			return true, nil
+		}
+		return false, nil
+	}
+
+	return true, nil
 }
 
 // Active returns true if the sync window is currently active
