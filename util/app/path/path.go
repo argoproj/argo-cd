@@ -110,7 +110,6 @@ func GetAppRefreshPaths(app *v1alpha1.Application) []string {
 			} else {
 				// For sourceHydrator apps, resolve paths relative to DRY source
 				if app.Spec.SourceHydrator != nil {
-					// Resolve relative to dry source (for dry source webhooks)
 					drySource := app.Spec.SourceHydrator.GetDrySource()
 					paths = append(paths, filepath.Clean(filepath.Join(drySource.Path, item)))
 				} else {
