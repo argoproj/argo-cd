@@ -2852,7 +2852,7 @@ func (s *Service) GetGitFiles(_ context.Context, request *apiclient.GitFilesRequ
 	if err != nil {
 		return nil, err
 	}
-	if err = sourceIntegrityResult.AsError(); err != nil {
+	if err := sourceIntegrityResult.AsError(); err != nil {
 		return nil, err
 	}
 
@@ -2918,7 +2918,7 @@ func (s *Service) GetGitDirectories(_ context.Context, request *apiclient.GitDir
 	if err != nil {
 		return nil, err
 	}
-	if err = sourceIntegrityResult.AsError(); err != nil {
+	if err := sourceIntegrityResult.AsError(); err != nil {
 		return nil, err
 	}
 
