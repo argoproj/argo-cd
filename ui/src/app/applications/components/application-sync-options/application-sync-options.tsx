@@ -9,21 +9,33 @@ import {services} from '../../../shared/services';
 const ReplaceWarning = () => (
     <div>
         <p>
-            Argo CD will sync using <strong>kubectl replace/create</strong>. This operation <strong>forces resource replacement</strong>, which may result in:
+            Argo CD will sync using <strong>kubectl replace/create</strong>. This operation <strong>forces resource deletion and recreation</strong>. Proceed only if you understand
+            the risks.
         </p>
-        <ul style={{marginTop: '0.5em', marginBottom: '0.5em', paddingLeft: '1.5em'}}>
-            <li>Pod restarts or full resource recreation</li>
-            <li>Deployments being scaled to their minimum replica count</li>
-            <li>Temporary service degradation or outages</li>
-        </ul>
-        <p>Proceed only if you understand the risks.</p>
+    </div>
+);
+
+const PruneAllWarning = () => (
+    <div>
+        <p>
+            The resources will be synced using --prune, and all resources are marked to be pruned. Only continue if you want to{' '}
+            <strong>delete all of the Application's resources.</strong>
+        </p>
+    </div>
+);
+
+const PruneSomeWarning = () => (
+    <div>
+        <p>
+            The resources will be synced using --prune, and some resources are marked to be pruned. Only continue if you want to <strong>delete the pruned resources</strong>.
+        </p>
     </div>
 );
 
 export const REPLACE_WARNING = <ReplaceWarning />;
 export const FORCE_WARNING = `The resources will be synced using '--force' that is a potentially destructive action and will immediately remove resources from the API and bypasses graceful deletion. Immediate deletion of some resources may result in inconsistency or data loss.`;
-export const PRUNE_ALL_WARNING = `The resources will be synced using '--prune', and all resources are marked to be pruned. Only continue if you want to delete all of the Application's resources.`;
-export const PRUNE_SOME_WARNING = `The resources will be synced using '--prune', and some resources are marked to be pruned. Only continue if you want to delete the pruned resources.`;
+export const PRUNE_ALL_WARNING = <PruneAllWarning />;
+export const PRUNE_SOME_WARNING = <PruneSomeWarning />;
 
 export interface ApplicationSyncOptionProps {
     options: string[];
@@ -135,7 +147,7 @@ export const ApplicationSyncOptions = (props: ApplicationSyncOptionProps) => (
             {syncWithReplaceAllowed =>
                 (syncWithReplaceAllowed && (
                     <div className='small-12' style={optionStyle}>
-                        {booleanOption('Replace', 'Replace', false, props, false, REPLACE_WARNING)}
+                        {booleanOption('Replace', 'Replace', false, props, false)}
                     </div>
                 )) ||
                 null

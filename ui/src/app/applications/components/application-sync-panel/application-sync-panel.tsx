@@ -69,30 +69,48 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                 const allResourcesAreSelected = selectedResources.length === appResources.length;
                                 const syncFlags = {...params.syncFlags} as SyncFlags;
 
-                                const pruningStats = selectedResources.reduce(
-                                    (acc, resource) => {
-                                        if (resource?.requiresPruning) {
-                                            acc.requiresPruningCount++;
-                                        }
-                                        return acc;
-                                    },
-                                    {requiresPruningCount: 0}
-                                );
-                                const allRequirePruning = pruningStats.requiresPruningCount === selectedResources.length;
-                                const anyRequirePruning = pruningStats.requiresPruningCount > 0;
+                                const resourcesToPrune = selectedResources.filter(resource => resource?.requiresPruning);
+                                const allRequirePruning = resourcesToPrune.length === selectedResources.length;
+                                const anyRequirePruning = resourcesToPrune.length > 0;
+                                const warnAgainstPruneAll = allRequirePruning && allResourcesAreSelected;
 
                                 if (syncFlags.Prune) {
-                                    if (allRequirePruning && allResourcesAreSelected) {
-                                        const confirmed = await ctx.popup.confirm(
+                                    if (warnAgainstPruneAll) {
+                                        const confirmed = await ctx.popup.prompt(
                                             'Prune all resources?',
-                                            () => (
+                                            api => (
                                                 <div>
+                                                    <p>{PRUNE_ALL_WARNING}</p>
                                                     <p>
-                                                        <i className='fa fa-exclamation-triangle' style={{color: ARGO_WARNING_COLOR}} />
-                                                        {PRUNE_ALL_WARNING} Are you sure you want to continue?
+                                                        <strong>Resources to be deleted ({resourcesToPrune.length}):</strong>
                                                     </p>
+                                                    <ul style={{maxHeight: '200px', overflowY: 'auto', marginBottom: '1em'}}>
+                                                        {resourcesToPrune.map(resource => (
+                                                            <li key={nodeKey(resource)}>
+                                                                {resource.kind}/{resource.name}
+                                                                {resource.namespace && ` (${resource.namespace})`}
+                                                            </li>
+                                                        ))}
+                                                    </ul>
+                                                    <div className='argo-form-row'>
+                                                        <FormField
+                                                            label="Please type 'prune' to confirm this action"
+                                                            formApi={api}
+                                                            field='confirmText'
+                                                            qeId='prune-all-field-confirmation'
+                                                            component={Text}
+                                                        />
+                                                    </div>
                                                 </div>
                                             ),
+                                            {
+                                                validate: vals => ({
+                                                    confirmText: vals.confirmText !== 'prune' && "Type 'prune' to confirm"
+                                                }),
+                                                submit: async (vals, _, close) => {
+                                                    close();
+                                                }
+                                            },
                                             {name: 'argo-icon-warning', color: 'warning'},
                                             'yellow'
                                         );
@@ -100,17 +118,42 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                             setPending(false);
                                             return;
                                         }
-                                    } else if (anyRequirePruning && !allRequirePruning) {
-                                        const confirmed = await ctx.popup.confirm(
+                                    } else if (anyRequirePruning && !warnAgainstPruneAll) {
+                                        const confirmed = await ctx.popup.prompt(
                                             'Prune resources?',
-                                            () => (
+                                            api => (
                                                 <div>
+                                                    <p>{PRUNE_SOME_WARNING}</p>
                                                     <p>
-                                                        <i className='fa fa-exclamation-triangle' style={{color: ARGO_WARNING_COLOR}} />
-                                                        {PRUNE_SOME_WARNING} Are you sure you want to continue?
+                                                        <strong>Resources to be deleted ({resourcesToPrune.length}):</strong>
                                                     </p>
+                                                    <ul style={{maxHeight: '200px', overflowY: 'auto', marginBottom: '1em'}}>
+                                                        {resourcesToPrune.map(resource => (
+                                                            <li key={nodeKey(resource)}>
+                                                                {resource.kind}/{resource.name}
+                                                                {resource.namespace && ` (${resource.namespace})`}
+                                                            </li>
+                                                        ))}
+                                                    </ul>
+                                                    <div className='argo-form-row'>
+                                                        <FormField
+                                                            label="Please type 'prune' to confirm this action"
+                                                            formApi={api}
+                                                            field='confirmText'
+                                                            qeId='prune-some-field-confirmation'
+                                                            component={Text}
+                                                        />
+                                                    </div>
                                                 </div>
                                             ),
+                                            {
+                                                validate: vals => ({
+                                                    confirmText: vals.confirmText !== 'prune' && "Type 'prune' to confirm"
+                                                }),
+                                                submit: async (vals, _, close) => {
+                                                    close();
+                                                }
+                                            },
                                             {name: 'argo-icon-warning', color: 'warning'},
                                             'yellow'
                                         );
@@ -125,13 +168,33 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                 }
                                 const replace = params.syncOptions?.findIndex((opt: string) => opt === 'Replace=true') > -1;
                                 if (replace) {
-                                    const confirmed = await ctx.popup.confirm(
+                                    const confirmed = await ctx.popup.prompt(
                                         'Synchronize using replace?',
-                                        () => (
+                                        api => (
                                             <div>
-                                                <p>{REPLACE_WARNING} Are you sure you want to continue?</p>
+                                                <div>{REPLACE_WARNING}</div>
+                                                <p>
+                                                    Are you sure you want to <strong>delete and recreate {selectedResources?.length || 0} resources</strong>?
+                                                </p>
+                                                <div className='argo-form-row'>
+                                                    <FormField
+                                                        label="Please type 'replace' to confirm this action"
+                                                        formApi={api}
+                                                        field='confirmText'
+                                                        qeId='replace-field-confirmation'
+                                                        component={Text}
+                                                    />
+                                                </div>
                                             </div>
                                         ),
+                                        {
+                                            validate: vals => ({
+                                                confirmText: vals.confirmText !== 'replace' && "Type 'replace' to confirm"
+                                            }),
+                                            submit: async (vals, _, close) => {
+                                                close();
+                                            }
+                                        },
                                         {name: 'argo-icon-warning', color: 'warning'},
                                         'yellow'
                                     );
