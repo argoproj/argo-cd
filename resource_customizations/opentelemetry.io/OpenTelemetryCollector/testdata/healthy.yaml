@@ -5,6 +5,7 @@ metadata:
   namespace: default
 spec:
   replicas: 2
+  mode: deployment
 status:
   image: ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector-contrib:0.124.1
   scale:
