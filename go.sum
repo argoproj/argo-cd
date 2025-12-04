@@ -113,8 +113,8 @@ github.com/anmitsu/go-shlex v0.0.0-20200514113438-38f4b401e2be h1:9AeTilPcZAjCFI
 github.com/anmitsu/go-shlex v0.0.0-20200514113438-38f4b401e2be/go.mod h1:ySMOLuWl6zY27l47sB3qLNK6tF2fkHG55UZxx8oIVo4=
 github.com/antihax/optional v1.0.0/go.mod h1:uupD/76wgC+ih3iEmQUL+0Ugr19nfwCT1kdvxnR2qWY=
 github.com/appscode/go v0.0.0-20191119085241-0887d8ec2ecc/go.mod h1:OawnOmAL4ZX3YaPdN+8HTNwBveT1jMsqP74moa9XUbE=
-github.com/argoproj/gitops-engine v0.7.1-0.20251108235403-13d5172d3ee2 h1:g9XclEd+1mYQtpLL3rMgYbMUdB3kEppw3+Jd1/H54VM=
-github.com/argoproj/gitops-engine v0.7.1-0.20251108235403-13d5172d3ee2/go.mod h1:2nqYZBhj8CfVZb3ATakZpi1KNb/yc7mpadIHslicTFI=
+github.com/argoproj/gitops-engine v0.7.1-0.20251204185240-472beb85d743 h1:5EZzIuql6CDPttyuflp1/Iaf+TrsOd/wp+sDvnucj7Q=
+github.com/argoproj/gitops-engine v0.7.1-0.20251204185240-472beb85d743/go.mod h1:2nqYZBhj8CfVZb3ATakZpi1KNb/yc7mpadIHslicTFI=
 github.com/argoproj/notifications-engine v0.4.1-0.20250908182349-da04400446ff h1:pGGAeHIktPuYCRl1Z540XdxPFnedqyUhJK4VgpyJZfY=
 github.com/argoproj/notifications-engine v0.4.1-0.20250908182349-da04400446ff/go.mod h1:d1RazGXWvKRFv9//rg4MRRR7rbvbE7XLgTSMT5fITTE=
 github.com/argoproj/pkg v0.13.6 h1:36WPD9MNYECHcO1/R1pj6teYspiK7uMQLCgLGft2abM=
