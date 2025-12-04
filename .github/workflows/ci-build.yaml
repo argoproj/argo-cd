@@ -290,7 +290,7 @@ jobs:
           git checkout -- go.mod go.sum
           make codegen-local
         # generalizing repo name for forks:  ${{ github.event.repository.name }}
-        working-directory: /home/runner/go/src/github.com/${{ github.event.repository.name }}
+        working-directory: /home/runner/go/src/github.com/argoproj/${{ github.event.repository.name }}
       - name: Check nothing has changed
         run: |
           set -xo pipefail
