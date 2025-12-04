@@ -223,7 +223,7 @@ func TestTransForm(t *testing.T) {
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
 			testGenerators := map[string]Generator{
-				"Clusters": getMockClusterGenerator(),
+				"Clusters": getMockClusterGenerator(t.Context()),
 			}
 
 			applicationSetInfo := argov1alpha1.ApplicationSet{
@@ -260,7 +260,7 @@ func emptyTemplate() argov1alpha1.ApplicationSetTemplate {
 	}
 }
 
-func getMockClusterGenerator() Generator {
+func getMockClusterGenerator(ctx context.Context) Generator {
 	clusters := []crtclient.Object{
 		&corev1.Secret{
 			TypeMeta: metav1.TypeMeta{
@@ -342,19 +342,19 @@ func getMockClusterGenerator() Generator {
 	appClientset := kubefake.NewSimpleClientset(runtimeClusters...)
 
 	fakeClient := fake.NewClientBuilder().WithObjects(clusters...).Build()
-	return NewClusterGenerator(context.Background(), fakeClient, appClientset, "namespace")
+	return NewClusterGenerator(ctx, fakeClient, appClientset, "namespace")
 }
 
 func getMockGitGenerator() Generator {
-	argoCDServiceMock := mocks.Repos{}
-	argoCDServiceMock.On("GetDirectories", mock.Anything, mock.Anything, mock.Anything).Return([]string{"app1", "app2", "app_3", "p1/app4"}, nil)
-	gitGenerator := NewGitGenerator(&argoCDServiceMock, "namespace")
+	argoCDServiceMock := &mocks.Repos{}
+	argoCDServiceMock.EXPECT().GetDirectories(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]string{"app1", "app2", "app_3", "p1/app4"}, nil)
+	gitGenerator := NewGitGenerator(argoCDServiceMock, "namespace")
 	return gitGenerator
 }
 
 func TestGetRelevantGenerators(t *testing.T) {
 	testGenerators := map[string]Generator{
-		"Clusters": getMockClusterGenerator(),
+		"Clusters": getMockClusterGenerator(t.Context()),
 		"Git":      getMockGitGenerator(),
 	}
 

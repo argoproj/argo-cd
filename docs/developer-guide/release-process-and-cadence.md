@@ -17,10 +17,12 @@ These are the upcoming releases dates:
 | v2.12   | Monday, Jun. 17, 2024 | Monday, Aug. 5, 2024 | [Ishita Sequeira](https://github.com/ishitasequeira)    | [Pavel Kostohrys](https://github.com/pasha-codefresh) | [checklist](https://github.com/argoproj/argo-cd/issues/19063) |
 | v2.13   | Monday, Sep. 16, 2024 | Monday, Nov. 4, 2024 | [Regina Voloshin](https://github.com/reggie-k)          | [Pavel Kostohrys](https://github.com/pasha-codefresh) | [checklist](https://github.com/argoproj/argo-cd/issues/19513) |
 | v2.14   | Monday, Dec. 16, 2024 | Monday, Feb. 3, 2025 | [Ryan Umstead](https://github.com/rumstead)             | [Pavel Kostohrys](https://github.com/pasha-codefresh) | [checklist](https://github.com/argoproj/argo-cd/issues/20869) |
-| v3.0    | Monday, Mar. 17, 2025 | Tuesday, May 6, 2025 | [Regina Voloshin](https://github.com/reggie-k)          |                                                       | [checklist](https://github.com/argoproj/argo-cd/issues/21735) |
-| v3.1    | Monday, Jun. 16, 2025 | Monday, Aug. 4, 2025 | [Christian Hernandez](https://github.com/christianh814) | [Alexandre Gaudreault](https://github.com/agaudreault) | [checklist](#) |
-| v3.2    | Monday, Sep. 15, 2025 | Monday, Nov. 3, 2025 | [Nitish Kumar](https://github.com/nitishfy)             |                                                       | [checklist](#) |
-| v3.3    | Monday, Dec. 15, 2025 | Monday, Feb. 2, 2026 |                                                         |                                                       |
+| v3.0    | Monday, Mar. 17, 2025 | Tuesday, May 6, 2025 | [Regina Voloshin](https://github.com/reggie-k)          | [Regina Voloshin](https://github.com/reggie-k)        | [checklist](https://github.com/argoproj/argo-cd/issues/21735) |
+| v3.1    | Monday, Jun. 16, 2025 | Monday, Aug. 4, 2025 | [Christian Hernandez](https://github.com/christianh814) | [Alexandre Gaudreault](https://github.com/agaudreault) | [checklist](https://github.com/argoproj/argo-cd/issues/23347) |
+| v3.2    | Monday, Sep. 15, 2025 | Monday, Nov. 3, 2025 | [Nitish Kumar](https://github.com/nitishfy)             |  [Michael Crenshaw](https://github.com/crenshaw-dev) | [checklist](https://github.com/argoproj/argo-cd/issues/24539) |
+| v3.3    | Monday, Dec. 15, 2025 | Monday, Feb. 2, 2026 | [Peter Jiang](https://github.com/pjiang-dev)            | [Regina Voloshin](https://github.com/reggie-k)         | [checklist](https://github.com/argoproj/argo-cd/issues/25211) |
+| v3.4    | Monday, Mar. 16, 2026 | Monday, May. 4, 2026 | | |
+| v3.5    | Monday, Jun. 15, 2026 | Monday, Aug. 3, 2026 | | |
 
 Actual release dates might differ from the plan by a few days.
 

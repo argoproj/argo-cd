@@ -59,7 +59,7 @@ metadata:
     argocd.argoproj.io/secret-type: repository-write
 type: Opaque
 stringData:
-  url: "https://github.com"
+  url: "https://github.com/<your org or user>/<your repo>"
   type: "git"
   githubAppID: "<your app ID here>"
   githubAppInstallationID: "<your installation ID here>"
@@ -75,7 +75,7 @@ metadata:
     argocd.argoproj.io/secret-type: repository
 type: Opaque
 stringData:
-  url: "https://github.com"
+  url: "https://github.com/<your org or user>/<your repo>"
   type: "git"
   githubAppID: "<your app ID here>"
   githubAppInstallationID: "<your installation ID here>"
@@ -106,11 +106,22 @@ spec:
 ```
 
 In this example, the hydrated manifests will be pushed to the `environments/dev` branch of the `argocd-example-apps`
-repository.
+repository. The `drySource` field tells Argo CD where your original, unrendered configuration lives.
+This can be a Helm chart, a Kustomize directory, or plain manifests. Argo CD reads this source, renders the final Kubernetes
+manifests from it, and then writes those hydrated manifests into the location specified by `syncSource.path`.
 
 When using source hydration, the `syncSource.path` field is required and must always point to a non-root
 directory in the repository. Setting the path to the repository root (for eg. `"."` or `""`) is not
 supported. This ensures that hydration is always scoped to a dedicated subdirectory, which avoids unintentionally overwriting or removing files that may exist in the repository root.
+
+During each hydration run, Argo CD cleans the application's configured path before writing out newly generated manifests. This guarantees that old or stale files from previous hydration do not linger in the output directory. However, the repository root is never cleaned, so files such as CI/CD configuration, README files, or other root-level assets remain untouched.
+
+It is important to note that hydration only cleans the currently configured application path. If an application’s path changes, the old directory is not removed automatically. Likewise, if an application is deleted, its output path remains in the repository and must be cleaned up manually by the repository owner if desired. This design is intentional: it prevents accidental deletion of files when applications are restructured or removed, and it protects critical files like CI pipelines that may coexist in the repository.
+
+> [!NOTE] 
+> The hydrator triggers only when a new commit is detected in the dry source.  
+> Adding or removing Applications does not on its own cause hydration to run.  
+> If the set of Applications changes but the dry-source commit does not, hydration will wait until the next commit.  
 
 > [!IMPORTANT]
 > **Project-Scoped Repositories**

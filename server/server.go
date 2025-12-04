@@ -284,7 +284,7 @@ func initializeDefaultProject(opts ArgoCDServerOpts) error {
 		Spec: v1alpha1.AppProjectSpec{
 			SourceRepos:              []string{"*"},
 			Destinations:             []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
-			ClusterResourceWhitelist: []metav1.GroupKind{{Group: "*", Kind: "*"}},
+			ClusterResourceWhitelist: []v1alpha1.ClusterResourceRestrictionItem{{Group: "*", Kind: "*"}},
 		},
 	}
 
@@ -323,6 +323,8 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts Applicatio
 	appsetLister := appFactory.Argoproj().V1alpha1().ApplicationSets().Lister()
 
 	userStateStorage := util_session.NewUserStateStorage(opts.RedisClient)
+	ssoClientApp, err := oidc.NewClientApp(settings, opts.DexServerAddr, opts.DexTLSConfig, opts.BaseHRef, cacheutil.NewRedisCache(opts.RedisClient, settings.UserInfoCacheExpiration(), cacheutil.RedisCompressionNone))
+	errorsutil.CheckError(err)
 	sessionMgr := util_session.NewSessionManager(settingsMgr, projLister, opts.DexServerAddr, opts.DexTLSConfig, userStateStorage)
 	enf := rbac.NewEnforcer(opts.KubeClientset, opts.Namespace, common.ArgoCDRBACConfigMapName, nil)
 	enf.EnableEnforce(!opts.DisableAuth)
@@ -370,6 +372,7 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts Applicatio
 	a := &ArgoCDServer{
 		ArgoCDServerOpts:   opts,
 		ApplicationSetOpts: appsetOpts,
+		ssoClientApp:       ssoClientApp,
 		log:                logger,
 		settings:           settings,
 		sessionMgr:         sessionMgr,
@@ -1125,19 +1128,7 @@ func (server *ArgoCDServer) translateGrpcCookieHeader(ctx context.Context, w htt
 }
 
 func (server *ArgoCDServer) setTokenCookie(token string, w http.ResponseWriter) error {
-	cookiePath := "path=/" + strings.TrimRight(strings.TrimLeft(server.BaseHRef, "/"), "/")
-	flags := []string{cookiePath, "SameSite=lax", "httpOnly"}
-	if !server.Insecure {
-		flags = append(flags, "Secure")
-	}
-	cookies, err := httputil.MakeCookieMetadata(common.AuthCookieName, token, flags...)
-	if err != nil {
-		return fmt.Errorf("error creating cookie metadata: %w", err)
-	}
-	for _, cookie := range cookies {
-		w.Header().Add("Set-Cookie", cookie)
-	}
-	return nil
+	return httputil.SetTokenCookie(token, server.BaseHRef, !server.Insecure, w)
 }
 
 func withRootPath(handler http.Handler, a *ArgoCDServer) http.Handler {
@@ -1220,9 +1211,6 @@ func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWeb
 	mux.Handle("/api/", handler)
 
 	terminalOpts := application.TerminalOptions{DisableAuth: server.DisableAuth, Enf: server.enf}
-
-	// SSO ClientApp
-	server.ssoClientApp, _ = oidc.NewClientApp(server.settings, server.DexServerAddr, server.DexTLSConfig, server.BaseHRef, cacheutil.NewRedisCache(server.RedisClient, server.settings.UserInfoCacheExpiration(), cacheutil.RedisCompressionNone))
 
 	terminal := application.NewHandler(server.appLister, server.Namespace, server.ApplicationNamespaces, server.db, appResourceTreeFn, server.settings.ExecShells, server.sessionMgr, &terminalOpts).
 		WithFeatureFlagMiddleware(server.settingsMgr.GetSettings)
@@ -1368,9 +1356,7 @@ func (server *ArgoCDServer) registerDexHandlers(mux *http.ServeMux) {
 		return
 	}
 	// Run dex OpenID Connect Identity Provider behind a reverse proxy (served at /api/dex)
-	var err error
 	mux.HandleFunc(common.DexAPIEndpoint+"/", dexutil.NewDexHTTPReverseProxy(server.DexServerAddr, server.BaseHRef, server.DexTLSConfig))
-	errorsutil.CheckError(err)
 	mux.HandleFunc(common.LoginEndpoint, server.ssoClientApp.HandleLogin)
 	mux.HandleFunc(common.CallbackEndpoint, server.ssoClientApp.HandleCallback)
 }
@@ -1566,6 +1552,7 @@ func (server *ArgoCDServer) Authenticate(ctx context.Context) (context.Context, 
 	return ctx, nil
 }
 
+// getClaims extracts, validates and refreshes a JWT token from an incoming request context.
 func (server *ArgoCDServer) getClaims(ctx context.Context) (jwt.Claims, string, error) {
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
@@ -1575,16 +1562,28 @@ func (server *ArgoCDServer) getClaims(ctx context.Context) (jwt.Claims, string, 
 	if tokenString == "" {
 		return nil, "", ErrNoSession
 	}
-	claims, newToken, err := server.sessionMgr.VerifyToken(tokenString)
+	// A valid argocd-issued token is automatically refreshed here prior to expiration.
+	// OIDC tokens will be verified but will not be refreshed here.
+	claims, newToken, err := server.sessionMgr.VerifyToken(ctx, tokenString)
 	if err != nil {
 		return claims, "", status.Errorf(codes.Unauthenticated, "invalid session: %v", err)
 	}
 
 	finalClaims := claims
 	if server.settings.IsSSOConfigured() {
-		finalClaims, err = server.ssoClientApp.SetGroupsFromUserInfo(claims, util_session.SessionManagerClaimsIssuer)
+		updatedClaims, err := server.ssoClientApp.SetGroupsFromUserInfo(ctx, claims, util_session.SessionManagerClaimsIssuer)
 		if err != nil {
 			return claims, "", status.Errorf(codes.Unauthenticated, "invalid session: %v", err)
+		}
+		finalClaims = updatedClaims
+		// OIDC tokens are automatically refreshed here prior to expiration
+		refreshedToken, err := server.ssoClientApp.CheckAndRefreshToken(ctx, updatedClaims, server.settings.OIDCRefreshTokenThreshold)
+		if err != nil {
+			log.Errorf("error checking and refreshing token: %v", err)
+		}
+		if refreshedToken != "" && refreshedToken != tokenString {
+			newToken = refreshedToken
+			log.Infof("refreshed token for subject: %v", jwtutil.StringField(updatedClaims, "sub"))
 		}
 	}
 
