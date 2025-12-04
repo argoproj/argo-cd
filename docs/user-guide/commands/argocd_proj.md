@@ -86,7 +86,7 @@ argocd proj [flags]
 * [argocd proj add-destination](argocd_proj_add-destination.md)	 - Add project destination
 * [argocd proj add-destination-service-account](argocd_proj_add-destination-service-account.md)	 - Add project destination's default service account
 * [argocd proj add-orphaned-ignore](argocd_proj_add-orphaned-ignore.md)	 - Add a resource to orphaned ignore list
-* [argocd proj add-signature-key](argocd_proj_add-signature-key.md)	 - Add GnuPG signature key to project
+* [argocd proj add-signature-key](argocd_proj_add-signature-key.md)	 - Add GnuPG signature key to project (DEPRECATED)
 * [argocd proj add-source](argocd_proj_add-source.md)	 - Add project source repository
 * [argocd proj add-source-namespace](argocd_proj_add-source-namespace.md)	 - Add source namespace to the AppProject
 * [argocd proj allow-cluster-resource](argocd_proj_allow-cluster-resource.md)	 - Adds a cluster-scoped API resource to the allow list and removes it from deny list
@@ -101,7 +101,7 @@ argocd proj [flags]
 * [argocd proj remove-destination](argocd_proj_remove-destination.md)	 - Remove project destination
 * [argocd proj remove-destination-service-account](argocd_proj_remove-destination-service-account.md)	 - Remove default destination service account from the project
 * [argocd proj remove-orphaned-ignore](argocd_proj_remove-orphaned-ignore.md)	 - Remove a resource from orphaned ignore list
-* [argocd proj remove-signature-key](argocd_proj_remove-signature-key.md)	 - Remove GnuPG signature key from project
+* [argocd proj remove-signature-key](argocd_proj_remove-signature-key.md)	 - Remove GnuPG signature key from project (DEPRECATED)
 * [argocd proj remove-source](argocd_proj_remove-source.md)	 - Remove project source repository
 * [argocd proj remove-source-namespace](argocd_proj_remove-source-namespace.md)	 - Removes the source namespace from the AppProject
 * [argocd proj role](argocd_proj_role.md)	 - Manage a project's roles
