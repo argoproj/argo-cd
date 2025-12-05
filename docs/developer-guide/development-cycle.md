@@ -74,7 +74,7 @@ The final step is running the End-to-End testsuite, which ensures that your Kube
 
 Below you can find a few examples of how to run specific tests.
 - To run a single test with a local toolchain, you can use `TEST_FLAGS="-run TestName" make test-e2e-local`.
-- To run a specific package, you can use `make ARGOCD_E2E_PACKAGES=./test/e2e/<TEST_FILE>.go test-e2e-local`
+- To run a specific package, you can use `make TEST_MODULE=./test/e2e/<TEST_FILE>.go test-e2e-local`
 - Finally, you can also try `make TEST_FLAGS="-run <TEST_METHOD_NAME_REGEXP>" test-e2e-local` if you want a more fine-grained control. 
 
 For more information about End-to-End tests, refer to the [End-to-End test documentation](test-e2e.md).
