@@ -1,6 +1,9 @@
 package common
 
 import (
+	"fmt"
+	"slices"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
@@ -12,6 +15,10 @@ const (
 	AnnotationSyncOptions = "argocd.argoproj.io/sync-options"
 	// AnnotationSyncWave indicates which wave of the sync the resource or hook should be in
 	AnnotationSyncWave = "argocd.argoproj.io/sync-wave"
+	// AnnotationSyncWaveGroup indicates which wave group of the sync the resource or hook should be in
+	AnnotationSyncWaveGroup = "argocd.argoproj.io/sync-wave-group"
+	// AnnotationSyncWaveDependsOn indicates which wave groups of the sync the resource or hook should depend on
+	AnnotationSyncWaveDependsOn = "argocd.argoproj.io/depends-on"
 	// AnnotationKeyHook contains the hook type of a resource
 	AnnotationKeyHook = "argocd.argoproj.io/hook"
 	// AnnotationKeyHookDeletePolicy is the policy of deleting a hook
@@ -59,10 +66,80 @@ type PermissionValidator func(un *unstructured.Unstructured, res *metav1.APIReso
 
 type SyncPhase string
 
+type SyncIdentity struct {
+	Phase     SyncPhase
+	Wave      int
+	WaveGroup string
+}
+
+func (syncIdentiy SyncIdentity) String() string {
+	return fmt.Sprintf("(%v,%v,%v)", syncIdentiy.Phase, syncIdentiy.WaveGroup, syncIdentiy.Wave)
+}
+
+// Will be used when using Dependency graph
+type GroupIdentity struct {
+	Phase     SyncPhase
+	WaveGroup string
+}
+
+func (groupIdentiy GroupIdentity) String() string {
+	return fmt.Sprintf("(%v,%v)", groupIdentiy.Phase, groupIdentiy.WaveGroup)
+}
+
+// Will be used when using Dependency graph
+type WaveDependencyGraph struct {
+	Dependencies map[GroupIdentity][]GroupIdentity
+}
+
+func (dependencyGraph WaveDependencyGraph) Print() {
+	for u := range dependencyGraph.Dependencies {
+		fmt.Printf("node :\n%v\ndependencies :\n", u.String())
+		for _, v := range dependencyGraph.Dependencies[u] {
+			fmt.Printf("%v\n", v.String())
+		}
+		fmt.Printf("\n")
+
+	}
+}
+
+func (dependencyGraph WaveDependencyGraph) AddDependency(u *GroupIdentity, v *GroupIdentity) bool {
+	if _, ok := dependencyGraph.Dependencies[*u]; !ok {
+		dependencyGraph.Dependencies[*u] = []GroupIdentity{*v}
+	} else {
+		if !slices.Contains(dependencyGraph.Dependencies[*u], *v) {
+			dependencyGraph.Dependencies[*u] = append(dependencyGraph.Dependencies[*u], *v)
+		}
+	}
+	if _, ok := dependencyGraph.Dependencies[*v]; ok {
+		if slices.Contains(dependencyGraph.Dependencies[*v], *u) {
+			return false
+		}
+		for _, w := range dependencyGraph.Dependencies[*v] {
+			if !slices.Contains(dependencyGraph.Dependencies[*u], w) {
+				dependencyGraph.Dependencies[*u] = append(dependencyGraph.Dependencies[*u], w)
+			}
+		}
+	}
+	for w := range dependencyGraph.Dependencies {
+		if slices.Contains(dependencyGraph.Dependencies[w], *u) {
+			if slices.Contains(dependencyGraph.Dependencies[*u], w) {
+				return false
+			}
+			for _, w2 := range dependencyGraph.Dependencies[*u] {
+				if !slices.Contains(dependencyGraph.Dependencies[w], w2) {
+					dependencyGraph.Dependencies[w] = append(dependencyGraph.Dependencies[w], w2)
+				}
+			}
+		}
+	}
+
+	return true
+}
+
 // SyncWaveHook is a callback function which will be invoked after each sync wave is successfully
 // applied during a sync operation. The callback indicates which phase and wave it had just
 // executed, and whether or not that wave was the final one.
-type SyncWaveHook func(phase SyncPhase, wave int, final bool) error
+type SyncWaveHook func(t []SyncIdentity, final bool) error
 
 const (
 	SyncPhasePreSync  = "PreSync"

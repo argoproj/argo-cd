@@ -542,7 +542,7 @@ func hasSharedResourceCondition(app *v1alpha1.Application) (bool, string) {
 // Note, this is not foolproof, since a proper fix would require the CRD record
 // status.observedGeneration coupled with a health.lua that verifies
 // status.observedGeneration == metadata.generation
-func delayBetweenSyncWaves(_ common.SyncPhase, _ int, finalWave bool) error {
+func delayBetweenSyncWaves(_ []common.SyncIdentity, finalWave bool) error {
 	if !finalWave {
 		delaySec := 2
 		if delaySecStr := os.Getenv(EnvVarSyncWaveDelay); delaySecStr != "" {
