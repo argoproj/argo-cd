@@ -3976,23 +3976,15 @@ func TestUpdateCacheRevisions(t *testing.T) {
 			s := tt.fields.service
 			cache := tt.fields.cache
 
-			if tt.cacheHit != nil {
-				cache.mockCache.On("Rename", tt.cacheHit.previousRevision, tt.cacheHit.revision, mock.Anything).Return(nil)
-			}
+			cache.mockCache.On("Rename", tt.cacheHit.previousRevision, tt.cacheHit.revision, mock.Anything).Return(nil)
 
 			err := s.updateCachedRevision(tt.args.logCtx, tt.args.oldRev, tt.args.newRev, tt.args.request, tt.args.gitClientOpts)
 			if !tt.wantErr(t, err, fmt.Sprintf("updateCachedRevision(%v, %v, %v, %v, %v)", tt.args.logCtx, tt.args.oldRev, tt.args.newRev, tt.args.request, tt.args.gitClientOpts)) {
 				return
 			}
-			if tt.cacheHit != nil {
-				cache.mockCache.AssertCacheCalledTimes(t, &repositorymocks.CacheCallCounts{
-					ExternalRenames: 1,
-				})
-			} else {
-				cache.mockCache.AssertCacheCalledTimes(t, &repositorymocks.CacheCallCounts{
-					ExternalRenames: 0,
-				})
-			}
+			cache.mockCache.AssertCacheCalledTimes(t, &repositorymocks.CacheCallCounts{
+				ExternalRenames: 1,
+			})
 		})
 	}
 }
