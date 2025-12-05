@@ -237,6 +237,15 @@ func (db *db) GetCluster(_ context.Context, server string) (*appv1.Cluster, erro
 			return nil, status.Errorf(codes.NotFound, "cluster %q is disabled", server)
 		}
 
+		// Check if there's a secret configured for the in-cluster address
+		// If so, use that instead of the hardcoded local cluster
+		informer := db.settingsMgr.GetClusterInformer()
+		cluster, err := informer.GetClusterByURL(server)
+		if err == nil {
+			return cluster, nil
+		}
+
+		// Fall back to the hardcoded local cluster if no secret is configured
 		return db.getLocalCluster(), nil
 	}
 
