@@ -23807,13 +23807,17 @@ spec:
                 description: ClusterResourceBlacklist contains list of blacklisted
                   cluster level resources
                 items:
-                  description: |-
-                    GroupKind specifies a Group and a Kind, but does not force a version.  This is useful for identifying
-                    concepts during lookup stages without having partially valid types
+                  description: ClusterResourceRestrictionItem is a cluster resource
+                    that is restricted by the project's whitelist or blacklist
                   properties:
                     group:
                       type: string
                     kind:
+                      type: string
+                    name:
+                      description: |-
+                        Name is the name of the restricted resource. Glob patterns using Go's filepath.Match syntax are supported.
+                        Unlike the group and kind fields, if no name is specified, all resources of the specified group/kind are matched.
                       type: string
                   required:
                   - group
@@ -23824,13 +23828,17 @@ spec:
                 description: ClusterResourceWhitelist contains list of whitelisted
                   cluster level resources
                 items:
-                  description: |-
-                    GroupKind specifies a Group and a Kind, but does not force a version.  This is useful for identifying
-                    concepts during lookup stages without having partially valid types
+                  description: ClusterResourceRestrictionItem is a cluster resource
+                    that is restricted by the project's whitelist or blacklist
                   properties:
                     group:
                       type: string
                     kind:
+                      type: string
+                    name:
+                      description: |-
+                        Name is the name of the restricted resource. Glob patterns using Go's filepath.Match syntax are supported.
+                        Unlike the group and kind fields, if no name is specified, all resources of the specified group/kind are matched.
                       type: string
                   required:
                   - group
@@ -25324,6 +25332,8 @@ spec:
           name: tmp
         - mountPath: /app/config/reposerver/tls
           name: argocd-repo-server-tls
+        - mountPath: /home/argocd/params
+          name: argocd-cmd-params-cm
       nodeSelector:
         kubernetes.io/os: linux
       serviceAccountName: argocd-applicationset-controller
@@ -25352,6 +25362,13 @@ spec:
             path: ca.crt
           optional: true
           secretName: argocd-repo-server-tls
+      - configMap:
+          items:
+          - key: applicationsetcontroller.profile.enabled
+            path: profiler.enabled
+          name: argocd-cmd-params-cm
+          optional: true
+        name: argocd-cmd-params-cm
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -25753,7 +25770,7 @@ spec:
             secretKeyRef:
               key: auth
               name: argocd-redis
-        image: public.ecr.aws/docker/library/redis:8.2.1-alpine
+        image: public.ecr.aws/docker/library/redis:8.2.3-alpine
         imagePullPolicy: Always
         name: redis
         ports:
@@ -26040,6 +26057,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: reposerver.git.request.timeout
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_REPO_SERVER_ENABLE_BUILTIN_GIT_CONFIG
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.enable.builtin.git.config
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_GRPC_MAX_SIZE_MB

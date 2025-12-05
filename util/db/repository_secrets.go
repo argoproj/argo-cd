@@ -397,6 +397,12 @@ func secretToRepository(secret *corev1.Secret) (*appsv1.Repository, error) {
 	}
 	repository.UseAzureWorkloadIdentity = useAzureWorkloadIdentity
 
+	depth, err := intOrZero(secret, "depth")
+	if err != nil {
+		return repository, err
+	}
+	repository.Depth = depth
+
 	return repository, nil
 }
 
@@ -431,6 +437,7 @@ func (s *secretsRepositoryBackend) repositoryToSecret(repository *appsv1.Reposit
 	updateSecretString(secretCopy, "gcpServiceAccountKey", repository.GCPServiceAccountKey)
 	updateSecretBool(secretCopy, "forceHttpBasicAuth", repository.ForceHttpBasicAuth)
 	updateSecretBool(secretCopy, "useAzureWorkloadIdentity", repository.UseAzureWorkloadIdentity)
+	updateSecretInt(secretCopy, "depth", repository.Depth)
 	addSecretMetadata(secretCopy, s.getSecretType())
 
 	return secretCopy

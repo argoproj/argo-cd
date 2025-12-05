@@ -303,7 +303,7 @@ func TestGiteaList(t *testing.T) {
 	prs, err := host.List(t.Context())
 	require.NoError(t, err)
 	assert.Len(t, prs, 1)
-	assert.Equal(t, 1, prs[0].Number)
+	assert.Equal(t, int64(1), prs[0].Number)
 	assert.Equal(t, "add an empty file", prs[0].Title)
 	assert.Equal(t, "test", prs[0].Branch)
 	assert.Equal(t, "main", prs[0].TargetBranch)
