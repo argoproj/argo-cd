@@ -70,7 +70,7 @@ export const ClustersList = () => {
                                                 <div
                                                     className='argo-table-list__row'
                                                     key={cluster.server}
-                                                    onClick={() => ctx.navigation.goto(`./${encodeURIComponent(cluster.server)}`)}>
+                                                    onClick={() => ctx.navigation.goto(`./${encodeURIComponent(cluster.server)}/${encodeURIComponent(cluster.name)}`)}>
                                                     <div className='row'>
                                                         <div className='columns small-3'>
                                                             <i className='icon argo-icon-hosts' />

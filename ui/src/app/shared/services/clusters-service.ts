@@ -10,7 +10,19 @@ export class ClustersService {
     }
 
     public get(url: string, name: string): Promise<models.Cluster> {
-        const requestUrl = `/clusters/${url ? encodeURIComponent(url) : encodeURIComponent(name)}?id.type=${url ? 'url' : 'name_escaped'}`;
+        let idType = '';
+        let idValue = '';
+        if (name && url) {
+            idType = 'url_name_escaped';
+            idValue = encodeURIComponent(url + ',' + name);
+        } else if (url) {
+            idType = 'url';
+            idValue = encodeURIComponent(url);
+        } else if (name) {
+            idType = 'name_escaped';
+            idValue = encodeURIComponent(name);
+        }
+        const requestUrl = `/clusters/${idValue}?id.type=${idType}`;
         return requests.get(requestUrl).then(res => res.body as models.Cluster);
     }
 
