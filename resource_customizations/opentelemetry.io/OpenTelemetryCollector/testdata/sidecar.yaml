@@ -1,0 +1,9 @@
+apiVersion: opentelemetry.io/v1beta1
+kind: OpenTelemetryCollector
+metadata:
+  name: test-collector-sidecar
+  namespace: default
+spec:
+  mode: sidecar
+status:
+  version: 0.124.1
