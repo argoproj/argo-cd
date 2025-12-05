@@ -4861,7 +4861,7 @@ func TestSourceHydrator_Equals(t *testing.T) {
 		t.Run(testCopy.name, func(t *testing.T) {
 			t.Parallel()
 
-			assert.Equal(t, testCopy.a.DeepEquals(testCopy.b), testCopy.expected)
+			assert.Equal(t, testCopy.expected, testCopy.a.DeepEquals(testCopy.b))
 		})
 	}
 }
