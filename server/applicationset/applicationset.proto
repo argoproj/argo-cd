@@ -25,6 +25,8 @@ message ApplicationSetListQuery {
 	string selector = 2;
 	// The application set namespace. Default empty is argocd control plane namespace
 	string appsetNamespace = 3;
+	// the annotation to restrict returned list to applications only with matched annotations
+	string annotation = 4;
 }
 
 

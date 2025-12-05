@@ -20,11 +20,17 @@ argocd app list [flags]
   argocd app list -l app.kubernetes.io/instance
   argocd app list -l '!app.kubernetes.io/instance'
   argocd app list -l 'app.kubernetes.io/instance notin (my-app,other-app)'
+
+  # List apps by annotation
+  argocd app list -a pref.argocd.argoproj.io/default-view=tree
+  argocd app list -a pref.argocd.argoproj.io/default-view
+
 ```
 
 ### Options
 
 ```
+  -a, --annotation string      List apps by annotations. currently '=' is only supported.
   -N, --app-namespace string   Only list applications in namespace
   -c, --cluster string         List apps by cluster name or url
   -h, --help                   help for list

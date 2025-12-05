@@ -163,7 +163,9 @@ func (s *Server) List(ctx context.Context, q *applicationset.ApplicationSetListQ
 
 	newItems = argo.FilterAppSetsByProjects(newItems, q.Projects)
 
-	// Sort found applicationsets by name
+	newItems = argo.FilterAppSetByAnnotations(newItems, q.GetAnnotation())
+
+	// Sort found ApplicationSet by name
 	sort.Slice(newItems, func(i, j int) bool {
 		return newItems[i].Name < newItems[j].Name
 	})
