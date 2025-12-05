@@ -33,21 +33,24 @@ const WATCH_RETRY_TIMEOUT = 500;
 const APP_FIELDS = [
     'metadata.name',
     'metadata.namespace',
-    'metadata.annotations',
     'metadata.labels',
     'metadata.creationTimestamp',
     'metadata.deletionTimestamp',
-    'spec',
+    'spec.destination',
+    'spec.project',
+    'spec.source',
+    'spec.sources',
+    'spec.sourceHydrator',
+    'spec.syncPolicy',
     'operation.sync',
     'status.sourceHydrator',
+    'status.summary',
     'status.sync.status',
     'status.sync.revision',
     'status.health',
     'status.operationState.phase',
-    'status.operationState.finishedAt',
-    'status.operationState.operation.sync',
-    'status.summary',
-    'status.resources'
+    'status.operationState.startedAt',
+    'status.operationState.finishedAt'
 ];
 const APP_LIST_FIELDS = ['metadata.resourceVersion', ...APP_FIELDS.map(field => `items.${field}`)];
 const APP_WATCH_FIELDS = ['result.type', ...APP_FIELDS.map(field => `result.application.${field}`)];
@@ -164,11 +167,8 @@ const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: num
 function filterApps(applications: models.Application[], pref: AppsListPreferences, search: string): {filteredApps: models.Application[]; filterResults: FilteredApp[]} {
     applications = applications.map(app => {
         let isAppOfAppsPattern = false;
-        for (const resource of app.status.resources) {
-            if (resource.kind === 'Application') {
-                isAppOfAppsPattern = true;
-                break;
-            }
+        if (app.status.summary.isAppOfApps === true) {
+            isAppOfAppsPattern = true;
         }
         return {...app, isAppOfAppsPattern};
     });
