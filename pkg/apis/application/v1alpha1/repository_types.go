@@ -246,7 +246,11 @@ func (repo *Repository) GetGitCreds(store git.CredsStore) git.Creds {
 
 		// Auto-discover installation ID if not provided
 		if installationId == 0 {
-			org := git.ExtractOrgFromRepoURL(repo.Repo)
+			org, err := git.ExtractOrgFromRepoURL(repo.Repo)
+			if err != nil {
+				log.Warnf("Failed to extract organization from repository URL %s for GitHub App auto-discovery: %v", repo.Repo, err)
+				return git.NopCreds{}
+			}
 			if org != "" {
 				ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 				defer cancel()

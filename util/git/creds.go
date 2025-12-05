@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -580,14 +581,15 @@ func (g GitHubAppCreds) GetClientCertKey() string {
 // GitHub App installation discovery cache and helpers
 
 // installationIdCache caches installation IDs for organizations to avoid redundant API calls.
-var githubInstallationIdCache = make(map[githubOrgAppId]int64)
+var githubInstallationIdCache = make(map[githubAppInstallationKey]int64)
 
-// githubOrgAppId is a composite key of organization and app ID for caching installation IDs.
+// githubAppInstallationKey is a composite key of domain, organization and app ID for caching installation IDs.
 //
 //nolint:unused
-type githubOrgAppId struct {
-	org string
-	id  int64
+type githubAppInstallationKey struct {
+	domain string
+	org    string
+	appID  int64
 }
 
 // githubInstallationIdCacheMutex protects access to the githubInstallationIdCache map.
@@ -597,10 +599,15 @@ var githubInstallationIdCacheMutex sync.RWMutex
 // It queries the GitHub API to list all installations for the app and returns the installation ID
 // for the matching organization. Results are cached to avoid redundant API calls.
 // An optional HTTP client can be provided for custom transport (e.g., for metrics tracking).
-func DiscoverGitHubAppInstallationId(ctx context.Context, appId int64, privateKey, baseURL, org string, httpClient ...*http.Client) (int64, error) {
+func DiscoverGitHubAppInstallationId(ctx context.Context, appId int64, privateKey, enterpriseBaseURL, org string, httpClient ...*http.Client) (int64, error) {
+	domain, err := domainFromBaseURL(enterpriseBaseURL)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get domain from base URL: %w", err)
+	}
+	org = strings.ToLower(org)
 	// Check cache first
 	githubInstallationIdCacheMutex.RLock()
-	if id, found := githubInstallationIdCache[githubOrgAppId{org: org, id: appId}]; found {
+	if id, found := githubInstallationIdCache[githubAppInstallationKey{org: org, domain: domain, appID: appId}]; found {
 		githubInstallationIdCacheMutex.RUnlock()
 		return id, nil
 	}
@@ -620,17 +627,17 @@ func DiscoverGitHubAppInstallationId(ctx context.Context, appId int64, privateKe
 		return 0, fmt.Errorf("failed to create GitHub app transport: %w", err)
 	}
 
-	if baseURL != "" {
-		rt.BaseURL = baseURL
+	if enterpriseBaseURL != "" {
+		rt.BaseURL = enterpriseBaseURL
 	}
 
 	// Create GitHub client
 	var client *github.Client
 	clientTransport := &http.Client{Transport: rt}
-	if baseURL == "" {
+	if enterpriseBaseURL == "" {
 		client = github.NewClient(clientTransport)
 	} else {
-		client, err = github.NewClient(clientTransport).WithEnterpriseURLs(baseURL, baseURL)
+		client, err = github.NewClient(clientTransport).WithEnterpriseURLs(enterpriseBaseURL, enterpriseBaseURL)
 		if err != nil {
 			return 0, fmt.Errorf("failed to create GitHub enterprise client: %w", err)
 		}
@@ -645,7 +652,7 @@ func DiscoverGitHubAppInstallationId(ctx context.Context, appId int64, privateKe
 	defer githubInstallationIdCacheMutex.Unlock()
 
 	// Check cache again inside the write lock in case another goroutine already fetched it
-	if id, found := githubInstallationIdCache[githubOrgAppId{org: org, id: appId}]; found {
+	if id, found := githubInstallationIdCache[githubAppInstallationKey{org: org, domain: domain, appID: appId}]; found {
 		return id, nil
 	}
 
@@ -666,16 +673,57 @@ func DiscoverGitHubAppInstallationId(ctx context.Context, appId int64, privateKe
 	// Cache all installation IDs
 	for _, installation := range allInstallations {
 		if installation.Account != nil && installation.Account.Login != nil && installation.ID != nil {
-			githubInstallationIdCache[githubOrgAppId{org: *installation.Account.Login, id: appId}] = *installation.ID
+			githubInstallationIdCache[githubAppInstallationKey{org: strings.ToLower(*installation.Account.Login), domain: domain, appID: appId}] = *installation.ID
 		}
 	}
 
 	// Return the installation ID for the requested org
-	if id, found := githubInstallationIdCache[githubOrgAppId{org: org, id: appId}]; found {
+	if id, found := githubInstallationIdCache[githubAppInstallationKey{org: org, domain: domain, appID: appId}]; found {
 		return id, nil
 	}
-
 	return 0, fmt.Errorf("installation not found for org: %s", org)
+}
+
+// domainFromBaseURL extracts the host (domain) from the given GitHub base URL.
+// Supports HTTP(S), SSH URLs, and git@host:org/repo forms.
+// Returns an error if a domain cannot be extracted.
+func domainFromBaseURL(baseURL string) (string, error) {
+	if baseURL == "" {
+		return "github.com", nil
+	}
+
+	// --- 1. SSH-style Git URL: git@github.com:org/repo.git ---
+	if strings.Contains(baseURL, "@") && strings.Contains(baseURL, ":") && !strings.Contains(baseURL, "://") {
+		parts := strings.SplitN(baseURL, "@", 2)
+		right := parts[len(parts)-1]             // github.com:org/repo
+		host := strings.SplitN(right, ":", 2)[0] // github.com
+		if host != "" {
+			return host, nil
+		}
+		return "", fmt.Errorf("failed to extract host from SSH-style URL: %q", baseURL)
+	}
+
+	// --- 2. Ensure scheme so url.Parse works ---
+	if !strings.HasPrefix(baseURL, "http://") &&
+		!strings.HasPrefix(baseURL, "https://") &&
+		!strings.HasPrefix(baseURL, "ssh://") {
+		baseURL = "https://" + baseURL
+	}
+
+	// --- 3. Standard URL parse ---
+	parsed, err := url.Parse(baseURL)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse URL %q: %w", baseURL, err)
+	}
+	if parsed.Host == "" {
+		return "", fmt.Errorf("URL %q parsed but host is empty", baseURL)
+	}
+
+	host := parsed.Host
+	if h, _, err := net.SplitHostPort(host); err == nil {
+		host = h
+	}
+	return host, nil
 }
 
 // ExtractOrgFromRepoURL extracts the organization/owner name from a GitHub repository URL.
@@ -683,9 +731,9 @@ func DiscoverGitHubAppInstallationId(ctx context.Context, appId int64, privateKe
 //   - HTTPS: https://github.com/org/repo.git
 //   - SSH: git@github.com:org/repo.git
 //   - SSH with port: git@github.com:22/org/repo.git or ssh://git@github.com:22/org/repo.git
-func ExtractOrgFromRepoURL(repoURL string) string {
+func ExtractOrgFromRepoURL(repoURL string) (string, error) {
 	if repoURL == "" {
-		return ""
+		return "", errors.New("repo URL is empty")
 	}
 
 	var path string
@@ -703,7 +751,7 @@ func ExtractOrgFromRepoURL(repoURL string) string {
 		// Find where the path starts (after ':' or after first '/' following the host)
 		atIndex := strings.Index(repoURL, "@")
 		if atIndex == -1 {
-			return ""
+			return "", fmt.Errorf("failed to find @ in repo URL: %q", repoURL)
 		}
 
 		// Everything after @ is "host:path" or "host:port/path" or "host/path"
@@ -723,17 +771,9 @@ func ExtractOrgFromRepoURL(repoURL string) string {
 			slashIndex := strings.Index(afterColon, "/")
 
 			if slashIndex > 0 {
-				// Check if everything between colon and slash is digits (port number)
+				// Check if everything between colon and slash is a valid port number
 				potentialPort := afterColon[:slashIndex]
-				isPort := true
-				for _, ch := range potentialPort {
-					if ch < '0' || ch > '9' {
-						isPort = false
-						break
-					}
-				}
-
-				if isPort {
+				if port, err := strconv.Atoi(potentialPort); err == nil && port > 0 && port <= 65535 {
 					// It's a port number - path is after the slash
 					path = afterColon[slashIndex+1:]
 				} else {
@@ -747,29 +787,29 @@ func ExtractOrgFromRepoURL(repoURL string) string {
 		}
 
 		if path == "" {
-			return ""
+			return "", fmt.Errorf("failed to extract path from repo URL: %q", repoURL)
 		}
 	} else {
 		// Handle HTTP(S) URLs
 		parsedURL, err := url.Parse(repoURL)
 		if err != nil {
-			return ""
+			return "", fmt.Errorf("failed to parse repo URL: %q", repoURL)
 		}
 		path = strings.Trim(parsedURL.Path, "/")
 	}
 
 	// Extract org from path (format: org/repo or org/repo.git)
 	if path == "" {
-		return ""
+		return "", fmt.Errorf("failed to extract path from repo URL: %q", repoURL)
 	}
 
 	parts := strings.Split(path, "/")
 	if len(parts) < 2 {
-		return ""
+		return "", fmt.Errorf("failed to extract org from repo URL: %q", repoURL)
 	}
 
-	// First part is the org/owner
-	return parts[0]
+	// First part is the org/owner - normalize to lowercase for case-insensitive comparison
+	return strings.ToLower(parts[0]), nil
 }
 
 var _ Creds = GoogleCloudCreds{}

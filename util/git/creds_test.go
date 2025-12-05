@@ -525,10 +525,11 @@ func TestDiscoverGitHubAppInstallationId(t *testing.T) {
 		// Setup: prepopulate cache
 		org := "test-org"
 		appId := int64(12345)
+		domain := "github.com"
 		expectedId := int64(98765)
 
 		githubInstallationIdCacheMutex.Lock()
-		githubInstallationIdCache[githubOrgAppId{org: org, id: appId}] = expectedId
+		githubInstallationIdCache[githubAppInstallationKey{org: org, domain: domain, appID: appId}] = expectedId
 		githubInstallationIdCacheMutex.Unlock()
 
 		// Execute
@@ -555,7 +556,7 @@ func TestDiscoverGitHubAppInstallationId(t *testing.T) {
 
 		// Execute & Assert
 		ctx := context.Background()
-		actualId, err := DiscoverGitHubAppInstallationId(ctx, 12345, "fake-key", server.URL, "test-org")
+		actualId, err := DiscoverGitHubAppInstallationId(ctx, 12345, "fake-key", "https://github.com/test-org/test-repo", "test-org")
 		require.NoError(t, err)
 		assert.Equal(t, int64(98765), actualId)
 	})
@@ -563,29 +564,37 @@ func TestDiscoverGitHubAppInstallationId(t *testing.T) {
 
 func TestExtractOrgFromRepoURL(t *testing.T) {
 	tests := []struct {
-		name     string
-		repoURL  string
-		expected string
+		name        string
+		repoURL     string
+		expected    string
+		expectError bool
 	}{
-		{"HTTPS URL", "https://github.com/argoproj/argo-cd", "argoproj"},
-		{"HTTPS URL with .git", "https://github.com/argoproj/argo-cd.git", "argoproj"},
-		{"HTTPS URL with port", "https://github.com:443/argoproj/argo-cd.git", "argoproj"},
-		{"SSH URL", "git@github.com:argoproj/argo-cd.git", "argoproj"},
-		{"SSH URL without .git", "git@github.com:argoproj/argo-cd", "argoproj"},
-		{"SSH URL with ssh:// prefix", "ssh://git@github.com:argoproj/argo-cd.git", "argoproj"},
-		{"SSH URL with port", "ssh://git@github.com:22/argoproj/argo-cd.git", "argoproj"},
-		{"GitHub Enterprise HTTPS", "https://github.example.com/myorg/myrepo.git", "myorg"},
-		{"GitHub Enterprise SSH", "git@github.example.com:myorg/myrepo.git", "myorg"},
-		{"Invalid URL", "not-a-url", ""},
-		{"Empty string", "", ""},
-		{"URL without org/repo", "https://github.com", ""},
-		{"URL with only org", "https://github.com/argoproj", ""},
+		{"HTTPS URL", "https://github.com/argoproj/argo-cd", "argoproj", false},
+		{"HTTPS URL with .git", "https://github.com/argoproj/argo-cd.git", "argoproj", false},
+		{"HTTPS URL with port", "https://github.com:443/argoproj/argo-cd.git", "argoproj", false},
+		{"SSH URL", "git@github.com:argoproj/argo-cd.git", "argoproj", false},
+		{"SSH URL without .git", "git@github.com:argoproj/argo-cd", "argoproj", false},
+		{"SSH URL with ssh:// prefix", "ssh://git@github.com:argoproj/argo-cd.git", "argoproj", false},
+		{"SSH URL with port", "ssh://git@github.com:22/argoproj/argo-cd.git", "argoproj", false},
+		{"GitHub Enterprise HTTPS", "https://github.example.com/myorg/myrepo.git", "myorg", false},
+		{"GitHub Enterprise SSH", "git@github.example.com:myorg/myrepo.git", "myorg", false},
+		{"Case insensitive", "https://github.com/ArgoPROJ/argo-cd", "argoproj", false}, // Test case sensitivity
+		{"Invalid URL", "not-a-url", "", true},
+		{"Empty string", "", "", true},
+		{"URL without org/repo", "https://github.com", "", true},
+		{"URL with only org", "https://github.com/argoproj", "", true},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			actual := ExtractOrgFromRepoURL(tt.repoURL)
-			assert.Equal(t, tt.expected, actual)
+			actual, err := ExtractOrgFromRepoURL(tt.repoURL)
+			if tt.expectError {
+				require.Error(t, err)
+				assert.Empty(t, actual)
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, tt.expected, actual)
+			}
 		})
 	}
 }
