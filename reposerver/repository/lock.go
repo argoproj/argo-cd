@@ -82,6 +82,12 @@ func (r *repositoryLock) Lock(ctx context.Context, path string, revision string,
 			state.cond.L.Unlock()
 			return closer, nil
 		}
+
+		if err := ctx.Err(); err != nil {
+			state.cond.L.Unlock()
+			return nil, err
+		}
+
 		state.cond.Wait()
 		if err := ctx.Err(); err != nil {
 			state.cond.L.Unlock()
