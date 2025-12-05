@@ -58,10 +58,11 @@ Some effort has been made to balance test isolation with speed. Tests are isolat
 ## Run only a subset of tests
 
 Running all tests locally is a time-consuming process. To run only a subset of tests, you can set the `ARGOCD_E2E_PACKAGES` environment variable. 
-For example, to run only the OCI tests, you can set the variable as follows: `export ARGOCD_E2E_PACKAGES=./test/e2e/oci_test.go` 
-and then run the tests as usual: `make test-e2e-local`.
-This is invaluable when you are working on a specific feature or code area, or you are adding a new test file.
+For example, to run only the OCI tests, you can set the variable as follows: `make ARGOCD_E2E_PACKAGES=./test/e2e/oci_test.go test-e2e-local` 
 
+If you want to get a more fine-grained control over which tests to run, you can also try `make TEST_FLAGS="-run <TEST_METHOD_NAME_REGEXP>" test-e2e-local`
+For individual tests you can run them using the IDE run test feature 
+    
 ## Troubleshooting
 
 **Tests fails to delete `argocd-e2e-ns-*` namespaces.**
