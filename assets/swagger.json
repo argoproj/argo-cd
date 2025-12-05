@@ -7246,9 +7246,15 @@
       }
     },
     "v1alpha1ApplicationSetRolloutStrategy": {
+      "description": "ApplicationSetRolloutStrategy defines the strategy for rolling out changes to ApplicationSets.",
       "type": "object",
       "properties": {
+        "defaultPrune": {
+          "description": "DefaultPrune controls whether resources should be pruned by default during progressive syncs.\nIf true, resources that exist in the cluster but not in git will be deleted during sync.\nIf false or not specified, pruning is disabled by default (backward compatible).\nIndividual Applications can override this by setting syncPolicy.automated.prune.\nThis field only applies when using RollingSync strategy.",
+          "type": "boolean"
+        },
         "steps": {
+          "description": "Steps defines the order and criteria for rolling out changes.",
           "type": "array",
           "items": {
             "$ref": "#/definitions/v1alpha1ApplicationSetRolloutStep"

@@ -741,6 +741,11 @@ func (in *ApplicationSetRolloutStrategy) DeepCopyInto(out *ApplicationSetRollout
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
+	if in.DefaultPrune != nil {
+		in, out := &in.DefaultPrune, &out.DefaultPrune
+		*out = new(bool)
+		**out = **in
+	}
 	return
 }
 

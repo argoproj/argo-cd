@@ -96,6 +96,50 @@ Once each batch of Applications reaches a `Healthy` status, the next batch is sy
 
 If there are any applications that don't match the listed expressions, they will not be synced by the RollingSync strategy and must be manually synced as describe above.
 
+#### Resource Pruning with RollingSync
+
+When using RollingSync, resources that are removed from Git are not automatically deleted from the cluster by default. This can cause applications to remain in an `OutOfSync` state indefinitely.
+
+To enable automatic pruning of removed resources, set `defaultPrune: true` in your RollingSync configuration:
+```yaml
+spec:
+  strategy:
+    type: RollingSync
+    rollingSync:
+      defaultPrune: true  # Enable pruning for all applications
+      steps:
+        - matchExpressions:
+            - key: env
+              operator: In
+              values:
+                - dev
+```
+
+**Behavior:**
+- `defaultPrune` not set (or `false`): Pruning is disabled (backward compatible)
+- `defaultPrune: true`: Pruning is enabled for all applications in this ApplicationSet
+- Individual applications can override this setting via `syncPolicy.automated.prune`
+
+**Example with per-application override:**
+```yaml
+spec:
+  strategy:
+    type: RollingSync
+    rollingSync:
+      defaultPrune: true  # Enable by default
+      steps:
+        - matchExpressions:
+            - key: env
+              operator: In
+              values:
+                - prod
+  template:
+    spec:
+      syncPolicy:
+        automated:
+          prune: false  # Disable pruning for specific applications
+```
+
 ### Deletion Strategies
 
 The `deletionOrder` field controls the order in which applications are deleted when they are removed from the ApplicationSet. Available values:

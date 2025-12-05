@@ -20,6 +20,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	kubefake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	crtclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -7490,6 +7491,246 @@ func TestReconcileAddsFinalizer_WhenDeletionOrderReverse(t *testing.T) {
 			// Verify the finalizers
 			assert.Equal(t, cc.expectedFinalizers, updatedAppSet.Finalizers,
 				"finalizers should match expected value")
+		})
+	}
+}
+
+func TestSyncDesiredApplicationsWithDefaultPrune(t *testing.T) {
+	scheme := runtime.NewScheme()
+	err := v1alpha1.AddToScheme(scheme)
+	require.NoError(t, err)
+
+	tests := []struct {
+		name                string
+		appSet              v1alpha1.ApplicationSet
+		apps                []v1alpha1.Application
+		appsToSync          map[string]bool
+		expectedPruneValues map[string]bool // map of app name to expected prune value
+	}{
+		{
+			name: "defaultPrune not set - backward compatible behavior",
+			appSet: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-appset",
+					Namespace: "argocd",
+				},
+				Spec: v1alpha1.ApplicationSetSpec{
+					Strategy: &v1alpha1.ApplicationSetStrategy{
+						Type: "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
+							Steps: []v1alpha1.ApplicationSetRolloutStep{},
+							// DefaultPrune not set - should default to false.
+						},
+					},
+				},
+				Status: v1alpha1.ApplicationSetStatus{
+					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
+						{
+							Application: "app1",
+							Status:      v1alpha1.ProgressiveSyncPending,
+						},
+					},
+				},
+			},
+			apps: []v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "app1",
+						Namespace: "argocd",
+					},
+					Spec: v1alpha1.ApplicationSpec{
+						Project: "default",
+					},
+				},
+			},
+			appsToSync: map[string]bool{
+				"app1": true,
+			},
+			expectedPruneValues: map[string]bool{
+				"app1": false, // Should be false (backward compatible).
+			},
+		},
+		{
+			name: "defaultPrune set to true - enables pruning by default",
+			appSet: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-appset",
+					Namespace: "argocd",
+				},
+				Spec: v1alpha1.ApplicationSetSpec{
+					Strategy: &v1alpha1.ApplicationSetStrategy{
+						Type: "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
+							Steps:        []v1alpha1.ApplicationSetRolloutStep{},
+							DefaultPrune: ptr.To(true),
+						},
+					},
+				},
+				Status: v1alpha1.ApplicationSetStatus{
+					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
+						{
+							Application: "app1",
+							Status:      v1alpha1.ProgressiveSyncPending,
+						},
+					},
+				},
+			},
+			apps: []v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "app1",
+						Namespace: "argocd",
+					},
+					Spec: v1alpha1.ApplicationSpec{
+						Project: "default",
+					},
+				},
+			},
+			appsToSync: map[string]bool{
+				"app1": true,
+			},
+			expectedPruneValues: map[string]bool{
+				"app1": true, // Should be true from defaultPrune.
+			},
+		},
+		{
+			name: "Application-level syncPolicy.automated.prune overrides defaultPrune",
+			appSet: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-appset",
+					Namespace: "argocd",
+				},
+				Spec: v1alpha1.ApplicationSetSpec{
+					Strategy: &v1alpha1.ApplicationSetStrategy{
+						Type: "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
+							Steps:        []v1alpha1.ApplicationSetRolloutStep{},
+							DefaultPrune: ptr.To(true),
+						},
+					},
+				},
+				Status: v1alpha1.ApplicationSetStatus{
+					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
+						{
+							Application: "app1",
+							Status:      v1alpha1.ProgressiveSyncPending,
+						},
+						{
+							Application: "app2",
+							Status:      v1alpha1.ProgressiveSyncPending,
+						},
+					},
+				},
+			},
+			apps: []v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "app1",
+						Namespace: "argocd",
+					},
+					Spec: v1alpha1.ApplicationSpec{
+						Project: "default",
+						SyncPolicy: &v1alpha1.SyncPolicy{
+							Automated: &v1alpha1.SyncPolicyAutomated{
+								Prune: false, // Explicitly disable pruning for this app.
+							},
+						},
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "app2",
+						Namespace: "argocd",
+					},
+					Spec: v1alpha1.ApplicationSpec{
+						Project: "default",
+						// No syncPolicy - should use defaultPrune.
+					},
+				},
+			},
+			appsToSync: map[string]bool{
+				"app1": true,
+				"app2": true,
+			},
+			expectedPruneValues: map[string]bool{
+				"app1": false, // Overridden to false by application.
+				"app2": true,  // Uses defaultPrune from ApplicationSet.
+			},
+		},
+		{
+			name: "defaultPrune set to false - explicitly disables pruning",
+			appSet: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-appset",
+					Namespace: "argocd",
+				},
+				Spec: v1alpha1.ApplicationSetSpec{
+					Strategy: &v1alpha1.ApplicationSetStrategy{
+						Type: "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
+							Steps:        []v1alpha1.ApplicationSetRolloutStep{},
+							DefaultPrune: ptr.To(false),
+						},
+					},
+				},
+				Status: v1alpha1.ApplicationSetStatus{
+					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
+						{
+							Application: "app1",
+							Status:      v1alpha1.ProgressiveSyncPending,
+						},
+					},
+				},
+			},
+			apps: []v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "app1",
+						Namespace: "argocd",
+					},
+					Spec: v1alpha1.ApplicationSpec{
+						Project: "default",
+					},
+				},
+			},
+			appsToSync: map[string]bool{
+				"app1": true,
+			},
+			expectedPruneValues: map[string]bool{
+				"app1": false,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			kubeclientset := kubefake.NewSimpleClientset()
+			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&tt.appSet).Build()
+			metrics := appsetmetrics.NewFakeAppsetMetrics()
+			argodb := db.NewDB("argocd", settings.NewSettingsManager(t.Context(), kubeclientset, "argocd"), kubeclientset)
+
+			r := ApplicationSetReconciler{
+				Client:        client,
+				Scheme:        scheme,
+				Recorder:      record.NewFakeRecorder(10),
+				Generators:    map[string]generators.Generator{},
+				ArgoDB:        argodb,
+				KubeClientset: kubeclientset,
+				Metrics:       metrics,
+			}
+
+			result := r.syncDesiredApplications(log.NewEntry(log.StandardLogger()), &tt.appSet, tt.appsToSync, tt.apps)
+
+			// Verify that operations were set correctly with the expected prune values.
+			for _, app := range result {
+				if expectedPrune, ok := tt.expectedPruneValues[app.Name]; ok && tt.appsToSync[app.Name] {
+					require.NotNil(t, app.Operation, "Operation should be set for app %s", app.Name)
+					require.NotNil(t, app.Operation.Sync, "Sync operation should be set for app %s", app.Name)
+					assert.Equal(t, expectedPrune, app.Operation.Sync.Prune,
+						"Prune value mismatch for app %s: expected %v, got %v",
+						app.Name, expectedPrune, app.Operation.Sync.Prune)
+				}
+			}
 		})
 	}
 }

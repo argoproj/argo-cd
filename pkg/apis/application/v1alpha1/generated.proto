@@ -329,8 +329,17 @@ message ApplicationSetRolloutStep {
   optional .k8s.io.apimachinery.pkg.util.intstr.IntOrString maxUpdate = 2;
 }
 
+// ApplicationSetRolloutStrategy defines the strategy for rolling out changes to ApplicationSets.
 message ApplicationSetRolloutStrategy {
+  // Steps defines the order and criteria for rolling out changes.
   repeated ApplicationSetRolloutStep steps = 1;
+
+  // DefaultPrune controls whether resources should be pruned by default during progressive syncs.
+  // If true, resources that exist in the cluster but not in git will be deleted during sync.
+  // If false or not specified, pruning is disabled by default (backward compatible).
+  // Individual Applications can override this by setting syncPolicy.automated.prune.
+  // This field only applies when using RollingSync strategy.
+  optional bool defaultPrune = 2;
 }
 
 // ApplicationSetSpec represents a class of application set state.

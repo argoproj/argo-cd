@@ -88,8 +88,18 @@ type ApplicationSetStrategy struct {
 	// accepts values "AllAtOnce" and "Reverse"
 	DeletionOrder string `json:"deletionOrder,omitempty" protobuf:"bytes,3,opt,name=deletionOrder"`
 }
+
+// ApplicationSetRolloutStrategy defines the strategy for rolling out changes to ApplicationSets.
 type ApplicationSetRolloutStrategy struct {
+	// Steps defines the order and criteria for rolling out changes.
 	Steps []ApplicationSetRolloutStep `json:"steps,omitempty" protobuf:"bytes,1,opt,name=steps"`
+
+	// DefaultPrune controls whether resources should be pruned by default during progressive syncs.
+	// If true, resources that exist in the cluster but not in git will be deleted during sync.
+	// If false or not specified, pruning is disabled by default (backward compatible).
+	// Individual Applications can override this by setting syncPolicy.automated.prune.
+	// This field only applies when using RollingSync strategy.
+	DefaultPrune *bool `json:"defaultPrune,omitempty" protobuf:"varint,2,opt,name=defaultPrune"`
 }
 
 type ApplicationSetRolloutStep struct {
