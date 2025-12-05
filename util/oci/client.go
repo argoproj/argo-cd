@@ -223,7 +223,7 @@ type nativeOCIClient struct {
 
 // TestRepo verifies that the remote OCI repo can be connected to.
 func (c *nativeOCIClient) TestRepo(ctx context.Context) (bool, error) {
-	defer c.OnTestRepo(c.repoURL)
+	defer c.OnTestRepo(c.repoURL)()
 
 	err := c.pingFunc(ctx)
 	if err != nil {
@@ -233,7 +233,7 @@ func (c *nativeOCIClient) TestRepo(ctx context.Context) (bool, error) {
 }
 
 func (c *nativeOCIClient) Extract(ctx context.Context, digest string) (string, utilio.Closer, error) {
-	defer c.OnExtract(c.repoURL)
+	defer c.OnExtract(c.repoURL)()
 
 	cachedPath, err := c.getCachedPath(digest)
 	if err != nil {
@@ -318,7 +318,7 @@ func (c *nativeOCIClient) CleanCache(revision string) error {
 
 // DigestMetadata extracts the OCI manifest for a given revision and returns it to the caller.
 func (c *nativeOCIClient) DigestMetadata(ctx context.Context, digest string) (*imagev1.Manifest, error) {
-	defer c.OnDigestMetadata(c.repoURL)
+	defer c.OnDigestMetadata(c.repoURL)()
 
 	path, err := c.getCachedPath(digest)
 	if err != nil {
@@ -334,7 +334,7 @@ func (c *nativeOCIClient) DigestMetadata(ctx context.Context, digest string) (*i
 }
 
 func (c *nativeOCIClient) ResolveRevision(ctx context.Context, revision string, noCache bool) (string, error) {
-	defer c.OnResolveRevision(c.repoURL)
+	defer c.OnResolveRevision(c.repoURL)()
 
 	digest, err := c.resolveDigest(ctx, revision) // Lookup explicit revision
 	if err != nil {
@@ -361,7 +361,7 @@ func (c *nativeOCIClient) ResolveRevision(ctx context.Context, revision string, 
 }
 
 func (c *nativeOCIClient) GetTags(ctx context.Context, noCache bool) ([]string, error) {
-	defer c.OnGetTags(c.repoURL)
+	defer c.OnGetTags(c.repoURL)()
 	indexLock.Lock(c.repoURL)
 	defer indexLock.Unlock(c.repoURL)
 
