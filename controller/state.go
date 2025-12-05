@@ -266,7 +266,6 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 			app.Status.SourceType != v1alpha1.ApplicationSourceTypeDirectory
 
 		if updateRevisions && repo.Depth == 0 && !source.IsHelm() && !source.IsOCI() && syncedRevision != "" && syncedRevision != revision && keyManifestGenerateAnnotationExists && keyManifestGenerateAnnotationVal != "" {
-
 			updateSource := argo.GetRelatedRefAppSource(source, sources)
 			if updateSource == nil {
 				updateSource = &source
