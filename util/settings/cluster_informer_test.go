@@ -56,7 +56,7 @@ func TestClusterCache_TransformAndIndex(t *testing.T) {
 	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 	defer cancel()
 
-	clusterCache, err := NewClusterInformer(ctx, clientset, namespace)
+	clusterCache, err := NewClusterInformer(clientset, namespace)
 	require.NoError(t, err)
 
 	go clusterCache.Run(ctx.Done())
@@ -79,7 +79,7 @@ func TestClusterCache_TransformAndIndex(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "https://cluster1.example.com", cluster.Server)
 		assert.Equal(t, "cluster-one", cluster.Name)
-		assert.False(t, cluster.Config.TLSClientConfig.Insecure)
+		assert.False(t, cluster.Config.Insecure)
 
 		// Verify it's a real Cluster object with parsed config
 		assert.NotNil(t, cluster.Config)
@@ -122,7 +122,7 @@ func TestClusterCache_TransformAndIndex(t *testing.T) {
 
 	t.Run("NotFound error for missing cluster", func(t *testing.T) {
 		_, err := clusterCache.GetClusterByURL("https://nonexistent.example.com")
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "not found")
 	})
 }
@@ -135,7 +135,7 @@ func TestClusterCache_DynamicUpdates(t *testing.T) {
 	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 	defer cancel()
 
-	clusterCache, err := NewClusterInformer(ctx, clientset, namespace)
+	clusterCache, err := NewClusterInformer(clientset, namespace)
 	require.NoError(t, err)
 
 	go clusterCache.Run(ctx.Done())
@@ -148,7 +148,7 @@ func TestClusterCache_DynamicUpdates(t *testing.T) {
 		// Initially empty
 		clusters, err := clusterCache.ListClusters()
 		require.NoError(t, err)
-		assert.Len(t, clusters, 0)
+		assert.Empty(t, clusters)
 
 		// Add a cluster secret
 		clusterSecret := &corev1.Secret{
@@ -201,7 +201,7 @@ func TestClusterCache_ServerURLNormalization(t *testing.T) {
 	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 	defer cancel()
 
-	clusterCache, err := NewClusterInformer(ctx, clientset, namespace)
+	clusterCache, err := NewClusterInformer(clientset, namespace)
 	require.NoError(t, err)
 
 	go clusterCache.Run(ctx.Done())
@@ -247,11 +247,11 @@ func BenchmarkClusterCache_vs_DirectConversion(b *testing.B) {
 	clientset := fake.NewClientset(clusterSecret)
 
 	ctx := b.Context()
-	clusterCache, err := NewClusterInformer(ctx, clientset, namespace)
+	clusterCache, err := NewClusterInformer(clientset, namespace)
 	require.NoError(b, err)
 
 	go clusterCache.Run(ctx.Done())
-	
+
 	if !cache.WaitForCacheSync(ctx.Done(), clusterCache.HasSynced) {
 		b.Fatal("Timed out waiting for informer cache to sync")
 	}

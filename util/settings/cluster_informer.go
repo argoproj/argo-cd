@@ -1,7 +1,6 @@
 package settings
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"maps"
@@ -46,7 +45,7 @@ type ClusterInformer struct {
 // - Zero conversion overhead on reads (already converted)
 // - Same freshness guarantees as regular informers
 // - Automatic updates when secrets change
-func NewClusterInformer(ctx context.Context, clientset kubernetes.Interface, namespace string) (*ClusterInformer, error) {
+func NewClusterInformer(clientset kubernetes.Interface, namespace string) (*ClusterInformer, error) {
 	informer := informersv1.NewFilteredSecretInformer(clientset, namespace, 3*time.Minute, cache.Indexers{
 		cache.NamespaceIndex: cache.MetaNamespaceIndexFunc,
 		ClusterCacheByURLIndexer: func(obj any) ([]string, error) {
@@ -85,7 +84,6 @@ func NewClusterInformer(ctx context.Context, clientset kubernetes.Interface, nam
 
 		// Convert to cluster - this happens once during ingestion
 		cluster, err := secretToCluster(secret)
-
 		if err != nil {
 			log.Warnf("Failed to convert secret %s to cluster: %v", secret.Name, err)
 			// Return the secret on error so we don't lose the data

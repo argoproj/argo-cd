@@ -1355,7 +1355,7 @@ func (mgr *SettingsManager) initialize(ctx context.Context) error {
 	cmInformer := informersv1.NewFilteredConfigMapInformer(mgr.clientset, mgr.namespace, 3*time.Minute, indexers, tweakConfigMap)
 	secretsInformer := informersv1.NewSecretInformer(mgr.clientset, mgr.namespace, 3*time.Minute, indexers)
 	// Initialize cluster cache for optimized cluster lookups
-	clusterInformer, err := NewClusterInformer(ctx, mgr.clientset, mgr.namespace)
+	clusterInformer, err := NewClusterInformer(mgr.clientset, mgr.namespace)
 	if err != nil {
 		log.Error(err)
 	}
