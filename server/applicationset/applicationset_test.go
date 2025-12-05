@@ -705,6 +705,57 @@ func TestResourceTree(t *testing.T) {
 	})
 }
 
+func TestListResourceEvents(t *testing.T) {
+	appSet1 := newTestAppSet(func(appset *appsv1.ApplicationSet) {
+		appset.Name = "AppSet1"
+		appset.UID = "test-uid-123"
+	})
+
+	appSet2 := newTestAppSet(func(appset *appsv1.ApplicationSet) {
+		appset.Name = "AppSet2"
+	})
+
+	t.Run("ListResourceEvents in default namespace", func(t *testing.T) {
+		appSetServer := newTestAppSetServer(t, appSet1, appSet2)
+
+		appsetQuery := applicationset.ApplicationSetGetQuery{Name: "AppSet1"}
+
+		res, err := appSetServer.ListResourceEvents(t.Context(), &appsetQuery)
+		require.NoError(t, err)
+		// No events exist in the fake client, so we expect an empty list
+		assert.Empty(t, res.Items)
+	})
+
+	t.Run("ListResourceEvents in named namespace", func(t *testing.T) {
+		appSetServer := newTestAppSetServer(t, appSet1, appSet2)
+
+		appsetQuery := applicationset.ApplicationSetGetQuery{Name: "AppSet1", AppsetNamespace: testNamespace}
+
+		res, err := appSetServer.ListResourceEvents(t.Context(), &appsetQuery)
+		require.NoError(t, err)
+		assert.Empty(t, res.Items)
+	})
+
+	t.Run("ListResourceEvents in not allowed namespace", func(t *testing.T) {
+		appSetServer := newTestAppSetServer(t, appSet1, appSet2)
+
+		appsetQuery := applicationset.ApplicationSetGetQuery{Name: "AppSet1", AppsetNamespace: "NOT-ALLOWED"}
+
+		_, err := appSetServer.ListResourceEvents(t.Context(), &appsetQuery)
+		assert.EqualError(t, err, "namespace 'NOT-ALLOWED' is not permitted")
+	})
+
+	t.Run("ListResourceEvents for non-existent appset", func(t *testing.T) {
+		appSetServer := newTestAppSetServer(t, appSet1, appSet2)
+
+		appsetQuery := applicationset.ApplicationSetGetQuery{Name: "DoesNotExist"}
+
+		_, err := appSetServer.ListResourceEvents(t.Context(), &appsetQuery)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "error getting ApplicationSet")
+	})
+}
+
 func TestAppSet_Generate_Cluster(t *testing.T) {
 	appSet1 := newTestAppSet(func(appset *appsv1.ApplicationSet) {
 		appset.Name = "AppSet1"
