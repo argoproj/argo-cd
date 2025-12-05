@@ -1062,6 +1062,9 @@ func (ctrl *ApplicationController) processAppOperationQueueItem() (processNext b
 			})
 			message := fmt.Sprintf("Unable to delete application resources: %v", err.Error())
 			ctrl.logAppEvent(context.TODO(), app, argo.EventInfo{Reason: argo.EventReasonStatusRefreshed, Type: corev1.EventTypeWarning}, message)
+		} else {
+			// Clear DeletionError condition if deletion is progressing successfully
+			app.Status.SetConditions([]appv1.ApplicationCondition{}, map[appv1.ApplicationConditionType]bool{appv1.ApplicationConditionDeletionError: true})
 		}
 		ts.AddCheckpoint("finalize_application_deletion_ms")
 	}
@@ -1203,17 +1206,21 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 	if err != nil {
 		return err
 	}
+
+	// Get destination cluster
 	destCluster, err := argo.GetDestinationCluster(context.Background(), app.Spec.Destination, ctrl.db)
 	if err != nil {
 		logCtx.WithError(err).Warn("Unable to get destination cluster")
 		app.UnSetCascadedDeletion()
 		app.UnSetPostDeleteFinalizerAll()
+		app.UnSetPreDeleteFinalizerAll()
 		if err := ctrl.updateFinalizers(app); err != nil {
 			return err
 		}
 		logCtx.Infof("Resource entries removed from undefined cluster")
 		return nil
 	}
+
 	clusterRESTConfig, err := destCluster.RESTConfig()
 	if err != nil {
 		return err
@@ -1225,9 +1232,30 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 		return fmt.Errorf("cannot apply impersonation: %w", err)
 	}
 
+	// Handle PreDelete hooks - run them before any deletion occurs
+	if app.HasPreDeleteFinalizer() {
+		objsMap, err := ctrl.getPermittedAppLiveObjects(destCluster, app, proj, projectClusters)
+		if err != nil {
+			return fmt.Errorf("error getting permitted app live objects: %w", err)
+		}
+
+		done, err := ctrl.executePreDeleteHooks(app, proj, objsMap, config, logCtx)
+		if err != nil {
+			return fmt.Errorf("error executing pre-delete hooks: %w", err)
+		}
+		if !done {
+			// PreDelete hooks are still running - wait for them to complete
+			return nil
+		}
+		// PreDelete hooks are done - remove the finalizer so we can continue with deletion
+		app.UnSetPreDeleteFinalizer()
+		if err := ctrl.updateFinalizers(app); err != nil {
+			return fmt.Errorf("error updating pre-delete finalizers: %w", err)
+		}
+	}
+
 	if app.CascadedDeletion() {
 		deletionApproved := app.IsDeletionConfirmed(app.DeletionTimestamp.Time)
-
 		logCtx.Infof("Deleting resources")
 		// ApplicationDestination points to a valid cluster, so we may clean up the live objects
 		objs := make([]*unstructured.Unstructured, 0)
@@ -1304,6 +1332,23 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 		return ctrl.updateFinalizers(app)
 	}
 
+	if app.HasPreDeleteFinalizer("cleanup") {
+		objsMap, err := ctrl.getPermittedAppLiveObjects(destCluster, app, proj, projectClusters)
+		if err != nil {
+			return fmt.Errorf("error getting permitted app live objects for pre-delete cleanup: %w", err)
+		}
+
+		done, err := ctrl.cleanupPreDeleteHooks(objsMap, config, logCtx)
+		if err != nil {
+			return fmt.Errorf("error cleaning up pre-delete hooks: %w", err)
+		}
+		if !done {
+			return nil
+		}
+		app.UnSetPreDeleteFinalizer("cleanup")
+		return ctrl.updateFinalizers(app)
+	}
+
 	if app.HasPostDeleteFinalizer("cleanup") {
 		objsMap, err := ctrl.getPermittedAppLiveObjects(destCluster, app, proj, projectClusters)
 		if err != nil {
@@ -1321,7 +1366,7 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 		return ctrl.updateFinalizers(app)
 	}
 
-	if !app.CascadedDeletion() && !app.HasPostDeleteFinalizer() {
+	if !app.CascadedDeletion() && !app.HasPostDeleteFinalizer() && !app.HasPreDeleteFinalizer() {
 		if err := ctrl.cache.SetAppManagedResources(app.Name, nil); err != nil {
 			return err
 		}
@@ -1835,10 +1880,25 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	app.Status.SourceTypes = compareResult.appSourceTypes
 	app.Status.ControllerNamespace = ctrl.namespace
 	ts.AddCheckpoint("app_status_update_ms")
-	patchDuration = ctrl.persistAppStatus(origApp, &app.Status)
-	// This is a partly a duplicate of patch_ms, but more descriptive and allows to have measurement for the next step.
-	ts.AddCheckpoint("persist_app_status_ms")
-	if (compareResult.hasPostDeleteHooks != app.HasPostDeleteFinalizer() || compareResult.hasPostDeleteHooks != app.HasPostDeleteFinalizer("cleanup")) &&
+	// Update finalizers BEFORE persisting status to avoid race condition where app shows "Synced"
+	// but doesn't have finalizers yet, which would allow deletion without running pre-delete hooks
+	if (compareResult.hasPreDeleteHooks != app.HasPreDeleteFinalizer() ||
+		compareResult.hasPreDeleteHooks != app.HasPreDeleteFinalizer("cleanup")) &&
+		app.GetDeletionTimestamp() == nil {
+		if compareResult.hasPreDeleteHooks {
+			app.SetPreDeleteFinalizer()
+			app.SetPreDeleteFinalizer("cleanup")
+		} else {
+			app.UnSetPreDeleteFinalizer()
+			app.UnSetPreDeleteFinalizer("cleanup")
+		}
+
+		if err := ctrl.updateFinalizers(app); err != nil {
+			logCtx.Errorf("Failed to update pre-delete finalizers: %v", err)
+		}
+	}
+	if (compareResult.hasPostDeleteHooks != app.HasPostDeleteFinalizer() ||
+		compareResult.hasPostDeleteHooks != app.HasPostDeleteFinalizer("cleanup")) &&
 		app.GetDeletionTimestamp() == nil {
 		if compareResult.hasPostDeleteHooks {
 			app.SetPostDeleteFinalizer()
@@ -1849,10 +1909,13 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		}
 
 		if err := ctrl.updateFinalizers(app); err != nil {
-			logCtx.WithError(err).Error("Failed to update finalizers")
+			logCtx.WithError(err).Error("Failed to update post-delete finalizers")
 		}
 	}
 	ts.AddCheckpoint("process_finalizers_ms")
+	patchDuration = ctrl.persistAppStatus(origApp, &app.Status)
+	// This is a partly a duplicate of patch_ms, but more descriptive and allows to have measurement for the next step.
+	ts.AddCheckpoint("persist_app_status_ms")
 	return processNext
 }
 

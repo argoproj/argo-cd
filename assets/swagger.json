@@ -7050,7 +7050,7 @@
     },
     "v1alpha1ApplicationSet": {
       "type": "object",
-      "title": "ApplicationSet is a set of Application resources\n+genclient\n+genclient:noStatus\n+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object\n+kubebuilder:resource:path=applicationsets,shortName=appset;appsets\n+kubebuilder:subresource:status",
+      "title": "ApplicationSet is a set of Application resources.\n+genclient\n+genclient:noStatus\n+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object\n+kubebuilder:resource:path=applicationsets,shortName=appset;appsets\n+kubebuilder:subresource:status",
       "properties": {
         "metadata": {
           "$ref": "#/definitions/v1ObjectMeta"
@@ -8305,9 +8305,21 @@
       "description": "DrySource specifies a location for dry \"don't repeat yourself\" manifest source information.",
       "type": "object",
       "properties": {
+        "directory": {
+          "$ref": "#/definitions/v1alpha1ApplicationSourceDirectory"
+        },
+        "helm": {
+          "$ref": "#/definitions/v1alpha1ApplicationSourceHelm"
+        },
+        "kustomize": {
+          "$ref": "#/definitions/v1alpha1ApplicationSourceKustomize"
+        },
         "path": {
           "type": "string",
           "title": "Path is a directory path within the Git repository where the manifests are located"
+        },
+        "plugin": {
+          "$ref": "#/definitions/v1alpha1ApplicationSourcePlugin"
         },
         "repoURL": {
           "type": "string",

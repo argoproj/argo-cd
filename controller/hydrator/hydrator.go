@@ -463,6 +463,10 @@ func (h *Hydrator) getManifests(ctx context.Context, app *appv1.Application, tar
 		RepoURL:        app.Spec.SourceHydrator.DrySource.RepoURL,
 		Path:           app.Spec.SourceHydrator.DrySource.Path,
 		TargetRevision: app.Spec.SourceHydrator.DrySource.TargetRevision,
+		Helm:           app.Spec.SourceHydrator.DrySource.Helm,
+		Kustomize:      app.Spec.SourceHydrator.DrySource.Kustomize,
+		Directory:      app.Spec.SourceHydrator.DrySource.Directory,
+		Plugin:         app.Spec.SourceHydrator.DrySource.Plugin,
 	}
 	if targetRevision == "" {
 		targetRevision = app.Spec.SourceHydrator.DrySource.TargetRevision
