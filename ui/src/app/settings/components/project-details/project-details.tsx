@@ -7,7 +7,7 @@ import {Link} from 'react-router-dom';
 
 import {BadgePanel, CheckboxField, DataLoader, EditablePanel, ErrorNotification, MapInputField, Page, Query} from '../../../shared/components';
 import {Context, ContextApis, AuthSettingsCtx} from '../../../shared/context';
-import {GroupKind, Groups, Project, DetailedProjectsResponse, ProjectSpec, ResourceKinds} from '../../../shared/models';
+import {ClusterResourceRestrictionItem, GroupKind, Groups, Project, DetailedProjectsResponse, ProjectSpec, ResourceKinds} from '../../../shared/models';
 import {CreateJWTTokenParams, DeleteJWTTokenParams, ProjectRoleParams, services} from '../../../shared/services';
 
 import {SyncWindowStatusIcon} from '../../../applications/components/utils';
@@ -81,7 +81,7 @@ function reduceGlobal(projs: Project[]): ProjectSpec & {count: number} {
                 return (
                     index ===
                     merged.clusterResourceBlacklist.findIndex(obj => {
-                        return obj.kind === item.kind && obj.group === item.group;
+                        return obj.kind === item.kind && obj.group === item.group && obj.name === item.name;
                     })
                 );
             });
@@ -90,7 +90,7 @@ function reduceGlobal(projs: Project[]): ProjectSpec & {count: number} {
                 return (
                     index ===
                     merged.clusterResourceWhitelist.findIndex(obj => {
-                        return obj.kind === item.kind && obj.group === item.group;
+                        return obj.kind === item.kind && obj.group === item.group && obj.name === item.name;
                     })
                 );
             });
@@ -126,10 +126,10 @@ function reduceGlobal(projs: Project[]): ProjectSpec & {count: number} {
             return merged;
         },
         {
-            clusterResourceBlacklist: new Array<GroupKind>(),
+            clusterResourceBlacklist: new Array<ClusterResourceRestrictionItem>(),
             namespaceResourceBlacklist: new Array<GroupKind>(),
             namespaceResourceWhitelist: new Array<GroupKind>(),
-            clusterResourceWhitelist: new Array<GroupKind>(),
+            clusterResourceWhitelist: new Array<ClusterResourceRestrictionItem>(),
             sourceRepos: [],
             sourceNamespaces: [],
             signatureKeys: [],
@@ -142,12 +142,13 @@ function reduceGlobal(projs: Project[]): ProjectSpec & {count: number} {
     );
 }
 
-export const ProjectDetails: React.FC<RouteComponentProps<{name: string}>> = props => {
+export const ProjectDetails: React.FC<RouteComponentProps<{name: string}> & {objectListKind?: string}> = props => {
     const [token, setToken] = React.useState('');
     const projectRoleFormApi = React.useRef<FormApi>(null);
     const projectSyncWindowsFormApi = React.useRef<FormApi>(null);
     const loader = React.useRef<DataLoader>(null);
     const ctx = React.useContext(Context) as ContextApis;
+    const objectListKind = props.objectListKind || 'application';
 
     const deleteJWTToken = async (params: DeleteJWTTokenParams, notifications: NotificationsApi) => {
         try {
@@ -356,7 +357,7 @@ export const ProjectDetails: React.FC<RouteComponentProps<{name: string}>> = pro
                             title: 'APPLICATIONS',
                             view: (
                                 <div>
-                                    <DataLoader load={() => services.applications.list([proj.metadata.name])}>
+                                    <DataLoader load={() => services.applications.list([proj.metadata.name], objectListKind)}>
                                         {apps => <Link to={'/applications?proj=' + proj.metadata.name}>{apps.items.length}</Link>}
                                     </DataLoader>
                                 </div>

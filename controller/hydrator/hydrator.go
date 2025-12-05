@@ -366,6 +366,13 @@ func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application, project
 		return "", "", errors, nil
 	}
 	paths := []*commitclient.PathDetails{pathDetails}
+	logCtx = logCtx.WithFields(log.Fields{"drySha": targetRevision})
+	// De-dupe, if the drySha was already hydrated log a debug and return using the data from the last successful hydration run.
+	// We only inspect one app. If apps have been added/removed, that will be handled on the next DRY commit.
+	if apps[0].Status.SourceHydrator.LastSuccessfulOperation != nil && targetRevision == apps[0].Status.SourceHydrator.LastSuccessfulOperation.DrySHA {
+		logCtx.Debug("Skipping hydration since the DRY commit was already hydrated")
+		return targetRevision, apps[0].Status.SourceHydrator.LastSuccessfulOperation.HydratedSHA, nil, nil
+	}
 
 	eg, ctx := errgroup.WithContext(context.Background())
 	var mu sync.Mutex
@@ -456,6 +463,10 @@ func (h *Hydrator) getManifests(ctx context.Context, app *appv1.Application, tar
 		RepoURL:        app.Spec.SourceHydrator.DrySource.RepoURL,
 		Path:           app.Spec.SourceHydrator.DrySource.Path,
 		TargetRevision: app.Spec.SourceHydrator.DrySource.TargetRevision,
+		Helm:           app.Spec.SourceHydrator.DrySource.Helm,
+		Kustomize:      app.Spec.SourceHydrator.DrySource.Kustomize,
+		Directory:      app.Spec.SourceHydrator.DrySource.Directory,
+		Plugin:         app.Spec.SourceHydrator.DrySource.Plugin,
 	}
 	if targetRevision == "" {
 		targetRevision = app.Spec.SourceHydrator.DrySource.TargetRevision
