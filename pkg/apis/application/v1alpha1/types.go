@@ -3657,17 +3657,11 @@ func (c *Cluster) RawRestConfig() (*rest.Config, error) {
 
 	switch {
 	case c.Server == KubernetesInternalAPIServerAddr && env.ParseBoolFromEnv(EnvVarFakeInClusterConfig, false):
-		conf, exists := os.LookupEnv("KUBECONFIG")
-		if exists {
-			config, err = clientcmd.BuildConfigFromFlags("", conf)
-		} else {
-			var homeDir string
-			homeDir, err = os.UserHomeDir()
-			if err != nil {
-				homeDir = ""
-			}
-			config, err = clientcmd.BuildConfigFromFlags("", filepath.Join(homeDir, ".kube", "config"))
-		}
+		loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
+		config, err = clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
+			loadingRules,
+			&clientcmd.ConfigOverrides{},
+		).ClientConfig()
 	case c.Server == KubernetesInternalAPIServerAddr && c.Config.Username == "" && c.Config.Password == "" && c.Config.BearerToken == "":
 		config, err = rest.InClusterConfig()
 	case c.Server == KubernetesInternalAPIServerAddr:
