@@ -1010,7 +1010,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 			},
 		},
 		{
-			name: "Ensure that argocd post-delete finalizers are preserved from an existing app",
+			name: "Ensure that argocd pre-delete and post-delete finalizers are preserved from an existing app",
 			appSet: v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
@@ -1035,8 +1035,11 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 						Namespace:       "namespace",
 						ResourceVersion: "2",
 						Finalizers: []string{
+							"non-argo-finalizer",
+							v1alpha1.PreDeleteFinalizerName,
+							v1alpha1.PreDeleteFinalizerName + "/stage1",
 							v1alpha1.PostDeleteFinalizerName,
-							v1alpha1.PostDeleteFinalizerName + "/mystage",
+							v1alpha1.PostDeleteFinalizerName + "/stage2",
 						},
 					},
 					Spec: v1alpha1.ApplicationSpec{
@@ -1064,10 +1067,12 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name:            "app1",
 						Namespace:       "namespace",
-						ResourceVersion: "2",
+						ResourceVersion: "3",
 						Finalizers: []string{
+							v1alpha1.PreDeleteFinalizerName,
+							v1alpha1.PreDeleteFinalizerName + "/stage1",
 							v1alpha1.PostDeleteFinalizerName,
-							v1alpha1.PostDeleteFinalizerName + "/mystage",
+							v1alpha1.PostDeleteFinalizerName + "/stage2",
 						},
 					},
 					Spec: v1alpha1.ApplicationSpec{
