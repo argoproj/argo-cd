@@ -100,6 +100,12 @@ data:
   # will increase the speed at which Argo CD becomes aware of external cluster state. A higher value will reduce cluster
   # cache lock contention and better handle high-churn clusters.
   controller.cluster.cache.events.processing.interval: "100ms"
+  # Enables incremental namespace sync in cluster cache for performance optimization. When enabled, only changed
+  # namespaces are synced instead of performing a full cluster cache rebuild. This significantly improves sync
+  # performance for clusters with many namespaces. (default "false")
+  #
+  # Feature state: Alpha (since v3.3.0)
+  controller.incremental.namespace.sync.enabled: "false"
 
   ## Server properties
   # Listen on given address for incoming connections (default "0.0.0.0")

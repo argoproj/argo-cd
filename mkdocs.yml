@@ -51,6 +51,7 @@ nav:
   - operator-manual/tls.md
   - operator-manual/cluster-management.md
   - operator-manual/cluster-bootstrapping.md
+  - operator-manual/incremental-namespace-sync.md
   - operator-manual/secret-management.md
   - operator-manual/disaster_recovery.md
   - operator-manual/reconcile.md
