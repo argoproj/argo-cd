@@ -12,12 +12,14 @@ data:
   # Commit server address. (default "argocd-commit-server:8086")
   commit.server: "argocd-commit-server:8086"
 
-  # Redis server hostname and port (e.g. argocd-redis:6379)
+  # Redis server hostname and port (e.g. argocd-redis:6379); comma-separated for Redis cluster (e.g. argocd-redis1:6379,argocd-redis2:6379)
   redis.server: "argocd-redis:6379"
-  # Enable compression for data sent to Redis with the required compression algorithm. (default 'gzip')
+  # Enable compression for data sent to Redis with the required compression algorithm. (default "gzip")
   redis.compression: gzip
   # Redis database
-  redis.db:
+  redis.db: ""
+  # Enable Redis cluster mode (default "false")
+  redis.cluster.mode: "false"
 
   # Enables the alpha "manifest hydrator" feature. (default "false")
   hydrator.enabled: "false"
