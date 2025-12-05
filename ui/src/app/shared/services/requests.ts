@@ -22,6 +22,8 @@ enum ReadyState {
     DONE = 4
 }
 
+const EVENT_SOURCE_ZOMBIE_THRESHOLD = 2 * 60 * 1000;
+
 let baseHRef = '/';
 
 const onError = new BehaviorSubject<agent.ResponseError>(null);
@@ -37,6 +39,29 @@ function apiRoot(): string {
 function initHandlers(req: agent.Request) {
     req.on('error', err => onError.next(err));
     return req;
+}
+
+export function initVisibilityRecovery(getEventSource: () => EventSource | null, getLastMessage: () => number, triggerReconnect: () => void) {
+    if (typeof document === 'undefined' || typeof document.addEventListener !== 'function') {
+        return null;
+    }
+    const handler = () => {
+        if (document.visibilityState !== 'visible') {
+            return;
+        }
+        const source = getEventSource();
+        if (!source) {
+            return;
+        }
+        const now = Date.now();
+        const lastMessage = getLastMessage();
+        const isStale = now - lastMessage > EVENT_SOURCE_ZOMBIE_THRESHOLD;
+        if (source.readyState !== ReadyState.OPEN || isStale) {
+            triggerReconnect();
+        }
+    };
+    document.addEventListener('visibilitychange', handler);
+    return () => document.removeEventListener('visibilitychange', handler);
 }
 
 export default {
@@ -71,6 +96,8 @@ export default {
             const fullUrl = `${apiRoot()}${url}`;
 
             const abortController = new AbortController();
+            let visibilityCleanup: (() => void) | null = null;
+            let lastMessageTime = Date.now();
 
             // If there is an error, show it beforehand
             fetch(fullUrl, {signal: abortController.signal})
@@ -89,11 +116,25 @@ export default {
                 });
 
             let eventSource = new EventSource(fullUrl);
-            eventSource.onmessage = msg => observer.next(msg.data);
+            eventSource.onmessage = msg => {
+                lastMessageTime = Date.now();
+                observer.next(msg.data);
+            };
             eventSource.onerror = e => () => {
                 observer.error(e);
                 onError.next(e);
             };
+
+            visibilityCleanup = initVisibilityRecovery(
+                () => eventSource,
+                () => lastMessageTime,
+                () => {
+                    if (eventSource) {
+                        eventSource.close();
+                    }
+                    observer.error('event source not open after visibility change');
+                }
+            );
 
             // EventSource does not provide easy way to get notification when connection closed.
             // check readyState periodically instead.
@@ -104,6 +145,10 @@ export default {
             }, 500);
             return () => {
                 clearInterval(interval);
+                if (visibilityCleanup) {
+                    visibilityCleanup();
+                    visibilityCleanup = null;
+                }
                 eventSource.close();
                 abortController.abort();
                 eventSource = null;
