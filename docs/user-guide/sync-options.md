@@ -433,6 +433,14 @@ spec:
     - CreateNamespace=true
 ```
 
+When you set the tracking annotation using templating variables (via `managedNamespaceMetadata`) to ensure a predictable tracking ID format, that namespace becomes *owned* by Argo CD for the purpose of tracking application resources. Once a namespace is owned by Argo CD, it will be fully managed by ArgoCD, including continuous tracking of all application resources associated with it, like the example below:
+
+```yaml
+managedNamespaceMetadata:
+annotations:
+argocd.argoproj.io/tracking-id: "{{.app-name}}:/Namespace:/{{ .namespace-name }}" # my-app:/Namespace:/test-namespace
+```
+
 In the case where Argo CD is "adopting" an existing namespace which already has metadata set on it, you should first
 [upgrade the resource to server-side apply](https://kubernetes.io/docs/reference/using-api/server-side-apply/#upgrading-from-client-side-apply-to-server-side-apply)
 before enabling `managedNamespaceMetadata`. Argo CD relies on `kubectl`, which does not support managing
