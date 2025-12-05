@@ -143,7 +143,7 @@ type ClusterEvent struct {
 func (db *db) WatchClusters(ctx context.Context,
 	handleAddEvent func(cluster *appv1.Cluster),
 	handleModEvent func(oldCluster *appv1.Cluster, newCluster *appv1.Cluster),
-	handleDeleteEvent func(clusterServer string),
+	handleDeleteEvent func(clusterServerName string),
 ) error {
 	argoSettings, err := db.settingsMgr.GetSettings()
 	if err != nil {
@@ -204,7 +204,7 @@ func (db *db) WatchClusters(ctx context.Context,
 				handleModEvent(localCls, newLocalCls)
 				localCls = newLocalCls
 			} else {
-				handleDeleteEvent(string(secret.Data["server"]))
+				handleDeleteEvent(string(secret.Data["server"]) + string(secret.Data["name"]))
 			}
 		},
 	)
