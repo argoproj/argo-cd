@@ -19,6 +19,7 @@ export interface FilterResult {
     clusters: boolean;
     favourite: boolean;
     labels: boolean;
+    annotations: boolean;
 }
 
 export interface FilteredApp extends Application {
@@ -54,7 +55,14 @@ export function getFilterResults(applications: Application[], pref: AppsListPref
                         return (inputMatch && inputMatch[0] === app.spec.destination.server) || (app.spec.destination.name && minimatch(app.spec.destination.name, filterString));
                     }
                 }),
-            labels: pref.labelsFilter.length === 0 || pref.labelsFilter.every(selector => LabelSelector.match(selector, app.metadata.labels))
+            labels: pref.labelsFilter.length === 0 || pref.labelsFilter.every(selector => LabelSelector.match(selector, app.metadata.labels)),
+            annotations:
+                pref.annotationsFilter.length === 0 ||
+                pref.annotationsFilter.every(selector => {
+                    const [key, value] = selector.split('=');
+                    const annotations = app.metadata.annotations || {};
+                    return annotations[key] === value;
+                })
         }
     }));
 }
@@ -156,6 +164,40 @@ const LabelsFilter = (props: AppFilterProps) => {
     });
 
     return <Filter label='LABELS' selected={props.pref.labelsFilter} setSelected={s => props.onChange({...props.pref, labelsFilter: s})} field={true} options={labelOptions} />;
+};
+
+const AnnotationsFilter = (props: AppFilterProps) => {
+    const annotations = new Map<string, Set<string>>();
+    props.apps
+        .filter(app => app.metadata && app.metadata.annotations)
+        .forEach(app =>
+            Object.keys(app.metadata.annotations).forEach(annotation => {
+                let values = annotations.get(annotation);
+                if (!values) {
+                    values = new Set<string>();
+                    annotations.set(annotation, values);
+                }
+                values.add(app.metadata.annotations[annotation]);
+            })
+        );
+    const suggestions = new Array<string>();
+    Array.from(annotations.entries()).forEach(([annotation, values]) => {
+        suggestions.push(annotation);
+        values.forEach(val => suggestions.push(`${annotation}=${val}`));
+    });
+    const annotationOptions = suggestions.map(s => {
+        return {label: s};
+    });
+
+    return (
+        <Filter
+            label='ANNOTATIONS'
+            selected={props.pref.annotationsFilter}
+            setSelected={s => props.onChange({...props.pref, annotationsFilter: s})}
+            field={true}
+            options={annotationOptions}
+        />
+    );
 };
 
 const ProjectFilter = (props: AppFilterProps) => {
@@ -282,6 +324,7 @@ export const ApplicationsFilter = (props: AppFilterProps) => {
             <SyncFilter {...props} />
             <HealthFilter {...props} />
             <LabelsFilter {...props} />
+            <AnnotationsFilter {...props} />
             <ProjectFilter {...props} />
             <ClusterFilter {...props} />
             <NamespaceFilter {...props} />
