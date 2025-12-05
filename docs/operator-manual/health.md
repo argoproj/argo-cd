@@ -16,8 +16,13 @@ with at least one value for `hostname` or `IP`.
 ### Ingress
 * The `status.loadBalancer.ingress` list is non-empty, with at least one value for `hostname` or `IP`.
 
+### CronJob
+* If the last scheduled job for this CronJob failed, the CronJob will be marked as "Degraded"
+* If the last scheduled job for this CronJob is running, the CronJob will be marked as "Progressing"
+
 ### Job
 * If job `.spec.suspended` is set to 'true', then the job and app health will be marked as suspended.
+
 ### PersistentVolumeClaim
 * The `status.phase` is `Bound`
 

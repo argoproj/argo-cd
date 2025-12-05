@@ -82,7 +82,7 @@ func (b *BitbucketService) List(_ context.Context) ([]*PullRequest, error) {
 
 		for _, pull := range pulls {
 			pullRequests = append(pullRequests, &PullRequest{
-				Number:       pull.ID,
+				Number:       int64(pull.ID),
 				Title:        pull.Title,
 				Branch:       pull.FromRef.DisplayID, // ID: refs/heads/main DisplayID: main
 				TargetBranch: pull.ToRef.DisplayID,
