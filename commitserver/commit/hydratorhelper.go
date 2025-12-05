@@ -79,10 +79,6 @@ func WriteForPaths(root *os.Root, repoUrl, drySha string, dryCommitMetadata *app
 		}
 
 		if !changed {
-			err = deleteManifest(root, hydratePath)
-			if err != nil {
-				return false, fmt.Errorf("failed to delete the un-changed manifest: %w", err)
-			}
 			continue
 		}
 		//  If any manifest has changed, signal that a commit should occur. If none have changed, skip committing.
@@ -216,17 +212,6 @@ func writeManifests(root *os.Root, dirPath string, manifests []*apiclient.Hydrat
 		if err != nil {
 			return fmt.Errorf("failed to encode manifest: %w", err)
 		}
-	}
-	return nil
-}
-
-// deleteManifest attempts to remove the "manifest.yaml" file located in the specified directory path
-// within the given os.Root abstraction. If the file removal fails, it returns a wrapped error with context.
-// This helper is used to clean up files which are written to disk but are still un-staged and a similar file exists in index.
-func deleteManifest(root *os.Root, dirPath string) error {
-	manifestPath := filepath.Join(dirPath, ManifestYaml)
-	if err := root.Remove(manifestPath); err != nil {
-		return fmt.Errorf("failed to remove manifest: %w", err)
 	}
 	return nil
 }

@@ -16,7 +16,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/sys/unix"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-cd/v3/commitserver/apiclient"
@@ -232,8 +231,7 @@ Argocd-reference-commit-sha: abc123
 			assert.DirExists(t, fullHydratePath)
 			manifestPath := path.Join(fullHydratePath, "manifest.yaml")
 			_, err := os.ReadFile(manifestPath)
-			require.Error(t, err)
-			require.ErrorIs(t, err, unix.ENOENT, "expected ENOENT error, got: %v", err)
+			require.NoError(t, err)
 			continue
 		}
 		// Check if each path directory exists
@@ -356,29 +354,6 @@ func TestWriteGitAttributes(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, string(gitAttributesBytes), "*/README.md linguist-generated=true")
 	assert.Contains(t, string(gitAttributesBytes), "*/hydrator.metadata linguist-generated=true")
-}
-
-func TestDeleteManifest(t *testing.T) {
-	root := tempRoot(t)
-	manifests := []*apiclient.HydratedManifestDetails{
-		{ManifestJSON: `{"kind":"Pod","apiVersion":"v1"}`},
-	}
-	err := writeManifests(root, "", manifests)
-	require.NoError(t, err)
-	err = deleteManifest(root, "")
-	assert.NoError(t, err)
-}
-
-func TestDeleteManifest_FileNotExist(t *testing.T) {
-	root := tempRoot(t)
-	manifests := []*apiclient.HydratedManifestDetails{
-		{ManifestJSON: `{"kind":"Pod","apiVersion":"v1"}`},
-	}
-	err := writeManifests(root, "", manifests)
-	require.NoError(t, err)
-	err = deleteManifest(root, "path1")
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "no such file or directory")
 }
 
 func TestIsHydrated(t *testing.T) {
