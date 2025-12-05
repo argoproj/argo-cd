@@ -11,7 +11,7 @@ So you can just use them instead of reinventing new ones.
 * Install Triggers and Templates from the catalog
 
     ```bash
-    kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/notifications_catalog/install.yaml
+    kubectl apply -n argocd --server-side -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/notifications_catalog/install.yaml
     ```
 
 * Add email username and password token to the `argocd-notifications-secret` secret
