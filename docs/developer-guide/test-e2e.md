@@ -55,6 +55,14 @@ Some effort has been made to balance test isolation with speed. Tests are isolat
 * A namespace `argocd-e2e-ns-${id}`.
 * A primary name for the app `argocd-e2e-${id}`.
 
+## Run only a subset of tests
+
+Running all tests locally is a time-consuming process. To run only a subset of tests, you can set the `TEST_MODULE` environment variable. 
+For example, to run only the OCI tests, you can set the variable as follows: `make TEST_MODULE=./test/e2e/oci_test.go test-e2e-local` 
+
+If you want to get a more fine-grained control over which tests to run, you can also try `make TEST_FLAGS="-run <TEST_METHOD_NAME_REGEXP>" test-e2e-local`
+For individual tests you can run them using the IDE run test feature 
+    
 ## Troubleshooting
 
 **Tests fails to delete `argocd-e2e-ns-*` namespaces.**
