@@ -142,12 +142,13 @@ function reduceGlobal(projs: Project[]): ProjectSpec & {count: number} {
     );
 }
 
-export const ProjectDetails: React.FC<RouteComponentProps<{name: string}>> = props => {
+export const ProjectDetails: React.FC<RouteComponentProps<{name: string}> & {objectListKind?: string}> = props => {
     const [token, setToken] = React.useState('');
     const projectRoleFormApi = React.useRef<FormApi>(null);
     const projectSyncWindowsFormApi = React.useRef<FormApi>(null);
     const loader = React.useRef<DataLoader>(null);
     const ctx = React.useContext(Context) as ContextApis;
+    const objectListKind = props.objectListKind || 'application';
 
     const deleteJWTToken = async (params: DeleteJWTTokenParams, notifications: NotificationsApi) => {
         try {
@@ -356,7 +357,7 @@ export const ProjectDetails: React.FC<RouteComponentProps<{name: string}>> = pro
                             title: 'APPLICATIONS',
                             view: (
                                 <div>
-                                    <DataLoader load={() => services.applications.list([proj.metadata.name])}>
+                                    <DataLoader load={() => services.applications.list([proj.metadata.name], objectListKind)}>
                                         {apps => <Link to={'/applications?proj=' + proj.metadata.name}>{apps.items.length}</Link>}
                                     </DataLoader>
                                 </div>
