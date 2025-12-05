@@ -22,9 +22,9 @@ else
     # Run Redis in a Docker container with password if defined
     if [ -z "$REDIS_PASSWORD" ]; then
         echo "Starting Docker container without password."
-        docker run --rm --name argocd-redis -i -p "$REDIS_PORT:$REDIS_PORT" docker.io/library/redis:"$REDIS_IMAGE_TAG" --save '' --appendonly no --port "$REDIS_PORT"
+        $DOCKER run --rm --name argocd-redis -i -p "$REDIS_PORT:$REDIS_PORT" docker.io/library/redis:"$REDIS_IMAGE_TAG" --save '' --appendonly no --port "$REDIS_PORT"
     else
         echo "Starting Docker container with password."
-        docker run --rm --name argocd-redis -i -p "$REDIS_PORT:$REDIS_PORT" -e REDIS_PASSWORD="$REDIS_PASSWORD" docker.io/library/redis:"$REDIS_IMAGE_TAG" redis-server --save '' --requirepass "$REDIS_PASSWORD" --appendonly no --port "$REDIS_PORT"
+        $DOCKER run --rm --name argocd-redis -i -p "$REDIS_PORT:$REDIS_PORT" -e REDIS_PASSWORD="$REDIS_PASSWORD" docker.io/library/redis:"$REDIS_IMAGE_TAG" redis-server --save '' --requirepass "$REDIS_PASSWORD" --appendonly no --port "$REDIS_PORT"
     fi
 fi
