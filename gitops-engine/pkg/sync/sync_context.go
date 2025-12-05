@@ -615,9 +615,21 @@ func (sc *syncContext) filterOutOfSyncTasks(tasks syncTasks) syncTasks {
 			return true
 		}
 
-		if modified, ok := sc.modificationResult[t.resourceKey()]; !modified && ok && t.targetObj != nil && t.liveObj != nil {
-			sc.log.WithValues("resource key", t.resourceKey()).V(1).Info("Skipping as resource was not modified")
-			return false
+		if t.targetObj != nil && t.liveObj != nil {
+			// Primary check: use precomputed diff map
+			if modified, ok := sc.modificationResult[t.resourceKey()]; ok {
+				if !modified {
+					sc.log.WithValues("resource key", t.resourceKey()).V(1).Info("Skipping as resource was not modified")
+					return false
+				}
+			} else {
+				// Fallback: if no entry exists for this resource (e.g., key mismatch),
+				// compute a lightweight diff inline to avoid unnecessarily applying.
+				if r, err := diff.Diff(t.targetObj, t.liveObj); err == nil && !r.Modified {
+					sc.log.WithValues("resource key", t.resourceKey()).V(1).Info("Skipping as resource was not modified (fallback diff)")
+					return false
+				}
+			}
 		}
 		return true
 	})
