@@ -8305,9 +8305,21 @@
       "description": "DrySource specifies a location for dry \"don't repeat yourself\" manifest source information.",
       "type": "object",
       "properties": {
+        "directory": {
+          "$ref": "#/definitions/v1alpha1ApplicationSourceDirectory"
+        },
+        "helm": {
+          "$ref": "#/definitions/v1alpha1ApplicationSourceHelm"
+        },
+        "kustomize": {
+          "$ref": "#/definitions/v1alpha1ApplicationSourceKustomize"
+        },
         "path": {
           "type": "string",
           "title": "Path is a directory path within the Git repository where the manifests are located"
+        },
+        "plugin": {
+          "$ref": "#/definitions/v1alpha1ApplicationSourcePlugin"
         },
         "repoURL": {
           "type": "string",

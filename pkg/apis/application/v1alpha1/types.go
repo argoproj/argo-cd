@@ -431,7 +431,7 @@ func (s SourceHydrator) GetDrySource() ApplicationSource {
 
 // DeepEquals returns true if the SourceHydrator is deeply equal to the given SourceHydrator.
 func (s SourceHydrator) DeepEquals(hydrator SourceHydrator) bool {
-	return s.DrySource == hydrator.DrySource && s.SyncSource == hydrator.SyncSource && s.HydrateTo.DeepEquals(hydrator.HydrateTo)
+	return s.DrySource.Equals(hydrator.DrySource) && s.SyncSource == hydrator.SyncSource && s.HydrateTo.DeepEquals(hydrator.HydrateTo)
 }
 
 // DrySource specifies a location for dry "don't repeat yourself" manifest source information.
@@ -442,6 +442,28 @@ type DrySource struct {
 	TargetRevision string `json:"targetRevision" protobuf:"bytes,2,name=targetRevision"`
 	// Path is a directory path within the Git repository where the manifests are located
 	Path string `json:"path" protobuf:"bytes,3,name=path"`
+	// Helm specifies helm specific options
+	Helm *ApplicationSourceHelm `json:"helm,omitempty" protobuf:"bytes,4,opt,name=helm"`
+	// Kustomize specifies kustomize specific options
+	Kustomize *ApplicationSourceKustomize `json:"kustomize,omitempty" protobuf:"bytes,5,opt,name=kustomize"`
+	// Directory specifies path/directory specific options
+	Directory *ApplicationSourceDirectory `json:"directory,omitempty" protobuf:"bytes,6,opt,name=directory"`
+	// Plugin specifies config management plugin specific options
+	Plugin *ApplicationSourcePlugin `json:"plugin,omitempty" protobuf:"bytes,7,opt,name=plugin"`
+}
+
+func (in DrySource) Equals(other DrySource) bool {
+	// Equals compares two instances of ApplicationSource and return true if instances are equal.
+	if !in.Plugin.Equals(other.Plugin) {
+		return false
+	}
+	// reflect.DeepEqual works fine for the other fields. Since the plugin fields are equal, set them to null so they're
+	// not considered in the DeepEqual comparison.
+	sourceCopy := in
+	otherCopy := other
+	sourceCopy.Plugin = nil
+	otherCopy.Plugin = nil
+	return reflect.DeepEqual(sourceCopy, otherCopy)
 }
 
 // SyncSource specifies a location from which hydrated manifests may be synced. RepoURL is assumed based on the
