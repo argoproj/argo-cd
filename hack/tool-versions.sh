@@ -12,6 +12,6 @@
 # add-kustomize-checksums.sh to help download checksums.
 ###############################################################################
 helm3_version=3.19.2
-kustomize5_version=5.7.1
+kustomize5_version=5.8.0
 protoc_version=29.3
 oras_version=1.2.0

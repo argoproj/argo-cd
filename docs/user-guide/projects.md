@@ -128,9 +128,37 @@ Permitted destination K8s resource kinds are managed with the commands. Note tha
 
 ```bash
 argocd proj allow-cluster-resource <PROJECT> <GROUP> <KIND>
-argocd proj allow-namespace-resource <PROJECT> <GROUP> <KIND>
+argocd proj allow-namespace-resource <PROJECT> <GROUP> <KIND> [<NAME>]
 argocd proj deny-cluster-resource <PROJECT> <GROUP> <KIND>
-argocd proj deny-namespace-resource <PROJECT> <GROUP> <KIND>
+argocd proj deny-namespace-resource <PROJECT> <GROUP> <KIND> [<NAME>]
+```
+
+#### Restrict Cluster-Scoped Resources by Name
+
+Since the names of certain cluster-scoped resources such as Namespaces and CustomResourceDefinitions (CRDs) have special
+significance, it can be useful to allow only specific resources of these kinds. For example, the following AppProject
+config allows only namespaces starting with `team1-`:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+spec:
+  clusterResourceWhitelist:
+  - group: ''
+    kind: Namespace
+    name: team1-*
+```
+
+It is also possible to deny specific names of cluster-scoped resources.
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+spec:
+  clusterResourceBlacklist:
+  - group: ''
+    kind: Namespace
+    name: kube-*
 ```
 
 ### Assign Application To A Project

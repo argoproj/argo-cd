@@ -922,7 +922,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		}
 		// set unknown status to all resource that are not permitted in the app project
 		isNamespaced, err := m.liveStateCache.IsNamespaced(destCluster, gvk.GroupKind())
-		if !project.IsGroupKindPermitted(gvk.GroupKind(), isNamespaced && err == nil) {
+		if !project.IsGroupKindNamePermitted(gvk.GroupKind(), obj.GetName(), isNamespaced && err == nil) {
 			resState.Status = v1alpha1.SyncStatusCodeUnknown
 		}
 
