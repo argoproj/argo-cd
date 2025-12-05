@@ -2738,6 +2738,9 @@ message SyncWindow {
 
   // Description of the sync that will be applied to the schedule, can be used to add any information such as a ticket number for example
   optional string description = 10;
+
+  // SyncOverrun allows syncs that started before this deny window to continue running
+  optional bool syncOverrun = 11;
 }
 
 // TLSClientConfig contains settings to enable transport layer security
