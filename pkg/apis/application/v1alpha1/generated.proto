@@ -1270,8 +1270,8 @@ message HydrateOperation {
   optional SourceHydrator sourceHydrator = 7;
 }
 
-// HydrateTo specifies a location to which hydrated manifests should be pushed as a "staging area" before being moved to
-// the SyncSource. The RepoURL and Path are assumed based on the associated SyncSource config in the SourceHydrator.
+// HydrateTo specifies a branch to which hydrated manifests should be pushed as a "staging area" before being moved to
+// the SyncSource. The repository and path are inherited from SyncSource.
 message HydrateTo {
   // TargetBranch is the branch to which hydrated manifests should be committed
   optional string targetBranch = 1;
@@ -2668,8 +2668,8 @@ message SyncPolicyAutomated {
   optional bool enabled = 4;
 }
 
-// SyncSource specifies a location from which hydrated manifests may be synced. RepoURL is assumed based on the
-// associated DrySource config in the SourceHydrator.
+// SyncSource specifies a location from which hydrated manifests may be synced. If RepoURL is not set, it is assumed
+// to be the same as the associated DrySource config in the SourceHydrator.
 message SyncSource {
   // TargetBranch is the branch from which hydrated manifests will be synced.
   // If HydrateTo is not set, this is also the branch to which hydrated manifests are committed.
@@ -2683,6 +2683,10 @@ message SyncSource {
   // +kubebuilder:validation:MinLength=1
   // +kubebuilder:validation:Pattern=`^.{2,}|[^./]$`
   optional string path = 2;
+
+  // RepoURL is the URL to the git repository that contains the hydrated manifests. If not set, defaults to
+  // the DrySource.RepoURL.
+  optional string repoURL = 3;
 }
 
 // SyncStatus contains information about the currently observed live and desired states of an application

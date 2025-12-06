@@ -227,6 +227,7 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                                 type={''}
                                 revision={application.status.sourceHydrator.currentOperation.drySHA}
                                 versionId={utils.getAppCurrentVersion(application)}
+                                sourceType='dry'
                             />
                         )}
                     </div>
@@ -267,6 +268,7 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                                 type={revisionType}
                                 revision={revision}
                                 versionId={utils.getAppCurrentVersion(application)}
+                                sourceType={application.spec.sourceHydrator ? 'hydrated' : null}
                             />
                         </div>
                     )}
@@ -308,6 +310,7 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                             type={revisionType}
                             revision={operationStateRevision}
                             versionId={utils.getAppCurrentVersion(application)}
+                            sourceType={application.spec.sourceHydrator ? 'hydrated' : null}
                         />
                     )) || <div className='application-status-panel__item-name'>{appOperationState.message}</div>}
                 </div>

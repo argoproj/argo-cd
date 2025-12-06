@@ -976,8 +976,10 @@ export function syncStatusMessage(app: appModels.Application) {
 export function hydrationStatusMessage(app: appModels.Application) {
     const drySource = app.status.sourceHydrator.currentOperation.sourceHydrator.drySource;
     const dryCommit = app.status.sourceHydrator.currentOperation.drySHA;
+    // When syncSource.repoURL is set, use it; otherwise fall back to drySource.repoURL
+    const syncSourceRepoURL = app.status.sourceHydrator.currentOperation.sourceHydrator.syncSource.repoURL || drySource.repoURL;
     const syncSource: ApplicationSource = {
-        repoURL: drySource.repoURL,
+        repoURL: syncSourceRepoURL,
         targetRevision:
             app.status.sourceHydrator.currentOperation.sourceHydrator.hydrateTo?.targetBranch || app.status.sourceHydrator.currentOperation.sourceHydrator.syncSource.targetBranch,
         path: app.status.sourceHydrator.currentOperation.sourceHydrator.syncSource.path
@@ -1510,8 +1512,10 @@ export function getAppDefaultOperationSyncRevisionExtra(app?: appModels.Applicat
 
 export function getAppSpecDefaultSource(spec: appModels.ApplicationSpec) {
     if (spec.sourceHydrator) {
+        // When syncSource.repoURL is set, use it; otherwise fall back to drySource.repoURL
+        const repoURL = spec.sourceHydrator.syncSource.repoURL || spec.sourceHydrator.drySource.repoURL;
         return {
-            repoURL: spec.sourceHydrator.drySource.repoURL,
+            repoURL: repoURL,
             targetRevision: spec.sourceHydrator.syncSource.targetBranch,
             path: spec.sourceHydrator.syncSource.path
         };
