@@ -52,6 +52,53 @@ func testHookSuccessful(t *testing.T, hookType HookType) {
 		Expect(ResourceResultIs(ResourceResult{Version: "v1", Kind: "Pod", Namespace: DeploymentNamespace(), Images: []string{"quay.io/argoprojlabs/argocd-e2e-container:0.1"}, Name: "hook", Message: "pod/hook created", HookType: hookType, HookPhase: OperationSucceeded, SyncPhase: SyncPhase(hookType)}))
 }
 
+func TestPreDeleteHook(t *testing.T) {
+	Given(t).
+		Path("pre-delete-hook").
+		When().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(_ *Application) {
+			_, err := KubeClientset.CoreV1().ConfigMaps(DeploymentNamespace()).Get(
+				t.Context(), "guestbook-ui", metav1.GetOptions{},
+			)
+			require.NoError(t, err)
+		}).
+		When().
+		Delete(true).
+		Then().
+		Expect(DoesNotExist()).
+		Expect(NotPod(func(p corev1.Pod) bool {
+			return p.Name == "hook"
+		}))
+}
+
+func TestPreDeleteHookFailureAndRetry(t *testing.T) {
+	Given(t).
+		Path("pre-delete-hook").
+		When().
+		// Patch hook to make it fail
+		PatchFile("hook.yaml", `[{"op": "replace", "path": "/spec/containers/0/command/0", "value": "false"}]`).
+		CreateApp().
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		When().
+		Delete(false). // Non-blocking delete
+		Then().
+		// App should still exist because pre-delete hook failed
+		Expect(Condition(ApplicationConditionDeletionError, "")).
+		When().
+		// Fix the hook by patching it to succeed
+		PatchFile("hook.yaml", `[{"op": "replace", "path": "/spec/containers/0/command", "value": ["sleep", "3"]}]`).
+		Refresh(RefreshTypeNormal).
+		Then().
+		// After fixing the hook, deletion should eventually succeed
+		Expect(DoesNotExist())
+}
+
 func TestPostDeleteHook(t *testing.T) {
 	Given(t).
 		Path("post-delete-hook").
@@ -61,12 +108,9 @@ func TestPostDeleteHook(t *testing.T) {
 		Delete(true).
 		Then().
 		Expect(DoesNotExist()).
-		AndAction(func() {
-			hooks, err := KubeClientset.CoreV1().Pods(DeploymentNamespace()).List(t.Context(), metav1.ListOptions{})
-			require.NoError(t, err)
-			assert.Len(t, hooks.Items, 1)
-			assert.Equal(t, "hook", hooks.Items[0].Name)
-		})
+		Expect(Pod(func(p corev1.Pod) bool {
+			return p.Name == "hook"
+		}))
 }
 
 // make sure that hooks do not appear in "argocd app diff"

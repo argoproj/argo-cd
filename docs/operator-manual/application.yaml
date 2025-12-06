@@ -283,3 +283,17 @@ spec:
   # circumstances. Setting to zero will store no history. This will reduce storage used. Increasing will increase the
   # space used to store the history, so we do not recommend increasing it.
   revisionHistoryLimit: 10
+
+  # sourceHydrator enables manifest hydration from a dry source to a sync source branch.
+  # The drySource.helm, drySource.kustomize, drySource.directory, and drySource.plugin fields
+  # are available and follow the same spec as the source field above.
+  sourceHydrator:
+    drySource:
+      repoURL: https://github.com/argoproj/argocd-example-apps.git
+      targetRevision: HEAD
+      path: guestbook
+      # helm, kustomize, directory, and plugin fields are available here.
+      # See the source.helm, source.kustomize, source.directory, and source.plugin sections above for details.
+    syncSource:
+      targetBranch: env/prod
+      path: guestbook-hydrated

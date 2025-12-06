@@ -176,6 +176,16 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return ctrl.Result{}, err
 	}
 
+	// ensure finalizer exists if deletionOrder is set as Reverse
+	if r.EnableProgressiveSyncs && isProgressiveSyncDeletionOrderReversed(&applicationSetInfo) {
+		if !controllerutil.ContainsFinalizer(&applicationSetInfo, argov1alpha1.ResourcesFinalizerName) {
+			controllerutil.AddFinalizer(&applicationSetInfo, argov1alpha1.ResourcesFinalizerName)
+			if err := r.Update(ctx, &applicationSetInfo); err != nil {
+				return ctrl.Result{}, err
+			}
+		}
+	}
+
 	// Log a warning if there are unrecognized generators
 	_ = utils.CheckInvalidGenerators(&applicationSetInfo)
 	// desiredApplications is the main list of all expected Applications from all generators in this appset.
