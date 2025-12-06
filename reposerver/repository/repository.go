@@ -118,6 +118,7 @@ type RepoServerInitConstants struct {
 	IncludeHiddenDirectories                     bool
 	CMPUseManifestGeneratePaths                  bool
 	EnableBuiltinGitConfig                       bool
+	HelmUserAgent                                string
 }
 
 var manifestGenerateLock = sync.NewKeyLock()
@@ -140,6 +141,10 @@ func NewService(metricsServer *metrics.MetricsServer, cache *cache.Cache, initCo
 		newGitClient:              git.NewClientExt,
 		newOCIClient:              oci.NewClient,
 		newHelmClient: func(repoURL string, creds helm.Creds, enableOci bool, proxy string, noProxy string, opts ...helm.ClientOpts) helm.Client {
+			// Add User-Agent option if configured
+			if initConstants.HelmUserAgent != "" {
+				opts = append(opts, helm.WithUserAgent(initConstants.HelmUserAgent))
+			}
 			return helm.NewClientWithLock(repoURL, creds, sync.NewKeyLock(), enableOci, proxy, noProxy, opts...)
 		},
 		initConstants:      initConstants,

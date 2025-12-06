@@ -660,11 +660,30 @@ entries: {}
 }
 
 func TestUserAgentPriority(t *testing.T) {
-	t.Run("Environment variable User-Agent takes priority over default", func(t *testing.T) {
-		// Set environment variable
-		envUserAgent := "EnvVar/1.0 (from-environment)"
-		t.Setenv("ARGOCD_HELM_USER_AGENT", envUserAgent)
+	t.Run("Custom User-Agent set via WithUserAgent option", func(t *testing.T) {
+		// Create a test server that captures the User-Agent header
+		receivedUserAgent := ""
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			receivedUserAgent = r.Header.Get("User-Agent")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`apiVersion: v1
+entries: {}
+`))
+		}))
+		defer ts.Close()
 
+		// Set custom User-Agent using WithUserAgent option
+		customUA := "CustomAgent/1.0 (test)"
+		client := NewClient(ts.URL, HelmCreds{}, false, "", "", WithUserAgent(customUA))
+		_, err := client.GetIndex(false, 10000)
+		require.NoError(t, err)
+
+		// Verify custom User-Agent was used
+		assert.Equal(t, customUA, receivedUserAgent, "Custom User-Agent should be used when set")
+		t.Logf("Custom User-Agent sent: %s", receivedUserAgent)
+	})
+
+	t.Run("Default User-Agent used when no custom value provided", func(t *testing.T) {
 		// Create a test server that captures the User-Agent header
 		receivedUserAgent := ""
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -677,57 +696,6 @@ entries: {}
 		defer ts.Close()
 
 		// Create client without custom User-Agent
-		client := NewClient(ts.URL, HelmCreds{}, false, "", "")
-		_, err := client.GetIndex(false, 10000)
-		require.NoError(t, err)
-
-		// Verify environment variable User-Agent was used
-		assert.Equal(t, envUserAgent, receivedUserAgent, "Environment variable User-Agent should be used")
-		t.Logf("Environment variable User-Agent sent: %s", receivedUserAgent)
-	})
-
-	t.Run("Code-level WithUserAgent takes priority over environment variable", func(t *testing.T) {
-		// Set environment variable
-		t.Setenv("ARGOCD_HELM_USER_AGENT", "EnvVar/1.0 (should-be-overridden)")
-
-		// Create a test server that captures the User-Agent header
-		receivedUserAgent := ""
-		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			receivedUserAgent = r.Header.Get("User-Agent")
-			w.WriteHeader(http.StatusOK)
-			_, _ = w.Write([]byte(`apiVersion: v1
-entries: {}
-`))
-		}))
-		defer ts.Close()
-
-		// Override with WithUserAgent (highest priority)
-		customUA := "CodeLevel/2.0 (test-override)"
-		client := NewClient(ts.URL, HelmCreds{}, false, "", "", WithUserAgent(customUA))
-		_, err := client.GetIndex(false, 10000)
-		require.NoError(t, err)
-
-		// Verify code-level User-Agent was used (highest priority)
-		assert.Equal(t, customUA, receivedUserAgent, "Code-level WithUserAgent should take priority")
-		t.Logf("Code-level User-Agent sent: %s", receivedUserAgent)
-	})
-
-	t.Run("Default User-Agent used when no custom values provided", func(t *testing.T) {
-		// Clear environment variable to ensure default is used
-		t.Setenv("ARGOCD_HELM_USER_AGENT", "")
-
-		// Create a test server that captures the User-Agent header
-		receivedUserAgent := ""
-		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			receivedUserAgent = r.Header.Get("User-Agent")
-			w.WriteHeader(http.StatusOK)
-			_, _ = w.Write([]byte(`apiVersion: v1
-entries: {}
-`))
-		}))
-		defer ts.Close()
-
-		// Create client with empty creds (no User-Agent)
 		client := NewClient(ts.URL, HelmCreds{}, false, "", "")
 		_, err := client.GetIndex(false, 10000)
 		require.NoError(t, err)
