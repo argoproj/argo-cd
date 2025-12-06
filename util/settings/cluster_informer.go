@@ -226,8 +226,9 @@ func secretToCluster(s *corev1.Secret) (*appv1.Cluster, error) {
 		Labels:             labels,
 		Annotations:        annotations,
 	}
-	// To ensure the informer cache is properly populated.
-	cluster.ObjectMeta.Name = cluster.Name
+	// To ensure the informer cache is properly populated, use the secret's name/namespace as the cache key
+	cluster.ObjectMeta.Name = s.Name
+	cluster.Namespace = s.Namespace
 
 	return &cluster, nil
 }
