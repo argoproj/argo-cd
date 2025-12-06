@@ -201,7 +201,7 @@ func ServerResourceForGroupVersionKind(disco discovery.DiscoveryInterface, gvk s
 }
 
 var (
-	kubectlErrOutRegexp = regexp.MustCompile(`^(error: )?(error validating|error when creating|error when creating) "\S+": `)
+	kubectlErrOutRegexp = regexp.MustCompile(`^(error: )?(error validating|error when creating) "\S+": `)
 
 	// See ApplyOpts::Run()
 	// cmdutil.AddSourceToErr(fmt.Sprintf("applying patch:\n%s\nto:\n%v\nfor:", patchBytes, info), info.Source, err)
@@ -229,10 +229,10 @@ func WriteKubeConfig(restConfig *rest.Config, namespace, filename string) error 
 
 // NewKubeConfig converts a clientcmdapi.Config (kubeconfig) from a rest.Config
 func NewKubeConfig(restConfig *rest.Config, namespace string) *clientcmdapi.Config {
-	var proxyUrl string
+	var proxyURL string
 	if restConfig.Proxy != nil {
 		if u, err := restConfig.Proxy(nil); err == nil {
-			proxyUrl = u.String()
+			proxyURL = u.String()
 		}
 	}
 	return &clientcmdapi.Config{
@@ -251,7 +251,7 @@ func NewKubeConfig(restConfig *rest.Config, namespace string) *clientcmdapi.Conf
 				InsecureSkipTLSVerify:    restConfig.Insecure,
 				CertificateAuthority:     restConfig.CAFile,
 				CertificateAuthorityData: restConfig.CAData,
-				ProxyURL:                 proxyUrl,
+				ProxyURL:                 proxyURL,
 			},
 		},
 		AuthInfos: map[string]*clientcmdapi.AuthInfo{

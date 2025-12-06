@@ -140,10 +140,10 @@ func (k *kubectlResourceOperations) runResourceCommand(ctx context.Context, obj 
 	if err != nil {
 		return "", errors.New(cleanKubectlOutput(err.Error()))
 	}
-	if buf := strings.TrimSpace(ioStreams.Out.(*bytes.Buffer).String()); len(buf) > 0 {
+	if buf := strings.TrimSpace(ioStreams.Out.(*bytes.Buffer).String()); buf != "" {
 		out = append(out, buf)
 	}
-	if buf := strings.TrimSpace(ioStreams.ErrOut.(*bytes.Buffer).String()); len(buf) > 0 {
+	if buf := strings.TrimSpace(ioStreams.ErrOut.(*bytes.Buffer).String()); buf != "" {
 		out = append(out, buf)
 	}
 	return strings.Join(out, ". "), nil
@@ -632,10 +632,10 @@ func (k *kubectlResourceOperations) authReconcile(ctx context.Context, obj *unst
 	}
 
 	var out []string
-	if buf := strings.TrimSpace(ioStreams.Out.(*bytes.Buffer).String()); len(buf) > 0 {
+	if buf := strings.TrimSpace(ioStreams.Out.(*bytes.Buffer).String()); buf != "" {
 		out = append(out, buf)
 	}
-	if buf := strings.TrimSpace(ioStreams.ErrOut.(*bytes.Buffer).String()); len(buf) > 0 {
+	if buf := strings.TrimSpace(ioStreams.ErrOut.(*bytes.Buffer).String()); buf != "" {
 		out = append(out, buf)
 	}
 	return strings.Join(out, ". "), nil
