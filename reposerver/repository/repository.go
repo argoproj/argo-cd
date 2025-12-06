@@ -3113,21 +3113,30 @@ func (s *Service) UpdateRevisionForPaths(_ context.Context, request *apiclient.U
 }
 
 func (s *Service) updateCachedRevision(logCtx *log.Entry, oldRev string, newRev string, request *apiclient.UpdateRevisionForPathsRequest, gitClientOpts git.ClientOpts) error {
-	repoRefs := make(map[string]string)
+	oldRepoRefs := make(map[string]string)
+	newRepoRefs := make(map[string]string)
+
+	oldCacheRev := oldRev
+	newCacheRev := newRev
+
 	if request.HasMultipleSources && request.ApplicationSource.Helm != nil {
 		var err error
-		repoRefs, err = resolveReferencedSources(true, request.ApplicationSource.Helm, request.RefSources, s.newClientResolveRevision, gitClientOpts)
+		repoRefs, err := resolveReferencedSources(true, request.ApplicationSource.Helm, request.RefSources, s.newClientResolveRevision, gitClientOpts)
 		if err != nil {
 			return fmt.Errorf("failed to get repo refs for application %s in repo %s from revision %s: %w", request.AppName, request.GetRepo().Repo, request.Revision, err)
 		}
 
 		// Update revision in refSource
 		for normalizedURL := range repoRefs {
-			repoRefs[normalizedURL] = newRev
+			oldRepoRefs[normalizedURL] = oldRev
+			newRepoRefs[normalizedURL] = newRev
 		}
+
+		oldCacheRev = request.ApplicationSource.TargetRevision
+		newCacheRev = request.ApplicationSource.TargetRevision
 	}
 
-	err := s.cache.SetNewRevisionManifests(newRev, oldRev, request.ApplicationSource, request.RefSources, request, request.Namespace, request.TrackingMethod, request.AppLabelKey, request.AppName, repoRefs, request.InstallationID)
+	err := s.cache.SetNewRevisionManifests(newCacheRev, oldCacheRev, request.ApplicationSource, request.RefSources, request, request.Namespace, request.TrackingMethod, request.AppLabelKey, request.AppName, oldRepoRefs, newRepoRefs, request.InstallationID)
 	if err != nil {
 		if errors.Is(err, cache.ErrCacheMiss) {
 			logCtx.Debugf("manifest cache miss during comparison for application %s in repo %s from revision %s", request.AppName, request.GetRepo().Repo, oldRev)

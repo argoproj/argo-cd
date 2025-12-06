@@ -2002,3 +2002,81 @@ func TestValidateManagedByURL(t *testing.T) {
 		})
 	}
 }
+
+func TestGetRelatedRefAppSource(t *testing.T) {
+	tests := []struct {
+		name      string
+		sourceRef argoappv1.ApplicationSource
+		sources   argoappv1.ApplicationSources
+		result    *argoappv1.ApplicationSource
+	}{
+		{
+			name: "HelmAndGit",
+			sourceRef: argoappv1.ApplicationSource{
+				RepoURL:        "https://github.com/argocd",
+				TargetRevision: "main",
+				Ref:            "values_src",
+			},
+			sources: argoappv1.ApplicationSources{
+				{RepoURL: "https://github.com/argocd", Ref: "values_src", TargetRevision: "main"},
+				{Helm: &argoappv1.ApplicationSourceHelm{
+					ValueFiles: []string{"$values_src/test-app-001/values.yaml"},
+				}, Chart: "test-chart", TargetRevision: "0.0.1"},
+			},
+			result: &argoappv1.ApplicationSource{Helm: &argoappv1.ApplicationSourceHelm{ValueFiles: []string{"$values_src/test-app-001/values.yaml"}}, Chart: "test-chart", TargetRevision: "0.0.1"},
+		},
+		{
+			name: "2Refs2Helm",
+			sourceRef: argoappv1.ApplicationSource{
+				RepoURL:        "https://github.com/argocd",
+				TargetRevision: "main",
+				Ref:            "values_src",
+			},
+			sources: argoappv1.ApplicationSources{
+				{RepoURL: "https://github.com/argocd", Ref: "values_src", TargetRevision: "main"},
+				{RepoURL: "https://github.com/argocd-2", Ref: "values_common", TargetRevision: "main"},
+				{Helm: &argoappv1.ApplicationSourceHelm{
+					ValueFiles: []string{"$values_src/test-app-001/values.yaml"},
+				}, Chart: "test-chart", TargetRevision: "0.0.1"},
+				{Helm: &argoappv1.ApplicationSourceHelm{
+					ValueFiles: []string{"$values_src_common/test-app-001/values.yaml"},
+				}, Chart: "test-chart-1", TargetRevision: "0.0.1"},
+			},
+			result: &argoappv1.ApplicationSource{Helm: &argoappv1.ApplicationSourceHelm{ValueFiles: []string{"$values_src/test-app-001/values.yaml"}}, Chart: "test-chart", TargetRevision: "0.0.1"},
+		},
+		{
+			name: "OnlyRef",
+			sourceRef: argoappv1.ApplicationSource{
+				RepoURL:        "https://github.com/argocd",
+				TargetRevision: "main",
+				Ref:            "values_src",
+			},
+			sources: argoappv1.ApplicationSources{
+				{
+					RepoURL:        "https://github.com/argocd",
+					TargetRevision: "main",
+					Ref:            "values_src",
+				},
+			},
+			result: nil,
+		},
+		{
+			name: "OnlyHelm",
+			sourceRef: argoappv1.ApplicationSource{Helm: &argoappv1.ApplicationSourceHelm{
+				ValueFiles: []string{"test-app-001/values.yaml"},
+			}, Chart: "test-chart", TargetRevision: "0.0.1"},
+			sources: argoappv1.ApplicationSources{
+				{Helm: &argoappv1.ApplicationSourceHelm{
+					ValueFiles: []string{"test-app-001/values.yaml"},
+				}, Chart: "test-chart", TargetRevision: "0.0.1"},
+			},
+			result: nil,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resSource := GetRelatedRefAppSource(tt.sourceRef, tt.sources)
+			assert.Equal(t, tt.result, resSource)
+		})
+	}
+}
