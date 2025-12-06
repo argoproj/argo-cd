@@ -270,7 +270,7 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 					store := memory.New()
 					c := newClientWithLock(fields.repoURL, globalLock, store, fields.tagsFunc, func(_ context.Context) error {
 						return nil
-					}, fields.allowedMediaTypes, WithImagePaths(cacheDir), WithManifestMaxExtractedSize(args.manifestMaxExtractedSize), WithDisableManifestMaxExtractedSize(args.disableManifestMaxExtractedSize))
+					}, WithAllowedMediaTypes(fields.allowedMediaTypes), WithImagePaths(cacheDir), WithManifestMaxExtractedSize(args.manifestMaxExtractedSize), WithDisableManifestMaxExtractedSize(args.disableManifestMaxExtractedSize))
 					_, gotCloser, err := c.Extract(t.Context(), sha)
 					require.NoError(t, err)
 					require.NoError(t, gotCloser.Close())
@@ -286,7 +286,7 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 
 			c := newClientWithLock(tt.fields.repoURL, globalLock, store, tt.fields.tagsFunc, func(_ context.Context) error {
 				return nil
-			}, tt.fields.allowedMediaTypes, WithImagePaths(cacheDir), WithManifestMaxExtractedSize(tt.args.manifestMaxExtractedSize), WithDisableManifestMaxExtractedSize(tt.args.disableManifestMaxExtractedSize))
+			}, WithAllowedMediaTypes(tt.fields.allowedMediaTypes), WithImagePaths(cacheDir), WithManifestMaxExtractedSize(tt.args.manifestMaxExtractedSize), WithDisableManifestMaxExtractedSize(tt.args.disableManifestMaxExtractedSize))
 			path, gotCloser, err := c.Extract(t.Context(), sha)
 
 			if tt.expectedError != nil {
@@ -436,7 +436,7 @@ func Test_nativeOCIClient_ResolveRevision(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			c := newClientWithLock(tt.fields.repoURL, globalLock, tt.fields.repo, tt.fields.tagsFunc, func(_ context.Context) error {
 				return nil
-			}, tt.fields.allowedMediaTypes)
+			}, WithAllowedMediaTypes(tt.fields.allowedMediaTypes))
 			got, err := c.ResolveRevision(t.Context(), tt.revision, tt.noCache)
 			if tt.expectedError != nil {
 				require.EqualError(t, err, tt.expectedError.Error())

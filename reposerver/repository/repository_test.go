@@ -25,8 +25,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
-	"github.com/argoproj/argo-cd/v3/util/oci"
-
 	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
 
 	"github.com/stretchr/testify/assert"
@@ -126,13 +124,13 @@ func newServiceWithMocks(t *testing.T, root string, signed bool) (*Service, *git
 		chart := "my-chart"
 		oobChart := "out-of-bounds-chart"
 		version := "1.1.0"
-		helmClient.EXPECT().GetIndex(mock.AnythingOfType("bool"), mock.Anything).Return(&helm.Index{Entries: map[string]helm.Entries{
+		helmClient.EXPECT().GetIndex(mock.AnythingOfType("bool")).Return(&helm.Index{Entries: map[string]helm.Entries{
 			chart:    {{Version: "1.0.0"}, {Version: version}},
 			oobChart: {{Version: "1.0.0"}, {Version: version}},
 		}}, nil)
 		helmClient.EXPECT().GetTags(mock.Anything, mock.Anything).Return(nil, nil)
-		helmClient.EXPECT().ExtractChart(chart, version, false, int64(0), false).Return("./testdata/my-chart", utilio.NopCloser, nil)
-		helmClient.EXPECT().ExtractChart(oobChart, version, false, int64(0), false).Return("./testdata2/out-of-bounds-chart", utilio.NopCloser, nil)
+		helmClient.EXPECT().ExtractChart(chart, version).Return("./testdata/my-chart", utilio.NopCloser, nil)
+		helmClient.EXPECT().ExtractChart(oobChart, version).Return("./testdata2/out-of-bounds-chart", utilio.NopCloser, nil)
 		helmClient.EXPECT().CleanChartCache(chart, version).Return(nil)
 		helmClient.EXPECT().CleanChartCache(oobChart, version).Return(nil)
 
@@ -163,9 +161,6 @@ func newServiceWithOpt(t *testing.T, cf clientFunc, root string) (*Service, *git
 	}
 	service.newHelmClient = func(_ string, _ helm.Creds, _ bool, _ string, _ string, _ ...helm.ClientOpts) helm.Client {
 		return helmClient
-	}
-	service.newOCIClient = func(_ string, _ oci.Creds, _ string, _ string, _ []string, _ ...oci.ClientOpts) (oci.Client, error) {
-		return ociClient, nil
 	}
 	service.gitRepoInitializer = func(_ string) goio.Closer {
 		return utilio.NopCloser
@@ -1939,19 +1934,6 @@ func Test_newEnv(t *testing.T) {
 			TargetRevision: "my-target-revision",
 		},
 	}, "my-revision"))
-}
-
-func TestService_newHelmClientResolveRevision(t *testing.T) {
-	service := newService(t, ".")
-
-	t.Run("EmptyRevision", func(t *testing.T) {
-		_, _, err := service.newHelmClientResolveRevision(&v1alpha1.Repository{}, "", "my-chart", true)
-		assert.EqualError(t, err, "invalid revision: failed to determine semver constraint: improper constraint: ")
-	})
-	t.Run("InvalidRevision", func(t *testing.T) {
-		_, _, err := service.newHelmClientResolveRevision(&v1alpha1.Repository{}, "???", "my-chart", true)
-		assert.EqualError(t, err, "invalid revision: failed to determine semver constraint: improper constraint: ???")
-	})
 }
 
 func TestGetAppDetailsWithAppParameterFile(t *testing.T) {

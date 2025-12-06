@@ -94,6 +94,12 @@ func WithIndexCache(indexCache tagsCache) ClientOpts {
 	}
 }
 
+func WithAllowedMediaTypes(mediaTypes []string) ClientOpts {
+	return func(c *nativeOCIClient) {
+		c.allowedMediaTypes = mediaTypes
+	}
+}
+
 func WithImagePaths(repoCachePaths utilio.TempPaths) ClientOpts {
 	return func(c *nativeOCIClient) {
 		c.repoCachePaths = repoCachePaths
@@ -112,11 +118,11 @@ func WithDisableManifestMaxExtractedSize(disableManifestMaxExtractedSize bool) C
 	}
 }
 
-func NewClient(repoURL string, creds Creds, proxy, noProxy string, layerMediaTypes []string, opts ...ClientOpts) (Client, error) {
-	return NewClientWithLock(repoURL, creds, globalLock, proxy, noProxy, layerMediaTypes, opts...)
+func NewClient(repoURL string, creds Creds, proxy, noProxy string, opts ...ClientOpts) (Client, error) {
+	return NewClientWithLock(repoURL, creds, globalLock, proxy, noProxy, opts...)
 }
 
-func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, proxyURL, noProxy string, layerMediaTypes []string, opts ...ClientOpts) (Client, error) {
+func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, proxyURL, noProxy string, opts ...ClientOpts) (Client, error) {
 	ociRepo := strings.TrimPrefix(repoURL, "oci://")
 	repo, err := remote.NewRepository(ociRepo)
 	if err != nil {
@@ -174,17 +180,16 @@ func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, proxy
 		})
 
 		return t, err
-	}, reg.Ping, layerMediaTypes, opts...), nil
+	}, reg.Ping, opts...), nil
 }
 
-func newClientWithLock(repoURL string, repoLock sync.KeyLock, repo oras.ReadOnlyTarget, tagsFunc func(context.Context, string) ([]string, error), pingFunc func(ctx context.Context) error, layerMediaTypes []string, opts ...ClientOpts) Client {
+func newClientWithLock(repoURL string, repoLock sync.KeyLock, repo oras.ReadOnlyTarget, tagsFunc func(context.Context, string) ([]string, error), pingFunc func(ctx context.Context) error, opts ...ClientOpts) Client {
 	c := &nativeOCIClient{
-		repoURL:           repoURL,
-		repoLock:          repoLock,
-		repo:              repo,
-		tagsFunc:          tagsFunc,
-		pingFunc:          pingFunc,
-		allowedMediaTypes: layerMediaTypes,
+		repoURL:  repoURL,
+		repoLock: repoLock,
+		repo:     repo,
+		tagsFunc: tagsFunc,
+		pingFunc: pingFunc,
 	}
 	for i := range opts {
 		opts[i](c)
