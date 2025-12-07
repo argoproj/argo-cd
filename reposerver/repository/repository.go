@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/TomOnTime/utfutil"
+	"github.com/argoproj/argo-cd/v3/util/sourceintegrity"
 	imagev1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"sigs.k8s.io/yaml"
 
@@ -508,7 +509,7 @@ func (s *Service) runRepoOperation(
 		if originalRevision == "" {
 			originalRevision = revision
 		}
-		sourceIntegrityResult, err := sourceIntegrity.ForGit(source.RepoURL).Verify(gitClient, originalRevision)
+		sourceIntegrityResult, err := sourceintegrity.ForGit(sourceIntegrity, source.RepoURL).Verify(gitClient, originalRevision)
 		if err != nil {
 			return nil, err
 		}
@@ -2437,12 +2438,12 @@ func (s *Service) GetRevisionMetadata(_ context.Context, q *apiclient.RepoServer
 
 	defer utilio.Close(closer)
 
-	m, err := gitClient.RevisionMetadata(q.Revision)
+	sourceIntegrityResult, err := sourceintegrity.ForGit(q.SourceIntegrity, q.Repo.Repo).Verify(gitClient, q.Revision)
 	if err != nil {
 		return nil, err
 	}
 
-	sourceIntegrityResult, err := q.SourceIntegrity.ForGit(q.Repo.Repo).Verify(gitClient, q.Revision)
+	m, err := gitClient.RevisionMetadata(q.Revision)
 	if err != nil {
 		return nil, err
 	}
@@ -2855,14 +2856,6 @@ func (s *Service) GetGitFiles(_ context.Context, request *apiclient.GitFilesRequ
 		return nil, status.Errorf(codes.Internal, "unable to resolve git revision %s: %v", revision, err)
 	}
 
-	sourceIntegrityResult, err := request.SourceIntegrity.ForGit(request.Repo.Repo).Verify(gitClient, revision)
-	if err != nil {
-		return nil, err
-	}
-	if err := sourceIntegrityResult.AsError(); err != nil {
-		return nil, err
-	}
-
 	// check the cache and return the results if present
 	if cachedFiles, err := s.cache.GetGitFiles(repo.Repo, revision, gitPath); err == nil {
 		log.Debugf("cache hit for repo: %s revision: %s pattern: %s", repo.Repo, revision, gitPath)
@@ -2882,6 +2875,14 @@ func (s *Service) GetGitFiles(_ context.Context, request *apiclient.GitFilesRequ
 		return nil, status.Errorf(codes.Internal, "unable to checkout git repo %s with revision %s pattern %s: %v", repo.Repo, revision, gitPath, err)
 	}
 	defer utilio.Close(closer)
+
+	sourceIntegrityResult, err := sourceintegrity.ForGit(request.SourceIntegrity, request.Repo.Repo).Verify(gitClient, revision)
+	if err != nil {
+		return nil, err
+	}
+	if err := sourceIntegrityResult.AsError(); err != nil {
+		return nil, err
+	}
 
 	gitFiles, err := gitClient.LsFiles(gitPath, enableNewGitFileGlobbing)
 	if err != nil {
@@ -2921,14 +2922,6 @@ func (s *Service) GetGitDirectories(_ context.Context, request *apiclient.GitDir
 		return nil, status.Errorf(codes.Internal, "unable to resolve git revision %s: %v", revision, err)
 	}
 
-	sourceIntegrityResult, err := request.SourceIntegrity.ForGit(request.Repo.Repo).Verify(gitClient, revision)
-	if err != nil {
-		return nil, err
-	}
-	if err := sourceIntegrityResult.AsError(); err != nil {
-		return nil, err
-	}
-
 	// check the cache and return the results if present
 	if cachedPaths, err := s.cache.GetGitDirectories(repo.Repo, revision); err == nil {
 		log.Debugf("cache hit for repo: %s revision: %s", repo.Repo, revision)
@@ -2948,6 +2941,14 @@ func (s *Service) GetGitDirectories(_ context.Context, request *apiclient.GitDir
 		return nil, status.Errorf(codes.Internal, "unable to checkout git repo %s with revision %s: %v", repo.Repo, revision, err)
 	}
 	defer utilio.Close(closer)
+
+	sourceIntegrityResult, err := sourceintegrity.ForGit(request.SourceIntegrity, request.Repo.Repo).Verify(gitClient, revision)
+	if err != nil {
+		return nil, err
+	}
+	if err := sourceIntegrityResult.AsError(); err != nil {
+		return nil, err
+	}
 
 	repoRoot := gitClient.Root()
 	var paths []string

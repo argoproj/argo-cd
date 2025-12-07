@@ -1,4 +1,4 @@
-package gpg
+package sourceintegrity
 
 import (
 	"bufio"
@@ -58,15 +58,15 @@ func isHexString(s string) bool {
 	return err == nil
 }
 
-// KeyID get the actual correct (short) key ID from either a fingerprint or the key ID. Returns the empty string if k seems not to be a PGP key ID.
-func KeyID(k string) string {
+// KeyID get the actual correct (short) key ID from either a fingerprint or the key ID. Errors if it is not a valid GnuPG key ID.
+func KeyID(k string) (string, error) {
 	if IsLongKeyID(k) {
-		return k[24:]
+		return k[24:], nil
 	} else if IsShortKeyID(k) {
-		return k
+		return k, nil
 	}
 	// Invalid key
-	return ""
+	return "", fmt.Errorf("'%s' is not a valid GnuPG key ID", k)
 }
 
 // IsLongKeyID returns true if the string represents a long key ID (aka fingerprint)

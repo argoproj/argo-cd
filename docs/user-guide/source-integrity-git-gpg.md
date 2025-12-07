@@ -168,7 +168,7 @@ Sources not matched by any policy will not have its integrity verified.
 
 ### The `gpg` verification policy
 
-The Git commit signature verification is an alternative to calling `git verify-commit`/`git verify-tag` with configured keyring and making sure the key used for the signatures is among the configured ones in the source integrity policy.
+The Git commit signature verification is an alternative to calling `git verify-commit`/`git verify-tag` with configured keyring and making sure the key ID used for the signatures is among the configured Key IDs in the source integrity policy.
 If the target revision points to a commit or tags that do not satisfy those criteria, it will not be synced.
 
 The `keys` key lists the set of key IDs to trust for signed commits.

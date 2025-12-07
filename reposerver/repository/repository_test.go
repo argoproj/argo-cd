@@ -62,7 +62,7 @@ var sourceIntegrityReqStrict = &v1alpha1.SourceIntegrity{
 				Repos: []string{"*"},
 				GPG: &v1alpha1.SourceIntegrityGitPolicyGPG{
 					Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeStrict,
-					Keys: []string{"GOOD", "OK"},
+					Keys: []string{"f24e21389b25a3c1", "ffffffffff25a3c1"},
 				},
 			},
 		},
@@ -74,7 +74,7 @@ var LsSignaturesMockOk = func(_ string, _ bool) (info []git.RevisionSignatureInf
 		{
 			Revision:           "d71589b8001a0bd78bb311cb03c9d129c6f91de1",
 			VerificationResult: git.GPGVerificationResultGood,
-			SignatureKeyID:     "GOOD",
+			SignatureKeyID:     "f24e21389b25a3c1",
 			Date:               "Fri Oct 31 14:42:39 2025 +0100",
 			AuthorIdentity:     "Jane Doe <jdoe@acme.com>",
 		},
