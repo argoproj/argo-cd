@@ -11,6 +11,7 @@ import (
 	goSync "sync"
 	"time"
 
+	"github.com/argoproj/argo-cd/v3/util/sourceintegrity"
 	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
 	corev1 "k8s.io/api/core/v1"
 
@@ -588,7 +589,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	} else {
 		// Prevent applying local manifests for now when source integrity is enforced
 		// This is also enforced on API level, but as a last resort, we also enforce it here
-		if project.EffectiveSourceIntegrity().ForGit(sources[0].RepoURL) != nil {
+		if sourceintegrity.ForGit(project.EffectiveSourceIntegrity(), sources[0].RepoURL) != nil {
 			msg := "Cannot use local manifests when source integrity is enforced"
 			targetObjs = make([]*unstructured.Unstructured, 0)
 			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
