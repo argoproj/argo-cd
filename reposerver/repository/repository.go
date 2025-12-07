@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/TomOnTime/utfutil"
+	"github.com/argoproj/argo-cd/v3/util/sourceintegrity"
 	imagev1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"sigs.k8s.io/yaml"
 
@@ -503,7 +504,7 @@ func (s *Service) runRepoOperation(
 		if originalRevision == "" {
 			originalRevision = revision
 		}
-		sourceIntegrityResult, err := sourceIntegrity.ForGit(source.RepoURL).Verify(gitClient, originalRevision)
+		sourceIntegrityResult, err := sourceintegrity.ForGit(sourceIntegrity, source.RepoURL).Verify(gitClient, originalRevision)
 		if err != nil {
 			return nil, err
 		}
@@ -2435,7 +2436,7 @@ func (s *Service) GetRevisionMetadata(_ context.Context, q *apiclient.RepoServer
 		return nil, err
 	}
 
-	sourceIntegrityResult, err := q.SourceIntegrity.ForGit(q.Repo.Repo).Verify(gitClient, q.Revision)
+	sourceIntegrityResult, err := sourceintegrity.ForGit(q.SourceIntegrity, q.Repo.Repo).Verify(gitClient, q.Revision)
 	if err != nil {
 		return nil, err
 	}
@@ -2848,7 +2849,7 @@ func (s *Service) GetGitFiles(_ context.Context, request *apiclient.GitFilesRequ
 		return nil, status.Errorf(codes.Internal, "unable to resolve git revision %s: %v", revision, err)
 	}
 
-	sourceIntegrityResult, err := request.SourceIntegrity.ForGit(request.Repo.Repo).Verify(gitClient, revision)
+	sourceIntegrityResult, err := sourceintegrity.ForGit(request.SourceIntegrity, request.Repo.Repo).Verify(gitClient, revision)
 	if err != nil {
 		return nil, err
 	}
@@ -2914,7 +2915,7 @@ func (s *Service) GetGitDirectories(_ context.Context, request *apiclient.GitDir
 		return nil, status.Errorf(codes.Internal, "unable to resolve git revision %s: %v", revision, err)
 	}
 
-	sourceIntegrityResult, err := request.SourceIntegrity.ForGit(request.Repo.Repo).Verify(gitClient, revision)
+	sourceIntegrityResult, err := sourceintegrity.ForGit(request.SourceIntegrity, request.Repo.Repo).Verify(gitClient, revision)
 	if err != nil {
 		return nil, err
 	}
