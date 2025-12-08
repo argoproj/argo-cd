@@ -1442,10 +1442,357 @@ spec:
                     description: DrySource specifies where the dry "don't repeat yourself"
                       manifest source lives.
                     properties:
+                      directory:
+                        description: Directory specifies path/directory specific options
+                        properties:
+                          exclude:
+                            description: Exclude contains a glob pattern to match
+                              paths against that should be explicitly excluded from
+                              being used during manifest generation
+                            type: string
+                          include:
+                            description: Include contains a glob pattern to match
+                              paths against that should be explicitly included during
+                              manifest generation
+                            type: string
+                          jsonnet:
+                            description: Jsonnet holds options specific to Jsonnet
+                            properties:
+                              extVars:
+                                description: ExtVars is a list of Jsonnet External
+                                  Variables
+                                items:
+                                  description: JsonnetVar represents a variable to
+                                    be passed to jsonnet during manifest generation
+                                  properties:
+                                    code:
+                                      type: boolean
+                                    name:
+                                      type: string
+                                    value:
+                                      type: string
+                                  required:
+                                  - name
+                                  - value
+                                  type: object
+                                type: array
+                              libs:
+                                description: Additional library search dirs
+                                items:
+                                  type: string
+                                type: array
+                              tlas:
+                                description: TLAS is a list of Jsonnet Top-level Arguments
+                                items:
+                                  description: JsonnetVar represents a variable to
+                                    be passed to jsonnet during manifest generation
+                                  properties:
+                                    code:
+                                      type: boolean
+                                    name:
+                                      type: string
+                                    value:
+                                      type: string
+                                  required:
+                                  - name
+                                  - value
+                                  type: object
+                                type: array
+                            type: object
+                          recurse:
+                            description: Recurse specifies whether to scan a directory
+                              recursively for manifests
+                            type: boolean
+                        type: object
+                      helm:
+                        description: Helm specifies helm specific options
+                        properties:
+                          apiVersions:
+                            description: |-
+                              APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
+                              Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
+                            items:
+                              type: string
+                            type: array
+                          fileParameters:
+                            description: FileParameters are file parameters to the
+                              helm template
+                            items:
+                              description: HelmFileParameter is a file parameter that's
+                                passed to helm template during manifest generation
+                              properties:
+                                name:
+                                  description: Name is the name of the Helm parameter
+                                  type: string
+                                path:
+                                  description: Path is the path to the file containing
+                                    the values for the Helm parameter
+                                  type: string
+                              type: object
+                            type: array
+                          ignoreMissingValueFiles:
+                            description: IgnoreMissingValueFiles prevents helm template
+                              from failing when valueFiles do not exist locally by
+                              not appending them to helm template --values
+                            type: boolean
+                          kubeVersion:
+                            description: |-
+                              KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
+                              uses the Kubernetes version of the target cluster.
+                            type: string
+                          namespace:
+                            description: Namespace is an optional namespace to template
+                              with. If left empty, defaults to the app's destination
+                              namespace.
+                            type: string
+                          parameters:
+                            description: Parameters is a list of Helm parameters which
+                              are passed to the helm template command upon manifest
+                              generation
+                            items:
+                              description: HelmParameter is a parameter that's passed
+                                to helm template during manifest generation
+                              properties:
+                                forceString:
+                                  description: ForceString determines whether to tell
+                                    Helm to interpret booleans and numbers as strings
+                                  type: boolean
+                                name:
+                                  description: Name is the name of the Helm parameter
+                                  type: string
+                                value:
+                                  description: Value is the value for the Helm parameter
+                                  type: string
+                              type: object
+                            type: array
+                          passCredentials:
+                            description: PassCredentials pass credentials to all domains
+                              (Helm's --pass-credentials)
+                            type: boolean
+                          releaseName:
+                            description: ReleaseName is the Helm release name to use.
+                              If omitted it will use the application name
+                            type: string
+                          skipCrds:
+                            description: SkipCrds skips custom resource definition
+                              installation step (Helm's --skip-crds)
+                            type: boolean
+                          skipSchemaValidation:
+                            description: SkipSchemaValidation skips JSON schema validation
+                              (Helm's --skip-schema-validation)
+                            type: boolean
+                          skipTests:
+                            description: SkipTests skips test manifest installation
+                              step (Helm's --skip-tests).
+                            type: boolean
+                          valueFiles:
+                            description: ValuesFiles is a list of Helm value files
+                              to use when generating a template
+                            items:
+                              type: string
+                            type: array
+                          values:
+                            description: Values specifies Helm values to be passed
+                              to helm template, typically defined as a block. ValuesObject
+                              takes precedence over Values, so use one or the other.
+                            type: string
+                          valuesObject:
+                            description: ValuesObject specifies Helm values to be
+                              passed to helm template, defined as a map. This takes
+                              precedence over Values.
+                            type: object
+                            x-kubernetes-preserve-unknown-fields: true
+                          version:
+                            description: Version is the Helm version to use for templating
+                              ("3")
+                            type: string
+                        type: object
+                      kustomize:
+                        description: Kustomize specifies kustomize specific options
+                        properties:
+                          apiVersions:
+                            description: |-
+                              APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
+                              Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
+                            items:
+                              type: string
+                            type: array
+                          commonAnnotations:
+                            additionalProperties:
+                              type: string
+                            description: CommonAnnotations is a list of additional
+                              annotations to add to rendered manifests
+                            type: object
+                          commonAnnotationsEnvsubst:
+                            description: CommonAnnotationsEnvsubst specifies whether
+                              to apply env variables substitution for annotation values
+                            type: boolean
+                          commonLabels:
+                            additionalProperties:
+                              type: string
+                            description: CommonLabels is a list of additional labels
+                              to add to rendered manifests
+                            type: object
+                          components:
+                            description: Components specifies a list of kustomize
+                              components to add to the kustomization before building
+                            items:
+                              type: string
+                            type: array
+                          forceCommonAnnotations:
+                            description: ForceCommonAnnotations specifies whether
+                              to force applying common annotations to resources for
+                              Kustomize apps
+                            type: boolean
+                          forceCommonLabels:
+                            description: ForceCommonLabels specifies whether to force
+                              applying common labels to resources for Kustomize apps
+                            type: boolean
+                          ignoreMissingComponents:
+                            description: IgnoreMissingComponents prevents kustomize
+                              from failing when components do not exist locally by
+                              not appending them to kustomization file
+                            type: boolean
+                          images:
+                            description: Images is a list of Kustomize image override
+                              specifications
+                            items:
+                              description: KustomizeImage represents a Kustomize image
+                                definition in the format [old_image_name=]<image_name>:<image_tag>
+                              type: string
+                            type: array
+                          kubeVersion:
+                            description: |-
+                              KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
+                              uses the Kubernetes version of the target cluster.
+                            type: string
+                          labelIncludeTemplates:
+                            description: LabelIncludeTemplates specifies whether to
+                              apply common labels to resource templates or not
+                            type: boolean
+                          labelWithoutSelector:
+                            description: LabelWithoutSelector specifies whether to
+                              apply common labels to resource selectors or not
+                            type: boolean
+                          namePrefix:
+                            description: NamePrefix is a prefix appended to resources
+                              for Kustomize apps
+                            type: string
+                          nameSuffix:
+                            description: NameSuffix is a suffix appended to resources
+                              for Kustomize apps
+                            type: string
+                          namespace:
+                            description: Namespace sets the namespace that Kustomize
+                              adds to all resources
+                            type: string
+                          patches:
+                            description: Patches is a list of Kustomize patches
+                            items:
+                              properties:
+                                options:
+                                  additionalProperties:
+                                    type: boolean
+                                  type: object
+                                patch:
+                                  type: string
+                                path:
+                                  type: string
+                                target:
+                                  properties:
+                                    annotationSelector:
+                                      type: string
+                                    group:
+                                      type: string
+                                    kind:
+                                      type: string
+                                    labelSelector:
+                                      type: string
+                                    name:
+                                      type: string
+                                    namespace:
+                                      type: string
+                                    version:
+                                      type: string
+                                  type: object
+                              type: object
+                            type: array
+                          replicas:
+                            description: Replicas is a list of Kustomize Replicas
+                              override specifications
+                            items:
+                              properties:
+                                count:
+                                  anyOf:
+                                  - type: integer
+                                  - type: string
+                                  description: Number of replicas
+                                  x-kubernetes-int-or-string: true
+                                name:
+                                  description: Name of Deployment or StatefulSet
+                                  type: string
+                              required:
+                              - count
+                              - name
+                              type: object
+                            type: array
+                          version:
+                            description: Version controls which version of Kustomize
+                              to use for rendering manifests
+                            type: string
+                        type: object
                       path:
                         description: Path is a directory path within the Git repository
                           where the manifests are located
                         type: string
+                      plugin:
+                        description: Plugin specifies config management plugin specific
+                          options
+                        properties:
+                          env:
+                            description: Env is a list of environment variable entries
+                            items:
+                              description: EnvEntry represents an entry in the application's
+                                environment
+                              properties:
+                                name:
+                                  description: Name is the name of the variable, usually
+                                    expressed in uppercase
+                                  type: string
+                                value:
+                                  description: Value is the value of the variable
+                                  type: string
+                              required:
+                              - name
+                              - value
+                              type: object
+                            type: array
+                          name:
+                            type: string
+                          parameters:
+                            items:
+                              properties:
+                                array:
+                                  description: Array is the value of an array type
+                                    parameter.
+                                  items:
+                                    type: string
+                                  type: array
+                                map:
+                                  additionalProperties:
+                                    type: string
+                                  description: Map is the value of a map type parameter.
+                                  type: object
+                                name:
+                                  description: Name is the name identifying a parameter.
+                                  type: string
+                                string:
+                                  description: String_ is the value of a string type
+                                    parameter.
+                                  type: string
+                              type: object
+                            type: array
+                        type: object
                       repoURL:
                         description: RepoURL is the URL to the git repository that
                           contains the application manifests
@@ -4858,10 +5205,380 @@ spec:
                             description: DrySource specifies where the dry "don't
                               repeat yourself" manifest source lives.
                             properties:
+                              directory:
+                                description: Directory specifies path/directory specific
+                                  options
+                                properties:
+                                  exclude:
+                                    description: Exclude contains a glob pattern to
+                                      match paths against that should be explicitly
+                                      excluded from being used during manifest generation
+                                    type: string
+                                  include:
+                                    description: Include contains a glob pattern to
+                                      match paths against that should be explicitly
+                                      included during manifest generation
+                                    type: string
+                                  jsonnet:
+                                    description: Jsonnet holds options specific to
+                                      Jsonnet
+                                    properties:
+                                      extVars:
+                                        description: ExtVars is a list of Jsonnet
+                                          External Variables
+                                        items:
+                                          description: JsonnetVar represents a variable
+                                            to be passed to jsonnet during manifest
+                                            generation
+                                          properties:
+                                            code:
+                                              type: boolean
+                                            name:
+                                              type: string
+                                            value:
+                                              type: string
+                                          required:
+                                          - name
+                                          - value
+                                          type: object
+                                        type: array
+                                      libs:
+                                        description: Additional library search dirs
+                                        items:
+                                          type: string
+                                        type: array
+                                      tlas:
+                                        description: TLAS is a list of Jsonnet Top-level
+                                          Arguments
+                                        items:
+                                          description: JsonnetVar represents a variable
+                                            to be passed to jsonnet during manifest
+                                            generation
+                                          properties:
+                                            code:
+                                              type: boolean
+                                            name:
+                                              type: string
+                                            value:
+                                              type: string
+                                          required:
+                                          - name
+                                          - value
+                                          type: object
+                                        type: array
+                                    type: object
+                                  recurse:
+                                    description: Recurse specifies whether to scan
+                                      a directory recursively for manifests
+                                    type: boolean
+                                type: object
+                              helm:
+                                description: Helm specifies helm specific options
+                                properties:
+                                  apiVersions:
+                                    description: |-
+                                      APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
+                                      Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
+                                    items:
+                                      type: string
+                                    type: array
+                                  fileParameters:
+                                    description: FileParameters are file parameters
+                                      to the helm template
+                                    items:
+                                      description: HelmFileParameter is a file parameter
+                                        that's passed to helm template during manifest
+                                        generation
+                                      properties:
+                                        name:
+                                          description: Name is the name of the Helm
+                                            parameter
+                                          type: string
+                                        path:
+                                          description: Path is the path to the file
+                                            containing the values for the Helm parameter
+                                          type: string
+                                      type: object
+                                    type: array
+                                  ignoreMissingValueFiles:
+                                    description: IgnoreMissingValueFiles prevents
+                                      helm template from failing when valueFiles do
+                                      not exist locally by not appending them to helm
+                                      template --values
+                                    type: boolean
+                                  kubeVersion:
+                                    description: |-
+                                      KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
+                                      uses the Kubernetes version of the target cluster.
+                                    type: string
+                                  namespace:
+                                    description: Namespace is an optional namespace
+                                      to template with. If left empty, defaults to
+                                      the app's destination namespace.
+                                    type: string
+                                  parameters:
+                                    description: Parameters is a list of Helm parameters
+                                      which are passed to the helm template command
+                                      upon manifest generation
+                                    items:
+                                      description: HelmParameter is a parameter that's
+                                        passed to helm template during manifest generation
+                                      properties:
+                                        forceString:
+                                          description: ForceString determines whether
+                                            to tell Helm to interpret booleans and
+                                            numbers as strings
+                                          type: boolean
+                                        name:
+                                          description: Name is the name of the Helm
+                                            parameter
+                                          type: string
+                                        value:
+                                          description: Value is the value for the
+                                            Helm parameter
+                                          type: string
+                                      type: object
+                                    type: array
+                                  passCredentials:
+                                    description: PassCredentials pass credentials
+                                      to all domains (Helm's --pass-credentials)
+                                    type: boolean
+                                  releaseName:
+                                    description: ReleaseName is the Helm release name
+                                      to use. If omitted it will use the application
+                                      name
+                                    type: string
+                                  skipCrds:
+                                    description: SkipCrds skips custom resource definition
+                                      installation step (Helm's --skip-crds)
+                                    type: boolean
+                                  skipSchemaValidation:
+                                    description: SkipSchemaValidation skips JSON schema
+                                      validation (Helm's --skip-schema-validation)
+                                    type: boolean
+                                  skipTests:
+                                    description: SkipTests skips test manifest installation
+                                      step (Helm's --skip-tests).
+                                    type: boolean
+                                  valueFiles:
+                                    description: ValuesFiles is a list of Helm value
+                                      files to use when generating a template
+                                    items:
+                                      type: string
+                                    type: array
+                                  values:
+                                    description: Values specifies Helm values to be
+                                      passed to helm template, typically defined as
+                                      a block. ValuesObject takes precedence over
+                                      Values, so use one or the other.
+                                    type: string
+                                  valuesObject:
+                                    description: ValuesObject specifies Helm values
+                                      to be passed to helm template, defined as a
+                                      map. This takes precedence over Values.
+                                    type: object
+                                    x-kubernetes-preserve-unknown-fields: true
+                                  version:
+                                    description: Version is the Helm version to use
+                                      for templating ("3")
+                                    type: string
+                                type: object
+                              kustomize:
+                                description: Kustomize specifies kustomize specific
+                                  options
+                                properties:
+                                  apiVersions:
+                                    description: |-
+                                      APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
+                                      Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
+                                    items:
+                                      type: string
+                                    type: array
+                                  commonAnnotations:
+                                    additionalProperties:
+                                      type: string
+                                    description: CommonAnnotations is a list of additional
+                                      annotations to add to rendered manifests
+                                    type: object
+                                  commonAnnotationsEnvsubst:
+                                    description: CommonAnnotationsEnvsubst specifies
+                                      whether to apply env variables substitution
+                                      for annotation values
+                                    type: boolean
+                                  commonLabels:
+                                    additionalProperties:
+                                      type: string
+                                    description: CommonLabels is a list of additional
+                                      labels to add to rendered manifests
+                                    type: object
+                                  components:
+                                    description: Components specifies a list of kustomize
+                                      components to add to the kustomization before
+                                      building
+                                    items:
+                                      type: string
+                                    type: array
+                                  forceCommonAnnotations:
+                                    description: ForceCommonAnnotations specifies
+                                      whether to force applying common annotations
+                                      to resources for Kustomize apps
+                                    type: boolean
+                                  forceCommonLabels:
+                                    description: ForceCommonLabels specifies whether
+                                      to force applying common labels to resources
+                                      for Kustomize apps
+                                    type: boolean
+                                  ignoreMissingComponents:
+                                    description: IgnoreMissingComponents prevents
+                                      kustomize from failing when components do not
+                                      exist locally by not appending them to kustomization
+                                      file
+                                    type: boolean
+                                  images:
+                                    description: Images is a list of Kustomize image
+                                      override specifications
+                                    items:
+                                      description: KustomizeImage represents a Kustomize
+                                        image definition in the format [old_image_name=]<image_name>:<image_tag>
+                                      type: string
+                                    type: array
+                                  kubeVersion:
+                                    description: |-
+                                      KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
+                                      uses the Kubernetes version of the target cluster.
+                                    type: string
+                                  labelIncludeTemplates:
+                                    description: LabelIncludeTemplates specifies whether
+                                      to apply common labels to resource templates
+                                      or not
+                                    type: boolean
+                                  labelWithoutSelector:
+                                    description: LabelWithoutSelector specifies whether
+                                      to apply common labels to resource selectors
+                                      or not
+                                    type: boolean
+                                  namePrefix:
+                                    description: NamePrefix is a prefix appended to
+                                      resources for Kustomize apps
+                                    type: string
+                                  nameSuffix:
+                                    description: NameSuffix is a suffix appended to
+                                      resources for Kustomize apps
+                                    type: string
+                                  namespace:
+                                    description: Namespace sets the namespace that
+                                      Kustomize adds to all resources
+                                    type: string
+                                  patches:
+                                    description: Patches is a list of Kustomize patches
+                                    items:
+                                      properties:
+                                        options:
+                                          additionalProperties:
+                                            type: boolean
+                                          type: object
+                                        patch:
+                                          type: string
+                                        path:
+                                          type: string
+                                        target:
+                                          properties:
+                                            annotationSelector:
+                                              type: string
+                                            group:
+                                              type: string
+                                            kind:
+                                              type: string
+                                            labelSelector:
+                                              type: string
+                                            name:
+                                              type: string
+                                            namespace:
+                                              type: string
+                                            version:
+                                              type: string
+                                          type: object
+                                      type: object
+                                    type: array
+                                  replicas:
+                                    description: Replicas is a list of Kustomize Replicas
+                                      override specifications
+                                    items:
+                                      properties:
+                                        count:
+                                          anyOf:
+                                          - type: integer
+                                          - type: string
+                                          description: Number of replicas
+                                          x-kubernetes-int-or-string: true
+                                        name:
+                                          description: Name of Deployment or StatefulSet
+                                          type: string
+                                      required:
+                                      - count
+                                      - name
+                                      type: object
+                                    type: array
+                                  version:
+                                    description: Version controls which version of
+                                      Kustomize to use for rendering manifests
+                                    type: string
+                                type: object
                               path:
                                 description: Path is a directory path within the Git
                                   repository where the manifests are located
                                 type: string
+                              plugin:
+                                description: Plugin specifies config management plugin
+                                  specific options
+                                properties:
+                                  env:
+                                    description: Env is a list of environment variable
+                                      entries
+                                    items:
+                                      description: EnvEntry represents an entry in
+                                        the application's environment
+                                      properties:
+                                        name:
+                                          description: Name is the name of the variable,
+                                            usually expressed in uppercase
+                                          type: string
+                                        value:
+                                          description: Value is the value of the variable
+                                          type: string
+                                      required:
+                                      - name
+                                      - value
+                                      type: object
+                                    type: array
+                                  name:
+                                    type: string
+                                  parameters:
+                                    items:
+                                      properties:
+                                        array:
+                                          description: Array is the value of an array
+                                            type parameter.
+                                          items:
+                                            type: string
+                                          type: array
+                                        map:
+                                          additionalProperties:
+                                            type: string
+                                          description: Map is the value of a map type
+                                            parameter.
+                                          type: object
+                                        name:
+                                          description: Name is the name identifying
+                                            a parameter.
+                                          type: string
+                                        string:
+                                          description: String_ is the value of a string
+                                            type parameter.
+                                          type: string
+                                      type: object
+                                    type: array
+                                type: object
                               repoURL:
                                 description: RepoURL is the URL to the git repository
                                   that contains the application manifests
@@ -4941,10 +5658,380 @@ spec:
                             description: DrySource specifies where the dry "don't
                               repeat yourself" manifest source lives.
                             properties:
+                              directory:
+                                description: Directory specifies path/directory specific
+                                  options
+                                properties:
+                                  exclude:
+                                    description: Exclude contains a glob pattern to
+                                      match paths against that should be explicitly
+                                      excluded from being used during manifest generation
+                                    type: string
+                                  include:
+                                    description: Include contains a glob pattern to
+                                      match paths against that should be explicitly
+                                      included during manifest generation
+                                    type: string
+                                  jsonnet:
+                                    description: Jsonnet holds options specific to
+                                      Jsonnet
+                                    properties:
+                                      extVars:
+                                        description: ExtVars is a list of Jsonnet
+                                          External Variables
+                                        items:
+                                          description: JsonnetVar represents a variable
+                                            to be passed to jsonnet during manifest
+                                            generation
+                                          properties:
+                                            code:
+                                              type: boolean
+                                            name:
+                                              type: string
+                                            value:
+                                              type: string
+                                          required:
+                                          - name
+                                          - value
+                                          type: object
+                                        type: array
+                                      libs:
+                                        description: Additional library search dirs
+                                        items:
+                                          type: string
+                                        type: array
+                                      tlas:
+                                        description: TLAS is a list of Jsonnet Top-level
+                                          Arguments
+                                        items:
+                                          description: JsonnetVar represents a variable
+                                            to be passed to jsonnet during manifest
+                                            generation
+                                          properties:
+                                            code:
+                                              type: boolean
+                                            name:
+                                              type: string
+                                            value:
+                                              type: string
+                                          required:
+                                          - name
+                                          - value
+                                          type: object
+                                        type: array
+                                    type: object
+                                  recurse:
+                                    description: Recurse specifies whether to scan
+                                      a directory recursively for manifests
+                                    type: boolean
+                                type: object
+                              helm:
+                                description: Helm specifies helm specific options
+                                properties:
+                                  apiVersions:
+                                    description: |-
+                                      APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
+                                      Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
+                                    items:
+                                      type: string
+                                    type: array
+                                  fileParameters:
+                                    description: FileParameters are file parameters
+                                      to the helm template
+                                    items:
+                                      description: HelmFileParameter is a file parameter
+                                        that's passed to helm template during manifest
+                                        generation
+                                      properties:
+                                        name:
+                                          description: Name is the name of the Helm
+                                            parameter
+                                          type: string
+                                        path:
+                                          description: Path is the path to the file
+                                            containing the values for the Helm parameter
+                                          type: string
+                                      type: object
+                                    type: array
+                                  ignoreMissingValueFiles:
+                                    description: IgnoreMissingValueFiles prevents
+                                      helm template from failing when valueFiles do
+                                      not exist locally by not appending them to helm
+                                      template --values
+                                    type: boolean
+                                  kubeVersion:
+                                    description: |-
+                                      KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
+                                      uses the Kubernetes version of the target cluster.
+                                    type: string
+                                  namespace:
+                                    description: Namespace is an optional namespace
+                                      to template with. If left empty, defaults to
+                                      the app's destination namespace.
+                                    type: string
+                                  parameters:
+                                    description: Parameters is a list of Helm parameters
+                                      which are passed to the helm template command
+                                      upon manifest generation
+                                    items:
+                                      description: HelmParameter is a parameter that's
+                                        passed to helm template during manifest generation
+                                      properties:
+                                        forceString:
+                                          description: ForceString determines whether
+                                            to tell Helm to interpret booleans and
+                                            numbers as strings
+                                          type: boolean
+                                        name:
+                                          description: Name is the name of the Helm
+                                            parameter
+                                          type: string
+                                        value:
+                                          description: Value is the value for the
+                                            Helm parameter
+                                          type: string
+                                      type: object
+                                    type: array
+                                  passCredentials:
+                                    description: PassCredentials pass credentials
+                                      to all domains (Helm's --pass-credentials)
+                                    type: boolean
+                                  releaseName:
+                                    description: ReleaseName is the Helm release name
+                                      to use. If omitted it will use the application
+                                      name
+                                    type: string
+                                  skipCrds:
+                                    description: SkipCrds skips custom resource definition
+                                      installation step (Helm's --skip-crds)
+                                    type: boolean
+                                  skipSchemaValidation:
+                                    description: SkipSchemaValidation skips JSON schema
+                                      validation (Helm's --skip-schema-validation)
+                                    type: boolean
+                                  skipTests:
+                                    description: SkipTests skips test manifest installation
+                                      step (Helm's --skip-tests).
+                                    type: boolean
+                                  valueFiles:
+                                    description: ValuesFiles is a list of Helm value
+                                      files to use when generating a template
+                                    items:
+                                      type: string
+                                    type: array
+                                  values:
+                                    description: Values specifies Helm values to be
+                                      passed to helm template, typically defined as
+                                      a block. ValuesObject takes precedence over
+                                      Values, so use one or the other.
+                                    type: string
+                                  valuesObject:
+                                    description: ValuesObject specifies Helm values
+                                      to be passed to helm template, defined as a
+                                      map. This takes precedence over Values.
+                                    type: object
+                                    x-kubernetes-preserve-unknown-fields: true
+                                  version:
+                                    description: Version is the Helm version to use
+                                      for templating ("3")
+                                    type: string
+                                type: object
+                              kustomize:
+                                description: Kustomize specifies kustomize specific
+                                  options
+                                properties:
+                                  apiVersions:
+                                    description: |-
+                                      APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
+                                      Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
+                                    items:
+                                      type: string
+                                    type: array
+                                  commonAnnotations:
+                                    additionalProperties:
+                                      type: string
+                                    description: CommonAnnotations is a list of additional
+                                      annotations to add to rendered manifests
+                                    type: object
+                                  commonAnnotationsEnvsubst:
+                                    description: CommonAnnotationsEnvsubst specifies
+                                      whether to apply env variables substitution
+                                      for annotation values
+                                    type: boolean
+                                  commonLabels:
+                                    additionalProperties:
+                                      type: string
+                                    description: CommonLabels is a list of additional
+                                      labels to add to rendered manifests
+                                    type: object
+                                  components:
+                                    description: Components specifies a list of kustomize
+                                      components to add to the kustomization before
+                                      building
+                                    items:
+                                      type: string
+                                    type: array
+                                  forceCommonAnnotations:
+                                    description: ForceCommonAnnotations specifies
+                                      whether to force applying common annotations
+                                      to resources for Kustomize apps
+                                    type: boolean
+                                  forceCommonLabels:
+                                    description: ForceCommonLabels specifies whether
+                                      to force applying common labels to resources
+                                      for Kustomize apps
+                                    type: boolean
+                                  ignoreMissingComponents:
+                                    description: IgnoreMissingComponents prevents
+                                      kustomize from failing when components do not
+                                      exist locally by not appending them to kustomization
+                                      file
+                                    type: boolean
+                                  images:
+                                    description: Images is a list of Kustomize image
+                                      override specifications
+                                    items:
+                                      description: KustomizeImage represents a Kustomize
+                                        image definition in the format [old_image_name=]<image_name>:<image_tag>
+                                      type: string
+                                    type: array
+                                  kubeVersion:
+                                    description: |-
+                                      KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
+                                      uses the Kubernetes version of the target cluster.
+                                    type: string
+                                  labelIncludeTemplates:
+                                    description: LabelIncludeTemplates specifies whether
+                                      to apply common labels to resource templates
+                                      or not
+                                    type: boolean
+                                  labelWithoutSelector:
+                                    description: LabelWithoutSelector specifies whether
+                                      to apply common labels to resource selectors
+                                      or not
+                                    type: boolean
+                                  namePrefix:
+                                    description: NamePrefix is a prefix appended to
+                                      resources for Kustomize apps
+                                    type: string
+                                  nameSuffix:
+                                    description: NameSuffix is a suffix appended to
+                                      resources for Kustomize apps
+                                    type: string
+                                  namespace:
+                                    description: Namespace sets the namespace that
+                                      Kustomize adds to all resources
+                                    type: string
+                                  patches:
+                                    description: Patches is a list of Kustomize patches
+                                    items:
+                                      properties:
+                                        options:
+                                          additionalProperties:
+                                            type: boolean
+                                          type: object
+                                        patch:
+                                          type: string
+                                        path:
+                                          type: string
+                                        target:
+                                          properties:
+                                            annotationSelector:
+                                              type: string
+                                            group:
+                                              type: string
+                                            kind:
+                                              type: string
+                                            labelSelector:
+                                              type: string
+                                            name:
+                                              type: string
+                                            namespace:
+                                              type: string
+                                            version:
+                                              type: string
+                                          type: object
+                                      type: object
+                                    type: array
+                                  replicas:
+                                    description: Replicas is a list of Kustomize Replicas
+                                      override specifications
+                                    items:
+                                      properties:
+                                        count:
+                                          anyOf:
+                                          - type: integer
+                                          - type: string
+                                          description: Number of replicas
+                                          x-kubernetes-int-or-string: true
+                                        name:
+                                          description: Name of Deployment or StatefulSet
+                                          type: string
+                                      required:
+                                      - count
+                                      - name
+                                      type: object
+                                    type: array
+                                  version:
+                                    description: Version controls which version of
+                                      Kustomize to use for rendering manifests
+                                    type: string
+                                type: object
                               path:
                                 description: Path is a directory path within the Git
                                   repository where the manifests are located
                                 type: string
+                              plugin:
+                                description: Plugin specifies config management plugin
+                                  specific options
+                                properties:
+                                  env:
+                                    description: Env is a list of environment variable
+                                      entries
+                                    items:
+                                      description: EnvEntry represents an entry in
+                                        the application's environment
+                                      properties:
+                                        name:
+                                          description: Name is the name of the variable,
+                                            usually expressed in uppercase
+                                          type: string
+                                        value:
+                                          description: Value is the value of the variable
+                                          type: string
+                                      required:
+                                      - name
+                                      - value
+                                      type: object
+                                    type: array
+                                  name:
+                                    type: string
+                                  parameters:
+                                    items:
+                                      properties:
+                                        array:
+                                          description: Array is the value of an array
+                                            type parameter.
+                                          items:
+                                            type: string
+                                          type: array
+                                        map:
+                                          additionalProperties:
+                                            type: string
+                                          description: Map is the value of a map type
+                                            parameter.
+                                          type: object
+                                        name:
+                                          description: Name is the name identifying
+                                            a parameter.
+                                          type: string
+                                        string:
+                                          description: String_ is the value of a string
+                                            type parameter.
+                                          type: string
+                                      type: object
+                                    type: array
+                                type: object
                               repoURL:
                                 description: RepoURL is the URL to the git repository
                                   that contains the application manifests

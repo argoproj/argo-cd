@@ -273,7 +273,7 @@ Argo CD supports many (most?) Helm hooks by mapping the Helm annotations onto Ar
 | Helm Annotation                 | Notes                                                                                         |
 | ------------------------------- |-----------------------------------------------------------------------------------------------|
 | `helm.sh/hook: crd-install`     | Supported as equivalent to normal Argo CD CRD handling.                                |
-| `helm.sh/hook: pre-delete`      | Not supported. In Helm stable there are 3 cases used to clean up CRDs and 3 to clean-up jobs. |
+| `helm.sh/hook: pre-delete`      | Supported as equivalent to `argocd.argoproj.io/hook: PreDelete`                               |
 | `helm.sh/hook: pre-rollback`    | Not supported. Never used in Helm stable.                                                     |
 | `helm.sh/hook: pre-install`     | Supported as equivalent to `argocd.argoproj.io/hook: PreSync`.                                |
 | `helm.sh/hook: pre-upgrade`     | Supported as equivalent to `argocd.argoproj.io/hook: PreSync`.                                |

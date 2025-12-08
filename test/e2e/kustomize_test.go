@@ -305,7 +305,7 @@ func TestKustomizeKubeVersion(t *testing.T) {
 			kubeVersion := errors.NewHandler(t).FailOnErr(fixture.Run(".", "kubectl", "-n", fixture.DeploymentNamespace(), "get", "cm", "my-map",
 				"-o", "jsonpath={.data.kubeVersion}")).(string)
 			// Capabilities.KubeVersion defaults to 1.9.0, we assume here you are running a later version
-			assert.LessOrEqual(t, fixture.GetVersions(t).ServerVersion.Format("v%s.%s.0"), kubeVersion)
+			assert.LessOrEqual(t, fixture.GetVersions(t).ServerVersion.Format("v%s.%s"), kubeVersion)
 		}).
 		When().
 		// Make sure override works.
@@ -368,6 +368,7 @@ func TestKustomizeNamespaceOverride(t *testing.T) {
 		When().
 		AppSet("--kustomize-namespace", "does-not-exist").
 		Then().
-		// The app should go out of sync, because the resource's target namespace changed.
-		Expect(SyncStatusIs(SyncStatusCodeOutOfSync))
+		// The app should stay in synced status as per https://github.com/kubernetes-sigs/kustomize/pull/5940
+		// the transformer will not update a helm generated namespace.
+		Expect(SyncStatusIs(SyncStatusCodeSynced))
 }

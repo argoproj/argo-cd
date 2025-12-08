@@ -225,9 +225,19 @@ func populateIngressInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 	if res.NetworkingInfo != nil {
 		urls = res.NetworkingInfo.ExternalURLs
 	}
-	for url := range urlsSet {
-		urls = append(urls, url)
+
+	enableDefaultExternalURLs := true
+	if ignoreVal, ok := un.GetAnnotations()[common.AnnotationKeyIgnoreDefaultLinks]; ok {
+		if ignoreDefaultLinks, err := strconv.ParseBool(ignoreVal); err == nil {
+			enableDefaultExternalURLs = !ignoreDefaultLinks
+		}
 	}
+	if enableDefaultExternalURLs {
+		for url := range urlsSet {
+			urls = append(urls, url)
+		}
+	}
+
 	res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{TargetRefs: targets, Ingress: ingress, ExternalURLs: urls}
 }
 
