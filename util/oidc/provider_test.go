@@ -199,7 +199,15 @@ func TestVerifyJWT(t *testing.T) {
 			errorContains: "failed to parse/verify JWT",
 		},
 		{
-			name:          "Mismatched Signing Method (e.g., HS256)",
+			name:          "Mismatched Default Signing Algorithm (e.g., HS256 VS RS256)",
+			signingMethod: jwtgo.SigningMethodHS256,
+			signingKey:    []byte("some-secret"),
+			expectError:   true,
+			errorContains: "failed to parse/verify JWT",
+		},
+		{
+			name:          "Mismatched Configured Signing Algorithm (e.g., ES256 VS RS256)",
+			jwtConfig:     &settings.JWTConfig{SigningAlgorithm: "ES256"},
 			signingMethod: jwtgo.SigningMethodHS256,
 			signingKey:    []byte("some-secret"),
 			expectError:   true,
