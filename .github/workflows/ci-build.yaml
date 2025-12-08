@@ -430,7 +430,6 @@ jobs:
       - build-go
       - changes
     env:
-      GOPATH: ${{ env.HOME }}/go
       ARGOCD_FAKE_IN_CLUSTER: 'true'
       ARGOCD_SSH_DATA_PATH: '/tmp/argo-e2e/app/config/ssh'
       ARGOCD_TLS_DATA_PATH: '/tmp/argo-e2e/app/config/tls'
@@ -456,6 +455,9 @@ jobs:
         uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
         with:
           go-version: ${{ env.GOLANG_VERSION }}
+      - name: Set GOPATH
+        run: |
+          echo "GOPATH=$HOME/go" >> $GITHUB_ENV
       - name: GH actions workaround - Kill XSP4 process
         run: |
           sudo pkill mono || true
