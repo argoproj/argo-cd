@@ -24,4 +24,4 @@ mkdir -p "$TEST_RESULTS"
 # shellcheck disable=SC2086
 GODEBUG="tarinsecurepath=0,zipinsecurepath=0" \
     gotestsum --rerun-fails-report=rerunreport.txt --junitfile="$TEST_RESULTS/junit.xml" --format=testname \
-    --rerun-fails="$RERUN_FAILS" --packages="$PACKAGES" -- -cover $TEST_FLAGS "$@"
+    --rerun-fails="$RERUN_FAILS" --packages="${TEST_MODULE:-$PACKAGES}" -- -cover $TEST_FLAGS "$@"

@@ -44,6 +44,8 @@ Use `argocd login --core` to [configure](./user-guide/commands/argocd_login.md) 
 
 > [!NOTE]
 > This default installation for Redis is using password authentication. The Redis password is stored in Kubernetes secret `argocd-redis` with key `auth` in the namespace where Argo CD is installed.
+> 
+> If you are running Argo CD on Docker Desktop or another local Kubernetes environment, refer to the [Running Argo CD Locally](developer-guide/running-locally.md) guide for the full setup instructions and configuration steps tailored for local clusters.
 
 ## 2. Download Argo CD CLI
 

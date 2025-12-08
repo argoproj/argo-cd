@@ -154,7 +154,7 @@ func (b *BitbucketCloudService) List(_ context.Context) ([]*PullRequest, error) 
 
 	for _, pull := range pulls {
 		pullRequests = append(pullRequests, &PullRequest{
-			Number:       pull.ID,
+			Number:       int64(pull.ID),
 			Title:        pull.Title,
 			Branch:       pull.Source.Branch.Name,
 			TargetBranch: pull.Destination.Branch.Name,
