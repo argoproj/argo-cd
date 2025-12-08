@@ -551,12 +551,19 @@ func sourceUsesURL(source v1alpha1.ApplicationSource, webURL string, repoRegexp 
 // is provided, then oauth based client is created.
 func newBitbucketClient(_ context.Context, repository *v1alpha1.Repository, apiBaseURL string) (*bb.Client, error) {
 	var bbClient *bb.Client
+	var err error
 	if repository.Username != "" && repository.Password != "" {
 		log.Debugf("fetched user/password for repository URL '%s', initializing basic auth client", repository.Repo)
 		if repository.Username == "x-token-auth" {
-			bbClient = bb.NewOAuthbearerToken(repository.Password)
+			bbClient, err = bb.NewOAuthbearerToken(repository.Password)
+			if err != nil {
+				return nil, fmt.Errorf("error creating BitBucket Cloud client with oauth bearer token: %w", err)
+			}
 		} else {
-			bbClient = bb.NewBasicAuth(repository.Username, repository.Password)
+			bbClient, err = bb.NewBasicAuth(repository.Username, repository.Password)
+			if err != nil {
+				return nil, fmt.Errorf("error creating BitBucket Cloud client with basic auth: %w", err)
+			}
 		}
 	} else {
 		if repository.BearerToken != "" {
@@ -564,7 +571,10 @@ func newBitbucketClient(_ context.Context, repository *v1alpha1.Repository, apiB
 		} else {
 			log.Debugf("no credentials available for repository URL '%s', initializing no auth client", repository.Repo)
 		}
-		bbClient = bb.NewOAuthbearerToken(repository.BearerToken)
+		bbClient, err = bb.NewOAuthbearerToken(repository.BearerToken)
+		if err != nil {
+			return nil, fmt.Errorf("error creating BitBucket Cloud client with oauth bearer token: %w", err)
+		}
 	}
 	// parse and set the target URL of the Bitbucket server in the client
 	repoBaseURL, err := url.Parse(apiBaseURL)
