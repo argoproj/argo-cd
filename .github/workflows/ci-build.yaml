@@ -411,7 +411,7 @@ jobs:
   test-e2e:
     name: Run end-to-end tests
     if: ${{ needs.changes.outputs.backend == 'true' }}
-    runs-on: ${{ github.repository == 'argoproj/argo-cd' && 'oracle-vm-16cpu-64gb-x86-64' || 'ubuntu-22.04' }}
+    runs-on: ${{ vars.E2E_TESTS_RUNNER || 'ubuntu-22.04' }}
     strategy:
       fail-fast: false
       matrix:
@@ -430,7 +430,7 @@ jobs:
       - build-go
       - changes
     env:
-      GOPATH: ${{ github.repository == 'argoproj/argo-cd' && '/home/ubuntu/go' || '/home/runner/go' }}
+      GOPATH: ${{ env.HOME/go }}
       ARGOCD_FAKE_IN_CLUSTER: 'true'
       ARGOCD_SSH_DATA_PATH: '/tmp/argo-e2e/app/config/ssh'
       ARGOCD_TLS_DATA_PATH: '/tmp/argo-e2e/app/config/tls'
