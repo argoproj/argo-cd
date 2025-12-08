@@ -533,7 +533,7 @@ func (s *Server) ListResourceEvents(ctx context.Context, q *applicationset.Appli
 		return nil, fmt.Errorf("error getting ApplicationSet: %w", err)
 	}
 
-	if err = s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceApplicationSets, rbac.ActionGet, a.RBACName(s.ns)); err != nil {
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceApplicationSets, rbac.ActionGet, a.RBACName(s.ns)); err != nil {
 		return nil, err
 	}
 

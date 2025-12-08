@@ -751,7 +751,7 @@ func TestListResourceEvents(t *testing.T) {
 		appsetQuery := applicationset.ApplicationSetGetQuery{Name: "DoesNotExist"}
 
 		_, err := appSetServer.ListResourceEvents(t.Context(), &appsetQuery)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "error getting ApplicationSet")
 	})
 }
