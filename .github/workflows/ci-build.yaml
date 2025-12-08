@@ -430,7 +430,7 @@ jobs:
       - build-go
       - changes
     env:
-      GOPATH: ${{ env.HOME/go }}
+      GOPATH: ${{ env.HOME }}/go
       ARGOCD_FAKE_IN_CLUSTER: 'true'
       ARGOCD_SSH_DATA_PATH: '/tmp/argo-e2e/app/config/ssh'
       ARGOCD_TLS_DATA_PATH: '/tmp/argo-e2e/app/config/tls'
