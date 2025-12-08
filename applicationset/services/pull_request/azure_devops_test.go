@@ -2,6 +2,7 @@ package pull_request
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/microsoft/azure-devops-go-api/azuredevops/v7/core"
@@ -13,10 +14,22 @@ import (
 
 	azureMock "github.com/argoproj/argo-cd/v3/applicationset/services/scm_provider/azure_devops/git/mocks"
 	"github.com/argoproj/argo-cd/v3/applicationset/services/scm_provider/mocks"
+	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 func createBoolPtr(x bool) *bool {
 	return &x
+}
+
+// Helper function to create test Azure DevOps config
+func createTestAzureDevOpsConfig(api, organization, project, repo string, labels []string) *argoprojiov1alpha1.PullRequestGeneratorAzureDevOps {
+	return &argoprojiov1alpha1.PullRequestGeneratorAzureDevOps{
+		API:          api,
+		Organization: organization,
+		Project:      project,
+		Repo:         repo,
+		Labels:       labels,
+	}
 }
 
 func createStringPtr(x string) *string {
@@ -245,4 +258,204 @@ func TestAzureDevOpsListReturnsRepositoryNotFoundError(t *testing.T) {
 	// Should return RepositoryNotFoundError
 	require.Error(t, err)
 	assert.True(t, IsRepositoryNotFoundError(err), "Expected RepositoryNotFoundError but got: %v", err)
+}
+
+func TestPatAuthProvider(t *testing.T) {
+	t.Run("PatAuthProvider with token", func(t *testing.T) {
+		provider := NewPatAuthProvider("test-token")
+		assert.NotNil(t, provider)
+		assert.Equal(t, "test-token", provider.token)
+
+		factory := provider.CreateClientFactory("https://dev.azure.com/testorg")
+		assert.NotNil(t, factory)
+
+		// Verify it's the right type
+		_, ok := factory.(*devopsFactoryImpl)
+		assert.True(t, ok, "Expected devopsFactoryImpl")
+	})
+
+	t.Run("PatAuthProvider with empty token", func(t *testing.T) {
+		provider := NewPatAuthProvider("")
+		assert.NotNil(t, provider)
+		assert.Empty(t, provider.token)
+
+		factory := provider.CreateClientFactory("https://dev.azure.com/testorg")
+		assert.NotNil(t, factory)
+
+		// Verify it's the right type
+		_, ok := factory.(*devopsFactoryImpl)
+		assert.True(t, ok, "Expected devopsFactoryImpl")
+	})
+}
+
+func TestAnonymousAuthProvider(t *testing.T) {
+	provider := NewAnonymousAuthProvider()
+	assert.NotNil(t, provider)
+
+	factory := provider.CreateClientFactory("https://dev.azure.com/testorg")
+	assert.NotNil(t, factory)
+
+	// Verify it's the right type
+	_, ok := factory.(*devopsFactoryImpl)
+	assert.True(t, ok, "Expected devopsFactoryImpl")
+}
+
+func TestWorkloadIdentityAuthProvider(t *testing.T) {
+	provider := NewWorkloadIdentityAuthProvider()
+	assert.NotNil(t, provider)
+
+	factory := provider.CreateClientFactory("https://dev.azure.com/testorg")
+	assert.NotNil(t, factory)
+
+	// Verify it's the right type
+	_, ok := factory.(*devopsWorkloadIdentityFactory)
+	assert.True(t, ok, "Expected devopsWorkloadIdentityFactory")
+}
+
+func TestNewAzureDevOpsServiceWithAuthProvider(t *testing.T) {
+	t.Run("with PatAuthProvider", func(t *testing.T) {
+		provider := NewPatAuthProvider("test-token")
+		config := createTestAzureDevOpsConfig("", "testorg", "testproject", "testrepo", nil)
+		service, err := NewAzureDevOpsServiceWithAuthProvider(config, provider)
+
+		require.NoError(t, err)
+		assert.NotNil(t, service)
+
+		azureService, ok := service.(*AzureDevOpsService)
+		assert.True(t, ok, "Expected AzureDevOpsService")
+		assert.Equal(t, "testproject", azureService.project)
+		assert.Equal(t, "testrepo", azureService.repo)
+		assert.NotNil(t, azureService.clientFactory)
+	})
+
+	t.Run("with AnonymousAuthProvider", func(t *testing.T) {
+		provider := NewAnonymousAuthProvider()
+		config := createTestAzureDevOpsConfig("", "testorg", "testproject", "testrepo", nil)
+		service, err := NewAzureDevOpsServiceWithAuthProvider(config, provider)
+
+		require.NoError(t, err)
+		assert.NotNil(t, service)
+
+		azureService, ok := service.(*AzureDevOpsService)
+		assert.True(t, ok, "Expected AzureDevOpsService")
+		assert.Equal(t, "testproject", azureService.project)
+		assert.Equal(t, "testrepo", azureService.repo)
+		assert.NotNil(t, azureService.clientFactory)
+	})
+
+	t.Run("with WorkloadIdentityAuthProvider", func(t *testing.T) {
+		provider := NewWorkloadIdentityAuthProvider()
+		config := createTestAzureDevOpsConfig("", "testorg", "testproject", "testrepo", nil)
+		service, err := NewAzureDevOpsServiceWithAuthProvider(config, provider)
+
+		require.NoError(t, err)
+		assert.NotNil(t, service)
+
+		azureService, ok := service.(*AzureDevOpsService)
+		assert.True(t, ok, "Expected AzureDevOpsService")
+		assert.Equal(t, "testproject", azureService.project)
+		assert.Equal(t, "testrepo", azureService.repo)
+		assert.NotNil(t, azureService.clientFactory)
+	})
+
+	t.Run("with custom URL", func(t *testing.T) {
+		provider := NewPatAuthProvider("test-token")
+		config := createTestAzureDevOpsConfig("https://custom.azure.com", "testorg", "testproject", "testrepo", []string{"label1"})
+		service, err := NewAzureDevOpsServiceWithAuthProvider(config, provider)
+
+		require.NoError(t, err)
+		assert.NotNil(t, service)
+
+		azureService, ok := service.(*AzureDevOpsService)
+		assert.True(t, ok, "Expected AzureDevOpsService")
+		assert.Equal(t, "testproject", azureService.project)
+		assert.Equal(t, "testrepo", azureService.repo)
+		assert.Equal(t, []string{"label1"}, azureService.labels)
+		assert.NotNil(t, azureService.clientFactory)
+	})
+}
+
+func TestNewAzureDevOpsServiceUpdatedBehavior(t *testing.T) {
+	t.Run("with token uses PatAuthProvider", func(t *testing.T) {
+		config := createTestAzureDevOpsConfig("", "testorg", "testproject", "testrepo", nil)
+		service, err := NewAzureDevOpsService("test-token", config)
+
+		require.NoError(t, err)
+		assert.NotNil(t, service)
+
+		azureService, ok := service.(*AzureDevOpsService)
+		assert.True(t, ok, "Expected AzureDevOpsService")
+		assert.Equal(t, "testproject", azureService.project)
+		assert.Equal(t, "testrepo", azureService.repo)
+		assert.NotNil(t, azureService.clientFactory)
+	})
+
+	t.Run("without token uses AnonymousAuthProvider", func(t *testing.T) {
+		config := createTestAzureDevOpsConfig("", "testorg", "testproject", "testrepo", nil)
+		service, err := NewAzureDevOpsService("", config)
+
+		require.NoError(t, err)
+		assert.NotNil(t, service)
+
+		azureService, ok := service.(*AzureDevOpsService)
+		assert.True(t, ok, "Expected AzureDevOpsService")
+		assert.Equal(t, "testproject", azureService.project)
+		assert.Equal(t, "testrepo", azureService.repo)
+		assert.NotNil(t, azureService.clientFactory)
+	})
+}
+
+func TestNewAzureDevOpsServiceWithWorkloadIdentityUpdated(t *testing.T) {
+	config := createTestAzureDevOpsConfig("", "testorg", "testproject", "testrepo", nil)
+	service, err := NewAzureDevOpsServiceWithWorkloadIdentity(config)
+
+	require.NoError(t, err)
+	assert.NotNil(t, service)
+
+	azureService, ok := service.(*AzureDevOpsService)
+	assert.True(t, ok, "Expected AzureDevOpsService")
+	assert.Equal(t, "testproject", azureService.project)
+	assert.Equal(t, "testrepo", azureService.repo)
+	assert.NotNil(t, azureService.clientFactory)
+
+	// Verify it uses workload identity factory
+	_, ok = azureService.clientFactory.(*devopsWorkloadIdentityFactory)
+	assert.True(t, ok, "Expected devopsWorkloadIdentityFactory")
+}
+
+func TestNewAzureDevOpsServiceAnonymous(t *testing.T) {
+	config := createTestAzureDevOpsConfig("", "testorg", "testproject", "testrepo", nil)
+	service, err := NewAzureDevOpsServiceAnonymous(config)
+
+	require.NoError(t, err)
+	assert.NotNil(t, service)
+
+	azureService, ok := service.(*AzureDevOpsService)
+	assert.True(t, ok, "Expected AzureDevOpsService")
+	assert.Equal(t, "testproject", azureService.project)
+	assert.Equal(t, "testrepo", azureService.repo)
+	assert.NotNil(t, azureService.clientFactory)
+
+	// Verify it uses regular factory (for anonymous connection)
+	_, ok = azureService.clientFactory.(*devopsFactoryImpl)
+	assert.True(t, ok, "Expected devopsFactoryImpl")
+}
+
+func TestAuthProviderInterface(t *testing.T) {
+	// Test that all providers implement the interface
+	providers := []AuthProvider{
+		NewPatAuthProvider("test"),
+		NewAnonymousAuthProvider(),
+		NewWorkloadIdentityAuthProvider(),
+	}
+
+	for i, provider := range providers {
+		t.Run(fmt.Sprintf("Provider %d implements interface", i), func(t *testing.T) {
+			factory := provider.CreateClientFactory("https://dev.azure.com/test")
+			assert.NotNil(t, factory)
+
+			// Ensure factory implements AzureDevOpsClientFactory
+			assert.Implements(t, (*AzureDevOpsClientFactory)(nil), factory)
+		})
+	}
 }
