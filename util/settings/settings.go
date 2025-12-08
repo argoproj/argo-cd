@@ -660,7 +660,6 @@ func (mgr *SettingsManager) GetSecretsInformer() (cache.SharedIndexInformer, err
 }
 
 // GetClusterInformer returns the cluster cache for optimized cluster lookups.
-// Returns nil if the cluster cache was not initialized or failed to initialize.
 func (mgr *SettingsManager) GetClusterInformer() *ClusterInformer {
 	// Ensure the settings manager is initialized
 	_ = mgr.ensureSynced(false)
@@ -1354,7 +1353,6 @@ func (mgr *SettingsManager) initialize(ctx context.Context) error {
 	}
 	cmInformer := informersv1.NewFilteredConfigMapInformer(mgr.clientset, mgr.namespace, 3*time.Minute, indexers, tweakConfigMap)
 	secretsInformer := informersv1.NewSecretInformer(mgr.clientset, mgr.namespace, 3*time.Minute, indexers)
-	// Initialize cluster cache for optimized cluster lookups
 	clusterInformer, err := NewClusterInformer(mgr.clientset, mgr.namespace)
 	if err != nil {
 		log.Error(err)
@@ -1387,7 +1385,7 @@ func (mgr *SettingsManager) initialize(ctx context.Context) error {
 
 	go func() {
 		clusterInformer.Run(ctx.Done())
-		log.Info("cluster cache informer cancelled")
+		log.Info("cluster secrets informer cancelled")
 	}()
 
 	if !cache.WaitForCacheSync(ctx.Done(), cmInformer.HasSynced, secretsInformer.HasSynced, clusterInformer.HasSynced) {
@@ -1396,7 +1394,7 @@ func (mgr *SettingsManager) initialize(ctx context.Context) error {
 	log.Info("Configmap/secret informer synced")
 
 	mgr.clusterInformer = clusterInformer
-	log.Info("Cluster cache initialized successfully")
+	log.Info("Cluster cache informer synced")
 
 	tryNotify := func() {
 		newSettings, err := mgr.GetSettings()

@@ -228,6 +228,7 @@ func (db *db) getClusterSecret(server string) (*corev1.Secret, error) {
 
 // GetCluster returns a cluster from a query
 func (db *db) GetCluster(_ context.Context, server string) (*appv1.Cluster, error) {
+	informer := db.settingsMgr.GetClusterInformer()
 	if server == appv1.KubernetesInternalAPIServerAddr {
 		argoSettings, err := db.settingsMgr.GetSettings()
 		if err != nil {
@@ -239,7 +240,6 @@ func (db *db) GetCluster(_ context.Context, server string) (*appv1.Cluster, erro
 
 		// Check if there's a secret configured for the in-cluster address
 		// If so, use that instead of the hardcoded local cluster
-		informer := db.settingsMgr.GetClusterInformer()
 		cluster, err := informer.GetClusterByURL(server)
 		if err == nil {
 			return cluster, nil
@@ -249,7 +249,6 @@ func (db *db) GetCluster(_ context.Context, server string) (*appv1.Cluster, erro
 		return db.getLocalCluster(), nil
 	}
 
-	informer := db.settingsMgr.GetClusterInformer()
 	cluster, err := informer.GetClusterByURL(server)
 	if err != nil {
 		return nil, status.Errorf(codes.NotFound, "cluster %q not found", server)
