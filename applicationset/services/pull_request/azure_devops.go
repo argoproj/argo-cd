@@ -8,6 +8,10 @@ import (
 	"github.com/microsoft/azure-devops-go-api/azuredevops/v7"
 	"github.com/microsoft/azure-devops-go-api/azuredevops/v7/core"
 	"github.com/microsoft/azure-devops-go-api/azuredevops/v7/git"
+
+	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	gitcreds "github.com/argoproj/argo-cd/v3/util/git"
+	"github.com/argoproj/argo-cd/v3/util/workloadidentity"
 )
 
 const (
@@ -32,6 +36,29 @@ func (factory *devopsFactoryImpl) GetClient(ctx context.Context) (git.Client, er
 	return gitClient, nil
 }
 
+// devopsWorkloadIdentityFactory handles token refresh automatically for workload identity authentication
+type devopsWorkloadIdentityFactory struct {
+	organizationURL string
+	creds           gitcreds.AzureWorkloadIdentityCreds
+}
+
+func (factory *devopsWorkloadIdentityFactory) GetClient(ctx context.Context) (git.Client, error) {
+	// Get a fresh token (uses cached token if still valid, refreshes if expired)
+	accessToken, err := factory.creds.GetAzureDevOpsAccessToken()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get Azure DevOps access token using workload identity: %w", err)
+	}
+
+	// Use the SDK method to create the connection - this handles all the details properly
+	connection := azuredevops.NewPatConnection(factory.organizationURL, accessToken)
+
+	gitClient, err := git.NewClient(ctx, connection)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get new Azure DevOps git client for pull request generator: %w", err)
+	}
+	return gitClient, nil
+}
+
 type AzureDevOpsService struct {
 	clientFactory AzureDevOpsClientFactory
 	project       string
@@ -42,24 +69,93 @@ type AzureDevOpsService struct {
 var (
 	_ PullRequestService       = (*AzureDevOpsService)(nil)
 	_ AzureDevOpsClientFactory = &devopsFactoryImpl{}
+	_ AzureDevOpsClientFactory = &devopsWorkloadIdentityFactory{}
+	_ AuthProvider             = &PatAuthProvider{}
+	_ AuthProvider             = &WorkloadIdentityAuthProvider{}
+	_ AuthProvider             = &AnonymousAuthProvider{}
 )
 
-func NewAzureDevOpsService(token, url, organization, project, repo string, labels []string) (PullRequestService, error) {
-	organizationURL := buildURL(url, organization)
+// AuthProvider defines the interface for Azure DevOps authentication methods
+type AuthProvider interface {
+	CreateClientFactory(organizationURL string) AzureDevOpsClientFactory
+}
 
+// PatAuthProvider handles Personal Access Token authentication
+type PatAuthProvider struct {
+	token string
+}
+
+func NewPatAuthProvider(token string) *PatAuthProvider {
+	return &PatAuthProvider{token: token}
+}
+
+func (p *PatAuthProvider) CreateClientFactory(organizationURL string) AzureDevOpsClientFactory {
 	var connection *azuredevops.Connection
-	if token == "" {
+	if p.token == "" {
 		connection = azuredevops.NewAnonymousConnection(organizationURL)
 	} else {
-		connection = azuredevops.NewPatConnection(organizationURL, token)
+		connection = azuredevops.NewPatConnection(organizationURL, p.token)
 	}
+	return &devopsFactoryImpl{connection: connection}
+}
+
+// AnonymousAuthProvider handles anonymous authentication
+type AnonymousAuthProvider struct{}
+
+func NewAnonymousAuthProvider() *AnonymousAuthProvider {
+	return &AnonymousAuthProvider{}
+}
+
+func (a *AnonymousAuthProvider) CreateClientFactory(organizationURL string) AzureDevOpsClientFactory {
+	connection := azuredevops.NewAnonymousConnection(organizationURL)
+	return &devopsFactoryImpl{connection: connection}
+}
+
+// WorkloadIdentityAuthProvider handles Azure Workload Identity authentication
+type WorkloadIdentityAuthProvider struct{}
+
+func NewWorkloadIdentityAuthProvider() *WorkloadIdentityAuthProvider {
+	return &WorkloadIdentityAuthProvider{}
+}
+
+func (w *WorkloadIdentityAuthProvider) CreateClientFactory(organizationURL string) AzureDevOpsClientFactory {
+	tokenProvider := workloadidentity.NewWorkloadIdentityTokenProvider()
+	creds := gitcreds.NewAzureWorkloadIdentityCreds(gitcreds.NoopCredsStore{}, tokenProvider)
+	return &devopsWorkloadIdentityFactory{
+		organizationURL: organizationURL,
+		creds:           creds,
+	}
+}
+
+func NewAzureDevOpsService(token string, providerConfig *argoprojiov1alpha1.PullRequestGeneratorAzureDevOps) (PullRequestService, error) {
+	if token == "" {
+		return NewAzureDevOpsServiceWithAuthProvider(providerConfig, NewAnonymousAuthProvider())
+	}
+	return NewAzureDevOpsServiceWithAuthProvider(providerConfig, NewPatAuthProvider(token))
+}
+
+// NewAzureDevOpsServiceWithAuthProvider creates a new Azure DevOps service with the specified authentication provider
+func NewAzureDevOpsServiceWithAuthProvider(providerConfig *argoprojiov1alpha1.PullRequestGeneratorAzureDevOps, authProvider AuthProvider) (PullRequestService, error) {
+	organizationURL := buildURL(providerConfig.API, providerConfig.Organization)
+
+	clientFactory := authProvider.CreateClientFactory(organizationURL)
 
 	return &AzureDevOpsService{
-		clientFactory: &devopsFactoryImpl{connection: connection},
-		project:       project,
-		repo:          repo,
-		labels:        labels,
+		clientFactory: clientFactory,
+		project:       providerConfig.Project,
+		repo:          providerConfig.Repo,
+		labels:        providerConfig.Labels,
 	}, nil
+}
+
+// NewAzureDevOpsServiceWithWorkloadIdentity creates a new Azure DevOps service using Azure Workload Identity
+func NewAzureDevOpsServiceWithWorkloadIdentity(providerConfig *argoprojiov1alpha1.PullRequestGeneratorAzureDevOps) (PullRequestService, error) {
+	return NewAzureDevOpsServiceWithAuthProvider(providerConfig, NewWorkloadIdentityAuthProvider())
+}
+
+// NewAzureDevOpsServiceAnonymous creates a new Azure DevOps service using anonymous authentication
+func NewAzureDevOpsServiceAnonymous(providerConfig *argoprojiov1alpha1.PullRequestGeneratorAzureDevOps) (PullRequestService, error) {
+	return NewAzureDevOpsServiceWithAuthProvider(providerConfig, NewAnonymousAuthProvider())
 }
 
 func (a *AzureDevOpsService) List(ctx context.Context) ([]*PullRequest, error) {
