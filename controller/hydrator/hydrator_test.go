@@ -44,12 +44,14 @@ func Test_appNeedsHydration(t *testing.T) {
 	testCases := []struct {
 		name                   string
 		app                    *v1alpha1.Application
+		timeout                time.Duration
 		expectedNeedsHydration bool
 		expectedMessage        string
 	}{
 		{
 			name:                   "source hydrator not configured",
 			app:                    &v1alpha1.Application{},
+			timeout:                1 * time.Hour,
 			expectedNeedsHydration: false,
 			expectedMessage:        "source hydrator not configured",
 		},
@@ -58,6 +60,7 @@ func Test_appNeedsHydration(t *testing.T) {
 			app: &v1alpha1.Application{
 				Spec: v1alpha1.ApplicationSpec{SourceHydrator: &v1alpha1.SourceHydrator{}},
 			},
+			timeout:                1 * time.Hour,
 			expectedNeedsHydration: true,
 			expectedMessage:        "no previous hydrate operation",
 		},
@@ -67,6 +70,7 @@ func Test_appNeedsHydration(t *testing.T) {
 				Spec:   v1alpha1.ApplicationSpec{SourceHydrator: &v1alpha1.SourceHydrator{}},
 				Status: v1alpha1.ApplicationStatus{SourceHydrator: v1alpha1.SourceHydratorStatus{CurrentOperation: &v1alpha1.HydrateOperation{Phase: v1alpha1.HydrateOperationPhaseHydrating}}},
 			},
+			timeout:                1 * time.Hour,
 			expectedNeedsHydration: false,
 			expectedMessage:        "hydration operation already in progress",
 		},
@@ -77,6 +81,7 @@ func Test_appNeedsHydration(t *testing.T) {
 				Spec:       v1alpha1.ApplicationSpec{SourceHydrator: &v1alpha1.SourceHydrator{}},
 				Status:     v1alpha1.ApplicationStatus{SourceHydrator: v1alpha1.SourceHydratorStatus{CurrentOperation: &v1alpha1.HydrateOperation{Phase: v1alpha1.HydrateOperationPhaseHydrated}}},
 			},
+			timeout:                1 * time.Hour,
 			expectedNeedsHydration: true,
 			expectedMessage:        "hydrate requested",
 		},
@@ -88,6 +93,7 @@ func Test_appNeedsHydration(t *testing.T) {
 					SourceHydrator: v1alpha1.SourceHydrator{DrySource: v1alpha1.DrySource{RepoURL: "something new"}},
 				}}},
 			},
+			timeout:                1 * time.Hour,
 			expectedNeedsHydration: true,
 			expectedMessage:        "spec.sourceHydrator differs",
 		},
@@ -97,8 +103,19 @@ func Test_appNeedsHydration(t *testing.T) {
 				Spec:   v1alpha1.ApplicationSpec{SourceHydrator: &v1alpha1.SourceHydrator{}},
 				Status: v1alpha1.ApplicationStatus{SourceHydrator: v1alpha1.SourceHydratorStatus{CurrentOperation: &v1alpha1.HydrateOperation{DrySHA: "abc123", FinishedAt: &oneHourAgo, Phase: v1alpha1.HydrateOperationPhaseFailed}}},
 			},
+			timeout:                1 * time.Hour,
 			expectedNeedsHydration: true,
 			expectedMessage:        "previous hydrate operation failed more than 2 minutes ago",
+		},
+		{
+			name: "timeout reached",
+			app: &v1alpha1.Application{
+				Spec:   v1alpha1.ApplicationSpec{SourceHydrator: &v1alpha1.SourceHydrator{}},
+				Status: v1alpha1.ApplicationStatus{SourceHydrator: v1alpha1.SourceHydratorStatus{CurrentOperation: &v1alpha1.HydrateOperation{StartedAt: oneHourAgo}}},
+			},
+			timeout:                1 * time.Minute,
+			expectedNeedsHydration: true,
+			expectedMessage:        "hydration expired",
 		},
 		{
 			name: "hydrate not needed",
@@ -106,6 +123,7 @@ func Test_appNeedsHydration(t *testing.T) {
 				Spec:   v1alpha1.ApplicationSpec{SourceHydrator: &v1alpha1.SourceHydrator{}},
 				Status: v1alpha1.ApplicationStatus{SourceHydrator: v1alpha1.SourceHydratorStatus{CurrentOperation: &v1alpha1.HydrateOperation{DrySHA: "abc123", StartedAt: now, FinishedAt: &now, Phase: v1alpha1.HydrateOperationPhaseFailed}}},
 			},
+			timeout:                1 * time.Hour,
 			expectedNeedsHydration: false,
 			expectedMessage:        "hydration not needed",
 		},
@@ -114,7 +132,7 @@ func Test_appNeedsHydration(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			needsHydration, message := appNeedsHydration(tc.app)
+			needsHydration, message := appNeedsHydration(tc.app, tc.timeout)
 			assert.Equal(t, tc.expectedNeedsHydration, needsHydration)
 			assert.Equal(t, tc.expectedMessage, message)
 		})

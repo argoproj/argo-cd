@@ -109,7 +109,7 @@ func (h *Hydrator) ProcessAppHydrateQueueItem(origApp *appv1.Application) {
 	logCtx := log.WithFields(applog.GetAppLogFields(app))
 	logCtx.Debug("Processing app hydrate queue item")
 
-	needsHydration, reason := appNeedsHydration(app)
+	needsHydration, reason := appNeedsHydration(app, h.statusRefreshTimeout)
 	if needsHydration {
 		app.Status.SourceHydrator.CurrentOperation = &appv1.HydrateOperation{
 			StartedAt:      metav1.Now(),
@@ -518,7 +518,12 @@ func (h *Hydrator) getRevisionMetadata(ctx context.Context, repoURL, project, re
 }
 
 // appNeedsHydration answers if application needs manifests hydrated.
-func appNeedsHydration(app *appv1.Application) (needsHydration bool, reason string) {
+func appNeedsHydration(app *appv1.Application, statusHydrateTimeout time.Duration) (needsHydration bool, reason string) {
+	var hydratedAt *metav1.Time
+	if app.Status.SourceHydrator.CurrentOperation != nil {
+		hydratedAt = &app.Status.SourceHydrator.CurrentOperation.StartedAt
+	}
+
 	switch {
 	case app.Spec.SourceHydrator == nil:
 		return false, "source hydrator not configured"
@@ -532,6 +537,8 @@ func appNeedsHydration(app *appv1.Application) (needsHydration bool, reason stri
 		return true, "spec.sourceHydrator differs"
 	case app.Status.SourceHydrator.CurrentOperation.Phase == appv1.HydrateOperationPhaseFailed && metav1.Now().Sub(app.Status.SourceHydrator.CurrentOperation.FinishedAt.Time) > 2*time.Minute:
 		return true, "previous hydrate operation failed more than 2 minutes ago"
+	case hydratedAt == nil || hydratedAt.Add(statusHydrateTimeout).Before(time.Now().UTC()):
+		return true, "hydration expired"
 	}
 
 	return false, "hydration not needed"
