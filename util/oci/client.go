@@ -224,26 +224,24 @@ type nativeOCIClient struct {
 // TestRepo verifies that the remote OCI repo can be connected to.
 func (c *nativeOCIClient) TestRepo(ctx context.Context) (bool, error) {
 	inc := c.OnTestRepo(c.repoURL)
+	defer inc()
 	// Currently doesn't do anything in regard to measuring spans, but keep it consistent with OnTestRepo()
 	fail := c.OnTestRepoFail(c.repoURL)
 	err := c.pingFunc(ctx)
 	if err != nil {
 		fail()
-	} else {
-		inc()
 	}
 	return err == nil, err
 }
 
 func (c *nativeOCIClient) Extract(ctx context.Context, digest string) (string, utilio.Closer, error) {
 	inc := c.OnExtract(c.repoURL)
+	defer inc()
 	// Currently doesn't do anything in regard to measuring spans, but keep it consistent with OnExtract()
 	fail := c.OnExtractFail(c.repoURL)
 	extract, closer, err := c.extract(ctx, digest)
 	if err != nil {
 		fail(digest)
-	} else {
-		inc()
 	}
 	return extract, closer, err
 }
@@ -332,13 +330,12 @@ func (c *nativeOCIClient) CleanCache(revision string) error {
 // DigestMetadata extracts the OCI manifest for a given revision and returns it to the caller.
 func (c *nativeOCIClient) DigestMetadata(ctx context.Context, digest string) (*imagev1.Manifest, error) {
 	inc := c.OnDigestMetadata(c.repoURL)
+	defer inc()
 	// Currently doesn't do anything in regard to measuring spans, but keep it consistent with OnDigestMetadata()
 	fail := c.OnDigestMetadataFail(c.repoURL)
 	metadata, err := c.digestMetadata(ctx, digest)
 	if err != nil {
 		fail(digest)
-	} else {
-		inc()
 	}
 	return metadata, err
 }
@@ -359,13 +356,12 @@ func (c *nativeOCIClient) digestMetadata(ctx context.Context, digest string) (*i
 
 func (c *nativeOCIClient) ResolveRevision(ctx context.Context, revision string, noCache bool) (string, error) {
 	inc := c.OnResolveRevision(c.repoURL)
+	defer inc()
 	// Currently doesn't do anything in regard to measuring spans, but keep it consistent with OnResolveRevision()
 	fail := c.OnResolveRevisionFail(c.repoURL)
 	resolveRevision, err := c.resolveRevision(ctx, revision, noCache)
 	if err != nil {
 		fail(revision)
-	} else {
-		inc()
 	}
 	return resolveRevision, err
 }
@@ -397,13 +393,12 @@ func (c *nativeOCIClient) resolveRevision(ctx context.Context, revision string, 
 
 func (c *nativeOCIClient) GetTags(ctx context.Context, noCache bool) ([]string, error) {
 	inc := c.OnGetTags(c.repoURL)
+	defer inc()
 	// Currently doesn't do anything in regard to measuring spans, but keep it consistent with OnGetTags()
 	fail := c.OnGetTagsFail(c.repoURL)
 	tags, err := c.getTags(ctx, noCache)
 	if err != nil {
 		fail()
-	} else {
-		inc()
 	}
 	return tags, err
 }
