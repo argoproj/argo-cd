@@ -198,7 +198,7 @@ endif
 
 ifneq (${GIT_TAG},)
 IMAGE_TAG=${GIT_TAG}
-LDFLAGS += -X ${PACKAGE}.gitTag=${GIT_TAG}
+override LDFLAGS += -X ${PACKAGE}.gitTag=${GIT_TAG}
 else
 IMAGE_TAG?=latest
 endif
