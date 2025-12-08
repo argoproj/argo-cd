@@ -225,6 +225,8 @@ type JWTConfig struct {
 	Issuer string `json:"issuer,omitempty"`
 	// GroupsClaim is the JWT claim to use for groups
 	GroupsClaim string `json:"groupsClaim,omitempty"`
+	// Token Signing Algorithm, defaults to RS256
+	SigningAlgorithm string `json:"signingAlgorithm,omitempty"`
 }
 
 type OIDCConfig struct {

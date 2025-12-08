@@ -321,16 +321,16 @@ data:
     issuer: https://dev-123456.oktapreview.com
     clientID: aaaabbbbccccddddeee
     clientSecret: $oidc.okta.clientSecret
-    
-    # Optional list of allowed aud claims. If omitted or empty, defaults to the clientID value above (and the 
-    # cliClientID, if that is also specified). If you specify a list and want the clientID to be allowed, you must 
+
+    # Optional list of allowed aud claims. If omitted or empty, defaults to the clientID value above (and the
+    # cliClientID, if that is also specified). If you specify a list and want the clientID to be allowed, you must
     # explicitly include it in the list.
     # Token verification will pass if any of the token's audiences matches any of the audiences in this list.
     allowedAudiences:
     - aaaabbbbccccddddeee
     - qqqqwwwweeeerrrrttt
 
-    # Optional. If false, tokens without an audience will always fail validation. If true, tokens without an audience 
+    # Optional. If false, tokens without an audience will always fail validation. If true, tokens without an audience
     # will always pass validation.
     # Defaults to true for Argo CD < 2.6.0. Defaults to false for Argo CD >= 2.6.0.
     skipAudienceCheckWhenTokenHasNoAudience: true
@@ -404,7 +404,7 @@ oidc.config: |
 
 ### Configuring a custom logout URL for your OIDC provider
 
-Optionally, if your OIDC provider exposes a logout API and you wish to configure a custom logout URL for the purposes of invalidating 
+Optionally, if your OIDC provider exposes a logout API and you wish to configure a custom logout URL for the purposes of invalidating
 any active session post logout, you can do so by specifying it as follows:
 
 ```yaml
@@ -433,7 +433,7 @@ You are not required to specify a logoutRedirectURL as this is automatically gen
 
 If your OIDC provider is setup with a certificate which is not signed by one of the well known certificate authorities
 you can provide a custom certificate which will be used in verifying the OIDC provider's TLS certificate when
-communicating with it.  
+communicating with it.
 Add a `rootCA` to your `oidc.config` which contains the PEM encoded root certificate:
 
 ```yaml
@@ -474,13 +474,15 @@ data:
     cacheTTL: "1h"
     # Optional: Expected audience for the JWT
     audience: "https://argocd.example.com"
+    # Optional: Enforced token signing algorithm, RS256 by default
+    singingAlgorithm: "RS256"
 ```
 
 The following configuration options are available:
 
 * `headerName`: The HTTP header name to extract the JWT from (required)
 * `emailClaim`: The JWT claim to use for the user's email (required)
-* `usernameClaim`: The JWT claim to use for the username (required) 
+* `usernameClaim`: The JWT claim to use for the username (required)
 * `jwkSetURL`: The URL to fetch the JSON Web Key Set (JWKS) from (required)
 * `cacheTTL`: How long to cache the JWKS before refetching (optional, default: 5m)
 * `audience`: Expected audience value in the JWT claims (optional)
@@ -505,8 +507,8 @@ The external authentication provider must:
 
 `argocd-secret` can be used to store sensitive data which can be referenced by ArgoCD. Values starting with `$` in configmaps are interpreted as follows:
 
-- If value has the form: `$<secret>:a.key.in.k8s.secret`, look for a k8s secret with the name `<secret>` (minus the `$`), and read its value. 
-- Otherwise, look for a key in the k8s secret named `argocd-secret`. 
+- If value has the form: `$<secret>:a.key.in.k8s.secret`, look for a k8s secret with the name `<secret>` (minus the `$`), and read its value.
+- Otherwise, look for a key in the k8s secret named `argocd-secret`.
 
 #### Example
 
@@ -525,7 +527,7 @@ metadata:
 type: Opaque
 data:
   ...
-  # The secret value must be base64 encoded **once** 
+  # The secret value must be base64 encoded **once**
   # this value corresponds to: `printf "hello-world" | base64`
   oidc.auth0.clientSecret: "aGVsbG8td29ybGQ="
   ...
@@ -604,14 +606,14 @@ data:
 
 By default, all connections made by the API server to OIDC providers (either external providers or the bundled Dex
 instance) must pass certificate validation. These connections occur when getting the OIDC provider's well-known
-configuration, when getting the OIDC provider's keys, and  when exchanging an authorization code or verifying an ID 
+configuration, when getting the OIDC provider's keys, and  when exchanging an authorization code or verifying an ID
 token as part of an OIDC login flow.
 
 Disabling certificate verification might make sense if:
 * You are using the bundled Dex instance **and** your Argo CD instance has TLS configured with a self-signed certificate
   **and** you understand and accept the risks of skipping OIDC provider cert verification.
 * You are using an external OIDC provider **and** that provider uses an invalid certificate **and** you cannot solve
-  the problem by setting `oidcConfig.rootCA` **and** you understand and accept the risks of skipping OIDC provider cert 
+  the problem by setting `oidcConfig.rootCA` **and** you understand and accept the risks of skipping OIDC provider cert
   verification.
 
 If either of those two applies, then you can disable OIDC provider certificate verification by setting

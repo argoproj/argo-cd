@@ -1190,37 +1190,37 @@ func TestGetUserInfo(t *testing.T) {
 func TestSetGroupsFromUserInfo(t *testing.T) {
 	tests := []struct {
 		name           string
-		inputClaims    jwt.MapClaims // function input
-		cacheClaims    jwt.MapClaims // userinfo response
-		expectedClaims jwt.MapClaims // function output
+		inputClaims    jwtgo.MapClaims // function input
+		cacheClaims    jwtgo.MapClaims // userinfo response
+		expectedClaims jwtgo.MapClaims // function output
 		expectError    bool
 	}{
 		{
 			name:           "set correct groups from userinfo endpoint", // enriches the JWT claims with information from the userinfo endpoint, default case
-			inputClaims:    jwt.MapClaims{"sub": "randomUser", "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
-			cacheClaims:    jwt.MapClaims{"sub": "randomUser", "groups": []string{"githubOrg:example"}, "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
-			expectedClaims: jwt.MapClaims{"sub": "randomUser", "groups": []any{"githubOrg:example"}, "exp": float64(time.Now().Add(5 * time.Minute).Unix())}, // the groups must be of type any since the response we get was parsed by GetUserInfo and we don't yet know the type of the groups claim
+			inputClaims:    jwtgo.MapClaims{"sub": "randomUser", "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
+			cacheClaims:    jwtgo.MapClaims{"sub": "randomUser", "groups": []string{"githubOrg:example"}, "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
+			expectedClaims: jwtgo.MapClaims{"sub": "randomUser", "groups": []any{"githubOrg:example"}, "exp": float64(time.Now().Add(5 * time.Minute).Unix())}, // the groups must be of type any since the response we get was parsed by GetUserInfo and we don't yet know the type of the groups claim
 			expectError:    false,
 		},
 		{
 			name:           "return error for wrong userinfo claims returned", // when there's an error in this feature, the claims should be untouched for the rest to still proceed
-			inputClaims:    jwt.MapClaims{"sub": "randomUser", "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
-			cacheClaims:    jwt.MapClaims{"sub": "wrongUser", "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
-			expectedClaims: jwt.MapClaims{"sub": "randomUser", "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
+			inputClaims:    jwtgo.MapClaims{"sub": "randomUser", "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
+			cacheClaims:    jwtgo.MapClaims{"sub": "wrongUser", "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
+			expectedClaims: jwtgo.MapClaims{"sub": "randomUser", "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
 			expectError:    true,
 		},
 		{
 			name:           "override groups already defined in input claims", // this is expected behavior since input claims might have been truncated (HTTP header 4K limit)
-			inputClaims:    jwt.MapClaims{"sub": "randomUser", "groups": []string{"groupfromjwt"}, "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
-			cacheClaims:    jwt.MapClaims{"sub": "randomUser", "groups": []string{"superusers", "usergroup", "support-group"}, "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
-			expectedClaims: jwt.MapClaims{"sub": "randomUser", "groups": []any{"superusers", "usergroup", "support-group"}, "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
+			inputClaims:    jwtgo.MapClaims{"sub": "randomUser", "groups": []string{"groupfromjwt"}, "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
+			cacheClaims:    jwtgo.MapClaims{"sub": "randomUser", "groups": []string{"superusers", "usergroup", "support-group"}, "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
+			expectedClaims: jwtgo.MapClaims{"sub": "randomUser", "groups": []any{"superusers", "usergroup", "support-group"}, "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
 			expectError:    false,
 		},
 		{
 			name:           "empty cache and non-rechable userinfo endpoint", // this will try to reach the userinfo endpoint defined in the test and fail
-			inputClaims:    jwt.MapClaims{"sub": "randomUser", "groups": []string{"groupfromjwt"}, "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
+			inputClaims:    jwtgo.MapClaims{"sub": "randomUser", "groups": []string{"groupfromjwt"}, "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
 			cacheClaims:    nil, // the test doesn't set the cache for an empty object
-			expectedClaims: jwt.MapClaims{"sub": "randomUser", "groups": []string{"groupfromjwt"}, "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
+			expectedClaims: jwtgo.MapClaims{"sub": "randomUser", "groups": []string{"groupfromjwt"}, "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
 			expectError:    true,
 		},
 	}
@@ -1442,12 +1442,12 @@ func TestClientApp_CheckAndGetRefreshToken(t *testing.T) {
 		name                  string
 		expectErrorContains   string
 		expectNewToken        bool
-		groupClaims           jwt.MapClaims
+		groupClaims           jwtgo.MapClaims
 		refreshTokenThreshold string
 	}{
 		{
 			name: "no new token",
-			groupClaims: jwt.MapClaims{
+			groupClaims: jwtgo.MapClaims{
 				"aud":    common.ArgoCDClientAppID,
 				"exp":    float64(time.Now().Add(time.Hour).Unix()),
 				"sub":    "randomUser",
@@ -1460,7 +1460,7 @@ func TestClientApp_CheckAndGetRefreshToken(t *testing.T) {
 		},
 		{
 			name: "new token",
-			groupClaims: jwt.MapClaims{
+			groupClaims: jwtgo.MapClaims{
 				"aud":    common.ArgoCDClientAppID,
 				"exp":    float64(time.Now().Add(55 * time.Second).Unix()),
 				"sub":    "randomUser",
@@ -1473,7 +1473,7 @@ func TestClientApp_CheckAndGetRefreshToken(t *testing.T) {
 		},
 		{
 			name: "parse error",
-			groupClaims: jwt.MapClaims{
+			groupClaims: jwtgo.MapClaims{
 				"aud":    common.ArgoCDClientAppID,
 				"exp":    float64(time.Now().Add(time.Minute).Unix()),
 				"sub":    "randomUser",

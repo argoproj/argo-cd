@@ -184,12 +184,18 @@ func (p *providerImpl) VerifyJWT(tokenString string, argoSettings *settings.Argo
 		return nil, fmt.Errorf("failed to get JWKS: %w", err)
 	}
 
+	// Determine signing algorithm, default to RS256 if not set
+	allowedSigningAlg := "RS256"
+	if argoSettings.JWTConfig.SigningAlgorithm != "" {
+		allowedSigningAlg = argoSettings.JWTConfig.SigningAlgorithm
+	}
+
 	// --- Key Function ---
 	keyFunc := func(token *jwtgo.Token) (any, error) {
-		// Ensure the signing method is RSA (as expected for JWKS)
+		// Ensure the signing method is expected before continuing.
 		// The WithValidMethods option below enforces this, but double-checking here is fine.
-		if _, ok := token.Method.(*jwtgo.SigningMethodRSA); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		if token.Method.Alg() != allowedSigningAlg {
+			return nil, fmt.Errorf("unexpected signing algorithm: %v", token.Header["alg"])
 		}
 
 		kid, ok := token.Header["kid"].(string)
@@ -218,7 +224,7 @@ func (p *providerImpl) VerifyJWT(tokenString string, argoSettings *settings.Argo
 
 	// --- Parser Options ---
 	opts := []jwtgo.ParserOption{
-		jwtgo.WithValidMethods([]string{"RS256"}), // Enforce RSA signing method
+		jwtgo.WithValidMethods([]string{allowedSigningAlg}), // Enforce expected signing algorithm
 		// Add other standard validation options based on config
 	}
 	if argoSettings.JWTConfig.Issuer != "" {
