@@ -1278,21 +1278,23 @@ type objKeyLiveTarget struct {
 // NewApplicationDiffCommand returns a new instance of an `argocd app diff` command
 func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		refresh              bool
-		hardRefresh          bool
-		exitCode             bool
-		diffExitCode         int
-		local                string
-		revision             string
-		localRepoRoot        string
-		serverSideGenerate   bool
-		serverSideDiff       bool
-		localIncludes        []string
-		appNamespace         string
-		revisions            []string
-		sourcePositions      []int64
-		sourceNames          []string
-		ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts
+		refresh                   bool
+		hardRefresh               bool
+		exitCode                  bool
+		diffExitCode              int
+		local                     string
+		revision                  string
+		localRepoRoot             string
+		serverSideGenerate        bool
+		serverSideDiff            bool
+		serverSideDiffConcurrency int
+		serverSideDiffMaxBatchKB  int
+		localIncludes             []string
+		appNamespace              string
+		revisions                 []string
+		sourcePositions           []int64
+		sourceNames               []string
+		ignoreNormalizerOpts      normalizers.IgnoreNormalizerOpts
 	)
 	shortDesc := "Perform a diff against the target and live state."
 	command := &cobra.Command{
@@ -1423,7 +1425,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			}
 			proj := getProject(ctx, c, clientOpts, app.Spec.Project)
 
-			foundDiffs := findAndPrintDiff(ctx, app, proj.Project, resources, argoSettings, diffOption, ignoreNormalizerOpts, serverSideDiff, appIf, app.GetName(), app.GetNamespace())
+			foundDiffs := findAndPrintDiff(ctx, app, proj.Project, resources, argoSettings, diffOption, ignoreNormalizerOpts, serverSideDiff, appIf, app.GetName(), app.GetNamespace(), serverSideDiffConcurrency, serverSideDiffMaxBatchKB)
 			if foundDiffs && exitCode {
 				os.Exit(diffExitCode)
 			}
@@ -1438,6 +1440,8 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().StringVar(&localRepoRoot, "local-repo-root", "/", "Path to the repository root. Used together with --local allows setting the repository root")
 	command.Flags().BoolVar(&serverSideGenerate, "server-side-generate", false, "Used with --local, this will send your manifests to the server for diffing")
 	command.Flags().BoolVar(&serverSideDiff, "server-side-diff", false, "Use server-side diff to calculate the diff. This will default to true if the ServerSideDiff annotation is set on the application.")
+	command.Flags().IntVar(&serverSideDiffConcurrency, "server-side-diff-concurrency", 0, "Max concurrent batches for server-side diff. 0 = unlimited, >0 = limit concurrent requests")
+	command.Flags().IntVar(&serverSideDiffMaxBatchKB, "server-side-diff-max-batch-kb", 250, "Max batch size in KB for server-side diff. Smaller values are safer for proxies")
 	command.Flags().StringArrayVar(&localIncludes, "local-include", []string{"*.yaml", "*.yml", "*.json"}, "Used with --server-side-generate, specify patterns of filenames to send. Matching is based on filename and not path.")
 	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Only render the difference in namespace")
 	command.Flags().StringArrayVar(&revisions, "revisions", []string{}, "Show manifests at specific revisions for source position in source-positions")
@@ -1454,7 +1458,10 @@ func printResourceDiff(group, kind, namespace, name string, live, target *unstru
 }
 
 // findAndPrintServerSideDiff performs a server-side diff by making requests to the api server and prints the response
-func findAndPrintServerSideDiff(ctx context.Context, app *argoappv1.Application, items []objKeyLiveTarget, resources *application.ManagedResourcesResponse, appIf application.ApplicationServiceClient, appName, appNs string) bool {
+func findAndPrintServerSideDiff(ctx context.Context, app *argoappv1.Application, items []objKeyLiveTarget, resources *application.ManagedResourcesResponse, appIf application.ApplicationServiceClient, appName, appNs string, maxConcurrency int, maxBatchSizeKB int) bool {
+	liveResources := make([]*argoappv1.ResourceDiff, 0, len(items))
+	targetManifests := make([]string, 0, len(items))
+
 	// Process each item for server-side diff
 	foundDiffs := false
 	for _, item := range items {
@@ -1488,6 +1495,7 @@ func findAndPrintServerSideDiff(ctx context.Context, app *argoappv1.Application,
 				Modified:    true,
 			}
 		}
+		liveResources = append(liveResources, liveResource)
 
 		if item.target != nil {
 			jsonBytes, err := json.Marshal(item.target)
@@ -1496,23 +1504,76 @@ func findAndPrintServerSideDiff(ctx context.Context, app *argoappv1.Application,
 			}
 			targetManifest = string(jsonBytes)
 		}
+		targetManifests = append(targetManifests, targetManifest)
+	}
 
-		// Call server-side diff for this individual resource
-		serverSideDiffQuery := &application.ApplicationServerSideDiffQuery{
-			AppName:         &appName,
-			AppNamespace:    &appNs,
-			Project:         &app.Spec.Project,
-			LiveResources:   []*argoappv1.ResourceDiff{liveResource},
-			TargetManifests: []string{targetManifest},
+	if len(liveResources) == 0 {
+		return false
+	}
+
+	// Batch by size to avoid proxy limits
+	maxBatchSize := maxBatchSizeKB * 1024
+	var batches []struct{ start, end int }
+	for i := 0; i < len(liveResources); {
+		start := i
+		size := 0
+		for i < len(liveResources) {
+			resourceSize := len(liveResources[i].LiveState) + len(targetManifests[i])
+			if size+resourceSize > maxBatchSize && i > start {
+				break
+			}
+			size += resourceSize
+			i++
 		}
+		batches = append(batches, struct{ start, end int }{start, i})
+	}
 
-		serverSideDiffRes, err := appIf.ServerSideDiff(ctx, serverSideDiffQuery)
-		if err != nil {
-			errors.CheckError(err)
+	// Process batches in parallel
+	var semaphore chan struct{}
+	if maxConcurrency > 0 {
+		semaphore = make(chan struct{}, maxConcurrency)
+	}
+
+	type batchResult struct {
+		items []*argoappv1.ResourceDiff
+		err   error
+	}
+	results := make([]batchResult, len(batches))
+	var wg sync.WaitGroup
+
+	for idx, batch := range batches {
+		wg.Add(1)
+		go func(i int, b struct{ start, end int }) {
+			defer wg.Done()
+			if semaphore != nil {
+				semaphore <- struct{}{}
+				defer func() { <-semaphore }()
+			}
+
+			// Call server-side diff for this batch of resources
+			serverSideDiffQuery := &application.ApplicationServerSideDiffQuery{
+				AppName:         &appName,
+				AppNamespace:    &appNs,
+				Project:         &app.Spec.Project,
+				LiveResources:   liveResources[b.start:b.end],
+				TargetManifests: targetManifests[b.start:b.end],
+			}
+			serverSideDiffRes, err := appIf.ServerSideDiff(ctx, serverSideDiffQuery)
+			if err != nil {
+				results[i] = batchResult{err: err}
+				return
+			}
+			results[i] = batchResult{items: serverSideDiffRes.Items}
+		}(idx, batch)
+	}
+
+	wg.Wait()
+
+	for _, result := range results {
+		if result.err != nil {
+			errors.CheckError(result.err)
 		}
-
-		// Extract diff for this resource
-		for _, resultItem := range serverSideDiffRes.Items {
+		for _, resultItem := range result.items {
 			if resultItem.Hook || (!resultItem.Modified && resultItem.TargetState != "" && resultItem.LiveState != "") {
 				continue
 			}
@@ -1522,13 +1583,12 @@ func findAndPrintServerSideDiff(ctx context.Context, app *argoappv1.Application,
 
 				if resultItem.TargetState != "" && resultItem.TargetState != "null" {
 					target = &unstructured.Unstructured{}
-					err = json.Unmarshal([]byte(resultItem.TargetState), target)
+					err := json.Unmarshal([]byte(resultItem.TargetState), target)
 					errors.CheckError(err)
 				}
-
 				if resultItem.LiveState != "" && resultItem.LiveState != "null" {
 					live = &unstructured.Unstructured{}
-					err = json.Unmarshal([]byte(resultItem.LiveState), live)
+					err := json.Unmarshal([]byte(resultItem.LiveState), live)
 					errors.CheckError(err)
 				}
 
@@ -1554,14 +1614,14 @@ type DifferenceOption struct {
 }
 
 // findAndPrintDiff ... Prints difference between application current state and state stored in git or locally, returns boolean as true if difference is found else returns false
-func findAndPrintDiff(ctx context.Context, app *argoappv1.Application, proj *argoappv1.AppProject, resources *application.ManagedResourcesResponse, argoSettings *settings.Settings, diffOptions *DifferenceOption, ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts, useServerSideDiff bool, appIf application.ApplicationServiceClient, appName, appNs string) bool {
+func findAndPrintDiff(ctx context.Context, app *argoappv1.Application, proj *argoappv1.AppProject, resources *application.ManagedResourcesResponse, argoSettings *settings.Settings, diffOptions *DifferenceOption, ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts, useServerSideDiff bool, appIf application.ApplicationServiceClient, appName, appNs string, serverSideDiffConcurrency int, serverSideDiffMaxBatchKB int) bool {
 	var foundDiffs bool
 
 	items, err := prepareObjectsForDiff(ctx, app, proj, resources, argoSettings, diffOptions)
 	errors.CheckError(err)
 
 	if useServerSideDiff {
-		return findAndPrintServerSideDiff(ctx, app, items, resources, appIf, appName, appNs)
+		return findAndPrintServerSideDiff(ctx, app, items, resources, appIf, appName, appNs, serverSideDiffConcurrency, serverSideDiffMaxBatchKB)
 	}
 
 	for _, item := range items {
@@ -2393,7 +2453,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					// Check if application has ServerSideDiff annotation
 					serverSideDiff := resourceutil.HasAnnotationOption(app, argocommon.AnnotationCompareOptions, "ServerSideDiff=true")
 
-					foundDiffs = findAndPrintDiff(ctx, app, proj.Project, resources, argoSettings, diffOption, ignoreNormalizerOpts, serverSideDiff, appIf, appName, appNs)
+					foundDiffs = findAndPrintDiff(ctx, app, proj.Project, resources, argoSettings, diffOption, ignoreNormalizerOpts, serverSideDiff, appIf, appName, appNs, 0, 250)
 					if !foundDiffs {
 						fmt.Printf("====== No Differences found ======\n")
 						// if no differences found, then no need to sync
