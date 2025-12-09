@@ -411,7 +411,7 @@ jobs:
   test-e2e:
     name: Run end-to-end tests
     if: ${{ needs.changes.outputs.backend == 'true' }}
-    runs-on: ${{ vars.E2E_TESTS_RUNNER || 'ubuntu-22.04' }}
+    runs-on: ${{ github.repository == 'argoproj/argo-cd' && 'oracle-vm-16cpu-64gb-x86-64' || 'ubuntu-22.04' }}
     strategy:
       fail-fast: false
       matrix:
