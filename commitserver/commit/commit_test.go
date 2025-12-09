@@ -331,6 +331,47 @@ func Test_CommitHydratedManifests(t *testing.T) {
 		require.NotNil(t, resp)
 		assert.Empty(t, resp.HydratedSha) // changes introduced by commit note. hydration won't happen if there are no new manifest|s to commit
 	})
+
+	t.Run("root path with dot - no changes to manifest - should commit note only", func(t *testing.T) {
+		t.Parallel()
+
+		service, mockRepoClientFactory := newServiceWithMocks(t)
+		mockGitClient := gitmocks.NewClient(t)
+		mockGitClient.EXPECT().Init().Return(nil).Once()
+		mockGitClient.EXPECT().Fetch(mock.Anything, mock.Anything).Return(nil).Once()
+		mockGitClient.EXPECT().SetAuthor("Argo CD", "argo-cd@example.com").Return("", nil).Once()
+		mockGitClient.EXPECT().CheckoutOrOrphan("env/test", false).Return("", nil).Once()
+		mockGitClient.EXPECT().CheckoutOrNew("main", "env/test", false).Return("", nil).Once()
+		mockGitClient.EXPECT().GetCommitNote(mock.Anything, mock.Anything).Return("", fmt.Errorf("test %w", git.ErrNoNoteFound)).Once()
+		mockGitClient.EXPECT().HasFileChanged(mock.Anything).Return(false, nil).Once()
+		mockGitClient.EXPECT().AddAndPushNote(mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+		mockGitClient.EXPECT().CommitSHA().Return("root-and-blank-sha", nil).Once()
+		mockRepoClientFactory.EXPECT().NewClient(mock.Anything, mock.Anything).Return(mockGitClient, nil).Once()
+
+		requestWithRootAndBlank := &apiclient.CommitHydratedManifestsRequest{
+			Repo: &v1alpha1.Repository{
+				Repo: "https://github.com/argoproj/argocd-example-apps.git",
+			},
+			TargetBranch:  "main",
+			SyncBranch:    "env/test",
+			CommitMessage: "test commit message",
+			Paths: []*apiclient.PathDetails{
+				{
+					Path: ".",
+					Manifests: []*apiclient.HydratedManifestDetails{
+						{
+							ManifestJSON: `{"apiVersion":"v1","kind":"ConfigMap","metadata":{"name":"test-dot"}}`,
+						},
+					},
+				},
+			},
+		}
+
+		resp, err := service.CommitHydratedManifests(t.Context(), requestWithRootAndBlank)
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+		assert.Equal(t, "", resp.HydratedSha)
+	})
 }
 
 func newServiceWithMocks(t *testing.T) (*Service, *mocks.RepoClientFactory) {
