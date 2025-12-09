@@ -13,7 +13,7 @@ import (
 func GetGenerators(ctx context.Context, c client.Client, k8sClient kubernetes.Interface, controllerNamespace string, argoCDService services.Repos, dynamicClient dynamic.Interface, scmConfig SCMConfig) map[string]Generator {
 	terminalGenerators := map[string]Generator{
 		"List":                    NewListGenerator(),
-		"Clusters":                NewClusterGenerator(ctx, c, k8sClient, controllerNamespace),
+		"Clusters":                NewClusterGenerator(c, controllerNamespace),
 		"Git":                     NewGitGenerator(argoCDService, controllerNamespace),
 		"SCMProvider":             NewSCMProviderGenerator(c, scmConfig),
 		"ClusterDecisionResource": NewDuckTypeGenerator(ctx, c, dynamicClient, k8sClient, controllerNamespace),
