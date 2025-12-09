@@ -213,6 +213,10 @@ ifdef IMAGE_NAMESPACE
 IMAGE_PREFIX=${IMAGE_NAMESPACE}/
 endif
 
+ifndef IMAGE_REGISTRY
+IMAGE_REGISTRY="quay.io"
+endif
+
 .PHONY: all
 all: cli image
 
@@ -308,12 +312,11 @@ endif
 .PHONY: manifests-local
 manifests-local:
 	./hack/update-manifests.sh
-
 .PHONY: manifests
 manifests: test-tools-image
-	$(call run-in-test-client,make manifests-local IMAGE_NAMESPACE='${IMAGE_NAMESPACE}' IMAGE_TAG='${IMAGE_TAG}')
-
+	$(call run-in-test-client,make manifests-local IMAGE_REGISTRY='${IMAGE_REGISTRY}' IMAGE_NAMESPACE='${IMAGE_NAMESPACE}' IMAGE_REPOSITORY='${IMAGE_REPOSITORY}' IMAGE_TAG='${IMAGE_TAG}')
 # consolidated binary for cli, util, server, repo-server, controller
+
 .PHONY: argocd-all
 argocd-all: clean-debug
 	CGO_ENABLED=${CGO_FLAG} GOOS=${GOOS} GOARCH=${GOARCH} GODEBUG="tarinsecurepath=0,zipinsecurepath=0" go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${BIN_NAME} ./cmd

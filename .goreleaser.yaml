@@ -66,14 +66,14 @@ release:
 
     ```shell
     kubectl create namespace argocd
-    kubectl apply -n argocd --server-side -f https://raw.githubusercontent.com/argoproj/argo-cd/{{.Tag}}/manifests/install.yaml
+    kubectl apply -n argocd --server-side -f https://raw.githubusercontent.com/{{ .Env.GORELEASER_CURRENT_REPOSITORY }}/{{.Tag}}/manifests/install.yaml
     ```
 
     ### HA:
 
     ```shell
     kubectl create namespace argocd
-    kubectl apply -n argocd --server-side -f https://raw.githubusercontent.com/argoproj/argo-cd/{{.Tag}}/manifests/ha/install.yaml
+    kubectl apply -n argocd --server-side -f https://raw.githubusercontent.com/{{ .Env.GORELEASER_CURRENT_REPOSITORY }}/{{.Tag}}/manifests/ha/install.yaml
     ```
 
     ## Release Signatures and Provenance
@@ -87,7 +87,7 @@ release:
 
     If upgrading from a different minor version, be sure to read the [upgrading](https://argo-cd.readthedocs.io/en/stable/operator-manual/upgrading/overview/) documentation.
   footer: |
-    **Full Changelog**: https://github.com/argoproj/argo-cd/compare/{{ .PreviousTag }}...{{ .Tag }}
+    **Full Changelog**: https://github.com/{{ .Env.GORELEASER_CURRENT_REPOSITORY }}/compare/{{ .PreviousTag }}...{{ .Tag }}
 
     <a href="https://argoproj.github.io/cd/"><img src="https://raw.githubusercontent.com/argoproj/argo-site/master/content/pages/cd/gitops-cd.png" width="25%" ></a>
 
