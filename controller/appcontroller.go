@@ -149,7 +149,12 @@ type ApplicationController struct {
 	hydrator *hydrator.Hydrator
 }
 
-// NewApplicationController creates new instance of ApplicationController.
+// NewApplicationController creates and initializes a new instance of ApplicationController.
+//
+// The ApplicationController is responsible for reconciling Argo CD Application custom resources,
+// ensuring that their live state in Kubernetes matches their desired state declared in Git repositories.
+// This function sets up all the required informers, caches, queues, rate limiters, metrics, and background
+// workers used to perform reconciliation, status refresh, hydration, and sharding operations.
 func NewApplicationController(
 	namespace string,
 	settingsMgr *settings_util.SettingsManager,
@@ -183,12 +188,15 @@ func NewApplicationController(
 	enableK8sEvent []string,
 	hydratorEnabled bool,
 ) (*ApplicationController, error) {
-	log.Infof("appResyncPeriod=%v, appHardResyncPeriod=%v, appResyncJitter=%v", appResyncPeriod, appHardResyncPeriod, appResyncJitter)
+	log.Infof("Initializing ApplicationController: appResyncPeriod=%v, appHardResyncPeriod=%v, appResyncJitter=%v", appResyncPeriod, appHardResyncPeriod, appResyncJitter)
+
 	db := db.NewDB(namespace, settingsMgr, kubeClientset)
+	// use default rate limiter config if not provided
 	if rateLimiterConfig == nil {
 		rateLimiterConfig = ratelimiter.GetDefaultAppRateLimiterConfig()
-		log.Info("Using default workqueue rate limiter config")
+		log.Info("Using default rate limiter configuration for ApplicationController")
 	}
+	// Initialize the controller struct and all required queues
 	ctrl := ApplicationController{
 		cache:                             argoCache,
 		namespace:                         namespace,
@@ -220,32 +228,49 @@ func NewApplicationController(
 		ignoreNormalizerOpts:              ignoreNormalizerOpts,
 		metricsClusterLabels:              metricsClusterLabels,
 	}
+
+	// Enable Hydrator feature if requested
 	if hydratorEnabled {
+		log.Info("Hydrator feature enabled; initializing hydrator subsystem")
 		ctrl.hydrator = hydrator.NewHydrator(&ctrl, appResyncPeriod, commitClientset, repoClientset, db)
 	}
+	// Apply kubectl concurrency limit if specified
 	if kubectlParallelismLimit > 0 {
+		log.Infof("Limiting kubectl parallelism to %v concurrent operations", kubectlParallelismLimit)
 		ctrl.kubectlSemaphore = semaphore.NewWeighted(kubectlParallelismLimit)
 	}
 	kubectl.SetOnKubectlRun(ctrl.onKubectlRun)
+
+	// --- Application Informer & Lister setup ---
 	appInformer, appLister := ctrl.newApplicationInformerAndLister()
 	indexers := cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}
+
+	// --- Project Informer setup ---
 	projInformer := v1alpha1.NewAppProjectInformer(applicationClientset, namespace, appResyncPeriod, indexers)
+	log.Info("Setting up AppProject informer and event handlers")
+
 	var err error
 	_, err = projInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj any) {
 			if key, err := cache.MetaNamespaceKeyFunc(obj); err == nil {
 				ctrl.projectRefreshQueue.AddRateLimited(key)
 				if projMeta, ok := obj.(metav1.Object); ok {
+					log.Infof("Project added: %s; scheduling refresh", projMeta.GetName())
 					ctrl.InvalidateProjectsCache(projMeta.GetName())
 				}
+			} else {
+				log.Warnf("Failed to compute key for added project: %v", err)
 			}
 		},
 		UpdateFunc: func(_, new any) {
 			if key, err := cache.MetaNamespaceKeyFunc(new); err == nil {
 				ctrl.projectRefreshQueue.AddRateLimited(key)
 				if projMeta, ok := new.(metav1.Object); ok {
+					log.Infof("Project updated: %s; scheduling refresh", projMeta.GetName())
 					ctrl.InvalidateProjectsCache(projMeta.GetName())
 				}
+			} else {
+				log.Warnf("Failed to compute key for updated project: %v", err)
 			}
 		},
 		DeleteFunc: func(obj any) {
@@ -253,24 +278,34 @@ func NewApplicationController(
 				// immediately push to queue for deletes
 				ctrl.projectRefreshQueue.Add(key)
 				if projMeta, ok := obj.(metav1.Object); ok {
+					log.Infof("Project deleted: %s; invalidating cache immediately", projMeta.GetName())
 					ctrl.InvalidateProjectsCache(projMeta.GetName())
 				}
+			} else {
+				log.Warnf("Failed to compute key for deleted project: %v", err)
 			}
 		},
 	})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to add project informer event handlers: %w", err)
 	}
 
-	factory := informers.NewSharedInformerFactoryWithOptions(ctrl.kubeClientset, defaultDeploymentInformerResyncDuration, informers.WithNamespace(settingsMgr.GetNamespace()))
+	// dynamic sharding support
+	factory := informers.NewSharedInformerFactoryWithOptions(
+		ctrl.kubeClientset,
+		defaultDeploymentInformerResyncDuration,
+		informers.WithNamespace(settingsMgr.GetNamespace()),
+	)
 
 	var deploymentInformer informerv1.DeploymentInformer
 
 	// only initialize deployment informer if dynamic distribution is enabled
 	if dynamicClusterDistributionEnabled {
+		log.Info("Dynamic cluster distribution enabled; initializing Deployment informer")
 		deploymentInformer = factory.Apps().V1().Deployments()
 	}
 
+	// Readiness health check function used by metrics server
 	readinessHealthCheck := func(_ *http.Request) error {
 		if dynamicClusterDistributionEnabled {
 			applicationControllerName := env.StringFromEnv(common.EnvAppControllerName, common.DefaultApplicationControllerName)
@@ -293,14 +328,13 @@ func NewApplicationController(
 
 				// update the shard number in the clusterSharding, and resync all applications if the shard number is updated
 				if ctrl.clusterSharding.UpdateShard(shard) {
-					// update shard number in stateCache
+					log.Infof("Shard configuration updated to shard=%d; resyncing all applications", shard)
 					ctrl.stateCache.UpdateShard(shard)
-
-					// resync all applications
 					apps, err := ctrl.appLister.List(labels.Everything())
 					if err != nil {
 						return err
 					}
+
 					for _, app := range apps {
 						if !ctrl.canProcessApp(app) {
 							continue
@@ -309,6 +343,7 @@ func NewApplicationController(
 						if err == nil {
 							ctrl.appRefreshQueue.AddRateLimited(key)
 							ctrl.clusterSharding.AddApp(app)
+							log.Debugf("Rescheduled app %s for refresh due to shard change", key)
 						}
 					}
 				}
@@ -317,18 +352,27 @@ func NewApplicationController(
 		return nil
 	}
 
+	// --- Metrics Server setup ---
 	metricsAddr := fmt.Sprintf("0.0.0.0:%d", metricsPort)
+	log.Infof("Starting metrics server on %s", metricsAddr)
 
-	ctrl.metricsServer, err = metrics.NewMetricsServer(metricsAddr, appLister, ctrl.canProcessApp, readinessHealthCheck, metricsApplicationLabels, metricsApplicationConditions, ctrl.db)
+	ctrl.metricsServer, err = metrics.NewMetricsServer(
+		metricsAddr, appLister, ctrl.canProcessApp, readinessHealthCheck,
+		metricsApplicationLabels, metricsApplicationConditions, ctrl.db,
+	)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to initialize metrics server: %w", err)
 	}
+
 	if metricsCacheExpiration.Seconds() != 0 {
-		err = ctrl.metricsServer.SetExpiration(metricsCacheExpiration)
-		if err != nil {
-			return nil, err
+		log.Infof("Setting metrics cache expiration to %v", metricsCacheExpiration)
+		if err := ctrl.metricsServer.SetExpiration(metricsCacheExpiration); err != nil {
+			return nil, fmt.Errorf("failed to configure metrics cache expiration: %w", err)
 		}
 	}
+
+	// --- State cache and AppStateManager initialization ---
+	log.Info("Initializing live state cache and application state manager")
 	stateCache := statecache.NewLiveStateCache(db, appInformer, ctrl.settingsMgr, ctrl.metricsServer, ctrl.handleObjectUpdated, clusterSharding, argo.NewResourceTracking())
 	appStateManager := NewAppStateManager(db, applicationClientset, repoClientset, namespace, kubectl, ctrl.onKubectlRun, ctrl.settingsMgr, stateCache, ctrl.metricsServer, argoCache, ctrl.statusRefreshTimeout, argo.NewResourceTracking(), persistResourceHealth, repoErrorGracePeriod, serverSideDiff, ignoreNormalizerOpts)
 	ctrl.appInformer = appInformer
@@ -338,6 +382,7 @@ func NewApplicationController(
 	ctrl.appStateManager = appStateManager
 	ctrl.stateCache = stateCache
 
+	log.Info("ApplicationController successfully initialized")
 	return &ctrl, nil
 }
 
@@ -2391,8 +2436,8 @@ func (ctrl *ApplicationController) selfHealRemainingBackoff(app *appv1.Applicati
 }
 
 // selfHealBackoffCooldownElapsed returns true when the last successful sync has occurred since longer
-// than then self heal cooldown. This means that the application has been in sync for long enough to
-// reset the self healing backoff to its initial state
+// than then self-heal cooldown. This means that the application has been in sync for long enough to
+// reset the self-healing backoff to its initial state
 func (ctrl *ApplicationController) selfHealBackoffCooldownElapsed(app *appv1.Application) bool {
 	if app.Status.OperationState == nil || app.Status.OperationState.FinishedAt == nil {
 		// Something is in progress, or about to be. In that case, selfHeal attempt should be zero anyway
@@ -2442,27 +2487,38 @@ func (ctrl *ApplicationController) canProcessApp(obj any) bool {
 	return ctrl.clusterSharding.IsManagedCluster(destCluster)
 }
 
+// newApplicationInformerAndLister sets up a SharedIndexInformer and a corresponding
+// Lister for the Argo CD Application CRD. The informer watches for changes
+// (add/update/delete) to Application objects across the configured namespaces
+// and keeps them cached locally for efficient querying and processing.
 func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.SharedIndexInformer, applisters.ApplicationLister) {
 	watchNamespace := ctrl.namespace
-	// If we have at least one additional namespace configured, we need to
-	// watch on them all.
+	// If additional namespaces are configured, we set the watchNamespace to an empty string
+	// to make the informer watch across all namespaces instead of a single one
 	if len(ctrl.applicationNamespaces) > 0 {
 		watchNamespace = ""
 	}
+	// Configure the resync period for the informer. This determines how often
+	// the informer re-lists all objects to reconcile state.
 	refreshTimeout := ctrl.statusRefreshTimeout
 	if ctrl.statusHardRefreshTimeout.Seconds() != 0 && (ctrl.statusHardRefreshTimeout < ctrl.statusRefreshTimeout) {
 		refreshTimeout = ctrl.statusHardRefreshTimeout
 	}
+	// Create a new SharedIndexInformer for Argo CD Applications.
+	// This informer is responsible for maintaining an in-memory cache
+	// of Application objects and dispatching events when they change.
 	informer := cache.NewSharedIndexInformer(
 		&cache.ListWatch{
-			ListFunc: func(options metav1.ListOptions) (apiruntime.Object, error) {
+			// ListWithContextFunc retrieves the initial list of Application objects.
+			ListWithContextFunc: func(ctx context.Context, options metav1.ListOptions) (apiruntime.Object, error) {
 				// We are only interested in apps that exist in namespaces the
 				// user wants to be enabled.
-				appList, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(watchNamespace).List(context.TODO(), options)
+				appList, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(watchNamespace).List(ctx, options)
 				if err != nil {
 					return nil, err
 				}
-				newItems := []appv1.Application{}
+				// Filter out applications that are not in allowed namespaces.
+				var newItems []appv1.Application
 				for _, app := range appList.Items {
 					if ctrl.isAppNamespaceAllowed(&app) {
 						newItems = append(newItems, app)
@@ -2471,8 +2527,10 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 				appList.Items = newItems
 				return appList, nil
 			},
-			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
-				return ctrl.applicationClientset.ArgoprojV1alpha1().Applications(watchNamespace).Watch(context.TODO(), options)
+			// WatchFuncWithContext establishes a watch on Application objects.
+			// This continuously streams events (add/update/delete) to the informer.
+			WatchFuncWithContext: func(ctx context.Context, options metav1.ListOptions) (watch.Interface, error) {
+				return ctrl.applicationClientset.ArgoprojV1alpha1().Applications(watchNamespace).Watch(ctx, options)
 			},
 		},
 		&appv1.Application{},
@@ -2517,7 +2575,10 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 			},
 		},
 	)
+	// Create a lister backed by the informer's cache.
+	// This provides efficient, thread-safe access to Application objects.
 	lister := applisters.NewApplicationLister(informer.GetIndexer())
+	// Add event handlers for add/update/delete operations on Application objects
 	_, err := informer.AddEventHandler(
 		cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj any) {
@@ -2526,13 +2587,16 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 				}
 				key, err := cache.MetaNamespaceKeyFunc(obj)
 				if err == nil {
+					// add to the refresh queue for reconciliation
 					ctrl.appRefreshQueue.AddRateLimited(key)
 				}
+				// track the app in cluster sharding if applicable
 				newApp, newOK := obj.(*appv1.Application)
 				if err == nil && newOK {
 					ctrl.clusterSharding.AddApp(newApp)
 				}
 			},
+			// UpdateFunc is triggered when an existing application is modified
 			UpdateFunc: func(old, new any) {
 				if !ctrl.canProcessApp(new) {
 					return
@@ -2543,16 +2607,20 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 					return
 				}
 
-				var compareWith *CompareWith
-				var delay *time.Duration
+				var (
+					compareWith *CompareWith
+					delay       *time.Duration
+				)
 
 				oldApp, oldOK := old.(*appv1.Application)
 				newApp, newOK := new.(*appv1.Application)
 				if oldOK && newOK {
+					// Detect when automated sync is newly enabled
 					if automatedSyncEnabled(oldApp, newApp) {
 						log.WithFields(applog.GetAppLogFields(newApp)).Info("Enabled automated sync")
 						compareWith = CompareWithLatest.Pointer()
 					}
+					// Add jitter during refresh cycles to spread the load evenly.
 					if ctrl.statusRefreshJitter != 0 && oldApp.ResourceVersion == newApp.ResourceVersion {
 						// Handler is refreshing the apps, add a random jitter to spread the load and avoid spikes
 						jitter := time.Duration(float64(ctrl.statusRefreshJitter) * rand.Float64())
@@ -2560,15 +2628,19 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 					}
 				}
 
+				// request a refresh of the application state
 				ctrl.requestAppRefresh(newApp.QualifiedName(), compareWith, delay)
+				// if there's a refresh delay, or it's a normal event, enqueue it for processing
 				if !newOK || (delay != nil && *delay != time.Duration(0)) {
 					ctrl.appOperationQueue.AddRateLimited(key)
 				}
+				// enqueue app for hydration if hydrator is enabled
 				if ctrl.hydrator != nil {
 					ctrl.appHydrateQueue.AddRateLimited(newApp.QualifiedName())
 				}
 				ctrl.clusterSharding.UpdateApp(newApp)
 			},
+			// DeleteFunc is triggered when an Application is deleted
 			DeleteFunc: func(obj any) {
 				if !ctrl.canProcessApp(obj) {
 					return
@@ -2577,19 +2649,24 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 				// key function.
 				key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
 				if err == nil {
-					// for deletes, we immediately add to the refresh queue
+					// for deletes, immediately enqueue for refresh
 					ctrl.appRefreshQueue.Add(key)
 				}
 				delApp, delOK := obj.(*appv1.Application)
 				if err == nil && delOK {
+					// remove the application from cluster sharding
 					ctrl.clusterSharding.DeleteApp(delApp)
 				}
 			},
 		},
 	)
+	// if there's an error while registering event handler,
+	// simply return nil informer and lister to indicate
+	// initialization failure
 	if err != nil {
 		return nil, nil
 	}
+
 	return informer, lister
 }
 
