@@ -255,7 +255,12 @@ func (s *Service) ListApps(ctx context.Context, q *apiclient.ListAppsRequest) (*
 	}
 
 	defer utilio.Close(closer)
-	apps, err := discovery.Discover(ctx, gitClient.Root(), gitClient.Root(), q.EnabledSourceTypes, s.initConstants.CMPTarExcludedGlobs, []string{})
+	gitRoot, err := os.OpenRoot(gitClient.Root())
+	if err != nil {
+		return nil, fmt.Errorf("error opening repository root: %w", err)
+	}
+	defer utilio.Close(gitRoot)
+	apps, err := discovery.Discover(ctx, gitClient.Root(), gitRoot, q.EnabledSourceTypes, s.initConstants.CMPTarExcludedGlobs, []string{})
 	if err != nil {
 		return nil, fmt.Errorf("error discovering applications: %w", err)
 	}
@@ -1184,7 +1189,7 @@ func parseKubeVersion(version string) (string, error) {
 	return kubeVersion.String(), nil
 }
 
-func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclient.ManifestRequest, isLocal bool, gitRepoPaths utilio.TempPaths) ([]*unstructured.Unstructured, string, error) {
+func helmTemplate(appPath string, repoRoot *os.Root, env *v1alpha1.Env, q *apiclient.ManifestRequest, isLocal bool, gitRepoPaths utilio.TempPaths) ([]*unstructured.Unstructured, string, error) {
 	// We use the app name as Helm's release name property, which must not
 	// contain any underscore characters and must not exceed 53 characters.
 	// We are not interested in the fully qualified application name while
@@ -1360,16 +1365,7 @@ func redactPaths(s string, paths utilio.TempPaths, extraValuesPath pathutil.Reso
 	return s
 }
 
-func getResolvedValueFiles(
-	appPath string,
-	repoRoot string,
-	env *v1alpha1.Env,
-	allowedValueFilesSchemas []string,
-	rawValueFiles []string,
-	refSources map[string]*v1alpha1.RefTarget,
-	gitRepoPaths utilio.TempPaths,
-	ignoreMissingValueFiles bool,
-) ([]pathutil.ResolvedFilePath, error) {
+func getResolvedValueFiles(appPath string, repoRoot *os.Root, env *v1alpha1.Env, allowedValueFilesSchemas []string, rawValueFiles []string, refSources map[string]*v1alpha1.RefTarget, gitRepoPaths utilio.TempPaths, ignoreMissingValueFiles bool) ([]pathutil.ResolvedFilePath, error) {
 	var resolvedValueFiles []pathutil.ResolvedFilePath
 	for _, rawValueFile := range rawValueFiles {
 		isRemote := false
@@ -1421,8 +1417,14 @@ func getResolvedRefValueFile(
 	pathStrings[0] = "" // Remove first segment. It will be inserted by pathutil.ResolveValueFilePathOrUrl.
 	substitutedPath := strings.Join(pathStrings, "/")
 
+	repoRoot, err := os.OpenRoot(repoPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to open repo at path %q: %w", repoPath, err)
+	}
+	defer utilio.Close(repoRoot)
+
 	// Resolve the path relative to the referenced repo and block any attempt at traversal.
-	resolvedPath, _, err := pathutil.ResolveValueFilePathOrUrl(repoPath, repoPath, env.Envsubst(substitutedPath), allowedValueFilesSchemas)
+	resolvedPath, _, err := pathutil.ResolveValueFilePathOrUrl(repoPath, repoRoot, env.Envsubst(substitutedPath), allowedValueFilesSchemas)
 	if err != nil {
 		return "", fmt.Errorf("error resolving value file path: %w", err)
 	}
@@ -1503,7 +1505,17 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 
 	env := newEnv(q, revision)
 
-	appSourceType, err := GetAppSourceType(ctx, q.ApplicationSource, appPath, repoRoot, q.AppName, q.EnabledSourceTypes, opt.cmpTarExcludedGlobs, env.Environ())
+	absRepoRoot, err := filepath.Abs(repoRoot)
+	if err != nil {
+		return nil, fmt.Errorf("error getting absolute repository path while generating manifests: %w", err)
+	}
+
+	root, err := os.OpenRoot(absRepoRoot)
+	if err != nil {
+		return nil, fmt.Errorf("error opening repository root while generating manifests: %w", err)
+	}
+
+	appSourceType, err := GetAppSourceType(ctx, q.ApplicationSource, appPath, root, q.AppName, q.EnabledSourceTypes, opt.cmpTarExcludedGlobs, env.Environ())
 	if err != nil {
 		return nil, fmt.Errorf("error getting app source type: %w", err)
 	}
@@ -1517,7 +1529,7 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 	switch appSourceType {
 	case v1alpha1.ApplicationSourceTypeHelm:
 		var command string
-		targetObjs, command, err = helmTemplate(appPath, repoRoot, env, q, isLocal, gitRepoPaths)
+		targetObjs, command, err = helmTemplate(appPath, root, env, q, isLocal, gitRepoPaths)
 		commands = append(commands, command)
 	case v1alpha1.ApplicationSourceTypeKustomize:
 		var kustomizeBinary string
@@ -1530,7 +1542,7 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 		if err != nil {
 			return nil, fmt.Errorf("could not parse kubernetes version %s: %w", q.ApplicationSource.GetKubeVersionOrDefault(q.KubeVersion), err)
 		}
-		k := kustomize.NewKustomizeApp(repoRoot, appPath, q.Repo.GetGitCreds(gitCredsStore), repoURL, kustomizeBinary, q.Repo.Proxy, q.Repo.NoProxy)
+		k := kustomize.NewKustomizeApp(root, appPath, q.Repo.GetGitCreds(gitCredsStore), repoURL, kustomizeBinary, q.Repo.Proxy, q.Repo.NoProxy)
 		targetObjs, _, commands, err = k.Build(q.ApplicationSource.Kustomize, q.KustomizeOptions, env, &kustomize.BuildOpts{
 			KubeVersion: kubeVersion,
 			APIVersions: q.ApplicationSource.GetAPIVersionsOrDefault(q.ApiVersions),
@@ -1541,7 +1553,7 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 			pluginName = q.ApplicationSource.Plugin.Name
 		}
 		// if pluginName is provided it has to be `<metadata.name>-<spec.version>` or just `<metadata.name>` if plugin version is empty
-		targetObjs, err = runConfigManagementPluginSidecars(ctx, appPath, repoRoot, pluginName, env, q, q.Repo.GetGitCreds(gitCredsStore), opt.cmpTarDoneCh, opt.cmpTarExcludedGlobs, opt.cmpUseManifestGeneratePaths)
+		targetObjs, err = runConfigManagementPluginSidecars(ctx, appPath, root, pluginName, env, q, q.Repo.GetGitCreds(gitCredsStore), opt.cmpTarDoneCh, opt.cmpTarExcludedGlobs, opt.cmpUseManifestGeneratePaths)
 		if err != nil {
 			err = fmt.Errorf("CMP processing failed for application %q: %w", q.AppName, err)
 		}
@@ -1551,7 +1563,7 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 			directory = &v1alpha1.ApplicationSourceDirectory{}
 		}
 		logCtx := log.WithField("application", q.AppName)
-		targetObjs, err = findManifests(logCtx, appPath, repoRoot, env, *directory, q.EnabledSourceTypes, maxCombinedManifestQuantity)
+		targetObjs, err = findManifests(logCtx, appPath, root, env, *directory, q.EnabledSourceTypes, maxCombinedManifestQuantity)
 	}
 	if err != nil {
 		return nil, err
@@ -1697,9 +1709,8 @@ func mergeSourceParameters(source *v1alpha1.ApplicationSource, path, appName str
 	return nil
 }
 
-// GetAppSourceType returns explicit application source type or examines a directory and determines its application source type.
-// Overrides are applied as a side effect on the given source.
-func GetAppSourceType(ctx context.Context, source *v1alpha1.ApplicationSource, appPath, repoPath, appName string, enableGenerateManifests map[string]bool, tarExcludedGlobs []string, env []string) (v1alpha1.ApplicationSourceType, error) {
+// GetAppSourceType returns explicit application source type or examines a directory and determines its application source type
+func GetAppSourceType(ctx context.Context, source *v1alpha1.ApplicationSource, appPath string, repoPath *os.Root, appName string, enableGenerateManifests map[string]bool, tarExcludedGlobs []string, env []string) (v1alpha1.ApplicationSourceType, error) {
 	err := mergeSourceParameters(source, appPath, appName)
 	if err != nil {
 		return "", fmt.Errorf("error while parsing source parameters: %w", err)
@@ -1746,7 +1757,7 @@ func isNullList(obj *unstructured.Unstructured) bool {
 var manifestFile = regexp.MustCompile(`^.*\.(yaml|yml|json|jsonnet)$`)
 
 // findManifests looks at all yaml files in a directory and unmarshals them into a list of unstructured objects
-func findManifests(logCtx *log.Entry, appPath string, repoRoot string, env *v1alpha1.Env, directory v1alpha1.ApplicationSourceDirectory, enabledManifestGeneration map[string]bool, maxCombinedManifestQuantity resource.Quantity) ([]*unstructured.Unstructured, error) {
+func findManifests(logCtx *log.Entry, appPath string, repoRoot *os.Root, env *v1alpha1.Env, directory v1alpha1.ApplicationSourceDirectory, enabledManifestGeneration map[string]bool, maxCombinedManifestQuantity resource.Quantity) ([]*unstructured.Unstructured, error) {
 	// Validate the directory before loading any manifests to save memory.
 	potentiallyValidManifests, err := getPotentiallyValidManifests(logCtx, appPath, repoRoot, directory.Recurse, directory.Include, directory.Exclude, maxCombinedManifestQuantity)
 	if err != nil {
@@ -1890,7 +1901,7 @@ func splitYAMLOrJSON(reader goio.Reader) ([]*unstructured.Unstructured, error) {
 // be a valid Kubernetes resource. This function tests everything possible without actually reading the file.
 //
 // repoPath must be absolute.
-func getPotentiallyValidManifestFile(path string, f os.FileInfo, appPath, repoRoot, include, exclude string) (realFileInfo os.FileInfo, warning string, err error) {
+func getPotentiallyValidManifestFile(path string, f os.FileInfo, appPath string, repoRoot *os.Root, include, exclude string) (realFileInfo os.FileInfo, warning string, err error) {
 	relPath, err := filepath.Rel(appPath, path)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to get relative path of %q: %w", path, err)
@@ -1912,21 +1923,21 @@ func getPotentiallyValidManifestFile(path string, f os.FileInfo, appPath, repoRo
 			}
 			return nil, "", fmt.Errorf("failed to evaluate symlink at %q: %w", relPath, err)
 		}
-		if !files.Inbound(realPath, repoRoot) {
-			return nil, "", fmt.Errorf("illegal filepath in symlink at %q", relPath)
+
+		relRealPath, err = filepath.Rel(repoRoot.Name(), realPath)
+		if err != nil {
+			return nil, "", fmt.Errorf("failed to get relative path of %q: %w", realPath, err)
 		}
-		realFileInfo, err = os.Stat(realPath)
+
+		realFileInfo, err = repoRoot.Stat(relRealPath)
 		if err != nil {
 			if os.IsNotExist(err) {
 				// This should have been caught by filepath.EvalSymlinks, but check again since that function's docs
 				// don't promise to return this error.
 				return nil, fmt.Sprintf("destination of symlink %q is missing at %q", relPath, realPath), nil
 			}
-			return nil, "", fmt.Errorf("failed to get file info for symlink at %q to %q: %w", relPath, realPath, err)
-		}
-		relRealPath, err = filepath.Rel(repoRoot, realPath)
-		if err != nil {
-			return nil, "", fmt.Errorf("failed to get relative path of %q: %w", realPath, err)
+
+			return nil, "", fmt.Errorf("illegal filepath in symlink at %q", relPath)
 		}
 	}
 
@@ -1963,7 +1974,7 @@ type potentiallyValidManifest struct {
 
 // getPotentiallyValidManifests ensures that 1) there are no errors while checking for potential manifest files in the given dir
 // and 2) the combined file size of the potentially-valid manifest files does not exceed the limit.
-func getPotentiallyValidManifests(logCtx *log.Entry, appPath string, repoRoot string, recurse bool, include string, exclude string, maxCombinedManifestQuantity resource.Quantity) ([]potentiallyValidManifest, error) {
+func getPotentiallyValidManifests(logCtx *log.Entry, appPath string, repoRoot *os.Root, recurse bool, include string, exclude string, maxCombinedManifestQuantity resource.Quantity) ([]potentiallyValidManifest, error) {
 	maxCombinedManifestFileSize := maxCombinedManifestQuantity.Value()
 	currentCombinedManifestFileSize := int64(0)
 
@@ -2010,7 +2021,7 @@ func getPotentiallyValidManifests(logCtx *log.Entry, appPath string, repoRoot st
 	return potentiallyValidManifests, nil
 }
 
-func makeJsonnetVM(appPath string, repoRoot string, sourceJsonnet v1alpha1.ApplicationSourceJsonnet, env *v1alpha1.Env) (*jsonnet.VM, error) {
+func makeJsonnetVM(appPath string, repoRoot *os.Root, sourceJsonnet v1alpha1.ApplicationSourceJsonnet, env *v1alpha1.Env) (*jsonnet.VM, error) {
 	vm := jsonnet.MakeVM()
 	for i, j := range sourceJsonnet.TLAs {
 		sourceJsonnet.TLAs[i].Value = env.Envsubst(j.Value)
@@ -2037,7 +2048,7 @@ func makeJsonnetVM(appPath string, repoRoot string, sourceJsonnet v1alpha1.Appli
 	jpaths := []string{appPath}
 	for _, p := range sourceJsonnet.Libs {
 		// the jsonnet library path is relative to the repository root, not application path
-		jpath, err := pathutil.ResolveFileOrDirectoryPath(repoRoot, repoRoot, p)
+		jpath, err := pathutil.ResolveFileOrDirectoryPath(repoRoot.Name(), repoRoot, p)
 		if err != nil {
 			return nil, err
 		}
@@ -2092,7 +2103,7 @@ func getPluginParamEnvs(envVars []string, plugin *v1alpha1.ApplicationSourcePlug
 	return env, nil
 }
 
-func runConfigManagementPluginSidecars(ctx context.Context, appPath, repoPath, pluginName string, envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds git.Creds, tarDoneCh chan<- bool, tarExcludedGlobs []string, useManifestGeneratePaths bool) ([]*unstructured.Unstructured, error) {
+func runConfigManagementPluginSidecars(ctx context.Context, appPath string, repoPath *os.Root, pluginName string, envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds git.Creds, tarDoneCh chan<- bool, tarExcludedGlobs []string, useManifestGeneratePaths bool) ([]*unstructured.Unstructured, error) {
 	// compute variables.
 	env, err := getPluginEnvs(envVars, q)
 	if err != nil {
@@ -2106,10 +2117,10 @@ func runConfigManagementPluginSidecars(ctx context.Context, appPath, repoPath, p
 	}
 	defer utilio.Close(conn)
 
-	rootPath := repoPath
+	rootPath := repoPath.Name()
 	if useManifestGeneratePaths {
 		// Transmit the files under the common root path for all paths related to the manifest generate paths annotation.
-		rootPath = getApplicationRootPath(q, appPath, repoPath)
+		rootPath = getApplicationRootPath(q, appPath, rootPath)
 		log.Debugf("common root path calculated for application %s: %s", q.AppName, rootPath)
 	}
 
@@ -2130,7 +2141,7 @@ func runConfigManagementPluginSidecars(ctx context.Context, appPath, repoPath, p
 	}
 
 	// generate manifests using commands provided in plugin config file in detected cmp-server sidecar
-	cmpManifests, err := generateManifestsCMP(ctx, appPath, rootPath, env, cmpClient, tarDoneCh, tarExcludedGlobs)
+	cmpManifests, err := generateManifestsCMP(ctx, appPath, repoPath, env, cmpClient, tarDoneCh, tarExcludedGlobs)
 	if err != nil {
 		return nil, fmt.Errorf("error generating manifests in cmp: %w", err)
 	}
@@ -2153,7 +2164,7 @@ func runConfigManagementPluginSidecars(ctx context.Context, appPath, repoPath, p
 // generateManifestsCMP will send the appPath files to the cmp-server over a gRPC stream.
 // The cmp-server will generate the manifests. Returns a response object with the generated
 // manifests.
-func generateManifestsCMP(ctx context.Context, appPath, rootPath string, env []string, cmpClient pluginclient.ConfigManagementPluginServiceClient, tarDoneCh chan<- bool, tarExcludedGlobs []string) (*pluginclient.ManifestResponse, error) {
+func generateManifestsCMP(ctx context.Context, appPath string, rootPath *os.Root, env []string, cmpClient pluginclient.ConfigManagementPluginServiceClient, tarDoneCh chan<- bool, tarExcludedGlobs []string) (*pluginclient.ManifestResponse, error) {
 	generateManifestStream, err := cmpClient.GenerateManifest(ctx, grpc_retry.Disable())
 	if err != nil {
 		return nil, fmt.Errorf("error getting generateManifestStream: %w", err)
@@ -2182,7 +2193,13 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 
 		env := newEnvRepoQuery(q, revision)
 
-		appSourceType, err := GetAppSourceType(ctx, q.Source, opContext.appPath, repoRoot, q.AppName, q.EnabledSourceTypes, s.initConstants.CMPTarExcludedGlobs, env.Environ())
+		root, err := os.OpenRoot(repoRoot)
+		if err != nil {
+			return fmt.Errorf("error opening repository root while populating app details: %w", err)
+		}
+		defer utilio.Close(root)
+
+		appSourceType, err := GetAppSourceType(ctx, q.Source, opContext.appPath, root, q.AppName, q.EnabledSourceTypes, s.initConstants.CMPTarExcludedGlobs, env.Environ())
 		if err != nil {
 			return err
 		}
@@ -2191,15 +2208,15 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 
 		switch appSourceType {
 		case v1alpha1.ApplicationSourceTypeHelm:
-			if err := populateHelmAppDetails(res, opContext.appPath, repoRoot, q, s.gitRepoPaths); err != nil {
+			if err := populateHelmAppDetails(res, opContext.appPath, root, q, s.gitRepoPaths); err != nil {
 				return err
 			}
 		case v1alpha1.ApplicationSourceTypeKustomize:
-			if err := populateKustomizeAppDetails(res, q, repoRoot, opContext.appPath, commitSHA, s.gitCredsStore); err != nil {
+			if err := populateKustomizeAppDetails(res, q, root, opContext.appPath, commitSHA, s.gitCredsStore); err != nil {
 				return err
 			}
 		case v1alpha1.ApplicationSourceTypePlugin:
-			if err := populatePluginAppDetails(ctx, res, opContext.appPath, repoRoot, q, s.initConstants.CMPTarExcludedGlobs); err != nil {
+			if err := populatePluginAppDetails(ctx, res, opContext.appPath, root, q, s.initConstants.CMPTarExcludedGlobs); err != nil {
 				return fmt.Errorf("failed to populate plugin app details: %w", err)
 			}
 		}
@@ -2230,7 +2247,7 @@ func (s *Service) createGetAppDetailsCacheHandler(res *apiclient.RepoAppDetailsR
 	}
 }
 
-func populateHelmAppDetails(res *apiclient.RepoAppDetailsResponse, appPath string, repoRoot string, q *apiclient.RepoServerAppDetailsQuery, gitRepoPaths utilio.TempPaths) error {
+func populateHelmAppDetails(res *apiclient.RepoAppDetailsResponse, appPath string, repoRoot *os.Root, q *apiclient.RepoServerAppDetailsQuery, gitRepoPaths utilio.TempPaths) error {
 	var selectedValueFiles []string
 	var availableValueFiles []string
 
@@ -2331,7 +2348,7 @@ func walkHelmValueFilesInPath(root string, valueFiles *[]string) filepath.WalkFu
 	}
 }
 
-func populateKustomizeAppDetails(res *apiclient.RepoAppDetailsResponse, q *apiclient.RepoServerAppDetailsQuery, repoRoot string, appPath string, reversion string, credsStore git.CredsStore) error {
+func populateKustomizeAppDetails(res *apiclient.RepoAppDetailsResponse, q *apiclient.RepoServerAppDetailsQuery, repoRoot *os.Root, appPath string, reversion string, credsStore git.CredsStore) error {
 	res.Kustomize = &apiclient.KustomizeAppSpec{}
 	kustomizeBinary, err := settings.GetKustomizeBinaryPath(q.KustomizeOptions, *q.Source)
 	if err != nil {
@@ -2353,7 +2370,7 @@ func populateKustomizeAppDetails(res *apiclient.RepoAppDetailsResponse, q *apicl
 	return nil
 }
 
-func populatePluginAppDetails(ctx context.Context, res *apiclient.RepoAppDetailsResponse, appPath string, repoPath string, q *apiclient.RepoServerAppDetailsQuery, tarExcludedGlobs []string) error {
+func populatePluginAppDetails(ctx context.Context, res *apiclient.RepoAppDetailsResponse, appPath string, repoPath *os.Root, q *apiclient.RepoServerAppDetailsQuery, tarExcludedGlobs []string) error {
 	res.Plugin = &apiclient.PluginAppSpec{}
 
 	envVars := []string{
