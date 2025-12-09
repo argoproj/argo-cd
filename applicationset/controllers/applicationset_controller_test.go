@@ -1117,6 +1117,8 @@ func TestRemoveFinalizerOnInvalidDestination_FinalizerTypes(t *testing.T) {
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)
+	err = corev1.AddToScheme(scheme)
+	require.NoError(t, err)
 
 	for _, c := range []struct {
 		// name is human-readable test name
@@ -1173,9 +1175,6 @@ func TestRemoveFinalizerOnInvalidDestination_FinalizerTypes(t *testing.T) {
 				},
 			}
 
-			initObjs := []crtclient.Object{&app, &appSet}
-
-			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
 			secret := &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "my-secret",
@@ -1193,6 +1192,10 @@ func TestRemoveFinalizerOnInvalidDestination_FinalizerTypes(t *testing.T) {
 				},
 			}
 
+			initObjs := []crtclient.Object{&app, &appSet, secret}
+
+			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
+
 			objects := append([]runtime.Object{}, secret)
 			kubeclientset := kubefake.NewSimpleClientset(objects...)
 			metrics := appsetmetrics.NewFakeAppsetMetrics()
@@ -1207,7 +1210,7 @@ func TestRemoveFinalizerOnInvalidDestination_FinalizerTypes(t *testing.T) {
 				Metrics:       metrics,
 				ArgoDB:        argodb,
 			}
-			clusterList, err := utils.ListClusters(t.Context(), kubeclientset, "namespace")
+			clusterList, err := utils.ListClusters(t.Context(), client, "namespace")
 			require.NoError(t, err)
 
 			appLog := log.WithFields(applog.GetAppLogFields(&app)).WithField("appSet", "")
@@ -1236,6 +1239,8 @@ func TestRemoveFinalizerOnInvalidDestination_FinalizerTypes(t *testing.T) {
 func TestRemoveFinalizerOnInvalidDestination_DestinationTypes(t *testing.T) {
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
+	require.NoError(t, err)
+	err = corev1.AddToScheme(scheme)
 	require.NoError(t, err)
 
 	for _, c := range []struct {
@@ -1329,9 +1334,6 @@ func TestRemoveFinalizerOnInvalidDestination_DestinationTypes(t *testing.T) {
 				},
 			}
 
-			initObjs := []crtclient.Object{&app, &appSet}
-
-			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
 			secret := &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "my-secret",
@@ -1349,6 +1351,10 @@ func TestRemoveFinalizerOnInvalidDestination_DestinationTypes(t *testing.T) {
 				},
 			}
 
+			initObjs := []crtclient.Object{&app, &appSet, secret}
+
+			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
+
 			kubeclientset := getDefaultTestClientSet(secret)
 			metrics := appsetmetrics.NewFakeAppsetMetrics()
 
@@ -1363,7 +1369,7 @@ func TestRemoveFinalizerOnInvalidDestination_DestinationTypes(t *testing.T) {
 				ArgoDB:        argodb,
 			}
 
-			clusterList, err := utils.ListClusters(t.Context(), kubeclientset, "argocd")
+			clusterList, err := utils.ListClusters(t.Context(), client, "argocd")
 			require.NoError(t, err)
 
 			appLog := log.WithFields(applog.GetAppLogFields(&app)).WithField("appSet", "")
@@ -1667,6 +1673,8 @@ func TestCreateApplications(t *testing.T) {
 func TestDeleteInCluster(t *testing.T) {
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
+	require.NoError(t, err)
+	err = corev1.AddToScheme(scheme)
 	require.NoError(t, err)
 
 	for _, c := range []struct {
@@ -2115,6 +2123,8 @@ func TestValidateGeneratedApplications(t *testing.T) {
 func TestReconcilerValidationProjectErrorBehaviour(t *testing.T) {
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
+	require.NoError(t, err)
+	err = corev1.AddToScheme(scheme)
 	require.NoError(t, err)
 
 	project := v1alpha1.AppProject{
@@ -2673,6 +2683,8 @@ func applicationsUpdateSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)
+	err = corev1.AddToScheme(scheme)
+	require.NoError(t, err)
 
 	defaultProject := v1alpha1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: "argocd"},
@@ -2729,7 +2741,7 @@ func applicationsUpdateSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 
 	kubeclientset := getDefaultTestClientSet(secret)
 
-	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet, &defaultProject).WithStatusSubresource(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
+	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet, &defaultProject, secret).WithStatusSubresource(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
 	metrics := appsetmetrics.NewFakeAppsetMetrics()
 
 	argodb := db.NewDB("argocd", settings.NewSettingsManager(t.Context(), kubeclientset, "argocd"), kubeclientset)
@@ -2848,6 +2860,8 @@ func applicationsDeleteSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)
+	err = corev1.AddToScheme(scheme)
+	require.NoError(t, err)
 
 	defaultProject := v1alpha1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: "argocd"},
@@ -2904,7 +2918,7 @@ func applicationsDeleteSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 
 	kubeclientset := getDefaultTestClientSet(secret)
 
-	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet, &defaultProject).WithStatusSubresource(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
+	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet, &defaultProject, secret).WithStatusSubresource(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
 	metrics := appsetmetrics.NewFakeAppsetMetrics()
 
 	argodb := db.NewDB("argocd", settings.NewSettingsManager(t.Context(), kubeclientset, "argocd"), kubeclientset)
@@ -3015,6 +3029,8 @@ func TestPolicies(t *testing.T) {
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)
+	err = corev1.AddToScheme(scheme)
+	require.NoError(t, err)
 
 	defaultProject := v1alpha1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: "argocd"},
@@ -3120,7 +3136,7 @@ func TestPolicies(t *testing.T) {
 				},
 			}
 
-			// Check if Application is created
+			// Check if the application is created
 			res, err := r.Reconcile(t.Context(), req)
 			require.NoError(t, err)
 			assert.Equal(t, time.Duration(0), res.RequeueAfter)

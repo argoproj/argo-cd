@@ -62,7 +62,7 @@ func TestRequeueAfter(t *testing.T) {
 		"Clusters":                generators.NewClusterGenerator(ctx, k8sClient, appClientset, "argocd"),
 		"Git":                     generators.NewGitGenerator(mockServer, "namespace"),
 		"SCMProvider":             generators.NewSCMProviderGenerator(fake.NewClientBuilder().WithObjects(&corev1.Secret{}).Build(), scmConfig),
-		"ClusterDecisionResource": generators.NewDuckTypeGenerator(ctx, fakeDynClient, appClientset, "argocd"),
+		"ClusterDecisionResource": generators.NewDuckTypeGenerator(ctx, k8sClient, fakeDynClient, appClientset, "argocd"),
 		"PullRequest":             generators.NewPullRequestGenerator(k8sClient, scmConfig),
 	}
 
