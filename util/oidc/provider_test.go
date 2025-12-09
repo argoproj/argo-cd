@@ -296,7 +296,7 @@ func TestVerifyJWT(t *testing.T) {
 			}
 
 			// Verify the JWT
-			token, err := provider.VerifyJWT(tokenString, argoSettings)
+			token, err := provider.VerifyJWT(t.Context(), tokenString, argoSettings)
 
 			// Assertions
 			if tt.expectError {
@@ -359,12 +359,12 @@ func TestVerifyJWT_Cache(t *testing.T) {
 	tokenString := generateTestToken(jwtgo.SigningMethodRS256, privateKey, kid, claims)
 
 	// First verification - should fetch JWKS
-	_, err = provider.VerifyJWT(tokenString, argoSettings)
+	_, err = provider.VerifyJWT(t.Context(), tokenString, argoSettings)
 	require.NoError(t, err)
 	require.Equal(t, 1, requestCount, "JWKS should be fetched on first call")
 
 	// Second verification - should use cache
-	_, err = provider.VerifyJWT(tokenString, argoSettings)
+	_, err = provider.VerifyJWT(t.Context(), tokenString, argoSettings)
 	require.NoError(t, err)
 	require.Equal(t, 1, requestCount, "JWKS should be cached on second call")
 
@@ -372,7 +372,7 @@ func TestVerifyJWT_Cache(t *testing.T) {
 	time.Sleep(1100 * time.Millisecond) // Wait slightly longer than TTL
 
 	// Third verification - should fetch JWKS again
-	_, err = provider.VerifyJWT(tokenString, argoSettings)
+	_, err = provider.VerifyJWT(t.Context(), tokenString, argoSettings)
 	require.NoError(t, err)
 	require.Equal(t, 2, requestCount, "JWKS should be fetched again after cache expiry")
 }

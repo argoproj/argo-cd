@@ -38,8 +38,7 @@ type Provider interface {
 
 	Verify(ctx context.Context, tokenString string, argoSettings *settings.ArgoCDSettings) (*gooidc.IDToken, error)
 
-	// BG: add context?
-	VerifyJWT(tokenString string, argoSettings *settings.ArgoCDSettings) (*jwtgo.Token, error)
+	VerifyJWT(ctx context.Context, tokenString string, argoSettings *settings.ArgoCDSettings) (*jwtgo.Token, error)
 }
 
 type providerImpl struct {
@@ -175,9 +174,9 @@ func (p *providerImpl) Verify(ctx context.Context, tokenString string, argoSetti
 }
 
 // VerifyJWT verifies a JWT token using the configured JWK Set URL
-func (p *providerImpl) VerifyJWT(tokenString string, argoSettings *settings.ArgoCDSettings) (*jwtgo.Token, error) {
+func (p *providerImpl) VerifyJWT(ctx context.Context, tokenString string, argoSettings *settings.ArgoCDSettings) (*jwtgo.Token, error) {
 	if !argoSettings.IsJWTConfigured() {
-		return nil, errors.New("Valid JWT configuration not found")
+		return nil, errors.New("valid JWT configuration not found")
 	}
 
 	cacheTTL := p.defaultCacheTTL
@@ -190,7 +189,7 @@ func (p *providerImpl) VerifyJWT(tokenString string, argoSettings *settings.Argo
 		}
 	}
 
-	jwks, err := p.getJWKS(argoSettings.JWTConfig.JWKSetURL, cacheTTL)
+	jwks, err := p.getJWKS(ctx, argoSettings.JWTConfig.JWKSetURL, cacheTTL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get JWKS: %w", err)
 	}
@@ -322,7 +321,7 @@ func (p *providerImpl) VerifyJWT(tokenString string, argoSettings *settings.Argo
 	return token, nil
 }
 
-func (p *providerImpl) getJWKS(jwksURL string, cacheTTL time.Duration) (*jose.JSONWebKeySet, error) {
+func (p *providerImpl) getJWKS(ctx context.Context, jwksURL string, cacheTTL time.Duration) (*jose.JSONWebKeySet, error) {
 	p.jwksCacheMux.Lock()
 	defer p.jwksCacheMux.Unlock()
 
@@ -330,7 +329,12 @@ func (p *providerImpl) getJWKS(jwksURL string, cacheTTL time.Duration) (*jose.JS
 		return p.jwksCache, nil
 	}
 
-	resp, err := http.Get(jwksURL)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, jwksURL, http.NoBody)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch JWKS: %w", err)
 	}
