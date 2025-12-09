@@ -1059,6 +1059,7 @@ func newArgoCDServiceSet(a *ArgoCDServer) *ArgoCDServiceSet {
 		a.enf,
 		a.RepoClientset,
 		a.AppClientset,
+		nil,
 		a.appsetInformer,
 		a.appsetLister,
 		a.Namespace,
