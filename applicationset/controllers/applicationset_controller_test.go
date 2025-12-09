@@ -1197,7 +1197,7 @@ func TestRemoveFinalizerOnInvalidDestination_FinalizerTypes(t *testing.T) {
 			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
 
 			objects := append([]runtime.Object{}, secret)
-			kubeclientset := kubefake.NewSimpleClientset(objects...)
+			kubeclientset := kubefake.NewClientset(objects...)
 			metrics := appsetmetrics.NewFakeAppsetMetrics()
 
 			settingsMgr := settings.NewSettingsManager(t.Context(), kubeclientset, "argocd")
@@ -1798,7 +1798,7 @@ func TestDeleteInCluster(t *testing.T) {
 			Client:        client,
 			Scheme:        scheme,
 			Recorder:      record.NewFakeRecorder(len(initObjs) + len(c.expected)),
-			KubeClientset: kubefake.NewSimpleClientset(),
+			KubeClientset: kubefake.NewClientset(),
 			Metrics:       metrics,
 		}
 
@@ -2218,7 +2218,7 @@ func TestSetApplicationSetStatusCondition(t *testing.T) {
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)
-	kubeclientset := kubefake.NewSimpleClientset([]runtime.Object{}...)
+	kubeclientset := kubefake.NewClientset([]runtime.Object{}...)
 	someTime := &metav1.Time{Time: time.Now().Add(-5 * time.Minute)}
 	existingParameterGeneratedCondition := getParametersGeneratedCondition(true, "")
 	existingParameterGeneratedCondition.LastTransitionTime = someTime
@@ -3201,7 +3201,7 @@ func TestSetApplicationSetApplicationStatus(t *testing.T) {
 	err := v1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)
 
-	kubeclientset := kubefake.NewSimpleClientset([]runtime.Object{}...)
+	kubeclientset := kubefake.NewClientset([]runtime.Object{}...)
 
 	for _, cc := range []struct {
 		name                string
@@ -4078,7 +4078,7 @@ func TestBuildAppDependencyList(t *testing.T) {
 		},
 	} {
 		t.Run(cc.name, func(t *testing.T) {
-			kubeclientset := kubefake.NewSimpleClientset([]runtime.Object{}...)
+			kubeclientset := kubefake.NewClientset([]runtime.Object{}...)
 
 			argodb := db.NewDB("argocd", settings.NewSettingsManager(t.Context(), kubeclientset, "argocd"), kubeclientset)
 
@@ -4513,7 +4513,7 @@ func TestGetAppsToSync(t *testing.T) {
 		},
 	} {
 		t.Run(cc.name, func(t *testing.T) {
-			kubeclientset := kubefake.NewSimpleClientset([]runtime.Object{}...)
+			kubeclientset := kubefake.NewClientset([]runtime.Object{}...)
 
 			argodb := db.NewDB("argocd", settings.NewSettingsManager(t.Context(), kubeclientset, "argocd"), kubeclientset)
 
@@ -5200,7 +5200,7 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 		},
 	} {
 		t.Run(cc.name, func(t *testing.T) {
-			kubeclientset := kubefake.NewSimpleClientset([]runtime.Object{}...)
+			kubeclientset := kubefake.NewClientset([]runtime.Object{}...)
 
 			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&cc.appSet).WithStatusSubresource(&cc.appSet).Build()
 			metrics := appsetmetrics.NewFakeAppsetMetrics()
@@ -5953,7 +5953,7 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 		},
 	} {
 		t.Run(cc.name, func(t *testing.T) {
-			kubeclientset := kubefake.NewSimpleClientset([]runtime.Object{}...)
+			kubeclientset := kubefake.NewClientset([]runtime.Object{}...)
 
 			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&cc.appSet).WithStatusSubresource(&cc.appSet).Build()
 			metrics := appsetmetrics.NewFakeAppsetMetrics()
@@ -6226,7 +6226,7 @@ func TestUpdateResourceStatus(t *testing.T) {
 		},
 	} {
 		t.Run(cc.name, func(t *testing.T) {
-			kubeclientset := kubefake.NewSimpleClientset([]runtime.Object{}...)
+			kubeclientset := kubefake.NewClientset([]runtime.Object{}...)
 
 			client := fake.NewClientBuilder().WithScheme(scheme).WithStatusSubresource(&cc.appSet).WithObjects(&cc.appSet).Build()
 			metrics := appsetmetrics.NewFakeAppsetMetrics()
@@ -6316,7 +6316,7 @@ func TestResourceStatusAreOrdered(t *testing.T) {
 		},
 	} {
 		t.Run(cc.name, func(t *testing.T) {
-			kubeclientset := kubefake.NewSimpleClientset([]runtime.Object{}...)
+			kubeclientset := kubefake.NewClientset([]runtime.Object{}...)
 
 			client := fake.NewClientBuilder().WithScheme(scheme).WithStatusSubresource(&cc.appSet).WithObjects(&cc.appSet).Build()
 			metrics := appsetmetrics.NewFakeAppsetMetrics()
@@ -7521,7 +7521,7 @@ func TestReconcileProgressiveSyncDisabled(t *testing.T) {
 	err := v1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)
 
-	kubeclientset := kubefake.NewSimpleClientset([]runtime.Object{}...)
+	kubeclientset := kubefake.NewClientset([]runtime.Object{}...)
 
 	for _, cc := range []struct {
 		name                   string
