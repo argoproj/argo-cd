@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strings"
 	"text/tabwriter"
+	"time"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -138,7 +139,7 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 			default:
 				// Install RBAC resources for managing the cluster
 				if clusterOpts.ServiceAccount != "" {
-					managerBearerToken, err = clusterauth.GetServiceAccountBearerToken(clientset, clusterOpts.SystemNamespace, clusterOpts.ServiceAccount, common.BearerTokenTimeout)
+					managerBearerToken, err = clusterauth.RequestServiceAccountToken(clientset, clusterOpts.SystemNamespace, clusterOpts.ServiceAccount, common.BearerTokenTimeout)
 				} else {
 					isTerminal := isatty.IsTerminal(os.Stdout.Fd()) || isatty.IsCygwinTerminal(os.Stdout.Fd())
 					if isTerminal && !skipConfirmation {
@@ -151,7 +152,7 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 							os.Exit(1)
 						}
 					}
-					managerBearerToken, err = clusterauth.InstallClusterManagerRBAC(clientset, clusterOpts.SystemNamespace, clusterOpts.Namespaces, common.BearerTokenTimeout)
+					managerBearerToken, err = clusterauth.InstallClusterManagerRBAC(clientset, clusterOpts.SystemNamespace, clusterOpts.Namespaces, 3600*time.Second)
 				}
 				errors.CheckError(err)
 			}
