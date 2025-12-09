@@ -592,7 +592,7 @@ func (mgr *SessionManager) VerifyToken(ctx context.Context, tokenString string) 
 			token, jwtErr := prov.VerifyJWT(ctx, tokenString, argoSettings)
 			if jwtErr == nil {
 				// Successfully verified as JWT via JWKS URL
-				log.Debug("Token verified using JWT config (JWKS URL)")
+				log.Debugf("Token verified using JWT config (JWKS URL), claims: %v", token.Claims)
 				return token.Claims, "", nil
 			}
 			// Log the JWT verification failure and continue to other methods
@@ -733,28 +733,10 @@ func Groups(ctx context.Context, scopes []string) []string { // Added settingsMg
 	if !ok {
 		return nil
 	}
-
-	// Check if JWT config specifies a groups claim
-	// Need access to settings here. This might require passing SettingsManager or ArgoCDSettings down via context,
-	// or refactoring how settings are accessed in these utility functions.
-	// For now, let's assume we can get settings (this part needs refinement based on actual context propagation).
-	// Placeholder: How to get settings here? Let's assume a hypothetical GetSettingsFromContext function.
-	/*
-		argoSettings, settingsOk := GetSettingsFromContext(ctx) // Hypothetical function
-		if settingsOk && argoSettings.JWTConfig != nil && argoSettings.JWTConfig.GroupsClaim != "" {
-			if groups, ok := mapClaims[argoSettings.JWTConfig.GroupsClaim].([]interface{}); ok {
-				stringGroups := make([]string, 0, len(groups))
-				for _, group := range groups {
-					if groupStr, ok := group.(string); ok {
-						stringGroups = append(stringGroups, groupStr)
-					}
-				}
-				return stringGroups
-			}
-		}
-	*/
-	// Fallback to default OIDC group extraction
-	return jwtutil.GetGroups(mapClaims, scopes)
+	// Group extraction, includes JWT groups if set
+	groups := jwtutil.GetGroups(mapClaims, scopes)
+	log.Printf("Extracted groups from token claims: %v", groups)
+	return groups
 }
 
 func mapClaims(ctx context.Context) (jwt.MapClaims, bool) {

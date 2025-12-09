@@ -303,8 +303,21 @@ func (p *providerImpl) VerifyJWT(ctx context.Context, tokenString string, argoSe
 			}
 		}
 	}
-	// Note: We don't explicitly check for the groups claim here, as its presence might be optional.
-	// Group extraction logic is handled in sessionmanager.Groups.
+
+	// Parse groups and set claim for later handling at "groups" scope
+	if argoSettings.JWTConfig.GroupsClaim != "" {
+		if groups, ok := claims[argoSettings.JWTConfig.GroupsClaim].([]interface{}); ok {
+			stringGroups := make([]string, 0, len(groups))
+			for _, group := range groups {
+				if groupStr, ok := group.(string); ok {
+					stringGroups = append(stringGroups, groupStr)
+				}
+			}
+			// set groups claim
+			claims["groups"] = stringGroups
+		}
+	}
+
 	// --- End Custom Claim Checks ---
 
 	return token, nil
