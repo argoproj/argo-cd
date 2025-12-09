@@ -21,7 +21,7 @@ First push the installation manifest into argocd namespace:
 
 ```shell
 kubectl create namespace argocd
-kubectl apply -n argocd --force -f manifests/install.yaml
+kubectl apply -n argocd --server-side -f manifests/install.yaml
 ```
 
 The services you will start later assume you are running in the namespace where Argo CD is installed. You can set the current context default namespace as follows:
@@ -199,6 +199,7 @@ docker login
 You will need to push the built images to your own Docker namespace:
 
 ```bash
+export IMAGE_REGISTRY=docker.io
 export IMAGE_NAMESPACE=youraccount
 ```
 
@@ -223,7 +224,7 @@ DOCKER_PUSH=true make image
 
 #### Configure manifests for your image
 
-With `IMAGE_NAMESPACE` and `IMAGE_TAG` still set, run:
+With `IMAGE_REGISTRY`, `IMAGE_NAMESPACE` and `IMAGE_TAG` still set, run:
 
 ```bash
 make manifests
@@ -238,12 +239,12 @@ make manifests-local
 (depending on your toolchain) to build a new set of installation manifests which include your specific image reference.
 
 > [!NOTE]
-> Do not commit these manifests to your repository. If you want to revert the changes, the easiest way is to unset `IMAGE_NAMESPACE` and `IMAGE_TAG` from your environment and run `make manifests` again. This will re-create the default manifests.
+> Do not commit these manifests to your repository. If you want to revert the changes, the easiest way is to unset `IMAGE_REGISTRY`, `IMAGE_NAMESPACE` and `IMAGE_TAG` from your environment and run `make manifests` again. This will re-create the default manifests.
 
 #### Configure your cluster with custom manifests
 
 The final step is to push the manifests to your cluster, so it will pull and run your image:
 
 ```bash
-kubectl apply -n argocd --force -f manifests/install.yaml
+kubectl apply -n argocd --server-side -f manifests/install.yaml
 ```

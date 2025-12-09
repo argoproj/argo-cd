@@ -95,6 +95,7 @@ type comparisonResult struct {
 	timings            map[string]time.Duration
 	diffResultList     *diff.DiffResultList
 	hasPostDeleteHooks bool
+	hasPreDeleteHooks  bool
 	// revisionsMayHaveChanges indicates if there are any possibilities that the revisions contain changes
 	revisionsMayHaveChanges bool
 }
@@ -770,14 +771,26 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 			}
 		}
 	}
+	hasPreDeleteHooks := false
 	hasPostDeleteHooks := false
+	// Filter out PreDelete and PostDelete hooks from targetObjs since they should not be synced
+	// as regular resources. They are only executed during deletion.
+	var targetObjsForSync []*unstructured.Unstructured
 	for _, obj := range targetObjs {
+		if isPreDeleteHook(obj) {
+			hasPreDeleteHooks = true
+			// Skip PreDelete hooks - they are not synced, only executed during deletion
+			continue
+		}
 		if isPostDeleteHook(obj) {
 			hasPostDeleteHooks = true
+			// Skip PostDelete hooks - they are not synced, only executed after deletion
+			continue
 		}
+		targetObjsForSync = append(targetObjsForSync, obj)
 	}
 
-	reconciliation := sync.Reconcile(targetObjs, liveObjByKey, app.Spec.Destination.Namespace, infoProvider)
+	reconciliation := sync.Reconcile(targetObjsForSync, liveObjByKey, app.Spec.Destination.Namespace, infoProvider)
 	ts.AddCheckpoint("live_ms")
 
 	compareOptions, err := m.settingsMgr.GetResourceCompareOptions()
@@ -994,6 +1007,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		diffConfig:              diffConfig,
 		diffResultList:          diffResults,
 		hasPostDeleteHooks:      hasPostDeleteHooks,
+		hasPreDeleteHooks:       hasPreDeleteHooks,
 		revisionsMayHaveChanges: revisionsMayHaveChanges,
 	}
 
