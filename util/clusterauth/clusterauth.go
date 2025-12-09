@@ -3,6 +3,8 @@ package clusterauth
 import (
 	"context"
 	"fmt"
+	authenticationv1 "k8s.io/api/authentication/v1"
+	"k8s.io/utils/ptr"
 	"strings"
 	"time"
 
@@ -46,6 +48,26 @@ var ArgoCDManagerNamespacePolicyRules = []rbacv1.PolicyRule{
 		Resources: []string{"*"},
 		Verbs:     []string{"*"},
 	},
+}
+
+func RequestServiceAccountToken(clientset kubernetes.Interface, namespace, saName string, expiration time.Duration) (string, error) {
+	expSec := int64(expiration.Seconds())
+	tokenRequest := &authenticationv1.TokenRequest{
+		Spec: authenticationv1.TokenRequestSpec{
+			Audiences:         []string{"https://kubernetes.default.svc"},
+			ExpirationSeconds: ptr.To(expSec),
+		},
+	}
+
+	response, err := clientset.CoreV1().ServiceAccounts(namespace).CreateToken(context.TODO(), saName, tokenRequest, metav1.CreateOptions{})
+	if err != nil {
+		return "", fmt.Errorf("failed to create token for service account %q in namespace %q: %w", saName, namespace, err)
+	}
+	if len(response.Status.Token) == 0 {
+		return "", fmt.Errorf("received empty token for service account %q in namespace %q", saName, namespace)
+	}
+
+	return response.Status.Token, nil
 }
 
 // CreateServiceAccount creates a service account in a given namespace
@@ -214,7 +236,7 @@ func InstallClusterManagerRBAC(clientset kubernetes.Interface, ns string, namesp
 		}
 	}
 
-	return GetServiceAccountBearerToken(clientset, ns, ArgoCDManagerServiceAccount, bearerTokenTimeout)
+	return RequestServiceAccountToken(clientset, ns, ArgoCDManagerServiceAccount, 3600*time.Second)
 }
 
 // GetServiceAccountBearerToken determines if a ServiceAccount has a
