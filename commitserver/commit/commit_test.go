@@ -370,7 +370,7 @@ func Test_CommitHydratedManifests(t *testing.T) {
 		resp, err := service.CommitHydratedManifests(t.Context(), requestWithRootAndBlank)
 		require.NoError(t, err)
 		require.NotNil(t, resp)
-		assert.Equal(t, "", resp.HydratedSha)
+		assert.Empty(t, resp.HydratedSha)
 	})
 }
 
