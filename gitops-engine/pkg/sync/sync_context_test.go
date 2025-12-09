@@ -439,6 +439,40 @@ func TestSync_ApplyOutOfSyncOnly(t *testing.T) {
 		}
 	})
 
+	// Ensure Force annotation does not override ApplyOutOfSyncOnly skip for unchanged resources
+	t.Run("applyOutOfSyncOnly=true with Force annotations", func(t *testing.T) {
+		forcedPod1 := withForceAnnotation(testingutils.NewPod())
+		forcedPod1.SetName("pod-1")
+		forcedPod1.SetNamespace("fake-argocd-ns")
+		forcedPod3 := withForceAnnotation(testingutils.NewPod())
+		forcedPod3.SetName("pod-3")
+		forcedPod3.SetNamespace("fake-argocd-ns")
+
+		syncCtx := newTestSyncCtx(nil, WithResourceModificationChecker(true, diffResultList()))
+		syncCtx.applyOutOfSyncOnly = true
+		// live: pod2, pod3 ; target: pod1 (modified), pod3 (unchanged)
+		syncCtx.resources = groupResources(ReconciliationResult{
+			Live:   []*unstructured.Unstructured{nil, pod2, pod3},
+			Target: []*unstructured.Unstructured{forcedPod1, nil, forcedPod3},
+		})
+
+		syncCtx.Sync()
+		phase, _, resources := syncCtx.GetState()
+		assert.Equal(t, synccommon.OperationSucceeded, phase)
+		// Only pod-1 apply should occur, pod-3 unchanged should be skipped despite Force
+		for _, r := range resources {
+			switch r.ResourceKey.Name {
+			case "pod-1":
+				assert.Equal(t, synccommon.ResultCodeSynced, r.Status)
+			case "pod-2":
+				assert.Equal(t, synccommon.ResultCodePruneSkipped, r.Status)
+			case "pod-3":
+				// There should be no entry for pod-3 in results since it is skipped
+				t.Error("pod-3 should have been skipped (unchanged, Force should not override ApplyOutOfSyncOnly)")
+			}
+		}
+	})
+
 	pod4 := testingutils.NewPod()
 	pod4.SetName("pod-4")
 	t.Run("applyOutOfSyncOnly=true and missing resource key", func(t *testing.T) {
