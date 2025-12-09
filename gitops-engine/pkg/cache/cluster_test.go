@@ -17,6 +17,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
+	authorizationv1 "k8s.io/api/authorization/v1"
 	corev1 "k8s.io/api/core/v1"
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -26,6 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/dynamic/fake"
+	k8sfake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	testcore "k8s.io/client-go/testing"
@@ -1293,6 +1295,82 @@ func BenchmarkIterateHierarchyV2(b *testing.B) {
 			{Namespace: "default", Name: "test-1", Kind: "Pod"},
 		}, func(_ *Resource, _ map[kube.ResourceKey]*Resource) bool {
 			return true
+		})
+	}
+}
+
+func Test_checkPermissionForNamespace(t *testing.T) {
+	api := kube.APIResourceInfo{
+		GroupKind:            schema.GroupKind{Group: "", Kind: "Pod"},
+		GroupVersionResource: schema.GroupVersionResource{Group: "", Version: "v1", Resource: "pods"},
+		Meta:                 metav1.APIResource{Namespaced: true},
+	}
+
+	tests := []struct {
+		name            string
+		ssarResponse    *authorizationv1.SelfSubjectAccessReview
+		ssarError       error
+		expectedAllowed bool
+		expectError     bool
+		errorContains   string
+	}{
+		{
+			name: "returns true when SSAR allows",
+			ssarResponse: &authorizationv1.SelfSubjectAccessReview{
+				Status: authorizationv1.SubjectAccessReviewStatus{
+					Allowed: true,
+				},
+			},
+			expectedAllowed: true,
+			expectError:     false,
+		},
+		{
+			name: "returns false when SSAR denies",
+			ssarResponse: &authorizationv1.SelfSubjectAccessReview{
+				Status: authorizationv1.SubjectAccessReviewStatus{
+					Allowed: false,
+				},
+			},
+			expectedAllowed: false,
+			expectError:     false,
+		},
+		{
+			name:            "returns error when SSAR API call fails",
+			ssarError:       fmt.Errorf("API server error"),
+			expectedAllowed: false,
+			expectError:     true,
+			errorContains:   "failed to create self subject access review",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Given: fake clientset with SSAR mock
+			fakeClient := k8sfake.NewSimpleClientset()
+			fakeClient.PrependReactor("create", "selfsubjectaccessreviews", func(action testcore.Action) (handled bool, ret runtime.Object, err error) {
+				if tt.ssarError != nil {
+					return true, nil, tt.ssarError
+				}
+				return true, tt.ssarResponse, nil
+			})
+
+			cache := &clusterCache{}
+
+			// When: checking permission for specific namespace
+			allowed, err := cache.checkPermissionForNamespace(
+				context.Background(),
+				fakeClient.AuthorizationV1().SelfSubjectAccessReviews(),
+				api,
+				"test-namespace",
+			)
+
+			// Then: verify results
+			if tt.expectError {
+				assert.ErrorContains(t, err, tt.errorContains)
+			} else {
+				assert.NoError(t, err)
+			}
+			assert.Equal(t, tt.expectedAllowed, allowed)
 		})
 	}
 }
