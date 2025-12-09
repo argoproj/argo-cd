@@ -141,7 +141,7 @@ func (opts *ProjectOpts) GetSourceNamespaces() []string {
 	return opts.SourceNamespaces
 }
 
-func GetOrphanedResourcesSettings(flagSet *pflag.FlagSet, opts ProjectOpts) *v1alpha1.OrphanedResourcesMonitorSettings {
+func GetOrphanedResourcesSettings(flagSet *pflag.FlagSet, opts *ProjectOpts) *v1alpha1.OrphanedResourcesMonitorSettings {
 	warnChanged := flagSet.Changed("orphaned-resources-warn")
 	if opts.orphanedResourcesEnabled || warnChanged {
 		settings := v1alpha1.OrphanedResourcesMonitorSettings{}
@@ -203,13 +203,13 @@ func SetProjSpecOptions(flags *pflag.FlagSet, spec *v1alpha1.AppProjectSpec, pro
 		}
 	})
 	if flags.Changed("orphaned-resources") || flags.Changed("orphaned-resources-warn") {
-		spec.OrphanedResources = GetOrphanedResourcesSettings(flags, *projOpts)
+		spec.OrphanedResources = GetOrphanedResourcesSettings(flags, projOpts)
 		visited++
 	}
 	return visited
 }
 
-func ConstructAppProj(fileURL string, args []string, opts ProjectOpts, c *cobra.Command) (*v1alpha1.AppProject, error) {
+func ConstructAppProj(fileURL string, args []string, opts *ProjectOpts, c *cobra.Command) (*v1alpha1.AppProject, error) {
 	proj := v1alpha1.AppProject{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       application.AppProjectKind,
@@ -241,6 +241,6 @@ func ConstructAppProj(fileURL string, args []string, opts ProjectOpts, c *cobra.
 		}
 		proj.Name = args[0]
 	}
-	SetProjSpecOptions(c.Flags(), &proj.Spec, &opts)
+	SetProjSpecOptions(c.Flags(), &proj.Spec, opts)
 	return &proj, nil
 }
