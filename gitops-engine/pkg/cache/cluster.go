@@ -630,16 +630,27 @@ func (c *clusterCache) AddNamespace(namespace string) error {
 		c.Invalidate(func(cache *clusterCache) {
 			cache.namespaces = append(cache.namespaces, namespace)
 		})
+
 		return nil
 	}
 
 	// Feature enabled: incremental sync
+	c.log.Info("Start syncing namespace", "namespace", namespace)
+
 	c.lock.Lock()
 	c.namespaces = append(c.namespaces, namespace)
 	apisToSync := c.snapshotApisMeta()
 	c.lock.Unlock()
 
-	return c.syncNamespaceResources(namespace, apisToSync)
+	err := c.syncNamespaceResources(namespace, apisToSync)
+	if err != nil {
+		c.log.Error(err, "Failed to sync namespace", "namespace", namespace)
+		return err
+	}
+
+	c.log.Info("Namespace successfully synced", "namespace", namespace)
+
+	return nil
 }
 
 // RemoveNamespace incrementally removes a namespace from the cluster cache if incremental sync is enabled,
@@ -693,16 +704,7 @@ func (c *clusterCache) snapshotApisMeta() map[schema.GroupKind]*apiMeta {
 }
 
 // syncNamespaceResources lists and caches resources for the given namespace across all watched APIs
-func (c *clusterCache) syncNamespaceResources(namespace string, apisToSync map[schema.GroupKind]*apiMeta) (err error) {
-	c.log.Info("Start syncing namespace", "namespace", namespace)
-	defer func() {
-		if err != nil {
-			c.log.Error(err, "Failed to sync namespace", "namespace", namespace)
-		} else {
-			c.log.Info("Namespace successfully synced", "namespace", namespace)
-		}
-	}()
-
+func (c *clusterCache) syncNamespaceResources(namespace string, apisToSync map[schema.GroupKind]*apiMeta) error {
 	client, err := c.kubectl.NewDynamicClient(c.config)
 	if err != nil {
 		return fmt.Errorf("failed to create client: %w", err)
