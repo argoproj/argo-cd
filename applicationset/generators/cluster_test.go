@@ -7,11 +7,8 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
-
-	kubefake "k8s.io/client-go/kubernetes/fake"
 
 	"github.com/argoproj/argo-cd/v3/applicationset/utils"
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -299,23 +296,15 @@ func TestGenerateParams(t *testing.T) {
 		},
 	}
 
-	// convert []client.Object to []runtime.Object, for use by kubefake package
-	runtimeClusters := []runtime.Object{}
-	for _, clientCluster := range clusters {
-		runtimeClusters = append(runtimeClusters, clientCluster)
-	}
-
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
-			appClientset := kubefake.NewSimpleClientset(runtimeClusters...)
-
 			fakeClient := fake.NewClientBuilder().WithObjects(clusters...).Build()
 			cl := &possiblyErroringFakeCtrlRuntimeClient{
 				fakeClient,
 				testCase.clientError,
 			}
 
-			clusterGenerator := NewClusterGenerator(t.Context(), cl, appClientset, "namespace")
+			clusterGenerator := NewClusterGenerator(cl, "namespace")
 
 			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
@@ -837,23 +826,15 @@ func TestGenerateParamsGoTemplate(t *testing.T) {
 		},
 	}
 
-	// convert []client.Object to []runtime.Object, for use by kubefake package
-	runtimeClusters := []runtime.Object{}
-	for _, clientCluster := range clusters {
-		runtimeClusters = append(runtimeClusters, clientCluster)
-	}
-
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
-			appClientset := kubefake.NewSimpleClientset(runtimeClusters...)
-
 			fakeClient := fake.NewClientBuilder().WithObjects(clusters...).Build()
 			cl := &possiblyErroringFakeCtrlRuntimeClient{
 				fakeClient,
 				testCase.clientError,
 			}
 
-			clusterGenerator := NewClusterGenerator(t.Context(), cl, appClientset, "namespace")
+			clusterGenerator := NewClusterGenerator(cl, "namespace")
 
 			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
