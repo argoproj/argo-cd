@@ -1016,7 +1016,7 @@ func TestAuthenticate_no_SSO(t *testing.T) {
 		{
 			test:                 "anonymous disabled",
 			anonymousEnabled:     false,
-			expectedErrorMessage: "SSO is not configured",
+			expectedErrorMessage: "SSO or JWT is not configured",
 			expectedClaims:       nil,
 		},
 		{

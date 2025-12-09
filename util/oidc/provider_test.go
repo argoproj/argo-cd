@@ -347,6 +347,7 @@ func TestVerifyJWT_Cache(t *testing.T) {
 
 	jwtConfig := &settings.JWTConfig{
 		JWKSetURL:     ts.URL + "/.well-known/jwks.json",
+		HeaderName:    "JWT-Assertion",
 		CacheTTL:      "1s", // Short TTL for testing
 		EmailClaim:    "email",
 		UsernameClaim: "sub",

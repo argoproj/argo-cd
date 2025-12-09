@@ -1764,6 +1764,13 @@ func (a *ArgoCDSettings) IsSSOConfigured() bool {
 	return false
 }
 
+func (a *ArgoCDSettings) IsJWTConfigured() bool {
+	if a.JWTConfig == nil {
+		return false
+	}
+	return a.JWTConfig.HeaderName != "" && a.JWTConfig.JWKSetURL != ""
+}
+
 func (a *ArgoCDSettings) IsDexConfigured() bool {
 	if a.URL == "" {
 		return false

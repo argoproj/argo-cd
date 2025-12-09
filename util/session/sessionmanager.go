@@ -521,7 +521,7 @@ func WithAuthMiddleware(disabled bool, isSSOConfigured bool, ssoClientApp *oidcu
 		// 1. Check Header for JWT (if configured)
 		if settingsMgr != nil {
 			argoSettings, settingsErr := settingsMgr.GetSettings()
-			if settingsErr == nil && argoSettings.JWTConfig != nil && argoSettings.JWTConfig.HeaderName != "" {
+			if settingsErr == nil && argoSettings.IsJWTConfigured() {
 				tokenString = r.Header.Get(argoSettings.JWTConfig.HeaderName)
 				if tokenString != "" {
 					log.Debugf("Found token in header %s", argoSettings.JWTConfig.HeaderName)
@@ -583,7 +583,7 @@ func (mgr *SessionManager) VerifyToken(ctx context.Context, tokenString string) 
 	}
 
 	// 1. Attempt JWT verification (for IAP) if configured
-	if argoSettings.JWTConfig != nil && argoSettings.JWTConfig.JWKSetURL != "" {
+	if argoSettings.IsJWTConfigured() {
 		prov, err := mgr.provider() // provider() handles lazy init
 		if err != nil {
 			// Log the error but don't fail immediately, maybe it's an Argo CD token
@@ -664,8 +664,9 @@ func (mgr *SessionManager) provider() (oidcutil.Provider, error) {
 	if err != nil {
 		return nil, err
 	}
-	if !settings.IsSSOConfigured() {
-		return nil, errors.New("SSO is not configured")
+	// In the case of external JWT we need an OIDC provider to veryify tokens
+	if !(settings.IsSSOConfigured() || settings.IsJWTConfigured()) {
+		return nil, errors.New("SSO or JWT is not configured")
 	}
 	mgr.prov = oidcutil.NewOIDCProvider(settings.IssuerURL(), mgr.client)
 	return mgr.prov, nil

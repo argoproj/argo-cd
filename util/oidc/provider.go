@@ -165,8 +165,8 @@ func (p *providerImpl) Verify(ctx context.Context, tokenString string, argoSetti
 
 // VerifyJWT verifies a JWT token using the configured JWK Set URL
 func (p *providerImpl) VerifyJWT(tokenString string, argoSettings *settings.ArgoCDSettings) (*jwtgo.Token, error) {
-	if argoSettings.JWTConfig == nil || argoSettings.JWTConfig.JWKSetURL == "" {
-		return nil, errors.New("JWT configuration not found")
+	if !argoSettings.IsJWTConfigured() {
+		return nil, errors.New("Valid JWT configuration not found")
 	}
 
 	cacheTTL := p.defaultCacheTTL

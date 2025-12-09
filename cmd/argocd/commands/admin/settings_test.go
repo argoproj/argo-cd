@@ -108,7 +108,7 @@ data:
 func TestValidator(t *testing.T) {
 	testCases := map[string]validatorTestCase{
 		"General_SSOIsNotConfigured": {
-			validator: "general", containsSummary: "SSO is not configured",
+			validator: "general", containsSummary: "SSO or JWT is not configured",
 		},
 		"General_DexInvalidConfig": {
 			validator:     "general",
