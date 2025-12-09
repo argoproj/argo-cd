@@ -74,7 +74,20 @@ func (g *ClusterGenerator) GenerateParams(appSetGenerator *argoappsetv1alpha1.Ap
 		secretsList = append(secretsList, secret)
 	}
 
-	// Add the in-cluster if it doesn't have a secret, and we're not ignoring in-cluster
+	// For each matching cluster secret (non-local clusters only)
+	for _, cluster := range clusterSecrets {
+		params := g.getClusterParameters(cluster, appSet)
+
+		err = appendTemplatedValues(appSetGenerator.Clusters.Values, params, appSet.Spec.GoTemplate, appSet.Spec.GoTemplateOptions)
+		if err != nil {
+			return nil, fmt.Errorf("error appending templated values for cluster: %w", err)
+		}
+
+		paramHolder.append(params)
+		logCtx.WithField("cluster", cluster.Name).Debug("matched cluster secret")
+	}
+
+	// Add the in-cluster last if it doesn't have a secret, and we're not ignoring in-cluster
 	if !ignoreLocalClusters && !utils.SecretsContainInClusterCredentials(secretsList) {
 		params := map[string]any{}
 		params["name"] = argoappsetv1alpha1.KubernetesInClusterName
@@ -89,19 +102,6 @@ func (g *ClusterGenerator) GenerateParams(appSetGenerator *argoappsetv1alpha1.Ap
 
 		paramHolder.append(params)
 		logCtx.WithField("cluster", "local cluster").Info("matched local cluster")
-	}
-
-	// For each matching cluster secret (non-local clusters only)
-	for _, cluster := range clusterSecrets {
-		params := g.getClusterParameters(cluster, appSet)
-
-		err = appendTemplatedValues(appSetGenerator.Clusters.Values, params, appSet.Spec.GoTemplate, appSet.Spec.GoTemplateOptions)
-		if err != nil {
-			return nil, fmt.Errorf("error appending templated values for cluster: %w", err)
-		}
-
-		paramHolder.append(params)
-		logCtx.WithField("cluster", cluster.Name).Debug("matched cluster secret")
 	}
 
 	return paramHolder.consolidate(), nil

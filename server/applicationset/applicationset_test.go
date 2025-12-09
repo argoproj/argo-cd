@@ -150,6 +150,24 @@ func newTestAppSetServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforce
 	require.NoError(t, err)
 	err = corev1.AddToScheme(scheme)
 	require.NoError(t, err)
+
+	// Add the fake cluster secret so the ClusterGenerator can find it via controller-runtime client
+	fakeClusterSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "cluster-cluster-api.example.com-2aborni",
+			Namespace: testNamespace,
+			Labels: map[string]string{
+				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
+			},
+		},
+		Data: map[string][]byte{
+			"name":   []byte("fake-cluster"),
+			"server": []byte("https://cluster-api.example.com"),
+			"config": []byte("{}"),
+		},
+	}
+	objects = append(objects, fakeClusterSecret)
+
 	crClient := cr_fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).Build()
 
 	projInformer := factory.Argoproj().V1alpha1().AppProjects().Informer()
