@@ -758,7 +758,7 @@ func (c *clusterCache) loadNamespaceResources(ctx context.Context, client dynami
 		return listPager.EachListItem(ctx, metav1.ListOptions{}, func(obj runtime.Object) error {
 			un, ok := obj.(*unstructured.Unstructured)
 			if !ok {
-				return fmt.Errorf("object %s/%s has an unexpected type", un.GroupVersionKind().String(), un.GetName())
+				return fmt.Errorf("object has unexpected type: %T", obj)
 			}
 			newRes := c.newResource(un)
 			c.lock.Lock()
@@ -922,7 +922,7 @@ func (c *clusterCache) loadInitialState(ctx context.Context, api kube.APIResourc
 	resourceVersion, err := c.listResources(ctx, resClient, func(listPager *pager.ListPager) error {
 		return listPager.EachListItem(ctx, metav1.ListOptions{}, func(obj runtime.Object) error {
 			if un, ok := obj.(*unstructured.Unstructured); !ok {
-				return fmt.Errorf("object %s/%s has an unexpected type", un.GroupVersionKind().String(), un.GetName())
+				return fmt.Errorf("object has unexpected type: %T", obj)
 			} else {
 				items = append(items, c.newResource(un))
 			}
@@ -1236,7 +1236,7 @@ func (c *clusterCache) sync() error {
 			resourceVersion, err := c.listResources(ctx, resClient, func(listPager *pager.ListPager) error {
 				return listPager.EachListItem(context.Background(), metav1.ListOptions{}, func(obj runtime.Object) error {
 					if un, ok := obj.(*unstructured.Unstructured); !ok {
-						return fmt.Errorf("object %s/%s has an unexpected type", un.GroupVersionKind().String(), un.GetName())
+						return fmt.Errorf("object has unexpected type: %T", obj)
 					} else {
 						newRes := c.newResource(un)
 						lock.Lock()
