@@ -52,6 +52,31 @@ The key to start using OCI images are the following components in the applicatio
 In the case of OCI Helm charts (an OCI artifact where the `mediaType` is set to `application/vnd.cncf.helm.chart.content.v1.tar+gzip`), 
 the path should always be set to `.`. 
 
+### Private OCI Registries
+The above configuration works only for public repositories. For private repositories, please refer to this [page](private-repositories.md#helm)
+to use the proper flags `--enable-oci --type helm` when adding the repository Argo CD and use an application configuration like this:
+
+> [!NOTE]
+> The repository URL should not contain the OCI scheme prefix `oci://`.
+> Also the path should be removed from the repository URL and should be defined instead in the `path` attribute.
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: my-custom-image
+  namespace: argocd
+spec:
+  project: default
+  source:
+    path: project/charts/mychart
+    repoURL: europe-west4-docker.pkg.dev
+    targetRevision: 1.16.1
+  destination:
+    server: "https://kubernetes.default.svc"
+    namespace: my-namespace
+```
+
 ## Usage Guidelines
 
 First off, you'll need to have a repository that is OCI-compliant. As an example, DockerHub, ECR, GHCR and GCR all fit 
