@@ -589,7 +589,7 @@ func (mgr *SessionManager) VerifyToken(ctx context.Context, tokenString string) 
 			// Log the error but don't fail immediately, maybe it's an Argo CD token
 			log.Warnf("Failed to get OIDC provider for JWT verification: %v", err)
 		} else {
-			token, jwtErr := prov.VerifyJWT(tokenString, argoSettings)
+			token, jwtErr := prov.VerifyJWT(ctx, tokenString, argoSettings)
 			if jwtErr == nil {
 				// Successfully verified as JWT via JWKS URL
 				log.Debug("Token verified using JWT config (JWKS URL)")
@@ -665,7 +665,7 @@ func (mgr *SessionManager) provider() (oidcutil.Provider, error) {
 		return nil, err
 	}
 	// In the case of external JWT we need an OIDC provider to veryify tokens
-	if !(settings.IsSSOConfigured() || settings.IsJWTConfigured()) {
+	if !settings.IsSSOConfigured() && !settings.IsJWTConfigured() {
 		return nil, errors.New("SSO or JWT is not configured")
 	}
 	mgr.prov = oidcutil.NewOIDCProvider(settings.IssuerURL(), mgr.client)

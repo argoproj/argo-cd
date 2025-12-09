@@ -121,7 +121,7 @@ func (p *fakeProvider) Verify(_ context.Context, _ string, _ *settings.ArgoCDSet
 	return nil, nil
 }
 
-func (p *fakeProvider) VerifyJWT(_ string, _ *settings.ArgoCDSettings) (*jwtgo.Token, error) {
+func (p *fakeProvider) VerifyJWT(_ context.Context, _ string, _ *settings.ArgoCDSettings) (*jwtgo.Token, error) {
 	return nil, nil
 }
 
