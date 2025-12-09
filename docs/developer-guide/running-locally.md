@@ -21,7 +21,7 @@ First push the installation manifest into argocd namespace:
 
 ```shell
 kubectl create namespace argocd
-kubectl apply -n argocd --force -f manifests/install.yaml
+kubectl apply -n argocd --server-side -f manifests/install.yaml
 ```
 
 The services you will start later assume you are running in the namespace where Argo CD is installed. You can set the current context default namespace as follows:
@@ -246,5 +246,5 @@ make manifests-local
 The final step is to push the manifests to your cluster, so it will pull and run your image:
 
 ```bash
-kubectl apply -n argocd --force -f manifests/install.yaml
+kubectl apply -n argocd --server-side -f manifests/install.yaml
 ```
