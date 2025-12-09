@@ -708,6 +708,11 @@ func (c *clusterCache) syncNamespaceResources(namespace string, apisToSync map[s
 		return fmt.Errorf("failed to create client: %w", err)
 	}
 
+	clientset, err := kubernetes.NewForConfig(c.config)
+	if err != nil {
+		return fmt.Errorf("failed to create clientset: %w", err)
+	}
+
 	apiMap, err := c.buildAPIMap()
 	if err != nil {
 		return err
@@ -727,7 +732,7 @@ func (c *clusterCache) syncNamespaceResources(namespace string, apisToSync map[s
 		nsCtx, nsCancel := context.WithCancel(meta.watchCtx)
 		meta.namespaceCancels[namespace] = nsCancel
 
-		if err := c.loadNamespaceResources(nsCtx, client, api, namespace); err != nil {
+		if err := c.loadNamespaceResources(nsCtx, client, clientset, api, namespace); err != nil {
 			return fmt.Errorf("failed to load resources for %s in namespace %s: %w", gk.String(), namespace, err)
 		}
 	}
@@ -751,7 +756,7 @@ func (c *clusterCache) buildAPIMap() (map[schema.GroupKind]kube.APIResourceInfo,
 
 // loadNamespaceResources lists and caches all resources for a given API in a specific namespace,
 // and starts watching for changes
-func (c *clusterCache) loadNamespaceResources(ctx context.Context, client dynamic.Interface, api kube.APIResourceInfo, namespace string) error {
+func (c *clusterCache) loadNamespaceResources(ctx context.Context, client dynamic.Interface, clientset kubernetes.Interface, api kube.APIResourceInfo, namespace string) error {
 	resClient := client.Resource(api.GroupVersionResource).Namespace(namespace)
 
 	resourceVersion, err := c.listResources(ctx, resClient, func(listPager *pager.ListPager) error {
@@ -769,8 +774,9 @@ func (c *clusterCache) loadNamespaceResources(ctx context.Context, client dynami
 	})
 	if err != nil {
 		if c.isRestrictedResource(err) {
-			return nil
+			return c.handleRestrictedListError(ctx, clientset, api, namespace, err)
 		}
+
 		return err
 	}
 
@@ -1146,6 +1152,50 @@ func (c *clusterCache) checkPermission(ctx context.Context, reviewInterface auth
 	// checkPermission follows the same logic of determining namespace/cluster resource as the processApi function
 	// so if neither of the cases match it means the controller will not watch for it so it is safe to return true.
 	return true, nil
+}
+
+// checkPermissionForNamespace checks if the controller has permission to list a resource in a specific namespace
+func (c *clusterCache) checkPermissionForNamespace(ctx context.Context, reviewInterface authType1.SelfSubjectAccessReviewInterface, api kube.APIResourceInfo, namespace string) (bool, error) {
+	sar := &authorizationv1.SelfSubjectAccessReview{
+		Spec: authorizationv1.SelfSubjectAccessReviewSpec{
+			ResourceAttributes: &authorizationv1.ResourceAttributes{
+				Namespace: namespace,
+				Verb:      "list",
+				Resource:  api.GroupVersionResource.Resource,
+			},
+		},
+	}
+
+	resp, err := reviewInterface.Create(ctx, sar, metav1.CreateOptions{})
+	if err != nil {
+		return false, fmt.Errorf("failed to create self subject access review: %w", err)
+	}
+
+	if resp != nil && resp.Status.Allowed {
+		return true, nil
+	}
+
+	return false, nil
+}
+
+// handleRestrictedListError manages forbidden/unauthorized list errors with optional self subject access review (SSAR) verification
+func (c *clusterCache) handleRestrictedListError(ctx context.Context, clientset kubernetes.Interface, api kube.APIResourceInfo, namespace string, listErr error) error {
+	if c.respectRBAC != RespectRbacStrict {
+		// RespectRbacNormal: silently skip forbidden resources
+		return nil
+	}
+
+	keep, permErr := c.checkPermissionForNamespace(ctx, clientset.AuthorizationV1().SelfSubjectAccessReviews(), api, namespace)
+	if permErr != nil {
+		return fmt.Errorf("failed to check permissions for %s in namespace %s: %w", api.GroupKind.String(), namespace, permErr)
+	}
+	if !keep {
+		// SSAR confirms no permission - silently skip this resource
+		return nil
+	}
+
+	// SSAR says we have permission, but list failed - propagate the original list error
+	return fmt.Errorf("list failed despite having permissions for %s in namespace %s: %w", api.GroupKind.String(), namespace, listErr)
 }
 
 // sync retrieves the current state of the cluster and stores relevant information in the clusterCache fields.
