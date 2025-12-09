@@ -163,9 +163,6 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                         }
                                     }
                                 }
-                                if (allResourcesAreSelected) {
-                                    selectedResources = null;
-                                }
                                 const replace = params.syncOptions?.findIndex((opt: string) => opt === 'Replace=true') > -1;
                                 if (replace) {
                                     const confirmed = await ctx.popup.prompt(
@@ -202,6 +199,9 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                         setPending(false);
                                         return;
                                     }
+                                }
+                                if (allResourcesAreSelected) {
+                                    selectedResources = null;
                                 }
 
                                 const force = syncFlags.Force || false;
