@@ -5,10 +5,11 @@ import (
 	"os"
 	"strings"
 
+	log "github.com/sirupsen/logrus"
+
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/glob"
-	log "github.com/sirupsen/logrus"
 )
 
 type SourceIntegrityGitFunc func(gitClient git.Client, unresolvedRevision string) (*v1alpha1.SourceIntegrityCheckResult, error)
