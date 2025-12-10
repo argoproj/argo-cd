@@ -1220,3 +1220,44 @@ func TestCreateReadAndWriteSecretForSameURL(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, common.LabelValueSecretTypeRepositoryWrite, writeSecret.Labels[common.LabelKeySecretType])
 }
+
+func TestCreateReadAndWriteRepoCredsSecretForSameURL(t *testing.T) {
+	clientset := getClientset()
+	settingsMgr := settings.NewSettingsManager(t.Context(), clientset, testNamespace)
+
+	creds := &appsv1.RepoCreds{
+		URL:      "git@github.com:argoproj/argo-cd.git",
+		Username: "user",
+		Password: "pass",
+	}
+
+	// Create read creds secret
+	readBackend := &secretsRepositoryBackend{db: &db{
+		ns:            testNamespace,
+		kubeclientset: clientset,
+		settingsMgr:   settingsMgr,
+	}, writeCreds: false}
+	_, err := readBackend.CreateRepoCreds(t.Context(), creds)
+	require.NoError(t, err)
+
+	// Create write creds secret
+	writeBackend := &secretsRepositoryBackend{db: &db{
+		ns:            testNamespace,
+		kubeclientset: clientset,
+		settingsMgr:   settingsMgr,
+	}, writeCreds: true}
+	_, err = writeBackend.CreateRepoCreds(t.Context(), creds)
+	require.NoError(t, err)
+
+	// Assert both secrets exist
+	readSecretName := RepoURLToSecretName(credSecretPrefix, creds.URL, "")
+	writeSecretName := RepoURLToSecretName(credWriteSecretPrefix, creds.URL, "")
+
+	readSecret, err := clientset.CoreV1().Secrets(testNamespace).Get(t.Context(), readSecretName, metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, common.LabelValueSecretTypeRepoCreds, readSecret.Labels[common.LabelKeySecretType])
+
+	writeSecret, err := clientset.CoreV1().Secrets(testNamespace).Get(t.Context(), writeSecretName, metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, common.LabelValueSecretTypeRepoCredsWrite, writeSecret.Labels[common.LabelKeySecretType])
+}

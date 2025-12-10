@@ -183,7 +183,11 @@ func (s *secretsRepositoryBackend) RepositoryExists(_ context.Context, repoURL, 
 }
 
 func (s *secretsRepositoryBackend) CreateRepoCreds(ctx context.Context, repoCreds *appsv1.RepoCreds) (*appsv1.RepoCreds, error) {
-	secName := RepoURLToSecretName(credSecretPrefix, repoCreds.URL, "")
+	secretPrefix := credSecretPrefix
+	if s.writeCreds {
+		secretPrefix = credWriteSecretPrefix
+	}
+	secName := RepoURLToSecretName(secretPrefix, repoCreds.URL, "")
 
 	repoCredsSecret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{

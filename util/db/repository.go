@@ -23,6 +23,8 @@ const (
 	repoWriteSecretPrefix = "repo-write"
 	// Prefix to use for naming credential template secrets
 	credSecretPrefix = "creds"
+	// Prefix to use for naming write credential template secrets
+	credWriteSecretPrefix = "creds-write"
 	// The name of the key storing the username in the secret
 	username = "username"
 	// The name of the key storing the password in the secret
