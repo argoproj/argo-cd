@@ -83,6 +83,7 @@ func NewContextUseCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 
 			argoCDDir, err := localconfig.DefaultConfigDir()
 			errors.CheckError(err)
+			errors.CheckError(os.MkdirAll(argoCDDir, os.ModePerm))
 			prevCtxFile := path.Join(argoCDDir, ".prev-ctx")
 
 			if ctxName == "-" {
