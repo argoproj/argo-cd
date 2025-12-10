@@ -4842,3 +4842,26 @@ func TestSanitized(t *testing.T) {
 		},
 	}, cluster.Sanitized())
 }
+
+func TestSourceHydrator_Equals(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		a        SourceHydrator
+		b        SourceHydrator
+		expected bool
+	}{
+		{"different SourceHydrators", SourceHydrator{}, SourceHydrator{DrySource: DrySource{Helm: &ApplicationSourceHelm{Namespace: "test"}}}, false},
+		{"equal SourceHydrators", SourceHydrator{DrySource: DrySource{Helm: &ApplicationSourceHelm{Namespace: "test"}}}, SourceHydrator{DrySource: DrySource{Helm: &ApplicationSourceHelm{Namespace: "test"}}}, true},
+	}
+
+	for _, testCase := range tests {
+		testCopy := testCase
+		t.Run(testCopy.name, func(t *testing.T) {
+			t.Parallel()
+
+			assert.Equal(t, testCopy.expected, testCopy.a.DeepEquals(testCopy.b))
+		})
+	}
+}

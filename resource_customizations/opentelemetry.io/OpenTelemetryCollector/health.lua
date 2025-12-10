@@ -28,8 +28,13 @@ if obj.status ~= nil then
             hs.message = "Unable to parse replica status: " ..tostring(statusReplicas)
         end
     else
-        hs.status = "Progressing"
-        hs.message = "Scale status not available"
+        if obj.spec.mode == "sidecar" then
+            hs.status = "Healthy"
+            hs.message = "Collector is running in sidecar mode"
+        else
+            hs.status = "Progressing"
+            hs.message = "Scale status not available"
+        end
     end
 end
 return hs
