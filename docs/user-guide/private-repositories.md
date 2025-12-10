@@ -175,7 +175,7 @@ Before using this feature, you must perform the following steps to enable worklo
 - **Create Federated Identity Credential:** Generate an Azure federated identity credential for the repo-server service account. Refer to the [Federated Identity Credential](https://azure.github.io/azure-workload-identity/docs/topics/federated-identity-credential.html) documentation for detailed instructions.
 - **Add Annotation to Service Account:** Add `azure.workload.identity/client-id: "$CLIENT_ID"` annotation to the repo-server service account, using the `CLIENT_ID` from the workload identity.
 - **Configure ACR Permissions:** Grant the workload identity the necessary permissions on Azure Container Registry or Azure Repos.
-- **Set ACR Token Resource Variable:** Define AZURE_ARM_TOKEN_RESOURCE=https://containerregistry.azure.net so Argo CD can request valid ACR access tokens.
+- **Set ACR Token Resource Variable:** Configure the Argo CD repo server env variable AZURE_ARM_TOKEN_RESOURCE=https://containerregistry.azure.net so Argo CD can request valid ACR access tokens.
 
 Using CLI for Helm OCI with Azure workload identity:
 
