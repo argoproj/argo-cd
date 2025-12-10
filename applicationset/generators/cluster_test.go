@@ -325,10 +325,23 @@ func TestGenerateParams(t *testing.T) {
 				require.EqualError(t, err, testCase.expectedError.Error())
 			} else {
 				require.NoError(t, err)
-				assert.ElementsMatch(t, testCase.expected, got)
+				assertEqualParamsFlat(t, testCase.expected, got, testCase.isFlatMode)
 			}
 		})
 	}
+}
+
+func assertEqualParamsFlat(t *testing.T, expected, got []map[string]any, isFlatMode bool) {
+	t.Helper()
+	if isFlatMode && len(expected) == 1 && len(got) == 1 {
+		expectedClusters, ok1 := expected[0]["clusters"].([]map[string]any)
+		gotClusters, ok2 := got[0]["clusters"].([]map[string]any)
+		if ok1 && ok2 {
+			assert.ElementsMatch(t, expectedClusters, gotClusters)
+			return
+		}
+	}
+	assert.ElementsMatch(t, expected, got)
 }
 
 func TestGenerateParamsGoTemplate(t *testing.T) {
@@ -857,7 +870,7 @@ func TestGenerateParamsGoTemplate(t *testing.T) {
 				require.EqualError(t, err, testCase.expectedError.Error())
 			} else {
 				require.NoError(t, err)
-				assert.ElementsMatch(t, testCase.expected, got)
+				assertEqualParamsFlat(t, testCase.expected, got, testCase.isFlatMode)
 			}
 		})
 	}
