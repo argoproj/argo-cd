@@ -960,7 +960,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                                                                     title: 'Create application',
                                                                     action: () =>
                                                                         ctx.navigation.goto('/applications', {
-                                                                            new: JSON.stringify({spec: {sourceHydrator: {drySource: {repoURL: repo.repo}}}})
+                                                                            new: JSON.stringify({spec: {source: {repoURL: repo.repo}}})
                                                                         })
                                                                 },
                                                                 {

@@ -514,7 +514,7 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 			params: map[string]any{
 				"data": `a data string`,
 			},
-			errorMessage: `failed to parse template {{functiondoesnotexist}}: template: :1: function "functiondoesnotexist" not defined`,
+			errorMessage: `failed to parse template {{functiondoesnotexist}}: template: base:1: function "functiondoesnotexist" not defined`,
 		},
 		{
 			name:        "Test template error",
@@ -523,7 +523,7 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 			params: map[string]any{
 				"data": `a data string`,
 			},
-			errorMessage: `failed to execute go template {{.data.test}}: template: :1:7: executing "" at <.data.test>: can't evaluate field test in type interface {}`,
+			errorMessage: `failed to execute go template {{.data.test}}: template: base:1:7: executing "base" at <.data.test>: can't evaluate field test in type interface {}`,
 		},
 		{
 			name:        "lookup missing value with missingkey=default",
@@ -543,7 +543,7 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 				"unused": "this is not used",
 			},
 			templateOptions: []string{"missingkey=error"},
-			errorMessage:    `failed to execute go template --> {{.doesnotexist}} <--: template: :1:6: executing "" at <.doesnotexist>: map has no entry for key "doesnotexist"`,
+			errorMessage:    `failed to execute go template --> {{.doesnotexist}} <--: template: base:1:6: executing "base" at <.doesnotexist>: map has no entry for key "doesnotexist"`,
 		},
 		{
 			name:        "toYaml",
@@ -563,7 +563,7 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 			name:         "toYaml Error",
 			fieldVal:     `{{ toYaml . | indent 2 }}`,
 			expectedVal:  "  foo:\n    bar:\n      bool: true\n      number: 2\n      str: Hello world",
-			errorMessage: "failed to execute go template {{ toYaml . | indent 2 }}: template: :1:3: executing \"\" at <toYaml .>: error calling toYaml: error marshaling into JSON: json: unsupported type: func(*string)",
+			errorMessage: "failed to execute go template {{ toYaml . | indent 2 }}: template: base:1:3: executing \"base\" at <toYaml .>: error calling toYaml: error marshaling into JSON: json: unsupported type: func(*string)",
 			params: map[string]any{
 				"foo": func(_ *string) {
 				},
@@ -581,7 +581,7 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 			name:         "fromYaml error",
 			fieldVal:     `{{ get (fromYaml .value) "hello" }}`,
 			expectedVal:  "world",
-			errorMessage: "failed to execute go template {{ get (fromYaml .value) \"hello\" }}: template: :1:8: executing \"\" at <fromYaml .value>: error calling fromYaml: error unmarshaling JSON: while decoding JSON: json: cannot unmarshal string into Go value of type map[string]interface {}",
+			errorMessage: "failed to execute go template {{ get (fromYaml .value) \"hello\" }}: template: base:1:8: executing \"base\" at <fromYaml .value>: error calling fromYaml: error unmarshaling JSON: while decoding JSON: json: cannot unmarshal string into Go value of type map[string]interface {}",
 			params: map[string]any{
 				"value": "non\n compliant\n yaml",
 			},
@@ -598,7 +598,7 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 			name:         "fromYamlArray error",
 			fieldVal:     `{{ fromYamlArray .value | last }}`,
 			expectedVal:  "bonjour tout le monde",
-			errorMessage: "failed to execute go template {{ fromYamlArray .value | last }}: template: :1:3: executing \"\" at <fromYamlArray .value>: error calling fromYamlArray: error unmarshaling JSON: while decoding JSON: json: cannot unmarshal string into Go value of type []interface {}",
+			errorMessage: "failed to execute go template {{ fromYamlArray .value | last }}: template: base:1:3: executing \"base\" at <fromYamlArray .value>: error calling fromYamlArray: error unmarshaling JSON: while decoding JSON: json: cannot unmarshal string into Go value of type []interface {}",
 			params: map[string]any{
 				"value": "non\n compliant\n yaml",
 			},

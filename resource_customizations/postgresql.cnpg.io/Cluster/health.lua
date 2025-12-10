@@ -3,7 +3,6 @@ local hs = {}
 local cnpgStatus = {
     ["Cluster in healthy state"] = "Healthy",
     ["Setting up primary"] = "Progressing",
-    ["Setting up primary"] = "Progressing",
     ["Creating a new replica"] = "Progressing",
     ["Upgrading cluster"] = "Progressing",
     ["Waiting for the instances to become active"] = "Progressing",
@@ -31,6 +30,13 @@ function hibernating(obj)
         end
     end
     return nil
+end
+
+-- Check if reconciliation is suspended, since this is an explicit user action we return the "suspended" status immediately
+if obj.metadata and obj.metadata.annotations and obj.metadata.annotations["cnpg.io/reconciliation"] == "disabled" then
+    hs.status = "Suspended"
+    hs.message = "Cluster reconciliation is suspended"
+    return hs
 end
 
 if obj.status ~= nil and obj.status.conditions ~= nil then

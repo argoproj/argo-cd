@@ -253,9 +253,9 @@ data:
 
   # A set of settings that allow enabling or disabling the config management tool.
   # If unset, each defaults to "true".
-  kustomize.enabled: "true"
-  jsonnet.enabled: "true"
-  helm.enabled: "true"
+  kustomize.enable: "true"
+  jsonnet.enable: "true"
+  helm.enable: "true"
 
   # Build options/parameters to use with `kustomize build` (optional)
   kustomize.buildOptions: --load_restrictor none

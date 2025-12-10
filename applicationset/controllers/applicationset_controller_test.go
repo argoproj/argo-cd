@@ -1200,7 +1200,10 @@ func TestRemoveFinalizerOnInvalidDestination_FinalizerTypes(t *testing.T) {
 			kubeclientset := kubefake.NewClientset(objects...)
 			metrics := appsetmetrics.NewFakeAppsetMetrics()
 
-			argodb := db.NewDB("argocd", settings.NewSettingsManager(t.Context(), kubeclientset, "argocd"), kubeclientset)
+			settingsMgr := settings.NewSettingsManager(t.Context(), kubeclientset, "argocd")
+			// Initialize the settings manager to ensure cluster cache is ready
+			_ = settingsMgr.ResyncInformers()
+			argodb := db.NewDB("argocd", settingsMgr, kubeclientset)
 
 			r := ApplicationSetReconciler{
 				Client:        client,
@@ -1358,7 +1361,10 @@ func TestRemoveFinalizerOnInvalidDestination_DestinationTypes(t *testing.T) {
 			kubeclientset := getDefaultTestClientSet(secret)
 			metrics := appsetmetrics.NewFakeAppsetMetrics()
 
-			argodb := db.NewDB("argocd", settings.NewSettingsManager(t.Context(), kubeclientset, "argocd"), kubeclientset)
+			settingsMgr := settings.NewSettingsManager(t.Context(), kubeclientset, "argocd")
+			// Initialize the settings manager to ensure cluster cache is ready
+			_ = settingsMgr.ResyncInformers()
+			argodb := db.NewDB("argocd", settingsMgr, kubeclientset)
 
 			r := ApplicationSetReconciler{
 				Client:        client,
