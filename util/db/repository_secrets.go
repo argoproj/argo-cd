@@ -26,7 +26,8 @@ type secretsRepositoryBackend struct {
 }
 
 func (s *secretsRepositoryBackend) CreateRepository(ctx context.Context, repository *appsv1.Repository) (*appsv1.Repository, error) {
-	secretPrefix := repoSecretPrefi// if s.writeCreds {{
+	secretPrefix := repoSecretPrefix
+	if s.writeCreds {
 		secretPrefix = repoWriteSecretPrefix
 	}
 	secName := RepoURLToSecretName(secretPrefix, repository.Repo, repository.Project)
