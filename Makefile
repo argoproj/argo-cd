@@ -198,7 +198,7 @@ endif
 
 ifneq (${GIT_TAG},)
 IMAGE_TAG=${GIT_TAG}
-LDFLAGS += -X ${PACKAGE}.gitTag=${GIT_TAG}
+override LDFLAGS += -X ${PACKAGE}.gitTag=${GIT_TAG}
 else
 IMAGE_TAG?=latest
 endif
@@ -211,6 +211,10 @@ endif
 
 ifdef IMAGE_NAMESPACE
 IMAGE_PREFIX=${IMAGE_NAMESPACE}/
+endif
+
+ifndef IMAGE_REGISTRY
+IMAGE_REGISTRY="quay.io"
 endif
 
 .PHONY: all
@@ -308,12 +312,11 @@ endif
 .PHONY: manifests-local
 manifests-local:
 	./hack/update-manifests.sh
-
 .PHONY: manifests
 manifests: test-tools-image
-	$(call run-in-test-client,make manifests-local IMAGE_NAMESPACE='${IMAGE_NAMESPACE}' IMAGE_TAG='${IMAGE_TAG}')
-
+	$(call run-in-test-client,make manifests-local IMAGE_REGISTRY='${IMAGE_REGISTRY}' IMAGE_NAMESPACE='${IMAGE_NAMESPACE}' IMAGE_REPOSITORY='${IMAGE_REPOSITORY}' IMAGE_TAG='${IMAGE_TAG}')
 # consolidated binary for cli, util, server, repo-server, controller
+
 .PHONY: argocd-all
 argocd-all: clean-debug
 	CGO_ENABLED=${CGO_FLAG} GOOS=${GOOS} GOARCH=${GOARCH} GODEBUG="tarinsecurepath=0,zipinsecurepath=0" go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${BIN_NAME} ./cmd
@@ -482,7 +485,7 @@ start-e2e-local: mod-vendor-local dep-ui-local cli-local
 	kubectl create ns argocd-e2e-external || true
 	kubectl create ns argocd-e2e-external-2 || true
 	kubectl config set-context --current --namespace=argocd-e2e
-	kustomize build test/manifests/base | kubectl apply -f -
+	kustomize build test/manifests/base | kubectl apply --server-side -f -
 	kubectl apply -f https://raw.githubusercontent.com/open-cluster-management/api/a6845f2ebcb186ec26b832f60c988537a58f3859/cluster/v1alpha1/0000_04_clusters.open-cluster-management.io_placementdecisions.crd.yaml
 	# Create GPG keys and source directories
 	if test -d /tmp/argo-e2e/app/config/gpg; then rm -rf /tmp/argo-e2e/app/config/gpg/*; fi
