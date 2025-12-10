@@ -24,6 +24,8 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+
 	appsettemplate "github.com/argoproj/argo-cd/v3/applicationset/controllers/template"
 	"github.com/argoproj/argo-cd/v3/applicationset/generators"
 	"github.com/argoproj/argo-cd/v3/applicationset/services"
@@ -63,6 +65,7 @@ type Server struct {
 	AllowedScmProviders      []string
 	EnableScmProviders       bool
 	EnableGitHubAPIMetrics   bool
+	AllowedPluginGenUrls     []string
 }
 
 // NewServer returns a new instance of the ApplicationSet service
@@ -86,6 +89,7 @@ func NewServer(
 	enableScmProviders bool,
 	enableGitHubAPIMetrics bool,
 	enableK8sEvent []string,
+	allowedPluginGenUrls []string,
 ) applicationset.ApplicationSetServiceServer {
 	s := &Server{
 		ns:                       namespace,
@@ -107,6 +111,7 @@ func NewServer(
 		AllowedScmProviders:      allowedScmProviders,
 		EnableScmProviders:       enableScmProviders,
 		EnableGitHubAPIMetrics:   enableGitHubAPIMetrics,
+		AllowedPluginGenUrls:     allowedPluginGenUrls,
 	}
 	return s
 }
@@ -195,6 +200,14 @@ func (s *Server) Create(ctx context.Context, q *applicationset.ApplicationSetCre
 		return nil, security.NamespaceNotPermittedError(namespace)
 	}
 
+	// Validate plugin configmap refs
+	for _, generator := range appset.Spec.Generators {
+		err = s.validatePluginConfigMapNamespaceInGenerators(&generator)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	if err := s.checkCreatePermissions(ctx, appset, projectName); err != nil {
 		return nil, fmt.Errorf("error checking create permissions for ApplicationSets %s : %w", appset.Name, err)
 	}
@@ -260,12 +273,55 @@ func (s *Server) Create(ctx context.Context, q *applicationset.ApplicationSetCre
 	return updated, nil
 }
 
+func (s *Server) validatePluginConfigMapNamespaceInGenerators(generator *v1alpha1.ApplicationSetGenerator) error {
+	if generator.Plugin != nil && generator.Plugin.ConfigMapRef.Namespace != "" {
+		if !s.isNamespaceEnabled(generator.Plugin.ConfigMapRef.Namespace) {
+			return security.NamespaceNotPermittedError(generator.Plugin.ConfigMapRef.Namespace)
+		}
+	}
+	if generator.Matrix != nil {
+		if err := s.validatePluginConfigMapNamespaceInMatrix(generator.Matrix); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *Server) validatePluginConfigMapNamespaceInMatrix(matrix *v1alpha1.MatrixGenerator) error {
+	for _, generator := range matrix.Generators {
+		matrix, err := getMatrixGenerator(generator.Matrix)
+		if err != nil {
+			return err
+		}
+
+		appset := v1alpha1.ApplicationSetGenerator{
+			Plugin: generator.Plugin,
+			Matrix: matrix,
+		}
+		if err := s.validatePluginConfigMapNamespaceInGenerators(&appset); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func getMatrixGenerator(m *apiextensionsv1.JSON) (*v1alpha1.MatrixGenerator, error) {
+	if m == nil {
+		return nil, nil
+	}
+	matrix, err := v1alpha1.ToNestedMatrixGenerator(m)
+	if err != nil {
+		return nil, err
+	}
+	return matrix.ToMatrixGenerator(), nil
+}
+
 func (s *Server) generateApplicationSetApps(ctx context.Context, logEntry *log.Entry, appset v1alpha1.ApplicationSet) ([]v1alpha1.Application, error) {
 	argoCDDB := s.db
 
 	scmConfig := generators.NewSCMConfig(s.ScmRootCAPath, s.AllowedScmProviders, s.EnableScmProviders, s.EnableGitHubAPIMetrics, github_app.NewAuthCredentials(argoCDDB.(db.RepoCredsDB)), true)
 	argoCDService := services.NewArgoCDService(s.db, s.GitSubmoduleEnabled, s.repoClientSet, s.EnableNewGitFileGlobbing)
-	appSetGenerators := generators.GetGenerators(ctx, s.client, s.k8sClient, s.ns, argoCDService, s.dynamicClient, scmConfig)
+	appSetGenerators := generators.GetGenerators(ctx, s.client, s.k8sClient, s.ns, argoCDService, s.dynamicClient, scmConfig, s.AllowedPluginGenUrls)
 
 	apps, _, err := appsettemplate.GenerateApplications(logEntry, appset, appSetGenerators, &appsetutils.Render{}, s.client)
 	if err != nil {
@@ -283,6 +339,14 @@ func (s *Server) updateAppSet(ctx context.Context, appset *v1alpha1.ApplicationS
 		}
 		// They also need 'update' privileges in the old project
 		if err := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceApplicationSets, rbac.ActionUpdate, appset.RBACName(s.ns)); err != nil {
+			return nil, err
+		}
+	}
+
+	// Validate plugin configmap refs
+	for _, generator := range newAppset.Spec.Generators {
+		err := s.validatePluginConfigMapNamespaceInGenerators(&generator)
+		if err != nil {
 			return nil, err
 		}
 	}

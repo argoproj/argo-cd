@@ -29,6 +29,7 @@ argocd-server [flags]
       --api-content-types string                        Semicolon separated list of allowed content types for non GET api requests. Any content type is allowed if empty. (default "application/json")
       --app-state-cache-expiration duration             Cache expiration for app state (default 1h0m0s)
       --application-namespaces strings                  List of additional namespaces where application resources can be managed in
+      --appset-allowed-plugin-gen-urls strings          List of allowed plugin generator baseUrl, glob compatible. Applicable as soon as plugin generator configuration are not in the same namespace as the ApplicationSet using it. (Default: Empty = all)
       --appset-allowed-scm-providers strings            The list of allowed custom SCM provider API URLs. This restriction does not apply to SCM or PR generators which do not accept a custom API URL. (Default: Empty = all)
       --appset-enable-github-api-metrics                Enable GitHub API metrics for generators that use the GitHub API
       --appset-enable-new-git-file-globbing             Enable new globbing in Git files generator.

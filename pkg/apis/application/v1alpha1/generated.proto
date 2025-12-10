@@ -1576,6 +1576,9 @@ message OverrideIgnoreDiff {
 message PluginConfigMapRef {
   // Name of the ConfigMap
   optional string name = 1;
+
+  // Namespace of the ConfigMap
+  optional string namespace = 2;
 }
 
 // PluginGenerator defines connection info specific to Plugin.
