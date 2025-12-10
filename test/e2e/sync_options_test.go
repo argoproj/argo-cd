@@ -315,7 +315,7 @@ func TestDefaultOverrideCLIOptsTrueAppOptsFalseCLIWins(t *testing.T) {
 }
 
 func TestDefaultOverrideCLIOptsMixedAppOptsEmptyOnlyTrueOptsWin(t *testing.T) {
-	// default behavior, aome cli options true, some false, app spec empty - only true cli options win
+	// default behavior, some cli options true, some false, app spec empty - only true cli options win
 	var ns string
 	Given(t).
 		Path(guestbookPath).
