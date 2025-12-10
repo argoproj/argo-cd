@@ -19,6 +19,8 @@ import (
 const (
 	// Prefix to use for naming repository secrets
 	repoSecretPrefix = "repo"
+	// Prefix to use for naming repository write secrets
+	repoWriteSecretPrefix = "repo-write"
 	// Prefix to use for naming credential template secrets
 	credSecretPrefix = "creds"
 	// The name of the key storing the username in the secret
