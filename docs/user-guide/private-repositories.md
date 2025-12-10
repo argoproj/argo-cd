@@ -50,6 +50,9 @@ Then, connect the repository using any non-empty string as username and the acce
 > [!NOTE]
 > For some services, you might have to specify your account name as the username instead of any string.
 
+> [!NOTE]
+> For bitbucket, you have to specify your username as `x-token-auth`.
+
 ### TLS Client Certificates for HTTPS repositories
 
 If your repository server requires you to use TLS client certificates for authentication, you can configure Argo CD repositories to make use of them. For this purpose, `--tls-client-cert-path` and `--tls-client-cert-key-path` switches to the `argocd repo add` command can be used to specify the files on your local system containing client certificate and the corresponding key, respectively:
