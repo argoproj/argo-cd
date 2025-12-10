@@ -1034,7 +1034,7 @@ func gpgVerificationFromGitRevParse(oneLetter string) GPGVerificationResult {
 	}
 }
 
-var gpgKeyIdRegexp = regexp.MustCompile("|[0-9a-zA-Z]{16}")
+var gpgKeyIdRegexp = regexp.MustCompile("[0-9a-zA-Z]{16}")
 
 func validateGpgKey(key string, revision string) error {
 	if key == "" || gpgKeyIdRegexp.MatchString(key) {

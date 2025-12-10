@@ -11,9 +11,10 @@ import (
 	goSync "sync"
 	"time"
 
-	"github.com/argoproj/argo-cd/v3/util/sourceintegrity"
 	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
 	corev1 "k8s.io/api/core/v1"
+
+	"github.com/argoproj/argo-cd/v3/util/sourceintegrity"
 
 	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/health"
