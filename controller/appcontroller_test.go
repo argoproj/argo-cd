@@ -3189,3 +3189,92 @@ func TestSelfHealBackoffCooldownElapsed(t *testing.T) {
 		assert.False(t, elapsed)
 	})
 }
+
+func TestIsSelfReferencedApp(t *testing.T) {
+	tests := []struct {
+		name     string
+		app      *v1alpha1.Application
+		ref      corev1.ObjectReference
+		expected bool
+	}{
+		{
+			name: "same application instance - should prevent deletion",
+			app: &v1alpha1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "parent-app",
+					Namespace: "argocd",
+					UID:       "parent-uid-123",
+				},
+			},
+			ref: corev1.ObjectReference{
+				Name:       "parent-app",
+				Namespace:  "argocd",
+				UID:        "parent-uid-123",
+				APIVersion: "argoproj.io/v1alpha1",
+				Kind:       "Application",
+			},
+			expected: true,
+		},
+		{
+			name: "different application instance - should allow deletion (App of Apps pattern)",
+			app: &v1alpha1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "parent-app",
+					Namespace: "argocd",
+					UID:       "parent-uid-123",
+				},
+			},
+			ref: corev1.ObjectReference{
+				Name:       "child-app",
+				Namespace:  "argocd",
+				UID:        "child-uid-456",
+				APIVersion: "argoproj.io/v1alpha1",
+				Kind:       "Application",
+			},
+			expected: false,
+		},
+		{
+			name: "different application instance with same name - should allow deletion",
+			app: &v1alpha1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "parent-app",
+					Namespace: "argocd",
+					UID:       "parent-uid-123",
+				},
+			},
+			ref: corev1.ObjectReference{
+				Name:       "parent-app",
+				Namespace:  "argocd",
+				UID:        "different-uid-789",
+				APIVersion: "argoproj.io/v1alpha1",
+				Kind:       "Application",
+			},
+			expected: false,
+		},
+		{
+			name: "non-application resource - should allow deletion",
+			app: &v1alpha1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "parent-app",
+					Namespace: "argocd",
+					UID:       "parent-uid-123",
+				},
+			},
+			ref: corev1.ObjectReference{
+				Name:       "deployment",
+				Namespace:  "default",
+				UID:        "deployment-uid-123",
+				APIVersion: "apps/v1",
+				Kind:       "Deployment",
+			},
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := isSelfReferencedApp(tt.app, tt.ref)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
