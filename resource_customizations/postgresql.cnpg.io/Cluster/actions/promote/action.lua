@@ -17,6 +17,8 @@ if instance == "any" then
     end
     if nextIndex > 0 then
         selected = healthy[nextIndex]
+    elseif #healthy > 0 then
+        selected = healthy[1]  -- fallback to first healthy if current primary not healthy
     end
 elseif type(instance) == "string" and tonumber(instance) then
     -- Select by instance number
