@@ -5,12 +5,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/git"
 	gitmocks "github.com/argoproj/argo-cd/v3/util/git/mocks"
 	utilTest "github.com/argoproj/argo-cd/v3/util/test"
@@ -206,7 +206,7 @@ func TestPolicyMatching(t *testing.T) {
 	}
 }
 
-// Verify that when user has configured the full fingerprint, it is still accepted
+// Verify that when a user has configured the full fingerprint, it is still accepted
 func TestComparingWithGPGFingerprint(t *testing.T) {
 	const shortKey = "D56C4FCA57A46444"
 	const fingerprint = "01234567890123456789abcd" + shortKey
@@ -220,13 +220,13 @@ func TestComparingWithGPGFingerprint(t *testing.T) {
 		Revision: "1.0", VerificationResult: git.GPGVerificationResultGood, SignatureKeyID: shortKey, Date: "ignored", AuthorIdentity: "ignored",
 	}, nil)
 
-	gpgWithTag := &v1alpha1.SourceIntegrityGitPolicyGPG{v1alpha1.SourceIntegrityGitPolicyGPGModeHead, []string{fingerprint}}
+	gpgWithTag := &v1alpha1.SourceIntegrityGitPolicyGPG{Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeHead, Keys: []string{fingerprint}}
 	// And verifying a given revision
 	result, err := verify(gpgWithTag, gitClient, "1.0")
 	require.NoError(t, err)
 
 	assert.True(t, result.IsValid())
-	assert.Nil(t, result.AsError())
+	assert.NoError(t, result.AsError())
 }
 
 func TestGPGHeadValid(t *testing.T) {
@@ -259,7 +259,7 @@ func TestGPGHeadValid(t *testing.T) {
 
 	for _, test := range testCases {
 		t.Run("verify "+test.revision, func(t *testing.T) {
-			// Given repo with tagged commit
+			// Given repo with a tagged commit
 			gitClient := &gitmocks.Client{}
 			gitClient.EXPECT().CommitSHA().RunAndReturn(func() (string, error) { return sha, nil })
 			gitClient.EXPECT().IsAnnotatedTag(mock.Anything).RunAndReturn(func(s string) bool { return tag == s })
@@ -279,7 +279,7 @@ func TestGPGHeadValid(t *testing.T) {
 			t.Cleanup(logger.CleanupHook)
 
 			// When using head mode
-			gpgWithTag := &v1alpha1.SourceIntegrityGitPolicyGPG{v1alpha1.SourceIntegrityGitPolicyGPGModeHead, []string{keyId, "0000000000000000"}}
+			gpgWithTag := &v1alpha1.SourceIntegrityGitPolicyGPG{Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeHead, Keys: []string{keyId, "0000000000000000"}}
 			// And verifying a given revision
 			result, err := verify(gpgWithTag, gitClient, test.revision)
 			require.NoError(t, err)
@@ -367,7 +367,7 @@ GIT/GPG: Failed verifying revision %s by 'ignored': signed with unallowed key (k
 
 	for _, test := range tests {
 		t.Run("verify "+test.revision, func(t *testing.T) {
-			// Given repo with tagged commit
+			// Given repo with a tagged commit
 			gitClient := &gitmocks.Client{}
 			gitClient.EXPECT().CommitSHA().RunAndReturn(func() (string, error) {
 				if sha, ok := tag2commit[test.revision]; ok {
