@@ -115,6 +115,13 @@ func WithPrune(prune bool) SyncOpt {
 	}
 }
 
+// WithDefaultPruneOption specifies the application level Prune option
+func WithDefaultPruneOption(defaultPruneOption *string) SyncOpt {
+	return func(ctx *syncContext) {
+		ctx.defaultPruneOption = defaultPruneOption
+	}
+}
+
 // WithPruneConfirmed specifies if prune is confirmed for resources that require confirmation
 func WithPruneConfirmed(confirmed bool) SyncOpt {
 	return func(ctx *syncContext) {
@@ -367,6 +374,7 @@ type syncContext struct {
 	pruneLast                       bool
 	prunePropagationPolicy          *metav1.DeletionPropagation
 	pruneConfirmed                  bool
+	defaultPruneOption              *string
 	clientSideApplyMigrationManager string
 	enableClientSideApplyMigration  bool
 
@@ -1221,7 +1229,13 @@ func (sc *syncContext) applyObject(t *syncTask, dryRun, validate bool) (common.R
 func (sc *syncContext) pruneObject(liveObj *unstructured.Unstructured, prune, dryRun bool) (common.ResultCode, string) {
 	if !prune {
 		return common.ResultCodePruneSkipped, "ignored (requires pruning)"
-	} else if resourceutil.HasAnnotationOption(liveObj, common.AnnotationSyncOptions, common.SyncOptionDisablePrune) {
+	}
+
+	pruneOptionValue := resourceutil.GetAnnotationOptionValue(liveObj, common.AnnotationSyncOptions, common.SyncOptionPrune)
+	if pruneOptionValue == nil {
+		pruneOptionValue = sc.defaultPruneOption
+	}
+	if pruneOptionValue != nil && *pruneOptionValue == common.SyncValueFalse {
 		return common.ResultCodePruneSkipped, "ignored (no prune)"
 	}
 	if dryRun {
@@ -1406,7 +1420,11 @@ func (sc *syncContext) runTasks(tasks syncTasks, dryRun bool) runState {
 		if !sc.pruneConfirmed {
 			var resources []string
 			for _, task := range pruneTasks {
-				if resourceutil.HasAnnotationOption(task.liveObj, common.AnnotationSyncOptions, common.SyncOptionPruneRequireConfirm) {
+				pruneOptionValue := resourceutil.GetAnnotationOptionValue(task.liveObj, common.AnnotationSyncOptions, common.SyncOptionPrune)
+				if pruneOptionValue == nil {
+					pruneOptionValue = sc.defaultPruneOption
+				}
+				if pruneOptionValue != nil && *pruneOptionValue == common.SyncValueConfirm {
 					resources = append(resources, fmt.Sprintf("%s/%s/%s", task.obj().GetAPIVersion(), task.obj().GetKind(), task.name()))
 				}
 			}

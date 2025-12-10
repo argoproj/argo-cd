@@ -8,12 +8,14 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/utils/ptr"
 
 	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/assert"
@@ -813,27 +815,88 @@ func TestDoNotSyncOrPruneHooks(t *testing.T) {
 
 // make sure that we do not prune resources with Prune=false
 func TestDoNotPrunePruneFalse(t *testing.T) {
-	syncCtx := newTestSyncCtx(nil, WithOperationSettings(false, true, false, false))
-	pod := testingutils.NewPod()
-	pod.SetAnnotations(map[string]string{synccommon.AnnotationSyncOptions: "Prune=false"})
-	pod.SetNamespace(testingutils.FakeArgoCDNamespace)
-	syncCtx.resources = groupResources(ReconciliationResult{
-		Live:   []*unstructured.Unstructured{pod},
-		Target: []*unstructured.Unstructured{nil},
-	})
+	for _, appLevel := range []bool{true, false} {
+		t.Run("appLevel="+strconv.FormatBool(appLevel), func(t *testing.T) {
+			syncCtx := newTestSyncCtx(nil, WithOperationSettings(false, true, false, false))
+			pod := testingutils.NewPod()
+			if appLevel {
+				syncCtx.defaultPruneOption = ptr.To("false")
+			} else {
+				pod.SetAnnotations(map[string]string{synccommon.AnnotationSyncOptions: "Prune=false"})
+			}
+			pod.SetNamespace(testingutils.FakeArgoCDNamespace)
+			syncCtx.resources = groupResources(ReconciliationResult{
+				Live:   []*unstructured.Unstructured{pod},
+				Target: []*unstructured.Unstructured{nil},
+			})
 
-	syncCtx.Sync()
-	phase, _, resources := syncCtx.GetState()
+			syncCtx.Sync()
+			phase, _, resources := syncCtx.GetState()
 
-	assert.Equal(t, synccommon.OperationSucceeded, phase)
-	assert.Len(t, resources, 1)
-	assert.Equal(t, synccommon.ResultCodePruneSkipped, resources[0].Status)
-	assert.Equal(t, "ignored (no prune)", resources[0].Message)
+			assert.Equal(t, synccommon.OperationSucceeded, phase)
+			assert.Len(t, resources, 1)
+			assert.Equal(t, synccommon.ResultCodePruneSkipped, resources[0].Status)
+			assert.Equal(t, "ignored (no prune)", resources[0].Message)
 
-	syncCtx.Sync()
+			syncCtx.Sync()
 
-	phase, _, _ = syncCtx.GetState()
-	assert.Equal(t, synccommon.OperationSucceeded, phase)
+			phase, _, _ = syncCtx.GetState()
+			assert.Equal(t, synccommon.OperationSucceeded, phase)
+
+			// test that we can still not prune if prune is disabled on the app level
+			syncCtx.defaultPruneOption = ptr.To("true")
+			pod.SetAnnotations(map[string]string{synccommon.AnnotationSyncOptions: "Prune=true"})
+			syncCtx.Sync()
+
+			phase, _, resources = syncCtx.GetState()
+
+			assert.Equal(t, synccommon.OperationSucceeded, phase)
+			assert.Len(t, resources, 1)
+			assert.Equal(t, synccommon.ResultCodePruneSkipped, resources[0].Status)
+			assert.Equal(t, "ignored (no prune)", resources[0].Message)
+
+			syncCtx.Sync()
+
+			phase, _, _ = syncCtx.GetState()
+			assert.Equal(t, synccommon.OperationSucceeded, phase)
+		})
+	}
+}
+
+// make sure that we need confirmation to prune with Prune=confirm
+func TestPruneConfirm(t *testing.T) {
+	for _, appLevel := range []bool{true, false} {
+		t.Run("appLevel="+strconv.FormatBool(appLevel), func(t *testing.T) {
+			syncCtx := newTestSyncCtx(nil, WithOperationSettings(false, true, false, false))
+			pod := testingutils.NewPod()
+			if appLevel {
+				syncCtx.defaultPruneOption = ptr.To("confirm")
+			} else {
+				pod.SetAnnotations(map[string]string{synccommon.AnnotationSyncOptions: "Prune=confirm"})
+			}
+			pod.SetNamespace(testingutils.FakeArgoCDNamespace)
+			syncCtx.resources = groupResources(ReconciliationResult{
+				Live:   []*unstructured.Unstructured{pod},
+				Target: []*unstructured.Unstructured{nil},
+			})
+
+			syncCtx.Sync()
+			phase, msg, resources := syncCtx.GetState()
+
+			assert.Equal(t, synccommon.OperationRunning, phase)
+			assert.Empty(t, resources)
+			assert.Equal(t, "Waiting for pruning confirmation of v1/Pod/my-pod", msg)
+
+			syncCtx.pruneConfirmed = true
+			syncCtx.Sync()
+
+			phase, _, resources = syncCtx.GetState()
+			assert.Equal(t, synccommon.OperationSucceeded, phase)
+			assert.Len(t, resources, 1)
+			assert.Equal(t, synccommon.ResultCodePruned, resources[0].Status)
+			assert.Equal(t, "pruned", resources[0].Message)
+		})
+	}
 }
 
 // // make sure Validate=false means we don't validate
