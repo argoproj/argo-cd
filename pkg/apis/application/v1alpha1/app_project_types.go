@@ -443,6 +443,10 @@ func (proj *AppProject) RemoveFinalizer() {
 	setFinalizer(&proj.ObjectMeta, ResourcesFinalizerName, false)
 }
 
+func (proj *AppProject) SetProjectFinalizer(stage ...string) {
+	setFinalizer(&proj.ObjectMeta, strings.Join(append([]string{ResourcesFinalizerName}, stage...), "/"), true)
+}
+
 func globMatch(pattern string, val string, allowNegation bool, separators ...rune) bool {
 	if allowNegation && isDenyPattern(pattern) {
 		return !glob.Match(pattern[1:], val, separators...)
