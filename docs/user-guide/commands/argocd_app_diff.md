@@ -31,7 +31,7 @@ argocd app diff APPNAME [flags]
       --revision string                                   Compare live app to a particular revision
       --revisions stringArray                             Show manifests at specific revisions for source position in source-positions
       --server-side-diff                                  Use server-side diff to calculate the diff. This will default to true if the ServerSideDiff annotation is set on the application.
-      --server-side-diff-concurrency int                  Max concurrent batches for server-side diff. 0 = unlimited, >0 = limit concurrent requests
+      --server-side-diff-concurrency int                  Max concurrent batches for server-side diff. -1 = unlimited, 0+ = limit concurrent requests (default -1)
       --server-side-diff-max-batch-kb int                 Max batch size in KB for server-side diff. Smaller values are safer for proxies (default 250)
       --server-side-generate                              Used with --local, this will send your manifests to the server for diffing
       --source-names stringArray                          List of source names. Default is an empty array.

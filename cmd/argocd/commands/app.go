@@ -17,6 +17,8 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"golang.org/x/sync/errgroup"
+
 	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/sync/hook"
@@ -1440,7 +1442,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().StringVar(&localRepoRoot, "local-repo-root", "/", "Path to the repository root. Used together with --local allows setting the repository root")
 	command.Flags().BoolVar(&serverSideGenerate, "server-side-generate", false, "Used with --local, this will send your manifests to the server for diffing")
 	command.Flags().BoolVar(&serverSideDiff, "server-side-diff", false, "Use server-side diff to calculate the diff. This will default to true if the ServerSideDiff annotation is set on the application.")
-	command.Flags().IntVar(&serverSideDiffConcurrency, "server-side-diff-concurrency", 0, "Max concurrent batches for server-side diff. 0 = unlimited, >0 = limit concurrent requests")
+	command.Flags().IntVar(&serverSideDiffConcurrency, "server-side-diff-concurrency", -1, "Max concurrent batches for server-side diff. -1 = unlimited, 0+ = limit concurrent requests")
 	command.Flags().IntVar(&serverSideDiffMaxBatchKB, "server-side-diff-max-batch-kb", 250, "Max batch size in KB for server-side diff. Smaller values are safer for proxies")
 	command.Flags().StringArrayVar(&localIncludes, "local-include", []string{"*.yaml", "*.yml", "*.json"}, "Used with --server-side-generate, specify patterns of filenames to send. Matching is based on filename and not path.")
 	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Only render the difference in namespace")
@@ -1529,27 +1531,15 @@ func findAndPrintServerSideDiff(ctx context.Context, app *argoappv1.Application,
 	}
 
 	// Process batches in parallel
-	var semaphore chan struct{}
-	if maxConcurrency > 0 {
-		semaphore = make(chan struct{}, maxConcurrency)
-	}
+	g, errGroupCtx := errgroup.WithContext(ctx)
+	g.SetLimit(maxConcurrency)
 
-	type batchResult struct {
-		items []*argoappv1.ResourceDiff
-		err   error
-	}
-	results := make([]batchResult, len(batches))
-	var wg sync.WaitGroup
+	results := make([][]*argoappv1.ResourceDiff, len(batches))
 
 	for idx, batch := range batches {
-		wg.Add(1)
-		go func(i int, b struct{ start, end int }) {
-			defer wg.Done()
-			if semaphore != nil {
-				semaphore <- struct{}{}
-				defer func() { <-semaphore }()
-			}
-
+		i := idx
+		b := batch
+		g.Go(func() error {
 			// Call server-side diff for this batch of resources
 			serverSideDiffQuery := &application.ApplicationServerSideDiffQuery{
 				AppName:         &appName,
@@ -1558,22 +1548,21 @@ func findAndPrintServerSideDiff(ctx context.Context, app *argoappv1.Application,
 				LiveResources:   liveResources[b.start:b.end],
 				TargetManifests: targetManifests[b.start:b.end],
 			}
-			serverSideDiffRes, err := appIf.ServerSideDiff(ctx, serverSideDiffQuery)
+			serverSideDiffRes, err := appIf.ServerSideDiff(errGroupCtx, serverSideDiffQuery)
 			if err != nil {
-				results[i] = batchResult{err: err}
-				return
+				return err
 			}
-			results[i] = batchResult{items: serverSideDiffRes.Items}
-		}(idx, batch)
+			results[i] = serverSideDiffRes.Items
+			return nil
+		})
 	}
 
-	wg.Wait()
+	if err := g.Wait(); err != nil {
+		errors.CheckError(err)
+	}
 
-	for _, result := range results {
-		if result.err != nil {
-			errors.CheckError(result.err)
-		}
-		for _, resultItem := range result.items {
+	for _, items := range results {
+		for _, resultItem := range items {
 			if resultItem.Hook || (!resultItem.Modified && resultItem.TargetState != "" && resultItem.LiveState != "") {
 				continue
 			}
@@ -2453,7 +2442,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					// Check if application has ServerSideDiff annotation
 					serverSideDiff := resourceutil.HasAnnotationOption(app, argocommon.AnnotationCompareOptions, "ServerSideDiff=true")
 
-					foundDiffs = findAndPrintDiff(ctx, app, proj.Project, resources, argoSettings, diffOption, ignoreNormalizerOpts, serverSideDiff, appIf, appName, appNs, 0, 250)
+					foundDiffs = findAndPrintDiff(ctx, app, proj.Project, resources, argoSettings, diffOption, ignoreNormalizerOpts, serverSideDiff, appIf, appName, appNs, -1, 250)
 					if !foundDiffs {
 						fmt.Printf("====== No Differences found ======\n")
 						// if no differences found, then no need to sync
