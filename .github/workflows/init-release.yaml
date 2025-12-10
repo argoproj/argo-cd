@@ -21,6 +21,12 @@ jobs:
       pull-requests: write  # for peter-evans/create-pull-request to create a PR
     name: Automatically generate version and manifests on ${{ inputs.TARGET_BRANCH }}
     runs-on: ubuntu-22.04
+    env:
+      # Calculate image names with defaults, this will be used in the make manifests-local command
+      # to generate the correct image name in the manifests
+      IMAGE_REGISTRY: ${{ vars.IMAGE_REGISTRY || 'quay.io' }}
+      IMAGE_NAMESPACE: ${{ vars.IMAGE_NAMESPACE || 'argoproj' }}
+      IMAGE_REPOSITORY: ${{ vars.IMAGE_REPOSITORY || 'argocd' }}
     steps:
       - name: Checkout code
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
@@ -64,7 +70,7 @@ jobs:
           git stash pop
 
       - name: Create pull request
-        uses: peter-evans/create-pull-request@22a9089034f40e5a961c8808d113e2c98fb63676  # v7.0.11
+        uses: peter-evans/create-pull-request@98357b18bf14b5342f975ff684046ec3b2a07725  # v8.0.0
         with:
           commit-message: "Bump version to ${{ inputs.TARGET_VERSION }}"
           title: "Bump version to ${{ inputs.TARGET_VERSION }} on ${{ inputs.TARGET_BRANCH }} branch"

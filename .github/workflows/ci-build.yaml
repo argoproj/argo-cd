@@ -194,7 +194,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
       - name: Create symlink in GOPATH
-        run: ln -s $(pwd) ~/go/src/github.com/argoproj/argo-cd
+        run: ln -s $(pwd) ~/go/src/github.com/argoproj/argo-cd 
       - name: Setup Golang
         uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
         with:
@@ -256,9 +256,10 @@ jobs:
         with:
           go-version: ${{ env.GOLANG_VERSION }}
       - name: Create symlink in GOPATH
+        # generalizing repo name for forks:  ${{ github.event.repository.name }}
         run: |
           mkdir -p ~/go/src/github.com/argoproj
-          cp -a ../argo-cd ~/go/src/github.com/argoproj
+          cp -a ../${{ github.event.repository.name }} ~/go/src/github.com/argoproj
       - name: Add ~/go/bin to PATH
         run: |
           echo "/home/runner/go/bin" >> $GITHUB_PATH
@@ -270,12 +271,14 @@ jobs:
           # We need to vendor go modules for codegen yet
           go mod download
           go mod vendor -v
-        working-directory: /home/runner/go/src/github.com/argoproj/argo-cd
+        # generalizing repo name for forks:  ${{ github.event.repository.name }}  
+        working-directory: /home/runner/go/src/github.com/argoproj/${{ github.event.repository.name }}  
       - name: Install toolchain for codegen
         run: |
           make install-codegen-tools-local
           make install-go-tools-local
-        working-directory: /home/runner/go/src/github.com/argoproj/argo-cd
+        # generalizing repo name for forks:  ${{ github.event.repository.name }}  
+        working-directory: /home/runner/go/src/github.com/argoproj/${{ github.event.repository.name }}
         # We install kustomize in the dist directory
       - name: Add dist to PATH
         run: |
@@ -286,12 +289,14 @@ jobs:
           export GOPATH=$(go env GOPATH)
           git checkout -- go.mod go.sum
           make codegen-local
-        working-directory: /home/runner/go/src/github.com/argoproj/argo-cd
+        # generalizing repo name for forks:  ${{ github.event.repository.name }}
+        working-directory: /home/runner/go/src/github.com/argoproj/${{ github.event.repository.name }}
       - name: Check nothing has changed
         run: |
           set -xo pipefail
           git diff --exit-code -- . ':!go.sum' ':!go.mod' ':!assets/swagger.json' | tee codegen.patch
-        working-directory: /home/runner/go/src/github.com/argoproj/argo-cd
+        # generalizing repo name for forks:  ${{ github.event.repository.name }}
+        working-directory: /home/runner/go/src/github.com/argoproj/${{ github.event.repository.name }}
 
   build-ui:
     name: Build, test & lint UI code
@@ -406,7 +411,7 @@ jobs:
   test-e2e:
     name: Run end-to-end tests
     if: ${{ needs.changes.outputs.backend == 'true' }}
-    runs-on: oracle-vm-16cpu-64gb-x86-64
+    runs-on: ${{ github.repository == 'argoproj/argo-cd' && 'oracle-vm-16cpu-64gb-x86-64' || 'ubuntu-22.04' }}
     strategy:
       fail-fast: false
       matrix:
@@ -425,7 +430,6 @@ jobs:
       - build-go
       - changes
     env:
-      GOPATH: /home/ubuntu/go
       ARGOCD_FAKE_IN_CLUSTER: 'true'
       ARGOCD_SSH_DATA_PATH: '/tmp/argo-e2e/app/config/ssh'
       ARGOCD_TLS_DATA_PATH: '/tmp/argo-e2e/app/config/tls'
@@ -451,6 +455,9 @@ jobs:
         uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
         with:
           go-version: ${{ env.GOLANG_VERSION }}
+      - name: Set GOPATH
+        run: |
+          echo "GOPATH=$HOME/go" >> $GITHUB_ENV
       - name: GH actions workaround - Kill XSP4 process
         run: |
           sudo pkill mono || true
@@ -461,9 +468,9 @@ jobs:
           set -x
           curl -sfL https://get.k3s.io | sh -
           sudo chmod -R a+rw /etc/rancher/k3s
-          sudo mkdir -p $HOME/.kube && sudo chown -R ubuntu $HOME/.kube
+          sudo mkdir -p $HOME/.kube && sudo chown -R $(whoami) $HOME/.kube
           sudo k3s kubectl config view --raw > $HOME/.kube/config
-          sudo chown ubuntu $HOME/.kube/config
+          sudo chown $(whoami) $HOME/.kube/config
           sudo chmod go-r $HOME/.kube/config
           kubectl version
       - name: Restore go build cache
@@ -473,7 +480,7 @@ jobs:
           key: ${{ runner.os }}-go-build-v1-${{ github.run_id }}
       - name: Add ~/go/bin to PATH
         run: |
-          echo "/home/ubuntu/go/bin" >> $GITHUB_PATH
+          echo "$HOME/go/bin" >> $GITHUB_PATH
       - name: Add /usr/local/bin to PATH
         run: |
           echo "/usr/local/bin" >> $GITHUB_PATH
@@ -499,7 +506,7 @@ jobs:
       - name: Create target directory for binaries in the build-process
         run: |
           mkdir -p dist
-          chown ubuntu dist
+          chown $(whoami) dist
       - name: Run E2E server and wait for it being available
         timeout-minutes: 30
         run: |
