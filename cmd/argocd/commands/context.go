@@ -95,7 +95,8 @@ func NewContextUseCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 				return
 			}
 			if _, err = localCfg.ResolveContext(ctxName); err != nil {
-				log.Fatal(err)
+				fmt.Printf("Context '%s' undefined\n", ctxName)
+				return
 			}
 			prevCtx := localCfg.CurrentContext
 			localCfg.CurrentContext = ctxName
