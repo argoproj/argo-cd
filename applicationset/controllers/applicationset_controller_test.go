@@ -1832,16 +1832,16 @@ func TestGetMinRequeueAfter(t *testing.T) {
 		Clusters: &v1alpha1.ClusterGenerator{},
 	}
 
-	generatorMock0 := mocks.Generator{}
-	generatorMock0.On("GetRequeueAfter", &generator).
+	generatorMock0 := &mocks.Generator{}
+	generatorMock0.EXPECT().GetRequeueAfter(&generator).
 		Return(generators.NoRequeueAfter)
 
-	generatorMock1 := mocks.Generator{}
-	generatorMock1.On("GetRequeueAfter", &generator).
+	generatorMock1 := &mocks.Generator{}
+	generatorMock1.EXPECT().GetRequeueAfter(&generator).
 		Return(time.Duration(1) * time.Second)
 
-	generatorMock10 := mocks.Generator{}
-	generatorMock10.On("GetRequeueAfter", &generator).
+	generatorMock10 := &mocks.Generator{}
+	generatorMock10.EXPECT().GetRequeueAfter(&generator).
 		Return(time.Duration(10) * time.Second)
 
 	r := ApplicationSetReconciler{
@@ -1850,9 +1850,9 @@ func TestGetMinRequeueAfter(t *testing.T) {
 		Recorder: record.NewFakeRecorder(0),
 		Metrics:  metrics,
 		Generators: map[string]generators.Generator{
-			"List":     &generatorMock10,
-			"Git":      &generatorMock1,
-			"Clusters": &generatorMock1,
+			"List":     generatorMock10,
+			"Git":      generatorMock1,
+			"Clusters": generatorMock1,
 		},
 	}
 
@@ -1889,10 +1889,10 @@ func TestRequeueGeneratorFails(t *testing.T) {
 		PullRequest: &v1alpha1.PullRequestGenerator{},
 	}
 
-	generatorMock := mocks.Generator{}
-	generatorMock.On("GetTemplate", &generator).
+	generatorMock := &mocks.Generator{}
+	generatorMock.EXPECT().GetTemplate(&generator).
 		Return(&v1alpha1.ApplicationSetTemplate{})
-	generatorMock.On("GenerateParams", &generator, mock.AnythingOfType("*v1alpha1.ApplicationSet"), mock.Anything).
+	generatorMock.EXPECT().GenerateParams(&generator, mock.AnythingOfType("*v1alpha1.ApplicationSet"), mock.Anything).
 		Return([]map[string]any{}, errors.New("Simulated error generating params that could be related to an external service/API call"))
 
 	metrics := appsetmetrics.NewFakeAppsetMetrics()
@@ -1902,7 +1902,7 @@ func TestRequeueGeneratorFails(t *testing.T) {
 		Scheme:   scheme,
 		Recorder: record.NewFakeRecorder(0),
 		Generators: map[string]generators.Generator{
-			"PullRequest": &generatorMock,
+			"PullRequest": generatorMock,
 		},
 		Metrics: metrics,
 	}
@@ -1937,7 +1937,7 @@ func TestValidateGeneratedApplications(t *testing.T) {
 					Server:    "*",
 				},
 			},
-			ClusterResourceWhitelist: []metav1.GroupKind{
+			ClusterResourceWhitelist: []v1alpha1.ClusterResourceRestrictionItem{
 				{
 					Group: "*",
 					Kind:  "*",
@@ -7273,6 +7273,223 @@ func TestIsRollingSyncDeletionReversed(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := isProgressiveSyncDeletionOrderReversed(tt.appset)
 			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestReconcileAddsFinalizer_WhenDeletionOrderReverse(t *testing.T) {
+	scheme := runtime.NewScheme()
+	err := v1alpha1.AddToScheme(scheme)
+	require.NoError(t, err)
+
+	kubeclientset := kubefake.NewClientset([]runtime.Object{}...)
+
+	for _, cc := range []struct {
+		name                   string
+		appSet                 v1alpha1.ApplicationSet
+		progressiveSyncEnabled bool
+		expectedFinalizers     []string
+	}{
+		{
+			name: "adds finalizer when DeletionOrder is Reverse",
+			appSet: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-appset",
+					Namespace: "argocd",
+					// No finalizers initially
+				},
+				Spec: v1alpha1.ApplicationSetSpec{
+					Strategy: &v1alpha1.ApplicationSetStrategy{
+						Type: "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
+							Steps: []v1alpha1.ApplicationSetRolloutStep{
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{
+										{
+											Key:      "env",
+											Operator: "In",
+											Values:   []string{"dev"},
+										},
+									},
+								},
+							},
+						},
+						DeletionOrder: ReverseDeletionOrder,
+					},
+					Template: v1alpha1.ApplicationSetTemplate{},
+				},
+			},
+			progressiveSyncEnabled: true,
+			expectedFinalizers:     []string{v1alpha1.ResourcesFinalizerName},
+		},
+		{
+			name: "does not add finalizer when already exists and DeletionOrder is Reverse",
+			appSet: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-appset",
+					Namespace: "argocd",
+					Finalizers: []string{
+						v1alpha1.ResourcesFinalizerName,
+					},
+				},
+				Spec: v1alpha1.ApplicationSetSpec{
+					Strategy: &v1alpha1.ApplicationSetStrategy{
+						Type: "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
+							Steps: []v1alpha1.ApplicationSetRolloutStep{
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{
+										{
+											Key:      "env",
+											Operator: "In",
+											Values:   []string{"dev"},
+										},
+									},
+								},
+							},
+						},
+						DeletionOrder: ReverseDeletionOrder,
+					},
+					Template: v1alpha1.ApplicationSetTemplate{},
+				},
+			},
+			progressiveSyncEnabled: true,
+			expectedFinalizers:     []string{v1alpha1.ResourcesFinalizerName},
+		},
+		{
+			name: "does not add finalizer when DeletionOrder is AllAtOnce",
+			appSet: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-appset",
+					Namespace: "argocd",
+				},
+				Spec: v1alpha1.ApplicationSetSpec{
+					Strategy: &v1alpha1.ApplicationSetStrategy{
+						Type: "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
+							Steps: []v1alpha1.ApplicationSetRolloutStep{
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{
+										{
+											Key:      "env",
+											Operator: "In",
+											Values:   []string{"dev"},
+										},
+									},
+								},
+							},
+						},
+						DeletionOrder: AllAtOnceDeletionOrder,
+					},
+					Template: v1alpha1.ApplicationSetTemplate{},
+				},
+			},
+			progressiveSyncEnabled: true,
+			expectedFinalizers:     nil,
+		},
+		{
+			name: "does not add finalizer when DeletionOrder is not set",
+			appSet: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-appset",
+					Namespace: "argocd",
+				},
+				Spec: v1alpha1.ApplicationSetSpec{
+					Strategy: &v1alpha1.ApplicationSetStrategy{
+						Type: "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
+							Steps: []v1alpha1.ApplicationSetRolloutStep{
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{
+										{
+											Key:      "env",
+											Operator: "In",
+											Values:   []string{"dev"},
+										},
+									},
+								},
+							},
+						},
+					},
+					Template: v1alpha1.ApplicationSetTemplate{},
+				},
+			},
+			progressiveSyncEnabled: true,
+			expectedFinalizers:     nil,
+		},
+		{
+			name: "does not add finalizer when progressive sync not enabled",
+			appSet: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-appset",
+					Namespace: "argocd",
+				},
+				Spec: v1alpha1.ApplicationSetSpec{
+					Strategy: &v1alpha1.ApplicationSetStrategy{
+						Type: "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
+							Steps: []v1alpha1.ApplicationSetRolloutStep{
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{
+										{
+											Key:      "env",
+											Operator: "In",
+											Values:   []string{"dev"},
+										},
+									},
+								},
+							},
+						},
+						DeletionOrder: ReverseDeletionOrder,
+					},
+					Template: v1alpha1.ApplicationSetTemplate{},
+				},
+			},
+			progressiveSyncEnabled: false,
+			expectedFinalizers:     nil,
+		},
+	} {
+		t.Run(cc.name, func(t *testing.T) {
+			client := fake.NewClientBuilder().
+				WithScheme(scheme).
+				WithObjects(&cc.appSet).
+				WithStatusSubresource(&cc.appSet).
+				WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).
+				Build()
+			metrics := appsetmetrics.NewFakeAppsetMetrics()
+			argodb := db.NewDB("argocd", settings.NewSettingsManager(t.Context(), kubeclientset, "argocd"), kubeclientset)
+
+			r := ApplicationSetReconciler{
+				Client:                 client,
+				Scheme:                 scheme,
+				Renderer:               &utils.Render{},
+				Recorder:               record.NewFakeRecorder(1),
+				Generators:             map[string]generators.Generator{},
+				ArgoDB:                 argodb,
+				KubeClientset:          kubeclientset,
+				Metrics:                metrics,
+				EnableProgressiveSyncs: cc.progressiveSyncEnabled,
+			}
+
+			req := ctrl.Request{
+				NamespacedName: types.NamespacedName{
+					Namespace: cc.appSet.Namespace,
+					Name:      cc.appSet.Name,
+				},
+			}
+
+			// Run reconciliation
+			_, err = r.Reconcile(t.Context(), req)
+			require.NoError(t, err)
+
+			// Fetch the updated ApplicationSet
+			var updatedAppSet v1alpha1.ApplicationSet
+			err = r.Get(t.Context(), req.NamespacedName, &updatedAppSet)
+			require.NoError(t, err)
+
+			// Verify the finalizers
+			assert.Equal(t, cc.expectedFinalizers, updatedAppSet.Finalizers,
+				"finalizers should match expected value")
 		})
 	}
 }

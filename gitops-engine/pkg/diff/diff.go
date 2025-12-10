@@ -183,6 +183,9 @@ func serverSideDiff(config, live *unstructured.Unstructured, opts ...Option) (*D
 		}
 	}
 
+	// Remarshal predictedLive to ensure it receives the same normalization as live.
+	predictedLive = remarshal(predictedLive, o)
+
 	Normalize(predictedLive, opts...)
 	unstructured.RemoveNestedField(predictedLive.Object, "metadata", "managedFields")
 
@@ -267,7 +270,7 @@ func removeWebhookMutation(predictedLive, live *unstructured.Unstructured, gvkPa
 	}
 
 	// In case any of the removed fields cause schema violations, we will keep those fields
-	nonArgoFieldsSet = safelyRemoveFieldsSet(typedPredictedLive, nonArgoFieldsSet)
+	nonArgoFieldsSet = filterOutCompositeKeyFields(typedPredictedLive, nonArgoFieldsSet)
 	typedPredictedLive = typedPredictedLive.RemoveItems(nonArgoFieldsSet)
 
 	// Apply the predicted live state to the live state to get a diff without mutation webhook fields
@@ -289,29 +292,58 @@ func removeWebhookMutation(predictedLive, live *unstructured.Unstructured, gvkPa
 	return &unstructured.Unstructured{Object: pl}, nil
 }
 
-// safelyRemoveFieldSet will validate if removing the fieldsToRemove set from predictedLive maintains
-// a valid schema. If removing a field in fieldsToRemove is invalid and breaks the schema, it is not safe
-// to remove and will be skipped from removal from predictedLive.
-func safelyRemoveFieldsSet(predictedLive *typed.TypedValue, fieldsToRemove *fieldpath.Set) *fieldpath.Set {
-	// In some cases, we cannot remove fields due to violation of the predicted live schema. In such cases we validate the removal
-	// of each field and only include it if the removal is valid.
-	testPredictedLive := predictedLive.RemoveItems(fieldsToRemove)
-	err := testPredictedLive.Validate()
-	if err != nil {
-		adjustedFieldsToRemove := fieldpath.NewSet()
-		fieldsToRemove.Iterate(func(p fieldpath.Path) {
-			singleFieldSet := fieldpath.NewSet(p)
-			testSingleRemoval := predictedLive.RemoveItems(singleFieldSet)
-			// Check if removing this single field maintains a valid schema
-			if testSingleRemoval.Validate() == nil {
-				// If valid, add this field to the adjusted set to remove
-				adjustedFieldsToRemove.Insert(p)
-			}
-		})
-		return adjustedFieldsToRemove
+// filterOutCompositeKeyFields filters out fields that are part of composite keys in associative lists.
+// These fields must be preserved to maintain list element identity during merge operations.
+func filterOutCompositeKeyFields(typedValue *typed.TypedValue, fieldsToRemove *fieldpath.Set) *fieldpath.Set {
+	filteredFields := fieldpath.NewSet()
+
+	fieldsToRemove.Iterate(func(fieldPath fieldpath.Path) {
+		isCompositeKey := isCompositeKeyField(fieldPath)
+		if !isCompositeKey {
+			// Only keep fields that are NOT composite keys - these are safe to remove
+			filteredFields.Insert(fieldPath)
+		}
+	})
+
+	return filteredFields
+}
+
+// isCompositeKeyField checks if a field path represents a field that is part of a composite key
+// in an associative list by examining the PathElement structure.
+// Example: .spec.containers[name="nginx"].ports[containerPort=80,protocol="TCP"].protocol
+// The path elements include:
+//   - PathElement{Key: {name: "nginx"}} - single key (not composite)
+//   - PathElement{Key: {containerPort: 80, protocol: "TCP"}} - composite key with 2 fields
+func isCompositeKeyField(fieldPath fieldpath.Path) bool {
+	if len(fieldPath) == 0 {
+		return false
 	}
-	// If no violations, return the original set to remove
-	return fieldsToRemove
+
+	// Get the last path element
+	lastElement := fieldPath[len(fieldPath)-1]
+	if lastElement.FieldName == nil {
+		return false
+	}
+	finalFieldName := *lastElement.FieldName
+
+	// Look backwards through the path to find the most recent associative list key
+	for i := len(fieldPath) - 2; i >= 0; i-- {
+		pe := fieldPath[i]
+		if pe.Key == nil {
+			continue
+		}
+		if len(*pe.Key) <= 1 {
+			continue
+		}
+		// This is a composite key
+		for _, keyField := range *pe.Key {
+			if keyField.Name == finalFieldName {
+				return true
+			}
+		}
+	}
+
+	return false
 }
 
 func jsonStrToUnstructured(jsonString string) (*unstructured.Unstructured, error) {

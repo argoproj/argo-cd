@@ -44,7 +44,7 @@ func main() {
 	}
 	errors.CheckError(err)
 
-	cmd := exec.Command("kubectl", "apply", "-k", "manifests/base/config")
+	cmd := exec.CommandContext(context.Background(), "kubectl", "apply", "-k", "manifests/base/config")
 	cmd.Env = []string{"KUBECONFIG=" + kubeConfigPath}
 	errors.CheckError(cmd.Run())
 	<-context.Background().Done()

@@ -606,6 +606,10 @@ func (c *clusterCache) listResources(ctx context.Context, resClient dynamic.Reso
 					retryCount++
 					c.log.Info(fmt.Sprintf("Error while listing resources: %v (try %d/%d)", ierr, retryCount, c.listRetryLimit))
 				}
+				// Ensure res is never nil even when there's an error
+				if res == nil {
+					res = &unstructured.UnstructuredList{}
+				}
 				//nolint:wrapcheck // wrap outside the retry
 				return ierr
 			}
@@ -667,7 +671,7 @@ func (c *clusterCache) watchEvents(ctx context.Context, api kube.APIResourceInfo
 		}
 
 		w, err := watchutil.NewRetryWatcherWithContext(ctx, resourceVersion, &cache.ListWatch{
-			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
+			WatchFuncWithContext: func(ctx context.Context, options metav1.ListOptions) (watch.Interface, error) {
 				res, err := resClient.Watch(ctx, options)
 				if apierrors.IsNotFound(err) {
 					c.stopWatching(api.GroupKind, ns)

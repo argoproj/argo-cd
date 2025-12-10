@@ -14,6 +14,10 @@ The Webhook notification service configuration includes following settings:
 - `retryWaitMin` - Optional, the minimum wait time between retries. Default value: 1s.
 - `retryWaitMax` - Optional, the maximum wait time between retries. Default value: 5s.
 - `retryMax` - Optional, the maximum number of retries. Default value: 3.
+- `maxIdleConns` - optional, maximum number of idle (keep-alive) connections across all hosts.
+- `maxIdleConnsPerHost` - optional, maximum number of idle (keep-alive) connections per host.
+- `maxConnsPerHost` - optional, maximum total connections per host.
+- `idleConnTimeout` - optional, maximum amount of time an idle (keep-alive) connection will remain open before closing, e.g. '90s'.
 
 ## Retry Behavior
 

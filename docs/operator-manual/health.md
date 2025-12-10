@@ -16,8 +16,13 @@ with at least one value for `hostname` or `IP`.
 ### Ingress
 * The `status.loadBalancer.ingress` list is non-empty, with at least one value for `hostname` or `IP`.
 
+### CronJob
+* If the last scheduled job for this CronJob failed, the CronJob will be marked as "Degraded"
+* If the last scheduled job for this CronJob is running, the CronJob will be marked as "Progressing"
+
 ### Job
 * If job `.spec.suspended` is set to 'true', then the job and app health will be marked as suspended.
+
 ### PersistentVolumeClaim
 * The `status.phase` is `Bound`
 
@@ -199,7 +204,7 @@ only treat a path as a wildcard if it contains a `_` character, but this may cha
 
 ## Overriding Go-Based Health Checks
 
-Health checks for some resources were [hardcoded as Go code](https://github.com/argoproj/gitops-engine/tree/master/pkg/health) 
+Health checks for some resources were [hardcoded as Go code](https://github.com/argoproj/argo-cd/tree/master/gitops-engine/pkg/health) 
 because Lua support was introduced later. Also, the logic of health checks for some resources were too complex, so it 
 was easier to implement it in Go.
 

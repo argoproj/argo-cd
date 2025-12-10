@@ -445,7 +445,7 @@ func TestRemoveOrphanedIgnore(t *testing.T) {
 	assertProjHasEvent(t, proj, "update", argo.EventReasonResourceUpdated)
 }
 
-func createAndConfigGlobalProject() error {
+func createAndConfigGlobalProject(ctx context.Context) error {
 	// Create global project
 	projectGlobalName := "proj-g-" + fixture.Name()
 	_, err := fixture.RunCli("proj", "create", projectGlobalName,
@@ -458,7 +458,7 @@ func createAndConfigGlobalProject() error {
 		return err
 	}
 
-	projGlobal, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Get(context.Background(), projectGlobalName, metav1.GetOptions{})
+	projGlobal, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Get(ctx, projectGlobalName, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -471,11 +471,11 @@ func createAndConfigGlobalProject() error {
 		{Group: "", Kind: "Deployment"},
 	}
 
-	projGlobal.Spec.ClusterResourceWhitelist = []metav1.GroupKind{
+	projGlobal.Spec.ClusterResourceWhitelist = []v1alpha1.ClusterResourceRestrictionItem{
 		{Group: "", Kind: "Job"},
 	}
 
-	projGlobal.Spec.ClusterResourceBlacklist = []metav1.GroupKind{
+	projGlobal.Spec.ClusterResourceBlacklist = []v1alpha1.ClusterResourceRestrictionItem{
 		{Group: "", Kind: "Pod"},
 	}
 
@@ -483,7 +483,7 @@ func createAndConfigGlobalProject() error {
 	win := &v1alpha1.SyncWindow{Kind: "deny", Schedule: "* * * * *", Duration: "1h", Applications: []string{"*"}}
 	projGlobal.Spec.SyncWindows = append(projGlobal.Spec.SyncWindows, win)
 
-	_, err = fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Update(context.Background(), projGlobal, metav1.UpdateOptions{})
+	_, err = fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Update(ctx, projGlobal, metav1.UpdateOptions{})
 	if err != nil {
 		return err
 	}
@@ -513,7 +513,7 @@ func createAndConfigGlobalProject() error {
 
 func TestGetVirtualProjectNoMatch(t *testing.T) {
 	fixture.EnsureCleanState(t)
-	err := createAndConfigGlobalProject()
+	err := createAndConfigGlobalProject(t.Context())
 	require.NoError(t, err)
 
 	// Create project which does not match global project settings
@@ -544,7 +544,8 @@ func TestGetVirtualProjectNoMatch(t *testing.T) {
 
 func TestGetVirtualProjectMatch(t *testing.T) {
 	fixture.EnsureCleanState(t)
-	err := createAndConfigGlobalProject()
+	ctx := t.Context()
+	err := createAndConfigGlobalProject(ctx)
 	require.NoError(t, err)
 
 	// Create project which matches global project settings
@@ -556,12 +557,12 @@ func TestGetVirtualProjectMatch(t *testing.T) {
 		"--orphaned-resources")
 	require.NoError(t, err)
 
-	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Get(t.Context(), projectName, metav1.GetOptions{})
+	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Get(ctx, projectName, metav1.GetOptions{})
 	require.NoError(t, err)
 
 	// Add a label to this project so that this project match global project selector
 	proj.Labels = map[string]string{"opt": "me"}
-	_, err = fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Update(t.Context(), proj, metav1.UpdateOptions{})
+	_, err = fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Update(ctx, proj, metav1.UpdateOptions{})
 	require.NoError(t, err)
 
 	// Create an app belongs to proj project

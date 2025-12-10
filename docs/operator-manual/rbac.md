@@ -49,7 +49,8 @@ The model syntax is based on [Casbin](https://casbin.org/docs/overview) (an open
 Syntax: `g, <user/group>, <role>`
 
 - `<user/group>`: The entity to whom the role will be assigned. It can be a local user or a user authenticated with SSO.
-  When SSO is used, the `user` will be based on the `sub` claims, while the group is one of the values returned by the `scopes` configuration.
+  When SSO is used, the `user` is derived from the token’s `federated_claims.user_id` field, and groups are populated from the values returned
+  by the OIDC provider under the configured scopes (e.g., groups, roles).
 - `<role>`: The internal role to which the entity will be assigned.
 
 **Policy**: Allows to assign permissions to an entity.
@@ -205,8 +206,20 @@ p, example-user, applications, action/*, default/*, allow
 
 #### The `override` action
 
-When granted along with the `sync` action, the override action will allow a user to synchronize local manifests to the Application.
-These manifests will be used instead of the configured source, until the next sync is performed.
+The `override` action privilege can be used to allow passing arbitrary manifests or different revisions when syncing an `Application`. This can e.g. be used for development or testing purposes. 
+
+**Attention:** This allows users to completely change/delete the deployed resources of the application. 
+
+While the `sync` action privilege gives the right to synchronize the objects in the cluster to the desired state as defined in the `Application` Object, the `override` action privilege will allow a user to synchronize arbitrary local manifests to the Application. These manifests will be used _instead of_ the configured source, until the next sync is performed. After performing such a override sync, the application will most probably be OutOfSync with the state defined via the `Application` object. 
+It is not possible to perform an `override` sync when auto-sync is enabled.
+
+New since v3.2: 
+
+When `application.sync.requireOverridePrivilegeForRevisionSync: 'true'` is set in the `argcd-cm` configmap, 
+passing a revision when syncing an `Application` is also considered as an `override`, to prevent synchronizing to arbitrary revisions other than the revision(s) given in the `Application` object. Similar as synching to an arbitrary yaml manifest, syncing to a different revision/branch/commit will also bring the controlled objects to a state differing, and thus OufOfSync from the state as defined in the `Application`.
+
+The default setting of this flag is 'false', to prevent breaking changes in existing installations. It is recommended to set this setting to 'true' and only grant the `override` privilege per AppProject to the users that actually need this behavior.
+
 
 ### The `applicationsets` resource
 

@@ -251,7 +251,7 @@ metadata:
     argocd.argoproj.io/sync-options: ServerSideApply=true
 ```
 
-If you want to disable ServerSideApply for a specific resource, while it is enabled at the application level, 
+If you want to disable ServerSideApply for a specific resource, while it is enabled at the application level,
 add the following sync-option annotation in it:
 
 ```yaml
@@ -305,7 +305,7 @@ kind: Application
 spec:
   syncPolicy:
     syncOptions:
-    - DisableClientSideApplyMigration=true
+    - ClientSideApplyMigration=false
 ```
 
 You can specify a custom field manager for the client-side apply migration using an annotation:
@@ -435,7 +435,7 @@ spec:
 
 In the case where Argo CD is "adopting" an existing namespace which already has metadata set on it, you should first
 [upgrade the resource to server-side apply](https://kubernetes.io/docs/reference/using-api/server-side-apply/#upgrading-from-client-side-apply-to-server-side-apply)
-before enabling `managedNamespaceMetadata`. Argo CD relies on `kubectl`, which does not support managing 
+before enabling `managedNamespaceMetadata`. Argo CD relies on `kubectl`, which does not support managing
 client-side-applied resources with server-side-applies. If you do not upgrade the resource to server-side apply, Argo CD
 may remove existing labels/annotations, which may or may not be the desired behavior.
 

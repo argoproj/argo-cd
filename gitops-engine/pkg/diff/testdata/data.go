@@ -77,4 +77,13 @@ var (
 
 	//go:embed ssd-svc-no-label-predicted-live.json
 	ServicePredictedLiveNoLabelJSONSSD string
+
+	//go:embed ssd-deploy-composite-key-config.yaml
+	DeploymentCompositeKeyConfigYAMLSSD string
+
+	//go:embed ssd-deploy-composite-key-live.yaml
+	DeploymentCompositeKeyLiveYAMLSSD string
+
+	//go:embed ssd-deploy-composite-key-predicted-live.json
+	DeploymentCompositeKeyPredictedLiveJSONSSD string
 )

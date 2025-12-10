@@ -16,6 +16,10 @@ tests:
     message: "Commit status reconciliation failed: Something went wrong"
   inputPath: testdata/reconcile-error.yaml
 - healthStatus:
+    status: Degraded
+    message: "Commit status reconciliation failed: Failed to update commit status: API request failed"
+  inputPath: testdata/non-reconciliation-error.yaml
+- healthStatus:
     status: Progressing
     message: Commit status is not ready yet
   inputPath: testdata/no-ready-condition.yaml

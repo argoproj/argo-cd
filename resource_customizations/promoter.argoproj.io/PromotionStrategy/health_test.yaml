@@ -39,3 +39,11 @@ tests:
     status: Healthy
     message: All environments are up-to-date on commit 'abc1234'.
   inputPath: testdata/all-healthy.yaml
+- healthStatus:
+    status: Progressing
+    message: Not all environments have the same proposed commit SHA. This likely means the hydrator has not run for all environments yet.
+  inputPath: testdata/different-proposed-commits.yaml
+- healthStatus:
+    status: Degraded
+    message: "Promotion strategy reconciliation failed (ChangeTransferPolicyNotReady): ChangeTransferPolicy \"strategy-environments-qal-usw2-27894e05\" is not Ready because \"ReconciliationError\": Reconciliation failed: failed to calculate ChangeTransferPolicy status: failed to get SHAs for proposed branch \"environments/qal-usw2-next\": exit status 128: fatal: 'origin/environments/qal-usw2-next' is not a commit and a branch 'environments/qal-usw2-next' cannot be created from it"
+  inputPath: testdata/missing-sha-and-not-ready.yaml

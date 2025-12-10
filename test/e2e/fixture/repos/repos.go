@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -30,8 +31,26 @@ func mustToAbsPath(t *testing.T, relativePath string) string {
 	return res
 }
 
+type AddRepoOpts func(args []string) []string
+
+func WithDepth(depth int64) AddRepoOpts {
+	return func(args []string) []string {
+		if depth > 0 {
+			args = append(args, "--depth", strconv.FormatInt(depth, 10))
+		}
+		return args
+	}
+}
+
+func applyOpts(args []string, opts []AddRepoOpts) []string {
+	for _, opt := range opts {
+		args = opt(args)
+	}
+	return args
+}
+
 // sets the current repo as the default SSH test repo
-func AddSSHRepo(t *testing.T, insecure bool, credentials bool, repoURLType fixture.RepoURLType) {
+func AddSSHRepo(t *testing.T, insecure bool, credentials bool, repoURLType fixture.RepoURLType, opts ...AddRepoOpts) {
 	t.Helper()
 	keyPath, err := filepath.Abs("../fixture/testrepos/id_rsa")
 	require.NoError(t, err)
@@ -42,11 +61,11 @@ func AddSSHRepo(t *testing.T, insecure bool, credentials bool, repoURLType fixtu
 	if insecure {
 		args = append(args, "--insecure-ignore-host-key")
 	}
-	errors.NewHandler(t).FailOnErr(fixture.RunCli(args...))
+	errors.NewHandler(t).FailOnErr(fixture.RunCli(applyOpts(args, opts)...))
 }
 
 // sets the current repo as the default HTTPS test repo
-func AddHTTPSRepo(t *testing.T, insecure bool, credentials bool, project string, repoURLType fixture.RepoURLType) {
+func AddHTTPSRepo(t *testing.T, insecure bool, credentials bool, project string, repoURLType fixture.RepoURLType, opts ...AddRepoOpts) {
 	t.Helper()
 	// This construct is somewhat necessary to satisfy the compiler
 	args := []string{"repo", "add", fixture.RepoURL(repoURLType)}
@@ -59,7 +78,7 @@ func AddHTTPSRepo(t *testing.T, insecure bool, credentials bool, project string,
 	if project != "" {
 		args = append(args, "--project", project)
 	}
-	errors.NewHandler(t).FailOnErr(fixture.RunCli(args...))
+	errors.NewHandler(t).FailOnErr(fixture.RunCli(applyOpts(args, opts)...))
 }
 
 // sets a HTTPS repo using TLS client certificate authentication
@@ -215,7 +234,6 @@ func PushChartToOCIRegistry(t *testing.T, chartPathName, chartName, chartVersion
 	chartAbsPath, err2 := filepath.Abs("./" + chartPathName)
 	require.NoError(t, err2)
 
-	t.Setenv("HELM_EXPERIMENTAL_OCI", "1")
 	errors.NewHandler(t).FailOnErr(fixture.Run("", "helm", "dependency", "build", chartAbsPath))
 	errors.NewHandler(t).FailOnErr(fixture.Run("", "helm", "package", chartAbsPath, "--destination", tempDest))
 	_ = os.RemoveAll(fmt.Sprintf("%s/%s", chartAbsPath, "charts"))
@@ -239,7 +257,6 @@ func PushChartToAuthenticatedOCIRegistry(t *testing.T, chartPathName, chartName,
 	chartAbsPath, err2 := filepath.Abs("./" + chartPathName)
 	require.NoError(t, err2)
 
-	t.Setenv("HELM_EXPERIMENTAL_OCI", "1")
 	errors.NewHandler(t).FailOnErr(fixture.Run("", "helm", "dependency", "build", chartAbsPath))
 	errors.NewHandler(t).FailOnErr(fixture.Run("", "helm", "package", chartAbsPath, "--destination", tempDest))
 	_ = os.RemoveAll(fmt.Sprintf("%s/%s", chartAbsPath, "charts"))

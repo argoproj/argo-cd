@@ -31,7 +31,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/diff/testdata"
 )
 
-func printDiff(result *DiffResult) (string, error) {
+func printDiff(ctx context.Context, result *DiffResult) (string, error) {
 	var live unstructured.Unstructured
 	if err := json.Unmarshal(result.NormalizedLive, &live); err != nil {
 		return "", fmt.Errorf("failed to unmarshal live object: %w", err)
@@ -40,12 +40,12 @@ func printDiff(result *DiffResult) (string, error) {
 	if err := json.Unmarshal(result.PredictedLive, &target); err != nil {
 		return "", fmt.Errorf("failed to unmarshal target object: %w", err)
 	}
-	out, _ := printDiffInternal("diff", &live, &target)
+	out, _ := printDiffInternal(ctx, "diff", &live, &target)
 	return string(out), nil
 }
 
 // printDiffInternal prints a diff between two unstructured objects using an external diff utility and returns the output.
-func printDiffInternal(name string, live *unstructured.Unstructured, target *unstructured.Unstructured) ([]byte, error) {
+func printDiffInternal(ctx context.Context, name string, live *unstructured.Unstructured, target *unstructured.Unstructured) ([]byte, error) {
 	tempDir, err := os.MkdirTemp("", "argocd-diff")
 	if err != nil {
 		return nil, fmt.Errorf("failed to create temp directory: %w", err)
@@ -74,7 +74,7 @@ func printDiffInternal(name string, live *unstructured.Unstructured, target *uns
 	if err != nil {
 		return nil, fmt.Errorf("failed to write live object: %w", err)
 	}
-	cmd := exec.Command("diff", liveFile, targetFile)
+	cmd := exec.CommandContext(ctx, "diff", liveFile, targetFile)
 	out, err := cmd.Output()
 	if err != nil {
 		// return output even if there's an error
@@ -168,7 +168,7 @@ func TestDiff(t *testing.T) {
 
 	diffRes := diff(t, leftUn, leftUn, diffOptionsForTest()...)
 	assert.False(t, diffRes.Modified)
-	ascii, err := printDiff(diffRes)
+	ascii, err := printDiff(t.Context(), diffRes)
 	require.NoError(t, err)
 	if ascii != "" {
 		t.Log(ascii)
@@ -183,7 +183,7 @@ func TestDiff_KnownTypeInvalidValue(t *testing.T) {
 	t.Run("NoDifference", func(t *testing.T) {
 		diffRes := diff(t, leftUn, leftUn, diffOptionsForTest()...)
 		assert.False(t, diffRes.Modified)
-		ascii, err := printDiff(diffRes)
+		ascii, err := printDiff(t.Context(), diffRes)
 		require.NoError(t, err)
 		if ascii != "" {
 			t.Log(ascii)
@@ -294,7 +294,7 @@ func TestThreeWayDiff(t *testing.T) {
 	liveUn := mustToUnstructured(liveDep)
 	res := diff(t, configUn, liveUn, diffOptionsForTest()...)
 	if !assert.False(t, res.Modified) {
-		ascii, err := printDiff(res)
+		ascii, err := printDiff(t.Context(), res)
 		require.NoError(t, err)
 		t.Log(ascii)
 	}
@@ -308,7 +308,7 @@ func TestThreeWayDiff(t *testing.T) {
 	liveUn = mustToUnstructured(liveDep)
 	res = diff(t, configUn, liveUn, diffOptionsForTest()...)
 	if !assert.False(t, res.Modified) {
-		ascii, err := printDiff(res)
+		ascii, err := printDiff(t.Context(), res)
 		require.NoError(t, err)
 		t.Log(ascii)
 	}
@@ -329,7 +329,7 @@ func TestThreeWayDiff(t *testing.T) {
 	configUn = mustToUnstructured(configDep)
 	liveUn = mustToUnstructured(liveDep)
 	res = diff(t, configUn, liveUn, diffOptionsForTest()...)
-	ascii, err := printDiff(res)
+	ascii, err := printDiff(t.Context(), res)
 	require.NoError(t, err)
 	if ascii != "" {
 		t.Log(ascii)
@@ -388,7 +388,7 @@ func TestThreeWayDiffExample1(t *testing.T) {
 	require.NoError(t, err)
 	dr := diff(t, &configUn, &liveUn, diffOptionsForTest()...)
 	assert.False(t, dr.Modified)
-	ascii, err := printDiff(dr)
+	ascii, err := printDiff(t.Context(), dr)
 	require.NoError(t, err)
 	if ascii != "" {
 		t.Log(ascii)
@@ -403,7 +403,7 @@ func TestDiffOptionIgnoreAggregateRoles(t *testing.T) {
 		liveUn := unmarshalFile("testdata/aggr-clusterrole-live.json")
 		dr := diff(t, configUn, liveUn, IgnoreAggregatedRoles(true))
 		assert.False(t, dr.Modified)
-		ascii, err := printDiff(dr)
+		ascii, err := printDiff(t.Context(), dr)
 		require.NoError(t, err)
 		t.Log(ascii)
 	}
@@ -413,7 +413,7 @@ func TestDiffOptionIgnoreAggregateRoles(t *testing.T) {
 		liveUn := unmarshalFile("testdata/aggr-clusterrole-live.json")
 		dr := diff(t, configUn, liveUn, IgnoreAggregatedRoles(false))
 		assert.True(t, dr.Modified)
-		ascii, err := printDiff(dr)
+		ascii, err := printDiff(t.Context(), dr)
 		require.NoError(t, err)
 		t.Log(ascii)
 	}
@@ -424,7 +424,7 @@ func TestThreeWayDiffExample2(t *testing.T) {
 	liveUn := unmarshalFile("testdata/elasticsearch-live.json")
 	dr := diff(t, configUn, liveUn, diffOptionsForTest()...)
 	assert.False(t, dr.Modified)
-	ascii, err := printDiff(dr)
+	ascii, err := printDiff(t.Context(), dr)
 	require.NoError(t, err)
 	t.Log(ascii)
 }
@@ -436,7 +436,7 @@ func TestThreeWayDiffExample3(t *testing.T) {
 
 	dr := diff(t, configUn, liveUn, diffOptionsForTest()...)
 	assert.False(t, dr.Modified)
-	ascii, err := printDiff(dr)
+	ascii, err := printDiff(t.Context(), dr)
 	require.NoError(t, err)
 	if ascii != "" {
 		t.Log(ascii)
@@ -449,7 +449,7 @@ func TestThreeWayDiffExample4(t *testing.T) {
 
 	dr := diff(t, configUn, liveUn, diffOptionsForTest()...)
 	assert.False(t, dr.Modified)
-	ascii, err := printDiff(dr)
+	ascii, err := printDiff(t.Context(), dr)
 	require.NoError(t, err)
 	if ascii != "" {
 		t.Log(ascii)
@@ -471,7 +471,7 @@ func TestThreeWayDiffExample2WithDifference(t *testing.T) {
 
 	dr := diff(t, configUn, liveUn, diffOptionsForTest()...)
 	assert.True(t, dr.Modified)
-	ascii, err := printDiff(dr)
+	ascii, err := printDiff(t.Context(), dr)
 	require.NoError(t, err, ascii)
 	t.Log(ascii)
 
@@ -503,7 +503,7 @@ func TestThreeWayDiffExplicitNamespace(t *testing.T) {
 	liveUn := unmarshalFile("testdata/spinnaker-sa-live.json")
 	dr := diff(t, configUn, liveUn, diffOptionsForTest()...)
 	assert.False(t, dr.Modified)
-	ascii, err := printDiff(dr)
+	ascii, err := printDiff(t.Context(), dr)
 	require.NoError(t, err)
 	t.Log(ascii)
 }
@@ -530,7 +530,7 @@ func TestDiffResourceWithInvalidField(t *testing.T) {
 
 	diffRes := diff(t, &leftUn, rightUn, diffOptionsForTest()...)
 	assert.True(t, diffRes.Modified)
-	ascii, err := printDiff(diffRes)
+	ascii, err := printDiff(t.Context(), diffRes)
 	require.NoError(t, err)
 
 	assert.Contains(t, ascii, "invalidKey")
@@ -646,7 +646,7 @@ func TestSecretStringData(t *testing.T) {
 
 	dr := diff(t, &configUn, &liveUn, diffOptionsForTest()...)
 	if !assert.False(t, dr.Modified) {
-		ascii, err := printDiff(dr)
+		ascii, err := printDiff(t.Context(), dr)
 		require.NoError(t, err)
 		t.Log(ascii)
 	}
@@ -697,7 +697,7 @@ func TestNullSecretData(t *testing.T) {
 	liveUn := unmarshalFile("testdata/wordpress-live.json")
 	dr := diff(t, configUn, liveUn, diffOptionsForTest()...)
 	if !assert.False(t, dr.Modified) {
-		ascii, err := printDiff(dr)
+		ascii, err := printDiff(t.Context(), dr)
 		require.NoError(t, err)
 		t.Log(ascii)
 	}
@@ -716,7 +716,7 @@ func TestRedactedSecretData(t *testing.T) {
 	liveData["smtp-password"] = "++++++++++++"
 	dr := diff(t, configUn, liveUn, diffOptionsForTest()...)
 	if !assert.True(t, dr.Modified) {
-		ascii, err := printDiff(dr)
+		ascii, err := printDiff(t.Context(), dr)
 		require.NoError(t, err)
 		t.Log(ascii)
 	}
@@ -727,7 +727,7 @@ func TestNullRoleRule(t *testing.T) {
 	liveUn := unmarshalFile("testdata/grafana-clusterrole-live.json")
 	dr := diff(t, configUn, liveUn, diffOptionsForTest()...)
 	if !assert.False(t, dr.Modified) {
-		ascii, err := printDiff(dr)
+		ascii, err := printDiff(t.Context(), dr)
 		require.NoError(t, err)
 		t.Log(ascii)
 	}
@@ -738,7 +738,7 @@ func TestNullCreationTimestamp(t *testing.T) {
 	liveUn := unmarshalFile("testdata/sealedsecret-live.json")
 	dr := diff(t, configUn, liveUn, diffOptionsForTest()...)
 	if !assert.False(t, dr.Modified) {
-		ascii, err := printDiff(dr)
+		ascii, err := printDiff(t.Context(), dr)
 		require.NoError(t, err)
 		t.Log(ascii)
 	}
@@ -749,7 +749,7 @@ func TestUnsortedEndpoints(t *testing.T) {
 	liveUn := unmarshalFile("testdata/endpoints-live.json")
 	dr := diff(t, configUn, liveUn, diffOptionsForTest()...)
 	if !assert.False(t, dr.Modified) {
-		ascii, err := printDiff(dr)
+		ascii, err := printDiff(t.Context(), dr)
 		require.NoError(t, err)
 		t.Log(ascii)
 	}
@@ -891,10 +891,8 @@ func TestServerSideDiff(t *testing.T) {
 		manager := "argocd-controller"
 		dryRunner := mocks.NewServerSideDryRunner(t)
 
-		dryRunner.On("Run", mock.Anything, mock.AnythingOfType("*unstructured.Unstructured"), manager).
-			Return(func(_ context.Context, _ *unstructured.Unstructured, _ string) (string, error) {
-				return predictedLive, nil
-			})
+		dryRunner.EXPECT().Run(mock.Anything, mock.AnythingOfType("*unstructured.Unstructured"), manager).
+			Return(predictedLive, nil)
 		opts := []Option{
 			WithGVKParser(gvkParser),
 			WithManager(manager),
@@ -1105,6 +1103,66 @@ func TestServerSideDiff(t *testing.T) {
 
 		// Other fields should still be visible (not ignored)
 		assert.Contains(t, predictedLiveStr, "selector", "Other fields should remain visible")
+	})
+
+	t.Run("will preserve composite key fields during diff", func(t *testing.T) {
+		// given
+		t.Parallel()
+		liveState := StrToUnstructured(testdata.DeploymentCompositeKeyLiveYAMLSSD)
+		desiredState := StrToUnstructured(testdata.DeploymentCompositeKeyConfigYAMLSSD)
+		opts := buildOpts(testdata.DeploymentCompositeKeyPredictedLiveJSONSSD)
+
+		// when
+		result, err := serverSideDiff(desiredState, liveState, opts...)
+
+		// then
+		require.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.True(t, result.Modified)
+
+		predictedDeploy := YamlToDeploy(t, result.PredictedLive)
+		liveDeploy := YamlToDeploy(t, result.NormalizedLive)
+
+		// Verify the nginx container has all 3 ports in predicted live
+		assert.Len(t, predictedDeploy.Spec.Template.Spec.Containers, 2, "Should have 2 containers")
+		nginxContainer := predictedDeploy.Spec.Template.Spec.Containers[0]
+		assert.Equal(t, "nginx", nginxContainer.Name)
+		assert.Len(t, nginxContainer.Ports, 3, "nginx should have 3 ports in predicted")
+
+		// Verify live still has only 2 ports for nginx
+		liveNginxContainer := liveDeploy.Spec.Template.Spec.Containers[0]
+		assert.Len(t, liveNginxContainer.Ports, 2, "nginx should have 2 ports in live")
+
+		// Check that the new port 8080 has protocol field preserved (composite key field)
+		port8080Found := false
+		for _, port := range nginxContainer.Ports {
+			if port.ContainerPort == 8080 {
+				port8080Found = true
+				assert.Equal(t, "metrics", port.Name, "Port 8080 should have name 'metrics'")
+				assert.Equal(t, corev1.ProtocolTCP, port.Protocol, "Port 8080 protocol (composite key field) must be preserved from webhook")
+			}
+		}
+		assert.True(t, port8080Found, "Port 8080 should be present in predicted live")
+
+		// Verify existing ports still have their protocol (also composite key fields)
+		port80Found := false
+		port443Found := false
+		for _, port := range nginxContainer.Ports {
+			if port.ContainerPort == 80 {
+				port80Found = true
+				assert.Equal(t, corev1.ProtocolTCP, port.Protocol)
+			}
+			if port.ContainerPort == 443 {
+				port443Found = true
+				assert.Equal(t, corev1.ProtocolTCP, port.Protocol)
+			}
+		}
+		assert.True(t, port80Found, "Port 80 should be present")
+		assert.True(t, port443Found, "Port 443 should be present")
+
+		// Verify that mutation webhook changes are still filtered out from diff
+		assert.Empty(t, predictedDeploy.Annotations[AnnotationLastAppliedConfig])
+		assert.Empty(t, liveDeploy.Annotations[AnnotationLastAppliedConfig])
 	})
 }
 
@@ -1547,6 +1605,68 @@ metadata:
 	metadata := newUn.Object["metadata"].(map[string]any)
 	_, ok = metadata["creationTimestamp"]
 	assert.False(t, ok)
+}
+
+func TestRemarshalStatefulSetCreationTimestamp(t *testing.T) {
+	manifest := []byte(`
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: test-sts
+  creationTimestamp: "2025-11-06T19:35:31Z"
+spec:
+  serviceName: test
+  selector:
+    matchLabels:
+      app: test
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: test
+    spec:
+      containers:
+      - name: test
+        image: nginx
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+      creationTimestamp: null
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 1Gi
+`)
+	var un unstructured.Unstructured
+	require.NoError(t, yaml.Unmarshal(manifest, &un))
+
+	// Verify creationTimestamp exists in nested metadata before remarshal
+	spec := un.Object["spec"].(map[string]any)
+	templateMetadata := spec["template"].(map[string]any)["metadata"].(map[string]any)
+	_, ok := templateMetadata["creationTimestamp"]
+	assert.True(t, ok, "creationTimestamp should exist in template.metadata before remarshal")
+
+	volumeClaimTemplates := spec["volumeClaimTemplates"].([]any)
+	vctMetadata := volumeClaimTemplates[0].(map[string]any)["metadata"].(map[string]any)
+	_, ok = vctMetadata["creationTimestamp"]
+	assert.True(t, ok, "creationTimestamp should exist in volumeClaimTemplates[0].metadata before remarshal")
+
+	// Remarshal
+	newUn := remarshal(&un, applyOptions(diffOptionsForTest()))
+
+	// Verify creationTimestamp is removed from nested metadata after remarshal
+	// (top-level metadata.creationTimestamp is preserved as it's part of the resource identity)
+	spec = newUn.Object["spec"].(map[string]any)
+	templateMetadata = spec["template"].(map[string]any)["metadata"].(map[string]any)
+	_, ok = templateMetadata["creationTimestamp"]
+	assert.False(t, ok, "creationTimestamp should be removed from template.metadata after remarshal")
+
+	volumeClaimTemplates = spec["volumeClaimTemplates"].([]any)
+	vctMetadata = volumeClaimTemplates[0].(map[string]any)["metadata"].(map[string]any)
+	_, ok = vctMetadata["creationTimestamp"]
+	assert.False(t, ok, "creationTimestamp should be removed from volumeClaimTemplates[0].metadata after remarshal")
 }
 
 func TestRemarshalResources(t *testing.T) {
