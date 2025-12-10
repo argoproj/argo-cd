@@ -46,8 +46,8 @@ export function getAutoSyncStatus(syncPolicy?: SyncPolicy) {
 }
 
 export function getFilterResults(applications: Application[], pref: AppsListPreferences): FilteredApp[] {
-    const labelSelector = createMetadataSelector(pref.labelsFilter || [], 'label');
-    const annotationSelector = createMetadataSelector(pref.annotationsFilter || [], 'annotation');
+    const labelSelector = createMetadataSelector(pref.labelsFilter || []);
+    const annotationSelector = createMetadataSelector(pref.annotationsFilter || []);
 
     return applications.map(app => ({
         ...app,
@@ -173,15 +173,7 @@ const LabelsFilter = (props: AppFilterProps) => {
         return {label: s};
     });
 
-    return (
-        <Filter
-            label='LABELS'
-            selected={props.pref.labelsFilter}
-            setSelected={s => props.onChange({...props.pref, labelsFilter: s})}
-            field={true}
-            options={labelOptions}
-        />
-    );
+    return <Filter label='LABELS' selected={props.pref.labelsFilter} setSelected={s => props.onChange({...props.pref, labelsFilter: s})} field={true} options={labelOptions} />;
 };
 
 const AnnotationsFilter = (props: AppFilterProps) => {

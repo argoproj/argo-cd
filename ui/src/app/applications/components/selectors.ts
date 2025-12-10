@@ -9,7 +9,7 @@ export interface Selector {
  * Create a metadata selector that can be used for both labels and annotations
  * Reuses existing LabelSelector functionality including all operators (==, !=, in, notin, gt, lt)
  */
-export const createMetadataSelector = (selectors: string[], type: 'label' | 'annotation') => {
+export const createMetadataSelector = (selectors: string[]) => {
     return (metadata: Record<string, string> | undefined): boolean => {
         return selectors.every(selector => LabelSelector.match(selector, metadata || {}));
     };
@@ -20,12 +20,11 @@ export const createMetadataSelector = (selectors: string[], type: 'label' | 'ann
  * using the powerful LabelSelector functionality for both
  */
 export const createAppFilter = (pref: any) => {
-    const labelSelector = createMetadataSelector(pref.labelsFilter || [], 'label');
-    const annotationSelector = createMetadataSelector(pref.annotationsFilter || [], 'annotation');
+    const labelSelector = createMetadataSelector(pref.labelsFilter || []);
+    const annotationSelector = createMetadataSelector(pref.annotationsFilter || []);
 
     return (app: Application): boolean => {
-        return labelSelector(app.metadata.labels) &&
-               annotationSelector(app.metadata.annotations);
+        return labelSelector(app.metadata.labels) && annotationSelector(app.metadata.annotations);
     };
 };
 
