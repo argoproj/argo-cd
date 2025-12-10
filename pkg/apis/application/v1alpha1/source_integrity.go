@@ -7,8 +7,7 @@ import (
 
 type SourceIntegrity struct {
 	// Git - policies for git source verification
-	// Mandatory field until there are alternatives
-	Git *SourceIntegrityGit `json:"git" protobuf:"bytes,1,name=git"`
+	Git *SourceIntegrityGit `json:"git" protobuf:"bytes,1,name=git"` // A mandatory field until there are alternatives
 }
 
 type SourceIntegrityGit struct {
@@ -16,9 +15,10 @@ type SourceIntegrityGit struct {
 }
 
 type SourceIntegrityGitPolicy struct {
+	// List of repository glob patterns restricting repositories the policy will apply to
 	Repos []string `json:"repos" protobuf:"bytes,1,name=repos"`
-	// A mandatory field until there are alternatives
-	GPG *SourceIntegrityGitPolicyGPG `json:"gpg" protobuf:"bytes,2,name=gpg"`
+	// Verify GPG commit/tag signatures
+	GPG *SourceIntegrityGitPolicyGPG `json:"gpg" protobuf:"bytes,2,name=gpg"` // A mandatory field until there are alternatives
 }
 
 type SourceIntegrityGitPolicyGPGMode string
@@ -45,7 +45,8 @@ var (
 // with gpg keys that are in the keyring, but not listed in Keys.
 type SourceIntegrityGitPolicyGPG struct {
 	Mode SourceIntegrityGitPolicyGPGMode `json:"mode" protobuf:"bytes,1,name=mode"`
-	Keys []string                        `json:"keys" protobuf:"bytes,3,name=keys"`
+	// List of key IDs to trust. The keys need to be in the repository server keyring.
+	Keys []string `json:"keys" protobuf:"bytes,3,name=keys"`
 }
 
 // TODO how to indicate partial integrity with multi-source apps? How to point to given source?

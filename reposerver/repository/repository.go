@@ -17,9 +17,10 @@ import (
 	"time"
 
 	"github.com/TomOnTime/utfutil"
-	"github.com/argoproj/argo-cd/v3/util/sourceintegrity"
 	imagev1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"sigs.k8s.io/yaml"
+
+	"github.com/argoproj/argo-cd/v3/util/sourceintegrity"
 
 	"github.com/argoproj/argo-cd/v3/util/oci"
 
