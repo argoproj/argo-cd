@@ -173,7 +173,15 @@ const LabelsFilter = (props: AppFilterProps) => {
         return {label: s};
     });
 
-    return <Filter label='LABELS' selected={props.pref.labelsFilter} setSelected={s => props.onChange({...props.pref, labelsFilter: s})} field={true} options={labelOptions} />;
+    return (
+        <Filter
+            label='LABELS'
+            selected={props.pref.labelsFilter}
+            setSelected={s => props.onChange({...props.pref, labelsFilter: s})}
+            field={true}
+            options={labelOptions}
+        />
+    );
 };
 
 const AnnotationsFilter = (props: AppFilterProps) => {
@@ -199,7 +207,15 @@ const AnnotationsFilter = (props: AppFilterProps) => {
         return {label: s};
     });
 
-    return <Filter label='ANNOTATIONS' selected={props.pref.annotationsFilter} setSelected={s => props.onChange({...props.pref, annotationsFilter: s})} field={true} options={annotationOptions} />;
+    return (
+        <Filter
+            label='ANNOTATIONS'
+            selected={props.pref.annotationsFilter}
+            setSelected={s => props.onChange({...props.pref, annotationsFilter: s})}
+            field={true}
+            options={annotationOptions}
+        />
+    );
 };
 
 const ProjectFilter = (props: AppFilterProps) => {

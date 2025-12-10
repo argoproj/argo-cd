@@ -1,5 +1,5 @@
 import * as LabelSelector from './label-selector';
-import { Application } from '../../shared/models';
+import {Application} from '../../shared/models';
 
 export interface Selector {
     match(resource: Record<string, string> | undefined): boolean;
@@ -32,7 +32,7 @@ export const createAppFilter = (pref: any) => {
 /**
  * Backward compatibility: maintain existing LabelSelector functionality
  */
-export { LabelSelector };
+export {LabelSelector};
 
 /**
  * Test cases for annotation filtering
