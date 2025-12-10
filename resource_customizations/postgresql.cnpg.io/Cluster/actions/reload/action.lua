@@ -5,5 +5,6 @@ end
 if obj.metadata.annotations == nil then
     obj.metadata.annotations = {}
 end
-    obj.metadata.annotations["cnpg.io/reloadedAt"] = os.date("!%Y-%m-%dT%XZ")
+
+obj.metadata.annotations["cnpg.io/reloadedAt"] = os.date("!%Y-%m-%dT%XZ")
 return obj

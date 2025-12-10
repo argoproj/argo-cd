@@ -83,10 +83,7 @@ func (t testNormalizer) Normalize(un *unstructured.Unstructured) error {
 		}
 	case "postgresql.cnpg.io":
 		if un.GetKind() == "Cluster" {
-			if err := unstructured.SetNestedStringMap(un.Object, map[string]string{"cnpg.io/reloadedAt": "0001-01-01T00:00:00Z"}, "metadata", "annotations"); err != nil {
-				return fmt.Errorf("failed to normalize %s: %w", un.GetKind(), err)
-			}
-			if err := unstructured.SetNestedStringMap(un.Object, map[string]string{"kubectl.kubernetes.io/restartedAt": "0001-01-01T00:00:00Z"}, "metadata", "annotations"); err != nil {
+			if err := unstructured.SetNestedStringMap(un.Object, map[string]string{"cnpg.io/reloadedAt": "0001-01-01T00:00:00Z", "kubectl.kubernetes.io/restartedAt": "0001-01-01T00:00:00Z"}, "metadata", "annotations"); err != nil {
 				return fmt.Errorf("failed to normalize %s: %w", un.GetKind(), err)
 			}
 			if err := unstructured.SetNestedField(un.Object, nil, "status", "targetPrimaryTimestamp"); err != nil {

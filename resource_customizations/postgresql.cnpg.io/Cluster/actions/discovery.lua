@@ -16,7 +16,7 @@ actions["promote"] = {
             ["name"] = "instance",
             ["default"] = "any"
         }
-    }   
+    }
 }
 
 -- Check if reconciliation is currently suspended
