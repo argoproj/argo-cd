@@ -1,8 +1,10 @@
 package generators
 
 import (
+	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -11,10 +13,11 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	dynfake "k8s.io/client-go/dynamic/fake"
+	"k8s.io/client-go/dynamic/fake"
 	kubefake "k8s.io/client-go/kubernetes/fake"
+	"k8s.io/client-go/tools/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	crfake "sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/settings"
@@ -292,11 +295,18 @@ func TestGenerateParamsForDuckType(t *testing.T) {
 				Resource: "ducks",
 			}: "DuckList"}
 
-			fakeDynClient := dynfake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), gvrToListKind, testCase.resource)
-			fakeClient := fake.NewClientBuilder().WithObjects(clusters...).Build()
+			fakeDynClient := fake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), gvrToListKind, testCase.resource)
+			fakeClient := crfake.NewClientBuilder().WithObjects(clusters...).Build()
 
 			clusterInformer, err := settings.NewClusterInformer(appClientset, "namespace")
 			require.NoError(t, err)
+
+			ctx, cancel := context.WithCancel(t.Context())
+			defer cancel()
+			go clusterInformer.Run(ctx.Done())
+			if !cache.WaitForCacheSync(ctx.Done(), clusterInformer.HasSynced) {
+				t.Fatal("Timed out waiting for caches to sync")
+			}
 
 			duckTypeGenerator := NewDuckTypeGenerator(t.Context(), fakeClient, fakeDynClient, appClientset, "namespace", clusterInformer)
 
@@ -592,11 +602,20 @@ func TestGenerateParamsForDuckTypeGoTemplate(t *testing.T) {
 				Resource: "ducks",
 			}: "DuckList"}
 
-			fakeDynClient := dynfake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), gvrToListKind, testCase.resource)
-			fakeClient := fake.NewClientBuilder().WithObjects(clusters...).Build()
+			fakeDynClient := fake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), gvrToListKind, testCase.resource)
+			fakeClient := crfake.NewClientBuilder().WithObjects(clusters...).Build()
 
 			clusterInformer, err := settings.NewClusterInformer(appClientset, "namespace")
 			require.NoError(t, err)
+
+			ctx, cancel := context.WithCancel(t.Context())
+			defer cancel()
+			go clusterInformer.Run(ctx.Done())
+			if !cache.WaitForCacheSync(ctx.Done(), clusterInformer.HasSynced) {
+				t.Fatal("Timed out waiting for caches to sync")
+			}
+			// Give informer a moment to fully populate
+			time.Sleep(100 * time.Millisecond)
 
 			duckTypeGenerator := NewDuckTypeGenerator(t.Context(), fakeClient, fakeDynClient, appClientset, "namespace", clusterInformer)
 
