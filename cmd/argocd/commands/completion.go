@@ -223,6 +223,19 @@ $ source _argocd
 $ argocd completion fish > ~/.config/fish/completions/argocd.fish
 $ source ~/.config/fish/completions/argocd.fish
 
+# For powershell
+$ mkdir -Force "$HOME\Documents\PowerShell" | Out-Null
+$ argocd completion powershell > $HOME\Documents\PowerShell\argocd_completion.ps1
+
+Add the following lines to your powershell profile
+
+$ # ArgoCD tab completion
+if (Test-Path "$HOME\Documents\PowerShell\argocd_completion.ps1") {
+    . "$HOME\Documents\PowerShell\argocd_completion.ps1"
+}
+
+Then reload your profile
+$ . $PROFILE
 `,
 		Run: func(cmd *cobra.Command, args []string) {
 			if len(args) != 1 {
@@ -233,9 +246,10 @@ $ source ~/.config/fish/completions/argocd.fish
 			rootCommand := NewCommand()
 			rootCommand.BashCompletionFunction = bashCompletionFunc
 			availableCompletions := map[string]func(out io.Writer, cmd *cobra.Command) error{
-				"bash": runCompletionBash,
-				"zsh":  runCompletionZsh,
-				"fish": runCompletionFish,
+				"bash":       runCompletionBash,
+				"zsh":        runCompletionZsh,
+				"fish":       runCompletionFish,
+				"powershell": runCompletionPowershell,
 			}
 			completion, ok := availableCompletions[shell]
 			if !ok {
@@ -261,4 +275,8 @@ func runCompletionZsh(out io.Writer, cmd *cobra.Command) error {
 
 func runCompletionFish(out io.Writer, cmd *cobra.Command) error {
 	return cmd.GenFishCompletion(out, true)
+}
+
+func runCompletionPowershell(out io.Writer, cmd *cobra.Command) error {
+	return cmd.GenPowerShellCompletionWithDesc(out)
 }
