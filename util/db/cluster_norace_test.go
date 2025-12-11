@@ -68,7 +68,7 @@ func TestWatchClusters_CreateRemoveCluster(t *testing.T) {
 		},
 		func(old *v1alpha1.Cluster, new *v1alpha1.Cluster) {
 			assert.Nil(t, new)
-			assert.Equal(t, "https://minikube", old.Server)
+			assert.Equal(t, "https://minikubeminikube", old.Server)
 		},
 	})
 	assert.True(t, completed, "Failed due to timeout")

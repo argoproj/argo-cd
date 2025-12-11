@@ -143,7 +143,7 @@ type ClusterEvent struct {
 func (db *db) WatchClusters(ctx context.Context,
 	handleAddEvent func(cluster *appv1.Cluster),
 	handleModEvent func(oldCluster *appv1.Cluster, newCluster *appv1.Cluster),
-	handleDeleteEvent func(clusterServer string),
+	handleDeleteEvent func(clusterServerName string),
 ) error {
 	argoSettings, err := db.settingsMgr.GetSettings()
 	if err != nil {
@@ -204,7 +204,7 @@ func (db *db) WatchClusters(ctx context.Context,
 				handleModEvent(localCls, newLocalCls)
 				localCls = newLocalCls
 			} else {
-				handleDeleteEvent(string(secret.Data["server"]))
+				handleDeleteEvent(string(secret.Data["server"]) + string(secret.Data["name"]))
 			}
 		},
 	)
@@ -255,6 +255,48 @@ func (db *db) GetCluster(_ context.Context, server string) (*appv1.Cluster, erro
 	}
 
 	return cluster, nil
+}
+
+// GetClusterByServerAndName returns a cluster by server and name
+func (db *db) GetClusterByServerAndName(_ context.Context, server string, name string) (*appv1.Cluster, error) {
+	if server == appv1.KubernetesInternalAPIServerAddr {
+		clusterInformer := db.settingsMgr.GetClusterInformer()
+		argoSettings, err := db.settingsMgr.GetSettings()
+		if err != nil {
+			return nil, err
+		}
+		if !argoSettings.InClusterEnabled {
+			return nil, status.Errorf(codes.NotFound, "cluster %q is disabled", server)
+		}
+
+		// Check if there's a secret configured for the in-cluster address
+		// If so, use that instead of the hardcoded local cluster
+		cluster, err := clusterInformer.GetClusterByURL(server)
+		if err == nil {
+			return cluster, nil
+		}
+
+		// Fall back to the hardcoded local cluster if no secret is configured
+		return db.getLocalCluster(), nil
+	}
+
+	secretInformer, err := db.settingsMgr.GetSecretsInformer()
+	if err != nil {
+		return nil, err
+	}
+	res, err := secretInformer.GetIndexer().ByIndex(settings.ByClusterURLIndexer, server)
+	if err != nil {
+		return nil, err
+	}
+
+	for i := range res {
+		s := res[i].(*corev1.Secret)
+		if string(s.Data["name"]) == name {
+			return SecretToCluster(s)
+		}
+	}
+
+	return nil, status.Errorf(codes.NotFound, "cluster %q with name %q not found", server, name)
 }
 
 // GetProjectClusters return project scoped clusters by given project name
