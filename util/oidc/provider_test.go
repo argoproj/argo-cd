@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -147,6 +148,16 @@ func TestVerifyJWT(t *testing.T) {
 			jwtConfig: &settings.JWTConfig{Issuer: ""}, // Override base config
 			claims:    map[string]any{"iss": nil},
 		},
+		{
+			name:      "Valid Token with groups claim",
+			jwtConfig: &settings.JWTConfig{GroupsClaim: "groups"}, // Override base config
+			claims:    map[string]any{"groups": []string{"group1", "group2"}},
+		},
+		{
+			name:      "Valid Token with nested groups claim",
+			jwtConfig: &settings.JWTConfig{GroupsClaim: "nested.groups"}, // Override base config
+			claims:    map[string]any{"nested": map[string]any{"groups": []string{"group1", "group2"}}},
+		},
 		// --- Failure Cases: Claims ---
 		{
 			name:          "Invalid Audience Claim",
@@ -262,6 +273,9 @@ func TestVerifyJWT(t *testing.T) {
 				if tt.jwtConfig.UsernameClaim != "" {
 					currentJwtConfig.UsernameClaim = tt.jwtConfig.UsernameClaim
 				}
+				if tt.jwtConfig.GroupsClaim != "" {
+					currentJwtConfig.GroupsClaim = tt.jwtConfig.GroupsClaim
+				}
 				// Add other fields if needed
 			}
 
@@ -317,6 +331,21 @@ func TestVerifyJWT(t *testing.T) {
 				}
 				if currentJwtConfig.UsernameClaim != "" && currentClaims[currentJwtConfig.UsernameClaim] != nil {
 					require.Contains(t, claims, currentJwtConfig.UsernameClaim, "Username claim missing")
+				}
+				if currentJwtConfig.GroupsClaim != "" {
+					groupsPath := strings.Split(currentJwtConfig.GroupsClaim, ".")
+					if currentClaims[groupsPath[0]] != nil {
+						// groups were extracted
+						require.Contains(t, claims, "groups", "Groups claim missing")
+						// groups match
+						var expectedGroups []string
+						if len(groupsPath) > 1 {
+							expectedGroups = currentClaims[groupsPath[0]].(map[string]any)[groupsPath[1]].([]string)
+						} else {
+							expectedGroups = currentClaims[groupsPath[0]].([]string)
+						}
+						require.Equal(t, expectedGroups, claims["groups"], "Groups claim value mismatch")
+					}
 				}
 				t.Logf("JWT verified successfully.")
 			}

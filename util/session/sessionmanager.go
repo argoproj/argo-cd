@@ -592,7 +592,7 @@ func (mgr *SessionManager) VerifyToken(ctx context.Context, tokenString string) 
 			token, jwtErr := prov.VerifyJWT(ctx, tokenString, argoSettings)
 			if jwtErr == nil {
 				// Successfully verified as JWT via JWKS URL
-				log.Debugf("Token verified using JWT config (JWKS URL), claims: %v", token.Claims)
+				log.Debug("Token verified using JWT config (JWKS URL)")
 				return token.Claims, "", nil
 			}
 			// Log the JWT verification failure and continue to other methods
@@ -735,7 +735,6 @@ func Groups(ctx context.Context, scopes []string) []string { // Added settingsMg
 	}
 	// Group extraction, includes JWT groups if set
 	groups := jwtutil.GetGroups(mapClaims, scopes)
-	log.Printf("Extracted groups from token claims: %v", groups)
 	return groups
 }
 

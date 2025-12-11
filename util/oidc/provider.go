@@ -306,15 +306,19 @@ func (p *providerImpl) VerifyJWT(ctx context.Context, tokenString string, argoSe
 
 	// Parse groups and set claim for later handling at "groups" scope
 	if argoSettings.JWTConfig.GroupsClaim != "" {
-		if groups, ok := claims[argoSettings.JWTConfig.GroupsClaim].([]interface{}); ok {
-			stringGroups := make([]string, 0, len(groups))
-			for _, group := range groups {
-				if groupStr, ok := group.(string); ok {
-					stringGroups = append(stringGroups, groupStr)
+		if groups, ok := getNestedClaim(claims, argoSettings.JWTConfig.GroupsClaim); ok {
+			// groups should be an array of strings...
+			if groupsSlice, ok := groups.([]any); ok {
+				stringGroups := make([]string, 0, len(groupsSlice))
+				for _, group := range groupsSlice {
+					if groupStr, ok := group.(string); ok {
+						stringGroups = append(stringGroups, groupStr)
+					}
 				}
+				claims["groups"] = stringGroups
 			}
-			// set groups claim
-			claims["groups"] = stringGroups
+		} else {
+			log.Warnf("Groups claim %q not found in JWT", argoSettings.JWTConfig.GroupsClaim)
 		}
 	}
 
@@ -417,4 +421,31 @@ func ParseConfig(provider *gooidc.Provider) (*OIDCConfiguration, error) {
 		return nil, err
 	}
 	return &conf, nil
+}
+
+// getNestedClaim retrieves a value from a nested map using a dot-separated path.
+// For example, given path "user.profile.name", it will traverse:
+// data["user"]["profile"]["name"]
+// Returns the value and true if found, nil and false otherwise.
+func getNestedClaim(data map[string]any, path string) (any, bool) {
+	keys := strings.Split(path, ".")
+	var current any = data
+
+	for i, key := range keys {
+		currentMap, ok := current.(map[string]any)
+		if !ok {
+			return nil, false
+		}
+
+		value, exists := currentMap[key]
+		if !exists {
+			return nil, false
+		}
+
+		if i == len(keys)-1 {
+			return value, true
+		}
+		current = value
+	}
+	return nil, false
 }
