@@ -45,6 +45,8 @@ func ListClusters(clusterInformer *settings.ClusterInformer) ([]ClusterSpecifier
 	}
 
 	if !hasInCluster {
+		// There was no secret for the in-cluster config, so we add it here. We don't fully-populate the Cluster struct,
+		// since only the name and server fields are used by the generator.
 		clusterList = append(clusterList, ClusterSpecifier{
 			Name:   appv1.KubernetesInClusterName,
 			Server: appv1.KubernetesInternalAPIServerAddr,
