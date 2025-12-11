@@ -214,9 +214,6 @@ func (g *PullRequestGenerator) selectServiceProvider(ctx context.Context, genera
 	}
 	if generatorConfig.AzureDevOps != nil {
 		providerConfig := generatorConfig.AzureDevOps
-		if providerConfig.UseWorkloadIdentity {
-			return pullrequest.NewAzureDevOpsServiceWithWorkloadIdentity(providerConfig)
-		}
 		token, err := utils.GetSecretRef(ctx, g.client, providerConfig.TokenRef, applicationSetInfo.Namespace, g.tokenRefStrictMode)
 		if err != nil {
 			return nil, fmt.Errorf("error fetching Secret token: %w", err)

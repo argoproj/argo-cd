@@ -32,6 +32,18 @@ func createTestAzureDevOpsConfig(api, organization, project, repo string, labels
 	}
 }
 
+// Helper function to create test Azure DevOps config with workload identity
+func createTestAzureDevOpsConfigWithWorkloadIdentity(api, organization, project, repo string, labels []string, useWorkloadIdentity bool) *argoprojiov1alpha1.PullRequestGeneratorAzureDevOps {
+	return &argoprojiov1alpha1.PullRequestGeneratorAzureDevOps{
+		API:                 api,
+		Organization:        organization,
+		Project:             project,
+		Repo:                repo,
+		Labels:              labels,
+		UseWorkloadIdentity: useWorkloadIdentity,
+	}
+}
+
 func createStringPtr(x string) *string {
 	return &x
 }
@@ -312,69 +324,6 @@ func TestWorkloadIdentityAuthProvider(t *testing.T) {
 	assert.True(t, ok, "Expected devopsWorkloadIdentityFactory")
 }
 
-func TestNewAzureDevOpsServiceWithAuthProvider(t *testing.T) {
-	t.Run("with PatAuthProvider", func(t *testing.T) {
-		provider := NewPatAuthProvider("test-token")
-		config := createTestAzureDevOpsConfig("", "testorg", "testproject", "testrepo", nil)
-		service, err := NewAzureDevOpsServiceWithAuthProvider(config, provider)
-
-		require.NoError(t, err)
-		assert.NotNil(t, service)
-
-		azureService, ok := service.(*AzureDevOpsService)
-		assert.True(t, ok, "Expected AzureDevOpsService")
-		assert.Equal(t, "testproject", azureService.project)
-		assert.Equal(t, "testrepo", azureService.repo)
-		assert.NotNil(t, azureService.clientFactory)
-	})
-
-	t.Run("with AnonymousAuthProvider", func(t *testing.T) {
-		provider := NewAnonymousAuthProvider()
-		config := createTestAzureDevOpsConfig("", "testorg", "testproject", "testrepo", nil)
-		service, err := NewAzureDevOpsServiceWithAuthProvider(config, provider)
-
-		require.NoError(t, err)
-		assert.NotNil(t, service)
-
-		azureService, ok := service.(*AzureDevOpsService)
-		assert.True(t, ok, "Expected AzureDevOpsService")
-		assert.Equal(t, "testproject", azureService.project)
-		assert.Equal(t, "testrepo", azureService.repo)
-		assert.NotNil(t, azureService.clientFactory)
-	})
-
-	t.Run("with WorkloadIdentityAuthProvider", func(t *testing.T) {
-		provider := NewWorkloadIdentityAuthProvider()
-		config := createTestAzureDevOpsConfig("", "testorg", "testproject", "testrepo", nil)
-		service, err := NewAzureDevOpsServiceWithAuthProvider(config, provider)
-
-		require.NoError(t, err)
-		assert.NotNil(t, service)
-
-		azureService, ok := service.(*AzureDevOpsService)
-		assert.True(t, ok, "Expected AzureDevOpsService")
-		assert.Equal(t, "testproject", azureService.project)
-		assert.Equal(t, "testrepo", azureService.repo)
-		assert.NotNil(t, azureService.clientFactory)
-	})
-
-	t.Run("with custom URL", func(t *testing.T) {
-		provider := NewPatAuthProvider("test-token")
-		config := createTestAzureDevOpsConfig("https://custom.azure.com", "testorg", "testproject", "testrepo", []string{"label1"})
-		service, err := NewAzureDevOpsServiceWithAuthProvider(config, provider)
-
-		require.NoError(t, err)
-		assert.NotNil(t, service)
-
-		azureService, ok := service.(*AzureDevOpsService)
-		assert.True(t, ok, "Expected AzureDevOpsService")
-		assert.Equal(t, "testproject", azureService.project)
-		assert.Equal(t, "testrepo", azureService.repo)
-		assert.Equal(t, []string{"label1"}, azureService.labels)
-		assert.NotNil(t, azureService.clientFactory)
-	})
-}
-
 func TestNewAzureDevOpsServiceUpdatedBehavior(t *testing.T) {
 	t.Run("with token uses PatAuthProvider", func(t *testing.T) {
 		config := createTestAzureDevOpsConfig("", "testorg", "testproject", "testrepo", nil)
@@ -403,42 +352,42 @@ func TestNewAzureDevOpsServiceUpdatedBehavior(t *testing.T) {
 		assert.Equal(t, "testrepo", azureService.repo)
 		assert.NotNil(t, azureService.clientFactory)
 	})
-}
 
-func TestNewAzureDevOpsServiceWithWorkloadIdentityUpdated(t *testing.T) {
-	config := createTestAzureDevOpsConfig("", "testorg", "testproject", "testrepo", nil)
-	service, err := NewAzureDevOpsServiceWithWorkloadIdentity(config)
+	t.Run("UseWorkloadIdentity=true with token uses WorkloadIdentityAuthProvider", func(t *testing.T) {
+		config := createTestAzureDevOpsConfigWithWorkloadIdentity("", "testorg", "testproject", "testrepo", nil, true)
+		service, err := NewAzureDevOpsService("test-token", config)
 
-	require.NoError(t, err)
-	assert.NotNil(t, service)
+		require.NoError(t, err)
+		assert.NotNil(t, service)
 
-	azureService, ok := service.(*AzureDevOpsService)
-	assert.True(t, ok, "Expected AzureDevOpsService")
-	assert.Equal(t, "testproject", azureService.project)
-	assert.Equal(t, "testrepo", azureService.repo)
-	assert.NotNil(t, azureService.clientFactory)
+		azureService, ok := service.(*AzureDevOpsService)
+		assert.True(t, ok, "Expected AzureDevOpsService")
+		assert.Equal(t, "testproject", azureService.project)
+		assert.Equal(t, "testrepo", azureService.repo)
+		assert.NotNil(t, azureService.clientFactory)
 
-	// Verify it uses workload identity factory
-	_, ok = azureService.clientFactory.(*devopsWorkloadIdentityFactory)
-	assert.True(t, ok, "Expected devopsWorkloadIdentityFactory")
-}
+		// Verify it uses workload identity factory even when token is provided
+		_, ok = azureService.clientFactory.(*devopsWorkloadIdentityFactory)
+		assert.True(t, ok, "Expected devopsWorkloadIdentityFactory")
+	})
 
-func TestNewAzureDevOpsServiceAnonymous(t *testing.T) {
-	config := createTestAzureDevOpsConfig("", "testorg", "testproject", "testrepo", nil)
-	service, err := NewAzureDevOpsServiceAnonymous(config)
+	t.Run("UseWorkloadIdentity=false with token uses PatAuthProvider", func(t *testing.T) {
+		config := createTestAzureDevOpsConfigWithWorkloadIdentity("", "testorg", "testproject", "testrepo", nil, false)
+		service, err := NewAzureDevOpsService("test-token", config)
 
-	require.NoError(t, err)
-	assert.NotNil(t, service)
+		require.NoError(t, err)
+		assert.NotNil(t, service)
 
-	azureService, ok := service.(*AzureDevOpsService)
-	assert.True(t, ok, "Expected AzureDevOpsService")
-	assert.Equal(t, "testproject", azureService.project)
-	assert.Equal(t, "testrepo", azureService.repo)
-	assert.NotNil(t, azureService.clientFactory)
+		azureService, ok := service.(*AzureDevOpsService)
+		assert.True(t, ok, "Expected AzureDevOpsService")
+		assert.Equal(t, "testproject", azureService.project)
+		assert.Equal(t, "testrepo", azureService.repo)
+		assert.NotNil(t, azureService.clientFactory)
 
-	// Verify it uses regular factory (for anonymous connection)
-	_, ok = azureService.clientFactory.(*devopsFactoryImpl)
-	assert.True(t, ok, "Expected devopsFactoryImpl")
+		// Verify it uses regular factory when UseWorkloadIdentity=false
+		_, ok = azureService.clientFactory.(*devopsFactoryImpl)
+		assert.True(t, ok, "Expected devopsFactoryImpl")
+	})
 }
 
 func TestAuthProviderInterface(t *testing.T) {
