@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -19,6 +20,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	kubefake "k8s.io/client-go/kubernetes/fake"
+	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	crtclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -1205,6 +1207,9 @@ func TestRemoveFinalizerOnInvalidDestination_FinalizerTypes(t *testing.T) {
 			_ = settingsMgr.ResyncInformers()
 			argodb := db.NewDB("argocd", settingsMgr, kubeclientset)
 
+			clusterInformer, err := settings.NewClusterInformer(kubeclientset, "namespace")
+			require.NoError(t, err)
+
 			r := ApplicationSetReconciler{
 				Client:        client,
 				Scheme:        scheme,
@@ -1213,7 +1218,7 @@ func TestRemoveFinalizerOnInvalidDestination_FinalizerTypes(t *testing.T) {
 				Metrics:       metrics,
 				ArgoDB:        argodb,
 			}
-			clusterList, err := utils.ListClusters(t.Context(), client, "namespace")
+			clusterList, err := utils.ListClusters(clusterInformer)
 			require.NoError(t, err)
 
 			appLog := log.WithFields(applog.GetAppLogFields(&app)).WithField("appSet", "")
@@ -1366,6 +1371,9 @@ func TestRemoveFinalizerOnInvalidDestination_DestinationTypes(t *testing.T) {
 			_ = settingsMgr.ResyncInformers()
 			argodb := db.NewDB("argocd", settingsMgr, kubeclientset)
 
+			clusterInformer, err := settings.NewClusterInformer(kubeclientset, "argocd")
+			require.NoError(t, err)
+
 			r := ApplicationSetReconciler{
 				Client:        client,
 				Scheme:        scheme,
@@ -1375,7 +1383,7 @@ func TestRemoveFinalizerOnInvalidDestination_DestinationTypes(t *testing.T) {
 				ArgoDB:        argodb,
 			}
 
-			clusterList, err := utils.ListClusters(t.Context(), client, "argocd")
+			clusterList, err := utils.ListClusters(clusterInformer)
 			require.NoError(t, err)
 
 			appLog := log.WithFields(applog.GetAppLogFields(&app)).WithField("appSet", "")
@@ -1794,12 +1802,17 @@ func TestDeleteInCluster(t *testing.T) {
 		client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
 		metrics := appsetmetrics.NewFakeAppsetMetrics()
 
+		kubeclientset := kubefake.NewClientset()
+		clusterInformer, err := settings.NewClusterInformer(kubeclientset, "namespace")
+		require.NoError(t, err)
+
 		r := ApplicationSetReconciler{
-			Client:        client,
-			Scheme:        scheme,
-			Recorder:      record.NewFakeRecorder(len(initObjs) + len(c.expected)),
-			KubeClientset: kubefake.NewClientset(),
-			Metrics:       metrics,
+			Client:          client,
+			Scheme:          scheme,
+			Recorder:        record.NewFakeRecorder(len(initObjs) + len(c.expected)),
+			KubeClientset:   kubeclientset,
+			Metrics:         metrics,
+			ClusterInformer: clusterInformer,
 		}
 
 		err = r.deleteInCluster(t.Context(), log.NewEntry(log.StandardLogger()), c.appSet, c.desiredApps)
@@ -2175,6 +2188,9 @@ func TestReconcilerValidationProjectErrorBehaviour(t *testing.T) {
 
 	argodb := db.NewDB("argocd", settings.NewSettingsManager(t.Context(), kubeclientset, "argocd"), kubeclientset)
 
+	clusterInformer, err := settings.NewClusterInformer(kubeclientset, "argocd")
+	require.NoError(t, err)
+
 	r := ApplicationSetReconciler{
 		Client:   client,
 		Scheme:   scheme,
@@ -2188,6 +2204,7 @@ func TestReconcilerValidationProjectErrorBehaviour(t *testing.T) {
 		Policy:          v1alpha1.ApplicationsSyncPolicySync,
 		ArgoCDNamespace: "argocd",
 		Metrics:         metrics,
+		ClusterInformer: clusterInformer,
 	}
 
 	req := ctrl.Request{
@@ -2751,6 +2768,15 @@ func applicationsUpdateSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 	metrics := appsetmetrics.NewFakeAppsetMetrics()
 
 	argodb := db.NewDB("argocd", settings.NewSettingsManager(t.Context(), kubeclientset, "argocd"), kubeclientset)
+	clusterInformer, err := settings.NewClusterInformer(kubeclientset, "argocd")
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	go clusterInformer.Run(ctx.Done())
+	if !cache.WaitForCacheSync(ctx.Done(), clusterInformer.HasSynced) {
+		t.Fatal("Timed out waiting for caches to sync")
+	}
 
 	r := ApplicationSetReconciler{
 		Client:   client,
@@ -2766,6 +2792,7 @@ func applicationsUpdateSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 		Policy:               v1alpha1.ApplicationsSyncPolicySync,
 		EnablePolicyOverride: allowPolicyOverride,
 		Metrics:              metrics,
+		ClusterInformer:      clusterInformer,
 	}
 
 	req := ctrl.Request{
@@ -2929,6 +2956,16 @@ func applicationsDeleteSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 
 	argodb := db.NewDB("argocd", settings.NewSettingsManager(t.Context(), kubeclientset, "argocd"), kubeclientset)
 
+	clusterInformer, err := settings.NewClusterInformer(kubeclientset, "argocd")
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	go clusterInformer.Run(ctx.Done())
+	if !cache.WaitForCacheSync(ctx.Done(), clusterInformer.HasSynced) {
+		t.Fatal("Timed out waiting for caches to sync")
+	}
+
 	r := ApplicationSetReconciler{
 		Client:   client,
 		Scheme:   scheme,
@@ -2943,6 +2980,7 @@ func applicationsDeleteSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 		Policy:               v1alpha1.ApplicationsSyncPolicySync,
 		EnablePolicyOverride: allowPolicyOverride,
 		Metrics:              metrics,
+		ClusterInformer:      clusterInformer,
 	}
 
 	req := ctrl.Request{
@@ -3120,6 +3158,16 @@ func TestPolicies(t *testing.T) {
 
 			argodb := db.NewDB("argocd", settings.NewSettingsManager(t.Context(), kubeclientset, "argocd"), kubeclientset)
 
+			clusterInformer, err := settings.NewClusterInformer(kubeclientset, "argocd")
+			require.NoError(t, err)
+
+			ctx, cancel := context.WithCancel(t.Context())
+			defer cancel()
+			go clusterInformer.Run(ctx.Done())
+			if !cache.WaitForCacheSync(ctx.Done(), clusterInformer.HasSynced) {
+				t.Fatal("Timed out waiting for caches to sync")
+			}
+
 			r := ApplicationSetReconciler{
 				Client:   client,
 				Scheme:   scheme,
@@ -3132,6 +3180,7 @@ func TestPolicies(t *testing.T) {
 				ArgoCDNamespace: "argocd",
 				KubeClientset:   kubeclientset,
 				Policy:          policy,
+				ClusterInformer: clusterInformer,
 				Metrics:         metrics,
 			}
 
@@ -3143,25 +3192,25 @@ func TestPolicies(t *testing.T) {
 			}
 
 			// Check if the application is created
-			res, err := r.Reconcile(t.Context(), req)
+			res, err := r.Reconcile(ctx, req)
 			require.NoError(t, err)
 			assert.Equal(t, time.Duration(0), res.RequeueAfter)
 
 			var app v1alpha1.Application
-			err = r.Get(t.Context(), crtclient.ObjectKey{Namespace: "argocd", Name: "my-app"}, &app)
+			err = r.Get(ctx, crtclient.ObjectKey{Namespace: "argocd", Name: "my-app"}, &app)
 			require.NoError(t, err)
 			assert.Equal(t, "value", app.Annotations["key"])
 
-			// Check if Application is updated
+			// Check if the Application is updated
 			app.Annotations["key"] = "edited"
-			err = r.Update(t.Context(), &app)
+			err = r.Update(ctx, &app)
 			require.NoError(t, err)
 
-			res, err = r.Reconcile(t.Context(), req)
+			res, err = r.Reconcile(ctx, req)
 			require.NoError(t, err)
 			assert.Equal(t, time.Duration(0), res.RequeueAfter)
 
-			err = r.Get(t.Context(), crtclient.ObjectKey{Namespace: "argocd", Name: "my-app"}, &app)
+			err = r.Get(ctx, crtclient.ObjectKey{Namespace: "argocd", Name: "my-app"}, &app)
 			require.NoError(t, err)
 
 			if c.allowedUpdate {
@@ -3171,21 +3220,21 @@ func TestPolicies(t *testing.T) {
 			}
 
 			// Check if Application is deleted
-			err = r.Get(t.Context(), crtclient.ObjectKey{Namespace: "argocd", Name: "name"}, &appSet)
+			err = r.Get(ctx, crtclient.ObjectKey{Namespace: "argocd", Name: "name"}, &appSet)
 			require.NoError(t, err)
 			appSet.Spec.Generators[0] = v1alpha1.ApplicationSetGenerator{
 				List: &v1alpha1.ListGenerator{
 					Elements: []apiextensionsv1.JSON{},
 				},
 			}
-			err = r.Update(t.Context(), &appSet)
+			err = r.Update(ctx, &appSet)
 			require.NoError(t, err)
 
-			res, err = r.Reconcile(t.Context(), req)
+			res, err = r.Reconcile(ctx, req)
 			require.NoError(t, err)
 			assert.Equal(t, time.Duration(0), res.RequeueAfter)
 
-			err = r.Get(t.Context(), crtclient.ObjectKey{Namespace: "argocd", Name: "my-app"}, &app)
+			err = r.Get(ctx, crtclient.ObjectKey{Namespace: "argocd", Name: "my-app"}, &app)
 			require.NoError(t, err)
 			if c.allowedDelete {
 				assert.NotNil(t, app.DeletionTimestamp)

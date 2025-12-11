@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	dynfake "k8s.io/client-go/dynamic/fake"
 	kubefake "k8s.io/client-go/kubernetes/fake"
+	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
@@ -60,6 +62,14 @@ func TestRequeueAfter(t *testing.T) {
 	scmConfig := generators.NewSCMConfig("", []string{""}, true, true, nil, true)
 	clusterInformer, err := settings.NewClusterInformer(appClientset, "argocd")
 	require.NoError(t, err)
+
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	go clusterInformer.Run(ctx.Done())
+	if !cache.WaitForCacheSync(ctx.Done(), clusterInformer.HasSynced) {
+		t.Fatal("Timed out waiting for caches to sync")
+	}
+
 	terminalGenerators := map[string]generators.Generator{
 		"List":                    generators.NewListGenerator(),
 		"Clusters":                generators.NewClusterGenerator(k8sClient, "argocd"),
