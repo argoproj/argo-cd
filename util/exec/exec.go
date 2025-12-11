@@ -2,6 +2,7 @@ package exec
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -62,7 +63,7 @@ func RunWithRedactor(cmd *exec.Cmd, redactor func(text string) string) (string, 
 }
 
 func RunWithExecRunOpts(cmd *exec.Cmd, opts ExecRunOpts) (string, error) {
-	cmdOpts := CmdOpts{Timeout: timeout, FatalTimeout: fatalTimeout, Redactor: opts.Redactor, TimeoutBehavior: opts.TimeoutBehavior, SkipErrorLogging: opts.SkipErrorLogging}
+	cmdOpts := CmdOpts{Timeout: timeout, FatalTimeout: fatalTimeout, Redactor: opts.Redactor, TimeoutBehavior: opts.TimeoutBehavior, SkipErrorLogging: opts.SkipErrorLogging, CaptureStderr: opts.CaptureStderr}
 	span := tracing.NewLoggingTracer(log.NewLogrusLogger(log.NewWithCurrentConfig())).StartSpan(fmt.Sprintf("exec %v", cmd.Args[0]))
 	span.SetBaggageItem("dir", cmd.Dir)
 	if cmdOpts.Redactor != nil {
@@ -283,5 +284,5 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 }
 
 func RunCommand(name string, opts CmdOpts, arg ...string) (string, error) {
-	return RunCommandExt(exec.Command(name, arg...), opts)
+	return RunCommandExt(exec.CommandContext(context.Background(), name, arg...), opts)
 }

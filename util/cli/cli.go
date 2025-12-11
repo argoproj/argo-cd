@@ -5,6 +5,7 @@ package cli
 import (
 	"bufio"
 	"bytes"
+	"context"
 	stderrors "errors"
 	"flag"
 	"fmt"
@@ -275,7 +276,7 @@ func InteractiveEdit(filePattern string, data []byte, save func(input []byte) er
 	for {
 		data = setComments(data, errorComment)
 		tempFile := writeToTempFile(filePattern, data)
-		cmd := exec.Command(editor, append(editorArgs, tempFile)...)
+		cmd := exec.CommandContext(context.Background(), editor, append(editorArgs, tempFile)...)
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		cmd.Stdin = os.Stdin
@@ -340,7 +341,7 @@ func PrintDiff(name string, live *unstructured.Unstructured, target *unstructure
 		cmdBinary = parts[0]
 		args = parts[1:]
 	}
-	cmd := exec.Command(cmdBinary, append(args, liveFile, targetFile)...)
+	cmd := exec.CommandContext(context.Background(), cmdBinary, append(args, liveFile, targetFile)...)
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stdout
 	return cmd.Run()

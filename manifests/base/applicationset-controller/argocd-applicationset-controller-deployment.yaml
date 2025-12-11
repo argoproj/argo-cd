@@ -187,6 +187,12 @@ spec:
                   name: argocd-cmd-params-cm
                   key: applicationsetcontroller.requeue.after
                   optional: true
+            - name: ARGOCD_APPLICATIONSET_CONTROLLER_MAX_RESOURCES_STATUS_COUNT
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: applicationsetcontroller.status.max.resources.count
+                  optional: true
           volumeMounts:
             - mountPath: /app/config/ssh
               name: ssh-known-hosts
@@ -200,6 +206,8 @@ spec:
               name: tmp
             - name: argocd-repo-server-tls
               mountPath: /app/config/reposerver/tls
+            - name: argocd-cmd-params-cm
+              mountPath: /home/argocd/params
           securityContext:
             capabilities:
               drop:
@@ -235,5 +243,12 @@ spec:
                 path: tls.key
               - key: ca.crt
                 path: ca.crt
+        - name: argocd-cmd-params-cm
+          configMap:
+            optional: true
+            name: argocd-cmd-params-cm
+            items:
+              - key: applicationsetcontroller.profile.enabled
+                path: profiler.enabled
       nodeSelector:
         kubernetes.io/os: linux

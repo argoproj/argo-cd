@@ -12,10 +12,10 @@ task of building manifests to the plugin.
 The following sections will describe how to create, install, and use plugins. Check out the
 [example plugins](https://github.com/argoproj/argo-cd/tree/master/examples/plugins) for additional guidance.
 
-!!! warning
-    Plugins are granted a level of trust in the Argo CD system, so it is important to implement plugins securely. Argo
-    CD administrators should only install plugins from trusted sources, and they should audit plugins to weigh their
-    particular risks and benefits.
+> [!WARNING]
+> Plugins are granted a level of trust in the Argo CD system, so it is important to implement plugins securely. Argo
+> CD administrators should only install plugins from trusted sources, and they should audit plugins to weigh their
+> particular risks and benefits.
 
 ## Installing a config management plugin
 
@@ -119,9 +119,9 @@ spec:
   provideGitCreds: false
 ```
 
-!!! note
-    While the ConfigManagementPlugin _looks like_ a Kubernetes object, it is not actually a custom resource. 
-    It only follows kubernetes-style spec conventions.
+> [!NOTE]
+> While the ConfigManagementPlugin _looks like_ a Kubernetes object, it is not actually a custom resource. 
+> It only follows kubernetes-style spec conventions.
 
 The `generate` command must print a valid Kubernetes YAML or JSON object stream to stdout. Both `init` and `generate` commands are executed inside the application source directory.
 
@@ -207,10 +207,12 @@ volumes:
   name: cmp-tmp
 ``` 
 
-!!! important "Double-check these items"
-    1. Make sure to use `/var/run/argocd/argocd-cmp-server` as an entrypoint. The `argocd-cmp-server` is a lightweight GRPC service that allows Argo CD to interact with the plugin.
-    2. Make sure that sidecar container is running as user 999.
-    3. Make sure that plugin configuration file is present at `/home/argocd/cmp-server/config/plugin.yaml`. It can either be volume mapped via configmap or baked into image.
+> [!IMPORTANT]
+> **Double-check these items**
+>
+> 1. Make sure to use `/var/run/argocd/argocd-cmp-server` as an entrypoint. The `argocd-cmp-server` is a lightweight GRPC service that allows Argo CD to interact with the plugin.
+> 2. Make sure that sidecar container is running as user 999.
+> 3. Make sure that plugin configuration file is present at `/home/argocd/cmp-server/config/plugin.yaml`. It can either be volume mapped via configmap or baked into image.
 
 ### Using environment variables in your plugin
 
@@ -276,9 +278,11 @@ Plugin commands have access to
                image.tag: v1.2.3
            # PARAM_SOME_MAP_PARAM_IMAGE_TAG=v1.2.3
    
-!!! warning "Sanitize/escape user input" 
-    As part of Argo CD's manifest generation system, config management plugins are treated with a level of trust. Be
-    sure to escape user input in your plugin to prevent malicious input from causing unwanted behavior.
+> [!WARNING]
+> **Sanitize/escape user input**
+>
+> As part of Argo CD's manifest generation system, config management plugins are treated with a level of trust. Be
+> sure to escape user input in your plugin to prevent malicious input from causing unwanted behavior.
 
 ## Using a config management plugin with an Application
 
@@ -311,24 +315,26 @@ If you don't need to set any environment variables, you can set an empty plugin 
     plugin: {}
 ```
 
-!!! important
-    If your CMP command runs too long, the command will be killed, and the UI will show an error. The CMP server
-    respects the timeouts set by the `server.repo.server.timeout.seconds` and `controller.repo.server.timeout.seconds` 
-    items in `argocd-cm`. Increase their values from the default of 60s.
-
-    Each CMP command will also independently timeout on the `ARGOCD_EXEC_TIMEOUT` set for the CMP sidecar. The default
-    is 90s. So if you increase the repo server timeout greater than 90s, be sure to set `ARGOCD_EXEC_TIMEOUT` on the
-    sidecar.
+> [!IMPORTANT]
+> If your CMP command runs too long, the command will be killed, and the UI will show an error. The CMP server
+> respects the timeouts set by the `server.repo.server.timeout.seconds` and `controller.repo.server.timeout.seconds` 
+> items in `argocd-cmd-params-cm`. Increase their values from the default of 60s.
+>
+> Each CMP command will also independently timeout on the `ARGOCD_EXEC_TIMEOUT` set for the CMP sidecar. The default
+> is 90s. So if you increase the repo server timeout greater than 90s, be sure to set `ARGOCD_EXEC_TIMEOUT` on the
+> sidecar.
     
-!!! note
-    Each Application can only have one config management plugin configured at a time. If you're converting an existing
-    plugin configured through the `argocd-cm` ConfigMap to a sidecar, make sure to update the plugin name to either `<metadata.name>-<spec.version>` 
-    if version was mentioned in the `ConfigManagementPlugin` spec or else just use `<metadata.name>`. You can also remove the name altogether 
-    and let the automatic discovery to identify the plugin.
-!!! note
-    If a CMP renders blank manfiests, and `prune` is set to `true`, Argo CD will automatically remove resources. CMP plugin authors should ensure errors are part of the exit code. Commonly something like `kustomize build . | cat` won't pass errors because of the pipe. Consider setting `set -o pipefail` so anything piped will pass errors on failure.
-!!! note
-    If a CMP command fails to gracefully exit on `ARGOCD_EXEC_TIMEOUT`, it will be forcefully killed after an additional timeout of `ARGOCD_EXEC_FATAL_TIMEOUT`.
+> [!NOTE]
+> Each Application can only have one config management plugin configured at a time. If you're converting an existing
+> plugin configured through the `argocd-cm` ConfigMap to a sidecar, make sure to update the plugin name to either `<metadata.name>-<spec.version>` 
+> if version was mentioned in the `ConfigManagementPlugin` spec or else just use `<metadata.name>`. You can also remove the name altogether 
+> and let the automatic discovery to identify the plugin.
+
+> [!NOTE]
+> If a CMP renders blank manifests, and `prune` is set to `true`, Argo CD will automatically remove resources. CMP plugin authors should ensure errors are part of the exit code. Commonly something like `kustomize build . | cat` won't pass errors because of the pipe. Consider setting `set -o pipefail` so anything piped will pass errors on failure.
+
+> [!NOTE]
+> If a CMP command fails to gracefully exit on `ARGOCD_EXEC_TIMEOUT`, it will be forcefully killed after an additional timeout of `ARGOCD_EXEC_FATAL_TIMEOUT`.
 
 ## Debugging a CMP
 
@@ -414,9 +420,9 @@ spec:
     args: ["sample args"]
 ```
 
-!!! note
-    The `lockRepo` key is not relevant for sidecar plugins, because sidecar plugins do not share a single source repo
-    directory when generating manifests.
+> [!NOTE]
+> The `lockRepo` key is not relevant for sidecar plugins, because sidecar plugins do not share a single source repo
+> directory when generating manifests.
 
 Next, we need to decide how this yaml is going to be added to the sidecar. We can either bake the yaml directly into the image, or we can mount it from a ConfigMap. 
 
@@ -491,9 +497,9 @@ Once tests have checked out, remove the plugin entry from your argocd-cm ConfigM
 By default, config management plugin receives source repository files with reset file mode. This is done for security
 reasons. If you want to preserve original file mode, you can set `preserveFileMode` to `true` in the plugin spec:
 
-!!! warning
-    Make sure you trust the plugin you are using. If you set `preserveFileMode` to `true` then the plugin might receive
-    files with executable permissions which can be a security risk.
+> [!WARNING]
+> Make sure you trust the plugin you are using. If you set `preserveFileMode` to `true` then the plugin might receive
+> files with executable permissions which can be a security risk.
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -527,9 +533,9 @@ To change the socket path, you must set the `ARGOCD_ASK_PASS_SOCK` environment v
 
 To allow the plugin to access the reposerver git credentials, you can set `provideGitCreds` to `true` in the plugin spec:
 
-!!! warning
-    Make sure you trust the plugin you are using. If you set `provideGitCreds` to `true` then the plugin will receive
-    credentials used to clone the source Git repository.
+> [!WARNING]
+> Make sure you trust the plugin you are using. If you set `provideGitCreds` to `true` then the plugin will receive
+> credentials used to clone the source Git repository.
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1

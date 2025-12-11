@@ -1,6 +1,7 @@
 package logout
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -245,28 +246,28 @@ func TestHandlerConstructLogoutURL(t *testing.T) {
 	sessionManager := session.NewSessionManager(settingsManagerWithOIDCConfig, test.NewFakeProjLister(), "", nil, session.NewUserStateStorage(nil))
 
 	oidcHandler := NewHandler(settingsManagerWithOIDCConfig, sessionManager, rootPath, baseHRef)
-	oidcHandler.verifyToken = func(tokenString string) (jwt.Claims, string, error) {
+	oidcHandler.verifyToken = func(_ context.Context, tokenString string) (jwt.Claims, string, error) {
 		if !validJWTPattern.MatchString(tokenString) {
 			return nil, "", errors.New("invalid jwt")
 		}
 		return &jwt.RegisteredClaims{Issuer: "okta"}, "", nil
 	}
 	nonoidcHandler := NewHandler(settingsManagerWithoutOIDCConfig, sessionManager, "", baseHRef)
-	nonoidcHandler.verifyToken = func(tokenString string) (jwt.Claims, string, error) {
+	nonoidcHandler.verifyToken = func(_ context.Context, tokenString string) (jwt.Claims, string, error) {
 		if !validJWTPattern.MatchString(tokenString) {
 			return nil, "", errors.New("invalid jwt")
 		}
 		return &jwt.RegisteredClaims{Issuer: session.SessionManagerClaimsIssuer}, "", nil
 	}
 	oidcHandlerWithoutLogoutURL := NewHandler(settingsManagerWithOIDCConfigButNoLogoutURL, sessionManager, "", baseHRef)
-	oidcHandlerWithoutLogoutURL.verifyToken = func(tokenString string) (jwt.Claims, string, error) {
+	oidcHandlerWithoutLogoutURL.verifyToken = func(_ context.Context, tokenString string) (jwt.Claims, string, error) {
 		if !validJWTPattern.MatchString(tokenString) {
 			return nil, "", errors.New("invalid jwt")
 		}
 		return &jwt.RegisteredClaims{Issuer: "okta"}, "", nil
 	}
 	nonoidcHandlerWithMultipleURLs := NewHandler(settingsManagerWithoutOIDCAndMultipleURLs, sessionManager, "", baseHRef)
-	nonoidcHandlerWithMultipleURLs.verifyToken = func(tokenString string) (jwt.Claims, string, error) {
+	nonoidcHandlerWithMultipleURLs.verifyToken = func(_ context.Context, tokenString string) (jwt.Claims, string, error) {
 		if !validJWTPattern.MatchString(tokenString) {
 			return nil, "", errors.New("invalid jwt")
 		}
@@ -274,7 +275,7 @@ func TestHandlerConstructLogoutURL(t *testing.T) {
 	}
 
 	oidcHandlerWithoutBaseURL := NewHandler(settingsManagerWithOIDCConfigButNoURL, sessionManager, "argocd", baseHRef)
-	oidcHandlerWithoutBaseURL.verifyToken = func(tokenString string) (jwt.Claims, string, error) {
+	oidcHandlerWithoutBaseURL.verifyToken = func(_ context.Context, tokenString string) (jwt.Claims, string, error) {
 		if !validJWTPattern.MatchString(tokenString) {
 			return nil, "", errors.New("invalid jwt")
 		}
@@ -286,21 +287,22 @@ func TestHandlerConstructLogoutURL(t *testing.T) {
 	nonOidcTokenHeader["Cookie"] = []string{"argocd.token=" + nonOidcToken}
 	invalidHeader := make(map[string][]string)
 	invalidHeader["Cookie"] = []string{"argocd.token=" + invalidToken}
+	ctx := t.Context()
 
-	oidcRequest, err := http.NewRequest(http.MethodGet, "http://localhost:4000/api/logout", http.NoBody)
+	oidcRequest, err := http.NewRequestWithContext(ctx, http.MethodGet, "http://localhost:4000/api/logout", http.NoBody)
 	require.NoError(t, err)
 	oidcRequest.Header = oidcTokenHeader
-	nonoidcRequest, err := http.NewRequest(http.MethodGet, "http://localhost:4000/api/logout", http.NoBody)
+	nonoidcRequest, err := http.NewRequestWithContext(ctx, http.MethodGet, "http://localhost:4000/api/logout", http.NoBody)
 	require.NoError(t, err)
 	nonoidcRequest.Header = nonOidcTokenHeader
-	nonoidcRequestOnSecondHost, err := http.NewRequest(http.MethodGet, "http://argocd.my-corp.tld/api/logout", http.NoBody)
+	nonoidcRequestOnSecondHost, err := http.NewRequestWithContext(ctx, http.MethodGet, "http://argocd.my-corp.tld/api/logout", http.NoBody)
 	assert.NoError(t, err)
 	nonoidcRequestOnSecondHost.Header = nonOidcTokenHeader
 	assert.NoError(t, err)
-	requestWithInvalidToken, err := http.NewRequest(http.MethodGet, "http://localhost:4000/api/logout", http.NoBody)
+	requestWithInvalidToken, err := http.NewRequestWithContext(ctx, http.MethodGet, "http://localhost:4000/api/logout", http.NoBody)
 	require.NoError(t, err)
 	requestWithInvalidToken.Header = invalidHeader
-	invalidRequest, err := http.NewRequest(http.MethodGet, "http://localhost:4000/api/logout", http.NoBody)
+	invalidRequest, err := http.NewRequestWithContext(ctx, http.MethodGet, "http://localhost:4000/api/logout", http.NoBody)
 	require.NoError(t, err)
 
 	tests := []struct {

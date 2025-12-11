@@ -13,10 +13,12 @@ metadata:
   resourceVersion: "14008"
   uid: ab9286a1-f453-433e-846e-48900ab2068a
 spec:
+  strategy:
+    pauseResume:
+      fastResume: false
   pipeline:
     metadata:
       annotations:
-        numaflow.numaproj.io/resume-strategy: "slow"
         numaflow.numaproj.io/allowed-resume-strategies: "slow, fast"
     spec:
       lifecycle:

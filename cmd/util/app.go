@@ -136,9 +136,9 @@ func AddAppFlags(command *cobra.Command, opts *AppOptions) {
 	command.Flags().StringVar(&opts.project, "project", "", "Application project name")
 	command.Flags().StringVar(&opts.syncPolicy, "sync-policy", "", "Set the sync policy (one of: manual (aliases of manual: none), automated (aliases of automated: auto, automatic))")
 	command.Flags().StringArrayVar(&opts.syncOptions, "sync-option", []string{}, "Add or remove a sync option, e.g add `Prune=false`. Remove using `!` prefix, e.g. `!Prune=false`")
-	command.Flags().BoolVar(&opts.autoPrune, "auto-prune", false, "Set automatic pruning when sync is automated")
-	command.Flags().BoolVar(&opts.selfHeal, "self-heal", false, "Set self healing when sync is automated")
-	command.Flags().BoolVar(&opts.allowEmpty, "allow-empty", false, "Set allow zero live resources when sync is automated")
+	command.Flags().BoolVar(&opts.autoPrune, "auto-prune", false, "Set automatic pruning for automated sync policy")
+	command.Flags().BoolVar(&opts.selfHeal, "self-heal", false, "Set self healing for automated sync policy")
+	command.Flags().BoolVar(&opts.allowEmpty, "allow-empty", false, "Set allow zero live resources for automated sync policy")
 	command.Flags().StringVar(&opts.namePrefix, "nameprefix", "", "Kustomize nameprefix")
 	command.Flags().StringVar(&opts.nameSuffix, "namesuffix", "", "Kustomize namesuffix")
 	command.Flags().StringVar(&opts.kustomizeVersion, "kustomize-version", "", "Kustomize version")
@@ -284,25 +284,26 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 			spec.SyncPolicy.Retry.Refresh = appOpts.retryRefresh
 		}
 	})
-	if flags.Changed("auto-prune") {
-		if spec.SyncPolicy == nil || !spec.SyncPolicy.IsAutomatedSyncEnabled() {
-			log.Fatal("Cannot set --auto-prune: application not configured with automatic sync")
-		}
-		spec.SyncPolicy.Automated.Prune = appOpts.autoPrune
-	}
-	if flags.Changed("self-heal") {
-		if spec.SyncPolicy == nil || !spec.SyncPolicy.IsAutomatedSyncEnabled() {
-			log.Fatal("Cannot set --self-heal: application not configured with automatic sync")
-		}
-		spec.SyncPolicy.Automated.SelfHeal = appOpts.selfHeal
-	}
-	if flags.Changed("allow-empty") {
-		if spec.SyncPolicy == nil || !spec.SyncPolicy.IsAutomatedSyncEnabled() {
-			log.Fatal("Cannot set --allow-empty: application not configured with automatic sync")
-		}
-		spec.SyncPolicy.Automated.AllowEmpty = appOpts.allowEmpty
-	}
 
+	if flags.Changed("auto-prune") || flags.Changed("self-heal") || flags.Changed("allow-empty") {
+		if spec.SyncPolicy == nil {
+			spec.SyncPolicy = &argoappv1.SyncPolicy{}
+		}
+		if spec.SyncPolicy.Automated == nil {
+			disabled := false
+			spec.SyncPolicy.Automated = &argoappv1.SyncPolicyAutomated{Enabled: &disabled}
+		}
+
+		if flags.Changed("auto-prune") {
+			spec.SyncPolicy.Automated.Prune = appOpts.autoPrune
+		}
+		if flags.Changed("self-heal") {
+			spec.SyncPolicy.Automated.SelfHeal = appOpts.selfHeal
+		}
+		if flags.Changed("allow-empty") {
+			spec.SyncPolicy.Automated.AllowEmpty = appOpts.allowEmpty
+		}
+	}
 	return visited
 }
 

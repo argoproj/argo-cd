@@ -3,9 +3,11 @@ package commands
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/argoproj/argo-cd/v3/util/cli"
@@ -13,18 +15,17 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// DefaultPluginHandler implements the PluginHandler interface
+const prefix = "argocd"
+
 type DefaultPluginHandler struct {
-	ValidPrefixes []string
-	lookPath      func(file string) (string, error)
-	run           func(cmd *exec.Cmd) error
+	lookPath func(file string) (string, error)
+	run      func(cmd *exec.Cmd) error
 }
 
-// NewDefaultPluginHandler instantiates the DefaultPluginHandler
-func NewDefaultPluginHandler(validPrefixes []string) *DefaultPluginHandler {
+// NewDefaultPluginHandler instantiates a DefaultPluginHandler
+func NewDefaultPluginHandler() *DefaultPluginHandler {
 	return &DefaultPluginHandler{
-		ValidPrefixes: validPrefixes,
-		lookPath:      exec.LookPath,
+		lookPath: exec.LookPath,
 		run: func(cmd *exec.Cmd) error {
 			return cmd.Run()
 		},
@@ -32,8 +33,8 @@ func NewDefaultPluginHandler(validPrefixes []string) *DefaultPluginHandler {
 }
 
 // HandleCommandExecutionError processes the error returned from executing the command.
-// It handles both standard Argo CD commands and plugin commands. We don't require to return
-// error but we are doing it to cover various test scenarios.
+// It handles both standard Argo CD commands and plugin commands. We don't require returning
+// an error, but we are doing it to cover various test scenarios.
 func (h *DefaultPluginHandler) HandleCommandExecutionError(err error, isArgocdCLI bool, args []string) error {
 	// the log level needs to be setup manually here since the initConfig()
 	// set by the cobra.OnInitialize() was never executed because cmd.Execute()
@@ -85,27 +86,24 @@ func (h *DefaultPluginHandler) handlePluginCommand(cmdArgs []string) (string, er
 
 // lookForPlugin looks for a plugin in the PATH that starts with argocd prefix
 func (h *DefaultPluginHandler) lookForPlugin(filename string) (string, bool) {
-	for _, prefix := range h.ValidPrefixes {
-		pluginName := fmt.Sprintf("%s-%s", prefix, filename)
-		path, err := h.lookPath(pluginName)
-		if err != nil {
-			//  error if a plugin is found in a relative path
-			if errors.Is(err, exec.ErrDot) {
-				log.Errorf("Plugin '%s' found in relative path: %v", pluginName, err)
-			} else {
-				log.Warnf("error looking for plugin '%s': %v", pluginName, err)
-			}
-			continue
+	pluginName := fmt.Sprintf("%s-%s", prefix, filename)
+	path, err := h.lookPath(pluginName)
+	if err != nil {
+		//  error if a plugin is found in a relative path
+		if errors.Is(err, exec.ErrDot) {
+			log.Errorf("Plugin '%s' found in relative path: %v", pluginName, err)
+		} else {
+			log.Warnf("error looking for plugin '%s': %v", pluginName, err)
 		}
 
-		if path == "" {
-			return "", false
-		}
-
-		return path, true
+		return "", false
 	}
 
-	return "", false
+	if path == "" {
+		return "", false
+	}
+
+	return path, true
 }
 
 // executePlugin implements PluginHandler and executes a plugin found
@@ -140,4 +138,57 @@ func (h *DefaultPluginHandler) command(name string, arg ...string) *exec.Cmd {
 		}
 	}
 	return cmd
+}
+
+// ListAvailablePlugins returns a list of plugin names that are available in the user's PATH
+// for tab completion. It searches for executables matching the ValidPrefixes pattern.
+func (h *DefaultPluginHandler) ListAvailablePlugins() []string {
+	// Track seen plugin names to avoid duplicates
+	seenPlugins := make(map[string]bool)
+
+	// Search through each directory in PATH
+	for _, dir := range filepath.SplitList(os.Getenv("PATH")) {
+		// Skip empty directories
+		if dir == "" {
+			continue
+		}
+
+		// Read directory contents
+		entries, err := os.ReadDir(dir)
+		if err != nil {
+			continue
+		}
+
+		// Check each file in the directory
+		for _, entry := range entries {
+			// Skip directories and non-executable files
+			if entry.IsDir() {
+				continue
+			}
+
+			name := entry.Name()
+
+			// Check if the file is a valid argocd plugin
+			pluginPrefix := prefix + "-"
+			if strings.HasPrefix(name, pluginPrefix) {
+				// Extract the plugin command name (everything after the prefix)
+				pluginName := strings.TrimPrefix(name, pluginPrefix)
+
+				// Skip empty plugin names or names with path separators
+				if pluginName == "" || strings.Contains(pluginName, "/") || strings.Contains(pluginName, "\\") {
+					continue
+				}
+
+				// Check if the file is executable
+				if info, err := entry.Info(); err == nil {
+					// On Unix-like systems, check executable bit
+					if info.Mode()&0o111 != 0 {
+						seenPlugins[pluginName] = true
+					}
+				}
+			}
+		}
+	}
+
+	return slices.Sorted(maps.Keys(seenPlugins))
 }

@@ -204,10 +204,12 @@ The `argocd-server` and `argocd-application-controller` workloads will now
 validate the TLS certificate of the `argocd-repo-server` by using the
 certificate stored in the `argocd-repo-server-tls` secret.
 
-!!!note "Certificate expiry"
-    Please make sure that the certificate has a proper lifetime. Remember, 
-    when replacing certificates, all workloads must be restarted to pick up
-    the certificate and work properly.
+> [!NOTE]
+> **Certificate expiry**
+>
+> Please make sure that the certificate has a proper lifetime. Remember, 
+> when replacing certificates, all workloads must be restarted to pick up
+> the certificate and work properly.
 
 ### Configuring TLS to argocd-dex-server
 
@@ -232,10 +234,12 @@ The `argocd-server` workload will now validate the TLS certificate of the
 `argocd-dex-server` by using the certificate stored in the `argocd-dex-server-tls`
 secret.
 
-!!!note "Certificate expiry"
-    Please make sure that the certificate has a proper lifetime. Remember, 
-    when replacing certificates, all workloads must be restarted to pick up
-    the certificate and work properly.
+> [!NOTE]
+> **Certificate expiry**
+>
+> Please make sure that the certificate has a proper lifetime. Remember, 
+> when replacing certificates, all workloads must be restarted to pick up
+> the certificate and work properly.
 
 ### Disabling TLS to argocd-repo-server
 

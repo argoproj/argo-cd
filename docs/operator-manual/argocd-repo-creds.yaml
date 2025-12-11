@@ -61,3 +61,17 @@ stringData:
     -----BEGIN OPENSSH PRIVATE KEY-----
     ...
     -----END OPENSSH PRIVATE KEY-----
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: private-oci-repo
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repo-creds
+stringData:
+  username: my-username
+  password: my-password
+  project: myproject
+  type: oci
+  url: oci://my.registry.com/namespace

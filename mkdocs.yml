@@ -39,6 +39,7 @@ nav:
     - operator-manual/user-management/onelogin.md
     - operator-manual/user-management/keycloak.md
     - operator-manual/user-management/openunison.md
+    - operator-manual/user-management/github-actions.md
     - operator-manual/user-management/google.md
     - operator-manual/user-management/zitadel.md
     - operator-manual/user-management/identity-center.md
@@ -63,6 +64,8 @@ nav:
   - operator-manual/web_based_terminal.md
   - operator-manual/config-management-plugins.md
   - operator-manual/deep_links.md
+  - operator-manual/git_configuration.md
+  - operator-manual/managed-by-url.md
   - Notifications:
     - Overview: operator-manual/notifications/index.md
     - operator-manual/notifications/triggers.md
@@ -229,12 +232,16 @@ nav:
     - developer-guide/extensions/proxy-extensions.md
   - developer-guide/faq.md
   - developer-guide/tilt.md
+  - developer-guide/custom-resource-icons.md
+  - developer-guide/maintaining-internal-argo-cd-forks.md
 - faq.md
 - security_considerations.md
 - Support: SUPPORT.md
 - roadmap.md
 - Releases ⧉: https://github.com/argoproj/argo-cd/releases
 - Blog ⧉: https://blog.argoproj.io/
+plugins:
+- gh-admonitions
 repo_url: https://github.com/argoproj/argo-cd
 site_name: Argo CD - Declarative GitOps CD for Kubernetes
 site_url: !ENV READTHEDOCS_CANONICAL_URL

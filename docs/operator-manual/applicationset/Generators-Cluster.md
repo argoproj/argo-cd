@@ -13,8 +13,8 @@ It automatically provides the following parameter values to the Application temp
 - `metadata.labels.<key>` *(for each label in the Secret)*
 - `metadata.annotations.<key>` *(for each annotation in the Secret)*
 
-!!! note
-    Use the `nameNormalized` parameter if your cluster name contains characters (such as underscores) that are not valid for Kubernetes resource names. This prevents rendering invalid Kubernetes resources with names like `my_cluster-app1`, and instead would convert them to `my-cluster-app1`.
+> [!NOTE]
+> Use the `nameNormalized` parameter if your cluster name contains characters (such as underscores) that are not valid for Kubernetes resource names. This prevents rendering invalid Kubernetes resources with names like `my_cluster-app1`, and instead would convert them to `my-cluster-app1`.
 
 
 Within [Argo CD cluster Secrets](../../declarative-setup/#clusters) are data fields describing the cluster:
@@ -203,8 +203,8 @@ spec:
 
 In this example the `revision` value from the `generators.clusters` fields is passed into the template as `values.revision`, containing either `HEAD` or `stable` (based on which generator generated the set of parameters).
 
-!!! note
-    The `values.` prefix is always prepended to values provided via `generators.clusters.values` field. Ensure you include this prefix in the parameter name within the `template` when using it.
+> [!NOTE]
+> The `values.` prefix is always prepended to values provided via `generators.clusters.values` field. Ensure you include this prefix in the parameter name within the `template` when using it.
 
 In `values` we can also interpolate the following parameter values (i.e. the same values as presented in the beginning of this page)
 

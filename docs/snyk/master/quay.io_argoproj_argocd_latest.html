@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="22 known vulnerabilities found in 77 vulnerable dependency paths.">
+  <meta name="description" content="19 known vulnerabilities found in 55 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -487,7 +487,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">September 14th 2025, 12:22:07 am (UTC+00:00)</p>
+                <p class="timestamp">December 7th 2025, 12:24:43 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
@@ -501,9 +501,9 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>22</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>77 vulnerable dependency paths</span></div>
-                <div class="meta-count"><span>2322</span> <span>dependencies</span></div>
+                <div class="meta-count"><span>19</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>55 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>2321</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
           </header><!-- .project__header -->
@@ -562,7 +562,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        dpkg@1.22.18ubuntu2
+                                        dpkg@1.22.18ubuntu2.2
                                          <span class="list-paths__item__arrow">›</span> 
                                         tar@1.35+dfsg-3.1
                                         
@@ -589,6 +589,7 @@
         <li><a href="https://lists.gnu.org/archive/html/bug-tar/2025-08/msg00012.html">https://lists.gnu.org/archive/html/bug-tar/2025-08/msg00012.html</a></li>
         <li><a href="https://www.gnu.org/software/tar/manual/html_node/Integrity.html">https://www.gnu.org/software/tar/manual/html_node/Integrity.html</a></li>
         <li><a href="https://www.gnu.org/software/tar/manual/html_node/Security-rules-of-thumb.html">https://www.gnu.org/software/tar/manual/html_node/Security-rules-of-thumb.html</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2025/11/01/6">http://www.openwall.com/lists/oss-security/2025/11/01/6</a></li>
         </ul>
         
               <hr/>
@@ -599,192 +600,7 @@
         
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">CVE-2025-7709</h2>
-            <div class="card__section">
-        
-                <div class="card__labels">
-                    <div class="label label--medium">
-                        <span class="label__text">medium severity</span>
-                    </div>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:latest/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: ubuntu:25.04
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            sqlite3/libsqlite3-0
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-        
-                                    docker-image|quay.io/argoproj/argocd@latest, gnupg2/gpg@2.4.4-2ubuntu23.1 and others
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        gnupg2/gpg@2.4.4-2ubuntu23.1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        sqlite3/libsqlite3-0@3.46.1-3ubuntu0.2
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="nvd-description">NVD Description</h2>
-        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>sqlite3</code> package and not the <code>sqlite3</code> package as distributed by <code>Ubuntu</code>.</em>
-        <em>See <code>How to fix?</code> for <code>Ubuntu:25.04</code> relevant fixed versions and status.</em></p>
-        <p>An integer overflow exists in the  FTS5 <a href="https://sqlite.org/fts5.html">https://sqlite.org/fts5.html</a>  extension. It occurs when the size of an array of tombstone pointers is calculated and truncated into a 32-bit integer. A pointer to partially controlled data can then be written out of bounds.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>There is no fixed version for <code>Ubuntu:25.04</code> <code>sqlite3</code>.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2025-7709">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2025-7709</a></li>
-        <li><a href="https://github.com/google/security-research/security/advisories/GHSA-v2c8-vqqp-hv3g">https://github.com/google/security-research/security/advisories/GHSA-v2c8-vqqp-hv3g</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2504-SQLITE3-12554292">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">Out-of-bounds Write</h2>
-            <div class="card__section">
-        
-                <div class="card__labels">
-                    <div class="label label--medium">
-                        <span class="label__text">medium severity</span>
-                    </div>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:latest/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: ubuntu:25.04
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            pcre2/libpcre2-8-0
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-                                docker-image|quay.io/argoproj/argocd@latest and pcre2/libpcre2-8-0@10.45-1
-        
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        pcre2/libpcre2-8-0@10.45-1
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        git@1:2.48.1-0ubuntu1.1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        pcre2/libpcre2-8-0@10.45-1
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        grep@3.11-4build1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        pcre2/libpcre2-8-0@10.45-1
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        apt@3.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        base-passwd@3.6.6
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        libselinux/libselinux1@3.7-3ubuntu3
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        pcre2/libpcre2-8-0@10.45-1
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="nvd-description">NVD Description</h2>
-        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>pcre2</code> package and not the <code>pcre2</code> package as distributed by <code>Ubuntu</code>.</em>
-        <em>See <code>How to fix?</code> for <code>Ubuntu:25.04</code> relevant fixed versions and status.</em></p>
-        <p>The PCRE2 library is a set of C functions that implement regular expression pattern matching. In version 10.45, a heap-buffer-overflow read vulnerability exists in the PCRE2 regular expression matching engine, specifically within the handling of the (*scs:...) (Scan SubString) verb when combined with (*ACCEPT) in src/pcre2_match.c. This vulnerability may potentially lead to information disclosure if the out-of-bounds data read during the memcmp affects the final match result in a way observable by the attacker. This issue has been resolved in version 10.46.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>There is no fixed version for <code>Ubuntu:25.04</code> <code>pcre2</code>.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2025-58050">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2025-58050</a></li>
-        <li><a href="https://github.com/PCRE2Project/pcre2/commit/a141712e5967d448c7ce13090ab530c8e3d82254">https://github.com/PCRE2Project/pcre2/commit/a141712e5967d448c7ce13090ab530c8e3d82254</a></li>
-        <li><a href="https://github.com/PCRE2Project/pcre2/releases/tag/pcre2-10.46">https://github.com/PCRE2Project/pcre2/releases/tag/pcre2-10.46</a></li>
-        <li><a href="https://github.com/PCRE2Project/pcre2/security/advisories/GHSA-c2gv-xgf5-5cc2">https://github.com/PCRE2Project/pcre2/security/advisories/GHSA-c2gv-xgf5-5cc2</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2504-PCRE2-12225997">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">Improper Authentication</h2>
+            <h2 class="card__title">Directory Traversal</h2>
             <div class="card__section">
         
                 <div class="card__labels">
@@ -810,7 +626,7 @@
         
                     <li class="card__meta__item">Introduced through:
         
-                                docker-image|quay.io/argoproj/argocd@latest and pam/libpam0g@1.5.3-7ubuntu4.3
+                                docker-image|quay.io/argoproj/argocd@latest and pam/libpam0g@1.5.3-7ubuntu4.4
         
                     </li>
                 </ul>
@@ -825,7 +641,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        pam/libpam0g@1.5.3-7ubuntu4.3
+                                        pam/libpam0g@1.5.3-7ubuntu4.4
                                         
                                 </span>
         
@@ -836,7 +652,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         util-linux@2.40.2-14ubuntu1.1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        pam/libpam0g@1.5.3-7ubuntu4.3
+                                        pam/libpam0g@1.5.3-7ubuntu4.4
                                         
                                 </span>
         
@@ -847,7 +663,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         util-linux/login@1:4.16.0-2+really2.40.2-14ubuntu1.1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        pam/libpam0g@1.5.3-7ubuntu4.3
+                                        pam/libpam0g@1.5.3-7ubuntu4.4
                                         
                                 </span>
         
@@ -862,7 +678,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         shadow/passwd@1:4.16.0-7ubuntu1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        pam/libpam0g@1.5.3-7ubuntu4.3
+                                        pam/libpam0g@1.5.3-7ubuntu4.4
                                         
                                 </span>
         
@@ -877,9 +693,9 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         shadow/passwd@1:4.16.0-7ubuntu1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        pam/libpam-modules@1.5.3-7ubuntu4.3
+                                        pam/libpam-modules@1.5.3-7ubuntu4.4
                                          <span class="list-paths__item__arrow">›</span> 
-                                        pam/libpam0g@1.5.3-7ubuntu4.3
+                                        pam/libpam0g@1.5.3-7ubuntu4.4
                                         
                                 </span>
         
@@ -894,11 +710,11 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         shadow/passwd@1:4.16.0-7ubuntu1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        pam/libpam-modules@1.5.3-7ubuntu4.3
+                                        pam/libpam-modules@1.5.3-7ubuntu4.4
                                          <span class="list-paths__item__arrow">›</span> 
-                                        pam/libpam-modules-bin@1.5.3-7ubuntu4.3
+                                        pam/libpam-modules-bin@1.5.3-7ubuntu4.4
                                          <span class="list-paths__item__arrow">›</span> 
-                                        pam/libpam0g@1.5.3-7ubuntu4.3
+                                        pam/libpam0g@1.5.3-7ubuntu4.4
                                         
                                 </span>
         
@@ -907,7 +723,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        pam/libpam-modules-bin@1.5.3-7ubuntu4.3
+                                        pam/libpam-modules-bin@1.5.3-7ubuntu4.4
                                         
                                 </span>
         
@@ -922,9 +738,9 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         shadow/passwd@1:4.16.0-7ubuntu1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        pam/libpam-modules@1.5.3-7ubuntu4.3
+                                        pam/libpam-modules@1.5.3-7ubuntu4.4
                                          <span class="list-paths__item__arrow">›</span> 
-                                        pam/libpam-modules-bin@1.5.3-7ubuntu4.3
+                                        pam/libpam-modules-bin@1.5.3-7ubuntu4.4
                                         
                                 </span>
         
@@ -933,7 +749,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        pam/libpam-modules@1.5.3-7ubuntu4.3
+                                        pam/libpam-modules@1.5.3-7ubuntu4.4
                                         
                                 </span>
         
@@ -942,9 +758,9 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        pam/libpam-runtime@1.5.3-7ubuntu4.3
+                                        pam/libpam-runtime@1.5.3-7ubuntu4.4
                                          <span class="list-paths__item__arrow">›</span> 
-                                        pam/libpam-modules@1.5.3-7ubuntu4.3
+                                        pam/libpam-modules@1.5.3-7ubuntu4.4
                                         
                                 </span>
         
@@ -955,7 +771,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         util-linux@2.40.2-14ubuntu1.1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        pam/libpam-modules@1.5.3-7ubuntu4.3
+                                        pam/libpam-modules@1.5.3-7ubuntu4.4
                                         
                                 </span>
         
@@ -966,7 +782,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         util-linux/login@1:4.16.0-2+really2.40.2-14ubuntu1.1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        pam/libpam-modules@1.5.3-7ubuntu4.3
+                                        pam/libpam-modules@1.5.3-7ubuntu4.4
                                         
                                 </span>
         
@@ -981,7 +797,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         shadow/passwd@1:4.16.0-7ubuntu1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        pam/libpam-modules@1.5.3-7ubuntu4.3
+                                        pam/libpam-modules@1.5.3-7ubuntu4.4
                                         
                                 </span>
         
@@ -990,7 +806,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        pam/libpam-runtime@1.5.3-7ubuntu4.3
+                                        pam/libpam-runtime@1.5.3-7ubuntu4.4
                                         
                                 </span>
         
@@ -1001,7 +817,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         util-linux@2.40.2-14ubuntu1.1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        pam/libpam-runtime@1.5.3-7ubuntu4.3
+                                        pam/libpam-runtime@1.5.3-7ubuntu4.4
                                         
                                 </span>
         
@@ -1012,7 +828,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         util-linux/login@1:4.16.0-2+really2.40.2-14ubuntu1.1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        pam/libpam-runtime@1.5.3-7ubuntu4.3
+                                        pam/libpam-runtime@1.5.3-7ubuntu4.4
                                         
                                 </span>
         
@@ -1026,376 +842,37 @@
               <h2 id="nvd-description">NVD Description</h2>
         <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>pam</code> package and not the <code>pam</code> package as distributed by <code>Ubuntu</code>.</em>
         <em>See <code>How to fix?</code> for <code>Ubuntu:25.04</code> relevant fixed versions and status.</em></p>
-        <p>A flaw was found in pam_access, where certain rules in its configuration file are mistakenly treated as hostnames. This vulnerability allows attackers to trick the system by pretending to be a trusted hostname, gaining unauthorized access. This issue poses a risk for systems that rely on this feature to control who can access certain services or terminals.</p>
+        <p>A flaw was found in linux-pam. The pam_namespace module may improperly handle user-controlled paths, allowing local users to exploit symlink attacks and race conditions to elevate their privileges to root. This CVE provides a &#34;complete&#34; fix for CVE-2025-6020.</p>
         <h2 id="remediation">Remediation</h2>
         <p>There is no fixed version for <code>Ubuntu:25.04</code> <code>pam</code>.</p>
         <h2 id="references">References</h2>
         <ul>
-        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2024-10963">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2024-10963</a></li>
-        <li><a href="https://access.redhat.com/security/cve/CVE-2024-10963">https://access.redhat.com/security/cve/CVE-2024-10963</a></li>
-        <li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=2324291">https://bugzilla.redhat.com/show_bug.cgi?id=2324291</a></li>
-        <li><a href="https://access.redhat.com/errata/RHSA-2024:10232">https://access.redhat.com/errata/RHSA-2024:10232</a></li>
-        <li><a href="https://access.redhat.com/errata/RHSA-2024:10244">https://access.redhat.com/errata/RHSA-2024:10244</a></li>
-        <li><a href="https://access.redhat.com/errata/RHSA-2024:10379">https://access.redhat.com/errata/RHSA-2024:10379</a></li>
-        <li><a href="https://access.redhat.com/errata/RHSA-2024:10518">https://access.redhat.com/errata/RHSA-2024:10518</a></li>
-        <li><a href="https://access.redhat.com/errata/RHSA-2024:10528">https://access.redhat.com/errata/RHSA-2024:10528</a></li>
-        <li><a href="https://access.redhat.com/errata/RHSA-2024:10852">https://access.redhat.com/errata/RHSA-2024:10852</a></li>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2025-8941">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2025-8941</a></li>
+        <li><a href="https://access.redhat.com/security/cve/CVE-2025-8941">https://access.redhat.com/security/cve/CVE-2025-8941</a></li>
+        <li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=2388220">https://bugzilla.redhat.com/show_bug.cgi?id=2388220</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2025:14557">https://access.redhat.com/errata/RHSA-2025:14557</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2025:15100">https://access.redhat.com/errata/RHSA-2025:15100</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2025:15104">https://access.redhat.com/errata/RHSA-2025:15104</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2025:15107">https://access.redhat.com/errata/RHSA-2025:15107</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2025:15099">https://access.redhat.com/errata/RHSA-2025:15099</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2025:15101">https://access.redhat.com/errata/RHSA-2025:15101</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2025:15102">https://access.redhat.com/errata/RHSA-2025:15102</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2025:15103">https://access.redhat.com/errata/RHSA-2025:15103</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2025:15105">https://access.redhat.com/errata/RHSA-2025:15105</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2025:15106">https://access.redhat.com/errata/RHSA-2025:15106</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2025:15709">https://access.redhat.com/errata/RHSA-2025:15709</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2025:15828">https://access.redhat.com/errata/RHSA-2025:15828</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2025:15827">https://access.redhat.com/errata/RHSA-2025:15827</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2025:16524">https://access.redhat.com/errata/RHSA-2025:16524</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2025:18219">https://access.redhat.com/errata/RHSA-2025:18219</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2025:17181">https://access.redhat.com/errata/RHSA-2025:17181</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2025:21885">https://access.redhat.com/errata/RHSA-2025:21885</a></li>
         </ul>
         
               <hr/>
         
             <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2504-PAM-9795583">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">Insecure Storage of Sensitive Information</h2>
-            <div class="card__section">
-        
-                <div class="card__labels">
-                    <div class="label label--medium">
-                        <span class="label__text">medium severity</span>
-                    </div>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:latest/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: ubuntu:25.04
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            pam/libpam0g
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-                                docker-image|quay.io/argoproj/argocd@latest and pam/libpam0g@1.5.3-7ubuntu4.3
-        
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        pam/libpam0g@1.5.3-7ubuntu4.3
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        util-linux@2.40.2-14ubuntu1.1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        pam/libpam0g@1.5.3-7ubuntu4.3
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        util-linux/login@1:4.16.0-2+really2.40.2-14ubuntu1.1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        pam/libpam0g@1.5.3-7ubuntu4.3
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        apt@3.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        adduser@3.137ubuntu2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        shadow/passwd@1:4.16.0-7ubuntu1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        pam/libpam0g@1.5.3-7ubuntu4.3
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        apt@3.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        adduser@3.137ubuntu2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        shadow/passwd@1:4.16.0-7ubuntu1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        pam/libpam-modules@1.5.3-7ubuntu4.3
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        pam/libpam0g@1.5.3-7ubuntu4.3
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        apt@3.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        adduser@3.137ubuntu2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        shadow/passwd@1:4.16.0-7ubuntu1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        pam/libpam-modules@1.5.3-7ubuntu4.3
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        pam/libpam-modules-bin@1.5.3-7ubuntu4.3
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        pam/libpam0g@1.5.3-7ubuntu4.3
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        pam/libpam-modules-bin@1.5.3-7ubuntu4.3
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        apt@3.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        adduser@3.137ubuntu2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        shadow/passwd@1:4.16.0-7ubuntu1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        pam/libpam-modules@1.5.3-7ubuntu4.3
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        pam/libpam-modules-bin@1.5.3-7ubuntu4.3
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        pam/libpam-modules@1.5.3-7ubuntu4.3
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        pam/libpam-runtime@1.5.3-7ubuntu4.3
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        pam/libpam-modules@1.5.3-7ubuntu4.3
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        util-linux@2.40.2-14ubuntu1.1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        pam/libpam-modules@1.5.3-7ubuntu4.3
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        util-linux/login@1:4.16.0-2+really2.40.2-14ubuntu1.1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        pam/libpam-modules@1.5.3-7ubuntu4.3
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        apt@3.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        adduser@3.137ubuntu2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        shadow/passwd@1:4.16.0-7ubuntu1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        pam/libpam-modules@1.5.3-7ubuntu4.3
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        pam/libpam-runtime@1.5.3-7ubuntu4.3
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        util-linux@2.40.2-14ubuntu1.1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        pam/libpam-runtime@1.5.3-7ubuntu4.3
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        util-linux/login@1:4.16.0-2+really2.40.2-14ubuntu1.1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        pam/libpam-runtime@1.5.3-7ubuntu4.3
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="nvd-description">NVD Description</h2>
-        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>pam</code> package and not the <code>pam</code> package as distributed by <code>Ubuntu</code>.</em>
-        <em>See <code>How to fix?</code> for <code>Ubuntu:25.04</code> relevant fixed versions and status.</em></p>
-        <p>A vulnerability was found in PAM. The secret information is stored in memory, where the attacker can trigger the victim program to execute by sending characters to its standard input (stdin). As this occurs, the attacker can train the branch predictor to execute an ROP chain speculatively. This flaw could result in leaked passwords, such as those found in /etc/shadow while performing authentications.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>There is no fixed version for <code>Ubuntu:25.04</code> <code>pam</code>.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2024-10041">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2024-10041</a></li>
-        <li><a href="https://access.redhat.com/security/cve/CVE-2024-10041">https://access.redhat.com/security/cve/CVE-2024-10041</a></li>
-        <li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=2319212">https://bugzilla.redhat.com/show_bug.cgi?id=2319212</a></li>
-        <li><a href="https://access.redhat.com/errata/RHSA-2024:9941">https://access.redhat.com/errata/RHSA-2024:9941</a></li>
-        <li><a href="https://access.redhat.com/errata/RHSA-2024:10379">https://access.redhat.com/errata/RHSA-2024:10379</a></li>
-        <li><a href="https://access.redhat.com/errata/RHSA-2024:11250">https://access.redhat.com/errata/RHSA-2024:11250</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2504-PAM-9795712">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">CVE-2025-8058</h2>
-            <div class="card__section">
-        
-                <div class="card__labels">
-                    <div class="label label--medium">
-                        <span class="label__text">medium severity</span>
-                    </div>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:latest/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: ubuntu:25.04
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            glibc/libc-bin
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-                                docker-image|quay.io/argoproj/argocd@latest and glibc/libc-bin@2.41-6ubuntu1.1
-        
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        glibc/libc-bin@2.41-6ubuntu1.1
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        glibc/libc6@2.41-6ubuntu1.1
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="nvd-description">NVD Description</h2>
-        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>glibc</code> package and not the <code>glibc</code> package as distributed by <code>Ubuntu</code>.</em>
-        <em>See <code>How to fix?</code> for <code>Ubuntu:25.04</code> relevant fixed versions and status.</em></p>
-        <p>The regcomp function in the GNU C library version from 2.4 to 2.41 is 
-        subject to a double free if some previous allocation fails. It can be 
-        accomplished either by a malloc failure or by using an interposed malloc
-         that injects random malloc failures. The double free can allow buffer 
-        manipulation depending of how the regex is constructed. This issue 
-        affects all architectures and ABIs supported by the GNU C library.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>There is no fixed version for <code>Ubuntu:25.04</code> <code>glibc</code>.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2025-8058">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2025-8058</a></li>
-        <li><a href="https://sourceware.org/bugzilla/show_bug.cgi?id=33185">https://sourceware.org/bugzilla/show_bug.cgi?id=33185</a></li>
-        <li><a href="https://sourceware.org/git/?p=glibc.git;a=commit;h=3ff17af18c38727b88d9115e536c069e6b5d601f">https://sourceware.org/git/?p=glibc.git;a=commit;h=3ff17af18c38727b88d9115e536c069e6b5d601f</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2504-GLIBC-11031047">More about this vulnerability</a></p>
+                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2504-PAM-11936906">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
@@ -1863,6 +1340,77 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2504-GIT-9792199">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">CVE-2025-11563</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:latest/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: ubuntu:25.04
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            curl/libcurl3t64-gnutls
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+        
+                                    docker-image|quay.io/argoproj/argocd@latest, git@1:2.48.1-0ubuntu1.1 and others
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        git@1:2.48.1-0ubuntu1.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        curl/libcurl3t64-gnutls@8.12.1-3ubuntu1
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><em>This vulnerability has not been analyzed by NVD yet.</em></p>
+        <h2 id="remediation">Remediation</h2>
+        <p>There is no fixed version for <code>Ubuntu:25.04</code> <code>curl</code>.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2025-11563">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2025-11563</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2504-CURL-13842495">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
@@ -2459,7 +2007,7 @@
         
                     <li class="card__meta__item">Introduced through:
         
-                                docker-image|quay.io/argoproj/argocd@latest and glibc/libc-bin@2.41-6ubuntu1.1
+                                docker-image|quay.io/argoproj/argocd@latest and glibc/libc-bin@2.41-6ubuntu1.2
         
                     </li>
                 </ul>
@@ -2474,7 +2022,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        glibc/libc-bin@2.41-6ubuntu1.1
+                                        glibc/libc-bin@2.41-6ubuntu1.2
                                         
                                 </span>
         
@@ -2483,7 +2031,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        glibc/libc6@2.41-6ubuntu1.1
+                                        glibc/libc6@2.41-6ubuntu1.2
                                         
                                 </span>
         
@@ -2597,6 +2145,7 @@
         <li><a href="https://curl.se/docs/CVE-2025-9086.html">https://curl.se/docs/CVE-2025-9086.html</a></li>
         <li><a href="https://curl.se/docs/CVE-2025-9086.json">https://curl.se/docs/CVE-2025-9086.json</a></li>
         <li><a href="https://hackerone.com/reports/3294999">https://hackerone.com/reports/3294999</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2025/09/10/1">http://www.openwall.com/lists/oss-security/2025/09/10/1</a></li>
         </ul>
         
               <hr/>
@@ -2680,6 +2229,9 @@
         <li><a href="https://curl.se/docs/CVE-2025-10148.html">https://curl.se/docs/CVE-2025-10148.html</a></li>
         <li><a href="https://curl.se/docs/CVE-2025-10148.json">https://curl.se/docs/CVE-2025-10148.json</a></li>
         <li><a href="https://hackerone.com/reports/3330839">https://hackerone.com/reports/3330839</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2025/09/10/2">http://www.openwall.com/lists/oss-security/2025/09/10/2</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2025/09/10/3">http://www.openwall.com/lists/oss-security/2025/09/10/3</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2025/09/10/4">http://www.openwall.com/lists/oss-security/2025/09/10/4</a></li>
         </ul>
         
               <hr/>

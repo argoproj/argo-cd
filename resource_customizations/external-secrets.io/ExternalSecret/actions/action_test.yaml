@@ -7,3 +7,6 @@ discoveryTests:
   - inputPath: testdata/external-secret.yaml
     result:
       - name: "refresh"
+  - inputPath: testdata/external-secret-refresh-policy.yaml
+    result:
+      - name: "refresh"

@@ -15,6 +15,8 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/go-playground/webhooks/v6/azuredevops"
+
 	bb "github.com/ktrysmt/go-bitbucket"
 	"github.com/stretchr/testify/mock"
 	"k8s.io/apimachinery/pkg/labels"
@@ -77,8 +79,8 @@ func NewMockHandlerWithPayloadLimit(reactor *reactorDef, applicationNamespaces [
 }
 
 func NewMockHandlerForBitbucketCallback(reactor *reactorDef, applicationNamespaces []string, objects ...runtime.Object) *ArgoCDWebhookHandler {
-	mockDB := mocks.ArgoDB{}
-	mockDB.On("ListRepositories", mock.Anything).Return(
+	mockDB := &mocks.ArgoDB{}
+	mockDB.EXPECT().ListRepositories(mock.Anything).Return(
 		[]*v1alpha1.Repository{
 			{
 				Repo:     "https://bitbucket.org/test/argocd-examples-pub.git",
@@ -97,7 +99,7 @@ func NewMockHandlerForBitbucketCallback(reactor *reactorDef, applicationNamespac
 		}, nil)
 	argoSettings := settings.ArgoCDSettings{WebhookBitbucketUUID: "abcd-efgh-ijkl-mnop"}
 	defaultMaxPayloadSize := int64(50) * 1024 * 1024
-	return newMockHandler(reactor, applicationNamespaces, defaultMaxPayloadSize, &mockDB, &argoSettings, objects...)
+	return newMockHandler(reactor, applicationNamespaces, defaultMaxPayloadSize, mockDB, &argoSettings, objects...)
 }
 
 type fakeAppsLister struct {
@@ -728,6 +730,26 @@ func Test_affectedRevisionInfo_appRevisionHasChanged(t *testing.T) {
 		{true, "refs/tags/no-slashes", bitbucketPushPayload("no-slashes"), "bitbucket push branch or tag name without slashes, targetRevision tag prefixed"},
 		{true, "refs/tags/no-slashes", bitbucketRefChangedPayload("no-slashes"), "bitbucket ref changed branch or tag name without slashes, targetRevision tag prefixed"},
 		{true, "refs/tags/no-slashes", gogsPushPayload("no-slashes"), "gogs push branch or tag name without slashes, targetRevision tag prefixed"},
+
+		// Tests fix for https://github.com/argoproj/argo-cd/security/advisories/GHSA-wp4p-9pxh-cgx2
+		{true, "test", gogsclient.PushPayload{Ref: "test", Repo: nil}, "gogs push branch with nil repo in payload"},
+
+		// Testing fix for https://github.com/argoproj/argo-cd/security/advisories/GHSA-gpx4-37g2-c8pv
+		{false, "test", azuredevops.GitPushEvent{Resource: azuredevops.Resource{RefUpdates: []azuredevops.RefUpdate{}}}, "Azure DevOps malformed push event with no ref updates"},
+
+		{true, "some-ref", bitbucketserver.RepositoryReferenceChangedPayload{
+			Changes: []bitbucketserver.RepositoryChange{
+				{Reference: bitbucketserver.RepositoryReference{ID: "refs/heads/some-ref"}},
+			},
+			Repository: bitbucketserver.Repository{Links: map[string]any{"clone": "boom"}}, // The string "boom" here is what previously caused a panic.
+		}, "bitbucket push branch or tag name, malformed link"}, // https://github.com/argoproj/argo-cd/security/advisories/GHSA-f9gq-prrc-hrhc
+
+		{true, "some-ref", bitbucketserver.RepositoryReferenceChangedPayload{
+			Changes: []bitbucketserver.RepositoryChange{
+				{Reference: bitbucketserver.RepositoryReference{ID: "refs/heads/some-ref"}},
+			},
+			Repository: bitbucketserver.Repository{Links: map[string]any{"clone": []any{map[string]any{"name": "http", "href": []string{}}}}}, // The href as an empty array is what previously caused a panic.
+		}, "bitbucket push branch or tag name, malformed href"},
 	}
 	for _, testCase := range tests {
 		testCopy := testCase
@@ -1062,7 +1084,8 @@ func TestFetchDiffStatBitbucketClient(t *testing.T) {
 	httpmock.RegisterResponder("GET",
 		"https://api.bitbucket.org/2.0/repositories/test-owner/test-repo/diffstat/abcdef..ghijkl",
 		getDiffstatResponderFn())
-	client := bb.NewOAuthbearerToken("")
+	client, err := bb.NewOAuthbearerToken("")
+	require.NoError(t, err)
 	tt := []struct {
 		name                string
 		owner               string
@@ -1111,7 +1134,8 @@ func TestIsHeadTouched(t *testing.T) {
 	httpmock.RegisterResponder("GET",
 		"https://api.bitbucket.org/2.0/repositories/test-owner/test-repo",
 		getRepositoryResponderFn())
-	client := bb.NewOAuthbearerToken("")
+	client, err := bb.NewOAuthbearerToken("")
+	require.NoError(t, err)
 	tt := []struct {
 		name              string
 		owner             string

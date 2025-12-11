@@ -15,6 +15,9 @@ metadata:
   resourceVersion: '947414'
   uid: a63f377e-1500-437e-9267-579f4a790518
 spec:
+  strategy:
+    pauseResume:
+      fastResume: true
   monoVertex:
     metadata:
       annotations:
