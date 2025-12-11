@@ -27,7 +27,6 @@ var _ Generator = (*DuckTypeGenerator)(nil)
 // DuckTypeGenerator generates Applications for some or all clusters registered with ArgoCD.
 type DuckTypeGenerator struct {
 	ctx             context.Context
-	client          client.Client
 	dynClient       dynamic.Interface
 	clientset       kubernetes.Interface
 	namespace       string // namespace is the Argo CD namespace
@@ -37,7 +36,6 @@ type DuckTypeGenerator struct {
 func NewDuckTypeGenerator(ctx context.Context, c client.Client, dynClient dynamic.Interface, clientset kubernetes.Interface, namespace string, clusterInformer *settings.ClusterInformer) Generator {
 	g := &DuckTypeGenerator{
 		ctx:             ctx,
-		client:          c,
 		dynClient:       dynClient,
 		clientset:       clientset,
 		namespace:       namespace,
