@@ -128,14 +128,18 @@ func (w *WorkloadIdentityAuthProvider) CreateClientFactory(organizationURL strin
 }
 
 func NewAzureDevOpsService(token string, providerConfig *argoprojiov1alpha1.PullRequestGeneratorAzureDevOps) (PullRequestService, error) {
-	if token == "" {
-		return NewAzureDevOpsServiceWithAuthProvider(providerConfig, NewAnonymousAuthProvider())
+	if providerConfig.UseWorkloadIdentity {
+		return newAzureDevOpsServiceWithWorkloadIdentity(providerConfig)
 	}
-	return NewAzureDevOpsServiceWithAuthProvider(providerConfig, NewPatAuthProvider(token))
+
+	if token == "" {
+		return newAzureDevOpsServiceWithAuthProvider(providerConfig, NewAnonymousAuthProvider())
+	}
+	return newAzureDevOpsServiceWithAuthProvider(providerConfig, NewPatAuthProvider(token))
 }
 
-// NewAzureDevOpsServiceWithAuthProvider creates a new Azure DevOps service with the specified authentication provider
-func NewAzureDevOpsServiceWithAuthProvider(providerConfig *argoprojiov1alpha1.PullRequestGeneratorAzureDevOps, authProvider AuthProvider) (PullRequestService, error) {
+// newAzureDevOpsServiceWithAuthProvider creates a new Azure DevOps service with the specified authentication provider
+func newAzureDevOpsServiceWithAuthProvider(providerConfig *argoprojiov1alpha1.PullRequestGeneratorAzureDevOps, authProvider AuthProvider) (PullRequestService, error) {
 	organizationURL := buildURL(providerConfig.API, providerConfig.Organization)
 
 	clientFactory := authProvider.CreateClientFactory(organizationURL)
@@ -148,14 +152,9 @@ func NewAzureDevOpsServiceWithAuthProvider(providerConfig *argoprojiov1alpha1.Pu
 	}, nil
 }
 
-// NewAzureDevOpsServiceWithWorkloadIdentity creates a new Azure DevOps service using Azure Workload Identity
-func NewAzureDevOpsServiceWithWorkloadIdentity(providerConfig *argoprojiov1alpha1.PullRequestGeneratorAzureDevOps) (PullRequestService, error) {
-	return NewAzureDevOpsServiceWithAuthProvider(providerConfig, NewWorkloadIdentityAuthProvider())
-}
-
-// NewAzureDevOpsServiceAnonymous creates a new Azure DevOps service using anonymous authentication
-func NewAzureDevOpsServiceAnonymous(providerConfig *argoprojiov1alpha1.PullRequestGeneratorAzureDevOps) (PullRequestService, error) {
-	return NewAzureDevOpsServiceWithAuthProvider(providerConfig, NewAnonymousAuthProvider())
+// newAzureDevOpsServiceWithWorkloadIdentity creates a new Azure DevOps service using Azure Workload Identity
+func newAzureDevOpsServiceWithWorkloadIdentity(providerConfig *argoprojiov1alpha1.PullRequestGeneratorAzureDevOps) (PullRequestService, error) {
+	return newAzureDevOpsServiceWithAuthProvider(providerConfig, NewWorkloadIdentityAuthProvider())
 }
 
 func (a *AzureDevOpsService) List(ctx context.Context) ([]*PullRequest, error) {
