@@ -142,7 +142,7 @@ func newTestAppSetServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforce
 	appsetInformer := factory.Argoproj().V1alpha1().ApplicationSets().Informer()
 	go appsetInformer.Run(ctx.Done())
 	if !k8scache.WaitForCacheSync(ctx.Done(), appsetInformer.HasSynced) {
-		panic("Timed out waiting for caches to sync")
+		t.Fatal("Timed out waiting for caches to sync")
 	}
 
 	scheme := runtime.NewScheme()
@@ -176,6 +176,15 @@ func newTestAppSetServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforce
 		panic("Timed out waiting for caches to sync")
 	}
 
+	clusterInformer, err := settings.NewClusterInformer(kubeclientset, testNamespace)
+	if err != nil {
+		t.Fatal(err)
+	}
+	go clusterInformer.Run(ctx.Done())
+	if !k8scache.WaitForCacheSync(ctx.Done(), clusterInformer.HasSynced) {
+		t.Fatal("Timed out waiting for cluster cache to sync")
+	}
+
 	server := NewServer(
 		db,
 		kubeclientset,
@@ -196,6 +205,7 @@ func newTestAppSetServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforce
 		true,
 		true,
 		testEnableEventList,
+		clusterInformer,
 	)
 	return server.(*Server)
 }

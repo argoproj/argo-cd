@@ -41,6 +41,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/rbac"
 	"github.com/argoproj/argo-cd/v3/util/security"
 	"github.com/argoproj/argo-cd/v3/util/session"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 type Server struct {
@@ -57,6 +58,7 @@ type Server struct {
 	auditLogger              *argo.AuditLogger
 	projectLock              sync.KeyLock
 	enabledNamespaces        []string
+	clusterInformer          *settings.ClusterInformer
 	GitSubmoduleEnabled      bool
 	EnableNewGitFileGlobbing bool
 	ScmRootCAPath            string
@@ -86,6 +88,7 @@ func NewServer(
 	enableScmProviders bool,
 	enableGitHubAPIMetrics bool,
 	enableK8sEvent []string,
+	clusterInformer *settings.ClusterInformer,
 ) applicationset.ApplicationSetServiceServer {
 	s := &Server{
 		ns:                       namespace,
@@ -101,6 +104,7 @@ func NewServer(
 		projectLock:              projectLock,
 		auditLogger:              argo.NewAuditLogger(kubeclientset, "argocd-server", enableK8sEvent),
 		enabledNamespaces:        enabledNamespaces,
+		clusterInformer:          clusterInformer,
 		GitSubmoduleEnabled:      gitSubmoduleEnabled,
 		EnableNewGitFileGlobbing: enableNewGitFileGlobbing,
 		ScmRootCAPath:            scmRootCAPath,
@@ -265,7 +269,7 @@ func (s *Server) generateApplicationSetApps(ctx context.Context, logEntry *log.E
 
 	scmConfig := generators.NewSCMConfig(s.ScmRootCAPath, s.AllowedScmProviders, s.EnableScmProviders, s.EnableGitHubAPIMetrics, github_app.NewAuthCredentials(argoCDDB.(db.RepoCredsDB)), true)
 	argoCDService := services.NewArgoCDService(s.db, s.GitSubmoduleEnabled, s.repoClientSet, s.EnableNewGitFileGlobbing)
-	appSetGenerators := generators.GetGenerators(ctx, s.client, s.k8sClient, s.ns, argoCDService, s.dynamicClient, scmConfig)
+	appSetGenerators := generators.GetGenerators(ctx, s.client, s.k8sClient, s.ns, argoCDService, s.dynamicClient, scmConfig, s.clusterInformer)
 
 	apps, _, err := appsettemplate.GenerateApplications(logEntry, appset, appSetGenerators, &appsetutils.Render{}, s.client)
 	if err != nil {
