@@ -364,7 +364,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
 
     // Connect a new repository or create a repository credentials for HTTPS repositories
     const connectHTTPSRepo = async (params: NewHTTPSRepoParams) => {
-        if (credsTemplate) {
+        if (credsTemplate.current) {
             await createHTTPSCreds({
                 type: params.type,
                 url: params.url,
@@ -425,7 +425,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
 
     // Connect a new repository or create a repository credentials for GitHub App repositories
     const connectGitHubAppRepo = async (params: NewGitHubAppRepoParams) => {
-        if (credsTemplate) {
+        if (credsTemplate.current) {
             createGitHubAppCreds({
                 url: params.url,
                 githubAppPrivateKey: params.githubAppPrivateKey,
@@ -461,7 +461,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
 
     // Connect a new repository or create a repository credentials for GitHub App repositories
     const connectGoogleCloudSourceRepo = async (params: NewGoogleCloudSourceRepoParams) => {
-        if (credsTemplate) {
+        if (credsTemplate.current) {
             createGoogleCloudSourceCreds({
                 url: params.url,
                 gcpServiceAccountKey: params.gcpServiceAccountKey,
@@ -960,7 +960,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                                                                     title: 'Create application',
                                                                     action: () =>
                                                                         ctx.navigation.goto('/applications', {
-                                                                            new: JSON.stringify({spec: {sourceHydrator: {drySource: {repoURL: repo.repo}}}})
+                                                                            new: JSON.stringify({spec: {source: {repoURL: repo.repo}}})
                                                                         })
                                                                 },
                                                                 {

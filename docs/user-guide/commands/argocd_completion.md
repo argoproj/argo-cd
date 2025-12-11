@@ -40,6 +40,19 @@ $ source _argocd
 $ argocd completion fish > ~/.config/fish/completions/argocd.fish
 $ source ~/.config/fish/completions/argocd.fish
 
+# For powershell
+$ mkdir -Force "$HOME\Documents\PowerShell" | Out-Null
+$ argocd completion powershell > $HOME\Documents\PowerShell\argocd_completion.ps1
+
+Add the following lines to your powershell profile
+
+$ # ArgoCD tab completion
+if (Test-Path "$HOME\Documents\PowerShell\argocd_completion.ps1") {
+    . "$HOME\Documents\PowerShell\argocd_completion.ps1"
+}
+
+Then reload your profile
+$ . $PROFILE
 
 ```
 
