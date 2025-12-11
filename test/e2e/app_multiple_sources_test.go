@@ -271,7 +271,7 @@ func TestMultiSourceAppSetWithSourceName(t *testing.T) {
 		})
 }
 
-func TestMultiSourceApptErrorWhenSourceNameAndSourcePosition(t *testing.T) {
+func TestMultiSourceAppErrorWhenSourceNameAndSourcePosition(t *testing.T) {
 	sources := []ApplicationSource{{
 		RepoURL: RepoURL(RepoURLTypeFile),
 		Path:    guestbookPath,
