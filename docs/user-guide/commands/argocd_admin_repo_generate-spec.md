@@ -71,7 +71,7 @@ argocd admin repo generate-spec REPOURL [flags]
       --gcp-service-account-key-path string            service account key for the Google Cloud Platform
       --github-app-enterprise-base-url string          base url to use when using GitHub Enterprise (e.g. https://ghe.example.com/api/v3
       --github-app-id int                              id of the GitHub Application
-      --github-app-installation-id int                 installation id of the GitHub Application
+      --github-app-installation-id int                 installation id of the GitHub Application (optional, will be auto-discovered if not provided)
       --github-app-private-key-path string             private key of the GitHub Application
   -h, --help                                           help for generate-spec
       --insecure-ignore-host-key                       disables SSH strict host key checking (deprecated, use --insecure-skip-server-verification instead)
