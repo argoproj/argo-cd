@@ -520,6 +520,34 @@ func resetAzureTokenCache() {
 	azureTokenCache = gocache.New(gocache.NoExpiration, 0)
 }
 
+const fakeGitHubAppPrivateKey = `-----BEGIN RSA PRIVATE KEY-----
+MIIEogIBAAKCAQEA2KHkp2fe0ReHqAt9BimWEec2ryWZIyg9jvB3BdP3mzFf0bOt
+WlHm1FAETFxH4h5jYASUaaWEwRNNyGlT1GhTp+jOMC4xhOSb5/SnI2dt2EITkudQ
+FKsSFUdJAndqOzkjrP2pL4fi4b7JWhuLDO36ufAP4l2m3tnAseGSSTIccWvzLFFU
+s3wsHOHxOcJGCP1Z7rizxl6mTKYL/Z+GHqN17OJslDf901uPXsUeDCYL2iigGPhD
+Ao6k8POsfbpqLG7poCDTK50FLnS5qEocjxt+J4ZjBEWTU/DOFXWYstzfbhm8OZPQ
+pSSEiBCxpg+zjtkQfCyZxXB5RQ84CY78fXOI9QIDAQABAoIBAG8jL0FLIp62qZvm
+uO9ualUo/37/lP7aaCpq50UQJ9lwjS3yNh8+IWQO4QWj2iUBXg4mi1Vf2ymKk78b
+eixgkXp1D0Lcj/8ToYBwnUami04FKDGXhhf0Y8SS27vuM4vKlqjrQd7modkangYi
+V0X82UKHDD8fuLpfkGIxzXDLypfMzjMuVpSntnWaf2YX3VR/0/66yEp9GejftF2k
+wqhGoWM6r68pN5XuCqWd5PRluSoDy/o4BAFMhYCSfp9PjgZE8aoeWHgYzlZ3gUyn
+r+HaDDNWbibhobXk/9h8lwAJ6KCZ5RZ+HFfh0HuwIxmocT9OCFgy/S0g1p+o3m9K
+VNd5AMkCgYEA5fbS5UK7FBzuLoLgr1hktmbLJhpt8y8IPHNABHcUdE+O4/1xTQNf
+pMUwkKjGG1MtrGjLOIoMGURKKn8lR1GMZueOTSKY0+mAWUGvSzl6vwtJwvJruT8M
+otEO03o0tPnRKGxbFjqxkp2b6iqJ8MxCRZ3lSidc4mdi7PHzv9lwgvsCgYEA8Siq
+7weCri9N6y+tIdORAXgRzcW54BmJyqB147c72RvbMacb6rN28KXpM3qnRXyp3Llb
+yh81TW3FH10GqrjATws7BK8lP9kkAw0Z/7kNiS1NgH3pUbO+5H2kAa/6QW35nzRe
+Jw2lyfYGWqYO4hYXH14ML1kjgS1hgd3XHOQ64M8CgYAKcjDYSzS2UC4dnMJaFLjW
+dErsGy09a7iDDnUs/r/GHMsP3jZkWi/hCzgOiiwdl6SufUAl/FdaWnjH/2iRGco3
+7nLPXC/3CFdVNp+g2iaSQRADtAFis9N+HeL/hkCYq/RtUqa8lsP0NgacF3yWnKCy
+Ct8chDc67ZlXzBHXeCgdOwKBgHHGFPbWXUHeUW1+vbiyvrupsQSanznp8oclMtkv
+Dk48hSokw9fzuU6Jh77gw9/Vk7HtxS9Tj+squZA1bDrJFPl1u+9WzkUUJZhG6xgp
+bwhj1iejv5rrKUlVOTYOlwudXeJNa4oTNz9UEeVcaLMjZt9GmIsSC90a0uDZD26z
+AlAjAoGAEoqm2DcNN7SrH6aVFzj1EVOrNsHYiXj/yefspeiEmf27PSAslP+uF820
+SDpz4h+Bov5qTKkzcxuu1QWtA4M0K8Iy6IYLwb83DZEm1OsAf4i0pODz21PY/I+O
+VHzjB10oYgaInHZgMUdyb6F571UdiYSB6a/IlZ3ngj5touy3VIM=
+-----END RSA PRIVATE KEY-----`
+
 func TestDiscoverGitHubAppInstallationId(t *testing.T) {
 	t.Run("returns cached installation ID", func(t *testing.T) {
 		// Setup: prepopulate cache
@@ -539,24 +567,37 @@ func TestDiscoverGitHubAppInstallationId(t *testing.T) {
 		// Assert
 		require.NoError(t, err)
 		assert.Equal(t, expectedId, actualId)
+
+		// clean up cache
+		githubInstallationIdCacheMutex.Lock()
+		delete(githubInstallationIdCache, githubAppInstallationKey{org: org, domain: "github.com", appID: appId})
+		githubInstallationIdCacheMutex.Unlock()
 	})
 
 	t.Run("discovers installation ID from GitHub API", func(t *testing.T) {
 		// Setup: mock GitHub API server
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if r.URL.Path == "/app/installations" {
+			// GitHub Enterprise expects paths like /api/v3/app/installations
+			// go-github's WithEnterpriseURLs adds this prefix automatically
+			if strings.HasSuffix(r.URL.Path, "/app/installations") {
 				w.WriteHeader(http.StatusOK)
 				//nolint:errcheck
 				json.NewEncoder(w).Encode([]map[string]any{
-					{"id": 12345, "account": map[string]any{"login": "test-org"}},
+					{"id": 98765, "account": map[string]any{"login": "test-org"}},
 				})
+				return
 			}
+			// Return 404 for any other path
+			w.WriteHeader(http.StatusNotFound)
 		}))
 		defer server.Close()
 
 		// Execute & Assert
 		ctx := context.Background()
-		actualId, err := DiscoverGitHubAppInstallationId(ctx, 12345, "fake-key", "https://github.com/test-org/test-repo", "test-org")
+		// Pass the mock server URL as the enterpriseBaseURL so the GitHub client uses it
+		// Note: The mock server will have a different domain (e.g., 127.0.0.1) than the first test (github.com),
+		// so there's no cache collision and no need to clear the cache.
+		actualId, err := DiscoverGitHubAppInstallationId(ctx, 12345, fakeGitHubAppPrivateKey, server.URL, "test-org")
 		require.NoError(t, err)
 		assert.Equal(t, int64(98765), actualId)
 	})
