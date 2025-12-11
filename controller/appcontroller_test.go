@@ -437,6 +437,7 @@ var fakePreDeleteHook = `
     ]
   }
 }
+`
 
 var fakeNamespace = `
 apiVersion: v1
