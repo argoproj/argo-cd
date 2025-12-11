@@ -34,6 +34,11 @@ metadata:
 To confirm the pruning you can use Argo CD UI, CLI or manually apply the `argocd.argoproj.io/deletion-approved: <ISO formatted timestamp>`
 annotation to the application.
 
+If a resource with `Prune=confirm` has been pruned, the sync operation will remain in a Syncing state until pruning is
+confirmed. The UI will look similar to this, with the "Confirm Pruning" button available to complete the sync:
+
+![Screenshot of the Argo CD Application UI. The "Last Sync" section shows that the operation is still Syncing. The row of gray action buttons includes an extra "Confirm Pruning" button.](../assets/confirm-prune.png)
+
 ## Disable Kubectl Validation
 
 For a certain class of objects, it is necessary to `kubectl apply` them using the `--validate=false` flag. Examples of this are Kubernetes types which uses `RawExtension`, such as [ServiceCatalog](https://github.com/kubernetes-incubator/service-catalog/blob/master/pkg/apis/servicecatalog/v1beta1/types.go#L497). You can do that using this annotation:
