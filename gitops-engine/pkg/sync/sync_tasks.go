@@ -2,6 +2,7 @@ package sync
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 
@@ -79,14 +80,20 @@ func (s syncTasks) Swap(i, j int) {
 
 // order is
 // 1. phase
-// 2. wave
-// 3. kind
-// 4. name
+// 2. waveGroup
+// 3. wave
+// 4. kind
+// 5. name
 func (s syncTasks) Less(i, j int) bool {
 	tA := s[i]
 	tB := s[j]
 
 	d := syncPhaseOrder[tA.phase] - syncPhaseOrder[tB.phase]
+	if d != 0 {
+		return d < 0
+	}
+
+	d = tA.waveGroup() - tB.waveGroup()
 	if d != 0 {
 		return d < 0
 	}
@@ -255,6 +262,40 @@ func (s syncTasks) wave() int {
 		return s[0].wave()
 	}
 	return 0
+}
+
+func (s syncTasks) syncIdentities() []common.SyncIdentity {
+	if len(s) > 0 {
+		syncIdentities := make([]common.SyncIdentity, 0)
+		for i := range s {
+			wi := &common.SyncIdentity{Phase: s[i].phase, Wave: s[i].wave(), WaveGroup: s[i].waveGroup()}
+			if !slices.Contains(syncIdentities, *wi) {
+				syncIdentities = append(syncIdentities, *wi)
+			}
+		}
+		return syncIdentities
+	}
+	return make([]common.SyncIdentity, 0)
+}
+
+func (s syncTasks) independantSyncIdentities() []common.SyncIdentity {
+	if len(s) > 0 {
+		firstSyncIdentities := make([]common.SyncIdentity, 0)
+		for i, firstSyncTask := range s {
+			belongsToFirstWaveGroups := true
+			for _, secondSyncTask := range s[:i] {
+				if firstSyncTask.dependendsOn(secondSyncTask) {
+					belongsToFirstWaveGroups = false
+				}
+			}
+			wi := &common.SyncIdentity{Phase: s[i].phase, Wave: s[i].wave(), WaveGroup: s[i].waveGroup()}
+			if belongsToFirstWaveGroups && !slices.Contains(firstSyncIdentities, *wi) {
+				firstSyncIdentities = append(firstSyncIdentities, *wi)
+			}
+		}
+		return firstSyncIdentities
+	}
+	return make([]common.SyncIdentity, 0)
 }
 
 func (s syncTasks) lastPhase() common.SyncPhase {
