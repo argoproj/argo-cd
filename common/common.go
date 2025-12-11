@@ -122,8 +122,8 @@ const (
 	// StateCookieMaxAge is the maximum age of the oauth state cookie
 	StateCookieMaxAge = time.Minute * 5
 
-	// ChangePasswordSSOTokenMaxAge is the max token age for password change operation
-	ChangePasswordSSOTokenMaxAge = time.Minute * 5
+	// DefaultChangePasswordSSOTokenMaxAge is the default max token age for password change operation
+	DefaultChangePasswordSSOTokenMaxAge = time.Minute * 5
 	// ChangePasswordSSOTokenMaxAgeLimit is the maximum allowed value for configurable SSO token max age
 	ChangePasswordSSOTokenMaxAgeLimit = time.Minute * 10
 	// GithubAppCredsExpirationDuration is the default time used to cache the GitHub app credentials
@@ -505,7 +505,7 @@ func GetChangePasswordSSOTokenMaxAge() time.Duration {
 		duration, err := time.ParseDuration(val)
 		if err != nil {
 			logrus.Warnf("failed to parse SSO token max age configuration: %v, using default(5m)", err)
-			return ChangePasswordSSOTokenMaxAge
+			return DefaultChangePasswordSSOTokenMaxAge
 		}
 		// Cap at maximum limit to prevent extreme values
 		if duration > ChangePasswordSSOTokenMaxAgeLimit {
@@ -514,5 +514,5 @@ func GetChangePasswordSSOTokenMaxAge() time.Duration {
 		}
 		return duration
 	}
-	return ChangePasswordSSOTokenMaxAge
+	return DefaultChangePasswordSSOTokenMaxAge
 }

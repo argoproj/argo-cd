@@ -188,7 +188,7 @@ func TestUpdatePassword_OldSSOToken(t *testing.T) {
 	accountServer, _ := newTestAccountServer(t, t.Context(), func(cm *corev1.ConfigMap, _ *corev1.Secret) {
 		cm.Data["accounts.anotherUser"] = "login"
 	})
-	ctx := ssoAdminContext(t.Context(), time.Now().Add(-2*common.ChangePasswordSSOTokenMaxAge))
+	ctx := ssoAdminContext(t.Context(), time.Now().Add(-2*common.DefaultChangePasswordSSOTokenMaxAge))
 
 	_, err := accountServer.UpdatePassword(ctx, &account.UpdatePasswordRequest{CurrentPassword: "oldpassword", NewPassword: "newpassword", Name: "anotherUser"})
 	require.Error(t, err)

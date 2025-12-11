@@ -117,7 +117,7 @@ func Test_GetChangePasswordSSOTokenMaxAge(t *testing.T) {
 		{
 			name:           "No env var set - uses default",
 			envValue:       "",
-			expectedMaxAge: ChangePasswordSSOTokenMaxAge,
+			expectedMaxAge: DefaultChangePasswordSSOTokenMaxAge,
 		},
 		{
 			name:           "Valid env var set",
@@ -127,7 +127,7 @@ func Test_GetChangePasswordSSOTokenMaxAge(t *testing.T) {
 		{
 			name:           "Invalid env var set - fallback to default",
 			envValue:       "invalid-duration",
-			expectedMaxAge: ChangePasswordSSOTokenMaxAge,
+			expectedMaxAge: DefaultChangePasswordSSOTokenMaxAge,
 		},
 		{
 			name:           "Different valid duration",
