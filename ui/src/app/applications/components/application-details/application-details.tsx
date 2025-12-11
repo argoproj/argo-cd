@@ -31,6 +31,7 @@ import {useSidebarTarget} from '../../../sidebar/sidebar';
 import './application-details.scss';
 import {TopBarActionMenuExt, AppViewExtension, StatusPanelExtension} from '../../../shared/services/extensions-service';
 import {ApplicationHydrateOperationState} from '../application-hydrate-operation-state/application-hydrate-operation-state';
+import minimatch from 'minimatch';
 
 interface ApplicationDetailsState {
     page: number;
@@ -153,17 +154,7 @@ export const ApplicationDetails: FC<RouteComponentProps<{appnamespace: string; n
     // Define nodeNameMatchesWildcardFilters as it's used by filterTreeNode
     const nodeNameMatchesWildcardFilters = useCallback(
         (nodeName: string, filterInputNames: string[]): boolean => {
-            const regularExpression = new RegExp(
-                filterInputNames
-                    // Escape any regex input to ensure only * can be used
-                    .map(pattern => '^' + escapeRegex(pattern) + '$')
-                    // Replace any escaped * with proper regex
-                    .map(pattern => pattern.replace(/\\\*/g, '.*'))
-                    // Join all filterInputs to a single regular expression
-                    .join('|'),
-                'gi'
-            );
-            return regularExpression.test(nodeName);
+            return filterInputNames.some(pattern => minimatch(nodeName, pattern));
         },
         [escapeRegex]
     );
