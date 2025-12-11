@@ -6,16 +6,16 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 
-	"github.com/stretchr/testify/require"
-
 	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
+	"github.com/argoproj/argo-cd/v3/test/e2e/fixture/repos"
 	"github.com/argoproj/argo-cd/v3/util/errors"
 )
 
@@ -29,6 +29,27 @@ func TestGitSemverResolutionNotUsingConstraint(t *testing.T) {
 		When().
 		AddTag("v0.1.0").
 		CreateApp().
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced))
+}
+
+func TestGitShallowClone(t *testing.T) {
+	Given(t).
+		Path("deployment").
+		HTTPSInsecureRepoURLAdded(true, repos.WithDepth(1)).
+		RepoURLType(fixture.RepoURLTypeHTTPS).
+		When().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		When().
+		PatchFile("deployment.yaml", `[{"op": "add", "path": "/metadata/labels", "value": {"foo": "bar"}}]`).
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		When().
 		Sync().
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced))

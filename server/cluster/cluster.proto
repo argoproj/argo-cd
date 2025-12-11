@@ -80,5 +80,4 @@ service ClusterService {
 	rpc InvalidateCache(ClusterQuery) returns (github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.Cluster) {
 		option (google.api.http).post = "/api/v1/clusters/{id.value}/invalidate-cache";
 	}
-	
 }

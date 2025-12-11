@@ -43,8 +43,8 @@ func AddProjFlags(command *cobra.Command, opts *ProjectOpts) {
 	command.Flags().StringSliceVar(&opts.SignatureKeys, "signature-keys", []string{}, "GnuPG public key IDs for commit signature verification")
 	command.Flags().BoolVar(&opts.orphanedResourcesEnabled, "orphaned-resources", false, "Enables orphaned resources monitoring")
 	command.Flags().BoolVar(&opts.orphanedResourcesWarn, "orphaned-resources-warn", false, "Specifies if applications should have a warning condition when orphaned resources detected")
-	command.Flags().StringArrayVar(&opts.allowedClusterResources, "allow-cluster-resource", []string{}, "List of allowed cluster level resources")
-	command.Flags().StringArrayVar(&opts.deniedClusterResources, "deny-cluster-resource", []string{}, "List of denied cluster level resources")
+	command.Flags().StringArrayVar(&opts.allowedClusterResources, "allow-cluster-resource", []string{}, "List of allowed cluster level resources, optionally with group and name (e.g. ClusterRole, apiextensions.k8s.io/CustomResourceDefinition, /Namespace/team1-*)")
+	command.Flags().StringArrayVar(&opts.deniedClusterResources, "deny-cluster-resource", []string{}, "List of denied cluster level resources, optionally with group and name (e.g. ClusterRole, apiextensions.k8s.io/CustomResourceDefinition, /Namespace/kube-*)")
 	command.Flags().StringArrayVar(&opts.allowedNamespacedResources, "allow-namespaced-resource", []string{}, "List of allowed namespaced resources")
 	command.Flags().StringArrayVar(&opts.deniedNamespacedResources, "deny-namespaced-resource", []string{}, "List of denied namespaced resources")
 	command.Flags().StringSliceVar(&opts.SourceNamespaces, "source-namespaces", []string{}, "List of source namespaces for applications")
@@ -64,12 +64,26 @@ func getGroupKindList(values []string) []metav1.GroupKind {
 	return res
 }
 
-func (opts *ProjectOpts) GetAllowedClusterResources() []metav1.GroupKind {
-	return getGroupKindList(opts.allowedClusterResources)
+func getClusterResourceRestrictionItemList(values []string) []v1alpha1.ClusterResourceRestrictionItem {
+	var res []v1alpha1.ClusterResourceRestrictionItem
+	for _, val := range values {
+		if parts := strings.Split(val, "/"); len(parts) == 3 {
+			res = append(res, v1alpha1.ClusterResourceRestrictionItem{Group: parts[0], Kind: parts[1], Name: parts[2]})
+		} else if parts = strings.Split(val, "/"); len(parts) == 2 {
+			res = append(res, v1alpha1.ClusterResourceRestrictionItem{Group: parts[0], Kind: parts[1]})
+		} else if len(parts) == 1 {
+			res = append(res, v1alpha1.ClusterResourceRestrictionItem{Kind: parts[0]})
+		}
+	}
+	return res
 }
 
-func (opts *ProjectOpts) GetDeniedClusterResources() []metav1.GroupKind {
-	return getGroupKindList(opts.deniedClusterResources)
+func (opts *ProjectOpts) GetAllowedClusterResources() []v1alpha1.ClusterResourceRestrictionItem {
+	return getClusterResourceRestrictionItemList(opts.allowedClusterResources)
+}
+
+func (opts *ProjectOpts) GetDeniedClusterResources() []v1alpha1.ClusterResourceRestrictionItem {
+	return getClusterResourceRestrictionItemList(opts.deniedClusterResources)
 }
 
 func (opts *ProjectOpts) GetAllowedNamespacedResources() []metav1.GroupKind {

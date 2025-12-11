@@ -13,10 +13,10 @@
 
 ```bash
 kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+kubectl apply -n argocd --server-side -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
 ```
 
-This will create a new namespace, `argocd`, where Argo CD services and application resources will live.
+This will create a new `argocd` namespace where all Argo CD services and application resources will reside. It will also install Argo CD by applying the official manifests from the stable branch. Using a pinned version (like `v3.2.0`) is recommended for production.
 
 > [!WARNING]
 > The installation manifests include `ClusterRoleBinding` resources that reference `argocd` namespace. If you are installing Argo CD into a different
@@ -44,6 +44,8 @@ Use `argocd login --core` to [configure](./user-guide/commands/argocd_login.md) 
 
 > [!NOTE]
 > This default installation for Redis is using password authentication. The Redis password is stored in Kubernetes secret `argocd-redis` with key `auth` in the namespace where Argo CD is installed.
+> 
+> If you are running Argo CD on Docker Desktop or another local Kubernetes environment, refer to the [Running Argo CD Locally](developer-guide/running-locally.md) guide for the full setup instructions and configuration steps tailored for local clusters.
 
 ## 2. Download Argo CD CLI
 
@@ -55,10 +57,9 @@ Also available in Mac, Linux and WSL Homebrew:
 brew install argocd
 ```
 
-## 3. Access The Argo CD API Server
+## 3. Access Argo CD
 
-By default, the Argo CD API server is not exposed with an external IP. To access the API server,
-choose one of the following techniques to expose the Argo CD API server:
+By default, Argo CD isn’t exposed outside the cluster. To access Argo CD from your browser or CLI, use one of the following methods:
 
 ### Service Type Load Balancer
 Change the argocd-server service type to `LoadBalancer`:

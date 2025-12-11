@@ -3,6 +3,7 @@ import * as classNames from 'classnames';
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
 import {Key, KeybindingContext, KeybindingProvider} from 'argo-ui/v2';
+import {RouteComponentProps} from 'react-router';
 import {combineLatest, from, merge, Observable} from 'rxjs';
 import {bufferTime, delay, filter, map, mergeMap, repeat, retryWhen} from 'rxjs/operators';
 import {AddAuthToToolbar, ClusterCtx, DataLoader, EmptyState, Page, Paginate, Spinner} from '../../../shared/components';
@@ -52,14 +53,14 @@ const APP_FIELDS = [
 const APP_LIST_FIELDS = ['metadata.resourceVersion', ...APP_FIELDS.map(field => `items.${field}`)];
 const APP_WATCH_FIELDS = ['result.type', ...APP_FIELDS.map(field => `result.application.${field}`)];
 
-function loadApplications(projects: string[], appNamespace: string): Observable<models.Application[]> {
-    return from(services.applications.list(projects, {appNamespace, fields: APP_LIST_FIELDS})).pipe(
+function loadApplications(projects: string[], appNamespace: string, objectListKind: string): Observable<models.AbstractApplication[]> {
+    return from(services.applications.list(projects, objectListKind, {appNamespace, fields: APP_LIST_FIELDS})).pipe(
         mergeMap(applicationsList => {
             const applications = applicationsList.items;
             return merge(
                 from([applications]),
                 services.applications
-                    .watch({projects, resourceVersion: applicationsList.metadata.resourceVersion}, {fields: APP_WATCH_FIELDS})
+                    .watch(objectListKind, {projects, resourceVersion: applicationsList.metadata.resourceVersion}, {fields: APP_WATCH_FIELDS})
                     .pipe(repeat())
                     .pipe(retryWhen(errors => errors.pipe(delay(WATCH_RETRY_TIMEOUT))))
                     // batch events to avoid constant re-rendering and improve UI performance
@@ -279,6 +280,69 @@ const SearchBar = (props: {content: string; ctx: ContextApis; apps: models.Appli
     );
 };
 
+interface ApplicationsToolbarProps {
+    applications: models.Application[];
+    pref: AppsListPreferences & {page: number; search: string};
+    ctx: ContextApis;
+    healthBarPrefs: HealthStatusBarPreferences;
+}
+
+const ApplicationsToolbar: React.FC<ApplicationsToolbarProps> = ({applications, pref, ctx, healthBarPrefs}) => {
+    const {List, Summary, Tiles} = AppsListViewKey;
+    const query = useQuery();
+
+    return (
+        <React.Fragment key='app-list-tools'>
+            <SearchBar content={query.get('search')} apps={applications} ctx={ctx} />
+            <Tooltip content='Toggle Health Status Bar'>
+                <button
+                    className={`applications-list__accordion argo-button argo-button--base${healthBarPrefs.showHealthStatusBar ? '-o' : ''}`}
+                    style={{border: 'none'}}
+                    onClick={() => {
+                        healthBarPrefs.showHealthStatusBar = !healthBarPrefs.showHealthStatusBar;
+                        services.viewPreferences.updatePreferences({
+                            appList: {
+                                ...pref,
+                                statusBarView: {
+                                    ...healthBarPrefs,
+                                    showHealthStatusBar: healthBarPrefs.showHealthStatusBar
+                                }
+                            }
+                        });
+                    }}>
+                    <i className={`fas fa-ruler-horizontal`} />
+                </button>
+            </Tooltip>
+            <div className='applications-list__view-type' style={{marginLeft: 'auto'}}>
+                <i
+                    className={classNames('fa fa-th', {selected: pref.view === Tiles}, 'menu_icon')}
+                    title='Tiles'
+                    onClick={() => {
+                        ctx.navigation.goto('.', {view: Tiles});
+                        services.viewPreferences.updatePreferences({appList: {...pref, view: Tiles}});
+                    }}
+                />
+                <i
+                    className={classNames('fa fa-th-list', {selected: pref.view === List}, 'menu_icon')}
+                    title='List'
+                    onClick={() => {
+                        ctx.navigation.goto('.', {view: List});
+                        services.viewPreferences.updatePreferences({appList: {...pref, view: List}});
+                    }}
+                />
+                <i
+                    className={classNames('fa fa-chart-pie', {selected: pref.view === Summary}, 'menu_icon')}
+                    title='Summary'
+                    onClick={() => {
+                        ctx.navigation.goto('.', {view: Summary});
+                        services.viewPreferences.updatePreferences({appList: {...pref, view: Summary}});
+                    }}
+                />
+            </div>
+        </React.Fragment>
+    );
+};
+
 const FlexTopBar = (props: {toolbar: Toolbar | Observable<Toolbar>}) => {
     const ctx = React.useContext(Context);
     const loadToolbar = AddAuthToToolbar(props.toolbar, ctx);
@@ -318,7 +382,7 @@ const FlexTopBar = (props: {toolbar: Toolbar | Observable<Toolbar>}) => {
     );
 };
 
-export const ApplicationsList = () => {
+export const ApplicationsList = (props: RouteComponentProps<any> & {objectListKind: string}) => {
     const query = useQuery();
     const observableQuery$ = useObservableQuery();
     const appInput = tryJsonParse(query.get('new'));
@@ -329,6 +393,10 @@ export const ApplicationsList = () => {
     const [isAppCreatePending, setAppCreatePending] = React.useState(false);
     const loaderRef = React.useRef<DataLoader>();
     const {List, Summary, Tiles} = AppsListViewKey;
+
+    const objectListKind = props.objectListKind;
+    // isListOfApplications will be used when ApplicationSet routes are added
+    // const isListOfApplications = objectListKind === 'application';
 
     function refreshApp(appName: string, appNamespace: string) {
         // app refreshing might be done too quickly so that UI might miss it due to event batching
@@ -341,7 +409,7 @@ export const ApplicationsList = () => {
                 loaderRef.current.setData(applications);
             }
         }
-        services.applications.get(appName, appNamespace, 'normal');
+        services.applications.get(appName, appNamespace, objectListKind, 'normal');
     }
 
     function onFilterPrefChanged(ctx: ContextApis, newPref: AppsListPreferences) {
@@ -391,7 +459,7 @@ export const ApplicationsList = () => {
                                     <DataLoader
                                         input={pref.projectsFilter?.join(',')}
                                         ref={loaderRef}
-                                        load={() => AppUtils.handlePageVisibility(() => loadApplications(pref.projectsFilter, query.get('appNamespace')))}
+                                        load={() => AppUtils.handlePageVisibility(() => loadApplications(pref.projectsFilter, query.get('appNamespace'), objectListKind))}
                                         loadingRenderer={() => (
                                             <div className='argo-container'>
                                                 <MockupList height={100} marginTop={30} />
@@ -418,58 +486,7 @@ export const ApplicationsList = () => {
                                                 <React.Fragment>
                                                     <FlexTopBar
                                                         toolbar={{
-                                                            tools: (
-                                                                <React.Fragment key='app-list-tools'>
-                                                                    <SearchBar content={query.get('search')} apps={applications} ctx={ctx} />
-                                                                    <Tooltip content='Toggle Health Status Bar'>
-                                                                        <button
-                                                                            className={`applications-list__accordion argo-button argo-button--base${
-                                                                                healthBarPrefs.showHealthStatusBar ? '-o' : ''
-                                                                            }`}
-                                                                            style={{border: 'none'}}
-                                                                            onClick={() => {
-                                                                                healthBarPrefs.showHealthStatusBar = !healthBarPrefs.showHealthStatusBar;
-                                                                                services.viewPreferences.updatePreferences({
-                                                                                    appList: {
-                                                                                        ...pref,
-                                                                                        statusBarView: {
-                                                                                            ...healthBarPrefs,
-                                                                                            showHealthStatusBar: healthBarPrefs.showHealthStatusBar
-                                                                                        }
-                                                                                    }
-                                                                                });
-                                                                            }}>
-                                                                            <i className={`fas fa-ruler-horizontal`} />
-                                                                        </button>
-                                                                    </Tooltip>
-                                                                    <div className='applications-list__view-type' style={{marginLeft: 'auto'}}>
-                                                                        <i
-                                                                            className={classNames('fa fa-th', {selected: pref.view === Tiles}, 'menu_icon')}
-                                                                            title='Tiles'
-                                                                            onClick={() => {
-                                                                                ctx.navigation.goto('.', {view: Tiles});
-                                                                                services.viewPreferences.updatePreferences({appList: {...pref, view: Tiles}});
-                                                                            }}
-                                                                        />
-                                                                        <i
-                                                                            className={classNames('fa fa-th-list', {selected: pref.view === List}, 'menu_icon')}
-                                                                            title='List'
-                                                                            onClick={() => {
-                                                                                ctx.navigation.goto('.', {view: List});
-                                                                                services.viewPreferences.updatePreferences({appList: {...pref, view: List}});
-                                                                            }}
-                                                                        />
-                                                                        <i
-                                                                            className={classNames('fa fa-chart-pie', {selected: pref.view === Summary}, 'menu_icon')}
-                                                                            title='Summary'
-                                                                            onClick={() => {
-                                                                                ctx.navigation.goto('.', {view: Summary});
-                                                                                services.viewPreferences.updatePreferences({appList: {...pref, view: Summary}});
-                                                                            }}
-                                                                        />
-                                                                    </div>
-                                                                </React.Fragment>
-                                                            ),
+                                                            tools: <ApplicationsToolbar applications={applications} pref={pref} ctx={ctx} healthBarPrefs={healthBarPrefs} />,
                                                             actionMenu: {
                                                                 items: [
                                                                     {
@@ -606,7 +623,7 @@ export const ApplicationsList = () => {
                                                                 mergeMap(params => {
                                                                     const syncApp = params.get('syncApp');
                                                                     const appNamespace = params.get('appNamespace');
-                                                                    return (syncApp && from(services.applications.get(syncApp, appNamespace))) || from([null]);
+                                                                    return (syncApp && from(services.applications.get(syncApp, appNamespace, objectListKind))) || from([null]);
                                                                 })
                                                             )
                                                         }>

@@ -27,7 +27,7 @@ type Provider interface {
 
 	ParseConfig() (*OIDCConfiguration, error)
 
-	Verify(tokenString string, argoSettings *settings.ArgoCDSettings) (*gooidc.IDToken, error)
+	Verify(ctx context.Context, tokenString string, argoSettings *settings.ArgoCDSettings) (*gooidc.IDToken, error)
 }
 
 type providerImpl struct {
@@ -85,7 +85,7 @@ func (t tokenVerificationError) Error() string {
 	return "token verification failed for all audiences: " + strings.Join(errorStrings, ", ")
 }
 
-func (p *providerImpl) Verify(tokenString string, argoSettings *settings.ArgoCDSettings) (*gooidc.IDToken, error) {
+func (p *providerImpl) Verify(ctx context.Context, tokenString string, argoSettings *settings.ArgoCDSettings) (*gooidc.IDToken, error) {
 	// According to the JWT spec, the aud claim is optional. The spec also says (emphasis mine):
 	//
 	//   If the principal processing the claim does not identify itself with a value in the "aud" claim _when this
@@ -110,7 +110,7 @@ func (p *providerImpl) Verify(tokenString string, argoSettings *settings.ArgoCDS
 
 	var idToken *gooidc.IDToken
 	if !unverifiedHasAudClaim {
-		idToken, err = p.verify("", tokenString, argoSettings.SkipAudienceCheckWhenTokenHasNoAudience())
+		idToken, err = p.verify(ctx, "", tokenString, argoSettings.SkipAudienceCheckWhenTokenHasNoAudience())
 	} else {
 		allowedAudiences := argoSettings.OAuth2AllowedAudiences()
 		if len(allowedAudiences) == 0 {
@@ -119,7 +119,7 @@ func (p *providerImpl) Verify(tokenString string, argoSettings *settings.ArgoCDS
 		tokenVerificationErrors := make(map[string]error)
 		// Token must be verified for at least one allowed audience
 		for _, aud := range allowedAudiences {
-			idToken, err = p.verify(aud, tokenString, false)
+			idToken, err = p.verify(ctx, aud, tokenString, false)
 			tokenExpiredError := &gooidc.TokenExpiredError{}
 			if errors.As(err, &tokenExpiredError) {
 				// If the token is expired, we won't bother checking other audiences. It's important to return a
@@ -143,14 +143,13 @@ func (p *providerImpl) Verify(tokenString string, argoSettings *settings.ArgoCDS
 	}
 
 	if err != nil {
-		return nil, fmt.Errorf("failed to verify token: %w", err)
+		return nil, fmt.Errorf("failed to verify provider token: %w", err)
 	}
 
 	return idToken, nil
 }
 
-func (p *providerImpl) verify(clientID, tokenString string, skipClientIDCheck bool) (*gooidc.IDToken, error) {
-	ctx := context.Background()
+func (p *providerImpl) verify(ctx context.Context, clientID, tokenString string, skipClientIDCheck bool) (*gooidc.IDToken, error) {
 	prov, err := p.provider()
 	if err != nil {
 		return nil, err

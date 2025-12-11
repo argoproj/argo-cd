@@ -79,8 +79,8 @@ func NewMockHandlerWithPayloadLimit(reactor *reactorDef, applicationNamespaces [
 }
 
 func NewMockHandlerForBitbucketCallback(reactor *reactorDef, applicationNamespaces []string, objects ...runtime.Object) *ArgoCDWebhookHandler {
-	mockDB := mocks.ArgoDB{}
-	mockDB.On("ListRepositories", mock.Anything).Return(
+	mockDB := &mocks.ArgoDB{}
+	mockDB.EXPECT().ListRepositories(mock.Anything).Return(
 		[]*v1alpha1.Repository{
 			{
 				Repo:     "https://bitbucket.org/test/argocd-examples-pub.git",
@@ -99,7 +99,7 @@ func NewMockHandlerForBitbucketCallback(reactor *reactorDef, applicationNamespac
 		}, nil)
 	argoSettings := settings.ArgoCDSettings{WebhookBitbucketUUID: "abcd-efgh-ijkl-mnop"}
 	defaultMaxPayloadSize := int64(50) * 1024 * 1024
-	return newMockHandler(reactor, applicationNamespaces, defaultMaxPayloadSize, &mockDB, &argoSettings, objects...)
+	return newMockHandler(reactor, applicationNamespaces, defaultMaxPayloadSize, mockDB, &argoSettings, objects...)
 }
 
 type fakeAppsLister struct {
@@ -1084,7 +1084,8 @@ func TestFetchDiffStatBitbucketClient(t *testing.T) {
 	httpmock.RegisterResponder("GET",
 		"https://api.bitbucket.org/2.0/repositories/test-owner/test-repo/diffstat/abcdef..ghijkl",
 		getDiffstatResponderFn())
-	client := bb.NewOAuthbearerToken("")
+	client, err := bb.NewOAuthbearerToken("")
+	require.NoError(t, err)
 	tt := []struct {
 		name                string
 		owner               string
@@ -1133,7 +1134,8 @@ func TestIsHeadTouched(t *testing.T) {
 	httpmock.RegisterResponder("GET",
 		"https://api.bitbucket.org/2.0/repositories/test-owner/test-repo",
 		getRepositoryResponderFn())
-	client := bb.NewOAuthbearerToken("")
+	client, err := bb.NewOAuthbearerToken("")
+	require.NoError(t, err)
 	tt := []struct {
 		name              string
 		owner             string
