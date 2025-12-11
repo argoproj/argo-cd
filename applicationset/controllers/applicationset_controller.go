@@ -663,8 +663,9 @@ func (r *ApplicationSetReconciler) SetupWithManager(mgr ctrl.Manager, enableProg
 		Watches(
 			&corev1.Secret{},
 			&clusterSecretEventHandler{
-				Client: mgr.GetClient(),
-				Log:    log.WithField("type", "createSecretEventHandler"),
+				Client:                   mgr.GetClient(),
+				Log:                      log.WithField("type", "createSecretEventHandler"),
+				ApplicationSetNamespaces: r.ApplicationSetNamespaces,
 			}).
 		Complete(r)
 }
