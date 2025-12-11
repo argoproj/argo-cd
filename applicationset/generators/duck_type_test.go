@@ -17,6 +17,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 const (
@@ -294,7 +295,10 @@ func TestGenerateParamsForDuckType(t *testing.T) {
 			fakeDynClient := dynfake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), gvrToListKind, testCase.resource)
 			fakeClient := fake.NewClientBuilder().WithObjects(clusters...).Build()
 
-			duckTypeGenerator := NewDuckTypeGenerator(t.Context(), fakeClient, fakeDynClient, appClientset, "namespace")
+			clusterInformer, err := settings.NewClusterInformer(appClientset, "namespace")
+			require.NoError(t, err)
+
+			duckTypeGenerator := NewDuckTypeGenerator(t.Context(), fakeClient, fakeDynClient, appClientset, "namespace", clusterInformer)
 
 			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
@@ -591,7 +595,10 @@ func TestGenerateParamsForDuckTypeGoTemplate(t *testing.T) {
 			fakeDynClient := dynfake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), gvrToListKind, testCase.resource)
 			fakeClient := fake.NewClientBuilder().WithObjects(clusters...).Build()
 
-			duckTypeGenerator := NewDuckTypeGenerator(t.Context(), fakeClient, fakeDynClient, appClientset, "namespace")
+			clusterInformer, err := settings.NewClusterInformer(appClientset, "namespace")
+			require.NoError(t, err)
+
+			duckTypeGenerator := NewDuckTypeGenerator(t.Context(), fakeClient, fakeDynClient, appClientset, "namespace", clusterInformer)
 
 			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
