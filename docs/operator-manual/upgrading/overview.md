@@ -20,13 +20,13 @@ command to upgrade Argo CD. Make sure to replace `<version>` with the required v
 **Non-HA**:
 
 ```bash
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/<version>/manifests/install.yaml
+kubectl apply -n argocd --server-side -f https://raw.githubusercontent.com/argoproj/argo-cd/<version>/manifests/install.yaml
 ```
 
 **HA**:
 
 ```bash
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/<version>/manifests/ha/install.yaml
+kubectl apply -n argocd --server-side -f https://raw.githubusercontent.com/argoproj/argo-cd/<version>/manifests/ha/install.yaml
 ```
 
 > [!WARNING]

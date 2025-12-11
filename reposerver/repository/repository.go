@@ -190,7 +190,7 @@ func (s *Service) Init() error {
 
 // ListOCITags List a subset of the refs (currently, branches and tags) of a git repo
 func (s *Service) ListOCITags(ctx context.Context, q *apiclient.ListRefsRequest) (*apiclient.Refs, error) {
-	ociClient, err := s.newOCIClient(q.Repo.Repo, q.Repo.GetOCICreds(), q.Repo.Proxy, q.Repo.NoProxy, s.initConstants.OCIMediaTypes, oci.WithIndexCache(s.cache), oci.WithImagePaths(s.ociPaths), oci.WithManifestMaxExtractedSize(s.initConstants.OCIManifestMaxExtractedSize), oci.WithDisableManifestMaxExtractedSize(s.initConstants.DisableOCIManifestMaxExtractedSize))
+	ociClient, err := s.newOCIClient(q.Repo.Repo, q.Repo.GetOCICreds(), q.Repo.Proxy, q.Repo.NoProxy, s.initConstants.OCIMediaTypes, s.ociClientStandardOpts()...)
 	if err != nil {
 		return nil, fmt.Errorf("error creating oci client: %w", err)
 	}
@@ -2493,13 +2493,14 @@ func (s *Service) GetRevisionMetadata(_ context.Context, q *apiclient.RepoServer
 }
 
 func (s *Service) GetOCIMetadata(ctx context.Context, q *apiclient.RepoServerRevisionChartDetailsRequest) (*v1alpha1.OCIMetadata, error) {
-	client, err := s.newOCIClient(q.Repo.Repo, q.Repo.GetOCICreds(), q.Repo.Proxy, q.Repo.NoProxy, s.initConstants.OCIMediaTypes, oci.WithIndexCache(s.cache), oci.WithImagePaths(s.ociPaths), oci.WithManifestMaxExtractedSize(s.initConstants.OCIManifestMaxExtractedSize), oci.WithDisableManifestMaxExtractedSize(s.initConstants.DisableOCIManifestMaxExtractedSize))
+	client, err := s.newOCIClient(q.Repo.Repo, q.Repo.GetOCICreds(), q.Repo.Proxy, q.Repo.NoProxy, s.initConstants.OCIMediaTypes, s.ociClientStandardOpts()...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize oci client: %w", err)
 	}
 
 	metadata, err := client.DigestMetadata(ctx, q.Revision)
 	if err != nil {
+		s.metricsServer.IncOCIDigestMetadataCounter(q.Repo.Repo, q.Revision)
 		return nil, fmt.Errorf("failed to extract digest metadata for revision %q: %w", q.Revision, err)
 	}
 
@@ -2589,7 +2590,7 @@ func (s *Service) newClientResolveRevision(repo *v1alpha1.Repository, revision s
 }
 
 func (s *Service) newOCIClientResolveRevision(ctx context.Context, repo *v1alpha1.Repository, revision string, noRevisionCache bool) (oci.Client, string, error) {
-	ociClient, err := s.newOCIClient(repo.Repo, repo.GetOCICreds(), repo.Proxy, repo.NoProxy, s.initConstants.OCIMediaTypes, oci.WithIndexCache(s.cache), oci.WithImagePaths(s.ociPaths), oci.WithManifestMaxExtractedSize(s.initConstants.OCIManifestMaxExtractedSize), oci.WithDisableManifestMaxExtractedSize(s.initConstants.DisableOCIManifestMaxExtractedSize))
+	ociClient, err := s.newOCIClient(repo.Repo, repo.GetOCICreds(), repo.Proxy, repo.NoProxy, s.initConstants.OCIMediaTypes, s.ociClientStandardOpts()...)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to initialize oci client: %w", err)
 	}
@@ -2786,7 +2787,8 @@ func (s *Service) TestRepository(ctx context.Context, q *apiclient.TestRepositor
 			return git.TestRepo(repo.Repo, repo.GetGitCreds(s.gitCredsStore), repo.IsInsecure(), repo.IsLFSEnabled(), repo.Proxy, repo.NoProxy)
 		},
 		"oci": func() error {
-			client, err := oci.NewClient(repo.Repo, repo.GetOCICreds(), repo.Proxy, repo.NoProxy, s.initConstants.OCIMediaTypes)
+			client, err := oci.NewClient(repo.Repo, repo.GetOCICreds(), repo.Proxy, repo.NoProxy,
+				s.initConstants.OCIMediaTypes, oci.WithEventHandlers(metrics.NewOCIClientEventHandlers(s.metricsServer)))
 			if err != nil {
 				return err
 			}
@@ -3138,4 +3140,14 @@ func (s *Service) updateCachedRevision(logCtx *log.Entry, oldRev string, newRev 
 
 	logCtx.Debugf("manifest cache updated for application %s in repo %s from revision %s to revision %s", request.AppName, request.GetRepo().Repo, oldRev, newRev)
 	return nil
+}
+
+func (s *Service) ociClientStandardOpts() []oci.ClientOpts {
+	return []oci.ClientOpts{
+		oci.WithIndexCache(s.cache),
+		oci.WithImagePaths(s.ociPaths),
+		oci.WithManifestMaxExtractedSize(s.initConstants.OCIManifestMaxExtractedSize),
+		oci.WithDisableManifestMaxExtractedSize(s.initConstants.DisableOCIManifestMaxExtractedSize),
+		oci.WithEventHandlers(metrics.NewOCIClientEventHandlers(s.metricsServer)),
+	}
 }

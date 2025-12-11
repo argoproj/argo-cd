@@ -49,7 +49,8 @@ The model syntax is based on [Casbin](https://casbin.org/docs/overview) (an open
 Syntax: `g, <user/group>, <role>`
 
 - `<user/group>`: The entity to whom the role will be assigned. It can be a local user or a user authenticated with SSO.
-  When SSO is used, the `user` will be based on the `sub` claims, while the group is one of the values returned by the `scopes` configuration.
+  When SSO is used, the `user` is derived from the token’s `federated_claims.user_id` field, and groups are populated from the values returned
+  by the OIDC provider under the configured scopes (e.g., groups, roles).
 - `<role>`: The internal role to which the entity will be assigned.
 
 **Policy**: Allows to assign permissions to an entity.

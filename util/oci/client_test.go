@@ -270,7 +270,11 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 					store := memory.New()
 					c := newClientWithLock(fields.repoURL, globalLock, store, fields.tagsFunc, func(_ context.Context) error {
 						return nil
-					}, fields.allowedMediaTypes, WithImagePaths(cacheDir), WithManifestMaxExtractedSize(args.manifestMaxExtractedSize), WithDisableManifestMaxExtractedSize(args.disableManifestMaxExtractedSize))
+					}, fields.allowedMediaTypes,
+						WithImagePaths(cacheDir),
+						WithManifestMaxExtractedSize(args.manifestMaxExtractedSize),
+						WithDisableManifestMaxExtractedSize(args.disableManifestMaxExtractedSize),
+						WithEventHandlers(fakeEventHandlers(t, fields.repoURL)))
 					_, gotCloser, err := c.Extract(t.Context(), sha)
 					require.NoError(t, err)
 					require.NoError(t, gotCloser.Close())
@@ -286,7 +290,11 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 
 			c := newClientWithLock(tt.fields.repoURL, globalLock, store, tt.fields.tagsFunc, func(_ context.Context) error {
 				return nil
-			}, tt.fields.allowedMediaTypes, WithImagePaths(cacheDir), WithManifestMaxExtractedSize(tt.args.manifestMaxExtractedSize), WithDisableManifestMaxExtractedSize(tt.args.disableManifestMaxExtractedSize))
+			}, tt.fields.allowedMediaTypes,
+				WithImagePaths(cacheDir),
+				WithManifestMaxExtractedSize(tt.args.manifestMaxExtractedSize),
+				WithDisableManifestMaxExtractedSize(tt.args.disableManifestMaxExtractedSize),
+				WithEventHandlers(fakeEventHandlers(t, tt.fields.repoURL)))
 			path, gotCloser, err := c.Extract(t.Context(), sha)
 
 			if tt.expectedError != nil {
@@ -436,7 +444,7 @@ func Test_nativeOCIClient_ResolveRevision(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			c := newClientWithLock(tt.fields.repoURL, globalLock, tt.fields.repo, tt.fields.tagsFunc, func(_ context.Context) error {
 				return nil
-			}, tt.fields.allowedMediaTypes)
+			}, tt.fields.allowedMediaTypes, WithEventHandlers(fakeEventHandlers(t, tt.fields.repoURL)))
 			got, err := c.ResolveRevision(t.Context(), tt.revision, tt.noCache)
 			if tt.expectedError != nil {
 				require.EqualError(t, err, tt.expectedError.Error())
@@ -448,5 +456,25 @@ func Test_nativeOCIClient_ResolveRevision(t *testing.T) {
 				t.Errorf("ResolveRevision() got = %v, expectedDigest %v", got, tt.expectedDigest)
 			}
 		})
+	}
+}
+
+func fakeEventHandlers(t *testing.T, repoURL string) EventHandlers {
+	t.Helper()
+	return EventHandlers{
+		OnExtract:         func(repo string) func() { return func() { require.Equal(t, repoURL, repo) } },
+		OnResolveRevision: func(repo string) func() { return func() { require.Equal(t, repoURL, repo) } },
+		OnDigestMetadata:  func(repo string) func() { return func() { require.Equal(t, repoURL, repo) } },
+		OnTestRepo:        func(repo string) func() { return func() { require.Equal(t, repoURL, repo) } },
+		OnGetTags:         func(repo string) func() { return func() { require.Equal(t, repoURL, repo) } },
+		OnExtractFail: func(repo string) func(revision string) {
+			return func(_ string) { require.Equal(t, repoURL, repo) }
+		},
+		OnResolveRevisionFail: func(repo string) func(revision string) {
+			return func(_ string) { require.Equal(t, repoURL, repo) }
+		},
+		OnDigestMetadataFail: func(repo string) func(revision string) {
+			return func(_ string) { require.Equal(t, repoURL, repo) }
+		},
 	}
 }

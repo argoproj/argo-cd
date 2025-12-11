@@ -653,7 +653,7 @@ export interface Repository {
     noProxy?: string;
     insecure?: boolean;
     enableLfs?: boolean;
-    githubAppId?: string;
+    githubAppID?: string;
     forceHttpBasicAuth?: boolean;
     insecureOCIForceHttp?: boolean;
     enableOCI: boolean;

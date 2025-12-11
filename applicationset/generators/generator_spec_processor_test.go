@@ -551,7 +551,7 @@ func TestInterpolateGeneratorError(t *testing.T) {
 			},
 			useGoTemplate:     true,
 			goTemplateOptions: []string{},
-		}, want: argov1alpha1.ApplicationSetGenerator{}, expectedErrStr: "failed to replace parameters in generator: failed to execute go template {{ index .rmap (default .override .test) }}: template: :1:3: executing \"\" at <index .rmap (default .override .test)>: error calling index: index of untyped nil"},
+		}, want: argov1alpha1.ApplicationSetGenerator{}, expectedErrStr: "failed to replace parameters in generator: failed to execute go template {{ index .rmap (default .override .test) }}: template: base:1:3: executing \"base\" at <index .rmap (default .override .test)>: error calling index: index of untyped nil"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

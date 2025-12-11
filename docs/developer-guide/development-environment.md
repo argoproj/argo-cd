@@ -109,7 +109,7 @@ make install-codegen-tools-local
 
 ```shell
 kubectl create namespace argocd &&
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/master/manifests/install.yaml
+kubectl apply -n argocd --server-side -f https://raw.githubusercontent.com/argoproj/argo-cd/master/manifests/install.yaml
 ```
 
 Set kubectl config to avoid specifying the namespace in every kubectl command.  
