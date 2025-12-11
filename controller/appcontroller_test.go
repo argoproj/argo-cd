@@ -2852,7 +2852,7 @@ func TestPostDeleteHookNamespaceDeletion(t *testing.T) {
 		postDeleteHookData["metadata"].(map[string]any)["namespace"] = "app-namespace"
 		postDeleteHookJSON, _ := json.Marshal(postDeleteHookData)
 
-		ctrl := newFakeController(&fakeData{
+		ctrl := newFakeController(context.Background(), &fakeData{
 			apps: []runtime.Object{app, &defaultProj},
 			manifestResponse: &apiclient.ManifestResponse{
 				Manifests: []string{string(postDeleteHookJSON)},
@@ -2874,7 +2874,7 @@ func TestPostDeleteHookNamespaceDeletion(t *testing.T) {
 		app := newFakeApp()
 		app.Spec.Destination.Namespace = "app-namespace"
 
-		ctrl := newFakeController(&fakeData{
+		ctrl := newFakeController(context.Background(), &fakeData{
 			apps: []runtime.Object{app, &defaultProj},
 			manifestResponse: &apiclient.ManifestResponse{
 				Manifests: []string{}, // No PostDelete hooks
@@ -2901,7 +2901,7 @@ func TestPostDeleteHookNamespaceDeletion(t *testing.T) {
 		postDeleteHookData["metadata"].(map[string]any)["namespace"] = "app-namespace"
 		postDeleteHookJSON, _ := json.Marshal(postDeleteHookData)
 
-		ctrl := newFakeController(&fakeData{
+		ctrl := newFakeController(context.Background(), &fakeData{
 			apps: []runtime.Object{app, &defaultProj},
 			manifestResponse: &apiclient.ManifestResponse{
 				Manifests: []string{string(postDeleteHookJSON)},
@@ -2947,7 +2947,7 @@ func TestHasPostDeleteHooksForNamespace(t *testing.T) {
 		postDeleteHookData1["metadata"].(map[string]any)["name"] = "post-delete-hook-1"
 		postDeleteHookJSON1, _ := json.Marshal(postDeleteHookData1)
 
-		ctrl := newFakeController(&fakeData{
+		ctrl := newFakeController(context.Background(), &fakeData{
 			apps: []runtime.Object{app, &defaultProj},
 			manifestResponse: &apiclient.ManifestResponse{
 				Manifests: []string{string(postDeleteHookJSON1)},
@@ -2974,7 +2974,7 @@ func TestHasPostDeleteHooksForNamespace(t *testing.T) {
 		postDeleteHookData2["metadata"].(map[string]any)["name"] = "post-delete-hook-2"
 		postDeleteHookJSON2, _ := json.Marshal(postDeleteHookData2)
 
-		ctrl := newFakeController(&fakeData{
+		ctrl := newFakeController(context.Background(), &fakeData{
 			apps: []runtime.Object{app, &defaultProj},
 			manifestResponse: &apiclient.ManifestResponse{
 				Manifests: []string{string(postDeleteHookJSON1), string(postDeleteHookJSON2)},
@@ -3006,7 +3006,7 @@ func TestGetPropagationPolicy(t *testing.T) {
 
 	t.Run("returns foreground propagation policy by default", func(t *testing.T) {
 		app := newFakeApp()
-		ctrl := newFakeController(&fakeData{
+		ctrl := newFakeController(context.Background(), &fakeData{
 			apps: []runtime.Object{app, &defaultProj},
 		}, nil)
 
@@ -3017,7 +3017,7 @@ func TestGetPropagationPolicy(t *testing.T) {
 	t.Run("returns background propagation policy when finalizer is set", func(t *testing.T) {
 		app := newFakeApp()
 		app.SetFinalizers([]string{v1alpha1.BackgroundPropagationPolicyFinalizer})
-		ctrl := newFakeController(&fakeData{
+		ctrl := newFakeController(context.Background(), &fakeData{
 			apps: []runtime.Object{app, &defaultProj},
 		}, nil)
 
