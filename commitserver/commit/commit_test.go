@@ -82,7 +82,7 @@ func Test_CommitHydratedManifests(t *testing.T) {
 		t.Parallel()
 
 		service, mockRepoClientFactory := newServiceWithMocks(t)
-		mockRepoClientFactory.On("NewClient", mock.Anything, mock.Anything).Return(nil, assert.AnError).Once()
+		mockRepoClientFactory.EXPECT().NewClient(mock.Anything, mock.Anything).Return(nil, assert.AnError).Once()
 
 		_, err := service.CommitHydratedManifests(t.Context(), validRequest)
 		require.Error(t, err)
@@ -94,14 +94,14 @@ func Test_CommitHydratedManifests(t *testing.T) {
 
 		service, mockRepoClientFactory := newServiceWithMocks(t)
 		mockGitClient := gitmocks.NewClient(t)
-		mockGitClient.On("Init").Return(nil).Once()
-		mockGitClient.On("Fetch", mock.Anything).Return(nil).Once()
-		mockGitClient.On("SetAuthor", "Argo CD", "argo-cd@example.com").Return("", nil).Once()
-		mockGitClient.On("CheckoutOrOrphan", "env/test", false).Return("", nil).Once()
-		mockGitClient.On("CheckoutOrNew", "main", "env/test", false).Return("", nil).Once()
-		mockGitClient.On("CommitAndPush", "main", "test commit message").Return("", nil).Once()
-		mockGitClient.On("CommitSHA").Return("it-worked!", nil).Once()
-		mockRepoClientFactory.On("NewClient", mock.Anything, mock.Anything).Return(mockGitClient, nil).Once()
+		mockGitClient.EXPECT().Init().Return(nil).Once()
+		mockGitClient.EXPECT().Fetch(mock.Anything, mock.Anything).Return(nil).Once()
+		mockGitClient.EXPECT().SetAuthor("Argo CD", "argo-cd@example.com").Return("", nil).Once()
+		mockGitClient.EXPECT().CheckoutOrOrphan("env/test", false).Return("", nil).Once()
+		mockGitClient.EXPECT().CheckoutOrNew("main", "env/test", false).Return("", nil).Once()
+		mockGitClient.EXPECT().CommitAndPush("main", "test commit message").Return("", nil).Once()
+		mockGitClient.EXPECT().CommitSHA().Return("it-worked!", nil).Once()
+		mockRepoClientFactory.EXPECT().NewClient(mock.Anything, mock.Anything).Return(mockGitClient, nil).Once()
 
 		resp, err := service.CommitHydratedManifests(t.Context(), validRequest)
 		require.NoError(t, err)
@@ -114,14 +114,14 @@ func Test_CommitHydratedManifests(t *testing.T) {
 
 		service, mockRepoClientFactory := newServiceWithMocks(t)
 		mockGitClient := gitmocks.NewClient(t)
-		mockGitClient.On("Init").Return(nil).Once()
-		mockGitClient.On("Fetch", mock.Anything).Return(nil).Once()
-		mockGitClient.On("SetAuthor", "Argo CD", "argo-cd@example.com").Return("", nil).Once()
-		mockGitClient.On("CheckoutOrOrphan", "env/test", false).Return("", nil).Once()
-		mockGitClient.On("CheckoutOrNew", "main", "env/test", false).Return("", nil).Once()
-		mockGitClient.On("CommitAndPush", "main", "test commit message").Return("", nil).Once()
-		mockGitClient.On("CommitSHA").Return("root-and-blank-sha", nil).Once()
-		mockRepoClientFactory.On("NewClient", mock.Anything, mock.Anything).Return(mockGitClient, nil).Once()
+		mockGitClient.EXPECT().Init().Return(nil).Once()
+		mockGitClient.EXPECT().Fetch(mock.Anything, mock.Anything).Return(nil).Once()
+		mockGitClient.EXPECT().SetAuthor("Argo CD", "argo-cd@example.com").Return("", nil).Once()
+		mockGitClient.EXPECT().CheckoutOrOrphan("env/test", false).Return("", nil).Once()
+		mockGitClient.EXPECT().CheckoutOrNew("main", "env/test", false).Return("", nil).Once()
+		mockGitClient.EXPECT().CommitAndPush("main", "test commit message").Return("", nil).Once()
+		mockGitClient.EXPECT().CommitSHA().Return("root-and-blank-sha", nil).Once()
+		mockRepoClientFactory.EXPECT().NewClient(mock.Anything, mock.Anything).Return(mockGitClient, nil).Once()
 
 		requestWithRootAndBlank := &apiclient.CommitHydratedManifestsRequest{
 			Repo: &v1alpha1.Repository{
@@ -161,15 +161,15 @@ func Test_CommitHydratedManifests(t *testing.T) {
 
 		service, mockRepoClientFactory := newServiceWithMocks(t)
 		mockGitClient := gitmocks.NewClient(t)
-		mockGitClient.On("Init").Return(nil).Once()
-		mockGitClient.On("Fetch", mock.Anything).Return(nil).Once()
-		mockGitClient.On("SetAuthor", "Argo CD", "argo-cd@example.com").Return("", nil).Once()
-		mockGitClient.On("CheckoutOrOrphan", "env/test", false).Return("", nil).Once()
-		mockGitClient.On("CheckoutOrNew", "main", "env/test", false).Return("", nil).Once()
-		mockGitClient.On("RemoveContents", []string{"apps/staging"}).Return("", nil).Once()
-		mockGitClient.On("CommitAndPush", "main", "test commit message").Return("", nil).Once()
-		mockGitClient.On("CommitSHA").Return("subdir-path-sha", nil).Once()
-		mockRepoClientFactory.On("NewClient", mock.Anything, mock.Anything).Return(mockGitClient, nil).Once()
+		mockGitClient.EXPECT().Init().Return(nil).Once()
+		mockGitClient.EXPECT().Fetch(mock.Anything, mock.Anything).Return(nil).Once()
+		mockGitClient.EXPECT().SetAuthor("Argo CD", "argo-cd@example.com").Return("", nil).Once()
+		mockGitClient.EXPECT().CheckoutOrOrphan("env/test", false).Return("", nil).Once()
+		mockGitClient.EXPECT().CheckoutOrNew("main", "env/test", false).Return("", nil).Once()
+		mockGitClient.EXPECT().RemoveContents([]string{"apps/staging"}).Return("", nil).Once()
+		mockGitClient.EXPECT().CommitAndPush("main", "test commit message").Return("", nil).Once()
+		mockGitClient.EXPECT().CommitSHA().Return("subdir-path-sha", nil).Once()
+		mockRepoClientFactory.EXPECT().NewClient(mock.Anything, mock.Anything).Return(mockGitClient, nil).Once()
 
 		requestWithSubdirPath := &apiclient.CommitHydratedManifestsRequest{
 			Repo: &v1alpha1.Repository{
@@ -201,15 +201,15 @@ func Test_CommitHydratedManifests(t *testing.T) {
 
 		service, mockRepoClientFactory := newServiceWithMocks(t)
 		mockGitClient := gitmocks.NewClient(t)
-		mockGitClient.On("Init").Return(nil).Once()
-		mockGitClient.On("Fetch", mock.Anything).Return(nil).Once()
-		mockGitClient.On("SetAuthor", "Argo CD", "argo-cd@example.com").Return("", nil).Once()
-		mockGitClient.On("CheckoutOrOrphan", "env/test", false).Return("", nil).Once()
-		mockGitClient.On("CheckoutOrNew", "main", "env/test", false).Return("", nil).Once()
-		mockGitClient.On("RemoveContents", []string{"apps/production", "apps/staging"}).Return("", nil).Once()
-		mockGitClient.On("CommitAndPush", "main", "test commit message").Return("", nil).Once()
-		mockGitClient.On("CommitSHA").Return("mixed-paths-sha", nil).Once()
-		mockRepoClientFactory.On("NewClient", mock.Anything, mock.Anything).Return(mockGitClient, nil).Once()
+		mockGitClient.EXPECT().Init().Return(nil).Once()
+		mockGitClient.EXPECT().Fetch(mock.Anything, mock.Anything).Return(nil).Once()
+		mockGitClient.EXPECT().SetAuthor("Argo CD", "argo-cd@example.com").Return("", nil).Once()
+		mockGitClient.EXPECT().CheckoutOrOrphan("env/test", false).Return("", nil).Once()
+		mockGitClient.EXPECT().CheckoutOrNew("main", "env/test", false).Return("", nil).Once()
+		mockGitClient.EXPECT().RemoveContents([]string{"apps/production", "apps/staging"}).Return("", nil).Once()
+		mockGitClient.EXPECT().CommitAndPush("main", "test commit message").Return("", nil).Once()
+		mockGitClient.EXPECT().CommitSHA().Return("mixed-paths-sha", nil).Once()
+		mockRepoClientFactory.EXPECT().NewClient(mock.Anything, mock.Anything).Return(mockGitClient, nil).Once()
 
 		requestWithMixedPaths := &apiclient.CommitHydratedManifestsRequest{
 			Repo: &v1alpha1.Repository{
@@ -257,14 +257,14 @@ func Test_CommitHydratedManifests(t *testing.T) {
 
 		service, mockRepoClientFactory := newServiceWithMocks(t)
 		mockGitClient := gitmocks.NewClient(t)
-		mockGitClient.On("Init").Return(nil).Once()
-		mockGitClient.On("Fetch", mock.Anything).Return(nil).Once()
-		mockGitClient.On("SetAuthor", "Argo CD", "argo-cd@example.com").Return("", nil).Once()
-		mockGitClient.On("CheckoutOrOrphan", "env/test", false).Return("", nil).Once()
-		mockGitClient.On("CheckoutOrNew", "main", "env/test", false).Return("", nil).Once()
-		mockGitClient.On("CommitAndPush", "main", "test commit message").Return("", nil).Once()
-		mockGitClient.On("CommitSHA").Return("it-worked!", nil).Once()
-		mockRepoClientFactory.On("NewClient", mock.Anything, mock.Anything).Return(mockGitClient, nil).Once()
+		mockGitClient.EXPECT().Init().Return(nil).Once()
+		mockGitClient.EXPECT().Fetch(mock.Anything, mock.Anything).Return(nil).Once()
+		mockGitClient.EXPECT().SetAuthor("Argo CD", "argo-cd@example.com").Return("", nil).Once()
+		mockGitClient.EXPECT().CheckoutOrOrphan("env/test", false).Return("", nil).Once()
+		mockGitClient.EXPECT().CheckoutOrNew("main", "env/test", false).Return("", nil).Once()
+		mockGitClient.EXPECT().CommitAndPush("main", "test commit message").Return("", nil).Once()
+		mockGitClient.EXPECT().CommitSHA().Return("it-worked!", nil).Once()
+		mockRepoClientFactory.EXPECT().NewClient(mock.Anything, mock.Anything).Return(mockGitClient, nil).Once()
 
 		requestWithEmptyPaths := &apiclient.CommitHydratedManifestsRequest{
 			Repo: &v1alpha1.Repository{

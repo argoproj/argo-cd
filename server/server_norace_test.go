@@ -108,14 +108,14 @@ func Test_StaticHeaders(t *testing.T) {
 		// Allow server startup
 		time.Sleep(1 * time.Second)
 
-		client := http.Client{}
 		url := fmt.Sprintf("http://127.0.0.1:%d/test.html", s.ListenPort)
-		req, err := http.NewRequest(http.MethodGet, url, http.NoBody)
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, url, http.NoBody)
 		require.NoError(t, err)
-		resp, err := client.Do(req)
+		resp, err := http.DefaultClient.Do(req)
 		require.NoError(t, err)
 		assert.Equal(t, "sameorigin", resp.Header.Get("X-Frame-Options"))
 		assert.Equal(t, "frame-ancestors 'self';", resp.Header.Get("Content-Security-Policy"))
+		require.NoError(t, resp.Body.Close())
 	}
 
 	// Test custom policy for X-Frame-Options and Content-Security-Policy
@@ -137,14 +137,14 @@ func Test_StaticHeaders(t *testing.T) {
 		// Allow server startup
 		time.Sleep(1 * time.Second)
 
-		client := http.Client{}
 		url := fmt.Sprintf("http://127.0.0.1:%d/test.html", s.ListenPort)
-		req, err := http.NewRequest(http.MethodGet, url, http.NoBody)
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, url, http.NoBody)
 		require.NoError(t, err)
-		resp, err := client.Do(req)
+		resp, err := http.DefaultClient.Do(req)
 		require.NoError(t, err)
 		assert.Equal(t, "deny", resp.Header.Get("X-Frame-Options"))
 		assert.Equal(t, "frame-ancestors 'none';", resp.Header.Get("Content-Security-Policy"))
+		require.NoError(t, resp.Body.Close())
 	}
 
 	// Test disabled X-Frame-Options and Content-Security-Policy
@@ -169,13 +169,13 @@ func Test_StaticHeaders(t *testing.T) {
 		// Allow server startup
 		time.Sleep(1 * time.Second)
 
-		client := http.Client{}
 		url := fmt.Sprintf("http://127.0.0.1:%d/test.html", s.ListenPort)
-		req, err := http.NewRequest(http.MethodGet, url, http.NoBody)
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, url, http.NoBody)
 		require.NoError(t, err)
-		resp, err := client.Do(req)
+		resp, err := http.DefaultClient.Do(req)
 		require.NoError(t, err)
 		assert.Empty(t, resp.Header.Get("X-Frame-Options"))
 		assert.Empty(t, resp.Header.Get("Content-Security-Policy"))
+		require.NoError(t, resp.Body.Close())
 	}
 }

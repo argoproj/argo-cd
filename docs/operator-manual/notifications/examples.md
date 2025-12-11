@@ -103,7 +103,6 @@ kind: ConfigMap
 metadata:
   name: argocd-notifications-cm
 data:
-data:
   service.slack: |
     token: <your-slack-bot-token>
 
