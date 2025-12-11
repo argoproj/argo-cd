@@ -464,6 +464,7 @@ jobs:
       - name: Install K3S
         env:
           INSTALL_K3S_VERSION: ${{ matrix.k3s.version }}+k3s1
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -x
           curl -sfL https://get.k3s.io | sh -
