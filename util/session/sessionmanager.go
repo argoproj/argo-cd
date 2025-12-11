@@ -307,8 +307,8 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, string, error)
 
 	// Only attempt auto-regeneration if we have both expiration and issuedAt times
 	if expErr == nil && iatErr == nil && exp != nil && iat != nil {
-		tokenExpDuration := exp.Sub(*iat)     // Dereference pointers
-		remainingDuration := time.Until(*exp) // Dereference pointer
+		tokenExpDuration := exp.Sub(*iat)
+		remainingDuration := time.Until(*exp)
 
 		if remainingDuration < autoRegenerateTokenDuration && capability == settings.AccountCapabilityLogin {
 			var uniqueId uuid.UUID
@@ -645,7 +645,7 @@ func (mgr *SessionManager) VerifyToken(ctx context.Context, tokenString string) 
 	prov, err := mgr.provider()
 	if err != nil {
 		// If OIDC/Dex is not configured, but we reached here, the token is invalid
-		return nil, "", fmt.Errorf("token issuer (%s) is not '%s' and OIDC provider is not available: %w", issuer, SessionManagerClaimsIssuer, err)
+		return nil, "", fmt.Errorf("failed to get provider for OIDC Validation: %w", err)
 	}
 
 	idToken, err := prov.Verify(ctx, tokenString, argoSettings)
@@ -661,7 +661,7 @@ func (mgr *SessionManager) VerifyToken(ctx context.Context, tokenString string) 
 		if errors.As(err, &tokenExpiredError) {
 			// Return minimal claims indicating SSO source for expired tokens
 			// Use issuer variable from above, handle potential error if it wasn't retrieved
-			issForExpired := ""
+			issForExpired := "sso"
 			if issErr == nil {
 				issForExpired = issuer
 			}

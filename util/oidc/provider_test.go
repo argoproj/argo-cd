@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/aws/smithy-go/ptr"
 	jwtgo "github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/require"
 
@@ -513,7 +514,7 @@ func TestVerify_Audience(t *testing.T) {
 		{
 			name:                                    "Valid: Token has no audience, skip check is true",
 			tokenAudience:                           []string{}, // No audience
-			skipAudienceCheckWhenTokenHasNoAudience: boolPtr(true),
+			skipAudienceCheckWhenTokenHasNoAudience: ptr.Bool(true),
 			expectError:                             true, // Changed to true as go-oidc v3 still requires the audience
 			errorContains:                           "expected audience",
 		},
@@ -521,7 +522,7 @@ func TestVerify_Audience(t *testing.T) {
 			name:                                    "Invalid: Token has audience, skip check is true (should still fail)",
 			tokenAudience:                           []string{"some-aud"},
 			allowedAudiences:                        []string{"different-aud"},
-			skipAudienceCheckWhenTokenHasNoAudience: boolPtr(true),
+			skipAudienceCheckWhenTokenHasNoAudience: ptr.Bool(true),
 			expectError:                             true,
 			errorContains:                           "token verification failed for all audiences",
 		},
@@ -568,9 +569,4 @@ func TestVerify_Audience(t *testing.T) {
 			}
 		})
 	}
-}
-
-// Helper for pointer to bool
-func boolPtr(b bool) *bool {
-	return &b
 }
