@@ -408,6 +408,36 @@ metadata:
 data:
 `
 
+var fakePreDeleteHook = `
+{
+  "apiVersion": "v1",
+  "kind": "Pod",
+  "metadata": {
+    "name": "pre-delete-hook",
+    "namespace": "default",
+    "labels": {
+      "app.kubernetes.io/instance": "my-app"
+    },
+    "annotations": {
+      "argocd.argoproj.io/hook": "PreDelete"
+    }
+  },
+  "spec": {
+    "containers": [
+      {
+        "name": "pre-delete-hook",
+        "image": "busybox",
+        "restartPolicy": "Never",
+        "command": [
+          "/bin/sh",
+          "-c",
+          "sleep 5 && echo hello from the pre-delete-hook pod"
+        ]
+      }
+    ]
+  }
+}
+
 var fakeNamespace = `
 apiVersion: v1
 kind: Namespace
