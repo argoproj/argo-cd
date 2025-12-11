@@ -38,7 +38,7 @@ func TestGetGroups(t *testing.T) {
 	assert.Equal(t, []string{"foo"}, GetGroups(jwt.MapClaims{"groups": []string{"foo"}}, []string{"groups"}))
 }
 
-func TestIssuedAtTime_Int64(t *testing.T) {
+func TestIssuedAtTime_Float64(t *testing.T) {
 	// Tuesday, 1 December 2020 14:00:00
 	// Use float64 as expected by jwt/v5 for numeric claims in MapClaims
 	claims := jwt.MapClaims{"iat": float64(1606831200)}

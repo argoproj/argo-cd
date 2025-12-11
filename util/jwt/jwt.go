@@ -79,17 +79,6 @@ func GetScopeValues(claims jwtgo.MapClaims, scopes []string) []string {
 			// Could add handling for other types like []float64 if needed
 		}
 	}
-	// Deduplicate results? Depending on usage, might be useful.
-	// Example:
-	// seen := make(map[string]struct{})
-	// uniqueValues := make([]string, 0, len(values))
-	// for _, val := range values {
-	//	 if _, exists := seen[val]; !exists {
-	//		 seen[val] = struct{}{}
-	//		 uniqueValues = append(uniqueValues, val)
-	//	 }
-	// }
-	// return uniqueValues
 	return values
 }
 
@@ -120,11 +109,6 @@ func IssuedAtTime(m jwtgo.MapClaims) (*time.Time, error) {
 func ExpirationTime(m jwtgo.MapClaims) (*time.Time, error) {
 	claim, err := m.GetExpirationTime()
 	if err != nil {
-		// Check if the error is specifically because the claim is missing
-		if _, ok := m["exp"]; !ok {
-			return nil, nil // Claim is missing, return nil, nil
-		}
-		// Otherwise, the claim exists but is invalid
 		return nil, fmt.Errorf("failed to get 'exp' claim: %w", err)
 	}
 	if claim == nil {
@@ -161,7 +145,6 @@ func IsMember(claims jwtgo.Claims, groups []string, scopes []string) bool {
 }
 
 // GetGroups retrieves group information from claims using specified scope names.
-// This is essentially an alias for GetScopeValues, assuming scopes represent group claims.
 func GetGroups(mapClaims jwtgo.MapClaims, scopes []string) []string {
 	return GetScopeValues(mapClaims, scopes)
 }

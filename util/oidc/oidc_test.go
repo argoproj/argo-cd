@@ -20,7 +20,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	gooidc "github.com/coreos/go-oidc/v3/oidc"
-	jwtgo "github.com/golang-jwt/jwt/v5" // Import jwtgo
+	jwtgo "github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/oauth2"
@@ -926,7 +926,7 @@ func TestGetUserInfo(t *testing.T) {
 	tests := []struct {
 		name                  string
 		userInfoPath          string
-		expectedOutput        jwtgo.MapClaims // Use jwtgo alias
+		expectedOutput        jwtgo.MapClaims
 		expectError           bool
 		expectUnauthenticated bool
 		expectedCacheItems    []struct { // items to check in cache after function call
@@ -936,7 +936,7 @@ func TestGetUserInfo(t *testing.T) {
 			expectError     bool
 		}
 		idpHandler func(w http.ResponseWriter, r *http.Request)
-		idpClaims  jwtgo.MapClaims // Use jwtgo alias // as per specification sub and exp are REQUIRED fields
+		idpClaims  jwtgo.MapClaims // as per specification sub and exp are REQUIRED fields
 		cache      cache.CacheClient
 		cacheItems []struct { // items to put in cache before execution
 			key     string

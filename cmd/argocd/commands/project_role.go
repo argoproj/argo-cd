@@ -363,7 +363,9 @@ Create token succeeded for proj:test-project:test-role.
 			claims := token.Claims.(jwtgo.MapClaims)
 			id := jwt.StringField(claims, "jti")
 			subject := jwt.GetUserIdentifier(claims)
-			issuedAtPtr, _ := jwt.IssuedAtTime(claims)
+
+			issuedAtPtr, err := jwt.IssuedAtTime(claims)
+			errors.CheckError(err)
 
 			var issuedAt int64
 			if issuedAtPtr != nil {

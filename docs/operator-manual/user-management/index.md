@@ -449,6 +449,8 @@ Add a `rootCA` to your `oidc.config` which contains the PEM encoded root certifi
 
 Argo CD can be configured to verify JSON Web Tokens (JWTs) issued by an external authentication provider. This allows you to integrate Argo CD with existing authentication systems that issue JWTs.
 
+If jwt.config is enabled, this authentication method will take precedence over other enabled methods (e.g., SSO, OIDC, Dex).
+
 To configure external JWT authentication, add the JWT configuration to the `argocd-cm` ConfigMap:
 
 ```yaml
@@ -473,9 +475,11 @@ data:
     # Optional: How long to cache the JWKS
     cacheTTL: "1h"
     # Optional: Expected audience for the JWT
-    audience: "https://argocd.example.com"
-    # Optional: Enforced token signing algorithm, RS256 by default
-    singingAlgorithm: "RS256"
+    allowedAudience: "https://argocd.example.com"
+    # Optional: Token signing algorithm, RS256 by default
+    signingAlgorithm: "RS256"
+    # Optional: JWT claim to use for the user's groups
+    groupsClaim: groups
 ```
 
 The following configuration options are available:
@@ -485,7 +489,9 @@ The following configuration options are available:
 * `usernameClaim`: The JWT claim to use for the username (required)
 * `jwkSetURL`: The URL to fetch the JSON Web Key Set (JWKS) from (required)
 * `cacheTTL`: How long to cache the JWKS before refetching (optional, default: 5m)
-* `audience`: Expected audience value in the JWT claims (optional)
+* `allowedAudience`: Expected audience value in the JWT claims (optional)
+* `signingAlgorithm`: Algorithm used to sign the token, as supported by jwt-go (optional: default: RS256)
+* `groupsClaim`: The JWT claim to use for the user's groups (optional)
 
 When JWT authentication is configured, Argo CD will:
 
@@ -493,11 +499,14 @@ When JWT authentication is configured, Argo CD will:
 2. Verify the JWT signature using the public keys from the JWKS endpoint
 3. Validate the token expiry and audience (if configured)
 4. Extract the username and email from the specified claims
-5. Use these values to identify the user within Argo CD
+5. Extract the user's groups, if configured, adding them to ArgoCD's `groups` scope
+6. Use these values to identify the user within Argo CD
+
+Note: If `groupsClaim` is not configured, the user will be logged in and assigned the default role.
 
 The external authentication provider must:
 
-1. Issue valid JWTs signed with RSA
+1. Issue valid JWTs signed with an algorithm supported by [jwt-go](https://golang-jwt.github.io/jwt/usage/signing_methods/)
 2. Expose a JWKS endpoint that provides the public keys
 3. Include the configured username and email claims in the JWT payload
 

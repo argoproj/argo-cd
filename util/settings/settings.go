@@ -220,7 +220,7 @@ type JWTConfig struct {
 	// CacheTTL is how long to cache the JWKS
 	CacheTTL string `json:"cacheTTL,omitempty"`
 	// Audience is the expected audience for the JWT
-	Audience string `json:"audience,omitempty"`
+	Audience string `json:"allowedAudience,omitempty"`
 	// Issuer is the expected issuer for the JWT
 	Issuer string `json:"issuer,omitempty"`
 	// GroupsClaim is the JWT claim to use for groups
