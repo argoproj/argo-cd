@@ -33,7 +33,7 @@ type DuckTypeGenerator struct {
 	clusterInformer *settings.ClusterInformer
 }
 
-func NewDuckTypeGenerator(ctx context.Context, c client.Client, dynClient dynamic.Interface, clientset kubernetes.Interface, namespace string, clusterInformer *settings.ClusterInformer) Generator {
+func NewDuckTypeGenerator(ctx context.Context, dynClient dynamic.Interface, clientset kubernetes.Interface, namespace string, clusterInformer *settings.ClusterInformer) Generator {
 	g := &DuckTypeGenerator{
 		ctx:             ctx,
 		dynClient:       dynClient,
