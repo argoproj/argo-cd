@@ -17,7 +17,6 @@ import (
 	kubefake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	crfake "sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/settings"
@@ -296,7 +295,6 @@ func TestGenerateParamsForDuckType(t *testing.T) {
 			}: "DuckList"}
 
 			fakeDynClient := fake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), gvrToListKind, testCase.resource)
-			fakeClient := crfake.NewClientBuilder().WithObjects(clusters...).Build()
 
 			clusterInformer, err := settings.NewClusterInformer(appClientset, "namespace")
 			require.NoError(t, err)
@@ -308,7 +306,7 @@ func TestGenerateParamsForDuckType(t *testing.T) {
 				t.Fatal("Timed out waiting for caches to sync")
 			}
 
-			duckTypeGenerator := NewDuckTypeGenerator(t.Context(), fakeClient, fakeDynClient, appClientset, "namespace", clusterInformer)
+			duckTypeGenerator := NewDuckTypeGenerator(t.Context(), fakeDynClient, appClientset, "namespace", clusterInformer)
 
 			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
@@ -603,7 +601,6 @@ func TestGenerateParamsForDuckTypeGoTemplate(t *testing.T) {
 			}: "DuckList"}
 
 			fakeDynClient := fake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), gvrToListKind, testCase.resource)
-			fakeClient := crfake.NewClientBuilder().WithObjects(clusters...).Build()
 
 			clusterInformer, err := settings.NewClusterInformer(appClientset, "namespace")
 			require.NoError(t, err)
@@ -617,7 +614,7 @@ func TestGenerateParamsForDuckTypeGoTemplate(t *testing.T) {
 			// Give informer a moment to fully populate
 			time.Sleep(100 * time.Millisecond)
 
-			duckTypeGenerator := NewDuckTypeGenerator(t.Context(), fakeClient, fakeDynClient, appClientset, "namespace", clusterInformer)
+			duckTypeGenerator := NewDuckTypeGenerator(t.Context(), fakeDynClient, appClientset, "namespace", clusterInformer)
 
 			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
