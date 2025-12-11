@@ -177,27 +177,30 @@ const LabelsFilter = (props: AppFilterProps) => {
 };
 
 const AnnotationsFilter = (props: AppFilterProps) => {
-    const annotations = new Map<string, Set<string>>();
-    props.apps
-        .filter(app => app.metadata && app.metadata.annotations)
-        .forEach(app =>
-            Object.keys(app.metadata.annotations).forEach(annotation => {
-                let values = annotations.get(annotation);
-                if (!values) {
-                    values = new Set<string>();
-                    annotations.set(annotation, values);
-                }
-                values.add(app.metadata.annotations[annotation]);
-            })
-        );
-    const suggestions = new Array<string>();
-    Array.from(annotations.entries()).forEach(([annotation, values]) => {
-        suggestions.push(annotation);
-        values.forEach(val => suggestions.push(`${annotation}=${val}`));
-    });
-    const annotationOptions = suggestions.map(s => {
-        return {label: s};
-    });
+    const annotationOptions = React.useMemo(() => {
+        const annotations = new Map<string, Set<string>>();
+
+        props.apps
+            .filter(app => app.metadata && app.metadata.annotations)
+            .forEach(app =>
+                Object.keys(app.metadata.annotations).forEach(annotation => {
+                    let values = annotations.get(annotation);
+                    if (!values) {
+                        values = new Set<string>();
+                        annotations.set(annotation, values);
+                    }
+                    values.add(app.metadata.annotations[annotation]);
+                })
+            );
+
+        const suggestions = new Array<string>();
+        Array.from(annotations.entries()).forEach(([annotation, values]) => {
+            suggestions.push(annotation);
+            values.forEach(val => suggestions.push(`${annotation}=${val}`));
+        });
+
+        return suggestions.map(s => ({label: s}));
+    }, [props.apps]);
 
     return (
         <Filter
