@@ -6829,14 +6829,14 @@
           "type": "array",
           "title": "ClusterResourceBlacklist contains list of blacklisted cluster level resources",
           "items": {
-            "$ref": "#/definitions/v1GroupKind"
+            "$ref": "#/definitions/v1alpha1ClusterResourceRestrictionItem"
           }
         },
         "clusterResourceWhitelist": {
           "type": "array",
           "title": "ClusterResourceWhitelist contains list of whitelisted cluster level resources",
           "items": {
-            "$ref": "#/definitions/v1GroupKind"
+            "$ref": "#/definitions/v1alpha1ClusterResourceRestrictionItem"
           }
         },
         "description": {
@@ -7050,7 +7050,7 @@
     },
     "v1alpha1ApplicationSet": {
       "type": "object",
-      "title": "ApplicationSet is a set of Application resources\n+genclient\n+genclient:noStatus\n+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object\n+kubebuilder:resource:path=applicationsets,shortName=appset;appsets\n+kubebuilder:subresource:status",
+      "title": "ApplicationSet is a set of Application resources.\n+genclient\n+genclient:noStatus\n+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object\n+kubebuilder:resource:path=applicationsets,shortName=appset;appsets\n+kubebuilder:subresource:status",
       "properties": {
         "metadata": {
           "$ref": "#/definitions/v1ObjectMeta"
@@ -8167,6 +8167,22 @@
         }
       }
     },
+    "v1alpha1ClusterResourceRestrictionItem": {
+      "type": "object",
+      "title": "ClusterResourceRestrictionItem is a cluster resource that is restricted by the project's whitelist or blacklist",
+      "properties": {
+        "group": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "name": {
+          "description": "Name is the name of the restricted resource. Glob patterns using Go's filepath.Match syntax are supported.\nUnlike the group and kind fields, if no name is specified, all resources of the specified group/kind are matched.",
+          "type": "string"
+        }
+      }
+    },
     "v1alpha1Command": {
       "type": "object",
       "title": "Command holds binary path and arguments list",
@@ -8292,9 +8308,21 @@
       "description": "DrySource specifies a location for dry \"don't repeat yourself\" manifest source information.",
       "type": "object",
       "properties": {
+        "directory": {
+          "$ref": "#/definitions/v1alpha1ApplicationSourceDirectory"
+        },
+        "helm": {
+          "$ref": "#/definitions/v1alpha1ApplicationSourceHelm"
+        },
+        "kustomize": {
+          "$ref": "#/definitions/v1alpha1ApplicationSourceKustomize"
+        },
         "path": {
           "type": "string",
           "title": "Path is a directory path within the Git repository where the manifests are located"
+        },
+        "plugin": {
+          "$ref": "#/definitions/v1alpha1ApplicationSourcePlugin"
         },
         "repoURL": {
           "type": "string",
@@ -9440,7 +9468,7 @@
           "title": "TLSClientCertKey specifies the TLS client cert key for authenticating at the repo server"
         },
         "type": {
-          "description": "Type specifies the type of the repoCreds. Can be either \"git\" or \"helm. \"git\" is assumed if empty or absent.",
+          "description": "Type specifies the type of the repoCreds. Can be either \"git\", \"helm\" or \"oci\". \"git\" is assumed if empty or absent.",
           "type": "string"
         },
         "url": {
@@ -9482,6 +9510,11 @@
         },
         "connectionState": {
           "$ref": "#/definitions/v1alpha1ConnectionState"
+        },
+        "depth": {
+          "description": "Depth specifies the depth for shallow clones. A value of 0 or omitting the field indicates a full clone.",
+          "type": "integer",
+          "format": "int64"
         },
         "enableLfs": {
           "description": "EnableLFS specifies whether git-lfs support should be enabled for this repo. Only valid for Git repositories.",

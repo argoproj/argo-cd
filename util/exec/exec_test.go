@@ -218,3 +218,11 @@ func TestRunCaptureStderr(t *testing.T) {
 	assert.Equal(t, "hello world\nmy-error", output)
 	assert.NoError(t, err)
 }
+
+func TestRunWithExecRunOptsCaptureStderr(t *testing.T) {
+	ctx := t.Context()
+	cmd := exec.CommandContext(ctx, "sh", "-c", "echo hello world && echo my-error >&2 && exit 0")
+	output, err := RunWithExecRunOpts(cmd, ExecRunOpts{CaptureStderr: true})
+	assert.Equal(t, "hello world\nmy-error", output)
+	assert.NoError(t, err)
+}

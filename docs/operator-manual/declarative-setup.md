@@ -597,7 +597,7 @@ stringData:
 
 ### EKS
 
-EKS cluster secret example using argocd-k8s-auth and [IRSA](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html):
+EKS cluster secret example using argocd-k8s-auth and [IRSA](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html) and [Pod Identity](https://docs.aws.amazon.com/eks/latest/userguide/pod-identities.html):
 
 ```yaml
 apiVersion: v1
@@ -625,7 +625,7 @@ stringData:
 
 This setup requires:
 
-1. [IRSA enabled](https://docs.aws.amazon.com/eks/latest/userguide/enable-iam-roles-for-service-accounts.html) on your Argo CD EKS cluster
+1. [IRSA enabled](https://docs.aws.amazon.com/eks/latest/userguide/enable-iam-roles-for-service-accounts.html) or [Pod Identity agent](https://docs.aws.amazon.com/eks/latest/userguide/pod-id-agent-setup.html) on your Argo CD EKS cluster  
 2. An IAM role ("management role") for your Argo CD EKS cluster that has an appropriate trust policy and permission policies (see below)
 3. A role created for each cluster being added to Argo CD that is assumable by the Argo CD management role
 4. An [Access Entry](https://docs.aws.amazon.com/eks/latest/userguide/access-entries.html) within each EKS cluster added to Argo CD that gives the cluster's role (from point 3) RBAC permissions
@@ -644,8 +644,9 @@ The service accounts that need to assume this role are:
 - `argocd-server`
 
 If we create role `arn:aws:iam::<AWS_ACCOUNT_ID>:role/<ARGO_CD_MANAGEMENT_IAM_ROLE_NAME>` for this purpose, the following
-is an example trust policy suitable for this need. Ensure that the Argo CD cluster has an [IAM OIDC provider configured](https://docs.aws.amazon.com/eks/latest/userguide/enable-iam-roles-for-service-accounts.html).
+is an example trust policy suitable for this need. Ensure that the Argo CD cluster has an [IAM OIDC provider configured](https://docs.aws.amazon.com/eks/latest/userguide/enable-iam-roles-for-service-accounts.html) or [Pod Identity agent running](https://docs.aws.amazon.com/eks/latest/userguide/pod-id-agent-setup.html)
 
+**for IRSA:**
 ```json
 {
     "Version": "2012-10-17",
@@ -685,6 +686,38 @@ is an example trust policy suitable for this need. Ensure that the Argo CD clust
 }
 ```
 
+**for Pod Identity:**
+```json
+{
+    "Version":"2012-10-17",		 	 	 
+    "Statement": [
+        {
+            "Sid": "AllowEksAuthToAssumeRoleForPodIdentity",
+            "Effect": "Allow",
+            "Principal": {
+                "Service": "pods.eks.amazonaws.com"
+            },
+            "Action": [
+                "sts:AssumeRole",
+                "sts:TagSession"
+            ],
+            "Condition": {
+                "StringEquals": {
+                    "aws:RequestTag/kubernetes-namespace": [
+                        "argocd"
+                    ],
+                    "aws:RequestTag/kubernetes-service-account": [
+                        "argocd-server",
+                        "argocd-application-controller",
+                        "argocd-applicationset-controller"
+                    ]
+                }
+            }
+        }
+    ]
+}
+```
+
 #### Argo CD Service Accounts
 
 The 3 service accounts need to be modified to include an annotation with the Argo CD management role ARN.
@@ -694,6 +727,7 @@ Here's an example service account configurations for `argocd-application-control
 > [!WARNING]
 Once the annotations has been set on the service accounts, the application controller and server pods need to be restarted.
 
+**for IRSA:**   
 ```yaml
 apiVersion: v1
 kind: ServiceAccount
@@ -717,6 +751,13 @@ metadata:
   name: argocd-server
 ```
 
+**for Pod Identity:**  
+```shell
+aws eks associate-pod-identity -- cluster-name <EKS_CLUSTER_NAME> --namespace argocd --service-account argocd-applicationset-controller --role-arn arn:aws:iam::<AWS_ACCOUNT_ID>:role/<ARGO_CD_MANAGEMENT_IAM_ROLE_NAME>
+aws eks associate-pod-identity -- cluster-name <EKS_CLUSTER_NAME> --namespace argocd --service-account argocd-application-controller --role-arn arn:aws:iam::<AWS_ACCOUNT_ID>:role/<ARGO_CD_MANAGEMENT_IAM_ROLE_NAME>
+aws eks associate-pod-identity -- cluster-name <EKS_CLUSTER_NAME> --namespace argocd --service-account argocd-server --role-arn arn:aws:iam::<AWS_ACCOUNT_ID>:role/<ARGO_CD_MANAGEMENT_IAM_ROLE_NAME>
+```
+
 #### IAM Permission Policy
 
 The Argo CD management role (`arn:aws:iam::<AWS_ACCOUNT_ID>:role/<ARGO_CD_MANAGEMENT_IAM_ROLE_NAME>` in our example) additionally
@@ -725,12 +766,30 @@ needs to be allowed to assume a role for each cluster added to Argo CD.
 If we create a role named `<IAM_CLUSTER_ROLE>` for an EKS cluster we are adding to Argo CD, we would update the permission 
 policy of the Argo CD management role to include the following:
 
+**for IRSA:**
 ```json
 {
     "Version" : "2012-10-17",
     "Statement" : {
       "Effect" : "Allow",
       "Action" : "sts:AssumeRole",
+      "Resource" : [
+        "arn:aws:iam::<AWS_ACCOUNT_ID>:role/<IAM_CLUSTER_ROLE>"
+      ]
+    }
+  }
+```
+
+**for Pod Identity:**
+```json
+{
+    "Version" : "2012-10-17",
+    "Statement" : {
+      "Effect" : "Allow",
+      "Action" : [
+        "sts:AssumeRole",
+        "sts:TagSession"
+      ],
       "Resource" : [
         "arn:aws:iam::<AWS_ACCOUNT_ID>:role/<IAM_CLUSTER_ROLE>"
       ]
@@ -757,6 +816,7 @@ trust policy.
 
 A suitable trust policy allowing the `IAM_CLUSTER_ROLE` to be assumed by the `ARGO_CD_MANAGEMENT_IAM_ROLE_NAME` role looks like this:
 
+**for IRSA:**
 ```json
 {
     "Version": "2012-10-17",
@@ -767,6 +827,25 @@ A suitable trust policy allowing the `IAM_CLUSTER_ROLE` to be assumed by the `AR
                 "AWS": "arn:aws:iam::<AWS_ACCOUNT_ID>:role/<ARGO_CD_MANAGEMENT_IAM_ROLE_NAME>"
             },
             "Action": "sts:AssumeRole"
+        }
+    ]
+}
+```
+
+**for Pod Identity:**
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Principal": {
+                "AWS": "arn:aws:iam::<AWS_ACCOUNT_ID>:role/<ARGO_CD_MANAGEMENT_IAM_ROLE_NAME>"
+            },
+            "Action": [
+                "sts:TagSession",
+                "sts:AssumeRole"
+            ]
         }
     ]
 }
@@ -971,7 +1050,6 @@ stringData:
 ```
 
 > ⚠️ Secret mounts are updated on an interval, not real time. If rotation is a requirement ensure the token lifetime outlives the mount update interval and the rotation process doesn't immediately invalidate the existing token
-
 
 ### GKE
 
@@ -1223,7 +1301,7 @@ The `resource.exclusions` node is a list of objects. Each object can have:
 
 * `apiGroups` A list of globs to match the API group.
 * `kinds` A list of kinds to match. Can be `"*"` to match all.
-* `clusters` A list of globs to match the cluster.
+* `clusters` A list of globs to match the cluster URL.
 
 If all three match, then the resource is ignored.
 
