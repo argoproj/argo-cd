@@ -3,7 +3,16 @@ import * as React from 'react';
 import {FormApi} from 'react-form';
 
 import {EditablePanel} from '../../../shared/components';
-import {ApplicationDestination, ApplicationDestinationServiceAccount, GroupKind, Groups, Project, ProjectSpec, ResourceKinds} from '../../../shared/models';
+import {
+    ApplicationDestination,
+    ApplicationDestinationServiceAccount,
+    ClusterResourceRestrictionItem,
+    GroupKind,
+    Groups,
+    Project,
+    ProjectSpec,
+    ResourceKinds
+} from '../../../shared/models';
 
 function removeEl(items: any[], index: number) {
     return items.slice(0, index).concat(items.slice(index + 1));
@@ -43,7 +52,8 @@ const infoByField: {[type: string]: {title: string; helpText: string}} = {
 
 function viewList(type: field, proj: Project) {
     const info = infoByField[type];
-    const list = proj.spec[type] as Array<GroupKind>;
+    const isClusterResourceList = type === 'clusterResourceWhitelist' || type === 'clusterResourceBlacklist';
+    const list = proj.spec[type] as Array<GroupKind> | Array<ClusterResourceRestrictionItem>;
     return (
         <React.Fragment>
             <p className='project-details__list-title'>
@@ -53,12 +63,14 @@ function viewList(type: field, proj: Project) {
                 <React.Fragment>
                     <div className='row white-box__details-row'>
                         <div className='columns small-4'>Kind</div>
-                        <div className='columns small-8'>Group</div>
+                        <div className='columns small-4'>Group</div>
+                        {isClusterResourceList && <div className='columns small-4'>Name</div>}
                     </div>
                     {list.map((resource, i) => (
                         <div className='row white-box__details-row' key={i}>
                             <div className='columns small-4'>{resource.kind}</div>
-                            <div className='columns small-8'>{resource.group}</div>
+                            <div className='columns small-4'>{resource.group}</div>
+                            {isClusterResourceList && <div className='columns small-4'>{(resource as ClusterResourceRestrictionItem).name || ''}</div>}
                         </div>
                     ))}
                 </React.Fragment>
@@ -203,6 +215,7 @@ function viewDestinationServiceAccountsInfoList(type: field, proj: Project) {
 
 function editList(type: field, formApi: FormApi) {
     const info = infoByField[type];
+    const isClusterResourceList = type === 'clusterResourceWhitelist' || type === 'clusterResourceBlacklist';
 
     return (
         <React.Fragment>
@@ -211,7 +224,8 @@ function editList(type: field, formApi: FormApi) {
             </p>
             <div className='row white-box__details-row'>
                 <div className='columns small-4'>Kind</div>
-                <div className='columns small-8'>Group</div>
+                <div className={isClusterResourceList ? 'columns small-4' : 'columns small-8'}>Group</div>
+                {isClusterResourceList && <div className='columns small-4'>Name (optional)</div>}
             </div>
             {(formApi.values.spec[type] || []).map((_: Project, i: number) => (
                 <div className='row white-box__details-row' key={i}>
@@ -223,13 +237,22 @@ function editList(type: field, formApi: FormApi) {
                             componentProps={{items: ResourceKinds, filterSuggestions: true}}
                         />
                     </div>
-                    <div className='columns small-8'>
+                    <div className={isClusterResourceList ? 'columns small-4' : 'columns small-8'}>
                         <FormField formApi={formApi} field={`spec.${type}[${i}].group`} component={AutocompleteField} componentProps={{items: Groups, filterSuggestions: true}} />
                     </div>
+                    {isClusterResourceList && (
+                        <div className='columns small-4'>
+                            <FormField formApi={formApi} field={`spec.${type}[${i}].name`} component={AutocompleteField} componentProps={{items: [], filterSuggestions: false}} />
+                        </div>
+                    )}
                     <i className='fa fa-times' onClick={() => formApi.setValue(`spec.${type}`, removeEl(formApi.values.spec[type], i))} />
                 </div>
             ))}
-            <button className='argo-button argo-button--short' onClick={() => formApi.setValue(`spec.${type}`, (formApi.values.spec[type] || []).concat({group: '*', kind: '*'}))}>
+            <button
+                className='argo-button argo-button--short'
+                onClick={() =>
+                    formApi.setValue(`spec.${type}`, (formApi.values.spec[type] || []).concat(isClusterResourceList ? {group: '*', kind: '*', name: ''} : {group: '*', kind: '*'}))
+                }>
                 ADD RESOURCE
             </button>
         </React.Fragment>

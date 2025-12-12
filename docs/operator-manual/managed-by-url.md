@@ -121,11 +121,11 @@ To test the annotation with two local Argo CD instances:
 ```bash
 # Install primary instance
 kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+kubectl apply -n argocd --server-side -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
 
 # Install secondary instance
 kubectl create namespace namespace-b
-kubectl apply -n namespace-b -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+kubectl apply -n namespace-b --server-side -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
 
 # Port forward both instances
 kubectl port-forward -n argocd svc/argocd-server 8080:443 &
