@@ -228,7 +228,7 @@ However, there are some cases where you want to use `kubectl apply --server-side
 - Use a more declarative approach, which tracks a user's field management, rather than a user's last
   applied state.
 
-If the `ServerSideApply=true` sync option is set, Argo CD will use the `kubectl apply --server-side`
+If the `ServerSideApply=true` sync option is set, Argo CD will use the `kubectl apply --server-side --force-conflicts`
 command to apply changes.
 
 It can be enabled at the application level like in the example below:
@@ -288,7 +288,7 @@ spec:
     - Validate=false
 ```
 
-In this case, Argo CD will use the `kubectl apply --server-side --validate=false` command
+In this case, Argo CD will use the `kubectl apply --server-side --force-conflicts --validate=false` command
 to apply changes.
 
 Note: [`Replace=true`](#replace-resource-instead-of-applying-changes) takes precedence over `ServerSideApply=true`.
