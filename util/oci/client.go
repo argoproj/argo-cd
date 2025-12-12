@@ -37,6 +37,7 @@ import (
 	"oras.land/oras-go/v2/content/file"
 	"oras.land/oras-go/v2/registry/remote"
 	"oras.land/oras-go/v2/registry/remote/auth"
+	"oras.land/oras-go/v2/registry/remote/credentials"
 )
 
 var (
@@ -145,13 +146,24 @@ func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, proxy
 			},
 		*/
 	}
+
+	credential := auth.StaticCredential(repo.Reference.Registry, auth.Credential{
+		Username: creds.Username,
+		Password: creds.Password,
+	})
+
+	// Try to fallback to the environment config, but we shouldn't error if the file is not set
+	if creds.Username == "" && creds.Password == "" {
+		store, _ := credentials.NewStoreFromDocker(credentials.StoreOptions{})
+		if store != nil {
+			credential = credentials.Credential(store)
+		}
+	}
+
 	repo.Client = &auth.Client{
-		Client: client,
-		Cache:  nil,
-		Credential: auth.StaticCredential(repo.Reference.Registry, auth.Credential{
-			Username: creds.Username,
-			Password: creds.Password,
-		}),
+		Client:     client,
+		Cache:      nil,
+		Credential: credential,
 	}
 
 	parsed, err := url.Parse(repoURL)
