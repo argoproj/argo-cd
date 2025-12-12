@@ -1,7 +1,6 @@
 package db
 
 import (
-	"context"
 	"fmt"
 	"strconv"
 	"sync"
@@ -12,7 +11,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
@@ -1242,31 +1240,4 @@ func TestCreateReadAndWriteRepoCredsSecretForSameURL(t *testing.T) {
 	writeSecret, err := clientset.CoreV1().Secrets(testNamespace).Get(t.Context(), writeSecretName, metav1.GetOptions{})
 	require.NoError(t, err)
 	assert.Equal(t, common.LabelValueSecretTypeRepoCredsWrite, writeSecret.Labels[common.LabelKeySecretType])
-}
-
-func TestFakeClientAlreadyExists(t *testing.T) {
-	// 1. Create a fake client and add an initial resource
-	clientset := fake.NewClientset(&corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "existing-pod",
-			Namespace: "default",
-		},
-	})
-
-	podClient := clientset.CoreV1().Pods("default")
-
-	// 2. Attempt to create a pod with the same name
-	newPod := &corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "existing-pod", // Same name as above
-			Namespace: "default",
-		},
-	}
-
-	_, err := podClient.Create(context.TODO(), newPod, metav1.CreateOptions{})
-
-	// 3. Assert that the error is an "AlreadyExists" error
-	if !errors.IsAlreadyExists(err) {
-		t.Errorf("Expected AlreadyExists error, but got %v", err)
-	}
 }
