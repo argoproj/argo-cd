@@ -1,13 +1,16 @@
 package controllers
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"reflect"
 
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	log "github.com/sirupsen/logrus"
 
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/workqueue"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -31,7 +34,13 @@ func (h *clusterSecretEventHandler) Create(ctx context.Context, e event.CreateEv
 }
 
 func (h *clusterSecretEventHandler) Update(ctx context.Context, e event.UpdateEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
-	h.queueRelatedAppGenerators(ctx, q, e.ObjectNew)
+	if containsAFunctionnalDiff(e.ObjectNew, e.ObjectOld) {
+		h.Log.WithFields(log.Fields{
+			"namespace": e.ObjectNew.GetNamespace(),
+			"name":      e.ObjectNew.GetName(),
+		}).Debug("detected a fonctionnal change in a cluster secret update, processing related appsets")
+		h.queueRelatedAppGenerators(ctx, q, e.ObjectNew)
+	}
 }
 
 func (h *clusterSecretEventHandler) Delete(ctx context.Context, e event.DeleteEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
@@ -162,4 +171,25 @@ func nestedGeneratorHasClusterGenerator(nested argoprojiov1alpha1.ApplicationSet
 	}
 
 	return false, nil
+}
+
+func containsAFunctionnalDiff(newObject, oldObject client.Object) bool {
+	if newObject.GetLabels()[common.LabelKeySecretType] != common.LabelValueSecretTypeCluster {
+		return false
+	}
+
+	newSecret, newIsASecret := newObject.(*corev1.Secret)
+	oldSecret, oldIsASecret := oldObject.(*corev1.Secret)
+
+	if !newIsASecret || !oldIsASecret {
+		return false
+	}
+
+	isThereALabelDiff := !reflect.DeepEqual(newSecret.GetLabels(), oldSecret.GetLabels())
+	isThereAnAnnotationDiff := !reflect.DeepEqual(newSecret.GetAnnotations(), oldSecret.GetAnnotations())
+	isThereADataDiff := (!bytes.Equal(newSecret.Data["name"], oldSecret.Data["name"])) ||
+		(!bytes.Equal(newSecret.Data["server"], oldSecret.Data["server"])) ||
+		(!bytes.Equal(newSecret.Data["project"], oldSecret.Data["project"]))
+
+	return isThereALabelDiff || isThereAnAnnotationDiff || isThereADataDiff
 }
