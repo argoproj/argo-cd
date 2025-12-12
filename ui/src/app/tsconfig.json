@@ -5,14 +5,14 @@
         "noImplicitAny": true,
         "module": "esnext",
         "moduleResolution": "node",
-        "target": "es5",
+        "target": "es2022",
         "jsx": "react",
         "experimentalDecorators": true,
         "allowSyntheticDefaultImports": true,
         "noUnusedLocals": true,
         "declaration": false,
         "lib": [
-            "es2017",
+            "es2022",
             "dom"
         ]
     },

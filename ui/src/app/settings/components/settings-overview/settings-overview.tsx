@@ -44,7 +44,7 @@ const settings = [
     }
 ];
 
-export const SettingsOverview: React.StatelessComponent = (props: any, context: AppContext) => (
+export const SettingsOverview: React.FC = (props: any, context: AppContext) => (
     <Page title='Settings' toolbar={{breadcrumbs: [{title: 'Settings'}]}}>
         <div className='settings-overview'>
             <div className='argo-container'>
