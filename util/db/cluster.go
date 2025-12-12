@@ -259,8 +259,8 @@ func (db *db) GetCluster(_ context.Context, server string) (*appv1.Cluster, erro
 
 // GetClusterByServerAndName returns a cluster by server and name
 func (db *db) GetClusterByServerAndName(_ context.Context, server string, name string) (*appv1.Cluster, error) {
+	informer := db.settingsMgr.GetClusterInformer()
 	if server == appv1.KubernetesInternalAPIServerAddr {
-		clusterInformer := db.settingsMgr.GetClusterInformer()
 		argoSettings, err := db.settingsMgr.GetSettings()
 		if err != nil {
 			return nil, err
@@ -271,7 +271,7 @@ func (db *db) GetClusterByServerAndName(_ context.Context, server string, name s
 
 		// Check if there's a secret configured for the in-cluster address
 		// If so, use that instead of the hardcoded local cluster
-		cluster, err := clusterInformer.GetClusterByURL(server)
+		cluster, err := informer.GetClusterByURLAndName(server, name)
 		if err == nil {
 			return cluster, nil
 		}
@@ -280,23 +280,12 @@ func (db *db) GetClusterByServerAndName(_ context.Context, server string, name s
 		return db.getLocalCluster(), nil
 	}
 
-	secretInformer, err := db.settingsMgr.GetSecretsInformer()
+	cluster, err := informer.GetClusterByURLAndName(server, name)
 	if err != nil {
-		return nil, err
-	}
-	res, err := secretInformer.GetIndexer().ByIndex(settings.ByClusterURLIndexer, server)
-	if err != nil {
-		return nil, err
+		return nil, status.Errorf(codes.NotFound, "cluster %q with name %q not found", server, name)
 	}
 
-	for i := range res {
-		s := res[i].(*corev1.Secret)
-		if string(s.Data["name"]) == name {
-			return SecretToCluster(s)
-		}
-	}
-
-	return nil, status.Errorf(codes.NotFound, "cluster %q with name %q not found", server, name)
+	return cluster, nil
 }
 
 // GetProjectClusters return project scoped clusters by given project name

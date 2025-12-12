@@ -197,6 +197,61 @@ func TestClusterInformer_URLNormalization(t *testing.T) {
 	}
 }
 
+func TestClusterInformer_GetClusterServersByUrlAndName(t *testing.T) {
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+
+	secrets := []runtime.Object{
+		&corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "prod-cluster-1",
+				Namespace: "argocd",
+				Labels: map[string]string{
+					common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
+				},
+			},
+			Data: map[string][]byte{
+				"server":  []byte("https://prod1.example.com"),
+				"name":    []byte("production1"),
+				"project": []byte("team-a"),
+			},
+		},
+		&corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "prod-cluster-2",
+				Namespace: "argocd",
+				Labels: map[string]string{
+					common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
+				},
+			},
+			Data: map[string][]byte{
+				"server":  []byte("https://prod2.example.com"),
+				"name":    []byte("production2"),
+				"project": []byte("team-b"),
+			},
+		},
+	}
+
+	clientset := fake.NewSimpleClientset(secrets...)
+	informer, err := NewClusterInformer(clientset, "argocd")
+	require.NoError(t, err)
+
+	go informer.Run(ctx.Done())
+	cache.WaitForCacheSync(ctx.Done(), informer.HasSynced)
+
+	testCases := [][]string{
+		{"https://prod1.example.com", "production1"},
+		{"https://prod2.example.com/", "production2"},
+	}
+
+	for _, urlname := range testCases {
+		cluster, err := informer.GetClusterByURLAndName(urlname[0], urlname[1])
+		require.NoError(t, err, "Failed for URL: %s and Name: %s", urlname[0], urlname[1])
+		assert.Equal(t, urlname[1], cluster.Name)
+		assert.Equal(t, urlname[0], cluster.Server)
+	}
+}
+
 func TestClusterInformer_GetClusterServersByName(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
