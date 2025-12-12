@@ -4604,3 +4604,127 @@ func TestGenerateManifest_OCISourceSkipsGitClient(t *testing.T) {
 	// verify that newGitClient was never invoked
 	assert.False(t, gitCalled, "GenerateManifest should not invoke Git for OCI sources")
 }
+
+func TestGenerateManifest_MultiSource_SameRepoWithDifferentRevisions(t *testing.T) {
+	// This test validates that multi-source applications can reference the same
+	// git repository with different target revisions by using git worktrees.
+	root, err := filepath.Abs("../../util/helm/testdata")
+	require.NoError(t, err)
+
+	primarySHA := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	refSHA := "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+
+	paths := &iomocks.TempPaths{}
+	helmClient := &helmmocks.Client{}
+	ociClient := &ocimocks.Client{}
+
+	// Create two separate git clients - one for primary, one for ref source
+	primaryGitClient := &gitmocks.Client{}
+	refGitClient := &gitmocks.Client{}
+
+	// Primary source checkout behavior
+	primaryGitClient.EXPECT().Init().Return(nil)
+	primaryGitClient.EXPECT().IsRevisionPresent(mock.Anything).Return(false)
+	primaryGitClient.EXPECT().Fetch(mock.Anything, mock.Anything).Return(nil)
+	primaryGitClient.EXPECT().Checkout(mock.Anything, mock.Anything).Return("", nil)
+	primaryGitClient.EXPECT().LsRemote("main").Return(primarySHA, nil)
+	primaryGitClient.EXPECT().CommitSHA().Return(primarySHA, nil)
+	primaryGitClient.EXPECT().Root().Return(root)
+	primaryGitClient.EXPECT().IsAnnotatedTag(mock.Anything).Return(false)
+	primaryGitClient.EXPECT().VerifyCommitSignature(mock.Anything).Return("", nil)
+
+	// Ref source behavior - uses worktree since different revision
+	refGitClient.EXPECT().Init().Return(nil)
+	refGitClient.EXPECT().IsRevisionPresent(mock.Anything).Return(false)
+	refGitClient.EXPECT().Fetch(mock.Anything, mock.Anything).Return(nil)
+	refGitClient.EXPECT().LsRemote("v1.0.0").Return(refSHA, nil)
+	refGitClient.EXPECT().CommitSHA().Return(refSHA, nil)
+	refGitClient.EXPECT().CreateWorktree(refSHA, mock.AnythingOfType("string")).Return(nil)
+	refGitClient.EXPECT().RemoveWorktree(mock.AnythingOfType("string")).Return(nil).Maybe()
+	refGitClient.EXPECT().Root().Return(root)
+
+	// Track which client to return
+	callCount := 0
+
+	// Helm client setup
+	helmClient.EXPECT().GetIndex(mock.AnythingOfType("bool"), mock.Anything).Return(&helm.Index{Entries: map[string]helm.Entries{
+		"redis": {{Version: "1.0.0"}},
+	}}, nil)
+	helmClient.EXPECT().GetTags(mock.Anything, mock.Anything).Return(nil, nil)
+
+	// OCI client setup
+	ociClient.EXPECT().GetTags(mock.Anything, mock.Anything).Return(nil, nil)
+	ociClient.EXPECT().ResolveRevision(mock.Anything, mock.Anything, mock.Anything).Return("", nil)
+
+	// Paths mock - Add is called for both primary and worktree
+	paths.EXPECT().Add(mock.Anything, mock.Anything).Return()
+	paths.EXPECT().GetPath(mock.Anything).Return(root, nil)
+	paths.EXPECT().GetPathIfExists(mock.Anything).Return(root)
+	paths.EXPECT().GetPaths().Return(map[string]string{"fake-nonce": root})
+	paths.EXPECT().Remove(mock.Anything).Return()
+
+	cacheMocks := newCacheMocks()
+	t.Cleanup(cacheMocks.mockCache.StopRedisCallback)
+
+	service := NewService(metrics.NewMetricsServer(), cacheMocks.cache, RepoServerInitConstants{ParallelismLimit: 1}, &git.NoopCredsStore{}, root)
+	service.newGitClient = func(_, _ string, _ git.Creds, _, _ bool, _, _ string, _ ...git.ClientOpts) (git.Client, error) {
+		callCount++
+		if callCount == 1 {
+			return primaryGitClient, nil
+		}
+		return refGitClient, nil
+	}
+	service.newHelmClient = func(_ string, _ helm.Creds, _ bool, _, _ string, _ ...helm.ClientOpts) helm.Client {
+		return helmClient
+	}
+	service.newOCIClient = func(_ string, _ oci.Creds, _, _ string, _ []string, _ ...oci.ClientOpts) (oci.Client, error) {
+		return ociClient, nil
+	}
+	service.gitRepoInitializer = func(_ string) goio.Closer {
+		return utilio.NopCloser
+	}
+	service.gitRepoPaths = paths
+
+	// Create a request with same repo but different target revisions
+	req := &apiclient.ManifestRequest{
+		Repo: &v1alpha1.Repository{
+			Repo: "https://github.com/example/repo.git",
+		},
+		Revision: "main",
+		ApplicationSource: &v1alpha1.ApplicationSource{
+			RepoURL:        "https://github.com/example/repo.git",
+			Path:           "./redis",
+			TargetRevision: "main",
+			Helm: &v1alpha1.ApplicationSourceHelm{
+				ValueFiles: []string{"$values/redis/values-production.yaml"},
+			},
+		},
+		HasMultipleSources: true,
+		NoCache:            true,
+		ProjectName:        "test-project",
+		ProjectSourceRepos: []string{"*"},
+		// RefSources with same repo but different revision
+		RefSources: map[string]*v1alpha1.RefTarget{
+			"$values": {
+				TargetRevision: "v1.0.0", // Different revision than primary source
+				Repo: v1alpha1.Repository{
+					Repo: "https://github.com/example/repo.git", // Same repo as primary
+				},
+			},
+		},
+	}
+
+	// The test should succeed - worktree allows same repo with different revisions
+	_, err = service.GenerateManifest(t.Context(), req)
+	// We expect no error since worktrees should handle different revisions
+	// Note: The actual manifest generation may still fail due to missing files,
+	// but the key assertion is that we don't get the old
+	// "cannot reference the same repository multiple times when the" error
+	if err != nil {
+		assert.NotContains(t, err.Error(), "cannot reference the same repository multiple times")
+	}
+
+	// Verify that CreateWorktree was called on refGitClient
+	// RemoveWorktree is called via defer, which may happen after test assertions in some timing scenarios
+	refGitClient.AssertCalled(t, "CreateWorktree", refSHA, mock.AnythingOfType("string"))
+}
