@@ -64,8 +64,7 @@ func (s *secretsRepositoryBackend) CreateRepository(ctx context.Context, reposit
 // the label is found and false otherwise. Will return false if no secret is found with the given
 // name.
 func (s *secretsRepositoryBackend) hasRepoTypeLabel(secretName string) (bool, error) {
-	noCache := make(map[string]*corev1.Secret)
-	sec, err := s.db.getSecret(secretName, noCache)
+	sec, err := s.db.settingsMgr.GetSecretByName(secretName)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return false, nil
@@ -80,7 +79,7 @@ func (s *secretsRepositoryBackend) hasRepoTypeLabel(secretName string) (bool, er
 }
 
 func (s *secretsRepositoryBackend) GetRepoCredsBySecretName(_ context.Context, name string) (*appsv1.RepoCreds, error) {
-	secret, err := s.db.getSecret(name, map[string]*corev1.Secret{})
+	secret, err := s.db.settingsMgr.GetSecretByName(name)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get secret %s: %w", name, err)
 	}

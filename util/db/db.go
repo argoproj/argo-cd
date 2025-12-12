@@ -3,9 +3,7 @@ package db
 import (
 	"context"
 	"math"
-	"strings"
 
-	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -139,22 +137,6 @@ func NewDB(namespace string, settingsMgr *settings.SettingsManager, kubeclientse
 		ns:            namespace,
 		kubeclientset: kubeclientset,
 	}
-}
-
-func (db *db) getSecret(name string, cache map[string]*corev1.Secret) (*corev1.Secret, error) {
-	if _, ok := cache[name]; !ok {
-		secret, err := db.settingsMgr.GetSecretByName(name)
-		if err != nil {
-			return nil, err
-		}
-		cache[name] = secret
-	}
-	return cache[name], nil
-}
-
-// StripCRLFCharacter strips the trailing CRLF characters
-func StripCRLFCharacter(input string) string {
-	return strings.TrimSpace(input)
 }
 
 // GetApplicationControllerReplicas gets the replicas of application controller
