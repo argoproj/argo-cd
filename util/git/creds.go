@@ -662,7 +662,7 @@ func DiscoverGitHubAppInstallationID(ctx context.Context, appId int64, privateKe
 	// Cache all installation IDs
 	for _, installation := range allInstallations {
 		if installation.Account != nil && installation.Account.Login != nil && installation.ID != nil {
-			githubInstallationIdCache.Set(cacheKey, *installation.ID, gocache.NoExpiration)
+			githubInstallationIdCache.Set(cacheKey, *installation.ID, gocache.DefaultExpiration)
 		}
 	}
 
@@ -776,87 +776,6 @@ func ExtractOrgFromRepoURL(repoURL string) (string, error) {
 	// This would fail validation later, but let's return it
 	return "", fmt.Errorf("could not extract organization from repository URL %q: path %q does not contain org/repo format", repoURL, path)
 }
-
-// func ExtractOrgFromRepoURL(repoURL string) (string, error) {
-// 	if repoURL == "" {
-// 		return "", errors.New("repo URL is empty")
-// 	}
-
-// 	var path string
-
-// 	// Handle SSH URLs (git@host:path or ssh://git@host:port/path)
-// 	if strings.HasPrefix(repoURL, "git@") || strings.HasPrefix(repoURL, "ssh://git@") {
-// 		// Remove ssh:// prefix if present
-// 		repoURL = strings.TrimPrefix(repoURL, "ssh://")
-
-// 		// Find the path part after git@host: or git@host/
-// 		// Examples:
-// 		//   git@github.com:org/repo.git -> org/repo.git
-// 		//   git@github.com:22/org/repo.git -> org/repo.git
-
-// 		// Find where the path starts (after ':' or after first '/' following the host)
-// 		atIndex := strings.Index(repoURL, "@")
-// 		if atIndex == -1 {
-// 			return "", fmt.Errorf("failed to find @ in repo URL: %q", repoURL)
-// 		}
-
-// 		// Everything after @ is "host:path" or "host:port/path" or "host/path"
-// 		remainder := repoURL[atIndex+1:]
-
-// 		// Strategy: Find the colon, then check if what follows is a port number
-// 		colonIndex := strings.Index(remainder, ":")
-// 		if colonIndex == -1 {
-// 			// No colon - unusual but try slash
-// 			slashIndex := strings.Index(remainder, "/")
-// 			if slashIndex != -1 {
-// 				path = remainder[slashIndex+1:]
-// 			}
-// 		} else {
-// 			// Has colon - check if it's followed by a port (digits then /)
-// 			afterColon := remainder[colonIndex+1:]
-// 			slashIndex := strings.Index(afterColon, "/")
-
-// 			if slashIndex > 0 {
-// 				// Check if everything between colon and slash is a valid port number
-// 				potentialPort := afterColon[:slashIndex]
-// 				if port, err := strconv.Atoi(potentialPort); err == nil && port > 0 && port <= 65535 {
-// 					// It's a port number - path is after the slash
-// 					path = afterColon[slashIndex+1:]
-// 				} else {
-// 					// Not a port - entire afterColon is the path
-// 					path = afterColon
-// 				}
-// 			} else {
-// 				// No slash after colon - everything after colon is the path
-// 				path = afterColon
-// 			}
-// 		}
-
-// 		if path == "" {
-// 			return "", fmt.Errorf("failed to extract path from repo URL: %q", repoURL)
-// 		}
-// 	} else {
-// 		// Handle HTTP(S) URLs
-// 		parsedURL, err := url.Parse(repoURL)
-// 		if err != nil {
-// 			return "", fmt.Errorf("failed to parse repo URL: %q", repoURL)
-// 		}
-// 		path = strings.Trim(parsedURL.Path, "/")
-// 	}
-
-// 	// Extract org from path (format: org/repo or org/repo.git)
-// 	if path == "" {
-// 		return "", fmt.Errorf("failed to extract path from repo URL: %q", repoURL)
-// 	}
-
-// 	parts := strings.Split(path, "/")
-// 	if len(parts) < 2 {
-// 		return "", fmt.Errorf("failed to extract org from repo URL: %q", repoURL)
-// 	}
-
-// 	// First part is the org/owner - normalize to lowercase for case-insensitive comparison
-// 	return strings.ToLower(parts[0]), nil
-// }
 
 var _ Creds = GoogleCloudCreds{}
 
