@@ -66,9 +66,6 @@ func (s *secretsRepositoryBackend) CreateRepository(ctx context.Context, reposit
 func (s *secretsRepositoryBackend) hasRepoTypeLabel(secretName string) (bool, error) {
 	sec, err := s.db.settingsMgr.GetSecretByName(secretName)
 	if err != nil {
-		if apierrors.IsNotFound(err) {
-			return false, nil
-		}
 		return false, err
 	}
 	_, ok := sec.GetLabels()[common.LabelKeySecretType]
@@ -413,6 +410,8 @@ func secretToRepository(secret *corev1.Secret) (*appsv1.Repository, error) {
 	return repository, nil
 }
 
+// repositoryToSecret updates the given secret with the data from the repository object. It adds the appropriate
+// labels/annotations, but it does not add any name or namespace metadata.
 func (s *secretsRepositoryBackend) repositoryToSecret(repository *appsv1.Repository, secret *corev1.Secret) *corev1.Secret {
 	secretCopy := secret.DeepCopy()
 
