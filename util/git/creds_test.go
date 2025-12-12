@@ -548,7 +548,7 @@ SDpz4h+Bov5qTKkzcxuu1QWtA4M0K8Iy6IYLwb83DZEm1OsAf4i0pODz21PY/I+O
 VHzjB10oYgaInHZgMUdyb6F571UdiYSB6a/IlZ3ngj5touy3VIM=
 -----END RSA PRIVATE KEY-----`
 
-func TestDiscoverGitHubAppInstallationId(t *testing.T) {
+func TestDiscoverGitHubAppInstallationID(t *testing.T) {
 	t.Run("returns cached installation ID", func(t *testing.T) {
 		// Setup: prepopulate cache
 		org := "test-org"
@@ -556,22 +556,23 @@ func TestDiscoverGitHubAppInstallationId(t *testing.T) {
 		domain := "github.com"
 		expectedId := int64(98765)
 
-		githubInstallationIdCacheMutex.Lock()
-		githubInstallationIdCache[githubAppInstallationKey{org: org, domain: domain, appID: appId}] = expectedId
-		githubInstallationIdCacheMutex.Unlock()
+		// Clean up at both start and end to ensure test isolation
+		cacheKey := fmt.Sprintf("%s:%s:%d", strings.ToLower(org), domain, appId)
+
+		githubInstallationIdCache.Set(cacheKey, expectedId, gocache.NoExpiration)
+
+		// Ensure cleanup even if test fails
+		t.Cleanup(func() {
+			githubInstallationIdCache.Delete(cacheKey)
+		})
 
 		// Execute
 		ctx := context.Background()
-		actualId, err := DiscoverGitHubAppInstallationId(ctx, appId, "fake-key", "", org)
+		actualId, err := DiscoverGitHubAppInstallationID(ctx, appId, "fake-key", "", org)
 
 		// Assert
 		require.NoError(t, err)
 		assert.Equal(t, expectedId, actualId)
-
-		// clean up cache
-		githubInstallationIdCacheMutex.Lock()
-		delete(githubInstallationIdCache, githubAppInstallationKey{org: org, domain: "github.com", appID: appId})
-		githubInstallationIdCacheMutex.Unlock()
 	})
 
 	t.Run("discovers installation ID from GitHub API", func(t *testing.T) {
@@ -592,12 +593,20 @@ func TestDiscoverGitHubAppInstallationId(t *testing.T) {
 		}))
 		defer server.Close()
 
+		// Clean up cache entry for this test on completion
+		t.Cleanup(func() {
+			// Extract domain from server URL for proper cache key
+			domain, _ := domainFromBaseURL(server.URL)
+			cacheKey := fmt.Sprintf("%s:%s:%d", strings.ToLower("test-org"), domain, 12345)
+			githubInstallationIdCache.Delete(cacheKey)
+		})
+
 		// Execute & Assert
 		ctx := context.Background()
 		// Pass the mock server URL as the enterpriseBaseURL so the GitHub client uses it
 		// Note: The mock server will have a different domain (e.g., 127.0.0.1) than the first test (github.com),
-		// so there's no cache collision and no need to clear the cache.
-		actualId, err := DiscoverGitHubAppInstallationId(ctx, 12345, fakeGitHubAppPrivateKey, server.URL, "test-org")
+		// so there's no cache collision between the two subtests.
+		actualId, err := DiscoverGitHubAppInstallationID(ctx, 12345, fakeGitHubAppPrivateKey, server.URL, "test-org")
 		require.NoError(t, err)
 		assert.Equal(t, int64(98765), actualId)
 	})

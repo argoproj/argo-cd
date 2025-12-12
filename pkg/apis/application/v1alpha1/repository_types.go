@@ -255,7 +255,7 @@ func (repo *Repository) GetGitCreds(store git.CredsStore) git.Creds {
 				ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 				defer cancel()
 
-				discoveredId, err := git.DiscoverGitHubAppInstallationId(ctx, repo.GithubAppId, repo.GithubAppPrivateKey, repo.GitHubAppEnterpriseBaseURL, org)
+				discoveredId, err := git.DiscoverGitHubAppInstallationID(ctx, repo.GithubAppId, repo.GithubAppPrivateKey, repo.GitHubAppEnterpriseBaseURL, org)
 				if err != nil {
 					log.Warnf("Failed to auto-discover GitHub App installation ID for org %s: %v. Proceeding with installation ID 0.", org, err)
 				} else {

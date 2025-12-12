@@ -18,6 +18,7 @@ import (
 	"sync"
 	"time"
 
+	giturls "github.com/chainguard-dev/git-urls"
 	"github.com/google/go-github/v69/github"
 
 	"golang.org/x/oauth2"
@@ -45,6 +46,10 @@ var (
 
 	// In memory cache for storing Azure tokens
 	azureTokenCache *gocache.Cache
+
+	// installationIdCache caches installation IDs for organizations to avoid redundant API calls.
+	githubInstallationIdCache      *gocache.Cache
+	githubInstallationIdCacheMutex sync.RWMutex // For bulk API call coordination
 )
 
 const (
@@ -68,6 +73,7 @@ func init() {
 	// oauth2.TokenSource handles fetching new Tokens once they are expired. The oauth2.TokenSource itself does not expire.
 	googleCloudTokenSource = gocache.New(gocache.NoExpiration, 0)
 	azureTokenCache = gocache.New(gocache.NoExpiration, 0)
+	githubInstallationIdCache = gocache.New(60*time.Minute, 60*time.Minute)
 }
 
 type NoopCredsStore struct{}
@@ -578,40 +584,23 @@ func (g GitHubAppCreds) GetClientCertKey() string {
 	return g.clientCertKey
 }
 
-// GitHub App installation discovery cache and helpers
+// GitHub App installation discovery cache and helper
 
-// installationIdCache caches installation IDs for organizations to avoid redundant API calls.
-var githubInstallationIdCache = make(map[githubAppInstallationKey]int64)
-
-// githubAppInstallationKey is a composite key of domain, organization and app ID for caching installation IDs.
-//
-//nolint:unused
-type githubAppInstallationKey struct {
-	domain string
-	org    string
-	appID  int64
-}
-
-// githubInstallationIdCacheMutex protects access to the githubInstallationIdCache map.
-var githubInstallationIdCacheMutex sync.RWMutex
-
-// DiscoverGitHubAppInstallationId discovers the GitHub App installation ID for a given organization.
+// DiscoverGitHubAppInstallationID discovers the GitHub App installation ID for a given organization.
 // It queries the GitHub API to list all installations for the app and returns the installation ID
 // for the matching organization. Results are cached to avoid redundant API calls.
 // An optional HTTP client can be provided for custom transport (e.g., for metrics tracking).
-func DiscoverGitHubAppInstallationId(ctx context.Context, appId int64, privateKey, enterpriseBaseURL, org string, httpClient ...*http.Client) (int64, error) {
+func DiscoverGitHubAppInstallationID(ctx context.Context, appId int64, privateKey, enterpriseBaseURL, org string, httpClient ...*http.Client) (int64, error) {
 	domain, err := domainFromBaseURL(enterpriseBaseURL)
 	if err != nil {
 		return 0, fmt.Errorf("failed to get domain from base URL: %w", err)
 	}
 	org = strings.ToLower(org)
 	// Check cache first
-	githubInstallationIdCacheMutex.RLock()
-	if id, found := githubInstallationIdCache[githubAppInstallationKey{org: org, domain: domain, appID: appId}]; found {
-		githubInstallationIdCacheMutex.RUnlock()
-		return id, nil
+	cacheKey := fmt.Sprintf("%s:%s:%d", strings.ToLower(org), domain, appId)
+	if id, found := githubInstallationIdCache.Get(cacheKey); found {
+		return id.(int64), nil
 	}
-	githubInstallationIdCacheMutex.RUnlock()
 
 	// Use provided HTTP client or default
 	var transport http.RoundTripper
@@ -652,8 +641,8 @@ func DiscoverGitHubAppInstallationId(ctx context.Context, appId int64, privateKe
 	defer githubInstallationIdCacheMutex.Unlock()
 
 	// Check cache again inside the write lock in case another goroutine already fetched it
-	if id, found := githubInstallationIdCache[githubAppInstallationKey{org: org, domain: domain, appID: appId}]; found {
-		return id, nil
+	if id, found := githubInstallationIdCache.Get(cacheKey); found {
+		return id.(int64), nil
 	}
 
 	for {
@@ -673,13 +662,13 @@ func DiscoverGitHubAppInstallationId(ctx context.Context, appId int64, privateKe
 	// Cache all installation IDs
 	for _, installation := range allInstallations {
 		if installation.Account != nil && installation.Account.Login != nil && installation.ID != nil {
-			githubInstallationIdCache[githubAppInstallationKey{org: strings.ToLower(*installation.Account.Login), domain: domain, appID: appId}] = *installation.ID
+			githubInstallationIdCache.Set(cacheKey, *installation.ID, gocache.NoExpiration)
 		}
 	}
 
 	// Return the installation ID for the requested org
-	if id, found := githubInstallationIdCache[githubAppInstallationKey{org: org, domain: domain, appID: appId}]; found {
-		return id, nil
+	if id, found := githubInstallationIdCache.Get(cacheKey); found {
+		return id.(int64), nil
 	}
 	return 0, fmt.Errorf("installation not found for org: %s", org)
 }
@@ -736,81 +725,138 @@ func ExtractOrgFromRepoURL(repoURL string) (string, error) {
 		return "", errors.New("repo URL is empty")
 	}
 
-	var path string
+	// Handle edge case: ssh://git@host:org/repo (malformed but used in practice)
+	// This format mixes ssh:// prefix with colon notation instead of using a slash.
+	// Convert it to git@host:org/repo which git-urls can parse correctly.
+	// We distinguish this from the valid ssh://git@host:22/org/repo (with port number).
+	if strings.HasPrefix(repoURL, "ssh://git@") {
+		remainder := strings.TrimPrefix(repoURL, "ssh://")
+		if colonIdx := strings.Index(remainder, ":"); colonIdx != -1 {
+			afterColon := remainder[colonIdx+1:]
+			slashIdx := strings.Index(afterColon, "/")
 
-	// Handle SSH URLs (git@host:path or ssh://git@host:port/path)
-	if strings.HasPrefix(repoURL, "git@") || strings.HasPrefix(repoURL, "ssh://git@") {
-		// Remove ssh:// prefix if present
-		repoURL = strings.TrimPrefix(repoURL, "ssh://")
-
-		// Find the path part after git@host: or git@host/
-		// Examples:
-		//   git@github.com:org/repo.git -> org/repo.git
-		//   git@github.com:22/org/repo.git -> org/repo.git
-
-		// Find where the path starts (after ':' or after first '/' following the host)
-		atIndex := strings.Index(repoURL, "@")
-		if atIndex == -1 {
-			return "", fmt.Errorf("failed to find @ in repo URL: %q", repoURL)
-		}
-
-		// Everything after @ is "host:path" or "host:port/path" or "host/path"
-		remainder := repoURL[atIndex+1:]
-
-		// Strategy: Find the colon, then check if what follows is a port number
-		colonIndex := strings.Index(remainder, ":")
-		if colonIndex == -1 {
-			// No colon - unusual but try slash
-			slashIndex := strings.Index(remainder, "/")
-			if slashIndex != -1 {
-				path = remainder[slashIndex+1:]
-			}
-		} else {
-			// Has colon - check if it's followed by a port (digits then /)
-			afterColon := remainder[colonIndex+1:]
-			slashIndex := strings.Index(afterColon, "/")
-
-			if slashIndex > 0 {
-				// Check if everything between colon and slash is a valid port number
-				potentialPort := afterColon[:slashIndex]
-				if port, err := strconv.Atoi(potentialPort); err == nil && port > 0 && port <= 65535 {
-					// It's a port number - path is after the slash
-					path = afterColon[slashIndex+1:]
-				} else {
-					// Not a port - entire afterColon is the path
-					path = afterColon
+			// Check if what follows the colon is a port number
+			isPort := false
+			if slashIdx > 0 {
+				if _, err := strconv.Atoi(afterColon[:slashIdx]); err == nil {
+					isPort = true
 				}
-			} else {
-				// No slash after colon - everything after colon is the path
-				path = afterColon
+			}
+
+			// If not a port, it's the malformed format - strip ssh:// prefix
+			if !isPort && slashIdx != 0 {
+				repoURL = remainder
 			}
 		}
-
-		if path == "" {
-			return "", fmt.Errorf("failed to extract path from repo URL: %q", repoURL)
-		}
-	} else {
-		// Handle HTTP(S) URLs
-		parsedURL, err := url.Parse(repoURL)
-		if err != nil {
-			return "", fmt.Errorf("failed to parse repo URL: %q", repoURL)
-		}
-		path = strings.Trim(parsedURL.Path, "/")
 	}
 
-	// Extract org from path (format: org/repo or org/repo.git)
+	// Use git-urls library to parse all Git URL formats
+	parsed, err := giturls.Parse(repoURL)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse repository URL %q: %w", repoURL, err)
+	}
+
+	// Clean the path: remove leading/trailing slashes and .git suffix
+	path := strings.Trim(parsed.Path, "/")
+	path = strings.TrimSuffix(path, ".git")
+
 	if path == "" {
-		return "", fmt.Errorf("failed to extract path from repo URL: %q", repoURL)
+		return "", fmt.Errorf("repository URL %q does not contain a path", repoURL)
 	}
 
-	parts := strings.Split(path, "/")
-	if len(parts) < 2 {
-		return "", fmt.Errorf("failed to extract org from repo URL: %q", repoURL)
+	// Extract the first path component (organization/owner)
+	// Path format is typically "org/repo" or "org/repo/subpath"
+	if idx := strings.Index(path, "/"); idx > 0 {
+		org := path[:idx]
+		// Normalize to lowercase for case-insensitive comparison
+		return strings.ToLower(org), nil
 	}
 
-	// First part is the org/owner - normalize to lowercase for case-insensitive comparison
-	return strings.ToLower(parts[0]), nil
+	// If there's no slash, the entire path might be just the org (unusual but handle it)
+	// This would fail validation later, but let's return it
+	return "", fmt.Errorf("could not extract organization from repository URL %q: path %q does not contain org/repo format", repoURL, path)
 }
+
+// func ExtractOrgFromRepoURL(repoURL string) (string, error) {
+// 	if repoURL == "" {
+// 		return "", errors.New("repo URL is empty")
+// 	}
+
+// 	var path string
+
+// 	// Handle SSH URLs (git@host:path or ssh://git@host:port/path)
+// 	if strings.HasPrefix(repoURL, "git@") || strings.HasPrefix(repoURL, "ssh://git@") {
+// 		// Remove ssh:// prefix if present
+// 		repoURL = strings.TrimPrefix(repoURL, "ssh://")
+
+// 		// Find the path part after git@host: or git@host/
+// 		// Examples:
+// 		//   git@github.com:org/repo.git -> org/repo.git
+// 		//   git@github.com:22/org/repo.git -> org/repo.git
+
+// 		// Find where the path starts (after ':' or after first '/' following the host)
+// 		atIndex := strings.Index(repoURL, "@")
+// 		if atIndex == -1 {
+// 			return "", fmt.Errorf("failed to find @ in repo URL: %q", repoURL)
+// 		}
+
+// 		// Everything after @ is "host:path" or "host:port/path" or "host/path"
+// 		remainder := repoURL[atIndex+1:]
+
+// 		// Strategy: Find the colon, then check if what follows is a port number
+// 		colonIndex := strings.Index(remainder, ":")
+// 		if colonIndex == -1 {
+// 			// No colon - unusual but try slash
+// 			slashIndex := strings.Index(remainder, "/")
+// 			if slashIndex != -1 {
+// 				path = remainder[slashIndex+1:]
+// 			}
+// 		} else {
+// 			// Has colon - check if it's followed by a port (digits then /)
+// 			afterColon := remainder[colonIndex+1:]
+// 			slashIndex := strings.Index(afterColon, "/")
+
+// 			if slashIndex > 0 {
+// 				// Check if everything between colon and slash is a valid port number
+// 				potentialPort := afterColon[:slashIndex]
+// 				if port, err := strconv.Atoi(potentialPort); err == nil && port > 0 && port <= 65535 {
+// 					// It's a port number - path is after the slash
+// 					path = afterColon[slashIndex+1:]
+// 				} else {
+// 					// Not a port - entire afterColon is the path
+// 					path = afterColon
+// 				}
+// 			} else {
+// 				// No slash after colon - everything after colon is the path
+// 				path = afterColon
+// 			}
+// 		}
+
+// 		if path == "" {
+// 			return "", fmt.Errorf("failed to extract path from repo URL: %q", repoURL)
+// 		}
+// 	} else {
+// 		// Handle HTTP(S) URLs
+// 		parsedURL, err := url.Parse(repoURL)
+// 		if err != nil {
+// 			return "", fmt.Errorf("failed to parse repo URL: %q", repoURL)
+// 		}
+// 		path = strings.Trim(parsedURL.Path, "/")
+// 	}
+
+// 	// Extract org from path (format: org/repo or org/repo.git)
+// 	if path == "" {
+// 		return "", fmt.Errorf("failed to extract path from repo URL: %q", repoURL)
+// 	}
+
+// 	parts := strings.Split(path, "/")
+// 	if len(parts) < 2 {
+// 		return "", fmt.Errorf("failed to extract org from repo URL: %q", repoURL)
+// 	}
+
+// 	// First part is the org/owner - normalize to lowercase for case-insensitive comparison
+// 	return strings.ToLower(parts[0]), nil
+// }
 
 var _ Creds = GoogleCloudCreds{}
 
