@@ -1,10 +1,12 @@
 # Security Considerations
 
-!!!warning "Deprecation notice"
-    This page is now deprecated and serves as an archive only. For up-to-date
-    information, please have a look at our
-    [security policy](https://github.com/argoproj/argo-cd/security/policy) and
-    [published security advisories](https://github.com/argoproj/argo-cd/security/advisories).
+> [!WARNING]
+> **Deprecation notice**
+>
+> This page is now deprecated and serves as an archive only. For up-to-date
+> information, please have a look at our
+> [security policy](https://github.com/argoproj/argo-cd/security/policy) and
+> [published security advisories](https://github.com/argoproj/argo-cd/security/advisories).
 
 As a deployment tool, Argo CD needs to have production access which makes security a very important topic.
 The Argoproj team takes security very seriously and continuously working on improving it. Learn more about security

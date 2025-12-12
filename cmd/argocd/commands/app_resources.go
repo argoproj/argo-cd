@@ -33,6 +33,7 @@ func NewApplicationGetResourceCommand(clientOpts *argocdclient.ClientOptions) *c
 	var (
 		resourceName      string
 		kind              string
+		group             string
 		project           string
 		filteredFields    []string
 		showManagedFields bool
@@ -57,7 +58,7 @@ func NewApplicationGetResourceCommand(clientOpts *argocdclient.ClientOptions) *c
   # Get a specific resource with managed fields, Pod my-app-pod, in 'my-app' by name in wide format
     argocd app get-resource my-app --kind Pod --resource-name my-app-pod --show-managed-fields
 
-  # Get the the details of a specific field in a resource in 'my-app' in the wide format
+  # Get the details of a specific field in a resource in 'my-app' in the wide format
     argocd app get-resource my-app --kind Pod --filter-fields status.podIP
 
   # Get the details of multiple specific fields in a specific resource in 'my-app' in the wide format
@@ -88,7 +89,7 @@ func NewApplicationGetResourceCommand(clientOpts *argocdclient.ClientOptions) *c
 		var resources []unstructured.Unstructured
 		var fetchedStr string
 		for _, r := range tree.Nodes {
-			if (resourceName != "" && r.Name != resourceName) || r.Kind != kind {
+			if (resourceName != "" && r.Name != resourceName) || (group != "" && r.Group != group) || r.Kind != kind {
 				continue
 			}
 			resource, err := appIf.GetResource(ctx, &applicationpkg.ApplicationResourceRequest{
@@ -131,6 +132,7 @@ func NewApplicationGetResourceCommand(clientOpts *argocdclient.ClientOptions) *c
 	command.Flags().StringVar(&kind, "kind", "", "Kind of resource [REQUIRED]")
 	err := command.MarkFlagRequired("kind")
 	errors.CheckError(err)
+	command.Flags().StringVar(&group, "group", "", "Group")
 	command.Flags().StringVar(&project, "project", "", "Project of resource")
 	command.Flags().StringSliceVar(&filteredFields, "filter-fields", nil, "A comma separated list of fields to display, if not provided will output the entire manifest")
 	command.Flags().BoolVar(&showManagedFields, "show-managed-fields", false, "Show managed fields in the output manifest")

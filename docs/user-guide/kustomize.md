@@ -31,19 +31,19 @@ The following configuration options are available for Kustomize:
 * `commonLabels` is a string map of additional labels
 * `labelWithoutSelector` is a boolean value which defines if the common label(s) should be applied to resource selectors. It also excludes common labels from templates unless `labelIncludeTemplates` is set to true.
 * `labelIncludeTemplates` is a boolean value which defines if the common label(s) should be applied to resource templates.
-* `forceCommonLabels` is a boolean value which defines if it's allowed to override existing labels
 * `commonAnnotations` is a string map of additional annotations
 * `namespace` is a Kubernetes resources namespace
-* `forceCommonAnnotations` is a boolean value which defines if it's allowed to override existing annotations
 * `commonAnnotationsEnvsubst` is a boolean value which enables env variables substitution in annotation  values
 * `patches` is a list of Kustomize patches that supports inline updates
 * `components` is a list of Kustomize components
 * `ignoreMissingComponents` prevents kustomize from failing when components do not exist locally by not appending them to kustomization file
+* `forceCommonLabels` is a boolean value. When true, Argo CD passes --force to kustomize edit add label, allowing an existing commonLabels/labels entry in kustomization.yaml to be replaced. When false, generation fails if the label key already exists.
+* `forceCommonAnnotations` is a boolean value. When true, Argo CD passes --force to kustomize edit add annotation, allowing an existing commonAnnotations entry in kustomization.yaml to be replaced. When false, generation fails if the annotation key already exists. 
 
 To use Kustomize with an overlay, point your path to the overlay.
 
-!!! tip
-    If you're generating resources, you should read up how to ignore those generated resources using the [`IgnoreExtraneous` compare option](compare-options.md).
+> [!TIP]
+> If you're generating resources, you should read up how to ignore those generated resources using the [`IgnoreExtraneous` compare option](compare-options.md).
 
 ## Patches
 Patches are a way to kustomize resources using inline configurations in Argo CD applications.  `patches`  follow the same logic as the corresponding Kustomization.  Any patches that target existing Kustomization file will be merged.

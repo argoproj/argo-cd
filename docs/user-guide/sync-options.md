@@ -34,6 +34,11 @@ metadata:
 To confirm the pruning you can use Argo CD UI, CLI or manually apply the `argocd.argoproj.io/deletion-approved: <ISO formatted timestamp>`
 annotation to the application.
 
+If a resource with `Prune=confirm` has been pruned, the sync operation will remain in a Syncing state until pruning is
+confirmed. The UI will look similar to this, with the "Confirm Pruning" button available to complete the sync:
+
+![Screenshot of the Argo CD Application UI. The "Last Sync" section shows that the operation is still Syncing. The row of gray action buttons includes an extra "Confirm Pruning" button.](../assets/confirm-prune.png)
+
 ## Disable Kubectl Validation
 
 For a certain class of objects, it is necessary to `kubectl apply` them using the `--validate=false` flag. Examples of this are Kubernetes types which uses `RawExtension`, such as [ServiceCatalog](https://github.com/kubernetes-incubator/service-catalog/blob/master/pkg/apis/servicecatalog/v1beta1/types.go#L497). You can do that using this annotation:
@@ -185,9 +190,9 @@ spec:
 
 If the `Replace=true` sync option is set, Argo CD will use `kubectl replace` or `kubectl create` command to apply changes.
 
-!!! warning
-      During the sync process, the resources will be synchronized using the 'kubectl replace/create' command.
-      This sync option has the potential to be destructive and might lead to resources having to be recreated, which could cause an outage for your application.
+> [!WARNING]
+> During the sync process, the resources will be synchronized using the 'kubectl replace/create' command.
+> This sync option has the potential to be destructive and might lead to resources having to be recreated, which could cause an outage for your application.
 
 This can also be configured at individual resource level.
 ```yaml
@@ -200,9 +205,9 @@ metadata:
 
 For certain resources you might want to delete and recreate, e.g. job resources that should run every time when syncing.
 
-!!! warning
-      During the sync process, the resources will be synchronized using the 'kubectl delete/create' command.
-      This sync option has a destructive action, which could cause an outage for your application.
+> [!WARNING]
+> During the sync process, the resources will be synchronized using the 'kubectl delete/create' command.
+> This sync option has a destructive action, which could cause an outage for your application.
 
 In such cases you might use `Force=true` sync option in target resources annotation:
 ```yaml
@@ -251,7 +256,7 @@ metadata:
     argocd.argoproj.io/sync-options: ServerSideApply=true
 ```
 
-If you want to disable ServerSideApply for a specific resource, while it is enabled at the application level, 
+If you want to disable ServerSideApply for a specific resource, while it is enabled at the application level,
 add the following sync-option annotation in it:
 
 ```yaml
@@ -305,7 +310,7 @@ kind: Application
 spec:
   syncPolicy:
     syncOptions:
-    - DisableClientSideApplyMigration=true
+    - ClientSideApplyMigration=false
 ```
 
 You can specify a custom field manager for the client-side apply migration using an annotation:
@@ -327,7 +332,7 @@ When client-side apply migration is enabled:
 2. During a server-side apply sync operation, it will:
    - Perform a client-side-apply with the specified field manager
    - Move the 'last-applied-configuration' annotation to be managed by the specified manager
-   - Perform the server-side apply, which will auto migrate all the fields under the manager that owns the 'last-applied-configration' annotation.
+   - Perform the server-side apply, which will auto migrate all the fields under the manager that owns the 'last-applied-configuration' annotation.
 
 This feature is based on Kubernetes' [client-side apply migration KEP](https://github.com/alexzielenski/enhancements/blob/03df8820b9feca6d2cab78e303c99b2c9c0c4c5c/keps/sig-cli/3517-kubectl-client-side-apply-migration/README.md), which provides the auto migration from client-side to server-side apply.
 
@@ -435,7 +440,7 @@ spec:
 
 In the case where Argo CD is "adopting" an existing namespace which already has metadata set on it, you should first
 [upgrade the resource to server-side apply](https://kubernetes.io/docs/reference/using-api/server-side-apply/#upgrading-from-client-side-apply-to-server-side-apply)
-before enabling `managedNamespaceMetadata`. Argo CD relies on `kubectl`, which does not support managing 
+before enabling `managedNamespaceMetadata`. Argo CD relies on `kubectl`, which does not support managing
 client-side-applied resources with server-side-applies. If you do not upgrade the resource to server-side apply, Argo CD
 may remove existing labels/annotations, which may or may not be the desired behavior.
 

@@ -15,7 +15,9 @@ interface ItemsList<T> {
     metadata: models.ListMeta;
 }
 
+export interface AbstractApplicationList extends ItemsList<AbstractApplication> {}
 export interface ApplicationList extends ItemsList<Application> {}
+export interface ApplicationSetList extends ItemsList<ApplicationSet> {}
 
 export interface SyncOperationResource {
     group: string;
@@ -152,10 +154,15 @@ export const AnnotationSyncWaveKey = 'argocd.argoproj.io/sync-wave';
 export const AnnotationDefaultView = 'pref.argocd.argoproj.io/default-view';
 export const AnnotationDefaultPodSort = 'pref.argocd.argoproj.io/default-pod-sort';
 
-export interface Application {
+export interface AbstractApplication {
     apiVersion?: string;
     kind?: string;
     metadata: models.ObjectMeta;
+    spec: any;
+    status?: any;
+}
+
+export interface Application extends AbstractApplication {
     spec: ApplicationSpec;
     status: ApplicationStatus;
     operation?: Operation;
@@ -167,6 +174,11 @@ export type WatchType = 'ADDED' | 'MODIFIED' | 'DELETED' | 'ERROR';
 export interface ApplicationWatchEvent {
     type: WatchType;
     application: Application;
+}
+
+export interface ApplicationSetWatchEvent {
+    type: WatchType;
+    applicationSet: ApplicationSet;
 }
 
 export interface ComponentParameter {
@@ -450,10 +462,18 @@ export interface ResourceNode extends ResourceRef {
     createdAt?: models.Time;
 }
 
-export interface ApplicationTree {
+export interface AbstractApplicationTree {
     nodes: ResourceNode[];
+}
+
+export interface ApplicationTree extends AbstractApplicationTree {
     orphanedNodes: ResourceNode[];
     hosts: Node[];
+}
+
+export interface ApplicationSetTree extends AbstractApplicationTree {
+    // FFU
+    dummyToPlacateLinter: any;
 }
 
 export interface ResourceID {
@@ -584,6 +604,7 @@ export interface AuthSettings {
     execEnabled: boolean;
     appsInAnyNamespaceEnabled: boolean;
     hydratorEnabled: boolean;
+    syncWithReplaceAllowed: boolean;
 }
 
 export interface UserInfo {
@@ -632,7 +653,7 @@ export interface Repository {
     noProxy?: string;
     insecure?: boolean;
     enableLfs?: boolean;
-    githubAppId?: string;
+    githubAppID?: string;
     forceHttpBasicAuth?: boolean;
     insecureOCIForceHttp?: boolean;
     enableOCI: boolean;
@@ -810,6 +831,12 @@ export interface GroupKind {
     kind: string;
 }
 
+export interface ClusterResourceRestrictionItem {
+    group: string;
+    kind: string;
+    name?: string;
+}
+
 export interface ProjectSignatureKey {
     keyID: string;
 }
@@ -821,8 +848,8 @@ export interface ProjectSpec {
     destinationServiceAccounts: ApplicationDestinationServiceAccount[];
     description: string;
     roles: ProjectRole[];
-    clusterResourceWhitelist: GroupKind[];
-    clusterResourceBlacklist: GroupKind[];
+    clusterResourceWhitelist: ClusterResourceRestrictionItem[];
+    clusterResourceBlacklist: ClusterResourceRestrictionItem[];
     namespaceResourceBlacklist: GroupKind[];
     namespaceResourceWhitelist: GroupKind[];
     signatureKeys: ProjectSignatureKey[];
@@ -1116,10 +1143,7 @@ export interface ApplicationSetResource {
     labels?: {[key: string]: string};
 }
 
-export interface ApplicationSet {
-    apiVersion?: string;
-    kind?: string;
-    metadata: models.ObjectMeta;
+export interface ApplicationSet extends AbstractApplication {
     spec: ApplicationSetSpec;
     status?: {
         conditions?: ApplicationSetCondition[];

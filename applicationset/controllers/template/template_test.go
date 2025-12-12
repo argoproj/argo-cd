@@ -86,28 +86,28 @@ func TestGenerateApplications(t *testing.T) {
 		}
 
 		t.Run(cc.name, func(t *testing.T) {
-			generatorMock := genmock.Generator{}
+			generatorMock := &genmock.Generator{}
 			generator := v1alpha1.ApplicationSetGenerator{
 				List: &v1alpha1.ListGenerator{},
 			}
 
-			generatorMock.On("GenerateParams", &generator, mock.AnythingOfType("*v1alpha1.ApplicationSet"), mock.Anything).
+			generatorMock.EXPECT().GenerateParams(&generator, mock.AnythingOfType("*v1alpha1.ApplicationSet"), mock.Anything).
 				Return(cc.params, cc.generateParamsError)
 
-			generatorMock.On("GetTemplate", &generator).
+			generatorMock.EXPECT().GetTemplate(&generator).
 				Return(&v1alpha1.ApplicationSetTemplate{})
 
-			rendererMock := rendmock.Renderer{}
+			rendererMock := &rendmock.Renderer{}
 
 			var expectedApps []v1alpha1.Application
 
 			if cc.generateParamsError == nil {
 				for _, p := range cc.params {
 					if cc.rendererError != nil {
-						rendererMock.On("RenderTemplateParams", GetTempApplication(cc.template), mock.AnythingOfType("*v1alpha1.ApplicationSetSyncPolicy"), p, false, []string(nil)).
+						rendererMock.EXPECT().RenderTemplateParams(GetTempApplication(cc.template), mock.AnythingOfType("*v1alpha1.ApplicationSetSyncPolicy"), p, false, []string(nil)).
 							Return(nil, cc.rendererError)
 					} else {
-						rendererMock.On("RenderTemplateParams", GetTempApplication(cc.template), mock.AnythingOfType("*v1alpha1.ApplicationSetSyncPolicy"), p, false, []string(nil)).
+						rendererMock.EXPECT().RenderTemplateParams(GetTempApplication(cc.template), mock.AnythingOfType("*v1alpha1.ApplicationSetSyncPolicy"), p, false, []string(nil)).
 							Return(&app, nil)
 						expectedApps = append(expectedApps, app)
 					}
@@ -115,9 +115,9 @@ func TestGenerateApplications(t *testing.T) {
 			}
 
 			generators := map[string]generators.Generator{
-				"List": &generatorMock,
+				"List": generatorMock,
 			}
-			renderer := &rendererMock
+			renderer := rendererMock
 
 			got, reason, err := GenerateApplications(log.NewEntry(log.StandardLogger()), v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
@@ -200,26 +200,26 @@ func TestMergeTemplateApplications(t *testing.T) {
 		cc := c
 
 		t.Run(cc.name, func(t *testing.T) {
-			generatorMock := genmock.Generator{}
+			generatorMock := &genmock.Generator{}
 			generator := v1alpha1.ApplicationSetGenerator{
 				List: &v1alpha1.ListGenerator{},
 			}
 
-			generatorMock.On("GenerateParams", &generator, mock.AnythingOfType("*v1alpha1.ApplicationSet"), mock.Anything).
+			generatorMock.EXPECT().GenerateParams(&generator, mock.AnythingOfType("*v1alpha1.ApplicationSet"), mock.Anything).
 				Return(cc.params, nil)
 
-			generatorMock.On("GetTemplate", &generator).
+			generatorMock.EXPECT().GetTemplate(&generator).
 				Return(&cc.overrideTemplate)
 
-			rendererMock := rendmock.Renderer{}
+			rendererMock := &rendmock.Renderer{}
 
-			rendererMock.On("RenderTemplateParams", GetTempApplication(cc.expectedMerged), mock.AnythingOfType("*v1alpha1.ApplicationSetSyncPolicy"), cc.params[0], false, []string(nil)).
+			rendererMock.EXPECT().RenderTemplateParams(GetTempApplication(cc.expectedMerged), mock.AnythingOfType("*v1alpha1.ApplicationSetSyncPolicy"), cc.params[0], false, []string(nil)).
 				Return(&cc.expectedApps[0], nil)
 
 			generators := map[string]generators.Generator{
-				"List": &generatorMock,
+				"List": generatorMock,
 			}
-			renderer := &rendererMock
+			renderer := rendererMock
 
 			got, _, _ := GenerateApplications(log.NewEntry(log.StandardLogger()), v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
@@ -312,19 +312,19 @@ func TestGenerateAppsUsingPullRequestGenerator(t *testing.T) {
 		},
 	} {
 		t.Run(cases.name, func(t *testing.T) {
-			generatorMock := genmock.Generator{}
+			generatorMock := &genmock.Generator{}
 			generator := v1alpha1.ApplicationSetGenerator{
 				PullRequest: &v1alpha1.PullRequestGenerator{},
 			}
 
-			generatorMock.On("GenerateParams", &generator, mock.AnythingOfType("*v1alpha1.ApplicationSet"), mock.Anything).
+			generatorMock.EXPECT().GenerateParams(&generator, mock.AnythingOfType("*v1alpha1.ApplicationSet"), mock.Anything).
 				Return(cases.params, nil)
 
-			generatorMock.On("GetTemplate", &generator).
-				Return(&cases.template, nil)
+			generatorMock.EXPECT().GetTemplate(&generator).
+				Return(&cases.template)
 
 			generators := map[string]generators.Generator{
-				"PullRequest": &generatorMock,
+				"PullRequest": generatorMock,
 			}
 			renderer := &utils.Render{}
 

@@ -236,7 +236,7 @@ func TestKubeVersionWithSymbol(t *testing.T) {
 		err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &configMap)
 		require.NoError(t, err)
 		if data, ok := configMap.Data["kubeVersion"]; ok {
-			assert.Equal(t, "v1.30.11+IKS", data)
+			assert.Equal(t, "v1.30.11", data)
 			return
 		}
 		t.Fatal("expected kubeVersion key not found in configMap")

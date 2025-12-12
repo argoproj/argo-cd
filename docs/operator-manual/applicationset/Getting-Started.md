@@ -29,7 +29,7 @@ The ApplicationSet controller *must* be installed into the same namespace as the
 Presuming that Argo CD is installed into the `argocd` namespace, run the following command:
 
 ```bash
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/applicationset/v0.4.0/manifests/install.yaml
+kubectl apply -n argocd --server-side -f https://raw.githubusercontent.com/argoproj/applicationset/v0.4.0/manifests/install.yaml
 ```
 
 Once installed, the ApplicationSet controller requires no additional setup.
@@ -47,7 +47,7 @@ The `manifests/install.yaml` file contains the Kubernetes manifests required to 
 
 Development builds of the ApplicationSet controller can be installed by running the following command:
 ```bash
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/applicationset/master/manifests/install.yaml
+kubectl apply -n argocd --server-side -f https://raw.githubusercontent.com/argoproj/applicationset/master/manifests/install.yaml
 ```
 
 With this option you will need to ensure that Argo CD is already installed into the `argocd` namespace.
@@ -57,8 +57,8 @@ How it works:
 - After each successful commit to *argoproj/applicationset* `master` branch, a GitHub action will run that performs a container build/push to [`argoproj/argocd-applicationset:latest`](https://quay.io/repository/argoproj/argocd-applicationset?tab=tags )
 - [Documentation for the `master`-branch-based developer builds](https://argocd-applicationset.readthedocs.io/en/master/)  is available from Read the Docs.
 
-!!! warning
-    Development builds contain newer features and bug fixes, but are more likely to be unstable, as compared to release builds.
+> [!WARNING]
+> Development builds contain newer features and bug fixes, but are more likely to be unstable, as compared to release builds.
 
 See the `master` branch [Read the Docs](https://argocd-applicationset.readthedocs.io/en/master/) page for documentation on post-release features. -->
 

@@ -1,9 +1,8 @@
 # Overview
 
-!!!note
-
-    This section contains information on upgrading Argo CD. Before upgrading please make sure to read details about
-    the breaking changes between Argo CD versions.
+> [!NOTE]
+> This section contains information on upgrading Argo CD. Before upgrading please make sure to read details about
+> the breaking changes between Argo CD versions.
 
 Argo CD uses semver-like versioning that ensures the following rules:
 
@@ -21,20 +20,19 @@ command to upgrade Argo CD. Make sure to replace `<version>` with the required v
 **Non-HA**:
 
 ```bash
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/<version>/manifests/install.yaml
+kubectl apply -n argocd --server-side -f https://raw.githubusercontent.com/argoproj/argo-cd/<version>/manifests/install.yaml
 ```
 
 **HA**:
 
 ```bash
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/<version>/manifests/ha/install.yaml
+kubectl apply -n argocd --server-side -f https://raw.githubusercontent.com/argoproj/argo-cd/<version>/manifests/ha/install.yaml
 ```
 
-!!! warning
-
-    Even though some releases require only image change it is still recommended to apply whole manifests set.
-    Manifest changes might include important parameter modifications and applying the whole set will protect you from
-    introducing misconfiguration.
+> [!WARNING]
+> Even though some releases require only image change it is still recommended to apply whole manifests set.
+> Manifest changes might include important parameter modifications and applying the whole set will protect you from
+> introducing misconfiguration.
 
 <hr/>
 
