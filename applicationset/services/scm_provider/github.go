@@ -70,16 +70,17 @@ func (g *GithubProvider) GetBranches(ctx context.Context, repo *Repository) ([]*
 }
 
 func (g *GithubProvider) ListRepos(ctx context.Context, cloneProtocol string) ([]*Repository, error) {
-	opt := &github.RepositoryListByOrgOptions{
+	opt := &github.SearchOptions{
 		ListOptions: github.ListOptions{PerPage: 100},
 	}
+	query := fmt.Sprintf("org:%s", g.organization)
 	repos := []*Repository{}
 	for {
-		githubRepos, resp, err := g.client.Repositories.ListByOrg(ctx, g.organization, opt)
+		githubReposSearchResult, resp, err := g.client.Search.Repositories(ctx, query, opt)
 		if err != nil {
 			return nil, fmt.Errorf("error listing repositories for %s: %w", g.organization, err)
 		}
-		for _, githubRepo := range githubRepos {
+		for _, githubRepo := range githubReposSearchResult.Repositories {
 			var url string
 			switch cloneProtocol {
 			// Default to SSH if unspecified (i.e. if "").
