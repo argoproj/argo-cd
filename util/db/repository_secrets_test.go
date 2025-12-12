@@ -18,6 +18,7 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes/fake"
 	k8stesting "k8s.io/client-go/testing"
+	"k8s.io/client-go/tools/cache"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	appsv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -140,6 +141,11 @@ func TestSecretsRepositoryBackend_CreateRepository(t *testing.T) {
 		f.clientSet.AddWatchReactor("secrets", func(_ k8stesting.Action) (handled bool, ret watch.Interface, err error) {
 			return true, watcher, nil
 		})
+
+		// Ensure the informer is synced before running the test
+		secretsInformer, err := f.repoBackend.db.settingsMgr.GetSecretsInformer()
+		require.NoError(t, err)
+		require.True(t, cache.WaitForCacheSync(t.Context().Done(), secretsInformer.HasSynced), "secrets informer should be synced")
 
 		// when
 		output, err := f.repoBackend.CreateRepository(t.Context(), repo)
