@@ -241,7 +241,7 @@ func TestClusterInformer_GetClusterServersByUrlAndName(t *testing.T) {
 
 	testCases := [][]string{
 		{"https://prod1.example.com", "production1"},
-		{"https://prod2.example.com/", "production2"},
+		{"https://prod2.example.com", "production2"},
 	}
 
 	for _, urlname := range testCases {
