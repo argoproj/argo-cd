@@ -71,10 +71,12 @@ export class AbstractAppsListPreferences {
     public static clearFilters(pref: AbstractAppsListPreferences) {
         pref.healthFilter = [];
         pref.labelsFilter = [];
+        pref.annotationsFilter = [];
         pref.showFavorites = false;
     }
 
     public labelsFilter: string[];
+    public annotationsFilter: string[];
     public healthFilter: string[];
     public view: AppsListViewType;
     public hideFilters: boolean;
@@ -85,15 +87,21 @@ export class AbstractAppsListPreferences {
 
 export class AppsListPreferences extends AbstractAppsListPreferences {
     public static countEnabledFilters(pref: AppsListPreferences) {
-        return [pref.clustersFilter, pref.healthFilter, pref.labelsFilter, pref.namespacesFilter, pref.projectsFilter, pref.reposFilter, pref.syncFilter].reduce(
-            (count, filter) => {
-                if (filter && filter.length > 0) {
-                    return count + 1;
-                }
-                return count;
-            },
-            0
-        );
+        return [
+            pref.clustersFilter,
+            pref.healthFilter,
+            pref.labelsFilter,
+            pref.annotationsFilter,
+            pref.namespacesFilter,
+            pref.projectsFilter,
+            pref.reposFilter,
+            pref.syncFilter
+        ].reduce((count, filter) => {
+            if (filter && filter.length > 0) {
+                return count + 1;
+            }
+            return count;
+        }, 0);
     }
 
     public static clearFilters(pref: AppsListPreferences) {
@@ -172,6 +180,7 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
     appList: {
         view: 'tiles' as AppsListViewType,
         labelsFilter: new Array<string>(),
+        annotationsFilter: new Array<string>(),
         projectsFilter: new Array<string>(),
         namespacesFilter: new Array<string>(),
         clustersFilter: new Array<string>(),
