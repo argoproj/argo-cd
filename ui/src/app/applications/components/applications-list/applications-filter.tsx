@@ -2,11 +2,22 @@ import {useData, Checkbox} from 'argo-ui/v2';
 import * as minimatch from 'minimatch';
 import * as React from 'react';
 import {Context} from '../../../shared/context';
-import {Application, ApplicationDestination, Cluster, HealthStatusCode, HealthStatuses, SyncPolicy, SyncStatusCode, SyncStatuses} from '../../../shared/models';
+import {
+    Application,
+    ApplicationDestination,
+    Cluster,
+    HealthStatusCode,
+    HealthStatuses,
+    OperationPhase,
+    OperationPhases,
+    SyncPolicy,
+    SyncStatusCode,
+    SyncStatuses
+} from '../../../shared/models';
 import {AppsListPreferences, services} from '../../../shared/services';
 import {Filter, FiltersGroup} from '../filter/filter';
 import * as LabelSelector from '../label-selector';
-import {ComparisonStatusIcon, getAppDefaultSource, HealthStatusIcon} from '../utils';
+import {ComparisonStatusIcon, getAppDefaultSource, HealthStatusIcon, getAppOperationState} from '../utils';
 import {formatClusterQueryParam} from '../../../shared/utils';
 import {COLORS} from '../../../shared/components/colors';
 
@@ -19,6 +30,7 @@ export interface FilterResult {
     clusters: boolean;
     favourite: boolean;
     labels: boolean;
+    operation: boolean;
 }
 
 export interface FilteredApp extends Application {
@@ -30,6 +42,14 @@ export function getAutoSyncStatus(syncPolicy?: SyncPolicy) {
         return 'Disabled';
     }
     return 'Enabled';
+}
+
+export function getAppOperationStatePhase(app: Application): string {
+    const operationState = getAppOperationState(app);
+    if (!operationState) {
+        return undefined;
+    }
+    return operationState.phase;
 }
 
 export function getFilterResults(applications: Application[], pref: AppsListPreferences): FilteredApp[] {
@@ -54,7 +74,8 @@ export function getFilterResults(applications: Application[], pref: AppsListPref
                         return (inputMatch && inputMatch[0] === app.spec.destination.server) || (app.spec.destination.name && minimatch(app.spec.destination.name, filterString));
                     }
                 }),
-            labels: pref.labelsFilter.length === 0 || pref.labelsFilter.every(selector => LabelSelector.match(selector, app.metadata.labels))
+            labels: pref.labelsFilter.length === 0 || pref.labelsFilter.every(selector => LabelSelector.match(selector, app.metadata.labels)),
+            operation: pref.operationFilter.length === 0 || pref.operationFilter.includes(getAppOperationStatePhase(app))
         }
     }));
 }
@@ -275,12 +296,74 @@ const AutoSyncFilter = (props: AppFilterProps) => (
     />
 );
 
+function getOperationOptions(apps: FilteredApp[]) {
+    const possiblePhases = Object.values(OperationPhases);
+    const counts = getCounts(apps, 'operation', app => getAppOperationStatePhase(app), possiblePhases) as Map<OperationPhase, number>;
+
+    const options: Array<{label: string; icon: React.ReactNode; count: number}> = [
+        {
+            label: 'Running',
+            icon: <i className='fa fa-circle-notch' style={{color: COLORS.operation.running}} />,
+            count: counts.get('Running')
+        },
+        {
+            label: 'Succeeded',
+            icon: <i className='fa fa-check-circle' style={{color: COLORS.operation.success}} />,
+            count: counts.get('Succeeded')
+        },
+        {
+            label: 'Failed',
+            icon: <i className='fa fa-times-circle' style={{color: COLORS.operation.failed}} />,
+            count: counts.get('Failed')
+        },
+        {
+            label: 'Error',
+            icon: <i className='fa fa-exclamation-circle' style={{color: COLORS.operation.error}} />,
+            count: counts.get('Error')
+        },
+        {
+            label: 'Terminating',
+            icon: <i className='fa fa-circle-stop' style={{color: COLORS.operation.terminating}} />,
+            count: counts.get('Terminating')
+        },
+        {
+            label: 'Progressing',
+            icon: <i className='fa fa-circle-notch fa-spin' style={{color: COLORS.operation.running}} />,
+            count: counts.get('Progressing')
+        },
+        {
+            label: 'Pending',
+            icon: <i className='fa fa-clock' style={{color: COLORS.operation.running}} />,
+            count: counts.get('Pending')
+        },
+        {
+            label: 'Waiting',
+            icon: <i className='fa fa-hourglass-half' style={{color: COLORS.operation.running}} />,
+            count: counts.get('Waiting')
+        }
+    ];
+
+    // Only show phases that have at least one app
+    return options.filter(option => option.count > 0);
+}
+
+const OperationFilter = (props: AppFilterProps) => (
+    <Filter
+        label='OPERATION STATUS'
+        selected={props.pref.operationFilter}
+        setSelected={s => props.onChange({...props.pref, operationFilter: s})}
+        options={getOperationOptions(props.apps)}
+        collapsed={props.collapsed || false}
+    />
+);
+
 export const ApplicationsFilter = (props: AppFilterProps) => {
     return (
         <FiltersGroup title='Application filters' content={props.children} collapsed={props.collapsed}>
             <FavoriteFilter {...props} />
             <SyncFilter {...props} />
             <HealthFilter {...props} />
+            <OperationFilter {...props} />
             <LabelsFilter {...props} />
             <ProjectFilter {...props} />
             <ClusterFilter {...props} />
