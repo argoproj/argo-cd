@@ -45,6 +45,7 @@ argocd proj windows add PROJECT \
       --manual-sync            Allow manual syncs for both deny and allow windows
       --namespaces strings     Namespaces that the schedule will be applied to. Comma separated, wildcards supported (e.g. --namespaces default,\*-prod)
       --schedule string        Sync window schedule in cron format. (e.g. --schedule "0 22 * * *")
+      --sync-overrun           Allow syncs that started before a deny window to continue running
       --time-zone string       Time zone of the sync window (default "UTC")
       --use-and-operator       Use AND operator for matching applications, namespaces and clusters instead of the default OR operator
 ```
