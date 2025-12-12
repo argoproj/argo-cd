@@ -2,11 +2,22 @@ import {useData, Checkbox} from 'argo-ui/v2';
 import * as minimatch from 'minimatch';
 import * as React from 'react';
 import {Context} from '../../../shared/context';
-import {Application, ApplicationDestination, Cluster, HealthStatusCode, HealthStatuses, SyncPolicy, SyncStatusCode, SyncStatuses} from '../../../shared/models';
+import {
+    Application,
+    ApplicationDestination,
+    Cluster,
+    HealthStatusCode,
+    HealthStatuses,
+    OperationStateTitle,
+    OperationStateTitles,
+    SyncPolicy,
+    SyncStatusCode,
+    SyncStatuses
+} from '../../../shared/models';
 import {AppsListPreferences, services} from '../../../shared/services';
 import {Filter, FiltersGroup} from '../filter/filter';
 import * as LabelSelector from '../label-selector';
-import {ComparisonStatusIcon, getAppDefaultSource, HealthStatusIcon} from '../utils';
+import {ComparisonStatusIcon, getAppDefaultSource, HealthStatusIcon, getOperationStateTitle} from '../utils';
 import {formatClusterQueryParam} from '../../../shared/utils';
 import {COLORS} from '../../../shared/components/colors';
 
@@ -19,6 +30,7 @@ export interface FilterResult {
     clusters: boolean;
     favourite: boolean;
     labels: boolean;
+    operation: boolean;
 }
 
 export interface FilteredApp extends Application {
@@ -54,7 +66,8 @@ export function getFilterResults(applications: Application[], pref: AppsListPref
                         return (inputMatch && inputMatch[0] === app.spec.destination.server) || (app.spec.destination.name && minimatch(app.spec.destination.name, filterString));
                     }
                 }),
-            labels: pref.labelsFilter.length === 0 || pref.labelsFilter.every(selector => LabelSelector.match(selector, app.metadata.labels))
+            labels: pref.labelsFilter.length === 0 || pref.labelsFilter.every(selector => LabelSelector.match(selector, app.metadata.labels)),
+            operation: pref.operationFilter.length === 0 || pref.operationFilter.includes(getOperationStateTitle(app))
         }
     }));
 }
@@ -275,12 +288,70 @@ const AutoSyncFilter = (props: AppFilterProps) => (
     />
 );
 
+function getOperationOptions(apps: FilteredApp[]) {
+    const operationStateTitles = Object.values(OperationStateTitles);
+
+    const counts = getCounts(apps, 'operation', app => getOperationStateTitle(app), operationStateTitles) as Map<OperationStateTitle, number>;
+
+    const options: Array<{label: OperationStateTitle; icon: React.ReactNode; count: number}> = [
+        {
+            label: OperationStateTitles.Syncing,
+            icon: <i className='fa fa-circle-notch' style={{color: COLORS.operation.running}} />,
+            count: counts.get('Syncing')
+        },
+        {
+            label: OperationStateTitles['Sync OK'],
+            icon: <i className='fa fa-check-circle' style={{color: COLORS.operation.success}} />,
+            count: counts.get('Sync OK')
+        },
+        {
+            label: OperationStateTitles.Deleting,
+            icon: <i className='fa fa-trash' style={{color: COLORS.operation.terminating}} />,
+            count: counts.get('Deleting')
+        },
+        {
+            label: OperationStateTitles['Sync error'],
+            icon: <i className='fa fa-exclamation-circle' style={{color: COLORS.operation.error}} />,
+            count: counts.get('Sync error')
+        },
+        {
+            label: OperationStateTitles['Sync failed'],
+            icon: <i className='fa fa-times-circle' style={{color: COLORS.operation.failed}} />,
+            count: counts.get('Sync failed')
+        },
+        {
+            label: OperationStateTitles.Terminated,
+            icon: <i className='fa fa-circle-stop' style={{color: COLORS.operation.terminating}} />,
+            count: counts.get('Terminated')
+        },
+        {
+            label: OperationStateTitles.Unknown,
+            icon: <i className='fa fa-question-circle' style={{color: COLORS.health.unknown}} />,
+            count: counts.get('Unknown')
+        }
+    ];
+
+    // Only show phases that have at least one app
+    return options.filter(option => option.count > 0);
+}
+
+const OperationFilter = (props: AppFilterProps) => (
+    <Filter
+        label='OPERATION STATUS'
+        selected={props.pref.operationFilter}
+        setSelected={s => props.onChange({...props.pref, operationFilter: s})}
+        options={getOperationOptions(props.apps)}
+        collapsed={props.collapsed || false}
+    />
+);
+
 export const ApplicationsFilter = (props: AppFilterProps) => {
     return (
         <FiltersGroup title='Application filters' content={props.children} collapsed={props.collapsed}>
             <FavoriteFilter {...props} />
             <SyncFilter {...props} />
             <HealthFilter {...props} />
+            <OperationFilter {...props} />
             <LabelsFilter {...props} />
             <ProjectFilter {...props} />
             <ClusterFilter {...props} />

@@ -1212,7 +1212,7 @@ export function getOperationType(application: appModels.Application) {
     return 'Unknown';
 }
 
-const getOperationStateTitle = (app: appModels.Application) => {
+export const getOperationStateTitle = (app: appModels.Application): appModels.OperationStateTitle => {
     const appOperationState = getAppOperationState(app);
     const operationType = getOperationType(app);
     switch (operationType) {
