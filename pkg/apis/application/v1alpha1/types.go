@@ -2296,8 +2296,10 @@ func (c *Cluster) Sanitized() *Cluster {
 			ProxyUrl:           c.Config.ProxyUrl,
 			DisableCompression: c.Config.DisableCompression,
 			TLSClientConfig: TLSClientConfig{
-				Insecure: c.Config.Insecure,
+				Insecure:   c.Config.Insecure,
+				ServerName: c.Config.ServerName,
 			},
+			ExecProviderConfig: c.Config.ExecProviderConfig,
 		},
 	}
 }
