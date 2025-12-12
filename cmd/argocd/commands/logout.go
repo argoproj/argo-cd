@@ -1,17 +1,27 @@
 package commands
 
 import (
+	ctx "context"
+	"crypto/tls"
 	"fmt"
+	"net/http"
 	"os"
+	"strings"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/utils"
+	"github.com/argoproj/argo-cd/v3/common"
 	argocdclient "github.com/argoproj/argo-cd/v3/pkg/apiclient"
+	"github.com/argoproj/argo-cd/v3/util/cli"
 	"github.com/argoproj/argo-cd/v3/util/errors"
+	grpc_util "github.com/argoproj/argo-cd/v3/util/grpc"
 	"github.com/argoproj/argo-cd/v3/util/localconfig"
 )
+
+const DialTime = 30 * time.Second
 
 // NewLogoutCommand returns a new instance of `argocd logout` command
 func NewLogoutCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Command {
@@ -38,6 +48,54 @@ argocd logout cd.argoproj.io
 			if localCfg == nil {
 				log.Fatalf("Nothing to logout from")
 			}
+
+			token := localCfg.GetToken(context)
+			if token == "" {
+				log.Fatalf("Error in getting token from context")
+			}
+
+			client := &http.Client{}
+
+			tlsTestResult, err := grpc_util.TestTLS(context, DialTime)
+			errors.CheckError(err)
+			if !tlsTestResult.TLS {
+				if !globalClientOpts.PlainText {
+					if !cli.AskToProceed("WARNING: server is not configured with TLS. Proceed (y/n)? ") {
+						os.Exit(1)
+					}
+					globalClientOpts.PlainText = true
+				}
+			} else if tlsTestResult.InsecureErr != nil {
+				if !globalClientOpts.Insecure {
+					if !cli.AskToProceed(fmt.Sprintf("WARNING: server certificate had error: %s. Proceed insecurely (y/n)? ", tlsTestResult.InsecureErr)) {
+						os.Exit(1)
+					}
+					globalClientOpts.Insecure = true
+				}
+			}
+
+			scheme := "https"
+			if globalClientOpts.PlainText {
+				scheme = strings.TrimSuffix(scheme, "s")
+			} else if globalClientOpts.Insecure {
+				client.Transport = &http.Transport{
+					TLSClientConfig: &tls.Config{
+						InsecureSkipVerify: true,
+					},
+				}
+			}
+
+			logoutURL := fmt.Sprintf("%s://%s%s", scheme, context, common.LogoutEndpoint)
+			req, err := http.NewRequestWithContext(ctx.Background(), http.MethodPost, logoutURL, http.NoBody)
+			errors.CheckError(err)
+			cookie := &http.Cookie{
+				Name:  common.AuthCookieName,
+				Value: token,
+			}
+			req.AddCookie(cookie)
+
+			_, err = client.Do(req)
+			errors.CheckError(err)
 
 			promptUtil := utils.NewPrompt(globalClientOpts.PromptsEnabled)
 
