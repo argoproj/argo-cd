@@ -12,6 +12,7 @@ console.log(`Bundling in ${isProd ? 'production' : 'development'}...`);
 
 const proxyConf = {
     target: process.env.ARGOCD_API_URL || 'http://localhost:8080',
+    changeOrigin: true,
     secure: false
 };
 
@@ -110,7 +111,13 @@ const config = {
         port: 4000,
         host: process.env.ARGOCD_E2E_YARN_HOST || 'localhost',
         proxy: {
-            '/extensions': proxyConf,
+            '/extensions.js': {
+                target: 'http://localhost:8888',
+            },
+            '/extensions/': proxyConf,
+            '/custom/': {
+                target: 'http://localhost:8888',
+            },
             '/api': proxyConf,
             '/auth': proxyConf,
             '/terminal': {
