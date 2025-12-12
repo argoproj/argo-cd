@@ -1928,3 +1928,44 @@ spec:
 		assert.Contains(t, normalizedLiveStr, "sessionAffinity", "sessionAffinity should still appear in output (no output normalization)")
 	})
 }
+
+// TestRemoveWebhookMutationWithNilGvkParser verifies that removeWebhookMutation
+// returns a proper error when gvkParser is nil instead of panicking.
+// This test addresses issue #18020 where ServerSideDiff=true without proper
+// gvkParser initialization caused a nil pointer dereference.
+func TestRemoveWebhookMutationWithNilGvkParser(t *testing.T) {
+	// Create a simple unstructured object with managedFields
+	predictedLive := &unstructured.Unstructured{
+		Object: map[string]any{
+			"apiVersion": "v1",
+			"kind":       "ConfigMap",
+			"metadata": map[string]any{
+				"name": "test-cm",
+				"managedFields": []any{
+					map[string]any{
+						"manager":   "argocd-controller",
+						"operation": "Apply",
+						"fieldsV1": map[string]any{
+							"f:data": map[string]any{},
+						},
+					},
+				},
+			},
+			"data": map[string]any{
+				"key": "value",
+			},
+		},
+	}
+
+	live := predictedLive.DeepCopy()
+
+	// Call removeWebhookMutation with nil gvkParser - should return error, not panic
+	result, err := removeWebhookMutation(predictedLive, live, nil, "argocd-controller")
+
+	// Verify that we get an error instead of a panic
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "gvkParser is required")
+	assert.Contains(t, err.Error(), "WithGVKParser")
+}
+
