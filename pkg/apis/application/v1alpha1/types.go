@@ -203,7 +203,7 @@ type ParamEntry struct {
 func NewParamEntry(text string, paramType string) (*ParamEntry, error) {
 	parts := strings.SplitN(text, "=", 2)
 	if len(parts) != 2 {
-		return nil, fmt.Errorf("Expected parameter entry of the form: param=string, param=map, or param=array. Received: %s", text)
+		return nil, fmt.Errorf("expected parameter entry of the form: param=string, param=map, or param=array. Received: %s", text)
 	}
 
 	name := parts[0]
@@ -222,7 +222,7 @@ func NewParamEntry(text string, paramType string) (*ParamEntry, error) {
 		for _, kv := range keyValues {
 			kvParts := strings.SplitN(kv, "=", 2)
 			if len(kvParts) != 2 {
-				return nil, fmt.Errorf("Invalid map format: %s", kv)
+				return nil, fmt.Errorf("invalid map format: %s", kv)
 			}
 			mapValues[kvParts[0]] = kvParts[1]
 		}
@@ -238,7 +238,7 @@ func NewParamEntry(text string, paramType string) (*ParamEntry, error) {
 			OptionalArray: &OptionalArray{Array: arrayValues},
 		}, nil
 	default:
-		return nil, fmt.Errorf("Only supports parameters of types: string, array, and map. Received: %s", paramType)
+		return nil, fmt.Errorf("only supports parameters of types: string, array, and map. Received: %s", paramType)
 	}
 }
 
