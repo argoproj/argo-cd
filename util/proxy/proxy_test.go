@@ -4,12 +4,20 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"os/exec"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestMain(m *testing.M) {
+	// Ensure tests use non-cached proxy callback
+	UseTestingProxyCallback()
+
+	os.Exit(m.Run())
+}
 
 func TestAddProxyEnvIfAbsent(t *testing.T) {
 	t.Run("Existing proxy env variables", func(t *testing.T) {
