@@ -8,6 +8,7 @@ option go_package = "github.com/argoproj/argo-cd/v3/pkg/apiclient/applicationset
 package applicationset;
 
 import "google/api/annotations.proto";
+import "k8s.io/api/core/v1/generated.proto";
 import "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1/generated.proto";
 
 // ApplicationSetGetQuery is a query for applicationset resources
@@ -101,5 +102,10 @@ service ApplicationSetService {
   rpc ResourceTree(ApplicationSetTreeQuery) returns (github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.ApplicationSetTree) {
     option (google.api.http).get = "/api/v1/applicationsets/{name}/resource-tree";
   }
+
+	// ListResourceEvents returns a list of event resources
+	rpc ListResourceEvents(ApplicationSetGetQuery) returns (k8s.io.api.core.v1.EventList) {
+		option (google.api.http).get = "/api/v1/applicationsets/{name}/events";
+	}
 
 }
