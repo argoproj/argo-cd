@@ -1953,7 +1953,6 @@ func TestApplicationInformerUpdateFunc(t *testing.T) {
 		if oldOK && newOK {
 			// Skip refresh requests for informer resync events (same ResourceVersion)
 			if oldApp.ResourceVersion == newApp.ResourceVersion {
-				// Only update sharding and hydration queue, don't trigger refresh
 				if ctrl.hydrator != nil {
 					ctrl.appHydrateQueue.AddRateLimited(newApp.QualifiedName())
 				}
@@ -1970,10 +1969,7 @@ func TestApplicationInformerUpdateFunc(t *testing.T) {
 			appBeingDeleted := newApp.DeletionTimestamp != nil
 
 			// Skip refresh requests for status-only updates (spec unchanged)
-			// This prevents feedback loop: status update → UpdateFunc → requestAppRefresh → refresh → status update
 			if equality.Semantic.DeepEqual(oldApp.Spec, newApp.Spec) && !operationChanged && !deletionTimestampChanged && !appBeingDeleted {
-				// Check if user requested refresh/hydrate via annotations
-				// Don't skip if user explicitly requested refresh/hydrate
 				oldAnnotations := oldApp.GetAnnotations()
 				newAnnotations := newApp.GetAnnotations()
 				refreshAdded := (oldAnnotations == nil || oldAnnotations[v1alpha1.AnnotationKeyRefresh] == "") &&
@@ -1982,23 +1978,17 @@ func TestApplicationInformerUpdateFunc(t *testing.T) {
 					(newAnnotations != nil && newAnnotations[v1alpha1.AnnotationKeyHydrate] != "")
 
 				if !refreshAdded && !hydrateAdded {
-					// Status-only update with no annotation changes - skip refresh to prevent feedback loop
-					// Still update sharding and hydration queue for status changes
 					if ctrl.hydrator != nil {
 						ctrl.appHydrateQueue.AddRateLimited(newApp.QualifiedName())
 					}
 					ctrl.clusterSharding.UpdateApp(newApp)
 					return
 				}
-				// User explicitly requested refresh/hydrate - fall through to normal processing
 			}
 
-			// Spec changed - legitimate update, proceed with refresh
 			if automatedSyncEnabled(oldApp, newApp) {
 				compareWith = CompareWithLatest.Pointer()
 			}
-			// If compareWith is still nil, set a default value so refresh is stored in the map
-			// This matches the behavior where refresh requests are tracked
 			if compareWith == nil {
 				compareWith = CompareWithRecent.Pointer()
 			}
@@ -2018,7 +2008,6 @@ func TestApplicationInformerUpdateFunc(t *testing.T) {
 	// Note: isRefreshRequested uses appName directly, but requestAppRefresh uses toAppKey(appName)
 	// For qualified names (namespace/name), toAppKey returns the same value, so they should match
 	checkRefreshRequested := func(appName string, shouldBeRequested bool, msg string) {
-		// Use the same key format as requestAppRefresh
 		key := ctrl.toAppKey(appName)
 		ctrl.refreshRequestedAppsMutex.Lock()
 		_, isRequested := ctrl.refreshRequestedApps[key]
@@ -2027,7 +2016,6 @@ func TestApplicationInformerUpdateFunc(t *testing.T) {
 	}
 
 	t.Run("Status-only update without annotation should NOT trigger refresh", func(_ *testing.T) {
-		// Reset refresh state
 		ctrl.refreshRequestedAppsMutex.Lock()
 		ctrl.refreshRequestedApps = make(map[string]CompareWith)
 		ctrl.refreshRequestedAppsMutex.Unlock()
@@ -2037,18 +2025,14 @@ func TestApplicationInformerUpdateFunc(t *testing.T) {
 		oldApp.Status.ReconciledAt = &metav1.Time{Time: time.Now().Add(-1 * time.Hour)}
 
 		newApp := oldApp.DeepCopy()
-		newApp.ResourceVersion = "2"                                // Different ResourceVersion (not a resync)
-		newApp.Status.ReconciledAt = &metav1.Time{Time: time.Now()} // Status changed
+		newApp.ResourceVersion = "2"
+		newApp.Status.ReconciledAt = &metav1.Time{Time: time.Now()}
 
-		// Simulate UpdateFunc call
 		simulateUpdateFunc(oldApp, newApp)
-
-		// Check that refresh was NOT requested (status-only update should be skipped)
 		checkRefreshRequested(app.QualifiedName(), false, "Status-only update without annotation")
 	})
 
 	t.Run("Status-only update WITH refresh annotation SHOULD trigger refresh", func(_ *testing.T) {
-		// Reset refresh state
 		ctrl.refreshRequestedAppsMutex.Lock()
 		ctrl.refreshRequestedApps = make(map[string]CompareWith)
 		ctrl.refreshRequestedAppsMutex.Unlock()
@@ -2058,23 +2042,18 @@ func TestApplicationInformerUpdateFunc(t *testing.T) {
 		oldApp.Status.ReconciledAt = &metav1.Time{Time: time.Now().Add(-1 * time.Hour)}
 
 		newApp := oldApp.DeepCopy()
-		newApp.ResourceVersion = "4"                                // Different ResourceVersion
-		newApp.Status.ReconciledAt = &metav1.Time{Time: time.Now()} // Status changed
-		// Add refresh annotation
+		newApp.ResourceVersion = "4"
+		newApp.Status.ReconciledAt = &metav1.Time{Time: time.Now()}
 		if newApp.Annotations == nil {
 			newApp.Annotations = make(map[string]string)
 		}
 		newApp.Annotations[v1alpha1.AnnotationKeyRefresh] = string(v1alpha1.RefreshTypeNormal)
 
-		// Simulate UpdateFunc call
 		simulateUpdateFunc(oldApp, newApp)
-
-		// Check that refresh WAS requested (annotation should trigger refresh)
 		checkRefreshRequested(app.QualifiedName(), true, "Status-only update WITH refresh annotation")
 	})
 
 	t.Run("Status-only update WITH hydrate annotation SHOULD trigger refresh", func(_ *testing.T) {
-		// Reset refresh state
 		ctrl.refreshRequestedAppsMutex.Lock()
 		ctrl.refreshRequestedApps = make(map[string]CompareWith)
 		ctrl.refreshRequestedAppsMutex.Unlock()
@@ -2084,23 +2063,18 @@ func TestApplicationInformerUpdateFunc(t *testing.T) {
 		oldApp.Status.ReconciledAt = &metav1.Time{Time: time.Now().Add(-1 * time.Hour)}
 
 		newApp := oldApp.DeepCopy()
-		newApp.ResourceVersion = "6"                                // Different ResourceVersion
-		newApp.Status.ReconciledAt = &metav1.Time{Time: time.Now()} // Status changed
-		// Add hydrate annotation
+		newApp.ResourceVersion = "6"
+		newApp.Status.ReconciledAt = &metav1.Time{Time: time.Now()}
 		if newApp.Annotations == nil {
 			newApp.Annotations = make(map[string]string)
 		}
 		newApp.Annotations[v1alpha1.AnnotationKeyHydrate] = "true"
 
-		// Simulate UpdateFunc call
 		simulateUpdateFunc(oldApp, newApp)
-
-		// Check that refresh WAS requested (hydrate annotation should trigger refresh)
 		checkRefreshRequested(app.QualifiedName(), true, "Status-only update WITH hydrate annotation")
 	})
 
 	t.Run("Status-only update WITH both refresh and hydrate annotations SHOULD trigger refresh", func(_ *testing.T) {
-		// Reset refresh state
 		ctrl.refreshRequestedAppsMutex.Lock()
 		ctrl.refreshRequestedApps = make(map[string]CompareWith)
 		ctrl.refreshRequestedAppsMutex.Unlock()
@@ -2110,24 +2084,19 @@ func TestApplicationInformerUpdateFunc(t *testing.T) {
 		oldApp.Status.ReconciledAt = &metav1.Time{Time: time.Now().Add(-1 * time.Hour)}
 
 		newApp := oldApp.DeepCopy()
-		newApp.ResourceVersion = "8"                                // Different ResourceVersion
-		newApp.Status.ReconciledAt = &metav1.Time{Time: time.Now()} // Status changed
-		// Add both refresh and hydrate annotations
+		newApp.ResourceVersion = "8"
+		newApp.Status.ReconciledAt = &metav1.Time{Time: time.Now()}
 		if newApp.Annotations == nil {
 			newApp.Annotations = make(map[string]string)
 		}
 		newApp.Annotations[v1alpha1.AnnotationKeyRefresh] = string(v1alpha1.RefreshTypeNormal)
 		newApp.Annotations[v1alpha1.AnnotationKeyHydrate] = "true"
 
-		// Simulate UpdateFunc call
 		simulateUpdateFunc(oldApp, newApp)
-
-		// Check that refresh WAS requested (both annotations should trigger refresh)
 		checkRefreshRequested(app.QualifiedName(), true, "Status-only update WITH both refresh and hydrate annotations")
 	})
 
 	t.Run("Status-only update with annotation REMOVAL should NOT trigger refresh", func(_ *testing.T) {
-		// Reset refresh state
 		ctrl.refreshRequestedAppsMutex.Lock()
 		ctrl.refreshRequestedApps = make(map[string]CompareWith)
 		ctrl.refreshRequestedAppsMutex.Unlock()
@@ -2135,27 +2104,21 @@ func TestApplicationInformerUpdateFunc(t *testing.T) {
 		oldApp := app.DeepCopy()
 		oldApp.ResourceVersion = "9"
 		oldApp.Status.ReconciledAt = &metav1.Time{Time: time.Now().Add(-1 * time.Hour)}
-		// Old app has refresh annotation
 		if oldApp.Annotations == nil {
 			oldApp.Annotations = make(map[string]string)
 		}
 		oldApp.Annotations[v1alpha1.AnnotationKeyRefresh] = string(v1alpha1.RefreshTypeNormal)
 
 		newApp := oldApp.DeepCopy()
-		newApp.ResourceVersion = "10"                               // Different ResourceVersion
-		newApp.Status.ReconciledAt = &metav1.Time{Time: time.Now()} // Status changed
-		// Remove refresh annotation (annotation was present, now removed)
+		newApp.ResourceVersion = "10"
+		newApp.Status.ReconciledAt = &metav1.Time{Time: time.Now()}
 		delete(newApp.Annotations, v1alpha1.AnnotationKeyRefresh)
 
-		// Simulate UpdateFunc call
 		simulateUpdateFunc(oldApp, newApp)
-
-		// Check that refresh was NOT requested (annotation removal is not a refresh request)
 		checkRefreshRequested(app.QualifiedName(), false, "Status-only update with annotation REMOVAL")
 	})
 
 	t.Run("Spec change SHOULD trigger refresh", func(_ *testing.T) {
-		// Reset refresh state
 		ctrl.refreshRequestedAppsMutex.Lock()
 		ctrl.refreshRequestedApps = make(map[string]CompareWith)
 		ctrl.refreshRequestedAppsMutex.Unlock()
@@ -2164,18 +2127,14 @@ func TestApplicationInformerUpdateFunc(t *testing.T) {
 		oldApp.ResourceVersion = "11"
 
 		newApp := oldApp.DeepCopy()
-		newApp.ResourceVersion = "12"                             // Different ResourceVersion
-		newApp.Spec.Destination.Namespace = "different-namespace" // Spec changed
+		newApp.ResourceVersion = "12"
+		newApp.Spec.Destination.Namespace = "different-namespace"
 
-		// Simulate UpdateFunc call
 		simulateUpdateFunc(oldApp, newApp)
-
-		// Check that refresh WAS requested (spec change should trigger refresh)
 		checkRefreshRequested(app.QualifiedName(), true, "Spec change")
 	})
 
 	t.Run("Informer resync (same ResourceVersion) should NOT trigger refresh", func(_ *testing.T) {
-		// Reset refresh state
 		ctrl.refreshRequestedAppsMutex.Lock()
 		ctrl.refreshRequestedApps = make(map[string]CompareWith)
 		ctrl.refreshRequestedAppsMutex.Unlock()
@@ -2184,13 +2143,10 @@ func TestApplicationInformerUpdateFunc(t *testing.T) {
 		oldApp.ResourceVersion = "13"
 
 		newApp := oldApp.DeepCopy()
-		newApp.ResourceVersion = "13"                               // Same ResourceVersion (resync event)
-		newApp.Status.ReconciledAt = &metav1.Time{Time: time.Now()} // Status changed
+		newApp.ResourceVersion = "13"
+		newApp.Status.ReconciledAt = &metav1.Time{Time: time.Now()}
 
-		// Simulate UpdateFunc call
 		simulateUpdateFunc(oldApp, newApp)
-
-		// Check that refresh was NOT requested (resync should be skipped)
 		checkRefreshRequested(app.QualifiedName(), false, "Informer resync")
 	})
 

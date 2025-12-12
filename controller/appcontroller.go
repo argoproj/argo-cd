@@ -1063,11 +1063,9 @@ func (ctrl *ApplicationController) processAppOperationQueueItem() (processNext b
 		if app.Operation != nil {
 			freshApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.ObjectMeta.Namespace).Get(context.Background(), app.Name, metav1.GetOptions{})
 			if err != nil {
-				if apierrors.IsNotFound(err) {
-					// App was deleted, skip processing
-					return processNext
+				if !apierrors.IsNotFound(err) {
+					logCtx.WithError(err).Error("Failed to retrieve latest application state")
 				}
-				logCtx.WithError(err).Error("Failed to retrieve latest application state")
 				return processNext
 			}
 			// Check if operation was cleared (e.g., already processed by another worker)
@@ -2465,6 +2463,32 @@ func (ctrl *ApplicationController) canProcessApp(obj any) bool {
 	return ctrl.clusterSharding.IsManagedCluster(destCluster)
 }
 
+// Checks if the operation was added or changed between old and new app
+func operationChanged(oldApp, newApp *appv1.Application) bool {
+	return (oldApp.Operation == nil && newApp.Operation != nil) ||
+		(oldApp.Operation != nil && newApp.Operation != nil && !equality.Semantic.DeepEqual(oldApp.Operation, newApp.Operation))
+}
+
+// Checks if the deletion timestamp changed between old and new app
+func deletionTimestampChanged(oldApp, newApp *appv1.Application) bool {
+	return (oldApp.DeletionTimestamp == nil && newApp.DeletionTimestamp != nil) ||
+		(oldApp.DeletionTimestamp != nil && newApp.DeletionTimestamp != nil && !oldApp.DeletionTimestamp.Equal(newApp.DeletionTimestamp))
+}
+
+// Checks if the update only changed status/metadata without changing spec, operations, or deletion timestamp
+func isStatusOnlyUpdate(oldApp, newApp *appv1.Application) bool {
+	if !equality.Semantic.DeepEqual(oldApp.Spec, newApp.Spec) {
+		return false
+	}
+	if operationChanged(oldApp, newApp) {
+		return false
+	}
+	if deletionTimestampChanged(oldApp, newApp) || newApp.DeletionTimestamp != nil {
+		return false
+	}
+	return true
+}
+
 func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.SharedIndexInformer, applisters.ApplicationLister) {
 	watchNamespace := ctrl.namespace
 	// If we have at least one additional namespace configured, we need to
@@ -2565,14 +2589,12 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 				oldApp, oldOK := old.(*appv1.Application)
 				newApp, newOK := new.(*appv1.Application)
 
-				// Always queue operations if present, regardless of canProcessApp result
-				// Operations are explicit user actions and must be processed
-				if newOK && newApp.Operation != nil {
-					ctrl.appOperationQueue.AddRateLimited(key)
-				}
-
 				if !ctrl.canProcessApp(new) {
 					return
+				}
+
+				if newOK && newApp.Operation != nil {
+					ctrl.appOperationQueue.AddRateLimited(key)
 				}
 
 				var compareWith *CompareWith
@@ -2581,8 +2603,6 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 				if oldOK && newOK {
 					// Skip refresh requests for informer resync events (same ResourceVersion)
 					if oldApp.ResourceVersion == newApp.ResourceVersion {
-						// Only update sharding and hydration queue, don't trigger refresh
-						// Operations are already queued above if present
 						if ctrl.hydrator != nil {
 							ctrl.appHydrateQueue.AddRateLimited(newApp.QualifiedName())
 						}
@@ -2590,19 +2610,9 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 						return
 					}
 
-					// Check if operation was added or changed - always process operations
-					operationChanged := (oldApp.Operation == nil && newApp.Operation != nil) ||
-						(oldApp.Operation != nil && newApp.Operation != nil && !equality.Semantic.DeepEqual(oldApp.Operation, newApp.Operation))
-
-					deletionTimestampChanged := (oldApp.DeletionTimestamp == nil && newApp.DeletionTimestamp != nil) ||
-						(oldApp.DeletionTimestamp != nil && newApp.DeletionTimestamp != nil && !oldApp.DeletionTimestamp.Equal(newApp.DeletionTimestamp))
-					appBeingDeleted := newApp.DeletionTimestamp != nil
-
 					// Skip refresh requests for status-only updates (spec unchanged)
 					// This prevents feedback loop: status update → UpdateFunc → requestAppRefresh → refresh → status update
-					if equality.Semantic.DeepEqual(oldApp.Spec, newApp.Spec) && !operationChanged && !deletionTimestampChanged && !appBeingDeleted {
-						// Check if user requested refresh/hydrate via annotations
-						// Don't skip if user explicitly requested refresh/hydrate
+					if isStatusOnlyUpdate(oldApp, newApp) {
 						oldAnnotations := oldApp.GetAnnotations()
 						newAnnotations := newApp.GetAnnotations()
 						refreshAdded := (oldAnnotations == nil || oldAnnotations[appv1.AnnotationKeyRefresh] == "") &&
@@ -2611,19 +2621,14 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 							(newAnnotations != nil && newAnnotations[appv1.AnnotationKeyHydrate] != "")
 
 						if !refreshAdded && !hydrateAdded {
-							// Status-only update with no annotation changes - skip refresh to prevent feedback loop
-							// Operations are already queued above if present
-							// Still update sharding and hydration queue for status changes
 							if ctrl.hydrator != nil {
 								ctrl.appHydrateQueue.AddRateLimited(newApp.QualifiedName())
 							}
 							ctrl.clusterSharding.UpdateApp(newApp)
 							return
 						}
-						// User explicitly requested refresh/hydrate - fall through to normal processing
 					}
 
-					// Spec changed - legitimate update, proceed with refresh
 					if automatedSyncEnabled(oldApp, newApp) {
 						log.WithFields(applog.GetAppLogFields(newApp)).Info("Enabled automated sync")
 						compareWith = CompareWithLatest.Pointer()
@@ -2631,7 +2636,6 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 				}
 
 				ctrl.requestAppRefresh(newApp.QualifiedName(), compareWith, delay)
-				// Operations are already queued at the beginning of UpdateFunc if present
 				if !newOK {
 					ctrl.appOperationQueue.AddRateLimited(key)
 				}
