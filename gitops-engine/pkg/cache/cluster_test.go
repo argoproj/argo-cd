@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"sort"
-	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -131,9 +130,9 @@ func newClusterWithOptions(_ testing.TB, opts []UpdateSettingsFunc, objs ...runt
 	return cache
 }
 
-func (c *clusterCache) WithAPIResources(newApiResources []kube.APIResourceInfo) *clusterCache {
+func (c *clusterCache) WithAPIResources(newAPIResources []kube.APIResourceInfo) *clusterCache {
 	apiResources := c.kubectl.(*kubetest.MockKubectlCmd).APIResources
-	apiResources = append(apiResources, newApiResources...)
+	apiResources = append(apiResources, newAPIResources...)
 	c.kubectl.(*kubetest.MockKubectlCmd).APIResources = apiResources
 	return c
 }
@@ -681,7 +680,7 @@ func TestProcessNewChildEvent(t *testing.T) {
 
 	rsChildren := getChildren(cluster, mustToUnstructured(testRS()))
 	sort.Slice(rsChildren, func(i, j int) bool {
-		return strings.Compare(rsChildren[i].Ref.Name, rsChildren[j].Ref.Name) < 0
+		return rsChildren[i].Ref.Name < rsChildren[j].Ref.Name
 	})
 	assert.Equal(t, []*Resource{{
 		Ref: corev1.ObjectReference{
@@ -1256,13 +1255,13 @@ metadata:
 				Name:      ownerName,
 				Kind:      "Pod",
 			}]
-			ownerUid := owner.Ref.UID
+			ownerUID := owner.Ref.UID
 			resourceYaml += fmt.Sprintf(`
   ownerReferences:
   - apiVersion: v1
     kind: Pod
     name: %s
-    uid: %s`, ownerName, ownerUid)
+    uid: %s`, ownerName, ownerUID)
 		}
 		ns[key] = cacheTest.newResource(strToUnstructured(resourceYaml))
 	}
