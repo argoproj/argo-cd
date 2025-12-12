@@ -293,3 +293,172 @@ func TestJQPathExpressionReturnsHelpfulError(t *testing.T) {
 	})
 	assert.Contains(t, out, "fromjson cannot be applied")
 }
+
+// TestNormalizeJQPathExpressionWithConditionalAnnotation tests conditional expression based on annotation
+func TestNormalizeJQPathExpressionWithConditionalAnnotation(t *testing.T) {
+	normalizer, err := NewIgnoreNormalizer([]v1alpha1.ResourceIgnoreDifferences{{
+		Group: "apps",
+		Kind:  "Deployment",
+		JQPathExpressions: []string{
+			`.metadata.annotations["custom.argocd.argoproj.io/ignore-spec-replicas"] as $ignoreSpec | if $ignoreSpec == "true" then .spec.replicas else empty end`,
+		},
+	}}, make(map[string]v1alpha1.ResourceOverride), IgnoreNormalizerOpts{})
+
+	require.NoError(t, err)
+
+	// Test case 1: annotation is "true" - replicas should be removed
+	deployment := test.NewDeployment()
+	deployment.SetAnnotations(map[string]string{
+		"custom.argocd.argoproj.io/ignore-spec-replicas": "true",
+	})
+	err = unstructured.SetNestedField(deployment.Object, int64(3), "spec", "replicas")
+	require.NoError(t, err)
+
+	_, has, err := unstructured.NestedInt64(deployment.Object, "spec", "replicas")
+	require.NoError(t, err)
+	assert.True(t, has)
+
+	err = normalizer.Normalize(deployment)
+	require.NoError(t, err)
+
+	_, has, err = unstructured.NestedInt64(deployment.Object, "spec", "replicas")
+	require.NoError(t, err)
+	assert.False(t, has, "replicas should be removed when annotation is 'true'")
+
+	// Test case 2: annotation is "false" - replicas should remain
+	deployment2 := test.NewDeployment()
+	deployment2.SetAnnotations(map[string]string{
+		"custom.argocd.argoproj.io/ignore-spec-replicas": "false",
+	})
+	err = unstructured.SetNestedField(deployment2.Object, int64(3), "spec", "replicas")
+	require.NoError(t, err)
+
+	err = normalizer.Normalize(deployment2)
+	require.NoError(t, err)
+
+	replicas, has, err := unstructured.NestedInt64(deployment2.Object, "spec", "replicas")
+	require.NoError(t, err)
+	assert.True(t, has, "replicas should remain when annotation is 'false'")
+	assert.Equal(t, int64(3), replicas)
+
+	// Test case 3: annotation is missing - replicas should remain
+	deployment3 := test.NewDeployment()
+	err = unstructured.SetNestedField(deployment3.Object, int64(3), "spec", "replicas")
+	require.NoError(t, err)
+
+	err = normalizer.Normalize(deployment3)
+	require.NoError(t, err)
+
+	replicas, has, err = unstructured.NestedInt64(deployment3.Object, "spec", "replicas")
+	require.NoError(t, err)
+	assert.True(t, has, "replicas should remain when annotation is missing")
+	assert.Equal(t, int64(3), replicas)
+}
+
+// TestNormalizeJQPathExpressionWithRollout tests conditional expression with Rollout resource (issue #25602)
+func TestNormalizeJQPathExpressionWithRollout(t *testing.T) {
+	normalizer, err := NewIgnoreNormalizer([]v1alpha1.ResourceIgnoreDifferences{{
+		Group: "argoproj.io",
+		Kind:  "Rollout",
+		JQPathExpressions: []string{
+			`.metadata.annotations["custom.argocd.argoproj.io/ignore-spec-replicas"] as $ignoreSpec | if $ignoreSpec == "true" then .spec.replicas else empty end`,
+		},
+	}}, make(map[string]v1alpha1.ResourceOverride), IgnoreNormalizerOpts{})
+
+	require.NoError(t, err)
+
+	rolloutYAML := `
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: test-rollout
+  annotations:
+    custom.argocd.argoproj.io/ignore-spec-replicas: "true"
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: test
+  template:
+    metadata:
+      labels:
+        app: test
+    spec:
+      containers:
+      - name: test
+        image: nginx:latest
+`
+
+	rollout := &unstructured.Unstructured{}
+	err = yaml.Unmarshal([]byte(rolloutYAML), rollout)
+	require.NoError(t, err)
+
+	_, has, err := unstructured.NestedInt64(rollout.Object, "spec", "replicas")
+	require.NoError(t, err)
+	assert.True(t, has)
+
+	err = normalizer.Normalize(rollout)
+	require.NoError(t, err)
+
+	_, has, err = unstructured.NestedInt64(rollout.Object, "spec", "replicas")
+	require.NoError(t, err)
+	assert.False(t, has, "replicas should be removed from Rollout when annotation is 'true'")
+}
+
+// TestNormalizeJQPathExpressionConditionalByKind tests kind-based conditional
+func TestNormalizeJQPathExpressionConditionalByKind(t *testing.T) {
+	normalizer, err := NewIgnoreNormalizer([]v1alpha1.ResourceIgnoreDifferences{{
+		Group: "*",
+		Kind:  "*",
+		JQPathExpressions: []string{
+			`if .kind == "Rollout" then .spec.replicas else empty end`,
+		},
+	}}, make(map[string]v1alpha1.ResourceOverride), IgnoreNormalizerOpts{})
+
+	require.NoError(t, err)
+
+	// Test with Rollout - replicas should be removed
+	rolloutYAML := `
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: test-rollout
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: test
+  template:
+    metadata:
+      labels:
+        app: test
+    spec:
+      containers:
+      - name: test
+        image: nginx:latest
+`
+
+	rollout := &unstructured.Unstructured{}
+	err = yaml.Unmarshal([]byte(rolloutYAML), rollout)
+	require.NoError(t, err)
+
+	err = normalizer.Normalize(rollout)
+	require.NoError(t, err)
+
+	_, has, err := unstructured.NestedInt64(rollout.Object, "spec", "replicas")
+	require.NoError(t, err)
+	assert.False(t, has, "replicas should be removed from Rollout")
+
+	// Test with Deployment - replicas should remain
+	deployment := test.NewDeployment()
+	err = unstructured.SetNestedField(deployment.Object, int64(3), "spec", "replicas")
+	require.NoError(t, err)
+
+	err = normalizer.Normalize(deployment)
+	require.NoError(t, err)
+
+	replicas, has, err := unstructured.NestedInt64(deployment.Object, "spec", "replicas")
+	require.NoError(t, err)
+	assert.True(t, has, "replicas should remain in Deployment")
+	assert.Equal(t, int64(3), replicas)
+}
