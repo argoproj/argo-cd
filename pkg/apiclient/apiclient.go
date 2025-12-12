@@ -99,6 +99,7 @@ type Client interface {
 	NewAccountClient() (io.Closer, accountpkg.AccountServiceClient, error)
 	NewAccountClientOrDie() (io.Closer, accountpkg.AccountServiceClient)
 	WatchApplicationWithRetry(ctx context.Context, appName string, revision string) chan *v1alpha1.ApplicationWatchEvent
+	WatchApplicationSetWithRetry(ctx context.Context, appSetName, revision string) chan *v1alpha1.ApplicationSetWatchEvent
 }
 
 // ClientOptions hold address, security, and other settings for the API client.
@@ -800,6 +801,20 @@ func (c *client) NewAccountClientOrDie() (io.Closer, accountpkg.AccountServiceCl
 		log.Fatalf("Failed to establish connection to %s: %v", c.ServerAddr, err)
 	}
 	return conn, usrIf
+}
+
+func (c *client) WatchApplicationSetWithRetry(ctx context.Context, appSetName, revision string) chan *v1alpha1.ApplicationSetWatchEvent {
+	fmt.Println("hello")
+	appSetEventCh := make(chan *v1alpha1.ApplicationSetWatchEvent)
+	cancelled := false
+	_, _ = argo.ParseFromQualifiedName(appSetName, "")
+	go func() {
+		defer close(appSetEventCh)
+		for !cancelled {
+
+		}
+	}()
+	return nil
 }
 
 // WatchApplicationWithRetry returns a channel of watch events for an application, retrying the
