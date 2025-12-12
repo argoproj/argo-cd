@@ -484,9 +484,9 @@ func (mgr *SessionManager) VerifyUsernamePassword(username string, password stri
 
 // AuthMiddlewareFunc returns a function that can be used as an
 // authentication middleware for HTTP requests.
-func (mgr *SessionManager) AuthMiddlewareFunc(disabled bool, isSSOConfigured bool, ssoClientApp *oidcutil.ClientApp) func(http.Handler) http.Handler {
+func (mgr *SessionManager) AuthMiddlewareFunc(disabled bool, argoSettings *settings.ArgoCDSettings, ssoClientApp *oidcutil.ClientApp) func(http.Handler) http.Handler {
 	return func(h http.Handler) http.Handler {
-		return WithAuthMiddleware(disabled, isSSOConfigured, ssoClientApp, mgr, h)
+		return WithAuthMiddleware(disabled, argoSettings, ssoClientApp, mgr, h)
 	}
 }
 
@@ -499,7 +499,7 @@ type TokenVerifier interface {
 // WithAuthMiddleware is an HTTP middleware used to ensure incoming requests are authenticated before invoking the target handler.
 // If disabled is true, it will just invoke the next handler in the chain.
 // It checks for tokens in a configured header (for IAP JWTs) first, then falls back to cookies.
-func WithAuthMiddleware(disabled bool, isSSOConfigured bool, ssoClientApp *oidcutil.ClientApp, authn TokenVerifier, next http.Handler) http.Handler {
+func WithAuthMiddleware(disabled bool, argoSettings *settings.ArgoCDSettings, ssoClientApp *oidcutil.ClientApp, authn TokenVerifier, next http.Handler) http.Handler {
 	if disabled {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			next.ServeHTTP(w, r)
@@ -511,23 +511,11 @@ func WithAuthMiddleware(disabled bool, isSSOConfigured bool, ssoClientApp *oidcu
 		var err error
 		ctx := r.Context()
 
-		// Attempt to get settings manager from the verifier if possible
-		// This assumes the TokenVerifier implementation might expose settings
-		var settingsMgr *settings.SettingsManager
-		if sm, ok := authn.(*SessionManager); ok {
-			settingsMgr = sm.settingsMgr
-		}
-
 		// 1. Check Header for JWT (if configured)
-		if settingsMgr != nil {
-			argoSettings, settingsErr := settingsMgr.GetSettings()
-			if settingsErr == nil && argoSettings.IsJWTConfigured() {
-				tokenString = r.Header.Get(argoSettings.JWTConfig.HeaderName)
-				if tokenString != "" {
-					log.Debugf("Found token in header %s", argoSettings.JWTConfig.HeaderName)
-				}
-			} else if settingsErr != nil {
-				log.Warnf("Failed to get settings for JWT header check: %v", settingsErr)
+		if argoSettings.IsJWTConfigured() {
+			tokenString = r.Header.Get(argoSettings.JWTConfig.HeaderName)
+			if tokenString != "" {
+				log.Debugf("Found token in header %s", argoSettings.JWTConfig.HeaderName)
 			}
 		}
 
@@ -554,7 +542,7 @@ func WithAuthMiddleware(disabled bool, isSSOConfigured bool, ssoClientApp *oidcu
 		}
 
 		finalClaims := claims
-		if isSSOConfigured {
+		if argoSettings.IsSSOConfigured() {
 			finalClaims, err = ssoClientApp.SetGroupsFromUserInfo(ctx, claims, SessionManagerClaimsIssuer)
 			if err != nil {
 				http.Error(w, "Invalid session", http.StatusUnauthorized)
