@@ -90,6 +90,18 @@ export interface OperationState {
     finishedAt: models.Time;
 }
 
+export type OperationStateTitle = 'Deleting' | 'Syncing' | 'Sync error' | 'Sync failed' | 'Sync OK' | 'Terminated' | 'Unknown';
+
+export const OperationStateTitles = {
+    'Deleting': 'Deleting' as OperationStateTitle,
+    'Syncing': 'Syncing' as OperationStateTitle,
+    'Sync error': 'Sync error' as OperationStateTitle,
+    'Sync failed': 'Sync failed' as OperationStateTitle,
+    'Sync OK': 'Sync OK' as OperationStateTitle,
+    'Terminated': 'Terminated' as OperationStateTitle,
+    'Unknown': 'Unknown' as OperationStateTitle
+};
+
 export type HookType = 'PreSync' | 'Sync' | 'PostSync' | 'SyncFail' | 'Skip';
 
 export interface RevisionMetadata {

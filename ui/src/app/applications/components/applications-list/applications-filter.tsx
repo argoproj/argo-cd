@@ -8,8 +8,8 @@ import {
     Cluster,
     HealthStatusCode,
     HealthStatuses,
-    OperationPhase,
-    OperationPhases,
+    OperationStateTitle,
+    OperationStateTitles,
     SyncPolicy,
     SyncStatusCode,
     SyncStatuses
@@ -17,7 +17,7 @@ import {
 import {AppsListPreferences, services} from '../../../shared/services';
 import {Filter, FiltersGroup} from '../filter/filter';
 import * as LabelSelector from '../label-selector';
-import {ComparisonStatusIcon, getAppDefaultSource, HealthStatusIcon, getAppOperationState} from '../utils';
+import {ComparisonStatusIcon, getAppDefaultSource, HealthStatusIcon, getOperationStateTitle} from '../utils';
 import {formatClusterQueryParam} from '../../../shared/utils';
 import {COLORS} from '../../../shared/components/colors';
 
@@ -44,14 +44,6 @@ export function getAutoSyncStatus(syncPolicy?: SyncPolicy) {
     return 'Enabled';
 }
 
-export function getAppOperationStatePhase(app: Application): string {
-    const operationState = getAppOperationState(app);
-    if (!operationState) {
-        return undefined;
-    }
-    return operationState.phase;
-}
-
 export function getFilterResults(applications: Application[], pref: AppsListPreferences): FilteredApp[] {
     return applications.map(app => ({
         ...app,
@@ -75,7 +67,7 @@ export function getFilterResults(applications: Application[], pref: AppsListPref
                     }
                 }),
             labels: pref.labelsFilter.length === 0 || pref.labelsFilter.every(selector => LabelSelector.match(selector, app.metadata.labels)),
-            operation: pref.operationFilter.length === 0 || pref.operationFilter.includes(getAppOperationStatePhase(app))
+            operation: pref.operationFilter.length === 0 || pref.operationFilter.includes(getOperationStateTitle(app))
         }
     }));
 }
@@ -297,49 +289,45 @@ const AutoSyncFilter = (props: AppFilterProps) => (
 );
 
 function getOperationOptions(apps: FilteredApp[]) {
-    const possiblePhases = Object.values(OperationPhases);
-    const counts = getCounts(apps, 'operation', app => getAppOperationStatePhase(app), possiblePhases) as Map<OperationPhase, number>;
+    const operationStateTitles = Object.values(OperationStateTitles);
 
-    const options: Array<{label: string; icon: React.ReactNode; count: number}> = [
+    const counts = getCounts(apps, 'operation', app => getOperationStateTitle(app), operationStateTitles) as Map<OperationStateTitle, number>;
+
+    const options: Array<{label: OperationStateTitle; icon: React.ReactNode; count: number}> = [
         {
-            label: 'Running',
+            label: OperationStateTitles.Syncing,
             icon: <i className='fa fa-circle-notch' style={{color: COLORS.operation.running}} />,
-            count: counts.get('Running')
+            count: counts.get('Syncing')
         },
         {
-            label: 'Succeeded',
+            label: OperationStateTitles['Sync OK'],
             icon: <i className='fa fa-check-circle' style={{color: COLORS.operation.success}} />,
-            count: counts.get('Succeeded')
+            count: counts.get('Sync OK')
         },
         {
-            label: 'Failed',
-            icon: <i className='fa fa-times-circle' style={{color: COLORS.operation.failed}} />,
-            count: counts.get('Failed')
+            label: OperationStateTitles.Deleting,
+            icon: <i className='fa fa-trash' style={{color: COLORS.operation.terminating}} />,
+            count: counts.get('Deleting')
         },
         {
-            label: 'Error',
+            label: OperationStateTitles['Sync error'],
             icon: <i className='fa fa-exclamation-circle' style={{color: COLORS.operation.error}} />,
-            count: counts.get('Error')
+            count: counts.get('Sync error')
         },
         {
-            label: 'Terminating',
+            label: OperationStateTitles['Sync failed'],
+            icon: <i className='fa fa-times-circle' style={{color: COLORS.operation.failed}} />,
+            count: counts.get('Sync failed')
+        },
+        {
+            label: OperationStateTitles.Terminated,
             icon: <i className='fa fa-circle-stop' style={{color: COLORS.operation.terminating}} />,
-            count: counts.get('Terminating')
+            count: counts.get('Terminated')
         },
         {
-            label: 'Progressing',
-            icon: <i className='fa fa-circle-notch fa-spin' style={{color: COLORS.operation.running}} />,
-            count: counts.get('Progressing')
-        },
-        {
-            label: 'Pending',
-            icon: <i className='fa fa-clock' style={{color: COLORS.operation.running}} />,
-            count: counts.get('Pending')
-        },
-        {
-            label: 'Waiting',
-            icon: <i className='fa fa-hourglass-half' style={{color: COLORS.operation.running}} />,
-            count: counts.get('Waiting')
+            label: OperationStateTitles.Unknown,
+            icon: <i className='fa fa-question-circle' style={{color: COLORS.health.unknown}} />,
+            count: counts.get('Unknown')
         }
     ];
 
