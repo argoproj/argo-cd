@@ -3,7 +3,14 @@ import * as React from 'react';
 import {Timestamp} from '../../../shared/components/timestamp';
 import {services} from '../../../shared/services';
 
-export const RevisionMetadataPanel = (props: {appName: string; appNamespace: string; type: string; revision: string; versionId: number}) => {
+export const RevisionMetadataPanel = (props: {
+    appName: string;
+    appNamespace: string;
+    type: string;
+    revision: string;
+    versionId: number;
+    sourceType?: 'dry' | 'hydrated' | null;
+}) => {
     if (props.type === 'helm' || props.type === 'oci') {
         return null;
     }
@@ -53,7 +60,7 @@ export const RevisionMetadataPanel = (props: {appName: string; appNamespace: str
     return (
         <DataLoader
             key={props.revision}
-            load={() => services.applications.revisionMetadata(props.appName, props.appNamespace, props.revision, 0, props.versionId)}
+            load={() => services.applications.revisionMetadata(props.appName, props.appNamespace, props.revision, 0, props.versionId, props.sourceType || null)}
             errorRenderer={() => <div />}>
             {m => (
                 <Tooltip

@@ -110,6 +110,7 @@ argocd admin app generate-spec APPNAME [flags]
       --sync-retry-refresh                         Indicates if the latest revision should be used on retry instead of the initial one
       --sync-source-branch string                  The branch from which the app will sync
       --sync-source-path string                    The path in the repository from which the app will sync
+      --sync-source-repo string                    The repository URL from which the app will sync (defaults to dry-source-repo if not set)
       --validate                                   Validation of repo and cluster (default true)
       --values stringArray                         Helm values file(s) to use
       --values-literal-file string                 Filename or URL to import as a literal Helm values block

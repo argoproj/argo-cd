@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"os"
 	"testing"
 	"time"
 
@@ -129,6 +130,32 @@ func TestKustomizeVersionOverride(t *testing.T) {
 		When().
 		// Hard refresh so we don't use the cached error.
 		Refresh(RefreshTypeHard).
+		Wait("--hydrated").
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced))
+}
+
+// TestHydratorDifferentSyncSourceRepo tests hydrating to a different repository for the sync source.
+// This test requires ARGOCD_E2E_SYNC_SOURCE_REPO to be set to a valid writable git repository URL.
+// The repository must be configured in the project's allowed source repos and have write credentials.
+func TestHydratorDifferentSyncSourceRepo(t *testing.T) {
+	syncSourceRepo := os.Getenv("ARGOCD_E2E_SYNC_SOURCE_REPO")
+	if syncSourceRepo == "" {
+		t.Skip("Skipping test: ARGOCD_E2E_SYNC_SOURCE_REPO environment variable not set")
+	}
+
+	Given(t).
+		Name("test-hydrator-different-sync-repo").
+		DrySourcePath("guestbook").
+		DrySourceRevision("HEAD").
+		SyncSourceRepoURL(syncSourceRepo).
+		SyncSourcePath("guestbook").
+		SyncSourceBranch("env/test").
+		When().
+		CreateApp().
+		Refresh(RefreshTypeNormal).
 		Wait("--hydrated").
 		Sync().
 		Then().
