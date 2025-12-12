@@ -369,6 +369,10 @@ func Test_setAppSpecOptions(t *testing.T) {
 		require.NoError(t, f.SetFlag("sync-source-path", "apps"))
 		assert.Equal(t, "apps", f.spec.SourceHydrator.SyncSource.Path)
 
+		// Test sync-source-repo flag - this is the new field for different repository support
+		require.NoError(t, f.SetFlag("sync-source-repo", "https://github.com/argoproj/gitops-manifests"))
+		assert.Equal(t, "https://github.com/argoproj/gitops-manifests", f.spec.SourceHydrator.SyncSource.RepoURL)
+
 		require.NoError(t, f.SetFlag("hydrate-to-branch", "env/test-next"))
 		assert.Equal(t, "env/test-next", f.spec.SourceHydrator.HydrateTo.TargetBranch)
 

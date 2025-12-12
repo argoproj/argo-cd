@@ -132,10 +132,12 @@ func (h *Hydrator) ProcessAppHydrateQueueItem(origApp *appv1.Application) {
 }
 
 func getHydrationQueueKey(app *appv1.Application) types.HydrationQueueKey {
+	hydrateToSource := app.Spec.GetHydrateToSource()
 	key := types.HydrationQueueKey{
 		SourceRepoURL:        git.NormalizeGitURLAllowInvalid(app.Spec.SourceHydrator.DrySource.RepoURL),
 		SourceTargetRevision: app.Spec.SourceHydrator.DrySource.TargetRevision,
-		DestinationBranch:    app.Spec.GetHydrateToSource().TargetRevision,
+		DestinationRepoURL:   git.NormalizeGitURLAllowInvalid(hydrateToSource.RepoURL),
+		DestinationBranch:    hydrateToSource.TargetRevision,
 	}
 	return key
 }
@@ -148,6 +150,7 @@ func (h *Hydrator) ProcessHydrationQueueItem(hydrationKey types.HydrationQueueKe
 	logCtx := log.WithFields(log.Fields{
 		"sourceRepoURL":        hydrationKey.SourceRepoURL,
 		"sourceTargetRevision": hydrationKey.SourceTargetRevision,
+		"destinationRepoURL":   hydrationKey.DestinationRepoURL,
 		"destinationBranch":    hydrationKey.DestinationBranch,
 	})
 
@@ -293,11 +296,18 @@ func (h *Hydrator) getAppsForHydrationKey(hydrationKey types.HydrationQueueKey) 
 	return relevantApps, nil
 }
 
+// hydrationDestKey is a struct key for tracking unique hydration destinations.
+// Using a struct instead of string formatting better communicates intent and guarantees no collisions.
+type hydrationDestKey struct {
+	repoURL string
+	path    string
+}
+
 // validateApplications checks that all applications are valid for hydration.
 func (h *Hydrator) validateApplications(apps []*appv1.Application) (map[string]*appv1.AppProject, map[string]error) {
 	projects := make(map[string]*appv1.AppProject)
 	errors := make(map[string]error)
-	uniquePaths := make(map[string]string, len(apps))
+	uniquePaths := make(map[hydrationDestKey]string, len(apps))
 
 	for _, app := range apps {
 		// Get the project for the app and validate if the app is allowed to use the source.
@@ -319,20 +329,30 @@ func (h *Hydrator) validateApplications(apps []*appv1.Application) (map[string]*
 		// Hydrating to root would overwrite or delete files at the top level of the repo,
 		// which can break other applications or shared configuration.
 		// Every hydrated app must write into a subdirectory instead.
-		destPath := app.Spec.SourceHydrator.SyncSource.Path
+		hydrateToSource := app.Spec.GetHydrateToSource()
+		destPath := hydrateToSource.Path
 		if IsRootPath(destPath) {
-			errors[app.QualifiedName()] = fmt.Errorf("app is configured to hydrate to the repository root (branch %q, path %q) which is not allowed", app.Spec.GetHydrateToSource().TargetRevision, destPath)
+			errors[app.QualifiedName()] = fmt.Errorf("app is configured to hydrate to the repository root (branch %q, path %q) which is not allowed", hydrateToSource.TargetRevision, destPath)
+			continue
+		}
+
+		// Validate that the destination repo is permitted in the project
+		destRepoPermitted := proj.IsSourcePermitted(hydrateToSource)
+		if !destRepoPermitted {
+			errors[app.QualifiedName()] = fmt.Errorf("destination repo %s is not permitted in project '%s'", hydrateToSource.RepoURL, proj.Name)
 			continue
 		}
 
 		// TODO: test the dupe detection
 		// TODO: normalize the path to avoid "path/.." from being treated as different from "."
-		if appName, ok := uniquePaths[destPath]; ok {
-			errors[app.QualifiedName()] = fmt.Errorf("app %s hydrator use the same destination: %v", appName, app.Spec.SourceHydrator.SyncSource.Path)
-			errors[appName] = fmt.Errorf("app %s hydrator use the same destination: %v", app.QualifiedName(), app.Spec.SourceHydrator.SyncSource.Path)
+		// Use a struct key for uniqueness since apps can hydrate to different repos
+		destKey := hydrationDestKey{repoURL: hydrateToSource.RepoURL, path: destPath}
+		if appName, ok := uniquePaths[destKey]; ok {
+			errors[app.QualifiedName()] = fmt.Errorf("app %s hydrator uses the same destination: repo=%s, path=%s", appName, destKey.repoURL, destKey.path)
+			errors[appName] = fmt.Errorf("app %s hydrator uses the same destination: repo=%s, path=%s", app.QualifiedName(), destKey.repoURL, destKey.path)
 			continue
 		}
-		uniquePaths[destPath] = app.QualifiedName()
+		uniquePaths[destKey] = app.QualifiedName()
 	}
 
 	// If there are any errors, return nil for projects to avoid possible partial processing.
@@ -350,7 +370,7 @@ func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application, project
 	}
 
 	// These values are the same for all apps being hydrated together, so just get them from the first app.
-	repoURL := apps[0].Spec.GetHydrateToSource().RepoURL
+	destinationRepoURL := apps[0].Spec.GetHydrateToSource().RepoURL
 	targetBranch := apps[0].Spec.GetHydrateToSource().TargetRevision
 	// FIXME: As a convenience, the commit server will create the syncBranch if it does not exist. If the
 	// targetBranch does not exist, it will create it based on the syncBranch. On the next line, we take
@@ -358,6 +378,7 @@ func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application, project
 	// app has a different syncBranch, we should send the commit server an empty string and allow it to
 	// create the targetBranch as an orphan since we can't reliable determine a reasonable base.
 	syncBranch := apps[0].Spec.SourceHydrator.SyncSource.TargetBranch
+	drySourceRepoURL := apps[0].Spec.SourceHydrator.DrySource.RepoURL
 
 	// Get a static SHA revision from the first app so that all apps are hydrated from the same revision.
 	targetRevision, pathDetails, err := h.getManifests(context.Background(), apps[0], "", projects[apps[0].Spec.Project])
@@ -405,20 +426,20 @@ func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application, project
 		}
 	}
 
-	// Get the commit metadata for the target revision.
-	revisionMetadata, err := h.getRevisionMetadata(context.Background(), repoURL, project, targetRevision)
+	// Get the commit metadata for the target revision from the dry source repo.
+	revisionMetadata, err := h.getRevisionMetadata(context.Background(), drySourceRepoURL, project, targetRevision)
 	if err != nil {
 		return targetRevision, "", errors, fmt.Errorf("failed to get revision metadata for %q: %w", targetRevision, err)
 	}
 
-	repo, err := h.dependencies.GetWriteCredentials(context.Background(), repoURL, project)
+	repo, err := h.dependencies.GetWriteCredentials(context.Background(), destinationRepoURL, project)
 	if err != nil {
 		return targetRevision, "", errors, fmt.Errorf("failed to get hydrator credentials: %w", err)
 	}
 	if repo == nil {
 		// Try without credentials.
 		repo = &appv1.Repository{
-			Repo: repoURL,
+			Repo: destinationRepoURL,
 		}
 		logCtx.Warn("no credentials found for repo, continuing without credentials")
 	}
@@ -427,7 +448,7 @@ func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application, project
 	if err != nil {
 		return targetRevision, "", errors, fmt.Errorf("failed to get hydrated commit message template: %w", err)
 	}
-	commitMessage, errMsg := getTemplatedCommitMessage(repoURL, targetRevision, commitMessageTemplate, revisionMetadata)
+	commitMessage, errMsg := getTemplatedCommitMessage(drySourceRepoURL, targetRevision, commitMessageTemplate, revisionMetadata)
 	if errMsg != nil {
 		return targetRevision, "", errors, fmt.Errorf("failed to get hydrator commit templated message: %w", errMsg)
 	}

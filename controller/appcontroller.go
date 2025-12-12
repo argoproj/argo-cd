@@ -1910,6 +1910,26 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		}
 	}
 	ts.AddCheckpoint("process_finalizers_ms")
+
+	// Update source hydrator currentOperation.hydratedSHA if sync revision differs
+	// This ensures the hydration operation reflects the current sync state
+	if app.Spec.SourceHydrator != nil && app.Status.SourceHydrator.CurrentOperation != nil &&
+		app.Status.SourceHydrator.CurrentOperation.Phase == appv1.HydrateOperationPhaseHydrated {
+		currentSyncRevision := compareResult.syncStatus.Revision
+		if len(compareResult.syncStatus.Revisions) > 0 {
+			currentSyncRevision = compareResult.syncStatus.Revisions[0]
+		}
+		if currentSyncRevision != "" && currentSyncRevision != app.Status.SourceHydrator.CurrentOperation.HydratedSHA {
+			app.Status.SourceHydrator.CurrentOperation.HydratedSHA = currentSyncRevision
+			// Also update LastSuccessfulOperation if it exists
+			if app.Status.SourceHydrator.LastSuccessfulOperation != nil {
+				app.Status.SourceHydrator.LastSuccessfulOperation.HydratedSHA = currentSyncRevision
+			}
+			// Persist the hydration status update separately to ensure it's saved
+			ctrl.PersistAppHydratorStatus(origApp, &app.Status.SourceHydrator)
+		}
+	}
+
 	patchDuration = ctrl.persistAppStatus(origApp, &app.Status)
 	// This is a partly a duplicate of patch_ms, but more descriptive and allows to have measurement for the next step.
 	ts.AddCheckpoint("persist_app_status_ms")

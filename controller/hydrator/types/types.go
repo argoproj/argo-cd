@@ -8,4 +8,7 @@ type HydrationQueueKey struct {
 	SourceRepoURL        string
 	SourceTargetRevision string
 	DestinationBranch    string
+	// DestinationRepoURL must be normalized with git.NormalizeGitURL to ensure proper deduplication when apps hydrate
+	// to different repositories.
+	DestinationRepoURL string
 }

@@ -815,7 +815,10 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*v1a
 			enabledSourceTypes map[string]bool,
 		) error {
 			source := app.Spec.GetSource()
-			repo, err := s.db.GetRepository(ctx, a.Spec.GetSource().RepoURL, proj.Name)
+			repoURL := source.RepoURL
+			// Use explicit sourceType parameter instead of inference
+			repoURL = resolveSourceHydratorRepoURLWithSourceType(app, q.GetSourceType(), repoURL)
+			repo, err := s.db.GetRepository(ctx, repoURL, proj.Name)
 			if err != nil {
 				return fmt.Errorf("error getting repository: %w", err)
 			}
@@ -1597,6 +1600,32 @@ func (s *Server) WatchResourceTree(q *application.ResourcesQuery, ws application
 	})
 }
 
+// resolveSourceHydratorRepoURLWithSourceType determines the correct repository URL
+// when using sourceHydrator. If sourceType is explicitly specified ("dry" or "hydrated"), it uses
+// the corresponding repo URL directly. If sourceType is not specified, defaults to "dry".
+func resolveSourceHydratorRepoURLWithSourceType(app *v1alpha1.Application, sourceType, defaultRepoURL string) string {
+	// If no sourceHydrator is configured, return the default
+	if app.Spec.SourceHydrator == nil {
+		return defaultRepoURL
+	}
+
+	// Use the corresponding repo URL based on sourceType
+	switch sourceType {
+	case "dry":
+		return app.Spec.SourceHydrator.DrySource.RepoURL
+	case "hydrated":
+		// Use sync source repo URL (or dry source if sync source has no different repo)
+		// Use GetHydrateToSource().RepoURL to ensure consistency with where hydrated commits are written
+		if app.Spec.SourceHydrator.SyncSource.RepoURL != "" {
+			return app.Spec.SourceHydrator.SyncSource.RepoURL
+		}
+		return app.Spec.SourceHydrator.DrySource.RepoURL
+	default:
+		// Default to "dry" when sourceType is not specified
+		return app.Spec.SourceHydrator.DrySource.RepoURL
+	}
+}
+
 func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMetadataQuery) (*v1alpha1.RevisionMetadata, error) {
 	a, proj, err := s.getApplicationEnforceRBACInformer(ctx, rbac.ActionGet, q.GetProject(), q.GetAppNamespace(), q.GetName())
 	if err != nil {
@@ -1608,7 +1637,37 @@ func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMe
 		return nil, fmt.Errorf("error getting app source by source index and version ID: %w", err)
 	}
 
-	repo, err := s.db.GetRepository(ctx, source.RepoURL, proj.Name)
+	// Determine the correct repo URL to use
+	// Priority: sourceType > versionId > default
+	var repoURL string
+	switch {
+	case q.GetSourceType() != "":
+		// When sourceType is explicitly provided, use it to determine the repo URL
+		// based on the CURRENT app spec, not the historical source. This ensures
+		// we always use the current repository configuration, even if historical
+		// sources reference old removed repositories.
+		var defaultRepoURL string
+		if a.Spec.SourceHydrator != nil {
+			// Use the current spec's dry source as the default when sourceType is provided
+			defaultRepoURL = a.Spec.SourceHydrator.DrySource.RepoURL
+		} else {
+			// Fallback to historical source if no sourceHydrator
+			defaultRepoURL = source.RepoURL
+		}
+		repoURL = resolveSourceHydratorRepoURLWithSourceType(a, q.GetSourceType(), defaultRepoURL)
+	case q.VersionId != nil:
+		// For historical revisions without explicit sourceType, use the repository URL
+		// directly from the historical source. This ensures we fetch commits from the
+		// repository that was actually used at that time, even if the app configuration
+		// has changed (e.g., SyncSource.repoURL was removed).
+		repoURL = source.RepoURL
+	default:
+		// For current revisions without versionId or sourceType, resolve based on current spec
+		// If sourceType is not specified, defaults to "dry".
+		repoURL = resolveSourceHydratorRepoURLWithSourceType(a, q.GetSourceType(), source.RepoURL)
+	}
+
+	repo, err := s.db.GetRepository(ctx, repoURL, proj.Name)
 	if err != nil {
 		return nil, fmt.Errorf("error getting repository by URL: %w", err)
 	}
@@ -1617,9 +1676,48 @@ func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMe
 		return nil, fmt.Errorf("error creating repo server client: %w", err)
 	}
 	defer utilio.Close(conn)
+
+	// Determine which revision to use
+	revisionToFetch := q.GetRevision()
+
+	// If sourceType is provided and we're using a different repo than the historical source,
+	// and the revision is a commit SHA (from the old repo), we need to resolve the branch/revision
+	// from the CURRENT app spec in the new repo to get the current commit SHA.
+	if q.GetSourceType() != "" && repoURL != source.RepoURL && git.IsCommitSHA(revisionToFetch) {
+		// The revision is an old commit SHA from the old repo, but we're using the new repo.
+		// Get the current app spec's target revision (branch/tag) and resolve it in the new repo.
+		var targetRevision string
+		switch {
+		case a.Spec.SourceHydrator != nil:
+			if q.GetSourceType() == "hydrated" {
+				targetRevision = a.Spec.SourceHydrator.SyncSource.TargetBranch
+			} else {
+				targetRevision = a.Spec.SourceHydrator.DrySource.TargetRevision
+			}
+		case a.Spec.HasMultipleSources() && len(a.Spec.Sources) > 0:
+			targetRevision = a.Spec.Sources[0].TargetRevision
+		case a.Spec.Source != nil:
+			targetRevision = a.Spec.Source.TargetRevision
+		}
+
+		if targetRevision != "" {
+			// Resolve the branch/tag from the current spec in the new repo
+			resolveResp, err := repoClient.ResolveRevision(ctx, &apiclient.ResolveRevisionRequest{
+				Repo:              repo,
+				App:               a,
+				AmbiguousRevision: targetRevision,
+				SourceIndex:       0,
+			})
+			if err == nil && resolveResp.Revision != "" {
+				// Successfully resolved the branch to a commit SHA in the new repo
+				revisionToFetch = resolveResp.Revision
+			}
+		}
+	}
+
 	return repoClient.GetRevisionMetadata(ctx, &apiclient.RepoServerRevisionMetadataRequest{
 		Repo:           repo,
-		Revision:       q.GetRevision(),
+		Revision:       revisionToFetch,
 		CheckSignature: len(proj.Spec.SignatureKeys) > 0,
 	})
 }

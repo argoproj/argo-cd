@@ -85,13 +85,23 @@ export class ApplicationsService {
         return r.then(res => res.body as models.OCIMetadata);
     }
 
-    public revisionMetadata(name: string, appNamespace: string, revision: string, sourceIndex: number | null, versionId: number | null): Promise<models.RevisionMetadata> {
+    public revisionMetadata(
+        name: string,
+        appNamespace: string,
+        revision: string,
+        sourceIndex: number | null,
+        versionId: number | null,
+        sourceType: 'dry' | 'hydrated' | null = null
+    ): Promise<models.RevisionMetadata> {
         let r = requests.get(`/applications/${name}/revisions/${revision || 'HEAD'}/metadata`).query({appNamespace});
         if (sourceIndex !== null) {
             r = r.query({sourceIndex});
         }
         if (versionId !== null) {
             r = r.query({versionId});
+        }
+        if (sourceType !== null) {
+            r = r.query({sourceType});
         }
         return r.then(res => res.body as models.RevisionMetadata);
     }
