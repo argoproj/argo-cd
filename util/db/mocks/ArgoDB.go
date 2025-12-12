@@ -1119,6 +1119,80 @@ func (_c *ArgoDB_GetCluster_Call) RunAndReturn(run func(ctx context.Context, ser
 	return _c
 }
 
+// GetClusterByServerAndName provides a mock function for the type ArgoDB
+func (_mock *ArgoDB) GetClusterByServerAndName(ctx context.Context, server string, name string) (*v1alpha1.Cluster, error) {
+	ret := _mock.Called(ctx, server, name)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetClusterByServerAndName")
+	}
+
+	var r0 *v1alpha1.Cluster
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) (*v1alpha1.Cluster, error)); ok {
+		return returnFunc(ctx, server, name)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) *v1alpha1.Cluster); ok {
+		r0 = returnFunc(ctx, server, name)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*v1alpha1.Cluster)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
+		r1 = returnFunc(ctx, server, name)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// ArgoDB_GetClusterByServerAndName_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetClusterByServerAndName'
+type ArgoDB_GetClusterByServerAndName_Call struct {
+	*mock.Call
+}
+
+// GetClusterByServerAndName is a helper method to define mock.On call
+//   - ctx context.Context
+//   - server string
+//   - name string
+func (_e *ArgoDB_Expecter) GetClusterByServerAndName(ctx interface{}, server interface{}, name interface{}) *ArgoDB_GetClusterByServerAndName_Call {
+	return &ArgoDB_GetClusterByServerAndName_Call{Call: _e.mock.On("GetClusterByServerAndName", ctx, server, name)}
+}
+
+func (_c *ArgoDB_GetClusterByServerAndName_Call) Run(run func(ctx context.Context, server string, name string)) *ArgoDB_GetClusterByServerAndName_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *ArgoDB_GetClusterByServerAndName_Call) Return(cluster *v1alpha1.Cluster, err error) *ArgoDB_GetClusterByServerAndName_Call {
+	_c.Call.Return(cluster, err)
+	return _c
+}
+
+func (_c *ArgoDB_GetClusterByServerAndName_Call) RunAndReturn(run func(ctx context.Context, server string, name string) (*v1alpha1.Cluster, error)) *ArgoDB_GetClusterByServerAndName_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetClusterServersByName provides a mock function for the type ArgoDB
 func (_mock *ArgoDB) GetClusterServersByName(ctx context.Context, name string) ([]string, error) {
 	ret := _mock.Called(ctx, name)

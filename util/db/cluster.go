@@ -143,7 +143,7 @@ type ClusterEvent struct {
 func (db *db) WatchClusters(ctx context.Context,
 	handleAddEvent func(cluster *appv1.Cluster),
 	handleModEvent func(oldCluster *appv1.Cluster, newCluster *appv1.Cluster),
-	handleDeleteEvent func(clusterServer string),
+	handleDeleteEvent func(clusterServerName string),
 ) error {
 	argoSettings, err := db.settingsMgr.GetSettings()
 	if err != nil {
@@ -204,7 +204,7 @@ func (db *db) WatchClusters(ctx context.Context,
 				handleModEvent(localCls, newLocalCls)
 				localCls = newLocalCls
 			} else {
-				handleDeleteEvent(string(secret.Data["server"]))
+				handleDeleteEvent(string(secret.Data["server"]) + string(secret.Data["name"]))
 			}
 		},
 	)
@@ -252,6 +252,37 @@ func (db *db) GetCluster(_ context.Context, server string) (*appv1.Cluster, erro
 	cluster, err := informer.GetClusterByURL(server)
 	if err != nil {
 		return nil, status.Errorf(codes.NotFound, "cluster %q not found", server)
+	}
+
+	return cluster, nil
+}
+
+// GetClusterByServerAndName returns a cluster by server and name
+func (db *db) GetClusterByServerAndName(_ context.Context, server string, name string) (*appv1.Cluster, error) {
+	informer := db.settingsMgr.GetClusterInformer()
+	if server == appv1.KubernetesInternalAPIServerAddr {
+		argoSettings, err := db.settingsMgr.GetSettings()
+		if err != nil {
+			return nil, err
+		}
+		if !argoSettings.InClusterEnabled {
+			return nil, status.Errorf(codes.NotFound, "cluster %q is disabled", server)
+		}
+
+		// Check if there's a secret configured for the in-cluster address
+		// If so, use that instead of the hardcoded local cluster
+		cluster, err := informer.GetClusterByURLAndName(server, name)
+		if err == nil {
+			return cluster, nil
+		}
+
+		// Fall back to the hardcoded local cluster if no secret is configured
+		return db.getLocalCluster(), nil
+	}
+
+	cluster, err := informer.GetClusterByURLAndName(server, name)
+	if err != nil {
+		return nil, status.Errorf(codes.NotFound, "cluster %q with name %q not found", server, name)
 	}
 
 	return cluster, nil
