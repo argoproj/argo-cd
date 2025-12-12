@@ -222,6 +222,104 @@ spec:
           port: 80
 ```
 
+## [Cilium Gateway API](https://docs.cilium.io/en/stable/network/servicemesh/gateway-api/gateway-api/)
+
+Cilium supports the Kubernetes [Gateway API](https://gateway-api.sigs.k8s.io/) which can be used to configure ingress traffic for Argo CD. The Gateway API provides a more expressive and extensible way to configure ingress compared to traditional Ingress resources.
+
+The API server should be run with TLS disabled. Edit the `argocd-server` deployment to add the `--insecure` flag to the argocd-server command, or simply set `server.insecure: "true"` in the `argocd-cmd-params-cm` ConfigMap [as described here](server-commands/additional-configuration-method.md).
+
+### Option 1: HTTP Header Matching
+
+This configuration uses a single hostname for both HTTP and gRPC traffic, with the GRPCRoute using header matching to identify gRPC requests.
+
+Gateway:
+```yaml
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: cluster-gateway
+  namespace: gateway
+  annotations:
+    cert-manager.io/issuer: cloudflare-dns-issuer
+spec:
+  gatewayClassName: cilium
+  addresses:
+  - type: IPAddress
+    value: "192.168.0.130"
+  listeners:
+  - protocol: HTTPS
+    port: 443
+    name: https-cluster
+    hostname: "*.local.example.com"
+    allowedRoutes:
+      namespaces:
+        from: All
+    tls:
+      mode: Terminate
+      certificateRefs:
+      - name: cluster-gateway-tls
+        kind: Secret
+        group: ""
+```
+
+HTTPRoute:
+```yaml
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: argocd-http-route
+  namespace: argocd
+spec:
+  parentRefs:
+  - name: cluster-gateway
+    namespace: gateway
+  hostnames:
+  - "argocd.local.example.com"
+  rules:
+  - backendRefs:
+    - name: argocd-server
+      port: 80
+    matches:
+    - path:
+        type: PathPrefix
+        value: /
+```
+
+GRPCRoute:
+```yaml
+apiVersion: gateway.networking.k8s.io/v1
+kind: GRPCRoute
+metadata:
+  name: argocd-grpc-route
+  namespace: argocd
+spec:
+  parentRefs:
+  - name: cluster-gateway
+    namespace: gateway
+  hostnames:
+  - "argocd.local.example.com"
+  rules:
+  - backendRefs:
+    - name: argocd-server
+      port: 443
+    matches:
+    - headers:
+      - name: Content-Type
+        type: RegularExpression
+        value: "^application/grpc.*$"
+```
+
+Login with the `argocd` CLI:
+
+```shell
+argocd login argocd.local.example.com
+```
+
+### Option 2: Path-based Routing
+
+Alternatively, you can configure path-based routing if your setup requires different routing logic. Adjust the `matches` section in the HTTPRoute and GRPCRoute accordingly based on your specific requirements.
+
+
 ## [kubernetes/ingress-nginx](https://github.com/kubernetes/ingress-nginx)
 
 ### Option 1: SSL-Passthrough
