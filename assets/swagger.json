@@ -7864,6 +7864,10 @@
           "items": {
             "type": "string"
           }
+        },
+        "isAppOfApps": {
+          "description": "IsAppOfApps holds true if the application has any application for child resource.",
+          "type": "boolean"
         }
       }
     },
