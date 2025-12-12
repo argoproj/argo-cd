@@ -26,8 +26,8 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/cli"
 	"github.com/argoproj/argo-cd/v3/util/errors"
 	"github.com/argoproj/argo-cd/v3/util/git"
-	"github.com/argoproj/argo-cd/v3/util/gpg"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
+	"github.com/argoproj/argo-cd/v3/util/sourceintegrity"
 	"github.com/argoproj/argo-cd/v3/util/templates"
 )
 
@@ -185,11 +185,12 @@ func NewProjectSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 func NewProjectAddSignatureKeyCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	command := &cobra.Command{
 		Use:   "add-signature-key PROJECT KEY-ID",
-		Short: "Add GnuPG signature key to project",
+		Short: "Add GnuPG signature key to project (DEPRECATED)",
 		Example: templates.Examples(`
 			# Add GnuPG signature key KEY-ID to project PROJECT
 			argocd proj add-signature-key PROJECT KEY-ID
 		`),
+		Deprecated: "Managing project signature keys in CLI is deprecated, manage its changes through AppProject manifest",
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
@@ -200,8 +201,9 @@ func NewProjectAddSignatureKeyCommand(clientOpts *argocdclient.ClientOptions) *c
 			projName := args[0]
 			signatureKey := args[1]
 
-			if !gpg.IsShortKeyID(signatureKey) && !gpg.IsLongKeyID(signatureKey) {
-				log.Fatalf("%s is not a valid GnuPG key ID", signatureKey)
+			_, err := sourceintegrity.KeyID(signatureKey)
+			if err != nil {
+				log.Fatal(err.Error())
 			}
 
 			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
@@ -227,11 +229,12 @@ func NewProjectAddSignatureKeyCommand(clientOpts *argocdclient.ClientOptions) *c
 func NewProjectRemoveSignatureKeyCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	command := &cobra.Command{
 		Use:   "remove-signature-key PROJECT KEY-ID",
-		Short: "Remove GnuPG signature key from project",
+		Short: "Remove GnuPG signature key from project (DEPRECATED)",
 		Example: templates.Examples(`
 			# Remove GnuPG signature key KEY-ID from project PROJECT
 			argocd proj remove-signature-key PROJECT KEY-ID
 		`),
+		Deprecated: "Managing project signature keys in CLI is deprecated, manage its changes through AppProject manifest",
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 

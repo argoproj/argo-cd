@@ -3,6 +3,7 @@ package e2e
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -251,27 +252,10 @@ func TestSimpleGitDirectoryGeneratorGoTemplate(t *testing.T) {
 
 func TestSimpleGitDirectoryGeneratorGPGEnabledUnsignedCommits(t *testing.T) {
 	fixture.SkipOnEnv(t, "GPG")
-	expectedErrorMessage := `error generating params from git: error getting directories from repo: error retrieving Git Directories: rpc error: code = Unknown desc = permission denied`
-	expectedConditionsParamsError := []v1alpha1.ApplicationSetCondition{
-		{
-			Type:    v1alpha1.ApplicationSetConditionErrorOccurred,
-			Status:  v1alpha1.ApplicationSetConditionStatusTrue,
-			Message: expectedErrorMessage,
-			Reason:  v1alpha1.ApplicationSetReasonApplicationParamsGenerationError,
-		},
-		{
-			Type:    v1alpha1.ApplicationSetConditionParametersGenerated,
-			Status:  v1alpha1.ApplicationSetConditionStatusFalse,
-			Message: expectedErrorMessage,
-			Reason:  v1alpha1.ApplicationSetReasonErrorOccurred,
-		},
-		{
-			Type:    v1alpha1.ApplicationSetConditionResourcesUpToDate,
-			Status:  v1alpha1.ApplicationSetConditionStatusFalse,
-			Message: expectedErrorMessage,
-			Reason:  v1alpha1.ApplicationSetReasonErrorOccurred,
-		},
-	}
+	fixture.EnsureCleanState(t)
+	expectedErrorMessage := regexp.MustCompile(
+		`error generating params from git: error getting directories from repo: error retrieving Git Directories: rpc error: code = Unknown desc = GIT/GPG: Failed verifying revision .* by '.*': unsigned \(key_id=\)`,
+	)
 	generateExpectedApp := func(name string) v1alpha1.Application {
 		return v1alpha1.Application{
 			TypeMeta: metav1.TypeMeta{
@@ -305,6 +289,8 @@ func TestSimpleGitDirectoryGeneratorGPGEnabledUnsignedCommits(t *testing.T) {
 
 	Given(t).
 		When().
+		// Create an unsigned local commit not to rely on whatever is in the repo's HEAD
+		AddFile("test.yaml", randStr(t)).
 		// Create a GitGenerator-based ApplicationSet
 		Create(v1alpha1.ApplicationSet{
 			ObjectMeta: metav1.ObjectMeta{
@@ -329,7 +315,7 @@ func TestSimpleGitDirectoryGeneratorGPGEnabledUnsignedCommits(t *testing.T) {
 				Generators: []v1alpha1.ApplicationSetGenerator{
 					{
 						Git: &v1alpha1.GitGenerator{
-							RepoURL: "https://github.com/argoproj/argocd-example-apps.git",
+							RepoURL: fixture.RepoURL("file://"),
 							Directories: []v1alpha1.GitDirectoryGeneratorItem{
 								{
 									Path: guestbookPath,
@@ -342,34 +328,39 @@ func TestSimpleGitDirectoryGeneratorGPGEnabledUnsignedCommits(t *testing.T) {
 		}).
 		Then().Expect(ApplicationsDoNotExist(expectedApps)).
 		// verify the ApplicationSet error status conditions were set correctly
-		Expect(ApplicationSetHasConditions("simple-git-generator", expectedConditionsParamsError)).
+		Expect(ApplicationSetHasCondition(
+			"simple-git-generator",
+
+			v1alpha1.ApplicationSetConditionErrorOccurred,
+			v1alpha1.ApplicationSetConditionStatusTrue,
+			expectedErrorMessage,
+			v1alpha1.ApplicationSetReasonApplicationParamsGenerationError,
+		)).
+		Expect(ApplicationSetHasCondition(
+			"simple-git-generator",
+
+			v1alpha1.ApplicationSetConditionParametersGenerated,
+			v1alpha1.ApplicationSetConditionStatusFalse,
+			expectedErrorMessage,
+			v1alpha1.ApplicationSetReasonErrorOccurred,
+		)).
+		Expect(ApplicationSetHasCondition(
+			"simple-git-generator",
+			v1alpha1.ApplicationSetConditionResourcesUpToDate,
+			v1alpha1.ApplicationSetConditionStatusFalse,
+			expectedErrorMessage,
+			v1alpha1.ApplicationSetReasonErrorOccurred,
+		)).
 		When().
 		Delete().Then().Expect(ApplicationsDoNotExist(expectedApps))
 }
 
 func TestSimpleGitDirectoryGeneratorGPGEnabledWithoutKnownKeys(t *testing.T) {
 	fixture.SkipOnEnv(t, "GPG")
-	expectedErrorMessage := `error generating params from git: error getting directories from repo: error retrieving Git Directories: rpc error: code = Unknown desc = permission denied`
-	expectedConditionsParamsError := []v1alpha1.ApplicationSetCondition{
-		{
-			Type:    v1alpha1.ApplicationSetConditionErrorOccurred,
-			Status:  v1alpha1.ApplicationSetConditionStatusTrue,
-			Message: expectedErrorMessage,
-			Reason:  v1alpha1.ApplicationSetReasonApplicationParamsGenerationError,
-		},
-		{
-			Type:    v1alpha1.ApplicationSetConditionParametersGenerated,
-			Status:  v1alpha1.ApplicationSetConditionStatusFalse,
-			Message: expectedErrorMessage,
-			Reason:  v1alpha1.ApplicationSetReasonErrorOccurred,
-		},
-		{
-			Type:    v1alpha1.ApplicationSetConditionResourcesUpToDate,
-			Status:  v1alpha1.ApplicationSetConditionStatusFalse,
-			Message: expectedErrorMessage,
-			Reason:  v1alpha1.ApplicationSetReasonErrorOccurred,
-		},
-	}
+	fixture.EnsureCleanState(t)
+	expectedErrorMessage := regexp.MustCompile(
+		`error generating params from git: error getting directories from repo: error retrieving Git Directories: rpc error: code = Unknown desc = GIT/GPG: Failed verifying revision .* by '.*': signed with key not in keyring \(key_id=` + fixture.GpgGoodKeyID + `\)`,
+	)
 	generateExpectedApp := func(name string) v1alpha1.Application {
 		return v1alpha1.Application{
 			TypeMeta: metav1.TypeMeta{
@@ -405,7 +396,7 @@ func TestSimpleGitDirectoryGeneratorGPGEnabledWithoutKnownKeys(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).
 		When().
-		AddSignedFile("test.yaml", randStr(t)).IgnoreErrors().
+		AddSignedFile("test.yaml", randStr(t)).
 		IgnoreErrors().
 		// Create a GitGenerator-based ApplicationSet
 		Create(v1alpha1.ApplicationSet{
@@ -435,7 +426,7 @@ func TestSimpleGitDirectoryGeneratorGPGEnabledWithoutKnownKeys(t *testing.T) {
 				Generators: []v1alpha1.ApplicationSetGenerator{
 					{
 						Git: &v1alpha1.GitGenerator{
-							RepoURL: "https://github.com/argoproj/argocd-example-apps.git",
+							RepoURL: fixture.RepoURL("file://"),
 							Directories: []v1alpha1.GitDirectoryGeneratorItem{
 								{
 									Path: guestbookPath,
@@ -447,7 +438,27 @@ func TestSimpleGitDirectoryGeneratorGPGEnabledWithoutKnownKeys(t *testing.T) {
 			},
 		}).Then().
 		// verify the ApplicationSet error status conditions were set correctly
-		Expect(ApplicationSetHasConditions("simple-git-generator", expectedConditionsParamsError)).
+		Expect(ApplicationSetHasCondition(
+			"simple-git-generator",
+			v1alpha1.ApplicationSetConditionErrorOccurred,
+			v1alpha1.ApplicationSetConditionStatusTrue,
+			expectedErrorMessage,
+			v1alpha1.ApplicationSetReasonApplicationParamsGenerationError,
+		)).
+		Expect(ApplicationSetHasCondition(
+			"simple-git-generator",
+			v1alpha1.ApplicationSetConditionParametersGenerated,
+			v1alpha1.ApplicationSetConditionStatusFalse,
+			expectedErrorMessage,
+			v1alpha1.ApplicationSetReasonErrorOccurred,
+		)).
+		Expect(ApplicationSetHasCondition(
+			"simple-git-generator",
+			v1alpha1.ApplicationSetConditionResourcesUpToDate,
+			v1alpha1.ApplicationSetConditionStatusFalse,
+			expectedErrorMessage,
+			v1alpha1.ApplicationSetReasonErrorOccurred,
+		)).
 		Expect(ApplicationsDoNotExist(expectedApps)).
 		When().
 		Delete().Then().Expect(ApplicationsDoNotExist(expectedApps))
@@ -564,125 +575,9 @@ func TestSimpleGitFilesGenerator(t *testing.T) {
 
 func TestSimpleGitFilesGeneratorGPGEnabledUnsignedCommits(t *testing.T) {
 	fixture.SkipOnEnv(t, "GPG")
-	expectedErrorMessage := `error generating params from git: error retrieving Git files: rpc error: code = Unknown desc = permission denied`
-	expectedConditionsParamsError := []v1alpha1.ApplicationSetCondition{
-		{
-			Type:    v1alpha1.ApplicationSetConditionErrorOccurred,
-			Status:  v1alpha1.ApplicationSetConditionStatusTrue,
-			Message: expectedErrorMessage,
-			Reason:  v1alpha1.ApplicationSetReasonApplicationParamsGenerationError,
-		},
-		{
-			Type:    v1alpha1.ApplicationSetConditionParametersGenerated,
-			Status:  v1alpha1.ApplicationSetConditionStatusFalse,
-			Message: expectedErrorMessage,
-			Reason:  v1alpha1.ApplicationSetReasonErrorOccurred,
-		},
-		{
-			Type:    v1alpha1.ApplicationSetConditionResourcesUpToDate,
-			Status:  v1alpha1.ApplicationSetConditionStatusFalse,
-			Message: expectedErrorMessage,
-			Reason:  v1alpha1.ApplicationSetReasonErrorOccurred,
-		},
-	}
-	project := "gpg"
-	generateExpectedApp := func(name string) v1alpha1.Application {
-		return v1alpha1.Application{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       application.ApplicationKind,
-				APIVersion: "argoproj.io/v1alpha1",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:       name,
-				Namespace:  fixture.TestNamespace(),
-				Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-			},
-			Spec: v1alpha1.ApplicationSpec{
-				Project: project,
-				Source: &v1alpha1.ApplicationSource{
-					RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
-					TargetRevision: "HEAD",
-					Path:           "guestbook",
-				},
-				Destination: v1alpha1.ApplicationDestination{
-					Server:    "https://kubernetes.default.svc",
-					Namespace: "guestbook",
-				},
-			},
-		}
-	}
+	fixture.EnsureCleanState(t)
+	expectedErrorMessage := regexp.MustCompile(`error generating params from git: error retrieving Git files: rpc error: code = Unknown desc = GIT/GPG: Failed verifying revision .* by '.*': unsigned \(key_id=\)`)
 
-	expectedApps := []v1alpha1.Application{
-		generateExpectedApp("engineering-dev-guestbook"),
-		generateExpectedApp("engineering-prod-guestbook"),
-	}
-
-	Given(t).
-		When().
-		// Create a GitGenerator-based ApplicationSet
-		Create(v1alpha1.ApplicationSet{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "simple-git-generator",
-			},
-			Spec: v1alpha1.ApplicationSetSpec{
-				Template: v1alpha1.ApplicationSetTemplate{
-					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{cluster.name}}-guestbook"},
-					Spec: v1alpha1.ApplicationSpec{
-						Project: project,
-						Source: &v1alpha1.ApplicationSource{
-							RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
-							TargetRevision: "HEAD",
-							Path:           "guestbook",
-						},
-						Destination: v1alpha1.ApplicationDestination{
-							Server:    "https://kubernetes.default.svc",
-							Namespace: "guestbook",
-						},
-					},
-				},
-				Generators: []v1alpha1.ApplicationSetGenerator{
-					{
-						Git: &v1alpha1.GitGenerator{
-							RepoURL: "https://github.com/argoproj/applicationset.git",
-							Files: []v1alpha1.GitFileGeneratorItem{
-								{
-									Path: "examples/git-generator-files-discovery/cluster-config/**/config.json",
-								},
-							},
-						},
-					},
-				},
-			},
-		}).Then().Expect(ApplicationsDoNotExist(expectedApps)).
-		// verify the ApplicationSet error status conditions were set correctly
-		Expect(ApplicationSetHasConditions("simple-git-generator", expectedConditionsParamsError)).
-		When().
-		Delete().Then().Expect(ApplicationsDoNotExist(expectedApps))
-}
-
-func TestSimpleGitFilesGeneratorGPGEnabledWithoutKnownKeys(t *testing.T) {
-	fixture.SkipOnEnv(t, "GPG")
-	expectedErrorMessage := `error generating params from git: error retrieving Git files: rpc error: code = Unknown desc = permission denied`
-	expectedConditionsParamsError := []v1alpha1.ApplicationSetCondition{
-		{
-			Type:    v1alpha1.ApplicationSetConditionErrorOccurred,
-			Status:  v1alpha1.ApplicationSetConditionStatusTrue,
-			Message: expectedErrorMessage,
-			Reason:  v1alpha1.ApplicationSetReasonApplicationParamsGenerationError,
-		},
-		{
-			Type:    v1alpha1.ApplicationSetConditionParametersGenerated,
-			Status:  v1alpha1.ApplicationSetConditionStatusFalse,
-			Message: expectedErrorMessage,
-			Reason:  v1alpha1.ApplicationSetReasonErrorOccurred,
-		},
-		{
-			Type:    v1alpha1.ApplicationSetConditionResourcesUpToDate,
-			Status:  v1alpha1.ApplicationSetConditionStatusFalse,
-			Message: expectedErrorMessage,
-			Reason:  v1alpha1.ApplicationSetReasonErrorOccurred,
-		},
-	}
 	project := "gpg"
 	generateExpectedApp := func(name string) v1alpha1.Application {
 		return v1alpha1.Application{
@@ -718,7 +613,112 @@ func TestSimpleGitFilesGeneratorGPGEnabledWithoutKnownKeys(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).
 		When().
-		AddSignedFile("test.yaml", randStr(t)).IgnoreErrors().
+		// Create an unsigned local commit not to rely on whatever is in the repo's HEAD
+		AddFile("test.yaml", randStr(t)).
+		// Create a GitGenerator-based ApplicationSet
+		Create(v1alpha1.ApplicationSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "simple-git-generator",
+			},
+			Spec: v1alpha1.ApplicationSetSpec{
+				Template: v1alpha1.ApplicationSetTemplate{
+					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{cluster.name}}-guestbook"},
+					Spec: v1alpha1.ApplicationSpec{
+						Project: project,
+						Source: &v1alpha1.ApplicationSource{
+							RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+							TargetRevision: "HEAD",
+							Path:           "guestbook",
+						},
+						Destination: v1alpha1.ApplicationDestination{
+							Server:    "https://kubernetes.default.svc",
+							Namespace: "guestbook",
+						},
+					},
+				},
+				Generators: []v1alpha1.ApplicationSetGenerator{
+					{
+						Git: &v1alpha1.GitGenerator{
+							RepoURL: fixture.RepoURL("file://"),
+							Files: []v1alpha1.GitFileGeneratorItem{
+								{
+									Path: "examples/git-generator-files-discovery/cluster-config/**/config.json",
+								},
+							},
+						},
+					},
+				},
+			},
+		}).
+		Then().Expect(ApplicationsDoNotExist(expectedApps)).
+		Expect(ApplicationSetHasCondition(
+			"simple-git-generator",
+			v1alpha1.ApplicationSetConditionErrorOccurred,
+			v1alpha1.ApplicationSetConditionStatusTrue,
+			expectedErrorMessage,
+			v1alpha1.ApplicationSetReasonApplicationParamsGenerationError,
+		)).
+		Expect(ApplicationSetHasCondition(
+			"simple-git-generator",
+			v1alpha1.ApplicationSetConditionParametersGenerated,
+			v1alpha1.ApplicationSetConditionStatusFalse,
+			expectedErrorMessage,
+			v1alpha1.ApplicationSetReasonErrorOccurred,
+		)).
+		Expect(ApplicationSetHasCondition(
+			"simple-git-generator",
+			v1alpha1.ApplicationSetConditionResourcesUpToDate,
+			v1alpha1.ApplicationSetConditionStatusFalse,
+			expectedErrorMessage,
+			v1alpha1.ApplicationSetReasonErrorOccurred,
+		)).
+		When().Delete().
+		Then().Expect(ApplicationsDoNotExist(expectedApps))
+}
+
+func TestSimpleGitFilesGeneratorGPGEnabledWithoutKnownKeys(t *testing.T) {
+	fixture.SkipOnEnv(t, "GPG")
+	fixture.EnsureCleanState(t)
+	expectedErrorMessage := regexp.MustCompile(
+		`error generating params from git: error retrieving Git files: rpc error: code = Unknown desc = GIT/GPG: Failed verifying revision .* by '.*': signed with key not in keyring \(key_id=` + fixture.GpgGoodKeyID + `\)`,
+	)
+
+	project := "gpg"
+	generateExpectedApp := func(name string) v1alpha1.Application {
+		return v1alpha1.Application{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       application.ApplicationKind,
+				APIVersion: "argoproj.io/v1alpha1",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:       name,
+				Namespace:  fixture.TestNamespace(),
+				Finalizers: []string{v1alpha1.ResourcesFinalizerName},
+			},
+			Spec: v1alpha1.ApplicationSpec{
+				Project: project,
+				Source: &v1alpha1.ApplicationSource{
+					RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+					TargetRevision: "HEAD",
+					Path:           "guestbook",
+				},
+				Destination: v1alpha1.ApplicationDestination{
+					Server:    "https://kubernetes.default.svc",
+					Namespace: "guestbook",
+				},
+			},
+		}
+	}
+
+	expectedApps := []v1alpha1.Application{
+		generateExpectedApp("engineering-dev-guestbook"),
+		generateExpectedApp("engineering-prod-guestbook"),
+	}
+
+	Given(t).
+		Path(guestbookPath).
+		When().
+		AddSignedFile("test.yaml", randStr(t)).
 		IgnoreErrors().
 		// Create a GitGenerator-based ApplicationSet
 		Create(v1alpha1.ApplicationSet{
@@ -744,7 +744,7 @@ func TestSimpleGitFilesGeneratorGPGEnabledWithoutKnownKeys(t *testing.T) {
 				Generators: []v1alpha1.ApplicationSetGenerator{
 					{
 						Git: &v1alpha1.GitGenerator{
-							RepoURL: "https://github.com/argoproj/applicationset.git",
+							RepoURL: fixture.RepoURL("file://"),
 							Files: []v1alpha1.GitFileGeneratorItem{
 								{
 									Path: "examples/git-generator-files-discovery/cluster-config/**/config.json",
@@ -756,7 +756,27 @@ func TestSimpleGitFilesGeneratorGPGEnabledWithoutKnownKeys(t *testing.T) {
 			},
 		}).Then().
 		// verify the ApplicationSet error status conditions were set correctly
-		Expect(ApplicationSetHasConditions("simple-git-generator", expectedConditionsParamsError)).
+		Expect(ApplicationSetHasCondition(
+			"simple-git-generator",
+			v1alpha1.ApplicationSetConditionErrorOccurred,
+			v1alpha1.ApplicationSetConditionStatusTrue,
+			expectedErrorMessage,
+			v1alpha1.ApplicationSetReasonApplicationParamsGenerationError,
+		)).
+		Expect(ApplicationSetHasCondition(
+			"simple-git-generator",
+			v1alpha1.ApplicationSetConditionParametersGenerated,
+			v1alpha1.ApplicationSetConditionStatusFalse,
+			expectedErrorMessage,
+			v1alpha1.ApplicationSetReasonErrorOccurred,
+		)).
+		Expect(ApplicationSetHasCondition(
+			"simple-git-generator",
+			v1alpha1.ApplicationSetConditionResourcesUpToDate,
+			v1alpha1.ApplicationSetConditionStatusFalse,
+			expectedErrorMessage,
+			v1alpha1.ApplicationSetReasonErrorOccurred,
+		)).
 		Expect(ApplicationsDoNotExist(expectedApps)).
 		When().
 		Delete().Then().Expect(ApplicationsDoNotExist(expectedApps))

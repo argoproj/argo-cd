@@ -3,6 +3,7 @@ package applicationsets
 import (
 	"fmt"
 	"reflect"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -97,6 +98,24 @@ func ApplicationSetHasConditions(applicationSetName string, expectedConditions [
 			return pending, fmt.Sprintf("application set conditions are not equal: '%s', diff: %s\n", expectedConditions, diff)
 		}
 		return succeeded, "application set successfully found"
+	}
+}
+
+func ApplicationSetHasCondition(applicationSetName string, expType v1alpha1.ApplicationSetConditionType, expStatus v1alpha1.ApplicationSetConditionStatus, expMessage *regexp.Regexp, expReason string) Expectation {
+	return func(c *Consequences) (state, string) {
+		foundApplicationSet := c.applicationSet(applicationSetName)
+		if foundApplicationSet == nil {
+			return pending, fmt.Sprintf("application set '%s' not found", applicationSetName)
+		}
+
+		got := foundApplicationSet.Status.Conditions
+		message := fmt.Sprintf("condition {%s %s %s %s} in %v", expType, expMessage, expStatus, expReason, got)
+		for _, condition := range got {
+			if expType == condition.Type && expStatus == condition.Status && expReason == condition.Reason && expMessage.MatchString(condition.Message) {
+				return succeeded, message
+			}
+		}
+		return pending, message
 	}
 }
 
