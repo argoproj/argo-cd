@@ -472,6 +472,9 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 		}
 	}
 
+	// Track app count for conditional jitter
+	appCount := 0
+
 	for _, webURL := range webURLs {
 		repoRegexp, err := GetWebURLRegex(webURL)
 		if err != nil {
@@ -489,6 +492,7 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 			}
 		}
 
+		appCount := 0
 		// iterate over apps and check if any files specified in their sources have changed
 		for _, app := range filteredApps {
 			// get all sources, including sync source and dry source if source hydrator is configured
@@ -517,12 +521,14 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 						if hydrateType != nil {
 							log.Infof("webhook trigger refresh app to hydrate '%s'", app.Name)
 						}
+						appCount++
 						req := &appRefreshRequest{
 							appName:      app.Name,
 							appNamespace: app.Namespace,
 							hydrateType:  hydrateType,
 						}
-						if a.webhookRefreshJitter != 0 {
+						// Apply jitter only if more than 10 apps are affected
+						if appCount > 10 && a.webhookRefreshJitter != 0 {
 							jitter := time.Duration(float64(a.webhookRefreshJitter) * rand.Float64())
 							a.refreshQueue.AddAfter(req, jitter)
 						} else {
