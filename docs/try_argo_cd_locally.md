@@ -30,7 +30,7 @@ This command verifies that `kubectl` is pointed to the right cluster.
 You can now install Argo CD on your `kind` cluster. First, apply the Argo CD manifest to create the necessary resources:
 ```bash
 kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+kubectl apply -n argocd --server-side -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
 ```
 
 ## Expose ArgoCD API Server

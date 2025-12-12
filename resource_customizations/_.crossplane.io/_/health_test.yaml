@@ -7,3 +7,7 @@ tests:
       status: Healthy
       message: "Resource is up-to-date."
     inputPath: testdata/configurationrevision_healthy.yaml
+  - healthStatus:
+      status: Degraded
+      message: "ActivePackageRevision UnhealthyPackageRevision"
+    inputPath: testdata/provider_degraded.yaml
