@@ -3,11 +3,17 @@ package oidc
 import (
 	"context"
 	"errors"
+
 	"fmt"
 	"net/http"
 	"strings"
+	"sync"
+	"time"
 
+	jwttoken "github.com/argoproj/argo-cd/v3/util/jwt/token"
 	gooidc "github.com/coreos/go-oidc/v3/oidc"
+	"github.com/go-jose/go-jose/v4"
+	jwtgo "github.com/golang-jwt/jwt/v5"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 
@@ -23,17 +29,20 @@ import (
 // case of dex reverse proxy), which presents a chicken-and-egg problem of (1) serving dex over
 // HTTP, and (2) querying the OIDC provider (ourself) to initialize the OIDC client.
 type Provider interface {
+	jwttoken.Verifier
 	Endpoint() (*oauth2.Endpoint, error)
-
 	ParseConfig() (*OIDCConfiguration, error)
-
-	Verify(ctx context.Context, tokenString string, argoSettings *settings.ArgoCDSettings) (*gooidc.IDToken, error)
 }
 
 type providerImpl struct {
 	issuerURL      string
 	client         *http.Client
 	goOIDCProvider *gooidc.Provider
+
+	jwksCache       *jose.JSONWebKeySet
+	jwksExpiry      time.Time
+	jwksCacheMux    sync.Mutex
+	defaultCacheTTL time.Duration
 }
 
 var _ Provider = &providerImpl{}
@@ -41,8 +50,9 @@ var _ Provider = &providerImpl{}
 // NewOIDCProvider initializes an OIDC provider
 func NewOIDCProvider(issuerURL string, client *http.Client) Provider {
 	return &providerImpl{
-		issuerURL: issuerURL,
-		client:    client,
+		issuerURL:       issuerURL,
+		client:          client,
+		defaultCacheTTL: 5 * time.Minute,
 	}
 }
 
@@ -85,7 +95,7 @@ func (t tokenVerificationError) Error() string {
 	return "token verification failed for all audiences: " + strings.Join(errorStrings, ", ")
 }
 
-func (p *providerImpl) Verify(ctx context.Context, tokenString string, argoSettings *settings.ArgoCDSettings) (*gooidc.IDToken, error) {
+func (p *providerImpl) Verify(ctx context.Context, tokenString string, argoSettings *settings.ArgoCDSettings) (jwtgo.Claims, error) {
 	// According to the JWT spec, the aud claim is optional. The spec also says (emphasis mine):
 	//
 	//   If the principal processing the claim does not identify itself with a value in the "aud" claim _when this
@@ -143,10 +153,17 @@ func (p *providerImpl) Verify(ctx context.Context, tokenString string, argoSetti
 	}
 
 	if err != nil {
-		return nil, fmt.Errorf("failed to verify provider token: %w", err)
+		return nil, fmt.Errorf("failed to verify provider OIDC token: %w", err)
 	}
 
-	return idToken, nil
+	// extract claims from verified token
+	var verifiedClaims jwtgo.MapClaims
+	if err = idToken.Claims(&verifiedClaims); err != nil {
+		return nil, fmt.Errorf("failed to extract claims from OIDC token: %w", err)
+	}
+
+	log.Debug("Token verified using OIDC")
+	return verifiedClaims, nil
 }
 
 func (p *providerImpl) verify(ctx context.Context, clientID, tokenString string, skipClientIDCheck bool) (*gooidc.IDToken, error) {
