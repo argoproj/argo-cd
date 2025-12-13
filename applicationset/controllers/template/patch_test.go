@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
@@ -174,6 +175,104 @@ spec:
 						Automated: &appv1.SyncPolicyAutomated{
 							Prune: true,
 						},
+					},
+				},
+			},
+		},
+		{
+			name: "json patch with YAML",
+			appTemplate: &appv1.Application{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "Application",
+					APIVersion: "argoproj.io/v1alpha1",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:       "my-cluster-guestbook",
+					Namespace:  "namespace",
+					Finalizers: []string{appv1.ResourcesFinalizerName},
+				},
+				Spec: appv1.ApplicationSpec{
+					Project: "default",
+					Sources: appv1.ApplicationSources{
+						appv1.ApplicationSource{
+							RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+							TargetRevision: "HEAD",
+							Path:           "guestbook",
+						},
+						appv1.ApplicationSource{
+							RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+							TargetRevision: "HEAD",
+							Path:           "blue-green",
+							Helm: &appv1.ApplicationSourceHelm{
+								Values: `
+---
+replicaCount: 3`,
+							},
+						},
+					},
+					Destination: appv1.ApplicationDestination{
+						Server:    "https://kubernetes.default.svc",
+						Namespace: "guestbook",
+					},
+				},
+			},
+			templatePatch: `
+[
+  {
+    "op": "add",
+    "path": "/metadata/annotations",
+    "value": {}
+  },
+  {
+    "op": "add",
+    "path": "/metadata/annotations/annotation-some-key",
+    "value": "annotation-some-value"
+  },
+  {
+    "op": "add",
+    "path": "/spec/sources/1/helm/valuesObject",
+    "value": {"image":{"tag":"v6"}}
+  }
+]
+`,
+			expectedApp: &appv1.Application{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "Application",
+					APIVersion: "argoproj.io/v1alpha1",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:       "my-cluster-guestbook",
+					Namespace:  "namespace",
+					Finalizers: []string{appv1.ResourcesFinalizerName},
+					Annotations: map[string]string{
+						"annotation-some-key": "annotation-some-value",
+					},
+				},
+				Spec: appv1.ApplicationSpec{
+					Project: "default",
+					Sources: appv1.ApplicationSources{
+						appv1.ApplicationSource{
+							RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+							TargetRevision: "HEAD",
+							Path:           "guestbook",
+						},
+						appv1.ApplicationSource{
+							RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+							TargetRevision: "HEAD",
+							Path:           "blue-green",
+							Helm: &appv1.ApplicationSourceHelm{
+								Values: `
+---
+replicaCount: 3`,
+								ValuesObject: &runtime.RawExtension{
+									Raw: []byte(`{"image":{"tag":"v6"}}`),
+								},
+							},
+						},
+					},
+					Destination: appv1.ApplicationDestination{
+						Server:    "https://kubernetes.default.svc",
+						Namespace: "guestbook",
 					},
 				},
 			},
