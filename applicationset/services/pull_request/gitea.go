@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"os"
+	"time"
 
 	"code.gitea.io/sdk/gitea"
 )
@@ -75,8 +76,8 @@ func (g *GiteaService) List(ctx context.Context) ([]*PullRequest, error) {
 			HeadSHA:      pr.Head.Sha,
 			Labels:       getGiteaPRLabelNames(pr.Labels),
 			Author:       pr.Poster.UserName,
-			CreatedAt:    *pr.Created,
-			UpdatedAt:    *pr.Updated,
+			CreatedAt:    pr.Created.In(time.UTC),
+			UpdatedAt:    pr.Updated.In(time.UTC),
 		})
 	}
 	return list, nil

@@ -33,16 +33,18 @@ func compileFilters(filters []argoprojiov1alpha1.PullRequestGeneratorFilter) ([]
 			}
 		}
 		if filter.CreatedWithin != nil {
-			outFilter.CreatedWithin, err = time.ParseDuration(*filter.CreatedWithin)
+			createdWithin, err := time.ParseDuration(*filter.CreatedWithin)
 			if err != nil {
 				return nil, fmt.Errorf("error parsing CreatedWithin duration %s: %w", *filter.CreatedWithin, err)
 			}
+			outFilter.CreatedWithin = &createdWithin
 		}
 		if filter.UpdatedWithin != nil {
-			outFilter.UpdatedWithin, err = time.ParseDuration(*filter.UpdatedWithin)
+			updatedWithin, err := time.ParseDuration(*filter.UpdatedWithin)
 			if err != nil {
 				return nil, fmt.Errorf("error parsing UpdatedWithin duration %s: %w", *filter.UpdatedWithin, err)
 			}
+			outFilter.UpdatedWithin = &updatedWithin
 		}
 		outFilters = append(outFilters, outFilter)
 	}
@@ -59,10 +61,10 @@ func matchFilter(pullRequest *PullRequest, filter *Filter) bool {
 	if filter.TitleMatch != nil && !filter.TitleMatch.MatchString(pullRequest.Title) {
 		return false
 	}
-	if filter.CreatedWithin != 0 && pullRequest.CreatedAt.Before(time.Now().Add(-filter.CreatedWithin)) {
+	if filter.CreatedWithin != nil && pullRequest.CreatedAt.Before(time.Now().Add(-*filter.CreatedWithin)) {
 		return false
 	}
-	if filter.UpdatedWithin != 0 && pullRequest.UpdatedAt.Before(time.Now().Add(-filter.UpdatedWithin)) {
+	if filter.UpdatedWithin != nil && pullRequest.UpdatedAt.Before(time.Now().Add(-*filter.UpdatedWithin)) {
 		return false
 	}
 
