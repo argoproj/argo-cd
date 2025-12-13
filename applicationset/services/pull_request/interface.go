@@ -36,6 +36,6 @@ type Filter struct {
 	BranchMatch       *regexp.Regexp
 	TargetBranchMatch *regexp.Regexp
 	TitleMatch        *regexp.Regexp
-	CreatedWithin     time.Duration
-	UpdatedWithin     time.Duration
+	CreatedWithin     *time.Duration
+	UpdatedWithin     *time.Duration
 }

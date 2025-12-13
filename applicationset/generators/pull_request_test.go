@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -12,6 +13,12 @@ import (
 	pullrequest "github.com/argoproj/argo-cd/v3/applicationset/services/pull_request"
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
+
+func parseTimeFromString(t string) time.Time {
+	pt, _ := time.Parse(time.RFC3339, t)
+
+	return pt
+}
 
 func TestPullRequestGithubGenerateParams(t *testing.T) {
 	ctx := t.Context()
@@ -35,6 +42,8 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 							TargetBranch: "master",
 							HeadSHA:      "089d92cbf9ff857a39e6feccd32798ca700fb958",
 							Author:       "testName",
+							CreatedAt:    parseTimeFromString("2011-01-26T19:01:12Z"),
+							UpdatedAt:    parseTimeFromString("2011-01-26T19:01:12Z"),
 						},
 					},
 					nil,
@@ -52,6 +61,8 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 					"head_short_sha":     "089d92cb",
 					"head_short_sha_7":   "089d92c",
 					"author":             "testName",
+					"created_at":         "2011-01-26T19:01:12Z",
+					"updated_at":         "2011-01-26T19:01:12Z",
 				},
 			},
 			expectedErr: nil,
@@ -68,6 +79,8 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 							TargetBranch: "feat/anotherreally+long_pull_request_name_to_test_argo_slugification_and_branch_name_shortening_feature",
 							HeadSHA:      "9b34ff5bd418e57d58891eb0aa0728043ca1e8be",
 							Author:       "testName",
+							CreatedAt:    parseTimeFromString("2011-01-26T19:01:12Z"),
+							UpdatedAt:    parseTimeFromString("2011-01-26T19:01:12Z"),
 						},
 					},
 					nil,
@@ -85,6 +98,8 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 					"head_short_sha":     "9b34ff5b",
 					"head_short_sha_7":   "9b34ff5",
 					"author":             "testName",
+					"created_at":         "2011-01-26T19:01:12Z",
+					"updated_at":         "2011-01-26T19:01:12Z",
 				},
 			},
 			expectedErr: nil,
@@ -101,6 +116,8 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 							TargetBranch: "master",
 							HeadSHA:      "abcd",
 							Author:       "testName",
+							CreatedAt:    parseTimeFromString("2011-01-26T19:01:12Z"),
+							UpdatedAt:    parseTimeFromString("2011-01-26T19:01:12Z"),
 						},
 					},
 					nil,
@@ -118,6 +135,8 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 					"head_short_sha":     "abcd",
 					"head_short_sha_7":   "abcd",
 					"author":             "testName",
+					"created_at":         "2011-01-26T19:01:12Z",
+					"updated_at":         "2011-01-26T19:01:12Z",
 				},
 			},
 			expectedErr: nil,
@@ -134,6 +153,8 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 							TargetBranch: "master",
 							HeadSHA:      "abcd",
 							Author:       "testName",
+							CreatedAt:    parseTimeFromString("2011-01-26T19:01:12Z"),
+							UpdatedAt:    parseTimeFromString("2011-01-26T19:01:12Z"),
 						},
 					},
 					nil,
@@ -157,6 +178,8 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 					"author":             "testName",
 					"values.foo":         "bar",
 					"values.pr_branch":   "my_branch",
+					"created_at":         "2011-01-26T19:01:12Z",
+					"updated_at":         "2011-01-26T19:01:12Z",
 				},
 			},
 			expectedErr: nil,
@@ -209,6 +232,8 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 							HeadSHA:      "089d92cbf9ff857a39e6feccd32798ca700fb958",
 							Labels:       []string{"preview"},
 							Author:       "testName",
+							CreatedAt:    parseTimeFromString("2011-01-26T19:01:12Z"),
+							UpdatedAt:    parseTimeFromString("2011-01-26T19:01:12Z"),
 						},
 					},
 					nil,
@@ -227,6 +252,8 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 					"head_short_sha_7":   "089d92c",
 					"labels":             []string{"preview"},
 					"author":             "testName",
+					"created_at":         "2011-01-26T19:01:12Z",
+					"updated_at":         "2011-01-26T19:01:12Z",
 				},
 			},
 			expectedErr: nil,
@@ -250,6 +277,8 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 							HeadSHA:      "089d92cbf9ff857a39e6feccd32798ca700fb958",
 							Labels:       []string{"preview"},
 							Author:       "testName",
+							CreatedAt:    parseTimeFromString("2011-01-26T19:01:12Z"),
+							UpdatedAt:    parseTimeFromString("2011-01-26T19:01:12Z"),
 						},
 					},
 					nil,
@@ -267,6 +296,8 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 					"head_short_sha":     "089d92cb",
 					"head_short_sha_7":   "089d92c",
 					"author":             "testName",
+					"created_at":         "2011-01-26T19:01:12Z",
+					"updated_at":         "2011-01-26T19:01:12Z",
 				},
 			},
 			expectedErr: nil,
@@ -290,6 +321,8 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 							HeadSHA:      "abcd",
 							Author:       "testName",
 							Labels:       []string{"preview", "preview:team1"},
+							CreatedAt:    parseTimeFromString("2011-01-26T19:01:12Z"),
+							UpdatedAt:    parseTimeFromString("2011-01-26T19:01:12Z"),
 						},
 					},
 					nil,
@@ -312,6 +345,8 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 					"author":             "testName",
 					"labels":             []string{"preview", "preview:team1"},
 					"values":             map[string]string{"preview_env": "team1"},
+					"created_at":         "2011-01-26T19:01:12Z",
+					"updated_at":         "2011-01-26T19:01:12Z",
 				},
 			},
 			expectedErr: nil,

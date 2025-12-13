@@ -90,8 +90,8 @@ func (b *BitbucketService) List(_ context.Context) ([]*PullRequest, error) {
 				HeadSHA:      pull.FromRef.LatestCommit, // This is not defined in the official docs, but works in practice
 				Labels:       []string{},                // Not supported by library
 				Author:       pull.Author.User.Name,
-				CreatedAt:    time.Unix(pull.CreatedDate, 0),
-				UpdatedAt:    time.Unix(pull.UpdatedDate, 0),
+				CreatedAt:    time.Unix(pull.CreatedDate/1000, 0),
+				UpdatedAt:    time.Unix(pull.UpdatedDate/1000, 0),
 			})
 		}
 
