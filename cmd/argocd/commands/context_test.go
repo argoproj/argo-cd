@@ -4,6 +4,8 @@ import (
 	"os"
 	"testing"
 
+	argocdclient "github.com/argoproj/argo-cd/v3/pkg/apiclient"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -37,6 +39,110 @@ users:
   name: localhost:8080`
 
 const testConfigFilePath = "./testdata/local.config"
+
+func TestContextList(t *testing.T) {
+	// Write the test config file
+	err := os.WriteFile(testConfigFilePath, []byte(testConfig), os.ModePerm)
+	require.NoError(t, err)
+	defer os.Remove(testConfigFilePath)
+
+	err = os.Chmod(testConfigFilePath, 0o600)
+	require.NoError(t, err, "Could not change the file permission to 0600 %v", err)
+
+	expected := "CURRENT  NAME                     SERVER\n         argocd1.example.com:443  argocd1.example.com:443\n         argocd2.example.com:443  argocd2.example.com:443\n*        localhost:8080           localhost:8080\n"
+	output, err := captureOutput(func() error {
+		printArgoCDContexts(testConfigFilePath)
+		return nil
+	})
+	require.NoError(t, err)
+	assert.Equal(t, expected, output)
+}
+
+func TestContextUseUndefinedContext(t *testing.T) {
+	// Write the test config file
+	err := os.WriteFile(testConfigFilePath, []byte(testConfig), os.ModePerm)
+	require.NoError(t, err)
+	defer os.Remove(testConfigFilePath)
+
+	err = os.Chmod(testConfigFilePath, 0o600)
+	require.NoError(t, err, "Could not change the file permission to 0600 %v", err)
+
+	output, err := captureOutput(func() error {
+		clientOpts := &argocdclient.ClientOptions{ConfigPath: testConfigFilePath}
+
+		useCmd := NewContextUseCommand(clientOpts)
+		useCmd.SetArgs([]string{"undefined-context:8081"})
+		err = useCmd.Execute()
+
+		require.NoError(t, err)
+		return nil
+	})
+	require.NoError(t, err)
+	expected := "Context 'undefined-context:8081' undefined\n"
+	assert.Equal(t, expected, output)
+}
+
+func TestContextUseCurrentContext(t *testing.T) {
+	// Write the test config file
+	err := os.WriteFile(testConfigFilePath, []byte(testConfig), os.ModePerm)
+	require.NoError(t, err)
+	defer os.Remove(testConfigFilePath)
+
+	err = os.Chmod(testConfigFilePath, 0o600)
+	require.NoError(t, err, "Could not change the file permission to 0600 %v", err)
+	localConfig, err := localconfig.ReadLocalConfig(testConfigFilePath)
+	require.NoError(t, err)
+	// Assert current context is localhost
+	assert.Equal(t, "localhost:8080", localConfig.CurrentContext)
+
+	output, err := captureOutput(func() error {
+		clientOpts := &argocdclient.ClientOptions{ConfigPath: testConfigFilePath}
+
+		useCmd := NewContextUseCommand(clientOpts)
+		useCmd.SetArgs([]string{"localhost:8080"})
+		err = useCmd.Execute()
+
+		require.NoError(t, err)
+		assert.Equal(t, "localhost:8080", localConfig.CurrentContext)
+		return nil
+	})
+	require.NoError(t, err)
+	expected := "Already at context 'localhost:8080'\n"
+	assert.Equal(t, expected, output)
+}
+
+func TestContextUseDifferentContext(t *testing.T) {
+	// Write the test config file
+	err := os.WriteFile(testConfigFilePath, []byte(testConfig), os.ModePerm)
+	require.NoError(t, err)
+	defer os.Remove(testConfigFilePath)
+
+	err = os.Chmod(testConfigFilePath, 0o600)
+	require.NoError(t, err, "Could not change the file permission to 0600 %v", err)
+	localConfig, err := localconfig.ReadLocalConfig(testConfigFilePath)
+	require.NoError(t, err)
+	// Assert current context is localhost
+	assert.Equal(t, "localhost:8080", localConfig.CurrentContext)
+
+	output, err := captureOutput(func() error {
+		clientOpts := &argocdclient.ClientOptions{ConfigPath: testConfigFilePath}
+
+		useCmd := NewContextUseCommand(clientOpts)
+		useCmd.SetArgs([]string{"argocd1.example.com:443"})
+		err = useCmd.Execute()
+		require.NoError(t, err)
+
+		localConfig, err = localconfig.ReadLocalConfig(testConfigFilePath)
+		require.NoError(t, err)
+
+		assert.Equal(t, "argocd1.example.com:443", localConfig.CurrentContext)
+		return nil
+	})
+
+	require.NoError(t, err)
+	expected := "Switched to context 'argocd1.example.com:443'\n"
+	assert.Equal(t, expected, output)
+}
 
 func TestContextDelete(t *testing.T) {
 	// Write the test config file
