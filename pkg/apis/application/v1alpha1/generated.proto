@@ -496,6 +496,8 @@ message ApplicationSourceDirectory {
   optional bool recurse = 1;
 
   // Jsonnet holds options specific to Jsonnet
+  // Note: omitzero is used to prevent the field from being marshaled when it is empty.
+  // This prevents "jsonnet: {}" from appearing in manifests when Jsonnet options are not explicitly defined.
   optional ApplicationSourceJsonnet jsonnet = 2;
 
   // Exclude contains a glob pattern to match paths against that should be explicitly excluded from being used during manifest generation
