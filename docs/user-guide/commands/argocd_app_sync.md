@@ -53,6 +53,7 @@ argocd app sync [APPNAME... | -l selector | --project project-name] [flags]
       --info stringArray                                  A list of key-value pairs during sync process. These infos will be persisted in app.
       --label stringArray                                 Sync only specific resources with a label. This option may be specified repeatedly.
       --local string                                      Path to a local directory. When this flag is present no git queries will be made
+      --local-include stringArray                         Used with --server-side-generate, specify patterns of filenames to send. Matching is based on filename and not path. (default [*.yaml,*.yml,*.json])
       --local-repo-root string                            Path to the repository root. Used together with --local allows setting the repository root (default "/")
   -o, --output string                                     Output format. One of: json|yaml|wide|tree|tree=detailed (default "wide")
       --preview-changes                                   Preview difference against the target and live state before syncing app and wait for user confirmation
@@ -69,6 +70,7 @@ argocd app sync [APPNAME... | -l selector | --project project-name] [flags]
       --revisions stringArray                             Show manifests at specific revisions for source position in source-positions
   -l, --selector string                                   Sync apps that match this label. Supports '=', '==', '!=', in, notin, exists & not exists. Matching apps must satisfy all of the specified label constraints.
       --server-side                                       Use server-side apply while syncing the application
+      --server-side-generate                              Used with --local, this will send your manifests to the server for syncing
       --source-names stringArray                          List of source names. Default is an empty array.
       --source-positions int64Slice                       List of source positions. Default is empty array. Counting start at 1. (default [])
       --strategy string                                   Sync strategy (one of: apply|hook)
