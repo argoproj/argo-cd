@@ -799,6 +799,22 @@ func checkOIDCConfigChange(currentOIDCConfig *settings_util.OIDCConfig, newArgoC
 	return false
 }
 
+func checkJWTConfigChange(currentJWTConfig *settings_util.JWTConfig, newArgoCDSettings *settings_util.ArgoCDSettings) bool {
+	newJWTConfig := newArgoCDSettings.JWTConfig
+
+	if (currentJWTConfig != nil && newJWTConfig == nil) || (currentJWTConfig == nil && newJWTConfig != nil) {
+		return true
+	}
+
+	if currentJWTConfig != nil && newJWTConfig != nil {
+		if !reflect.DeepEqual(*currentJWTConfig, *newJWTConfig) {
+			return true
+		}
+	}
+
+	return false
+}
+
 // watchSettings watches the configmap and secret for any setting updates that would warrant a
 // restart of the API server.
 func (server *ArgoCDServer) watchSettings() {
@@ -807,6 +823,7 @@ func (server *ArgoCDServer) watchSettings() {
 
 	prevURL := server.settings.URL
 	prevAdditionalURLs := server.settings.AdditionalURLs
+	prevJWTConfig := server.settings.JWTConfig
 	prevOIDCConfig := server.settings.OIDCConfig()
 	prevDexCfgBytes, err := dexutil.GenerateDexConfigYAML(server.settings, server.DexTLSConfig == nil || server.DexTLSConfig.DisableTLS)
 	errorsutil.CheckError(err)
@@ -834,6 +851,10 @@ func (server *ArgoCDServer) watchSettings() {
 		}
 		if prevDexAuthConnectorID != server.settings.DexAuthConnectorID {
 			log.Infof("dex auth connector id modified. restarting")
+			break
+		}
+		if checkJWTConfigChange(prevJWTConfig, server.settings) {
+			log.Infof("jwt config modified. restarting")
 			break
 		}
 		if checkOIDCConfigChange(prevOIDCConfig, server.settings) {

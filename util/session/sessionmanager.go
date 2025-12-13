@@ -33,6 +33,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/env"
 	httputil "github.com/argoproj/argo-cd/v3/util/http"
 	jwtutil "github.com/argoproj/argo-cd/v3/util/jwt"
+	jwttoken "github.com/argoproj/argo-cd/v3/util/jwt/token"
 	oidcutil "github.com/argoproj/argo-cd/v3/util/oidc"
 	passwordutil "github.com/argoproj/argo-cd/v3/util/password"
 	"github.com/argoproj/argo-cd/v3/util/settings"
@@ -43,7 +44,7 @@ type SessionManager struct {
 	settingsMgr                   *settings.SettingsManager
 	projectsLister                v1alpha1.AppProjectNamespaceLister
 	client                        *http.Client
-	prov                          oidcutil.Provider
+	tokenVerifier                 jwttoken.Verifier
 	storage                       UserStateStorage
 	sleep                         func(d time.Duration)
 	verificationDelayNoiseEnabled bool
@@ -508,7 +509,7 @@ func (mgr *SessionManager) AuthMiddlewareFunc(disabled bool, argoSettings *setti
 	}
 }
 
-// TokenVerifier defines the contract to invoke token
+// TokenVerifier defines the contract to invoke token within the session manager
 // verification logic
 type TokenVerifier interface {
 	VerifyToken(ctx context.Context, token string) (jwt.Claims, string, error)
@@ -592,25 +593,7 @@ func (mgr *SessionManager) VerifyToken(ctx context.Context, tokenString string) 
 		return nil, "", errors.New("settings are not available while verifying the token")
 	}
 
-	// 1. Attempt JWT verification (for IAP) if configured
-	if argoSettings.IsJWTConfigured() {
-		prov, err := mgr.provider() // provider() handles lazy init
-		if err != nil {
-			// Log the error but don't fail immediately, maybe it's an Argo CD token
-			log.Warnf("Failed to get OIDC provider for JWT verification: %v", err)
-		} else {
-			token, jwtErr := prov.VerifyJWT(ctx, tokenString, argoSettings)
-			if jwtErr == nil {
-				// Successfully verified as JWT via JWKS URL
-				log.Debug("Token verified using JWT config (JWKS URL)")
-				return token.Claims, "", nil
-			}
-			// Log the JWT verification failure and continue to other methods
-			log.Debugf("JWT verification failed, trying other methods: %v", jwtErr)
-		}
-	}
-
-	// 2. Parse token unverified to check issuer for Argo CD or OIDC flow
+	// 1. Parse token unverified to check issuer for Argo CD or External JWT or OIDC flow
 	parser := jwt.NewParser(jwt.WithoutClaimsValidation())
 	claims := jwt.MapClaims{}
 	_, _, parseErr := parser.ParseUnverified(tokenString, &claims)
@@ -619,7 +602,7 @@ func (mgr *SessionManager) VerifyToken(ctx context.Context, tokenString string) 
 		return nil, "", fmt.Errorf("failed to parse token: %w", parseErr)
 	}
 
-	// 3. Check if it's an Argo CD issued token
+	// 2. Check if it's an Argo CD issued token
 	issuer, issErr := claims.GetIssuer()
 	if issErr != nil {
 		log.Debugf("Could not get issuer claim, assuming not Argo CD token: %v", issErr)
@@ -628,15 +611,15 @@ func (mgr *SessionManager) VerifyToken(ctx context.Context, tokenString string) 
 		return mgr.Parse(tokenString)
 	}
 
-	// 4. Attempt OIDC verification (external IDP or Dex)
-	log.Debugf("Attempting verification as OIDC token (issuer: %s)", issuer) // Use issuer variable from above
-	prov, err := mgr.provider()
+	// 3. Attempt verification (external OIDC or JWT)
+	log.Debugf("Attempting verification as external (IDP/DEX/JWT) token (issuer: %s)", issuer) // Use issuer variable from above
+	tokenVerifier, err := mgr.verifier()
 	if err != nil {
-		// If OIDC/Dex is not configured, but we reached here, the token is invalid
-		return nil, "", fmt.Errorf("failed to get provider for OIDC Validation: %w", err)
+		// If OIDC/Dex/JWT is not configured, but we reached here, the token is invalid
+		return nil, "", fmt.Errorf("failed to get token verifier for validation: %w", err)
 	}
 
-	idToken, err := prov.Verify(ctx, tokenString, argoSettings)
+	verifiedClaims, err := tokenVerifier.Verify(ctx, tokenString, argoSettings)
 	// The token verification has failed. If the token has expired, we will
 	// return a dummy claims only containing a value for the issuer, so the
 	// UI can handle expired tokens appropriately.
@@ -663,22 +646,15 @@ func (mgr *SessionManager) VerifyToken(ctx context.Context, tokenString string) 
 	id := tokenUniqueID(claims)
 	if id == "" {
 		log.Warnf("token does not have jti or uti claim")
-	}
-	// Workaround for Dex token, because does not have jti.
-	if id == "" {
-		id = idToken.AccessTokenHash
+		// Workaround for Dex token, because it does not have jti; fall back to the
+		// standard OIDC "at_hash" claim present in the raw (unverified) token payload.
+		id = jwtutil.StringField(claims, "at_hash")
 	}
 
 	if mgr.storage.IsTokenRevoked(id) {
 		return nil, "", errors.New("token is revoked, please re-login")
 	}
 
-	// Successfully verified via OIDC
-	var verifiedClaims jwt.MapClaims
-	if claimsErr := idToken.Claims(&verifiedClaims); claimsErr != nil {
-		return nil, "", fmt.Errorf("failed to extract claims from verified OIDC token: %w", claimsErr)
-	}
-	log.Debug("Token verified using OIDC config")
 	return verifiedClaims, "", nil
 }
 
@@ -694,20 +670,30 @@ func tokenUniqueID(claims jwt.MapClaims) string {
 	return jwtutil.StringField(claims, "uti")
 }
 
-func (mgr *SessionManager) provider() (oidcutil.Provider, error) {
-	if mgr.prov != nil {
-		return mgr.prov, nil
+func (mgr *SessionManager) verifier() (jwttoken.Verifier, error) {
+	if mgr.tokenVerifier != nil {
+		return mgr.tokenVerifier, nil
 	}
+
 	settings, err := mgr.settingsMgr.GetSettings()
 	if err != nil {
 		return nil, err
 	}
+
+	if settings.IsJWTConfigured() {
+		// Argo has been configured to accept externally issued JWT tokens
+		mgr.tokenVerifier = jwttoken.NewExternalTokenVerifier(mgr.client)
+	} else if settings.IsSSOConfigured() {
+		// If sso is configured, we use the OIDC provider to verify tokens
+		mgr.tokenVerifier = oidcutil.NewOIDCProvider(settings.IssuerURL(), mgr.client)
+	}
+
 	// In the case of external JWT we need an OIDC provider to veryify tokens
-	if !settings.IsSSOConfigured() && !settings.IsJWTConfigured() {
+	if mgr.tokenVerifier == nil {
 		return nil, errors.New("SSO or JWT is not configured")
 	}
-	mgr.prov = oidcutil.NewOIDCProvider(settings.IssuerURL(), mgr.client)
-	return mgr.prov, nil
+
+	return mgr.tokenVerifier, nil
 }
 
 func (mgr *SessionManager) RevokeToken(ctx context.Context, id string, expiringAt time.Duration) error {
