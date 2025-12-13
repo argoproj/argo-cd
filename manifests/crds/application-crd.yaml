@@ -191,7 +191,10 @@ spec:
                               manifest generation
                             type: string
                           jsonnet:
-                            description: Jsonnet holds options specific to Jsonnet
+                            description: |-
+                              Jsonnet holds options specific to Jsonnet
+                              Note: omitzero is used to prevent the field from being marshaled when it is empty.
+                              This prevents "jsonnet: {}" from appearing in manifests when Jsonnet options are not explicitly defined.
                             properties:
                               extVars:
                                 description: ExtVars is a list of Jsonnet External
@@ -576,7 +579,10 @@ spec:
                                 manifest generation
                               type: string
                             jsonnet:
-                              description: Jsonnet holds options specific to Jsonnet
+                              description: |-
+                                Jsonnet holds options specific to Jsonnet
+                                Note: omitzero is used to prevent the field from being marshaled when it is empty.
+                                This prevents "jsonnet: {}" from appearing in manifests when Jsonnet options are not explicitly defined.
                               properties:
                                 extVars:
                                   description: ExtVars is a list of Jsonnet External
@@ -1083,7 +1089,10 @@ spec:
                           generation
                         type: string
                       jsonnet:
-                        description: Jsonnet holds options specific to Jsonnet
+                        description: |-
+                          Jsonnet holds options specific to Jsonnet
+                          Note: omitzero is used to prevent the field from being marshaled when it is empty.
+                          This prevents "jsonnet: {}" from appearing in manifests when Jsonnet options are not explicitly defined.
                         properties:
                           extVars:
                             description: ExtVars is a list of Jsonnet External Variables
@@ -1456,7 +1465,10 @@ spec:
                               manifest generation
                             type: string
                           jsonnet:
-                            description: Jsonnet holds options specific to Jsonnet
+                            description: |-
+                              Jsonnet holds options specific to Jsonnet
+                              Note: omitzero is used to prevent the field from being marshaled when it is empty.
+                              This prevents "jsonnet: {}" from appearing in manifests when Jsonnet options are not explicitly defined.
                             properties:
                               extVars:
                                 description: ExtVars is a list of Jsonnet External
@@ -1868,7 +1880,10 @@ spec:
                             generation
                           type: string
                         jsonnet:
-                          description: Jsonnet holds options specific to Jsonnet
+                          description: |-
+                            Jsonnet holds options specific to Jsonnet
+                            Note: omitzero is used to prevent the field from being marshaled when it is empty.
+                            This prevents "jsonnet: {}" from appearing in manifests when Jsonnet options are not explicitly defined.
                           properties:
                             extVars:
                               description: ExtVars is a list of Jsonnet External Variables
@@ -2422,7 +2437,10 @@ spec:
                                 manifest generation
                               type: string
                             jsonnet:
-                              description: Jsonnet holds options specific to Jsonnet
+                              description: |-
+                                Jsonnet holds options specific to Jsonnet
+                                Note: omitzero is used to prevent the field from being marshaled when it is empty.
+                                This prevents "jsonnet: {}" from appearing in manifests when Jsonnet options are not explicitly defined.
                               properties:
                                 extVars:
                                   description: ExtVars is a list of Jsonnet External
@@ -2810,7 +2828,10 @@ spec:
                                   during manifest generation
                                 type: string
                               jsonnet:
-                                description: Jsonnet holds options specific to Jsonnet
+                                description: |-
+                                  Jsonnet holds options specific to Jsonnet
+                                  Note: omitzero is used to prevent the field from being marshaled when it is empty.
+                                  This prevents "jsonnet: {}" from appearing in manifests when Jsonnet options are not explicitly defined.
                                 properties:
                                   extVars:
                                     description: ExtVars is a list of Jsonnet External
@@ -3349,8 +3370,10 @@ spec:
                                       included during manifest generation
                                     type: string
                                   jsonnet:
-                                    description: Jsonnet holds options specific to
-                                      Jsonnet
+                                    description: |-
+                                      Jsonnet holds options specific to Jsonnet
+                                      Note: omitzero is used to prevent the field from being marshaled when it is empty.
+                                      This prevents "jsonnet: {}" from appearing in manifests when Jsonnet options are not explicitly defined.
                                     properties:
                                       extVars:
                                         description: ExtVars is a list of Jsonnet
@@ -3759,8 +3782,10 @@ spec:
                                         included during manifest generation
                                       type: string
                                     jsonnet:
-                                      description: Jsonnet holds options specific
-                                        to Jsonnet
+                                      description: |-
+                                        Jsonnet holds options specific to Jsonnet
+                                        Note: omitzero is used to prevent the field from being marshaled when it is empty.
+                                        This prevents "jsonnet: {}" from appearing in manifests when Jsonnet options are not explicitly defined.
                                       properties:
                                         extVars:
                                           description: ExtVars is a list of Jsonnet
@@ -4301,7 +4326,10 @@ spec:
                                   during manifest generation
                                 type: string
                               jsonnet:
-                                description: Jsonnet holds options specific to Jsonnet
+                                description: |-
+                                  Jsonnet holds options specific to Jsonnet
+                                  Note: omitzero is used to prevent the field from being marshaled when it is empty.
+                                  This prevents "jsonnet: {}" from appearing in manifests when Jsonnet options are not explicitly defined.
                                 properties:
                                   extVars:
                                     description: ExtVars is a list of Jsonnet External
@@ -4698,7 +4726,10 @@ spec:
                                     included during manifest generation
                                   type: string
                                 jsonnet:
-                                  description: Jsonnet holds options specific to Jsonnet
+                                  description: |-
+                                    Jsonnet holds options specific to Jsonnet
+                                    Note: omitzero is used to prevent the field from being marshaled when it is empty.
+                                    This prevents "jsonnet: {}" from appearing in manifests when Jsonnet options are not explicitly defined.
                                   properties:
                                     extVars:
                                       description: ExtVars is a list of Jsonnet External
@@ -5220,8 +5251,10 @@ spec:
                                       included during manifest generation
                                     type: string
                                   jsonnet:
-                                    description: Jsonnet holds options specific to
-                                      Jsonnet
+                                    description: |-
+                                      Jsonnet holds options specific to Jsonnet
+                                      Note: omitzero is used to prevent the field from being marshaled when it is empty.
+                                      This prevents "jsonnet: {}" from appearing in manifests when Jsonnet options are not explicitly defined.
                                     properties:
                                       extVars:
                                         description: ExtVars is a list of Jsonnet
@@ -5673,8 +5706,10 @@ spec:
                                       included during manifest generation
                                     type: string
                                   jsonnet:
-                                    description: Jsonnet holds options specific to
-                                      Jsonnet
+                                    description: |-
+                                      Jsonnet holds options specific to Jsonnet
+                                      Note: omitzero is used to prevent the field from being marshaled when it is empty.
+                                      This prevents "jsonnet: {}" from appearing in manifests when Jsonnet options are not explicitly defined.
                                     properties:
                                       extVars:
                                         description: ExtVars is a list of Jsonnet
@@ -6196,7 +6231,10 @@ spec:
                                   during manifest generation
                                 type: string
                               jsonnet:
-                                description: Jsonnet holds options specific to Jsonnet
+                                description: |-
+                                  Jsonnet holds options specific to Jsonnet
+                                  Note: omitzero is used to prevent the field from being marshaled when it is empty.
+                                  This prevents "jsonnet: {}" from appearing in manifests when Jsonnet options are not explicitly defined.
                                 properties:
                                   extVars:
                                     description: ExtVars is a list of Jsonnet External
@@ -6593,7 +6631,10 @@ spec:
                                     included during manifest generation
                                   type: string
                                 jsonnet:
-                                  description: Jsonnet holds options specific to Jsonnet
+                                  description: |-
+                                    Jsonnet holds options specific to Jsonnet
+                                    Note: omitzero is used to prevent the field from being marshaled when it is empty.
+                                    This prevents "jsonnet: {}" from appearing in manifests when Jsonnet options are not explicitly defined.
                                   properties:
                                     extVars:
                                       description: ExtVars is a list of Jsonnet External
