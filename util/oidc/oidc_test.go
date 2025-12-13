@@ -19,7 +19,6 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	gooidc "github.com/coreos/go-oidc/v3/oidc"
 	jwtgo "github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -117,11 +116,7 @@ func (p *fakeProvider) ParseConfig() (*OIDCConfiguration, error) {
 	return nil, nil
 }
 
-func (p *fakeProvider) Verify(_ context.Context, _ string, _ *settings.ArgoCDSettings) (*gooidc.IDToken, error) {
-	return nil, nil
-}
-
-func (p *fakeProvider) VerifyJWT(_ context.Context, _ string, _ *settings.ArgoCDSettings) (*jwtgo.Token, error) {
+func (p *fakeProvider) Verify(_ context.Context, _ string, _ *settings.ArgoCDSettings) (jwtgo.Claims, error) {
 	return nil, nil
 }
 
