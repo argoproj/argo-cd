@@ -998,6 +998,11 @@ spec:
                       set.
                     type: string
                 type: object
+                x-kubernetes-validations:
+                - message: server and name are mutually exclusive, exactly one must
+                    be set
+                  rule: (has(self.server) && size(self.server) > 0) != (has(self.name)
+                    && size(self.name) > 0)
               ignoreDifferences:
                 description: IgnoreDifferences is a list of resources and their fields
                   which should be ignored during comparison
@@ -2307,6 +2312,11 @@ spec:
             - destination
             - project
             type: object
+            x-kubernetes-validations:
+            - message: source and sources are mutually exclusive, exactly one must
+                be set
+              rule: (has(self.source) && self.source != null) != (has(self.sources)
+                && size(self.sources) > 0)
           status:
             description: ApplicationStatus contains status information for the application
             properties:
@@ -6139,6 +6149,11 @@ spec:
                               is not set.
                             type: string
                         type: object
+                        x-kubernetes-validations:
+                        - message: server and name are mutually exclusive, exactly
+                            one must be set
+                          rule: (has(self.server) && size(self.server) > 0) != (has(self.name)
+                            && size(self.name) > 0)
                       ignoreDifferences:
                         description: IgnoreDifferences is a reference to the application's
                           ignored differences used for comparison

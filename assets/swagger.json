@@ -6965,7 +6965,7 @@
     },
     "v1alpha1ApplicationDestination": {
       "type": "object",
-      "title": "ApplicationDestination holds information about the application's destination",
+      "title": "ApplicationDestination holds information about the application's destination\n+kubebuilder:validation:XValidation:rule=\"(has(self.server) && size(self.server) > 0) != (has(self.name) && size(self.name) > 0)\",message=\"server and name are mutually exclusive, exactly one must be set\"",
       "properties": {
         "name": {
           "description": "Name is an alternate way of specifying the target cluster by its symbolic name. This must be set if Server is not set.",
@@ -7733,8 +7733,8 @@
       }
     },
     "v1alpha1ApplicationSpec": {
-      "description": "ApplicationSpec represents desired application state. Contains link to repository with application definition and additional parameters link definition revision.",
       "type": "object",
+      "title": "ApplicationSpec represents desired application state. Contains link to repository with application definition and additional parameters link definition revision.\n+kubebuilder:validation:XValidation:rule=\"(has(self.source) && self.source != null) != (has(self.sources) && size(self.sources) > 0)\",message=\"source and sources are mutually exclusive, exactly one must be set\"",
       "properties": {
         "destination": {
           "$ref": "#/definitions/v1alpha1ApplicationDestination"
