@@ -73,6 +73,7 @@ type Application struct {
 }
 
 // ApplicationSpec represents desired application state. Contains link to repository with application definition and additional parameters link definition revision.
+// +kubebuilder:validation:XValidation:rule="(has(self.source) && self.source != null) != (has(self.sources) && size(self.sources) > 0)",message="source and sources are mutually exclusive, exactly one must be set"
 type ApplicationSpec struct {
 	// Source is a reference to the location of the application's manifests or chart
 	Source *ApplicationSource `json:"source,omitempty" protobuf:"bytes,1,opt,name=source"`
@@ -1154,6 +1155,7 @@ func (c *ApplicationSourcePlugin) RemoveEnvEntry(key string) error {
 }
 
 // ApplicationDestination holds information about the application's destination
+// +kubebuilder:validation:XValidation:rule="(has(self.server) && size(self.server) > 0) != (has(self.name) && size(self.name) > 0)",message="server and name are mutually exclusive, exactly one must be set"
 type ApplicationDestination struct {
 	// Server specifies the URL of the target cluster's Kubernetes control plane API. This must be set if Name is not set.
 	Server string `json:"server,omitempty" protobuf:"bytes,1,opt,name=server"`

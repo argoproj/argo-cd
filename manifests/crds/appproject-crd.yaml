@@ -143,6 +143,11 @@ spec:
                         not set.
                       type: string
                   type: object
+                  x-kubernetes-validations:
+                  - message: server and name are mutually exclusive, exactly one must
+                      be set
+                    rule: (has(self.server) && size(self.server) > 0) != (has(self.name)
+                      && size(self.name) > 0)
                 type: array
               namespaceResourceBlacklist:
                 description: NamespaceResourceBlacklist contains list of blacklisted
