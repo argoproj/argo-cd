@@ -163,6 +163,14 @@ func (b *BitbucketCloudService) List(_ context.Context) ([]*PullRequest, error) 
 	}
 
 	for _, pull := range pulls {
+		createdAt, err := time.Parse(time.RFC3339, pull.CreatedOn)
+		if err != nil {
+			return nil, fmt.Errorf("error parsing CreatedOn field for PR %s %w", pull.CreatedOn, err)
+		}
+		updatedAt, err := time.Parse(time.RFC3339, pull.UpdatedOn)
+		if err != nil {
+			return nil, fmt.Errorf("error parsing UpdatedOn field for PR %s %w", pull.UpdatedOn, err)
+		}
 		pullRequests = append(pullRequests, &PullRequest{
 			Number:       int64(pull.ID),
 			Title:        pull.Title,
@@ -170,8 +178,8 @@ func (b *BitbucketCloudService) List(_ context.Context) ([]*PullRequest, error) 
 			TargetBranch: pull.Destination.Branch.Name,
 			HeadSHA:      pull.Source.Commit.Hash,
 			Author:       pull.Author.Nickname,
-			CreatedAt:    time.Parse(time.RFC3339, pull.CreatedOn),
-			UpdatedAt:    time.Parse(time.RFC3339, pull.UpdatedOn),
+			CreatedAt:    createdAt,
+			UpdatedAt:    updatedAt,
 		})
 	}
 
