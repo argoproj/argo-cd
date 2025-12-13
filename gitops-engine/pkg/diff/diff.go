@@ -18,6 +18,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/jsonmergepatch"
 	"k8s.io/apimachinery/pkg/util/managedfields"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
@@ -177,7 +178,7 @@ func serverSideDiff(config, live *unstructured.Unstructured, opts ...Option) (*D
 	}
 
 	if o.ignoreMutationWebhook {
-		predictedLive, err = removeWebhookMutation(predictedLive, live, o.gvkParser, o.manager)
+		predictedLive, err = removeWebhookMutation(config, predictedLive, live, o.gvkParser, o.manager)
 		if err != nil {
 			return nil, fmt.Errorf("error removing non config mutations for resource %s/%s: %w", config.GetKind(), config.GetName(), err)
 		}
@@ -204,12 +205,13 @@ func serverSideDiff(config, live *unstructured.Unstructured, opts ...Option) (*D
 }
 
 // removeWebhookMutation will compare the predictedLive with live to identify changes done by mutation webhooks.
+// It also ensures that fields managed by ArgoCD but not present in the desired config are removed.
 // Webhook mutations are removed from predictedLive by removing all fields which are not managed by the given 'manager'.
 // At this step, we will only have the fields that are managed by the given 'manager'.
 // It is then merged with the live state and re-assigned to predictedLive. This means that any
 // fields not managed by the specified manager will be reverted with their state from live, including any webhook mutations.
 // If the given predictedLive does not have the managedFields, an error will be returned.
-func removeWebhookMutation(predictedLive, live *unstructured.Unstructured, gvkParser *managedfields.GvkParser, manager string) (*unstructured.Unstructured, error) {
+func removeWebhookMutation(config, predictedLive, live *unstructured.Unstructured, gvkParser *managedfields.GvkParser, manager string) (*unstructured.Unstructured, error) {
 	plManagedFields := predictedLive.GetManagedFields()
 	if len(plManagedFields) == 0 {
 		return nil, fmt.Errorf("predictedLive for resource %s/%s must have the managedFields", predictedLive.GetKind(), predictedLive.GetName())
@@ -289,7 +291,63 @@ func removeWebhookMutation(predictedLive, live *unstructured.Unstructured, gvkPa
 	if !ok {
 		return nil, fmt.Errorf("error converting live typedValue: expected map got %T", plu)
 	}
-	return &unstructured.Unstructured{Object: pl}, nil
+	resultPredictedLive := &unstructured.Unstructured{Object: pl}
+
+	// Additional fix for issue #24882: remove keys from ConfigMap/Secret data fields
+	// that are not present in config. This handles the case where server-side apply
+	// doesn't remove keys due to field ownership conflicts.
+	resultPredictedLive = removeExtraMapKeys(config, resultPredictedLive, gvk)
+
+	return resultPredictedLive, nil
+}
+
+// removeExtraMapKeys removes extra keys from ConfigMap/Secret data fields that are not present in config.
+// This handles the case where server-side apply doesn't remove keys due to field ownership conflicts.
+func removeExtraMapKeys(config, predictedLive *unstructured.Unstructured, gvk schema.GroupVersionKind) *unstructured.Unstructured {
+	// Only apply this fix for ConfigMaps and Secrets
+	if gvk.Group == "" && (gvk.Kind == "ConfigMap" || gvk.Kind == "Secret") {
+		result := predictedLive.DeepCopy()
+
+		// Get data field from config
+		configData, configHasData, _ := unstructured.NestedMap(config.Object, "data")
+		predictedData, predictedHasData, _ := unstructured.NestedMap(result.Object, "data")
+
+		// If config has data field, filter predicted data to only include keys from config
+		if configHasData && predictedHasData {
+			filteredData := make(map[string]any)
+			for key := range configData {
+				if val, ok := predictedData[key]; ok {
+					filteredData[key] = val
+				}
+			}
+			_ = unstructured.SetNestedMap(result.Object, filteredData, "data")
+		} else if !configHasData && predictedHasData {
+			// If config doesn't have data field but predicted does, remove it
+			unstructured.RemoveNestedField(result.Object, "data")
+		}
+
+		// Do the same for binaryData field (Secret only)
+		if gvk.Kind == "Secret" {
+			configBinaryData, configHasBinaryData, _ := unstructured.NestedMap(config.Object, "binaryData")
+			predictedBinaryData, predictedHasBinaryData, _ := unstructured.NestedMap(result.Object, "binaryData")
+
+			if configHasBinaryData && predictedHasBinaryData {
+				filteredBinaryData := make(map[string]any)
+				for key := range configBinaryData {
+					if val, ok := predictedBinaryData[key]; ok {
+						filteredBinaryData[key] = val
+					}
+				}
+				_ = unstructured.SetNestedMap(result.Object, filteredBinaryData, "binaryData")
+			} else if !configHasBinaryData && predictedHasBinaryData {
+				unstructured.RemoveNestedField(result.Object, "binaryData")
+			}
+		}
+
+		return result
+	}
+
+	return predictedLive
 }
 
 // filterOutCompositeKeyFields filters out fields that are part of composite keys in associative lists.
