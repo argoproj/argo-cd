@@ -176,6 +176,16 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return ctrl.Result{}, err
 	}
 
+	// ensure finalizer exists if deletionOrder is set as Reverse
+	if r.EnableProgressiveSyncs && isProgressiveSyncDeletionOrderReversed(&applicationSetInfo) {
+		if !controllerutil.ContainsFinalizer(&applicationSetInfo, argov1alpha1.ResourcesFinalizerName) {
+			controllerutil.AddFinalizer(&applicationSetInfo, argov1alpha1.ResourcesFinalizerName)
+			if err := r.Update(ctx, &applicationSetInfo); err != nil {
+				return ctrl.Result{}, err
+			}
+		}
+	}
+
 	// Log a warning if there are unrecognized generators
 	_ = utils.CheckInvalidGenerators(&applicationSetInfo)
 	// desiredApplications is the main list of all expected Applications from all generators in this appset.
@@ -876,16 +886,14 @@ func (r *ApplicationSetReconciler) removeFinalizerOnInvalidDestination(ctx conte
 		// Detect if the destination's server field does not match an existing cluster
 		matchingCluster := false
 		for _, cluster := range clusterList {
-			if destCluster.Server != cluster.Server {
-				continue
+			// A cluster matches if either the server matches OR the name matches
+			// This handles cases where:
+			// 1. The cluster is the in-cluster (server=https://kubernetes.default.svc, name=in-cluster)
+			// 2. A custom cluster has the same server as in-cluster but a different name
+			if destCluster.Server == cluster.Server || (destCluster.Name != "" && cluster.Name != "" && destCluster.Name == cluster.Name) {
+				matchingCluster = true
+				break
 			}
-
-			if destCluster.Name != cluster.Name {
-				continue
-			}
-
-			matchingCluster = true
-			break
 		}
 
 		if !matchingCluster {

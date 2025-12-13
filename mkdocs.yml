@@ -233,6 +233,7 @@ nav:
   - developer-guide/faq.md
   - developer-guide/tilt.md
   - developer-guide/custom-resource-icons.md
+  - developer-guide/maintaining-internal-argo-cd-forks.md
 - faq.md
 - security_considerations.md
 - Support: SUPPORT.md
