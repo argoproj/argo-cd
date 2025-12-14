@@ -123,3 +123,98 @@ func TestApplicationSourceValidationValidMultipleSources(t *testing.T) {
 		Then().
 		Expect(Success(""))
 }
+
+// TestApplicationDestinationValidationUpdateToBothServerAndName verifies that updating
+// an Application to have both server and name is rejected
+func TestApplicationDestinationValidationUpdateToBothServerAndName(t *testing.T) {
+	Given(t).
+		Path(guestbookPath).
+		When().
+		CreateApp().
+		Then().
+		Expect(Success("")).
+		When().
+		IgnoreErrors().
+		PatchApp(`[{"op": "add", "path": "/spec/destination/name", "value": "in-cluster"}]`).
+		Then().
+		Expect(Error("", "can't have both name and server defined"))
+}
+
+// TestApplicationDestinationValidationUpdateServerToName verifies that updating
+// from server to name works correctly
+func TestApplicationDestinationValidationUpdateServerToName(t *testing.T) {
+	Given(t).
+		Path(guestbookPath).
+		When().
+		CreateApp().
+		Then().
+		Expect(Success("")).
+		When().
+		PatchApp(`[
+			{"op": "remove", "path": "/spec/destination/server"},
+			{"op": "add", "path": "/spec/destination/name", "value": "in-cluster"}
+		]`).
+		Then().
+		Expect(Success(""))
+}
+
+// TestApplicationSourceValidationUpdateToBothSourceAndSources verifies that updating
+// an Application to have both source and sources is rejected
+func TestApplicationSourceValidationUpdateToBothSourceAndSources(t *testing.T) {
+	Given(t).
+		Path(guestbookPath).
+		When().
+		CreateApp().
+		Then().
+		Expect(Success("")).
+		When().
+		IgnoreErrors().
+		PatchApp(`[{"op": "add", "path": "/spec/sources", "value": [{"repoURL": "` + RepoURL(RepoURLTypeFile) + `", "path": "helm-guestbook"}]}]`).
+		Then().
+		Expect(Error("", "can't have both source and sources defined"))
+}
+
+// TestApplicationSourceValidationUpdateSourceToSources verifies that updating
+// from source to sources works correctly
+func TestApplicationSourceValidationUpdateSourceToSources(t *testing.T) {
+	Given(t).
+		Path(guestbookPath).
+		When().
+		CreateApp().
+		Then().
+		Expect(Success("")).
+		When().
+		PatchApp(`[
+			{"op": "remove", "path": "/spec/source"},
+			{"op": "add", "path": "/spec/sources", "value": [{"repoURL": "` + RepoURL(RepoURLTypeFile) + `", "path": "` + guestbookPath + `"}]}
+		]`).
+		Then().
+		Expect(Success(""))
+}
+
+// TestApplicationSourceValidationUpdateSourcesToSource verifies that updating
+// from sources to source works correctly
+func TestApplicationSourceValidationUpdateSourcesToSource(t *testing.T) {
+	Given(t).
+		Path(guestbookPath).
+		When().
+		CreateFromFile(func(app *Application) {
+			// Start with sources
+			app.Spec.Source = nil
+			app.Spec.Sources = ApplicationSources{
+				{
+					RepoURL: RepoURL(RepoURLTypeFile),
+					Path:    guestbookPath,
+				},
+			}
+		}).
+		Then().
+		Expect(Success("")).
+		When().
+		PatchApp(`[
+			{"op": "remove", "path": "/spec/sources"},
+			{"op": "add", "path": "/spec/source", "value": {"repoURL": "` + RepoURL(RepoURLTypeFile) + `", "path": "` + guestbookPath + `"}}
+		]`).
+		Then().
+		Expect(Success(""))
+}
