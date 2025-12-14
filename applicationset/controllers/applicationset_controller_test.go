@@ -2954,7 +2954,7 @@ func applicationsDeleteSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 	clusterInformer, err := settings.NewClusterInformer(kubeclientset, "argocd")
 	require.NoError(t, err)
 
-	defer StartAndSyncInformer(t, clusterInformer)()
+	defer startAndSyncInformer(t, clusterInformer)()
 
 	r := ApplicationSetReconciler{
 		Client:   client,
@@ -3151,7 +3151,7 @@ func TestPolicies(t *testing.T) {
 			clusterInformer, err := settings.NewClusterInformer(kubeclientset, "argocd")
 			require.NoError(t, err)
 
-			defer StartAndSyncInformer(t, clusterInformer)()
+			defer startAndSyncInformer(t, clusterInformer)()
 
 			r := ApplicationSetReconciler{
 				Client:   client,
@@ -3175,7 +3175,7 @@ func TestPolicies(t *testing.T) {
 					Name:      "name",
 				},
 			}
-
+			ctx := t.Context()
 			// Check if the application is created
 			res, err := r.Reconcile(ctx, req)
 			require.NoError(t, err)
@@ -3204,7 +3204,7 @@ func TestPolicies(t *testing.T) {
 				assert.Equal(t, "edited", app.Annotations["key"])
 			}
 
-			// Check if Application is deleted
+			// Check if the Application is deleted
 			err = r.Get(ctx, crtclient.ObjectKey{Namespace: "argocd", Name: "name"}, &appSet)
 			require.NoError(t, err)
 			appSet.Spec.Generators[0] = v1alpha1.ApplicationSetGenerator{
