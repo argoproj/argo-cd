@@ -29,6 +29,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	k8sbatchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -4581,4 +4582,94 @@ func TestServerSideDiff(t *testing.T) {
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "application")
 	})
+}
+
+// TestTerminateOperationWithConflicts tests that TerminateOperation properly handles
+// concurrent update conflicts by retrying with the fresh application object.
+//
+// This test reproduces a bug where the retry loop discards the fresh app object
+// fetched from Get(), causing all retries to fail with stale resource versions.
+func TestTerminateOperationWithConflicts(t *testing.T) {
+	testApp := newTestApp()
+	testApp.ObjectMeta.ResourceVersion = "1"
+	testApp.Operation = &v1alpha1.Operation{
+		Sync: &v1alpha1.SyncOperation{},
+	}
+	testApp.Status.OperationState = &v1alpha1.OperationState{
+		Operation: *testApp.Operation,
+		Phase:     synccommon.OperationRunning,
+	}
+
+	appServer := newTestAppServer(t, testApp)
+	ctx := context.Background()
+
+	// Get the fake clientset from the deepCopy wrapper
+	fakeAppCs := appServer.appclientset.(*deepCopyAppClientset).GetUnderlyingClientSet().(*apps.Clientset)
+
+	updateAttempts := 0
+	getCallCount := 0
+	lastSeenVersion := ""
+
+	// Remove default reactors and add our custom ones
+	fakeAppCs.ReactionChain = nil
+
+	// Mock Update to check if the app version is progressing
+	// With the bug, the version will never progress because Get results are discarded
+	// With the fix, the version will progress and eventually succeed
+	fakeAppCs.AddReactor("update", "applications", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		updateAttempts++
+		updateAction := action.(kubetesting.UpdateAction)
+		app := updateAction.GetObject().(*v1alpha1.Application)
+
+		// If we're seeing the same version as last time, it means the Get result was discarded (bug!)
+		// Return a conflict to force another retry
+		if updateAttempts > 1 && app.ResourceVersion == lastSeenVersion {
+			return true, nil, apierrors.NewConflict(
+				schema.GroupResource{Group: "argoproj.io", Resource: "applications"},
+				app.Name,
+				fmt.Errorf("the object has been modified"),
+			)
+		}
+
+		// If version has progressed (fix is working), succeed after a couple retries
+		if updateAttempts > 2 {
+			updatedApp := app.DeepCopy()
+			updatedApp.ResourceVersion = strconv.Itoa(updateAttempts + 10)
+			return true, updatedApp, nil
+		}
+
+		// First couple of attempts, return conflict to trigger retry mechanism
+		lastSeenVersion = app.ResourceVersion
+		return true, nil, apierrors.NewConflict(
+			schema.GroupResource{Group: "argoproj.io", Resource: "applications"},
+			app.Name,
+			fmt.Errorf("the object has been modified"),
+		)
+	})
+
+	// Mock Get to return a fresh app with incrementing version
+	// With the fix, this fresh app will be used in subsequent retries
+	// Without the fix, this fresh app is discarded
+	fakeAppCs.AddReactor("get", "applications", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		getCallCount++
+
+		freshApp := testApp.DeepCopy()
+		// Give it an incrementing version
+		freshApp.ResourceVersion = strconv.Itoa(100 + getCallCount)
+		freshApp.Operation = testApp.Operation
+		freshApp.Status.OperationState = testApp.Status.OperationState
+		return true, freshApp, nil
+	})
+
+	// Attempt to terminate the operation
+	_, err := appServer.TerminateOperation(ctx, &application.OperationTerminateRequest{
+		Name: ptr.To(testApp.Name),
+	})
+
+	// With the fix, this should succeed after a few retries
+	require.NoError(t, err)
+
+	// Should have retried but not exhausted all attempts
+	assert.Greater(t, updateAttempts, 1, "Should have retried at least once due to conflicts")
+	assert.Less(t, updateAttempts, 10, "Should not have exhausted all retries")
 }
