@@ -4591,7 +4591,7 @@ func TestServerSideDiff(t *testing.T) {
 // fetched from Get(), causing all retries to fail with stale resource versions.
 func TestTerminateOperationWithConflicts(t *testing.T) {
 	testApp := newTestApp()
-	testApp.ObjectMeta.ResourceVersion = "1"
+	testApp.ResourceVersion = "1"
 	testApp.Operation = &v1alpha1.Operation{
 		Sync: &v1alpha1.SyncOperation{},
 	}
@@ -4627,7 +4627,7 @@ func TestTerminateOperationWithConflicts(t *testing.T) {
 			return true, nil, apierrors.NewConflict(
 				schema.GroupResource{Group: "argoproj.io", Resource: "applications"},
 				app.Name,
-				fmt.Errorf("the object has been modified"),
+				stderrors.New("the object has been modified"),
 			)
 		}
 
@@ -4643,14 +4643,14 @@ func TestTerminateOperationWithConflicts(t *testing.T) {
 		return true, nil, apierrors.NewConflict(
 			schema.GroupResource{Group: "argoproj.io", Resource: "applications"},
 			app.Name,
-			fmt.Errorf("the object has been modified"),
+			stderrors.New("the object has been modified"),
 		)
 	})
 
 	// Mock Get to return a fresh app with incrementing version
 	// With the fix, this fresh app will be used in subsequent retries
 	// Without the fix, this fresh app is discarded
-	fakeAppCs.AddReactor("get", "applications", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+	fakeAppCs.AddReactor("get", "applications", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 		getCallCount++
 
 		freshApp := testApp.DeepCopy()
