@@ -8,9 +8,9 @@ import (
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
 )
 
-// TestApplicationDestinationValidation_BothServerAndName verifies that the CRD validation
+// TestApplicationDestinationValidationBothServerAndName verifies that the CRD validation
 // rejects an Application with both server and name set in the destination
-func TestApplicationDestinationValidation_BothServerAndName(t *testing.T) {
+func TestApplicationDestinationValidationBothServerAndName(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).
 		When().
@@ -24,9 +24,9 @@ func TestApplicationDestinationValidation_BothServerAndName(t *testing.T) {
 		Expect(Error("", "mutually exclusive"))
 }
 
-// TestApplicationDestinationValidation_NeitherServerNorName verifies that an Application
+// TestApplicationDestinationValidationNeitherServerNorName verifies that an Application
 // with neither server nor name is allowed (for ApplicationSet templates)
-func TestApplicationDestinationValidation_NeitherServerNorName(t *testing.T) {
+func TestApplicationDestinationValidationNeitherServerNorName(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).
 		When().
@@ -39,9 +39,9 @@ func TestApplicationDestinationValidation_NeitherServerNorName(t *testing.T) {
 		Expect(Success(""))
 }
 
-// TestApplicationDestinationValidation_ValidServerOnly verifies that an Application
+// TestApplicationDestinationValidationValidServerOnly verifies that an Application
 // with only server set is accepted
-func TestApplicationDestinationValidation_ValidServerOnly(t *testing.T) {
+func TestApplicationDestinationValidationValidServerOnly(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).
 		When().
@@ -54,9 +54,9 @@ func TestApplicationDestinationValidation_ValidServerOnly(t *testing.T) {
 		Expect(Success(""))
 }
 
-// TestApplicationSourceValidation_BothSourceAndSources verifies that the CRD validation
+// TestApplicationSourceValidationBothSourceAndSources verifies that the CRD validation
 // rejects an Application with both source and sources set
-func TestApplicationSourceValidation_BothSourceAndSources(t *testing.T) {
+func TestApplicationSourceValidationBothSourceAndSources(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).
 		When().
@@ -78,9 +78,9 @@ func TestApplicationSourceValidation_BothSourceAndSources(t *testing.T) {
 		Expect(Error("", "mutually exclusive"))
 }
 
-// TestApplicationSourceValidation_NeitherSourceNorSources verifies that an Application
+// TestApplicationSourceValidationNeitherSourceNorSources verifies that an Application
 // with neither source nor sources is allowed (for ApplicationSet templates)
-func TestApplicationSourceValidation_NeitherSourceNorSources(t *testing.T) {
+func TestApplicationSourceValidationNeitherSourceNorSources(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).
 		When().
@@ -93,9 +93,9 @@ func TestApplicationSourceValidation_NeitherSourceNorSources(t *testing.T) {
 		Expect(Success(""))
 }
 
-// TestApplicationSourceValidation_EmptySourcesArray verifies that an Application
+// TestApplicationSourceValidationEmptySourcesArray verifies that an Application
 // with an empty sources array is allowed (for ApplicationSet templates)
-func TestApplicationSourceValidation_EmptySourcesArray(t *testing.T) {
+func TestApplicationSourceValidationEmptySourcesArray(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).
 		When().
@@ -108,9 +108,9 @@ func TestApplicationSourceValidation_EmptySourcesArray(t *testing.T) {
 		Expect(Success(""))
 }
 
-// TestApplicationSourceValidation_ValidSourceOnly verifies that an Application
+// TestApplicationSourceValidationValidSourceOnly verifies that an Application
 // with only source set is accepted
-func TestApplicationSourceValidation_ValidSourceOnly(t *testing.T) {
+func TestApplicationSourceValidationValidSourceOnly(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).
 		When().
@@ -126,9 +126,9 @@ func TestApplicationSourceValidation_ValidSourceOnly(t *testing.T) {
 		Expect(Success(""))
 }
 
-// TestApplicationSourceValidation_ValidSourcesOnly verifies that an Application
+// TestApplicationSourceValidationValidSourcesOnly verifies that an Application
 // with only sources set is accepted
-func TestApplicationSourceValidation_ValidSourcesOnly(t *testing.T) {
+func TestApplicationSourceValidationValidSourcesOnly(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).
 		When().
@@ -146,9 +146,9 @@ func TestApplicationSourceValidation_ValidSourcesOnly(t *testing.T) {
 		Expect(Success(""))
 }
 
-// TestApplicationSourceValidation_ValidMultipleSources verifies that an Application
+// TestApplicationSourceValidationValidMultipleSources verifies that an Application
 // with multiple sources is accepted
-func TestApplicationSourceValidation_ValidMultipleSources(t *testing.T) {
+func TestApplicationSourceValidationValidMultipleSources(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).
 		When().
