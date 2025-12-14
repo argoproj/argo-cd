@@ -1,6 +1,8 @@
 package utils
 
 import (
+	"fmt"
+
 	corev1 "k8s.io/api/core/v1"
 
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -28,7 +30,7 @@ func SecretsContainInClusterCredentials(secrets []corev1.Secret) bool {
 func ListClusters(clusterInformer *settings.ClusterInformer) ([]ClusterSpecifier, error) {
 	clusters, err := clusterInformer.ListClusters()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error listing clusters: %w", err)
 	}
 	// len of clusters +1 for the in cluster secret
 	clusterList := make([]ClusterSpecifier, 0, len(clusters)+1)

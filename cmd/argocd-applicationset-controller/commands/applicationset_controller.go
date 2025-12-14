@@ -32,6 +32,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
+	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
 	ctrlcache "sigs.k8s.io/controller-runtime/pkg/cache"
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -199,6 +200,11 @@ func NewCommand() *cobra.Command {
 				os.Exit(1)
 			}
 			go clusterInformer.Run(ctx.Done())
+
+			if !cache.WaitForCacheSync(ctx.Done(), clusterInformer.HasSynced) {
+				log.Error("Timed out waiting for cluster cache to sync")
+				os.Exit(1)
+			}
 
 			scmConfig := generators.NewSCMConfig(scmRootCAPath, allowedScmProviders, enableScmProviders, enableGitHubAPIMetrics, github_app.NewAuthCredentials(argoCDDB.(db.RepoCredsDB)), tokenRefStrictMode)
 

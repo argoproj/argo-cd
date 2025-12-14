@@ -2771,12 +2771,7 @@ func applicationsUpdateSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 	clusterInformer, err := settings.NewClusterInformer(kubeclientset, "argocd")
 	require.NoError(t, err)
 
-	ctx, cancel := context.WithCancel(t.Context())
-	defer cancel()
-	go clusterInformer.Run(ctx.Done())
-	if !cache.WaitForCacheSync(ctx.Done(), clusterInformer.HasSynced) {
-		t.Fatal("Timed out waiting for caches to sync")
-	}
+	defer startAndSyncInformer(t, clusterInformer)()
 
 	r := ApplicationSetReconciler{
 		Client:   client,
@@ -2959,12 +2954,7 @@ func applicationsDeleteSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 	clusterInformer, err := settings.NewClusterInformer(kubeclientset, "argocd")
 	require.NoError(t, err)
 
-	ctx, cancel := context.WithCancel(t.Context())
-	defer cancel()
-	go clusterInformer.Run(ctx.Done())
-	if !cache.WaitForCacheSync(ctx.Done(), clusterInformer.HasSynced) {
-		t.Fatal("Timed out waiting for caches to sync")
-	}
+	defer StartAndSyncInformer(t, clusterInformer)()
 
 	r := ApplicationSetReconciler{
 		Client:   client,
@@ -3161,12 +3151,7 @@ func TestPolicies(t *testing.T) {
 			clusterInformer, err := settings.NewClusterInformer(kubeclientset, "argocd")
 			require.NoError(t, err)
 
-			ctx, cancel := context.WithCancel(t.Context())
-			defer cancel()
-			go clusterInformer.Run(ctx.Done())
-			if !cache.WaitForCacheSync(ctx.Done(), clusterInformer.HasSynced) {
-				t.Fatal("Timed out waiting for caches to sync")
-			}
+			defer StartAndSyncInformer(t, clusterInformer)()
 
 			r := ApplicationSetReconciler{
 				Client:   client,
@@ -7642,4 +7627,15 @@ func TestReconcileProgressiveSyncDisabled(t *testing.T) {
 			assert.Equal(t, cc.expectedAppStatuses, updatedAppSet.Status.ApplicationStatus, "applicationStatus should match expected value")
 		})
 	}
+}
+
+func startAndSyncInformer(t *testing.T, informer cache.SharedIndexInformer) context.CancelFunc {
+	t.Helper()
+	ctx, cancel := context.WithCancel(t.Context())
+	go informer.Run(ctx.Done())
+	if !cache.WaitForCacheSync(ctx.Done(), informer.HasSynced) {
+		cancel()
+		t.Fatal("Timed out waiting for caches to sync")
+	}
+	return cancel
 }
