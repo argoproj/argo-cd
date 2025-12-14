@@ -85,7 +85,7 @@ func (t *dryRunAwareTracker) Create(gvr schema.GroupVersionResource, obj runtime
 		if err != nil {
 			return err
 		}
-		_, err = t.ObjectTracker.Get(gvr, ns, meta.GetName())
+		_, err = t.Get(gvr, ns, meta.GetName())
 		if err == nil {
 			// Object already exists
 			return apierrors.NewAlreadyExists(gvr.GroupResource(), meta.GetName())
@@ -105,7 +105,7 @@ func (t *dryRunAwareTracker) Update(gvr schema.GroupVersionResource, obj runtime
 		if err != nil {
 			return err
 		}
-		_, err = t.ObjectTracker.Get(gvr, ns, meta.GetName())
+		_, err = t.Get(gvr, ns, meta.GetName())
 		if err != nil {
 			// Object doesn't exist
 			return err
