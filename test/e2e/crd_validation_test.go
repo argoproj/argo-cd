@@ -24,20 +24,19 @@ func TestApplicationDestinationValidation_BothServerAndName(t *testing.T) {
 		Expect(Error("", "mutually exclusive"))
 }
 
-// TestApplicationDestinationValidation_NeitherServerNorName verifies that the CRD validation
-// rejects an Application with neither server nor name set in the destination
+// TestApplicationDestinationValidation_NeitherServerNorName verifies that an Application
+// with neither server nor name is allowed (for ApplicationSet templates)
 func TestApplicationDestinationValidation_NeitherServerNorName(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).
 		When().
-		IgnoreErrors().
 		CreateFromFile(func(app *Application) {
-			// Clear both server and name - this should be rejected by CEL validation
+			// Clear both server and name - this is valid for templates
 			app.Spec.Destination.Server = ""
 			app.Spec.Destination.Name = ""
 		}).
 		Then().
-		Expect(Error("", "mutually exclusive"))
+		Expect(Success(""))
 }
 
 // TestApplicationDestinationValidation_ValidServerOnly verifies that an Application
@@ -79,36 +78,34 @@ func TestApplicationSourceValidation_BothSourceAndSources(t *testing.T) {
 		Expect(Error("", "mutually exclusive"))
 }
 
-// TestApplicationSourceValidation_NeitherSourceNorSources verifies that the CRD validation
-// rejects an Application with neither source nor sources set
+// TestApplicationSourceValidation_NeitherSourceNorSources verifies that an Application
+// with neither source nor sources is allowed (for ApplicationSet templates)
 func TestApplicationSourceValidation_NeitherSourceNorSources(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).
 		When().
-		IgnoreErrors().
 		CreateFromFile(func(app *Application) {
-			// Clear both source and sources - this should be rejected by CEL validation
+			// Clear both source and sources - this is valid for templates
 			app.Spec.Source = nil
 			app.Spec.Sources = nil
 		}).
 		Then().
-		Expect(Error("", "mutually exclusive"))
+		Expect(Success(""))
 }
 
-// TestApplicationSourceValidation_EmptySourcesArray verifies that the CRD validation
-// rejects an Application with an empty sources array
+// TestApplicationSourceValidation_EmptySourcesArray verifies that an Application
+// with an empty sources array is allowed (for ApplicationSet templates)
 func TestApplicationSourceValidation_EmptySourcesArray(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).
 		When().
-		IgnoreErrors().
 		CreateFromFile(func(app *Application) {
-			// Set sources to empty array - this should be rejected by CEL validation
+			// Set sources to empty array - this is valid for templates
 			app.Spec.Source = nil
 			app.Spec.Sources = ApplicationSources{}
 		}).
 		Then().
-		Expect(Error("", "mutually exclusive"))
+		Expect(Success(""))
 }
 
 // TestApplicationSourceValidation_ValidSourceOnly verifies that an Application

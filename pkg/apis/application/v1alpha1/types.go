@@ -73,8 +73,8 @@ type Application struct {
 }
 
 // ApplicationSpec represents desired application state. Contains link to repository with application definition and additional parameters link definition revision.
-// +kubebuilder:validation:XValidation:rule="(has(self.source) && self.source != null) != (has(self.sources) && size(self.sources) > 0)",message="source and sources are mutually exclusive, exactly one must be set"
-// +kubebuilder:validation:XValidation:rule="(has(self.destination.server) && self.destination.server.size() > 0) != (has(self.destination.name) && self.destination.name.size() > 0)",message="destination server and name are mutually exclusive, exactly one must be set"
+// +kubebuilder:validation:XValidation:rule="!((has(self.source) && self.source != null) && (has(self.sources) && size(self.sources) > 0))",message="source and sources are mutually exclusive"
+// +kubebuilder:validation:XValidation:rule="!((has(self.destination.server) && self.destination.server.size() > 0) && (has(self.destination.name) && self.destination.name.size() > 0))",message="destination server and name are mutually exclusive"
 type ApplicationSpec struct {
 	// Source is a reference to the location of the application's manifests or chart
 	Source *ApplicationSource `json:"source,omitempty" protobuf:"bytes,1,opt,name=source"`

@@ -937,15 +937,14 @@ spec:
                               - project
                               type: object
                               x-kubernetes-validations:
-                              - message: source and sources are mutually exclusive,
-                                  exactly one must be set
-                                rule: (has(self.source) && self.source != null) !=
-                                  (has(self.sources) && size(self.sources) > 0)
+                              - message: source and sources are mutually exclusive
+                                rule: '!((has(self.source) && self.source != null)
+                                  && (has(self.sources) && size(self.sources) > 0))'
                               - message: destination server and name are mutually
-                                  exclusive, exactly one must be set
-                                rule: (has(self.destination.server) && self.destination.server.size()
-                                  > 0) != (has(self.destination.name) && self.destination.name.size()
-                                  > 0)
+                                  exclusive
+                                rule: '!((has(self.destination.server) && self.destination.server.size()
+                                  > 0) && (has(self.destination.name) && self.destination.name.size()
+                                  > 0))'
                           required:
                           - metadata
                           - spec
@@ -1855,15 +1854,14 @@ spec:
                               - project
                               type: object
                               x-kubernetes-validations:
-                              - message: source and sources are mutually exclusive,
-                                  exactly one must be set
-                                rule: (has(self.source) && self.source != null) !=
-                                  (has(self.sources) && size(self.sources) > 0)
+                              - message: source and sources are mutually exclusive
+                                rule: '!((has(self.source) && self.source != null)
+                                  && (has(self.sources) && size(self.sources) > 0))'
                               - message: destination server and name are mutually
-                                  exclusive, exactly one must be set
-                                rule: (has(self.destination.server) && self.destination.server.size()
-                                  > 0) != (has(self.destination.name) && self.destination.name.size()
-                                  > 0)
+                                  exclusive
+                                rule: '!((has(self.destination.server) && self.destination.server.size()
+                                  > 0) && (has(self.destination.name) && self.destination.name.size()
+                                  > 0))'
                           required:
                           - metadata
                           - spec
@@ -2774,15 +2772,14 @@ spec:
                               - project
                               type: object
                               x-kubernetes-validations:
-                              - message: source and sources are mutually exclusive,
-                                  exactly one must be set
-                                rule: (has(self.source) && self.source != null) !=
-                                  (has(self.sources) && size(self.sources) > 0)
+                              - message: source and sources are mutually exclusive
+                                rule: '!((has(self.source) && self.source != null)
+                                  && (has(self.sources) && size(self.sources) > 0))'
                               - message: destination server and name are mutually
-                                  exclusive, exactly one must be set
-                                rule: (has(self.destination.server) && self.destination.server.size()
-                                  > 0) != (has(self.destination.name) && self.destination.name.size()
-                                  > 0)
+                                  exclusive
+                                rule: '!((has(self.destination.server) && self.destination.server.size()
+                                  > 0) && (has(self.destination.name) && self.destination.name.size()
+                                  > 0))'
                           required:
                           - metadata
                           - spec
@@ -3671,15 +3668,14 @@ spec:
                               - project
                               type: object
                               x-kubernetes-validations:
-                              - message: source and sources are mutually exclusive,
-                                  exactly one must be set
-                                rule: (has(self.source) && self.source != null) !=
-                                  (has(self.sources) && size(self.sources) > 0)
+                              - message: source and sources are mutually exclusive
+                                rule: '!((has(self.source) && self.source != null)
+                                  && (has(self.sources) && size(self.sources) > 0))'
                               - message: destination server and name are mutually
-                                  exclusive, exactly one must be set
-                                rule: (has(self.destination.server) && self.destination.server.size()
-                                  > 0) != (has(self.destination.name) && self.destination.name.size()
-                                  > 0)
+                                  exclusive
+                                rule: '!((has(self.destination.server) && self.destination.server.size()
+                                  > 0) && (has(self.destination.name) && self.destination.name.size()
+                                  > 0))'
                           required:
                           - metadata
                           - spec
@@ -4594,16 +4590,16 @@ spec:
                                         type: object
                                         x-kubernetes-validations:
                                         - message: source and sources are mutually
-                                            exclusive, exactly one must be set
-                                          rule: (has(self.source) && self.source !=
-                                            null) != (has(self.sources) && size(self.sources)
-                                            > 0)
+                                            exclusive
+                                          rule: '!((has(self.source) && self.source
+                                            != null) && (has(self.sources) && size(self.sources)
+                                            > 0))'
                                         - message: destination server and name are
-                                            mutually exclusive, exactly one must be
-                                            set
-                                          rule: (has(self.destination.server) && self.destination.server.size()
-                                            > 0) != (has(self.destination.name) &&
-                                            self.destination.name.size() > 0)
+                                            mutually exclusive
+                                          rule: '!((has(self.destination.server) &&
+                                            self.destination.server.size() > 0) &&
+                                            (has(self.destination.name) && self.destination.name.size()
+                                            > 0))'
                                     required:
                                     - metadata
                                     - spec
@@ -5514,16 +5510,16 @@ spec:
                                         type: object
                                         x-kubernetes-validations:
                                         - message: source and sources are mutually
-                                            exclusive, exactly one must be set
-                                          rule: (has(self.source) && self.source !=
-                                            null) != (has(self.sources) && size(self.sources)
-                                            > 0)
+                                            exclusive
+                                          rule: '!((has(self.source) && self.source
+                                            != null) && (has(self.sources) && size(self.sources)
+                                            > 0))'
                                         - message: destination server and name are
-                                            mutually exclusive, exactly one must be
-                                            set
-                                          rule: (has(self.destination.server) && self.destination.server.size()
-                                            > 0) != (has(self.destination.name) &&
-                                            self.destination.name.size() > 0)
+                                            mutually exclusive
+                                          rule: '!((has(self.destination.server) &&
+                                            self.destination.server.size() > 0) &&
+                                            (has(self.destination.name) && self.destination.name.size()
+                                            > 0))'
                                     required:
                                     - metadata
                                     - spec
@@ -6435,16 +6431,16 @@ spec:
                                         type: object
                                         x-kubernetes-validations:
                                         - message: source and sources are mutually
-                                            exclusive, exactly one must be set
-                                          rule: (has(self.source) && self.source !=
-                                            null) != (has(self.sources) && size(self.sources)
-                                            > 0)
+                                            exclusive
+                                          rule: '!((has(self.source) && self.source
+                                            != null) && (has(self.sources) && size(self.sources)
+                                            > 0))'
                                         - message: destination server and name are
-                                            mutually exclusive, exactly one must be
-                                            set
-                                          rule: (has(self.destination.server) && self.destination.server.size()
-                                            > 0) != (has(self.destination.name) &&
-                                            self.destination.name.size() > 0)
+                                            mutually exclusive
+                                          rule: '!((has(self.destination.server) &&
+                                            self.destination.server.size() > 0) &&
+                                            (has(self.destination.name) && self.destination.name.size()
+                                            > 0))'
                                     required:
                                     - metadata
                                     - spec
@@ -7334,16 +7330,16 @@ spec:
                                         type: object
                                         x-kubernetes-validations:
                                         - message: source and sources are mutually
-                                            exclusive, exactly one must be set
-                                          rule: (has(self.source) && self.source !=
-                                            null) != (has(self.sources) && size(self.sources)
-                                            > 0)
+                                            exclusive
+                                          rule: '!((has(self.source) && self.source
+                                            != null) && (has(self.sources) && size(self.sources)
+                                            > 0))'
                                         - message: destination server and name are
-                                            mutually exclusive, exactly one must be
-                                            set
-                                          rule: (has(self.destination.server) && self.destination.server.size()
-                                            > 0) != (has(self.destination.name) &&
-                                            self.destination.name.size() > 0)
+                                            mutually exclusive
+                                          rule: '!((has(self.destination.server) &&
+                                            self.destination.server.size() > 0) &&
+                                            (has(self.destination.name) && self.destination.name.size()
+                                            > 0))'
                                     required:
                                     - metadata
                                     - spec
@@ -8241,16 +8237,16 @@ spec:
                                         type: object
                                         x-kubernetes-validations:
                                         - message: source and sources are mutually
-                                            exclusive, exactly one must be set
-                                          rule: (has(self.source) && self.source !=
-                                            null) != (has(self.sources) && size(self.sources)
-                                            > 0)
+                                            exclusive
+                                          rule: '!((has(self.source) && self.source
+                                            != null) && (has(self.sources) && size(self.sources)
+                                            > 0))'
                                         - message: destination server and name are
-                                            mutually exclusive, exactly one must be
-                                            set
-                                          rule: (has(self.destination.server) && self.destination.server.size()
-                                            > 0) != (has(self.destination.name) &&
-                                            self.destination.name.size() > 0)
+                                            mutually exclusive
+                                          rule: '!((has(self.destination.server) &&
+                                            self.destination.server.size() > 0) &&
+                                            (has(self.destination.name) && self.destination.name.size()
+                                            > 0))'
                                     required:
                                     - metadata
                                     - spec
@@ -9375,16 +9371,16 @@ spec:
                                         type: object
                                         x-kubernetes-validations:
                                         - message: source and sources are mutually
-                                            exclusive, exactly one must be set
-                                          rule: (has(self.source) && self.source !=
-                                            null) != (has(self.sources) && size(self.sources)
-                                            > 0)
+                                            exclusive
+                                          rule: '!((has(self.source) && self.source
+                                            != null) && (has(self.sources) && size(self.sources)
+                                            > 0))'
                                         - message: destination server and name are
-                                            mutually exclusive, exactly one must be
-                                            set
-                                          rule: (has(self.destination.server) && self.destination.server.size()
-                                            > 0) != (has(self.destination.name) &&
-                                            self.destination.name.size() > 0)
+                                            mutually exclusive
+                                          rule: '!((has(self.destination.server) &&
+                                            self.destination.server.size() > 0) &&
+                                            (has(self.destination.name) && self.destination.name.size()
+                                            > 0))'
                                     required:
                                     - metadata
                                     - spec
@@ -10500,16 +10496,16 @@ spec:
                                         type: object
                                         x-kubernetes-validations:
                                         - message: source and sources are mutually
-                                            exclusive, exactly one must be set
-                                          rule: (has(self.source) && self.source !=
-                                            null) != (has(self.sources) && size(self.sources)
-                                            > 0)
+                                            exclusive
+                                          rule: '!((has(self.source) && self.source
+                                            != null) && (has(self.sources) && size(self.sources)
+                                            > 0))'
                                         - message: destination server and name are
-                                            mutually exclusive, exactly one must be
-                                            set
-                                          rule: (has(self.destination.server) && self.destination.server.size()
-                                            > 0) != (has(self.destination.name) &&
-                                            self.destination.name.size() > 0)
+                                            mutually exclusive
+                                          rule: '!((has(self.destination.server) &&
+                                            self.destination.server.size() > 0) &&
+                                            (has(self.destination.name) && self.destination.name.size()
+                                            > 0))'
                                     required:
                                     - metadata
                                     - spec
@@ -11415,15 +11411,14 @@ spec:
                               - project
                               type: object
                               x-kubernetes-validations:
-                              - message: source and sources are mutually exclusive,
-                                  exactly one must be set
-                                rule: (has(self.source) && self.source != null) !=
-                                  (has(self.sources) && size(self.sources) > 0)
+                              - message: source and sources are mutually exclusive
+                                rule: '!((has(self.source) && self.source != null)
+                                  && (has(self.sources) && size(self.sources) > 0))'
                               - message: destination server and name are mutually
-                                  exclusive, exactly one must be set
-                                rule: (has(self.destination.server) && self.destination.server.size()
-                                  > 0) != (has(self.destination.name) && self.destination.name.size()
-                                  > 0)
+                                  exclusive
+                                rule: '!((has(self.destination.server) && self.destination.server.size()
+                                  > 0) && (has(self.destination.name) && self.destination.name.size()
+                                  > 0))'
                           required:
                           - metadata
                           - spec
@@ -12340,16 +12335,16 @@ spec:
                                         type: object
                                         x-kubernetes-validations:
                                         - message: source and sources are mutually
-                                            exclusive, exactly one must be set
-                                          rule: (has(self.source) && self.source !=
-                                            null) != (has(self.sources) && size(self.sources)
-                                            > 0)
+                                            exclusive
+                                          rule: '!((has(self.source) && self.source
+                                            != null) && (has(self.sources) && size(self.sources)
+                                            > 0))'
                                         - message: destination server and name are
-                                            mutually exclusive, exactly one must be
-                                            set
-                                          rule: (has(self.destination.server) && self.destination.server.size()
-                                            > 0) != (has(self.destination.name) &&
-                                            self.destination.name.size() > 0)
+                                            mutually exclusive
+                                          rule: '!((has(self.destination.server) &&
+                                            self.destination.server.size() > 0) &&
+                                            (has(self.destination.name) && self.destination.name.size()
+                                            > 0))'
                                     required:
                                     - metadata
                                     - spec
@@ -13260,16 +13255,16 @@ spec:
                                         type: object
                                         x-kubernetes-validations:
                                         - message: source and sources are mutually
-                                            exclusive, exactly one must be set
-                                          rule: (has(self.source) && self.source !=
-                                            null) != (has(self.sources) && size(self.sources)
-                                            > 0)
+                                            exclusive
+                                          rule: '!((has(self.source) && self.source
+                                            != null) && (has(self.sources) && size(self.sources)
+                                            > 0))'
                                         - message: destination server and name are
-                                            mutually exclusive, exactly one must be
-                                            set
-                                          rule: (has(self.destination.server) && self.destination.server.size()
-                                            > 0) != (has(self.destination.name) &&
-                                            self.destination.name.size() > 0)
+                                            mutually exclusive
+                                          rule: '!((has(self.destination.server) &&
+                                            self.destination.server.size() > 0) &&
+                                            (has(self.destination.name) && self.destination.name.size()
+                                            > 0))'
                                     required:
                                     - metadata
                                     - spec
@@ -14181,16 +14176,16 @@ spec:
                                         type: object
                                         x-kubernetes-validations:
                                         - message: source and sources are mutually
-                                            exclusive, exactly one must be set
-                                          rule: (has(self.source) && self.source !=
-                                            null) != (has(self.sources) && size(self.sources)
-                                            > 0)
+                                            exclusive
+                                          rule: '!((has(self.source) && self.source
+                                            != null) && (has(self.sources) && size(self.sources)
+                                            > 0))'
                                         - message: destination server and name are
-                                            mutually exclusive, exactly one must be
-                                            set
-                                          rule: (has(self.destination.server) && self.destination.server.size()
-                                            > 0) != (has(self.destination.name) &&
-                                            self.destination.name.size() > 0)
+                                            mutually exclusive
+                                          rule: '!((has(self.destination.server) &&
+                                            self.destination.server.size() > 0) &&
+                                            (has(self.destination.name) && self.destination.name.size()
+                                            > 0))'
                                     required:
                                     - metadata
                                     - spec
@@ -15080,16 +15075,16 @@ spec:
                                         type: object
                                         x-kubernetes-validations:
                                         - message: source and sources are mutually
-                                            exclusive, exactly one must be set
-                                          rule: (has(self.source) && self.source !=
-                                            null) != (has(self.sources) && size(self.sources)
-                                            > 0)
+                                            exclusive
+                                          rule: '!((has(self.source) && self.source
+                                            != null) && (has(self.sources) && size(self.sources)
+                                            > 0))'
                                         - message: destination server and name are
-                                            mutually exclusive, exactly one must be
-                                            set
-                                          rule: (has(self.destination.server) && self.destination.server.size()
-                                            > 0) != (has(self.destination.name) &&
-                                            self.destination.name.size() > 0)
+                                            mutually exclusive
+                                          rule: '!((has(self.destination.server) &&
+                                            self.destination.server.size() > 0) &&
+                                            (has(self.destination.name) && self.destination.name.size()
+                                            > 0))'
                                     required:
                                     - metadata
                                     - spec
@@ -15987,16 +15982,16 @@ spec:
                                         type: object
                                         x-kubernetes-validations:
                                         - message: source and sources are mutually
-                                            exclusive, exactly one must be set
-                                          rule: (has(self.source) && self.source !=
-                                            null) != (has(self.sources) && size(self.sources)
-                                            > 0)
+                                            exclusive
+                                          rule: '!((has(self.source) && self.source
+                                            != null) && (has(self.sources) && size(self.sources)
+                                            > 0))'
                                         - message: destination server and name are
-                                            mutually exclusive, exactly one must be
-                                            set
-                                          rule: (has(self.destination.server) && self.destination.server.size()
-                                            > 0) != (has(self.destination.name) &&
-                                            self.destination.name.size() > 0)
+                                            mutually exclusive
+                                          rule: '!((has(self.destination.server) &&
+                                            self.destination.server.size() > 0) &&
+                                            (has(self.destination.name) && self.destination.name.size()
+                                            > 0))'
                                     required:
                                     - metadata
                                     - spec
@@ -17121,16 +17116,16 @@ spec:
                                         type: object
                                         x-kubernetes-validations:
                                         - message: source and sources are mutually
-                                            exclusive, exactly one must be set
-                                          rule: (has(self.source) && self.source !=
-                                            null) != (has(self.sources) && size(self.sources)
-                                            > 0)
+                                            exclusive
+                                          rule: '!((has(self.source) && self.source
+                                            != null) && (has(self.sources) && size(self.sources)
+                                            > 0))'
                                         - message: destination server and name are
-                                            mutually exclusive, exactly one must be
-                                            set
-                                          rule: (has(self.destination.server) && self.destination.server.size()
-                                            > 0) != (has(self.destination.name) &&
-                                            self.destination.name.size() > 0)
+                                            mutually exclusive
+                                          rule: '!((has(self.destination.server) &&
+                                            self.destination.server.size() > 0) &&
+                                            (has(self.destination.name) && self.destination.name.size()
+                                            > 0))'
                                     required:
                                     - metadata
                                     - spec
@@ -18246,16 +18241,16 @@ spec:
                                         type: object
                                         x-kubernetes-validations:
                                         - message: source and sources are mutually
-                                            exclusive, exactly one must be set
-                                          rule: (has(self.source) && self.source !=
-                                            null) != (has(self.sources) && size(self.sources)
-                                            > 0)
+                                            exclusive
+                                          rule: '!((has(self.source) && self.source
+                                            != null) && (has(self.sources) && size(self.sources)
+                                            > 0))'
                                         - message: destination server and name are
-                                            mutually exclusive, exactly one must be
-                                            set
-                                          rule: (has(self.destination.server) && self.destination.server.size()
-                                            > 0) != (has(self.destination.name) &&
-                                            self.destination.name.size() > 0)
+                                            mutually exclusive
+                                          rule: '!((has(self.destination.server) &&
+                                            self.destination.server.size() > 0) &&
+                                            (has(self.destination.name) && self.destination.name.size()
+                                            > 0))'
                                     required:
                                     - metadata
                                     - spec
@@ -19165,15 +19160,14 @@ spec:
                               - project
                               type: object
                               x-kubernetes-validations:
-                              - message: source and sources are mutually exclusive,
-                                  exactly one must be set
-                                rule: (has(self.source) && self.source != null) !=
-                                  (has(self.sources) && size(self.sources) > 0)
+                              - message: source and sources are mutually exclusive
+                                rule: '!((has(self.source) && self.source != null)
+                                  && (has(self.sources) && size(self.sources) > 0))'
                               - message: destination server and name are mutually
-                                  exclusive, exactly one must be set
-                                rule: (has(self.destination.server) && self.destination.server.size()
-                                  > 0) != (has(self.destination.name) && self.destination.name.size()
-                                  > 0)
+                                  exclusive
+                                rule: '!((has(self.destination.server) && self.destination.server.size()
+                                  > 0) && (has(self.destination.name) && self.destination.name.size()
+                                  > 0))'
                           required:
                           - metadata
                           - spec
@@ -20069,15 +20063,14 @@ spec:
                               - project
                               type: object
                               x-kubernetes-validations:
-                              - message: source and sources are mutually exclusive,
-                                  exactly one must be set
-                                rule: (has(self.source) && self.source != null) !=
-                                  (has(self.sources) && size(self.sources) > 0)
+                              - message: source and sources are mutually exclusive
+                                rule: '!((has(self.source) && self.source != null)
+                                  && (has(self.sources) && size(self.sources) > 0))'
                               - message: destination server and name are mutually
-                                  exclusive, exactly one must be set
-                                rule: (has(self.destination.server) && self.destination.server.size()
-                                  > 0) != (has(self.destination.name) && self.destination.name.size()
-                                  > 0)
+                                  exclusive
+                                rule: '!((has(self.destination.server) && self.destination.server.size()
+                                  > 0) && (has(self.destination.name) && self.destination.name.size()
+                                  > 0))'
                           required:
                           - metadata
                           - spec
@@ -21201,15 +21194,14 @@ spec:
                               - project
                               type: object
                               x-kubernetes-validations:
-                              - message: source and sources are mutually exclusive,
-                                  exactly one must be set
-                                rule: (has(self.source) && self.source != null) !=
-                                  (has(self.sources) && size(self.sources) > 0)
+                              - message: source and sources are mutually exclusive
+                                rule: '!((has(self.source) && self.source != null)
+                                  && (has(self.sources) && size(self.sources) > 0))'
                               - message: destination server and name are mutually
-                                  exclusive, exactly one must be set
-                                rule: (has(self.destination.server) && self.destination.server.size()
-                                  > 0) != (has(self.destination.name) && self.destination.name.size()
-                                  > 0)
+                                  exclusive
+                                rule: '!((has(self.destination.server) && self.destination.server.size()
+                                  > 0) && (has(self.destination.name) && self.destination.name.size()
+                                  > 0))'
                           required:
                           - metadata
                           - spec
@@ -22324,15 +22316,14 @@ spec:
                               - project
                               type: object
                               x-kubernetes-validations:
-                              - message: source and sources are mutually exclusive,
-                                  exactly one must be set
-                                rule: (has(self.source) && self.source != null) !=
-                                  (has(self.sources) && size(self.sources) > 0)
+                              - message: source and sources are mutually exclusive
+                                rule: '!((has(self.source) && self.source != null)
+                                  && (has(self.sources) && size(self.sources) > 0))'
                               - message: destination server and name are mutually
-                                  exclusive, exactly one must be set
-                                rule: (has(self.destination.server) && self.destination.server.size()
-                                  > 0) != (has(self.destination.name) && self.destination.name.size()
-                                  > 0)
+                                  exclusive
+                                rule: '!((has(self.destination.server) && self.destination.server.size()
+                                  > 0) && (has(self.destination.name) && self.destination.name.size()
+                                  > 0))'
                           required:
                           - metadata
                           - spec
@@ -23315,15 +23306,13 @@ spec:
                     - project
                     type: object
                     x-kubernetes-validations:
-                    - message: source and sources are mutually exclusive, exactly
-                        one must be set
-                      rule: (has(self.source) && self.source != null) != (has(self.sources)
-                        && size(self.sources) > 0)
-                    - message: destination server and name are mutually exclusive,
-                        exactly one must be set
-                      rule: (has(self.destination.server) && self.destination.server.size()
-                        > 0) != (has(self.destination.name) && self.destination.name.size()
-                        > 0)
+                    - message: source and sources are mutually exclusive
+                      rule: '!((has(self.source) && self.source != null) && (has(self.sources)
+                        && size(self.sources) > 0))'
+                    - message: destination server and name are mutually exclusive
+                      rule: '!((has(self.destination.server) && self.destination.server.size()
+                        > 0) && (has(self.destination.name) && self.destination.name.size()
+                        > 0))'
                 required:
                 - metadata
                 - spec
