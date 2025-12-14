@@ -62,7 +62,8 @@ stringData:
   url: "https://github.com/<your org or user>/<your repo>"
   type: "git"
   githubAppID: "<your app ID here>"
-  githubAppInstallationID: "<your installation ID here>"
+  # githubAppInstallationID is optional and will be auto-discovered if omitted
+  githubAppInstallationID: "<your installation ID here>" # Optional
   githubAppPrivateKey: |
     <your private key here>
 ---
@@ -78,7 +79,8 @@ stringData:
   url: "https://github.com/<your org or user>/<your repo>"
   type: "git"
   githubAppID: "<your app ID here>"
-  githubAppInstallationID: "<your installation ID here>"
+  # githubAppInstallationID is optional and will be auto-discovered if omitted
+  githubAppInstallationID: "<your installation ID here>"  # Optional
   githubAppPrivateKey: |
     <your private key here>
 ```
