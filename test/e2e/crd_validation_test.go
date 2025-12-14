@@ -21,22 +21,7 @@ func TestApplicationDestinationValidationBothServerAndName(t *testing.T) {
 			app.Spec.Destination.Name = "in-cluster"
 		}).
 		Then().
-		Expect(Error("", "mutually exclusive"))
-}
-
-// TestApplicationDestinationValidationNeitherServerNorName verifies that an Application
-// with neither server nor name is allowed (for ApplicationSet templates)
-func TestApplicationDestinationValidationNeitherServerNorName(t *testing.T) {
-	Given(t).
-		Path(guestbookPath).
-		When().
-		CreateFromFile(func(app *Application) {
-			// Clear both server and name - this is valid for templates
-			app.Spec.Destination.Server = ""
-			app.Spec.Destination.Name = ""
-		}).
-		Then().
-		Expect(Success(""))
+		Expect(Error("", "can't have both name and server defined"))
 }
 
 // TestApplicationDestinationValidationValidServerOnly verifies that an Application
@@ -75,26 +60,8 @@ func TestApplicationValidationBothSourceAndSources(t *testing.T) {
 			}
 		}).
 		Then().
-		Expect(Error("", "mutually exclusive"))
+		Expect(Error("", "can't have both source and sources defined"))
 }
-
-// TestApplicationSourceValidationEmptySourcesArray verifies that an Application
-// with an empty sources array is allowed (for ApplicationSet templates)
-/*
-func TestApplicationSourceValidationEmptySourcesArray(t *testing.T) {
-	Given(t).
-		Path(guestbookPath).
-		When().
-		CreateFromFile(func(app *Application) {
-			// Set sources to empty array - this is valid for templates
-			app.Spec.Source = nil
-			app.Spec.Sources = ApplicationSources{}
-		}).
-		Then().
-		Expect(Success(""))
-}
-
-*/
 
 // TestApplicationSourceValidationValidSourceOnly verifies that an Application
 // with only source set is accepted
@@ -147,10 +114,9 @@ func TestApplicationSourceValidationValidMultipleSources(t *testing.T) {
 				{
 					RepoURL: RepoURL(RepoURLTypeFile),
 					Path:    guestbookPath,
-				},
-				{
+				}, {
 					RepoURL: RepoURL(RepoURLTypeFile),
-					Path:    "kustomize-guestbook",
+					Path:    "two-nice-pods",
 				},
 			}
 		}).

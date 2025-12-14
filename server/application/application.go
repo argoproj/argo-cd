@@ -358,15 +358,20 @@ func (s *Server) Create(ctx context.Context, q *application.ApplicationCreateReq
 		return nil, err
 	}
 
+	appNs := s.appNamespaceOrDefault(a.Namespace)
+	if !s.isNamespaceEnabled(appNs) {
+		return nil, security.NamespaceNotPermittedError(appNs)
+	}
+	_, err = s.appclientset.ArgoprojV1alpha1().Applications(appNs).Create(ctx, a, metav1.CreateOptions{
+		DryRun: []string{"All"},
+	})
+	if err != nil && !apierrors.IsAlreadyExists(err) {
+		return nil, fmt.Errorf("error creating application: %w", err)
+	}
+
 	err = s.validateAndNormalizeApp(ctx, a, proj, validate)
 	if err != nil {
 		return nil, fmt.Errorf("error while validating and normalizing app: %w", err)
-	}
-
-	appNs := s.appNamespaceOrDefault(a.Namespace)
-
-	if !s.isNamespaceEnabled(appNs) {
-		return nil, security.NamespaceNotPermittedError(appNs)
 	}
 
 	// Don't let the app creator set the operation explicitly. Those requests should always go through the Sync API.
@@ -942,6 +947,13 @@ func (s *Server) validateAndUpdateApp(ctx context.Context, newApp *v1alpha1.Appl
 	app, proj, err := s.getApplicationEnforceRBACClient(ctx, action, currentProject, newApp.Namespace, newApp.Name, "")
 	if err != nil {
 		return nil, err
+	}
+
+	_, err = s.appclientset.ArgoprojV1alpha1().Applications(app.Namespace).Update(ctx, newApp, metav1.UpdateOptions{
+		DryRun: []string{"All"},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("error updating application: %w", err)
 	}
 
 	err = s.validateAndNormalizeApp(ctx, newApp, proj, validate)
