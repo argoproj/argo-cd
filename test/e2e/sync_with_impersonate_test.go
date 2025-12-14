@@ -41,10 +41,10 @@ func TestSyncWithNoDestinationServiceAccountsInProject(t *testing.T) {
 	Given(t).
 		Path("guestbook").
 		When().
+		WithImpersonationEnabled("", nil).
 		CreateFromFile(func(app *v1alpha1.Application) {
 			app.Spec.SyncPolicy = &v1alpha1.SyncPolicy{Automated: &v1alpha1.SyncPolicyAutomated{}}
 		}).
-		WithImpersonationEnabled("", nil).
 		Then().
 		// With the impersonation feature enabled, Application sync must fail
 		// when there are no destination service accounts configured in AppProject
