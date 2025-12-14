@@ -30,6 +30,7 @@ import (
 	k8sbatchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -68,6 +69,52 @@ const (
 )
 
 var testEnableEventList []string = argo.DefaultEnableEventList()
+
+// dryRunAwareTracker wraps an ObjectTracker and properly handles DryRun options
+// The default fake.ObjectTracker ignores DryRun and always mutates objects
+type dryRunAwareTracker struct {
+	kubetesting.ObjectTracker
+}
+
+func (t *dryRunAwareTracker) Create(gvr schema.GroupVersionResource, obj runtime.Object, ns string, opts ...metav1.CreateOptions) error {
+	// Check if this is a dry run
+	if len(opts) > 0 && len(opts[0].DryRun) > 0 {
+		// For dry run, just validate but don't persist
+		// We still need to check if object already exists
+		meta, err := meta.Accessor(obj)
+		if err != nil {
+			return err
+		}
+		_, err = t.ObjectTracker.Get(gvr, ns, meta.GetName())
+		if err == nil {
+			// Object already exists
+			return apierrors.NewAlreadyExists(gvr.GroupResource(), meta.GetName())
+		}
+		// Dry run succeeded - don't persist
+		return nil
+	}
+	return t.ObjectTracker.Create(gvr, obj, ns, opts...)
+}
+
+func (t *dryRunAwareTracker) Update(gvr schema.GroupVersionResource, obj runtime.Object, ns string, opts ...metav1.UpdateOptions) error {
+	// Check if this is a dry run
+	if len(opts) > 0 && len(opts[0].DryRun) > 0 {
+		// For dry run, just validate but don't persist
+		// We still need to check if object exists
+		meta, err := meta.Accessor(obj)
+		if err != nil {
+			return err
+		}
+		_, err = t.ObjectTracker.Get(gvr, ns, meta.GetName())
+		if err != nil {
+			// Object doesn't exist
+			return err
+		}
+		// Dry run succeeded - don't persist
+		return nil
+	}
+	return t.ObjectTracker.Update(gvr, obj, ns, opts...)
+}
 
 type broadcasterMock struct {
 	objects []runtime.Object
@@ -221,6 +268,40 @@ func newTestAppServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforcer),
 	objects = append(objects, defaultProj, myProj, projWithSyncWindows)
 
 	fakeAppsClientset := apps.NewSimpleClientset(objects...)
+	// Add a reactor to properly handle DryRun for Create and Update
+	tracker := &dryRunAwareTracker{ObjectTracker: fakeAppsClientset.Tracker()}
+	fakeAppsClientset.PrependReactor("create", "*", func(action kubetesting.Action) (bool, runtime.Object, error) {
+		createActionImpl, ok := action.(kubetesting.CreateActionImpl)
+		if !ok {
+			return false, nil, nil
+		}
+		// Only intercept if this is a DryRun operation
+		opts := createActionImpl.GetCreateOptions()
+		if len(opts.DryRun) == 0 {
+			return false, nil, nil
+		}
+		gvr := createActionImpl.GetResource()
+		obj := createActionImpl.GetObject()
+		ns := createActionImpl.GetNamespace()
+		err := tracker.Create(gvr, obj, ns, opts)
+		return true, obj, err
+	})
+	fakeAppsClientset.PrependReactor("update", "*", func(action kubetesting.Action) (bool, runtime.Object, error) {
+		updateActionImpl, ok := action.(kubetesting.UpdateActionImpl)
+		if !ok {
+			return false, nil, nil
+		}
+		// Only intercept if this is a DryRun operation
+		opts := updateActionImpl.GetUpdateOptions()
+		if len(opts.DryRun) == 0 {
+			return false, nil, nil
+		}
+		gvr := updateActionImpl.GetResource()
+		obj := updateActionImpl.GetObject()
+		ns := updateActionImpl.GetNamespace()
+		err := tracker.Update(gvr, obj, ns, opts)
+		return true, obj, err
+	})
 	factory := appinformer.NewSharedInformerFactoryWithOptions(fakeAppsClientset, 0, appinformer.WithNamespace(""), appinformer.WithTweakListOptions(func(_ *metav1.ListOptions) {}))
 	fakeProjLister := factory.Argoproj().V1alpha1().AppProjects().Lister().AppProjects(testNamespace)
 
@@ -385,6 +466,40 @@ func newTestAppServerWithEnforcerConfigureWithBenchmark(b *testing.B, f func(*rb
 	objects = append(objects, defaultProj, myProj, projWithSyncWindows)
 
 	fakeAppsClientset := apps.NewSimpleClientset(objects...)
+	// Add a reactor to properly handle DryRun for Create and Update
+	tracker := &dryRunAwareTracker{ObjectTracker: fakeAppsClientset.Tracker()}
+	fakeAppsClientset.PrependReactor("create", "*", func(action kubetesting.Action) (bool, runtime.Object, error) {
+		createActionImpl, ok := action.(kubetesting.CreateActionImpl)
+		if !ok {
+			return false, nil, nil
+		}
+		// Only intercept if this is a DryRun operation
+		opts := createActionImpl.GetCreateOptions()
+		if len(opts.DryRun) == 0 {
+			return false, nil, nil
+		}
+		gvr := createActionImpl.GetResource()
+		obj := createActionImpl.GetObject()
+		ns := createActionImpl.GetNamespace()
+		err := tracker.Create(gvr, obj, ns, opts)
+		return true, obj, err
+	})
+	fakeAppsClientset.PrependReactor("update", "*", func(action kubetesting.Action) (bool, runtime.Object, error) {
+		updateActionImpl, ok := action.(kubetesting.UpdateActionImpl)
+		if !ok {
+			return false, nil, nil
+		}
+		// Only intercept if this is a DryRun operation
+		opts := updateActionImpl.GetUpdateOptions()
+		if len(opts.DryRun) == 0 {
+			return false, nil, nil
+		}
+		gvr := updateActionImpl.GetResource()
+		obj := updateActionImpl.GetObject()
+		ns := updateActionImpl.GetNamespace()
+		err := tracker.Update(gvr, obj, ns, opts)
+		return true, obj, err
+	})
 	factory := appinformer.NewSharedInformerFactoryWithOptions(fakeAppsClientset, 0, appinformer.WithNamespace(""), appinformer.WithTweakListOptions(func(_ *metav1.ListOptions) {}))
 	fakeProjLister := factory.Argoproj().V1alpha1().AppProjects().Lister().AppProjects(testNamespace)
 
