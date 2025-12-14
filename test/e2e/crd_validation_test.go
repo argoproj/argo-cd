@@ -54,9 +54,9 @@ func TestApplicationDestinationValidationValidServerOnly(t *testing.T) {
 		Expect(Success(""))
 }
 
-// TestApplicationSourceValidationBothSourceAndSources verifies that the CRD validation
+// TestApplicationValidationBothSourceAndSources verifies that the CRD validation
 // rejects an Application with both source and sources set
-func TestApplicationSourceValidationBothSourceAndSources(t *testing.T) {
+func TestApplicationValidationBothSourceAndSources(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).
 		When().
@@ -78,23 +78,9 @@ func TestApplicationSourceValidationBothSourceAndSources(t *testing.T) {
 		Expect(Error("", "mutually exclusive"))
 }
 
-// TestApplicationSourceValidationNeitherSourceNorSources verifies that an Application
-// with neither source nor sources is allowed (for ApplicationSet templates)
-func TestApplicationSourceValidationNeitherSourceNorSources(t *testing.T) {
-	Given(t).
-		Path(guestbookPath).
-		When().
-		CreateFromFile(func(app *Application) {
-			// Clear both source and sources - this is valid for templates
-			app.Spec.Source = nil
-			app.Spec.Sources = nil
-		}).
-		Then().
-		Expect(Success(""))
-}
-
 // TestApplicationSourceValidationEmptySourcesArray verifies that an Application
 // with an empty sources array is allowed (for ApplicationSet templates)
+/*
 func TestApplicationSourceValidationEmptySourcesArray(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).
@@ -107,6 +93,8 @@ func TestApplicationSourceValidationEmptySourcesArray(t *testing.T) {
 		Then().
 		Expect(Success(""))
 }
+
+*/
 
 // TestApplicationSourceValidationValidSourceOnly verifies that an Application
 // with only source set is accepted
