@@ -101,6 +101,32 @@ func TestIDTokenClaims(t *testing.T) {
 
 	assert.JSONEq(t, "{\"id_token\":{\"groups\":{\"essential\":true}}}", values.Get("claims"))
 }
+func TestHandleLogin_IncludesDomainHint(t *testing.T) {
+	oidcTestServer := test.GetOIDCTestServer(t, nil)
+	t.Cleanup(oidcTestServer.Close)
+
+	cdSettings := &settings.ArgoCDSettings{
+		URL:                       "https://argocd.example.com",
+		OIDCTLSInsecureSkipVerify: true,
+		OIDCConfigRAW: fmt.Sprintf(`
+name: Test
+issuer: %s
+clientID: test-client-id
+clientSecret: test-client-secret
+domainHint: example.com
+requestedScopes: ["openid", "profile", "email", "groups"]`, oidcTestServer.URL),
+	}
+	app, err := NewClientApp(cdSettings, "", nil, "https://argocd.example.com", cache.NewInMemoryCache(24*time.Hour))
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodGet, "https://argocd.example.com/auth/login", http.NoBody)
+	w := httptest.NewRecorder()
+	app.HandleLogin(w, req)
+
+	assert.Equal(t, http.StatusSeeOther, w.Code)
+	location := w.Header().Get("Location")
+	assert.Contains(t, location, "domain_hint=example.com")
+}
 
 type fakeProvider struct {
 	EndpointError bool
