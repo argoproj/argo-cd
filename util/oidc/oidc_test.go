@@ -101,6 +101,7 @@ func TestIDTokenClaims(t *testing.T) {
 
 	assert.JSONEq(t, "{\"id_token\":{\"groups\":{\"essential\":true}}}", values.Get("claims"))
 }
+
 func TestHandleLogin_IncludesDomainHint(t *testing.T) {
 	oidcTestServer := test.GetOIDCTestServer(t, nil)
 	t.Cleanup(oidcTestServer.Close)
