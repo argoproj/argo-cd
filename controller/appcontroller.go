@@ -128,7 +128,6 @@ type ApplicationController struct {
 	statusRefreshJitter           time.Duration
 	selfHealTimeout               time.Duration
 	selfHealBackoff               *wait.Backoff
-	selfHealBackoffCooldown       time.Duration
 	syncTimeout                   time.Duration
 	db                            db.ArgoDB
 	settingsMgr                   *settings_util.SettingsManager
@@ -164,7 +163,6 @@ func NewApplicationController(
 	appResyncJitter time.Duration,
 	selfHealTimeout time.Duration,
 	selfHealBackoff *wait.Backoff,
-	selfHealBackoffCooldown time.Duration,
 	syncTimeout time.Duration,
 	repoErrorGracePeriod time.Duration,
 	metricsPort int,
@@ -211,7 +209,6 @@ func NewApplicationController(
 		settingsMgr:                       settingsMgr,
 		selfHealTimeout:                   selfHealTimeout,
 		selfHealBackoff:                   selfHealBackoff,
-		selfHealBackoffCooldown:           selfHealBackoffCooldown,
 		syncTimeout:                       syncTimeout,
 		clusterSharding:                   clusterSharding,
 		projByNameCache:                   sync.Map{},
@@ -2249,12 +2246,8 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 		// Self heal will trigger a new sync operation when the desired state changes and cause the application to
 		// be OutOfSync when it was previously synced Successfully. This means SelfHeal should only ever be attempted
 		// when the revisions have not changed, and where the previous sync to these revision was successful
-
-		// Only carry SelfHealAttemptsCount to be increased when the selfHealBackoffCooldown has not elapsed yet
-		if !ctrl.selfHealBackoffCooldownElapsed(app) {
-			if app.Status.OperationState != nil && app.Status.OperationState.Operation.Sync != nil {
-				op.Sync.SelfHealAttemptsCount = app.Status.OperationState.Operation.Sync.SelfHealAttemptsCount
-			}
+		if app.Status.OperationState != nil && app.Status.OperationState.Operation.Sync != nil {
+			op.Sync.SelfHealAttemptsCount = app.Status.OperationState.Operation.Sync.SelfHealAttemptsCount
 		}
 
 		if remainingTime := ctrl.selfHealRemainingBackoff(app, int(op.Sync.SelfHealAttemptsCount)); remainingTime > 0 {
@@ -2388,19 +2381,6 @@ func (ctrl *ApplicationController) selfHealRemainingBackoff(app *appv1.Applicati
 		}
 	}
 	return retryAfter
-}
-
-// selfHealBackoffCooldownElapsed returns true when the last successful sync has occurred since longer
-// than then self heal cooldown. This means that the application has been in sync for long enough to
-// reset the self healing backoff to its initial state
-func (ctrl *ApplicationController) selfHealBackoffCooldownElapsed(app *appv1.Application) bool {
-	if app.Status.OperationState == nil || app.Status.OperationState.FinishedAt == nil {
-		// Something is in progress, or about to be. In that case, selfHeal attempt should be zero anyway
-		return true
-	}
-
-	timeSinceLastOperation := time.Since(app.Status.OperationState.FinishedAt.Time)
-	return timeSinceLastOperation >= ctrl.selfHealBackoffCooldown && app.Status.OperationState.Phase.Successful()
 }
 
 // isAppNamespaceAllowed returns whether the application is allowed in the

@@ -1668,6 +1668,7 @@ func (in *Cluster) DeepCopyInto(out *Cluster) {
 			(*out)[key] = val
 		}
 	}
+	in.ObjectMeta.DeepCopyInto(&out.ObjectMeta)
 	return
 }
 

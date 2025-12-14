@@ -105,7 +105,12 @@ func NewCommand() *cobra.Command {
 			)
 
 			cli.SetLogFormat(cmdutil.LogFormat)
-			cli.SetLogLevel(cmdutil.LogLevel)
+
+			if debugLog {
+				cli.SetLogLevel("debug")
+			} else {
+				cli.SetLogLevel(cmdutil.LogLevel)
+			}
 
 			ctrl.SetLogger(logutils.NewLogrusLogger(logutils.NewWithCurrentConfig()))
 
