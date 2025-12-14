@@ -164,7 +164,7 @@ func (s *Server) Create(ctx context.Context, q *cluster.ClusterCreateRequest) (*
 			return nil, fmt.Errorf("error creating cluster: %w", err)
 		}
 		// act idempotent if existing spec matches new spec
-		existing, getErr := s.db.GetCluster(ctx, c.Server)
+		existing, getErr := s.db.GetClusterByServerAndName(ctx, c.Server, c.Name)
 		if getErr != nil {
 			return nil, status.Errorf(codes.Internal, "unable to check existing cluster details: %v", getErr)
 		}
@@ -248,30 +248,31 @@ func (s *Server) getCluster(ctx context.Context, q *cluster.ClusterQuery) (*appv
 		}
 	}
 
-	if q.Server != "" {
+	switch {
+	case q.Server != "" && q.Name != "":
+		c, err := s.db.GetClusterByServerAndName(ctx, q.Server, q.Name)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get cluster by server and name: %w", err)
+		}
+		return c, nil
+	case q.Server != "":
 		c, err := s.db.GetCluster(ctx, q.Server)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get cluster by server: %w", err)
 		}
-		if strings.TrimSpace(c.Name) == strings.TrimSpace(q.Name) || q.Name == "" {
-			return c, nil
-		}
-		// for clusters with same server and different names
-		clusterList, err := s.db.ListClusters(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("failed to list clusters: %w", err)
-		}
-		for _, item := range clusterList.Items {
-			// exactly match the server and name
-			if strings.TrimSpace(item.Name) == strings.TrimSpace(q.Name) && strings.TrimSpace(item.Server) == strings.TrimSpace(q.Server) {
-				return &item, nil
-			}
-		}
-	}
-
-	// we only get the name when we specify Name in ApplicationDestination and next
-	// we want to find the server in order to populate ApplicationDestination.Server
-	if q.Name != "" {
+		return c, nil
+		// // for clusters with same server and different names
+		// clusterList, err := s.db.ListClusters(ctx)
+		// if err != nil {
+		// 	return nil, fmt.Errorf("failed to list clusters: %w", err)
+		// }
+		// for _, item := range clusterList.Items {
+		// 	// exactly match the server and name
+		// 	if strings.TrimSpace(item.Name) == strings.TrimSpace(q.Name) && strings.TrimSpace(item.Server) == strings.TrimSpace(q.Server) {
+		// 		return &item, nil
+		// 	}
+		// }
+	case q.Name != "":
 		clusterList, err := s.db.ListClusters(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("failed to list clusters: %w", err)
@@ -282,8 +283,44 @@ func (s *Server) getCluster(ctx context.Context, q *cluster.ClusterQuery) (*appv
 			}
 		}
 	}
-
 	return nil, nil
+
+	// if q.Server != "" {
+	// 	c, err := s.db.GetCluster(ctx, q.Server)
+	// 	if err != nil {
+	// 		return nil, fmt.Errorf("failed to get cluster by server: %w", err)
+	// 	}
+	// 	if strings.TrimSpace(c.Name) == strings.TrimSpace(q.Name) || q.Name == "" {
+	// 		return c, nil
+	// 	}
+	// 	// for clusters with same server and different names
+	// 	clusterList, err := s.db.ListClusters(ctx)
+	// 	if err != nil {
+	// 		return nil, fmt.Errorf("failed to list clusters: %w", err)
+	// 	}
+	// 	for _, item := range clusterList.Items {
+	// 		// exactly match the server and name
+	// 		if strings.TrimSpace(item.Name) == strings.TrimSpace(q.Name) && strings.TrimSpace(item.Server) == strings.TrimSpace(q.Server) {
+	// 			return &item, nil
+	// 		}
+	// 	}
+	// }
+
+	// // we only get the name when we specify Name in ApplicationDestination and next
+	// // we want to find the server in order to populate ApplicationDestination.Server
+	// if q.Name != "" {
+	// 	clusterList, err := s.db.ListClusters(ctx)
+	// 	if err != nil {
+	// 		return nil, fmt.Errorf("failed to list clusters: %w", err)
+	// 	}
+	// 	for _, c := range clusterList.Items {
+	// 		if c.Name == q.Name {
+	// 			return &c, nil
+	// 		}
+	// 	}
+	// }
+
+	// return nil, nil
 }
 
 var clusterFieldsByPath = map[string]func(updated *appv1.Cluster, existing *appv1.Cluster){
@@ -374,32 +411,74 @@ func (s *Server) Delete(ctx context.Context, q *cluster.ClusterQuery) (*cluster.
 		return nil, fmt.Errorf("failed to get cluster with permissions check: %w", err)
 	}
 
-	if q.Name != "" {
-		servers, err := s.db.GetClusterServersByName(ctx, q.Name)
-		if err != nil {
-			log.WithField("cluster", q.Name).Warnf("failed to get cluster servers by name: %v", err)
-			return nil, common.PermissionDeniedAPIError
-		}
-		for _, server := range servers {
-			if err := enforceAndDelete(ctx, s, server, c.Project); err != nil {
-				return nil, fmt.Errorf("failed to enforce and delete cluster server: %w", err)
+	if q.Id != nil {
+		q.Server = ""
+		q.Name = ""
+		switch q.Id.Type {
+		case "url_name_escaped":
+			found := false
+			if q.Server, q.Name, found = strings.Cut(q.Id.Value, ","); !found {
+				return nil, errors.New("failed to parse cluster server and name")
 			}
-		}
-	} else {
-		if err := enforceAndDelete(ctx, s, q.Server, c.Project); err != nil {
-			return nil, fmt.Errorf("failed to enforce and delete cluster server: %w", err)
+		default:
+			q.Server = q.Id.Value
 		}
 	}
 
+	if err := enforceAndDelete(ctx, s, q.Server, q.Name, c.Project); err != nil {
+		return nil, fmt.Errorf("failed to enforce and delete cluster server: %w", err)
+	}
 	return &cluster.ClusterResponse{}, nil
+
+	// switch {
+	// case q.Server != "" && q.Name != "":
+	// 	if err := enforceAndDelete(ctx, s, q.Server, q.Name, c.Project); err != nil {
+	// 		return nil, fmt.Errorf("failed to enforce and delete cluster server: %w", err)
+	// 	}
+	// case q.Name != "":
+	// 	servers, err := s.db.GetClusterServersByName(ctx, q.Name)
+	// 	if err != nil {
+	// 		log.WithField("cluster", q.Name).Warnf("failed to get cluster servers by name: %v", err)
+	// 		return nil, common.PermissionDeniedAPIError
+	// 	}
+	// 	for _, server := range servers {
+	// 		if err := enforceAndDelete(ctx, s, server, c.Project); err != nil {
+	// 			return nil, fmt.Errorf("failed to enforce and delete cluster server: %w", err)
+	// 		}
+	// 	}
+	// default:
+	// 	if err := enforceAndDelete(ctx, s, q.Server, c.Project); err != nil {
+	// 		return nil, fmt.Errorf("failed to enforce and delete cluster server: %w", err)
+	// 	}
+
+	// }
+
+	// if q.Name != "" {
+	// 	servers, err := s.db.GetClusterServersByName(ctx, q.Name)
+	// 	if err != nil {
+	// 		log.WithField("cluster", q.Name).Warnf("failed to get cluster servers by name: %v", err)
+	// 		return nil, common.PermissionDeniedAPIError
+	// 	}
+	// 	for _, server := range servers {
+	// 		if err := enforceAndDelete(ctx, s, server, c.Project); err != nil {
+	// 			return nil, fmt.Errorf("failed to enforce and delete cluster server: %w", err)
+	// 		}
+	// 	}
+	// } else {
+	// 	if err := enforceAndDelete(ctx, s, q.Server, c.Project); err != nil {
+	// 		return nil, fmt.Errorf("failed to enforce and delete cluster server: %w", err)
+	// 	}
+	// }
+
+	// return &cluster.ClusterResponse{}, nil
 }
 
-func enforceAndDelete(ctx context.Context, s *Server, server, project string) error {
+func enforceAndDelete(ctx context.Context, s *Server, server, name, project string) error {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceClusters, rbac.ActionDelete, CreateClusterRBACObject(project, server)); err != nil {
 		log.WithField("cluster", server).Warnf("encountered permissions issue while processing request: %v", err)
 		return common.PermissionDeniedAPIError
 	}
-	return s.db.DeleteCluster(ctx, server)
+	return s.db.DeleteCluster(ctx, server, name)
 }
 
 // RotateAuth rotates the bearer token used for a cluster

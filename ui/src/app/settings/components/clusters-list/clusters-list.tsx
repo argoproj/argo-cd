@@ -102,7 +102,7 @@ export const ClustersList = () => {
                                                                             );
                                                                             if (confirmed) {
                                                                                 try {
-                                                                                    await services.clusters.delete(cluster.server).finally(() => {
+                                                                                    await services.clusters.delete(cluster.server, cluster.name).finally(() => {
                                                                                         ctx.navigation.goto('.', {new: null}, {replace: true});
                                                                                         if (clustersLoaderRef.current) {
                                                                                             clustersLoaderRef.current.reload();

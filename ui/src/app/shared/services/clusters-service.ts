@@ -41,9 +41,9 @@ export class ClustersService {
             .then(res => res.body as models.Cluster);
     }
 
-    public delete(server: string): Promise<models.Cluster> {
+    public delete(server: string, name: string): Promise<models.Cluster> {
         return requests
-            .delete(`/clusters/${encodeURIComponent(server)}`)
+            .delete(`/clusters/${encodeURIComponent(server+ ',' + name)}?id.type=url_name_escaped`)
             .send()
             .then(res => res.body as models.Cluster);
     }

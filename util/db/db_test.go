@@ -490,7 +490,7 @@ func TestDeleteClusterWithManagedSecret(t *testing.T) {
 	})
 
 	db := NewDB(testNamespace, settings.NewSettingsManager(t.Context(), clientset, testNamespace), clientset)
-	err := db.DeleteCluster(t.Context(), clusterURL)
+	err := db.DeleteCluster(t.Context(), clusterURL, clusterName)
 	require.NoError(t, err)
 
 	_, err = clientset.CoreV1().Secrets(testNamespace).Get(t.Context(), clusterName, metav1.GetOptions{})
@@ -518,7 +518,7 @@ func TestDeleteClusterWithUnmanagedSecret(t *testing.T) {
 	})
 
 	db := NewDB(testNamespace, settings.NewSettingsManager(t.Context(), clientset, testNamespace), clientset)
-	err := db.DeleteCluster(t.Context(), clusterURL)
+	err := db.DeleteCluster(t.Context(), clusterURL, clusterName)
 	require.NoError(t, err)
 
 	secret, err := clientset.CoreV1().Secrets(testNamespace).Get(t.Context(), clusterName, metav1.GetOptions{})
