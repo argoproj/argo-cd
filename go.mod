@@ -13,7 +13,7 @@ require (
 	github.com/TomOnTime/utfutil v1.0.0
 	github.com/alicebob/miniredis/v2 v2.35.0
 	github.com/argoproj/gitops-engine v0.7.1-0.20250908182407-97ad5b59a627
-	github.com/argoproj/notifications-engine v0.5.1-0.20251105183712-783b97d496ca
+	github.com/argoproj/notifications-engine v0.5.1-0.20251129223737-e2e7fe18381a
 	github.com/argoproj/pkg v0.13.6
 	github.com/argoproj/pkg/v2 v2.0.1
 	github.com/aws/aws-sdk-go v1.55.7
@@ -87,7 +87,7 @@ require (
 	github.com/stretchr/testify v1.11.1
 	github.com/valyala/fasttemplate v1.2.2
 	github.com/yuin/gopher-lua v1.1.1
-	gitlab.com/gitlab-org/api/client-go v1.8.0
+	gitlab.com/gitlab-org/api/client-go v1.8.1
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.63.0
 	go.opentelemetry.io/otel v1.38.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.38.0
@@ -280,11 +280,12 @@ require (
 	go.opentelemetry.io/proto/otlp v1.7.1 // indirect
 	go.yaml.in/yaml/v2 v2.4.2 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
-	golang.org/x/exp v0.0.0-20250813145105-42675adae3e6 // indirect
 	golang.org/x/mod v0.30.0 // indirect
 	golang.org/x/sys v0.39.0 // indirect
 	golang.org/x/text v0.32.0 // indirect
 	golang.org/x/tools v0.39.0 // indirect
+	golang.org/x/tools/go/expect v0.1.1-deprecated // indirect
+	golang.org/x/tools/go/packages/packagestest v0.1.1-deprecated // indirect
 	gomodules.xyz/envconfig v1.3.1-0.20190308184047-426f31af0d45 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.4.0 // indirect
 	gomodules.xyz/notify v0.1.1 // indirect
