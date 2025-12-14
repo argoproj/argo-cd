@@ -43,7 +43,7 @@ type RepoCreds struct {
 	GitHubAppEnterpriseBaseURL string `json:"githubAppEnterpriseBaseUrl,omitempty" protobuf:"bytes,10,opt,name=githubAppEnterpriseBaseUrl"`
 	// EnableOCI specifies whether helm-oci support should be enabled for this repo
 	EnableOCI bool `json:"enableOCI,omitempty" protobuf:"bytes,11,opt,name=enableOCI"`
-	// Type specifies the type of the repoCreds. Can be either "git" or "helm. "git" is assumed if empty or absent.
+	// Type specifies the type of the repoCreds. Can be either "git", "helm" or "oci". "git" is assumed if empty or absent.
 	Type string `json:"type,omitempty" protobuf:"bytes,12,opt,name=type"`
 	// GCPServiceAccountKey specifies the service account key in JSON format to be used for getting credentials to Google Cloud Source repos
 	GCPServiceAccountKey string `json:"gcpServiceAccountKey,omitempty" protobuf:"bytes,13,opt,name=gcpServiceAccountKey"`

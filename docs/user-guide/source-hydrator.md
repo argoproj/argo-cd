@@ -59,7 +59,7 @@ metadata:
     argocd.argoproj.io/secret-type: repository-write
 type: Opaque
 stringData:
-  url: "https://github.com"
+  url: "https://github.com/<your org or user>/<your repo>"
   type: "git"
   githubAppID: "<your app ID here>"
   # githubAppInstallationID is optional and will be auto-discovered if omitted
@@ -76,7 +76,7 @@ metadata:
     argocd.argoproj.io/secret-type: repository
 type: Opaque
 stringData:
-  url: "https://github.com"
+  url: "https://github.com/<your org or user>/<your repo>"
   type: "git"
   githubAppID: "<your app ID here>"
   # githubAppInstallationID is optional and will be auto-discovered if omitted
@@ -108,7 +108,9 @@ spec:
 ```
 
 In this example, the hydrated manifests will be pushed to the `environments/dev` branch of the `argocd-example-apps`
-repository.
+repository. The `drySource` field tells Argo CD where your original, unrendered configuration lives.
+This can be a Helm chart, a Kustomize directory, or plain manifests. Argo CD reads this source, renders the final Kubernetes
+manifests from it, and then writes those hydrated manifests into the location specified by `syncSource.path`.
 
 When using source hydration, the `syncSource.path` field is required and must always point to a non-root
 directory in the repository. Setting the path to the repository root (for eg. `"."` or `""`) is not
@@ -117,6 +119,11 @@ supported. This ensures that hydration is always scoped to a dedicated subdirect
 During each hydration run, Argo CD cleans the application's configured path before writing out newly generated manifests. This guarantees that old or stale files from previous hydration do not linger in the output directory. However, the repository root is never cleaned, so files such as CI/CD configuration, README files, or other root-level assets remain untouched.
 
 It is important to note that hydration only cleans the currently configured application path. If an application’s path changes, the old directory is not removed automatically. Likewise, if an application is deleted, its output path remains in the repository and must be cleaned up manually by the repository owner if desired. This design is intentional: it prevents accidental deletion of files when applications are restructured or removed, and it protects critical files like CI pipelines that may coexist in the repository.
+
+> [!NOTE] 
+> The hydrator triggers only when a new commit is detected in the dry source.  
+> Adding or removing Applications does not on its own cause hydration to run.  
+> If the set of Applications changes but the dry-source commit does not, hydration will wait until the next commit.  
 
 > [!IMPORTANT]
 > **Project-Scoped Repositories**
@@ -130,6 +137,112 @@ It is important to note that hydration only cleans the currently configured appl
 
 If there are multiple repository-write Secrets available for a repo, the source hydrator will non-deterministically
 select one of the matching Secrets and log a warning saying "Found multiple credentials for repoURL".
+
+## Source Configuration Options
+
+The source hydrator supports various source types through inline configuration options in the `drySource` field. This allows you to use Helm charts, Kustomize applications, directories, and plugins with environment-specific configurations.
+
+### Helm Charts
+
+You can use Helm charts by specifying the `helm` field in the `drySource`:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: my-helm-app
+spec:
+  sourceHydrator:
+    drySource:
+      repoURL: https://github.com/argoproj/argocd-example-apps
+      path: helm-guestbook
+      targetRevision: HEAD
+      helm:
+        valueFiles:
+          - values-prod.yaml
+        parameters:
+          - name: image.tag
+            value: v1.2.3
+        releaseName: my-release
+    syncSource:
+      targetBranch: environments/prod
+      path: helm-guestbook-hydrated
+```
+
+### Kustomize Applications
+
+For Kustomize applications, use the `kustomize` field:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: my-kustomize-app
+spec:
+  sourceHydrator:
+    drySource:
+      repoURL: https://github.com/argoproj/argocd-example-apps
+      path: kustomize-guestbook
+      targetRevision: HEAD
+      kustomize:
+        namePrefix: prod-
+        nameSuffix: -v1
+        images:
+          - gcr.io/heptio-images/ks-guestbook-demo:0.2
+    syncSource:
+      targetBranch: environments/prod
+      path: kustomize-guestbook-hydrated
+```
+
+### Directory Applications
+
+For plain directory applications with specific options, use the `directory` field:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: my-directory-app
+spec:
+  sourceHydrator:
+    drySource:
+      repoURL: https://github.com/argoproj/argocd-example-apps
+      path: guestbook
+      targetRevision: HEAD
+      directory:
+        recurse: true
+    syncSource:
+      targetBranch: environments/prod
+      path: guestbook-hydrated
+```
+
+### Config Management Plugins
+
+You can also use Config Management Plugins by specifying the `plugin` field:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: my-plugin-app
+spec:
+  sourceHydrator:
+    drySource:
+      repoURL: https://github.com/argoproj/argocd-example-apps
+      path: my-plugin-app
+      targetRevision: HEAD
+      plugin:
+        name: my-custom-plugin
+        env:
+          - name: ENV_VAR
+            value: prod
+    syncSource:
+      targetBranch: environments/prod
+      path: my-plugin-app-hydrated
+```
+
+!!! note "Feature Parity"
+    The source hydrator supports the same configuration options as the regular Application source field. You can use any combination of these source types with their respective configuration options to match your application's needs.
 
 ## Pushing to a "Staging" Branch
 

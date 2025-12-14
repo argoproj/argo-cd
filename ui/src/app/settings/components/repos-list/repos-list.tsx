@@ -307,7 +307,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
 
     // only connections of git type which is not via GitHub App are updatable
     const isRepoUpdatable = (repo: models.Repository) => {
-        return isHTTPOrHTTPSUrl(repo.repo) && repo.type === 'git' && !repo.githubAppId;
+        return isHTTPOrHTTPSUrl(repo.repo) && repo.type === 'git' && !repo.githubAppID;
     };
 
     // Forces a reload of configured repositories, circumventing the cache
@@ -363,7 +363,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
 
     // Connect a new repository or create a repository credentials for HTTPS repositories
     const connectHTTPSRepo = async (params: NewHTTPSRepoParams) => {
-        if (credsTemplate) {
+        if (credsTemplate.current) {
             await createHTTPSCreds({
                 type: params.type,
                 url: params.url,
@@ -424,7 +424,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
 
     // Connect a new repository or create a repository credentials for GitHub App repositories
     const connectGitHubAppRepo = async (params: NewGitHubAppRepoParams) => {
-        if (credsTemplate) {
+        if (credsTemplate.current) {
             createGitHubAppCreds({
                 url: params.url,
                 githubAppPrivateKey: params.githubAppPrivateKey,
@@ -460,7 +460,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
 
     // Connect a new repository or create a repository credentials for GitHub App repositories
     const connectGoogleCloudSourceRepo = async (params: NewGoogleCloudSourceRepoParams) => {
-        if (credsTemplate) {
+        if (credsTemplate.current) {
             createGoogleCloudSourceCreds({
                 url: params.url,
                 gcpServiceAccountKey: params.gcpServiceAccountKey,
@@ -959,7 +959,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                                                                     title: 'Create application',
                                                                     action: () =>
                                                                         ctx.navigation.goto('/applications', {
-                                                                            new: JSON.stringify({spec: {sourceHydrator: {drySource: {repoURL: repo.repo}}}})
+                                                                            new: JSON.stringify({spec: {source: {repoURL: repo.repo}}})
                                                                         })
                                                                 },
                                                                 {

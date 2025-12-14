@@ -1084,7 +1084,8 @@ func TestFetchDiffStatBitbucketClient(t *testing.T) {
 	httpmock.RegisterResponder("GET",
 		"https://api.bitbucket.org/2.0/repositories/test-owner/test-repo/diffstat/abcdef..ghijkl",
 		getDiffstatResponderFn())
-	client := bb.NewOAuthbearerToken("")
+	client, err := bb.NewOAuthbearerToken("")
+	require.NoError(t, err)
 	tt := []struct {
 		name                string
 		owner               string
@@ -1133,7 +1134,8 @@ func TestIsHeadTouched(t *testing.T) {
 	httpmock.RegisterResponder("GET",
 		"https://api.bitbucket.org/2.0/repositories/test-owner/test-repo",
 		getRepositoryResponderFn())
-	client := bb.NewOAuthbearerToken("")
+	client, err := bb.NewOAuthbearerToken("")
+	require.NoError(t, err)
 	tt := []struct {
 		name              string
 		owner             string
