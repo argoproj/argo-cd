@@ -83,6 +83,7 @@ var defaultPreservedFinalizers = []string{
 var defaultPreservedAnnotations = []string{
 	NotifiedAnnotationKey,
 	argov1alpha1.AnnotationKeyRefresh,
+	argov1alpha1.AnnotationKeyHydrate,
 }
 
 type deleteInOrder struct {
