@@ -30,6 +30,7 @@ var projectWithNoKeys = AppProjectSpec{
 
 func TestSyncToUnsignedCommit(t *testing.T) {
 	fixture.SkipOnEnv(t, "GPG")
+	fixture.EnsureCleanState(t)
 	Given(t).
 		Project("gpg").
 		Path(guestbookPath).
@@ -47,6 +48,7 @@ func TestSyncToUnsignedCommit(t *testing.T) {
 
 func TestSyncToSignedCommitWithoutKnownKey(t *testing.T) {
 	fixture.SkipOnEnv(t, "GPG")
+	fixture.EnsureCleanState(t)
 	Given(t).
 		Project("gpg").
 		Path(guestbookPath).
@@ -65,6 +67,7 @@ func TestSyncToSignedCommitWithoutKnownKey(t *testing.T) {
 
 func TestSyncToSignedCommitWithKnownKey(t *testing.T) {
 	fixture.SkipOnEnv(t, "GPG")
+	fixture.EnsureCleanState(t)
 	Given(t).
 		Project("gpg").
 		Path(guestbookPath).
@@ -84,6 +87,7 @@ func TestSyncToSignedCommitWithKnownKey(t *testing.T) {
 
 func TestSyncToSignedCommitWithUnallowedKey(t *testing.T) {
 	fixture.SkipOnEnv(t, "GPG")
+	fixture.EnsureCleanState(t)
 	Given(t).
 		ProjectSpec(projectWithNoKeys).
 		Path(guestbookPath).
@@ -104,6 +108,7 @@ func TestSyncToSignedCommitWithUnallowedKey(t *testing.T) {
 
 func TestSyncToSignedBranchWithKnownKey(t *testing.T) {
 	fixture.SkipOnEnv(t, "GPG")
+	fixture.EnsureCleanState(t)
 	Given(t).
 		Project("gpg").
 		Path(guestbookPath).
@@ -124,6 +129,7 @@ func TestSyncToSignedBranchWithKnownKey(t *testing.T) {
 
 func TestSyncToSignedBranchWithUnknownKey(t *testing.T) {
 	fixture.SkipOnEnv(t, "GPG")
+	fixture.EnsureCleanState(t)
 	Given(t).
 		Project("gpg").
 		Path(guestbookPath).
@@ -144,6 +150,7 @@ func TestSyncToSignedBranchWithUnknownKey(t *testing.T) {
 
 func TestSyncToUnsignedBranch(t *testing.T) {
 	fixture.SkipOnEnv(t, "GPG")
+	fixture.EnsureCleanState(t)
 	Given(t).
 		Project("gpg").
 		Revision("master").
@@ -164,6 +171,7 @@ func TestSyncToUnsignedBranch(t *testing.T) {
 
 func TestSyncToSignedTagWithKnownKey(t *testing.T) {
 	fixture.SkipOnEnv(t, "GPG")
+	fixture.EnsureCleanState(t)
 	Given(t).
 		Project("gpg").
 		Revision("signed-tag").
@@ -184,6 +192,7 @@ func TestSyncToSignedTagWithKnownKey(t *testing.T) {
 
 func TestSyncToSignedTagWithUnknownKey(t *testing.T) {
 	fixture.SkipOnEnv(t, "GPG")
+	fixture.EnsureCleanState(t)
 	Given(t).
 		Project("gpg").
 		Revision("signed-tag").
@@ -204,6 +213,7 @@ func TestSyncToSignedTagWithUnknownKey(t *testing.T) {
 
 func TestSyncToUnsignedAnnotatedTag(t *testing.T) {
 	fixture.SkipOnEnv(t, "GPG")
+	fixture.EnsureCleanState(t)
 	Given(t).
 		Project("gpg").
 		Revision("unsigned-tag").
@@ -227,6 +237,7 @@ func TestSyncToUnsignedAnnotatedTag(t *testing.T) {
 
 func TestSyncToUnsignedSimpleTag(t *testing.T) {
 	fixture.SkipOnEnv(t, "GPG")
+	fixture.EnsureCleanState(t)
 	Given(t).
 		Project("gpg").
 		Revision("unsigned-simple-tag").
@@ -249,6 +260,7 @@ func TestSyncToUnsignedSimpleTag(t *testing.T) {
 
 func TestSyncToSignedAnnotatedTagWithUnallowedKey(t *testing.T) {
 	fixture.SkipOnEnv(t, "GPG")
+	fixture.EnsureCleanState(t)
 	Given(t).
 		ProjectSpec(projectWithNoKeys).
 		Revision("v1.0").
@@ -271,6 +283,7 @@ func TestSyncToSignedAnnotatedTagWithUnallowedKey(t *testing.T) {
 
 func TestNamespacedSyncToUnsignedCommit(t *testing.T) {
 	fixture.SkipOnEnv(t, "GPG")
+	fixture.EnsureCleanState(t)
 	GivenWithNamespace(t, fixture.AppNamespace()).
 		SetTrackingMethod("annotation").
 		Project("gpg").
@@ -289,6 +302,7 @@ func TestNamespacedSyncToUnsignedCommit(t *testing.T) {
 
 func TestNamespacedSyncToSignedCommitWithUnknownKey(t *testing.T) {
 	fixture.SkipOnEnv(t, "GPG")
+	fixture.EnsureCleanState(t)
 	Given(t).
 		SetAppNamespace(fixture.AppNamespace()).
 		SetTrackingMethod("annotation").
@@ -309,6 +323,7 @@ func TestNamespacedSyncToSignedCommitWithUnknownKey(t *testing.T) {
 
 func TestNamespacedSyncToSignedCommit(t *testing.T) {
 	fixture.SkipOnEnv(t, "GPG")
+	fixture.EnsureCleanState(t)
 	Given(t).
 		SetAppNamespace(fixture.AppNamespace()).
 		SetTrackingMethod("annotation").
@@ -329,6 +344,8 @@ func TestNamespacedSyncToSignedCommit(t *testing.T) {
 }
 
 func TestLocalManifestRejectedWithSourceIntegrity(t *testing.T) {
+	fixture.SkipOnEnv(t, "GPG")
+	fixture.EnsureCleanState(t)
 	Given(t).
 		Project("gpg").
 		Path(guestbookPath).
@@ -353,8 +370,10 @@ func TestLocalManifestRejectedWithSourceIntegrity(t *testing.T) {
 }
 
 func TestOCISourceIgnoredWithSourceIntegrity(t *testing.T) {
+	fixture.SkipOnEnv(t, "GPG")
+	fixture.EnsureCleanState(t)
 	// No keys in keyring, no keys in project, OCI is not git, yet source integrity is defined.
-	// Expecting some of that would cause visible failure if soure integrity would be applied
+	// Expecting some of that would cause visible failure if the source integrity should be applied
 	Given(t).
 		Project("gpg").
 		ProjectSpec(appProjectWithSourceIntegrity()).
