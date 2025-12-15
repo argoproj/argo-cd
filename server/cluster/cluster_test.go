@@ -140,19 +140,19 @@ func TestUpdateCluster_RejectInvalidParams(t *testing.T) {
 	}{
 		{
 			name:    "allowed cluster URL in body, disallowed cluster URL in query",
-			request: cluster.ClusterUpdateRequest{Cluster: &appv1.Cluster{Name: "", Server: "https://127.0.0.1", Project: "", ClusterResources: true}, Id: &cluster.ClusterID{Type: "", Value: "https://127.0.0.2"}, UpdatedFields: []string{"clusterResources", "project"}},
+			request: cluster.ClusterUpdateRequest{Cluster: &appv1.Cluster{Name: "allowed-unscoped", Server: "https://127.0.0.1", Project: "", ClusterResources: true}, Id: &cluster.ClusterID{Type: "", Value: "https://127.0.0.2"}, UpdatedFields: []string{"clusterResources", "project"}},
 		},
 		{
 			name:    "allowed cluster URL in body, disallowed cluster name in query",
-			request: cluster.ClusterUpdateRequest{Cluster: &appv1.Cluster{Name: "", Server: "https://127.0.0.1", Project: "", ClusterResources: true}, Id: &cluster.ClusterID{Type: "name", Value: "disallowed-unscoped"}, UpdatedFields: []string{"clusterResources", "project"}},
+			request: cluster.ClusterUpdateRequest{Cluster: &appv1.Cluster{Name: "allowed-unscoped", Server: "https://127.0.0.1", Project: "", ClusterResources: true}, Id: &cluster.ClusterID{Type: "name", Value: "disallowed-unscoped"}, UpdatedFields: []string{"clusterResources", "project"}},
 		},
 		{
 			name:    "allowed cluster URL in body, disallowed cluster name in query, changing unscoped to scoped",
-			request: cluster.ClusterUpdateRequest{Cluster: &appv1.Cluster{Name: "", Server: "https://127.0.0.1", Project: "allowed-project", ClusterResources: true}, Id: &cluster.ClusterID{Type: "", Value: "https://127.0.0.2"}, UpdatedFields: []string{"clusterResources", "project"}},
+			request: cluster.ClusterUpdateRequest{Cluster: &appv1.Cluster{Name: "allowed-unscoped", Server: "https://127.0.0.1", Project: "allowed-project", ClusterResources: true}, Id: &cluster.ClusterID{Type: "", Value: "https://127.0.0.2"}, UpdatedFields: []string{"clusterResources", "project"}},
 		},
 		{
 			name:    "allowed cluster URL in body, disallowed cluster URL in query, changing unscoped to scoped",
-			request: cluster.ClusterUpdateRequest{Cluster: &appv1.Cluster{Name: "", Server: "https://127.0.0.1", Project: "allowed-project", ClusterResources: true}, Id: &cluster.ClusterID{Type: "name", Value: "disallowed-unscoped"}, UpdatedFields: []string{"clusterResources", "project"}},
+			request: cluster.ClusterUpdateRequest{Cluster: &appv1.Cluster{Name: "allowed-unscoped", Server: "https://127.0.0.1", Project: "allowed-project", ClusterResources: true}, Id: &cluster.ClusterID{Type: "name", Value: "disallowed-unscoped"}, UpdatedFields: []string{"clusterResources", "project"}},
 		},
 	}
 
@@ -203,6 +203,16 @@ func TestUpdateCluster_RejectInvalidParams(t *testing.T) {
 				}
 			}
 			return nil, fmt.Errorf("cluster '%s' not found", server)
+		},
+	)
+	db.EXPECT().GetClusterByServerAndName(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(
+		func(_ context.Context, server string, name string) (*appv1.Cluster, error) {
+			for _, cluster := range clusters {
+				if server == cluster.Server && name == cluster.Name {
+					return &cluster, nil
+				}
+			}
+			return nil, fmt.Errorf("cluster '%s' with name '%s' not found", server, name)
 		},
 	)
 
@@ -416,6 +426,7 @@ func TestGetCluster_UrlNameEscapedType(t *testing.T) {
 
 	db.EXPECT().ListClusters(mock.Anything).Return(&mockClusterList, nil)
 	db.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(&mockCluster, nil)
+	db.EXPECT().GetClusterByServerAndName(mock.Anything, mock.Anything, mock.Anything).Return(&mockCluster, nil)
 
 	server := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{})
 
@@ -448,6 +459,7 @@ func TestGetCluster_NameWithCommaCanBeIdentified(t *testing.T) {
 
 	db.EXPECT().ListClusters(mock.Anything).Return(&mockClusterList, nil)
 	db.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(&mockCluster, nil)
+	db.EXPECT().GetClusterByServerAndName(mock.Anything, mock.Anything, mock.Anything).Return(&mockCluster, nil)
 
 	server := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{})
 
@@ -674,9 +686,10 @@ func TestDeleteClusterByName(t *testing.T) {
 		assert.EqualError(t, err, `failed to get cluster with permissions check: rpc error: code = PermissionDenied desc = permission denied`)
 	})
 
-	t.Run("Delete Succeeds When Deleting by Name", func(t *testing.T) {
+	t.Run("Delete Succeeds When Deleting by Name and Server", func(t *testing.T) {
 		_, err := server.Delete(t.Context(), &cluster.ClusterQuery{
-			Name: "my-cluster-name",
+			Name:   "my-cluster-name",
+			Server: "https://my-cluster-server",
 		})
 		require.NoError(t, err)
 
