@@ -44,7 +44,10 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/versions"
 )
 
-var ErrInvalidRepoURL = errors.New("repo URL is invalid")
+var (
+	ErrInvalidRepoURL = errors.New("repo URL is invalid")
+	ErrNoNoteFound    = errors.New("no note found")
+)
 
 // builtinGitConfig configuration contains statements that are needed
 // for correct ArgoCD operation. These settings will override any
@@ -145,6 +148,12 @@ type Client interface {
 	RemoveContents(paths []string) (string, error)
 	// CommitAndPush commits and pushes changes to the target branch.
 	CommitAndPush(branch, message string) (string, error)
+	// GetCommitNote gets the note associated with the DRY sha stored in the specific namespace
+	GetCommitNote(sha string, namespace string) (string, error)
+	// AddAndPushNote adds a note to a DRY sha and then pushes it.
+	AddAndPushNote(sha string, namespace string, note string) error
+	// HasFileChanged returns the outout of git diff considering whether it is tracked or un-tracked
+	HasFileChanged(filePath string) (bool, error)
 }
 
 type EventHandlers struct {
@@ -1108,6 +1117,73 @@ func (m *nativeGitClient) CommitAndPush(branch, message string) (string, error) 
 	}
 
 	return "", nil
+}
+
+// GetCommitNote gets the note associated with the DRY sha stored in the specific namespace
+func (m *nativeGitClient) GetCommitNote(sha string, namespace string) (string, error) {
+	if strings.TrimSpace(namespace) == "" {
+		namespace = "commit"
+	}
+	ctx := context.Background()
+	// fetch first
+	// cli command: git fetch origin refs/notes/source-hydrator:refs/notes/source-hydrator
+	notesRef := "refs/notes/" + namespace
+	_, _ = m.runCmd(ctx, "fetch", "origin", fmt.Sprintf("%s:%s", notesRef, notesRef)) // Ignore fetch error for best effort
+
+	ref := "--ref=" + namespace
+	out, err := m.runCmd(ctx, "notes", ref, "show", sha)
+	if err != nil {
+		if strings.Contains(err.Error(), "no note found") {
+			return out, fmt.Errorf("failed to get commit note: %w", ErrNoNoteFound)
+		}
+		return out, fmt.Errorf("failed to get commit note: %w", err)
+	}
+	return strings.TrimSpace(out), nil
+}
+
+// AddAndPushNote adds a note to a DRY sha and then pushes it.
+func (m *nativeGitClient) AddAndPushNote(sha string, namespace string, note string) error {
+	if namespace == "" {
+		namespace = "commit"
+	}
+	ctx := context.Background()
+	ref := "--ref=" + namespace
+	_, err := m.runCmd(ctx, "notes", ref, "add", "-f", "-m", note, sha)
+	if err != nil {
+		return fmt.Errorf("failed to push: %w", err)
+	}
+	if m.OnPush != nil {
+		done := m.OnPush(m.repoURL)
+		defer done()
+	}
+
+	err = m.runCredentialedCmd(ctx, "push", "-f", "origin", "refs/notes/"+namespace)
+	if err != nil {
+		return fmt.Errorf("failed to push: %w", err)
+	}
+
+	return nil
+}
+
+// HasFileChanged returns the outout of git diff considering whether it is tracked or un-tracked
+func (m *nativeGitClient) HasFileChanged(filePath string) (bool, error) {
+	// Step 1: Is it UNTRACKED? (file is new to git)
+	_, err := m.runCmd(context.Background(), "ls-files", "--error-unmatch", filePath)
+	if err != nil {
+		// File is NOT tracked by git → means it's new/unadded
+		return true, nil
+	}
+	// use git diff --quiet and check exit code .. --cached is to consider files staged for deletion
+	_, err = m.runCmd(context.Background(), "diff", "--quiet", "--", filePath)
+	if err == nil {
+		return false, nil // No changes
+	}
+	// Exit code 1 indicates: changes found
+	if strings.Contains(err.Error(), "exit status 1") {
+		return true, nil
+	}
+	// always return the actual wrapped error
+	return false, fmt.Errorf("git diff failed: %w", err)
 }
 
 // runWrapper runs a custom command with all the semantics of running the Git client

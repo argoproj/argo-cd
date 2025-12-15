@@ -20,10 +20,10 @@ argocd repocreds add REPOURL [flags]
   # Add credentials with SSH private key authentication to use for all repositories under ssh://git@git.example.com/repos
   argocd repocreds add ssh://git@git.example.com/repos/ --ssh-private-key-path ~/.ssh/id_rsa
 
-  # Add credentials with GitHub App authentication to use for all repositories under https://github.com/repos
+  # Add credentials with GitHub App authentication to use for all repositories under https://github.com/repos. github-app-installation-id is optional, if not provided, the installation id will be fetched from the GitHub API.
   argocd repocreds add https://github.com/repos/ --github-app-id 1 --github-app-installation-id 2 --github-app-private-key-path test.private-key.pem
 
-  # Add credentials with GitHub App authentication to use for all repositories under https://ghe.example.com/repos
+  # Add credentials with GitHub App authentication to use for all repositories under https://ghe.example.com/repos. github-app-installation-id is optional, if not provided, the installation id will be fetched from the GitHub API.
   argocd repocreds add https://ghe.example.com/repos/ --github-app-id 1 --github-app-installation-id 2 --github-app-private-key-path test.private-key.pem --github-app-enterprise-base-url https://ghe.example.com/api/v3
 
   # Add credentials with helm oci registry so that these oci registry urls do not need to be added as repos individually.
@@ -43,7 +43,7 @@ argocd repocreds add REPOURL [flags]
       --gcp-service-account-key-path string     service account key for the Google Cloud Platform
       --github-app-enterprise-base-url string   base url to use when using GitHub Enterprise (e.g. https://ghe.example.com/api/v3
       --github-app-id int                       id of the GitHub Application
-      --github-app-installation-id int          installation id of the GitHub Application
+      --github-app-installation-id int          installation id of the GitHub Application (optional, will be auto-discovered if not provided)
       --github-app-private-key-path string      private key of the GitHub Application
   -h, --help                                    help for add
       --password string                         password to the repository
