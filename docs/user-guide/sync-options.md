@@ -433,12 +433,15 @@ spec:
     - CreateNamespace=true
 ```
 
-When you set the tracking annotation using templating variables (via `managedNamespaceMetadata`) to ensure a predictable tracking ID format, that namespace becomes *owned* by Argo CD for the purpose of tracking application resources. Once a namespace is owned by Argo CD, it will be fully managed by ArgoCD, including continuous tracking of all application resources associated with it, like the example below:
+The generated namespace is normally not tracked with Argo CD. You can use `managedNamespaceMetadata` to
+set a tracking annotation on the generated namespace, which sets the namespace to be *owned* by Argo CD.
+
+Once a namespace is owned by Argo CD, it will be managed by ArgoCD, including the possibility to delete it, which Argo CD normally does not do:
 
 ```yaml
 managedNamespaceMetadata:
-annotations:
-argocd.argoproj.io/tracking-id: "{{.app-name}}:/Namespace:/{{ .namespace-name }}" # my-app:/Namespace:/test-namespace
+  annotations:
+    argocd.argoproj.io/tracking-id: "your-application-name:/Namespace:/your-namespace-name"
 ```
 
 In the case where Argo CD is "adopting" an existing namespace which already has metadata set on it, you should first
