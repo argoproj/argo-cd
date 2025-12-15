@@ -68,7 +68,7 @@ deploy:
 
 ## Configuring RBAC
 
-When using ArgoCD v3.0.0 or later, then you define your `policy.csv` like so:
+When using ArgoCD global RBAC comfig map, you can define your `policy.csv` like so:
 
 ```yaml
 configs:
@@ -81,8 +81,3 @@ configs:
 ```
 
 More info: [RBAC Configuration](../rbac.md)
-
-> [!NOTE]
-> Defining policies are not supported on ArgoCD v2.
-> To define policies, please [upgrade](../upgrading/overview.md)
-> to to v3.0.0 or later.
