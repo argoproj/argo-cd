@@ -1,6 +1,7 @@
 package commit
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -99,14 +100,15 @@ func Test_CommitHydratedManifests(t *testing.T) {
 		mockGitClient.EXPECT().SetAuthor("Argo CD", "argo-cd@example.com").Return("", nil).Once()
 		mockGitClient.EXPECT().CheckoutOrOrphan("env/test", false).Return("", nil).Once()
 		mockGitClient.EXPECT().CheckoutOrNew("main", "env/test", false).Return("", nil).Once()
-		mockGitClient.EXPECT().CommitAndPush("main", "test commit message").Return("", nil).Once()
+		mockGitClient.EXPECT().GetCommitNote(mock.Anything, mock.Anything).Return("", fmt.Errorf("test %w", git.ErrNoNoteFound)).Once()
+		mockGitClient.EXPECT().AddAndPushNote(mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
 		mockGitClient.EXPECT().CommitSHA().Return("it-worked!", nil).Once()
 		mockRepoClientFactory.EXPECT().NewClient(mock.Anything, mock.Anything).Return(mockGitClient, nil).Once()
 
 		resp, err := service.CommitHydratedManifests(t.Context(), validRequest)
 		require.NoError(t, err)
 		require.NotNil(t, resp)
-		assert.Equal(t, "it-worked!", resp.HydratedSha)
+		assert.Empty(t, resp.HydratedSha) // changes introduced by commit note. hydration won't happen if there are no new manifest|s to commit
 	})
 
 	t.Run("root path with dot and blank - no directory removal", func(t *testing.T) {
@@ -119,8 +121,11 @@ func Test_CommitHydratedManifests(t *testing.T) {
 		mockGitClient.EXPECT().SetAuthor("Argo CD", "argo-cd@example.com").Return("", nil).Once()
 		mockGitClient.EXPECT().CheckoutOrOrphan("env/test", false).Return("", nil).Once()
 		mockGitClient.EXPECT().CheckoutOrNew("main", "env/test", false).Return("", nil).Once()
+		mockGitClient.EXPECT().GetCommitNote(mock.Anything, mock.Anything).Return("", fmt.Errorf("test %w", git.ErrNoNoteFound)).Once()
+		mockGitClient.EXPECT().HasFileChanged(mock.Anything).Return(true, nil).Twice()
 		mockGitClient.EXPECT().CommitAndPush("main", "test commit message").Return("", nil).Once()
-		mockGitClient.EXPECT().CommitSHA().Return("root-and-blank-sha", nil).Once()
+		mockGitClient.EXPECT().AddAndPushNote(mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+		mockGitClient.EXPECT().CommitSHA().Return("root-and-blank-sha", nil).Twice()
 		mockRepoClientFactory.EXPECT().NewClient(mock.Anything, mock.Anything).Return(mockGitClient, nil).Once()
 
 		requestWithRootAndBlank := &apiclient.CommitHydratedManifestsRequest{
@@ -158,7 +163,6 @@ func Test_CommitHydratedManifests(t *testing.T) {
 
 	t.Run("subdirectory path - triggers directory removal", func(t *testing.T) {
 		t.Parallel()
-
 		service, mockRepoClientFactory := newServiceWithMocks(t)
 		mockGitClient := gitmocks.NewClient(t)
 		mockGitClient.EXPECT().Init().Return(nil).Once()
@@ -166,17 +170,20 @@ func Test_CommitHydratedManifests(t *testing.T) {
 		mockGitClient.EXPECT().SetAuthor("Argo CD", "argo-cd@example.com").Return("", nil).Once()
 		mockGitClient.EXPECT().CheckoutOrOrphan("env/test", false).Return("", nil).Once()
 		mockGitClient.EXPECT().CheckoutOrNew("main", "env/test", false).Return("", nil).Once()
-		mockGitClient.EXPECT().RemoveContents([]string{"apps/staging"}).Return("", nil).Once()
+		mockGitClient.EXPECT().GetCommitNote(mock.Anything, mock.Anything).Return("", fmt.Errorf("test %w", git.ErrNoNoteFound)).Once()
+		mockGitClient.EXPECT().HasFileChanged(mock.Anything).Return(true, nil).Once()
 		mockGitClient.EXPECT().CommitAndPush("main", "test commit message").Return("", nil).Once()
-		mockGitClient.EXPECT().CommitSHA().Return("subdir-path-sha", nil).Once()
+		mockGitClient.EXPECT().AddAndPushNote(mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+		mockGitClient.EXPECT().CommitSHA().Return("subdir-path-sha", nil).Twice()
 		mockRepoClientFactory.EXPECT().NewClient(mock.Anything, mock.Anything).Return(mockGitClient, nil).Once()
 
 		requestWithSubdirPath := &apiclient.CommitHydratedManifestsRequest{
 			Repo: &v1alpha1.Repository{
 				Repo: "https://github.com/argoproj/argocd-example-apps.git",
 			},
-			TargetBranch:  "main",
-			SyncBranch:    "env/test",
+			TargetBranch: "main",
+			SyncBranch:   "env/test",
+
 			CommitMessage: "test commit message",
 			Paths: []*apiclient.PathDetails{
 				{
@@ -206,9 +213,11 @@ func Test_CommitHydratedManifests(t *testing.T) {
 		mockGitClient.EXPECT().SetAuthor("Argo CD", "argo-cd@example.com").Return("", nil).Once()
 		mockGitClient.EXPECT().CheckoutOrOrphan("env/test", false).Return("", nil).Once()
 		mockGitClient.EXPECT().CheckoutOrNew("main", "env/test", false).Return("", nil).Once()
-		mockGitClient.EXPECT().RemoveContents([]string{"apps/production", "apps/staging"}).Return("", nil).Once()
+		mockGitClient.EXPECT().GetCommitNote(mock.Anything, mock.Anything).Return("", fmt.Errorf("test %w", git.ErrNoNoteFound)).Once()
+		mockGitClient.EXPECT().HasFileChanged(mock.Anything).Return(true, nil).Times(3)
 		mockGitClient.EXPECT().CommitAndPush("main", "test commit message").Return("", nil).Once()
-		mockGitClient.EXPECT().CommitSHA().Return("mixed-paths-sha", nil).Once()
+		mockGitClient.EXPECT().AddAndPushNote(mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+		mockGitClient.EXPECT().CommitSHA().Return("mixed-paths-sha", nil).Twice()
 		mockRepoClientFactory.EXPECT().NewClient(mock.Anything, mock.Anything).Return(mockGitClient, nil).Once()
 
 		requestWithMixedPaths := &apiclient.CommitHydratedManifestsRequest{
@@ -262,8 +271,9 @@ func Test_CommitHydratedManifests(t *testing.T) {
 		mockGitClient.EXPECT().SetAuthor("Argo CD", "argo-cd@example.com").Return("", nil).Once()
 		mockGitClient.EXPECT().CheckoutOrOrphan("env/test", false).Return("", nil).Once()
 		mockGitClient.EXPECT().CheckoutOrNew("main", "env/test", false).Return("", nil).Once()
-		mockGitClient.EXPECT().CommitAndPush("main", "test commit message").Return("", nil).Once()
-		mockGitClient.EXPECT().CommitSHA().Return("it-worked!", nil).Once()
+		mockGitClient.EXPECT().GetCommitNote(mock.Anything, mock.Anything).Return("", fmt.Errorf("test %w", git.ErrNoNoteFound)).Once()
+		mockGitClient.EXPECT().AddAndPushNote(mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+		mockGitClient.EXPECT().CommitSHA().Return("empty-paths-sha", nil).Once()
 		mockRepoClientFactory.EXPECT().NewClient(mock.Anything, mock.Anything).Return(mockGitClient, nil).Once()
 
 		requestWithEmptyPaths := &apiclient.CommitHydratedManifestsRequest{
@@ -278,7 +288,89 @@ func Test_CommitHydratedManifests(t *testing.T) {
 		resp, err := service.CommitHydratedManifests(t.Context(), requestWithEmptyPaths)
 		require.NoError(t, err)
 		require.NotNil(t, resp)
-		assert.Equal(t, "it-worked!", resp.HydratedSha)
+		assert.Empty(t, resp.HydratedSha) // changes introduced by commit note. hydration won't happen if there are no new manifest|s to commit
+	})
+
+	t.Run("duplicate request already hydrated", func(t *testing.T) {
+		t.Parallel()
+
+		strnote := "{\"drySha\":\"abc123\"}"
+		service, mockRepoClientFactory := newServiceWithMocks(t)
+		mockGitClient := gitmocks.NewClient(t)
+		mockGitClient.EXPECT().Init().Return(nil).Once()
+		mockGitClient.EXPECT().Fetch(mock.Anything, mock.Anything).Return(nil).Once()
+		mockGitClient.EXPECT().SetAuthor("Argo CD", "argo-cd@example.com").Return("", nil).Once()
+		mockGitClient.EXPECT().CheckoutOrOrphan("env/test", false).Return("", nil).Once()
+		mockGitClient.EXPECT().CheckoutOrNew("main", "env/test", false).Return("", nil).Once()
+		mockGitClient.EXPECT().GetCommitNote(mock.Anything, mock.Anything).Return(strnote, nil).Once()
+		mockGitClient.EXPECT().CommitSHA().Return("dupe-test-sha", nil).Once()
+		mockRepoClientFactory.EXPECT().NewClient(mock.Anything, mock.Anything).Return(mockGitClient, nil).Once()
+
+		request := &apiclient.CommitHydratedManifestsRequest{
+			Repo: &v1alpha1.Repository{
+				Repo: "https://github.com/argoproj/argocd-example-apps.git",
+			},
+			TargetBranch:  "main",
+			SyncBranch:    "env/test",
+			DrySha:        "abc123",
+			CommitMessage: "test commit message",
+			Paths: []*apiclient.PathDetails{
+				{
+					Path: ".",
+					Manifests: []*apiclient.HydratedManifestDetails{
+						{
+							ManifestJSON: `{"apiVersion":"v1","kind":"Deployment","metadata":{"name":"test-app"}}`,
+						},
+					},
+				},
+			},
+		}
+
+		resp, err := service.CommitHydratedManifests(t.Context(), request)
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+		assert.Empty(t, resp.HydratedSha) // changes introduced by commit note. hydration won't happen if there are no new manifest|s to commit
+	})
+
+	t.Run("root path with dot - no changes to manifest - should commit note only", func(t *testing.T) {
+		t.Parallel()
+
+		service, mockRepoClientFactory := newServiceWithMocks(t)
+		mockGitClient := gitmocks.NewClient(t)
+		mockGitClient.EXPECT().Init().Return(nil).Once()
+		mockGitClient.EXPECT().Fetch(mock.Anything, mock.Anything).Return(nil).Once()
+		mockGitClient.EXPECT().SetAuthor("Argo CD", "argo-cd@example.com").Return("", nil).Once()
+		mockGitClient.EXPECT().CheckoutOrOrphan("env/test", false).Return("", nil).Once()
+		mockGitClient.EXPECT().CheckoutOrNew("main", "env/test", false).Return("", nil).Once()
+		mockGitClient.EXPECT().GetCommitNote(mock.Anything, mock.Anything).Return("", fmt.Errorf("test %w", git.ErrNoNoteFound)).Once()
+		mockGitClient.EXPECT().HasFileChanged(mock.Anything).Return(false, nil).Once()
+		mockGitClient.EXPECT().AddAndPushNote(mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+		mockGitClient.EXPECT().CommitSHA().Return("root-and-blank-sha", nil).Once()
+		mockRepoClientFactory.EXPECT().NewClient(mock.Anything, mock.Anything).Return(mockGitClient, nil).Once()
+
+		requestWithRootAndBlank := &apiclient.CommitHydratedManifestsRequest{
+			Repo: &v1alpha1.Repository{
+				Repo: "https://github.com/argoproj/argocd-example-apps.git",
+			},
+			TargetBranch:  "main",
+			SyncBranch:    "env/test",
+			CommitMessage: "test commit message",
+			Paths: []*apiclient.PathDetails{
+				{
+					Path: ".",
+					Manifests: []*apiclient.HydratedManifestDetails{
+						{
+							ManifestJSON: `{"apiVersion":"v1","kind":"ConfigMap","metadata":{"name":"test-dot"}}`,
+						},
+					},
+				},
+			},
+		}
+
+		resp, err := service.CommitHydratedManifests(t.Context(), requestWithRootAndBlank)
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+		assert.Empty(t, resp.HydratedSha)
 	})
 }
 
