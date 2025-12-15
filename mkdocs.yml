@@ -241,6 +241,7 @@ nav:
 - Releases ⧉: https://github.com/argoproj/argo-cd/releases
 - Blog ⧉: https://blog.argoproj.io/
 plugins:
+- search
 - gh-admonitions
 repo_url: https://github.com/argoproj/argo-cd
 site_name: Argo CD - Declarative GitOps CD for Kubernetes
