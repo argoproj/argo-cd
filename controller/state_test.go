@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"os"
@@ -1966,7 +1967,7 @@ func TestCompareAppStateWithConversionWebhookError(t *testing.T) {
 	}
 
 	// Pass the conversion webhook error as the stateCacheErr parameter
-	ctrl := newFakeControllerWithStateCacheErrors(&data, errors.New("conversion webhook for example.com/v1, Kind=Example failed: Post error"))
+	ctrl := newFakeControllerWithStateCacheErrors(context.Background(), &data, errors.New("conversion webhook for example.com/v1, Kind=Example failed: Post error"))
 	sources := make([]v1alpha1.ApplicationSource, 0)
 	sources = append(sources, app.Spec.GetSource())
 	revisions := make([]string, 0)
@@ -2002,7 +2003,7 @@ func TestCompareAppStateWithCacheTaintingIssues(t *testing.T) {
 		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 	}
 
-	ctrl := newFakeController(&data, nil)
+	ctrl := newFakeController(context.Background(), &data, nil)
 	sources := make([]v1alpha1.ApplicationSource, 0)
 	sources = append(sources, app.Spec.GetSource())
 	revisions := make([]string, 0)
@@ -2039,7 +2040,7 @@ func TestCompareAppStateStaleConditionsIgnored(t *testing.T) {
 		// Importantly: NO taintedGVKs - meaning cache is actually healthy now
 	}
 
-	ctrl := newFakeController(&data, nil)
+	ctrl := newFakeController(context.Background(), &data, nil)
 	sources := make([]v1alpha1.ApplicationSource, 0)
 	sources = append(sources, app.Spec.GetSource())
 	revisions := make([]string, 0)
@@ -2084,7 +2085,7 @@ func TestCompareAppStateWithCacheIssuesReturnsUnknownNotOutOfSync(t *testing.T) 
 		taintedGVKs:     []string{"example.com/v1, Kind=Example"}, // Cache issues present for the GVK the app uses
 	}
 
-	ctrl := newFakeControllerWithStateCacheErrors(&data, errors.New("conversion webhook failed"))
+	ctrl := newFakeControllerWithStateCacheErrors(context.Background(), &data, errors.New("conversion webhook failed"))
 	sources := make([]v1alpha1.ApplicationSource, 0)
 	sources = append(sources, app.Spec.GetSource())
 	revisions := make([]string, 0)

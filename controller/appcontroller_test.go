@@ -261,9 +261,7 @@ func newFakeControllerWithResyncAndStateCacheErrors(ctx context.Context, data *f
 			response[k] = v.ResourceNode
 		}
 		mockStateCache.EXPECT().GetNamespaceTopLevelResources(mock.Anything, mock.Anything).Return(response, nil)
-		mockStateCache.EXPECT().IterateHierarchyV2(mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
-			keys := args[1].([]kube.ResourceKey)
-			action := args[2].(func(child v1alpha1.ResourceNode, appName string) bool)
+		mockStateCache.EXPECT().IterateHierarchyV2(mock.Anything, mock.Anything, mock.Anything).Run(func(server *v1alpha1.Cluster, keys []kube.ResourceKey, action func(child v1alpha1.ResourceNode, appName string) bool) {
 			for _, key := range keys {
 				appName := ""
 				if res, ok := data.namespacedResources[key]; ok {
@@ -3261,7 +3259,7 @@ func TestConversionWebhookFailureIsolation(t *testing.T) {
 		},
 	}
 
-	ctrl := newFakeControllerWithStateCacheErrors(t.context(), data, listConversionError)
+	ctrl := newFakeControllerWithStateCacheErrors(t.Context(), data, listConversionError)
 
 	// Add applications to the refresh queue before processing
 	app1Key, _ := cache.MetaNamespaceKeyFunc(app1)
