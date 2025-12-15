@@ -293,46 +293,40 @@ function getOperationOptions(apps: FilteredApp[]) {
 
     const counts = getCounts(apps, 'operation', app => getOperationStateTitle(app), operationStateTitles) as Map<OperationStateTitle, number>;
 
-    const options: Array<{label: OperationStateTitle; icon: React.ReactNode; count: number}> = [
+    /**
+     * Combine syncing, terminated (terminating), and deleting counts into a single count for syncing status.
+     * Deleting and Terminating are considered syncing statuses. Terminating operations will always end in a
+     * failed or error state.
+     */
+    const combinedSyncingCount = counts.get(OperationStateTitles.Syncing) + counts.get(OperationStateTitles.Terminated) + counts.get(OperationStateTitles.Deleting);
+
+    return [
         {
             label: OperationStateTitles.Syncing,
             icon: <i className='fa fa-circle-notch' style={{color: COLORS.operation.running}} />,
-            count: counts.get('Syncing')
+            count: combinedSyncingCount
         },
         {
-            label: OperationStateTitles['Sync OK'],
+            label: OperationStateTitles.SyncOK,
             icon: <i className='fa fa-check-circle' style={{color: COLORS.operation.success}} />,
-            count: counts.get('Sync OK')
+            count: counts.get(OperationStateTitles.SyncOK)
         },
         {
-            label: OperationStateTitles.Deleting,
-            icon: <i className='fa fa-trash' style={{color: COLORS.operation.terminating}} />,
-            count: counts.get('Deleting')
-        },
-        {
-            label: OperationStateTitles['Sync error'],
+            label: OperationStateTitles.SyncError,
             icon: <i className='fa fa-exclamation-circle' style={{color: COLORS.operation.error}} />,
-            count: counts.get('Sync error')
+            count: counts.get(OperationStateTitles.SyncError)
         },
         {
-            label: OperationStateTitles['Sync failed'],
+            label: OperationStateTitles.SyncFailed,
             icon: <i className='fa fa-times-circle' style={{color: COLORS.operation.failed}} />,
-            count: counts.get('Sync failed')
-        },
-        {
-            label: OperationStateTitles.Terminated,
-            icon: <i className='fa fa-circle-stop' style={{color: COLORS.operation.terminating}} />,
-            count: counts.get('Terminated')
+            count: counts.get(OperationStateTitles.SyncFailed)
         },
         {
             label: OperationStateTitles.Unknown,
             icon: <i className='fa fa-question-circle' style={{color: COLORS.health.unknown}} />,
-            count: counts.get('Unknown')
+            count: counts.get(OperationStateTitles.Unknown)
         }
     ];
-
-    // Only show phases that have at least one app
-    return options.filter(option => option.count > 0);
 }
 
 const OperationFilter = (props: AppFilterProps) => (
