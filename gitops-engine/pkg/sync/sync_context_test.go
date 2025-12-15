@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -867,11 +866,6 @@ func TestSyncOptionValidate(t *testing.T) {
 	}
 }
 
-func withReplaceAnnotation(un *unstructured.Unstructured) *unstructured.Unstructured {
-	un.SetAnnotations(map[string]string{synccommon.AnnotationSyncOptions: synccommon.SyncOptionReplace})
-	return un
-}
-
 func TestSync_Replace(t *testing.T) {
 	testCases := []struct {
 		name        string
@@ -904,21 +898,6 @@ func TestSync_Replace(t *testing.T) {
 			assert.Equal(t, tc.commandUsed, resourceOps.GetLastResourceCommand(kube.GetResourceKey(tc.target)))
 		})
 	}
-}
-
-func withServerSideApplyAnnotation(un *unstructured.Unstructured) *unstructured.Unstructured {
-	un.SetAnnotations(map[string]string{synccommon.AnnotationSyncOptions: synccommon.SyncOptionServerSideApply})
-	return un
-}
-
-func withDisableServerSideApplyAnnotation(un *unstructured.Unstructured) *unstructured.Unstructured {
-	un.SetAnnotations(map[string]string{synccommon.AnnotationSyncOptions: synccommon.SyncOptionDisableServerSideApply})
-	return un
-}
-
-func withReplaceAndServerSideApplyAnnotations(un *unstructured.Unstructured) *unstructured.Unstructured {
-	un.SetAnnotations(map[string]string{synccommon.AnnotationSyncOptions: "Replace=true,ServerSideApply=true"})
-	return un
 }
 
 func TestSync_HookWithReplaceAndBeforeHookCreation_AlreadyDeleted(t *testing.T) {
@@ -1024,16 +1003,6 @@ func TestSyncContext_ServerSideApplyWithDryRun(t *testing.T) {
 			assert.Equal(t, tc.expectedSSA, serverSideApply)
 		})
 	}
-}
-
-func withForceAnnotation(un *unstructured.Unstructured) *unstructured.Unstructured {
-	un.SetAnnotations(map[string]string{synccommon.AnnotationSyncOptions: synccommon.SyncOptionForce})
-	return un
-}
-
-func withForceAndReplaceAnnotations(un *unstructured.Unstructured) *unstructured.Unstructured {
-	un.SetAnnotations(map[string]string{synccommon.AnnotationSyncOptions: "Force=true,Replace=true"})
-	return un
 }
 
 func TestSync_Force(t *testing.T) {
@@ -1333,24 +1302,13 @@ func TestNamespaceAutoCreationForNonExistingNs(t *testing.T) {
 	})
 }
 
-func createNamespaceTask(namespace string) (*syncTask, error) {
-	nsSpec := &corev1.Namespace{TypeMeta: metav1.TypeMeta{APIVersion: "v1", Kind: kube.NamespaceKind}, ObjectMeta: metav1.ObjectMeta{Name: namespace}}
-	unstructuredObj, err := kube.ToUnstructured(nsSpec)
-
-	task := &syncTask{phase: synccommon.SyncPhasePreSync, targetObj: unstructuredObj}
-	if err != nil {
-		return task, fmt.Errorf("failed to convert namespace spec to unstructured: %w", err)
-	}
-	return task, nil
-}
-
 func TestSyncFailureHookWithSuccessfulSync(t *testing.T) {
 	syncCtx := newTestSyncCtx(nil)
 	syncCtx.resources = groupResources(ReconciliationResult{
 		Live:   []*unstructured.Unstructured{nil},
 		Target: []*unstructured.Unstructured{testingutils.NewPod()},
 	})
-	syncCtx.hooks = []*unstructured.Unstructured{newHook(synccommon.HookTypeSyncFail)}
+	syncCtx.hooks = []*unstructured.Unstructured{newHook(synccommon.HookTypeSyncFail, synccommon.HookDeletePolicyBeforeHookCreation)}
 
 	syncCtx.Sync()
 	phase, _, resources := syncCtx.GetState()
@@ -1366,7 +1324,7 @@ func TestSyncFailureHookWithFailedSync(t *testing.T) {
 		Live:   []*unstructured.Unstructured{nil},
 		Target: []*unstructured.Unstructured{pod},
 	})
-	syncCtx.hooks = []*unstructured.Unstructured{newHook(synccommon.HookTypeSyncFail)}
+	syncCtx.hooks = []*unstructured.Unstructured{newHook(synccommon.HookTypeSyncFail, synccommon.HookDeletePolicyBeforeHookCreation)}
 	mockKubectl := &kubetest.MockKubectlCmd{
 		Commands: map[string]kubetest.KubectlOutput{pod.GetName(): {Err: errors.New("")}},
 	}
@@ -1418,19 +1376,12 @@ func TestBeforeHookCreation(t *testing.T) {
 }
 
 func TestSync_ExistingHooksWithFinalizer(t *testing.T) {
-	newHook := func(name string, hookType synccommon.HookType, deletePolicy synccommon.HookDeletePolicy) *unstructured.Unstructured {
-		obj := testingutils.NewPod()
-		obj.SetName(name)
-		obj.SetNamespace(testingutils.FakeArgoCDNamespace)
-		testingutils.Annotate(obj, synccommon.AnnotationKeyHook, string(hookType))
-		testingutils.Annotate(obj, synccommon.AnnotationKeyHookDeletePolicy, string(deletePolicy))
-		obj.SetFinalizers([]string{hook.HookFinalizer})
-		return obj
-	}
-
-	hook1 := newHook("existing-hook-1", synccommon.HookTypePreSync, synccommon.HookDeletePolicyBeforeHookCreation)
-	hook2 := newHook("existing-hook-2", synccommon.HookTypePreSync, synccommon.HookDeletePolicyHookFailed)
-	hook3 := newHook("existing-hook-3", synccommon.HookTypePreSync, synccommon.HookDeletePolicyHookSucceeded)
+	hook1 := newHook(synccommon.HookTypePreSync, synccommon.HookDeletePolicyBeforeHookCreation)
+	hook1.SetName("existing-hook-1")
+	hook2 := newHook(synccommon.HookTypePreSync, synccommon.HookDeletePolicyHookFailed)
+	hook2.SetName("existing-hook-2")
+	hook3 := newHook(synccommon.HookTypePreSync, synccommon.HookDeletePolicyHookSucceeded)
+	hook3.SetName("existing-hook-3")
 
 	syncCtx := newTestSyncCtx(nil)
 	fakeDynamicClient := fake.NewSimpleDynamicClient(runtime.NewScheme(), hook1, hook2, hook3)
@@ -1470,9 +1421,9 @@ func TestRunSyncFailHooksFailed(t *testing.T) {
 
 	syncCtx := newTestSyncCtx(nil)
 	pod := testingutils.NewPod()
-	successfulSyncFailHook := newHook(synccommon.HookTypeSyncFail)
+	successfulSyncFailHook := newHook(synccommon.HookTypeSyncFail, synccommon.HookDeletePolicyBeforeHookCreation)
 	successfulSyncFailHook.SetName("successful-sync-fail-hook")
-	failedSyncFailHook := newHook(synccommon.HookTypeSyncFail)
+	failedSyncFailHook := newHook(synccommon.HookTypeSyncFail, synccommon.HookDeletePolicyBeforeHookCreation)
 	failedSyncFailHook.SetName("failed-sync-fail-hook")
 	syncCtx.resources = groupResources(ReconciliationResult{
 		Live:   []*unstructured.Unstructured{nil},
@@ -1513,24 +1464,15 @@ func TestRunSyncFailHooksFailed(t *testing.T) {
 	assert.Equal(t, synccommon.ResultCodeSynced, resources[2].Status)
 }
 
-type resourceNameHealthOverride map[string]health.HealthStatusCode
-
-func (r resourceNameHealthOverride) GetResourceHealth(obj *unstructured.Unstructured) (*health.HealthStatus, error) {
-	if status, ok := r[obj.GetName()]; ok {
-		return &health.HealthStatus{Status: status, Message: "test"}, nil
-	}
-	return nil, nil
-}
-
 func TestRunSync_HooksNotDeletedIfPhaseNotCompleted(t *testing.T) {
-	hook1 := newHook(synccommon.HookTypePreSync)
+	hook1 := newHook(synccommon.HookTypePreSync, synccommon.HookDeletePolicyBeforeHookCreation)
 	hook1.SetName("completed-hook")
 	hook1.SetNamespace(testingutils.FakeArgoCDNamespace)
 	_ = testingutils.Annotate(hook1, synccommon.AnnotationKeyHookDeletePolicy, string(synccommon.HookDeletePolicyHookSucceeded))
 	completedHook := hook1.DeepCopy()
 	completedHook.SetFinalizers(append(completedHook.GetFinalizers(), hook.HookFinalizer))
 
-	hook2 := newHook(synccommon.HookTypePreSync)
+	hook2 := newHook(synccommon.HookTypePreSync, synccommon.HookDeletePolicyBeforeHookCreation)
 	hook2.SetNamespace(testingutils.FakeArgoCDNamespace)
 	hook2.SetName("in-progress-hook")
 	_ = testingutils.Annotate(hook2, synccommon.AnnotationKeyHookDeletePolicy, string(synccommon.HookDeletePolicyHookSucceeded))
@@ -1583,14 +1525,14 @@ func TestRunSync_HooksNotDeletedIfPhaseNotCompleted(t *testing.T) {
 }
 
 func TestRunSync_HooksDeletedAfterPhaseCompleted(t *testing.T) {
-	hook1 := newHook(synccommon.HookTypePreSync)
+	hook1 := newHook(synccommon.HookTypePreSync, synccommon.HookDeletePolicyBeforeHookCreation)
 	hook1.SetName("completed-hook1")
 	hook1.SetNamespace(testingutils.FakeArgoCDNamespace)
 	_ = testingutils.Annotate(hook1, synccommon.AnnotationKeyHookDeletePolicy, string(synccommon.HookDeletePolicyHookSucceeded))
 	completedHook1 := hook1.DeepCopy()
 	completedHook1.SetFinalizers(append(completedHook1.GetFinalizers(), hook.HookFinalizer))
 
-	hook2 := newHook(synccommon.HookTypePreSync)
+	hook2 := newHook(synccommon.HookTypePreSync, synccommon.HookDeletePolicyBeforeHookCreation)
 	hook2.SetNamespace(testingutils.FakeArgoCDNamespace)
 	hook2.SetName("completed-hook2")
 	_ = testingutils.Annotate(hook2, synccommon.AnnotationKeyHookDeletePolicy, string(synccommon.HookDeletePolicyHookSucceeded))
@@ -1640,14 +1582,14 @@ func TestRunSync_HooksDeletedAfterPhaseCompleted(t *testing.T) {
 }
 
 func TestRunSync_HooksDeletedAfterPhaseCompletedFailed(t *testing.T) {
-	hook1 := newHook(synccommon.HookTypeSync)
+	hook1 := newHook(synccommon.HookTypeSync, synccommon.HookDeletePolicyBeforeHookCreation)
 	hook1.SetName("completed-hook1")
 	hook1.SetNamespace(testingutils.FakeArgoCDNamespace)
 	_ = testingutils.Annotate(hook1, synccommon.AnnotationKeyHookDeletePolicy, string(synccommon.HookDeletePolicyHookFailed))
 	completedHook1 := hook1.DeepCopy()
 	completedHook1.SetFinalizers(append(completedHook1.GetFinalizers(), hook.HookFinalizer))
 
-	hook2 := newHook(synccommon.HookTypeSync)
+	hook2 := newHook(synccommon.HookTypeSync, synccommon.HookDeletePolicyBeforeHookCreation)
 	hook2.SetNamespace(testingutils.FakeArgoCDNamespace)
 	hook2.SetName("completed-hook2")
 	_ = testingutils.Annotate(hook2, synccommon.AnnotationKeyHookDeletePolicy, string(synccommon.HookDeletePolicyHookFailed))
@@ -1761,7 +1703,7 @@ func Test_setRunningPhase_runningHooks(t *testing.T) {
 	var sc syncContext
 	sc.log = textlogger.NewLogger(textlogger.NewConfig()).WithValues("application", "fake-app")
 
-	sc.setRunningPhase([]*syncTask{{targetObj: newHook(synccommon.HookTypeSyncFail)}}, false)
+	sc.setRunningPhase([]*syncTask{{targetObj: newHook(synccommon.HookTypeSyncFail, synccommon.HookDeletePolicyBeforeHookCreation)}}, false)
 
 	assert.Equal(t, "waiting for completion of hook /Pod/my-pod", sc.message)
 }
