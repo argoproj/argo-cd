@@ -1253,20 +1253,6 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 
 	if app.CascadedDeletion() {
 		deletionApproved := app.IsDeletionConfirmed(app.DeletionTimestamp.Time)
-
-		// Check if any resource in status requires deletion confirmation BEFORE attempting to get live objects.
-		// This prevents a race condition where the cache may not be populated yet, causing the deletion
-		// confirmation check to be bypassed entirely.
-		// See: https://github.com/argoproj/argo-cd/issues/XXXXX
-		if !deletionApproved {
-			for _, res := range app.Status.Resources {
-				if res.RequiresDeletionConfirmation {
-					logCtx.Infof("Resource %s/%s/%s requires manual confirmation to delete", res.Group, res.Kind, res.Name)
-					return nil
-				}
-			}
-		}
-
 		logCtx.Infof("Deleting resources")
 		// ApplicationDestination points to a valid cluster, so we may clean up the live objects
 		objs := make([]*unstructured.Unstructured, 0)
@@ -1284,6 +1270,10 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 
 			if ctrl.shouldBeDeleted(app, objsMap[k]) {
 				objs = append(objs, objsMap[k])
+				if res, ok := app.Status.FindResource(k); ok && res.RequiresDeletionConfirmation && !deletionApproved {
+					logCtx.Infof("Resource %v requires manual confirmation to delete", k)
+					return nil
+				}
 			}
 		}
 

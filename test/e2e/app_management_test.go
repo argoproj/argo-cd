@@ -3115,6 +3115,21 @@ func TestDeletionConfirmation(t *testing.T) {
 		Then().Expect(OperationPhaseIs(OperationRunning)).
 		When().ConfirmDeletion().
 		Then().Expect(OperationPhaseIs(OperationSucceeded)).
+		// Wait for controller to reconcile and update app status in its informer cache
+		// This ensures the deletion logic will see the RequiresDeletionConfirmation flags
+		And(func(app *Application) {
+			assert.True(t, len(app.Status.Resources) > 0, "App should have resources in status")
+			hasDeleteConfirm := false
+			for _, res := range app.Status.Resources {
+				if res.RequiresDeletionConfirmation {
+					hasDeleteConfirm = true
+					break
+				}
+			}
+			assert.True(t, hasDeleteConfirm, "At least one resource should require deletion confirmation")
+		}).
+		When().Refresh(RefreshTypeNormal).
+		Then().
 		When().Delete(true).
 		Then().
 		And(func(app *Application) {
