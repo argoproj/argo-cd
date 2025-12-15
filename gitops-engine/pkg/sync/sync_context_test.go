@@ -38,8 +38,6 @@ import (
 	testingutils "github.com/argoproj/gitops-engine/pkg/utils/testing"
 )
 
-var standardVerbs = metav1.Verbs{"create", "delete", "deletecollection", "get", "list", "patch", "update", "watch"}
-
 func newTestSyncCtx(getResourceFunc *func(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string) (*unstructured.Unstructured, error), opts ...SyncOpt) *syncContext {
 	sc := syncContext{
 		config:    &rest.Config{},
@@ -215,27 +213,19 @@ func TestSyncCustomResources(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			knownCustomResourceTypes := []metav1.APIResource{}
 			if tt.fields.crdAlreadyPresent {
-				knownCustomResourceTypes = append(knownCustomResourceTypes, metav1.APIResource{Kind: "TestCrd", Group: "argoproj.io", Version: "v1", Namespaced: true, Verbs: standardVerbs})
+				knownCustomResourceTypes = append(knownCustomResourceTypes, metav1.APIResource{Kind: "TestCrd", Group: "test.io", Version: "v1", Namespaced: true, Verbs: testingutils.CommonVerbs})
 			}
 
 			syncCtx := newTestSyncCtx(nil)
 			fakeDisco := syncCtx.disco.(*fakedisco.FakeDiscovery)
-			fakeDisco.Resources = []*metav1.APIResourceList{
-				{
-					GroupVersion: "argoproj.io/v1",
-					APIResources: knownCustomResourceTypes,
-				},
-				{
-					GroupVersion: "apiextensions.k8s.io/v1beta1",
-					APIResources: []metav1.APIResource{
-						{Kind: "CustomResourceDefinition", Group: "apiextensions.k8s.io", Version: "v1beta1", Namespaced: true, Verbs: standardVerbs},
-					},
-				},
-			}
+			fakeDisco.Resources = append(fakeDisco.Resources, &metav1.APIResourceList{
+				GroupVersion: "test.io/v1",
+				APIResources: knownCustomResourceTypes,
+			})
 
 			cr := testingutils.Unstructured(`
 {
-  "apiVersion": "argoproj.io/v1",
+  "apiVersion": "test.io/v1",
   "kind": "TestCrd",
   "metadata": {
     "name": "my-resource"
@@ -518,15 +508,6 @@ func TestSync_ApplyOutOfSyncOnly_ClusterResources(t *testing.T) {
 
 	syncCtx := newTestSyncCtx(nil, WithResourceModificationChecker(true, diffResultListClusterResource()))
 	syncCtx.applyOutOfSyncOnly = true
-	fakeDisco := syncCtx.disco.(*fakedisco.FakeDiscovery)
-	fakeDisco.Resources = []*metav1.APIResourceList{
-		{
-			GroupVersion: "v1",
-			APIResources: []metav1.APIResource{
-				{Kind: "Namespace", Group: "", Version: "v1", Namespaced: false, Verbs: standardVerbs},
-			},
-		},
-	}
 
 	t.Run("cluster resource with target ns having namespace filled", func(t *testing.T) {
 		syncCtx.resources = groupResources(ReconciliationResult{
@@ -1726,11 +1707,11 @@ func Test_syncContext_hasCRDOfGroupKind(t *testing.T) {
 	assert.True(t, (&syncContext{resources: groupResources(ReconciliationResult{
 		Live:   []*unstructured.Unstructured{nil},
 		Target: []*unstructured.Unstructured{testingutils.NewCRD()},
-	})}).hasCRDOfGroupKind("argoproj.io", "TestCrd"))
+	})}).hasCRDOfGroupKind("test.io", "TestCrd"))
 
 	// hook
 	assert.False(t, (&syncContext{hooks: []*unstructured.Unstructured{testingutils.NewCRD()}}).hasCRDOfGroupKind("", ""))
-	assert.True(t, (&syncContext{hooks: []*unstructured.Unstructured{testingutils.NewCRD()}}).hasCRDOfGroupKind("argoproj.io", "TestCrd"))
+	assert.True(t, (&syncContext{hooks: []*unstructured.Unstructured{testingutils.NewCRD()}}).hasCRDOfGroupKind("test.io", "TestCrd"))
 }
 
 func Test_setRunningPhase_healthyState(t *testing.T) {
