@@ -140,19 +140,19 @@ func TestUpdateCluster_RejectInvalidParams(t *testing.T) {
 	}{
 		{
 			name:    "allowed cluster URL in body, disallowed cluster URL in query",
-			request: cluster.ClusterUpdateRequest{Cluster: &appv1.Cluster{Name: "", Server: "https://127.0.0.1", Project: "", ClusterResources: true}, Id: &cluster.ClusterID{Type: "", Value: "https://127.0.0.2"}, UpdatedFields: []string{"clusterResources", "project"}},
+			request: cluster.ClusterUpdateRequest{Cluster: &appv1.Cluster{Name: "allowed-unscoped", Server: "https://127.0.0.1", Project: "", ClusterResources: true}, Id: &cluster.ClusterID{Type: "", Value: "https://127.0.0.2"}, UpdatedFields: []string{"clusterResources", "project"}},
 		},
 		{
 			name:    "allowed cluster URL in body, disallowed cluster name in query",
-			request: cluster.ClusterUpdateRequest{Cluster: &appv1.Cluster{Name: "", Server: "https://127.0.0.1", Project: "", ClusterResources: true}, Id: &cluster.ClusterID{Type: "name", Value: "disallowed-unscoped"}, UpdatedFields: []string{"clusterResources", "project"}},
+			request: cluster.ClusterUpdateRequest{Cluster: &appv1.Cluster{Name: "disallowed-unscoped", Server: "https://127.0.0.1", Project: "", ClusterResources: true}, Id: &cluster.ClusterID{Type: "name", Value: "disallowed-unscoped"}, UpdatedFields: []string{"clusterResources", "project"}},
 		},
 		{
 			name:    "allowed cluster URL in body, disallowed cluster name in query, changing unscoped to scoped",
-			request: cluster.ClusterUpdateRequest{Cluster: &appv1.Cluster{Name: "", Server: "https://127.0.0.1", Project: "allowed-project", ClusterResources: true}, Id: &cluster.ClusterID{Type: "", Value: "https://127.0.0.2"}, UpdatedFields: []string{"clusterResources", "project"}},
+			request: cluster.ClusterUpdateRequest{Cluster: &appv1.Cluster{Name: "allowed-scoped", Server: "https://127.0.0.1", Project: "allowed-project", ClusterResources: true}, Id: &cluster.ClusterID{Type: "", Value: "https://127.0.0.2"}, UpdatedFields: []string{"clusterResources", "project"}},
 		},
 		{
 			name:    "allowed cluster URL in body, disallowed cluster URL in query, changing unscoped to scoped",
-			request: cluster.ClusterUpdateRequest{Cluster: &appv1.Cluster{Name: "", Server: "https://127.0.0.1", Project: "allowed-project", ClusterResources: true}, Id: &cluster.ClusterID{Type: "name", Value: "disallowed-unscoped"}, UpdatedFields: []string{"clusterResources", "project"}},
+			request: cluster.ClusterUpdateRequest{Cluster: &appv1.Cluster{Name: "disallowed-unscoped"}, UpdatedFields: []string{"clusterResources", "project"}},
 		},
 	}
 
@@ -317,6 +317,7 @@ func TestGetCluster_UrlEncodedNameClustersWithSameServer(t *testing.T) {
 
 	db.EXPECT().ListClusters(mock.Anything).Return(&mockClusterList, nil)
 	db.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(&mockCluster, nil)
+	db.EXPECT().GetClusterByServerAndName(mock.Anything, mock.Anything, mock.Anything).Return(&mockCluster, nil)
 
 	server := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{})
 

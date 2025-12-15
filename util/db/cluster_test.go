@@ -181,6 +181,7 @@ func TestUpdateCluster(t *testing.T) {
 		},
 		Data: map[string][]byte{
 			"server": []byte("http://mycluster"),
+			"name":   []byte("test"),
 			"config": []byte("{}"),
 		},
 	})
@@ -216,7 +217,7 @@ func TestDeleteUnknownCluster(t *testing.T) {
 	})
 	settingsManager := settings.NewSettingsManager(t.Context(), kubeclientset, fakeNamespace)
 	db := NewDB(fakeNamespace, settingsManager, kubeclientset)
-	assert.EqualError(t, db.DeleteCluster(t.Context(), "http://unknown", "mycluster"), `rpc error: code = NotFound desc = cluster "http://unknown" not found`)
+	assert.EqualError(t, db.DeleteCluster(t.Context(), "http://unknown", "mycluster"), `rpc error: code = NotFound desc = cluster "http://unknown" with name "mycluster" not found`)
 }
 
 func TestRejectCreationForInClusterWhenDisabled(t *testing.T) {

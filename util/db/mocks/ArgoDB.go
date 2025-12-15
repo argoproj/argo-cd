@@ -554,6 +554,7 @@ type ArgoDB_DeleteCluster_Call struct {
 // DeleteCluster is a helper method to define mock.On call
 //   - ctx context.Context
 //   - server string
+//   - name string
 func (_e *ArgoDB_Expecter) DeleteCluster(ctx interface{}, server interface{}, name interface{}) *ArgoDB_DeleteCluster_Call {
 	return &ArgoDB_DeleteCluster_Call{Call: _e.mock.On("DeleteCluster", ctx, server, name)}
 }

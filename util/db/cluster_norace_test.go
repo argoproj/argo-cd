@@ -120,7 +120,7 @@ func TestWatchClusters_LocalClusterModifications(t *testing.T) {
 			assert.Equal(t, v1alpha1.KubernetesInternalAPIServerAddr, new.Server)
 			assert.Equal(t, "some name", new.Name)
 
-			assert.NoError(t, db.DeleteCluster(t.Context(), v1alpha1.KubernetesInternalAPIServerAddr, "in-cluster"))
+			assert.NoError(t, db.DeleteCluster(t.Context(), v1alpha1.KubernetesInternalAPIServerAddr, "some name"))
 		},
 		func(_ *v1alpha1.Cluster, new *v1alpha1.Cluster) {
 			assert.Equal(t, v1alpha1.KubernetesInternalAPIServerAddr, new.Server)
