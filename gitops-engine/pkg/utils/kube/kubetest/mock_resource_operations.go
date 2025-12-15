@@ -15,9 +15,10 @@ import (
 )
 
 type MockResourceOps struct {
-	Commands      map[string]KubectlOutput
-	Events        chan watch.Event
-	DynamicClient dynamic.Interface
+	ExecuteForDryRun bool
+	Commands         map[string]KubectlOutput
+	Events           chan watch.Event
+	DynamicClient    dynamic.Interface
 
 	lastCommandPerResource map[kube.ResourceKey]string
 	lastValidate           bool
@@ -106,7 +107,10 @@ func (r *MockResourceOps) GetLastResourceCommand(key kube.ResourceKey) string {
 	return r.lastCommandPerResource[key]
 }
 
-func (r *MockResourceOps) ApplyResource(_ context.Context, obj *unstructured.Unstructured, _ cmdutil.DryRunStrategy, force, validate, serverSideApply bool, manager string) (string, error) {
+func (r *MockResourceOps) ApplyResource(_ context.Context, obj *unstructured.Unstructured, dryRun cmdutil.DryRunStrategy, force, validate, serverSideApply bool, manager string) (string, error) {
+	if dryRun != cmdutil.DryRunNone && !r.ExecuteForDryRun {
+		return "", nil
+	}
 	r.SetLastValidate(validate)
 	r.SetLastServerSideApply(serverSideApply)
 	r.SetLastServerSideApplyManager(manager)
@@ -120,7 +124,10 @@ func (r *MockResourceOps) ApplyResource(_ context.Context, obj *unstructured.Uns
 	return command.Output, command.Err
 }
 
-func (r *MockResourceOps) ReplaceResource(_ context.Context, obj *unstructured.Unstructured, _ cmdutil.DryRunStrategy, force bool) (string, error) {
+func (r *MockResourceOps) ReplaceResource(_ context.Context, obj *unstructured.Unstructured, dryRun cmdutil.DryRunStrategy, force bool) (string, error) {
+	if dryRun != cmdutil.DryRunNone && !r.ExecuteForDryRun {
+		return "", nil
+	}
 	r.SetLastForce(force)
 	command, ok := r.Commands[obj.GetName()]
 	r.SetLastResourceCommand(kube.GetResourceKey(obj), "replace")
@@ -131,7 +138,10 @@ func (r *MockResourceOps) ReplaceResource(_ context.Context, obj *unstructured.U
 	return command.Output, command.Err
 }
 
-func (r *MockResourceOps) UpdateResource(_ context.Context, obj *unstructured.Unstructured, _ cmdutil.DryRunStrategy) (*unstructured.Unstructured, error) {
+func (r *MockResourceOps) UpdateResource(_ context.Context, obj *unstructured.Unstructured, dryRun cmdutil.DryRunStrategy) (*unstructured.Unstructured, error) {
+	if dryRun != cmdutil.DryRunNone && !r.ExecuteForDryRun {
+		return obj, nil
+	}
 	r.SetLastResourceCommand(kube.GetResourceKey(obj), "update")
 	command, ok := r.Commands[obj.GetName()]
 	if !ok {
@@ -140,7 +150,10 @@ func (r *MockResourceOps) UpdateResource(_ context.Context, obj *unstructured.Un
 	return obj, command.Err
 }
 
-func (r *MockResourceOps) CreateResource(_ context.Context, obj *unstructured.Unstructured, _ cmdutil.DryRunStrategy, _ bool) (string, error) {
+func (r *MockResourceOps) CreateResource(_ context.Context, obj *unstructured.Unstructured, dryRun cmdutil.DryRunStrategy, _ bool) (string, error) {
+	if dryRun != cmdutil.DryRunNone && !r.ExecuteForDryRun {
+		return "", nil
+	}
 	r.SetLastResourceCommand(kube.GetResourceKey(obj), "create")
 	command, ok := r.Commands[obj.GetName()]
 	if !ok {
