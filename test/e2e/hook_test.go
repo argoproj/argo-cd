@@ -10,9 +10,11 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
+	"github.com/argoproj/gitops-engine/pkg/sync/hook"
 
 	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture"
@@ -49,7 +51,13 @@ func testHookSuccessful(t *testing.T, hookType HookType) {
 		Expect(ResourceSyncStatusIs("Pod", "pod", SyncStatusCodeSynced)).
 		Expect(ResourceHealthIs("Pod", "pod", health.HealthStatusHealthy)).
 		Expect(ResourceResultNumbering(2)).
-		Expect(ResourceResultIs(ResourceResult{Version: "v1", Kind: "Pod", Namespace: DeploymentNamespace(), Images: []string{"quay.io/argoprojlabs/argocd-e2e-container:0.1"}, Name: "hook", Message: "pod/hook created", HookType: hookType, HookPhase: OperationSucceeded, SyncPhase: SyncPhase(hookType)}))
+		Expect(ResourceResultIs(ResourceResult{Version: "v1", Kind: "Pod", Namespace: DeploymentNamespace(), Images: []string{"quay.io/argoprojlabs/argocd-e2e-container:0.1"}, Name: "hook", Status: ResultCodeSynced, Message: "pod/hook created", HookType: hookType, HookPhase: OperationSucceeded, SyncPhase: SyncPhase(hookType)})).
+		Expect(Pod(func(p corev1.Pod) bool {
+			// Completed hooks should not have a finalizer
+			_, isHook := p.GetAnnotations()[AnnotationKeyHook]
+			hasFinalizer := controllerutil.ContainsFinalizer(&p, hook.HookFinalizer)
+			return isHook && !hasFinalizer
+		}))
 }
 
 func TestPreDeleteHook(t *testing.T) {
@@ -140,14 +148,19 @@ func TestPreSyncHookFailure(t *testing.T) {
 		IgnoreErrors().
 		Sync().
 		Then().
-		Expect(Error("hook    Failed   Synced     PreSync  container \"main\" failed", "")).
-		// make sure resource are also printed
-		Expect(Error("pod  OutOfSync  Missing", "")).
-		Expect(OperationPhaseIs(OperationFailed)).
 		// if a pre-sync hook fails, we should not start the main sync
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		Expect(OperationPhaseIs(OperationFailed)).
 		Expect(ResourceResultNumbering(1)).
-		Expect(ResourceSyncStatusIs("Pod", "pod", SyncStatusCodeOutOfSync))
+		Expect(ResourceResultIs(ResourceResult{Version: "v1", Kind: "Pod", Namespace: DeploymentNamespace(), Images: []string{"quay.io/argoprojlabs/argocd-e2e-container:0.1"}, Name: "hook", Status: ResultCodeSynced, Message: `container "main" failed with exit code 1`, HookType: HookTypePreSync, HookPhase: OperationFailed, SyncPhase: SyncPhase(HookTypePreSync)})).
+		Expect(ResourceHealthIs("Pod", "pod", health.HealthStatusMissing)).
+		Expect(ResourceSyncStatusIs("Pod", "pod", SyncStatusCodeOutOfSync)).
+		Expect(Pod(func(p corev1.Pod) bool {
+			// Completed hooks should not have a finalizer
+			_, isHook := p.GetAnnotations()[AnnotationKeyHook]
+			hasFinalizer := controllerutil.ContainsFinalizer(&p, hook.HookFinalizer)
+			return isHook && !hasFinalizer
+		}))
 }
 
 // make sure that if sync fails, we fail the app and we did create the pod
@@ -165,7 +178,13 @@ func TestSyncHookFailure(t *testing.T) {
 		// even thought the hook failed, we expect the pod to be in sync
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(ResourceResultNumbering(2)).
-		Expect(ResourceSyncStatusIs("Pod", "pod", SyncStatusCodeSynced))
+		Expect(ResourceSyncStatusIs("Pod", "pod", SyncStatusCodeSynced)).
+		Expect(Pod(func(p corev1.Pod) bool {
+			// Completed hooks should not have a finalizer
+			_, isHook := p.GetAnnotations()[AnnotationKeyHook]
+			hasFinalizer := controllerutil.ContainsFinalizer(&p, hook.HookFinalizer)
+			return isHook && !hasFinalizer
+		}))
 }
 
 // make sure that if the deployments fails, we still get success and synced
@@ -181,7 +200,7 @@ func TestSyncHookResourceFailure(t *testing.T) {
 		Expect(HealthIs(health.HealthStatusProgressing))
 }
 
-// make sure that if post-sync fails, we fail the app and we did not create the pod
+// make sure that if post-sync fails, we fail the app and we did create the pod
 func TestPostSyncHookFailure(t *testing.T) {
 	Given(t).
 		Path("hook").
@@ -196,7 +215,13 @@ func TestPostSyncHookFailure(t *testing.T) {
 		Expect(OperationPhaseIs(OperationFailed)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(ResourceResultNumbering(2)).
-		Expect(ResourceSyncStatusIs("Pod", "pod", SyncStatusCodeSynced))
+		Expect(ResourceSyncStatusIs("Pod", "pod", SyncStatusCodeSynced)).
+		Expect(Pod(func(p corev1.Pod) bool {
+			// Completed hooks should not have a finalizer
+			_, isHook := p.GetAnnotations()[AnnotationKeyHook]
+			hasFinalizer := controllerutil.ContainsFinalizer(&p, hook.HookFinalizer)
+			return isHook && !hasFinalizer
+		}))
 }
 
 // make sure that if the pod fails, we do not run the post-sync hook
