@@ -16,7 +16,7 @@ jobs:
         id: version
         run: |
             # Extract version (e.g., v3.2.1 → 3.2)
-            TAG=$(git describe --tags --abbrev=0)
+            TAG=$(git tag --sort=-creatordate | head -n 1)
             CLEAN=${TAG#v}
             MINOR=$(echo "$CLEAN" | cut -d. -f1,2)
             echo "minor=$MINOR" >> $GITHUB_OUTPUT
