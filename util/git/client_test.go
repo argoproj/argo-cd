@@ -1458,3 +1458,27 @@ func Test_nativeGitClient_HasFileChanged(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, changed, "expected modified file to be reported as changed")
 }
+
+func Test_GpgNotACommit(t *testing.T) {
+	const invalid = "60216f12f4969d1cb59e26697446b2ede1c0569a"
+
+	ctx := t.Context()
+	tempDir, err := _createEmptyGitRepo(ctx)
+	require.NoError(t, err)
+	client, err := NewClient("file://"+tempDir, NopCreds{}, true, false, "", "")
+	require.NoError(t, err)
+	err = client.Init()
+	require.NoError(t, err)
+
+	signature, err := client.TagSignature(invalid)
+	require.ErrorContains(t, err, `no tag found: "`+invalid+`"`)
+	assert.Nil(t, signature)
+
+	signatures, err := client.LsSignatures(invalid, true)
+	require.ErrorContains(t, err, "fatal: bad object 60216f12f4969d1cb59e26697446b2ede1c0569a")
+	assert.Nil(t, signatures)
+
+	signatures, err = client.LsSignatures(invalid, false)
+	require.ErrorContains(t, err, "fatal: bad object 60216f12f4969d1cb59e26697446b2ede1c0569a")
+	assert.Nil(t, signatures)
+}

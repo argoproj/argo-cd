@@ -150,8 +150,10 @@ func Test_LsSignatures_SignedAndMerged(t *testing.T) {
 
 	require.NoError(t, repo.cmd("commit", "--allow-empty", "--no-edit", "--message=main", "--gpg-sign="+mainKeyID))
 
+	tip := repo.commitSHA()
+
 	repo.assertSignedAs(
-		repo.commitSHA(),
+		tip,
 		"signed="+mainKeyID,                       // main
 		"signed="+mainKeyID,                       // merge
 		"signed="+mainKeyID, "signed="+otherKeyID, // left + right
@@ -160,7 +162,7 @@ func Test_LsSignatures_SignedAndMerged(t *testing.T) {
 
 	repo.revokeGPGKey(mainKeyID)
 	repo.assertSignedAs(
-		repo.commitSHA(),
+		tip,
 		"signed with revoked key="+mainKeyID,                       // main
 		"signed with revoked key="+mainKeyID,                       // merge
 		"signed with revoked key="+mainKeyID, "signed="+otherKeyID, // left + right

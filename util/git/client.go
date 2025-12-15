@@ -993,8 +993,6 @@ func gpgVerificationFromGpgCode(gpgCode string) GPGVerificationResult {
 		return GPGVerificationResultGood
 	case "BADSIG":
 		return GPGVerificationResultBad
-	case "U":
-		return GPGVerificationResultUntrusted // TODO!
 	case "EXPSIG":
 		return GPGVerificationResultExpiredSignature
 	case "EXPKEYSIG":
@@ -1196,12 +1194,6 @@ func (m *nativeGitClient) LsSignatures(revisionSha string, deep bool) ([]Revisio
 }
 
 func (m *nativeGitClient) getSealRevListFilter(revision string, sealCommitsRawOut string) ([]string, error) {
-	// No seal commits found - verify all ancestry
-	if sealCommitsRawOut == "" {
-		log.Debugf("Found no seal commits for %s", revision)
-		return []string{revision, "--"}, nil
-	}
-
 	// Keep only seal commits with a valid signature
 	var sealCommits []string
 	for line := range strings.SplitSeq(sealCommitsRawOut, "\n") {
@@ -1211,6 +1203,11 @@ func (m *nativeGitClient) getSealRevListFilter(revision string, sealCommitsRawOu
 	}
 	sealCommitsLen := len(sealCommits)
 	log.Debugf("Found %d seal commits for %s", sealCommitsLen, revision)
+
+	// No (correctly signed) seal commits found - verify all ancestry
+	if sealCommitsLen == 0 {
+		return []string{revision, "--"}, nil
+	}
 
 	// Resolve, in case revision is not a commit number
 	sha, err := m.CommitSHA()
