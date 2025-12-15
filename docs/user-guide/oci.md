@@ -52,9 +52,18 @@ The key to start using OCI images are the following components in the applicatio
 In the case of OCI Helm charts (an OCI artifact where the `mediaType` is set to `application/vnd.cncf.helm.chart.content.v1.tar+gzip`), 
 the path should always be set to `.`. 
 
-### Private OCI Registries
-The above configuration works only for public repositories. For private repositories, please refer to this [page](private-repositories.md#helm)
-to use the proper flags `--enable-oci --type helm` when adding the repository Argo CD and use an application configuration like this:
+## OCI Repositories special cases
+if there is a need to have credentials for a OCI repository, a repository credential of type *oci needs to be created.
+```shell
+  # Add a private HTTPS OCI repository named 'stable'
+  argocd repo add oci://registry-1.docker.io/bitnamicharts/nginx --type oci --name stable --username test --password test 
+```
+
+In the case of Helm repositories there is another way to use OCI credentials with Helm
+```shell
+  # Add a private HTTPS OCI Helm repository named 'stable'
+  argocd repo add registry-1.docker.io/bitnamicharts/nginx --type helm --name stable --username test --password test --enable-oci
+```
 
 > [!NOTE]
 > The repository URL should not contain the OCI scheme prefix `oci://`.
@@ -69,8 +78,8 @@ metadata:
 spec:
   project: default
   source:
-    path: project/charts/mychart
-    repoURL: europe-west4-docker.pkg.dev
+    path: bitnamicharts/nginx
+    repoURL: registry-1.docker.io
     targetRevision: 1.16.1
   destination:
     server: "https://kubernetes.default.svc"
