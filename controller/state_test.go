@@ -1419,7 +1419,6 @@ func TestUseDiffCache(t *testing.T) {
 				Server:     "",
 				Revision:   revision,
 				SourceType: "Kustomize",
-				// TODO irrelevant for the test? SourceIntegrityResult: &v1alpha1.SourceIntegrityCheckResult{Git: []string{}}, // Valid
 			},
 		}
 	}
