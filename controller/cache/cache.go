@@ -761,7 +761,7 @@ func (c *liveStateCache) GetNamespaceTopLevelResources(server *appv1.Cluster, na
 	res := make(map[kube.ResourceKey]appv1.ResourceNode)
 
 	for k, r := range resources {
-		res[k] = asResourceNode(r)
+		res[k] = asResourceNode(r, namespaceResources)
 	}
 
 	return res, nil
