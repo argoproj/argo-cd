@@ -439,7 +439,7 @@ func (sc *syncContext) Sync() {
 			// No need to perform a dry-run on the namespace creation, because if it fails we stop anyway
 			sc.log.WithValues("task", nsCreateTask).Info("Creating namespace")
 			if sc.runTasks(nsSyncTasks, false) == failed {
-				sc.setOperationFailed(syncTasks{}, nsSyncTasks, "the namespace failed to apply")
+				sc.executeSyncFailPhase(syncTasks{}, nsSyncTasks, "the namespace failed to apply")
 				return
 			}
 
@@ -539,7 +539,7 @@ func (sc *syncContext) Sync() {
 	// if there are any completed but unsuccessful tasks, sync is a failure.
 	if tasks.Any(func(t *syncTask) bool { return t.completed() && !t.successful() }) {
 		sc.deleteHooks(hooksPendingDeletionFailed)
-		sc.setOperationFailed(syncFailTasks, syncFailedTasks, "one or more synchronization tasks completed unsuccessfully")
+		sc.executeSyncFailPhase(syncFailTasks, syncFailedTasks, "one or more synchronization tasks completed unsuccessfully")
 		return
 	}
 
@@ -592,7 +592,7 @@ func (sc *syncContext) Sync() {
 	case failed:
 		syncFailedTasks, _ := tasks.Split(func(t *syncTask) bool { return t.syncStatus == common.ResultCodeSyncFailed })
 		sc.deleteHooks(hooksPendingDeletionFailed)
-		sc.setOperationFailed(syncFailTasks, syncFailedTasks, "one or more objects failed to apply")
+		sc.executeSyncFailPhase(syncFailTasks, syncFailedTasks, "one or more objects failed to apply")
 	case successful:
 		if remainingTasks.Len() == 0 {
 			// delete all completed hooks which have appropriate delete policy
@@ -729,7 +729,7 @@ func (sc *syncContext) GetState() (common.OperationPhase, string, []common.Resou
 	return sc.phase, sc.message, resourceRes
 }
 
-func (sc *syncContext) setOperationFailed(syncFailTasks, syncFailedTasks syncTasks, message string) {
+func (sc *syncContext) executeSyncFailPhase(syncFailTasks, syncFailedTasks syncTasks, message string) {
 	errorMessageFactory := func(tasks syncTasks, message string) string {
 		messages := tasks.Map(func(task *syncTask) string {
 			return task.message
