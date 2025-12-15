@@ -85,7 +85,7 @@ func TestAddingApp(t *testing.T) {
 		DrySourcePath("guestbook").
 		DrySourceRevision("HEAD").
 		SyncSourcePath("guestbook-2").
-		SyncSourceBranch("env/test").
+		SyncSourceBranch("env/test2").
 		When().
 		CreateApp().
 		// a new git commit, that has a new revisionHistoryLimit.
