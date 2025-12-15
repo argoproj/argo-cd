@@ -186,7 +186,7 @@ func (a *Actions) CreateFromFile(handler func(app *v1alpha1.Application), flags 
 func (a *Actions) CreateMultiSourceApp(flags ...string) *Actions {
 	a.context.T().Helper()
 
-	return a.CreateMultiSourceAppFromFile(func(app *v1alpha1.Application) {}, flags...)
+	return a.CreateMultiSourceAppFromFile(func(_ *v1alpha1.Application) {}, flags...)
 }
 
 func (a *Actions) CreateMultiSourceAppFromFile(handler func(app *v1alpha1.Application), flags ...string) *Actions {

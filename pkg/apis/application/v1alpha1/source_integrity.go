@@ -49,8 +49,6 @@ type SourceIntegrityGitPolicyGPG struct {
 	Keys []string `json:"keys" protobuf:"bytes,3,name=keys"`
 }
 
-// TODO how to indicate partial integrity with multi-source apps? How to point to given source?
-
 // SourceIntegrityCheckResult represents a conclusion of the SourceIntegrity evaluation.
 // Each check performed on a source(es), holds a check item representing all checks performed.
 type SourceIntegrityCheckResult struct {
