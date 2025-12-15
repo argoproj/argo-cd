@@ -411,9 +411,7 @@ spec:
 ```
 
 In order for Argo CD to manage the labels and annotations on the namespace, `CreateNamespace=true` needs to be set as a
-sync option, otherwise nothing will happen. If the namespace doesn't already exist, or if it already exists and doesn't
-already have labels and/or annotations set on it, you're good to go. Using `managedNamespaceMetadata` will also set the
-resource tracking label (or annotation) on the namespace, so you can easily track which namespaces are managed by Argo CD.
+sync option, otherwise nothing will happen.
 
 In the case you do not have any custom annotations or labels but would nonetheless want to have resource tracking set on
 your namespace, that can be done by setting `managedNamespaceMetadata` with an empty `labels` and/or `annotations` map,
@@ -443,6 +441,10 @@ managedNamespaceMetadata:
   annotations:
     argocd.argoproj.io/tracking-id: "your-application-name:/Namespace:/your-namespace-name"
 ```
+
+> [!NOTE]
+> This is the only scenario in which manually adding the Argo CD resource-tracking annotation or label to a namespace can be considered a reasonable workaround, and it is done strictly at the user’s own risk. In all other cases, manually managing the tracking metadata on a namespace is strongly discouraged, as it interferes with Argo CD’s internal resource-tracking and ownership logic.
+> By default, namespaces are not managed with resource tracking because a namespace is a cluster-scoped resource and may be shared across multiple applications. Incorrectly assigning ownership can therefore lead to unsafe behavior, including unintended deletion or reconciliation of a shared namespace.
 
 In the case where Argo CD is "adopting" an existing namespace which already has metadata set on it, you should first
 [upgrade the resource to server-side apply](https://kubernetes.io/docs/reference/using-api/server-side-apply/#upgrading-from-client-side-apply-to-server-side-apply)
