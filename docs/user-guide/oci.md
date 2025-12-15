@@ -86,6 +86,9 @@ spec:
     namespace: my-namespace
 ```
 
+> [!NOTE]
+> Keep in mind that this only applies when using a Helm repository credential. 
+
 ## Usage Guidelines
 
 First off, you'll need to have a repository that is OCI-compliant. As an example, DockerHub, ECR, GHCR and GCR all fit 
