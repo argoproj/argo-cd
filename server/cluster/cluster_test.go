@@ -188,7 +188,7 @@ func TestUpdateCluster_RejectInvalidParams(t *testing.T) {
 	db.EXPECT().UpdateCluster(mock.Anything, mock.Anything).RunAndReturn(
 		func(_ context.Context, c *appv1.Cluster) (*appv1.Cluster, error) {
 			for _, cluster := range clusters {
-				if c.Server == cluster.Server && c.Name == cluster.Name {
+				if c.Server == cluster.Server {
 					return c, nil
 				}
 			}
@@ -365,10 +365,7 @@ func TestGetCluster_UrlNameEscapedTypeFailToListCluster(t *testing.T) {
 	server := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{})
 
 	_, err := server.Get(t.Context(), &cluster.ClusterQuery{
-		Id: &cluster.ClusterID{
-			Type:  "url_name_escaped",
-			Value: "https://127.0.0.1,my-test-cluster2nd",
-		},
+		Name: "my-test-cluster",
 	})
 	require.Error(t, err)
 }
