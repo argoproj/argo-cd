@@ -983,26 +983,34 @@ func NewAzureServicePrincipalCreds(tenantID string, clientID string, clientSecre
 
 // WithActiveDirectoryEndpoint sets a custom Active Directory endpoint. When not set, the default Azure public cloud is used.
 func (a AzureServicePrincipalCreds) WithActiveDirectoryEndpoint(activeDirectoryEndpoint string) AzureServicePrincipalCreds {
-	a.activeDirectoryEndpoint = activeDirectoryEndpoint
+	if activeDirectoryEndpoint != "" {
+		a.activeDirectoryEndpoint = activeDirectoryEndpoint
+	}
 	return a
 }
 
 // WithClientCert sets the client certificate data and key
 func (a AzureServicePrincipalCreds) WithClientCert(data string, key string) AzureServicePrincipalCreds {
-	a.clientCertData = data
-	a.clientCertKey = key
+	if data != "" && key != "" {
+		a.clientCertData = data
+		a.clientCertKey = key
+	}
 	return a
 }
 
 // WithProxy sets the HTTP/HTTPS proxy used to access the repo
 func (a AzureServicePrincipalCreds) WithProxy(proxy string) AzureServicePrincipalCreds {
-	a.proxy = proxy
+	if proxy != "" {
+		a.proxy = proxy
+	}
 	return a
 }
 
 // WithNoProxy sets a comma separated list of IPs/hostnames that should not use the proxy
 func (a AzureServicePrincipalCreds) WithNoProxy(noProxy string) AzureServicePrincipalCreds {
-	a.noProxy = noProxy
+	if noProxy != "" {
+		a.noProxy = noProxy
+	}
 	return a
 }
 
