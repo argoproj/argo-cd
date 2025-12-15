@@ -261,17 +261,6 @@ func (s *Server) getCluster(ctx context.Context, q *cluster.ClusterQuery) (*appv
 			return nil, fmt.Errorf("failed to get cluster by server: %w", err)
 		}
 		return c, nil
-		// // for clusters with same server and different names
-		// clusterList, err := s.db.ListClusters(ctx)
-		// if err != nil {
-		// 	return nil, fmt.Errorf("failed to list clusters: %w", err)
-		// }
-		// for _, item := range clusterList.Items {
-		// 	// exactly match the server and name
-		// 	if strings.TrimSpace(item.Name) == strings.TrimSpace(q.Name) && strings.TrimSpace(item.Server) == strings.TrimSpace(q.Server) {
-		// 		return &item, nil
-		// 	}
-		// }
 	case q.Name != "":
 		clusterList, err := s.db.ListClusters(ctx)
 		if err != nil {
@@ -284,43 +273,6 @@ func (s *Server) getCluster(ctx context.Context, q *cluster.ClusterQuery) (*appv
 		}
 	}
 	return nil, nil
-
-	// if q.Server != "" {
-	// 	c, err := s.db.GetCluster(ctx, q.Server)
-	// 	if err != nil {
-	// 		return nil, fmt.Errorf("failed to get cluster by server: %w", err)
-	// 	}
-	// 	if strings.TrimSpace(c.Name) == strings.TrimSpace(q.Name) || q.Name == "" {
-	// 		return c, nil
-	// 	}
-	// 	// for clusters with same server and different names
-	// 	clusterList, err := s.db.ListClusters(ctx)
-	// 	if err != nil {
-	// 		return nil, fmt.Errorf("failed to list clusters: %w", err)
-	// 	}
-	// 	for _, item := range clusterList.Items {
-	// 		// exactly match the server and name
-	// 		if strings.TrimSpace(item.Name) == strings.TrimSpace(q.Name) && strings.TrimSpace(item.Server) == strings.TrimSpace(q.Server) {
-	// 			return &item, nil
-	// 		}
-	// 	}
-	// }
-
-	// // we only get the name when we specify Name in ApplicationDestination and next
-	// // we want to find the server in order to populate ApplicationDestination.Server
-	// if q.Name != "" {
-	// 	clusterList, err := s.db.ListClusters(ctx)
-	// 	if err != nil {
-	// 		return nil, fmt.Errorf("failed to list clusters: %w", err)
-	// 	}
-	// 	for _, c := range clusterList.Items {
-	// 		if c.Name == q.Name {
-	// 			return &c, nil
-	// 		}
-	// 	}
-	// }
-
-	// return nil, nil
 }
 
 var clusterFieldsByPath = map[string]func(updated *appv1.Cluster, existing *appv1.Cluster){
@@ -429,48 +381,6 @@ func (s *Server) Delete(ctx context.Context, q *cluster.ClusterQuery) (*cluster.
 		return nil, fmt.Errorf("failed to enforce and delete cluster server: %w", err)
 	}
 	return &cluster.ClusterResponse{}, nil
-
-	// switch {
-	// case q.Server != "" && q.Name != "":
-	// 	if err := enforceAndDelete(ctx, s, q.Server, q.Name, c.Project); err != nil {
-	// 		return nil, fmt.Errorf("failed to enforce and delete cluster server: %w", err)
-	// 	}
-	// case q.Name != "":
-	// 	servers, err := s.db.GetClusterServersByName(ctx, q.Name)
-	// 	if err != nil {
-	// 		log.WithField("cluster", q.Name).Warnf("failed to get cluster servers by name: %v", err)
-	// 		return nil, common.PermissionDeniedAPIError
-	// 	}
-	// 	for _, server := range servers {
-	// 		if err := enforceAndDelete(ctx, s, server, c.Project); err != nil {
-	// 			return nil, fmt.Errorf("failed to enforce and delete cluster server: %w", err)
-	// 		}
-	// 	}
-	// default:
-	// 	if err := enforceAndDelete(ctx, s, q.Server, c.Project); err != nil {
-	// 		return nil, fmt.Errorf("failed to enforce and delete cluster server: %w", err)
-	// 	}
-
-	// }
-
-	// if q.Name != "" {
-	// 	servers, err := s.db.GetClusterServersByName(ctx, q.Name)
-	// 	if err != nil {
-	// 		log.WithField("cluster", q.Name).Warnf("failed to get cluster servers by name: %v", err)
-	// 		return nil, common.PermissionDeniedAPIError
-	// 	}
-	// 	for _, server := range servers {
-	// 		if err := enforceAndDelete(ctx, s, server, c.Project); err != nil {
-	// 			return nil, fmt.Errorf("failed to enforce and delete cluster server: %w", err)
-	// 		}
-	// 	}
-	// } else {
-	// 	if err := enforceAndDelete(ctx, s, q.Server, c.Project); err != nil {
-	// 		return nil, fmt.Errorf("failed to enforce and delete cluster server: %w", err)
-	// 	}
-	// }
-
-	// return &cluster.ClusterResponse{}, nil
 }
 
 func enforceAndDelete(ctx context.Context, s *Server, server, name, project string) error {

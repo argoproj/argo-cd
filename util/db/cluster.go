@@ -218,22 +218,12 @@ func (db *db) getClusterSecret(server string, name string) (*corev1.Secret, erro
 		return nil, err
 	}
 	srv := strings.TrimRight(server, "/")
-	var serverMatchSecret *corev1.Secret
 	for _, clusterSecret := range clusterSecrets {
-		if strings.TrimRight(string(clusterSecret.Data["server"]), "/") == srv {
-			if name != "" && string(clusterSecret.Data["name"]) == name {
-				return clusterSecret, nil
-			} else {
-				// should not hit this path. just incase
-				serverMatchSecret = clusterSecret
-			}
+		if strings.TrimRight(string(clusterSecret.Data["server"]), "/") == srv && string(clusterSecret.Data["name"]) == name {
+			return clusterSecret, nil
 		}
 	}
-	if serverMatchSecret != nil {
-		return serverMatchSecret, nil
-	} else {
-		return nil, status.Errorf(codes.NotFound, "cluster %q not found", server)
-	}
+	return nil, status.Errorf(codes.NotFound, "cluster %q with name %q not found", server, name)
 }
 
 // GetCluster returns a cluster from a query
