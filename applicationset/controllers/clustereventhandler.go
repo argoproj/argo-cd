@@ -34,7 +34,7 @@ func (h *clusterSecretEventHandler) Create(ctx context.Context, e event.CreateEv
 }
 
 func (h *clusterSecretEventHandler) Update(ctx context.Context, e event.UpdateEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
-	if containsAFunctionnalDiff(e.ObjectNew, e.ObjectOld) {
+	if hasAFunctionalDiff(e.ObjectNew, e.ObjectOld) {
 		h.Log.WithFields(log.Fields{
 			"namespace": e.ObjectNew.GetNamespace(),
 			"name":      e.ObjectNew.GetName(),
@@ -173,7 +173,7 @@ func nestedGeneratorHasClusterGenerator(nested argoprojiov1alpha1.ApplicationSet
 	return false, nil
 }
 
-func containsAFunctionnalDiff(newObject, oldObject client.Object) bool {
+func hasAFunctionalDiff(newObject, oldObject client.Object) bool {
 	if newObject.GetLabels()[common.LabelKeySecretType] != common.LabelValueSecretTypeCluster {
 		return false
 	}
@@ -185,11 +185,11 @@ func containsAFunctionnalDiff(newObject, oldObject client.Object) bool {
 		return false
 	}
 
-	isThereALabelDiff := !reflect.DeepEqual(newSecret.GetLabels(), oldSecret.GetLabels())
-	isThereAnAnnotationDiff := !reflect.DeepEqual(newSecret.GetAnnotations(), oldSecret.GetAnnotations())
-	isThereADataDiff := (!bytes.Equal(newSecret.Data["name"], oldSecret.Data["name"])) ||
+	hasALabelDiff := !reflect.DeepEqual(newSecret.GetLabels(), oldSecret.GetLabels())
+	hasAnAnnotationDiff := !reflect.DeepEqual(newSecret.GetAnnotations(), oldSecret.GetAnnotations())
+	hasADataDiff := (!bytes.Equal(newSecret.Data["name"], oldSecret.Data["name"])) ||
 		(!bytes.Equal(newSecret.Data["server"], oldSecret.Data["server"])) ||
 		(!bytes.Equal(newSecret.Data["project"], oldSecret.Data["project"]))
 
-	return isThereALabelDiff || isThereAnAnnotationDiff || isThereADataDiff
+	return hasALabelDiff || hasAnAnnotationDiff || hasADataDiff
 }

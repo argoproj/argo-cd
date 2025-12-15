@@ -631,7 +631,7 @@ func TestNestedGeneratorHasClusterGenerator_NestedMergeGeneratorWithInvalidJSON(
 	assert.False(t, hasClusterGenerator)
 }
 
-func TestContainsAFunctionnalDiff(t *testing.T) {
+func TestHasAFunctionalDiff(t *testing.T) {
 	tests := []struct {
 		name           string
 		newObject      client.Object
@@ -952,7 +952,7 @@ func TestContainsAFunctionnalDiff(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			assert.Equal(t, test.expectedResult, containsAFunctionnalDiff(test.newObject, test.oldObject))
+			assert.Equal(t, test.expectedResult, hasAFunctionalDiff(test.newObject, test.oldObject))
 		})
 	}
 }
