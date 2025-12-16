@@ -26,7 +26,11 @@ type secretsRepositoryBackend struct {
 }
 
 func (s *secretsRepositoryBackend) CreateRepository(ctx context.Context, repository *appsv1.Repository) (*appsv1.Repository, error) {
-	secName := RepoURLToSecretName(repoSecretPrefix, repository.Repo, repository.Project)
+	secretPrefix := repoSecretPrefix
+	if s.writeCreds {
+		secretPrefix = repoWriteSecretPrefix
+	}
+	secName := RepoURLToSecretName(secretPrefix, repository.Repo, repository.Project)
 
 	repositorySecret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -60,12 +64,8 @@ func (s *secretsRepositoryBackend) CreateRepository(ctx context.Context, reposit
 // the label is found and false otherwise. Will return false if no secret is found with the given
 // name.
 func (s *secretsRepositoryBackend) hasRepoTypeLabel(secretName string) (bool, error) {
-	noCache := make(map[string]*corev1.Secret)
-	sec, err := s.db.getSecret(secretName, noCache)
+	sec, err := s.db.settingsMgr.GetSecretByName(secretName)
 	if err != nil {
-		if apierrors.IsNotFound(err) {
-			return false, nil
-		}
 		return false, err
 	}
 	_, ok := sec.GetLabels()[common.LabelKeySecretType]
@@ -76,7 +76,7 @@ func (s *secretsRepositoryBackend) hasRepoTypeLabel(secretName string) (bool, er
 }
 
 func (s *secretsRepositoryBackend) GetRepoCredsBySecretName(_ context.Context, name string) (*appsv1.RepoCreds, error) {
-	secret, err := s.db.getSecret(name, map[string]*corev1.Secret{})
+	secret, err := s.db.settingsMgr.GetSecretByName(name)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get secret %s: %w", name, err)
 	}
@@ -179,7 +179,11 @@ func (s *secretsRepositoryBackend) RepositoryExists(_ context.Context, repoURL, 
 }
 
 func (s *secretsRepositoryBackend) CreateRepoCreds(ctx context.Context, repoCreds *appsv1.RepoCreds) (*appsv1.RepoCreds, error) {
-	secName := RepoURLToSecretName(credSecretPrefix, repoCreds.URL, "")
+	secretPrefix := credSecretPrefix
+	if s.writeCreds {
+		secretPrefix = credWriteSecretPrefix
+	}
+	secName := RepoURLToSecretName(secretPrefix, repoCreds.URL, "")
 
 	repoCredsSecret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -400,6 +404,8 @@ func secretToRepository(secret *corev1.Secret) (*appsv1.Repository, error) {
 	return repository, nil
 }
 
+// repositoryToSecret updates the given secret with the data from the repository object. It adds the appropriate
+// labels/annotations, but it does not add any name or namespace metadata.
 func (s *secretsRepositoryBackend) repositoryToSecret(repository *appsv1.Repository, secret *corev1.Secret) *corev1.Secret {
 	secretCopy := secret.DeepCopy()
 

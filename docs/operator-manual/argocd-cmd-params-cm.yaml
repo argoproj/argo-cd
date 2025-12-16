@@ -219,6 +219,8 @@ data:
   reposerver.git.lsremote.parallelism.limit: "0"
   # Git requests timeout.
   reposerver.git.request.timeout: "15s"
+  # Enable builtin git configuration options that are required for correct argocd-repo-server operation (default "true")
+  reposerver.enable.builtin.git.config: "true"
   # Include hidden directories from Git
   reposerver.include.hidden.directories: "false"
 
