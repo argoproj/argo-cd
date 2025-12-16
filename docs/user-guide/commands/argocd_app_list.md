@@ -29,6 +29,7 @@ argocd app list [flags]
   -c, --cluster string         List apps by cluster name or url
   -h, --help                   help for list
   -o, --output string          Output format. One of: wide|name|json|yaml (default "wide")
+  -P, --path string            List apps by path
   -p, --project stringArray    Filter by project name
   -r, --repo string            List apps by source repo URL
   -l, --selector string        List apps by label. Supports '=', '==', '!=', in, notin, exists & not exists. Matching apps must satisfy all of the specified label constraints.

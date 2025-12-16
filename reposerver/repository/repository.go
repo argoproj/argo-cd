@@ -117,6 +117,7 @@ type RepoServerInitConstants struct {
 	DisableHelmManifestMaxExtractedSize          bool
 	IncludeHiddenDirectories                     bool
 	CMPUseManifestGeneratePaths                  bool
+	EnableBuiltinGitConfig                       bool
 }
 
 var manifestGenerateLock = sync.NewKeyLock()
@@ -189,7 +190,7 @@ func (s *Service) Init() error {
 
 // ListOCITags List a subset of the refs (currently, branches and tags) of a git repo
 func (s *Service) ListOCITags(ctx context.Context, q *apiclient.ListRefsRequest) (*apiclient.Refs, error) {
-	ociClient, err := s.newOCIClient(q.Repo.Repo, q.Repo.GetOCICreds(), q.Repo.Proxy, q.Repo.NoProxy, s.initConstants.OCIMediaTypes, oci.WithIndexCache(s.cache), oci.WithImagePaths(s.ociPaths), oci.WithManifestMaxExtractedSize(s.initConstants.OCIManifestMaxExtractedSize), oci.WithDisableManifestMaxExtractedSize(s.initConstants.DisableOCIManifestMaxExtractedSize))
+	ociClient, err := s.newOCIClient(q.Repo.Repo, q.Repo.GetOCICreds(), q.Repo.Proxy, q.Repo.NoProxy, s.initConstants.OCIMediaTypes, s.ociClientStandardOpts()...)
 	if err != nil {
 		return nil, fmt.Errorf("error creating oci client: %w", err)
 	}
@@ -247,7 +248,7 @@ func (s *Service) ListApps(ctx context.Context, q *apiclient.ListAppsRequest) (*
 	defer s.metricsServer.DecPendingRepoRequest(q.Repo.Repo)
 
 	closer, err := s.repoLock.Lock(gitClient.Root(), commitSHA, true, func() (goio.Closer, error) {
-		return s.checkoutRevision(gitClient, commitSHA, s.initConstants.SubmoduleEnabled)
+		return s.checkoutRevision(gitClient, commitSHA, s.initConstants.SubmoduleEnabled, q.Repo.Depth)
 	})
 	if err != nil {
 		return nil, fmt.Errorf("error acquiring repository lock: %w", err)
@@ -449,7 +450,7 @@ func (s *Service) runRepoOperation(
 		})
 	}
 	closer, err := s.repoLock.Lock(gitClient.Root(), revision, settings.allowConcurrent, func() (goio.Closer, error) {
-		return s.checkoutRevision(gitClient, revision, s.initConstants.SubmoduleEnabled)
+		return s.checkoutRevision(gitClient, revision, s.initConstants.SubmoduleEnabled, repo.Depth)
 	})
 	if err != nil {
 		return err
@@ -834,7 +835,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 							return
 						}
 						closer, err := s.repoLock.Lock(gitClient.Root(), referencedCommitSHA, true, func() (goio.Closer, error) {
-							return s.checkoutRevision(gitClient, referencedCommitSHA, s.initConstants.SubmoduleEnabled)
+							return s.checkoutRevision(gitClient, referencedCommitSHA, s.initConstants.SubmoduleEnabled, q.Repo.Depth)
 						})
 						if err != nil {
 							log.Errorf("failed to acquire lock for referenced source %s", normalizedRepoURL)
@@ -1542,7 +1543,7 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 		// if pluginName is provided it has to be `<metadata.name>-<spec.version>` or just `<metadata.name>` if plugin version is empty
 		targetObjs, err = runConfigManagementPluginSidecars(ctx, appPath, repoRoot, pluginName, env, q, q.Repo.GetGitCreds(gitCredsStore), opt.cmpTarDoneCh, opt.cmpTarExcludedGlobs, opt.cmpUseManifestGeneratePaths)
 		if err != nil {
-			err = fmt.Errorf("plugin sidecar failed. %s", err.Error())
+			err = fmt.Errorf("CMP processing failed for application %q: %w", q.AppName, err)
 		}
 	case v1alpha1.ApplicationSourceTypeDirectory:
 		var directory *v1alpha1.ApplicationSourceDirectory
@@ -2435,7 +2436,7 @@ func (s *Service) GetRevisionMetadata(_ context.Context, q *apiclient.RepoServer
 	defer s.metricsServer.DecPendingRepoRequest(q.Repo.Repo)
 
 	closer, err := s.repoLock.Lock(gitClient.Root(), q.Revision, true, func() (goio.Closer, error) {
-		return s.checkoutRevision(gitClient, q.Revision, s.initConstants.SubmoduleEnabled)
+		return s.checkoutRevision(gitClient, q.Revision, s.initConstants.SubmoduleEnabled, q.Repo.Depth)
 	})
 	if err != nil {
 		return nil, fmt.Errorf("error acquiring repo lock: %w", err)
@@ -2492,13 +2493,14 @@ func (s *Service) GetRevisionMetadata(_ context.Context, q *apiclient.RepoServer
 }
 
 func (s *Service) GetOCIMetadata(ctx context.Context, q *apiclient.RepoServerRevisionChartDetailsRequest) (*v1alpha1.OCIMetadata, error) {
-	client, err := s.newOCIClient(q.Repo.Repo, q.Repo.GetOCICreds(), q.Repo.Proxy, q.Repo.NoProxy, s.initConstants.OCIMediaTypes, oci.WithIndexCache(s.cache), oci.WithImagePaths(s.ociPaths), oci.WithManifestMaxExtractedSize(s.initConstants.OCIManifestMaxExtractedSize), oci.WithDisableManifestMaxExtractedSize(s.initConstants.DisableOCIManifestMaxExtractedSize))
+	client, err := s.newOCIClient(q.Repo.Repo, q.Repo.GetOCICreds(), q.Repo.Proxy, q.Repo.NoProxy, s.initConstants.OCIMediaTypes, s.ociClientStandardOpts()...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize oci client: %w", err)
 	}
 
 	metadata, err := client.DigestMetadata(ctx, q.Revision)
 	if err != nil {
+		s.metricsServer.IncOCIDigestMetadataCounter(q.Repo.Repo, q.Revision)
 		return nil, fmt.Errorf("failed to extract digest metadata for revision %q: %w", q.Revision, err)
 	}
 
@@ -2566,7 +2568,9 @@ func (s *Service) newClient(repo *v1alpha1.Repository, opts ...git.ClientOpts) (
 	if err != nil {
 		return nil, err
 	}
-	opts = append(opts, git.WithEventHandlers(metrics.NewGitClientEventHandlers(s.metricsServer)))
+	opts = append(opts,
+		git.WithEventHandlers(metrics.NewGitClientEventHandlers(s.metricsServer)),
+		git.WithBuiltinGitConfig(s.initConstants.EnableBuiltinGitConfig))
 	return s.newGitClient(repo.Repo, repoPath, repo.GetGitCreds(s.gitCredsStore), repo.IsInsecure(), repo.EnableLFS, repo.Proxy, repo.NoProxy, opts...)
 }
 
@@ -2586,7 +2590,7 @@ func (s *Service) newClientResolveRevision(repo *v1alpha1.Repository, revision s
 }
 
 func (s *Service) newOCIClientResolveRevision(ctx context.Context, repo *v1alpha1.Repository, revision string, noRevisionCache bool) (oci.Client, string, error) {
-	ociClient, err := s.newOCIClient(repo.Repo, repo.GetOCICreds(), repo.Proxy, repo.NoProxy, s.initConstants.OCIMediaTypes, oci.WithIndexCache(s.cache), oci.WithImagePaths(s.ociPaths), oci.WithManifestMaxExtractedSize(s.initConstants.OCIManifestMaxExtractedSize), oci.WithDisableManifestMaxExtractedSize(s.initConstants.DisableOCIManifestMaxExtractedSize))
+	ociClient, err := s.newOCIClient(repo.Repo, repo.GetOCICreds(), repo.Proxy, repo.NoProxy, s.initConstants.OCIMediaTypes, s.ociClientStandardOpts()...)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to initialize oci client: %w", err)
 	}
@@ -2658,9 +2662,9 @@ func directoryPermissionInitializer(rootPath string) goio.Closer {
 
 // checkoutRevision is a convenience function to initialize a repo, fetch, and checkout a revision
 // Returns the 40 character commit SHA after the checkout has been performed
-func (s *Service) checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bool) (goio.Closer, error) {
+func (s *Service) checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bool, depth int64) (goio.Closer, error) {
 	closer := s.gitRepoInitializer(gitClient.Root())
-	err := checkoutRevision(gitClient, revision, submoduleEnabled)
+	err := checkoutRevision(gitClient, revision, submoduleEnabled, depth)
 	if err != nil {
 		s.metricsServer.IncGitFetchFail(gitClient.Root(), revision)
 	}
@@ -2692,7 +2696,7 @@ func fetch(gitClient git.Client, targetRevisions []string) error {
 		return nil
 	}
 	// Fetching with no revision first. Fetching with an explicit version can cause repo bloat. https://github.com/argoproj/argo-cd/issues/8845
-	err := gitClient.Fetch("")
+	err := gitClient.Fetch("", 0)
 	if err != nil {
 		return err
 	}
@@ -2703,7 +2707,7 @@ func fetch(gitClient git.Client, targetRevisions []string) error {
 			log.Infof("Failed to fetch revision %s: %v", revision, err)
 			log.Infof("Fallback to fetching specific revision %s. ref might not have been in the default refspec fetched.", revision)
 
-			if err := gitClient.Fetch(revision); err != nil {
+			if err := gitClient.Fetch(revision, 0); err != nil {
 				return status.Errorf(codes.Internal, "Failed to fetch revision %s: %v", revision, err)
 			}
 		}
@@ -2711,7 +2715,7 @@ func fetch(gitClient git.Client, targetRevisions []string) error {
 	return nil
 }
 
-func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bool) error {
+func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bool, depth int64) error {
 	err := gitClient.Init()
 	if err != nil {
 		return status.Errorf(codes.Internal, "Failed to initialize git repo: %v", err)
@@ -2725,8 +2729,13 @@ func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bo
 
 	// Fetching can be skipped if the revision is already present locally.
 	if !revisionPresent {
-		// Fetching with no revision first. Fetching with an explicit version can cause repo bloat. https://github.com/argoproj/argo-cd/issues/8845
-		err = gitClient.Fetch("")
+		if depth > 0 {
+			err = gitClient.Fetch(revision, depth)
+		} else {
+			// Fetching with no revision first. Fetching with an explicit version can cause repo bloat. https://github.com/argoproj/argo-cd/issues/8845
+			err = gitClient.Fetch("", depth)
+		}
+
 		if err != nil {
 			return status.Errorf(codes.Internal, "Failed to fetch default: %v", err)
 		}
@@ -2738,8 +2747,7 @@ func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bo
 		// for the given revision, try explicitly fetching it.
 		log.Infof("Failed to checkout revision %s: %v", revision, err)
 		log.Infof("Fallback to fetching specific revision %s. ref might not have been in the default refspec fetched.", revision)
-
-		err = gitClient.Fetch(revision)
+		err = gitClient.Fetch(revision, depth)
 		if err != nil {
 			return status.Errorf(codes.Internal, "Failed to checkout revision %s: %v", revision, err)
 		}
@@ -2779,7 +2787,8 @@ func (s *Service) TestRepository(ctx context.Context, q *apiclient.TestRepositor
 			return git.TestRepo(repo.Repo, repo.GetGitCreds(s.gitCredsStore), repo.IsInsecure(), repo.IsLFSEnabled(), repo.Proxy, repo.NoProxy)
 		},
 		"oci": func() error {
-			client, err := oci.NewClient(repo.Repo, repo.GetOCICreds(), repo.Proxy, repo.NoProxy, s.initConstants.OCIMediaTypes)
+			client, err := oci.NewClient(repo.Repo, repo.GetOCICreds(), repo.Proxy, repo.NoProxy,
+				s.initConstants.OCIMediaTypes, oci.WithEventHandlers(metrics.NewOCIClientEventHandlers(s.metricsServer)))
 			if err != nil {
 				return err
 			}
@@ -2886,7 +2895,7 @@ func (s *Service) GetGitFiles(_ context.Context, request *apiclient.GitFilesRequ
 
 	// cache miss, generate the results
 	closer, err := s.repoLock.Lock(gitClient.Root(), revision, true, func() (goio.Closer, error) {
-		return s.checkoutRevision(gitClient, revision, request.GetSubmoduleEnabled())
+		return s.checkoutRevision(gitClient, revision, request.GetSubmoduleEnabled(), repo.Depth)
 	})
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "unable to checkout git repo %s with revision %s pattern %s: %v", repo.Repo, revision, gitPath, err)
@@ -2968,7 +2977,7 @@ func (s *Service) GetGitDirectories(_ context.Context, request *apiclient.GitDir
 
 	// cache miss, generate the results
 	closer, err := s.repoLock.Lock(gitClient.Root(), revision, true, func() (goio.Closer, error) {
-		return s.checkoutRevision(gitClient, revision, request.GetSubmoduleEnabled())
+		return s.checkoutRevision(gitClient, revision, request.GetSubmoduleEnabled(), repo.Depth)
 	})
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "unable to checkout git repo %s with revision %s: %v", repo.Repo, revision, err)
@@ -3060,7 +3069,7 @@ func (s *Service) UpdateRevisionForPaths(_ context.Context, request *apiclient.U
 	defer s.metricsServer.DecPendingRepoRequest(repo.Repo)
 
 	closer, err := s.repoLock.Lock(gitClient.Root(), revision, true, func() (goio.Closer, error) {
-		return s.checkoutRevision(gitClient, revision, false)
+		return s.checkoutRevision(gitClient, revision, false, 0)
 	})
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "unable to checkout git repo %s with revision %s: %v", repo.Repo, revision, err)
@@ -3131,4 +3140,14 @@ func (s *Service) updateCachedRevision(logCtx *log.Entry, oldRev string, newRev 
 
 	logCtx.Debugf("manifest cache updated for application %s in repo %s from revision %s to revision %s", request.AppName, request.GetRepo().Repo, oldRev, newRev)
 	return nil
+}
+
+func (s *Service) ociClientStandardOpts() []oci.ClientOpts {
+	return []oci.ClientOpts{
+		oci.WithIndexCache(s.cache),
+		oci.WithImagePaths(s.ociPaths),
+		oci.WithManifestMaxExtractedSize(s.initConstants.OCIManifestMaxExtractedSize),
+		oci.WithDisableManifestMaxExtractedSize(s.initConstants.DisableOCIManifestMaxExtractedSize),
+		oci.WithEventHandlers(metrics.NewOCIClientEventHandlers(s.metricsServer)),
+	}
 }

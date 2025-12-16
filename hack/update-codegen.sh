@@ -35,7 +35,7 @@ sed -e '/go install/d' "${PROJECT_ROOT}/vendor/k8s.io/code-generator/kube_codege
 # generate-groups.sh assumes codegen utilities are installed to GOBIN, but we just ensure the CLIs
 # are in the path and invoke them without assumption of their location
 # shellcheck disable=SC2016
-sed -i.bak -e 's#${gobin}/##g' ${TARGET_SCRIPT}
+sed -i.bak -e 's#${GOBIN}/##g' ${TARGET_SCRIPT}
 
 [ -e ./v3 ] || ln -s . v3
 [ -e "${GOPATH_PROJECT_ROOT}" ] || (mkdir -p "$(dirname "${GOPATH_PROJECT_ROOT}")" && ln -s "${PROJECT_ROOT}" "${GOPATH_PROJECT_ROOT}")

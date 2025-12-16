@@ -137,13 +137,13 @@ func (c *Context) CustomSSHKnownHostsAdded() *Context {
 	return c
 }
 
-func (c *Context) HTTPSRepoURLAdded(withCreds bool) *Context {
-	repos.AddHTTPSRepo(c.t, false, withCreds, "", fixture.RepoURLTypeHTTPS)
+func (c *Context) HTTPSRepoURLAdded(withCreds bool, opts ...repos.AddRepoOpts) *Context {
+	repos.AddHTTPSRepo(c.t, false, withCreds, "", fixture.RepoURLTypeHTTPS, opts...)
 	return c
 }
 
-func (c *Context) HTTPSInsecureRepoURLAdded(withCreds bool) *Context {
-	repos.AddHTTPSRepo(c.t, true, withCreds, "", fixture.RepoURLTypeHTTPS)
+func (c *Context) HTTPSInsecureRepoURLAdded(withCreds bool, opts ...repos.AddRepoOpts) *Context {
+	repos.AddHTTPSRepo(c.t, true, withCreds, "", fixture.RepoURLTypeHTTPS, opts...)
 	return c
 }
 

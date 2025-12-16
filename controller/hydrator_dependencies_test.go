@@ -14,6 +14,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v3/test"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 func TestGetRepoObjs(t *testing.T) {
@@ -42,11 +43,11 @@ func TestGetRepoObjs(t *testing.T) {
 		},
 	}
 
-	ctrl := newFakeControllerWithResync(&data, time.Minute, nil, errors.New("this should not be called"))
+	ctrl := newFakeControllerWithResync(t.Context(), &data, time.Minute, nil, errors.New("this should not be called"))
 	source := app.Spec.GetSource()
 	source.RepoURL = "oci://example.com/argo/argo-cd"
 
-	objs, resp, err := ctrl.GetRepoObjs(app, source, "abc123", &v1alpha1.AppProject{
+	objs, resp, err := ctrl.GetRepoObjs(t.Context(), app, source, "abc123", &v1alpha1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "default",
 			Namespace: test.FakeArgoCDNamespace,
@@ -76,4 +77,47 @@ func TestGetRepoObjs(t *testing.T) {
 	assert.NotContains(t, annotations, common.AnnotationKeyAppInstance)
 
 	assert.Equal(t, "ConfigMap", objs[0].GetKind())
+}
+
+func TestGetHydratorCommitMessageTemplate_WhenTemplateisNotDefined_FallbackToDefault(t *testing.T) {
+	cm := test.NewConfigMap()
+	cmBytes, _ := json.Marshal(cm)
+
+	data := fakeData{
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{string(cmBytes)},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+	}
+
+	ctrl := newFakeControllerWithResync(t.Context(), &data, time.Minute, nil, errors.New("this should not be called"))
+
+	tmpl, err := ctrl.GetHydratorCommitMessageTemplate()
+	require.NoError(t, err)
+	assert.NotEmpty(t, tmpl) // should fallback to default
+	assert.Equal(t, settings.CommitMessageTemplate, tmpl)
+}
+
+func TestGetHydratorCommitMessageTemplate(t *testing.T) {
+	cm := test.NewFakeConfigMap()
+	cm.Data["sourceHydrator.commitMessageTemplate"] = settings.CommitMessageTemplate
+	cmBytes, _ := json.Marshal(cm)
+
+	data := fakeData{
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{string(cmBytes)},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+		configMapData: cm.Data,
+	}
+
+	ctrl := newFakeControllerWithResync(t.Context(), &data, time.Minute, nil, errors.New("this should not be called"))
+
+	tmpl, err := ctrl.GetHydratorCommitMessageTemplate()
+	require.NoError(t, err)
+	assert.NotEmpty(t, tmpl)
 }

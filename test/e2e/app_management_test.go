@@ -433,6 +433,43 @@ func TestPatchValuesObject(t *testing.T) {
 		})
 }
 
+func TestGetAppResource(t *testing.T) {
+	ctx := Given(t)
+
+	ctx.
+		Path(guestbookPath).
+		When().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		And(func(_ *Application) {
+			out, err := fixture.RunCli("app", "get-resource", fixture.Name(), "--kind", "Service", "--resource-name", "guestbook-ui")
+			require.NoError(t, err)
+			assert.Contains(t, out, "guestbook-ui")
+		}).
+		And(func(_ *Application) {
+			out, err := fixture.RunCli("app", "get-resource", fixture.Name(), "--kind", "Service", "--group", "", "--resource-name", "guestbook-ui")
+			require.NoError(t, err)
+			assert.Contains(t, out, "guestbook-ui")
+		}).
+		And(func(_ *Application) {
+			out, err := fixture.RunCli("app", "get-resource", fixture.Name(), "--kind", "Service", "--resource-name", "bad-guestbook-ui")
+			require.NoError(t, err)
+			assert.NotContains(t, out, "guestbook-ui")
+		}).
+		And(func(_ *Application) {
+			out, err := fixture.RunCli("app", "get-resource", fixture.Name(), "--kind", "Service", "--group", "badgroup", "--resource-name", "guestbook-ui")
+			require.NoError(t, err)
+			assert.NotContains(t, out, "guestbook-ui")
+		}).
+		And(func(_ *Application) {
+			out, err := fixture.RunCli("app", "get-resource", fixture.Name(), "--kind", "Deployment", "--group", "apps", "--resource-name", "guestbook-ui")
+			require.NoError(t, err)
+			assert.Contains(t, out, "guestbook-ui")
+		})
+}
+
 func TestDeleteAppResource(t *testing.T) {
 	ctx := Given(t)
 
@@ -1564,7 +1601,7 @@ func TestPermissions(t *testing.T) {
 		CreateApp().
 		Sync().
 		Then().
-		// make sure application resource actiions are successful
+		// make sure application resource actions are successful
 		And(func(app *Application) {
 			assertResourceActions(t, app.Name, true)
 		}).
@@ -1603,7 +1640,7 @@ func TestPermissions(t *testing.T) {
 		}).
 		Refresh(RefreshTypeNormal).
 		Then().
-		// make sure application resource actiions are failing
+		// make sure application resource actions are failing
 		And(func(_ *Application) {
 			assertResourceActions(t, "test-permissions", false)
 		})
@@ -2112,6 +2149,60 @@ func TestSyncWithInfos(t *testing.T) {
 		})
 }
 
+// TestSyncWithRetryAndRefreshEnabled verifies that sync+refresh picks up new commits automatically on the original source
+// at the time the sync was triggered
+func TestSyncWithRetryAndRefreshEnabled(t *testing.T) {
+	Given(t).
+		Timeout(2). // Quick timeout since Sync operation is expected to retry forever
+		Path(guestbookPath).
+		When().
+		CreateFromFile(func(app *Application) {
+			app.Spec.SyncPolicy = &SyncPolicy{
+				Retry: &RetryStrategy{
+					Limit:   -1, // Repeat forever
+					Refresh: true,
+					Backoff: &Backoff{
+						Duration:    time.Second.String(),
+						Factor:      ptr.To(int64(1)),
+						MaxDuration: time.Second.String(),
+					},
+				},
+			}
+		}).
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		When().
+		PatchFile("guestbook-ui-deployment.yaml", `[{"op": "replace", "path": "/spec/revisionHistoryLimit", "value": "badValue"}]`).
+		IgnoreErrors().
+		Sync().
+		DoNotIgnoreErrors().
+		Then().
+		Expect(OperationPhaseIs(OperationRunning)).
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		Expect(OperationRetriedMinimumTimes(1)).
+		When().
+		PatchApp(`[{"op": "add", "path": "/spec/source/path", "value": "failure-during-sync"}]`).
+		// push a fixed commit on HEAD branch
+		PatchFile("guestbook-ui-deployment.yaml", `[{"op": "replace", "path": "/spec/revisionHistoryLimit", "value": 42}]`).
+		IgnoreErrors().
+		Sync().
+		DoNotIgnoreErrors().
+		Then().
+		Expect(Status(func(status ApplicationStatus) (bool, string) {
+			// Validate that the history contains the sync to the previous sources
+			// The history will only contain  successful sync
+			if len(status.History) != 2 {
+				return false, "expected len to be 2"
+			}
+			if status.History[1].Source.Path != guestbookPath {
+				return false, fmt.Sprintf("expected source path to be '%s'", guestbookPath)
+			}
+			return true, ""
+		}))
+}
+
 // Given: argocd app create does not provide --dest-namespace
 //
 //	Manifest contains resource console which does not require namespace
@@ -2251,7 +2342,7 @@ func TestListResource(t *testing.T) {
 //
 //	application --dest-namespace does not exist
 //
-// Verity application --dest-namespace is created
+//	Verify application --dest-namespace is created
 //
 //	application sync successful
 //	when application is deleted, --dest-namespace is not deleted
@@ -3024,6 +3115,12 @@ func TestDeletionConfirmation(t *testing.T) {
 		Then().Expect(OperationPhaseIs(OperationRunning)).
 		When().ConfirmDeletion().
 		Then().Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		// Wait for controller caches to fully settle before deletion
+		// This ensures both the informer and cluster watcher have the latest state
+		When().Refresh(RefreshTypeNormal).
+		Then().
 		When().Delete(true).
 		Then().
 		And(func(app *Application) {

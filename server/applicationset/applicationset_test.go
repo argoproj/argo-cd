@@ -4,6 +4,9 @@ import (
 	"sort"
 	"testing"
 
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	cr_fake "sigs.k8s.io/controller-runtime/pkg/client/fake"
+
 	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/argoproj/pkg/v2/sync"
 	"github.com/stretchr/testify/assert"
@@ -50,7 +53,7 @@ func fakeCluster() *appsv1.Cluster {
 }
 
 // return an ApplicationServiceServer which returns fake data
-func newTestAppSetServer(t *testing.T, objects ...runtime.Object) *Server {
+func newTestAppSetServer(t *testing.T, objects ...client.Object) *Server {
 	t.Helper()
 	f := func(enf *rbac.Enforcer) {
 		_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
@@ -61,7 +64,7 @@ func newTestAppSetServer(t *testing.T, objects ...runtime.Object) *Server {
 }
 
 // return an ApplicationServiceServer which returns fake data
-func newTestNamespacedAppSetServer(t *testing.T, objects ...runtime.Object) *Server {
+func newTestNamespacedAppSetServer(t *testing.T, objects ...client.Object) *Server {
 	t.Helper()
 	f := func(enf *rbac.Enforcer) {
 		_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
@@ -71,7 +74,7 @@ func newTestNamespacedAppSetServer(t *testing.T, objects ...runtime.Object) *Ser
 	return newTestAppSetServerWithEnforcerConfigure(t, f, scopedNamespaces, objects...)
 }
 
-func newTestAppSetServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforcer), namespace string, objects ...runtime.Object) *Server {
+func newTestAppSetServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforcer), namespace string, objects ...client.Object) *Server {
 	t.Helper()
 	kubeclientset := fake.NewClientset(&corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
@@ -115,7 +118,11 @@ func newTestAppSetServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforce
 
 	objects = append(objects, defaultProj, myProj)
 
-	fakeAppsClientset := apps.NewSimpleClientset(objects...)
+	runtimeObjects := make([]runtime.Object, len(objects))
+	for i := range objects {
+		runtimeObjects[i] = objects[i]
+	}
+	fakeAppsClientset := apps.NewSimpleClientset(runtimeObjects...)
 	factory := appinformer.NewSharedInformerFactoryWithOptions(fakeAppsClientset, 0, appinformer.WithNamespace(namespace), appinformer.WithTweakListOptions(func(_ *metav1.ListOptions) {}))
 	fakeProjLister := factory.Argoproj().V1alpha1().AppProjects().Lister().AppProjects(testNamespace)
 
@@ -138,6 +145,13 @@ func newTestAppSetServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforce
 		panic("Timed out waiting for caches to sync")
 	}
 
+	scheme := runtime.NewScheme()
+	err = appsv1.AddToScheme(scheme)
+	require.NoError(t, err)
+	err = corev1.AddToScheme(scheme)
+	require.NoError(t, err)
+	crClient := cr_fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).Build()
+
 	projInformer := factory.Argoproj().V1alpha1().AppProjects().Informer()
 	go projInformer.Run(ctx.Done())
 	if !k8scache.WaitForCacheSync(ctx.Done(), projInformer.HasSynced) {
@@ -148,7 +162,7 @@ func newTestAppSetServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforce
 		db,
 		kubeclientset,
 		nil,
-		nil,
+		crClient,
 		enforcer,
 		nil,
 		fakeAppsClientset,
@@ -557,6 +571,56 @@ func TestUpdateAppSet(t *testing.T) {
 	})
 }
 
+func TestUpsertAppSet(t *testing.T) {
+	name := "test"
+	ns := "external-namespace"
+	appSet := newTestAppSet(func(appset *appsv1.ApplicationSet) {
+		appset.Annotations = map[string]string{
+			"annotation-key1": "annotation-value1",
+			"annotation-key2": "annotation-value2",
+		}
+		appset.Labels = map[string]string{
+			"label-key1": "label-value1",
+			"label-key2": "label-value2",
+		}
+		appset.Name = name
+		appset.Namespace = ns
+		appset.Finalizers = []string{"finalizer"}
+	})
+
+	updatedAppSet := newTestAppSet(func(appset *appsv1.ApplicationSet) {
+		appset.Annotations = map[string]string{
+			"annotation-key1": "annotation-value1-updated",
+		}
+		appset.Labels = map[string]string{
+			"label-key1": "label-value1-updated",
+		}
+		appset.Name = name
+		appset.Namespace = ns
+		appset.Finalizers = []string{"finalizer-updated"}
+	})
+
+	t.Run("Upsert", func(t *testing.T) {
+		appServer := newTestAppSetServer(t, appSet)
+
+		updated, err := appServer.Create(t.Context(), &applicationset.ApplicationSetCreateRequest{
+			Applicationset: updatedAppSet,
+			Upsert:         true,
+		})
+
+		require.NoError(t, err)
+		assert.Equal(t, map[string]string{
+			"annotation-key1": "annotation-value1-updated",
+			"annotation-key2": "annotation-value2",
+		}, updated.Annotations)
+		assert.Equal(t, map[string]string{
+			"label-key1": "label-value1-updated",
+			"label-key2": "label-value2",
+		}, updated.Labels)
+		assert.Equal(t, []string{"finalizer-updated"}, updated.Finalizers)
+	})
+}
+
 func TestResourceTree(t *testing.T) {
 	appSet1 := newTestAppSet(func(appset *appsv1.ApplicationSet) {
 		appset.Name = "AppSet1"
@@ -637,6 +701,57 @@ func TestResourceTree(t *testing.T) {
 		appsetQuery := applicationset.ApplicationSetTreeQuery{Name: "AppSet1", AppsetNamespace: "NOT-ALLOWED"}
 
 		_, err := appSetServer.ResourceTree(t.Context(), &appsetQuery)
+		assert.EqualError(t, err, "namespace 'NOT-ALLOWED' is not permitted")
+	})
+}
+
+func TestAppSet_Generate_Cluster(t *testing.T) {
+	appSet1 := newTestAppSet(func(appset *appsv1.ApplicationSet) {
+		appset.Name = "AppSet1"
+		appset.Spec.Template.Name = "{{name}}"
+		appset.Spec.Generators = []appsv1.ApplicationSetGenerator{
+			{
+				Clusters: &appsv1.ClusterGenerator{},
+			},
+		}
+	})
+
+	t.Run("Generate in default namespace", func(t *testing.T) {
+		appSetServer := newTestAppSetServer(t, appSet1)
+		appsetQuery := applicationset.ApplicationSetGenerateRequest{
+			ApplicationSet: appSet1,
+		}
+
+		res, err := appSetServer.Generate(t.Context(), &appsetQuery)
+		require.NoError(t, err)
+		require.Len(t, res.Applications, 2)
+		assert.Equal(t, "fake-cluster", res.Applications[0].Name)
+		assert.Equal(t, "in-cluster", res.Applications[1].Name)
+	})
+
+	t.Run("Generate in different namespace", func(t *testing.T) {
+		appSetServer := newTestAppSetServer(t, appSet1)
+
+		appSet1Ns := appSet1.DeepCopy()
+		appSet1Ns.Namespace = "external-namespace"
+		appsetQuery := applicationset.ApplicationSetGenerateRequest{ApplicationSet: appSet1Ns}
+
+		res, err := appSetServer.Generate(t.Context(), &appsetQuery)
+		require.NoError(t, err)
+		require.Len(t, res.Applications, 2)
+		assert.Equal(t, "fake-cluster", res.Applications[0].Name)
+		assert.Equal(t, "in-cluster", res.Applications[1].Name)
+	})
+
+	t.Run("Generate in not allowed namespace", func(t *testing.T) {
+		appSetServer := newTestAppSetServer(t, appSet1)
+
+		appSet1Ns := appSet1.DeepCopy()
+		appSet1Ns.Namespace = "NOT-ALLOWED"
+
+		appsetQuery := applicationset.ApplicationSetGenerateRequest{ApplicationSet: appSet1Ns}
+
+		_, err := appSetServer.Generate(t.Context(), &appsetQuery)
 		assert.EqualError(t, err, "namespace 'NOT-ALLOWED' is not permitted")
 	})
 }

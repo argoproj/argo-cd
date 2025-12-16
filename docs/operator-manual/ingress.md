@@ -434,6 +434,8 @@ spec:
 
 Once we create this service, we can configure the Ingress to conditionally route all `application/grpc` traffic to the new HTTP2 backend, using the `alb.ingress.kubernetes.io/conditions` annotation, as seen below. Note: The value after the . in the condition annotation _must_ be the same name as the service that you want traffic to route to - and will be applied on any path with a matching serviceName.
 
+Also note that we can configure the health check to return the gRPC health status code `OK - 0` from the argocd-server by setting the health check path to `/grpc.health.v1.Health/Check`. By default, the ALB health check for gRPC returns the status code `UNIMPLEMENTED - 12` on health check path `/AWS.ALB/healthcheck`.
+
 ```yaml
   apiVersion: networking.k8s.io/v1
   kind: Ingress
@@ -444,6 +446,9 @@ Once we create this service, we can configure the Ingress to conditionally route
       alb.ingress.kubernetes.io/conditions.argogrpc: |
         [{"field":"http-header","httpHeaderConfig":{"httpHeaderName": "Content-Type", "values":["application/grpc"]}}]
       alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}]'
+      # Use this annotation to receive OK - 0 instead of UNIMPLEMENTED - 12 for gRPC health check.
+      alb.ingress.kubernetes.io/healthcheck-path: /grpc.health.v1.Health/Check
+      alb.ingress.kubernetes.io/success-codes: '0'
     name: argocd
     namespace: argocd
   spec:
@@ -680,9 +685,8 @@ spec:
 ```
 
 ---
-!!! note
-
-    The next two steps (the certificate secret and the Ingress) are described supposing that you manage the certificate yourself, and you have the certificate and key files for it. In the case that your certificate is Google-managed, fix the next two steps using the [guide to use a Google-managed SSL certificate](https://cloud.google.com/kubernetes-engine/docs/how-to/managed-certs#creating_an_ingress_with_a_google-managed_certificate).
+> [!NOTE]
+> The next two steps (the certificate secret and the Ingress) are described supposing that you manage the certificate yourself, and you have the certificate and key files for it. In the case that your certificate is Google-managed, fix the next two steps using the [guide to use a Google-managed SSL certificate](https://cloud.google.com/kubernetes-engine/docs/how-to/managed-certs#creating_an_ingress_with_a_google-managed_certificate).
 
 ---
 
@@ -700,9 +704,8 @@ kubectl -n argocd create secret tls secret-yourdomain-com \
 And finally, to top it all, our Ingress. Note the reference to our frontend config, the service, and to the certificate secret.
 
 ---
-!!! note
-
-   GKE clusters running versions earlier than `1.21.3-gke.1600`, [the only supported value for the pathType field](https://cloud.google.com/kubernetes-engine/docs/how-to/load-balance-ingress#creating_an_ingress) is `ImplementationSpecific`. So you must check your GKE cluster's version. You need to use different YAML depending on the version.
+> [!NOTE]
+> GKE clusters running versions earlier than `1.21.3-gke.1600`, [the only supported value for the pathType field](https://cloud.google.com/kubernetes-engine/docs/how-to/load-balance-ingress#creating_an_ingress) is `ImplementationSpecific`. So you must check your GKE cluster's version. You need to use different YAML depending on the version.
 
 ---
 
@@ -873,4 +876,90 @@ http {
         }
     }
 }
+```
+
+## Cilium Gateway API Example
+
+This section provides a working example of using Cilium Gateway API with Argo CD, including HTTP and gRPC routes.
+
+### Prerequisites
+
+- API server run with TLS disabled (set `server.insecure: "true"` in argocd-cmd-params-cm ConfigMap)
+
+### Gateway Example
+
+```yaml
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: cluster-gateway
+  namespace: gateway
+  annotations:
+    cert-manager.io/issuer: cloudflare-dns-issuer
+spec:
+  gatewayClassName: cilium
+  addresses:
+    - type: IPAddress
+      value: "192.168.0.130"
+  listeners:
+    - protocol: HTTPS
+      port: 443
+      name: https-cluster
+      hostname: "*.local.example.com"
+      allowedRoutes:
+        namespaces:
+          from: All
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: cluster-gateway-tls
+            kind: Secret
+            group: ""
+```
+
+### HTTPRoute Example
+```yaml
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: argocd-http-route
+  namespace: argocd
+spec:
+  parentRefs:
+    - name: cluster-gateway
+      namespace: gateway
+  hostnames:
+    - "argocd.local.example.com"
+  rules:
+    - backendRefs:
+        - name: argocd-server
+          port: 80
+      matches:
+        - path:
+            type: PathPrefix
+            value: /
+```
+
+### GRPCRoute Example
+```yaml
+apiVersion: gateway.networking.k8s.io/v1
+kind: GRPCRoute
+metadata:
+  name: argocd-grpc-route
+  namespace: argocd
+spec:
+  parentRefs:
+    - name: cluster-gateway
+      namespace: gateway
+  hostnames:
+    - "argocd.local.example.com"
+  rules:
+    - backendRefs:
+        - name: argocd-server
+          port: 443
+      matches:
+        - headers:
+            - name: Content-Type
+              type: RegularExpression
+              value: "^application/grpc.*$"
 ```
