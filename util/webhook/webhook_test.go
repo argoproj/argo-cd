@@ -460,6 +460,94 @@ func TestGitHubCommitEvent_SyncSourceRefresh(t *testing.T) {
 	hook.Reset()
 }
 
+// TestGitHubCommitEvent_SyncSourceRefresh_FileFiltering tests that syncSource webhooks
+// filter out irrelevant file changes based on the syncSource path
+func TestGitHubCommitEvent_SyncSourceRefresh_FileFiltering(t *testing.T) {
+	hook := test.NewGlobal()
+	var patched bool
+	reaction := func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		_ = action.(kubetesting.PatchAction)
+		patched = true
+		return true, nil, nil
+	}
+
+	// The test payload (github-commit-syncsource-event.json) changes files under:
+	// - ksapps/test-app/environments/staging-argocd-demo/main.jsonnet
+	// - ksapps/test-app/environments/staging-argocd-demo/params.libsonnet
+	// - ksapps/test-app/app.yaml
+
+	tests := []struct {
+		name            string
+		syncSourcePath  string
+		expectedRefresh bool
+	}{
+		{
+			name:            "syncSource path matches changed files - should refresh",
+			syncSourcePath:  "ksapps",
+			expectedRefresh: true,
+		},
+		{
+			name:            "syncSource path does not match changed files - should not refresh",
+			syncSourcePath:  "helm-charts",
+			expectedRefresh: false,
+		},
+		{
+			name:            "syncSource at root path - should refresh",
+			syncSourcePath:  ".",
+			expectedRefresh: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			patched = false
+			h := NewMockHandler(&reactorDef{"patch", "applications", reaction}, []string{}, &v1alpha1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "app-to-test",
+					Namespace: "argocd",
+				},
+				Spec: v1alpha1.ApplicationSpec{
+					SourceHydrator: &v1alpha1.SourceHydrator{
+						DrySource: v1alpha1.DrySource{
+							RepoURL:        "https://github.com/jessesuen/test-repo",
+							TargetRevision: "main",
+							Path:           ".",
+						},
+						SyncSource: v1alpha1.SyncSource{
+							TargetBranch: "environments/dev",
+							Path:         tt.syncSourcePath,
+						},
+						HydrateTo: nil,
+					},
+				},
+			})
+			req := httptest.NewRequest(http.MethodPost, "/api/webhook", http.NoBody)
+			req.Header.Set("X-GitHub-Event", "push")
+			eventJSON, err := os.ReadFile("testdata/github-commit-syncsource-event.json")
+			require.NoError(t, err)
+			req.Body = io.NopCloser(bytes.NewReader(eventJSON))
+			w := httptest.NewRecorder()
+			h.Handler(w, req)
+			close(h.queue)
+			h.Wait()
+			assert.Equal(t, http.StatusOK, w.Code)
+			assert.Equal(t, tt.expectedRefresh, patched, "expected patched=%v, got patched=%v", tt.expectedRefresh, patched)
+
+			logMessages := make([]string, 0, len(hook.Entries))
+			for _, entry := range hook.Entries {
+				logMessages = append(logMessages, entry.Message)
+			}
+
+			if tt.expectedRefresh {
+				assert.Contains(t, logMessages, "webhook trigger refresh app from syncSource 'app-to-test'")
+			} else {
+				assert.NotContains(t, logMessages, "webhook trigger refresh app from syncSource 'app-to-test'")
+			}
+			hook.Reset()
+		})
+	}
+}
+
 func TestGitHubTagEvent(t *testing.T) {
 	hook := test.NewGlobal()
 	h := NewMockHandler(nil, []string{})

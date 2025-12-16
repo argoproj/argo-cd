@@ -142,7 +142,8 @@ func getSourceHydratorApp(annotation string, drySourcePath string, syncSourcePat
 		Spec: v1alpha1.ApplicationSpec{
 			SourceHydrator: &v1alpha1.SourceHydrator{
 				DrySource: v1alpha1.DrySource{
-					Path: drySourcePath,
+					RepoURL: "https://github.com/example/repo",
+					Path:    drySourcePath,
 				},
 				SyncSource: v1alpha1.SyncSource{
 					Path: syncSourcePath,
@@ -154,6 +155,11 @@ func getSourceHydratorApp(annotation string, drySourcePath string, syncSourcePat
 
 func Test_AppFilesHaveChanged(t *testing.T) {
 	t.Parallel()
+
+	// Create syncSource apps once to ensure source comparison works
+	syncSourceApp1 := getSourceHydratorApp(".", "source/envs/dev", "ksapps")
+	syncSourceApp2 := getSourceHydratorApp(".", "source/envs/dev", "helm-charts")
+	syncSourceApp3 := getSourceHydratorApp("unrelated/annotation", "source/envs/dev", ".")
 
 	tests := []struct {
 		name           string
@@ -207,6 +213,13 @@ func Test_AppFilesHaveChanged(t *testing.T) {
 		{"sourceHydrator relative path - not matching sync path", getSourceHydratorApp(".", "source/envs/dev", "sync/path"), []string{"sync/path/my-deployment.yaml"}, false, v1alpha1.ApplicationSource{Path: "source/envs/dev"}},
 		{"sourceHydrator ../base - matching dry base", getSourceHydratorApp(".;../base", "source/envs/dev", "sync/path"), []string{"source/envs/base/kustomization.yaml"}, true, v1alpha1.ApplicationSource{Path: "source/envs/dev"}},
 		{"sourceHydrator ../base - not matching sync base", getSourceHydratorApp(".;../base", "source/envs/dev", "sync/path"), []string{"sync/base/kustomization.yaml"}, false, v1alpha1.ApplicationSource{Path: "source/envs/dev"}},
+		// SyncSource tests - should use syncSource path only, ignoring annotation
+		{"syncSource matching files", syncSourceApp1, []string{"ksapps/test-app/app.yaml"}, true, syncSourceApp1.Spec.SourceHydrator.GetSyncSource()},
+		{"syncSource not matching files", syncSourceApp2, []string{"ksapps/test-app/app.yaml"}, false, syncSourceApp2.Spec.SourceHydrator.GetSyncSource()},
+		{"syncSource root path matches all", syncSourceApp3, []string{"ksapps/test-app/app.yaml"}, true, syncSourceApp3.Spec.SourceHydrator.GetSyncSource()},
+		// DrySource without annotation - should use source path like syncSource does
+		{"drySource without annotation matching files", getSourceHydratorApp("", "source/envs/dev", "ksapps"), []string{"source/envs/dev/my-deployment.yaml"}, true, v1alpha1.ApplicationSource{RepoURL: "https://github.com/example/repo", Path: "source/envs/dev"}},
+		{"drySource without annotation not matching files", getSourceHydratorApp("", "source/envs/dev", "ksapps"), []string{"other/path/my-deployment.yaml"}, false, v1alpha1.ApplicationSource{RepoURL: "https://github.com/example/repo", Path: "source/envs/dev"}},
 	}
 	for _, tt := range tests {
 		ttc := tt
@@ -220,6 +233,10 @@ func Test_AppFilesHaveChanged(t *testing.T) {
 
 func Test_GetAppRefreshPaths(t *testing.T) {
 	t.Parallel()
+
+	// Create syncSource apps once to ensure source comparison works
+	syncSourceApp1 := getSourceHydratorApp(".", "source/envs/dev", "ksapps")
+	syncSourceApp2 := getSourceHydratorApp("some/annotation", "source/envs/dev", "helm-charts")
 
 	tests := []struct {
 		name          string
@@ -240,6 +257,11 @@ func Test_GetAppRefreshPaths(t *testing.T) {
 		{"sourceHydrator relative path", getSourceHydratorApp(".", "argocd-kustomize/envs/dev/usw2", "argocd/dev"), v1alpha1.ApplicationSource{Path: "argocd-kustomize/envs/dev/usw2"}, []string{"argocd-kustomize/envs/dev/usw2"}},
 		{"sourceHydrator ../base", getSourceHydratorApp(".;../base", "argocd-kustomize/envs/dev/usw2", "argocd/dev"), v1alpha1.ApplicationSource{Path: "argocd-kustomize/envs/dev/usw2"}, []string{"argocd-kustomize/envs/dev/usw2", "argocd-kustomize/envs/dev/base"}},
 		{"sourceHydrator absolute path", getSourceHydratorApp("/argocd-kustomize/base", "argocd-kustomize/envs/dev/usw2", "argocd/dev"), v1alpha1.ApplicationSource{Path: "argocd-kustomize/envs/dev/usw2"}, []string{"argocd-kustomize/base"}},
+		// SyncSource tests - should return syncSource path only, ignoring annotation
+		{"syncSource path ignores annotation", syncSourceApp1, syncSourceApp1.Spec.SourceHydrator.GetSyncSource(), []string{"ksapps"}},
+		{"syncSource path with annotation should ignore annotation", syncSourceApp2, syncSourceApp2.Spec.SourceHydrator.GetSyncSource(), []string{"helm-charts"}},
+		// DrySource without annotation - should fallback to source path like syncSource does
+		{"drySource without annotation returns source path", getSourceHydratorApp("", "source/envs/dev", "ksapps"), v1alpha1.ApplicationSource{RepoURL: "https://github.com/example/repo", Path: "source/envs/dev"}, []string{"source/envs/dev"}},
 	}
 	for _, tt := range tests {
 		ttc := tt
