@@ -370,7 +370,7 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 				drySource := app.Spec.SourceHydrator.GetDrySource()
 				syncSource := app.Spec.SourceHydrator.GetSyncSource()
 				if sourceRevisionHasChanged(drySource, revision, touchedHead) && sourceUsesURL(drySource, webURL, repoRegexp) { // handle webhook for drySource
-					refreshPaths := path.GetAppRefreshPaths(&app)
+					refreshPaths := path.GetAppRefreshPaths(&app, drySource)
 					if path.AppFilesHaveChanged(refreshPaths, changedFiles) {
 						namespacedAppInterface := a.appClientset.ArgoprojV1alpha1().Applications(app.Namespace)
 						log.Infof("webhook trigger refresh app to hydrate '%s'", app.Name)
@@ -381,6 +381,10 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 						}
 					}
 				} else if sourceRevisionHasChanged(syncSource, revision, touchedHead) && sourceUsesURL(syncSource, webURL, repoRegexp) { // handle webhook for syncSource
+					if err := a.storePreviouslyCachedManifests(&app, change, trackingMethod, appInstanceLabelKey, installationID); err != nil {
+						log.Warnf("Failed to store cached manifests of previous revision for app '%s': %v", app.Name, err)
+					}
+
 					// syncSource webhook events only trigger sync, not hydration. Unlike drySource events,
 					// skip the manifest_generate_path file check since hydration is not required here.
 					namespacedAppInterface := a.appClientset.ArgoprojV1alpha1().Applications(app.Namespace)
@@ -395,7 +399,7 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 
 			for _, source := range app.Spec.GetSources() {
 				if sourceRevisionHasChanged(source, revision, touchedHead) && sourceUsesURL(source, webURL, repoRegexp) {
-					refreshPaths := path.GetAppRefreshPaths(&app)
+					refreshPaths := path.GetAppRefreshPaths(&app, source)
 					if path.AppFilesHaveChanged(refreshPaths, changedFiles) {
 						namespacedAppInterface := a.appClientset.ArgoprojV1alpha1().Applications(app.Namespace)
 						_, err = argo.RefreshApp(namespacedAppInterface, app.Name, v1alpha1.RefreshTypeNormal, true)

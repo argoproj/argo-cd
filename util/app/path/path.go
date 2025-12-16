@@ -98,22 +98,29 @@ func CheckOutOfBoundsSymlinks(basePath string) error {
 }
 
 // GetAppRefreshPaths returns the list of paths that should trigger a refresh for an application
-func GetAppRefreshPaths(app *v1alpha1.Application) []string {
+func GetAppRefreshPaths(app *v1alpha1.Application, source v1alpha1.ApplicationSource) []string {
+	// if source hydrator configured, if syncing sources, use sync source path
+	if app.Spec.SourceHydrator != nil && source == app.Spec.SourceHydrator.GetSyncSource() {
+		return []string{source.Path}
+	}
+
 	var paths []string
 	if val, ok := app.Annotations[v1alpha1.AnnotationKeyManifestGeneratePaths]; ok && val != "" {
 		for _, item := range strings.Split(val, ";") {
 			if item == "" {
 				continue
 			}
+			// if absolute path, add as is
 			if filepath.IsAbs(item) {
 				paths = append(paths, item[1:])
 			} else {
-				// For sourceHydrator apps, resolve paths relative to DRY source
+				// if source hydrator configured, if hydrating sources, use annotation path and Dry source (source in params) base
+
 				if app.Spec.SourceHydrator != nil {
 					drySource := app.Spec.SourceHydrator.GetDrySource()
 					paths = append(paths, filepath.Clean(filepath.Join(drySource.Path, item)))
 				} else {
-					// For non-hydrator apps, use the regular source(s)
+					// if source hydrator not configured, use annotation path and default source base (source in params)
 					for _, source := range app.Spec.GetSources() {
 						paths = append(paths, filepath.Clean(filepath.Join(source.Path, item)))
 					}
