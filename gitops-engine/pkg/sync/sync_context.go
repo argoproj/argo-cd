@@ -467,9 +467,9 @@ func (sc *syncContext) Sync() {
 			// update the hook's result
 			operationState, message, err := sc.getOperationPhase(task.liveObj)
 			if err != nil {
-				sc.setResourceResult(task, "", common.OperationError, fmt.Sprintf("failed to get resource health: %v", err))
+				sc.setResourceResult(task, task.syncStatus, common.OperationError, fmt.Sprintf("failed to get resource health: %v", err))
 			} else {
-				sc.setResourceResult(task, "", operationState, message)
+				sc.setResourceResult(task, task.syncStatus, operationState, message)
 			}
 		} else {
 			// this must be calculated on the live object
@@ -713,7 +713,7 @@ func (sc *syncContext) deleteHooks(hooksPendingDeletion syncTasks) {
 	for _, task := range hooksPendingDeletion {
 		err := sc.deleteResource(task)
 		if err != nil && !apierrors.IsNotFound(err) {
-			sc.setResourceResult(task, "", common.OperationError, fmt.Sprintf("failed to delete resource: %v", err))
+			sc.setResourceResult(task, task.syncStatus, common.OperationError, fmt.Sprintf("failed to delete resource: %v", err))
 		}
 	}
 }
@@ -1305,13 +1305,13 @@ func (sc *syncContext) Terminate() {
 		if phase == common.OperationRunning {
 			err := sc.deleteResource(task)
 			if err != nil && !apierrors.IsNotFound(err) {
-				sc.setResourceResult(task, "", common.OperationFailed, fmt.Sprintf("Failed to delete: %v", err))
+				sc.setResourceResult(task, task.syncStatus, common.OperationFailed, fmt.Sprintf("Failed to delete: %v", err))
 				terminateSuccessful = false
 			} else {
-				sc.setResourceResult(task, "", common.OperationSucceeded, "Deleted")
+				sc.setResourceResult(task, task.syncStatus, common.OperationSucceeded, "Deleted")
 			}
 		} else {
-			sc.setResourceResult(task, "", phase, msg)
+			sc.setResourceResult(task, task.syncStatus, phase, msg)
 		}
 	}
 	if terminateSuccessful {
