@@ -44,7 +44,7 @@ func TestCliAppCommand(t *testing.T) {
 			require.NoError(t, err)
 			vars := map[string]any{"Name": Name(), "Namespace": DeploymentNamespace()}
 			assert.Contains(t, NormalizeOutput(output), Tmpl(t, `Pod {{.Namespace}} pod Synced Progressing pod/pod created`, vars))
-			assert.Contains(t, NormalizeOutput(output), Tmpl(t, `Pod {{.Namespace}} hook Succeeded Sync pod/hook created`, vars))
+			assert.Contains(t, NormalizeOutput(output), Tmpl(t, `Pod {{.Namespace}} hook Succeeded Healthy Sync pod/hook created`, vars))
 		}).
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
@@ -87,7 +87,7 @@ func TestNormalArgoCDCommandsExecuteOverPluginsWithSameName(t *testing.T) {
 
 			vars := map[string]any{"Name": Name(), "Namespace": DeploymentNamespace()}
 			assert.Contains(t, NormalizeOutput(output), Tmpl(t, `Pod {{.Namespace}} pod Synced Progressing pod/pod created`, vars))
-			assert.Contains(t, NormalizeOutput(output), Tmpl(t, `Pod {{.Namespace}} hook Succeeded Sync pod/hook created`, vars))
+			assert.Contains(t, NormalizeOutput(output), Tmpl(t, `Pod {{.Namespace}} hook Succeeded Healthy Sync pod/hook created`, vars))
 		}).
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
