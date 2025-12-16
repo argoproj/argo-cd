@@ -27,6 +27,7 @@ import (
 	"github.com/argoproj/pkg/v2/sync"
 	jsonpatch "github.com/evanphx/json-patch"
 	gogit "github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/internal/revision"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/go-jsonnet"
 	"github.com/google/uuid"
@@ -3037,32 +3038,75 @@ func (s *Service) UpdateRevisionForPaths(_ context.Context, request *apiclient.U
 	syncedRevision := request.GetSyncedRevision()
 	refreshPaths := request.GetPaths()
 
+	willChecked := []v1alpha1.ApplicationSource{*request.ApplicationSource}
+
+	for _, source := range willChecked {
+
+		// get source repo, revision, syncedRevision ...
+
+		hasChanges, err := s.gitSourceHasChanges(repo, revision, syncedRevision, refreshPaths, request.NoRevisionCache)
+		if err != nil {
+			return nil, err
+		}
+		if hasChanges {
+			logCtx.Debugf("changes found for application %s in repo %s from revision %s to revision %s", request.AppName, repo.Repo, syncedRevision, revision)
+			return &apiclient.UpdateRevisionForPathsResponse{
+				Revision: revision,
+				Changes:  true,
+			}, nil
+		}
+	}
+
+	logCtx.Debugf("no changes found for application %s in repo %s from revision %s to revision %s", request.AppName, repo.Repo, syncedRevision, revision)
+	gitClientOpts := git.WithCache(s.cache, !request.NoRevisionCache)
+	err := s.updateCachedRevision(logCtx, syncedRevision, revision, request, gitClientOpts)
+	if err != nil {
+		// Only warn with the error, no need to block anything if there is a caching error.
+		logCtx.Warnf("error updating cached revision for repo %s with revision %s: %v", repo.Repo, revision, err)
+		return &apiclient.UpdateRevisionForPathsResponse{
+			Revision: revision,
+		}, nil
+	}
+
+	return &apiclient.UpdateRevisionForPathsResponse{
+		Revision: revision,
+		Changes:  true,
+	}, nil
+}
+
+func (s *Service) CheckChangesForPaths(_ context.Context, request *apiclient.CheckChangesForPathsRequest) (*apiclient.CheckChangesForPathsResponse, error) {
+	hasChanges, err := s.gitSourceHasChanges(request.Repo, request.Revision, request.SyncedRevision, request.Paths, request.NoRevisionCache)
+	return &apiclient.CheckChangesForPathsResponse{
+		Changes:  hasChanges,
+		Revision: request.Revision,
+	}, err
+}
+
+func (s *Service) gitSourceHasChanges(repo *v1alpha1.Repository, revision, syncedRevision string, refreshPaths []string, noRevisionCache bool) (bool, error) {
 	if repo == nil {
-		return nil, status.Error(codes.InvalidArgument, "must pass a valid repo")
+		return true, status.Error(codes.InvalidArgument, "must pass a valid repo")
 	}
 
 	if len(refreshPaths) == 0 {
 		// Always refresh if path is not specified
-		return &apiclient.UpdateRevisionForPathsResponse{}, nil
+		return true, nil
 	}
 
-	gitClientOpts := git.WithCache(s.cache, !request.NoRevisionCache)
+	gitClientOpts := git.WithCache(s.cache, !noRevisionCache)
 	gitClient, revision, err := s.newClientResolveRevision(repo, revision, gitClientOpts)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "unable to resolve git revision %s: %v", revision, err)
+		return true, status.Errorf(codes.Internal, "unable to resolve git revision %s: %v", revision, err)
 	}
 
 	syncedRevision, err = gitClient.LsRemote(syncedRevision)
 	if err != nil {
 		s.metricsServer.IncGitLsRemoteFail(gitClient.Root(), revision)
-		return nil, status.Errorf(codes.Internal, "unable to resolve git revision %s: %v", revision, err)
+		return true, status.Errorf(codes.Internal, "unable to resolve git revision %s: %v", revision, err)
 	}
 
 	// No need to compare if it is the same revision
 	if revision == syncedRevision {
-		return &apiclient.UpdateRevisionForPathsResponse{
-			Revision: revision,
-		}, nil
+		return true, nil
 	}
 
 	s.metricsServer.IncPendingRepoRequest(repo.Repo)
@@ -3072,17 +3116,17 @@ func (s *Service) UpdateRevisionForPaths(_ context.Context, request *apiclient.U
 		return s.checkoutRevision(gitClient, revision, false, 0)
 	})
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "unable to checkout git repo %s with revision %s: %v", repo.Repo, revision, err)
+		return true, status.Errorf(codes.Internal, "unable to checkout git repo %s with revision %s: %v", repo.Repo, revision, err)
 	}
 	defer utilio.Close(closer)
 
 	if err := s.fetch(gitClient, []string{syncedRevision}); err != nil {
-		return nil, status.Errorf(codes.Internal, "unable to fetch git repo %s with syncedRevisions %s: %v", repo.Repo, syncedRevision, err)
+		return true, status.Errorf(codes.Internal, "unable to fetch git repo %s with syncedRevisions %s: %v", repo.Repo, syncedRevision, err)
 	}
 
 	files, err := gitClient.ChangedFiles(syncedRevision, revision)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "unable to get changed files for repo %s with revision %s: %v", repo.Repo, revision, err)
+		return true, status.Errorf(codes.Internal, "unable to get changed files for repo %s with revision %s: %v", repo.Repo, revision, err)
 	}
 
 	changed := false
@@ -3090,28 +3134,7 @@ func (s *Service) UpdateRevisionForPaths(_ context.Context, request *apiclient.U
 		changed = apppathutil.AppFilesHaveChanged(refreshPaths, files)
 	}
 
-	if !changed {
-		logCtx.Debugf("no changes found for application %s in repo %s from revision %s to revision %s", request.AppName, repo.Repo, syncedRevision, revision)
-
-		err := s.updateCachedRevision(logCtx, syncedRevision, revision, request, gitClientOpts)
-		if err != nil {
-			// Only warn with the error, no need to block anything if there is a caching error.
-			logCtx.Warnf("error updating cached revision for repo %s with revision %s: %v", repo.Repo, revision, err)
-			return &apiclient.UpdateRevisionForPathsResponse{
-				Revision: revision,
-			}, nil
-		}
-
-		return &apiclient.UpdateRevisionForPathsResponse{
-			Revision: revision,
-		}, nil
-	}
-
-	logCtx.Debugf("changes found for application %s in repo %s from revision %s to revision %s", request.AppName, repo.Repo, syncedRevision, revision)
-	return &apiclient.UpdateRevisionForPathsResponse{
-		Revision: revision,
-		Changes:  true,
-	}, nil
+	return changed, nil
 }
 
 func (s *Service) updateCachedRevision(logCtx *log.Entry, oldRev string, newRev string, request *apiclient.UpdateRevisionForPathsRequest, gitClientOpts git.ClientOpts) error {

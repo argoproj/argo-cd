@@ -129,6 +129,13 @@ type appStateManager struct {
 	ignoreNormalizerOpts  normalizers.IgnoreNormalizerOpts
 }
 
+type sourceMeta struct {
+	Repo           *v1alpha1.Repository
+	Revision       string
+	SyncedRevision string
+	// другие поля при необходимости
+}
+
 // GetRepoObjs will generate the manifests for the given application delegating the
 // task to the repo-server. It returns the list of generated manifests as unstructured
 // objects. It also returns the full response from all calls to the repo server as the
@@ -233,6 +240,7 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 
 	keyManifestGenerateAnnotationVal, keyManifestGenerateAnnotationExists := app.Annotations[v1alpha1.AnnotationKeyManifestGeneratePaths]
 
+	sourcesData := map[v1alpha1.ApplicationSource]sourceMeta{}
 	for i, source := range sources {
 		if len(revisions) < len(sources) || revisions[i] == "" {
 			revisions[i] = source.TargetRevision
@@ -253,6 +261,18 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 
 		revision := revisions[i]
 
+		sourcesData[source] = sourceMeta{
+			Repo:           repo,
+			Revision:       revision,
+			SyncedRevision: syncedRevision,
+		}
+	}
+
+	for i, source := range sources {
+		repo := sourcesData[source].Repo
+		revision := sourcesData[source].Revision
+		syncedRevision := sourcesData[source].SyncedRevision
+
 		appNamespace := app.Spec.Destination.Namespace
 		apiVersions := argo.APIResourcesToStrings(apiResources, true)
 		if !sendRuntimeState {
@@ -266,44 +286,38 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 			// just reading pre-generated manifests is comparable to updating revisions time-wise
 			app.Status.SourceType != v1alpha1.ApplicationSourceTypeDirectory
 
-		if updateRevisions && repo.Depth == 0 && !source.IsHelm() && !source.IsOCI() && syncedRevision != "" && syncedRevision != revision && keyManifestGenerateAnnotationExists && keyManifestGenerateAnnotationVal != "" {
-			updateSources := argo.GetRelatedRefAppSources(source, sources)
+		if updateRevisions && repo.Depth == 0 && !source.IsRef() && syncedRevision != "" && syncedRevision != revision && keyManifestGenerateAnnotationExists && keyManifestGenerateAnnotationVal != "" {
+			// TODO: need to compare for each ref source
+			// if it source just git -> need just CheckChangesForPaths -> UpdateRevisionForPaths
 
-			if len(updateSources) == 0 {
-				updateSources = append(updateSources, source)
+			// Validate the manifest-generate-path annotation to avoid generating manifests if it has not changed.
+			updateRevisionResult, err := repoClient.UpdateRevisionForPaths(ctx, &apiclient.UpdateRevisionForPathsRequest{
+				Repo:               repo,
+				Revision:           revision,
+				SyncedRevision:     syncedRevision,
+				NoRevisionCache:    noRevisionCache,
+				Paths:              path.GetAppRefreshPaths(app),
+				AppLabelKey:        appLabelKey,
+				AppName:            app.InstanceName(m.namespace),
+				Namespace:          appNamespace,
+				ApplicationSource:  &source,
+				KubeVersion:        serverVersion,
+				ApiVersions:        apiVersions,
+				TrackingMethod:     trackingMethod,
+				RefSources:         refSources,
+				HasMultipleSources: app.Spec.HasMultipleSources(),
+				InstallationID:     installationID,
+			})
+			if err != nil {
+				return nil, nil, false, fmt.Errorf("failed to compare revisions for source %d of %d: %w", i+1, len(sources), err)
+			}
+			if updateRevisionResult.Changes {
+				revisionsMayHaveChanges = true
 			}
 
-			for _, updSource := range updateSources {
-				// Validate the manifest-generate-path annotation to avoid generating manifests if it has not changed.
-				updateRevisionResult, err := repoClient.UpdateRevisionForPaths(ctx, &apiclient.UpdateRevisionForPathsRequest{
-					Repo:               repo,
-					Revision:           revision,
-					SyncedRevision:     syncedRevision,
-					NoRevisionCache:    noRevisionCache,
-					Paths:              path.GetAppRefreshPaths(app),
-					AppLabelKey:        appLabelKey,
-					AppName:            app.InstanceName(m.namespace),
-					Namespace:          appNamespace,
-					ApplicationSource:  &updSource,
-					KubeVersion:        serverVersion,
-					ApiVersions:        apiVersions,
-					TrackingMethod:     trackingMethod,
-					RefSources:         refSources,
-					HasMultipleSources: app.Spec.HasMultipleSources(),
-					InstallationID:     installationID,
-				})
-				if err != nil {
-					return nil, nil, false, fmt.Errorf("failed to compare revisions for source %d of %d: %w", i+1, len(sources), err)
-				}
-				if updateRevisionResult.Changes {
-					revisionsMayHaveChanges = true
-					break
-				}
-
-				// Generate manifests should use same revision as updateRevisionForPaths, because HEAD revision may be different between these two calls
-				if updateRevisionResult.Revision != "" {
-					revision = updateRevisionResult.Revision
-				}
+			// Generate manifests should use same revision as updateRevisionForPaths, because HEAD revision may be different between these two calls
+			if updateRevisionResult.Revision != "" {
+				revision = updateRevisionResult.Revision
 			}
 
 		} else {
