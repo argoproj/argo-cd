@@ -50,11 +50,21 @@ var ArgoCDManagerNamespacePolicyRules = []rbacv1.PolicyRule{
 	},
 }
 
-func RequestServiceAccountToken(clientset kubernetes.Interface, namespace, saName string, expiration time.Duration) (string, error) {
+// RequestServiceAccountToken requests a token for a service account with a specified expiration duration
+func RequestServiceAccountToken(clientset kubernetes.Interface, namespace, saName, audience string, expiration time.Duration) (string, error) {
 	expSec := int64(expiration.Seconds())
+	aud := "https://kubernetes.default.svc"
+	if audience != "" {
+		aud = audience
+	}
 	tokenRequest := &authenticationv1.TokenRequest{
 		Spec: authenticationv1.TokenRequestSpec{
-			Audiences:         []string{"https://kubernetes.default.svc"},
+			// Audiences is intentionally restricted to a single value.
+			// Although Kubernetes supports multiple audiences, allowing more than one
+			// would widen the scope of this token and increase its blast radius if leaked.
+			// A single explicit audience aligns with least-privilege principles and
+			// Argo CD's use of service account tokens as cluster credentials.
+			Audiences:         []string{aud},
 			ExpirationSeconds: ptr.To(expSec),
 		},
 	}
@@ -198,7 +208,7 @@ func upsertRoleBinding(clientset kubernetes.Interface, name string, roleName str
 }
 
 // InstallClusterManagerRBAC installs RBAC resources for a cluster manager to operate a cluster. Returns a token
-func InstallClusterManagerRBAC(clientset kubernetes.Interface, ns string, namespaces []string, bearerTokenTimeout time.Duration) (string, error) {
+func InstallClusterManagerRBAC(clientset kubernetes.Interface, ns string, namespaces []string, audience string, bearerTokenTimeout time.Duration) (string, error) {
 	err := CreateServiceAccount(clientset, ArgoCDManagerServiceAccount, ns)
 	if err != nil {
 		return "", err
@@ -236,7 +246,7 @@ func InstallClusterManagerRBAC(clientset kubernetes.Interface, ns string, namesp
 		}
 	}
 
-	return RequestServiceAccountToken(clientset, ns, ArgoCDManagerServiceAccount, 3600*time.Second)
+	return RequestServiceAccountToken(clientset, ns, ArgoCDManagerServiceAccount, audience, 3600*time.Second)
 }
 
 // GetServiceAccountBearerToken determines if a ServiceAccount has a
