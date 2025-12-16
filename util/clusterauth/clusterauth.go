@@ -208,7 +208,10 @@ func upsertRoleBinding(clientset kubernetes.Interface, name string, roleName str
 }
 
 // InstallClusterManagerRBAC installs RBAC resources for a cluster manager to operate a cluster. Returns a token
-func InstallClusterManagerRBAC(clientset kubernetes.Interface, ns string, namespaces []string, audience string, bearerTokenTimeout time.Duration) (string, error) {
+// Token issuance mechanism is selected explicitly.
+// By default Argo CD uses long-lived service account tokens for backward compatibility.
+// The TokenRequest API is opt-in and issues short-lived tokens with a single audience.
+func InstallClusterManagerRBAC(clientset kubernetes.Interface, ns string, namespaces []string, useTokenRequest bool, audience string, bearerTokenTimeout time.Duration) (string, error) {
 	err := CreateServiceAccount(clientset, ArgoCDManagerServiceAccount, ns)
 	if err != nil {
 		return "", err
@@ -246,7 +249,17 @@ func InstallClusterManagerRBAC(clientset kubernetes.Interface, ns string, namesp
 		}
 	}
 
-	return RequestServiceAccountToken(clientset, ns, ArgoCDManagerServiceAccount, audience, 3600*time.Second)
+	if useTokenRequest {
+		return RequestServiceAccountToken(
+			clientset,
+			ns,
+			ArgoCDManagerServiceAccount,
+			audience,
+			bearerTokenTimeout,
+		)
+	}
+
+	return GetServiceAccountBearerToken(clientset, ns, ArgoCDManagerServiceAccount, bearerTokenTimeout)
 }
 
 // GetServiceAccountBearerToken determines if a ServiceAccount has a
