@@ -401,3 +401,69 @@ func TestAddNote(t *testing.T) {
 	err = AddNote(mockGitClient, drySha, commitShaErr)
 	require.Error(t, err)
 }
+
+// TestWriteForPaths_NoOpScenario tests that when manifests don't change between two hydrations,
+// shouldCommit returns false. This reproduces the bug where a new DRY commit that doesn't affect
+// manifests should not create a new hydrated commit.
+func TestWriteForPaths_NoOpScenario(t *testing.T) {
+	root := tempRoot(t)
+
+	repoURL := "https://github.com/example/repo"
+	drySha1 := "abc123"
+	drySha2 := "def456" // Different dry SHA
+	paths := []*apiclient.PathDetails{
+		{
+			Path: "guestbook",
+			Manifests: []*apiclient.HydratedManifestDetails{
+				{ManifestJSON: `{"apiVersion":"v1","kind":"Service","metadata":{"name":"guestbook-ui"}}`},
+				{ManifestJSON: `{"apiVersion":"apps/v1","kind":"Deployment","metadata":{"name":"guestbook-ui"}}`},
+			},
+			Commands: []string{"kustomize build ."},
+		},
+	}
+
+	now1 := metav1.NewTime(time.Now())
+	metadata1 := &appsv1.RevisionMetadata{
+		Author:  "test-author",
+		Date:    &now1,
+		Message: "Initial commit",
+	}
+
+	// First hydration - manifests are new, so HasFileChanged should return true
+	mockGitClient1 := gitmocks.NewClient(t)
+	mockGitClient1.On("HasFileChanged", "guestbook/manifest.yaml").Return(true, nil).Once()
+
+	shouldCommit1, err := WriteForPaths(root, repoURL, drySha1, metadata1, paths, mockGitClient1)
+	require.NoError(t, err)
+	require.True(t, shouldCommit1, "First hydration should commit because manifests are new")
+
+	// Second hydration - same manifest content but different dry SHA and metadata
+	// Simulate adding a README.md to the dry source (which doesn't affect manifests)
+	now2 := metav1.NewTime(time.Now().Add(1 * time.Hour)) // Different timestamp
+	metadata2 := &appsv1.RevisionMetadata{
+		Author:  "test-author",
+		Date:    &now2,
+		Message: "Add README.md", // Different commit message
+	}
+
+	// The manifests are identical, so HasFileChanged should return false
+	mockGitClient2 := gitmocks.NewClient(t)
+	mockGitClient2.On("HasFileChanged", "guestbook/manifest.yaml").Return(false, nil).Once()
+
+	shouldCommit2, err := WriteForPaths(root, repoURL, drySha2, metadata2, paths, mockGitClient2)
+	require.NoError(t, err)
+	require.False(t, shouldCommit2, "Second hydration should NOT commit because manifests didn't change")
+
+	// Verify that the root-level metadata WAS updated (even though we're not committing)
+	// The files get written to the working directory, but since shouldCommit is false, they won't be committed
+	topMetadataPath := filepath.Join(root.Name(), "hydrator.metadata")
+	topMetadataBytes, err := os.ReadFile(topMetadataPath)
+	require.NoError(t, err)
+
+	var topMetadata hydratorMetadataFile
+	err = json.Unmarshal(topMetadataBytes, &topMetadata)
+	require.NoError(t, err)
+	// The top-level metadata should have the NEW dry SHA (files are written, just not committed)
+	assert.Equal(t, drySha2, topMetadata.DrySHA)
+	assert.Equal(t, metadata2.Date.Format(time.RFC3339), topMetadata.Date)
+}

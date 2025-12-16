@@ -298,3 +298,52 @@ func TestHydratorWithPlugin(t *testing.T) {
 			require.Equal(t, "inline-plugin-value", output)
 		})
 }
+
+func TestHydratorNoOp(t *testing.T) {
+	// Test that when hydration is run for a no-op (manifests do not change),
+	// the hydrated SHA is persisted to the app's source hydrator status instead of an empty string.
+	var firstHydratedSHA string
+	var firstDrySHA string
+
+	Given(t).
+		DrySourcePath("guestbook").
+		DrySourceRevision("HEAD").
+		SyncSourcePath("guestbook").
+		SyncSourceBranch("env/test").
+		When().
+		CreateApp().
+		Refresh(RefreshTypeNormal).
+		Wait("--hydrated").
+		Then().
+		Expect(HydrationPhaseIs(HydrateOperationPhaseHydrated)).
+		And(func(app *Application) {
+			require.NotEmpty(t, app.Status.SourceHydrator.CurrentOperation.HydratedSHA, "First hydration should have a hydrated SHA")
+			require.NotEmpty(t, app.Status.SourceHydrator.CurrentOperation.DrySHA, "First hydration should have a dry SHA")
+			firstHydratedSHA = app.Status.SourceHydrator.CurrentOperation.HydratedSHA
+			firstDrySHA = app.Status.SourceHydrator.CurrentOperation.DrySHA
+			t.Logf("First hydration - drySHA: %s, hydratedSHA: %s", firstDrySHA, firstHydratedSHA)
+		}).
+		When().
+		// Make a change to the dry source that doesn't affect the generated manifests.
+		// Adding a README.md file that's not listed in kustomization.yaml resources.
+		AddFile("guestbook/README.md", "# Guestbook\n\nThis is documentation.").
+		Refresh(RefreshTypeNormal).
+		Wait("--hydrated").
+		Then().
+		Expect(HydrationPhaseIs(HydrateOperationPhaseHydrated)).
+		And(func(app *Application) {
+			// BUG FIX: The hydrated SHA must be non-empty.
+			// Before the fix, when manifests didn't change, an empty string was returned.
+			require.NotEmpty(t, app.Status.SourceHydrator.CurrentOperation.HydratedSHA,
+				"BUG FIX: Hydrated SHA must not be empty - this was the bug")
+			require.NotEmpty(t, app.Status.SourceHydrator.CurrentOperation.DrySHA)
+
+			// The dry SHA should be different (new commit in the dry source)
+			require.NotEqual(t, firstDrySHA, app.Status.SourceHydrator.CurrentOperation.DrySHA,
+				"Dry SHA should change after pushing a new commit")
+
+			t.Logf("Second hydration - drySHA: %s, hydratedSHA: %s",
+				app.Status.SourceHydrator.CurrentOperation.DrySHA,
+				app.Status.SourceHydrator.CurrentOperation.HydratedSHA)
+		})
+}
