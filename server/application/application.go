@@ -38,6 +38,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/utils/ptr"
 
 	argocommon "github.com/argoproj/argo-cd/v3/common"
@@ -990,7 +991,15 @@ func (s *Server) waitSync(app *v1alpha1.Application) {
 }
 
 func (s *Server) updateApp(ctx context.Context, app *v1alpha1.Application, newApp *v1alpha1.Application, merge bool) (*v1alpha1.Application, error) {
-	for i := 0; i < 10; i++ {
+	var res *v1alpha1.Application
+	err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+		var err error
+		app, err = s.appclientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(ctx, newApp.Name, metav1.GetOptions{})
+		if err != nil {
+			return fmt.Errorf("error getting application: %w", err)
+		}
+		s.inferResourcesStatusHealth(app)
+
 		app.Spec = newApp.Spec
 		if merge {
 			app.Labels = collections.Merge(app.Labels, newApp.Labels)
@@ -1002,23 +1011,19 @@ func (s *Server) updateApp(ctx context.Context, app *v1alpha1.Application, newAp
 
 		app.Finalizers = newApp.Finalizers
 
-		res, err := s.appclientset.ArgoprojV1alpha1().Applications(app.Namespace).Update(ctx, app, metav1.UpdateOptions{})
-		if err == nil {
-			s.logAppEvent(ctx, app, argo.EventReasonResourceUpdated, "updated application spec")
-			s.waitSync(res)
-			return res, nil
-		}
-		if !apierrors.IsConflict(err) {
-			return nil, err
+		res, err = s.appclientset.ArgoprojV1alpha1().Applications(app.Namespace).Update(ctx, app, metav1.UpdateOptions{})
+		if err != nil {
+			return err
 		}
 
-		app, err = s.appclientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(ctx, newApp.Name, metav1.GetOptions{})
-		if err != nil {
-			return nil, fmt.Errorf("error getting application: %w", err)
-		}
-		s.inferResourcesStatusHealth(app)
+		s.logAppEvent(ctx, app, argo.EventReasonResourceUpdated, "updated application spec")
+		s.waitSync(res)
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
-	return nil, status.Errorf(codes.Internal, "Failed to update application. Too many conflicts")
+	return res, nil
 }
 
 // Update updates an application
@@ -2439,28 +2444,30 @@ func (s *Server) TerminateOperation(ctx context.Context, termOpReq *application.
 		return nil, err
 	}
 
-	for i := 0; i < 10; i++ {
+	err = retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+		var err error
+		a, err = s.appclientset.ArgoprojV1alpha1().Applications(appNs).Get(ctx, appName, metav1.GetOptions{})
+		if err != nil {
+			return fmt.Errorf("error getting application by name: %w", err)
+		}
+
 		if a.Operation == nil || a.Status.OperationState == nil {
-			return nil, status.Errorf(codes.InvalidArgument, "Unable to terminate operation. No operation is in progress")
+			return status.Errorf(codes.InvalidArgument, "Unable to terminate operation. No operation is in progress")
 		}
 		a.Status.OperationState.Phase = common.OperationTerminating
 		updated, err := s.appclientset.ArgoprojV1alpha1().Applications(appNs).Update(ctx, a, metav1.UpdateOptions{})
-		if err == nil {
-			s.waitSync(updated)
-			s.logAppEvent(ctx, a, argo.EventReasonResourceUpdated, "terminated running operation")
-			return &application.OperationTerminateResponse{}, nil
-		}
-		if !apierrors.IsConflict(err) {
-			return nil, fmt.Errorf("error updating application: %w", err)
-		}
-		log.Warnf("failed to set operation for app %q due to update conflict. retrying again...", *termOpReq.Name)
-		time.Sleep(100 * time.Millisecond)
-		_, err = s.appclientset.ArgoprojV1alpha1().Applications(appNs).Get(ctx, appName, metav1.GetOptions{})
 		if err != nil {
-			return nil, fmt.Errorf("error getting application by name: %w", err)
+			return err
 		}
+
+		s.waitSync(updated)
+		s.logAppEvent(ctx, a, argo.EventReasonResourceUpdated, "terminated running operation")
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
-	return nil, status.Errorf(codes.Internal, "Failed to terminate app. Too many conflicts")
+	return &application.OperationTerminateResponse{}, nil
 }
 
 func (s *Server) logAppEvent(ctx context.Context, a *v1alpha1.Application, reason string, action string) {
