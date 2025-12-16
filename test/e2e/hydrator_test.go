@@ -325,17 +325,14 @@ func TestHydratorNoOp(t *testing.T) {
 		}).
 		When().
 		// Make a change to the dry source that doesn't affect the generated manifests.
-		// Adding a README.md file that's not listed in kustomization.yaml resources.
 		AddFile("guestbook/README.md", "# Guestbook\n\nThis is documentation.").
 		Refresh(RefreshTypeNormal).
 		Wait("--hydrated").
 		Then().
 		Expect(HydrationPhaseIs(HydrateOperationPhaseHydrated)).
 		And(func(app *Application) {
-			// BUG FIX: The hydrated SHA must be non-empty.
-			// Before the fix, when manifests didn't change, an empty string was returned.
 			require.NotEmpty(t, app.Status.SourceHydrator.CurrentOperation.HydratedSHA,
-				"BUG FIX: Hydrated SHA must not be empty - this was the bug")
+				"Hydrated SHA must not be empty")
 			require.NotEmpty(t, app.Status.SourceHydrator.CurrentOperation.DrySHA)
 
 			// The dry SHA should be different (new commit in the dry source)
@@ -346,9 +343,7 @@ func TestHydratorNoOp(t *testing.T) {
 				app.Status.SourceHydrator.CurrentOperation.DrySHA,
 				app.Status.SourceHydrator.CurrentOperation.HydratedSHA)
 
-			// BUG FIX: The hydrated SHA should remain the same since manifests didn't change.
-			// No new hydrated commit should be created for a no-op.
 			require.Equal(t, firstHydratedSHA, app.Status.SourceHydrator.CurrentOperation.HydratedSHA,
-				"BUG FIX: Hydrated SHA should remain the same for no-op hydration")
+				"Hydrated SHA should remain the same for no-op hydration")
 		})
 }
