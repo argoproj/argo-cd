@@ -4606,24 +4606,34 @@ func TestTerminateOperationWithConflicts(t *testing.T) {
 	// Get the fake clientset from the deepCopy wrapper
 	fakeAppCs := appServer.appclientset.(*deepCopyAppClientset).GetUnderlyingClientSet().(*apps.Clientset)
 
-	updateAttempts := 0
 	getCallCount := 0
-	lastSeenVersion := ""
+	updateCallCount := 0
 
 	// Remove default reactors and add our custom ones
 	fakeAppCs.ReactionChain = nil
 
-	// Mock Update to check if the app version is progressing
-	// With the bug, the version will never progress because Get results are discarded
-	// With the fix, the version will progress and eventually succeed
+	// Mock Get to return original version first, then fresh version
+	fakeAppCs.AddReactor("get", "applications", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		getCallCount++
+		freshApp := testApp.DeepCopy()
+		if getCallCount == 1 {
+			// First Get (for initialization) returns original version
+			freshApp.ResourceVersion = "1"
+		} else {
+			// Subsequent Gets (during retry) return fresh version
+			freshApp.ResourceVersion = "2"
+		}
+		return true, freshApp, nil
+	})
+
+	// Mock Update to return conflict on first call, success on second
 	fakeAppCs.AddReactor("update", "applications", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-		updateAttempts++
+		updateCallCount++
 		updateAction := action.(kubetesting.UpdateAction)
 		app := updateAction.GetObject().(*v1alpha1.Application)
 
-		// If we're seeing the same version as last time, it means the Get result was discarded (bug!)
-		// Return a conflict to force another retry
-		if updateAttempts > 1 && app.ResourceVersion == lastSeenVersion {
+		// First call (with original resource version): return conflict
+		if app.ResourceVersion == "1" {
 			return true, nil, apierrors.NewConflict(
 				schema.GroupResource{Group: "argoproj.io", Resource: "applications"},
 				app.Name,
@@ -4631,34 +4641,9 @@ func TestTerminateOperationWithConflicts(t *testing.T) {
 			)
 		}
 
-		// If version has progressed (fix is working), succeed after a couple retries
-		if updateAttempts > 2 {
-			updatedApp := app.DeepCopy()
-			updatedApp.ResourceVersion = strconv.Itoa(updateAttempts + 10)
-			return true, updatedApp, nil
-		}
-
-		// First couple of attempts, return conflict to trigger retry mechanism
-		lastSeenVersion = app.ResourceVersion
-		return true, nil, apierrors.NewConflict(
-			schema.GroupResource{Group: "argoproj.io", Resource: "applications"},
-			app.Name,
-			stderrors.New("the object has been modified"),
-		)
-	})
-
-	// Mock Get to return a fresh app with incrementing version
-	// With the fix, this fresh app will be used in subsequent retries
-	// Without the fix, this fresh app is discarded
-	fakeAppCs.AddReactor("get", "applications", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-		getCallCount++
-
-		freshApp := testApp.DeepCopy()
-		// Give it an incrementing version
-		freshApp.ResourceVersion = strconv.Itoa(100 + getCallCount)
-		freshApp.Operation = testApp.Operation
-		freshApp.Status.OperationState = testApp.Status.OperationState
-		return true, freshApp, nil
+		// Second call (with refreshed resource version from Get): return success
+		updatedApp := app.DeepCopy()
+		return true, updatedApp, nil
 	})
 
 	// Attempt to terminate the operation
@@ -4666,10 +4651,7 @@ func TestTerminateOperationWithConflicts(t *testing.T) {
 		Name: ptr.To(testApp.Name),
 	})
 
-	// With the fix, this should succeed after a few retries
+	// Should succeed after retrying with the fresh app
 	require.NoError(t, err)
-
-	// Should have retried but not exhausted all attempts
-	assert.Greater(t, updateAttempts, 1, "Should have retried at least once due to conflicts")
-	assert.Less(t, updateAttempts, 10, "Should not have exhausted all retries")
+	assert.GreaterOrEqual(t, updateCallCount, 2, "Update should be called at least twice (once with conflict, once with success)")
 }
