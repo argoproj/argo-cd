@@ -345,5 +345,10 @@ func TestHydratorNoOp(t *testing.T) {
 			t.Logf("Second hydration - drySHA: %s, hydratedSHA: %s",
 				app.Status.SourceHydrator.CurrentOperation.DrySHA,
 				app.Status.SourceHydrator.CurrentOperation.HydratedSHA)
+
+			// BUG FIX: The hydrated SHA should remain the same since manifests didn't change.
+			// No new hydrated commit should be created for a no-op.
+			require.Equal(t, firstHydratedSHA, app.Status.SourceHydrator.CurrentOperation.HydratedSHA,
+				"BUG FIX: Hydrated SHA should remain the same for no-op hydration")
 		})
 }
