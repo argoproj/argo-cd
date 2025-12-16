@@ -784,6 +784,13 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                             const activeStatusExt = state.statusExtensionsMap[selectedExtension];
                             const activeTopBarActionMenuExt = state.topBarActionMenuExtsMap[selectedExtension];
 
+                            if (state.extensionsMap[pref.view] != null) {
+                                const extension = state.extensionsMap[pref.view];
+                                if (!extension.shouldDisplay(application)) {
+                                    appContext.navigation.goto('.', {view: Tree});
+                                }
+                            }
+
                             return (
                                 <div className={`application-details ${props.match.params.name}`}>
                                     <Page
