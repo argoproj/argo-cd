@@ -179,7 +179,7 @@ func (s *Server) Create(ctx context.Context, q *cluster.ClusterCreateRequest) (*
 		}
 	}
 
-	err = s.cache.SetClusterInfo(c.Server, &appv1.ClusterInfo{
+	err = s.cache.SetClusterInfo(c.Server+clust.Name, &appv1.ClusterInfo{
 		ServerVersion: serverVersion,
 		ConnectionState: appv1.ConnectionState{
 			Status:     appv1.ConnectionStatusSuccessful,
@@ -343,7 +343,7 @@ func (s *Server) Update(ctx context.Context, q *cluster.ClusterUpdateRequest) (*
 	if err != nil {
 		return nil, fmt.Errorf("failed to update cluster in database: %w", err)
 	}
-	err = s.cache.SetClusterInfo(clust.Server, &appv1.ClusterInfo{
+	err = s.cache.SetClusterInfo(clust.Server+clust.Name, &appv1.ClusterInfo{
 		ServerVersion: serverVersion,
 		ConnectionState: appv1.ConnectionState{
 			Status:     appv1.ConnectionStatusSuccessful,
@@ -358,11 +358,6 @@ func (s *Server) Update(ctx context.Context, q *cluster.ClusterUpdateRequest) (*
 
 // Delete deletes a cluster by server/name
 func (s *Server) Delete(ctx context.Context, q *cluster.ClusterQuery) (*cluster.ClusterResponse, error) {
-	c, err := s.getClusterWith403IfNotExist(ctx, q)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get cluster with permissions check: %w", err)
-	}
-
 	if q.Id != nil {
 		q.Server = ""
 		q.Name = ""
@@ -377,9 +372,30 @@ func (s *Server) Delete(ctx context.Context, q *cluster.ClusterQuery) (*cluster.
 		}
 	}
 
-	if err := enforceAndDelete(ctx, s, q.Server, q.Name, c.Project); err != nil {
-		return nil, fmt.Errorf("failed to enforce and delete cluster server: %w", err)
+	c, err := s.getClusterWith403IfNotExist(ctx, q)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get cluster with permissions check: %w", err)
 	}
+
+	if q.Server != "" {
+		if err := enforceAndDelete(ctx, s, q.Server, q.Name, c.Project); err != nil {
+			return nil, fmt.Errorf("failed to enforce and delete cluster server: %w", err)
+		}
+	} else if q.Name != "" {
+		// it should not delete groups of cluster by name since 'argocd cluster rm' parameter already switch to SERVER,NAME
+		// may need to remove this logic just for compatible with old version of argocd command line?
+		servers, err := s.db.GetClusterServersByName(ctx, q.Name)
+		if err != nil {
+			log.WithField("cluster", q.Name).Warnf("failed to get cluster servers by name: %v", err)
+			return nil, common.PermissionDeniedAPIError
+		}
+		for _, server := range servers {
+			if err := enforceAndDelete(ctx, s, server, q.Name, c.Project); err != nil {
+				return nil, fmt.Errorf("failed to enforce and delete cluster server: %w", err)
+			}
+		}
+	}
+
 	return &cluster.ClusterResponse{}, nil
 }
 
@@ -399,7 +415,15 @@ func (s *Server) RotateAuth(ctx context.Context, q *cluster.ClusterQuery) (*clus
 	}
 
 	var servers []string
-	if q.Name != "" {
+	if q.Server != "" {
+		if err := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceClusters, rbac.ActionUpdate, CreateClusterRBACObject(clust.Project, q.Server)); err != nil {
+			log.WithField("cluster", q.Server).Warnf("encountered permissions issue while processing request: %v", err)
+			return nil, common.PermissionDeniedAPIError
+		}
+		servers = append(servers, q.Server)
+	} else if q.Name != "" {
+		// it should not rotate groups of cluster by name since 'argocd cluster rotate-auth' parameter already switch to SERVER,NAME
+		// may need to remove this logic just for compatible with old version of argocd command line?
 		servers, err = s.db.GetClusterServersByName(ctx, q.Name)
 		if err != nil {
 			log.WithField("cluster", q.Name).Warnf("failed to get cluster servers by name: %v", err)
@@ -411,12 +435,6 @@ func (s *Server) RotateAuth(ctx context.Context, q *cluster.ClusterQuery) (*clus
 				return nil, common.PermissionDeniedAPIError
 			}
 		}
-	} else {
-		if err := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceClusters, rbac.ActionUpdate, CreateClusterRBACObject(clust.Project, q.Server)); err != nil {
-			log.WithField("cluster", q.Server).Warnf("encountered permissions issue while processing request: %v", err)
-			return nil, common.PermissionDeniedAPIError
-		}
-		servers = append(servers, q.Server)
 	}
 
 	for _, server := range servers {
@@ -460,7 +478,7 @@ func (s *Server) RotateAuth(ctx context.Context, q *cluster.ClusterQuery) (*clus
 		if err != nil {
 			return nil, fmt.Errorf("failed to update cluster in database: %w", err)
 		}
-		err = s.cache.SetClusterInfo(clust.Server, &appv1.ClusterInfo{
+		err = s.cache.SetClusterInfo(clust.Server+clust.Name, &appv1.ClusterInfo{
 			ServerVersion: serverVersion,
 			ConnectionState: appv1.ConnectionState{
 				Status:     appv1.ConnectionStatusSuccessful,
@@ -481,7 +499,7 @@ func (s *Server) RotateAuth(ctx context.Context, q *cluster.ClusterQuery) (*clus
 
 func (s *Server) toAPIResponse(clust *appv1.Cluster) *appv1.Cluster {
 	clust = clust.Sanitized()
-	_ = s.cache.GetClusterInfo(clust.Server, &clust.Info)
+	_ = s.cache.GetClusterInfo(clust.Server+clust.Name, &clust.Info)
 	// populate deprecated fields for backward compatibility
 	//nolint:staticcheck
 	clust.ServerVersion = clust.Info.ServerVersion

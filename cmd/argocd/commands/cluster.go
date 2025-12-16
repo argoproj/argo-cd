@@ -324,10 +324,9 @@ func checkFieldsToUpdate(clusterOptions cmdutil.ClusterOptions, labels []string,
 func NewClusterGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var output string
 	command := &cobra.Command{
-		Use:   "get SERVER/NAME",
-		Short: "Get cluster information",
-		Example: `argocd cluster get https://12.34.567.89
-argocd cluster get in-cluster`,
+		Use:     "get SERVER,NAME",
+		Short:   "Get cluster information",
+		Example: `argocd cluster get https://12.34.567.89,in-cluster`,
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
@@ -400,10 +399,9 @@ func printClusterDetails(clusters []argoappv1.Cluster) {
 func NewClusterRemoveCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clientcmd.PathOptions) *cobra.Command {
 	var noPrompt bool
 	command := &cobra.Command{
-		Use:   "rm SERVER/NAME",
-		Short: "Remove cluster credentials",
-		Example: `argocd cluster rm https://12.34.567.89
-argocd cluster rm cluster-name`,
+		Use:     "rm SERVER,NAME",
+		Short:   "Remove cluster credentials",
+		Example: `argocd cluster rm https://12.34.567.89,cluster-name`,
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
@@ -484,11 +482,17 @@ func printClusterTable(clusters []argoappv1.Cluster) {
 // Returns cluster query for getting cluster depending on the cluster selector
 func getQueryBySelector(clusterSelector string) *clusterpkg.ClusterQuery {
 	var query clusterpkg.ClusterQuery
-	isServer, err := regexp.MatchString(`^https?://`, clusterSelector)
-	if isServer || err != nil {
-		query.Server = clusterSelector
-	} else {
-		query.Name = clusterSelector
+	found := false
+	if query.Server, query.Name, found = strings.Cut(clusterSelector, ","); !found {
+		// should not go into this path. just incase still using old version argocd server
+		// may need to delete this logic since parameter already switch to SERVER,NAME?
+		query.Server = ""
+		isServer, err := regexp.MatchString(`^https?://`, clusterSelector)
+		if isServer || err != nil {
+			query.Server = clusterSelector
+		} else {
+			query.Name = clusterSelector
+		}
 	}
 	return &query
 }
@@ -550,10 +554,9 @@ argocd cluster list -o server <ARGOCD_SERVER_ADDRESS>
 // NewClusterRotateAuthCommand returns a new instance of an `argocd cluster rotate-auth` command
 func NewClusterRotateAuthCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	command := &cobra.Command{
-		Use:   "rotate-auth SERVER/NAME",
-		Short: cliName + " cluster rotate-auth SERVER/NAME",
-		Example: `argocd cluster rotate-auth https://12.34.567.89
-argocd cluster rotate-auth cluster-name`,
+		Use:     "rotate-auth SERVER,NAME",
+		Short:   cliName + " cluster rotate-auth SERVER,NAME",
+		Example: `argocd cluster rotate-auth https://12.34.567.89,cluster-name`,
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 

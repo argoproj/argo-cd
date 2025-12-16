@@ -251,7 +251,7 @@ func TestClusterDeleteDenied(t *testing.T) {
 		Server(KubernetesInternalAPIServerAddr).
 		When().
 		Create().
-		DeleteByName().
+		DeleteByServerAndName().
 		Then().
 		AndCLIOutput(func(_ string, err error) {
 			assert.ErrorContains(t, err, "PermissionDenied desc = permission denied")
@@ -315,7 +315,7 @@ func TestClusterDelete(t *testing.T) {
 	_, err = fixture.Run("", "kubectl", "get", "clusterrolebinding", "argocd-manager-role-binding")
 	require.NoError(t, err, "Expected no error from not finding clusterrolebinding argocd-manager-role-binding")
 
-	clstAction.DeleteByName().
+	clstAction.DeleteByServerAndName().
 		Then().
 		AndCLIOutput(func(output string, _ error) {
 			assert.Equal(t, "Cluster 'default' removed", output)

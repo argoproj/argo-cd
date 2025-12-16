@@ -46,7 +46,7 @@ export const ClusterDetails = (props: RouteComponentProps<{server: string; name:
                                     action: async () => {
                                         setUpdating(true);
                                         try {
-                                            const updated = await services.clusters.invalidateCache(props.match.params.server);
+                                            const updated = await services.clusters.invalidateCache(props.match.params.server, props.match.params.name);
                                             loaderRef.current.setData(updated);
                                         } finally {
                                             setUpdating(false);

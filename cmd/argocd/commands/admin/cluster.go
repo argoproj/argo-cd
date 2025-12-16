@@ -160,7 +160,7 @@ func loadClusters(ctx context.Context, kubeClient kubernetes.Interface, appClien
 			for ns := range nsSet {
 				namespaces = append(namespaces, ns)
 			}
-			_ = cache.GetClusterInfo(cluster.Server, &cluster.Info)
+			_ = cache.GetClusterInfo(cluster.Server+cluster.Name, &cluster.Info)
 			clusters[batchStart+i] = ClusterWithInfo{cluster, clusterShard, namespaces}
 			return nil
 		})

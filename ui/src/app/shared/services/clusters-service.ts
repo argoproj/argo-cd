@@ -34,9 +34,9 @@ export class ClustersService {
             .then(res => res.body as models.Cluster);
     }
 
-    public invalidateCache(url: string): Promise<models.Cluster> {
+    public invalidateCache(url: string, name: string): Promise<models.Cluster> {
         return requests
-            .post(`/clusters/${encodeURIComponent(url)}/invalidate-cache`)
+            .post(`/clusters/${encodeURIComponent(url + ',' + name)}/invalidate-cache?id.type=url_name_escaped`)
             .send({})
             .then(res => res.body as models.Cluster);
     }
