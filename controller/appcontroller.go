@@ -1224,9 +1224,12 @@ func (ctrl *ApplicationController) shouldBeDeleted(app *appv1.Application, obj *
 	}
 
 	// If this is a namespace and there are PostDelete hooks that might manage it,
-	// defer the namespace deletion until after PostDelete hooks complete
-	// If targets is nil, we skip the PostDelete hook optimization for safety
-	if obj.GetKind() == "Namespace" && targets != nil {
+	// defer the namespace deletion until after PostDelete hooks complete.
+	// If targets is nil, conservatively defer deletion since we cannot determine if hooks exist.
+	if obj.GetKind() == "Namespace" {
+		if targets == nil {
+			return false
+		}
 		if ctrl.hasPostDeleteHooksForNamespace(obj.GetName(), targets) {
 			return false
 		}
