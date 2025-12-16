@@ -399,20 +399,20 @@ func (sc *syncContext) setRunningPhase(tasks syncTasks, isPendingDeletion bool) 
 
 	hooks, resources := tasks.Split(func(task *syncTask) bool { return task.isHook() })
 
-	waitingFor := "completion of hook"
-	andMore := "resources"
+	reason := "completion of hook"
+	taskType := "resources"
 
 	if hooks.Len() == 0 {
-		waitingFor = "healthy state of"
+		reason = "healthy state of"
 	}
 	if resources.Len() == 0 {
-		andMore = "hooks"
+		taskType = "hooks"
 	}
 
 	if isPendingDeletion {
-		waitingFor = "deletion of"
+		reason = "deletion of"
 		if hooks.Len() != 0 {
-			waitingFor += " hook"
+			reason += " hook"
 		}
 	}
 
@@ -423,9 +423,9 @@ func (sc *syncContext) setRunningPhase(tasks syncTasks, isPendingDeletion bool) 
 		firstTask = resources[0]
 	}
 
-	message := fmt.Sprintf("waiting for %s %s/%s/%s", waitingFor, firstTask.group(), firstTask.kind(), firstTask.name())
-	if moreTasks := len(tasks) - 1; moreTasks > 0 {
-		message = fmt.Sprintf("%s and %d more %s", message, moreTasks, andMore)
+	message := fmt.Sprintf("waiting for %s %s/%s/%s", reason, firstTask.group(), firstTask.kind(), firstTask.name())
+	if nbAdditionalTask := len(tasks) - 1; nbAdditionalTask > 0 {
+		message = fmt.Sprintf("%s and %d more %s", message, nbAdditionalTask, taskType)
 	}
 	sc.setOperationPhase(common.OperationRunning, message)
 }
