@@ -412,23 +412,7 @@ spec:
 
 In order for Argo CD to manage the labels and annotations on the namespace, `CreateNamespace=true` needs to be set as a
 sync option, otherwise nothing will happen. If the namespace doesn't already exist, or if it already exists and doesn't
-already have labels and/or annotations set on it, you're good to go. Using `managedNamespaceMetadata` will also set the
-resource tracking label (or annotation) on the namespace, so you can easily track which namespaces are managed by Argo CD,
-like the example below:
-
-```yaml
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-  namespace: test
-spec:
-  syncPolicy:
-    managedNamespaceMetadata:
-      labels: # The labels to set on the application namespace
-      annotations: # The annotations to set on the application namespace
-    syncOptions:
-    - CreateNamespace=true
-```
+already have labels and/or annotations set on it, you're good to go.
 
 The generated namespace is normally not tracked with Argo CD. You can use `managedNamespaceMetadata` to
 set a tracking annotation on the generated namespace, which sets the namespace to be *owned* by Argo CD.
