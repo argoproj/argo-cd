@@ -89,6 +89,7 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 		skipConfirmation bool
 		labels           []string
 		annotations      []string
+		audience         string
 	)
 	command := &cobra.Command{
 		Use:   "add CONTEXT",
@@ -139,7 +140,7 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 			default:
 				// Install RBAC resources for managing the cluster
 				if clusterOpts.ServiceAccount != "" {
-					managerBearerToken, err = clusterauth.RequestServiceAccountToken(clientset, clusterOpts.SystemNamespace, clusterOpts.ServiceAccount, common.BearerTokenTimeout)
+					managerBearerToken, err = clusterauth.RequestServiceAccountToken(clientset, clusterOpts.SystemNamespace, clusterOpts.ServiceAccount, audience, common.BearerTokenTimeout)
 				} else {
 					isTerminal := isatty.IsTerminal(os.Stdout.Fd()) || isatty.IsCygwinTerminal(os.Stdout.Fd())
 					if isTerminal && !skipConfirmation {
@@ -152,7 +153,7 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 							os.Exit(1)
 						}
 					}
-					managerBearerToken, err = clusterauth.InstallClusterManagerRBAC(clientset, clusterOpts.SystemNamespace, clusterOpts.Namespaces, 3600*time.Second)
+					managerBearerToken, err = clusterauth.InstallClusterManagerRBAC(clientset, clusterOpts.SystemNamespace, clusterOpts.Namespaces, audience, 3600*time.Second)
 				}
 				errors.CheckError(err)
 			}
@@ -204,6 +205,7 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 	command.Flags().StringArrayVar(&labels, "label", nil, "Set metadata labels (e.g. --label key=value)")
 	command.Flags().StringArrayVar(&annotations, "annotation", nil, "Set metadata annotations (e.g. --annotation key=value)")
 	command.Flags().StringVar(&clusterOpts.ProxyUrl, "proxy-url", "", "use proxy to connect cluster")
+	command.Flags().StringVar(&audience, "token-audience", "", "set the audience field in the service account token")
 	cmdutil.AddClusterFlags(command, &clusterOpts)
 	return command
 }
