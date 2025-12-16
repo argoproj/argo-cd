@@ -1714,31 +1714,102 @@ func Test_syncContext_hasCRDOfGroupKind(t *testing.T) {
 	assert.True(t, (&syncContext{hooks: []*unstructured.Unstructured{testingutils.NewCRD()}}).hasCRDOfGroupKind("test.io", "TestCrd"))
 }
 
-func Test_setRunningPhase_healthyState(t *testing.T) {
-	var sc syncContext
-	sc.log = textlogger.NewLogger(textlogger.NewConfig()).WithValues("application", "fake-app")
+func Test_setRunningPhase(t *testing.T) {
+	newPodTask := func(name string) *syncTask {
+		pod := testingutils.NewPod()
+		pod.SetName(name)
+		return &syncTask{targetObj: pod}
+	}
+	newHookTask := func(name string, hookType synccommon.HookType) *syncTask {
+		hook := newHook(hookType)
+		hook.SetName(name)
+		return &syncTask{targetObj: hook}
+	}
 
-	sc.setRunningPhase([]*syncTask{{targetObj: testingutils.NewPod()}, {targetObj: testingutils.NewPod()}, {targetObj: testingutils.NewPod()}}, false)
+	tests := []struct {
+		name              string
+		tasks             syncTasks
+		isPendingDeletion bool
+		expectedMessage   string
+	}{
+		{
+			name:              "empty tasks",
+			tasks:             syncTasks{},
+			isPendingDeletion: false,
+			expectedMessage:   "",
+		},
+		{
+			name:              "single resource - healthy state",
+			tasks:             syncTasks{newPodTask("my-pod")},
+			isPendingDeletion: false,
+			expectedMessage:   "waiting for healthy state of /Pod/my-pod",
+		},
+		{
+			name:              "multiple resources - healthy state",
+			tasks:             syncTasks{newPodTask("pod-1"), newPodTask("pod-2"), newPodTask("pod-3")},
+			isPendingDeletion: false,
+			expectedMessage:   "waiting for healthy state of /Pod/pod-1 and 2 more resources",
+		},
+		{
+			name:              "single hook - completion",
+			tasks:             syncTasks{newHookTask("hook-1", synccommon.HookTypeSync)},
+			isPendingDeletion: false,
+			expectedMessage:   "waiting for completion of hook /Pod/hook-1",
+		},
+		{
+			name:              "multiple hooks - completion",
+			tasks:             syncTasks{newHookTask("hook-1", synccommon.HookTypeSync), newHookTask("hook-2", synccommon.HookTypeSync)},
+			isPendingDeletion: false,
+			expectedMessage:   "waiting for completion of hook /Pod/hook-1 and 1 more hooks",
+		},
+		{
+			name:              "hooks and resources - prioritizes hooks",
+			tasks:             syncTasks{newPodTask("pod-1"), newHookTask("hook-1", synccommon.HookTypeSync), newPodTask("pod-2")},
+			isPendingDeletion: false,
+			expectedMessage:   "waiting for completion of hook /Pod/hook-1 and 2 more resources",
+		},
+		{
+			name:              "single resource - pending deletion",
+			tasks:             syncTasks{newPodTask("my-pod")},
+			isPendingDeletion: true,
+			expectedMessage:   "waiting for deletion of /Pod/my-pod",
+		},
+		{
+			name:              "multiple resources - pending deletion",
+			tasks:             syncTasks{newPodTask("pod-1"), newPodTask("pod-2"), newPodTask("pod-3")},
+			isPendingDeletion: true,
+			expectedMessage:   "waiting for deletion of /Pod/pod-1 and 2 more resources",
+		},
+		{
+			name:              "single hook - pending deletion",
+			tasks:             syncTasks{newHookTask("hook-1", synccommon.HookTypeSync)},
+			isPendingDeletion: true,
+			expectedMessage:   "waiting for deletion of hook /Pod/hook-1",
+		},
+		{
+			name:              "multiple hooks - pending deletion",
+			tasks:             syncTasks{newHookTask("hook-1", synccommon.HookTypeSync), newHookTask("hook-2", synccommon.HookTypeSync)},
+			isPendingDeletion: true,
+			expectedMessage:   "waiting for deletion of hook /Pod/hook-1 and 1 more hooks",
+		},
+		{
+			name:              "hooks and resources - pending deletion prioritizes hooks",
+			tasks:             syncTasks{newPodTask("pod-1"), newHookTask("hook-1", synccommon.HookTypeSync), newPodTask("pod-2")},
+			isPendingDeletion: true,
+			expectedMessage:   "waiting for deletion of hook /Pod/hook-1 and 2 more resources",
+		},
+	}
 
-	assert.Equal(t, "waiting for healthy state of /Pod/my-pod and 2 more resources", sc.message)
-}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var sc syncContext
+			sc.log = textlogger.NewLogger(textlogger.NewConfig()).WithValues("application", "fake-app")
 
-func Test_setRunningPhase_runningHooks(t *testing.T) {
-	var sc syncContext
-	sc.log = textlogger.NewLogger(textlogger.NewConfig()).WithValues("application", "fake-app")
+			sc.setRunningPhase(tt.tasks, tt.isPendingDeletion)
 
-	sc.setRunningPhase([]*syncTask{{targetObj: newHook(synccommon.HookTypeSyncFail)}}, false)
-
-	assert.Equal(t, "waiting for completion of hook /Pod/my-pod", sc.message)
-}
-
-func Test_setRunningPhase_pendingDeletion(t *testing.T) {
-	var sc syncContext
-	sc.log = textlogger.NewLogger(textlogger.NewConfig()).WithValues("application", "fake-app")
-
-	sc.setRunningPhase([]*syncTask{{targetObj: testingutils.NewPod()}, {targetObj: testingutils.NewPod()}, {targetObj: testingutils.NewPod()}}, true)
-
-	assert.Equal(t, "waiting for deletion of /Pod/my-pod and 2 more resources", sc.message)
+			assert.Equal(t, tt.expectedMessage, sc.message)
+		})
+	}
 }
 
 func TestSyncWaveHook(t *testing.T) {
