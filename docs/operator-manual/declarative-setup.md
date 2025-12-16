@@ -1368,7 +1368,7 @@ data:
 
 ## Resource Custom Labels
 
-Custom Labels configured with `resource.customLabels` (comma separated string) will be displayed in the UI (for any resource that defines them). Note that this requires a restart to the ArgoCD Controller to take effect.
+Custom Labels configured with `resource.customLabels` (comma separated string) will be displayed in the UI (for any resource that defines them). Note that this requires a restart to the Argo CD Application Controller to take effect.
 
 ## Labels on Application Events
 
