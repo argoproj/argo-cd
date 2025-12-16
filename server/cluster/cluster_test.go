@@ -757,7 +757,7 @@ func TestClusterInfoWithFailedResourceGVKs(t *testing.T) {
 	cache := newServerInMemoryCache()
 
 	// Create a mock cluster with failed resource GVKs
-	mockCluster := v1alpha1.Cluster{
+	mockCluster := appv1.Cluster{
 		Name:       "test-cluster",
 		Server:     "https://127.0.0.1",
 		Namespaces: []string{"default", "kube-system"},
@@ -768,13 +768,13 @@ func TestClusterInfoWithFailedResourceGVKs(t *testing.T) {
 		"conversion.example.com/v1, Kind=Example",
 		"another.api.io/v2, Kind=Resource",
 	}
-	clusterInfo := &v1alpha1.ClusterInfo{
-		ConnectionState: v1alpha1.ConnectionState{
-			Status:  v1alpha1.ConnectionStatusDegraded,
+	clusterInfo := &appv1.ClusterInfo{
+		ConnectionState: appv1.ConnectionState{
+			Status:  appv1.ConnectionStatusDegraded,
 			Message: "Cluster has 2 unavailable resource types",
 		},
 		ServerVersion: "1.22",
-		CacheInfo: v1alpha1.ClusterCacheInfo{
+		CacheInfo: appv1.ClusterCacheInfo{
 			ResourcesCount:     305,
 			APIsCount:          50,
 			FailedResourceGVKs: failedGVKs,
@@ -782,9 +782,9 @@ func TestClusterInfoWithFailedResourceGVKs(t *testing.T) {
 	}
 
 	// Set up mock database
-	mockClusterList := v1alpha1.ClusterList{
+	mockClusterList := appv1.ClusterList{
 		ListMeta: metav1.ListMeta{},
-		Items: []v1alpha1.Cluster{
+		Items: []appv1.Cluster{
 			mockCluster,
 		},
 	}
@@ -807,7 +807,7 @@ func TestClusterInfoWithFailedResourceGVKs(t *testing.T) {
 	// Verify the response contains our failed resource GVKs
 	clusterResponse := response.Items[0]
 	assert.Equal(t, mockCluster.Server, clusterResponse.Server)
-	assert.Equal(t, v1alpha1.ConnectionStatusDegraded, clusterResponse.Info.ConnectionState.Status)
+	assert.Equal(t, appv1.ConnectionStatusDegraded, clusterResponse.Info.ConnectionState.Status)
 	assert.Equal(t, "Cluster has 2 unavailable resource types", clusterResponse.Info.ConnectionState.Message)
 	assert.Equal(t, failedGVKs, clusterResponse.Info.CacheInfo.FailedResourceGVKs)
 	assert.Equal(t, int64(2), int64(len(clusterResponse.Info.CacheInfo.FailedResourceGVKs)))
