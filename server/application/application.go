@@ -1021,7 +1021,7 @@ func (s *Server) updateApp(ctx context.Context, app *v1alpha1.Application, newAp
 		return nil
 	})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error updating application: %w", err)
 	}
 	return res, nil
 }
@@ -2457,7 +2457,7 @@ func (s *Server) TerminateOperation(ctx context.Context, termOpReq *application.
 		a.Status.OperationState.Phase = common.OperationTerminating
 		updated, err := s.appclientset.ArgoprojV1alpha1().Applications(appNs).Update(ctx, a, metav1.UpdateOptions{})
 		if err != nil {
-			return err
+			return fmt.Errorf("error updating application status: %w", err)
 		}
 
 		s.waitSync(updated)
@@ -2465,7 +2465,7 @@ func (s *Server) TerminateOperation(ctx context.Context, termOpReq *application.
 		return nil
 	})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error terminating application: %w", err)
 	}
 	return &application.OperationTerminateResponse{}, nil
 }
