@@ -1972,7 +1972,7 @@ func TestSyncContext_GetDeleteOptions_WithPrunePropagationPolicy(t *testing.T) {
 	assert.Equal(t, metav1.DeletePropagationBackground, *opts.PropagationPolicy)
 }
 
-func TestSetOperationFailed(t *testing.T) {
+func TestExecuteSyncFailPhase(t *testing.T) {
 	sc := syncContext{}
 	sc.log = textlogger.NewLogger(textlogger.NewConfig()).WithValues("application", "fake-app")
 
@@ -1984,7 +1984,7 @@ func TestSetOperationFailed(t *testing.T) {
 	assert.Equal(t, "one or more objects failed to apply, reason: namespace not found", sc.message)
 }
 
-func TestSetOperationFailedDuplicatedMessages(t *testing.T) {
+func TestExecuteSyncFailPhase_DuplicatedMessages(t *testing.T) {
 	sc := syncContext{}
 	sc.log = textlogger.NewLogger(textlogger.NewConfig()).WithValues("application", "fake-app")
 
@@ -1997,7 +1997,7 @@ func TestSetOperationFailedDuplicatedMessages(t *testing.T) {
 	assert.Equal(t, "one or more objects failed to apply, reason: namespace not found", sc.message)
 }
 
-func TestSetOperationFailedNoTasks(t *testing.T) {
+func TestExecuteSyncFailPhase_NoTasks(t *testing.T) {
 	sc := syncContext{}
 	sc.log = textlogger.NewLogger(textlogger.NewConfig()).WithValues("application", "fake-app")
 
