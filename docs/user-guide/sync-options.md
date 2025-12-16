@@ -411,10 +411,9 @@ spec:
 ```
 
 In order for Argo CD to manage the labels and annotations on the namespace, `CreateNamespace=true` needs to be set as a
-sync option, otherwise nothing will happen.
-
-In the case you do not have any custom annotations or labels but would nonetheless want to have resource tracking set on
-your namespace, that can be done by setting `managedNamespaceMetadata` with an empty `labels` and/or `annotations` map,
+sync option, otherwise nothing will happen. If the namespace doesn't already exist, or if it already exists and doesn't
+already have labels and/or annotations set on it, you're good to go. Using `managedNamespaceMetadata` will also set the
+resource tracking label (or annotation) on the namespace, so you can easily track which namespaces are managed by Argo CD,
 like the example below:
 
 ```yaml
