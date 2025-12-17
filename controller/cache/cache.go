@@ -1317,11 +1317,3 @@ func (c *liveStateCache) validateAndClearRecoveredTaints(cluster *appv1.Cluster,
 
 	return clearedCount > 0
 }
-
-// validateAndClearHealthyTaints is deprecated and no longer used.
-// Validation now happens after EnsureSynced via validateAndClearRecoveredTaints.
-func (c *liveStateCache) validateAndClearHealthyTaints(_ *appv1.Cluster, _ clustercache.ClusterCache) bool {
-	// This function is no longer used but kept for compatibility
-	// All validation now happens after sync in validateAndClearRecoveredTaints
-	return false
-}
