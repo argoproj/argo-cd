@@ -581,6 +581,28 @@ func GetRelatedRefAppSources(sourceRef argoappv1.ApplicationSource, sources argo
 	return rSources
 }
 
+func GetRelatedRefSources(source argoappv1.ApplicationSource, sources argoappv1.ApplicationSources) argoappv1.ApplicationSources {
+	rSources := make(argoappv1.ApplicationSources, 0)
+
+	if source.IsRef() || (!source.IsHelm() && !source.IsHelmOci()) || len(source.Helm.ValueFiles) == 0 {
+		return rSources
+	}
+
+	for _, s := range sources {
+		if !s.IsRef() {
+			continue
+		}
+
+		for _, v := range source.Helm.ValueFiles {
+			refVar := strings.Split(v, "/")[0]
+			if refVar == "$"+s.Ref {
+				rSources = append(rSources, source)
+			}
+		}
+	}
+	return rSources
+}
+
 func validateSourcePermissions(source argoappv1.ApplicationSource, hasMultipleSources bool) []argoappv1.ApplicationCondition {
 	var conditions []argoappv1.ApplicationCondition
 	if hasMultipleSources {

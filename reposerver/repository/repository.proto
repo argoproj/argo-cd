@@ -286,6 +286,7 @@ message UpdateRevisionForPathsRequest {
 
     bool noRevisionCache = 14;
     string installationID = 15;
+    map<string, string> cacheRepoRefs = 16;
 }
 
 message UpdateRevisionForPathsResponse {

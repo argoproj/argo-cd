@@ -131,6 +131,8 @@ func newFakeControllerWithResync(ctx context.Context, data *fakeData, appResyncP
 		mockRepoClient.EXPECT().UpdateRevisionForPaths(mock.Anything, mock.Anything).Return(data.updateRevisionForPathsResponse, nil)
 	}
 
+	mockRepoClient.EXPECT().CheckChangesForPaths(mock.Anything, mock.Anything).Return(nil, revisionPathsErr)
+
 	mockRepoClientset := &mockrepoclient.Clientset{RepoServerServiceClient: mockRepoClient}
 
 	mockCommitClientset := &mockcommitclient.Clientset{}
