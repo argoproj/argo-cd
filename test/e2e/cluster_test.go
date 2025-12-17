@@ -318,7 +318,7 @@ func TestClusterDelete(t *testing.T) {
 	clstAction.DeleteByServerAndName().
 		Then().
 		AndCLIOutput(func(output string, _ error) {
-			assert.Equal(t, "Cluster 'default' removed", output)
+			assert.Equal(t, "Cluster 'https://kubernetes.default.svc,default' removed", output)
 		})
 
 	// Check that RBAC is removed after delete
