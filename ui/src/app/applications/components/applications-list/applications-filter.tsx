@@ -6,7 +6,7 @@ import {Application, ApplicationDestination, Cluster, HealthStatusCode, HealthSt
 import {AppsListPreferences, services} from '../../../shared/services';
 import {Filter, FiltersGroup} from '../filter/filter';
 import * as LabelSelector from '../label-selector';
-import {ComparisonStatusIcon, getAppDefaultSource, HealthStatusIcon} from '../utils';
+import {ComparisonStatusIcon, getAppDefaultSource, getAppAllSources, HealthStatusIcon} from '../utils';
 import {formatClusterQueryParam} from '../../../shared/utils';
 import {COLORS} from '../../../shared/components/colors';
 
@@ -19,6 +19,7 @@ export interface FilterResult {
     clusters: boolean;
     favourite: boolean;
     labels: boolean;
+    targetRevision: boolean;
 }
 
 export interface FilteredApp extends Application {
@@ -54,7 +55,8 @@ export function getFilterResults(applications: Application[], pref: AppsListPref
                         return (inputMatch && inputMatch[0] === app.spec.destination.server) || (app.spec.destination.name && minimatch(app.spec.destination.name, filterString));
                     }
                 }),
-            labels: pref.labelsFilter.length === 0 || pref.labelsFilter.every(selector => LabelSelector.match(selector, app.metadata.labels))
+            labels: pref.labelsFilter.length === 0 || pref.labelsFilter.every(selector => LabelSelector.match(selector, app.metadata.labels)),
+            targetRevision: pref.targetRevisionFilter.length === 0 || getAppAllSources(app).some(source => pref.targetRevisionFilter.includes(source.targetRevision))
         }
     }));
 }
@@ -223,6 +225,22 @@ const NamespaceFilter = (props: AppFilterProps) => {
     );
 };
 
+const TargetRevisionFilter = (props: AppFilterProps) => {
+    const targetRevisionOptions = optionsFrom(
+        Array.from(new Set(props.apps.flatMap(app => getAppAllSources(app).map(source => source.targetRevision)).filter(item => !!item))),
+        props.pref.targetRevisionFilter
+    );
+    return (
+        <Filter
+            label='TARGET REVISION'
+            selected={props.pref.targetRevisionFilter}
+            setSelected={s => props.onChange({...props.pref, targetRevisionFilter: s})}
+            field={true}
+            options={targetRevisionOptions}
+        />
+    );
+};
+
 const FavoriteFilter = (props: AppFilterProps) => {
     const ctx = React.useContext(Context);
     const onChange = (val: boolean) => {
@@ -285,6 +303,7 @@ export const ApplicationsFilter = (props: AppFilterProps) => {
             <ProjectFilter {...props} />
             <ClusterFilter {...props} />
             <NamespaceFilter {...props} />
+            <TargetRevisionFilter {...props} />
             <AutoSyncFilter {...props} collapsed={true} />
         </FiltersGroup>
     );

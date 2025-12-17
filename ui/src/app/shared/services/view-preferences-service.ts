@@ -85,15 +85,21 @@ export class AbstractAppsListPreferences {
 
 export class AppsListPreferences extends AbstractAppsListPreferences {
     public static countEnabledFilters(pref: AppsListPreferences) {
-        return [pref.clustersFilter, pref.healthFilter, pref.labelsFilter, pref.namespacesFilter, pref.projectsFilter, pref.reposFilter, pref.syncFilter].reduce(
-            (count, filter) => {
-                if (filter && filter.length > 0) {
-                    return count + 1;
-                }
-                return count;
-            },
-            0
-        );
+        return [
+            pref.clustersFilter,
+            pref.healthFilter,
+            pref.labelsFilter,
+            pref.namespacesFilter,
+            pref.projectsFilter,
+            pref.reposFilter,
+            pref.syncFilter,
+            pref.targetRevisionFilter
+        ].reduce((count, filter) => {
+            if (filter && filter.length > 0) {
+                return count + 1;
+            }
+            return count;
+        }, 0);
     }
 
     public static clearFilters(pref: AppsListPreferences) {
@@ -101,6 +107,7 @@ export class AppsListPreferences extends AbstractAppsListPreferences {
 
         pref.clustersFilter = [];
         pref.namespacesFilter = [];
+        pref.targetRevisionFilter = [];
         pref.projectsFilter = [];
         pref.reposFilter = [];
         pref.syncFilter = [];
@@ -112,6 +119,7 @@ export class AppsListPreferences extends AbstractAppsListPreferences {
     public syncFilter: string[];
     public autoSyncFilter: string[];
     public namespacesFilter: string[];
+    public targetRevisionFilter: string[];
     public clustersFilter: string[];
 }
 
@@ -174,6 +182,7 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
         labelsFilter: new Array<string>(),
         projectsFilter: new Array<string>(),
         namespacesFilter: new Array<string>(),
+        targetRevisionFilter: new Array<string>(),
         clustersFilter: new Array<string>(),
         reposFilter: new Array<string>(),
         syncFilter: new Array<string>(),
