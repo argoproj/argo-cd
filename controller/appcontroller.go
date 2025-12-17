@@ -1166,7 +1166,6 @@ func (ctrl *ApplicationController) removeProjectFinalizer(proj *appv1.AppProject
 // getAppTargets retrieves the target objects from the application's sources
 func (ctrl *ApplicationController) getAppTargets(app *appv1.Application) (targets []*unstructured.Unstructured) {
 	logCtx := log.WithFields(applog.GetAppLogFields(app))
-
 	// Safely handle potential panics to avoid breaking the deletion process
 	defer func() {
 		if r := recover(); r != nil {
@@ -1175,31 +1174,26 @@ func (ctrl *ApplicationController) getAppTargets(app *appv1.Application) (target
 			return
 		}
 	}()
-
 	appLabelKey, err := ctrl.settingsMgr.GetAppInstanceLabelKey()
 	if err != nil {
 		logCtx.WithError(err).Debug("Unable to get app instance label key, disabling PostDelete hook optimization")
 		return
 	}
-
 	var revisions []string
 	for _, src := range app.Spec.GetSources() {
 		revisions = append(revisions, src.TargetRevision)
 	}
-
 	proj, err := ctrl.getAppProj(app)
 	if err != nil {
 		logCtx.WithError(err).Debug("Unable to get app project, disabling PostDelete hook optimization")
 		return
 	}
-
 	targets, _, _, err = ctrl.appStateManager.GetRepoObjs(context.Background(), app, app.Spec.GetSources(), appLabelKey, revisions, false, false, false, proj, true)
 	if err != nil {
 		logCtx.WithError(err).Debug("Unable to get repo objects, disabling PostDelete hook optimization")
 		return
 	}
-
-	return targets
+	return
 }
 
 // hasPostDeleteHooksForNamespace checks if there are PostDelete hooks that might manage the given namespace
