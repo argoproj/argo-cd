@@ -1198,6 +1198,8 @@ func (ctrl *ApplicationController) getAppTargets(app *appv1.Application) (target
 		logCtx.WithError(err).Debug("Unable to get repo objects, disabling PostDelete hook optimization")
 		return
 	}
+
+	return
 }
 
 // hasPostDeleteHooksForNamespace checks if there are PostDelete hooks that might manage the given namespace
