@@ -113,7 +113,7 @@ func (a *Actions) GetByName(name string) *Actions {
 
 func (a *Actions) SetNamespaces() *Actions {
 	a.context.t.Helper()
-	a.runCli("cluster", "set", a.context.name, "--namespace", strings.Join(a.context.namespaces, ","))
+	a.runCli("cluster", "set", fmt.Sprintf("%s,%s", a.context.server, a.context.name), "--namespace", strings.Join(a.context.namespaces, ","))
 	return a
 }
 
