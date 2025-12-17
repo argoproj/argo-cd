@@ -192,8 +192,23 @@ func newClientWithLock(repoURL string, repoLock sync.KeyLock, repo oras.ReadOnly
 	return c
 }
 
+type EventHandlers struct {
+	OnExtract             func(repo string) func()
+	OnResolveRevision     func(repo string) func()
+	OnDigestMetadata      func(repo string) func()
+	OnTestRepo            func(repo string) func()
+	OnGetTags             func(repo string) func()
+	OnExtractFail         func(repo string) func(revision string)
+	OnResolveRevisionFail func(repo string) func(revision string)
+	OnDigestMetadataFail  func(repo string) func(revision string)
+	OnTestRepoFail        func(repo string) func()
+	OnGetTagsFail         func(repo string) func()
+}
+
 // nativeOCIClient implements Client interface using oras-go
 type nativeOCIClient struct {
+	EventHandlers
+
 	repoURL                         string
 	repo                            oras.ReadOnlyTarget
 	tagsFunc                        func(context.Context, string) ([]string, error)
@@ -208,11 +223,18 @@ type nativeOCIClient struct {
 
 // TestRepo verifies that the remote OCI repo can be connected to.
 func (c *nativeOCIClient) TestRepo(ctx context.Context) (bool, error) {
+	defer c.OnTestRepo(c.repoURL)()
+
 	err := c.pingFunc(ctx)
+	if err != nil {
+		defer c.OnTestRepoFail(c.repoURL)()
+	}
 	return err == nil, err
 }
 
 func (c *nativeOCIClient) Extract(ctx context.Context, digest string) (string, utilio.Closer, error) {
+	defer c.OnExtract(c.repoURL)()
+
 	cachedPath, err := c.getCachedPath(digest)
 	if err != nil {
 		return "", nil, fmt.Errorf("error getting oci path for digest %s: %w", digest, err)
@@ -229,6 +251,7 @@ func (c *nativeOCIClient) Extract(ctx context.Context, digest string) (string, u
 	if !exists {
 		ociManifest, err := getOCIManifest(ctx, digest, c.repo)
 		if err != nil {
+			defer c.OnExtractFail(c.repoURL)(digest)
 			return "", nil, err
 		}
 
@@ -295,6 +318,8 @@ func (c *nativeOCIClient) CleanCache(revision string) error {
 
 // DigestMetadata extracts the OCI manifest for a given revision and returns it to the caller.
 func (c *nativeOCIClient) DigestMetadata(ctx context.Context, digest string) (*imagev1.Manifest, error) {
+	defer c.OnDigestMetadata(c.repoURL)()
+
 	path, err := c.getCachedPath(digest)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching oci metadata path for digest %s: %w", digest, err)
@@ -309,6 +334,8 @@ func (c *nativeOCIClient) DigestMetadata(ctx context.Context, digest string) (*i
 }
 
 func (c *nativeOCIClient) ResolveRevision(ctx context.Context, revision string, noCache bool) (string, error) {
+	defer c.OnResolveRevision(c.repoURL)()
+
 	digest, err := c.resolveDigest(ctx, revision) // Lookup explicit revision
 	if err != nil {
 		// If the revision is not a semver constraint, just return the error
@@ -334,6 +361,7 @@ func (c *nativeOCIClient) ResolveRevision(ctx context.Context, revision string, 
 }
 
 func (c *nativeOCIClient) GetTags(ctx context.Context, noCache bool) ([]string, error) {
+	defer c.OnGetTags(c.repoURL)()
 	indexLock.Lock(c.repoURL)
 	defer indexLock.Unlock(c.repoURL)
 
@@ -349,6 +377,7 @@ func (c *nativeOCIClient) GetTags(ctx context.Context, noCache bool) ([]string, 
 		start := time.Now()
 		result, err := c.tagsFunc(ctx, "")
 		if err != nil {
+			defer c.OnDigestMetadataFail(c.repoURL)
 			return nil, fmt.Errorf("failed to get tags: %w", err)
 		}
 
@@ -378,6 +407,7 @@ func (c *nativeOCIClient) GetTags(ctx context.Context, noCache bool) ([]string, 
 func (c *nativeOCIClient) resolveDigest(ctx context.Context, revision string) (string, error) {
 	descriptor, err := c.repo.Resolve(ctx, revision)
 	if err != nil {
+		defer c.OnResolveRevisionFail(c.repoURL)(revision)
 		return "", fmt.Errorf("cannot get digest for revision %s: %w", revision, err)
 	}
 
@@ -610,4 +640,11 @@ func getOCIManifest(ctx context.Context, digest string, repo oras.ReadOnlyTarget
 	}
 
 	return &manifest, nil
+}
+
+// WithEventHandlers sets the git client event handlers
+func WithEventHandlers(handlers EventHandlers) ClientOpts {
+	return func(c *nativeOCIClient) {
+		c.EventHandlers = handlers
+	}
 }

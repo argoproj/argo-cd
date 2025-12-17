@@ -433,6 +433,43 @@ func TestPatchValuesObject(t *testing.T) {
 		})
 }
 
+func TestGetAppResource(t *testing.T) {
+	ctx := Given(t)
+
+	ctx.
+		Path(guestbookPath).
+		When().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		And(func(_ *Application) {
+			out, err := fixture.RunCli("app", "get-resource", fixture.Name(), "--kind", "Service", "--resource-name", "guestbook-ui")
+			require.NoError(t, err)
+			assert.Contains(t, out, "guestbook-ui")
+		}).
+		And(func(_ *Application) {
+			out, err := fixture.RunCli("app", "get-resource", fixture.Name(), "--kind", "Service", "--group", "", "--resource-name", "guestbook-ui")
+			require.NoError(t, err)
+			assert.Contains(t, out, "guestbook-ui")
+		}).
+		And(func(_ *Application) {
+			out, err := fixture.RunCli("app", "get-resource", fixture.Name(), "--kind", "Service", "--resource-name", "bad-guestbook-ui")
+			require.NoError(t, err)
+			assert.NotContains(t, out, "guestbook-ui")
+		}).
+		And(func(_ *Application) {
+			out, err := fixture.RunCli("app", "get-resource", fixture.Name(), "--kind", "Service", "--group", "badgroup", "--resource-name", "guestbook-ui")
+			require.NoError(t, err)
+			assert.NotContains(t, out, "guestbook-ui")
+		}).
+		And(func(_ *Application) {
+			out, err := fixture.RunCli("app", "get-resource", fixture.Name(), "--kind", "Deployment", "--group", "apps", "--resource-name", "guestbook-ui")
+			require.NoError(t, err)
+			assert.Contains(t, out, "guestbook-ui")
+		})
+}
+
 func TestDeleteAppResource(t *testing.T) {
 	ctx := Given(t)
 
@@ -3078,6 +3115,12 @@ func TestDeletionConfirmation(t *testing.T) {
 		Then().Expect(OperationPhaseIs(OperationRunning)).
 		When().ConfirmDeletion().
 		Then().Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		// Wait for controller caches to fully settle before deletion
+		// This ensures both the informer and cluster watcher have the latest state
+		When().Refresh(RefreshTypeNormal).
+		Then().
 		When().Delete(true).
 		Then().
 		And(func(app *Application) {
