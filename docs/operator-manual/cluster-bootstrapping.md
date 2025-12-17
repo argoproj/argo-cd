@@ -210,6 +210,10 @@ You may either:
 ```yaml
     targetRevision: HEAD
 ```
+- Float to a specific branch or tag:
+```yaml
+    targetRevision: staging
+```
 
 Pinning ensures child Applications only change when the parent Application changes. Even if the child apps repo changes, the child app will only change when the parent app change that revision.
 
