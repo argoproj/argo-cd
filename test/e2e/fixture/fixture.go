@@ -90,6 +90,7 @@ const (
 
 var (
 	id                      string
+	shortId                 string
 	deploymentNamespace     string
 	name                    string
 	KubeClientset           kubernetes.Interface
@@ -132,6 +133,7 @@ type TestContext interface {
 type TestState struct {
 	t                   *testing.T
 	id                  string
+	shortId             string
 	name                string
 	deploymentNamespace string
 	token               string
@@ -150,6 +152,11 @@ func (s *TestState) DeploymentNamespace() string {
 // ID returns the unique identifier for this test run
 func (s *TestState) ID() string {
 	return s.id
+}
+
+// ShortId returns the short identifier for this test run
+func (s *TestState) ShortId() string {
+	return s.shortId
 }
 
 // Token returns the authentication token for API calls
@@ -364,15 +371,20 @@ func NewTestState(t *testing.T) *TestState {
 	t.Helper()
 	randString, err := rand.String(5)
 	errors.CheckError(err)
-	postFix := "-" + strings.ToLower(randString)
+	shortId := "-" + strings.ToLower(randString)
 
 	return &TestState{
 		t:                   t,
 		token:               token, // Initialize with current global token
-		id:                  t.Name() + postFix,
-		name:                DnsFriendly(t.Name(), ""),
-		deploymentNamespace: DnsFriendly("argocd-e2e-"+t.Name(), postFix),
+		id:                  fmt.Sprintf("%s-%s", t.Name(), shortId),
+		shortId:             shortId,
+		name:                DnsFriendly(t.Name(), "-"+shortId),
+		deploymentNamespace: DnsFriendly("argocd-e2e-"+t.Name(), "-"+shortId),
 	}
+}
+
+func ShortId() string {
+	return shortId
 }
 
 func repoDirectory() string {
@@ -745,6 +757,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) *TestState {
 	// Also set global variables for backward compatibility
 	// TODO: Remove these once all contexts are updated to use TestState
 	id = state.id
+	shortId = state.shortId
 	name = state.name
 	deploymentNamespace = state.deploymentNamespace
 
