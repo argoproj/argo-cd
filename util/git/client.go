@@ -1160,7 +1160,7 @@ func (m *nativeGitClient) AddAndPushNote(sha string, namespace string, note stri
 		if attempt > 0 {
 			// Exponential backoff with aggressive jitter to avoid thundering herd
 			baseBackoff := 50 * attempt * attempt // 50ms, 200ms, 450ms, 800ms in milliseconds
-			jitter := rand.Intn(baseBackoff + 1) // Up to 100% jitter for maximum spread
+			jitter := rand.Intn(baseBackoff + 1)  // Up to 100% jitter for maximum spread
 			backoff := time.Duration(baseBackoff+jitter) * time.Millisecond
 			time.Sleep(backoff)
 		}
@@ -1187,10 +1187,14 @@ func (m *nativeGitClient) AddAndPushNote(sha string, namespace string, note stri
 		// Push WITHOUT -f flag to avoid overwriting other notes
 		err = m.runCredentialedCmd(ctx, "push", "origin", notesRef)
 		if err == nil {
+			if attempt > 0 {
+				log.Debugf("AddAndPushNote succeeded after %d retries for commit %s", attempt, sha)
+			}
 			return nil
 		}
 
 		lastErr = err
+		log.Debugf("AddAndPushNote push failed (attempt %d/%d): %v", attempt+1, maxRetries, err)
 
 		// Check if this is a retryable error
 		errStr := err.Error()
