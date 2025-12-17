@@ -38,31 +38,13 @@ import (
 	testingutils "github.com/argoproj/gitops-engine/pkg/utils/testing"
 )
 
-var standardVerbs = metav1.Verbs{"create", "delete", "deletecollection", "get", "list", "patch", "update", "watch"}
-
 func newTestSyncCtx(getResourceFunc *func(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string) (*unstructured.Unstructured, error), opts ...SyncOpt) *syncContext {
-	fakeDisco := &fakedisco.FakeDiscovery{Fake: &testcore.Fake{}}
-	fakeDisco.Resources = append(make([]*metav1.APIResourceList, 0),
-		&metav1.APIResourceList{
-			GroupVersion: "v1",
-			APIResources: []metav1.APIResource{
-				{Name: "pods", Kind: "Pod", Group: "", Version: "v1", Namespaced: true, Verbs: standardVerbs},
-				{Name: "services", Kind: "Service", Group: "", Version: "v1", Namespaced: true, Verbs: standardVerbs},
-				{Name: "namespaces", Kind: "Namespace", Group: "", Version: "v1", Namespaced: false, Verbs: standardVerbs},
-			},
-		},
-		&metav1.APIResourceList{
-			GroupVersion: "apps/v1",
-			APIResources: []metav1.APIResource{
-				{Name: "deployments", Kind: "Deployment", Group: "apps", Version: "v1", Namespaced: true, Verbs: standardVerbs},
-			},
-		})
 	sc := syncContext{
 		config:    &rest.Config{},
 		rawConfig: &rest.Config{},
 		namespace: testingutils.FakeArgoCDNamespace,
 		revision:  "FooBarBaz",
-		disco:     fakeDisco,
+		disco:     &fakedisco.FakeDiscovery{Fake: &testcore.Fake{Resources: testingutils.StaticAPIResources}},
 		log:       textlogger.NewLogger(textlogger.NewConfig()).WithValues("application", "fake-app"),
 		resources: map[kube.ResourceKey]reconciledResource{},
 		syncRes:   map[string]synccommon.ResourceSyncResult{},
@@ -145,6 +127,7 @@ func TestSyncNamespaceCreatedBeforeDryRunWithFailure(t *testing.T) {
 		return true, nil
 	}), func(ctx *syncContext) {
 		resourceOps := ctx.resourceOps.(*kubetest.MockResourceOps)
+		resourceOps.ExecuteForDryRun = true
 		resourceOps.Commands = map[string]kubetest.KubectlOutput{}
 		resourceOps.Commands[pod.GetName()] = kubetest.KubectlOutput{
 			Output: "should not be returned",
@@ -230,27 +213,19 @@ func TestSyncCustomResources(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			knownCustomResourceTypes := []metav1.APIResource{}
 			if tt.fields.crdAlreadyPresent {
-				knownCustomResourceTypes = append(knownCustomResourceTypes, metav1.APIResource{Kind: "TestCrd", Group: "argoproj.io", Version: "v1", Namespaced: true, Verbs: standardVerbs})
+				knownCustomResourceTypes = append(knownCustomResourceTypes, metav1.APIResource{Kind: "TestCrd", Group: "test.io", Version: "v1", Namespaced: true, Verbs: testingutils.CommonVerbs})
 			}
 
 			syncCtx := newTestSyncCtx(nil)
 			fakeDisco := syncCtx.disco.(*fakedisco.FakeDiscovery)
-			fakeDisco.Resources = []*metav1.APIResourceList{
-				{
-					GroupVersion: "argoproj.io/v1",
-					APIResources: knownCustomResourceTypes,
-				},
-				{
-					GroupVersion: "apiextensions.k8s.io/v1beta1",
-					APIResources: []metav1.APIResource{
-						{Kind: "CustomResourceDefinition", Group: "apiextensions.k8s.io", Version: "v1beta1", Namespaced: true, Verbs: standardVerbs},
-					},
-				},
-			}
+			fakeDisco.Resources = append(fakeDisco.Resources, &metav1.APIResourceList{
+				GroupVersion: "test.io/v1",
+				APIResources: knownCustomResourceTypes,
+			})
 
 			cr := testingutils.Unstructured(`
 {
-  "apiVersion": "argoproj.io/v1",
+  "apiVersion": "test.io/v1",
   "kind": "TestCrd",
   "metadata": {
     "name": "my-resource"
@@ -533,15 +508,6 @@ func TestSync_ApplyOutOfSyncOnly_ClusterResources(t *testing.T) {
 
 	syncCtx := newTestSyncCtx(nil, WithResourceModificationChecker(true, diffResultListClusterResource()))
 	syncCtx.applyOutOfSyncOnly = true
-	fakeDisco := syncCtx.disco.(*fakedisco.FakeDiscovery)
-	fakeDisco.Resources = []*metav1.APIResourceList{
-		{
-			GroupVersion: "v1",
-			APIResources: []metav1.APIResource{
-				{Kind: "Namespace", Group: "", Version: "v1", Namespaced: false, Verbs: standardVerbs},
-			},
-		},
-	}
 
 	t.Run("cluster resource with target ns having namespace filled", func(t *testing.T) {
 		syncCtx.resources = groupResources(ReconciliationResult{
@@ -1741,38 +1707,109 @@ func Test_syncContext_hasCRDOfGroupKind(t *testing.T) {
 	assert.True(t, (&syncContext{resources: groupResources(ReconciliationResult{
 		Live:   []*unstructured.Unstructured{nil},
 		Target: []*unstructured.Unstructured{testingutils.NewCRD()},
-	})}).hasCRDOfGroupKind("argoproj.io", "TestCrd"))
+	})}).hasCRDOfGroupKind("test.io", "TestCrd"))
 
 	// hook
 	assert.False(t, (&syncContext{hooks: []*unstructured.Unstructured{testingutils.NewCRD()}}).hasCRDOfGroupKind("", ""))
-	assert.True(t, (&syncContext{hooks: []*unstructured.Unstructured{testingutils.NewCRD()}}).hasCRDOfGroupKind("argoproj.io", "TestCrd"))
+	assert.True(t, (&syncContext{hooks: []*unstructured.Unstructured{testingutils.NewCRD()}}).hasCRDOfGroupKind("test.io", "TestCrd"))
 }
 
-func Test_setRunningPhase_healthyState(t *testing.T) {
-	var sc syncContext
-	sc.log = textlogger.NewLogger(textlogger.NewConfig()).WithValues("application", "fake-app")
+func Test_setRunningPhase(t *testing.T) {
+	newPodTask := func(name string) *syncTask {
+		pod := testingutils.NewPod()
+		pod.SetName(name)
+		return &syncTask{targetObj: pod}
+	}
+	newHookTask := func(name string, hookType synccommon.HookType) *syncTask {
+		hook := newHook(hookType)
+		hook.SetName(name)
+		return &syncTask{targetObj: hook}
+	}
 
-	sc.setRunningPhase([]*syncTask{{targetObj: testingutils.NewPod()}, {targetObj: testingutils.NewPod()}, {targetObj: testingutils.NewPod()}}, false)
+	tests := []struct {
+		name              string
+		tasks             syncTasks
+		isPendingDeletion bool
+		expectedMessage   string
+	}{
+		{
+			name:              "empty tasks",
+			tasks:             syncTasks{},
+			isPendingDeletion: false,
+			expectedMessage:   "",
+		},
+		{
+			name:              "single resource - healthy state",
+			tasks:             syncTasks{newPodTask("my-pod")},
+			isPendingDeletion: false,
+			expectedMessage:   "waiting for healthy state of /Pod/my-pod",
+		},
+		{
+			name:              "multiple resources - healthy state",
+			tasks:             syncTasks{newPodTask("pod-1"), newPodTask("pod-2"), newPodTask("pod-3")},
+			isPendingDeletion: false,
+			expectedMessage:   "waiting for healthy state of /Pod/pod-1 and 2 more resources",
+		},
+		{
+			name:              "single hook - completion",
+			tasks:             syncTasks{newHookTask("hook-1", synccommon.HookTypeSync)},
+			isPendingDeletion: false,
+			expectedMessage:   "waiting for completion of hook /Pod/hook-1",
+		},
+		{
+			name:              "multiple hooks - completion",
+			tasks:             syncTasks{newHookTask("hook-1", synccommon.HookTypeSync), newHookTask("hook-2", synccommon.HookTypeSync)},
+			isPendingDeletion: false,
+			expectedMessage:   "waiting for completion of hook /Pod/hook-1 and 1 more hooks",
+		},
+		{
+			name:              "hooks and resources - prioritizes hooks",
+			tasks:             syncTasks{newPodTask("pod-1"), newHookTask("hook-1", synccommon.HookTypeSync), newPodTask("pod-2")},
+			isPendingDeletion: false,
+			expectedMessage:   "waiting for completion of hook /Pod/hook-1 and 2 more resources",
+		},
+		{
+			name:              "single resource - pending deletion",
+			tasks:             syncTasks{newPodTask("my-pod")},
+			isPendingDeletion: true,
+			expectedMessage:   "waiting for deletion of /Pod/my-pod",
+		},
+		{
+			name:              "multiple resources - pending deletion",
+			tasks:             syncTasks{newPodTask("pod-1"), newPodTask("pod-2"), newPodTask("pod-3")},
+			isPendingDeletion: true,
+			expectedMessage:   "waiting for deletion of /Pod/pod-1 and 2 more resources",
+		},
+		{
+			name:              "single hook - pending deletion",
+			tasks:             syncTasks{newHookTask("hook-1", synccommon.HookTypeSync)},
+			isPendingDeletion: true,
+			expectedMessage:   "waiting for deletion of hook /Pod/hook-1",
+		},
+		{
+			name:              "multiple hooks - pending deletion",
+			tasks:             syncTasks{newHookTask("hook-1", synccommon.HookTypeSync), newHookTask("hook-2", synccommon.HookTypeSync)},
+			isPendingDeletion: true,
+			expectedMessage:   "waiting for deletion of hook /Pod/hook-1 and 1 more hooks",
+		},
+		{
+			name:              "hooks and resources - pending deletion prioritizes hooks",
+			tasks:             syncTasks{newPodTask("pod-1"), newHookTask("hook-1", synccommon.HookTypeSync), newPodTask("pod-2")},
+			isPendingDeletion: true,
+			expectedMessage:   "waiting for deletion of hook /Pod/hook-1 and 2 more resources",
+		},
+	}
 
-	assert.Equal(t, "waiting for healthy state of /Pod/my-pod and 2 more resources", sc.message)
-}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var sc syncContext
+			sc.log = textlogger.NewLogger(textlogger.NewConfig()).WithValues("application", "fake-app")
 
-func Test_setRunningPhase_runningHooks(t *testing.T) {
-	var sc syncContext
-	sc.log = textlogger.NewLogger(textlogger.NewConfig()).WithValues("application", "fake-app")
+			sc.setRunningPhase(tt.tasks, tt.isPendingDeletion)
 
-	sc.setRunningPhase([]*syncTask{{targetObj: newHook(synccommon.HookTypeSyncFail)}}, false)
-
-	assert.Equal(t, "waiting for completion of hook /Pod/my-pod", sc.message)
-}
-
-func Test_setRunningPhase_pendingDeletion(t *testing.T) {
-	var sc syncContext
-	sc.log = textlogger.NewLogger(textlogger.NewConfig()).WithValues("application", "fake-app")
-
-	sc.setRunningPhase([]*syncTask{{targetObj: testingutils.NewPod()}, {targetObj: testingutils.NewPod()}, {targetObj: testingutils.NewPod()}}, true)
-
-	assert.Equal(t, "waiting for deletion of /Pod/my-pod and 2 more resources", sc.message)
+			assert.Equal(t, tt.expectedMessage, sc.message)
+		})
+	}
 }
 
 func TestSyncWaveHook(t *testing.T) {

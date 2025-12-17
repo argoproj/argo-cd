@@ -3115,6 +3115,12 @@ func TestDeletionConfirmation(t *testing.T) {
 		Then().Expect(OperationPhaseIs(OperationRunning)).
 		When().ConfirmDeletion().
 		Then().Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		// Wait for controller caches to fully settle before deletion
+		// This ensures both the informer and cluster watcher have the latest state
+		When().Refresh(RefreshTypeNormal).
+		Then().
 		When().Delete(true).
 		Then().
 		And(func(app *Application) {
