@@ -548,6 +548,354 @@ func TestGitHubCommitEvent_SyncSourceRefresh_FileFiltering(t *testing.T) {
 	}
 }
 
+// TestGitHubCommitEvent_Hydration_DrySource_WithAnnotation tests that drySource webhooks
+// with manifest-generate-paths annotation filter files based on annotation paths
+func TestGitHubCommitEvent_Hydration_DrySource_WithAnnotation(t *testing.T) {
+	hook := test.NewGlobal()
+	var patched bool
+	reaction := func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		patchAction := action.(kubetesting.PatchAction)
+		assert.Equal(t, "app-with-annotation", patchAction.GetName())
+		patched = true
+		return true, nil, nil
+	}
+
+	// The test payload changes files under ksapps/ directory
+	tests := []struct {
+		name            string
+		annotation      string
+		drySourcePath   string
+		expectedRefresh bool
+	}{
+		{
+			name:            "annotation matches changed files - should hydrate",
+			annotation:      ".",
+			drySourcePath:   "ksapps",
+			expectedRefresh: true,
+		},
+		{
+			name:            "annotation does not match changed files - should not hydrate",
+			annotation:      ".",
+			drySourcePath:   "helm-charts",
+			expectedRefresh: false,
+		},
+		{
+			name:            "annotation with relative path matches - should hydrate",
+			annotation:      ".;../shared",
+			drySourcePath:   "ksapps",
+			expectedRefresh: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			patched = false
+			h := NewMockHandler(&reactorDef{"patch", "applications", reaction}, []string{}, &v1alpha1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "app-with-annotation",
+					Namespace: "argocd",
+					Annotations: map[string]string{
+						"argocd.argoproj.io/manifest-generate-paths": tt.annotation,
+					},
+				},
+				Spec: v1alpha1.ApplicationSpec{
+					SourceHydrator: &v1alpha1.SourceHydrator{
+						DrySource: v1alpha1.DrySource{
+							RepoURL:        "https://github.com/jessesuen/test-repo",
+							TargetRevision: "HEAD", // Matches master branch from webhook event
+							Path:           tt.drySourcePath,
+						},
+						SyncSource: v1alpha1.SyncSource{
+							TargetBranch: "environments/dev",
+							Path:         "hydrated",
+						},
+					},
+				},
+			})
+			req := httptest.NewRequest(http.MethodPost, "/api/webhook", http.NoBody)
+			req.Header.Set("X-GitHub-Event", "push")
+			// Use main branch event for drySource testing (matches drySource.TargetRevision)
+			eventJSON, err := os.ReadFile("testdata/github-commit-event.json")
+			require.NoError(t, err)
+			req.Body = io.NopCloser(bytes.NewReader(eventJSON))
+			w := httptest.NewRecorder()
+			h.Handler(w, req)
+			close(h.queue)
+			h.Wait()
+			assert.Equal(t, http.StatusOK, w.Code)
+			assert.Equal(t, tt.expectedRefresh, patched)
+
+			logMessages := make([]string, 0, len(hook.Entries))
+			for _, entry := range hook.Entries {
+				logMessages = append(logMessages, entry.Message)
+			}
+
+			if tt.expectedRefresh {
+				assert.Contains(t, logMessages, "webhook trigger refresh app to hydrate 'app-with-annotation'")
+			} else {
+				assert.NotContains(t, logMessages, "webhook trigger refresh app to hydrate 'app-with-annotation'")
+			}
+			hook.Reset()
+		})
+	}
+}
+
+// TestGitHubCommitEvent_Hydration_DrySource_NoAnnotation tests that drySource webhooks
+// without manifest-generate-paths annotation use the entire drySource path as default
+func TestGitHubCommitEvent_Hydration_DrySource_NoAnnotation(t *testing.T) {
+	hook := test.NewGlobal()
+	var patched bool
+	reaction := func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		patchAction := action.(kubetesting.PatchAction)
+		assert.Equal(t, "app-no-annotation", patchAction.GetName())
+		patched = true
+		return true, nil, nil
+	}
+
+	// The test payload changes files under ksapps/ directory
+	tests := []struct {
+		name            string
+		drySourcePath   string
+		expectedRefresh bool
+	}{
+		{
+			name:            "drySource path matches changed files - should hydrate",
+			drySourcePath:   "ksapps",
+			expectedRefresh: true,
+		},
+		{
+			name:            "drySource path does not match changed files - should not hydrate",
+			drySourcePath:   "helm-charts",
+			expectedRefresh: false,
+		},
+		{
+			name:            "drySource at root path - should hydrate",
+			drySourcePath:   ".",
+			expectedRefresh: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			patched = false
+			h := NewMockHandler(&reactorDef{"patch", "applications", reaction}, []string{}, &v1alpha1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "app-no-annotation",
+					Namespace: "argocd",
+					// No manifest-generate-paths annotation
+				},
+				Spec: v1alpha1.ApplicationSpec{
+					SourceHydrator: &v1alpha1.SourceHydrator{
+						DrySource: v1alpha1.DrySource{
+							RepoURL:        "https://github.com/jessesuen/test-repo",
+							TargetRevision: "HEAD", // Matches master branch from webhook event
+							Path:           tt.drySourcePath,
+						},
+						SyncSource: v1alpha1.SyncSource{
+							TargetBranch: "environments/dev",
+							Path:         "hydrated",
+						},
+					},
+				},
+			})
+			req := httptest.NewRequest(http.MethodPost, "/api/webhook", http.NoBody)
+			req.Header.Set("X-GitHub-Event", "push")
+			// Use main branch event for drySource testing (matches drySource.TargetRevision)
+			eventJSON, err := os.ReadFile("testdata/github-commit-event.json")
+			require.NoError(t, err)
+			req.Body = io.NopCloser(bytes.NewReader(eventJSON))
+			w := httptest.NewRecorder()
+			h.Handler(w, req)
+			close(h.queue)
+			h.Wait()
+			assert.Equal(t, http.StatusOK, w.Code)
+			assert.Equal(t, tt.expectedRefresh, patched)
+
+			logMessages := make([]string, 0, len(hook.Entries))
+			for _, entry := range hook.Entries {
+				logMessages = append(logMessages, entry.Message)
+			}
+
+			if tt.expectedRefresh {
+				assert.Contains(t, logMessages, "webhook trigger refresh app to hydrate 'app-no-annotation'")
+			} else {
+				assert.NotContains(t, logMessages, "webhook trigger refresh app to hydrate 'app-no-annotation'")
+			}
+			hook.Reset()
+		})
+	}
+}
+
+// TestGitHubCommitEvent_Standard_WithAnnotation tests that standard apps (no hydration)
+// with manifest-generate-paths annotation only refresh when changed files match annotation paths
+func TestGitHubCommitEvent_Standard_WithAnnotation(t *testing.T) {
+	hook := test.NewGlobal()
+	var patched bool
+	reaction := func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		patchAction := action.(kubetesting.PatchAction)
+		assert.Equal(t, "standard-app-with-annotation", patchAction.GetName())
+		patched = true
+		return true, nil, nil
+	}
+
+	// The test payload changes files under ksapps/ directory
+	tests := []struct {
+		name            string
+		annotation      string
+		sourcePath      string
+		expectedRefresh bool
+	}{
+		{
+			name:            "annotation matches changed files - should refresh",
+			annotation:      ".",
+			sourcePath:      "ksapps",
+			expectedRefresh: true,
+		},
+		{
+			name:            "annotation does not match changed files - should not refresh",
+			annotation:      ".",
+			sourcePath:      "helm-charts",
+			expectedRefresh: false,
+		},
+		{
+			name:            "annotation with multiple paths, one matches - should refresh",
+			annotation:      ".;../other",
+			sourcePath:      "ksapps",
+			expectedRefresh: true,
+		},
+		{
+			name:            "annotation at root matches all - should refresh",
+			annotation:      ".",
+			sourcePath:      ".",
+			expectedRefresh: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			patched = false
+			h := NewMockHandler(&reactorDef{"patch", "applications", reaction}, []string{}, &v1alpha1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "standard-app-with-annotation",
+					Namespace: "argocd",
+					Annotations: map[string]string{
+						"argocd.argoproj.io/manifest-generate-paths": tt.annotation,
+					},
+				},
+				Spec: v1alpha1.ApplicationSpec{
+					Sources: v1alpha1.ApplicationSources{
+						{
+							RepoURL:        "https://github.com/jessesuen/test-repo",
+							Path:           tt.sourcePath,
+							TargetRevision: "HEAD", // Matches the master branch from the webhook event
+						},
+					},
+				},
+			})
+			req := httptest.NewRequest(http.MethodPost, "/api/webhook", http.NoBody)
+			req.Header.Set("X-GitHub-Event", "push")
+			// Use main branch event for standard app testing (matches source targetRevision: HEAD/master)
+			eventJSON, err := os.ReadFile("testdata/github-commit-event.json")
+			require.NoError(t, err)
+			req.Body = io.NopCloser(bytes.NewReader(eventJSON))
+			w := httptest.NewRecorder()
+			h.Handler(w, req)
+			close(h.queue)
+			h.Wait()
+			assert.Equal(t, http.StatusOK, w.Code)
+			assert.Equal(t, tt.expectedRefresh, patched)
+
+			logMessages := make([]string, 0, len(hook.Entries))
+			for _, entry := range hook.Entries {
+				logMessages = append(logMessages, entry.Message)
+			}
+
+			if tt.expectedRefresh {
+				assert.Contains(t, logMessages, "Requested app 'standard-app-with-annotation' refresh")
+			} else {
+				assert.NotContains(t, logMessages, "Requested app 'standard-app-with-annotation' refresh")
+			}
+			hook.Reset()
+		})
+	}
+}
+
+// TestGitHubCommitEvent_Standard_NoAnnotation tests that standard apps (no hydration)
+// without manifest-generate-paths annotation always refresh on any change (default behavior)
+func TestGitHubCommitEvent_Standard_NoAnnotation(t *testing.T) {
+	hook := test.NewGlobal()
+	var patched bool
+	reaction := func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		patchAction := action.(kubetesting.PatchAction)
+		assert.Equal(t, "standard-app-no-annotation", patchAction.GetName())
+		patched = true
+		return true, nil, nil
+	}
+
+	// Test that regardless of which files change or which path is configured,
+	// the app always refreshes when no annotation is present (default behavior)
+	tests := []struct {
+		name       string
+		sourcePath string
+	}{
+		{
+			name:       "source path matches changed files - should refresh",
+			sourcePath: "ksapps",
+		},
+		{
+			name:       "source path does not match changed files - should still refresh",
+			sourcePath: "helm-charts",
+		},
+		{
+			name:       "source at root - should refresh",
+			sourcePath: ".",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			patched = false
+			h := NewMockHandler(&reactorDef{"patch", "applications", reaction}, []string{}, &v1alpha1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "standard-app-no-annotation",
+					Namespace: "argocd",
+					// No manifest-generate-paths annotation
+				},
+				Spec: v1alpha1.ApplicationSpec{
+					Sources: v1alpha1.ApplicationSources{
+						{
+							RepoURL:        "https://github.com/jessesuen/test-repo",
+							Path:           tt.sourcePath,
+							TargetRevision: "HEAD", // Matches the master branch from the webhook event
+						},
+					},
+				},
+			})
+			req := httptest.NewRequest(http.MethodPost, "/api/webhook", http.NoBody)
+			req.Header.Set("X-GitHub-Event", "push")
+			// Use main branch event for standard app testing (matches source targetRevision: HEAD/master)
+			eventJSON, err := os.ReadFile("testdata/github-commit-event.json")
+			require.NoError(t, err)
+			req.Body = io.NopCloser(bytes.NewReader(eventJSON))
+			w := httptest.NewRecorder()
+			h.Handler(w, req)
+			close(h.queue)
+			h.Wait()
+			assert.Equal(t, http.StatusOK, w.Code)
+			// Should always refresh regardless of path
+			assert.True(t, patched, "expected app to refresh but it didn't")
+
+			logMessages := make([]string, 0, len(hook.Entries))
+			for _, entry := range hook.Entries {
+				logMessages = append(logMessages, entry.Message)
+			}
+
+			assert.Contains(t, logMessages, "Requested app 'standard-app-no-annotation' refresh")
+			hook.Reset()
+		})
+	}
+}
+
 func TestGitHubTagEvent(t *testing.T) {
 	hook := test.NewGlobal()
 	h := NewMockHandler(nil, []string{})
