@@ -1162,6 +1162,7 @@ func (m *nativeGitClient) AddAndPushNote(sha string, namespace string, note stri
 			baseBackoff := 50 * attempt * attempt // 50ms, 200ms, 450ms, 800ms in milliseconds
 			jitter := rand.Intn(baseBackoff + 1)  // Up to 100% jitter for maximum spread
 			backoff := time.Duration(baseBackoff+jitter) * time.Millisecond
+			log.Debugf("Retrying AddAndPushNote for commit %s (attempt %d/%d) after %v", sha, attempt+1, maxRetries, backoff)
 			time.Sleep(backoff)
 		}
 
@@ -1200,6 +1201,7 @@ func (m *nativeGitClient) AddAndPushNote(sha string, namespace string, note stri
 		errStr := err.Error()
 		isRetryable := strings.Contains(errStr, "fetch first") || // Remote updated after our fetch (concurrent push completed between our fetch and push)
 			strings.Contains(errStr, "reference already exists") || // Concurrent push is holding the lock (git server-side lock)
+			strings.Contains(errStr, "incorrect old value") || // Git detected our local ref is stale (concurrent update)
 			strings.Contains(errStr, "failed to update ref") // Generic ref update failure that may include transient issues
 
 		if !isRetryable {
