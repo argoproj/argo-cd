@@ -1210,6 +1210,8 @@ func TestRemoveFinalizerOnInvalidDestination_FinalizerTypes(t *testing.T) {
 			clusterInformer, err := settings.NewClusterInformer(kubeclientset, "namespace")
 			require.NoError(t, err)
 
+			defer startAndSyncInformer(t, clusterInformer)()
+
 			r := ApplicationSetReconciler{
 				Client:        client,
 				Scheme:        scheme,
@@ -1235,7 +1237,7 @@ func TestRemoveFinalizerOnInvalidDestination_FinalizerTypes(t *testing.T) {
 			// App on the cluster should have the expected finalizers
 			assert.ElementsMatch(t, c.expectedFinalizers, retrievedApp.Finalizers)
 
-			// App object passed in as a parameter should have the expected finaliers
+			// App object passed in as a parameter should have the expected finalizers
 			assert.ElementsMatch(t, c.expectedFinalizers, appInputParam.Finalizers)
 
 			bytes, _ := json.MarshalIndent(retrievedApp, "", "  ")
@@ -1373,6 +1375,8 @@ func TestRemoveFinalizerOnInvalidDestination_DestinationTypes(t *testing.T) {
 
 			clusterInformer, err := settings.NewClusterInformer(kubeclientset, "argocd")
 			require.NoError(t, err)
+
+			defer startAndSyncInformer(t, clusterInformer)()
 
 			r := ApplicationSetReconciler{
 				Client:        client,
@@ -1805,6 +1809,8 @@ func TestDeleteInCluster(t *testing.T) {
 		kubeclientset := kubefake.NewClientset()
 		clusterInformer, err := settings.NewClusterInformer(kubeclientset, "namespace")
 		require.NoError(t, err)
+
+		defer startAndSyncInformer(t, clusterInformer)()
 
 		r := ApplicationSetReconciler{
 			Client:          client,

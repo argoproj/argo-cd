@@ -1,10 +1,8 @@
 package generators
 
 import (
-	"context"
 	"errors"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -15,10 +13,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic/fake"
 	kubefake "k8s.io/client-go/kubernetes/fake"
-	"k8s.io/client-go/tools/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/test"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
@@ -299,12 +297,7 @@ func TestGenerateParamsForDuckType(t *testing.T) {
 			clusterInformer, err := settings.NewClusterInformer(appClientset, "namespace")
 			require.NoError(t, err)
 
-			ctx, cancel := context.WithCancel(t.Context())
-			defer cancel()
-			go clusterInformer.Run(ctx.Done())
-			if !cache.WaitForCacheSync(ctx.Done(), clusterInformer.HasSynced) {
-				t.Fatal("Timed out waiting for caches to sync")
-			}
+			defer test.StartInformer(clusterInformer)()
 
 			duckTypeGenerator := NewDuckTypeGenerator(t.Context(), fakeDynClient, appClientset, "namespace", clusterInformer)
 
@@ -605,14 +598,7 @@ func TestGenerateParamsForDuckTypeGoTemplate(t *testing.T) {
 			clusterInformer, err := settings.NewClusterInformer(appClientset, "namespace")
 			require.NoError(t, err)
 
-			ctx, cancel := context.WithCancel(t.Context())
-			defer cancel()
-			go clusterInformer.Run(ctx.Done())
-			if !cache.WaitForCacheSync(ctx.Done(), clusterInformer.HasSynced) {
-				t.Fatal("Timed out waiting for caches to sync")
-			}
-			// Give informer a moment to fully populate
-			time.Sleep(100 * time.Millisecond)
+			defer test.StartInformer(clusterInformer)()
 
 			duckTypeGenerator := NewDuckTypeGenerator(t.Context(), fakeDynClient, appClientset, "namespace", clusterInformer)
 
