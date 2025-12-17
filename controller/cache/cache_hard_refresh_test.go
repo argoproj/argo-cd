@@ -15,10 +15,10 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 
 	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/controller/sharding"
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	dbmocks "github.com/argoproj/argo-cd/v3/util/db/mocks"
 	argosettings "github.com/argoproj/argo-cd/v3/util/settings"
-	"github.com/argoproj/argo-cd/v3/controller/sharding"
 )
 
 // TestHandleModEvent_HardRefreshWithTaints tests that hard refresh with taints
@@ -95,7 +95,7 @@ func TestHandleModEvent_HardRefreshWithTaints(t *testing.T) {
 			// Setup expectations for Invalidate
 			if tc.name != "no hard refresh with taints - no sync at all" {
 				clusterCache.On("Invalidate", mock.Anything).Return(nil).Once()
-				
+
 				// Mock FindResources for validateAndClearHealthyTaints when there are taints
 				if tc.hasTaintsBeforeRefresh {
 					if tc.hasTaintsAfterValidation {
@@ -158,8 +158,6 @@ func TestHandleModEvent_HardRefreshWithTaints(t *testing.T) {
 				newCluster.RefreshRequestedAt = &now
 			}
 
-
-
 			// Execute the method under test
 			clustersCache.handleModEvent(oldCluster, newCluster)
 
@@ -200,13 +198,13 @@ func TestHandleModEvent_ResourcesAvailableAfterHardRefresh(t *testing.T) {
 	resourcesAvailable := false
 
 	// Setup Invalidate expectation
-	clusterCache.On("Invalidate", mock.Anything).Run(func(args mock.Arguments) {
+	clusterCache.On("Invalidate", mock.Anything).Run(func(_ mock.Arguments) {
 		// After invalidate, resources are cleared
 		resourcesAvailable = false
 	}).Return(nil).Once()
 
 	// Setup EnsureSynced to mark resources as available
-	clusterCache.On("EnsureSynced").Run(func(args mock.Arguments) {
+	clusterCache.On("EnsureSynced").Run(func(_ mock.Arguments) {
 		ensureSyncedCalled = true
 		// Simulate resources being populated by EnsureSynced
 		resourcesAvailable = true
@@ -229,7 +227,7 @@ func TestHandleModEvent_ResourcesAvailableAfterHardRefresh(t *testing.T) {
 	}
 
 	// Mock FindResources for validateAndClearHealthyTaints - simulate successful validation
-	clusterCache.On("FindResources", "", mock.Anything).Run(func(args mock.Arguments) {
+	clusterCache.On("FindResources", "", mock.Anything).Run(func(_ mock.Arguments) {
 		// The validation will succeed, clearing the taint
 	}).Return(map[kube.ResourceKey]*cache.Resource{}).Once()
 
@@ -243,9 +241,9 @@ func TestHandleModEvent_ResourcesAvailableAfterHardRefresh(t *testing.T) {
 	}
 
 	newCluster := &appv1.Cluster{
-		Server:              "https://mycluster",
-		Config:              appv1.ClusterConfig{Username: "foo"},
-		RefreshRequestedAt:  &now, // Trigger hard refresh
+		Server:             "https://mycluster",
+		Config:             appv1.ClusterConfig{Username: "foo"},
+		RefreshRequestedAt: &now, // Trigger hard refresh
 	}
 
 	// Execute the method under test
