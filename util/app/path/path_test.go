@@ -247,6 +247,7 @@ func Test_GetAppRefreshPaths(t *testing.T) {
 		{"default no path", &v1alpha1.Application{}, v1alpha1.ApplicationSource{}, []string{}},
 		{"relative path", getApp(".", "source/path"), v1alpha1.ApplicationSource{Path: "source/path"}, []string{"source/path"}},
 		{"absolute path - multi source", getMultiSourceApp("/source/path", "source/path", "other/path"), v1alpha1.ApplicationSource{Path: "source/path"}, []string{"source/path"}},
+		{"relative path multi-source iterates all sources", getMultiSourceApp("subdir", "app1", "app2"), v1alpha1.ApplicationSource{}, []string{"app1/subdir", "app2/subdir"}},
 		{"two relative paths ", getApp(".;../shared", "my-app"), v1alpha1.ApplicationSource{Path: "my-app"}, []string{"my-app", "shared"}},
 		{"file relative path", getApp("./my-deployment.yaml", "source/path"), v1alpha1.ApplicationSource{Path: "source/path"}, []string{"source/path/my-deployment.yaml"}},
 		{"file absolute path", getApp("/source/path/my-deployment.yaml", "source/path"), v1alpha1.ApplicationSource{Path: "source/path"}, []string{"source/path/my-deployment.yaml"}},
