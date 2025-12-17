@@ -10,12 +10,13 @@ if obj.status ~= nil then
     end
   end
 
+  progressiveFailure = (obj.metadata.labels ~= nil and obj.metadata.labels["numaplane.numaproj.io/progressive-result-state"] == "failed")
   if obj.metadata.generation == obj.status.observedGeneration then
-    if (healthy ~= {} and healthy.status == "False") or (obj.status.phase == "Failed") or (obj.metadata.labels ~= nil and obj.metadata.labels["numaplane.numaproj.io/progressive-result-state"] ~= nil and obj.metadata.labels["numaplane.numaproj.io/progressive-result-state"] == "failed") then
+    if (healthy ~= {} and healthy.status == "False") or (obj.status.phase == "Failed") or progressiveFailure then
       hs.status = "Degraded"
       if obj.status.phase == "Failed" then
         hs.message = obj.status.message
-      elseif (obj.metadata.labels ~= nil and obj.metadata.labels["numaplane.numaproj.io/progressive-result-state"] ~= nil and obj.metadata.labels["numaplane.numaproj.io/progressive-result-state"] == "failed") then
+      elseif progressiveFailure then
         hs.message = "Failed progressive upgrade"
       else
         hs.message = "Subresources are unhealthy"
