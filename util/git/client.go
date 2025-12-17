@@ -1152,15 +1152,15 @@ func (m *nativeGitClient) AddAndPushNote(sha string, namespace string, note stri
 	ref := "--ref=" + namespace
 	notesRef := "refs/notes/" + namespace
 
-	// Retry up to 3 times to handle concurrent note updates
-	maxRetries := 3
+	// Retry up to 5 times to handle concurrent note updates
+	maxRetries := 5
 	var lastErr error
 
 	for attempt := 0; attempt < maxRetries; attempt++ {
 		if attempt > 0 {
-			// Exponential backoff with jitter to avoid thundering herd
-			baseBackoff := 100 * attempt * attempt // 100ms, 400ms in milliseconds
-			jitter := rand.Intn(baseBackoff/5 + 1) // Up to 20% jitter
+			// Exponential backoff with aggressive jitter to avoid thundering herd
+			baseBackoff := 50 * attempt * attempt // 50ms, 200ms, 450ms, 800ms in milliseconds
+			jitter := rand.Intn(baseBackoff + 1) // Up to 100% jitter for maximum spread
 			backoff := time.Duration(baseBackoff+jitter) * time.Millisecond
 			time.Sleep(backoff)
 		}
