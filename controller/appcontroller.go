@@ -1199,7 +1199,7 @@ func (ctrl *ApplicationController) getAppTargets(app *appv1.Application) (target
 		return
 	}
 
-	return
+	return targets
 }
 
 // hasPostDeleteHooksForNamespace checks if there are PostDelete hooks that might manage the given namespace
