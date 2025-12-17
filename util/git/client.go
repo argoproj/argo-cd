@@ -23,6 +23,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/bmatcuk/doublestar/v4"
+	"github.com/cenkalti/backoff/v5"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
@@ -1142,26 +1143,75 @@ func (m *nativeGitClient) GetCommitNote(sha string, namespace string) (string, e
 }
 
 // AddAndPushNote adds a note to a DRY sha and then pushes it.
+// It uses a retry mechanism to handle concurrent note updates from multiple clients.
 func (m *nativeGitClient) AddAndPushNote(sha string, namespace string, note string) error {
 	if namespace == "" {
 		namespace = "commit"
 	}
 	ctx := context.Background()
 	ref := "--ref=" + namespace
-	_, err := m.runCmd(ctx, "notes", ref, "add", "-f", "-m", note, sha)
-	if err != nil {
-		return fmt.Errorf("failed to push: %w", err)
-	}
-	if m.OnPush != nil {
-		done := m.OnPush(m.repoURL)
-		defer done()
+	notesRef := "refs/notes/" + namespace
+
+	// Configure exponential backoff with jitter to handle concurrent note updates
+	b := backoff.NewExponentialBackOff()
+	b.InitialInterval = 50 * time.Millisecond
+	b.MaxInterval = 1 * time.Second
+
+	attempt := 0
+	operation := func() (struct{}, error) {
+		attempt++
+
+		// Fetch the latest notes BEFORE adding to merge concurrent updates
+		// Use + prefix to force update local ref (safe because we want latest remote notes)
+		_, fetchErr := m.runCmd(ctx, "fetch", "origin", fmt.Sprintf("+%s:%s", notesRef, notesRef))
+		// Ignore "couldn't find remote ref" errors (notes don't exist yet - first time)
+		if fetchErr != nil && !strings.Contains(fetchErr.Error(), "couldn't find remote ref") {
+			log.Debugf("Failed to fetch notes (will continue): %v", fetchErr)
+		}
+
+		// Add note locally (use -f to overwrite if this specific commit already has a note locally)
+		_, err := m.runCmd(ctx, "notes", ref, "add", "-f", "-m", note, sha)
+		if err != nil {
+			return struct{}{}, backoff.Permanent(fmt.Errorf("failed to add note: %w", err))
+		}
+
+		if m.OnPush != nil {
+			done := m.OnPush(m.repoURL)
+			defer done()
+		}
+
+		// Push WITHOUT -f flag to avoid overwriting other notes
+		err = m.runCredentialedCmd(ctx, "push", "origin", notesRef)
+		if err == nil {
+			if attempt > 1 {
+				log.Debugf("AddAndPushNote succeeded after %d retries for commit %s", attempt-1, sha)
+			}
+			return struct{}{}, nil
+		}
+
+		log.Debugf("AddAndPushNote push failed (attempt %d): %v", attempt, err)
+
+		// Check if this is a retryable error
+		errStr := err.Error()
+		isRetryable := strings.Contains(errStr, "fetch first") || // Remote updated after our fetch (concurrent push completed between our fetch and push)
+			strings.Contains(errStr, "reference already exists") || // Concurrent push is holding the lock (git server-side lock)
+			strings.Contains(errStr, "incorrect old value") || // Git detected our local ref is stale (concurrent update)
+			strings.Contains(errStr, "failed to update ref") // Generic ref update failure that may include transient issues
+
+		if !isRetryable {
+			return struct{}{}, backoff.Permanent(fmt.Errorf("failed to push note: %w", err))
+		}
+
+		return struct{}{}, err
 	}
 
-	err = m.runCredentialedCmd(ctx, "push", "-f", "origin", "refs/notes/"+namespace)
+	_, err := backoff.Retry(ctx, operation,
+		backoff.WithBackOff(b),
+		backoff.WithMaxElapsedTime(5*time.Second),
+	)
 	if err != nil {
-		return fmt.Errorf("failed to push: %w", err)
+		return fmt.Errorf("failed to push note after retries: %w", err)
 	}
-
 	return nil
 }
 
