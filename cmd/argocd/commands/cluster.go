@@ -32,8 +32,6 @@ import (
 )
 
 const (
-	// type of the cluster ID is 'name'
-	clusterIdTypeName = "name"
 	// type of the cluster ID is 'server,name'
 	clusterIdTypeServerAndName = "url_name_escaped"
 	// cluster field is 'name'
