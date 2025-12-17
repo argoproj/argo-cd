@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"reflect"
 	"runtime/debug"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -1913,14 +1914,8 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	hasCacheIssues := clusterHealth.HasCacheIssues
 	usesTaintedResources := clusterHealth.UsesTaintedResources
 
-	logCtx.Infof("processAppRefreshQueueItem: clusterHealth analysis - hasCacheIssues: %v, usesTaintedResources: %v, affectedGVKs: %v",
+	logCtx.Debugf("clusterHealth analysis - hasCacheIssues: %v, usesTaintedResources: %v, affectedGVKs: %v",
 		hasCacheIssues, usesTaintedResources, clusterHealth.AffectedGVKs)
-
-	// Log current app resources for debugging
-	for _, res := range app.Status.Resources {
-		logCtx.Debugf("processAppRefreshQueueItem: app resource - Group: %s, Version: %s, Kind: %s, Name: %s, Status: %s",
-			res.Group, res.Version, res.Kind, res.Name, res.Status)
-	}
 
 	// Set health status based on the severity of detected issues
 	switch {
@@ -2169,14 +2164,9 @@ func (ctrl *ApplicationController) analyzeClusterHealth(app *appv1.Application) 
 			}
 			resGVK := resGVKObj.String()
 			logCtx.Debugf("analyzeClusterHealth: checking resource %s against tainted GVKs", resGVK)
-			for _, taintedGVK := range taintedGVKs {
-				if resGVK == taintedGVK {
-					logCtx.Infof("analyzeClusterHealth: app uses tainted resource %s", resGVK)
-					usesTaintedResources = true
-					break
-				}
-			}
-			if usesTaintedResources {
+			if slices.Contains(taintedGVKs, resGVK) {
+				logCtx.Infof("analyzeClusterHealth: app uses tainted resource %s", resGVK)
+				usesTaintedResources = true
 				break
 			}
 		}
