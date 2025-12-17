@@ -26,7 +26,7 @@ func TestAddNoteConcurrentStaggered(t *testing.T) {
 	// Create a bare repository to act as the "remote"
 	remoteDir := t.TempDir()
 	remotePath := filepath.Join(remoteDir, "remote.git")
-	err := os.MkdirAll(remotePath, 0755)
+	err := os.MkdirAll(remotePath, 0o755)
 	require.NoError(t, err)
 
 	ctx := context.Background()
@@ -36,7 +36,7 @@ func TestAddNoteConcurrentStaggered(t *testing.T) {
 	// Create a local repository with some commits
 	localDir := t.TempDir()
 	localPath := filepath.Join(localDir, "local")
-	err = os.MkdirAll(localPath, 0755)
+	err = os.MkdirAll(localPath, 0o755)
 	require.NoError(t, err)
 
 	// Initialize and create initial commits
@@ -58,12 +58,12 @@ func TestAddNoteConcurrentStaggered(t *testing.T) {
 
 	for i, branch := range branches {
 		testFile := filepath.Join(localPath, fmt.Sprintf("file-%d.txt", i))
-		err = os.WriteFile(testFile, []byte(fmt.Sprintf("content %d", i)), 0644)
+		err = os.WriteFile(testFile, []byte(fmt.Sprintf("content %d", i)), 0o644)
 		require.NoError(t, err)
 
 		_, err = runGitCmd(ctx, localPath, "add", ".")
 		require.NoError(t, err)
-		_, err = runGitCmd(ctx, localPath, "commit", "-m", fmt.Sprintf("commit %s", branch))
+		_, err = runGitCmd(ctx, localPath, "commit", "-m", "commit "+branch)
 		require.NoError(t, err)
 
 		sha, err := runGitCmd(ctx, localPath, "rev-parse", "HEAD")
@@ -81,7 +81,7 @@ func TestAddNoteConcurrentStaggered(t *testing.T) {
 
 	for i := 0; i < 3; i++ {
 		workDir := filepath.Join(localDir, fmt.Sprintf("work-%d", i))
-		err = os.MkdirAll(workDir, 0755)
+		err = os.MkdirAll(workDir, 0o755)
 		require.NoError(t, err)
 
 		client, err := git.NewClientExt(remotePath, workDir, &git.NopCreds{}, false, false, "", "")
@@ -123,10 +123,8 @@ func TestAddNoteConcurrentStaggered(t *testing.T) {
 
 	for i, commitSHA := range commitSHAs {
 		note, err := verifyClient.GetCommitNote(commitSHA, NoteNamespace)
-		assert.NoError(t, err, "Note should exist for commit %d", i)
-		if err == nil {
-			assert.Contains(t, note, fmt.Sprintf("dry-sha-%d", i))
-		}
+		require.NoError(t, err, "Note should exist for commit %d", i)
+		assert.Contains(t, note, fmt.Sprintf("dry-sha-%d", i))
 	}
 }
 
@@ -138,7 +136,7 @@ func TestAddNoteConcurrentSimultaneous(t *testing.T) {
 
 	remoteDir := t.TempDir()
 	remotePath := filepath.Join(remoteDir, "remote.git")
-	err := os.MkdirAll(remotePath, 0755)
+	err := os.MkdirAll(remotePath, 0o755)
 	require.NoError(t, err)
 
 	ctx := context.Background()
@@ -147,7 +145,7 @@ func TestAddNoteConcurrentSimultaneous(t *testing.T) {
 
 	localDir := t.TempDir()
 	localPath := filepath.Join(localDir, "local")
-	err = os.MkdirAll(localPath, 0755)
+	err = os.MkdirAll(localPath, 0o755)
 	require.NoError(t, err)
 
 	_, err = runGitCmd(ctx, localPath, "init")
@@ -165,12 +163,12 @@ func TestAddNoteConcurrentSimultaneous(t *testing.T) {
 
 	for i, branch := range branches {
 		testFile := filepath.Join(localPath, fmt.Sprintf("file-%d.txt", i))
-		err = os.WriteFile(testFile, []byte(fmt.Sprintf("content %d", i)), 0644)
+		err = os.WriteFile(testFile, []byte(fmt.Sprintf("content %d", i)), 0o644)
 		require.NoError(t, err)
 
 		_, err = runGitCmd(ctx, localPath, "add", ".")
 		require.NoError(t, err)
-		_, err = runGitCmd(ctx, localPath, "commit", "-m", fmt.Sprintf("commit %s", branch))
+		_, err = runGitCmd(ctx, localPath, "commit", "-m", "commit "+branch)
 		require.NoError(t, err)
 
 		sha, err := runGitCmd(ctx, localPath, "rev-parse", "HEAD")
@@ -188,7 +186,7 @@ func TestAddNoteConcurrentSimultaneous(t *testing.T) {
 
 	for i := 0; i < 3; i++ {
 		workDir := filepath.Join(localDir, fmt.Sprintf("work-%d", i))
-		err = os.MkdirAll(workDir, 0755)
+		err = os.MkdirAll(workDir, 0o755)
 		require.NoError(t, err)
 
 		client, err := git.NewClientExt(remotePath, workDir, &git.NopCreds{}, false, false, "", "")
@@ -215,7 +213,7 @@ func TestAddNoteConcurrentSimultaneous(t *testing.T) {
 		go func(idx int) {
 			defer wg.Done()
 			<-startChan
-			AddNote(gitClients[idx], fmt.Sprintf("dry-sha-%d", idx), commitSHAs[idx])
+			_ = AddNote(gitClients[idx], fmt.Sprintf("dry-sha-%d", idx), commitSHAs[idx])
 		}(i)
 	}
 
@@ -232,10 +230,8 @@ func TestAddNoteConcurrentSimultaneous(t *testing.T) {
 
 	for i, commitSHA := range commitSHAs {
 		note, err := verifyClient.GetCommitNote(commitSHA, NoteNamespace)
-		assert.NoError(t, err, "Note should exist for commit %d", i)
-		if err == nil {
-			assert.Contains(t, note, fmt.Sprintf("dry-sha-%d", i))
-		}
+		require.NoError(t, err, "Note should exist for commit %d", i)
+		assert.Contains(t, note, fmt.Sprintf("dry-sha-%d", i))
 	}
 }
 
