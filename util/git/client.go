@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"math/rand"
 	"net/http"
 	"net/mail"
 	"net/url"
@@ -1157,8 +1158,10 @@ func (m *nativeGitClient) AddAndPushNote(sha string, namespace string, note stri
 
 	for attempt := 0; attempt < maxRetries; attempt++ {
 		if attempt > 0 {
-			// Exponential backoff before retry: 100ms, 400ms
-			backoff := time.Duration(100*attempt*attempt) * time.Millisecond
+			// Exponential backoff with jitter to avoid thundering herd
+			baseBackoff := 100 * attempt * attempt // 100ms, 400ms in milliseconds
+			jitter := rand.Intn(baseBackoff/5 + 1) // Up to 20% jitter
+			backoff := time.Duration(baseBackoff+jitter) * time.Millisecond
 			time.Sleep(backoff)
 		}
 
