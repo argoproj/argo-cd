@@ -375,18 +375,6 @@ func NewTestState(t *testing.T) *TestState {
 	}
 }
 
-// GetTestState returns a TestState populated with current global values.
-// Use this for GivenWithSameState pattern where EnsureCleanState was already called.
-func GetTestState(t *testing.T) *TestState {
-	return &TestState{
-		t:                   t,
-		id:                  id,
-		name:                name,
-		deploymentNamespace: deploymentNamespace,
-		token:               token,
-	}
-}
-
 func repoDirectory() string {
 	return path.Join(TmpDir, repoDir)
 }
