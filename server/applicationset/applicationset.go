@@ -114,21 +114,7 @@ func NewServer(
 
 func (s *Server) Get(ctx context.Context, q *applicationset.ApplicationSetGetQuery) (*v1alpha1.ApplicationSet, error) {
 	namespace := s.appsetNamespaceOrDefault(q.AppsetNamespace)
-
-	if !s.isNamespaceEnabled(namespace) {
-		return nil, security.NamespaceNotPermittedError(namespace)
-	}
-
-	a, err := s.appsetLister.ApplicationSets(namespace).Get(q.Name)
-	if err != nil {
-		return nil, fmt.Errorf("error getting ApplicationSet: %w", err)
-	}
-	err = s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceApplicationSets, rbac.ActionGet, a.RBACName(s.ns))
-	if err != nil {
-		return nil, err
-	}
-
-	return a, nil
+	return s.getAppSetEnforceRBAC(ctx, rbac.ActionGet, namespace, q.Name)
 }
 
 // List returns list of ApplicationSets
@@ -342,20 +328,12 @@ func (s *Server) Delete(ctx context.Context, q *applicationset.ApplicationSetDel
 func (s *Server) ResourceTree(ctx context.Context, q *applicationset.ApplicationSetTreeQuery) (*v1alpha1.ApplicationSetTree, error) {
 	namespace := s.appsetNamespaceOrDefault(q.AppsetNamespace)
 
-	if !s.isNamespaceEnabled(namespace) {
-		return nil, security.NamespaceNotPermittedError(namespace)
-	}
-
-	a, err := s.appclientset.ArgoprojV1alpha1().ApplicationSets(namespace).Get(ctx, q.Name, metav1.GetOptions{})
-	if err != nil {
-		return nil, fmt.Errorf("error getting ApplicationSet: %w", err)
-	}
-	err = s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceApplicationSets, rbac.ActionGet, a.RBACName(s.ns))
+	appset, err := s.getAppSetEnforceRBAC(ctx, rbac.ActionGet, namespace, q.Name)
 	if err != nil {
 		return nil, err
 	}
 
-	return s.buildApplicationSetTree(a)
+	return s.buildApplicationSetTree(appset)
 }
 
 func (s *Server) Generate(ctx context.Context, q *applicationset.ApplicationSetGenerateRequest) (*applicationset.ApplicationSetGenerateResponse, error) {
@@ -520,28 +498,42 @@ func (s *Server) isNamespaceEnabled(namespace string) bool {
 	return security.IsNamespaceEnabled(namespace, s.ns, s.enabledNamespaces)
 }
 
-// ListResourceEvents returns a list of event resources for an applicationset
-func (s *Server) ListResourceEvents(ctx context.Context, q *applicationset.ApplicationSetGetQuery) (*corev1.EventList, error) {
-	namespace := s.appsetNamespaceOrDefault(q.AppsetNamespace)
-
+// getAppSetEnforceRBAC gets the ApplicationSet with the given name in the given namespace and
+// verifies that the user has the specified RBAC action permission on it.
+//
+// Note: Unlike Applications, ApplicationSets are not currently scoped to Projects for RBAC purposes.
+// The RBAC name is derived from the template's project field, but there is no project-level isolation
+// or validation (e.g., verifying the AppSet belongs to the claimed project)
+func (s *Server) getAppSetEnforceRBAC(ctx context.Context, action, namespace, name string) (*v1alpha1.ApplicationSet, error) {
 	if !s.isNamespaceEnabled(namespace) {
 		return nil, security.NamespaceNotPermittedError(namespace)
 	}
 
-	a, err := s.appsetLister.ApplicationSets(namespace).Get(q.Name)
+	appset, err := s.appsetLister.ApplicationSets(namespace).Get(name)
 	if err != nil {
 		return nil, fmt.Errorf("error getting ApplicationSet: %w", err)
 	}
 
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceApplicationSets, rbac.ActionGet, a.RBACName(s.ns)); err != nil {
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceApplicationSets, action, appset.RBACName(s.ns)); err != nil {
+		return nil, err
+	}
+
+	return appset, nil
+}
+
+// ListResourceEvents returns a list of event resources for an applicationset
+func (s *Server) ListResourceEvents(ctx context.Context, q *applicationset.ApplicationSetGetQuery) (*corev1.EventList, error) {
+	namespace := s.appsetNamespaceOrDefault(q.AppsetNamespace)
+
+	appset, err := s.getAppSetEnforceRBAC(ctx, rbac.ActionGet, namespace, q.Name)
+	if err != nil {
 		return nil, err
 	}
 
 	fieldSelector := fields.SelectorFromSet(map[string]string{
-		"involvedObject.name":      a.Name,
-		"involvedObject.uid":       string(a.UID),
-		"involvedObject.namespace": a.Namespace,
-		"involvedObject.kind":      "ApplicationSet",
+		"involvedObject.name":      appset.Name,
+		"involvedObject.uid":       string(appset.UID),
+		"involvedObject.namespace": appset.Namespace,
 	}).String()
 
 	log.Debugf("Querying for resource events with field selector: %s", fieldSelector)
