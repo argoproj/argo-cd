@@ -28,8 +28,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 
-	clustercache "github.com/argoproj/gitops-engine/pkg/cache"
-
 	"github.com/argoproj/argo-cd/v3/common"
 	statecache "github.com/argoproj/argo-cd/v3/controller/cache"
 	"github.com/argoproj/argo-cd/v3/controller/metrics"
@@ -43,8 +41,8 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
 	appstatecache "github.com/argoproj/argo-cd/v3/util/cache/appstate"
 	"github.com/argoproj/argo-cd/v3/util/db"
-	argoerrors "github.com/argoproj/argo-cd/v3/util/errors"
 	"github.com/argoproj/argo-cd/v3/util/env"
+	argoerrors "github.com/argoproj/argo-cd/v3/util/errors"
 	"github.com/argoproj/argo-cd/v3/util/gpg"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/settings"
@@ -1341,12 +1339,8 @@ func isSelfReferencedObj(obj *unstructured.Unstructured, aiv argo.AppInstanceVal
 func (m *appStateManager) validateAppGVKTaints(cluster *v1alpha1.Cluster, targetObjs []*unstructured.Unstructured, logCtx *log.Entry) {
 	// Get currently tainted GVKs for this cluster
 	taintedGVKs := m.liveStateCache.GetTaintedGVKs(cluster.Server)
-	if len(taintedGVKs) == 0 {
-		logCtx.Debug("No tainted GVKs found for this cluster")
-		return
-	}
 
-	// Group target objects by their GVK to test tainted ones
+	// Group target objects by their GVK
 	objsByGVK := make(map[string][]*unstructured.Unstructured)
 	for _, obj := range targetObjs {
 		gvk := obj.GroupVersionKind()
@@ -1354,73 +1348,119 @@ func (m *appStateManager) validateAppGVKTaints(cluster *v1alpha1.Cluster, target
 		objsByGVK[gvkString] = append(objsByGVK[gvkString], obj)
 	}
 
-	// Find which tainted GVKs are used by this application
-	var testedGVKs []string
-	for _, taintedGVK := range taintedGVKs {
-		if objects, hasGVK := objsByGVK[taintedGVK]; hasGVK {
-			logCtx.Infof("Testing tainted GVK %s by attempting to access %d specific resources", taintedGVK, len(objects))
+	// During hard refresh, proactively test ALL GVKs used by the app to discover new issues,
+	// not just already-tainted ones. This catches errors that haven't been discovered yet by
+	// background watch operations (race condition).
+	var gvksToTest []string
+	if len(taintedGVKs) > 0 {
+		// Test already-tainted GVKs to see if they've recovered
+		for _, taintedGVK := range taintedGVKs {
+			if _, hasGVK := objsByGVK[taintedGVK]; hasGVK {
+				gvksToTest = append(gvksToTest, taintedGVK)
+			}
+		}
+	} else {
+		// No known taints - proactively test all GVKs during hard refresh
+		logCtx.Debug("No existing taints - proactively testing all app GVKs for issues")
+		for gvkString := range objsByGVK {
+			gvksToTest = append(gvksToTest, gvkString)
+		}
+	}
 
-			// Test the tainted GVK by trying to get specific resources this app needs
-			if m.testGVKHealth(cluster, taintedGVK, objects, logCtx) {
-				// GVK is healthy - clear its taint
-				logCtx.Infof("GVK %s is now healthy - clearing taint", taintedGVK)
-				m.liveStateCache.ClearGVKTaint(cluster.Server, taintedGVK)
-				testedGVKs = append(testedGVKs, taintedGVK)
+	if len(gvksToTest) == 0 {
+		logCtx.Debug("No GVKs to test")
+		return
+	}
+
+	// Test each GVK by attempting to access specific resources
+	var testedGVKs []string
+	var newlyTaintedGVKs []string
+	for _, gvkString := range gvksToTest {
+		objects := objsByGVK[gvkString]
+		isTainted := slices.Contains(taintedGVKs, gvkString)
+
+		logCtx.Infof("Testing GVK %s (currently tainted: %v) by attempting to access %d specific resources",
+			gvkString, isTainted, len(objects))
+
+		if m.testGVKHealth(cluster, gvkString, objects, logCtx) {
+			if isTainted {
+				// Was tainted, now healthy - clear the taint
+				logCtx.Infof("GVK %s is now healthy - clearing taint", gvkString)
+				m.liveStateCache.ClearGVKTaint(cluster.Server, gvkString)
 			} else {
-				logCtx.Infof("GVK %s is still problematic - keeping taint", taintedGVK)
+				logCtx.Debugf("GVK %s is healthy", gvkString)
+			}
+			testedGVKs = append(testedGVKs, gvkString)
+		} else {
+			if !isTainted {
+				// Was not tainted, but now discovered to be problematic
+				logCtx.Infof("GVK %s has issues - newly discovered during hard refresh", gvkString)
+				newlyTaintedGVKs = append(newlyTaintedGVKs, gvkString)
+			} else {
+				logCtx.Infof("GVK %s is still problematic - keeping taint", gvkString)
 			}
 		}
 	}
 
-	if len(testedGVKs) == 0 {
-		logCtx.Debug("No tainted GVKs are used by this application")
-	} else {
-		logCtx.Infof("Tested %d tainted GVKs used by this application", len(testedGVKs))
-	}
+	logCtx.Infof("Hard refresh GVK validation complete - tested: %d, healthy: %d, newly tainted: %d",
+		len(gvksToTest), len(testedGVKs), len(newlyTaintedGVKs))
 }
 
-// testGVKHealth tests if a specific GVK is healthy by attempting to access the actual
-// resource instances that this application needs. Returns true if healthy, false if still problematic.
+// testGVKHealth tests if a specific GVK is healthy by attempting to fetch resources using actual
+// API calls. This forces Kubernetes to execute conversion webhooks, allowing synchronous detection
+// of webhook failures during hard refresh. Returns true if healthy, false if problematic.
 func (m *appStateManager) testGVKHealth(cluster *v1alpha1.Cluster, gvkString string, objects []*unstructured.Unstructured, logCtx *log.Entry) bool {
+	if len(objects) == 0 {
+		return false
+	}
+
 	clusterCache, err := m.liveStateCache.GetClusterCache(cluster)
 	if err != nil {
 		logCtx.Warnf("Failed to get cluster cache for GVK validation: %v", err)
 		return false
 	}
 
-	// Test each specific resource instance this application needs
+	// Make actual API calls for each resource to trigger conversion webhooks
+	// The API server will execute webhooks when converting between versions
+	logCtx.Debugf("Testing GVK %s by fetching %d resources via API calls", gvkString, len(objects))
+
+	// Get REST config for making API calls
+	config, err := cluster.RESTConfig()
+	if err != nil {
+		logCtx.Warnf("Failed to get REST config for cluster: %v", err)
+		return false
+	}
+
 	for _, obj := range objects {
-		func() {
-			defer func() {
-				if r := recover(); r != nil {
-					logCtx.Debugf("Resource %s/%s (GVK %s) panicked during health test: %v", obj.GetNamespace(), obj.GetName(), gvkString, r)
-				}
-			}()
+		gvk := obj.GroupVersionKind()
+		logCtx.Debugf("Making API call for %s %s/%s", gvk.String(), obj.GetNamespace(), obj.GetName())
 
-			// Try to find the specific resource - this will trigger conversion webhooks if needed
-			resourceKey := kubeutil.NewResourceKey(obj.GroupVersionKind().Group, obj.GetKind(), obj.GetNamespace(), obj.GetName())
-			resources := clusterCache.FindResources(obj.GetNamespace(), func(r *clustercache.Resource) bool {
-				return r.ResourceKey() == resourceKey
-			})
+		// Use kubectl to make actual API GET call
+		// This will trigger conversion webhooks if the requested version differs from storage version
+		_, err := m.kubectl.GetResource(context.Background(), config, gvk, obj.GetName(), obj.GetNamespace())
+		if err != nil {
+			// Check if this is a conversion webhook error
+			errMsg := err.Error()
+			if strings.Contains(errMsg, "conversion webhook") ||
+			   strings.Contains(errMsg, "webhook") ||
+			   strings.Contains(errMsg, "failed calling webhook") {
+				logCtx.Infof("GVK %s failed with conversion webhook error: %v - tainting GVK", gvkString, err)
 
-			if len(resources) == 0 {
-				logCtx.Debugf("Resource %s/%s (GVK %s) not found or still has issues", obj.GetNamespace(), obj.GetName(), gvkString)
-			} else {
-				logCtx.Debugf("Resource %s/%s (GVK %s) is accessible", obj.GetNamespace(), obj.GetName(), gvkString)
+				// Report the error to the cluster cache's taint framework
+				// This ensures the error is tracked and surfaced to the application
+				clusterCache.HandleResourceGVKError(gvk, err)
+				return false
 			}
-		}()
+
+			// Other errors (not found, permissions, etc.) don't indicate webhook problems
+			logCtx.Debugf("GVK %s returned non-webhook error (acceptable): %v", gvkString, err)
+		}
 	}
 
-	// If we got here without panicking, and can access at least one resource of this GVK,
-	// consider the GVK healthy. We use a simple heuristic: try the first resource.
-	if len(objects) > 0 {
-		obj := objects[0]
-		resourceKey := kubeutil.NewResourceKey(obj.GroupVersionKind().Group, obj.GetKind(), obj.GetNamespace(), obj.GetName())
-		resources := clusterCache.FindResources(obj.GetNamespace(), func(r *clustercache.Resource) bool {
-			return r.ResourceKey() == resourceKey
-		})
-		return len(resources) > 0
-	}
-
-	return false
+	// All API calls succeeded - GVK is healthy
+	// Clear any previous taint for this GVK
+	gvk := objects[0].GroupVersionKind()
+	clusterCache.ClearResourceGVKError(gvk)
+	logCtx.Debugf("GVK %s successfully validated - all API calls succeeded", gvkString)
+	return true
 }

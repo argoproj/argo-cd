@@ -180,6 +180,10 @@ type ClusterCache interface {
 	OnEvent(handler OnEventHandler) Unsubscribe
 	// OnProcessEventsHandler register event handler that is executed every time when events were processed
 	OnProcessEventsHandler(handler OnProcessEventsHandler) Unsubscribe
+	// HandleResourceGVKError reports an error for a specific GVK to the taint tracking framework
+	HandleResourceGVKError(gvk schema.GroupVersionKind, err error)
+	// ClearResourceGVKError clears any tracked error for a specific GVK, indicating recovery
+	ClearResourceGVKError(gvk schema.GroupVersionKind)
 }
 
 type WeightedSemaphore interface {
@@ -1527,13 +1531,18 @@ func (c *clusterCache) GetManagedLiveObjs(targetObjs []*unstructured.Unstructure
 			if err != nil {
 				// fallback to loading resource from kubernetes if conversion fails
 				c.log.V(1).Info(fmt.Sprintf("Failed to convert resource: %v", err))
+				c.log.Info(fmt.Sprintf("Calling GetResource for %s/%s/%s in namespace %s",
+					targetObj.GroupVersionKind().Group, targetObj.GroupVersionKind().Version, targetObj.GroupVersionKind().Kind,
+					managedObj.GetNamespace()))
 				managedObj, err = c.kubectl.GetResource(context.TODO(), c.config, targetObj.GroupVersionKind(), managedObj.GetName(), managedObj.GetNamespace())
 				if err != nil {
+					c.log.Info(fmt.Sprintf("GetResource failed: %v", err))
 					if apierrors.IsNotFound(err) {
 						return nil
 					}
 					return fmt.Errorf("unexpected error getting managed object: %w", err)
 				}
+				c.log.Info(fmt.Sprintf("GetResource succeeded for %s", managedObj.GetName()))
 			} else {
 				managedObj = converted
 			}
@@ -1876,4 +1885,22 @@ func (c *clusterCache) clearFailedGVK(gvk schema.GroupVersionKind) {
 func (c *clusterCache) errorTaintsCache(err error) bool {
 	classification := ClassifyError(err)
 	return classification.IsCacheTainting
+}
+
+// HandleResourceGVKError reports an error for a specific GVK to the taint tracking framework.
+// This is the public method that should be called from outside the cache package.
+// It properly handles locking and delegates to the internal trackFailedGVK method.
+func (c *clusterCache) HandleResourceGVKError(gvk schema.GroupVersionKind, err error) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	c.trackFailedGVK(gvk, err)
+}
+
+// ClearResourceGVKError clears any tracked error for a specific GVK, indicating recovery.
+// This is the public method that should be called from outside the cache package.
+// It properly handles locking and delegates to the internal clearFailedGVK method.
+func (c *clusterCache) ClearResourceGVKError(gvk schema.GroupVersionKind) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	c.clearFailedGVK(gvk)
 }

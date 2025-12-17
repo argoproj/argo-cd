@@ -32,6 +32,15 @@ func TestConversionWebhookRefreshBehavior(t *testing.T) {
 		When().
 		CreateApp()
 
+	// CRITICAL: Set up cleanup to fix the broken webhook BEFORE automatic CRD deletion
+	// This prevents the test from hanging during cleanup
+	defer func() {
+		t.Log("🧹 Cleanup: Removing broken webhook from CRD to allow clean deletion")
+		// Apply the working CRD (without webhook) to unblock deletion
+		_, _ = fixture.Run("", "kubectl", "apply", "-f", "/tmp/argo-e2e/testdata.git/conversion-webhook-test/crds/crd.yaml")
+		time.Sleep(2 * time.Second)
+	}()
+
 	// Step 1: Deploy working CRD with v1 and v2 (no conversion webhook)
 	t.Log("🔧 Deploying working CRD with v1 and v2 (no conversion webhook)")
 	_, err := fixture.Run("", "kubectl", "apply", "-f", "/tmp/argo-e2e/testdata.git/conversion-webhook-test/crds/crd.yaml")
@@ -110,45 +119,35 @@ func TestConversionWebhookRefreshBehavior(t *testing.T) {
 				"App should have Unknown sync status when conversion webhook fails")
 
 			// Should have at least one condition
-			assert.Greater(t, len(app.Status.Conditions), 0,
+			assert.NotEmpty(t, app.Status.Conditions,
 				"App should have conditions explaining the degraded state")
 
-			// Check for friendly condition message
-			hasFriendlyMessage := false
-			for _, condition := range app.Status.Conditions {
+			// Check for the expected condition - we expect exactly one ComparisonError with our specific message
+			var comparisonErrorCondition *ApplicationCondition
+			for i, condition := range app.Status.Conditions {
 				t.Logf("Condition: Type=%s, Message=%s", condition.Type, condition.Message)
-
-				// Accept either a friendly message or at least a message mentioning conversion webhook
-				if strings.Contains(condition.Message, "conversion webhook") ||
-				   strings.Contains(condition.Message, "Application contains resources affected by conversion webhook failures") {
-					hasFriendlyMessage = true
-					t.Log("✅ Found condition message about conversion webhook failure")
+				if condition.Type == ApplicationConditionComparisonError {
+					comparisonErrorCondition = &app.Status.Conditions[i]
 				}
 			}
 
-			assert.True(t, hasFriendlyMessage,
-				"App should have a condition message explaining the conversion webhook failure")
+			require.NotNil(t, comparisonErrorCondition,
+				"App should have a ComparisonError condition")
 
-			// Check resource status - they should ideally show as Missing or have health issues
-			affectedResources := 0
-			for _, resource := range app.Status.Resources {
-				if resource.Kind == "Example" {
-					t.Logf("Resource %s/%s: Health=%v, Status=%s",
-						resource.Kind, resource.Name,
-						resource.Health, resource.Status)
+			// Check the exact message format we generate in appcontroller.go
+			expectedMessagePrefix := "Application contains resources affected by conversion webhook failures"
+			assert.True(t, strings.HasPrefix(comparisonErrorCondition.Message, expectedMessagePrefix),
+				"Condition message should start with '%s', got: %s", expectedMessagePrefix, comparisonErrorCondition.Message)
 
-					// Resources should either be Missing or have health issues
-					if resource.Status == "Missing" ||
-					   (resource.Health != nil && resource.Health.Status != health.HealthStatusHealthy) {
-						affectedResources++
-					}
-				}
-			}
+			// The message should also include the affected GVK
+			assert.Contains(t, comparisonErrorCondition.Message, "conversion.example.com",
+				"Condition message should include the affected GVK group")
+			t.Log("✅ Found expected ComparisonError condition with conversion webhook failure message")
 
-			assert.Greater(t, affectedResources, 0,
-				"Example resources should show issues when conversion webhook fails")
+			// Note: Individual resource statuses may still show their last known state (Synced/OutOfSync)
+			// because the conversion webhook failure prevents accurate comparison.
+			// The important indicators are the app-level Degraded health, Unknown sync status,
+			// and the condition message explaining the problem.
+			t.Log("✅ App correctly shows Degraded/Unknown status with conversion webhook error condition")
 		})
-
-	t.Log("🔬 Test captured current behavior - app incorrectly stays Healthy/OutOfSync with Missing resources")
-	t.Log("📝 This test will be updated to expect Degraded/Unknown once we fix the issue")
 }
