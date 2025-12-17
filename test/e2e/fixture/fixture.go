@@ -110,6 +110,63 @@ var (
 	argoCDAppControllerName string
 )
 
+// TestContext defines the interface for test-specific state that enables parallel test execution.
+// All fixture Context types should implement this interface by embedding TestState.
+type TestContext interface {
+	// Name returns the DNS-friendly name for this test
+	Name() string
+	// DeploymentNamespace returns the namespace where test resources are deployed
+	DeploymentNamespace() string
+	// ID returns the unique identifier for this test run
+	ID() string
+	// Token returns the authentication token for API calls
+	Token() string
+	// SetToken sets the authentication token
+	SetToken(token string)
+	// T returns the testing.T instance for this test
+	T() *testing.T
+}
+
+// TestState holds test-specific variables that were previously global.
+// Embed this in Context structs to enable parallel test execution.
+type TestState struct {
+	t                   *testing.T
+	id                  string
+	name                string
+	deploymentNamespace string
+	token               string
+}
+
+// Name returns the DNS-friendly name for this test
+func (s *TestState) Name() string {
+	return s.name
+}
+
+// DeploymentNamespace returns the namespace where test resources are deployed
+func (s *TestState) DeploymentNamespace() string {
+	return s.deploymentNamespace
+}
+
+// ID returns the unique identifier for this test run
+func (s *TestState) ID() string {
+	return s.id
+}
+
+// Token returns the authentication token for API calls
+func (s *TestState) Token() string {
+	return s.token
+}
+
+// SetToken sets the authentication token
+func (s *TestState) SetToken(token string) {
+	s.token = token
+}
+
+// T returns the testing.T instance for this test
+func (s *TestState) T() *testing.T {
+	return s.t
+}
+
 type RepoURLType string
 
 type ACL struct {
@@ -299,6 +356,35 @@ func LoginAs(username string) error {
 
 func Name() string {
 	return name
+}
+
+// NewTestState creates a new TestState with unique identifiers for this test run.
+// This generates fresh id, name, and deploymentNamespace values.
+func NewTestState(t *testing.T) *TestState {
+	t.Helper()
+	randString, err := rand.String(5)
+	errors.CheckError(err)
+	postFix := "-" + strings.ToLower(randString)
+
+	return &TestState{
+		t:                   t,
+		token:               token, // Initialize with current global token
+		id:                  t.Name() + postFix,
+		name:                DnsFriendly(t.Name(), ""),
+		deploymentNamespace: DnsFriendly("argocd-e2e-"+t.Name(), postFix),
+	}
+}
+
+// GetTestState returns a TestState populated with current global values.
+// Use this for GivenWithSameState pattern where EnsureCleanState was already called.
+func GetTestState(t *testing.T) *TestState {
+	return &TestState{
+		t:                   t,
+		id:                  id,
+		name:                name,
+		deploymentNamespace: deploymentNamespace,
+		token:               token,
+	}
 }
 
 func repoDirectory() string {
@@ -655,7 +741,7 @@ func WithTestData(testdata string) TestOption {
 	}
 }
 
-func EnsureCleanState(t *testing.T, opts ...TestOption) {
+func EnsureCleanState(t *testing.T, opts ...TestOption) *TestState {
 	t.Helper()
 	opt := newTestOption(opts...)
 	// In large scenarios, we can skip tests that already run
@@ -664,6 +750,15 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 	t.Cleanup(func() {
 		RecordTestRun(t)
 	})
+
+	// Create TestState to hold test-specific variables
+	state := NewTestState(t)
+
+	// Also set global variables for backward compatibility
+	// TODO: Remove these once all contexts are updated to use TestState
+	id = state.id
+	name = state.name
+	deploymentNamespace = state.deploymentNamespace
 
 	start := time.Now()
 	policy := metav1.DeletePropagationBackground
@@ -1051,21 +1146,12 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 			return nil
 		},
 		func() error {
-			// random id - unique across test runs
-			randString, err := rand.String(5)
+			// create namespace for this test
+			_, err := Run("", "kubectl", "create", "ns", state.deploymentNamespace)
 			if err != nil {
 				return err
 			}
-			postFix := "-" + strings.ToLower(randString)
-			id = t.Name() + postFix
-			name = DnsFriendly(t.Name(), "")
-			deploymentNamespace = DnsFriendly("argocd-e2e-"+t.Name(), postFix)
-			// create namespace
-			_, err = Run("", "kubectl", "create", "ns", DeploymentNamespace())
-			if err != nil {
-				return err
-			}
-			_, err = Run("", "kubectl", "label", "ns", DeploymentNamespace(), TestingLabel+"=true")
+			_, err = Run("", "kubectl", "label", "ns", state.deploymentNamespace, TestingLabel+"=true")
 			return err
 		},
 	})
@@ -1073,10 +1159,12 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 	log.WithFields(log.Fields{
 		"duration": time.Since(start),
 		"name":     t.Name(),
-		"id":       id,
+		"id":       state.id,
 		"username": "admin",
 		"password": "password",
 	}).Info("clean state")
+
+	return state
 }
 
 // RunCliWithRetry executes an Argo CD CLI command with retry logic.
