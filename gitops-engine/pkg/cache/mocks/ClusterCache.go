@@ -41,6 +41,46 @@ func (_m *ClusterCache) EXPECT() *ClusterCache_Expecter {
 	return &ClusterCache_Expecter{mock: &_m.Mock}
 }
 
+// ClearResourceGVKError provides a mock function for the type ClusterCache
+func (_mock *ClusterCache) ClearResourceGVKError(gvk schema.GroupVersionKind) {
+	_mock.Called(gvk)
+	return
+}
+
+// ClusterCache_ClearResourceGVKError_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ClearResourceGVKError'
+type ClusterCache_ClearResourceGVKError_Call struct {
+	*mock.Call
+}
+
+// ClearResourceGVKError is a helper method to define mock.On call
+//   - gvk schema.GroupVersionKind
+func (_e *ClusterCache_Expecter) ClearResourceGVKError(gvk interface{}) *ClusterCache_ClearResourceGVKError_Call {
+	return &ClusterCache_ClearResourceGVKError_Call{Call: _e.mock.On("ClearResourceGVKError", gvk)}
+}
+
+func (_c *ClusterCache_ClearResourceGVKError_Call) Run(run func(gvk schema.GroupVersionKind)) *ClusterCache_ClearResourceGVKError_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 schema.GroupVersionKind
+		if args[0] != nil {
+			arg0 = args[0].(schema.GroupVersionKind)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *ClusterCache_ClearResourceGVKError_Call) Return() *ClusterCache_ClearResourceGVKError_Call {
+	_c.Call.Return()
+	return _c
+}
+
+func (_c *ClusterCache_ClearResourceGVKError_Call) RunAndReturn(run func(gvk schema.GroupVersionKind)) *ClusterCache_ClearResourceGVKError_Call {
+	_c.Run(run)
+	return _c
+}
+
 // EnsureSynced provides a mock function for the type ClusterCache
 func (_mock *ClusterCache) EnsureSynced() error {
 	ret := _mock.Called()
@@ -448,6 +488,52 @@ func (_c *ClusterCache_GetServerVersion_Call) Return(s string) *ClusterCache_Get
 
 func (_c *ClusterCache_GetServerVersion_Call) RunAndReturn(run func() string) *ClusterCache_GetServerVersion_Call {
 	_c.Call.Return(run)
+	return _c
+}
+
+// HandleResourceGVKError provides a mock function for the type ClusterCache
+func (_mock *ClusterCache) HandleResourceGVKError(gvk schema.GroupVersionKind, err error) {
+	_mock.Called(gvk, err)
+	return
+}
+
+// ClusterCache_HandleResourceGVKError_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'HandleResourceGVKError'
+type ClusterCache_HandleResourceGVKError_Call struct {
+	*mock.Call
+}
+
+// HandleResourceGVKError is a helper method to define mock.On call
+//   - gvk schema.GroupVersionKind
+//   - err error
+func (_e *ClusterCache_Expecter) HandleResourceGVKError(gvk interface{}, err interface{}) *ClusterCache_HandleResourceGVKError_Call {
+	return &ClusterCache_HandleResourceGVKError_Call{Call: _e.mock.On("HandleResourceGVKError", gvk, err)}
+}
+
+func (_c *ClusterCache_HandleResourceGVKError_Call) Run(run func(gvk schema.GroupVersionKind, err error)) *ClusterCache_HandleResourceGVKError_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 schema.GroupVersionKind
+		if args[0] != nil {
+			arg0 = args[0].(schema.GroupVersionKind)
+		}
+		var arg1 error
+		if args[1] != nil {
+			arg1 = args[1].(error)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *ClusterCache_HandleResourceGVKError_Call) Return() *ClusterCache_HandleResourceGVKError_Call {
+	_c.Call.Return()
+	return _c
+}
+
+func (_c *ClusterCache_HandleResourceGVKError_Call) RunAndReturn(run func(gvk schema.GroupVersionKind, err error)) *ClusterCache_HandleResourceGVKError_Call {
+	_c.Run(run)
 	return _c
 }
 
