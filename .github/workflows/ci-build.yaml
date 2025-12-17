@@ -397,11 +397,12 @@ jobs:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       - name: Upload test results to Codecov
         if: github.ref == 'refs/heads/master' && github.event_name == 'push' && github.repository == 'argoproj/argo-cd'
-        uses: codecov/test-results-action@0fa95f0e1eeaafde2c782583b36b28ad0d8c77d3 # v1.2.1
+        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
         with:
-          file: test-results/junit.xml
+          files: test-results/junit.xml
           fail_ci_if_error: true
           token: ${{ secrets.CODECOV_TOKEN }}
+          report_type: test_results
       - name: Perform static code analysis using SonarCloud
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
