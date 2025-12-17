@@ -51,7 +51,7 @@ Then, connect the repository using any non-empty string as username and the acce
 > For some services, you might have to specify your account name as the username instead of any string.
 
 > [!NOTE]
-> For bitbucket, you have to specify your username as `x-token-auth`.
+> For BitBucket Cloud and BitBucket Data Center, you have to specify your username as `x-token-auth`.
 
 ### TLS Client Certificates for HTTPS repositories
 
