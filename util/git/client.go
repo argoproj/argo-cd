@@ -1195,7 +1195,7 @@ func (m *nativeGitClient) AddAndPushNote(sha string, namespace string, note stri
 		// Check if this is a retryable error
 		errStr := err.Error()
 		isRetryable := strings.Contains(errStr, "fetch first") || // Remote updated after our fetch (concurrent push completed between our fetch and push)
-			strings.Contains(errStr, "cannot lock ref") || // Another push is in progress right now (git server-side lock)
+			strings.Contains(errStr, "reference already exists") || // Concurrent push is holding the lock (git server-side lock)
 			strings.Contains(errStr, "failed to update ref") // Generic ref update failure that may include transient issues
 
 		if !isRetryable {
