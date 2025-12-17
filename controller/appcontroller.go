@@ -1901,10 +1901,10 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	clusterHealth := ctrl.analyzeClusterHealth(app)
 	hasCacheIssues := clusterHealth.HasCacheIssues
 	usesTaintedResources := clusterHealth.UsesTaintedResources
-	
+
 	logCtx.Infof("processAppRefreshQueueItem: clusterHealth analysis - hasCacheIssues: %v, usesTaintedResources: %v, affectedGVKs: %v",
 		hasCacheIssues, usesTaintedResources, clusterHealth.AffectedGVKs)
-	
+
 	// Log current app resources for debugging
 	for _, res := range app.Status.Resources {
 		logCtx.Debugf("processAppRefreshQueueItem: app resource - Group: %s, Version: %s, Kind: %s, Name: %s, Status: %s",
@@ -1912,28 +1912,37 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	}
 
 	// Set health status based on the severity of detected issues
-	if usesTaintedResources {
+	switch {
+	case usesTaintedResources:
 		// Application directly uses tainted resources - mark as degraded
 		logCtx.Info("Setting app health to Degraded due to tainted resources")
 		app.Status.Health.Status = health.HealthStatusDegraded
-		// Add a condition explaining why it's degraded
+		// Add a condition explaining why it's degraded, with specific details about affected GVKs
 		now := metav1.Now()
+		gvkList := ""
+		if len(clusterHealth.AffectedGVKs) > 0 {
+			gvkList = strings.Join(clusterHealth.AffectedGVKs, ", ")
+		}
+		conditionMessage := "Application contains resources affected by conversion webhook failures"
+		if gvkList != "" {
+			conditionMessage = fmt.Sprintf("Application contains resources affected by conversion webhook failures: %s", gvkList)
+		}
 		app.Status.SetConditions(
 			[]appv1.ApplicationCondition{
 				{
 					Type:               appv1.ApplicationConditionComparisonError,
-					Message:            "Application directly uses resources with known issues in the cluster cache",
+					Message:            conditionMessage,
 					LastTransitionTime: &now,
 				},
 			},
 			map[appv1.ApplicationConditionType]bool{appv1.ApplicationConditionComparisonError: true},
 		)
-	} else if hasCacheIssues {
+	case hasCacheIssues:
 		// Application has cache issues but doesn't directly use tainted resources
 		// We only log this - we don't change the health status
 		logCtx.Debug("Cluster has cache issues, but app doesn't use tainted resources directly")
 		app.Status.Health.Status = compareResult.healthStatus
-	} else {
+	default:
 		logCtx.Debugf("Setting app health to %s (no cache issues detected)", compareResult.healthStatus)
 		app.Status.Health.Status = compareResult.healthStatus
 	}
@@ -2123,7 +2132,7 @@ func (ctrl *ApplicationController) analyzeClusterHealth(app *appv1.Application) 
 
 	// Get tainted GVKs from the cluster taint manager (primary source of truth)
 	taintedGVKs := ctrl.stateCache.GetTaintedGVKs(clusterURL)
-	
+
 	logCtx.Debugf("analyzeClusterHealth: tainted GVKs for cluster %s: %v", clusterURL, taintedGVKs)
 
 	var issueTypes []errors.ClusterHealthIssueType

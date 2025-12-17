@@ -931,8 +931,9 @@ func (c *liveStateCache) handleModEvent(oldCluster *appv1.Cluster, newCluster *a
 
 			// When we have tainted GVKs and are doing a hard refresh, sync synchronously
 			// to test if the GVKs have recovered and repopulate resources if they have
-			if forceInvalidate && len(c.taintManager.getTaintedGVKs(newCluster.Server)) > 0 {
-				log.WithField("cluster", newCluster.Server).Info("Cluster has tainted GVKs, performing synchronous cache sync to test recovery")
+			switch {
+			case forceInvalidate:
+				log.WithField("cluster", newCluster.Server).Info("Performing synchronous cache sync for hard refresh to ensure errors are discovered")
 
 				// Try to sync - this will fail for broken GVKs but succeed for healthy ones
 				syncErr := cluster.EnsureSynced()
@@ -950,13 +951,7 @@ func (c *liveStateCache) handleModEvent(oldCluster *appv1.Cluster, newCluster *a
 				} else if syncErr != nil {
 					log.WithField("cluster", newCluster.Server).WithError(syncErr).Debug("Cache sync completed with errors, no GVKs recovered")
 				}
-			} else if forceInvalidate && anyGVKsRecovered {
-				// This case shouldn't happen anymore but keep for safety
-				log.WithField("cluster", newCluster.Server).Info("Performing synchronous cache sync")
-				if err := cluster.EnsureSynced(); err != nil {
-					log.WithField("cluster", newCluster.Server).WithError(err).Debug("Cache sync completed with some errors")
-				}
-			} else {
+			default:
 				// For other cases, warm up cache asynchronously as before
 				go func() {
 					// warm up cluster cache
@@ -1326,7 +1321,7 @@ func (c *liveStateCache) validateAndClearRecoveredTaints(cluster *appv1.Cluster,
 
 // validateAndClearHealthyTaints is deprecated and no longer used.
 // Validation now happens after EnsureSynced via validateAndClearRecoveredTaints.
-func (c *liveStateCache) validateAndClearHealthyTaints(cluster *appv1.Cluster, clusterCache clustercache.ClusterCache) bool {
+func (c *liveStateCache) validateAndClearHealthyTaints(_ *appv1.Cluster, _ clustercache.ClusterCache) bool {
 	// This function is no longer used but kept for compatibility
 	// All validation now happens after sync in validateAndClearRecoveredTaints
 	return false
