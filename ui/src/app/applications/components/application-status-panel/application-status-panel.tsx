@@ -14,9 +14,16 @@ import {
     HydrateOperationPhaseIcon,
     hydrationStatusMessage,
     getProgressiveSyncStatusColor,
-    getProgressiveSyncStatusIcon
+    getProgressiveSyncStatusIcon,
+    getAppLastSyncRepoURL,
+    getAppLastSyncRevision,
+    getConditionCategory,
+    HealthStatusIcon,
+    OperationState,
+    syncStatusMessage,
+    getAppDefaultSyncRevision,
+    getAppDefaultOperationSyncRevision
 } from '../utils';
-import {getConditionCategory, HealthStatusIcon, OperationState, syncStatusMessage, getAppDefaultSyncRevision, getAppDefaultOperationSyncRevision} from '../utils';
 import {RevisionMetadataPanel} from './revision-metadata-panel';
 import * as utils from '../utils';
 import {COLORS} from '../../../shared/components/colors';
@@ -227,6 +234,7 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                                 type={''}
                                 revision={application.status.sourceHydrator.currentOperation.drySHA}
                                 versionId={utils.getAppCurrentVersion(application)}
+                                sourceType='dry'
                             />
                         )}
                     </div>
@@ -267,6 +275,7 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                                 type={revisionType}
                                 revision={revision}
                                 versionId={utils.getAppCurrentVersion(application)}
+                                sourceType={application.spec.sourceHydrator ? 'hydrated' : null}
                             />
                         </div>
                     )}
@@ -294,7 +303,12 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                         </a>
                         {appOperationState.syncResult && (appOperationState.syncResult.revision || appOperationState.syncResult.revisions) && (
                             <div className='application-status-panel__item-value__revision show-for-large'>
-                                to <Revision repoUrl={source.repoURL} revision={operationStateRevision} /> {getAppDefaultSyncRevisionExtra(application)}
+                                {' '}
+                                <Revision
+                                    repoUrl={getAppLastSyncRepoURL(application) || source.repoURL}
+                                    revision={getAppLastSyncRevision(application) || operationStateRevision}
+                                />{' '}
+                                {getAppDefaultSyncRevisionExtra(application)}
                             </div>
                         )}
                     </div>
@@ -308,6 +322,7 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                             type={revisionType}
                             revision={operationStateRevision}
                             versionId={utils.getAppCurrentVersion(application)}
+                            sourceType={application.spec.sourceHydrator ? 'hydrated' : null}
                         />
                     )) || <div className='application-status-panel__item-name'>{appOperationState.message}</div>}
                 </div>

@@ -520,7 +520,16 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
             return (
                 <DataLoader
                     key={indx}
-                    load={() => services.applications.revisionMetadata(application.metadata.name, application.metadata.namespace, aRevision, aSourceIndex, aVersionId)}>
+                    load={() =>
+                        services.applications.revisionMetadata(
+                            application.metadata.name,
+                            application.metadata.namespace,
+                            aRevision,
+                            aSourceIndex,
+                            aVersionId,
+                            application.spec.sourceHydrator ? 'hydrated' : null
+                        )
+                    }>
                     {metadata =>
                         metadata ? (
                             <div key={indx} className='white-box' style={{marginTop: '1.5em'}}>

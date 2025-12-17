@@ -167,6 +167,7 @@ func Test_getAppsForHydrationKey_RepoURLNormalization(t *testing.T) {
 	hydrationKey := types.HydrationQueueKey{
 		SourceRepoURL:        "https://example.com/repo",
 		SourceTargetRevision: "main",
+		DestinationRepoURL:   "https://example.com/repo",
 		DestinationBranch:    "main",
 	}
 
@@ -708,6 +709,63 @@ func TestValidateApplications_RootPath(t *testing.T) {
 	require.ErrorContains(t, errs[app.QualifiedName()], "app is configured to hydrate to the repository root")
 }
 
+// TestValidateApplications_SyncSourceRepoNotPermitted tests that the sync source repo
+// must be permitted in the project. When SyncSource.RepoURL is set to a different repo,
+// that repo must be permitted. This tests PR #25464 code.
+func TestValidateApplications_SyncSourceRepoNotPermitted(t *testing.T) {
+	t.Parallel()
+	d := mocks.NewDependencies(t)
+	app := newTestApp("test-app")
+	// Set a different sync source repo URL that is not permitted in the project
+	// The dry source repo (https://example.com/repo) is permitted, but the sync source repo is not
+	app.Spec.SourceHydrator.SyncSource.RepoURL = "https://example.com/not-permitted-repo"
+	// Project permits https://example.com/repo (dry source) but not the sync source repo
+	proj := newTestProject()
+	d.EXPECT().GetProcessableAppProj(app).Return(proj, nil).Once()
+	h := &Hydrator{dependencies: d}
+
+	projects, errs := h.validateApplications([]*v1alpha1.Application{app})
+	require.Nil(t, projects)
+	require.Len(t, errs, 1)
+	// When SyncSource.RepoURL is set, GetSource() returns that repo URL, so the first validation check fails
+	require.ErrorContains(t, errs[app.QualifiedName()], "application repo https://example.com/not-permitted-repo is not permitted in project")
+}
+
+// TestValidateApplications_DestinationRepoPermitted tests that validation passes when
+// the destination repo (sync source) is permitted in the project
+func TestValidateApplications_DestinationRepoPermitted(t *testing.T) {
+	t.Parallel()
+	d := mocks.NewDependencies(t)
+	app := newTestApp("test-app")
+	// Set sync source repo URL that IS permitted in the project
+	app.Spec.SourceHydrator.SyncSource.RepoURL = "https://example.com/repo"
+	// Project permits https://example.com/repo
+	proj := newTestProject()
+	d.EXPECT().GetProcessableAppProj(app).Return(proj, nil).Once()
+	h := &Hydrator{dependencies: d}
+
+	projects, errs := h.validateApplications([]*v1alpha1.Application{app})
+	require.NotNil(t, projects)
+	require.Empty(t, errs)
+}
+
+// TestValidateApplications_DestinationRepoSameAsDrySource tests that validation passes when
+// the sync source repo URL is empty (defaults to dry source repo)
+func TestValidateApplications_DestinationRepoSameAsDrySource(t *testing.T) {
+	t.Parallel()
+	d := mocks.NewDependencies(t)
+	app := newTestApp("test-app")
+	// Empty sync source repo URL - should use dry source repo URL which is permitted
+	app.Spec.SourceHydrator.SyncSource.RepoURL = ""
+	proj := newTestProject()
+	d.EXPECT().GetProcessableAppProj(app).Return(proj, nil).Once()
+	h := &Hydrator{dependencies: d}
+
+	projects, errs := h.validateApplications([]*v1alpha1.Application{app})
+	require.NotNil(t, projects)
+	require.Empty(t, errs)
+}
+
 func TestValidateApplications_DuplicateDestination(t *testing.T) {
 	t.Parallel()
 	d := mocks.NewDependencies(t)
@@ -722,8 +780,8 @@ func TestValidateApplications_DuplicateDestination(t *testing.T) {
 	projects, errs := h.validateApplications([]*v1alpha1.Application{app1, app2})
 	require.Nil(t, projects)
 	require.Len(t, errs, 2)
-	require.ErrorContains(t, errs[app1.QualifiedName()], "app default/app2 hydrator use the same destination")
-	require.ErrorContains(t, errs[app2.QualifiedName()], "app default/app1 hydrator use the same destination")
+	require.ErrorContains(t, errs[app1.QualifiedName()], "app default/app2 hydrator uses the same destination")
+	require.ErrorContains(t, errs[app2.QualifiedName()], "app default/app1 hydrator uses the same destination")
 }
 
 func TestValidateApplications_Success(t *testing.T) {
@@ -1126,4 +1184,137 @@ func TestHydrator_hydrate_DeDupe_Success(t *testing.T) {
 	assert.Equal(t, "sha123", sha)
 	assert.Equal(t, "hydrated123", hydratedSha)
 	assert.Empty(t, errs)
+}
+
+func TestGetSyncSource_DifferentRepo(t *testing.T) {
+	hydrator := &v1alpha1.SourceHydrator{
+		DrySource: v1alpha1.DrySource{
+			RepoURL:        "https://example.com/dry-repo",
+			TargetRevision: "main",
+			Path:           "base",
+		},
+		SyncSource: v1alpha1.SyncSource{
+			RepoURL:      "https://example.com/sync-repo",
+			TargetBranch: "hydrated",
+			Path:         "app",
+		},
+	}
+
+	source := hydrator.GetSyncSource()
+	assert.Equal(t, "https://example.com/sync-repo", source.RepoURL)
+	assert.Equal(t, "app", source.Path)
+	assert.Equal(t, "hydrated", source.TargetRevision)
+}
+
+func TestGetSyncSource_FallsBackToDrySourceRepo(t *testing.T) {
+	hydrator := &v1alpha1.SourceHydrator{
+		DrySource: v1alpha1.DrySource{
+			RepoURL:        "https://example.com/dry-repo",
+			TargetRevision: "main",
+			Path:           "base",
+		},
+		SyncSource: v1alpha1.SyncSource{
+			TargetBranch: "hydrated",
+			Path:         "app",
+		},
+	}
+
+	source := hydrator.GetSyncSource()
+	assert.Equal(t, "https://example.com/dry-repo", source.RepoURL)
+	assert.Equal(t, "app", source.Path)
+	assert.Equal(t, "hydrated", source.TargetRevision)
+}
+
+// TestGetSyncSource_FallsBackToDrySourceRepoAndPath tests that when RepoURL is empty
+// in SyncSource, it falls back to DrySource.RepoURL, but Path does not fall back.
+func TestGetSyncSource_FallsBackToDrySourceRepoAndPath(t *testing.T) {
+	hydrator := &v1alpha1.SourceHydrator{
+		DrySource: v1alpha1.DrySource{
+			RepoURL:        "https://example.com/dry-repo",
+			TargetRevision: "main",
+			Path:           "base",
+		},
+		SyncSource: v1alpha1.SyncSource{
+			TargetBranch: "hydrated",
+			// RepoURL and Path are empty, RepoURL should fall back to DrySource, but Path should not
+		},
+	}
+
+	source := hydrator.GetSyncSource()
+	assert.Equal(t, "https://example.com/dry-repo", source.RepoURL)
+	assert.Empty(t, source.Path)
+	assert.Equal(t, "hydrated", source.TargetRevision)
+}
+
+// TestGetHydrateToSource_FallsBackToDrySourceRepo tests that when only RepoURL is empty
+// in SyncSource but Path is set, it only falls back to DrySource.RepoURL (not Path).
+func TestGetHydrateToSource_FallsBackToDrySourceRepo(t *testing.T) {
+	spec := &v1alpha1.ApplicationSpec{
+		SourceHydrator: &v1alpha1.SourceHydrator{
+			DrySource: v1alpha1.DrySource{
+				RepoURL:        "https://example.com/dry-repo",
+				TargetRevision: "main",
+				Path:           "base",
+			},
+			SyncSource: v1alpha1.SyncSource{
+				TargetBranch: "hydrated",
+				Path:         "app",
+				// RepoURL is empty, should fall back to DrySource.RepoURL
+			},
+		},
+	}
+
+	source := spec.GetHydrateToSource()
+	assert.Equal(t, "https://example.com/dry-repo", source.RepoURL)
+	assert.Equal(t, "app", source.Path) // Path should NOT fall back since it's set
+	assert.Equal(t, "hydrated", source.TargetRevision)
+}
+
+// TestGetHydrateToSource_FallsBackToDrySourceRepoAndPath tests that when RepoURL is empty
+// in SyncSource, it falls back to DrySource.RepoURL, but Path does not fall back.
+func TestGetHydrateToSource_FallsBackToDrySourceRepoAndPath(t *testing.T) {
+	spec := &v1alpha1.ApplicationSpec{
+		SourceHydrator: &v1alpha1.SourceHydrator{
+			DrySource: v1alpha1.DrySource{
+				RepoURL:        "https://example.com/dry-repo",
+				TargetRevision: "main",
+				Path:           "base",
+			},
+			SyncSource: v1alpha1.SyncSource{
+				TargetBranch: "hydrated",
+				// RepoURL and Path are empty, RepoURL should fall back to DrySource, but Path should not
+			},
+		},
+	}
+
+	source := spec.GetHydrateToSource()
+	assert.Equal(t, "https://example.com/dry-repo", source.RepoURL)
+	assert.Empty(t, source.Path)
+	assert.Equal(t, "hydrated", source.TargetRevision)
+}
+
+// TestGetHydrateToSource_UsesHydrateToTargetBranch tests that when HydrateTo is set,
+// its TargetBranch is used instead of SyncSource.TargetBranch.
+func TestGetHydrateToSource_UsesHydrateToTargetBranch(t *testing.T) {
+	spec := &v1alpha1.ApplicationSpec{
+		SourceHydrator: &v1alpha1.SourceHydrator{
+			DrySource: v1alpha1.DrySource{
+				RepoURL:        "https://example.com/dry-repo",
+				TargetRevision: "main",
+				Path:           "base",
+			},
+			SyncSource: v1alpha1.SyncSource{
+				TargetBranch: "hydrated",
+				// RepoURL and Path are empty
+			},
+			HydrateTo: &v1alpha1.HydrateTo{
+				TargetBranch: "staging",
+			},
+		},
+	}
+
+	source := spec.GetHydrateToSource()
+	assert.Equal(t, "https://example.com/dry-repo", source.RepoURL)
+	assert.Empty(t, source.Path)                      // Path should remain empty, not fall back to DrySource.Path
+	assert.Equal(t, "staging", source.TargetRevision) // Uses HydrateTo.TargetBranch
 }

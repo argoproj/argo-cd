@@ -1830,6 +1830,11 @@ spec:
                         minLength: 1
                         pattern: ^.{2,}|[^./]$
                         type: string
+                      repoURL:
+                        description: |-
+                          RepoURL is the URL to the git repository that contains the hydrated manifests. If not set, defaults to
+                          the DrySource.RepoURL.
+                        type: string
                       targetBranch:
                         description: |-
                           TargetBranch is the branch from which hydrated manifests will be synced.
@@ -5616,6 +5621,11 @@ spec:
                                 minLength: 1
                                 pattern: ^.{2,}|[^./]$
                                 type: string
+                              repoURL:
+                                description: |-
+                                  RepoURL is the URL to the git repository that contains the hydrated manifests. If not set, defaults to
+                                  the DrySource.RepoURL.
+                                type: string
                               targetBranch:
                                 description: |-
                                   TargetBranch is the branch from which hydrated manifests will be synced.
@@ -6068,6 +6078,11 @@ spec:
                                   hydrated manifests will be synced.
                                 minLength: 1
                                 pattern: ^.{2,}|[^./]$
+                                type: string
+                              repoURL:
+                                description: |-
+                                  RepoURL is the URL to the git repository that contains the hydrated manifests. If not set, defaults to
+                                  the DrySource.RepoURL.
                                 type: string
                               targetBranch:
                                 description: |-

@@ -2726,6 +2726,87 @@ func TestGetManifests_WithNoCache(t *testing.T) {
 	require.NoError(t, err)
 }
 
+// TestGetManifests_WithSourceHydrator tests the GetManifests function with source hydrator configurations.
+// Note: GetManifests does not have sourceType support - it always uses the source from app.Spec.GetSource().
+// For hydrator apps, GetSource() returns the sync source (hydrated manifests location).
+func TestGetManifests_WithSourceHydrator(t *testing.T) {
+	const (
+		syncSourceRepoURL = "https://github.com/org/sync-source"
+		syncSourcePath    = "apps/sync"
+	)
+
+	t.Run("GetManifests with SourceHydrator uses sync source from Spec", func(t *testing.T) {
+		testApp := newTestApp(func(app *v1alpha1.Application) {
+			app.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
+				DrySource: v1alpha1.DrySource{
+					RepoURL:        "https://github.com/org/dry-source",
+					Path:           "apps/dry",
+					TargetRevision: "main",
+				},
+				SyncSource: v1alpha1.SyncSource{
+					RepoURL:      syncSourceRepoURL,
+					TargetBranch: "env/test",
+					Path:         syncSourcePath,
+				},
+			}
+		})
+		appServer := newTestAppServer(t, testApp)
+
+		var capturedRequest *apiclient.ManifestRequest
+		mockRepoServiceClient := mocks.NewRepoServerServiceClient(t)
+		mockRepoServiceClient.EXPECT().GenerateManifest(mock.Anything, mock.MatchedBy(func(mr *apiclient.ManifestRequest) bool {
+			capturedRequest = mr
+			return true
+		})).Return(&apiclient.ManifestResponse{}, nil)
+		appServer.repoClientset = &mocks.Clientset{RepoServerServiceClient: mockRepoServiceClient}
+
+		_, err := appServer.GetManifests(t.Context(), &application.ApplicationManifestQuery{
+			Name: &testApp.Name,
+		})
+		require.NoError(t, err)
+		require.NotNil(t, capturedRequest)
+		// GetManifests uses app.Spec.GetSource() which returns the sync source for hydrator apps
+		assert.Equal(t, syncSourceRepoURL, capturedRequest.Repo.Repo)
+		assert.Equal(t, syncSourcePath, capturedRequest.ApplicationSource.Path)
+	})
+
+	t.Run("GetManifests with SourceHydrator falls back to DrySource.RepoURL when SyncSource.RepoURL is empty", func(t *testing.T) {
+		drySourceRepoURL := "https://github.com/org/dry-source"
+		testApp := newTestApp(func(app *v1alpha1.Application) {
+			app.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
+				DrySource: v1alpha1.DrySource{
+					RepoURL:        drySourceRepoURL,
+					Path:           "apps/dry",
+					TargetRevision: "main",
+				},
+				SyncSource: v1alpha1.SyncSource{
+					// No RepoURL - should fall back to DrySource.RepoURL
+					TargetBranch: "env/test",
+					Path:         syncSourcePath,
+				},
+			}
+		})
+		appServer := newTestAppServer(t, testApp)
+
+		var capturedRequest *apiclient.ManifestRequest
+		mockRepoServiceClient := mocks.NewRepoServerServiceClient(t)
+		mockRepoServiceClient.EXPECT().GenerateManifest(mock.Anything, mock.MatchedBy(func(mr *apiclient.ManifestRequest) bool {
+			capturedRequest = mr
+			return true
+		})).Return(&apiclient.ManifestResponse{}, nil)
+		appServer.repoClientset = &mocks.Clientset{RepoServerServiceClient: mockRepoServiceClient}
+
+		_, err := appServer.GetManifests(t.Context(), &application.ApplicationManifestQuery{
+			Name: &testApp.Name,
+		})
+		require.NoError(t, err)
+		require.NotNil(t, capturedRequest)
+		// When SyncSource.RepoURL is empty, GetSyncSource() falls back to DrySource.RepoURL
+		assert.Equal(t, drySourceRepoURL, capturedRequest.Repo.Repo)
+		assert.Equal(t, syncSourcePath, capturedRequest.ApplicationSource.Path)
+	})
+}
+
 func TestRollbackApp(t *testing.T) {
 	testApp := newTestApp()
 	testApp.Status.History = []v1alpha1.RevisionHistory{{
@@ -3261,6 +3342,163 @@ func TestGetAppRefresh_HardRefresh(t *testing.T) {
 	case <-time.After(10 * time.Second):
 		assert.Fail(t, "Out of time ( 10 seconds )")
 	}
+}
+
+// TestGetAppRefresh_HardRefresh_WithSourceHydrator tests the hard refresh path with source hydrator.
+func TestGetAppRefresh_HardRefresh_WithSourceHydrator(t *testing.T) {
+	const (
+		drySourceRepoURL  = "https://github.com/org/dry-source"
+		syncSourceRepoURL = "https://github.com/org/sync-source"
+		drySourcePath     = "apps/dry"
+		syncSourcePath    = "apps/sync"
+	)
+
+	t.Run("SourceHydrator with sourceType=hydrated uses SyncSource.RepoURL from Spec", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(t.Context())
+		defer cancel()
+		testApp := newTestApp(func(app *v1alpha1.Application) {
+			app.ResourceVersion = "1"
+			app.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
+				DrySource: v1alpha1.DrySource{
+					RepoURL:        drySourceRepoURL,
+					Path:           drySourcePath,
+					TargetRevision: "main",
+				},
+				SyncSource: v1alpha1.SyncSource{
+					RepoURL:      syncSourceRepoURL,
+					TargetBranch: "env/test",
+					Path:         syncSourcePath,
+				},
+			}
+		})
+		appServer := newTestAppServer(t, testApp)
+
+		var capturedQuery *apiclient.RepoServerAppDetailsQuery
+		mockRepoServiceClient := &mocks.RepoServerServiceClient{}
+		mockRepoServiceClient.EXPECT().GetAppDetails(mock.Anything, mock.MatchedBy(func(q *apiclient.RepoServerAppDetailsQuery) bool {
+			capturedQuery = q
+			return true
+		})).Return(&apiclient.RepoAppDetailsResponse{}, nil)
+		appServer.repoClientset = &mocks.Clientset{RepoServerServiceClient: mockRepoServiceClient}
+
+		var patched int32
+		ch := make(chan string, 1)
+		go refreshAnnotationRemover(t, ctx, &patched, appServer, testApp.Name, ch)
+
+		_, err := appServer.Get(t.Context(), &application.ApplicationQuery{
+			Name:       &testApp.Name,
+			Refresh:    ptr.To(string(v1alpha1.RefreshTypeHard)),
+			SourceType: ptr.To("hydrated"),
+		})
+		require.NoError(t, err)
+		require.NotNil(t, capturedQuery)
+		assert.Equal(t, syncSourceRepoURL, capturedQuery.Repo.Repo)
+
+		select {
+		case <-ch:
+			assert.Equal(t, int32(1), atomic.LoadInt32(&patched))
+		case <-time.After(10 * time.Second):
+			assert.Fail(t, "Out of time ( 10 seconds )")
+		}
+	})
+
+	t.Run("SourceHydrator with sourceType=hydrated falls back to DrySource.RepoURL when SyncSource.RepoURL is empty", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(t.Context())
+		defer cancel()
+		testApp := newTestApp(func(app *v1alpha1.Application) {
+			app.ResourceVersion = "1"
+			app.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
+				DrySource: v1alpha1.DrySource{
+					RepoURL:        drySourceRepoURL,
+					Path:           drySourcePath,
+					TargetRevision: "main",
+				},
+				SyncSource: v1alpha1.SyncSource{
+					TargetBranch: "env/test",
+					Path:         syncSourcePath,
+				},
+			}
+		})
+		appServer := newTestAppServer(t, testApp)
+
+		var capturedQuery *apiclient.RepoServerAppDetailsQuery
+		mockRepoServiceClient := &mocks.RepoServerServiceClient{}
+		mockRepoServiceClient.EXPECT().GetAppDetails(mock.Anything, mock.MatchedBy(func(q *apiclient.RepoServerAppDetailsQuery) bool {
+			capturedQuery = q
+			return true
+		})).Return(&apiclient.RepoAppDetailsResponse{}, nil)
+		appServer.repoClientset = &mocks.Clientset{RepoServerServiceClient: mockRepoServiceClient}
+
+		var patched int32
+		ch := make(chan string, 1)
+		go refreshAnnotationRemover(t, ctx, &patched, appServer, testApp.Name, ch)
+
+		_, err := appServer.Get(t.Context(), &application.ApplicationQuery{
+			Name:       &testApp.Name,
+			Refresh:    ptr.To(string(v1alpha1.RefreshTypeHard)),
+			SourceType: ptr.To("hydrated"),
+		})
+		require.NoError(t, err)
+		require.NotNil(t, capturedQuery)
+		assert.Equal(t, drySourceRepoURL, capturedQuery.Repo.Repo)
+
+		select {
+		case <-ch:
+			assert.Equal(t, int32(1), atomic.LoadInt32(&patched))
+		case <-time.After(10 * time.Second):
+			assert.Fail(t, "Out of time ( 10 seconds )")
+		}
+	})
+
+	t.Run("SourceHydrator defaults to DrySource.RepoURL when sourceType is not specified", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(t.Context())
+		defer cancel()
+		testApp := newTestApp(func(app *v1alpha1.Application) {
+			app.ResourceVersion = "1"
+			app.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
+				DrySource: v1alpha1.DrySource{
+					RepoURL:        drySourceRepoURL,
+					Path:           drySourcePath,
+					TargetRevision: "main",
+				},
+				SyncSource: v1alpha1.SyncSource{
+					RepoURL:      "", // Empty - should fall back to DrySource.RepoURL
+					TargetBranch: "env/test",
+					Path:         syncSourcePath,
+				},
+			}
+			// No Status operations
+			app.Status.SourceHydrator = v1alpha1.SourceHydratorStatus{}
+		})
+		appServer := newTestAppServer(t, testApp)
+
+		var capturedQuery *apiclient.RepoServerAppDetailsQuery
+		mockRepoServiceClient := &mocks.RepoServerServiceClient{}
+		mockRepoServiceClient.EXPECT().GetAppDetails(mock.Anything, mock.MatchedBy(func(q *apiclient.RepoServerAppDetailsQuery) bool {
+			capturedQuery = q
+			return true
+		})).Return(&apiclient.RepoAppDetailsResponse{}, nil)
+		appServer.repoClientset = &mocks.Clientset{RepoServerServiceClient: mockRepoServiceClient}
+
+		var patched int32
+		ch := make(chan string, 1)
+		go refreshAnnotationRemover(t, ctx, &patched, appServer, testApp.Name, ch)
+
+		_, err := appServer.Get(t.Context(), &application.ApplicationQuery{
+			Name:    &testApp.Name,
+			Refresh: ptr.To(string(v1alpha1.RefreshTypeHard)),
+		})
+		require.NoError(t, err)
+		require.NotNil(t, capturedQuery)
+		assert.Equal(t, drySourceRepoURL, capturedQuery.Repo.Repo)
+
+		select {
+		case <-ch:
+			assert.Equal(t, int32(1), atomic.LoadInt32(&patched))
+		case <-time.After(10 * time.Second):
+			assert.Fail(t, "Out of time ( 10 seconds )")
+		}
+	})
 }
 
 func TestGetApp_HealthStatusPropagation(t *testing.T) {
@@ -4581,4 +4819,148 @@ func TestServerSideDiff(t *testing.T) {
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "application")
 	})
+}
+
+func Test_resolveSourceHydratorRepoURLWithSourceType(t *testing.T) {
+	t.Parallel()
+
+	dryRepoURL := "https://github.com/org/dry-repo"
+	syncRepoURL := "https://github.com/org/sync-repo"
+	defaultRepoURL := "https://github.com/org/default-repo"
+
+	tests := []struct {
+		name           string
+		app            *v1alpha1.Application
+		sourceType     string
+		defaultRepoURL string
+		expected       string
+	}{
+		{
+			name: "no sourceHydrator returns default",
+			app: &v1alpha1.Application{
+				Spec: v1alpha1.ApplicationSpec{},
+			},
+			sourceType:     "dry",
+			defaultRepoURL: defaultRepoURL,
+			expected:       defaultRepoURL,
+		},
+		{
+			name: "sourceType dry returns DrySource.RepoURL",
+			app: &v1alpha1.Application{
+				Spec: v1alpha1.ApplicationSpec{
+					SourceHydrator: &v1alpha1.SourceHydrator{
+						DrySource: v1alpha1.DrySource{
+							RepoURL:        dryRepoURL,
+							TargetRevision: "main",
+							Path:           "apps",
+						},
+						SyncSource: v1alpha1.SyncSource{
+							RepoURL:      syncRepoURL,
+							TargetBranch: "hydrated",
+							Path:         "manifests",
+						},
+					},
+				},
+			},
+			sourceType:     "dry",
+			defaultRepoURL: defaultRepoURL,
+			expected:       dryRepoURL,
+		},
+		{
+			name: "sourceType hydrated with SyncSource.RepoURL returns SyncSource.RepoURL",
+			app: &v1alpha1.Application{
+				Spec: v1alpha1.ApplicationSpec{
+					SourceHydrator: &v1alpha1.SourceHydrator{
+						DrySource: v1alpha1.DrySource{
+							RepoURL:        dryRepoURL,
+							TargetRevision: "main",
+							Path:           "apps",
+						},
+						SyncSource: v1alpha1.SyncSource{
+							RepoURL:      syncRepoURL,
+							TargetBranch: "hydrated",
+							Path:         "manifests",
+						},
+					},
+				},
+			},
+			sourceType:     "hydrated",
+			defaultRepoURL: defaultRepoURL,
+			expected:       syncRepoURL,
+		},
+		{
+			name: "sourceType hydrated without SyncSource.RepoURL returns DrySource.RepoURL",
+			app: &v1alpha1.Application{
+				Spec: v1alpha1.ApplicationSpec{
+					SourceHydrator: &v1alpha1.SourceHydrator{
+						DrySource: v1alpha1.DrySource{
+							RepoURL:        dryRepoURL,
+							TargetRevision: "main",
+							Path:           "apps",
+						},
+						SyncSource: v1alpha1.SyncSource{
+							// No RepoURL set
+							TargetBranch: "hydrated",
+							Path:         "manifests",
+						},
+					},
+				},
+			},
+			sourceType:     "hydrated",
+			defaultRepoURL: defaultRepoURL,
+			expected:       dryRepoURL,
+		},
+		{
+			name: "unknown sourceType defaults to dry",
+			app: &v1alpha1.Application{
+				Spec: v1alpha1.ApplicationSpec{
+					SourceHydrator: &v1alpha1.SourceHydrator{
+						DrySource: v1alpha1.DrySource{
+							RepoURL:        dryRepoURL,
+							TargetRevision: "main",
+							Path:           "apps",
+						},
+						SyncSource: v1alpha1.SyncSource{
+							RepoURL:      syncRepoURL,
+							TargetBranch: "hydrated",
+							Path:         "manifests",
+						},
+					},
+				},
+			},
+			sourceType:     "unknown",
+			defaultRepoURL: defaultRepoURL,
+			expected:       dryRepoURL,
+		},
+		{
+			name: "empty sourceType defaults to dry",
+			app: &v1alpha1.Application{
+				Spec: v1alpha1.ApplicationSpec{
+					SourceHydrator: &v1alpha1.SourceHydrator{
+						DrySource: v1alpha1.DrySource{
+							RepoURL:        dryRepoURL,
+							TargetRevision: "main",
+							Path:           "apps",
+						},
+						SyncSource: v1alpha1.SyncSource{
+							RepoURL:      syncRepoURL,
+							TargetBranch: "hydrated",
+							Path:         "manifests",
+						},
+					},
+				},
+			},
+			sourceType:     "",
+			defaultRepoURL: defaultRepoURL,
+			expected:       dryRepoURL,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			result := resolveSourceHydratorRepoURLWithSourceType(tt.app, tt.sourceType, tt.defaultRepoURL)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
 }
