@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"math/rand"
 	"net/http"
 	"net/mail"
 	"net/url"
@@ -24,6 +23,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/bmatcuk/doublestar/v4"
+	"github.com/cenkalti/backoff/v5"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
@@ -1152,19 +1152,14 @@ func (m *nativeGitClient) AddAndPushNote(sha string, namespace string, note stri
 	ref := "--ref=" + namespace
 	notesRef := "refs/notes/" + namespace
 
-	// Retry up to 5 times to handle concurrent note updates
-	maxRetries := 5
-	var lastErr error
+	// Configure exponential backoff with jitter to handle concurrent note updates
+	b := backoff.NewExponentialBackOff()
+	b.InitialInterval = 50 * time.Millisecond
+	b.MaxInterval = 1 * time.Second
 
-	for attempt := 0; attempt < maxRetries; attempt++ {
-		if attempt > 0 {
-			// Exponential backoff with aggressive jitter to avoid thundering herd
-			baseBackoff := 50 * attempt * attempt // 50ms, 200ms, 450ms, 800ms in milliseconds
-			jitter := rand.Intn(baseBackoff + 1)  // Up to 100% jitter for maximum spread
-			backoff := time.Duration(baseBackoff+jitter) * time.Millisecond
-			log.Debugf("Retrying AddAndPushNote for commit %s (attempt %d/%d) after %v", sha, attempt+1, maxRetries, backoff)
-			time.Sleep(backoff)
-		}
+	attempt := 0
+	operation := func() (struct{}, error) {
+		attempt++
 
 		// Fetch the latest notes BEFORE adding to merge concurrent updates
 		// Use + prefix to force update local ref (safe because we want latest remote notes)
@@ -1177,7 +1172,7 @@ func (m *nativeGitClient) AddAndPushNote(sha string, namespace string, note stri
 		// Add note locally (use -f to overwrite if this specific commit already has a note locally)
 		_, err := m.runCmd(ctx, "notes", ref, "add", "-f", "-m", note, sha)
 		if err != nil {
-			return fmt.Errorf("failed to add note: %w", err)
+			return struct{}{}, backoff.Permanent(fmt.Errorf("failed to add note: %w", err))
 		}
 
 		if m.OnPush != nil {
@@ -1188,14 +1183,13 @@ func (m *nativeGitClient) AddAndPushNote(sha string, namespace string, note stri
 		// Push WITHOUT -f flag to avoid overwriting other notes
 		err = m.runCredentialedCmd(ctx, "push", "origin", notesRef)
 		if err == nil {
-			if attempt > 0 {
-				log.Debugf("AddAndPushNote succeeded after %d retries for commit %s", attempt, sha)
+			if attempt > 1 {
+				log.Debugf("AddAndPushNote succeeded after %d retries for commit %s", attempt-1, sha)
 			}
-			return nil
+			return struct{}{}, nil
 		}
 
-		lastErr = err
-		log.Debugf("AddAndPushNote push failed (attempt %d/%d): %v", attempt+1, maxRetries, err)
+		log.Debugf("AddAndPushNote push failed (attempt %d): %v", attempt, err)
 
 		// Check if this is a retryable error
 		errStr := err.Error()
@@ -1205,13 +1199,20 @@ func (m *nativeGitClient) AddAndPushNote(sha string, namespace string, note stri
 			strings.Contains(errStr, "failed to update ref") // Generic ref update failure that may include transient issues
 
 		if !isRetryable {
-			return fmt.Errorf("failed to push note: %w", err)
+			return struct{}{}, backoff.Permanent(fmt.Errorf("failed to push note: %w", err))
 		}
 
-		// Continue to next retry attempt
+		return struct{}{}, err
 	}
 
-	return fmt.Errorf("failed to push note after %d attempts: %w", maxRetries, lastErr)
+	_, err := backoff.Retry(ctx, operation,
+		backoff.WithBackOff(b),
+		backoff.WithMaxElapsedTime(5*time.Second),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to push note after retries: %w", err)
+	}
+	return nil
 }
 
 // HasFileChanged returns the outout of git diff considering whether it is tracked or un-tracked
