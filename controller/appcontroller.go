@@ -1171,7 +1171,6 @@ func (ctrl *ApplicationController) getAppTargets(app *appv1.Application) (target
 		if r := recover(); r != nil {
 			logCtx.WithField("panic", r).Debug("Recovered from panic in getAppTargets, disabling PostDelete hook optimization")
 			targets = nil
-			return
 		}
 	}()
 	appLabelKey, err := ctrl.settingsMgr.GetAppInstanceLabelKey()
