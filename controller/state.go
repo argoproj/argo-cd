@@ -288,30 +288,47 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 			app.Status.SourceType != v1alpha1.ApplicationSourceTypeDirectory
 
 		if updateRevisions && repo.Depth == 0 && !source.IsRef() && syncedRevision != "" && syncedRevision != revision && keyManifestGenerateAnnotationExists && keyManifestGenerateAnnotationVal != "" {
-			refRelSources := argo.GetRelatedRefSources(source, sources)
-			if len(refRelSources) == 0 {
-				refRelSources = v1alpha1.ApplicationSources{source}
-			}
 
 			repoRefs := map[string]string{}
-
-			for _, cSource := range refRelSources {
+			if app.Spec.HasMultipleSources() && (source.IsHelm() || source.IsHelmOci()) {
+				refRelSources := argo.GetRelatedRefSources(source, sources)
+				for _, cSource := range refRelSources {
+					revisionResult, err := repoClient.CheckChangesForPaths(ctx, &apiclient.CheckChangesForPathsRequest{
+						Repo:            sourcesData[cSource].Repo,
+						Revision:        sourcesData[cSource].Revision,
+						SyncedRevision:  sourcesData[cSource].SyncedRevision,
+						Paths:           path.GetAppRefreshPaths(app),
+						NoRevisionCache: noRevisionCache,
+					})
+					if err != nil {
+						return nil, nil, false, fmt.Errorf("failed to compare revisions for ref source %d of %d: %w", i+1, len(sources), err)
+					}
+					if revisionResult.Changes {
+						revisionsMayHaveChanges = true
+						repoRefs = map[string]string{}
+						break
+					}
+					repoRefs[git.NormalizeGitURL(cSource.RepoURL)] = sourcesData[cSource].SyncedRevision
+				}
+			} else {
 				revisionResult, err := repoClient.CheckChangesForPaths(ctx, &apiclient.CheckChangesForPathsRequest{
-					Repo:            sourcesData[cSource].Repo,
-					Revision:        sourcesData[cSource].Revision,
-					SyncedRevision:  sourcesData[cSource].SyncedRevision,
+					Repo:            repo,
+					Revision:        revision,
+					SyncedRevision:  syncedRevision,
 					Paths:           path.GetAppRefreshPaths(app),
 					NoRevisionCache: noRevisionCache,
 				})
 				if err != nil {
 					return nil, nil, false, fmt.Errorf("failed to compare revisions for ref source %d of %d: %w", i+1, len(sources), err)
 				}
-				if revisionResult.Changes {
+
+				// Generate manifests should use same revision as updateRevisionForPaths, because HEAD revision may be different between these two calls
+				if !revisionResult.Changes {
+					revision = revisionResult.Revision
+				} else {
 					revisionsMayHaveChanges = true
 					repoRefs = map[string]string{}
-					break
 				}
-				repoRefs[git.NormalizeGitURL(cSource.RepoURL)] = sourcesData[cSource].SyncedRevision
 			}
 
 			if !revisionsMayHaveChanges {
@@ -338,13 +355,8 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 					return nil, nil, false, fmt.Errorf("failed to compare revisions for source %d of %d: %w", i+1, len(sources), err)
 				}
 
-				if updateRevisionResult.Changes {
+				if !updateRevisionResult.Updated {
 					revisionsMayHaveChanges = true
-				}
-
-				// Generate manifests should use same revision as updateRevisionForPaths, because HEAD revision may be different between these two calls
-				if updateRevisionResult.Revision != "" {
-					revision = updateRevisionResult.Revision
 				}
 			}
 		} else {

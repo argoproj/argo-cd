@@ -3824,7 +3824,7 @@ func TestGetGitFiles(t *testing.T) {
 	})
 }
 
-func TestErrorUpdateRevisionForPaths(t *testing.T) {
+func TestErrorCheckChangesForPaths(t *testing.T) {
 	// test not using the cache
 	root := ""
 
@@ -3833,18 +3833,18 @@ func TestErrorUpdateRevisionForPaths(t *testing.T) {
 	}
 	type args struct {
 		ctx     context.Context
-		request *apiclient.UpdateRevisionForPathsRequest
+		request *apiclient.CheckChangesForPathsRequest
 	}
 	tests := []struct {
 		name    string
 		fields  fields
 		args    args
-		want    *apiclient.UpdateRevisionForPathsResponse
+		want    *apiclient.CheckChangesForPathsResponse
 		wantErr assert.ErrorAssertionFunc
 	}{
 		{name: "InvalidRepo", fields: fields{service: newService(t, ".")}, args: args{
 			ctx: t.Context(),
-			request: &apiclient.UpdateRevisionForPathsRequest{
+			request: &apiclient.CheckChangesForPathsRequest{
 				Repo:           nil,
 				Revision:       "HEAD",
 				SyncedRevision: "sadfsadf",
@@ -3861,7 +3861,7 @@ func TestErrorUpdateRevisionForPaths(t *testing.T) {
 			return s
 		}()}, args: args{
 			ctx: t.Context(),
-			request: &apiclient.UpdateRevisionForPathsRequest{
+			request: &apiclient.CheckChangesForPathsRequest{
 				Repo:           &v1alpha1.Repository{Repo: "not-a-valid-url"},
 				Revision:       "sadfsadf",
 				SyncedRevision: "HEAD",
@@ -3880,7 +3880,7 @@ func TestErrorUpdateRevisionForPaths(t *testing.T) {
 			return s
 		}()}, args: args{
 			ctx: t.Context(),
-			request: &apiclient.UpdateRevisionForPathsRequest{
+			request: &apiclient.CheckChangesForPathsRequest{
 				Repo:           &v1alpha1.Repository{Repo: "not-a-valid-url"},
 				Revision:       "HEAD",
 				SyncedRevision: "sadfsadf",
@@ -3891,16 +3891,16 @@ func TestErrorUpdateRevisionForPaths(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			s := tt.fields.service
-			got, err := s.UpdateRevisionForPaths(tt.args.ctx, tt.args.request)
-			if !tt.wantErr(t, err, fmt.Sprintf("UpdateRevisionForPaths(%v, %v)", tt.args.ctx, tt.args.request)) {
+			got, err := s.CheckChangesForPaths(tt.args.ctx, tt.args.request)
+			if !tt.wantErr(t, err, fmt.Sprintf("CheckChangesForPaths(%v, %v)", tt.args.ctx, tt.args.request)) {
 				return
 			}
-			assert.Equalf(t, tt.want, got, "UpdateRevisionForPaths(%v, %v)", tt.args.ctx, tt.args.request)
+			assert.Equalf(t, tt.want, got, "CheckChangesForPaths(%v, %v)", tt.args.ctx, tt.args.request)
 		})
 	}
 }
 
-func TestUpdateCacheRevisions(t *testing.T) {
+func TestCheckChangesForPaths(t *testing.T) {
 	logCtx := log.WithFields(log.Fields{"application": "app-test"})
 
 	type fields struct {
@@ -3908,107 +3908,15 @@ func TestUpdateCacheRevisions(t *testing.T) {
 		cache   *repoCacheMocks
 	}
 	type args struct {
-		logCtx        *log.Entry
-		oldRev        string
-		newRev        string
-		request       *apiclient.UpdateRevisionForPathsRequest
-		gitClientOpts git.ClientOpts
-	}
-	type cacheHit struct {
-		revision         string
-		previousRevision string
+		logCtx  *log.Entry
+		request *apiclient.CheckChangesForPathsRequest
 	}
 	tests := []struct {
-		name     string
-		fields   fields
-		args     args
-		want     *apiclient.UpdateRevisionForPathsResponse
-		wantErr  assert.ErrorAssertionFunc
-		cacheHit *cacheHit
-	}{
-		{name: "NoChangesUpdateCache", fields: func() fields {
-			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
-				gitClient.EXPECT().Init().Return(nil)
-				gitClient.EXPECT().Fetch(mock.Anything, mock.Anything).Once().Return(nil)
-				gitClient.EXPECT().IsRevisionPresent("632039659e542ed7de0c170a4fcc1c571b288fc0").Once().Return(false)
-				gitClient.EXPECT().Checkout(mock.Anything, mock.Anything).Return("", nil)
-				gitClient.EXPECT().IsRevisionPresent("1e67a504d03def3a6a1125d934cb511680f72555").Once().Return(false)
-				// fetch
-				gitClient.EXPECT().Fetch(mock.Anything, mock.Anything).Once().Return(nil)
-				gitClient.EXPECT().IsRevisionPresent("1e67a504d03def3a6a1125d934cb511680f72555").Once().Return(true)
-				gitClient.EXPECT().LsRemote("HEAD").Once().Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
-				gitClient.EXPECT().LsRemote("SYNCEDHEAD").Once().Return("1e67a504d03def3a6a1125d934cb511680f72555", nil)
-				paths.EXPECT().GetPath(mock.Anything).Return(".", nil)
-				paths.EXPECT().GetPathIfExists(mock.Anything).Return(".")
-				gitClient.EXPECT().Root().Return("")
-				gitClient.EXPECT().ChangedFiles(mock.Anything, mock.Anything).Return([]string{}, nil)
-			}, ".")
-			return fields{
-				service: s,
-				cache:   c,
-			}
-		}(), args: args{
-			logCtx: logCtx,
-			request: &apiclient.UpdateRevisionForPathsRequest{
-				Repo:               &v1alpha1.Repository{Repo: "a-url.com"},
-				Revision:           "HEAD",
-				SyncedRevision:     "SYNCEDHEAD",
-				Paths:              []string{"."},
-				HasMultipleSources: true,
-				AppLabelKey:        "app.kubernetes.io/name",
-				AppName:            "no-change-update-cache",
-				Namespace:          "default",
-				TrackingMethod:     "annotation+label",
-				ApplicationSource:  &v1alpha1.ApplicationSource{Path: ".", Helm: &v1alpha1.ApplicationSourceHelm{Version: "my-test-version"}},
-				KubeVersion:        "v1.16.0",
-			},
-			oldRev: "1e67a504d03def3a6a1125d934cb511680f72555",
-			newRev: "632039659e542ed7de0c170a4fcc1c571b288fc0",
-		}, want: &apiclient.UpdateRevisionForPathsResponse{
-			Revision: "632039659e542ed7de0c170a4fcc1c571b288fc0",
-		}, wantErr: assert.NoError, cacheHit: &cacheHit{
-			previousRevision: "1e67a504d03def3a6a1125d934cb511680f72555",
-			revision:         "632039659e542ed7de0c170a4fcc1c571b288fc0",
-		}},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			s := tt.fields.service
-			cache := tt.fields.cache
-
-			cache.mockCache.On("Rename", tt.cacheHit.previousRevision, tt.cacheHit.revision, mock.Anything).Return(nil)
-
-			err := s.updateCachedRevision(tt.args.logCtx, tt.args.oldRev, tt.args.newRev, tt.args.request, tt.args.gitClientOpts)
-			if !tt.wantErr(t, err, fmt.Sprintf("updateCachedRevision(%v, %v, %v, %v, %v)", tt.args.logCtx, tt.args.oldRev, tt.args.newRev, tt.args.request, tt.args.gitClientOpts)) {
-				return
-			}
-			cache.mockCache.AssertCacheCalledTimes(t, &repositorymocks.CacheCallCounts{
-				ExternalRenames: 1,
-			})
-		})
-	}
-}
-
-func TestUpdateRevisionForPaths(t *testing.T) {
-	type fields struct {
-		service *Service
-		cache   *repoCacheMocks
-	}
-	type args struct {
-		ctx     context.Context
-		request *apiclient.UpdateRevisionForPathsRequest
-	}
-	type cacheHit struct {
-		revision         string
-		previousRevision string
-	}
-	tests := []struct {
-		name     string
-		fields   fields
-		args     args
-		want     *apiclient.UpdateRevisionForPathsResponse
-		wantErr  assert.ErrorAssertionFunc
-		cacheHit *cacheHit
+		name    string
+		fields  fields
+		args    args
+		want    *apiclient.CheckChangesForPathsResponse
+		wantErr assert.ErrorAssertionFunc
 	}{
 		{name: "NoPathAbort", fields: func() fields {
 			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, _ *iomocks.TempPaths) {
@@ -4019,12 +3927,13 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 				cache:   c,
 			}
 		}(), args: args{
-			ctx: t.Context(),
-			request: &apiclient.UpdateRevisionForPathsRequest{
-				Repo:  &v1alpha1.Repository{Repo: "a-url.com"},
-				Paths: []string{},
+			request: &apiclient.CheckChangesForPathsRequest{
+				Repo:           &v1alpha1.Repository{Repo: "a-url.com"},
+				Revision:       "HEAD",
+				SyncedRevision: "SYNCEDHEAD",
+				Paths:          []string{},
 			},
-		}, want: &apiclient.UpdateRevisionForPathsResponse{}, wantErr: assert.NoError},
+		}, want: &apiclient.CheckChangesForPathsResponse{Changes: true, Revision: "HEAD"}, wantErr: assert.NoError},
 		{name: "SameResolvedRevisionAbort", fields: func() fields {
 			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
 				gitClient.EXPECT().Checkout(mock.Anything, mock.Anything).Return("", nil)
@@ -4038,14 +3947,14 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 				cache:   c,
 			}
 		}(), args: args{
-			ctx: t.Context(),
-			request: &apiclient.UpdateRevisionForPathsRequest{
+			request: &apiclient.CheckChangesForPathsRequest{
 				Repo:           &v1alpha1.Repository{Repo: "a-url.com"},
 				Revision:       "HEAD",
 				SyncedRevision: "SYNCEDHEAD",
 				Paths:          []string{"."},
 			},
-		}, want: &apiclient.UpdateRevisionForPathsResponse{
+		}, want: &apiclient.CheckChangesForPathsResponse{
+			Changes:  true,
 			Revision: "632039659e542ed7de0c170a4fcc1c571b288fc0",
 		}, wantErr: assert.NoError},
 		{name: "ChangedFilesDoNothing", fields: func() fields {
@@ -4070,18 +3979,17 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 				cache:   c,
 			}
 		}(), args: args{
-			ctx: t.Context(),
-			request: &apiclient.UpdateRevisionForPathsRequest{
+			request: &apiclient.CheckChangesForPathsRequest{
 				Repo:           &v1alpha1.Repository{Repo: "a-url.com"},
 				Revision:       "HEAD",
 				SyncedRevision: "SYNCEDHEAD",
 				Paths:          []string{"."},
 			},
-		}, want: &apiclient.UpdateRevisionForPathsResponse{
+		}, want: &apiclient.CheckChangesForPathsResponse{
 			Revision: "632039659e542ed7de0c170a4fcc1c571b288fc0",
 			Changes:  true,
 		}, wantErr: assert.NoError},
-		{name: "NoChangesUpdateCache", fields: func() fields {
+		{name: "NoChanges", fields: func() fields {
 			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
 				gitClient.EXPECT().Init().Return(nil)
 				gitClient.EXPECT().Fetch(mock.Anything, mock.Anything).Once().Return(nil)
@@ -4103,42 +4011,94 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 				cache:   c,
 			}
 		}(), args: args{
-			ctx: t.Context(),
-			request: &apiclient.UpdateRevisionForPathsRequest{
+			logCtx: logCtx,
+			request: &apiclient.CheckChangesForPathsRequest{
 				Repo:           &v1alpha1.Repository{Repo: "a-url.com"},
 				Revision:       "HEAD",
 				SyncedRevision: "SYNCEDHEAD",
 				Paths:          []string{"."},
-
-				AppLabelKey:       "app.kubernetes.io/name",
-				AppName:           "no-change-update-cache",
-				Namespace:         "default",
-				TrackingMethod:    "annotation+label",
-				ApplicationSource: &v1alpha1.ApplicationSource{Path: "."},
-				KubeVersion:       "v1.16.0",
 			},
-		}, want: &apiclient.UpdateRevisionForPathsResponse{
-			Revision: "632039659e542ed7de0c170a4fcc1c571b288fc0",
-		}, wantErr: assert.NoError, cacheHit: &cacheHit{
-			previousRevision: "1e67a504d03def3a6a1125d934cb511680f72555",
-			revision:         "632039659e542ed7de0c170a4fcc1c571b288fc0",
-		}},
-		{name: "NoChangesHelmMultiSourceUpdateCache", fields: func() fields {
+		},
+			want: &apiclient.CheckChangesForPathsResponse{
+				Changes:  false,
+				Revision: "632039659e542ed7de0c170a4fcc1c571b288fc0",
+			},
+			wantErr: assert.NoError,
+		},
+		{name: "HasChanges", fields: func() fields {
 			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
 				gitClient.EXPECT().Init().Return(nil)
+				gitClient.EXPECT().Fetch(mock.Anything, mock.Anything).Once().Return(nil)
 				gitClient.EXPECT().IsRevisionPresent("632039659e542ed7de0c170a4fcc1c571b288fc0").Once().Return(false)
-				gitClient.EXPECT().Fetch(mock.Anything, mock.Anything).Once().Return(nil)
 				gitClient.EXPECT().Checkout(mock.Anything, mock.Anything).Return("", nil)
+				gitClient.EXPECT().IsRevisionPresent("1e67a504d03def3a6a1125d934cb511680f72555").Once().Return(false)
 				// fetch
-				gitClient.EXPECT().IsRevisionPresent("1e67a504d03def3a6a1125d934cb511680f72555").Once().Return(true)
 				gitClient.EXPECT().Fetch(mock.Anything, mock.Anything).Once().Return(nil)
+				gitClient.EXPECT().IsRevisionPresent("1e67a504d03def3a6a1125d934cb511680f72555").Once().Return(true)
 				gitClient.EXPECT().LsRemote("HEAD").Once().Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
 				gitClient.EXPECT().LsRemote("SYNCEDHEAD").Once().Return("1e67a504d03def3a6a1125d934cb511680f72555", nil)
 				paths.EXPECT().GetPath(mock.Anything).Return(".", nil)
 				paths.EXPECT().GetPathIfExists(mock.Anything).Return(".")
 				gitClient.EXPECT().Root().Return("")
-				gitClient.EXPECT().ChangedFiles(mock.Anything, mock.Anything).Return([]string{}, nil)
+				gitClient.EXPECT().ChangedFiles(mock.Anything, mock.Anything).Return([]string{"/path"}, nil)
 			}, ".")
+			return fields{
+				service: s,
+				cache:   c,
+			}
+		}(), args: args{
+			logCtx: logCtx,
+			request: &apiclient.CheckChangesForPathsRequest{
+				Repo:           &v1alpha1.Repository{Repo: "a-url.com"},
+				Revision:       "HEAD",
+				SyncedRevision: "SYNCEDHEAD",
+				Paths:          []string{"."},
+			},
+		},
+			want: &apiclient.CheckChangesForPathsResponse{
+				Changes:  true,
+				Revision: "632039659e542ed7de0c170a4fcc1c571b288fc0",
+			},
+			wantErr: assert.NoError,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := tt.fields.service
+
+			resp, err := s.CheckChangesForPaths(t.Context(), tt.args.request)
+			if !tt.wantErr(t, err, fmt.Sprintf("CheckChangesForPaths(%v, %v)", t.Context(), tt.args.request)) {
+				return
+			}
+
+			assert.Equalf(t, tt.want, resp, "CheckChangesForPaths(%v, %v)", t.Context(), tt.args.request)
+		})
+	}
+}
+
+func TestUpdateRevisionForPaths(t *testing.T) {
+	type fields struct {
+		service *Service
+		cache   *repoCacheMocks
+	}
+	type args struct {
+		ctx     context.Context
+		request *apiclient.UpdateRevisionForPathsRequest
+	}
+	type cacheHit struct {
+		revision         string
+		previousRevision string
+	}
+	tests := []struct {
+		name      string
+		fields    fields
+		args      args
+		want      *apiclient.UpdateRevisionForPathsResponse
+		wantErr   assert.ErrorAssertionFunc
+		cacheMiss bool
+	}{
+		{name: "UpdateCacheHit", fields: func() fields {
+			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {}, ".")
 			return fields{
 				service: s,
 				cache:   c,
@@ -4155,26 +4115,46 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 				AppName:           "no-change-update-cache",
 				Namespace:         "default",
 				TrackingMethod:    "annotation+label",
-				ApplicationSource: &v1alpha1.ApplicationSource{Path: ".", Helm: &v1alpha1.ApplicationSourceHelm{ReleaseName: "test"}},
+				ApplicationSource: &v1alpha1.ApplicationSource{Path: "."},
 				KubeVersion:       "v1.16.0",
-
-				HasMultipleSources: true,
 			},
 		}, want: &apiclient.UpdateRevisionForPathsResponse{
-			Revision: "632039659e542ed7de0c170a4fcc1c571b288fc0",
-		}, wantErr: assert.NoError, cacheHit: &cacheHit{
-			previousRevision: "1e67a504d03def3a6a1125d934cb511680f72555",
-			revision:         "632039659e542ed7de0c170a4fcc1c571b288fc0",
-		}},
+			Revision: "HEAD",
+			Updated:  true,
+		}, wantErr: assert.NoError, cacheMiss: false},
+		{name: "UpdateCacheMissKey", fields: func() fields {
+			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {}, ".")
+			return fields{
+				service: s,
+				cache:   c,
+			}
+		}(), args: args{
+			ctx: t.Context(),
+			request: &apiclient.UpdateRevisionForPathsRequest{
+				Repo:           &v1alpha1.Repository{Repo: "a-url.com"},
+				Revision:       "HEAD",
+				SyncedRevision: "SYNCEDHEAD",
+				Paths:          []string{"."},
+
+				AppLabelKey:       "app.kubernetes.io/name",
+				AppName:           "no-change-update-cache",
+				Namespace:         "default",
+				TrackingMethod:    "annotation+label",
+				ApplicationSource: &v1alpha1.ApplicationSource{Path: "."},
+				KubeVersion:       "v1.16.0",
+			},
+		}, want: &apiclient.UpdateRevisionForPathsResponse{
+			Revision: "HEAD",
+			Updated:  false,
+		}, wantErr: assert.Error, cacheMiss: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			s := tt.fields.service
 			cache := tt.fields.cache
 
-			if tt.cacheHit != nil {
-				cache.mockCache.On("Rename", tt.cacheHit.previousRevision, tt.cacheHit.revision, mock.Anything).Return(nil)
-			}
+			// TODO: need to fix mock cache
+			cache.mockCache.On("Rename", mock.Anything).Return(nil)
 
 			got, err := s.UpdateRevisionForPaths(tt.args.ctx, tt.args.request)
 			if !tt.wantErr(t, err, fmt.Sprintf("UpdateRevisionForPaths(%v, %v)", tt.args.ctx, tt.args.request)) {
@@ -4182,15 +4162,10 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 			}
 			assert.Equalf(t, tt.want, got, "UpdateRevisionForPaths(%v, %v)", tt.args.ctx, tt.args.request)
 
-			if tt.cacheHit != nil {
-				cache.mockCache.AssertCacheCalledTimes(t, &repositorymocks.CacheCallCounts{
-					ExternalRenames: 1,
-				})
-			} else {
-				cache.mockCache.AssertCacheCalledTimes(t, &repositorymocks.CacheCallCounts{
-					ExternalRenames: 0,
-				})
-			}
+			cache.mockCache.AssertCacheCalledTimes(t, &repositorymocks.CacheCallCounts{
+				ExternalRenames: 1,
+			})
+
 		})
 	}
 }
