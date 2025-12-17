@@ -23,80 +23,20 @@ import (
 func TestAddNoteConcurrentStaggered(t *testing.T) {
 	t.Parallel()
 
-	// Create a bare repository to act as the "remote"
-	remoteDir := t.TempDir()
-	remotePath := filepath.Join(remoteDir, "remote.git")
-	err := os.MkdirAll(remotePath, 0o755)
-	require.NoError(t, err)
-
-	ctx := context.Background()
-	_, err = runGitCmd(ctx, remotePath, "init", "--bare")
-	require.NoError(t, err)
-
-	// Create a local repository with some commits
-	localDir := t.TempDir()
-	localPath := filepath.Join(localDir, "local")
-	err = os.MkdirAll(localPath, 0o755)
-	require.NoError(t, err)
-
-	// Initialize and create initial commits
-	_, err = runGitCmd(ctx, localPath, "init")
-	require.NoError(t, err)
-
-	_, err = runGitCmd(ctx, localPath, "config", "user.name", "Test User")
-	require.NoError(t, err)
-
-	_, err = runGitCmd(ctx, localPath, "config", "user.email", "test@example.com")
-	require.NoError(t, err)
-
-	_, err = runGitCmd(ctx, localPath, "remote", "add", "origin", remotePath)
-	require.NoError(t, err)
+	remotePath, localPath := setupRepoWithRemote(t)
 
 	// Create 3 branches with commits (simulating different hydration targets)
 	branches := []string{"env/dev", "env/staging", "env/prod"}
 	commitSHAs := make([]string, 3)
 
 	for i, branch := range branches {
-		testFile := filepath.Join(localPath, fmt.Sprintf("file-%d.txt", i))
-		err = os.WriteFile(testFile, []byte(fmt.Sprintf("content %d", i)), 0o644)
-		require.NoError(t, err)
-
-		_, err = runGitCmd(ctx, localPath, "add", ".")
-		require.NoError(t, err)
-		_, err = runGitCmd(ctx, localPath, "commit", "-m", "commit "+branch)
-		require.NoError(t, err)
-
-		sha, err := runGitCmd(ctx, localPath, "rev-parse", "HEAD")
-		require.NoError(t, err)
-		commitSHAs[i] = sha
-
-		_, err = runGitCmd(ctx, localPath, "branch", branch)
-		require.NoError(t, err)
-		_, err = runGitCmd(ctx, localPath, "push", "origin", branch)
-		require.NoError(t, err)
+		commitSHAs[i] = commitAndPushBranch(t, localPath, branch)
 	}
 
 	// Create separate clones for concurrent operations
-	gitClients := make([]git.Client, 3)
-
+	cloneClients := make([]git.Client, 3)
 	for i := 0; i < 3; i++ {
-		workDir := filepath.Join(localDir, fmt.Sprintf("work-%d", i))
-		err = os.MkdirAll(workDir, 0o755)
-		require.NoError(t, err)
-
-		client, err := git.NewClientExt(remotePath, workDir, &git.NopCreds{}, false, false, "", "")
-		require.NoError(t, err)
-
-		err = client.Init()
-		require.NoError(t, err)
-		_, err = runGitCmd(ctx, workDir, "config", "user.name", "Test User")
-		require.NoError(t, err)
-		_, err = runGitCmd(ctx, workDir, "config", "user.email", "test@example.com")
-		require.NoError(t, err)
-		err = client.Fetch("", 0)
-		require.NoError(t, err)
-
-		gitClients[i] = client
+		cloneClients[i] = getClientForClone(t, remotePath)
 	}
 
 	// Add notes concurrently with slight stagger
@@ -108,18 +48,13 @@ func TestAddNoteConcurrentStaggered(t *testing.T) {
 		go func(idx int) {
 			defer wg.Done()
 			time.Sleep(time.Duration(idx*50) * time.Millisecond)
-			errors[idx] = AddNote(gitClients[idx], fmt.Sprintf("dry-sha-%d", idx), commitSHAs[idx])
+			errors[idx] = AddNote(cloneClients[idx], fmt.Sprintf("dry-sha-%d", idx), commitSHAs[idx])
 		}(i)
 	}
 	wg.Wait()
 
 	// Verify all notes persisted
-	verifyClient, err := git.NewClientExt(remotePath, t.TempDir(), &git.NopCreds{}, false, false, "", "")
-	require.NoError(t, err)
-	err = verifyClient.Init()
-	require.NoError(t, err)
-	err = verifyClient.Fetch("", 0)
-	require.NoError(t, err)
+	verifyClient := getClientForClone(t, remotePath)
 
 	for i, commitSHA := range commitSHAs {
 		note, err := verifyClient.GetCommitNote(commitSHA, NoteNamespace)
@@ -134,74 +69,20 @@ func TestAddNoteConcurrentStaggered(t *testing.T) {
 func TestAddNoteConcurrentSimultaneous(t *testing.T) {
 	t.Parallel()
 
-	remoteDir := t.TempDir()
-	remotePath := filepath.Join(remoteDir, "remote.git")
-	err := os.MkdirAll(remotePath, 0o755)
-	require.NoError(t, err)
-
-	ctx := context.Background()
-	_, err = runGitCmd(ctx, remotePath, "init", "--bare")
-	require.NoError(t, err)
-
-	localDir := t.TempDir()
-	localPath := filepath.Join(localDir, "local")
-	err = os.MkdirAll(localPath, 0o755)
-	require.NoError(t, err)
-
-	_, err = runGitCmd(ctx, localPath, "init")
-	require.NoError(t, err)
-	_, err = runGitCmd(ctx, localPath, "config", "user.name", "Test User")
-	require.NoError(t, err)
-	_, err = runGitCmd(ctx, localPath, "config", "user.email", "test@example.com")
-	require.NoError(t, err)
-	_, err = runGitCmd(ctx, localPath, "remote", "add", "origin", remotePath)
-	require.NoError(t, err)
+	remotePath, localPath := setupRepoWithRemote(t)
 
 	// Create 3 branches with commits (simulating different hydration targets)
 	branches := []string{"env/dev", "env/staging", "env/prod"}
 	commitSHAs := make([]string, 3)
 
 	for i, branch := range branches {
-		testFile := filepath.Join(localPath, fmt.Sprintf("file-%d.txt", i))
-		err = os.WriteFile(testFile, []byte(fmt.Sprintf("content %d", i)), 0o644)
-		require.NoError(t, err)
-
-		_, err = runGitCmd(ctx, localPath, "add", ".")
-		require.NoError(t, err)
-		_, err = runGitCmd(ctx, localPath, "commit", "-m", "commit "+branch)
-		require.NoError(t, err)
-
-		sha, err := runGitCmd(ctx, localPath, "rev-parse", "HEAD")
-		require.NoError(t, err)
-		commitSHAs[i] = sha
-
-		_, err = runGitCmd(ctx, localPath, "branch", branch)
-		require.NoError(t, err)
-		_, err = runGitCmd(ctx, localPath, "push", "origin", branch)
-		require.NoError(t, err)
+		commitSHAs[i] = commitAndPushBranch(t, localPath, branch)
 	}
 
 	// Create separate clones for concurrent operations
-	gitClients := make([]git.Client, 3)
-
+	cloneClients := make([]git.Client, 3)
 	for i := 0; i < 3; i++ {
-		workDir := filepath.Join(localDir, fmt.Sprintf("work-%d", i))
-		err = os.MkdirAll(workDir, 0o755)
-		require.NoError(t, err)
-
-		client, err := git.NewClientExt(remotePath, workDir, &git.NopCreds{}, false, false, "", "")
-		require.NoError(t, err)
-
-		err = client.Init()
-		require.NoError(t, err)
-		_, err = runGitCmd(ctx, workDir, "config", "user.name", "Test User")
-		require.NoError(t, err)
-		_, err = runGitCmd(ctx, workDir, "config", "user.email", "test@example.com")
-		require.NoError(t, err)
-		err = client.Fetch("", 0)
-		require.NoError(t, err)
-
-		gitClients[i] = client
+		cloneClients[i] = getClientForClone(t, remotePath)
 	}
 
 	// Add notes concurrently without delays
@@ -213,7 +94,7 @@ func TestAddNoteConcurrentSimultaneous(t *testing.T) {
 		go func(idx int) {
 			defer wg.Done()
 			<-startChan
-			_ = AddNote(gitClients[idx], fmt.Sprintf("dry-sha-%d", idx), commitSHAs[idx])
+			_ = AddNote(cloneClients[idx], fmt.Sprintf("dry-sha-%d", idx), commitSHAs[idx])
 		}(i)
 	}
 
@@ -221,18 +102,102 @@ func TestAddNoteConcurrentSimultaneous(t *testing.T) {
 	wg.Wait()
 
 	// Verify all notes persisted
-	verifyClient, err := git.NewClientExt(remotePath, t.TempDir(), &git.NopCreds{}, false, false, "", "")
-	require.NoError(t, err)
-	err = verifyClient.Init()
-	require.NoError(t, err)
-	err = verifyClient.Fetch("", 0)
-	require.NoError(t, err)
+	verifyClient := getClientForClone(t, remotePath)
 
 	for i, commitSHA := range commitSHAs {
 		note, err := verifyClient.GetCommitNote(commitSHA, NoteNamespace)
 		require.NoError(t, err, "Note should exist for commit %d", i)
 		assert.Contains(t, note, fmt.Sprintf("dry-sha-%d", i))
 	}
+}
+
+// setupRepoWithRemote creates a bare remote repo and a local repo configured to push to it.
+// Returns the remote path and local path.
+func setupRepoWithRemote(t *testing.T) (remotePath, localPath string) {
+	t.Helper()
+	ctx := t.Context()
+
+	// Create bare remote repository
+	remoteDir := t.TempDir()
+	remotePath = filepath.Join(remoteDir, "remote.git")
+	err := os.MkdirAll(remotePath, 0o755)
+	require.NoError(t, err)
+
+	_, err = runGitCmd(ctx, remotePath, "init", "--bare")
+	require.NoError(t, err)
+
+	// Create local repository
+	localDir := t.TempDir()
+	localPath = filepath.Join(localDir, "local")
+	err = os.MkdirAll(localPath, 0o755)
+	require.NoError(t, err)
+
+	_, err = runGitCmd(ctx, localPath, "init")
+	require.NoError(t, err)
+
+	_, err = runGitCmd(ctx, localPath, "config", "user.name", "Test User")
+	require.NoError(t, err)
+
+	_, err = runGitCmd(ctx, localPath, "config", "user.email", "test@example.com")
+	require.NoError(t, err)
+
+	_, err = runGitCmd(ctx, localPath, "remote", "add", "origin", remotePath)
+	require.NoError(t, err)
+
+	return remotePath, localPath
+}
+
+// commitAndPushBranch writes a file, commits it, creates a branch, and pushes to remote.
+// Returns the commit SHA.
+func commitAndPushBranch(t *testing.T, localPath, branch string) string {
+	t.Helper()
+	ctx := t.Context()
+
+	testFile := filepath.Join(localPath, "test.txt")
+	err := os.WriteFile(testFile, []byte("content for "+branch), 0o644)
+	require.NoError(t, err)
+
+	_, err = runGitCmd(ctx, localPath, "add", ".")
+	require.NoError(t, err)
+
+	_, err = runGitCmd(ctx, localPath, "commit", "-m", "commit "+branch)
+	require.NoError(t, err)
+
+	sha, err := runGitCmd(ctx, localPath, "rev-parse", "HEAD")
+	require.NoError(t, err)
+
+	_, err = runGitCmd(ctx, localPath, "branch", branch)
+	require.NoError(t, err)
+
+	_, err = runGitCmd(ctx, localPath, "push", "origin", branch)
+	require.NoError(t, err)
+
+	return sha
+}
+
+// getClientForClone creates a git client with a fresh clone of the remote repo.
+func getClientForClone(t *testing.T, remotePath string) git.Client {
+	t.Helper()
+	ctx := t.Context()
+
+	workDir := t.TempDir()
+
+	client, err := git.NewClientExt(remotePath, workDir, &git.NopCreds{}, false, false, "", "")
+	require.NoError(t, err)
+
+	err = client.Init()
+	require.NoError(t, err)
+
+	_, err = runGitCmd(ctx, workDir, "config", "user.name", "Test User")
+	require.NoError(t, err)
+
+	_, err = runGitCmd(ctx, workDir, "config", "user.email", "test@example.com")
+	require.NoError(t, err)
+
+	err = client.Fetch("", 0)
+	require.NoError(t, err)
+
+	return client
 }
 
 // runGitCmd is a helper function to run git commands
