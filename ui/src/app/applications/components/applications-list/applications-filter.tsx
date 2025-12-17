@@ -5,7 +5,7 @@ import {Context} from '../../../shared/context';
 import {Application, ApplicationDestination, Cluster, HealthStatusCode, HealthStatuses, SyncPolicy, SyncStatusCode, SyncStatuses} from '../../../shared/models';
 import {AppsListPreferences, services} from '../../../shared/services';
 import {Filter, FiltersGroup} from '../filter/filter';
-import * as LabelSelector from '../label-selector';
+import {createMetadataSelector} from '../selectors';
 import {ComparisonStatusIcon, getAppDefaultSource, HealthStatusIcon} from '../utils';
 import {formatClusterQueryParam} from '../../../shared/utils';
 import {COLORS} from '../../../shared/components/colors';
@@ -19,6 +19,7 @@ export interface FilterResult {
     clusters: boolean;
     favourite: boolean;
     labels: boolean;
+    annotations: boolean;
 }
 
 export interface FilteredApp extends Application {
@@ -33,6 +34,9 @@ export function getAutoSyncStatus(syncPolicy?: SyncPolicy) {
 }
 
 export function getFilterResults(applications: Application[], pref: AppsListPreferences): FilteredApp[] {
+    const labelSelector = createMetadataSelector(pref.labelsFilter || []);
+    const annotationSelector = createMetadataSelector(pref.annotationsFilter || []);
+
     return applications.map(app => ({
         ...app,
         filterResult: {
@@ -54,7 +58,8 @@ export function getFilterResults(applications: Application[], pref: AppsListPref
                         return (inputMatch && inputMatch[0] === app.spec.destination.server) || (app.spec.destination.name && minimatch(app.spec.destination.name, filterString));
                     }
                 }),
-            labels: pref.labelsFilter.length === 0 || pref.labelsFilter.every(selector => LabelSelector.match(selector, app.metadata.labels))
+            labels: pref.labelsFilter.length === 0 || labelSelector(app.metadata.labels),
+            annotations: pref.annotationsFilter.length === 0 || annotationSelector(app.metadata.annotations)
         }
     }));
 }
@@ -156,6 +161,43 @@ const LabelsFilter = (props: AppFilterProps) => {
     });
 
     return <Filter label='LABELS' selected={props.pref.labelsFilter} setSelected={s => props.onChange({...props.pref, labelsFilter: s})} field={true} options={labelOptions} />;
+};
+
+const AnnotationsFilter = (props: AppFilterProps) => {
+    const annotationOptions = React.useMemo(() => {
+        const annotations = new Map<string, Set<string>>();
+
+        props.apps
+            .filter(app => app.metadata && app.metadata.annotations)
+            .forEach(app =>
+                Object.keys(app.metadata.annotations).forEach(annotation => {
+                    let values = annotations.get(annotation);
+                    if (!values) {
+                        values = new Set<string>();
+                        annotations.set(annotation, values);
+                    }
+                    values.add(app.metadata.annotations[annotation]);
+                })
+            );
+
+        const suggestions = new Array<string>();
+        Array.from(annotations.entries()).forEach(([annotation, values]) => {
+            suggestions.push(annotation);
+            values.forEach(val => suggestions.push(`${annotation}=${val}`));
+        });
+
+        return suggestions.map(s => ({label: s}));
+    }, [props.apps]);
+
+    return (
+        <Filter
+            label='ANNOTATIONS'
+            selected={props.pref.annotationsFilter}
+            setSelected={s => props.onChange({...props.pref, annotationsFilter: s})}
+            field={true}
+            options={annotationOptions}
+        />
+    );
 };
 
 const ProjectFilter = (props: AppFilterProps) => {
@@ -282,6 +324,7 @@ export const ApplicationsFilter = (props: AppFilterProps) => {
             <SyncFilter {...props} />
             <HealthFilter {...props} />
             <LabelsFilter {...props} />
+            <AnnotationsFilter {...props} />
             <ProjectFilter {...props} />
             <ClusterFilter {...props} />
             <NamespaceFilter {...props} />
