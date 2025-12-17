@@ -1176,7 +1176,7 @@ func (ctrl *ApplicationController) getAppTargets(app *appv1.Application) (target
 	appLabelKey, err := ctrl.settingsMgr.GetAppInstanceLabelKey()
 	if err != nil {
 		logCtx.WithError(err).Debug("Unable to get app instance label key, disabling PostDelete hook optimization")
-		return
+		return targets
 	}
 	var revisions []string
 	for _, src := range app.Spec.GetSources() {
@@ -1185,14 +1185,14 @@ func (ctrl *ApplicationController) getAppTargets(app *appv1.Application) (target
 	proj, err := ctrl.getAppProj(app)
 	if err != nil {
 		logCtx.WithError(err).Debug("Unable to get app project, disabling PostDelete hook optimization")
-		return
+		return targets
 	}
 	targets, _, _, err = ctrl.appStateManager.GetRepoObjs(context.Background(), app, app.Spec.GetSources(), appLabelKey, revisions, false, false, false, proj, true)
 	if err != nil {
 		logCtx.WithError(err).Debug("Unable to get repo objects, disabling PostDelete hook optimization")
-		return
+		return targets
 	}
-	return
+	return targets
 }
 
 // hasPostDeleteHooksForNamespace checks if there are PostDelete hooks that might manage the given namespace
