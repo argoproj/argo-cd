@@ -7,15 +7,34 @@ import (
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 )
 
-// this implements the "given" part of given/when/then
+// Context implements the "given" part of given/when/then.
+// It embeds fixture.TestState to provide test-specific state that enables parallel test execution.
 type Context struct {
-	t *testing.T
+	*fixture.TestState
 }
 
 func Given(t *testing.T) *Context {
 	t.Helper()
-	fixture.EnsureCleanState(t)
-	return &Context{t: t}
+	state := fixture.EnsureCleanState(t)
+	return &Context{TestState: state}
+}
+
+// GivenWithSameState creates a new Context that shares the same TestState as an existing context.
+// Use this when you need multiple fixture contexts within the same test.
+// For backward compatibility, also accepts *testing.T (deprecated - pass a TestContext instead).
+func GivenWithSameState(ctxOrT any) *Context {
+	var state *fixture.TestState
+	switch v := ctxOrT.(type) {
+	case *testing.T:
+		v.Helper()
+		state = fixture.GetTestState(v)
+	case fixture.TestContext:
+		v.T().Helper()
+		state = v.(*fixture.TestState)
+	default:
+		panic("GivenWithSameState: expected *testing.T or fixture.TestContext")
+	}
+	return &Context{TestState: state}
 }
 
 func (c *Context) And(block func()) *Context {

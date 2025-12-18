@@ -387,6 +387,21 @@ func ShortId() string {
 	return shortId
 }
 
+// GetTestState returns a TestState populated with current global values.
+// Use this for backward compatibility when GivenWithSameState is called with *testing.T
+// instead of a TestContext. This reads from global state.
+// Deprecated: Pass a TestContext instead of *testing.T to GivenWithSameState.
+func GetTestState(t *testing.T) *TestState {
+	return &TestState{
+		t:                   t,
+		id:                  id,
+		shortId:             shortId,
+		name:                name,
+		deploymentNamespace: deploymentNamespace,
+		token:               token,
+	}
+}
+
 func repoDirectory() string {
 	return path.Join(TmpDir, repoDir)
 }

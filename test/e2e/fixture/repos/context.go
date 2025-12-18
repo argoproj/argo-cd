@@ -7,33 +7,47 @@ import (
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 )
 
-// this implements the "given" part of given/when/then
+// Context implements the "given" part of given/when/then.
+// It embeds fixture.TestState to provide test-specific state that enables parallel test execution.
 type Context struct {
-	t       *testing.T
-	path    string
-	name    string
-	project string
+	*fixture.TestState
+	path     string
+	// repoName is the name of the repo being tested (shadows TestState.Name())
+	repoName string
+	project  string
 }
 
 func Given(t *testing.T) *Context {
 	t.Helper()
-	fixture.EnsureCleanState(t)
-	return GivenWithSameState(t)
+	state := fixture.EnsureCleanState(t)
+	return GivenWithSameState(state)
 }
 
-// GivenWithSameState skips cleaning state. Use this when you've already ensured you have a clean
-// state in your test setup don't want to waste time by doing so again.
-func GivenWithSameState(t *testing.T) *Context {
-	t.Helper()
-	return &Context{t: t, name: fixture.Name(), project: "default"}
+// GivenWithSameState creates a new Context that shares the same TestState as an existing context.
+// Use this when you need multiple fixture contexts within the same test.
+// For backward compatibility, also accepts *testing.T (deprecated - pass a TestContext instead).
+func GivenWithSameState(ctxOrT any) *Context {
+	var state *fixture.TestState
+	switch v := ctxOrT.(type) {
+	case *testing.T:
+		v.Helper()
+		state = fixture.GetTestState(v)
+	case fixture.TestContext:
+		v.T().Helper()
+		state = v.(*fixture.TestState)
+	default:
+		panic("GivenWithSameState: expected *testing.T or fixture.TestContext")
+	}
+	return &Context{TestState: state, repoName: state.Name(), project: "default"}
 }
 
 func (c *Context) GetName() string {
-	return c.name
+	return c.repoName
 }
 
+// Name sets the repo name for this context
 func (c *Context) Name(name string) *Context {
-	c.name = name
+	c.repoName = name
 	return c
 }
 

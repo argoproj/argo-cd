@@ -45,7 +45,7 @@ func (a *Actions) Create() *Actions {
 	_, err := clusterClient.Create(context.Background(), &clusterpkg.ClusterCreateRequest{
 		Cluster: &v1alpha1.Cluster{
 			Server:             a.context.server,
-			Name:               a.context.name,
+			Name:               a.context.GetName(),
 			Config:             v1alpha1.ClusterConfig{BearerToken: a.context.bearerToken},
 			ConnectionState:    v1alpha1.ConnectionState{},
 			ServerVersion:      "",
@@ -93,50 +93,50 @@ func (a *Actions) CreateWithRBAC() *Actions {
 }
 
 func (a *Actions) List() *Actions {
-	a.context.t.Helper()
+	a.context.T().Helper()
 	a.runCli("cluster", "list")
 	return a
 }
 
 func (a *Actions) Get() *Actions {
-	a.context.t.Helper()
+	a.context.T().Helper()
 	a.runCli("cluster", "get", a.context.server)
 	return a
 }
 
 func (a *Actions) GetByName(name string) *Actions {
-	a.context.t.Helper()
+	a.context.T().Helper()
 	a.runCli("cluster", "get", name)
 	return a
 }
 
 func (a *Actions) SetNamespaces() *Actions {
-	a.context.t.Helper()
-	a.runCli("cluster", "set", a.context.name, "--namespace", strings.Join(a.context.namespaces, ","))
+	a.context.T().Helper()
+	a.runCli("cluster", "set", a.context.GetName(), "--namespace", strings.Join(a.context.namespaces, ","))
 	return a
 }
 
 func (a *Actions) DeleteByName() *Actions {
-	a.context.t.Helper()
+	a.context.T().Helper()
 
-	a.runCli("cluster", "rm", a.context.name, "--yes")
+	a.runCli("cluster", "rm", a.context.GetName(), "--yes")
 	return a
 }
 
 func (a *Actions) DeleteByServer() *Actions {
-	a.context.t.Helper()
+	a.context.T().Helper()
 
 	a.runCli("cluster", "rm", a.context.server, "--yes")
 	return a
 }
 
 func (a *Actions) Then() *Consequences {
-	a.context.t.Helper()
+	a.context.T().Helper()
 	time.Sleep(fixture.WhenThenSleepInterval)
 	return &Consequences{a.context, a}
 }
 
 func (a *Actions) runCli(args ...string) {
-	a.context.t.Helper()
+	a.context.T().Helper()
 	a.lastOutput, a.lastError = fixture.RunCli(args...)
 }

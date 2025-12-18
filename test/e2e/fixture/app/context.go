@@ -16,17 +16,19 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
-// Context implements the "given" part of given/when/then
+// Context implements the "given" part of given/when/then.
+// It embeds fixture.TestState to provide test-specific state that enables parallel test execution.
 type Context struct {
-	t               *testing.T
+	*fixture.TestState
 	path            string
 	chart           string
 	ociRegistry     string
 	ociRegistryPath string
 	repoURLType     fixture.RepoURLType
 	// seconds
-	timeout                  int
-	name                     string
+	timeout int
+	// appName is the name of the application being tested (shadows TestState.Name())
+	appName                  string
 	appNamespace             string
 	destServer               string
 	destName                 string
@@ -65,8 +67,8 @@ type ContextArgs struct {
 
 func Given(t *testing.T, opts ...fixture.TestOption) *Context {
 	t.Helper()
-	fixture.EnsureCleanState(t, opts...)
-	return GivenWithSameState(t)
+	state := fixture.EnsureCleanState(t, opts...)
+	return GivenWithSameState(state)
 }
 
 func GivenWithNamespace(t *testing.T, namespace string) *Context {
@@ -76,17 +78,30 @@ func GivenWithNamespace(t *testing.T, namespace string) *Context {
 	return ctx
 }
 
-func GivenWithSameState(t *testing.T) *Context {
-	t.Helper()
+// GivenWithSameState creates a new Context that shares the same TestState as an existing context.
+// Use this when you need multiple fixture contexts within the same test.
+// For backward compatibility, also accepts *testing.T (deprecated - pass a TestContext instead).
+func GivenWithSameState(ctxOrT any) *Context {
+	var state *fixture.TestState
+	switch v := ctxOrT.(type) {
+	case *testing.T:
+		v.Helper()
+		state = fixture.GetTestState(v)
+	case fixture.TestContext:
+		v.T().Helper()
+		state = v.(*fixture.TestState)
+	default:
+		panic("GivenWithSameState: expected *testing.T or fixture.TestContext")
+	}
 	// ARGOCD_E2E_DEFAULT_TIMEOUT can be used to override the default timeout
 	// for any context.
 	timeout := env.ParseNumFromEnv("ARGOCD_E2E_DEFAULT_TIMEOUT", 20, 0, 180)
 	return &Context{
-		t:              t,
+		TestState:      state,
 		destServer:     v1alpha1.KubernetesInternalAPIServerAddr,
 		destName:       "in-cluster",
 		repoURLType:    fixture.RepoURLTypeFile,
-		name:           fixture.Name(),
+		appName:        state.Name(),
 		timeout:        timeout,
 		project:        "default",
 		prune:          true,
@@ -98,11 +113,11 @@ func GivenWithSameState(t *testing.T) *Context {
 // Unique application names protects from potential conflicts between test run
 // caused by the tracking annotation on existing objects
 func (c *Context) AppName() string {
-	suffix := "-" + fixture.ShortId()
-	if strings.HasSuffix(c.name, suffix) {
-		return c.name
+	suffix := "-" + c.ShortId()
+	if strings.HasSuffix(c.appName, suffix) {
+		return c.appName
 	}
-	return fixture.DnsFriendly(c.name, suffix)
+	return fixture.DnsFriendly(c.appName, suffix)
 }
 
 func (c *Context) AppQualifiedName() string {
@@ -126,129 +141,129 @@ func (c *Context) SetAppNamespace(namespace string) *Context {
 }
 
 func (c *Context) GPGPublicKeyAdded() *Context {
-	gpgkeys.AddGPGPublicKey(c.t)
+	gpgkeys.AddGPGPublicKey(c.T())
 	return c
 }
 
 func (c *Context) GPGPublicKeyRemoved() *Context {
-	gpgkeys.DeleteGPGPublicKey(c.t)
+	gpgkeys.DeleteGPGPublicKey(c.T())
 	return c
 }
 
 func (c *Context) CustomCACertAdded() *Context {
-	certs.AddCustomCACert(c.t)
+	certs.AddCustomCACert(c.T())
 	return c
 }
 
 func (c *Context) CustomSSHKnownHostsAdded() *Context {
-	certs.AddCustomSSHKnownHostsKeys(c.t)
+	certs.AddCustomSSHKnownHostsKeys(c.T())
 	return c
 }
 
 func (c *Context) HTTPSRepoURLAdded(withCreds bool, opts ...repos.AddRepoOpts) *Context {
-	repos.AddHTTPSRepo(c.t, false, withCreds, "", fixture.RepoURLTypeHTTPS, opts...)
+	repos.AddHTTPSRepo(c.T(), false, withCreds, "", fixture.RepoURLTypeHTTPS, opts...)
 	return c
 }
 
 func (c *Context) HTTPSInsecureRepoURLAdded(withCreds bool, opts ...repos.AddRepoOpts) *Context {
-	repos.AddHTTPSRepo(c.t, true, withCreds, "", fixture.RepoURLTypeHTTPS, opts...)
+	repos.AddHTTPSRepo(c.T(), true, withCreds, "", fixture.RepoURLTypeHTTPS, opts...)
 	return c
 }
 
 func (c *Context) HTTPSInsecureRepoURLWithClientCertAdded() *Context {
-	repos.AddHTTPSRepoClientCert(c.t, true)
+	repos.AddHTTPSRepoClientCert(c.T(), true)
 	return c
 }
 
 func (c *Context) HTTPSRepoURLWithClientCertAdded() *Context {
-	repos.AddHTTPSRepoClientCert(c.t, false)
+	repos.AddHTTPSRepoClientCert(c.T(), false)
 	return c
 }
 
 func (c *Context) SubmoduleHTTPSRepoURLAdded(withCreds bool) *Context {
-	fixture.CreateSubmoduleRepos(c.t, "https")
-	repos.AddHTTPSRepo(c.t, false, withCreds, "", fixture.RepoURLTypeHTTPSSubmoduleParent)
+	fixture.CreateSubmoduleRepos(c.T(), "https")
+	repos.AddHTTPSRepo(c.T(), false, withCreds, "", fixture.RepoURLTypeHTTPSSubmoduleParent)
 	return c
 }
 
 func (c *Context) SSHRepoURLAdded(withCreds bool) *Context {
-	repos.AddSSHRepo(c.t, false, withCreds, fixture.RepoURLTypeSSH)
+	repos.AddSSHRepo(c.T(), false, withCreds, fixture.RepoURLTypeSSH)
 	return c
 }
 
 func (c *Context) SSHInsecureRepoURLAdded(withCreds bool) *Context {
-	repos.AddSSHRepo(c.t, true, withCreds, fixture.RepoURLTypeSSH)
+	repos.AddSSHRepo(c.T(), true, withCreds, fixture.RepoURLTypeSSH)
 	return c
 }
 
 func (c *Context) SubmoduleSSHRepoURLAdded(withCreds bool) *Context {
-	fixture.CreateSubmoduleRepos(c.t, "ssh")
-	repos.AddSSHRepo(c.t, false, withCreds, fixture.RepoURLTypeSSHSubmoduleParent)
+	fixture.CreateSubmoduleRepos(c.T(), "ssh")
+	repos.AddSSHRepo(c.T(), false, withCreds, fixture.RepoURLTypeSSHSubmoduleParent)
 	return c
 }
 
 func (c *Context) HelmRepoAdded(name string) *Context {
-	repos.AddHelmRepo(c.t, name)
+	repos.AddHelmRepo(c.T(), name)
 	return c
 }
 
 func (c *Context) HelmOCIRepoAdded(name string) *Context {
-	repos.AddHelmOCIRepo(c.t, name)
+	repos.AddHelmOCIRepo(c.T(), name)
 	return c
 }
 
 func (c *Context) PushImageToOCIRegistry(pathName, tag string) *Context {
-	repos.PushImageToOCIRegistry(c.t, pathName, tag)
+	repos.PushImageToOCIRegistry(c.T(), pathName, tag)
 	return c
 }
 
 func (c *Context) PushImageToAuthenticatedOCIRegistry(pathName, tag string) *Context {
-	repos.PushImageToAuthenticatedOCIRegistry(c.t, pathName, tag)
+	repos.PushImageToAuthenticatedOCIRegistry(c.T(), pathName, tag)
 	return c
 }
 
 func (c *Context) PushChartToOCIRegistry(chartPathName, chartName, chartVersion string) *Context {
-	repos.PushChartToOCIRegistry(c.t, chartPathName, chartName, chartVersion)
+	repos.PushChartToOCIRegistry(c.T(), chartPathName, chartName, chartVersion)
 	return c
 }
 
 func (c *Context) PushChartToAuthenticatedOCIRegistry(chartPathName, chartName, chartVersion string) *Context {
-	repos.PushChartToAuthenticatedOCIRegistry(c.t, chartPathName, chartName, chartVersion)
+	repos.PushChartToAuthenticatedOCIRegistry(c.T(), chartPathName, chartName, chartVersion)
 	return c
 }
 
 func (c *Context) HTTPSCredentialsUserPassAdded() *Context {
-	repos.AddHTTPSCredentialsUserPass(c.t)
+	repos.AddHTTPSCredentialsUserPass(c.T())
 	return c
 }
 
 func (c *Context) HelmHTTPSCredentialsUserPassAdded() *Context {
-	repos.AddHelmHTTPSCredentialsTLSClientCert(c.t)
+	repos.AddHelmHTTPSCredentialsTLSClientCert(c.T())
 	return c
 }
 
 func (c *Context) HelmoOCICredentialsWithoutUserPassAdded() *Context {
-	repos.AddHelmoOCICredentialsWithoutUserPass(c.t)
+	repos.AddHelmoOCICredentialsWithoutUserPass(c.T())
 	return c
 }
 
 func (c *Context) HTTPSCredentialsTLSClientCertAdded() *Context {
-	repos.AddHTTPSCredentialsTLSClientCert(c.t)
+	repos.AddHTTPSCredentialsTLSClientCert(c.T())
 	return c
 }
 
 func (c *Context) SSHCredentialsAdded() *Context {
-	repos.AddSSHCredentials(c.t)
+	repos.AddSSHCredentials(c.T())
 	return c
 }
 
 func (c *Context) OCIRepoAdded(name, imagePath string) *Context {
-	repos.AddOCIRepo(c.t, name, imagePath)
+	repos.AddOCIRepo(c.T(), name, imagePath)
 	return c
 }
 
 func (c *Context) AuthenticatedOCIRepoAdded(name, imagePath string) *Context {
-	repos.AddAuthenticatedOCIRepo(c.t, name, imagePath)
+	repos.AddAuthenticatedOCIRepo(c.T(), name, imagePath)
 	return c
 }
 
@@ -258,8 +273,8 @@ func (c *Context) OCIRegistry(registry string) *Context {
 }
 
 func (c *Context) ProjectSpec(spec v1alpha1.AppProjectSpec) *Context {
-	c.t.Helper()
-	require.NoError(c.t, fixture.SetProjectSpec(c.project, spec))
+	c.T().Helper()
+	require.NoError(c.T(), fixture.SetProjectSpec(c.project, spec))
 	return c
 }
 
@@ -274,11 +289,12 @@ func (c *Context) RepoURLType(urlType fixture.RepoURLType) *Context {
 }
 
 func (c *Context) GetName() string {
-	return c.name
+	return c.appName
 }
 
+// Name sets the application name for this context
 func (c *Context) Name(name string) *Context {
-	c.name = name
+	c.appName = name
 	return c
 }
 
@@ -376,14 +392,14 @@ func (c *Context) NameSuffix(nameSuffix string) *Context {
 }
 
 func (c *Context) ResourceOverrides(overrides map[string]v1alpha1.ResourceOverride) *Context {
-	c.t.Helper()
-	require.NoError(c.t, fixture.SetResourceOverrides(overrides))
+	c.T().Helper()
+	require.NoError(c.T(), fixture.SetResourceOverrides(overrides))
 	return c
 }
 
 func (c *Context) ResourceFilter(filter settings.ResourcesFilter) *Context {
-	c.t.Helper()
-	require.NoError(c.t, fixture.SetResourceFilter(filter))
+	c.T().Helper()
+	require.NoError(c.T(), fixture.SetResourceFilter(filter))
 	return c
 }
 
@@ -453,14 +469,14 @@ func (c *Context) HelmSkipTests() *Context {
 }
 
 func (c *Context) SetTrackingMethod(trackingMethod string) *Context {
-	c.t.Helper()
-	require.NoError(c.t, fixture.SetTrackingMethod(trackingMethod))
+	c.T().Helper()
+	require.NoError(c.T(), fixture.SetTrackingMethod(trackingMethod))
 	return c
 }
 
 func (c *Context) SetInstallationID(installationID string) *Context {
-	c.t.Helper()
-	require.NoError(c.t, fixture.SetInstallationID(installationID))
+	c.T().Helper()
+	require.NoError(c.T(), fixture.SetInstallationID(installationID))
 	return c
 }
 
@@ -474,7 +490,7 @@ func (c *Context) Sources(sources []v1alpha1.ApplicationSource) *Context {
 }
 
 func (c *Context) RegisterKustomizeVersion(version, path string) *Context {
-	c.t.Helper()
-	require.NoError(c.t, fixture.RegisterKustomizeVersion(version, path))
+	c.T().Helper()
+	require.NoError(c.T(), fixture.RegisterKustomizeVersion(version, path))
 	return c
 }

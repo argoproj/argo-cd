@@ -42,38 +42,38 @@ func (a *Actions) Create(args ...string) *Actions {
 }
 
 func (a *Actions) AddDestination(cluster string, namespace string) *Actions {
-	a.runCli("proj", "add-destination", a.context.name, cluster, namespace)
+	a.runCli("proj", "add-destination", a.context.GetName(), cluster, namespace)
 	return a
 }
 
 func (a *Actions) AddDestinationServiceAccount(cluster string, namespace string) *Actions {
-	a.runCli("proj", "add-destination-service-account", a.context.name, cluster, namespace)
+	a.runCli("proj", "add-destination-service-account", a.context.GetName(), cluster, namespace)
 	return a
 }
 
 func (a *Actions) AddSource(repo string) *Actions {
-	a.runCli("proj", "add-source", a.context.name, repo)
+	a.runCli("proj", "add-source", a.context.GetName(), repo)
 	return a
 }
 
 func (a *Actions) UpdateProject(updater func(project *v1alpha1.AppProject)) *Actions {
-	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Get(context.TODO(), a.context.name, metav1.GetOptions{})
-	require.NoError(a.context.t, err)
+	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Get(context.TODO(), a.context.GetName(), metav1.GetOptions{})
+	require.NoError(a.context.T(), err)
 	updater(proj)
 	_, err = fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Update(context.TODO(), proj, metav1.UpdateOptions{})
-	require.NoError(a.context.t, err)
+	require.NoError(a.context.T(), err)
 	return a
 }
 
 func (a *Actions) Name(name string) *Actions {
-	a.context.name = name
+	a.context.Name(name)
 	return a
 }
 
 func (a *Actions) prepareCreateArgs(args []string) []string {
-	a.context.t.Helper()
+	a.context.T().Helper()
 	args = append([]string{
-		"proj", "create", a.context.name,
+		"proj", "create", a.context.GetName(),
 	}, args...)
 
 	if a.context.destination != "" {
@@ -99,27 +99,27 @@ func (a *Actions) prepareCreateArgs(args []string) []string {
 }
 
 func (a *Actions) Delete() *Actions {
-	a.context.t.Helper()
-	a.runCli("proj", "delete", a.context.name)
+	a.context.T().Helper()
+	a.runCli("proj", "delete", a.context.GetName())
 	return a
 }
 
 func (a *Actions) And(block func()) *Actions {
-	a.context.t.Helper()
+	a.context.T().Helper()
 	block()
 	return a
 }
 
 func (a *Actions) Then() *Consequences {
-	a.context.t.Helper()
+	a.context.T().Helper()
 	time.Sleep(fixture.WhenThenSleepInterval)
 	return &Consequences{a.context, a}
 }
 
 func (a *Actions) runCli(args ...string) {
-	a.context.t.Helper()
+	a.context.T().Helper()
 	_, a.lastError = fixture.RunCli(args...)
 	if !a.ignoreErrors {
-		require.NoError(a.context.t, a.lastError)
+		require.NoError(a.context.T(), a.lastError)
 	}
 }

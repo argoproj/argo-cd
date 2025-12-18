@@ -21,9 +21,20 @@ func Given(t *testing.T) *Context {
 
 // GivenWithSameState creates a new Context that shares the same TestState as an existing context.
 // Use this when you need multiple fixture contexts within the same test.
-func GivenWithSameState(ctx fixture.TestContext) *Context {
-	ctx.T().Helper()
-	return &Context{TestState: ctx.(*fixture.TestState)}
+// For backward compatibility, also accepts *testing.T (deprecated - pass a TestContext instead).
+func GivenWithSameState(ctxOrT any) *Context {
+	var state *fixture.TestState
+	switch v := ctxOrT.(type) {
+	case *testing.T:
+		v.Helper()
+		state = fixture.GetTestState(v)
+	case fixture.TestContext:
+		v.T().Helper()
+		state = v.(*fixture.TestState)
+	default:
+		panic("GivenWithSameState: expected *testing.T or fixture.TestContext")
+	}
+	return &Context{TestState: state}
 }
 
 func (c *Context) And(block func()) *Context {
