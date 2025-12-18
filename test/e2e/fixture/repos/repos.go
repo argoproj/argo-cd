@@ -9,11 +9,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/stretchr/testify/require"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	"github.com/argoproj/argo-cd/v3/util/errors"
 )
@@ -340,7 +340,7 @@ func AddHTTPSWriteCredentials(t *testing.T, insecure bool, repoURLType fixture.R
 
 	_, err := fixture.KubeClientset.CoreV1().Secrets(fixture.ArgoCDNamespace).Create(
 		context.Background(),
-		&v1.Secret{
+		&corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: secretName,
 				Labels: map[string]string{
