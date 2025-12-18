@@ -1931,7 +1931,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		}
 		conditionMessage := "Application contains resources affected by conversion webhook failures"
 		if gvkList != "" {
-			conditionMessage = fmt.Sprintf("Application contains resources affected by conversion webhook failures: %s", gvkList)
+			conditionMessage = "Application contains resources affected by conversion webhook failures: " + gvkList
 		}
 		app.Status.SetConditions(
 			[]appv1.ApplicationCondition{

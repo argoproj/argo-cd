@@ -1442,8 +1442,8 @@ func (m *appStateManager) testGVKHealth(cluster *v1alpha1.Cluster, gvkString str
 			// Check if this is a conversion webhook error
 			errMsg := err.Error()
 			if strings.Contains(errMsg, "conversion webhook") ||
-			   strings.Contains(errMsg, "webhook") ||
-			   strings.Contains(errMsg, "failed calling webhook") {
+				strings.Contains(errMsg, "webhook") ||
+				strings.Contains(errMsg, "failed calling webhook") {
 				logCtx.Infof("GVK %s failed with conversion webhook error: %v - tainting GVK", gvkString, err)
 
 				// Report the error to the cluster cache's taint framework
