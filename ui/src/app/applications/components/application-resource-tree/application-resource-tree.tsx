@@ -85,6 +85,7 @@ interface Line {
 const NODE_WIDTH = 282;
 const NODE_HEIGHT = 52;
 const POD_NODE_HEIGHT = 136;
+const POD_GROUP_ROW_HEIGHT = 20;
 const FILTERED_INDICATOR_NODE = '__filtered_indicator__';
 const EXTERNAL_TRAFFIC_NODE = '__external_traffic__';
 const INTERNAL_TRAFFIC_NODE = '__internal_traffic__';
@@ -397,6 +398,31 @@ function processPodGroup(targetPodGroup: ResourceTreeNode, child: ResourceTreeNo
     }
 }
 
+function getPodGroupNumberOfRows(pods: models.Pod[], showPodGroupByStatus: boolean) {
+    if (!pods || pods.length === 0) {
+        return 0;
+    }
+    if (showPodGroupByStatus) {
+        const statuses = new Set<string>();
+        for (const pod of pods) {
+            if (!pod) {
+                continue;
+            }
+            switch (pod.health) {
+                case 'Healthy':
+                case 'Degraded':
+                case 'Progressing':
+                    statuses.add(pod.health);
+                    break;
+                default:
+                    break;
+            }
+        }
+        return statuses.size;
+    }
+    return Math.ceil(pods.length / 8);
+}
+
 function renderPodGroup(props: ApplicationResourceTreeProps, id: string, node: ResourceTreeNode & dagre.Node, childMap: Map<string, ResourceTreeNode[]>) {
     const fullName = nodeKey(node);
     let comparisonStatus: models.SyncStatusCode = null;
@@ -437,12 +463,10 @@ function renderPodGroup(props: ApplicationResourceTreeProps, id: string, node: R
     }
 
     const showPodGroupByStatus = props.tree.nodes.filter((rNode: ResourceTreeNode) => rNode.kind === 'Pod').length >= props.podGroupCount;
-    const numberOfRows = showPodGroupByStatus
-        ? [podGroupHealthy, podGroupDegraded, podGroupInProgress].reduce((total, podGroupByStatus) => total + (podGroupByStatus.filter(pod => pod).length > 0 ? 1 : 0), 0)
-        : Math.ceil(podGroup?.pods.length / 8);
+    const numberOfRows = getPodGroupNumberOfRows(podGroup?.pods, showPodGroupByStatus);
 
     if (podGroup) {
-        topExtra = margin + (POD_NODE_HEIGHT / 2 + 30 * numberOfRows) / 2;
+        topExtra = margin + (POD_NODE_HEIGHT / 2 + POD_GROUP_ROW_HEIGHT * numberOfRows) / 2;
     }
 
     return (
@@ -457,7 +481,7 @@ function renderPodGroup(props: ApplicationResourceTreeProps, id: string, node: R
                 left: node.x,
                 top: node.y - topExtra,
                 width: node.width,
-                height: showPodGroupByStatus ? POD_NODE_HEIGHT + 20 * numberOfRows : node.height
+                height: showPodGroupByStatus ? POD_NODE_HEIGHT + POD_GROUP_ROW_HEIGHT * numberOfRows : node.height
             }}>
             <NodeUpdateAnimation resourceVersion={node.resourceVersion} />
             <div onClick={() => props.onNodeClick && props.onNodeClick(fullName)} className={`application-resource-tree__node__top-part`}>
@@ -968,6 +992,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
     }, [props.filters]);
     const {podGroupCount, userMsgs, updateUsrHelpTipMsgs, setShowCompactNodes} = props;
     const podCount = nodes.filter(node => node.kind === 'Pod').length;
+    const showPodGroupByStatus = props.tree.nodes.filter((rNode: ResourceTreeNode) => rNode.kind === 'Pod').length >= props.podGroupCount;
 
     React.useEffect(() => {
         if (podCount > podGroupCount) {
@@ -1178,8 +1203,14 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
     }
 
     function setPodGroupNode(node: ResourceTreeNode, root: ResourceTreeNode) {
-        const numberOfRows = Math.ceil(node.podGroup.pods.length / 8);
-        graph.setNode(treeNodeKey(node), {...node, type: NODE_TYPES.podGroup, width: NODE_WIDTH, height: POD_NODE_HEIGHT + 30 * numberOfRows, root});
+        const numberOfRows = getPodGroupNumberOfRows(node.podGroup?.pods, showPodGroupByStatus);
+        graph.setNode(treeNodeKey(node), {
+            ...node,
+            type: NODE_TYPES.podGroup,
+            width: NODE_WIDTH,
+            height: POD_NODE_HEIGHT + POD_GROUP_ROW_HEIGHT * numberOfRows,
+            root
+        });
     }
 
     function processNode(node: ResourceTreeNode, root: ResourceTreeNode, colors?: string[]) {
