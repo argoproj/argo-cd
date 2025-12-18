@@ -265,7 +265,9 @@ func waitForExpectedClusterState(t *testing.T) error {
 	}
 
 	// Wait up to 120 seconds for namespace to not exist
-	for _, namespace := range []string{string(ApplicationsResourcesNamespace), string(ArgoCDExternalNamespace), string(ArgoCDExternalNamespace2)} {
+	// Note: We only check ApplicationsResourcesNamespace - the external namespaces (argocd-e2e-external*)
+	// are shared infrastructure and persist throughout the test suite
+	for _, namespace := range []string{string(ApplicationsResourcesNamespace)} {
 		// Wait up to 120 seconds for namespace to not exist
 		if err := waitForSuccess(func() error {
 			return cleanUpNamespace(fixtureClient, namespace)
