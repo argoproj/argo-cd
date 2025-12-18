@@ -957,7 +957,15 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 			return err
 		},
 		func() error {
-			err := os.RemoveAll(TmpDir)
+			// Try to chmod the directory tree before removing to handle permission issues
+			// that can occur when git notes are created by processes with different permissions.
+			// When git push operations write to file:// repositories, they may create files
+			// with restrictive permissions that prevent cleanup.
+			_, err := Run("", "chmod", "-R", "u+w", TmpDir)
+			if err != nil {
+				return err
+			}
+			err = os.RemoveAll(TmpDir)
 			if err != nil {
 				return err
 			}
