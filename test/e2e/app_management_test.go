@@ -1576,12 +1576,11 @@ func TestPermissions(t *testing.T) {
 	appCtx := Given(t)
 	projCtx := projectFixture.GivenWithSameState(appCtx)
 	projActions := projCtx.
-		Name("argo-project").
 		When().
 		Create()
 
-	sourceError := fmt.Sprintf("application repo %s is not permitted in project 'argo-project'", fixture.RepoURL(fixture.RepoURLTypeFile))
-	destinationError := fmt.Sprintf("application destination server '%s' and namespace '%s' do not match any of the allowed destinations in project 'argo-project'", KubernetesInternalAPIServerAddr, appCtx.DeploymentNamespace())
+	sourceError := fmt.Sprintf("application repo %s is not permitted in project '%s'", fixture.RepoURL(fixture.RepoURLTypeFile), projCtx.GetName())
+	destinationError := fmt.Sprintf("application destination server '%s' and namespace '%s' do not match any of the allowed destinations in project '%s'", KubernetesInternalAPIServerAddr, appCtx.DeploymentNamespace(), projCtx.GetName())
 
 	appCtx.
 		Path("guestbook-logs").
@@ -1649,11 +1648,8 @@ func TestPermissions(t *testing.T) {
 }
 
 func TestPermissionWithScopedRepo(t *testing.T) {
-	projName := "argo-project"
-	ctx := fixture.EnsureCleanState(t)
-	projectFixture.
-		GivenWithSameState(ctx).
-		Name(projName).
+	ctx := projectFixture.Given(t)
+	ctx.
 		Destination("*,*").
 		When().
 		Create().
@@ -1662,11 +1658,11 @@ func TestPermissionWithScopedRepo(t *testing.T) {
 	repoFixture.GivenWithSameState(ctx).
 		When().
 		Path(fixture.RepoURL(fixture.RepoURLTypeFile)).
-		Project(projName).
+		Project(ctx.GetName()).
 		Create()
 
 	GivenWithSameState(ctx).
-		Project(projName).
+		Project(ctx.GetName()).
 		RepoURLType(fixture.RepoURLTypeFile).
 		Path("two-nice-pods").
 		When().
@@ -1688,10 +1684,8 @@ func TestPermissionWithScopedRepo(t *testing.T) {
 }
 
 func TestPermissionDeniedWithScopedRepo(t *testing.T) {
-	projName := "argo-project"
 	ctx := projectFixture.Given(t)
-	ctx.Name(projName).
-		Destination("*,*").
+	ctx.Destination("*,*").
 		When().
 		Create()
 
@@ -1701,7 +1695,7 @@ func TestPermissionDeniedWithScopedRepo(t *testing.T) {
 		Create()
 
 	GivenWithSameState(ctx).
-		Project(projName).
+		Project(ctx.GetName()).
 		RepoURLType(fixture.RepoURLTypeFile).
 		Path("two-nice-pods").
 		When().
@@ -1713,21 +1707,19 @@ func TestPermissionDeniedWithScopedRepo(t *testing.T) {
 }
 
 func TestPermissionDeniedWithNegatedNamespace(t *testing.T) {
-	projName := "argo-project"
 	ctx := projectFixture.Given(t)
-	ctx.Name(projName).
-		Destination("*,!*test-permission-denied-with-negated-namespace*").
+	ctx.Destination("*,!*test-permission-denied-with-negated-namespace*").
 		When().
 		Create()
 
 	repoFixture.GivenWithSameState(ctx).
 		When().
 		Path(fixture.RepoURL(fixture.RepoURLTypeFile)).
-		Project(projName).
+		Project(ctx.GetName()).
 		Create()
 
 	GivenWithSameState(ctx).
-		Project(projName).
+		Project(ctx.GetName()).
 		RepoURLType(fixture.RepoURLTypeFile).
 		Path("two-nice-pods").
 		When().
@@ -1739,21 +1731,19 @@ func TestPermissionDeniedWithNegatedNamespace(t *testing.T) {
 }
 
 func TestPermissionDeniedWithNegatedServer(t *testing.T) {
-	projName := "argo-project"
 	ctx := projectFixture.Given(t)
-	ctx.Name(projName).
-		Destination("!https://kubernetes.default.svc,*").
+	ctx.Destination("!https://kubernetes.default.svc,*").
 		When().
 		Create()
 
 	repoFixture.GivenWithSameState(ctx).
 		When().
 		Path(fixture.RepoURL(fixture.RepoURLTypeFile)).
-		Project(projName).
+		Project(ctx.GetName()).
 		Create()
 
 	GivenWithSameState(ctx).
-		Project(projName).
+		Project(ctx.GetName()).
 		RepoURLType(fixture.RepoURLTypeFile).
 		Path("two-nice-pods").
 		When().
