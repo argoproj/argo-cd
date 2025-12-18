@@ -47,7 +47,7 @@ func NewTestState(t *testing.T) *TestState {
 	t.Helper()
 	randString, err := rand.String(5)
 	errors.CheckError(err)
-	shortId := "-" + strings.ToLower(randString)
+	shortId := strings.ToLower(randString)
 
 	return &TestState{
 		t:                   t,
