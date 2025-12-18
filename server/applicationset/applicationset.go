@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/argoproj/argo-cd/v3/common"
 	"reflect"
 	"sort"
 	"strconv"
@@ -52,6 +53,7 @@ type Server struct {
 	client                   client.Client
 	repoClientSet            repoapiclient.Clientset
 	appclientset             appclientset.Interface
+	appsetBroadcaster        Broadcaster
 	appsetInformer           cache.SharedIndexInformer
 	appsetLister             applisters.ApplicationSetLister
 	auditLogger              *argo.AuditLogger
@@ -74,6 +76,7 @@ func NewServer(
 	enf *rbac.Enforcer,
 	repoClientSet repoapiclient.Clientset,
 	appclientset appclientset.Interface,
+	appsetBroadcaseter Broadcaster,
 	appsetInformer cache.SharedIndexInformer,
 	appsetLister applisters.ApplicationSetLister,
 	namespace string,
@@ -96,6 +99,7 @@ func NewServer(
 		k8sClient:                kubeclientset,
 		repoClientSet:            repoClientSet,
 		appclientset:             appclientset,
+		appsetBroadcaster:        appsetBroadcaseter,
 		appsetInformer:           appsetInformer,
 		appsetLister:             appsetLister,
 		projectLock:              projectLock,
@@ -112,22 +116,34 @@ func NewServer(
 }
 
 func (s *Server) Get(ctx context.Context, q *applicationset.ApplicationSetGetQuery) (*v1alpha1.ApplicationSet, error) {
-	namespace := s.appsetNamespaceOrDefault(q.AppsetNamespace)
+	appSetNamespace := s.appsetNamespaceOrDefault(q.AppsetNamespace)
 
-	if !s.isNamespaceEnabled(namespace) {
-		return nil, security.NamespaceNotPermittedError(namespace)
+	if !s.isNamespaceEnabled(appSetNamespace) {
+		return nil, security.NamespaceNotPermittedError(appSetNamespace)
 	}
 
-	a, err := s.appsetLister.ApplicationSets(namespace).Get(q.Name)
+	events := make(chan *v1alpha1.ApplicationSetWatchEvent, common.WatchAPIBufferSize)
+	unsubscribe := s.appsetBroadcaster.Subscribe(events, func(event *v1alpha1.ApplicationSetWatchEvent) bool {
+		return event.ApplicationSet.Name == q.Name && event.ApplicationSet.Namespace == appSetNamespace
+	})
+	defer unsubscribe()
+	a, err := s.appsetLister.ApplicationSets(appSetNamespace).Get(q.Name)
 	if err != nil {
 		return nil, fmt.Errorf("error getting ApplicationSet: %w", err)
 	}
-	err = s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceApplicationSets, rbac.ActionGet, a.RBACName(s.ns))
-	if err != nil {
-		return nil, err
+	for {
+		select {
+		case <-ctx.Done():
+			return nil, errors.New("timed out waiting for ApplicationSet to be synced")
+		case event := <-events:
+			err = s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceApplicationSets, rbac.ActionGet, a.RBACName(event.ApplicationSet.Namespace))
+			if err != nil {
+				return nil, err
+			}
+			appSet := event.ApplicationSet.DeepCopy()
+			return appSet, nil
+		}
 	}
-
-	return a, nil
 }
 
 // List returns list of ApplicationSets

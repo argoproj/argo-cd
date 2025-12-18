@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math"
+	"github.com/argoproj/argo-cd/v3/server/applicationset"
 	"reflect"
 	"slices"
 	"sort"
@@ -53,7 +53,6 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/collections"
 	"github.com/argoproj/argo-cd/v3/util/db"
-	"github.com/argoproj/argo-cd/v3/util/env"
 	"github.com/argoproj/argo-cd/v3/util/git"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/lua"
@@ -79,8 +78,7 @@ const (
 )
 
 var (
-	ErrCacheMiss       = cacheutil.ErrCacheMiss
-	watchAPIBufferSize = env.ParseNumFromEnv(argocommon.EnvWatchAPIBufferSize, 1000, 0, math.MaxInt32)
+	ErrCacheMiss = cacheutil.ErrCacheMiss
 )
 
 // Server provides an Application service
@@ -91,6 +89,7 @@ type Server struct {
 	appLister              applisters.ApplicationLister
 	appInformer            cache.SharedIndexInformer
 	appBroadcaster         Broadcaster
+	appSetBroadcaster      applicationset.Broadcaster
 	repoClientset          apiclient.Clientset
 	kubectl                kube.Kubectl
 	db                     db.ArgoDB
@@ -112,6 +111,7 @@ func NewServer(
 	appLister applisters.ApplicationLister,
 	appInformer cache.SharedIndexInformer,
 	appBroadcaster Broadcaster,
+	appSetBroadcaster applicationset.Broadcaster,
 	repoClientset apiclient.Clientset,
 	cache *servercache.Cache,
 	kubectl kube.Kubectl,
@@ -127,7 +127,20 @@ func NewServer(
 	if appBroadcaster == nil {
 		appBroadcaster = &broadcasterHandler{}
 	}
+
+	if appSetBroadcaster == nil {
+		appSetBroadcaster = &applicationset.BroadcasterHandler{}
+	}
+	// Register Application-level broadcaster to receive create/update/delete events
+	// and handle general application event processing.
 	_, err := appInformer.AddEventHandler(appBroadcaster)
+	if err != nil {
+		log.Error(err)
+	}
+	// Register ApplicationSet-specific broadcaster on the Application informer.
+	// This handler listens to Application events to drive ApplicationSet logic,
+	// so it must be attached to the Application informer (not the Project informer).
+	_, err = appInformer.AddEventHandler(appSetBroadcaster)
 	if err != nil {
 		log.Error(err)
 	}
@@ -137,6 +150,7 @@ func NewServer(
 		appLister:              &deepCopyApplicationLister{appLister},
 		appInformer:            appInformer,
 		appBroadcaster:         appBroadcaster,
+		appSetBroadcaster:      appSetBroadcaster,
 		kubeclientset:          kubeclientset,
 		cache:                  cache,
 		db:                     db,
@@ -792,7 +806,7 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*v1a
 	appIf := s.appclientset.ArgoprojV1alpha1().Applications(appNs)
 
 	// subscribe early with buffered channel to ensure we don't miss events
-	events := make(chan *v1alpha1.ApplicationWatchEvent, watchAPIBufferSize)
+	events := make(chan *v1alpha1.ApplicationWatchEvent, argocommon.WatchAPIBufferSize)
 	unsubscribe := s.appBroadcaster.Subscribe(events, func(event *v1alpha1.ApplicationWatchEvent) bool {
 		return event.Application.Name == appName && event.Application.Namespace == appNs
 	})
@@ -1260,7 +1274,7 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 		}
 	}
 
-	events := make(chan *v1alpha1.ApplicationWatchEvent, watchAPIBufferSize)
+	events := make(chan *v1alpha1.ApplicationWatchEvent, argocommon.WatchAPIBufferSize)
 	// Mimic watch API behavior: send ADDED events if no resource version provided
 	// If watch API is executed for one application when emit event even if resource version is provided
 	// This is required since single app watch API is used for during operations like app syncing and it is
