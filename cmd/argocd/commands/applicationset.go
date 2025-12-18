@@ -6,6 +6,7 @@ import (
 	"os"
 	"reflect"
 	"text/tabwriter"
+	"time"
 
 	"github.com/mattn/go-isatty"
 	"github.com/spf13/cobra"
@@ -116,7 +117,7 @@ func NewApplicationSetGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 // NewApplicationSetCreateCommand returns a new instance of an `argocd appset create` command
 func NewApplicationSetCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var output string
-	var upsert, dryRun bool
+	var upsert, dryRun, wait bool
 	command := &cobra.Command{
 		Use:   "create",
 		Short: "Create one or more ApplicationSets",
@@ -166,6 +167,32 @@ func NewApplicationSetCreateCommand(clientOpts *argocdclient.ClientOptions) *cob
 				created, err := appIf.Create(ctx, &appSetCreateRequest)
 				errors.CheckError(err)
 
+				if wait {
+					var trialsCounter int8
+					latestAppSet := created
+
+					for trialsCounter < 12 {
+						latestAppSet, err = appIf.Get(ctx, &applicationset.ApplicationSetGetQuery{Name: created.Name, AppsetNamespace: created.Namespace})
+						errors.CheckError(err)
+
+						conditions := latestAppSet.Status.Conditions
+						if len(conditions) > 0 {
+							lastCondition := conditions[len(conditions)-1]
+							if lastCondition.Type == arogappsetv1.ApplicationSetConditionResourcesUpToDate && lastCondition.Status == arogappsetv1.ApplicationSetConditionStatusTrue {
+								break
+							}
+						}
+						trialsCounter++
+						time.Sleep(5 * time.Second)
+					}
+
+					created = latestAppSet
+
+					if trialsCounter == 12 {
+						c.PrintErrf("Timeout: ApplicationSet '%s' did not reach 'UpToDate' status.\n", created.Name)
+					}
+				}
+
 				dryRunMsg := ""
 				if dryRun {
 					dryRunMsg = " (dry-run)"
@@ -182,7 +209,6 @@ func NewApplicationSetCreateCommand(clientOpts *argocdclient.ClientOptions) *cob
 				}
 
 				c.PrintErrf("ApplicationSet '%s' %s%s\n", created.Name, action, dryRunMsg)
-
 				switch output {
 				case "yaml", "json":
 					err := PrintResource(created, output)
@@ -205,6 +231,7 @@ func NewApplicationSetCreateCommand(clientOpts *argocdclient.ClientOptions) *cob
 	}
 	command.Flags().BoolVar(&upsert, "upsert", false, "Allows to override ApplicationSet with the same name even if supplied ApplicationSet spec is different from existing spec")
 	command.Flags().BoolVar(&dryRun, "dry-run", false, "Allows to evaluate the ApplicationSet template on the server to get a preview of the applications that would be created")
+	command.Flags().BoolVar(&wait, "wait", false, "Allows to wait for ApplicationSet resources to be created")
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide")
 	return command
 }

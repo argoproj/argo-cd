@@ -25,6 +25,7 @@ argocd appset create [flags]
   -h, --help            help for create
   -o, --output string   Output format. One of: json|yaml|wide (default "wide")
       --upsert          Allows to override ApplicationSet with the same name even if supplied ApplicationSet spec is different from existing spec
+      --wait            Allows to wait for ApplicationSet resources to be created
 ```
 
 ### Options inherited from parent commands
