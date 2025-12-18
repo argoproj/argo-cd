@@ -75,6 +75,10 @@ func NewTestStateFromContext(ctx TestContext) *TestState {
 
 // Name sets the DNS-friendly name for this context
 func (s *TestState) SetName(name string) {
+	if name == "" {
+		s.name = ""
+		return
+	}
 	suffix := "-" + s.shortId
 	s.name = DnsFriendly(strings.TrimSuffix(name, suffix), suffix)
 }

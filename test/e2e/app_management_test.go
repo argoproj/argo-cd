@@ -584,29 +584,30 @@ func TestAppDeletion(t *testing.T) {
 
 func TestAppLabels(t *testing.T) {
 	ctx := Given(t)
+	label := "id=" + ctx.ShortID()
 	ctx.
 		Path("config-map").
 		When().
-		CreateApp("-l", "foo=bar").
+		CreateApp("-l", label).
 		Then().
 		And(func(_ *Application) {
 			assert.Contains(t, errors.NewHandler(t).FailOnErr(fixture.RunCli("app", "list")), ctx.GetName())
-			assert.Contains(t, errors.NewHandler(t).FailOnErr(fixture.RunCli("app", "list", "-l", "foo=bar")), ctx.GetName())
-			assert.NotContains(t, errors.NewHandler(t).FailOnErr(fixture.RunCli("app", "list", "-l", "foo=rubbish")), ctx.GetName())
+			assert.Contains(t, errors.NewHandler(t).FailOnErr(fixture.RunCli("app", "list", "-l", label)), ctx.GetName())
+			assert.NotContains(t, errors.NewHandler(t).FailOnErr(fixture.RunCli("app", "list", "-l", "id=rubbish")), ctx.GetName())
 		}).
 		Given().
 		// remove both name and replace labels means nothing will sync
 		Name("").
 		When().
 		IgnoreErrors().
-		Sync("-l", "foo=rubbish").
+		Sync("-l", "id=rubbish").
 		DoNotIgnoreErrors().
 		Then().
-		Expect(Error("", "No matching apps found for filter: selector foo=rubbish")).
+		Expect(Error("", "No matching apps found for filter: selector id=rubbish")).
 		// check we can update the app and it is then sync'd
 		Given().
 		When().
-		Sync("-l", "foo=bar")
+		Sync("-l", label)
 }
 
 func TestTrackAppStateAndSyncApp(t *testing.T) {
