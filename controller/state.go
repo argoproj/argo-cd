@@ -1425,11 +1425,8 @@ func (m *appStateManager) testGVKHealth(cluster *v1alpha1.Cluster, gvkString str
 		// This will trigger conversion webhooks if the requested version differs from storage version
 		_, err := m.kubectl.GetResource(context.Background(), config, gvk, obj.GetName(), obj.GetNamespace())
 		if err != nil {
-			// Check if this is a conversion webhook error
-			errMsg := err.Error()
-			if strings.Contains(errMsg, "conversion webhook") ||
-				strings.Contains(errMsg, "webhook") ||
-				strings.Contains(errMsg, "failed calling webhook") {
+			// Check if this is a conversion webhook error using centralized detection
+			if argoerrors.IsConversionWebhookError(err) {
 				logCtx.Infof("GVK %s failed with conversion webhook error: %v - tainting GVK", gvkString, err)
 
 				// Report the error to the cluster cache's taint framework
