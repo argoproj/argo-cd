@@ -16,7 +16,6 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	rbacv1 "k8s.io/api/rbac/v1"
 
 	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
@@ -88,10 +87,6 @@ const (
 )
 
 var (
-	id                      string
-	shortId                 string
-	deploymentNamespace     string
-	name                    string
 	KubeClientset           kubernetes.Interface
 	KubeConfig              *rest.Config
 	DynamicClientset        dynamic.Interface
@@ -297,17 +292,6 @@ func LoginAs(username string) error {
 	return loginAs(username, password)
 }
 
-// Name returns the current test name from global state.
-// Deprecated: Use TestContext.Name() instead. This function reads from global state
-// and will be removed once all tests are migrated to use TestContext.
-func Name() string {
-	return name
-}
-
-func ShortId() string {
-	return shortId
-}
-
 func repoDirectory() string {
 	return path.Join(TmpDir, repoDir)
 }
@@ -375,13 +359,6 @@ func RepoURL(urlType RepoURLType) string {
 
 func RepoBaseURL(urlType RepoURLType) string {
 	return path.Base(RepoURL(urlType))
-}
-
-// DeploymentNamespace returns the test deployment namespace from global state.
-// Deprecated: Use TestContext.DeploymentNamespace() instead. This function reads from global state
-// and will be removed once all tests are migrated to use TestContext.
-func DeploymentNamespace() string {
-	return deploymentNamespace
 }
 
 // Convenience wrapper for updating argocd-cm
@@ -493,50 +470,6 @@ func SetImpersonationEnabled(impersonationEnabledFlag string) error {
 		cm.Data["application.sync.impersonation.enabled"] = impersonationEnabledFlag
 		return nil
 	})
-}
-
-func CreateRBACResourcesForImpersonation(serviceAccountName string, policyRules []rbacv1.PolicyRule) error {
-	sa := &corev1.ServiceAccount{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: serviceAccountName,
-		},
-	}
-	_, err := KubeClientset.CoreV1().ServiceAccounts(DeploymentNamespace()).Create(context.Background(), sa, metav1.CreateOptions{})
-	if err != nil {
-		return err
-	}
-	role := &rbacv1.Role{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: fmt.Sprintf("%s-%s", serviceAccountName, "role"),
-		},
-		Rules: policyRules,
-	}
-	_, err = KubeClientset.RbacV1().Roles(DeploymentNamespace()).Create(context.Background(), role, metav1.CreateOptions{})
-	if err != nil {
-		return err
-	}
-	rolebinding := &rbacv1.RoleBinding{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: fmt.Sprintf("%s-%s", serviceAccountName, "rolebinding"),
-		},
-		RoleRef: rbacv1.RoleRef{
-			APIGroup: "rbac.authorization.k8s.io",
-			Kind:     "Role",
-			Name:     fmt.Sprintf("%s-%s", serviceAccountName, "role"),
-		},
-		Subjects: []rbacv1.Subject{
-			{
-				Kind:      "ServiceAccount",
-				Name:      serviceAccountName,
-				Namespace: DeploymentNamespace(),
-			},
-		},
-	}
-	_, err = KubeClientset.RbacV1().RoleBindings(DeploymentNamespace()).Create(context.Background(), rolebinding, metav1.CreateOptions{})
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 func SetResourceOverridesSplitKeys(overrides map[string]v1alpha1.ResourceOverride) error {
@@ -677,15 +610,6 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) *TestState {
 
 	// Create TestState to hold test-specific variables
 	state := NewTestState(t)
-
-	// Also set global variables for backward compatibility with tests that still use
-	// global accessor functions (Name(), ShortId(), DeploymentNamespace()).
-	// Deprecated: These global variables will be removed once all tests are migrated
-	// to use TestContext methods instead of global accessor functions.
-	id = state.id
-	shortId = state.shortId
-	name = state.name
-	deploymentNamespace = state.deploymentNamespace
 
 	start := time.Now()
 	policy := metav1.DeletePropagationBackground

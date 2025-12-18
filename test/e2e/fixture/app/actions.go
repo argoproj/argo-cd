@@ -1,12 +1,14 @@
 package app
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
 	"slices"
 	"strconv"
 
+	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 
 	log "github.com/sirupsen/logrus"
@@ -113,7 +115,7 @@ func (a *Actions) CreateFromPartialFile(data string, flags ...string) *Actions {
 		"--name", a.context.AppName(),
 		"--repo", fixture.RepoURL(a.context.repoURLType),
 		"--dest-server", a.context.destServer,
-		"--dest-namespace", fixture.DeploymentNamespace(),
+		"--dest-namespace", a.context.DeploymentNamespace(),
 	}, flags...)
 	if a.context.appNamespace != "" {
 		args = append(args, "--app-namespace", a.context.appNamespace)
@@ -138,7 +140,7 @@ func (a *Actions) CreateFromFile(handler func(app *v1alpha1.Application), flags 
 			},
 			Destination: v1alpha1.ApplicationDestination{
 				Server:    a.context.destServer,
-				Namespace: fixture.DeploymentNamespace(),
+				Namespace: a.context.DeploymentNamespace(),
 			},
 		},
 	}
@@ -192,7 +194,7 @@ func (a *Actions) CreateMultiSourceAppFromFile(flags ...string) *Actions {
 			Sources: a.context.sources,
 			Destination: v1alpha1.ApplicationDestination{
 				Server:    a.context.destServer,
-				Namespace: fixture.DeploymentNamespace(),
+				Namespace: a.context.DeploymentNamespace(),
 			},
 			SyncPolicy: &v1alpha1.SyncPolicy{
 				Automated: &v1alpha1.SyncPolicyAutomated{
@@ -226,7 +228,7 @@ func (a *Actions) CreateWithNoNameSpace(args ...string) *Actions {
 
 func (a *Actions) CreateApp(args ...string) *Actions {
 	args = a.prepareCreateAppArgs(args)
-	args = append(args, "--dest-namespace", fixture.DeploymentNamespace())
+	args = append(args, "--dest-namespace", a.context.DeploymentNamespace())
 
 	//  are you adding new context values? if you only use them for this func, then use args instead
 	a.runCli(args...)
@@ -334,7 +336,7 @@ func (a *Actions) DeclarativeWithCustomRepo(filename string, repoURL string) *Ac
 	a.context.T().Helper()
 	values := map[string]any{
 		"ArgoCDNamespace":     fixture.TestNamespace(),
-		"DeploymentNamespace": fixture.DeploymentNamespace(),
+		"DeploymentNamespace": a.context.DeploymentNamespace(),
 		"Name":                a.context.AppName(),
 		"Path":                a.context.path,
 		"Project":             a.context.project,
@@ -550,7 +552,7 @@ func (a *Actions) WithImpersonationEnabled(serviceAccountName string, policyRule
 	if serviceAccountName == "" || policyRules == nil {
 		return a
 	}
-	require.NoError(a.context.T(), fixture.CreateRBACResourcesForImpersonation(serviceAccountName, policyRules))
+	require.NoError(a.context.T(), createRBACResourcesForImpersonation(a.context.DeploymentNamespace(), serviceAccountName, policyRules))
 	return a
 }
 
@@ -558,4 +560,50 @@ func (a *Actions) WithImpersonationDisabled() *Actions {
 	a.context.T().Helper()
 	require.NoError(a.context.T(), fixture.SetImpersonationEnabled("false"))
 	return a
+}
+
+// TODO: Ensure service account name and other resources have unique names based on the test context
+// TODO: This function should be moved to the project context since impersonation is a project concept, not application.
+func createRBACResourcesForImpersonation(namespace string, serviceAccountName string, policyRules []rbacv1.PolicyRule) error {
+	sa := &corev1.ServiceAccount{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: serviceAccountName,
+		},
+	}
+	_, err := fixture.KubeClientset.CoreV1().ServiceAccounts(namespace).Create(context.Background(), sa, metav1.CreateOptions{})
+	if err != nil {
+		return err
+	}
+	role := &rbacv1.Role{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: fmt.Sprintf("%s-%s", serviceAccountName, "role"),
+		},
+		Rules: policyRules,
+	}
+	_, err = fixture.KubeClientset.RbacV1().Roles(namespace).Create(context.Background(), role, metav1.CreateOptions{})
+	if err != nil {
+		return err
+	}
+	rolebinding := &rbacv1.RoleBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: fmt.Sprintf("%s-%s", serviceAccountName, "rolebinding"),
+		},
+		RoleRef: rbacv1.RoleRef{
+			APIGroup: "rbac.authorization.k8s.io",
+			Kind:     "Role",
+			Name:     fmt.Sprintf("%s-%s", serviceAccountName, "role"),
+		},
+		Subjects: []rbacv1.Subject{
+			{
+				Kind:      "ServiceAccount",
+				Name:      serviceAccountName,
+				Namespace: namespace,
+			},
+		},
+	}
+	_, err = fixture.KubeClientset.RbacV1().RoleBindings(namespace).Create(context.Background(), rolebinding, metav1.CreateOptions{})
+	if err != nil {
+		return err
+	}
+	return nil
 }
