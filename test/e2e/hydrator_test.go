@@ -9,6 +9,7 @@ import (
 	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
+	"github.com/argoproj/argo-cd/v3/test/e2e/fixture/repos"
 
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
 )
@@ -346,4 +347,42 @@ func TestHydratorNoOp(t *testing.T) {
 			require.Equal(t, firstHydratedSHA, app.Status.SourceHydrator.CurrentOperation.HydratedSHA,
 				"Hydrated SHA should remain the same for no-op hydration")
 		})
+}
+
+func TestHydratorWithAuthenticatedRepo(t *testing.T) {
+	// Test that hydration works with an HTTPS repository requiring authentication,
+	// specifically that GetCommitNote and AddAndPushNote properly use credentials when
+	// fetching git notes. This test creates an initial hydration, then makes a change
+	// to trigger a second hydration. On the second hydration, the commit-server will
+	// need to fetch existing git notes from the authenticated repository, which requires
+	// credentials.
+	Given(t).
+		HTTPSInsecureRepoURLAdded(true).
+		RepoURLType(fixture.RepoURLTypeHTTPS).
+		// Add write credentials for commit-server to push hydrated manifests
+		And(func() {
+			repos.AddHTTPSWriteCredentials(t, true, fixture.RepoURLTypeHTTPS)
+		}).
+		DrySourcePath("guestbook").
+		DrySourceRevision("HEAD").
+		SyncSourcePath("guestbook").
+		SyncSourceBranch("env/test").
+		When().
+		CreateApp().
+		Refresh(RefreshTypeNormal).
+		Wait("--hydrated").
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		// Now make a change and re-hydrate. This will trigger git notes fetch
+		// operations that require credentials.
+		When().
+		PatchFile("guestbook/guestbook-ui-deployment.yaml", `[{"op": "replace", "path": "/spec/revisionHistoryLimit", "value": 10}]`).
+		Refresh(RefreshTypeNormal).
+		Wait("--hydrated").
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced))
 }
