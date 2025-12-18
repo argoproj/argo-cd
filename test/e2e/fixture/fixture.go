@@ -325,16 +325,18 @@ const (
 )
 
 func RepoURL(urlType RepoURLType) string {
+	// SSH URLs use the container path (defaultTmpDir) because sshd runs inside Docker
+	// where $ARGOCD_E2E_DIR is mounted to /tmp/argo-e2e
 	switch urlType {
 	// Git server via SSH
 	case RepoURLTypeSSH:
-		return GetEnvWithDefault(EnvRepoURLTypeSSH, "ssh://root@localhost:2222"+TmpDir()+"/testdata.git")
+		return GetEnvWithDefault(EnvRepoURLTypeSSH, "ssh://root@localhost:2222"+defaultTmpDir+"/testdata.git")
 	// Git submodule repo
 	case RepoURLTypeSSHSubmodule:
-		return GetEnvWithDefault(EnvRepoURLTypeSSHSubmodule, "ssh://root@localhost:2222"+TmpDir()+"/submodule.git")
+		return GetEnvWithDefault(EnvRepoURLTypeSSHSubmodule, "ssh://root@localhost:2222"+defaultTmpDir+"/submodule.git")
 	// Git submodule parent repo
 	case RepoURLTypeSSHSubmoduleParent:
-		return GetEnvWithDefault(EnvRepoURLTypeSSHSubmoduleParent, "ssh://root@localhost:2222"+TmpDir()+"/submoduleParent.git")
+		return GetEnvWithDefault(EnvRepoURLTypeSSHSubmoduleParent, "ssh://root@localhost:2222"+defaultTmpDir+"/submoduleParent.git")
 	// Git server via HTTPS
 	case RepoURLTypeHTTPS:
 		return GetEnvWithDefault(EnvRepoURLTypeHTTPS, "https://localhost:9443/argo-e2e/testdata.git")
