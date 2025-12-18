@@ -45,7 +45,7 @@ func (c *Consequences) get() (*account.Account, error) {
 		return nil, err
 	}
 	for _, acc := range accList.Items {
-		if acc.Name == c.context.GetName() {
+		if acc.Name == c.context.Name() {
 			return acc, nil
 		}
 	}

@@ -45,7 +45,7 @@ func (a *Actions) Create() *Actions {
 	_, err := clusterClient.Create(context.Background(), &clusterpkg.ClusterCreateRequest{
 		Cluster: &v1alpha1.Cluster{
 			Server:             a.context.server,
-			Name:               a.context.GetName(),
+			Name:               a.context.Name(),
 			Config:             v1alpha1.ClusterConfig{BearerToken: a.context.bearerToken},
 			ConnectionState:    v1alpha1.ConnectionState{},
 			ServerVersion:      "",
@@ -112,14 +112,14 @@ func (a *Actions) GetByName(name string) *Actions {
 
 func (a *Actions) SetNamespaces() *Actions {
 	a.context.T().Helper()
-	a.runCli("cluster", "set", a.context.GetName(), "--namespace", strings.Join(a.context.namespaces, ","))
+	a.runCli("cluster", "set", a.context.Name(), "--namespace", strings.Join(a.context.namespaces, ","))
 	return a
 }
 
 func (a *Actions) DeleteByName() *Actions {
 	a.context.T().Helper()
 
-	a.runCli("cluster", "rm", a.context.GetName(), "--yes")
+	a.runCli("cluster", "rm", a.context.Name(), "--yes")
 	return a
 }
 

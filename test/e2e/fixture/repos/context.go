@@ -31,7 +31,7 @@ func GivenWithSameState(ctx fixture.TestContext) *Context {
 }
 
 func (c *Context) Name(name string) *Context {
-	c.TestState.SetName(name)
+	c.SetName(name)
 	return c
 }
 
