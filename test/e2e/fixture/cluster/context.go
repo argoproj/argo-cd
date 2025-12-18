@@ -34,7 +34,7 @@ func GivenWithSameState(ctxOrT any) *Context {
 	switch v := ctxOrT.(type) {
 	case *testing.T:
 		v.Helper()
-		state = fixture.GetTestState(v)
+		state = fixture.NewTestState(v)
 	case fixture.TestContext:
 		v.T().Helper()
 		state = v.(*fixture.TestState)

@@ -361,6 +361,9 @@ func LoginAs(username string) error {
 	return loginAs(username, password)
 }
 
+// Name returns the current test name from global state.
+// Deprecated: Use TestContext.Name() instead. This function reads from global state
+// and will be removed once all tests are migrated to use TestContext.
 func Name() string {
 	return name
 }
@@ -383,23 +386,11 @@ func NewTestState(t *testing.T) *TestState {
 	}
 }
 
+// ShortId returns the short identifier suffix from global state.
+// Deprecated: Use TestContext.ID() instead. This function reads from global state
+// and will be removed once all tests are migrated to use TestContext.
 func ShortId() string {
 	return shortId
-}
-
-// GetTestState returns a TestState populated with current global values.
-// Use this for backward compatibility when GivenWithSameState is called with *testing.T
-// instead of a TestContext. This reads from global state.
-// Deprecated: Pass a TestContext instead of *testing.T to GivenWithSameState.
-func GetTestState(t *testing.T) *TestState {
-	return &TestState{
-		t:                   t,
-		id:                  id,
-		shortId:             shortId,
-		name:                name,
-		deploymentNamespace: deploymentNamespace,
-		token:               token,
-	}
 }
 
 func repoDirectory() string {
@@ -471,6 +462,9 @@ func RepoBaseURL(urlType RepoURLType) string {
 	return path.Base(RepoURL(urlType))
 }
 
+// DeploymentNamespace returns the test deployment namespace from global state.
+// Deprecated: Use TestContext.DeploymentNamespace() instead. This function reads from global state
+// and will be removed once all tests are migrated to use TestContext.
 func DeploymentNamespace() string {
 	return deploymentNamespace
 }
@@ -769,8 +763,10 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) *TestState {
 	// Create TestState to hold test-specific variables
 	state := NewTestState(t)
 
-	// Also set global variables for backward compatibility
-	// TODO: Remove these once all contexts are updated to use TestState
+	// Also set global variables for backward compatibility with tests that still use
+	// global accessor functions (Name(), ShortId(), DeploymentNamespace()).
+	// Deprecated: These global variables will be removed once all tests are migrated
+	// to use TestContext methods instead of global accessor functions.
 	id = state.id
 	shortId = state.shortId
 	name = state.name
