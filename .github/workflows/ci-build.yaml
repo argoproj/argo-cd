@@ -14,7 +14,7 @@ on:
 env:
   # Golang version to use across CI steps
   # renovate: datasource=golang-version packageName=golang
-  GOLANG_VERSION: '1.25.3'
+  GOLANG_VERSION: '1.25.5'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -372,12 +372,12 @@ jobs:
         run: |
           rm -rf ui/node_modules/argo-ui/node_modules
       - name: Get e2e code coverage
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           name: e2e-code-coverage
           path: e2e-code-coverage
       - name: Get unit test code coverage
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           name: test-results
           path: test-results
