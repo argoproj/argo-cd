@@ -152,17 +152,14 @@ func TestClusterListDenied(t *testing.T) {
 }
 
 func TestClusterSet(t *testing.T) {
-	ctx := fixture.EnsureCleanState(t)
-	defer fixture.RecordTestRun(t)
-	clusterFixture.
-		GivenWithSameState(ctx).
-		Project(fixture.ProjectName).
-		Name("in-cluster").
+	ctx := clusterFixture.Given(t)
+	ctx.Project(fixture.ProjectName).
 		Namespaces([]string{"namespace-edit-1", "namespace-edit-2"}).
 		Server(KubernetesInternalAPIServerAddr).
 		When().
+		Create().
 		SetNamespaces().
-		GetByName("in-cluster").
+		GetByName().
 		Then().
 		AndCLIOutput(func(output string, _ error) {
 			assert.Contains(t, output, "namespace-edit-1")
@@ -269,8 +266,9 @@ func TestClusterDeleteDenied(t *testing.T) {
 }
 
 func TestClusterDelete(t *testing.T) {
-	ctx := accountFixture.Given(t)
-	ctx.Name("default").
+	ctx := clusterFixture.Given(t)
+	accountFixture.GivenWithSameState(ctx).
+		Name("default").
 		When().
 		Create().
 		Login().
@@ -292,8 +290,7 @@ func TestClusterDelete(t *testing.T) {
 			},
 		}, "org-admin")
 
-	clstAction := clusterFixture.
-		GivenWithSameState(ctx).
+	clstAction := ctx.
 		Name("default").
 		Project(fixture.ProjectName).
 		Upsert(true).
@@ -314,7 +311,7 @@ func TestClusterDelete(t *testing.T) {
 	clstAction.DeleteByName().
 		Then().
 		AndCLIOutput(func(output string, _ error) {
-			assert.Equal(t, "Cluster 'default' removed", output)
+			assert.Equal(t, fmt.Sprintf("Cluster '%s' removed", ctx.GetName()), output)
 		})
 
 	// Check that RBAC is removed after delete

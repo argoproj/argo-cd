@@ -337,6 +337,9 @@ func (c *Context) DestServer(destServer string) *Context {
 }
 
 func (c *Context) DestName(destName string) *Context {
+	if destName != "in-cluster" {
+		destName = fixture.DnsFriendly(destName, "-"+c.ShortID())
+	}
 	c.destName = destName
 	c.isDestServerInferred = true
 	return c

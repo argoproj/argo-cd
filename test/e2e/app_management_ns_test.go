@@ -395,16 +395,17 @@ func TestNamespacedAppDeletion(t *testing.T) {
 
 func TestNamespacedAppLabels(t *testing.T) {
 	ctx := Given(t)
+	label := "id=" + ctx.ShortID()
 	ctx.
 		Path("config-map").
 		SetTrackingMethod("annotation").
 		SetAppNamespace(fixture.AppNamespace()).
 		When().
-		CreateApp("-l", "foo=bar").
+		CreateApp("-l", label).
 		Then().
 		And(func(_ *Application) {
 			assert.Contains(t, errors.NewHandler(t).FailOnErr(fixture.RunCli("app", "list")), ctx.AppQualifiedName())
-			assert.Contains(t, errors.NewHandler(t).FailOnErr(fixture.RunCli("app", "list", "-l", "foo=bar")), ctx.AppQualifiedName())
+			assert.Contains(t, errors.NewHandler(t).FailOnErr(fixture.RunCli("app", "list", "-l", label)), ctx.AppQualifiedName())
 			assert.NotContains(t, errors.NewHandler(t).FailOnErr(fixture.RunCli("app", "list", "-l", "foo=rubbish")), ctx.AppQualifiedName())
 		}).
 		Given().
@@ -419,7 +420,7 @@ func TestNamespacedAppLabels(t *testing.T) {
 		// check we can update the app and it is then sync'd
 		Given().
 		When().
-		Sync("-l", "foo=bar")
+		Sync("-l", label)
 }
 
 func TestNamespacedTrackAppStateAndSyncApp(t *testing.T) {

@@ -104,9 +104,9 @@ func (a *Actions) Get() *Actions {
 	return a
 }
 
-func (a *Actions) GetByName(name string) *Actions {
+func (a *Actions) GetByName() *Actions {
 	a.context.T().Helper()
-	a.runCli("cluster", "get", name)
+	a.runCli("cluster", "get", a.context.GetName())
 	return a
 }
 
