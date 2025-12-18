@@ -9,6 +9,7 @@ import (
 	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
+	"github.com/argoproj/argo-cd/v3/test/e2e/fixture/repos"
 
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
 )
@@ -346,4 +347,26 @@ func TestHydratorNoOp(t *testing.T) {
 			require.Equal(t, firstHydratedSHA, app.Status.SourceHydrator.CurrentOperation.HydratedSHA,
 				"Hydrated SHA should remain the same for no-op hydration")
 		})
+}
+
+func TestHydratorWithAuthenticatedRepo(t *testing.T) {
+	Given(t).
+		HTTPSInsecureRepoURLAdded(true).
+		RepoURLType(fixture.RepoURLTypeHTTPS).
+		// Add write credentials for commit-server to push hydrated manifests
+		And(func() {
+			repos.AddHTTPSWriteCredentials(t, true, fixture.RepoURLTypeHTTPS)
+		}).
+		DrySourcePath("guestbook").
+		DrySourceRevision("HEAD").
+		SyncSourcePath("guestbook").
+		SyncSourceBranch("env/test").
+		When().
+		CreateApp().
+		Refresh(RefreshTypeNormal).
+		Wait("--hydrated").
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced))
 }
