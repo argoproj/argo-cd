@@ -60,6 +60,26 @@ func TestAnalyzeMessage(t *testing.T) {
 			expectedPartial:   true,
 			expectedTainting:  true,
 		},
+		{
+			name:              "failed calling conversion webhook",
+			message:           "failed calling conversion webhook for example.com/v1",
+			expectedHasIssue:  true,
+			expectedIssueType: IssueTypeConversionWebhook,
+			expectedContext:   ContextGenericFailure,
+			expectedSeverity:  SeverityDegraded,
+			expectedPartial:   true,
+			expectedTainting:  true,
+		},
+		{
+			name:              "conversion webhook timeout",
+			message:           "conversion webhook for example.com/v1 timeout after 30s",
+			expectedHasIssue:  true,
+			expectedIssueType: IssueTypeConversionWebhook,
+			expectedContext:   ContextGenericFailure,
+			expectedSeverity:  SeverityDegraded,
+			expectedPartial:   true,
+			expectedTainting:  true,
+		},
 
 		// Unavailable resource types
 		{
