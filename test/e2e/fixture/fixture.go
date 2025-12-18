@@ -304,6 +304,10 @@ func Name() string {
 	return name
 }
 
+func ShortId() string {
+	return shortId
+}
+
 func repoDirectory() string {
 	return path.Join(TmpDir, repoDir)
 }
