@@ -85,15 +85,21 @@ export class AbstractAppsListPreferences {
 
 export class AppsListPreferences extends AbstractAppsListPreferences {
     public static countEnabledFilters(pref: AppsListPreferences) {
-        return [pref.clustersFilter, pref.healthFilter, pref.labelsFilter, pref.namespacesFilter, pref.projectsFilter, pref.reposFilter, pref.syncFilter].reduce(
-            (count, filter) => {
-                if (filter && filter.length > 0) {
-                    return count + 1;
-                }
-                return count;
-            },
-            0
-        );
+        return [
+            pref.clustersFilter,
+            pref.healthFilter,
+            pref.labelsFilter,
+            pref.namespacesFilter,
+            pref.projectsFilter,
+            pref.reposFilter,
+            pref.syncFilter,
+            pref.operationFilter
+        ].reduce((count, filter) => {
+            if (filter && filter.length > 0) {
+                return count + 1;
+            }
+            return count;
+        }, 0);
     }
 
     public static clearFilters(pref: AppsListPreferences) {
@@ -105,6 +111,7 @@ export class AppsListPreferences extends AbstractAppsListPreferences {
         pref.reposFilter = [];
         pref.syncFilter = [];
         pref.autoSyncFilter = [];
+        pref.operationFilter = [];
     }
 
     public projectsFilter: string[];
@@ -113,6 +120,7 @@ export class AppsListPreferences extends AbstractAppsListPreferences {
     public autoSyncFilter: string[];
     public namespacesFilter: string[];
     public clustersFilter: string[];
+    public operationFilter: string[];
 }
 
 export class AppSetsListPreferences extends AbstractAppsListPreferences {
@@ -179,6 +187,7 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
         syncFilter: new Array<string>(),
         autoSyncFilter: new Array<string>(),
         healthFilter: new Array<string>(),
+        operationFilter: new Array<string>(),
         hideFilters: false,
         showFavorites: false,
         favoritesAppList: new Array<string>(),
