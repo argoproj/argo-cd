@@ -1034,6 +1034,12 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 			if err != nil {
 				return err
 			}
+			// Configure git to create files with more permissive permissions to avoid
+			// issues when cleaning up. By default git creates object files as 0444.
+			_, err = Run(repoDirectory(), "git", "config", "core.sharedRepository", "0666")
+			if err != nil {
+				return err
+			}
 			_, err = Run(repoDirectory(), "git", "add", ".")
 			if err != nil {
 				return err
