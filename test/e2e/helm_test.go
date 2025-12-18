@@ -21,8 +21,8 @@ import (
 )
 
 func TestHelmHooksAreCreated(t *testing.T) {
-	Given(t).
-		Path("hook").
+	ctx := Given(t)
+	ctx.Path("hook").
 		When().
 		PatchFile("hook.yaml", `[{"op": "replace", "path": "/metadata/annotations", "value": {"helm.sh/hook": "pre-install"}}]`).
 		CreateApp().
@@ -31,7 +31,7 @@ func TestHelmHooksAreCreated(t *testing.T) {
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		Expect(ResourceResultIs(ResourceResult{Version: "v1", Kind: "Pod", Namespace: fixture.DeploymentNamespace(), Name: "hook", Message: "pod/hook created", Images: []string{"quay.io/argoprojlabs/argocd-e2e-container:0.1"}, HookType: HookTypePreSync, HookPhase: OperationSucceeded, SyncPhase: SyncPhasePreSync}))
+		Expect(ResourceResultIs(ResourceResult{Version: "v1", Kind: "Pod", Namespace: ctx.DeploymentNamespace(), Name: "hook", Message: "pod/hook created", Images: []string{"quay.io/argoprojlabs/argocd-e2e-container:0.1"}, HookType: HookTypePreSync, HookPhase: OperationSucceeded, SyncPhase: SyncPhasePreSync}))
 }
 
 // make sure we treat Helm weights as a sync wave
@@ -313,8 +313,8 @@ func TestHelmSetFile(t *testing.T) {
 
 // ensure we can use envsubst in "set" variables
 func TestHelmSetEnv(t *testing.T) {
-	Given(t).
-		Path("helm-values").
+	ctx := Given(t)
+	ctx.Path("helm-values").
 		When().
 		CreateApp().
 		AppSet("--helm-set", "foo=$ARGOCD_APP_NAME").
@@ -323,13 +323,13 @@ func TestHelmSetEnv(t *testing.T) {
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(_ *Application) {
-			assert.Equal(t, fixture.Name(), errors.NewHandler(t).FailOnErr(fixture.Run(".", "kubectl", "-n", fixture.DeploymentNamespace(), "get", "cm", "my-map", "-o", "jsonpath={.data.foo}")).(string))
+			assert.Equal(t, ctx.GetName(), errors.NewHandler(t).FailOnErr(fixture.Run(".", "kubectl", "-n", ctx.DeploymentNamespace(), "get", "cm", "my-map", "-o", "jsonpath={.data.foo}")).(string))
 		})
 }
 
 func TestHelmSetStringEnv(t *testing.T) {
-	Given(t).
-		Path("helm-values").
+	ctx := Given(t)
+	ctx.Path("helm-values").
 		When().
 		CreateApp().
 		AppSet("--helm-set-string", "foo=$ARGOCD_APP_NAME").
@@ -338,22 +338,22 @@ func TestHelmSetStringEnv(t *testing.T) {
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(_ *Application) {
-			assert.Equal(t, fixture.Name(), errors.NewHandler(t).FailOnErr(fixture.Run(".", "kubectl", "-n", fixture.DeploymentNamespace(), "get", "cm", "my-map", "-o", "jsonpath={.data.foo}")).(string))
+			assert.Equal(t, ctx.GetName(), errors.NewHandler(t).FailOnErr(fixture.Run(".", "kubectl", "-n", ctx.DeploymentNamespace(), "get", "cm", "my-map", "-o", "jsonpath={.data.foo}")).(string))
 		})
 }
 
 // make sure kube-version gets passed down to resources
 func TestKubeVersion(t *testing.T) {
 	fixture.SkipOnEnv(t, "HELM")
-	Given(t).
-		Path("helm-kube-version").
+	ctx := Given(t)
+	ctx.Path("helm-kube-version").
 		When().
 		CreateApp().
 		Sync().
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(_ *Application) {
-			kubeVersion := errors.NewHandler(t).FailOnErr(fixture.Run(".", "kubectl", "-n", fixture.DeploymentNamespace(), "get", "cm", "my-map",
+			kubeVersion := errors.NewHandler(t).FailOnErr(fixture.Run(".", "kubectl", "-n", ctx.DeploymentNamespace(), "get", "cm", "my-map",
 				"-o", "jsonpath={.data.kubeVersion}")).(string)
 			// Capabilities.KubeVersion defaults to 1.9.0, we assume here you are running a later version
 			assert.LessOrEqual(t, fixture.GetVersions(t).ServerVersion.Format("v%s.%s"), kubeVersion)
@@ -365,7 +365,7 @@ func TestKubeVersion(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(_ *Application) {
-			assert.Equal(t, "v999.999.999", errors.NewHandler(t).FailOnErr(fixture.Run(".", "kubectl", "-n", fixture.DeploymentNamespace(), "get", "cm", "my-map",
+			assert.Equal(t, "v999.999.999", errors.NewHandler(t).FailOnErr(fixture.Run(".", "kubectl", "-n", ctx.DeploymentNamespace(), "get", "cm", "my-map",
 				"-o", "jsonpath={.data.kubeVersion}")).(string))
 		})
 }
@@ -373,15 +373,15 @@ func TestKubeVersion(t *testing.T) {
 // make sure api versions gets passed down to resources
 func TestApiVersions(t *testing.T) {
 	fixture.SkipOnEnv(t, "HELM")
-	Given(t).
-		Path("helm-api-versions").
+	ctx := Given(t)
+	ctx.Path("helm-api-versions").
 		When().
 		CreateApp().
 		Sync().
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(_ *Application) {
-			apiVersions := errors.NewHandler(t).FailOnErr(fixture.Run(".", "kubectl", "-n", fixture.DeploymentNamespace(), "get", "cm", "my-map",
+			apiVersions := errors.NewHandler(t).FailOnErr(fixture.Run(".", "kubectl", "-n", ctx.DeploymentNamespace(), "get", "cm", "my-map",
 				"-o", "jsonpath={.data.apiVersions}")).(string)
 			// The v1 API shouldn't be going anywhere.
 			assert.Contains(t, apiVersions, "v1")
@@ -393,7 +393,7 @@ func TestApiVersions(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(_ *Application) {
-			apiVersions := errors.NewHandler(t).FailOnErr(fixture.Run(".", "kubectl", "-n", fixture.DeploymentNamespace(), "get", "cm", "my-map",
+			apiVersions := errors.NewHandler(t).FailOnErr(fixture.Run(".", "kubectl", "-n", ctx.DeploymentNamespace(), "get", "cm", "my-map",
 				"-o", "jsonpath={.data.apiVersions}")).(string)
 			assert.Contains(t, apiVersions, "v1/MyTestResource")
 		})

@@ -137,8 +137,8 @@ func TestKustomizeVersionOverride(t *testing.T) {
 }
 
 func TestHydratorWithHelm(t *testing.T) {
-	Given(t).
-		Path("hydrator-helm").
+	ctx := Given(t)
+	ctx.Path("hydrator-helm").
 		When().
 		CreateFromFile(func(app *Application) {
 			app.Spec.Source = nil
@@ -169,7 +169,7 @@ func TestHydratorWithHelm(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(_ *Application) {
 			// Verify that the inline helm parameter was applied
-			output, err := fixture.Run("", "kubectl", "-n="+fixture.DeploymentNamespace(),
+			output, err := fixture.Run("", "kubectl", "-n="+ctx.DeploymentNamespace(),
 				"get", "configmap", "my-map",
 				"-ojsonpath={.data.message}")
 			require.NoError(t, err)
@@ -178,8 +178,8 @@ func TestHydratorWithHelm(t *testing.T) {
 }
 
 func TestHydratorWithKustomize(t *testing.T) {
-	Given(t).
-		Path("hydrator-kustomize").
+	ctx := Given(t)
+	ctx.Path("hydrator-kustomize").
 		When().
 		CreateFromFile(func(app *Application) {
 			app.Spec.Source = nil
@@ -210,15 +210,15 @@ func TestHydratorWithKustomize(t *testing.T) {
 			// Verify that the inline kustomize nameSuffix was applied
 			// kustomization.yaml has namePrefix: kustomize-, and we added nameSuffix: -inline
 			// So the ConfigMap name should be kustomize-my-map-inline
-			_, err := fixture.Run("", "kubectl", "-n="+fixture.DeploymentNamespace(),
+			_, err := fixture.Run("", "kubectl", "-n="+ctx.DeploymentNamespace(),
 				"get", "configmap", "kustomize-my-map-inline")
 			require.NoError(t, err)
 		})
 }
 
 func TestHydratorWithDirectory(t *testing.T) {
-	Given(t).
-		Path("hydrator-directory").
+	ctx := Given(t)
+	ctx.Path("hydrator-directory").
 		When().
 		CreateFromFile(func(app *Application) {
 			app.Spec.Source = nil
@@ -247,15 +247,15 @@ func TestHydratorWithDirectory(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(_ *Application) {
 			// Verify that the recurse option was applied by checking the ConfigMap from subdir
-			_, err := fixture.Run("", "kubectl", "-n="+fixture.DeploymentNamespace(),
+			_, err := fixture.Run("", "kubectl", "-n="+ctx.DeploymentNamespace(),
 				"get", "configmap", "my-map-subdir")
 			require.NoError(t, err)
 		})
 }
 
 func TestHydratorWithPlugin(t *testing.T) {
-	Given(t).
-		Path("hydrator-plugin").
+	ctx := Given(t)
+	ctx.Path("hydrator-plugin").
 		And(func() {
 			go startCMPServer(t, "./testdata/hydrator-plugin")
 			time.Sleep(100 * time.Millisecond)
@@ -291,7 +291,7 @@ func TestHydratorWithPlugin(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(_ *Application) {
 			// Verify that the inline plugin env was applied
-			output, err := fixture.Run("", "kubectl", "-n="+fixture.DeploymentNamespace(),
+			output, err := fixture.Run("", "kubectl", "-n="+ctx.DeploymentNamespace(),
 				"get", "configmap", "plugin-generated-map",
 				"-ojsonpath={.data.plugin-env}")
 			require.NoError(t, err)

@@ -70,7 +70,7 @@ func TestDeploymentWithAnnotationTrackingMode(t *testing.T) {
 			require.NoError(t, err)
 			assert.Contains(t, out, fmt.Sprintf(`annotations:
     argocd.argoproj.io/tracking-id: %s:apps/Deployment:%s/nginx-deployment
-`, ctx.AppName(), DeploymentNamespace()))
+`, ctx.AppName(), ctx.DeploymentNamespace()))
 		})
 }
 
@@ -116,7 +116,7 @@ func TestDeploymentWithoutTrackingMode(t *testing.T) {
 			require.NoError(t, err)
 			assert.Contains(t, out, fmt.Sprintf(`annotations:
     argocd.argoproj.io/tracking-id: %s:apps/Deployment:%s/nginx-deployment
-`, ctx.AppName(), DeploymentNamespace()))
+`, ctx.AppName(), ctx.DeploymentNamespace()))
 		})
 }
 
