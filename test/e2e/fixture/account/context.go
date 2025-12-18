@@ -11,33 +11,22 @@ import (
 // It embeds fixture.TestState to provide test-specific state that enables parallel test execution.
 type Context struct {
 	*fixture.TestState
-	// accountName is the name of the account being tested (shadows TestState.Name())
-	accountName string
-	project     string
+
+	project string
 }
 
 func Given(t *testing.T) *Context {
 	t.Helper()
 	state := fixture.EnsureCleanState(t)
-	return &Context{TestState: state, accountName: state.Name()}
+	return &Context{TestState: state}
 }
 
 // GivenWithSameState creates a new Context that shares the same TestState as an existing context.
 // Use this when you need multiple fixture contexts within the same test.
-// For backward compatibility, also accepts *testing.T (deprecated - pass a TestContext instead).
-func GivenWithSameState(ctxOrT any) *Context {
-	var state *fixture.TestState
-	switch v := ctxOrT.(type) {
-	case *testing.T:
-		v.Helper()
-		state = fixture.NewTestState(v)
-	case fixture.TestContext:
-		v.T().Helper()
-		state = v.(*fixture.TestState)
-	default:
-		panic("GivenWithSameState: expected *testing.T or fixture.TestContext")
-	}
-	return &Context{TestState: state, accountName: state.Name()}
+func GivenWithSameState(ctx fixture.TestContext) *Context {
+	ctx.T().Helper()
+	state := ctx.(*fixture.TestState)
+	return &Context{TestState: state}
 }
 
 func (c *Context) Project(project string) *Context {
@@ -45,14 +34,8 @@ func (c *Context) Project(project string) *Context {
 	return c
 }
 
-func (c *Context) GetName() string {
-	return c.accountName
-}
-
-// Name sets the account name for this context
-func (c *Context) Name(name string) *Context {
-	c.accountName = name
-	return c
+func (c *Context) AccountName() string {
+	return c.Name()
 }
 
 func (c *Context) And(block func()) *Context {

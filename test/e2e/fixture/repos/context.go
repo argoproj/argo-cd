@@ -11,10 +11,9 @@ import (
 // It embeds fixture.TestState to provide test-specific state that enables parallel test execution.
 type Context struct {
 	*fixture.TestState
-	path string
-	// repoName is the name of the repo being tested (shadows TestState.Name())
-	repoName string
-	project  string
+
+	path    string
+	project string
 }
 
 func Given(t *testing.T) *Context {
@@ -25,29 +24,14 @@ func Given(t *testing.T) *Context {
 
 // GivenWithSameState creates a new Context that shares the same TestState as an existing context.
 // Use this when you need multiple fixture contexts within the same test.
-// For backward compatibility, also accepts *testing.T (deprecated - pass a TestContext instead).
-func GivenWithSameState(ctxOrT any) *Context {
-	var state *fixture.TestState
-	switch v := ctxOrT.(type) {
-	case *testing.T:
-		v.Helper()
-		state = fixture.NewTestState(v)
-	case fixture.TestContext:
-		v.T().Helper()
-		state = v.(*fixture.TestState)
-	default:
-		panic("GivenWithSameState: expected *testing.T or fixture.TestContext")
-	}
-	return &Context{TestState: state, repoName: state.Name(), project: "default"}
+func GivenWithSameState(ctx fixture.TestContext) *Context {
+	ctx.T().Helper()
+	state := ctx.(*fixture.TestState)
+	return &Context{TestState: state, project: "default"}
 }
 
-func (c *Context) GetName() string {
-	return c.repoName
-}
-
-// Name sets the repo name for this context
 func (c *Context) Name(name string) *Context {
-	c.repoName = name
+	c.TestState.SetName(name)
 	return c
 }
 

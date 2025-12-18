@@ -1,7 +1,6 @@
 package app
 
 import (
-	"strings"
 	"testing"
 	"time"
 
@@ -27,8 +26,7 @@ type Context struct {
 	repoURLType     fixture.RepoURLType
 	// seconds
 	timeout int
-	// appName is the name of the application being tested (shadows TestState.Name())
-	appName                  string
+
 	appNamespace             string
 	destServer               string
 	destName                 string
@@ -80,19 +78,9 @@ func GivenWithNamespace(t *testing.T, namespace string) *Context {
 
 // GivenWithSameState creates a new Context that shares the same TestState as an existing context.
 // Use this when you need multiple fixture contexts within the same test.
-// For backward compatibility, also accepts *testing.T (deprecated - pass a TestContext instead).
-func GivenWithSameState(ctxOrT any) *Context {
-	var state *fixture.TestState
-	switch v := ctxOrT.(type) {
-	case *testing.T:
-		v.Helper()
-		state = fixture.NewTestState(v)
-	case fixture.TestContext:
-		v.T().Helper()
-		state = v.(*fixture.TestState)
-	default:
-		panic("GivenWithSameState: expected *testing.T or fixture.TestContext")
-	}
+func GivenWithSameState(ctx fixture.TestContext) *Context {
+	ctx.T().Helper()
+	state := ctx.(*fixture.TestState)
 	// ARGOCD_E2E_DEFAULT_TIMEOUT can be used to override the default timeout
 	// for any context.
 	timeout := env.ParseNumFromEnv("ARGOCD_E2E_DEFAULT_TIMEOUT", 20, 0, 180)
@@ -101,7 +89,6 @@ func GivenWithSameState(ctxOrT any) *Context {
 		destServer:     v1alpha1.KubernetesInternalAPIServerAddr,
 		destName:       "in-cluster",
 		repoURLType:    fixture.RepoURLTypeFile,
-		appName:        state.Name(),
 		timeout:        timeout,
 		project:        "default",
 		prune:          true,
@@ -109,15 +96,16 @@ func GivenWithSameState(ctxOrT any) *Context {
 	}
 }
 
+func (c *Context) Name(name string) *Context {
+	c.TestState.SetName(name)
+	return c
+}
+
 // AppName returns the unique application name for the test context.
 // Unique application names protects from potential conflicts between test run
 // caused by the tracking annotation on existing objects
 func (c *Context) AppName() string {
-	suffix := "-" + c.ShortId()
-	if strings.HasSuffix(c.appName, suffix) {
-		return c.appName
-	}
-	return fixture.DnsFriendly(c.appName, suffix)
+	return c.TestState.Name()
 }
 
 func (c *Context) AppQualifiedName() string {
@@ -285,16 +273,6 @@ func (c *Context) Replace() *Context {
 
 func (c *Context) RepoURLType(urlType fixture.RepoURLType) *Context {
 	c.repoURLType = urlType
-	return c
-}
-
-func (c *Context) GetName() string {
-	return c.appName
-}
-
-// Name sets the application name for this context
-func (c *Context) Name(name string) *Context {
-	c.appName = name
 	return c
 }
 

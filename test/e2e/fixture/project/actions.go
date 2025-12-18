@@ -65,8 +65,8 @@ func (a *Actions) UpdateProject(updater func(project *v1alpha1.AppProject)) *Act
 	return a
 }
 
-func (a *Actions) Name(name string) *Actions {
-	a.context.Name(name)
+func (a *Actions) SetName(name string) *Actions {
+	a.context.SetName(name)
 	return a
 }
 

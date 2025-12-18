@@ -39,7 +39,6 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/errors"
 	grpcutil "github.com/argoproj/argo-cd/v3/util/grpc"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
-	"github.com/argoproj/argo-cd/v3/util/rand"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
@@ -110,69 +109,6 @@ var (
 	argoCDRepoServerName    string
 	argoCDAppControllerName string
 )
-
-// TestContext defines the interface for test-specific state that enables parallel test execution.
-// All fixture Context types should implement this interface by embedding TestState.
-type TestContext interface {
-	// Name returns the DNS-friendly name for this test
-	Name() string
-	// DeploymentNamespace returns the namespace where test resources are deployed
-	DeploymentNamespace() string
-	// ID returns the unique identifier for this test run
-	ID() string
-	// Token returns the authentication token for API calls
-	Token() string
-	// SetToken sets the authentication token
-	SetToken(token string)
-	// T returns the testing.T instance for this test
-	T() *testing.T
-}
-
-// TestState holds test-specific variables that were previously global.
-// Embed this in Context structs to enable parallel test execution.
-type TestState struct {
-	t                   *testing.T
-	id                  string
-	shortId             string
-	name                string
-	deploymentNamespace string
-	token               string
-}
-
-// Name returns the DNS-friendly name for this test
-func (s *TestState) Name() string {
-	return s.name
-}
-
-// DeploymentNamespace returns the namespace where test resources are deployed
-func (s *TestState) DeploymentNamespace() string {
-	return s.deploymentNamespace
-}
-
-// ID returns the unique identifier for this test run
-func (s *TestState) ID() string {
-	return s.id
-}
-
-// ShortId returns the short identifier for this test run
-func (s *TestState) ShortId() string {
-	return s.shortId
-}
-
-// Token returns the authentication token for API calls
-func (s *TestState) Token() string {
-	return s.token
-}
-
-// SetToken sets the authentication token
-func (s *TestState) SetToken(token string) {
-	s.token = token
-}
-
-// T returns the testing.T instance for this test
-func (s *TestState) T() *testing.T {
-	return s.t
-}
 
 type RepoURLType string
 
@@ -366,31 +302,6 @@ func LoginAs(username string) error {
 // and will be removed once all tests are migrated to use TestContext.
 func Name() string {
 	return name
-}
-
-// NewTestState creates a new TestState with unique identifiers for this test run.
-// This generates fresh id, name, and deploymentNamespace values.
-func NewTestState(t *testing.T) *TestState {
-	t.Helper()
-	randString, err := rand.String(5)
-	errors.CheckError(err)
-	shortId := "-" + strings.ToLower(randString)
-
-	return &TestState{
-		t:                   t,
-		token:               token, // Initialize with current global token
-		id:                  fmt.Sprintf("%s-%s", t.Name(), shortId),
-		shortId:             shortId,
-		name:                DnsFriendly(t.Name(), "-"+shortId),
-		deploymentNamespace: DnsFriendly("argocd-e2e-"+t.Name(), "-"+shortId),
-	}
-}
-
-// ShortId returns the short identifier suffix from global state.
-// Deprecated: Use TestContext.ID() instead. This function reads from global state
-// and will be removed once all tests are migrated to use TestContext.
-func ShortId() string {
-	return shortId
 }
 
 func repoDirectory() string {

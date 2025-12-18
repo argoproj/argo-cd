@@ -11,8 +11,7 @@ import (
 // It embeds fixture.TestState to provide test-specific state that enables parallel test execution.
 type Context struct {
 	*fixture.TestState
-	// clusterName is the name of the cluster being tested (shadows TestState.Name())
-	clusterName string
+
 	project     string
 	server      string
 	upsert      bool
@@ -28,29 +27,19 @@ func Given(t *testing.T) *Context {
 
 // GivenWithSameState creates a new Context that shares the same TestState as an existing context.
 // Use this when you need multiple fixture contexts within the same test.
-// For backward compatibility, also accepts *testing.T (deprecated - pass a TestContext instead).
-func GivenWithSameState(ctxOrT any) *Context {
-	var state *fixture.TestState
-	switch v := ctxOrT.(type) {
-	case *testing.T:
-		v.Helper()
-		state = fixture.NewTestState(v)
-	case fixture.TestContext:
-		v.T().Helper()
-		state = v.(*fixture.TestState)
-	default:
-		panic("GivenWithSameState: expected *testing.T or fixture.TestContext")
-	}
-	return &Context{TestState: state, clusterName: state.Name(), project: "default"}
+func GivenWithSameState(ctx fixture.TestContext) *Context {
+	ctx.T().Helper()
+	state := ctx.(*fixture.TestState)
+	return &Context{TestState: state, project: "default"}
 }
 
 func (c *Context) GetName() string {
-	return c.clusterName
+	return c.Name()
 }
 
-// Name sets the cluster name for this context
-func (c *Context) Name(name string) *Context {
-	c.clusterName = name
+// SetName sets the cluster name for this context
+func (c *Context) SetName(name string) *Context {
+	c.TestState.SetName(name)
 	return c
 }
 
