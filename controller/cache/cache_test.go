@@ -5,7 +5,6 @@ import (
 	"errors"
 	"net"
 	"net/url"
-	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -1184,32 +1183,13 @@ func TestGetClustersInfoWithFailedGVKs(t *testing.T) {
 	assert.Contains(t, taintedGVKs, gvkStr2, "Second GVK should be tracked as tainted")
 }
 
-// extractGVKFromCacheError attempts to extract the GroupVersionKind from various cache errors
-// Returns an empty string if no GVK could be extracted
-// This is a test utility function for analyzing cache error messages
+// extractGVKFromCacheError extracts the GroupVersionKind from cache errors
+// Uses the centralized ExtractGVK function from argoerrors
 func extractGVKFromCacheError(err error) string {
 	if err == nil {
 		return ""
 	}
-	errStr := err.Error()
-
-	// Example error: "conversion webhook for conversion.example.com/v1, Kind=Example failed"
-	// Try to extract the GVK from the error message
-	webhookMatch := strings.Index(errStr, "conversion webhook for ")
-	if webhookMatch < 0 {
-		return ""
-	}
-
-	// Extract the text after "conversion webhook for "
-	start := webhookMatch + len("conversion webhook for ")
-	end := strings.Index(errStr[start:], " failed")
-	if end < 0 {
-		return ""
-	}
-
-	// Extract the GVK string
-	gvkStr := errStr[start : start+end]
-	return strings.TrimSpace(gvkStr)
+	return argoerrors.ExtractGVK(err.Error())
 }
 
 func TestShouldReturnPartialCache(t *testing.T) {
