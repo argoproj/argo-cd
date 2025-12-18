@@ -1277,6 +1277,12 @@ type objKeyLiveTarget struct {
 	target *unstructured.Unstructured
 }
 
+// addServerSideDiffPerfFlags adds server-side diff performance tuning flags to a command
+func addServerSideDiffPerfFlags(command *cobra.Command, serverSideDiffConcurrency *int, serverSideDiffMaxBatchKB *int) {
+	command.Flags().IntVar(serverSideDiffConcurrency, "server-side-diff-concurrency", -1, "Max concurrent batches for server-side diff. -1 = unlimited, 0+ = limit concurrent requests")
+	command.Flags().IntVar(serverSideDiffMaxBatchKB, "server-side-diff-max-batch-kb", 250, "Max batch size in KB for server-side diff. Smaller values are safer for proxies")
+}
+
 // NewApplicationDiffCommand returns a new instance of an `argocd app diff` command
 func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
@@ -1442,8 +1448,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().StringVar(&localRepoRoot, "local-repo-root", "/", "Path to the repository root. Used together with --local allows setting the repository root")
 	command.Flags().BoolVar(&serverSideGenerate, "server-side-generate", false, "Used with --local, this will send your manifests to the server for diffing")
 	command.Flags().BoolVar(&serverSideDiff, "server-side-diff", false, "Use server-side diff to calculate the diff. This will default to true if the ServerSideDiff annotation is set on the application.")
-	command.Flags().IntVar(&serverSideDiffConcurrency, "server-side-diff-concurrency", -1, "Max concurrent batches for server-side diff. -1 = unlimited, 0+ = limit concurrent requests")
-	command.Flags().IntVar(&serverSideDiffMaxBatchKB, "server-side-diff-max-batch-kb", 250, "Max batch size in KB for server-side diff. Smaller values are safer for proxies")
+	addServerSideDiffPerfFlags(command, &serverSideDiffConcurrency, &serverSideDiffMaxBatchKB)
 	command.Flags().StringArrayVar(&localIncludes, "local-include", []string{"*.yaml", "*.yml", "*.json"}, "Used with --server-side-generate, specify patterns of filenames to send. Matching is based on filename and not path.")
 	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Only render the difference in namespace")
 	command.Flags().StringArrayVar(&revisions, "revisions", []string{}, "Show manifests at specific revisions for source position in source-positions")
@@ -2124,36 +2129,38 @@ func printTreeViewDetailed(nodeMapping map[string]argoappv1.ResourceNode, parent
 // NewApplicationSyncCommand returns a new instance of an `argocd app sync` command
 func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		revision                string
-		revisions               []string
-		sourcePositions         []int64
-		sourceNames             []string
-		resources               []string
-		labels                  []string
-		selector                string
-		prune                   bool
-		dryRun                  bool
-		timeout                 uint
-		strategy                string
-		force                   bool
-		replace                 bool
-		serverSideApply         bool
-		applyOutOfSyncOnly      bool
-		async                   bool
-		retryLimit              int64
-		retryRefresh            bool
-		retryBackoffDuration    time.Duration
-		retryBackoffMaxDuration time.Duration
-		retryBackoffFactor      int64
-		local                   string
-		localRepoRoot           string
-		infos                   []string
-		diffChanges             bool
-		diffChangesConfirm      bool
-		projects                []string
-		output                  string
-		appNamespace            string
-		ignoreNormalizerOpts    normalizers.IgnoreNormalizerOpts
+		revision                  string
+		revisions                 []string
+		sourcePositions           []int64
+		sourceNames               []string
+		resources                 []string
+		labels                    []string
+		selector                  string
+		prune                     bool
+		dryRun                    bool
+		timeout                   uint
+		strategy                  string
+		force                     bool
+		replace                   bool
+		serverSideApply           bool
+		applyOutOfSyncOnly        bool
+		async                     bool
+		retryLimit                int64
+		retryRefresh              bool
+		retryBackoffDuration      time.Duration
+		retryBackoffMaxDuration   time.Duration
+		retryBackoffFactor        int64
+		local                     string
+		localRepoRoot             string
+		infos                     []string
+		diffChanges               bool
+		diffChangesConfirm        bool
+		projects                  []string
+		output                    string
+		appNamespace              string
+		ignoreNormalizerOpts      normalizers.IgnoreNormalizerOpts
+		serverSideDiffConcurrency int
+		serverSideDiffMaxBatchKB  int
 	)
 	command := &cobra.Command{
 		Use:   "sync [APPNAME... | -l selector | --project project-name]",
@@ -2442,7 +2449,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					// Check if application has ServerSideDiff annotation
 					serverSideDiff := resourceutil.HasAnnotationOption(app, argocommon.AnnotationCompareOptions, "ServerSideDiff=true")
 
-					foundDiffs = findAndPrintDiff(ctx, app, proj.Project, resources, argoSettings, diffOption, ignoreNormalizerOpts, serverSideDiff, appIf, appName, appNs, -1, 250)
+					foundDiffs = findAndPrintDiff(ctx, app, proj.Project, resources, argoSettings, diffOption, ignoreNormalizerOpts, serverSideDiff, appIf, appName, appNs, serverSideDiffConcurrency, serverSideDiffMaxBatchKB)
 					if !foundDiffs {
 						fmt.Printf("====== No Differences found ======\n")
 						// if no differences found, then no need to sync
@@ -2507,6 +2514,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().StringArrayVar(&revisions, "revisions", []string{}, "Show manifests at specific revisions for source position in source-positions")
 	command.Flags().Int64SliceVar(&sourcePositions, "source-positions", []int64{}, "List of source positions. Default is empty array. Counting start at 1.")
 	command.Flags().StringArrayVar(&sourceNames, "source-names", []string{}, "List of source names. Default is an empty array.")
+	addServerSideDiffPerfFlags(command, &serverSideDiffConcurrency, &serverSideDiffMaxBatchKB)
 	return command
 }
 
