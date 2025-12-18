@@ -25,8 +25,7 @@ func Given(t *testing.T) *Context {
 // Use this when you need multiple fixture contexts within the same test.
 func GivenWithSameState(ctx fixture.TestContext) *Context {
 	ctx.T().Helper()
-	state := ctx.(*fixture.TestState)
-	return &Context{TestState: state}
+	return &Context{TestState: fixture.NewTestStateFromContext(ctx)}
 }
 
 func (c *Context) Project(project string) *Context {

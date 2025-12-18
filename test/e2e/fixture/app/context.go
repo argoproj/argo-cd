@@ -80,12 +80,11 @@ func GivenWithNamespace(t *testing.T, namespace string) *Context {
 // Use this when you need multiple fixture contexts within the same test.
 func GivenWithSameState(ctx fixture.TestContext) *Context {
 	ctx.T().Helper()
-	state := ctx.(*fixture.TestState)
 	// ARGOCD_E2E_DEFAULT_TIMEOUT can be used to override the default timeout
 	// for any context.
 	timeout := env.ParseNumFromEnv("ARGOCD_E2E_DEFAULT_TIMEOUT", 20, 0, 180)
 	return &Context{
-		TestState:      state,
+		TestState:      fixture.NewTestStateFromContext(ctx),
 		destServer:     v1alpha1.KubernetesInternalAPIServerAddr,
 		destName:       "in-cluster",
 		repoURLType:    fixture.RepoURLTypeFile,

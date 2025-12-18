@@ -13,15 +13,16 @@ import (
 // TestContext defines the interface for test-specific state that enables parallel test execution.
 // All fixture Context types should implement this interface by embedding TestState.
 type TestContext interface {
-	// Name sets the DNS-friendly name for this context
+	// SetName sets the DNS-friendly name for this context
 	SetName(name string)
-
 	// GetName returns the DNS-friendly name for this context
 	GetName() string
 	// DeploymentNamespace returns the namespace where test resources are deployed
 	DeploymentNamespace() string
 	// ID returns the unique identifier for this test run
 	ID() string
+	// ShortID returns the short unique identifier suffix for this test run
+	ShortID() string
 	// Token returns the authentication token for API calls
 	Token() string
 	// SetToken sets the authentication token
@@ -59,6 +60,19 @@ func NewTestState(t *testing.T) *TestState {
 	}
 }
 
+// NewTestStateFromContext creates a TestState from an existing TestContext.
+// This allows GivenWithSameState functions to work across different Context types.
+func NewTestStateFromContext(ctx TestContext) *TestState {
+	return &TestState{
+		t:                   ctx.T(),
+		id:                  ctx.ID(),
+		shortId:             ctx.ShortID(),
+		name:                ctx.GetName(),
+		deploymentNamespace: ctx.DeploymentNamespace(),
+		token:               ctx.Token(),
+	}
+}
+
 // Name sets the DNS-friendly name for this context
 func (s *TestState) SetName(name string) {
 	suffix := "-" + s.shortId
@@ -78,6 +92,11 @@ func (s *TestState) DeploymentNamespace() string {
 // ID returns the unique identifier for this test run
 func (s *TestState) ID() string {
 	return s.id
+}
+
+// ShortID returns the short unique identifier suffix for this test run
+func (s *TestState) ShortID() string {
+	return s.shortId
 }
 
 // Token returns the authentication token for API calls
