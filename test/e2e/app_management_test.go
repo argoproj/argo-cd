@@ -59,8 +59,8 @@ func TestGetLogsAllowNoSwitch(_ *testing.T) {
 func TestGetLogsDeny(t *testing.T) {
 	fixture.SkipOnEnv(t, "OPENSHIFT")
 
-	accountFixture.Given(t).
-		Name("test").
+	ctx := accountFixture.Given(t)
+	ctx.Name("test").
 		When().
 		Create().
 		Login().
@@ -87,7 +87,7 @@ func TestGetLogsDeny(t *testing.T) {
 			},
 		}, "app-creator")
 
-	GivenWithSameState(t).
+	GivenWithSameState(ctx).
 		Path("guestbook-logs").
 		When().
 		CreateApp().
@@ -103,8 +103,8 @@ func TestGetLogsDeny(t *testing.T) {
 func TestGetLogsAllow(t *testing.T) {
 	fixture.SkipOnEnv(t, "OPENSHIFT")
 
-	accountFixture.Given(t).
-		Name("test").
+	ctx := accountFixture.Given(t)
+	ctx.Name("test").
 		When().
 		Create().
 		Login().
@@ -136,7 +136,7 @@ func TestGetLogsAllow(t *testing.T) {
 			},
 		}, "app-creator")
 
-	GivenWithSameState(t).
+	GivenWithSameState(ctx).
 		Path("guestbook-logs").
 		When().
 		CreateApp().
@@ -682,13 +682,13 @@ func TestComparisonFailsIfClusterNotAdded(t *testing.T) {
 }
 
 func TestComparisonFailsIfDestinationClusterIsInvalid(t *testing.T) {
-	clusterActions := clusterFixture.Given(t).
-		Name("temp-cluster").
+	ctx := clusterFixture.Given(t)
+	clusterActions := ctx.Name("temp-cluster").
 		Server(KubernetesInternalAPIServerAddr).
 		When().
 		Create()
 
-	GivenWithSameState(t).
+	GivenWithSameState(ctx).
 		Path(guestbookPath).
 		DestName("temp-cluster").
 		When().
@@ -1571,7 +1571,7 @@ func assertResourceActions(t *testing.T, appName string, successful bool) {
 
 func TestPermissions(t *testing.T) {
 	appCtx := Given(t)
-	projCtx := projectFixture.GivenWithSameState(t)
+	projCtx := projectFixture.GivenWithSameState(appCtx)
 	projActions := projCtx.
 		Name("argo-project").
 		When().
@@ -1647,22 +1647,22 @@ func TestPermissions(t *testing.T) {
 
 func TestPermissionWithScopedRepo(t *testing.T) {
 	projName := "argo-project"
-	fixture.EnsureCleanState(t)
+	ctx := fixture.EnsureCleanState(t)
 	projectFixture.
-		Given(t).
+		GivenWithSameState(ctx).
 		Name(projName).
 		Destination("*,*").
 		When().
 		Create().
 		AddSource("*")
 
-	repoFixture.GivenWithSameState(t).
+	repoFixture.GivenWithSameState(ctx).
 		When().
 		Path(fixture.RepoURL(fixture.RepoURLTypeFile)).
 		Project(projName).
 		Create()
 
-	GivenWithSameState(t).
+	GivenWithSameState(ctx).
 		Project(projName).
 		RepoURLType(fixture.RepoURLTypeFile).
 		Path("two-nice-pods").
@@ -1686,19 +1686,18 @@ func TestPermissionWithScopedRepo(t *testing.T) {
 
 func TestPermissionDeniedWithScopedRepo(t *testing.T) {
 	projName := "argo-project"
-	projectFixture.
-		Given(t).
-		Name(projName).
+	ctx := projectFixture.Given(t)
+	ctx.Name(projName).
 		Destination("*,*").
 		When().
 		Create()
 
-	repoFixture.GivenWithSameState(t).
+	repoFixture.GivenWithSameState(ctx).
 		When().
 		Path(fixture.RepoURL(fixture.RepoURLTypeFile)).
 		Create()
 
-	GivenWithSameState(t).
+	GivenWithSameState(ctx).
 		Project(projName).
 		RepoURLType(fixture.RepoURLTypeFile).
 		Path("two-nice-pods").
@@ -1712,20 +1711,19 @@ func TestPermissionDeniedWithScopedRepo(t *testing.T) {
 
 func TestPermissionDeniedWithNegatedNamespace(t *testing.T) {
 	projName := "argo-project"
-	projectFixture.
-		Given(t).
-		Name(projName).
+	ctx := projectFixture.Given(t)
+	ctx.Name(projName).
 		Destination("*,!*test-permission-denied-with-negated-namespace*").
 		When().
 		Create()
 
-	repoFixture.GivenWithSameState(t).
+	repoFixture.GivenWithSameState(ctx).
 		When().
 		Path(fixture.RepoURL(fixture.RepoURLTypeFile)).
 		Project(projName).
 		Create()
 
-	GivenWithSameState(t).
+	GivenWithSameState(ctx).
 		Project(projName).
 		RepoURLType(fixture.RepoURLTypeFile).
 		Path("two-nice-pods").
@@ -1739,20 +1737,19 @@ func TestPermissionDeniedWithNegatedNamespace(t *testing.T) {
 
 func TestPermissionDeniedWithNegatedServer(t *testing.T) {
 	projName := "argo-project"
-	projectFixture.
-		Given(t).
-		Name(projName).
+	ctx := projectFixture.Given(t)
+	ctx.Name(projName).
 		Destination("!https://kubernetes.default.svc,*").
 		When().
 		Create()
 
-	repoFixture.GivenWithSameState(t).
+	repoFixture.GivenWithSameState(ctx).
 		When().
 		Path(fixture.RepoURL(fixture.RepoURLTypeFile)).
 		Project(projName).
 		Create()
 
-	GivenWithSameState(t).
+	GivenWithSameState(ctx).
 		Project(projName).
 		RepoURLType(fixture.RepoURLTypeFile).
 		Path("two-nice-pods").

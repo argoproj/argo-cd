@@ -41,15 +41,15 @@ func (a *Actions) prepareSetPasswordArgs(account string) []string {
 func (a *Actions) Create() *Actions {
 	a.context.T().Helper()
 	require.NoError(a.context.T(), fixture.SetAccounts(map[string][]string{
-		a.context.Name(): {"login"},
+		a.context.GetName(): {"login"},
 	}))
-	_, _ = fixture.RunCli(a.prepareSetPasswordArgs(a.context.Name())...)
+	_, _ = fixture.RunCli(a.prepareSetPasswordArgs(a.context.GetName())...)
 	return a
 }
 
 func (a *Actions) SetPermissions(permissions []fixture.ACL, roleName string) *Actions {
 	a.context.T().Helper()
-	require.NoError(a.context.T(), fixture.SetPermissions(permissions, a.context.Name(), roleName))
+	require.NoError(a.context.T(), fixture.SetPermissions(permissions, a.context.GetName(), roleName))
 	return a
 }
 
@@ -61,7 +61,7 @@ func (a *Actions) SetParamInSettingConfigMap(key, value string) *Actions {
 
 func (a *Actions) Login() *Actions {
 	a.context.T().Helper()
-	require.NoError(a.context.T(), fixture.LoginAs(a.context.Name()))
+	require.NoError(a.context.T(), fixture.LoginAs(a.context.GetName()))
 	return a
 }
 

@@ -48,8 +48,8 @@ func TestNamespacedGetLogsAllow(_ *testing.T) {
 func TestNamespacedGetLogsDeny(t *testing.T) {
 	fixture.SkipOnEnv(t, "OPENSHIFT")
 
-	accountFixture.Given(t).
-		Name("test").
+	accountCtx := accountFixture.Given(t)
+	accountCtx.Name("test").
 		When().
 		Create().
 		Login().
@@ -76,7 +76,7 @@ func TestNamespacedGetLogsDeny(t *testing.T) {
 			},
 		}, "app-creator")
 
-	ctx := GivenWithSameState(t)
+	ctx := GivenWithSameState(accountCtx)
 	ctx.SetAppNamespace(fixture.ArgoCDAppNamespace)
 	ctx.
 		Path("guestbook-logs").
@@ -95,8 +95,8 @@ func TestNamespacedGetLogsDeny(t *testing.T) {
 func TestNamespacedGetLogsAllowNS(t *testing.T) {
 	fixture.SkipOnEnv(t, "OPENSHIFT")
 
-	accountFixture.Given(t).
-		Name("test").
+	accountCtx := accountFixture.Given(t)
+	accountCtx.Name("test").
 		When().
 		Create().
 		Login().
@@ -128,7 +128,7 @@ func TestNamespacedGetLogsAllowNS(t *testing.T) {
 			},
 		}, "app-creator")
 
-	ctx := GivenWithSameState(t)
+	ctx := GivenWithSameState(accountCtx)
 	ctx.SetAppNamespace(fixture.AppNamespace())
 	ctx.
 		Path("guestbook-logs").
@@ -1181,22 +1181,22 @@ func TestNamespacedPermissions(t *testing.T) {
 
 func TestNamespacedPermissionWithScopedRepo(t *testing.T) {
 	projName := "argo-project"
-	fixture.EnsureCleanState(t)
+	ctx := fixture.EnsureCleanState(t)
 	projectFixture.
-		Given(t).
+		GivenWithSameState(ctx).
 		Name(projName).
 		SourceNamespaces([]string{fixture.AppNamespace()}).
 		Destination("*,*").
 		When().
 		Create()
 
-	repoFixture.GivenWithSameState(t).
+	repoFixture.GivenWithSameState(ctx).
 		When().
 		Path(fixture.RepoURL(fixture.RepoURLTypeFile)).
 		Project(projName).
 		Create()
 
-	GivenWithSameState(t).
+	GivenWithSameState(ctx).
 		Project(projName).
 		RepoURLType(fixture.RepoURLTypeFile).
 		Path("two-nice-pods").
@@ -1222,20 +1222,19 @@ func TestNamespacedPermissionWithScopedRepo(t *testing.T) {
 
 func TestNamespacedPermissionDeniedWithScopedRepo(t *testing.T) {
 	projName := "argo-project"
-	projectFixture.
-		Given(t).
-		Name(projName).
+	ctx := projectFixture.Given(t)
+	ctx.Name(projName).
 		Destination("*,*").
 		SourceNamespaces([]string{fixture.AppNamespace()}).
 		When().
 		Create()
 
-	repoFixture.GivenWithSameState(t).
+	repoFixture.GivenWithSameState(ctx).
 		When().
 		Path(fixture.RepoURL(fixture.RepoURLTypeFile)).
 		Create()
 
-	GivenWithSameState(t).
+	GivenWithSameState(ctx).
 		Project(projName).
 		RepoURLType(fixture.RepoURLTypeFile).
 		SetTrackingMethod("annotation").
@@ -1970,7 +1969,7 @@ metadata:
   labels:
     test: "true"
   annotations:
-    something: "whatevs"		
+    something: "whatevs"
 `
 	s := fmt.Sprintf(existingNs, updatedNamespace)
 

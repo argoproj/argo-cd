@@ -16,8 +16,8 @@ type TestContext interface {
 	// Name sets the DNS-friendly name for this context
 	SetName(name string)
 
-	// Name returns the DNS-friendly name for this context
-	Name() string
+	// GetName returns the DNS-friendly name for this context
+	GetName() string
 	// DeploymentNamespace returns the namespace where test resources are deployed
 	DeploymentNamespace() string
 	// ID returns the unique identifier for this test run
@@ -66,7 +66,7 @@ func (s *TestState) SetName(name string) {
 }
 
 // GetName returns the DNS-friendly name for this context
-func (s *TestState) Name() string {
+func (s *TestState) GetName() string {
 	return s.name
 }
 

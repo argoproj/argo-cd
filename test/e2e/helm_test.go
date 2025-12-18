@@ -471,16 +471,15 @@ func TestHelmDependenciesPermissionDenied(t *testing.T) {
 	fixture.SkipOnEnv(t, "HELM")
 
 	projName := "argo-helm-project-denied"
-	projectFixture.
-		Given(t).
-		Name(projName).
+	ctx := projectFixture.Given(t)
+	ctx.Name(projName).
 		Destination("*,*").
 		When().
 		Create().
 		AddSource(fixture.RepoURL(fixture.RepoURLTypeFile))
 
 	expectedErr := fmt.Sprintf("helm repos localhost:5000/myrepo are not permitted in project '%s'", projName)
-	GivenWithSameState(t).
+	GivenWithSameState(ctx).
 		Project(projName).
 		Path("helm-oci-with-dependencies").
 		CustomCACertAdded().
@@ -493,7 +492,7 @@ func TestHelmDependenciesPermissionDenied(t *testing.T) {
 		Expect(Error("", expectedErr))
 
 	expectedErr = fmt.Sprintf("helm repos https://localhost:9443/argo-e2e/testdata.git/helm-repo/local, https://localhost:9443/argo-e2e/testdata.git/helm-repo/local2 are not permitted in project '%s'", projName)
-	GivenWithSameState(t).
+	GivenWithSameState(ctx).
 		Project(projName).
 		Path("helm-with-multiple-dependencies-permission-denied").
 		CustomCACertAdded().

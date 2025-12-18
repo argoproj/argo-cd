@@ -392,7 +392,7 @@ func (a *Actions) AppUnSet(flags ...string) *Actions {
 func (a *Actions) Sync(args ...string) *Actions {
 	a.context.T().Helper()
 	args = append([]string{"app", "sync"}, args...)
-	if a.context.TestState.Name() != "" {
+	if a.context.GetName() != "" {
 		args = append(args, a.context.AppQualifiedName())
 	}
 	args = append(args, "--timeout", strconv.Itoa(a.context.timeout))
@@ -488,7 +488,7 @@ func (a *Actions) DeleteBySelectorWithWait(selector string) *Actions {
 func (a *Actions) Wait(args ...string) *Actions {
 	a.context.T().Helper()
 	args = append([]string{"app", "wait"}, args...)
-	if a.context.TestState.Name() != "" {
+	if a.context.GetName() != "" {
 		args = append(args, a.context.AppQualifiedName())
 	}
 	args = append(args, "--timeout", strconv.Itoa(a.context.timeout))

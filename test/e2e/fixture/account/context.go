@@ -34,6 +34,11 @@ func (c *Context) Project(project string) *Context {
 	return c
 }
 
+func (c *Context) Name(name string) *Context {
+	c.TestState.SetName(name)
+	return c
+}
+
 func (c *Context) AccountName() string {
 	return c.Name()
 }

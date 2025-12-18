@@ -42,22 +42,22 @@ func (a *Actions) Create(args ...string) *Actions {
 }
 
 func (a *Actions) AddDestination(cluster string, namespace string) *Actions {
-	a.runCli("proj", "add-destination", a.context.Name(), cluster, namespace)
+	a.runCli("proj", "add-destination", a.context.GetName(), cluster, namespace)
 	return a
 }
 
 func (a *Actions) AddDestinationServiceAccount(cluster string, namespace string) *Actions {
-	a.runCli("proj", "add-destination-service-account", a.context.Name(), cluster, namespace)
+	a.runCli("proj", "add-destination-service-account", a.context.GetName(), cluster, namespace)
 	return a
 }
 
 func (a *Actions) AddSource(repo string) *Actions {
-	a.runCli("proj", "add-source", a.context.Name(), repo)
+	a.runCli("proj", "add-source", a.context.GetName(), repo)
 	return a
 }
 
 func (a *Actions) UpdateProject(updater func(project *v1alpha1.AppProject)) *Actions {
-	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Get(context.TODO(), a.context.Name(), metav1.GetOptions{})
+	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Get(context.TODO(), a.context.GetName(), metav1.GetOptions{})
 	require.NoError(a.context.T(), err)
 	updater(proj)
 	_, err = fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Update(context.TODO(), proj, metav1.UpdateOptions{})
@@ -73,7 +73,7 @@ func (a *Actions) SetName(name string) *Actions {
 func (a *Actions) prepareCreateArgs(args []string) []string {
 	a.context.T().Helper()
 	args = append([]string{
-		"proj", "create", a.context.Name(),
+		"proj", "create", a.context.GetName(),
 	}, args...)
 
 	if a.context.destination != "" {
@@ -100,7 +100,7 @@ func (a *Actions) prepareCreateArgs(args []string) []string {
 
 func (a *Actions) Delete() *Actions {
 	a.context.T().Helper()
-	a.runCli("proj", "delete", a.context.Name())
+	a.runCli("proj", "delete", a.context.GetName())
 	return a
 }
 

@@ -97,7 +97,7 @@ func GivenWithSameState(ctx fixture.TestContext) *Context {
 }
 
 func (c *Context) Name(name string) *Context {
-	c.TestState.SetName(name)
+	c.SetName(name)
 	return c
 }
 
@@ -105,7 +105,7 @@ func (c *Context) Name(name string) *Context {
 // Unique application names protects from potential conflicts between test run
 // caused by the tracking annotation on existing objects
 func (c *Context) AppName() string {
-	return c.TestState.Name()
+	return c.GetName()
 }
 
 func (c *Context) AppQualifiedName() string {

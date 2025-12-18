@@ -33,13 +33,8 @@ func GivenWithSameState(ctx fixture.TestContext) *Context {
 	return &Context{TestState: state, project: "default"}
 }
 
-func (c *Context) GetName() string {
-	return c.Name()
-}
-
-// SetName sets the cluster name for this context
-func (c *Context) SetName(name string) *Context {
-	c.TestState.SetName(name)
+func (c *Context) Name(name string) *Context {
+	c.SetName(name)
 	return c
 }
 

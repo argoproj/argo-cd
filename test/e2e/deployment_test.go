@@ -128,7 +128,7 @@ func TestDeployToKubernetesAPIURLWithQueryParameter(t *testing.T) {
 	// We test with both a cluster-scoped, and a non-cluster scoped, Argo CD Cluster Secret.
 	clusterScopedParam := []bool{false, true}
 	for _, clusterScoped := range clusterScopedParam {
-		EnsureCleanState(t)
+		ctx := EnsureCleanState(t)
 
 		// Simulate two users, each with their own Argo CD cluster secret that can only deploy to their Namespace
 		users := []string{E2ETestPrefix + "user1", E2ETestPrefix + "user2"}
@@ -136,7 +136,7 @@ func TestDeployToKubernetesAPIURLWithQueryParameter(t *testing.T) {
 		for _, username := range users {
 			createNamespaceScopedUser(t, username, clusterScoped)
 
-			GivenWithSameState(t).
+			GivenWithSameState(ctx).
 				Name("e2e-test-app-"+username).
 				Path("deployment").
 				When().
@@ -159,7 +159,7 @@ func TestArgoCDSupportsMultipleServiceAccountsWithDifferingRBACOnSameCluster(t *
 	clusterScopedParam := []bool{ /*false,*/ true}
 
 	for _, clusterScoped := range clusterScopedParam {
-		EnsureCleanState(t)
+		ctx := EnsureCleanState(t)
 
 		// Simulate two users, each with their own Argo CD cluster secret that can only deploy to their Namespace
 		users := []string{E2ETestPrefix + "user1", E2ETestPrefix + "user2"}
@@ -174,7 +174,7 @@ func TestArgoCDSupportsMultipleServiceAccountsWithDifferingRBACOnSameCluster(t *
 			otherUser := users[(idx+1)%len(users)]
 
 			// e.g. Attempt to deploy to user1's namespace, with user2's cluster Secret. This should fail, as user2's cluster Secret does not have the requisite permissions.
-			consequences := GivenWithSameState(t).
+			consequences := GivenWithSameState(ctx).
 				Name("e2e-test-app-"+username).
 				DestName(E2ETestPrefix+"cluster-"+otherUser).
 				Path("deployment").
