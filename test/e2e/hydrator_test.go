@@ -350,6 +350,12 @@ func TestHydratorNoOp(t *testing.T) {
 }
 
 func TestHydratorWithAuthenticatedRepo(t *testing.T) {
+	// Test that hydration works with an HTTPS repository requiring authentication,
+	// specifically that GetCommitNote and AddAndPushNote properly use credentials when
+	// fetching git notes. This test creates an initial hydration, then makes a change
+	// to trigger a second hydration. On the second hydration, the commit-server will
+	// need to fetch existing git notes from the authenticated repository, which requires
+	// credentials.
 	Given(t).
 		HTTPSInsecureRepoURLAdded(true).
 		RepoURLType(fixture.RepoURLTypeHTTPS).
@@ -363,6 +369,16 @@ func TestHydratorWithAuthenticatedRepo(t *testing.T) {
 		SyncSourceBranch("env/test").
 		When().
 		CreateApp().
+		Refresh(RefreshTypeNormal).
+		Wait("--hydrated").
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		// Now make a change and re-hydrate. This will trigger git notes fetch
+		// operations that require credentials.
+		When().
+		PatchFile("guestbook/guestbook-ui-deployment.yaml", `[{"op": "replace", "path": "/spec/revisionHistoryLimit", "value": 10}]`).
 		Refresh(RefreshTypeNormal).
 		Wait("--hydrated").
 		Sync().
