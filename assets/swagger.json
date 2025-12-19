@@ -2265,6 +2265,44 @@
         }
       }
     },
+    "/api/v1/applicationsets/{name}/events": {
+      "get": {
+        "tags": [
+          "ApplicationSetService"
+        ],
+        "summary": "ListResourceEvents returns a list of event resources",
+        "operationId": "ApplicationSetService_ListResourceEvents",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "the applicationsets's name",
+            "name": "name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "description": "The application set namespace. Default empty is argocd control plane namespace.",
+            "name": "appsetNamespace",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1EventList"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/applicationsets/{name}/resource-tree": {
       "get": {
         "tags": [
