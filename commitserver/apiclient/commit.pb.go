@@ -43,10 +43,14 @@ type CommitHydratedManifestsRequest struct {
 	// Paths contains the paths to write hydrated manifests to, along with the manifests and commands to execute.
 	Paths []*PathDetails `protobuf:"bytes,6,rep,name=paths,proto3" json:"paths,omitempty"`
 	// DryCommitMetadata contains metadata about the DRY commit, such as the author and committer.
-	DryCommitMetadata    *v1alpha1.RevisionMetadata `protobuf:"bytes,7,opt,name=dryCommitMetadata,proto3" json:"dryCommitMetadata,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}                   `json:"-"`
-	XXX_unrecognized     []byte                     `json:"-"`
-	XXX_sizecache        int32                      `json:"-"`
+	DryCommitMetadata *v1alpha1.RevisionMetadata `protobuf:"bytes,7,opt,name=dryCommitMetadata,proto3" json:"dryCommitMetadata,omitempty"`
+	// AuthorName is the author name to use for the commit. If empty, defaults to "Argo CD".
+	AuthorName string `protobuf:"bytes,8,opt,name=authorName,proto3" json:"authorName,omitempty"`
+	// AuthorEmail is the author email to use for the commit. If empty, defaults to "argo-cd@example.com".
+	AuthorEmail          string   `protobuf:"bytes,9,opt,name=authorEmail,proto3" json:"authorEmail,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
 func (m *CommitHydratedManifestsRequest) Reset()         { *m = CommitHydratedManifestsRequest{} }
@@ -129,6 +133,20 @@ func (m *CommitHydratedManifestsRequest) GetDryCommitMetadata() *v1alpha1.Revisi
 		return m.DryCommitMetadata
 	}
 	return nil
+}
+
+func (m *CommitHydratedManifestsRequest) GetAuthorName() string {
+	if m != nil {
+		return m.AuthorName
+	}
+	return ""
+}
+
+func (m *CommitHydratedManifestsRequest) GetAuthorEmail() string {
+	if m != nil {
+		return m.AuthorEmail
+	}
+	return ""
 }
 
 // PathDetails holds information about hydrated manifests to be written to a particular path in the hydrated manifests
@@ -446,6 +464,20 @@ func (m *CommitHydratedManifestsRequest) MarshalToSizedBuffer(dAtA []byte) (int,
 		i -= len(m.XXX_unrecognized)
 		copy(dAtA[i:], m.XXX_unrecognized)
 	}
+	if len(m.AuthorEmail) > 0 {
+		i -= len(m.AuthorEmail)
+		copy(dAtA[i:], m.AuthorEmail)
+		i = encodeVarintCommit(dAtA, i, uint64(len(m.AuthorEmail)))
+		i--
+		dAtA[i] = 0x4a
+	}
+	if len(m.AuthorName) > 0 {
+		i -= len(m.AuthorName)
+		copy(dAtA[i:], m.AuthorName)
+		i = encodeVarintCommit(dAtA, i, uint64(len(m.AuthorName)))
+		i--
+		dAtA[i] = 0x42
+	}
 	if m.DryCommitMetadata != nil {
 		{
 			size, err := m.DryCommitMetadata.MarshalToSizedBuffer(dAtA[:i])
@@ -685,6 +717,14 @@ func (m *CommitHydratedManifestsRequest) Size() (n int) {
 	}
 	if m.DryCommitMetadata != nil {
 		l = m.DryCommitMetadata.Size()
+		n += 1 + l + sovCommit(uint64(l))
+	}
+	l = len(m.AuthorName)
+	if l > 0 {
+		n += 1 + l + sovCommit(uint64(l))
+	}
+	l = len(m.AuthorEmail)
+	if l > 0 {
 		n += 1 + l + sovCommit(uint64(l))
 	}
 	if m.XXX_unrecognized != nil {
@@ -1021,6 +1061,70 @@ func (m *CommitHydratedManifestsRequest) Unmarshal(dAtA []byte) error {
 			if err := m.DryCommitMetadata.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
+			iNdEx = postIndex
+		case 8:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field AuthorName", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowCommit
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthCommit
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthCommit
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.AuthorName = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 9:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field AuthorEmail", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowCommit
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthCommit
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthCommit
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.AuthorEmail = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
