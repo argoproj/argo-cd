@@ -75,9 +75,15 @@ const (
 	AllAtOnceDeletionOrder            = "AllAtOnce"
 )
 
+var defaultPreservedFinalizers = []string{
+	argov1alpha1.PreDeleteFinalizerName,
+	argov1alpha1.PostDeleteFinalizerName,
+}
+
 var defaultPreservedAnnotations = []string{
 	NotifiedAnnotationKey,
 	argov1alpha1.AnnotationKeyRefresh,
+	argov1alpha1.AnnotationKeyHydrate,
 }
 
 type deleteInOrder struct {
@@ -741,21 +747,19 @@ func (r *ApplicationSetReconciler) createOrUpdateInCluster(ctx context.Context, 
 				}
 			}
 
-			// Preserve post-delete finalizers:
-			//   https://github.com/argoproj/argo-cd/issues/17181
-			for _, finalizer := range found.Finalizers {
-				if strings.HasPrefix(finalizer, argov1alpha1.PostDeleteFinalizerName) {
-					if generatedApp.Finalizers == nil {
-						generatedApp.Finalizers = []string{}
+			// Preserve deleting finalizers and avoid diff conflicts
+			for _, finalizer := range defaultPreservedFinalizers {
+				for _, f := range found.Finalizers {
+					// For finalizers, use prefix matching in case it contains "/" stages
+					if strings.HasPrefix(f, finalizer) {
+						generatedApp.Finalizers = append(generatedApp.Finalizers, f)
 					}
-					generatedApp.Finalizers = append(generatedApp.Finalizers, finalizer)
 				}
 			}
 
 			found.Annotations = generatedApp.Annotations
-
-			found.Finalizers = generatedApp.Finalizers
 			found.Labels = generatedApp.Labels
+			found.Finalizers = generatedApp.Finalizers
 
 			return controllerutil.SetControllerReference(&applicationSet, found, r.Scheme)
 		})
@@ -886,16 +890,14 @@ func (r *ApplicationSetReconciler) removeFinalizerOnInvalidDestination(ctx conte
 		// Detect if the destination's server field does not match an existing cluster
 		matchingCluster := false
 		for _, cluster := range clusterList {
-			if destCluster.Server != cluster.Server {
-				continue
+			// A cluster matches if either the server matches OR the name matches
+			// This handles cases where:
+			// 1. The cluster is the in-cluster (server=https://kubernetes.default.svc, name=in-cluster)
+			// 2. A custom cluster has the same server as in-cluster but a different name
+			if destCluster.Server == cluster.Server || (destCluster.Name != "" && cluster.Name != "" && destCluster.Name == cluster.Name) {
+				matchingCluster = true
+				break
 			}
-
-			if destCluster.Name != cluster.Name {
-				continue
-			}
-
-			matchingCluster = true
-			break
 		}
 
 		if !matchingCluster {

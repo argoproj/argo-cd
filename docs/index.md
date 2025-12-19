@@ -21,8 +21,10 @@ Application deployment and lifecycle management should be automated, auditable, 
 
 ```bash
 kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+kubectl apply -n argocd --server-side --force-conflicts -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
 ```
+
+The `--server-side --force-conflicts` flags are required due to CRD size limitations. See the [getting started guide](getting_started.md) for details.
 
 Follow our [getting started guide](getting_started.md). Further user oriented [documentation](user-guide/)
 is provided for additional features. If you are looking to upgrade Argo CD, see the [upgrade guide](./operator-manual/upgrading/overview.md).
