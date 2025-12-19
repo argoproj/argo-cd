@@ -51,11 +51,8 @@ func TestLuaHealthScript(t *testing.T) {
 				vm := VM{
 					UseOpenLibs: true,
 				}
-				//fmt.Fprintln(os.Stdout, "HHH: ", filepath.Join(dir, test.InputPath))
 				obj := getObj(t, filepath.Join(dir, test.InputPath))
-				//fmt.Fprintln(os.Stdout, "OBJ: ", obj)
 				script, _, err := vm.GetHealthScript(obj)
-				//fmt.Fprintln(os.Stdout, "SCR: ", script)
 				require.NoError(t, err)
 				result, err := vm.ExecuteHealthLua(obj, script)
 				require.NoError(t, err)

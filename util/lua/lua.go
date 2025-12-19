@@ -135,9 +135,6 @@ func (vm VM) ExecuteHealthLua(obj *unstructured.Unstructured, script string) (*h
 		return nil, err
 	}
 	returnValue := l.Get(-1)
-	//fmt.Fprintln(os.Stdout, "SS1: ", script)
-	//fmt.Fprintln(os.Stdout, "SS2: ", l)
-	//fmt.Fprintln(os.Stdout, "SSS: ", returnValue)
 	if returnValue.Type() == lua.LTTable {
 		jsonBytes, err := luajson.Encode(returnValue)
 		if err != nil {
@@ -173,8 +170,6 @@ func (vm VM) GetHealthScript(obj *unstructured.Unstructured) (script string, use
 	// first, search the gvk as is in the ResourceOverrides
 	key := GetConfigMapKey(obj.GroupVersionKind())
 
-	//fmt.Fprintln(os.Stdout, "KEY: ", key)
-
 	if script, ok := vm.ResourceOverrides[key]; ok && script.HealthLua != "" {
 		return script.HealthLua, script.UseOpenLibs, nil
 	}
@@ -186,13 +181,9 @@ func (vm VM) GetHealthScript(obj *unstructured.Unstructured) (script string, use
 		return getWildcardHealthOverride, useOpenLibs, nil
 	}
 
-	//fmt.Fprintln(os.Stdout, "FIL: ", healthScriptFile)
 	// if not found in the ResourceOverrides at all, search it as is in the built-in scripts
 	// (as built-in scripts are files in folders, named after the GVK, currently there is no wildcard support for them)
 	builtInScript, err := vm.getPredefinedLuaScripts(key, healthScriptFile)
-
-	//fmt.Fprintln(os.Stdout, "BIS: ", builtInScript)
-
 	if err != nil {
 		if errors.Is(err, errScriptDoesNotExist) {
 			// Try to find a wildcard built-in health script
@@ -426,9 +417,6 @@ func (vm VM) GetResourceActionDiscovery(obj *unstructured.Unstructured) ([]strin
 
 	// Check if there are resource overrides for the given key
 	override, ok := vm.ResourceOverrides[key]
-
-	fmt.Fprintln(os.Stdout, "HHH: ", ok)
-
 	if ok && override.Actions != "" {
 		actions, err := override.GetActions()
 		if err != nil {
@@ -507,14 +495,7 @@ func getWildcardHealthOverrideLua(overrides map[string]appv1.ResourceOverride, g
 }
 
 func (vm VM) getPredefinedLuaScripts(objKey string, scriptFile string) (string, error) {
-	
-	//fmt.Fprintln(os.Stdout, "CCC: ", filepath.Join(objKey, scriptFile))
-
-	ppath := filepath.Join(objKey, scriptFile)
-
-	data, err := resource_customizations.Embedded.ReadFile(  strings.ReplaceAll(ppath, "\\", "/")  )
-	//fmt.Fprintln(os.Stdout, "DAT: ", data)
-	//fmt.Fprintln(os.Stdout, "ERR: ", err)
+	data, err := resource_customizations.Embedded.ReadFile(filepath.Join(objKey, scriptFile))
 	if err != nil {
 		if os.IsNotExist(err) {
 			return "", errScriptDoesNotExist
@@ -548,23 +529,19 @@ func getGlobHealthScriptPaths() ([]string, error) {
 			if d.IsDir() && filepath.Dir(path) == "." {
 				return nil
 			}
- 
+
 			// Check if the directory contains a health.lua file
 			if filepath.Base(path) != healthScriptFile {
 				return nil
 			}
-			
-			groupKindPath := filepath.Dir(path)
- 
 
+			groupKindPath := filepath.Dir(path)
 			// Check if the path contains a wildcard. If it doesn't, skip it.
 			if !strings.Contains(groupKindPath, "_") {
 				return nil
 			}
-      //fmt.Fprintln(os.Stdout, "HHH: ", groupKindPath)
-			pattern := strings.ReplaceAll(strings.ReplaceAll(groupKindPath, "_", "*"),"\\","/")
-			groupKindPath = strings.ReplaceAll(groupKindPath,"\\","/")
-			//fmt.Fprintln(os.Stdout, "HHH2: ", pattern)
+
+			pattern := strings.ReplaceAll(groupKindPath, "_", "*")
 			// Check that the pattern is valid.
 			if !glob.ValidatePattern(pattern) {
 				return fmt.Errorf("invalid glob pattern %q: %w", pattern, err)
