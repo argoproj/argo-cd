@@ -26,6 +26,8 @@ const (
 type Service struct {
 	metricsServer     *metrics.Server
 	repoClientFactory RepoClientFactory
+	authorName        string
+	authorEmail       string
 }
 
 // NewService returns a new instance of the commit service.
@@ -34,6 +36,12 @@ func NewService(gitCredsStore git.CredsStore, metricsServer *metrics.Server) *Se
 		metricsServer:     metricsServer,
 		repoClientFactory: NewRepoClientFactory(gitCredsStore, metricsServer),
 	}
+}
+
+// SetAuthorConfig sets the git commit author name and email.
+func (s *Service) SetAuthorConfig(name, email string) {
+	s.authorName = name
+	s.authorEmail = email
 }
 
 type hydratorMetadataFile struct {
@@ -274,13 +282,22 @@ func (s *Service) initGitClient(logCtx *log.Entry, r *apiclient.CommitHydratedMa
 	// }
 	var authorName, authorEmail string
 
-	if authorName == "" {
+	// Use configured author name and email if available
+	// If one is configured, both should be configured
+	if s.authorName != "" && s.authorEmail != "" {
+		authorName = s.authorName
+		authorEmail = s.authorEmail
+	} else if s.authorName != "" || s.authorEmail != "" {
+		logCtx.Warnf("Only one of author name or email is configured. Both must be set to use custom values. Using defaults.")
 		authorName = "Argo CD"
-	}
-	if authorEmail == "" {
-		logCtx.Warnf("Author email not available, using 'argo-cd@example.com'.")
+		authorEmail = "argo-cd@example.com"
+	} else {
+		authorName = "Argo CD"
 		authorEmail = "argo-cd@example.com"
 	}
+
+	logCtx.Debugf("Author config: configured name='%s', configured email='%s', final name='%s', final email='%s'",
+		s.authorName, s.authorEmail, authorName, authorEmail)
 
 	logCtx.Debugf("Setting author %s <%s>", authorName, authorEmail)
 	_, err = gitClient.SetAuthor(authorName, authorEmail)

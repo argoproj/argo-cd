@@ -33,6 +33,8 @@ func NewCommand() *cobra.Command {
 		listenPort  int
 		metricsPort int
 		metricsHost string
+		authorName  string
+		authorEmail string
 	)
 	command := &cobra.Command{
 		Use:   "argocd-commit-server",
@@ -58,6 +60,9 @@ func NewCommand() *cobra.Command {
 			go func() { errors.CheckError(askPassServer.Run()) }()
 
 			server := commitserver.NewServer(askPassServer, metricsServer)
+			// Always set author config to ensure values are passed through
+			log.Printf("Setting author config: name='%s', email='%s'", authorName, authorEmail)
+			server.SetAuthorConfig(authorName, authorEmail)
 			grpc := server.CreateGRPC()
 			ctx := cmd.Context()
 
@@ -114,6 +119,8 @@ func NewCommand() *cobra.Command {
 	command.Flags().IntVar(&listenPort, "port", common.DefaultPortCommitServer, "Listen on given port for incoming connections")
 	command.Flags().StringVar(&metricsHost, "metrics-address", env.StringFromEnv("ARGOCD_COMMIT_SERVER_METRICS_LISTEN_ADDRESS", common.DefaultAddressCommitServerMetrics), "Listen on given address for metrics")
 	command.Flags().IntVar(&metricsPort, "metrics-port", common.DefaultPortCommitServerMetrics, "Start metrics server on given port")
+	command.Flags().StringVar(&authorName, "author-name", env.StringFromEnv("ARGOCD_COMMIT_SERVER_AUTHOR_NAME", ""), "Git commit author name (defaults to 'Argo CD' if not specified)")
+	command.Flags().StringVar(&authorEmail, "author-email", env.StringFromEnv("ARGOCD_COMMIT_SERVER_AUTHOR_EMAIL", ""), "Git commit author email (defaults to 'argo-cd@example.com' if not specified)")
 
 	return command
 }

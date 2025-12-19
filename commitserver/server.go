@@ -16,11 +16,20 @@ import (
 // ArgoCDCommitServer is the server that handles commit requests.
 type ArgoCDCommitServer struct {
 	commitService *commit.Service
+	authorName    string
+	authorEmail   string
 }
 
 // NewServer returns a new instance of the commit server.
 func NewServer(gitCredsStore git.CredsStore, metricsServer *metrics.Server) *ArgoCDCommitServer {
 	return &ArgoCDCommitServer{commitService: commit.NewService(gitCredsStore, metricsServer)}
+}
+
+// SetAuthorConfig sets the git commit author name and email for the commit server.
+func (a *ArgoCDCommitServer) SetAuthorConfig(name, email string) {
+	a.authorName = name
+	a.authorEmail = email
+	a.commitService.SetAuthorConfig(name, email)
 }
 
 // CreateGRPC creates a new gRPC server.

@@ -31852,6 +31852,18 @@ spec:
               key: log.format.timestamp
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_COMMIT_SERVER_AUTHOR_NAME
+          valueFrom:
+            configMapKeyRef:
+              key: commitserver.author.name
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_COMMIT_SERVER_AUTHOR_EMAIL
+          valueFrom:
+            configMapKeyRef:
+              key: commitserver.author.email
+              name: argocd-cmd-params-cm
+              optional: true
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         livenessProbe:
