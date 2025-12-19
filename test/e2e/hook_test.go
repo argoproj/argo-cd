@@ -37,7 +37,8 @@ func TestPostSyncHookSuccessful(t *testing.T) {
 // make sure we can run a standard sync hook
 func testHookSuccessful(t *testing.T, hookType HookType) {
 	t.Helper()
-	Given(t).
+	ctx := Given(t)
+	ctx.
 		Path("hook").
 		When().
 		PatchFile("hook.yaml", fmt.Sprintf(`[{"op": "replace", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/hook": %q}}]`, hookType)).
@@ -49,11 +50,12 @@ func testHookSuccessful(t *testing.T, hookType HookType) {
 		Expect(ResourceSyncStatusIs("Pod", "pod", SyncStatusCodeSynced)).
 		Expect(ResourceHealthIs("Pod", "pod", health.HealthStatusHealthy)).
 		Expect(ResourceResultNumbering(2)).
-		Expect(ResourceResultIs(ResourceResult{Version: "v1", Kind: "Pod", Namespace: DeploymentNamespace(), Images: []string{"quay.io/argoprojlabs/argocd-e2e-container:0.1"}, Name: "hook", Message: "pod/hook created", HookType: hookType, HookPhase: OperationSucceeded, SyncPhase: SyncPhase(hookType)}))
+		Expect(ResourceResultIs(ResourceResult{Version: "v1", Kind: "Pod", Namespace: ctx.DeploymentNamespace(), Images: []string{"quay.io/argoprojlabs/argocd-e2e-container:0.1"}, Name: "hook", Message: "pod/hook created", HookType: hookType, HookPhase: OperationSucceeded, SyncPhase: SyncPhase(hookType)}))
 }
 
 func TestPreDeleteHook(t *testing.T) {
-	Given(t).
+	ctx := Given(t)
+	ctx.
 		Path("pre-delete-hook").
 		When().
 		CreateApp().
@@ -61,7 +63,7 @@ func TestPreDeleteHook(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(_ *Application) {
-			_, err := KubeClientset.CoreV1().ConfigMaps(DeploymentNamespace()).Get(
+			_, err := KubeClientset.CoreV1().ConfigMaps(ctx.DeploymentNamespace()).Get(
 				t.Context(), "guestbook-ui", metav1.GetOptions{},
 			)
 			require.NoError(t, err)
@@ -115,13 +117,14 @@ func TestPostDeleteHook(t *testing.T) {
 
 // make sure that hooks do not appear in "argocd app diff"
 func TestHookDiff(t *testing.T) {
-	Given(t).
+	ctx := Given(t)
+	ctx.
 		Path("hook").
 		When().
 		CreateApp().
 		Then().
 		And(func(_ *Application) {
-			output, err := RunCli("app", "diff", Name())
+			output, err := RunCli("app", "diff", ctx.GetName())
 			require.Error(t, err)
 			assert.Contains(t, output, "name: pod")
 			assert.NotContains(t, output, "name: hook")
@@ -221,7 +224,8 @@ func TestPostSyncHookPodFailure(t *testing.T) {
 
 func TestSyncFailHookPodFailure(t *testing.T) {
 	// Tests that a SyncFail hook will successfully run upon a pod failure (which leads to a sync failure)
-	Given(t).
+	ctx := Given(t)
+	ctx.
 		Path("hook").
 		When().
 		IgnoreErrors().
@@ -246,13 +250,14 @@ spec:
 		CreateApp().
 		Sync().
 		Then().
-		Expect(ResourceResultIs(ResourceResult{Version: "v1", Kind: "Pod", Namespace: DeploymentNamespace(), Images: []string{"quay.io/argoprojlabs/argocd-e2e-container:0.1"}, Name: "sync-fail-hook", Message: "pod/sync-fail-hook created", HookType: HookTypeSyncFail, HookPhase: OperationSucceeded, SyncPhase: SyncPhaseSyncFail})).
+		Expect(ResourceResultIs(ResourceResult{Version: "v1", Kind: "Pod", Namespace: ctx.DeploymentNamespace(), Images: []string{"quay.io/argoprojlabs/argocd-e2e-container:0.1"}, Name: "sync-fail-hook", Message: "pod/sync-fail-hook created", HookType: HookTypeSyncFail, HookPhase: OperationSucceeded, SyncPhase: SyncPhaseSyncFail})).
 		Expect(OperationPhaseIs(OperationFailed))
 }
 
 func TestSyncFailHookPodFailureSyncFailFailure(t *testing.T) {
 	// Tests that a failing SyncFail hook will successfully be marked as failed
-	Given(t).
+	ctx := Given(t)
+	ctx.
 		Path("hook").
 		When().
 		IgnoreErrors().
@@ -293,8 +298,8 @@ spec:
 		CreateApp().
 		Sync().
 		Then().
-		Expect(ResourceResultIs(ResourceResult{Version: "v1", Kind: "Pod", Namespace: DeploymentNamespace(), Name: "successful-sync-fail-hook", Images: []string{"quay.io/argoprojlabs/argocd-e2e-container:0.1"}, Message: "pod/successful-sync-fail-hook created", HookType: HookTypeSyncFail, HookPhase: OperationSucceeded, SyncPhase: SyncPhaseSyncFail})).
-		Expect(ResourceResultIs(ResourceResult{Version: "v1", Kind: "Pod", Namespace: DeploymentNamespace(), Name: "failed-sync-fail-hook", Images: []string{"quay.io/argoprojlabs/argocd-e2e-container:0.1"}, Message: `container "main" failed with exit code 1`, HookType: HookTypeSyncFail, HookPhase: OperationFailed, SyncPhase: SyncPhaseSyncFail})).
+		Expect(ResourceResultIs(ResourceResult{Version: "v1", Kind: "Pod", Namespace: ctx.DeploymentNamespace(), Name: "successful-sync-fail-hook", Images: []string{"quay.io/argoprojlabs/argocd-e2e-container:0.1"}, Message: "pod/successful-sync-fail-hook created", HookType: HookTypeSyncFail, HookPhase: OperationSucceeded, SyncPhase: SyncPhaseSyncFail})).
+		Expect(ResourceResultIs(ResourceResult{Version: "v1", Kind: "Pod", Namespace: ctx.DeploymentNamespace(), Name: "failed-sync-fail-hook", Images: []string{"quay.io/argoprojlabs/argocd-e2e-container:0.1"}, Message: `container "main" failed with exit code 1`, HookType: HookTypeSyncFail, HookPhase: OperationFailed, SyncPhase: SyncPhaseSyncFail})).
 		Expect(OperationPhaseIs(OperationFailed))
 }
 
@@ -360,7 +365,8 @@ func TestHookDeletePolicyHookFailedHookExit1(t *testing.T) {
 // make sure that we can run the hook twice
 func TestHookBeforeHookCreation(t *testing.T) {
 	var creationTimestamp1 string
-	Given(t).
+	ctx := Given(t)
+	ctx.
 		Path("hook").
 		When().
 		PatchFile("hook.yaml", `[{"op": "add", "path": "/metadata/annotations/argocd.argoproj.io~1hook-delete-policy", "value": "BeforeHookCreation"}]`).
@@ -375,7 +381,7 @@ func TestHookBeforeHookCreation(t *testing.T) {
 		Expect(Pod(func(p corev1.Pod) bool { return p.Name == "hook" })).
 		And(func(_ *Application) {
 			var err error
-			creationTimestamp1, err = getCreationTimestamp()
+			creationTimestamp1, err = getCreationTimestamp(ctx.DeploymentNamespace())
 			require.NoError(t, err)
 			assert.NotEmpty(t, creationTimestamp1)
 			// pause to ensure that timestamp will change
@@ -390,7 +396,7 @@ func TestHookBeforeHookCreation(t *testing.T) {
 		Expect(ResourceResultNumbering(2)).
 		Expect(Pod(func(p corev1.Pod) bool { return p.Name == "hook" })).
 		And(func(_ *Application) {
-			creationTimestamp2, err := getCreationTimestamp()
+			creationTimestamp2, err := getCreationTimestamp(ctx.DeploymentNamespace())
 			require.NoError(t, err)
 			assert.NotEmpty(t, creationTimestamp2)
 			assert.NotEqual(t, creationTimestamp1, creationTimestamp2)
@@ -417,8 +423,8 @@ func TestHookBeforeHookCreationFailure(t *testing.T) {
 		Expect(ResourceResultNumbering(2))
 }
 
-func getCreationTimestamp() (string, error) {
-	return Run(".", "kubectl", "-n", DeploymentNamespace(), "get", "pod", "hook", "-o", "jsonpath={.metadata.creationTimestamp}")
+func getCreationTimestamp(deploymentNamespace string) (string, error) {
+	return Run(".", "kubectl", "-n", deploymentNamespace, "get", "pod", "hook", "-o", "jsonpath={.metadata.creationTimestamp}")
 }
 
 // make sure that we never create something annotated with Skip
@@ -486,7 +492,8 @@ func TestHookFinalizerPostSync(t *testing.T) {
 
 func testHookFinalizer(t *testing.T, hookType HookType) {
 	t.Helper()
-	Given(t).
+	ctx := Given(t)
+	ctx.
 		And(func() {
 			require.NoError(t, SetResourceOverrides(map[string]ResourceOverride{
 				lua.GetConfigMapKey(schema.FromAPIVersionAndKind("batch/v1", "Job")): {
@@ -522,5 +529,5 @@ func testHookFinalizer(t *testing.T, hookType HookType) {
 		Expect(ResourceSyncStatusIs("Pod", "pod", SyncStatusCodeSynced)).
 		Expect(ResourceHealthIs("Pod", "pod", health.HealthStatusHealthy)).
 		Expect(ResourceResultNumbering(2)).
-		Expect(ResourceResultIs(ResourceResult{Group: "batch", Version: "v1", Kind: "Job", Namespace: DeploymentNamespace(), Name: "hook", Images: []string{"quay.io/argoprojlabs/argocd-e2e-container:0.1"}, Message: "Resource has finalizer", HookType: hookType, HookPhase: OperationSucceeded, SyncPhase: SyncPhase(hookType)}))
+		Expect(ResourceResultIs(ResourceResult{Group: "batch", Version: "v1", Kind: "Job", Namespace: ctx.DeploymentNamespace(), Name: "hook", Images: []string{"quay.io/argoprojlabs/argocd-e2e-container:0.1"}, Message: "Resource has finalizer", HookType: hookType, HookPhase: OperationSucceeded, SyncPhase: SyncPhase(hookType)}))
 }

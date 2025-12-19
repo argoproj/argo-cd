@@ -66,8 +66,8 @@ func TestSyncWithImpersonateWithSyncServiceAccount(t *testing.T) {
 		Destination("*,*").
 		DestinationServiceAccounts(
 			[]string{
-				fmt.Sprintf("%s,%s,%s", "*", fixture.DeploymentNamespace(), serviceAccountName),
-				fmt.Sprintf("%s,%s,%s", v1alpha1.KubernetesInternalAPIServerAddr, fixture.DeploymentNamespace(), "missing-serviceAccount"),
+				fmt.Sprintf("%s,%s,%s", "*", projectCtx.DeploymentNamespace(), serviceAccountName),
+				fmt.Sprintf("%s,%s,%s", v1alpha1.KubernetesInternalAPIServerAddr, projectCtx.DeploymentNamespace(), "missing-serviceAccount"),
 			}).
 		When().
 		Create().
@@ -115,8 +115,8 @@ func TestSyncWithMissingServiceAccount(t *testing.T) {
 		Destination("*,*").
 		DestinationServiceAccounts(
 			[]string{
-				fmt.Sprintf("%s,%s,%s", v1alpha1.KubernetesInternalAPIServerAddr, fixture.DeploymentNamespace(), "missing-serviceAccount"),
-				fmt.Sprintf("%s,%s,%s", "*", fixture.DeploymentNamespace(), serviceAccountName),
+				fmt.Sprintf("%s,%s,%s", v1alpha1.KubernetesInternalAPIServerAddr, projectCtx.DeploymentNamespace(), "missing-serviceAccount"),
+				fmt.Sprintf("%s,%s,%s", "*", projectCtx.DeploymentNamespace(), serviceAccountName),
 			}).
 		When().
 		Create().
@@ -165,7 +165,7 @@ func TestSyncWithValidSAButDisallowedDestination(t *testing.T) {
 		Destination("*,*").
 		DestinationServiceAccounts(
 			[]string{
-				fmt.Sprintf("%s,%s,%s", "*", fixture.DeploymentNamespace(), serviceAccountName),
+				fmt.Sprintf("%s,%s,%s", "*", projectCtx.DeploymentNamespace(), serviceAccountName),
 			}).
 		When().
 		Create().
@@ -197,7 +197,7 @@ func TestSyncWithValidSAButDisallowedDestination(t *testing.T) {
 		When().
 		And(func() {
 			// Patch destination to disallow target destination namespace
-			patch := []byte(fmt.Sprintf(`{"spec": {"destinations": [{"namespace": %q}]}}`, "!"+fixture.DeploymentNamespace()))
+			patch := []byte(fmt.Sprintf(`{"spec": {"destinations": [{"namespace": %q}]}}`, "!"+appCtx.DeploymentNamespace()))
 
 			_, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Patch(t.Context(), projectName, types.MergePatchType, patch, metav1.PatchOptions{})
 			require.NoError(t, err)

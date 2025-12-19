@@ -18,8 +18,8 @@ import (
 )
 
 func TestAutoSyncSelfHealDisabled(t *testing.T) {
-	Given(t).
-		Path(guestbookPath).
+	ctx := Given(t)
+	ctx.Path(guestbookPath).
 		When().
 		// app should be auto-synced once created
 		CreateFromFile(func(app *Application) {
@@ -36,7 +36,7 @@ func TestAutoSyncSelfHealDisabled(t *testing.T) {
 		// app should not be auto-synced if k8s change detected
 		When().
 		And(func() {
-			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Patch(t.Context(),
+			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.AppsV1().Deployments(ctx.DeploymentNamespace()).Patch(t.Context(),
 				"guestbook-ui", types.MergePatchType, []byte(`{"spec": {"revisionHistoryLimit": 0}}`), metav1.PatchOptions{}))
 		}).
 		Refresh(RefreshTypeNormal).
@@ -45,8 +45,8 @@ func TestAutoSyncSelfHealDisabled(t *testing.T) {
 }
 
 func TestAutoSyncSelfHealEnabled(t *testing.T) {
-	Given(t).
-		Path(guestbookPath).
+	ctx := Given(t)
+	ctx.Path(guestbookPath).
 		When().
 		// app should be auto-synced once created
 		CreateFromFile(func(app *Application) {
@@ -61,7 +61,7 @@ func TestAutoSyncSelfHealEnabled(t *testing.T) {
 		When().
 		// app should be auto-synced once k8s change detected
 		And(func() {
-			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Patch(t.Context(),
+			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.AppsV1().Deployments(ctx.DeploymentNamespace()).Patch(t.Context(),
 				"guestbook-ui", types.MergePatchType, []byte(`{"spec": {"revisionHistoryLimit": 0}}`), metav1.PatchOptions{}))
 		}).
 		Refresh(RefreshTypeNormal).

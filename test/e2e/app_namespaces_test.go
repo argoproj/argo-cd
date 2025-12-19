@@ -30,7 +30,7 @@ func TestAppCreationInOtherNamespace(t *testing.T) {
 			assert.Equal(t, AppNamespace(), app.Namespace)
 			assert.Equal(t, RepoURL(RepoURLTypeFile), app.Spec.GetSource().RepoURL)
 			assert.Equal(t, guestbookPath, app.Spec.GetSource().Path)
-			assert.Equal(t, DeploymentNamespace(), app.Spec.Destination.Namespace)
+			assert.Equal(t, ctx.DeploymentNamespace(), app.Spec.Destination.Namespace)
 			assert.Equal(t, KubernetesInternalAPIServerAddr, app.Spec.Destination.Server)
 		}).
 		Expect(NamespacedEvent(ctx.AppNamespace(), EventReasonResourceCreated, "create")).

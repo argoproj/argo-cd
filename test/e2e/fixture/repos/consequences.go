@@ -21,13 +21,13 @@ func (c *Consequences) Expect() *Consequences {
 }
 
 func (c *Consequences) And(block func(repository *v1alpha1.Repository, err error)) *Consequences {
-	c.context.t.Helper()
+	c.context.T().Helper()
 	block(c.repo())
 	return c
 }
 
 func (c *Consequences) AndCLIOutput(block func(output string, err error)) *Consequences {
-	c.context.t.Helper()
+	c.context.T().Helper()
 	block(c.actions.lastOutput, c.actions.lastError)
 	return c
 }
