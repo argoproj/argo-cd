@@ -1,6 +1,7 @@
 package apiclient
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -59,7 +60,7 @@ func TestHTTPClient_ProxyAuthToken(t *testing.T) {
 		httpClient, err := c.HTTPClient()
 		require.NoError(t, err)
 
-		req, err := http.NewRequest("GET", server.URL, nil)
+		req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, server.URL, http.NoBody)
 		require.NoError(t, err)
 
 		_, err = httpClient.Do(req)
@@ -84,7 +85,7 @@ func TestHTTPClient_ProxyAuthToken(t *testing.T) {
 		httpClient, err := c.HTTPClient()
 		require.NoError(t, err)
 
-		req, err := http.NewRequest("GET", server.URL, nil)
+		req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, server.URL, http.NoBody)
 		require.NoError(t, err)
 
 		_, err = httpClient.Do(req)
@@ -109,7 +110,7 @@ func TestHTTPClient_ProxyAuthToken(t *testing.T) {
 		httpClient, err := c.HTTPClient()
 		require.NoError(t, err)
 
-		req, err := http.NewRequest("GET", server.URL, nil)
+		req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, server.URL, http.NoBody)
 		require.NoError(t, err)
 
 		_, err = httpClient.Do(req)
