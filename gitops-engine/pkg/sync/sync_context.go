@@ -391,25 +391,43 @@ type syncContext struct {
 	modificationResult map[kubeutil.ResourceKey]bool
 }
 
-func (sc *syncContext) setRunningPhase(tasks []*syncTask, isPendingDeletion bool) {
-	if len(tasks) > 0 {
-		firstTask := tasks[0]
-		waitingFor := "completion of hook"
-		andMore := "hooks"
-		if !firstTask.isHook() {
-			waitingFor = "healthy state of"
-			andMore = "resources"
-		}
-		if isPendingDeletion {
-			waitingFor = "deletion of"
-		}
-		message := fmt.Sprintf("waiting for %s %s/%s/%s",
-			waitingFor, firstTask.group(), firstTask.kind(), firstTask.name())
-		if moreTasks := len(tasks) - 1; moreTasks > 0 {
-			message = fmt.Sprintf("%s and %d more %s", message, moreTasks, andMore)
-		}
-		sc.setOperationPhase(common.OperationRunning, message)
+func (sc *syncContext) setRunningPhase(tasks syncTasks, isPendingDeletion bool) {
+	if tasks.Len() == 0 {
+		sc.setOperationPhase(common.OperationRunning, "")
+		return
 	}
+
+	hooks, resources := tasks.Split(func(task *syncTask) bool { return task.isHook() })
+
+	reason := "completion of hook"
+	taskType := "resources"
+
+	if hooks.Len() == 0 {
+		reason = "healthy state of"
+	}
+	if resources.Len() == 0 {
+		taskType = "hooks"
+	}
+
+	if isPendingDeletion {
+		reason = "deletion of"
+		if hooks.Len() != 0 {
+			reason += " hook"
+		}
+	}
+
+	var firstTask *syncTask
+	if hooks.Len() != 0 {
+		firstTask = hooks[0]
+	} else {
+		firstTask = resources[0]
+	}
+
+	message := fmt.Sprintf("waiting for %s %s/%s/%s", reason, firstTask.group(), firstTask.kind(), firstTask.name())
+	if nbAdditionalTask := len(tasks) - 1; nbAdditionalTask > 0 {
+		message = fmt.Sprintf("%s and %d more %s", message, nbAdditionalTask, taskType)
+	}
+	sc.setOperationPhase(common.OperationRunning, message)
 }
 
 // sync has performs the actual apply or hook based sync
