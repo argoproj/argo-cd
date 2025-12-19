@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/argoproj/argo-cd/v3/util/text/annotation"
+
 	"github.com/argoproj/gitops-engine/pkg/cache"
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
@@ -180,12 +182,84 @@ func FilterByRepoP(apps []*argoappv1.Application, repo string) []*argoappv1.Appl
 	return items
 }
 
+// FilterByAnnotations returns an application filtered based on annotation
+func FilterByAnnotations(apps []argoappv1.Application, annotations string) []argoappv1.Application {
+	// if no annotation is specified, return all the applications
+	if annotations == "" {
+		return apps
+	}
+	items := make([]argoappv1.Application, 0)
+	inputAnnotationMap := annotation.Parse([]string{annotations})
+	for i := 0; i < len(apps); i++ {
+		savedAnnotations := apps[i].GetAnnotations()
+		for key, savedValue := range savedAnnotations {
+			inputValue, ok := inputAnnotationMap[key]
+			if savedValue == inputValue || (ok && inputValue == "") {
+				items = append(items, apps[i])
+			}
+		}
+	}
+	return items
+}
+
+// FilterByAnnotationsP returns application pointers
+func FilterByAnnotationsP(apps []*argoappv1.Application, annotations string) []*argoappv1.Application {
+	if annotations == "" {
+		return apps
+	}
+	items := make([]*argoappv1.Application, 0)
+	inputAnnotationMap := annotation.Parse([]string{annotations})
+	for i := 0; i < len(apps); i++ {
+		savedAnnotations := apps[i].GetAnnotations()
+		for key, savedValue := range savedAnnotations {
+			inputValue, ok := inputAnnotationMap[key]
+			if savedValue == inputValue || (ok && inputValue == "") {
+				items = append(items, apps[i])
+			}
+		}
+	}
+	return items
+}
+
+// FilterAppSetByAnnotations returns an application
+func FilterAppSetByAnnotations(apps []argoappv1.ApplicationSet, annotations string) []argoappv1.ApplicationSet {
+	if annotations == "" {
+		return apps
+	}
+	items := make([]argoappv1.ApplicationSet, 0)
+	inputAnnotationMap := annotation.Parse([]string{annotations})
+	for i := 0; i < len(apps); i++ {
+		savedAnnotations := apps[i].GetAnnotations()
+		for key, savedValue := range savedAnnotations {
+			inputValue, ok := inputAnnotationMap[key]
+			if savedValue == inputValue || (ok && inputValue == "") {
+				items = append(items, apps[i])
+			}
+		}
+	}
+	return items
+}
+
 // FilterByPath returns an application
 func FilterByPath(apps []argoappv1.Application, path string) []argoappv1.Application {
 	if path == "" {
 		return apps
 	}
 	items := make([]argoappv1.Application, 0)
+	for i := 0; i < len(apps); i++ {
+		if apps[i].Spec.GetSource().Path == path {
+			items = append(items, apps[i])
+		}
+	}
+	return items
+}
+
+// FilterByPathP returns application pointers
+func FilterByPathP(apps []*argoappv1.Application, path string) []*argoappv1.Application {
+	if path == "" {
+		return apps
+	}
+	items := make([]*argoappv1.Application, 0)
 	for i := 0; i < len(apps); i++ {
 		if apps[i].Spec.GetSource().Path == path {
 			items = append(items, apps[i])

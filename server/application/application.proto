@@ -35,6 +35,10 @@ message ApplicationQuery {
 	optional string appNamespace = 7;
 	// the project names to restrict returned list applications (legacy name for backwards-compatibility)
 	repeated string project = 8;
+	// the path to restrict returned list to applications sync only with that path
+	optional string path = 9;
+	// the annotation to restrict returned list to applications only with matched annotation
+	optional string annotation = 10;
 }
 
 message NodeQuery {

@@ -1795,6 +1795,7 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		appNamespace string
 		cluster      string
 		path         string
+		annotation   string
 	)
 	command := &cobra.Command{
 		Use:   "list",
@@ -1807,7 +1808,12 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
   argocd app list -l app.kubernetes.io/instance!=my-app
   argocd app list -l app.kubernetes.io/instance
   argocd app list -l '!app.kubernetes.io/instance'
-  argocd app list -l 'app.kubernetes.io/instance notin (my-app,other-app)'`,
+  argocd app list -l 'app.kubernetes.io/instance notin (my-app,other-app)'
+
+  # List apps by annotation
+  argocd app list -a pref.argocd.argoproj.io/default-view=tree
+  argocd app list -a pref.argocd.argoproj.io/default-view
+`,
 		Run: func(c *cobra.Command, _ []string) {
 			ctx := c.Context()
 
@@ -1823,6 +1829,9 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 			if len(projects) != 0 {
 				appList = argo.FilterByProjects(appList, projects)
+			}
+			if annotation != "" {
+				appList = argo.FilterByAnnotations(appList, annotation)
 			}
 			if repo != "" {
 				appList = argo.FilterByRepo(appList, repo)
@@ -1854,6 +1863,7 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Only list applications in namespace")
 	command.Flags().StringVarP(&cluster, "cluster", "c", "", "List apps by cluster name or url")
 	command.Flags().StringVarP(&path, "path", "P", "", "List apps by path")
+	command.Flags().StringVarP(&annotation, "annotation", "a", "", "List apps by annotations. currently '=' is only supported.")
 	return command
 }
 

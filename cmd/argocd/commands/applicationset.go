@@ -284,6 +284,7 @@ func NewApplicationSetListCommand(clientOpts *argocdclient.ClientOptions) *cobra
 		selector        string
 		projects        []string
 		appSetNamespace string
+		annotation      string
 	)
 	command := &cobra.Command{
 		Use:   "list",
@@ -302,6 +303,10 @@ func NewApplicationSetListCommand(clientOpts *argocdclient.ClientOptions) *cobra
 
 			appsetList := appsets.Items
 
+			if annotation != "" {
+				appsetList = argo.FilterAppSetByAnnotations(appsetList, annotation)
+			}
+
 			switch output {
 			case "yaml", "json":
 				err := PrintResourceList(appsetList, output, false)
@@ -319,6 +324,7 @@ func NewApplicationSetListCommand(clientOpts *argocdclient.ClientOptions) *cobra
 	command.Flags().StringVarP(&selector, "selector", "l", "", "List applicationsets by label")
 	command.Flags().StringArrayVarP(&projects, "project", "p", []string{}, "Filter by project name")
 	command.Flags().StringVarP(&appSetNamespace, "appset-namespace", "N", "", "Only list applicationsets in namespace")
+	command.Flags().StringVarP(&annotation, "annotation", "a", "", "List appset by annotations. currently '=' is only supported.")
 
 	return command
 }

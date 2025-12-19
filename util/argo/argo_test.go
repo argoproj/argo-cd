@@ -599,6 +599,150 @@ func TestFilterAppSetsByProjects(t *testing.T) {
 	})
 }
 
+func TestFilterByAnnotationsP(t *testing.T) {
+	apps := []*argoappv1.Application{
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "app1",
+				Annotations: map[string]string{
+					argoappv1.AnnotationKeyRefresh: "normal",
+				},
+			},
+		},
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "app2",
+				Annotations: map[string]string{
+					argoappv1.AnnotationKeyRefresh: "normal",
+				},
+			},
+		},
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "app3",
+				Annotations: map[string]string{
+					common.AnnotationKeyHook: "PreSync",
+				},
+			},
+		},
+	}
+
+	t.Run("No match", func(t *testing.T) {
+		res := FilterByAnnotationsP(apps, "argocd.argoproj.io/refresh=hard")
+
+		assert.Empty(t, res)
+	})
+
+	t.Run("2 annotations matched", func(t *testing.T) {
+		res := FilterByAnnotationsP(apps, "argocd.argoproj.io/refresh=normal")
+
+		assert.Len(t, res, 2)
+		assert.Equal(t, "normal", res[0].Annotations["argocd.argoproj.io/refresh"])
+	})
+
+	t.Run("No annotation with all apps returned", func(t *testing.T) {
+		res := FilterByAnnotationsP(apps, "")
+
+		assert.Len(t, res, 3)
+	})
+}
+
+func TestFilterByAnnotations(t *testing.T) {
+	apps := []argoappv1.Application{
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "app1",
+				Annotations: map[string]string{
+					argoappv1.AnnotationKeyRefresh: "normal",
+				},
+			},
+		},
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "app2",
+				Annotations: map[string]string{
+					argoappv1.AnnotationKeyRefresh: "normal",
+				},
+			},
+		},
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "app3",
+				Annotations: map[string]string{
+					common.AnnotationKeyHook: "PreSync",
+				},
+			},
+		},
+	}
+
+	t.Run("No match", func(t *testing.T) {
+		res := FilterByAnnotations(apps, "argocd.argoproj.io/refresh=hard")
+
+		assert.Empty(t, res)
+	})
+
+	t.Run("2 annotations matched", func(t *testing.T) {
+		res := FilterByAnnotations(apps, "argocd.argoproj.io/refresh=normal")
+
+		assert.Len(t, res, 2)
+		assert.Equal(t, "normal", res[0].Annotations["argocd.argoproj.io/refresh"])
+	})
+
+	t.Run("No annotation with all apps returned", func(t *testing.T) {
+		res := FilterByAnnotations(apps, "")
+
+		assert.Len(t, res, 3)
+	})
+}
+
+func TestFilterByAppSetAnnotations(t *testing.T) {
+	apps := []argoappv1.ApplicationSet{
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "app1",
+				Annotations: map[string]string{
+					argoappv1.AnnotationKeyRefresh: "normal",
+				},
+			},
+		},
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "app2",
+				Annotations: map[string]string{
+					argoappv1.AnnotationKeyRefresh: "normal",
+				},
+			},
+		},
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "app3",
+				Annotations: map[string]string{
+					common.AnnotationKeyHook: "PreSync",
+				},
+			},
+		},
+	}
+
+	t.Run("No match", func(t *testing.T) {
+		res := FilterAppSetByAnnotations(apps, "argocd.argoproj.io/refresh=hard")
+
+		assert.Empty(t, res)
+	})
+
+	t.Run("2 annotations matched", func(t *testing.T) {
+		res := FilterAppSetByAnnotations(apps, "argocd.argoproj.io/refresh=normal")
+
+		assert.Len(t, res, 2)
+		assert.Equal(t, "normal", res[0].Annotations["argocd.argoproj.io/refresh"])
+	})
+
+	t.Run("No annotation with all apps returned", func(t *testing.T) {
+		res := FilterAppSetByAnnotations(apps, "")
+
+		assert.Len(t, res, 3)
+	})
+}
+
 func TestFilterByRepo(t *testing.T) {
 	apps := []argoappv1.Application{
 		{
@@ -697,6 +841,40 @@ func TestFilterByPath(t *testing.T) {
 
 	t.Run("No match found", func(t *testing.T) {
 		res := FilterByPath(apps, "example/app/non-existent")
+		assert.Empty(t, res)
+	})
+}
+
+func TestFilterByPathP(t *testing.T) {
+	apps := []*argoappv1.Application{
+		{
+			Spec: argoappv1.ApplicationSpec{
+				Source: &argoappv1.ApplicationSource{
+					Path: "example/app/foo",
+				},
+			},
+		},
+		{
+			Spec: argoappv1.ApplicationSpec{
+				Source: &argoappv1.ApplicationSource{
+					Path: "example/app/existent",
+				},
+			},
+		},
+	}
+
+	t.Run("Empty filter", func(t *testing.T) {
+		res := FilterByPathP(apps, "")
+		assert.Len(t, res, 2)
+	})
+
+	t.Run("Found one match", func(t *testing.T) {
+		res := FilterByPathP(apps, "example/app/foo")
+		assert.Len(t, res, 1)
+	})
+
+	t.Run("No match found", func(t *testing.T) {
+		res := FilterByPathP(apps, "example/app/non-existent")
 		assert.Empty(t, res)
 	})
 }

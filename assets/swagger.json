@@ -281,6 +281,18 @@
             "description": "the project names to restrict returned list applications (legacy name for backwards-compatibility).",
             "name": "project",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "the path to restrict returned list to applications sync only with that path.",
+            "name": "path",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "the annotation to restrict returned list to applications only with matched annotation.",
+            "name": "annotation",
+            "in": "query"
           }
         ],
         "responses": {
@@ -669,6 +681,18 @@
             "collectionFormat": "multi",
             "description": "the project names to restrict returned list applications (legacy name for backwards-compatibility).",
             "name": "project",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "the path to restrict returned list to applications sync only with that path.",
+            "name": "path",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "the annotation to restrict returned list to applications only with matched annotation.",
+            "name": "annotation",
             "in": "query"
           }
         ],
@@ -2099,6 +2123,12 @@
             "type": "string",
             "description": "The application set namespace. Default empty is argocd control plane namespace.",
             "name": "appsetNamespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "the annotation to restrict returned list to applications only with matched annotations.",
+            "name": "annotation",
             "in": "query"
           }
         ],
@@ -4244,6 +4274,18 @@
             "collectionFormat": "multi",
             "description": "the project names to restrict returned list applications (legacy name for backwards-compatibility).",
             "name": "project",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "the path to restrict returned list to applications sync only with that path.",
+            "name": "path",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "the annotation to restrict returned list to applications only with matched annotation.",
+            "name": "annotation",
             "in": "query"
           }
         ],
