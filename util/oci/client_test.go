@@ -7,14 +7,19 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/specs-go"
 	imagev1 "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"oras.land/oras-go/v2"
 	"oras.land/oras-go/v2/content"
@@ -27,6 +32,10 @@ import (
 type layerConf struct {
 	desc  imagev1.Descriptor
 	bytes []byte
+}
+
+type fakeTagsList struct {
+	Tags []string `json:"tags"`
 }
 
 func generateManifest(t *testing.T, store *memory.Store, layerDescs ...layerConf) string {
@@ -319,6 +328,97 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 			exists, err = fileExists(path)
 			require.False(t, exists)
 			require.NoError(t, err)
+		})
+	}
+}
+
+func Test_nativeOCIClient_GetTags(t *testing.T) {
+	bearerToken := "Zm9vOmJhcg=="
+	expectedAuthorization := "Basic " + bearerToken
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Logf("called %s", r.URL.Path)
+
+		if strings.HasPrefix(r.URL.Path, "/v2/private-repo") {
+			authorization := r.Header.Get("Authorization")
+			if authorization != expectedAuthorization {
+				w.Header().Set("WWW-Authenticate", `Basic realm="oci repo to get tags"`)
+				w.WriteHeader(http.StatusUnauthorized)
+				return
+			}
+		}
+
+		responseTags := fakeTagsList{
+			Tags: []string{
+				"2.8.0",
+				"2.8.0-prerelease",
+				"2.8.0_build",
+				"2.8.0-prerelease_build",
+				"2.8.0-prerelease.1_build.1234",
+			},
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		require.NoError(t, json.NewEncoder(w).Encode(responseTags))
+	}))
+
+	repoURL := strings.Replace(server.Listener.Addr().String(), "127.0.0.1", "localhost", 1)
+
+	t.Cleanup(server.Close)
+
+	tests := []struct {
+		name             string
+		repoURL          string
+		token            string
+		expectedErrorMsg string
+	}{
+		{
+			name:    "should login correctly when fetching tags of public repo",
+			repoURL: repoURL + "/public-repo",
+		},
+		{
+			name:    "should login correctly when fetching tags of private repo with docker config",
+			repoURL: repoURL + "/private-repo",
+			token:   bearerToken,
+		},
+		{
+			name:             "should fail login when fetching tags of private repo with incorrect docker config",
+			repoURL:          repoURL + "/private-repo",
+			token:            "Zm9vOmJheg==",
+			expectedErrorMsg: "response status code 401: Unauthorized",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.token != "" {
+				tempDir := t.TempDir()
+				configPath := filepath.Join(tempDir, "config.json")
+				t.Setenv("DOCKER_CONFIG", tempDir)
+
+				config := fmt.Sprintf(`{"auths":{%q:{"auth":%q}}}`, repoURL, tt.token)
+				require.NoError(t, os.WriteFile(configPath, []byte(config), 0o666))
+			}
+
+			client, err := NewClient("oci://"+tt.repoURL, Creds{InsecureSkipVerify: true},
+				"", "", nil, WithEventHandlers(fakeEventHandlers(t, tt.repoURL)),
+			)
+			require.NoError(t, err)
+
+			tags, err := client.GetTags(t.Context(), true)
+			if tt.expectedErrorMsg != "" {
+				assert.ErrorContains(t, err, tt.expectedErrorMsg)
+				return
+			}
+
+			require.NoError(t, err)
+			assert.ElementsMatch(t, tags, []string{
+				"2.8.0",
+				"2.8.0-prerelease",
+				"2.8.0+build",
+				"2.8.0-prerelease+build",
+				"2.8.0-prerelease.1+build.1234",
+			})
 		})
 	}
 }
