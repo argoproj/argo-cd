@@ -430,7 +430,8 @@ function renderPodGroup(
     props: ApplicationResourceTreeProps,
     id: string,
     node: ResourceTreeNode & dagre.Node & {groupedNodeIds?: string[]},
-    childMap: Map<string, ResourceTreeNode[]>
+    childMap: Map<string, ResourceTreeNode[]>,
+    showPodGroupByStatus: boolean
 ) {
     const fullName = nodeKey(node);
     let comparisonStatus: models.SyncStatusCode = null;
@@ -470,7 +471,6 @@ function renderPodGroup(
         }
     }
 
-    const showPodGroupByStatus = props.tree.nodes.filter((rNode: ResourceTreeNode) => rNode.kind === 'Pod').length >= props.podGroupCount;
     const numberOfRows = getPodGroupNumberOfRows(podGroup?.pods, showPodGroupByStatus);
 
     if (podGroup) {
@@ -1441,7 +1441,11 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                         case NODE_TYPES.groupedNodes:
                             return <React.Fragment key={key}>{renderGroupedNodes(props, node as any)}</React.Fragment>;
                         case NODE_TYPES.podGroup:
-                            return <React.Fragment key={key}>{renderPodGroup(props, key, node as ResourceTreeNode & dagre.Node, childrenMap)}</React.Fragment>;
+                            return (
+                                <React.Fragment key={key}>
+                                    {renderPodGroup(props, key, node as ResourceTreeNode & dagre.Node, childrenMap, showPodGroupByStatus)}
+                                </React.Fragment>
+                            );
                         default:
                             return <React.Fragment key={key}>{renderResourceNode(props, key, node as ResourceTreeNode & dagre.Node, nodesHavingChildren)}</React.Fragment>;
                     }
