@@ -1381,11 +1381,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                         case NODE_TYPES.groupedNodes:
                             return <React.Fragment key={key}>{renderGroupedNodes(props, node as any)}</React.Fragment>;
                         case NODE_TYPES.podGroup:
-                            return (
-                                <React.Fragment key={key}>
-                                    {renderPodGroup(props, key, node as ResourceTreeNode & dagre.Node, childrenMap, showPodGroupByStatus)}
-                                </React.Fragment>
-                            );
+                            return <React.Fragment key={key}>{renderPodGroup(props, key, node as ResourceTreeNode & dagre.Node, childrenMap, showPodGroupByStatus)}</React.Fragment>;
                         default:
                             return <React.Fragment key={key}>{renderResourceNode(props, key, node as ResourceTreeNode & dagre.Node, nodesHavingChildren)}</React.Fragment>;
                     }
