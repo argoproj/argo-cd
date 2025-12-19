@@ -284,14 +284,15 @@ func (s *Service) initGitClient(logCtx *log.Entry, r *apiclient.CommitHydratedMa
 
 	// Use configured author name and email if available
 	// If one is configured, both should be configured
-	if s.authorName != "" && s.authorEmail != "" {
+	switch {
+	case s.authorName != "" && s.authorEmail != "":
 		authorName = s.authorName
 		authorEmail = s.authorEmail
-	} else if s.authorName != "" || s.authorEmail != "" {
+	case s.authorName != "" || s.authorEmail != "":
 		logCtx.Warnf("Only one of author name or email is configured. Both must be set to use custom values. Using defaults.")
 		authorName = "Argo CD"
 		authorEmail = "argo-cd@example.com"
-	} else {
+	default:
 		authorName = "Argo CD"
 		authorEmail = "argo-cd@example.com"
 	}
