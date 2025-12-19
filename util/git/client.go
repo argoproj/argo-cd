@@ -1129,7 +1129,7 @@ func (m *nativeGitClient) GetCommitNote(sha string, namespace string) (string, e
 	// fetch first
 	// cli command: git fetch origin refs/notes/source-hydrator:refs/notes/source-hydrator
 	notesRef := "refs/notes/" + namespace
-	_, _ = m.runCmd(ctx, "fetch", "origin", fmt.Sprintf("%s:%s", notesRef, notesRef)) // Ignore fetch error for best effort
+	_ = m.runCredentialedCmd(ctx, "fetch", "origin", fmt.Sprintf("%s:%s", notesRef, notesRef)) // Ignore fetch error for best effort
 
 	ref := "--ref=" + namespace
 	out, err := m.runCmd(ctx, "notes", ref, "show", sha)
@@ -1163,7 +1163,7 @@ func (m *nativeGitClient) AddAndPushNote(sha string, namespace string, note stri
 
 		// Fetch the latest notes BEFORE adding to merge concurrent updates
 		// Use + prefix to force update local ref (safe because we want latest remote notes)
-		_, fetchErr := m.runCmd(ctx, "fetch", "origin", fmt.Sprintf("+%s:%s", notesRef, notesRef))
+		fetchErr := m.runCredentialedCmd(ctx, "fetch", "origin", fmt.Sprintf("+%s:%s", notesRef, notesRef))
 		// Ignore "couldn't find remote ref" errors (notes don't exist yet - first time)
 		if fetchErr != nil && !strings.Contains(fetchErr.Error(), "couldn't find remote ref") {
 			log.Debugf("Failed to fetch notes (will continue): %v", fetchErr)
