@@ -70,13 +70,20 @@ const (
 func init() {
 	githubAppCredsExp := common.GithubAppCredsExpirationDuration
 	if exp := os.Getenv(common.EnvGithubAppCredsExpirationDuration); exp != "" {
-		if qps, err := strconv.Atoi(exp); err != nil {
+		if qps, err := strconv.Atoi(exp); err == nil {
 			githubAppCredsExp = time.Duration(qps) * time.Minute
 		}
 	}
 	azureServicePrincipalCredsExp := common.AzureServicePrincipalCredsExpirationDuration
 	if exp := os.Getenv(common.EnvAzureServicePrincipalCredsExpirationDuration); exp != "" {
-		if qps, err := strconv.Atoi(exp); err != nil {
+		if qps, err := strconv.Atoi(exp); err == nil {
+			// Azure service principal tokens are valid for 60 minutes
+			// the cache has a cleanup interval of 1 minute
+			// cap the expiration duration to 59 minutes to avoid issues with token expiration
+			if qps > 59 {
+				log.Warnf("Value in %s is %d, which is greater than maximum 59 minutes allowed. Setting to 59 minutes", common.EnvAzureServicePrincipalCredsExpirationDuration, qps)
+				qps = 59
+			}
 			azureServicePrincipalCredsExp = time.Duration(qps) * time.Minute
 		}
 	}
