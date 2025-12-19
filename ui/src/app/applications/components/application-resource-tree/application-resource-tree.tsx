@@ -408,14 +408,9 @@ function getPodGroupNumberOfRows(pods: models.Pod[], showPodGroupByStatus: boole
             if (!pod) {
                 continue;
             }
-            switch (pod.health) {
-                case 'Healthy':
-                case 'Degraded':
-                case 'Progressing':
-                    statuses.add(pod.health);
-                    break;
-                default:
-                    break;
+            const health = pod.health;
+            if (health === 'Healthy' || health === 'Degraded' || health === 'Progressing') {
+                statuses.add(health);
             }
         }
         return statuses.size;
