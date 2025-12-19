@@ -3,6 +3,8 @@ CURRENT_DIR=$(shell pwd)
 DIST_DIR=${CURRENT_DIR}/dist
 CLI_NAME=argocd
 BIN_NAME=argocd
+GOTMPDIR=C:\SAPDevelop\temp
+WORK=C:\SAPDevelop\temp
 
 UNAME_S:=$(shell uname)
 IS_DARWIN:=$(if $(filter Darwin, $(UNAME_S)),true,false)
