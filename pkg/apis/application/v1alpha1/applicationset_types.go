@@ -22,6 +22,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/util/security"
+	"github.com/argoproj/gitops-engine/pkg/health"
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -811,6 +812,8 @@ type ApplicationSetStatus struct {
 	// ResourcesCount is the total number of resources managed by this application set. The count may be higher than actual number of items in the Resources field when
 	// the number of managed resources exceeds the limit imposed by the controller (to avoid making the status field too large).
 	ResourcesCount int64 `json:"resourcesCount,omitempty" protobuf:"varint,4,opt,name=resourcesCount"`
+	// Health contains information about the applicationset's current health status based on the applicationset conditions
+	Health HealthStatus `json:"health,omitempty" protobuf:"bytes,5,opt,name=health"`
 }
 
 // ApplicationSetCondition contains details about an applicationset condition, which is usually an error or warning
@@ -937,6 +940,50 @@ func (a *ApplicationSet) RefreshRequired() bool {
 	return found
 }
 
+// CalculateHealth derives the health status from the applicationset conditions.
+// Health is determined by priority:
+// 1. ErrorOccurred=True → Degraded
+// 2. RolloutProgressing=True → Progressing
+// 3. ResourcesUpToDate=True → Healthy
+// 4. Otherwise → Unknown
+func (status *ApplicationSetStatus) CalculateHealth() HealthStatus {
+	if len(status.Conditions) == 0 {
+		return HealthStatus{Status: health.HealthStatusUnknown}
+	}
+
+	// Check for errors first (indicates degraded state)
+	for _, c := range status.Conditions {
+		if c.Type == ApplicationSetConditionErrorOccurred && c.Status == ApplicationSetConditionStatusTrue {
+			return HealthStatus{
+				Status:  health.HealthStatusDegraded,
+				Message: c.Message,
+			}
+		}
+	}
+
+	// Check if rollout is progressing
+	for _, c := range status.Conditions {
+		if c.Type == ApplicationSetConditionRolloutProgressing && c.Status == ApplicationSetConditionStatusTrue {
+			return HealthStatus{
+				Status:  health.HealthStatusProgressing,
+				Message: c.Message,
+			}
+		}
+	}
+
+	// Check if resources are up to date (healthy state)
+	for _, c := range status.Conditions {
+		if c.Type == ApplicationSetConditionResourcesUpToDate && c.Status == ApplicationSetConditionStatusTrue {
+			return HealthStatus{
+				Status:  health.HealthStatusHealthy,
+				Message: c.Message,
+			}
+		}
+	}
+
+	return HealthStatus{Status: health.HealthStatusUnknown}
+}
+
 // SetConditions updates the applicationset status conditions for a subset of evaluated types.
 // If the applicationset has a pre-existing condition of a type that is not in the evaluated list,
 // it will be preserved. If the applicationset has a pre-existing condition of a type, status, reason that
@@ -995,6 +1042,9 @@ func (status *ApplicationSetStatus) SetConditions(conditions []ApplicationSetCon
 		return left.LastTransitionTime.Before(right.LastTransitionTime)
 	})
 	status.Conditions = newConditions
+
+	// Recalculate health based on the updated conditions
+	status.Health = status.CalculateHealth()
 }
 
 func (t ApplicationSetConditionType) findConditionIndex(conditions []ApplicationSetCondition) int {

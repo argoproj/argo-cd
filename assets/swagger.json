@@ -7357,6 +7357,9 @@
             "$ref": "#/definitions/v1alpha1ApplicationSetCondition"
           }
         },
+        "health": {
+          "$ref": "#/definitions/v1alpha1HealthStatus"
+        },
         "resources": {
           "description": "Resources is a list of Applications resources managed by this application set.",
           "type": "array",
