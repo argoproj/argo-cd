@@ -15348,6 +15348,10 @@ spec:
                                         type: string
                                       appSecretName:
                                         type: string
+                                      excludedLabels:
+                                        items:
+                                          type: string
+                                        type: array
                                       labels:
                                         items:
                                           type: string
@@ -23000,6 +23004,10 @@ spec:
                                         type: string
                                       appSecretName:
                                         type: string
+                                      excludedLabels:
+                                        items:
+                                          type: string
+                                        type: array
                                       labels:
                                         items:
                                           type: string
@@ -27037,6 +27045,10 @@ spec:
                               type: string
                             appSecretName:
                               type: string
+                            excludedLabels:
+                              items:
+                                type: string
+                              type: array
                             labels:
                               items:
                                 type: string

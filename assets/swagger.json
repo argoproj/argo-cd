@@ -9416,6 +9416,13 @@
           "description": "AppSecretName is a reference to a GitHub App repo-creds secret with permission to access pull requests.",
           "type": "string"
         },
+        "excludedLabels": {
+          "type": "array",
+          "title": "ExcludedLabels is used to exclude PRs with these labels",
+          "items": {
+            "type": "string"
+          }
+        },
         "labels": {
           "type": "array",
           "title": "Labels is used to filter the PRs that you want to target",
