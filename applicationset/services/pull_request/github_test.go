@@ -178,7 +178,7 @@ func TestGitHubListFiltersLabels(t *testing.T) {
 			server := httptest.NewServer(mux)
 			defer server.Close()
 
-			path := "/repos/myorg/myrepo/pulls"
+			path := "/api/v3/repos/myorg/myrepo/pulls"
 			mux.HandleFunc(path, func(w http.ResponseWriter, _ *http.Request) {
 				// Return 3 PRs with different labels:
 				// PR 1: ready
