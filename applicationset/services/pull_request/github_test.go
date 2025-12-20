@@ -104,7 +104,7 @@ func TestGitHubListReturnsRepositoryNotFoundError(t *testing.T) {
 		_, _ = w.Write([]byte(`{"message": "404 Project Not Found"}`))
 	})
 
-	svc, err := NewGithubService("", server.URL, "nonexistent", "nonexistent", []string{}, nil)
+	svc, err := NewGithubService("", server.URL, "nonexistent", "nonexistent", []string{}, []string{}, nil)
 	require.NoError(t, err)
 
 	prs, err := svc.List(t.Context())
