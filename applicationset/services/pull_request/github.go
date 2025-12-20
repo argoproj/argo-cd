@@ -12,15 +12,16 @@ import (
 )
 
 type GithubService struct {
-	client *github.Client
-	owner  string
-	repo   string
-	labels []string
+	client         *github.Client
+	owner          string
+	repo           string
+	labels         []string
+	excludedLabels []string
 }
 
 var _ PullRequestService = (*GithubService)(nil)
 
-func NewGithubService(token, url, owner, repo string, labels []string, optionalHTTPClient ...*http.Client) (PullRequestService, error) {
+func NewGithubService(token, url, owner, repo string, labels []string, excludedLabels []string, optionalHTTPClient ...*http.Client) (PullRequestService, error) {
 	// Undocumented environment variable to set a default token, to be used in testing to dodge anonymous rate limits.
 	if token == "" {
 		token = os.Getenv("GITHUB_TOKEN")
@@ -47,10 +48,11 @@ func NewGithubService(token, url, owner, repo string, labels []string, optionalH
 		}
 	}
 	return &GithubService{
-		client: client,
-		owner:  owner,
-		repo:   repo,
-		labels: labels,
+		client:         client,
+		owner:          owner,
+		repo:           repo,
+		labels:         labels,
+		excludedLabels: excludedLabels,
 	}, nil
 }
 
@@ -75,6 +77,9 @@ func (g *GithubService) List(ctx context.Context) ([]*PullRequest, error) {
 			if !containLabels(g.labels, pull.Labels) {
 				continue
 			}
+			if containsAnyLabel(g.excludedLabels, pull.Labels) {
+				continue
+			}
 			pullRequests = append(pullRequests, &PullRequest{
 				Number:       int64(*pull.Number),
 				Title:        *pull.Title,
@@ -93,7 +98,7 @@ func (g *GithubService) List(ctx context.Context) ([]*PullRequest, error) {
 	return pullRequests, nil
 }
 
-// containLabels returns true if gotLabels contains expectedLabels
+// containLabels returns true if gotLabels contains all expectedLabels
 func containLabels(expectedLabels []string, gotLabels []*github.Label) bool {
 	for _, expected := range expectedLabels {
 		found := false
@@ -111,6 +116,18 @@ func containLabels(expectedLabels []string, gotLabels []*github.Label) bool {
 		}
 	}
 	return true
+}
+
+// containsAnyLabel returns true if gotLabels contains any of the excludedLabels
+func containsAnyLabel(excludedLabels []string, gotLabels []*github.Label) bool {
+	for _, excluded := range excludedLabels {
+		for _, got := range gotLabels {
+			if got.Name != nil && excluded == *got.Name {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // Get the Github pull request label names.
