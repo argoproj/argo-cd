@@ -61,6 +61,55 @@ func TestContainLabels(t *testing.T) {
 	}
 }
 
+func TestContainsAnyLabel(t *testing.T) {
+	cases := []struct {
+		Name           string
+		ExcludedLabels []string
+		PullLabels     []*github.Label
+		Expect         bool
+	}{
+		{
+			Name:           "PR has excluded label",
+			ExcludedLabels: []string{"stale", "wip"},
+			PullLabels: []*github.Label{
+				{Name: toPtr("label1")},
+				{Name: toPtr("stale")},
+			},
+			Expect: true,
+		},
+		{
+			Name:           "PR does not have excluded labels",
+			ExcludedLabels: []string{"stale", "wip"},
+			PullLabels: []*github.Label{
+				{Name: toPtr("label1")},
+				{Name: toPtr("label2")},
+			},
+			Expect: false,
+		},
+		{
+			Name:           "No excluded labels specified",
+			ExcludedLabels: []string{},
+			PullLabels: []*github.Label{
+				{Name: toPtr("stale")},
+			},
+			Expect: false,
+		},
+		{
+			Name:           "PR has no labels",
+			ExcludedLabels: []string{"stale"},
+			PullLabels:     []*github.Label{},
+			Expect:         false,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.Name, func(t *testing.T) {
+			got := containsAnyLabel(c.ExcludedLabels, c.PullLabels)
+			require.Equal(t, c.Expect, got)
+		})
+	}
+}
+
 func TestGetGitHubPRLabelNames(t *testing.T) {
 	Tests := []struct {
 		Name           string
