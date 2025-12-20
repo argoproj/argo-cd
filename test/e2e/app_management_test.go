@@ -845,7 +845,7 @@ func TestAppWithSecrets(t *testing.T) {
 			assert.Empty(t, diffOutput)
 
 			// make sure resource update error does not print secret details
-			_, err = fixture.RunCli("app", "patch-resource", "test-app-with-secrets", "--resource-name", "test-secret",
+			_, err = fixture.RunCli("app", "patch-resource", app.GetName(), "--resource-name", "test-secret",
 				"--kind", "Secret", "--patch", `{"op": "add", "path": "/data", "value": "hello"}'`,
 				"--patch-type", "application/json-patch+json")
 			require.ErrorContains(t, err, fmt.Sprintf("failed to patch Secret %s/test-secret", fixture.DeploymentNamespace()))
@@ -1571,10 +1571,9 @@ func assertResourceActions(t *testing.T, appName string, successful bool) {
 
 func TestPermissions(t *testing.T) {
 	appCtx := Given(t)
-	projName := "argo-project"
-	projActions := projectFixture.
-		GivenWithSameState(t).
-		Name(projName).
+	projCtx := projectFixture.GivenWithSameState(t)
+	projActions := projCtx.
+		Name("argo-project").
 		When().
 		Create()
 
@@ -1583,7 +1582,7 @@ func TestPermissions(t *testing.T) {
 
 	appCtx.
 		Path("guestbook-logs").
-		Project(projName).
+		Project(projCtx.GetName()).
 		When().
 		IgnoreErrors().
 		// ensure app is not created if project permissions are missing
@@ -1641,8 +1640,8 @@ func TestPermissions(t *testing.T) {
 		Refresh(RefreshTypeNormal).
 		Then().
 		// make sure application resource actions are failing
-		And(func(_ *Application) {
-			assertResourceActions(t, "test-permissions", false)
+		And(func(a *Application) {
+			assertResourceActions(t, a.GetName(), false)
 		})
 }
 
