@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -833,11 +832,6 @@ func TestSyncOptionValidate(t *testing.T) {
 	}
 }
 
-func withReplaceAnnotation(un *unstructured.Unstructured) *unstructured.Unstructured {
-	un.SetAnnotations(map[string]string{synccommon.AnnotationSyncOptions: synccommon.SyncOptionReplace})
-	return un
-}
-
 func TestSync_Replace(t *testing.T) {
 	testCases := []struct {
 		name        string
@@ -870,21 +864,6 @@ func TestSync_Replace(t *testing.T) {
 			assert.Equal(t, tc.commandUsed, resourceOps.GetLastResourceCommand(kube.GetResourceKey(tc.target)))
 		})
 	}
-}
-
-func withServerSideApplyAnnotation(un *unstructured.Unstructured) *unstructured.Unstructured {
-	un.SetAnnotations(map[string]string{synccommon.AnnotationSyncOptions: synccommon.SyncOptionServerSideApply})
-	return un
-}
-
-func withDisableServerSideApplyAnnotation(un *unstructured.Unstructured) *unstructured.Unstructured {
-	un.SetAnnotations(map[string]string{synccommon.AnnotationSyncOptions: synccommon.SyncOptionDisableServerSideApply})
-	return un
-}
-
-func withReplaceAndServerSideApplyAnnotations(un *unstructured.Unstructured) *unstructured.Unstructured {
-	un.SetAnnotations(map[string]string{synccommon.AnnotationSyncOptions: "Replace=true,ServerSideApply=true"})
-	return un
 }
 
 func TestSync_HookWithReplaceAndBeforeHookCreation_AlreadyDeleted(t *testing.T) {
@@ -990,16 +969,6 @@ func TestSyncContext_ServerSideApplyWithDryRun(t *testing.T) {
 			assert.Equal(t, tc.expectedSSA, serverSideApply)
 		})
 	}
-}
-
-func withForceAnnotation(un *unstructured.Unstructured) *unstructured.Unstructured {
-	un.SetAnnotations(map[string]string{synccommon.AnnotationSyncOptions: synccommon.SyncOptionForce})
-	return un
-}
-
-func withForceAndReplaceAnnotations(un *unstructured.Unstructured) *unstructured.Unstructured {
-	un.SetAnnotations(map[string]string{synccommon.AnnotationSyncOptions: "Force=true,Replace=true"})
-	return un
 }
 
 func TestSync_Force(t *testing.T) {
@@ -1299,24 +1268,13 @@ func TestNamespaceAutoCreationForNonExistingNs(t *testing.T) {
 	})
 }
 
-func createNamespaceTask(namespace string) (*syncTask, error) {
-	nsSpec := &corev1.Namespace{TypeMeta: metav1.TypeMeta{APIVersion: "v1", Kind: kube.NamespaceKind}, ObjectMeta: metav1.ObjectMeta{Name: namespace}}
-	unstructuredObj, err := kube.ToUnstructured(nsSpec)
-
-	task := &syncTask{phase: synccommon.SyncPhasePreSync, targetObj: unstructuredObj}
-	if err != nil {
-		return task, fmt.Errorf("failed to convert namespace spec to unstructured: %w", err)
-	}
-	return task, nil
-}
-
 func TestSyncFailureHookWithSuccessfulSync(t *testing.T) {
 	syncCtx := newTestSyncCtx(nil)
 	syncCtx.resources = groupResources(ReconciliationResult{
 		Live:   []*unstructured.Unstructured{nil},
 		Target: []*unstructured.Unstructured{testingutils.NewPod()},
 	})
-	syncCtx.hooks = []*unstructured.Unstructured{newHook(synccommon.HookTypeSyncFail)}
+	syncCtx.hooks = []*unstructured.Unstructured{newHook(synccommon.HookTypeSyncFail, synccommon.HookDeletePolicyBeforeHookCreation)}
 
 	syncCtx.Sync()
 	phase, _, resources := syncCtx.GetState()
@@ -1332,7 +1290,7 @@ func TestSyncFailureHookWithFailedSync(t *testing.T) {
 		Live:   []*unstructured.Unstructured{nil},
 		Target: []*unstructured.Unstructured{pod},
 	})
-	syncCtx.hooks = []*unstructured.Unstructured{newHook(synccommon.HookTypeSyncFail)}
+	syncCtx.hooks = []*unstructured.Unstructured{newHook(synccommon.HookTypeSyncFail, synccommon.HookDeletePolicyBeforeHookCreation)}
 	mockKubectl := &kubetest.MockKubectlCmd{
 		Commands: map[string]kubetest.KubectlOutput{pod.GetName(): {Err: errors.New("")}},
 	}
@@ -1384,19 +1342,12 @@ func TestBeforeHookCreation(t *testing.T) {
 }
 
 func TestSync_ExistingHooksWithFinalizer(t *testing.T) {
-	newHook := func(name string, hookType synccommon.HookType, deletePolicy synccommon.HookDeletePolicy) *unstructured.Unstructured {
-		obj := testingutils.NewPod()
-		obj.SetName(name)
-		obj.SetNamespace(testingutils.FakeArgoCDNamespace)
-		testingutils.Annotate(obj, synccommon.AnnotationKeyHook, string(hookType))
-		testingutils.Annotate(obj, synccommon.AnnotationKeyHookDeletePolicy, string(deletePolicy))
-		obj.SetFinalizers([]string{hook.HookFinalizer})
-		return obj
-	}
-
-	hook1 := newHook("existing-hook-1", synccommon.HookTypePreSync, synccommon.HookDeletePolicyBeforeHookCreation)
-	hook2 := newHook("existing-hook-2", synccommon.HookTypePreSync, synccommon.HookDeletePolicyHookFailed)
-	hook3 := newHook("existing-hook-3", synccommon.HookTypePreSync, synccommon.HookDeletePolicyHookSucceeded)
+	hook1 := newHook(synccommon.HookTypePreSync, synccommon.HookDeletePolicyBeforeHookCreation)
+	hook1.SetName("existing-hook-1")
+	hook2 := newHook(synccommon.HookTypePreSync, synccommon.HookDeletePolicyHookFailed)
+	hook2.SetName("existing-hook-2")
+	hook3 := newHook(synccommon.HookTypePreSync, synccommon.HookDeletePolicyHookSucceeded)
+	hook3.SetName("existing-hook-3")
 
 	syncCtx := newTestSyncCtx(nil)
 	fakeDynamicClient := fake.NewSimpleDynamicClient(runtime.NewScheme(), hook1, hook2, hook3)
@@ -1436,9 +1387,9 @@ func TestRunSyncFailHooksFailed(t *testing.T) {
 
 	syncCtx := newTestSyncCtx(nil)
 	pod := testingutils.NewPod()
-	successfulSyncFailHook := newHook(synccommon.HookTypeSyncFail)
+	successfulSyncFailHook := newHook(synccommon.HookTypeSyncFail, synccommon.HookDeletePolicyBeforeHookCreation)
 	successfulSyncFailHook.SetName("successful-sync-fail-hook")
-	failedSyncFailHook := newHook(synccommon.HookTypeSyncFail)
+	failedSyncFailHook := newHook(synccommon.HookTypeSyncFail, synccommon.HookDeletePolicyBeforeHookCreation)
 	failedSyncFailHook.SetName("failed-sync-fail-hook")
 	syncCtx.resources = groupResources(ReconciliationResult{
 		Live:   []*unstructured.Unstructured{nil},
@@ -1479,24 +1430,15 @@ func TestRunSyncFailHooksFailed(t *testing.T) {
 	assert.Equal(t, synccommon.ResultCodeSynced, resources[2].Status)
 }
 
-type resourceNameHealthOverride map[string]health.HealthStatusCode
-
-func (r resourceNameHealthOverride) GetResourceHealth(obj *unstructured.Unstructured) (*health.HealthStatus, error) {
-	if status, ok := r[obj.GetName()]; ok {
-		return &health.HealthStatus{Status: status, Message: "test"}, nil
-	}
-	return nil, nil
-}
-
 func TestRunSync_HooksNotDeletedIfPhaseNotCompleted(t *testing.T) {
-	hook1 := newHook(synccommon.HookTypePreSync)
+	hook1 := newHook(synccommon.HookTypePreSync, synccommon.HookDeletePolicyBeforeHookCreation)
 	hook1.SetName("completed-hook")
 	hook1.SetNamespace(testingutils.FakeArgoCDNamespace)
 	_ = testingutils.Annotate(hook1, synccommon.AnnotationKeyHookDeletePolicy, string(synccommon.HookDeletePolicyHookSucceeded))
 	completedHook := hook1.DeepCopy()
 	completedHook.SetFinalizers(append(completedHook.GetFinalizers(), hook.HookFinalizer))
 
-	hook2 := newHook(synccommon.HookTypePreSync)
+	hook2 := newHook(synccommon.HookTypePreSync, synccommon.HookDeletePolicyBeforeHookCreation)
 	hook2.SetNamespace(testingutils.FakeArgoCDNamespace)
 	hook2.SetName("in-progress-hook")
 	_ = testingutils.Annotate(hook2, synccommon.AnnotationKeyHookDeletePolicy, string(synccommon.HookDeletePolicyHookSucceeded))
@@ -1549,14 +1491,14 @@ func TestRunSync_HooksNotDeletedIfPhaseNotCompleted(t *testing.T) {
 }
 
 func TestRunSync_HooksDeletedAfterPhaseCompleted(t *testing.T) {
-	hook1 := newHook(synccommon.HookTypePreSync)
+	hook1 := newHook(synccommon.HookTypePreSync, synccommon.HookDeletePolicyBeforeHookCreation)
 	hook1.SetName("completed-hook1")
 	hook1.SetNamespace(testingutils.FakeArgoCDNamespace)
 	_ = testingutils.Annotate(hook1, synccommon.AnnotationKeyHookDeletePolicy, string(synccommon.HookDeletePolicyHookSucceeded))
 	completedHook1 := hook1.DeepCopy()
 	completedHook1.SetFinalizers(append(completedHook1.GetFinalizers(), hook.HookFinalizer))
 
-	hook2 := newHook(synccommon.HookTypePreSync)
+	hook2 := newHook(synccommon.HookTypePreSync, synccommon.HookDeletePolicyBeforeHookCreation)
 	hook2.SetNamespace(testingutils.FakeArgoCDNamespace)
 	hook2.SetName("completed-hook2")
 	_ = testingutils.Annotate(hook2, synccommon.AnnotationKeyHookDeletePolicy, string(synccommon.HookDeletePolicyHookSucceeded))
@@ -1606,14 +1548,14 @@ func TestRunSync_HooksDeletedAfterPhaseCompleted(t *testing.T) {
 }
 
 func TestRunSync_HooksDeletedAfterPhaseCompletedFailed(t *testing.T) {
-	hook1 := newHook(synccommon.HookTypeSync)
+	hook1 := newHook(synccommon.HookTypeSync, synccommon.HookDeletePolicyBeforeHookCreation)
 	hook1.SetName("completed-hook1")
 	hook1.SetNamespace(testingutils.FakeArgoCDNamespace)
 	_ = testingutils.Annotate(hook1, synccommon.AnnotationKeyHookDeletePolicy, string(synccommon.HookDeletePolicyHookFailed))
 	completedHook1 := hook1.DeepCopy()
 	completedHook1.SetFinalizers(append(completedHook1.GetFinalizers(), hook.HookFinalizer))
 
-	hook2 := newHook(synccommon.HookTypeSync)
+	hook2 := newHook(synccommon.HookTypeSync, synccommon.HookDeletePolicyBeforeHookCreation)
 	hook2.SetNamespace(testingutils.FakeArgoCDNamespace)
 	hook2.SetName("completed-hook2")
 	_ = testingutils.Annotate(hook2, synccommon.AnnotationKeyHookDeletePolicy, string(synccommon.HookDeletePolicyHookFailed))
@@ -2009,19 +1951,19 @@ func TestSyncContext_GetDeleteOptions_WithPrunePropagationPolicy(t *testing.T) {
 	assert.Equal(t, metav1.DeletePropagationBackground, *opts.PropagationPolicy)
 }
 
-func TestSetOperationFailed(t *testing.T) {
+func TestExecuteSyncFailPhase(t *testing.T) {
 	sc := syncContext{}
 	sc.log = textlogger.NewLogger(textlogger.NewConfig()).WithValues("application", "fake-app")
 
 	tasks := make([]*syncTask, 0)
 	tasks = append(tasks, &syncTask{message: "namespace not found"})
 
-	sc.setOperationFailed(nil, tasks, "one or more objects failed to apply")
+	sc.executeSyncFailPhase(nil, tasks, "one or more objects failed to apply")
 
 	assert.Equal(t, "one or more objects failed to apply, reason: namespace not found", sc.message)
 }
 
-func TestSetOperationFailedDuplicatedMessages(t *testing.T) {
+func TestExecuteSyncFailPhase_DuplicatedMessages(t *testing.T) {
 	sc := syncContext{}
 	sc.log = textlogger.NewLogger(textlogger.NewConfig()).WithValues("application", "fake-app")
 
@@ -2029,16 +1971,16 @@ func TestSetOperationFailedDuplicatedMessages(t *testing.T) {
 	tasks = append(tasks, &syncTask{message: "namespace not found"})
 	tasks = append(tasks, &syncTask{message: "namespace not found"})
 
-	sc.setOperationFailed(nil, tasks, "one or more objects failed to apply")
+	sc.executeSyncFailPhase(nil, tasks, "one or more objects failed to apply")
 
 	assert.Equal(t, "one or more objects failed to apply, reason: namespace not found", sc.message)
 }
 
-func TestSetOperationFailedNoTasks(t *testing.T) {
+func TestExecuteSyncFailPhase_NoTasks(t *testing.T) {
 	sc := syncContext{}
 	sc.log = textlogger.NewLogger(textlogger.NewConfig()).WithValues("application", "fake-app")
 
-	sc.setOperationFailed(nil, nil, "one or more objects failed to apply")
+	sc.executeSyncFailPhase(nil, nil, "one or more objects failed to apply")
 
 	assert.Equal(t, "one or more objects failed to apply", sc.message)
 }
@@ -2281,15 +2223,15 @@ func TestWaitForCleanUpBeforeNextWave(t *testing.T) {
 
 	var phase synccommon.OperationPhase
 	var msg string
-	var result []synccommon.ResourceSyncResult
+	var results []synccommon.ResourceSyncResult
 
 	// 1st sync should prune only pod3
 	syncCtx.Sync()
-	phase, _, result = syncCtx.GetState()
+	phase, _, results = syncCtx.GetState()
 	assert.Equal(t, synccommon.OperationRunning, phase)
-	assert.Len(t, result, 1)
-	assert.Equal(t, "pod-3", result[0].ResourceKey.Name)
-	assert.Equal(t, synccommon.ResultCodePruned, result[0].Status)
+	assert.Len(t, results, 1)
+	assert.Equal(t, "pod-3", results[0].ResourceKey.Name)
+	assert.Equal(t, synccommon.ResultCodePruned, results[0].Status)
 
 	// simulate successful delete of pod3
 	syncCtx.resources = groupResources(ReconciliationResult{
@@ -2299,11 +2241,11 @@ func TestWaitForCleanUpBeforeNextWave(t *testing.T) {
 
 	// next sync should prune only pod2
 	syncCtx.Sync()
-	phase, _, result = syncCtx.GetState()
+	phase, _, results = syncCtx.GetState()
 	assert.Equal(t, synccommon.OperationRunning, phase)
-	assert.Len(t, result, 2)
-	assert.Equal(t, "pod-2", result[1].ResourceKey.Name)
-	assert.Equal(t, synccommon.ResultCodePruned, result[1].Status)
+	assert.Len(t, results, 2)
+	assert.Equal(t, "pod-2", results[1].ResourceKey.Name)
+	assert.Equal(t, synccommon.ResultCodePruned, results[1].Status)
 
 	// add delete timestamp on pod2 to simulate pending delete
 	pod2.SetDeletionTimestamp(&metav1.Time{Time: time.Now()})
@@ -2311,10 +2253,10 @@ func TestWaitForCleanUpBeforeNextWave(t *testing.T) {
 	// next sync should wait for deletion of pod2 from cluster,
 	// it should not move to next wave and prune pod1
 	syncCtx.Sync()
-	phase, msg, result = syncCtx.GetState()
+	phase, msg, results = syncCtx.GetState()
 	assert.Equal(t, synccommon.OperationRunning, phase)
 	assert.Equal(t, "waiting for deletion of /Pod/pod-2", msg)
-	assert.Len(t, result, 2)
+	assert.Len(t, results, 2)
 
 	// simulate successful delete of pod2
 	syncCtx.resources = groupResources(ReconciliationResult{
@@ -2325,15 +2267,15 @@ func TestWaitForCleanUpBeforeNextWave(t *testing.T) {
 	// next sync should proceed with next wave
 	// i.e deletion of pod1
 	syncCtx.Sync()
-	phase, _, result = syncCtx.GetState()
+	phase, _, results = syncCtx.GetState()
 	assert.Equal(t, synccommon.OperationSucceeded, phase)
-	assert.Len(t, result, 3)
-	assert.Equal(t, "pod-3", result[0].ResourceKey.Name)
-	assert.Equal(t, "pod-2", result[1].ResourceKey.Name)
-	assert.Equal(t, "pod-1", result[2].ResourceKey.Name)
-	assert.Equal(t, synccommon.ResultCodePruned, result[0].Status)
-	assert.Equal(t, synccommon.ResultCodePruned, result[1].Status)
-	assert.Equal(t, synccommon.ResultCodePruned, result[2].Status)
+	assert.Len(t, results, 3)
+	assert.Equal(t, "pod-3", results[0].ResourceKey.Name)
+	assert.Equal(t, "pod-2", results[1].ResourceKey.Name)
+	assert.Equal(t, "pod-1", results[2].ResourceKey.Name)
+	assert.Equal(t, synccommon.ResultCodePruned, results[0].Status)
+	assert.Equal(t, synccommon.ResultCodePruned, results[1].Status)
+	assert.Equal(t, synccommon.ResultCodePruned, results[2].Status)
 }
 
 func BenchmarkSync(b *testing.B) {
