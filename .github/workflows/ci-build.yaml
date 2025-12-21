@@ -403,7 +403,8 @@ jobs:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         if: env.codecov_secret != ''
       - name: Upload test results to Codecov
-        if: env.codecov_secret != '' && github.ref == 'refs/heads/master' && github.event_name == 'push' && github.repository == 'argoproj/argo-cd'
+        # Codecov uploads test results to Codecov.io on upstream master branch and on fork master branch if the token is configured.
+        if: env.codecov_secret != '' && github.ref == 'refs/heads/master' && github.event_name == 'push'
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
         with:
           files: test-results/junit.xml
