@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="25 known vulnerabilities found in 69 vulnerable dependency paths.">
+  <meta name="description" content="26 known vulnerabilities found in 70 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -487,7 +487,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">December 14th 2025, 12:30:32 am (UTC+00:00)</p>
+                <p class="timestamp">December 21st 2025, 12:32:57 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
@@ -501,8 +501,8 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>25</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>69 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>26</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>70 vulnerable dependency paths</span></div>
                 <div class="meta-count"><span>2320</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
@@ -590,6 +590,78 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXCRYPTOSSHAGENT-12668891">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
+            <h2 class="card__title">Allocation of Resources Without Limits or Throttling</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--high">
+                        <span class="label__text">high severity</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:v3.1.9/argoproj/argo-cd/v3 <span class="list-paths__item__arrow">›</span> /usr/local/bin/argocd
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            github.com/expr-lang/expr/builtin
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/argoproj/argo-cd/v3@* and github.com/expr-lang/expr/builtin@v1.17.5
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/builtin@v1.17.5
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p>Affected versions of this package are vulnerable to Allocation of Resources Without Limits or Throttling via the <code>flatten</code>, <code>min</code>, <code>max</code>, <code>mean</code>, and <code>median</code> functions when processing deeply nested or cyclic data structures. An attacker can cause the application to crash by supplying maliciously crafted input that triggers unbounded recursion and stack exhaustion. </p>
+        <h2 id="workaround">Workaround</h2>
+        <p>This vulnerability can be mitigated by ensuring evaluation environments do not contain cyclic references, validating or sanitizing externally supplied data structures, and wrapping expression evaluation with panic recovery to prevent a full process crash.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>github.com/expr-lang/expr/builtin</code> to version 1.17.7 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/expr-lang/expr/commit/3dbda4bd9c2531a05fe0ea77a4bf4d7f294dc1da">GitHub Commit</a></li>
+        <li><a href="https://github.com/expr-lang/expr/pull/870">GitHub PR</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GITHUBCOMEXPRLANGEXPRBUILTIN-14459108">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
