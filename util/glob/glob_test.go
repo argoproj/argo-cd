@@ -11,28 +11,26 @@ import (
 
 // Test helpers - these access internal variables for testing purposes
 
-// clearGlobMemo clears the memoized glob patterns for testing.
-func clearGlobMemo() {
-	globMemo.Range(func(key, _ any) bool {
-		globMemo.Delete(key)
-		return true
-	})
+// clearGlobCache clears the cached glob patterns for testing.
+func clearGlobCache() {
+	globCacheLock.Lock()
+	defer globCacheLock.Unlock()
+	globCache.Clear()
 }
 
-// isPatternMemoized returns true if the pattern is memoized.
-func isPatternMemoized(pattern string) bool {
-	_, ok := globMemo.Load(pattern)
+// isPatternCached returns true if the pattern is cached.
+func isPatternCached(pattern string) bool {
+	globCacheLock.Lock()
+	defer globCacheLock.Unlock()
+	_, ok := globCache.Get(pattern)
 	return ok
 }
 
-// getMemoSize returns the number of memoized patterns.
-func getMemoSize() int {
-	count := 0
-	globMemo.Range(func(_, _ any) bool {
-		count++
-		return true
-	})
-	return count
+// getCacheLen returns the number of cached patterns.
+func getCacheLen() int {
+	globCacheLock.Lock()
+	defer globCacheLock.Unlock()
+	return globCache.Len()
 }
 
 func Test_Match(t *testing.T) {
@@ -116,21 +114,21 @@ func Test_MatchWithError(t *testing.T) {
 	}
 }
 
-func Test_GlobMemoization(t *testing.T) {
-	// Clear memo before test
-	clearGlobMemo()
+func Test_GlobCaching(t *testing.T) {
+	// Clear cache before test
+	clearGlobCache()
 
 	pattern := "test*pattern"
 	text := "testABCpattern"
 
-	// First call should compile and memoize
+	// First call should compile and cache
 	result1 := Match(pattern, text)
 	require.True(t, result1)
 
-	// Verify pattern is memoized
-	require.True(t, isPatternMemoized(pattern), "pattern should be memoized after first Match call")
+	// Verify pattern is cached
+	require.True(t, isPatternCached(pattern), "pattern should be cached after first Match call")
 
-	// Second call should use memoized value
+	// Second call should use cached value
 	result2 := Match(pattern, text)
 	require.True(t, result2)
 
@@ -138,9 +136,9 @@ func Test_GlobMemoization(t *testing.T) {
 	require.Equal(t, result1, result2)
 }
 
-func Test_GlobMemoizationConcurrent(t *testing.T) {
-	// Clear memo before test
-	clearGlobMemo()
+func Test_GlobCachingConcurrent(t *testing.T) {
+	// Clear cache before test
+	clearGlobCache()
 
 	pattern := "concurrent*test"
 	text := "concurrentABCtest"
@@ -159,13 +157,30 @@ func Test_GlobMemoizationConcurrent(t *testing.T) {
 
 	wg.Wait()
 
-	// Verify pattern is memoized
-	require.True(t, isPatternMemoized(pattern))
-	require.Equal(t, 1, getMemoSize(), "should only have one memoized entry for the pattern")
+	// Verify pattern is cached
+	require.True(t, isPatternCached(pattern))
+	require.Equal(t, 1, getCacheLen(), "should only have one cached entry for the pattern")
 }
 
-// BenchmarkMatch_WithMemoization benchmarks Match with memoization (cache hit)
-func BenchmarkMatch_WithMemoization(b *testing.B) {
+func Test_GlobCacheLRUEviction(t *testing.T) {
+	// Clear cache before test
+	clearGlobCache()
+
+	// Fill cache beyond DefaultGlobCacheSize
+	for i := 0; i < DefaultGlobCacheSize+100; i++ {
+		pattern := fmt.Sprintf("pattern-%d-*", i)
+		Match(pattern, "pattern-0-test")
+	}
+
+	// Cache size should be limited to DefaultGlobCacheSize
+	require.Equal(t, DefaultGlobCacheSize, getCacheLen(), "cache size should be limited to DefaultGlobCacheSize")
+
+	// The most recently used patterns should still be cached
+	require.True(t, isPatternCached(fmt.Sprintf("pattern-%d-*", DefaultGlobCacheSize+99)), "most recent pattern should be cached")
+}
+
+// BenchmarkMatch_WithCache benchmarks Match with caching (cache hit)
+func BenchmarkMatch_WithCache(b *testing.B) {
 	pattern := "proj:*/app-*"
 	text := "proj:myproject/app-frontend"
 
@@ -178,8 +193,8 @@ func BenchmarkMatch_WithMemoization(b *testing.B) {
 	}
 }
 
-// BenchmarkMatch_WithoutMemoization simulates the OLD behavior (compile every time)
-func BenchmarkMatch_WithoutMemoization(b *testing.B) {
+// BenchmarkMatch_WithoutCache simulates the OLD behavior (compile every time)
+func BenchmarkMatch_WithoutCache(b *testing.B) {
 	text := "proj:myproject/app-frontend"
 
 	b.ResetTimer()

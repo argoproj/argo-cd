@@ -1,34 +1,56 @@
 package glob
 
 import (
+	"math"
 	"sync"
 
 	"github.com/gobwas/glob"
+	"github.com/golang/groupcache/lru"
 	log "github.com/sirupsen/logrus"
+
+	"github.com/argoproj/argo-cd/v3/util/env"
 )
 
-// globMemo stores memoized compiled glob patterns using sync.Map.
-// sync.Map is optimized for the "write once, read many" pattern which matches
-// our use case: glob patterns are compiled once and matched millions of times
-// during RBAC policy evaluation.
-var globMemo sync.Map
+const (
+	// EnvGlobCacheSize is the environment variable name for configuring glob cache size.
+	EnvGlobCacheSize = "ARGOCD_GLOB_CACHE_SIZE"
 
-// getOrCompile returns a memoized compiled glob pattern, compiling it if necessary.
+	// DefaultGlobCacheSize is the default maximum number of compiled glob patterns to cache.
+	// This limit prevents memory exhaustion from untrusted RBAC patterns.
+	// 10,000 patterns should be sufficient for most deployments while limiting
+	// memory usage to roughly ~10MB (assuming ~1KB per compiled pattern).
+	DefaultGlobCacheSize = 10000
+)
+
+var (
+	// globCache stores compiled glob patterns using an LRU cache with bounded size.
+	// This prevents memory exhaustion from potentially untrusted RBAC patterns
+	// while still providing significant performance benefits.
+	globCache     *lru.Cache
+	globCacheLock sync.Mutex
+)
+
+func init() {
+	globCache = lru.New(env.ParseNumFromEnv(EnvGlobCacheSize, DefaultGlobCacheSize, 1, math.MaxInt))
+}
+
+// getOrCompile returns a cached compiled glob pattern, compiling and caching it if necessary.
 func getOrCompile(pattern string, separators ...rune) (glob.Glob, error) {
-	// Fast path: already memoized (lock-free read)
-	if cached, ok := globMemo.Load(pattern); ok {
+	globCacheLock.Lock()
+	defer globCacheLock.Unlock()
+
+	// Check cache first
+	if cached, ok := globCache.Get(pattern); ok {
 		return cached.(glob.Glob), nil
 	}
 
-	// Slow path: compile and memoize
+	// Compile and cache
 	compiled, err := glob.Compile(pattern, separators...)
 	if err != nil {
 		return nil, err
 	}
 
-	// Store result. If another goroutine stored it first, that's fine -
-	// both compiled results are equivalent for the same pattern.
-	globMemo.LoadOrStore(pattern, compiled)
+	globCache.Add(pattern, compiled)
 	return compiled, nil
 }
 
@@ -53,4 +75,3 @@ func MatchWithError(pattern, text string, separators ...rune) (bool, error) {
 	}
 	return compiled.Match(text), nil
 }
-
