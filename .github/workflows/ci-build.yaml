@@ -354,7 +354,7 @@ jobs:
       - test-go
       - build-ui
       - changes
-      #- test-e2e
+      - test-e2e
     env:
       sonar_secret: ${{ secrets.SONAR_TOKEN }}
       codecov_secret: ${{ secrets.CODECOV_TOKEN }}
