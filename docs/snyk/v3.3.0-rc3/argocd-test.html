@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="13 known vulnerabilities found in 57 vulnerable dependency paths.">
+  <meta name="description" content="9 known vulnerabilities found in 69 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -487,21 +487,22 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">December 14th 2025, 12:27:09 am (UTC+00:00)</p>
+                <p class="timestamp">December 21st 2025, 12:27:07 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
                 <ul>
                   <li class="paths">/argo-cd/argoproj/argo-cd/v3/go.mod (gomodules)</li>
+                  <li class="paths">/argo-cd/argoproj/gitops-engine/gitops-engine/go.mod (gomodules)</li>
                   <li class="paths">/argo-cd/argoproj/argo-cd/get-previous-release/hack/get-previous-release/go.mod (gomodules)</li>
                   <li class="paths">/argo-cd/ui/yarn.lock (yarn)</li>
                 </ul>
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>13</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>57 vulnerable dependency paths</span></div>
-                <div class="meta-count"><span>2115</span> <span>dependencies</span></div>
+                <div class="meta-count"><span>9</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>69 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>2868</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
           </header><!-- .project__header -->
@@ -510,7 +511,7 @@
     <div class="layout-container" style="padding-top: 35px;">
       <div class="cards--vuln filter--patch filter--ignore">
         <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
-            <h2 class="card__title">Improper Handling of Unexpected Data Type</h2>
+            <h2 class="card__title">Allocation of Resources Without Limits or Throttling</h2>
             <div class="card__section">
         
                 <div class="card__labels">
@@ -531,13 +532,13 @@
                     <li class="card__meta__item">
                             Vulnerable module:
         
-                            golang.org/x/crypto/ssh/agent
+                            github.com/expr-lang/expr/builtin
                     </li>
         
                     <li class="card__meta__item">Introduced through:
         
         
-                                    github.com/argoproj/argo-cd/v3@0.0.0, code.gitea.io/sdk/gitea@0.22.0 and others
+                                    github.com/argoproj/argo-cd/v3@0.0.0, github.com/expr-lang/expr@1.17.6 and others
                     </li>
                 </ul>
         
@@ -551,9 +552,9 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v3@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        code.gitea.io/sdk/gitea@0.22.0
+                                        github.com/expr-lang/expr@1.17.6
                                          <span class="list-paths__item__arrow">›</span> 
-                                        golang.org/x/crypto/ssh/agent@0.42.0
+                                        github.com/expr-lang/expr/builtin@1.17.6
                                         
                                 </span>
         
@@ -562,11 +563,11 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v3@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/ssh@5.14.0
+                                        github.com/expr-lang/expr@1.17.6
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/xanzy/ssh-agent@0.3.3
+                                        github.com/expr-lang/expr/parser@1.17.6
                                          <span class="list-paths__item__arrow">›</span> 
-                                        golang.org/x/crypto/ssh/agent@0.42.0
+                                        github.com/expr-lang/expr/builtin@1.17.6
                                         
                                 </span>
         
@@ -575,13 +576,11 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v3@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/client@5.14.0
+                                        github.com/expr-lang/expr@1.17.6
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/ssh@5.14.0
+                                        github.com/expr-lang/expr/vm@1.17.6
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/xanzy/ssh-agent@0.3.3
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        golang.org/x/crypto/ssh/agent@0.42.0
+                                        github.com/expr-lang/expr/builtin@1.17.6
                                         
                                 </span>
         
@@ -590,15 +589,609 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v3@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5@5.14.0
+                                        github.com/argoproj/notifications-engine/pkg/triggers@#e2e7fe18381a
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/client@5.14.0
+                                        github.com/expr-lang/expr/vm@1.17.6
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/ssh@5.14.0
+                                        github.com/expr-lang/expr/builtin@1.17.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/xanzy/ssh-agent@0.3.3
+                                        github.com/expr-lang/expr@1.17.6
                                          <span class="list-paths__item__arrow">›</span> 
-                                        golang.org/x/crypto/ssh/agent@0.42.0
+                                        github.com/expr-lang/expr/compiler@1.17.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/builtin@1.17.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr@1.17.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/patcher@1.17.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/builtin@1.17.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/triggers@#e2e7fe18381a
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr@1.17.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/builtin@1.17.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr@1.17.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/compiler@1.17.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/checker@1.17.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/builtin@1.17.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr@1.17.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/vm@1.17.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/conf@1.17.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/builtin@1.17.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/triggers@#e2e7fe18381a
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/vm@1.17.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/conf@1.17.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/builtin@1.17.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/triggers@#e2e7fe18381a
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr@1.17.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/parser@1.17.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/builtin@1.17.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/api@#e2e7fe18381a
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/triggers@#e2e7fe18381a
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/vm@1.17.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/builtin@1.17.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/cmd@#e2e7fe18381a
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/triggers@#e2e7fe18381a
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/vm@1.17.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/builtin@1.17.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/controller@#e2e7fe18381a
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/triggers@#e2e7fe18381a
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/vm@1.17.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/builtin@1.17.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/triggers@#e2e7fe18381a
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr@1.17.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/compiler@1.17.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/builtin@1.17.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/triggers@#e2e7fe18381a
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr@1.17.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/patcher@1.17.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/builtin@1.17.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/api@#e2e7fe18381a
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/triggers@#e2e7fe18381a
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr@1.17.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/builtin@1.17.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/cmd@#e2e7fe18381a
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/triggers@#e2e7fe18381a
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr@1.17.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/builtin@1.17.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/controller@#e2e7fe18381a
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/triggers@#e2e7fe18381a
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr@1.17.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/builtin@1.17.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/triggers@#e2e7fe18381a
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr@1.17.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/compiler@1.17.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/checker@1.17.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/builtin@1.17.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/api@#e2e7fe18381a
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/triggers@#e2e7fe18381a
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/vm@1.17.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/conf@1.17.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/builtin@1.17.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/cmd@#e2e7fe18381a
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/triggers@#e2e7fe18381a
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/vm@1.17.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/conf@1.17.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/builtin@1.17.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/controller@#e2e7fe18381a
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/triggers@#e2e7fe18381a
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/vm@1.17.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/conf@1.17.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/builtin@1.17.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/api@#e2e7fe18381a
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/triggers@#e2e7fe18381a
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr@1.17.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/parser@1.17.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/builtin@1.17.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/cmd@#e2e7fe18381a
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/triggers@#e2e7fe18381a
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr@1.17.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/parser@1.17.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/builtin@1.17.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/controller@#e2e7fe18381a
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/triggers@#e2e7fe18381a
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr@1.17.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/parser@1.17.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/builtin@1.17.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/api@#e2e7fe18381a
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/triggers@#e2e7fe18381a
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr@1.17.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/compiler@1.17.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/builtin@1.17.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/cmd@#e2e7fe18381a
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/triggers@#e2e7fe18381a
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr@1.17.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/compiler@1.17.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/builtin@1.17.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/controller@#e2e7fe18381a
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/triggers@#e2e7fe18381a
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr@1.17.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/compiler@1.17.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/builtin@1.17.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/api@#e2e7fe18381a
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/triggers@#e2e7fe18381a
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr@1.17.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/patcher@1.17.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/builtin@1.17.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/cmd@#e2e7fe18381a
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/triggers@#e2e7fe18381a
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr@1.17.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/patcher@1.17.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/builtin@1.17.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/controller@#e2e7fe18381a
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/triggers@#e2e7fe18381a
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr@1.17.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/patcher@1.17.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/builtin@1.17.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/api@#e2e7fe18381a
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/triggers@#e2e7fe18381a
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr@1.17.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/compiler@1.17.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/checker@1.17.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/builtin@1.17.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/cmd@#e2e7fe18381a
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/triggers@#e2e7fe18381a
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr@1.17.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/compiler@1.17.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/checker@1.17.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/builtin@1.17.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/controller@#e2e7fe18381a
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/triggers@#e2e7fe18381a
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr@1.17.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/compiler@1.17.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/checker@1.17.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/builtin@1.17.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr@1.17.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/vm@1.17.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/conf@1.17.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/types@1.17.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/checker/nature@1.17.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/builtin@1.17.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/triggers@#e2e7fe18381a
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/vm@1.17.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/conf@1.17.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/types@1.17.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/checker/nature@1.17.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/builtin@1.17.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/api@#e2e7fe18381a
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/triggers@#e2e7fe18381a
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/vm@1.17.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/conf@1.17.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/types@1.17.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/checker/nature@1.17.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/builtin@1.17.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/cmd@#e2e7fe18381a
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/triggers@#e2e7fe18381a
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/vm@1.17.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/conf@1.17.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/types@1.17.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/checker/nature@1.17.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/builtin@1.17.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/controller@#e2e7fe18381a
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/triggers@#e2e7fe18381a
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/vm@1.17.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/conf@1.17.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/types@1.17.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/checker/nature@1.17.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/expr-lang/expr/builtin@1.17.6
                                         
                                 </span>
         
@@ -610,799 +1203,21 @@
               <hr/>
               <!-- Overview -->
               <h2 id="overview">Overview</h2>
-        <p>Affected versions of this package are vulnerable to Improper Handling of Unexpected Data Type when functions including <code>List()</code> and <code>SignWithFlags()</code> process <code>*successAgentMsg</code>. This can be triggered by a malicious agent sending a single <code>0x06</code> byte (<code>SSH_AGENT_SUCCESS</code>), which is unmarshalled into a <code>*successAgentMsg</code>, causing a panic and client crash.</p>
-        <h2 id="details">Details</h2>
-        <p>Denial of Service (DoS) describes a family of attacks, all aimed at making a system inaccessible to its intended and legitimate users.</p>
-        <p>Unlike other vulnerabilities, DoS attacks usually do not aim at breaching security. Rather, they are focused on making websites and services unavailable to genuine users resulting in downtime.</p>
-        <p>One popular Denial of Service vulnerability is DDoS (a Distributed Denial of Service), an attack that attempts to clog network pipes to the system by generating a large volume of traffic from many machines.</p>
-        <p>When it comes to open source libraries, DoS vulnerabilities allow attackers to trigger such a crash or crippling of the service by using a flaw either in the application code or from the use of open source libraries.</p>
-        <p>Two common types of DoS vulnerabilities:</p>
-        <ul>
-        <li><p>High CPU/Memory Consumption- An attacker sending crafted requests that could cause the system to take a disproportionate amount of time to process. For example, <a href="https://security.snyk.io/vuln/SNYK-JAVA-COMMONSFILEUPLOAD-30082">commons-fileupload:commons-fileupload</a>.</p>
-        </li>
-        <li><p>Crash - An attacker sending crafted requests that could cause the system to crash. For Example,  <a href="https://snyk.io/vuln/npm:ws:20171108">npm <code>ws</code> package</a></p>
-        </li>
-        </ul>
-        <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>golang.org/x/crypto/ssh/agent</code> to version 0.43.0 or higher.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="https://github.com/golang/crypto/commit/559e062ce8bfd6a39925294620b50906ca2a6f95">GitHub Commit</a></li>
-        <li><a href="https://github.com/golang/go/issues/75178">GitHub Issue</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXCRYPTOSSHAGENT-12668891">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">Prototype Pollution</h2>
-            <div class="card__section">
-        
-                <div class="card__labels">
-                    <div class="label label--medium">
-                        <span class="label__text">medium severity</span>
-                    </div>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: /argo-cd <span class="list-paths__item__arrow">›</span> ui/yarn.lock
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: npm
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            min-document
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-        
-                                    argo-cd-ui@1.0.0, react-hot-loader@3.1.3 and others
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        argo-cd-ui@1.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        react-hot-loader@3.1.3
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        global@4.4.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        min-document@2.19.0
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="overview">Overview</h2>
-        <p>Affected versions of this package are vulnerable to Prototype Pollution via the <code>removeAttributeNS</code> function. An attacker can manipulate the prototype chain of JavaScript objects, potentially causing a denial-of-service attack by supplying malicious input that targets the <code>__proto__</code> property during namespace attribute removal.</p>
-        <p><strong>Notes</strong>:</p>
-        <p>This vulnerability is only exploitable if user input is passed without sanitization to the affected functions. The PoC has been validated as a theoretical vector, and a fixed version has been released.</p>
-        <h2 id="details">Details</h2>
-        <p>Prototype Pollution is a vulnerability affecting JavaScript. Prototype Pollution refers to the ability to inject properties into existing JavaScript language construct prototypes, such as objects. JavaScript allows all Object attributes to be altered, including their magical attributes such as <code>__proto__</code>, <code>constructor</code> and <code>prototype</code>. An attacker manipulates these attributes to overwrite, or pollute, a JavaScript application object prototype of the base object by injecting other values.  Properties on the <code>Object.prototype</code> are then inherited by all the JavaScript objects through the prototype chain. When that happens, this leads to either denial of service by triggering JavaScript exceptions, or it tampers with the application source code to force the code path that the attacker injects, thereby leading to remote code execution.</p>
-        <p>There are two main ways in which the pollution of prototypes occurs:</p>
-        <ul>
-        <li><p>Unsafe <code>Object</code> recursive merge</p>
-        </li>
-        <li><p>Property definition by path</p>
-        </li>
-        </ul>
-        <h3 id="unsafe-object-recursive-merge">Unsafe Object recursive merge</h3>
-        <p>The logic of a vulnerable recursive merge function follows the following high-level model:</p>
-        <pre><code>merge (target, source)
-        
-          foreach property of source
-        
-            if property exists and is an object on both the target and the source
-        
-              merge(target[property], source[property])
-        
-            else
-        
-              target[property] = source[property]
-        </code></pre>
-        <br>  
-        
-        <p>When the source object contains a property named <code>__proto__</code> defined with <code>Object.defineProperty()</code> , the condition that checks if the property exists and is an object on both the target and the source passes and the merge recurses with the target, being the prototype of <code>Object</code> and the source of <code>Object</code> as defined by the attacker. Properties are then copied on the <code>Object</code> prototype.</p>
-        <p>Clone operations are a special sub-class of unsafe recursive merges, which occur when a recursive merge is conducted on an empty object: <code>merge({},source)</code>.</p>
-        <p><code>lodash</code> and <code>Hoek</code> are examples of libraries susceptible to recursive merge attacks.</p>
-        <h3 id="property-definition-by-path">Property definition by path</h3>
-        <p>There are a few JavaScript libraries that use an API to define property values on an object based on a given path. The function that is generally affected contains this signature: <code>theFunction(object, path, value)</code></p>
-        <p>If the attacker can control the value of “path”, they can set this value to <code>__proto__.myValue</code>. <code>myValue</code> is then assigned to the prototype of the class of the object.</p>
-        <h2 id="types-of-attacks">Types of attacks</h2>
-        <p>There are a few methods by which Prototype Pollution can be manipulated:</p>
-        <table>
-        <thead>
-        <tr>
-        <th>Type</th>
-        <th>Origin</th>
-        <th>Short description</th>
-        </tr>
-        </thead>
-        <tbody><tr>
-        <td><strong>Denial of service (DoS)</strong></td>
-        <td>Client</td>
-        <td>This is the most likely attack. <br>DoS occurs when <code>Object</code> holds generic functions that are implicitly called for various operations (for example, <code>toString</code> and <code>valueOf</code>). <br> The attacker pollutes <code>Object.prototype.someattr</code> and alters its state to an unexpected value such as <code>Int</code> or <code>Object</code>. In this case, the code fails and is likely to cause a denial of service.  <br><strong>For example:</strong> if an attacker pollutes <code>Object.prototype.toString</code> by defining it as an integer, if the codebase at any point was reliant on <code>someobject.toString()</code> it would fail.</td>
-        </tr>
-        <tr>
-        <td><strong>Remote Code Execution</strong></td>
-        <td>Client</td>
-        <td>Remote code execution is generally only possible in cases where the codebase evaluates a specific attribute of an object, and then executes that evaluation.<br><strong>For example:</strong> <code>eval(someobject.someattr)</code>. In this case, if the attacker pollutes <code>Object.prototype.someattr</code> they are likely to be able to leverage this in order to execute code.</td>
-        </tr>
-        <tr>
-        <td><strong>Property Injection</strong></td>
-        <td>Client</td>
-        <td>The attacker pollutes properties that the codebase relies on for their informative value, including security properties such as cookies or tokens.<br>  <strong>For example:</strong> if a codebase checks privileges for <code>someuser.isAdmin</code>, then when the attacker pollutes <code>Object.prototype.isAdmin</code> and sets it to equal <code>true</code>, they can then achieve admin privileges.</td>
-        </tr>
-        </tbody></table>
-        <h2 id="affected-environments">Affected environments</h2>
-        <p>The following environments are susceptible to a Prototype Pollution attack:</p>
-        <ul>
-        <li><p>Application server</p>
-        </li>
-        <li><p>Web server</p>
-        </li>
-        <li><p>Web browser</p>
-        </li>
-        </ul>
-        <h2 id="how-to-prevent">How to prevent</h2>
-        <ol>
-        <li><p>Freeze the prototype— use <code>Object.freeze (Object.prototype)</code>.</p>
-        </li>
-        <li><p>Require schema validation of JSON input.</p>
-        </li>
-        <li><p>Avoid using unsafe recursive merge functions.</p>
-        </li>
-        <li><p>Consider using objects without prototypes (for example, <code>Object.create(null)</code>), breaking the prototype chain and preventing pollution.</p>
-        </li>
-        <li><p>As a best practice use <code>Map</code> instead of <code>Object</code>.</p>
-        </li>
-        </ol>
-        <h3 id="for-more-information-on-this-vulnerability-type">For more information on this vulnerability type:</h3>
-        <p><a href="https://github.com/HoLyVieR/prototype-pollution-nsec18/blob/master/paper/JavaScript_prototype_pollution_attack_in_NodeJS.pdf">Arteau, Oliver. “JavaScript prototype pollution attack in NodeJS application.” GitHub, 26 May 2018</a></p>
-        <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>min-document</code> to version 2.19.1 or higher.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="https://github.com/Raynos/min-document/commit/6c5f31aa57e2122fcedd4c7eae58b82f477e09f5">Github Commit</a></li>
-        <li><a href="https://github.com/Raynos/min-document/pull/55/commits/0d4e8192ef723fb869645256102a56ed922efd68">Github Commit</a></li>
-        <li><a href="https://github.com/Raynos/min-document/issues/54">GitHub Issue</a></li>
-        <li><a href="https://github.com/OrangeShieldInfos/PoCs/tree/main/JavaScript/prototype-pollution/CVE-2025-57352">POC</a></li>
-        <li><a href="https://github.com/Raynos/min-document/blob/bf7b69130a364b5c6fcb8e623bffe43054994c65/dom-element.js#L129">Vulnerable Code</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-JS-MINDOCUMENT-13045385">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">Prototype Pollution</h2>
-            <div class="card__section">
-        
-                <div class="card__labels">
-                    <div class="label label--medium">
-                        <span class="label__text">medium severity</span>
-                    </div>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: /argo-cd <span class="list-paths__item__arrow">›</span> ui/yarn.lock
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: npm
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            js-yaml
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-                                argo-cd-ui@1.0.0 and js-yaml@4.1.0
-        
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        argo-cd-ui@1.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        js-yaml@4.1.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        argo-cd-ui@1.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        redoc@2.4.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        @redocly/openapi-core@1.30.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        js-yaml@4.1.0
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="overview">Overview</h2>
-        <p><a href="https://www.npmjs.com/package/js-yaml">js-yaml</a> is a human-friendly data serialization language.</p>
-        <p>Affected versions of this package are vulnerable to Prototype Pollution via the <code>merge</code> function. An attacker can alter object prototypes by supplying specially crafted YAML documents containing <code>__proto__</code> properties. This can lead to unexpected behavior or security issues in applications that process untrusted YAML input.</p>
+        <p>Affected versions of this package are vulnerable to Allocation of Resources Without Limits or Throttling via the <code>flatten</code>, <code>min</code>, <code>max</code>, <code>mean</code>, and <code>median</code> functions when processing deeply nested or cyclic data structures. An attacker can cause the application to crash by supplying maliciously crafted input that triggers unbounded recursion and stack exhaustion. </p>
         <h2 id="workaround">Workaround</h2>
-        <p>This vulnerability can be mitigated by running the server with <code>node --disable-proto=delete</code> or by using Deno, which has pollution protection enabled by default.</p>
-        <h2 id="details">Details</h2>
-        <p>Prototype Pollution is a vulnerability affecting JavaScript. Prototype Pollution refers to the ability to inject properties into existing JavaScript language construct prototypes, such as objects. JavaScript allows all Object attributes to be altered, including their magical attributes such as <code>__proto__</code>, <code>constructor</code> and <code>prototype</code>. An attacker manipulates these attributes to overwrite, or pollute, a JavaScript application object prototype of the base object by injecting other values.  Properties on the <code>Object.prototype</code> are then inherited by all the JavaScript objects through the prototype chain. When that happens, this leads to either denial of service by triggering JavaScript exceptions, or it tampers with the application source code to force the code path that the attacker injects, thereby leading to remote code execution.</p>
-        <p>There are two main ways in which the pollution of prototypes occurs:</p>
-        <ul>
-        <li><p>Unsafe <code>Object</code> recursive merge</p>
-        </li>
-        <li><p>Property definition by path</p>
-        </li>
-        </ul>
-        <h3 id="unsafe-object-recursive-merge">Unsafe Object recursive merge</h3>
-        <p>The logic of a vulnerable recursive merge function follows the following high-level model:</p>
-        <pre><code>merge (target, source)
-        
-          foreach property of source
-        
-            if property exists and is an object on both the target and the source
-        
-              merge(target[property], source[property])
-        
-            else
-        
-              target[property] = source[property]
-        </code></pre>
-        <br>  
-        
-        <p>When the source object contains a property named <code>__proto__</code> defined with <code>Object.defineProperty()</code> , the condition that checks if the property exists and is an object on both the target and the source passes and the merge recurses with the target, being the prototype of <code>Object</code> and the source of <code>Object</code> as defined by the attacker. Properties are then copied on the <code>Object</code> prototype.</p>
-        <p>Clone operations are a special sub-class of unsafe recursive merges, which occur when a recursive merge is conducted on an empty object: <code>merge({},source)</code>.</p>
-        <p><code>lodash</code> and <code>Hoek</code> are examples of libraries susceptible to recursive merge attacks.</p>
-        <h3 id="property-definition-by-path">Property definition by path</h3>
-        <p>There are a few JavaScript libraries that use an API to define property values on an object based on a given path. The function that is generally affected contains this signature: <code>theFunction(object, path, value)</code></p>
-        <p>If the attacker can control the value of “path”, they can set this value to <code>__proto__.myValue</code>. <code>myValue</code> is then assigned to the prototype of the class of the object.</p>
-        <h2 id="types-of-attacks">Types of attacks</h2>
-        <p>There are a few methods by which Prototype Pollution can be manipulated:</p>
-        <table>
-        <thead>
-        <tr>
-        <th>Type</th>
-        <th>Origin</th>
-        <th>Short description</th>
-        </tr>
-        </thead>
-        <tbody><tr>
-        <td><strong>Denial of service (DoS)</strong></td>
-        <td>Client</td>
-        <td>This is the most likely attack. <br>DoS occurs when <code>Object</code> holds generic functions that are implicitly called for various operations (for example, <code>toString</code> and <code>valueOf</code>). <br> The attacker pollutes <code>Object.prototype.someattr</code> and alters its state to an unexpected value such as <code>Int</code> or <code>Object</code>. In this case, the code fails and is likely to cause a denial of service.  <br><strong>For example:</strong> if an attacker pollutes <code>Object.prototype.toString</code> by defining it as an integer, if the codebase at any point was reliant on <code>someobject.toString()</code> it would fail.</td>
-        </tr>
-        <tr>
-        <td><strong>Remote Code Execution</strong></td>
-        <td>Client</td>
-        <td>Remote code execution is generally only possible in cases where the codebase evaluates a specific attribute of an object, and then executes that evaluation.<br><strong>For example:</strong> <code>eval(someobject.someattr)</code>. In this case, if the attacker pollutes <code>Object.prototype.someattr</code> they are likely to be able to leverage this in order to execute code.</td>
-        </tr>
-        <tr>
-        <td><strong>Property Injection</strong></td>
-        <td>Client</td>
-        <td>The attacker pollutes properties that the codebase relies on for their informative value, including security properties such as cookies or tokens.<br>  <strong>For example:</strong> if a codebase checks privileges for <code>someuser.isAdmin</code>, then when the attacker pollutes <code>Object.prototype.isAdmin</code> and sets it to equal <code>true</code>, they can then achieve admin privileges.</td>
-        </tr>
-        </tbody></table>
-        <h2 id="affected-environments">Affected environments</h2>
-        <p>The following environments are susceptible to a Prototype Pollution attack:</p>
-        <ul>
-        <li><p>Application server</p>
-        </li>
-        <li><p>Web server</p>
-        </li>
-        <li><p>Web browser</p>
-        </li>
-        </ul>
-        <h2 id="how-to-prevent">How to prevent</h2>
-        <ol>
-        <li><p>Freeze the prototype— use <code>Object.freeze (Object.prototype)</code>.</p>
-        </li>
-        <li><p>Require schema validation of JSON input.</p>
-        </li>
-        <li><p>Avoid using unsafe recursive merge functions.</p>
-        </li>
-        <li><p>Consider using objects without prototypes (for example, <code>Object.create(null)</code>), breaking the prototype chain and preventing pollution.</p>
-        </li>
-        <li><p>As a best practice use <code>Map</code> instead of <code>Object</code>.</p>
-        </li>
-        </ol>
-        <h3 id="for-more-information-on-this-vulnerability-type">For more information on this vulnerability type:</h3>
-        <p><a href="https://github.com/HoLyVieR/prototype-pollution-nsec18/blob/master/paper/JavaScript_prototype_pollution_attack_in_NodeJS.pdf">Arteau, Oliver. “JavaScript prototype pollution attack in NodeJS application.” GitHub, 26 May 2018</a></p>
+        <p>This vulnerability can be mitigated by ensuring evaluation environments do not contain cyclic references, validating or sanitizing externally supplied data structures, and wrapping expression evaluation with panic recovery to prevent a full process crash.</p>
         <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>js-yaml</code> to version 3.14.2, 4.1.1 or higher.</p>
+        <p>Upgrade <code>github.com/expr-lang/expr/builtin</code> to version 1.17.7 or higher.</p>
         <h2 id="references">References</h2>
         <ul>
-        <li><a href="https://github.com/nodeca/js-yaml/commit/383665ff4248ec2192d1274e934462bb30426879">GitHub Commit</a></li>
-        <li><a href="https://github.com/nodeca/js-yaml/commit/5278870a17454fe8621dbd8c445c412529525266">GitHub Commit</a></li>
+        <li><a href="https://github.com/expr-lang/expr/commit/3dbda4bd9c2531a05fe0ea77a4bf4d7f294dc1da">GitHub Commit</a></li>
+        <li><a href="https://github.com/expr-lang/expr/pull/870">GitHub PR</a></li>
         </ul>
         
               <hr/>
         
             <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-JS-JSYAML-13961110">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">Out-of-bounds Read</h2>
-            <div class="card__section">
-        
-                <div class="card__labels">
-                    <div class="label label--medium">
-                        <span class="label__text">medium severity</span>
-                    </div>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: /argo-cd/argoproj/argo-cd/v3 <span class="list-paths__item__arrow">›</span> go.mod
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: golang
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            golang.org/x/crypto/ssh/agent
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-        
-                                    github.com/argoproj/argo-cd/v3@0.0.0, code.gitea.io/sdk/gitea@0.22.0 and others
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        code.gitea.io/sdk/gitea@0.22.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        golang.org/x/crypto/ssh/agent@0.42.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/ssh@5.14.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/xanzy/ssh-agent@0.3.3
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        golang.org/x/crypto/ssh/agent@0.42.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/client@5.14.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/ssh@5.14.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/xanzy/ssh-agent@0.3.3
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        golang.org/x/crypto/ssh/agent@0.42.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5@5.14.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/client@5.14.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/ssh@5.14.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/xanzy/ssh-agent@0.3.3
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        golang.org/x/crypto/ssh/agent@0.42.0
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="overview">Overview</h2>
-        <p>Affected versions of this package are vulnerable to Out-of-bounds Read via the SSH Agent servers. An attacker can cause a panic and disrupt service availability by sending a specially crafted, malformed message that triggers an out-of-bounds read.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>golang.org/x/crypto/ssh/agent</code> to version 0.45.0 or higher.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="https://pkg.go.dev/vuln/GO-2025-4135">GO-2025-4135</a></li>
-        <li><a href="https://go.googlesource.com/crypto/+/f91f7a7c31bf90b39c1de895ad116a2bacc88748">go.dev Commit</a></li>
-        <li><a href="https://go.dev/issue/76364">go.dev Issue</a></li>
-        <li><a href="https://groups.google.com/g/golang-announce/c/w-oX3UxNcZA">Google Groups Forum</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXCRYPTOSSHAGENT-14059804">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">Allocation of Resources Without Limits or Throttling</h2>
-            <div class="card__section">
-        
-                <div class="card__labels">
-                    <div class="label label--medium">
-                        <span class="label__text">medium severity</span>
-                    </div>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: /argo-cd/argoproj/argo-cd/v3 <span class="list-paths__item__arrow">›</span> go.mod
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: golang
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            golang.org/x/crypto/ssh
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-                                github.com/argoproj/argo-cd/v3@0.0.0 and golang.org/x/crypto/ssh@0.42.0
-        
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        golang.org/x/crypto/ssh@0.42.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        code.gitea.io/sdk/gitea@0.22.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        golang.org/x/crypto/ssh@0.42.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        golang.org/x/crypto/ssh/knownhosts@0.42.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        golang.org/x/crypto/ssh@0.42.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/ssh@5.14.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        golang.org/x/crypto/ssh@0.42.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        code.gitea.io/sdk/gitea@0.22.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/42wim/httpsig@1.2.3
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        golang.org/x/crypto/ssh@0.42.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        code.gitea.io/sdk/gitea@0.22.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-fed/httpsig@1.1.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        golang.org/x/crypto/ssh@0.42.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/ssh@5.14.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/skeema/knownhosts@1.3.1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        golang.org/x/crypto/ssh@0.42.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        code.gitea.io/sdk/gitea@0.22.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        golang.org/x/crypto/ssh/agent@0.42.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        golang.org/x/crypto/ssh@0.42.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/client@5.14.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/ssh@5.14.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        golang.org/x/crypto/ssh@0.42.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/ssh@5.14.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/xanzy/ssh-agent@0.3.3
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        golang.org/x/crypto/ssh/agent@0.42.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        golang.org/x/crypto/ssh@0.42.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/ssh@5.14.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/skeema/knownhosts@1.3.1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        golang.org/x/crypto/ssh/knownhosts@0.42.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        golang.org/x/crypto/ssh@0.42.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/client@5.14.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/ssh@5.14.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/skeema/knownhosts@1.3.1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        golang.org/x/crypto/ssh@0.42.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5@5.14.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/client@5.14.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/ssh@5.14.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        golang.org/x/crypto/ssh@0.42.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/client@5.14.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/ssh@5.14.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/xanzy/ssh-agent@0.3.3
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        golang.org/x/crypto/ssh/agent@0.42.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        golang.org/x/crypto/ssh@0.42.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/client@5.14.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/ssh@5.14.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/skeema/knownhosts@1.3.1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        golang.org/x/crypto/ssh/knownhosts@0.42.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        golang.org/x/crypto/ssh@0.42.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5@5.14.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/client@5.14.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/ssh@5.14.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/skeema/knownhosts@1.3.1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        golang.org/x/crypto/ssh@0.42.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5@5.14.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/client@5.14.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/ssh@5.14.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/xanzy/ssh-agent@0.3.3
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        golang.org/x/crypto/ssh/agent@0.42.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        golang.org/x/crypto/ssh@0.42.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5@5.14.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/client@5.14.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/ssh@5.14.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/skeema/knownhosts@1.3.1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        golang.org/x/crypto/ssh/knownhosts@0.42.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        golang.org/x/crypto/ssh@0.42.0
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="overview">Overview</h2>
-        <p><a href="https://pkg.go.dev/golang.org/x/crypto/ssh?tab=doc">golang.org/x/crypto/ssh</a> is a SSH client and server</p>
-        <p>Affected versions of this package are vulnerable to Allocation of Resources Without Limits or Throttling via the SSH servers. An attacker can exhaust system memory resources by sending GSSAPI authentication requests with an excessive number of mechanisms specified.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>golang.org/x/crypto/ssh</code> to version 0.45.0 or higher.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="https://go.googlesource.com/crypto/+/e79546e28b85ea53dd37afe1c4102746ef553b9c">Fix Commit</a></li>
-        <li><a href="https://pkg.go.dev/vuln/GO-2025-4134">GO-2025-4134</a></li>
-        <li><a href="https://go.dev/issue/76363">go.dev Issue</a></li>
-        <li><a href="https://groups.google.com/g/golang-announce/c/w-oX3UxNcZA">Google Groups Forum</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXCRYPTOSSH-14059803">More about this vulnerability</a></p>
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GITHUBCOMEXPRLANGEXPRBUILTIN-14459108">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
@@ -1496,7 +1311,7 @@
                     <li class="card__meta__item">Introduced through:
         
         
-                                    github.com/argoproj/argo-cd/v3@0.0.0, code.gitea.io/sdk/gitea@0.22.0 and others
+                                    github.com/argoproj/argo-cd/v3@0.0.0, code.gitea.io/sdk/gitea@0.22.1 and others
                     </li>
                 </ul>
         
@@ -1510,7 +1325,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v3@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        code.gitea.io/sdk/gitea@0.22.0
+                                        code.gitea.io/sdk/gitea@0.22.1
                                          <span class="list-paths__item__arrow">›</span> 
                                         github.com/hashicorp/go-version@1.7.0
                                         
@@ -1583,7 +1398,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v3@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/services@#da04400446ff
+                                        github.com/argoproj/notifications-engine/pkg/services@#e2e7fe18381a
                                          <span class="list-paths__item__arrow">›</span> 
                                         github.com/hashicorp/go-retryablehttp@0.7.8
                                         
@@ -1594,7 +1409,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v3@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        gitlab.com/gitlab-org/api/client-go@0.142.6
+                                        gitlab.com/gitlab-org/api/client-go@1.8.1
                                          <span class="list-paths__item__arrow">›</span> 
                                         github.com/hashicorp/go-retryablehttp@0.7.8
                                         
@@ -1605,22 +1420,9 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v3@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/subscriptions@#da04400446ff
+                                        github.com/argoproj/notifications-engine/pkg/subscriptions@#e2e7fe18381a
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/services@#da04400446ff
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/hashicorp/go-retryablehttp@0.7.8
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/cmd@#da04400446ff
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/services@#da04400446ff
+                                        github.com/argoproj/notifications-engine/pkg/services@#e2e7fe18381a
                                          <span class="list-paths__item__arrow">›</span> 
                                         github.com/hashicorp/go-retryablehttp@0.7.8
                                         
@@ -1631,7 +1433,20 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v3@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/services@#da04400446ff
+                                        github.com/argoproj/notifications-engine/pkg/cmd@#e2e7fe18381a
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/services@#e2e7fe18381a
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/hashicorp/go-retryablehttp@0.7.8
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/services@#e2e7fe18381a
                                          <span class="list-paths__item__arrow">›</span> 
                                         github.com/opsgenie/opsgenie-go-sdk-v2/client@1.2.23
                                          <span class="list-paths__item__arrow">›</span> 
@@ -1644,26 +1459,11 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v3@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/api@#da04400446ff
+                                        github.com/argoproj/notifications-engine/pkg/api@#e2e7fe18381a
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/subscriptions@#da04400446ff
+                                        github.com/argoproj/notifications-engine/pkg/subscriptions@#e2e7fe18381a
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/services@#da04400446ff
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/hashicorp/go-retryablehttp@0.7.8
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/controller@#da04400446ff
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/subscriptions@#da04400446ff
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/services@#da04400446ff
+                                        github.com/argoproj/notifications-engine/pkg/services@#e2e7fe18381a
                                          <span class="list-paths__item__arrow">›</span> 
                                         github.com/hashicorp/go-retryablehttp@0.7.8
                                         
@@ -1674,9 +1474,24 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v3@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/subscriptions@#da04400446ff
+                                        github.com/argoproj/notifications-engine/pkg/controller@#e2e7fe18381a
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/services@#da04400446ff
+                                        github.com/argoproj/notifications-engine/pkg/subscriptions@#e2e7fe18381a
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/services@#e2e7fe18381a
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/hashicorp/go-retryablehttp@0.7.8
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/subscriptions@#e2e7fe18381a
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/services@#e2e7fe18381a
                                          <span class="list-paths__item__arrow">›</span> 
                                         github.com/opsgenie/opsgenie-go-sdk-v2/client@1.2.23
                                          <span class="list-paths__item__arrow">›</span> 
@@ -1689,26 +1504,9 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v3@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/cmd@#da04400446ff
+                                        github.com/argoproj/notifications-engine/pkg/cmd@#e2e7fe18381a
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/services@#da04400446ff
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/opsgenie/opsgenie-go-sdk-v2/client@1.2.23
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/hashicorp/go-retryablehttp@0.7.8
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/api@#da04400446ff
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/subscriptions@#da04400446ff
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/services@#da04400446ff
+                                        github.com/argoproj/notifications-engine/pkg/services@#e2e7fe18381a
                                          <span class="list-paths__item__arrow">›</span> 
                                         github.com/opsgenie/opsgenie-go-sdk-v2/client@1.2.23
                                          <span class="list-paths__item__arrow">›</span> 
@@ -1721,11 +1519,28 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v3@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/controller@#da04400446ff
+                                        github.com/argoproj/notifications-engine/pkg/api@#e2e7fe18381a
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/subscriptions@#da04400446ff
+                                        github.com/argoproj/notifications-engine/pkg/subscriptions@#e2e7fe18381a
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/services@#da04400446ff
+                                        github.com/argoproj/notifications-engine/pkg/services@#e2e7fe18381a
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/opsgenie/opsgenie-go-sdk-v2/client@1.2.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/hashicorp/go-retryablehttp@0.7.8
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/controller@#e2e7fe18381a
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/subscriptions@#e2e7fe18381a
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/services@#e2e7fe18381a
                                          <span class="list-paths__item__arrow">›</span> 
                                         github.com/opsgenie/opsgenie-go-sdk-v2/client@1.2.23
                                          <span class="list-paths__item__arrow">›</span> 
@@ -1802,7 +1617,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v3@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        gitlab.com/gitlab-org/api/client-go@0.142.6
+                                        gitlab.com/gitlab-org/api/client-go@1.8.1
                                          <span class="list-paths__item__arrow">›</span> 
                                         github.com/hashicorp/go-cleanhttp@0.5.2
                                         
@@ -1813,7 +1628,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v3@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        gitlab.com/gitlab-org/api/client-go@0.142.6
+                                        gitlab.com/gitlab-org/api/client-go@1.8.1
                                          <span class="list-paths__item__arrow">›</span> 
                                         github.com/hashicorp/go-retryablehttp@0.7.8
                                          <span class="list-paths__item__arrow">›</span> 
@@ -1826,7 +1641,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v3@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/services@#da04400446ff
+                                        github.com/argoproj/notifications-engine/pkg/services@#e2e7fe18381a
                                          <span class="list-paths__item__arrow">›</span> 
                                         github.com/opsgenie/opsgenie-go-sdk-v2/client@1.2.23
                                          <span class="list-paths__item__arrow">›</span> 
@@ -1841,26 +1656,9 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v3@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/subscriptions@#da04400446ff
+                                        github.com/argoproj/notifications-engine/pkg/subscriptions@#e2e7fe18381a
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/services@#da04400446ff
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/opsgenie/opsgenie-go-sdk-v2/client@1.2.23
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/hashicorp/go-retryablehttp@0.7.8
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/hashicorp/go-cleanhttp@0.5.2
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/cmd@#da04400446ff
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/services@#da04400446ff
+                                        github.com/argoproj/notifications-engine/pkg/services@#e2e7fe18381a
                                          <span class="list-paths__item__arrow">›</span> 
                                         github.com/opsgenie/opsgenie-go-sdk-v2/client@1.2.23
                                          <span class="list-paths__item__arrow">›</span> 
@@ -1875,11 +1673,9 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v3@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/api@#da04400446ff
+                                        github.com/argoproj/notifications-engine/pkg/cmd@#e2e7fe18381a
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/subscriptions@#da04400446ff
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/services@#da04400446ff
+                                        github.com/argoproj/notifications-engine/pkg/services@#e2e7fe18381a
                                          <span class="list-paths__item__arrow">›</span> 
                                         github.com/opsgenie/opsgenie-go-sdk-v2/client@1.2.23
                                          <span class="list-paths__item__arrow">›</span> 
@@ -1894,11 +1690,30 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v3@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/controller@#da04400446ff
+                                        github.com/argoproj/notifications-engine/pkg/api@#e2e7fe18381a
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/subscriptions@#da04400446ff
+                                        github.com/argoproj/notifications-engine/pkg/subscriptions@#e2e7fe18381a
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/services@#da04400446ff
+                                        github.com/argoproj/notifications-engine/pkg/services@#e2e7fe18381a
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/opsgenie/opsgenie-go-sdk-v2/client@1.2.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/hashicorp/go-retryablehttp@0.7.8
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/hashicorp/go-cleanhttp@0.5.2
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/controller@#e2e7fe18381a
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/subscriptions@#e2e7fe18381a
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/services@#e2e7fe18381a
                                          <span class="list-paths__item__arrow">›</span> 
                                         github.com/opsgenie/opsgenie-go-sdk-v2/client@1.2.23
                                          <span class="list-paths__item__arrow">›</span> 
@@ -2233,7 +2048,7 @@
                     <li class="card__meta__item">Introduced through:
         
         
-                                    argo-cd-ui@1.0.0, minimatch@3.1.2 and others
+                                    argo-cd-ui@1.0.0, argo-ui@1.0.0 and others
                     </li>
                 </ul>
         
@@ -2247,9 +2062,11 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         argo-cd-ui@1.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        minimatch@3.1.2
+                                        argo-ui@1.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        brace-expansion@1.1.11
+                                        minimatch@5.1.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        brace-expansion@2.0.1
                                         
                                 </span>
         
@@ -2265,6 +2082,17 @@
                                         minimatch@5.1.6
                                          <span class="list-paths__item__arrow">›</span> 
                                         brace-expansion@2.0.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        argo-cd-ui@1.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        minimatch@3.1.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        brace-expansion@1.1.11
                                         
                                 </span>
         
