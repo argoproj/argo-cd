@@ -122,6 +122,12 @@ const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: num
                                 .split(',')
                                 .filter(item => !!item);
                         }
+                        if (params.get('operation') != null) {
+                            viewPref.operationFilter = params
+                                .get('operation')
+                                .split(',')
+                                .filter(item => !!item);
+                        }
                         if (params.get('health') != null) {
                             viewPref.healthFilter = params
                                 .get('health')
@@ -423,7 +429,8 @@ export const ApplicationsList = (props: RouteComponentProps<any> & {objectListKi
                 health: newPref.healthFilter.join(','),
                 namespace: newPref.namespacesFilter.join(','),
                 cluster: newPref.clustersFilter.join(','),
-                labels: newPref.labelsFilter.map(encodeURIComponent).join(',')
+                labels: newPref.labelsFilter.map(encodeURIComponent).join(','),
+                operation: newPref.operationFilter.join(',')
             },
             {replace: true}
         );
