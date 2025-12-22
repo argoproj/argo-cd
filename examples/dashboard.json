@@ -1788,6 +1788,138 @@
               "unit": "s"
             }
           }
+        },
+        {
+          "datasource": {
+            "uid": "$datasource"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "align": "auto",
+                "cellOptions": {
+                  "type": "auto"
+                },
+                "inspect": false
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": 0
+                  }
+                ]
+              },
+              "unitScale": true
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "x": 12,
+            "y": 46,
+            "w": 12,
+            "h": 4
+          },
+          "id": 135,
+          "options": {
+            "cellHeight": "sm",
+            "footer": {
+              "countRows": false,
+              "fields": "",
+              "reducer": [
+                "sum"
+              ],
+              "show": false
+            },
+            "showHeader": true
+          },
+          "pluginVersion": "10.3.1",
+          "targets": [
+            {
+              "datasource": {
+                "uid": "$datasource"
+              },
+              "expr": "argocd_app_condition{namespace=~\"$namespace\"}",
+              "format": "table",
+              "instant": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Application Conditions",
+          "description": "Requires --metrics-application-conditions flag",
+          "type": "table"
+        },
+        {
+          "id": 140,
+          "title": "Kubectl Retries",
+          "type": "timeseries",
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 50
+          },
+          "datasource": {
+            "uid": "$datasource"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "uid": "$datasource"
+              },
+              "expr": "sum(rate(argocd_kubectl_request_retries_total{namespace=~\"$namespace\"}[$interval])) by (host)",
+              "legendFormat": "{{host}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "linear",
+                "showPoints": "auto"
+              },
+              "unit": "ops",
+              "unitScale": true
+            }
+          }
+        },
+        {
+          "id": 141,
+          "title": "Kubectl Transport Cache",
+          "type": "timeseries",
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 50
+          },
+          "datasource": {
+            "uid": "$datasource"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "uid": "$datasource"
+              },
+              "expr": "sum(argocd_kubectl_transport_cache_entries{namespace=~\"$namespace\"}) by (result)",
+              "legendFormat": "{{result}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "linear",
+                "showPoints": "auto"
+              },
+              "unit": "short",
+              "unitScale": true
+            }
+          }
         }
       ],
       "targets": [
@@ -2495,7 +2627,7 @@
           "gridPos": {
             "h": 8,
             "w": 12,
-            "x": 6,
+            "x": 0,
             "y": 10
           },
           "heatmap": {},
@@ -2554,8 +2686,8 @@
           "fillGradient": 0,
           "gridPos": {
             "h": 8,
-            "w": 6,
-            "x": 18,
+            "w": 12,
+            "x": 12,
             "y": 10
           },
           "hiddenSeries": false,
@@ -3878,6 +4010,196 @@
     },
     {
       "collapsed": true,
+      "datasource": {
+        "uid": "$datasource"
+      },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 10
+      },
+      "id": 137,
+      "panels": [
+        {
+          "id": 136,
+          "title": "OCI Requests",
+          "type": "timeseries",
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 11
+          },
+          "datasource": {
+            "uid": "$datasource"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "uid": "$datasource"
+              },
+              "expr": "sum(rate(argocd_oci_request_total{namespace=~\"$namespace\"}[$interval])) by (repo)",
+              "legendFormat": "{{repo}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "linear",
+                "showPoints": "auto"
+              },
+              "unit": "ops",
+              "unitScale": true
+            }
+          }
+        },
+        {
+          "id": 138,
+          "title": "OCI Failures",
+          "type": "timeseries",
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 11
+          },
+          "datasource": {
+            "uid": "$datasource"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "uid": "$datasource"
+              },
+              "expr": "sum(rate(argocd_oci_test_repo_fail_total{namespace=~\"$namespace\"}[$interval]))",
+              "legendFormat": "Test Repo",
+              "refId": "A"
+            },
+            {
+              "datasource": {
+                "uid": "$datasource"
+              },
+              "expr": "sum(rate(argocd_oci_get_tags_fail_total{namespace=~\"$namespace\"}[$interval]))",
+              "legendFormat": "Get Tags",
+              "refId": "B"
+            },
+            {
+              "datasource": {
+                "uid": "$datasource"
+              },
+              "expr": "sum(rate(argocd_oci_digest_metadata_fail_total{namespace=~\"$namespace\"}[$interval]))",
+              "legendFormat": "Digest Metadata",
+              "refId": "C"
+            },
+            {
+              "datasource": {
+                "uid": "$datasource"
+              },
+              "expr": "sum(rate(argocd_oci_resolve_revision_fail_total{namespace=~\"$namespace\"}[$interval]))",
+              "legendFormat": "Resolve Revision",
+              "refId": "D"
+            },
+            {
+              "datasource": {
+                "uid": "$datasource"
+              },
+              "expr": "sum(rate(argocd_oci_extract_fail_total{namespace=~\"$namespace\"}[$interval]))",
+              "legendFormat": "Extract",
+              "refId": "E"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "linear",
+                "showPoints": "auto"
+              },
+              "unit": "ops",
+              "color": {
+                "mode": "palette-classic"
+              },
+              "unitScale": true
+            },
+            "overrides": []
+          }
+        },
+        {
+          "cards": {},
+          "color": {
+            "cardColor": "#b4ff00",
+            "colorScale": "sqrt",
+            "colorScheme": "interpolateSpectral",
+            "exponent": 0.5,
+            "mode": "spectrum"
+          },
+          "dataFormat": "tsbuckets",
+          "datasource": {
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 24,
+            "x": 0,
+            "y": 19
+          },
+          "heatmap": {},
+          "hideZeroBuckets": false,
+          "highlightCards": true,
+          "id": 139,
+          "legend": {
+            "show": true
+          },
+          "links": [],
+          "options": {},
+          "reverseYBuckets": false,
+          "targets": [
+            {
+              "datasource": {
+                "uid": "$datasource"
+              },
+              "expr": "sum(increase(argocd_oci_request_duration_seconds_bucket{namespace=~\"$namespace\"}[$interval])) by (le)",
+              "format": "heatmap",
+              "instant": false,
+              "intervalFactor": 10,
+              "legendFormat": "{{le}}",
+              "refId": "A"
+            }
+          ],
+          "title": "OCI Latency",
+          "tooltip": {
+            "show": true,
+            "showHistogram": true
+          },
+          "tooltipDecimals": 0,
+          "type": "heatmap",
+          "xAxis": {
+            "show": true
+          },
+          "yAxis": {
+            "format": "s",
+            "logBase": 1,
+            "show": true
+          },
+          "yBucketBound": "auto"
+        }
+      ],
+      "targets": [
+        {
+          "datasource": {
+            "uid": "$datasource"
+          },
+          "refId": "A"
+        }
+      ],
+      "title": "OCI Registry Stats",
+      "type": "row"
+    },
+    {
+      "collapsed": true,
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -5033,6 +5355,41 @@
                 "showPoints": "auto"
               },
               "unit": "ops"
+            }
+          }
+        },
+        {
+          "id": 142,
+          "title": "Proxy Extension Requests",
+          "type": "timeseries",
+          "gridPos": {
+            "h": 8,
+            "w": 24,
+            "x": 0,
+            "y": 48
+          },
+          "datasource": {
+            "uid": "$datasource"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "uid": "$datasource"
+              },
+              "expr": "sum(rate(argocd_proxy_extension_request_total{namespace=~\"$namespace\"}[$interval])) by (extension, status)",
+              "legendFormat": "{{extension}} - {{status}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "linear",
+                "showPoints": "auto"
+              },
+              "unit": "ops",
+              "unitScale": true
             }
           }
         }
