@@ -224,7 +224,7 @@ func BenchmarkMatch_RBACSimulation(b *testing.B) {
 	}
 	text := "proj:team-25/my-app"
 
-	// With memoization: patterns are compiled once
+	// With caching: patterns are compiled once
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		for _, pattern := range patterns {

@@ -55,7 +55,7 @@ func getOrCompile(pattern string, separators ...rune) (glob.Glob, error) {
 }
 
 // Match tries to match a text with a given glob pattern.
-// Compiled glob patterns are memoized for performance.
+// Compiled glob patterns are cached for performance.
 func Match(pattern, text string, separators ...rune) bool {
 	compiled, err := getOrCompile(pattern, separators...)
 	if err != nil {
@@ -67,7 +67,7 @@ func Match(pattern, text string, separators ...rune) bool {
 
 // MatchWithError tries to match a text with a given glob pattern.
 // Returns error if the glob pattern fails to compile.
-// Compiled glob patterns are memoized for performance.
+// Compiled glob patterns are cached for performance.
 func MatchWithError(pattern, text string, separators ...rune) (bool, error) {
 	compiled, err := getOrCompile(pattern, separators...)
 	if err != nil {
