@@ -567,11 +567,13 @@ export const ApplicationsList = (props: RouteComponentProps<any> & {objectListKi
                                                                         {
                                                                             title: 'Sync Apps',
                                                                             iconClassName: 'fa fa-sync',
+                                                                            qeId: 'applications-list-button-sync-apps',
                                                                             action: () => ctx.navigation.goto('.', {syncApps: true}, {replace: true})
                                                                         },
                                                                         {
                                                                             title: 'Refresh Apps',
                                                                             iconClassName: 'fa fa-redo',
+                                                                            qeId: 'applications-list-button-refresh-apps',
                                                                             action: () => ctx.navigation.goto('.', {refreshApps: true}, {replace: true})
                                                                         }
                                                                     ]
@@ -584,7 +586,7 @@ export const ApplicationsList = (props: RouteComponentProps<any> & {objectListKi
                                                                     <h4>No applications available to you just yet</h4>
                                                                     <h5>Create new application to start managing resources in your cluster</h5>
                                                                     <button
-                                                                        qe-id='applications-list-button-create-application'
+                                                                        qe-id='applications-list-noapp-button-create-application'
                                                                         className='argo-button argo-button--base'
                                                                         onClick={() => ctx.navigation.goto('.', {new: JSON.stringify({})}, {replace: true})}>
                                                                         Create application

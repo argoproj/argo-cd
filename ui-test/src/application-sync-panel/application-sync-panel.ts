@@ -4,10 +4,9 @@ import Configuration from '../Configuration';
 import UiTestUtilities from '../UiTestUtilities';
 
 
-export class ApplicationsSyncPanel extends Base {
-    public static readonly BUTTON_SYNCHRONIZE: By = By.xpath('.//button[@qe-id="applications-sync-panel-button-synchronize"]');
-    public static readonly BUTTON_CANCEL: By = By.xpath('.//button[@qe-id="applications-sync-panel-button-cancel"]');
-
+export class ApplicationSyncPanel extends Base {
+    public static readonly BUTTON_SYNCHRONIZE: By = By.xpath('.//button[@qe-id="application-sync-panel-button-synchronize"]');
+    public static readonly BUTTON_CANCEL: By = By.xpath('.//button[@qe-id="application-sync-panel-button-cancel"]');
     public constructor(driver: WebDriver) {
         super(driver);
     }
@@ -18,7 +17,7 @@ export class ApplicationsSyncPanel extends Base {
     public async clickSyncButton() {
         try {
             // Wait until the Synchronize button appears
-            const synchronizeButton = await this.driver.wait(until.elementLocated(ApplicationsSyncPanel.BUTTON_SYNCHRONIZE), Configuration.TEST_TIMEOUT);
+            const synchronizeButton = await this.driver.wait(until.elementLocated(ApplicationSyncPanel.BUTTON_SYNCHRONIZE), Configuration.TEST_TIMEOUT);
             await this.driver.wait(until.elementIsVisible(synchronizeButton), Configuration.TEST_TIMEOUT);
 
             // Check if the sync button is enabled
@@ -30,7 +29,7 @@ export class ApplicationsSyncPanel extends Base {
                 throw e;
             });
             await UiTestUtilities.captureSession(this.driver, "clickSyncButton_after.png")
-            UiTestUtilities.log('Applications Synchronize sliding panel disappeared');
+            UiTestUtilities.log('Synchronize sliding panel disappeared');
         } catch (err: any) {
             throw new Error(err);
         }
@@ -41,12 +40,12 @@ export class ApplicationsSyncPanel extends Base {
          */
         public async clickCancelButton(): Promise<void> {
             try {
-                const cancelButton = await UiTestUtilities.findUiElement(this.driver, ApplicationsSyncPanel.BUTTON_CANCEL);
+                const cancelButton = await UiTestUtilities.findUiElement(this.driver, ApplicationSyncPanel.BUTTON_CANCEL);
                 await cancelButton.click();
 
                 // Wait until the Create Application Sliding Panel disappears
                 await this.driver.wait(until.elementIsNotVisible(cancelButton), Configuration.TEST_SLIDING_PANEL_TIMEOUT).catch((e) => {
-                    UiTestUtilities.logError('The Sync Applications Sliding Panel did not disappear');
+                    UiTestUtilities.logError('The Sync Application Sliding Panel did not disappear');
                     throw e;
                 });
             } catch (err: any) {

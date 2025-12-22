@@ -5,17 +5,17 @@
   "main": "argocd-ui-test",
   "scripts": {
     "compile": "npx tsc",
-    "test": "node out/test001.js",
+    "test": "node out/test_suite.js",
     "pretest": "cp .env out/.env",
     "lint": "tslint -p ."
   },
   "author": "Keith Chong",
   "license": "Apache-2.0",
   "dependencies": {
-    "@types/selenium-webdriver": "^4.1.28",
+    "@types/selenium-webdriver": "^4.35.4",
     "assert": "^2.1.0",
-    "chromedriver": "^136.0.2",
-    "selenium-webdriver": "^4.33.0"
+    "chromedriver": "^143.0.3",
+    "selenium-webdriver": "^4.39.0"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.10",
