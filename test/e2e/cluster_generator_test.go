@@ -48,7 +48,6 @@ func TestSimpleClusterGeneratorExternalNamespace(t *testing.T) {
 		When().
 		CreateClusterSecret("my-secret", "cluster1", "https://kubernetes.default.svc").
 		SwitchToExternalNamespace(utils.ArgoCDExternalNamespace).
-		CreateNamespace(externalNamespace).
 		Create(v1alpha1.ApplicationSet{
 			Spec: v1alpha1.ApplicationSetSpec{
 				Template: v1alpha1.ApplicationSetTemplate{

@@ -61,7 +61,6 @@ func TestSimpleClusterDecisionResourceGeneratorExternalNamespace(t *testing.T) {
 		CreatePlacementDecisionConfigMap("my-configmap").
 		CreatePlacementDecision("my-placementdecision").
 		StatusUpdatePlacementDecision("my-placementdecision", clusterList).
-		CreateNamespace(externalNamespace).
 		SwitchToExternalNamespace(utils.ArgoCDExternalNamespace).
 		Create(v1alpha1.ApplicationSet{
 			Spec: v1alpha1.ApplicationSetSpec{
