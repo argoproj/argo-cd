@@ -20,13 +20,13 @@ import (
 	"encoding/json"
 	"sort"
 
-	"github.com/argoproj/argo-cd/v3/common"
-	"github.com/argoproj/argo-cd/v3/util/security"
 	"github.com/argoproj/gitops-engine/pkg/health"
-
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/util/security"
 )
 
 // SecretRef struct for a reference to a secret key.
@@ -71,7 +71,8 @@ type ApplicationSetSpec struct {
 	Strategy          *ApplicationSetStrategy     `json:"strategy,omitempty" protobuf:"bytes,5,opt,name=strategy"`
 	PreservedFields   *ApplicationPreservedFields `json:"preservedFields,omitempty" protobuf:"bytes,6,opt,name=preservedFields"`
 	GoTemplateOptions []string                    `json:"goTemplateOptions,omitempty" protobuf:"bytes,7,opt,name=goTemplateOptions"`
-	// ApplyNestedSelectors enables selectors defined within the generators of two level-nested matrix or merge generators
+	// ApplyNestedSelectors enables selectors defined within the generators of two level-nested matrix or merge generators.
+	//
 	// Deprecated: This field is ignored, and the behavior is always enabled. The field will be removed in a future
 	// version of the ApplicationSet CRD.
 	ApplyNestedSelectors         bool                            `json:"applyNestedSelectors,omitempty" protobuf:"bytes,8,name=applyNestedSelectors"`

@@ -355,7 +355,8 @@ message ApplicationSetSpec {
 
   repeated string goTemplateOptions = 7;
 
-  // ApplyNestedSelectors enables selectors defined within the generators of two level-nested matrix or merge generators
+  // ApplyNestedSelectors enables selectors defined within the generators of two level-nested matrix or merge generators.
+  //
   // Deprecated: This field is ignored, and the behavior is always enabled. The field will be removed in a future
   // version of the ApplicationSet CRD.
   optional bool applyNestedSelectors = 8;
