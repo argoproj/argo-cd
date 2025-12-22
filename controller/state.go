@@ -134,7 +134,6 @@ type sourceMeta struct {
 	Repo           *v1alpha1.Repository
 	Revision       string
 	SyncedRevision string
-	// другие поля при необходимости
 }
 
 // GetRepoObjs will generate the manifests for the given application delegating the
@@ -288,7 +287,6 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 			app.Status.SourceType != v1alpha1.ApplicationSourceTypeDirectory
 
 		if updateRevisions && repo.Depth == 0 && !source.IsRef() && syncedRevision != "" && syncedRevision != revision && keyManifestGenerateAnnotationExists && keyManifestGenerateAnnotationVal != "" {
-
 			repoRefs := map[string]string{}
 			if app.Spec.HasMultipleSources() && (source.IsHelm() || source.IsHelmOci()) {
 				refRelSources := argo.GetRelatedRefSources(source, sources)
