@@ -21,6 +21,7 @@ import (
 	"sort"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
+	log "github.com/sirupsen/logrus"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -949,36 +950,42 @@ func (a *ApplicationSet) RefreshRequired() bool {
 // 4. Otherwise → Unknown
 func (status *ApplicationSetStatus) CalculateHealth() HealthStatus {
 	if len(status.Conditions) == 0 {
+		log.Debugf("No status conditions found for ApplicationSet")
 		return HealthStatus{Status: health.HealthStatusUnknown}
 	}
+	var (
+		progressing *ApplicationSetCondition
+		healthy     *ApplicationSetCondition
+	)
 
-	// Check for errors first (indicates degraded state)
 	for _, c := range status.Conditions {
-		if c.Type == ApplicationSetConditionErrorOccurred && c.Status == ApplicationSetConditionStatusTrue {
+		if c.Status != ApplicationSetConditionStatusTrue {
+			continue
+		}
+		switch c.Type {
+		case ApplicationSetConditionErrorOccurred:
 			return HealthStatus{
 				Status:  health.HealthStatusDegraded,
 				Message: c.Message,
 			}
+		case ApplicationSetConditionRolloutProgressing:
+			progressing = &c
+		case ApplicationSetConditionResourcesUpToDate:
+			healthy = &c
 		}
 	}
 
-	// Check if rollout is progressing
-	for _, c := range status.Conditions {
-		if c.Type == ApplicationSetConditionRolloutProgressing && c.Status == ApplicationSetConditionStatusTrue {
-			return HealthStatus{
-				Status:  health.HealthStatusProgressing,
-				Message: c.Message,
-			}
+	if progressing != nil {
+		return HealthStatus{
+			Status:  health.HealthStatusProgressing,
+			Message: progressing.Message,
 		}
 	}
 
-	// Check if resources are up to date (healthy state)
-	for _, c := range status.Conditions {
-		if c.Type == ApplicationSetConditionResourcesUpToDate && c.Status == ApplicationSetConditionStatusTrue {
-			return HealthStatus{
-				Status:  health.HealthStatusHealthy,
-				Message: c.Message,
-			}
+	if healthy != nil {
+		return HealthStatus{
+			Status:  health.HealthStatusHealthy,
+			Message: healthy.Message,
 		}
 	}
 
