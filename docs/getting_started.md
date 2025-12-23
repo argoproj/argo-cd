@@ -7,6 +7,14 @@
 
 * Installed [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/) command-line tool.
 * Have a [kubeconfig](https://kubernetes.io/docs/tasks/access-application-cluster/configure-access-multiple-clusters/) file (default location is `~/.kube/config`).
+* !!! note "Windows users"
+    If you are running Argo CD on Windows, ensure the following before continuing:
+
+    - Docker Desktop is installed and **running**
+    - Docker Desktop is configured to use **WSL 2**
+    - WSL 2 is enabled and set as the default version
+
+    Local Kubernetes clusters such as kind, Minikube, or Docker Desktop rely on WSL 2 for Linux containers on Windows.
 * CoreDNS. Can be enabled for microk8s by `microk8s enable dns && microk8s stop && microk8s start`
 
 ## 1. Install Argo CD
