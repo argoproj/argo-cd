@@ -184,7 +184,7 @@ func TestApplicationSetCalculateHealth(t *testing.T) {
 			name:           "no conditions returns unknown",
 			conditions:     []ApplicationSetCondition{},
 			expectedHealth: health.HealthStatusUnknown,
-			expectedMsg:    "",
+			expectedMsg:    "No status conditions found for ApplicationSet",
 		},
 		{
 			name: "error occurred returns degraded",
@@ -252,7 +252,7 @@ func TestApplicationSetCalculateHealth(t *testing.T) {
 				{Type: ApplicationSetConditionParametersGenerated, Status: ApplicationSetConditionStatusTrue, Message: "params ok"},
 			},
 			expectedHealth: health.HealthStatusUnknown,
-			expectedMsg:    "",
+			expectedMsg:    "Waiting for health status to be determined",
 		},
 		{
 			name: "all conditions false returns unknown",
@@ -261,7 +261,7 @@ func TestApplicationSetCalculateHealth(t *testing.T) {
 				{Type: ApplicationSetConditionResourcesUpToDate, Status: ApplicationSetConditionStatusFalse},
 			},
 			expectedHealth: health.HealthStatusUnknown,
-			expectedMsg:    "",
+			expectedMsg:    "Waiting for health status to be determined",
 		},
 	}
 

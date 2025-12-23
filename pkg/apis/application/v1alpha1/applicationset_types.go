@@ -992,7 +992,7 @@ func (status *ApplicationSetStatus) CalculateHealth() HealthStatus {
 
 	return HealthStatus{
 		Status:  health.HealthStatusUnknown,
-		Message: "No status conditions found for ApplicationSet",
+		Message: "Waiting for health status to be determined",
 	}
 }
 
