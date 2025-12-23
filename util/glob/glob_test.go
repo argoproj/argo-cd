@@ -1,6 +1,7 @@
 package glob
 
 import (
+	"errors"
 	"fmt"
 	"sync"
 	"testing"
@@ -11,8 +12,8 @@ import (
 
 // Test helpers - these access internal variables for testing purposes
 
-// clearGlobCache clears the cached glob patterns for testing.
-func clearGlobCache() {
+// resetGlobCacheForTest clears the cached glob patterns for testing.
+func resetGlobCacheForTest() {
 	globCacheLock.Lock()
 	defer globCacheLock.Unlock()
 	globCache.Clear()
@@ -26,8 +27,8 @@ func isPatternCached(pattern string) bool {
 	return ok
 }
 
-// getCacheLen returns the number of cached patterns.
-func getCacheLen() int {
+// globCacheLen returns the number of cached patterns.
+func globCacheLen() int {
 	globCacheLock.Lock()
 	defer globCacheLock.Unlock()
 	return globCache.Len()
@@ -116,7 +117,7 @@ func Test_MatchWithError(t *testing.T) {
 
 func Test_GlobCaching(t *testing.T) {
 	// Clear cache before test
-	clearGlobCache()
+	resetGlobCacheForTest()
 
 	pattern := "test*pattern"
 	text := "testABCpattern"
@@ -138,33 +139,42 @@ func Test_GlobCaching(t *testing.T) {
 
 func Test_GlobCachingConcurrent(t *testing.T) {
 	// Clear cache before test
-	clearGlobCache()
+	resetGlobCacheForTest()
 
 	pattern := "concurrent*test"
 	text := "concurrentABCtest"
 
 	var wg sync.WaitGroup
 	numGoroutines := 100
+	errChan := make(chan error, numGoroutines)
 
 	for i := 0; i < numGoroutines; i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			result := Match(pattern, text)
-			require.True(t, result)
+			if !result {
+				errChan <- errors.New("expected match to return true")
+			}
 		}()
 	}
 
 	wg.Wait()
+	close(errChan)
+
+	// Check for any errors from goroutines
+	for err := range errChan {
+		t.Error(err)
+	}
 
 	// Verify pattern is cached
 	require.True(t, isPatternCached(pattern))
-	require.Equal(t, 1, getCacheLen(), "should only have one cached entry for the pattern")
+	require.Equal(t, 1, globCacheLen(), "should only have one cached entry for the pattern")
 }
 
 func Test_GlobCacheLRUEviction(t *testing.T) {
 	// Clear cache before test
-	clearGlobCache()
+	resetGlobCacheForTest()
 
 	// Fill cache beyond DefaultGlobCacheSize
 	for i := 0; i < DefaultGlobCacheSize+100; i++ {
@@ -173,10 +183,36 @@ func Test_GlobCacheLRUEviction(t *testing.T) {
 	}
 
 	// Cache size should be limited to DefaultGlobCacheSize
-	require.Equal(t, DefaultGlobCacheSize, getCacheLen(), "cache size should be limited to DefaultGlobCacheSize")
+	require.Equal(t, DefaultGlobCacheSize, globCacheLen(), "cache size should be limited to DefaultGlobCacheSize")
+
+	// The oldest patterns should be evicted
+	oldest := fmt.Sprintf("pattern-%d-*", 0)
+	require.False(t, isPatternCached(oldest), "oldest pattern should be evicted")
 
 	// The most recently used patterns should still be cached
 	require.True(t, isPatternCached(fmt.Sprintf("pattern-%d-*", DefaultGlobCacheSize+99)), "most recent pattern should be cached")
+}
+
+func Test_InvalidGlobNotCached(t *testing.T) {
+	// Clear cache before test
+	resetGlobCacheForTest()
+
+	invalidPattern := "e[[a*"
+	text := "test"
+
+	// Match should return false for invalid pattern
+	result := Match(invalidPattern, text)
+	require.False(t, result)
+
+	// Invalid patterns should NOT be cached
+	require.False(t, isPatternCached(invalidPattern), "invalid pattern should not be cached")
+
+	// Also test with MatchWithError
+	_, err := MatchWithError(invalidPattern, text)
+	require.Error(t, err)
+
+	// Still should not be cached after MatchWithError
+	require.False(t, isPatternCached(invalidPattern), "invalid pattern should not be cached after MatchWithError")
 }
 
 // BenchmarkMatch_WithCache benchmarks Match with caching (cache hit)
