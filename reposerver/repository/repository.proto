@@ -267,26 +267,32 @@ message GitDirectoriesResponse {
     repeated string paths = 1;
 }
 
-message UpdateRevisionForPathsRequest {
+message SourceMeta {
     github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.Repository repo = 1;
+    string revision = 2;
+    string syncedRevision = 3;
+}
 
-    string appLabelKey = 2;
-    string appName = 3;
-    string namespace = 4;
-    github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.ApplicationSource applicationSource = 5;
-    string trackingMethod = 6;
-    map<string, github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.RefTarget> refSources = 7;
-    string kubeVersion = 8;
-    repeated string apiVersions = 9;
-    bool hasMultipleSources = 10;
+message UpdateRevisionForPathsRequest {
+    string appLabelKey = 1;
+    string appName = 2;
+    string namespace = 3;
+    github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.ApplicationSource applicationSource = 4;
+    string trackingMethod = 5;
+    map<string, github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.RefTarget> refSources = 6;
+    string kubeVersion = 7;
+    repeated string apiVersions = 8;
+    bool hasMultipleSources = 9;
 
-    string syncedRevision = 11;
-    string revision = 12;
-    repeated string paths = 13;
+    string syncedRevision = 10;
+    string revision = 11;
+    repeated string paths = 12;
 
-    bool noRevisionCache = 14;
-    string installationID = 15;
-    map<string, string> cacheRepoRefs = 16;
+    bool noRevisionCache = 13;
+    string installationID = 14;
+    // SourceMetas contains metadata for all sources to check (main source and ref sources)
+    // Each SourceMeta contains repository with credentials, revision, and syncedRevision
+    repeated SourceMeta sourceMetas = 15;
 }
 
 message UpdateRevisionForPathsResponse {
@@ -295,24 +301,10 @@ message UpdateRevisionForPathsResponse {
     // that new manifests should be generated.
     bool updated = 1;
     string revision = 2;
-}
-
-message CheckChangesForPathsRequest {
-    github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.Repository repo = 1;
-
-    string revision = 2;
-    string syncedRevision = 3;
-
-    repeated string paths = 4;
-    bool noRevisionCache = 5;
-}
-
-message CheckChangesForPathsResponse {
-    // Changes indicates whether any changes were detected in the provided paths. If false, it means that the source
-    // has changes. If true, it means that there are relevant changes in the repo files and
-    // that new manifests should be generated.
-    bool changes = 1;
-    string revision = 2;
+    // Changes indicates whether any changes were detected in the provided paths between syncedRevision and revision.
+    // If true, it means that there are relevant changes in the repo files and that new manifests should be generated.
+    // If false, it means no changes were detected and the cache was updated.
+    bool changes = 3;
 }
 
 // ManifestService
@@ -380,9 +372,5 @@ service RepoServerService {
 
     // UpdateRevisionForPaths will compare two revisions and update the cache with the new revision if no changes are detected in the provided paths
     rpc UpdateRevisionForPaths(UpdateRevisionForPathsRequest) returns (UpdateRevisionForPathsResponse) {
-    }
-
-    // CheckChangesForPaths will compare 2 revision for git repo and get the result
-    rpc CheckChangesForPaths(CheckChangesForPathsRequest) returns (CheckChangesForPathsResponse){
     }
 }

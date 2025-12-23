@@ -561,26 +561,6 @@ func GetRefSources(ctx context.Context, sources argoappv1.ApplicationSources, pr
 
 // GetRelatedRefAppSources searches for an ApplicationSources within the provided list
 // that references the given sourceRef via Helm value files.
-func GetRelatedRefAppSources(sourceRef argoappv1.ApplicationSource, sources argoappv1.ApplicationSources) argoappv1.ApplicationSources {
-	rSources := make(argoappv1.ApplicationSources, 0)
-
-	if !sourceRef.IsRef() {
-		return rSources
-	}
-
-	for _, source := range sources {
-		if source.IsHelm() && len(source.Helm.ValueFiles) > 0 {
-			for _, v := range source.Helm.ValueFiles {
-				refVar := strings.Split(v, "/")[0]
-				if refVar == "$"+sourceRef.Ref {
-					rSources = append(rSources, source)
-				}
-			}
-		}
-	}
-	return rSources
-}
-
 func GetRelatedRefSources(source argoappv1.ApplicationSource, sources argoappv1.ApplicationSources) argoappv1.ApplicationSources {
 	rSources := make(argoappv1.ApplicationSources, 0)
 

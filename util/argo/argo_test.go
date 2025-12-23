@@ -2079,7 +2079,7 @@ func TestGetRelatedRefAppSource(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			resSources := GetRelatedRefAppSources(tt.sourceRef, tt.sources)
+			resSources := GetRelatedRefSources(tt.sourceRef, tt.sources)
 			assert.Equal(t, tt.result, resSources)
 		})
 	}

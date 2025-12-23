@@ -3025,42 +3025,30 @@ func (s *Service) GetGitDirectories(_ context.Context, request *apiclient.GitDir
 	}, nil
 }
 
-func (s *Service) CheckChangesForPaths(_ context.Context, request *apiclient.CheckChangesForPathsRequest) (*apiclient.CheckChangesForPathsResponse, error) {
-	revision, hasChanges, err := s.gitSourceHasChanges(request.Repo, request.Revision, request.SyncedRevision, request.Paths, request.NoRevisionCache)
-	if err != nil {
-		return nil, err
-	}
-	return &apiclient.CheckChangesForPathsResponse{
-		Changes:  hasChanges,
-		Revision: revision,
-	}, err
-}
-
-func (s *Service) gitSourceHasChanges(repo *v1alpha1.Repository, revision, syncedRevision string, refreshPaths []string, noRevisionCache bool) (string, bool, error) {
+func (s *Service) gitSourceHasChanges(repo *v1alpha1.Repository, revision, syncedRevision string, refreshPaths []string, noRevisionCache bool, gitClientOpts git.ClientOpts) (string, string, bool, error) {
 	if repo == nil {
-		return revision, true, status.Error(codes.InvalidArgument, "must pass a valid repo")
+		return revision, syncedRevision, true, status.Error(codes.InvalidArgument, "must pass a valid repo")
 	}
 
 	if len(refreshPaths) == 0 {
 		// Always refresh if path is not specified
-		return revision, true, nil
+		return revision, syncedRevision, true, nil
 	}
 
-	gitClientOpts := git.WithCache(s.cache, !noRevisionCache)
 	gitClient, revision, err := s.newClientResolveRevision(repo, revision, gitClientOpts)
 	if err != nil {
-		return revision, true, status.Errorf(codes.Internal, "unable to resolve git revision %s: %v", revision, err)
+		return revision, syncedRevision, true, status.Errorf(codes.Internal, "unable to resolve git revision %s: %v", revision, err)
 	}
 
 	syncedRevision, err = gitClient.LsRemote(syncedRevision)
 	if err != nil {
 		s.metricsServer.IncGitLsRemoteFail(gitClient.Root(), revision)
-		return revision, true, status.Errorf(codes.Internal, "unable to resolve git revision %s: %v", revision, err)
+		return revision, syncedRevision, true, status.Errorf(codes.Internal, "unable to resolve git revision %s: %v", revision, err)
 	}
 
 	// No need to compare if it is the same revision
 	if revision == syncedRevision {
-		return revision, true, nil
+		return revision, syncedRevision, false, nil
 	}
 
 	s.metricsServer.IncPendingRepoRequest(repo.Repo)
@@ -3070,17 +3058,17 @@ func (s *Service) gitSourceHasChanges(repo *v1alpha1.Repository, revision, synce
 		return s.checkoutRevision(gitClient, revision, false, 0)
 	})
 	if err != nil {
-		return revision, true, status.Errorf(codes.Internal, "unable to checkout git repo %s with revision %s: %v", repo.Repo, revision, err)
+		return revision, syncedRevision, true, status.Errorf(codes.Internal, "unable to checkout git repo %s with revision %s: %v", repo.Repo, revision, err)
 	}
 	defer utilio.Close(closer)
 
 	if err := s.fetch(gitClient, []string{syncedRevision}); err != nil {
-		return revision, true, status.Errorf(codes.Internal, "unable to fetch git repo %s with syncedRevisions %s: %v", repo.Repo, syncedRevision, err)
+		return revision, syncedRevision, true, status.Errorf(codes.Internal, "unable to fetch git repo %s with syncedRevisions %s: %v", repo.Repo, syncedRevision, err)
 	}
 
 	files, err := gitClient.ChangedFiles(syncedRevision, revision)
 	if err != nil {
-		return revision, true, status.Errorf(codes.Internal, "unable to get changed files for repo %s with revision %s: %v", repo.Repo, revision, err)
+		return revision, syncedRevision, true, status.Errorf(codes.Internal, "unable to get changed files for repo %s with revision %s: %v", repo.Repo, revision, err)
 	}
 
 	changed := false
@@ -3088,7 +3076,7 @@ func (s *Service) gitSourceHasChanges(repo *v1alpha1.Repository, revision, synce
 		changed = apppathutil.AppFilesHaveChanged(refreshPaths, files)
 	}
 
-	return revision, changed, nil
+	return revision, syncedRevision, changed, nil
 }
 
 // UpdateRevisionForPaths compares two git revisions and checks if the files in the given paths have changed
@@ -3099,55 +3087,83 @@ func (s *Service) UpdateRevisionForPaths(_ context.Context, request *apiclient.U
 	logCtx := log.WithFields(log.Fields{"application": request.AppName, "appNamespace": request.Namespace})
 	gitClientOpts := git.WithCache(s.cache, !request.NoRevisionCache)
 
-	err := s.updateCachedRevision(logCtx, request.SyncedRevision, request.Revision, request, gitClientOpts)
+	// Check for changes in all sources from SourceMetas (main source and ref sources)
+	// Store resolved revisions for cache update
+	newRepoRefs := make(map[string]string)
+	oldRepoRefs := make(map[string]string)
+	rRevision := request.Revision
+
+	if len(request.GetPaths()) == 0 {
+		// Always refresh if path is not specified
+		return &apiclient.UpdateRevisionForPathsResponse{}, nil
+	}
+
+	if len(request.SourceMetas) == 0 {
+		return &apiclient.UpdateRevisionForPathsResponse{}, nil
+	}
+
+	for _, sourceMeta := range request.SourceMetas {
+		if sourceMeta.Repo == nil {
+			return nil, status.Errorf(codes.InvalidArgument, "must pass a valid repo")
+		}
+
+		// Check if there are changes in this source
+		resolvedRevision, syncedRevision, sourceHasChanges, err := s.gitSourceHasChanges(sourceMeta.Repo, sourceMeta.Revision, sourceMeta.SyncedRevision, request.GetPaths(), request.NoRevisionCache, gitClientOpts)
+		if err != nil {
+			return nil, err
+		}
+
+		rRevision = resolvedRevision
+
+		// case when source doesn't have changes because revision is the same
+		if !sourceHasChanges && resolvedRevision == syncedRevision {
+			return &apiclient.UpdateRevisionForPathsResponse{Revision: resolvedRevision}, nil
+		}
+
+		if sourceHasChanges {
+			return &apiclient.UpdateRevisionForPathsResponse{
+				Revision: resolvedRevision,
+				Updated:  false,
+				Changes:  true,
+			}, nil
+		}
+
+		// Store resolved revision for cache update
+		normalizedURL := git.NormalizeGitURL(sourceMeta.Repo.Repo)
+		newRepoRefs[normalizedURL] = resolvedRevision
+		oldRepoRefs[normalizedURL] = syncedRevision
+	}
+
+	// No changes detected, update the cache using resolved revisions
+	err := s.updateCachedRevision(logCtx, request.SyncedRevision, request.Revision, request, oldRepoRefs, newRepoRefs, gitClientOpts)
 	if err != nil {
 		// Only warn with the error, no need to block anything if there is a caching error.
-		logCtx.Warnf("error updating cached revision for source %s with revision %s: %v", request.ApplicationSource.RepoURL, request.Revision, err)
+		logCtx.Warnf("error updating cached revision for source %s with revision %s: %v", request.ApplicationSource.RepoURL, rRevision, err)
 		return &apiclient.UpdateRevisionForPathsResponse{
-			Revision: request.Revision,
+			Revision: rRevision,
 			Updated:  false,
-		}, err
+			Changes:  false,
+		}, nil
 	}
 
 	return &apiclient.UpdateRevisionForPathsResponse{
-		Revision: request.Revision,
+		Revision: rRevision,
 		Updated:  true,
+		Changes:  false,
 	}, nil
 }
 
-func (s *Service) updateCachedRevision(logCtx *log.Entry, oldRev string, newRev string, request *apiclient.UpdateRevisionForPathsRequest, gitClientOpts git.ClientOpts) error {
-	oldRepoRefs := make(map[string]string)
-	newRepoRefs := make(map[string]string)
-
-	if request.HasMultipleSources && request.ApplicationSource.Helm != nil {
-		var err error
-		repoRefs, err := resolveReferencedSources(true, request.ApplicationSource.Helm, request.RefSources, s.newClientResolveRevision, gitClientOpts)
-		if err != nil {
-			return fmt.Errorf("failed to get repo refs for application %s in repo %s from revision %s: %w", request.AppName, request.GetRepo().Repo, request.Revision, err)
-		}
-
-		// Update revision in refSource
-		for normalizedURL := range repoRefs {
-			if _, ok := request.CacheRepoRefs[normalizedURL]; ok {
-				oldRepoRefs[normalizedURL] = request.CacheRepoRefs[normalizedURL]
-			} else {
-				oldRepoRefs[normalizedURL] = oldRev
-			}
-
-			newRepoRefs[normalizedURL] = newRev
-		}
-	}
-
+func (s *Service) updateCachedRevision(logCtx *log.Entry, oldRev string, newRev string, request *apiclient.UpdateRevisionForPathsRequest, oldRepoRefs map[string]string, newRepoRefs map[string]string, gitClientOpts git.ClientOpts) error {
 	err := s.cache.SetNewRevisionManifests(oldRev, newRev, request.ApplicationSource, request.RefSources, request, request.Namespace, request.TrackingMethod, request.AppLabelKey, request.AppName, oldRepoRefs, newRepoRefs, request.InstallationID)
 	if err != nil {
 		if errors.Is(err, cache.ErrCacheMiss) {
-			logCtx.Debugf("manifest cache miss during comparison for application %s in repo %s from revision %s", request.AppName, request.GetRepo().Repo, oldRev)
-			return fmt.Errorf("manifest cache miss during comparison for application %s in repo %s from revision %s", request.AppName, request.GetRepo().Repo, oldRev)
+			logCtx.Debugf("manifest cache miss during comparison for application %s from revision %s", request.AppName, oldRev)
+			return fmt.Errorf("manifest cache miss during comparison for application %s from revision %s", request.AppName, oldRev)
 		}
 		return fmt.Errorf("manifest cache move error for %s: %w", request.AppName, err)
 	}
 
-	logCtx.Debugf("manifest cache updated for application %s in repo %s from revision %s to revision %s", request.AppName, request.GetRepo().Repo, oldRev, newRev)
+	logCtx.Debugf("manifest cache updated for application %s from revision %s to revision %s", request.AppName, oldRev, newRev)
 	return nil
 }
 
