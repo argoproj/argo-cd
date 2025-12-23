@@ -21,7 +21,6 @@ import (
 	"sort"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
-	log "github.com/sirupsen/logrus"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -950,8 +949,10 @@ func (a *ApplicationSet) RefreshRequired() bool {
 // 4. Otherwise → Unknown
 func (status *ApplicationSetStatus) CalculateHealth() HealthStatus {
 	if len(status.Conditions) == 0 {
-		log.Debugf("No status conditions found for ApplicationSet")
-		return HealthStatus{Status: health.HealthStatusUnknown}
+		return HealthStatus{
+			Status:  health.HealthStatusUnknown,
+			Message: "No status conditions found for ApplicationSet",
+		}
 	}
 	var (
 		progressing *ApplicationSetCondition
@@ -989,7 +990,10 @@ func (status *ApplicationSetStatus) CalculateHealth() HealthStatus {
 		}
 	}
 
-	return HealthStatus{Status: health.HealthStatusUnknown}
+	return HealthStatus{
+		Status:  health.HealthStatusUnknown,
+		Message: "No status conditions found for ApplicationSet",
+	}
 }
 
 // SetConditions updates the applicationset status conditions for a subset of evaluated types.
