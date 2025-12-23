@@ -76,6 +76,30 @@ that runs before all other resources. The `argocd.argoproj.io/sync-wave` annotat
 	  annotations:
 	    argocd.argoproj.io/sync-wave: "5"
 
+# Sync Waves Groups & Dependencies
+
+The wave groups allow to group resources belonging to a same component (example: Kafka, MongoDB, FrontEnd, ...). Hooks and
+resources are assigned to wave group "Default" by default. The `argocd.argoproj.io/sync-wave-group` annotation assign resource to a
+wave group:
+
+	metadata:
+	  annotations:
+	    argocd.argoproj.io/sync-wave: "5"
+	    argocd.argoproj.io/sync-wave-group: "2"
+
+It is also possible to define dependencies between waves groups, if you want a group of resources to be synced before another group.
+By default, hooks and resources have no dependencies. The `argocd.argoproj.io/sync-wave-group-dependencies` annotation defines the
+wave groups that need to be synced before a resource can:
+
+	metadata:
+	  annotations:
+	    argocd.argoproj.io/sync-wave: "5"
+	    argocd.argoproj.io/sync-wave-group: "2"
+	    argocd.argoproj.io/sync-wave-group-dependencies "0,1"
+
+In the previous example, a resource belonging to wave group "MyCustomComponent" is defined. This resource will be synced only when
+all resources from wave groups "Kafka" and "FrontEnd" has been synced.
+
 # Sync Options
 
 The sync options allows customizing the synchronization of selected resources. The options are specified using the
@@ -90,6 +114,7 @@ How Does It Work Together?
 Syncing process orders the resources in the following precedence:
 
 - The phase
+- The group with respect to group dependencies
 - The wave they are in (lower values first)
 - By kind (e.g. namespaces first)
 - By name
