@@ -7,10 +7,11 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
-	"github.com/stretchr/testify/require"
 	"math/big"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 func generateTestCert(t *testing.T, cn string) string {
