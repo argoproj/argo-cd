@@ -338,7 +338,7 @@ func Test_nativeOCIClient_ResolveRevision(t *testing.T) {
 
 	type fields struct {
 		repoURL           string
-		repo              oras.ReadOnlyTarget
+		repo              oras.ReadOnlyGraphTarget
 		tagsFunc          func(context.Context, string) (tags []string, err error)
 		allowedMediaTypes []string
 	}
