@@ -1,6 +1,7 @@
 package app
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -93,8 +94,15 @@ func GivenWithSameState(t *testing.T) *Context {
 	}
 }
 
+// AppName returns the unique application name for the test context.
+// Unique application names protects from potential conflicts between test run
+// caused by the tracking annotation on existing objects
 func (c *Context) AppName() string {
-	return c.name
+	suffix := "-" + fixture.ShortId()
+	if strings.HasSuffix(c.name, suffix) {
+		return c.name
+	}
+	return fixture.DnsFriendly(c.name, suffix)
 }
 
 func (c *Context) AppQualifiedName() string {

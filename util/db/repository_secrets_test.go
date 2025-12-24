@@ -11,13 +11,9 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes/fake"
-	k8stesting "k8s.io/client-go/testing"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	appsv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -39,8 +35,8 @@ func TestSecretsRepositoryBackend_CreateRepository(t *testing.T) {
 		InsecureIgnoreHostKey: false,
 		EnableLFS:             true,
 	}
-	setupWithK8sObjects := func(objects ...runtime.Object) *fixture {
-		clientset := getClientset(objects...)
+	setup := func() *fixture {
+		clientset := getClientset()
 		settingsMgr := settings.NewSettingsManager(t.Context(), clientset, testNamespace)
 		repoBackend := &secretsRepositoryBackend{db: &db{
 			ns:            testNamespace,
@@ -55,7 +51,7 @@ func TestSecretsRepositoryBackend_CreateRepository(t *testing.T) {
 	t.Run("will create repository successfully", func(t *testing.T) {
 		// given
 		t.Parallel()
-		f := setupWithK8sObjects()
+		f := setup()
 
 		// when
 		output, err := f.repoBackend.CreateRepository(t.Context(), repo)
@@ -85,21 +81,30 @@ func TestSecretsRepositoryBackend_CreateRepository(t *testing.T) {
 	t.Run("will return proper error if secret does not have expected label", func(t *testing.T) {
 		// given
 		t.Parallel()
-		secret := &corev1.Secret{}
-		s := secretsRepositoryBackend{}
-		updatedSecret := s.repositoryToSecret(repo, secret)
-		delete(updatedSecret.Labels, common.LabelKeySecretType)
-		f := setupWithK8sObjects(updatedSecret)
-		f.clientSet.ReactionChain = nil
-		f.clientSet.AddReactor("create", "secrets", func(_ k8stesting.Action) (handled bool, ret runtime.Object, err error) {
-			gr := schema.GroupResource{
-				Group:    "v1",
-				Resource: "secrets",
-			}
-			return true, nil, apierrors.NewAlreadyExists(gr, "already exists")
-		})
+		f := setup()
 
 		// when
+		_, err := f.repoBackend.CreateRepository(t.Context(), repo)
+
+		// then
+		require.NoError(t, err)
+
+		// given - remove the label from the secret
+		secret, err := f.clientSet.CoreV1().Secrets(testNamespace).Get(
+			t.Context(),
+			RepoURLToSecretName(repoSecretPrefix, repo.Repo, ""),
+			metav1.GetOptions{},
+		)
+		require.NoError(t, err)
+		delete(secret.Labels, common.LabelKeySecretType)
+		_, err = f.clientSet.CoreV1().Secrets(testNamespace).Update(t.Context(), secret, metav1.UpdateOptions{})
+		require.NoError(t, err)
+
+		// Resync informers to ensure the cache reflects the updated secret
+		err = f.repoBackend.db.settingsMgr.ResyncInformers()
+		require.NoError(t, err)
+
+		// when - try to create the same repository again
 		output, err := f.repoBackend.CreateRepository(t.Context(), repo)
 
 		// then
@@ -107,41 +112,20 @@ func TestSecretsRepositoryBackend_CreateRepository(t *testing.T) {
 		assert.Nil(t, output)
 		status, ok := status.FromError(err)
 		assert.True(t, ok)
-		assert.Equal(t, codes.InvalidArgument, status.Code())
+		assert.Equal(t, codes.InvalidArgument, status.Code(), "got unexpected error: %v", err)
 	})
-	t.Run("will return proper error if secret already exists", func(t *testing.T) {
+	t.Run("will return proper error if secret already exists and does have the proper label", func(t *testing.T) {
 		// given
 		t.Parallel()
-		secName := RepoURLToSecretName(repoSecretPrefix, repo.Repo, "")
-		secret := &corev1.Secret{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       "Secret",
-				APIVersion: "v1",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      secName,
-				Namespace: "default",
-			},
-		}
-		s := secretsRepositoryBackend{}
-		updatedSecret := s.repositoryToSecret(repo, secret)
-		f := setupWithK8sObjects(updatedSecret)
-		f.clientSet.ReactionChain = nil
-		f.clientSet.WatchReactionChain = nil
-		f.clientSet.AddReactor("create", "secrets", func(_ k8stesting.Action) (handled bool, ret runtime.Object, err error) {
-			gr := schema.GroupResource{
-				Group:    "v1",
-				Resource: "secrets",
-			}
-			return true, nil, apierrors.NewAlreadyExists(gr, "already exists")
-		})
-		watcher := watch.NewFakeWithChanSize(1, true)
-		watcher.Add(updatedSecret)
-		f.clientSet.AddWatchReactor("secrets", func(_ k8stesting.Action) (handled bool, ret watch.Interface, err error) {
-			return true, watcher, nil
-		})
+		f := setup()
 
 		// when
+		_, err := f.repoBackend.CreateRepository(t.Context(), repo)
+
+		// then
+		require.NoError(t, err)
+
+		// when - try to create the same repository again
 		output, err := f.repoBackend.CreateRepository(t.Context(), repo)
 
 		// then
@@ -149,7 +133,7 @@ func TestSecretsRepositoryBackend_CreateRepository(t *testing.T) {
 		assert.Nil(t, output)
 		status, ok := status.FromError(err)
 		assert.True(t, ok)
-		assert.Equal(t, codes.AlreadyExists, status.Code())
+		assert.Equal(t, codes.AlreadyExists, status.Code(), "got unexpected error: %v", err)
 	})
 }
 

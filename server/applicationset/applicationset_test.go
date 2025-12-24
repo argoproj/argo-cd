@@ -15,6 +15,7 @@ import (
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
 	k8scache "k8s.io/client-go/tools/cache"
 
@@ -52,8 +53,16 @@ func fakeCluster() *appsv1.Cluster {
 	}
 }
 
-// return an ApplicationServiceServer which returns fake data
+// newTestAppSetServer returns an ApplicationSetServer with fake data for testing
 func newTestAppSetServer(t *testing.T, objects ...client.Object) *Server {
+	t.Helper()
+	server, _ := newTestAppSetServerWithK8sClient(t, objects...)
+	return server
+}
+
+// newTestAppSetServerWithK8sClient returns an ApplicationSetServer and the kubernetes clientset for testing.
+// Use this variant when you need to create kubernetes resources (e.g., Events) after server creation.
+func newTestAppSetServerWithK8sClient(t *testing.T, objects ...client.Object) (*Server, kubernetes.Interface) {
 	t.Helper()
 	f := func(enf *rbac.Enforcer) {
 		_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
@@ -63,7 +72,7 @@ func newTestAppSetServer(t *testing.T, objects ...client.Object) *Server {
 	return newTestAppSetServerWithEnforcerConfigure(t, f, scopedNamespaces, objects...)
 }
 
-// return an ApplicationServiceServer which returns fake data
+// newTestNamespacedAppSetServer returns an ApplicationSetServer with fake data for testing with namespaced scope
 func newTestNamespacedAppSetServer(t *testing.T, objects ...client.Object) *Server {
 	t.Helper()
 	f := func(enf *rbac.Enforcer) {
@@ -71,10 +80,11 @@ func newTestNamespacedAppSetServer(t *testing.T, objects ...client.Object) *Serv
 		enf.SetDefaultRole("role:admin")
 	}
 	scopedNamespaces := "argocd"
-	return newTestAppSetServerWithEnforcerConfigure(t, f, scopedNamespaces, objects...)
+	server, _ := newTestAppSetServerWithEnforcerConfigure(t, f, scopedNamespaces, objects...)
+	return server
 }
 
-func newTestAppSetServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforcer), namespace string, objects ...client.Object) *Server {
+func newTestAppSetServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforcer), namespace string, objects ...client.Object) (*Server, kubernetes.Interface) {
 	t.Helper()
 	kubeclientset := fake.NewClientset(&corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
@@ -179,7 +189,7 @@ func newTestAppSetServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforce
 		true,
 		testEnableEventList,
 	)
-	return server.(*Server)
+	return server.(*Server), kubeclientset
 }
 
 func newTestAppSet(opts ...func(appset *appsv1.ApplicationSet)) *appsv1.ApplicationSet {
@@ -702,6 +712,106 @@ func TestResourceTree(t *testing.T) {
 
 		_, err := appSetServer.ResourceTree(t.Context(), &appsetQuery)
 		assert.EqualError(t, err, "namespace 'NOT-ALLOWED' is not permitted")
+	})
+}
+
+func TestListResourceEvents(t *testing.T) {
+	appSet1 := newTestAppSet(func(appset *appsv1.ApplicationSet) {
+		appset.Name = "AppSet1"
+		appset.UID = "test-uid-123"
+	})
+
+	appSet2 := newTestAppSet(func(appset *appsv1.ApplicationSet) {
+		appset.Name = "AppSet2"
+	})
+
+	t.Run("ListResourceEvents in default namespace", func(t *testing.T) {
+		appSetServer := newTestAppSetServer(t, appSet1, appSet2)
+
+		appsetQuery := applicationset.ApplicationSetGetQuery{Name: "AppSet1"}
+
+		res, err := appSetServer.ListResourceEvents(t.Context(), &appsetQuery)
+		require.NoError(t, err)
+		// No events exist in the fake client, so we expect an empty list
+		assert.Empty(t, res.Items)
+	})
+
+	t.Run("ListResourceEvents in named namespace", func(t *testing.T) {
+		appSetServer := newTestAppSetServer(t, appSet1, appSet2)
+
+		appsetQuery := applicationset.ApplicationSetGetQuery{Name: "AppSet1", AppsetNamespace: testNamespace}
+
+		res, err := appSetServer.ListResourceEvents(t.Context(), &appsetQuery)
+		require.NoError(t, err)
+		assert.Empty(t, res.Items)
+	})
+
+	t.Run("ListResourceEvents in not allowed namespace", func(t *testing.T) {
+		appSetServer := newTestAppSetServer(t, appSet1, appSet2)
+
+		appsetQuery := applicationset.ApplicationSetGetQuery{Name: "AppSet1", AppsetNamespace: "NOT-ALLOWED"}
+
+		_, err := appSetServer.ListResourceEvents(t.Context(), &appsetQuery)
+		assert.EqualError(t, err, "namespace 'NOT-ALLOWED' is not permitted")
+	})
+
+	t.Run("ListResourceEvents for non-existent appset", func(t *testing.T) {
+		appSetServer := newTestAppSetServer(t, appSet1, appSet2)
+
+		appsetQuery := applicationset.ApplicationSetGetQuery{Name: "DoesNotExist"}
+
+		_, err := appSetServer.ListResourceEvents(t.Context(), &appsetQuery)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "error getting ApplicationSet")
+	})
+
+	t.Run("ListResourceEvents with events returns non-empty list", func(t *testing.T) {
+		appSetServer, kubeclientset := newTestAppSetServerWithK8sClient(t, appSet1, appSet2)
+
+		// Create events after server creation using the kubeclientset
+		_, err := kubeclientset.CoreV1().Events(testNamespace).Create(t.Context(), &corev1.Event{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "appset1-event-1",
+				Namespace: testNamespace,
+			},
+			InvolvedObject: corev1.ObjectReference{
+				Name:      "AppSet1",
+				Namespace: testNamespace,
+				UID:       "test-uid-123",
+			},
+			Reason:  "Created",
+			Message: "ApplicationSet created successfully",
+			Type:    corev1.EventTypeNormal,
+		}, metav1.CreateOptions{})
+		require.NoError(t, err)
+
+		_, err = kubeclientset.CoreV1().Events(testNamespace).Create(t.Context(), &corev1.Event{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "appset1-event-2",
+				Namespace: testNamespace,
+			},
+			InvolvedObject: corev1.ObjectReference{
+				Name:      "AppSet1",
+				Namespace: testNamespace,
+				UID:       "test-uid-123",
+			},
+			Reason:  "Updated",
+			Message: "ApplicationSet updated successfully",
+			Type:    corev1.EventTypeNormal,
+		}, metav1.CreateOptions{})
+		require.NoError(t, err)
+
+		appsetQuery := applicationset.ApplicationSetGetQuery{Name: "AppSet1"}
+
+		res, err := appSetServer.ListResourceEvents(t.Context(), &appsetQuery)
+		require.NoError(t, err)
+		assert.NotEmpty(t, res.Items)
+		assert.Len(t, res.Items, 2)
+
+		// Verify the returned events have the expected content
+		eventNames := []string{res.Items[0].Name, res.Items[1].Name}
+		assert.Contains(t, eventNames, "appset1-event-1")
+		assert.Contains(t, eventNames, "appset1-event-2")
 	})
 }
 

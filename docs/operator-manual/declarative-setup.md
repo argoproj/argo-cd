@@ -1368,7 +1368,7 @@ data:
 
 ## Resource Custom Labels
 
-Custom Labels configured with `resource.customLabels` (comma separated string) will be displayed in the UI (for any resource that defines them).
+Custom Labels configured with `resource.customLabels` (comma separated string) will be displayed in the UI (for any resource that defines them). Note that this requires a restart to the Argo CD Application Controller to take effect.
 
 ## Labels on Application Events
 
@@ -1415,3 +1415,35 @@ stored at [argoproj/argoproj-deployments](https://github.com/argoproj/argoproj-d
 
 > [!NOTE]
 > You will need to sign-in using your GitHub account to get access to [https://cd.apps.argoproj.io](https://cd.apps.argoproj.io)
+
+### Server-Side Apply Requirement
+
+When managing Argo CD with Argo CD, you **must** enable the `ServerSideApply=true` sync option. See the [getting started guide](../getting_started.md#1-install-argo-cd) for details on why server-side apply is required.
+
+Example Application for self-managed Argo CD:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: argocd
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/argoproj/argo-cd
+    path: manifests/cluster-install
+    targetRevision: stable
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - ServerSideApply=true
+```
+
+> [!NOTE]
+> To customize Argo CD deployments, use Kustomize patches in your configuration repository rather than manually modifying the live resources. See the [sync options documentation](../user-guide/sync-options.md#server-side-apply) for details on field ownership behavior.

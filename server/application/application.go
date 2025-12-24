@@ -2455,7 +2455,7 @@ func (s *Server) TerminateOperation(ctx context.Context, termOpReq *application.
 		}
 		log.Warnf("failed to set operation for app %q due to update conflict. retrying again...", *termOpReq.Name)
 		time.Sleep(100 * time.Millisecond)
-		_, err = s.appclientset.ArgoprojV1alpha1().Applications(appNs).Get(ctx, appName, metav1.GetOptions{})
+		a, err = s.appclientset.ArgoprojV1alpha1().Applications(appNs).Get(ctx, appName, metav1.GetOptions{})
 		if err != nil {
 			return nil, fmt.Errorf("error getting application by name: %w", err)
 		}

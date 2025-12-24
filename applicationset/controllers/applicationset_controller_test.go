@@ -589,6 +589,72 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 			},
 		},
 		{
+			name: "Ensure that hydrate annotation is preserved from an existing app",
+			appSet: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "namespace",
+				},
+				Spec: v1alpha1.ApplicationSetSpec{
+					Template: v1alpha1.ApplicationSetTemplate{
+						Spec: v1alpha1.ApplicationSpec{
+							Project: "project",
+						},
+					},
+				},
+			},
+			existingApps: []v1alpha1.Application{
+				{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       application.ApplicationKind,
+						APIVersion: "argoproj.io/v1alpha1",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name:            "app1",
+						Namespace:       "namespace",
+						ResourceVersion: "2",
+						Annotations: map[string]string{
+							"annot-key":                   "annot-value",
+							v1alpha1.AnnotationKeyHydrate: string(v1alpha1.RefreshTypeNormal),
+						},
+					},
+					Spec: v1alpha1.ApplicationSpec{
+						Project: "project",
+					},
+				},
+			},
+			desiredApps: []v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "app1",
+						Namespace: "namespace",
+					},
+					Spec: v1alpha1.ApplicationSpec{
+						Project: "project",
+					},
+				},
+			},
+			expected: []v1alpha1.Application{
+				{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       application.ApplicationKind,
+						APIVersion: "argoproj.io/v1alpha1",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name:            "app1",
+						Namespace:       "namespace",
+						ResourceVersion: "3",
+						Annotations: map[string]string{
+							v1alpha1.AnnotationKeyHydrate: string(v1alpha1.RefreshTypeNormal),
+						},
+					},
+					Spec: v1alpha1.ApplicationSpec{
+						Project: "project",
+					},
+				},
+			},
+		},
+		{
 			name: "Ensure that configured preserved annotations are preserved from an existing app",
 			appSet: v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
@@ -1010,7 +1076,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 			},
 		},
 		{
-			name: "Ensure that argocd post-delete finalizers are preserved from an existing app",
+			name: "Ensure that argocd pre-delete and post-delete finalizers are preserved from an existing app",
 			appSet: v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
@@ -1035,8 +1101,11 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 						Namespace:       "namespace",
 						ResourceVersion: "2",
 						Finalizers: []string{
+							"non-argo-finalizer",
+							v1alpha1.PreDeleteFinalizerName,
+							v1alpha1.PreDeleteFinalizerName + "/stage1",
 							v1alpha1.PostDeleteFinalizerName,
-							v1alpha1.PostDeleteFinalizerName + "/mystage",
+							v1alpha1.PostDeleteFinalizerName + "/stage2",
 						},
 					},
 					Spec: v1alpha1.ApplicationSpec{
@@ -1064,10 +1133,12 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name:            "app1",
 						Namespace:       "namespace",
-						ResourceVersion: "2",
+						ResourceVersion: "3",
 						Finalizers: []string{
+							v1alpha1.PreDeleteFinalizerName,
+							v1alpha1.PreDeleteFinalizerName + "/stage1",
 							v1alpha1.PostDeleteFinalizerName,
-							v1alpha1.PostDeleteFinalizerName + "/mystage",
+							v1alpha1.PostDeleteFinalizerName + "/stage2",
 						},
 					},
 					Spec: v1alpha1.ApplicationSpec{

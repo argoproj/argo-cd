@@ -10,10 +10,6 @@ import (
 	testingutils "github.com/argoproj/gitops-engine/pkg/utils/testing"
 )
 
-func newHook(hookType common.HookType) *unstructured.Unstructured {
-	return testingutils.Annotate(testingutils.NewPod(), "argocd.argoproj.io/hook", string(hookType))
-}
-
 func Test_syncTask_hookType(t *testing.T) {
 	type fields struct {
 		phase   common.SyncPhase
@@ -25,9 +21,9 @@ func Test_syncTask_hookType(t *testing.T) {
 		want   common.HookType
 	}{
 		{"Empty", fields{common.SyncPhaseSync, testingutils.NewPod()}, ""},
-		{"PreSyncHook", fields{common.SyncPhasePreSync, newHook(common.HookTypePreSync)}, common.HookTypePreSync},
-		{"SyncHook", fields{common.SyncPhaseSync, newHook(common.HookTypeSync)}, common.HookTypeSync},
-		{"PostSyncHook", fields{common.SyncPhasePostSync, newHook(common.HookTypePostSync)}, common.HookTypePostSync},
+		{"PreSyncHook", fields{common.SyncPhasePreSync, newHook(common.HookTypePreSync, common.HookDeletePolicyBeforeHookCreation)}, common.HookTypePreSync},
+		{"SyncHook", fields{common.SyncPhaseSync, newHook(common.HookTypeSync, common.HookDeletePolicyBeforeHookCreation)}, common.HookTypeSync},
+		{"PostSyncHook", fields{common.SyncPhasePostSync, newHook(common.HookTypePostSync, common.HookDeletePolicyBeforeHookCreation)}, common.HookTypePostSync},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
