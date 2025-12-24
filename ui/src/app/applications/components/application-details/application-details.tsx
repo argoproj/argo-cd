@@ -266,7 +266,7 @@ export const ApplicationDetails: FC<RouteComponentProps<{appnamespace: string; n
     const rollbackApplication = useCallback(
         async (revisionHistory: appModels.RevisionHistory, application: appModels.Application) => {
             try {
-                const needDisableRollback = application.spec.syncPolicy && application.spec.syncPolicy.automated;
+                const needDisableRollback = application.spec.syncPolicy && application.spec.syncPolicy.automated && application.spec.syncPolicy.automated.enabled !== false;
                 let confirmationMessage = `Are you sure you want to rollback application '${props.match.params.name}'?`;
                 if (needDisableRollback) {
                     confirmationMessage = `Auto-Sync needs to be disabled in order for rollback to occur.
@@ -277,7 +277,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                 if (confirmed) {
                     if (needDisableRollback) {
                         const update = JSON.parse(JSON.stringify(application)) as appModels.Application;
-                        update.spec.syncPolicy.automated = null;
+                        update.spec.syncPolicy.automated.enabled = false;
                         await services.applications.update(update, {validate: false});
                     }
                     await services.applications.rollback(props.match.params.name, getAppNamespace(), revisionHistory.id);

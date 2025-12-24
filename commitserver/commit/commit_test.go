@@ -108,7 +108,7 @@ func Test_CommitHydratedManifests(t *testing.T) {
 		resp, err := service.CommitHydratedManifests(t.Context(), validRequest)
 		require.NoError(t, err)
 		require.NotNil(t, resp)
-		assert.Empty(t, resp.HydratedSha) // changes introduced by commit note. hydration won't happen if there are no new manifest|s to commit
+		assert.Equal(t, "it-worked!", resp.HydratedSha, "Should return existing hydrated SHA for no-op")
 	})
 
 	t.Run("root path with dot and blank - no directory removal", func(t *testing.T) {
@@ -283,12 +283,13 @@ func Test_CommitHydratedManifests(t *testing.T) {
 			TargetBranch:  "main",
 			SyncBranch:    "env/test",
 			CommitMessage: "test commit message",
+			DrySha:        "dry-sha-456",
 		}
 
 		resp, err := service.CommitHydratedManifests(t.Context(), requestWithEmptyPaths)
 		require.NoError(t, err)
 		require.NotNil(t, resp)
-		assert.Empty(t, resp.HydratedSha) // changes introduced by commit note. hydration won't happen if there are no new manifest|s to commit
+		assert.Equal(t, "empty-paths-sha", resp.HydratedSha, "Should return existing hydrated SHA for no-op")
 	})
 
 	t.Run("duplicate request already hydrated", func(t *testing.T) {
@@ -329,7 +330,7 @@ func Test_CommitHydratedManifests(t *testing.T) {
 		resp, err := service.CommitHydratedManifests(t.Context(), request)
 		require.NoError(t, err)
 		require.NotNil(t, resp)
-		assert.Empty(t, resp.HydratedSha) // changes introduced by commit note. hydration won't happen if there are no new manifest|s to commit
+		assert.Equal(t, "dupe-test-sha", resp.HydratedSha, "Should return existing hydrated SHA when already hydrated")
 	})
 
 	t.Run("root path with dot - no changes to manifest - should commit note only", func(t *testing.T) {
@@ -355,6 +356,7 @@ func Test_CommitHydratedManifests(t *testing.T) {
 			TargetBranch:  "main",
 			SyncBranch:    "env/test",
 			CommitMessage: "test commit message",
+			DrySha:        "dry-sha-123",
 			Paths: []*apiclient.PathDetails{
 				{
 					Path: ".",
@@ -370,7 +372,8 @@ func Test_CommitHydratedManifests(t *testing.T) {
 		resp, err := service.CommitHydratedManifests(t.Context(), requestWithRootAndBlank)
 		require.NoError(t, err)
 		require.NotNil(t, resp)
-		assert.Empty(t, resp.HydratedSha)
+		// BUG FIX: When manifests don't change (no-op), the existing hydrated SHA should be returned.
+		assert.Equal(t, "root-and-blank-sha", resp.HydratedSha, "Should return existing hydrated SHA for no-op")
 	})
 }
 

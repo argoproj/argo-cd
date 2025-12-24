@@ -29,6 +29,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	k8sbatchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -4581,4 +4582,76 @@ func TestServerSideDiff(t *testing.T) {
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "application")
 	})
+}
+
+// TestTerminateOperationWithConflicts tests that TerminateOperation properly handles
+// concurrent update conflicts by retrying with the fresh application object.
+//
+// This test reproduces a bug where the retry loop discards the fresh app object
+// fetched from Get(), causing all retries to fail with stale resource versions.
+func TestTerminateOperationWithConflicts(t *testing.T) {
+	testApp := newTestApp()
+	testApp.ResourceVersion = "1"
+	testApp.Operation = &v1alpha1.Operation{
+		Sync: &v1alpha1.SyncOperation{},
+	}
+	testApp.Status.OperationState = &v1alpha1.OperationState{
+		Operation: *testApp.Operation,
+		Phase:     synccommon.OperationRunning,
+	}
+
+	appServer := newTestAppServer(t, testApp)
+	ctx := context.Background()
+
+	// Get the fake clientset from the deepCopy wrapper
+	fakeAppCs := appServer.appclientset.(*deepCopyAppClientset).GetUnderlyingClientSet().(*apps.Clientset)
+
+	getCallCount := 0
+	updateCallCount := 0
+
+	// Remove default reactors and add our custom ones
+	fakeAppCs.ReactionChain = nil
+
+	// Mock Get to return original version first, then fresh version
+	fakeAppCs.AddReactor("get", "applications", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		getCallCount++
+		freshApp := testApp.DeepCopy()
+		if getCallCount == 1 {
+			// First Get (for initialization) returns original version
+			freshApp.ResourceVersion = "1"
+		} else {
+			// Subsequent Gets (during retry) return fresh version
+			freshApp.ResourceVersion = "2"
+		}
+		return true, freshApp, nil
+	})
+
+	// Mock Update to return conflict on first call, success on second
+	fakeAppCs.AddReactor("update", "applications", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		updateCallCount++
+		updateAction := action.(kubetesting.UpdateAction)
+		app := updateAction.GetObject().(*v1alpha1.Application)
+
+		// First call (with original resource version): return conflict
+		if app.ResourceVersion == "1" {
+			return true, nil, apierrors.NewConflict(
+				schema.GroupResource{Group: "argoproj.io", Resource: "applications"},
+				app.Name,
+				stderrors.New("the object has been modified"),
+			)
+		}
+
+		// Second call (with refreshed resource version from Get): return success
+		updatedApp := app.DeepCopy()
+		return true, updatedApp, nil
+	})
+
+	// Attempt to terminate the operation
+	_, err := appServer.TerminateOperation(ctx, &application.OperationTerminateRequest{
+		Name: ptr.To(testApp.Name),
+	})
+
+	// Should succeed after retrying with the fresh app
+	require.NoError(t, err)
+	assert.GreaterOrEqual(t, updateCallCount, 2, "Update should be called at least twice (once with conflict, once with success)")
 }

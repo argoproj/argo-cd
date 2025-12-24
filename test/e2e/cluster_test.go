@@ -56,9 +56,8 @@ https://kubernetes.default.svc  in-cluster  %v     Successful           `, fixtu
 }
 
 func TestClusterAdd(t *testing.T) {
-	clusterFixture.
-		Given(t).
-		Project(fixture.ProjectName).
+	ctx := clusterFixture.Given(t)
+	ctx.Project(fixture.ProjectName).
 		Upsert(true).
 		Server(KubernetesInternalAPIServerAddr).
 		When().
@@ -66,8 +65,7 @@ func TestClusterAdd(t *testing.T) {
 		List().
 		Then().
 		AndCLIOutput(func(output string, _ error) {
-			assert.Equal(t, fmt.Sprintf(`SERVER                          NAME              VERSION  STATUS      MESSAGE  PROJECT
-https://kubernetes.default.svc  test-cluster-add  %v     Successful           %s`, fixture.GetVersions(t).ServerVersion, fixture.ProjectName), output)
+			assert.Contains(t, fixture.NormalizeOutput(output), fmt.Sprintf(`https://kubernetes.default.svc %s %v Successful %s`, ctx.GetName(), fixture.GetVersions(t).ServerVersion, fixture.ProjectName))
 		})
 }
 
@@ -112,8 +110,8 @@ func TestClusterAddAllowed(t *testing.T) {
 			},
 		}, "org-admin")
 
-	clusterFixture.
-		GivenWithSameState(t).
+	ctx := clusterFixture.GivenWithSameState(t)
+	ctx.Project(fixture.ProjectName).
 		Project(fixture.ProjectName).
 		Upsert(true).
 		Server(KubernetesInternalAPIServerAddr).
@@ -122,8 +120,7 @@ func TestClusterAddAllowed(t *testing.T) {
 		List().
 		Then().
 		AndCLIOutput(func(output string, _ error) {
-			assert.Equal(t, fmt.Sprintf(`SERVER                          NAME                      VERSION  STATUS      MESSAGE  PROJECT
-https://kubernetes.default.svc  test-cluster-add-allowed  %v     Successful           argo-project`, fixture.GetVersions(t).ServerVersion), output)
+			assert.Contains(t, fixture.NormalizeOutput(output), fmt.Sprintf(`https://kubernetes.default.svc %s %v Successful %s`, ctx.GetName(), fixture.GetVersions(t).ServerVersion, fixture.ProjectName))
 		})
 }
 

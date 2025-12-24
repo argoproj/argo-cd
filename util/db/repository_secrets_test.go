@@ -100,6 +100,10 @@ func TestSecretsRepositoryBackend_CreateRepository(t *testing.T) {
 		_, err = f.clientSet.CoreV1().Secrets(testNamespace).Update(t.Context(), secret, metav1.UpdateOptions{})
 		require.NoError(t, err)
 
+		// Resync informers to ensure the cache reflects the updated secret
+		err = f.repoBackend.db.settingsMgr.ResyncInformers()
+		require.NoError(t, err)
+
 		// when - try to create the same repository again
 		output, err := f.repoBackend.CreateRepository(t.Context(), repo)
 
