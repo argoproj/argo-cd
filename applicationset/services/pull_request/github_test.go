@@ -59,7 +59,7 @@ func TestContainLabels(t *testing.T) {
 	}
 }
 
-func TestContainsAnyLabel(t *testing.T) {
+func TestContainsAnyExcludeLabel(t *testing.T) {
 	cases := []struct {
 		Name           string
 		ExcludedLabels []string
@@ -102,7 +102,7 @@ func TestContainsAnyLabel(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
-			got := containsAnyLabel(c.ExcludedLabels, c.PullLabels)
+			got := containsAnyExcludeLabel(c.ExcludedLabels, c.PullLabels)
 			require.Equal(t, c.Expect, got)
 		})
 	}
