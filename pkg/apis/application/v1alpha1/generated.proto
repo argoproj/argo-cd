@@ -1573,6 +1573,21 @@ message OverrideIgnoreDiff {
   repeated string managedFieldsManagers = 3;
 }
 
+// ParamEntry represents an entry in the application's parameters
+message ParamEntry {
+  // Name is the name of the variable, usually expressed in uppercase
+  optional string name = 1;
+
+  // StringValue is the string of the variable
+  optional string string = 2;
+
+  // Map is the value of a map type parameter.
+  optional OptionalMap map = 3;
+
+  // OptionalArray is the value of an array type parameter.
+  optional OptionalArray array = 4;
+}
+
 message PluginConfigMapRef {
   // Name of the ConfigMap
   optional string name = 1;
