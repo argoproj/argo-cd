@@ -1867,6 +1867,12 @@ spec:
               key: applicationsetcontroller.status.max.resources.count
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_ALLOWED_PLUGIN_GEN_URLS
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.allowed.plugin-gen.urls
+              name: argocd-cmd-params-cm
+              optional: true
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         name: argocd-applicationset-controller

@@ -96,6 +96,7 @@ func NewCommand() *cobra.Command {
 		allowedScmProviders      []string
 		enableScmProviders       bool
 		enableGitHubAPIMetrics   bool
+		allowedPluginGenUrls     []string
 
 		// argocd k8s event logging flag
 		enableK8sEvent []string
@@ -257,6 +258,7 @@ func NewCommand() *cobra.Command {
 				AllowedScmProviders:      allowedScmProviders,
 				EnableScmProviders:       enableScmProviders,
 				EnableGitHubAPIMetrics:   enableGitHubAPIMetrics,
+				AllowedPluginGenUrls:     allowedPluginGenUrls,
 			}
 
 			stats.RegisterStackDumper()
@@ -336,6 +338,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringSliceVar(&allowedScmProviders, "appset-allowed-scm-providers", env.StringsFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ALLOWED_SCM_PROVIDERS", []string{}, ","), "The list of allowed custom SCM provider API URLs. This restriction does not apply to SCM or PR generators which do not accept a custom API URL. (Default: Empty = all)")
 	command.Flags().BoolVar(&enableNewGitFileGlobbing, "appset-enable-new-git-file-globbing", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_NEW_GIT_FILE_GLOBBING", false), "Enable new globbing in Git files generator.")
 	command.Flags().BoolVar(&enableGitHubAPIMetrics, "appset-enable-github-api-metrics", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_GITHUB_API_METRICS", false), "Enable GitHub API metrics for generators that use the GitHub API")
+	command.Flags().StringSliceVar(&allowedPluginGenUrls, "appset-allowed-plugin-gen-urls", env.StringsFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ALLOWED_PLUGIN_GEN_URLS", []string{}, ","), "List of allowed plugin generator baseUrl, glob compatible. Applicable as soon as plugin generator configuration are not in the same namespace as the ApplicationSet using it. (Default: Empty = all)")
 
 	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(command)
 	cacheSrc = servercache.AddCacheFlagsToCmd(command, cacheutil.Options{

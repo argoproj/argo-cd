@@ -193,6 +193,12 @@ spec:
                   name: argocd-cmd-params-cm
                   key: applicationsetcontroller.status.max.resources.count
                   optional: true
+            - name: ARGOCD_APPLICATIONSET_CONTROLLER_ALLOWED_PLUGIN_GEN_URLS
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: applicationsetcontroller.allowed.plugin-gen.urls
+                  optional: true
           volumeMounts:
             - mountPath: /app/config/ssh
               name: ssh-known-hosts
