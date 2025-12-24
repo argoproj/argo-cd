@@ -174,7 +174,7 @@ type ClusterOptions struct {
 
 // InClusterEndpoint returns true if ArgoCD should reference the in-cluster
 // endpoint when registering the target cluster.
-func (o ClusterOptions) InClusterEndpoint() bool {
+func (o *ClusterOptions) InClusterEndpoint() bool {
 	return o.InCluster || o.ClusterEndpoint == string(KubeInternalEndpoint)
 }
 
