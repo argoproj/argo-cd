@@ -141,20 +141,20 @@ func EnsureCleanState(t *testing.T) {
 			return nil
 		},
 		func() error {
-			// Delete the argocd-e2e-external namespace, if it exists
-			err := fixtureClient.KubeClientset.CoreV1().Namespaces().Delete(t.Context(), string(ArgoCDExternalNamespace), metav1.DeleteOptions{PropagationPolicy: &policy})
-			if err != nil && !apierrors.IsNotFound(err) { // 'not found' error is expected
-				return err
-			}
-			return nil
+			// Clean up ApplicationSets in argocd-e2e-external namespace (don't delete the namespace itself as it's shared)
+			return fixtureClient.ExternalAppSetClientsets[ArgoCDExternalNamespace].DeleteCollection(t.Context(), metav1.DeleteOptions{PropagationPolicy: &policy}, metav1.ListOptions{})
 		},
 		func() error {
-			// Delete the argocd-e2e-external namespace, if it exists
-			err := fixtureClient.KubeClientset.CoreV1().Namespaces().Delete(t.Context(), string(ArgoCDExternalNamespace2), metav1.DeleteOptions{PropagationPolicy: &policy})
-			if err != nil && !apierrors.IsNotFound(err) { // 'not found' error is expected
-				return err
-			}
-			return nil
+			// Clean up ApplicationSets in argocd-e2e-external-2 namespace (don't delete the namespace itself as it's shared)
+			return fixtureClient.ExternalAppSetClientsets[ArgoCDExternalNamespace2].DeleteCollection(t.Context(), metav1.DeleteOptions{PropagationPolicy: &policy}, metav1.ListOptions{})
+		},
+		func() error {
+			// Clean up Applications in argocd-e2e-external namespace
+			return fixtureClient.AppClientset.ArgoprojV1alpha1().Applications(string(ArgoCDExternalNamespace)).DeleteCollection(t.Context(), metav1.DeleteOptions{PropagationPolicy: &policy}, metav1.ListOptions{})
+		},
+		func() error {
+			// Clean up Applications in argocd-e2e-external-2 namespace
+			return fixtureClient.AppClientset.ArgoprojV1alpha1().Applications(string(ArgoCDExternalNamespace2)).DeleteCollection(t.Context(), metav1.DeleteOptions{PropagationPolicy: &policy}, metav1.ListOptions{})
 		},
 		// delete resources
 		func() error {
@@ -229,7 +229,7 @@ func waitForExpectedClusterState(t *testing.T) error {
 		OrphanedResources:        nil,
 		SourceRepos:              []string{"*"},
 		Destinations:             []v1alpha1.ApplicationDestination{{Namespace: "*", Server: "*"}},
-		ClusterResourceWhitelist: []metav1.GroupKind{{Group: "*", Kind: "*"}},
+		ClusterResourceWhitelist: []v1alpha1.ClusterResourceRestrictionItem{{Group: "*", Kind: "*"}},
 		SourceNamespaces:         []string{string(ArgoCDExternalNamespace), string(ArgoCDExternalNamespace2)},
 	})
 
@@ -265,7 +265,9 @@ func waitForExpectedClusterState(t *testing.T) error {
 	}
 
 	// Wait up to 120 seconds for namespace to not exist
-	for _, namespace := range []string{string(ApplicationsResourcesNamespace), string(ArgoCDExternalNamespace), string(ArgoCDExternalNamespace2)} {
+	// Note: We only check ApplicationsResourcesNamespace - the external namespaces (argocd-e2e-external*)
+	// are shared infrastructure and persist throughout the test suite
+	for _, namespace := range []string{string(ApplicationsResourcesNamespace)} {
 		// Wait up to 120 seconds for namespace to not exist
 		if err := waitForSuccess(func() error {
 			return cleanUpNamespace(fixtureClient, namespace)

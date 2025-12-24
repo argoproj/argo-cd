@@ -2265,6 +2265,44 @@
         }
       }
     },
+    "/api/v1/applicationsets/{name}/events": {
+      "get": {
+        "tags": [
+          "ApplicationSetService"
+        ],
+        "summary": "ListResourceEvents returns a list of event resources",
+        "operationId": "ApplicationSetService_ListResourceEvents",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "the applicationsets's name",
+            "name": "name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "description": "The application set namespace. Default empty is argocd control plane namespace.",
+            "name": "appsetNamespace",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1EventList"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/applicationsets/{name}/resource-tree": {
       "get": {
         "tags": [
@@ -6832,14 +6870,14 @@
           "type": "array",
           "title": "ClusterResourceBlacklist contains list of blacklisted cluster level resources",
           "items": {
-            "$ref": "#/definitions/v1GroupKind"
+            "$ref": "#/definitions/v1alpha1ClusterResourceRestrictionItem"
           }
         },
         "clusterResourceWhitelist": {
           "type": "array",
           "title": "ClusterResourceWhitelist contains list of whitelisted cluster level resources",
           "items": {
-            "$ref": "#/definitions/v1GroupKind"
+            "$ref": "#/definitions/v1alpha1ClusterResourceRestrictionItem"
           }
         },
         "description": {
@@ -7053,7 +7091,7 @@
     },
     "v1alpha1ApplicationSet": {
       "type": "object",
-      "title": "ApplicationSet is a set of Application resources\n+genclient\n+genclient:noStatus\n+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object\n+kubebuilder:resource:path=applicationsets,shortName=appset;appsets\n+kubebuilder:subresource:status",
+      "title": "ApplicationSet is a set of Application resources.\n+genclient\n+genclient:noStatus\n+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object\n+kubebuilder:resource:path=applicationsets,shortName=appset;appsets\n+kubebuilder:subresource:status",
       "properties": {
         "metadata": {
           "$ref": "#/definitions/v1ObjectMeta"
@@ -8167,6 +8205,22 @@
         }
       }
     },
+    "v1alpha1ClusterResourceRestrictionItem": {
+      "type": "object",
+      "title": "ClusterResourceRestrictionItem is a cluster resource that is restricted by the project's whitelist or blacklist",
+      "properties": {
+        "group": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "name": {
+          "description": "Name is the name of the restricted resource. Glob patterns using Go's filepath.Match syntax are supported.\nUnlike the group and kind fields, if no name is specified, all resources of the specified group/kind are matched.",
+          "type": "string"
+        }
+      }
+    },
     "v1alpha1Command": {
       "type": "object",
       "title": "Command holds binary path and arguments list",
@@ -8292,9 +8346,21 @@
       "description": "DrySource specifies a location for dry \"don't repeat yourself\" manifest source information.",
       "type": "object",
       "properties": {
+        "directory": {
+          "$ref": "#/definitions/v1alpha1ApplicationSourceDirectory"
+        },
+        "helm": {
+          "$ref": "#/definitions/v1alpha1ApplicationSourceHelm"
+        },
+        "kustomize": {
+          "$ref": "#/definitions/v1alpha1ApplicationSourceKustomize"
+        },
         "path": {
           "type": "string",
           "title": "Path is a directory path within the Git repository where the manifests are located"
+        },
+        "plugin": {
+          "$ref": "#/definitions/v1alpha1ApplicationSourcePlugin"
         },
         "repoURL": {
           "type": "string",

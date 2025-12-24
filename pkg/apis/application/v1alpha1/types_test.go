@@ -513,8 +513,8 @@ func TestAppProject_IsGroupKindPermitted(t *testing.T) {
 			NamespaceResourceBlacklist: []metav1.GroupKind{{Group: "apps", Kind: "Deployment"}},
 		},
 	}
-	assert.False(t, proj.IsGroupKindPermitted(schema.GroupKind{Group: "apps", Kind: "ReplicaSet"}, true))
-	assert.False(t, proj.IsGroupKindPermitted(schema.GroupKind{Group: "apps", Kind: "Deployment"}, true))
+	assert.False(t, proj.IsGroupKindNamePermitted(schema.GroupKind{Group: "apps", Kind: "ReplicaSet"}, "", true))
+	assert.False(t, proj.IsGroupKindNamePermitted(schema.GroupKind{Group: "apps", Kind: "Deployment"}, "", true))
 
 	proj2 := AppProject{
 		Spec: AppProjectSpec{
@@ -522,39 +522,47 @@ func TestAppProject_IsGroupKindPermitted(t *testing.T) {
 			NamespaceResourceBlacklist: []metav1.GroupKind{{Group: "apps", Kind: "Deployment"}},
 		},
 	}
-	assert.True(t, proj2.IsGroupKindPermitted(schema.GroupKind{Group: "apps", Kind: "ReplicaSet"}, true))
-	assert.False(t, proj2.IsGroupKindPermitted(schema.GroupKind{Group: "apps", Kind: "Action"}, true))
+	assert.True(t, proj2.IsGroupKindNamePermitted(schema.GroupKind{Group: "apps", Kind: "ReplicaSet"}, "", true))
+	assert.False(t, proj2.IsGroupKindNamePermitted(schema.GroupKind{Group: "apps", Kind: "Action"}, "", true))
 
 	proj3 := AppProject{
 		Spec: AppProjectSpec{
-			ClusterResourceBlacklist: []metav1.GroupKind{{Group: "", Kind: "Namespace"}},
+			ClusterResourceBlacklist: []ClusterResourceRestrictionItem{{Group: "", Kind: "Namespace"}},
 		},
 	}
-	assert.False(t, proj3.IsGroupKindPermitted(schema.GroupKind{Group: "", Kind: "Namespace"}, false))
+	assert.False(t, proj3.IsGroupKindNamePermitted(schema.GroupKind{Group: "", Kind: "Namespace"}, "", false))
 
 	proj4 := AppProject{
 		Spec: AppProjectSpec{
-			ClusterResourceWhitelist: []metav1.GroupKind{{Group: "*", Kind: "*"}},
-			ClusterResourceBlacklist: []metav1.GroupKind{{Group: "*", Kind: "*"}},
+			ClusterResourceWhitelist: []ClusterResourceRestrictionItem{{Group: "*", Kind: "*"}},
+			ClusterResourceBlacklist: []ClusterResourceRestrictionItem{{Group: "*", Kind: "*"}},
 		},
 	}
-	assert.False(t, proj4.IsGroupKindPermitted(schema.GroupKind{Group: "", Kind: "Namespace"}, false))
-	assert.True(t, proj4.IsGroupKindPermitted(schema.GroupKind{Group: "apps", Kind: "Action"}, true))
+	assert.False(t, proj4.IsGroupKindNamePermitted(schema.GroupKind{Group: "", Kind: "Namespace"}, "", false))
+	assert.True(t, proj4.IsGroupKindNamePermitted(schema.GroupKind{Group: "apps", Kind: "Action"}, "", true))
 
 	proj5 := AppProject{
 		Spec: AppProjectSpec{
-			ClusterResourceWhitelist:   []metav1.GroupKind{},
+			ClusterResourceWhitelist:   []ClusterResourceRestrictionItem{},
 			NamespaceResourceWhitelist: []metav1.GroupKind{{Group: "*", Kind: "*"}},
 		},
 	}
-	assert.False(t, proj5.IsGroupKindPermitted(schema.GroupKind{Group: "", Kind: "Namespace"}, false))
-	assert.True(t, proj5.IsGroupKindPermitted(schema.GroupKind{Group: "apps", Kind: "Action"}, true))
+	assert.False(t, proj5.IsGroupKindNamePermitted(schema.GroupKind{Group: "", Kind: "Namespace"}, "", false))
+	assert.True(t, proj5.IsGroupKindNamePermitted(schema.GroupKind{Group: "apps", Kind: "Action"}, "", true))
 
 	proj6 := AppProject{
 		Spec: AppProjectSpec{},
 	}
-	assert.False(t, proj6.IsGroupKindPermitted(schema.GroupKind{Group: "", Kind: "Namespace"}, false))
-	assert.True(t, proj6.IsGroupKindPermitted(schema.GroupKind{Group: "apps", Kind: "Action"}, true))
+	assert.False(t, proj6.IsGroupKindNamePermitted(schema.GroupKind{Group: "", Kind: "Namespace"}, "", false))
+	assert.True(t, proj6.IsGroupKindNamePermitted(schema.GroupKind{Group: "apps", Kind: "Action"}, "", true))
+
+	proj7 := AppProject{
+		Spec: AppProjectSpec{
+			ClusterResourceWhitelist: []ClusterResourceRestrictionItem{{Group: "", Kind: "Namespace", Name: "team1-*"}},
+		},
+	}
+	assert.False(t, proj7.IsGroupKindNamePermitted(schema.GroupKind{Group: "", Kind: "Namespace"}, "other-namespace", false))
+	assert.True(t, proj7.IsGroupKindNamePermitted(schema.GroupKind{Group: "", Kind: "Namespace"}, "team1-namespace", false))
 }
 
 func TestAppProject_GetRoleByName(t *testing.T) {
@@ -3775,6 +3783,44 @@ func Test_validatePolicy_ValidResource(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestIsValidAction(t *testing.T) {
+	tests := []struct {
+		name   string
+		action string
+		want   bool
+	}{
+		// validActions direct matches
+		{"ValidGet", "get", true},
+		{"ValidCreate", "create", true},
+		{"ValidUpdate", "update", true},
+		{"ValidDelete", "delete", true},
+		{"ValidSync", "sync", true},
+		{"ValidOverride", "override", true},
+		{"ValidWildcard", "*", true},
+
+		// pattern matches
+		{"MatchActionPattern", "action/foo", true},
+		{"MatchUpdatePattern", "update/bar", true},
+		{"MatchDeletePattern", "delete/baz", true},
+
+		// near matches
+		{"NoMatchActionSuffix", "actionfoo", false},
+		{"NoMatchUpdateSuffix", "updatebar", false},
+		{"NoMatchDeleteSuffix", "deletebaz", false},
+
+		// invalid
+		{"RandomString", "random", false},
+		{"Empty", "", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := isValidAction(tt.action)
+			assert.Equal(t, tt.want, got, "isValidAction(%q)", tt.action)
+		})
+	}
+}
+
 func TestEnvsubst(t *testing.T) {
 	env := Env{
 		&EnvEntry{"foo", "bar"},
@@ -4795,4 +4841,27 @@ func TestSanitized(t *testing.T) {
 			},
 		},
 	}, cluster.Sanitized())
+}
+
+func TestSourceHydrator_Equals(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		a        SourceHydrator
+		b        SourceHydrator
+		expected bool
+	}{
+		{"different SourceHydrators", SourceHydrator{}, SourceHydrator{DrySource: DrySource{Helm: &ApplicationSourceHelm{Namespace: "test"}}}, false},
+		{"equal SourceHydrators", SourceHydrator{DrySource: DrySource{Helm: &ApplicationSourceHelm{Namespace: "test"}}}, SourceHydrator{DrySource: DrySource{Helm: &ApplicationSourceHelm{Namespace: "test"}}}, true},
+	}
+
+	for _, testCase := range tests {
+		testCopy := testCase
+		t.Run(testCopy.name, func(t *testing.T) {
+			t.Parallel()
+
+			assert.Equal(t, testCopy.expected, testCopy.a.DeepEquals(testCopy.b))
+		})
+	}
 }

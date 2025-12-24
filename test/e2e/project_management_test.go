@@ -471,11 +471,11 @@ func createAndConfigGlobalProject(ctx context.Context) error {
 		{Group: "", Kind: "Deployment"},
 	}
 
-	projGlobal.Spec.ClusterResourceWhitelist = []metav1.GroupKind{
+	projGlobal.Spec.ClusterResourceWhitelist = []v1alpha1.ClusterResourceRestrictionItem{
 		{Group: "", Kind: "Job"},
 	}
 
-	projGlobal.Spec.ClusterResourceBlacklist = []metav1.GroupKind{
+	projGlobal.Spec.ClusterResourceBlacklist = []v1alpha1.ClusterResourceRestrictionItem{
 		{Group: "", Kind: "Pod"},
 	}
 
