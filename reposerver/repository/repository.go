@@ -3025,7 +3025,7 @@ func (s *Service) GetGitDirectories(_ context.Context, request *apiclient.GitDir
 	}, nil
 }
 
-func (s *Service) gitSourceHasChanges(repo *v1alpha1.Repository, revision, syncedRevision string, refreshPaths []string, noRevisionCache bool, gitClientOpts git.ClientOpts) (string, string, bool, error) {
+func (s *Service) gitSourceHasChanges(repo *v1alpha1.Repository, revision, syncedRevision string, refreshPaths []string, gitClientOpts git.ClientOpts) (string, string, bool, error) {
 	if repo == nil {
 		return revision, syncedRevision, true, status.Error(codes.InvalidArgument, "must pass a valid repo")
 	}
@@ -3108,7 +3108,7 @@ func (s *Service) UpdateRevisionForPaths(_ context.Context, request *apiclient.U
 		}
 
 		// Check if there are changes in this source
-		resolvedRevision, syncedRevision, sourceHasChanges, err := s.gitSourceHasChanges(sourceMeta.Repo, sourceMeta.Revision, sourceMeta.SyncedRevision, request.GetPaths(), request.NoRevisionCache, gitClientOpts)
+		resolvedRevision, syncedRevision, sourceHasChanges, err := s.gitSourceHasChanges(sourceMeta.Repo, sourceMeta.Revision, sourceMeta.SyncedRevision, request.GetPaths(), gitClientOpts)
 		if err != nil {
 			return nil, err
 		}
@@ -3135,7 +3135,7 @@ func (s *Service) UpdateRevisionForPaths(_ context.Context, request *apiclient.U
 	}
 
 	// No changes detected, update the cache using resolved revisions
-	err := s.updateCachedRevision(logCtx, request.SyncedRevision, request.Revision, request, oldRepoRefs, newRepoRefs, gitClientOpts)
+	err := s.updateCachedRevision(logCtx, request.SyncedRevision, request.Revision, request, oldRepoRefs, newRepoRefs)
 	if err != nil {
 		// Only warn with the error, no need to block anything if there is a caching error.
 		logCtx.Warnf("error updating cached revision for source %s with revision %s: %v", request.ApplicationSource.RepoURL, rRevision, err)
@@ -3153,7 +3153,7 @@ func (s *Service) UpdateRevisionForPaths(_ context.Context, request *apiclient.U
 	}, nil
 }
 
-func (s *Service) updateCachedRevision(logCtx *log.Entry, oldRev string, newRev string, request *apiclient.UpdateRevisionForPathsRequest, oldRepoRefs map[string]string, newRepoRefs map[string]string, gitClientOpts git.ClientOpts) error {
+func (s *Service) updateCachedRevision(logCtx *log.Entry, oldRev string, newRev string, request *apiclient.UpdateRevisionForPathsRequest, oldRepoRefs map[string]string, newRepoRefs map[string]string) error {
 	err := s.cache.SetNewRevisionManifests(oldRev, newRev, request.ApplicationSource, request.RefSources, request, request.Namespace, request.TrackingMethod, request.AppLabelKey, request.AppName, oldRepoRefs, newRepoRefs, request.InstallationID)
 	if err != nil {
 		if errors.Is(err, cache.ErrCacheMiss) {

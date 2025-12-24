@@ -285,7 +285,7 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 			if app.Spec.HasMultipleSources() && (source.IsHelm() || source.IsHelmOci()) {
 				refRelSources := argo.GetRelatedRefSources(source, sources)
 				for _, refSource := range refRelSources {
-					v, _ := sourcesMetas[refSource]
+					v := sourcesMetas[refSource]
 					sourceMetasForCheck = append(sourceMetasForCheck, &v)
 				}
 			} else {
