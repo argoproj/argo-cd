@@ -86,25 +86,6 @@ export class AbstractAppsListPreferences {
 }
 
 export class AppsListPreferences extends AbstractAppsListPreferences {
-    public static countEnabledFilters(pref: AppsListPreferences) {
-        return [
-            pref.clustersFilter,
-            pref.healthFilter,
-            pref.labelsFilter,
-            pref.annotationsFilter,
-            pref.namespacesFilter,
-            pref.projectsFilter,
-            pref.syncFilter,
-            pref.autoSyncFilter,
-            pref.operationFilter
-        ].reduce((count, filter) => {
-            if (filter && filter.length > 0) {
-                return count + 1;
-            }
-            return count;
-        }, 0);
-    }
-
     public static clearFilters(pref: AppsListPreferences) {
         super.clearFilters(pref);
 
@@ -125,15 +106,6 @@ export class AppsListPreferences extends AbstractAppsListPreferences {
 }
 
 export class AppSetsListPreferences extends AbstractAppsListPreferences {
-    public static countEnabledFilters(pref: AppSetsListPreferences) {
-        return [pref.healthFilter, pref.labelsFilter].reduce((count, filter) => {
-            if (filter && filter.length > 0) {
-                return count + 1;
-            }
-            return count;
-        }, 0);
-    }
-
     public static clearFilters(pref: AppSetsListPreferences) {
         super.clearFilters(pref);
     }
