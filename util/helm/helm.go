@@ -35,7 +35,7 @@ type Helm interface {
 	// Template returns a list of unstructured objects from a `helm template` command
 	Template(opts *TemplateOpts) (string, string, error)
 	// GetParameters returns a list of chart parameters taking into account values in provided YAML files.
-	GetParameters(valuesFiles []pathutil.ResolvedFilePath, appPath, repoRoot string) (map[string]string, error)
+	GetParameters(valuesFiles []pathutil.ResolvedFilePath, appPath string, repoRoot *os.Root) (map[string]string, error)
 	// DependencyBuild runs `helm dependency build` to download a chart's dependencies
 	DependencyBuild() error
 	// Dispose deletes temp resources
@@ -130,7 +130,7 @@ func Version() (string, error) {
 	return strings.TrimSpace(version), nil
 }
 
-func (h *helm) GetParameters(valuesFiles []pathutil.ResolvedFilePath, appPath, repoRoot string) (map[string]string, error) {
+func (h *helm) GetParameters(valuesFiles []pathutil.ResolvedFilePath, appPath string, repoRoot *os.Root) (map[string]string, error) {
 	var values []string
 	// Don't load values.yaml if it's an out-of-bounds link.
 	if _, _, err := pathutil.ResolveValueFilePathOrUrl(appPath, repoRoot, "values.yaml", []string{}); err == nil {

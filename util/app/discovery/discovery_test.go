@@ -1,6 +1,7 @@
 package discovery
 
 import (
+	"os"
 	"testing"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -10,7 +11,9 @@ import (
 )
 
 func TestDiscover(t *testing.T) {
-	apps, err := Discover(t.Context(), "./testdata", "./testdata", map[string]bool{}, []string{}, []string{})
+	repoRoot, err := os.OpenRoot("./testdata")
+	require.NoError(t, err)
+	apps, err := Discover(t.Context(), "./testdata", repoRoot, map[string]bool{}, []string{}, []string{})
 	require.NoError(t, err)
 	assert.Equal(t, map[string]string{
 		"foo": "Kustomize",
@@ -19,15 +22,17 @@ func TestDiscover(t *testing.T) {
 }
 
 func TestAppType(t *testing.T) {
-	appType, err := AppType(t.Context(), "./testdata/foo", "./testdata", map[string]bool{}, []string{}, []string{})
+	repoRoot, err := os.OpenRoot("./testdata")
+	require.NoError(t, err)
+	appType, err := AppType(t.Context(), "./testdata/foo", repoRoot, map[string]bool{}, []string{}, []string{})
 	require.NoError(t, err)
 	assert.Equal(t, "Kustomize", appType)
 
-	appType, err = AppType(t.Context(), "./testdata/baz", "./testdata", map[string]bool{}, []string{}, []string{})
+	appType, err = AppType(t.Context(), "./testdata/baz", repoRoot, map[string]bool{}, []string{}, []string{})
 	require.NoError(t, err)
 	assert.Equal(t, "Helm", appType)
 
-	appType, err = AppType(t.Context(), "./testdata", "./testdata", map[string]bool{}, []string{}, []string{})
+	appType, err = AppType(t.Context(), "./testdata", repoRoot, map[string]bool{}, []string{}, []string{})
 	require.NoError(t, err)
 	assert.Equal(t, "Directory", appType)
 }
@@ -37,15 +42,17 @@ func TestAppType_Disabled(t *testing.T) {
 		string(v1alpha1.ApplicationSourceTypeKustomize): false,
 		string(v1alpha1.ApplicationSourceTypeHelm):      false,
 	}
-	appType, err := AppType(t.Context(), "./testdata/foo", "./testdata", enableManifestGeneration, []string{}, []string{})
+	repoRoot, err := os.OpenRoot("./testdata")
+	require.NoError(t, err)
+	appType, err := AppType(t.Context(), "./testdata/foo", repoRoot, enableManifestGeneration, []string{}, []string{})
 	require.NoError(t, err)
 	assert.Equal(t, "Directory", appType)
 
-	appType, err = AppType(t.Context(), "./testdata/baz", "./testdata", enableManifestGeneration, []string{}, []string{})
+	appType, err = AppType(t.Context(), "./testdata/baz", repoRoot, enableManifestGeneration, []string{}, []string{})
 	require.NoError(t, err)
 	assert.Equal(t, "Directory", appType)
 
-	appType, err = AppType(t.Context(), "./testdata", "./testdata", enableManifestGeneration, []string{}, []string{})
+	appType, err = AppType(t.Context(), "./testdata", repoRoot, enableManifestGeneration, []string{}, []string{})
 	require.NoError(t, err)
 	assert.Equal(t, "Directory", appType)
 }
