@@ -41,11 +41,6 @@ func (_m *RepoServerServiceClient) EXPECT() *RepoServerServiceClient_Expecter {
 	return &RepoServerServiceClient_Expecter{mock: &_m.Mock}
 }
 
-// RepoServerServiceClient_CheckChangesForPaths_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CheckChangesForPaths'
-type RepoServerServiceClient_CheckChangesForPaths_Call struct {
-	*mock.Call
-}
-
 // GenerateManifest provides a mock function for the type RepoServerServiceClient
 func (_mock *RepoServerServiceClient) GenerateManifest(ctx context.Context, in *apiclient.ManifestRequest, opts ...grpc.CallOption) (*apiclient.ManifestResponse, error) {
 	// grpc.CallOption

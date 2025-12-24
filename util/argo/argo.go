@@ -576,7 +576,8 @@ func GetRelatedRefSources(source argoappv1.ApplicationSource, sources argoappv1.
 		for _, v := range source.Helm.ValueFiles {
 			refVar := strings.Split(v, "/")[0]
 			if refVar == "$"+s.Ref {
-				rSources = append(rSources, source)
+				rSources = append(rSources, s)
+				break
 			}
 		}
 	}

@@ -3154,6 +3154,10 @@ func (s *Service) UpdateRevisionForPaths(_ context.Context, request *apiclient.U
 }
 
 func (s *Service) updateCachedRevision(logCtx *log.Entry, oldRev string, newRev string, request *apiclient.UpdateRevisionForPathsRequest, oldRepoRefs map[string]string, newRepoRefs map[string]string) error {
+	// TODO: need to separate refSources for updating cache for 2 case
+	//   1. in RefSources for git we have resolvedRevision
+	//   2. in RefSources for git we have revision from sources
+
 	err := s.cache.SetNewRevisionManifests(oldRev, newRev, request.ApplicationSource, request.RefSources, request, request.Namespace, request.TrackingMethod, request.AppLabelKey, request.AppName, oldRepoRefs, newRepoRefs, request.InstallationID)
 	if err != nil {
 		if errors.Is(err, cache.ErrCacheMiss) {

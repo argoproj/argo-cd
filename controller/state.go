@@ -279,7 +279,7 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 			// just reading pre-generated manifests is comparable to updating revisions time-wise
 			app.Status.SourceType != v1alpha1.ApplicationSourceTypeDirectory
 
-		if updateRevisions && repo.Depth == 0 && !source.IsRef() && syncedRevision != "" && syncedRevision != revision && keyManifestGenerateAnnotationExists && keyManifestGenerateAnnotationVal != "" {
+		if updateRevisions && repo.Depth == 0 && !source.IsRef() && keyManifestGenerateAnnotationExists && keyManifestGenerateAnnotationVal != "" {
 			// Collect SourceMetas for all sources (main source and ref sources) - contains all necessary info (repo with credentials, revision, syncedRevision)
 			sourceMetasForCheck := []*apiclient.SourceMeta{}
 			if app.Spec.HasMultipleSources() && (source.IsHelm() || source.IsHelmOci()) {
@@ -296,33 +296,33 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 				})
 			}
 
-			// Use UpdateRevisionForPaths which checks for changes in all sources from SourceMetas and updates cache if no changes detected
-			updateRevisionResult, err := repoClient.UpdateRevisionForPaths(ctx, &apiclient.UpdateRevisionForPathsRequest{
-				Revision:           revision,
-				SyncedRevision:     syncedRevision,
-				NoRevisionCache:    noRevisionCache,
-				Paths:              path.GetAppRefreshPaths(app),
-				AppLabelKey:        appLabelKey,
-				AppName:            app.InstanceName(m.namespace),
-				Namespace:          appNamespace,
-				ApplicationSource:  &source,
-				KubeVersion:        serverVersion,
-				ApiVersions:        apiVersions,
-				TrackingMethod:     trackingMethod,
-				RefSources:         refSources,
-				HasMultipleSources: app.Spec.HasMultipleSources(),
-				InstallationID:     installationID,
-				SourceMetas:        sourceMetasForCheck,
-			})
-			if err != nil {
-				return nil, nil, false, fmt.Errorf("failed to compare revisions for source %d of %d: %w", i+1, len(sources), err)
-			}
+			if len(sourceMetasForCheck) != 0 {
+				// Use UpdateRevisionForPaths which checks for changes in all sources from SourceMetas and updates cache if no changes detected
+				updateRevisionResult, err := repoClient.UpdateRevisionForPaths(ctx, &apiclient.UpdateRevisionForPathsRequest{
+					Revision:           revision,
+					SyncedRevision:     syncedRevision,
+					NoRevisionCache:    noRevisionCache,
+					Paths:              path.GetAppRefreshPaths(app),
+					AppLabelKey:        appLabelKey,
+					AppName:            app.InstanceName(m.namespace),
+					Namespace:          appNamespace,
+					ApplicationSource:  &source,
+					KubeVersion:        serverVersion,
+					ApiVersions:        apiVersions,
+					TrackingMethod:     trackingMethod,
+					RefSources:         refSources,
+					HasMultipleSources: app.Spec.HasMultipleSources(),
+					InstallationID:     installationID,
+					SourceMetas:        sourceMetasForCheck,
+				})
+				if err != nil {
+					return nil, nil, false, fmt.Errorf("failed to compare revisions for source %d of %d: %w", i+1, len(sources), err)
+				}
 
-			// Generate manifests should use same revision as updateRevisionForPaths, because HEAD revision may be different between these two calls
-			if updateRevisionResult.Changes {
-				revisionsMayHaveChanges = true
-			} else {
-				revision = updateRevisionResult.Revision
+				// Generate manifests should use same revision as updateRevisionForPaths, because HEAD revision may be different between these two calls
+				if updateRevisionResult.Changes {
+					revisionsMayHaveChanges = true
+				}
 			}
 		} else {
 			// revisionsMayHaveChanges is set to true if at least one revision is not possible to be updated
