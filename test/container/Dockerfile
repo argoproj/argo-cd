@@ -16,12 +16,18 @@ FROM docker.io/bitnamilegacy/kubectl:1.32@sha256:9524faf8e3cefb47fa28244a5d15f95
 
 FROM docker.io/library/ubuntu:25.10@sha256:5922638447b1e3ba114332c896a2c7288c876bb94adec923d70d58a17d2fec5e
 
-ENV DEBIAN_FRONTEND=noninteractive
+ENV DEBIAN_FRONTEND=noninteractive \
+    PATH=/dist:/go/bin:/usr/local/go/bin:/go/src/github.com/argoproj/argo-cd/dist:$PATH \
+    GOROOT=/usr/local/go \
+    GOPATH=/go \
+    HOME=/home/user
+
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 
 # NOTE: binutils-gold contains the gold linker, which was recently removed
 #       from binutils, but is still nesessary for building lint-tools on arm64 only
 #       until this Golang issue is fixed: https://github.com/golang/go/issues/22040
-RUN  apt-get update && apt-get install --fix-missing -y \
+RUN apt-get update && apt-get install --fix-missing -y \
     ca-certificates \
     curl \
     openssh-server \
@@ -47,10 +53,6 @@ RUN  apt-get update && apt-get install --fix-missing -y \
 COPY --from=golang /usr/local/go /usr/local/go
 
 COPY --from=kubectl /opt/bitnami/kubectl/bin/kubectl /usr/local/bin/kubectl
-
-ENV PATH=/dist:/go/bin:/usr/local/go/bin:/go/src/github.com/argoproj/argo-cd/dist:$PATH
-ENV GOROOT=/usr/local/go
-ENV GOPATH=/go
 
 # Install build and test dependencies
 COPY hack/install.sh hack/tool-versions.sh go.* ./
@@ -81,8 +83,9 @@ COPY --from=redis /usr/local/bin/* /usr/local/bin/
 
 # Copy redis dependencies/shared libraries
 # Ubuntu 22.04+ has moved to OpenSSL3 and no longer provides these libraries
-COPY --from=redis /usr/lib/linux-gnu/libssl.so.3 /usr/lib/linux-gnu/
-COPY --from=redis /usr/lib/linux-gnu/libcrypto.so.3 /usr/lib/linux-gnu/
+COPY --from=redis /usr/lib/linux-gnu/libssl.so.3 \
+    /usr/lib/linux-gnu/libcrypto.so.3 \
+    /usr/lib/linux-gnu/
 RUN mv /usr/lib/linux-gnu/libssl.so.3 /usr/lib/$(uname -m)-linux-gnu/ && \
     mv /usr/lib/linux-gnu/libcrypto.so.3 /usr/lib/$(uname -m)-linux-gnu/ && \
     rm -rf /usr/lib/linux-gnu/
@@ -103,18 +106,18 @@ ARG UID
 
 # Prepare user configuration & build environments
 RUN userdel -r ubuntu && \
-    useradd -l -u ${UID} -d /home/user -s /bin/bash user && \
+    useradd -l -u ${UID} -d "$HOME" -s /bin/bash user && \
     echo "user ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/user && \
-    mkdir -p /home/user/.kube && \
-    mkdir -p /home/user/.cache && \
-    chown -R user /home/user && \
-    chgrp -R user /home/user && \
+    mkdir -p "$HOME"/.kube && \
+    mkdir -p "$HOME"/.cache && \
+    chown -R user "$HOME" && \
+    chgrp -R user "$HOME" && \
     mkdir -p /go/src/github.com/gogo && \
     mkdir -p /go/src/k8s.io && \
     chown -R user /go && \
-    HOME=/home/user git config --global user.name "ArgoCD Test User" && \
-    HOME=/home/user git config --global user.email "noreply@example.com" && \
-    HOME=/home/user git config --global --add safe.directory '*' && \
+    git config --global user.name "ArgoCD Test User" && \
+    git config --global user.email "noreply@example.com" && \
+    git config --global --add safe.directory '*' && \
     mkdir -p /go/src && \
     mkdir -p /go/pkg && \
     chown -R user:user /go && \
@@ -130,5 +133,3 @@ RUN userdel -r ubuntu && \
     ln -s /opt/yarn-v1.22.22/bin/yarn /usr/local/bin/yarn && \
     ln -s /opt/yarn-v1.22.22/bin/yarnpkg /usr/local/bin/yarnpkg && \
     mkdir -p /var/lib/registry
-
-ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
