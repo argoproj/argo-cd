@@ -1,0 +1,20 @@
+apiVersion: grafana-org-operator.kubitus-project.gitlab.io/v1beta1
+kind: GrafanaInstance
+metadata:
+  name: grafana
+  namespace: grafana-org-operator
+spec:
+  url: http://grafana.grafana.svc.invalid
+  secretRef: grafana-admin
+status:
+  conditions:
+    - lastTransitionTime: '2025-12-15T13:20:19Z'
+      message: >-
+        Failed to reach Grafana instance: Get
+        "http://grafana.grafana.invalid/api/user": dial tcp:
+        lookup grafana.grafana.invalid on 10.20.30.40:53: server
+        misbehaving
+      observedGeneration: 42
+      reason: Unreachable
+      status: 'False'
+      type: Ready

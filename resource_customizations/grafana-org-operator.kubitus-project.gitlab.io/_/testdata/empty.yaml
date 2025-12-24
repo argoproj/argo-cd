@@ -1,0 +1,8 @@
+apiVersion: grafana-org-operator.kubitus-project.gitlab.io/v1beta1
+kind: GrafanaOrg
+metadata:
+  name: my-org
+  namespace: grafana-org-operator
+spec:
+  grafanaInstanceRef: grafana
+  orgName: My Org.
