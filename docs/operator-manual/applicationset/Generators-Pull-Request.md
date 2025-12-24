@@ -55,6 +55,10 @@ spec:
         # Labels is used to filter the PRs that you want to target. (optional)
         labels:
         - preview
+        # ExcludedLabels is used to exclude PRs with these labels. (optional)
+        excludedLabels:
+        - stale
+        - wip
       requeueAfterSeconds: 1800
   template:
   # ...
@@ -65,6 +69,7 @@ spec:
 * `api`: If using GitHub Enterprise, the URL to access it. (Optional)
 * `tokenRef`: A `Secret` name and key containing the GitHub access token to use for requests. If not specified, will make anonymous requests which have a lower rate limit and can only see public repositories. (Optional)
 * `labels`: Filter the PRs to those containing **all** of the labels listed. (Optional)
+* `excludedLabels`: Exclude PRs that have **any** of the labels listed. (Optional)
 * `appSecretName`: A `Secret` name containing a GitHub App secret in [repo-creds format][repo-creds].
 
 [repo-creds]: ../declarative-setup.md#repository-credentials
