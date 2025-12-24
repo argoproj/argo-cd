@@ -51,8 +51,8 @@ jobs:
       contents: read
       packages: write # Used to push images to `ghcr.io` if used.
       id-token: write # Needed to create an OIDC token for keyless signing
-    runs-on: ubuntu-22.04
-    outputs:
+    runs-on: ubuntu-24.04
+    outputs:  
       image-digest: ${{ steps.image.outputs.digest }}
     steps:
       - name: Checkout code

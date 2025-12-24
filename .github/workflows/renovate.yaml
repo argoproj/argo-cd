@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   renovate:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     if: github.repository == 'argoproj/argo-cd'
     steps:
       - name: Get token
