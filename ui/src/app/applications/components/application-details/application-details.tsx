@@ -792,7 +792,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                             }
 
                             return (
-                                <div className={`application-details ${props.match.params.name}`}>
+                                <div className={`application-details user-app-${props.match.params.name}`}>
                                     <Page
                                         title={props.match.params.name + ' - ' + getPageTitle(pref.view)}
                                         useTitleOnly={true}
