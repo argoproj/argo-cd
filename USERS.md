@@ -241,6 +241,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Money Forward](https://corp.moneyforward.com/en/)
 1. [MongoDB](https://www.mongodb.com/)
 1. [MOO Print](https://www.moo.com/)
+1. [moveax](https://www.moveax.it/en/)
 1. [Mozilla](https://www.mozilla.org)
 1. [MTN Group](https://www.mtn.com/)
 1. [Municipality of The Hague](https://www.denhaag.nl/)
