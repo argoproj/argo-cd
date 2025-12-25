@@ -62,7 +62,7 @@ K3d is a minimal Kubernetes distribution, in docker. Because it's running in a d
 
 The configuration you will need for Argo CD virtualized toolchain:
 
-1. Find your host IP by executing `ifconfig` on Mac/Linux and `ipconfig` on Windows. For most users, the following command works to find the IP address.
+1. For most users, the following command works to find the host IP address.
 
     * For Mac:
 
@@ -71,12 +71,23 @@ The configuration you will need for Argo CD virtualized toolchain:
     echo $IP
     ```
 
+    * For Windows:
+    
+    Run the following command and look for the IP address of your active network adapter:
+    
+    ```
+    ipconfig
+    ```
+
     * For Linux:
 
     ```
-    IP=`ifconfig eth0 | grep inet | grep -v inet6 | awk '{print $2}'`
+    IP=$(hostname -I | awk '{print $1}')
     echo $IP
     ```
+
+    > Note:
+    > If you are using a VPN or running Docker, multiple IP addresses may be returned and the first address may not correspond to your primary network. In such cases, run `hostname -I` and select the IP associated with the network you want to expose.
 
     Keep in mind that this IP is dynamically assigned by the router so if your router restarts for any reason, your IP might change.
 
