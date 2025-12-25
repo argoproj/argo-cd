@@ -357,6 +357,9 @@ func (s *Service) runRepoOperation(
 		return err
 	}
 
+	// Update RefSources TargetRevision with resolved revisions for cache operations
+	argo.UpdateRefSourcesWithResolvedRevisions(refSources, repoRefs)
+
 	if !settings.noCache {
 		if ok, err := cacheFn(revision, repoRefs, true); ok {
 			return err
@@ -578,6 +581,8 @@ func resolveReferencedSources(hasMultipleSources bool, source *v1alpha1.Applicat
 			}
 
 			repoRefs[normalizedRepoURL] = referencedCommitSHA
+			// Update RefSources TargetRevision with resolved revision for cache operations
+			refSourceMapping.TargetRevision = referencedCommitSHA
 		}
 	}
 	return repoRefs, nil
@@ -824,6 +829,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 						}
 					} else {
 						gitClient, referencedCommitSHA, err := s.newClientResolveRevision(&refSourceMapping.Repo, refSourceMapping.TargetRevision, git.WithCache(s.cache, !q.NoRevisionCache && !q.NoCache))
+						q.RefSources[refVar].TargetRevision = referencedCommitSHA
 						if err != nil {
 							log.Errorf("Failed to get git client for repo %s: %v", refSourceMapping.Repo.Repo, err)
 							ch.errCh <- fmt.Errorf("failed to get git client for repo %s", refSourceMapping.Repo.Repo)
@@ -3079,7 +3085,7 @@ func (s *Service) gitSourceHasChanges(repo *v1alpha1.Repository, revision, synce
 	return revision, syncedRevision, changed, nil
 }
 
-// UpdateRevisionForPaths compares two git revisions and checks if the files in the given paths have changed
+// UpdateRevisionForPaths efSnewRefSources:wevisions and checks if the files in the given paths have changed
 // If no files were changed, it will store the already cached manifest to the key corresponding to the old revision, avoiding an unnecessary generation.
 // Example: cache has key "a1a1a1" with manifest "x", and the files for that manifest have not changed,
 // "x" will be stored again with the new revision "b2b2b2".
@@ -3154,11 +3160,20 @@ func (s *Service) UpdateRevisionForPaths(_ context.Context, request *apiclient.U
 }
 
 func (s *Service) updateCachedRevision(logCtx *log.Entry, oldRev string, newRev string, request *apiclient.UpdateRevisionForPathsRequest, oldRepoRefs map[string]string, newRepoRefs map[string]string) error {
-	// TODO: need to separate refSources for updating cache for 2 case
-	//   1. in RefSources for git we have resolvedRevision
-	//   2. in RefSources for git we have revision from sources
+	// Update RefSources TargetRevision with resolved revisions for cache operations
+	// Create deep copies to avoid modifying the original request.RefSources
+	oldRefSources := make(v1alpha1.RefTargetRevisionMapping)
+	newRefSources := make(v1alpha1.RefTargetRevisionMapping)
 
-	err := s.cache.SetNewRevisionManifests(oldRev, newRev, request.ApplicationSource, request.RefSources, request, request.Namespace, request.TrackingMethod, request.AppLabelKey, request.AppName, oldRepoRefs, newRepoRefs, request.InstallationID)
+	for k, v := range request.RefSources {
+		oldRefSources[k] = v.DeepCopy()
+		newRefSources[k] = v.DeepCopy()
+	}
+
+	oldRefSources = argo.UpdateRefSourcesWithResolvedRevisions(oldRefSources, oldRepoRefs)
+	newRefSources = argo.UpdateRefSourcesWithResolvedRevisions(newRefSources, newRepoRefs)
+
+	err := s.cache.SetNewRevisionManifests(oldRev, newRev, request.ApplicationSource, oldRefSources, newRefSources, request, request.Namespace, request.TrackingMethod, request.AppLabelKey, request.AppName, oldRepoRefs, newRepoRefs, request.InstallationID)
 	if err != nil {
 		if errors.Is(err, cache.ErrCacheMiss) {
 			logCtx.Debugf("manifest cache miss during comparison for application %s from revision %s", request.AppName, oldRev)

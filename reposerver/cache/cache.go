@@ -360,9 +360,9 @@ func LogDebugManifestCacheKeyFields(message string, reason string, revision stri
 	}
 }
 
-func (c *Cache) SetNewRevisionManifests(newRevision string, revision string, appSrc *appv1.ApplicationSource, srcRefs appv1.RefTargetRevisionMapping, clusterInfo ClusterRuntimeInfo, namespace string, trackingMethod string, appLabelKey string, appName string, oldRefSourceCommitSHAs ResolvedRevisions, newRefSourceCommitSHAs ResolvedRevisions, installationID string) error {
-	oldKey := manifestCacheKey(revision, appSrc, srcRefs, namespace, trackingMethod, appLabelKey, appName, clusterInfo, oldRefSourceCommitSHAs, installationID)
-	newKey := manifestCacheKey(newRevision, appSrc, srcRefs, namespace, trackingMethod, appLabelKey, appName, clusterInfo, newRefSourceCommitSHAs, installationID)
+func (c *Cache) SetNewRevisionManifests(newRevision string, revision string, appSrc *appv1.ApplicationSource, oldSrcRefs appv1.RefTargetRevisionMapping, newSrcRefs appv1.RefTargetRevisionMapping, clusterInfo ClusterRuntimeInfo, namespace string, trackingMethod string, appLabelKey string, appName string, oldRefSourceCommitSHAs ResolvedRevisions, newRefSourceCommitSHAs ResolvedRevisions, installationID string) error {
+	oldKey := manifestCacheKey(revision, appSrc, oldSrcRefs, namespace, trackingMethod, appLabelKey, appName, clusterInfo, oldRefSourceCommitSHAs, installationID)
+	newKey := manifestCacheKey(newRevision, appSrc, newSrcRefs, namespace, trackingMethod, appLabelKey, appName, clusterInfo, newRefSourceCommitSHAs, installationID)
 	return c.cache.RenameItem(oldKey, newKey, c.repoCacheExpiration)
 }
 
