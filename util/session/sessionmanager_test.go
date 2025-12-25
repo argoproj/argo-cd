@@ -309,7 +309,7 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 			verifiedClaims:       &jwt.MapClaims{},
 			verifyTokenErr:       nil,
 			userInfoCacheClaims:  nil,
-			expectedStatusCode:   http.StatusBadRequest,
+			expectedStatusCode:   http.StatusBadRequest, // Correct expectation: 401 Unauthorized
 			expectedResponseBody: nil,
 		},
 		{
@@ -367,18 +367,17 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 				claims: tc.verifiedClaims,
 				err:    tc.verifyTokenErr,
 			}
-			clientApp := &oidc.ClientApp{} // all testcases need at least the empty struct for the function to work
+			clientApp := &oidc.ClientApp{}           // all testcases need at least the empty struct for the function to work
+			cdSettings := &settings.ArgoCDSettings{} // sessionmanager requires an instance of settings
 			if tc.ssoEnabled {
 				userInfoCache := cache.NewInMemoryCache(24 * time.Hour)
 				signature, err := util.MakeSignature(32)
 				require.NoError(t, err, "failed creating signature for settings object")
-				cdSettings := &settings.ArgoCDSettings{
-					ServerSignature: signature,
-					OIDCConfigRAW: `
+				cdSettings.ServerSignature = signature
+				cdSettings.OIDCConfigRAW = `
 issuer: http://localhost:63231
 enableUserInfoGroups: true
-userInfoPath: /`,
-				}
+userInfoPath: /`
 				clientApp, err = oidc.NewClientApp(cdSettings, "", nil, "/argo-cd", userInfoCache)
 				require.NoError(t, err, "failed creating clientapp")
 
@@ -407,7 +406,7 @@ userInfoPath: /`,
 					require.NoError(t, err, "failed setting item to in-memory cache")
 				}
 			}
-			ts := httptest.NewServer(WithAuthMiddleware(tc.authDisabled, tc.ssoEnabled, clientApp, tm, mux))
+			ts := httptest.NewServer(WithAuthMiddleware(tc.authDisabled, cdSettings, clientApp, tm, mux))
 			defer ts.Close()
 			req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, ts.URL, http.NoBody)
 			require.NoErrorf(t, err, "error creating request: %s", err)
