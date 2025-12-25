@@ -315,6 +315,10 @@ When the `example-user` executes the `extensions/DaemonSet/test` action, the fol
 3. The value `action/extensions/DaemonSet/test` matches `action/extensions/*`. Note that `/` is not treated as a separator and the use of `**` is not necessary.
 4. The value `default/my-app` matches `default/*`.
 
+> [!TIP]
+> For performance tuning of glob pattern matching, see the `ARGOCD_GLOB_CACHE_SIZE` environment variable in
+> [High Availability - argocd-server](high_availability.md#argocd-server).
+
 ## Using SSO Users/Groups
 
 The `scopes` field controls which OIDC scopes to examine during RBAC enforcement (in addition to `sub` scope).
