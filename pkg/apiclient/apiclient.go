@@ -62,6 +62,8 @@ const (
 	EnvArgoCDServer = "ARGOCD_SERVER"
 	// EnvArgoCDAuthToken is the environment variable to look for an Argo CD auth token
 	EnvArgoCDAuthToken = "ARGOCD_AUTH_TOKEN"
+	// EnvArgoCDProxyAuthToken is the environment variable to look for an Argo CD proxy auth token
+	EnvArgoCDProxyAuthToken = "ARGOCD_PROXY_AUTH_TOKEN"
 )
 
 // MaxGRPCMessageSize contains max grpc message size
@@ -110,6 +112,7 @@ type ClientOptions struct {
 	ClientCertFile       string
 	ClientCertKeyFile    string
 	AuthToken            string
+	ProxyAuthToken       string
 	ConfigPath           string
 	Context              string
 	UserAgent            string
@@ -138,6 +141,7 @@ type client struct {
 	ClientCert      *tls.Certificate
 	AuthToken       string
 	RefreshToken    string
+	ProxyAuthToken  string
 	UserAgent       string
 	GRPCWeb         bool
 	GRPCWebRootPath string
@@ -229,6 +233,11 @@ func NewClient(opts *ClientOptions) (Client, error) {
 	c.AuthToken = env.StringFromEnv(EnvArgoCDAuthToken, c.AuthToken)
 	if opts.AuthToken != "" {
 		c.AuthToken = strings.TrimSpace(opts.AuthToken)
+	}
+	// Set a proxy-auth-token if specified in env variable or CLI flag
+	c.ProxyAuthToken = env.StringFromEnv(EnvArgoCDProxyAuthToken, c.ProxyAuthToken)
+	if opts.ProxyAuthToken != "" {
+		c.ProxyAuthToken = strings.TrimSpace(opts.ProxyAuthToken)
 	}
 	// Override certificate data if specified from CLI flag
 	if opts.CertFile != "" {
@@ -370,6 +379,10 @@ func (c *client) HTTPClient() (*http.Client, error) {
 
 	if c.UserAgent != "" {
 		headers.Set("User-Agent", c.UserAgent)
+	}
+
+	if c.ProxyAuthToken != "" {
+		headers.Set("Proxy-Authorization", "Bearer "+c.ProxyAuthToken)
 	}
 
 	return &http.Client{
@@ -535,6 +548,10 @@ func (c *client) newConn(ctx context.Context) (*grpc.ClientConn, io.Closer, erro
 		for _, v := range vs {
 			ctx = metadata.AppendToOutgoingContext(ctx, k, v)
 		}
+	}
+
+	if c.ProxyAuthToken != "" {
+		ctx = metadata.AppendToOutgoingContext(ctx, "proxy-authorization", "Bearer "+c.ProxyAuthToken)
 	}
 
 	if c.UserAgent != "" {
