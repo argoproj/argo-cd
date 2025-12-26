@@ -216,6 +216,15 @@ func (l *LocalConfig) RemoveUser(serverName string) bool {
 	return false
 }
 
+func (l *LocalConfig) GetToken(serverName string) string {
+	for _, u := range l.Users {
+		if u.Name == serverName {
+			return u.AuthToken
+		}
+	}
+	return ""
+}
+
 // Returns true if user was removed successfully
 func (l *LocalConfig) RemoveToken(serverName string) bool {
 	for i, u := range l.Users {
