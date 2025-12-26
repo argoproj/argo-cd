@@ -80,12 +80,15 @@ COPY ./test/fixture/testrepos/ssh_host_*_key* /etc/ssh/
 COPY --from=redis /usr/local/bin/* /usr/local/bin/
 
 # Copy redis dependencies/shared libraries
-# Ubuntu 22.04+ has moved to OpenSSL3 and no longer provides these libraries
-COPY --from=redis /usr/lib/linux-gnu/libssl.so.3 /usr/lib/linux-gnu/
-COPY --from=redis /usr/lib/linux-gnu/libcrypto.so.3 /usr/lib/linux-gnu/
-RUN mv /usr/lib/linux-gnu/libssl.so.3 /usr/lib/$(uname -m)-linux-gnu/ && \
-    mv /usr/lib/linux-gnu/libcrypto.so.3 /usr/lib/$(uname -m)-linux-gnu/ && \
-    rm -rf /usr/lib/linux-gnu/
+# Copy all possible architecture paths and then move the correct one
+COPY --from=redis /usr/lib/ /tmp/redis-libs/
+RUN ARCH=$(uname -m) && \
+    ARCH_DIR="${ARCH}-linux-gnu" && \
+    if [ -f "/tmp/redis-libs/${ARCH_DIR}/libssl.so.3" ]; then \
+        cp /tmp/redis-libs/${ARCH_DIR}/libssl.so.3 /usr/lib/${ARCH_DIR}/; \
+        cp /tmp/redis-libs/${ARCH_DIR}/libcrypto.so.3 /usr/lib/${ARCH_DIR}/; \
+    fi && \
+    rm -rf /tmp/redis-libs
 
 # Copy registry binaries to the image
 COPY --from=registry /bin/registry /usr/local/bin/

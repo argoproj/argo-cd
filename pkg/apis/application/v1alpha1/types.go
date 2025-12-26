@@ -2793,6 +2793,8 @@ type SyncWindow struct {
 	UseAndOperator bool `json:"andOperator,omitempty" protobuf:"bytes,9,opt,name=andOperator"`
 	// Description of the sync that will be applied to the schedule, can be used to add any information such as a ticket number for example
 	Description string `json:"description,omitempty" protobuf:"bytes,10,opt,name=description"`
+	// SyncOverrun allows syncs that started before this deny window to continue running
+	SyncOverrun bool `json:"syncOverrun,omitempty" protobuf:"bytes,11,opt,name=syncOverrun"`
 }
 
 // HasWindows returns true if SyncWindows has one or more SyncWindow
@@ -2890,7 +2892,7 @@ func (w *SyncWindow) scheduleOffsetByTimeZone() time.Duration {
 }
 
 // AddWindow adds a sync window with the given parameters to the AppProject
-func (spec *AppProjectSpec) AddWindow(knd string, sch string, dur string, app []string, ns []string, cl []string, ms bool, timeZone string, andOperator bool, description string) error {
+func (spec *AppProjectSpec) AddWindow(knd string, sch string, dur string, app []string, ns []string, cl []string, ms bool, timeZone string, andOperator bool, description string, syncOverrun bool) error {
 	if knd == "" || sch == "" || dur == "" {
 		return errors.New("cannot create window: require kind, schedule, duration and one or more of applications, namespaces and clusters")
 	}
@@ -2903,6 +2905,7 @@ func (spec *AppProjectSpec) AddWindow(knd string, sch string, dur string, app []
 		TimeZone:       timeZone,
 		UseAndOperator: andOperator,
 		Description:    description,
+		SyncOverrun:    syncOverrun,
 	}
 
 	if len(app) > 0 {
@@ -3018,7 +3021,7 @@ func (w *SyncWindows) Matches(app *Application) *SyncWindows {
 }
 
 // CanSync returns true if a sync window currently allows a sync. isManual indicates whether the sync has been triggered manually.
-func (w *SyncWindows) CanSync(isManual bool) (bool, error) {
+func (w *SyncWindows) CanSync(isManual bool, operationStartTime *time.Time) (bool, error) {
 	if !w.HasWindows() {
 		return true, nil
 	}
@@ -3030,6 +3033,14 @@ func (w *SyncWindows) CanSync(isManual bool) (bool, error) {
 	hasActiveDeny, manualEnabled := active.hasDeny()
 
 	if hasActiveDeny {
+		// Check if operation started before deny window and overrun is allowed
+		if operationStartTime != nil && !operationStartTime.IsZero() && active.allowsOverrun() {
+			wasAllowed, err := w.canSyncAtTime(isManual, *operationStartTime)
+			if err == nil && wasAllowed {
+				return true, nil // Allow sync to continue (overrun)
+			}
+		}
+
 		if isManual && manualEnabled {
 			return true, nil
 		}
@@ -3103,6 +3114,62 @@ func (w *SyncWindows) manualEnabled() bool {
 		}
 	}
 	return true
+}
+
+// allowsOverrun will iterate over the SyncWindows and return true if all deny windows have
+// SyncOverrun set to true. Returns false if it finds at least one deny window with
+// SyncOverrun set to false
+func (w *SyncWindows) allowsOverrun() bool {
+	if !w.HasWindows() {
+		return false
+	}
+	hasDeny := false
+	for _, s := range *w {
+		if s.Kind == "deny" {
+			hasDeny = true
+			if !s.SyncOverrun {
+				return false
+			}
+		}
+	}
+	return hasDeny
+}
+
+// canSyncAtTime checks if a sync would have been allowed at a specific time
+func (w *SyncWindows) canSyncAtTime(isManual bool, checkTime time.Time) (bool, error) {
+	if !w.HasWindows() {
+		return true, nil
+	}
+
+	active, err := w.active(checkTime)
+	if err != nil {
+		return false, fmt.Errorf("invalid sync windows: %w", err)
+	}
+	hasActiveDeny, manualEnabled := active.hasDeny()
+
+	if hasActiveDeny {
+		if isManual && manualEnabled {
+			return true, nil
+		}
+		return false, nil
+	}
+
+	if active.hasAllow() {
+		return true, nil
+	}
+
+	inactiveAllows, err := w.InactiveAllows()
+	if err != nil {
+		return false, fmt.Errorf("invalid sync windows: %w", err)
+	}
+	if inactiveAllows.HasWindows() {
+		if isManual && inactiveAllows.manualEnabled() {
+			return true, nil
+		}
+		return false, nil
+	}
+
+	return true, nil
 }
 
 // Active returns true if the sync window is currently active
