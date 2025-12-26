@@ -120,6 +120,12 @@ type ClusterInfo struct {
 	SyncError error
 	// APIResources holds list of API resources supported by the cluster
 	APIResources []kube.APIResourceInfo
+	// FailedResourceGVKs holds list of GVKs that failed to sync due to conversion webhook errors
+	FailedResourceGVKs []string
+	// IsTainted indicates if the cluster cache is in a tainted state
+	IsTainted bool
+	// TaintReason provides information about why the cluster is tainted
+	TaintReason string
 }
 
 // OnEventHandler is a function that handles Kubernetes event
@@ -164,12 +170,20 @@ type ClusterCache interface {
 	GetManagedLiveObjs(targetObjs []*unstructured.Unstructured, isManaged func(r *Resource) bool) (map[kube.ResourceKey]*unstructured.Unstructured, error)
 	// GetClusterInfo returns cluster cache statistics
 	GetClusterInfo() ClusterInfo
+	// RefreshStaleResources refreshes resources of a specific GVK that have nil Resource data
+	RefreshStaleResources(gvk schema.GroupVersionKind) error
+	// RefreshSpecificResources refreshes specific resource instances that have nil Resource data
+	RefreshSpecificResources(keys []kube.ResourceKey) error
 	// OnResourceUpdated register event handler that is executed every time when resource get's updated in the cache
 	OnResourceUpdated(handler OnResourceUpdatedHandler) Unsubscribe
 	// OnEvent register event handler that is executed every time when new K8S event received
 	OnEvent(handler OnEventHandler) Unsubscribe
 	// OnProcessEventsHandler register event handler that is executed every time when events were processed
 	OnProcessEventsHandler(handler OnProcessEventsHandler) Unsubscribe
+	// HandleResourceGVKError reports an error for a specific GVK to the taint tracking framework
+	HandleResourceGVKError(gvk schema.GroupVersionKind, err error)
+	// ClearResourceGVKError clears any tracked error for a specific GVK, indicating recovery
+	ClearResourceGVKError(gvk schema.GroupVersionKind)
 }
 
 type WeightedSemaphore interface {
@@ -192,6 +206,7 @@ func NewClusterCache(config *rest.Config, opts ...UpdateSettingsFunc) *clusterCa
 		listSemaphore:      semaphore.NewWeighted(defaultListSemaphoreWeight),
 		resources:          make(map[kube.ResourceKey]*Resource),
 		nsIndex:            make(map[string]map[kube.ResourceKey]*Resource),
+		failedResourceGVKs: make(map[string]bool),
 		config:             config,
 		kubectl: &kube.KubectlCmd{
 			Log:    log,
@@ -252,6 +267,9 @@ type clusterCache struct {
 	lock      sync.RWMutex
 	resources map[kube.ResourceKey]*Resource
 	nsIndex   map[string]map[kube.ResourceKey]*Resource
+
+	// failedResourceGVKs tracks GVKs that failed to sync due to conversion webhook errors
+	failedResourceGVKs map[string]bool
 
 	kubectl          kube.Kubectl
 	log              logr.Logger
@@ -607,6 +625,7 @@ func (c *clusterCache) Invalidate(opts ...UpdateSettingsFunc) {
 	}
 	c.apisMeta = nil
 	c.namespacedResources = nil
+	c.failedResourceGVKs = make(map[string]bool)
 	c.log.Info("Invalidated cluster")
 }
 
@@ -761,15 +780,42 @@ func (c *clusterCache) loadInitialState(ctx context.Context, api kube.APIResourc
 		})
 	})
 	if err != nil {
+		if c.errorTaintsCache(err) {
+			// For cache-tainting errors, track the failed GVK but don't fail completely
+			gvk := schema.GroupVersionKind{
+				Group:   api.GroupKind.Group,
+				Version: api.GroupVersionResource.Version,
+				Kind:    api.GroupKind.Kind,
+			}
+			if lock {
+				_ = runSynced(&c.lock, func() error {
+					c.trackFailedGVK(gvk, err)
+					return nil
+				})
+			} else {
+				c.trackFailedGVK(gvk, err)
+			}
+			// Return empty items and successful resource version for cache-tainting errors
+			return "", nil
+		}
 		return "", fmt.Errorf("failed to load initial state of resource %s: %w", api.GroupKind.String(), err)
+	}
+
+	// Successfully loaded resources - clear any previously failed GVK
+	gvk := schema.GroupVersionKind{
+		Group:   api.GroupKind.Group,
+		Version: api.GroupVersionResource.Version,
+		Kind:    api.GroupKind.Kind,
 	}
 
 	if lock {
 		return resourceVersion, runSynced(&c.lock, func() error {
+			c.clearFailedGVK(gvk)
 			c.replaceResourceCache(api.GroupKind, items, ns)
 			return nil
 		})
 	}
+	c.clearFailedGVK(gvk)
 	c.replaceResourceCache(api.GroupKind, items, ns)
 	return resourceVersion, nil
 }
@@ -1091,8 +1137,32 @@ func (c *clusterCache) sync() error {
 						return nil
 					}
 				}
+				if c.errorTaintsCache(err) {
+					// For cache-tainting errors, track the failed GVK but don't fail the sync
+					gvk := schema.GroupVersionKind{
+						Group:   api.GroupKind.Group,
+						Version: api.GroupVersionResource.Version,
+						Kind:    api.GroupKind.Kind,
+					}
+					c.log.Info("Conversion webhook error detected, tainting cache but allowing sync to continue", "gvk", gvk.String(), "error", err.Error())
+					lock.Lock()
+					c.trackFailedGVK(gvk, err)
+					lock.Unlock()
+					return nil
+				}
+				c.log.Info("Error NOT classified as cache-tainting, failing sync", "gvk", api.GroupKind.String(), "error", err.Error())
 				return fmt.Errorf("failed to load initial state of resource %s: %w", api.GroupKind.String(), err)
 			}
+
+			// Successfully loaded resources - clear any previously failed GVK
+			gvk := schema.GroupVersionKind{
+				Group:   api.GroupKind.Group,
+				Version: api.GroupVersionResource.Version,
+				Kind:    api.GroupKind.Kind,
+			}
+			lock.Lock()
+			c.clearFailedGVK(gvk)
+			lock.Unlock()
 
 			go c.watchEvents(ctx, api, resClient, ns, resourceVersion)
 
@@ -1415,8 +1485,10 @@ func (c *clusterCache) GetManagedLiveObjs(targetObjs []*unstructured.Unstructure
 	managedObjs := make(map[kube.ResourceKey]*unstructured.Unstructured)
 	// iterate all objects in live state cache to find ones associated with app
 	for key, o := range c.resources {
-		if isManaged(o) && o.Resource != nil && len(o.OwnerRefs) == 0 {
-			managedObjs[key] = o.Resource
+		if isManaged(o) && len(o.OwnerRefs) == 0 {
+			if o.Resource != nil {
+				managedObjs[key] = o.Resource
+			}
 		}
 	}
 	// but are simply missing our label
@@ -1459,13 +1531,18 @@ func (c *clusterCache) GetManagedLiveObjs(targetObjs []*unstructured.Unstructure
 			if err != nil {
 				// fallback to loading resource from kubernetes if conversion fails
 				c.log.V(1).Info(fmt.Sprintf("Failed to convert resource: %v", err))
+				c.log.Info(fmt.Sprintf("Calling GetResource for %s/%s/%s in namespace %s",
+					targetObj.GroupVersionKind().Group, targetObj.GroupVersionKind().Version, targetObj.GroupVersionKind().Kind,
+					managedObj.GetNamespace()))
 				managedObj, err = c.kubectl.GetResource(context.TODO(), c.config, targetObj.GroupVersionKind(), managedObj.GetName(), managedObj.GetNamespace())
 				if err != nil {
+					c.log.Info(fmt.Sprintf("GetResource failed: %v", err))
 					if apierrors.IsNotFound(err) {
 						return nil
 					}
 					return fmt.Errorf("unexpected error getting managed object: %w", err)
 				}
+				c.log.Info(fmt.Sprintf("GetResource succeeded for %s", managedObj.GetName()))
 			} else {
 				managedObj = converted
 			}
@@ -1480,6 +1557,100 @@ func (c *clusterCache) GetManagedLiveObjs(targetObjs []*unstructured.Unstructure
 	}
 
 	return managedObjs, nil
+}
+
+// RefreshStaleResources refreshes resources of a specific GVK that have nil Resource data
+// This is used to recover resources after their GVK recovers from a tainted state
+func (c *clusterCache) RefreshStaleResources(gvk schema.GroupVersionKind) error {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
+	var staleResources []*Resource
+	gk := gvk.GroupKind()
+
+	// Find resources with nil Resource data for this GVK
+	for key, res := range c.resources {
+		if key.Kind == gk.Kind && key.Group == gk.Group && res.Resource == nil {
+			staleResources = append(staleResources, res)
+		}
+	}
+
+	if len(staleResources) == 0 {
+		return nil
+	}
+
+	c.log.Info(fmt.Sprintf("Refreshing %d stale resources for GVK %s", len(staleResources), gvk.String()))
+
+	// Refresh each stale resource by fetching it from the API server
+	for _, res := range staleResources {
+		refreshedUn, err := c.kubectl.GetResource(context.TODO(), c.config, gvk, res.Ref.Name, res.Ref.Namespace)
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				// Resource was deleted, remove it from cache
+				c.onNodeRemoved(res.ResourceKey())
+				continue
+			}
+			// Log error but don't fail the entire operation
+			c.log.Error(err, fmt.Sprintf("Failed to refresh resource %s", res.ResourceKey()))
+			continue
+		}
+
+		// Create new resource with refreshed data
+		refreshedRes := c.newResource(refreshedUn)
+
+		// Update the cache
+		c.onNodeUpdated(res, refreshedRes)
+	}
+
+	return nil
+}
+
+// RefreshSpecificResources refreshes specific resource instances that have nil Resource data
+// This is more efficient than RefreshStaleResources when you know exactly which resources need refreshing
+func (c *clusterCache) RefreshSpecificResources(keys []kube.ResourceKey) error {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
+	var staleKeys []kube.ResourceKey
+
+	// Find resources with nil Resource data for these specific keys
+	for _, key := range keys {
+		if res, exists := c.resources[key]; exists && res.Resource == nil {
+			staleKeys = append(staleKeys, key)
+		}
+	}
+
+	if len(staleKeys) == 0 {
+		return nil
+	}
+
+	c.log.Info(fmt.Sprintf("Refreshing %d specific stale resources", len(staleKeys)))
+
+	// Refresh each stale resource by fetching it from the API server
+	for _, key := range staleKeys {
+		res := c.resources[key]
+		gvk := res.Ref.GroupVersionKind()
+
+		refreshedUn, err := c.kubectl.GetResource(context.TODO(), c.config, gvk, res.Ref.Name, res.Ref.Namespace)
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				// Resource was deleted, remove it from cache
+				c.onNodeRemoved(key)
+				continue
+			}
+			// Log error but don't fail the entire operation
+			c.log.Error(err, fmt.Sprintf("Failed to refresh resource %s", key))
+			continue
+		}
+
+		// Create new resource with refreshed data
+		refreshedRes := c.newResource(refreshedUn)
+
+		// Update the cache
+		c.onNodeUpdated(res, refreshedRes)
+	}
+
+	return nil
 }
 
 func (c *clusterCache) recordEvent(event watch.EventType, un *unstructured.Unstructured) {
@@ -1558,7 +1729,53 @@ func (c *clusterCache) processEvent(key kube.ResourceKey, evMeta eventMeta) {
 			c.onNodeRemoved(key)
 		}
 	} else {
-		c.onNodeUpdated(existingNode, c.newResource(evMeta.un))
+		var newRes *Resource
+		var newResourceErr error
+
+		// Wrap newResource() call with panic recovery to handle conversion webhook failures
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					newResourceErr = fmt.Errorf("resource conversion failed: %v", r)
+				}
+			}()
+			newRes = c.newResource(evMeta.un)
+		}()
+
+		// If resource conversion failed, create a tainted resource entry
+		if newResourceErr != nil {
+			gvk := evMeta.un.GroupVersionKind()
+			c.log.Info("Resource conversion failed during watch event, creating tainted cache entry", "gvk", gvk.String(), "key", key.String(), "error", newResourceErr.Error())
+
+			// Track the failed GVK
+			c.trackFailedGVK(gvk, newResourceErr)
+
+			// Create a tainted resource entry to preserve resource metadata
+			var creationTimestamp *metav1.Time
+			ct := evMeta.un.GetCreationTimestamp()
+			if !ct.IsZero() {
+				creationTimestamp = &ct
+			}
+
+			// Preserve the existing resource's Info (especially AppName) to maintain app association
+			var preservedInfo any
+			if exists && existingNode != nil && existingNode.Info != nil {
+				preservedInfo = existingNode.Info
+			}
+
+			newRes = &Resource{
+				ResourceVersion:    evMeta.un.GetResourceVersion(),
+				Ref:                kube.GetObjectRef(evMeta.un),
+				OwnerRefs:          []metav1.OwnerReference{}, // Empty slice instead of nil to avoid nil pointer issues
+				Info:               preservedInfo, // Preserve app association for immediate health update
+				CreationTimestamp:  creationTimestamp,
+				isInferredParentOf: nil,
+				Resource:           nil, // This marks the resource as tainted
+			}
+		}
+
+		// Always call onNodeUpdated so app controller gets notified of the change
+		c.onNodeUpdated(existingNode, newRes)
 	}
 }
 
@@ -1613,14 +1830,18 @@ func (c *clusterCache) GetClusterInfo() ClusterInfo {
 	c.syncStatus.lock.Lock()
 	defer c.syncStatus.lock.Unlock()
 
+	// Retrieve failed resource GVKs from the internal state
+	failedGVKs := c.getFailedResourceGVKs()
+
 	return ClusterInfo{
-		APIsCount:         len(c.apisMeta),
-		K8SVersion:        c.serverVersion,
-		ResourcesCount:    len(c.resources),
-		Server:            c.config.Host,
-		LastCacheSyncTime: c.syncStatus.syncTime,
-		SyncError:         c.syncStatus.syncError,
-		APIResources:      c.apiResources,
+		APIsCount:          len(c.apisMeta),
+		K8SVersion:         c.serverVersion,
+		ResourcesCount:     len(c.resources),
+		Server:             c.config.Host,
+		LastCacheSyncTime:  c.syncStatus.syncTime,
+		SyncError:          c.syncStatus.syncError,
+		APIResources:       c.apiResources,
+		FailedResourceGVKs: failedGVKs,
 	}
 }
 
@@ -1628,4 +1849,58 @@ func (c *clusterCache) GetClusterInfo() ClusterInfo {
 // We ignore API types which have a high churn rate, and/or whose updates are irrelevant to the app
 func skipAppRequeuing(key kube.ResourceKey) bool {
 	return ignoredRefreshResources[key.Group+"/"+key.Kind]
+}
+
+// getFailedResourceGVKs returns a list of GVKs that failed to sync due to cache-tainting errors.
+// This method should be called with the clusterCache lock held.
+func (c *clusterCache) getFailedResourceGVKs() []string {
+	var failedGVKs []string
+	for gvk := range c.failedResourceGVKs {
+		failedGVKs = append(failedGVKs, gvk)
+	}
+	return failedGVKs
+}
+
+// trackFailedGVK tracks a GVK that failed to sync due to a cache-tainting error.
+// This method should be called with the clusterCache lock held.
+func (c *clusterCache) trackFailedGVK(gvk schema.GroupVersionKind, err error) {
+	gvkString := gvk.String()
+	c.failedResourceGVKs[gvkString] = true
+	c.log.Info("Tracked failed resource GVK due to cache-tainting error", "gvk", gvkString, "error", err.Error())
+}
+
+// clearFailedGVK removes a GVK from the failed tracking when it recovers.
+// This method should be called with the clusterCache lock held.
+func (c *clusterCache) clearFailedGVK(gvk schema.GroupVersionKind) {
+	gvkString := gvk.String()
+	if _, exists := c.failedResourceGVKs[gvkString]; exists {
+		delete(c.failedResourceGVKs, gvkString)
+		c.log.Info("Cleared failed resource GVK after recovery", "gvk", gvkString)
+	}
+}
+
+// errorTaintsCache checks if an error should cause the cache to be marked as tainted
+// but allow it to continue operating. This includes errors like conversion webhook
+// failures and other recoverable sync errors.
+func (c *clusterCache) errorTaintsCache(err error) bool {
+	classification := ClassifyError(err)
+	return classification.IsCacheTainting
+}
+
+// HandleResourceGVKError reports an error for a specific GVK to the taint tracking framework.
+// This is the public method that should be called from outside the cache package.
+// It properly handles locking and delegates to the internal trackFailedGVK method.
+func (c *clusterCache) HandleResourceGVKError(gvk schema.GroupVersionKind, err error) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	c.trackFailedGVK(gvk, err)
+}
+
+// ClearResourceGVKError clears any tracked error for a specific GVK, indicating recovery.
+// This is the public method that should be called from outside the cache package.
+// It properly handles locking and delegates to the internal clearFailedGVK method.
+func (c *clusterCache) ClearResourceGVKError(gvk schema.GroupVersionKind) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	c.clearFailedGVK(gvk)
 }

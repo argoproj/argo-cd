@@ -402,9 +402,9 @@ func TestStatefulSetOwnershipInferred(t *testing.T) {
 				tc.cluster.lock.Lock()
 				defer tc.cluster.lock.Unlock()
 
-				resource := tc.cluster.resources[kube.GetResourceKey(pvc)]
-				if resource == nil {
-					return false // Resource not ready yet, keep retrying
+				resource, exists := tc.cluster.resources[kube.GetResourceKey(pvc)]
+				if !exists || resource == nil {
+					return false
 				}
 				refs := resource.OwnerRefs
 				if tc.expectNoOwner {
