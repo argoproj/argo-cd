@@ -834,6 +834,7 @@ func (in *ApplicationSetStatus) DeepCopyInto(out *ApplicationSetStatus) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
+	in.Health.DeepCopyInto(&out.Health)
 	return
 }
 
