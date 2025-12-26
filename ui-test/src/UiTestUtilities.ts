@@ -1,7 +1,7 @@
 import Configuration from './Configuration';
 import {Builder, By, until, WebDriver, WebElement} from 'selenium-webdriver';
 import chrome from 'selenium-webdriver/chrome';
-import * as Const from './Constants';
+import * as fs from 'fs';
 import {Navigation} from './navigation';
 
 export default class UiTestUtilities {
@@ -10,32 +10,14 @@ export default class UiTestUtilities {
      * @param message
      */
     public static async log(message: string): Promise<void> {
-        let doLog = Const.ENABLE_CONSOLE_LOG;
-        // Config override
         if (Configuration.ENABLE_CONSOLE_LOG) {
-            if (Configuration.ENABLE_CONSOLE_LOG === 'false') {
-                doLog = false;
-            } else {
-                doLog = true;
-            }
-        }
-        if (doLog) {
             // tslint:disable-next-line:no-console
             console.log(message);
         }
     }
 
     public static async logError(message: string): Promise<void> {
-        let doLog = Const.ENABLE_CONSOLE_LOG;
-        // Config override
         if (Configuration.ENABLE_CONSOLE_LOG) {
-            if (Configuration.ENABLE_CONSOLE_LOG === 'false') {
-                doLog = false;
-            } else {
-                doLog = true;
-            }
-        }
-        if (doLog) {
             // tslint:disable-next-line:no-console
             console.error(message);
         }
@@ -49,16 +31,26 @@ export default class UiTestUtilities {
      */
     public static async init(): Promise<Navigation> {
         const options = new chrome.Options();
-        UiTestUtilities.log('Env var IS_HEADLESS = ' + process.env.IS_HEADLESS);
+        if (process.env.ACCEPT_INSECURE_CERTS !== 'false') {
+            options.setAcceptInsecureCerts(true);
+        }
         if (process.env.IS_HEADLESS !== 'false') {
             UiTestUtilities.log('Adding headless option');
             options.addArguments('headless');
         }
-        options.addArguments('window-size=1400x1200');
+        options.addArguments(
+            'window-size=1400,800',
+            "enable-javascript",
+            "no-sandbox",
+            "disable-gpu",
+            "disable-dev-shm-usage"
+        );
         const driver = await new Builder().forBrowser('chrome').setChromeOptions(options).build();
 
         UiTestUtilities.log('Environment variables are:');
-        UiTestUtilities.log(require('dotenv').config({path: __dirname + '/../.env'}));
+        const loadedConfig = require('dotenv').config({path: __dirname + '/../.env'});
+        loadedConfig["parsed"]["ARGOCD_AUTH_PASSWORD"] = "<REDACTED>"
+        UiTestUtilities.log(loadedConfig);
 
         // Navigate to the ArgoCD URL
         await driver.get(Configuration.ARGOCD_URL);
@@ -67,17 +59,33 @@ export default class UiTestUtilities {
     }
 
     /**
+     *  Ensure that the given string is in the page.
+     */
+    public static async existInPage(driver: WebDriver, text: string): Promise<boolean> {
+        return (await driver.getPageSource()).includes(text);
+    }
+
+    /**
+     * Take a screenshot of the current session and save it to the directory mounted on `_logs`.
+     *
+     * @param driver
+     * @param fileName
+     */
+    public static async captureSession(driver: any, fileName: string) {
+        const screenshot = await driver.takeScreenshot();
+        const binaryBuffer: Buffer = Buffer.from(screenshot, 'base64');
+        fs.writeFileSync(`/root/.npm/_logs/${fileName}`, binaryBuffer);
+        console.log(`Screenshot saved to: ${fileName}`);
+    }
+
+    /**
      * Locate the UI Element for the given locator, and wait until it is visible
      *
      * @param driver
      * @param locator
      */
-    public static async findUiElement(driver: WebDriver, locator: By): Promise<WebElement> {
+    public static async findUiElement(driver: WebDriver, locator: By, timeout: number = Configuration.TEST_TIMEOUT): Promise<WebElement> {
         try {
-            let timeout = Const.TEST_TIMEOUT;
-            if (Configuration.TEST_TIMEOUT) {
-                timeout = parseInt(Configuration.TEST_TIMEOUT, 10);
-            }
             const element = await driver.wait(until.elementLocated(locator), timeout);
             const isDisplayed = await element.isDisplayed();
             if (isDisplayed) {
@@ -87,6 +95,32 @@ export default class UiTestUtilities {
         } catch (err) {
             throw err;
         }
+    }
+
+    public static async getErrorToast(driver: WebDriver): Promise<string> {
+        const ERROR_TOAST_LOCATOR = By.xpath("//div[contains(@class, 'Toastify__toast-body')]//span");
+        const toastSpan = await driver.wait(
+            until.elementLocated(ERROR_TOAST_LOCATOR),
+            Configuration.TEST_ERROR_TOAST_TIMEOUT
+        ).catch((_) => { return null });
+        if (toastSpan) {
+            const text = await toastSpan.getAttribute('innerHTML');
+            return text.trim();
+        }
+        return "";
+    }
+
+    public static async getFormErrors(driver: WebDriver): Promise<string> {
+        const ERROR_FORM_LOCATOR = By.xpath("//div[contains(@class, 'argo-form-row__error-msg')]");
+        const formErrors = await driver.wait(
+            until.elementLocated(ERROR_FORM_LOCATOR),
+            Configuration.TEST_ERROR_TOAST_TIMEOUT
+        ).catch((_) => { return null });
+        if (formErrors) {
+            const text = await formErrors.getAttribute('innerHTML');
+            return text.trim();
+        }
+        return "";
     }
 
     /**
@@ -103,34 +137,12 @@ export default class UiTestUtilities {
     }
 
     /**
-     * Similar to until.methods and used in driver.wait, this function will wait until
-     * the element (eg. operation state) title attribute no longer is present
-     *
-     * @param element
+    * Wait for the given amount of time.
+    *
+    * @param milliseconds
      */
-    public static async untilOperationStatusDisappears(element: WebElement): Promise<boolean> {
-        try {
-            const opState = await element.getAttribute('title');
-            UiTestUtilities.log('Operation State = ' + opState);
-            return false;
-        } catch (err) {
-            UiTestUtilities.log('Status disappeared');
-            return true;
-        }
+    public static async sleep(milliseconds: number) {
+        await new Promise(f => setTimeout(f, milliseconds));
     }
 
-    /**
-     * For clicking on elements if WebElement.click() doesn't work
-     *
-     * @param driver
-     * @param element
-     */
-    public static async click(driver: WebDriver, element: WebElement): Promise<void> {
-        try {
-            // Execute synchronous script
-            await driver.executeScript('arguments[0].click();', element);
-        } catch (e) {
-            throw e;
-        }
-    }
 }

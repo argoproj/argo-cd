@@ -5,8 +5,11 @@
 # Test specific variables
 ############################
 #
+# Local testing may use insecure certificate, accept them by default
+#ACCEPT_INSECURE_CERTS=true
+#
 # Timeout to wait for an element to appear. The default is 60 sec.
-# TEST_TIMEOUT=60000
+TEST_TIMEOUT=60000
 #
 # Run the tests in headless mode if true, non-headless mode if false
 IS_HEADLESS=true
@@ -19,16 +22,16 @@ IS_HEADLESS=true
 ############################
 #
 # URL of the ArgoCD UI to test against
-ARGOCD_URL=http://localhost:4000
+ARGOCD_URL=https://localhost:4000
 #
 # argocd app definition namespace
 ARGOCD_NAMESPACE=argocd-e2e
 #
 # argocd credentials (if any)
-#ARGOCD_AUTH_USERNAME=admin
+ARGOCD_AUTH_USERNAME=admin
 #
 # argocd credentials (if any)
-#ARGOCD_AUTH_PASSWORD=password
+ARGOCD_AUTH_PASSWORD="passowrd"
 #
 # Git repository where applications reside
 GIT_REPO=https://github.com/argoproj/argocd-example-apps
