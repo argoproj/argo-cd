@@ -617,6 +617,7 @@ export interface AuthSettings {
     appsInAnyNamespaceEnabled: boolean;
     hydratorEnabled: boolean;
     syncWithReplaceAllowed: boolean;
+    uiPaginateAllDisabled: boolean;
 }
 
 export interface UserInfo {

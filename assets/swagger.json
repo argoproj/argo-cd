@@ -5678,6 +5678,9 @@
         "uiCssURL": {
           "type": "string"
         },
+        "uiPaginateAllDisabled": {
+          "type": "boolean"
+        },
         "url": {
           "type": "string"
         },
