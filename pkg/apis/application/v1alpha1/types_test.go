@@ -4813,10 +4813,16 @@ func TestSanitized(t *testing.T) {
 			Password:    "password123",
 			BearerToken: "abc",
 			TLSClientConfig: TLSClientConfig{
-				Insecure: true,
+				Insecure:   true,
+				ServerName: "server",
+				CertData:   []byte("random bytes we don't want to show in the API response"),
+				KeyData:    []byte("random bytes we don't want to show in the API response"),
+				CAData:     []byte("random bytes we don't want to show in the API response"),
 			},
 			ExecProviderConfig: &ExecProviderConfig{
-				Command: "test",
+				Command:    "this should be omitted in API",
+				Args:       []string{"this should be omitted in API"},
+				APIVersion: "this should be omitted in API",
 			},
 		},
 	}
@@ -4837,7 +4843,8 @@ func TestSanitized(t *testing.T) {
 		},
 		Config: ClusterConfig{
 			TLSClientConfig: TLSClientConfig{
-				Insecure: true,
+				Insecure:   true,
+				ServerName: "server",
 			},
 		},
 	}, cluster.Sanitized())
