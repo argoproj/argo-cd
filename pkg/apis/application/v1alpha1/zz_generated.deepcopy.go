@@ -3424,6 +3424,11 @@ func (in *PullRequestGeneratorGithub) DeepCopyInto(out *PullRequestGeneratorGith
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
+	if in.ExcludedLabels != nil {
+		in, out := &in.ExcludedLabels, &out.ExcludedLabels
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 
