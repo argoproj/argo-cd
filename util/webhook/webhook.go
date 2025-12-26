@@ -368,8 +368,9 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 		for _, app := range filteredApps {
 			if app.Spec.SourceHydrator != nil {
 				drySource := app.Spec.SourceHydrator.GetDrySource()
-				if sourceRevisionHasChanged(drySource, revision, touchedHead) && sourceUsesURL(drySource, webURL, repoRegexp) {
-					refreshPaths := path.GetAppRefreshPaths(&app)
+				syncSource := app.Spec.SourceHydrator.GetSyncSource()
+				if sourceRevisionHasChanged(drySource, revision, touchedHead) && sourceUsesURL(drySource, webURL, repoRegexp) { // handle webhook for drySource
+					refreshPaths := path.GetAppRefreshPaths(&app, drySource)
 					if path.AppFilesHaveChanged(refreshPaths, changedFiles) {
 						namespacedAppInterface := a.appClientset.ArgoprojV1alpha1().Applications(app.Namespace)
 						log.Infof("webhook trigger refresh app to hydrate '%s'", app.Name)
@@ -379,12 +380,28 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 							continue
 						}
 					}
+				} else if sourceRevisionHasChanged(syncSource, revision, touchedHead) && sourceUsesURL(syncSource, webURL, repoRegexp) { // handle webhook for syncSource
+					if err := a.storePreviouslyCachedManifests(&app, change, trackingMethod, appInstanceLabelKey, installationID); err != nil {
+						log.Warnf("Failed to store cached manifests of previous revision for app '%s': %v", app.Name, err)
+					}
+
+					refreshPaths := path.GetAppRefreshPaths(&app, syncSource)
+					if path.AppFilesHaveChanged(refreshPaths, changedFiles) {
+						// syncSource changes trigger sync (no hydration needed), but still filter irrelevant files
+						namespacedAppInterface := a.appClientset.ArgoprojV1alpha1().Applications(app.Namespace)
+						log.Infof("webhook trigger refresh app from syncSource '%s'", app.Name)
+						_, err = argo.RefreshApp(namespacedAppInterface, app.Name, v1alpha1.RefreshTypeNormal, true)
+						if err != nil {
+							log.Warnf("Failed to refresh app '%s' after syncSource change: %v", app.Name, err)
+							continue
+						}
+					}
 				}
 			}
 
 			for _, source := range app.Spec.GetSources() {
 				if sourceRevisionHasChanged(source, revision, touchedHead) && sourceUsesURL(source, webURL, repoRegexp) {
-					refreshPaths := path.GetAppRefreshPaths(&app)
+					refreshPaths := path.GetAppRefreshPaths(&app, source)
 					if path.AppFilesHaveChanged(refreshPaths, changedFiles) {
 						namespacedAppInterface := a.appClientset.ArgoprojV1alpha1().Applications(app.Namespace)
 						_, err = argo.RefreshApp(namespacedAppInterface, app.Name, v1alpha1.RefreshTypeNormal, true)

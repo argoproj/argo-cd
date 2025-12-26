@@ -97,23 +97,52 @@ func CheckOutOfBoundsSymlinks(basePath string) error {
 	})
 }
 
-// GetAppRefreshPaths returns the list of paths that should trigger a refresh for an application
-func GetAppRefreshPaths(app *v1alpha1.Application) []string {
+// GetAppRefreshPaths returns the list of paths that should trigger a refresh for an application.
+// The source parameter influences the returned refresh paths:
+//   - if source hydrator configured AND source is syncSource: use sync source path (ignores annotation)
+//   - if source hydrator configured AND source is drySource WITH annotation: use annotation paths with drySource base
+//   - if source hydrator configured AND source is drySource WITHOUT annotation: use dry source path
+//   - if source hydrator not configured: use annotation paths with source base, or empty if no annotation
+func GetAppRefreshPaths(app *v1alpha1.Application, source v1alpha1.ApplicationSource) []string {
+	// if source hydrator configured, if syncing sources, use sync source path
+	if app.Spec.SourceHydrator != nil {
+		syncSource := app.Spec.SourceHydrator.GetSyncSource()
+		if (&source).Equals(&syncSource) {
+			return []string{source.Path}
+		}
+	}
+
 	var paths []string
 	if val, ok := app.Annotations[v1alpha1.AnnotationKeyManifestGeneratePaths]; ok && val != "" {
 		for _, item := range strings.Split(val, ";") {
 			if item == "" {
 				continue
 			}
+			// if absolute path, add as is
 			if filepath.IsAbs(item) {
 				paths = append(paths, item[1:])
 			} else {
-				for _, source := range app.Spec.GetSources() {
-					paths = append(paths, filepath.Clean(filepath.Join(source.Path, item)))
+				// if source hydrator configured, use annotation path with the appropriate source base
+				if app.Spec.SourceHydrator != nil {
+					// For drySource, use drySource path (syncSource already returned early above)
+					drySource := app.Spec.SourceHydrator.GetDrySource()
+					paths = append(paths, filepath.Clean(filepath.Join(drySource.Path, item)))
+				} else {
+					// if source hydrator not configured, use annotation path and default source base (source in params)
+					for _, source := range app.Spec.GetSources() {
+						paths = append(paths, filepath.Clean(filepath.Join(source.Path, item)))
+					}
 				}
 			}
 		}
 	}
+
+	// If no annotation-based paths were found and we have a source hydrator, use the source path
+	// This ensures dry source behaves like sync source when annotation is not set (e.g., during hydration)
+	if len(paths) == 0 && app.Spec.SourceHydrator != nil {
+		return []string{source.Path}
+	}
+
 	return paths
 }
 
