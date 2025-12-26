@@ -3160,6 +3160,22 @@ func (s *Service) UpdateRevisionForPaths(_ context.Context, request *apiclient.U
 }
 
 func (s *Service) updateCachedRevision(logCtx *log.Entry, oldRev string, newRev string, request *apiclient.UpdateRevisionForPathsRequest, oldRepoRefs map[string]string, newRepoRefs map[string]string) error {
+	// TODO: supported webhook case, but need to rewrite it for mutli refs
+	if request.HasMultipleSources && request.ApplicationSource.Helm != nil && oldRepoRefs == nil && newRepoRefs == nil {
+		gitClientOpts := git.WithCache(s.cache, !request.NoRevisionCache)
+		var err error
+		oldRepoRefs = make(map[string]string)
+		newRepoRefs, err = resolveReferencedSources(true, request.ApplicationSource.Helm, request.RefSources, s.newClientResolveRevision, gitClientOpts)
+		if err != nil {
+			return fmt.Errorf("failed to get repo refs for application %s from revision %s: %w", request.AppName, request.Revision, err)
+		}
+		// Update revision in refSource
+		for normalizedURL := range newRepoRefs {
+			newRepoRefs[normalizedURL] = newRev
+			oldRepoRefs[normalizedURL] = oldRev
+		}
+	}
+
 	// Update RefSources TargetRevision with resolved revisions for cache operations
 	// Create deep copies to avoid modifying the original request.RefSources
 	oldRefSources := make(v1alpha1.RefTargetRevisionMapping)
