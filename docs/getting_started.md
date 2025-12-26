@@ -79,6 +79,8 @@ After a short wait, your cloud provider will assign an external IP address to th
 ```bash
 kubectl get svc argocd-server -n argocd -o=jsonpath='{.status.loadBalancer.ingress[0].ip}'
 ```
+> [!NOTE]
+> Docker-Desktop setup, maps the LoadBalancer service to `localhost`
 
 ### Ingress
 Follow the [ingress documentation](operator-manual/ingress.md) on how to configure Argo CD with ingress.
@@ -98,9 +100,11 @@ The API server can then be accessed using https://localhost:8080
 The initial password for the `admin` account is auto-generated and stored as
 clear text in the field `password` in a secret named `argocd-initial-admin-secret`
 in your Argo CD installation namespace. You can simply retrieve this password
-using the `argocd` CLI:
+using `kubectl` or the `argocd` CLI:
 
 ```bash
+kubectl -n argocd get secret argocd-initial-admin-secret -ojsonpath="{.data.password}" | base64 -d
+
 argocd admin initial-password -n argocd
 ```
 
@@ -111,10 +115,11 @@ argocd admin initial-password -n argocd
 > safely be deleted at any time. It will be re-created on demand by Argo CD
 > if a new admin password must be re-generated.
 
-Using the username `admin` and the password from above, login to Argo CD's IP or hostname:
+Using the username `admin` and the password from above, login to Argo CD's **IP** or **hostname**,
+i.e. for docker-desktop local setup:
 
 ```bash
-argocd login <ARGOCD_SERVER>
+argocd login localhost --username admin --password <ADMIN_PASSWORD> --insecure
 ```
 
 > [!NOTE]
