@@ -20,7 +20,7 @@ jobs:
       contents: write  # for peter-evans/create-pull-request to create branch
       pull-requests: write  # for peter-evans/create-pull-request to create a PR
     name: Automatically generate version and manifests on ${{ inputs.TARGET_BRANCH }}
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     env:
       # Calculate image names with defaults, this will be used in the make manifests-local command
       # to generate the correct image name in the manifests
