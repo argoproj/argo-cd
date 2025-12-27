@@ -3,7 +3,6 @@ package admin
 import (
 	"context"
 	"reflect"
-	"strings"
 
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
@@ -27,7 +26,6 @@ const (
 	yamlSeparator = "---\n"
 
 	applicationsetNamespacesCmdParamsKey = "applicationsetcontroller.namespaces"
-	applicationNamespacesCmdParamsKey    = "application.namespaces"
 )
 
 var (
@@ -180,26 +178,12 @@ func getAdditionalNamespaces(ctx context.Context, configMapsClient dynamic.Resou
 	err = runtime.DefaultUnstructuredConverter.FromUnstructured(un.Object, &cm)
 	errors.CheckError(err)
 
-	namespacesListFromString := func(namespaces string) []string {
-		listOfNamespaces := []string{}
-
-		ss := strings.Split(namespaces, ",")
-
-		for _, namespace := range ss {
-			if namespace != "" {
-				listOfNamespaces = append(listOfNamespaces, strings.TrimSpace(namespace))
-			}
-		}
-
-		return listOfNamespaces
-	}
-
-	if strNamespaces, ok := cm.Data[applicationNamespacesCmdParamsKey]; ok {
-		applicationNamespaces = namespacesListFromString(strNamespaces)
+	if strNamespaces, ok := cm.Data[common.ApplicationNamespacesCmdParamsKey]; ok {
+		applicationNamespaces = common.NamespacesListFromString(strNamespaces)
 	}
 
 	if strNamespaces, ok := cm.Data[applicationsetNamespacesCmdParamsKey]; ok {
-		applicationsetNamespaces = namespacesListFromString(strNamespaces)
+		applicationsetNamespaces = common.NamespacesListFromString(strNamespaces)
 	}
 
 	return &argocdAdditionalNamespaces{
