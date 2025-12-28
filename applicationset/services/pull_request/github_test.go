@@ -134,12 +134,13 @@ func TestGithubList(t *testing.T) {
 	require.NoError(t, err)
 
 	prs, err := svc.List(t.Context())
+	require.NoError(t, err)
 
 	assert.Len(t, prs, 1)
 
 	pr := prs[0]
 
-	assert.Equal(t, 1347, pr.Number)
+	assert.Equal(t, int64(1347), pr.Number)
 	assert.Equal(t, "Amazing new feature", pr.Title)
 	assert.Equal(t, "master", pr.TargetBranch)
 	assert.Equal(t, "6dcb09b5b57875f334f61aebed695e2e4193db5e", pr.HeadSHA)
@@ -148,7 +149,6 @@ func TestGithubList(t *testing.T) {
 	assert.Equal(t, "octocat", pr.Author)
 	assert.Equal(t, "2011-01-26T19:01:12Z", pr.CreatedAt.Format(time.RFC3339))
 	assert.Equal(t, "2011-01-26T19:01:12Z", pr.UpdatedAt.Format(time.RFC3339))
-
 }
 
 func TestGitHubListReturnsRepositoryNotFoundError(t *testing.T) {

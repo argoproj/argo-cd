@@ -415,8 +415,8 @@ func TestCreatedWithinFilter(t *testing.T) {
 	pullRequests, err := ListPullRequests(t.Context(), provider, filters)
 	require.NoError(t, err)
 	assert.Len(t, pullRequests, 2)
-	assert.Equal(t, 1, pullRequests[0].Number)
-	assert.Equal(t, 3, pullRequests[1].Number)
+	assert.Equal(t, int64(1), pullRequests[0].Number)
+	assert.Equal(t, int64(3), pullRequests[1].Number)
 }
 
 func TestUpdatedWithinFilter(t *testing.T) {
@@ -464,7 +464,7 @@ func TestUpdatedWithinFilter(t *testing.T) {
 	pullRequests, err := ListPullRequests(t.Context(), provider, filters)
 	require.NoError(t, err)
 	assert.Len(t, pullRequests, 1)
-	assert.Equal(t, 3, pullRequests[0].Number)
+	assert.Equal(t, int64(3), pullRequests[0].Number)
 }
 
 func TestCreatedUpdatedWithinComboFilter(t *testing.T) {
@@ -533,8 +533,8 @@ func TestCreatedUpdatedWithinComboFilter(t *testing.T) {
 	pullRequests, err := ListPullRequests(t.Context(), provider, filters)
 	require.NoError(t, err)
 	assert.Len(t, pullRequests, 2)
-	assert.Equal(t, 1, pullRequests[0].Number)
-	assert.Equal(t, 4, pullRequests[1].Number)
+	assert.Equal(t, int64(1), pullRequests[0].Number)
+	assert.Equal(t, int64(4), pullRequests[1].Number)
 }
 
 func TestNoFilters(t *testing.T) {
