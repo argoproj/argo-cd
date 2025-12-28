@@ -608,10 +608,10 @@ func TestSecretsRepositoryBackend_CreateRepoCreds(t *testing.T) {
 			assert.Equal(t, testCase.repoCreds.Type, string(secret.Data["type"]))
 			assert.Equal(t, testCase.repoCreds.GithubAppPrivateKey, string(secret.Data["githubAppPrivateKey"]))
 			if githubAppPrivateKey, err := strconv.ParseInt(string(secret.Data["githubAppPrivateKey"]), 10, 64); err == nil {
-				assert.Equal(t, testCase.repoCreds.GithubAppId, githubAppPrivateKey)
+				assert.Equal(t, testCase.repoCreds.GithubAppID, githubAppPrivateKey)
 			}
 			if githubAppID, err := strconv.ParseInt(string(secret.Data["githubAppId"]), 10, 64); err == nil {
-				assert.Equal(t, testCase.repoCreds.GithubAppInstallationId, githubAppID)
+				assert.Equal(t, testCase.repoCreds.GithubAppInstallationID, githubAppID)
 			}
 			assert.Equal(t, testCase.repoCreds.GitHubAppEnterpriseBaseURL, string(secret.Data["githubAppEnterpriseUrl"]))
 			assert.Equal(t, testCase.repoCreds.Proxy, string(secret.Data["proxy"]))
@@ -934,8 +934,8 @@ func TestRepoCredsToSecret(t *testing.T) {
 		TLSClientCertKey:           "TLSClientCertKey",
 		Type:                       "Type",
 		GithubAppPrivateKey:        "GithubAppPrivateKey",
-		GithubAppId:                123,
-		GithubAppInstallationId:    456,
+		GithubAppID:                123,
+		GithubAppInstallationID:    456,
 		GitHubAppEnterpriseBaseURL: "GitHubAppEnterpriseBaseURL",
 	}
 	s = testee.repoCredsToSecret(creds, s)
@@ -948,8 +948,8 @@ func TestRepoCredsToSecret(t *testing.T) {
 	assert.Equal(t, []byte(creds.TLSClientCertKey), s.Data["tlsClientCertKey"])
 	assert.Equal(t, []byte(creds.Type), s.Data["type"])
 	assert.Equal(t, []byte(creds.GithubAppPrivateKey), s.Data["githubAppPrivateKey"])
-	assert.Equal(t, []byte(strconv.FormatInt(creds.GithubAppId, 10)), s.Data["githubAppID"])
-	assert.Equal(t, []byte(strconv.FormatInt(creds.GithubAppInstallationId, 10)), s.Data["githubAppInstallationID"])
+	assert.Equal(t, []byte(strconv.FormatInt(creds.GithubAppID, 10)), s.Data["githubAppID"])
+	assert.Equal(t, []byte(strconv.FormatInt(creds.GithubAppInstallationID, 10)), s.Data["githubAppInstallationID"])
 	assert.Equal(t, []byte(creds.GitHubAppEnterpriseBaseURL), s.Data["githubAppEnterpriseBaseUrl"])
 	assert.Equal(t, map[string]string{common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD}, s.Annotations)
 	assert.Equal(t, map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepoCreds}, s.Labels)
@@ -976,8 +976,8 @@ func TestRepoWriteCredsToSecret(t *testing.T) {
 		TLSClientCertKey:           "TLSClientCertKey",
 		Type:                       "Type",
 		GithubAppPrivateKey:        "GithubAppPrivateKey",
-		GithubAppId:                123,
-		GithubAppInstallationId:    456,
+		GithubAppID:                123,
+		GithubAppInstallationID:    456,
 		GitHubAppEnterpriseBaseURL: "GitHubAppEnterpriseBaseURL",
 	}
 	s = testee.repoCredsToSecret(creds, s)
@@ -990,8 +990,8 @@ func TestRepoWriteCredsToSecret(t *testing.T) {
 	assert.Equal(t, []byte(creds.TLSClientCertKey), s.Data["tlsClientCertKey"])
 	assert.Equal(t, []byte(creds.Type), s.Data["type"])
 	assert.Equal(t, []byte(creds.GithubAppPrivateKey), s.Data["githubAppPrivateKey"])
-	assert.Equal(t, []byte(strconv.FormatInt(creds.GithubAppId, 10)), s.Data["githubAppID"])
-	assert.Equal(t, []byte(strconv.FormatInt(creds.GithubAppInstallationId, 10)), s.Data["githubAppInstallationID"])
+	assert.Equal(t, []byte(strconv.FormatInt(creds.GithubAppID, 10)), s.Data["githubAppID"])
+	assert.Equal(t, []byte(strconv.FormatInt(creds.GithubAppInstallationID, 10)), s.Data["githubAppInstallationID"])
 	assert.Equal(t, []byte(creds.GitHubAppEnterpriseBaseURL), s.Data["githubAppEnterpriseBaseUrl"])
 	assert.Equal(t, map[string]string{common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD}, s.Annotations)
 	assert.Equal(t, map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepoCredsWrite}, s.Labels)
