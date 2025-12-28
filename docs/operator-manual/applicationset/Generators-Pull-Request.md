@@ -363,6 +363,8 @@ spec:
 * `branchMatch`: A regexp matched against source branch names.
 * `targetBranchMatch`: A regexp matched against target branch names.
 * `titleMatch`: A regexp matched against Pull Request title. 
+* `createdWithin`: A duration that filters PRs created within the specified time range.
+* `updatedWithin`: A duration that filters PRs updated within the specified time range.
 
 [GitHub](#github) and [GitLab](#gitlab) also support a `labels` filter.
 
@@ -445,6 +447,8 @@ spec:
 * `head_short_sha_7`: This is the short SHA of the head of the pull request (7 characters long or the length of the head SHA if it's shorter).
 * `labels`: The array of pull request labels. (Supported only for Go Template ApplicationSet manifests.)
 * `author`: The author/creator of the pull request.
+* `created_at`: The time when the Pull Request was originally created/opened.
+* `updated_at`: The time when the Pull Request was last modified
 
 ## Webhook Configuration
 
