@@ -249,7 +249,7 @@ func AddNote(gitClient git.Client, drySha, commitSha string) error {
 	}
 	err = gitClient.AddAndPushNote(commitSha, NoteNamespace, string(jsonBytes))
 	if err != nil {
-		return fmt.Errorf("failed to add commit note: %w", err)
+		return err // nolint:wrapcheck // wrapping wouldn't add any information that the caller doesn't already have
 	}
 	return nil
 }
