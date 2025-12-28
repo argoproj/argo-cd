@@ -247,7 +247,11 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	}
 
 	// appSyncMap tracks which apps will be synced during this reconciliation.
-	appSyncMap := map[string]bool{}
+	var (
+		appSyncMap        = map[string]bool{}
+		appDependencyList [][]string
+		appStepMap        map[string]int
+	)
 
 	if r.EnableProgressiveSyncs {
 		if !isRollingSyncStrategy(&applicationSetInfo) && len(applicationSetInfo.Status.ApplicationStatus) > 0 {
@@ -259,7 +263,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 				return ctrl.Result{}, fmt.Errorf("failed to clear previous AppSet application statuses for %v: %w", applicationSetInfo.Name, err)
 			}
 		} else if isRollingSyncStrategy(&applicationSetInfo) {
-			appSyncMap, err = r.performProgressiveSyncs(ctx, logCtx, applicationSetInfo, currentApplications, generatedApplications)
+			appSyncMap, appDependencyList, appStepMap, err = r.performProgressiveSyncs(ctx, logCtx, applicationSetInfo, currentApplications, generatedApplications)
 			if err != nil {
 				return ctrl.Result{}, fmt.Errorf("failed to perform progressive sync reconciliation for application set: %w", err)
 			}
@@ -314,6 +318,8 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		// trigger appropriate application syncs if RollingSync strategy is enabled
 		if progressiveSyncsRollingSyncStrategyEnabled(&applicationSetInfo) {
 			validApps = r.syncDesiredApplications(logCtx, &applicationSetInfo, appSyncMap, validApps)
+			// Filter applications to only create/update those in the current eligible step
+			validApps = r.filterApplicationsByProgressiveStep(logCtx, &applicationSetInfo, validApps, appDependencyList, appStepMap)
 		}
 	}
 
@@ -956,12 +962,20 @@ func (r *ApplicationSetReconciler) removeOwnerReferencesOnDeleteAppSet(ctx conte
 	return nil
 }
 
-func (r *ApplicationSetReconciler) performProgressiveSyncs(ctx context.Context, logCtx *log.Entry, appset argov1alpha1.ApplicationSet, applications []argov1alpha1.Application, desiredApplications []argov1alpha1.Application) (map[string]bool, error) {
+// performProgressiveSyncs orchestrates the progressive sync of applications in an ApplicationSet.
+// It builds a dependency graph to determine the sync order, updates application status, and syncs applications
+// according to their step order and rollout strategy.
+// Returns:
+//   - map[string]bool: appSyncMap - tracks which applications will be synced during this reconciliation
+//   - [][]string: appDependencyList - slice of slices representing sync steps, where each inner slice contains application names in that step
+//   - map[string]int: appStepMap - maps application names to their step index in the progressive sync sequence
+//   - error: any error encountered during progressive sync reconciliation
+func (r *ApplicationSetReconciler) performProgressiveSyncs(ctx context.Context, logCtx *log.Entry, appset argov1alpha1.ApplicationSet, applications []argov1alpha1.Application, desiredApplications []argov1alpha1.Application) (map[string]bool, [][]string, map[string]int, error) {
 	appDependencyList, appStepMap := r.buildAppDependencyList(logCtx, appset, desiredApplications)
 
 	_, err := r.updateApplicationSetApplicationStatus(ctx, logCtx, &appset, applications, appStepMap)
 	if err != nil {
-		return nil, fmt.Errorf("failed to update applicationset app status: %w", err)
+		return nil, appDependencyList, appStepMap, fmt.Errorf("failed to update applicationset app status: %w", err)
 	}
 
 	logCtx.Infof("ApplicationSet %v step list:", appset.Name)
@@ -974,12 +988,12 @@ func (r *ApplicationSetReconciler) performProgressiveSyncs(ctx context.Context, 
 
 	_, err = r.updateApplicationSetApplicationStatusProgress(ctx, logCtx, &appset, appsToSync, appStepMap)
 	if err != nil {
-		return nil, fmt.Errorf("failed to update applicationset application status progress: %w", err)
+		return appsToSync, appDependencyList, appStepMap, fmt.Errorf("failed to update applicationset application status progress: %w", err)
 	}
 
 	_ = r.updateApplicationSetApplicationStatusConditions(ctx, &appset)
 
-	return appsToSync, nil
+	return appsToSync, appDependencyList, appStepMap, nil
 }
 
 // this list tracks which Applications belong to each RollingUpdate step
@@ -1600,6 +1614,65 @@ func (r *ApplicationSetReconciler) syncDesiredApplications(logCtx *log.Entry, ap
 		rolloutApps = append(rolloutApps, desiredApplications[i])
 	}
 	return rolloutApps
+}
+
+// filterApplicationsByProgressiveStep filters applications to only include those in the current eligible step.
+// Applications are only created/updated if all applications in their current step's prerequisite steps are healthy.
+func (r *ApplicationSetReconciler) filterApplicationsByProgressiveStep(logCtx *log.Entry, appset *argov1alpha1.ApplicationSet, applications []argov1alpha1.Application, appDependencyList [][]string, appStepMap map[string]int) []argov1alpha1.Application {
+	if len(appDependencyList) == 0 || len(appStepMap) == 0 {
+		// No progressive sync configuration, return all apps
+		return applications
+	}
+
+	// Find the highest step index that is complete (all apps in that step are healthy or non-existent but needed)
+	// Step 0 is always enabled for creation
+	// Step N is enabled if all apps in step N-1 exist and are healthy
+	maxCreateableStep := 0 // Start with step 0 always creatable
+
+	for stepIndex := 1; stepIndex < len(appDependencyList); stepIndex++ {
+		// Check if all apps in the previous step are healthy
+		previousStepComplete := true
+		for _, appName := range appDependencyList[stepIndex-1] {
+			idx := findApplicationStatusIndex(appset.Status.ApplicationStatus, appName)
+			if idx == -1 {
+				// App status not found or doesn't exist yet
+				previousStepComplete = false
+				break
+			}
+
+			appStatus := appset.Status.ApplicationStatus[idx]
+			if appStatus.Status != argov1alpha1.ProgressiveSyncHealthy {
+				previousStepComplete = false
+				break
+			}
+		}
+
+		if !previousStepComplete {
+			break // Stop checking further steps if current step's prerequisite isn't complete
+		}
+		maxCreateableStep = stepIndex
+	}
+
+	logCtx.Infof("Progressive sync: max creatable step is %d (out of %d)", maxCreateableStep, len(appDependencyList)-1)
+
+	// Only include apps from steps up to and including maxCreateableStep
+	filteredApps := []argov1alpha1.Application{}
+	for _, app := range applications {
+		if stepNum, ok := appStepMap[app.Name]; ok {
+			// Application belongs to a step - only include if within creatable steps
+			if stepNum <= maxCreateableStep {
+				filteredApps = append(filteredApps, app)
+				logCtx.Debugf("Including app %s from step %d (max creatable: %d)", app.Name, stepNum, maxCreateableStep)
+			} else {
+				logCtx.Debugf("Excluding app %s from step %d (max creatable: %d)", app.Name, stepNum, maxCreateableStep)
+			}
+		} else {
+			// Application doesn't belong to any step, include it
+			filteredApps = append(filteredApps, app)
+		}
+	}
+
+	return filteredApps
 }
 
 // used by the RollingSync Progressive Sync strategy to trigger a sync of a particular Application resource

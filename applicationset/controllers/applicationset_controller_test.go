@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 	"strconv"
 	"testing"
 	"time"
@@ -7648,4 +7649,161 @@ func TestReconcileProgressiveSyncDisabled(t *testing.T) {
 			assert.Equal(t, cc.expectedAppStatuses, updatedAppSet.Status.ApplicationStatus, "applicationStatus should match expected value")
 		})
 	}
+}
+
+func TestFilterApplicationsByProgressiveStep(t *testing.T) {
+	tests := []struct {
+		name              string
+		applications      []v1alpha1.Application
+		appSet            *v1alpha1.ApplicationSet
+		appDependencyList [][]string
+		appStepMap        map[string]int
+		expectedApps      []string
+		expectedLogMsg    string
+	}{
+		{
+			name:              "empty dependency list returns all applications",
+			applications:      generateApplications([]string{"app1", "app2", "app3"}),
+			appSet:            &v1alpha1.ApplicationSet{},
+			appDependencyList: [][]string{},
+			appStepMap:        map[string]int{},
+			expectedApps:      []string{"app1", "app2", "app3"},
+		},
+		{
+			name:              "empty step map returns all applications",
+			applications:      generateApplications([]string{"app1", "app2", "app3"}),
+			appSet:            &v1alpha1.ApplicationSet{},
+			appDependencyList: [][]string{{"app1"}, {"app2"}, {"app3"}},
+			appStepMap:        map[string]int{},
+			expectedApps:      []string{"app1", "app2", "app3"},
+		},
+		{
+			name:         "step 0 applications are always creatable when all prerequisites met",
+			applications: generateApplications([]string{"step0-app", "step1-app"}),
+			appSet: &v1alpha1.ApplicationSet{
+				Status: v1alpha1.ApplicationSetStatus{
+					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{},
+				},
+			},
+			appDependencyList: [][]string{{"step0-app"}, {"step1-app"}},
+			appStepMap:        map[string]int{"step0-app": 0, "step1-app": 1},
+			expectedApps:      []string{"step0-app"},
+		},
+		{
+			name:         "step 1 is only created when step 0 is healthy",
+			applications: generateApplications([]string{"step0-app", "step1-app"}),
+			appSet: &v1alpha1.ApplicationSet{
+				Status: v1alpha1.ApplicationSetStatus{
+					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
+						{
+							Application: "step0-app",
+							Status:      v1alpha1.ProgressiveSyncHealthy,
+						},
+					},
+				},
+			},
+			appDependencyList: [][]string{{"step0-app"}, {"step1-app"}},
+			appStepMap:        map[string]int{"step0-app": 0, "step1-app": 1},
+			expectedApps:      []string{"step0-app", "step1-app"},
+		},
+		{
+			name:         "step 1 is blocked if step 0 is not healthy",
+			applications: generateApplications([]string{"step0-app", "step1-app", "step2-app"}),
+			appSet: &v1alpha1.ApplicationSet{
+				Status: v1alpha1.ApplicationSetStatus{
+					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
+						{
+							Application: "step0-app",
+							Status:      "Progressing",
+						},
+					},
+				},
+			},
+			appDependencyList: [][]string{{"step0-app"}, {"step1-app"}, {"step2-app"}},
+			appStepMap:        map[string]int{"step0-app": 0, "step1-app": 1, "step2-app": 2},
+			expectedApps:      []string{"step0-app"},
+		},
+		{
+			name:         "multiple apps in step 0 all must be healthy for step 1",
+			applications: generateApplications([]string{"step0-app1", "step0-app2", "step1-app"}),
+			appSet: &v1alpha1.ApplicationSet{
+				Status: v1alpha1.ApplicationSetStatus{
+					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
+						{
+							Application: "step0-app1",
+							Status:      v1alpha1.ProgressiveSyncHealthy,
+						},
+						{
+							Application: "step0-app2",
+							Status:      v1alpha1.ProgressiveSyncHealthy,
+						},
+					},
+				},
+			},
+			appDependencyList: [][]string{{"step0-app1", "step0-app2"}, {"step1-app"}},
+			appStepMap:        map[string]int{"step0-app1": 0, "step0-app2": 0, "step1-app": 1},
+			expectedApps:      []string{"step0-app1", "step0-app2", "step1-app"},
+		},
+		{
+			name:         "apps without step assignment are always included",
+			applications: generateApplications([]string{"step0-app", "unmanaged-app", "step1-app"}),
+			appSet: &v1alpha1.ApplicationSet{
+				Status: v1alpha1.ApplicationSetStatus{
+					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
+						{
+							Application: "step0-app",
+							Status:      v1alpha1.ProgressiveSyncHealthy,
+						},
+					},
+				},
+			},
+			appDependencyList: [][]string{{"step0-app"}, {"step1-app"}},
+			appStepMap:        map[string]int{"step0-app": 0, "step1-app": 1},
+			expectedApps:      []string{"step0-app", "unmanaged-app", "step1-app"},
+		},
+		{
+			name:         "step 0 apps are creatable even if status not yet created",
+			applications: generateApplications([]string{"step0-app", "step1-app"}),
+			appSet: &v1alpha1.ApplicationSet{
+				Status: v1alpha1.ApplicationSetStatus{
+					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{},
+				},
+			},
+			appDependencyList: [][]string{{"step0-app"}, {"step1-app"}},
+			appStepMap:        map[string]int{"step0-app": 0, "step1-app": 1},
+			expectedApps:      []string{"step0-app"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := &ApplicationSetReconciler{}
+			logCtx := log.WithFields(log.Fields{})
+			filtered := r.filterApplicationsByProgressiveStep(logCtx, tt.appSet, tt.applications, tt.appDependencyList, tt.appStepMap)
+
+			// Extract app names from filtered result
+			filteredNames := make([]string, len(filtered))
+			for i, app := range filtered {
+				filteredNames[i] = app.Name
+			}
+			sort.Strings(filteredNames)
+			sort.Strings(tt.expectedApps)
+
+			assert.Equal(t, tt.expectedApps, filteredNames, "filtered applications should match expected")
+		})
+	}
+}
+
+// Helper function to generate test applications
+func generateApplications(names []string) []v1alpha1.Application {
+	apps := make([]v1alpha1.Application, len(names))
+	for i, name := range names {
+		apps[i] = v1alpha1.Application{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      name,
+				Namespace: "argocd",
+			},
+		}
+	}
+	return apps
 }
