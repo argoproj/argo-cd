@@ -122,6 +122,9 @@ export class App extends React.Component<{}, {popupProps: PopupProps; showVersio
             this.unauthorizedSubscription = subscription;
         });
         const authSettings = await services.authService.settings();
+        if (authSettings.uiDefaultTheme) {
+            services.viewPreferences.setBackendDefaultTheme(authSettings.uiDefaultTheme);
+        }
         const {trackingID, anonymizeUsers} = authSettings.googleAnalytics || {trackingID: '', anonymizeUsers: true};
         const {loggedIn, username} = await services.users.get();
         if (trackingID) {
