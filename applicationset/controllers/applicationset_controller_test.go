@@ -706,7 +706,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 					},
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "project",
-						Source:  &v1alpha1.ApplicationSource{
+						Source: &v1alpha1.ApplicationSource{
 							// Directory and jsonnet block are removed
 						},
 					},
@@ -7686,7 +7686,7 @@ func TestCheckAllApplicationsReconciled(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := checkAllApplicationsReconciled(tt.applications, tt.appset, tt.sinceTime)
+			result := checkAllApplicationsReconciled(tt.applications, log.NewEntry(log.StandardLogger()), tt.appset, tt.sinceTime)
 			assert.Equal(t, tt.expected, result)
 		})
 	}
@@ -7874,6 +7874,7 @@ func TestEnsureApplicationsReconciled(t *testing.T) {
 							Application:        "app1",
 							Status:             v1alpha1.ProgressiveSyncWaiting,
 							LastTransitionTime: &before,
+							Message:            "pending changes",
 						},
 					},
 				},
@@ -7908,6 +7909,7 @@ func TestEnsureApplicationsReconciled(t *testing.T) {
 							Application:        "app1",
 							Status:             v1alpha1.ProgressiveSyncWaiting,
 							LastTransitionTime: &now,
+							Message:            "pending changes",
 						},
 					},
 				},
@@ -7939,6 +7941,7 @@ func TestEnsureApplicationsReconciled(t *testing.T) {
 							Application:        "app1",
 							Status:             v1alpha1.ProgressiveSyncWaiting,
 							LastTransitionTime: &now,
+							Message:            "pending changes",
 						},
 					},
 				},
