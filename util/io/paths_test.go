@@ -61,3 +61,49 @@ func TestGetPaths_no_race(t *testing.T) {
 		paths.GetPaths()
 	}()
 }
+
+func TestRemove(t *testing.T) {
+	paths := NewRandomizedTempPaths(os.TempDir())
+
+	// Add a path
+	key := "https://localhost/test.txt"
+	path, err := paths.GetPath(key)
+	require.NoError(t, err)
+	assert.NotEmpty(t, path)
+
+	// Verify it exists
+	existingPath := paths.GetPathIfExists(key)
+	assert.Equal(t, path, existingPath)
+
+	// Remove it
+	paths.Remove(key)
+
+	// Verify it's gone
+	removedPath := paths.GetPathIfExists(key)
+	assert.Empty(t, removedPath)
+}
+
+func TestRemove_NonExistent(t *testing.T) {
+	paths := NewRandomizedTempPaths(os.TempDir())
+
+	// Removing a non-existent key should not panic
+	paths.Remove("https://localhost/does-not-exist.txt")
+
+	// Verify it still doesn't exist
+	path := paths.GetPathIfExists("https://localhost/does-not-exist.txt")
+	assert.Empty(t, path)
+}
+
+func TestRemove_no_race(t *testing.T) {
+	paths := NewRandomizedTempPaths(os.TempDir())
+	key := "https://localhost/test.txt"
+	_, err := paths.GetPath(key)
+	require.NoError(t, err)
+
+	go func() {
+		paths.Remove(key)
+	}()
+	go func() {
+		paths.GetPathIfExists(key)
+	}()
+}
