@@ -56,7 +56,8 @@ const (
 	defaultNotificationServer = "localhost:9001"
 
 	// ensure all repos are in one directory tree, so we can easily clean them up
-	TmpDir             = "/tmp/argo-e2e"
+	// TmpDir can be overridden via ARGOCD_E2E_DIR environment variable
+	defaultTmpDir      = "/tmp/argo-e2e"
 	repoDir            = "testdata.git"
 	submoduleDir       = "submodule.git"
 	submoduleParentDir = "submoduleParent.git"
@@ -154,6 +155,12 @@ func TestNamespace() string {
 
 func AppNamespace() string {
 	return GetEnvWithDefault("ARGOCD_E2E_APP_NAMESPACE", ArgoCDAppNamespace)
+}
+
+// TmpDir returns the base directory for e2e test data.
+// It can be overridden via the ARGOCD_E2E_DIR environment variable.
+func TmpDir() string {
+	return GetEnvWithDefault("ARGOCD_E2E_DIR", defaultTmpDir)
 }
 
 // getKubeConfig creates new kubernetes client config using specified config path and config overrides variables
@@ -307,15 +314,15 @@ func ShortId() string {
 }
 
 func repoDirectory() string {
-	return path.Join(TmpDir, repoDir)
+	return path.Join(TmpDir(), repoDir)
 }
 
 func submoduleDirectory() string {
-	return path.Join(TmpDir, submoduleDir)
+	return path.Join(TmpDir(), submoduleDir)
 }
 
 func submoduleParentDirectory() string {
-	return path.Join(TmpDir, submoduleParentDir)
+	return path.Join(TmpDir(), submoduleParentDir)
 }
 
 const (
@@ -332,16 +339,18 @@ const (
 )
 
 func RepoURL(urlType RepoURLType) string {
+	// SSH URLs use the container path (defaultTmpDir) because sshd runs inside Docker
+	// where $ARGOCD_E2E_DIR is mounted to /tmp/argo-e2e
 	switch urlType {
 	// Git server via SSH
 	case RepoURLTypeSSH:
-		return GetEnvWithDefault(EnvRepoURLTypeSSH, "ssh://root@localhost:2222/tmp/argo-e2e/testdata.git")
+		return GetEnvWithDefault(EnvRepoURLTypeSSH, "ssh://root@localhost:2222"+defaultTmpDir+"/testdata.git")
 	// Git submodule repo
 	case RepoURLTypeSSHSubmodule:
-		return GetEnvWithDefault(EnvRepoURLTypeSSHSubmodule, "ssh://root@localhost:2222/tmp/argo-e2e/submodule.git")
+		return GetEnvWithDefault(EnvRepoURLTypeSSHSubmodule, "ssh://root@localhost:2222"+defaultTmpDir+"/submodule.git")
 	// Git submodule parent repo
 	case RepoURLTypeSSHSubmoduleParent:
-		return GetEnvWithDefault(EnvRepoURLTypeSSHSubmoduleParent, "ssh://root@localhost:2222/tmp/argo-e2e/submoduleParent.git")
+		return GetEnvWithDefault(EnvRepoURLTypeSSHSubmoduleParent, "ssh://root@localhost:2222"+defaultTmpDir+"/submoduleParent.git")
 	// Git server via HTTPS
 	case RepoURLTypeHTTPS:
 		return GetEnvWithDefault(EnvRepoURLTypeHTTPS, "https://localhost:9443/argo-e2e/testdata.git")
@@ -957,38 +966,39 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 			return err
 		},
 		func() error {
-			err := os.RemoveAll(TmpDir)
+			tmpDir := TmpDir()
+			err := os.RemoveAll(tmpDir)
 			if err != nil {
 				return err
 			}
-			_, err = Run("", "mkdir", "-p", TmpDir)
+			_, err = Run("", "mkdir", "-p", tmpDir)
 			if err != nil {
 				return err
 			}
 
 			// create TLS and SSH certificate directories
 			if IsLocal() {
-				_, err = Run("", "mkdir", "-p", TmpDir+"/app/config/tls")
+				_, err = Run("", "mkdir", "-p", tmpDir+"/app/config/tls")
 				if err != nil {
 					return err
 				}
-				_, err = Run("", "mkdir", "-p", TmpDir+"/app/config/ssh")
+				_, err = Run("", "mkdir", "-p", tmpDir+"/app/config/ssh")
 				if err != nil {
 					return err
 				}
 			}
 
 			// For signing during the tests
-			_, err = Run("", "mkdir", "-p", TmpDir+"/gpg")
+			_, err = Run("", "mkdir", "-p", tmpDir+"/gpg")
 			if err != nil {
 				return err
 			}
-			_, err = Run("", "chmod", "0700", TmpDir+"/gpg")
+			_, err = Run("", "chmod", "0700", tmpDir+"/gpg")
 			if err != nil {
 				return err
 			}
 			prevGnuPGHome := os.Getenv("GNUPGHOME")
-			t.Setenv("GNUPGHOME", TmpDir+"/gpg")
+			t.Setenv("GNUPGHOME", tmpDir+"/gpg")
 			//nolint:errcheck
 			Run("", "pkill", "-9", "gpg-agent")
 			_, err = Run("", "gpg", "--import", "../fixture/gpg/signingkey.asc")
@@ -999,23 +1009,23 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 
 			// recreate GPG directories
 			if IsLocal() {
-				_, err = Run("", "mkdir", "-p", TmpDir+"/app/config/gpg/source")
+				_, err = Run("", "mkdir", "-p", tmpDir+"/app/config/gpg/source")
 				if err != nil {
 					return err
 				}
-				_, err = Run("", "mkdir", "-p", TmpDir+"/app/config/gpg/keys")
+				_, err = Run("", "mkdir", "-p", tmpDir+"/app/config/gpg/keys")
 				if err != nil {
 					return err
 				}
-				_, err = Run("", "chmod", "0700", TmpDir+"/app/config/gpg/keys")
+				_, err = Run("", "chmod", "0700", tmpDir+"/app/config/gpg/keys")
 				if err != nil {
 					return err
 				}
-				_, err = Run("", "mkdir", "-p", TmpDir+PluginSockFilePath)
+				_, err = Run("", "mkdir", "-p", tmpDir+PluginSockFilePath)
 				if err != nil {
 					return err
 				}
-				_, err = Run("", "chmod", "0700", TmpDir+PluginSockFilePath)
+				_, err = Run("", "chmod", "0700", tmpDir+PluginSockFilePath)
 				if err != nil {
 					return err
 				}
@@ -1217,7 +1227,7 @@ func AddSignedFile(t *testing.T, path, contents string) {
 	WriteFile(t, path, contents)
 
 	prevGnuPGHome := os.Getenv("GNUPGHOME")
-	t.Setenv("GNUPGHOME", TmpDir+"/gpg")
+	t.Setenv("GNUPGHOME", TmpDir()+"/gpg")
 	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "diff"))
 	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "add", "."))
 	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "-c", "user.signingkey="+GpgGoodKeyID, "commit", "-S", "-am", "add file"))
@@ -1230,7 +1240,7 @@ func AddSignedFile(t *testing.T, path, contents string) {
 func AddSignedTag(t *testing.T, name string) {
 	t.Helper()
 	prevGnuPGHome := os.Getenv("GNUPGHOME")
-	t.Setenv("GNUPGHOME", TmpDir+"/gpg")
+	t.Setenv("GNUPGHOME", TmpDir()+"/gpg")
 	defer t.Setenv("GNUPGHOME", prevGnuPGHome)
 	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "-c", "user.signingkey="+GpgGoodKeyID, "tag", "-sm", "add signed tag", name))
 	if IsRemote() {
@@ -1241,7 +1251,7 @@ func AddSignedTag(t *testing.T, name string) {
 func AddTag(t *testing.T, name string) {
 	t.Helper()
 	prevGnuPGHome := os.Getenv("GNUPGHOME")
-	t.Setenv("GNUPGHOME", TmpDir+"/gpg")
+	t.Setenv("GNUPGHOME", TmpDir()+"/gpg")
 	defer t.Setenv("GNUPGHOME", prevGnuPGHome)
 	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "tag", name))
 	if IsRemote() {
@@ -1252,7 +1262,7 @@ func AddTag(t *testing.T, name string) {
 func AddTagWithForce(t *testing.T, name string) {
 	t.Helper()
 	prevGnuPGHome := os.Getenv("GNUPGHOME")
-	t.Setenv("GNUPGHOME", TmpDir+"/gpg")
+	t.Setenv("GNUPGHOME", TmpDir()+"/gpg")
 	defer t.Setenv("GNUPGHOME", prevGnuPGHome)
 	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "tag", "-f", name))
 	if IsRemote() {

@@ -23,6 +23,10 @@ type Context struct {
 
 func Given(t *testing.T) *Context {
 	t.Helper()
+
+	fixture.EnsureCleanState(t)
+
+	// TODO: Appset EnsureCleanState specific logic should be moved to the main EnsureCleanState function (https://github.com/argoproj/argo-cd/issues/24307)
 	utils.EnsureCleanState(t)
 	return &Context{t: t}
 }

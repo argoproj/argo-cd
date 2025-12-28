@@ -1492,7 +1492,7 @@ func Test_GetTLSConfiguration(t *testing.T) {
 		// should have internal cert at this point
 		assert.NotNil(t, settings.Certificate)
 		assert.False(t, settings.CertificateIsExternal)
-		assert.Equal(t, "Argo CD E2E", getCNFromCertificate(settings.Certificate))
+		assert.Equal(t, "argocd-e2e-server", getCNFromCertificate(settings.Certificate))
 
 		externalTLSSecret := &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
@@ -1575,7 +1575,7 @@ func Test_GetTLSConfiguration(t *testing.T) {
 		// should now have an internal cert
 		assert.NotNil(t, settings.Certificate)
 		assert.False(t, settings.CertificateIsExternal)
-		assert.Equal(t, "Argo CD E2E", getCNFromCertificate(settings.Certificate))
+		assert.Equal(t, "argocd-e2e-server", getCNFromCertificate(settings.Certificate))
 	})
 	t.Run("No external TLS secret", func(t *testing.T) {
 		kubeClient := fake.NewClientset(
@@ -1612,7 +1612,7 @@ func Test_GetTLSConfiguration(t *testing.T) {
 		require.NoError(t, err)
 		assert.False(t, settings.CertificateIsExternal)
 		assert.NotNil(t, settings.Certificate)
-		assert.Contains(t, getCNFromCertificate(settings.Certificate), "Argo CD E2E")
+		assert.Contains(t, getCNFromCertificate(settings.Certificate), "argocd-e2e-server")
 	})
 }
 

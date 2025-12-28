@@ -134,7 +134,7 @@ func TestAnnotatedTagInStatusSyncRevision(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
-			annotatedTagIDOutput, err := fixture.Run(fixture.TmpDir+"/testdata.git", "git", "show-ref", "annotated-tag")
+			annotatedTagIDOutput, err := fixture.Run(fixture.TmpDir()+"/testdata.git", "git", "show-ref", "annotated-tag")
 			require.NoError(t, err)
 			require.NotEmpty(t, annotatedTagIDOutput)
 			// example command output:
@@ -142,7 +142,7 @@ func TestAnnotatedTagInStatusSyncRevision(t *testing.T) {
 			annotatedTagIDFields := strings.Fields(string(annotatedTagIDOutput))
 			require.Len(t, annotatedTagIDFields, 2)
 
-			targetCommitID, err := fixture.Run(fixture.TmpDir+"/testdata.git", "git", "rev-parse", "--verify", "annotated-tag^{commit}")
+			targetCommitID, err := fixture.Run(fixture.TmpDir()+"/testdata.git", "git", "rev-parse", "--verify", "annotated-tag^{commit}")
 			// example command output:
 			// "bcd35965e494273355265b9f0bf85075b6bc5163"
 			require.NoError(t, err)

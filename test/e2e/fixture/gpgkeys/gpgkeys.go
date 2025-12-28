@@ -23,7 +23,7 @@ func AddGPGPublicKey(t *testing.T) {
 	if fixture.IsLocal() {
 		keyData, err := os.ReadFile(keyPath)
 		require.NoError(t, err)
-		err = os.WriteFile(fmt.Sprintf("%s/app/config/gpg/source/%s", fixture.TmpDir, fixture.GpgGoodKeyID), keyData, 0o644)
+		err = os.WriteFile(fmt.Sprintf("%s/app/config/gpg/source/%s", fixture.TmpDir(), fixture.GpgGoodKeyID), keyData, 0o644)
 		require.NoError(t, err)
 	} else {
 		fixture.RestartRepoServer(t)
@@ -35,7 +35,7 @@ func DeleteGPGPublicKey(t *testing.T) {
 	args := []string{"gpg", "rm", fixture.GpgGoodKeyID}
 	errors.NewHandler(t).FailOnErr(fixture.RunCli(args...))
 	if fixture.IsLocal() {
-		require.NoError(t, os.Remove(fmt.Sprintf("%s/app/config/gpg/source/%s", fixture.TmpDir, fixture.GpgGoodKeyID)))
+		require.NoError(t, os.Remove(fmt.Sprintf("%s/app/config/gpg/source/%s", fixture.TmpDir(), fixture.GpgGoodKeyID)))
 	} else {
 		fixture.RestartRepoServer(t)
 	}
