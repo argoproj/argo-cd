@@ -17,77 +17,77 @@ import (
 func Test_setHelmOpt(t *testing.T) {
 	t.Run("Zero", func(t *testing.T) {
 		src := v1alpha1.ApplicationSource{}
-		setHelmOpt(&src, helmOpts{})
+		setHelmOpt(&src, &helmOpts{})
 		assert.Nil(t, src.Helm)
 	})
 	t.Run("ValueFiles", func(t *testing.T) {
 		src := v1alpha1.ApplicationSource{}
-		setHelmOpt(&src, helmOpts{valueFiles: []string{"foo"}})
+		setHelmOpt(&src, &helmOpts{valueFiles: []string{"foo"}})
 		assert.Equal(t, []string{"foo"}, src.Helm.ValueFiles)
 	})
 	t.Run("IgnoreMissingValueFiles", func(t *testing.T) {
 		src := v1alpha1.ApplicationSource{}
-		setHelmOpt(&src, helmOpts{ignoreMissingValueFiles: true})
+		setHelmOpt(&src, &helmOpts{ignoreMissingValueFiles: true})
 		assert.True(t, src.Helm.IgnoreMissingValueFiles)
 	})
 	t.Run("ReleaseName", func(t *testing.T) {
 		src := v1alpha1.ApplicationSource{}
-		setHelmOpt(&src, helmOpts{releaseName: "foo"})
+		setHelmOpt(&src, &helmOpts{releaseName: "foo"})
 		assert.Equal(t, "foo", src.Helm.ReleaseName)
 	})
 	t.Run("HelmSets", func(t *testing.T) {
 		src := v1alpha1.ApplicationSource{}
-		setHelmOpt(&src, helmOpts{helmSets: []string{"foo=bar"}})
+		setHelmOpt(&src, &helmOpts{helmSets: []string{"foo=bar"}})
 		assert.Equal(t, []v1alpha1.HelmParameter{{Name: "foo", Value: "bar"}}, src.Helm.Parameters)
 	})
 	t.Run("HelmSetStrings", func(t *testing.T) {
 		src := v1alpha1.ApplicationSource{}
-		setHelmOpt(&src, helmOpts{helmSetStrings: []string{"foo=bar"}})
+		setHelmOpt(&src, &helmOpts{helmSetStrings: []string{"foo=bar"}})
 		assert.Equal(t, []v1alpha1.HelmParameter{{Name: "foo", Value: "bar", ForceString: true}}, src.Helm.Parameters)
 	})
 	t.Run("HelmSetFiles", func(t *testing.T) {
 		src := v1alpha1.ApplicationSource{}
-		setHelmOpt(&src, helmOpts{helmSetFiles: []string{"foo=bar"}})
+		setHelmOpt(&src, &helmOpts{helmSetFiles: []string{"foo=bar"}})
 		assert.Equal(t, []v1alpha1.HelmFileParameter{{Name: "foo", Path: "bar"}}, src.Helm.FileParameters)
 	})
 	t.Run("Version", func(t *testing.T) {
 		src := v1alpha1.ApplicationSource{}
-		setHelmOpt(&src, helmOpts{version: "v3"})
+		setHelmOpt(&src, &helmOpts{version: "v3"})
 		assert.Equal(t, "v3", src.Helm.Version)
 	})
 	t.Run("HelmPassCredentials", func(t *testing.T) {
 		src := v1alpha1.ApplicationSource{}
-		setHelmOpt(&src, helmOpts{passCredentials: true})
+		setHelmOpt(&src, &helmOpts{passCredentials: true})
 		assert.True(t, src.Helm.PassCredentials)
 	})
 	t.Run("HelmSkipCrds", func(t *testing.T) {
 		src := v1alpha1.ApplicationSource{}
-		setHelmOpt(&src, helmOpts{skipCrds: true})
+		setHelmOpt(&src, &helmOpts{skipCrds: true})
 		assert.True(t, src.Helm.SkipCrds)
 	})
 	t.Run("HelmSkipSchemaValidation", func(t *testing.T) {
 		src := v1alpha1.ApplicationSource{}
-		setHelmOpt(&src, helmOpts{skipSchemaValidation: true})
+		setHelmOpt(&src, &helmOpts{skipSchemaValidation: true})
 		assert.True(t, src.Helm.SkipSchemaValidation)
 	})
 	t.Run("HelmSkipTests", func(t *testing.T) {
 		src := v1alpha1.ApplicationSource{}
-		setHelmOpt(&src, helmOpts{skipTests: true})
+		setHelmOpt(&src, &helmOpts{skipTests: true})
 		assert.True(t, src.Helm.SkipTests)
 	})
 	t.Run("HelmNamespace", func(t *testing.T) {
 		src := v1alpha1.ApplicationSource{}
-		setHelmOpt(&src, helmOpts{namespace: "custom-namespace"})
+		setHelmOpt(&src, &helmOpts{namespace: "custom-namespace"})
 		assert.Equal(t, "custom-namespace", src.Helm.Namespace)
 	})
 	t.Run("HelmKubeVersion", func(t *testing.T) {
 		src := v1alpha1.ApplicationSource{}
-		setHelmOpt(&src, helmOpts{kubeVersion: "v1.16.0"})
+		setHelmOpt(&src, &helmOpts{kubeVersion: "v1.16.0"})
 		assert.Equal(t, "v1.16.0", src.Helm.KubeVersion)
 	})
 	t.Run("HelmApiVersions", func(t *testing.T) {
 		src := v1alpha1.ApplicationSource{}
-		setHelmOpt(&src, helmOpts{apiVersions: []string{"v1", "v2"}})
+		setHelmOpt(&src, &helmOpts{apiVersions: []string{"v1", "v2"}})
 		assert.Equal(t, []string{"v1", "v2"}, src.Helm.APIVersions)
 	})
 }
@@ -95,22 +95,22 @@ func Test_setHelmOpt(t *testing.T) {
 func Test_setKustomizeOpt(t *testing.T) {
 	t.Run("No kustomize", func(t *testing.T) {
 		src := v1alpha1.ApplicationSource{}
-		setKustomizeOpt(&src, kustomizeOpts{})
+		setKustomizeOpt(&src, &kustomizeOpts{})
 		assert.Nil(t, src.Kustomize)
 	})
 	t.Run("Name prefix", func(t *testing.T) {
 		src := v1alpha1.ApplicationSource{}
-		setKustomizeOpt(&src, kustomizeOpts{namePrefix: "test-"})
+		setKustomizeOpt(&src, &kustomizeOpts{namePrefix: "test-"})
 		assert.Equal(t, &v1alpha1.ApplicationSourceKustomize{NamePrefix: "test-"}, src.Kustomize)
 	})
 	t.Run("Name suffix", func(t *testing.T) {
 		src := v1alpha1.ApplicationSource{}
-		setKustomizeOpt(&src, kustomizeOpts{nameSuffix: "-test"})
+		setKustomizeOpt(&src, &kustomizeOpts{nameSuffix: "-test"})
 		assert.Equal(t, &v1alpha1.ApplicationSourceKustomize{NameSuffix: "-test"}, src.Kustomize)
 	})
 	t.Run("Images", func(t *testing.T) {
 		src := v1alpha1.ApplicationSource{}
-		setKustomizeOpt(&src, kustomizeOpts{images: []string{"org/image:v1", "org/image:v2"}})
+		setKustomizeOpt(&src, &kustomizeOpts{images: []string{"org/image:v1", "org/image:v2"}})
 		assert.Equal(t, &v1alpha1.ApplicationSourceKustomize{Images: v1alpha1.KustomizeImages{v1alpha1.KustomizeImage("org/image:v2")}}, src.Kustomize)
 	})
 	t.Run("Replicas", func(t *testing.T) {
@@ -126,52 +126,52 @@ func Test_setKustomizeOpt(t *testing.T) {
 				Count: intstr.FromInt(4),
 			},
 		}
-		setKustomizeOpt(&src, kustomizeOpts{replicas: testReplicasString})
+		setKustomizeOpt(&src, &kustomizeOpts{replicas: testReplicasString})
 		assert.Equal(t, &v1alpha1.ApplicationSourceKustomize{Replicas: testReplicas}, src.Kustomize)
 	})
 	t.Run("Version", func(t *testing.T) {
 		src := v1alpha1.ApplicationSource{}
-		setKustomizeOpt(&src, kustomizeOpts{version: "v0.1"})
+		setKustomizeOpt(&src, &kustomizeOpts{version: "v0.1"})
 		assert.Equal(t, &v1alpha1.ApplicationSourceKustomize{Version: "v0.1"}, src.Kustomize)
 	})
 	t.Run("Namespace", func(t *testing.T) {
 		src := v1alpha1.ApplicationSource{}
-		setKustomizeOpt(&src, kustomizeOpts{namespace: "custom-namespace"})
+		setKustomizeOpt(&src, &kustomizeOpts{namespace: "custom-namespace"})
 		assert.Equal(t, &v1alpha1.ApplicationSourceKustomize{Namespace: "custom-namespace"}, src.Kustomize)
 	})
 	t.Run("KubeVersion", func(t *testing.T) {
 		src := v1alpha1.ApplicationSource{}
-		setKustomizeOpt(&src, kustomizeOpts{kubeVersion: "999.999.999"})
+		setKustomizeOpt(&src, &kustomizeOpts{kubeVersion: "999.999.999"})
 		assert.Equal(t, &v1alpha1.ApplicationSourceKustomize{KubeVersion: "999.999.999"}, src.Kustomize)
 	})
 	t.Run("ApiVersions", func(t *testing.T) {
 		src := v1alpha1.ApplicationSource{}
-		setKustomizeOpt(&src, kustomizeOpts{apiVersions: []string{"v1", "v2"}})
+		setKustomizeOpt(&src, &kustomizeOpts{apiVersions: []string{"v1", "v2"}})
 		assert.Equal(t, &v1alpha1.ApplicationSourceKustomize{APIVersions: []string{"v1", "v2"}}, src.Kustomize)
 	})
 	t.Run("Common labels", func(t *testing.T) {
 		src := v1alpha1.ApplicationSource{}
-		setKustomizeOpt(&src, kustomizeOpts{commonLabels: map[string]string{"foo1": "bar1", "foo2": "bar2"}})
+		setKustomizeOpt(&src, &kustomizeOpts{commonLabels: map[string]string{"foo1": "bar1", "foo2": "bar2"}})
 		assert.Equal(t, &v1alpha1.ApplicationSourceKustomize{CommonLabels: map[string]string{"foo1": "bar1", "foo2": "bar2"}}, src.Kustomize)
 	})
 	t.Run("Common annotations", func(t *testing.T) {
 		src := v1alpha1.ApplicationSource{}
-		setKustomizeOpt(&src, kustomizeOpts{commonAnnotations: map[string]string{"foo1": "bar1", "foo2": "bar2"}})
+		setKustomizeOpt(&src, &kustomizeOpts{commonAnnotations: map[string]string{"foo1": "bar1", "foo2": "bar2"}})
 		assert.Equal(t, &v1alpha1.ApplicationSourceKustomize{CommonAnnotations: map[string]string{"foo1": "bar1", "foo2": "bar2"}}, src.Kustomize)
 	})
 	t.Run("Label Without Selector", func(t *testing.T) {
 		src := v1alpha1.ApplicationSource{}
-		setKustomizeOpt(&src, kustomizeOpts{commonLabels: map[string]string{"foo1": "bar1", "foo2": "bar2"}, labelWithoutSelector: true})
+		setKustomizeOpt(&src, &kustomizeOpts{commonLabels: map[string]string{"foo1": "bar1", "foo2": "bar2"}, labelWithoutSelector: true})
 		assert.Equal(t, &v1alpha1.ApplicationSourceKustomize{CommonLabels: map[string]string{"foo1": "bar1", "foo2": "bar2"}, LabelWithoutSelector: true}, src.Kustomize)
 	})
 	t.Run("Label include templates", func(t *testing.T) {
 		src := v1alpha1.ApplicationSource{}
-		setKustomizeOpt(&src, kustomizeOpts{commonLabels: map[string]string{"foo1": "bar1", "foo2": "bar2"}, labelIncludeTemplates: true})
+		setKustomizeOpt(&src, &kustomizeOpts{commonLabels: map[string]string{"foo1": "bar1", "foo2": "bar2"}, labelIncludeTemplates: true})
 		assert.Equal(t, &v1alpha1.ApplicationSourceKustomize{CommonLabels: map[string]string{"foo1": "bar1", "foo2": "bar2"}, LabelIncludeTemplates: true}, src.Kustomize)
 	})
 	t.Run("IgnoreMissingComponents", func(t *testing.T) {
 		src := v1alpha1.ApplicationSource{}
-		setKustomizeOpt(&src, kustomizeOpts{ignoreMissingComponents: true})
+		setKustomizeOpt(&src, &kustomizeOpts{ignoreMissingComponents: true})
 		t.Logf("HERE IS THE SOURCE\n %+v\n", src)
 		assert.True(t, src.Kustomize.IgnoreMissingComponents)
 	})
@@ -525,7 +525,7 @@ func TestConstructAppFromStdin(t *testing.T) {
 
 	os.Stdin = file
 
-	apps, err := ConstructApps("-", "test", []string{}, []string{}, []string{}, AppOptions{}, nil)
+	apps, err := ConstructApps("-", "test", []string{}, []string{}, []string{}, &AppOptions{}, nil)
 
 	if err := file.Close(); err != nil {
 		log.Fatal(err)
@@ -537,7 +537,7 @@ func TestConstructAppFromStdin(t *testing.T) {
 }
 
 func TestConstructBasedOnName(t *testing.T) {
-	apps, err := ConstructApps("", "test", []string{}, []string{}, []string{}, AppOptions{}, nil)
+	apps, err := ConstructApps("", "test", []string{}, []string{}, []string{}, &AppOptions{}, nil)
 
 	require.NoError(t, err)
 	assert.Len(t, apps, 1)

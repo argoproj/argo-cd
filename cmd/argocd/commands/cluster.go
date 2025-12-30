@@ -256,7 +256,7 @@ func NewClusterSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 			conn, clusterIf := headless.NewClientOrDie(clientOpts, c).NewClusterClientOrDie()
 			defer utilio.Close(conn)
 			// checks the fields that needs to be updated
-			updatedFields := checkFieldsToUpdate(clusterOptions, labels, annotations)
+			updatedFields := checkFieldsToUpdate(&clusterOptions, labels, annotations)
 			namespaces := clusterOptions.Namespaces
 			// check if all namespaces have to be considered
 			if len(namespaces) == 1 && strings.EqualFold(namespaces[0], allNamespaces) {
@@ -303,7 +303,7 @@ func NewClusterSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 }
 
 // checkFieldsToUpdate returns the fields that needs to be updated
-func checkFieldsToUpdate(clusterOptions cmdutil.ClusterOptions, labels []string, annotations []string) []string {
+func checkFieldsToUpdate(clusterOptions *cmdutil.ClusterOptions, labels []string, annotations []string) []string {
 	var updatedFields []string
 	if clusterOptions.Name != "" {
 		updatedFields = append(updatedFields, clusterFieldName)
@@ -368,7 +368,7 @@ func strWithDefault(value string, def string) string {
 	return value
 }
 
-func formatNamespaces(cluster argoappv1.Cluster) string {
+func formatNamespaces(cluster *argoappv1.Cluster) string {
 	if len(cluster.Namespaces) == 0 {
 		return "all namespaces"
 	}
@@ -382,7 +382,7 @@ func printClusterDetails(clusters []argoappv1.Cluster) {
 		fmt.Printf("  Server Name:           %s\n", strWithDefault(cluster.Name, "-"))
 		//nolint:staticcheck
 		fmt.Printf("  Server Version:        %s\n", cluster.ServerVersion)
-		fmt.Printf("  Namespaces:        	 %s\n", formatNamespaces(cluster))
+		fmt.Printf("  Namespaces:        	 %s\n", formatNamespaces(&cluster))
 		fmt.Printf("\nTLS configuration\n\n")
 		fmt.Printf("  Client cert:           %v\n", len(cluster.Config.CertData) != 0)
 		fmt.Printf("  Cert validation:       %v\n", !cluster.Config.Insecure)

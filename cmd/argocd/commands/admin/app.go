@@ -106,7 +106,7 @@ func NewGenAppSpecCommand() *cobra.Command {
 	argocd admin app generate-spec kasane --repo https://github.com/argoproj/argocd-example-apps.git --path plugins/kasane --dest-namespace default --dest-server https://kubernetes.default.svc --config-management-plugin kasane
 `,
 		Run: func(c *cobra.Command, args []string) {
-			apps, err := cmdutil.ConstructApps(fileURL, appName, labels, annotations, args, appOpts, c.Flags())
+			apps, err := cmdutil.ConstructApps(fileURL, appName, labels, annotations, args, &appOpts, c.Flags())
 			errors.CheckError(err)
 			if len(apps) > 1 {
 				errors.CheckError(stderrors.New("failed to generate spec, more than one application is not supported"))
