@@ -44,6 +44,8 @@ var (
 	indexLock  = sync.NewKeyLock()
 )
 
+const helmOCIConfigType = "application/vnd.cncf.helm.config.v1+json"
+
 var _ Client = &nativeOCIClient{}
 
 type tagsCache interface {
@@ -260,6 +262,8 @@ func (c *nativeOCIClient) extract(ctx context.Context, digest string) (string, u
 		return "", nil, err
 	}
 
+	var isHelmChart bool
+
 	if !exists {
 		ociManifest, err := getOCIManifest(ctx, digest, c.repo)
 		if err != nil {
@@ -272,16 +276,25 @@ func (c *nativeOCIClient) extract(ctx context.Context, digest string) (string, u
 			return "", nil, fmt.Errorf("expected no more than 10 oci layers, got %d", len(ociManifest.Layers))
 		}
 
+		isHelmChart = ociManifest.Config.MediaType == helmOCIConfigType
+
 		contentLayers := 0
 
 		// Strictly speaking we only allow for a single content layer. There are images which contains extra layers, such
 		// as provenance/attestation layers. Pending a better story to do this natively, we will skip such layers for now.
 		for _, layer := range ociManifest.Layers {
-			if isContentLayer(layer.MediaType) {
+			// For Helm charts, only look for the specific Helm chart content layer
+			if isHelmChart {
+				if isHelmOCI(layer.MediaType) {
+					if !slices.Contains(c.allowedMediaTypes, layer.MediaType) {
+						return "", nil, fmt.Errorf("oci layer media type %s is not in the list of allowed media types", layer.MediaType)
+					}
+					contentLayers++
+				}
+			} else if isContentLayer(layer.MediaType) {
 				if !slices.Contains(c.allowedMediaTypes, layer.MediaType) {
 					return "", nil, fmt.Errorf("oci layer media type %s is not in the list of allowed media types", layer.MediaType)
 				}
-
 				contentLayers++
 			}
 		}
@@ -301,7 +314,15 @@ func (c *nativeOCIClient) extract(ctx context.Context, digest string) (string, u
 		maxSize = math.MaxInt64
 	}
 
-	manifestsDir, err := extractContentToManifestsDir(ctx, cachedPath, digest, maxSize)
+	if !isHelmChart {
+		// Get the manifest to determine if it's a Helm chart for extraction
+		ociManifest, err := getOCIManifestFromCache(ctx, cachedPath, digest)
+		if err != nil {
+			return "", nil, fmt.Errorf("error getting oci manifest for extraction: %w", err)
+		}
+		isHelmChart = ociManifest.Config.MediaType == helmOCIConfigType
+	}
+	manifestsDir, err := extractContentToManifestsDir(ctx, cachedPath, digest, maxSize, isHelmChart)
 	if err != nil {
 		return manifestsDir, nil, fmt.Errorf("cannot extract contents of oci image with revision %s: %w", digest, err)
 	}
@@ -345,13 +366,7 @@ func (c *nativeOCIClient) digestMetadata(ctx context.Context, digest string) (*i
 	if err != nil {
 		return nil, fmt.Errorf("error fetching oci metadata path for digest %s: %w", digest, err)
 	}
-
-	repo, err := oci.NewFromTar(ctx, path)
-	if err != nil {
-		return nil, fmt.Errorf("error extracting oci image for digest %s: %w", digest, err)
-	}
-
-	return getOCIManifest(ctx, digest, repo)
+	return getOCIManifestFromCache(ctx, path, digest)
 }
 
 func (c *nativeOCIClient) ResolveRevision(ctx context.Context, revision string, noCache bool) (string, error) {
@@ -543,8 +558,8 @@ func saveCompressedImageToPath(ctx context.Context, digest string, repo oras.Rea
 }
 
 // extractContentToManifestsDir looks up a locally stored OCI image, and extracts the embedded compressed layer which contains
-// K8s manifests to a temporary directory
-func extractContentToManifestsDir(ctx context.Context, cachedPath, digest string, maxSize int64) (string, error) {
+// K8s manifests to a temp dir.
+func extractContentToManifestsDir(ctx context.Context, cachedPath, digest string, maxSize int64, isHelmChart bool) (string, error) {
 	manifestsDir, err := files.CreateTempDir(os.TempDir())
 	if err != nil {
 		return manifestsDir, err
@@ -561,7 +576,7 @@ func extractContentToManifestsDir(ctx context.Context, cachedPath, digest string
 	}
 	defer os.RemoveAll(tempDir)
 
-	fs, err := newCompressedLayerFileStore(manifestsDir, tempDir, maxSize)
+	fs, err := newCompressedLayerFileStore(manifestsDir, tempDir, maxSize, isHelmChart)
 	if err != nil {
 		return manifestsDir, err
 	}
@@ -574,17 +589,18 @@ func extractContentToManifestsDir(ctx context.Context, cachedPath, digest string
 
 type compressedLayerExtracterStore struct {
 	*file.Store
-	dest    string
-	maxSize int64
+	dest        string
+	maxSize     int64
+	isHelmChart bool
 }
 
-func newCompressedLayerFileStore(dest, tempDir string, maxSize int64) (*compressedLayerExtracterStore, error) {
+func newCompressedLayerFileStore(dest, tempDir string, maxSize int64, isHelmChart bool) (*compressedLayerExtracterStore, error) {
 	f, err := file.New(tempDir)
 	if err != nil {
 		return nil, err
 	}
 
-	return &compressedLayerExtracterStore{f, dest, maxSize}, nil
+	return &compressedLayerExtracterStore{f, dest, maxSize, isHelmChart}, nil
 }
 
 func isHelmOCI(mediaType string) bool {
@@ -594,6 +610,11 @@ func isHelmOCI(mediaType string) bool {
 // Push looks in all the layers of an OCI image. Once it finds a layer that is compressed, it extracts the layer to a tempDir
 // and then renames the temp dir to the directory where the repo-server expects to find k8s manifests.
 func (s *compressedLayerExtracterStore) Push(ctx context.Context, desc imagev1.Descriptor, content io.Reader) error {
+	// For Helm charts, only extract the Helm chart content layer, skip all other layers
+	if s.isHelmChart && !isHelmOCI(desc.MediaType) {
+		return s.Store.Push(ctx, desc, content)
+	}
+
 	if isContentLayer(desc.MediaType) {
 		srcDir, err := files.CreateTempDir(os.TempDir())
 		if err != nil {
@@ -680,6 +701,15 @@ func getOCIManifest(ctx context.Context, digest string, repo oras.ReadOnlyTarget
 	}
 
 	return &manifest, nil
+}
+
+// getOCIManifestFromCache retrieves an OCI manifest from a cached tar file
+func getOCIManifestFromCache(ctx context.Context, cachedPath, digest string) (*imagev1.Manifest, error) {
+	repo, err := oci.NewFromTar(ctx, cachedPath)
+	if err != nil {
+		return nil, fmt.Errorf("error creating oci store from cache: %w", err)
+	}
+	return getOCIManifest(ctx, digest, repo)
 }
 
 // WithEventHandlers sets the git client event handlers
