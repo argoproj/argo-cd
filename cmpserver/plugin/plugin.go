@@ -226,7 +226,7 @@ func (s *Service) generateManifestGeneric(stream GenerateManifestStream) error {
 		return errors.New("illegal appPath: out of workDir bound")
 	}
 
-        log.Debugf("Plugin using workdir: %s", workDir)
+	log.Debugf("Plugin using workdir: %s", workDir)
 
 	envEntries := metadata.GetEnv()
 	envEntries = append(envEntries, &apiclient.EnvEntry{
