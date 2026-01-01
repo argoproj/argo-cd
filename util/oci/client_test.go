@@ -543,12 +543,12 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 					// Verify Chart.yaml content
 					chartYaml, err := os.ReadFile(filepath.Join(path, "Chart.yaml"))
 					require.NoError(t, err)
-					require.Equal(t, "multi-layer helm chart", string(chartYaml))
+					require.YAMLEq(t, "multi-layer helm chart", string(chartYaml))
 
 					// Verify templates/deployment.yaml exists
 					deploymentYaml, err := os.ReadFile(filepath.Join(path, "templates", "deployment.yaml"))
 					require.NoError(t, err)
-					require.Equal(t, "apiVersion: apps/v1", string(deploymentYaml))
+					require.YAMLEq(t, "apiVersion: apps/v1", string(deploymentYaml))
 
 					// Ensure extra OCI layer and provenance were not extracted
 					require.False(t, files["extra.txt"])
