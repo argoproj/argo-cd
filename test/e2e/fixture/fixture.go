@@ -90,6 +90,7 @@ const (
 
 var (
 	id                      string
+	shortId                 string
 	deploymentNamespace     string
 	name                    string
 	KubeClientset           kubernetes.Interface
@@ -299,6 +300,10 @@ func LoginAs(username string) error {
 
 func Name() string {
 	return name
+}
+
+func ShortId() string {
+	return shortId
 }
 
 func repoDirectory() string {
@@ -1029,6 +1034,12 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 			if err != nil {
 				return err
 			}
+			// Configure git to create files with more permissive permissions to avoid
+			// issues when cleaning up. By default git creates object files as 0444.
+			_, err = Run(repoDirectory(), "git", "config", "core.sharedRepository", "0666")
+			if err != nil {
+				return err
+			}
 			_, err = Run(repoDirectory(), "git", "add", ".")
 			if err != nil {
 				return err
@@ -1056,10 +1067,11 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 			if err != nil {
 				return err
 			}
-			postFix := "-" + strings.ToLower(randString)
-			id = t.Name() + postFix
-			name = DnsFriendly(t.Name(), "")
-			deploymentNamespace = DnsFriendly("argocd-e2e-"+t.Name(), postFix)
+			shortId = strings.ToLower(randString)
+			id = fmt.Sprintf("%s-%s", t.Name(), shortId)
+			name = DnsFriendly(t.Name(), "-"+shortId)
+			deploymentNamespace = DnsFriendly("argocd-e2e-"+t.Name(), "-"+shortId)
+
 			// create namespace
 			_, err = Run("", "kubectl", "create", "ns", DeploymentNamespace())
 			if err != nil {
