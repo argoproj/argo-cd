@@ -922,7 +922,7 @@ func requestTimeoutGRPCInterceptor(requestTimeout time.Duration) grpc.UnaryServe
 	}
 }
 
-func (server *ArgoCDServer) newGRPCServer() (*grpc.Server, application.AppResourceTreeFn) {
+func (server *ArgoCDServer) newGRPCServer(prometheusRegistry *prometheus.Registry) (*grpc.Server, application.AppResourceTreeFn) {
 	var serverMetricsOptions []grpc_prometheus.ServerMetricsOption
 	if enableGRPCTimeHistogram {
 		serverMetricsOptions = append(serverMetricsOptions, grpc_prometheus.WithServerHandlingTimeHistogram())
@@ -1245,7 +1245,7 @@ func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWeb
 
 	terminal := application.NewHandler(server.appLister, server.Namespace, server.ApplicationNamespaces, server.db, appResourceTreeFn, server.settings.ExecShells, server.sessionMgr, &terminalOpts).
 		WithFeatureFlagMiddleware(server.settingsMgr.GetSettings)
-	th := util_session.WithAuthMiddleware(server.DisableAuth, server.sessionMgr, terminal)
+	th := util_session.WithAuthMiddleware(server.DisableAuth, server.settings.IsSSOConfigured(), server.ssoClientApp, server.sessionMgr, terminal)
 	mux.Handle("/terminal", requestTimeoutHTTPInterceptor(th, reqTimeout))
 
 	// Proxy extension is currently an alpha feature and is disabled
