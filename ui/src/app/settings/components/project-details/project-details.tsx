@@ -192,8 +192,14 @@ function stripInheritedGlobalSpec(virtualSpec: ProjectSpec, globalProjects: Proj
             (virtualSpec.namespaceResourceWhitelist || []).filter(i => !inheritedNamespaceWhitelist.has(groupKindKey(i))),
             groupKindKey
         ),
-        sourceRepos: uniqueByKey((virtualSpec.sourceRepos || []).filter(r => !inheritedSourceRepos.has(r || '')), r => r || ''),
-        destinations: uniqueByKey((virtualSpec.destinations || []).filter(d => !inheritedDestinations.has(destKey(d))), destKey)
+        sourceRepos: uniqueByKey(
+            (virtualSpec.sourceRepos || []).filter(r => !inheritedSourceRepos.has(r || '')),
+            r => r || ''
+        ),
+        destinations: uniqueByKey(
+            (virtualSpec.destinations || []).filter(d => !inheritedDestinations.has(destKey(d))),
+            destKey
+        )
     };
 }
 
