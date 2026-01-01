@@ -50,6 +50,9 @@ Then, connect the repository using any non-empty string as username and the acce
 > [!NOTE]
 > For some services, you might have to specify your account name as the username instead of any string.
 
+> [!NOTE]
+> For BitBucket Cloud and BitBucket Data Center, you have to specify your username as `x-token-auth`.
+
 ### TLS Client Certificates for HTTPS repositories
 
 If your repository server requires you to use TLS client certificates for authentication, you can configure Argo CD repositories to make use of them. For this purpose, `--tls-client-cert-path` and `--tls-client-cert-key-path` switches to the `argocd repo add` command can be used to specify the files on your local system containing client certificate and the corresponding key, respectively:
@@ -122,13 +125,16 @@ argocd repo add https://github.com/argoproj/argocd-example-apps.git --github-app
 > [!NOTE]
 > To add a private Git repository on GitHub Enterprise using the CLI add `--github-app-enterprise-base-url https://ghe.example.com/api/v3` flag.
 
+> [!NOTE]
+> The `--github-app-installation-id` flag is optional. If omitted, Argo CD will automatically discover the installation ID based on the repository's organization.
+
 Using the UI:
 
 1. Navigate to `Settings/Repositories`
 
     ![connect repo overview](../assets/repo-add-overview.png)
 
-2. Click `Connect Repo using GitHub App` button, choose type: `GitHub` or `GitHub Enterprise`, enter the URL, App Id, Installation Id, and the app's private key.
+2. Click `Connect Repo using GitHub App` button, choose type: `GitHub` or `GitHub Enterprise`, enter the URL, App Id, Installation Id (optional), and the app's private key.
 
 > [!NOTE]
 > Enter the GitHub Enterprise Base URL for type `GitHub Enterprise`.

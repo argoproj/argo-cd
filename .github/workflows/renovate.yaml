@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   renovate:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     if: github.repository == 'argoproj/argo-cd'
     steps:
       - name: Get token
@@ -27,10 +27,10 @@ jobs:
         uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
         with:
           # renovate: datasource=golang-version packageName=golang
-          go-version: 1.25.3
+          go-version: 1.25.5
 
       - name: Self-hosted Renovate
-        uses: renovatebot/github-action@5712c6a41dea6cdf32c72d92a763bd417e6606aa #44.0.5
+        uses: renovatebot/github-action@8b7941943a108b2cc2150730963164aa8baeab8c #44.2.2
         with:
           configurationFile: .github/configs/renovate-config.js
           token: '${{ steps.get_token.outputs.token }}'

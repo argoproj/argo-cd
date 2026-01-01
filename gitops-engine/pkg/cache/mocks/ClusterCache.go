@@ -563,7 +563,7 @@ func (_c *ClusterCache_IsNamespaced_Call) RunAndReturn(run func(gk schema.GroupK
 	return _c
 }
 
-// IterateHierarchyV2 provides a mock function for the type ClusterCache
+// IterateHierarchyV2 provides a mock function with given fields: keys, action, orphanedResourceNamespace
 func (_mock *ClusterCache) IterateHierarchyV2(keys []kube.ResourceKey, action func(resource *cache.Resource, namespaceResources map[kube.ResourceKey]*cache.Resource) bool) {
 	_mock.Called(keys, action)
 	return
