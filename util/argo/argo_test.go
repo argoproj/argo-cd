@@ -599,6 +599,73 @@ func TestFilterAppSetsByProjects(t *testing.T) {
 	})
 }
 
+func TestStripInheritedGlobalProjectSpec(t *testing.T) {
+	global := &argoappv1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{Name: "global-common", Namespace: "argocd"},
+		Spec: argoappv1.AppProjectSpec{
+			ClusterResourceBlacklist: []argoappv1.ClusterResourceRestrictionItem{
+				{Group: "*", Kind: "*"},
+			},
+			NamespaceResourceBlacklist: []metav1.GroupKind{
+				{Group: "", Kind: "LimitRange"},
+			},
+			SourceRepos: []string{"https://example.com/global.git"},
+			Destinations: []argoappv1.ApplicationDestination{
+				{Server: "*", Namespace: "debman"},
+			},
+		},
+	}
+
+	// Simulate a "virtual" project spec which already contains inherited entries (possibly multiple times).
+	proj := &argoappv1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{Name: "debman", Namespace: "argocd"},
+		Spec: argoappv1.AppProjectSpec{
+			ClusterResourceBlacklist: []argoappv1.ClusterResourceRestrictionItem{
+				{Group: "*", Kind: "*"},
+				{Group: "*", Kind: "*"},
+				{Group: "", Kind: "ConfigMap"},
+			},
+			NamespaceResourceBlacklist: []metav1.GroupKind{
+				{Group: "", Kind: "LimitRange"},
+				{Group: "", Kind: "LimitRange"},
+				{Group: "", Kind: "Secret"},
+			},
+			SourceRepos: []string{
+				"https://example.com/global.git",
+				"https://example.com/global.git",
+				"https://example.com/project.git",
+			},
+			Destinations: []argoappv1.ApplicationDestination{
+				{Server: "*", Namespace: "debman"},
+				{Server: "*", Namespace: "debman"},
+				{Server: "*", Namespace: "test3"},
+			},
+		},
+	}
+
+	StripInheritedGlobalProjectSpec(proj, []*argoappv1.AppProject{global})
+
+	assert.Equal(t,
+		[]argoappv1.ClusterResourceRestrictionItem{
+			{Group: "", Kind: "ConfigMap"},
+		},
+		proj.Spec.ClusterResourceBlacklist,
+	)
+	assert.Equal(t,
+		[]metav1.GroupKind{
+			{Group: "", Kind: "Secret"},
+		},
+		proj.Spec.NamespaceResourceBlacklist,
+	)
+	assert.Equal(t, []string{"https://example.com/project.git"}, proj.Spec.SourceRepos)
+	assert.Equal(t,
+		[]argoappv1.ApplicationDestination{
+			{Server: "*", Namespace: "test3"},
+		},
+		proj.Spec.Destinations,
+	)
+}
+
 func TestFilterByRepo(t *testing.T) {
 	apps := []argoappv1.Application{
 		{
