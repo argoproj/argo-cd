@@ -68,6 +68,11 @@ type Server struct {
 	EnableGitHubAPIMetrics   bool
 }
 
+func (s *Server) Watch(query *applicationset.ApplicationSetWatchQuery, server applicationset.ApplicationSetService_WatchServer) error {
+	//TODO implement me
+	panic("implement me")
+}
+
 // NewServer returns a new instance of the ApplicationSet service
 func NewServer(
 	db db.ArgoDB,
