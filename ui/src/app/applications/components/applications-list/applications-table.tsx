@@ -7,14 +7,14 @@ import {Consumer, Context} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {ApplicationURLs} from '../application-urls';
 import * as AppUtils from '../utils';
-import {getAppDefaultSource, OperationState, getApplicationLinkURL, getManagedByURL} from '../utils';
+import {getAppDefaultSource, OperationState, getApplicationLinkURL, getManagedByURL, isApp, getAppSetHealthStatus} from '../utils';
 import {ApplicationsLabels} from './applications-labels';
 import {ApplicationsSource} from './applications-source';
 import {services} from '../../../shared/services';
 import './applications-table.scss';
 
 export const ApplicationsTable = (props: {
-    applications: models.Application[];
+    applications: models.AbstractApplication[];
     syncApplication: (appName: string, appNamespace: string) => any;
     refreshApplication: (appName: string, appNamespace: string) => any;
     deleteApplication: (appName: string, appNamespace: string) => any;
@@ -53,13 +53,17 @@ export const ApplicationsTable = (props: {
                         return (
                             <div className='applications-table argo-table-list argo-table-list--clickable'>
                                 {props.applications.map((app, i) => {
+                                    const isApplication = isApp(app);
+                                    const typedApp = isApplication ? (app as models.Application) : null;
+                                    const typedAppSet = !isApplication ? (app as models.ApplicationSet) : null;
+                                    const healthStatus = isApplication ? typedApp.status.health.status : getAppSetHealthStatus(typedAppSet);
                                     return (
                                         <div
                                             key={AppUtils.appInstanceName(app)}
                                             className={`argo-table-list__row
-                applications-list__entry applications-list__entry--health-${app.status.health.status} ${selectedApp === i ? 'applications-tiles__selected' : ''}`}>
+                applications-list__entry applications-list__entry--health-${healthStatus} ${selectedApp === i ? 'applications-tiles__selected' : ''}`}>
                                             <div
-                                                className={`row applications-list__table-row ${app.status.sourceHydrator?.currentOperation ? 'applications-table-row--with-hydrator' : ''}`}
+                                                className={`row applications-list__table-row ${isApplication && typedApp.status.sourceHydrator?.currentOperation ? 'applications-table-row--with-hydrator' : ''}`}
                                                 onClick={e => ctx.navigation.goto(`/${AppUtils.getAppUrl(app)}`, {}, {event: e})}>
                                                 <div className='columns small-4'>
                                                     <div className='row'>
@@ -84,11 +88,11 @@ export const ApplicationsTable = (props: {
                                                                         />
                                                                     </button>
                                                                 </Tooltip>
-                                                                <ApplicationURLs urls={app.status.summary.externalURLs} />
+                                                                {isApplication && <ApplicationURLs urls={typedApp.status.summary?.externalURLs} />}
                                                             </div>
                                                         </div>
-                                                        <div className='show-for-xxlarge columns small-4'>Project:</div>
-                                                        <div className='columns small-12 xxlarge-6'>{app.spec.project}</div>
+                                                        <div className='show-for-xxlarge columns small-4'>{isApplication ? 'Project:' : 'Kind:'}</div>
+                                                        <div className='columns small-12 xxlarge-6'>{isApplication ? typedApp.spec.project : 'ApplicationSet'}</div>
                                                     </div>
                                                     <div className='row'>
                                                         <div className=' columns small-2' />
@@ -129,60 +133,73 @@ export const ApplicationsTable = (props: {
                                                     </div>
                                                 </div>
 
-                                                <div className='columns small-6'>
-                                                    <div className='row'>
-                                                        <div className='show-for-xxlarge columns small-2'>Source:</div>
-                                                        <div className='columns small-12 xxlarge-10 applications-table-source' style={{position: 'relative'}}>
-                                                            <div className='applications-table-source__link'>
-                                                                <ApplicationsSource source={getAppDefaultSource(app)} />
+                                                {isApplication && typedApp && (
+                                                    <div className='columns small-6'>
+                                                        <div className='row'>
+                                                            <div className='show-for-xxlarge columns small-2'>Source:</div>
+                                                            <div className='columns small-12 xxlarge-10 applications-table-source' style={{position: 'relative'}}>
+                                                                <div className='applications-table-source__link'>
+                                                                    <ApplicationsSource source={getAppDefaultSource(typedApp)} />
+                                                                </div>
+                                                                <div className='applications-table-source__labels'>
+                                                                    <ApplicationsLabels app={typedApp} />
+                                                                </div>
                                                             </div>
-                                                            <div className='applications-table-source__labels'>
-                                                                <ApplicationsLabels app={app} />
+                                                        </div>
+                                                        <div className='row'>
+                                                            <div className='show-for-xxlarge columns small-2'>Destination:</div>
+                                                            <div className='columns small-12 xxlarge-10'>
+                                                                <Cluster server={typedApp.spec.destination.server} name={typedApp.spec.destination.name} />/{typedApp.spec.destination.namespace}
                                                             </div>
                                                         </div>
                                                     </div>
-                                                    <div className='row'>
-                                                        <div className='show-for-xxlarge columns small-2'>Destination:</div>
-                                                        <div className='columns small-12 xxlarge-10'>
-                                                            <Cluster server={app.spec.destination.server} name={app.spec.destination.name} />/{app.spec.destination.namespace}
-                                                        </div>
-                                                    </div>
-                                                </div>
+                                                )}
 
-                                                <div className='columns small-2'>
-                                                    <AppUtils.HealthStatusIcon state={app.status.health} /> <span>{app.status.health.status}</span> <br />
-                                                    {app.status.sourceHydrator?.currentOperation && (
+                                                <div className={isApplication ? 'columns small-2' : 'columns small-8'}>
+                                                    {isApplication && typedApp && (
                                                         <>
-                                                            <AppUtils.HydrateOperationPhaseIcon operationState={app.status.sourceHydrator.currentOperation} />{' '}
-                                                            <span>{app.status.sourceHydrator.currentOperation.phase}</span> <br />
+                                                            <AppUtils.HealthStatusIcon state={typedApp.status.health} /> <span>{typedApp.status.health.status}</span> <br />
+                                                            {typedApp.status.sourceHydrator?.currentOperation && (
+                                                                <>
+                                                                    <AppUtils.HydrateOperationPhaseIcon operationState={typedApp.status.sourceHydrator.currentOperation} />{' '}
+                                                                    <span>{typedApp.status.sourceHydrator.currentOperation.phase}</span> <br />
+                                                                </>
+                                                            )}
+                                                            <AppUtils.ComparisonStatusIcon status={typedApp.status.sync.status} />
+                                                            <span>{typedApp.status.sync.status}</span> <OperationState app={typedApp} quiet={true} />
                                                         </>
                                                     )}
-                                                    <AppUtils.ComparisonStatusIcon status={app.status.sync.status} />
-                                                    <span>{app.status.sync.status}</span> <OperationState app={app} quiet={true} />
-                                                    <DropDownMenu
-                                                        anchor={() => (
-                                                            <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
-                                                                <i className='fa fa-ellipsis-v' />
-                                                            </button>
-                                                        )}
-                                                        items={[
-                                                            {
-                                                                title: 'Sync',
-                                                                iconClassName: 'fa fa-fw fa-sync',
-                                                                action: () => props.syncApplication(app.metadata.name, app.metadata.namespace)
-                                                            },
-                                                            {
-                                                                title: 'Refresh',
-                                                                iconClassName: 'fa fa-fw fa-redo',
-                                                                action: () => props.refreshApplication(app.metadata.name, app.metadata.namespace)
-                                                            },
-                                                            {
-                                                                title: 'Delete',
-                                                                iconClassName: 'fa fa-fw fa-times-circle',
-                                                                action: () => props.deleteApplication(app.metadata.name, app.metadata.namespace)
-                                                            }
-                                                        ]}
-                                                    />
+                                                    {!isApplication && typedAppSet && (
+                                                        <>
+                                                            <AppUtils.HealthStatusIcon state={{status: getAppSetHealthStatus(typedAppSet), message: ''}} /> <span>{getAppSetHealthStatus(typedAppSet)}</span>
+                                                        </>
+                                                    )}
+                                                    {isApplication && (
+                                                        <DropDownMenu
+                                                            anchor={() => (
+                                                                <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
+                                                                    <i className='fa fa-ellipsis-v' />
+                                                                </button>
+                                                            )}
+                                                            items={[
+                                                                {
+                                                                    title: 'Sync',
+                                                                    iconClassName: 'fa fa-fw fa-sync',
+                                                                    action: () => props.syncApplication(app.metadata.name, app.metadata.namespace)
+                                                                },
+                                                                {
+                                                                    title: 'Refresh',
+                                                                    iconClassName: 'fa fa-fw fa-redo',
+                                                                    action: () => props.refreshApplication(app.metadata.name, app.metadata.namespace)
+                                                                },
+                                                                {
+                                                                    title: 'Delete',
+                                                                    iconClassName: 'fa fa-fw fa-times-circle',
+                                                                    action: () => props.deleteApplication(app.metadata.name, app.metadata.namespace)
+                                                                }
+                                                            ]}
+                                                        />
+                                                    )}
                                                 </div>
                                             </div>
                                         </div>
