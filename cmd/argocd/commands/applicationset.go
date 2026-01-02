@@ -1,8 +1,10 @@
 package commands
 
 import (
+	"context"
 	"fmt"
 	"io"
+	k8swatch "k8s.io/apimachinery/pkg/watch"
 	"os"
 	"reflect"
 	"text/tabwriter"
@@ -115,8 +117,10 @@ func NewApplicationSetGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 
 // NewApplicationSetCreateCommand returns a new instance of an `argocd appset create` command
 func NewApplicationSetCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var output string
-	var upsert, dryRun bool
+	var (
+		output         string
+		upsert, dryRun bool
+	)
 	command := &cobra.Command{
 		Use:   "create",
 		Short: "Create one or more ApplicationSets",
@@ -325,7 +329,10 @@ func NewApplicationSetListCommand(clientOpts *argocdclient.ClientOptions) *cobra
 
 // NewApplicationSetDeleteCommand returns a new instance of an `argocd appset delete` command
 func NewApplicationSetDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var noPrompt bool
+	var (
+		noPrompt bool
+		wait     bool
+	)
 	command := &cobra.Command{
 		Use:   "delete",
 		Short: "Delete one or more ApplicationSets",
@@ -340,7 +347,8 @@ func NewApplicationSetDeleteCommand(clientOpts *argocdclient.ClientOptions) *cob
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationSetClientOrDie()
+			acdClient := headless.NewClientOrDie(clientOpts, c)
+			conn, appIf := acdClient.NewApplicationSetClientOrDie()
 			defer utilio.Close(conn)
 			isTerminal := isatty.IsTerminal(os.Stdout.Fd()) || isatty.IsCygwinTerminal(os.Stdout.Fd())
 			numOfApps := len(args)
@@ -381,7 +389,18 @@ func NewApplicationSetDeleteCommand(clientOpts *argocdclient.ClientOptions) *cob
 		},
 	}
 	command.Flags().BoolVarP(&noPrompt, "yes", "y", false, "Turn off prompting to confirm cascaded deletion of Application resources")
+	command.Flags().BoolVar(&wait, "wait", false, "Wait until deletion of the applicationset(s) completes")
 	return command
+}
+
+// checkForAppSetDeleteEvent watches for applicationset delete event
+func checkForAppsetDeleteEvent(ctx context.Context, acdClient argocdclient.Client, appFullName string) {
+	appEventCh := acdClient.WatchApplicationWithRetry(ctx, appFullName, "")
+	for appEvent := range appEventCh {
+		if appEvent.Type == k8swatch.Deleted {
+			return
+		}
+	}
 }
 
 // Print simple list of application names

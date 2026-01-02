@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"maps"
+	"github.com/argoproj/argo-cd/v3/server/applicationset"
 	"math"
 	"reflect"
 	"slices"
@@ -91,6 +91,7 @@ type Server struct {
 	appLister              applisters.ApplicationLister
 	appInformer            cache.SharedIndexInformer
 	appBroadcaster         Broadcaster
+	appSetBroadcaster      applicationset.Broadcaster
 	repoClientset          apiclient.Clientset
 	kubectl                kube.Kubectl
 	db                     db.ArgoDB
@@ -112,6 +113,7 @@ func NewServer(
 	appLister applisters.ApplicationLister,
 	appInformer cache.SharedIndexInformer,
 	appBroadcaster Broadcaster,
+	appSetBroadcaster applicationset.Broadcaster,
 	repoClientset apiclient.Clientset,
 	cache *servercache.Cache,
 	kubectl kube.Kubectl,
@@ -127,7 +129,20 @@ func NewServer(
 	if appBroadcaster == nil {
 		appBroadcaster = &broadcasterHandler{}
 	}
+
+	if appSetBroadcaster == nil {
+		appSetBroadcaster = &applicationset.BroadcasterHandler{}
+	}
+	// Register Application-level broadcaster to receive create/update/delete events
+	// and handle general application event processing.
 	_, err := appInformer.AddEventHandler(appBroadcaster)
+	if err != nil {
+		log.Error(err)
+	}
+	// Register ApplicationSet-specific broadcaster on the Application informer.
+	// This handler listens to Application events to drive ApplicationSet logic,
+	// so it must be attached to the Application informer (not the Project informer).
+	_, err = appInformer.AddEventHandler(appSetBroadcaster)
 	if err != nil {
 		log.Error(err)
 	}
@@ -137,6 +152,7 @@ func NewServer(
 		appLister:              &deepCopyApplicationLister{appLister},
 		appInformer:            appInformer,
 		appBroadcaster:         appBroadcaster,
+		appSetBroadcaster:      appSetBroadcaster,
 		kubeclientset:          kubeclientset,
 		cache:                  cache,
 		db:                     db,
@@ -990,7 +1006,7 @@ func (s *Server) waitSync(app *v1alpha1.Application) {
 }
 
 func (s *Server) updateApp(ctx context.Context, app *v1alpha1.Application, newApp *v1alpha1.Application, merge bool) (*v1alpha1.Application, error) {
-	for range 10 {
+	for i := 0; i < 10; i++ {
 		app.Spec = newApp.Spec
 		if merge {
 			app.Labels = collections.Merge(app.Labels, newApp.Labels)
@@ -2438,7 +2454,7 @@ func (s *Server) TerminateOperation(ctx context.Context, termOpReq *application.
 		return nil, err
 	}
 
-	for range 10 {
+	for i := 0; i < 10; i++ {
 		if a.Operation == nil || a.Status.OperationState == nil {
 			return nil, status.Errorf(codes.InvalidArgument, "Unable to terminate operation. No operation is in progress")
 		}
@@ -2916,7 +2932,9 @@ func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationS
 
 	// Convert to map format expected by DiffConfigBuilder
 	overrides := make(map[string]v1alpha1.ResourceOverride)
-	maps.Copy(overrides, resourceOverrides)
+	for k, v := range resourceOverrides {
+		overrides[k] = v
+	}
 
 	// Get cluster connection for server-side dry run
 	cluster, err := argo.GetDestinationCluster(ctx, a.Spec.Destination, s.db)

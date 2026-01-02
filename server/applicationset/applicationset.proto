@@ -28,6 +28,13 @@ message ApplicationSetListQuery {
 	string appsetNamespace = 3;
 }
 
+message ApplicationSetWatchQuery {
+	string name = 1;
+	repeated string projects = 2;
+	string selector = 3;
+	string appSetNamespace = 4;
+}
+
 
 message ApplicationSetResponse {
 	string project = 1;

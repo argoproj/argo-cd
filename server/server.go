@@ -1038,6 +1038,7 @@ func newArgoCDServiceSet(a *ArgoCDServer) *ArgoCDServiceSet {
 		a.appLister,
 		a.appInformer,
 		nil,
+		nil,
 		a.RepoClientset,
 		a.Cache,
 		kubectl,
