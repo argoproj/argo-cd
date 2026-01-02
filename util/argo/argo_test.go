@@ -601,7 +601,7 @@ func TestFilterAppSetsByProjects(t *testing.T) {
 
 func TestStripInheritedGlobalProjectSpec(t *testing.T) {
 	global := &argoappv1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{Name: "global-common", Namespace: "argocd"},
+		ObjectMeta: metav1.ObjectMeta{Name: "global-project", Namespace: "argocd"},
 		Spec: argoappv1.AppProjectSpec{
 			ClusterResourceBlacklist: []argoappv1.ClusterResourceRestrictionItem{
 				{Group: "*", Kind: "*"},
@@ -611,14 +611,14 @@ func TestStripInheritedGlobalProjectSpec(t *testing.T) {
 			},
 			SourceRepos: []string{"https://example.com/global.git"},
 			Destinations: []argoappv1.ApplicationDestination{
-				{Server: "*", Namespace: "debman"},
+				{Server: "*", Namespace: "team-a"},
 			},
 		},
 	}
 
 	// Simulate a "virtual" project spec which already contains inherited entries (possibly multiple times).
 	proj := &argoappv1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{Name: "debman", Namespace: "argocd"},
+		ObjectMeta: metav1.ObjectMeta{Name: "project-a", Namespace: "argocd"},
 		Spec: argoappv1.AppProjectSpec{
 			ClusterResourceBlacklist: []argoappv1.ClusterResourceRestrictionItem{
 				{Group: "*", Kind: "*"},
@@ -636,9 +636,9 @@ func TestStripInheritedGlobalProjectSpec(t *testing.T) {
 				"https://example.com/project.git",
 			},
 			Destinations: []argoappv1.ApplicationDestination{
-				{Server: "*", Namespace: "debman"},
-				{Server: "*", Namespace: "debman"},
-				{Server: "*", Namespace: "test3"},
+				{Server: "*", Namespace: "team-a"},
+				{Server: "*", Namespace: "team-a"},
+				{Server: "*", Namespace: "team-b"},
 			},
 		},
 	}
@@ -660,10 +660,52 @@ func TestStripInheritedGlobalProjectSpec(t *testing.T) {
 	assert.Equal(t, []string{"https://example.com/project.git"}, proj.Spec.SourceRepos)
 	assert.Equal(t,
 		[]argoappv1.ApplicationDestination{
-			{Server: "*", Namespace: "test3"},
+			{Server: "*", Namespace: "team-b"},
 		},
 		proj.Spec.Destinations,
 	)
+}
+
+func TestFilterClusterResourceRestrictionItems(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		items     []argoappv1.ClusterResourceRestrictionItem
+		inherited map[string]struct{}
+		want      []argoappv1.ClusterResourceRestrictionItem
+	}{
+		{
+			name: "filters inherited and dedupes remaining",
+			items: []argoappv1.ClusterResourceRestrictionItem{
+				{Group: "*", Kind: "*"},
+				{Group: "*", Kind: "*"},
+				{Group: "", Kind: "ConfigMap"},
+				{Group: "", Kind: "ConfigMap"},
+				{Group: "", Kind: "Secret"},
+			},
+			inherited: map[string]struct{}{
+				clusterResourceRestrictionItemKey(argoappv1.ClusterResourceRestrictionItem{Group: "*", Kind: "*"}): {},
+			},
+			want: []argoappv1.ClusterResourceRestrictionItem{
+				{Group: "", Kind: "ConfigMap"},
+				{Group: "", Kind: "Secret"},
+			},
+		},
+		{
+			name:      "no inherited -> only dedupe",
+			items:     []argoappv1.ClusterResourceRestrictionItem{{Group: "*", Kind: "*"}, {Group: "*", Kind: "*"}},
+			inherited: map[string]struct{}{},
+			want:      []argoappv1.ClusterResourceRestrictionItem{{Group: "*", Kind: "*"}},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := filterClusterResourceRestrictionItems(tt.items, tt.inherited)
+			assert.Equal(t, tt.want, got)
+		})
+	}
 }
 
 func TestFilterByRepo(t *testing.T) {

@@ -1149,22 +1149,124 @@ func mergeVirtualProject(proj *argoappv1.AppProject, globalProj *argoappv1.AppPr
 	return proj
 }
 
+func clusterResourceRestrictionItemKey(i argoappv1.ClusterResourceRestrictionItem) string {
+	return i.Group + "||" + i.Kind + "||" + i.Name
+}
+
+func groupKindKey(i metav1.GroupKind) string {
+	return i.Group + "||" + i.Kind
+}
+
+func applicationDestinationKey(d argoappv1.ApplicationDestination) string {
+	return d.Server + "||" + d.Name + "||" + d.Namespace
+}
+
+func syncWindowIdentityHash(w *argoappv1.SyncWindow) (uint64, bool) {
+	if w == nil {
+		return 0, false
+	}
+	h, err := w.HashIdentity()
+	if err != nil {
+		return 0, false
+	}
+	return h, true
+}
+
+func filterClusterResourceRestrictionItems(items []argoappv1.ClusterResourceRestrictionItem, inherited map[string]struct{}) []argoappv1.ClusterResourceRestrictionItem {
+	seen := make(map[string]struct{})
+	var res []argoappv1.ClusterResourceRestrictionItem
+	for _, i := range items {
+		k := clusterResourceRestrictionItemKey(i)
+		if _, ok := inherited[k]; ok {
+			continue
+		}
+		if _, ok := seen[k]; ok {
+			continue
+		}
+		seen[k] = struct{}{}
+		res = append(res, i)
+	}
+	return res
+}
+
+func filterGroupKinds(items []metav1.GroupKind, inherited map[string]struct{}) []metav1.GroupKind {
+	seen := make(map[string]struct{})
+	var res []metav1.GroupKind
+	for _, i := range items {
+		k := groupKindKey(i)
+		if _, ok := inherited[k]; ok {
+			continue
+		}
+		if _, ok := seen[k]; ok {
+			continue
+		}
+		seen[k] = struct{}{}
+		res = append(res, i)
+	}
+	return res
+}
+
+func filterStrings(items []string, inherited map[string]struct{}) []string {
+	seen := make(map[string]struct{})
+	var res []string
+	for _, s := range items {
+		if _, ok := inherited[s]; ok {
+			continue
+		}
+		if _, ok := seen[s]; ok {
+			continue
+		}
+		seen[s] = struct{}{}
+		res = append(res, s)
+	}
+	return res
+}
+
+func filterDestinations(items []argoappv1.ApplicationDestination, inherited map[string]struct{}) []argoappv1.ApplicationDestination {
+	seen := make(map[string]struct{})
+	var res []argoappv1.ApplicationDestination
+	for _, d := range items {
+		k := applicationDestinationKey(d)
+		if _, ok := inherited[k]; ok {
+			continue
+		}
+		if _, ok := seen[k]; ok {
+			continue
+		}
+		seen[k] = struct{}{}
+		res = append(res, d)
+	}
+	return res
+}
+
+func filterSyncWindows(items argoappv1.SyncWindows, inherited map[uint64]struct{}) argoappv1.SyncWindows {
+	seen := make(map[uint64]struct{})
+	var res argoappv1.SyncWindows
+	for _, w := range items {
+		h, ok := syncWindowIdentityHash(w)
+		if !ok {
+			// If we can't hash identity, keep it (validation will handle bad windows elsewhere).
+			res = append(res, w)
+			continue
+		}
+		if _, ok := inherited[h]; ok {
+			continue
+		}
+		if _, ok := seen[h]; ok {
+			continue
+		}
+		seen[h] = struct{}{}
+		res = append(res, w)
+	}
+	return res
+}
+
 // StripInheritedGlobalProjectSpec removes spec entries inherited from global projects from proj.Spec.
 // This prevents clients (e.g. UI) from persisting inherited/global settings back into the AppProject CR,
 // which would otherwise cause duplicated entries on subsequent edits because virtual project merge is append-based.
 func StripInheritedGlobalProjectSpec(proj *argoappv1.AppProject, globalProjects []*argoappv1.AppProject) {
 	if proj == nil || len(globalProjects) == 0 {
 		return
-	}
-
-	clusterResKey := func(i argoappv1.ClusterResourceRestrictionItem) string {
-		return i.Group + "||" + i.Kind + "||" + i.Name
-	}
-	groupKindKey := func(i metav1.GroupKind) string {
-		return i.Group + "||" + i.Kind
-	}
-	destKey := func(d argoappv1.ApplicationDestination) string {
-		return d.Server + "||" + d.Name + "||" + d.Namespace
 	}
 
 	inheritedClusterWhitelist := make(map[string]struct{})
@@ -1180,10 +1282,10 @@ func StripInheritedGlobalProjectSpec(proj *argoappv1.AppProject, globalProjects 
 			continue
 		}
 		for _, i := range gp.Spec.ClusterResourceWhitelist {
-			inheritedClusterWhitelist[clusterResKey(i)] = struct{}{}
+			inheritedClusterWhitelist[clusterResourceRestrictionItemKey(i)] = struct{}{}
 		}
 		for _, i := range gp.Spec.ClusterResourceBlacklist {
-			inheritedClusterBlacklist[clusterResKey(i)] = struct{}{}
+			inheritedClusterBlacklist[clusterResourceRestrictionItemKey(i)] = struct{}{}
 		}
 		for _, i := range gp.Spec.NamespaceResourceWhitelist {
 			inheritedNamespaceWhitelist[groupKindKey(i)] = struct{}{}
@@ -1195,115 +1297,22 @@ func StripInheritedGlobalProjectSpec(proj *argoappv1.AppProject, globalProjects 
 			inheritedSourceRepos[r] = struct{}{}
 		}
 		for _, d := range gp.Spec.Destinations {
-			inheritedDestinations[destKey(d)] = struct{}{}
+			inheritedDestinations[applicationDestinationKey(d)] = struct{}{}
 		}
 		for _, w := range gp.Spec.SyncWindows {
-			if w == nil {
-				continue
+			if h, ok := syncWindowIdentityHash(w); ok {
+				inheritedSyncWindows[h] = struct{}{}
 			}
-			h, err := w.HashIdentity()
-			if err != nil {
-				continue
-			}
-			inheritedSyncWindows[h] = struct{}{}
 		}
 	}
 
-	filterCluster := func(items []argoappv1.ClusterResourceRestrictionItem, inherited map[string]struct{}) []argoappv1.ClusterResourceRestrictionItem {
-		seen := make(map[string]struct{})
-		var res []argoappv1.ClusterResourceRestrictionItem
-		for _, i := range items {
-			k := clusterResKey(i)
-			if _, ok := inherited[k]; ok {
-				continue
-			}
-			if _, ok := seen[k]; ok {
-				continue
-			}
-			seen[k] = struct{}{}
-			res = append(res, i)
-		}
-		return res
-	}
-	filterGroupKind := func(items []metav1.GroupKind, inherited map[string]struct{}) []metav1.GroupKind {
-		seen := make(map[string]struct{})
-		var res []metav1.GroupKind
-		for _, i := range items {
-			k := groupKindKey(i)
-			if _, ok := inherited[k]; ok {
-				continue
-			}
-			if _, ok := seen[k]; ok {
-				continue
-			}
-			seen[k] = struct{}{}
-			res = append(res, i)
-		}
-		return res
-	}
-	filterString := func(items []string, inherited map[string]struct{}) []string {
-		seen := make(map[string]struct{})
-		var res []string
-		for _, s := range items {
-			if _, ok := inherited[s]; ok {
-				continue
-			}
-			if _, ok := seen[s]; ok {
-				continue
-			}
-			seen[s] = struct{}{}
-			res = append(res, s)
-		}
-		return res
-	}
-	filterDest := func(items []argoappv1.ApplicationDestination, inherited map[string]struct{}) []argoappv1.ApplicationDestination {
-		seen := make(map[string]struct{})
-		var res []argoappv1.ApplicationDestination
-		for _, d := range items {
-			k := destKey(d)
-			if _, ok := inherited[k]; ok {
-				continue
-			}
-			if _, ok := seen[k]; ok {
-				continue
-			}
-			seen[k] = struct{}{}
-			res = append(res, d)
-		}
-		return res
-	}
-	filterWindows := func(items argoappv1.SyncWindows, inherited map[uint64]struct{}) argoappv1.SyncWindows {
-		seen := make(map[uint64]struct{})
-		var res argoappv1.SyncWindows
-		for _, w := range items {
-			if w == nil {
-				continue
-			}
-			h, err := w.HashIdentity()
-			if err != nil {
-				// If we can't hash identity, keep it (validation will handle bad windows elsewhere).
-				res = append(res, w)
-				continue
-			}
-			if _, ok := inherited[h]; ok {
-				continue
-			}
-			if _, ok := seen[h]; ok {
-				continue
-			}
-			seen[h] = struct{}{}
-			res = append(res, w)
-		}
-		return res
-	}
-
-	proj.Spec.ClusterResourceWhitelist = filterCluster(proj.Spec.ClusterResourceWhitelist, inheritedClusterWhitelist)
-	proj.Spec.ClusterResourceBlacklist = filterCluster(proj.Spec.ClusterResourceBlacklist, inheritedClusterBlacklist)
-	proj.Spec.NamespaceResourceWhitelist = filterGroupKind(proj.Spec.NamespaceResourceWhitelist, inheritedNamespaceWhitelist)
-	proj.Spec.NamespaceResourceBlacklist = filterGroupKind(proj.Spec.NamespaceResourceBlacklist, inheritedNamespaceBlacklist)
-	proj.Spec.SourceRepos = filterString(proj.Spec.SourceRepos, inheritedSourceRepos)
-	proj.Spec.Destinations = filterDest(proj.Spec.Destinations, inheritedDestinations)
-	proj.Spec.SyncWindows = filterWindows(proj.Spec.SyncWindows, inheritedSyncWindows)
+	proj.Spec.ClusterResourceWhitelist = filterClusterResourceRestrictionItems(proj.Spec.ClusterResourceWhitelist, inheritedClusterWhitelist)
+	proj.Spec.ClusterResourceBlacklist = filterClusterResourceRestrictionItems(proj.Spec.ClusterResourceBlacklist, inheritedClusterBlacklist)
+	proj.Spec.NamespaceResourceWhitelist = filterGroupKinds(proj.Spec.NamespaceResourceWhitelist, inheritedNamespaceWhitelist)
+	proj.Spec.NamespaceResourceBlacklist = filterGroupKinds(proj.Spec.NamespaceResourceBlacklist, inheritedNamespaceBlacklist)
+	proj.Spec.SourceRepos = filterStrings(proj.Spec.SourceRepos, inheritedSourceRepos)
+	proj.Spec.Destinations = filterDestinations(proj.Spec.Destinations, inheritedDestinations)
+	proj.Spec.SyncWindows = filterSyncWindows(proj.Spec.SyncWindows, inheritedSyncWindows)
 }
 
 func dedupVirtualProjectSpec(proj *argoappv1.AppProject) {
@@ -1311,91 +1320,14 @@ func dedupVirtualProjectSpec(proj *argoappv1.AppProject) {
 		return
 	}
 
-	clusterResKey := func(i argoappv1.ClusterResourceRestrictionItem) string {
-		return i.Group + "||" + i.Kind + "||" + i.Name
-	}
-	groupKindKey := func(i metav1.GroupKind) string { return i.Group + "||" + i.Kind }
-	destKey := func(d argoappv1.ApplicationDestination) string { return d.Server + "||" + d.Name + "||" + d.Namespace }
-
-	dedupCluster := func(items []argoappv1.ClusterResourceRestrictionItem) []argoappv1.ClusterResourceRestrictionItem {
-		seen := make(map[string]struct{})
-		var res []argoappv1.ClusterResourceRestrictionItem
-		for _, i := range items {
-			k := clusterResKey(i)
-			if _, ok := seen[k]; ok {
-				continue
-			}
-			seen[k] = struct{}{}
-			res = append(res, i)
-		}
-		return res
-	}
-	dedupGroupKind := func(items []metav1.GroupKind) []metav1.GroupKind {
-		seen := make(map[string]struct{})
-		var res []metav1.GroupKind
-		for _, i := range items {
-			k := groupKindKey(i)
-			if _, ok := seen[k]; ok {
-				continue
-			}
-			seen[k] = struct{}{}
-			res = append(res, i)
-		}
-		return res
-	}
-	dedupString := func(items []string) []string {
-		seen := make(map[string]struct{})
-		var res []string
-		for _, s := range items {
-			if _, ok := seen[s]; ok {
-				continue
-			}
-			seen[s] = struct{}{}
-			res = append(res, s)
-		}
-		return res
-	}
-	dedupDest := func(items []argoappv1.ApplicationDestination) []argoappv1.ApplicationDestination {
-		seen := make(map[string]struct{})
-		var res []argoappv1.ApplicationDestination
-		for _, d := range items {
-			k := destKey(d)
-			if _, ok := seen[k]; ok {
-				continue
-			}
-			seen[k] = struct{}{}
-			res = append(res, d)
-		}
-		return res
-	}
-	dedupWindows := func(items argoappv1.SyncWindows) argoappv1.SyncWindows {
-		seen := make(map[uint64]struct{})
-		var res argoappv1.SyncWindows
-		for _, w := range items {
-			if w == nil {
-				continue
-			}
-			h, err := w.HashIdentity()
-			if err != nil {
-				res = append(res, w)
-				continue
-			}
-			if _, ok := seen[h]; ok {
-				continue
-			}
-			seen[h] = struct{}{}
-			res = append(res, w)
-		}
-		return res
-	}
-
-	proj.Spec.ClusterResourceWhitelist = dedupCluster(proj.Spec.ClusterResourceWhitelist)
-	proj.Spec.ClusterResourceBlacklist = dedupCluster(proj.Spec.ClusterResourceBlacklist)
-	proj.Spec.NamespaceResourceWhitelist = dedupGroupKind(proj.Spec.NamespaceResourceWhitelist)
-	proj.Spec.NamespaceResourceBlacklist = dedupGroupKind(proj.Spec.NamespaceResourceBlacklist)
-	proj.Spec.SourceRepos = dedupString(proj.Spec.SourceRepos)
-	proj.Spec.Destinations = dedupDest(proj.Spec.Destinations)
-	proj.Spec.SyncWindows = dedupWindows(proj.Spec.SyncWindows)
+	// Passing empty "inherited" maps deduplicates by key while keeping all items.
+	proj.Spec.ClusterResourceWhitelist = filterClusterResourceRestrictionItems(proj.Spec.ClusterResourceWhitelist, map[string]struct{}{})
+	proj.Spec.ClusterResourceBlacklist = filterClusterResourceRestrictionItems(proj.Spec.ClusterResourceBlacklist, map[string]struct{}{})
+	proj.Spec.NamespaceResourceWhitelist = filterGroupKinds(proj.Spec.NamespaceResourceWhitelist, map[string]struct{}{})
+	proj.Spec.NamespaceResourceBlacklist = filterGroupKinds(proj.Spec.NamespaceResourceBlacklist, map[string]struct{}{})
+	proj.Spec.SourceRepos = filterStrings(proj.Spec.SourceRepos, map[string]struct{}{})
+	proj.Spec.Destinations = filterDestinations(proj.Spec.Destinations, map[string]struct{}{})
+	proj.Spec.SyncWindows = filterSyncWindows(proj.Spec.SyncWindows, map[uint64]struct{}{})
 }
 
 func GenerateSpecIsDifferentErrorMessage(entity string, a, b any) string {
