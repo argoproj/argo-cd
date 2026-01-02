@@ -56,6 +56,7 @@ func TestMultiSourceSourceIntegrityAllFailed(t *testing.T) {
 		Project("gpg").
 		ProjectSpec(appProjectWithSourceIntegrity(GpgGoodKeyID)).
 		GPGPublicKeyAdded().
+		Sleep(2).
 		Sources(sources).
 		When().
 		IgnoreErrors().
@@ -101,6 +102,7 @@ func TestMultiSourceSourceIntegritySomeFailed(t *testing.T) {
 		ProjectSpec(appProjectWithSourceIntegrity(GpgGoodKeyID)).
 		Sources(sources).
 		GPGPublicKeyAdded().
+		Sleep(2).
 		When().
 		AddSignedFile("fake.yaml", "").
 		IgnoreErrors().
@@ -130,6 +132,7 @@ func TestMultiSourceSourceIntegrityAllValid(t *testing.T) {
 		ProjectSpec(appProjectWithSourceIntegrity(GpgGoodKeyID)).
 		Sources(sources).
 		GPGPublicKeyAdded().
+		Sleep(2).
 		When().
 		AddSignedFile("fake.yaml", "").
 		IgnoreErrors().

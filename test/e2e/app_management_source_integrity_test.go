@@ -350,6 +350,7 @@ func TestLocalManifestRejectedWithSourceIntegrity(t *testing.T) {
 		Project("gpg").
 		Path(guestbookPath).
 		GPGPublicKeyAdded().
+		Sleep(2).
 		When().
 		AddSignedFile("test.yaml", "null").
 		CreateApp().
