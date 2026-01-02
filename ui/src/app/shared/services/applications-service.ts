@@ -14,11 +14,18 @@ interface QueryOptions {
     appNamespace?: string;
 }
 
-function optionsToSearch(options?: QueryOptions) {
+function optionsToSearch(options?: QueryOptions): {fields?: string; selector: string; appNamespace: string} {
     if (options) {
-        return {fields: (options.exclude ? '-' : '') + options.fields.join(','), selector: options.selector || '', appNamespace: options.appNamespace || ''};
+        const result: {fields?: string; selector: string; appNamespace: string} = {
+            selector: options.selector || '',
+            appNamespace: options.appNamespace || ''
+        };
+        if (options.fields) {
+            result.fields = (options.exclude ? '-' : '') + options.fields.join(',');
+        }
+        return result;
     }
-    return {};
+    return {selector: '', appNamespace: ''};
 }
 
 function getQuery(projects: string[], isListOfApplications: boolean, options?: QueryOptions): any {
