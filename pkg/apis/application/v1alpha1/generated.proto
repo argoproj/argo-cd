@@ -459,6 +459,21 @@ message ApplicationSetTree {
   repeated ResourceNode nodes = 1;
 }
 
+// ApplicationSetWatchEvent contains information about application change.
+message ApplicationSetWatchEvent {
+  // Type represents the Kubernetes watch event type. The protobuf tag uses
+  // casttype to ensure the generated Go code keeps this field as
+  // watch.EventType (a strong Go type) instead of falling back to a plain string
+  optional string type = 1;
+
+  // ApplicationSet is:
+  //  * If Type is Added or Modified: the new state of the object.
+  //  * If Type is Deleted: the state of the object immediately before deletion.
+  //  * If Type is Error: *api.Status is recommended; other types may make sense
+  //    depending on context
+  optional ApplicationSet applicationSet = 2;
+}
+
 // ApplicationSource contains all required information about the source of an application
 message ApplicationSource {
   // RepoURL is the URL to the repository (Git or Helm) that contains the application manifests
