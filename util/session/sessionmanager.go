@@ -161,7 +161,7 @@ func NewSessionManager(settingsMgr *settings.SettingsManager, projectsLister v1a
 		transport.TLSClientConfig = dex.TLSConfig(dexTLSConfig)
 		addrWithProto := dex.DexServerAddressWithProtocol(dexServerAddr, dexTLSConfig)
 		s.client.Transport = dex.NewDexRewriteURLRoundTripper(addrWithProto, s.client.Transport)
-	} else {
+	} else if !settings.IsJWTConfigured() {
 		transport.TLSClientConfig = settings.OIDCTLSConfig()
 	}
 	if os.Getenv(common.EnvVarSSODebug) == "1" {
