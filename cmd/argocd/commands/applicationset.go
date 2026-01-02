@@ -381,6 +381,9 @@ func NewApplicationSetDeleteCommand(clientOpts *argocdclient.ClientOptions) *cob
 				if confirm || confirmAll {
 					_, err := appIf.Delete(ctx, &appsetDeleteReq)
 					errors.CheckError(err)
+					if wait {
+						checkForAppsetDeleteEvent(ctx, acdClient, appSetName)
+					}
 					fmt.Printf("applicationset '%s' deleted\n", appSetQualifiedName)
 				} else {
 					fmt.Println("The command to delete '" + appSetQualifiedName + "' was cancelled.")
@@ -394,8 +397,8 @@ func NewApplicationSetDeleteCommand(clientOpts *argocdclient.ClientOptions) *cob
 }
 
 // checkForAppSetDeleteEvent watches for applicationset delete event
-func checkForAppsetDeleteEvent(ctx context.Context, acdClient argocdclient.Client, appFullName string) {
-	appEventCh := acdClient.WatchApplicationWithRetry(ctx, appFullName, "")
+func checkForAppsetDeleteEvent(ctx context.Context, acdClient argocdclient.Client, appsetName string) {
+	appEventCh := acdClient.WatchApplicationSetWithRetry(ctx, appsetName, "")
 	for appEvent := range appEventCh {
 		if appEvent.Type == k8swatch.Deleted {
 			return
