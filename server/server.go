@@ -1130,6 +1130,22 @@ func newArgoCDServiceSet(a *ArgoCDServer) *ArgoCDServiceSet {
 	}
 }
 
+// jwt header matcher to copy custom token header name to grpc metadata
+func (server *ArgoCDServer) jwtHeaderMatcher(key string) (string, bool) {
+	// first try the default grpc matcher
+	if k, match := runtime.DefaultHeaderMatcher(key); match {
+		return k, true
+	}
+
+	// only check for jwt headers if not matched by default
+	k := strings.ToLower(key)
+	if k == server.settings.JWTConfig.HeaderName {
+		return k, true
+	}
+
+	return "", false
+}
+
 // translateGrpcCookieHeader conditionally sets a cookie on the response.
 func (server *ArgoCDServer) translateGrpcCookieHeader(ctx context.Context, w http.ResponseWriter, resp golang_proto.Message) error {
 	if sessionResp, ok := resp.(*sessionpkg.SessionResponse); ok {
@@ -1205,9 +1221,15 @@ func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWeb
 	// golang/protobuf. Which does not support types such as time.Time. gogo/protobuf does support
 	// time.Time, but does not support custom UnmarshalJSON() and MarshalJSON() methods. Therefore
 	// we use our own Marshaler
-	gwMuxOpts := runtime.WithMarshalerOption(runtime.MIMEWildcard, new(grpc_util.JSONMarshaler))
-	gwCookieOpts := runtime.WithForwardResponseOption(server.translateGrpcCookieHeader)
-	gwmux := runtime.NewServeMux(gwMuxOpts, gwCookieOpts)
+	gwMuxOpts := []runtime.ServeMuxOption{
+		runtime.WithMarshalerOption(runtime.MIMEWildcard, new(grpc_util.JSONMarshaler)),
+		runtime.WithForwardResponseOption(server.translateGrpcCookieHeader),
+	}
+	// header -> grpc metadata matcher for custom JWT header names
+	if server.settings.IsJWTConfigured() && !strings.EqualFold(server.settings.JWTConfig.HeaderName, "authorization") {
+		gwMuxOpts = append(gwMuxOpts, runtime.WithIncomingHeaderMatcher(server.jwtHeaderMatcher))
+	}
+	gwmux := runtime.NewServeMux(gwMuxOpts...)
 
 	var handler http.Handler = gwmux
 	if server.EnableGZip {
@@ -1579,7 +1601,7 @@ func (server *ArgoCDServer) getClaims(ctx context.Context) (jwt.Claims, string, 
 	if !ok {
 		return nil, "", ErrNoSession
 	}
-	tokenString := getToken(md)
+	tokenString := server.getToken(md)
 	if tokenString == "" {
 		return nil, "", ErrNoSession
 	}
@@ -1612,13 +1634,25 @@ func (server *ArgoCDServer) getClaims(ctx context.Context) (jwt.Claims, string, 
 }
 
 // getToken extracts the token from gRPC metadata or cookie headers
-func getToken(md metadata.MD) string {
+func (server *ArgoCDServer) getToken(md metadata.MD) string {
 	// check the "token" metadata
 	{
 		tokens, ok := md[apiclient.MetaDataTokenKey]
 		if ok && len(tokens) > 0 {
 			return tokens[0]
 		}
+	}
+
+	// look for an external JWT header if configured
+	if server.settings.IsJWTConfigured() {
+		// looks for the custom http header set in jwt config
+		jwtHeader := strings.ToLower(server.settings.JWTConfig.HeaderName)
+		for _, token := range md[jwtHeader] {
+			if jwtutil.IsValid(token) {
+				return token
+			}
+		}
+		log.Warnf("JWT conifigured but could not find valid token at header %q", server.settings.JWTConfig.HeaderName)
 	}
 
 	// looks for the HTTP header `Authorization: Bearer ...`
