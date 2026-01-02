@@ -115,4 +115,8 @@ service ApplicationSetService {
 		option (google.api.http).get = "/api/v1/applicationsets/{name}/events";
 	}
 
+	rpc Watch (ApplicationSetWatchQuery) returns (stream github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.ApplicationSetWatchEvent) {
+		option (google.api.http).get = "/api/v1/stream/applicationsets";
+	}
+
 }
