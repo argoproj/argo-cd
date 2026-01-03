@@ -487,140 +487,35 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">December 14th 2025, 12:30:12 am (UTC+00:00)</p>
+                <p class="timestamp">December 28th 2025, 12:31:04 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
-                <span>Scanned the following paths:</span>
+                <span>Scanned the following path:</span>
                 <ul>
-                  <li class="paths">public.ecr.aws/docker/library/redis:7.2.11-alpine/docker/library/redis (apk)</li>
-                  <li class="paths">public.ecr.aws/docker/library/redis:7.2.11-alpine/tianon/gosu//usr/local/bin/gosu (gomodules)</li>
+                  <li class="paths">public.ecr.aws/docker/library/redis:8.2.2-alpine/docker/library/redis (apk)</li>
                 </ul>
               </div>
     
               <div class="meta-counts">
                 <div class="meta-count"><span>2</span> <span>known vulnerabilities</span></div>
                 <div class="meta-count"><span>10 vulnerable dependency paths</span></div>
-                <div class="meta-count"><span>19</span> <span>dependencies</span></div>
+                <div class="meta-count"><span>22</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
           </header><!-- .project__header -->
         </div><!-- .layout-stacked__header -->
-
+      <section class="layout-container">
+          <table class="metatable">
+              <tbody>
+              <tr class="meta-row"><th class="meta-row-label">Project</th> <td class="meta-row-value">docker-image|public.ecr.aws/docker/library/redis</td></tr>
+              <tr class="meta-row"><th class="meta-row-label">Path</th> <td class="meta-row-value">public.ecr.aws/docker/library/redis:8.2.2-alpine/docker/library/redis</td></tr>
+              <tr class="meta-row"><th class="meta-row-label">Package Manager</th> <td class="meta-row-value">apk</td></tr>
+              
+              </tbody>
+          </table>
+      </section>
     <div class="layout-container" style="padding-top: 35px;">
       <div class="cards--vuln filter--patch filter--ignore">
-        <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
-            <h2 class="card__title">CVE-2024-58251</h2>
-            <div class="card__section">
-        
-                <div class="card__labels">
-                    <div class="label label--low">
-                        <span class="label__text">low severity</span>
-                    </div>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Package Manager: alpine:3.21
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            busybox/busybox
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-                                docker-image|public.ecr.aws/docker/library/redis@7.2.11-alpine and busybox/busybox@1.37.0-r13
-        
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|public.ecr.aws/docker/library/redis@7.2.11-alpine
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        busybox/busybox@1.37.0-r13
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|public.ecr.aws/docker/library/redis@7.2.11-alpine
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        alpine-baselayout/alpine-baselayout@3.6.8-r1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        busybox/busybox-binsh@1.37.0-r13
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        busybox/busybox@1.37.0-r13
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|public.ecr.aws/docker/library/redis@7.2.11-alpine
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        busybox/busybox-binsh@1.37.0-r13
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|public.ecr.aws/docker/library/redis@7.2.11-alpine
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        alpine-baselayout/alpine-baselayout@3.6.8-r1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        busybox/busybox-binsh@1.37.0-r13
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|public.ecr.aws/docker/library/redis@7.2.11-alpine
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        busybox/ssl_client@1.37.0-r13
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="nvd-description">NVD Description</h2>
-        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>busybox</code> package and not the <code>busybox</code> package as distributed by <code>Alpine</code>.</em>
-        <em>See <code>How to fix?</code> for <code>Alpine:3.21</code> relevant fixed versions and status.</em></p>
-        <p>In netstat in BusyBox through 1.37.0, local users can launch of network application with an argv[0] containing an ANSI terminal escape sequence, leading to a denial of service (terminal locked up) when netstat is used by a victim.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>Alpine:3.21</code> <code>busybox</code> to version 1.37.0-r14 or higher.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="https://bugs.busybox.net/show_bug.cgi?id=15922">https://bugs.busybox.net/show_bug.cgi?id=15922</a></li>
-        <li><a href="https://www.busybox.net">https://www.busybox.net</a></li>
-        <li><a href="https://www.busybox.net/downloads/">https://www.busybox.net/downloads/</a></li>
-        <li><a href="http://www.openwall.com/lists/oss-security/2025/04/23/6">http://www.openwall.com/lists/oss-security/2025/04/23/6</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-ALPINE321-BUSYBOX-14102399">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
             <h2 class="card__title">CVE-2025-46394</h2>
             <div class="card__section">
@@ -635,7 +530,7 @@
         
                 <ul class="card__meta">
                     <li class="card__meta__item">
-                        Package Manager: alpine:3.21
+                        Package Manager: alpine:3.22
                     </li>
                     <li class="card__meta__item">
                             Vulnerable module:
@@ -645,7 +540,7 @@
         
                     <li class="card__meta__item">Introduced through:
         
-                                docker-image|public.ecr.aws/docker/library/redis@7.2.11-alpine and busybox/busybox@1.37.0-r13
+                                docker-image|public.ecr.aws/docker/library/redis@8.2.2-alpine and busybox/busybox@1.37.0-r19
         
                     </li>
                 </ul>
@@ -658,51 +553,51 @@
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|public.ecr.aws/docker/library/redis@7.2.11-alpine
+                                        docker-image|public.ecr.aws/docker/library/redis@8.2.2-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        busybox/busybox@1.37.0-r13
+                                        busybox/busybox@1.37.0-r19
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|public.ecr.aws/docker/library/redis@7.2.11-alpine
+                                        docker-image|public.ecr.aws/docker/library/redis@8.2.2-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        alpine-baselayout/alpine-baselayout@3.6.8-r1
+                                        alpine-baselayout/alpine-baselayout@3.7.0-r0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        busybox/busybox-binsh@1.37.0-r13
+                                        busybox/busybox-binsh@1.37.0-r19
                                          <span class="list-paths__item__arrow">›</span> 
-                                        busybox/busybox@1.37.0-r13
+                                        busybox/busybox@1.37.0-r19
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|public.ecr.aws/docker/library/redis@7.2.11-alpine
+                                        docker-image|public.ecr.aws/docker/library/redis@8.2.2-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        busybox/busybox-binsh@1.37.0-r13
+                                        busybox/busybox-binsh@1.37.0-r19
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|public.ecr.aws/docker/library/redis@7.2.11-alpine
+                                        docker-image|public.ecr.aws/docker/library/redis@8.2.2-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        alpine-baselayout/alpine-baselayout@3.6.8-r1
+                                        alpine-baselayout/alpine-baselayout@3.7.0-r0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        busybox/busybox-binsh@1.37.0-r13
+                                        busybox/busybox-binsh@1.37.0-r19
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|public.ecr.aws/docker/library/redis@7.2.11-alpine
+                                        docker-image|public.ecr.aws/docker/library/redis@8.2.2-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        busybox/ssl_client@1.37.0-r13
+                                        busybox/ssl_client@1.37.0-r19
                                         
                                 </span>
         
@@ -715,10 +610,10 @@
               <!-- Overview -->
               <h2 id="nvd-description">NVD Description</h2>
         <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>busybox</code> package and not the <code>busybox</code> package as distributed by <code>Alpine</code>.</em>
-        <em>See <code>How to fix?</code> for <code>Alpine:3.21</code> relevant fixed versions and status.</em></p>
+        <em>See <code>How to fix?</code> for <code>Alpine:3.22</code> relevant fixed versions and status.</em></p>
         <p>In tar in BusyBox through 1.37.0, a TAR archive can have filenames hidden from a listing through the use of terminal escape sequences.</p>
         <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>Alpine:3.21</code> <code>busybox</code> to version 1.37.0-r14 or higher.</p>
+        <p>Upgrade <code>Alpine:3.22</code> <code>busybox</code> to version 1.37.0-r20 or higher.</p>
         <h2 id="references">References</h2>
         <ul>
         <li><a href="https://bugs.busybox.net/show_bug.cgi?id=16018">https://bugs.busybox.net/show_bug.cgi?id=16018</a></li>
@@ -731,7 +626,120 @@
               <hr/>
         
             <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-ALPINE321-BUSYBOX-14102401">More about this vulnerability</a></p>
+                <p><a href="https://snyk.io/vuln/SNYK-ALPINE322-BUSYBOX-14091698">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
+            <h2 class="card__title">CVE-2024-58251</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--low">
+                        <span class="label__text">low severity</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Package Manager: alpine:3.22
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            busybox/busybox
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|public.ecr.aws/docker/library/redis@8.2.2-alpine and busybox/busybox@1.37.0-r19
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/redis@8.2.2-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/busybox@1.37.0-r19
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/redis@8.2.2-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        alpine-baselayout/alpine-baselayout@3.7.0-r0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/busybox-binsh@1.37.0-r19
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/busybox@1.37.0-r19
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/redis@8.2.2-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/busybox-binsh@1.37.0-r19
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/redis@8.2.2-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        alpine-baselayout/alpine-baselayout@3.7.0-r0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/busybox-binsh@1.37.0-r19
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/redis@8.2.2-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/ssl_client@1.37.0-r19
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>busybox</code> package and not the <code>busybox</code> package as distributed by <code>Alpine</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Alpine:3.22</code> relevant fixed versions and status.</em></p>
+        <p>In netstat in BusyBox through 1.37.0, local users can launch of network application with an argv[0] containing an ANSI terminal escape sequence, leading to a denial of service (terminal locked up) when netstat is used by a victim.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>Alpine:3.22</code> <code>busybox</code> to version 1.37.0-r20 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://bugs.busybox.net/show_bug.cgi?id=15922">https://bugs.busybox.net/show_bug.cgi?id=15922</a></li>
+        <li><a href="https://www.busybox.net">https://www.busybox.net</a></li>
+        <li><a href="https://www.busybox.net/downloads/">https://www.busybox.net/downloads/</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2025/04/23/6">http://www.openwall.com/lists/oss-security/2025/04/23/6</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-ALPINE322-BUSYBOX-14091701">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
