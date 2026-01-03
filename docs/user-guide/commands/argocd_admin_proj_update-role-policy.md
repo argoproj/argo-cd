@@ -44,7 +44,6 @@ argocd admin proj update-role-policy PROJECT_GLOB MODIFICATION ACTION [flags]
       --role string                    Role name pattern e.g. '*deployer*' (default "*")
       --scope string                   Resource scope e.g. '*'
       --server string                  The address and port of the Kubernetes API server
-      --tls-server-name string         If provided, this name will be used to validate server certificate. If this is not provided, hostname used to contact the server is used.
       --token string                   Bearer token for authentication to the API server
       --user string                    The name of the kubeconfig user to use
       --username string                Username for basic authentication to the API server

@@ -37,7 +37,6 @@ argocd admin import SOURCE [flags]
       --server string                       The address and port of the Kubernetes API server
       --skip-resources-with-label string    Skip importing resources based on the label e.g. '--skip-resources-with-label my-label/example.io=true'
       --stop-operation                      Stop any existing operations
-      --tls-server-name string              If provided, this name will be used to validate server certificate. If this is not provided, hostname used to contact the server is used.
       --token string                        Bearer token for authentication to the API server
       --user string                         The name of the kubeconfig user to use
       --username string                     Username for basic authentication to the API server

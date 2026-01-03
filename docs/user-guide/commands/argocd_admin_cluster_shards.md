@@ -44,7 +44,6 @@ argocd admin cluster shards [flags]
       --server string                         The address and port of the Kubernetes API server
       --shard int                             Cluster shard filter (default -1)
       --sharding-method string                Sharding method. Defaults: legacy. Supported sharding methods are : [legacy, round-robin, consistent-hashing]  (default "legacy")
-      --tls-server-name string                If provided, this name will be used to validate server certificate. If this is not provided, hostname used to contact the server is used.
       --token string                          Bearer token for authentication to the API server
       --user string                           The name of the kubeconfig user to use
       --username string                       Username for basic authentication to the API server

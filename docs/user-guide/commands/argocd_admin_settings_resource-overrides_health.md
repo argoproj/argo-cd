@@ -72,7 +72,6 @@ argocd admin settings resource-overrides health ./deploy.yaml --argocd-cm-path .
       --server string                   The address and port of the Kubernetes API server
       --server-crt string               Server certificate file
       --server-name string              Name of the Argo CD API server; set this or the ARGOCD_SERVER_NAME environment variable when the server's name label differs from the default, for example when installing via the Helm chart (default "argocd-server")
-      --tls-server-name string          If provided, this name will be used to validate server certificate. If this is not provided, hostname used to contact the server is used.
       --token string                    Bearer token for authentication to the API server
       --user string                     The name of the kubeconfig user to use
       --username string                 Username for basic authentication to the API server

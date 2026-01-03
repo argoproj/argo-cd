@@ -81,7 +81,6 @@ argocd-application-controller [flags]
       --sharding-method string                                    Enables choice of sharding method. Supported sharding methods are : [legacy, round-robin, consistent-hashing]  (default "legacy")
       --status-processors int                                     Number of application status processors (default 20)
       --sync-timeout int                                          Specifies the timeout after which a sync would be terminated. 0 means no timeout (default 0).
-      --tls-server-name string                                    If provided, this name will be used to validate server certificate. If this is not provided, hostname used to contact the server is used.
       --token string                                              Bearer token for authentication to the API server
       --user string                                               The name of the kubeconfig user to use
       --username string                                           Username for basic authentication to the API server
