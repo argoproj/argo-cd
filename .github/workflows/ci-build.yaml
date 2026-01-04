@@ -15,6 +15,9 @@ env:
   # Golang version to use across CI steps
   # renovate: datasource=golang-version packageName=golang
   GOLANG_VERSION: '1.25.5'
+  IMAGE_REGISTRY: ${{ vars.IMAGE_REGISTRY || 'quay.io' }}
+  IMAGE_NAMESPACE: ${{ vars.IMAGE_NAMESPACE || 'argoproj' }}
+  IMAGE_REPOSITORY: ${{ vars.IMAGE_REPOSITORY || 'argocd' }}
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -288,7 +291,8 @@ jobs:
           set -x
           export GOPATH=$(go env GOPATH)
           git checkout -- go.mod go.sum
-          make IMAGE_NAMESPACE=${{ env.IMAGE_NAMESPACE }} IMAGE_REGISTRY=${{ env.IMAGE_REGISTRY }} IMAGE_REPOSITORY=${{ env.IMAGE_REPOSITORY }} codegen-local
+          #make IMAGE_NAMESPACE=${{ env.IMAGE_NAMESPACE }} IMAGE_REGISTRY=${{ env.IMAGE_REGISTRY }} IMAGE_REPOSITORY=${{ env.IMAGE_REPOSITORY }} codegen-local
+          make codegen-local
         # generalizing repo name for forks:  ${{ github.event.repository.name }}
         working-directory: /home/runner/go/src/github.com/argoproj/${{ github.event.repository.name }}
       - name: Check nothing has changed
