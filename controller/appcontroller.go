@@ -2610,11 +2610,11 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 				}
 
 				ctrl.requestAppRefresh(newApp.QualifiedName(), compareWith, delay)
-				if ctrl.hydrator != nil && newOK && newApp.Spec.SourceHydrator != nil {
-					ctrl.appHydrateQueue.AddRateLimited(newApp.QualifiedName())
-				}
 				if !newOK || (delay != nil && *delay != time.Duration(0)) {
 					ctrl.appOperationQueue.AddRateLimited(key)
+				}
+				if ctrl.hydrator != nil {
+					ctrl.appHydrateQueue.AddRateLimited(newApp.QualifiedName())
 				}
 				ctrl.clusterSharding.UpdateApp(newApp)
 			},
