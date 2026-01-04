@@ -1517,8 +1517,8 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 
 		if lastHydrationTime.Before(state.StartedAt.Time) {
 			logCtx.Infof("Triggering hydration before sync (last hydration: %v, sync started: %v)", lastHydrationTime, state.StartedAt)
-			patch := map[string]interface{}{
-				"metadata": map[string]interface{}{
+			patch := map[string]any{
+				"metadata": map[string]any{
 					"annotations": map[string]string{
 						appv1.AnnotationKeyHydrate: string(appv1.RefreshTypeNormal),
 					},
@@ -1543,8 +1543,8 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 
 		if hydratedSHA != "" && app.Status.Sync.Revision != hydratedSHA {
 			logCtx.Infof("Triggering refresh before sync to pick up hydrated commit %s (current sync revision: %s)", hydratedSHA, app.Status.Sync.Revision)
-			patch := map[string]interface{}{
-				"metadata": map[string]interface{}{
+			patch := map[string]any{
+				"metadata": map[string]any{
 					"annotations": map[string]string{
 						appv1.AnnotationKeyRefresh: string(appv1.RefreshTypeNormal),
 					},
