@@ -13,13 +13,25 @@ KUSTOMIZE=kustomize
 cd "${SRCROOT}/manifests/ha/base/redis-ha" && ./generate.sh
 
 # Image repository configuration - can be overridden in forks
-IMAGE_REGISTRY="${IMAGE_REGISTRY:-quay.io}"
-IMAGE_NAMESPACE="${IMAGE_NAMESPACE:-argoproj}"
+IMAGE_REGISTRY="${IMAGE_REGISTRY:-}"
+IMAGE_NAMESPACE="${IMAGE_NAMESPACE:-}"
 IMAGE_REPOSITORY="${IMAGE_REPOSITORY:-argocd}"
 IMAGE_TAG="${IMAGE_TAG:-}"
 
 # Construct full image name
-FULL_IMAGE_NAME="${IMAGE_REGISTRY}/${IMAGE_NAMESPACE}/${IMAGE_REPOSITORY}"
+# Note: keeping same logic as in Makefile for docker images
+FULL_IMAGE_NAME="${IMAGE_REPOSITORY}"
+if [[ -n $IMAGE_NAMESPACE ]]; then
+    # for backwards compatibility with the old way like IMAGE_NAMESPACE='quay.io/argoproj' 
+    FULL_IMAGE_NAME="${IMAGE_NAMESPACE}/${FULL_IMAGE_NAME}"
+fi
+if [[ -n $IMAGE_REGISTRY ]]; then
+    if [[ -z $IMAGE_NAMESPACE ]]; then
+	echo "IMAGE_NAMESPACE must be set when IMAGE_REGISTRY is set (e.g. IMAGE_NAMESPACE=argoproj)" >&2
+	exit 1
+    fi
+    FULL_IMAGE_NAME="${IMAGE_REGISTRY}/${FULL_IMAGE_NAME}"
+fi
 
 # Auto-detect current image in manifests for release workflows
 detect_current_image() {
