@@ -440,8 +440,6 @@ jobs:
       - changes
     env:
       ARGOCD_FAKE_IN_CLUSTER: 'true'
-      ARGOCD_SSH_DATA_PATH: '/tmp/argo-e2e/app/config/ssh'
-      ARGOCD_TLS_DATA_PATH: '/tmp/argo-e2e/app/config/tls'
       ARGOCD_E2E_K3S: 'true'
       ARGOCD_IN_CI: 'true'
       ARGOCD_E2E_APISERVER_PORT: '8088'
