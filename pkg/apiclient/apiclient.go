@@ -804,17 +804,44 @@ func (c *client) NewAccountClientOrDie() (io.Closer, accountpkg.AccountServiceCl
 }
 
 func (c *client) WatchApplicationSetWithRetry(ctx context.Context, appSetName, revision string) chan *v1alpha1.ApplicationSetWatchEvent {
-	fmt.Println("hello")
 	appSetEventCh := make(chan *v1alpha1.ApplicationSetWatchEvent)
 	cancelled := false
-	_, _ = argo.ParseFromQualifiedName(appSetName, "")
+	appSetName, appSetNs := argo.ParseFromQualifiedName(appSetName, "")
 	go func() {
 		defer close(appSetEventCh)
 		for !cancelled {
-
+			conn, appsetIf, err := c.NewApplicationSetClient()
+			if err == nil {
+				var wc applicationsetpkg.ApplicationSetService_WatchClient
+				wc, err = appsetIf.Watch(ctx, &applicationsetpkg.ApplicationSetWatchQuery{
+					Name:            appSetName,
+					AppSetNamespace: appSetNs,
+				})
+				if err == nil {
+					for {
+						var appSetEvent *v1alpha1.ApplicationSetWatchEvent
+						appSetEvent, err = wc.Recv()
+						if err != nil {
+							break
+						}
+						appSetEventCh <- appSetEvent
+					}
+				}
+			}
+			if err != nil {
+				if isCanceledContextErr(err) {
+					cancelled = true
+				} else {
+					time.Sleep(1 * time.Second)
+				}
+			}
+			if conn != nil {
+				_ = conn.Close()
+			}
 		}
 	}()
-	return nil
+
+	return appSetEventCh
 }
 
 // WatchApplicationWithRetry returns a channel of watch events for an application, retrying the
