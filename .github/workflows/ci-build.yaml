@@ -291,7 +291,6 @@ jobs:
           set -x
           export GOPATH=$(go env GOPATH)
           git checkout -- go.mod go.sum
-          #make IMAGE_NAMESPACE=${{ env.IMAGE_NAMESPACE }} IMAGE_REGISTRY=${{ env.IMAGE_REGISTRY }} IMAGE_REPOSITORY=${{ env.IMAGE_REPOSITORY }} codegen-local
           make codegen-local
         # generalizing repo name for forks:  ${{ github.event.repository.name }}
         working-directory: /home/runner/go/src/github.com/argoproj/${{ github.event.repository.name }}
