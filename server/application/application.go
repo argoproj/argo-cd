@@ -88,7 +88,6 @@ type Server struct {
 	appLister              applisters.ApplicationLister
 	appInformer            cache.SharedIndexInformer
 	appBroadcaster         Broadcaster
-	appSetBroadcaster      applicationset.Broadcaster
 	repoClientset          apiclient.Clientset
 	kubectl                kube.Kubectl
 	db                     db.ArgoDB
@@ -110,7 +109,6 @@ func NewServer(
 	appLister applisters.ApplicationLister,
 	appInformer cache.SharedIndexInformer,
 	appBroadcaster Broadcaster,
-	appSetBroadcaster applicationset.Broadcaster,
 	repoClientset apiclient.Clientset,
 	cache *servercache.Cache,
 	kubectl kube.Kubectl,
@@ -125,10 +123,6 @@ func NewServer(
 ) (application.ApplicationServiceServer, AppResourceTreeFn) {
 	if appBroadcaster == nil {
 		appBroadcaster = &broadcasterHandler{}
-	}
-
-	if appSetBroadcaster == nil {
-		appSetBroadcaster = &applicationset.BroadcasterHandler{}
 	}
 	// Register Application-level broadcaster to receive create/update/delete events
 	// and handle general application event processing.
@@ -149,7 +143,6 @@ func NewServer(
 		appLister:              &deepCopyApplicationLister{appLister},
 		appInformer:            appInformer,
 		appBroadcaster:         appBroadcaster,
-		appSetBroadcaster:      appSetBroadcaster,
 		kubeclientset:          kubeclientset,
 		cache:                  cache,
 		db:                     db,
