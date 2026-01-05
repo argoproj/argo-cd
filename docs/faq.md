@@ -441,3 +441,9 @@ If you can avoid using these features, you can avoid triggering the error. The o
    Excluding mutation webhooks from the diff could cause undesired diffing behavior.
 3. **Disable mutation webhooks when using server-side diff**: see [server-side diff docs](user-guide/diff-strategies.md#mutation-webhooks)
    for details about that feature. Disabling mutation webhooks may have undesired effects on sync behavior.
+
+
+## Why does Argo CD not detect changes in deployment's environment variables ?
+
+Under the hood Argo CD uses `kubect diff` to detect changes, there are some limitations to it: see 
+[diff strategie docs](user-guide/diff-strategies.md#known-limitations) for the details.

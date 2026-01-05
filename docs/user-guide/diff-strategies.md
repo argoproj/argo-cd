@@ -139,3 +139,16 @@ metadata:
 [1]: https://github.com/argoproj/argoproj/blob/main/community/feature-status.md#beta
 [2]: https://github.com/kubernetes-sigs/structured-merge-diff
 [3]: https://kubernetes.io/docs/reference/using-api/api-concepts/#resourceversion-in-metadata
+
+### Known limitations
+
+Under the hood Argo CD uses `kubectl diff` to detect changes, 
+`kubectl diff` [merge the template resource from Git with the live one before comparing them](https://github.com/kubernetes/kubectl/issues/1601).
+
+Which means that any additions on the live resource will not be detected by Argo CD, such as:
+* Additional ports
+* Additional environment variables
+* Security context only on the live environment
+
+Some of these issues can be mitigated by explicitly setting them at null in the template resources.
+
