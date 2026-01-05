@@ -439,7 +439,8 @@ test-local: test-gitops-engine
 # Run gitops-engine unit tests
 .PHONY: test-gitops-engine
 test-gitops-engine:
-	cd gitops-engine && go test -race ./... -coverprofile=coverage.out
+	mkdir -p $(PWD)/test-results
+	cd gitops-engine && go test -race -cover ./... -args -test.gocoverdir="$(PWD)/test-results"
 
 .PHONY: test-race
 test-race: test-tools-image
