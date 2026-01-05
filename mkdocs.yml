@@ -94,6 +94,7 @@ nav:
       - operator-manual/notifications/services/pushover.md
       - operator-manual/notifications/services/rocketchat.md
       - operator-manual/notifications/services/slack.md
+      - operator-manual/notifications/services/teams-workflows.md
       - operator-manual/notifications/services/teams.md
       - operator-manual/notifications/services/telegram.md
       - operator-manual/notifications/services/webex.md
