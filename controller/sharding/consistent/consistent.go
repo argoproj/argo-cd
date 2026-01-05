@@ -14,7 +14,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/google/btree"
+	"github.com/tidwall/btree"
 
 	blake2b "github.com/minio/blake2b-simd"
 )
@@ -33,25 +33,17 @@ type Host struct {
 
 type Consistent struct {
 	servers           map[uint64]string
-	clients           *btree.BTree
+	clients           *btree.BTreeG[uint64]
 	loadMap           map[string]*Host
 	totalLoad         int64
 	replicationFactor int
 	lock              sync.RWMutex
 }
 
-type item struct {
-	value uint64
-}
-
-func (i item) Less(than btree.Item) bool {
-	return i.value < than.(item).value
-}
-
 func New() *Consistent {
 	return &Consistent{
 		servers:           map[uint64]string{},
-		clients:           btree.New(2),
+		clients:           btree.NewBTreeG[uint64](func(a, b uint64) bool { return a < b }),
 		loadMap:           map[string]*Host{},
 		replicationFactor: 1000,
 	}
@@ -60,7 +52,7 @@ func New() *Consistent {
 func NewWithReplicationFactor(replicationFactor int) *Consistent {
 	return &Consistent{
 		servers:           map[uint64]string{},
-		clients:           btree.New(2),
+		clients:           btree.NewBTreeG[uint64](func(a, b uint64) bool { return a < b }),
 		loadMap:           map[string]*Host{},
 		replicationFactor: replicationFactor,
 	}
@@ -78,7 +70,7 @@ func (c *Consistent) Add(server string) {
 	for i := 0; i < c.replicationFactor; i++ {
 		h := c.hash(fmt.Sprintf("%s%d", server, i))
 		c.servers[h] = server
-		c.clients.ReplaceOrInsert(item{h})
+		c.clients.Set(h)
 	}
 }
 
@@ -94,18 +86,32 @@ func (c *Consistent) Get(client string) (string, error) {
 	}
 
 	h := c.hash(client)
-	var foundItem btree.Item
-	c.clients.AscendGreaterOrEqual(item{h}, func(i btree.Item) bool {
-		foundItem = i
+	var foundKey uint64
+	wrapped := false
+	
+	// Find the first key >= h
+	c.clients.Ascend(h, func(k uint64) bool {
+		foundKey = k
 		return false // stop the iteration
 	})
 
-	if foundItem == nil {
-		// If no host found, wrap around to the first one.
-		foundItem = c.clients.Min()
+	// If no key >= h was found, wrap around to the first key in the tree
+	if foundKey == 0 {
+		if minKey, ok := c.clients.Min(); ok {
+			c.clients.Ascend(minKey, func(k uint64) bool {
+				foundKey = k
+				wrapped = true
+				return false // stop the iteration
+			})
+		}
 	}
 
-	host := c.servers[foundItem.(item).value]
+	if foundKey == 0 && !wrapped {
+		// If there's still no key, something unexpected happened
+		return "", ErrNoHosts
+	}
+
+	host := c.servers[foundKey]
 
 	return host, nil
 }
@@ -122,29 +128,38 @@ func (c *Consistent) GetLeast(client string) (string, error) {
 		return "", ErrNoHosts
 	}
 	h := c.hash(client)
+	
 	for {
-		var foundItem btree.Item
-		c.clients.AscendGreaterOrEqual(item{h}, func(bItem btree.Item) bool {
-			if h != bItem.(item).value {
-				foundItem = bItem
-				return false // stop the iteration
-			}
-			return true
+		var foundKey uint64
+		wrapped := false
+		
+		// Find the first key > h
+		c.clients.Ascend(h+1, func(k uint64) bool {
+			foundKey = k
+			return false // stop the iteration
 		})
 
-		if foundItem == nil {
-			// If no host found, wrap around to the first one.
-			foundItem = c.clients.Min()
+		// If no key > h was found, wrap around to the first key in the tree
+		if foundKey == 0 {
+			if minKey, ok := c.clients.Min(); ok {
+				c.clients.Ascend(minKey, func(k uint64) bool {
+					foundKey = k
+					wrapped = true
+					return false // stop the iteration
+				})
+			}
 		}
-		key := c.clients.Get(foundItem)
-		if key == nil {
+
+		if foundKey == 0 && !wrapped {
+			// If there's still no key, something unexpected happened
 			return client, nil
 		}
-		host := c.servers[key.(item).value]
+		
+		host := c.servers[foundKey]
 		if c.loadOK(host) {
 			return host, nil
 		}
-		h = key.(item).value
+		h = foundKey
 	}
 }
 
@@ -197,7 +212,7 @@ func (c *Consistent) Remove(server string) bool {
 	for i := 0; i < c.replicationFactor; i++ {
 		h := c.hash(fmt.Sprintf("%s%d", server, i))
 		delete(c.servers, h)
-		c.delSlice(h)
+		c.clients.Delete(h)
 	}
 	delete(c.loadMap, server)
 	return true
@@ -261,10 +276,6 @@ func (c *Consistent) loadOK(server string) bool {
 	}
 
 	return float64(bserver.Load) < avgLoadPerNode
-}
-
-func (c *Consistent) delSlice(val uint64) {
-	c.clients.Delete(item{val})
 }
 
 func (c *Consistent) hash(key string) uint64 {
