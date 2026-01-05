@@ -1,12 +1,10 @@
 package e2e
 
 import (
-	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
@@ -23,11 +21,7 @@ import (
 func TestCustomToolWithGitCreds(t *testing.T) {
 	ctx := Given(t)
 	ctx.
-		And(func() {
-			go startCMPServer(t, "./testdata/cmp-gitcreds")
-			time.Sleep(100 * time.Millisecond)
-			t.Setenv("ARGOCD_BINARY_NAME", "argocd")
-		}).
+		RunningCMPServer("./testdata/cmp-gitcreds").
 		CustomCACertAdded().
 		// add the private repo with credentials
 		HTTPSRepoURLAdded(true).
@@ -51,11 +45,7 @@ func TestCustomToolWithGitCreds(t *testing.T) {
 func TestCustomToolWithGitCredsTemplate(t *testing.T) {
 	ctx := Given(t)
 	ctx.
-		And(func() {
-			go startCMPServer(t, "./testdata/cmp-gitcredstemplate")
-			time.Sleep(100 * time.Millisecond)
-			t.Setenv("ARGOCD_BINARY_NAME", "argocd")
-		}).
+		RunningCMPServer("./testdata/cmp-gitcredstemplate").
 		CustomCACertAdded().
 		// add the git creds template
 		HTTPSCredentialsUserPassAdded().
@@ -92,11 +82,7 @@ func TestCustomToolWithSSHGitCreds(t *testing.T) {
 	ctx := Given(t)
 	// path does not matter, we ignore it
 	ctx.
-		And(func() {
-			go startCMPServer(t, "./testdata/cmp-gitsshcreds")
-			time.Sleep(100 * time.Millisecond)
-			t.Setenv("ARGOCD_BINARY_NAME", "argocd")
-		}).
+		RunningCMPServer("./testdata/cmp-gitsshcreds").
 		// add the private repo with ssh credentials
 		CustomSSHKnownHostsAdded().
 		SSHRepoURLAdded(true).
@@ -126,11 +112,7 @@ func TestCustomToolWithSSHGitCredsDisabled(t *testing.T) {
 	ctx := Given(t)
 	// path does not matter, we ignore it
 	ctx.
-		And(func() {
-			go startCMPServer(t, "./testdata/cmp-gitsshcreds-disable-provide")
-			time.Sleep(100 * time.Millisecond)
-			t.Setenv("ARGOCD_BINARY_NAME", "argocd")
-		}).
+		RunningCMPServer("./testdata/cmp-gitsshcreds-disable-provide").
 		CustomCACertAdded().
 		// add the private repo with ssh credentials
 		CustomSSHKnownHostsAdded().
@@ -150,11 +132,7 @@ func TestCustomToolWithSSHGitCredsDisabled(t *testing.T) {
 func TestCustomToolWithEnv(t *testing.T) {
 	ctx := Given(t)
 	ctx.
-		And(func() {
-			go startCMPServer(t, "./testdata/cmp-fileName")
-			time.Sleep(100 * time.Millisecond)
-			t.Setenv("ARGOCD_BINARY_NAME", "argocd")
-		}).
+		RunningCMPServer("./testdata/cmp-fileName").
 		// does not matter what the path is
 		Path("cmp-fileName").
 		When().
@@ -211,11 +189,7 @@ func TestCustomToolSyncAndDiffLocal(t *testing.T) {
 	ctx := Given(t)
 	appPath := filepath.Join(testdataPath, "guestbook")
 	ctx.
-		And(func() {
-			go startCMPServer(t, "./testdata/cmp-kustomize")
-			time.Sleep(100 * time.Millisecond)
-			t.Setenv("ARGOCD_BINARY_NAME", "argocd")
-		}).
+		RunningCMPServer("./testdata/cmp-kustomize").
 		// does not matter what the path is
 		Path("guestbook").
 		When().
@@ -233,29 +207,11 @@ func TestCustomToolSyncAndDiffLocal(t *testing.T) {
 		})
 }
 
-func startCMPServer(t *testing.T, configFile string) {
-	t.Helper()
-	pluginSockFilePath := fixture.TmpDir() + fixture.PluginSockFilePath
-	t.Setenv("ARGOCD_BINARY_NAME", "argocd-cmp-server")
-	// ARGOCD_PLUGINSOCKFILEPATH should be set as the same value as repo server env var
-	t.Setenv("ARGOCD_PLUGINSOCKFILEPATH", pluginSockFilePath)
-	if _, err := os.Stat(pluginSockFilePath); os.IsNotExist(err) {
-		// path/to/whatever does not exist
-		err := os.Mkdir(pluginSockFilePath, 0o700)
-		require.NoError(t, err)
-	}
-	errors.NewHandler(t).FailOnErr(fixture.RunWithStdin("", "", "../../dist/argocd", "--config-dir-path", configFile))
-}
-
 // Discover by fileName
 func TestCMPDiscoverWithFileName(t *testing.T) {
 	pluginName := "cmp-fileName"
 	Given(t).
-		And(func() {
-			go startCMPServer(t, "./testdata/cmp-fileName")
-			time.Sleep(100 * time.Millisecond)
-			t.Setenv("ARGOCD_BINARY_NAME", "argocd")
-		}).
+		RunningCMPServer("./testdata/cmp-fileName").
 		Path(pluginName + "/subdir").
 		When().
 		CreateApp().
@@ -269,11 +225,7 @@ func TestCMPDiscoverWithFileName(t *testing.T) {
 // Discover by Find glob
 func TestCMPDiscoverWithFindGlob(t *testing.T) {
 	Given(t).
-		And(func() {
-			go startCMPServer(t, "./testdata/cmp-find-glob")
-			time.Sleep(100 * time.Millisecond)
-			t.Setenv("ARGOCD_BINARY_NAME", "argocd")
-		}).
+		RunningCMPServer("./testdata/cmp-find-glob").
 		Path("guestbook").
 		When().
 		CreateApp().
@@ -287,11 +239,7 @@ func TestCMPDiscoverWithFindGlob(t *testing.T) {
 // Discover by Plugin Name
 func TestCMPDiscoverWithPluginName(t *testing.T) {
 	Given(t).
-		And(func() {
-			go startCMPServer(t, "./testdata/cmp-find-glob")
-			time.Sleep(100 * time.Millisecond)
-			t.Setenv("ARGOCD_BINARY_NAME", "argocd")
-		}).
+		RunningCMPServer("./testdata/cmp-find-glob").
 		Path("guestbook").
 		When().
 		CreateFromFile(func(app *Application) {
@@ -310,11 +258,7 @@ func TestCMPDiscoverWithFindCommandWithEnv(t *testing.T) {
 	pluginName := "cmp-find-command"
 	ctx := Given(t)
 	ctx.
-		And(func() {
-			go startCMPServer(t, "./testdata/cmp-find-command")
-			time.Sleep(100 * time.Millisecond)
-			t.Setenv("ARGOCD_BINARY_NAME", "argocd")
-		}).
+		RunningCMPServer("./testdata/cmp-find-command").
 		Path(pluginName).
 		When().
 		CreateApp().
@@ -349,12 +293,9 @@ func TestCMPDiscoverWithFindCommandWithEnv(t *testing.T) {
 }
 
 func TestPruneResourceFromCMP(t *testing.T) {
-	Given(t).
-		And(func() {
-			go startCMPServer(t, "./testdata/cmp-find-glob")
-			time.Sleep(100 * time.Millisecond)
-			t.Setenv("ARGOCD_BINARY_NAME", "argocd")
-		}).
+	ctx := Given(t)
+	ctx.
+		RunningCMPServer("./testdata/cmp-find-glob").
 		Path("guestbook").
 		When().
 		CreateApp().
@@ -373,11 +314,7 @@ func TestPruneResourceFromCMP(t *testing.T) {
 
 func TestPreserveFileModeForCMP(t *testing.T) {
 	Given(t).
-		And(func() {
-			go startCMPServer(t, "./testdata/cmp-preserve-file-mode")
-			time.Sleep(100 * time.Millisecond)
-			t.Setenv("ARGOCD_BINARY_NAME", "argocd")
-		}).
+		RunningCMPServer("./testdata/cmp-preserve-file-mode").
 		Path("cmp-preserve-file-mode").
 		When().
 		CreateFromFile(func(app *Application) {
@@ -393,11 +330,7 @@ func TestPreserveFileModeForCMP(t *testing.T) {
 
 func TestCMPWithSymlinkPartialFiles(t *testing.T) {
 	Given(t, fixture.WithTestData("testdata2")).
-		And(func() {
-			go startCMPServer(t, "./testdata2/cmp-symlink")
-			time.Sleep(100 * time.Millisecond)
-			t.Setenv("ARGOCD_BINARY_NAME", "argocd")
-		}).
+		RunningCMPServer("./testdata2/cmp-symlink").
 		Path("guestbook-partial-symlink-files").
 		When().
 		CreateApp().
@@ -410,11 +343,7 @@ func TestCMPWithSymlinkPartialFiles(t *testing.T) {
 
 func TestCMPWithSymlinkFiles(t *testing.T) {
 	Given(t, fixture.WithTestData("testdata2")).
-		And(func() {
-			go startCMPServer(t, "./testdata2/cmp-symlink")
-			time.Sleep(100 * time.Millisecond)
-			t.Setenv("ARGOCD_BINARY_NAME", "argocd")
-		}).
+		RunningCMPServer("./testdata2/cmp-symlink").
 		Path("guestbook-symlink-files").
 		When().
 		CreateApp().
@@ -427,11 +356,7 @@ func TestCMPWithSymlinkFiles(t *testing.T) {
 
 func TestCMPWithSymlinkFolder(t *testing.T) {
 	Given(t, fixture.WithTestData("testdata2")).
-		And(func() {
-			go startCMPServer(t, "./testdata2/cmp-symlink")
-			time.Sleep(100 * time.Millisecond)
-			t.Setenv("ARGOCD_BINARY_NAME", "argocd")
-		}).
+		RunningCMPServer("./testdata2/cmp-symlink").
 		Path("guestbook-symlink-folder").
 		When().
 		CreateApp().
