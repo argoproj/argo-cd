@@ -1,6 +1,6 @@
 ---
 name: Update Minor Version
-about: Add steps when upgrading minor version
+about: Used by our Release Champion to add steps when upgrading minor version
 title: ''
 assignees: ''
 ---
