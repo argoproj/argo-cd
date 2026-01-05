@@ -429,7 +429,7 @@ test: test-tools-image
 
 # Run all unit tests (local version)
 .PHONY: test-local
-test-local:
+test-local: test-gitops-engine
 	if test "$(TEST_MODULE)" = ""; then \
 		DIST_DIR=${DIST_DIR} RERUN_FAILS=0 PACKAGES=`go list ./... | grep -v 'test/e2e'` ./hack/test.sh -args -test.gocoverdir="$(PWD)/test-results"; \
 	else \
