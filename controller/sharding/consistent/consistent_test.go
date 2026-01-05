@@ -7,21 +7,18 @@ import (
 	"testing"
 
 	"github.com/google/btree"
-	
+
 	blake2b "github.com/minio/blake2b-simd"
 )
 
 const (
 	testNumShards = 3
-	testRepFactor = 1000
 )
 
-// 旧版非泛型 BTree 实现的包装器
 type OldConsistent struct {
 	servers           map[uint64]string
 	clients           *btree.BTree
 	loadMap           map[string]*Host
-	totalLoad         int64
 	replicationFactor int
 	lock              sync.RWMutex
 }
@@ -89,7 +86,6 @@ func (c *OldConsistent) hash(key string) uint64 {
 	return binary.LittleEndian.Uint64(out[:])
 }
 
-// 基准测试：测试旧版 BTree 的 Add 方法
 func BenchmarkOldBTreeAdd(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		c := NewOld()
@@ -99,7 +95,6 @@ func BenchmarkOldBTreeAdd(b *testing.B) {
 	}
 }
 
-// 基准测试：测试新版 BTreeG 的 Add 方法
 func BenchmarkBTreeGAdd(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		c := New()
@@ -109,7 +104,6 @@ func BenchmarkBTreeGAdd(b *testing.B) {
 	}
 }
 
-// 基准测试：测试旧版 BTree 的 Get 方法
 func BenchmarkOldBTreeGet(b *testing.B) {
 	c := NewOld()
 	for j := 0; j < testNumShards; j++ {
@@ -122,7 +116,6 @@ func BenchmarkOldBTreeGet(b *testing.B) {
 	}
 }
 
-// 基准测试：测试新版 BTreeG 的 Get 方法
 func BenchmarkBTreeGGet(b *testing.B) {
 	c := New()
 	for j := 0; j < testNumShards; j++ {
@@ -135,7 +128,6 @@ func BenchmarkBTreeGGet(b *testing.B) {
 	}
 }
 
-// 基准测试：测试旧版 BTree 的 Add 和 Get 组合操作
 func BenchmarkOldBTreeAddAndGet(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		c := NewOld()
@@ -148,7 +140,6 @@ func BenchmarkOldBTreeAddAndGet(b *testing.B) {
 	}
 }
 
-// 基准测试：测试新版 BTreeG 的 Add 和 Get 组合操作
 func BenchmarkBTreeGAddAndGet(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		c := New()
@@ -161,7 +152,6 @@ func BenchmarkBTreeGAddAndGet(b *testing.B) {
 	}
 }
 
-// 基准测试：测试更大数据集上的性能
 func BenchmarkLargeOldBTreeAddAndGet(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		c := NewOld()
