@@ -35,7 +35,7 @@ func NewCommand() *cobra.Command {
 			if nonce == "" {
 				errors.CheckError(fmt.Errorf("%s is not set", askpass.ASKPASS_NONCE_ENV))
 			}
-			conn, err := grpc_util.BlockingDial(ctx, "unix", askpass.SocketPath, nil, grpc.WithTransportCredentials(insecure.NewCredentials()))
+			conn, err := grpc_util.BlockingNewClient(ctx, "unix", askpass.SocketPath, nil, grpc.WithTransportCredentials(insecure.NewCredentials()))
 			errors.CheckError(err)
 			defer utilio.Close(conn)
 			client := askpass.NewAskPassServiceClient(conn)

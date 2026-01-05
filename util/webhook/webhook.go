@@ -13,6 +13,9 @@ import (
 	"time"
 
 	bb "github.com/ktrysmt/go-bitbucket"
+	"k8s.io/apimachinery/pkg/labels"
+
+	alpha1 "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/go-playground/webhooks/v6/azuredevops"
@@ -23,7 +26,6 @@ import (
 	"github.com/go-playground/webhooks/v6/gogs"
 	gogsclient "github.com/gogits/go-gogs-client"
 	log "github.com/sirupsen/logrus"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -35,6 +37,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/db"
 	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/glob"
+	"github.com/argoproj/argo-cd/v3/util/guard"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
@@ -50,6 +53,8 @@ const usernameRegex = `[\w\.][\w\.-]{0,30}[\w\.\$-]?`
 
 const payloadQueueSize = 50000
 
+const panicMsgServer = "panic while processing api-server webhook event"
+
 var _ settingsSource = &settings.SettingsManager{}
 
 type ArgoCDWebhookHandler struct {
@@ -60,6 +65,7 @@ type ArgoCDWebhookHandler struct {
 	ns                     string
 	appNs                  []string
 	appClientset           appclientset.Interface
+	appsLister             alpha1.ApplicationLister
 	github                 *github.Webhook
 	gitlab                 *gitlab.Webhook
 	bitbucket              *bitbucket.Webhook
@@ -72,28 +78,28 @@ type ArgoCDWebhookHandler struct {
 	maxWebhookPayloadSizeB int64
 }
 
-func NewHandler(namespace string, applicationNamespaces []string, webhookParallelism int, appClientset appclientset.Interface, set *settings.ArgoCDSettings, settingsSrc settingsSource, repoCache *cache.Cache, serverCache *servercache.Cache, argoDB db.ArgoDB, maxWebhookPayloadSizeB int64) *ArgoCDWebhookHandler {
-	githubWebhook, err := github.New(github.Options.Secret(set.WebhookGitHubSecret))
+func NewHandler(namespace string, applicationNamespaces []string, webhookParallelism int, appClientset appclientset.Interface, appsLister alpha1.ApplicationLister, set *settings.ArgoCDSettings, settingsSrc settingsSource, repoCache *cache.Cache, serverCache *servercache.Cache, argoDB db.ArgoDB, maxWebhookPayloadSizeB int64) *ArgoCDWebhookHandler {
+	githubWebhook, err := github.New(github.Options.Secret(set.GetWebhookGitHubSecret()))
 	if err != nil {
 		log.Warnf("Unable to init the GitHub webhook")
 	}
-	gitlabWebhook, err := gitlab.New(gitlab.Options.Secret(set.WebhookGitLabSecret))
+	gitlabWebhook, err := gitlab.New(gitlab.Options.Secret(set.GetWebhookGitLabSecret()))
 	if err != nil {
 		log.Warnf("Unable to init the GitLab webhook")
 	}
-	bitbucketWebhook, err := bitbucket.New(bitbucket.Options.UUID(set.WebhookBitbucketUUID))
+	bitbucketWebhook, err := bitbucket.New(bitbucket.Options.UUID(set.GetWebhookBitbucketUUID()))
 	if err != nil {
 		log.Warnf("Unable to init the Bitbucket webhook")
 	}
-	bitbucketserverWebhook, err := bitbucketserver.New(bitbucketserver.Options.Secret(set.WebhookBitbucketServerSecret))
+	bitbucketserverWebhook, err := bitbucketserver.New(bitbucketserver.Options.Secret(set.GetWebhookBitbucketServerSecret()))
 	if err != nil {
 		log.Warnf("Unable to init the Bitbucket Server webhook")
 	}
-	gogsWebhook, err := gogs.New(gogs.Options.Secret(set.WebhookGogsSecret))
+	gogsWebhook, err := gogs.New(gogs.Options.Secret(set.GetWebhookGogsSecret()))
 	if err != nil {
 		log.Warnf("Unable to init the Gogs webhook")
 	}
-	azuredevopsWebhook, err := azuredevops.New(azuredevops.Options.BasicAuth(set.WebhookAzureDevOpsUsername, set.WebhookAzureDevOpsPassword))
+	azuredevopsWebhook, err := azuredevops.New(azuredevops.Options.BasicAuth(set.GetWebhookAzureDevOpsUsername(), set.GetWebhookAzureDevOpsPassword()))
 	if err != nil {
 		log.Warnf("Unable to init the Azure DevOps webhook")
 	}
@@ -115,6 +121,7 @@ func NewHandler(namespace string, applicationNamespaces []string, webhookParalle
 		db:                     argoDB,
 		queue:                  make(chan any, payloadQueueSize),
 		maxWebhookPayloadSizeB: maxWebhookPayloadSizeB,
+		appsLister:             appsLister,
 	}
 
 	acdWebhook.startWorkerPool(webhookParallelism)
@@ -123,6 +130,7 @@ func NewHandler(namespace string, applicationNamespaces []string, webhookParalle
 }
 
 func (a *ArgoCDWebhookHandler) startWorkerPool(webhookParallelism int) {
+	compLog := log.WithField("component", "api-server-webhook")
 	for i := 0; i < webhookParallelism; i++ {
 		a.Add(1)
 		go func() {
@@ -132,7 +140,7 @@ func (a *ArgoCDWebhookHandler) startWorkerPool(webhookParallelism int) {
 				if !ok {
 					return
 				}
-				a.HandleEvent(payload)
+				guard.RecoverAndLog(func() { a.HandleEvent(payload) }, compLog, panicMsgServer)
 			}
 		}()
 	}
@@ -150,10 +158,12 @@ func (a *ArgoCDWebhookHandler) affectedRevisionInfo(payloadIf any) (webURLs []st
 	case azuredevops.GitPushEvent:
 		// See: https://learn.microsoft.com/en-us/azure/devops/service-hooks/events?view=azure-devops#git.push
 		webURLs = append(webURLs, payload.Resource.Repository.RemoteURL)
-		revision = ParseRevision(payload.Resource.RefUpdates[0].Name)
-		change.shaAfter = ParseRevision(payload.Resource.RefUpdates[0].NewObjectID)
-		change.shaBefore = ParseRevision(payload.Resource.RefUpdates[0].OldObjectID)
-		touchedHead = payload.Resource.RefUpdates[0].Name == payload.Resource.Repository.DefaultBranch
+		if len(payload.Resource.RefUpdates) > 0 {
+			revision = ParseRevision(payload.Resource.RefUpdates[0].Name)
+			change.shaAfter = ParseRevision(payload.Resource.RefUpdates[0].NewObjectID)
+			change.shaBefore = ParseRevision(payload.Resource.RefUpdates[0].OldObjectID)
+			touchedHead = payload.Resource.RefUpdates[0].Name == payload.Resource.Repository.DefaultBranch
+		}
 		// unfortunately, Azure DevOps doesn't provide a list of changed files
 	case github.PushPayload:
 		// See: https://developer.github.com/v3/activity/events/types/#pushevent
@@ -209,7 +219,7 @@ func (a *ArgoCDWebhookHandler) affectedRevisionInfo(payloadIf any) (webURLs []st
 		// Get DiffSet only for authenticated webhooks.
 		// when WebhookBitbucketUUID is set in argocd-secret, then the payload must be signed and
 		// signature is validated before payload is parsed.
-		if a.settings.WebhookBitbucketUUID != "" {
+		if a.settings.GetWebhookBitbucketUUID() != "" {
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
 			argoRepo, err := a.lookupRepository(ctx, webURLs[0])
@@ -251,13 +261,15 @@ func (a *ArgoCDWebhookHandler) affectedRevisionInfo(payloadIf any) (webURLs []st
 
 		// Webhook module does not parse the inner links
 		if payload.Repository.Links != nil {
-			for _, l := range payload.Repository.Links["clone"].([]any) {
-				link := l.(map[string]any)
-				if link["name"] == "http" {
-					webURLs = append(webURLs, link["href"].(string))
-				}
-				if link["name"] == "ssh" {
-					webURLs = append(webURLs, link["href"].(string))
+			clone, ok := payload.Repository.Links["clone"].([]any)
+			if ok {
+				for _, l := range clone {
+					link := l.(map[string]any)
+					if link["name"] == "http" || link["name"] == "ssh" {
+						if href, ok := link["href"].(string); ok {
+							webURLs = append(webURLs, href)
+						}
+					}
 				}
 			}
 		}
@@ -276,11 +288,13 @@ func (a *ArgoCDWebhookHandler) affectedRevisionInfo(payloadIf any) (webURLs []st
 		// so we cannot update changedFiles for this type of payload
 
 	case gogsclient.PushPayload:
-		webURLs = append(webURLs, payload.Repo.HTMLURL)
 		revision = ParseRevision(payload.Ref)
 		change.shaAfter = ParseRevision(payload.After)
 		change.shaBefore = ParseRevision(payload.Before)
-		touchedHead = bool(payload.Repo.DefaultBranch == revision)
+		if payload.Repo != nil {
+			webURLs = append(webURLs, payload.Repo.HTMLURL)
+			touchedHead = payload.Repo.DefaultBranch == revision
+		}
 		for _, commit := range payload.Commits {
 			changedFiles = append(changedFiles, commit.Added...)
 			changedFiles = append(changedFiles, commit.Modified...)
@@ -313,8 +327,8 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 		nsFilter = ""
 	}
 
-	appIf := a.appClientset.ArgoprojV1alpha1().Applications(nsFilter)
-	apps, err := appIf.List(context.Background(), metav1.ListOptions{})
+	appIf := a.appsLister.Applications(nsFilter)
+	apps, err := appIf.List(labels.Everything())
 	if err != nil {
 		log.Warnf("Failed to list applications: %v", err)
 		return
@@ -339,9 +353,9 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 	// Skip any application that is neither in the control plane's namespace
 	// nor in the list of enabled namespaces.
 	var filteredApps []v1alpha1.Application
-	for _, app := range apps.Items {
+	for _, app := range apps {
 		if app.Namespace == a.ns || glob.MatchStringInList(a.appNs, app.Namespace, glob.REGEXP) {
-			filteredApps = append(filteredApps, app)
+			filteredApps = append(filteredApps, *app)
 		}
 	}
 
@@ -537,12 +551,19 @@ func sourceUsesURL(source v1alpha1.ApplicationSource, webURL string, repoRegexp 
 // is provided, then oauth based client is created.
 func newBitbucketClient(_ context.Context, repository *v1alpha1.Repository, apiBaseURL string) (*bb.Client, error) {
 	var bbClient *bb.Client
+	var err error
 	if repository.Username != "" && repository.Password != "" {
 		log.Debugf("fetched user/password for repository URL '%s', initializing basic auth client", repository.Repo)
 		if repository.Username == "x-token-auth" {
-			bbClient = bb.NewOAuthbearerToken(repository.Password)
+			bbClient, err = bb.NewOAuthbearerToken(repository.Password)
+			if err != nil {
+				return nil, fmt.Errorf("error creating BitBucket Cloud client with oauth bearer token: %w", err)
+			}
 		} else {
-			bbClient = bb.NewBasicAuth(repository.Username, repository.Password)
+			bbClient, err = bb.NewBasicAuth(repository.Username, repository.Password)
+			if err != nil {
+				return nil, fmt.Errorf("error creating BitBucket Cloud client with basic auth: %w", err)
+			}
 		}
 	} else {
 		if repository.BearerToken != "" {
@@ -550,7 +571,10 @@ func newBitbucketClient(_ context.Context, repository *v1alpha1.Repository, apiB
 		} else {
 			log.Debugf("no credentials available for repository URL '%s', initializing no auth client", repository.Repo)
 		}
-		bbClient = bb.NewOAuthbearerToken(repository.BearerToken)
+		bbClient, err = bb.NewOAuthbearerToken(repository.BearerToken)
+		if err != nil {
+			return nil, fmt.Errorf("error creating BitBucket Cloud client with oauth bearer token: %w", err)
+		}
 	}
 	// parse and set the target URL of the Bitbucket server in the client
 	repoBaseURL, err := url.Parse(apiBaseURL)

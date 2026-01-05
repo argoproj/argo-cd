@@ -162,9 +162,11 @@ spec:
           - preview
 
         # Filters allow selecting which pull requests to generate for
-        # Include any pull request ending with "argocd". (optional)
+        # Include any pull request branch ending with "argocd" 
+        # and pull request title starting with "feat:". (optional)
         filters:
         - branchMatch: ".*-argocd"
+        - titleMatch: "^feat:"
 
         # Specify the project from which to fetch the GitLab merge requests.
         gitlab:
@@ -256,21 +258,21 @@ spec:
         - CreateNamespace=true  
       # defines from which Git repository to extract the desired Application manifests
       source:
-        - chart: '{{.chart}}'
+        chart: '{{.chart}}'
         # developers may customize app details using JSON files from above repo URL
-          repoURL: https://github.com/argoproj/argo-cd.git
-          targetRevision: HEAD
-          # Path within the repository where Kubernetes manifests are located
-          path: applicationset/examples/list-generator/guestbook/{{cluster}}
-          helm:
-            useCredentials: "{{.useCredentials}}"  # This field may NOT be templated, because it is a boolean field
-          parameters:
-          - name: "image.tag"
-            value: "pull-{{head_sha}}"
-          - name: "{{.name}}"
-            value: "{{.value}}"
-          - name: throw-away
-            value: "{{end}}"
+        repoURL: https://github.com/argoproj/argo-cd.git
+        targetRevision: HEAD
+        # Path within the repository where Kubernetes manifests are located
+        path: applicationset/examples/list-generator/guestbook/{{cluster}}
+        helm:
+          useCredentials: "{{.useCredentials}}"  # This field may NOT be templated, because it is a boolean field
+        parameters:
+        - name: "image.tag"
+          value: "pull-{{head_sha}}"
+        - name: "{{.name}}"
+          value: "{{.value}}"
+        - name: throw-away
+          value: "{{end}}"
       destination:
         # Only one of name or server may be specified: if both are specified, an error is returned.
         #  Name of the cluster (within Argo CD) to deploy to

@@ -1,0 +1,16 @@
+tests:
+- healthStatus:
+    status: Degraded
+    message: "error on extracting alert properties: failed to expand notification
+        group: failed to expand webhooks settings: failed to expand webhook
+        setting: failed to expand integration: failed to convert name to
+        integration ID: webhook critical-alerts-webhook not found"
+  inputPath: testdata/degraded_alert.yaml
+- healthStatus:
+    status: Progressing
+    message: "Waiting for status to be updated"
+  inputPath: testdata/progressing_alert.yaml
+- healthStatus:
+    status: Healthy
+    message: "Resource is ready"
+  inputPath: testdata/healthy_alert.yaml

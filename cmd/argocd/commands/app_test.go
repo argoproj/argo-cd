@@ -2253,6 +2253,10 @@ func (c *fakeAppServiceClient) ListResourceLinks(_ context.Context, _ *applicati
 	return nil, nil
 }
 
+func (c *fakeAppServiceClient) ServerSideDiff(_ context.Context, _ *applicationpkg.ApplicationServerSideDiffQuery, _ ...grpc.CallOption) (*applicationpkg.ApplicationServerSideDiffResponse, error) {
+	return nil, nil
+}
+
 type fakeAcdClient struct {
 	simulateTimeout uint
 }

@@ -6,16 +6,18 @@ namespace `argocd-e2e***` is created prior to the execution of the tests. The th
 The [/test/e2e/testdata](https://github.com/argoproj/argo-cd/tree/master/test/e2e/testdata) directory contains various Argo CD applications. Before test execution, the directory is copied into `/tmp/argo-e2e***` temp directory and used in tests as a
 Git repository via file url: `file:///tmp/argo-e2e***`.
 
-!!! note "Rancher Desktop Volume Sharing"
-    The e2e git server runs in a container. If you are using Rancher Desktop, you will need to enable volume sharing for
-    the e2e container to access the testdata directory. To do this, add the following to 
-    `~/Library/Application\ Support/rancher-desktop/lima/_config/override.yaml` and restart Rancher Desktop:
-
-    ```yaml
-    mounts:
-    - location: /private/tmp
-      writable: true
-    ```
+> [!NOTE]
+> **Rancher Desktop Volume Sharing**
+>
+> The e2e git server runs in a container. If you are using Rancher Desktop, you will need to enable volume sharing for
+> the e2e container to access the testdata directory. To do this, add the following to 
+> `~/Library/Application\ Support/rancher-desktop/lima/_config/override.yaml` and restart Rancher Desktop:
+>
+> ```yaml
+> mounts:
+> - location: /private/tmp
+>   writable: true
+> ```
 
 ## Running Tests Locally
 
@@ -53,6 +55,14 @@ Some effort has been made to balance test isolation with speed. Tests are isolat
 * A namespace `argocd-e2e-ns-${id}`.
 * A primary name for the app `argocd-e2e-${id}`.
 
+## Run only a subset of tests
+
+Running all tests locally is a time-consuming process. To run only a subset of tests, you can set the `TEST_MODULE` environment variable. 
+For example, to run only the OCI tests, you can set the variable as follows: `make TEST_MODULE=./test/e2e/oci_test.go test-e2e-local` 
+
+If you want to get a more fine-grained control over which tests to run, you can also try `make TEST_FLAGS="-run <TEST_METHOD_NAME_REGEXP>" test-e2e-local`
+For individual tests you can run them using the IDE run test feature 
+    
 ## Troubleshooting
 
 **Tests fails to delete `argocd-e2e-ns-*` namespaces.**

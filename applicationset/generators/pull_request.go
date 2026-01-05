@@ -107,7 +107,7 @@ func (g *PullRequestGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 		}
 
 		paramMap := map[string]any{
-			"number":             strconv.Itoa(pull.Number),
+			"number":             strconv.FormatInt(pull.Number, 10),
 			"title":              pull.Title,
 			"branch":             pull.Branch,
 			"branch_slug":        slug.Make(pull.Branch),
@@ -119,14 +119,14 @@ func (g *PullRequestGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 			"author":             pull.Author,
 		}
 
-		err := appendTemplatedValues(appSetGenerator.PullRequest.Values, paramMap, applicationSetInfo.Spec.GoTemplate, applicationSetInfo.Spec.GoTemplateOptions)
-		if err != nil {
-			return nil, fmt.Errorf("failed to append templated values: %w", err)
-		}
-
 		// PR lables will only be supported for Go Template appsets, since fasttemplate will be deprecated.
 		if applicationSetInfo != nil && applicationSetInfo.Spec.GoTemplate {
 			paramMap["labels"] = pull.Labels
+		}
+
+		err := appendTemplatedValues(appSetGenerator.PullRequest.Values, paramMap, applicationSetInfo.Spec.GoTemplate, applicationSetInfo.Spec.GoTemplateOptions)
+		if err != nil {
+			return nil, fmt.Errorf("failed to append templated values: %w", err)
 		}
 		params = append(params, paramMap)
 	}
@@ -243,9 +243,9 @@ func (g *PullRequestGenerator) github(ctx context.Context, cfg *argoprojiov1alph
 		}
 
 		if g.enableGitHubAPIMetrics {
-			return pullrequest.NewGithubAppService(*auth, cfg.API, cfg.Owner, cfg.Repo, cfg.Labels, httpClient)
+			return pullrequest.NewGithubAppService(ctx, *auth, cfg.API, cfg.Owner, cfg.Repo, cfg.Labels, httpClient)
 		}
-		return pullrequest.NewGithubAppService(*auth, cfg.API, cfg.Owner, cfg.Repo, cfg.Labels)
+		return pullrequest.NewGithubAppService(ctx, *auth, cfg.API, cfg.Owner, cfg.Repo, cfg.Labels)
 	}
 
 	// always default to token, even if not set (public access)

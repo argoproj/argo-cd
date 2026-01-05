@@ -1,7 +1,6 @@
 package util
 
 import (
-	"bytes"
 	"log"
 	"os"
 	"testing"
@@ -268,12 +267,60 @@ func Test_setAppSpecOptions(t *testing.T) {
 		require.NoError(t, f.SetFlag("sync-option", "!a=1"))
 		assert.Nil(t, f.spec.SyncPolicy)
 	})
+	t.Run("AutoPruneFlag", func(t *testing.T) {
+		f := newAppOptionsFixture()
+
+		// syncPolicy is nil (automated.enabled = false)
+		require.NoError(t, f.SetFlag("auto-prune", "true"))
+		require.NotNil(t, f.spec.SyncPolicy.Automated.Enabled)
+		assert.False(t, *f.spec.SyncPolicy.Automated.Enabled)
+		assert.True(t, f.spec.SyncPolicy.Automated.Prune)
+
+		// automated.enabled = true
+		*f.spec.SyncPolicy.Automated.Enabled = true
+		require.NoError(t, f.SetFlag("auto-prune", "false"))
+		assert.True(t, *f.spec.SyncPolicy.Automated.Enabled)
+		assert.False(t, f.spec.SyncPolicy.Automated.Prune)
+	})
+	t.Run("SelfHealFlag", func(t *testing.T) {
+		f := newAppOptionsFixture()
+
+		require.NoError(t, f.SetFlag("self-heal", "true"))
+		require.NotNil(t, f.spec.SyncPolicy.Automated.Enabled)
+		assert.False(t, *f.spec.SyncPolicy.Automated.Enabled)
+		assert.True(t, f.spec.SyncPolicy.Automated.SelfHeal)
+
+		*f.spec.SyncPolicy.Automated.Enabled = true
+		require.NoError(t, f.SetFlag("self-heal", "false"))
+		assert.True(t, *f.spec.SyncPolicy.Automated.Enabled)
+		assert.False(t, f.spec.SyncPolicy.Automated.SelfHeal)
+	})
+	t.Run("AllowEmptyFlag", func(t *testing.T) {
+		f := newAppOptionsFixture()
+
+		require.NoError(t, f.SetFlag("allow-empty", "true"))
+		require.NotNil(t, f.spec.SyncPolicy.Automated.Enabled)
+		assert.False(t, *f.spec.SyncPolicy.Automated.Enabled)
+		assert.True(t, f.spec.SyncPolicy.Automated.AllowEmpty)
+
+		*f.spec.SyncPolicy.Automated.Enabled = true
+		require.NoError(t, f.SetFlag("allow-empty", "false"))
+		assert.True(t, *f.spec.SyncPolicy.Automated.Enabled)
+		assert.False(t, f.spec.SyncPolicy.Automated.AllowEmpty)
+	})
 	t.Run("RetryLimit", func(t *testing.T) {
 		require.NoError(t, f.SetFlag("sync-retry-limit", "5"))
 		assert.Equal(t, int64(5), f.spec.SyncPolicy.Retry.Limit)
 
 		require.NoError(t, f.SetFlag("sync-retry-limit", "0"))
 		assert.Nil(t, f.spec.SyncPolicy.Retry)
+	})
+	t.Run("RetryRefresh", func(t *testing.T) {
+		require.NoError(t, f.SetFlag("sync-retry-refresh", "true"))
+		assert.True(t, f.spec.SyncPolicy.Retry.Refresh)
+
+		require.NoError(t, f.SetFlag("sync-retry-refresh", "false"))
+		assert.False(t, f.spec.SyncPolicy.Retry.Refresh)
 	})
 	t.Run("Kustomize", func(t *testing.T) {
 		require.NoError(t, f.SetFlag("kustomize-replica", "my-deployment=2"))
@@ -571,29 +618,5 @@ func TestFilterResources(t *testing.T) {
 		filteredResources, err := FilterResources(false, resources, "g", "Service", "argocd", "test-helm", false)
 		require.ErrorContains(t, err, "use the --all flag")
 		assert.Nil(t, filteredResources)
-	})
-}
-
-func TestSetAutoMaxProcs(t *testing.T) {
-	t.Run("CLI mode ignores errors", func(t *testing.T) {
-		logBuffer := &bytes.Buffer{}
-		oldLogger := log.Default()
-		log.SetOutput(logBuffer)
-		defer log.SetOutput(oldLogger.Writer())
-
-		SetAutoMaxProcs(true)
-
-		assert.Empty(t, logBuffer.String(), "Expected no log output when isCLI is true")
-	})
-
-	t.Run("Non-CLI mode logs error on failure", func(t *testing.T) {
-		logBuffer := &bytes.Buffer{}
-		oldLogger := log.Default()
-		log.SetOutput(logBuffer)
-		defer log.SetOutput(oldLogger.Writer())
-
-		SetAutoMaxProcs(false)
-
-		assert.NotContains(t, logBuffer.String(), "Error setting GOMAXPROCS", "Unexpected log output detected")
 	})
 }

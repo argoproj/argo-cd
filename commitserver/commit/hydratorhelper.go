@@ -4,12 +4,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/fs"
 	"os"
 	"path/filepath"
-	"strings"
 	"text/template"
-	"time"
 
 	"github.com/Masterminds/sprig/v3"
 	log "github.com/sirupsen/logrus"
@@ -20,6 +17,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/common"
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/git"
+	"github.com/argoproj/argo-cd/v3/util/hydrator"
 	"github.com/argoproj/argo-cd/v3/util/io"
 )
 
@@ -37,75 +35,81 @@ func init() {
 
 // WriteForPaths writes the manifests, hydrator.metadata, and README.md files for each path in the provided paths. It
 // also writes a root-level hydrator.metadata file containing the repo URL and dry SHA.
-func WriteForPaths(root *os.Root, repoUrl, drySha string, dryCommitMetadata *appv1.RevisionMetadata, paths []*apiclient.PathDetails) error { //nolint:revive //FIXME(var-naming)
-	author := ""
-	message := ""
-	date := ""
-	var references []appv1.RevisionReference
-	if dryCommitMetadata != nil {
-		author = dryCommitMetadata.Author
-		message = dryCommitMetadata.Message
-		if dryCommitMetadata.Date != nil {
-			date = dryCommitMetadata.Date.Format(time.RFC3339)
-		}
-		references = dryCommitMetadata.References
+func WriteForPaths(root *os.Root, repoUrl, drySha string, dryCommitMetadata *appv1.RevisionMetadata, paths []*apiclient.PathDetails, gitClient git.Client) (bool, error) { //nolint:revive //FIXME(var-naming)
+	hydratorMetadata, err := hydrator.GetCommitMetadata(repoUrl, drySha, dryCommitMetadata)
+	if err != nil {
+		return false, fmt.Errorf("failed to retrieve hydrator metadata: %w", err)
 	}
 
-	subject, body, _ := strings.Cut(message, "\n\n")
-
-	_, bodyMinusTrailers := git.GetReferences(log.WithFields(log.Fields{"repo": repoUrl, "revision": drySha}), body)
-
 	// Write the top-level readme.
-	err := writeMetadata(root, "", hydratorMetadataFile{DrySHA: drySha, RepoURL: repoUrl, Author: author, Subject: subject, Body: bodyMinusTrailers, Date: date, References: references})
+	err = writeMetadata(root, "", hydratorMetadata)
 	if err != nil {
-		return fmt.Errorf("failed to write top-level hydrator metadata: %w", err)
+		return false, fmt.Errorf("failed to write top-level hydrator metadata: %w", err)
 	}
 
 	// Write .gitattributes
 	err = writeGitAttributes(root)
 	if err != nil {
-		return fmt.Errorf("failed to write git attributes: %w", err)
+		return false, fmt.Errorf("failed to write git attributes: %w", err)
 	}
-
+	var atleastOneManifestChanged bool
 	for _, p := range paths {
 		hydratePath := p.Path
 		if hydratePath == "." {
 			hydratePath = ""
 		}
 
-		err = mkdirAll(root, hydratePath)
-		if err != nil {
-			return fmt.Errorf("failed to create path: %w", err)
+		// Only create directory if path is not empty (root directory case)
+		if hydratePath != "" {
+			err = root.MkdirAll(hydratePath, 0o755)
+			if err != nil {
+				return false, fmt.Errorf("failed to create path: %w", err)
+			}
 		}
 
 		// Write the manifests
-		err = writeManifests(root, hydratePath, p.Manifests)
+		err := writeManifests(root, hydratePath, p.Manifests)
 		if err != nil {
-			return fmt.Errorf("failed to write manifests: %w", err)
+			return false, fmt.Errorf("failed to write manifests: %w", err)
+		}
+		// Check if the manifest file has been modified compared to the git index
+		changed, err := gitClient.HasFileChanged(filepath.Join(hydratePath, ManifestYaml))
+		if err != nil {
+			return false, fmt.Errorf("failed to check if anything changed on the manifest: %w", err)
 		}
 
+		if !changed {
+			continue
+		}
+		//  If any manifest has changed, signal that a commit should occur. If none have changed, skip committing.
+		atleastOneManifestChanged = changed
+
 		// Write hydrator.metadata containing information about the hydration process.
-		hydratorMetadata := hydratorMetadataFile{
+		hydratorMetadata := hydrator.HydratorCommitMetadata{
 			Commands: p.Commands,
 			DrySHA:   drySha,
 			RepoURL:  repoUrl,
 		}
 		err = writeMetadata(root, hydratePath, hydratorMetadata)
 		if err != nil {
-			return fmt.Errorf("failed to write hydrator metadata: %w", err)
+			return false, fmt.Errorf("failed to write hydrator metadata: %w", err)
 		}
 
 		// Write README
 		err = writeReadme(root, hydratePath, hydratorMetadata)
 		if err != nil {
-			return fmt.Errorf("failed to write readme: %w", err)
+			return false, fmt.Errorf("failed to write readme: %w", err)
 		}
 	}
-	return nil
+	// if no manifest changes then skip commit
+	if !atleastOneManifestChanged {
+		return false, nil
+	}
+	return atleastOneManifestChanged, nil
 }
 
 // writeMetadata writes the metadata to the hydrator.metadata file.
-func writeMetadata(root *os.Root, dirPath string, metadata hydratorMetadataFile) error {
+func writeMetadata(root *os.Root, dirPath string, metadata hydrator.HydratorCommitMetadata) error {
 	hydratorMetadataPath := filepath.Join(dirPath, "hydrator.metadata")
 	f, err := root.Create(hydratorMetadataPath)
 	if err != nil {
@@ -124,7 +128,7 @@ func writeMetadata(root *os.Root, dirPath string, metadata hydratorMetadataFile)
 }
 
 // writeReadme writes the readme to the README.md file.
-func writeReadme(root *os.Root, dirPath string, metadata hydratorMetadataFile) error {
+func writeReadme(root *os.Root, dirPath string, metadata hydrator.HydratorCommitMetadata) error {
 	readmeTemplate, err := template.New("readme").Funcs(sprigFuncMap).Parse(manifestHydrationReadmeTemplate)
 	if err != nil {
 		return fmt.Errorf("failed to parse readme template: %w", err)
@@ -176,7 +180,7 @@ func writeGitAttributes(root *os.Root) error {
 func writeManifests(root *os.Root, dirPath string, manifests []*apiclient.HydratedManifestDetails) error {
 	// If the file exists, truncate it.
 	// No need to use SecureJoin here, as the path is already sanitized.
-	manifestPath := filepath.Join(dirPath, "manifest.yaml")
+	manifestPath := filepath.Join(dirPath, ManifestYaml)
 
 	file, err := root.OpenFile(manifestPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.ModePerm)
 	if err != nil {
@@ -209,28 +213,43 @@ func writeManifests(root *os.Root, dirPath string, manifests []*apiclient.Hydrat
 			return fmt.Errorf("failed to encode manifest: %w", err)
 		}
 	}
-
 	return nil
 }
 
-// mkdirAll creates the directory and all its parents if they do not exist. It returns an error if the directory
-// cannot be.
-func mkdirAll(root *os.Root, dirPath string) error {
-	parts := strings.Split(dirPath, string(os.PathSeparator))
-	builtPath := ""
-	for _, part := range parts {
-		if part == "" {
-			continue
+// IsHydrated checks whether the given commit (commitSha) has already been hydrated with the specified Dry SHA (drySha).
+// It does this by retrieving the commit note in the NoteNamespace and examining the DrySHA value.
+// Returns true if the stored DrySHA matches the provided drySha, false if not or if no note exists.
+// Gracefully handles missing notes as a normal outcome (not an error), but returns an error on retrieval or parse failures.
+func IsHydrated(gitClient git.Client, drySha, commitSha string) (bool, error) {
+	note, err := gitClient.GetCommitNote(commitSha, NoteNamespace)
+	if err != nil {
+		// note not found is a valid and acceptable outcome in this context so returning false and nil to let the hydration continue
+		unwrappedError := errors.Unwrap(err)
+		if unwrappedError != nil && errors.Is(unwrappedError, git.ErrNoNoteFound) {
+			return false, nil
 		}
-		builtPath = filepath.Join(builtPath, part)
-		err := root.Mkdir(builtPath, os.ModePerm)
-		if err != nil {
-			if errors.Is(err, fs.ErrExist) {
-				log.WithError(err).Warnf("path %s already exists, skipping", dirPath)
-				continue
-			}
-			return fmt.Errorf("failed to create path: %w", err)
-		}
+		return false, err
+	}
+	var commitNote CommitNote
+	err = json.Unmarshal([]byte(note), &commitNote)
+	if err != nil {
+		return false, fmt.Errorf("json unmarshal failed %w", err)
+	}
+	return commitNote.DrySHA == drySha, nil
+}
+
+// AddNote attaches a commit note containing the specified dry SHA (`drySha`) to the given commit (`commitSha`)
+// in the configured note namespace. The note is marshaled as JSON and pushed to the remote repository using
+// the provided gitClient. Returns an error if marshalling or note addition fails.
+func AddNote(gitClient git.Client, drySha, commitSha string) error {
+	note := CommitNote{DrySHA: drySha}
+	jsonBytes, err := json.Marshal(note)
+	if err != nil {
+		return fmt.Errorf("failed to marshal commit note: %w", err)
+	}
+	err = gitClient.AddAndPushNote(commitSha, NoteNamespace, string(jsonBytes))
+	if err != nil {
+		return fmt.Errorf("failed to add commit note: %w", err)
 	}
 	return nil
 }

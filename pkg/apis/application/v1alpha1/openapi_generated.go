@@ -75,7 +75,6 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.DrySource":                               schema_pkg_apis_application_v1alpha1_DrySource(ref),
 		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.DuckTypeGenerator":                       schema_pkg_apis_application_v1alpha1_DuckTypeGenerator(ref),
 		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.EnvEntry":                                schema_pkg_apis_application_v1alpha1_EnvEntry(ref),
-		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.ErrApplicationNotAllowedToUseProject":    schema_pkg_apis_application_v1alpha1_ErrApplicationNotAllowedToUseProject(ref),
 		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.ExecProviderConfig":                      schema_pkg_apis_application_v1alpha1_ExecProviderConfig(ref),
 		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.GitDirectoryGeneratorItem":               schema_pkg_apis_application_v1alpha1_GitDirectoryGeneratorItem(ref),
 		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.GitFileGeneratorItem":                    schema_pkg_apis_application_v1alpha1_GitFileGeneratorItem(ref),
@@ -3493,40 +3492,6 @@ func schema_pkg_apis_application_v1alpha1_EnvEntry(ref common.ReferenceCallback)
 					},
 				},
 				Required: []string{"name", "value"},
-			},
-		},
-	}
-}
-
-func schema_pkg_apis_application_v1alpha1_ErrApplicationNotAllowedToUseProject(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
-				Properties: map[string]spec.Schema{
-					"application": {
-						SchemaProps: spec.SchemaProps{
-							Default: "",
-							Type:    []string{"string"},
-							Format:  "",
-						},
-					},
-					"namespace": {
-						SchemaProps: spec.SchemaProps{
-							Default: "",
-							Type:    []string{"string"},
-							Format:  "",
-						},
-					},
-					"project": {
-						SchemaProps: spec.SchemaProps{
-							Default: "",
-							Type:    []string{"string"},
-							Format:  "",
-						},
-					},
-				},
-				Required: []string{"application", "namespace", "project"},
 			},
 		},
 	}
@@ -7060,6 +7025,13 @@ func schema_pkg_apis_application_v1alpha1_RetryStrategy(ref common.ReferenceCall
 						SchemaProps: spec.SchemaProps{
 							Description: "Backoff controls how to backoff on subsequent retries of failed syncs",
 							Ref:         ref("github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.Backoff"),
+						},
+					},
+					"refresh": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Refresh indicates if a new revision should trigger a new sync (default: false)",
+							Type:        []string{"boolean"},
+							Format:      "",
 						},
 					},
 				},

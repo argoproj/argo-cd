@@ -10,8 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"go.uber.org/automaxprocs/maxprocs"
-
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
@@ -92,6 +90,7 @@ type AppOptions struct {
 	retryBackoffDuration            time.Duration
 	retryBackoffMaxDuration         time.Duration
 	retryBackoffFactor              int64
+	retryRefresh                    bool
 	ref                             string
 	SourceName                      string
 	drySourceRepo                   string
@@ -100,19 +99,6 @@ type AppOptions struct {
 	syncSourceBranch                string
 	syncSourcePath                  string
 	hydrateToBranch                 string
-}
-
-// SetAutoMaxProcs sets the GOMAXPROCS value based on the binary name.
-// It suppresses logs for CLI binaries and logs the setting for services.
-func SetAutoMaxProcs(isCLI bool) {
-	if isCLI {
-		_, _ = maxprocs.Set() // Intentionally ignore errors for CLI binaries
-	} else {
-		_, err := maxprocs.Set(maxprocs.Logger(log.Infof))
-		if err != nil {
-			log.Errorf("Error setting GOMAXPROCS: %v", err)
-		}
-	}
 }
 
 func AddAppFlags(command *cobra.Command, opts *AppOptions) {
@@ -150,9 +136,9 @@ func AddAppFlags(command *cobra.Command, opts *AppOptions) {
 	command.Flags().StringVar(&opts.project, "project", "", "Application project name")
 	command.Flags().StringVar(&opts.syncPolicy, "sync-policy", "", "Set the sync policy (one of: manual (aliases of manual: none), automated (aliases of automated: auto, automatic))")
 	command.Flags().StringArrayVar(&opts.syncOptions, "sync-option", []string{}, "Add or remove a sync option, e.g add `Prune=false`. Remove using `!` prefix, e.g. `!Prune=false`")
-	command.Flags().BoolVar(&opts.autoPrune, "auto-prune", false, "Set automatic pruning when sync is automated")
-	command.Flags().BoolVar(&opts.selfHeal, "self-heal", false, "Set self healing when sync is automated")
-	command.Flags().BoolVar(&opts.allowEmpty, "allow-empty", false, "Set allow zero live resources when sync is automated")
+	command.Flags().BoolVar(&opts.autoPrune, "auto-prune", false, "Set automatic pruning for automated sync policy")
+	command.Flags().BoolVar(&opts.selfHeal, "self-heal", false, "Set self healing for automated sync policy")
+	command.Flags().BoolVar(&opts.allowEmpty, "allow-empty", false, "Set allow zero live resources for automated sync policy")
 	command.Flags().StringVar(&opts.namePrefix, "nameprefix", "", "Kustomize nameprefix")
 	command.Flags().StringVar(&opts.nameSuffix, "namesuffix", "", "Kustomize namesuffix")
 	command.Flags().StringVar(&opts.kustomizeVersion, "kustomize-version", "", "Kustomize version")
@@ -183,6 +169,7 @@ func AddAppFlags(command *cobra.Command, opts *AppOptions) {
 	command.Flags().DurationVar(&opts.retryBackoffDuration, "sync-retry-backoff-duration", argoappv1.DefaultSyncRetryDuration, "Sync retry backoff base duration. Input needs to be a duration (e.g. 2m, 1h)")
 	command.Flags().DurationVar(&opts.retryBackoffMaxDuration, "sync-retry-backoff-max-duration", argoappv1.DefaultSyncRetryMaxDuration, "Max sync retry backoff duration. Input needs to be a duration (e.g. 2m, 1h)")
 	command.Flags().Int64Var(&opts.retryBackoffFactor, "sync-retry-backoff-factor", argoappv1.DefaultSyncRetryFactor, "Factor multiplies the base duration after each failed sync retry")
+	command.Flags().BoolVar(&opts.retryRefresh, "sync-retry-refresh", false, "Indicates if the latest revision should be used on retry instead of the initial one")
 	command.Flags().StringVar(&opts.ref, "ref", "", "Ref is reference to another source within sources field")
 	command.Flags().StringVar(&opts.SourceName, "source-name", "", "Name of the source from the list of sources of the app.")
 }
@@ -276,6 +263,7 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 						MaxDuration: appOpts.retryBackoffMaxDuration.String(),
 						Factor:      ptr.To(appOpts.retryBackoffFactor),
 					},
+					Refresh: appOpts.retryRefresh,
 				}
 			case appOpts.retryLimit == 0:
 				if spec.SyncPolicy.IsZero() {
@@ -286,27 +274,36 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 			default:
 				log.Fatalf("Invalid sync-retry-limit [%d]", appOpts.retryLimit)
 			}
+		case "sync-retry-refresh":
+			if spec.SyncPolicy == nil {
+				spec.SyncPolicy = &argoappv1.SyncPolicy{}
+			}
+			if spec.SyncPolicy.Retry == nil {
+				spec.SyncPolicy.Retry = &argoappv1.RetryStrategy{}
+			}
+			spec.SyncPolicy.Retry.Refresh = appOpts.retryRefresh
 		}
 	})
-	if flags.Changed("auto-prune") {
-		if spec.SyncPolicy == nil || !spec.SyncPolicy.IsAutomatedSyncEnabled() {
-			log.Fatal("Cannot set --auto-prune: application not configured with automatic sync")
-		}
-		spec.SyncPolicy.Automated.Prune = appOpts.autoPrune
-	}
-	if flags.Changed("self-heal") {
-		if spec.SyncPolicy == nil || !spec.SyncPolicy.IsAutomatedSyncEnabled() {
-			log.Fatal("Cannot set --self-heal: application not configured with automatic sync")
-		}
-		spec.SyncPolicy.Automated.SelfHeal = appOpts.selfHeal
-	}
-	if flags.Changed("allow-empty") {
-		if spec.SyncPolicy == nil || !spec.SyncPolicy.IsAutomatedSyncEnabled() {
-			log.Fatal("Cannot set --allow-empty: application not configured with automatic sync")
-		}
-		spec.SyncPolicy.Automated.AllowEmpty = appOpts.allowEmpty
-	}
 
+	if flags.Changed("auto-prune") || flags.Changed("self-heal") || flags.Changed("allow-empty") {
+		if spec.SyncPolicy == nil {
+			spec.SyncPolicy = &argoappv1.SyncPolicy{}
+		}
+		if spec.SyncPolicy.Automated == nil {
+			disabled := false
+			spec.SyncPolicy.Automated = &argoappv1.SyncPolicyAutomated{Enabled: &disabled}
+		}
+
+		if flags.Changed("auto-prune") {
+			spec.SyncPolicy.Automated.Prune = appOpts.autoPrune
+		}
+		if flags.Changed("self-heal") {
+			spec.SyncPolicy.Automated.SelfHeal = appOpts.selfHeal
+		}
+		if flags.Changed("allow-empty") {
+			spec.SyncPolicy.Automated.AllowEmpty = appOpts.allowEmpty
+		}
+	}
 	return visited
 }
 

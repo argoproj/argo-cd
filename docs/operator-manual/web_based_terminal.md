@@ -38,11 +38,11 @@ to `exec` into pods
         
     - For namespaced Argo
          ```
-         kubectl patch role <argocd-server-role-name> -n argocd - type='json' -p='[{"op": "add", "path": "/rules/-", "value": {"apiGroups": ["*"], "resources": ["pods/exec"], "verbs": ["create"]}}]'
+         kubectl patch role <argocd-server-role-name> -n argocd --type='json' -p='[{"op": "add", "path": "/rules/-", "value": {"apiGroups": ["*"], "resources": ["pods/exec"], "verbs": ["create"]}}]'
          ```
     - For clustered Argo
-         ````
-         kubectl patch clusterrole <argocd-server-clusterrole-name> - type='json' -p='[{"op": "add", "path": "/rules/-", "value": {"apiGroups": ["*"], "resources": ["pods/exec"], "verbs": ["create"]}}]'
+         ```
+         kubectl patch clusterrole <argocd-server-clusterrole-name> --type='json' -p='[{"op": "add", "path": "/rules/-", "value": {"apiGroups": ["*"], "resources": ["pods/exec"], "verbs": ["create"]}}]'
          ```
 
 3. Add RBAC rules to allow your users to `create` the `exec` resource i.e. 

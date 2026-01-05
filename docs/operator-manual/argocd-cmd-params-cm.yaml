@@ -60,12 +60,16 @@ data:
   controller.log.level: "info"
   # Prometheus metrics cache expiration (disabled  by default. e.g. 24h0m0s)
   controller.metrics.cache.expiration: "24h0m0s"
+  # Specifies timeout between application self heal attempts
+  controller.self.heal.timeout.seconds: "0"
   # Specifies exponential backoff timeout parameters between application self heal attempts
-  controller.self.heal.timeout.seconds: "2"
+  controller.self.heal.backoff.timeout.seconds: "2"
   controller.self.heal.backoff.factor: "3"
   controller.self.heal.backoff.cap.seconds: "300"
   # Specifies a sync timeout for applications. "0" means no timeout (default "0")
   controller.sync.timeout.seconds: "0"
+  # Specifies the delay in seconds between each sync wave to give other controllers a chance to react to spec changes. (default "2")
+  controller.sync.wave.delay.seconds: "2"
 
   # Cache expiration for app state (default 1h0m0s)
   controller.app.state.cache.expiration: "1h0m0s"
@@ -205,12 +209,20 @@ data:
   reposerver.streamed.manifest.max.tar.size: "100M"
   # Maximum size of extracted manifests when streaming manifests to the repo server for generation
   reposerver.streamed.manifest.max.extracted.size: "1G"
+  # Maximum size of extracted manifests when streaming manifests to the repo server for generation
+  reposerver.oci.manifest.max.extracted.size: "1G"
+  # Whether to disable manifest size check for OCI artifacts
+  reposerver.disable.oci.manifest.max.extracted.size: "false"
+  # The allowlist of the OCI media types which the repo-server will make use of. If an OCI media type for a given artifact is not in the given list, the repo-server will return an error.
+  reposerver.oci.layer.media.types: "application/vnd.oci.image.layer.v1.tar,application/vnd.oci.image.layer.v1.tar+gzip,application/vnd.cncf.helm.chart.content.v1.tar+gzip"
   # Enable git submodule support
   reposerver.enable.git.submodule: "true"
   # Number of concurrent git ls-remote requests. Any value less than 1 means no limit.
   reposerver.git.lsremote.parallelism.limit: "0"
   # Git requests timeout.
   reposerver.git.request.timeout: "15s"
+  # Enable builtin git configuration options that are required for correct argocd-repo-server operation (default "true")
+  reposerver.enable.builtin.git.config: "true"
   # Include hidden directories from Git
   reposerver.include.hidden.directories: "false"
 
@@ -284,6 +296,10 @@ data:
   applicationsetcontroller.global.preserved.labels: "acme.com/label1,acme.com/label2"
   # Enable GitHub API metrics for generators that use GitHub API
   applicationsetcontroller.enable.github.api.metrics: "false"
+  # The maximum number of resources stored in the status of an ApplicationSet. This is a safeguard to prevent the status from growing too large.
+  applicationsetcontroller.status.max.resources.count: "5000"
+  # Enables profile endpoint on the internal metrics port
+  applicationsetcontroller.profile.enabled: "false"
 
   ## Argo CD Notifications Controller Properties
   # Set the logging level. One of: debug|info|warn|error (default "info")

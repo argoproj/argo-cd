@@ -277,6 +277,51 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 				},
 			},
 		},
+		{
+			selectFunc: func(context.Context, *argoprojiov1alpha1.PullRequestGenerator, *argoprojiov1alpha1.ApplicationSet) (pullrequest.PullRequestService, error) {
+				return pullrequest.NewFakeService(
+					ctx,
+					[]*pullrequest.PullRequest{
+						{
+							Number:       1,
+							Title:        "title1",
+							Branch:       "my_branch",
+							TargetBranch: "master",
+							HeadSHA:      "abcd",
+							Author:       "testName",
+							Labels:       []string{"preview", "preview:team1"},
+						},
+					},
+					nil,
+				)
+			},
+			values: map[string]string{
+				"preview_env": "{{ regexFind \"(team1|team2)\" (.labels | join \",\") }}",
+			},
+			expected: []map[string]any{
+				{
+					"number":             "1",
+					"title":              "title1",
+					"branch":             "my_branch",
+					"branch_slug":        "my-branch",
+					"target_branch":      "master",
+					"target_branch_slug": "master",
+					"head_sha":           "abcd",
+					"head_short_sha":     "abcd",
+					"head_short_sha_7":   "abcd",
+					"author":             "testName",
+					"labels":             []string{"preview", "preview:team1"},
+					"values":             map[string]string{"preview_env": "team1"},
+				},
+			},
+			expectedErr: nil,
+			applicationSet: argoprojiov1alpha1.ApplicationSet{
+				Spec: argoprojiov1alpha1.ApplicationSetSpec{
+					// Application set is using fasttemplate.
+					GoTemplate: true,
+				},
+			},
+		},
 	}
 
 	for _, c := range cases {

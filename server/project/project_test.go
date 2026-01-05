@@ -174,7 +174,7 @@ func TestProjectServer(t *testing.T) {
 		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(&existingProj, &existingApp), enforcer, sync.NewKeyLock(), nil, nil, projInformer, settingsMgr, argoDB, testEnableEventList)
 
 		updatedProj := existingProj.DeepCopy()
-		updatedProj.Spec.ClusterResourceWhitelist = []metav1.GroupKind{{}}
+		updatedProj.Spec.ClusterResourceWhitelist = []v1alpha1.ClusterResourceRestrictionItem{{}}
 
 		_, err := projectServer.Update(t.Context(), &project.ProjectUpdateRequest{Project: updatedProj})
 
@@ -742,6 +742,35 @@ p, role:admin, projects, update, *, allow`)
 		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projectWithSyncWindows), enforcer, sync.NewKeyLock(), sessionMgr, nil, projInformer, settingsMgr, argoDB, testEnableEventList)
 		_, err := projectServer.GetSyncWindowsState(ctx, &project.SyncWindowsQuery{Name: projectWithSyncWindows.Name})
 		assert.EqualError(t, err, "rpc error: code = PermissionDenied desc = permission denied: projects, get, test")
+	})
+
+	t.Run("TestAddSyncWindowWhenAnAppReferencesAClusterThatDoesNotExist", func(t *testing.T) {
+		_ = enforcer.SetBuiltinPolicy(`p, role:admin, projects, get, *, allow
+p, role:admin, projects, update, *, allow`)
+		sessionMgr := session.NewSessionManager(settingsMgr, test.NewFakeProjLister(), "", nil, session.NewUserStateStorage(nil))
+		projectWithAppWithInvalidCluster := existingProj.DeepCopy()
+
+		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
+		invalidApp := v1alpha1.Application{
+			ObjectMeta: metav1.ObjectMeta{Name: "test-invalid", Namespace: "default"},
+			Spec:       v1alpha1.ApplicationSpec{Source: &v1alpha1.ApplicationSource{}, Project: "test", Destination: v1alpha1.ApplicationDestination{Namespace: "ns3", Server: "https://server4"}},
+		}
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projectWithAppWithInvalidCluster, &invalidApp), enforcer, sync.NewKeyLock(), sessionMgr, nil, projInformer, settingsMgr, argoDB, testEnableEventList)
+
+		// Add sync window
+		syncWindow := v1alpha1.SyncWindow{
+			Kind:         "deny",
+			Schedule:     "* * * * *",
+			Duration:     "1h",
+			Applications: []string{"*"},
+			Clusters:     []string{"*"},
+		}
+		projectWithAppWithInvalidCluster.Spec.SyncWindows = append(projectWithAppWithInvalidCluster.Spec.SyncWindows, &syncWindow)
+		res, err := projectServer.Update(ctx, &project.ProjectUpdateRequest{
+			Project: projectWithAppWithInvalidCluster,
+		})
+		require.NoError(t, err)
+		assert.Len(t, res.Spec.SyncWindows, 1)
 	})
 }
 

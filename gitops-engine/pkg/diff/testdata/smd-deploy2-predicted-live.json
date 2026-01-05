@@ -1,0 +1,124 @@
+{
+    "apiVersion": "apps/v1",
+    "kind": "Deployment",
+    "metadata": {
+        "labels": {
+            "app": "missing",
+            "applications.argoproj.io/app-name": "nginx",
+            "something-else": "bla"
+        },
+        "name": "nginx-deployment",
+        "namespace": "default",
+        "managedFields": [
+            {
+                "apiVersion": "apps/v1",
+                "fieldsType": "FieldsV1",
+                "fieldsV1": {
+                    "f:metadata": {
+                        "f:labels": {
+                            "f:app": {},
+                            "f:applications.argoproj.io/app-name": {},
+                            "f:something-else": {}
+                        }
+                    },
+                    "f:spec": {
+                        "f:replicas": {},
+                        "f:selector": {},
+                        "f:template": {
+                            "f:metadata": {
+                                "f:labels": {
+                                    "f:app": {},
+                                    "f:applications.argoproj.io/app-name": {}
+                                }
+                            },
+                            "f:spec": {
+                                "f:containers": {
+                                    "k:{\"name\":\"nginx\"}": {
+                                        ".": {},
+                                        "f:image": {},
+                                        "f:imagePullPolicy": {},
+                                        "f:livenessProbe": {
+                                            "f:exec": {
+                                                "f:command": {}
+                                            },
+                                            "f:initialDelaySeconds": {},
+                                            "f:periodSeconds": {}
+                                        },
+                                        "f:name": {},
+                                        "f:ports": {
+                                            "k:{\"containerPort\":80,\"protocol\":\"TCP\"}": {
+                                                ".": {},
+                                                "f:containerPort": {},
+                                                "f:protocol": {}
+                                            }
+                                        },
+                                        "f:resources": {
+                                            "f:requests": {
+                                                "f:cpu": {},
+                                                "f:memory": {}
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "manager": "argocd-controller",
+                "operation": "Apply",
+                "time": "2022-09-18T23:50:25Z"
+            }
+        ]
+    },
+    "spec": {
+        "replicas": 2,
+        "selector": {
+            "matchLabels": {
+                "app": "nginx"
+            }
+        },
+        "template": {
+            "metadata": {
+                "labels": {
+                    "app": "nginx",
+                    "applications.argoproj.io/app-name": "nginx"
+                }
+            },
+            "spec": {
+                "containers": [
+                    {
+                        "image": "nginx:1.23.1",
+                        "imagePullPolicy": "Never",
+                        "livenessProbe": {
+                            "exec": {
+                                "command": [
+                                    "cat",
+                                    "non-existent-file"
+                                ]
+                            },
+                            "initialDelaySeconds": 5,
+                            "periodSeconds": 180
+                        },
+                        "name": "nginx",
+                        "ports": [
+                            {
+                                "containerPort": 8081,
+                                "protocol": "UDP"
+                            },
+                            {
+                                "containerPort": 80,
+                                "protocol": "TCP"
+                            }
+                        ],
+                        "resources": {
+                            "requests": {
+                                "memory": "512Mi",
+                                "cpu": "500m"
+                            }
+                        }
+                    }
+                ]
+            }
+        }
+    }
+}

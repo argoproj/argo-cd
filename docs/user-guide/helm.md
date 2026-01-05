@@ -1,4 +1,4 @@
- # Helm
+# Helm
 
 ## Declarative
 
@@ -42,8 +42,10 @@ spec:
     namespace: nginx
 ```
 
-!!! note "When using Helm there are multiple ways to provide values"
-    Order of precedence is `parameters > valuesObject > values > valueFiles > helm repository values.yaml` (see [Here](./helm.md#helm-value-precedence) for a more detailed example)
+> [!NOTE]
+> **When using Helm there are multiple ways to provide values**
+>
+> Order of precedence is `parameters > valuesObject > values > valueFiles > helm repository values.yaml` (see [Here](./helm.md#helm-value-precedence) for a more detailed example)
 
 See [here](../operator-manual/declarative-setup.md#helm) for more info about how to configure private Helm repositories and private OCI registries.
 
@@ -56,12 +58,12 @@ flag. The flag can be repeated to support multiple values files:
 ```bash
 argocd app set helm-guestbook --values values-production.yaml
 ```
-!!! note
-    Before `v2.6` of Argo CD, Values files must be in the same git repository as the Helm
-    chart. The files can be in a different location in which case it can be accessed using
-    a relative path relative to the root directory of the Helm chart.
-    As of `v2.6`, values files can be sourced from a separate repository than the Helm chart
-    by taking advantage of [multiple sources for Applications](./multiple_sources.md#helm-value-files-from-external-git-repository).
+> [!NOTE]
+> Before `v2.6` of Argo CD, Values files must be in the same git repository as the Helm
+> chart. The files can be in a different location in which case it can be accessed using
+> a relative path relative to the root directory of the Helm chart.
+> As of `v2.6`, values files can be sourced from a separate repository than the Helm chart
+> by taking advantage of [multiple sources for Applications](./multiple_sources.md#helm-value-files-from-external-git-repository).
 
 In the declarative syntax:
 
@@ -213,9 +215,12 @@ values: |
 the result will be param1=value5
 ```
 
-!!! note "When valueFiles or values is used"
-    The list of parameters seen in the ui is not what is used for resources, rather it is the values/valuesObject merged with parameters (see [this issue](https://github.com/argoproj/argo-cd/issues/9213) incase it has been resolved)
-    As a workaround using parameters instead of values/valuesObject will provide a better overview of what will be used for resources
+> [!NOTE]
+> **When valueFiles or values is used**
+>
+> The chart is rendered correctly using the set of values from the different possible sources plus any parameters, merged in the expected order as documented here.
+> There is a bug (see [this issue](https://github.com/argoproj/argo-cd/issues/9213)) in the UI that only shows the parameters, i.e. it does not represent the complete set of values.
+> As a workaround, using parameters instead of values/valuesObject will provide a better overview of what will be used for resources.
 
 ## Helm --set-file support
 
@@ -253,8 +258,10 @@ source:
       releaseName: myRelease
 ```
 
-!!! warning "Important notice on overriding the release name"
-    Please note that overriding the Helm release name might cause problems when the chart you are deploying is using the `app.kubernetes.io/instance` label. Argo CD injects this label with the value of the Application name for tracking purposes. So when overriding the release name, the Application name will stop being equal to the release name. Because Argo CD will overwrite the label with the Application name it might cause some selectors on the resources to stop working. In order to avoid this we can configure Argo CD to use another label for tracking in the [ArgoCD configmap argocd-cm.yaml](../operator-manual/argocd-cm.yaml) - check the lines describing `application.instanceLabelKey`.
+> [!WARNING]
+> **Important notice on overriding the release name**
+>
+> Please note that overriding the Helm release name might cause problems when the chart you are deploying is using the `app.kubernetes.io/instance` label. Argo CD injects this label with the value of the Application name for tracking purposes. So when overriding the release name, the Application name will stop being equal to the release name. Because Argo CD will overwrite the label with the Application name it might cause some selectors on the resources to stop working. In order to avoid this we can configure Argo CD to use another label for tracking in the [ArgoCD configmap argocd-cm.yaml](../operator-manual/argocd-cm.yaml) - check the lines describing `application.instanceLabelKey`.
 
 ## Helm Hooks
 
@@ -266,7 +273,7 @@ Argo CD supports many (most?) Helm hooks by mapping the Helm annotations onto Ar
 | Helm Annotation                 | Notes                                                                                         |
 | ------------------------------- |-----------------------------------------------------------------------------------------------|
 | `helm.sh/hook: crd-install`     | Supported as equivalent to normal Argo CD CRD handling.                                |
-| `helm.sh/hook: pre-delete`      | Not supported. In Helm stable there are 3 cases used to clean up CRDs and 3 to clean-up jobs. |
+| `helm.sh/hook: pre-delete`      | Supported as equivalent to `argocd.argoproj.io/hook: PreDelete`                               |
 | `helm.sh/hook: pre-rollback`    | Not supported. Never used in Helm stable.                                                     |
 | `helm.sh/hook: pre-install`     | Supported as equivalent to `argocd.argoproj.io/hook: PreSync`.                                |
 | `helm.sh/hook: pre-upgrade`     | Supported as equivalent to `argocd.argoproj.io/hook: PreSync`.                                |
@@ -283,11 +290,15 @@ Argo CD supports many (most?) Helm hooks by mapping the Helm annotations onto Ar
 
 Unsupported hooks are ignored. In Argo CD, hooks are created by using `kubectl apply`, rather than `kubectl create`. This means that if the hook is named and already exists, it will not change unless you have annotated it with `before-hook-creation`.
 
-!!! warning "Helm hooks + ArgoCD hooks"
-    If you define any Argo CD hooks, _all_ Helm hooks will be ignored.   
+> [!WARNING]
+> **Helm hooks + ArgoCD hooks**
+>
+> If you define any Argo CD hooks, _all_ Helm hooks will be ignored.   
 
-!!! warning "'install' vs 'upgrade' vs 'sync'"
-    Argo CD cannot know if it is running a first-time "install" or an "upgrade" - every operation is a "sync'. This means that, by default, apps that have `pre-install` and `pre-upgrade` will have those hooks run at the same time.
+> [!WARNING]
+> **'install' vs 'upgrade' vs 'sync'**
+>
+> Argo CD cannot know if it is running a first-time "install" or an "upgrade" - every operation is a "sync'. This means that, by default, apps that have `pre-install` and `pre-upgrade` will have those hooks run at the same time.
 
 ### Hook Tips
 
@@ -389,7 +400,7 @@ RUN helm plugin install ${GCS_PLUGIN_REPO} --version ${GCS_PLUGIN_VERSION}
 ENV HELM_PLUGINS="/home/argocd/.local/share/helm/plugins/"
 ```
 
-The `HELM_PLUGINS` environment property required for ArgoCD to locale plugins correctly.
+The `HELM_PLUGINS` environment property required for ArgoCD to locate plugins correctly.
 
 Once built, use the custom image for ArgoCD installation.
 

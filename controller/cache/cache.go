@@ -137,8 +137,6 @@ type LiveStateCache interface {
 	IsNamespaced(server *appv1.Cluster, gk schema.GroupKind) (bool, error)
 	// Returns synced cluster cache
 	GetClusterCache(server *appv1.Cluster) (clustercache.ClusterCache, error)
-	// Executes give callback against resource specified by the key and all its children
-	IterateHierarchy(server *appv1.Cluster, key kube.ResourceKey, action func(child appv1.ResourceNode, appName string) bool) error
 	// Executes give callback against resources specified by the keys and all its children
 	IterateHierarchyV2(server *appv1.Cluster, keys []kube.ResourceKey, action func(child appv1.ResourceNode, appName string) bool) error
 	// Returns state of live nodes which correspond for target nodes of specified application.
@@ -272,7 +270,7 @@ func (c *liveStateCache) loadCacheSettings() (*cacheSettings, error) {
 	return &cacheSettings{clusterSettings, appInstanceLabelKey, appv1.TrackingMethod(trackingMethod), installationID, resourceUpdatesOverrides, ignoreResourceUpdatesEnabled}, nil
 }
 
-func asResourceNode(r *clustercache.Resource) appv1.ResourceNode {
+func asResourceNode(r *clustercache.Resource, namespaceResources map[kube.ResourceKey]*clustercache.Resource) appv1.ResourceNode {
 	gv, err := schema.ParseGroupVersion(r.Ref.APIVersion)
 	if err != nil {
 		gv = schema.GroupVersion{}
@@ -280,14 +278,30 @@ func asResourceNode(r *clustercache.Resource) appv1.ResourceNode {
 	parentRefs := make([]appv1.ResourceRef, len(r.OwnerRefs))
 	for i, ownerRef := range r.OwnerRefs {
 		ownerGvk := schema.FromAPIVersionAndKind(ownerRef.APIVersion, ownerRef.Kind)
-		parentRefs[i] = appv1.ResourceRef{
-			Group:     ownerGvk.Group,
-			Kind:      ownerGvk.Kind,
-			Version:   ownerGvk.Version,
-			Namespace: r.Ref.Namespace,
-			Name:      ownerRef.Name,
-			UID:       string(ownerRef.UID),
+		parentRef := appv1.ResourceRef{
+			Group:   ownerGvk.Group,
+			Kind:    ownerGvk.Kind,
+			Version: ownerGvk.Version,
+			Name:    ownerRef.Name,
+			UID:     string(ownerRef.UID),
 		}
+
+		// Look up the parent in namespace resources
+		// If found, it's namespaced and we use its namespace
+		// If not found, it must be cluster-scoped (namespace = "")
+		parentKey := kube.NewResourceKey(ownerGvk.Group, ownerGvk.Kind, r.Ref.Namespace, ownerRef.Name)
+		if parent, ok := namespaceResources[parentKey]; ok {
+			parentRef.Namespace = parent.Ref.Namespace
+		} else {
+			// Not in namespace => must be cluster-scoped
+			parentRef.Namespace = ""
+			// Debug logging for cross-namespace relationships
+			if r.Ref.Namespace != "" {
+				log.Debugf("Cross-namespace ref: %s/%s in namespace %s has parent %s/%s (cluster-scoped)",
+					r.Ref.Kind, r.Ref.Name, r.Ref.Namespace, ownerGvk.Kind, ownerRef.Name)
+			}
+		}
+		parentRefs[i] = parentRef
 	}
 	var resHealth *appv1.HealthStatus
 	resourceInfo := resInfo(r)
@@ -669,24 +683,13 @@ func (c *liveStateCache) IsNamespaced(server *appv1.Cluster, gk schema.GroupKind
 	return clusterInfo.IsNamespaced(gk)
 }
 
-func (c *liveStateCache) IterateHierarchy(server *appv1.Cluster, key kube.ResourceKey, action func(child appv1.ResourceNode, appName string) bool) error {
-	clusterInfo, err := c.getSyncedCluster(server)
-	if err != nil {
-		return err
-	}
-	clusterInfo.IterateHierarchy(key, func(resource *clustercache.Resource, namespaceResources map[kube.ResourceKey]*clustercache.Resource) bool {
-		return action(asResourceNode(resource), getApp(resource, namespaceResources))
-	})
-	return nil
-}
-
 func (c *liveStateCache) IterateHierarchyV2(server *appv1.Cluster, keys []kube.ResourceKey, action func(child appv1.ResourceNode, appName string) bool) error {
 	clusterInfo, err := c.getSyncedCluster(server)
 	if err != nil {
 		return err
 	}
 	clusterInfo.IterateHierarchyV2(keys, func(resource *clustercache.Resource, namespaceResources map[kube.ResourceKey]*clustercache.Resource) bool {
-		return action(asResourceNode(resource), getApp(resource, namespaceResources))
+		return action(asResourceNode(resource, namespaceResources), getApp(resource, namespaceResources))
 	})
 	return nil
 }
@@ -711,9 +714,15 @@ func (c *liveStateCache) GetNamespaceTopLevelResources(server *appv1.Cluster, na
 		return nil, err
 	}
 	resources := clusterInfo.FindResources(namespace, clustercache.TopLevelResource)
+
+	// Get all namespace resources for parent lookups
+	namespaceResources := clusterInfo.FindResources(namespace, func(_ *clustercache.Resource) bool {
+		return true
+	})
+
 	res := make(map[kube.ResourceKey]appv1.ResourceNode)
 	for k, r := range resources {
-		res[k] = asResourceNode(r)
+		res[k] = asResourceNode(r, namespaceResources)
 	}
 	return res, nil
 }

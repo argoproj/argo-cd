@@ -1134,8 +1134,9 @@ func TestNamespacedPermissions(t *testing.T) {
 		}).
 		CreateApp().
 		Sync().
+		Wait().
 		Then().
-		// make sure application resource actiions are successful
+		// make sure application resource actions are successful
 		And(func(app *Application) {
 			assertNSResourceActions(t, app.Name, true)
 		}).
@@ -1172,7 +1173,7 @@ func TestNamespacedPermissions(t *testing.T) {
 		}).
 		Refresh(RefreshTypeNormal).
 		Then().
-		// make sure application resource actiions are failing
+		// make sure application resource actions are failing
 		And(func(app *Application) {
 			assertNSResourceActions(t, app.Name, false)
 		})

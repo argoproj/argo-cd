@@ -86,12 +86,38 @@ func (m *appStateManager) getServerSideDiffDryRunApplier(cluster *v1alpha1.Clust
 	return ops, cleanup, nil
 }
 
-func (m *appStateManager) SyncAppState(app *v1alpha1.Application, project *v1alpha1.AppProject, state *v1alpha1.OperationState) {
+func NewOperationState(operation v1alpha1.Operation) *v1alpha1.OperationState {
+	return &v1alpha1.OperationState{
+		Phase:     common.OperationRunning,
+		Operation: operation,
+		StartedAt: metav1.Now(),
+	}
+}
+
+func newSyncOperationResult(app *v1alpha1.Application, op v1alpha1.SyncOperation) *v1alpha1.SyncOperationResult {
+	syncRes := &v1alpha1.SyncOperationResult{}
+
+	if len(op.Sources) > 0 || op.Source != nil {
+		// specific source specified in the SyncOperation
+		if op.Source != nil {
+			syncRes.Source = *op.Source
+		}
+		syncRes.Sources = op.Sources
+	} else {
+		// normal sync case, get sources from the spec
+		syncRes.Sources = app.Spec.Sources
+		syncRes.Source = app.Spec.GetSource()
+	}
+
 	// Sync requests might be requested with ambiguous revisions (e.g. master, HEAD, v1.2.3).
 	// This can change meaning when resuming operations (e.g a hook sync). After calculating a
-	// concrete git commit SHA, the SHA is remembered in the status.operationState.syncResult field.
-	// This ensures that when resuming an operation, we sync to the same revision that we initially
-	// started with.
+	// concrete git commit SHA, the revision of the SyncOperationResult will be updated with the SHA
+	syncRes.Revision = op.Revision
+	syncRes.Revisions = op.Revisions
+	return syncRes
+}
+
+func (m *appStateManager) SyncAppState(app *v1alpha1.Application, project *v1alpha1.AppProject, state *v1alpha1.OperationState) {
 	syncId, err := syncid.Generate()
 	if err != nil {
 		state.Phase = common.OperationError
@@ -100,75 +126,19 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, project *v1alp
 	}
 	logEntry := log.WithFields(applog.GetAppLogFields(app)).WithField("syncId", syncId)
 
-	var revision string
-	var syncOp v1alpha1.SyncOperation
-	var syncRes *v1alpha1.SyncOperationResult
-	var source v1alpha1.ApplicationSource
-	var sources []v1alpha1.ApplicationSource
-	revisions := make([]string, 0)
-
 	if state.Operation.Sync == nil {
-		state.Phase = common.OperationFailed
+		state.Phase = common.OperationError
 		state.Message = "Invalid operation request: no operation specified"
 		return
 	}
-	syncOp = *state.Operation.Sync
 
-	isMultiSourceRevision := app.Spec.HasMultipleSources()
-	rollback := len(syncOp.Sources) > 0 || syncOp.Source != nil
-	if rollback {
-		// rollback case
-		if len(state.Operation.Sync.Sources) > 0 {
-			sources = state.Operation.Sync.Sources
-			isMultiSourceRevision = true
-		} else {
-			source = *state.Operation.Sync.Source
-			sources = make([]v1alpha1.ApplicationSource, 0)
-			isMultiSourceRevision = false
-		}
-	} else {
-		// normal sync case (where source is taken from app.spec.sources)
-		if app.Spec.HasMultipleSources() {
-			sources = app.Spec.Sources
-		} else {
-			// normal sync case (where source is taken from app.spec.source)
-			source = app.Spec.GetSource()
-			sources = make([]v1alpha1.ApplicationSource, 0)
-		}
+	syncOp := *state.Operation.Sync
+
+	if state.SyncResult == nil {
+		state.SyncResult = newSyncOperationResult(app, syncOp)
 	}
 
-	if state.SyncResult != nil {
-		syncRes = state.SyncResult
-		revision = state.SyncResult.Revision
-		revisions = append(revisions, state.SyncResult.Revisions...)
-	} else {
-		syncRes = &v1alpha1.SyncOperationResult{}
-		// status.operationState.syncResult.source. must be set properly since auto-sync relies
-		// on this information to decide if it should sync (if source is different than the last
-		// sync attempt)
-		if isMultiSourceRevision {
-			syncRes.Sources = sources
-		} else {
-			syncRes.Source = source
-		}
-		state.SyncResult = syncRes
-	}
-
-	// if we get here, it means we did not remember a commit SHA which we should be syncing to.
-	// This typically indicates we are just about to begin a brand new sync/rollback operation.
-	// Take the value in the requested operation. We will resolve this to a SHA later.
-	if isMultiSourceRevision {
-		if len(revisions) != len(sources) {
-			revisions = syncOp.Revisions
-		}
-	} else {
-		if revision == "" {
-			revision = syncOp.Revision
-		}
-	}
-
-	isBlocked, err := syncWindowPreventsSync(app, project)
-	if isBlocked {
+	if isBlocked, err := syncWindowPreventsSync(app, project); isBlocked {
 		// If the operation is currently running, simply let the user know the sync is blocked by a current sync window
 		if state.Phase == common.OperationRunning {
 			state.Message = "Sync operation blocked by sync window"
@@ -179,30 +149,32 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, project *v1alp
 		return
 	}
 
-	if !isMultiSourceRevision {
-		sources = []v1alpha1.ApplicationSource{source}
-		revisions = []string{revision}
+	revisions := state.SyncResult.Revisions
+	sources := state.SyncResult.Sources
+	isMultiSourceSync := len(sources) > 0
+	if !isMultiSourceSync {
+		sources = []v1alpha1.ApplicationSource{state.SyncResult.Source}
+		revisions = []string{state.SyncResult.Revision}
 	}
 
 	// ignore error if CompareStateRepoError, this shouldn't happen as noRevisionCache is true
-	compareResult, err := m.CompareAppState(app, project, revisions, sources, false, true, syncOp.Manifests, isMultiSourceRevision)
+	compareResult, err := m.CompareAppState(app, project, revisions, sources, false, true, syncOp.Manifests, isMultiSourceSync)
 	if err != nil && !stderrors.Is(err, ErrCompareStateRepo) {
 		state.Phase = common.OperationError
 		state.Message = err.Error()
 		return
 	}
-	// We now have a concrete commit SHA. Save this in the sync result revision so that we remember
+
+	// We are now guaranteed to have a concrete commit SHA. Save this in the sync result revision so that we remember
 	// what we should be syncing to when resuming operations.
+	state.SyncResult.Revision = compareResult.syncStatus.Revision
+	state.SyncResult.Revisions = compareResult.syncStatus.Revisions
 
-	syncRes.Revision = compareResult.syncStatus.Revision
-	syncRes.Revisions = compareResult.syncStatus.Revisions
-
-	// validates if it should fail the sync if it finds shared resources
+	// validates if it should fail the sync on that revision if it finds shared resources
 	hasSharedResource, sharedResourceMessage := hasSharedResourceCondition(app)
-	if syncOp.SyncOptions.HasOption("FailOnSharedResource=true") &&
-		hasSharedResource {
+	if syncOp.SyncOptions.HasOption("FailOnSharedResource=true") && hasSharedResource {
 		state.Phase = common.OperationFailed
-		state.Message = "Shared resource found: %s" + sharedResourceMessage
+		state.Message = "Shared resource found: " + sharedResourceMessage
 		return
 	}
 
@@ -245,8 +217,8 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, project *v1alp
 		return
 	}
 
-	initialResourcesRes := make([]common.ResourceSyncResult, len(syncRes.Resources))
-	for i, res := range syncRes.Resources {
+	initialResourcesRes := make([]common.ResourceSyncResult, len(state.SyncResult.Resources))
+	for i, res := range state.SyncResult.Resources {
 		key := kube.ResourceKey{Group: res.Group, Kind: res.Kind, Namespace: res.Namespace, Name: res.Name}
 		initialResourcesRes[i] = common.ResourceSyncResult{
 			ResourceKey: key,
@@ -336,7 +308,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, project *v1alp
 		sync.WithLogr(logutils.NewLogrusLogger(logEntry)),
 		sync.WithHealthOverride(lua.ResourceHealthOverrides(resourceOverrides)),
 		sync.WithPermissionValidator(func(un *unstructured.Unstructured, res *metav1.APIResource) error {
-			if !project.IsGroupKindPermitted(un.GroupVersionKind().GroupKind(), res.Namespaced) {
+			if !project.IsGroupKindNamePermitted(un.GroupVersionKind().GroupKind(), un.GetName(), res.Namespaced) {
 				return fmt.Errorf("resource %s:%s is not permitted in project %s", un.GroupVersionKind().Group, un.GroupVersionKind().Kind, project.Name)
 			}
 			if res.Namespaced {
@@ -358,6 +330,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, project *v1alp
 		sync.WithResourcesFilter(func(key kube.ResourceKey, target *unstructured.Unstructured, live *unstructured.Unstructured) bool {
 			return (len(syncOp.Resources) == 0 ||
 				isPostDeleteHook(target) ||
+				isPreDeleteHook(target) ||
 				argo.ContainsSyncResource(key.Name, key.Namespace, schema.GroupVersionKind{Kind: key.Kind, Group: key.Group}, syncOp.Resources)) &&
 				m.isSelfReferencedObj(live, target, app.GetName(), v1alpha1.TrackingMethod(trackingMethod), installationID)
 		}),
@@ -450,7 +423,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, project *v1alp
 	logEntry.WithField("duration", time.Since(start)).Info("sync/terminate complete")
 
 	if !syncOp.DryRun && len(syncOp.Resources) == 0 && state.Phase.Successful() {
-		err := m.persistRevisionHistory(app, compareResult.syncStatus.Revision, source, compareResult.syncStatus.Revisions, compareResult.syncStatus.ComparedTo.Sources, isMultiSourceRevision, state.StartedAt, state.Operation.InitiatedBy)
+		err := m.persistRevisionHistory(app, compareResult.syncStatus.Revision, compareResult.syncStatus.ComparedTo.Source, compareResult.syncStatus.Revisions, compareResult.syncStatus.ComparedTo.Sources, isMultiSourceSync, state.StartedAt, state.Operation.InitiatedBy)
 		if err != nil {
 			state.Phase = common.OperationError
 			state.Message = fmt.Sprintf("failed to record sync to history: %v", err)

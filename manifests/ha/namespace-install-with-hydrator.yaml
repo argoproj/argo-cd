@@ -189,14 +189,21 @@ rules:
   - list
   - watch
 - apiGroups:
-  - apps
-  - extensions
+  - coordination.k8s.io
   resources:
-  - deployments
+  - leases
+  verbs:
+  - create
+- apiGroups:
+  - coordination.k8s.io
+  resourceNames:
+  - 58ac56fa.applicationsets.argoproj.io
+  resources:
+  - leases
   verbs:
   - get
-  - list
-  - watch
+  - update
+  - create
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -883,12 +890,28 @@ data:
         if [ "$MASTER" = "$ANNOUNCE_IP" ]; then
             redis_role
             if [ "$ROLE" != "master" ]; then
-                reinit
+                echo "waiting for redis to become master"
+                sleep 10
+                identify_master
+                redis_role
+                echo "Redis role is $ROLE, expected role is master. No need to reinitialize."
+                if [ "$ROLE" != "master" ]; then
+                    echo "Redis role is $ROLE, expected role is master, reinitializing"
+                    reinit
+                fi
             fi
         elif [ "${MASTER}" ]; then
             identify_redis_master
             if [ "$REDIS_MASTER" != "$MASTER" ]; then
-                reinit
+                echo "Redis master and local master are not the same. waiting."
+                sleep 10
+                identify_master
+                identify_redis_master
+                echo "Redis master is ${MASTER}, expected master is ${REDIS_MASTER}. No need to reinitialize."
+                if [ "${REDIS_MASTER}" != "${MASTER}" ]; then
+                    echo "Redis master is ${MASTER}, expected master is ${REDIS_MASTER}, reinitializing"
+                    reinit
+                fi
             fi
         fi
     done
@@ -1868,6 +1891,12 @@ spec:
               key: applicationsetcontroller.requeue.after
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_MAX_RESOURCES_STATUS_COUNT
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.status.max.resources.count
+              name: argocd-cmd-params-cm
+              optional: true
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         name: argocd-applicationset-controller
@@ -1898,6 +1927,8 @@ spec:
           name: tmp
         - mountPath: /app/config/reposerver/tls
           name: argocd-repo-server-tls
+        - mountPath: /home/argocd/params
+          name: argocd-cmd-params-cm
       nodeSelector:
         kubernetes.io/os: linux
       serviceAccountName: argocd-applicationset-controller
@@ -1926,6 +1957,13 @@ spec:
             path: ca.crt
           optional: true
           secretName: argocd-repo-server-tls
+      - configMap:
+          items:
+          - key: applicationsetcontroller.profile.enabled
+            path: profiler.enabled
+          name: argocd-cmd-params-cm
+          optional: true
+        name: argocd-cmd-params-cm
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -2622,6 +2660,24 @@ spec:
               key: reposerver.disable.helm.manifest.max.extracted.size
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_REPO_SERVER_OCI_MANIFEST_MAX_EXTRACTED_SIZE
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.oci.manifest.max.extracted.size
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_REPO_SERVER_DISABLE_OCI_MANIFEST_MAX_EXTRACTED_SIZE
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.disable.oci.manifest.max.extracted.size
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_REPO_SERVER_OCI_LAYER_MEDIA_TYPES
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.oci.layer.media.types
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_REVISION_CACHE_LOCK_TIMEOUT
           valueFrom:
             configMapKeyRef:
@@ -2644,6 +2700,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: reposerver.git.request.timeout
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_REPO_SERVER_ENABLE_BUILTIN_GIT_CONFIG
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.enable.builtin.git.config
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_GRPC_MAX_SIZE_MB
@@ -2711,11 +2773,12 @@ spec:
         - mountPath: /home/argocd/cmp-server/plugins
           name: plugins
       initContainers:
-      - command:
-        - /bin/cp
-        - -n
-        - /usr/local/bin/argocd
-        - /var/run/argocd/argocd-cmp-server
+      - args:
+        - /bin/cp --update=none /usr/local/bin/argocd /var/run/argocd/argocd && /bin/ln
+          -s /var/run/argocd/argocd /var/run/argocd/argocd-cmp-server
+        command:
+        - sh
+        - -c
         image: quay.io/argoproj/argocd:latest
         name: copyutil
         securityContext:
@@ -3322,6 +3385,12 @@ spec:
               key: controller.self.heal.backoff.cooldown.seconds
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_SYNC_WAVE_DELAY
+          valueFrom:
+            configMapKeyRef:
+              key: controller.sync.wave.delay.seconds
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_APPLICATION_CONTROLLER_SYNC_TIMEOUT
           valueFrom:
             configMapKeyRef:
@@ -3543,7 +3612,7 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/init-config: bd30e83dfdad9912b6c1cc32a8c26d7d01429a0730f5ee7af380fb593e874d54
+        checksum/init-config: fd74f7d84e39b3f6eac1d7ce5deb0083e58f218376faf363343d91a0fb4f2563
       labels:
         app.kubernetes.io/name: argocd-redis-ha
     spec:
@@ -3566,7 +3635,7 @@ spec:
             secretKeyRef:
               key: auth
               name: argocd-redis
-        image: public.ecr.aws/docker/library/redis:7.2.7-alpine
+        image: public.ecr.aws/docker/library/redis:8.2.3-alpine
         imagePullPolicy: IfNotPresent
         lifecycle:
           preStop:
@@ -3614,9 +3683,9 @@ spec:
             - sh
             - -c
             - /health/redis_readiness.sh
-          failureThreshold: 3
-          initialDelaySeconds: 5
-          periodSeconds: 10
+          failureThreshold: 5
+          initialDelaySeconds: 30
+          periodSeconds: 15
           successThreshold: 1
           timeoutSeconds: 15
         volumeMounts:
@@ -3637,7 +3706,7 @@ spec:
             secretKeyRef:
               key: auth
               name: argocd-redis
-        image: public.ecr.aws/docker/library/redis:7.2.7-alpine
+        image: public.ecr.aws/docker/library/redis:8.2.3-alpine
         imagePullPolicy: IfNotPresent
         lifecycle:
           postStart:
@@ -3712,7 +3781,7 @@ spec:
             secretKeyRef:
               key: auth
               name: argocd-redis
-        image: public.ecr.aws/docker/library/redis:7.2.7-alpine
+        image: public.ecr.aws/docker/library/redis:8.2.3-alpine
         imagePullPolicy: IfNotPresent
         name: split-brain-fix
         resources: {}
@@ -3747,7 +3816,7 @@ spec:
             secretKeyRef:
               key: auth
               name: argocd-redis
-        image: public.ecr.aws/docker/library/redis:7.2.7-alpine
+        image: public.ecr.aws/docker/library/redis:8.2.3-alpine
         imagePullPolicy: IfNotPresent
         name: config-init
         securityContext:
@@ -3928,6 +3997,11 @@ spec:
     - port: 6379
       protocol: TCP
     - port: 26379
+      protocol: TCP
+  - from:
+    - namespaceSelector: {}
+    ports:
+    - port: 9101
       protocol: TCP
   podSelector:
     matchLabels:

@@ -47,7 +47,7 @@ func TestLuaHealthScript(t *testing.T) {
 		require.NoError(t, err)
 		for i := range resourceTest.Tests {
 			test := resourceTest.Tests[i]
-			t.Run(test.InputPath, func(t *testing.T) {
+			t.Run(filepath.Join(strings.TrimPrefix(dir, "../../resource_customizations/"), test.InputPath), func(t *testing.T) {
 				vm := VM{
 					UseOpenLibs: true,
 				}

@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 
@@ -21,10 +22,12 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v3/common"
@@ -67,6 +70,10 @@ const (
 
 	E2ETestPrefix = "e2e-test-"
 
+	// finalizer to add to resources during tests. Make sure that the resource Kind of your object
+	// is included in the test EnsureCleanState code
+	TestFinalizer = TestingLabel + "/finalizer"
+
 	// Account for batch events processing (set to 1ms in e2e tests)
 	WhenThenSleepInterval = 5 * time.Millisecond
 )
@@ -83,6 +90,7 @@ const (
 
 var (
 	id                      string
+	shortId                 string
 	deploymentNamespace     string
 	name                    string
 	KubeClientset           kubernetes.Interface
@@ -294,6 +302,10 @@ func Name() string {
 	return name
 }
 
+func ShortId() string {
+	return shortId
+}
+
 func repoDirectory() string {
 	return path.Join(TmpDir, repoDir)
 }
@@ -412,6 +424,13 @@ func updateGenericConfigMap(name string, updater func(cm *corev1.ConfigMap) erro
 		}
 	}
 	return nil
+}
+
+func RegisterKustomizeVersion(version, path string) error {
+	return updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+		cm.Data["kustomize.version."+version] = path
+		return nil
+	})
 }
 
 func SetEnableManifestGeneration(val map[v1alpha1.ApplicationSourceType]bool) error {
@@ -654,6 +673,45 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 	start := time.Now()
 	policy := metav1.DeletePropagationBackground
 
+	deleteNamespaces := func(namespaces []corev1.Namespace, wait bool) error {
+		args := []string{"delete", "ns", "--ignore-not-found=true", fmt.Sprintf("--wait=%t", wait)}
+		for _, namespace := range namespaces {
+			args = append(args, namespace.Name)
+		}
+		_, err := Run("", "kubectl", args...)
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+
+	deleteResourceWithTestFinalizer := func(namespaces []corev1.Namespace, gvrs []schema.GroupVersionResource) error {
+		for _, namespace := range namespaces {
+			for _, gvr := range gvrs {
+				objects, err := DynamicClientset.Resource(gvr).Namespace(namespace.GetName()).List(t.Context(), metav1.ListOptions{})
+				if err != nil {
+					return err
+				}
+				for i := range objects.Items {
+					obj := &objects.Items[i]
+					updated := controllerutil.RemoveFinalizer(obj, TestFinalizer)
+					if updated {
+						log.WithFields(log.Fields{
+							"namespace": namespace.GetName(),
+							"resource":  gvr,
+							"name":      obj.GetName(),
+						}).Info("removing test finalizer")
+						_, err := DynamicClientset.Resource(gvr).Namespace(namespace.GetName()).Update(t.Context(), obj, metav1.UpdateOptions{})
+						if err != nil {
+							return err
+						}
+					}
+				}
+			}
+		}
+		return nil
+	}
+
 	RunFunctionsInParallelAndCheckErrors(t, []func() error{
 		func() error {
 			// kubectl delete apps ...
@@ -713,18 +771,33 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 				t.Context(),
 				metav1.ListOptions{
 					LabelSelector: TestingLabel + "=true",
-					FieldSelector: "status.phase=Active",
 				},
 			)
 			if err != nil {
 				return err
 			}
 			if len(namespaces.Items) > 0 {
-				args := []string{"delete", "ns", "--wait=false"}
-				for _, namespace := range namespaces.Items {
-					args = append(args, namespace.Name)
+				err = deleteNamespaces(namespaces.Items, false)
+				if err != nil {
+					return err
 				}
-				_, err := Run("", "kubectl", args...)
+			}
+
+			// Get all namespaces stuck in Terminating state
+			terminatingNamespaces, err := KubeClientset.CoreV1().Namespaces().List(
+				t.Context(),
+				metav1.ListOptions{
+					LabelSelector: TestingLabel + "=true",
+					FieldSelector: "status.phase=Terminating",
+				})
+			if err != nil {
+				return err
+			}
+			if len(terminatingNamespaces.Items) > 0 {
+				err = deleteResourceWithTestFinalizer(terminatingNamespaces.Items, []schema.GroupVersionResource{
+					// If finalizers are added to new resource kinds, they must be added here for a proper cleanup
+					appsv1.SchemeGroupVersion.WithResource("deployments"),
+				})
 				if err != nil {
 					return err
 				}
@@ -734,16 +807,14 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 			if err != nil {
 				return err
 			}
-			testNamespaceNames := []string{}
+			testNamespaceNames := []corev1.Namespace{}
 			for _, namespace := range namespaces.Items {
 				if strings.HasPrefix(namespace.Name, E2ETestPrefix) {
-					testNamespaceNames = append(testNamespaceNames, namespace.Name)
+					testNamespaceNames = append(testNamespaceNames, namespace)
 				}
 			}
 			if len(testNamespaceNames) > 0 {
-				args := []string{"delete", "ns"}
-				args = append(args, testNamespaceNames...)
-				_, err := Run("", "kubectl", args...)
+				err = deleteNamespaces(testNamespaceNames, true)
 				if err != nil {
 					return err
 				}
@@ -858,7 +929,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 				OrphanedResources:        nil,
 				SourceRepos:              []string{"*"},
 				Destinations:             []v1alpha1.ApplicationDestination{{Namespace: "*", Server: "*"}},
-				ClusterResourceWhitelist: []metav1.GroupKind{{Group: "*", Kind: "*"}},
+				ClusterResourceWhitelist: []v1alpha1.ClusterResourceRestrictionItem{{Group: "*", Kind: "*"}},
 				SourceNamespaces:         []string{AppNamespace()},
 			})
 			if err != nil {
@@ -876,7 +947,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 						OrphanedResources:        nil,
 						SourceRepos:              []string{"*"},
 						Destinations:             []v1alpha1.ApplicationDestination{{Namespace: "*", Server: "*"}},
-						ClusterResourceWhitelist: []metav1.GroupKind{{Group: "*", Kind: "*"}},
+						ClusterResourceWhitelist: []v1alpha1.ClusterResourceRestrictionItem{{Group: "*", Kind: "*"}},
 						SignatureKeys:            []v1alpha1.SignatureKey{{KeyID: GpgGoodKeyID}},
 						SourceNamespaces:         []string{AppNamespace()},
 					},
@@ -963,6 +1034,12 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 			if err != nil {
 				return err
 			}
+			// Configure git to create files with more permissive permissions to avoid
+			// issues when cleaning up. By default git creates object files as 0444.
+			_, err = Run(repoDirectory(), "git", "config", "core.sharedRepository", "0666")
+			if err != nil {
+				return err
+			}
 			_, err = Run(repoDirectory(), "git", "add", ".")
 			if err != nil {
 				return err
@@ -990,10 +1067,11 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 			if err != nil {
 				return err
 			}
-			postFix := "-" + strings.ToLower(randString)
-			id = t.Name() + postFix
-			name = DnsFriendly(t.Name(), "")
-			deploymentNamespace = DnsFriendly("argocd-e2e-"+t.Name(), postFix)
+			shortId = strings.ToLower(randString)
+			id = fmt.Sprintf("%s-%s", t.Name(), shortId)
+			name = DnsFriendly(t.Name(), "-"+shortId)
+			deploymentNamespace = DnsFriendly("argocd-e2e-"+t.Name(), "-"+shortId)
+
 			// create namespace
 			_, err = Run("", "kubectl", "create", "ns", DeploymentNamespace())
 			if err != nil {

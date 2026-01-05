@@ -73,13 +73,20 @@ export default {
             const abortController = new AbortController();
 
             // If there is an error, show it beforehand
-            fetch(fullUrl, {signal: abortController.signal}).then(response => {
-                if (!response.ok) {
-                    return response.text().then(text => {
-                        observer.error({status: response.status, statusText: response.statusText, body: text});
-                    });
-                }
-            });
+            fetch(fullUrl, {signal: abortController.signal})
+                .then(response => {
+                    if (!response.ok) {
+                        return response.text().then(text => {
+                            observer.error({status: response.status, statusText: response.statusText, body: text});
+                        });
+                    }
+                })
+                .catch(err => {
+                    if (err.name === 'AbortError') {
+                        return;
+                    }
+                    observer.error(err);
+                });
 
             let eventSource = new EventSource(fullUrl);
             eventSource.onmessage = msg => observer.next(msg.data);

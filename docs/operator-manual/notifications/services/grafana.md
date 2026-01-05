@@ -9,6 +9,10 @@ Available parameters :
 * `apiURL` - the server url, e.g. https://grafana.example.com
 * `apiKey` - the API key for the serviceaccount
 * `insecureSkipVerify` - optional bool, true or false
+* `maxIdleConns` - optional, maximum number of idle (keep-alive) connections across all hosts.
+* `maxIdleConnsPerHost` - optional, maximum number of idle (keep-alive) connections per host.
+* `maxConnsPerHost` - optional, maximum total connections per host.
+* `idleConnTimeout` - optional, maximum amount of time an idle (keep-alive) connection will remain open before closing.
 
 1. Login to your Grafana instance as `admin`
 2. On the left menu, go to Configuration / API Keys
@@ -37,7 +41,22 @@ stringData:
   grafana-api-key: api-key
 ```
 
-7. Create subscription for your Grafana integration
+7. Create a template in `argo-notifications-cm` Configmap
+This will be used to pass the (required) text of the annocation to Grafana (or re-use an existing one)
+As there is no specific template for Grafana, you must use the generic `message`:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-notifications-cm
+data:
+  templates:
+    template.app-deployed: |
+      messsage: Application {{.app.metadata.name}} is now running new version of deployments manifests.
+```
+
+8. Create subscription for your Grafana integration
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -47,5 +66,5 @@ metadata:
     notifications.argoproj.io/subscribe.<trigger-name>.grafana: tag1|tag2 # list of tags separated with |
 ```
 
-8. Change the annotations settings
+9. Change the annotations settings
 ![8](https://user-images.githubusercontent.com/18019529/112022083-47fb0600-8b75-11eb-849b-d25d41925909.png)

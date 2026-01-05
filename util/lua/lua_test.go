@@ -109,7 +109,8 @@ func TestFailExternalLibCall(t *testing.T) {
 	vm := VM{}
 	_, err := vm.ExecuteHealthLua(testObj, osLuaScript)
 	require.Error(t, err)
-	assert.IsType(t, &lua.ApiError{}, err)
+	var target *lua.ApiError
+	assert.ErrorAs(t, err, &target)
 }
 
 const returnInt = `return 1`
@@ -183,7 +184,8 @@ func TestHandleInfiniteLoop(t *testing.T) {
 	testObj := StrToUnstructured(objJSON)
 	vm := VM{}
 	_, err := vm.ExecuteHealthLua(testObj, infiniteLoop)
-	assert.IsType(t, &lua.ApiError{}, err)
+	var target *lua.ApiError
+	require.ErrorAs(t, err, &target)
 }
 
 func TestGetHealthScriptWithOverride(t *testing.T) {
@@ -395,7 +397,6 @@ func TestExecuteResourceActionDiscovery(t *testing.T) {
 			Name: "scale",
 			Params: []appv1.ResourceActionParam{{
 				Name: "replicas",
-				Type: "number",
 			}},
 		},
 	}
@@ -417,7 +418,6 @@ func TestExecuteResourceActionDiscoveryWithDuplicationActions(t *testing.T) {
 			Name: "scale",
 			Params: []appv1.ResourceActionParam{{
 				Name: "replicas",
-				Type: "number",
 			}},
 		},
 		{
@@ -707,7 +707,9 @@ func TestExecuteResourceActionInvalidUnstructured(t *testing.T) {
 	require.Error(t, err)
 }
 
-const objWithEmptyStruct = `
+func TestCleanPatch(t *testing.T) {
+	t.Run("Empty Struct preserved", func(t *testing.T) {
+		const obj = `
 apiVersion: argoproj.io/v1alpha1
 kind: Test
 metadata:
@@ -719,7 +721,8 @@ metadata:
   resourceVersion: "123"
 spec:
   resources: {}
-  paused: true
+  updated:
+    something: true
   containers:
    - name: name1
      test: {}
@@ -727,8 +730,7 @@ spec:
      - name: name2
        test2: {}
 `
-
-const expectedUpdatedObjWithEmptyStruct = `
+		const expected = `
 apiVersion: argoproj.io/v1alpha1
 kind: Test
 metadata:
@@ -740,7 +742,7 @@ metadata:
   resourceVersion: "123"
 spec:
   resources: {}
-  paused: false
+  updated: {}
   containers:
    - name: name1
      test: {}
@@ -748,21 +750,133 @@ spec:
      - name: name2
        test2: {}
 `
-
-const pausedToFalseLua = `
-obj.spec.paused = false
+		const luaAction = `
+obj.spec.updated = {}
 return obj
 `
+		testObj := StrToUnstructured(obj)
+		expectedObj := StrToUnstructured(expected)
+		vm := VM{}
+		newObjects, err := vm.ExecuteResourceAction(testObj, luaAction, nil)
+		require.NoError(t, err)
+		assert.Len(t, newObjects, 1)
+		assert.Equal(t, newObjects[0].K8SOperation, K8SOperation("patch"))
+		assert.Equal(t, expectedObj, newObjects[0].UnstructuredObj)
+	})
 
-func TestCleanPatch(t *testing.T) {
-	testObj := StrToUnstructured(objWithEmptyStruct)
-	expectedObj := StrToUnstructured(expectedUpdatedObjWithEmptyStruct)
-	vm := VM{}
-	newObjects, err := vm.ExecuteResourceAction(testObj, pausedToFalseLua, nil)
-	require.NoError(t, err)
-	assert.Len(t, newObjects, 1)
-	assert.Equal(t, newObjects[0].K8SOperation, K8SOperation("patch"))
-	assert.Equal(t, expectedObj, newObjects[0].UnstructuredObj)
+	t.Run("New item added to array", func(t *testing.T) {
+		const obj = `
+apiVersion: argoproj.io/v1alpha1
+kind: Test
+metadata:
+  labels:
+    app.kubernetes.io/instance: helm-guestbook
+    test: test
+  name: helm-guestbook
+  namespace: default
+  resourceVersion: "123"
+spec:
+  containers:
+   - name: name1
+     test: {}
+     anotherList:
+     - name: name2
+       test2: {}
+`
+		const expected = `
+apiVersion: argoproj.io/v1alpha1
+kind: Test
+metadata:
+  labels:
+    app.kubernetes.io/instance: helm-guestbook
+    test: test
+  name: helm-guestbook
+  namespace: default
+  resourceVersion: "123"
+spec:
+  containers:
+   - name: name1
+     test: {}
+     anotherList:
+     - name: name2
+       test2: {}
+   - name: added
+     #test: {}       ### would be decoded as an empty array and is not supported. The type is unknown
+     testArray: []   ### works since it is decoded in the correct type
+     another:
+       supported: true
+`
+		// `test: {}` in new container would be decoded as an empty array and is not supported. The type is unknown
+		// `testArray: []` works since it is decoded in the correct type
+		const luaAction = `
+table.insert(obj.spec.containers, {name = "added", testArray = {}, another = {supported = true}})
+return obj
+`
+		testObj := StrToUnstructured(obj)
+		expectedObj := StrToUnstructured(expected)
+		vm := VM{}
+		newObjects, err := vm.ExecuteResourceAction(testObj, luaAction, nil)
+		require.NoError(t, err)
+		assert.Len(t, newObjects, 1)
+		assert.Equal(t, newObjects[0].K8SOperation, K8SOperation("patch"))
+		assert.Equal(t, expectedObj, newObjects[0].UnstructuredObj)
+	})
+
+	t.Run("Last item removed from array", func(t *testing.T) {
+		const obj = `
+apiVersion: argoproj.io/v1alpha1
+kind: Test
+metadata:
+  labels:
+    app.kubernetes.io/instance: helm-guestbook
+    test: test
+  name: helm-guestbook
+  namespace: default
+  resourceVersion: "123"
+spec:
+  containers:
+   - name: name1
+     test: {}
+     anotherList:
+     - name: name2
+       test2: {}
+   - name: name3
+     test: {}
+     anotherList:
+     - name: name4
+       test2: {}
+`
+		const expected = `
+apiVersion: argoproj.io/v1alpha1
+kind: Test
+metadata:
+  labels:
+    app.kubernetes.io/instance: helm-guestbook
+    test: test
+  name: helm-guestbook
+  namespace: default
+  resourceVersion: "123"
+spec:
+  containers:
+   - name: name1
+     test: {}
+     anotherList:
+     - name: name2
+       test2: {}
+`
+		const luaAction = `
+table.remove(obj.spec.containers)
+return obj
+`
+		testObj := StrToUnstructured(obj)
+		expectedObj := StrToUnstructured(expected)
+		vm := VM{}
+		newObjects, err := vm.ExecuteResourceAction(testObj, luaAction, nil)
+		require.NoError(t, err)
+		assert.Len(t, newObjects, 1)
+		assert.Equal(t, newObjects[0].K8SOperation, K8SOperation("patch"))
+		assert.Equal(t, expectedObj, newObjects[0].UnstructuredObj)
+	})
 }
 
 func TestGetResourceHealth(t *testing.T) {
@@ -840,7 +954,8 @@ return hs`
 		testObj := StrToUnstructured(testSA)
 		overrides := getHealthOverride(false)
 		status, err := overrides.GetResourceHealth(testObj)
-		assert.IsType(t, &lua.ApiError{}, err)
+		var target *lua.ApiError
+		require.ErrorAs(t, err, &target)
 		expectedErr := "<string>:4: attempt to index a non-table object(nil) with key 'find'"
 		require.EqualError(t, err, expectedErr)
 		assert.Nil(t, status)
@@ -960,5 +1075,10 @@ func Test_getHealthScriptPaths(t *testing.T) {
 
 	// This test will fail any time a glob pattern is added to the health script paths. We don't expect that to happen
 	// often.
-	assert.Equal(t, []string{"_.crossplane.io/_", "_.upbound.io/_"}, paths)
+	assert.Equal(t, []string{
+		"_.cnrm.cloud.google.com/_",
+		"_.crossplane.io/_",
+		"_.upbound.io/_",
+		"grafana-org-operator.kubitus-project.gitlab.io/_",
+	}, paths)
 }

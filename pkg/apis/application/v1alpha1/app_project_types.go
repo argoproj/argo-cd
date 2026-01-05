@@ -24,24 +24,6 @@ const (
 	serviceAccountDisallowedCharSet = "!*[]{}\\/"
 )
 
-type ErrApplicationNotAllowedToUseProject struct {
-	application string
-	namespace   string
-	project     string
-}
-
-func NewErrApplicationNotAllowedToUseProject(application, namespace, project string) error {
-	return &ErrApplicationNotAllowedToUseProject{
-		application: application,
-		namespace:   namespace,
-		project:     project,
-	}
-}
-
-func (err *ErrApplicationNotAllowedToUseProject) Error() string {
-	return fmt.Sprintf("application '%s' in namespace '%s' is not allowed to use project %s", err.application, err.namespace, err.project)
-}
-
 // AppProjectList is list of AppProject resources
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 type AppProjectList struct {
@@ -157,7 +139,12 @@ func (proj AppProject) RemoveJWTToken(roleIndex int, issuedAt int64, id string) 
 	return err2
 }
 
-// TODO: document this method
+// ValidateJWTTokenID checks whether a given JWT token ID is already associated with the specified role.
+//
+// If the provided id is empty, the method returns nil (no validation error).
+// If a token with the same id already exists in the role, an error of type
+// codes.InvalidArgument is returned to indicate the token ID has been used.
+// Otherwise, it returns nil.
 func (proj *AppProject) ValidateJWTTokenID(roleName string, id string) error {
 	role, _, err := proj.GetRoleByName(roleName)
 	if err != nil {
@@ -174,6 +161,30 @@ func (proj *AppProject) ValidateJWTTokenID(roleName string, id string) error {
 	return nil
 }
 
+// ValidateProject performs a set of consistency and validation checks on the AppProject specification.
+//
+// The validation rules include:
+//   - Destinations:
+//   - Rejects invalid wildcard formats like "!*"
+//   - Ensures uniqueness of (server/namespace) or (name/namespace) combinations
+//   - SourceNamespaces:
+//   - Must be unique
+//   - SourceRepos:
+//   - Rejects invalid wildcard formats like "!*"
+//   - Must be unique
+//   - Roles:
+//   - Role names must be unique and valid
+//   - Policies within a role must be unique and valid for the project/role
+//   - Groups within a role must be unique and have valid names
+//   - SyncWindows:
+//   - Each window must have a unique identity hash
+//   - Each window must validate successfully
+//   - A window must target at least one of applications, clusters, or namespaces
+//   - DestinationServiceAccounts:
+//   - Server and namespace fields must not contain invalid characters or "!"
+//   - Default service account must not be empty or contain disallowed characters
+//   - Server/namespace values must compile as valid glob patterns
+//   - Each (server/namespace) combination must be unique
 func (proj *AppProject) ValidateProject() error {
 	destKeys := make(map[string]bool)
 	for _, dest := range proj.Spec.Destinations {
@@ -252,13 +263,17 @@ func (proj *AppProject) ValidateProject() error {
 	}
 
 	if proj.Spec.SyncWindows.HasWindows() {
-		existingWindows := make(map[string]bool)
+		existingWindows := make(map[uint64]bool)
 		for _, window := range proj.Spec.SyncWindows {
 			if window == nil {
 				continue
 			}
-			if _, ok := existingWindows[window.Kind+window.Schedule+window.Duration]; ok {
-				return status.Errorf(codes.AlreadyExists, "window '%s':'%s':'%s' already exists, update or edit", window.Kind, window.Schedule, window.Duration)
+			windowHash, hashErr := window.HashIdentity()
+			if hashErr != nil {
+				return status.Errorf(codes.Internal, "failed to generate hash for sync window with kind '%s', schedule '%s', and duration '%s': %v", window.Kind, window.Schedule, window.Duration, hashErr)
+			}
+			if _, ok := existingWindows[windowHash]; ok {
+				return status.Errorf(codes.AlreadyExists, "sync window with kind '%s', schedule '%s', and duration '%s' already exists (hash=%d, duplicate detected)", window.Kind, window.Schedule, window.Duration, windowHash)
 			}
 			err := window.Validate()
 			if err != nil {
@@ -267,7 +282,7 @@ func (proj *AppProject) ValidateProject() error {
 			if len(window.Applications) == 0 && len(window.Namespaces) == 0 && len(window.Clusters) == 0 {
 				return status.Errorf(codes.OutOfRange, "window '%s':'%s':'%s' requires one of application, cluster or namespace", window.Kind, window.Schedule, window.Duration)
 			}
-			existingWindows[window.Kind+window.Schedule+window.Duration] = true
+			existingWindows[windowHash] = true
 		}
 	}
 
@@ -304,6 +319,11 @@ func (proj *AppProject) ValidateProject() error {
 	}
 
 	return nil
+}
+
+// RoleGroupExists checks if a group exists in the role
+func RoleGroupExists(role *ProjectRole) bool {
+	return len(role.Groups) != 0
 }
 
 // AddGroupToRole adds an OIDC group to a role
@@ -376,8 +396,8 @@ func (proj *AppProject) ProjectPoliciesString() string {
 	return strings.Join(policies, "\n")
 }
 
-// IsGroupKindPermitted validates if the given resource group/kind is permitted to be deployed in the project
-func (proj AppProject) IsGroupKindPermitted(gk schema.GroupKind, namespaced bool) bool {
+// IsGroupKindNamePermitted validates if the given resource group/kind is permitted to be deployed in the project
+func (proj AppProject) IsGroupKindNamePermitted(gk schema.GroupKind, name string, namespaced bool) bool {
 	var isWhiteListed, isBlackListed bool
 	res := metav1.GroupKind{Group: gk.Group, Kind: gk.Kind}
 
@@ -393,18 +413,18 @@ func (proj AppProject) IsGroupKindPermitted(gk schema.GroupKind, namespaced bool
 	clusterWhitelist := proj.Spec.ClusterResourceWhitelist
 	clusterBlacklist := proj.Spec.ClusterResourceBlacklist
 
-	isWhiteListed = len(clusterWhitelist) != 0 && isResourceInList(res, clusterWhitelist)
-	isBlackListed = len(clusterBlacklist) != 0 && isResourceInList(res, clusterBlacklist)
+	isWhiteListed = len(clusterWhitelist) != 0 && isNamedResourceInList(res, name, clusterWhitelist)
+	isBlackListed = len(clusterBlacklist) != 0 && isNamedResourceInList(res, name, clusterBlacklist)
 	return isWhiteListed && !isBlackListed
 }
 
 // IsLiveResourcePermitted returns whether a live resource found in the cluster is permitted by an AppProject
 func (proj AppProject) IsLiveResourcePermitted(un *unstructured.Unstructured, destCluster *Cluster, projectClusters func(project string) ([]*Cluster, error)) (bool, error) {
-	return proj.IsResourcePermitted(un.GroupVersionKind().GroupKind(), un.GetNamespace(), destCluster, projectClusters)
+	return proj.IsResourcePermitted(un.GroupVersionKind().GroupKind(), un.GetName(), un.GetNamespace(), destCluster, projectClusters)
 }
 
-func (proj AppProject) IsResourcePermitted(groupKind schema.GroupKind, namespace string, destCluster *Cluster, projectClusters func(project string) ([]*Cluster, error)) (bool, error) {
-	if !proj.IsGroupKindPermitted(groupKind, namespace != "") {
+func (proj AppProject) IsResourcePermitted(groupKind schema.GroupKind, name string, namespace string, destCluster *Cluster, projectClusters func(project string) ([]*Cluster, error)) (bool, error) {
+	if !proj.IsGroupKindNamePermitted(groupKind, name, namespace != "") {
 		return false, nil
 	}
 	if namespace != "" {

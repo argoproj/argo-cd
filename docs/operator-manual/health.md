@@ -16,8 +16,13 @@ with at least one value for `hostname` or `IP`.
 ### Ingress
 * The `status.loadBalancer.ingress` list is non-empty, with at least one value for `hostname` or `IP`.
 
+### CronJob
+* If the last scheduled job for this CronJob failed, the CronJob will be marked as "Degraded"
+* If the last scheduled job for this CronJob is running, the CronJob will be marked as "Progressing"
+
 ### Job
 * If job `.spec.suspended` is set to 'true', then the job and app health will be marked as suspended.
+
 ### PersistentVolumeClaim
 * The `status.phase` is `Bound`
 
@@ -116,9 +121,9 @@ specify a wildcard in the resource kind, and anywhere in the resource group, lik
         ...
 ```
 
-!!!important
-    Please, note that wildcards are only supported when using the `resource.customizations` key, the `resource.customizations.health.<group>_<kind>`
-    style keys do not work since wildcards (`*`) are not supported in Kubernetes configmap keys.
+> [!IMPORTANT]
+> Please, note that wildcards are only supported when using the `resource.customizations` key, the `resource.customizations.health.<group>_<kind>`
+> style keys do not work since wildcards (`*`) are not supported in Kubernetes configmap keys.
 
 The `obj` is a global variable which contains the resource. The script must return an object with status and optional message field.
 The custom health check might return one of the following health statuses:
@@ -191,14 +196,15 @@ If multiple wildcard checks match, the first one in the directory structure is u
 We use the [doublestar](https://github.com/bmatcuk/doublestar) glob library to match the wildcard checks. We currently
 only treat a path as a wildcard if it contains a `_` character, but this may change in the future.
 
-!!!important "Avoid Massive Scripts"
-
-    Avoid writing massive scripts to handle multiple resources. They'll get hard to read and maintain. Instead, just
-    duplicate the relevant parts in resource-specific scripts.
+> [!IMPORTANT]
+> **Avoid Massive Scripts**
+>
+> Avoid writing massive scripts to handle multiple resources. They'll get hard to read and maintain. Instead, just
+> duplicate the relevant parts in resource-specific scripts.
 
 ## Overriding Go-Based Health Checks
 
-Health checks for some resources were [hardcoded as Go code](https://github.com/argoproj/gitops-engine/tree/master/pkg/health) 
+Health checks for some resources were [hardcoded as Go code](https://github.com/argoproj/argo-cd/tree/master/gitops-engine/pkg/health) 
 because Lua support was introduced later. Also, the logic of health checks for some resources were too complex, so it 
 was easier to implement it in Go.
 
@@ -223,10 +229,10 @@ The following resources have Go-based health checks:
 
 ## Health Checks
 
-An Argo CD App's health is inferred from the health of its immediate child resources (the resources represented in 
-source control). The App health will be the worst health of its immediate child sources. The priority of most to least 
-healthy statuses is: `Healthy`, `Suspended`, `Progressing`, `Missing`, `Degraded`, `Unknown`. So, for example, if an App
-has a `Missing` resource and a `Degraded` resource, the App's health will be `Missing`.
+Argo CD App health is inferred from the health of its immediate child resources as represented in the application source.  
+The App health will be the **worst health of its immediate child resources**, based on the following priority (from most to least healthy):  
+**Healthy, Suspended, Progressing, Missing, Degraded, Unknown.**  
+For example, if an App has a Missing resource and a Degraded resource, the App's health will be **Degraded**.
 
 But the health of a resource is not inherited from child resources - it is calculated using only information about the 
 resource itself. A resource's status field may or may not contain information about the health of a child resource, and 
