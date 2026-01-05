@@ -43,9 +43,11 @@ Operational stability and performance fixes:
 Minor stability, reconciler improvements, bug fixes
 
 ## Deprecated Items
+
 Flags / behavior to be removed in future releases
 Any deprecated config API or CLI flags
 
 ## Upgrade Instructions
+
 Example: CLI upgrade command
 
