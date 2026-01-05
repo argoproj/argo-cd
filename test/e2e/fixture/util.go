@@ -20,7 +20,7 @@ func DnsFriendly(str string, postfix string) string { //nolint:revive //FIXME(va
 	str = matchFirstCap.ReplaceAllString(str, "${1}-${2}")
 	str = matchAllCap.ReplaceAllString(str, "${1}-${2}")
 	str = strings.ToLower(str)
-	str = strings.ReplaceAll(str, "/", "_")
+	str = strings.ReplaceAll(str, "/", "-")
 
 	if diff := len(str) + len(postfix) - 63; diff > 0 {
 		str = str[:len(str)-diff]
