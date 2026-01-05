@@ -5,6 +5,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	argocommon "github.com/argoproj/argo-cd/v3/common"
+	"k8s.io/apimachinery/pkg/watch"
 	"reflect"
 	"sort"
 	"strconv"
@@ -55,6 +57,7 @@ type Server struct {
 	appclientset             appclientset.Interface
 	appsetInformer           cache.SharedIndexInformer
 	appsetLister             applisters.ApplicationSetLister
+	appSetBroadcaster        Broadcaster
 	auditLogger              *argo.AuditLogger
 	projectLock              sync.KeyLock
 	enabledNamespaces        []string
@@ -66,9 +69,53 @@ type Server struct {
 	EnableGitHubAPIMetrics   bool
 }
 
-func (s *Server) Watch(query *applicationset.ApplicationSetWatchQuery, server applicationset.ApplicationSetService_WatchServer) error {
-	//TODO implement me
-	panic("implement me")
+func (s *Server) Watch(q *applicationset.ApplicationSetWatchQuery, ws applicationset.ApplicationSetService_WatchServer) error {
+	fmt.Println("hello")
+	appsetName := q.GetName()
+	appsetNs := s.appsetNamespaceOrDefault(q.GetAppSetNamespace())
+	logCtx := log.NewEntry(log.New())
+	if q.Name != nil {
+		logCtx = logCtx.WithField("applicationset", q.Name)
+	}
+	selector, err := labels.Parse(q.GetSelector())
+	if err != nil {
+		return fmt.Errorf("error parsing labels with selectors: %w", err)
+	}
+	claims := ws.Context().Value("claims")
+	sendIfPermitted := func(a v1alpha1.ApplicationSet, eventType watch.EventType) {
+		// TODO: check for permissions
+		err := ws.Send(&v1alpha1.ApplicationSetWatchEvent{
+			Type:           eventType,
+			ApplicationSet: a,
+		})
+		if err != nil {
+			logCtx.Warnf("Unable to send stream message: %v", err)
+			return
+		}
+	}
+	events := make(chan *v1alpha1.ApplicationSetWatchEvent, argocommon.WatchAPIBufferSize)
+	if q.GetName() != "" {
+		appsets, err := s.appsetLister.List(selector)
+		if err != nil {
+			return fmt.Errorf("error listing apps with selector: %w", err)
+		}
+		sort.Slice(appsets, func(i, j int) bool {
+			return apps[i].QualifiedName() < apps[j].QualifiedName()
+		})
+		for i := range appsets {
+			sendIfPermitted(*appsets[i], watch.Added)
+		}
+	}
+	unsubscribe := s.appclientset.Subscribe(events)
+	defer unsubscribe()
+	for {
+		select {
+		case event := <-events:
+			sendIfPermitted(event.Application, event.Type)
+		case <-ws.Context().Done():
+			return nil
+		}
+	}
 }
 
 // NewServer returns a new instance of the ApplicationSet service
@@ -82,6 +129,7 @@ func NewServer(
 	appclientset appclientset.Interface,
 	appsetInformer cache.SharedIndexInformer,
 	appsetLister applisters.ApplicationSetLister,
+	appSetBroadcaster Broadcaster,
 	namespace string,
 	projectLock sync.KeyLock,
 	enabledNamespaces []string,
@@ -93,6 +141,7 @@ func NewServer(
 	enableGitHubAPIMetrics bool,
 	enableK8sEvent []string,
 ) applicationset.ApplicationSetServiceServer {
+	// TODO add broadcaster
 	s := &Server{
 		ns:                       namespace,
 		db:                       db,
@@ -104,6 +153,7 @@ func NewServer(
 		appclientset:             appclientset,
 		appsetInformer:           appsetInformer,
 		appsetLister:             appsetLister,
+		appSetBroadcaster:        appSetBroadcaster,
 		projectLock:              projectLock,
 		auditLogger:              argo.NewAuditLogger(kubeclientset, "argocd-server", enableK8sEvent),
 		enabledNamespaces:        enabledNamespaces,
