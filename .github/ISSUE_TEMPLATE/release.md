@@ -41,6 +41,7 @@ Target GA date: ___. __, ____
      Thanks to all the folks who spent their time contributing to this release in any way possible!
      ```
  - [ ] Monitor support channels for issues, cherry-picking bugfixes and docs fixes as appropriate during the RC period (or delegate this task to an Approver and coordinate timing)
+ - [ ] After creating the RC, open a documentation PR for the next minor version using [this](minor_version_update.md) template.
 
 ## GA Release Checklist
 
