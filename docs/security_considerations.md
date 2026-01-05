@@ -81,7 +81,7 @@ When you are running `v1.4.x`, you can upgrade to `v1.4.3` by simply changing th
 tags for `argocd-server`, `argocd-repo-server` and `argocd-controller` to `v1.4.3`. 
 The `v1.4.3` release does not contain additional functional bug fixes.
 
-Likewise, hen you are running `v1.5.x`, you can upgrade to `v1.5.2` by simply changing
+Likewise, when you are running `v1.5.x`, you can upgrade to `v1.5.2` by simply changing
 the image tags for `argocd-server`, `argocd-repo-server` and `argocd-controller` to `v1.5.2`.
 The `v1.5.2` release does not contain additional functional bug fixes.
 
