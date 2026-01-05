@@ -441,3 +441,33 @@ If you can avoid using these features, you can avoid triggering the error. The o
    Excluding mutation webhooks from the diff could cause undesired diffing behavior.
 3. **Disable mutation webhooks when using server-side diff**: see [server-side diff docs](user-guide/diff-strategies.md#mutation-webhooks)
    for details about that feature. Disabling mutation webhooks may have undesired effects on sync behavior.
+
+### How do I fix `grpc: error while marshaling: string field contains invalid UTF-8`?
+
+After upgrading Kubernetes (for example, from GKE v1.33.x to v1.34.x), Argo CD components may stop working and pods may 
+fail to start with errors such as:
+
+```
+Error: grpc: error while marshaling: string field contains invalid UTF-8
+```
+This issue typically affects pods that reference Kubernetes secrets via enviornment variables, for eg. 
+```yaml
+env:
+  - name: REDIS_PASSWORD
+    valueFrom:
+      secretKeyRef:
+        name: argocd-redis
+        key: auth
+        optional: false
+```
+Kubernetes environment variables must be valid UTF-8 strings. In affected clusters, the argocd-redis Secret contained non-UTF-8 (binary) data, while other clusters used
+ASCII-only values.
+
+#### How do I fix the issue?
+Inspect the decoded Reids password
+```bash
+kubectl get -n argocd secret argocd-redis -o json \
+    | jq -r '.data.auth' | base64 --decode | xxd
+```
+If the output contains non-printable characters or bytes outside the UTF-8 range, the Secret is invalid for use as an
+environment variable. It is recommended to regenerate the secret using a UTF-8-safe password.
