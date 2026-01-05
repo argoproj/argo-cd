@@ -3566,7 +3566,7 @@ func Test_getResolvedValueFiles(t *testing.T) {
 		tcc := tc
 		t.Run(tcc.name, func(t *testing.T) {
 			t.Parallel()
-			resolvedPaths, err := getResolvedValueFiles(path.Join(tempDir, "main-repo"), path.Join(tempDir, "main-repo"), tcc.env, []string{}, []string{tcc.rawPath}, tcc.refSources, paths, false)
+			resolvedPaths, err := getResolvedValueFiles(path.Join(tempDir, "main-repo"), path.Join(tempDir, "main-repo"), tcc.env, []string{}, []string{tcc.rawPath}, tcc.refSources, paths, false, nil)
 			if !tcc.expectedErr {
 				require.NoError(t, err)
 				require.Len(t, resolvedPaths, 1)

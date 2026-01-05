@@ -859,6 +859,10 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 	if err == nil {
 		// Much of the multi-source handling logic is duplicated in resolveReferencedSources. If making changes here,
 		// check whether they should be replicated in resolveReferencedSources.
+		// refVarCommitSHAs maps $refVar (e.g., "$values") to the resolved commit SHA.
+		// This is used to look up the exact worktree path when multiple worktrees exist
+		// for the same repository at different revisions.
+		refVarCommitSHAs := make(map[string]string)
 		if q.HasMultipleSources {
 			if q.ApplicationSource.Helm != nil {
 				refFileParams := make([]string, 0)
@@ -894,6 +898,8 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 					existingRef, ok := repoRefs[normalizedRepoURL]
 					if ok && existingRef.revision == refSourceMapping.TargetRevision {
 						// Same repo and same revision already referenced - reuse existing checkout
+						// Record the commit SHA for this refVar so we can look up the correct path later
+						refVarCommitSHAs[refVar] = existingRef.commitSHA
 						continue
 					}
 
@@ -903,6 +909,9 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 						ch.errCh <- fmt.Errorf("failed to get git client for repo %s: %w", refSourceMapping.Repo.Repo, err)
 						return
 					}
+
+					// Record the commit SHA for this refVar
+					refVarCommitSHAs[refVar] = referencedCommitSHA
 
 					// Determine if we need a worktree (same repo at different revision)
 					needsWorktree := ok || // Already have a ref to this repo at a different revision
@@ -957,7 +966,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 			}
 		}
 
-		manifestGenResult, err = GenerateManifests(ctx, opContext.appPath, repoRoot, commitSHA, q, false, s.gitCredsStore, s.initConstants.MaxCombinedDirectoryManifestsSize, s.gitRepoPaths, WithCMPTarDoneChannel(ch.tarDoneCh), WithCMPTarExcludedGlobs(s.initConstants.CMPTarExcludedGlobs), WithCMPUseManifestGeneratePaths(s.initConstants.CMPUseManifestGeneratePaths))
+		manifestGenResult, err = GenerateManifests(ctx, opContext.appPath, repoRoot, commitSHA, q, false, s.gitCredsStore, s.initConstants.MaxCombinedDirectoryManifestsSize, s.gitRepoPaths, WithCMPTarDoneChannel(ch.tarDoneCh), WithCMPTarExcludedGlobs(s.initConstants.CMPTarExcludedGlobs), WithCMPUseManifestGeneratePaths(s.initConstants.CMPUseManifestGeneratePaths), WithRefSourceCommitSHAs(refVarCommitSHAs))
 	}
 	refSourceCommitSHAs := make(map[string]string)
 	if len(repoRefs) > 0 {
@@ -1266,7 +1275,7 @@ func parseKubeVersion(version string) (string, error) {
 	return kubeVersion.String(), nil
 }
 
-func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclient.ManifestRequest, isLocal bool, gitRepoPaths utilio.TempPaths) ([]*unstructured.Unstructured, string, error) {
+func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclient.ManifestRequest, isLocal bool, gitRepoPaths utilio.TempPaths, refSourceCommitSHAs map[string]string) ([]*unstructured.Unstructured, string, error) {
 	// We use the app name as Helm's release name property, which must not
 	// contain any underscore characters and must not exceed 53 characters.
 	// We are not interested in the fully qualified application name while
@@ -1302,7 +1311,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 			templateOpts.Namespace = appHelm.Namespace
 		}
 
-		resolvedValueFiles, err := getResolvedValueFiles(appPath, repoRoot, env, q.GetValuesFileSchemes(), appHelm.ValueFiles, q.RefSources, gitRepoPaths, appHelm.IgnoreMissingValueFiles)
+		resolvedValueFiles, err := getResolvedValueFiles(appPath, repoRoot, env, q.GetValuesFileSchemes(), appHelm.ValueFiles, q.RefSources, gitRepoPaths, appHelm.IgnoreMissingValueFiles, refSourceCommitSHAs)
 		if err != nil {
 			return nil, "", fmt.Errorf("error resolving helm value files: %w", err)
 		}
@@ -1340,7 +1349,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 			referencedSource := getReferencedSource(p.Path, q.RefSources)
 			if referencedSource != nil {
 				// If the $-prefixed path appears to reference another source, do env substitution _after_ resolving the source
-				resolvedPath, err = getResolvedRefValueFile(p.Path, env, q.GetValuesFileSchemes(), referencedSource.Repo.Repo, gitRepoPaths)
+				resolvedPath, err = getResolvedRefValueFile(p.Path, env, q.GetValuesFileSchemes(), referencedSource.Repo.Repo, gitRepoPaths, refSourceCommitSHAs)
 				if err != nil {
 					return nil, "", fmt.Errorf("error resolving set-file path: %w", err)
 				}
@@ -1451,6 +1460,7 @@ func getResolvedValueFiles(
 	refSources map[string]*v1alpha1.RefTarget,
 	gitRepoPaths utilio.TempPaths,
 	ignoreMissingValueFiles bool,
+	refSourceCommitSHAs map[string]string,
 ) ([]pathutil.ResolvedFilePath, error) {
 	var resolvedValueFiles []pathutil.ResolvedFilePath
 	for _, rawValueFile := range rawValueFiles {
@@ -1461,7 +1471,7 @@ func getResolvedValueFiles(
 		referencedSource := getReferencedSource(rawValueFile, refSources)
 		if referencedSource != nil {
 			// If the $-prefixed path appears to reference another source, do env substitution _after_ resolving that source.
-			resolvedPath, err = getResolvedRefValueFile(rawValueFile, env, allowedValueFilesSchemas, referencedSource.Repo.Repo, gitRepoPaths)
+			resolvedPath, err = getResolvedRefValueFile(rawValueFile, env, allowedValueFilesSchemas, referencedSource.Repo.Repo, gitRepoPaths, refSourceCommitSHAs)
 			if err != nil {
 				return nil, fmt.Errorf("error resolving value file path: %w", err)
 			}
@@ -1494,14 +1504,32 @@ func getResolvedRefValueFile(
 	allowedValueFilesSchemas []string,
 	refSourceRepo string,
 	gitRepoPaths utilio.TempPaths,
+	refSourceCommitSHAs map[string]string,
 ) (pathutil.ResolvedFilePath, error) {
 	pathStrings := strings.Split(rawValueFile, "/")
 	normalizedRepoURL := git.NormalizeGitURL(refSourceRepo)
 
-	// First, try the standard repo path (for same-revision or non-worktree cases)
-	repoPath := gitRepoPaths.GetPathIfExists(normalizedRepoURL)
+	// Extract the $refVar (e.g., "$values") to look up the exact commit SHA
+	refVar := pathStrings[0]
 
-	// If not found, check for worktree paths (keyed as "repoURL@commitSHA")
+	var repoPath string
+
+	// If we have the commit SHA for this ref source, look up the exact worktree path first.
+	// This is important when multiple worktrees exist for the same repo at different revisions.
+	if refSourceCommitSHAs != nil {
+		if commitSHA, ok := refSourceCommitSHAs[refVar]; ok && commitSHA != "" {
+			// Try exact match with commit SHA (worktree case)
+			repoPath = gitRepoPaths.GetPathIfExists(normalizedRepoURL + "@" + commitSHA)
+		}
+	}
+
+	// Fall back to standard repo path (for same-revision or non-worktree cases)
+	if repoPath == "" {
+		repoPath = gitRepoPaths.GetPathIfExists(normalizedRepoURL)
+	}
+
+	// If still not found, check for worktree paths (keyed as "repoURL@commitSHA")
+	// This is a fallback for cases where refSourceCommitSHAs is not provided
 	if repoPath == "" {
 		allPaths := gitRepoPaths.GetPaths()
 		for key, path := range allPaths {
@@ -1556,6 +1584,10 @@ type (
 		cmpTarDoneCh                chan<- bool
 		cmpTarExcludedGlobs         []string
 		cmpUseManifestGeneratePaths bool
+		// refSourceCommitSHAs maps $refVar (e.g., "$values") to the resolved commit SHA.
+		// This is used to look up the exact worktree path when multiple worktrees exist
+		// for the same repository at different revisions.
+		refSourceCommitSHAs map[string]string
 	}
 )
 
@@ -1592,6 +1624,15 @@ func WithCMPUseManifestGeneratePaths(enabled bool) GenerateManifestOpt {
 	}
 }
 
+// WithRefSourceCommitSHAs provides a mapping from $refVar (e.g., "$values") to the resolved
+// commit SHA. This is used to look up the exact worktree path when multiple worktrees exist
+// for the same repository at different revisions.
+func WithRefSourceCommitSHAs(shas map[string]string) GenerateManifestOpt {
+	return func(o *generateManifestOpt) {
+		o.refSourceCommitSHAs = shas
+	}
+}
+
 // GenerateManifests generates manifests from a path. Overrides are applied as a side effect on the given ApplicationSource.
 func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, q *apiclient.ManifestRequest, isLocal bool, gitCredsStore git.CredsStore, maxCombinedManifestQuantity resource.Quantity, gitRepoPaths utilio.TempPaths, opts ...GenerateManifestOpt) (*apiclient.ManifestResponse, error) {
 	opt := newGenerateManifestOpt(opts...)
@@ -1615,7 +1656,7 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 	switch appSourceType {
 	case v1alpha1.ApplicationSourceTypeHelm:
 		var command string
-		targetObjs, command, err = helmTemplate(appPath, repoRoot, env, q, isLocal, gitRepoPaths)
+		targetObjs, command, err = helmTemplate(appPath, repoRoot, env, q, isLocal, gitRepoPaths, opt.refSourceCommitSHAs)
 		commands = append(commands, command)
 	case v1alpha1.ApplicationSourceTypeKustomize:
 		var kustomizeBinary string
@@ -2371,7 +2412,7 @@ func populateHelmAppDetails(res *apiclient.RepoAppDetailsResponse, appPath strin
 	if q.Source.Helm != nil {
 		ignoreMissingValueFiles = q.Source.Helm.IgnoreMissingValueFiles
 	}
-	resolvedSelectedValueFiles, err := getResolvedValueFiles(appPath, repoRoot, &v1alpha1.Env{}, q.GetValuesFileSchemes(), selectedValueFiles, q.RefSources, gitRepoPaths, ignoreMissingValueFiles)
+	resolvedSelectedValueFiles, err := getResolvedValueFiles(appPath, repoRoot, &v1alpha1.Env{}, q.GetValuesFileSchemes(), selectedValueFiles, q.RefSources, gitRepoPaths, ignoreMissingValueFiles, nil)
 	if err != nil {
 		return fmt.Errorf("failed to resolve value files: %w", err)
 	}
