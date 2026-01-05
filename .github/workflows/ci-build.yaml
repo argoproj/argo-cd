@@ -114,6 +114,28 @@ jobs:
           version: v2.5.0
           args: --verbose
 
+  test-gitops-engine:
+    name: Run unit tests for gitops-engine
+    if: ${{ needs.changes.outputs.backend == 'true' }}
+    runs-on: ubuntu-24.04
+    needs:
+      - changes
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+      - name: Setup Golang
+        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
+        with:
+          go-version: ${{ env.GOLANG_VERSION }}
+      - name: Download all Go modules
+        run: |
+          cd gitops-engine
+          go mod download
+      - name: Run gitops-engine unit tests
+        run: |
+          cd gitops-engine
+          go test -race ./... -coverprofile=coverage.out
+
   test-go:
     name: Run unit tests for Go packages
     if: ${{ needs.changes.outputs.backend == 'true' }}

@@ -436,6 +436,11 @@ test-local:
 		DIST_DIR=${DIST_DIR} RERUN_FAILS=0 PACKAGES="$(TEST_MODULE)" ./hack/test.sh -args -test.gocoverdir="$(PWD)/test-results" "$(TEST_MODULE)"; \
 	fi
 
+# Run gitops-engine unit tests
+.PHONY: test-gitops-engine
+test-gitops-engine:
+	cd gitops-engine && go test -race ./... -coverprofile=coverage.out
+
 .PHONY: test-race
 test-race: test-tools-image
 	mkdir -p $(GOCACHE)
