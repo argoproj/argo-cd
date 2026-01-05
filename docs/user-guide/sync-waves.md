@@ -156,7 +156,7 @@ Hooks and resources are assigned to wave zero by default. The wave can be negati
 
 ### Send message to Slack when sync completes
 
-The following example uses the Slack API to send a a Slack message when sync completes:
+The following example uses the Slack API to send a Slack message when sync completes:
 
 ```yaml
 apiVersion: batch/v1
