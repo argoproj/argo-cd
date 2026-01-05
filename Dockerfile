@@ -50,10 +50,10 @@ RUN groupadd -g $ARGOCD_USER_ID argocd && \
     chmod g=u /home/argocd && \
     apt-get update && \
     apt-get dist-upgrade -y && \
-    apt-get install -y \
-    git git-lfs tini gpg tzdata connect-proxy && \
+    apt-get install --no-install-recommends -y \
+    git git-lfs tini gpg tzdata connect-proxy openssh-client && \
     apt-get clean && \
-    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/doc/*
 
 COPY hack/gpg-wrapper.sh \
     hack/git-verify-wrapper.sh \
