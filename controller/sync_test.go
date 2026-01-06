@@ -1728,59 +1728,103 @@ func TestSecretNormalizingApplier(t *testing.T) {
 		settingsMgr: settingsMgr,
 	}
 
-	result, err := normalizer.ApplyResource(
-		t.Context(),
-		desired,
-		cmdutil.DryRunServer,
-		false, false, true, "argocd",
-	)
+	t.Run("core v1 secret is normalized during dry run", func(t *testing.T) {
+		result, err := normalizer.ApplyResource(
+			ctx,
+			desired,
+			cmdutil.DryRunServer,
+			false, false, true, "argocd",
+		)
+		require.NoError(t, err)
+		assert.Contains(t, result, "Secret")
 
-	require.NoError(t, err)
-	assert.Contains(t, result, "Secret")
+		// verify that the result is normalized
+		resultObj := &unstructured.Unstructured{}
+		err = json.Unmarshal([]byte(result), resultObj)
+		require.NoError(t, err)
 
-	// verify that the result is normalized
-	resultObj := &unstructured.Unstructured{}
-	err = json.Unmarshal([]byte(result), resultObj)
-	require.NoError(t, err)
+		assert.Equal(t, "Secret", resultObj.GetKind())
+		assert.Equal(t, "test-secret", resultObj.GetName())
 
-	assert.Equal(t, "Secret", resultObj.GetKind())
-	assert.Equal(t, "test-secret", resultObj.GetName())
+		// verify that HideSecretData was applied
+		data, found, err := unstructured.NestedMap(resultObj.Object, "data")
+		require.NoError(t, err)
+		assert.True(t, found, "data field should exist")
 
-	// verify that HideSecretData was applied
-	data, found, err := unstructured.NestedMap(resultObj.Object, "data")
-	require.NoError(t, err)
-	assert.True(t, found, "data field should exist")
+		// password should exist, but may be normalized
+		_, passwordExists := data["password"]
+		assert.True(t, passwordExists, "password should exist after normalization")
+		assert.NotEqual(t, live.Object["data"], data, "secret data should be normalized/masked")
 
-	// password should exist, but may be normalized
-	_, passwordExists := data["password"]
-	assert.True(t, passwordExists, "password should exist after normalization")
+		// normalize both using HideSecretData
+		_, normalizedGit, err := gitopsDiff.HideSecretData(nil, desired, settingsMgr.GetSensitiveAnnotations())
+		require.NoError(t, err)
 
-	// normalize both using HideSecretData
-	_, normalizedGit, err := gitopsDiff.HideSecretData(nil, desired, settingsMgr.GetSensitiveAnnotations())
-	require.NoError(t, err)
+		_, normalizedResult, err := gitopsDiff.HideSecretData(nil, resultObj, settingsMgr.GetSensitiveAnnotations())
+		require.NoError(t, err)
 
-	_, normalizedResult, err := gitopsDiff.HideSecretData(nil, resultObj, settingsMgr.GetSensitiveAnnotations())
-	require.NoError(t, err)
+		// diff between normalized secrets
+		diffResult, _ := gitopsDiff.Diff(normalizedGit, normalizedResult)
 
-	// diff between normalized secrets
-	diffResult, _ := gitopsDiff.Diff(normalizedGit, normalizedResult)
+		// verify that there is NO diff after normalization (mutation webhook changes don't cause OutOfSync)
+		assert.False(t, diffResult.Modified, "normalized secrets should not show as modified")
+		if diffResult.Modified {
+			t.Logf("NormalizedLive: %s", string(diffResult.NormalizedLive))
+			t.Logf("PredictedLive: %s", string(diffResult.PredictedLive))
+		}
 
-	// verify that there is NO diff after normalization (mutation webhook changes don't cause OutOfSync)
-	assert.False(t, diffResult.Modified, "normalized secrets should not show as modified")
-	if diffResult.Modified {
-		t.Logf("NormalizedLive: %s", string(diffResult.NormalizedLive))
-		t.Logf("PredictedLive: %s", string(diffResult.PredictedLive))
-	}
+		// both have the same structure
+		gitData, _, _ := unstructured.NestedMap(normalizedGit.Object, "data")
+		resultData, _, _ := unstructured.NestedMap(normalizedResult.Object, "data")
 
-	// both have the same structure
-	gitData, _, _ := unstructured.NestedMap(normalizedGit.Object, "data")
-	resultData, _, _ := unstructured.NestedMap(normalizedResult.Object, "data")
+		// should have password after normalization
+		_, gitHasPassword := gitData["password"]
+		_, resultHasPassword := resultData["password"]
+		assert.True(t, gitHasPassword, "git secret should have password field after normalization")
+		assert.True(t, resultHasPassword, "result secret should have password field after normalization")
+	})
 
-	// should have password  after normalization
-	_, gitHasPassword := gitData["password"]
-	_, resultHasPassword := resultData["password"]
-	assert.True(t, gitHasPassword, "Git secret should have password field after normalization")
-	assert.True(t, resultHasPassword, "Result secret should have password field after normalization")
+	t.Run("non-json result is returned unchanged", func(t *testing.T) {
+		nonJSON := "kubectl applied (dry-run)"
+		mockApplier.applyResult = func(obj *unstructured.Unstructured) string {
+			return nonJSON
+		}
+
+		result, err := normalizer.ApplyResource(ctx, desired, cmdutil.DryRunServer, false, false, true, "argocd")
+		assert.NoError(t, err)
+		assert.Equal(t, nonJSON, result, "wrapper should return non-json result without error")
+	})
+
+	t.Run("non-core group secret is not normalized", func(t *testing.T) {
+		customSecret := desired.DeepCopy()
+		customSecret.SetAPIVersion("custom.io/v1")
+
+		mockApplier.applyResult = func(obj *unstructured.Unstructured) string {
+			bytes, _ := json.Marshal(obj)
+			return string(bytes)
+		}
+
+		result, err := normalizer.ApplyResource(ctx, customSecret, cmdutil.DryRunServer, false, false, true, "argocd")
+		assert.NoError(t, err)
+
+		resultObj := &unstructured.Unstructured{}
+		json.Unmarshal([]byte(result), resultObj)
+		assert.Equal(t, customSecret.Object["data"], resultObj.Object["data"], "non-core secret should not be modified")
+	})
+
+	t.Run("normalization is skipped for non-dry run server", func(t *testing.T) {
+		mockApplier.applyResult = func(obj *unstructured.Unstructured) string {
+			bytes, _ := json.Marshal(live)
+			return string(bytes)
+		}
+
+		result, err := normalizer.ApplyResource(ctx, desired, cmdutil.DryRunNone, false, false, true, "argocd")
+		assert.NoError(t, err)
+
+		resultObj := &unstructured.Unstructured{}
+		json.Unmarshal([]byte(result), resultObj)
+		assert.Equal(t, live.Object["data"], resultObj.Object["data"])
+	})
 }
 
 type simpleKubeApplier struct {
@@ -1789,8 +1833,4 @@ type simpleKubeApplier struct {
 
 func (s *simpleKubeApplier) ApplyResource(_ context.Context, obj *unstructured.Unstructured, _ cmdutil.DryRunStrategy, _, _, _ bool, _ string) (string, error) {
 	return s.applyResult(obj), nil
-}
-
-func (s *simpleKubeApplier) ConvertToVersion(obj *unstructured.Unstructured, _, _ string) (*unstructured.Unstructured, error) {
-	return obj, nil
 }

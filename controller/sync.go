@@ -108,14 +108,24 @@ func (s *secretNormalizingApplier) ApplyResource(ctx context.Context, obj *unstr
 		return result, err
 	}
 
+	isCoreSecret := obj.GetKind() == kube.SecretKind && (obj.GroupVersionKind().Group == "" || obj.GroupVersionKind().Group == "core")
+	if dryRunStrategy != cmdutil.DryRunServer || !isCoreSecret {
+		return result, nil
+	}
+
+	trimmedResult := strings.TrimSpace(result)
+	if !strings.HasPrefix(trimmedResult, "{") {
+		return result, nil
+	}
+
 	resultObj := &unstructured.Unstructured{}
 	if err := json.Unmarshal([]byte(result), resultObj); err != nil {
-		return result, err
+		return result, nil
 	}
 
 	// Apply hideSecretData
-	if resultObj.GetKind() == kube.SecretKind && resultObj.GroupVersionKind().Group == "" {
-		_, normalized, err := gitopsDiff.HideSecretData(nil, resultObj, s.settingsMgr.GetSensitiveAnnotations())
+	if resultObj.GetKind() == kube.SecretKind && (resultObj.GroupVersionKind().Group == "" || resultObj.GroupVersionKind().Group == "core") {
+		_, normalized, err := gitopsDiff.HideSecretData(obj, resultObj, s.settingsMgr.GetSensitiveAnnotations())
 		if err != nil {
 			return result, fmt.Errorf("error normalizing secret data: %w", err)
 		}
