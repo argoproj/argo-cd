@@ -2287,8 +2287,6 @@ func (c *Cluster) Sanitized() *Cluster {
 		Labels:             c.Labels,
 		Annotations:        c.Annotations,
 		ClusterResources:   c.ClusterResources,
-		ConnectionState:    c.ConnectionState,
-		ServerVersion:      c.ServerVersion,
 		Info:               c.Info,
 		RefreshRequestedAt: c.RefreshRequestedAt,
 		Config: ClusterConfig{
