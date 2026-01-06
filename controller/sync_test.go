@@ -1785,14 +1785,14 @@ func TestSecretNormalizingApplier(t *testing.T) {
 	})
 
 	t.Run("non-json result is returned unchanged", func(t *testing.T) {
-		nonJSON := "kubectl applied (dry-run)"
-		mockApplier.applyResult = func(obj *unstructured.Unstructured) string {
+		nonJSON := "kubectl applied dry-run"
+		mockApplier.applyResult = func(_ *unstructured.Unstructured) string {
 			return nonJSON
 		}
 
 		result, err := normalizer.ApplyResource(ctx, desired, cmdutil.DryRunServer, false, false, true, "argocd")
-		assert.NoError(t, err)
-		assert.Equal(t, nonJSON, result, "wrapper should return non-json result without error")
+		require.NoError(t, err)
+		assert.Equal(t, nonJSON, result, "wrapper should return non-json result without error") //nolint:testifylint
 	})
 
 	t.Run("non-core group secret is not normalized", func(t *testing.T) {
@@ -1805,24 +1805,28 @@ func TestSecretNormalizingApplier(t *testing.T) {
 		}
 
 		result, err := normalizer.ApplyResource(ctx, customSecret, cmdutil.DryRunServer, false, false, true, "argocd")
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		resultObj := &unstructured.Unstructured{}
-		json.Unmarshal([]byte(result), resultObj)
+		err = json.Unmarshal([]byte(result), resultObj)
+		require.NoError(t, err)
+
 		assert.Equal(t, customSecret.Object["data"], resultObj.Object["data"], "non-core secret should not be modified")
 	})
 
 	t.Run("normalization is skipped for non-dry run server", func(t *testing.T) {
-		mockApplier.applyResult = func(obj *unstructured.Unstructured) string {
+		mockApplier.applyResult = func(_ *unstructured.Unstructured) string {
 			bytes, _ := json.Marshal(live)
 			return string(bytes)
 		}
 
 		result, err := normalizer.ApplyResource(ctx, desired, cmdutil.DryRunNone, false, false, true, "argocd")
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		resultObj := &unstructured.Unstructured{}
-		json.Unmarshal([]byte(result), resultObj)
+		err = json.Unmarshal([]byte(result), resultObj)
+		require.NoError(t, err)
+
 		assert.Equal(t, live.Object["data"], resultObj.Object["data"])
 	})
 }
