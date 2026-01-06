@@ -586,6 +586,8 @@ type SettingsManager struct {
 	tlsCertCache              *tls.Certificate
 	tlsCertCacheSecretName    string
 	tlsCertCacheSecretVersion string
+	// clusterInformer provides optimized cluster lookups using informer transforms
+	clusterInformer *ClusterInformer
 }
 
 type incompleteSettingsError struct {
@@ -655,6 +657,13 @@ func (mgr *SettingsManager) GetSecretsInformer() (cache.SharedIndexInformer, err
 		return nil, fmt.Errorf("error ensuring that the secrets manager is synced: %w", err)
 	}
 	return mgr.secretsInformer, nil
+}
+
+// GetClusterInformer returns the cluster cache for optimized cluster lookups.
+func (mgr *SettingsManager) GetClusterInformer() *ClusterInformer {
+	// Ensure the settings manager is initialized
+	_ = mgr.ensureSynced(false)
+	return mgr.clusterInformer
 }
 
 func (mgr *SettingsManager) updateSecret(callback func(*corev1.Secret) error) error {
@@ -1344,12 +1353,22 @@ func (mgr *SettingsManager) initialize(ctx context.Context) error {
 	}
 	cmInformer := informersv1.NewFilteredConfigMapInformer(mgr.clientset, mgr.namespace, 3*time.Minute, indexers, tweakConfigMap)
 	secretsInformer := informersv1.NewSecretInformer(mgr.clientset, mgr.namespace, 3*time.Minute, indexers)
-	_, err := cmInformer.AddEventHandler(eventHandler)
+	clusterInformer, err := NewClusterInformer(mgr.clientset, mgr.namespace)
+	if err != nil {
+		log.Error(err)
+	}
+
+	_, err = cmInformer.AddEventHandler(eventHandler)
 	if err != nil {
 		log.Error(err)
 	}
 
 	_, err = secretsInformer.AddEventHandler(eventHandler)
+	if err != nil {
+		log.Error(err)
+	}
+
+	_, err = clusterInformer.AddEventHandler(eventHandler)
 	if err != nil {
 		log.Error(err)
 	}
@@ -1364,10 +1383,18 @@ func (mgr *SettingsManager) initialize(ctx context.Context) error {
 		log.Info("secrets informer cancelled")
 	}()
 
-	if !cache.WaitForCacheSync(ctx.Done(), cmInformer.HasSynced, secretsInformer.HasSynced) {
+	go func() {
+		clusterInformer.Run(ctx.Done())
+		log.Info("cluster secrets informer cancelled")
+	}()
+
+	if !cache.WaitForCacheSync(ctx.Done(), cmInformer.HasSynced, secretsInformer.HasSynced, clusterInformer.HasSynced) {
 		return errors.New("timed out waiting for settings cache to sync")
 	}
 	log.Info("Configmap/secret informer synced")
+
+	mgr.clusterInformer = clusterInformer
+	log.Info("Cluster cache informer synced")
 
 	tryNotify := func() {
 		newSettings, err := mgr.GetSettings()

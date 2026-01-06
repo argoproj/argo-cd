@@ -235,18 +235,30 @@ type nativeOCIClient struct {
 
 // TestRepo verifies that the remote OCI repo can be connected to.
 func (c *nativeOCIClient) TestRepo(ctx context.Context) (bool, error) {
-	defer c.OnTestRepo(c.repoURL)()
-
+	inc := c.OnTestRepo(c.repoURL)
+	defer inc()
+	// Currently doesn't do anything in regard to measuring spans, but keep it consistent with OnTestRepo()
+	fail := c.OnTestRepoFail(c.repoURL)
 	err := c.pingFunc(ctx)
 	if err != nil {
-		defer c.OnTestRepoFail(c.repoURL)()
+		fail()
 	}
 	return err == nil, err
 }
 
 func (c *nativeOCIClient) Extract(ctx context.Context, digest string) (string, utilio.Closer, error) {
-	defer c.OnExtract(c.repoURL)()
+	inc := c.OnExtract(c.repoURL)
+	defer inc()
+	// Currently doesn't do anything in regard to measuring spans, but keep it consistent with OnExtract()
+	fail := c.OnExtractFail(c.repoURL)
+	extract, closer, err := c.extract(ctx, digest)
+	if err != nil {
+		fail(digest)
+	}
+	return extract, closer, err
+}
 
+func (c *nativeOCIClient) extract(ctx context.Context, digest string) (string, utilio.Closer, error) {
 	cachedPath, err := c.getCachedPath(digest)
 	if err != nil {
 		return "", nil, fmt.Errorf("error getting oci path for digest %s: %w", digest, err)
@@ -263,7 +275,6 @@ func (c *nativeOCIClient) Extract(ctx context.Context, digest string) (string, u
 	if !exists {
 		ociManifest, err := getOCIManifest(ctx, digest, c.repo)
 		if err != nil {
-			defer c.OnExtractFail(c.repoURL)(digest)
 			return "", nil, err
 		}
 
@@ -330,8 +341,18 @@ func (c *nativeOCIClient) CleanCache(revision string) error {
 
 // DigestMetadata extracts the OCI manifest for a given revision and returns it to the caller.
 func (c *nativeOCIClient) DigestMetadata(ctx context.Context, digest string) (*imagev1.Manifest, error) {
-	defer c.OnDigestMetadata(c.repoURL)()
+	inc := c.OnDigestMetadata(c.repoURL)
+	defer inc()
+	// Currently doesn't do anything in regard to measuring spans, but keep it consistent with OnDigestMetadata()
+	fail := c.OnDigestMetadataFail(c.repoURL)
+	metadata, err := c.digestMetadata(ctx, digest)
+	if err != nil {
+		fail(digest)
+	}
+	return metadata, err
+}
 
+func (c *nativeOCIClient) digestMetadata(ctx context.Context, digest string) (*imagev1.Manifest, error) {
 	path, err := c.getCachedPath(digest)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching oci metadata path for digest %s: %w", digest, err)
@@ -346,8 +367,18 @@ func (c *nativeOCIClient) DigestMetadata(ctx context.Context, digest string) (*i
 }
 
 func (c *nativeOCIClient) ResolveRevision(ctx context.Context, revision string, noCache bool) (string, error) {
-	defer c.OnResolveRevision(c.repoURL)()
+	inc := c.OnResolveRevision(c.repoURL)
+	defer inc()
+	// Currently doesn't do anything in regard to measuring spans, but keep it consistent with OnResolveRevision()
+	fail := c.OnResolveRevisionFail(c.repoURL)
+	resolveRevision, err := c.resolveRevision(ctx, revision, noCache)
+	if err != nil {
+		fail(revision)
+	}
+	return resolveRevision, err
+}
 
+func (c *nativeOCIClient) resolveRevision(ctx context.Context, revision string, noCache bool) (string, error) {
 	digest, err := c.resolveDigest(ctx, revision) // Lookup explicit revision
 	if err != nil {
 		// If the revision is not a semver constraint, just return the error
@@ -373,7 +404,18 @@ func (c *nativeOCIClient) ResolveRevision(ctx context.Context, revision string, 
 }
 
 func (c *nativeOCIClient) GetTags(ctx context.Context, noCache bool) ([]string, error) {
-	defer c.OnGetTags(c.repoURL)()
+	inc := c.OnGetTags(c.repoURL)
+	defer inc()
+	// Currently doesn't do anything in regard to measuring spans, but keep it consistent with OnGetTags()
+	fail := c.OnGetTagsFail(c.repoURL)
+	tags, err := c.getTags(ctx, noCache)
+	if err != nil {
+		fail()
+	}
+	return tags, err
+}
+
+func (c *nativeOCIClient) getTags(ctx context.Context, noCache bool) ([]string, error) {
 	indexLock.Lock(c.repoURL)
 	defer indexLock.Unlock(c.repoURL)
 
@@ -389,7 +431,6 @@ func (c *nativeOCIClient) GetTags(ctx context.Context, noCache bool) ([]string, 
 		start := time.Now()
 		result, err := c.tagsFunc(ctx, "")
 		if err != nil {
-			defer c.OnDigestMetadataFail(c.repoURL)
 			return nil, fmt.Errorf("failed to get tags: %w", err)
 		}
 
@@ -419,7 +460,6 @@ func (c *nativeOCIClient) GetTags(ctx context.Context, noCache bool) ([]string, 
 func (c *nativeOCIClient) resolveDigest(ctx context.Context, revision string) (string, error) {
 	descriptor, err := c.repo.Resolve(ctx, revision)
 	if err != nil {
-		defer c.OnResolveRevisionFail(c.repoURL)(revision)
 		return "", fmt.Errorf("cannot get digest for revision %s: %w", revision, err)
 	}
 

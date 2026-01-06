@@ -10,11 +10,20 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/argoproj/argo-cd/v3/util/proxy"
+
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/test/fixture/log"
 	"github.com/argoproj/argo-cd/v3/test/fixture/path"
 	"github.com/argoproj/argo-cd/v3/test/fixture/test"
 )
+
+func TestMain(m *testing.M) {
+	// Ensure tests use non-cached proxy callback
+	proxy.UseTestingProxyCallback()
+
+	os.Exit(m.Run())
+}
 
 func TestIsCommitSHA(t *testing.T) {
 	assert.True(t, IsCommitSHA("9d921f65f3c5373b682e2eb4b37afba6592e8f8b"))

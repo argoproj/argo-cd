@@ -213,6 +213,10 @@ ifdef IMAGE_NAMESPACE
 IMAGE_PREFIX=${IMAGE_NAMESPACE}/
 endif
 
+ifndef IMAGE_REGISTRY
+IMAGE_REGISTRY="quay.io"
+endif
+
 .PHONY: all
 all: cli image
 
@@ -308,12 +312,11 @@ endif
 .PHONY: manifests-local
 manifests-local:
 	./hack/update-manifests.sh
-
 .PHONY: manifests
 manifests: test-tools-image
-	$(call run-in-test-client,make manifests-local IMAGE_NAMESPACE='${IMAGE_NAMESPACE}' IMAGE_TAG='${IMAGE_TAG}')
-
+	$(call run-in-test-client,make manifests-local IMAGE_REGISTRY='${IMAGE_REGISTRY}' IMAGE_NAMESPACE='${IMAGE_NAMESPACE}' IMAGE_REPOSITORY='${IMAGE_REPOSITORY}' IMAGE_TAG='${IMAGE_TAG}')
 # consolidated binary for cli, util, server, repo-server, controller
+
 .PHONY: argocd-all
 argocd-all: clean-debug
 	CGO_ENABLED=${CGO_FLAG} GOOS=${GOOS} GOARCH=${GOARCH} GODEBUG="tarinsecurepath=0,zipinsecurepath=0" go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${BIN_NAME} ./cmd
@@ -426,12 +429,18 @@ test: test-tools-image
 
 # Run all unit tests (local version)
 .PHONY: test-local
-test-local:
+test-local: test-gitops-engine
 	if test "$(TEST_MODULE)" = ""; then \
 		DIST_DIR=${DIST_DIR} RERUN_FAILS=0 PACKAGES=`go list ./... | grep -v 'test/e2e'` ./hack/test.sh -args -test.gocoverdir="$(PWD)/test-results"; \
 	else \
 		DIST_DIR=${DIST_DIR} RERUN_FAILS=0 PACKAGES="$(TEST_MODULE)" ./hack/test.sh -args -test.gocoverdir="$(PWD)/test-results" "$(TEST_MODULE)"; \
 	fi
+
+# Run gitops-engine unit tests
+.PHONY: test-gitops-engine
+test-gitops-engine:
+	mkdir -p $(PWD)/test-results
+	cd gitops-engine && go test -race -cover ./... -args -test.gocoverdir="$(PWD)/test-results"
 
 .PHONY: test-race
 test-race: test-tools-image
@@ -504,6 +513,7 @@ start-e2e-local: mod-vendor-local dep-ui-local cli-local
 	ARGOCD_GPG_ENABLED=$(ARGOCD_GPG_ENABLED) \
 	ARGOCD_PLUGINCONFIGFILEPATH=/tmp/argo-e2e/app/config/plugin \
 	ARGOCD_PLUGINSOCKFILEPATH=/tmp/argo-e2e/app/config/plugin \
+	ARGOCD_GIT_CONFIG=$(PWD)/test/e2e/fixture/gitconfig \
 	ARGOCD_E2E_DISABLE_AUTH=false \
 	ARGOCD_ZJWT_FEATURE_FLAG=always \
 	ARGOCD_IN_CI=$(ARGOCD_IN_CI) \
