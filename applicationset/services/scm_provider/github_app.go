@@ -9,9 +9,9 @@ import (
 	appsetutils "github.com/argoproj/argo-cd/v3/applicationset/utils"
 )
 
-func NewGithubAppProviderFor(ctx context.Context, g github_app_auth.Authentication, organization string, url string, allBranches bool, excludeArchivedRepos bool, optionalHTTPClient ...*http.Client) (*GithubProvider, error) {
+func NewGithubAppProviderFor(ctx context.Context, g github_app_auth.Authentication, organization string, url string, allBranches bool, excludeArchivedRepos bool, enableTokenCache bool, optionalHTTPClient ...*http.Client) (*GithubProvider, error) {
 	httpClient := appsetutils.GetOptionalHTTPClient(optionalHTTPClient...)
-	client, err := github_app.Client(ctx, g, url, organization, httpClient)
+	client, err := github_app.Client(ctx, g, url, organization, enableTokenCache, httpClient)
 	if err != nil {
 		return nil, err
 	}
