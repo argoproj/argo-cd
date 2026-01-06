@@ -29,9 +29,9 @@ func AddCustomCACert(t *testing.T) {
 		errors.NewHandler(t).FailOnErr(fixture.RunCli(args...))
 		certData, err := os.ReadFile(caCertPath)
 		require.NoError(t, err)
-		err = os.WriteFile(fixture.TmpDir+"/app/config/tls/localhost", certData, 0o644)
+		err = os.WriteFile(fixture.TmpDir()+"/app/config/tls/localhost", certData, 0o644)
 		require.NoError(t, err)
-		err = os.WriteFile(fixture.TmpDir+"/app/config/tls/127.0.0.1", certData, 0o644)
+		err = os.WriteFile(fixture.TmpDir()+"/app/config/tls/127.0.0.1", certData, 0o644)
 		require.NoError(t, err)
 	} else {
 		args := []string{"cert", "add-tls", "argocd-e2e-server", "--upsert", "--from", caCertPath}
@@ -58,7 +58,7 @@ func AddCustomSSHKnownHostsKeys(t *testing.T) {
 	if fixture.IsLocal() {
 		knownHostsData, err := os.ReadFile(knownHostsPath)
 		require.NoError(t, err)
-		err = os.WriteFile(fixture.TmpDir+"/app/config/ssh/ssh_known_hosts", knownHostsData, 0o644)
+		err = os.WriteFile(fixture.TmpDir()+"/app/config/ssh/ssh_known_hosts", knownHostsData, 0o644)
 		require.NoError(t, err)
 	} else {
 		fixture.RestartAPIServer(t)
