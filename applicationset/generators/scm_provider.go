@@ -37,16 +37,20 @@ type SCMConfig struct {
 	allowedSCMProviders    []string
 	enableSCMProviders     bool
 	enableGitHubAPIMetrics bool
+	enableGitHubCache      bool
+	githubCacheSize        int
 	GitHubApps             github_app_auth.Credentials
 	tokenRefStrictMode     bool
 }
 
-func NewSCMConfig(scmRootCAPath string, allowedSCMProviders []string, enableSCMProviders bool, enableGitHubAPIMetrics bool, gitHubApps github_app_auth.Credentials, tokenRefStrictMode bool) SCMConfig {
+func NewSCMConfig(scmRootCAPath string, allowedSCMProviders []string, enableSCMProviders bool, enableGitHubAPIMetrics bool, enableGitHubCache bool, githubCacheSize int, gitHubApps github_app_auth.Credentials, tokenRefStrictMode bool) SCMConfig {
 	return SCMConfig{
 		scmRootCAPath:          scmRootCAPath,
 		allowedSCMProviders:    allowedSCMProviders,
 		enableSCMProviders:     enableSCMProviders,
 		enableGitHubAPIMetrics: enableGitHubAPIMetrics,
+		enableGitHubCache:      enableGitHubCache,
+		githubCacheSize:        githubCacheSize,
 		GitHubApps:             gitHubApps,
 		tokenRefStrictMode:     tokenRefStrictMode,
 	}
@@ -279,6 +283,7 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 
 func (g *SCMProviderGenerator) githubProvider(ctx context.Context, github *argoprojiov1alpha1.SCMProviderGeneratorGithub, applicationSetInfo *argoprojiov1alpha1.ApplicationSet) (scm_provider.SCMProviderService, error) {
 	var metricsCtx *services.MetricsContext
+	var cacheCtx *services.GitHubCacheContext
 	var httpClient *http.Client
 
 	if g.enableGitHubAPIMetrics {
@@ -289,13 +294,25 @@ func (g *SCMProviderGenerator) githubProvider(ctx context.Context, github *argop
 		httpClient = services.NewGitHubMetricsClient(metricsCtx)
 	}
 
+	if g.enableGitHubCache {
+		cacheCtx = &services.GitHubCacheContext{
+			AppSecretName: github.AppSecretName,
+			TokenRef:      github.TokenRef,
+		}
+		if g.enableGitHubAPIMetrics {
+			httpClient = services.NewGitHubCache(cacheCtx, g.githubCacheSize, httpClient.Transport)
+		} else {
+			httpClient = services.NewGitHubCache(cacheCtx, g.githubCacheSize, nil)
+		}
+	}
+
 	if github.AppSecretName != "" {
 		auth, err := g.GitHubApps.GetAuthSecret(ctx, github.AppSecretName)
 		if err != nil {
 			return nil, fmt.Errorf("error fetching Github app secret: %w", err)
 		}
 
-		if g.enableGitHubAPIMetrics {
+		if g.enableGitHubAPIMetrics || g.enableGitHubCache {
 			return scm_provider.NewGithubAppProviderFor(ctx, *auth, github.Organization, github.API, github.AllBranches, httpClient)
 		}
 		return scm_provider.NewGithubAppProviderFor(ctx, *auth, github.Organization, github.API, github.AllBranches)
@@ -306,7 +323,7 @@ func (g *SCMProviderGenerator) githubProvider(ctx context.Context, github *argop
 		return nil, fmt.Errorf("error fetching Github token: %w", err)
 	}
 
-	if g.enableGitHubAPIMetrics {
+	if g.enableGitHubAPIMetrics || g.enableGitHubCache {
 		return scm_provider.NewGithubProvider(github.Organization, token, github.API, github.AllBranches, httpClient)
 	}
 	return scm_provider.NewGithubProvider(github.Organization, token, github.API, github.AllBranches)
