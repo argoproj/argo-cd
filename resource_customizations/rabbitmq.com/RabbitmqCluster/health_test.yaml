@@ -4,11 +4,11 @@ tests:
     message: Unknown 'foo' parameter
   inputPath: testdata/degraded_badconfig.yaml
 - healthStatus:
-    status: Degraded
+    status: Progressing
     message: No statefulset or endpoints found
   inputPath: testdata/degraded_cluster_unknown.yaml
 - healthStatus:
-    status: Degraded
+    status: Progressing
     message: No statefulset or endpoints found
   inputPath: testdata/degraded_replicas_unknown.yaml
 - healthStatus:
