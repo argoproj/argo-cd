@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/argoproj/argo-cd/v3/server/applicationset"
 	"reflect"
 	"slices"
 	"sort"
@@ -128,13 +127,6 @@ func NewServer(
 	// Register Application-level broadcaster to receive create/update/delete events
 	// and handle general application event processing.
 	_, err := appInformer.AddEventHandler(appBroadcaster)
-	if err != nil {
-		log.Error(err)
-	}
-	// Register ApplicationSet-specific broadcaster on the Application informer.
-	// This handler listens to Application events to drive ApplicationSet logic,
-	// so it must be attached to the Application informer (not the Project informer).
-	_, err = appInformer.AddEventHandler(appSetBroadcaster)
 	if err != nil {
 		log.Error(err)
 	}

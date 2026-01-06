@@ -70,11 +70,8 @@ type Server struct {
 }
 
 func (s *Server) Watch(q *applicationset.ApplicationSetWatchQuery, ws applicationset.ApplicationSetService_WatchServer) error {
-	fmt.Println("hello")
-	appsetName := q.GetName()
-	appsetNs := s.appsetNamespaceOrDefault(q.GetAppSetNamespace())
 	logCtx := log.NewEntry(log.New())
-	if q.Name != nil {
+	if q.Name != "" {
 		logCtx = logCtx.WithField("applicationset", q.Name)
 	}
 	selector, err := labels.Parse(q.GetSelector())
@@ -83,7 +80,10 @@ func (s *Server) Watch(q *applicationset.ApplicationSetWatchQuery, ws applicatio
 	}
 	claims := ws.Context().Value("claims")
 	sendIfPermitted := func(a v1alpha1.ApplicationSet, eventType watch.EventType) {
-		// TODO: check for permissions
+		permitted := s.isApplicationsetPermitted(claims, a)
+		if !permitted {
+			return
+		}
 		err := ws.Send(&v1alpha1.ApplicationSetWatchEvent{
 			Type:           eventType,
 			ApplicationSet: a,
@@ -97,25 +97,39 @@ func (s *Server) Watch(q *applicationset.ApplicationSetWatchQuery, ws applicatio
 	if q.GetName() != "" {
 		appsets, err := s.appsetLister.List(selector)
 		if err != nil {
-			return fmt.Errorf("error listing apps with selector: %w", err)
+			return fmt.Errorf("error listing appsets with selector: %w", err)
 		}
 		sort.Slice(appsets, func(i, j int) bool {
-			return apps[i].QualifiedName() < apps[j].QualifiedName()
+			return appsets[i].QualifiedName() < appsets[j].QualifiedName()
 		})
 		for i := range appsets {
 			sendIfPermitted(*appsets[i], watch.Added)
 		}
 	}
-	unsubscribe := s.appclientset.Subscribe(events)
+	unsubscribe := s.appSetBroadcaster.Subscribe(events)
 	defer unsubscribe()
 	for {
 		select {
 		case event := <-events:
-			sendIfPermitted(event.Application, event.Type)
+			sendIfPermitted(event.ApplicationSet, event.Type)
 		case <-ws.Context().Done():
 			return nil
 		}
 	}
+}
+
+func (s *Server) isApplicationsetPermitted(claims any, appset v1alpha1.ApplicationSet) bool {
+	// Skip any applicationsets that is neither in the conrol plane's namespace
+	// nor in the list of enabled namespaces.
+	if !security.IsNamespaceEnabled(appset.Namespace, s.ns, s.enabledNamespaces) {
+		return false
+	}
+
+	if !s.enf.Enforce(claims, rbac.ResourceApplicationSets, rbac.ActionGet, appset.RBACName(s.ns)) {
+		return false
+	}
+
+	return true
 }
 
 // NewServer returns a new instance of the ApplicationSet service
@@ -141,7 +155,15 @@ func NewServer(
 	enableGitHubAPIMetrics bool,
 	enableK8sEvent []string,
 ) applicationset.ApplicationSetServiceServer {
-	// TODO add broadcaster
+	if appSetBroadcaster == nil {
+		appSetBroadcaster = &BroadcasterHandler{}
+	}
+	// Register ApplicationSet level broadcaster to receive create/update/delete events
+	// and handle general applicationset event processing.
+	_, err := appsetInformer.AddEventHandler(appSetBroadcaster)
+	if err != nil {
+		log.Error(err)
+	}
 	s := &Server{
 		ns:                       namespace,
 		db:                       db,
@@ -192,7 +214,7 @@ func (s *Server) List(ctx context.Context, q *applicationset.ApplicationSetListQ
 
 	newItems := make([]v1alpha1.ApplicationSet, 0)
 	for _, a := range appsets {
-		// Skip any application that is neither in the conrol plane's namespace
+		// Skip any applicationsets that is neither in the conrol plane's namespace
 		// nor in the list of enabled namespaces.
 		if !security.IsNamespaceEnabled(a.Namespace, s.ns, s.enabledNamespaces) {
 			continue
