@@ -444,13 +444,13 @@ If you can avoid using these features, you can avoid triggering the error. The o
 
 ### How do I fix `grpc: error while marshaling: string field contains invalid UTF-8`?
 
-After upgrading Kubernetes (for example, from GKE v1.33.x to v1.34.x), Argo CD components may stop working and pods may 
+On Kubernetes v1.34.x clusters, Argo CD components may stop working and pods may 
 fail to start with errors such as:
 
 ```
 Error: grpc: error while marshaling: string field contains invalid UTF-8
 ```
-This issue typically affects pods that reference Kubernetes secrets via enviornment variables, for eg. 
+This issue typically affects pods that reference Kubernetes secrets via environment variables, e.g. 
 ```yaml
 env:
   - name: REDIS_PASSWORD
@@ -464,7 +464,7 @@ Kubernetes environment variables must be valid UTF-8 strings. In affected cluste
 ASCII-only values.
 
 #### How do I fix the issue?
-Inspect the decoded Reids password
+Inspect the decoded Redis password
 ```bash
 kubectl get -n argocd secret argocd-redis -o json \
     | jq -r '.data.auth' | base64 --decode | xxd
