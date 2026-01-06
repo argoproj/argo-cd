@@ -1951,19 +1951,19 @@ func TestSyncContext_GetDeleteOptions_WithPrunePropagationPolicy(t *testing.T) {
 	assert.Equal(t, metav1.DeletePropagationBackground, *opts.PropagationPolicy)
 }
 
-func TestSetOperationFailed(t *testing.T) {
+func TestExecuteSyncFailPhase(t *testing.T) {
 	sc := syncContext{}
 	sc.log = textlogger.NewLogger(textlogger.NewConfig()).WithValues("application", "fake-app")
 
 	tasks := make([]*syncTask, 0)
 	tasks = append(tasks, &syncTask{message: "namespace not found"})
 
-	sc.setOperationFailed(nil, tasks, "one or more objects failed to apply")
+	sc.executeSyncFailPhase(nil, tasks, "one or more objects failed to apply")
 
 	assert.Equal(t, "one or more objects failed to apply, reason: namespace not found", sc.message)
 }
 
-func TestSetOperationFailedDuplicatedMessages(t *testing.T) {
+func TestExecuteSyncFailPhase_DuplicatedMessages(t *testing.T) {
 	sc := syncContext{}
 	sc.log = textlogger.NewLogger(textlogger.NewConfig()).WithValues("application", "fake-app")
 
@@ -1971,16 +1971,16 @@ func TestSetOperationFailedDuplicatedMessages(t *testing.T) {
 	tasks = append(tasks, &syncTask{message: "namespace not found"})
 	tasks = append(tasks, &syncTask{message: "namespace not found"})
 
-	sc.setOperationFailed(nil, tasks, "one or more objects failed to apply")
+	sc.executeSyncFailPhase(nil, tasks, "one or more objects failed to apply")
 
 	assert.Equal(t, "one or more objects failed to apply, reason: namespace not found", sc.message)
 }
 
-func TestSetOperationFailedNoTasks(t *testing.T) {
+func TestExecuteSyncFailPhase_NoTasks(t *testing.T) {
 	sc := syncContext{}
 	sc.log = textlogger.NewLogger(textlogger.NewConfig()).WithValues("application", "fake-app")
 
-	sc.setOperationFailed(nil, nil, "one or more objects failed to apply")
+	sc.executeSyncFailPhase(nil, nil, "one or more objects failed to apply")
 
 	assert.Equal(t, "one or more objects failed to apply", sc.message)
 }
@@ -2223,15 +2223,15 @@ func TestWaitForCleanUpBeforeNextWave(t *testing.T) {
 
 	var phase synccommon.OperationPhase
 	var msg string
-	var result []synccommon.ResourceSyncResult
+	var results []synccommon.ResourceSyncResult
 
 	// 1st sync should prune only pod3
 	syncCtx.Sync()
-	phase, _, result = syncCtx.GetState()
+	phase, _, results = syncCtx.GetState()
 	assert.Equal(t, synccommon.OperationRunning, phase)
-	assert.Len(t, result, 1)
-	assert.Equal(t, "pod-3", result[0].ResourceKey.Name)
-	assert.Equal(t, synccommon.ResultCodePruned, result[0].Status)
+	assert.Len(t, results, 1)
+	assert.Equal(t, "pod-3", results[0].ResourceKey.Name)
+	assert.Equal(t, synccommon.ResultCodePruned, results[0].Status)
 
 	// simulate successful delete of pod3
 	syncCtx.resources = groupResources(ReconciliationResult{
@@ -2241,11 +2241,11 @@ func TestWaitForCleanUpBeforeNextWave(t *testing.T) {
 
 	// next sync should prune only pod2
 	syncCtx.Sync()
-	phase, _, result = syncCtx.GetState()
+	phase, _, results = syncCtx.GetState()
 	assert.Equal(t, synccommon.OperationRunning, phase)
-	assert.Len(t, result, 2)
-	assert.Equal(t, "pod-2", result[1].ResourceKey.Name)
-	assert.Equal(t, synccommon.ResultCodePruned, result[1].Status)
+	assert.Len(t, results, 2)
+	assert.Equal(t, "pod-2", results[1].ResourceKey.Name)
+	assert.Equal(t, synccommon.ResultCodePruned, results[1].Status)
 
 	// add delete timestamp on pod2 to simulate pending delete
 	pod2.SetDeletionTimestamp(&metav1.Time{Time: time.Now()})
@@ -2253,10 +2253,10 @@ func TestWaitForCleanUpBeforeNextWave(t *testing.T) {
 	// next sync should wait for deletion of pod2 from cluster,
 	// it should not move to next wave and prune pod1
 	syncCtx.Sync()
-	phase, msg, result = syncCtx.GetState()
+	phase, msg, results = syncCtx.GetState()
 	assert.Equal(t, synccommon.OperationRunning, phase)
 	assert.Equal(t, "waiting for deletion of /Pod/pod-2", msg)
-	assert.Len(t, result, 2)
+	assert.Len(t, results, 2)
 
 	// simulate successful delete of pod2
 	syncCtx.resources = groupResources(ReconciliationResult{
@@ -2267,15 +2267,15 @@ func TestWaitForCleanUpBeforeNextWave(t *testing.T) {
 	// next sync should proceed with next wave
 	// i.e deletion of pod1
 	syncCtx.Sync()
-	phase, _, result = syncCtx.GetState()
+	phase, _, results = syncCtx.GetState()
 	assert.Equal(t, synccommon.OperationSucceeded, phase)
-	assert.Len(t, result, 3)
-	assert.Equal(t, "pod-3", result[0].ResourceKey.Name)
-	assert.Equal(t, "pod-2", result[1].ResourceKey.Name)
-	assert.Equal(t, "pod-1", result[2].ResourceKey.Name)
-	assert.Equal(t, synccommon.ResultCodePruned, result[0].Status)
-	assert.Equal(t, synccommon.ResultCodePruned, result[1].Status)
-	assert.Equal(t, synccommon.ResultCodePruned, result[2].Status)
+	assert.Len(t, results, 3)
+	assert.Equal(t, "pod-3", results[0].ResourceKey.Name)
+	assert.Equal(t, "pod-2", results[1].ResourceKey.Name)
+	assert.Equal(t, "pod-1", results[2].ResourceKey.Name)
+	assert.Equal(t, synccommon.ResultCodePruned, results[0].Status)
+	assert.Equal(t, synccommon.ResultCodePruned, results[1].Status)
+	assert.Equal(t, synccommon.ResultCodePruned, results[2].Status)
 }
 
 func BenchmarkSync(b *testing.B) {
