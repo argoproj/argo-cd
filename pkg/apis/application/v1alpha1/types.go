@@ -153,6 +153,17 @@ func NewEnvEntry(text string) (*EnvEntry, error) {
 	}, nil
 }
 
+// splitKeyValue splits a string on the first '=' and returns key, value and
+// a boolean indicating success. It is unexported and intended to replace
+// repeated SplitN+len checks.
+func splitKeyValue(s string) (string, string, bool) {
+	parts := strings.SplitN(s, "=", 2)
+	if len(parts) != 2 {
+		return "", "", false
+	}
+	return parts[0], parts[1], true
+}
+
 // Env is a list of environment variable entries
 type Env []*EnvEntry
 
@@ -210,13 +221,10 @@ const (
 )
 
 func NewParamEntry(text string, paramType ParamType) (*ParamEntry, error) {
-	parts := strings.SplitN(text, "=", 2)
-	if len(parts) != 2 {
+	name, value, ok := splitKeyValue(text)
+	if !ok {
 		return nil, fmt.Errorf("expected parameter entry of the form: param=string, param=map, or param=array. Received: %s", text)
 	}
-
-	name := parts[0]
-	value := parts[1]
 
 	switch paramType {
 	case ParamTypeString:
@@ -229,11 +237,11 @@ func NewParamEntry(text string, paramType ParamType) (*ParamEntry, error) {
 		keyValues := strings.Split(value, ",")
 
 		for _, kv := range keyValues {
-			kvParts := strings.SplitN(kv, "=", 2)
-			if len(kvParts) != 2 {
+			k, v, ok := splitKeyValue(kv)
+			if !ok {
 				return nil, fmt.Errorf("invalid map format: %s", kv)
 			}
-			mapValues[kvParts[0]] = kvParts[1]
+			mapValues[k] = v
 		}
 
 		return &ParamEntry{
@@ -1219,12 +1227,12 @@ func (c *ApplicationSourcePlugin) RemoveEnvEntry(key string) error {
 
 // AddParamEntry merges an ParamEntry into a list of entries. If an entry with the same name already exists,
 // its string/map/array will be overwritten. Otherwise, the entry is appended to the list.
-func (c *ApplicationSourcePlugin) AddParamEntry(p *ParamEntry, paramType ParamType) {
+func (c *ApplicationSourcePlugin) AddParamEntry(p *ParamEntry, paramType string) {
 	found := false
 	for i, cp := range c.Parameters {
 		if cp.Name == p.Name {
 			found = true
-			switch paramType {
+			switch ParamType(paramType) {
 			case ParamTypeString:
 				c.Parameters[i] = ApplicationSourcePluginParameter{Name: p.Name, String_: p.StringValue}
 			case ParamTypeMap:
@@ -1237,7 +1245,7 @@ func (c *ApplicationSourcePlugin) AddParamEntry(p *ParamEntry, paramType ParamTy
 	}
 
 	if !found {
-		switch paramType {
+		switch ParamType(paramType) {
 		case ParamTypeString:
 			c.Parameters = append(c.Parameters, ApplicationSourcePluginParameter{Name: p.Name, String_: p.StringValue})
 		case ParamTypeMap:
