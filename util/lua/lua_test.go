@@ -109,7 +109,8 @@ func TestFailExternalLibCall(t *testing.T) {
 	vm := VM{}
 	_, err := vm.ExecuteHealthLua(testObj, osLuaScript)
 	require.Error(t, err)
-	assert.IsType(t, &lua.ApiError{}, err)
+	var apiErr *lua.ApiError
+	assert.ErrorAs(t, err, &apiErr)
 }
 
 const returnInt = `return 1`
@@ -183,7 +184,8 @@ func TestHandleInfiniteLoop(t *testing.T) {
 	testObj := StrToUnstructured(objJSON)
 	vm := VM{}
 	_, err := vm.ExecuteHealthLua(testObj, infiniteLoop)
-	assert.IsType(t, &lua.ApiError{}, err)
+	var apiErr *lua.ApiError
+	assert.ErrorAs(t, err, &apiErr)
 }
 
 func TestGetHealthScriptWithOverride(t *testing.T) {
@@ -954,7 +956,8 @@ return hs`
 		testObj := StrToUnstructured(testSA)
 		overrides := getHealthOverride(false)
 		status, err := overrides.GetResourceHealth(testObj)
-		assert.IsType(t, &lua.ApiError{}, err)
+		var apiErr *lua.ApiError
+		require.ErrorAs(t, err, &apiErr)
 		expectedErr := "<string>:4: attempt to index a non-table object(nil) with key 'find'"
 		require.EqualError(t, err, expectedErr)
 		assert.Nil(t, status)
