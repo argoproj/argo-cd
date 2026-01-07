@@ -1,0 +1,16 @@
+apiVersion: druid.apache.org/v1alpha1
+kind: Druid
+metadata:
+  name: druid-test
+  namespace: druid-test
+spec:
+  image: apache/druid:latest
+  nodes:
+    coordinators:
+      kind: Deployment
+      nodeType: coordinator
+      replicas: 1
+      druid.port: 8081
+status:
+  pods:
+  - druid-test-coordinators-0
