@@ -1,0 +1,89 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  annotations:
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"operators.coreos.com/v1alpha1","kind":"Subscription","metadata":{"annotations":{},"labels":{"app.kubernetes.io/instance":"multicloud-gitops-hub"},"name":"advanced-cluster-management","namespace":"open-cluster-management"},"spec":{"channel":"release-2.14","installPlanApproval":"Manual","name":"advanced-cluster-management","source":"redhat-operators","sourceNamespace":"openshift-marketplace","startingCSV":"advanced-cluster-management.v2.14.0"}}
+  creationTimestamp: "2026-01-09T16:25:42Z"
+  generation: 1
+  labels:
+    app.kubernetes.io/instance: multicloud-gitops-hub
+    operators.coreos.com/advanced-cluster-management.open-cluster-management: ""
+  name: advanced-cluster-management
+  namespace: open-cluster-management
+  resourceVersion: "78923"
+  uid: da1f72d9-901e-4d46-a931-d13eda46501a
+spec:
+  channel: release-2.14
+  installPlanApproval: Manual
+  name: advanced-cluster-management
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace
+  startingCSV: advanced-cluster-management.v2.14.0
+status:
+  catalogHealth:
+  - catalogSourceRef:
+      apiVersion: operators.coreos.com/v1alpha1
+      kind: CatalogSource
+      name: certified-operators
+      namespace: openshift-marketplace
+      resourceVersion: "74957"
+      uid: 8adf5a80-b990-4423-ac2a-95969114c306
+    healthy: true
+    lastUpdated: "2026-01-09T16:25:46Z"
+  - catalogSourceRef:
+      apiVersion: operators.coreos.com/v1alpha1
+      kind: CatalogSource
+      name: community-operators
+      namespace: openshift-marketplace
+      resourceVersion: "75378"
+      uid: 8407538e-4739-4e1f-9452-7b487a1e0e9d
+    healthy: true
+    lastUpdated: "2026-01-09T16:25:46Z"
+  - catalogSourceRef:
+      apiVersion: operators.coreos.com/v1alpha1
+      kind: CatalogSource
+      name: redhat-marketplace
+      namespace: openshift-marketplace
+      resourceVersion: "75211"
+      uid: 1e3ef28b-d483-4722-9b0a-116a94a85339
+    healthy: true
+    lastUpdated: "2026-01-09T16:25:46Z"
+  - catalogSourceRef:
+      apiVersion: operators.coreos.com/v1alpha1
+      kind: CatalogSource
+      name: redhat-operators
+      namespace: openshift-marketplace
+      resourceVersion: "74904"
+      uid: 12b22855-3197-4188-bc27-d8e709c2b0c9
+    healthy: true
+    lastUpdated: "2026-01-09T16:25:46Z"
+  conditions:
+  - lastTransitionTime: "2026-01-09T16:25:50Z"
+    message: all available catalogsources are healthy
+    reason: AllCatalogSourcesHealthy
+    status: "False"
+    type: CatalogSourcesUnhealthy
+  - reason: UnpackingInProgress
+    status: "True"
+    type: BundleUnpacking
+  - lastTransitionTime: "2026-01-09T16:25:58Z"
+    reason: RequiresApproval
+    status: "True"
+    type: InstallPlanPending
+  currentCSV: advanced-cluster-management.v2.14.0
+  installPlanGeneration: 1
+  installPlanRef:
+    apiVersion: operators.coreos.com/v1alpha1
+    kind: InstallPlan
+    name: install-2k2t8
+    namespace: open-cluster-management
+    resourceVersion: "78871"
+    uid: 8b99223f-0f29-4863-89f6-5e19651f9023
+  installplan:
+    apiVersion: operators.coreos.com/v1alpha1
+    kind: InstallPlan
+    name: install-2k2t8
+    uuid: 8b99223f-0f29-4863-89f6-5e19651f9023
+  lastUpdated: "2026-01-09T16:25:58Z"
+  state: UpgradePending
