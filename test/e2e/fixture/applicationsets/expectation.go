@@ -225,3 +225,49 @@ func appsAreEqual(one v1alpha1.Application, two v1alpha1.Application) bool {
 func conditionsAreEqual(one, two *[]v1alpha1.ApplicationSetCondition) bool {
 	return reflect.DeepEqual(filterConditionFields(one), filterConditionFields(two))
 }
+
+// ApplicationSetHasProgressiveStatus checks if an application in the ApplicationSet has a specific progressive sync status
+func ApplicationSetHasProgressiveStatus(applicationSetName, appName string, expectedStatus v1alpha1.ProgressiveSyncStatusCode) Expectation {
+	return func(c *Consequences) (state, string) {
+		// retrieve the application set
+		foundApplicationSet := c.applicationSet(applicationSetName)
+		if foundApplicationSet == nil {
+			return pending, fmt.Sprintf("application set '%s' not found", applicationSetName)
+		}
+
+		// find the application in the status
+		for _, appStatus := range foundApplicationSet.Status.ApplicationStatus {
+			if appStatus.Application == appName {
+				if appStatus.Status == expectedStatus {
+					return succeeded, fmt.Sprintf("application '%s' has status '%s'", appName, expectedStatus)
+				}
+				return pending, fmt.Sprintf("application '%s' has status '%s', expected '%s'", appName, appStatus.Status, expectedStatus)
+			}
+		}
+
+		return pending, fmt.Sprintf("application '%s' not found in ApplicationSet status", appName)
+	}
+}
+
+// OnlyApplicationsExist verifies that only the provided applications exist, and the notYetCreated applications do not exist
+func OnlyApplicationsExist(expectedApps []v1alpha1.Application, notYetCreated []v1alpha1.Application) Expectation {
+	return func(c *Consequences) (state, string) {
+		// Verify expected apps exist
+		for _, expectedApp := range expectedApps {
+			foundApp := c.app(expectedApp.Name)
+			if foundApp == nil {
+				return pending, fmt.Sprintf("expected app '%s' does not exist", expectedApp.QualifiedName())
+			}
+		}
+
+		// Verify apps that shouldn't exist yet do not exist
+		for _, notCreatedApp := range notYetCreated {
+			foundApp := c.app(notCreatedApp.Name)
+			if foundApp != nil {
+				return pending, fmt.Sprintf("app '%s' exists but should not exist yet", notCreatedApp.QualifiedName())
+			}
+		}
+
+		return succeeded, "all expected apps exist and unexpected apps do not exist"
+	}
+}
