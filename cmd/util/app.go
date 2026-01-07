@@ -410,11 +410,11 @@ func setPluginOptParams(src *argoappv1.ApplicationSource, params []string, param
 	}
 
 	for _, text := range params {
-		p, err := argoappv1.NewParamEntry(text, paramType)
+		p, err := argoappv1.NewParamEntry(text, argoappv1.ParamType(paramType))
 		if err != nil {
 			log.Fatal(err)
 		}
-		src.Plugin.AddParamEntry(p, paramType)
+		src.Plugin.AddParamEntry(p, argoappv1.ParamType(paramType))
 	}
 }
 

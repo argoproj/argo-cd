@@ -200,7 +200,16 @@ type ParamEntry struct {
 }
 
 // NewParamEntry parses a parameter in format name=string, name=map, name=array and returns an ParamEntry object
-func NewParamEntry(text string, paramType string) (*ParamEntry, error) {
+// ParamType represents supported parameter value types for plugin parameters
+type ParamType string
+
+const (
+	ParamTypeString ParamType = "string"
+	ParamTypeMap    ParamType = "map"
+	ParamTypeArray  ParamType = "array"
+)
+
+func NewParamEntry(text string, paramType ParamType) (*ParamEntry, error) {
 	parts := strings.SplitN(text, "=", 2)
 	if len(parts) != 2 {
 		return nil, fmt.Errorf("expected parameter entry of the form: param=string, param=map, or param=array. Received: %s", text)
@@ -210,12 +219,12 @@ func NewParamEntry(text string, paramType string) (*ParamEntry, error) {
 	value := parts[1]
 
 	switch paramType {
-	case "string":
+	case ParamTypeString:
 		return &ParamEntry{
 			Name:        name,
 			StringValue: &value,
 		}, nil
-	case "map":
+	case ParamTypeMap:
 		mapValues := make(map[string]string)
 		keyValues := strings.Split(value, ",")
 
@@ -231,7 +240,7 @@ func NewParamEntry(text string, paramType string) (*ParamEntry, error) {
 			Name:        name,
 			OptionalMap: &OptionalMap{Map: mapValues},
 		}, nil
-	case "array":
+	case ParamTypeArray:
 		arrayValues := strings.Split(value, ",")
 		return &ParamEntry{
 			Name:          name,
@@ -1210,17 +1219,17 @@ func (c *ApplicationSourcePlugin) RemoveEnvEntry(key string) error {
 
 // AddParamEntry merges an ParamEntry into a list of entries. If an entry with the same name already exists,
 // its string/map/array will be overwritten. Otherwise, the entry is appended to the list.
-func (c *ApplicationSourcePlugin) AddParamEntry(p *ParamEntry, paramType string) {
+func (c *ApplicationSourcePlugin) AddParamEntry(p *ParamEntry, paramType ParamType) {
 	found := false
 	for i, cp := range c.Parameters {
 		if cp.Name == p.Name {
 			found = true
 			switch paramType {
-			case "string":
+			case ParamTypeString:
 				c.Parameters[i] = ApplicationSourcePluginParameter{Name: p.Name, String_: p.StringValue}
-			case "map":
+			case ParamTypeMap:
 				c.Parameters[i] = ApplicationSourcePluginParameter{Name: p.Name, OptionalMap: p.OptionalMap}
-			case "array":
+			case ParamTypeArray:
 				c.Parameters[i] = ApplicationSourcePluginParameter{Name: p.Name, OptionalArray: p.OptionalArray}
 			}
 			break
@@ -1229,11 +1238,11 @@ func (c *ApplicationSourcePlugin) AddParamEntry(p *ParamEntry, paramType string)
 
 	if !found {
 		switch paramType {
-		case "string":
+		case ParamTypeString:
 			c.Parameters = append(c.Parameters, ApplicationSourcePluginParameter{Name: p.Name, String_: p.StringValue})
-		case "map":
+		case ParamTypeMap:
 			c.Parameters = append(c.Parameters, ApplicationSourcePluginParameter{Name: p.Name, OptionalMap: p.OptionalMap})
-		case "array":
+		case ParamTypeArray:
 			c.Parameters = append(c.Parameters, ApplicationSourcePluginParameter{Name: p.Name, OptionalArray: p.OptionalArray})
 		}
 	}
