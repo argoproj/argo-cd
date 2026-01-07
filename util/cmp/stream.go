@@ -98,7 +98,7 @@ func SendRepoStream(ctx context.Context, appPath, rootPath string, sender Stream
 	if err != nil {
 		// include ctx.Err() in the message to make cancellations/deadlines visible
 		if ctx != nil && ctx.Err() != nil {
-			return fmt.Errorf("error sending generate manifest metadata to cmp-server: %w (stream ctx err: %v)", err, ctx.Err())
+			return fmt.Errorf("error sending generate manifest metadata to cmp-server: %w (stream ctx err: %w)", err, ctx.Err())
 		}
 		return fmt.Errorf("error sending generate manifest metadata to cmp-server: %w", err)
 	}
