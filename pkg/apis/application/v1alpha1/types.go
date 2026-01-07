@@ -1227,12 +1227,12 @@ func (c *ApplicationSourcePlugin) RemoveEnvEntry(key string) error {
 
 // AddParamEntry merges an ParamEntry into a list of entries. If an entry with the same name already exists,
 // its string/map/array will be overwritten. Otherwise, the entry is appended to the list.
-func (c *ApplicationSourcePlugin) AddParamEntry(p *ParamEntry, paramType string) {
+func (c *ApplicationSourcePlugin) AddParamEntry(p *ParamEntry, paramType ParamType) {
 	found := false
 	for i, cp := range c.Parameters {
 		if cp.Name == p.Name {
 			found = true
-			switch ParamType(paramType) {
+			switch paramType {
 			case ParamTypeString:
 				c.Parameters[i] = ApplicationSourcePluginParameter{Name: p.Name, String_: p.StringValue}
 			case ParamTypeMap:
@@ -1245,7 +1245,7 @@ func (c *ApplicationSourcePlugin) AddParamEntry(p *ParamEntry, paramType string)
 	}
 
 	if !found {
-		switch ParamType(paramType) {
+		switch paramType {
 		case ParamTypeString:
 			c.Parameters = append(c.Parameters, ApplicationSourcePluginParameter{Name: p.Name, String_: p.StringValue})
 		case ParamTypeMap:
