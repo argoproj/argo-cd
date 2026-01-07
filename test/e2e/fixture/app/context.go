@@ -1,6 +1,7 @@
 package app
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -343,7 +344,8 @@ func (c *Context) DestServer(destServer string) *Context {
 
 func (c *Context) DestName(destName string) *Context {
 	if destName != "in-cluster" {
-		destName = fixture.DnsFriendly(destName, "-"+c.ShortID())
+		suffix := "-" + c.ShortID()
+		destName = fixture.DnsFriendly(strings.TrimSuffix(destName, suffix), suffix)
 	}
 	c.destName = destName
 	c.isDestServerInferred = true

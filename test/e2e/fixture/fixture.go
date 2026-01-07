@@ -67,8 +67,6 @@ const (
 	// cmp plugin sock file path
 	PluginSockFilePath = "/app/config/plugin"
 
-	E2ETestPrefix = "e2e-test-"
-
 	// finalizer to add to resources during tests. Make sure that the resource Kind of your object
 	// is included in the test EnsureCleanState code
 	TestFinalizer = TestingLabel + "/finalizer"
@@ -765,23 +763,6 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) *TestState {
 					return err
 				}
 			}
-
-			namespaces, err = KubeClientset.CoreV1().Namespaces().List(t.Context(), metav1.ListOptions{})
-			if err != nil {
-				return err
-			}
-			testNamespaceNames := []corev1.Namespace{}
-			for _, namespace := range namespaces.Items {
-				if strings.HasPrefix(namespace.Name, E2ETestPrefix) {
-					testNamespaceNames = append(testNamespaceNames, namespace)
-				}
-			}
-			if len(testNamespaceNames) > 0 {
-				err = deleteNamespaces(testNamespaceNames, true)
-				if err != nil {
-					return err
-				}
-			}
 			return nil
 		},
 		func() error {
@@ -801,7 +782,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) *TestState {
 				return err
 			}
 			if len(clusterRoles.Items) > 0 {
-				args := []string{"delete", "clusterrole", "--wait=false"}
+				args := []string{"delete", "clusterrole"}
 				for _, clusterRole := range clusterRoles.Items {
 					args = append(args, clusterRole.Name)
 				}
@@ -811,41 +792,23 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) *TestState {
 				}
 			}
 
-			clusterRoles, err = KubeClientset.RbacV1().ClusterRoles().List(t.Context(), metav1.ListOptions{})
-			if err != nil {
-				return err
-			}
-			testClusterRoleNames := []string{}
-			for _, clusterRole := range clusterRoles.Items {
-				if strings.HasPrefix(clusterRole.Name, E2ETestPrefix) {
-					testClusterRoleNames = append(testClusterRoleNames, clusterRole.Name)
-				}
-			}
-			if len(testClusterRoleNames) > 0 {
-				args := []string{"delete", "clusterrole"}
-				args = append(args, testClusterRoleNames...)
-				_, err := Run("", "kubectl", args...)
-				if err != nil {
-					return err
-				}
-			}
 			return nil
 		},
 		func() error {
 			// delete old ClusterRoleBindings which were created by tests
-			clusterRoleBindings, err := KubeClientset.RbacV1().ClusterRoleBindings().List(t.Context(), metav1.ListOptions{})
+			clusterRoleBindings, err := KubeClientset.RbacV1().ClusterRoleBindings().List(
+				t.Context(),
+				metav1.ListOptions{
+					LabelSelector: fmt.Sprintf("%s=%s", TestingLabel, "true"),
+				})
 			if err != nil {
 				return err
 			}
-			testClusterRoleBindingNames := []string{}
-			for _, clusterRoleBinding := range clusterRoleBindings.Items {
-				if strings.HasPrefix(clusterRoleBinding.Name, E2ETestPrefix) {
-					testClusterRoleBindingNames = append(testClusterRoleBindingNames, clusterRoleBinding.Name)
+			if len(clusterRoleBindings.Items) > 0 {
+				args := []string{"delete", "clusterrole"}
+				for _, clusterRole := range clusterRoleBindings.Items {
+					args = append(args, clusterRole.Name)
 				}
-			}
-			if len(testClusterRoleBindingNames) > 0 {
-				args := []string{"delete", "clusterrolebinding"}
-				args = append(args, testClusterRoleBindingNames...)
 				_, err := Run("", "kubectl", args...)
 				if err != nil {
 					return err
