@@ -30,7 +30,7 @@ Notes about specific upstream behavior changes (e.g., namespace propagation fixe
 
 Bundled Helm version bump:
 Any breaking behavior 
-Verify if your charts depend on any features tied to Helm versions.=
+Verify if your charts depend on any features tied to Helm versions.
 
 ## API / Security Changes
 
