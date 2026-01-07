@@ -15,9 +15,6 @@ env:
   # Golang version to use across CI steps
   # renovate: datasource=golang-version packageName=golang
   GOLANG_VERSION: '1.25.5'
-  IMAGE_REGISTRY: ${{ vars.IMAGE_REGISTRY || 'quay.io' }}
-  IMAGE_NAMESPACE: ${{ vars.IMAGE_NAMESPACE || 'argoproj' }}
-  IMAGE_REPOSITORY: ${{ vars.IMAGE_REPOSITORY || 'argocd' }}
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

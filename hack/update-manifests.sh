@@ -12,24 +12,37 @@ KUSTOMIZE=kustomize
 
 cd "${SRCROOT}/manifests/ha/base/redis-ha" && ./generate.sh
 
-# Image repository configuration - can be overridden in forks
+# Empty defaults - to avoid errors for unset env. variables
 IMAGE_REGISTRY="${IMAGE_REGISTRY:-}"
 IMAGE_NAMESPACE="${IMAGE_NAMESPACE:-}"
-IMAGE_REPOSITORY="${IMAGE_REPOSITORY:-argocd}"
 IMAGE_TAG="${IMAGE_TAG:-}"
+# Image repository configuration - can be overridden in forks
+IMAGE_REPOSITORY="${IMAGE_REPOSITORY:-argocd}"
+
+# Apply defaults if needed
+if [[ -n $IMAGE_REGISTRY ]];then
+    if [[ -z $IMAGE_NAMESPACE ]]; then
+	echo "IMAGE_NAMESPACE must be set when IMAGE_REGISTRY is set (e.g. IMAGE_NAMESPACE=argoproj)" >&2
+	exit 1
+    fi
+    # both registry and namespace set, nothing to do
+else  # registry not set
+    if [[ -z $IMAGE_NAMESPACE ]]; then
+	# Neither namespace nor registry given - apply the default values
+	IMAGE_REGISTRY="${IMAGE_REGISTRY:-quay.io}"
+	IMAGE_NAMESPACE="${IMAGE_NAMESPACE:-argoproj}"
+    fi
+    # If namespace is set, then it's an image without registry or
+    # registry is given as part of namespace (old convention)
+fi
 
 # Construct full image name
 # Note: keeping same logic as in Makefile for docker images
 FULL_IMAGE_NAME="${IMAGE_REPOSITORY}"
 if [[ -n $IMAGE_NAMESPACE ]]; then
-    # for backwards compatibility with the old way like IMAGE_NAMESPACE='quay.io/argoproj' 
     FULL_IMAGE_NAME="${IMAGE_NAMESPACE}/${FULL_IMAGE_NAME}"
 fi
 if [[ -n $IMAGE_REGISTRY ]]; then
-    if [[ -z $IMAGE_NAMESPACE ]]; then
-	echo "IMAGE_NAMESPACE must be set when IMAGE_REGISTRY is set (e.g. IMAGE_NAMESPACE=argoproj)" >&2
-	exit 1
-    fi
     FULL_IMAGE_NAME="${IMAGE_REGISTRY}/${FULL_IMAGE_NAME}"
 fi
 

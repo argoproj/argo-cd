@@ -219,9 +219,14 @@ else
 $(error IMAGE_NAMESPACE must be set when IMAGE_REGISTRY is set (e.g. IMAGE_NAMESPACE=argoproj))
 endif
 else
-# for backwards compatibility with the old way like IMAGE_NAMESPACE='quay.io/argoproj' 
 ifdef IMAGE_NAMESPACE
+# for backwards compatibility with the old way like IMAGE_NAMESPACE='quay.io/argoproj' 
 IMAGE_PREFIX=${IMAGE_NAMESPACE}/
+else
+# Neither namespace nor registry given - apply the default values
+IMAGE_REGISTRY="quay.io"
+IMAGE_NAMESPACE="argoproj"
+IMAGE_PREFIX=${IMAGE_REGISTRY}/${IMAGE_NAMESPACE}/
 endif
 endif
 
