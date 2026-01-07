@@ -76,7 +76,22 @@ func RequestServiceAccountToken(clientset kubernetes.Interface, namespace, saNam
 	if len(response.Status.Token) == 0 {
 		return "", fmt.Errorf("received empty token for service account %q in namespace %q", saName, namespace)
 	}
+	claims, err := ParseServiceAccountToken(response.Status.Token)
+	if err != nil {
+		return "", fmt.Errorf("error parsing service account token: %w", err)
+	}
 
+	if claims.IssuedAt == nil || claims.ExpiresAt == nil {
+		return "", fmt.Errorf("token is missing iat/exp claims")
+	}
+
+	ttl := time.Until(claims.ExpiresAt.Time)
+
+	fmt.Printf(
+		"ServiceAccount token TTL: %s (expires at %s)\n",
+		ttl.Round(time.Second),
+		claims.ExpiresAt.Time.UTC().Format(time.RFC3339),
+	)
 	return response.Status.Token, nil
 }
 
