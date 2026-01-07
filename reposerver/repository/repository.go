@@ -2492,6 +2492,75 @@ func (s *Service) GetRevisionMetadata(_ context.Context, q *apiclient.RepoServer
 	return metadata, nil
 }
 
+func (s *Service) GetCommitAuthorsBetween(_ context.Context, q *apiclient.RepoServerCommitAuthorsRequest) (*apiclient.RepoServerCommitAuthorsResponse, error) {
+	// Validate inputs
+	if q.FromRevision == "" || q.ToRevision == "" {
+		return &apiclient.RepoServerCommitAuthorsResponse{
+			Authors: []string{},
+		}, nil
+	}
+
+	// If revisions are the same, return empty
+	if q.FromRevision == q.ToRevision {
+		return &apiclient.RepoServerCommitAuthorsResponse{
+			Authors: []string{},
+		}, nil
+	}
+
+	// Validate revision format (should be commit SHA, but be lenient)
+	// We'll let git handle invalid revisions and return empty
+	if !git.IsCommitSHA(q.FromRevision) && !git.IsTruncatedCommitSHA(q.FromRevision) {
+		log.Debugf("fromRevision %s is not a commit SHA, returning empty authors", q.FromRevision)
+		return &apiclient.RepoServerCommitAuthorsResponse{
+			Authors: []string{},
+		}, nil
+	}
+	if !git.IsCommitSHA(q.ToRevision) && !git.IsTruncatedCommitSHA(q.ToRevision) {
+		log.Debugf("toRevision %s is not a commit SHA, returning empty authors", q.ToRevision)
+		return &apiclient.RepoServerCommitAuthorsResponse{
+			Authors: []string{},
+		}, nil
+	}
+
+	gitClient, _, err := s.newClientResolveRevision(q.Repo, q.ToRevision)
+	if err != nil {
+		// If we can't resolve the revision, return empty instead of error
+		// This prevents breaking notifications
+		log.Debugf("failed to resolve revision %s: %v, returning empty authors", q.ToRevision, err)
+		return &apiclient.RepoServerCommitAuthorsResponse{
+			Authors: []string{},
+		}, nil
+	}
+
+	s.metricsServer.IncPendingRepoRequest(q.Repo.Repo)
+	defer s.metricsServer.DecPendingRepoRequest(q.Repo.Repo)
+
+	closer, err := s.repoLock.Lock(gitClient.Root(), q.ToRevision, true, func() (goio.Closer, error) {
+		return s.checkoutRevision(gitClient, q.ToRevision, s.initConstants.SubmoduleEnabled, q.Repo.Depth)
+	})
+	if err != nil {
+		log.Debugf("error acquiring repo lock for %s: %v, returning empty authors", q.Repo.Repo, err)
+		return &apiclient.RepoServerCommitAuthorsResponse{
+			Authors: []string{},
+		}, nil
+	}
+
+	defer utilio.Close(closer)
+
+	authors, err := gitClient.GetCommitAuthorsBetween(q.FromRevision, q.ToRevision)
+	if err != nil {
+		// Return empty on error to avoid breaking notifications
+		log.Debugf("failed to get commit authors between %s and %s: %v, returning empty authors", q.FromRevision, q.ToRevision, err)
+		return &apiclient.RepoServerCommitAuthorsResponse{
+			Authors: []string{},
+		}, nil
+	}
+
+	return &apiclient.RepoServerCommitAuthorsResponse{
+		Authors: authors,
+	}, nil
+}
+
 func (s *Service) GetOCIMetadata(ctx context.Context, q *apiclient.RepoServerRevisionChartDetailsRequest) (*v1alpha1.OCIMetadata, error) {
 	client, err := s.newOCIClient(q.Repo.Repo, q.Repo.GetOCICreds(), q.Repo.Proxy, q.Repo.NoProxy, s.initConstants.OCIMediaTypes, s.ociClientStandardOpts()...)
 	if err != nil {

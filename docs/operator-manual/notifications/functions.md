@@ -107,6 +107,65 @@ Returns commit metadata. The commit must belong to the application source reposi
 * `Tags []string` - Associated tags
 
 <hr>
+**`repo.GetCommitAuthorsBetween(fromRevision string, toRevision string) []string`**
+
+Returns a list of unique commit authors between two revisions (exclusive of fromRevision, inclusive of toRevision). 
+Each author is returned in the format "Name <email>". This is useful for getting all authors who committed changes 
+between two syncs.
+
+Example:
+```
+{{ range (call .repo.GetCommitAuthorsBetween "abc123" "def456") }}
+  Author: {{ . }}
+{{ end }}
+```
+
+<hr>
+**`repo.GetCommitAuthorsFromPreviousSync() []string`**
+
+Returns a list of unique commit authors between the previous sync and the current sync. This automatically uses 
+the application's sync history to determine the previous revision. Returns an empty list if there's no previous 
+sync or if the revisions are the same. This is particularly useful for auto-sync scenarios where you want to 
+notify all authors who committed changes since the last sync.
+
+Example:
+```
+{{ $authors := call .repo.GetCommitAuthorsFromPreviousSync }}
+{{ if $authors }}
+  Authors: {{ join $authors ", " }}
+{{ end }}
+```
+
+<hr>
+**`repo.ExtractEmailFromAuthor(author string) string`**
+
+Extracts the email address from an author string in "Name <email>" format. If the format doesn't match, 
+returns the original string trimmed.
+
+Example:
+```
+{{ range (call .repo.GetCommitAuthorsFromPreviousSync) }}
+  Email: {{ call .repo.ExtractEmailFromAuthor . }}
+{{ end }}
+```
+
+<hr>
+**`repo.FormatSlackMentions(authors []string) string`**
+
+Formats a list of authors as a comma-separated string of email addresses. This is a helper function for 
+formatting authors. Note: To create actual Slack mentions, you'll need to map email addresses to Slack user IDs 
+and use the format `<@USERID>` in your template.
+
+Example:
+```
+{{ $authors := call .repo.GetCommitAuthorsFromPreviousSync }}
+{{ if $authors }}
+  {{ $emails := call .repo.FormatSlackMentions $authors }}
+  Mention these authors: {{ $emails }}
+{{ end }}
+```
+
+<hr>
 **`repo.GetAppDetails() AppDetail`**
 
 Returns application details. `AppDetail` fields:
