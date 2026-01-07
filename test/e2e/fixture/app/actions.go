@@ -7,6 +7,7 @@ import (
 	"os"
 	"slices"
 	"strconv"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -441,6 +442,10 @@ func (a *Actions) ConfirmDeletion() *Actions {
 	a.context.T().Helper()
 
 	a.runCli("app", "confirm-deletion", a.context.AppQualifiedName())
+
+	// Always sleep more than a second after the confirmation so the timestamp
+	// is not valid for immediate subsequent operations
+	time.Sleep(1500 * time.Millisecond)
 
 	return a
 }
