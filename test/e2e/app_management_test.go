@@ -3111,20 +3111,16 @@ func TestDeletionConfirmation(t *testing.T) {
 		When().
 		PatchFile("guestbook-ui-deployment.yaml", `[{ "op": "add", "path": "/metadata/annotations", "value": { "argocd.argoproj.io/sync-options": "Delete=confirm" }}]`).
 		CreateApp().Sync().
-		Then().Expect(OperationPhaseIs(OperationRunning)).
+		Then().ExpectConsistently(OperationPhaseIs(OperationRunning), time.Second, 5*time.Second).
 		When().ConfirmDeletion().
 		Then().Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(HealthIs(health.HealthStatusHealthy)).
-		// Wait for controller caches to fully settle before deletion
-		// This ensures both the informer and cluster watcher have the latest state
-		When().Refresh(RefreshTypeNormal).
-		Then().
 		When().Delete(true).
 		Then().
-		And(func(app *Application) {
-			assert.NotNil(t, app.DeletionTimestamp)
-		}).
+		ExpectConsistently(App(func(app *Application) bool {
+			return app.DeletionTimestamp != nil
+		}), time.Second, 5*time.Second).
 		When().ConfirmDeletion().
 		Then().Expect(DoesNotExist())
 }
