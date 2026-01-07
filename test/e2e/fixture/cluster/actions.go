@@ -48,8 +48,6 @@ func (a *Actions) Create() *Actions {
 			Server:             a.context.server,
 			Name:               a.context.name,
 			Config:             v1alpha1.ClusterConfig{BearerToken: a.context.bearerToken},
-			ConnectionState:    v1alpha1.ConnectionState{},
-			ServerVersion:      "",
 			Namespaces:         a.context.namespaces,
 			RefreshRequestedAt: nil,
 			Info:               v1alpha1.ClusterInfo{},

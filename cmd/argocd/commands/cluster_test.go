@@ -43,12 +43,14 @@ func Test_printClusterTable(_ *testing.T) {
 				AWSAuthConfig:      nil,
 				DisableCompression: false,
 			},
-			ConnectionState: v1alpha1.ConnectionState{
-				Status:     "my-status",
-				Message:    "my-message",
-				ModifiedAt: &metav1.Time{},
+			Info: v1alpha1.ClusterInfo{
+				ConnectionState: v1alpha1.ConnectionState{
+					Status:     "my-status",
+					Message:    "my-message",
+					ModifiedAt: &metav1.Time{},
+				},
+				ServerVersion: "my-version",
 			},
-			ServerVersion: "my-version",
 		},
 	})
 }

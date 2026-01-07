@@ -467,6 +467,9 @@ func fakeEventHandlers(t *testing.T, repoURL string) EventHandlers {
 		OnDigestMetadata:  func(repo string) func() { return func() { require.Equal(t, repoURL, repo) } },
 		OnTestRepo:        func(repo string) func() { return func() { require.Equal(t, repoURL, repo) } },
 		OnGetTags:         func(repo string) func() { return func() { require.Equal(t, repoURL, repo) } },
+		OnGetTagsFail: func(repo string) func() {
+			return func() { require.Equal(t, repoURL, repo) }
+		},
 		OnExtractFail: func(repo string) func(revision string) {
 			return func(_ string) { require.Equal(t, repoURL, repo) }
 		},

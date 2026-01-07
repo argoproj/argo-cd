@@ -2,13 +2,13 @@ package e2e
 
 import (
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/require"
 
 	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
+	"github.com/argoproj/argo-cd/v3/test/e2e/fixture/repos"
 
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
 )
@@ -254,13 +254,9 @@ func TestHydratorWithDirectory(t *testing.T) {
 }
 
 func TestHydratorWithPlugin(t *testing.T) {
-	Given(t).
-		Path("hydrator-plugin").
-		And(func() {
-			go startCMPServer(t, "./testdata/hydrator-plugin")
-			time.Sleep(100 * time.Millisecond)
-			t.Setenv("ARGOCD_BINARY_NAME", "argocd")
-		}).
+	ctx := Given(t)
+	ctx.Path("hydrator-plugin").
+		RunningCMPServer("./testdata/hydrator-plugin").
 		When().
 		CreateFromFile(func(app *Application) {
 			app.Spec.Source = nil
@@ -297,4 +293,91 @@ func TestHydratorWithPlugin(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, "inline-plugin-value", output)
 		})
+}
+
+func TestHydratorNoOp(t *testing.T) {
+	// Test that when hydration is run for a no-op (manifests do not change),
+	// the hydrated SHA is persisted to the app's source hydrator status instead of an empty string.
+	var firstHydratedSHA string
+	var firstDrySHA string
+
+	Given(t).
+		DrySourcePath("guestbook").
+		DrySourceRevision("HEAD").
+		SyncSourcePath("guestbook").
+		SyncSourceBranch("env/test").
+		When().
+		CreateApp().
+		Refresh(RefreshTypeNormal).
+		Wait("--hydrated").
+		Then().
+		Expect(HydrationPhaseIs(HydrateOperationPhaseHydrated)).
+		And(func(app *Application) {
+			require.NotEmpty(t, app.Status.SourceHydrator.CurrentOperation.HydratedSHA, "First hydration should have a hydrated SHA")
+			require.NotEmpty(t, app.Status.SourceHydrator.CurrentOperation.DrySHA, "First hydration should have a dry SHA")
+			firstHydratedSHA = app.Status.SourceHydrator.CurrentOperation.HydratedSHA
+			firstDrySHA = app.Status.SourceHydrator.CurrentOperation.DrySHA
+			t.Logf("First hydration - drySHA: %s, hydratedSHA: %s", firstDrySHA, firstHydratedSHA)
+		}).
+		When().
+		// Make a change to the dry source that doesn't affect the generated manifests.
+		AddFile("guestbook/README.md", "# Guestbook\n\nThis is documentation.").
+		Refresh(RefreshTypeNormal).
+		Wait("--hydrated").
+		Then().
+		Expect(HydrationPhaseIs(HydrateOperationPhaseHydrated)).
+		And(func(app *Application) {
+			require.NotEmpty(t, app.Status.SourceHydrator.CurrentOperation.HydratedSHA,
+				"Hydrated SHA must not be empty")
+			require.NotEmpty(t, app.Status.SourceHydrator.CurrentOperation.DrySHA)
+
+			// The dry SHA should be different (new commit in the dry source)
+			require.NotEqual(t, firstDrySHA, app.Status.SourceHydrator.CurrentOperation.DrySHA,
+				"Dry SHA should change after pushing a new commit")
+
+			t.Logf("Second hydration - drySHA: %s, hydratedSHA: %s",
+				app.Status.SourceHydrator.CurrentOperation.DrySHA,
+				app.Status.SourceHydrator.CurrentOperation.HydratedSHA)
+
+			require.Equal(t, firstHydratedSHA, app.Status.SourceHydrator.CurrentOperation.HydratedSHA,
+				"Hydrated SHA should remain the same for no-op hydration")
+		})
+}
+
+func TestHydratorWithAuthenticatedRepo(t *testing.T) {
+	// Test that hydration works with an HTTPS repository requiring authentication,
+	// specifically that GetCommitNote and AddAndPushNote properly use credentials when
+	// fetching git notes. This test creates an initial hydration, then makes a change
+	// to trigger a second hydration. On the second hydration, the commit-server will
+	// need to fetch existing git notes from the authenticated repository, which requires
+	// credentials.
+	Given(t).
+		HTTPSInsecureRepoURLAdded(true).
+		RepoURLType(fixture.RepoURLTypeHTTPS).
+		// Add write credentials for commit-server to push hydrated manifests
+		And(func() {
+			repos.AddHTTPSWriteCredentials(t, true, fixture.RepoURLTypeHTTPS)
+		}).
+		DrySourcePath("guestbook").
+		DrySourceRevision("HEAD").
+		SyncSourcePath("guestbook").
+		SyncSourceBranch("env/test").
+		When().
+		CreateApp().
+		Refresh(RefreshTypeNormal).
+		Wait("--hydrated").
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		// Now make a change and re-hydrate. This will trigger git notes fetch
+		// operations that require credentials.
+		When().
+		PatchFile("guestbook/guestbook-ui-deployment.yaml", `[{"op": "replace", "path": "/spec/revisionHistoryLimit", "value": 10}]`).
+		Refresh(RefreshTypeNormal).
+		Wait("--hydrated").
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced))
 }
