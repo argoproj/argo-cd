@@ -724,6 +724,20 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) *TestState {
 				metav1.DeleteOptions{PropagationPolicy: &policy},
 				metav1.ListOptions{LabelSelector: TestingLabel + "=true"})
 		},
+		func() error {
+			// kubectl delete clusterroles -l e2e.argoproj.io=true
+			return KubeClientset.RbacV1().ClusterRoles().DeleteCollection(
+				t.Context(),
+				metav1.DeleteOptions{PropagationPolicy: &policy},
+				metav1.ListOptions{LabelSelector: TestingLabel + "=true"})
+		},
+		func() error {
+			// kubectl delete clusterrolebindings -l e2e.argoproj.io=true
+			return KubeClientset.RbacV1().ClusterRoleBindings().DeleteCollection(
+				t.Context(),
+				metav1.DeleteOptions{PropagationPolicy: &policy},
+				metav1.ListOptions{LabelSelector: TestingLabel + "=true"})
+		},
 	})
 	RunFunctionsInParallelAndCheckErrors(t, []func() error{
 		func() error {
@@ -769,52 +783,6 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) *TestState {
 			// delete old CRDs which were created by tests, doesn't seem to have kube api to get items
 			_, err := Run("", "kubectl", "delete", "crd", "-l", TestingLabel+"=true", "--wait=false")
 			return err
-		},
-		func() error {
-			// delete old ClusterRoles which were created by tests
-			clusterRoles, err := KubeClientset.RbacV1().ClusterRoles().List(
-				t.Context(),
-				metav1.ListOptions{
-					LabelSelector: fmt.Sprintf("%s=%s", TestingLabel, "true"),
-				},
-			)
-			if err != nil {
-				return err
-			}
-			if len(clusterRoles.Items) > 0 {
-				args := []string{"delete", "clusterrole"}
-				for _, clusterRole := range clusterRoles.Items {
-					args = append(args, clusterRole.Name)
-				}
-				_, err := Run("", "kubectl", args...)
-				if err != nil {
-					return err
-				}
-			}
-
-			return nil
-		},
-		func() error {
-			// delete old ClusterRoleBindings which were created by tests
-			clusterRoleBindings, err := KubeClientset.RbacV1().ClusterRoleBindings().List(
-				t.Context(),
-				metav1.ListOptions{
-					LabelSelector: fmt.Sprintf("%s=%s", TestingLabel, "true"),
-				})
-			if err != nil {
-				return err
-			}
-			if len(clusterRoleBindings.Items) > 0 {
-				args := []string{"delete", "clusterrole"}
-				for _, clusterRole := range clusterRoleBindings.Items {
-					args = append(args, clusterRole.Name)
-				}
-				_, err := Run("", "kubectl", args...)
-				if err != nil {
-					return err
-				}
-			}
-			return nil
 		},
 		func() error {
 			err := updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
