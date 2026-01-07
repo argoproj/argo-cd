@@ -222,6 +222,18 @@ Then you can build & push the image in one step:
 DOCKER_PUSH=true make image
 ```
 
+To speed up building of images you may use the DEV_IMAGE option that builds the argocd binaries in the users desktop environment
+(instead of building everything in Docker) and copies them into the result image:
+
+```
+DEV_IMAGE=true DOCKER_PUSH=true make image
+
+```
+
+The first run of this build task may take a long time because it needs first to build the base image, but once it's done the build
+process should take much less time than regular full image build inside docker.
+
+
 #### Configure manifests for your image
 
 With `IMAGE_REGISTRY`, `IMAGE_NAMESPACE` and `IMAGE_TAG` still set, run:
