@@ -120,6 +120,16 @@ func Test_GlobCaching(t *testing.T) {
 	// Clear cache before test
 	resetGlobCacheForTest()
 
+	var compileCount int32
+	originalCompile := compileGlob
+	compileGlob = func(pattern string, separators ...rune) (extglob.Glob, error) {
+		atomic.AddInt32(&compileCount, 1)
+		return originalCompile(pattern, separators...)
+	}
+	t.Cleanup(func() {
+		compileGlob = originalCompile
+	})
+
 	pattern := "test*pattern"
 	text := "testABCpattern"
 
@@ -136,6 +146,7 @@ func Test_GlobCaching(t *testing.T) {
 
 	// Results should be consistent
 	require.Equal(t, result1, result2)
+	require.Equal(t, int32(1), atomic.LoadInt32(&compileCount), "glob should compile once for the cached pattern")
 }
 
 func Test_GlobCachingConcurrent(t *testing.T) {
