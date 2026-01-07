@@ -2,6 +2,7 @@ package app
 
 import (
 	"os"
+	"path"
 	"testing"
 	"time"
 
@@ -25,7 +26,7 @@ func (c *Context) RunningCMPServer(configFile string) *Context {
 // It blocks until the socket file is created or times out after 10 seconds.
 func startCMPServer(t *testing.T, configDir string) {
 	t.Helper()
-	pluginSockFilePath := fixture.TmpDir() + fixture.PluginSockFilePath
+	pluginSockFilePath := path.Join(fixture.TmpDir(), fixture.PluginSockFilePath)
 	t.Setenv("ARGOCD_BINARY_NAME", "argocd-cmp-server")
 	// ARGOCD_PLUGINSOCKFILEPATH should be set as the same value as repo server env var
 	t.Setenv("ARGOCD_PLUGINSOCKFILEPATH", pluginSockFilePath)
