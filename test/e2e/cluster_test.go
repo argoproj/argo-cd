@@ -268,7 +268,6 @@ func TestClusterDeleteDenied(t *testing.T) {
 func TestClusterDelete(t *testing.T) {
 	ctx := clusterFixture.Given(t)
 	accountFixture.GivenWithSameState(ctx).
-		Name("default").
 		When().
 		Create().
 		Login().
@@ -291,12 +290,17 @@ func TestClusterDelete(t *testing.T) {
 		}, "org-admin")
 
 	clstAction := ctx.
-		Name("default").
 		Project(fixture.ProjectName).
 		Upsert(true).
 		Server(KubernetesInternalAPIServerAddr).
 		When().
 		CreateWithRBAC()
+	clstAction.
+		Then().
+		Expect().
+		AndCLIOutput(func(_ string, err error) {
+			assert.NoError(t, err)
+		})
 
 	// Check that RBAC is created
 	_, err := fixture.Run("", "kubectl", "get", "serviceaccount", "argocd-manager", "-n", "kube-system")
