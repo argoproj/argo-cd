@@ -21,7 +21,7 @@ jobs:
       contents: read
       pull-requests: read
     name: Validate PR Title
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: thehanimo/pr-title-checker@7fbfe05602bdd86f926d3fb3bccb6f3aed43bc70 # v1.4.3
         with:

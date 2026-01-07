@@ -504,7 +504,7 @@ stringData:
   username: my-username
 ```
 
-A note on noProxy: Argo CD uses exec to interact with different tools such as helm and kustomize. Not all of these tools support the same noProxy syntax as the [httpproxy go package](https://cs.opensource.google/go/x/net/+/internal-branch.go1.21-vendor:http/httpproxy/proxy.go;l=38-50) does. In case you run in trouble with noProxy not beeing respected you might want to try using the full domain instead of a wildcard pattern or IP range to find a common syntax that all tools support.
+A note on noProxy: Argo CD uses exec to interact with different tools such as helm and kustomize. Not all of these tools support the same noProxy syntax as the [httpproxy go package](https://cs.opensource.google/go/x/net/+/internal-branch.go1.21-vendor:http/httpproxy/proxy.go;l=38-50) does. In case you run in trouble with noProxy not being respected you might want to try using the full domain instead of a wildcard pattern or IP range to find a common syntax that all tools support.
 
 ## Clusters
 
@@ -630,7 +630,7 @@ This setup requires:
 3. A role created for each cluster being added to Argo CD that is assumable by the Argo CD management role
 4. An [Access Entry](https://docs.aws.amazon.com/eks/latest/userguide/access-entries.html) within each EKS cluster added to Argo CD that gives the cluster's role (from point 3) RBAC permissions
 to perform actions within the cluster
-    - Or, alternatively, an entry within the `aws-auth` ConfigMap within the cluster added to Argo CD ([depreciated by EKS](https://docs.aws.amazon.com/eks/latest/userguide/auth-configmap.html))
+    - Or, alternatively, an entry within the `aws-auth` ConfigMap within the cluster added to Argo CD ([deprecated by EKS](https://docs.aws.amazon.com/eks/latest/userguide/auth-configmap.html))
 
 #### Argo CD Management Role
 
@@ -880,7 +880,7 @@ associated EKS cluster.
 
 **AWS Auth (Deprecated)**
 
-Instead of using Access Entries, you may need to use the depreciated `aws-auth`.
+Instead of using Access Entries, you may need to use the deprecated `aws-auth`.
 
 If so, the `roleARN` of each managed cluster needs to be added to each respective cluster's `aws-auth` config map (see
 [Enabling IAM principal access to your cluster](https://docs.aws.amazon.com/eks/latest/userguide/add-user-role.html)), as
@@ -1368,7 +1368,7 @@ data:
 
 ## Resource Custom Labels
 
-Custom Labels configured with `resource.customLabels` (comma separated string) will be displayed in the UI (for any resource that defines them).
+Custom Labels configured with `resource.customLabels` (comma separated string) will be displayed in the UI (for any resource that defines them). Note that this requires a restart to the Argo CD Application Controller to take effect.
 
 ## Labels on Application Events
 
@@ -1415,3 +1415,35 @@ stored at [argoproj/argoproj-deployments](https://github.com/argoproj/argoproj-d
 
 > [!NOTE]
 > You will need to sign-in using your GitHub account to get access to [https://cd.apps.argoproj.io](https://cd.apps.argoproj.io)
+
+### Server-Side Apply Requirement
+
+When managing Argo CD with Argo CD, you **must** enable the `ServerSideApply=true` sync option. See the [getting started guide](../getting_started.md#1-install-argo-cd) for details on why server-side apply is required.
+
+Example Application for self-managed Argo CD:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: argocd
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/argoproj/argo-cd
+    path: manifests/cluster-install
+    targetRevision: stable
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - ServerSideApply=true
+```
+
+> [!NOTE]
+> To customize Argo CD deployments, use Kustomize patches in your configuration repository rather than manually modifying the live resources. See the [sync options documentation](../user-guide/sync-options.md#server-side-apply) for details on field ownership behavior.
