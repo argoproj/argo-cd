@@ -5,7 +5,7 @@ about: Used by our Release Champion to add steps when upgrading minor version
 assignees: ''
 ---
 
-# Vx.1 to x.2
+# vX.Y to X.Z
 
 ## Breaking Changes
 
