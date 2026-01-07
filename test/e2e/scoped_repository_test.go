@@ -26,12 +26,12 @@ func TestCreateRepositoryWithProject(t *testing.T) {
 	repoFixture.GivenWithSameState(ctx).
 		When().
 		Path(path).
-		Project("argo-project").
+		Project(ctx.GetName()).
 		Create().
 		Then().
 		And(func(r *Repository, _ error) {
-			assert.Equal(t, r.Repo, path)
-			assert.Equal(t, "argo-project", r.Project)
+			assert.Equal(t, path, r.Repo)
+			assert.Equal(t, ctx.GetName(), r.Project)
 
 			prjConsequence.And(func(projectResponse *project.DetailedProjectsResponse, _ error) {
 				assert.Len(t, projectResponse.Repositories, 1)
