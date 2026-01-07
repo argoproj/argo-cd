@@ -69,9 +69,6 @@ func TestSimpleGitDirectoryGenerator(t *testing.T) {
 		When().
 		// Create a GitGenerator-based ApplicationSet
 		Create(v1alpha1.ApplicationSet{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "simple-git-generator",
-			},
 			Spec: v1alpha1.ApplicationSetSpec{
 				Template: v1alpha1.ApplicationSetTemplate{
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{path.basename}}"},
@@ -132,7 +129,7 @@ func TestSimpleGitDirectoryGenerator(t *testing.T) {
 		}).Then().Expect(ApplicationsExist(expectedAppsNewMetadata)).
 
 		// verify the ApplicationSet status conditions were set correctly
-		Expect(ApplicationSetHasConditions("simple-git-generator", ExpectedConditions)).
+		Expect(ApplicationSetHasConditions(ExpectedConditions)).
 
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
@@ -178,9 +175,6 @@ func TestSimpleGitDirectoryGeneratorGoTemplate(t *testing.T) {
 		When().
 		// Create a GitGenerator-based ApplicationSet
 		Create(v1alpha1.ApplicationSet{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "simple-git-generator",
-			},
 			Spec: v1alpha1.ApplicationSetSpec{
 				GoTemplate: true,
 				Template: v1alpha1.ApplicationSetTemplate{
@@ -242,7 +236,7 @@ func TestSimpleGitDirectoryGeneratorGoTemplate(t *testing.T) {
 		}).Then().Expect(ApplicationsExist(expectedAppsNewMetadata)).
 
 		// verify the ApplicationSet status conditions were set correctly
-		Expect(ApplicationSetHasConditions("simple-git-generator", ExpectedConditions)).
+		Expect(ApplicationSetHasConditions(ExpectedConditions)).
 
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
@@ -307,9 +301,6 @@ func TestSimpleGitDirectoryGeneratorGPGEnabledUnsignedCommits(t *testing.T) {
 		When().
 		// Create a GitGenerator-based ApplicationSet
 		Create(v1alpha1.ApplicationSet{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "simple-git-generator",
-			},
 			Spec: v1alpha1.ApplicationSetSpec{
 				Template: v1alpha1.ApplicationSetTemplate{
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{path.basename}}"},
@@ -342,7 +333,7 @@ func TestSimpleGitDirectoryGeneratorGPGEnabledUnsignedCommits(t *testing.T) {
 		}).
 		Then().Expect(ApplicationsDoNotExist(expectedApps)).
 		// verify the ApplicationSet error status conditions were set correctly
-		Expect(ApplicationSetHasConditions("simple-git-generator", expectedConditionsParamsError)).
+		Expect(ApplicationSetHasConditions(expectedConditionsParamsError)).
 		When().
 		Delete().Then().Expect(ApplicationsDoNotExist(expectedApps))
 }
@@ -409,9 +400,6 @@ func TestSimpleGitDirectoryGeneratorGPGEnabledWithoutKnownKeys(t *testing.T) {
 		IgnoreErrors().
 		// Create a GitGenerator-based ApplicationSet
 		Create(v1alpha1.ApplicationSet{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "simple-git-generator",
-			},
 			Spec: v1alpha1.ApplicationSetSpec{
 				Template: v1alpha1.ApplicationSetTemplate{
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{path.basename}}"},
@@ -447,7 +435,7 @@ func TestSimpleGitDirectoryGeneratorGPGEnabledWithoutKnownKeys(t *testing.T) {
 			},
 		}).Then().
 		// verify the ApplicationSet error status conditions were set correctly
-		Expect(ApplicationSetHasConditions("simple-git-generator", expectedConditionsParamsError)).
+		Expect(ApplicationSetHasConditions(expectedConditionsParamsError)).
 		Expect(ApplicationsDoNotExist(expectedApps)).
 		When().
 		Delete().Then().Expect(ApplicationsDoNotExist(expectedApps))
@@ -492,9 +480,6 @@ func TestSimpleGitFilesGenerator(t *testing.T) {
 		When().
 		// Create a GitGenerator-based ApplicationSet
 		Create(v1alpha1.ApplicationSet{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "simple-git-generator",
-			},
 			Spec: v1alpha1.ApplicationSetSpec{
 				Template: v1alpha1.ApplicationSetTemplate{
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{cluster.name}}-guestbook"},
@@ -555,7 +540,7 @@ func TestSimpleGitFilesGenerator(t *testing.T) {
 		}).Then().Expect(ApplicationsExist(expectedAppsNewMetadata)).
 
 		// verify the ApplicationSet status conditions were set correctly
-		Expect(ApplicationSetHasConditions("simple-git-generator", ExpectedConditions)).
+		Expect(ApplicationSetHasConditions(ExpectedConditions)).
 
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
@@ -621,9 +606,6 @@ func TestSimpleGitFilesGeneratorGPGEnabledUnsignedCommits(t *testing.T) {
 		When().
 		// Create a GitGenerator-based ApplicationSet
 		Create(v1alpha1.ApplicationSet{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "simple-git-generator",
-			},
 			Spec: v1alpha1.ApplicationSetSpec{
 				Template: v1alpha1.ApplicationSetTemplate{
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{cluster.name}}-guestbook"},
@@ -655,7 +637,7 @@ func TestSimpleGitFilesGeneratorGPGEnabledUnsignedCommits(t *testing.T) {
 			},
 		}).Then().Expect(ApplicationsDoNotExist(expectedApps)).
 		// verify the ApplicationSet error status conditions were set correctly
-		Expect(ApplicationSetHasConditions("simple-git-generator", expectedConditionsParamsError)).
+		Expect(ApplicationSetHasConditions(expectedConditionsParamsError)).
 		When().
 		Delete().Then().Expect(ApplicationsDoNotExist(expectedApps))
 }
@@ -722,9 +704,6 @@ func TestSimpleGitFilesGeneratorGPGEnabledWithoutKnownKeys(t *testing.T) {
 		IgnoreErrors().
 		// Create a GitGenerator-based ApplicationSet
 		Create(v1alpha1.ApplicationSet{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "simple-git-generator",
-			},
 			Spec: v1alpha1.ApplicationSetSpec{
 				Template: v1alpha1.ApplicationSetTemplate{
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{cluster.name}}-guestbook"},
@@ -756,7 +735,7 @@ func TestSimpleGitFilesGeneratorGPGEnabledWithoutKnownKeys(t *testing.T) {
 			},
 		}).Then().
 		// verify the ApplicationSet error status conditions were set correctly
-		Expect(ApplicationSetHasConditions("simple-git-generator", expectedConditionsParamsError)).
+		Expect(ApplicationSetHasConditions(expectedConditionsParamsError)).
 		Expect(ApplicationsDoNotExist(expectedApps)).
 		When().
 		Delete().Then().Expect(ApplicationsDoNotExist(expectedApps))
@@ -801,9 +780,6 @@ func TestSimpleGitFilesGeneratorGoTemplate(t *testing.T) {
 		When().
 		// Create a GitGenerator-based ApplicationSet
 		Create(v1alpha1.ApplicationSet{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "simple-git-generator",
-			},
 			Spec: v1alpha1.ApplicationSetSpec{
 				GoTemplate: true,
 				Template: v1alpha1.ApplicationSetTemplate{
@@ -865,7 +841,7 @@ func TestSimpleGitFilesGeneratorGoTemplate(t *testing.T) {
 		}).Then().Expect(ApplicationsExist(expectedAppsNewMetadata)).
 
 		// verify the ApplicationSet status conditions were set correctly
-		Expect(ApplicationSetHasConditions("simple-git-generator", ExpectedConditions)).
+		Expect(ApplicationSetHasConditions(ExpectedConditions)).
 
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
@@ -878,9 +854,6 @@ func TestSimpleGitFilesPreserveResourcesOnDeletion(t *testing.T) {
 		CreateNamespace(utils.ApplicationsResourcesNamespace).
 		// Create a GitGenerator-based ApplicationSet
 		Create(v1alpha1.ApplicationSet{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "simple-git-generator",
-			},
 			Spec: v1alpha1.ApplicationSetSpec{
 				Template: v1alpha1.ApplicationSetTemplate{
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{cluster.name}}-guestbook"},
@@ -938,9 +911,6 @@ func TestSimpleGitFilesPreserveResourcesOnDeletionGoTemplate(t *testing.T) {
 		CreateNamespace(utils.ApplicationsResourcesNamespace).
 		// Create a GitGenerator-based ApplicationSet
 		Create(v1alpha1.ApplicationSet{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "simple-git-generator",
-			},
 			Spec: v1alpha1.ApplicationSetSpec{
 				GoTemplate: true,
 				Template: v1alpha1.ApplicationSetTemplate{
@@ -1032,9 +1002,6 @@ func TestGitGeneratorPrivateRepo(t *testing.T) {
 		// Create a GitGenerator-based ApplicationSet
 
 		Create(v1alpha1.ApplicationSet{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "simple-git-generator-private",
-			},
 			Spec: v1alpha1.ApplicationSetSpec{
 				Template: v1alpha1.ApplicationSetTemplate{
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{path.basename}}"},
@@ -1108,9 +1075,6 @@ func TestGitGeneratorPrivateRepoGoTemplate(t *testing.T) {
 		When().
 		// Create a GitGenerator-based ApplicationSet
 		Create(v1alpha1.ApplicationSet{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "simple-git-generator-private",
-			},
 			Spec: v1alpha1.ApplicationSetSpec{
 				GoTemplate: true,
 				Template: v1alpha1.ApplicationSetTemplate{
@@ -1184,9 +1148,6 @@ func TestSimpleGitGeneratorPrivateRepoWithNoRepo(t *testing.T) {
 		When().
 		// Create a GitGenerator-based ApplicationSet
 		Create(v1alpha1.ApplicationSet{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "simple-git-generator-private",
-			},
 			Spec: v1alpha1.ApplicationSetSpec{
 				Template: v1alpha1.ApplicationSetTemplate{
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{path.basename}}"},
@@ -1249,20 +1210,15 @@ func TestSimpleGitGeneratorPrivateRepoWithMatchingProject(t *testing.T) {
 		}
 	}
 
+	ctx := Given(t)
 	expectedApps := []v1alpha1.Application{
 		generateExpectedApp("https-kustomize-base"),
 	}
 
-	var expectedAppsNewNamespace []v1alpha1.Application
-
-	Given(t).
-		HTTPSInsecureRepoURLAdded("default").
+	ctx.HTTPSInsecureRepoURLAdded("default").
 		When().
 		// Create a GitGenerator-based ApplicationSet
 		Create(v1alpha1.ApplicationSet{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "simple-git-generator-private",
-			},
 			Spec: v1alpha1.ApplicationSetSpec{
 				Template: v1alpha1.ApplicationSetTemplate{
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{path.basename}}"},
@@ -1295,7 +1251,7 @@ func TestSimpleGitGeneratorPrivateRepoWithMatchingProject(t *testing.T) {
 		}).Then().Expect(ApplicationsExist(expectedApps)).
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist(expectedAppsNewNamespace))
+		Delete().Then().Expect(ApplicationsDoNotExist(expectedApps))
 }
 
 func TestSimpleGitGeneratorPrivateRepoWithMismatchingProject(t *testing.T) {
@@ -1336,9 +1292,6 @@ func TestSimpleGitGeneratorPrivateRepoWithMismatchingProject(t *testing.T) {
 		When().
 		// Create a GitGenerator-based ApplicationSet
 		Create(v1alpha1.ApplicationSet{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "simple-git-generator-private",
-			},
 			Spec: v1alpha1.ApplicationSetSpec{
 				Template: v1alpha1.ApplicationSetTemplate{
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{path.basename}}"},
@@ -1412,9 +1365,6 @@ func TestGitGeneratorPrivateRepoWithTemplatedProject(t *testing.T) {
 		When().
 		// Create a GitGenerator-based ApplicationSet
 		Create(v1alpha1.ApplicationSet{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "simple-git-generator-private",
-			},
 			Spec: v1alpha1.ApplicationSetSpec{
 				Template: v1alpha1.ApplicationSetTemplate{
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{path.basename}}"},
@@ -1499,9 +1449,6 @@ func TestGitGeneratorPrivateRepoWithTemplatedProjectAndProjectScopedRepo(t *test
 		When().
 		// Create a GitGenerator-based ApplicationSet
 		Create(v1alpha1.ApplicationSet{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "simple-git-generator-private",
-			},
 			Spec: v1alpha1.ApplicationSetSpec{
 				Template: v1alpha1.ApplicationSetTemplate{
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{path.basename}}"},
