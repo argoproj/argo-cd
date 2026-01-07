@@ -36,14 +36,14 @@ func NewServer(
 func (s *Server) ListRepositoryCredentials(ctx context.Context, _ *repocredspkg.RepoCredsQuery) (*appsv1.RepoCredsList, error) {
 	urls, err := s.db.ListRepositoryCredentials(ctx)
 	if err != nil {
-		return nil, err
+		return nil, status.Errorf(codes.Internal, "Failed to list repository credentials: %v", err)
 	}
 	items := make([]appsv1.RepoCreds, 0)
 	for _, url := range urls {
 		if s.enf.Enforce(ctx.Value("claims"), rbac.ResourceRepositories, rbac.ActionGet, url) {
 			repo, err := s.db.GetRepositoryCredentials(ctx, url)
 			if err != nil {
-				return nil, err
+				return nil, status.Errorf(codes.Internal, "Failed to get repository credentials for URL %q: %v", url, err)
 			}
 			if repo != nil {
 				items = append(items, appsv1.RepoCreds{
@@ -60,14 +60,14 @@ func (s *Server) ListRepositoryCredentials(ctx context.Context, _ *repocredspkg.
 func (s *Server) ListWriteRepositoryCredentials(ctx context.Context, _ *repocredspkg.RepoCredsQuery) (*appsv1.RepoCredsList, error) {
 	urls, err := s.db.ListRepositoryCredentials(ctx)
 	if err != nil {
-		return nil, err
+		return nil, status.Errorf(codes.Internal, "failed to list repository credentials: %v", err)
 	}
 	items := make([]appsv1.RepoCreds, 0)
 	for _, url := range urls {
 		if s.enf.Enforce(ctx.Value("claims"), rbac.ResourceWriteRepositories, rbac.ActionGet, url) {
 			repo, err := s.db.GetWriteRepositoryCredentials(ctx, url)
 			if err != nil {
-				return nil, err
+				return nil, status.Errorf(codes.Internal, "failed to get repository credentials for URL %q: %v", url, err)
 			}
 			if repo != nil && repo.Password != "" {
 				items = append(items, appsv1.RepoCreds{
