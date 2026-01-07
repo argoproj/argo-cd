@@ -24,6 +24,7 @@ import (
 	apps "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/fake"
 	appinformer "github.com/argoproj/argo-cd/v3/pkg/client/informers/externalversions"
 	"github.com/argoproj/argo-cd/v3/server/rbacpolicy"
+	"github.com/argoproj/argo-cd/v3/test"
 	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/assets"
 	"github.com/argoproj/argo-cd/v3/util/db"
@@ -180,10 +181,7 @@ func newTestAppSetServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforce
 	if err != nil {
 		t.Fatal(err)
 	}
-	go clusterInformer.Run(ctx.Done())
-	if !k8scache.WaitForCacheSync(ctx.Done(), clusterInformer.HasSynced) {
-		t.Fatal("Timed out waiting for cluster cache to sync")
-	}
+	defer test.StartInformer(clusterInformer)()
 
 	server := NewServer(
 		db,
