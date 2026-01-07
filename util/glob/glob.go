@@ -28,6 +28,7 @@ var (
 	// while still providing significant performance benefits.
 	globCache     *lru.Cache
 	globCacheLock sync.Mutex
+	compileGlob   = glob.Compile
 )
 
 func init() {
@@ -45,7 +46,7 @@ func getOrCompile(pattern string, separators ...rune) (glob.Glob, error) {
 	}
 
 	// Compile and cache
-	compiled, err := glob.Compile(pattern, separators...)
+	compiled, err := compileGlob(pattern, separators...)
 	if err != nil {
 		return nil, err
 	}

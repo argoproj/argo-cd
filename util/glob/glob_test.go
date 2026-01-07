@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"testing"
 
 	extglob "github.com/gobwas/glob"
@@ -141,6 +142,16 @@ func Test_GlobCachingConcurrent(t *testing.T) {
 	// Clear cache before test
 	resetGlobCacheForTest()
 
+	var compileCount int32
+	originalCompile := compileGlob
+	compileGlob = func(pattern string, separators ...rune) (extglob.Glob, error) {
+		atomic.AddInt32(&compileCount, 1)
+		return originalCompile(pattern, separators...)
+	}
+	t.Cleanup(func() {
+		compileGlob = originalCompile
+	})
+
 	pattern := "concurrent*test"
 	text := "concurrentABCtest"
 
@@ -170,6 +181,7 @@ func Test_GlobCachingConcurrent(t *testing.T) {
 	// Verify pattern is cached
 	require.True(t, isPatternCached(pattern))
 	require.Equal(t, 1, globCacheLen(), "should only have one cached entry for the pattern")
+	require.Equal(t, int32(1), atomic.LoadInt32(&compileCount), "glob should compile once for the cached pattern")
 }
 
 func Test_GlobCacheLRUEviction(t *testing.T) {
