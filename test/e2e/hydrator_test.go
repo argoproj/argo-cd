@@ -8,7 +8,6 @@ import (
 	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
-	"github.com/argoproj/argo-cd/v3/test/e2e/fixture/repos"
 
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
 )
@@ -352,12 +351,10 @@ func TestHydratorWithAuthenticatedRepo(t *testing.T) {
 	// need to fetch existing git notes from the authenticated repository, which requires
 	// credentials.
 	Given(t).
-		HTTPSInsecureRepoURLAdded(true).
 		RepoURLType(fixture.RepoURLTypeHTTPS).
+		HTTPSInsecureRepoURLAdded(true).
 		// Add write credentials for commit-server to push hydrated manifests
-		And(func() {
-			repos.AddHTTPSWriteCredentials(t, true, fixture.RepoURLTypeHTTPS)
-		}).
+		WriteCredentials(true).
 		DrySourcePath("guestbook").
 		DrySourceRevision("HEAD").
 		SyncSourcePath("guestbook").

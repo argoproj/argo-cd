@@ -173,6 +173,11 @@ func (c *Context) SubmoduleHTTPSRepoURLAdded(withCreds bool) *Context {
 	return c
 }
 
+func (c *Context) WriteCredentials(insecure bool) *Context {
+	repos.AddWriteCredentials(c.T(), c.GetName(), insecure, c.repoURLType)
+	return c
+}
+
 func (c *Context) SSHRepoURLAdded(withCreds bool) *Context {
 	repos.AddSSHRepo(c.T(), false, withCreds, fixture.RepoURLTypeSSH)
 	return c
