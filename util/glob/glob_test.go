@@ -35,6 +35,23 @@ func globCacheLen() int {
 	return globCache.Len()
 }
 
+func matchWithCompiler(pattern, text string, compiler compileFn, separators ...rune) bool {
+	compiled, err := getOrCompile(pattern, compiler, separators...)
+	if err != nil {
+		return false
+	}
+	return compiled.Match(text)
+}
+
+func countingCompiler() (compileFn, *int32) {
+	var compileCount int32
+	compiler := func(pattern string, separators ...rune) (extglob.Glob, error) {
+		atomic.AddInt32(&compileCount, 1)
+		return extglob.Compile(pattern, separators...)
+	}
+	return compiler, &compileCount
+}
+
 func Test_Match(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -120,37 +137,32 @@ func Test_GlobCaching(t *testing.T) {
 	// Clear cache before test
 	resetGlobCacheForTest()
 
+	compiler, compileCount := countingCompiler()
+
 	pattern := "test*pattern"
 	text := "testABCpattern"
 
 	// First call should compile and cache
-	result1 := Match(pattern, text)
+	result1 := matchWithCompiler(pattern, text, compiler)
 	require.True(t, result1)
 
 	// Verify pattern is cached
 	require.True(t, isPatternCached(pattern), "pattern should be cached after first Match call")
 
 	// Second call should use cached value
-	result2 := Match(pattern, text)
+	result2 := matchWithCompiler(pattern, text, compiler)
 	require.True(t, result2)
 
 	// Results should be consistent
 	require.Equal(t, result1, result2)
+	require.Equal(t, int32(1), atomic.LoadInt32(compileCount), "glob should compile once for the cached pattern")
 }
 
 func Test_GlobCachingConcurrent(t *testing.T) {
 	// Clear cache before test
 	resetGlobCacheForTest()
 
-	var compileCount int32
-	originalCompile := compileGlob
-	compileGlob = func(pattern string, separators ...rune) (extglob.Glob, error) {
-		atomic.AddInt32(&compileCount, 1)
-		return originalCompile(pattern, separators...)
-	}
-	t.Cleanup(func() {
-		compileGlob = originalCompile
-	})
+	compiler, compileCount := countingCompiler()
 
 	pattern := "concurrent*test"
 	text := "concurrentABCtest"
@@ -163,7 +175,7 @@ func Test_GlobCachingConcurrent(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			result := Match(pattern, text)
+			result := matchWithCompiler(pattern, text, compiler)
 			if !result {
 				errChan <- errors.New("expected match to return true")
 			}
@@ -181,7 +193,7 @@ func Test_GlobCachingConcurrent(t *testing.T) {
 	// Verify pattern is cached
 	require.True(t, isPatternCached(pattern))
 	require.Equal(t, 1, globCacheLen(), "should only have one cached entry for the pattern")
-	require.Equal(t, int32(1), atomic.LoadInt32(&compileCount), "glob should compile once for the cached pattern")
+	require.Equal(t, int32(1), atomic.LoadInt32(compileCount), "glob should compile once for the cached pattern")
 }
 
 func Test_GlobCacheLRUEviction(t *testing.T) {

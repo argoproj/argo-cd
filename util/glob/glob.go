@@ -22,13 +22,15 @@ const (
 	DefaultGlobCacheSize = 10000
 )
 
+type compileFn func(pattern string, separators ...rune) (glob.Glob, error)
+
 var (
 	// globCache stores compiled glob patterns using an LRU cache with bounded size.
 	// This prevents memory exhaustion from potentially untrusted RBAC patterns
 	// while still providing significant performance benefits.
 	globCache     *lru.Cache
 	globCacheLock sync.Mutex
-	compileGlob   = glob.Compile
+	compileGlob   compileFn = glob.Compile
 )
 
 func init() {
@@ -36,7 +38,7 @@ func init() {
 }
 
 // getOrCompile returns a cached compiled glob pattern, compiling and caching it if necessary.
-func getOrCompile(pattern string, separators ...rune) (glob.Glob, error) {
+func getOrCompile(pattern string, compiler compileFn, separators ...rune) (glob.Glob, error) {
 	globCacheLock.Lock()
 	defer globCacheLock.Unlock()
 
@@ -46,7 +48,7 @@ func getOrCompile(pattern string, separators ...rune) (glob.Glob, error) {
 	}
 
 	// Compile and cache
-	compiled, err := compileGlob(pattern, separators...)
+	compiled, err := compiler(pattern, separators...)
 	if err != nil {
 		return nil, err
 	}
@@ -58,7 +60,7 @@ func getOrCompile(pattern string, separators ...rune) (glob.Glob, error) {
 // Match tries to match a text with a given glob pattern.
 // Compiled glob patterns are cached for performance.
 func Match(pattern, text string, separators ...rune) bool {
-	compiled, err := getOrCompile(pattern, separators...)
+	compiled, err := getOrCompile(pattern, compileGlob, separators...)
 	if err != nil {
 		log.Warnf("failed to compile pattern %s due to error %v", pattern, err)
 		return false
@@ -70,7 +72,7 @@ func Match(pattern, text string, separators ...rune) bool {
 // Returns error if the glob pattern fails to compile.
 // Compiled glob patterns are cached for performance.
 func MatchWithError(pattern, text string, separators ...rune) (bool, error) {
-	compiled, err := getOrCompile(pattern, separators...)
+	compiled, err := getOrCompile(pattern, compileGlob, separators...)
 	if err != nil {
 		return false, err
 	}
