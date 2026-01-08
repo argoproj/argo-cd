@@ -17,17 +17,19 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
+	authorizationv1 "k8s.io/api/authorization/v1"
 	corev1 "k8s.io/api/core/v1"
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/dynamic/fake"
+	k8sfake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	testcore "k8s.io/client-go/testing"
@@ -212,7 +214,6 @@ func Benchmark_sync_CrossNamespace(b *testing.B) {
 
 	for _, tc := range testCases {
 		b.Run(tc.name, func(b *testing.B) {
-
 			resources := []runtime.Object{}
 
 			// Create cluster-scoped parents (ClusterRoles)
@@ -1316,7 +1317,6 @@ func testClusterChild() *rbacv1.ClusterRole {
 	}
 }
 
-
 func TestIterateHierarchyV2_ClusterScopedParent_FindsAllChildren(t *testing.T) {
 	// Test that cluster-scoped parents automatically find all their children (both cluster-scoped and namespaced)
 	// This is the core behavior of the new implementation - cross-namespace relationships are always tracked
@@ -1349,7 +1349,6 @@ func TestIterateHierarchyV2_ClusterScopedParent_FindsAllChildren(t *testing.T) {
 	}
 	assert.ElementsMatch(t, expected, keys)
 }
-
 
 func TestIterateHierarchyV2_ClusterScopedParentOnly_InferredUID(t *testing.T) {
 	// Test that passing only a cluster-scoped parent finds children even with inferred UIDs.
@@ -1842,18 +1841,17 @@ func BenchmarkIterateHierarchyV2_ClusterParentTraversal(b *testing.B) {
 
 		// Secondary dimension: Within a namespace, % of resources that are cross-NS
 		// 5,000 total resources, 2% of namespaces (1/50) have cross-NS children
-		{"50NS_2pct_100perNS_10cross", 50, 100, 1, 10},  // 10% of namespace resources (10/100)
-		{"50NS_2pct_100perNS_25cross", 50, 100, 1, 25},  // 25% of namespace resources (25/100)
-		{"50NS_2pct_100perNS_50cross", 50, 100, 1, 50},  // 50% of namespace resources (50/100)
+		{"50NS_2pct_100perNS_10cross", 50, 100, 1, 10}, // 10% of namespace resources (10/100)
+		{"50NS_2pct_100perNS_25cross", 50, 100, 1, 25}, // 25% of namespace resources (25/100)
+		{"50NS_2pct_100perNS_50cross", 50, 100, 1, 50}, // 50% of namespace resources (50/100)
 
 		// Edge cases
-		{"100NS_1pct_100perNS_10cross", 100, 100, 1, 10},   // 1% of namespaces (1/100) - extreme clustering
-		{"50NS_100pct_100perNS_10cross", 50, 100, 50, 10},  // 100% of namespaces - worst case
+		{"100NS_1pct_100perNS_10cross", 100, 100, 1, 10},  // 1% of namespaces (1/100) - extreme clustering
+		{"50NS_100pct_100perNS_10cross", 50, 100, 50, 10}, // 100% of namespaces - worst case
 	}
 
 	for _, tc := range testCases {
 		b.Run(tc.name, func(b *testing.B) {
-
 			cluster := newCluster(b).WithAPIResources([]kube.APIResourceInfo{{
 				GroupKind:            schema.GroupKind{Group: "rbac.authorization.k8s.io", Kind: "ClusterRole"},
 				GroupVersionResource: schema.GroupVersionResource{Group: "rbac.authorization.k8s.io", Version: "v1", Resource: "clusterroles"},
@@ -1866,7 +1864,7 @@ func BenchmarkIterateHierarchyV2_ClusterParentTraversal(b *testing.B) {
 
 			// CRITICAL: Initialize namespacedResources so setNode will populate orphanedChildren index
 			cluster.namespacedResources = map[schema.GroupKind]bool{
-				{Group: "", Kind: "Pod"}:                                   true,
+				{Group: "", Kind: "Pod"}:                                  true,
 				{Group: "rbac.authorization.k8s.io", Kind: "ClusterRole"}: false,
 			}
 
@@ -1911,7 +1909,6 @@ func BenchmarkIterateHierarchyV2_ClusterParentTraversal(b *testing.B) {
 		})
 	}
 }
-
 
 func TestIterateHierarchyV2_NoDuplicatesInSameNamespace(t *testing.T) {
 	// Create a parent-child relationship in the same namespace
@@ -1984,4 +1981,80 @@ func TestIterateHierarchyV2_NoDuplicatesCrossNamespace(t *testing.T) {
 	assert.Equal(t, 1, visitCount["test-cluster-parent"], "cluster parent should be visited once")
 	assert.Equal(t, 1, visitCount["namespaced-child"], "namespaced child should be visited once")
 	assert.Equal(t, 1, visitCount["cluster-child"], "cluster child should be visited once")
+}
+
+func Test_checkPermissionForNamespace(t *testing.T) {
+	api := kube.APIResourceInfo{
+		GroupKind:            schema.GroupKind{Group: "", Kind: "Pod"},
+		GroupVersionResource: schema.GroupVersionResource{Group: "", Version: "v1", Resource: "pods"},
+		Meta:                 metav1.APIResource{Namespaced: true},
+	}
+
+	tests := []struct {
+		name            string
+		ssarResponse    *authorizationv1.SelfSubjectAccessReview
+		ssarError       error
+		expectedAllowed bool
+		expectError     bool
+		errorContains   string
+	}{
+		{
+			name: "returns true when SSAR allows",
+			ssarResponse: &authorizationv1.SelfSubjectAccessReview{
+				Status: authorizationv1.SubjectAccessReviewStatus{
+					Allowed: true,
+				},
+			},
+			expectedAllowed: true,
+			expectError:     false,
+		},
+		{
+			name: "returns false when SSAR denies",
+			ssarResponse: &authorizationv1.SelfSubjectAccessReview{
+				Status: authorizationv1.SubjectAccessReviewStatus{
+					Allowed: false,
+				},
+			},
+			expectedAllowed: false,
+			expectError:     false,
+		},
+		{
+			name:            "returns error when SSAR API call fails",
+			ssarError:       fmt.Errorf("API server error"),
+			expectedAllowed: false,
+			expectError:     true,
+			errorContains:   "failed to create self subject access review",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Given: fake clientset with SSAR mock
+			fakeClient := k8sfake.NewSimpleClientset()
+			fakeClient.PrependReactor("create", "selfsubjectaccessreviews", func(action testcore.Action) (handled bool, ret runtime.Object, err error) {
+				if tt.ssarError != nil {
+					return true, nil, tt.ssarError
+				}
+				return true, tt.ssarResponse, nil
+			})
+
+			cache := &clusterCache{}
+
+			// When: checking permission for specific namespace
+			allowed, err := cache.checkPermissionForNamespace(
+				context.Background(),
+				fakeClient.AuthorizationV1().SelfSubjectAccessReviews(),
+				api,
+				"test-namespace",
+			)
+
+			// Then: verify results
+			if tt.expectError {
+				assert.ErrorContains(t, err, tt.errorContains)
+			} else {
+				assert.NoError(t, err)
+			}
+			assert.Equal(t, tt.expectedAllowed, allowed)
+		})
+	}
 }
