@@ -3127,9 +3127,9 @@ func (s *Service) UpdateRevisionForPaths(_ context.Context, request *apiclient.U
 		}
 
 		if sourceHasChanges {
+			logCtx.Debugf("changes found for application %s in repo %s from revision %s to revision %s", request.AppName, sourceMeta.Repo, syncedRevision, resolvedRevision)
 			return &apiclient.UpdateRevisionForPathsResponse{
 				Revision: resolvedRevision,
-				Updated:  false,
 				Changes:  true,
 			}, nil
 		}
@@ -3147,15 +3147,11 @@ func (s *Service) UpdateRevisionForPaths(_ context.Context, request *apiclient.U
 		logCtx.Warnf("error updating cached revision for source %s with revision %s: %v", request.ApplicationSource.RepoURL, rRevision, err)
 		return &apiclient.UpdateRevisionForPathsResponse{
 			Revision: rRevision,
-			Updated:  false,
-			Changes:  false,
 		}, nil
 	}
 
 	return &apiclient.UpdateRevisionForPathsResponse{
 		Revision: rRevision,
-		Updated:  true,
-		Changes:  false,
 	}, nil
 }
 

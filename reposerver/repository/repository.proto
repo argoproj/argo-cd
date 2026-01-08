@@ -296,15 +296,11 @@ message UpdateRevisionForPathsRequest {
 }
 
 message UpdateRevisionForPathsResponse {
-    // Changes indicates whether any changes were detected in the provided paths. If false, it means that the manifest
-    // cache was updated to the new revision. If true, it means that there are relevant changes in the repo files and
-    // that new manifests should be generated.
-    bool updated = 1;
-    string revision = 2;
     // Changes indicates whether any changes were detected in the provided paths between syncedRevision and revision.
     // If true, it means that there are relevant changes in the repo files and that new manifests should be generated.
     // If false, it means no changes were detected and the cache was updated.
-    bool changes = 3;
+    bool changes = 1;
+    string revision = 2;
 }
 
 // ManifestService
