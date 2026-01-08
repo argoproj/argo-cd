@@ -1385,26 +1385,42 @@ func TestSync_ExistingHooksWithFinalizer(t *testing.T) {
 func TestRunSyncFailHooksFailed(t *testing.T) {
 	// Tests that other SyncFail Hooks run even if one of them fail.
 
-	syncCtx := newTestSyncCtx(nil)
 	pod := testingutils.NewPod()
 	successfulSyncFailHook := newHook(synccommon.HookTypeSyncFail, synccommon.HookDeletePolicyBeforeHookCreation)
 	successfulSyncFailHook.SetName("successful-sync-fail-hook")
 	failedSyncFailHook := newHook(synccommon.HookTypeSyncFail, synccommon.HookDeletePolicyBeforeHookCreation)
 	failedSyncFailHook.SetName("failed-sync-fail-hook")
+
+	// Mark successful hook as healthy so it completes
+	syncCtx := newTestSyncCtx(nil,
+		WithHealthOverride(resourceNameHealthOverride(map[string]health.HealthStatusCode{
+			successfulSyncFailHook.GetName(): health.HealthStatusHealthy,
+		})),
+	)
 	syncCtx.resources = groupResources(ReconciliationResult{
 		Live:   []*unstructured.Unstructured{nil},
 		Target: []*unstructured.Unstructured{pod},
 	})
 	syncCtx.hooks = []*unstructured.Unstructured{successfulSyncFailHook, failedSyncFailHook}
 
-	mockKubectl := &kubetest.MockKubectlCmd{
+	mockKubectl := (&kubetest.MockKubectlCmd{
 		Commands: map[string]kubetest.KubectlOutput{
 			// Fail operation
 			pod.GetName(): {Err: errors.New("")},
 			// Fail a single SyncFail hook
 			failedSyncFailHook.GetName(): {Err: errors.New("")},
+			// Succeed for the successful hook
+			successfulSyncFailHook.GetName(): {},
 		},
-	}
+	}).WithGetResourceFunc(func(_ context.Context, _ *rest.Config, _ schema.GroupVersionKind, name string, _ string) (*unstructured.Unstructured, error) {
+		// Return a completed Pod for the successful hook so health check marks it as Succeeded
+		if name == successfulSyncFailHook.GetName() {
+			completedPod := successfulSyncFailHook.DeepCopy()
+			_ = unstructured.SetNestedField(completedPod.Object, "Succeeded", "status", "phase")
+			return completedPod, nil
+		}
+		return nil, nil
+	})
 	syncCtx.kubectl = mockKubectl
 	mockResourceOps := kubetest.MockResourceOps{
 		Commands: map[string]kubetest.KubectlOutput{
@@ -1412,22 +1428,51 @@ func TestRunSyncFailHooksFailed(t *testing.T) {
 			pod.GetName(): {Err: errors.New("")},
 			// Fail a single SyncFail hook
 			failedSyncFailHook.GetName(): {Err: errors.New("")},
+			// Succeed for the successful hook
+			successfulSyncFailHook.GetName(): {},
 		},
 	}
 	syncCtx.resourceOps = &mockResourceOps
 
 	syncCtx.Sync()
+
+	// After first sync, the successful hook is applied (Running state).
+	// We need to manually mark it as completed since there's no real cluster
+	// to provide the live object with healthy status.
+	_, _, results := syncCtx.GetState()
+	for _, res := range results {
+		if res.ResourceKey.Name == successfulSyncFailHook.GetName() {
+			res.HookPhase = synccommon.OperationSucceeded
+			syncCtx.syncRes[resourceResultKey(res.ResourceKey, synccommon.SyncPhaseSyncFail)] = res
+		}
+	}
+
 	syncCtx.Sync()
 	phase, _, resources := syncCtx.GetState()
 
 	// Operation as a whole should fail
 	assert.Equal(t, synccommon.OperationFailed, phase)
+
+	// Find the hook results by name since order depends on Order field, not alphabetical
+	var failedHookResult, successfulHookResult *synccommon.ResourceSyncResult
+	for i := range resources {
+		switch resources[i].ResourceKey.Name {
+		case failedSyncFailHook.GetName():
+			failedHookResult = &resources[i]
+		case successfulSyncFailHook.GetName():
+			successfulHookResult = &resources[i]
+		}
+	}
+
 	// failedSyncFailHook should fail
-	assert.Equal(t, synccommon.OperationFailed, resources[1].HookPhase)
-	assert.Equal(t, synccommon.ResultCodeSyncFailed, resources[1].Status)
-	// successfulSyncFailHook should be synced running (it is an nginx pod)
-	assert.Equal(t, synccommon.OperationRunning, resources[2].HookPhase)
-	assert.Equal(t, synccommon.ResultCodeSynced, resources[2].Status)
+	require.NotNil(t, failedHookResult, "failed hook result not found")
+	assert.Equal(t, synccommon.OperationFailed, failedHookResult.HookPhase)
+	assert.Equal(t, synccommon.ResultCodeSyncFailed, failedHookResult.Status)
+
+	// successfulSyncFailHook should succeed
+	require.NotNil(t, successfulHookResult, "successful hook result not found")
+	assert.Equal(t, synccommon.OperationSucceeded, successfulHookResult.HookPhase)
+	assert.Equal(t, synccommon.ResultCodeSynced, successfulHookResult.Status)
 }
 
 func TestRunSync_HooksNotDeletedIfPhaseNotCompleted(t *testing.T) {
@@ -1663,7 +1708,7 @@ func Test_setRunningPhase(t *testing.T) {
 		return &syncTask{targetObj: pod}
 	}
 	newHookTask := func(name string, hookType synccommon.HookType) *syncTask {
-		hook := newHook(hookType)
+		hook := newHook(hookType, synccommon.HookDeletePolicyBeforeHookCreation)
 		hook.SetName(name)
 		return &syncTask{targetObj: hook}
 	}
