@@ -44,8 +44,10 @@ var (
 	indexLock  = sync.NewKeyLock()
 )
 
-const helmOCIConfigType = "application/vnd.cncf.helm.config.v1+json"
-const helmOCILayerType = "application/vnd.cncf.helm.chart.content.v1.tar+gzip"
+const (
+	helmOCIConfigType = "application/vnd.cncf.helm.config.v1+json"
+	helmOCILayerType  = "application/vnd.cncf.helm.chart.content.v1.tar+gzip"
+)
 
 var _ Client = &nativeOCIClient{}
 
