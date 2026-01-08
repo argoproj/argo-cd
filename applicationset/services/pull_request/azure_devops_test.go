@@ -87,7 +87,7 @@ func TestListPullRequest(t *testing.T) {
 	assert.Equal(t, "main", list[0].TargetBranch)
 	assert.Equal(t, prHeadSha, list[0].HeadSHA)
 	assert.Equal(t, "feat(123)", list[0].Title)
-	assert.Equal(t, prID, list[0].Number)
+	assert.Equal(t, int64(prID), list[0].Number)
 	assert.Equal(t, uniqueName, list[0].Author)
 }
 

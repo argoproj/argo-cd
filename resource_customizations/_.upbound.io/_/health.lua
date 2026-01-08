@@ -1,4 +1,4 @@
--- Health check copied from here: https://github.com/crossplane/docs/blob/709889c5dbe6e5a2ea3dffd66fe276cf465b47b5/content/master/guides/crossplane-with-argo-cd.md
+-- Health check copied from here: https://github.com/crossplane/docs/blob/9fe744889fc150ca71e5298d90b4133f79ea20f2/content/master/guides/crossplane-with-argo-cd.md
 
 health_status = {
   status = "Progressing",
@@ -56,7 +56,6 @@ for i, condition in ipairs(obj.status.conditions) do
     if condition.status == "True" then
       health_status.status = "Healthy"
       health_status.message = "Resource is up-to-date."
-      return health_status
     end
   end
 end

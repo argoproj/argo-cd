@@ -369,8 +369,7 @@ func ValidateRepo(
 	if err != nil {
 		return nil, fmt.Errorf("error getting cluster REST config: %w", err)
 	}
-	//nolint:staticcheck
-	destCluster.ServerVersion, err = kubectl.GetServerVersion(config)
+	destCluster.Info.ServerVersion, err = kubectl.GetServerVersion(config)
 	if err != nil {
 		return nil, fmt.Errorf("error getting k8s server version: %w", err)
 	}
@@ -500,8 +499,7 @@ func validateRepo(ctx context.Context,
 		proj,
 		sources,
 		repoClient,
-		//nolint:staticcheck
-		cluster.ServerVersion,
+		cluster.Info.ServerVersion,
 		APIResourcesToStrings(apiGroups, true),
 		permittedHelmCredentials,
 		permittedOCICredentials,

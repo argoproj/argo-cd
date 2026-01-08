@@ -83,7 +83,7 @@ message AppProjectSpec {
   repeated ProjectRole roles = 4;
 
   // ClusterResourceWhitelist contains list of whitelisted cluster level resources
-  repeated .k8s.io.apimachinery.pkg.apis.meta.v1.GroupKind clusterResourceWhitelist = 5;
+  repeated ClusterResourceRestrictionItem clusterResourceWhitelist = 5;
 
   // NamespaceResourceBlacklist contains list of blacklisted namespace level resources
   repeated .k8s.io.apimachinery.pkg.apis.meta.v1.GroupKind namespaceResourceBlacklist = 6;
@@ -101,7 +101,7 @@ message AppProjectSpec {
   repeated SignatureKey signatureKeys = 10;
 
   // ClusterResourceBlacklist contains list of blacklisted cluster level resources
-  repeated .k8s.io.apimachinery.pkg.apis.meta.v1.GroupKind clusterResourceBlacklist = 11;
+  repeated ClusterResourceRestrictionItem clusterResourceBlacklist = 11;
 
   // SourceNamespaces defines the namespaces application resources are allowed to be created in
   repeated string sourceNamespaces = 12;
@@ -129,12 +129,16 @@ message AppProjectStatus {
 // +kubebuilder:printcolumn:name="Revision",type=string,JSONPath=`.status.sync.revision`,priority=10
 // +kubebuilder:printcolumn:name="Project",type=string,JSONPath=`.spec.project`,priority=10
 message Application {
+  // Common: shared with ApplicationSet
   optional .k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
 
+  // Common: shared with ApplicationSet
   optional ApplicationSpec spec = 2;
 
+  // Common: shared with ApplicationSet (different type)
   optional ApplicationStatus status = 3;
 
+  // Common: shared with ApplicationSet (different type)
   optional Operation operation = 4;
 }
 
@@ -197,7 +201,7 @@ message ApplicationPreservedFields {
   repeated string labels = 2;
 }
 
-// ApplicationSet is a set of Application resources
+// ApplicationSet is a set of Application resources.
 // +genclient
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -206,8 +210,10 @@ message ApplicationPreservedFields {
 message ApplicationSet {
   optional .k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
 
+  // Common: shared with Application
   optional ApplicationSetSpec spec = 2;
 
+  // Common: shared with Application (different type)
   optional ApplicationSetStatus status = 3;
 }
 
@@ -936,6 +942,17 @@ message ClusterList {
   repeated Cluster items = 2;
 }
 
+// ClusterResourceRestrictionItem is a cluster resource that is restricted by the project's whitelist or blacklist
+message ClusterResourceRestrictionItem {
+  optional string group = 1;
+
+  optional string kind = 2;
+
+  // Name is the name of the restricted resource. Glob patterns using Go's filepath.Match syntax are supported.
+  // Unlike the group and kind fields, if no name is specified, all resources of the specified group/kind are matched.
+  optional string name = 3;
+}
+
 // Command holds binary path and arguments list
 message Command {
   repeated string command = 1;
@@ -1038,6 +1055,18 @@ message DrySource {
 
   // Path is a directory path within the Git repository where the manifests are located
   optional string path = 3;
+
+  // Helm specifies helm specific options
+  optional ApplicationSourceHelm helm = 4;
+
+  // Kustomize specifies kustomize specific options
+  optional ApplicationSourceKustomize kustomize = 5;
+
+  // Directory specifies path/directory specific options
+  optional ApplicationSourceDirectory directory = 6;
+
+  // Plugin specifies config management plugin specific options
+  optional ApplicationSourcePlugin plugin = 7;
 }
 
 // DuckType defines a generator to match against clusters registered with ArgoCD.

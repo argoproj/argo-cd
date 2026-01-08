@@ -217,7 +217,6 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                 return {
                     url: (!githubAppValues.url && 'Repository URL is required') || (credsTemplate && !isHTTPOrHTTPSUrl(githubAppValues.url) && 'Not a valid HTTP/HTTPS URL'),
                     githubAppId: !githubAppValues.githubAppId && 'GitHub App ID is required',
-                    githubAppInstallationId: !githubAppValues.githubAppInstallationId && 'GitHub App installation ID is required',
                     githubAppPrivateKey: !githubAppValues.githubAppPrivateKey && 'GitHub App private Key is required'
                 };
             case ConnectionMethod.GOOGLECLOUD:
@@ -308,7 +307,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
 
     // only connections of git type which is not via GitHub App are updatable
     const isRepoUpdatable = (repo: models.Repository) => {
-        return isHTTPOrHTTPSUrl(repo.repo) && repo.type === 'git' && !repo.githubAppId;
+        return isHTTPOrHTTPSUrl(repo.repo) && repo.type === 'git' && !repo.githubAppID;
     };
 
     // Forces a reload of configured repositories, circumventing the cache
@@ -960,7 +959,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                                                                     title: 'Create application',
                                                                     action: () =>
                                                                         ctx.navigation.goto('/applications', {
-                                                                            new: JSON.stringify({spec: {sourceHydrator: {drySource: {repoURL: repo.repo}}}})
+                                                                            new: JSON.stringify({spec: {source: {repoURL: repo.repo}}})
                                                                         })
                                                                 },
                                                                 {

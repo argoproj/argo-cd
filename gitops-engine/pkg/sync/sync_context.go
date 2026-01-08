@@ -391,25 +391,43 @@ type syncContext struct {
 	modificationResult map[kubeutil.ResourceKey]bool
 }
 
-func (sc *syncContext) setRunningPhase(tasks []*syncTask, isPendingDeletion bool) {
-	if len(tasks) > 0 {
-		firstTask := tasks[0]
-		waitingFor := "completion of hook"
-		andMore := "hooks"
-		if !firstTask.isHook() {
-			waitingFor = "healthy state of"
-			andMore = "resources"
-		}
-		if isPendingDeletion {
-			waitingFor = "deletion of"
-		}
-		message := fmt.Sprintf("waiting for %s %s/%s/%s",
-			waitingFor, firstTask.group(), firstTask.kind(), firstTask.name())
-		if moreTasks := len(tasks) - 1; moreTasks > 0 {
-			message = fmt.Sprintf("%s and %d more %s", message, moreTasks, andMore)
-		}
-		sc.setOperationPhase(common.OperationRunning, message)
+func (sc *syncContext) setRunningPhase(tasks syncTasks, isPendingDeletion bool) {
+	if tasks.Len() == 0 {
+		sc.setOperationPhase(common.OperationRunning, "")
+		return
 	}
+
+	hooks, resources := tasks.Split(func(task *syncTask) bool { return task.isHook() })
+
+	reason := "completion of hook"
+	taskType := "resources"
+
+	if hooks.Len() == 0 {
+		reason = "healthy state of"
+	}
+	if resources.Len() == 0 {
+		taskType = "hooks"
+	}
+
+	if isPendingDeletion {
+		reason = "deletion of"
+		if hooks.Len() != 0 {
+			reason += " hook"
+		}
+	}
+
+	var firstTask *syncTask
+	if hooks.Len() != 0 {
+		firstTask = hooks[0]
+	} else {
+		firstTask = resources[0]
+	}
+
+	message := fmt.Sprintf("waiting for %s %s/%s/%s", reason, firstTask.group(), firstTask.kind(), firstTask.name())
+	if nbAdditionalTask := len(tasks) - 1; nbAdditionalTask > 0 {
+		message = fmt.Sprintf("%s and %d more %s", message, nbAdditionalTask, taskType)
+	}
+	sc.setOperationPhase(common.OperationRunning, message)
 }
 
 // sync has performs the actual apply or hook based sync
@@ -439,7 +457,7 @@ func (sc *syncContext) Sync() {
 			// No need to perform a dry-run on the namespace creation, because if it fails we stop anyway
 			sc.log.WithValues("task", nsCreateTask).Info("Creating namespace")
 			if sc.runTasks(nsSyncTasks, false) == failed {
-				sc.setOperationFailed(syncTasks{}, nsSyncTasks, "the namespace failed to apply")
+				sc.executeSyncFailPhase(syncTasks{}, nsSyncTasks, "the namespace failed to apply")
 				return
 			}
 
@@ -467,9 +485,9 @@ func (sc *syncContext) Sync() {
 			// update the hook's result
 			operationState, message, err := sc.getOperationPhase(task.liveObj)
 			if err != nil {
-				sc.setResourceResult(task, "", common.OperationError, fmt.Sprintf("failed to get resource health: %v", err))
+				sc.setResourceResult(task, task.syncStatus, common.OperationError, fmt.Sprintf("failed to get resource health: %v", err))
 			} else {
-				sc.setResourceResult(task, "", operationState, message)
+				sc.setResourceResult(task, task.syncStatus, operationState, message)
 			}
 		} else {
 			// this must be calculated on the live object
@@ -539,7 +557,7 @@ func (sc *syncContext) Sync() {
 	// if there are any completed but unsuccessful tasks, sync is a failure.
 	if tasks.Any(func(t *syncTask) bool { return t.completed() && !t.successful() }) {
 		sc.deleteHooks(hooksPendingDeletionFailed)
-		sc.setOperationFailed(syncFailTasks, syncFailedTasks, "one or more synchronization tasks completed unsuccessfully")
+		sc.executeSyncFailPhase(syncFailTasks, syncFailedTasks, "one or more synchronization tasks completed unsuccessfully")
 		return
 	}
 
@@ -592,7 +610,7 @@ func (sc *syncContext) Sync() {
 	case failed:
 		syncFailedTasks, _ := tasks.Split(func(t *syncTask) bool { return t.syncStatus == common.ResultCodeSyncFailed })
 		sc.deleteHooks(hooksPendingDeletionFailed)
-		sc.setOperationFailed(syncFailTasks, syncFailedTasks, "one or more objects failed to apply")
+		sc.executeSyncFailPhase(syncFailTasks, syncFailedTasks, "one or more objects failed to apply")
 	case successful:
 		if remainingTasks.Len() == 0 {
 			// delete all completed hooks which have appropriate delete policy
@@ -713,7 +731,7 @@ func (sc *syncContext) deleteHooks(hooksPendingDeletion syncTasks) {
 	for _, task := range hooksPendingDeletion {
 		err := sc.deleteResource(task)
 		if err != nil && !apierrors.IsNotFound(err) {
-			sc.setResourceResult(task, "", common.OperationError, fmt.Sprintf("failed to delete resource: %v", err))
+			sc.setResourceResult(task, task.syncStatus, common.OperationError, fmt.Sprintf("failed to delete resource: %v", err))
 		}
 	}
 }
@@ -729,7 +747,7 @@ func (sc *syncContext) GetState() (common.OperationPhase, string, []common.Resou
 	return sc.phase, sc.message, resourceRes
 }
 
-func (sc *syncContext) setOperationFailed(syncFailTasks, syncFailedTasks syncTasks, message string) {
+func (sc *syncContext) executeSyncFailPhase(syncFailTasks, syncFailedTasks syncTasks, message string) {
 	errorMessageFactory := func(tasks syncTasks, message string) string {
 		messages := tasks.Map(func(task *syncTask) string {
 			return task.message
@@ -1305,13 +1323,13 @@ func (sc *syncContext) Terminate() {
 		if phase == common.OperationRunning {
 			err := sc.deleteResource(task)
 			if err != nil && !apierrors.IsNotFound(err) {
-				sc.setResourceResult(task, "", common.OperationFailed, fmt.Sprintf("Failed to delete: %v", err))
+				sc.setResourceResult(task, task.syncStatus, common.OperationFailed, fmt.Sprintf("Failed to delete: %v", err))
 				terminateSuccessful = false
 			} else {
-				sc.setResourceResult(task, "", common.OperationSucceeded, "Deleted")
+				sc.setResourceResult(task, task.syncStatus, common.OperationSucceeded, "Deleted")
 			}
 		} else {
-			sc.setResourceResult(task, "", phase, msg)
+			sc.setResourceResult(task, task.syncStatus, phase, msg)
 		}
 	}
 	if terminateSuccessful {
