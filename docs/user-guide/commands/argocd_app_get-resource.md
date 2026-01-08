@@ -27,7 +27,7 @@ argocd app get-resource APPNAME [flags]
   # Get a specific resource with managed fields, Pod my-app-pod, in 'my-app' by name in wide format
     argocd app get-resource my-app --kind Pod --resource-name my-app-pod --show-managed-fields
 
-  # Get the the details of a specific field in a resource in 'my-app' in the wide format
+  # Get the details of a specific field in a resource in 'my-app' in the wide format
     argocd app get-resource my-app --kind Pod --filter-fields status.podIP
 
   # Get the details of multiple specific fields in a specific resource in 'my-app' in the wide format
@@ -38,6 +38,7 @@ argocd app get-resource APPNAME [flags]
 
 ```
       --filter-fields strings   A comma separated list of fields to display, if not provided will output the entire manifest
+      --group string            Group
   -h, --help                    help for get-resource
       --kind string             Kind of resource [REQUIRED]
   -o, --output string           Format of the output, wide, yaml, or json (default "wide")

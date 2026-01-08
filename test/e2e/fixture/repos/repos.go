@@ -1,14 +1,19 @@
 package repos
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	"github.com/argoproj/argo-cd/v3/util/errors"
 )
@@ -30,8 +35,26 @@ func mustToAbsPath(t *testing.T, relativePath string) string {
 	return res
 }
 
+type AddRepoOpts func(args []string) []string
+
+func WithDepth(depth int64) AddRepoOpts {
+	return func(args []string) []string {
+		if depth > 0 {
+			args = append(args, "--depth", strconv.FormatInt(depth, 10))
+		}
+		return args
+	}
+}
+
+func applyOpts(args []string, opts []AddRepoOpts) []string {
+	for _, opt := range opts {
+		args = opt(args)
+	}
+	return args
+}
+
 // sets the current repo as the default SSH test repo
-func AddSSHRepo(t *testing.T, insecure bool, credentials bool, repoURLType fixture.RepoURLType) {
+func AddSSHRepo(t *testing.T, insecure bool, credentials bool, repoURLType fixture.RepoURLType, opts ...AddRepoOpts) {
 	t.Helper()
 	keyPath, err := filepath.Abs("../fixture/testrepos/id_rsa")
 	require.NoError(t, err)
@@ -42,11 +65,11 @@ func AddSSHRepo(t *testing.T, insecure bool, credentials bool, repoURLType fixtu
 	if insecure {
 		args = append(args, "--insecure-ignore-host-key")
 	}
-	errors.NewHandler(t).FailOnErr(fixture.RunCli(args...))
+	errors.NewHandler(t).FailOnErr(fixture.RunCli(applyOpts(args, opts)...))
 }
 
 // sets the current repo as the default HTTPS test repo
-func AddHTTPSRepo(t *testing.T, insecure bool, credentials bool, project string, repoURLType fixture.RepoURLType) {
+func AddHTTPSRepo(t *testing.T, insecure bool, credentials bool, project string, repoURLType fixture.RepoURLType, opts ...AddRepoOpts) {
 	t.Helper()
 	// This construct is somewhat necessary to satisfy the compiler
 	args := []string{"repo", "add", fixture.RepoURL(repoURLType)}
@@ -59,7 +82,7 @@ func AddHTTPSRepo(t *testing.T, insecure bool, credentials bool, project string,
 	if project != "" {
 		args = append(args, "--project", project)
 	}
-	errors.NewHandler(t).FailOnErr(fixture.RunCli(args...))
+	errors.NewHandler(t).FailOnErr(fixture.RunCli(applyOpts(args, opts)...))
 }
 
 // sets a HTTPS repo using TLS client certificate authentication
@@ -215,7 +238,6 @@ func PushChartToOCIRegistry(t *testing.T, chartPathName, chartName, chartVersion
 	chartAbsPath, err2 := filepath.Abs("./" + chartPathName)
 	require.NoError(t, err2)
 
-	t.Setenv("HELM_EXPERIMENTAL_OCI", "1")
 	errors.NewHandler(t).FailOnErr(fixture.Run("", "helm", "dependency", "build", chartAbsPath))
 	errors.NewHandler(t).FailOnErr(fixture.Run("", "helm", "package", chartAbsPath, "--destination", tempDest))
 	_ = os.RemoveAll(fmt.Sprintf("%s/%s", chartAbsPath, "charts"))
@@ -239,7 +261,6 @@ func PushChartToAuthenticatedOCIRegistry(t *testing.T, chartPathName, chartName,
 	chartAbsPath, err2 := filepath.Abs("./" + chartPathName)
 	require.NoError(t, err2)
 
-	t.Setenv("HELM_EXPERIMENTAL_OCI", "1")
 	errors.NewHandler(t).FailOnErr(fixture.Run("", "helm", "dependency", "build", chartAbsPath))
 	errors.NewHandler(t).FailOnErr(fixture.Run("", "helm", "package", chartAbsPath, "--destination", tempDest))
 	_ = os.RemoveAll(fmt.Sprintf("%s/%s", chartAbsPath, "charts"))
@@ -297,4 +318,43 @@ func PushImageToAuthenticatedOCIRegistry(t *testing.T, pathName, tag string) {
 		fmt.Sprintf("%s:%s", fmt.Sprintf("%s/%s", strings.TrimPrefix(fixture.AuthenticatedOCIHostURL, "oci://"), filepath.Base(pathName)), tag),
 		".",
 	))
+}
+
+// AddHTTPSWriteCredentials adds write credentials for an HTTPS repository.
+// Write credentials are used by the commit-server to push hydrated manifests back to the repository.
+// TODO: add CLI support for managing write credentials and use that here instead.
+func AddHTTPSWriteCredentials(t *testing.T, insecure bool, repoURLType fixture.RepoURLType) {
+	t.Helper()
+	repoURL := fixture.RepoURL(repoURLType)
+
+	// Create a Kubernetes secret with the repository-write label
+	// Replace invalid characters for secret name
+	secretName := "write-creds-" + fixture.Name()
+
+	// Delete existing secret if it exists (ignore error if not found)
+	_ = fixture.KubeClientset.CoreV1().Secrets(fixture.ArgoCDNamespace).Delete(
+		context.Background(),
+		secretName,
+		metav1.DeleteOptions{},
+	)
+
+	_, err := fixture.KubeClientset.CoreV1().Secrets(fixture.ArgoCDNamespace).Create(
+		context.Background(),
+		&corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: secretName,
+				Labels: map[string]string{
+					common.LabelKeySecretType: common.LabelValueSecretTypeRepositoryWrite,
+				},
+			},
+			StringData: map[string]string{
+				"url":      repoURL,
+				"username": fixture.GitUsername,
+				"password": fixture.GitPassword,
+				"insecure": strconv.FormatBool(insecure),
+			},
+		},
+		metav1.CreateOptions{},
+	)
+	require.NoError(t, err)
 }

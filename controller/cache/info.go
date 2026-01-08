@@ -68,6 +68,10 @@ func populateNodeInfo(un *unstructured.Unstructured, res *ResourceInfo, customLa
 		case "ServiceEntry":
 			populateIstioServiceEntryInfo(un, res)
 		}
+	case "argoproj.io":
+		if gvk.Kind == "Application" {
+			populateApplicationInfo(un, res)
+		}
 	}
 }
 
@@ -221,9 +225,19 @@ func populateIngressInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 	if res.NetworkingInfo != nil {
 		urls = res.NetworkingInfo.ExternalURLs
 	}
-	for url := range urlsSet {
-		urls = append(urls, url)
+
+	enableDefaultExternalURLs := true
+	if ignoreVal, ok := un.GetAnnotations()[common.AnnotationKeyIgnoreDefaultLinks]; ok {
+		if ignoreDefaultLinks, err := strconv.ParseBool(ignoreVal); err == nil {
+			enableDefaultExternalURLs = !ignoreDefaultLinks
+		}
 	}
+	if enableDefaultExternalURLs {
+		for url := range urlsSet {
+			urls = append(urls, url)
+		}
+	}
+
 	res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{TargetRefs: targets, Ingress: ingress, ExternalURLs: urls}
 }
 
@@ -485,6 +499,13 @@ func populateHostNodeInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 		Capacity:   node.Status.Capacity,
 		SystemInfo: node.Status.NodeInfo,
 		Labels:     node.Labels,
+	}
+}
+
+func populateApplicationInfo(un *unstructured.Unstructured, res *ResourceInfo) {
+	// Add managed-by-url annotation to info if present
+	if managedByURL, ok := un.GetAnnotations()[v1alpha1.AnnotationKeyManagedByURL]; ok {
+		res.Info = append(res.Info, v1alpha1.InfoItem{Name: "managed-by-url", Value: managedByURL})
 	}
 }
 

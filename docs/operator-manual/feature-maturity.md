@@ -3,20 +3,21 @@
 Argo CD features may be marked with a certain [status](https://github.com/argoproj/argoproj/blob/main/community/feature-status.md)
 to indicate their stability and maturity. These are the statuses of non-stable features in Argo CD:
 
-!!! danger "Using Alpha/Beta features risks"
-
-    Aplha and Beta features do not guarantee backward compatibility and are subject to breaking changes in the future releases.
-    It is highly suggested for Argo users not to rely on these features in production environments, especially if you do not have
-    control over the Argo CD upgrades.
-
-    Furthermore, removal of Alpha features may modify your resources to an unpredictable state after Argo CD is upgraded.
-    You should make sure to document which features are in use and review the [release notes](./upgrading/overview.md) before upgrading.
+> [!CAUTION]
+> **Using Alpha/Beta features risks**
+>
+> Alpha and Beta features do not guarantee backward compatibility and are subject to breaking changes in the future releases.
+> It is highly suggested for Argo users not to rely on these features in production environments, especially if you do not have
+> control over the Argo CD upgrades.
+> 
+> Furthermore, removal of Alpha features may modify your resources to an unpredictable state after Argo CD is upgraded.
+> You should make sure to document which features are in use and review the [release notes](./upgrading/overview.md) before upgrading.
 
 ## Overview
 
 | Feature                                   | Introduced | Status |
 |-------------------------------------------|------------|--------|
-| [AppSet Progressive Syncs][2]             | v2.6.0     | Alpha  |
+| [AppSet Progressive Syncs][2]             | v2.6.0     | Beta   |
 | [Proxy Extensions][3]                     | v2.7.0     | Beta   |
 | [Skip Application Reconcile][4]           | v2.7.0     | Alpha  |
 | [AppSets in any Namespace][5]             | v2.8.0     | Beta   |

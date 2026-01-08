@@ -2,6 +2,7 @@ package git
 
 import (
 	"bufio"
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"errors"
@@ -22,6 +23,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/bmatcuk/doublestar/v4"
+	"github.com/cenkalti/backoff/v5"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
@@ -43,7 +45,22 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/versions"
 )
 
-var ErrInvalidRepoURL = errors.New("repo URL is invalid")
+var (
+	ErrInvalidRepoURL = errors.New("repo URL is invalid")
+	ErrNoNoteFound    = errors.New("no note found")
+)
+
+// builtinGitConfig configuration contains statements that are needed
+// for correct ArgoCD operation. These settings will override any
+// user-provided configuration of same options.
+var builtinGitConfig = map[string]string{
+	"maintenance.autoDetach": "false",
+	"gc.autoDetach":          "false",
+}
+
+// BuiltinGitConfigEnv contains builtin git configuration in the
+// format acceptable by Git.
+var BuiltinGitConfigEnv []string
 
 // CommitMetadata contains metadata about a commit that is related in some way to another commit.
 type CommitMetadata struct {
@@ -108,7 +125,7 @@ type gitRefCache interface {
 type Client interface {
 	Root() string
 	Init() error
-	Fetch(revision string) error
+	Fetch(revision string, depth int64) error
 	Submodule() error
 	Checkout(revision string, submoduleEnabled bool) (string, error)
 	LsRefs() (*Refs, error)
@@ -132,6 +149,12 @@ type Client interface {
 	RemoveContents(paths []string) (string, error)
 	// CommitAndPush commits and pushes changes to the target branch.
 	CommitAndPush(branch, message string) (string, error)
+	// GetCommitNote gets the note associated with the DRY sha stored in the specific namespace
+	GetCommitNote(sha string, namespace string) (string, error)
+	// AddAndPushNote adds a note to a DRY sha and then pushes it.
+	AddAndPushNote(sha string, namespace string, note string) error
+	// HasFileChanged returns the outout of git diff considering whether it is tracked or un-tracked
+	HasFileChanged(filePath string) (bool, error)
 }
 
 type EventHandlers struct {
@@ -162,6 +185,8 @@ type nativeGitClient struct {
 	proxy string
 	// list of targets that shouldn't use the proxy, applies only if the proxy is set
 	noProxy string
+	// git configuration environment variables
+	gitConfigEnv []string
 }
 
 type runOpts struct {
@@ -188,6 +213,14 @@ func init() {
 	maxRetryDuration = env.ParseDurationFromEnv(common.EnvGitRetryMaxDuration, common.DefaultGitRetryMaxDuration, 0, math.MaxInt64)
 	retryDuration = env.ParseDurationFromEnv(common.EnvGitRetryDuration, common.DefaultGitRetryDuration, 0, math.MaxInt64)
 	factor = env.ParseInt64FromEnv(common.EnvGitRetryFactor, common.DefaultGitRetryFactor, 0, math.MaxInt64)
+
+	BuiltinGitConfigEnv = append(BuiltinGitConfigEnv, fmt.Sprintf("GIT_CONFIG_COUNT=%d", len(builtinGitConfig)))
+	idx := 0
+	for k, v := range builtinGitConfig {
+		BuiltinGitConfigEnv = append(BuiltinGitConfigEnv, fmt.Sprintf("GIT_CONFIG_KEY_%d=%s", idx, k))
+		BuiltinGitConfigEnv = append(BuiltinGitConfigEnv, fmt.Sprintf("GIT_CONFIG_VALUE_%d=%s", idx, v))
+		idx++
+	}
 }
 
 type ClientOpts func(c *nativeGitClient)
@@ -197,6 +230,16 @@ func WithCache(cache gitRefCache, loadRefFromCache bool) ClientOpts {
 	return func(c *nativeGitClient) {
 		c.gitRefCache = cache
 		c.loadRefFromCache = loadRefFromCache
+	}
+}
+
+func WithBuiltinGitConfig(enable bool) ClientOpts {
+	return func(c *nativeGitClient) {
+		if enable {
+			c.gitConfigEnv = BuiltinGitConfigEnv
+		} else {
+			c.gitConfigEnv = nil
+		}
 	}
 }
 
@@ -222,13 +265,14 @@ func NewClient(rawRepoURL string, creds Creds, insecure bool, enableLfs bool, pr
 
 func NewClientExt(rawRepoURL string, root string, creds Creds, insecure bool, enableLfs bool, proxy string, noProxy string, opts ...ClientOpts) (Client, error) {
 	client := &nativeGitClient{
-		repoURL:   rawRepoURL,
-		root:      root,
-		creds:     creds,
-		insecure:  insecure,
-		enableLfs: enableLfs,
-		proxy:     proxy,
-		noProxy:   noProxy,
+		repoURL:      rawRepoURL,
+		root:         root,
+		creds:        creds,
+		insecure:     insecure,
+		enableLfs:    enableLfs,
+		proxy:        proxy,
+		noProxy:      noProxy,
+		gitConfigEnv: BuiltinGitConfigEnv,
 	}
 	for i := range opts {
 		opts[i](client)
@@ -414,14 +458,19 @@ func (m *nativeGitClient) IsLFSEnabled() bool {
 	return m.enableLfs
 }
 
-func (m *nativeGitClient) fetch(revision string) error {
-	var err error
+func (m *nativeGitClient) fetch(ctx context.Context, revision string, depth int64) error {
+	args := []string{"fetch", "origin"}
 	if revision != "" {
-		err = m.runCredentialedCmd("fetch", "origin", revision, "--tags", "--force", "--prune")
-	} else {
-		err = m.runCredentialedCmd("fetch", "origin", "--tags", "--force", "--prune")
+		args = append(args, revision)
 	}
-	return err
+
+	if depth > 0 {
+		args = append(args, "--depth", strconv.FormatInt(depth, 10))
+	} else {
+		args = append(args, "--tags")
+	}
+	args = append(args, "--force", "--prune")
+	return m.runCredentialedCmd(ctx, args...)
 }
 
 // IsRevisionPresent checks to see if the given revision already exists locally.
@@ -430,7 +479,7 @@ func (m *nativeGitClient) IsRevisionPresent(revision string) bool {
 		return false
 	}
 
-	cmd := exec.Command("git", "cat-file", "-t", revision)
+	cmd := exec.CommandContext(context.Background(), "git", "cat-file", "-t", revision)
 	out, err := m.runCmdOutput(cmd, runOpts{SkipErrorLogging: true})
 	if out == "commit" && err == nil {
 		return true
@@ -439,19 +488,20 @@ func (m *nativeGitClient) IsRevisionPresent(revision string) bool {
 }
 
 // Fetch fetches latest updates from origin
-func (m *nativeGitClient) Fetch(revision string) error {
+func (m *nativeGitClient) Fetch(revision string, depth int64) error {
 	if m.OnFetch != nil {
 		done := m.OnFetch(m.repoURL)
 		defer done()
 	}
+	ctx := context.Background()
 
-	err := m.fetch(revision)
+	err := m.fetch(ctx, revision, depth)
 
 	// When we have LFS support enabled, check for large files and fetch them too.
 	if err == nil && m.IsLFSEnabled() {
 		largeFiles, err := m.LsLargeFiles()
 		if err == nil && len(largeFiles) > 0 {
-			err = m.runCredentialedCmd("lfs", "fetch", "--all")
+			err = m.runCredentialedCmd(ctx, "lfs", "fetch", "--all")
 			if err != nil {
 				return err
 			}
@@ -500,8 +550,9 @@ func (m *nativeGitClient) LsFiles(path string, enableNewGitFileGlobbing bool) ([
 		}
 		return files, nil
 	}
+	ctx := context.Background()
 	// This is the old and default way
-	out, err := m.runCmd("ls-files", "--full-name", "-z", "--", path)
+	out, err := m.runCmd(ctx, "ls-files", "--full-name", "-z", "--", path)
 	if err != nil {
 		return nil, err
 	}
@@ -512,7 +563,7 @@ func (m *nativeGitClient) LsFiles(path string, enableNewGitFileGlobbing bool) ([
 
 // LsLargeFiles lists all files that have references to LFS storage
 func (m *nativeGitClient) LsLargeFiles() ([]string, error) {
-	out, err := m.runCmd("lfs", "ls-files", "-n")
+	out, err := m.runCmd(context.Background(), "lfs", "ls-files", "-n")
 	if err != nil {
 		return nil, err
 	}
@@ -522,10 +573,11 @@ func (m *nativeGitClient) LsLargeFiles() ([]string, error) {
 
 // Submodule embed other repositories into this repository
 func (m *nativeGitClient) Submodule() error {
-	if err := m.runCredentialedCmd("submodule", "sync", "--recursive"); err != nil {
+	ctx := context.Background()
+	if err := m.runCredentialedCmd(ctx, "submodule", "sync", "--recursive"); err != nil {
 		return err
 	}
-	return m.runCredentialedCmd("submodule", "update", "--init", "--recursive")
+	return m.runCredentialedCmd(ctx, "submodule", "update", "--init", "--recursive")
 }
 
 // Checkout checks out the specified revision
@@ -533,7 +585,8 @@ func (m *nativeGitClient) Checkout(revision string, submoduleEnabled bool) (stri
 	if revision == "" || revision == "HEAD" {
 		revision = "origin/HEAD"
 	}
-	if out, err := m.runCmd("checkout", "--force", revision); err != nil {
+	ctx := context.Background()
+	if out, err := m.runCmd(ctx, "checkout", "--force", revision); err != nil {
 		return out, fmt.Errorf("failed to checkout %s: %w", revision, err)
 	}
 	// We must populate LFS content by using lfs checkout, if we have at least
@@ -544,7 +597,7 @@ func (m *nativeGitClient) Checkout(revision string, submoduleEnabled bool) (stri
 			return "", fmt.Errorf("failed to list LFS files: %w", err)
 		}
 		if len(largeFiles) > 0 {
-			if out, err := m.runCmd("lfs", "checkout"); err != nil {
+			if out, err := m.runCmd(ctx, "lfs", "checkout"); err != nil {
 				return out, fmt.Errorf("failed to checkout LFS files: %w", err)
 			}
 		}
@@ -561,7 +614,7 @@ func (m *nativeGitClient) Checkout(revision string, submoduleEnabled bool) (stri
 	// `git clean` to delete untracked files and directories, and the second “f”
 	// tells it to clean untracked nested Git repositories (for example a
 	// submodule which has since been removed).
-	if out, err := m.runCmd("clean", "-ffdx"); err != nil {
+	if out, err := m.runCmd(ctx, "clean", "-ffdx"); err != nil {
 		return out, fmt.Errorf("failed to clean: %w", err)
 	}
 	return "", nil
@@ -670,7 +723,7 @@ func (m *nativeGitClient) LsRemote(revision string) (res string, err error) {
 	for attempt := 0; attempt < maxAttemptsCount; attempt++ {
 		res, err = m.lsRemote(revision)
 		if err == nil {
-			return
+			return res, nil
 		} else if apierrors.IsInternalError(err) || apierrors.IsTimeout(err) || apierrors.IsServerTimeout(err) ||
 			apierrors.IsTooManyRequests(err) || utilnet.IsProbableEOF(err) || utilnet.IsConnectionReset(err) {
 			// Formula: timeToWait = duration * factor^retry_number
@@ -683,7 +736,7 @@ func (m *nativeGitClient) LsRemote(revision string) (res string, err error) {
 			time.Sleep(time.Duration(timeToWait))
 		}
 	}
-	return
+	return res, err
 }
 
 func getGitTags(refs []*plumbing.Reference) []string {
@@ -763,7 +816,7 @@ func (m *nativeGitClient) lsRemote(revision string) (string, error) {
 
 // CommitSHA returns current commit sha from `git rev-parse HEAD`
 func (m *nativeGitClient) CommitSHA() (string, error) {
-	out, err := m.runCmd("rev-parse", "HEAD")
+	out, err := m.runCmd(context.Background(), "rev-parse", "HEAD")
 	if err != nil {
 		return "", err
 	}
@@ -772,7 +825,8 @@ func (m *nativeGitClient) CommitSHA() (string, error) {
 
 // RevisionMetadata returns the meta-data for the commit
 func (m *nativeGitClient) RevisionMetadata(revision string) (*RevisionMetadata, error) {
-	out, err := m.runCmd("show", "-s", "--format=%an <%ae>%n%at%n%B", revision)
+	ctx := context.Background()
+	out, err := m.runCmd(ctx, "show", "-s", "--format=%an <%ae>%n%at%n%B", revision)
 	if err != nil {
 		return nil, err
 	}
@@ -784,7 +838,7 @@ func (m *nativeGitClient) RevisionMetadata(revision string) (*RevisionMetadata, 
 	authorDateUnixTimestamp, _ := strconv.ParseInt(segments[1], 10, 64)
 	message := strings.TrimSpace(segments[2])
 
-	cmd := exec.Command("git", "interpret-trailers", "--parse")
+	cmd := exec.CommandContext(ctx, "git", "interpret-trailers", "--parse")
 	cmd.Stdin = strings.NewReader(message)
 	out, err = m.runCmdOutput(cmd, runOpts{})
 	if err != nil {
@@ -792,7 +846,7 @@ func (m *nativeGitClient) RevisionMetadata(revision string) (*RevisionMetadata, 
 	}
 	relatedCommits, _ := GetReferences(log.WithFields(log.Fields{"repo": m.repoURL, "revision": revision}), out)
 
-	out, err = m.runCmd("tag", "--points-at", revision)
+	out, err = m.runCmd(ctx, "tag", "--points-at", revision)
 	if err != nil {
 		return nil, err
 	}
@@ -903,7 +957,7 @@ func updateCommitMetadata(logCtx *log.Entry, relatedCommit *CommitMetadata, line
 
 // VerifyCommitSignature Runs verify-commit on a given revision and returns the output
 func (m *nativeGitClient) VerifyCommitSignature(revision string) (string, error) {
-	out, err := m.runGnuPGWrapper("git-verify-wrapper.sh", revision)
+	out, err := m.runGnuPGWrapper(context.Background(), "git-verify-wrapper.sh", revision)
 	if err != nil {
 		log.Errorf("error verifying commit signature: %v", err)
 		return "", errors.New("permission denied")
@@ -913,7 +967,7 @@ func (m *nativeGitClient) VerifyCommitSignature(revision string) (string, error)
 
 // IsAnnotatedTag returns true if the revision points to an annotated tag
 func (m *nativeGitClient) IsAnnotatedTag(revision string) bool {
-	cmd := exec.Command("git", "describe", "--exact-match", revision)
+	cmd := exec.CommandContext(context.Background(), "git", "describe", "--exact-match", revision)
 	out, err := m.runCmdOutput(cmd, runOpts{SkipErrorLogging: true})
 	if out != "" && err == nil {
 		return true
@@ -931,7 +985,7 @@ func (m *nativeGitClient) ChangedFiles(revision string, targetRevision string) (
 		return []string{}, errors.New("invalid revision provided, must be SHA")
 	}
 
-	out, err := m.runCmd("diff", "--name-only", fmt.Sprintf("%s..%s", revision, targetRevision))
+	out, err := m.runCmd(context.Background(), "diff", "--name-only", fmt.Sprintf("%s..%s", revision, targetRevision))
 	if err != nil {
 		return nil, fmt.Errorf("failed to diff %s..%s: %w", revision, targetRevision, err)
 	}
@@ -945,9 +999,9 @@ func (m *nativeGitClient) ChangedFiles(revision string, targetRevision string) (
 }
 
 // config runs a git config command.
-func (m *nativeGitClient) config(args ...string) (string, error) {
+func (m *nativeGitClient) config(ctx context.Context, args ...string) (string, error) {
 	args = append([]string{"config"}, args...)
-	out, err := m.runCmd(args...)
+	out, err := m.runCmd(ctx, args...)
 	if err != nil {
 		return out, fmt.Errorf("failed to run git config: %w", err)
 	}
@@ -956,14 +1010,15 @@ func (m *nativeGitClient) config(args ...string) (string, error) {
 
 // SetAuthor sets the author name and email in the git configuration.
 func (m *nativeGitClient) SetAuthor(name, email string) (string, error) {
+	ctx := context.Background()
 	if name != "" {
-		out, err := m.config("--local", "user.name", name)
+		out, err := m.config(ctx, "--local", "user.name", name)
 		if err != nil {
 			return out, err
 		}
 	}
 	if email != "" {
-		out, err := m.config("--local", "user.email", email)
+		out, err := m.config(ctx, "--local", "user.email", email)
 		if err != nil {
 			return out, err
 		}
@@ -979,19 +1034,20 @@ func (m *nativeGitClient) CheckoutOrOrphan(branch string, submoduleEnabled bool)
 		if !strings.Contains(err.Error(), "did not match any file(s) known to git") {
 			return out, fmt.Errorf("failed to checkout branch: %w", err)
 		}
-		out, err = m.runCmd("switch", "--orphan", branch)
+		ctx := context.Background()
+		out, err = m.runCmd(ctx, "switch", "--orphan", branch)
 		if err != nil {
 			return out, fmt.Errorf("failed to create orphan branch: %w", err)
 		}
 
 		// Make an empty initial commit.
-		out, err = m.runCmd("commit", "--allow-empty", "-m", "Initial commit")
+		out, err = m.runCmd(ctx, "commit", "--allow-empty", "-m", "Initial commit")
 		if err != nil {
 			return out, fmt.Errorf("failed to commit initial commit: %w", err)
 		}
 
 		// Push the commit.
-		err = m.runCredentialedCmd("push", "origin", branch)
+		err = m.runCredentialedCmd(ctx, "push", "origin", branch)
 		if err != nil {
 			return "", fmt.Errorf("failed to push to branch: %w", err)
 		}
@@ -1014,7 +1070,7 @@ func (m *nativeGitClient) CheckoutOrNew(branch, base string, submoduleEnabled bo
 			return out, fmt.Errorf("failed to checkout sync branch: %w", err)
 		}
 
-		out, err = m.runCmd("checkout", "-b", branch)
+		out, err = m.runCmd(context.Background(), "checkout", "-b", branch)
 		if err != nil {
 			return out, fmt.Errorf("failed to create branch: %w", err)
 		}
@@ -1028,7 +1084,7 @@ func (m *nativeGitClient) RemoveContents(paths []string) (string, error) {
 		return "", nil
 	}
 	args := append([]string{"rm", "-r", "--ignore-unmatch", "--"}, paths...)
-	out, err := m.runCmd(args...)
+	out, err := m.runCmd(context.Background(), args...)
 	if err != nil {
 		return out, fmt.Errorf("failed to clear paths %v: %w", paths, err)
 	}
@@ -1037,12 +1093,13 @@ func (m *nativeGitClient) RemoveContents(paths []string) (string, error) {
 
 // CommitAndPush commits and pushes changes to the target branch.
 func (m *nativeGitClient) CommitAndPush(branch, message string) (string, error) {
-	out, err := m.runCmd("add", ".")
+	ctx := context.Background()
+	out, err := m.runCmd(ctx, "add", ".")
 	if err != nil {
 		return out, fmt.Errorf("failed to add files: %w", err)
 	}
 
-	out, err = m.runCmd("commit", "-m", message)
+	out, err = m.runCmd(ctx, "commit", "-m", message)
 	if err != nil {
 		if strings.Contains(out, "nothing to commit, working tree clean") {
 			return out, nil
@@ -1055,7 +1112,7 @@ func (m *nativeGitClient) CommitAndPush(branch, message string) (string, error) 
 		defer done()
 	}
 
-	err = m.runCredentialedCmd("push", "origin", branch)
+	err = m.runCredentialedCmd(ctx, "push", "origin", branch)
 	if err != nil {
 		return "", fmt.Errorf("failed to push: %w", err)
 	}
@@ -1063,21 +1120,137 @@ func (m *nativeGitClient) CommitAndPush(branch, message string) (string, error) 
 	return "", nil
 }
 
+// GetCommitNote gets the note associated with the DRY sha stored in the specific namespace
+func (m *nativeGitClient) GetCommitNote(sha string, namespace string) (string, error) {
+	if strings.TrimSpace(namespace) == "" {
+		namespace = "commit"
+	}
+	ctx := context.Background()
+	// fetch first
+	// cli command: git fetch origin refs/notes/source-hydrator:refs/notes/source-hydrator
+	notesRef := "refs/notes/" + namespace
+	_ = m.runCredentialedCmd(ctx, "fetch", "origin", fmt.Sprintf("%s:%s", notesRef, notesRef)) // Ignore fetch error for best effort
+
+	ref := "--ref=" + namespace
+	out, err := m.runCmd(ctx, "notes", ref, "show", sha)
+	if err != nil {
+		if strings.Contains(err.Error(), "no note found") {
+			return out, fmt.Errorf("failed to get commit note: %w", ErrNoNoteFound)
+		}
+		return out, fmt.Errorf("failed to get commit note: %w", err)
+	}
+	return strings.TrimSpace(out), nil
+}
+
+// AddAndPushNote adds a note to a DRY sha and then pushes it.
+// It uses a retry mechanism to handle concurrent note updates from multiple clients.
+func (m *nativeGitClient) AddAndPushNote(sha string, namespace string, note string) error {
+	if namespace == "" {
+		namespace = "commit"
+	}
+	ctx := context.Background()
+	ref := "--ref=" + namespace
+	notesRef := "refs/notes/" + namespace
+
+	// Configure exponential backoff with jitter to handle concurrent note updates
+	b := backoff.NewExponentialBackOff()
+	b.InitialInterval = 50 * time.Millisecond
+	b.MaxInterval = 1 * time.Second
+
+	attempt := 0
+	operation := func() (struct{}, error) {
+		attempt++
+
+		// Fetch the latest notes BEFORE adding to merge concurrent updates
+		// Use + prefix to force update local ref (safe because we want latest remote notes)
+		fetchErr := m.runCredentialedCmd(ctx, "fetch", "origin", fmt.Sprintf("+%s:%s", notesRef, notesRef))
+		// Ignore "couldn't find remote ref" errors (notes don't exist yet - first time)
+		if fetchErr != nil && !strings.Contains(fetchErr.Error(), "couldn't find remote ref") {
+			log.Debugf("Failed to fetch notes (will continue): %v", fetchErr)
+		}
+
+		// Add note locally (use -f to overwrite if this specific commit already has a note locally)
+		_, err := m.runCmd(ctx, "notes", ref, "add", "-f", "-m", note, sha)
+		if err != nil {
+			return struct{}{}, backoff.Permanent(fmt.Errorf("failed to add note: %w", err))
+		}
+
+		if m.OnPush != nil {
+			done := m.OnPush(m.repoURL)
+			defer done()
+		}
+
+		// Push WITHOUT -f flag to avoid overwriting other notes
+		err = m.runCredentialedCmd(ctx, "push", "origin", notesRef)
+		if err == nil {
+			if attempt > 1 {
+				log.Debugf("AddAndPushNote succeeded after %d retries for commit %s", attempt-1, sha)
+			}
+			return struct{}{}, nil
+		}
+
+		log.Debugf("AddAndPushNote push failed (attempt %d): %v", attempt, err)
+
+		// Check if this is a retryable error
+		errStr := err.Error()
+		isRetryable := strings.Contains(errStr, "fetch first") || // Remote updated after our fetch (concurrent push completed between our fetch and push)
+			strings.Contains(errStr, "reference already exists") || // Concurrent push is holding the lock (git server-side lock)
+			strings.Contains(errStr, "incorrect old value") || // Git detected our local ref is stale (concurrent update)
+			strings.Contains(errStr, "failed to update ref") // Generic ref update failure that may include transient issues
+
+		if !isRetryable {
+			return struct{}{}, backoff.Permanent(fmt.Errorf("failed to push note: %w", err))
+		}
+
+		return struct{}{}, err
+	}
+
+	_, err := backoff.Retry(ctx, operation,
+		backoff.WithBackOff(b),
+		backoff.WithMaxElapsedTime(5*time.Second),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to push note after retries: %w", err)
+	}
+	return nil
+}
+
+// HasFileChanged returns the outout of git diff considering whether it is tracked or un-tracked
+func (m *nativeGitClient) HasFileChanged(filePath string) (bool, error) {
+	// Step 1: Is it UNTRACKED? (file is new to git)
+	_, err := m.runCmd(context.Background(), "ls-files", "--error-unmatch", filePath)
+	if err != nil {
+		// File is NOT tracked by git → means it's new/unadded
+		return true, nil
+	}
+	// use git diff --quiet and check exit code .. --cached is to consider files staged for deletion
+	_, err = m.runCmd(context.Background(), "diff", "--quiet", "--", filePath)
+	if err == nil {
+		return false, nil // No changes
+	}
+	// Exit code 1 indicates: changes found
+	if strings.Contains(err.Error(), "exit status 1") {
+		return true, nil
+	}
+	// always return the actual wrapped error
+	return false, fmt.Errorf("git diff failed: %w", err)
+}
+
 // runWrapper runs a custom command with all the semantics of running the Git client
-func (m *nativeGitClient) runGnuPGWrapper(wrapper string, args ...string) (string, error) {
-	cmd := exec.Command(wrapper, args...)
+func (m *nativeGitClient) runGnuPGWrapper(ctx context.Context, wrapper string, args ...string) (string, error) {
+	cmd := exec.CommandContext(ctx, wrapper, args...)
 	cmd.Env = append(cmd.Env, "GNUPGHOME="+common.GetGnuPGHomePath(), "LANG=C")
 	return m.runCmdOutput(cmd, runOpts{})
 }
 
 // runCmd is a convenience function to run a command in a given directory and return its output
-func (m *nativeGitClient) runCmd(args ...string) (string, error) {
-	cmd := exec.Command("git", args...)
+func (m *nativeGitClient) runCmd(ctx context.Context, args ...string) (string, error) {
+	cmd := exec.CommandContext(ctx, "git", args...)
 	return m.runCmdOutput(cmd, runOpts{})
 }
 
 // runCredentialedCmd is a convenience function to run a git command with username/password credentials
-func (m *nativeGitClient) runCredentialedCmd(args ...string) error {
+func (m *nativeGitClient) runCredentialedCmd(ctx context.Context, args ...string) error {
 	closer, environ, err := m.creds.Environ()
 	if err != nil {
 		return err
@@ -1094,7 +1267,7 @@ func (m *nativeGitClient) runCredentialedCmd(args ...string) error {
 		}
 	}
 
-	cmd := exec.Command("git", args...)
+	cmd := exec.CommandContext(ctx, "git", args...)
 	cmd.Env = append(cmd.Env, environ...)
 	_, err = m.runCmdOutput(cmd, runOpts{})
 	return err
@@ -1111,6 +1284,8 @@ func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd, ropts runOpts) (string, er
 	cmd.Env = append(cmd.Env, "GIT_LFS_SKIP_SMUDGE=1")
 	// Disable Git terminal prompts in case we're running with a tty
 	cmd.Env = append(cmd.Env, "GIT_TERMINAL_PROMPT=false")
+	// Add Git configuration options that are essential for ArgoCD operation
+	cmd.Env = append(cmd.Env, m.gitConfigEnv...)
 
 	// For HTTPS repositories, we need to consider insecure repositories as well
 	// as custom CA bundles from the cert database.

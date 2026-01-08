@@ -11,38 +11,99 @@ permissions: {}
 
 env:
   # renovate: datasource=golang-version packageName=golang
-  GOLANG_VERSION: '1.25.0' # Note: go-version must also be set in job argocd-image.with.go-version
+  GOLANG_VERSION: '1.25.5' # Note: go-version must also be set in job argocd-image.with.go-version
 
 jobs:
   argocd-image:
+    needs: [setup-variables]
     permissions:
       contents: read
       id-token: write # for creating OIDC tokens for signing.
       packages: write # used to push images to `ghcr.io` if used.
-    if: github.repository == 'argoproj/argo-cd'
+    if: github.repository == 'argoproj/argo-cd' || needs.setup-variables.outputs.allow_fork_release == 'true'
     uses: ./.github/workflows/image-reuse.yaml
     with:
-      quay_image_name: quay.io/argoproj/argocd:${{ github.ref_name }}
+      quay_image_name: ${{ needs.setup-variables.outputs.quay_image_name }}
       # Note: cannot use env variables to set go-version (https://docs.github.com/en/actions/using-workflows/reusing-workflows#limitations)
       # renovate: datasource=golang-version packageName=golang
-      go-version: 1.25.0
+      go-version: 1.25.5
       platforms: linux/amd64,linux/arm64,linux/s390x,linux/ppc64le
       push: true
     secrets:
       quay_username: ${{ secrets.RELEASE_QUAY_USERNAME }}
       quay_password: ${{ secrets.RELEASE_QUAY_TOKEN }}
 
+  setup-variables:
+    name: Setup Release Variables
+    if: github.repository == 'argoproj/argo-cd' || (github.repository_owner != 'argoproj' && vars.ENABLE_FORK_RELEASES == 'true' && vars.IMAGE_NAMESPACE && vars.IMAGE_NAMESPACE != 'argoproj')
+    runs-on: ubuntu-24.04
+    outputs:
+      is_pre_release: ${{ steps.var.outputs.is_pre_release }}
+      is_latest_release: ${{ steps.var.outputs.is_latest_release }}
+      enable_fork_releases: ${{ steps.var.outputs.enable_fork_releases }}
+      image_namespace: ${{ steps.var.outputs.image_namespace }}
+      image_repository: ${{ steps.var.outputs.image_repository }}
+      quay_image_name: ${{ steps.var.outputs.quay_image_name }}
+      provenance_image: ${{ steps.var.outputs.provenance_image }}
+      allow_fork_release: ${{ steps.var.outputs.allow_fork_release }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Setup variables
+        id: var
+        run: |
+          set -xue
+          # Fetch all tag information
+          git fetch --prune --tags --force
+
+          LATEST_RELEASE_TAG=$(git -c 'versionsort.suffix=-rc' tag --list --sort=version:refname | grep -v '-' | tail -n1)
+
+          PRE_RELEASE=false
+          # Check if latest tag is a pre-release
+          if echo ${{ github.ref_name }} | grep -E -- '-rc[0-9]+$';then
+            PRE_RELEASE=true
+          fi
+
+          IS_LATEST=false
+          # Ensure latest release tag matches github.ref_name
+          if [[ $LATEST_RELEASE_TAG == ${{ github.ref_name }} ]];then
+            IS_LATEST=true
+          fi
+          echo "is_pre_release=$PRE_RELEASE" >> $GITHUB_OUTPUT
+          echo "is_latest_release=$IS_LATEST" >> $GITHUB_OUTPUT
+          
+          # Calculate configuration with defaults
+          ENABLE_FORK_RELEASES="${{ vars.ENABLE_FORK_RELEASES || 'false' }}"
+          IMAGE_NAMESPACE="${{ vars.IMAGE_NAMESPACE || 'argoproj' }}"
+          IMAGE_REPOSITORY="${{ vars.IMAGE_REPOSITORY || 'argocd' }}"
+          
+          echo "enable_fork_releases=$ENABLE_FORK_RELEASES" >> $GITHUB_OUTPUT
+          
+          echo "image_namespace=$IMAGE_NAMESPACE" >> $GITHUB_OUTPUT
+          echo "image_repository=$IMAGE_REPOSITORY" >> $GITHUB_OUTPUT
+          echo "quay_image_name=quay.io/$IMAGE_NAMESPACE/$IMAGE_REPOSITORY:${{ github.ref_name }}" >> $GITHUB_OUTPUT
+          echo "provenance_image=quay.io/$IMAGE_NAMESPACE/$IMAGE_REPOSITORY" >> $GITHUB_OUTPUT
+          
+          ALLOW_FORK_RELEASE=false
+          if [[ "${{ github.repository_owner }}" != "argoproj" && "$ENABLE_FORK_RELEASES" == "true" && "$IMAGE_NAMESPACE" != "argoproj" && "${{ github.ref }}" == refs/tags/* ]]; then
+            ALLOW_FORK_RELEASE=true
+          fi
+          echo "allow_fork_release=$ALLOW_FORK_RELEASE" >> $GITHUB_OUTPUT
+
   argocd-image-provenance:
-    needs: [argocd-image]
+    needs: [setup-variables, argocd-image]
     permissions:
       actions: read # for detecting the Github Actions environment.
       id-token: write # for creating OIDC tokens for signing.
       packages: write # for uploading attestations. (https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#known-issues)
     # Must be refernced by a tag. https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#referencing-the-slsa-generator
-    if: github.repository == 'argoproj/argo-cd'
+    if: github.repository == 'argoproj/argo-cd' || needs.setup-variables.outputs.allow_fork_release == 'true'
     uses: slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@v2.1.0
     with:
-      image: quay.io/argoproj/argocd
+      image: ${{ needs.setup-variables.outputs.provenance_image }}
       digest: ${{ needs.argocd-image.outputs.image-digest }}
     secrets:
       registry-username: ${{ secrets.RELEASE_QUAY_USERNAME }}
@@ -50,18 +111,20 @@ jobs:
 
   goreleaser:
     needs:
+      - setup-variables
       - argocd-image
       - argocd-image-provenance
     permissions:
       contents: write # used for uploading assets
-    if: github.repository == 'argoproj/argo-cd'
-    runs-on: ubuntu-22.04
+    if: github.repository == 'argoproj/argo-cd' || needs.setup-variables.outputs.allow_fork_release == 'true'
+    runs-on: ubuntu-24.04
+    env:
+      GORELEASER_MAKE_LATEST: ${{ needs.setup-variables.outputs.is_latest_release }}
     outputs:
       hashes: ${{ steps.hash.outputs.hashes }}
-
     steps:
       - name: Checkout code
-        uses: actions/checkout@8410ad0602e1e429cee44a835ae9f77f654a6694 # v4.0.0
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -70,7 +133,7 @@ jobs:
         run: git fetch --force --tags
 
       - name: Setup Golang
-        uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 # v6.0.0
+        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
         with:
           go-version: ${{ env.GOLANG_VERSION }}
           cache: false
@@ -105,6 +168,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           KUBECTL_VERSION: ${{ env.KUBECTL_VERSION }}
           GIT_TREE_STATE: ${{ env.GIT_TREE_STATE }}
+          # Used to determine the current repository in the goreleaser config to display correct manifest links
+          GORELEASER_CURRENT_REPOSITORY: ${{ github.repository }}
 
       - name: Generate subject for provenance
         id: hash
@@ -121,12 +186,12 @@ jobs:
           echo "hashes=$hashes" >> $GITHUB_OUTPUT
 
   goreleaser-provenance:
-    needs: [goreleaser]
+    needs: [goreleaser, setup-variables]
     permissions:
       actions: read # for detecting the Github Actions environment
       id-token: write # Needed for provenance signing and ID
       contents: write #  Needed for release uploads
-    if: github.repository == 'argoproj/argo-cd'
+    if: github.repository == 'argoproj/argo-cd' || needs.setup-variables.outputs.allow_fork_release == 'true'
     # Must be refernced by a tag. https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#referencing-the-slsa-generator
     uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
     with:
@@ -139,21 +204,22 @@ jobs:
     needs:
       - argocd-image
       - goreleaser
+      - setup-variables
     permissions:
       contents: write # Needed for release uploads
     outputs:
-      hashes: ${{ steps.sbom-hash.outputs.hashes}}
-    if: github.repository == 'argoproj/argo-cd'
-    runs-on: ubuntu-22.04
+      hashes: ${{ steps.sbom-hash.outputs.hashes }}
+    if: github.repository == 'argoproj/argo-cd' || needs.setup-variables.outputs.allow_fork_release == 'true'
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout code
-        uses: actions/checkout@8410ad0602e1e429cee44a835ae9f77f654a6694 # v4.0.0
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Golang
-        uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 # v6.0.0
+        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
         with:
           go-version: ${{ env.GOLANG_VERSION }}
           cache: false
@@ -169,7 +235,7 @@ jobs:
           # managers (gomod, yarn, npm).
           PROJECT_FOLDERS: '.,./ui'
           # full qualified name of the docker image to be inspected
-          DOCKER_IMAGE: quay.io/argoproj/argocd:${{ github.ref_name }}
+          DOCKER_IMAGE: ${{ needs.setup-variables.outputs.quay_image_name }}
         run: |
           yarn install --cwd ./ui
           go install github.com/spdx/spdx-sbom-generator/cmd/generator@$SPDX_GEN_VERSION
@@ -198,7 +264,7 @@ jobs:
           echo "hashes=$(sha256sum /tmp/sbom.tar.gz | base64 -w0)" >> "$GITHUB_OUTPUT"
 
       - name: Upload SBOM
-        uses: softprops/action-gh-release@6cbd405e2c4e67a21c47fa9e383d020e4e28b836 # v2.3.3
+        uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b # v2.5.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -206,12 +272,12 @@ jobs:
             /tmp/sbom.tar.gz
 
   sbom-provenance:
-    needs: [generate-sbom]
+    needs: [generate-sbom, setup-variables]
     permissions:
       actions: read # for detecting the Github Actions environment
       id-token: write # Needed for provenance signing and ID
       contents: write #  Needed for release uploads
-    if: github.repository == 'argoproj/argo-cd'
+    if: github.repository == 'argoproj/argo-cd' || needs.setup-variables.outputs.allow_fork_release == 'true'
     # Must be referenced by a tag. https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#referencing-the-slsa-generator
     uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
     with:
@@ -221,17 +287,20 @@ jobs:
 
   post-release:
     needs:
+      - setup-variables
       - argocd-image
       - goreleaser
       - generate-sbom
     permissions:
       contents: write # Needed to push commit to update stable tag
       pull-requests: write # Needed to create PR for VERSION update.
-    if: github.repository == 'argoproj/argo-cd'
-    runs-on: ubuntu-22.04
+    if: github.repository == 'argoproj/argo-cd' || needs.setup-variables.outputs.allow_fork_release == 'true'
+    runs-on: ubuntu-24.04
+    env:
+      TAG_STABLE: ${{ needs.setup-variables.outputs.is_latest_release }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@8410ad0602e1e429cee44a835ae9f77f654a6694 # v4.0.0
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -241,27 +310,6 @@ jobs:
           set -ue
           git config --global user.email 'ci@argoproj.com'
           git config --global user.name 'CI'
-
-      - name: Check if tag is the latest version and not a pre-release
-        run: |
-          set -xue
-          # Fetch all tag information
-          git fetch --prune --tags --force
-
-          LATEST_TAG=$(git -c 'versionsort.suffix=-rc' tag --list --sort=version:refname | tail -n1)
-
-          PRE_RELEASE=false
-          # Check if latest tag is a pre-release
-          if echo $LATEST_TAG | grep -E -- '-rc[0-9]+$';then
-            PRE_RELEASE=true
-          fi
-
-          # Ensure latest tag matches github.ref_name & not a pre-release
-          if [[ $LATEST_TAG == ${{ github.ref_name }} ]] && [[ $PRE_RELEASE != 'true' ]];then
-            echo "TAG_STABLE=true" >> $GITHUB_ENV
-          else
-            echo "TAG_STABLE=false" >> $GITHUB_ENV
-          fi
 
       - name: Update stable tag to latest version
         run: |
@@ -296,7 +344,7 @@ jobs:
         if: ${{ env.UPDATE_VERSION == 'true' }}
 
       - name: Create PR to update VERSION on master branch
-        uses: peter-evans/create-pull-request@271a8d0340265f705b14b6d32b9829c1cb33d45e # v7.0.8
+        uses: peter-evans/create-pull-request@98357b18bf14b5342f975ff684046ec3b2a07725 # v8.0.0
         with:
           commit-message: Bump version in master
           title: 'chore: Bump version in master'

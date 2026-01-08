@@ -25,9 +25,17 @@ if obj.status.conditions then
                 hs.message = "Waiting for commit status spec update to be observed"
                 return hs
             end
-            if condition.status == "False" and condition.reason == "ReconciliationError" then
+            -- Check for any False condition status
+            if condition.status == "False" then
                 hs.status = "Degraded"
-                hs.message = "Commit status reconciliation failed: " .. (condition.message or "Unknown error")
+                local msg = condition.message or "Unknown error"
+                local reason = condition.reason or "Unknown"
+                -- Don't include ReconciliationError in the message since it's redundant
+                if reason == "ReconciliationError" then
+                    hs.message = "Commit status reconciliation failed: " .. msg
+                else
+                    hs.message = "Commit status reconciliation failed (" .. reason .. "): " .. msg
+                end
                 return hs
             end
         end

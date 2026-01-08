@@ -25,7 +25,7 @@
     "foundation-sites": "^6.8.1",
     "git-url-parse": "^13.1.0",
     "history": "^4.7.2",
-    "js-yaml": "^4.1.0",
+    "js-yaml": "^4.1.1",
     "json-merge-patch": "^0.2.3",
     "lodash-es": "^4.17.21",
     "minimatch": "^3.1.2",
@@ -60,7 +60,7 @@
   "resolutions": {
     "@types/react": "^16.9.3",
     "@types/react-dom": "^16.8.2",
-    "normalize-url": "4.3.0",
+    "normalize-url": "4.5.1",
     "rxjs": "6.6.7"
   },
   "devDependencies": {

@@ -1,10 +1,12 @@
 # Security Considerations
 
-!!!warning "Deprecation notice"
-    This page is now deprecated and serves as an archive only. For up-to-date
-    information, please have a look at our
-    [security policy](https://github.com/argoproj/argo-cd/security/policy) and
-    [published security advisories](https://github.com/argoproj/argo-cd/security/advisories).
+> [!WARNING]
+> **Deprecation notice**
+>
+> This page is now deprecated and serves as an archive only. For up-to-date
+> information, please have a look at our
+> [security policy](https://github.com/argoproj/argo-cd/security/policy) and
+> [published security advisories](https://github.com/argoproj/argo-cd/security/advisories).
 
 As a deployment tool, Argo CD needs to have production access which makes security a very important topic.
 The Argoproj team takes security very seriously and continuously working on improving it. Learn more about security
@@ -79,7 +81,7 @@ When you are running `v1.4.x`, you can upgrade to `v1.4.3` by simply changing th
 tags for `argocd-server`, `argocd-repo-server` and `argocd-controller` to `v1.4.3`. 
 The `v1.4.3` release does not contain additional functional bug fixes.
 
-Likewise, hen you are running `v1.5.x`, you can upgrade to `v1.5.2` by simply changing
+Likewise, when you are running `v1.5.x`, you can upgrade to `v1.5.2` by simply changing
 the image tags for `argocd-server`, `argocd-repo-server` and `argocd-controller` to `v1.5.2`.
 The `v1.5.2` release does not contain additional functional bug fixes.
 

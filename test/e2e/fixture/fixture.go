@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 
@@ -21,10 +22,12 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v3/common"
@@ -53,7 +56,8 @@ const (
 	defaultNotificationServer = "localhost:9001"
 
 	// ensure all repos are in one directory tree, so we can easily clean them up
-	TmpDir             = "/tmp/argo-e2e"
+	// TmpDir can be overridden via ARGOCD_E2E_DIR environment variable
+	defaultTmpDir      = "/tmp/argo-e2e"
 	repoDir            = "testdata.git"
 	submoduleDir       = "submodule.git"
 	submoduleParentDir = "submoduleParent.git"
@@ -66,6 +70,10 @@ const (
 	PluginSockFilePath = "/app/config/plugin"
 
 	E2ETestPrefix = "e2e-test-"
+
+	// finalizer to add to resources during tests. Make sure that the resource Kind of your object
+	// is included in the test EnsureCleanState code
+	TestFinalizer = TestingLabel + "/finalizer"
 
 	// Account for batch events processing (set to 1ms in e2e tests)
 	WhenThenSleepInterval = 5 * time.Millisecond
@@ -83,6 +91,7 @@ const (
 
 var (
 	id                      string
+	shortId                 string
 	deploymentNamespace     string
 	name                    string
 	KubeClientset           kubernetes.Interface
@@ -146,6 +155,12 @@ func TestNamespace() string {
 
 func AppNamespace() string {
 	return GetEnvWithDefault("ARGOCD_E2E_APP_NAMESPACE", ArgoCDAppNamespace)
+}
+
+// TmpDir returns the base directory for e2e test data.
+// It can be overridden via the ARGOCD_E2E_DIR environment variable.
+func TmpDir() string {
+	return GetEnvWithDefault("ARGOCD_E2E_DIR", defaultTmpDir)
 }
 
 // getKubeConfig creates new kubernetes client config using specified config path and config overrides variables
@@ -294,16 +309,20 @@ func Name() string {
 	return name
 }
 
+func ShortId() string {
+	return shortId
+}
+
 func repoDirectory() string {
-	return path.Join(TmpDir, repoDir)
+	return path.Join(TmpDir(), repoDir)
 }
 
 func submoduleDirectory() string {
-	return path.Join(TmpDir, submoduleDir)
+	return path.Join(TmpDir(), submoduleDir)
 }
 
 func submoduleParentDirectory() string {
-	return path.Join(TmpDir, submoduleParentDir)
+	return path.Join(TmpDir(), submoduleParentDir)
 }
 
 const (
@@ -320,16 +339,18 @@ const (
 )
 
 func RepoURL(urlType RepoURLType) string {
+	// SSH URLs use the container path (defaultTmpDir) because sshd runs inside Docker
+	// where $ARGOCD_E2E_DIR is mounted to /tmp/argo-e2e
 	switch urlType {
 	// Git server via SSH
 	case RepoURLTypeSSH:
-		return GetEnvWithDefault(EnvRepoURLTypeSSH, "ssh://root@localhost:2222/tmp/argo-e2e/testdata.git")
+		return GetEnvWithDefault(EnvRepoURLTypeSSH, "ssh://root@localhost:2222"+defaultTmpDir+"/testdata.git")
 	// Git submodule repo
 	case RepoURLTypeSSHSubmodule:
-		return GetEnvWithDefault(EnvRepoURLTypeSSHSubmodule, "ssh://root@localhost:2222/tmp/argo-e2e/submodule.git")
+		return GetEnvWithDefault(EnvRepoURLTypeSSHSubmodule, "ssh://root@localhost:2222"+defaultTmpDir+"/submodule.git")
 	// Git submodule parent repo
 	case RepoURLTypeSSHSubmoduleParent:
-		return GetEnvWithDefault(EnvRepoURLTypeSSHSubmoduleParent, "ssh://root@localhost:2222/tmp/argo-e2e/submoduleParent.git")
+		return GetEnvWithDefault(EnvRepoURLTypeSSHSubmoduleParent, "ssh://root@localhost:2222"+defaultTmpDir+"/submoduleParent.git")
 	// Git server via HTTPS
 	case RepoURLTypeHTTPS:
 		return GetEnvWithDefault(EnvRepoURLTypeHTTPS, "https://localhost:9443/argo-e2e/testdata.git")
@@ -661,6 +682,45 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 	start := time.Now()
 	policy := metav1.DeletePropagationBackground
 
+	deleteNamespaces := func(namespaces []corev1.Namespace, wait bool) error {
+		args := []string{"delete", "ns", "--ignore-not-found=true", fmt.Sprintf("--wait=%t", wait)}
+		for _, namespace := range namespaces {
+			args = append(args, namespace.Name)
+		}
+		_, err := Run("", "kubectl", args...)
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+
+	deleteResourceWithTestFinalizer := func(namespaces []corev1.Namespace, gvrs []schema.GroupVersionResource) error {
+		for _, namespace := range namespaces {
+			for _, gvr := range gvrs {
+				objects, err := DynamicClientset.Resource(gvr).Namespace(namespace.GetName()).List(t.Context(), metav1.ListOptions{})
+				if err != nil {
+					return err
+				}
+				for i := range objects.Items {
+					obj := &objects.Items[i]
+					updated := controllerutil.RemoveFinalizer(obj, TestFinalizer)
+					if updated {
+						log.WithFields(log.Fields{
+							"namespace": namespace.GetName(),
+							"resource":  gvr,
+							"name":      obj.GetName(),
+						}).Info("removing test finalizer")
+						_, err := DynamicClientset.Resource(gvr).Namespace(namespace.GetName()).Update(t.Context(), obj, metav1.UpdateOptions{})
+						if err != nil {
+							return err
+						}
+					}
+				}
+			}
+		}
+		return nil
+	}
+
 	RunFunctionsInParallelAndCheckErrors(t, []func() error{
 		func() error {
 			// kubectl delete apps ...
@@ -720,18 +780,33 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 				t.Context(),
 				metav1.ListOptions{
 					LabelSelector: TestingLabel + "=true",
-					FieldSelector: "status.phase=Active",
 				},
 			)
 			if err != nil {
 				return err
 			}
 			if len(namespaces.Items) > 0 {
-				args := []string{"delete", "ns", "--wait=false"}
-				for _, namespace := range namespaces.Items {
-					args = append(args, namespace.Name)
+				err = deleteNamespaces(namespaces.Items, false)
+				if err != nil {
+					return err
 				}
-				_, err := Run("", "kubectl", args...)
+			}
+
+			// Get all namespaces stuck in Terminating state
+			terminatingNamespaces, err := KubeClientset.CoreV1().Namespaces().List(
+				t.Context(),
+				metav1.ListOptions{
+					LabelSelector: TestingLabel + "=true",
+					FieldSelector: "status.phase=Terminating",
+				})
+			if err != nil {
+				return err
+			}
+			if len(terminatingNamespaces.Items) > 0 {
+				err = deleteResourceWithTestFinalizer(terminatingNamespaces.Items, []schema.GroupVersionResource{
+					// If finalizers are added to new resource kinds, they must be added here for a proper cleanup
+					appsv1.SchemeGroupVersion.WithResource("deployments"),
+				})
 				if err != nil {
 					return err
 				}
@@ -741,16 +816,14 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 			if err != nil {
 				return err
 			}
-			testNamespaceNames := []string{}
+			testNamespaceNames := []corev1.Namespace{}
 			for _, namespace := range namespaces.Items {
 				if strings.HasPrefix(namespace.Name, E2ETestPrefix) {
-					testNamespaceNames = append(testNamespaceNames, namespace.Name)
+					testNamespaceNames = append(testNamespaceNames, namespace)
 				}
 			}
 			if len(testNamespaceNames) > 0 {
-				args := []string{"delete", "ns"}
-				args = append(args, testNamespaceNames...)
-				_, err := Run("", "kubectl", args...)
+				err = deleteNamespaces(testNamespaceNames, true)
 				if err != nil {
 					return err
 				}
@@ -865,7 +938,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 				OrphanedResources:        nil,
 				SourceRepos:              []string{"*"},
 				Destinations:             []v1alpha1.ApplicationDestination{{Namespace: "*", Server: "*"}},
-				ClusterResourceWhitelist: []metav1.GroupKind{{Group: "*", Kind: "*"}},
+				ClusterResourceWhitelist: []v1alpha1.ClusterResourceRestrictionItem{{Group: "*", Kind: "*"}},
 				SourceNamespaces:         []string{AppNamespace()},
 			})
 			if err != nil {
@@ -883,7 +956,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 						OrphanedResources:        nil,
 						SourceRepos:              []string{"*"},
 						Destinations:             []v1alpha1.ApplicationDestination{{Namespace: "*", Server: "*"}},
-						ClusterResourceWhitelist: []metav1.GroupKind{{Group: "*", Kind: "*"}},
+						ClusterResourceWhitelist: []v1alpha1.ClusterResourceRestrictionItem{{Group: "*", Kind: "*"}},
 						SignatureKeys:            []v1alpha1.SignatureKey{{KeyID: GpgGoodKeyID}},
 						SourceNamespaces:         []string{AppNamespace()},
 					},
@@ -893,38 +966,39 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 			return err
 		},
 		func() error {
-			err := os.RemoveAll(TmpDir)
+			tmpDir := TmpDir()
+			err := os.RemoveAll(tmpDir)
 			if err != nil {
 				return err
 			}
-			_, err = Run("", "mkdir", "-p", TmpDir)
+			_, err = Run("", "mkdir", "-p", tmpDir)
 			if err != nil {
 				return err
 			}
 
 			// create TLS and SSH certificate directories
 			if IsLocal() {
-				_, err = Run("", "mkdir", "-p", TmpDir+"/app/config/tls")
+				_, err = Run("", "mkdir", "-p", tmpDir+"/app/config/tls")
 				if err != nil {
 					return err
 				}
-				_, err = Run("", "mkdir", "-p", TmpDir+"/app/config/ssh")
+				_, err = Run("", "mkdir", "-p", tmpDir+"/app/config/ssh")
 				if err != nil {
 					return err
 				}
 			}
 
 			// For signing during the tests
-			_, err = Run("", "mkdir", "-p", TmpDir+"/gpg")
+			_, err = Run("", "mkdir", "-p", tmpDir+"/gpg")
 			if err != nil {
 				return err
 			}
-			_, err = Run("", "chmod", "0700", TmpDir+"/gpg")
+			_, err = Run("", "chmod", "0700", tmpDir+"/gpg")
 			if err != nil {
 				return err
 			}
 			prevGnuPGHome := os.Getenv("GNUPGHOME")
-			t.Setenv("GNUPGHOME", TmpDir+"/gpg")
+			t.Setenv("GNUPGHOME", tmpDir+"/gpg")
 			//nolint:errcheck
 			Run("", "pkill", "-9", "gpg-agent")
 			_, err = Run("", "gpg", "--import", "../fixture/gpg/signingkey.asc")
@@ -935,23 +1009,23 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 
 			// recreate GPG directories
 			if IsLocal() {
-				_, err = Run("", "mkdir", "-p", TmpDir+"/app/config/gpg/source")
+				_, err = Run("", "mkdir", "-p", tmpDir+"/app/config/gpg/source")
 				if err != nil {
 					return err
 				}
-				_, err = Run("", "mkdir", "-p", TmpDir+"/app/config/gpg/keys")
+				_, err = Run("", "mkdir", "-p", tmpDir+"/app/config/gpg/keys")
 				if err != nil {
 					return err
 				}
-				_, err = Run("", "chmod", "0700", TmpDir+"/app/config/gpg/keys")
+				_, err = Run("", "chmod", "0700", tmpDir+"/app/config/gpg/keys")
 				if err != nil {
 					return err
 				}
-				_, err = Run("", "mkdir", "-p", TmpDir+PluginSockFilePath)
+				_, err = Run("", "mkdir", "-p", tmpDir+PluginSockFilePath)
 				if err != nil {
 					return err
 				}
-				_, err = Run("", "chmod", "0700", TmpDir+PluginSockFilePath)
+				_, err = Run("", "chmod", "0700", tmpDir+PluginSockFilePath)
 				if err != nil {
 					return err
 				}
@@ -967,6 +1041,12 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 				return err
 			}
 			_, err = Run(repoDirectory(), "git", "init", "-b", "master")
+			if err != nil {
+				return err
+			}
+			// Configure git to create files with more permissive permissions to avoid
+			// issues when cleaning up. By default git creates object files as 0444.
+			_, err = Run(repoDirectory(), "git", "config", "core.sharedRepository", "0666")
 			if err != nil {
 				return err
 			}
@@ -997,10 +1077,11 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 			if err != nil {
 				return err
 			}
-			postFix := "-" + strings.ToLower(randString)
-			id = t.Name() + postFix
-			name = DnsFriendly(t.Name(), "")
-			deploymentNamespace = DnsFriendly("argocd-e2e-"+t.Name(), postFix)
+			shortId = strings.ToLower(randString)
+			id = fmt.Sprintf("%s-%s", t.Name(), shortId)
+			name = DnsFriendly(t.Name(), "-"+shortId)
+			deploymentNamespace = DnsFriendly("argocd-e2e-"+t.Name(), "-"+shortId)
+
 			// create namespace
 			_, err = Run("", "kubectl", "create", "ns", DeploymentNamespace())
 			if err != nil {
@@ -1146,7 +1227,7 @@ func AddSignedFile(t *testing.T, path, contents string) {
 	WriteFile(t, path, contents)
 
 	prevGnuPGHome := os.Getenv("GNUPGHOME")
-	t.Setenv("GNUPGHOME", TmpDir+"/gpg")
+	t.Setenv("GNUPGHOME", TmpDir()+"/gpg")
 	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "diff"))
 	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "add", "."))
 	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "-c", "user.signingkey="+GpgGoodKeyID, "commit", "-S", "-am", "add file"))
@@ -1159,7 +1240,7 @@ func AddSignedFile(t *testing.T, path, contents string) {
 func AddSignedTag(t *testing.T, name string) {
 	t.Helper()
 	prevGnuPGHome := os.Getenv("GNUPGHOME")
-	t.Setenv("GNUPGHOME", TmpDir+"/gpg")
+	t.Setenv("GNUPGHOME", TmpDir()+"/gpg")
 	defer t.Setenv("GNUPGHOME", prevGnuPGHome)
 	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "-c", "user.signingkey="+GpgGoodKeyID, "tag", "-sm", "add signed tag", name))
 	if IsRemote() {
@@ -1170,7 +1251,7 @@ func AddSignedTag(t *testing.T, name string) {
 func AddTag(t *testing.T, name string) {
 	t.Helper()
 	prevGnuPGHome := os.Getenv("GNUPGHOME")
-	t.Setenv("GNUPGHOME", TmpDir+"/gpg")
+	t.Setenv("GNUPGHOME", TmpDir()+"/gpg")
 	defer t.Setenv("GNUPGHOME", prevGnuPGHome)
 	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "tag", name))
 	if IsRemote() {
@@ -1181,7 +1262,7 @@ func AddTag(t *testing.T, name string) {
 func AddTagWithForce(t *testing.T, name string) {
 	t.Helper()
 	prevGnuPGHome := os.Getenv("GNUPGHOME")
-	t.Setenv("GNUPGHOME", TmpDir+"/gpg")
+	t.Setenv("GNUPGHOME", TmpDir()+"/gpg")
 	defer t.Setenv("GNUPGHOME", prevGnuPGHome)
 	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "tag", "-f", name))
 	if IsRemote() {

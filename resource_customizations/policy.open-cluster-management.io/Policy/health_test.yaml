@@ -16,6 +16,10 @@ tests:
       message: All templates are compliant
     inputPath: testdata/healthy_replicated.yaml
   - healthStatus:
+      status: Healthy
+      message: Policy is disabled
+    inputPath: testdata/disabled_root.yaml
+  - healthStatus:
       status: Progressing
       message: Waiting for the status to be reported
     inputPath: testdata/progressing_no_status.yaml

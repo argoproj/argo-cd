@@ -21,8 +21,10 @@ All resources, including `Application` and `AppProject` specs, have to be instal
 
 For each specific kind of ConfigMap and Secret resource, there is only a single supported resource name (as listed in the above table) - if you need to merge things you need to do it before creating them.
 
-!!!warning "A note about ConfigMap resources"
-    Be sure to annotate your ConfigMap resources using the label `app.kubernetes.io/part-of: argocd`, otherwise Argo CD will not be able to use them.
+> [!WARNING]
+> **A note about ConfigMap resources**
+>
+> Be sure to annotate your ConfigMap resources using the label `app.kubernetes.io/part-of: argocd`, otherwise Argo CD will not be able to use them.
 
 ### Multiple configuration objects
 
@@ -63,11 +65,11 @@ spec:
 
 See [application.yaml](application.yaml) for additional fields. As long as you have completed the first step of [Getting Started](../getting_started.md#1-install-argo-cd), you can apply this with `kubectl apply -n argocd -f application.yaml` and Argo CD will start deploying the guestbook application.
 
-!!! note
-    The namespace must match the namespace of your Argo CD instance - typically this is `argocd`.
+> [!NOTE]
+> The namespace must match the namespace of your Argo CD instance - typically this is `argocd`.
 
-!!! note
-    When creating an application from a Helm repository, the `chart` attribute must be specified instead of the `path` attribute within `spec.source`.
+> [!NOTE]
+> When creating an application from a Helm repository, the `chart` attribute must be specified instead of the `path` attribute within `spec.source`.
 
 ```yaml
 spec:
@@ -77,8 +79,8 @@ spec:
     chart: argo
 ```
 
-!!! warning
-    Without the `resources-finalizer.argocd.argoproj.io` finalizer, deleting an application will not delete the resources it manages. To perform a cascading delete, you must add the finalizer. See [App Deletion](../user-guide/app_deletion.md#about-the-deletion-finalizer).
+> [!WARNING]
+> Without the `resources-finalizer.argocd.argoproj.io` finalizer, deleting an application will not delete the resources it manages. To perform a cascading delete, you must add the finalizer. See [App Deletion](../user-guide/app_deletion.md#about-the-deletion-finalizer).
 
 ```yaml
 metadata:
@@ -102,11 +104,13 @@ It is defined by the following key pieces of information:
 * `destinations` reference to clusters and namespaces that applications within the project can deploy into.
 * `roles` list of entities with definitions of their access to resources within the project.
 
-!!!warning "Projects which can deploy to the Argo CD namespace grant admin access"
-    If a Project's `destinations` configuration allows deploying to the namespace in which Argo CD is installed, then
-    Applications under that project have admin-level access. [RBAC access](https://argo-cd.readthedocs.io/en/stable/operator-manual/rbac/)
-    to admin-level Projects should be carefully restricted, and push access to allowed `sourceRepos` should be limited
-    to only admins.
+> [!WARNING]
+> **Projects which can deploy to the Argo CD namespace grant admin access**
+>
+> If a Project's `destinations` configuration allows deploying to the namespace in which Argo CD is installed, then
+> Applications under that project have admin-level access. [RBAC access](https://argo-cd.readthedocs.io/en/stable/operator-manual/rbac/)
+> to admin-level Projects should be carefully restricted, and push access to allowed `sourceRepos` should be limited
+> to only admins.
 
 An example spec is as follows:
 
@@ -168,19 +172,19 @@ spec:
 
 ## Repositories
 
-!!!note
-    Some Git hosters - notably GitLab and possibly on-premise GitLab instances as well - require you to
-    specify the `.git` suffix in the repository URL, otherwise they will send a HTTP 301 redirect to the
-    repository URL suffixed with `.git`. Argo CD will **not** follow these redirects, so you have to
-    adjust your repository URL to be suffixed with `.git`.
+> [!NOTE]
+> Some Git hosters - notably GitLab and possibly on-premise GitLab instances as well - require you to
+> specify the `.git` suffix in the repository URL, otherwise they will send a HTTP 301 redirect to the
+> repository URL suffixed with `.git`. Argo CD will **not** follow these redirects, so you have to
+> adjust your repository URL to be suffixed with `.git`.
 
 Repository details are stored in secrets. To configure a repo, create a secret which contains repository details.
 Consider using [bitnami-labs/sealed-secrets](https://github.com/bitnami-labs/sealed-secrets) to store an encrypted secret definition as a Kubernetes manifest.
 Each repository must have a `url` field and, depending on whether you connect using HTTPS, SSH, or GitHub App, `username` and `password` (for HTTPS), `sshPrivateKey` (for SSH), or `githubAppPrivateKey` (for GitHub App).
 Credentials can be scoped to a project using the optional `project` field. When omitted, the credential will be used as the default for all projects without a scoped credential.
 
-!!!warning
-    When using [bitnami-labs/sealed-secrets](https://github.com/bitnami-labs/sealed-secrets) the labels will be removed and have to be readded as described here: https://github.com/bitnami-labs/sealed-secrets#sealedsecrets-as-templates-for-secrets
+> [!WARNING]
+> When using [bitnami-labs/sealed-secrets](https://github.com/bitnami-labs/sealed-secrets) the labels will be removed and have to be readded as described here: https://github.com/bitnami-labs/sealed-secrets#sealedsecrets-as-templates-for-secrets
 
 Example for HTTPS:
 
@@ -285,8 +289,8 @@ stringData:
     }
 ```
 
-!!! tip
-    The Kubernetes documentation has [instructions for creating a secret containing a private key](https://kubernetes.io/docs/concepts/configuration/secret/#use-case-pod-with-ssh-keys).
+> [!TIP]
+> The Kubernetes documentation has [instructions for creating a secret containing a private key](https://kubernetes.io/docs/concepts/configuration/secret/#use-case-pod-with-ssh-keys).
 
 Example for Azure Container Registry/ Azure Devops repositories using Azure workload identity:
 
@@ -340,8 +344,8 @@ In order for Argo CD to use a credential template for any given repository, the 
 * The repository must either not be configured at all, or if configured, must not contain any credential information (i.e. contain none of `sshPrivateKey`, `username`, `password` )
 * The URL configured for a credential template (e.g. `https://github.com/argoproj`) must match as prefix for the repository URL (e.g. `https://github.com/argoproj/argocd-example-apps`).
 
-!!! note
-    Matching credential template URL prefixes is done on a _best match_ effort, so the longest (best) match will take precedence. The order of definition is not important, as opposed to pre v1.4 configuration.
+> [!NOTE]
+> Matching credential template URL prefixes is done on a _best match_ effort, so the longest (best) match will take precedence. The order of definition is not important, as opposed to pre v1.4 configuration.
 
 The following keys are valid to refer to credential secrets:
 
@@ -422,8 +426,8 @@ data:
 
 ```
 
-!!! note
-    The `argocd-tls-certs-cm` ConfigMap will be mounted as a volume at the mount path `/app/config/tls` in the pods of `argocd-server` and `argocd-repo-server`. It will create files for each data key in the mount path directory, so above example would leave the file `/app/config/tls/server.example.com`, which contains the certificate data. It might take a while for changes in the ConfigMap to be reflected in your pods, depending on your Kubernetes configuration.
+> [!NOTE]
+> The `argocd-tls-certs-cm` ConfigMap will be mounted as a volume at the mount path `/app/config/tls` in the pods of `argocd-server` and `argocd-repo-server`. It will create files for each data key in the mount path directory, so above example would leave the file `/app/config/tls/server.example.com`, which contains the certificate data. It might take a while for changes in the ConfigMap to be reflected in your pods, depending on your Kubernetes configuration.
 
 ### SSH known host public keys
 
@@ -474,8 +478,8 @@ data:
     vs-ssh.visualstudio.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7Hr1oTWqNqOlzGJOfGJ4NakVyIzf1rXYd4d7wo6jBlkLvCA4odBlL0mDUyZ0/QUfTTqeu+tm22gOsv+VrVTMk6vwRU75gY/y9ut5Mb3bR5BV58dKXyq9A9UeB5Cakehn5Zgm6x1mKoVyf+FFn26iYqXJRgzIZZcZ5V6hrE0Qg39kZm4az48o0AUbf6Sp4SLdvnuMa2sVNwHBboS7EJkm57XQPVU3/QpyNLHbWDdzwtrlS+ez30S3AdYhLKEOxAG8weOnyrtLJAUen9mTkol8oII1edf7mWWbWVf0nBmly21+nZcmCTISQBtdcyPaEno7fFQMDD26/s0lfKob4Kw8H
 ```
 
-!!! note
-    The `argocd-ssh-known-hosts-cm` ConfigMap will be mounted as a volume at the mount path `/app/config/ssh` in the pods of `argocd-server` and `argocd-repo-server`. It will create a file `ssh_known_hosts` in that directory, which contains the SSH known hosts data used by Argo CD for connecting to Git repositories via SSH. It might take a while for changes in the ConfigMap to be reflected in your pods, depending on your Kubernetes configuration.
+> [!NOTE]
+> The `argocd-ssh-known-hosts-cm` ConfigMap will be mounted as a volume at the mount path `/app/config/ssh` in the pods of `argocd-server` and `argocd-repo-server`. It will create a file `ssh_known_hosts` in that directory, which contains the SSH known hosts data used by Argo CD for connecting to Git repositories via SSH. It might take a while for changes in the ConfigMap to be reflected in your pods, depending on your Kubernetes configuration.
 
 ### Configure repositories with proxy
 
@@ -500,7 +504,7 @@ stringData:
   username: my-username
 ```
 
-A note on noProxy: Argo CD uses exec to interact with different tools such as helm and kustomize. Not all of these tools support the same noProxy syntax as the [httpproxy go package](https://cs.opensource.google/go/x/net/+/internal-branch.go1.21-vendor:http/httpproxy/proxy.go;l=38-50) does. In case you run in trouble with noProxy not beeing respected you might want to try using the full domain instead of a wildcard pattern or IP range to find a common syntax that all tools support.
+A note on noProxy: Argo CD uses exec to interact with different tools such as helm and kustomize. Not all of these tools support the same noProxy syntax as the [httpproxy go package](https://cs.opensource.google/go/x/net/+/internal-branch.go1.21-vendor:http/httpproxy/proxy.go;l=38-50) does. In case you run in trouble with noProxy not being respected you might want to try using the full domain instead of a wildcard pattern or IP range to find a common syntax that all tools support.
 
 ## Clusters
 
@@ -559,14 +563,14 @@ tlsClientConfig:
 disableCompression: boolean
 ```
 
-!!! important
-    When `namespaces` is set, Argo CD will perform a separate list/watch operation for each namespace. This can cause
-    the Application controller to exceed the maximum number of idle connections allowed for the Kubernetes API server.
-    To resolve this issue, you can increase the `ARGOCD_K8S_CLIENT_MAX_IDLE_CONNECTIONS` environment variable in the
-    Application controller.
+> [!IMPORTANT]
+> When `namespaces` is set, Argo CD will perform a separate list/watch operation for each namespace. This can cause
+> the Application controller to exceed the maximum number of idle connections allowed for the Kubernetes API server.
+> To resolve this issue, you can increase the `ARGOCD_K8S_CLIENT_MAX_IDLE_CONNECTIONS` environment variable in the
+> Application controller.
 
-!!! important 
-    Note that if you specify a command to run under `execProviderConfig`, that command must be available in the Argo CD image. See [BYOI (Build Your Own Image)](custom_tools.md#byoi-build-your-own-image).
+> [!IMPORTANT]
+> Note that if you specify a command to run under `execProviderConfig`, that command must be available in the Argo CD image. See [BYOI (Build Your Own Image)](custom_tools.md#byoi-build-your-own-image).
 
 Cluster secret example:
 
@@ -593,7 +597,7 @@ stringData:
 
 ### EKS
 
-EKS cluster secret example using argocd-k8s-auth and [IRSA](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html):
+EKS cluster secret example using argocd-k8s-auth and [IRSA](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html) and [Pod Identity](https://docs.aws.amazon.com/eks/latest/userguide/pod-identities.html):
 
 ```yaml
 apiVersion: v1
@@ -621,12 +625,12 @@ stringData:
 
 This setup requires:
 
-1. [IRSA enabled](https://docs.aws.amazon.com/eks/latest/userguide/enable-iam-roles-for-service-accounts.html) on your Argo CD EKS cluster
+1. [IRSA enabled](https://docs.aws.amazon.com/eks/latest/userguide/enable-iam-roles-for-service-accounts.html) or [Pod Identity agent](https://docs.aws.amazon.com/eks/latest/userguide/pod-id-agent-setup.html) on your Argo CD EKS cluster  
 2. An IAM role ("management role") for your Argo CD EKS cluster that has an appropriate trust policy and permission policies (see below)
 3. A role created for each cluster being added to Argo CD that is assumable by the Argo CD management role
 4. An [Access Entry](https://docs.aws.amazon.com/eks/latest/userguide/access-entries.html) within each EKS cluster added to Argo CD that gives the cluster's role (from point 3) RBAC permissions
 to perform actions within the cluster
-    - Or, alternatively, an entry within the `aws-auth` ConfigMap within the cluster added to Argo CD ([depreciated by EKS](https://docs.aws.amazon.com/eks/latest/userguide/auth-configmap.html))
+    - Or, alternatively, an entry within the `aws-auth` ConfigMap within the cluster added to Argo CD ([deprecated by EKS](https://docs.aws.amazon.com/eks/latest/userguide/auth-configmap.html))
 
 #### Argo CD Management Role
 
@@ -640,8 +644,9 @@ The service accounts that need to assume this role are:
 - `argocd-server`
 
 If we create role `arn:aws:iam::<AWS_ACCOUNT_ID>:role/<ARGO_CD_MANAGEMENT_IAM_ROLE_NAME>` for this purpose, the following
-is an example trust policy suitable for this need. Ensure that the Argo CD cluster has an [IAM OIDC provider configured](https://docs.aws.amazon.com/eks/latest/userguide/enable-iam-roles-for-service-accounts.html).
+is an example trust policy suitable for this need. Ensure that the Argo CD cluster has an [IAM OIDC provider configured](https://docs.aws.amazon.com/eks/latest/userguide/enable-iam-roles-for-service-accounts.html) or [Pod Identity agent running](https://docs.aws.amazon.com/eks/latest/userguide/pod-id-agent-setup.html)
 
+**for IRSA:**
 ```json
 {
     "Version": "2012-10-17",
@@ -681,15 +686,48 @@ is an example trust policy suitable for this need. Ensure that the Argo CD clust
 }
 ```
 
+**for Pod Identity:**
+```json
+{
+    "Version":"2012-10-17",		 	 	 
+    "Statement": [
+        {
+            "Sid": "AllowEksAuthToAssumeRoleForPodIdentity",
+            "Effect": "Allow",
+            "Principal": {
+                "Service": "pods.eks.amazonaws.com"
+            },
+            "Action": [
+                "sts:AssumeRole",
+                "sts:TagSession"
+            ],
+            "Condition": {
+                "StringEquals": {
+                    "aws:RequestTag/kubernetes-namespace": [
+                        "argocd"
+                    ],
+                    "aws:RequestTag/kubernetes-service-account": [
+                        "argocd-server",
+                        "argocd-application-controller",
+                        "argocd-applicationset-controller"
+                    ]
+                }
+            }
+        }
+    ]
+}
+```
+
 #### Argo CD Service Accounts
 
 The 3 service accounts need to be modified to include an annotation with the Argo CD management role ARN.
 
 Here's an example service account configurations for `argocd-application-controller`, `argocd-applicationset-controller`, and `argocd-server`.
 
-!!! warning
+> [!WARNING]
 Once the annotations has been set on the service accounts, the application controller and server pods need to be restarted.
 
+**for IRSA:**   
 ```yaml
 apiVersion: v1
 kind: ServiceAccount
@@ -713,6 +751,13 @@ metadata:
   name: argocd-server
 ```
 
+**for Pod Identity:**  
+```shell
+aws eks associate-pod-identity -- cluster-name <EKS_CLUSTER_NAME> --namespace argocd --service-account argocd-applicationset-controller --role-arn arn:aws:iam::<AWS_ACCOUNT_ID>:role/<ARGO_CD_MANAGEMENT_IAM_ROLE_NAME>
+aws eks associate-pod-identity -- cluster-name <EKS_CLUSTER_NAME> --namespace argocd --service-account argocd-application-controller --role-arn arn:aws:iam::<AWS_ACCOUNT_ID>:role/<ARGO_CD_MANAGEMENT_IAM_ROLE_NAME>
+aws eks associate-pod-identity -- cluster-name <EKS_CLUSTER_NAME> --namespace argocd --service-account argocd-server --role-arn arn:aws:iam::<AWS_ACCOUNT_ID>:role/<ARGO_CD_MANAGEMENT_IAM_ROLE_NAME>
+```
+
 #### IAM Permission Policy
 
 The Argo CD management role (`arn:aws:iam::<AWS_ACCOUNT_ID>:role/<ARGO_CD_MANAGEMENT_IAM_ROLE_NAME>` in our example) additionally
@@ -721,12 +766,30 @@ needs to be allowed to assume a role for each cluster added to Argo CD.
 If we create a role named `<IAM_CLUSTER_ROLE>` for an EKS cluster we are adding to Argo CD, we would update the permission 
 policy of the Argo CD management role to include the following:
 
+**for IRSA:**
 ```json
 {
     "Version" : "2012-10-17",
     "Statement" : {
       "Effect" : "Allow",
       "Action" : "sts:AssumeRole",
+      "Resource" : [
+        "arn:aws:iam::<AWS_ACCOUNT_ID>:role/<IAM_CLUSTER_ROLE>"
+      ]
+    }
+  }
+```
+
+**for Pod Identity:**
+```json
+{
+    "Version" : "2012-10-17",
+    "Statement" : {
+      "Effect" : "Allow",
+      "Action" : [
+        "sts:AssumeRole",
+        "sts:TagSession"
+      ],
       "Resource" : [
         "arn:aws:iam::<AWS_ACCOUNT_ID>:role/<IAM_CLUSTER_ROLE>"
       ]
@@ -753,6 +816,7 @@ trust policy.
 
 A suitable trust policy allowing the `IAM_CLUSTER_ROLE` to be assumed by the `ARGO_CD_MANAGEMENT_IAM_ROLE_NAME` role looks like this:
 
+**for IRSA:**
 ```json
 {
     "Version": "2012-10-17",
@@ -763,6 +827,25 @@ A suitable trust policy allowing the `IAM_CLUSTER_ROLE` to be assumed by the `AR
                 "AWS": "arn:aws:iam::<AWS_ACCOUNT_ID>:role/<ARGO_CD_MANAGEMENT_IAM_ROLE_NAME>"
             },
             "Action": "sts:AssumeRole"
+        }
+    ]
+}
+```
+
+**for Pod Identity:**
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Principal": {
+                "AWS": "arn:aws:iam::<AWS_ACCOUNT_ID>:role/<ARGO_CD_MANAGEMENT_IAM_ROLE_NAME>"
+            },
+            "Action": [
+                "sts:TagSession",
+                "sts:AssumeRole"
+            ]
         }
     ]
 }
@@ -797,7 +880,7 @@ associated EKS cluster.
 
 **AWS Auth (Deprecated)**
 
-Instead of using Access Entries, you may need to use the depreciated `aws-auth`.
+Instead of using Access Entries, you may need to use the deprecated `aws-auth`.
 
 If so, the `roleARN` of each managed cluster needs to be added to each respective cluster's `aws-auth` config map (see
 [Enabling IAM principal access to your cluster](https://docs.aws.amazon.com/eks/latest/userguide/add-user-role.html)), as
@@ -967,7 +1050,6 @@ stringData:
 ```
 
 > ⚠️ Secret mounts are updated on an interval, not real time. If rotation is a requirement ensure the token lifetime outlives the mount update interval and the rotation process doesn't immediately invalidate the existing token
-
 
 ### GKE
 
@@ -1219,7 +1301,7 @@ The `resource.exclusions` node is a list of objects. Each object can have:
 
 * `apiGroups` A list of globs to match the API group.
 * `kinds` A list of kinds to match. Can be `"*"` to match all.
-* `clusters` A list of globs to match the cluster.
+* `clusters` A list of globs to match the cluster URL.
 
 If all three match, then the resource is ignored.
 
@@ -1286,7 +1368,7 @@ data:
 
 ## Resource Custom Labels
 
-Custom Labels configured with `resource.customLabels` (comma separated string) will be displayed in the UI (for any resource that defines them).
+Custom Labels configured with `resource.customLabels` (comma separated string) will be displayed in the UI (for any resource that defines them). Note that this requires a restart to the Argo CD Application Controller to take effect.
 
 ## Labels on Application Events
 
@@ -1331,5 +1413,37 @@ patches:
 The live example of self managed Argo CD config is available at [https://cd.apps.argoproj.io](https://cd.apps.argoproj.io) and with configuration
 stored at [argoproj/argoproj-deployments](https://github.com/argoproj/argoproj-deployments/tree/master/argocd).
 
-!!! note
-    You will need to sign-in using your GitHub account to get access to [https://cd.apps.argoproj.io](https://cd.apps.argoproj.io)
+> [!NOTE]
+> You will need to sign-in using your GitHub account to get access to [https://cd.apps.argoproj.io](https://cd.apps.argoproj.io)
+
+### Server-Side Apply Requirement
+
+When managing Argo CD with Argo CD, you **must** enable the `ServerSideApply=true` sync option. See the [getting started guide](../getting_started.md#1-install-argo-cd) for details on why server-side apply is required.
+
+Example Application for self-managed Argo CD:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: argocd
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/argoproj/argo-cd
+    path: manifests/cluster-install
+    targetRevision: stable
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - ServerSideApply=true
+```
+
+> [!NOTE]
+> To customize Argo CD deployments, use Kustomize patches in your configuration repository rather than manually modifying the live resources. See the [sync options documentation](../user-guide/sync-options.md#server-side-apply) for details on field ownership behavior.

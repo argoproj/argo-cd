@@ -2,8 +2,8 @@
 
 The Argo CD Notification controller serves Prometheus metrics on port 9001.
 
-!!! note
-    The metrics port can be changed using the `--metrics-port` flag in `argocd-notifications-controller` deployment.
+> [!NOTE]
+> The metrics port can be changed using the `--metrics-port` flag in `argocd-notifications-controller` deployment.
 
 ## Metrics 
 The following metrics are available:

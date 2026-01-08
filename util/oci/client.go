@@ -192,8 +192,23 @@ func newClientWithLock(repoURL string, repoLock sync.KeyLock, repo oras.ReadOnly
 	return c
 }
 
+type EventHandlers struct {
+	OnExtract             func(repo string) func()
+	OnResolveRevision     func(repo string) func()
+	OnDigestMetadata      func(repo string) func()
+	OnTestRepo            func(repo string) func()
+	OnGetTags             func(repo string) func()
+	OnExtractFail         func(repo string) func(revision string)
+	OnResolveRevisionFail func(repo string) func(revision string)
+	OnDigestMetadataFail  func(repo string) func(revision string)
+	OnTestRepoFail        func(repo string) func()
+	OnGetTagsFail         func(repo string) func()
+}
+
 // nativeOCIClient implements Client interface using oras-go
 type nativeOCIClient struct {
+	EventHandlers
+
 	repoURL                         string
 	repo                            oras.ReadOnlyTarget
 	tagsFunc                        func(context.Context, string) ([]string, error)
@@ -208,11 +223,30 @@ type nativeOCIClient struct {
 
 // TestRepo verifies that the remote OCI repo can be connected to.
 func (c *nativeOCIClient) TestRepo(ctx context.Context) (bool, error) {
+	inc := c.OnTestRepo(c.repoURL)
+	defer inc()
+	// Currently doesn't do anything in regard to measuring spans, but keep it consistent with OnTestRepo()
+	fail := c.OnTestRepoFail(c.repoURL)
 	err := c.pingFunc(ctx)
+	if err != nil {
+		fail()
+	}
 	return err == nil, err
 }
 
 func (c *nativeOCIClient) Extract(ctx context.Context, digest string) (string, utilio.Closer, error) {
+	inc := c.OnExtract(c.repoURL)
+	defer inc()
+	// Currently doesn't do anything in regard to measuring spans, but keep it consistent with OnExtract()
+	fail := c.OnExtractFail(c.repoURL)
+	extract, closer, err := c.extract(ctx, digest)
+	if err != nil {
+		fail(digest)
+	}
+	return extract, closer, err
+}
+
+func (c *nativeOCIClient) extract(ctx context.Context, digest string) (string, utilio.Closer, error) {
 	cachedPath, err := c.getCachedPath(digest)
 	if err != nil {
 		return "", nil, fmt.Errorf("error getting oci path for digest %s: %w", digest, err)
@@ -232,12 +266,28 @@ func (c *nativeOCIClient) Extract(ctx context.Context, digest string) (string, u
 			return "", nil, err
 		}
 
-		if len(ociManifest.Layers) != 1 {
-			return "", nil, fmt.Errorf("expected only a single oci layer, got %d", len(ociManifest.Layers))
+		// Add a guard to defend against a ridiculous amount of layers. No idea what a good amount is, but normally we
+		// shouldn't expect more than 2-3 in most real world use cases.
+		if len(ociManifest.Layers) > 10 {
+			return "", nil, fmt.Errorf("expected no more than 10 oci layers, got %d", len(ociManifest.Layers))
 		}
 
-		if !slices.Contains(c.allowedMediaTypes, ociManifest.Layers[0].MediaType) {
-			return "", nil, fmt.Errorf("oci layer media type %s is not in the list of allowed media types", ociManifest.Layers[0].MediaType)
+		contentLayers := 0
+
+		// Strictly speaking we only allow for a single content layer. There are images which contains extra layers, such
+		// as provenance/attestation layers. Pending a better story to do this natively, we will skip such layers for now.
+		for _, layer := range ociManifest.Layers {
+			if isContentLayer(layer.MediaType) {
+				if !slices.Contains(c.allowedMediaTypes, layer.MediaType) {
+					return "", nil, fmt.Errorf("oci layer media type %s is not in the list of allowed media types", layer.MediaType)
+				}
+
+				contentLayers++
+			}
+		}
+
+		if contentLayers != 1 {
+			return "", nil, fmt.Errorf("expected only a single oci content layer, got %d", contentLayers)
 		}
 
 		err = saveCompressedImageToPath(ctx, digest, c.repo, cachedPath)
@@ -279,6 +329,18 @@ func (c *nativeOCIClient) CleanCache(revision string) error {
 
 // DigestMetadata extracts the OCI manifest for a given revision and returns it to the caller.
 func (c *nativeOCIClient) DigestMetadata(ctx context.Context, digest string) (*imagev1.Manifest, error) {
+	inc := c.OnDigestMetadata(c.repoURL)
+	defer inc()
+	// Currently doesn't do anything in regard to measuring spans, but keep it consistent with OnDigestMetadata()
+	fail := c.OnDigestMetadataFail(c.repoURL)
+	metadata, err := c.digestMetadata(ctx, digest)
+	if err != nil {
+		fail(digest)
+	}
+	return metadata, err
+}
+
+func (c *nativeOCIClient) digestMetadata(ctx context.Context, digest string) (*imagev1.Manifest, error) {
 	path, err := c.getCachedPath(digest)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching oci metadata path for digest %s: %w", digest, err)
@@ -293,6 +355,18 @@ func (c *nativeOCIClient) DigestMetadata(ctx context.Context, digest string) (*i
 }
 
 func (c *nativeOCIClient) ResolveRevision(ctx context.Context, revision string, noCache bool) (string, error) {
+	inc := c.OnResolveRevision(c.repoURL)
+	defer inc()
+	// Currently doesn't do anything in regard to measuring spans, but keep it consistent with OnResolveRevision()
+	fail := c.OnResolveRevisionFail(c.repoURL)
+	resolveRevision, err := c.resolveRevision(ctx, revision, noCache)
+	if err != nil {
+		fail(revision)
+	}
+	return resolveRevision, err
+}
+
+func (c *nativeOCIClient) resolveRevision(ctx context.Context, revision string, noCache bool) (string, error) {
 	digest, err := c.resolveDigest(ctx, revision) // Lookup explicit revision
 	if err != nil {
 		// If the revision is not a semver constraint, just return the error
@@ -318,6 +392,18 @@ func (c *nativeOCIClient) ResolveRevision(ctx context.Context, revision string, 
 }
 
 func (c *nativeOCIClient) GetTags(ctx context.Context, noCache bool) ([]string, error) {
+	inc := c.OnGetTags(c.repoURL)
+	defer inc()
+	// Currently doesn't do anything in regard to measuring spans, but keep it consistent with OnGetTags()
+	fail := c.OnGetTagsFail(c.repoURL)
+	tags, err := c.getTags(ctx, noCache)
+	if err != nil {
+		fail()
+	}
+	return tags, err
+}
+
+func (c *nativeOCIClient) getTags(ctx context.Context, noCache bool) ([]string, error) {
 	indexLock.Lock(c.repoURL)
 	defer indexLock.Unlock(c.repoURL)
 
@@ -405,7 +491,15 @@ func fileExists(filePath string) (bool, error) {
 	return true, nil
 }
 
+// TODO: A content layer could in theory be something that is not a compressed file, e.g a single yaml file or like.
+// While IMO the utility in the context of Argo CD is limited, I'd at least like to make it known here and add an extensibility
+// point for it in case we decide to loosen the current requirements.
+func isContentLayer(mediaType string) bool {
+	return isCompressedLayer(mediaType)
+}
+
 func isCompressedLayer(mediaType string) bool {
+	// TODO: Is zstd something which is used in the wild? For now let's stick to these suffixes
 	return strings.HasSuffix(mediaType, "tar+gzip") || strings.HasSuffix(mediaType, "tar")
 }
 
@@ -500,7 +594,7 @@ func isHelmOCI(mediaType string) bool {
 // Push looks in all the layers of an OCI image. Once it finds a layer that is compressed, it extracts the layer to a tempDir
 // and then renames the temp dir to the directory where the repo-server expects to find k8s manifests.
 func (s *compressedLayerExtracterStore) Push(ctx context.Context, desc imagev1.Descriptor, content io.Reader) error {
-	if isCompressedLayer(desc.MediaType) {
+	if isContentLayer(desc.MediaType) {
 		srcDir, err := files.CreateTempDir(os.TempDir())
 		if err != nil {
 			return err
@@ -586,4 +680,11 @@ func getOCIManifest(ctx context.Context, digest string, repo oras.ReadOnlyTarget
 	}
 
 	return &manifest, nil
+}
+
+// WithEventHandlers sets the git client event handlers
+func WithEventHandlers(handlers EventHandlers) ClientOpts {
+	return func(c *nativeOCIClient) {
+		c.EventHandlers = handlers
+	}
 }

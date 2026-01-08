@@ -4,12 +4,21 @@ import * as classNames from 'classnames';
 import * as models from '../../../shared/models';
 import {ResourceIcon} from '../resource-icon';
 import {ResourceLabel} from '../resource-label';
-import {ComparisonStatusIcon, HealthStatusIcon, nodeKey, createdOrNodeKey, isSameNode} from '../utils';
+import {
+    ComparisonStatusIcon,
+    HealthStatusIcon,
+    nodeKey,
+    isSameNode,
+    createdOrNodeKey,
+    resourceStatusToResourceNode,
+    getApplicationLinkURLFromNode,
+    getManagedByURLFromNode
+} from '../utils';
 import {AppDetailsPreferences} from '../../../shared/services';
 import {Consumer} from '../../../shared/context';
 import Moment from 'react-moment';
 import {format} from 'date-fns';
-import {ResourceNode} from '../../../shared/models';
+import {HealthPriority, ResourceNode, SyncPriority, SyncStatusCode} from '../../../shared/models';
 import './application-resource-list.scss';
 
 export interface ApplicationResourceListProps {
@@ -54,17 +63,56 @@ export const ApplicationResourceList = (props: ApplicationResourceListProps) => 
 
     const sortedResources = React.useMemo(() => {
         const resourcesToSort = [...props.resources];
+        resourcesToSort.sort((a, b) => {
+            let compare = 0;
+            switch (sortConfig.key) {
+                case 'name':
+                    compare = a.name.localeCompare(b.name);
+                    break;
 
-        if (sortConfig.key === 'syncOrder') {
-            resourcesToSort.sort((a, b) => {
-                const waveA = a.syncWave ?? 0;
-                const waveB = b.syncWave ?? 0;
-                const compare = waveA - waveB;
-                return sortConfig.direction === 'asc' ? compare : -compare;
-            });
-        } else {
-            resourcesToSort.sort((first, second) => -createdOrNodeKey(first).localeCompare(createdOrNodeKey(second), undefined, {numeric: true}));
-        }
+                case 'group-kind':
+                    {
+                        const groupKindA = [a.group, a.kind].filter(item => !!item).join('/');
+                        const groupKindB = [b.group, b.kind].filter(item => !!item).join('/');
+                        compare = groupKindA.localeCompare(groupKindB);
+                    }
+                    break;
+
+                case 'syncOrder':
+                    {
+                        const waveA = a.syncWave ?? 0;
+                        const waveB = b.syncWave ?? 0;
+                        compare = waveA - waveB;
+                    }
+                    break;
+                case 'namespace':
+                    {
+                        const namespaceA = a.namespace ?? '';
+                        const namespaceB = b.namespace ?? '';
+                        compare = namespaceA.localeCompare(namespaceB);
+                    }
+                    break;
+                case 'createdAt':
+                    {
+                        compare = createdOrNodeKey(a).localeCompare(createdOrNodeKey(b), undefined, {numeric: true});
+                    }
+                    break;
+                case 'status':
+                    {
+                        const healthA = a.health?.status ?? 'Unknown';
+                        const healthB = b.health?.status ?? 'Unknown';
+                        const syncA = (a.status as SyncStatusCode) ?? 'Unknown';
+                        const syncB = (b.status as SyncStatusCode) ?? 'Unknown';
+
+                        compare = HealthPriority[healthA] - HealthPriority[healthB];
+                        if (compare === 0) {
+                            compare = SyncPriority[syncA] - SyncPriority[syncB];
+                        }
+                    }
+                    break;
+            }
+            return sortConfig.direction === 'asc' ? compare : -compare;
+        });
         return resourcesToSort;
     }, [props.resources, sortConfig]);
 
@@ -103,15 +151,25 @@ export const ApplicationResourceList = (props: ApplicationResourceListProps) => 
                     <div className='argo-table-list__head'>
                         <div className='row'>
                             <div className='columns small-1 xxxlarge-1' />
-                            <div className='columns small-2 xxxlarge-2'>NAME</div>
-                            <div className='columns small-1 xxxlarge-1'>GROUP/KIND</div>
+                            <div className='columns small-2 xxxlarge-2' onClick={() => handleSort('name')} style={{cursor: 'pointer'}}>
+                                NAME {getSortArrow('name')}
+                            </div>
+                            <div className='columns small-1 xxxlarge-1' onClick={() => handleSort('group-kind')} style={{cursor: 'pointer'}}>
+                                GROUP/KIND {getSortArrow('group-kind')}
+                            </div>
                             <div className='columns small-1 xxxlarge-1' onClick={() => handleSort('syncOrder')} style={{cursor: 'pointer'}}>
                                 SYNC ORDER {getSortArrow('syncOrder')}
                             </div>
-                            <div className='columns small-2 xxxlarge-1'>NAMESPACE</div>
+                            <div className='columns small-2 xxxlarge-1' onClick={() => handleSort('namespace')} style={{cursor: 'pointer'}}>
+                                NAMESPACE {getSortArrow('namespace')}
+                            </div>
                             {isSameKind && props.resources[0].kind === 'ReplicaSet' && <div className='columns small-1 xxxlarge-1'>REVISION</div>}
-                            <div className='columns small-2 xxxlarge-2'>CREATED AT</div>
-                            <div className='columns small-2 xxxlarge-1'>STATUS</div>
+                            <div className='columns small-2 xxxlarge-2' onClick={() => handleSort('createdAt')} style={{cursor: 'pointer'}}>
+                                CREATED AT {getSortArrow('createdAt')}
+                            </div>
+                            <div className='columns small-2 xxxlarge-1' onClick={() => handleSort('status')} style={{cursor: 'pointer'}}>
+                                STATUS {getSortArrow('status')}
+                            </div>
                         </div>
                     </div>
                     {sortedResources.map(res => {
@@ -126,7 +184,7 @@ export const ApplicationResourceList = (props: ApplicationResourceListProps) => 
                                 <div className='row'>
                                     <div className='columns small-1 xxxlarge-1'>
                                         <div className='application-details__resource-icon'>
-                                            <ResourceIcon kind={res.kind} />
+                                            <ResourceIcon group={res.group} kind={res.kind} />
                                             <br />
                                             <div>{ResourceLabel({kind: res.kind})}</div>
                                         </div>
@@ -136,16 +194,26 @@ export const ApplicationResourceList = (props: ApplicationResourceListProps) => 
                                             <span className='application-details__item_text'>{res.name}</span>
                                             {res.kind === 'Application' && (
                                                 <Consumer>
-                                                    {ctx => (
-                                                        <span className='application-details__external_link'>
-                                                            <a
-                                                                href={ctx.baseHref + 'applications/' + res.namespace + '/' + res.name}
-                                                                onClick={e => e.stopPropagation()}
-                                                                title='Open application'>
-                                                                <i className='fa fa-external-link-alt' />
-                                                            </a>
-                                                        </span>
-                                                    )}
+                                                    {ctx => {
+                                                        // Get the node from the tree to access managed-by-url info
+                                                        const node = nodeByKey.get(nodeKey(res));
+                                                        const linkInfo = node
+                                                            ? getApplicationLinkURLFromNode(node, ctx.baseHref)
+                                                            : {url: ctx.baseHref + 'applications/' + res.namespace + '/' + res.name, isExternal: false};
+                                                        const managedByURL = node ? getManagedByURLFromNode(node) : null;
+                                                        return (
+                                                            <span className='application-details__external_link'>
+                                                                <a
+                                                                    href={linkInfo.url}
+                                                                    target={linkInfo.isExternal ? '_blank' : undefined}
+                                                                    rel={linkInfo.isExternal ? 'noopener noreferrer' : undefined}
+                                                                    onClick={e => e.stopPropagation()}
+                                                                    title={managedByURL ? `Open application\nmanaged-by-url: ${managedByURL}` : 'Open application'}>
+                                                                    <i className='fa fa-external-link-alt' />
+                                                                </a>
+                                                            </span>
+                                                        );
+                                                    }}
                                                 </Consumer>
                                             )}
                                         </div>
@@ -200,7 +268,15 @@ export const ApplicationResourceList = (props: ApplicationResourceListProps) => 
                                                             <i className='fa fa-ellipsis-v' />
                                                         </button>
                                                     )}>
-                                                    {() => props.nodeMenu(nodeByKey.get(nodeKey(res)))}
+                                                    {() => {
+                                                        const node = nodeByKey.get(nodeKey(res));
+                                                        if (node) {
+                                                            return props.nodeMenu(node);
+                                                        } else {
+                                                            // For orphaned resources, create a ResourceNode-like object to prevent errors
+                                                            return props.nodeMenu(resourceStatusToResourceNode(res));
+                                                        }
+                                                    }}
                                                 </DropDown>
                                             </div>
                                         )}

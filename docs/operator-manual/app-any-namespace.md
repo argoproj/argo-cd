@@ -1,7 +1,7 @@
 # Applications in any namespace
 
-!!! warning
-    Please read this documentation carefully before you enable this feature. Misconfiguration could lead to potential security issues.
+> [!WARNING]
+> Please read this documentation carefully before you enable this feature. Misconfiguration could lead to potential security issues.
 
 ## Introduction
 
@@ -73,8 +73,8 @@ kubectl apply -k examples/k8s-rbac/argocd-server-applications/
 
 `argocd-notifications-controller-rbac-clusterrole.yaml` and `argocd-notifications-controller-rbac-clusterrolebinding.yaml` are used to support notifications controller to notify apps in all namespaces.
 
-!!! note
-    At some later point in time, we may make this cluster role part of the default installation manifests.
+> [!NOTE]
+> At some later point in time, we may make this cluster role part of the default installation manifests.
 
 ### Allowing additional namespaces in an AppProject
 
@@ -118,15 +118,15 @@ Also, the Argo CD API will enforce these constraints, regardless of the Argo CD 
 
 The `.spec.sourceNamespaces` field of the `AppProject` is a list that can contain an arbitrary amount of namespaces, and each entry supports shell-style wildcard, so that you can allow namespaces with patterns like `team-one-*`.
 
-!!! warning
-    Do not add user controlled namespaces in the `.spec.sourceNamespaces` field of any privileged AppProject like the `default` project. Always make sure that the AppProject follows the principle of granting least required privileges. Never grant access to the `argocd` namespace within the AppProject.
+> [!WARNING]
+> Do not add user controlled namespaces in the `.spec.sourceNamespaces` field of any privileged AppProject like the `default` project. Always make sure that the AppProject follows the principle of granting least required privileges. Never grant access to the `argocd` namespace within the AppProject.
 
-!!! note
-    For backwards compatibility, Applications in the Argo CD control plane's namespace (`argocd`) are allowed to set their `.spec.project` field to reference any AppProject, regardless of the restrictions placed by the AppProject's `.spec.sourceNamespaces` field.
-  
-!!! note
-    Currently it's not possible to have a applicationset in one namespace and have the application
-    be generated in another. See [#11104](https://github.com/argoproj/argo-cd/issues/11104) for more info.
+> [!NOTE]
+> For backwards compatibility, Applications in the Argo CD control plane's namespace (`argocd`) are allowed to set their `.spec.project` field to reference any AppProject, regardless of the restrictions placed by the AppProject's `.spec.sourceNamespaces` field.
+
+> [!NOTE]
+> Currently it's not possible to have a applicationset in one namespace and have the application
+> be generated in another. See [#11104](https://github.com/argoproj/argo-cd/issues/11104) for more info.
 
 ### Application names
 
