@@ -45,6 +45,7 @@ var (
 )
 
 const helmOCIConfigType = "application/vnd.cncf.helm.config.v1+json"
+const helmOCILayerType = "application/vnd.cncf.helm.chart.content.v1.tar+gzip"
 
 var _ Client = &nativeOCIClient{}
 
@@ -604,7 +605,7 @@ func newCompressedLayerFileStore(dest, tempDir string, maxSize int64, isHelmChar
 }
 
 func isHelmOCI(mediaType string) bool {
-	return mediaType == "application/vnd.cncf.helm.chart.content.v1.tar+gzip"
+	return mediaType == helmOCILayerType
 }
 
 // Push looks in all the layers of an OCI image. Once it finds a layer that is compressed, it extracts the layer to a tempDir
