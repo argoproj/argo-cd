@@ -55,13 +55,13 @@ func newAWSCommand() *cobra.Command {
 	return command
 }
 
-type getSignedRequestFunc func(clusterName, roleARN string, profile string) (string, error)
+type getSignedRequestFunc func(ctx context.Context, clusterName, roleARN string, profile string) (string, error)
 
 func getSignedRequestWithRetry(ctx context.Context, timeout, interval time.Duration, clusterName, roleARN string, profile string, fn getSignedRequestFunc) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	for {
-		signed, err := fn(clusterName, roleARN, profile)
+		signed, err := fn(ctx, clusterName, roleARN, profile)
 		if err == nil {
 			return signed, nil
 		}
@@ -73,9 +73,7 @@ func getSignedRequestWithRetry(ctx context.Context, timeout, interval time.Durat
 	}
 }
 
-func getSignedRequest(clusterName, roleARN string, profile string) (string, error) {
-	ctx := context.Background()
-
+func getSignedRequest(ctx context.Context, clusterName, roleARN string, profile string) (string, error) {
 	// Build config options
 	var configOpts []func(*config.LoadOptions) error
 	if profile != "" {

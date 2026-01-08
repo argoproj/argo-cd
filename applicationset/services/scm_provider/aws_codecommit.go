@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	pathpkg "path"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -280,24 +282,20 @@ func (p *AWSCodeCommitProvider) listRepoNames(ctx context.Context) ([]string, er
 }
 
 func (p *AWSCodeCommitProvider) getTagFilters() []taggingtypes.TagFilter {
-	filters := make(map[string]*taggingtypes.TagFilter)
+	filters := make(map[string]taggingtypes.TagFilter)
 	for _, tagFilter := range p.tagFilters {
-		filter, hasKey := filters[tagFilter.Key]
-		if !hasKey {
-			filter = &taggingtypes.TagFilter{
+		filter := filters[tagFilter.Key]
+		if filter.Key == nil {
+			filter = taggingtypes.TagFilter{
 				Key: aws.String(tagFilter.Key),
 			}
-			filters[tagFilter.Key] = filter
 		}
 		if tagFilter.Value != "" {
 			filter.Values = append(filter.Values, tagFilter.Value)
 		}
+		filters[tagFilter.Key] = filter
 	}
-	result := make([]taggingtypes.TagFilter, 0, len(filters))
-	for _, filter := range filters {
-		result = append(result, *filter)
-	}
-	return result
+	return slices.Collect(maps.Values(filters))
 }
 
 func getCodeCommitRepoName(repoArn string) (string, error) {

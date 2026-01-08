@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"context"
 	"errors"
 	"testing"
 	"time"
@@ -72,7 +73,7 @@ type signedRequestMock struct {
 	returnFunc            func(m *signedRequestMock) (string, error)
 }
 
-func (m *signedRequestMock) getSignedRequestMock(_, _ string, _ string) (string, error) {
+func (m *signedRequestMock) getSignedRequestMock(_ context.Context, _, _ string, _ string) (string, error) {
 	m.getSignedRequestCalls++
 	return m.returnFunc(m)
 }
