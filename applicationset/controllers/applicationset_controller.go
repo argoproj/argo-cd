@@ -945,10 +945,10 @@ func (r *ApplicationSetReconciler) removeOwnerReferencesOnDeleteAppSet(ctx conte
 	return nil
 }
 
-// getEarliestWaitingTransitionTime extracts the earliest LastTransitionTime from ApplicationSet status
-// for Applications in Waiting state that have had a revision change (not brand new apps).
+// getEarliestWaitingTransitionTimeOfAppset extracts the earliest LastTransitionTime from ApplicationSet status
+// for Applications in Waiting state that have had a revision change (not new apps).
 // Returns nil if no Waiting applications with UNRECONCILED revision changes are found.
-func getEarliestWaitingTransitionTimeNeedingReconciliation(appset *argov1alpha1.ApplicationSet, applications []argov1alpha1.Application) *metav1.Time {
+func getEarliestWaitingTransitionTimeOfAppset(appset *argov1alpha1.ApplicationSet, applications []argov1alpha1.Application) *metav1.Time {
 	// Build a map of app name to Application for quick lookup
 	appMap := make(map[string]*argov1alpha1.Application)
 	for i := range applications {
@@ -965,14 +965,12 @@ func getEarliestWaitingTransitionTimeNeedingReconciliation(appset *argov1alpha1.
 			continue
 		}
 
-		// Check if this app has already been reconciled since its transition to Waiting
 		app, exists := appMap[appStatus.Application]
 		if !exists {
 			continue
 		}
 
 		// If the app has been reconciled after transitioning to Waiting AND has the correct revision,
-		// don't count it as needing reconciliation
 		if app.Status.ReconciledAt != nil &&
 			app.Status.ReconciledAt.After(appStatus.LastTransitionTime.Time) &&
 			reflect.DeepEqual(app.Status.GetRevisions(), appStatus.TargetRevisions) {
@@ -1023,12 +1021,10 @@ func (r *ApplicationSetReconciler) addRefreshAnnotationToApplications(ctx contex
 // that no refresh annotations are present, and that the reconciled revision matches the target revision
 func checkAllApplicationsReconciled(applications []argov1alpha1.Application, logCtx *log.Entry, appset *argov1alpha1.ApplicationSet, sinceTime *metav1.Time) bool {
 	if sinceTime == nil {
-		// No reference time means we don't need to wait
 		return true
 	}
 
 	for _, app := range applications {
-		// Check if refresh annotation is still present - if so, reconciliation is in progress
 		if app.Annotations != nil && app.Annotations[argov1alpha1.AnnotationKeyRefresh] != "" {
 			logCtx.Debug("Application still has refresh annotation, waiting for reconciliation")
 			return false
@@ -1049,14 +1045,12 @@ func checkAllApplicationsReconciled(applications []argov1alpha1.Application, log
 			return false
 		}
 
-		// CRITICAL: Verify that the reconciled revision matches the target revision
-		// This ensures the app actually picked up the new revision, not just reconciled with stale data
+		// This ensures the app actually picked up the new revision
 		idx := findApplicationStatusIndex(appset.Status.ApplicationStatus, app.Name)
 		if idx != -1 {
 			appStatus := appset.Status.ApplicationStatus[idx]
 			currentRevisions := app.Status.GetRevisions()
 
-			// Check if current revisions match the target revisions we expect
 			if !reflect.DeepEqual(currentRevisions, appStatus.TargetRevisions) {
 				logCtx.WithFields(log.Fields{
 					"app":              app.Name,
@@ -1073,14 +1067,11 @@ func checkAllApplicationsReconciled(applications []argov1alpha1.Application, log
 // ensureApplicationsReconciled ensures all Applications are reconciled before proceeding with progressive sync
 // It adds refresh annotations if needed and checks if all apps have been reconciled
 func (r *ApplicationSetReconciler) ensureApplicationsReconciled(ctx context.Context, logCtx *log.Entry, appset *argov1alpha1.ApplicationSet, applications []argov1alpha1.Application) (bool, error) {
-	// Get the earliest transition time for Waiting status (only for revision changes, not new apps)
-	// that actually need reconciliation (haven't been reconciled yet with correct revision)
-	earliestWaitingTime := getEarliestWaitingTransitionTimeNeedingReconciliation(appset, applications)
+	// Get the earliest transition time for Waiting status (only for revision changes, not new apps) of owned Applications
+	earliestWaitingTime := getEarliestWaitingTransitionTimeOfAppset(appset, applications)
 
-	// If no applications have pending revision changes, no need to coordinate reconciliation
-	// This allows brand new applications to progress normally without waiting
 	if earliestWaitingTime == nil {
-		logCtx.Debug("No applications with pending revision changes, skipping reconciliation check")
+		logCtx.Debug("No applications with pending revision changes, skipping reconciliation check") // Or a new app
 		return true, nil
 	}
 
@@ -1111,31 +1102,28 @@ func (r *ApplicationSetReconciler) ensureApplicationsReconciled(ctx context.Cont
 		return true, nil
 	}
 
-	// Not all apps are reconciled yet - check if any still have refresh annotations
-	// If they do, it means we've already triggered refresh and just need to wait
-	anyHasRefreshAnnotation := false
+	// log apps that still have refresh annotation
 	appsWithAnnotation := []string{}
 	for _, app := range applications {
 		if app.Annotations != nil && app.Annotations[argov1alpha1.AnnotationKeyRefresh] != "" {
-			anyHasRefreshAnnotation = true
 			appsWithAnnotation = append(appsWithAnnotation, app.Name)
 		}
 	}
 
-	if anyHasRefreshAnnotation {
+	if len(appsWithAnnotation) > 0 {
 		// We've already added annotations, just waiting for reconciliation
 		logCtx.WithField("apps_with_annotation", appsWithAnnotation).Info("Waiting for Applications with refresh annotations to be reconciled")
 		return false, nil
 	}
 
-	// Need to add refresh annotations to trigger reconciliation
+	// add refresh annotations to trigger reconciliation
 	logCtx.Info("Applications have pending changes, adding refresh annotations to all Applications to trigger reconciliation")
+	// TODO: check if util/argo/argo.go RefreshApp can be used instead
 	err := r.addRefreshAnnotationToApplications(ctx, logCtx, *appset, applications)
 	if err != nil {
 		return false, fmt.Errorf("failed to add refresh annotations: %w", err)
 	}
 
-	// After adding annotations, we need to wait for reconciliation
 	logCtx.Info("Refresh annotations added to all applications, waiting for application controller to reconcile them")
 	return false, nil
 }
@@ -1394,6 +1382,9 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatus(ctx con
 					newAppStatus.Message = "Application resource has synced, updating status to Progressing"
 				}
 			}
+			//TODO: add else-if condition here instead to check for earliest transition time and add refresh annotations
+			// Checking for transition time after updating applicationStatus' is not working - apps syncing out of order after waiting for apps to refresh.
+
 		} else {
 			// The target revision is the same, so we need to evaluate the current revision progress
 			if currentAppStatus.Status == argov1alpha1.ProgressiveSyncPending {

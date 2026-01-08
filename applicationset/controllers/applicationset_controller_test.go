@@ -7516,11 +7516,51 @@ func TestGetEarliestWaitingTransitionTimeNeedingReconciliation(t *testing.T) {
 			},
 			expected: &laterTime, // Only app2 needs reconciliation
 		},
+		{
+			name: "all applications reconciled after transition time, returns nil",
+			appset: &v1alpha1.ApplicationSet{
+				Status: v1alpha1.ApplicationSetStatus{
+					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
+						{
+							Application:        "app1",
+							Status:             v1alpha1.ProgressiveSyncWaiting,
+							LastTransitionTime: &earlierTime,
+							Message:            "Application has pending changes, setting status to Waiting",
+							TargetRevisions:    []string{"new-rev"},
+						},
+						{
+							Application:        "app2",
+							Status:             v1alpha1.ProgressiveSyncWaiting,
+							LastTransitionTime: &laterTime,
+							Message:            "Application has pending changes, setting status to Waiting",
+							TargetRevisions:    []string{"new-rev"},
+						},
+					},
+				},
+			},
+			applications: []v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{Name: "app1"},
+					Status: v1alpha1.ApplicationStatus{
+						ReconciledAt: &afterTransition,                         // Reconciled after transition
+						Sync:         v1alpha1.SyncStatus{Revision: "new-rev"}, // Correct revision
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{Name: "app2"},
+					Status: v1alpha1.ApplicationStatus{
+						ReconciledAt: &afterTransition,                         // Reconciled after transition
+						Sync:         v1alpha1.SyncStatus{Revision: "new-rev"}, // Correct revision
+					},
+				},
+			},
+			expected: nil, // No applications needs reconcile
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := getEarliestWaitingTransitionTimeNeedingReconciliation(tt.appset, tt.applications)
+			result := getEarliestWaitingTransitionTimeOfAppset(tt.appset, tt.applications)
 			if tt.expected == nil {
 				assert.Nil(t, result)
 			} else {
