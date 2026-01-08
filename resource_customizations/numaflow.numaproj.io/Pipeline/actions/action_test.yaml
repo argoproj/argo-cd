@@ -72,7 +72,7 @@ discoveryTests:
         iconClass: 'fa-solid fa-fw fa-play'
         displayName: 'Unpause (fast)'
       - name: force-promote
-        disabled: false
+        disabled: true
         iconClass: 'fa-solid fa-fw fa-forward'
         displayName: 'Force Promote'
       - name: delete
