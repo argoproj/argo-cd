@@ -95,7 +95,4 @@ var (
 
 	//go:embed ssd-configmap-predicted-live.json
 	ConfigMapPredictedLiveJSONSSD string
-
-	//go:embed ssd-configmap-predicted-live-with-key3.json
-	ConfigMapPredictedLiveWithKey3JSONSSD string
 )
