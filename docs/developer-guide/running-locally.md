@@ -227,9 +227,11 @@ To speed up building of images you may use the DEV_IMAGE option that builds the 
 
 ```bash
 DEV_IMAGE=true DOCKER_PUSH=true make image
+```
 
-The first run of this build task may take a long time because it needs first to build the base image, but once it's done the build
-process should take much less time than regular full image build inside docker.
+> [!NOTE]
+> The first run of this build task may take a long time because it needs first to build the base image first; however,
+> once it's done, the build process should be much faster than a regular full image build in Docker.
 
 
 #### Configure manifests for your image
