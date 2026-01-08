@@ -53,8 +53,12 @@ func (c *ExtendedClient) GetContents(repo *Repository, path string) (bool, error
 var _ SCMProviderService = &BitBucketCloudProvider{}
 
 func NewBitBucketCloudProvider(owner string, user string, password string, allBranches bool) (*BitBucketCloudProvider, error) {
+	bitbucketClient, err := bitbucket.NewBasicAuth(user, password)
+	if err != nil {
+		return nil, fmt.Errorf("error creating BitBucket Cloud client with basic auth: %w", err)
+	}
 	client := &ExtendedClient{
-		bitbucket.NewBasicAuth(user, password),
+		bitbucketClient,
 		user,
 		password,
 		owner,

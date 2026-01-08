@@ -11,3 +11,7 @@ tests:
     status: Degraded
     message: "Waiting for 3 pods to be ready...\n"
   inputPath: testdata/degraded.yaml
+- healthStatus:
+    status: Degraded
+    message: "Failed progressive upgrade"
+  inputPath: testdata/degraded-progressive.yaml

@@ -1,6 +1,8 @@
 package cache
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -86,4 +88,100 @@ func TestGenerateCacheKey(t *testing.T) {
 	cache := NewCache(client)
 	testKey := cache.generateFullKey("testkey")
 	assert.Equal(t, "testkey|"+common.CacheVersion, testKey)
+}
+
+// Test loading Redis credentials from a file
+func TestLoadRedisCreds(t *testing.T) {
+	dir := t.TempDir()
+	// Helper to write a file
+	writeFile := func(name, content string) {
+		require.NoError(t, os.WriteFile(filepath.Join(dir, name), []byte(content), 0o400))
+	}
+	// Write all files
+	writeFile("auth", "mypassword\n")
+	writeFile("auth_username", "myuser")
+	writeFile("sentinel_username", "sentineluser")
+	writeFile("sentinel_auth", "sentinelpass")
+
+	username, password, sentinelUsername, sentinelPassword, err := loadRedisCreds(dir, Options{})
+	require.NoError(t, err)
+	assert.Equal(t, "mypassword", password)
+	assert.Equal(t, "myuser", username)
+	assert.Equal(t, "sentineluser", sentinelUsername)
+	assert.Equal(t, "sentinelpass", sentinelPassword)
+}
+
+// Test loading Redis credentials from environment variables
+func TestLoadRedisCredsFromEnv(t *testing.T) {
+	// Set environment variables
+	t.Setenv(envRedisPassword, "mypassword")
+	t.Setenv(envRedisUsername, "myuser")
+	t.Setenv(envRedisSentinelUsername, "sentineluser")
+	t.Setenv(envRedisSentinelPassword, "sentinelpass")
+
+	username, password, sentinelUsername, sentinelPassword, err := loadRedisCreds("", Options{})
+	require.NoError(t, err)
+	assert.Equal(t, "mypassword", password)
+	assert.Equal(t, "myuser", username)
+	assert.Equal(t, "sentineluser", sentinelUsername)
+	assert.Equal(t, "sentinelpass", sentinelPassword)
+}
+
+// Test loading Redis credentials from both environment variables and a file
+func TestLoadRedisCredsFromBothEnvAndFile(t *testing.T) {
+	// Set environment variables
+	t.Setenv(envRedisPassword, "mypassword")
+	t.Setenv(envRedisUsername, "myuser")
+	t.Setenv(envRedisSentinelUsername, "sentineluser")
+	t.Setenv(envRedisSentinelPassword, "sentinelpass")
+
+	dir := t.TempDir()
+	// Helper to write a file
+	writeFile := func(name, content string) {
+		require.NoError(t, os.WriteFile(filepath.Join(dir, name), []byte(content), 0o400))
+	}
+	// Write all files
+	writeFile("auth", "filepassword")
+	writeFile("auth_username", "fileuser")
+	writeFile("sentinel_username", "filesentineluser")
+	writeFile("sentinel_auth", "filesentinelpass")
+
+	username, password, sentinelUsername, sentinelPassword, err := loadRedisCreds(dir, Options{})
+	require.NoError(t, err)
+	assert.Equal(t, "filepassword", password)
+	assert.Equal(t, "fileuser", username)
+	assert.Equal(t, "filesentineluser", sentinelUsername)
+	assert.Equal(t, "filesentinelpass", sentinelPassword)
+}
+
+func TestLoadRedisCreds_MountPathMissing(t *testing.T) {
+	_, _, _, _, err := loadRedisCreds("not_existing_path", Options{})
+	require.Error(t, err)
+	require.ErrorContains(t, err, "failed to access Redis credentials")
+}
+
+func TestCredentialFileHandling(t *testing.T) {
+	t.Run("ReadAuthDetailsFromFile_Missing", func(t *testing.T) {
+		dir := t.TempDir()
+		val, err := readAuthDetailsFromFile(dir, "not_existing_path")
+		require.NoError(t, err)
+		assert.Empty(t, val)
+	})
+
+	t.Run("ReadAuthDetailsFromFile_Unreadable", func(t *testing.T) {
+		dir := t.TempDir()
+		file := filepath.Join(dir, "auth")
+		require.NoError(t, os.WriteFile(file, []byte("value"), 0o000))
+		_, err := readAuthDetailsFromFile(dir, "auth")
+		require.Error(t, err)
+	})
+
+	t.Run("ReadAuthDetailsFromFile_Normal", func(t *testing.T) {
+		dir := t.TempDir()
+		file := filepath.Join(dir, "auth")
+		require.NoError(t, os.WriteFile(file, []byte("value"), 0o400))
+		val, err := readAuthDetailsFromFile(dir, "auth")
+		require.NoError(t, err)
+		assert.Equal(t, "value", val)
+	})
 }

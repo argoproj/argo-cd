@@ -78,7 +78,7 @@ func TestList(t *testing.T) {
 	prs, err := svc.List(t.Context())
 	require.NoError(t, err)
 	assert.Len(t, prs, 1)
-	assert.Equal(t, 15442, prs[0].Number)
+	assert.Equal(t, int64(15442), prs[0].Number)
 	assert.Equal(t, "Draft: Use structured logging for DB load balancer", prs[0].Title)
 	assert.Equal(t, "use-structured-logging-for-db-load-balancer", prs[0].Branch)
 	assert.Equal(t, "master", prs[0].TargetBranch)
