@@ -233,7 +233,7 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                             key={lineNum}
                             style={{
                                 whiteSpace: isWrapped ? 'normal' : 'pre',
-                                lineHeight: selectedPod ? '1.125rem' : '1rem',
+                                lineHeight: '1.125rem',
                                 backgroundColor: selectedPod === log.podName ? getPodBackgroundColor(log.podName, prefs.appDetails.darkMode) : 'transparent',
                                 padding: '1px 8px',
                                 width: '100%',
