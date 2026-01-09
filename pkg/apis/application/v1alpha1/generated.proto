@@ -1737,6 +1737,9 @@ message PullRequestGeneratorGitLab {
   // Labels is used to filter the MRs that you want to target
   repeated string labels = 4;
 
+  // ExcludedLabels is used to exclude MRs with these labels
+  repeated string excludedLabels = 8;
+
   // PullRequestState is an additional MRs filter to get only those with a certain state. Default: "" (all states).
   // Valid values: opened, closed, merged, locked".
   optional string pullRequestState = 5;

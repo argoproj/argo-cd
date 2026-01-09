@@ -9348,6 +9348,13 @@
         "caRef": {
           "$ref": "#/definitions/v1alpha1ConfigMapKeyRef"
         },
+        "excludedLabels": {
+          "type": "array",
+          "title": "ExcludedLabels is used to exclude MRs with these labels",
+          "items": {
+            "type": "string"
+          }
+        },
         "insecure": {
           "type": "boolean",
           "title": "Skips validating the SCM provider's TLS certificate - useful for self-signed certificates.; default: false"

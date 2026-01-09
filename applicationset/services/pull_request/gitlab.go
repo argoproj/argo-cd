@@ -16,12 +16,13 @@ type GitLabService struct {
 	client           *gitlab.Client
 	project          string
 	labels           []string
+	excludedLabels   []string
 	pullRequestState string
 }
 
 var _ PullRequestService = (*GitLabService)(nil)
 
-func NewGitLabService(token, url, project string, labels []string, pullRequestState string, scmRootCAPath string, insecure bool, caCerts []byte) (PullRequestService, error) {
+func NewGitLabService(token, url, project string, labels []string, excludedLabels []string, pullRequestState string, scmRootCAPath string, insecure bool, caCerts []byte) (PullRequestService, error) {
 	var clientOptionFns []gitlab.ClientOptionFunc
 
 	// Set a custom Gitlab base URL if one is provided
@@ -50,6 +51,7 @@ func NewGitLabService(token, url, project string, labels []string, pullRequestSt
 		client:           client,
 		project:          project,
 		labels:           labels,
+		excludedLabels:   excludedLabels,
 		pullRequestState: pullRequestState,
 	}, nil
 }
@@ -88,6 +90,9 @@ func (g *GitLabService) List(ctx context.Context) ([]*PullRequest, error) {
 			return nil, fmt.Errorf("error listing merge requests for project '%s': %w", g.project, err)
 		}
 		for _, mr := range mrs {
+			if containsAnyExcludedLabels(g.excludedLabels, mr.Labels) {
+				continue
+			}
 			pullRequests = append(pullRequests, &PullRequest{
 				Number:       mr.IID,
 				Title:        mr.Title,
@@ -104,4 +109,16 @@ func (g *GitLabService) List(ctx context.Context) ([]*PullRequest, error) {
 		opts.Page = resp.NextPage
 	}
 	return pullRequests, nil
+}
+
+// containsAnyExcludedLabels returns true if gotLabels contains any of the excludedLabels
+func containsAnyExcludedLabels(excludedLabels []string, gotLabels []string) bool {
+	for _, excluded := range excludedLabels {
+		for _, got := range gotLabels {
+			if excluded == got {
+				return true
+			}
+		}
+	}
+	return false
 }
