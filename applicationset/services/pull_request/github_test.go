@@ -61,7 +61,7 @@ func TestContainLabels(t *testing.T) {
 	}
 }
 
-func TestcontainsAnyExcludeLabels(t *testing.T) {
+func TestContainsAnyExcludeLabels(t *testing.T) {
 	cases := []struct {
 		Name           string
 		ExcludedLabels []string
