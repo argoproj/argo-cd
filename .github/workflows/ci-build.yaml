@@ -14,7 +14,7 @@ on:
 env:
   # Golang version to use across CI steps
   # renovate: datasource=golang-version packageName=golang
-  GOLANG_VERSION: '1.25.3'
+  GOLANG_VERSION: '1.25.5'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -25,7 +25,7 @@ permissions:
 
 jobs:
   changes:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       backend: ${{ steps.filter.outputs.backend_any_changed }}
       frontend: ${{ steps.filter.outputs.frontend_any_changed }}
@@ -50,7 +50,7 @@ jobs:
   check-go:
     name: Ensure Go modules synchronicity
     if: ${{ needs.changes.outputs.backend == 'true' }}
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     needs:
       - changes
     steps:
@@ -70,7 +70,7 @@ jobs:
   build-go:
     name: Build & cache Go code
     if: ${{ needs.changes.outputs.backend == 'true' }}
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     needs:
       - changes
     steps:
@@ -81,7 +81,7 @@ jobs:
         with:
           go-version: ${{ env.GOLANG_VERSION }}
       - name: Restore go build cache
-        uses: actions/cache@a7833574556fa59680c1b7cb190c1735db73ebf0 # v5.0.0
+        uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
         with:
           path: ~/.cache/go-build
           key: ${{ runner.os }}-go-build-v1-${{ github.run_id }}
@@ -97,7 +97,7 @@ jobs:
       pull-requests: read # for golangci/golangci-lint-action to fetch pull requests
     name: Lint Go code
     if: ${{ needs.changes.outputs.backend == 'true' }}
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     needs:
       - changes
     steps:
@@ -117,7 +117,7 @@ jobs:
   test-go:
     name: Run unit tests for Go packages
     if: ${{ needs.changes.outputs.backend == 'true' }}
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     needs:
       - build-go
       - changes
@@ -152,7 +152,7 @@ jobs:
         run: |
           echo "/usr/local/bin" >> $GITHUB_PATH
       - name: Restore go build cache
-        uses: actions/cache@a7833574556fa59680c1b7cb190c1735db73ebf0 # v5.0.0
+        uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
         with:
           path: ~/.cache/go-build
           key: ${{ runner.os }}-go-build-v1-${{ github.run_id }}
@@ -173,7 +173,7 @@ jobs:
       - name: Run all unit tests
         run: make test-local
       - name: Generate test results artifacts
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: test-results
           path: test-results
@@ -181,7 +181,7 @@ jobs:
   test-go-race:
     name: Run unit tests with -race for Go packages
     if: ${{ needs.changes.outputs.backend == 'true' }}
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     needs:
       - build-go
       - changes
@@ -194,7 +194,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
       - name: Create symlink in GOPATH
-        run: ln -s $(pwd) ~/go/src/github.com/argoproj/argo-cd 
+        run: ln -s $(pwd) ~/go/src/github.com/argoproj/argo-cd
       - name: Setup Golang
         uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
         with:
@@ -216,7 +216,7 @@ jobs:
         run: |
           echo "/usr/local/bin" >> $GITHUB_PATH
       - name: Restore go build cache
-        uses: actions/cache@a7833574556fa59680c1b7cb190c1735db73ebf0 # v5.0.0
+        uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
         with:
           path: ~/.cache/go-build
           key: ${{ runner.os }}-go-build-v1-${{ github.run_id }}
@@ -237,7 +237,7 @@ jobs:
       - name: Run all unit tests
         run: make test-race-local
       - name: Generate test results artifacts
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: race-results
           path: test-results/
@@ -245,7 +245,7 @@ jobs:
   codegen:
     name: Check changes to generated code
     if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.docs == 'true'}}
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     needs:
       - changes
     steps:
@@ -271,13 +271,13 @@ jobs:
           # We need to vendor go modules for codegen yet
           go mod download
           go mod vendor -v
-        # generalizing repo name for forks:  ${{ github.event.repository.name }}  
-        working-directory: /home/runner/go/src/github.com/argoproj/${{ github.event.repository.name }}  
+        # generalizing repo name for forks:  ${{ github.event.repository.name }}
+        working-directory: /home/runner/go/src/github.com/argoproj/${{ github.event.repository.name }}
       - name: Install toolchain for codegen
         run: |
           make install-codegen-tools-local
           make install-go-tools-local
-        # generalizing repo name for forks:  ${{ github.event.repository.name }}  
+        # generalizing repo name for forks:  ${{ github.event.repository.name }}
         working-directory: /home/runner/go/src/github.com/argoproj/${{ github.event.repository.name }}
         # We install kustomize in the dist directory
       - name: Add dist to PATH
@@ -302,7 +302,7 @@ jobs:
     name: Build, test & lint UI code
     # We run UI logic for backend changes so that we have a complete set of coverage documents to send to codecov.
     if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' }}
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     needs:
       - changes
     steps:
@@ -315,7 +315,7 @@ jobs:
           node-version: '22.9.0'
       - name: Restore node dependency cache
         id: cache-dependencies
-        uses: actions/cache@a7833574556fa59680c1b7cb190c1735db73ebf0 # v5.0.0
+        uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
         with:
           path: ui/node_modules
           key: ${{ runner.os }}-node-dep-v2-${{ hashFiles('**/yarn.lock') }}
@@ -338,7 +338,7 @@ jobs:
         working-directory: ui/
 
   shellcheck:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
       - run: |
@@ -349,7 +349,7 @@ jobs:
   analyze:
     name: Process & analyze test artifacts
     if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' }}
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     needs:
       - test-go
       - build-ui
@@ -357,6 +357,7 @@ jobs:
       - test-e2e
     env:
       sonar_secret: ${{ secrets.SONAR_TOKEN }}
+      codecov_secret: ${{ secrets.CODECOV_TOKEN }}
     steps:
       - name: Checkout code
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
@@ -364,23 +365,27 @@ jobs:
           fetch-depth: 0
       - name: Restore node dependency cache
         id: cache-dependencies
-        uses: actions/cache@a7833574556fa59680c1b7cb190c1735db73ebf0 # v5.0.0
+        uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
         with:
           path: ui/node_modules
           key: ${{ runner.os }}-node-dep-v2-${{ hashFiles('**/yarn.lock') }}
+        if: env.codecov_secret != ''
       - name: Remove other node_modules directory
         run: |
           rm -rf ui/node_modules/argo-ui/node_modules
+        if: env.codecov_secret != ''
       - name: Get e2e code coverage
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           name: e2e-code-coverage
           path: e2e-code-coverage
+        if: env.codecov_secret != ''
       - name: Get unit test code coverage
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           name: test-results
           path: test-results
+        if: env.codecov_secret != ''
       - name: combine-go-coverage
         # We generate coverage reports for all Argo CD components, but only the applicationset-controller,
         # app-controller, repo-server, and commit-server report contain coverage data. The other components currently
@@ -388,6 +393,7 @@ jobs:
         # references to their coverage output directories.
         run: |
           go tool covdata percent -i=test-results,e2e-code-coverage/applicationset-controller,e2e-code-coverage/repo-server,e2e-code-coverage/app-controller,e2e-code-coverage/commit-server -o test-results/full-coverage.out
+        if: env.codecov_secret != ''
       - name: Upload code coverage information to codecov.io
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
         with:
@@ -395,13 +401,16 @@ jobs:
           fail_ci_if_error: true
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        if: env.codecov_secret != ''
       - name: Upload test results to Codecov
-        if: github.ref == 'refs/heads/master' && github.event_name == 'push' && github.repository == 'argoproj/argo-cd'
-        uses: codecov/test-results-action@47f89e9acb64b76debcd5ea40642d25a4adced9f # v1.1.1
+        # Codecov uploads test results to Codecov.io on upstream master branch and on fork master branch if the token is configured.
+        if: env.codecov_secret != '' && github.ref == 'refs/heads/master' && github.event_name == 'push'
+        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
         with:
-          file: test-results/junit.xml
+          files: test-results/junit.xml
           fail_ci_if_error: true
           token: ${{ secrets.CODECOV_TOKEN }}
+          report_type: test_results
       - name: Perform static code analysis using SonarCloud
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -411,29 +420,26 @@ jobs:
   test-e2e:
     name: Run end-to-end tests
     if: ${{ needs.changes.outputs.backend == 'true' }}
-    runs-on: ${{ github.repository == 'argoproj/argo-cd' && 'oracle-vm-16cpu-64gb-x86-64' || 'ubuntu-22.04' }}
+    runs-on: ${{ github.repository == 'argoproj/argo-cd' && 'oracle-vm-16cpu-64gb-x86-64' || 'ubuntu-24.04' }}
     strategy:
       fail-fast: false
       matrix:
         # latest: true means that this version mush upload the coverage report to codecov.io
         # We designate the latest version because we only collect code coverage for that version.
         k3s:
-          - version: v1.33.1
+          - version: v1.34.2
             latest: true
+          - version: v1.33.1
+            latest: false
           - version: v1.32.1
             latest: false
           - version: v1.31.0
-            latest: false
-          - version: v1.30.4
             latest: false
     needs:
       - build-go
       - changes
     env:
       ARGOCD_FAKE_IN_CLUSTER: 'true'
-      ARGOCD_SSH_DATA_PATH: '/tmp/argo-e2e/app/config/ssh'
-      ARGOCD_TLS_DATA_PATH: '/tmp/argo-e2e/app/config/tls'
-      ARGOCD_E2E_SSH_KNOWN_HOSTS: '../fixture/certs/ssh_known_hosts'
       ARGOCD_E2E_K3S: 'true'
       ARGOCD_IN_CI: 'true'
       ARGOCD_E2E_APISERVER_PORT: '8088'
@@ -474,7 +480,7 @@ jobs:
           sudo chmod go-r $HOME/.kube/config
           kubectl version
       - name: Restore go build cache
-        uses: actions/cache@a7833574556fa59680c1b7cb190c1735db73ebf0 # v5.0.0
+        uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
         with:
           path: ~/.cache/go-build
           key: ${{ runner.os }}-go-build-v1-${{ github.run_id }}
@@ -532,13 +538,13 @@ jobs:
           goreman run stop-all || echo "goreman trouble"
           sleep 30
       - name: Upload e2e coverage report
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: e2e-code-coverage
           path: /tmp/coverage
         if: ${{ matrix.k3s.latest }}
       - name: Upload e2e-server logs
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: e2e-server-k8s${{ matrix.k3s.version }}.log
           path: /tmp/e2e-server.log
@@ -556,7 +562,7 @@ jobs:
     needs:
       - test-e2e
       - changes
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - run: |
           result="${{ needs.test-e2e.result }}"

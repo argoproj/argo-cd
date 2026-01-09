@@ -11,7 +11,7 @@ permissions: {}
 
 env:
   # renovate: datasource=golang-version packageName=golang
-  GOLANG_VERSION: '1.25.3' # Note: go-version must also be set in job argocd-image.with.go-version
+  GOLANG_VERSION: '1.25.5' # Note: go-version must also be set in job argocd-image.with.go-version
 
 jobs:
   argocd-image:
@@ -26,7 +26,7 @@ jobs:
       quay_image_name: ${{ needs.setup-variables.outputs.quay_image_name }}
       # Note: cannot use env variables to set go-version (https://docs.github.com/en/actions/using-workflows/reusing-workflows#limitations)
       # renovate: datasource=golang-version packageName=golang
-      go-version: 1.25.3
+      go-version: 1.25.5
       platforms: linux/amd64,linux/arm64,linux/s390x,linux/ppc64le
       push: true
     secrets:
@@ -36,7 +36,7 @@ jobs:
   setup-variables:
     name: Setup Release Variables
     if: github.repository == 'argoproj/argo-cd' || (github.repository_owner != 'argoproj' && vars.ENABLE_FORK_RELEASES == 'true' && vars.IMAGE_NAMESPACE && vars.IMAGE_NAMESPACE != 'argoproj')
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     outputs:
       is_pre_release: ${{ steps.var.outputs.is_pre_release }}
       is_latest_release: ${{ steps.var.outputs.is_latest_release }}
@@ -117,7 +117,7 @@ jobs:
     permissions:
       contents: write # used for uploading assets
     if: github.repository == 'argoproj/argo-cd' || needs.setup-variables.outputs.allow_fork_release == 'true'
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     env:
       GORELEASER_MAKE_LATEST: ${{ needs.setup-variables.outputs.is_latest_release }}
     outputs:
@@ -210,7 +210,7 @@ jobs:
     outputs:
       hashes: ${{ steps.sbom-hash.outputs.hashes }}
     if: github.repository == 'argoproj/argo-cd' || needs.setup-variables.outputs.allow_fork_release == 'true'
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout code
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
@@ -295,7 +295,7 @@ jobs:
       contents: write # Needed to push commit to update stable tag
       pull-requests: write # Needed to create PR for VERSION update.
     if: github.repository == 'argoproj/argo-cd' || needs.setup-variables.outputs.allow_fork_release == 'true'
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     env:
       TAG_STABLE: ${{ needs.setup-variables.outputs.is_latest_release }}
     steps:
