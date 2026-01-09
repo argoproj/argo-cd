@@ -1371,35 +1371,21 @@ func (sc *syncContext) hasCRDOfGroupKind(group string, kind string) bool {
 
 // terminate looks for any running jobs/workflow hooks and deletes the resource
 func (sc *syncContext) Terminate() {
-	terminateSuccessful := true
 	sc.log.V(1).Info("terminating")
 	tasks, _ := sc.getSyncTasks()
-	for _, task := range tasks {
-		if !task.isHook() || task.liveObj == nil {
-			continue
-		}
+
+	// Remove completed hook finalizers
+	hooksCompleted := tasks.Filter(func(task *syncTask) bool {
+		return task.isHook() && task.completed()
+	})
+	for _, task := range hooksCompleted {
 		if err := sc.removeHookFinalizer(task); err != nil {
 			sc.setResourceResult(task, task.syncStatus, common.OperationError, fmt.Sprintf("Failed to remove hook finalizer: %v", err))
-			terminateSuccessful = false
-			continue
-		}
-		phase, msg, err := sc.getOperationPhase(task.liveObj)
-		if err != nil {
-			sc.setOperationPhase(common.OperationError, fmt.Sprintf("Failed to get hook health: %v", err))
-			return
-		}
-		if phase == common.OperationRunning {
-			err := sc.deleteResource(task)
-			if err != nil && !apierrors.IsNotFound(err) {
-				sc.setResourceResult(task, task.syncStatus, common.OperationFailed, fmt.Sprintf("Failed to delete: %v", err))
-				terminateSuccessful = false
-			} else {
-				sc.setResourceResult(task, task.syncStatus, common.OperationSucceeded, "Deleted")
-			}
-		} else {
-			sc.setResourceResult(task, task.syncStatus, phase, msg)
 		}
 	}
+
+	// Terminate running hooks
+	terminateSuccessful := sc.terminateHooksPreemptively(tasks.Filter(func(task *syncTask) bool { return task.isHook() }))
 	if terminateSuccessful {
 		sc.setOperationPhase(common.OperationFailed, "Operation terminated")
 	} else {
