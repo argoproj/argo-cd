@@ -77,7 +77,7 @@ func (g *GithubService) List(ctx context.Context) ([]*PullRequest, error) {
 			if !containLabels(g.labels, pull.Labels) {
 				continue
 			}
-			if containsAnyExcludeLabel(g.excludedLabels, pull.Labels) {
+			if containsAnyExcludeLabels(g.excludedLabels, pull.Labels) {
 				continue
 			}
 			pullRequests = append(pullRequests, &PullRequest{
@@ -118,8 +118,8 @@ func containLabels(expectedLabels []string, gotLabels []*github.Label) bool {
 	return true
 }
 
-// containsAnyExcludeLabel returns true if gotLabels contains any of the excludedLabels
-func containsAnyExcludeLabel(excludedLabels []string, gotLabels []*github.Label) bool {
+// containsAnyExcludeLabels returns true if gotLabels contains any of the excludedLabels
+func containsAnyExcludeLabels(excludedLabels []string, gotLabels []*github.Label) bool {
 	for _, excluded := range excludedLabels {
 		for _, got := range gotLabels {
 			if got.Name != nil && excluded == *got.Name {
