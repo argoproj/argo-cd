@@ -271,14 +271,21 @@ func TestSyncCustomResources(t *testing.T) {
 }
 
 func TestSyncSuccessfully(t *testing.T) {
-	syncCtx := newTestSyncCtx(nil, WithOperationSettings(false, true, false, false))
+	newSvc := testingutils.NewService()
+	syncCtx := newTestSyncCtx(nil, WithOperationSettings(false, true, false, false),
+		WithHealthOverride(resourceNameHealthOverride(map[string]health.HealthStatusCode{
+			newSvc.GetName(): health.HealthStatusDegraded, // Always failed
+		})))
+
 	pod := testingutils.NewPod()
 	pod.SetNamespace(testingutils.FakeArgoCDNamespace)
 	syncCtx.resources = groupResources(ReconciliationResult{
 		Live:   []*unstructured.Unstructured{nil, pod},
-		Target: []*unstructured.Unstructured{testingutils.NewService(), nil},
+		Target: []*unstructured.Unstructured{newSvc, nil},
 	})
 
+	// Since we only have one step, we consider the sync successful if the manifest were applied correctly.
+	// In this case, we do not need to run the sync again to evaluate the health
 	syncCtx.Sync()
 	phase, _, resources := syncCtx.GetState()
 
@@ -297,6 +304,48 @@ func TestSyncSuccessfully(t *testing.T) {
 			t.Error("Resource isn't a pod or a service")
 		}
 	}
+}
+
+func TestSyncSuccessfully_Multistep(t *testing.T) {
+	newSvc := testingutils.NewService()
+	newSvc.SetNamespace(testingutils.FakeArgoCDNamespace)
+	testingutils.Annotate(newSvc, synccommon.AnnotationSyncWave, "0")
+
+	newSvc2 := testingutils.NewService()
+	newSvc.SetNamespace(testingutils.FakeArgoCDNamespace)
+	newSvc2.SetName("new-svc-2")
+	testingutils.Annotate(newSvc2, synccommon.AnnotationSyncWave, "5")
+
+	syncCtx := newTestSyncCtx(nil, WithOperationSettings(false, true, false, false),
+		WithHealthOverride(resourceNameHealthOverride(map[string]health.HealthStatusCode{
+			newSvc.GetName(): health.HealthStatusHealthy,
+		})))
+
+	syncCtx.resources = groupResources(ReconciliationResult{
+		Live:   []*unstructured.Unstructured{nil, nil},
+		Target: []*unstructured.Unstructured{newSvc, newSvc2},
+	})
+
+	// Since we have multiple step, we need to run the sync again to evaluate the health of current phase
+	// (wave 0) and start the new phase (wave 5).
+	syncCtx.Sync()
+	phase, message, resources := syncCtx.GetState()
+	assert.Equal(t, synccommon.OperationRunning, phase)
+	assert.Equal(t, "waiting for healthy state of /Service/my-service", message)
+	assert.Len(t, resources, 1)
+	assert.Equal(t, kube.GetResourceKey(newSvc), resources[0].ResourceKey)
+
+	// Update the live resources for the next sync
+	syncCtx.resources = groupResources(ReconciliationResult{
+		Live:   []*unstructured.Unstructured{newSvc, nil},
+		Target: []*unstructured.Unstructured{newSvc, newSvc2},
+	})
+
+	syncCtx.Sync()
+	phase, message, resources = syncCtx.GetState()
+	assert.Equal(t, synccommon.OperationSucceeded, phase)
+	assert.Equal(t, "successfully synced (all tasks run)", message)
+	assert.Len(t, resources, 2)
 }
 
 func TestSyncDeleteSuccessfully(t *testing.T) {

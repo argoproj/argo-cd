@@ -617,7 +617,7 @@ func (sc *syncContext) Sync() {
 			sc.deleteHooks(hooksPendingDeletionSuccessful)
 			sc.setOperationPhase(common.OperationSucceeded, "successfully synced (all tasks run)")
 		} else {
-			sc.setRunningPhase(remainingTasks, false)
+			sc.setRunningPhase(tasks, false)
 		}
 	default:
 		sc.setRunningPhase(tasks.Filter(func(task *syncTask) bool {
