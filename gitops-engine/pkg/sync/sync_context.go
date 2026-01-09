@@ -599,8 +599,10 @@ func (sc *syncContext) Sync() {
 	if sc.syncWaveHook != nil && runState != failed {
 		err := sc.syncWaveHook(phase, wave, finalWave)
 		if err != nil {
-			sc.deleteHooks(hooksPendingDeletionFailed)
-			sc.setOperationPhase(common.OperationFailed, fmt.Sprintf("SyncWaveHook failed: %v", err))
+			// Since this is an unexpected error and is not related to a specific task, terminate the sync with error
+			// without triggering the syncFailTasks
+			sc.terminateHooksPreemptively(tasks.Filter(func(task *syncTask) bool { return task.isHook() }))
+			sc.setOperationPhase(common.OperationError, fmt.Sprintf("SyncWaveHook failed: %v", err))
 			sc.log.Error(err, "SyncWaveHook failed")
 			return
 		}
@@ -651,6 +653,65 @@ func (sc *syncContext) getNamespaceCreationTask(tasks syncTasks) *syncTask {
 		return creationTasks[0]
 	}
 	return nil
+}
+
+// terminateHooksPreemptively terminates ongoing hook tasks
+func (sc *syncContext) terminateHooksPreemptively(tasks syncTasks) bool {
+	terminateSuccessful := true
+	for _, task := range tasks {
+		if !task.isHook() || !task.running() {
+			continue
+		}
+
+		if task.liveObj == nil {
+			// if we terminate preemtively after the task was run, it will not contain the live object yet
+			liveObj, err := sc.getResource(task)
+			if err != nil && !apierrors.IsNotFound(err) {
+				sc.setResourceResult(task, task.syncStatus, common.OperationError, fmt.Sprintf("Failed to get live resource: %v", err))
+				terminateSuccessful = false
+				continue
+			}
+			task.liveObj = liveObj
+		}
+
+		if task.liveObj == nil {
+			sc.setResourceResult(task, task.syncStatus, common.OperationSucceeded, "Terminated")
+			continue
+		}
+
+		// get the latest status of the running hook. Perhaps it already completed
+		phase, msg, statusErr := sc.getOperationPhase(task.liveObj)
+		if statusErr != nil {
+			sc.setResourceResult(task, task.syncStatus, common.OperationError, fmt.Sprintf("Failed to get hook health: %v", statusErr))
+		}
+
+		// Now that we have the latest status, we can remove the finalizer.
+		if err := sc.removeHookFinalizer(task); err != nil {
+			sc.setResourceResult(task, task.syncStatus, common.OperationError, fmt.Sprintf("Failed to remove hook finalizer: %v", err))
+			terminateSuccessful = false
+			continue
+		}
+
+		// delete the hook if it is running, if we dont know that it is running,
+		// or if it has just completed and is meant to be deleted on sync failed
+		if statusErr != nil || phase.Running() || task.deleteOnPhaseFailed() {
+			err := sc.deleteResource(task)
+			if err != nil && !apierrors.IsNotFound(err) {
+				sc.setResourceResult(task, task.syncStatus, common.OperationFailed, fmt.Sprintf("Failed to delete: %v", err))
+				terminateSuccessful = false
+				continue
+			}
+		}
+
+		if phase.Completed() {
+			// If the hook has completed, we can update it to it's real status
+			sc.setResourceResult(task, task.syncStatus, phase, msg)
+		} else if task.operationState != common.OperationError {
+			// update the status if the resource is not in error to preserve the error message
+			sc.setResourceResult(task, task.syncStatus, common.OperationFailed, "Terminated")
+		}
+	}
+	return terminateSuccessful
 }
 
 func (sc *syncContext) removeHookFinalizer(task *syncTask) error {

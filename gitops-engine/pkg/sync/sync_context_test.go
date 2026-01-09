@@ -1883,7 +1883,7 @@ func Test_setRunningPhase(t *testing.T) {
 	}
 }
 
-func TestSyncWaveHook(t *testing.T) {
+func TestSync_SyncWaveHook(t *testing.T) {
 	syncCtx := newTestSyncCtx(nil, WithOperationSettings(false, false, false, false))
 	pod1 := testingutils.NewPod()
 	pod1.SetName("pod-1")
@@ -1954,15 +1954,21 @@ func TestSyncWaveHook(t *testing.T) {
 	assert.True(t, called)
 }
 
-func TestSyncWaveHookFail(t *testing.T) {
+func TestSync_SyncWaveHookError(t *testing.T) {
 	syncCtx := newTestSyncCtx(nil, WithOperationSettings(false, false, false, false))
 	pod1 := testingutils.NewPod()
+	pod1.SetNamespace(testingutils.FakeArgoCDNamespace)
 	pod1.SetName("pod-1")
 
+	syncHook := newHook("sync-hook", synccommon.HookTypeSync, synccommon.HookDeletePolicyBeforeHookCreation)
+	syncFailHook := newHook("sync-fail-hook", synccommon.HookTypeSyncFail, synccommon.HookDeletePolicyBeforeHookCreation)
+
+	syncCtx.dynamicIf = fake.NewSimpleDynamicClient(runtime.NewScheme())
 	syncCtx.resources = groupResources(ReconciliationResult{
 		Live:   []*unstructured.Unstructured{nil},
 		Target: []*unstructured.Unstructured{pod1},
 	})
+	syncCtx.hooks = []*unstructured.Unstructured{syncHook, syncFailHook}
 
 	called := false
 	syncCtx.syncWaveHook = func(_ synccommon.SyncPhase, _ int, _ bool) error {
@@ -1972,9 +1978,18 @@ func TestSyncWaveHookFail(t *testing.T) {
 	syncCtx.Sync()
 	assert.True(t, called)
 	phase, msg, results := syncCtx.GetState()
-	assert.Equal(t, synccommon.OperationFailed, phase)
+	assert.Equal(t, synccommon.OperationError, phase)
 	assert.Equal(t, "SyncWaveHook failed: intentional error", msg)
 	assert.Equal(t, synccommon.OperationRunning, results[0].HookPhase)
+	require.Len(t, results, 2)
+
+	podResult := getResourceResult(results, kube.GetResourceKey(pod1))
+	require.NotNil(t, podResult, "%s not found", kube.GetResourceKey(pod1))
+	assert.Equal(t, synccommon.OperationRunning, podResult.HookPhase)
+
+	hookResult := getResourceResult(results, kube.GetResourceKey(syncHook))
+	require.NotNil(t, hookResult, "%s not found", kube.GetResourceKey(syncHook))
+	assert.Equal(t, "Terminated", hookResult.Message)
 }
 
 func TestPruneLast(t *testing.T) {
