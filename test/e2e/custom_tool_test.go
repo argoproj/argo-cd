@@ -41,7 +41,7 @@ func TestCustomToolWithGitCreds(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		And(func(_ *Application) {
-			output, err := fixture.Run("", "kubectl", "-n", fixture.DeploymentNamespace(), "get", "cm", ctx.AppName(), "-o", "jsonpath={.metadata.annotations.GitAskpass}")
+			output, err := fixture.Run("", "kubectl", "-n", ctx.DeploymentNamespace(), "get", "cm", ctx.AppName(), "-o", "jsonpath={.metadata.annotations.GitAskpass}")
 			require.NoError(t, err)
 			assert.Equal(t, "argocd", output)
 		})
@@ -71,17 +71,17 @@ func TestCustomToolWithGitCredsTemplate(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		And(func(_ *Application) {
-			output, err := fixture.Run("", "kubectl", "-n", fixture.DeploymentNamespace(), "get", "cm", ctx.AppName(), "-o", "jsonpath={.metadata.annotations.GitAskpass}")
+			output, err := fixture.Run("", "kubectl", "-n", ctx.DeploymentNamespace(), "get", "cm", ctx.AppName(), "-o", "jsonpath={.metadata.annotations.GitAskpass}")
 			require.NoError(t, err)
 			assert.Equal(t, "argocd", output)
 		}).
 		And(func(_ *Application) {
-			output, err := fixture.Run("", "kubectl", "-n", fixture.DeploymentNamespace(), "get", "cm", ctx.AppName(), "-o", "jsonpath={.metadata.annotations.GitUsername}")
+			output, err := fixture.Run("", "kubectl", "-n", ctx.DeploymentNamespace(), "get", "cm", ctx.AppName(), "-o", "jsonpath={.metadata.annotations.GitUsername}")
 			require.NoError(t, err)
 			assert.Empty(t, output)
 		}).
 		And(func(_ *Application) {
-			output, err := fixture.Run("", "kubectl", "-n", fixture.DeploymentNamespace(), "get", "cm", ctx.AppName(), "-o", "jsonpath={.metadata.annotations.GitPassword}")
+			output, err := fixture.Run("", "kubectl", "-n", ctx.DeploymentNamespace(), "get", "cm", ctx.AppName(), "-o", "jsonpath={.metadata.annotations.GitPassword}")
 			require.NoError(t, err)
 			assert.Empty(t, output)
 		})
@@ -111,12 +111,12 @@ func TestCustomToolWithSSHGitCreds(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		And(func(_ *Application) {
-			output, err := fixture.Run("", "kubectl", "-n", fixture.DeploymentNamespace(), "get", "cm", fixture.Name(), "-o", "jsonpath={.metadata.annotations.GitSSHCommand}")
+			output, err := fixture.Run("", "kubectl", "-n", ctx.DeploymentNamespace(), "get", "cm", ctx.GetName(), "-o", "jsonpath={.metadata.annotations.GitSSHCommand}")
 			require.NoError(t, err)
 			assert.Regexp(t, `-i [^ ]+`, output, "test plugin expects $GIT_SSH_COMMAND to contain the option '-i <path to ssh private key>'")
 		}).
 		And(func(_ *Application) {
-			output, err := fixture.Run("", "kubectl", "-n", fixture.DeploymentNamespace(), "get", "cm", fixture.Name(), "-o", "jsonpath={.metadata.annotations.GitSSHCredsFileSHA}")
+			output, err := fixture.Run("", "kubectl", "-n", ctx.DeploymentNamespace(), "get", "cm", ctx.GetName(), "-o", "jsonpath={.metadata.annotations.GitSSHCredsFileSHA}")
 			require.NoError(t, err)
 			assert.Regexp(t, `\w+\s+[\/\w]+`, output, "git ssh credentials file should be able to be read, hashing the contents")
 		})
@@ -175,18 +175,18 @@ func TestCustomToolWithEnv(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		And(func(_ *Application) {
-			output, err := fixture.Run("", "kubectl", "-n", fixture.DeploymentNamespace(), "get", "cm", ctx.AppName(), "-o", "jsonpath={.metadata.annotations.Bar}")
+			output, err := fixture.Run("", "kubectl", "-n", ctx.DeploymentNamespace(), "get", "cm", ctx.AppName(), "-o", "jsonpath={.metadata.annotations.Bar}")
 			require.NoError(t, err)
 			assert.Equal(t, "baz", output)
 		}).
 		And(func(_ *Application) {
-			output, err := fixture.Run("", "kubectl", "-n", fixture.DeploymentNamespace(), "get", "cm", ctx.AppName(), "-o", "jsonpath={.metadata.annotations.Foo}")
+			output, err := fixture.Run("", "kubectl", "-n", ctx.DeploymentNamespace(), "get", "cm", ctx.AppName(), "-o", "jsonpath={.metadata.annotations.Foo}")
 			require.NoError(t, err)
 			assert.Equal(t, "bar", output)
 		}).
 		And(func(_ *Application) {
 			expectedKubeVersion := fixture.GetVersions(t).ServerVersion.Format("%s.%s")
-			output, err := fixture.Run("", "kubectl", "-n", fixture.DeploymentNamespace(), "get", "cm", ctx.AppName(), "-o", "jsonpath={.metadata.annotations.KubeVersion}")
+			output, err := fixture.Run("", "kubectl", "-n", ctx.DeploymentNamespace(), "get", "cm", ctx.AppName(), "-o", "jsonpath={.metadata.annotations.KubeVersion}")
 			require.NoError(t, err)
 			assert.Equal(t, expectedKubeVersion, output)
 		}).
@@ -195,7 +195,7 @@ func TestCustomToolWithEnv(t *testing.T) {
 			expectedAPIVersionSlice := strings.Split(expectedAPIVersion, ",")
 			sort.Strings(expectedAPIVersionSlice)
 
-			output, err := fixture.Run("", "kubectl", "-n", fixture.DeploymentNamespace(), "get", "cm", ctx.AppName(), "-o", "jsonpath={.metadata.annotations.KubeApiVersion}")
+			output, err := fixture.Run("", "kubectl", "-n", ctx.DeploymentNamespace(), "get", "cm", ctx.AppName(), "-o", "jsonpath={.metadata.annotations.KubeApiVersion}")
 			require.NoError(t, err)
 			outputSlice := strings.Split(output, ",")
 			sort.Strings(outputSlice)
@@ -324,13 +324,13 @@ func TestCMPDiscoverWithFindCommandWithEnv(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		And(func(_ *Application) {
-			output, err := fixture.Run("", "kubectl", "-n", fixture.DeploymentNamespace(), "get", "cm", ctx.AppName(), "-o", "jsonpath={.metadata.annotations.Bar}")
+			output, err := fixture.Run("", "kubectl", "-n", ctx.DeploymentNamespace(), "get", "cm", ctx.AppName(), "-o", "jsonpath={.metadata.annotations.Bar}")
 			require.NoError(t, err)
 			assert.Equal(t, "baz", output)
 		}).
 		And(func(_ *Application) {
 			expectedKubeVersion := fixture.GetVersions(t).ServerVersion.Format("%s.%s")
-			output, err := fixture.Run("", "kubectl", "-n", fixture.DeploymentNamespace(), "get", "cm", ctx.AppName(), "-o", "jsonpath={.metadata.annotations.KubeVersion}")
+			output, err := fixture.Run("", "kubectl", "-n", ctx.DeploymentNamespace(), "get", "cm", ctx.AppName(), "-o", "jsonpath={.metadata.annotations.KubeVersion}")
 			require.NoError(t, err)
 			assert.Equal(t, expectedKubeVersion, output)
 		}).
@@ -339,7 +339,7 @@ func TestCMPDiscoverWithFindCommandWithEnv(t *testing.T) {
 			expectedAPIVersionSlice := strings.Split(expectedAPIVersion, ",")
 			sort.Strings(expectedAPIVersionSlice)
 
-			output, err := fixture.Run("", "kubectl", "-n", fixture.DeploymentNamespace(), "get", "cm", ctx.AppName(), "-o", "jsonpath={.metadata.annotations.KubeApiVersion}")
+			output, err := fixture.Run("", "kubectl", "-n", ctx.DeploymentNamespace(), "get", "cm", ctx.AppName(), "-o", "jsonpath={.metadata.annotations.KubeApiVersion}")
 			require.NoError(t, err)
 			outputSlice := strings.Split(output, ",")
 			sort.Strings(outputSlice)
@@ -366,7 +366,7 @@ func TestPruneResourceFromCMP(t *testing.T) {
 		Then().
 		Expect(DoesNotExist()).
 		AndAction(func() {
-			_, err := fixture.Run("", "kubectl", "-n", fixture.DeploymentNamespace(), "get", "deployment", "guestbook-ui")
+			_, err := fixture.Run("", "kubectl", "-n", ctx.DeploymentNamespace(), "get", "deployment", "guestbook-ui")
 			require.Error(t, err)
 		})
 }
