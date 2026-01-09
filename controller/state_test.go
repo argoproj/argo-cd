@@ -441,7 +441,7 @@ func TestCompareAppStateRequireDeletion(t *testing.T) {
 			kube.GetResourceKey(obj3): obj3,
 		},
 	}
-	ctrl := newFakeController(&data, nil)
+	ctrl := newFakeController(t.Context(), &data, nil)
 	sources := make([]v1alpha1.ApplicationSource, 0)
 	sources = append(sources, app.Spec.GetSource())
 	revisions := make([]string, 0)
