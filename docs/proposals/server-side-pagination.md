@@ -55,7 +55,7 @@ to reduce amount of data returned by the API server and improve the UI responsiv
 **Pagination Cursor**
 
 It is proposed to add `offset` and `limit` fields for pagination support in Application List API.
-The The Watch API is a bit more complex. Both Argo CD user interface and CLI are relying on the Watch API to display real time updates of Argo CD applications.
+The Watch API is a bit more complex. Both Argo CD user interface and CLI are relying on the Watch API to display real time updates of Argo CD applications.
 The Watch API currently supports filtering by a project and an application name. In order to effectively
 implement server side pagination for the Watch API we cannot rely on the order of the applications returned by the API server. Instead of
 relying on the order it is proposed to rely on the application name and use it as a cursor for pagination. Both the Applications List and Watch

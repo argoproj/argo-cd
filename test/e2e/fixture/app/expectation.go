@@ -272,6 +272,16 @@ func DoesNotExistNow() Expectation {
 	}
 }
 
+func App(predicate func(app *v1alpha1.Application) bool) Expectation {
+	return func(c *Consequences) (state, string) {
+		app := c.app().DeepCopy()
+		if predicate(app) {
+			return succeeded, "app predicate matches"
+		}
+		return pending, "app predicate does not match"
+	}
+}
+
 func Pod(predicate func(p corev1.Pod) bool) Expectation {
 	return func(_ *Consequences) (state, string) {
 		pods, err := pods()
