@@ -59,7 +59,7 @@ func TestContainLabels(t *testing.T) {
 	}
 }
 
-func TestcontainsAnyExcludeLabels(t *testing.T) {
+func TestContainsAnyExcludeLabels(t *testing.T) {
 	cases := []struct {
 		Name           string
 		ExcludedLabels []string
@@ -70,8 +70,8 @@ func TestcontainsAnyExcludeLabels(t *testing.T) {
 			Name:           "PR has excluded label",
 			ExcludedLabels: []string{"stale", "wip"},
 			PullLabels: []*github.Label{
-				{Name: toPtr("label1")},
-				{Name: toPtr("stale")},
+				{Name: new("label1")},
+				{Name: new("stale")},
 			},
 			Expect: true,
 		},
@@ -79,8 +79,8 @@ func TestcontainsAnyExcludeLabels(t *testing.T) {
 			Name:           "PR does not have excluded labels",
 			ExcludedLabels: []string{"stale", "wip"},
 			PullLabels: []*github.Label{
-				{Name: toPtr("label1")},
-				{Name: toPtr("label2")},
+				{Name: new("label1")},
+				{Name: new("label2")},
 			},
 			Expect: false,
 		},
@@ -88,7 +88,7 @@ func TestcontainsAnyExcludeLabels(t *testing.T) {
 			Name:           "No excluded labels specified",
 			ExcludedLabels: []string{},
 			PullLabels: []*github.Label{
-				{Name: toPtr("stale")},
+				{Name: new("stale")},
 			},
 			Expect: false,
 		},
