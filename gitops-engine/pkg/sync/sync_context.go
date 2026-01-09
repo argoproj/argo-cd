@@ -552,9 +552,10 @@ func (sc *syncContext) Sync() {
 	// syncFailTasks only run during failure, so separate them from regular tasks
 	syncFailTasks, tasks := tasks.Split(func(t *syncTask) bool { return t.phase == common.SyncPhaseSyncFail })
 
-	syncFailedTasks, _ := tasks.Split(func(t *syncTask) bool { return t.syncStatus == common.ResultCodeSyncFailed })
+	syncFailedTasks := tasks.Filter(func(t *syncTask) bool { return t.syncStatus == common.ResultCodeSyncFailed })
 
 	// if there are any completed but unsuccessful tasks, sync is a failure.
+	// we already know tasks do not contain running tasks
 	if tasks.Any(func(t *syncTask) bool { return t.completed() && !t.successful() }) {
 		sc.deleteHooks(hooksPendingDeletionFailed)
 		sc.executeSyncFailPhase(syncFailTasks, syncFailedTasks, "one or more synchronization tasks completed unsuccessfully")
@@ -578,18 +579,12 @@ func (sc *syncContext) Sync() {
 		return
 	}
 
-	// remove any tasks not in this wave
 	phase := tasks.phase()
 	wave := tasks.wave()
 	finalWave := phase == tasks.lastPhase() && wave == tasks.lastWave()
 
-	// if it is the last phase/wave and the only remaining tasks are non-hooks, the we are successful
-	// EVEN if those objects subsequently degraded
-	// This handles the common case where neither hooks or waves are used and a sync equates to simply an (asynchronous) kubectl apply of manifests, which succeeds immediately.
-	remainingTasks := tasks.Filter(func(t *syncTask) bool { return t.phase != phase || wave != t.wave() || t.isHook() })
-
 	sc.log.WithValues("phase", phase, "wave", wave, "tasks", tasks, "syncFailTasks", syncFailTasks).V(1).Info("Filtering tasks in correct phase and wave")
-	tasks = tasks.Filter(func(t *syncTask) bool { return t.phase == phase && t.wave() == wave })
+	tasks, remainingTasks := tasks.Split(func(t *syncTask) bool { return t.phase == phase && t.wave() == wave })
 
 	sc.setOperationPhase(common.OperationRunning, "one or more tasks are running")
 
@@ -610,11 +605,31 @@ func (sc *syncContext) Sync() {
 
 	switch runState {
 	case failed:
-		syncFailedTasks, _ := tasks.Split(func(t *syncTask) bool { return t.syncStatus == common.ResultCodeSyncFailed })
-		sc.deleteHooks(hooksPendingDeletionFailed)
-		sc.executeSyncFailPhase(syncFailTasks, syncFailedTasks, "one or more objects failed to apply")
+		// If we failed to apply at least one resource, we need to start the syncFailTasks and wait
+		// for the completion of any running hooks. In this case, the operation should be running.
+		syncFailedTasks := tasks.Filter(func(t *syncTask) bool { return t.syncStatus == common.ResultCodeSyncFailed })
+		runningHooks := tasks.Filter(func(t *syncTask) bool { return t.running() })
+		if len(runningHooks) > 0 {
+			if len(syncFailTasks) > 0 {
+				completed := sc.executeSyncFailPhase(syncFailTasks, syncFailedTasks, "one or more objects failed to apply")
+				if !completed {
+					runningHooks = append(runningHooks, syncFailTasks...)
+				}
+			}
+			sc.setRunningPhase(runningHooks, false)
+		} else {
+			completed := sc.executeSyncFailPhase(syncFailTasks, syncFailedTasks, "one or more objects failed to apply")
+			if completed {
+				sc.deleteHooks(hooksPendingDeletionFailed)
+			}
+		}
 	case successful:
-		if remainingTasks.Len() == 0 {
+		if remainingTasks.Len() == 0 && !tasks.Any(func(task *syncTask) bool { return task.isHook() }) {
+			// if it is the last phase/wave and the only running tasks are non-hooks, then we are successful
+			// EVEN if those objects subsequently degrades
+			// This handles the common case where neither hooks or waves are used and a sync equates to simply
+			// an (asynchronous) kubectl apply of manifests, which succeeds immediately.
+
 			// delete all completed hooks which have appropriate delete policy
 			sc.deleteHooks(hooksPendingDeletionSuccessful)
 			sc.setOperationPhase(common.OperationSucceeded, "successfully synced (all tasks run)")
@@ -626,6 +641,41 @@ func (sc *syncContext) Sync() {
 			return task.deleteBeforeCreation() || (task.isPrune() && task.pending())
 		}), true)
 	}
+}
+
+// terminate looks for any running jobs/workflow hooks and deletes the resource
+func (sc *syncContext) Terminate() {
+	sc.log.V(1).Info("terminating")
+	tasks, _ := sc.getSyncTasks()
+
+	// Remove completed hook finalizers
+	hooksCompleted := tasks.Filter(func(task *syncTask) bool {
+		return task.isHook() && task.completed()
+	})
+	for _, task := range hooksCompleted {
+		if err := sc.removeHookFinalizer(task); err != nil {
+			sc.setResourceResult(task, task.syncStatus, common.OperationError, fmt.Sprintf("Failed to remove hook finalizer: %v", err))
+		}
+	}
+
+	// Terminate running hooks
+	terminateSuccessful := sc.terminateHooksPreemptively(tasks.Filter(func(task *syncTask) bool { return task.isHook() }))
+	if terminateSuccessful {
+		sc.setOperationPhase(common.OperationFailed, "Operation terminated")
+	} else {
+		sc.setOperationPhase(common.OperationError, "Operation termination had errors")
+	}
+}
+
+func (sc *syncContext) GetState() (common.OperationPhase, string, []common.ResourceSyncResult) {
+	var resourceRes []common.ResourceSyncResult
+	for _, v := range sc.syncRes {
+		resourceRes = append(resourceRes, v)
+	}
+	sort.Slice(resourceRes, func(i, j int) bool {
+		return resourceRes[i].Order < resourceRes[j].Order
+	})
+	return sc.phase, sc.message, resourceRes
 }
 
 // filter out out-of-sync tasks
@@ -762,32 +812,6 @@ func (sc *syncContext) removeHookFinalizer(task *syncTask) error {
 	})
 }
 
-func (sc *syncContext) getResource(task *syncTask) (*unstructured.Unstructured, error) {
-	sc.log.WithValues("task", task).V(1).Info("Getting resource")
-	resIf, err := sc.getResourceIf(task, "get")
-	if err != nil {
-		return nil, err
-	}
-	liveObj, err := resIf.Get(context.TODO(), task.name(), metav1.GetOptions{})
-	if err != nil {
-		return nil, fmt.Errorf("failed to get resource: %w", err)
-	}
-	return liveObj, nil
-}
-
-func (sc *syncContext) updateResource(task *syncTask) error {
-	sc.log.WithValues("task", task).V(1).Info("Updating resource")
-	resIf, err := sc.getResourceIf(task, "update")
-	if err != nil {
-		return err
-	}
-	_, err = resIf.Update(context.TODO(), task.liveObj, metav1.UpdateOptions{})
-	if err != nil {
-		return fmt.Errorf("failed to update resource: %w", err)
-	}
-	return nil
-}
-
 func (sc *syncContext) deleteHooks(hooksPendingDeletion syncTasks) {
 	for _, task := range hooksPendingDeletion {
 		err := sc.deleteResource(task)
@@ -795,17 +819,6 @@ func (sc *syncContext) deleteHooks(hooksPendingDeletion syncTasks) {
 			sc.setResourceResult(task, task.syncStatus, common.OperationError, fmt.Sprintf("failed to delete resource: %v", err))
 		}
 	}
-}
-
-func (sc *syncContext) GetState() (common.OperationPhase, string, []common.ResourceSyncResult) {
-	var resourceRes []common.ResourceSyncResult
-	for _, v := range sc.syncRes {
-		resourceRes = append(resourceRes, v)
-	}
-	sort.Slice(resourceRes, func(i, j int) bool {
-		return resourceRes[i].Order < resourceRes[j].Order
-	})
-	return sc.phase, sc.message, resourceRes
 }
 
 func (sc *syncContext) executeSyncFailPhase(syncFailTasks, syncFailedTasks syncTasks, message string) (completed bool) {
@@ -1369,28 +1382,30 @@ func (sc *syncContext) hasCRDOfGroupKind(group string, kind string) bool {
 	return false
 }
 
-// terminate looks for any running jobs/workflow hooks and deletes the resource
-func (sc *syncContext) Terminate() {
-	sc.log.V(1).Info("terminating")
-	tasks, _ := sc.getSyncTasks()
-
-	// Remove completed hook finalizers
-	hooksCompleted := tasks.Filter(func(task *syncTask) bool {
-		return task.isHook() && task.completed()
-	})
-	for _, task := range hooksCompleted {
-		if err := sc.removeHookFinalizer(task); err != nil {
-			sc.setResourceResult(task, task.syncStatus, common.OperationError, fmt.Sprintf("Failed to remove hook finalizer: %v", err))
-		}
+func (sc *syncContext) getResource(task *syncTask) (*unstructured.Unstructured, error) {
+	sc.log.WithValues("task", task).V(1).Info("Getting resource")
+	resIf, err := sc.getResourceIf(task, "get")
+	if err != nil {
+		return nil, err
 	}
-
-	// Terminate running hooks
-	terminateSuccessful := sc.terminateHooksPreemptively(tasks.Filter(func(task *syncTask) bool { return task.isHook() }))
-	if terminateSuccessful {
-		sc.setOperationPhase(common.OperationFailed, "Operation terminated")
-	} else {
-		sc.setOperationPhase(common.OperationError, "Operation termination had errors")
+	liveObj, err := resIf.Get(context.TODO(), task.name(), metav1.GetOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get resource: %w", err)
 	}
+	return liveObj, nil
+}
+
+func (sc *syncContext) updateResource(task *syncTask) error {
+	sc.log.WithValues("task", task).V(1).Info("Updating resource")
+	resIf, err := sc.getResourceIf(task, "update")
+	if err != nil {
+		return err
+	}
+	_, err = resIf.Update(context.TODO(), task.liveObj, metav1.UpdateOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to update resource: %w", err)
+	}
+	return nil
 }
 
 func (sc *syncContext) deleteResource(task *syncTask) error {
@@ -1438,16 +1453,7 @@ func (sc *syncContext) runTasks(tasks syncTasks, dryRun bool) runState {
 	sc.log.WithValues("numTasks", len(tasks), "dryRun", dryRun).V(1).Info("Running tasks")
 
 	state := successful
-	var createTasks syncTasks
-	var pruneTasks syncTasks
-
-	for _, task := range tasks {
-		if task.isPrune() {
-			pruneTasks = append(pruneTasks, task)
-		} else {
-			createTasks = append(createTasks, task)
-		}
-	}
+	pruneTasks, createTasks := tasks.Split(func(task *syncTask) bool { return task.isPrune() })
 
 	// remove finalizers from previous sync on existing hooks to make sure the operation is idempotent
 	{
@@ -1512,7 +1518,6 @@ func (sc *syncContext) runTasks(tasks syncTasks, dryRun bool) runState {
 		}
 		state = ss.Wait()
 	}
-
 	if state != successful {
 		return state
 	}
@@ -1530,7 +1535,7 @@ func (sc *syncContext) runTasks(tasks syncTasks, dryRun bool) runState {
 					err := sc.deleteResource(t)
 					if err != nil {
 						// it is possible to get a race condition here, such that the resource does not exist when
-						// delete is requested, we treat this as a nopand remove the liveObj
+						// delete is requested, we treat this as a no-op and remove the liveObj
 						if !apierrors.IsNotFound(err) {
 							state = failed
 							sc.setResourceResult(t, t.syncStatus, common.OperationError, fmt.Sprintf("failed to delete resource: %v", err))
@@ -1549,7 +1554,6 @@ func (sc *syncContext) runTasks(tasks syncTasks, dryRun bool) runState {
 		}
 		state = ss.Wait()
 	}
-
 	if state != successful {
 		return state
 	}
