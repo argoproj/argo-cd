@@ -141,8 +141,8 @@ func TestHookDiff(t *testing.T) {
 
 // make sure that if pre-sync fails, we fail the app and we do not create the pod
 func TestPreSyncHookFailure(t *testing.T) {
-	Given(t).
-		Path("hook").
+	ctx := Given(t)
+	ctx.Path("hook").
 		When().
 		PatchFile("hook.yaml", `[{"op": "replace", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/hook": "PreSync"}}]`).
 		// make hook fail
@@ -155,7 +155,7 @@ func TestPreSyncHookFailure(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		Expect(OperationPhaseIs(OperationFailed)).
 		Expect(ResourceResultNumbering(1)).
-		Expect(ResourceResultIs(ResourceResult{Version: "v1", Kind: "Pod", Namespace: DeploymentNamespace(), Images: []string{"quay.io/argoprojlabs/argocd-e2e-container:0.1"}, Name: "hook", Status: ResultCodeSynced, Message: `container "main" failed with exit code 1`, HookType: HookTypePreSync, HookPhase: OperationFailed, SyncPhase: SyncPhase(HookTypePreSync)})).
+		Expect(ResourceResultIs(ResourceResult{Version: "v1", Kind: "Pod", Namespace: ctx.DeploymentNamespace(), Images: []string{"quay.io/argoprojlabs/argocd-e2e-container:0.1"}, Name: "hook", Status: ResultCodeSynced, Message: `container "main" failed with exit code 1`, HookType: HookTypePreSync, HookPhase: OperationFailed, SyncPhase: SyncPhase(HookTypePreSync)})).
 		Expect(ResourceHealthIs("Pod", "pod", health.HealthStatusMissing)).
 		Expect(ResourceSyncStatusIs("Pod", "pod", SyncStatusCodeOutOfSync)).
 		Expect(Pod(func(p corev1.Pod) bool {
