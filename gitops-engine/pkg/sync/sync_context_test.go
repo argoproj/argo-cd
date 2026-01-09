@@ -1546,62 +1546,62 @@ func TestSync_FailedSyncWithSyncFailHook_ApplyFailed(t *testing.T) {
 	assert.Equal(t, synccommon.ResultCodeSynced, successfulSyncFailHookResult.Status)
 }
 
-func TestRunSync_HooksNotDeletedIfPhaseNotCompleted(t *testing.T) {
-	hook1 := newHook("TODO", synccommon.HookTypePreSync, synccommon.HookDeletePolicyBeforeHookCreation)
-	hook1.SetName("completed-hook")
-	hook1.SetNamespace(testingutils.FakeArgoCDNamespace)
-	_ = testingutils.Annotate(hook1, synccommon.AnnotationKeyHookDeletePolicy, string(synccommon.HookDeletePolicyHookSucceeded))
-	completedHook := hook1.DeepCopy()
-	completedHook.SetFinalizers(append(completedHook.GetFinalizers(), hook.HookFinalizer))
-
-	hook2 := newHook("TODO", synccommon.HookTypePreSync, synccommon.HookDeletePolicyBeforeHookCreation)
-	hook2.SetNamespace(testingutils.FakeArgoCDNamespace)
-	hook2.SetName("in-progress-hook")
-	_ = testingutils.Annotate(hook2, synccommon.AnnotationKeyHookDeletePolicy, string(synccommon.HookDeletePolicyHookSucceeded))
-	inProgressHook := hook2.DeepCopy()
-	inProgressHook.SetFinalizers(append(inProgressHook.GetFinalizers(), hook.HookFinalizer))
+func TestSync_HooksNotDeletedIfPhaseNotCompleted(t *testing.T) {
+	hook1 := newHook("hook-1", synccommon.HookTypePreSync, synccommon.HookDeletePolicyBeforeHookCreation)
+	hook2 := newHook("hook-2", synccommon.HookTypePreSync, synccommon.HookDeletePolicyHookFailed)
+	hook3 := newHook("hook-3", synccommon.HookTypePreSync, synccommon.HookDeletePolicyHookSucceeded)
 
 	syncCtx := newTestSyncCtx(nil,
 		WithHealthOverride(resourceNameHealthOverride(map[string]health.HealthStatusCode{
-			inProgressHook.GetName(): health.HealthStatusProgressing,
+			hook1.GetName(): health.HealthStatusProgressing, // At least one is running
+			hook2.GetName(): health.HealthStatusHealthy,
+			hook3.GetName(): health.HealthStatusHealthy,
 		})),
 		WithInitialState(synccommon.OperationRunning, "", []synccommon.ResourceSyncResult{{
-			ResourceKey: kube.GetResourceKey(completedHook),
-			HookPhase:   synccommon.OperationSucceeded,
-			SyncPhase:   synccommon.SyncPhasePreSync,
-		}, {
-			ResourceKey: kube.GetResourceKey(inProgressHook),
+			ResourceKey: kube.GetResourceKey(hook1),
 			HookPhase:   synccommon.OperationRunning,
+			Status:      synccommon.ResultCodeSynced,
 			SyncPhase:   synccommon.SyncPhasePreSync,
+			Order:       0,
+		}, {
+			ResourceKey: kube.GetResourceKey(hook2),
+			HookPhase:   synccommon.OperationRunning,
+			Status:      synccommon.ResultCodeSynced,
+			SyncPhase:   synccommon.SyncPhasePreSync,
+			Order:       1,
+		}, {
+			ResourceKey: kube.GetResourceKey(hook3),
+			HookPhase:   synccommon.OperationRunning,
+			Status:      synccommon.ResultCodeSynced,
+			SyncPhase:   synccommon.SyncPhasePreSync,
+			Order:       2,
 		}},
 			metav1.Now(),
 		))
-	fakeDynamicClient := fake.NewSimpleDynamicClient(runtime.NewScheme())
+	fakeDynamicClient := fake.NewSimpleDynamicClient(runtime.NewScheme(), hook1, hook2, hook3)
 	syncCtx.dynamicIf = fakeDynamicClient
 	updatedCount := 0
 	fakeDynamicClient.PrependReactor("update", "*", func(_ testcore.Action) (handled bool, ret runtime.Object, err error) {
 		// Removing the finalizers
 		updatedCount++
-		return true, nil, nil
+		return false, nil, nil
 	})
 	deletedCount := 0
 	fakeDynamicClient.PrependReactor("delete", "*", func(_ testcore.Action) (handled bool, ret runtime.Object, err error) {
 		deletedCount++
-		return true, nil, nil
+		return false, nil, nil
 	})
 	syncCtx.resources = groupResources(ReconciliationResult{
-		Live:   []*unstructured.Unstructured{completedHook, inProgressHook},
-		Target: []*unstructured.Unstructured{nil, nil},
+		Live:   []*unstructured.Unstructured{hook1, hook2, hook3},
+		Target: []*unstructured.Unstructured{nil, nil, nil},
 	})
-	syncCtx.hooks = []*unstructured.Unstructured{hook1, hook2}
-
-	syncCtx.kubectl = &kubetest.MockKubectlCmd{
-		Commands: map[string]kubetest.KubectlOutput{},
-	}
+	syncCtx.hooks = []*unstructured.Unstructured{hook1, hook2, hook3}
 
 	syncCtx.Sync()
+	phase, message, _ := syncCtx.GetState()
 
-	assert.Equal(t, synccommon.OperationRunning, syncCtx.phase)
+	assert.Equal(t, synccommon.OperationRunning, phase)
+	assert.Equal(t, "waiting for completion of hook /Pod/hook-1", message)
 	assert.Equal(t, 0, updatedCount)
 	assert.Equal(t, 0, deletedCount)
 }
