@@ -12,10 +12,8 @@ import (
 
 // Context implements the "given" part of given/when/then
 type Context struct {
-	t *testing.T
+	*fixture.TestState
 
-	// name is the ApplicationSet's name, created by a Create action
-	name              string
 	namespace         string
 	switchToNamespace utils.ExternalNamespace
 	path              string
@@ -24,11 +22,12 @@ type Context struct {
 func Given(t *testing.T) *Context {
 	t.Helper()
 
-	fixture.EnsureCleanState(t)
+	state := fixture.EnsureCleanState(t)
 
 	// TODO: Appset EnsureCleanState specific logic should be moved to the main EnsureCleanState function (https://github.com/argoproj/argo-cd/issues/24307)
 	utils.EnsureCleanState(t)
-	return &Context{t: t}
+
+	return &Context{TestState: state}
 }
 
 func (c *Context) When() *Actions {
@@ -52,11 +51,11 @@ func (c *Context) Path(path string) *Context {
 }
 
 func (c *Context) GPGPublicKeyAdded() *Context {
-	gpgkeys.AddGPGPublicKey(c.t)
+	gpgkeys.AddGPGPublicKey(c.T())
 	return c
 }
 
 func (c *Context) HTTPSInsecureRepoURLAdded(project string) *Context {
-	repos.AddHTTPSRepo(c.t, true, true, project, fixture.RepoURLTypeHTTPS)
+	repos.AddHTTPSRepo(c.T(), true, true, project, fixture.RepoURLTypeHTTPS)
 	return c
 }

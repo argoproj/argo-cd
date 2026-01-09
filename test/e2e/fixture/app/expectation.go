@@ -283,8 +283,8 @@ func App(predicate func(app *v1alpha1.Application) bool) Expectation {
 }
 
 func Pod(predicate func(p corev1.Pod) bool) Expectation {
-	return func(_ *Consequences) (state, string) {
-		pods, err := pods()
+	return func(c *Consequences) (state, string) {
+		pods, err := pods(c.context.DeploymentNamespace())
 		if err != nil {
 			return failed, err.Error()
 		}
@@ -298,8 +298,8 @@ func Pod(predicate func(p corev1.Pod) bool) Expectation {
 }
 
 func NotPod(predicate func(p corev1.Pod) bool) Expectation {
-	return func(_ *Consequences) (state, string) {
-		pods, err := pods()
+	return func(c *Consequences) (state, string) {
+		pods, err := pods(c.context.DeploymentNamespace())
 		if err != nil {
 			return failed, err.Error()
 		}
@@ -312,9 +312,8 @@ func NotPod(predicate func(p corev1.Pod) bool) Expectation {
 	}
 }
 
-func pods() (*corev1.PodList, error) {
-	fixture.KubeClientset.CoreV1()
-	pods, err := fixture.KubeClientset.CoreV1().Pods(fixture.DeploymentNamespace()).List(context.Background(), metav1.ListOptions{})
+func pods(namespace string) (*corev1.PodList, error) {
+	pods, err := fixture.KubeClientset.CoreV1().Pods(namespace).List(context.Background(), metav1.ListOptions{})
 	return pods, err
 }
 
@@ -330,7 +329,6 @@ func NoNamespace(name string) Expectation {
 }
 
 func namespace(name string) (*corev1.Namespace, error) {
-	fixture.KubeClientset.CoreV1()
 	return fixture.KubeClientset.CoreV1().Namespaces().Get(context.Background(), name, metav1.GetOptions{})
 }
 
