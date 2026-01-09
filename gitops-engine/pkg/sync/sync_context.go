@@ -747,7 +747,7 @@ func (sc *syncContext) GetState() (common.OperationPhase, string, []common.Resou
 	return sc.phase, sc.message, resourceRes
 }
 
-func (sc *syncContext) executeSyncFailPhase(syncFailTasks, syncFailedTasks syncTasks, message string) {
+func (sc *syncContext) executeSyncFailPhase(syncFailTasks, syncFailedTasks syncTasks, message string) (completed bool) {
 	errorMessageFactory := func(tasks syncTasks, message string) string {
 		messages := tasks.Map(func(task *syncTask) string {
 			return task.message
@@ -760,23 +760,30 @@ func (sc *syncContext) executeSyncFailPhase(syncFailTasks, syncFailedTasks syncT
 
 	errorMessage := errorMessageFactory(syncFailedTasks, message)
 
-	if len(syncFailTasks) > 0 {
-		// if all the failure hooks are completed, don't run them again, and mark the sync as failed
-		if syncFailTasks.All(func(task *syncTask) bool { return task.completed() }) {
-			sc.setOperationPhase(common.OperationFailed, errorMessage)
-			return
-		}
-		// otherwise, we need to start the failure hooks, and then return without setting
-		// the phase, so we make sure we have at least one more sync
-		sc.log.WithValues("syncFailTasks", syncFailTasks).V(1).Info("Running sync fail tasks")
-		if sc.runTasks(syncFailTasks, false) == failed {
-			failedSyncFailTasks := syncFailTasks.Filter(func(t *syncTask) bool { return t.syncStatus == common.ResultCodeSyncFailed })
-			syncFailTasksMessage := errorMessageFactory(failedSyncFailTasks, "one or more SyncFail hooks failed")
-			sc.setOperationPhase(common.OperationFailed, fmt.Sprintf("%s\n%s", errorMessage, syncFailTasksMessage))
-		}
-	} else {
+	// if there is no failure hook, there is nothing more to do and we can fail
+	if len(syncFailTasks) == 0 {
 		sc.setOperationPhase(common.OperationFailed, errorMessage)
+		return true
 	}
+
+	// if all the failure hooks are completed, mark the sync as failed
+	if syncFailTasks.All(func(task *syncTask) bool { return task.completed() }) {
+		failedSyncFailTasks := syncFailTasks.Filter(func(t *syncTask) bool { return t.syncStatus == common.ResultCodeSyncFailed })
+		if len(failedSyncFailTasks) > 0 {
+			syncFailTasksMessage := errorMessageFactory(failedSyncFailTasks, "one or more SyncFail hooks failed")
+			errorMessage = fmt.Sprintf("%s\n%s", errorMessage, syncFailTasksMessage)
+		}
+		sc.setOperationPhase(common.OperationFailed, errorMessage)
+		return true
+	}
+
+	// otherwise, we need to start the pending failure hooks, and then return WITHOUT setting
+	// the phase to failed, since we want the failure hooks to complete their running state before failing
+	pendingSyncFailTasks := syncFailTasks.Filter(func(task *syncTask) bool { return !task.completed() && !task.running() })
+	sc.log.WithValues("syncFailTasks", pendingSyncFailTasks).V(1).Info("Running sync fail tasks")
+	sc.runTasks(pendingSyncFailTasks, false)
+	sc.setRunningPhase(pendingSyncFailTasks, false)
+	return false
 }
 
 func (sc *syncContext) started() bool {

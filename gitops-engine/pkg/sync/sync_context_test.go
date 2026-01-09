@@ -1355,45 +1355,56 @@ func TestSync_SuccessfulSyncWithSyncFailHook(t *testing.T) {
 	assert.Len(t, resources, 2)
 }
 
-// remove
-func TestSyncFailureHookWithSuccessfulSync(t *testing.T) {
-	syncCtx := newTestSyncCtx(nil)
-	syncCtx.resources = groupResources(ReconciliationResult{
-		Live:   []*unstructured.Unstructured{nil},
-		Target: []*unstructured.Unstructured{testingutils.NewPod()},
-	})
-	syncCtx.hooks = []*unstructured.Unstructured{newHook("TODO", synccommon.HookTypeSyncFail, synccommon.HookDeletePolicyBeforeHookCreation)}
-
-	syncCtx.Sync()
-	phase, _, resources := syncCtx.GetState()
-	assert.Equal(t, synccommon.OperationSucceeded, phase)
-	// only one result, we did not run the failure failureHook
-	assert.Len(t, resources, 1)
-}
-
-func TestSyncFailureHookWithFailedSync(t *testing.T) {
-	syncCtx := newTestSyncCtx(nil)
+func TestSync_FailedSyncWithSyncFailHook_HookFailed(t *testing.T) {
+	hook := newHook("hook-1", synccommon.HookTypeSync, synccommon.HookDeletePolicyBeforeHookCreation)
 	pod := testingutils.NewPod()
+	syncFailHook := newHook("sync-fail-hook", synccommon.HookTypeSyncFail, synccommon.HookDeletePolicyHookSucceeded)
+
+	syncCtx := newTestSyncCtx(nil,
+		WithHealthOverride(resourceNameHealthOverride(map[string]health.HealthStatusCode{
+			pod.GetName():          health.HealthStatusHealthy,
+			hook.GetName():         health.HealthStatusDegraded, // Hook failure
+			syncFailHook.GetName(): health.HealthStatusHealthy,
+		})))
 	syncCtx.resources = groupResources(ReconciliationResult{
 		Live:   []*unstructured.Unstructured{nil},
 		Target: []*unstructured.Unstructured{pod},
 	})
-	syncCtx.hooks = []*unstructured.Unstructured{newHook("TODO", synccommon.HookTypeSyncFail, synccommon.HookDeletePolicyBeforeHookCreation)}
-	mockKubectl := &kubetest.MockKubectlCmd{
-		Commands: map[string]kubetest.KubectlOutput{pod.GetName(): {Err: errors.New("")}},
-	}
-	syncCtx.kubectl = mockKubectl
-	mockResourceOps := kubetest.MockResourceOps{
-		Commands: map[string]kubetest.KubectlOutput{pod.GetName(): {Err: errors.New("")}},
-	}
-	syncCtx.resourceOps = &mockResourceOps
+	syncCtx.hooks = []*unstructured.Unstructured{hook, syncFailHook}
+	syncCtx.dynamicIf = fake.NewSimpleDynamicClient(runtime.NewScheme())
 
+	// First sync does dry-run and starts hooks
 	syncCtx.Sync()
-	syncCtx.Sync()
-
-	phase, _, resources := syncCtx.GetState()
-	assert.Equal(t, synccommon.OperationFailed, phase)
+	phase, message, resources := syncCtx.GetState()
+	assert.Equal(t, synccommon.OperationRunning, phase)
+	assert.Equal(t, "waiting for completion of hook /Pod/hook-1 and 1 more resources", message)
 	assert.Len(t, resources, 2)
+
+	// Update the live resources for the next sync
+	syncCtx.resources = groupResources(ReconciliationResult{
+		Live:   []*unstructured.Unstructured{pod, hook},
+		Target: []*unstructured.Unstructured{pod, nil},
+	})
+
+	// Second sync fails the sync and starts the SyncFail hooks
+	syncCtx.Sync()
+	phase, message, resources = syncCtx.GetState()
+	assert.Equal(t, synccommon.OperationRunning, phase)
+	assert.Equal(t, "waiting for completion of hook /Pod/sync-fail-hook", message)
+	assert.Len(t, resources, 3)
+
+	// Update the live resources for the next sync
+	syncCtx.resources = groupResources(ReconciliationResult{
+		Live:   []*unstructured.Unstructured{pod, hook, syncFailHook},
+		Target: []*unstructured.Unstructured{pod, nil, nil},
+	})
+
+	// Third sync completes the SyncFail hooks
+	syncCtx.Sync()
+	phase, message, resources = syncCtx.GetState()
+	assert.Equal(t, synccommon.OperationFailed, phase)
+	assert.Equal(t, "one or more synchronization tasks completed unsuccessfully", message)
+	assert.Len(t, resources, 3)
 }
 
 func TestBeforeHookCreation(t *testing.T) {
