@@ -74,10 +74,11 @@ func TestListPullRequest(t *testing.T) {
 	gitClientMock.EXPECT().GetPullRequestsByProject(mock.Anything, args).Return(&pullRequestMock, nil)
 
 	provider := AzureDevOpsService{
-		clientFactory: clientFactoryMock,
-		project:       teamProject,
-		repo:          repoName,
-		labels:        nil,
+		clientFactory:  clientFactoryMock,
+		project:        teamProject,
+		repo:           repoName,
+		labels:         nil,
+		excludedLabels: nil,
 	}
 
 	list, err := provider.List(ctx)
@@ -173,6 +174,47 @@ func TestContainAzureDevOpsLabels(t *testing.T) {
 	}
 }
 
+func TestContainsAnyExcludedAzureDevOpsLabels(t *testing.T) {
+	testCases := []struct {
+		name           string
+		excludedLabels []string
+		gotLabels      []string
+		expectedResult bool
+	}{
+		{
+			name:           "PR has excluded label",
+			excludedLabels: []string{"stale", "wip"},
+			gotLabels:      []string{"label1", "stale"},
+			expectedResult: true,
+		},
+		{
+			name:           "PR does not have excluded labels",
+			excludedLabels: []string{"stale", "wip"},
+			gotLabels:      []string{"label1", "label2"},
+			expectedResult: false,
+		},
+		{
+			name:           "No excluded labels specified",
+			excludedLabels: []string{},
+			gotLabels:      []string{"stale"},
+			expectedResult: false,
+		},
+		{
+			name:           "PR has no labels",
+			excludedLabels: []string{"stale"},
+			gotLabels:      []string{},
+			expectedResult: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := containsAnyExcludedAzureDevOpsLabels(tc.excludedLabels, tc.gotLabels)
+			assert.Equal(t, tc.expectedResult, got)
+		})
+	}
+}
+
 func TestBuildURL(t *testing.T) {
 	testCases := []struct {
 		name         string
@@ -231,10 +273,11 @@ func TestAzureDevOpsListReturnsRepositoryNotFoundError(t *testing.T) {
 		errors.New("The following project does not exist:"))
 
 	provider := AzureDevOpsService{
-		clientFactory: clientFactoryMock,
-		project:       "nonexistent",
-		repo:          "nonexistent",
-		labels:        nil,
+		clientFactory:  clientFactoryMock,
+		project:        "nonexistent",
+		repo:           "nonexistent",
+		labels:         nil,
+		excludedLabels: nil,
 	}
 
 	prs, err := provider.List(t.Context())

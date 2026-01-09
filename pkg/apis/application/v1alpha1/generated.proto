@@ -1668,6 +1668,9 @@ message PullRequestGeneratorAzureDevOps {
 
   // Labels is used to filter the PRs that you want to target
   repeated string labels = 6;
+
+  // ExcludedLabels is used to exclude PRs with these labels
+  repeated string excludedLabels = 7;
 }
 
 // PullRequestGeneratorBitbucket defines connection info specific to Bitbucket.

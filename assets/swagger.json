@@ -9243,6 +9243,13 @@
           "description": "The Azure DevOps API URL to talk to. If blank, use https://dev.azure.com/.",
           "type": "string"
         },
+        "excludedLabels": {
+          "type": "array",
+          "title": "ExcludedLabels is used to exclude PRs with these labels",
+          "items": {
+            "type": "string"
+          }
+        },
         "labels": {
           "type": "array",
           "title": "Labels is used to filter the PRs that you want to target",
