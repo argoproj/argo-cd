@@ -1481,97 +1481,71 @@ func TestSync_ExistingHooksWithFinalizer(t *testing.T) {
 	assert.True(t, apierrors.IsNotFound(err))
 }
 
-func TestRunSyncFailHooksFailed(t *testing.T) {
+func TestSync_FailedSyncWithSyncFailHook_ApplyFailed(t *testing.T) {
 	// Tests that other SyncFail Hooks run even if one of them fail.
-
 	pod := testingutils.NewPod()
-	successfulSyncFailHook := newHook("TODO", synccommon.HookTypeSyncFail, synccommon.HookDeletePolicyBeforeHookCreation)
-	successfulSyncFailHook.SetName("successful-sync-fail-hook")
-	failedSyncFailHook := newHook("TODO", synccommon.HookTypeSyncFail, synccommon.HookDeletePolicyBeforeHookCreation)
-	failedSyncFailHook.SetName("failed-sync-fail-hook")
+	pod.SetNamespace(testingutils.FakeArgoCDNamespace)
+	successfulSyncFailHook := newHook("successful-sync-fail-hook", synccommon.HookTypeSyncFail, synccommon.HookDeletePolicyBeforeHookCreation)
+	failedSyncFailHook := newHook("failed-sync-fail-hook", synccommon.HookTypeSyncFail, synccommon.HookDeletePolicyBeforeHookCreation)
 
-	// Mark successful hook as healthy so it completes
-	syncCtx := newTestSyncCtx(nil,
-		WithHealthOverride(resourceNameHealthOverride(map[string]health.HealthStatusCode{
-			successfulSyncFailHook.GetName(): health.HealthStatusHealthy,
-		})),
-	)
+	syncCtx := newTestSyncCtx(nil, WithHealthOverride(resourceNameHealthOverride{
+		successfulSyncFailHook.GetName(): health.HealthStatusHealthy,
+	}))
 	syncCtx.resources = groupResources(ReconciliationResult{
 		Live:   []*unstructured.Unstructured{nil},
 		Target: []*unstructured.Unstructured{pod},
 	})
 	syncCtx.hooks = []*unstructured.Unstructured{successfulSyncFailHook, failedSyncFailHook}
+	syncCtx.dynamicIf = fake.NewSimpleDynamicClient(runtime.NewScheme())
 
-	mockKubectl := (&kubetest.MockKubectlCmd{
-		Commands: map[string]kubetest.KubectlOutput{
-			// Fail operation
-			pod.GetName(): {Err: errors.New("")},
-			// Fail a single SyncFail hook
-			failedSyncFailHook.GetName(): {Err: errors.New("")},
-			// Succeed for the successful hook
-			successfulSyncFailHook.GetName(): {},
-		},
-	}).WithGetResourceFunc(func(_ context.Context, _ *rest.Config, _ schema.GroupVersionKind, name string, _ string) (*unstructured.Unstructured, error) {
-		// Return a completed Pod for the successful hook so health check marks it as Succeeded
-		if name == successfulSyncFailHook.GetName() {
-			completedPod := successfulSyncFailHook.DeepCopy()
-			_ = unstructured.SetNestedField(completedPod.Object, "Succeeded", "status", "phase")
-			return completedPod, nil
-		}
-		return nil, nil
-	})
-	syncCtx.kubectl = mockKubectl
 	mockResourceOps := kubetest.MockResourceOps{
 		Commands: map[string]kubetest.KubectlOutput{
 			// Fail operation
-			pod.GetName(): {Err: errors.New("")},
+			pod.GetName(): {Err: errors.New("fake pod failure")},
 			// Fail a single SyncFail hook
-			failedSyncFailHook.GetName(): {Err: errors.New("")},
-			// Succeed for the successful hook
-			successfulSyncFailHook.GetName(): {},
+			failedSyncFailHook.GetName(): {Err: errors.New("fake hook failure")},
 		},
 	}
 	syncCtx.resourceOps = &mockResourceOps
 
+	// First sync triggers the SyncFail hooks on failure
 	syncCtx.Sync()
+	phase, message, resources := syncCtx.GetState()
+	assert.Equal(t, synccommon.OperationRunning, phase)
+	assert.Equal(t, "waiting for completion of hook /Pod/failed-sync-fail-hook and 1 more hooks", message)
+	assert.Len(t, resources, 3)
+	podResult := getResourceResult(resources, kube.GetResourceKey(pod))
+	require.NotNil(t, podResult, "%s not found", kube.GetResourceKey(pod))
+	assert.Equal(t, synccommon.OperationFailed, podResult.HookPhase)
+	assert.Equal(t, synccommon.ResultCodeSyncFailed, podResult.Status)
 
-	// After first sync, the successful hook is applied (Running state).
-	// We need to manually mark it as completed since there's no real cluster
-	// to provide the live object with healthy status.
-	_, _, results := syncCtx.GetState()
-	for _, res := range results {
-		if res.ResourceKey.Name == successfulSyncFailHook.GetName() {
-			res.HookPhase = synccommon.OperationSucceeded
-			syncCtx.syncRes[resourceResultKey(res.ResourceKey, synccommon.SyncPhaseSyncFail)] = res
-		}
-	}
+	failedSyncFailHookResult := getResourceResult(resources, kube.GetResourceKey(failedSyncFailHook))
+	require.NotNil(t, failedSyncFailHookResult, "%s not found", kube.GetResourceKey(failedSyncFailHook))
+	assert.Equal(t, synccommon.OperationFailed, failedSyncFailHookResult.HookPhase)
+	assert.Equal(t, synccommon.ResultCodeSyncFailed, failedSyncFailHookResult.Status)
 
+	successfulSyncFailHookResult := getResourceResult(resources, kube.GetResourceKey(successfulSyncFailHook))
+	require.NotNil(t, successfulSyncFailHookResult, "%s not found", kube.GetResourceKey(successfulSyncFailHook))
+	assert.Equal(t, synccommon.OperationRunning, successfulSyncFailHookResult.HookPhase)
+	assert.Equal(t, synccommon.ResultCodeSynced, successfulSyncFailHookResult.Status)
+
+	// Update the live state for the next run
+	syncCtx.resources = groupResources(ReconciliationResult{
+		Live:   []*unstructured.Unstructured{nil, successfulSyncFailHook},
+		Target: []*unstructured.Unstructured{pod, nil},
+	})
+
+	// Second sync completes when the SyncFail hooks are done
 	syncCtx.Sync()
-	phase, _, resources := syncCtx.GetState()
-
-	// Operation as a whole should fail
+	phase, message, resources = syncCtx.GetState()
 	assert.Equal(t, synccommon.OperationFailed, phase)
+	assert.Equal(t, "one or more synchronization tasks completed unsuccessfully, reason: fake pod failure\none or more SyncFail hooks failed, reason: fake hook failure", message)
+	assert.Len(t, resources, 3)
 
-	// Find the hook results by name since order depends on Order field, not alphabetical
-	var failedHookResult, successfulHookResult *synccommon.ResourceSyncResult
-	for i := range resources {
-		switch resources[i].ResourceKey.Name {
-		case failedSyncFailHook.GetName():
-			failedHookResult = &resources[i]
-		case successfulSyncFailHook.GetName():
-			successfulHookResult = &resources[i]
-		}
-	}
-
-	// failedSyncFailHook should fail
-	require.NotNil(t, failedHookResult, "failed hook result not found")
-	assert.Equal(t, synccommon.OperationFailed, failedHookResult.HookPhase)
-	assert.Equal(t, synccommon.ResultCodeSyncFailed, failedHookResult.Status)
-
-	// successfulSyncFailHook should succeed
-	require.NotNil(t, successfulHookResult, "successful hook result not found")
-	assert.Equal(t, synccommon.OperationSucceeded, successfulHookResult.HookPhase)
-	assert.Equal(t, synccommon.ResultCodeSynced, successfulHookResult.Status)
+	successfulSyncFailHookResult = getResourceResult(resources, kube.GetResourceKey(successfulSyncFailHook))
+	require.NotNil(t, successfulSyncFailHookResult, "%s not found", kube.GetResourceKey(successfulSyncFailHook))
+	assert.Equal(t, synccommon.OperationSucceeded, successfulSyncFailHookResult.HookPhase)
+	assert.Equal(t, synccommon.ResultCodeSynced, successfulSyncFailHookResult.Status)
 }
 
 func TestRunSync_HooksNotDeletedIfPhaseNotCompleted(t *testing.T) {
