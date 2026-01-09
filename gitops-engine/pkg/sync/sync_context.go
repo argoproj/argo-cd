@@ -621,7 +621,7 @@ func (sc *syncContext) Sync() {
 		}
 	default:
 		sc.setRunningPhase(tasks.Filter(func(task *syncTask) bool {
-			return task.deleteOnPhaseCompletion()
+			return task.deleteBeforeCreation() || (task.isPrune() && task.pending())
 		}), true)
 	}
 }

@@ -1441,12 +1441,9 @@ func TestBeforeHookCreation(t *testing.T) {
 }
 
 func TestSync_ExistingHooksWithFinalizer(t *testing.T) {
-	hook1 := newHook("TODO", synccommon.HookTypePreSync, synccommon.HookDeletePolicyBeforeHookCreation)
-	hook1.SetName("existing-hook-1")
-	hook2 := newHook("TODO", synccommon.HookTypePreSync, synccommon.HookDeletePolicyHookFailed)
-	hook2.SetName("existing-hook-2")
-	hook3 := newHook("TODO", synccommon.HookTypePreSync, synccommon.HookDeletePolicyHookSucceeded)
-	hook3.SetName("existing-hook-3")
+	hook1 := newHook("existing-hook-1", synccommon.HookTypePreSync, synccommon.HookDeletePolicyBeforeHookCreation)
+	hook2 := newHook("existing-hook-2", synccommon.HookTypePreSync, synccommon.HookDeletePolicyHookFailed)
+	hook3 := newHook("existing-hook-3", synccommon.HookTypePreSync, synccommon.HookDeletePolicyHookSucceeded)
 
 	syncCtx := newTestSyncCtx(nil)
 	fakeDynamicClient := fake.NewSimpleDynamicClient(runtime.NewScheme(), hook1, hook2, hook3)
@@ -1470,9 +1467,10 @@ func TestSync_ExistingHooksWithFinalizer(t *testing.T) {
 	syncCtx.hooks = []*unstructured.Unstructured{hook1, hook2, hook3}
 
 	syncCtx.Sync()
-	phase, _, _ := syncCtx.GetState()
+	phase, message, _ := syncCtx.GetState()
 
 	assert.Equal(t, synccommon.OperationRunning, phase)
+	assert.Equal(t, "waiting for deletion of hook /Pod/existing-hook-1", message)
 	assert.Equal(t, 3, updatedCount)
 	assert.Equal(t, 1, deletedCount)
 
