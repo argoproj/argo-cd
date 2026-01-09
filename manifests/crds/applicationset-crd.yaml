@@ -9200,6 +9200,10 @@ spec:
                                     properties:
                                       api:
                                         type: string
+                                      excludedLabels:
+                                        items:
+                                          type: string
+                                        type: array
                                       labels:
                                         items:
                                           type: string
@@ -17882,6 +17886,10 @@ spec:
                                     properties:
                                       api:
                                         type: string
+                                      excludedLabels:
+                                        items:
+                                          type: string
+                                        type: array
                                       labels:
                                         items:
                                           type: string
@@ -22901,6 +22909,10 @@ spec:
                           properties:
                             api:
                               type: string
+                            excludedLabels:
+                              items:
+                                type: string
+                              type: array
                             labels:
                               items:
                                 type: string
