@@ -255,7 +255,7 @@ func (s *Service) ListApps(ctx context.Context, q *apiclient.ListAppsRequest) (*
 	}
 
 	defer utilio.Close(closer)
-	apps, err := discovery.Discover(ctx, gitClient.Root(), gitClient.Root(), q.EnabledSourceTypes, s.initConstants.CMPTarExcludedGlobs, []string{})
+	apps, err := discovery.Discover(ctx, gitClient.Root(), gitClient.Root(), q.EnabledSourceTypes, s.initConstants.CMPTarExcludedGlobs, []string{}, "")
 	if err != nil {
 		return nil, fmt.Errorf("error discovering applications: %w", err)
 	}
@@ -1716,7 +1716,21 @@ func GetAppSourceType(ctx context.Context, source *v1alpha1.ApplicationSource, a
 		}
 		return *appSourceType, nil
 	}
-	appType, err := discovery.AppType(ctx, appPath, repoPath, enableGenerateManifests, tarExcludedGlobs, env)
+
+	parsedEnv := make(v1alpha1.Env, len(env))
+	for i, v := range env {
+		parsedVar, err := v1alpha1.NewEnvEntry(v)
+		if err != nil {
+			return "", errors.New("failed to parse env vars")
+		}
+		parsedEnv[i] = parsedVar
+	}
+	stdin := ""
+	if source.Plugin != nil {
+		stdin = parsedEnv.Envsubst(source.Plugin.Stdin)
+	}
+
+	appType, err := discovery.AppType(ctx, appPath, repoPath, enableGenerateManifests, tarExcludedGlobs, env, stdin)
 	if err != nil {
 		return "", fmt.Errorf("error getting app source type: %w", err)
 	}
@@ -2051,10 +2065,10 @@ func makeJsonnetVM(appPath string, repoRoot string, sourceJsonnet v1alpha1.Appli
 	return vm, nil
 }
 
-func getPluginEnvs(env *v1alpha1.Env, q *apiclient.ManifestRequest) ([]string, error) {
+func getPluginEnvs(env *v1alpha1.Env, q *apiclient.ManifestRequest) ([]string, string, error) {
 	kubeVersion, err := parseKubeVersion(q.KubeVersion)
 	if err != nil {
-		return nil, fmt.Errorf("could not parse kubernetes version %s: %w", q.KubeVersion, err)
+		return nil, "", fmt.Errorf("could not parse kubernetes version %s: %w", q.KubeVersion, err)
 	}
 	envVars := env.Environ()
 	envVars = append(envVars, "KUBE_VERSION="+kubeVersion)
@@ -2064,18 +2078,19 @@ func getPluginEnvs(env *v1alpha1.Env, q *apiclient.ManifestRequest) ([]string, e
 }
 
 // getPluginParamEnvs gets environment variables for plugin parameter announcement generation.
-func getPluginParamEnvs(envVars []string, plugin *v1alpha1.ApplicationSourcePlugin) ([]string, error) {
+func getPluginParamEnvs(envVars []string, plugin *v1alpha1.ApplicationSourcePlugin) ([]string, string, error) {
 	env := envVars
 
 	parsedEnv := make(v1alpha1.Env, len(env))
 	for i, v := range env {
 		parsedVar, err := v1alpha1.NewEnvEntry(v)
 		if err != nil {
-			return nil, errors.New("failed to parse env vars")
+			return nil, "", errors.New("failed to parse env vars")
 		}
 		parsedEnv[i] = parsedVar
 	}
 
+	stdin := ""
 	if plugin != nil {
 		pluginEnv := plugin.Env
 		for _, entry := range pluginEnv {
@@ -2084,23 +2099,24 @@ func getPluginParamEnvs(envVars []string, plugin *v1alpha1.ApplicationSourcePlug
 		}
 		paramEnv, err := plugin.Parameters.Environ()
 		if err != nil {
-			return nil, fmt.Errorf("failed to generate env vars from parameters: %w", err)
+			return nil, "", fmt.Errorf("failed to generate env vars from parameters: %w", err)
 		}
 		env = append(env, paramEnv...)
+		stdin = parsedEnv.Envsubst(plugin.Stdin)
 	}
 
-	return env, nil
+	return env, stdin, nil
 }
 
 func runConfigManagementPluginSidecars(ctx context.Context, appPath, repoPath, pluginName string, envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds git.Creds, tarDoneCh chan<- bool, tarExcludedGlobs []string, useManifestGeneratePaths bool) ([]*unstructured.Unstructured, error) {
 	// compute variables.
-	env, err := getPluginEnvs(envVars, q)
+	env, stdin, err := getPluginEnvs(envVars, q)
 	if err != nil {
 		return nil, err
 	}
 
 	// detect config management plugin server
-	conn, cmpClient, err := discovery.DetectConfigManagementPlugin(ctx, appPath, repoPath, pluginName, env, tarExcludedGlobs)
+	conn, cmpClient, err := discovery.DetectConfigManagementPlugin(ctx, appPath, repoPath, pluginName, env, stdin, tarExcludedGlobs)
 	if err != nil {
 		return nil, err
 	}
@@ -2130,7 +2146,7 @@ func runConfigManagementPluginSidecars(ctx context.Context, appPath, repoPath, p
 	}
 
 	// generate manifests using commands provided in plugin config file in detected cmp-server sidecar
-	cmpManifests, err := generateManifestsCMP(ctx, appPath, rootPath, env, cmpClient, tarDoneCh, tarExcludedGlobs)
+	cmpManifests, err := generateManifestsCMP(ctx, appPath, rootPath, env, stdin, cmpClient, tarDoneCh, tarExcludedGlobs)
 	if err != nil {
 		return nil, fmt.Errorf("error generating manifests in cmp: %w", err)
 	}
@@ -2153,7 +2169,7 @@ func runConfigManagementPluginSidecars(ctx context.Context, appPath, repoPath, p
 // generateManifestsCMP will send the appPath files to the cmp-server over a gRPC stream.
 // The cmp-server will generate the manifests. Returns a response object with the generated
 // manifests.
-func generateManifestsCMP(ctx context.Context, appPath, rootPath string, env []string, cmpClient pluginclient.ConfigManagementPluginServiceClient, tarDoneCh chan<- bool, tarExcludedGlobs []string) (*pluginclient.ManifestResponse, error) {
+func generateManifestsCMP(ctx context.Context, appPath, rootPath string, env []string, stdin string, cmpClient pluginclient.ConfigManagementPluginServiceClient, tarDoneCh chan<- bool, tarExcludedGlobs []string) (*pluginclient.ManifestResponse, error) {
 	generateManifestStream, err := cmpClient.GenerateManifest(ctx, grpc_retry.Disable())
 	if err != nil {
 		return nil, fmt.Errorf("error getting generateManifestStream: %w", err)
@@ -2162,7 +2178,7 @@ func generateManifestsCMP(ctx context.Context, appPath, rootPath string, env []s
 		cmp.WithTarDoneChan(tarDoneCh),
 	}
 
-	err = cmp.SendRepoStream(generateManifestStream.Context(), appPath, rootPath, generateManifestStream, env, tarExcludedGlobs, opts...)
+	err = cmp.SendRepoStream(generateManifestStream.Context(), appPath, rootPath, generateManifestStream, env, tarExcludedGlobs, stdin, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("error sending file to cmp-server: %w", err)
 	}
@@ -2363,7 +2379,7 @@ func populatePluginAppDetails(ctx context.Context, res *apiclient.RepoAppDetails
 		"ARGOCD_APP_SOURCE_TARGET_REVISION=" + q.Source.TargetRevision,
 	}
 
-	env, err := getPluginParamEnvs(envVars, q.Source.Plugin)
+	env, stdin, err := getPluginParamEnvs(envVars, q.Source.Plugin)
 	if err != nil {
 		return fmt.Errorf("failed to get env vars for plugin: %w", err)
 	}
@@ -2373,7 +2389,7 @@ func populatePluginAppDetails(ctx context.Context, res *apiclient.RepoAppDetails
 		pluginName = q.Source.Plugin.Name
 	}
 	// detect config management plugin server (sidecar)
-	conn, cmpClient, err := discovery.DetectConfigManagementPlugin(ctx, appPath, repoPath, pluginName, env, tarExcludedGlobs)
+	conn, cmpClient, err := discovery.DetectConfigManagementPlugin(ctx, appPath, repoPath, pluginName, env, stdin, tarExcludedGlobs)
 	if err != nil {
 		return fmt.Errorf("failed to detect CMP for app: %w", err)
 	}
@@ -2384,7 +2400,7 @@ func populatePluginAppDetails(ctx context.Context, res *apiclient.RepoAppDetails
 		return fmt.Errorf("error getting parametersAnnouncementStream: %w", err)
 	}
 
-	err = cmp.SendRepoStream(parametersAnnouncementStream.Context(), appPath, repoPath, parametersAnnouncementStream, env, tarExcludedGlobs)
+	err = cmp.SendRepoStream(parametersAnnouncementStream.Context(), appPath, repoPath, parametersAnnouncementStream, env, tarExcludedGlobs, stdin)
 	if err != nil {
 		return fmt.Errorf("error sending file to cmp-server: %w", err)
 	}

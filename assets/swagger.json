@@ -7740,6 +7740,9 @@
           "items": {
             "$ref": "#/definitions/v1alpha1ApplicationSourcePluginParameter"
           }
+        },
+        "stdin": {
+          "type": "string"
         }
       }
     },

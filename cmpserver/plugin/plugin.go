@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -72,7 +73,7 @@ func randExecID() (string, error) {
 	return hex.EncodeToString(execIDBytes)[0:execIDLen], nil
 }
 
-func runCommand(ctx context.Context, command Command, path string, env []string) (string, error) {
+func runCommand(ctx context.Context, command Command, path string, env []string, stdin io.Reader) (string, error) {
 	if len(command.Command) == 0 {
 		return "", errors.New("Command is empty")
 	}
@@ -80,6 +81,7 @@ func runCommand(ctx context.Context, command Command, path string, env []string)
 
 	cmd.Env = env
 	cmd.Dir = path
+	cmd.Stdin = stdin
 
 	execId, err := randExecID()
 	if err != nil {
@@ -225,7 +227,7 @@ func (s *Service) generateManifestGeneric(stream GenerateManifestStream) error {
 	if !strings.HasPrefix(appPath, workDir) {
 		return errors.New("illegal appPath: out of workDir bound")
 	}
-	response, err := s.generateManifest(ctx, appPath, metadata.GetEnv())
+	response, err := s.generateManifest(ctx, appPath, metadata.GetEnv(), metadata.GetStdin())
 	if err != nil {
 		return fmt.Errorf("error generating manifests: %w", err)
 	}
@@ -240,7 +242,7 @@ func (s *Service) generateManifestGeneric(stream GenerateManifestStream) error {
 }
 
 // generateManifest runs generate command from plugin config file and returns generated manifest files
-func (s *Service) generateManifest(ctx context.Context, appDir string, envEntries []*apiclient.EnvEntry) (*apiclient.ManifestResponse, error) {
+func (s *Service) generateManifest(ctx context.Context, appDir string, envEntries []*apiclient.EnvEntry, stdin string) (*apiclient.ManifestResponse, error) {
 	if deadline, ok := ctx.Deadline(); ok {
 		log.Infof("Generating manifests with deadline %v from now", time.Until(deadline))
 	} else {
@@ -251,13 +253,13 @@ func (s *Service) generateManifest(ctx context.Context, appDir string, envEntrie
 
 	env := append(os.Environ(), environ(envEntries)...)
 	if len(config.Spec.Init.Command) > 0 {
-		_, err := runCommand(ctx, config.Spec.Init, appDir, env)
+		_, err := runCommand(ctx, config.Spec.Init, appDir, env, strings.NewReader(stdin))
 		if err != nil {
 			return &apiclient.ManifestResponse{}, err
 		}
 	}
 
-	out, err := runCommand(ctx, config.Spec.Generate, appDir, env)
+	out, err := runCommand(ctx, config.Spec.Generate, appDir, env, strings.NewReader(stdin))
 	if err != nil {
 		return &apiclient.ManifestResponse{}, err
 	}
@@ -308,7 +310,7 @@ func (s *Service) matchRepositoryGeneric(stream MatchRepositoryStream) error {
 		return fmt.Errorf("match repository error receiving stream: %w", err)
 	}
 
-	isSupported, isDiscoveryEnabled, err := s.matchRepository(bufferedCtx, workDir, metadata.GetEnv(), metadata.GetAppRelPath())
+	isSupported, isDiscoveryEnabled, err := s.matchRepository(bufferedCtx, workDir, metadata.GetEnv(), metadata.GetAppRelPath(), metadata.GetStdin())
 	if err != nil {
 		return fmt.Errorf("match repository error: %w", err)
 	}
@@ -321,7 +323,7 @@ func (s *Service) matchRepositoryGeneric(stream MatchRepositoryStream) error {
 	return nil
 }
 
-func (s *Service) matchRepository(ctx context.Context, workdir string, envEntries []*apiclient.EnvEntry, appRelPath string) (isSupported bool, isDiscoveryEnabled bool, err error) {
+func (s *Service) matchRepository(ctx context.Context, workdir string, envEntries []*apiclient.EnvEntry, appRelPath string, stdin string) (isSupported bool, isDiscoveryEnabled bool, err error) {
 	config := s.initConstants.PluginConfig
 
 	appPath, err := securejoin.SecureJoin(workdir, appRelPath)
@@ -362,7 +364,7 @@ func (s *Service) matchRepository(ctx context.Context, workdir string, envEntrie
 	if len(config.Spec.Discover.Find.Command.Command) > 0 {
 		log.Debugf("Going to try runCommand.")
 		env := append(os.Environ(), environ(envEntries)...)
-		find, err := runCommand(ctx, config.Spec.Discover.Find.Command, appPath, env)
+		find, err := runCommand(ctx, config.Spec.Discover.Find.Command, appPath, env, strings.NewReader(stdin))
 		if err != nil {
 			return false, true, fmt.Errorf("error running find command: %w", err)
 		}
@@ -398,7 +400,7 @@ func (s *Service) GetParametersAnnouncement(stream apiclient.ConfigManagementPlu
 		return errors.New("illegal appPath: out of workDir bound")
 	}
 
-	repoResponse, err := getParametersAnnouncement(bufferedCtx, appPath, s.initConstants.PluginConfig.Spec.Parameters.Static, s.initConstants.PluginConfig.Spec.Parameters.Dynamic, metadata.GetEnv())
+	repoResponse, err := getParametersAnnouncement(bufferedCtx, appPath, s.initConstants.PluginConfig.Spec.Parameters.Static, s.initConstants.PluginConfig.Spec.Parameters.Dynamic, metadata.GetEnv(), metadata.GetStdin())
 	if err != nil {
 		return fmt.Errorf("get parameters announcement error: %w", err)
 	}
@@ -410,12 +412,12 @@ func (s *Service) GetParametersAnnouncement(stream apiclient.ConfigManagementPlu
 	return nil
 }
 
-func getParametersAnnouncement(ctx context.Context, appDir string, announcements []*repoclient.ParameterAnnouncement, command Command, envEntries []*apiclient.EnvEntry) (*apiclient.ParametersAnnouncementResponse, error) {
+func getParametersAnnouncement(ctx context.Context, appDir string, announcements []*repoclient.ParameterAnnouncement, command Command, envEntries []*apiclient.EnvEntry, stdin string) (*apiclient.ParametersAnnouncementResponse, error) {
 	augmentedAnnouncements := announcements
 
 	if len(command.Command) > 0 {
 		env := append(os.Environ(), environ(envEntries)...)
-		stdout, err := runCommand(ctx, command, appDir, env)
+		stdout, err := runCommand(ctx, command, appDir, env, strings.NewReader(stdin))
 		if err != nil {
 			return nil, fmt.Errorf("error executing dynamic parameter output command: %w", err)
 		}

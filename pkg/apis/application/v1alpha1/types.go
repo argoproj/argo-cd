@@ -1099,6 +1099,7 @@ type ApplicationSourcePlugin struct {
 	Name       string `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
 	Env        `json:"env,omitempty" protobuf:"bytes,2,opt,name=env"`
 	Parameters ApplicationSourcePluginParameters `json:"parameters,omitempty" protobuf:"bytes,3,opt,name=parameters"`
+	Stdin      string                            `json:"stdin,omitempty" protobuf:"bytes,4,opt,name=stdin"`
 }
 
 func (c *ApplicationSourcePlugin) Equals(other *ApplicationSourcePlugin) bool {

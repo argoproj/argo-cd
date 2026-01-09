@@ -237,6 +237,22 @@ Plugin commands have access to
     user-supplied environment variables (#3 above) with `ARGOCD_ENV_`. This prevents users from directly setting 
     potentially-sensitive environment variables.
 
+### Using stdin in your plugin
+
+If you need to pass a large payload to your plugin (e.g. a large configuration file), you can use the `stdin` field in the Application spec. This avoids the "argument list too long" error that can occur when using environment variables for large data.
+
+The `stdin` value will be piped to the standard input of the `generate.command`, `discover.find.command`, and `parameters.dynamic.command` commands.
+
+        apiVersion: argoproj.io/v1alpha1
+        kind: Application
+        spec:
+          source:
+            plugin:
+              stdin: |
+                my large payload
+
+Like environment variables, references to [standard build environment variables](../user-guide/build-environment.md) in the `stdin` field will be interpolated.
+
 4. Parameters in the Application spec:
 
         apiVersion: argoproj.io/v1alpha1
@@ -551,4 +567,3 @@ spec:
     args: ["sample args"]
   provideGitCreds: true
 ```
-
