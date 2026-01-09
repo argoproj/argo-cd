@@ -8488,6 +8488,10 @@ spec:
                                         - configMapName
                                         - key
                                         type: object
+                                      excludedLabels:
+                                        items:
+                                          type: string
+                                        type: array
                                       insecure:
                                         type: boolean
                                       labels:
@@ -16242,6 +16246,10 @@ spec:
                                         - configMapName
                                         - key
                                         type: object
+                                      excludedLabels:
+                                        items:
+                                          type: string
+                                        type: array
                                       insecure:
                                         type: boolean
                                       labels:
@@ -20333,6 +20341,10 @@ spec:
                               - configMapName
                               - key
                               type: object
+                            excludedLabels:
+                              items:
+                                type: string
+                              type: array
                             insecure:
                               type: boolean
                             labels:
