@@ -2095,7 +2095,7 @@ func TestSyncContext_GetDeleteOptions_WithPrunePropagationPolicy(t *testing.T) {
 	assert.Equal(t, metav1.DeletePropagationBackground, *opts.PropagationPolicy)
 }
 
-func TestExecuteSyncFailPhase(t *testing.T) {
+func Test_executeSyncFailPhase(t *testing.T) {
 	sc := syncContext{}
 	sc.log = textlogger.NewLogger(textlogger.NewConfig()).WithValues("application", "fake-app")
 
@@ -2107,7 +2107,7 @@ func TestExecuteSyncFailPhase(t *testing.T) {
 	assert.Equal(t, "one or more objects failed to apply, reason: namespace not found", sc.message)
 }
 
-func TestExecuteSyncFailPhase_DuplicatedMessages(t *testing.T) {
+func Test_executeSyncFailPhase_DuplicatedMessages(t *testing.T) {
 	sc := syncContext{}
 	sc.log = textlogger.NewLogger(textlogger.NewConfig()).WithValues("application", "fake-app")
 
@@ -2120,13 +2120,46 @@ func TestExecuteSyncFailPhase_DuplicatedMessages(t *testing.T) {
 	assert.Equal(t, "one or more objects failed to apply, reason: namespace not found", sc.message)
 }
 
-func TestExecuteSyncFailPhase_NoTasks(t *testing.T) {
+func Test_executeSyncFailPhase_NoTasks(t *testing.T) {
 	sc := syncContext{}
 	sc.log = textlogger.NewLogger(textlogger.NewConfig()).WithValues("application", "fake-app")
 
 	sc.executeSyncFailPhase(nil, nil, "one or more objects failed to apply")
 
 	assert.Equal(t, "one or more objects failed to apply", sc.message)
+}
+
+func Test_executeSyncFailPhase_RunningHooks(t *testing.T) {
+	sc := syncContext{
+		phase: synccommon.OperationRunning,
+	}
+	sc.log = textlogger.NewLogger(textlogger.NewConfig()).WithValues("application", "fake-app")
+
+	tasks := make([]*syncTask, 0)
+	tasks = append(tasks, &syncTask{operationState: synccommon.OperationRunning})
+
+	sc.executeSyncFailPhase(tasks, nil, "one or more objects failed to apply")
+
+	assert.Equal(t, synccommon.OperationRunning, sc.phase)
+}
+
+func Test_executeSyncFailPhase_CompletedHooks(t *testing.T) {
+	sc := syncContext{
+		phase: synccommon.OperationRunning,
+	}
+	sc.log = textlogger.NewLogger(textlogger.NewConfig()).WithValues("application", "fake-app")
+
+	failed := make([]*syncTask, 0)
+	failed = append(failed, &syncTask{message: "task in error"})
+
+	tasks := make([]*syncTask, 0)
+	tasks = append(tasks, &syncTask{operationState: synccommon.OperationSucceeded})
+	tasks = append(tasks, &syncTask{operationState: synccommon.OperationFailed, syncStatus: synccommon.ResultCodeSyncFailed, message: "failed to apply"})
+
+	sc.executeSyncFailPhase(tasks, failed, "one or more objects failed to apply")
+
+	assert.Equal(t, "one or more objects failed to apply, reason: task in error\none or more SyncFail hooks failed, reason: failed to apply", sc.message)
+	assert.Equal(t, synccommon.OperationFailed, sc.phase)
 }
 
 func TestWaveReorderingOfPruneTasks(t *testing.T) {
