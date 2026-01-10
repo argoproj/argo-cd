@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"dario.cat/mergo"
 	"github.com/TomOnTime/utfutil"
 	imagev1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"sigs.k8s.io/yaml"
@@ -2230,6 +2231,71 @@ func (s *Service) createGetAppDetailsCacheHandler(res *apiclient.RepoAppDetailsR
 	}
 }
 
+// computeEffectiveValues merges all helm value sources to produce final effective values.
+// Order: chart defaults -> valueFiles -> values/valuesObject -> parameters
+func computeEffectiveValues(chartDefaults string, valueFiles []pathutil.ResolvedFilePath, helmSource *v1alpha1.ApplicationSourceHelm) string {
+	merged := make(map[string]any)
+
+	// 1. Chart defaults
+	if chartDefaults != "" {
+		var vals map[string]any
+		if err := yaml.Unmarshal([]byte(chartDefaults), &vals); err == nil {
+			_ = mergo.Merge(&merged, vals, mergo.WithOverride)
+		}
+	}
+
+	// 2. Value files (in order)
+	for _, vf := range valueFiles {
+		content, err := os.ReadFile(string(vf))
+		if err != nil {
+			continue
+		}
+		var vals map[string]any
+		if err := yaml.Unmarshal(content, &vals); err == nil {
+			_ = mergo.Merge(&merged, vals, mergo.WithOverride)
+		}
+	}
+
+	// 3. Inline values/valuesObject
+	if helmSource != nil && !helmSource.ValuesIsEmpty() {
+		var vals map[string]any
+		if err := yaml.Unmarshal(helmSource.ValuesYAML(), &vals); err == nil {
+			_ = mergo.Merge(&merged, vals, mergo.WithOverride)
+		}
+	}
+
+	// 4. Parameter overrides (--set style)
+	if helmSource != nil {
+		for _, p := range helmSource.Parameters {
+			setNestedValue(merged, p.Name, p.Value)
+		}
+	}
+
+	yamlBytes, err := yaml.Marshal(merged)
+	if err != nil {
+		return ""
+	}
+	return string(yamlBytes)
+}
+
+// setNestedValue sets a value at a dot-separated path in a nested map.
+func setNestedValue(m map[string]any, path, value string) {
+	keys := strings.Split(path, ".")
+	current := m
+	for i := 0; i < len(keys)-1; i++ {
+		key := keys[i]
+		if _, ok := current[key]; !ok {
+			current[key] = make(map[string]any)
+		}
+		next, ok := current[key].(map[string]any)
+		if !ok {
+			return
+		}
+		current = next
+	}
+	current[keys[len(keys)-1]] = value
+}
+
 func populateHelmAppDetails(res *apiclient.RepoAppDetailsResponse, appPath string, repoRoot string, q *apiclient.RepoServerAppDetailsQuery, gitRepoPaths utilio.TempPaths) error {
 	var selectedValueFiles []string
 	var availableValueFiles []string
@@ -2293,6 +2359,10 @@ func populateHelmAppDetails(res *apiclient.RepoAppDetailsResponse, appPath strin
 			Path: v.Path, // filepath.Join(appPath, v.Path),
 		})
 	}
+
+	// Compute effective values (merged from all sources)
+	res.Helm.EffectiveValues = computeEffectiveValues(res.Helm.Values, resolvedSelectedValueFiles, q.Source.Helm)
+
 	return nil
 }
 

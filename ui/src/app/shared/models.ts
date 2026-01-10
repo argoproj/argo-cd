@@ -756,6 +756,7 @@ export interface HelmAppSpec {
     values?: string;
     parameters: HelmParameter[];
     fileParameters: HelmFileParameter[];
+    effectiveValues?: string;
 }
 
 export interface KustomizeAppSpec {

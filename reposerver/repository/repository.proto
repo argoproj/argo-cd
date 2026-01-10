@@ -185,6 +185,8 @@ message HelmAppSpec {
     string values = 5;
     // helm file parameters
     repeated github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.HelmFileParameter fileParameters = 6;
+    // merged values from all sources (chart defaults + valueFiles + values/valuesObject + parameters)
+    string effectiveValues = 7;
 }
 
 // KustomizeAppSpec contains kustomize images

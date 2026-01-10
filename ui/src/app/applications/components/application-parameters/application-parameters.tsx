@@ -801,6 +801,16 @@ function gatherDetails(
                 );
             }
         });
+        if (repoDetails.helm.effectiveValues) {
+            attributes.push({
+                title: 'EFFECTIVE VALUES',
+                view: (
+                    <Expandable>
+                        <pre style={{background: '#f5f5f5', padding: 10, fontSize: 12}}>{repoDetails.helm.effectiveValues}</pre>
+                    </Expandable>
+                )
+            });
+        }
         const paramsByName = new Map<string, models.HelmParameter>();
         (repoDetails.helm.parameters || []).forEach(param => paramsByName.set(param.name, param));
         const overridesByName = new Map<string, number>();
