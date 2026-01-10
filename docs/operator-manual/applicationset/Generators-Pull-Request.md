@@ -69,7 +69,7 @@ spec:
 * `api`: If using GitHub Enterprise, the URL to access it. (Optional)
 * `tokenRef`: A `Secret` name and key containing the GitHub access token to use for requests. If not specified, will make anonymous requests which have a lower rate limit and can only see public repositories. (Optional)
 * `labels`: Filter the PRs to those containing **all** of the labels listed. (Optional)
-* `excludedLabels`: Exclude PRs that have **any** of the labels listed. (Optional)
+* `excludedLabels`: Exclude PRs that have **any** of the labels listed. This takes precedence over `labels`. (Optional)
 * `appSecretName`: A `Secret` name containing a GitHub App secret in [repo-creds format][repo-creds].
 
 [repo-creds]: ../declarative-setup.md#repository-credentials
