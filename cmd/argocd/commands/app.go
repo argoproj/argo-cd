@@ -1279,7 +1279,7 @@ type objKeyLiveTarget struct {
 
 // addServerSideDiffPerfFlags adds server-side diff performance tuning flags to a command
 func addServerSideDiffPerfFlags(command *cobra.Command, serverSideDiffConcurrency *int, serverSideDiffMaxBatchKB *int) {
-	command.Flags().IntVar(serverSideDiffConcurrency, "server-side-diff-concurrency", -1, "Max concurrent batches for server-side diff. -1 = unlimited, 1 = sequential, 2+ = concurrent (0 = invalid, CLI will hang)")
+	command.Flags().IntVar(serverSideDiffConcurrency, "server-side-diff-concurrency", -1, "Max concurrent batches for server-side diff. -1 = unlimited, 1 = sequential, 2+ = concurrent (0 = invalid)")
 	command.Flags().IntVar(serverSideDiffMaxBatchKB, "server-side-diff-max-batch-kb", 250, "Max batch size in KB for server-side diff. Smaller values are safer for proxies")
 }
 
@@ -1466,6 +1466,10 @@ func printResourceDiff(group, kind, namespace, name string, live, target *unstru
 
 // findAndPrintServerSideDiff performs a server-side diff by making requests to the api server and prints the response
 func findAndPrintServerSideDiff(ctx context.Context, app *argoappv1.Application, items []objKeyLiveTarget, resources *application.ManagedResourcesResponse, appIf application.ApplicationServiceClient, appName, appNs string, maxConcurrency int, maxBatchSizeKB int) bool {
+	if maxConcurrency == 0 {
+		errors.CheckError(fmt.Errorf("invalid value for --server-side-diff-concurrency: 0 is not allowed (use -1 for unlimited, or a positive number to limit concurrency)"))
+	}
+
 	liveResources := make([]*argoappv1.ResourceDiff, 0, len(items))
 	targetManifests := make([]string, 0, len(items))
 
