@@ -1467,7 +1467,7 @@ func printResourceDiff(group, kind, namespace, name string, live, target *unstru
 // findAndPrintServerSideDiff performs a server-side diff by making requests to the api server and prints the response
 func findAndPrintServerSideDiff(ctx context.Context, app *argoappv1.Application, items []objKeyLiveTarget, resources *application.ManagedResourcesResponse, appIf application.ApplicationServiceClient, appName, appNs string, maxConcurrency int, maxBatchSizeKB int) bool {
 	if maxConcurrency == 0 {
-		errors.CheckError(fmt.Errorf("invalid value for --server-side-diff-concurrency: 0 is not allowed (use -1 for unlimited, or a positive number to limit concurrency)"))
+		errors.CheckError(stderrors.New("invalid value for --server-side-diff-concurrency: 0 is not allowed (use -1 for unlimited, or a positive number to limit concurrency)"))
 	}
 
 	liveResources := make([]*argoappv1.ResourceDiff, 0, len(items))
