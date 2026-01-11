@@ -870,6 +870,9 @@ func NewApplicationSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 
   # Set application parameters and specify the namespace
   argocd app set my-app --parameter key1=value1 --parameter key2=value2 --namespace my-namespace
+
+  # Set application plugin parameters for "my-app"
+  argocd app set my-app --plugin-param-array some-param-array="item1,item2,item3" --plugin-param-map some-param-map="image.tag=v1.2.3,image.app=my-app" --plugin-param-string some-param-string="my-app"
   		`),
 
 		Run: func(c *cobra.Command, args []string) {
@@ -946,6 +949,7 @@ type unsetOpts struct {
 	valuesLiteral           bool
 	ignoreMissingValueFiles bool
 	pluginEnvs              []string
+	pluginParams            []string
 	passCredentials         bool
 	ref                     bool
 }
@@ -985,7 +989,10 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
   argocd app unset my-app --source-name test --namesuffix
 
   # Unset parameter override
-  argocd app unset my-app -p COMPONENT=PARAM`,
+  argocd app unset my-app -p COMPONENT=PARAM 
+
+  # Unset plugin parameter
+  argocd app unset my-app --plugin-param some-param-array --plugin-param some-param-map --plugin-param some-param-string`,
 
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
@@ -1065,6 +1072,7 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 	command.Flags().StringArrayVar(&opts.kustomizeReplicas, "kustomize-replica", []string{}, "Kustomize replicas name (e.g. --kustomize-replica my-deployment --kustomize-replica my-statefulset)")
 	command.Flags().BoolVar(&opts.ignoreMissingComponents, "ignore-missing-components", false, "Unset the kustomize ignore-missing-components option (revert to false)")
 	command.Flags().StringArrayVar(&opts.pluginEnvs, "plugin-env", []string{}, "Unset plugin env variables (e.g --plugin-env name)")
+	command.Flags().StringArrayVar(&opts.pluginParams, "plugin-param", []string{}, "Unset plugin parameter variables (e.g --plugin-param name)")
 	command.Flags().BoolVar(&opts.passCredentials, "pass-credentials", false, "Unset passCredentials")
 	command.Flags().BoolVar(&opts.ref, "ref", false, "Unset ref on the source")
 	command.Flags().IntVar(&sourcePosition, "source-position", -1, "Position of the source from the list of sources of the app. Counting starts at 1.")
@@ -1176,11 +1184,17 @@ func unset(source *argoappv1.ApplicationSource, opts unsetOpts) (updated bool, n
 	}
 
 	if source.Plugin != nil {
-		if len(opts.pluginEnvs) == 0 {
+		if len(opts.pluginEnvs) == 0 && len(opts.pluginParams) == 0 {
 			return false, !needToUnsetRef
 		}
 		for _, env := range opts.pluginEnvs {
 			err := source.Plugin.RemoveEnvEntry(env)
+			if err == nil {
+				updated = true
+			}
+		}
+		for _, param := range opts.pluginParams {
+			err := source.Plugin.RemoveParamEntry(param)
 			if err == nil {
 				updated = true
 			}

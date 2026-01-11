@@ -1093,6 +1093,7 @@ func Test_unset(t *testing.T) {
 		},
 	}
 
+	paramPtrString := "param-value-1"
 	pluginSource := &v1alpha1.ApplicationSource{
 		Plugin: &v1alpha1.ApplicationSourcePlugin{
 			Env: v1alpha1.Env{
@@ -1103,6 +1104,20 @@ func Test_unset(t *testing.T) {
 				{
 					Name:  "env-2",
 					Value: "env-value-2",
+				},
+			},
+			Parameters: v1alpha1.ApplicationSourcePluginParameters{
+				{
+					Name:    "param-1",
+					String_: &paramPtrString,
+				},
+				{
+					Name:        "param-2",
+					OptionalMap: &v1alpha1.OptionalMap{Map: map[string]string{"keyA": "valueA"}},
+				},
+				{
+					Name:          "param-3",
+					OptionalArray: &v1alpha1.OptionalArray{Array: []string{"item1", "item2", "item3"}},
 				},
 			},
 		},
@@ -1213,6 +1228,19 @@ func Test_unset(t *testing.T) {
 	assert.True(t, updated)
 	assert.False(t, nothingToUnset)
 	updated, nothingToUnset = unset(pluginSource, unsetOpts{pluginEnvs: []string{"env-1"}})
+	assert.False(t, updated)
+	assert.False(t, nothingToUnset)
+
+	assert.Len(t, pluginSource.Plugin.Parameters, 3)
+	updated, nothingToUnset = unset(pluginSource, unsetOpts{pluginParams: []string{"param-1"}})
+	assert.Len(t, pluginSource.Plugin.Parameters, 2)
+	assert.True(t, updated)
+	assert.False(t, nothingToUnset)
+	updated, nothingToUnset = unset(pluginSource, unsetOpts{pluginParams: []string{"param-2"}})
+	assert.Len(t, pluginSource.Plugin.Parameters, 1)
+	assert.True(t, updated)
+	assert.False(t, nothingToUnset)
+	updated, nothingToUnset = unset(pluginSource, unsetOpts{pluginParams: []string{"param-2"}})
 	assert.False(t, updated)
 	assert.False(t, nothingToUnset)
 }

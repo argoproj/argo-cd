@@ -153,6 +153,17 @@ func NewEnvEntry(text string) (*EnvEntry, error) {
 	}, nil
 }
 
+// splitKeyValue splits a string on the first '=' and returns key, value and
+// a boolean indicating success. It is unexported and intended to replace
+// repeated SplitN+len checks.
+func splitKeyValue(s string) (string, string, bool) {
+	parts := strings.SplitN(s, "=", 2)
+	if len(parts) != 2 {
+		return "", "", false
+	}
+	return parts[0], parts[1], true
+}
+
 // Env is a list of environment variable entries
 type Env []*EnvEntry
 
@@ -185,6 +196,67 @@ func (e Env) Envsubst(s string) string {
 		}
 		return valByEnv[s]
 	})
+}
+
+// ParamEntry represents an entry in the application's parameters
+type ParamEntry struct {
+	// Name is the name of the variable, usually expressed in uppercase
+	Name string `json:"name" protobuf:"bytes,1,opt,name=name"`
+	// StringValue is the string of the variable
+	StringValue *string `json:"string" protobuf:"bytes,2,opt,name=string"`
+	// Map is the value of a map type parameter.
+	*OptionalMap `json:",omitempty" protobuf:"bytes,3,rep,name=map"`
+	// OptionalArray is the value of an array type parameter.
+	*OptionalArray `json:",omitempty" protobuf:"bytes,4,rep,name=array"`
+}
+
+// NewParamEntry parses a parameter in format name=string, name=map, name=array and returns an ParamEntry object
+// ParamType represents supported parameter value types for plugin parameters
+type ParamType string
+
+const (
+	ParamTypeString ParamType = "string"
+	ParamTypeMap    ParamType = "map"
+	ParamTypeArray  ParamType = "array"
+)
+
+func NewParamEntry(text string, paramType ParamType) (*ParamEntry, error) {
+	name, value, ok := splitKeyValue(text)
+	if !ok {
+		return nil, fmt.Errorf("expected parameter entry of the form: param=string, param=map, or param=array. Received: %s", text)
+	}
+
+	switch paramType {
+	case ParamTypeString:
+		return &ParamEntry{
+			Name:        name,
+			StringValue: &value,
+		}, nil
+	case ParamTypeMap:
+		mapValues := make(map[string]string)
+		keyValues := strings.Split(value, ",")
+
+		for _, kv := range keyValues {
+			k, v, ok := splitKeyValue(kv)
+			if !ok {
+				return nil, fmt.Errorf("invalid map format: %s", kv)
+			}
+			mapValues[k] = v
+		}
+
+		return &ParamEntry{
+			Name:        name,
+			OptionalMap: &OptionalMap{Map: mapValues},
+		}, nil
+	case ParamTypeArray:
+		arrayValues := strings.Split(value, ",")
+		return &ParamEntry{
+			Name:          name,
+			OptionalArray: &OptionalArray{Array: arrayValues},
+		}, nil
+	default:
+		return nil, fmt.Errorf("only supports parameters of types: string, array, and map. Received: %s", paramType)
+	}
 }
 
 // ApplicationSource contains all required information about the source of an application
@@ -1151,6 +1223,49 @@ func (c *ApplicationSourcePlugin) RemoveEnvEntry(key string) error {
 		}
 	}
 	return fmt.Errorf("unable to find env variable with key %q for plugin %q", key, c.Name)
+}
+
+// AddParamEntry merges an ParamEntry into a list of entries. If an entry with the same name already exists,
+// its string/map/array will be overwritten. Otherwise, the entry is appended to the list.
+func (c *ApplicationSourcePlugin) AddParamEntry(p *ParamEntry, paramType ParamType) {
+	found := false
+	for i, cp := range c.Parameters {
+		if cp.Name == p.Name {
+			found = true
+			switch paramType {
+			case ParamTypeString:
+				c.Parameters[i] = ApplicationSourcePluginParameter{Name: p.Name, String_: p.StringValue}
+			case ParamTypeMap:
+				c.Parameters[i] = ApplicationSourcePluginParameter{Name: p.Name, OptionalMap: p.OptionalMap}
+			case ParamTypeArray:
+				c.Parameters[i] = ApplicationSourcePluginParameter{Name: p.Name, OptionalArray: p.OptionalArray}
+			}
+			break
+		}
+	}
+
+	if !found {
+		switch paramType {
+		case ParamTypeString:
+			c.Parameters = append(c.Parameters, ApplicationSourcePluginParameter{Name: p.Name, String_: p.StringValue})
+		case ParamTypeMap:
+			c.Parameters = append(c.Parameters, ApplicationSourcePluginParameter{Name: p.Name, OptionalMap: p.OptionalMap})
+		case ParamTypeArray:
+			c.Parameters = append(c.Parameters, ApplicationSourcePluginParameter{Name: p.Name, OptionalArray: p.OptionalArray})
+		}
+	}
+}
+
+// RemoveParamEntry removes an ParamEntry if present, from a list of entries.
+func (c *ApplicationSourcePlugin) RemoveParamEntry(key string) error {
+	for i, cp := range c.Parameters {
+		if cp.Name == key {
+			c.Parameters[i] = c.Parameters[len(c.Parameters)-1]
+			c.Parameters = c.Parameters[:len(c.Parameters)-1]
+			return nil
+		}
+	}
+	return fmt.Errorf("unable to find parameter variable with key %q for plugin %q", key, c.Name)
 }
 
 // ApplicationDestination holds information about the application's destination
