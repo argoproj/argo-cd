@@ -6,18 +6,11 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"time"
 
 	"code.gitea.io/sdk/gitea"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-func parseGiteaTimeFromString(t string) time.Time {
-	pt, _ := time.Parse(time.RFC3339, t)
-
-	return pt.In(time.UTC)
-}
 
 func giteaMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
 	t.Helper()
@@ -316,8 +309,10 @@ func TestGiteaList(t *testing.T) {
 	assert.Equal(t, "main", prs[0].TargetBranch)
 	assert.Equal(t, "7bbaf62d92ddfafd9cc8b340c619abaec32bc09f", prs[0].HeadSHA)
 	assert.Equal(t, "graytshirt", prs[0].Author)
-	assert.Equal(t, parseGiteaTimeFromString("2022-04-06T02:34:24+08:00"), prs[0].CreatedAt)
-	assert.Equal(t, parseGiteaTimeFromString("2022-04-06T02:48:24+08:00"), prs[0].UpdatedAt)
+	assert.Equal(t, parseTimeFromString("2022-04-06T02:34:24+08:00"), prs[0].CreatedAt)
+	assert.Equal(t, parseTimeFromString("2022-04-06T02:48:24+08:00"), prs[0].UpdatedAt)
+
+	t.Log(parseTimeFromString("2022-04-06T02:48:24+08:00"))
 }
 
 func TestGetGiteaPRLabelNames(t *testing.T) {

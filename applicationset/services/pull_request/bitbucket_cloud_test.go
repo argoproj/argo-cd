@@ -19,7 +19,7 @@ const (
 	updatedTime = "2015-10-15T17:38:55.491628+00:00"
 )
 
-func parseBitbucketCloudTimeFromString(t string) time.Time {
+func parseTimeFromString(t string) time.Time {
 	pt, _ := time.Parse(time.RFC3339, t)
 
 	return pt.UTC()
@@ -108,8 +108,8 @@ func TestListPullRequestBearerTokenCloud(t *testing.T) {
 	assert.Equal(t, "feature/foo-bar", pullRequests[0].Branch)
 	assert.Equal(t, "1a8dd249c04a", pullRequests[0].HeadSHA)
 	assert.Equal(t, "testName", pullRequests[0].Author)
-	assert.Equal(t, parseBitbucketCloudTimeFromString(createdTime), pullRequests[0].CreatedAt)
-	assert.Equal(t, parseBitbucketCloudTimeFromString(updatedTime), pullRequests[0].UpdatedAt)
+	assert.Equal(t, parseTimeFromString(createdTime), pullRequests[0].CreatedAt)
+	assert.Equal(t, parseTimeFromString(updatedTime), pullRequests[0].UpdatedAt)
 }
 
 func TestListPullRequestNoAuthCloud(t *testing.T) {
@@ -128,8 +128,8 @@ func TestListPullRequestNoAuthCloud(t *testing.T) {
 	assert.Equal(t, "feature/foo-bar", pullRequests[0].Branch)
 	assert.Equal(t, "1a8dd249c04a", pullRequests[0].HeadSHA)
 	assert.Equal(t, "testName", pullRequests[0].Author)
-	assert.Equal(t, parseBitbucketCloudTimeFromString(createdTime), pullRequests[0].CreatedAt)
-	assert.Equal(t, parseBitbucketCloudTimeFromString(updatedTime), pullRequests[0].UpdatedAt)
+	assert.Equal(t, parseTimeFromString(createdTime), pullRequests[0].CreatedAt)
+	assert.Equal(t, parseTimeFromString(updatedTime), pullRequests[0].UpdatedAt)
 }
 
 func TestListPullRequestBasicAuthCloud(t *testing.T) {
@@ -148,8 +148,8 @@ func TestListPullRequestBasicAuthCloud(t *testing.T) {
 	assert.Equal(t, "feature/foo-bar", pullRequests[0].Branch)
 	assert.Equal(t, "1a8dd249c04a", pullRequests[0].HeadSHA)
 	assert.Equal(t, "testName", pullRequests[0].Author)
-	assert.Equal(t, parseBitbucketCloudTimeFromString(createdTime), pullRequests[0].CreatedAt)
-	assert.Equal(t, parseBitbucketCloudTimeFromString(updatedTime), pullRequests[0].UpdatedAt)
+	assert.Equal(t, parseTimeFromString(createdTime), pullRequests[0].CreatedAt)
+	assert.Equal(t, parseTimeFromString(updatedTime), pullRequests[0].UpdatedAt)
 }
 
 func TestListPullRequestPaginationCloud(t *testing.T) {
@@ -248,8 +248,8 @@ func TestListPullRequestPaginationCloud(t *testing.T) {
 		Branch:    "feature-101",
 		HeadSHA:   "1a8dd249c04a",
 		Author:    "testName",
-		CreatedAt: parseBitbucketCloudTimeFromString(createdTime),
-		UpdatedAt: parseBitbucketCloudTimeFromString(updatedTime),
+		CreatedAt: parseTimeFromString(createdTime),
+		UpdatedAt: parseTimeFromString(updatedTime),
 	}, *pullRequests[0])
 	assert.Equal(t, PullRequest{
 		Number:    102,
@@ -257,8 +257,8 @@ func TestListPullRequestPaginationCloud(t *testing.T) {
 		Branch:    "feature-102",
 		HeadSHA:   "4cf807e67a6d",
 		Author:    "testName",
-		CreatedAt: parseBitbucketCloudTimeFromString(createdTime),
-		UpdatedAt: parseBitbucketCloudTimeFromString(updatedTime),
+		CreatedAt: parseTimeFromString(createdTime),
+		UpdatedAt: parseTimeFromString(updatedTime),
 	}, *pullRequests[1])
 	assert.Equal(t, PullRequest{
 		Number:    103,
@@ -266,8 +266,8 @@ func TestListPullRequestPaginationCloud(t *testing.T) {
 		Branch:    "feature-103",
 		HeadSHA:   "6344d9623e3b",
 		Author:    "testName",
-		CreatedAt: parseBitbucketCloudTimeFromString(createdTime),
-		UpdatedAt: parseBitbucketCloudTimeFromString(updatedTime),
+		CreatedAt: parseTimeFromString(createdTime),
+		UpdatedAt: parseTimeFromString(updatedTime),
 	}, *pullRequests[2])
 }
 
@@ -472,8 +472,8 @@ func TestListPullRequestBranchMatchCloud(t *testing.T) {
 		HeadSHA:      "1a8dd249c04a",
 		Author:       "testName",
 		TargetBranch: "master",
-		CreatedAt:    parseBitbucketCloudTimeFromString(createdTime),
-		UpdatedAt:    parseBitbucketCloudTimeFromString(updatedTime),
+		CreatedAt:    parseTimeFromString(createdTime),
+		UpdatedAt:    parseTimeFromString(updatedTime),
 	}, *pullRequests[0])
 	assert.Equal(t, PullRequest{
 		Number:       102,
@@ -482,8 +482,8 @@ func TestListPullRequestBranchMatchCloud(t *testing.T) {
 		HeadSHA:      "6344d9623e3b",
 		Author:       "testName",
 		TargetBranch: "master",
-		CreatedAt:    parseBitbucketCloudTimeFromString(createdTime),
-		UpdatedAt:    parseBitbucketCloudTimeFromString(updatedTime),
+		CreatedAt:    parseTimeFromString(createdTime),
+		UpdatedAt:    parseTimeFromString(updatedTime),
 	}, *pullRequests[1])
 
 	regexp = `.*2$`
@@ -503,8 +503,8 @@ func TestListPullRequestBranchMatchCloud(t *testing.T) {
 		HeadSHA:      "6344d9623e3b",
 		Author:       "testName",
 		TargetBranch: "master",
-		CreatedAt:    parseBitbucketCloudTimeFromString(createdTime),
-		UpdatedAt:    parseBitbucketCloudTimeFromString(updatedTime),
+		CreatedAt:    parseTimeFromString(createdTime),
+		UpdatedAt:    parseTimeFromString(updatedTime),
 	}, *pullRequests[0])
 
 	regexp = `[\d{2}`
@@ -534,8 +534,8 @@ func TestListPullRequestBranchMatchCloud(t *testing.T) {
 		HeadSHA:      "4cf807e67a6d",
 		Author:       "testName",
 		TargetBranch: "branch-200",
-		CreatedAt:    parseBitbucketCloudTimeFromString(createdTime),
-		UpdatedAt:    parseBitbucketCloudTimeFromString(updatedTime),
+		CreatedAt:    parseTimeFromString(createdTime),
+		UpdatedAt:    parseTimeFromString(updatedTime),
 	}, *pullRequests[0])
 }
 
