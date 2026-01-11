@@ -84,5 +84,5 @@ Target GA date: ___. __, ____
      ```
  - [ ] (For the next release champion) Review the [items scheduled for the next release](https://github.com/orgs/argoproj/projects/25). If any item does not have an assignee who can commit to finish the feature, move it to the next release.
  - [ ] (For the next release champion) Schedule a time mid-way through the release cycle to review items again.
- - [ ] After creating the RC, open a documentation PR for the next minor version using [this](../../docs/operator-manual/minor_version_upgrade.md) template.
+ - [ ] After creating the RC, open a documentation PR for the next minor version using [this](../../docs/operator-manual/templates/minor_version_upgrade.md) template.
 
