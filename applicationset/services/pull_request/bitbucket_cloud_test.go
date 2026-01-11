@@ -22,7 +22,7 @@ const (
 func parseBitbucketCloudTimeFromString(t string) time.Time {
 	pt, _ := time.Parse(time.RFC3339, t)
 
-	return pt
+	return pt.UTC()
 }
 
 func defaultHandlerCloud(t *testing.T) func(http.ResponseWriter, *http.Request) {
