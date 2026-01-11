@@ -16,7 +16,7 @@ import (
 )
 
 func timeFromTimestamp(t int64) time.Time {
-	return time.Unix(t/1000, 0)
+	return time.Unix(t/1000, 0).UTC()
 }
 
 func defaultHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {

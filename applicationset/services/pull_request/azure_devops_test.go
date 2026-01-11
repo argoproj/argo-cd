@@ -40,7 +40,7 @@ func createUniqueNamePtr(x string) *string {
 func createDatePtr(x string) *azuredevops.Time {
 	t, _ := time.Parse(time.RFC3339, x)
 	return &azuredevops.Time{
-		Time: t,
+		Time: t.UTC(),
 	}
 }
 

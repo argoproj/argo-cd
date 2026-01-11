@@ -178,8 +178,8 @@ func (b *BitbucketCloudService) List(_ context.Context) ([]*PullRequest, error) 
 			TargetBranch: pull.Destination.Branch.Name,
 			HeadSHA:      pull.Source.Commit.Hash,
 			Author:       pull.Author.Nickname,
-			CreatedAt:    createdAt,
-			UpdatedAt:    updatedAt,
+			CreatedAt:    createdAt.UTC(),
+			UpdatedAt:    updatedAt.UTC(),
 		})
 	}
 
