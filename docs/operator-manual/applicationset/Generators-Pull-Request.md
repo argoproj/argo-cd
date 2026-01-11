@@ -352,7 +352,7 @@ spec:
   - pullRequest:
       # ...
       # Include any pull request branch ending with "argocd" 
-      # and pull request title starting with "feat:". (optional)
+      # or pull request title starting with "feat:". (optional)
       filters:
       - branchMatch: ".*-argocd"
       - titleMatch: "^feat:"
@@ -363,8 +363,8 @@ spec:
 * `branchMatch`: A regexp matched against source branch names.
 * `targetBranchMatch`: A regexp matched against target branch names.
 * `titleMatch`: A regexp matched against Pull Request title. 
-* `createdWithin`: A duration that filters PRs created within the specified time range.
-* `updatedWithin`: A duration that filters PRs updated within the specified time range.
+* `createdWithin`: A duration that filters PRs created within the specified time range. If used together with `updatedWithin`, this filter will have priority.
+* `updatedWithin`: A duration that filters PRs last updated within the specified time range.
 
 [GitHub](#github) and [GitLab](#gitlab) also support a `labels` filter.
 
