@@ -1660,7 +1660,9 @@ func githubPullMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request
   {
     "number": 1,
     "title": "title1",
-    "labels": [
+	"created_at": "2025-12-28T10:00:00Z",
+    "updated_at": "2025-12-28T17:42:11Z",
+	"labels": [
       {
         "name": "preview"
       }
