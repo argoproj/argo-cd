@@ -1,6 +1,7 @@
 package applicationset
 
 import (
+	"context"
 	"sort"
 	"testing"
 
@@ -188,6 +189,7 @@ func newTestAppSetServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforce
 		true,
 		true,
 		testEnableEventList,
+		[]string{},
 	)
 	return server.(*Server), kubeclientset
 }
@@ -393,6 +395,171 @@ func TestCreateAppSetWrongNamespace(t *testing.T) {
 	_, err := appServer.Create(t.Context(), &createReq)
 
 	assert.EqualError(t, err, "namespace 'NOT-ALLOWED' is not permitted")
+}
+
+func TestCreateAppSetWithPluginWithoutNamespaceShouldBeSuccessful(t *testing.T) {
+	testAppSet := newTestAppSet()
+	appServer := newTestAppSetServer(t)
+	testAppSet.Spec.Generators = []appsv1.ApplicationSetGenerator{
+		{
+			Plugin: &appsv1.PluginGenerator{
+				ConfigMapRef: appsv1.PluginConfigMapRef{
+					Name: "my-cm",
+				},
+			},
+		},
+	}
+	createReq := applicationset.ApplicationSetCreateRequest{
+		Applicationset: testAppSet,
+	}
+	_, err := appServer.Create(context.Background(), &createReq)
+	require.NoError(t, err)
+}
+
+func TestCreateAppSetWithPluginWithValidNamespaceShouldBeSuccessful(t *testing.T) {
+	testAppSet := newTestAppSet()
+	appServer := newTestAppSetServer(t)
+	testAppSet.Spec.Generators = []appsv1.ApplicationSetGenerator{
+		{
+			Plugin: &appsv1.PluginGenerator{
+				ConfigMapRef: appsv1.PluginConfigMapRef{
+					Name:      "my-cm",
+					Namespace: testNamespace,
+				},
+			},
+		},
+	}
+	createReq := applicationset.ApplicationSetCreateRequest{
+		Applicationset: testAppSet,
+	}
+	_, err := appServer.Create(context.Background(), &createReq)
+	require.NoError(t, err)
+}
+
+func TestCreateAppSetWithPluginInDifferentButValidNamespaceShouldBeSuccessful(t *testing.T) {
+	testAppSet := newTestAppSet()
+	appServer := newTestAppSetServer(t)
+	testAppSet.Spec.Generators = []appsv1.ApplicationSetGenerator{
+		{
+			Plugin: &appsv1.PluginGenerator{
+				ConfigMapRef: appsv1.PluginConfigMapRef{
+					Name:      "my-cm",
+					Namespace: "external-namespace",
+				},
+			},
+		},
+	}
+	createReq := applicationset.ApplicationSetCreateRequest{
+		Applicationset: testAppSet,
+	}
+	_, err := appServer.Create(context.Background(), &createReq)
+	require.NoError(t, err)
+}
+
+func TestCreateAppSetWithPluginInDifferentAndInvalidNamespaceShouldRaiseAnError(t *testing.T) {
+	testAppSet := newTestAppSet()
+	appServer := newTestAppSetServer(t)
+	testAppSet.Spec.Generators = []appsv1.ApplicationSetGenerator{
+		{
+			Plugin: &appsv1.PluginGenerator{
+				ConfigMapRef: appsv1.PluginConfigMapRef{
+					Name:      "my-cm",
+					Namespace: "NOT-ALLOWED",
+				},
+			},
+		},
+	}
+	createReq := applicationset.ApplicationSetCreateRequest{
+		Applicationset: testAppSet,
+	}
+	_, err := appServer.Create(context.Background(), &createReq)
+
+	assert.EqualError(t, err, "namespace 'NOT-ALLOWED' is not permitted")
+}
+
+func TestCreateAppSetWithPluginInMatrixWithDifferentAndInvalidNamespaceShouldRaiseAnError(t *testing.T) {
+	testAppSet := newTestAppSet()
+	appServer := newTestAppSetServer(t)
+	testAppSet.Spec.Generators = []appsv1.ApplicationSetGenerator{
+		{
+			Matrix: &appsv1.MatrixGenerator{
+				Generators: []appsv1.ApplicationSetNestedGenerator{
+					{
+						Git: &appsv1.GitGenerator{},
+					},
+					{
+						Plugin: &appsv1.PluginGenerator{
+							ConfigMapRef: appsv1.PluginConfigMapRef{
+								Name:      "my-cm",
+								Namespace: "NOT-ALLOWED",
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	createReq := applicationset.ApplicationSetCreateRequest{
+		Applicationset: testAppSet,
+	}
+	_, err := appServer.Create(context.Background(), &createReq)
+
+	assert.EqualError(t, err, "namespace 'NOT-ALLOWED' is not permitted")
+}
+
+func TestCreateAppSetWithPluginInNestedMatrixWithDifferentAndInvalidNamespaceShouldRaiseAnError(t *testing.T) {
+	testAppSet := newTestAppSet()
+	appServer := newTestAppSetServer(t)
+	testAppSet.Spec.Generators = []appsv1.ApplicationSetGenerator{
+		{
+			Matrix: &appsv1.MatrixGenerator{
+				Generators: []appsv1.ApplicationSetNestedGenerator{
+					{
+						Git: &appsv1.GitGenerator{},
+					},
+					{
+						Matrix: &apiextensionsv1.JSON{Raw: []byte(`{"generators": [{"plugin": { "configMapRef": { "name": "my-cm", "namespace": "NOT-ALLOWED" } }}]}`)},
+					},
+				},
+			},
+		},
+	}
+	createReq := applicationset.ApplicationSetCreateRequest{
+		Applicationset: testAppSet,
+	}
+	_, err := appServer.Create(context.Background(), &createReq)
+
+	assert.EqualError(t, err, "namespace 'NOT-ALLOWED' is not permitted")
+}
+
+func TestCreateAppSetWithPluginInNestedMatrixWithDifferentValidNamespaceShouldBeSuccessful(t *testing.T) {
+	testAppSet := newTestAppSet()
+	appServer := newTestAppSetServer(t)
+	testAppSet.Spec.Generators = []appsv1.ApplicationSetGenerator{
+		{
+			Matrix: &appsv1.MatrixGenerator{
+				Generators: []appsv1.ApplicationSetNestedGenerator{
+					{
+						Plugin: &appsv1.PluginGenerator{
+							ConfigMapRef: appsv1.PluginConfigMapRef{
+								Name:      "my-cm",
+								Namespace: "external-namespace",
+							},
+						},
+					},
+					{
+						Matrix: &apiextensionsv1.JSON{Raw: []byte(`{"generators": [{"plugin": { "configMapRef": { "name": "my-cm", "namespace": "external-namespace" } }}]}`)},
+					},
+				},
+			},
+		},
+	}
+	createReq := applicationset.ApplicationSetCreateRequest{
+		Applicationset: testAppSet,
+	}
+	_, err := appServer.Create(context.Background(), &createReq)
+
+	require.NoError(t, err)
 }
 
 func TestCreateAppSetDryRun(t *testing.T) {
@@ -628,6 +795,70 @@ func TestUpsertAppSet(t *testing.T) {
 			"label-key2": "label-value2",
 		}, updated.Labels)
 		assert.Equal(t, []string{"finalizer-updated"}, updated.Finalizers)
+	})
+}
+
+func TestUpdateAppSetWithPluginGenerators(t *testing.T) {
+	appSet := newTestAppSet(func(appset *appsv1.ApplicationSet) {
+		appset.Labels = map[string]string{
+			"label-key1": "label-value1",
+			"label-key2": "label-value2",
+		}
+	})
+
+	newAppSetWithInvalidNamespaceCM := newTestAppSet(func(appset *appsv1.ApplicationSet) {
+		appset.Labels = map[string]string{
+			"label-key1": "label-value1",
+			"label-key2": "label-value2",
+		}
+		appset.Spec.Generators = []appsv1.ApplicationSetGenerator{
+			{
+				Plugin: &appsv1.PluginGenerator{
+					ConfigMapRef: appsv1.PluginConfigMapRef{
+						Name:      "my-cm",
+						Namespace: "NOT-ALLOWED",
+					},
+				},
+			},
+		}
+	})
+
+	newAppSetWithValidNamespaceCM := newTestAppSet(func(appset *appsv1.ApplicationSet) {
+		appset.Labels = map[string]string{
+			"label-key1": "label-value1",
+			"label-key2": "label-value2",
+		}
+		appset.Spec.Generators = []appsv1.ApplicationSetGenerator{
+			{
+				Plugin: &appsv1.PluginGenerator{
+					ConfigMapRef: appsv1.PluginConfigMapRef{
+						Name:      "my-cm",
+						Namespace: "external-namespace",
+					},
+				},
+			},
+		}
+	})
+
+	t.Run("Update with invalid configmap namespace", func(t *testing.T) {
+		appServer := newTestAppSetServer(t, appSet)
+
+		_, err := appServer.updateAppSet(context.Background(), appSet, newAppSetWithInvalidNamespaceCM, true)
+
+		assert.EqualError(t, err, "namespace 'NOT-ALLOWED' is not permitted")
+	})
+
+	t.Run("Update with valid configmap namespace", func(t *testing.T) {
+		appServer := newTestAppSetServer(t, appSet)
+
+		updated, err := appServer.updateAppSet(context.Background(), appSet, newAppSetWithValidNamespaceCM, true)
+
+		require.NoError(t, err)
+		assert.Equal(t, map[string]string{
+			"label-key1": "label-value1",
+			"label-key2": "label-value2",
+		}, updated.Labels)
+		assert.Equal(t, "external-namespace", updated.Spec.Generators[0].Plugin.ConfigMapRef.Namespace)
 	})
 }
 

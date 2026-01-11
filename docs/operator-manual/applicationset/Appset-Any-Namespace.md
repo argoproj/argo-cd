@@ -276,3 +276,32 @@ spec:
 ```
 
 If you don't want to allow users to discover all clusters with ApplicationSets from other namespaces you may consider deploying ArgoCD in namespace scope or use OPA rules.
+
+## Plugin generators consideration
+
+When using plugin generators with ApplicationSet in any namespace, the plugin ConfigMap and Secret are expected to be in the same namespace as the ApplicationSet.
+If not, you can specified a different namespace in the `configMapRef` `namespace` field. This namespace should be of course allowed in your setup.
+
+```yaml
+spec:
+  generators:
+  - plugin:
+      configMapRef:
+        name: "my-plugin-cm"
+        namespace: "my-namespace"
+```
+
+If the ConfigMap is in another namespace than the ApplicationSet's, it should be labelled to specify that it can be sourced from the Plugin generator:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-plugin
+  namespace: my-other-namespace
+  labels:
+    argocd.argoproj.io/cm-type: plugin-generator
+```
+
+As soon as the plugin ConfigMap is in a different namespace than the ApplicationSet, you can provide a list of allowed plugin `baseUrl` as a flag in the applicationset-controller: `--allowed-plugin-gen-urls`.
+It is a comma-separated list of URLs, glob compatible. The default value, an empty list, allows all URLs.

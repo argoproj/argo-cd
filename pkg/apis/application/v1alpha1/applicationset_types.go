@@ -777,6 +777,8 @@ type PullRequestGeneratorFilter struct {
 type PluginConfigMapRef struct {
 	// Name of the ConfigMap
 	Name string `json:"name" protobuf:"bytes,1,opt,name=name"`
+	// Namespace of the ConfigMap
+	Namespace string `json:"namespace" protobuf:"bytes,2,opt,name=namespace"`
 }
 
 type PluginParameters map[string]apiextensionsv1.JSON
