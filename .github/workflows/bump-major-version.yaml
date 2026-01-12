@@ -10,10 +10,10 @@ jobs:
       contents: write  # for peter-evans/create-pull-request to create branch
       pull-requests: write  # for peter-evans/create-pull-request to create a PR
     name: Automatically update major version
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout code
-        uses: actions/checkout@8410ad0602e1e429cee44a835ae9f77f654a6694  # v4.0.0
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -37,7 +37,7 @@ jobs:
         working-directory: /home/runner/go/src/github.com/argoproj/argo-cd
 
       - name: Setup Golang
-        uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 # v6.0.0
+        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
         with:
           go-version: ${{ env.GOLANG_VERSION }}
       - name: Add ~/go/bin to PATH
@@ -74,7 +74,7 @@ jobs:
           rsync -a --exclude=.git /home/runner/go/src/github.com/argoproj/argo-cd/ ../argo-cd
 
       - name: Create pull request
-        uses: peter-evans/create-pull-request@271a8d0340265f705b14b6d32b9829c1cb33d45e  # v7.0.8
+        uses: peter-evans/create-pull-request@98357b18bf14b5342f975ff684046ec3b2a07725  # v8.0.0
         with:
           commit-message: "Bump major version to ${{ steps.get-target-version.outputs.TARGET_VERSION }}"
           title: "Bump major version to ${{ steps.get-target-version.outputs.TARGET_VERSION }}"

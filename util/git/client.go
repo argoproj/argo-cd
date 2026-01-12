@@ -23,6 +23,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/bmatcuk/doublestar/v4"
+	"github.com/cenkalti/backoff/v5"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
@@ -44,7 +45,22 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/versions"
 )
 
-var ErrInvalidRepoURL = errors.New("repo URL is invalid")
+var (
+	ErrInvalidRepoURL = errors.New("repo URL is invalid")
+	ErrNoNoteFound    = errors.New("no note found")
+)
+
+// builtinGitConfig configuration contains statements that are needed
+// for correct ArgoCD operation. These settings will override any
+// user-provided configuration of same options.
+var builtinGitConfig = map[string]string{
+	"maintenance.autoDetach": "false",
+	"gc.autoDetach":          "false",
+}
+
+// BuiltinGitConfigEnv contains builtin git configuration in the
+// format acceptable by Git.
+var BuiltinGitConfigEnv []string
 
 // CommitMetadata contains metadata about a commit that is related in some way to another commit.
 type CommitMetadata struct {
@@ -109,7 +125,7 @@ type gitRefCache interface {
 type Client interface {
 	Root() string
 	Init() error
-	Fetch(revision string) error
+	Fetch(revision string, depth int64) error
 	Submodule() error
 	Checkout(revision string, submoduleEnabled bool) (string, error)
 	LsRefs() (*Refs, error)
@@ -133,6 +149,12 @@ type Client interface {
 	RemoveContents(paths []string) (string, error)
 	// CommitAndPush commits and pushes changes to the target branch.
 	CommitAndPush(branch, message string) (string, error)
+	// GetCommitNote gets the note associated with the DRY sha stored in the specific namespace
+	GetCommitNote(sha string, namespace string) (string, error)
+	// AddAndPushNote adds a note to a DRY sha and then pushes it.
+	AddAndPushNote(sha string, namespace string, note string) error
+	// HasFileChanged returns the outout of git diff considering whether it is tracked or un-tracked
+	HasFileChanged(filePath string) (bool, error)
 }
 
 type EventHandlers struct {
@@ -163,6 +185,8 @@ type nativeGitClient struct {
 	proxy string
 	// list of targets that shouldn't use the proxy, applies only if the proxy is set
 	noProxy string
+	// git configuration environment variables
+	gitConfigEnv []string
 }
 
 type runOpts struct {
@@ -189,6 +213,14 @@ func init() {
 	maxRetryDuration = env.ParseDurationFromEnv(common.EnvGitRetryMaxDuration, common.DefaultGitRetryMaxDuration, 0, math.MaxInt64)
 	retryDuration = env.ParseDurationFromEnv(common.EnvGitRetryDuration, common.DefaultGitRetryDuration, 0, math.MaxInt64)
 	factor = env.ParseInt64FromEnv(common.EnvGitRetryFactor, common.DefaultGitRetryFactor, 0, math.MaxInt64)
+
+	BuiltinGitConfigEnv = append(BuiltinGitConfigEnv, fmt.Sprintf("GIT_CONFIG_COUNT=%d", len(builtinGitConfig)))
+	idx := 0
+	for k, v := range builtinGitConfig {
+		BuiltinGitConfigEnv = append(BuiltinGitConfigEnv, fmt.Sprintf("GIT_CONFIG_KEY_%d=%s", idx, k))
+		BuiltinGitConfigEnv = append(BuiltinGitConfigEnv, fmt.Sprintf("GIT_CONFIG_VALUE_%d=%s", idx, v))
+		idx++
+	}
 }
 
 type ClientOpts func(c *nativeGitClient)
@@ -198,6 +230,16 @@ func WithCache(cache gitRefCache, loadRefFromCache bool) ClientOpts {
 	return func(c *nativeGitClient) {
 		c.gitRefCache = cache
 		c.loadRefFromCache = loadRefFromCache
+	}
+}
+
+func WithBuiltinGitConfig(enable bool) ClientOpts {
+	return func(c *nativeGitClient) {
+		if enable {
+			c.gitConfigEnv = BuiltinGitConfigEnv
+		} else {
+			c.gitConfigEnv = nil
+		}
 	}
 }
 
@@ -223,13 +265,14 @@ func NewClient(rawRepoURL string, creds Creds, insecure bool, enableLfs bool, pr
 
 func NewClientExt(rawRepoURL string, root string, creds Creds, insecure bool, enableLfs bool, proxy string, noProxy string, opts ...ClientOpts) (Client, error) {
 	client := &nativeGitClient{
-		repoURL:   rawRepoURL,
-		root:      root,
-		creds:     creds,
-		insecure:  insecure,
-		enableLfs: enableLfs,
-		proxy:     proxy,
-		noProxy:   noProxy,
+		repoURL:      rawRepoURL,
+		root:         root,
+		creds:        creds,
+		insecure:     insecure,
+		enableLfs:    enableLfs,
+		proxy:        proxy,
+		noProxy:      noProxy,
+		gitConfigEnv: BuiltinGitConfigEnv,
 	}
 	for i := range opts {
 		opts[i](client)
@@ -415,14 +458,19 @@ func (m *nativeGitClient) IsLFSEnabled() bool {
 	return m.enableLfs
 }
 
-func (m *nativeGitClient) fetch(ctx context.Context, revision string) error {
-	var err error
+func (m *nativeGitClient) fetch(ctx context.Context, revision string, depth int64) error {
+	args := []string{"fetch", "origin"}
 	if revision != "" {
-		err = m.runCredentialedCmd(ctx, "fetch", "origin", revision, "--tags", "--force", "--prune")
-	} else {
-		err = m.runCredentialedCmd(ctx, "fetch", "origin", "--tags", "--force", "--prune")
+		args = append(args, revision)
 	}
-	return err
+
+	if depth > 0 {
+		args = append(args, "--depth", strconv.FormatInt(depth, 10))
+	} else {
+		args = append(args, "--tags")
+	}
+	args = append(args, "--force", "--prune")
+	return m.runCredentialedCmd(ctx, args...)
 }
 
 // IsRevisionPresent checks to see if the given revision already exists locally.
@@ -440,14 +488,14 @@ func (m *nativeGitClient) IsRevisionPresent(revision string) bool {
 }
 
 // Fetch fetches latest updates from origin
-func (m *nativeGitClient) Fetch(revision string) error {
+func (m *nativeGitClient) Fetch(revision string, depth int64) error {
 	if m.OnFetch != nil {
 		done := m.OnFetch(m.repoURL)
 		defer done()
 	}
 	ctx := context.Background()
 
-	err := m.fetch(ctx, revision)
+	err := m.fetch(ctx, revision, depth)
 
 	// When we have LFS support enabled, check for large files and fetch them too.
 	if err == nil && m.IsLFSEnabled() {
@@ -1072,6 +1120,122 @@ func (m *nativeGitClient) CommitAndPush(branch, message string) (string, error) 
 	return "", nil
 }
 
+// GetCommitNote gets the note associated with the DRY sha stored in the specific namespace
+func (m *nativeGitClient) GetCommitNote(sha string, namespace string) (string, error) {
+	if strings.TrimSpace(namespace) == "" {
+		namespace = "commit"
+	}
+	ctx := context.Background()
+	// fetch first
+	// cli command: git fetch origin refs/notes/source-hydrator:refs/notes/source-hydrator
+	notesRef := "refs/notes/" + namespace
+	_ = m.runCredentialedCmd(ctx, "fetch", "origin", fmt.Sprintf("%s:%s", notesRef, notesRef)) // Ignore fetch error for best effort
+
+	ref := "--ref=" + namespace
+	out, err := m.runCmd(ctx, "notes", ref, "show", sha)
+	if err != nil {
+		if strings.Contains(err.Error(), "no note found") {
+			return out, fmt.Errorf("failed to get commit note: %w", ErrNoNoteFound)
+		}
+		return out, fmt.Errorf("failed to get commit note: %w", err)
+	}
+	return strings.TrimSpace(out), nil
+}
+
+// AddAndPushNote adds a note to a DRY sha and then pushes it.
+// It uses a retry mechanism to handle concurrent note updates from multiple clients.
+func (m *nativeGitClient) AddAndPushNote(sha string, namespace string, note string) error {
+	if namespace == "" {
+		namespace = "commit"
+	}
+	ctx := context.Background()
+	ref := "--ref=" + namespace
+	notesRef := "refs/notes/" + namespace
+
+	// Configure exponential backoff with jitter to handle concurrent note updates
+	b := backoff.NewExponentialBackOff()
+	b.InitialInterval = 50 * time.Millisecond
+	b.MaxInterval = 1 * time.Second
+
+	attempt := 0
+	operation := func() (struct{}, error) {
+		attempt++
+
+		// Fetch the latest notes BEFORE adding to merge concurrent updates
+		// Use + prefix to force update local ref (safe because we want latest remote notes)
+		fetchErr := m.runCredentialedCmd(ctx, "fetch", "origin", fmt.Sprintf("+%s:%s", notesRef, notesRef))
+		// Ignore "couldn't find remote ref" errors (notes don't exist yet - first time)
+		if fetchErr != nil && !strings.Contains(fetchErr.Error(), "couldn't find remote ref") {
+			log.Debugf("Failed to fetch notes (will continue): %v", fetchErr)
+		}
+
+		// Add note locally (use -f to overwrite if this specific commit already has a note locally)
+		_, err := m.runCmd(ctx, "notes", ref, "add", "-f", "-m", note, sha)
+		if err != nil {
+			return struct{}{}, backoff.Permanent(fmt.Errorf("failed to add note: %w", err))
+		}
+
+		if m.OnPush != nil {
+			done := m.OnPush(m.repoURL)
+			defer done()
+		}
+
+		// Push WITHOUT -f flag to avoid overwriting other notes
+		err = m.runCredentialedCmd(ctx, "push", "origin", notesRef)
+		if err == nil {
+			if attempt > 1 {
+				log.Debugf("AddAndPushNote succeeded after %d retries for commit %s", attempt-1, sha)
+			}
+			return struct{}{}, nil
+		}
+
+		log.Debugf("AddAndPushNote push failed (attempt %d): %v", attempt, err)
+
+		// Check if this is a retryable error
+		errStr := err.Error()
+		isRetryable := strings.Contains(errStr, "fetch first") || // Remote updated after our fetch (concurrent push completed between our fetch and push)
+			strings.Contains(errStr, "reference already exists") || // Concurrent push is holding the lock (git server-side lock)
+			strings.Contains(errStr, "incorrect old value") || // Git detected our local ref is stale (concurrent update)
+			strings.Contains(errStr, "failed to update ref") // Generic ref update failure that may include transient issues
+
+		if !isRetryable {
+			return struct{}{}, backoff.Permanent(fmt.Errorf("failed to push note: %w", err))
+		}
+
+		return struct{}{}, err
+	}
+
+	_, err := backoff.Retry(ctx, operation,
+		backoff.WithBackOff(b),
+		backoff.WithMaxElapsedTime(5*time.Second),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to push note after retries: %w", err)
+	}
+	return nil
+}
+
+// HasFileChanged returns the outout of git diff considering whether it is tracked or un-tracked
+func (m *nativeGitClient) HasFileChanged(filePath string) (bool, error) {
+	// Step 1: Is it UNTRACKED? (file is new to git)
+	_, err := m.runCmd(context.Background(), "ls-files", "--error-unmatch", filePath)
+	if err != nil {
+		// File is NOT tracked by git → means it's new/unadded
+		return true, nil
+	}
+	// use git diff --quiet and check exit code .. --cached is to consider files staged for deletion
+	_, err = m.runCmd(context.Background(), "diff", "--quiet", "--", filePath)
+	if err == nil {
+		return false, nil // No changes
+	}
+	// Exit code 1 indicates: changes found
+	if strings.Contains(err.Error(), "exit status 1") {
+		return true, nil
+	}
+	// always return the actual wrapped error
+	return false, fmt.Errorf("git diff failed: %w", err)
+}
+
 // runWrapper runs a custom command with all the semantics of running the Git client
 func (m *nativeGitClient) runGnuPGWrapper(ctx context.Context, wrapper string, args ...string) (string, error) {
 	cmd := exec.CommandContext(ctx, wrapper, args...)
@@ -1120,6 +1284,8 @@ func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd, ropts runOpts) (string, er
 	cmd.Env = append(cmd.Env, "GIT_LFS_SKIP_SMUDGE=1")
 	// Disable Git terminal prompts in case we're running with a tty
 	cmd.Env = append(cmd.Env, "GIT_TERMINAL_PROMPT=false")
+	// Add Git configuration options that are essential for ArgoCD operation
+	cmd.Env = append(cmd.Env, m.gitConfigEnv...)
 
 	// For HTTPS repositories, we need to consider insecure repositories as well
 	// as custom CA bundles from the cert database.
