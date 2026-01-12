@@ -72,17 +72,29 @@ type Server struct {
 }
 
 func (s *Server) Watch(q *applicationset.ApplicationSetWatchQuery, ws applicationset.ApplicationSetService_WatchServer) error {
+	appsetName := q.GetName()
+	appsetNs := q.GetAppSetNamespace()
 	logCtx := log.NewEntry(log.New())
 	if q.Name != "" {
 		logCtx = logCtx.WithField("applicationset", q.Name)
 	}
+	projects := map[string]bool{}
+	for _, project := range q.Projects {
+		projects[project] = true
+	}
+	claims := ws.Context().Value("claims")
 	selector, err := labels.Parse(q.GetSelector())
 	if err != nil {
 		return fmt.Errorf("error parsing labels with selectors: %w", err)
 	}
-	claims := ws.Context().Value("claims")
+	minVersion := 0
+	if q.GetResourceVersion() != "" {
+		if minVersion, err = strconv.Atoi(q.GetResourceVersion()); err != nil {
+			minVersion = 0
+		}
+	}
 	sendIfPermitted := func(a v1alpha1.ApplicationSet, eventType watch.EventType) {
-		permitted := s.isApplicationsetPermitted(claims, a)
+		permitted := s.isApplicationsetPermitted(selector, minVersion, claims, appsetName, appsetNs, projects, a)
 		if !permitted {
 			return
 		}
@@ -120,7 +132,19 @@ func (s *Server) Watch(q *applicationset.ApplicationSetWatchQuery, ws applicatio
 	}
 }
 
-func (s *Server) isApplicationsetPermitted(claims any, appset v1alpha1.ApplicationSet) bool {
+// isApplicationsetPermitted checks if an appset is permitted
+func (s *Server) isApplicationsetPermitted(selector labels.Selector, minVersion int, claims any, appsetName, appsetNs string, projects map[string]bool, appset v1alpha1.ApplicationSet) bool {
+	if len(projects) > 0 && !projects[appset.Spec.Template.Spec.Project] {
+		return false
+	}
+
+	if appsetVersion, err := strconv.Atoi(appset.ResourceVersion); err == nil && appsetVersion < minVersion {
+		return false
+	}
+	matchedEvent := (appsetName == "" || (appset.Name == appsetName && appset.Namespace == appsetNs)) && selector.Matches(labels.Set(appset.Labels))
+	if !matchedEvent {
+		return false
+	}
 	// Skip any applicationsets that is neither in the conrol plane's namespace
 	// nor in the list of enabled namespaces.
 	if !security.IsNamespaceEnabled(appset.Namespace, s.ns, s.enabledNamespaces) {
