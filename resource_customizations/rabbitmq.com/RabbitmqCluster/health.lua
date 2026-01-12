@@ -1,4 +1,4 @@
-hs = {}
+s = {}
 clusterAvailable = {}
 allReplicasReady = {}
 
@@ -21,9 +21,12 @@ if obj.status ~= nil then
       end
     end
 
+    -- Treat transient/initial 'Unknown' condition as Progressing instead of Degraded.
+    -- The RabbitMQ operator sets these conditions to Unknown briefly while forming the cluster,
+    -- so mapping Unknown->Progressing prevents false Degraded states during normal reconciliation.
     if clusterAvailable.status == "Unknown" or allReplicasReady.status == "Unknown" then
-      hs.status = "Degraded"
-      hs.message = "No statefulset or endpoints found"
+      hs.status = "Progressing"
+      hs.message = "Waiting for RabbitMQ cluster readiness (conditions unknown)"
       return hs
     end
 
