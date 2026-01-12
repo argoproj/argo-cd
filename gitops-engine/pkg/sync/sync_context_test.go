@@ -1878,6 +1878,7 @@ func Test_setRunningPhase(t *testing.T) {
 
 			sc.setRunningPhase(tt.tasks, tt.isPendingDeletion)
 
+			assert.Equal(t, synccommon.OperationRunning, sc.phase)
 			assert.Equal(t, tt.expectedMessage, sc.message)
 		})
 	}
