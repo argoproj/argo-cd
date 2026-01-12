@@ -14,6 +14,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	logutils "github.com/argoproj/argo-cd/v3/util/log"
+	"github.com/argoproj/argo-cd/v3/util/profile"
 	"github.com/argoproj/argo-cd/v3/util/tls"
 
 	"github.com/argoproj/argo-cd/v3/applicationset/controllers"
@@ -104,7 +105,12 @@ func NewCommand() *cobra.Command {
 			)
 
 			cli.SetLogFormat(cmdutil.LogFormat)
-			cli.SetLogLevel(cmdutil.LogLevel)
+
+			if debugLog {
+				cli.SetLogLevel("debug")
+			} else {
+				cli.SetLogLevel(cmdutil.LogLevel)
+			}
 
 			ctrl.SetLogger(logutils.NewLogrusLogger(logutils.NewWithCurrentConfig()))
 
@@ -169,6 +175,15 @@ func NewCommand() *cobra.Command {
 			if err != nil {
 				log.Error(err, "unable to start manager")
 				os.Exit(1)
+			}
+
+			pprofMux := http.NewServeMux()
+			profile.RegisterProfiler(pprofMux)
+			// This looks a little strange. Eg, not using ctrl.Options PprofBindAddress and then adding the pprof mux
+			// to the metrics server. However, it allows for the controller to dynamically expose the pprof endpoints
+			// and use the existing metrics server, the same pattern that the application controller and api-server follow.
+			if err = mgr.AddMetricsServerExtraHandler("/debug/pprof/", pprofMux); err != nil {
+				log.Error(err, "failed to register pprof handlers")
 			}
 			dynamicClient, err := dynamic.NewForConfig(mgr.GetConfig())
 			errors.CheckError(err)

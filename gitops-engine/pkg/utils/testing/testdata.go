@@ -77,12 +77,12 @@ func NewService() *unstructured.Unstructured {
 }
 
 func NewCRD() *unstructured.Unstructured {
-	return Unstructured(`apiVersion: apiextensions.k8s.io/v1beta1
+	return Unstructured(`apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   name: testcrds.argoproj.io
 spec:
-  group: argoproj.io
+  group: test.io
   version: v1
   scope: Namespaced
   names:

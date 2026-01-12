@@ -103,7 +103,7 @@ func newAppProject() *unstructured.Unstructured {
 					Server:    "*",
 				},
 			},
-			ClusterResourceWhitelist: []metav1.GroupKind{
+			ClusterResourceWhitelist: []v1alpha1.ClusterResourceRestrictionItem{
 				{
 					Group: "*",
 					Kind:  "*",
@@ -316,7 +316,8 @@ spec:
     spec:
       destination: {}
       project: ""
-status: {}
+status:
+  health: {}
 ---
 `,
 		},
@@ -346,7 +347,8 @@ spec:
     spec:
       destination: {}
       project: ""
-status: {}
+status:
+  health: {}
 ---
 `,
 		},

@@ -283,7 +283,7 @@ cd applicationset/manifests
 # as described in the previous section.
 
 # Apply the change to the cluster
-kubectl apply -n argocd -f install.yaml
+kubectl apply -n argocd --server-side --force-conflicts -f install.yaml
 ```
 
 ## Preserving changes made to an Applications annotations and labels
