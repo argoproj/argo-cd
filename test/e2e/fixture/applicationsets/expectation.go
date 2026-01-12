@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/argoproj/gitops-engine/pkg/diff"
+	"github.com/argoproj/gitops-engine/pkg/health"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -36,6 +37,19 @@ func Success(message string) Expectation {
 			return failed, fmt.Sprintf("output did not contain '%s'", message)
 		}
 		return succeeded, fmt.Sprintf("no error and output contained '%s'", message)
+	}
+}
+
+// OutputContains asserts that the last command output contains the expected substring
+func OutputContains(expected string) Expectation {
+	return func(c *Consequences) (state, string) {
+		if c.actions.lastError != nil {
+			return failed, fmt.Sprintf("error: %v", c.actions.lastError)
+		}
+		if !strings.Contains(c.actions.lastOutput, expected) {
+			return failed, fmt.Sprintf("output did not contain '%s', got: %s", expected, c.actions.lastOutput)
+		}
+		return succeeded, fmt.Sprintf("output contained '%s'", expected)
 	}
 }
 
@@ -76,6 +90,23 @@ func ApplicationsExist(expectedApps []v1alpha1.Application) Expectation {
 		}
 
 		return succeeded, "all apps successfully found"
+	}
+}
+
+// ApplicationSetHasHealthStatus checks whether the ApplicationSet has the expected health status.
+func ApplicationSetHasHealthStatus(applicationSetName string, expectedHealthStatus health.HealthStatusCode) Expectation {
+	return func(c *Consequences) (state, string) {
+		// retrieve the application set
+		foundApplicationSet := c.applicationSet(applicationSetName)
+		if foundApplicationSet == nil {
+			return pending, fmt.Sprintf("application set '%s' not found", applicationSetName)
+		}
+
+		if foundApplicationSet.Status.Health.Status != expectedHealthStatus {
+			return pending, fmt.Sprintf("application set health status is '%s', expected '%s'",
+				foundApplicationSet.Status.Health.Status, expectedHealthStatus)
+		}
+		return succeeded, fmt.Sprintf("application set has expected health status '%s'", expectedHealthStatus)
 	}
 }
 

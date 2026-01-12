@@ -2174,3 +2174,78 @@ func TestApplicationSetAPIListResourceEvents(t *testing.T) {
 		}).
 		When().Delete().Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{}))
 }
+
+// TestApplicationSetHealthStatusCLI tests that the CLI commands display the health status field for an ApplicationSet.
+func TestApplicationSetHealthStatusCLI(t *testing.T) {
+	expectedApp := v1alpha1.Application{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       application.ApplicationKind,
+			APIVersion: "argoproj.io/v1alpha1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:       "health-cli-guestbook",
+			Namespace:  utils.ArgoCDNamespace,
+			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
+		},
+		Spec: v1alpha1.ApplicationSpec{
+			Project: "default",
+			Source: &v1alpha1.ApplicationSource{
+				RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+				TargetRevision: "HEAD",
+				Path:           "guestbook",
+			},
+			Destination: v1alpha1.ApplicationDestination{
+				Server:    "https://kubernetes.default.svc",
+				Namespace: "guestbook",
+			},
+		},
+	}
+
+	Given(t).
+		When().Create(v1alpha1.ApplicationSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "health-status-cli-test",
+			Namespace: utils.ArgoCDNamespace,
+		},
+		Spec: v1alpha1.ApplicationSetSpec{
+			GoTemplate: true,
+			Template: v1alpha1.ApplicationSetTemplate{
+				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "health-cli-guestbook"},
+				Spec: v1alpha1.ApplicationSpec{
+					Project: "default",
+					Source: &v1alpha1.ApplicationSource{
+						RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+						TargetRevision: "HEAD",
+						Path:           "guestbook",
+					},
+					Destination: v1alpha1.ApplicationDestination{
+						Server:    "https://kubernetes.default.svc",
+						Namespace: "guestbook",
+					},
+				},
+			},
+			Generators: []v1alpha1.ApplicationSetGenerator{
+				{
+					List: &v1alpha1.ListGenerator{
+						Elements: []apiextensionsv1.JSON{{
+							Raw: []byte(`{"cluster": "my-cluster"}`),
+						}},
+					},
+				},
+			},
+		},
+	}).Then().
+		// Wait for the ApplicationSet to be ready
+		Expect(ApplicationSetHasConditions("health-status-cli-test", ExpectedConditions)).
+
+		// Test 'argocd appset get' shows Health Status field
+		When().AppSetGet("health-status-cli-test").
+		Then().Expect(OutputContains("Health Status:")).
+
+		// Test 'argocd appset list' shows HEALTH column header
+		When().AppSetList().
+		Then().Expect(OutputContains("HEALTH")).
+
+		// Cleanup
+		When().Delete().Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{expectedApp}))
+}
