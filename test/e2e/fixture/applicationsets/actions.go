@@ -537,6 +537,29 @@ func (a *Actions) AppSet(appName string, flags ...string) *Actions {
 	return a
 }
 
+// AppSetGet runs 'argocd appset get' CLI command and stores the output
+func (a *Actions) AppSetGet(appSetName string, flags ...string) *Actions {
+	a.context.t.Helper()
+	args := []string{"appset", "get", appSetName}
+	args = append(args, flags...)
+	a.runCli(args...)
+	return a
+}
+
+// AppSetList runs 'argocd appset list' CLI command and stores the output
+func (a *Actions) AppSetList(flags ...string) *Actions {
+	a.context.t.Helper()
+	args := []string{"appset", "list"}
+	args = append(args, flags...)
+	a.runCli(args...)
+	return a
+}
+
+// GetLastOutput returns the output from the last CLI command
+func (a *Actions) GetLastOutput() string {
+	return a.lastOutput
+}
+
 func (a *Actions) runCli(args ...string) {
 	a.context.T().Helper()
 	a.lastOutput, a.lastError = fixture.RunCli(args...)

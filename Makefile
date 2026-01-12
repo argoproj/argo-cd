@@ -205,18 +205,35 @@ else
 IMAGE_TAG?=latest
 endif
 
+# defaults for building images and manifests
 ifeq (${DOCKER_PUSH},true)
 ifndef IMAGE_NAMESPACE
 $(error IMAGE_NAMESPACE must be set to push images (e.g. IMAGE_NAMESPACE=argoproj))
 endif
 endif
 
+# Consruct prefix for docker image
+# Note: keeping same logic as in hacks/update_manifests.sh
+ifdef IMAGE_REGISTRY
 ifdef IMAGE_NAMESPACE
+IMAGE_PREFIX=${IMAGE_REGISTRY}/${IMAGE_NAMESPACE}/
+else
+$(error IMAGE_NAMESPACE must be set when IMAGE_REGISTRY is set (e.g. IMAGE_NAMESPACE=argoproj))
+endif
+else
+ifdef IMAGE_NAMESPACE
+# for backwards compatibility with the old way like IMAGE_NAMESPACE='quay.io/argoproj' 
 IMAGE_PREFIX=${IMAGE_NAMESPACE}/
+else
+# Neither namespace nor registry given - apply the default values
+IMAGE_REGISTRY="quay.io"
+IMAGE_NAMESPACE="argoproj"
+IMAGE_PREFIX=${IMAGE_REGISTRY}/${IMAGE_NAMESPACE}/
+endif
 endif
 
-ifndef IMAGE_REGISTRY
-IMAGE_REGISTRY="quay.io"
+ifndef IMAGE_REPOSITORY
+IMAGE_REPOSITORY=argocd
 endif
 
 .PHONY: all
@@ -349,23 +366,23 @@ ifeq ($(DEV_IMAGE), true)
 IMAGE_TAG="dev-$(shell git describe --always --dirty)"
 image: build-ui
 	DOCKER_BUILDKIT=1 $(DOCKER) build --platform=$(TARGET_ARCH) -t argocd-base --target argocd-base .
-	CGO_ENABLED=${CGO_FLAG} GOOS=linux GOARCH=amd64 GODEBUG="tarinsecurepath=0,zipinsecurepath=0" go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd ./cmd
+	GOOS=linux GOARCH=$(TARGET_ARCH:linux/%=%) GODEBUG="tarinsecurepath=0,zipinsecurepath=0" go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd ./cmd
 	ln -sfn ${DIST_DIR}/argocd ${DIST_DIR}/argocd-server
 	ln -sfn ${DIST_DIR}/argocd ${DIST_DIR}/argocd-application-controller
 	ln -sfn ${DIST_DIR}/argocd ${DIST_DIR}/argocd-repo-server
 	ln -sfn ${DIST_DIR}/argocd ${DIST_DIR}/argocd-cmp-server
 	ln -sfn ${DIST_DIR}/argocd ${DIST_DIR}/argocd-dex
 	cp Dockerfile.dev dist
-	DOCKER_BUILDKIT=1 $(DOCKER) build --platform=$(TARGET_ARCH) -t $(IMAGE_PREFIX)argocd:$(IMAGE_TAG) -f dist/Dockerfile.dev dist
+	DOCKER_BUILDKIT=1 $(DOCKER) build --platform=$(TARGET_ARCH) -t $(IMAGE_PREFIX)$(IMAGE_REPOSITORY):$(IMAGE_TAG) -f dist/Dockerfile.dev dist
 else
 image:
-	DOCKER_BUILDKIT=1 $(DOCKER) build -t $(IMAGE_PREFIX)argocd:$(IMAGE_TAG) --platform=$(TARGET_ARCH) .
+	DOCKER_BUILDKIT=1 $(DOCKER) build -t $(IMAGE_PREFIX)$(IMAGE_REPOSITORY):$(IMAGE_TAG) --platform=$(TARGET_ARCH) .
 endif
-	@if [ "$(DOCKER_PUSH)" = "true" ] ; then $(DOCKER) push $(IMAGE_PREFIX)argocd:$(IMAGE_TAG) ; fi
+	@if [ "$(DOCKER_PUSH)" = "true" ] ; then $(DOCKER) push $(IMAGE_PREFIX)$(IMAGE_REPOSITORY):$(IMAGE_TAG) ; fi
 
 .PHONY: armimage
 armimage:
-	$(DOCKER) build -t $(IMAGE_PREFIX)argocd:$(IMAGE_TAG)-arm .
+	$(DOCKER) build -t $(IMAGE_PREFIX)(IMAGE_REPOSITORY):$(IMAGE_TAG)-arm .
 
 .PHONY: builder-image
 builder-image:
