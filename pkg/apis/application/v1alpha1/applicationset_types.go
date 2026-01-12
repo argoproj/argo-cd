@@ -18,6 +18,7 @@ package v1alpha1
 
 import (
 	"encoding/json"
+	"k8s.io/apimachinery/pkg/watch"
 	"sort"
 
 	"github.com/argoproj/argo-cd/v3/common"
@@ -1014,4 +1015,18 @@ func (a *ApplicationSet) QualifiedName() string {
 		return a.Name
 	}
 	return a.Namespace + "/" + a.Name
+}
+
+// ApplicationSetWatchEvent contains information about application change.
+type ApplicationSetWatchEvent struct {
+	// Type represents the Kubernetes watch event type. The protobuf tag uses
+	// casttype to ensure the generated Go code keeps this field as
+	// watch.EventType (a strong Go type) instead of falling back to a plain string
+	Type watch.EventType `json:"type" protobuf:"bytes,1,opt,name=type,casttype=k8s.io/apimachinery/pkg/watch.EventType"`
+	// ApplicationSet is:
+	//  * If Type is Added or Modified: the new state of the object.
+	//  * If Type is Deleted: the state of the object immediately before deletion.
+	//  * If Type is Error: *api.Status is recommended; other types may make sense
+	//    depending on context
+	ApplicationSet ApplicationSet `json:"applicationSet" protobuf:"bytes,2,opt,name=applicationSet"`
 }

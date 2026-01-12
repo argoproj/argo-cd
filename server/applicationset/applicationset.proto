@@ -28,6 +28,13 @@ message ApplicationSetListQuery {
 	string appsetNamespace = 3;
 }
 
+message ApplicationSetWatchQuery {
+	string name = 1;
+	repeated string projects = 2;
+	string selector = 3;
+	string appSetNamespace = 4;
+}
+
 
 message ApplicationSetResponse {
 	string project = 1;
@@ -106,6 +113,10 @@ service ApplicationSetService {
 	// ListResourceEvents returns a list of event resources
 	rpc ListResourceEvents(ApplicationSetGetQuery) returns (k8s.io.api.core.v1.EventList) {
 		option (google.api.http).get = "/api/v1/applicationsets/{name}/events";
+	}
+
+	rpc Watch (ApplicationSetWatchQuery) returns (stream github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.ApplicationSetWatchEvent) {
+		option (google.api.http).get = "/api/v1/stream/applicationsets";
 	}
 
 }

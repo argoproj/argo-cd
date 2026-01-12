@@ -4385,6 +4385,68 @@
         }
       }
     },
+    "/api/v1/stream/applicationsets": {
+      "get": {
+        "tags": [
+          "ApplicationSetService"
+        ],
+        "operationId": "ApplicationSetService_Watch",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "name",
+            "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi",
+            "name": "projects",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "selector",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "appSetNamespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "resourceVersion",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.(streaming responses)",
+            "schema": {
+              "type": "object",
+              "title": "Stream result of v1alpha1ApplicationSetWatchEvent",
+              "properties": {
+                "error": {
+                  "$ref": "#/definitions/runtimeStreamError"
+                },
+                "result": {
+                  "$ref": "#/definitions/v1alpha1ApplicationSetWatchEvent"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/write-repocreds": {
       "get": {
         "tags": [
@@ -7453,6 +7515,19 @@
           "items": {
             "$ref": "#/definitions/v1alpha1ResourceNode"
           }
+        }
+      }
+    },
+    "v1alpha1ApplicationSetWatchEvent": {
+      "description": "ApplicationSetWatchEvent contains information about application change.",
+      "type": "object",
+      "properties": {
+        "applicationSet": {
+          "$ref": "#/definitions/v1alpha1ApplicationSet"
+        },
+        "type": {
+          "type": "string",
+          "title": "Type represents the Kubernetes watch event type. The protobuf tag uses\ncasttype to ensure the generated Go code keeps this field as\nwatch.EventType (a strong Go type) instead of falling back to a plain string"
         }
       }
     },
