@@ -132,20 +132,38 @@ func verify(g *v1alpha1.SourceIntegrityGitPolicyGPG, gitClient git.Client, unres
 		return nil, fmt.Errorf("unknown GPG mode %q configured for GIT source integrity", g.Mode)
 	}
 
+	return &v1alpha1.SourceIntegrityCheckResult{Checks: []v1alpha1.SourceIntegrityCheckResultItem{{
+		Name:     checkName,
+		Problems: describeProblems(g, revisions),
+	}}}, nil
+}
+
+// describeProblems reports 10 most recent problematic signatures or unsigned commits.
+func describeProblems(g *v1alpha1.SourceIntegrityGitPolicyGPG, revisions []git.RevisionSignatureInfo) []string {
+	reportedKeys := make(map[string]interface{})
 	var problems []string
 	for _, signatureInfo := range revisions {
-		// TODO: For deep verification, the list of commits/problems can be too long to present to user, or even too long to transfer
-		// TODO: Keep only the most recent commit for every given GPG key, as that is what is actionable for an admin anyway.
+		// Do not report the same key twice unless:
+		// - the revision is unsigned (unsigned commits can have different authors, so they are worth reporting)
+		// - the revision is a tag (tags are signed separately from commits)
+		if signatureInfo.SignatureKeyID != "" && git.IsCommitSHA(signatureInfo.Revision) {
+			if _, exists := reportedKeys[signatureInfo.SignatureKeyID]; exists {
+				continue
+			}
+			reportedKeys[signatureInfo.SignatureKeyID] = nil
+		}
+
 		problem := gpgProblemMessage(g, signatureInfo)
 		if problem != "" {
 			problems = append(problems, problem)
+
+			// Report at most 10 problems
+			if len(problems) >= 10 {
+				break
+			}
 		}
 	}
-
-	return &v1alpha1.SourceIntegrityCheckResult{Checks: []v1alpha1.SourceIntegrityCheckResultItem{{
-		Name:     checkName,
-		Problems: problems,
-	}}}, nil
+	return problems
 }
 
 // gpgProblemMessage generates a message describing GPG verification issues for a specific revision signature and the configured policy.
