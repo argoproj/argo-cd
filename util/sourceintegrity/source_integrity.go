@@ -12,28 +12,43 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/glob"
 )
 
-type SourceIntegrityGitFunc func(gitClient git.Client, unresolvedRevision string) (*v1alpha1.SourceIntegrityCheckResult, error)
-
-// TODO refactor to interface
-
-func (f SourceIntegrityGitFunc) Verify(gitClient git.Client, unresolvedRevision string) (*v1alpha1.SourceIntegrityCheckResult, error) {
-	if f == nil {
-		return nil, nil
-	}
-	return f(gitClient, unresolvedRevision)
-}
+type gitFunc func(gitClient git.Client, unresolvedRevision string) (*v1alpha1.SourceIntegrityCheckResult, error)
 
 var _gpgDisabledLoggedAlready bool
 
-// ForGit evaluate if there are cheks for the git sources per given ApplicationSource and returns a function performing such check.
-// If there are no cheks for git or the application source, this returns nil.
-// This indirection is needed to detect the existence of relevant criteria without their actual execution.
-func ForGit(si *v1alpha1.SourceIntegrity, repoURL string) SourceIntegrityGitFunc {
+// HasCriteria determines if any of the sources have some criteria declared
+func HasCriteria(si *v1alpha1.SourceIntegrity, sources ...v1alpha1.ApplicationSource) bool {
 	if si == nil || si.Git == nil {
-		return nil
+		return false
 	}
 
-	policies := findMatchingPolicies(si.Git, repoURL)
+	for _, source := range sources {
+		if !source.IsZero() && !source.IsOCI() {
+			if lookupGit(si, source.RepoURL) != nil {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+// VerifyGit makes sure the git repository satisfies the criteria declared
+// It returns nil in case there were no relevant criteria, a check result if there were.
+func VerifyGit(si *v1alpha1.SourceIntegrity, gitClient git.Client, unresolvedRevision string) (result *v1alpha1.SourceIntegrityCheckResult, err error) {
+	if si == nil || si.Git == nil {
+		return nil, nil
+	}
+
+	check := lookupGit(si, gitClient.RepoURL())
+	if check != nil {
+		return check(gitClient, unresolvedRevision)
+	}
+	return nil, nil
+}
+
+func lookupGit(si *v1alpha1.SourceIntegrity, repoURL string) gitFunc {
+	policies := findMatchingGitPolicies(si.Git, repoURL)
 	nPolicies := len(policies)
 	if nPolicies == 0 {
 		log.Infof("No git source integrity policies found for repo URL: %s", repoURL)
@@ -65,7 +80,7 @@ func ForGit(si *v1alpha1.SourceIntegrity, repoURL string) SourceIntegrityGitFunc
 	return nil
 }
 
-func findMatchingPolicies(si *v1alpha1.SourceIntegrityGit, repoURL string) (policies []*v1alpha1.SourceIntegrityGitPolicy) {
+func findMatchingGitPolicies(si *v1alpha1.SourceIntegrityGit, repoURL string) (policies []*v1alpha1.SourceIntegrityGitPolicy) {
 	for _, p := range si.Policies {
 		for _, r := range p.Repos {
 			if r == "*" || glob.Match(r, repoURL) {
