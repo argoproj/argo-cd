@@ -23,7 +23,7 @@ func HasCriteria(si *v1alpha1.SourceIntegrity, sources ...v1alpha1.ApplicationSo
 	}
 
 	for _, source := range sources {
-		if !source.IsZero() && !source.IsOCI() {
+		if !source.IsZero() && !source.IsOCI() && !source.IsHelm() {
 			if lookupGit(si, source.RepoURL) != nil {
 				return true
 			}

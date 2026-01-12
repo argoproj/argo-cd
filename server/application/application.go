@@ -2064,6 +2064,10 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 		return nil, status.Error(codes.FailedPrecondition, "sync with replace was disabled on the API Server level via the server configuration")
 	}
 
+	if syncReq.Manifests != nil && sourceintegrity.HasCriteria(proj.EffectiveSourceIntegrity(), a.Spec.GetSources()...) {
+		return nil, status.Errorf(codes.FailedPrecondition, "Cannot use local manifests when source integrity is enforced")
+	}
+
 	resources := []v1alpha1.SyncOperationResource{}
 	if syncReq.GetResources() != nil {
 		for _, r := range syncReq.GetResources() {
@@ -2076,10 +2080,6 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 	var source *v1alpha1.ApplicationSource
 	if !a.Spec.HasMultipleSources() {
 		source = ptr.To(a.Spec.GetSource())
-	}
-
-	if syncReq.Manifests != nil && sourceintegrity.HasCriteria(proj.EffectiveSourceIntegrity(), a.Spec.GetSources()...) {
-		return nil, status.Errorf(codes.FailedPrecondition, "Cannot use local manifests when source integrity is enforced")
 	}
 
 	op := v1alpha1.Operation{
