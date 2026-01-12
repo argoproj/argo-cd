@@ -8168,6 +8168,10 @@ spec:
                                     properties:
                                       api:
                                         type: string
+                                      excludedLabels:
+                                        items:
+                                          type: string
+                                        type: array
                                       labels:
                                         items:
                                           type: string
@@ -8344,6 +8348,10 @@ spec:
                                         type: string
                                       appSecretName:
                                         type: string
+                                      excludedLabels:
+                                        items:
+                                          type: string
+                                        type: array
                                       labels:
                                         items:
                                           type: string
@@ -8380,6 +8388,10 @@ spec:
                                         - configMapName
                                         - key
                                         type: object
+                                      excludedLabels:
+                                        items:
+                                          type: string
+                                        type: array
                                       insecure:
                                         type: boolean
                                       labels:
@@ -15820,6 +15832,10 @@ spec:
                                     properties:
                                       api:
                                         type: string
+                                      excludedLabels:
+                                        items:
+                                          type: string
+                                        type: array
                                       labels:
                                         items:
                                           type: string
@@ -15996,6 +16012,10 @@ spec:
                                         type: string
                                       appSecretName:
                                         type: string
+                                      excludedLabels:
+                                        items:
+                                          type: string
+                                        type: array
                                       labels:
                                         items:
                                           type: string
@@ -16032,6 +16052,10 @@ spec:
                                         - configMapName
                                         - key
                                         type: object
+                                      excludedLabels:
+                                        items:
+                                          type: string
+                                        type: array
                                       insecure:
                                         type: boolean
                                       labels:
@@ -19857,6 +19881,10 @@ spec:
                           properties:
                             api:
                               type: string
+                            excludedLabels:
+                              items:
+                                type: string
+                              type: array
                             labels:
                               items:
                                 type: string
@@ -20033,6 +20061,10 @@ spec:
                               type: string
                             appSecretName:
                               type: string
+                            excludedLabels:
+                              items:
+                                type: string
+                              type: array
                             labels:
                               items:
                                 type: string
@@ -20069,6 +20101,10 @@ spec:
                               - configMapName
                               - key
                               type: object
+                            excludedLabels:
+                              items:
+                                type: string
+                              type: array
                             insecure:
                               type: boolean
                             labels:

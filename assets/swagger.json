@@ -9243,6 +9243,13 @@
           "description": "The Azure DevOps API URL to talk to. If blank, use https://dev.azure.com/.",
           "type": "string"
         },
+        "excludedLabels": {
+          "type": "array",
+          "title": "ExcludedLabels is used to exclude PRs with these labels",
+          "items": {
+            "type": "string"
+          }
+        },
         "labels": {
           "type": "array",
           "title": "Labels is used to filter the PRs that you want to target",
@@ -9348,6 +9355,13 @@
         "caRef": {
           "$ref": "#/definitions/v1alpha1ConfigMapKeyRef"
         },
+        "excludedLabels": {
+          "type": "array",
+          "title": "ExcludedLabels is used to exclude MRs with these labels",
+          "items": {
+            "type": "string"
+          }
+        },
         "insecure": {
           "type": "boolean",
           "title": "Skips validating the SCM provider's TLS certificate - useful for self-signed certificates.; default: false"
@@ -9415,6 +9429,13 @@
         "appSecretName": {
           "description": "AppSecretName is a reference to a GitHub App repo-creds secret with permission to access pull requests.",
           "type": "string"
+        },
+        "excludedLabels": {
+          "type": "array",
+          "title": "ExcludedLabels is used to exclude PRs with these labels",
+          "items": {
+            "type": "string"
+          }
         },
         "labels": {
           "type": "array",

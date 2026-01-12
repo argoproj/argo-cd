@@ -34,7 +34,7 @@ func TestGitLabServiceCustomBaseURL(t *testing.T) {
 		writeMRListResponse(t, w)
 	})
 
-	svc, err := NewGitLabService("", server.URL, "278964", nil, "", "", false, nil)
+	svc, err := NewGitLabService("", server.URL, "278964", nil, nil, "", "", false, nil)
 	require.NoError(t, err)
 
 	_, err = svc.List(t.Context())
@@ -53,7 +53,7 @@ func TestGitLabServiceToken(t *testing.T) {
 		writeMRListResponse(t, w)
 	})
 
-	svc, err := NewGitLabService("token-123", server.URL, "278964", nil, "", "", false, nil)
+	svc, err := NewGitLabService("token-123", server.URL, "278964", nil, nil, "", "", false, nil)
 	require.NoError(t, err)
 
 	_, err = svc.List(t.Context())
@@ -72,7 +72,7 @@ func TestList(t *testing.T) {
 		writeMRListResponse(t, w)
 	})
 
-	svc, err := NewGitLabService("", server.URL, "278964", []string{}, "", "", false, nil)
+	svc, err := NewGitLabService("", server.URL, "278964", []string{}, nil, "", "", false, nil)
 	require.NoError(t, err)
 
 	prs, err := svc.List(t.Context())
@@ -98,7 +98,7 @@ func TestListWithLabels(t *testing.T) {
 		writeMRListResponse(t, w)
 	})
 
-	svc, err := NewGitLabService("", server.URL, "278964", []string{"feature", "ready"}, "", "", false, nil)
+	svc, err := NewGitLabService("", server.URL, "278964", []string{"feature", "ready"}, nil, "", "", false, nil)
 	require.NoError(t, err)
 
 	_, err = svc.List(t.Context())
@@ -117,7 +117,7 @@ func TestListWithState(t *testing.T) {
 		writeMRListResponse(t, w)
 	})
 
-	svc, err := NewGitLabService("", server.URL, "278964", []string{}, "opened", "", false, nil)
+	svc, err := NewGitLabService("", server.URL, "278964", []string{}, nil, "opened", "", false, nil)
 	require.NoError(t, err)
 
 	_, err = svc.List(t.Context())
@@ -179,7 +179,7 @@ func TestListWithStateTLS(t *testing.T) {
 				}
 			}
 
-			svc, err := NewGitLabService("", ts.URL, "278964", []string{}, "opened", "", test.tlsInsecure, certs)
+			svc, err := NewGitLabService("", ts.URL, "278964", []string{}, nil, "opened", "", test.tlsInsecure, certs)
 			require.NoError(t, err)
 
 			_, err = svc.List(t.Context())
@@ -205,7 +205,7 @@ func TestGitLabListReturnsRepositoryNotFoundError(t *testing.T) {
 		_, _ = w.Write([]byte(`{"message": "404 Project Not Found"}`))
 	})
 
-	svc, err := NewGitLabService("", server.URL, "nonexistent", []string{}, "", "", false, nil)
+	svc, err := NewGitLabService("", server.URL, "nonexistent", []string{}, nil, "", "", false, nil)
 	require.NoError(t, err)
 
 	prs, err := svc.List(t.Context())
@@ -216,4 +216,45 @@ func TestGitLabListReturnsRepositoryNotFoundError(t *testing.T) {
 	// Should return RepositoryNotFoundError
 	require.Error(t, err)
 	assert.True(t, IsRepositoryNotFoundError(err), "Expected RepositoryNotFoundError but got: %v", err)
+}
+
+func TestContainsAnyExcludedLabels(t *testing.T) {
+	cases := []struct {
+		Name           string
+		ExcludedLabels []string
+		MRLabels       []string
+		Expect         bool
+	}{
+		{
+			Name:           "MR has excluded label",
+			ExcludedLabels: []string{"stale", "wip"},
+			MRLabels:       []string{"label1", "stale"},
+			Expect:         true,
+		},
+		{
+			Name:           "MR does not have excluded labels",
+			ExcludedLabels: []string{"stale", "wip"},
+			MRLabels:       []string{"label1", "label2"},
+			Expect:         false,
+		},
+		{
+			Name:           "No excluded labels specified",
+			ExcludedLabels: []string{},
+			MRLabels:       []string{"stale"},
+			Expect:         false,
+		},
+		{
+			Name:           "MR has no labels",
+			ExcludedLabels: []string{"stale"},
+			MRLabels:       []string{},
+			Expect:         false,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.Name, func(t *testing.T) {
+			got := containsAnyExcludedLabels(c.ExcludedLabels, c.MRLabels)
+			require.Equal(t, c.Expect, got)
+		})
+	}
 }

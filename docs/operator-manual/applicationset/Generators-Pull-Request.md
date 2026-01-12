@@ -55,6 +55,10 @@ spec:
         # Labels is used to filter the PRs that you want to target. (optional)
         labels:
         - preview
+        # ExcludedLabels is used to exclude PRs with these labels. (optional)
+        excludedLabels:
+        - stale
+        - wip
       requeueAfterSeconds: 1800
   template:
   # ...
@@ -65,6 +69,7 @@ spec:
 * `api`: If using GitHub Enterprise, the URL to access it. (Optional)
 * `tokenRef`: A `Secret` name and key containing the GitHub access token to use for requests. If not specified, will make anonymous requests which have a lower rate limit and can only see public repositories. (Optional)
 * `labels`: Filter the PRs to those containing **all** of the labels listed. (Optional)
+* `excludedLabels`: Exclude PRs that have **any** of the labels listed. This takes precedence over `labels`. (Optional)
 * `appSecretName`: A `Secret` name containing a GitHub App secret in [repo-creds format][repo-creds].
 
 [repo-creds]: ../declarative-setup.md#repository-credentials
@@ -112,6 +117,7 @@ spec:
 * `api`: If using self-hosted GitLab, the URL to access it. (Optional)
 * `tokenRef`: A `Secret` name and key containing the GitLab access token to use for requests. If not specified, will make anonymous requests which have a lower rate limit and can only see public repositories. (Optional)
 * `labels`: Labels is used to filter the MRs that you want to target. (Optional)
+* `excludedLabels`: Exclude PRs that have **any** of the labels listed. This takes precedence over `labels`. (Optional)
 * `pullRequestState`: PullRequestState is an additional MRs filter to get only those with a certain state. By default all states. Default: "" (all states). Valid values: `""`, `opened`, `closed`, `merged` or `locked`. (Optional)
 * `insecure`: By default (false) - Skip checking the validity of the SCM's certificate - useful for self-signed TLS certificates.
 * `caRef`: Optional `ConfigMap` name and key containing the GitLab certificates to trust - useful for self-signed TLS certificates. Possibly reference the ArgoCD CM holding the trusted certs.
@@ -334,6 +340,7 @@ spec:
 * `api`: If using self-hosted Azure DevOps Repos, the URL to access it. (Optional)
 * `tokenRef`: A `Secret` name and key containing the Azure DevOps access token to use for requests. If not specified, will make anonymous requests which have a lower rate limit and can only see public repositories. (Optional)
 * `labels`: Filter the PRs to those containing **all** of the labels listed. (Optional)
+* `excludedLabels`: Exclude PRs that have **any** of the labels listed. This takes precedence over `labels`. (Optional)
 
 ## Filters
 
