@@ -635,6 +635,8 @@ message ApplicationSourcePlugin {
   repeated EnvEntry env = 2;
 
   repeated ApplicationSourcePluginParameter parameters = 3;
+
+  optional string stdin = 4;
 }
 
 message ApplicationSourcePluginParameter {

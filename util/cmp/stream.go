@@ -86,10 +86,10 @@ func WithTarDoneChan(ch chan<- bool) SenderOption {
 
 // SendRepoStream will compress the files under the given rootPath and send
 // them using the plugin stream sender.
-func SendRepoStream(ctx context.Context, appPath, rootPath string, sender StreamSender, env []string, excludedGlobs []string, opts ...SenderOption) error {
+func SendRepoStream(ctx context.Context, appPath, rootPath string, sender StreamSender, env []string, excludedGlobs []string, stdin string, opts ...SenderOption) error {
 	opt := newSenderOption(opts...)
 
-	tgz, mr, err := GetCompressedRepoAndMetadata(rootPath, appPath, env, excludedGlobs, opt)
+	tgz, mr, err := GetCompressedRepoAndMetadata(rootPath, appPath, env, excludedGlobs, stdin, opt)
 	if err != nil {
 		return err
 	}
@@ -107,7 +107,7 @@ func SendRepoStream(ctx context.Context, appPath, rootPath string, sender Stream
 	return nil
 }
 
-func GetCompressedRepoAndMetadata(rootPath string, appPath string, env []string, excludedGlobs []string, opt *senderOption) (*os.File, *pluginclient.AppStreamRequest, error) {
+func GetCompressedRepoAndMetadata(rootPath string, appPath string, env []string, excludedGlobs []string, stdin string, opt *senderOption) (*os.File, *pluginclient.AppStreamRequest, error) {
 	// compress all files in rootPath in tgz
 	tgz, filesWritten, checksum, err := tgzstream.CompressFiles(rootPath, nil, excludedGlobs)
 	if err != nil {
@@ -130,7 +130,7 @@ func GetCompressedRepoAndMetadata(rootPath string, appPath string, env []string,
 		return nil, nil, fmt.Errorf("error building app relative path: %w", err)
 	}
 	// send metadata first
-	mr := appMetadataRequest(filepath.Base(appPath), appRelPath, env, checksum, fi.Size())
+	mr := appMetadataRequest(filepath.Base(appPath), appRelPath, env, checksum, fi.Size(), stdin)
 	return tgz, mr, err
 }
 
@@ -221,7 +221,7 @@ func AppFileRequest(chunk []byte) *pluginclient.AppStreamRequest {
 }
 
 // appMetadataRequest build the metadata payload for the ManifestRequest
-func appMetadataRequest(appName, appRelPath string, env []string, checksum string, size int64) *pluginclient.AppStreamRequest {
+func appMetadataRequest(appName, appRelPath string, env []string, checksum string, size int64, stdin string) *pluginclient.AppStreamRequest {
 	return &pluginclient.AppStreamRequest{
 		Request: &pluginclient.AppStreamRequest_Metadata{
 			Metadata: &pluginclient.ManifestRequestMetadata{
@@ -230,6 +230,7 @@ func appMetadataRequest(appName, appRelPath string, env []string, checksum strin
 				Checksum:   checksum,
 				Size_:      size,
 				Env:        toEnvEntry(env),
+				Stdin:      stdin,
 			},
 		},
 	}

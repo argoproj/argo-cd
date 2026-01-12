@@ -28,6 +28,8 @@ message ManifestRequestMetadata {
     int64 size = 4;
     // env is a list with the environment variables needed to generate manifests
     repeated EnvEntry env = 5;
+    // stdin is the standard input needed to generate manifests
+    string stdin = 6;
 }
 
 // EnvEntry represents an entry in the application's environment

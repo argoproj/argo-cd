@@ -532,6 +532,8 @@ spec:
                                   type: string
                               type: object
                             type: array
+                          stdin:
+                            type: string
                         type: object
                       ref:
                         description: Ref is reference to another source within sources
@@ -921,6 +923,8 @@ spec:
                                     type: string
                                 type: object
                               type: array
+                            stdin:
+                              type: string
                           type: object
                         ref:
                           description: Ref is reference to another source within sources
@@ -1417,6 +1421,8 @@ spec:
                               type: string
                           type: object
                         type: array
+                      stdin:
+                        type: string
                     type: object
                   ref:
                     description: Ref is reference to another source within sources
@@ -1793,6 +1799,8 @@ spec:
                                   type: string
                               type: object
                             type: array
+                          stdin:
+                            type: string
                         type: object
                       repoURL:
                         description: RepoURL is the URL to the git repository that
@@ -2207,6 +2215,8 @@ spec:
                                 type: string
                             type: object
                           type: array
+                        stdin:
+                          type: string
                       type: object
                     ref:
                       description: Ref is reference to another source within sources
@@ -2767,6 +2777,8 @@ spec:
                                     type: string
                                 type: object
                               type: array
+                            stdin:
+                              type: string
                           type: object
                         ref:
                           description: Ref is reference to another source within sources
@@ -3163,6 +3175,8 @@ spec:
                                       type: string
                                   type: object
                                 type: array
+                              stdin:
+                                type: string
                             type: object
                           ref:
                             description: Ref is reference to another source within
@@ -3713,6 +3727,8 @@ spec:
                                           type: string
                                       type: object
                                     type: array
+                                  stdin:
+                                    type: string
                                 type: object
                               ref:
                                 description: Ref is reference to another source within
@@ -4128,6 +4144,8 @@ spec:
                                             type: string
                                         type: object
                                       type: array
+                                    stdin:
+                                      type: string
                                   type: object
                                 ref:
                                   description: Ref is reference to another source
@@ -4654,6 +4672,8 @@ spec:
                                       type: string
                                   type: object
                                 type: array
+                              stdin:
+                                type: string
                             type: object
                           ref:
                             description: Ref is reference to another source within
@@ -5059,6 +5079,8 @@ spec:
                                         type: string
                                     type: object
                                   type: array
+                                stdin:
+                                  type: string
                               type: object
                             ref:
                               description: Ref is reference to another source within
@@ -5579,6 +5601,8 @@ spec:
                                           type: string
                                       type: object
                                     type: array
+                                  stdin:
+                                    type: string
                                 type: object
                               repoURL:
                                 description: RepoURL is the URL to the git repository
@@ -6032,6 +6056,8 @@ spec:
                                           type: string
                                       type: object
                                     type: array
+                                  stdin:
+                                    type: string
                                 type: object
                               repoURL:
                                 description: RepoURL is the URL to the git repository
@@ -6549,6 +6575,8 @@ spec:
                                       type: string
                                   type: object
                                 type: array
+                              stdin:
+                                type: string
                             type: object
                           ref:
                             description: Ref is reference to another source within
@@ -6954,6 +6982,8 @@ spec:
                                         type: string
                                     type: object
                                   type: array
+                                stdin:
+                                  type: string
                               type: object
                             ref:
                               description: Ref is reference to another source within
@@ -7378,6 +7408,8 @@ spec:
                                                 type: string
                                             type: object
                                           type: array
+                                        stdin:
+                                          type: string
                                       type: object
                                     ref:
                                       type: string
@@ -7615,6 +7647,8 @@ spec:
                                                     type: string
                                                 type: object
                                               type: array
+                                            stdin:
+                                              type: string
                                           type: object
                                         repoURL:
                                           type: string
@@ -7878,6 +7912,8 @@ spec:
                                                   type: string
                                               type: object
                                             type: array
+                                          stdin:
+                                            type: string
                                         type: object
                                       ref:
                                         type: string
@@ -8286,6 +8322,8 @@ spec:
                                                 type: string
                                             type: object
                                           type: array
+                                        stdin:
+                                          type: string
                                       type: object
                                     ref:
                                       type: string
@@ -8523,6 +8561,8 @@ spec:
                                                     type: string
                                                 type: object
                                               type: array
+                                            stdin:
+                                              type: string
                                           type: object
                                         repoURL:
                                           type: string
@@ -8786,6 +8826,8 @@ spec:
                                                   type: string
                                               type: object
                                             type: array
+                                          stdin:
+                                            type: string
                                         type: object
                                       ref:
                                         type: string
@@ -9195,6 +9237,8 @@ spec:
                                                 type: string
                                             type: object
                                           type: array
+                                        stdin:
+                                          type: string
                                       type: object
                                     ref:
                                       type: string
@@ -9432,6 +9476,8 @@ spec:
                                                     type: string
                                                 type: object
                                               type: array
+                                            stdin:
+                                              type: string
                                           type: object
                                         repoURL:
                                           type: string
@@ -9695,6 +9741,8 @@ spec:
                                                   type: string
                                               type: object
                                             type: array
+                                          stdin:
+                                            type: string
                                         type: object
                                       ref:
                                         type: string
@@ -10082,6 +10130,8 @@ spec:
                                                 type: string
                                             type: object
                                           type: array
+                                        stdin:
+                                          type: string
                                       type: object
                                     ref:
                                       type: string
@@ -10319,6 +10369,8 @@ spec:
                                                     type: string
                                                 type: object
                                               type: array
+                                            stdin:
+                                              type: string
                                           type: object
                                         repoURL:
                                           type: string
@@ -10582,6 +10634,8 @@ spec:
                                                   type: string
                                               type: object
                                             type: array
+                                          stdin:
+                                            type: string
                                         type: object
                                       ref:
                                         type: string
@@ -10994,6 +11048,8 @@ spec:
                                                           type: string
                                                       type: object
                                                     type: array
+                                                  stdin:
+                                                    type: string
                                                 type: object
                                               ref:
                                                 type: string
@@ -11231,6 +11287,8 @@ spec:
                                                               type: string
                                                           type: object
                                                         type: array
+                                                      stdin:
+                                                        type: string
                                                     type: object
                                                   repoURL:
                                                     type: string
@@ -11494,6 +11552,8 @@ spec:
                                                             type: string
                                                         type: object
                                                       type: array
+                                                    stdin:
+                                                      type: string
                                                   type: object
                                                 ref:
                                                   type: string
@@ -11902,6 +11962,8 @@ spec:
                                                           type: string
                                                       type: object
                                                     type: array
+                                                  stdin:
+                                                    type: string
                                                 type: object
                                               ref:
                                                 type: string
@@ -12139,6 +12201,8 @@ spec:
                                                               type: string
                                                           type: object
                                                         type: array
+                                                      stdin:
+                                                        type: string
                                                     type: object
                                                   repoURL:
                                                     type: string
@@ -12402,6 +12466,8 @@ spec:
                                                             type: string
                                                         type: object
                                                       type: array
+                                                    stdin:
+                                                      type: string
                                                   type: object
                                                 ref:
                                                   type: string
@@ -12811,6 +12877,8 @@ spec:
                                                           type: string
                                                       type: object
                                                     type: array
+                                                  stdin:
+                                                    type: string
                                                 type: object
                                               ref:
                                                 type: string
@@ -13048,6 +13116,8 @@ spec:
                                                               type: string
                                                           type: object
                                                         type: array
+                                                      stdin:
+                                                        type: string
                                                     type: object
                                                   repoURL:
                                                     type: string
@@ -13311,6 +13381,8 @@ spec:
                                                             type: string
                                                         type: object
                                                       type: array
+                                                    stdin:
+                                                      type: string
                                                   type: object
                                                 ref:
                                                   type: string
@@ -13698,6 +13770,8 @@ spec:
                                                           type: string
                                                       type: object
                                                     type: array
+                                                  stdin:
+                                                    type: string
                                                 type: object
                                               ref:
                                                 type: string
@@ -13935,6 +14009,8 @@ spec:
                                                               type: string
                                                           type: object
                                                         type: array
+                                                      stdin:
+                                                        type: string
                                                     type: object
                                                   repoURL:
                                                     type: string
@@ -14198,6 +14274,8 @@ spec:
                                                             type: string
                                                         type: object
                                                       type: array
+                                                    stdin:
+                                                      type: string
                                                   type: object
                                                 ref:
                                                   type: string
@@ -14593,6 +14671,8 @@ spec:
                                                           type: string
                                                       type: object
                                                     type: array
+                                                  stdin:
+                                                    type: string
                                                 type: object
                                               ref:
                                                 type: string
@@ -14830,6 +14910,8 @@ spec:
                                                               type: string
                                                           type: object
                                                         type: array
+                                                      stdin:
+                                                        type: string
                                                     type: object
                                                   repoURL:
                                                     type: string
@@ -15093,6 +15175,8 @@ spec:
                                                             type: string
                                                         type: object
                                                       type: array
+                                                    stdin:
+                                                      type: string
                                                   type: object
                                                 ref:
                                                   type: string
@@ -15715,6 +15799,8 @@ spec:
                                                           type: string
                                                       type: object
                                                     type: array
+                                                  stdin:
+                                                    type: string
                                                 type: object
                                               ref:
                                                 type: string
@@ -15952,6 +16038,8 @@ spec:
                                                               type: string
                                                           type: object
                                                         type: array
+                                                      stdin:
+                                                        type: string
                                                     type: object
                                                   repoURL:
                                                     type: string
@@ -16215,6 +16303,8 @@ spec:
                                                             type: string
                                                         type: object
                                                       type: array
+                                                    stdin:
+                                                      type: string
                                                   type: object
                                                 ref:
                                                   type: string
@@ -16828,6 +16918,8 @@ spec:
                                                           type: string
                                                       type: object
                                                     type: array
+                                                  stdin:
+                                                    type: string
                                                 type: object
                                               ref:
                                                 type: string
@@ -17065,6 +17157,8 @@ spec:
                                                               type: string
                                                           type: object
                                                         type: array
+                                                      stdin:
+                                                        type: string
                                                     type: object
                                                   repoURL:
                                                     type: string
@@ -17328,6 +17422,8 @@ spec:
                                                             type: string
                                                         type: object
                                                       type: array
+                                                    stdin:
+                                                      type: string
                                                   type: object
                                                 ref:
                                                   type: string
@@ -17732,6 +17828,8 @@ spec:
                                                 type: string
                                             type: object
                                           type: array
+                                        stdin:
+                                          type: string
                                       type: object
                                     ref:
                                       type: string
@@ -17969,6 +18067,8 @@ spec:
                                                     type: string
                                                 type: object
                                               type: array
+                                            stdin:
+                                              type: string
                                           type: object
                                         repoURL:
                                           type: string
@@ -18232,6 +18332,8 @@ spec:
                                                   type: string
                                               type: object
                                             type: array
+                                          stdin:
+                                            type: string
                                         type: object
                                       ref:
                                         type: string
@@ -18646,6 +18748,8 @@ spec:
                                                           type: string
                                                       type: object
                                                     type: array
+                                                  stdin:
+                                                    type: string
                                                 type: object
                                               ref:
                                                 type: string
@@ -18883,6 +18987,8 @@ spec:
                                                               type: string
                                                           type: object
                                                         type: array
+                                                      stdin:
+                                                        type: string
                                                     type: object
                                                   repoURL:
                                                     type: string
@@ -19146,6 +19252,8 @@ spec:
                                                             type: string
                                                         type: object
                                                       type: array
+                                                    stdin:
+                                                      type: string
                                                   type: object
                                                 ref:
                                                   type: string
@@ -19554,6 +19662,8 @@ spec:
                                                           type: string
                                                       type: object
                                                     type: array
+                                                  stdin:
+                                                    type: string
                                                 type: object
                                               ref:
                                                 type: string
@@ -19791,6 +19901,8 @@ spec:
                                                               type: string
                                                           type: object
                                                         type: array
+                                                      stdin:
+                                                        type: string
                                                     type: object
                                                   repoURL:
                                                     type: string
@@ -20054,6 +20166,8 @@ spec:
                                                             type: string
                                                         type: object
                                                       type: array
+                                                    stdin:
+                                                      type: string
                                                   type: object
                                                 ref:
                                                   type: string
@@ -20463,6 +20577,8 @@ spec:
                                                           type: string
                                                       type: object
                                                     type: array
+                                                  stdin:
+                                                    type: string
                                                 type: object
                                               ref:
                                                 type: string
@@ -20700,6 +20816,8 @@ spec:
                                                               type: string
                                                           type: object
                                                         type: array
+                                                      stdin:
+                                                        type: string
                                                     type: object
                                                   repoURL:
                                                     type: string
@@ -20963,6 +21081,8 @@ spec:
                                                             type: string
                                                         type: object
                                                       type: array
+                                                    stdin:
+                                                      type: string
                                                   type: object
                                                 ref:
                                                   type: string
@@ -21350,6 +21470,8 @@ spec:
                                                           type: string
                                                       type: object
                                                     type: array
+                                                  stdin:
+                                                    type: string
                                                 type: object
                                               ref:
                                                 type: string
@@ -21587,6 +21709,8 @@ spec:
                                                               type: string
                                                           type: object
                                                         type: array
+                                                      stdin:
+                                                        type: string
                                                     type: object
                                                   repoURL:
                                                     type: string
@@ -21850,6 +21974,8 @@ spec:
                                                             type: string
                                                         type: object
                                                       type: array
+                                                    stdin:
+                                                      type: string
                                                   type: object
                                                 ref:
                                                   type: string
@@ -22245,6 +22371,8 @@ spec:
                                                           type: string
                                                       type: object
                                                     type: array
+                                                  stdin:
+                                                    type: string
                                                 type: object
                                               ref:
                                                 type: string
@@ -22482,6 +22610,8 @@ spec:
                                                               type: string
                                                           type: object
                                                         type: array
+                                                      stdin:
+                                                        type: string
                                                     type: object
                                                   repoURL:
                                                     type: string
@@ -22745,6 +22875,8 @@ spec:
                                                             type: string
                                                         type: object
                                                       type: array
+                                                    stdin:
+                                                      type: string
                                                   type: object
                                                 ref:
                                                   type: string
@@ -23367,6 +23499,8 @@ spec:
                                                           type: string
                                                       type: object
                                                     type: array
+                                                  stdin:
+                                                    type: string
                                                 type: object
                                               ref:
                                                 type: string
@@ -23604,6 +23738,8 @@ spec:
                                                               type: string
                                                           type: object
                                                         type: array
+                                                      stdin:
+                                                        type: string
                                                     type: object
                                                   repoURL:
                                                     type: string
@@ -23867,6 +24003,8 @@ spec:
                                                             type: string
                                                         type: object
                                                       type: array
+                                                    stdin:
+                                                      type: string
                                                   type: object
                                                 ref:
                                                   type: string
@@ -24480,6 +24618,8 @@ spec:
                                                           type: string
                                                       type: object
                                                     type: array
+                                                  stdin:
+                                                    type: string
                                                 type: object
                                               ref:
                                                 type: string
@@ -24717,6 +24857,8 @@ spec:
                                                               type: string
                                                           type: object
                                                         type: array
+                                                      stdin:
+                                                        type: string
                                                     type: object
                                                   repoURL:
                                                     type: string
@@ -24980,6 +25122,8 @@ spec:
                                                             type: string
                                                         type: object
                                                       type: array
+                                                    stdin:
+                                                      type: string
                                                   type: object
                                                 ref:
                                                   type: string
@@ -25388,6 +25532,8 @@ spec:
                                                 type: string
                                             type: object
                                           type: array
+                                        stdin:
+                                          type: string
                                       type: object
                                     ref:
                                       type: string
@@ -25625,6 +25771,8 @@ spec:
                                                     type: string
                                                 type: object
                                               type: array
+                                            stdin:
+                                              type: string
                                           type: object
                                         repoURL:
                                           type: string
@@ -25888,6 +26036,8 @@ spec:
                                                   type: string
                                               type: object
                                             type: array
+                                          stdin:
+                                            type: string
                                         type: object
                                       ref:
                                         type: string
@@ -26282,6 +26432,8 @@ spec:
                                                 type: string
                                             type: object
                                           type: array
+                                        stdin:
+                                          type: string
                                       type: object
                                     ref:
                                       type: string
@@ -26519,6 +26671,8 @@ spec:
                                                     type: string
                                                 type: object
                                               type: array
+                                            stdin:
+                                              type: string
                                           type: object
                                         repoURL:
                                           type: string
@@ -26782,6 +26936,8 @@ spec:
                                                   type: string
                                               type: object
                                             type: array
+                                          stdin:
+                                            type: string
                                         type: object
                                       ref:
                                         type: string
@@ -27404,6 +27560,8 @@ spec:
                                                 type: string
                                             type: object
                                           type: array
+                                        stdin:
+                                          type: string
                                       type: object
                                     ref:
                                       type: string
@@ -27641,6 +27799,8 @@ spec:
                                                     type: string
                                                 type: object
                                               type: array
+                                            stdin:
+                                              type: string
                                           type: object
                                         repoURL:
                                           type: string
@@ -27904,6 +28064,8 @@ spec:
                                                   type: string
                                               type: object
                                             type: array
+                                          stdin:
+                                            type: string
                                         type: object
                                       ref:
                                         type: string
@@ -28517,6 +28679,8 @@ spec:
                                                 type: string
                                             type: object
                                           type: array
+                                        stdin:
+                                          type: string
                                       type: object
                                     ref:
                                       type: string
@@ -28754,6 +28918,8 @@ spec:
                                                     type: string
                                                 type: object
                                               type: array
+                                            stdin:
+                                              type: string
                                           type: object
                                         repoURL:
                                           type: string
@@ -29017,6 +29183,8 @@ spec:
                                                   type: string
                                               type: object
                                             type: array
+                                          stdin:
+                                            type: string
                                         type: object
                                       ref:
                                         type: string
@@ -29498,6 +29666,8 @@ spec:
                                       type: string
                                   type: object
                                 type: array
+                              stdin:
+                                type: string
                             type: object
                           ref:
                             type: string
@@ -29735,6 +29905,8 @@ spec:
                                           type: string
                                       type: object
                                     type: array
+                                  stdin:
+                                    type: string
                                 type: object
                               repoURL:
                                 type: string
@@ -29998,6 +30170,8 @@ spec:
                                         type: string
                                     type: object
                                   type: array
+                                stdin:
+                                  type: string
                               type: object
                             ref:
                               type: string

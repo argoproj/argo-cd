@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -100,7 +101,7 @@ func TestMatchRepository(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		match, discovery, err := f.service.matchRepository(t.Context(), f.path, f.env, ".")
+		match, discovery, err := f.service.matchRepository(t.Context(), f.path, f.env, ".", "")
 
 		// then
 		require.NoError(t, err)
@@ -115,7 +116,7 @@ func TestMatchRepository(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		match, discovery, err := f.service.matchRepository(t.Context(), f.path, f.env, ".")
+		match, discovery, err := f.service.matchRepository(t.Context(), f.path, f.env, ".", "")
 
 		// then
 		require.NoError(t, err)
@@ -130,7 +131,7 @@ func TestMatchRepository(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		_, _, err := f.service.matchRepository(t.Context(), f.path, f.env, ".")
+		_, _, err := f.service.matchRepository(t.Context(), f.path, f.env, ".", "")
 
 		// then
 		require.ErrorContains(t, err, "syntax error")
@@ -145,7 +146,7 @@ func TestMatchRepository(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		match, discovery, err := f.service.matchRepository(t.Context(), f.path, f.env, ".")
+		match, discovery, err := f.service.matchRepository(t.Context(), f.path, f.env, ".", "")
 
 		// then
 		require.NoError(t, err)
@@ -162,7 +163,7 @@ func TestMatchRepository(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		match, discovery, err := f.service.matchRepository(t.Context(), f.path, f.env, ".")
+		match, discovery, err := f.service.matchRepository(t.Context(), f.path, f.env, ".", "")
 
 		// then
 		require.NoError(t, err)
@@ -179,7 +180,7 @@ func TestMatchRepository(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		_, _, err := f.service.matchRepository(t.Context(), f.path, f.env, ".")
+		_, _, err := f.service.matchRepository(t.Context(), f.path, f.env, ".", "")
 
 		// then
 		require.ErrorContains(t, err, "error finding glob match for pattern")
@@ -196,7 +197,7 @@ func TestMatchRepository(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		match, discovery, err := f.service.matchRepository(t.Context(), f.path, f.env, ".")
+		match, discovery, err := f.service.matchRepository(t.Context(), f.path, f.env, ".", "")
 
 		// then
 		require.NoError(t, err)
@@ -215,7 +216,7 @@ func TestMatchRepository(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		match, discovery, err := f.service.matchRepository(t.Context(), f.path, f.env, ".")
+		match, discovery, err := f.service.matchRepository(t.Context(), f.path, f.env, ".", "")
 		// then
 		require.NoError(t, err)
 		assert.False(t, match)
@@ -233,7 +234,7 @@ func TestMatchRepository(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		match, discovery, err := f.service.matchRepository(t.Context(), f.path, f.env, ".")
+		match, discovery, err := f.service.matchRepository(t.Context(), f.path, f.env, ".", "")
 
 		// then
 		require.NoError(t, err)
@@ -253,7 +254,7 @@ func TestMatchRepository(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		match, discovery, err := f.service.matchRepository(t.Context(), f.path, f.env, ".")
+		match, discovery, err := f.service.matchRepository(t.Context(), f.path, f.env, ".", "")
 
 		// then
 		require.NoError(t, err)
@@ -272,7 +273,7 @@ func TestMatchRepository(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		match, discovery, err := f.service.matchRepository(t.Context(), f.path, f.env, ".")
+		match, discovery, err := f.service.matchRepository(t.Context(), f.path, f.env, ".", "")
 
 		// then
 		require.Error(t, err)
@@ -285,7 +286,7 @@ func TestMatchRepository(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		match, discovery, err := f.service.matchRepository(t.Context(), f.path, f.env, ".")
+		match, discovery, err := f.service.matchRepository(t.Context(), f.path, f.env, ".", "")
 
 		// then
 		require.NoError(t, err)
@@ -308,7 +309,7 @@ func TestGenerateManifest(t *testing.T) {
 		service, err := newService(configFilePath)
 		require.NoError(t, err)
 
-		res1, err := service.generateManifest(t.Context(), "testdata/kustomize", nil)
+		res1, err := service.generateManifest(t.Context(), "testdata/kustomize", nil, "")
 		require.NoError(t, err)
 		require.NotNil(t, res1)
 
@@ -322,7 +323,7 @@ func TestGenerateManifest(t *testing.T) {
 		require.NoError(t, err)
 		service.WithGenerateCommand(Command{Command: []string{"bad-command"}})
 
-		res, err := service.generateManifest(t.Context(), "testdata/kustomize", nil)
+		res, err := service.generateManifest(t.Context(), "testdata/kustomize", nil, "")
 		require.ErrorContains(t, err, "executable file not found")
 		assert.Nil(t, res.Manifests)
 	})
@@ -331,7 +332,7 @@ func TestGenerateManifest(t *testing.T) {
 		require.NoError(t, err)
 		service.WithGenerateCommand(Command{Command: []string{"echo", "invalid yaml: }"}})
 
-		res, err := service.generateManifest(t.Context(), "testdata/kustomize", nil)
+		res, err := service.generateManifest(t.Context(), "testdata/kustomize", nil, "")
 		require.ErrorContains(t, err, "failed to unmarshal manifest")
 		assert.Nil(t, res.Manifests)
 	})
@@ -344,7 +345,7 @@ func TestGenerateManifest_deadline_exceeded(t *testing.T) {
 
 	expiredCtx, cancel := context.WithTimeout(t.Context(), time.Second*0)
 	defer cancel()
-	_, err = service.generateManifest(expiredCtx, "", nil)
+	_, err = service.generateManifest(expiredCtx, "", nil, "")
 	require.ErrorContains(t, err, "context deadline exceeded")
 }
 
@@ -358,14 +359,14 @@ func TestRunCommandContextTimeout(t *testing.T) {
 		Args:    []string{"sleep 5"},
 	}
 	before := time.Now()
-	_, err := runCommand(ctx, command, "", []string{})
+	_, err := runCommand(ctx, command, "", []string{}, nil)
 	after := time.Now()
 	require.Error(t, err) // The command should time out, causing an error.
 	assert.Less(t, after.Sub(before), 1*time.Second)
 }
 
 func TestRunCommandEmptyCommand(t *testing.T) {
-	_, err := runCommand(t.Context(), Command{}, "", nil)
+	_, err := runCommand(t.Context(), Command{}, "", nil, nil)
 	require.ErrorContains(t, err, "Command is empty")
 }
 
@@ -382,13 +383,24 @@ func TestRunCommandContextTimeoutWithCleanup(t *testing.T) {
 	}
 
 	before := time.Now()
-	output, err := runCommand(ctx, command, "", []string{})
+	output, err := runCommand(ctx, command, "", []string{}, nil)
 	after := time.Now()
 
 	require.Error(t, err) // The command should time out, causing an error.
 	assert.Less(t, after.Sub(before), 1*time.Second)
 	// The command should still have completed the cleanup after termination.
 	assert.Contains(t, output, "cleanup completed")
+}
+
+func TestRunCommandStdin(t *testing.T) {
+	ctx := context.Background()
+	command := Command{
+		Command: []string{"cat"},
+	}
+	stdinContent := "hello world"
+	output, err := runCommand(ctx, command, "", []string{}, strings.NewReader(stdinContent))
+	require.NoError(t, err)
+	assert.Equal(t, stdinContent, output)
 }
 
 func Test_getParametersAnnouncement_empty_command(t *testing.T) {
@@ -403,7 +415,7 @@ func Test_getParametersAnnouncement_empty_command(t *testing.T) {
 		Command: []string{"echo"},
 		Args:    []string{`[]`},
 	}
-	res, err := getParametersAnnouncement(t.Context(), "", *static, command, []*apiclient.EnvEntry{})
+	res, err := getParametersAnnouncement(t.Context(), "", *static, command, []*apiclient.EnvEntry{}, "")
 	require.NoError(t, err)
 	assert.Equal(t, []*repoclient.ParameterAnnouncement{{Name: "static-a"}, {Name: "static-b"}}, res.ParameterAnnouncements)
 }
@@ -417,7 +429,7 @@ func Test_getParametersAnnouncement_no_command(t *testing.T) {
 	err := yaml.Unmarshal([]byte(staticYAML), static)
 	require.NoError(t, err)
 	command := Command{}
-	res, err := getParametersAnnouncement(t.Context(), "", *static, command, []*apiclient.EnvEntry{})
+	res, err := getParametersAnnouncement(t.Context(), "", *static, command, []*apiclient.EnvEntry{}, "")
 	require.NoError(t, err)
 	assert.Equal(t, []*repoclient.ParameterAnnouncement{{Name: "static-a"}, {Name: "static-b"}}, res.ParameterAnnouncements)
 }
@@ -434,7 +446,7 @@ func Test_getParametersAnnouncement_static_and_dynamic(t *testing.T) {
 		Command: []string{"echo"},
 		Args:    []string{`[{"name": "dynamic-a"}, {"name": "dynamic-b"}]`},
 	}
-	res, err := getParametersAnnouncement(t.Context(), "", *static, command, []*apiclient.EnvEntry{})
+	res, err := getParametersAnnouncement(t.Context(), "", *static, command, []*apiclient.EnvEntry{}, "")
 	require.NoError(t, err)
 	expected := []*repoclient.ParameterAnnouncement{
 		{Name: "dynamic-a"},
@@ -450,7 +462,7 @@ func Test_getParametersAnnouncement_invalid_json(t *testing.T) {
 		Command: []string{"echo"},
 		Args:    []string{`[`},
 	}
-	_, err := getParametersAnnouncement(t.Context(), "", []*repoclient.ParameterAnnouncement{}, command, []*apiclient.EnvEntry{})
+	_, err := getParametersAnnouncement(t.Context(), "", []*repoclient.ParameterAnnouncement{}, command, []*apiclient.EnvEntry{}, "")
 	assert.ErrorContains(t, err, "unexpected end of JSON input")
 }
 
@@ -459,7 +471,7 @@ func Test_getParametersAnnouncement_bad_command(t *testing.T) {
 		Command: []string{"exit"},
 		Args:    []string{"1"},
 	}
-	_, err := getParametersAnnouncement(t.Context(), "", []*repoclient.ParameterAnnouncement{}, command, []*apiclient.EnvEntry{})
+	_, err := getParametersAnnouncement(t.Context(), "", []*repoclient.ParameterAnnouncement{}, command, []*apiclient.EnvEntry{}, "")
 	assert.ErrorContains(t, err, "error executing dynamic parameter output command")
 }
 
@@ -610,7 +622,7 @@ type MockGenerateManifestStream struct {
 }
 
 func NewMockGenerateManifestStream(repoPath, appPath string, env []string) (*MockGenerateManifestStream, error) {
-	tgz, mr, err := cmp.GetCompressedRepoAndMetadata(repoPath, appPath, env, nil, nil)
+	tgz, mr, err := cmp.GetCompressedRepoAndMetadata(repoPath, appPath, env, nil, "", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -684,7 +696,7 @@ type MockMatchRepositoryStream struct {
 }
 
 func NewMockMatchRepositoryStream(repoPath, appPath string, env []string) (*MockMatchRepositoryStream, error) {
-	tgz, mr, err := cmp.GetCompressedRepoAndMetadata(repoPath, appPath, env, nil, nil)
+	tgz, mr, err := cmp.GetCompressedRepoAndMetadata(repoPath, appPath, env, nil, "", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -757,7 +769,7 @@ type MockParametersAnnouncementStream struct {
 }
 
 func NewMockParametersAnnouncementStream(repoPath, appPath string, env []string) (*MockParametersAnnouncementStream, error) {
-	tgz, mr, err := cmp.GetCompressedRepoAndMetadata(repoPath, appPath, env, nil, nil)
+	tgz, mr, err := cmp.GetCompressedRepoAndMetadata(repoPath, appPath, env, nil, "", nil)
 	if err != nil {
 		return nil, err
 	}
