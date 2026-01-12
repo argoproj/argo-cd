@@ -850,6 +850,33 @@ func TestDoNotPrunePruneFalse(t *testing.T) {
 	assert.Equal(t, synccommon.OperationSucceeded, phase)
 }
 
+func TestPruneConfirm(t *testing.T) {
+	syncCtx := newTestSyncCtx(nil, WithOperationSettings(false, true, false, false))
+	pod := testingutils.NewPod()
+	pod.SetAnnotations(map[string]string{synccommon.AnnotationSyncOptions: "Prune=confirm"})
+	pod.SetNamespace(testingutils.FakeArgoCDNamespace)
+	syncCtx.resources = groupResources(ReconciliationResult{
+		Live:   []*unstructured.Unstructured{pod},
+		Target: []*unstructured.Unstructured{nil},
+	})
+
+	syncCtx.Sync()
+	phase, msg, resources := syncCtx.GetState()
+
+	assert.Equal(t, synccommon.OperationRunning, phase)
+	assert.Empty(t, resources)
+	assert.Equal(t, "waiting for pruning confirmation of /Pod/my-pod", msg)
+
+	syncCtx.pruneConfirmed = true
+	syncCtx.Sync()
+
+	phase, _, resources = syncCtx.GetState()
+	assert.Equal(t, synccommon.OperationSucceeded, phase)
+	assert.Len(t, resources, 1)
+	assert.Equal(t, synccommon.ResultCodePruned, resources[0].Status)
+	assert.Equal(t, "pruned", resources[0].Message)
+}
+
 // // make sure Validate=false means we don't validate
 func TestSyncOptionValidate(t *testing.T) {
 	tests := []struct {
