@@ -323,9 +323,119 @@ spec:
 		CreateApp().
 		Sync().
 		Then().
-		Expect(ResourceResultIs(ResourceResult{Version: "v1", Kind: "Pod", Namespace: ctx.DeploymentNamespace(), Name: "successful-sync-fail-hook", Images: []string{"quay.io/argoprojlabs/argocd-e2e-container:0.1"}, Message: "pod/successful-sync-fail-hook created", HookType: HookTypeSyncFail, Status: ResultCodeSynced, HookPhase: OperationSucceeded, SyncPhase: SyncPhaseSyncFail})).
-		Expect(ResourceResultIs(ResourceResult{Version: "v1", Kind: "Pod", Namespace: ctx.DeploymentNamespace(), Name: "failed-sync-fail-hook", Images: []string{"quay.io/argoprojlabs/argocd-e2e-container:0.1"}, Message: `container "main" failed with exit code 1`, HookType: HookTypeSyncFail, Status: ResultCodeSynced, HookPhase: OperationFailed, SyncPhase: SyncPhaseSyncFail})).
-		Expect(OperationPhaseIs(OperationFailed))
+		Expect(ResourceResultNumbering(4)).
+		Expect(ResourceResultIs(ResourceResult{Version: "v1", Kind: "Pod", Namespace: ctx.DeploymentNamespace(), Name: "successful-sync-fail-hook", Images: []string{"quay.io/argoprojlabs/argocd-e2e-container:0.1"}, Status: ResultCodeSynced, Message: "pod/successful-sync-fail-hook created", HookType: HookTypeSyncFail, HookPhase: OperationSucceeded, SyncPhase: SyncPhaseSyncFail})).
+		Expect(ResourceResultIs(ResourceResult{Version: "v1", Kind: "Pod", Namespace: ctx.DeploymentNamespace(), Name: "failed-sync-fail-hook", Images: []string{"quay.io/argoprojlabs/argocd-e2e-container:0.1"}, Status: ResultCodeSynced, Message: `container "main" failed with exit code 1`, HookType: HookTypeSyncFail, HookPhase: OperationFailed, SyncPhase: SyncPhaseSyncFail})).
+		Expect(OperationPhaseIs(OperationFailed)).
+		Expect(Pod(func(p corev1.Pod) bool {
+			// Completed hooks should not have a finalizer
+			_, isHook := p.GetAnnotations()[AnnotationKeyHook]
+			hasFinalizer := controllerutil.ContainsFinalizer(&p, hook.HookFinalizer)
+			return p.GetName() == "failed-sync-fail-hook" && isHook && !hasFinalizer
+		}))
+}
+
+// Make sure that if a hook is invalid (must pass the dry-run client), it fails without affecting other hooks.
+func TestInvalidlHookWaitsForOtherHooksToComplete(t *testing.T) {
+	existingHook := `
+apiVersion: v1
+kind: Pod
+metadata:
+  annotations:
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/hook-delete-policy: HookFailed # To preserve existence before sync
+  name: invalid-hook
+spec:
+  containers:
+    - command:
+        - "true"
+      image: "quay.io/argoprojlabs/argocd-e2e-container:0.1"
+      imagePullPolicy: IfNotPresent
+      name: main
+  restartPolicy: Never`
+
+	ctx := Given(t)
+	ctx.Path("hook").
+		Resource(existingHook).
+		When().
+		AddFile("invalid-hook.yaml", existingHook).
+		// The invalid hook needs to be valid in dry-run, but fail at apply time
+		// We change an immutable field to make it happen, and hook should already exist since delete policy was HookFailed on last sync
+		PatchFile("invalid-hook.yaml", `[{"op": "replace", "path": "/spec/containers/0/name", "value": "immutable" }]`).
+		CreateApp().
+		IgnoreErrors().
+		Sync().
+		Then().
+		Expect(ResourceResultNumbering(3)).
+		Expect(ResourceResultMatches(ResourceResult{Version: "v1", Kind: "Pod", Namespace: ctx.DeploymentNamespace(), Images: []string{"quay.io/argoprojlabs/argocd-e2e-container:0.1"}, Name: "invalid-hook", Status: ResultCodeSyncFailed, Message: `Pod "invalid-hook" is invalid`, HookType: HookTypeSync, HookPhase: OperationFailed, SyncPhase: SyncPhase(HookTypeSync)})).
+		Expect(ResourceResultIs(ResourceResult{Version: "v1", Kind: "Pod", Namespace: ctx.DeploymentNamespace(), Images: []string{"quay.io/argoprojlabs/argocd-e2e-container:0.1"}, Name: "hook", Status: ResultCodeSynced, Message: "pod/hook created", HookType: HookTypeSync, HookPhase: OperationSucceeded, SyncPhase: SyncPhase(HookTypeSync)})).
+		Expect(OperationPhaseIs(OperationFailed)).
+		Expect(Pod(func(p corev1.Pod) bool {
+			// Completed hooks should not have a finalizer
+			_, isHook := p.GetAnnotations()[AnnotationKeyHook]
+			hasFinalizer := controllerutil.ContainsFinalizer(&p, hook.HookFinalizer)
+			return p.GetName() == "hook" && isHook && !hasFinalizer
+		}))
+}
+
+func TestInvalidSyncFailureHookWaitsForOtherHooksToComplete(t *testing.T) {
+	existingHook := `
+apiVersion: v1
+kind: Pod
+metadata:
+  annotations:
+    argocd.argoproj.io/hook: SyncFail
+    argocd.argoproj.io/hook-delete-policy: HookSucceeded # To preserve existence before sync
+  name: invalid-sync-fail-hook
+spec:
+  containers:
+    - command:
+        - "true"
+      image: "quay.io/argoprojlabs/argocd-e2e-container:0.1"
+      imagePullPolicy: IfNotPresent
+      name: main
+  restartPolicy: Never`
+
+	ctx := Given(t)
+	ctx.Path("hook").
+		Resource(existingHook).
+		When().
+		AddFile("successful-sync-fail-hook.yaml", `
+apiVersion: v1
+kind: Pod
+metadata:
+  annotations:
+    argocd.argoproj.io/hook: SyncFail
+  name: successful-sync-fail-hook
+spec:
+  containers:
+    - command:
+        - "true"
+      image: "quay.io/argoprojlabs/argocd-e2e-container:0.1"
+      imagePullPolicy: IfNotPresent
+      name: main
+  restartPolicy: Never
+`).
+		AddFile("invalid-sync-fail-hook.yaml", existingHook).
+		// The invalid hook needs to be valid in dry-run, but fail at apply time
+		// We change an immutable field to make it happen, and hook should already exist since delete policy was HookFailed on last sync
+		PatchFile("invalid-sync-fail-hook.yaml", `[{"op": "replace", "path": "/spec/containers/0/name", "value": "immutable" }]`).
+		// Make the sync fail
+		PatchFile("hook.yaml", `[{"op": "replace", "path": "/spec/containers/0/command/0", "value": "false"}]`).
+		CreateApp().
+		IgnoreErrors().
+		Sync().
+		Then().
+		Expect(ResourceResultNumbering(4)).
+		Expect(ResourceResultMatches(ResourceResult{Version: "v1", Kind: "Pod", Namespace: ctx.DeploymentNamespace(), Images: []string{"quay.io/argoprojlabs/argocd-e2e-container:0.1"}, Name: "invalid-sync-fail-hook", Status: ResultCodeSyncFailed, Message: `Pod "invalid-sync-fail-hook" is invalid`, HookType: HookTypeSyncFail, HookPhase: OperationFailed, SyncPhase: SyncPhase(HookTypeSyncFail)})).
+		Expect(ResourceResultIs(ResourceResult{Version: "v1", Kind: "Pod", Namespace: ctx.DeploymentNamespace(), Images: []string{"quay.io/argoprojlabs/argocd-e2e-container:0.1"}, Name: "successful-sync-fail-hook", Status: ResultCodeSynced, Message: "pod/successful-sync-fail-hook created", HookType: HookTypeSyncFail, HookPhase: OperationSucceeded, SyncPhase: SyncPhase(HookTypeSyncFail)})).
+		Expect(OperationPhaseIs(OperationFailed)).
+		Expect(Pod(func(p corev1.Pod) bool {
+			// Completed hooks should not have a finalizer
+			_, isHook := p.GetAnnotations()[AnnotationKeyHook]
+			hasFinalizer := controllerutil.ContainsFinalizer(&p, hook.HookFinalizer)
+			return p.GetName() == "successful-sync-fail-hook" && isHook && !hasFinalizer
+		}))
 }
 
 // make sure that we delete the hook on success
@@ -516,6 +626,8 @@ func TestHookFinalizerPostSync(t *testing.T) {
 }
 
 func testHookFinalizer(t *testing.T, hookType HookType) {
+	// test that the finalizer prevents hooks from being deleted by Kubernetes without observing
+	// its health to evaluate completion first.
 	t.Helper()
 	ctx := Given(t)
 	ctx.
@@ -555,4 +667,80 @@ func testHookFinalizer(t *testing.T, hookType HookType) {
 		Expect(ResourceHealthIs("Pod", "pod", health.HealthStatusHealthy)).
 		Expect(ResourceResultNumbering(2)).
 		Expect(ResourceResultIs(ResourceResult{Group: "batch", Version: "v1", Kind: "Job", Namespace: ctx.DeploymentNamespace(), Name: "hook", Images: []string{"quay.io/argoprojlabs/argocd-e2e-container:0.1"}, Message: "Resource has finalizer", HookType: hookType, Status: ResultCodeSynced, HookPhase: OperationSucceeded, SyncPhase: SyncPhase(hookType)}))
+}
+
+// test terminate operation stops running hooks
+func TestTerminateWithRunningHooks(t *testing.T) {
+	newHook := func(name string, deletePolicy HookDeletePolicy, cmd string) string {
+		return fmt.Sprintf(`
+apiVersion: v1
+kind: Pod
+metadata:
+  annotations:
+    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook-delete-policy: %s
+  name: %s
+spec:
+  containers:
+    - command: [ "/bin/sh", "-c", "--" ]
+      args: [ "%s" ]
+      image: "quay.io/argoprojlabs/argocd-e2e-container:0.1"
+      imagePullPolicy: IfNotPresent
+      name: main
+  restartPolicy: Never`, deletePolicy, name, cmd)
+	}
+
+	podDeletedOrTerminatingWithoutFinalizer := func(name string) Expectation {
+		return Or(
+			NotPod(func(p corev1.Pod) bool {
+				return p.GetName() == name
+			}),
+			Pod(func(p corev1.Pod) bool {
+				_, isHook := p.GetAnnotations()[AnnotationKeyHook]
+				hasFinalizer := controllerutil.ContainsFinalizer(&p, hook.HookFinalizer)
+				return p.GetName() == name && isHook && !hasFinalizer && p.GetDeletionTimestamp() != nil
+			}))
+	}
+
+	podWithoutFinalizer := func(name string) Expectation {
+		return Pod(func(p corev1.Pod) bool {
+			_, isHook := p.GetAnnotations()[AnnotationKeyHook]
+			hasFinalizer := controllerutil.ContainsFinalizer(&p, hook.HookFinalizer)
+			return p.GetName() == name && isHook && !hasFinalizer
+		})
+	}
+
+	ctx := Given(t)
+	ctx.Path("hook").
+		Async(true).
+		When().
+		AddFile("running-delete-on-success.yaml", newHook("running-delete-on-success", HookDeletePolicyHookSucceeded, "sleep 300")).
+		AddFile("running-delete-on-create.yaml", newHook("running-delete-on-create", HookDeletePolicyBeforeHookCreation, "sleep 300")).
+		AddFile("running-delete-on-failed.yaml", newHook("running-delete-on-failed", HookDeletePolicyHookFailed, "sleep 300")).
+		AddFile("complete-delete-on-success.yaml", newHook("complete-delete-on-success", HookDeletePolicyHookSucceeded, "true")).
+		AddFile("complete-delete-on-create.yaml", newHook("complete-delete-on-create", HookDeletePolicyBeforeHookCreation, "true")).
+		AddFile("complete-delete-on-failed.yaml", newHook("complete-delete-on-failed", HookDeletePolicyHookFailed, "true")).
+		CreateApp().
+		Sync().
+		Then().
+		Expect(ResourceResultNumbering(6)).
+		Expect(ResourceResultIs(ResourceResult{Version: "v1", Kind: "Pod", Namespace: ctx.DeploymentNamespace(), Images: []string{"quay.io/argoprojlabs/argocd-e2e-container:0.1"}, Name: "complete-delete-on-success", Status: ResultCodeSynced, Message: "pod/complete-delete-on-success created", HookType: HookTypePreSync, HookPhase: OperationSucceeded, SyncPhase: SyncPhase(HookTypePreSync)})).
+		Expect(ResourceResultIs(ResourceResult{Version: "v1", Kind: "Pod", Namespace: ctx.DeploymentNamespace(), Images: []string{"quay.io/argoprojlabs/argocd-e2e-container:0.1"}, Name: "complete-delete-on-create", Status: ResultCodeSynced, Message: "pod/complete-delete-on-create created", HookType: HookTypePreSync, HookPhase: OperationSucceeded, SyncPhase: SyncPhase(HookTypePreSync)})).
+		Expect(ResourceResultIs(ResourceResult{Version: "v1", Kind: "Pod", Namespace: ctx.DeploymentNamespace(), Images: []string{"quay.io/argoprojlabs/argocd-e2e-container:0.1"}, Name: "complete-delete-on-failed", Status: ResultCodeSynced, Message: "pod/complete-delete-on-failed created", HookType: HookTypePreSync, HookPhase: OperationSucceeded, SyncPhase: SyncPhase(HookTypePreSync)})).
+		Expect(OperationPhaseIs(OperationRunning)).
+		When().
+		TerminateOp().
+		Then().
+		Expect(OperationPhaseIs(OperationFailed)).
+		// Running hooks are terminated
+		Expect(ResourceResultIs(ResourceResult{Version: "v1", Kind: "Pod", Namespace: ctx.DeploymentNamespace(), Images: []string{"quay.io/argoprojlabs/argocd-e2e-container:0.1"}, Name: "running-delete-on-success", Status: ResultCodeSynced, Message: "Terminated", HookType: HookTypePreSync, HookPhase: OperationFailed, SyncPhase: SyncPhase(HookTypePreSync)})).
+		Expect(ResourceResultIs(ResourceResult{Version: "v1", Kind: "Pod", Namespace: ctx.DeploymentNamespace(), Images: []string{"quay.io/argoprojlabs/argocd-e2e-container:0.1"}, Name: "running-delete-on-create", Status: ResultCodeSynced, Message: "Terminated", HookType: HookTypePreSync, HookPhase: OperationFailed, SyncPhase: SyncPhase(HookTypePreSync)})).
+		Expect(ResourceResultIs(ResourceResult{Version: "v1", Kind: "Pod", Namespace: ctx.DeploymentNamespace(), Images: []string{"quay.io/argoprojlabs/argocd-e2e-container:0.1"}, Name: "running-delete-on-failed", Status: ResultCodeSynced, Message: "Terminated", HookType: HookTypePreSync, HookPhase: OperationFailed, SyncPhase: SyncPhase(HookTypePreSync)})).
+		// terminated hooks finalizer is removed and are deleted successfully
+		Expect(podDeletedOrTerminatingWithoutFinalizer("running-delete-on-success")).
+		Expect(podDeletedOrTerminatingWithoutFinalizer("running-delete-on-create")).
+		Expect(podDeletedOrTerminatingWithoutFinalizer("running-delete-on-failed")).
+		Expect(podWithoutFinalizer("complete-delete-on-success")).
+		Expect(podWithoutFinalizer("complete-delete-on-create")).
+		Expect(podWithoutFinalizer("complete-delete-on-failed"))
 }
