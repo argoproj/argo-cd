@@ -294,6 +294,111 @@ func TestGPGHeadValid(t *testing.T) {
 	}
 }
 
+func TestDescribeProblems(t *testing.T) {
+	const r = "aafc9e88599f24802b113b6278e42eaadda32cd6"
+	const a = "Commit Author <nereply@acme.com>"
+	const k_good = "AAAAAAAAAAAAAAAA"
+	const k_ok = "BBBBBBBBBBBBBBB"
+	policy := v1alpha1.SourceIntegrityGitPolicyGPG{Keys: []string{k_good, k_ok}}
+
+	sig := func(key string, result git.GPGVerificationResult) git.RevisionSignatureInfo {
+		return git.RevisionSignatureInfo{
+			Revision:           r,
+			VerificationResult: result,
+			SignatureKeyID:     key,
+			AuthorIdentity:     a,
+		}
+	}
+
+	tests := []struct {
+		name     string
+		gpg      *v1alpha1.SourceIntegrityGitPolicyGPG
+		sigs     []git.RevisionSignatureInfo
+		expected []string
+	}{
+		{
+			name: "report only problems",
+			gpg:  &policy,
+			sigs: []git.RevisionSignatureInfo{
+				sig("bad", git.GPGVerificationResultRevokedKey),
+				sig(k_good, git.GPGVerificationResultGood),
+				sig("also_bad", git.GPGVerificationResultUntrusted),
+			},
+			expected: []string{
+				"Failed verifying revision " + r + " by '" + a + "': signed with revoked key (key_id=bad)",
+				"Failed verifying revision " + r + " by '" + a + "': signed with untrusted key (key_id=also_bad)",
+			},
+		},
+		{
+			name: "collapse problems of the same key",
+			gpg:  &policy,
+			sigs: []git.RevisionSignatureInfo{
+				sig("bad", git.GPGVerificationResultRevokedKey),
+				sig(k_good, git.GPGVerificationResultGood),
+				sig("also_bad", git.GPGVerificationResultUntrusted),
+				sig("bad", git.GPGVerificationResultRevokedKey),
+			},
+			expected: []string{
+				"Failed verifying revision " + r + " by '" + a + "': signed with revoked key (key_id=bad)",
+				"Failed verifying revision " + r + " by '" + a + "': signed with untrusted key (key_id=also_bad)",
+			},
+		},
+		{
+			name: "do not collapse unsigned commits, as they can differ by author",
+			gpg:  &policy,
+			sigs: []git.RevisionSignatureInfo{
+				sig("", git.GPGVerificationResultUnsigned),
+				sig("", git.GPGVerificationResultUnsigned),
+				sig("", git.GPGVerificationResultUnsigned),
+			},
+			expected: []string{
+				"Failed verifying revision " + r + " by '" + a + "': unsigned (key_id=)",
+				"Failed verifying revision " + r + " by '" + a + "': unsigned (key_id=)",
+				"Failed verifying revision " + r + " by '" + a + "': unsigned (key_id=)",
+			},
+		},
+		{
+			name: "Report first ten problems only",
+			gpg:  &policy,
+			sigs: []git.RevisionSignatureInfo{
+				sig("revoked", git.GPGVerificationResultRevokedKey),
+				sig("", git.GPGVerificationResultUnsigned),
+				sig("untrusted", git.GPGVerificationResultUntrusted),
+				sig("missing", git.GPGVerificationResultMissingKey),
+				sig("expired_key", git.GPGVerificationResultExpiredKey),
+				sig("expired_sig", git.GPGVerificationResultExpiredSignature),
+				sig("bad", git.GPGVerificationResultBad),
+				sig("also_bad", git.GPGVerificationResultBad),
+				sig("more_bad", git.GPGVerificationResultBad),
+				sig("outright_terrible", git.GPGVerificationResultBad),
+				// the rest is cut off
+				sig("OMG", git.GPGVerificationResultBad),
+				sig("nope", git.GPGVerificationResultBad),
+				sig("you_gott_be_kidding_me", git.GPGVerificationResultBad),
+			},
+			expected: []string{
+				"Failed verifying revision " + r + " by '" + a + "': signed with revoked key (key_id=revoked)",
+				"Failed verifying revision " + r + " by '" + a + "': unsigned (key_id=)",
+				"Failed verifying revision " + r + " by '" + a + "': signed with untrusted key (key_id=untrusted)",
+				"Failed verifying revision " + r + " by '" + a + "': signed with key not in keyring (key_id=missing)",
+				"Failed verifying revision " + r + " by '" + a + "': signed with expired key (key_id=expired_key)",
+				"Failed verifying revision " + r + " by '" + a + "': expired signature (key_id=expired_sig)",
+				"Failed verifying revision " + r + " by '" + a + "': bad signature (key_id=bad)",
+				"Failed verifying revision " + r + " by '" + a + "': bad signature (key_id=also_bad)",
+				"Failed verifying revision " + r + " by '" + a + "': bad signature (key_id=more_bad)",
+				"Failed verifying revision " + r + " by '" + a + "': bad signature (key_id=outright_terrible)",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			problems := describeProblems(tt.gpg, tt.sigs)
+			assert.Equal(t, tt.expected, problems)
+		})
+	}
+}
+
 func TestGPGStrictValid(t *testing.T) {
 	const shaFirst = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 	const shaSecond = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
@@ -461,5 +566,3 @@ GIT/GPG: Failed verifying revision %s by 'ignored': signed with unallowed key (k
 		})
 	}
 }
-
-// TODO LS Revisions called with unknown commit/tag

@@ -978,7 +978,7 @@ const (
 	GPGVerificationResultGood             GPGVerificationResult = "signed"                         // All good
 	GPGVerificationResultBad              GPGVerificationResult = "bad signature"                  // Not able to cryptographically verify signature
 	GPGVerificationResultUntrusted        GPGVerificationResult = "signed with untrusted key"      // The trust level of the key in the gpg keyring is not sufficient
-	GPGVerificationResultExpiredSignature GPGVerificationResult = "signature expired"              // Signature have expired
+	GPGVerificationResultExpiredSignature GPGVerificationResult = "expired signature"              // Signature have expired
 	GPGVerificationResultExpiredKey       GPGVerificationResult = "signed with expired key"        // Signed with a key expired at the time of the signing
 	GPGVerificationResultRevokedKey       GPGVerificationResult = "signed with revoked key"        // Signed with a key that is revoked
 	GPGVerificationResultMissingKey       GPGVerificationResult = "signed with key not in keyring" // The key used to sign was not added to the gpg keyring
