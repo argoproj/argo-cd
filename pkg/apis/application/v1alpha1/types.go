@@ -1828,8 +1828,6 @@ const (
 	ApplicationConditionComparisonError = "ComparisonError"
 	// ApplicationConditionSyncError indicates controller failed to automatically sync the application
 	ApplicationConditionSyncError = "SyncError"
-	// ApplicationConditionSourceVerificationError indicates a source failed to verify
-	ApplicationConditionSourceVerificationError = "SourceVerificationError"
 	// ApplicationConditionUnknownError indicates an unknown controller error
 	ApplicationConditionUnknownError = "UnknownError"
 	// ApplicationConditionSharedResourceWarning indicates that controller detected resources which belongs to more than one application

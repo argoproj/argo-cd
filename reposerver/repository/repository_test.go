@@ -161,7 +161,7 @@ func newServiceWithMocks(t *testing.T, root string) (*Service, *gitmocks.Client,
 		gitClient.EXPECT().LsRemote(mock.Anything).Return(mock.Anything, nil)
 		gitClient.EXPECT().CommitSHA().Return(mock.Anything, nil)
 		gitClient.EXPECT().Root().Return(root)
-		gitClient.EXPECT().RepoURL().Return("https://example.com/foo/bar.git")
+		gitClient.EXPECT().RepoURL().Return("https://fake.com/fake_group/fake_repo.git")
 		gitClient.EXPECT().IsAnnotatedTag(mock.Anything).Return(false)
 
 		chart := "my-chart"

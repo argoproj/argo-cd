@@ -2074,16 +2074,12 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 	}
 
 	var source *v1alpha1.ApplicationSource
-	var repoURL string
 	if !a.Spec.HasMultipleSources() {
 		source = ptr.To(a.Spec.GetSource())
-		repoURL = source.RepoURL
-	} else {
-		repoURL = a.Spec.Sources[0].RepoURL
 	}
 
-	if syncReq.Manifests != nil && sourceintegrity.ForGit(proj.EffectiveSourceIntegrity(), repoURL) != nil {
-		return nil, status.Errorf(codes.FailedPrecondition, "Cannot use local sync when signature keys are required.")
+	if syncReq.Manifests != nil && sourceintegrity.HasCriteria(proj.EffectiveSourceIntegrity(), a.Spec.GetSources()...) {
+		return nil, status.Errorf(codes.FailedPrecondition, "Cannot use local manifests when source integrity is enforced")
 	}
 
 	op := v1alpha1.Operation{

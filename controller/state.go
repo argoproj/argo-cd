@@ -239,8 +239,9 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 
 	keyManifestGenerateAnnotationVal, keyManifestGenerateAnnotationExists := app.Annotations[v1alpha1.AnnotationKeyManifestGeneratePaths]
 
+	sourceCount := len(sources)
 	for i, source := range sources {
-		if len(revisions) < len(sources) || revisions[i] == "" {
+		if len(revisions) < sourceCount || revisions[i] == "" {
 			revisions[i] = source.TargetRevision
 		}
 		repo, err := m.db.GetRepository(ctx, source.RepoURL, proj.Name)
@@ -290,7 +291,7 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 				InstallationID:     installationID,
 			})
 			if err != nil {
-				return nil, nil, false, fmt.Errorf("failed to compare revisions for source %d of %d: %w", i+1, len(sources), err)
+				return nil, nil, false, fmt.Errorf("failed to compare revisions for source %d of %d: %w", i+1, sourceCount, err)
 			}
 
 			if updateRevisionResult.Changes {
@@ -345,15 +346,26 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 			InstallationID:                  installationID,
 		})
 		if err != nil {
-			return nil, nil, false, fmt.Errorf("failed to generate manifest for source %d of %d: %w", i+1, len(sources), err)
+			return nil, nil, false, fmt.Errorf("failed to generate manifest for source %d of %d: %w", i+1, sourceCount, err)
 		}
 
 		targetObj, err := unmarshalManifests(manifestInfo.Manifests)
 		if err != nil {
-			return nil, nil, false, fmt.Errorf("failed to unmarshal manifests for source %d of %d: %w", i+1, len(sources), err)
+			return nil, nil, false, fmt.Errorf("failed to unmarshal manifests for source %d of %d: %w", i+1, sourceCount, err)
 		}
 		targetObjs = append(targetObjs, targetObj...)
 		manifestInfos = append(manifestInfos, manifestInfo)
+
+		// Update eventual check problems with the ID of the current source. This is so users can attribute problems to correct sources
+		if sourceCount > 1 {
+			var sourceId string
+			if source.Name != "" {
+				sourceId = fmt.Sprintf("source %s: ", source.Name)
+			} else {
+				sourceId = fmt.Sprintf("source %d of %d: ", i+1, sourceCount)
+			}
+			manifestInfo.SourceIntegrityResult.InjectSourceName(sourceId)
+		}
 	}
 
 	ts.AddCheckpoint("manifests_ms")
@@ -594,7 +606,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	} else {
 		// Prevent applying local manifests for now when source integrity is enforced
 		// This is also enforced on API level, but as a last resort, we also enforce it here
-		if sourceintegrity.ForGit(project.EffectiveSourceIntegrity(), sources[0].RepoURL) != nil {
+		if sourceintegrity.HasCriteria(project.EffectiveSourceIntegrity(), sources...) {
 			msg := "Cannot use local manifests when source integrity is enforced"
 			targetObjs = make([]*unstructured.Unstructured, 0)
 			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})

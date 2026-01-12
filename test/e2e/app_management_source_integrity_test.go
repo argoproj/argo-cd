@@ -5,6 +5,7 @@ import (
 
 	"github.com/argoproj/gitops-engine/pkg/health"
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
+	"github.com/stretchr/testify/assert"
 
 	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
@@ -325,4 +326,58 @@ func TestNamespacedSyncToSignedCommit(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		Expect(NoConditions())
+}
+
+func TestLocalManifestRejectedWithSourceIntegrity(t *testing.T) {
+	Given(t).
+		Project("gpg").
+		Path(guestbookPath).
+		GPGPublicKeyAdded().
+		When().
+		AddSignedFile("test.yaml", "null").
+		CreateApp().
+		Sync().
+		Then().
+		And(func(app *Application) {
+			res, _ := fixture.RunCli("app", "manifests", app.Name)
+			assert.Contains(t, res, "containerPort: 80")
+			assert.Contains(t, res, "image: quay.io/argoprojlabs/argocd-e2e-container:0.2")
+		}).
+		Given().
+		LocalPath(guestbookPathLocal).
+		When().
+		IgnoreErrors().
+		Sync("--local-repo-root", ".").
+		Then().
+		Expect(ErrorRegex("", "Cannot use local manifests when source integrity is enforced"))
+}
+
+func TestOCISourceIgnoredWithSourceIntegrity(t *testing.T) {
+	// No keys in keyring, no keys in project, OCI is not git, yet source integrity is defined.
+	// Expecting some of that would cause visible failure if soure integrity would be applied
+	Given(t).
+		Project("gpg").
+		ProjectSpec(appProjectWithSourceIntegrity()).
+		HTTPSInsecureRepoURLWithClientCertAdded().
+		PushImageToOCIRegistry("testdata/guestbook", "1.0.0").
+		OCIRepoAdded("my-oci-repo", "guestbook").
+		OCIRegistry(fixture.OCIHostURL).
+		OCIRegistryPath("guestbook").
+		RepoURLType(fixture.RepoURLTypeOCI).
+		Revision("1.0.0").
+		Path(".").
+		When().
+		IgnoreErrors().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		// Verify local manifests are permitted - source integrity criteria for git should not apply for oci
+		Given().
+		LocalPath(guestbookPathLocal).
+		When().
+		DoNotIgnoreErrors().
+		Sync("--local-repo-root", ".", "--force", "--prune")
 }
