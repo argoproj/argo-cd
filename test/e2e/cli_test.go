@@ -42,7 +42,7 @@ func TestCliAppCommand(t *testing.T) {
 		And(func() {
 			output, err := RunCli("app", "sync", ctx.AppName(), "--timeout", "90")
 			require.NoError(t, err)
-			vars := map[string]any{"Name": ctx.AppName(), "Namespace": DeploymentNamespace()}
+			vars := map[string]any{"Name": ctx.AppName(), "Namespace": ctx.DeploymentNamespace()}
 			assert.Contains(t, NormalizeOutput(output), Tmpl(t, `Pod {{.Namespace}} pod Synced Progressing pod/pod created`, vars))
 			assert.Contains(t, NormalizeOutput(output), Tmpl(t, `Pod {{.Namespace}} hook Succeeded Synced Sync pod/hook created`, vars))
 		}).
@@ -55,7 +55,7 @@ func TestCliAppCommand(t *testing.T) {
 			expected := Tmpl(
 				t,
 				`{{.Name}} https://kubernetes.default.svc {{.Namespace}} default Synced Healthy Manual <none>`,
-				map[string]any{"Name": a.GetName(), "Namespace": DeploymentNamespace()})
+				map[string]any{"Name": a.GetName(), "Namespace": ctx.DeploymentNamespace()})
 			assert.Contains(t, NormalizeOutput(output), expected)
 		})
 }
@@ -86,7 +86,7 @@ func TestNormalArgoCDCommandsExecuteOverPluginsWithSameName(t *testing.T) {
 
 			assert.NotContains(t, NormalizeOutput(output), "I am a plugin, not Argo CD!")
 
-			vars := map[string]any{"Name": ctx.AppName(), "Namespace": DeploymentNamespace()}
+			vars := map[string]any{"Name": ctx.AppName(), "Namespace": ctx.DeploymentNamespace()}
 			assert.Contains(t, NormalizeOutput(output), Tmpl(t, `Pod {{.Namespace}} pod Synced Progressing pod/pod created`, vars))
 			assert.Contains(t, NormalizeOutput(output), Tmpl(t, `Pod {{.Namespace}} hook Succeeded Synced Sync pod/hook created`, vars))
 		}).
@@ -102,7 +102,7 @@ func TestNormalArgoCDCommandsExecuteOverPluginsWithSameName(t *testing.T) {
 			expected := Tmpl(
 				t,
 				`{{.Name}} https://kubernetes.default.svc {{.Namespace}} default Synced Healthy Manual <none>`,
-				map[string]any{"Name": ctx.AppName(), "Namespace": DeploymentNamespace()})
+				map[string]any{"Name": ctx.AppName(), "Namespace": ctx.DeploymentNamespace()})
 			assert.Contains(t, NormalizeOutput(output), expected)
 		})
 }

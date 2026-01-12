@@ -246,6 +246,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Municipality of The Hague](https://www.denhaag.nl/)
 1. [My Job Glasses](https://myjobglasses.com)
 1. [Natura &Co](https://naturaeco.com/)
+1. [Netease Cloud Music](https://music.163.com/)
 1. [Nethopper](https://nethopper.io)
 1. [New Relic](https://newrelic.com/)
 1. [Nextbasket](https://nextbasket.com)

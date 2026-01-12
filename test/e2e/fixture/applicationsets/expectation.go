@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/argoproj/gitops-engine/pkg/diff"
+	"github.com/argoproj/gitops-engine/pkg/health"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -79,14 +80,31 @@ func ApplicationsExist(expectedApps []v1alpha1.Application) Expectation {
 	}
 }
 
-// ApplicationSetHasConditions checks whether each of the 'expectedConditions' exist in the ApplicationSet status, and are
-// equivalent to provided values.
-func ApplicationSetHasConditions(applicationSetName string, expectedConditions []v1alpha1.ApplicationSetCondition) Expectation {
+// ApplicationSetHasHealthStatus checks whether the ApplicationSet has the expected health status.
+func ApplicationSetHasHealthStatus(expectedHealthStatus health.HealthStatusCode) Expectation {
 	return func(c *Consequences) (state, string) {
 		// retrieve the application set
-		foundApplicationSet := c.applicationSet(applicationSetName)
+		foundApplicationSet := c.applicationSet(c.context.GetName())
 		if foundApplicationSet == nil {
-			return pending, fmt.Sprintf("application set '%s' not found", applicationSetName)
+			return pending, fmt.Sprintf("application set '%s' not found", c.context.GetName())
+		}
+
+		if foundApplicationSet.Status.Health.Status != expectedHealthStatus {
+			return pending, fmt.Sprintf("application set health status is '%s', expected '%s'",
+				foundApplicationSet.Status.Health.Status, expectedHealthStatus)
+		}
+		return succeeded, fmt.Sprintf("application set has expected health status '%s'", expectedHealthStatus)
+	}
+}
+
+// ApplicationSetHasConditions checks whether each of the 'expectedConditions' exist in the ApplicationSet status, and are
+// equivalent to provided values.
+func ApplicationSetHasConditions(expectedConditions []v1alpha1.ApplicationSetCondition) Expectation {
+	return func(c *Consequences) (state, string) {
+		// retrieve the application set
+		foundApplicationSet := c.applicationSet(c.context.GetName())
+		if foundApplicationSet == nil {
+			return pending, fmt.Sprintf("application set '%s' not found", c.context.GetName())
 		}
 
 		if !conditionsAreEqual(&expectedConditions, &foundApplicationSet.Status.Conditions) {

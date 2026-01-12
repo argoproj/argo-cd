@@ -19,7 +19,7 @@ func TestBackupExportImport(t *testing.T) {
 	var exportRawOutput string
 	ctx := Given(t)
 	// Create application in argocd namespace
-	appctx := appfixture.GivenWithSameState(t)
+	appctx := appfixture.GivenWithSameState(ctx)
 
 	var appTestNamespace Application
 	var appOtherNamespace Application

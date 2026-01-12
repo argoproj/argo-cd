@@ -95,9 +95,68 @@ func TestClusterInformer_TransformErrors(t *testing.T) {
 	go informer.Run(ctx.Done())
 	cache.WaitForCacheSync(ctx.Done(), informer.HasSynced)
 
+	// GetClusterByURL should return not found since transform failed
 	_, err = informer.GetClusterByURL("https://bad.example.com")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "not found")
+
+	// ListClusters should return an error because the cache contains a secret and not a cluster
+	_, err = informer.ListClusters()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "cluster cache contains unexpected type")
+}
+
+func TestClusterInformer_TransformErrors_MixedSecrets(t *testing.T) {
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+
+	// One good secret and one bad secret
+	goodSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "good-cluster",
+			Namespace: "argocd",
+			Labels: map[string]string{
+				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
+			},
+		},
+		Data: map[string][]byte{
+			"server": []byte("https://good.example.com"),
+			"name":   []byte("good-cluster"),
+			"config": []byte(`{"bearerToken":"token"}`),
+		},
+	}
+
+	badSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "bad-cluster",
+			Namespace: "argocd",
+			Labels: map[string]string{
+				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
+			},
+		},
+		Data: map[string][]byte{
+			"server": []byte("https://bad.example.com"),
+			"name":   []byte("bad-cluster"),
+			"config": []byte(`{invalid json}`),
+		},
+	}
+
+	clientset := fake.NewSimpleClientset(goodSecret, badSecret)
+	informer, err := NewClusterInformer(clientset, "argocd")
+	require.NoError(t, err)
+
+	go informer.Run(ctx.Done())
+	cache.WaitForCacheSync(ctx.Done(), informer.HasSynced)
+
+	// GetClusterByURL should still work for the good cluster
+	cluster, err := informer.GetClusterByURL("https://good.example.com")
+	require.NoError(t, err)
+	assert.Equal(t, "good-cluster", cluster.Name)
+
+	// But ListClusters should fail because there's a bad secret in the cache
+	_, err = informer.ListClusters()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "cluster cache contains unexpected type")
 }
 
 func TestClusterInformer_DynamicUpdates(t *testing.T) {

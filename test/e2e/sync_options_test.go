@@ -119,7 +119,8 @@ func TestSyncOptionsValidateTrue(t *testing.T) {
 }
 
 func TestSyncWithStatusIgnored(t *testing.T) {
-	Given(t).
+	ctx := Given(t)
+	ctx.
 		Path(guestbookPath).
 		When().
 		And(func() {
@@ -143,7 +144,7 @@ func TestSyncWithStatusIgnored(t *testing.T) {
 		// app should remain synced if k8s change detected
 		When().
 		And(func() {
-			errors.NewHandler(t).FailOnErr(KubeClientset.AppsV1().Deployments(DeploymentNamespace()).Patch(t.Context(),
+			errors.NewHandler(t).FailOnErr(KubeClientset.AppsV1().Deployments(ctx.DeploymentNamespace()).Patch(t.Context(),
 				"guestbook-ui", types.JSONPatchType, []byte(`[{ "op": "replace", "path": "/status/observedGeneration", "value": 2 }]`), metav1.PatchOptions{}))
 		}).
 		Then().
@@ -199,13 +200,14 @@ func TestSyncWithSkipHook(t *testing.T) {
 }
 
 func TestSyncWithForceReplace(t *testing.T) {
+	ctx := Given(t)
 	t.Cleanup(func() {
 		// remove finalizer to ensure easy cleanup
-		_, err := Run("", "kubectl", "patch", "deployment", "guestbook-ui", "-n", DeploymentNamespace(), "-p", `{"metadata":{"finalizers":[]}}`, "--type=merge")
+		_, err := Run("", "kubectl", "patch", "deployment", "guestbook-ui", "-n", ctx.DeploymentNamespace(), "-p", `{"metadata":{"finalizers":[]}}`, "--type=merge")
 		require.NoError(t, err)
 	})
 
-	Given(t).
+	ctx.
 		Path(guestbookPath).
 		When().
 		CreateApp().

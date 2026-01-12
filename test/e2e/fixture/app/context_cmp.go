@@ -16,9 +16,9 @@ import (
 // RunningCMPServer starts a CMP server with the given config directory and waits for it to be ready.
 // It blocks until the CMP socket is created or times out after 10 seconds.
 func (c *Context) RunningCMPServer(configFile string) *Context {
-	c.t.Helper()
-	startCMPServer(c.t, configFile)
-	c.t.Setenv("ARGOCD_BINARY_NAME", "argocd")
+	c.T().Helper()
+	startCMPServer(c.T(), configFile)
+	c.T().Setenv("ARGOCD_BINARY_NAME", "argocd")
 	return c
 }
 
