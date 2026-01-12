@@ -15,6 +15,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
+	"github.com/argoproj/gitops-engine/pkg/health"
+
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/applicationset"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -2177,36 +2179,8 @@ func TestApplicationSetAPIListResourceEvents(t *testing.T) {
 
 // TestApplicationSetHealthStatusCLI tests that the CLI commands display the health status field for an ApplicationSet.
 func TestApplicationSetHealthStatusCLI(t *testing.T) {
-	expectedApp := v1alpha1.Application{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       application.ApplicationKind,
-			APIVersion: "argoproj.io/v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:       "health-cli-guestbook",
-			Namespace:  utils.ArgoCDNamespace,
-			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-		},
-		Spec: v1alpha1.ApplicationSpec{
-			Project: "default",
-			Source: &v1alpha1.ApplicationSource{
-				RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
-				TargetRevision: "HEAD",
-				Path:           "guestbook",
-			},
-			Destination: v1alpha1.ApplicationDestination{
-				Server:    "https://kubernetes.default.svc",
-				Namespace: "guestbook",
-			},
-		},
-	}
-
 	Given(t).
 		When().Create(v1alpha1.ApplicationSet{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "health-status-cli-test",
-			Namespace: utils.ArgoCDNamespace,
-		},
 		Spec: v1alpha1.ApplicationSetSpec{
 			GoTemplate: true,
 			Template: v1alpha1.ApplicationSetTemplate{
@@ -2236,16 +2210,15 @@ func TestApplicationSetHealthStatusCLI(t *testing.T) {
 		},
 	}).Then().
 		// Wait for the ApplicationSet to be ready
-		Expect(ApplicationSetHasConditions("health-status-cli-test", ExpectedConditions)).
-
+		Expect(ApplicationSetHasConditions(ExpectedConditions)).
+		Expect(ApplicationSetHasHealthStatus(health.HealthStatusHealthy)).
 		// Test 'argocd appset get' shows Health Status field
-		When().AppSetGet("health-status-cli-test").
-		Then().Expect(OutputContains("Health Status:")).
-
+		When().AppSetGet().
+		Then().
+		Expect(Success("Health Status:      Healthy")).
 		// Test 'argocd appset list' shows HEALTH column header
 		When().AppSetList().
-		Then().Expect(OutputContains("HEALTH")).
-
-		// Cleanup
-		When().Delete().Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{expectedApp}))
+		Then().
+		Expect(Success("PROJECT  SYNCPOLICY  HEALTH   CONDITIONS")).
+		Expect(Success("default  nil         Healthy  "))
 }
