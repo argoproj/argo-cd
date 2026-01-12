@@ -1,10 +1,3 @@
----
-name: Update Minor Version
-about: Used by our Release Champion to add steps when upgrading minor version
-title: 'docs: Upgrade guide for vX.Y to vX.Z'
-assignees: ''
-labels: 'component:docs'
----
 
 # vX.Y to X.Z
 
