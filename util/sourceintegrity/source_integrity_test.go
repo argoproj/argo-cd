@@ -48,13 +48,13 @@ func Test_GPGDisabledLogging(t *testing.T) {
 	logrus.AddHook(&logger)
 	t.Cleanup(logger.CleanupHook)
 
-	fun := ForGit(si, "https://github.com/argoproj/argo-cd.git")
+	fun := lookupGit(si, "https://github.com/argoproj/argo-cd.git")
 	assert.Equal(t, []string{"SourceIntegrity criteria for git+gpg declared, but it is turned off by ARGOCD_GPG_ENABLED"}, logger.GetEntries())
 	assert.Nil(t, fun)
 
 	// No logs on the second call
 	logger.Entries = []logrus.Entry{}
-	ForGit(si, "https://github.com/argoproj/argo-cd-ext.git")
+	lookupGit(si, "https://github.com/argoproj/argo-cd-ext.git")
 	assert.Equal(t, []string{}, logger.GetEntries())
 	assert.Nil(t, fun)
 }
@@ -71,8 +71,10 @@ func TestGPGUnknownMode(t *testing.T) {
 }
 
 func TestNullOrEmptyDoesNothing(t *testing.T) {
-	gitClient := &gitmocks.Client{}
 	repoURL := "https://github.com/argoproj/argo-cd"
+	applicationSource := v1alpha1.ApplicationSource{RepoURL: repoURL}
+
+	gitClient := &gitmocks.Client{}
 	gitClient.EXPECT().RepoURL().Return(repoURL)
 
 	tests := []struct {
@@ -87,14 +89,14 @@ func TestNullOrEmptyDoesNothing(t *testing.T) {
 		},
 		{
 			name: "No GIT",
-			si: &v1alpha1.SourceIntegrity{
+			si:   &v1alpha1.SourceIntegrity{
 				// No Git or alternative specified
 			},
 			logged: []string{},
 		},
 		{
 			name: "No matching policy",
-			si: &v1alpha1.SourceIntegrity{Git: &v1alpha1.SourceIntegrityGit{
+			si:   &v1alpha1.SourceIntegrity{Git: &v1alpha1.SourceIntegrityGit{
 				// No policies configured here
 			}},
 			logged: []string{},
@@ -115,7 +117,7 @@ func TestNullOrEmptyDoesNothing(t *testing.T) {
 			logrus.AddHook(&logger)
 			t.Cleanup(logger.CleanupHook)
 
-			assert.Nil(t, ForGit(tt.si, repoURL))
+			assert.False(t, HasCriteria(tt.si, applicationSource))
 			assert.Equal(t, tt.logged, logger.GetEntries())
 		})
 	}
@@ -187,7 +189,7 @@ func TestPolicyMatching(t *testing.T) {
 
 	for _, tt := range testCases {
 		t.Run(tt.repo, func(t *testing.T) {
-			actual := findMatchingPolicies(sig, tt.repo)
+			actual := findMatchingGitPolicies(sig, tt.repo)
 
 			assert.Equal(t, tt.expectedPolicies, actual)
 
@@ -195,7 +197,7 @@ func TestPolicyMatching(t *testing.T) {
 			logrus.AddHook(hook)
 			defer hook.CleanupHook()
 			si := &v1alpha1.SourceIntegrity{Git: sig}
-			forGitFunc := ForGit(si, tt.repo)
+			forGitFunc := lookupGit(si, tt.repo)
 			if tt.expectedNoFunc {
 				assert.Nil(t, forGitFunc)
 			} else {

@@ -102,3 +102,14 @@ func (r *SourceIntegrityCheckResult) IsValid() bool {
 	}
 	return true
 }
+
+func (r *SourceIntegrityCheckResult) InjectSourceName(sourceName string) {
+	if r == nil {
+		return
+	}
+	for chi, check := range r.Checks {
+		for pi, problem := range check.Problems {
+			r.Checks[chi].Problems[pi] = sourceName + problem
+		}
+	}
+}
