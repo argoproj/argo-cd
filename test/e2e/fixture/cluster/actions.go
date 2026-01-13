@@ -165,13 +165,13 @@ func (a *Actions) GetByName() *Actions {
 
 func (a *Actions) SetNamespaces() *Actions {
 	a.context.T().Helper()
-	a.runCli("cluster", "set", fmt.Sprintf("%s,%s", a.context.server, a.context.name), "--namespace", strings.Join(a.context.namespaces, ","))
+	a.runCli("cluster", "set", fmt.Sprintf("%s,%s", a.context.server, a.context.GetName()), "--namespace", strings.Join(a.context.namespaces, ","))
 	return a
 }
 
 func (a *Actions) DeleteByServerAndName() *Actions {
 	a.context.T().Helper()
-	a.runCli("cluster", "rm", fmt.Sprintf("%s,%s", a.context.server, a.context.name), "--yes")
+	a.runCli("cluster", "rm", fmt.Sprintf("%s,%s", a.context.server, a.context.GetName()), "--yes")
 	return a
 }
 
