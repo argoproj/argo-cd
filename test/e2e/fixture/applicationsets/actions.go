@@ -562,8 +562,8 @@ func (a *Actions) runCli(args ...string) {
 }
 
 func (a *Actions) AddFile(fileName, fileContents string) *Actions {
-	a.context.t.Helper()
-	fixture.AddFile(a.context.t, a.context.path+"/"+fileName, fileContents)
+	a.context.T().Helper()
+	fixture.AddFile(a.context.T(), a.context.path+"/"+fileName, fileContents)
 	return a
 }
 
