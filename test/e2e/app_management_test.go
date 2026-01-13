@@ -1045,6 +1045,37 @@ func TestKnownTypesInCRDDiffing(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced))
 }
 
+// TestSyncCustomResourceWithoutCRD tests the scenario where a custom resource is synced
+// before its CRD is registered. This reproduces a nil pointer panic bug where the
+// permission validator receives a nil APIResource parameter.
+//
+// Bug report: https://github.com/argoproj/argo-cd/issues/25460
+//
+// The permission validator in controller/sync.go was dereferencing res.Namespaced
+// without checking if res is nil first. This test verifies that the fix (adding a nil check)
+// prevents the panic.
+//
+// Scenario:
+// 1. Create an app with a custom resource (RabbitmqCluster) but NO CRD definition
+// 2. The resource has SkipDryRunOnMissingResource=true annotation
+// 3. When gitops-engine calls ServerResourceForGroupVersionKind, it returns NotFound error
+// 4. Due to SkipDryRunOnMissingResource, the sync continues
+// 5. In certain timing/caching scenarios, the permission validator can be called with nil serverRes
+// 6. Without the fix, this would panic. With the fix, it handles nil gracefully.
+func TestSyncCustomResourceWithoutCRD(t *testing.T) {
+	// This test expects the sync to fail (because the CRD doesn't exist),
+	// but it should fail gracefully with an error message, NOT with a panic.
+	Given(t).
+		Path("crd-without-definition").
+		When().
+		CreateApp().
+		Sync().
+		Then().
+		// The sync should fail because the CRD doesn't exist
+		// But it should NOT panic - that's what we're testing
+		Expect(OperationPhaseIs(OperationFailed))
+}
+
 func TestDuplicatedClusterResourcesAnnotationTracking(t *testing.T) {
 	// This test will fail if the controller fails to fix the tracking annotation for malformed cluster resources
 	// (i.e. resources where metadata.namespace is set). Before the bugfix, this test would fail with a diff in the
