@@ -1,4 +1,4 @@
-s = {}
+hs = {}
 clusterAvailable = {}
 allReplicasReady = {}
 
