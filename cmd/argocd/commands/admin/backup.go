@@ -2,6 +2,7 @@ package admin
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -67,73 +68,8 @@ func NewExportCommand() *cobra.Command {
 				}()
 			}
 
-			if len(applicationNamespaces) == 0 || len(applicationsetNamespaces) == 0 {
-				defaultNs := getAdditionalNamespaces(ctx, acdClients.configMaps)
-				if len(applicationNamespaces) == 0 {
-					applicationNamespaces = defaultNs.applicationNamespaces
-				}
-				if len(applicationsetNamespaces) == 0 {
-					applicationsetNamespaces = defaultNs.applicationsetNamespaces
-				}
-			}
-			// To support applications and applicationsets in any namespace, we must list ALL namespaces and filter them afterwards
-			if len(applicationNamespaces) > 0 {
-				acdClients.applications = client.Resource(applicationsResource)
-			}
-			if len(applicationsetNamespaces) > 0 {
-				acdClients.applicationSets = client.Resource(appplicationSetResource)
-			}
-
-			acdConfigMap, err := acdClients.configMaps.Get(ctx, common.ArgoCDConfigMapName, metav1.GetOptions{})
+			err = exportData(ctx, client, acdClients, writer, namespace, applicationNamespaces, applicationsetNamespaces)
 			errors.CheckError(err)
-			export(writer, *acdConfigMap, namespace)
-			acdRBACConfigMap, err := acdClients.configMaps.Get(ctx, common.ArgoCDRBACConfigMapName, metav1.GetOptions{})
-			errors.CheckError(err)
-			export(writer, *acdRBACConfigMap, namespace)
-			acdKnownHostsConfigMap, err := acdClients.configMaps.Get(ctx, common.ArgoCDKnownHostsConfigMapName, metav1.GetOptions{})
-			errors.CheckError(err)
-			export(writer, *acdKnownHostsConfigMap, namespace)
-			acdTLSCertsConfigMap, err := acdClients.configMaps.Get(ctx, common.ArgoCDTLSCertsConfigMapName, metav1.GetOptions{})
-			errors.CheckError(err)
-			export(writer, *acdTLSCertsConfigMap, namespace)
-
-			secrets, err := acdClients.secrets.List(ctx, metav1.ListOptions{})
-			errors.CheckError(err)
-			for _, secret := range secrets.Items {
-				if isArgoCDSecret(secret) {
-					export(writer, secret, namespace)
-				}
-			}
-
-			projects, err := acdClients.projects.List(ctx, metav1.ListOptions{})
-			errors.CheckError(err)
-			for _, proj := range projects.Items {
-				export(writer, proj, namespace)
-			}
-
-			applications, err := acdClients.applications.List(ctx, metav1.ListOptions{})
-			errors.CheckError(err)
-			for _, app := range applications.Items {
-				// Export application only if it is in one of the enabled namespaces
-				if secutil.IsNamespaceEnabled(app.GetNamespace(), namespace, applicationNamespaces) {
-					export(writer, app, namespace)
-				}
-			}
-			applicationSets, err := acdClients.applicationSets.List(ctx, metav1.ListOptions{})
-			if err != nil && !apierrors.IsNotFound(err) {
-				if apierrors.IsForbidden(err) {
-					log.Warn(err)
-				} else {
-					errors.CheckError(err)
-				}
-			}
-			if applicationSets != nil {
-				for _, appSet := range applicationSets.Items {
-					if secutil.IsNamespaceEnabled(appSet.GetNamespace(), namespace, applicationsetNamespaces) {
-						export(writer, appSet, namespace)
-					}
-				}
-			}
 		},
 	}
 
@@ -549,4 +485,89 @@ func isSkipLabelMatches(obj *unstructured.Unstructured, skipResourcesWithLabel s
 		return true
 	}
 	return false
+}
+
+func exportData(ctx context.Context, client dynamic.Interface, acdClients *argoCDClientsets, writer io.Writer, namespace string, applicationNamespaces []string, applicationsetNamespaces []string) error {
+	if len(applicationNamespaces) == 0 || len(applicationsetNamespaces) == 0 {
+		defaultNs := getAdditionalNamespaces(ctx, acdClients.configMaps)
+		if len(applicationNamespaces) == 0 {
+			applicationNamespaces = defaultNs.applicationNamespaces
+		}
+		if len(applicationsetNamespaces) == 0 {
+			applicationsetNamespaces = defaultNs.applicationsetNamespaces
+		}
+	}
+	// To support applications and applicationsets in any namespace, we must list ALL namespaces and filter them afterwards
+	if len(applicationNamespaces) > 0 {
+		acdClients.applications = client.Resource(applicationsResource)
+	}
+	if len(applicationsetNamespaces) > 0 {
+		acdClients.applicationSets = client.Resource(appplicationSetResource)
+	}
+
+	acdConfigMap, err := acdClients.configMaps.Get(ctx, common.ArgoCDConfigMapName, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+	export(writer, *acdConfigMap, namespace)
+	acdRBACConfigMap, err := acdClients.configMaps.Get(ctx, common.ArgoCDRBACConfigMapName, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+	export(writer, *acdRBACConfigMap, namespace)
+	acdKnownHostsConfigMap, err := acdClients.configMaps.Get(ctx, common.ArgoCDKnownHostsConfigMapName, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+	export(writer, *acdKnownHostsConfigMap, namespace)
+	acdTLSCertsConfigMap, err := acdClients.configMaps.Get(ctx, common.ArgoCDTLSCertsConfigMapName, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+	export(writer, *acdTLSCertsConfigMap, namespace)
+
+	secrets, err := acdClients.secrets.List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+	for _, secret := range secrets.Items {
+		if isArgoCDSecret(secret) {
+			export(writer, secret, namespace)
+		}
+	}
+
+	projects, err := acdClients.projects.List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+	for _, proj := range projects.Items {
+		export(writer, proj, namespace)
+	}
+
+	applications, err := acdClients.applications.List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+	for _, app := range applications.Items {
+		// Export application only if it is in one of the enabled namespaces
+		if secutil.IsNamespaceEnabled(app.GetNamespace(), namespace, applicationNamespaces) {
+			export(writer, app, namespace)
+		}
+	}
+	applicationSets, err := acdClients.applicationSets.List(ctx, metav1.ListOptions{})
+	if err != nil && !apierrors.IsNotFound(err) {
+		if apierrors.IsForbidden(err) {
+			log.Warn(err)
+		} else {
+			return err
+		}
+	}
+	if applicationSets != nil {
+		for _, appSet := range applicationSets.Items {
+			if secutil.IsNamespaceEnabled(appSet.GetNamespace(), namespace, applicationsetNamespaces) {
+				export(writer, appSet, namespace)
+			}
+		}
+	}
+	return nil
 }

@@ -14,6 +14,11 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/argo-cd/v3/common"
+
+	"context"
+
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/dynamic/fake"
 )
 
 func newBackupObject(trackingValue string, trackingLabel bool, trackingAnnotation bool) *unstructured.Unstructured {
@@ -486,4 +491,118 @@ func TestIsSkipLabelMatches(t *testing.T) {
 			assert.Equal(t, tt.expected, result)
 		})
 	}
+}
+
+func TestNewExportCommand(t *testing.T) {
+	cmd := NewExportCommand()
+	assert.Equal(t, "export", cmd.Use)
+	assert.Equal(t, "Export all Argo CD data to stdout (default) or a file", cmd.Short)
+
+	// Check Flags
+	assert.NotNil(t, cmd.Flags().Lookup("out"))
+	assert.NotNil(t, cmd.Flags().Lookup("application-namespaces"))
+	assert.NotNil(t, cmd.Flags().Lookup("applicationset-namespaces"))
+}
+
+func TestNewImportCommand(t *testing.T) {
+	cmd := NewImportCommand()
+	assert.Equal(t, "import SOURCE", cmd.Use)
+	assert.Equal(t, "Import Argo CD data from stdin (specify `-') or a file", cmd.Short)
+
+	// Check Flags
+	assert.NotNil(t, cmd.Flags().Lookup("dry-run"))
+	assert.NotNil(t, cmd.Flags().Lookup("prune"))
+	assert.NotNil(t, cmd.Flags().Lookup("ignore-tracking"))
+	assert.NotNil(t, cmd.Flags().Lookup("override-on-conflict"))
+	assert.NotNil(t, cmd.Flags().Lookup("verbose"))
+	assert.NotNil(t, cmd.Flags().Lookup("stop-operation"))
+	assert.NotNil(t, cmd.Flags().Lookup("skip-resources-with-label"))
+	assert.NotNil(t, cmd.Flags().Lookup("application-namespaces"))
+	assert.NotNil(t, cmd.Flags().Lookup("applicationset-namespaces"))
+
+	// Check persistent flags
+	assert.NotNil(t, cmd.PersistentFlags().Lookup("prompts-enabled"))
+}
+
+func createConfigMap(name string) *unstructured.Unstructured {
+	cm := corev1.ConfigMap{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "ConfigMap",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: "argocd",
+		},
+	}
+	return kube.MustToUnstructured(&cm)
+}
+
+func TestExportData(t *testing.T) {
+	scheme := runtime.NewScheme()
+	_ = corev1.AddToScheme(scheme)
+	_ = v1alpha1.AddToScheme(scheme)
+
+	// Create required resources and patch GVK
+	cm := newConfigmapObject()
+	cm.SetKind("ConfigMap")
+	cm.SetAPIVersion("v1")
+
+	rbacCM := createConfigMap(common.ArgoCDRBACConfigMapName)
+	knownHostsCM := createConfigMap(common.ArgoCDKnownHostsConfigMapName)
+	tlsCM := createConfigMap(common.ArgoCDTLSCertsConfigMapName)
+	// getAdditionalNamespaces requires this CM
+	paramsCM := createConfigMap("argocd-cmd-params-cm")
+
+	secret := newSecretsObject()
+	secret.SetKind("Secret")
+	secret.SetAPIVersion("v1")
+	secret.SetNamespace("argocd")
+
+	proj := newAppProject()
+	proj.SetKind("AppProject")
+	proj.SetAPIVersion("argoproj.io/v1alpha1")
+
+	app := newApplication("argocd")
+	app.SetKind("Application")
+	app.SetAPIVersion("argoproj.io/v1alpha1")
+
+	objects := []runtime.Object{
+		cm,
+		rbacCM,
+		knownHostsCM,
+		tlsCM,
+		paramsCM,
+		secret,
+		proj,
+		app,
+	}
+
+	fakeDyn := fake.NewSimpleDynamicClient(scheme, objects...)
+
+	acdClients := &argoCDClientsets{
+		configMaps:      fakeDyn.Resource(configMapResource).Namespace("argocd"),
+		secrets:         fakeDyn.Resource(secretResource).Namespace("argocd"),
+		applications:    fakeDyn.Resource(applicationsResource).Namespace("argocd"),
+		projects:        fakeDyn.Resource(appprojectsResource).Namespace("argocd"),
+		applicationSets: fakeDyn.Resource(appplicationSetResource).Namespace("argocd"),
+	}
+
+	var buf bytes.Buffer
+	// Call exportData with the fake client
+	err := exportData(context.Background(), fakeDyn, acdClients, &buf, "argocd", nil, nil)
+	assert.NoError(t, err)
+
+	output := buf.String()
+
+	// Verify output contains expected resources
+	assert.Contains(t, output, "kind: ConfigMap")
+	assert.Contains(t, output, "name: argocd-cm")
+	assert.Contains(t, output, "name: argocd-rbac-cm")
+	assert.Contains(t, output, "kind: Secret")
+	assert.Contains(t, output, "name: argocd-secret")
+	assert.Contains(t, output, "kind: AppProject")
+	assert.Contains(t, output, "name: default")
+	assert.Contains(t, output, "kind: Application")
+	assert.Contains(t, output, "name: test")
 }
