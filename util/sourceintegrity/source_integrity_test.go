@@ -88,15 +88,13 @@ func TestNullOrEmptyDoesNothing(t *testing.T) {
 			logged: []string{},
 		},
 		{
-			name: "No GIT",
-			si:   &v1alpha1.SourceIntegrity{
-				// No Git or alternative specified
-			},
+			name:   "No GIT",
+			si:     &v1alpha1.SourceIntegrity{}, // No Git or alternative specified
 			logged: []string{},
 		},
 		{
 			name: "No matching policy",
-			si:   &v1alpha1.SourceIntegrity{Git: &v1alpha1.SourceIntegrityGit{
+			si: &v1alpha1.SourceIntegrity{Git: &v1alpha1.SourceIntegrityGit{
 				// No policies configured here
 			}},
 			logged: []string{},
@@ -297,9 +295,9 @@ func TestGPGHeadValid(t *testing.T) {
 func TestDescribeProblems(t *testing.T) {
 	const r = "aafc9e88599f24802b113b6278e42eaadda32cd6"
 	const a = "Commit Author <nereply@acme.com>"
-	const k_good = "AAAAAAAAAAAAAAAA"
-	const k_ok = "BBBBBBBBBBBBBBB"
-	policy := v1alpha1.SourceIntegrityGitPolicyGPG{Keys: []string{k_good, k_ok}}
+	const kGood = "AAAAAAAAAAAAAAAA"
+	const kOk = "BBBBBBBBBBBBBBB"
+	policy := v1alpha1.SourceIntegrityGitPolicyGPG{Keys: []string{kGood, kOk}}
 
 	sig := func(key string, result git.GPGVerificationResult) git.RevisionSignatureInfo {
 		return git.RevisionSignatureInfo{
@@ -321,7 +319,7 @@ func TestDescribeProblems(t *testing.T) {
 			gpg:  &policy,
 			sigs: []git.RevisionSignatureInfo{
 				sig("bad", git.GPGVerificationResultRevokedKey),
-				sig(k_good, git.GPGVerificationResultGood),
+				sig(kGood, git.GPGVerificationResultGood),
 				sig("also_bad", git.GPGVerificationResultUntrusted),
 			},
 			expected: []string{
@@ -334,7 +332,7 @@ func TestDescribeProblems(t *testing.T) {
 			gpg:  &policy,
 			sigs: []git.RevisionSignatureInfo{
 				sig("bad", git.GPGVerificationResultRevokedKey),
-				sig(k_good, git.GPGVerificationResultGood),
+				sig(kGood, git.GPGVerificationResultGood),
 				sig("also_bad", git.GPGVerificationResultUntrusted),
 				sig("bad", git.GPGVerificationResultRevokedKey),
 			},
