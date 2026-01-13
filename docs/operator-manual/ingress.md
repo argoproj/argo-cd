@@ -415,7 +415,7 @@ apiVersion: v1
 kind: Service
 metadata:
   annotations:
-    alb.ingress.kubernetes.io/backend-protocol-version: GRPC # This tells AWS to send traffic from the ALB using GRPC. Plain HTTP2 can be used, but the health checks wont be available because argo currently downgrade non-grpc calls to HTTP1
+    alb.ingress.kubernetes.io/backend-protocol-version: GRPC # This tells AWS to send traffic from the ALB using GRPC. Plain HTTP2 can be used, but the health checks won't be available because argo currently downgrades non-grpc calls to HTTP1
   labels:
     app: argogrpc
   name: argogrpc
