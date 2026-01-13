@@ -41,6 +41,7 @@ Target GA date: ___. __, ____
      Thanks to all the folks who spent their time contributing to this release in any way possible!
      ```
  - [ ] Monitor support channels for issues, cherry-picking bugfixes and docs fixes as appropriate during the RC period (or delegate this task to an Approver and coordinate timing)
+ - [ ] After creating the RC, open a documentation PR for the next minor version using [this](../../docs/operator-manual/templates/minor_version_upgrade.md) template.
 
 ## GA Release Checklist
 
@@ -84,5 +85,3 @@ Target GA date: ___. __, ____
      ```
  - [ ] (For the next release champion) Review the [items scheduled for the next release](https://github.com/orgs/argoproj/projects/25). If any item does not have an assignee who can commit to finish the feature, move it to the next release.
  - [ ] (For the next release champion) Schedule a time mid-way through the release cycle to review items again.
- - [ ] After creating the RC, open a documentation PR for the next minor version using [this](../../docs/operator-manual/templates/minor_version_upgrade.md) template.
-
