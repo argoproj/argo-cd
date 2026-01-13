@@ -2197,9 +2197,10 @@ apps/Deployment:
 		expectedStatus health.HealthStatusCode
 	}{
 		{
-			name:           "Degraded to Missing",
-			initialStatus:  "Degraded",
-			expectedStatus: health.HealthStatusMissing,
+			name:          "Degraded to Missing",
+			initialStatus: "Degraded",
+			// If a resource is missing but present in the cluster, the aggregated health of the application should be healthy
+			expectedStatus: health.HealthStatusHealthy,
 		},
 		{
 			name:           "Missing to Progressing",
