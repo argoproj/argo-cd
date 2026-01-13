@@ -37,8 +37,9 @@ The annotation value indicates the sync operation phase:
   - SyncFail - executes when the sync operation fails.
   - Sync - executes after all PreSync hooks completed and were successful, at the same time as the apply of the manifests.
 
-Named hooks (i.e. ones with /metadata/name) will only be created once. If you want a hook to be re-created each time
-either use BeforeHookCreation policy (see below) or /metadata/generateName.
+Named hooks (i.e. ones with /metadata/name) will only be created once and will persist across syncs unless explicitly
+deleted using a hook deletion policy (see below). If you want a hook to be re-created each time, use /metadata/generateName
+or the BeforeHookCreation deletion policy.
 
 The same resource hook might be executed in several sync phases:
 
@@ -59,12 +60,16 @@ Hooks can be deleted in an automatic fashion using the annotation: argocd.argopr
 	    argocd.argoproj.io/hook: PostSync
 	    argocd.argoproj.io/hook-delete-policy: HookSucceeded
 
-Hook deletion policies are governed by sync success and failure. A successful sync operation requires all hooks to complete successfully. A sync will fail if _any_ hooks fail.
-The following policies define when the hook will be deleted.
+By default, hook resources are NOT automatically deleted and will persist in the cluster. Hook deletion policies allow
+you to control when hooks should be automatically deleted. Policies are governed by sync success and failure. A successful
+sync operation requires all hooks to complete successfully. A sync will fail if _any_ hooks fail.
+The following policies define when the hook will be deleted:
 
   - HookSucceeded - the hook resource is deleted if the sync succeeds
   - HookFailed - the hook resource is deleted if the sync fails.
   - BeforeHookCreation - the hook resource is deleted if it exist at the start of the sync.
+
+Note: If no deletion policy is specified, hooks will persist and must be manually deleted or pruned.
 
 # Sync Waves
 
