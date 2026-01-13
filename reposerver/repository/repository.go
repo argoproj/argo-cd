@@ -3091,7 +3091,6 @@ func (s *Service) gitSourceHasChanges(repo *v1alpha1.Repository, revision, synce
 // "x" will be stored again with the new revision "b2b2b2".
 func (s *Service) UpdateRevisionForPaths(_ context.Context, request *apiclient.UpdateRevisionForPathsRequest) (*apiclient.UpdateRevisionForPathsResponse, error) {
 	logCtx := log.WithFields(log.Fields{"application": request.AppName, "appNamespace": request.Namespace})
-	gitClientOpts := git.WithCache(s.cache, !request.NoRevisionCache)
 
 	// Check for changes in all sources from SourceMetas (main source and ref sources)
 	// Store resolved revisions for cache update
@@ -3107,6 +3106,8 @@ func (s *Service) UpdateRevisionForPaths(_ context.Context, request *apiclient.U
 	if len(request.SourceMetas) == 0 {
 		return &apiclient.UpdateRevisionForPathsResponse{}, nil
 	}
+
+	gitClientOpts := git.WithCache(s.cache, !request.NoRevisionCache)
 
 	for _, sourceMeta := range request.SourceMetas {
 		if sourceMeta.Repo == nil {

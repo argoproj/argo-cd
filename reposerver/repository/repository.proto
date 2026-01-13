@@ -274,25 +274,29 @@ message SourceMeta {
 }
 
 message UpdateRevisionForPathsRequest {
-    string appLabelKey = 1;
-    string appName = 2;
-    string namespace = 3;
-    github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.ApplicationSource applicationSource = 4;
-    string trackingMethod = 5;
-    map<string, github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.RefTarget> refSources = 6;
-    string kubeVersion = 7;
-    repeated string apiVersions = 8;
-    bool hasMultipleSources = 9;
+    // saved for support backward compatibility
+    github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.Repository repo = 1;
 
-    string syncedRevision = 10;
-    string revision = 11;
-    repeated string paths = 12;
+    string appLabelKey = 2;
+    string appName = 3;
+    string namespace = 4;
+    github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.ApplicationSource applicationSource = 5;
+    string trackingMethod = 6;
+    map<string, github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.RefTarget> refSources = 7;
+    string kubeVersion = 8;
+    repeated string apiVersions = 9;
+    bool hasMultipleSources = 10;
 
-    bool noRevisionCache = 13;
-    string installationID = 14;
+    string syncedRevision = 11;
+    string revision = 12;
+    repeated string paths = 13;
+
+    bool noRevisionCache = 14;
+    string installationID = 15;
+
     // SourceMetas contains metadata for all sources to check (main source and ref sources)
     // Each SourceMeta contains repository with credentials, revision, and syncedRevision
-    repeated SourceMeta sourceMetas = 15;
+    repeated SourceMeta sourceMetas = 16;
 }
 
 message UpdateRevisionForPathsResponse {
