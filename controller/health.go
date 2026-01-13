@@ -33,10 +33,12 @@ func setApplicationHealth(resources []managedResource, statuses []appv1.Resource
 
 		// Contains actual resources that are not hooks
 		containsResources = true
+		if res.Live != nil {
+			containsLiveResources = true
+		}
 
 		// Do not aggreagte the health of the resource if the annotation to ignore health check is set to true
 		if res.Live != nil && res.Live.GetAnnotations() != nil && res.Live.GetAnnotations()[common.AnnotationIgnoreHealthCheck] == "true" {
-			containsLiveResources = true
 			continue
 		}
 
@@ -46,7 +48,6 @@ func setApplicationHealth(resources []managedResource, statuses []appv1.Resource
 		if res.Live == nil {
 			healthStatus = &health.HealthStatus{Status: health.HealthStatusMissing}
 		} else {
-			containsLiveResources = true
 			// App that manages itself should not affect own health
 			if isSelfReferencedApp(app, kubeutil.GetObjectRef(res.Live)) {
 				continue
