@@ -25,20 +25,19 @@ func TestClusterList(t *testing.T) {
 	expected := fmt.Sprintf(`SERVER                          NAME        VERSION  STATUS      MESSAGE  PROJECT
 https://kubernetes.default.svc  in-cluster  %v     Successful           `, fixture.GetVersions(t).ServerVersion)
 
-	clusterFixture.
-		Given(t).
-		Project(fixture.ProjectName)
+	ctx := clusterFixture.Given(t)
+	ctx.Project(fixture.ProjectName)
 
 	// We need an application targeting the cluster, otherwise the test will
 	// fail if run isolated.
-	app.GivenWithSameState(t).
+	app.GivenWithSameState(ctx).
 		Path(guestbookPath).
 		When().
 		CreateApp()
 
 	tries := 25
 	for i := 0; i <= tries; i++ {
-		clusterFixture.GivenWithSameState(t).
+		clusterFixture.GivenWithSameState(ctx).
 			When().
 			List().
 			Then().
@@ -70,15 +69,15 @@ func TestClusterAdd(t *testing.T) {
 }
 
 func TestClusterAddPermissionDenied(t *testing.T) {
-	accountFixture.Given(t).
-		Name("test").
+	ctx := accountFixture.Given(t)
+	ctx.Name("test").
 		When().
 		Create().
 		Login().
 		SetPermissions([]fixture.ACL{}, "org-admin")
 
 	clusterFixture.
-		GivenWithSameState(t).
+		GivenWithSameState(ctx).
 		Project(fixture.ProjectName).
 		Upsert(true).
 		Server(KubernetesInternalAPIServerAddr).
@@ -92,8 +91,8 @@ func TestClusterAddPermissionDenied(t *testing.T) {
 }
 
 func TestClusterAddAllowed(t *testing.T) {
-	accountFixture.Given(t).
-		Name("test").
+	accountCtx := accountFixture.Given(t)
+	accountCtx.Name("test").
 		When().
 		Create().
 		Login().
@@ -110,7 +109,7 @@ func TestClusterAddAllowed(t *testing.T) {
 			},
 		}, "org-admin")
 
-	ctx := clusterFixture.GivenWithSameState(t)
+	ctx := clusterFixture.GivenWithSameState(accountCtx)
 	ctx.Project(fixture.ProjectName).
 		Project(fixture.ProjectName).
 		Upsert(true).
@@ -125,8 +124,8 @@ func TestClusterAddAllowed(t *testing.T) {
 }
 
 func TestClusterListDenied(t *testing.T) {
-	accountFixture.Given(t).
-		Name("test").
+	ctx := accountFixture.Given(t)
+	ctx.Name("test").
 		When().
 		Create().
 		Login().
@@ -139,7 +138,7 @@ func TestClusterListDenied(t *testing.T) {
 		}, "org-admin")
 
 	clusterFixture.
-		GivenWithSameState(t).
+		GivenWithSameState(ctx).
 		Project(fixture.ProjectName).
 		Upsert(true).
 		Server(KubernetesInternalAPIServerAddr).
@@ -153,17 +152,14 @@ func TestClusterListDenied(t *testing.T) {
 }
 
 func TestClusterSet(t *testing.T) {
-	fixture.EnsureCleanState(t)
-	defer fixture.RecordTestRun(t)
-	clusterFixture.
-		GivenWithSameState(t).
-		Project(fixture.ProjectName).
-		Name("in-cluster").
+	ctx := clusterFixture.Given(t)
+	ctx.Project(fixture.ProjectName).
 		Namespaces([]string{"namespace-edit-1", "namespace-edit-2"}).
 		Server(KubernetesInternalAPIServerAddr).
 		When().
+		Create().
 		SetNamespaces().
-		GetByName("in-cluster").
+		GetByName().
 		Then().
 		AndCLIOutput(func(output string, _ error) {
 			assert.Contains(t, output, "namespace-edit-1")
@@ -222,8 +218,8 @@ func TestClusterURLInRestAPI(t *testing.T) {
 }
 
 func TestClusterDeleteDenied(t *testing.T) {
-	accountFixture.Given(t).
-		Name("test").
+	ctx := accountFixture.Given(t)
+	ctx.Name("test").
 		When().
 		Create().
 		Login().
@@ -242,7 +238,7 @@ func TestClusterDeleteDenied(t *testing.T) {
 
 	// Attempt to remove cluster creds by name
 	clusterFixture.
-		GivenWithSameState(t).
+		GivenWithSameState(ctx).
 		Project(fixture.ProjectName).
 		Upsert(true).
 		Server(KubernetesInternalAPIServerAddr).
@@ -256,7 +252,7 @@ func TestClusterDeleteDenied(t *testing.T) {
 
 	// Attempt to remove cluster creds by server
 	clusterFixture.
-		GivenWithSameState(t).
+		GivenWithSameState(ctx).
 		Project(fixture.ProjectName).
 		Upsert(true).
 		Server(KubernetesInternalAPIServerAddr).
@@ -270,8 +266,8 @@ func TestClusterDeleteDenied(t *testing.T) {
 }
 
 func TestClusterDelete(t *testing.T) {
-	accountFixture.Given(t).
-		Name("default").
+	ctx := clusterFixture.Given(t)
+	accountFixture.GivenWithSameState(ctx).
 		When().
 		Create().
 		Login().
@@ -293,14 +289,18 @@ func TestClusterDelete(t *testing.T) {
 			},
 		}, "org-admin")
 
-	clstAction := clusterFixture.
-		GivenWithSameState(t).
-		Name("default").
+	clstAction := ctx.
 		Project(fixture.ProjectName).
 		Upsert(true).
 		Server(KubernetesInternalAPIServerAddr).
 		When().
 		CreateWithRBAC()
+	clstAction.
+		Then().
+		Expect().
+		AndCLIOutput(func(_ string, err error) {
+			assert.NoError(t, err)
+		})
 
 	// Check that RBAC is created
 	_, err := fixture.Run("", "kubectl", "get", "serviceaccount", "argocd-manager", "-n", "kube-system")
