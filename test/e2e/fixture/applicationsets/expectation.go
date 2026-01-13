@@ -40,19 +40,6 @@ func Success(message string) Expectation {
 	}
 }
 
-// OutputContains asserts that the last command output contains the expected substring
-func OutputContains(expected string) Expectation {
-	return func(c *Consequences) (state, string) {
-		if c.actions.lastError != nil {
-			return failed, fmt.Sprintf("error: %v", c.actions.lastError)
-		}
-		if !strings.Contains(c.actions.lastOutput, expected) {
-			return failed, fmt.Sprintf("output did not contain '%s', got: %s", expected, c.actions.lastOutput)
-		}
-		return succeeded, fmt.Sprintf("output contained '%s'", expected)
-	}
-}
-
 // Error asserts that the last command was an error with substring match
 func Error(message, err string) Expectation {
 	return func(c *Consequences) (state, string) {
@@ -94,12 +81,12 @@ func ApplicationsExist(expectedApps []v1alpha1.Application) Expectation {
 }
 
 // ApplicationSetHasHealthStatus checks whether the ApplicationSet has the expected health status.
-func ApplicationSetHasHealthStatus(applicationSetName string, expectedHealthStatus health.HealthStatusCode) Expectation {
+func ApplicationSetHasHealthStatus(expectedHealthStatus health.HealthStatusCode) Expectation {
 	return func(c *Consequences) (state, string) {
 		// retrieve the application set
-		foundApplicationSet := c.applicationSet(applicationSetName)
+		foundApplicationSet := c.applicationSet(c.context.GetName())
 		if foundApplicationSet == nil {
-			return pending, fmt.Sprintf("application set '%s' not found", applicationSetName)
+			return pending, fmt.Sprintf("application set '%s' not found", c.context.GetName())
 		}
 
 		if foundApplicationSet.Status.Health.Status != expectedHealthStatus {
