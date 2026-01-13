@@ -20,7 +20,7 @@ import (
 func setApplicationHealth(resources []managedResource, statuses []appv1.ResourceStatus, resourceOverrides map[string]appv1.ResourceOverride, app *appv1.Application, persistResourceHealth bool) (health.HealthStatusCode, error) {
 	var savedErr error
 	var errCount uint
-	var containsLiveResources bool
+	var containsResources, containsLiveResources bool
 
 	appHealthStatus := health.HealthStatusHealthy
 	for i, res := range resources {
@@ -31,6 +31,10 @@ func setApplicationHealth(resources []managedResource, statuses []appv1.Resource
 			continue
 		}
 
+		// Contains actual resources that are not hooks
+		containsResources = true
+
+		// Do not aggreagte the health of the resource if the annotation to ignore health check is set to true
 		if res.Live != nil && res.Live.GetAnnotations() != nil && res.Live.GetAnnotations()[common.AnnotationIgnoreHealthCheck] == "true" {
 			containsLiveResources = true
 			continue
@@ -82,8 +86,8 @@ func setApplicationHealth(resources []managedResource, statuses []appv1.Resource
 		}
 	}
 
-	// If the app does not contain any live resources, set the app health to missing
-	if !containsLiveResources && health.IsWorse(appHealthStatus, health.HealthStatusMissing) {
+	// If the app is expected to have resources but does not contain any live resources, set the app health to missing
+	if containsResources && !containsLiveResources && health.IsWorse(appHealthStatus, health.HealthStatusMissing) {
 		appHealthStatus = health.HealthStatusMissing
 	}
 

@@ -104,6 +104,29 @@ func TestSetApplicationHealth_ResourceHealthNotPersisted(t *testing.T) {
 	assert.Nil(t, resourceStatuses[0].Health)
 }
 
+func TestSetApplicationHealth_NoResource(t *testing.T) {
+	resources := []managedResource{}
+	resourceStatuses := initStatuses(resources)
+
+	healthStatus, err := setApplicationHealth(resources, resourceStatuses, lua.ResourceHealthOverrides{}, app, true)
+	require.NoError(t, err)
+	assert.Equal(t, health.HealthStatusHealthy, healthStatus)
+}
+
+func TestSetApplicationHealth_OnlyHooks(t *testing.T) {
+	pod := resourceFromFile("./testdata/pod-running-restart-always.yaml")
+	pod.SetAnnotations(map[string]string{synccommon.AnnotationKeyHook: string(synccommon.HookTypeSync)})
+
+	resources := []managedResource{{
+		Group: "", Version: "v1", Kind: "Pod", Target: &pod, Live: &pod,
+	}}
+	resourceStatuses := initStatuses(resources)
+
+	healthStatus, err := setApplicationHealth(resources, resourceStatuses, lua.ResourceHealthOverrides{}, app, true)
+	require.NoError(t, err)
+	assert.Equal(t, health.HealthStatusHealthy, healthStatus)
+}
+
 func TestSetApplicationHealth_MissingResource(t *testing.T) {
 	pod := resourceFromFile("./testdata/pod-running-restart-always.yaml")
 	pod2 := pod.DeepCopy()
