@@ -26186,7 +26186,7 @@ spec:
               key: applicationsetcontroller.status.max.resources.count
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/argoproj/argocd:v3.2.3
+        image: quay.io/argoproj/argocd:v3.2.4
         imagePullPolicy: Always
         name: argocd-applicationset-controller
         ports:
@@ -26338,7 +26338,7 @@ spec:
         - -n
         - /usr/local/bin/argocd
         - /shared/argocd-dex
-        image: quay.io/argoproj/argocd:v3.2.3
+        image: quay.io/argoproj/argocd:v3.2.4
         imagePullPolicy: Always
         name: copyutil
         securityContext:
@@ -26434,7 +26434,7 @@ spec:
               key: notificationscontroller.repo.server.plaintext
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/argoproj/argocd:v3.2.3
+        image: quay.io/argoproj/argocd:v3.2.4
         imagePullPolicy: Always
         livenessProbe:
           tcpSocket:
@@ -26558,7 +26558,7 @@ spec:
         - argocd
         - admin
         - redis-initial-password
-        image: quay.io/argoproj/argocd:v3.2.3
+        image: quay.io/argoproj/argocd:v3.2.4
         imagePullPolicy: IfNotPresent
         name: secret-init
         securityContext:
@@ -26881,7 +26881,7 @@ spec:
           value: /helm-working-dir
         - name: HELM_DATA_HOME
           value: /helm-working-dir
-        image: quay.io/argoproj/argocd:v3.2.3
+        image: quay.io/argoproj/argocd:v3.2.4
         imagePullPolicy: Always
         livenessProbe:
           failureThreshold: 3
@@ -26933,7 +26933,7 @@ spec:
         - -n
         - /usr/local/bin/argocd
         - /var/run/argocd/argocd-cmp-server
-        image: quay.io/argoproj/argocd:v3.2.3
+        image: quay.io/argoproj/argocd:v3.2.4
         name: copyutil
         securityContext:
           allowPrivilegeEscalation: false
@@ -27307,7 +27307,7 @@ spec:
               key: server.sync.replace.allowed
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/argoproj/argocd:v3.2.3
+        image: quay.io/argoproj/argocd:v3.2.4
         imagePullPolicy: Always
         livenessProbe:
           httpGet:
@@ -27691,7 +27691,7 @@ spec:
               optional: true
         - name: KUBECACHEDIR
           value: /tmp/kubecache
-        image: quay.io/argoproj/argocd:v3.2.3
+        image: quay.io/argoproj/argocd:v3.2.4
         imagePullPolicy: Always
         name: argocd-application-controller
         ports:
