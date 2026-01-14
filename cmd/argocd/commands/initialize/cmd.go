@@ -14,18 +14,32 @@ func RetrieveContextIfChanged(contextFlag *pflag.Flag) string {
 	return ""
 }
 
-// InitCommand allows executing command in a headless mode: on the fly starts Argo CD API server and
-// changes provided client options to use started API server port
 func InitCommand(cmd *cobra.Command) *cobra.Command {
 	flags := pflag.NewFlagSet("tmp", pflag.ContinueOnError)
 	cli.AddKubectlFlagsToSet(flags)
-	// copy k8s persistent flags into argocd command flags
+
+	// kubectl REST flags that are not supported by argocd CLI
+	unsupportedFlags := map[string]bool{
+		"disable-compression":   true,
+		"certificate-authority": true,
+		"client-certificate":    true,
+		"client-key":            true,
+		"as":                    true,
+		"as-group":              true,
+		"as-uid":                true,
+	}
+
 	flags.VisitAll(func(flag *pflag.Flag) {
-		// skip Kubernetes server flags since argocd has it's own server flag
+		// skip Kubernetes server flags since argocd has its own server flag
 		if flag.Name == "server" {
+			return
+		}
+		// skip unsupported kubectl REST flags
+		if unsupportedFlags[flag.Name] {
 			return
 		}
 		cmd.Flags().AddFlag(flag)
 	})
+
 	return cmd
 }
