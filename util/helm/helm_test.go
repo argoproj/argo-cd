@@ -1,6 +1,7 @@
 package helm
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -58,9 +59,11 @@ func TestHelmTemplateValues(t *testing.T) {
 	repoRoot := "./testdata/redis"
 	repoRootAbs, err := filepath.Abs(repoRoot)
 	require.NoError(t, err)
+	root, err := os.OpenRoot(repoRootAbs)
+	require.NoError(t, err)
 	h, err := NewHelmApp(repoRootAbs, []HelmRepository{}, false, "", "", "", false)
 	require.NoError(t, err)
-	valuesPath, _, err := path.ResolveValueFilePathOrUrl(repoRootAbs, repoRootAbs, "values-production.yaml", nil)
+	valuesPath, _, err := path.ResolveValueFilePathOrUrl(repoRootAbs, root, "values-production.yaml", nil)
 	require.NoError(t, err)
 	opts := TemplateOpts{
 		Name:   "test",
@@ -84,9 +87,11 @@ func TestHelmGetParams(t *testing.T) {
 	repoRoot := "./testdata/redis"
 	repoRootAbs, err := filepath.Abs(repoRoot)
 	require.NoError(t, err)
+	root, err := os.OpenRoot(repoRootAbs)
+	require.NoError(t, err)
 	h, err := NewHelmApp(repoRootAbs, nil, false, "", "", "", false)
 	require.NoError(t, err)
-	params, err := h.GetParameters(nil, repoRootAbs, repoRootAbs)
+	params, err := h.GetParameters(nil, repoRootAbs, root)
 	require.NoError(t, err)
 
 	slaveCountParam := params["cluster.slaveCount"]
@@ -97,11 +102,13 @@ func TestHelmGetParamsValueFiles(t *testing.T) {
 	repoRoot := "./testdata/redis"
 	repoRootAbs, err := filepath.Abs(repoRoot)
 	require.NoError(t, err)
+	root, err := os.OpenRoot(repoRootAbs)
+	require.NoError(t, err)
 	h, err := NewHelmApp(repoRootAbs, nil, false, "", "", "", false)
 	require.NoError(t, err)
-	valuesPath, _, err := path.ResolveValueFilePathOrUrl(repoRootAbs, repoRootAbs, "values-production.yaml", nil)
+	valuesPath, _, err := path.ResolveValueFilePathOrUrl(repoRootAbs, root, "values-production.yaml", nil)
 	require.NoError(t, err)
-	params, err := h.GetParameters([]path.ResolvedFilePath{valuesPath}, repoRootAbs, repoRootAbs)
+	params, err := h.GetParameters([]path.ResolvedFilePath{valuesPath}, repoRootAbs, root)
 	require.NoError(t, err)
 
 	slaveCountParam := params["cluster.slaveCount"]
@@ -112,13 +119,15 @@ func TestHelmGetParamsValueFilesThatExist(t *testing.T) {
 	repoRoot := "./testdata/redis"
 	repoRootAbs, err := filepath.Abs(repoRoot)
 	require.NoError(t, err)
+	root, err := os.OpenRoot(repoRootAbs)
+	require.NoError(t, err)
 	h, err := NewHelmApp(repoRootAbs, nil, false, "", "", "", false)
 	require.NoError(t, err)
-	valuesMissingPath, _, err := path.ResolveValueFilePathOrUrl(repoRootAbs, repoRootAbs, "values-missing.yaml", nil)
+	valuesMissingPath, _, err := path.ResolveValueFilePathOrUrl(repoRootAbs, root, "values-missing.yaml", nil)
 	require.NoError(t, err)
-	valuesProductionPath, _, err := path.ResolveValueFilePathOrUrl(repoRootAbs, repoRootAbs, "values-production.yaml", nil)
+	valuesProductionPath, _, err := path.ResolveValueFilePathOrUrl(repoRootAbs, root, "values-production.yaml", nil)
 	require.NoError(t, err)
-	params, err := h.GetParameters([]path.ResolvedFilePath{valuesMissingPath, valuesProductionPath}, repoRootAbs, repoRootAbs)
+	params, err := h.GetParameters([]path.ResolvedFilePath{valuesMissingPath, valuesProductionPath}, repoRootAbs, root)
 	require.NoError(t, err)
 
 	slaveCountParam := params["cluster.slaveCount"]

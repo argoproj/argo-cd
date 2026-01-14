@@ -86,7 +86,7 @@ func WithTarDoneChan(ch chan<- bool) SenderOption {
 
 // SendRepoStream will compress the files under the given rootPath and send
 // them using the plugin stream sender.
-func SendRepoStream(ctx context.Context, appPath, rootPath string, sender StreamSender, env []string, excludedGlobs []string, opts ...SenderOption) error {
+func SendRepoStream(ctx context.Context, appPath string, rootPath *os.Root, sender StreamSender, env []string, excludedGlobs []string, opts ...SenderOption) error {
 	opt := newSenderOption(opts...)
 
 	tgz, mr, err := GetCompressedRepoAndMetadata(rootPath, appPath, env, excludedGlobs, opt)
@@ -107,14 +107,14 @@ func SendRepoStream(ctx context.Context, appPath, rootPath string, sender Stream
 	return nil
 }
 
-func GetCompressedRepoAndMetadata(rootPath string, appPath string, env []string, excludedGlobs []string, opt *senderOption) (*os.File, *pluginclient.AppStreamRequest, error) {
+func GetCompressedRepoAndMetadata(rootPath *os.Root, appPath string, env []string, excludedGlobs []string, opt *senderOption) (*os.File, *pluginclient.AppStreamRequest, error) {
 	// compress all files in rootPath in tgz
-	tgz, filesWritten, checksum, err := tgzstream.CompressFiles(rootPath, nil, excludedGlobs)
+	tgz, filesWritten, checksum, err := tgzstream.CompressFiles(rootPath.Name(), nil, excludedGlobs)
 	if err != nil {
 		return nil, nil, fmt.Errorf("error compressing repo files: %w", err)
 	}
 	if filesWritten == 0 {
-		return nil, nil, fmt.Errorf("no files to send(%s)", rootPath)
+		return nil, nil, fmt.Errorf("no files to send(%s)", rootPath.Name())
 	}
 	if opt != nil && opt.tarDoneChan != nil {
 		opt.tarDoneChan <- true
@@ -125,7 +125,7 @@ func GetCompressedRepoAndMetadata(rootPath string, appPath string, env []string,
 	if err != nil {
 		return nil, nil, fmt.Errorf("error getting tgz stat: %w", err)
 	}
-	appRelPath, err := files.RelativePath(appPath, rootPath)
+	appRelPath, err := files.RelativePath(appPath, rootPath.Name())
 	if err != nil {
 		return nil, nil, fmt.Errorf("error building app relative path: %w", err)
 	}

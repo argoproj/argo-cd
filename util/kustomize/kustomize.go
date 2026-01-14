@@ -16,8 +16,6 @@ import (
 	"github.com/Masterminds/semver/v3"
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/argo-cd/v3/util/io"
-
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -44,7 +42,7 @@ type Kustomize interface {
 }
 
 // NewKustomizeApp create a new wrapper to run commands on the `kustomize` command-line tool.
-func NewKustomizeApp(repoRoot string, path string, creds git.Creds, fromRepo string, binaryPath string, proxy string, noProxy string) Kustomize {
+func NewKustomizeApp(repoRoot *os.Root, path string, creds git.Creds, fromRepo string, binaryPath string, proxy string, noProxy string) Kustomize {
 	return &kustomize{
 		repoRoot:   repoRoot,
 		path:       path,
@@ -58,7 +56,7 @@ func NewKustomizeApp(repoRoot string, path string, creds git.Creds, fromRepo str
 
 type kustomize struct {
 	// path to the Git repository root
-	repoRoot string
+	repoRoot *os.Root
 	// path inside the checked out tree
 	path string
 	// creds structure
@@ -349,18 +347,13 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 			foundComponents := opts.Components
 			if opts.IgnoreMissingComponents {
 				foundComponents = make([]string, 0)
-				root, err := os.OpenRoot(k.repoRoot)
-				defer io.Close(root)
-				if err != nil {
-					return nil, nil, nil, fmt.Errorf("failed to open the repo folder: %w", err)
-				}
 
 				for _, c := range opts.Components {
-					resolvedPath, err := filepath.Rel(k.repoRoot, filepath.Join(k.path, c))
+					resolvedPath, err := filepath.Rel(k.repoRoot.Name(), filepath.Join(k.path, c))
 					if err != nil {
 						return nil, nil, nil, fmt.Errorf("kustomize components path failed: %w", err)
 					}
-					_, err = root.Stat(resolvedPath)
+					_, err = k.repoRoot.Stat(resolvedPath)
 					if err != nil {
 						log.Debugf("%s component directory does not exist", resolvedPath)
 						continue
@@ -393,7 +386,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 	}
 	cmd.Env = env
 	cmd.Env = proxy.UpsertEnv(cmd, k.proxy, k.noProxy)
-	cmd.Dir = k.repoRoot
+	cmd.Dir = k.repoRoot.Name()
 	commands = append(commands, executil.GetCommandArgsToLog(cmd))
 	out, err := executil.Run(cmd)
 	if err != nil {
@@ -407,7 +400,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 
 	redactedCommands := make([]string, len(commands))
 	for i, c := range commands {
-		redactedCommands[i] = strings.ReplaceAll(c, k.repoRoot, ".")
+		redactedCommands[i] = strings.ReplaceAll(c, k.repoRoot.Name(), ".")
 	}
 
 	return objs, getImageParameters(objs), redactedCommands, nil
