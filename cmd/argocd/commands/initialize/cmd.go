@@ -14,6 +14,9 @@ func RetrieveContextIfChanged(contextFlag *pflag.Flag) string {
 	return ""
 }
 
+// InitCommand allows executing commands in a headless mode by internally
+// initializing an Argo CD API server and updating client options to use
+// the server's listening port.
 func InitCommand(cmd *cobra.Command) *cobra.Command {
 	flags := pflag.NewFlagSet("tmp", pflag.ContinueOnError)
 	cli.AddKubectlFlagsToSet(flags)
