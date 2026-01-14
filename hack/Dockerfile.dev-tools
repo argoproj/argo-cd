@@ -4,14 +4,12 @@ RUN ./install.sh codegen-tools
 RUN ./install.sh codegen-go-tools
 RUN ./install.sh lint-tools
 
-RUN mkdir -p /home/user && chmod 777 /home/user
+RUN mkdir -p /home/user/.cache && chmod -R 777 /home/user
 
-RUN git config --system user.name "ArgoCD Test User"
-RUN git config --system user.email "noreply@example.com"
+RUN git config --system user.name "ArgoCD Test User" \
+    && git config --system user.email "noreply@example.com"
 
-RUN mkdir -p /go/pkg && chmod 777 /go/pkg
-
-RUN mkdir -p /home/user/.cache && chmod 777 /home/user/.cache
+RUN mkdir -p /go/pkg && chmod 777 /go/pkg 
 
 RUN apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
