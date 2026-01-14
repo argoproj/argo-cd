@@ -15,10 +15,15 @@ type SourceIntegrityGit struct {
 }
 
 type SourceIntegrityGitPolicy struct {
-	// List of repository glob patterns restricting repositories the policy will apply to
-	Repos []string `json:"repos" protobuf:"bytes,1,name=repos"`
+	// List of repository criteria restricting repositories the policy will apply to
+	Repos []SourceIntegrityGitPolicyRepo `json:"repos" protobuf:"bytes,1,name=repos"`
 	// Verify GPG commit/tag signatures
 	GPG *SourceIntegrityGitPolicyGPG `json:"gpg" protobuf:"bytes,2,name=gpg"` // A mandatory field until there are alternatives
+}
+
+type SourceIntegrityGitPolicyRepo struct {
+	// URL specifier, glob.
+	Url string `json:"url" protobuf:"bytes,1,name=url"`
 }
 
 type SourceIntegrityGitPolicyGPGMode string

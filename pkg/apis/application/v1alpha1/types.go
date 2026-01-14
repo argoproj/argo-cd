@@ -15,7 +15,6 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
-	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -2788,7 +2787,7 @@ func (proj *AppProject) EffectiveSourceIntegrity() *SourceIntegrity {
 		return &SourceIntegrity{
 			Git: &SourceIntegrityGit{
 				Policies: []*SourceIntegrityGitPolicy{{
-					Repos: []string{"*"},
+					Repos: []SourceIntegrityGitPolicyRepo{{Url: "*"}},
 					GPG: &SourceIntegrityGitPolicyGPG{
 						Mode: "head",
 						Keys: legacyKeys,
@@ -2799,15 +2798,17 @@ func (proj *AppProject) EffectiveSourceIntegrity() *SourceIntegrity {
 	}
 
 	for _, p := range proj.Spec.SourceIntegrity.Git.Policies {
-		if slices.Contains(p.Repos, "*") {
-			log.Warnf("Both SourceIntegrity and SignatureKeys specified in %s AppProject. Ignoring SignatureKeys", proj.Name)
-			return proj.Spec.SourceIntegrity
+		for _, repo := range p.Repos {
+			if repo.Url == "*" {
+				log.Warnf("Both SourceIntegrity and SignatureKeys specified in %s AppProject. Ignoring SignatureKeys", proj.Name)
+				return proj.Spec.SourceIntegrity
+			}
 		}
 	}
 
 	log.Warnf("Both SourceIntegrity and SignatureKeys specified in %s AppProject. Adding policy with %d legacy keys for all repositories", proj.Name, len(legacyKeys))
 	proj.Spec.SourceIntegrity.Git.Policies = append(proj.Spec.SourceIntegrity.Git.Policies, &SourceIntegrityGitPolicy{
-		Repos: []string{"*"},
+		Repos: []SourceIntegrityGitPolicyRepo{{Url: "*"}},
 		GPG: &SourceIntegrityGitPolicyGPG{
 			Mode: "head",
 			Keys: legacyKeys,
