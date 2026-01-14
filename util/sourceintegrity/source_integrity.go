@@ -76,14 +76,14 @@ func lookupGit(si *v1alpha1.SourceIntegrity, repoURL string) gitFunc {
 		}
 	}
 
-	log.Warnf("No verification configured for SourceIntegrity policy for %v", policy.Repos)
+	log.Warnf("No verification configured for SourceIntegrity policy for %+v", policy.Repos)
 	return nil
 }
 
 func findMatchingGitPolicies(si *v1alpha1.SourceIntegrityGit, repoURL string) (policies []*v1alpha1.SourceIntegrityGitPolicy) {
 	for _, p := range si.Policies {
 		for _, r := range p.Repos {
-			if r == "*" || glob.Match(r, repoURL) {
+			if r.Url == "*" || glob.Match(r.Url, repoURL) {
 				policies = append(policies, p)
 			}
 		}

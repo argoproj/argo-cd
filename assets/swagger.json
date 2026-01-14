@@ -10522,9 +10522,9 @@
         },
         "repos": {
           "type": "array",
-          "title": "List of repository glob patterns restricting repositories the policy will apply to",
+          "title": "List of repository criteria restricting repositories the policy will apply to",
           "items": {
-            "type": "string"
+            "$ref": "#/definitions/v1alpha1SourceIntegrityGitPolicyRepo"
           }
         }
       }
@@ -10541,6 +10541,15 @@
           }
         },
         "mode": {
+          "type": "string"
+        }
+      }
+    },
+    "v1alpha1SourceIntegrityGitPolicyRepo": {
+      "type": "object",
+      "properties": {
+        "url": {
+          "description": "URL specifier, glob.",
           "type": "string"
         }
       }

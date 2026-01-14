@@ -18,7 +18,7 @@ var projectWithNoKeys = AppProjectSpec{
 	SourceIntegrity: &SourceIntegrity{
 		Git: &SourceIntegrityGit{
 			Policies: []*SourceIntegrityGitPolicy{{
-				Repos: []string{"*"},
+				Repos: []SourceIntegrityGitPolicyRepo{{Url: "*"}},
 				GPG: &SourceIntegrityGitPolicyGPG{
 					Keys: []string{}, // Verifying but permitting no keys
 					Mode: "head",
