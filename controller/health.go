@@ -37,7 +37,7 @@ func setApplicationHealth(resources []managedResource, statuses []appv1.Resource
 			containsLiveResources = true
 		}
 
-		// Do not aggreagte the health of the resource if the annotation to ignore health check is set to true
+		// Do not aggregate the health of the resource if the annotation to ignore health check is set to true
 		if res.Live != nil && res.Live.GetAnnotations() != nil && res.Live.GetAnnotations()[common.AnnotationIgnoreHealthCheck] == "true" {
 			continue
 		}
