@@ -2,23 +2,21 @@ package admin
 
 import (
 	"bytes"
+	"context"
 	"testing"
-
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/util/security"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-
-	"github.com/argoproj/argo-cd/v3/common"
-
-	"context"
-
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic/fake"
+
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/security"
 )
 
 func newBackupObject(trackingValue string, trackingLabel bool, trackingAnnotation bool) *unstructured.Unstructured {
@@ -591,7 +589,7 @@ func TestExportData(t *testing.T) {
 	var buf bytes.Buffer
 	// Call exportData with the fake client
 	err := exportData(context.Background(), fakeDyn, acdClients, &buf, "argocd", nil, nil)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	output := buf.String()
 

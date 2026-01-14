@@ -556,11 +556,10 @@ func exportData(ctx context.Context, client dynamic.Interface, acdClients *argoC
 	}
 	applicationSets, err := acdClients.applicationSets.List(ctx, metav1.ListOptions{})
 	if err != nil && !apierrors.IsNotFound(err) {
-		if apierrors.IsForbidden(err) {
-			log.Warn(err)
-		} else {
+		if !apierrors.IsForbidden(err) {
 			return err
 		}
+		log.Warn(err)
 	}
 	if applicationSets != nil {
 		for _, appSet := range applicationSets.Items {
