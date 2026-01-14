@@ -1100,3 +1100,82 @@ func TestGitGenerator_GenerateParams_list_x_git_matrix_generator(t *testing.T) {
 		"test":                    "content",
 	}}, params)
 }
+
+func TestNestedMatrixes(t *testing.T) {
+	terminalGenerators := map[string]Generator{
+		"List": NewListGenerator(),
+	}
+
+	nestedGenerators := map[string]Generator{
+		"List":   terminalGenerators["List"],
+		"Matrix": NewMatrixGenerator(terminalGenerators),
+		"Merge":  NewMergeGenerator(terminalGenerators),
+	}
+
+	topLevelGenerators := map[string]Generator{
+		"List":   terminalGenerators["List"],
+		"Matrix": NewMatrixGenerator(nestedGenerators),
+		"Merge":  NewMergeGenerator(nestedGenerators),
+	}
+
+	matrixGenerator := NewMatrixGenerator(topLevelGenerators)
+
+	innerMatrix := v1alpha1.NestedMatrixGenerator{
+		Generators: []v1alpha1.ApplicationSetTerminalGenerator{
+			{
+				List: &v1alpha1.ListGenerator{
+					Elements: []apiextensionsv1.JSON{
+						{
+							Raw: []byte(`{"my-key": "my-value"}`),
+						},
+					},
+				},
+			},
+			{
+				List: &v1alpha1.ListGenerator{
+					Elements: []apiextensionsv1.JSON{
+						{
+							// Raw: []byte(`{"a": "{{ \"{{ . }}\" }}"}`),
+							Raw: []byte(`{"a": "{{ . }}"}`),
+						},
+					},
+				},
+			},
+		},
+	}
+
+	matrixGeneratorSpec := &v1alpha1.MatrixGenerator{
+		Generators: []v1alpha1.ApplicationSetNestedGenerator{
+			{
+				List: &v1alpha1.ListGenerator{
+					Elements: []apiextensionsv1.JSON{
+						{
+							Raw: []byte(`{"dummy": "a"}`),
+						},
+					},
+				},
+			},
+			{
+				Matrix: toAPIExtensionsJSON(t, innerMatrix),
+			},
+		},
+	}
+
+	scheme := runtime.NewScheme()
+	err := v1alpha1.AddToScheme(scheme)
+	require.NoError(t, err)
+	appProject := v1alpha1.AppProject{}
+
+	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appProject).Build()
+
+	params, err := matrixGenerator.GenerateParams(&v1alpha1.ApplicationSetGenerator{
+		Matrix: matrixGeneratorSpec,
+	}, &v1alpha1.ApplicationSet{
+		Spec: v1alpha1.ApplicationSetSpec{
+			GoTemplate: true,
+		},
+	}, client)
+	require.NoError(t, err)
+
+	assert.Equal(t, "map[my-key:my-value]", params[0]["a"])
+}
