@@ -3,9 +3,11 @@ package initialize
 import (
 	"testing"
 
+	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
 	"github.com/stretchr/testify/assert"
 )
+
 
 type StringFlag struct {
 	// The exact value provided on the flag
@@ -77,4 +79,17 @@ func Test_FlagContextNil(t *testing.T) {
 	})
 
 	assert.Empty(t, res)
+}
+
+func Test_InitCommand_FiltersUnsupportedKubectlFlags(t *testing.T) {
+	cmd := &cobra.Command{}
+
+	InitCommand(cmd)
+
+	assert.Nil(t, cmd.Flags().Lookup("disable-compression"))
+	assert.Nil(t, cmd.Flags().Lookup("as"))
+	assert.Nil(t, cmd.Flags().Lookup("as-group"))
+	assert.Nil(t, cmd.Flags().Lookup("as-uid"))
+	assert.NotNil(t, cmd.Flags().Lookup("context"))
+	assert.NotNil(t, cmd.Flags().Lookup("namespace"))
 }
