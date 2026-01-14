@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-
 type StringFlag struct {
 	// The exact value provided on the flag
 	value string
