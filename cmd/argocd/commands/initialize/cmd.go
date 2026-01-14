@@ -1,6 +1,8 @@
 package initialize
 
 import (
+	"slices"
+
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
@@ -22,14 +24,14 @@ func InitCommand(cmd *cobra.Command) *cobra.Command {
 	cli.AddKubectlFlagsToSet(flags)
 
 	// kubectl REST flags that are not supported by argocd CLI
-	unsupportedFlags := map[string]bool{
-		"disable-compression":   true,
-		"certificate-authority": true,
-		"client-certificate":    true,
-		"client-key":            true,
-		"as":                    true,
-		"as-group":              true,
-		"as-uid":                true,
+	unsupportedFlags := []string{
+		"disable-compression",
+		"certificate-authority",
+		"client-certificate",
+		"client-key",
+		"as",
+		"as-group",
+		"as-uid",
 	}
 
 	flags.VisitAll(func(flag *pflag.Flag) {
@@ -38,7 +40,7 @@ func InitCommand(cmd *cobra.Command) *cobra.Command {
 			return
 		}
 		// skip unsupported kubectl REST flags
-		if unsupportedFlags[flag.Name] {
+		if slices.Contains(unsupportedFlags, flag.Name) {
 			return
 		}
 		cmd.Flags().AddFlag(flag)
