@@ -21,8 +21,8 @@ import (
 
 var sprigFuncMap = sprig.GenericFuncMap() // a singleton for better performance
 
-const gitAttributesContents = `*/README.md linguist-generated=true
-*/hydrator.metadata linguist-generated=true`
+const gitAttributesContents = `**/README.md linguist-generated=true
+**/hydrator.metadata linguist-generated=true`
 
 func init() {
 	// Avoid allowing the user to learn things about the environment.
