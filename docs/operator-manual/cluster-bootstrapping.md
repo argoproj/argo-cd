@@ -56,9 +56,12 @@ spec:
     path: guestbook
     repoURL: https://github.com/argoproj/argocd-example-apps
     targetRevision: HEAD
-``` 
+  syncPolicy:
+    automated:
+      prune: true
+```
 
-The sync policy to automated + prune, so that child apps are automatically created, synced, and deleted when the manifest is changed, but you may wish to disable this. I've also added the finalizer, which will ensure that your apps are deleted correctly.
+This example sets the sync policy to automated with pruning enabled, so child apps are automatically created, synced, and deleted when the parent app's manifest changes. You may wish to disable automated sync for more control over when changes are applied. The finalizer ensures that child app resources are properly cleaned up on deletion.
 
 Fix the revision to a specific Git commit SHA to make sure that, even if the child apps repo changes, the app will only change when the parent app change that revision. Alternatively, you can set it to HEAD or a branch name.
 

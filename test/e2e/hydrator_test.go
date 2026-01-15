@@ -2,14 +2,12 @@ package e2e
 
 import (
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/require"
 
 	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
-	"github.com/argoproj/argo-cd/v3/test/e2e/fixture/repos"
 
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
 )
@@ -138,8 +136,8 @@ func TestKustomizeVersionOverride(t *testing.T) {
 }
 
 func TestHydratorWithHelm(t *testing.T) {
-	Given(t).
-		Path("hydrator-helm").
+	ctx := Given(t)
+	ctx.Path("hydrator-helm").
 		When().
 		CreateFromFile(func(app *Application) {
 			app.Spec.Source = nil
@@ -170,7 +168,7 @@ func TestHydratorWithHelm(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(_ *Application) {
 			// Verify that the inline helm parameter was applied
-			output, err := fixture.Run("", "kubectl", "-n="+fixture.DeploymentNamespace(),
+			output, err := fixture.Run("", "kubectl", "-n="+ctx.DeploymentNamespace(),
 				"get", "configmap", "my-map",
 				"-ojsonpath={.data.message}")
 			require.NoError(t, err)
@@ -179,8 +177,8 @@ func TestHydratorWithHelm(t *testing.T) {
 }
 
 func TestHydratorWithKustomize(t *testing.T) {
-	Given(t).
-		Path("hydrator-kustomize").
+	ctx := Given(t)
+	ctx.Path("hydrator-kustomize").
 		When().
 		CreateFromFile(func(app *Application) {
 			app.Spec.Source = nil
@@ -211,15 +209,15 @@ func TestHydratorWithKustomize(t *testing.T) {
 			// Verify that the inline kustomize nameSuffix was applied
 			// kustomization.yaml has namePrefix: kustomize-, and we added nameSuffix: -inline
 			// So the ConfigMap name should be kustomize-my-map-inline
-			_, err := fixture.Run("", "kubectl", "-n="+fixture.DeploymentNamespace(),
+			_, err := fixture.Run("", "kubectl", "-n="+ctx.DeploymentNamespace(),
 				"get", "configmap", "kustomize-my-map-inline")
 			require.NoError(t, err)
 		})
 }
 
 func TestHydratorWithDirectory(t *testing.T) {
-	Given(t).
-		Path("hydrator-directory").
+	ctx := Given(t)
+	ctx.Path("hydrator-directory").
 		When().
 		CreateFromFile(func(app *Application) {
 			app.Spec.Source = nil
@@ -248,20 +246,16 @@ func TestHydratorWithDirectory(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(_ *Application) {
 			// Verify that the recurse option was applied by checking the ConfigMap from subdir
-			_, err := fixture.Run("", "kubectl", "-n="+fixture.DeploymentNamespace(),
+			_, err := fixture.Run("", "kubectl", "-n="+ctx.DeploymentNamespace(),
 				"get", "configmap", "my-map-subdir")
 			require.NoError(t, err)
 		})
 }
 
 func TestHydratorWithPlugin(t *testing.T) {
-	Given(t).
-		Path("hydrator-plugin").
-		And(func() {
-			go startCMPServer(t, "./testdata/hydrator-plugin")
-			time.Sleep(100 * time.Millisecond)
-			t.Setenv("ARGOCD_BINARY_NAME", "argocd")
-		}).
+	ctx := Given(t)
+	ctx.Path("hydrator-plugin").
+		RunningCMPServer("./testdata/hydrator-plugin").
 		When().
 		CreateFromFile(func(app *Application) {
 			app.Spec.Source = nil
@@ -292,7 +286,7 @@ func TestHydratorWithPlugin(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(_ *Application) {
 			// Verify that the inline plugin env was applied
-			output, err := fixture.Run("", "kubectl", "-n="+fixture.DeploymentNamespace(),
+			output, err := fixture.Run("", "kubectl", "-n="+ctx.DeploymentNamespace(),
 				"get", "configmap", "plugin-generated-map",
 				"-ojsonpath={.data.plugin-env}")
 			require.NoError(t, err)
@@ -357,12 +351,10 @@ func TestHydratorWithAuthenticatedRepo(t *testing.T) {
 	// need to fetch existing git notes from the authenticated repository, which requires
 	// credentials.
 	Given(t).
-		HTTPSInsecureRepoURLAdded(true).
 		RepoURLType(fixture.RepoURLTypeHTTPS).
+		HTTPSInsecureRepoURLAdded(true).
 		// Add write credentials for commit-server to push hydrated manifests
-		And(func() {
-			repos.AddHTTPSWriteCredentials(t, true, fixture.RepoURLTypeHTTPS)
-		}).
+		WriteCredentials(true).
 		DrySourcePath("guestbook").
 		DrySourceRevision("HEAD").
 		SyncSourcePath("guestbook").

@@ -1385,26 +1385,42 @@ func TestSync_ExistingHooksWithFinalizer(t *testing.T) {
 func TestRunSyncFailHooksFailed(t *testing.T) {
 	// Tests that other SyncFail Hooks run even if one of them fail.
 
-	syncCtx := newTestSyncCtx(nil)
 	pod := testingutils.NewPod()
 	successfulSyncFailHook := newHook(synccommon.HookTypeSyncFail, synccommon.HookDeletePolicyBeforeHookCreation)
 	successfulSyncFailHook.SetName("successful-sync-fail-hook")
 	failedSyncFailHook := newHook(synccommon.HookTypeSyncFail, synccommon.HookDeletePolicyBeforeHookCreation)
 	failedSyncFailHook.SetName("failed-sync-fail-hook")
+
+	// Mark successful hook as healthy so it completes
+	syncCtx := newTestSyncCtx(nil,
+		WithHealthOverride(resourceNameHealthOverride(map[string]health.HealthStatusCode{
+			successfulSyncFailHook.GetName(): health.HealthStatusHealthy,
+		})),
+	)
 	syncCtx.resources = groupResources(ReconciliationResult{
 		Live:   []*unstructured.Unstructured{nil},
 		Target: []*unstructured.Unstructured{pod},
 	})
 	syncCtx.hooks = []*unstructured.Unstructured{successfulSyncFailHook, failedSyncFailHook}
 
-	mockKubectl := &kubetest.MockKubectlCmd{
+	mockKubectl := (&kubetest.MockKubectlCmd{
 		Commands: map[string]kubetest.KubectlOutput{
 			// Fail operation
 			pod.GetName(): {Err: errors.New("")},
 			// Fail a single SyncFail hook
 			failedSyncFailHook.GetName(): {Err: errors.New("")},
+			// Succeed for the successful hook
+			successfulSyncFailHook.GetName(): {},
 		},
-	}
+	}).WithGetResourceFunc(func(_ context.Context, _ *rest.Config, _ schema.GroupVersionKind, name string, _ string) (*unstructured.Unstructured, error) {
+		// Return a completed Pod for the successful hook so health check marks it as Succeeded
+		if name == successfulSyncFailHook.GetName() {
+			completedPod := successfulSyncFailHook.DeepCopy()
+			_ = unstructured.SetNestedField(completedPod.Object, "Succeeded", "status", "phase")
+			return completedPod, nil
+		}
+		return nil, nil
+	})
 	syncCtx.kubectl = mockKubectl
 	mockResourceOps := kubetest.MockResourceOps{
 		Commands: map[string]kubetest.KubectlOutput{
@@ -1412,22 +1428,51 @@ func TestRunSyncFailHooksFailed(t *testing.T) {
 			pod.GetName(): {Err: errors.New("")},
 			// Fail a single SyncFail hook
 			failedSyncFailHook.GetName(): {Err: errors.New("")},
+			// Succeed for the successful hook
+			successfulSyncFailHook.GetName(): {},
 		},
 	}
 	syncCtx.resourceOps = &mockResourceOps
 
 	syncCtx.Sync()
+
+	// After first sync, the successful hook is applied (Running state).
+	// We need to manually mark it as completed since there's no real cluster
+	// to provide the live object with healthy status.
+	_, _, results := syncCtx.GetState()
+	for _, res := range results {
+		if res.ResourceKey.Name == successfulSyncFailHook.GetName() {
+			res.HookPhase = synccommon.OperationSucceeded
+			syncCtx.syncRes[resourceResultKey(res.ResourceKey, synccommon.SyncPhaseSyncFail)] = res
+		}
+	}
+
 	syncCtx.Sync()
 	phase, _, resources := syncCtx.GetState()
 
 	// Operation as a whole should fail
 	assert.Equal(t, synccommon.OperationFailed, phase)
+
+	// Find the hook results by name since order depends on Order field, not alphabetical
+	var failedHookResult, successfulHookResult *synccommon.ResourceSyncResult
+	for i := range resources {
+		switch resources[i].ResourceKey.Name {
+		case failedSyncFailHook.GetName():
+			failedHookResult = &resources[i]
+		case successfulSyncFailHook.GetName():
+			successfulHookResult = &resources[i]
+		}
+	}
+
 	// failedSyncFailHook should fail
-	assert.Equal(t, synccommon.OperationFailed, resources[1].HookPhase)
-	assert.Equal(t, synccommon.ResultCodeSyncFailed, resources[1].Status)
-	// successfulSyncFailHook should be synced running (it is an nginx pod)
-	assert.Equal(t, synccommon.OperationRunning, resources[2].HookPhase)
-	assert.Equal(t, synccommon.ResultCodeSynced, resources[2].Status)
+	require.NotNil(t, failedHookResult, "failed hook result not found")
+	assert.Equal(t, synccommon.OperationFailed, failedHookResult.HookPhase)
+	assert.Equal(t, synccommon.ResultCodeSyncFailed, failedHookResult.Status)
+
+	// successfulSyncFailHook should succeed
+	require.NotNil(t, successfulHookResult, "successful hook result not found")
+	assert.Equal(t, synccommon.OperationSucceeded, successfulHookResult.HookPhase)
+	assert.Equal(t, synccommon.ResultCodeSynced, successfulHookResult.Status)
 }
 
 func TestRunSync_HooksNotDeletedIfPhaseNotCompleted(t *testing.T) {
@@ -1663,7 +1708,7 @@ func Test_setRunningPhase(t *testing.T) {
 		return &syncTask{targetObj: pod}
 	}
 	newHookTask := func(name string, hookType synccommon.HookType) *syncTask {
-		hook := newHook(hookType)
+		hook := newHook(hookType, synccommon.HookDeletePolicyBeforeHookCreation)
 		hook.SetName(name)
 		return &syncTask{targetObj: hook}
 	}
@@ -1951,19 +1996,19 @@ func TestSyncContext_GetDeleteOptions_WithPrunePropagationPolicy(t *testing.T) {
 	assert.Equal(t, metav1.DeletePropagationBackground, *opts.PropagationPolicy)
 }
 
-func TestSetOperationFailed(t *testing.T) {
+func TestExecuteSyncFailPhase(t *testing.T) {
 	sc := syncContext{}
 	sc.log = textlogger.NewLogger(textlogger.NewConfig()).WithValues("application", "fake-app")
 
 	tasks := make([]*syncTask, 0)
 	tasks = append(tasks, &syncTask{message: "namespace not found"})
 
-	sc.setOperationFailed(nil, tasks, "one or more objects failed to apply")
+	sc.executeSyncFailPhase(nil, tasks, "one or more objects failed to apply")
 
 	assert.Equal(t, "one or more objects failed to apply, reason: namespace not found", sc.message)
 }
 
-func TestSetOperationFailedDuplicatedMessages(t *testing.T) {
+func TestExecuteSyncFailPhase_DuplicatedMessages(t *testing.T) {
 	sc := syncContext{}
 	sc.log = textlogger.NewLogger(textlogger.NewConfig()).WithValues("application", "fake-app")
 
@@ -1971,16 +2016,16 @@ func TestSetOperationFailedDuplicatedMessages(t *testing.T) {
 	tasks = append(tasks, &syncTask{message: "namespace not found"})
 	tasks = append(tasks, &syncTask{message: "namespace not found"})
 
-	sc.setOperationFailed(nil, tasks, "one or more objects failed to apply")
+	sc.executeSyncFailPhase(nil, tasks, "one or more objects failed to apply")
 
 	assert.Equal(t, "one or more objects failed to apply, reason: namespace not found", sc.message)
 }
 
-func TestSetOperationFailedNoTasks(t *testing.T) {
+func TestExecuteSyncFailPhase_NoTasks(t *testing.T) {
 	sc := syncContext{}
 	sc.log = textlogger.NewLogger(textlogger.NewConfig()).WithValues("application", "fake-app")
 
-	sc.setOperationFailed(nil, nil, "one or more objects failed to apply")
+	sc.executeSyncFailPhase(nil, nil, "one or more objects failed to apply")
 
 	assert.Equal(t, "one or more objects failed to apply", sc.message)
 }
@@ -2223,15 +2268,15 @@ func TestWaitForCleanUpBeforeNextWave(t *testing.T) {
 
 	var phase synccommon.OperationPhase
 	var msg string
-	var result []synccommon.ResourceSyncResult
+	var results []synccommon.ResourceSyncResult
 
 	// 1st sync should prune only pod3
 	syncCtx.Sync()
-	phase, _, result = syncCtx.GetState()
+	phase, _, results = syncCtx.GetState()
 	assert.Equal(t, synccommon.OperationRunning, phase)
-	assert.Len(t, result, 1)
-	assert.Equal(t, "pod-3", result[0].ResourceKey.Name)
-	assert.Equal(t, synccommon.ResultCodePruned, result[0].Status)
+	assert.Len(t, results, 1)
+	assert.Equal(t, "pod-3", results[0].ResourceKey.Name)
+	assert.Equal(t, synccommon.ResultCodePruned, results[0].Status)
 
 	// simulate successful delete of pod3
 	syncCtx.resources = groupResources(ReconciliationResult{
@@ -2241,11 +2286,11 @@ func TestWaitForCleanUpBeforeNextWave(t *testing.T) {
 
 	// next sync should prune only pod2
 	syncCtx.Sync()
-	phase, _, result = syncCtx.GetState()
+	phase, _, results = syncCtx.GetState()
 	assert.Equal(t, synccommon.OperationRunning, phase)
-	assert.Len(t, result, 2)
-	assert.Equal(t, "pod-2", result[1].ResourceKey.Name)
-	assert.Equal(t, synccommon.ResultCodePruned, result[1].Status)
+	assert.Len(t, results, 2)
+	assert.Equal(t, "pod-2", results[1].ResourceKey.Name)
+	assert.Equal(t, synccommon.ResultCodePruned, results[1].Status)
 
 	// add delete timestamp on pod2 to simulate pending delete
 	pod2.SetDeletionTimestamp(&metav1.Time{Time: time.Now()})
@@ -2253,10 +2298,10 @@ func TestWaitForCleanUpBeforeNextWave(t *testing.T) {
 	// next sync should wait for deletion of pod2 from cluster,
 	// it should not move to next wave and prune pod1
 	syncCtx.Sync()
-	phase, msg, result = syncCtx.GetState()
+	phase, msg, results = syncCtx.GetState()
 	assert.Equal(t, synccommon.OperationRunning, phase)
 	assert.Equal(t, "waiting for deletion of /Pod/pod-2", msg)
-	assert.Len(t, result, 2)
+	assert.Len(t, results, 2)
 
 	// simulate successful delete of pod2
 	syncCtx.resources = groupResources(ReconciliationResult{
@@ -2267,15 +2312,15 @@ func TestWaitForCleanUpBeforeNextWave(t *testing.T) {
 	// next sync should proceed with next wave
 	// i.e deletion of pod1
 	syncCtx.Sync()
-	phase, _, result = syncCtx.GetState()
+	phase, _, results = syncCtx.GetState()
 	assert.Equal(t, synccommon.OperationSucceeded, phase)
-	assert.Len(t, result, 3)
-	assert.Equal(t, "pod-3", result[0].ResourceKey.Name)
-	assert.Equal(t, "pod-2", result[1].ResourceKey.Name)
-	assert.Equal(t, "pod-1", result[2].ResourceKey.Name)
-	assert.Equal(t, synccommon.ResultCodePruned, result[0].Status)
-	assert.Equal(t, synccommon.ResultCodePruned, result[1].Status)
-	assert.Equal(t, synccommon.ResultCodePruned, result[2].Status)
+	assert.Len(t, results, 3)
+	assert.Equal(t, "pod-3", results[0].ResourceKey.Name)
+	assert.Equal(t, "pod-2", results[1].ResourceKey.Name)
+	assert.Equal(t, "pod-1", results[2].ResourceKey.Name)
+	assert.Equal(t, synccommon.ResultCodePruned, results[0].Status)
+	assert.Equal(t, synccommon.ResultCodePruned, results[1].Status)
+	assert.Equal(t, synccommon.ResultCodePruned, results[2].Status)
 }
 
 func BenchmarkSync(b *testing.B) {

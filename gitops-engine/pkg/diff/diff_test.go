@@ -704,7 +704,7 @@ func TestNullSecretData(t *testing.T) {
 }
 
 // TestRedactedSecretData tests we are able to perform diff on redacted secret data, which has
-// invalid characters (*) for the the data byte array field.
+// invalid characters (*) for the data byte array field.
 func TestRedactedSecretData(t *testing.T) {
 	configUn := unmarshalFile("testdata/wordpress-config.json")
 	liveUn := unmarshalFile("testdata/wordpress-live.json")
