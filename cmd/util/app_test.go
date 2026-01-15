@@ -215,19 +215,19 @@ type appOptionsFixture struct {
 func (f *appOptionsFixture) SetFlag(key, value string) error {
 	err := f.command.Flags().Set(key, value)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to set flag %q to %q: %w", key, value, err)
 	}
 	_ = SetAppSpecOptions(f.command.Flags(), f.spec, f.options, 0)
-	return err
+	return fmt.Errorf("failed to apply app spec options after setting flag %q: %w", key, err)
 }
 
 func (f *appOptionsFixture) SetFlagWithSourcePosition(key, value string, sourcePosition int) error {
 	err := f.command.Flags().Set(key, value)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to set flag %q to %q for source position %d: %w", key, value, sourcePosition, err)
 	}
 	_ = SetAppSpecOptions(f.command.Flags(), f.spec, f.options, sourcePosition)
-	return err
+	return fmt.Errorf("failed to apply app spec options after setting flag %q for source position %d: %w", key, sourcePosition, err)
 }
 
 func newAppOptionsFixture() *appOptionsFixture {
