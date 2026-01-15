@@ -2440,9 +2440,9 @@ arg@^4.1.0:
   resolved "https://registry.yarnpkg.com/arg/-/arg-4.1.3.tgz#269fc7ad5b8e42cb63c896d5666017261c144089"
   integrity sha512-58S9QDqG0Xx27YwPSt9fJxivjYl432YCwfDMfZ+71RAqUrZef7LrKQZ3LHLOwCS4FLNBplP533Zx895SeOCHvA==
 
-"argo-ui@git+https://github.com/jwinters01/argo-ui.git#dropdown-refactor":
+"argo-ui@git+https://github.com/argoproj/argo-ui.git":
   version "1.0.0"
-  resolved "git+https://github.com/jwinters01/argo-ui.git#55da276728b8190932db8e82efbe62b25fc0fa20"
+  resolved "git+https://github.com/argoproj/argo-ui.git#2bfda77cec418c4123fe61e35f22d09432af15b7"
   dependencies:
     "@fortawesome/fontawesome-free" "^6.2.1"
     "@tippy.js/react" "^3.1.1"
