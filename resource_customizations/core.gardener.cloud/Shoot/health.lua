@@ -15,7 +15,7 @@ if (obj.metadata.labels ~= nil and obj.metadata.labels["shoot.gardener.cloud/sta
         if obj.status ~= nil then
             if obj.status.conditions ~= nil then
                 for i, condition in ipairs(obj.status.conditions) do
-                    if condition.status == "False" then
+                    if condition.status ~= "True" then
                       -- calculate how long the "unhealthy" state is set - this prevents us from unnecessary alerts
                       offsetSeconds = 10000 -- default: very long
                       if condition.lastTransitionTime ~= nil then
