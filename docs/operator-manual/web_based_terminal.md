@@ -28,7 +28,7 @@ Kubernetes), then the user effectively has the same privileges as that ServiceAc
 2. Restart Argo CD
 
 ### Permissions for Kubernetes <1.31
-Starting in Kubernetes 1.31, the get privilege is enough to exec into a container so no additional permisisons are required. Enabling web terminal before Kubernetes 1.31 requires adding additional RBAC permissions.
+Starting in Kubernetes 1.31, the `get` privilege is enough to exec into a container, so no additional permissions are required. Enabling web terminal before Kubernetes 1.31 requires adding additional RBAC permissions.
 
 1. Patch the `argocd-server` Role (if using namespaced Argo) or ClusterRole (if using clustered Argo) to allow `argocd-server`
 to `exec` into pods
