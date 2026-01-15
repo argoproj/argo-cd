@@ -360,12 +360,7 @@ export const ApplicationsFilter = (props: AppFilterProps) => {
     };
 
     return (
-        <FiltersGroup
-            title='Application filters'
-            content={props.children}
-            appliedFilter={appliedFilter}
-            onClearFilter={onClearFilter}
-            collapsed={props.collapsed}>
+        <FiltersGroup title='Application filters' content={props.children} appliedFilter={appliedFilter} onClearFilter={onClearFilter} collapsed={props.collapsed}>
             <FavoriteFilter {...props} />
             <SyncFilter {...props} />
             <HealthFilter {...props} />
