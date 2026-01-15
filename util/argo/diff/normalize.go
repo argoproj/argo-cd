@@ -26,6 +26,7 @@ func Normalize(lives, configs []*unstructured.Unstructured, diffConfig DiffConfi
 			if err != nil {
 				return nil, err
 			}
+			diff.Normalize(live, diff.WithNormalizer(diffNormalizer))
 		}
 	}
 	for _, target := range result.Targets {
@@ -34,6 +35,7 @@ func Normalize(lives, configs []*unstructured.Unstructured, diffConfig DiffConfi
 			if err != nil {
 				return nil, err
 			}
+			diff.Normalize(target, diff.WithNormalizer(diffNormalizer))
 		}
 	}
 	return result, nil
@@ -49,8 +51,9 @@ func newDiffNormalizer(ignore []v1alpha1.ResourceIgnoreDifferences, overrides ma
 	if err != nil {
 		return nil, err
 	}
+	normalizeAsNorm := normalizers.NewNormalizeAsNormalizer(overrides)
 
-	return &composableNormalizer{normalizers: []diff.Normalizer{ignoreNormalizer, knownTypesNorm}}, nil
+	return &composableNormalizer{normalizers: []diff.Normalizer{ignoreNormalizer, knownTypesNorm, normalizeAsNorm}}, nil
 }
 
 type composableNormalizer struct {

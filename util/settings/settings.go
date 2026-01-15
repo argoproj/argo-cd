@@ -1123,6 +1123,8 @@ func (mgr *SettingsManager) appendResourceOverridesFromSplitKeys(cmData map[stri
 				return err
 			}
 			overrideVal.KnownTypeFields = knownTypeFields
+		case "normalize_as":
+			overrideVal.NormalizeAs = v
 		default:
 			return fmt.Errorf("resource customization type %s not supported", customizationType)
 		}

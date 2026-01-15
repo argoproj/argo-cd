@@ -37,6 +37,7 @@ const (
 	couldNotMarshalErrMsg       = "Could not unmarshal to object of type %s: %v"
 	AnnotationLastAppliedConfig = "kubectl.kubernetes.io/last-applied-configuration"
 	replacement                 = "++++++++"
+	AnnotationNormalizeAs= "argocd.argoproj.io/normalize-as"
 )
 
 // Holds diffing result of two resources
@@ -874,8 +875,13 @@ func Normalize(un *unstructured.Unstructured, opts ...Option) {
 	unstructured.RemoveNestedField(un.Object, "metadata", "creationTimestamp")
 
 	gvk := un.GroupVersionKind()
+	normalizeAs := ""
+	if un.GetAnnotations() != nil {
+		normalizeAs = un.GetAnnotations()[AnnotationNormalizeAs]
+	}
+
 	switch {
-	case gvk.Group == "" && gvk.Kind == "Secret":
+	case gvk.Group == "" && gvk.Kind == "Secret" || normalizeAs == "Secret":
 		NormalizeSecret(un, opts...)
 	case gvk.Group == "rbac.authorization.k8s.io" && (gvk.Kind == "ClusterRole" || gvk.Kind == "Role"):
 		normalizeRole(un, o)
@@ -891,6 +897,14 @@ func Normalize(un *unstructured.Unstructured, opts ...Option) {
 		if err != nil {
 			o.log.Error(err, fmt.Sprintf("Failed to normalize %s/%s/%s", un.GroupVersionKind(), un.GetNamespace(), un.GetName()))
 		}
+
+		// Re-check for normalize-as after o.normalizer.Normalize(un) which might have added it
+		if un.GetAnnotations() != nil {
+			newNormalizeAs := un.GetAnnotations()[AnnotationNormalizeAs]
+			if newNormalizeAs == "Secret" {
+				NormalizeSecret(un, opts...)
+			}
+		}
 	}
 }
 
@@ -901,10 +915,14 @@ func NormalizeSecret(un *unstructured.Unstructured, opts ...Option) {
 		return
 	}
 	gvk := un.GroupVersionKind()
-	if gvk.Group != "" || gvk.Kind != "Secret" {
-		return
+	normalizeAs := ""
+	if un.GetAnnotations() != nil {
+		normalizeAs = un.GetAnnotations()[AnnotationNormalizeAs]
 	}
 
+	if (gvk.Group != "" || (gvk.Kind != "Secret")) && normalizeAs != "Secret" {
+		return
+	}
 	// move stringData to data section
 	if stringData, found, err := unstructured.NestedMap(un.Object, "stringData"); found && err == nil {
 		var data map[string]any

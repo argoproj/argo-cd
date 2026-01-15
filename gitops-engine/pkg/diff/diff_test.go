@@ -2,6 +2,7 @@ package diff
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -1283,6 +1284,38 @@ func TestHideStringDataInInvalidSecret(t *testing.T) {
 
 	assert.Equal(t, map[string]any{"key1": replacement1, "key2": replacement2}, secretData(live))
 	assert.Equal(t, map[string]any{"key1": replacement1, "key2": replacement1, "key3": replacement1, "key4": replacement1, "key5": replacement1}, secretData(target))
+}
+
+func TestNormalizeAsSecret(t *testing.T) {
+	un := &unstructured.Unstructured{
+		Object: map[string]any{
+			"apiVersion": "mygroup/v1",
+			"kind":       "AnotherSecret",
+			"metadata": map[string]any{
+				"name": "test-secret",
+				"annotations": map[string]any{
+					"argocd.argoproj.io/normalize-as": "Secret",
+				},
+			},
+			"data": map[string]any{
+				"key1": base64.StdEncoding.EncodeToString([]byte("value1")),
+			},
+			"stringData": map[string]any{
+				"key2": "value2",
+			},
+		},
+	}
+	un = remarshal(un, applyOptions(diffOptionsForTest()))
+
+	Normalize(un)
+
+	_, found, _ := unstructured.NestedMap(un.Object, "stringData")
+	assert.False(t, found)
+
+	data, found, _ := unstructured.NestedMap(un.Object, "data")
+	assert.True(t, found)
+	assert.Equal(t, base64.StdEncoding.EncodeToString([]byte("value1")), data["key1"])
+	assert.Equal(t, base64.StdEncoding.EncodeToString([]byte("value2")), data["key2"])
 }
 
 // stringData in secrets should be normalized even if it is invalid

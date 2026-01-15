@@ -93,18 +93,48 @@ func TestNormalize(t *testing.T) {
 		require.NoError(t, err)
 		require.False(t, ok)
 	})
-	t.Run("will not modify resources if ignore difference is not configured", func(t *testing.T) {
+	t.Run("will normalize resources based on NormalizeAs override", func(t *testing.T) {
 		// given
-		ignores := []v1alpha1.ResourceIgnoreDifferences{}
-		f := setup(t, ignores)
+		overrides := map[string]v1alpha1.ResourceOverride{
+			"mygroup/AnotherSecret": {
+				NormalizeAs: "Secret",
+			},
+		}
+		dc, err := diff.NewDiffConfigBuilder().
+			WithDiffSettings(nil, overrides, true, normalizers.IgnoreNormalizerOpts{}).
+			WithNoCache().
+			Build()
+		require.NoError(t, err)
+
+		live := &unstructured.Unstructured{
+			Object: map[string]any{
+				"apiVersion": "mygroup/v1",
+				"kind":       "AnotherSecret",
+				"metadata": map[string]any{
+					"name": "test",
+				},
+				"data": map[string]any{
+					"key1": "dmFsdWUx", // value1
+				},
+				"stringData": map[string]any{
+					"key2": "value2",
+				},
+			},
+		}
+		target := live.DeepCopy()
 
 		// when
-		result, err := diff.Normalize(f.lives, f.targets, f.diffConfig)
+		result, err := diff.Normalize([]*unstructured.Unstructured{live}, []*unstructured.Unstructured{target}, dc)
 
 		// then
 		require.NoError(t, err)
-		require.Len(t, result.Targets, 1)
-		assert.Equal(t, f.lives[0], result.Lives[0])
-		assert.Equal(t, f.targets[0], result.Targets[0])
+		for i, un := range append(result.Lives, result.Targets...) {
+			_, found, _ := unstructured.NestedMap(un.Object, "stringData")
+			assert.False(t, found, "stringData should be removed for resource %d", i)
+			data, found, _ := unstructured.NestedMap(un.Object, "data")
+			assert.True(t, found, "data should exist for resource %d", i)
+			assert.Equal(t, "dmFsdWUx", data["key1"], "key1 mismatch for resource %d", i)
+			assert.Equal(t, "dmFsdWUy", data["key2"], "key2 mismatch for resource %d", i)
+		}
 	})
 }
