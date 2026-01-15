@@ -1,7 +1,6 @@
 import {useData, Checkbox} from 'argo-ui/v2';
 import * as minimatch from 'minimatch';
 import * as React from 'react';
-import {Context} from '../../../shared/context';
 import {
     Application,
     ApplicationDestination,
@@ -359,19 +358,17 @@ const NamespaceFilter = (props: AppFilterProps) => {
     );
 };
 
-const FavoriteFilter = (props: {pref: {showFavorites?: boolean}; onChange: (showFavorites: boolean) => void}) => {
-    const ctx = React.useContext(Context);
+const FavoriteFilter = (props: {value: boolean; onChange: (showFavorites: boolean) => void}) => {
     const onChange = (val: boolean) => {
-        ctx.navigation.goto('.', {showFavorites: val}, {replace: true});
         props.onChange(val);
     };
     return (
         <div
-            className={`filter filter__item ${props.pref.showFavorites ? 'filter__item--selected' : ''}`}
+            className={`filter filter__item ${props.value ? 'filter__item--selected' : ''}`}
             style={{margin: '0.5em 0', marginTop: '0.5em'}}
-            onClick={() => onChange(!props.pref.showFavorites)}>
+            onClick={() => onChange(!props.value)}>
             <Checkbox
-                value={!!props.pref.showFavorites}
+                value={!!props.value}
                 onChange={onChange}
                 style={{
                     marginRight: '8px'
@@ -463,9 +460,33 @@ const OperationFilter = (props: AppFilterProps) => (
 );
 
 export const ApplicationsFilter = (props: AppFilterProps) => {
+    const appliedFilter = [
+        ...(props.pref.syncFilter || []),
+        ...(props.pref.healthFilter || []),
+        ...(props.pref.operationFilter || []),
+        ...(props.pref.labelsFilter || []),
+        ...(props.pref.projectsFilter || []),
+        ...(props.pref.clustersFilter || []),
+        ...(props.pref.namespacesFilter || []),
+        ...(props.pref.autoSyncFilter || []),
+        ...(props.pref.reposFilter || []),
+        ...(props.pref.showFavorites ? ['favorites'] : [])
+    ];
+
+    const onClearFilter = () => {
+        const newPref: AppsListPreferences = {...props.pref};
+        AppsListPreferences.clearFilters(newPref);
+        props.onChange(newPref);
+    };
+
     return (
-        <FiltersGroup title='Application filters' content={props.children} collapsed={props.collapsed}>
-            <FavoriteFilter pref={props.pref} onChange={val => services.viewPreferences.updatePreferences({appList: {...props.pref, showFavorites: val}})} />
+        <FiltersGroup
+            title='Application filters'
+            content={props.children}
+            appliedFilter={appliedFilter}
+            onClearFilter={onClearFilter}
+            collapsed={props.collapsed}>
+            <FavoriteFilter value={!!props.pref.showFavorites} onChange={val => props.onChange({...props.pref, showFavorites: val})} />
             <SyncFilter {...props} />
             <AppHealthFilter {...props} />
             <OperationFilter {...props} />
@@ -482,7 +503,7 @@ export const ApplicationsFilter = (props: AppFilterProps) => {
 export const AppSetsFilter = (props: AppSetFilterProps) => {
     return (
         <FiltersGroup title='ApplicationSet filters' content={props.children} collapsed={props.collapsed}>
-            <FavoriteFilter pref={props.pref} onChange={val => services.viewPreferences.updatePreferences({appList: {...props.pref, showFavorites: val} as AppsListPreferences})} />
+            <FavoriteFilter value={!!props.pref.showFavorites} onChange={val => props.onChange({...props.pref, showFavorites: val})} />
             <AppSetHealthFilter {...props} />
             <LabelsFilter apps={props.apps} pref={props.pref} onChange={labelsFilter => props.onChange({...props.pref, labelsFilter})} />
         </FiltersGroup>
