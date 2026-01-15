@@ -375,8 +375,9 @@ func TestWriteGitAttributes_MatchesAllDepths(t *testing.T) {
 
 	// Test actual Git behavior using git check-attr
 	// Initialize a git repo
+	ctx := t.Context()
 	repoPath := root.Name()
-	cmd := exec.Command("git", "init")
+	cmd := exec.CommandContext(ctx, "git", "init")
 	cmd.Dir = repoPath
 	output, err := cmd.CombinedOutput()
 	require.NoError(t, err, "Failed to init git repo: %s", string(output))
@@ -402,7 +403,7 @@ func TestWriteGitAttributes_MatchesAllDepths(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.description, func(t *testing.T) {
 			// Use git check-attr to verify if linguist-generated attribute is set
-			cmd := exec.Command("git", "check-attr", "linguist-generated", tc.path)
+			cmd := exec.CommandContext(ctx, "git", "check-attr", "linguist-generated", tc.path)
 			cmd.Dir = repoPath
 			output, err := cmd.CombinedOutput()
 			require.NoError(t, err, "Failed to run git check-attr: %s", string(output))
@@ -412,12 +413,12 @@ func TestWriteGitAttributes_MatchesAllDepths(t *testing.T) {
 			outputStr := strings.TrimSpace(string(output))
 
 			if tc.shouldMatch {
-				expectedOutput := fmt.Sprintf("%s: linguist-generated: true", tc.path)
+				expectedOutput := tc.path + ": linguist-generated: true"
 				assert.Equal(t, expectedOutput, outputStr,
 					"File %s should have linguist-generated=true attribute", tc.path)
 			} else {
 				// Attribute should be unspecified
-				expectedOutput := fmt.Sprintf("%s: linguist-generated: unspecified", tc.path)
+				expectedOutput := tc.path + ": linguist-generated: unspecified"
 				assert.Equal(t, expectedOutput, outputStr,
 					"File %s should not have linguist-generated=true attribute", tc.path)
 			}
