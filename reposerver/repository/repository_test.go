@@ -3845,13 +3845,7 @@ func TestErrorUpdateRevisionForPaths(t *testing.T) {
 		{name: "InvalidRepo", fields: fields{service: newService(t, ".")}, args: args{
 			ctx: t.Context(),
 			request: &apiclient.UpdateRevisionForPathsRequest{
-				SourceMetas: []*apiclient.SourceMeta{
-					{
-						Repo:           nil,
-						Revision:       "HEAD",
-						SyncedRevision: "sadfsadf",
-					},
-				},
+				Repo:           nil,
 				Revision:       "HEAD",
 				SyncedRevision: "sadfsadf",
 				Paths:          []string{"."},
@@ -3869,13 +3863,7 @@ func TestErrorUpdateRevisionForPaths(t *testing.T) {
 		}()}, args: args{
 			ctx: t.Context(),
 			request: &apiclient.UpdateRevisionForPathsRequest{
-				SourceMetas: []*apiclient.SourceMeta{
-					{
-						Repo:           &v1alpha1.Repository{Repo: "not-a-valid-url"},
-						Revision:       "HEAD",
-						SyncedRevision: "sadfsadf",
-					},
-				},
+				Repo:           &v1alpha1.Repository{Repo: "not-a-valid-url", Type: "git"},
 				Revision:       "sadfsadf",
 				SyncedRevision: "HEAD",
 				Paths:          []string{"."},
@@ -3894,13 +3882,7 @@ func TestErrorUpdateRevisionForPaths(t *testing.T) {
 		}()}, args: args{
 			ctx: t.Context(),
 			request: &apiclient.UpdateRevisionForPathsRequest{
-				SourceMetas: []*apiclient.SourceMeta{
-					{
-						Repo:           &v1alpha1.Repository{Repo: "not-a-valid-url"},
-						Revision:       "HEAD",
-						SyncedRevision: "sadfsadf",
-					},
-				},
+				Repo:           &v1alpha1.Repository{Repo: "not-a-valid-url", Type: "git"},
 				Revision:       "HEAD",
 				SyncedRevision: "sadfsadf",
 				Paths:          []string{"."},
@@ -3951,14 +3933,10 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 		}(), args: args{
 			ctx: t.Context(),
 			request: &apiclient.UpdateRevisionForPathsRequest{
-				SourceMetas: []*apiclient.SourceMeta{
-					{
-						Repo:           &v1alpha1.Repository{Repo: "a-url.com"},
-						Revision:       "",
-						SyncedRevision: "",
-					},
-				},
-				Paths: []string{},
+				Repo:           &v1alpha1.Repository{Repo: "a-url.com", Type: "git"},
+				Revision:       "",
+				SyncedRevision: "",
+				Paths:          []string{},
 			},
 		}, want: &apiclient.UpdateRevisionForPathsResponse{}, wantErr: assert.NoError},
 		{name: "SameResolvedRevisionAbort", fields: func() fields {
@@ -3976,13 +3954,7 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 		}(), args: args{
 			ctx: t.Context(),
 			request: &apiclient.UpdateRevisionForPathsRequest{
-				SourceMetas: []*apiclient.SourceMeta{
-					{
-						Repo:           &v1alpha1.Repository{Repo: "a-url.com"},
-						Revision:       "HEAD",
-						SyncedRevision: "SYNCEDHEAD",
-					},
-				},
+				Repo:           &v1alpha1.Repository{Repo: "a-url.com", Type: "git"},
 				Revision:       "HEAD",
 				SyncedRevision: "SYNCEDHEAD",
 				Paths:          []string{"."},
@@ -4014,13 +3986,7 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 		}(), args: args{
 			ctx: t.Context(),
 			request: &apiclient.UpdateRevisionForPathsRequest{
-				SourceMetas: []*apiclient.SourceMeta{
-					{
-						Repo:           &v1alpha1.Repository{Repo: "a-url.com"},
-						Revision:       "HEAD",
-						SyncedRevision: "SYNCEDHEAD",
-					},
-				},
+				Repo:           &v1alpha1.Repository{Repo: "a-url.com", Type: "git"},
 				Revision:       "HEAD",
 				SyncedRevision: "SYNCEDHEAD",
 				Paths:          []string{"."},
@@ -4053,13 +4019,7 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 		}(), args: args{
 			ctx: t.Context(),
 			request: &apiclient.UpdateRevisionForPathsRequest{
-				SourceMetas: []*apiclient.SourceMeta{
-					{
-						Repo:           &v1alpha1.Repository{Repo: "a-url.com"},
-						Revision:       "HEAD",
-						SyncedRevision: "SYNCEDHEAD",
-					},
-				},
+				Repo:              &v1alpha1.Repository{Repo: "a-url.com", Type: "git"},
 				Revision:          "HEAD",
 				SyncedRevision:    "SYNCEDHEAD",
 				Paths:             []string{"."},
@@ -4099,13 +4059,7 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 		}(), args: args{
 			ctx: t.Context(),
 			request: &apiclient.UpdateRevisionForPathsRequest{
-				SourceMetas: []*apiclient.SourceMeta{
-					{
-						Repo:           &v1alpha1.Repository{Repo: "a-url.com"},
-						Revision:       "HEAD",
-						SyncedRevision: "SYNCEDHEAD",
-					},
-				},
+				Repo:              &v1alpha1.Repository{Repo: "a-url.com", Type: "git"},
 				Revision:          "HEAD",
 				SyncedRevision:    "SYNCEDHEAD",
 				Paths:             []string{"."},
@@ -4151,17 +4105,14 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 		}(), args: args{
 			ctx: t.Context(),
 			request: &apiclient.UpdateRevisionForPathsRequest{
-				SourceMetas: []*apiclient.SourceMeta{
-					{
-						Repo:           &v1alpha1.Repository{Repo: "a-url.com"},
-						Revision:       "HEAD",
-						SyncedRevision: "SYNCEDHEAD",
-					},
-					{
-						Repo:           &v1alpha1.Repository{Repo: "a2-url.com"},
-						Revision:       "HEAD-1",
-						SyncedRevision: "SYNCEDHEAD-1",
-					},
+				Repo: &v1alpha1.Repository{Repo: "url.com", Type: "helm"},
+				RefSources: v1alpha1.RefTargetRevisionMapping{
+					"values":   {Repo: v1alpha1.Repository{Repo: "a-url.com"}, Chart: "test", TargetRevision: "HEAD"},
+					"values_2": {Repo: v1alpha1.Repository{Repo: "a-url.com"}, Chart: "test", TargetRevision: "HEAD-1"},
+				},
+				SyncedRefSources: v1alpha1.RefTargetRevisionMapping{
+					"values":   {Repo: v1alpha1.Repository{Repo: "a-url.com"}, Chart: "test", TargetRevision: "SYNCEDHEAD"},
+					"values_2": {Repo: v1alpha1.Repository{Repo: "a-url.com"}, Chart: "test", TargetRevision: "SYNCEDHEAD-1"},
 				},
 				Revision:           "0.0.1",
 				SyncedRevision:     "0.0.1",

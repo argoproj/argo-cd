@@ -20,6 +20,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
 	"github.com/argoproj/argo-cd/v3/util/env"
+	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/hash"
 )
 
@@ -98,9 +99,12 @@ func refTargetForCacheKeyFromRefTarget(refTarget *appv1.RefTarget) refTargetForC
 
 type refTargetRevisionMappingForCacheKey map[string]refTargetForCacheKey
 
-func getRefTargetRevisionMappingForCacheKey(refTargetRevisionMapping appv1.RefTargetRevisionMapping) refTargetRevisionMappingForCacheKey {
+func getRefTargetRevisionMappingForCacheKey(refTargetRevisionMapping appv1.RefTargetRevisionMapping, refSourceCommitSHAs ResolvedRevisions) refTargetRevisionMappingForCacheKey {
 	res := make(refTargetRevisionMappingForCacheKey)
 	for k, v := range refTargetRevisionMapping {
+		if rev, ok := refSourceCommitSHAs[git.NormalizeGitURL(v.Repo.Repo)]; ok {
+			v.TargetRevision = rev
+		}
 		res[k] = refTargetForCacheKeyFromRefTarget(v)
 	}
 	return res
@@ -129,7 +133,7 @@ func appSourceKeyJSON(appSrc *appv1.ApplicationSource, srcRefs appv1.RefTargetRe
 	}
 	appSrcStr, _ := json.Marshal(appSourceKeyStruct{
 		AppSrc:            appSrc,
-		SrcRefs:           getRefTargetRevisionMappingForCacheKey(srcRefs),
+		SrcRefs:           getRefTargetRevisionMappingForCacheKey(srcRefs, refSourceCommitSHAs),
 		ResolvedRevisions: refSourceCommitSHAs,
 	})
 	return string(appSrcStr)
@@ -328,6 +332,10 @@ func manifestCacheKey(revision string, appSrc *appv1.ApplicationSource, srcRefs 
 	//       example, revision could be part of ResolvedRevisions. And srcRefs is probably redundant now that
 	//       refSourceCommitSHAs has been added. We don't need to know the _target_ revisions of the referenced sources
 	//       when the _resolved_ revisions are already part of the key.
+
+	log.Debug("=======REF=========")
+	log.Debug(srcRefs)
+	log.Debug("=======REF=========")
 	trackingKey := trackingKey(appLabelKey, trackingMethod)
 	key := fmt.Sprintf("mfst|%s|%s|%s|%s|%d", trackingKey, appName, revision, namespace, appSourceKey(appSrc, srcRefs, refSourceCommitSHAs)+clusterRuntimeInfoKey(info))
 	if installationID != "" {
