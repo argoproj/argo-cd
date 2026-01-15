@@ -140,6 +140,11 @@ func (c *client) startGRPCProxy(ctx context.Context) (*grpc.Server, net.Listener
 
 			md = metadata.Join(md, headersMD)
 
+			// Add Proxy-Authorization header if ProxyAuthToken is set
+			if c.ProxyAuthToken != "" {
+				md.Set("proxy-authorization", "Bearer "+c.ProxyAuthToken)
+			}
+
 			resp, err := c.executeRequest(stream.Context(), fullMethodName, msg, md)
 			if err != nil {
 				return err
