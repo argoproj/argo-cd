@@ -2167,6 +2167,9 @@ message ResourceOverride {
 
   // KnownTypeFields lists fields for which unit conversions should be applied.
   repeated KnownTypeField knownTypeFields = 4;
+
+  // NormalizeAs indicates that the resource should be normalized as a different resource type.
+  optional string normalizeAs = 7;
 }
 
 // ResourceRef includes fields which uniquely identify a resource
