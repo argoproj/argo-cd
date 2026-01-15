@@ -430,7 +430,9 @@ export const ApplicationsList = (props: RouteComponentProps<any> & {objectListKi
                 namespace: newPref.namespacesFilter.join(','),
                 cluster: newPref.clustersFilter.join(','),
                 labels: newPref.labelsFilter.map(encodeURIComponent).join(','),
-                operation: newPref.operationFilter.join(',')
+                operation: newPref.operationFilter.join(','),
+                // Keep URL and preferences consistent. When false, remove the param entirely.
+                showFavorites: newPref.showFavorites ? 'true' : null
             },
             {replace: true}
         );

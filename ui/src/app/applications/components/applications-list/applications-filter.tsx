@@ -340,8 +340,32 @@ const OperationFilter = (props: AppFilterProps) => (
 );
 
 export const ApplicationsFilter = (props: AppFilterProps) => {
+    const appliedFilter = [
+        ...(props.pref.syncFilter || []),
+        ...(props.pref.healthFilter || []),
+        ...(props.pref.operationFilter || []),
+        ...(props.pref.labelsFilter || []),
+        ...(props.pref.projectsFilter || []),
+        ...(props.pref.clustersFilter || []),
+        ...(props.pref.namespacesFilter || []),
+        ...(props.pref.autoSyncFilter || []),
+        ...(props.pref.reposFilter || []),
+        ...(props.pref.showFavorites ? ['favorites'] : [])
+    ];
+
+    const onClearFilter = () => {
+        const newPref: AppsListPreferences = {...props.pref};
+        AppsListPreferences.clearFilters(newPref);
+        props.onChange(newPref);
+    };
+
     return (
-        <FiltersGroup title='Application filters' content={props.children} collapsed={props.collapsed}>
+        <FiltersGroup
+            title='Application filters'
+            content={props.children}
+            appliedFilter={appliedFilter}
+            onClearFilter={onClearFilter}
+            collapsed={props.collapsed}>
             <FavoriteFilter {...props} />
             <SyncFilter {...props} />
             <HealthFilter {...props} />
