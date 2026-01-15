@@ -294,9 +294,7 @@ message UpdateRevisionForPathsRequest {
     bool noRevisionCache = 14;
     string installationID = 15;
 
-    // SourceMetas contains metadata for all sources to check (main source and ref sources)
-    // Each SourceMeta contains repository with credentials, revision, and syncedRevision
-    repeated SourceMeta sourceMetas = 16;
+    map<string, github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.RefTarget> syncedRefSources = 16;
 }
 
 message UpdateRevisionForPathsResponse {

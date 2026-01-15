@@ -513,6 +513,30 @@ func validateRepo(ctx context.Context,
 	return conditions, nil
 }
 
+// GetSyncedRefSources creates a map of ref keys (the same as GetRefSources) based on syncRevisions from Application status
+func GetSyncedRefSources(refSources argoappv1.RefTargetRevisionMapping, sources argoappv1.ApplicationSources, syncRevisions []string) (argoappv1.RefTargetRevisionMapping, error) {
+	syncedRefSources := make(argoappv1.RefTargetRevisionMapping)
+	for i, source := range sources {
+		if source.Ref == "" {
+			continue
+		}
+
+		refKey := "$" + source.Ref
+
+		revision := ""
+		if i < len(syncRevisions) {
+			revision = syncRevisions[i]
+		}
+
+		syncedRefSources[refKey] = &argoappv1.RefTarget{
+			Repo:           refSources[refKey].Repo,
+			TargetRevision: revision,
+			Chart:          refSources[refKey].Chart,
+		}
+	}
+	return syncedRefSources, nil
+}
+
 // GetRefSources creates a map of ref keys (from the sources' 'ref' fields) to information about the referenced source.
 // This function also validates the references use allowed characters and does not define the same ref key more than
 // once (which would lead to ambiguous references).
@@ -558,31 +582,6 @@ func GetRefSources(ctx context.Context, sources argoappv1.ApplicationSources, pr
 		}
 	}
 	return refSources, nil
-}
-
-// GetRelatedRefAppSources searches for an ApplicationSources within the provided list
-// that references the given sourceRef via Helm value files.
-func GetRelatedRefSources(source argoappv1.ApplicationSource, sources argoappv1.ApplicationSources) argoappv1.ApplicationSources {
-	rSources := make(argoappv1.ApplicationSources, 0)
-
-	if source.IsRef() || (!source.IsHelm() && !source.IsHelmOci()) || len(source.Helm.ValueFiles) == 0 {
-		return rSources
-	}
-
-	for _, s := range sources {
-		if !s.IsRef() {
-			continue
-		}
-
-		for _, v := range source.Helm.ValueFiles {
-			refVar := strings.Split(v, "/")[0]
-			if refVar == "$"+s.Ref {
-				rSources = append(rSources, s)
-				break
-			}
-		}
-	}
-	return rSources
 }
 
 // updateRefSourcesWithResolvedRevisions updates RefSources TargetRevision fields with resolved revisions
