@@ -38,7 +38,7 @@ argocd proj add-destination-service-account PROJECT SERVER NAMESPACE SERVICE_ACC
       --grpc-web                        Enables gRPC-web protocol. Useful if Argo CD server is behind proxy which does not support HTTP2.
       --grpc-web-root-path string       Enables gRPC-web protocol. Useful if Argo CD server is behind proxy which does not support HTTP2. Set web root.
   -H, --header strings                  Sets additional header to all requests made by Argo CD CLI. (Can be repeated multiple times to add multiple headers, also supports comma separated headers)
-      --http-retry-max int              Maximum number of retries to establish http connection to Argo CD server
+      --http-retry-max int              Maximum number of attempts for retryable network issues and status codes
       --insecure                        Skip server certificate and domain verification
       --kube-context string             Directs the command to the given kube-context
       --logformat string                Set the logging format. One of: json|text (default "json")
