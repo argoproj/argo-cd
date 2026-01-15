@@ -16,7 +16,7 @@ import {VersionPanel} from './shared/components/version-info/version-info-panel'
 import {AuthSettingsCtx, Provider} from './shared/context';
 import {services} from './shared/services';
 import requests from './shared/services/requests';
-import {hashCode} from './shared/utils';
+import {hashCode, isSSOConfigured} from './shared/utils';
 import {Banner} from './ui-banner/ui-banner';
 import userInfo from './user-info';
 import {AuthSettings} from './shared/models';
@@ -75,17 +75,12 @@ const versionLoader = services.version.version();
 
 async function isExpiredSSO() {
     try {
-        // Combine both async calls into one Promise.all for better performance
-        const [userInfo, authSettings] = await Promise.all([services.users.get(), services.authService.settings()]);
-
-        if (userInfo.iss && userInfo.iss !== 'argocd') {
-            return ((authSettings.dexConfig && authSettings.dexConfig.connectors) || []).length > 0 || !!authSettings.oidcConfig;
-        }
-    } catch (err) {
-        console.error('Failed to check SSO configuration:', err);
+        const userInfo = await services.users.get();
+        const authSettings = await services.authService.settings();
+        return isSSOConfigured(userInfo, authSettings);
+    } catch {
         return false;
     }
-    return false;
 }
 
 export class App extends React.Component<{}, {popupProps: PopupProps; showVersionPanel: boolean; error: Error; navItems: NavItem[]; routes: Routes; authSettings: AuthSettings}> {
