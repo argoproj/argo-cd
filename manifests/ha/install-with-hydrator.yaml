@@ -31026,6 +31026,12 @@ rules:
   - get
   - patch
 - apiGroups:
+  - '*'
+  resources:
+  - '*/finalizers'
+  verbs:
+  - update
+- apiGroups:
   - ""
   resources:
   - events

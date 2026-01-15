@@ -16,6 +16,12 @@ rules:
   - get     # supports viewing live object manifest in UI
   - patch   # supports `argocd app patch`
 - apiGroups:
+  - '*'
+  resources:
+  - '*/finalizers'
+  verbs:
+  - update # allows to set metadata.ownerReferences[x].blockOwnerDeletion with OwnerReferencesPermissionEnforcement admission
+- apiGroups:
   - ""
   resources:
   - events
