@@ -21,7 +21,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 # NOTE: binutils-gold contains the gold linker, which was recently removed
 #       from binutils, but is still nesessary for building lint-tools on arm64 only
 #       until this Golang issue is fixed: https://github.com/golang/go/issues/22040
-RUN  apt-get update && apt-get install --fix-missing -y \
+RUN  apt-get update && apt-get install --fix-missing --no-install-recommends -y \
     ca-certificates \
     curl \
     openssh-server \
@@ -30,6 +30,7 @@ RUN  apt-get update && apt-get install --fix-missing -y \
     git \
     git-lfs \
     gpg \
+    gpg-agent \
     jq \
     make \
     wget \
@@ -37,6 +38,7 @@ RUN  apt-get update && apt-get install --fix-missing -y \
     g++ \
     sudo \
     tini \
+    unzip \
     zip && \
     if [ "$(uname -m)" = "aarch64" ]; then \
        apt-get install --fix-missing -y binutils-gold; \

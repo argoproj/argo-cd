@@ -5,6 +5,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN echo 'deb http://archive.debian.org/debian buster-backports main' >> /etc/apt/sources.list
 
 RUN apt-get update && apt-get install --no-install-recommends -y \
+    ca-certificates \
     curl \
     openssh-server \
     nginx \
@@ -19,6 +20,7 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
     zip \
     tini \
     gpg \
+    gpg-agent \
     tzdata \
     connect-proxy
 
