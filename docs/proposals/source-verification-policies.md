@@ -81,7 +81,7 @@ spec:
     git:
       policies:
         - repos:
-            - "https://github.com/foo/*"
+            - url: "https://github.com/foo/*"
           gpg:
             mode: "none|head|strict"
             keys:
@@ -172,13 +172,15 @@ spec:
   sourceIntegrity:
     git:
       policies:
-        - repos: ['https://github.com/example/super-secure']
+        - repos:
+          - url: 'https://github.com/example/super-secure'
           gpg:
             mode: strict
             keys:
               - 4AEE18F83AFDEB23
               - D56C4FCA57A46444
-        - repos: ['https://github.com/*']
+        - repos:
+          - url: 'https://github.com/*'
           gpg:
             mode: head
             keys:
@@ -218,7 +220,9 @@ spec:
   sourceIntegrity:
     git:
       policies:
-        - repos: ["*"] # For any repository in the project
+        - repos:
+          # For any repository in the project
+          - url: "*"
           gpg:
             mode: "head" # Verify only the HEAD of the targetRevision
             keys:
@@ -245,12 +249,6 @@ Can be done selectively based on source integrity criteria applicability (Git/OC
 
 ### Where to configure verification policies?
 
-* A verification policy could be directly configured in a repository configuration instead of being configured in the AppProject.
-  This feels like the more natural and logical place however, repository configuration is not strongly typed due to residing completely in a secret.
-  This also has the downside of only having base64 encoded values in the secret's data, making a quick inspection of value a little more involved.
-   
-   Furthermore, a repository configuration might be a user-controllable asset, while source verification is more of a governance topic.
-   
 * Verification policies could be placed in the `AppProject`'s `sourceRepos`, for example:
 
    ```
@@ -263,11 +261,7 @@ Can be done selectively based on source integrity criteria applicability (Git/OC
    
 We might want to consider moving `sourceIntegrity` into either of those places with the next major Argo CD release.
 
-
-
 ### Dealing with unsigned commits in the history using `strict` verification mode
-
-**!!! This is a proposal extension. The whole can be approved with, or without it !!!**
 
 Having all commits in a Git repository cryptographically signed from init is an ideal situation.
 However, the reality often looks different.
@@ -374,11 +368,3 @@ Seal-signing marks the point(s) from where not to verify commits *inside* the re
 Both approaches, in fact, work as an optimization mechanism by limiting the number of commits to verify.
 For sealing, a commiter needs to add a seal commit manually even if there are no unsigned changes to speed things up.
 Additionally, the implementation can cache the last `strict`-verified commit per repository & strategy, to optimize verification speed on a best effort basis.
-
-#### To merge or not to merge?
-
-While complex, @olivergondza suggests incorporating this extension, as it improves the UX of `strict` mode significantly.
-Without it, users that are facing one of the anticipated difficulties (employee leaving, key is rotated, etc.) can be tempted to switch to `head` or `none` mode to escape the risks of the non-trivial maintenance task.
-Or keep the old, leaked, unused keys in place compromising their security posture.
-
-**!!! End of proposal extension. !!!**
