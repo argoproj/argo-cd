@@ -121,25 +121,30 @@ func Test_IsAnnotatedTag(t *testing.T) {
 	err = runCmd(ctx, client.Root(), "git", "commit", "-m", "Initial commit", "-a")
 	require.NoError(t, err)
 
-	atag := client.IsAnnotatedTag("master")
+	err = runCmd(ctx, client.Root(), "git", "tag", "annot-tag", "-a", "-m", "Create annotated tag")
+	require.NoError(t, err)
+
+	err = runCmd(ctx, client.Root(), "git", "tag", "light-tag")
+	require.NoError(t, err)
+
+	atag := client.IsAnnotatedTag("HEAD")
 	assert.False(t, atag)
 
-	err = runCmd(ctx, client.Root(), "git", "tag", "some-tag", "-a", "-m", "Create annotated tag")
+	atag = client.IsAnnotatedTag("master")
+	assert.False(t, atag)
+
+	atag = client.IsAnnotatedTag("blorp")
+	assert.False(t, atag)
+
+	sha, err := client.CommitSHA()
 	require.NoError(t, err)
-	atag = client.IsAnnotatedTag("some-tag")
+	atag = client.IsAnnotatedTag(sha)
+	assert.False(t, atag)
+
+	atag = client.IsAnnotatedTag("annot-tag")
 	assert.True(t, atag)
 
-	// Tag effectually points to HEAD, so it's considered the same
-	atag = client.IsAnnotatedTag("HEAD")
-	assert.True(t, atag)
-
-	err = runCmd(ctx, client.Root(), "git", "rm", "README")
-	require.NoError(t, err)
-	err = runCmd(ctx, client.Root(), "git", "commit", "-m", "remove README", "-a")
-	require.NoError(t, err)
-
-	// We moved on, so tag doesn't point to HEAD anymore
-	atag = client.IsAnnotatedTag("HEAD")
+	atag = client.IsAnnotatedTag("light-tag")
 	assert.False(t, atag)
 }
 
@@ -1459,26 +1464,60 @@ func Test_nativeGitClient_HasFileChanged(t *testing.T) {
 	require.True(t, changed, "expected modified file to be reported as changed")
 }
 
-func Test_GpgNotACommit(t *testing.T) {
-	const invalid = "60216f12f4969d1cb59e26697446b2ede1c0569a"
+func Test_LsSignatures_Error(t *testing.T) {
 
 	ctx := t.Context()
 	tempDir, err := _createEmptyGitRepo(ctx)
 	require.NoError(t, err)
 	client, err := NewClient("file://"+tempDir, NopCreds{}, true, false, "", "")
 	require.NoError(t, err)
-	err = client.Init()
+	require.NoError(t, client.Init())
+	out, err := client.SetAuthor("test", "test@example.com")
+	require.NoError(t, err, "error output: %s", out)
+
+	err = runCmd(ctx, tempDir, "git", "log")
 	require.NoError(t, err)
 
-	signature, err := client.TagSignature(invalid)
-	require.ErrorContains(t, err, `no tag found: "`+invalid+`"`)
-	assert.Nil(t, signature)
+	tests := []struct {
+		revision    string
+		deep        bool
+		expectedMsg string
+	}{
+		{
+			revision:    "60216f12f4969d1cb59e26697446b2ede1c0569a",
+			deep:        false,
+			expectedMsg: "fatal: unable to read tree (60216f12f4969d1cb59e26697446b2ede1c0569a)",
+		},
+		{
+			revision:    "60216f12f4969d1cb59e26697446b2ede1c0569a",
+			deep:        true,
+			expectedMsg: "fatal: unable to read tree (60216f12f4969d1cb59e26697446b2ede1c0569a)",
+		},
+		{
+			revision:    "1.2.3.4.5.6.7.8.9",
+			deep:        false,
+			expectedMsg: "failed to checkout 1.2.3.4.5.6.7.8.9",
+		},
+		{
+			revision:    "1.2.3.4.5.6.7.8.9",
+			deep:        true,
+			expectedMsg: "failed to checkout 1.2.3.4.5.6.7.8.9",
+		},
+		{
+			revision:    "5555.*",
+			deep:        false,
+			expectedMsg: "version matching constraint not found",
+		},
+		{
+			revision:    "5555.*",
+			deep:        true,
+			expectedMsg: "version matching constraint not found",
+		},
+	}
 
-	signatures, err := client.LsSignatures(invalid, true)
-	require.ErrorContains(t, err, "fatal: bad object 60216f12f4969d1cb59e26697446b2ede1c0569a")
-	assert.Nil(t, signatures)
-
-	signatures, err = client.LsSignatures(invalid, false)
-	require.ErrorContains(t, err, "fatal: bad object 60216f12f4969d1cb59e26697446b2ede1c0569a")
-	assert.Nil(t, signatures)
+	for _, tt := range tests {
+		signatures, err := client.LsSignatures(tt.revision, tt.deep)
+		require.ErrorContains(t, err, tt.expectedMsg)
+		assert.Nil(t, signatures)
+	}
 }

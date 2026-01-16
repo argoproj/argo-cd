@@ -718,8 +718,8 @@ func (_c *Client_Init_Call) RunAndReturn(run func() error) *Client_Init_Call {
 }
 
 // IsAnnotatedTag provides a mock function for the type Client
-func (_mock *Client) IsAnnotatedTag(s string) bool {
-	ret := _mock.Called(s)
+func (_mock *Client) IsAnnotatedTag(revision string) bool {
+	ret := _mock.Called(revision)
 
 	if len(ret) == 0 {
 		panic("no return value specified for IsAnnotatedTag")
@@ -727,7 +727,7 @@ func (_mock *Client) IsAnnotatedTag(s string) bool {
 
 	var r0 bool
 	if returnFunc, ok := ret.Get(0).(func(string) bool); ok {
-		r0 = returnFunc(s)
+		r0 = returnFunc(revision)
 	} else {
 		r0 = ret.Get(0).(bool)
 	}
@@ -740,12 +740,12 @@ type Client_IsAnnotatedTag_Call struct {
 }
 
 // IsAnnotatedTag is a helper method to define mock.On call
-//   - s string
-func (_e *Client_Expecter) IsAnnotatedTag(s interface{}) *Client_IsAnnotatedTag_Call {
-	return &Client_IsAnnotatedTag_Call{Call: _e.mock.On("IsAnnotatedTag", s)}
+//   - revision string
+func (_e *Client_Expecter) IsAnnotatedTag(revision interface{}) *Client_IsAnnotatedTag_Call {
+	return &Client_IsAnnotatedTag_Call{Call: _e.mock.On("IsAnnotatedTag", revision)}
 }
 
-func (_c *Client_IsAnnotatedTag_Call) Run(run func(s string)) *Client_IsAnnotatedTag_Call {
+func (_c *Client_IsAnnotatedTag_Call) Run(run func(revision string)) *Client_IsAnnotatedTag_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 string
 		if args[0] != nil {
@@ -763,7 +763,7 @@ func (_c *Client_IsAnnotatedTag_Call) Return(b bool) *Client_IsAnnotatedTag_Call
 	return _c
 }
 
-func (_c *Client_IsAnnotatedTag_Call) RunAndReturn(run func(s string) bool) *Client_IsAnnotatedTag_Call {
+func (_c *Client_IsAnnotatedTag_Call) RunAndReturn(run func(revision string) bool) *Client_IsAnnotatedTag_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1441,68 +1441,6 @@ func (_c *Client_Submodule_Call) Return(err error) *Client_Submodule_Call {
 }
 
 func (_c *Client_Submodule_Call) RunAndReturn(run func() error) *Client_Submodule_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// TagSignature provides a mock function for the type Client
-func (_mock *Client) TagSignature(tagRevision string) (*git.RevisionSignatureInfo, error) {
-	ret := _mock.Called(tagRevision)
-
-	if len(ret) == 0 {
-		panic("no return value specified for TagSignature")
-	}
-
-	var r0 *git.RevisionSignatureInfo
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(string) (*git.RevisionSignatureInfo, error)); ok {
-		return returnFunc(tagRevision)
-	}
-	if returnFunc, ok := ret.Get(0).(func(string) *git.RevisionSignatureInfo); ok {
-		r0 = returnFunc(tagRevision)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*git.RevisionSignatureInfo)
-		}
-	}
-	if returnFunc, ok := ret.Get(1).(func(string) error); ok {
-		r1 = returnFunc(tagRevision)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// Client_TagSignature_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'TagSignature'
-type Client_TagSignature_Call struct {
-	*mock.Call
-}
-
-// TagSignature is a helper method to define mock.On call
-//   - tagRevision string
-func (_e *Client_Expecter) TagSignature(tagRevision interface{}) *Client_TagSignature_Call {
-	return &Client_TagSignature_Call{Call: _e.mock.On("TagSignature", tagRevision)}
-}
-
-func (_c *Client_TagSignature_Call) Run(run func(tagRevision string)) *Client_TagSignature_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 string
-		if args[0] != nil {
-			arg0 = args[0].(string)
-		}
-		run(
-			arg0,
-		)
-	})
-	return _c
-}
-
-func (_c *Client_TagSignature_Call) Return(revisionSignatureInfo *git.RevisionSignatureInfo, err error) *Client_TagSignature_Call {
-	_c.Call.Return(revisionSignatureInfo, err)
-	return _c
-}
-
-func (_c *Client_TagSignature_Call) RunAndReturn(run func(tagRevision string) (*git.RevisionSignatureInfo, error)) *Client_TagSignature_Call {
 	_c.Call.Return(run)
 	return _c
 }
