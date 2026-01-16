@@ -13,7 +13,7 @@ tests:
     inputPath: testdata/degraded.yaml
   - healthStatus:
       status: Healthy
-      message: The Cronjob never completed succesfully. It may not be healthy
+      message: The CronJob never completed successfully. It may not be healthy
     inputPath: testdata/never-succeeded.yaml
   - healthStatus:
       status: Healthy

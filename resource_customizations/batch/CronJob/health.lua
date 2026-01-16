@@ -14,15 +14,15 @@ if obj.status ~= nil then
 
         -- Job is running its first execution and has not yet reported any success
         if obj.status.lastSuccessfulTime == nil then
-            -- Set to healthy even if it may be degraded, because we dont know
+            -- Set to healthy even if it may be degraded, because we don't know
             -- if it was not yet executed or if it never succeeded
             hs.status = "Healthy"
-            hs.message = "The Cronjob never completed succesfully. It may not be healthy"
+            hs.message = "The CronJob never completed successfully. It may not be healthy"
             return hs
         end
 
 
-        -- Job is progressing, so lastScheduleTime will always be grater than lastSuccessfulTime
+        -- Job is progressing, so lastScheduleTime will always be greater than lastSuccessfulTime
         -- Set to healthy since we do not know if it is Degraded
         -- See https://github.com/argoproj/argo-cd/issues/24429
         if obj.status.active ~= nil and table.getn(obj.status.active) > 0 then

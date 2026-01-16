@@ -9,7 +9,6 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/sync/ignore"
 	kubeutil "github.com/argoproj/gitops-engine/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
@@ -22,6 +21,7 @@ import (
 func setApplicationHealth(resources []managedResource, statuses []appv1.ResourceStatus, resourceOverrides map[string]appv1.ResourceOverride, app *appv1.Application, persistResourceHealth bool) (health.HealthStatusCode, error) {
 	var savedErr error
 	var errCount uint
+	var containsResources, containsLiveResources bool
 
 	appHealthStatus := health.HealthStatusHealthy
 	for i, res := range resources {
@@ -32,14 +32,19 @@ func setApplicationHealth(resources []managedResource, statuses []appv1.Resource
 			continue
 		}
 
+		// Contains actual resources that are not hooks
+		containsResources = true
+		if res.Live != nil {
+			containsLiveResources = true
+		}
+
 		var healthStatus *health.HealthStatus
 		var err error
 		healthOverrides := lua.ResourceHealthOverrides(resourceOverrides)
-		gvk := schema.GroupVersionKind{Group: res.Group, Version: res.Version, Kind: res.Kind}
 		if res.Live == nil {
 			healthStatus = &health.HealthStatus{Status: health.HealthStatusMissing}
 		} else {
-			// App the manages itself should not affect own health
+			// App that manages itself should not affect own health
 			if isSelfReferencedApp(app, kubeutil.GetObjectRef(res.Live)) {
 				continue
 			}
@@ -62,8 +67,8 @@ func setApplicationHealth(resources []managedResource, statuses []appv1.Resource
 			statuses[i].Health = nil
 		}
 
-		// Is health status is missing but resource has not built-in/custom health check then it should not affect parent app health
-		if _, hasOverride := healthOverrides[lua.GetConfigMapKey(gvk)]; healthStatus.Status == health.HealthStatusMissing && !hasOverride && health.GetHealthCheckFunc(gvk) == nil {
+		// Missing resources should not affect parent app health - the OutOfSync status already indicates resources are missing
+		if res.Live == nil && healthStatus.Status == health.HealthStatusMissing {
 			continue
 		}
 
@@ -104,6 +109,12 @@ func setApplicationHealth(resources []managedResource, statuses []appv1.Resource
 			appHealthStatus = aggregationStatus
 		}
 	}
+
+	// If the app is expected to have resources but does not contain any live resources, set the app health to missing
+	if containsResources && !containsLiveResources && health.IsWorse(appHealthStatus, health.HealthStatusMissing) {
+		appHealthStatus = health.HealthStatusMissing
+	}
+
 	if persistResourceHealth {
 		app.Status.ResourceHealthSource = appv1.ResourceHealthLocationInline
 	} else {
