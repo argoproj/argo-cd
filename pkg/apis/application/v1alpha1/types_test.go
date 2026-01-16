@@ -4875,3 +4875,72 @@ func TestSourceHydrator_Equals(t *testing.T) {
 		})
 	}
 }
+
+func TestIgnoreDifferences_Equals(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		a        IgnoreDifferences
+		b        IgnoreDifferences
+		expected bool
+	}{
+		{
+			name:     "nil and nil are equal",
+			a:        nil,
+			b:        nil,
+			expected: true,
+		},
+		{
+			name:     "nil and empty slice are equal",
+			a:        nil,
+			b:        IgnoreDifferences{},
+			expected: true,
+		},
+		{
+			name:     "empty slice and nil are equal",
+			a:        IgnoreDifferences{},
+			b:        nil,
+			expected: true,
+		},
+		{
+			name:     "empty slice and empty slice are equal",
+			a:        IgnoreDifferences{},
+			b:        IgnoreDifferences{},
+			expected: true,
+		},
+		{
+			name:     "non-empty slice and nil are not equal",
+			a:        IgnoreDifferences{{Kind: "Deployment"}},
+			b:        nil,
+			expected: false,
+		},
+		{
+			name:     "nil and non-empty slice are not equal",
+			a:        nil,
+			b:        IgnoreDifferences{{Kind: "Deployment"}},
+			expected: false,
+		},
+		{
+			name:     "equal non-empty slices are equal",
+			a:        IgnoreDifferences{{Kind: "Deployment", JSONPointers: []string{"/spec/replicas"}}},
+			b:        IgnoreDifferences{{Kind: "Deployment", JSONPointers: []string{"/spec/replicas"}}},
+			expected: true,
+		},
+		{
+			name:     "different non-empty slices are not equal",
+			a:        IgnoreDifferences{{Kind: "Deployment"}},
+			b:        IgnoreDifferences{{Kind: "Service"}},
+			expected: false,
+		},
+	}
+
+	for _, testCase := range tests {
+		testCopy := testCase
+		t.Run(testCopy.name, func(t *testing.T) {
+			t.Parallel()
+
+			assert.Equal(t, testCopy.expected, testCopy.a.Equals(testCopy.b))
+		})
+	}
+}
