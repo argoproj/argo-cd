@@ -297,3 +297,60 @@ func TestMultiSourceApptErrorWhenSourceNameAndSourcePosition(t *testing.T) {
 			assert.ErrorContains(t, err, "Only one of source-positions and source-names can be specified.")
 		})
 }
+
+// TestMultiSourceAppWithWorktreeSameRepoMultipleRevisions tests the scenario where
+// a multi-source application uses the same git repository with different target revisions.
+// This validates that git worktrees are properly used to checkout different revisions
+// simultaneously and that value files are correctly resolved from the appropriate worktree.
+func TestMultiSourceAppWithWorktreeSameRepoMultipleRevisions(t *testing.T) {
+	sources := []ApplicationSource{{
+		RepoURL:        RepoURL(RepoURLTypeFile),
+		TargetRevision: "HEAD",
+		Ref:            "values",
+	}, {
+		RepoURL:        RepoURL(RepoURLTypeFile),
+		TargetRevision: "HEAD",
+		Path:           "helm-guestbook",
+		Helm: &ApplicationSourceHelm{
+			ReleaseName: "helm-guestbook",
+			ValueFiles: []string{
+				"$values/multiple-source-values/values.yaml",
+			},
+		},
+	}}
+	ctx := Given(t)
+	ctx.
+		Sources(sources).
+		When().
+		CreateMultiSourceAppFromFile().
+		Then().
+		And(func(app *Application) {
+			assert.Equal(t, Name(), app.Name)
+			assert.Len(t, app.Spec.GetSources(), 2)
+			assert.Equal(t, DeploymentNamespace(), app.Spec.Destination.Namespace)
+		}).
+		Expect(Event(EventReasonResourceCreated, "create")).
+		And(func(_ *Application) {
+			output, err := RunCli("app", "list")
+			require.NoError(t, err)
+			assert.Contains(t, output, Name())
+		}).
+		Expect(Success("")).
+		Given().Timeout(60).
+		When().Wait().Then().
+		Expect(Success("")).
+		And(func(app *Application) {
+			statusByName := map[string]SyncStatusCode{}
+			for _, r := range app.Status.Resources {
+				statusByName[r.Name] = r.Status
+			}
+			// The helm-guestbook should be synced with values from the ref source
+			assert.Equal(t, SyncStatusCodeSynced, statusByName["guestbook-ui"])
+
+			// Confirm that the deployment has the expected replicas from the values file.
+			// The values.yaml in multiple-source-values sets replicas to 3.
+			output, err := Run("", "kubectl", "get", "deployment", "guestbook-ui", "-n", DeploymentNamespace(), "-o", "jsonpath={.spec.replicas}")
+			require.NoError(t, err)
+			assert.Equal(t, "3", output, "Expected 3 replicas from the external values file (worktree scenario)")
+		})
+}

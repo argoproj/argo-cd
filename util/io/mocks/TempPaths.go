@@ -237,3 +237,43 @@ func (_c *TempPaths_GetPaths_Call) RunAndReturn(run func() map[string]string) *T
 	_c.Call.Return(run)
 	return _c
 }
+
+// Remove provides a mock function for the type TempPaths
+func (_mock *TempPaths) Remove(key string) {
+	_mock.Called(key)
+	return
+}
+
+// TempPaths_Remove_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Remove'
+type TempPaths_Remove_Call struct {
+	*mock.Call
+}
+
+// Remove is a helper method to define mock.On call
+//   - key string
+func (_e *TempPaths_Expecter) Remove(key interface{}) *TempPaths_Remove_Call {
+	return &TempPaths_Remove_Call{Call: _e.mock.On("Remove", key)}
+}
+
+func (_c *TempPaths_Remove_Call) Run(run func(key string)) *TempPaths_Remove_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 string
+		if args[0] != nil {
+			arg0 = args[0].(string)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *TempPaths_Remove_Call) Return() *TempPaths_Remove_Call {
+	_c.Call.Return()
+	return _c
+}
+
+func (_c *TempPaths_Remove_Call) RunAndReturn(run func(key string)) *TempPaths_Remove_Call {
+	_c.Run(run)
+	return _c
+}

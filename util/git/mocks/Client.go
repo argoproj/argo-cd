@@ -490,6 +490,63 @@ func (_c *Client_CommitSHA_Call) RunAndReturn(run func() (string, error)) *Clien
 	return _c
 }
 
+// CreateWorktree provides a mock function for the type Client
+func (_mock *Client) CreateWorktree(revision string, path string) error {
+	ret := _mock.Called(revision, path)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateWorktree")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(string, string) error); ok {
+		r0 = returnFunc(revision, path)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// Client_CreateWorktree_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateWorktree'
+type Client_CreateWorktree_Call struct {
+	*mock.Call
+}
+
+// CreateWorktree is a helper method to define mock.On call
+//   - revision string
+//   - path string
+func (_e *Client_Expecter) CreateWorktree(revision interface{}, path interface{}) *Client_CreateWorktree_Call {
+	return &Client_CreateWorktree_Call{Call: _e.mock.On("CreateWorktree", revision, path)}
+}
+
+func (_c *Client_CreateWorktree_Call) Run(run func(revision string, path string)) *Client_CreateWorktree_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 string
+		if args[0] != nil {
+			arg0 = args[0].(string)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *Client_CreateWorktree_Call) Return(err error) *Client_CreateWorktree_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *Client_CreateWorktree_Call) RunAndReturn(run func(revision string, path string) error) *Client_CreateWorktree_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Fetch provides a mock function for the type Client
 func (_mock *Client) Fetch(revision string, depth int64) error {
 	ret := _mock.Called(revision, depth)
@@ -1113,6 +1170,57 @@ func (_c *Client_RemoveContents_Call) Return(s string, err error) *Client_Remove
 }
 
 func (_c *Client_RemoveContents_Call) RunAndReturn(run func(paths []string) (string, error)) *Client_RemoveContents_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// RemoveWorktree provides a mock function for the type Client
+func (_mock *Client) RemoveWorktree(path string) error {
+	ret := _mock.Called(path)
+
+	if len(ret) == 0 {
+		panic("no return value specified for RemoveWorktree")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(string) error); ok {
+		r0 = returnFunc(path)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// Client_RemoveWorktree_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RemoveWorktree'
+type Client_RemoveWorktree_Call struct {
+	*mock.Call
+}
+
+// RemoveWorktree is a helper method to define mock.On call
+//   - path string
+func (_e *Client_Expecter) RemoveWorktree(path interface{}) *Client_RemoveWorktree_Call {
+	return &Client_RemoveWorktree_Call{Call: _e.mock.On("RemoveWorktree", path)}
+}
+
+func (_c *Client_RemoveWorktree_Call) Run(run func(path string)) *Client_RemoveWorktree_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 string
+		if args[0] != nil {
+			arg0 = args[0].(string)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Client_RemoveWorktree_Call) Return(err error) *Client_RemoveWorktree_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *Client_RemoveWorktree_Call) RunAndReturn(run func(path string) error) *Client_RemoveWorktree_Call {
 	_c.Call.Return(run)
 	return _c
 }
