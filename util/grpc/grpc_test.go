@@ -2,11 +2,13 @@ package grpc
 
 import (
 	"context"
+	"net"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc/peer"
 )
 
 var proxyEnvKeys = []string{"ALL_PROXY", "HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY"}
@@ -103,6 +105,111 @@ func TestBlockingDial_ProxyEnvironmentHandling(t *testing.T) {
 				assert.NotNil(t, conn)
 				require.NoError(t, conn.Close())
 			}
+		})
+	}
+}
+
+func TestClientAddrFromContext(t *testing.T) {
+	tests := []struct {
+		name     string
+		setupCtx func() context.Context
+		expected string
+	}{
+		{
+			name: "Context with peer info",
+			setupCtx: func() context.Context {
+				addr, _ := net.ResolveTCPAddr("tcp", "192.168.1.100:54321")
+				p := &peer.Peer{Addr: addr}
+				return peer.NewContext(context.Background(), p)
+			},
+			expected: "192.168.1.100:54321",
+		},
+		{
+			name:     "Context without peer info",
+			setupCtx: context.Background,
+			expected: "unknown",
+		},
+		{
+			name: "Context with nil peer address",
+			setupCtx: func() context.Context {
+				p := &peer.Peer{Addr: nil}
+				return peer.NewContext(context.Background(), p)
+			},
+			expected: "unknown",
+		},
+		{
+			name: "Context with IPv6 address",
+			setupCtx: func() context.Context {
+				addr, _ := net.ResolveTCPAddr("tcp", "[::1]:8080")
+				p := &peer.Peer{Addr: addr}
+				return peer.NewContext(context.Background(), p)
+			},
+			expected: "[::1]:8080",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := tt.setupCtx()
+			result := ClientAddrFromContext(ctx)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestClientIPFromContext(t *testing.T) {
+	tests := []struct {
+		name     string
+		setupCtx func() context.Context
+		expected string
+	}{
+		{
+			name: "Context with IPv4 peer info",
+			setupCtx: func() context.Context {
+				addr, _ := net.ResolveTCPAddr("tcp", "192.168.1.100:54321")
+				p := &peer.Peer{Addr: addr}
+				return peer.NewContext(context.Background(), p)
+			},
+			expected: "192.168.1.100",
+		},
+		{
+			name:     "Context without peer info",
+			setupCtx: context.Background,
+			expected: "unknown",
+		},
+		{
+			name: "Context with nil peer address",
+			setupCtx: func() context.Context {
+				p := &peer.Peer{Addr: nil}
+				return peer.NewContext(context.Background(), p)
+			},
+			expected: "unknown",
+		},
+		{
+			name: "Context with IPv6 address",
+			setupCtx: func() context.Context {
+				addr, _ := net.ResolveTCPAddr("tcp", "[::1]:8080")
+				p := &peer.Peer{Addr: addr}
+				return peer.NewContext(context.Background(), p)
+			},
+			expected: "::1",
+		},
+		{
+			name: "Context with localhost",
+			setupCtx: func() context.Context {
+				addr, _ := net.ResolveTCPAddr("tcp", "127.0.0.1:12345")
+				p := &peer.Peer{Addr: addr}
+				return peer.NewContext(context.Background(), p)
+			},
+			expected: "127.0.0.1",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := tt.setupCtx()
+			result := ClientIPFromContext(ctx)
+			assert.Equal(t, tt.expected, result)
 		})
 	}
 }
