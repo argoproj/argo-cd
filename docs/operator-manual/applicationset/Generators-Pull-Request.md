@@ -316,6 +316,8 @@ spec:
         repo: myrepository
         # The Azure DevOps API URL to talk to. If blank, use https://dev.azure.com/.
         api: https://dev.azure.com/
+        # Enable workload identity auth with Azure Devops. (optional)
+        useWorkloadIdentity: true 
         # Reference to a Secret containing an access token. (optional)
         tokenRef:
           secretName: azure-devops-token
@@ -332,8 +334,21 @@ spec:
 * `project`: Required name of the Azure DevOps project.
 * `repo`: Required name of the Azure DevOps repository.
 * `api`: If using self-hosted Azure DevOps Repos, the URL to access it. (Optional)
+* `useWorkloadIdentity`: Enable workload identity auth with Azure Devops.
 * `tokenRef`: A `Secret` name and key containing the Azure DevOps access token to use for requests. If not specified, will make anonymous requests which have a lower rate limit and can only see public repositories. (Optional)
 * `labels`: Filter the PRs to those containing **all** of the labels listed. (Optional)
+
+### Using Workload Identity Federation (Recommended)
+1.  **Label the Pods:** Add the `azure.workload.identity/use: "true"` label to the `argocd-applicationset-controller` pods.
+2. **Add Annotation to Service Account:** Add `azure.workload.identity/client-id: "$CLIENT_ID"` annotation to the `argocd-applicationset-controller` service account using the details from Microsoft Entra application.
+3. From the `Certificates & secrets` menu, navigate to `Federated credentials`, then choose `+ Add credential`
+4. Choose `Federated credential scenario` as `Kubernetes Accessing Azure resources`
+   - Enter Cluster Issuer URL, refer to [retrieve the OIDC issuer URL](https://learn.microsoft.com/en-us/azure/aks/workload-identity-deploy-cluster#retrieve-the-oidc-issuer-url) documentation
+   - Enter namespace as the namespace where the argocd is deployed
+   - Enter service account name as `argocd-server`
+   - Enter a unique name
+   - Click Add.
+5. Make sure the Microsoft Entra application has access to Azure Devops repository.
 
 ## Filters
 
