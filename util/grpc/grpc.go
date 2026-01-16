@@ -18,6 +18,7 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/keepalive"
+	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
 
 	"github.com/argoproj/argo-cd/v3/common"
@@ -133,4 +134,31 @@ func TestTLS(address string, dialTime time.Duration) (*TLSTestResult, error) {
 		return &testResult, nil
 	}
 	return nil, err
+}
+
+// ClientAddrFromContext extracts the client address from a gRPC context.
+// Returns the client IP:port if available, or "unknown" if peer info is not present.
+func ClientAddrFromContext(ctx context.Context) string {
+	p, ok := peer.FromContext(ctx)
+	if !ok || p.Addr == nil {
+		return "unknown"
+	}
+	return p.Addr.String()
+}
+
+// ClientIPFromContext extracts only the client IP (without port) from a gRPC context.
+// Returns the client IP if available, or "unknown" if peer info is not present.
+func ClientIPFromContext(ctx context.Context) string {
+	p, ok := peer.FromContext(ctx)
+	if !ok || p.Addr == nil {
+		return "unknown"
+	}
+	addr := p.Addr.String()
+	// Try to parse as host:port
+	host, _, err := net.SplitHostPort(addr)
+	if err != nil {
+		// If parsing fails, return the whole address (might be just an IP)
+		return addr
+	}
+	return host
 }
