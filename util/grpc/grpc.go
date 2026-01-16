@@ -5,11 +5,13 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net"
+	"net/http"
 	"runtime/debug"
 	"strings"
 	"time"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/recovery"
+	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/proxy"
 	"google.golang.org/grpc"
@@ -18,10 +20,17 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/keepalive"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
 
 	"github.com/argoproj/argo-cd/v3/common"
+)
+
+const (
+	// MetadataKeyClientAddr is the gRPC metadata key for storing client address
+	// when forwarded from HTTP requests via grpc-gateway.
+	MetadataKeyClientAddr = "x-forwarded-client-addr"
 )
 
 // LoggerRecoveryHandler return a handler for recovering from panics and returning error
@@ -137,23 +146,34 @@ func TestTLS(address string, dialTime time.Duration) (*TLSTestResult, error) {
 }
 
 // ClientAddrFromContext extracts the client address from a gRPC context.
-// Returns the client IP:port if available, or "unknown" if peer info is not present.
+// It first checks for gRPC peer info (for direct gRPC connections), then falls back
+// to checking gRPC metadata (for HTTP requests proxied via grpc-gateway).
+// Returns the client IP:port if available, or "unknown" if not found.
 func ClientAddrFromContext(ctx context.Context) string {
-	p, ok := peer.FromContext(ctx)
-	if !ok || p.Addr == nil {
-		return "unknown"
+	// First, try to get from gRPC peer (direct gRPC connections)
+	if p, ok := peer.FromContext(ctx); ok && p.Addr != nil {
+		return p.Addr.String()
 	}
-	return p.Addr.String()
+
+	// Fall back to metadata (HTTP requests via grpc-gateway)
+	if md, ok := metadata.FromIncomingContext(ctx); ok {
+		if addrs := md.Get(MetadataKeyClientAddr); len(addrs) > 0 {
+			return addrs[0]
+		}
+	}
+
+	return "unknown"
 }
 
 // ClientIPFromContext extracts only the client IP (without port) from a gRPC context.
-// Returns the client IP if available, or "unknown" if peer info is not present.
+// It first checks for gRPC peer info (for direct gRPC connections), then falls back
+// to checking gRPC metadata (for HTTP requests proxied via grpc-gateway).
+// Returns the client IP if available, or "unknown" if not found.
 func ClientIPFromContext(ctx context.Context) string {
-	p, ok := peer.FromContext(ctx)
-	if !ok || p.Addr == nil {
-		return "unknown"
+	addr := ClientAddrFromContext(ctx)
+	if addr == "unknown" {
+		return addr
 	}
-	addr := p.Addr.String()
 	// Try to parse as host:port
 	host, _, err := net.SplitHostPort(addr)
 	if err != nil {
@@ -161,4 +181,35 @@ func ClientIPFromContext(ctx context.Context) string {
 		return addr
 	}
 	return host
+}
+
+// ClientIPFromHTTPRequest extracts the client IP from an HTTP request.
+// It checks X-Forwarded-For and X-Real-IP headers first (for proxied requests),
+// then falls back to RemoteAddr.
+func ClientIPFromHTTPRequest(r *http.Request) string {
+	// Check X-Forwarded-For header (can contain multiple IPs, first is the client)
+	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+		// X-Forwarded-For can be a comma-separated list; take the first one
+		if idx := strings.Index(xff, ","); idx != -1 {
+			return strings.TrimSpace(xff[:idx])
+		}
+		return strings.TrimSpace(xff)
+	}
+
+	// Check X-Real-IP header
+	if xri := r.Header.Get("X-Real-IP"); xri != "" {
+		return strings.TrimSpace(xri)
+	}
+
+	// Fall back to RemoteAddr
+	return r.RemoteAddr
+}
+
+// WithClientAddrMetadata returns a grpc-gateway metadata annotator that extracts
+// the client address from HTTP requests and adds it to gRPC metadata.
+// This allows the client IP to be available in gRPC handlers via ClientAddrFromContext.
+func WithClientAddrMetadata() runtime.ServeMuxOption {
+	return runtime.WithMetadata(func(_ context.Context, r *http.Request) metadata.MD {
+		return metadata.Pairs(MetadataKeyClientAddr, ClientIPFromHTTPRequest(r))
+	})
 }
