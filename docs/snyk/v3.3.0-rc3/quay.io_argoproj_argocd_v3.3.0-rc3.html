@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="21 known vulnerabilities found in 57 vulnerable dependency paths.">
+  <meta name="description" content="19 known vulnerabilities found in 62 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -245,6 +245,11 @@
     .card .label--low {
       background-color: #88879E;
       border-color: #88879E;
+    }
+  
+    .card .label--exploit {
+      background-color: #8B5A96;
+      border-color: #8B5A96;
     }
   
     .severity--low {
@@ -487,7 +492,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">December 21st 2025, 12:27:48 am (UTC+00:00)</p>
+                <p class="timestamp">January 11th 2026, 12:29:38 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
@@ -501,8 +506,8 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>21</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>57 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>19</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>62 vulnerable dependency paths</span></div>
                 <div class="meta-count"><span>2321</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
@@ -512,12 +517,168 @@
     <div class="layout-container" style="padding-top: 35px;">
       <div class="cards--vuln filter--patch filter--ignore">
         <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
+            <h2 class="card__title">Out-of-bounds Write</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--high">
+                        <span class="label__text">high severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:v3.3.0-rc3/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: ubuntu:25.04
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            gnupg2/gpgv
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|quay.io/argoproj/argocd@v3.3.0-rc3 and gnupg2/gpgv@2.4.4-2ubuntu23.1
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.3.0-rc3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gpgv@2.4.4-2ubuntu23.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.3.0-rc3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apt@3.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gpgv@2.4.4-2ubuntu23.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.3.0-rc3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/dirmngr@2.4.4-2ubuntu23.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gpgconf@2.4.4-2ubuntu23.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.3.0-rc3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gpg-agent@2.4.4-2ubuntu23.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gpgconf@2.4.4-2ubuntu23.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.3.0-rc3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gpg@2.4.4-2ubuntu23.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gpgconf@2.4.4-2ubuntu23.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.3.0-rc3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/dirmngr@2.4.4-2ubuntu23.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.3.0-rc3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gpg@2.4.4-2ubuntu23.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.3.0-rc3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gpg-agent@2.4.4-2ubuntu23.1
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>gnupg2</code> package and not the <code>gnupg2</code> package as distributed by <code>Ubuntu</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Ubuntu:25.04</code> relevant fixed versions and status.</em></p>
+        <p>In GnuPG before 2.4.9, armor_filter in g10/armor.c has two increments of an index variable where one is intended, leading to an out-of-bounds write for crafted input. (For ExtendedLTS, 2.2.51 and later are fixed versions.)</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>Ubuntu:25.04</code> <code>gnupg2</code> to version 2.4.4-2ubuntu23.2 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2025-68973">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2025-68973</a></li>
+        <li><a href="https://github.com/gpg/gnupg/blob/ff30683418695f5d2cc9e6cf8c9418e09378ebe4/g10/armor.c#L1305-L1306">https://github.com/gpg/gnupg/blob/ff30683418695f5d2cc9e6cf8c9418e09378ebe4/g10/armor.c#L1305-L1306</a></li>
+        <li><a href="https://github.com/gpg/gnupg/commit/115d138ba599328005c5321c0ef9f00355838ca9">https://github.com/gpg/gnupg/commit/115d138ba599328005c5321c0ef9f00355838ca9</a></li>
+        <li><a href="https://github.com/gpg/gnupg/compare/gnupg-2.2.50...gnupg-2.2.51">https://github.com/gpg/gnupg/compare/gnupg-2.2.50...gnupg-2.2.51</a></li>
+        <li><a href="https://media.ccc.de/v/39c3-to-sign-or-not-to-sign-practical-vulnerabilities-i">https://media.ccc.de/v/39c3-to-sign-or-not-to-sign-practical-vulnerabilities-i</a></li>
+        <li><a href="https://news.ycombinator.com/item?id=46403200">https://news.ycombinator.com/item?id=46403200</a></li>
+        <li><a href="https://www.openwall.com/lists/oss-security/2025/12/28/5">https://www.openwall.com/lists/oss-security/2025/12/28/5</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2025/12/29/11">http://www.openwall.com/lists/oss-security/2025/12/29/11</a></li>
+        <li><a href="https://gpg.fail/memcpy">https://gpg.fail/memcpy</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2504-GNUPG2-14849556">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
             <h2 class="card__title">Allocation of Resources Without Limits or Throttling</h2>
             <div class="card__section">
         
                 <div class="card__labels">
                     <div class="label label--high">
                         <span class="label__text">high severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
                     </div>
                 </div>
         
@@ -590,6 +751,9 @@
                 <div class="card__labels">
                     <div class="label label--medium">
                         <span class="label__text">medium severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
                     </div>
                 </div>
         
@@ -678,6 +842,9 @@
                 <div class="card__labels">
                     <div class="label label--medium">
                         <span class="label__text">medium severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
                     </div>
                 </div>
         
@@ -949,384 +1116,15 @@
         
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">MPL-2.0 license</h2>
-            <div class="card__section">
-        
-                <div class="card__labels">
-                    <div class="label label--medium">
-                        <span class="label__text">medium severity</span>
-                    </div>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:v3.3.0-rc3/argoproj/argo-cd/v3 <span class="list-paths__item__arrow">›</span> /usr/local/bin/argocd
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: golang
-                    </li>
-                    <li class="card__meta__item">
-                            Module:
-        
-                            github.com/r3labs/diff/v3
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-                                github.com/argoproj/argo-cd/v3@* and github.com/r3labs/diff/v3@v3.0.2
-        
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@*
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/r3labs/diff/v3@v3.0.2
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <p>MPL-2.0 license</p>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/snyk:lic:golang:github.com:r3labs:diff:v3:MPL-2.0">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">MPL-2.0 license</h2>
-            <div class="card__section">
-        
-                <div class="card__labels">
-                    <div class="label label--medium">
-                        <span class="label__text">medium severity</span>
-                    </div>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:v3.3.0-rc3/argoproj/argo-cd/v3 <span class="list-paths__item__arrow">›</span> /usr/local/bin/argocd
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: golang
-                    </li>
-                    <li class="card__meta__item">
-                            Module:
-        
-                            github.com/hashicorp/go-version
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-                                github.com/argoproj/argo-cd/v3@* and github.com/hashicorp/go-version@v1.7.0
-        
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@*
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/hashicorp/go-version@v1.7.0
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <p>MPL-2.0 license</p>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/snyk:lic:golang:github.com:hashicorp:go-version:MPL-2.0">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">MPL-2.0 license</h2>
-            <div class="card__section">
-        
-                <div class="card__labels">
-                    <div class="label label--medium">
-                        <span class="label__text">medium severity</span>
-                    </div>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:v3.3.0-rc3/argoproj/argo-cd/v3 <span class="list-paths__item__arrow">›</span> /usr/local/bin/argocd
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: golang
-                    </li>
-                    <li class="card__meta__item">
-                            Module:
-        
-                            github.com/hashicorp/go-retryablehttp
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-                                github.com/argoproj/argo-cd/v3@* and github.com/hashicorp/go-retryablehttp@v0.7.8
-        
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@*
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/hashicorp/go-retryablehttp@v0.7.8
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <p>MPL-2.0 license</p>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/snyk:lic:golang:github.com:hashicorp:go-retryablehttp:MPL-2.0">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">MPL-2.0 license</h2>
-            <div class="card__section">
-        
-                <div class="card__labels">
-                    <div class="label label--medium">
-                        <span class="label__text">medium severity</span>
-                    </div>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:v3.3.0-rc3/helm/v3 <span class="list-paths__item__arrow">›</span> /usr/local/bin/helm
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: golang
-                    </li>
-                    <li class="card__meta__item">
-                            Module:
-        
-                            github.com/hashicorp/go-multierror
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-                                helm.sh/helm/v3@* and github.com/hashicorp/go-multierror@v1.1.1
-        
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        helm.sh/helm/v3@*
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/hashicorp/go-multierror@v1.1.1
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <p>MPL-2.0 license</p>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/snyk:lic:golang:github.com:hashicorp:go-multierror:MPL-2.0">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">MPL-2.0 license</h2>
-            <div class="card__section">
-        
-                <div class="card__labels">
-                    <div class="label label--medium">
-                        <span class="label__text">medium severity</span>
-                    </div>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:v3.3.0-rc3/argoproj/argo-cd/v3 <span class="list-paths__item__arrow">›</span> /usr/local/bin/argocd
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: golang
-                    </li>
-                    <li class="card__meta__item">
-                            Module:
-        
-                            github.com/hashicorp/go-cleanhttp
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-                                github.com/argoproj/argo-cd/v3@* and github.com/hashicorp/go-cleanhttp@v0.5.2
-        
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@*
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/hashicorp/go-cleanhttp@v0.5.2
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <p>MPL-2.0 license</p>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/snyk:lic:golang:github.com:hashicorp:go-cleanhttp:MPL-2.0">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">MPL-2.0 license</h2>
-            <div class="card__section">
-        
-                <div class="card__labels">
-                    <div class="label label--medium">
-                        <span class="label__text">medium severity</span>
-                    </div>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:v3.3.0-rc3/argoproj/argo-cd/v3 <span class="list-paths__item__arrow">›</span> /usr/local/bin/argocd
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: golang
-                    </li>
-                    <li class="card__meta__item">
-                            Module:
-        
-                            github.com/gosimple/slug
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-                                github.com/argoproj/argo-cd/v3@* and github.com/gosimple/slug@v1.15.0
-        
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@*
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/gosimple/slug@v1.15.0
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <p>MPL-2.0 license</p>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/snyk:lic:golang:github.com:gosimple:slug:MPL-2.0">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
             <h2 class="card__title">Improper Encoding or Escaping of Output</h2>
             <div class="card__section">
         
                 <div class="card__labels">
                     <div class="label label--medium">
                         <span class="label__text">medium severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
                     </div>
                 </div>
         
@@ -1423,6 +1221,9 @@
                     <div class="label label--medium">
                         <span class="label__text">medium severity</span>
                     </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
                 </div>
         
                 <hr/>
@@ -1498,6 +1299,9 @@
                     <div class="label label--medium">
                         <span class="label__text">medium severity</span>
                     </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
                 </div>
         
                 <hr/>
@@ -1561,6 +1365,91 @@
             </div>
         
         </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">CVE-2025-13034</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:v3.3.0-rc3/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: ubuntu:25.04
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            curl/libcurl3t64-gnutls
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+        
+                                    docker-image|quay.io/argoproj/argocd@v3.3.0-rc3, git@1:2.48.1-0ubuntu1.1 and others
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.3.0-rc3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        git@1:2.48.1-0ubuntu1.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        curl/libcurl3t64-gnutls@8.12.1-3ubuntu1
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>curl</code> package and not the <code>curl</code> package as distributed by <code>Ubuntu</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Ubuntu:25.04</code> relevant fixed versions and status.</em></p>
+        <p>When using <code>CURLOPT_PINNEDPUBLICKEY</code> option with libcurl or <code>--pinnedpubkey</code>
+        with the curl tool,curl should check the public key of the server certificate
+        to verify the peer.</p>
+        <p>This check was skipped in a certain condition that would then make curl allow
+        the connection without performing the proper check, thus not noticing a
+        possible impostor. To skip this check, the connection had to be done with QUIC
+        with ngtcp2 built to use GnuTLS and the user had to explicitly disable the
+        standard certificate verification.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>There is no fixed version for <code>Ubuntu:25.04</code> <code>curl</code>.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2025-13034">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2025-13034</a></li>
+        <li><a href="https://curl.se/docs/CVE-2025-13034.html">https://curl.se/docs/CVE-2025-13034.html</a></li>
+        <li><a href="https://curl.se/docs/CVE-2025-13034.json">https://curl.se/docs/CVE-2025-13034.json</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2504-CURL-14894733">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
             <h2 class="card__title">CVE-2024-56433</h2>
             <div class="card__section">
@@ -1568,6 +1457,9 @@
                 <div class="card__labels">
                     <div class="label label--low">
                         <span class="label__text">low severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
                     </div>
                 </div>
         
@@ -1702,6 +1594,9 @@
                     <div class="label label--low">
                         <span class="label__text">low severity</span>
                     </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
                 </div>
         
                 <hr/>
@@ -1779,6 +1674,9 @@
                     <div class="label label--low">
                         <span class="label__text">low severity</span>
                     </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
                 </div>
         
                 <hr/>
@@ -1850,6 +1748,9 @@
                 <div class="card__labels">
                     <div class="label label--low">
                         <span class="label__text">low severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
                     </div>
                 </div>
         
@@ -1986,6 +1887,9 @@
                 <div class="card__labels">
                     <div class="label label--low">
                         <span class="label__text">low severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
                     </div>
                 </div>
         
@@ -2135,6 +2039,9 @@
                     <div class="label label--low">
                         <span class="label__text">low severity</span>
                     </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
                 </div>
         
                 <hr/>
@@ -2218,6 +2125,9 @@
                     <div class="label label--low">
                         <span class="label__text">low severity</span>
                     </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
                 </div>
         
                 <hr/>
@@ -2269,11 +2179,11 @@
         <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>curl</code> package and not the <code>curl</code> package as distributed by <code>Ubuntu</code>.</em>
         <em>See <code>How to fix?</code> for <code>Ubuntu:25.04</code> relevant fixed versions and status.</em></p>
         <ol>
-        <li>A cookie is set using the <code>secure</code> keyword for <code>https://target</code></li>
-        <li>curl is redirected to or otherwise made to speak with <code>http://target</code> (same
-        hostname, but using clear text HTTP) using the same cookie set</li>
-        <li>The same cookie name is set - but with just a slash as path (<code>path=&amp;#39;/&amp;#39;</code>).
-        Since this site is not secure, the cookie <em>should</em> just be ignored.</li>
+        <li>A cookie is set using the <code>secure</code> keyword for <code>https://target</code> </li>
+        <li>curl is redirected to or otherwise made to speak with <code>http://target</code> (same 
+           hostname, but using clear text HTTP) using the same cookie set </li>
+        <li>The same cookie name is set - but with just a slash as path (<code>path=\&amp;#34;/\&amp;#34;,</code>).
+           Since this site is not secure, the cookie <em>should</em> just be ignored.</li>
         <li>A bug in the path comparison logic makes curl read outside a heap buffer
         boundary</li>
         </ol>
@@ -2293,6 +2203,7 @@
         <li><a href="https://curl.se/docs/CVE-2025-9086.json">https://curl.se/docs/CVE-2025-9086.json</a></li>
         <li><a href="https://hackerone.com/reports/3294999">https://hackerone.com/reports/3294999</a></li>
         <li><a href="http://www.openwall.com/lists/oss-security/2025/09/10/1">http://www.openwall.com/lists/oss-security/2025/09/10/1</a></li>
+        <li><a href="https://lists.debian.org/debian-lts-announce/2026/01/msg00002.html">https://lists.debian.org/debian-lts-announce/2026/01/msg00002.html</a></li>
         </ul>
         
               <hr/>
@@ -2309,6 +2220,9 @@
                 <div class="card__labels">
                     <div class="label label--low">
                         <span class="label__text">low severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
                     </div>
                 </div>
         
@@ -2389,12 +2303,181 @@
         
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
+            <h2 class="card__title">CVE-2025-14819</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--low">
+                        <span class="label__text">low severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:v3.3.0-rc3/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: ubuntu:25.04
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            curl/libcurl3t64-gnutls
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+        
+                                    docker-image|quay.io/argoproj/argocd@v3.3.0-rc3, git@1:2.48.1-0ubuntu1.1 and others
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.3.0-rc3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        git@1:2.48.1-0ubuntu1.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        curl/libcurl3t64-gnutls@8.12.1-3ubuntu1
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>curl</code> package and not the <code>curl</code> package as distributed by <code>Ubuntu</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Ubuntu:25.04</code> relevant fixed versions and status.</em></p>
+        <p>When doing TLS related transfers with reused easy or multi handles and
+        altering the  <code>CURLSSLOPT_NO_PARTIALCHAIN</code> option, libcurl could accidentally
+        reuse a CA store cached in memory for which the partial chain option was
+        reversed. Contrary to the user&#39;s wishes and expectations. This could make
+        libcurl find and accept a trust chain that it otherwise would not.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>There is no fixed version for <code>Ubuntu:25.04</code> <code>curl</code>.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2025-14819">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2025-14819</a></li>
+        <li><a href="https://curl.se/docs/CVE-2025-14819.html">https://curl.se/docs/CVE-2025-14819.html</a></li>
+        <li><a href="https://curl.se/docs/CVE-2025-14819.json">https://curl.se/docs/CVE-2025-14819.json</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2026/01/07/5">http://www.openwall.com/lists/oss-security/2026/01/07/5</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2504-CURL-14894725">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
+            <h2 class="card__title">CVE-2025-14524</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--low">
+                        <span class="label__text">low severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:v3.3.0-rc3/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: ubuntu:25.04
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            curl/libcurl3t64-gnutls
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+        
+                                    docker-image|quay.io/argoproj/argocd@v3.3.0-rc3, git@1:2.48.1-0ubuntu1.1 and others
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.3.0-rc3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        git@1:2.48.1-0ubuntu1.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        curl/libcurl3t64-gnutls@8.12.1-3ubuntu1
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>curl</code> package and not the <code>curl</code> package as distributed by <code>Ubuntu</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Ubuntu:25.04</code> relevant fixed versions and status.</em></p>
+        <p>When an OAuth2 bearer token is used for an HTTP(S) transfer, and that transfer
+        performs a cross-protocol redirect to a second URL that uses an IMAP, LDAP,
+        POP3 or SMTP scheme, curl might wrongly pass on the bearer token to the new
+        target host.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>There is no fixed version for <code>Ubuntu:25.04</code> <code>curl</code>.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2025-14524">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2025-14524</a></li>
+        <li><a href="https://curl.se/docs/CVE-2025-14524.html">https://curl.se/docs/CVE-2025-14524.html</a></li>
+        <li><a href="https://curl.se/docs/CVE-2025-14524.json">https://curl.se/docs/CVE-2025-14524.json</a></li>
+        <li><a href="https://hackerone.com/reports/3459417">https://hackerone.com/reports/3459417</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2026/01/07/4">http://www.openwall.com/lists/oss-security/2026/01/07/4</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2504-CURL-14894740">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
             <h2 class="card__title">Improper Input Validation</h2>
             <div class="card__section">
         
                 <div class="card__labels">
                     <div class="label label--low">
                         <span class="label__text">low severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
                     </div>
                 </div>
         

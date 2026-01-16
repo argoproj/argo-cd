@@ -4791,22 +4791,27 @@ func TestSyncWindow_Hash(t *testing.T) {
 func TestSanitized(t *testing.T) {
 	now := metav1.Now()
 	cluster := &Cluster{
-		ID:            "123",
-		Server:        "https://example.com",
-		Name:          "example",
-		ServerVersion: "v1.0.0",
-		Namespaces:    []string{"default", "kube-system"},
-		Project:       "default",
+		ID:     "123",
+		Server: "https://example.com",
+		Name:   "example",
+		Info: ClusterInfo{
+			ConnectionState: ConnectionState{
+				Status:     ConnectionStatusSuccessful,
+				Message:    "Connection successful",
+				ModifiedAt: &now,
+			},
+			ServerVersion:     "v1.0.0",
+			CacheInfo:         ClusterCacheInfo{},
+			ApplicationsCount: 0,
+			APIVersions:       nil,
+		},
+		Namespaces: []string{"default", "kube-system"},
+		Project:    "default",
 		Labels: map[string]string{
 			"env": "production",
 		},
 		Annotations: map[string]string{
 			"annotation-key": "annotation-value",
-		},
-		ConnectionState: ConnectionState{
-			Status:     ConnectionStatusSuccessful,
-			Message:    "Connection successful",
-			ModifiedAt: &now,
 		},
 		Config: ClusterConfig{
 			Username:    "admin",
@@ -4822,19 +4827,24 @@ func TestSanitized(t *testing.T) {
 	}
 
 	assert.Equal(t, &Cluster{
-		ID:            "123",
-		Server:        "https://example.com",
-		Name:          "example",
-		ServerVersion: "v1.0.0",
-		Namespaces:    []string{"default", "kube-system"},
-		Project:       "default",
-		Labels:        map[string]string{"env": "production"},
-		Annotations:   map[string]string{"annotation-key": "annotation-value"},
-		ConnectionState: ConnectionState{
-			Status:     ConnectionStatusSuccessful,
-			Message:    "Connection successful",
-			ModifiedAt: &now,
+		ID:     "123",
+		Server: "https://example.com",
+		Name:   "example",
+		Info: ClusterInfo{
+			ConnectionState: ConnectionState{
+				Status:     ConnectionStatusSuccessful,
+				Message:    "Connection successful",
+				ModifiedAt: &now,
+			},
+			ServerVersion:     "v1.0.0",
+			CacheInfo:         ClusterCacheInfo{},
+			ApplicationsCount: 0,
+			APIVersions:       nil,
 		},
+		Namespaces:  []string{"default", "kube-system"},
+		Project:     "default",
+		Labels:      map[string]string{"env": "production"},
+		Annotations: map[string]string{"annotation-key": "annotation-value"},
 		Config: ClusterConfig{
 			TLSClientConfig: TLSClientConfig{
 				Insecure: true,
@@ -4862,6 +4872,75 @@ func TestSourceHydrator_Equals(t *testing.T) {
 			t.Parallel()
 
 			assert.Equal(t, testCopy.expected, testCopy.a.DeepEquals(testCopy.b))
+		})
+	}
+}
+
+func TestIgnoreDifferences_Equals(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		a        IgnoreDifferences
+		b        IgnoreDifferences
+		expected bool
+	}{
+		{
+			name:     "nil and nil are equal",
+			a:        nil,
+			b:        nil,
+			expected: true,
+		},
+		{
+			name:     "nil and empty slice are equal",
+			a:        nil,
+			b:        IgnoreDifferences{},
+			expected: true,
+		},
+		{
+			name:     "empty slice and nil are equal",
+			a:        IgnoreDifferences{},
+			b:        nil,
+			expected: true,
+		},
+		{
+			name:     "empty slice and empty slice are equal",
+			a:        IgnoreDifferences{},
+			b:        IgnoreDifferences{},
+			expected: true,
+		},
+		{
+			name:     "non-empty slice and nil are not equal",
+			a:        IgnoreDifferences{{Kind: "Deployment"}},
+			b:        nil,
+			expected: false,
+		},
+		{
+			name:     "nil and non-empty slice are not equal",
+			a:        nil,
+			b:        IgnoreDifferences{{Kind: "Deployment"}},
+			expected: false,
+		},
+		{
+			name:     "equal non-empty slices are equal",
+			a:        IgnoreDifferences{{Kind: "Deployment", JSONPointers: []string{"/spec/replicas"}}},
+			b:        IgnoreDifferences{{Kind: "Deployment", JSONPointers: []string{"/spec/replicas"}}},
+			expected: true,
+		},
+		{
+			name:     "different non-empty slices are not equal",
+			a:        IgnoreDifferences{{Kind: "Deployment"}},
+			b:        IgnoreDifferences{{Kind: "Service"}},
+			expected: false,
+		},
+	}
+
+	for _, testCase := range tests {
+		testCopy := testCase
+		t.Run(testCopy.name, func(t *testing.T) {
+			t.Parallel()
+
+			assert.Equal(t, testCopy.expected, testCopy.a.Equals(testCopy.b))
 		})
 	}
 }

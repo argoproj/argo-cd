@@ -104,6 +104,10 @@ type ApplicationSpec struct {
 type IgnoreDifferences []ResourceIgnoreDifferences
 
 func (id IgnoreDifferences) Equals(other IgnoreDifferences) bool {
+	// Treat nil and empty slice as equivalent
+	if len(id) == 0 && len(other) == 0 {
+		return true
+	}
 	return reflect.DeepEqual(id, other)
 }
 
@@ -2287,8 +2291,6 @@ func (c *Cluster) Sanitized() *Cluster {
 		Labels:             c.Labels,
 		Annotations:        c.Annotations,
 		ClusterResources:   c.ClusterResources,
-		ConnectionState:    c.ConnectionState,
-		ServerVersion:      c.ServerVersion,
 		Info:               c.Info,
 		RefreshRequestedAt: c.RefreshRequestedAt,
 		Config: ClusterConfig{

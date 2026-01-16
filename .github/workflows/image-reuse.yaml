@@ -51,8 +51,8 @@ jobs:
       contents: read
       packages: write # Used to push images to `ghcr.io` if used.
       id-token: write # Needed to create an OIDC token for keyless signing
-    runs-on: ubuntu-22.04
-    outputs:
+    runs-on: ubuntu-24.04
+    outputs:  
       image-digest: ${{ steps.image.outputs.digest }}
     steps:
       - name: Checkout code
@@ -67,7 +67,7 @@ jobs:
         if: ${{ github.ref_type != 'tag'}}
 
       - name: Setup Golang
-        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
+        uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5 # v6.2.0
         with:
           go-version: ${{ inputs.go-version }}
           cache: false
