@@ -270,7 +270,7 @@ Scraped at the `argocd-repo-server:8084/metrics` endpoint.
 | `argocd_redis_request_total`             |  counter   | Number of Kubernetes requests executed during application reconciliation. |
 | `argocd_repo_pending_request_total`      |   gauge    | Number of pending requests requiring repository lock                      |
 | `argocd_oci_request_total`               |  counter   | Number of OCI requests performed by repo server                           |
-| `argocd_oci_request_duration_seconds`    | histogram  | Number of OCI fetch requests failures by repo server                      |
+| `argocd_oci_request_duration_seconds`    | histogram  | Duration of OCI requests performed by the repo server.                      |
 | `argocd_oci_test_repo_fail_total`        |  counter   | Number of OCI test repo requests failures by repo server                  |
 | `argocd_oci_get_tags_fail_total`         |  counter   | Number of OCI get tags requests failures by repo server                   |
 | `argocd_oci_digest_metadata_fail_total`  |  counter   | Number of OCI digest metadata failures by repo server                     |
