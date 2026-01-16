@@ -76,11 +76,8 @@ func FullNameByRepoURL(rawURL string) string {
 	}
 
 	path := gitSuffix.ReplaceAllString(parsed.Path, "")
-	if pathParts := text.SplitRemoveEmpty(path, "/"); len(pathParts) >= 2 {
-		return strings.Join(pathParts[:2], "/")
-	}
-
-	return path
+	pathParts := text.SplitRemoveEmpty(path, "/")
+	return strings.Join(pathParts, "/")
 }
 
 func repoURLToHTTPS(rawURL string) string {
