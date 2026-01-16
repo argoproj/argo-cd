@@ -176,11 +176,11 @@ func TestHydratorWithHelm(t *testing.T) {
 			require.Equal(t, "helm-hydrated-with-inline-params", output)
 
 			// Verify that the namespace was passed to helm
-			output, err = fixture.Run("", "kubectl", "-n="+fixture.DeploymentNamespace(),
+			output, err = fixture.Run("", "kubectl", "-n="+ctx.DeploymentNamespace(),
 				"get", "configmap", "my-map",
 				"-ojsonpath={.data.helmns}")
 			require.NoError(t, err)
-			require.Equal(t, fixture.DeploymentNamespace(), output)
+			require.Equal(t, ctx.DeploymentNamespace(), output)
 		})
 }
 
