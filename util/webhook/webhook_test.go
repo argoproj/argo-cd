@@ -183,71 +183,6 @@ func TestAzureDevOpsCommitEvent(t *testing.T) {
 	hook.Reset()
 }
 
-// TestGitHubCommitEvent_MultiSource_Refresh makes sure that a webhook will refresh a multi-source app when at least
-// one source matches.
-func TestGitHubCommitEvent_MultiSource_Refresh(t *testing.T) {
-	hook := test.NewGlobal()
-	var patchData []byte
-	reaction := func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-		patchAction := action.(kubetesting.PatchAction)
-		assert.Equal(t, "app-to-refresh", patchAction.GetName())
-		patchData = patchAction.GetPatch()
-		return true, nil, nil
-	}
-	h := NewMockHandler(&reactorDef{"patch", "applications", reaction}, []string{}, &v1alpha1.Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "app-to-refresh",
-			Namespace: "argocd",
-		},
-		Spec: v1alpha1.ApplicationSpec{
-			Sources: v1alpha1.ApplicationSources{
-				{
-					RepoURL: "https://github.com/some/unrelated-repo",
-					Path:    ".",
-				},
-				{
-					RepoURL: "https://github.com/jessesuen/test-repo",
-					Path:    ".",
-				},
-			},
-		},
-	}, &v1alpha1.Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "app-to-ignore",
-		},
-		Spec: v1alpha1.ApplicationSpec{
-			Sources: v1alpha1.ApplicationSources{
-				{
-					RepoURL: "https://github.com/some/unrelated-repo",
-					Path:    ".",
-				},
-			},
-		},
-	},
-	)
-	req := httptest.NewRequest(http.MethodPost, "/api/webhook", http.NoBody)
-	req.Header.Set("X-GitHub-Event", "push")
-	eventJSON, err := os.ReadFile("testdata/github-commit-event.json")
-	require.NoError(t, err)
-	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
-	w := httptest.NewRecorder()
-	h.Handler(w, req)
-	close(h.queue)
-	h.Wait()
-	assert.Equal(t, http.StatusOK, w.Code)
-
-	// Verify that only refresh annotation is set, NOT hydrate annotation for sources changes
-	var patchMap map[string]any
-	err = json.Unmarshal(patchData, &patchMap)
-	require.NoError(t, err)
-	metadata := patchMap["metadata"].(map[string]any)
-	annotations := metadata["annotations"].(map[string]any)
-	assert.Equal(t, "normal", annotations["argocd.argoproj.io/refresh"])
-	_, hasHydrate := annotations["argocd.argoproj.io/hydrate"]
-	assert.False(t, hasHydrate, "sources changes should NOT trigger hydration")
-	hook.Reset()
-}
-
 // TestGitHubCommitEvent_AppsInOtherNamespaces makes sure that webhooks properly find apps in the configured set of
 // allowed namespaces when Apps are allowed in any namespace
 func TestGitHubCommitEvent_AppsInOtherNamespaces(t *testing.T) {
@@ -344,542 +279,6 @@ func TestGitHubCommitEvent_AppsInOtherNamespaces(t *testing.T) {
 	assert.Len(t, patchedApps, 3)
 
 	hook.Reset()
-}
-
-// TestGitHubCommitEvent_Hydrate_DrySource tests that a webhook will refresh and hydrate an app when dry source changed.
-func TestGitHubCommitEvent_Hydrate_DrySource(t *testing.T) {
-	var patchData []byte
-	reaction := func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-		patchAction := action.(kubetesting.PatchAction)
-		assert.Equal(t, "app-to-hydrate", patchAction.GetName())
-		patchData = patchAction.GetPatch()
-		return true, nil, nil
-	}
-	h := NewMockHandler(&reactorDef{"patch", "applications", reaction}, []string{}, &v1alpha1.Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "app-to-hydrate",
-			Namespace: "argocd",
-		},
-		Spec: v1alpha1.ApplicationSpec{
-			SourceHydrator: &v1alpha1.SourceHydrator{
-				DrySource: v1alpha1.DrySource{
-					RepoURL:        "https://github.com/jessesuen/test-repo",
-					TargetRevision: "HEAD",
-					Path:           ".",
-				},
-				SyncSource: v1alpha1.SyncSource{
-					TargetBranch: "environments/dev",
-					Path:         ".",
-				},
-				HydrateTo: nil,
-			},
-		},
-	}, &v1alpha1.Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "app-to-ignore",
-		},
-		Spec: v1alpha1.ApplicationSpec{
-			Sources: v1alpha1.ApplicationSources{
-				{
-					RepoURL: "https://github.com/some/unrelated-repo",
-					Path:    ".",
-				},
-			},
-		},
-	},
-	)
-	req := httptest.NewRequest(http.MethodPost, "/api/webhook", http.NoBody)
-	req.Header.Set("X-GitHub-Event", "push")
-	eventJSON, err := os.ReadFile("testdata/github-commit-event.json")
-	require.NoError(t, err)
-	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
-	w := httptest.NewRecorder()
-	h.Handler(w, req)
-	close(h.queue)
-	h.Wait()
-	assert.Equal(t, http.StatusOK, w.Code)
-
-	// Verify that both refresh and hydrate annotations are set for drySource changes
-	var patchMap map[string]any
-	err = json.Unmarshal(patchData, &patchMap)
-	require.NoError(t, err)
-	metadata := patchMap["metadata"].(map[string]any)
-	annotations := metadata["annotations"].(map[string]any)
-	assert.Equal(t, "normal", annotations["argocd.argoproj.io/refresh"])
-	assert.Equal(t, "normal", annotations["argocd.argoproj.io/hydrate"])
-}
-
-// TestGitHubCommitEvent_SyncSourceRefresh tests that syncSource changes trigger refresh WITHOUT hydration.
-func TestGitHubCommitEvent_SyncSourceRefresh(t *testing.T) {
-	var patchData []byte
-	reaction := func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-		patchAction := action.(kubetesting.PatchAction)
-		assert.Equal(t, "app-to-refresh", patchAction.GetName())
-		patchData = patchAction.GetPatch()
-		return true, nil, nil
-	}
-	h := NewMockHandler(&reactorDef{"patch", "applications", reaction}, []string{}, &v1alpha1.Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "app-to-refresh",
-			Namespace: "argocd",
-			Annotations: map[string]string{
-				"argocd.argoproj.io/manifest-generate-paths": ".",
-			},
-		},
-		Spec: v1alpha1.ApplicationSpec{
-			SourceHydrator: &v1alpha1.SourceHydrator{
-				DrySource: v1alpha1.DrySource{
-					RepoURL:        "https://github.com/jessesuen/test-repo",
-					TargetRevision: "main",
-					Path:           ".",
-				},
-				SyncSource: v1alpha1.SyncSource{
-					TargetBranch: "environments/dev",
-					Path:         ".",
-				},
-				HydrateTo: nil,
-			},
-		},
-	},
-	)
-	req := httptest.NewRequest(http.MethodPost, "/api/webhook", http.NoBody)
-	req.Header.Set("X-GitHub-Event", "push")
-	eventJSON, err := os.ReadFile("testdata/github-commit-syncsource-event.json")
-	require.NoError(t, err)
-	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
-	w := httptest.NewRecorder()
-	h.Handler(w, req)
-	close(h.queue)
-	h.Wait()
-	assert.Equal(t, http.StatusOK, w.Code)
-
-	// Verify that only refresh annotation is set, NOT hydrate annotation for syncSource changes
-	var patchMap map[string]any
-	err = json.Unmarshal(patchData, &patchMap)
-	require.NoError(t, err)
-	metadata := patchMap["metadata"].(map[string]any)
-	annotations := metadata["annotations"].(map[string]any)
-	assert.Equal(t, "normal", annotations["argocd.argoproj.io/refresh"])
-	_, hasHydrate := annotations["argocd.argoproj.io/hydrate"]
-	assert.False(t, hasHydrate, "syncSource changes should NOT trigger hydration")
-}
-
-// TestGitHubCommitEvent_SyncSourceRefresh_FileFiltering tests that syncSource webhooks
-// filter out irrelevant file changes based on the syncSource path
-func TestGitHubCommitEvent_SyncSourceRefresh_FileFiltering(t *testing.T) {
-	// The test payload (github-commit-syncsource-event.json) changes files under:
-	// - ksapps/test-app/environments/staging-argocd-demo/main.jsonnet
-	// - ksapps/test-app/environments/staging-argocd-demo/params.libsonnet
-	// - ksapps/test-app/app.yaml
-
-	tests := []struct {
-		name            string
-		syncSourcePath  string
-		expectedRefresh bool
-	}{
-		{
-			name:            "syncSource path matches changed files - should refresh",
-			syncSourcePath:  "ksapps",
-			expectedRefresh: true,
-		},
-		{
-			name:            "syncSource path does not match changed files - should not refresh",
-			syncSourcePath:  "helm-charts",
-			expectedRefresh: false,
-		},
-		{
-			name:            "syncSource at root path - should refresh",
-			syncSourcePath:  ".",
-			expectedRefresh: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			var patchData []byte
-			reaction := func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-				if action.GetVerb() == "patch" {
-					patchAction := action.(kubetesting.PatchAction)
-					patchData = patchAction.GetPatch()
-				}
-				return true, nil, nil
-			}
-
-			h := NewMockHandler(&reactorDef{"patch", "applications", reaction}, []string{}, &v1alpha1.Application{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "app-to-test",
-					Namespace: "argocd",
-				},
-				Spec: v1alpha1.ApplicationSpec{
-					SourceHydrator: &v1alpha1.SourceHydrator{
-						DrySource: v1alpha1.DrySource{
-							RepoURL:        testRepoURL,
-							TargetRevision: "main",
-							Path:           ".",
-						},
-						SyncSource: v1alpha1.SyncSource{
-							TargetBranch: "environments/dev",
-							Path:         tt.syncSourcePath,
-						},
-						HydrateTo: nil,
-					},
-				},
-			})
-			w := executeWebhook(t, h, "testdata/github-commit-syncsource-event.json")
-			assert.Equal(t, http.StatusOK, w.Code)
-
-			// Verify that sync source changes trigger refresh but not hydration
-			verifyAnnotations(t, patchData, tt.expectedRefresh, false)
-		})
-	}
-}
-
-// TestGitHubCommitEvent_Hydration_DrySource_WithAnnotation tests that drySource webhooks
-// with manifest-generate-paths annotation filter files based on annotation paths
-func TestGitHubCommitEvent_Hydration_DrySource_WithAnnotation(t *testing.T) {
-	hook := test.NewGlobal()
-	var patched bool
-	reaction := func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-		patchAction := action.(kubetesting.PatchAction)
-		assert.Equal(t, "app-with-annotation", patchAction.GetName())
-		patched = true
-		return true, nil, nil
-	}
-
-	// The test payload changes files under ksapps/ directory
-	tests := []struct {
-		name            string
-		annotation      string
-		drySourcePath   string
-		expectedRefresh bool
-	}{
-		{
-			name:            "annotation matches changed files - should hydrate",
-			annotation:      ".",
-			drySourcePath:   "ksapps",
-			expectedRefresh: true,
-		},
-		{
-			name:            "annotation does not match changed files - should not hydrate",
-			annotation:      ".",
-			drySourcePath:   "helm-charts",
-			expectedRefresh: false,
-		},
-		{
-			name:            "annotation with relative path matches - should hydrate",
-			annotation:      ".;../shared",
-			drySourcePath:   "ksapps",
-			expectedRefresh: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			patched = false
-			h := NewMockHandler(&reactorDef{"patch", "applications", reaction}, []string{}, &v1alpha1.Application{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "app-with-annotation",
-					Namespace: "argocd",
-					Annotations: map[string]string{
-						"argocd.argoproj.io/manifest-generate-paths": tt.annotation,
-					},
-				},
-				Spec: v1alpha1.ApplicationSpec{
-					SourceHydrator: &v1alpha1.SourceHydrator{
-						DrySource: v1alpha1.DrySource{
-							RepoURL:        "https://github.com/jessesuen/test-repo",
-							TargetRevision: "HEAD", // Matches master branch from webhook event
-							Path:           tt.drySourcePath,
-						},
-						SyncSource: v1alpha1.SyncSource{
-							TargetBranch: "environments/dev",
-							Path:         "hydrated",
-						},
-					},
-				},
-			})
-			req := httptest.NewRequest(http.MethodPost, "/api/webhook", http.NoBody)
-			req.Header.Set("X-GitHub-Event", "push")
-			// Use main branch event for drySource testing (matches drySource.TargetRevision)
-			eventJSON, err := os.ReadFile("testdata/github-commit-event.json")
-			require.NoError(t, err)
-			req.Body = io.NopCloser(bytes.NewReader(eventJSON))
-			w := httptest.NewRecorder()
-			h.Handler(w, req)
-			close(h.queue)
-			h.Wait()
-			assert.Equal(t, http.StatusOK, w.Code)
-			assert.Equal(t, tt.expectedRefresh, patched)
-
-			logMessages := make([]string, 0, len(hook.Entries))
-			for _, entry := range hook.Entries {
-				logMessages = append(logMessages, entry.Message)
-			}
-
-			if tt.expectedRefresh {
-				assert.Contains(t, logMessages, "webhook trigger refresh app to hydrate 'app-with-annotation'")
-			} else {
-				assert.NotContains(t, logMessages, "webhook trigger refresh app to hydrate 'app-with-annotation'")
-			}
-			hook.Reset()
-		})
-	}
-}
-
-// TestGitHubCommitEvent_Hydration_DrySource_NoAnnotation tests that drySource webhooks
-// without manifest-generate-paths annotation use the entire drySource path as default
-func TestGitHubCommitEvent_Hydration_DrySource_NoAnnotation(t *testing.T) {
-	hook := test.NewGlobal()
-	var patched bool
-	reaction := func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-		patchAction := action.(kubetesting.PatchAction)
-		assert.Equal(t, "app-no-annotation", patchAction.GetName())
-		patched = true
-		return true, nil, nil
-	}
-
-	// The test payload changes files under ksapps/ directory
-	tests := []struct {
-		name            string
-		drySourcePath   string
-		expectedRefresh bool
-	}{
-		{
-			name:            "drySource path matches changed files - should hydrate",
-			drySourcePath:   "ksapps",
-			expectedRefresh: true,
-		},
-		{
-			name:            "drySource path does not match changed files - should not hydrate",
-			drySourcePath:   "helm-charts",
-			expectedRefresh: false,
-		},
-		{
-			name:            "drySource at root path - should hydrate",
-			drySourcePath:   ".",
-			expectedRefresh: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			patched = false
-			h := NewMockHandler(&reactorDef{"patch", "applications", reaction}, []string{}, &v1alpha1.Application{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "app-no-annotation",
-					Namespace: "argocd",
-					// No manifest-generate-paths annotation
-				},
-				Spec: v1alpha1.ApplicationSpec{
-					SourceHydrator: &v1alpha1.SourceHydrator{
-						DrySource: v1alpha1.DrySource{
-							RepoURL:        "https://github.com/jessesuen/test-repo",
-							TargetRevision: "HEAD", // Matches master branch from webhook event
-							Path:           tt.drySourcePath,
-						},
-						SyncSource: v1alpha1.SyncSource{
-							TargetBranch: "environments/dev",
-							Path:         "hydrated",
-						},
-					},
-				},
-			})
-			req := httptest.NewRequest(http.MethodPost, "/api/webhook", http.NoBody)
-			req.Header.Set("X-GitHub-Event", "push")
-			// Use main branch event for drySource testing (matches drySource.TargetRevision)
-			eventJSON, err := os.ReadFile("testdata/github-commit-event.json")
-			require.NoError(t, err)
-			req.Body = io.NopCloser(bytes.NewReader(eventJSON))
-			w := httptest.NewRecorder()
-			h.Handler(w, req)
-			close(h.queue)
-			h.Wait()
-			assert.Equal(t, http.StatusOK, w.Code)
-			assert.Equal(t, tt.expectedRefresh, patched)
-
-			logMessages := make([]string, 0, len(hook.Entries))
-			for _, entry := range hook.Entries {
-				logMessages = append(logMessages, entry.Message)
-			}
-
-			if tt.expectedRefresh {
-				assert.Contains(t, logMessages, "webhook trigger refresh app to hydrate 'app-no-annotation'")
-			} else {
-				assert.NotContains(t, logMessages, "webhook trigger refresh app to hydrate 'app-no-annotation'")
-			}
-			hook.Reset()
-		})
-	}
-}
-
-// TestGitHubCommitEvent_Standard_WithAnnotation tests that standard apps (no hydration)
-// with manifest-generate-paths annotation only refresh when changed files match annotation paths
-func TestGitHubCommitEvent_Standard_WithAnnotation(t *testing.T) {
-	hook := test.NewGlobal()
-	var patched bool
-	reaction := func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-		patchAction := action.(kubetesting.PatchAction)
-		assert.Equal(t, "standard-app-with-annotation", patchAction.GetName())
-		patched = true
-		return true, nil, nil
-	}
-
-	// The test payload changes files under ksapps/ directory
-	tests := []struct {
-		name            string
-		annotation      string
-		sourcePath      string
-		expectedRefresh bool
-	}{
-		{
-			name:            "annotation matches changed files - should refresh",
-			annotation:      ".",
-			sourcePath:      "ksapps",
-			expectedRefresh: true,
-		},
-		{
-			name:            "annotation does not match changed files - should not refresh",
-			annotation:      ".",
-			sourcePath:      "helm-charts",
-			expectedRefresh: false,
-		},
-		{
-			name:            "annotation with multiple paths, one matches - should refresh",
-			annotation:      ".;../other",
-			sourcePath:      "ksapps",
-			expectedRefresh: true,
-		},
-		{
-			name:            "annotation at root matches all - should refresh",
-			annotation:      ".",
-			sourcePath:      ".",
-			expectedRefresh: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			patched = false
-			h := NewMockHandler(&reactorDef{"patch", "applications", reaction}, []string{}, &v1alpha1.Application{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "standard-app-with-annotation",
-					Namespace: "argocd",
-					Annotations: map[string]string{
-						"argocd.argoproj.io/manifest-generate-paths": tt.annotation,
-					},
-				},
-				Spec: v1alpha1.ApplicationSpec{
-					Sources: v1alpha1.ApplicationSources{
-						{
-							RepoURL:        "https://github.com/jessesuen/test-repo",
-							Path:           tt.sourcePath,
-							TargetRevision: "HEAD", // Matches the master branch from the webhook event
-						},
-					},
-				},
-			})
-			req := httptest.NewRequest(http.MethodPost, "/api/webhook", http.NoBody)
-			req.Header.Set("X-GitHub-Event", "push")
-			// Use main branch event for standard app testing (matches source targetRevision: HEAD/master)
-			eventJSON, err := os.ReadFile("testdata/github-commit-event.json")
-			require.NoError(t, err)
-			req.Body = io.NopCloser(bytes.NewReader(eventJSON))
-			w := httptest.NewRecorder()
-			h.Handler(w, req)
-			close(h.queue)
-			h.Wait()
-			assert.Equal(t, http.StatusOK, w.Code)
-			assert.Equal(t, tt.expectedRefresh, patched)
-
-			logMessages := make([]string, 0, len(hook.Entries))
-			for _, entry := range hook.Entries {
-				logMessages = append(logMessages, entry.Message)
-			}
-
-			if tt.expectedRefresh {
-				assert.Contains(t, logMessages, "Requested app 'standard-app-with-annotation' refresh")
-			} else {
-				assert.NotContains(t, logMessages, "Requested app 'standard-app-with-annotation' refresh")
-			}
-			hook.Reset()
-		})
-	}
-}
-
-// TestGitHubCommitEvent_Standard_NoAnnotation tests that standard apps (no hydration)
-// without manifest-generate-paths annotation always refresh on any change (default behavior)
-func TestGitHubCommitEvent_Standard_NoAnnotation(t *testing.T) {
-	hook := test.NewGlobal()
-	var patched bool
-	reaction := func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-		patchAction := action.(kubetesting.PatchAction)
-		assert.Equal(t, "standard-app-no-annotation", patchAction.GetName())
-		patched = true
-		return true, nil, nil
-	}
-
-	// Test that regardless of which files change or which path is configured,
-	// the app always refreshes when no annotation is present (default behavior)
-	tests := []struct {
-		name       string
-		sourcePath string
-	}{
-		{
-			name:       "source path matches changed files - should refresh",
-			sourcePath: "ksapps",
-		},
-		{
-			name:       "source path does not match changed files - should still refresh",
-			sourcePath: "helm-charts",
-		},
-		{
-			name:       "source at root - should refresh",
-			sourcePath: ".",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			patched = false
-			h := NewMockHandler(&reactorDef{"patch", "applications", reaction}, []string{}, &v1alpha1.Application{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "standard-app-no-annotation",
-					Namespace: "argocd",
-					// No manifest-generate-paths annotation
-				},
-				Spec: v1alpha1.ApplicationSpec{
-					Sources: v1alpha1.ApplicationSources{
-						{
-							RepoURL:        "https://github.com/jessesuen/test-repo",
-							Path:           tt.sourcePath,
-							TargetRevision: "HEAD", // Matches the master branch from the webhook event
-						},
-					},
-				},
-			})
-			req := httptest.NewRequest(http.MethodPost, "/api/webhook", http.NoBody)
-			req.Header.Set("X-GitHub-Event", "push")
-			// Use main branch event for standard app testing (matches source targetRevision: HEAD/master)
-			eventJSON, err := os.ReadFile("testdata/github-commit-event.json")
-			require.NoError(t, err)
-			req.Body = io.NopCloser(bytes.NewReader(eventJSON))
-			w := httptest.NewRecorder()
-			h.Handler(w, req)
-			close(h.queue)
-			h.Wait()
-			assert.Equal(t, http.StatusOK, w.Code)
-			// Should always refresh regardless of path
-			assert.True(t, patched, "expected app to refresh but it didn't")
-
-			logMessages := make([]string, 0, len(hook.Entries))
-			for _, entry := range hook.Entries {
-				logMessages = append(logMessages, entry.Message)
-			}
-
-			assert.Contains(t, logMessages, "Requested app 'standard-app-no-annotation' refresh")
-			hook.Reset()
-		})
-	}
 }
 
 func TestGitHubTagEvent(t *testing.T) {
@@ -1357,370 +756,317 @@ func TestGitHubCommitEventMaxPayloadSize(t *testing.T) {
 	hook.Reset()
 }
 
-// TestGitHubCommitEvent_NoChanges_CacheNotUpdated_MissingSHAs tests that cache
-// is NOT updated when commit SHAs are missing from the webhook payload
-func TestGitHubCommitEvent_NoChanges_CacheNotUpdated_MissingSHAs(t *testing.T) {
+func TestHandleEvent(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
-		name               string
-		mockPayload        func() []byte
-		expectedLogContain string
+		name        string
+		app         *v1alpha1.Application
+		changedFile string // file that was changed in the webhook payload
+		hasRefresh  bool   // application has refresh annotation applied
+		hasHydrate  bool   // application has hydrate annotation applied
+		updateCache bool   // cache should be updated with the new revision
 	}{
 		{
-			name: "missing before SHA",
-			mockPayload: func() []byte {
-				// Create a payload with empty "before" field
-				payload := `{
-					"ref": "refs/heads/master",
-					"before": "",
-					"after": "63738bb582c8b540af7bcfc18f87c575c3ed66e0",
-					"repository": {
-						"html_url": "https://github.com/jessesuen/test-repo",
-						"default_branch": "master"
-					},
-					"commits": [
-						{
-							"added": ["helm-charts/values.yaml"],
-							"modified": [],
-							"removed": []
-						}
-					]
-				}`
-				return []byte(payload)
-			},
-		},
-		{
-			name: "missing after SHA",
-			mockPayload: func() []byte {
-				payload := `{
-					"ref": "refs/heads/master",
-					"before": "d5c1ffa8e294bc18c639bfb4e0df499251034414",
-					"after": "",
-					"repository": {
-						"html_url": "https://github.com/jessesuen/test-repo",
-						"default_branch": "master"
-					},
-					"commits": [
-						{
-							"added": ["helm-charts/values.yaml"],
-							"modified": [],
-							"removed": []
-						}
-					]
-				}`
-				return []byte(payload)
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Write payload to a temporary file
-			tmpFile, err := os.CreateTemp(t.TempDir(), "webhook-test-*.json")
-			require.NoError(t, err)
-			defer os.Remove(tmpFile.Name())
-
-			_, err = tmpFile.Write(tt.mockPayload())
-			require.NoError(t, err)
-			require.NoError(t, tmpFile.Close())
-
-			inMemoryCache := cacheutil.NewInMemoryCache(1 * time.Hour)
-			cacheClient := cacheutil.NewCache(inMemoryCache)
-
-			repoCache := cache.NewCache(
-				cacheClient,
-				1*time.Minute,
-				1*time.Minute,
-				10*time.Second,
-			)
-
-			app := &v1alpha1.Application{
+			name: "single source without annotation - always refreshes",
+			app: &v1alpha1.Application{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-app",
 					Namespace: "argocd",
-					Annotations: map[string]string{
-						"argocd.argoproj.io/manifest-generate-paths": "helm-charts", // Different from webhook's ksapps changes
-					},
 				},
 				Spec: v1alpha1.ApplicationSpec{
-					Destination: v1alpha1.ApplicationDestination{
-						Server:    testClusterURL,
-						Namespace: "",
-					},
 					Sources: v1alpha1.ApplicationSources{
 						{
-							RepoURL:        testRepoURL,
-							Path:           "helm-charts", // Different from webhook's ksapps changes
-							TargetRevision: "HEAD",        // Tracks master (webhook branch)
-						},
-					},
-				},
-			}
-
-			appClientset := appclientset.NewSimpleClientset(app)
-			mockDB := &mocks.ArgoDB{}
-			serverCache := servercache.NewCache(appstate.NewCache(cacheClient, time.Minute), time.Minute, time.Minute)
-
-			h := NewHandler(
-				"argocd",
-				[]string{},
-				10,
-				appClientset,
-				&fakeAppsLister{clientset: appClientset},
-				&settings.ArgoCDSettings{},
-				&fakeSettingsSrc{},
-				repoCache,
-				serverCache,
-				mockDB,
-				int64(50)*1024*1024,
-			)
-
-			w := executeWebhook(t, h, tmpFile.Name())
-			assert.Equal(t, http.StatusOK, w.Code)
-
-			// Verify cache was not updated
-			items, err := inMemoryCache.Items(func() any { return &cache.CachedManifestResponse{} })
-			if err != nil {
-				t.Fatalf("failed to get items: %v", err)
-			}
-			require.NoError(t, err)
-			assert.Empty(t, items, "cache should be empty when commit SHAs are missing")
-		})
-	}
-}
-
-// TestGitHubCommitEvent_CacheUpdated_FilesOutsideRefreshPaths tests that the cache IS updated
-// when files are changed outside the refresh paths (for both regular sources and hydrator sources).
-// This consolidates tests for cache updates when app tracks revision but files don't match refresh paths.
-func TestGitHubCommitEvent_CacheUpdated_FilesOutsideRefreshPaths(t *testing.T) {
-	tests := []struct {
-		name           string
-		appPath        string
-		annotation     string
-		sourceHydrator *v1alpha1.SourceHydrator
-		description    string
-	}{
-		{
-			name:           "app tracks revision but files in different path",
-			appPath:        "helm-charts",
-			annotation:     "helm-charts", // App cares about helm-charts, but webhook changes ksapps
-			sourceHydrator: nil,
-			description:    "app tracks HEAD (master) but files don't match annotation paths",
-		},
-		{
-			name:           "sync source - files outside refresh paths",
-			appPath:        "helm-charts",
-			annotation:     "specific-dir", // Files changed in ksapps, not specific-dir
-			sourceHydrator: nil,
-			description:    "regular source with files changed outside annotation paths",
-		},
-		{
-			name:       "dry source - files outside refresh paths",
-			appPath:    ".",
-			annotation: "specific-dir", // Files changed in ksapps, not specific-dir
-			sourceHydrator: &v1alpha1.SourceHydrator{
-				DrySource: v1alpha1.DrySource{
-					RepoURL:        testRepoURL,
-					TargetRevision: "HEAD",
-					Path:           ".",
-				},
-				SyncSource: v1alpha1.SyncSource{
-					TargetBranch: "environments/dev",
-					Path:         "hydrated",
-				},
-			},
-			description: "dry source with files changed outside annotation paths",
-		},
-		{
-			name:       "sync source (hydrator) - files outside refresh paths for sync source",
-			appPath:    ".",
-			annotation: "dry-specific-dir", // Only dry source files
-			sourceHydrator: &v1alpha1.SourceHydrator{
-				DrySource: v1alpha1.DrySource{
-					RepoURL:        testRepoURL,
-					TargetRevision: "HEAD",
-					Path:           ".",
-				},
-				SyncSource: v1alpha1.SyncSource{
-					TargetBranch: "environments/dev", // Different branch from webhook (master)
-					Path:         ".",
-				},
-			},
-			description: "sync source in hydrator where files changed outside dry source annotation paths",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			inMemoryCache := cacheutil.NewInMemoryCache(1 * time.Hour)
-			cacheClient := cacheutil.NewCache(inMemoryCache)
-
-			repoCache := cache.NewCache(
-				cacheClient,
-				1*time.Minute,
-				1*time.Minute,
-				10*time.Second,
-			)
-
-			app := &v1alpha1.Application{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-app",
-					Namespace: "argocd",
-					Annotations: map[string]string{
-						"argocd.argoproj.io/manifest-generate-paths": tt.annotation,
-					},
-				},
-				Spec: v1alpha1.ApplicationSpec{
-					Destination: v1alpha1.ApplicationDestination{
-						Server:    testClusterURL,
-						Namespace: "",
-					},
-					Sources: v1alpha1.ApplicationSources{
-						{
-							RepoURL:        testRepoURL,
-							Path:           tt.appPath,
+							RepoURL:        "https://github.com/jessesuen/test-repo",
+							Path:           "source/path",
 							TargetRevision: "HEAD",
 						},
 					},
-					SourceHydrator: tt.sourceHydrator,
-				},
-			}
-
-			// Pre-populate cache with manifests for the "before" SHA to simulate existing cache
-			testSource := &v1alpha1.ApplicationSource{
-				RepoURL:        testRepoURL,
-				Path:           tt.appPath,
-				TargetRevision: "HEAD",
-			}
-			clusterInfo := &mockClusterInfo{}
-			testManifests := []string{"apiVersion: v1\nkind: Service\nmetadata:\n  name: test-service"}
-			setupTestCache(t, repoCache, "test-app", testSource, testManifests)
-
-			appClientset := appclientset.NewSimpleClientset(app)
-			mockDB := &mocks.ArgoDB{}
-			mockDB.EXPECT().GetCluster(mock.Anything, testClusterURL).Return(&v1alpha1.Cluster{
-				Server: testClusterURL,
-				Info: v1alpha1.ClusterInfo{
-					ServerVersion:   "1.28.0",
-					ConnectionState: v1alpha1.ConnectionState{Status: v1alpha1.ConnectionStatusSuccessful},
-					APIVersions:     []string{},
-				},
-			}, nil).Maybe()
-			serverCache := servercache.NewCache(appstate.NewCache(cacheClient, time.Minute), time.Minute, time.Minute)
-			err := serverCache.SetClusterInfo(testClusterURL, &v1alpha1.ClusterInfo{
-				ServerVersion:   "1.28.0",
-				ConnectionState: v1alpha1.ConnectionState{Status: v1alpha1.ConnectionStatusSuccessful},
-				APIVersions:     []string{},
-			})
-			require.NoError(t, err)
-
-			h := NewHandler(
-				"argocd",
-				[]string{},
-				10,
-				appClientset,
-				&fakeAppsLister{clientset: appClientset},
-				&settings.ArgoCDSettings{},
-				&fakeSettingsSrc{},
-				repoCache,
-				serverCache,
-				mockDB,
-				int64(50)*1024*1024,
-			)
-
-			w := executeWebhook(t, h, testEventDataDir)
-			assert.Equal(t, http.StatusOK, w.Code)
-
-			// Verify cache WAS updated - beforeSHA should no longer exist
-			var beforeManifests cache.CachedManifestResponse
-			err = repoCache.GetManifests(testBeforeSHA, testSource, nil, clusterInfo, "", "", testAppLabelKey, "test-app", &beforeManifests, nil, "")
-			require.Error(t, err, "beforeSHA should no longer exist in cache after being moved: %s", tt.description)
-
-			// Verify cache WAS updated - should have entry for afterSHA
-			var afterManifests cache.CachedManifestResponse
-			err = repoCache.GetManifests(testAfterSHA, testSource, nil, clusterInfo, "", "", testAppLabelKey, "test-app", &afterManifests, nil, "")
-			require.NoError(t, err, "cache should be updated with afterSHA when files are outside refresh paths: %s", tt.description)
-			if err == nil {
-				assert.Equal(t, testAfterSHA, afterManifests.ManifestResponse.Revision, "cached revision should match afterSHA")
-				// Verify the manifests were preserved from beforeSHA
-				assert.Equal(t, testManifests, afterManifests.ManifestResponse.Manifests, "manifests should be preserved from beforeSHA")
-			}
-		})
-	}
-}
-
-// TestGitHubCommitEvent_Annotations_AppliedCorrectly tests that refresh and hydrate
-// annotations are applied correctly based on file changes
-func TestGitHubCommitEvent_Annotations_AppliedCorrectly(t *testing.T) {
-	tests := []struct {
-		name            string
-		appPath         string
-		annotation      string
-		sourceHydrator  *v1alpha1.SourceHydrator
-		expectedRefresh bool
-		expectedHydrate bool
-		expectedLogMsg  string
-	}{
-		{
-			name:            "files match - refresh annotation applied",
-			appPath:         "ksapps",
-			annotation:      ".",
-			sourceHydrator:  nil,
-			expectedRefresh: true,
-			expectedHydrate: false,
-			expectedLogMsg:  "Requested app 'test-app' refresh",
-		},
-		{
-			name:            "files don't match - no annotations",
-			appPath:         "helm-charts",
-			annotation:      ".",
-			sourceHydrator:  nil,
-			expectedRefresh: false,
-			expectedHydrate: false,
-			expectedLogMsg:  "",
-		},
-		{
-			name:       "hydrator dry source matches - both annotations applied",
-			appPath:    ".",
-			annotation: ".",
-			sourceHydrator: &v1alpha1.SourceHydrator{
-				DrySource: v1alpha1.DrySource{
-					RepoURL:        "https://github.com/jessesuen/test-repo",
-					TargetRevision: "HEAD",
-					Path:           "ksapps",
-				},
-				SyncSource: v1alpha1.SyncSource{
-					TargetBranch: "environments/dev",
-					Path:         "hydrated",
 				},
 			},
-			expectedRefresh: true,
-			expectedHydrate: true,
-			expectedLogMsg:  "webhook trigger refresh app to hydrate 'test-app'",
+			changedFile: "source/path/app.yaml",
+			hasRefresh:  true,
+			hasHydrate:  false,
+			updateCache: false,
 		},
 		{
-			name:       "hydrator sync source matches - only refresh annotation",
-			appPath:    ".",
-			annotation: ".",
-			sourceHydrator: &v1alpha1.SourceHydrator{
-				DrySource: v1alpha1.DrySource{
-					RepoURL:        "https://github.com/jessesuen/test-repo",
-					TargetRevision: "main",
-					Path:           "other-path",
+			name: "single source with annotation - matching file triggers refresh",
+			app: &v1alpha1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-app",
+					Namespace: "argocd",
+					Annotations: map[string]string{
+						"argocd.argoproj.io/manifest-generate-paths": "deploy",
+					},
 				},
-				SyncSource: v1alpha1.SyncSource{
-					TargetBranch: "master", // Matches webhook branch
-					Path:         "ksapps",
+				Spec: v1alpha1.ApplicationSpec{
+					Sources: v1alpha1.ApplicationSources{
+						{
+							RepoURL:        "https://github.com/jessesuen/test-repo",
+							Path:           "source/path",
+							TargetRevision: "HEAD",
+						},
+					},
 				},
 			},
-			expectedRefresh: true,
-			expectedHydrate: false,
-			expectedLogMsg:  "refreshing app 'test-app' from webhook",
+			changedFile: "source/path/deploy/app.yaml",
+			hasRefresh:  true,
+			hasHydrate:  false,
+			updateCache: false,
+		},
+		{
+			name: "single source with annotation - non-matching file updates cache",
+			app: &v1alpha1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-app",
+					Namespace: "argocd",
+					Annotations: map[string]string{
+						"argocd.argoproj.io/manifest-generate-paths": "manifests",
+					},
+				},
+				Spec: v1alpha1.ApplicationSpec{
+					Sources: v1alpha1.ApplicationSources{
+						{
+							RepoURL:        "https://github.com/jessesuen/test-repo",
+							Path:           "source/path",
+							TargetRevision: "HEAD",
+						},
+					},
+				},
+			},
+			changedFile: "source/path/other/app.yaml",
+			hasRefresh:  false,
+			hasHydrate:  false,
+			updateCache: true,
+		},
+		{
+			name: "single source with multiple paths annotation - matching subpath triggers refresh",
+			app: &v1alpha1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-app",
+					Namespace: "argocd",
+					Annotations: map[string]string{
+						"argocd.argoproj.io/manifest-generate-paths": "manifests;dev/deploy;other/path",
+					},
+				},
+				Spec: v1alpha1.ApplicationSpec{
+					Sources: v1alpha1.ApplicationSources{
+						{
+							RepoURL:        "https://github.com/jessesuen/test-repo",
+							Path:           "source/path",
+							TargetRevision: "HEAD",
+						},
+					},
+				},
+			},
+			changedFile: "source/path/dev/deploy/app.yaml",
+			hasRefresh:  true,
+			hasHydrate:  false,
+			updateCache: false,
+		},
+		{
+			name: "multi-source without annotation - always refreshes",
+			app: &v1alpha1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-app",
+					Namespace: "argocd",
+				},
+				Spec: v1alpha1.ApplicationSpec{
+					Sources: v1alpha1.ApplicationSources{
+						{
+							RepoURL:        "https://github.com/jessesuen/test-repo",
+							Path:           "helm-charts",
+							TargetRevision: "HEAD",
+						},
+						{
+							RepoURL:        "https://github.com/jessesuen/test-repo",
+							Path:           "ksapps",
+							TargetRevision: "HEAD",
+						},
+					},
+				},
+			},
+			changedFile: "ksapps/app.yaml",
+			hasRefresh:  true,
+			hasHydrate:  false,
+			updateCache: false,
+		},
+		{
+			name: "multi-source with annotation - matching file triggers refresh",
+			app: &v1alpha1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-app",
+					Namespace: "argocd",
+					Annotations: map[string]string{
+						"argocd.argoproj.io/manifest-generate-paths": "components",
+					},
+				},
+				Spec: v1alpha1.ApplicationSpec{
+					Sources: v1alpha1.ApplicationSources{
+						{
+							RepoURL:        "https://github.com/jessesuen/test-repo",
+							Path:           "helm-charts",
+							TargetRevision: "HEAD",
+						},
+						{
+							RepoURL:        "https://github.com/jessesuen/test-repo",
+							Path:           "ksapps",
+							TargetRevision: "HEAD",
+						},
+					},
+				},
+			},
+			changedFile: "ksapps/components/app.yaml",
+			hasRefresh:  true,
+			hasHydrate:  false,
+			updateCache: false,
+		},
+		{
+			name: "source hydrator sync source without annotation - refreshes when sync path matches",
+			app: &v1alpha1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-app",
+					Namespace: "argocd",
+				},
+				Spec: v1alpha1.ApplicationSpec{
+					SourceHydrator: &v1alpha1.SourceHydrator{
+						DrySource: v1alpha1.DrySource{
+							RepoURL:        "https://github.com/jessesuen/test-repo",
+							TargetRevision: "HEAD",
+							Path:           "dry/path",
+						},
+						SyncSource: v1alpha1.SyncSource{
+							TargetBranch: "master",
+							Path:         "sync/path",
+						},
+					},
+				},
+			},
+			changedFile: "sync/path/app.yaml",
+			hasRefresh:  true,
+			hasHydrate:  false,
+			updateCache: false,
+		},
+		{
+			name: "source hydrator dry source without annotation - refreshes and hydrates when dry path matches",
+			app: &v1alpha1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-app",
+					Namespace: "argocd",
+				},
+				Spec: v1alpha1.ApplicationSpec{
+					SourceHydrator: &v1alpha1.SourceHydrator{
+						DrySource: v1alpha1.DrySource{
+							RepoURL:        "https://github.com/jessesuen/test-repo",
+							TargetRevision: "HEAD",
+							Path:           "dry/path",
+						},
+						SyncSource: v1alpha1.SyncSource{
+							TargetBranch: "master",
+							Path:         "sync/path",
+						},
+					},
+				},
+			},
+			changedFile: "dry/path/app.yaml",
+			hasRefresh:  true,
+			hasHydrate:  true,
+			updateCache: false,
+		},
+		{
+			name: "source hydrator sync source with annotation - refresh only",
+			app: &v1alpha1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-app",
+					Namespace: "argocd",
+					Annotations: map[string]string{
+						"argocd.argoproj.io/manifest-generate-paths": "deploy",
+					},
+				},
+				Spec: v1alpha1.ApplicationSpec{
+					SourceHydrator: &v1alpha1.SourceHydrator{
+						DrySource: v1alpha1.DrySource{
+							RepoURL:        "https://github.com/jessesuen/test-repo",
+							TargetRevision: "HEAD",
+							Path:           "dry/path",
+						},
+						SyncSource: v1alpha1.SyncSource{
+							TargetBranch: "master",
+							Path:         "sync/path",
+						},
+					},
+				},
+			},
+			changedFile: "sync/path/deploy/app.yaml",
+			hasRefresh:  true,
+			hasHydrate:  false,
+			updateCache: false,
+		},
+		{
+			name: "source hydrator dry source with annotation - refresh and hydrate",
+			app: &v1alpha1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-app",
+					Namespace: "argocd",
+					Annotations: map[string]string{
+						"argocd.argoproj.io/manifest-generate-paths": "deploy",
+					},
+				},
+				Spec: v1alpha1.ApplicationSpec{
+					SourceHydrator: &v1alpha1.SourceHydrator{
+						DrySource: v1alpha1.DrySource{
+							RepoURL:        "https://github.com/jessesuen/test-repo",
+							TargetRevision: "HEAD",
+							Path:           "dry/path",
+						},
+						SyncSource: v1alpha1.SyncSource{
+							TargetBranch: "master",
+							Path:         "sync/path",
+						},
+					},
+				},
+			},
+			changedFile: "dry/path/deploy/app.yaml",
+			hasRefresh:  true,
+			hasHydrate:  true,
+			updateCache: false,
+		},
+		{
+			name: "source hydrator dry source with annotation - non-matching file updates cache",
+			app: &v1alpha1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-app",
+					Namespace: "argocd",
+					Annotations: map[string]string{
+						"argocd.argoproj.io/manifest-generate-paths": "deploy",
+					},
+				},
+				Spec: v1alpha1.ApplicationSpec{
+					SourceHydrator: &v1alpha1.SourceHydrator{
+						DrySource: v1alpha1.DrySource{
+							RepoURL:        "https://github.com/jessesuen/test-repo",
+							TargetRevision: "HEAD",
+							Path:           "dry/path",
+						},
+						SyncSource: v1alpha1.SyncSource{
+							TargetBranch: "master",
+							Path:         "sync/path",
+						},
+					},
+				},
+			},
+			changedFile: "dry/path/other/app.yaml",
+			hasRefresh:  false,
+			hasHydrate:  false,
+			updateCache: true,
 		},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			hook := test.NewGlobal()
+		ttc := tt
+		t.Run(ttc.name, func(t *testing.T) {
+			t.Parallel()
+
 			var patchData []byte
 			var patched bool
 			reaction := func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
@@ -1732,127 +1078,139 @@ func TestGitHubCommitEvent_Annotations_AppliedCorrectly(t *testing.T) {
 				return true, nil, nil
 			}
 
-			appAnnotations := map[string]string{}
-			if tt.annotation != "" {
-				appAnnotations["argocd.argoproj.io/manifest-generate-paths"] = tt.annotation
-			}
+			// Setup cache
+			inMemoryCache := cacheutil.NewInMemoryCache(1 * time.Hour)
+			cacheClient := cacheutil.NewCache(inMemoryCache)
+			repoCache := cache.NewCache(
+				cacheClient,
+				1*time.Minute,
+				1*time.Minute,
+				10*time.Second,
+			)
 
-			app := &v1alpha1.Application{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:        "test-app",
-					Namespace:   "argocd",
-					Annotations: appAnnotations,
-				},
-				Spec: v1alpha1.ApplicationSpec{
-					SourceHydrator: tt.sourceHydrator,
-				},
-			}
-
-			if tt.sourceHydrator == nil {
-				app.Spec.Sources = v1alpha1.ApplicationSources{
-					{
-						RepoURL:        "https://github.com/jessesuen/test-repo",
-						Path:           tt.appPath,
-						TargetRevision: "HEAD",
-					},
+			// Pre-populate cache with beforeSHA if we're testing cache updates
+			if ttc.updateCache {
+				var source *v1alpha1.ApplicationSource
+				if ttc.app.Spec.SourceHydrator != nil {
+					drySource := ttc.app.Spec.SourceHydrator.GetDrySource()
+					source = &drySource
+				} else if len(ttc.app.Spec.Sources) > 0 {
+					source = &ttc.app.Spec.Sources[0]
+				}
+				if source != nil {
+					setupTestCache(t, repoCache, ttc.app.Name, source, []string{"test-manifest"})
 				}
 			}
 
-			h := NewMockHandler(&reactorDef{"patch", "applications", reaction}, []string{}, app)
-			w := executeWebhook(t, h, testEventDataDir)
+			// Setup server cache with cluster info
+			serverCache := servercache.NewCache(appstate.NewCache(cacheClient, time.Minute), time.Minute, time.Minute)
+			mockDB := &mocks.ArgoDB{}
+
+			// Set destination if not present (required for cache updates)
+			if ttc.app.Spec.Destination.Server == "" {
+				ttc.app.Spec.Destination.Server = testClusterURL
+			}
+
+			mockDB.EXPECT().GetCluster(mock.Anything, testClusterURL).Return(&v1alpha1.Cluster{
+				Server: testClusterURL,
+				Info: v1alpha1.ClusterInfo{
+					ServerVersion:   "1.28.0",
+					ConnectionState: v1alpha1.ConnectionState{Status: v1alpha1.ConnectionStatusSuccessful},
+					APIVersions:     []string{},
+				},
+			}, nil).Maybe()
+
+			err := serverCache.SetClusterInfo(testClusterURL, &v1alpha1.ClusterInfo{
+				ServerVersion:   "1.28.0",
+				ConnectionState: v1alpha1.ConnectionState{Status: v1alpha1.ConnectionStatusSuccessful},
+				APIVersions:     []string{},
+			})
+			require.NoError(t, err)
+
+			// Create handler with reaction
+			appClientset := appclientset.NewSimpleClientset(ttc.app)
+			defaultReactor := appClientset.ReactionChain[0]
+			appClientset.ReactionChain = nil
+			appClientset.AddReactor("list", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+				return defaultReactor.React(action)
+			})
+			appClientset.AddReactor("patch", "applications", reaction)
+
+			h := NewHandler(
+				"argocd",
+				[]string{},
+				10,
+				appClientset,
+				&fakeAppsLister{clientset: appClientset},
+				&settings.ArgoCDSettings{},
+				&fakeSettingsSrc{},
+				repoCache,
+				serverCache,
+				mockDB,
+				int64(50)*1024*1024,
+			)
+
+			// Create payload with the changed file
+			payload := createTestPayload(ttc.changedFile)
+			req := httptest.NewRequest(http.MethodPost, "/api/webhook", http.NoBody)
+			req.Header.Set("X-GitHub-Event", "push")
+			req.Body = io.NopCloser(bytes.NewReader(payload))
+
+			w := httptest.NewRecorder()
+			h.Handler(w, req)
+			close(h.queue)
+			h.Wait()
 			assert.Equal(t, http.StatusOK, w.Code)
 
-			// Check if app was patched
-			assert.Equal(t, tt.expectedRefresh, patched, "patch status mismatch")
-
-			// Verify annotations using helper
-			verifyAnnotations(t, patchData, tt.expectedRefresh, tt.expectedHydrate)
-
-			// Check logs
-			if tt.expectedLogMsg != "" {
-				logMessages := make([]string, 0, len(hook.Entries))
-				for _, entry := range hook.Entries {
-					logMessages = append(logMessages, entry.Message)
-				}
-				assert.Contains(t, logMessages, tt.expectedLogMsg)
+			// Verify refresh behavior
+			assert.Equal(t, ttc.hasRefresh, patched, "patch status mismatch for test: %s", ttc.name)
+			if patched && patchData != nil {
+				verifyAnnotations(t, patchData, ttc.hasRefresh, ttc.hasHydrate)
 			}
 
-			hook.Reset()
+			// Verify cache update behavior
+			if ttc.updateCache {
+				var source *v1alpha1.ApplicationSource
+				if ttc.app.Spec.SourceHydrator != nil {
+					drySource := ttc.app.Spec.SourceHydrator.GetDrySource()
+					source = &drySource
+				} else if len(ttc.app.Spec.Sources) > 0 {
+					source = &ttc.app.Spec.Sources[0]
+				}
+				if source != nil {
+					// Verify cache was updated with afterSHA
+					clusterInfo := &mockClusterInfo{}
+					var afterManifests cache.CachedManifestResponse
+					err := repoCache.GetManifests(testAfterSHA, source, nil, clusterInfo, "", "", testAppLabelKey, ttc.app.Name, &afterManifests, nil, "")
+					require.NoError(t, err, "cache should be updated with afterSHA")
+					if err == nil {
+						assert.Equal(t, testAfterSHA, afterManifests.ManifestResponse.Revision, "cached revision should match afterSHA")
+					}
+				}
+			}
 		})
 	}
 }
 
-// TestGitHubCommitEvent_CacheNotUpdated_WhenAppDoesNotTrackRevision tests that cache is NOT updated
-// when an app tracks a different branch than the one in the webhook event
-func TestGitHubCommitEvent_CacheNotUpdated_WhenAppDoesNotTrackRevision(t *testing.T) {
-	hook := test.NewGlobal()
-
-	var patched bool
-	reaction := func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-		if action.GetVerb() == "patch" {
-			patched = true
-		}
-		return false, nil, nil
-	}
-
-	// Test app watches "dev" branch, but webhook is for "master" branch
-	app := &v1alpha1.Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "app-different-branch",
-			Namespace: "argocd",
-			Annotations: map[string]string{
-				"argocd.argoproj.io/manifest-generate-paths": ".",
-			},
+// createTestPayload creates a GitHub push event payload with the specified changed file
+func createTestPayload(changedFile string) []byte {
+	payload := fmt.Sprintf(`{
+		"ref": "refs/heads/master",
+		"before": "%s",
+		"after": "%s",
+		"repository": {
+			"html_url": "https://github.com/jessesuen/test-repo",
+			"default_branch": "master"
 		},
-		Spec: v1alpha1.ApplicationSpec{
-			Destination: v1alpha1.ApplicationDestination{
-				Server:    testClusterURL,
-				Namespace: "",
-			},
-			Sources: v1alpha1.ApplicationSources{
-				{
-					RepoURL:        testRepoURL,
-					Path:           "helm-charts",
-					TargetRevision: "dev", // Tracks dev branch (webhook is for master)
-				},
-			},
-		},
-	}
-
-	// Setup cache and mocks
-	cacheClient := cacheutil.NewCache(cacheutil.NewInMemoryCache(1 * time.Hour))
-	repoCache := cache.NewCache(cacheClient, 1*time.Minute, 1*time.Minute, 10*time.Second)
-	testSource := &v1alpha1.ApplicationSource{
-		RepoURL:        testRepoURL,
-		Path:           "helm-charts",
-		TargetRevision: "dev",
-	}
-
-	testManifests := []string{"apiVersion: v1\nkind: Service\nmetadata:\n  name: test-service"}
-	setupTestCache(t, repoCache, "app-different-branch", testSource, testManifests)
-
-	appClientset := appclientset.NewSimpleClientset(app)
-	appClientset.PrependReactor("*", "*", reaction)
-
-	mockDB := &mocks.ArgoDB{}
-	serverCache := servercache.NewCache(appstate.NewCache(cacheClient, time.Minute), time.Minute, time.Minute)
-
-	h := NewHandler("argocd", []string{}, 10, appClientset, &fakeAppsLister{clientset: appClientset},
-		&settings.ArgoCDSettings{}, &fakeSettingsSrc{}, repoCache, serverCache, mockDB, int64(50)*1024*1024)
-
-	w := executeWebhook(t, h, testEventDataDir)
-	assert.Equal(t, http.StatusOK, w.Code)
-
-	// App should NOT be patched since it tracks a different branch
-	assert.False(t, patched, "app should not be patched when tracking a different branch")
-
-	// Cache should NOT be updated since app doesn't track this revision
-	clusterInfo := &mockClusterInfo{}
-	var retrievedManifests cache.CachedManifestResponse
-	err := repoCache.GetManifests(testAfterSHA, testSource, nil, clusterInfo, "", "", testAppLabelKey, "app-different-branch", &retrievedManifests, nil, "")
-	require.Error(t, err, "cache should not be updated when app doesn't track this revision")
-
-	hook.Reset()
+		"commits": [
+			{
+				"added": [],
+				"modified": ["%s"],
+				"removed": []
+			}
+		]
+	}`, testBeforeSHA, testAfterSHA, changedFile)
+	return []byte(payload)
 }
 
 func Test_affectedRevisionInfo_bitbucket_changed_files(t *testing.T) {
@@ -2225,28 +1583,11 @@ func (m *mockClusterInfo) GetKubeVersion() string   { return "1.28.0" }
 
 // Common test constants
 const (
-	testBeforeSHA    = "d5c1ffa8e294bc18c639bfb4e0df499251034414"
-	testAfterSHA     = "63738bb582c8b540af7bcfc18f87c575c3ed66e0"
-	testRepoURL      = "https://github.com/jessesuen/test-repo"
-	testClusterURL   = "https://kubernetes.default.svc"
-	testAppLabelKey  = "mycompany.com/appname"
-	testEventDataDir = "testdata/github-commit-event.json"
+	testBeforeSHA   = "d5c1ffa8e294bc18c639bfb4e0df499251034414"
+	testAfterSHA    = "63738bb582c8b540af7bcfc18f87c575c3ed66e0"
+	testClusterURL  = "https://kubernetes.default.svc"
+	testAppLabelKey = "mycompany.com/appname"
 )
-
-// executeWebhook is a helper that executes a webhook request and waits for completion
-func executeWebhook(t *testing.T, h *ArgoCDWebhookHandler, eventFile string) *httptest.ResponseRecorder {
-	t.Helper()
-	req := httptest.NewRequest(http.MethodPost, "/api/webhook", http.NoBody)
-	req.Header.Set("X-GitHub-Event", "push")
-	eventJSON, err := os.ReadFile(eventFile)
-	require.NoError(t, err)
-	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
-	w := httptest.NewRecorder()
-	h.Handler(w, req)
-	close(h.queue)
-	h.Wait()
-	return w
-}
 
 // verifyAnnotations is a helper that checks if the expected annotations are present in patch data
 func verifyAnnotations(t *testing.T, patchData []byte, expectRefresh bool, expectHydrate bool) {

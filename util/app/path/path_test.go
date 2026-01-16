@@ -135,7 +135,7 @@ func getSourceHydratorApp(annotation *string, drySourcePath string, syncSourcePa
 	return app
 }
 
-func Test_GetAppRefreshPaths2(t *testing.T) {
+func Test_GetAppRefreshPaths(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
