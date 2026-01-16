@@ -26,11 +26,13 @@ func TestConversionWebhookRefreshBehavior(t *testing.T) {
 
 	// Initialize test framework and create app first (without CRD yet)
 	t.Log("📱 Creating app WITHOUT autosync using v1 and v2 resources")
-	Given(t).
+	ctx := Given(t).
 		Name(crdAppName).
 		Path("conversion-webhook-test/resources"). // Has v1 and v2 Example resources + ConfigMap
 		When().
-		CreateApp()
+		CreateApp().
+		Then().
+		Given()
 
 	// CRITICAL: Set up cleanup to fix the broken webhook BEFORE automatic CRD deletion
 	// This prevents the test from hanging during cleanup
@@ -51,7 +53,7 @@ func TestConversionWebhookRefreshBehavior(t *testing.T) {
 
 	// Step 2: Now sync the app with the CRD in place
 	t.Log("📚 Syncing app now that CRD is available")
-	GivenWithSameState(t).
+	GivenWithSameState(ctx).
 		Name(crdAppName).
 		When().
 		Sync().
@@ -73,7 +75,7 @@ func TestConversionWebhookRefreshBehavior(t *testing.T) {
 
 	// Step 4: Trigger REFRESH (not sync!)
 	t.Log("🔄 Triggering REFRESH (not sync) of the application")
-	GivenWithSameState(t).
+	GivenWithSameState(ctx).
 		Name(crdAppName).
 		When().
 		Refresh(RefreshTypeHard)
@@ -84,7 +86,7 @@ func TestConversionWebhookRefreshBehavior(t *testing.T) {
 	// Step 5: Evaluate the state of the app and resource tree
 	t.Log("🔍 Evaluating app state after refresh with broken webhook")
 
-	GivenWithSameState(t).
+	GivenWithSameState(ctx).
 		Name(crdAppName).
 		When().
 		Then().
