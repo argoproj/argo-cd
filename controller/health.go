@@ -2,6 +2,7 @@ package controller
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
 	hookutil "github.com/argoproj/gitops-engine/pkg/sync/hook"
@@ -27,9 +28,6 @@ func setApplicationHealth(resources []managedResource, statuses []appv1.Resource
 		if res.Target != nil && hookutil.Skip(res.Target) {
 			continue
 		}
-		if res.Live != nil && res.Live.GetAnnotations() != nil && res.Live.GetAnnotations()[common.AnnotationIgnoreHealthCheck] == "true" {
-			continue
-		}
 		if res.Live != nil && (hookutil.IsHook(res.Live) || ignore.Ignore(res.Live)) {
 			continue
 		}
@@ -46,10 +44,9 @@ func setApplicationHealth(resources []managedResource, statuses []appv1.Resource
 				continue
 			}
 			healthStatus, err = health.GetResourceHealth(res.Live, healthOverrides)
-			if err != nil && savedErr == nil {
+			if err != nil {
 				errCount++
 				savedErr = fmt.Errorf("failed to get resource health for %q with name %q in namespace %q: %w", res.Live.GetKind(), res.Live.GetName(), res.Live.GetNamespace(), err)
-				// also log so we don't lose the message
 				log.WithFields(applog.GetAppLogFields(app)).Warn(savedErr)
 			}
 		}
@@ -75,8 +72,36 @@ func setApplicationHealth(resources []managedResource, statuses []appv1.Resource
 			continue
 		}
 
-		if health.IsWorse(appHealthStatus, healthStatus.Status) {
-			appHealthStatus = healthStatus.Status
+		// Use AggregateAs status if specified, otherwise use the resource status
+		aggregationStatus := healthStatus.AggregateAs
+		if aggregationStatus == "" {
+			aggregationStatus = healthStatus.Status
+		}
+
+		// Check if resource has annotation override
+		if res.Live != nil && res.Live.GetAnnotations() != nil {
+			// Ignore check from aggregation if annotation is set
+			if res.Live.GetAnnotations()[common.AnnotationIgnoreHealthCheck] == "true" {
+				continue
+			}
+			// Apply health aggregate overrides if annotation is set
+			if overrideStr, ok := res.Live.GetAnnotations()[common.AnnotationHealthAggregateOverrides]; ok {
+				overrideMap, err := parseHealthAggregateOverrides(overrideStr)
+				if err != nil {
+					errCount++
+					savedErr = fmt.Errorf("failed to parse health aggregate overrides annotation for %q with name %q in namespace %q: %w", res.Live.GetKind(), res.Live.GetName(), res.Live.GetNamespace(), err)
+					log.WithFields(applog.GetAppLogFields(app)).Warn(savedErr)
+					continue
+				}
+				// Apply the overrides to the current resource health status
+				if mapped, ok := overrideMap[string(healthStatus.Status)]; ok {
+					aggregationStatus = mapped
+				}
+			}
+		}
+
+		if health.IsWorse(appHealthStatus, aggregationStatus) {
+			appHealthStatus = aggregationStatus
 		}
 	}
 	if persistResourceHealth {
@@ -88,4 +113,42 @@ func setApplicationHealth(resources []managedResource, statuses []appv1.Resource
 		savedErr = fmt.Errorf("see application-controller logs for %d other errors; most recent error was: %w", errCount-1, savedErr)
 	}
 	return appHealthStatus, savedErr
+}
+
+// parseHealthAggregateOverrides parses the health aggregate overrides annotation
+// Format: "SourceStatus=TargetStatus" or "Status1=Target1,Status2=Target2"
+// Returns a map of source status to target status
+func parseHealthAggregateOverrides(overrideStr string) (map[string]health.HealthStatusCode, error) {
+	result := make(map[string]health.HealthStatusCode)
+
+	if overrideStr == "" {
+		return result, nil
+	}
+
+	// Split by comma for multiple mappings
+	mappings := strings.Split(overrideStr, ",")
+
+	for _, mapping := range mappings {
+		mapping = strings.TrimSpace(mapping)
+		if mapping == "" {
+			continue
+		}
+
+		// Split by equals sign
+		parts := strings.Split(mapping, "=")
+		if len(parts) != 2 {
+			return nil, fmt.Errorf("invalid mapping format: %s (expected SourceStatus=TargetStatus)", mapping)
+		}
+
+		sourceStatus := strings.TrimSpace(parts[0])
+		targetStatus := strings.TrimSpace(parts[1])
+
+		if sourceStatus == "" || targetStatus == "" {
+			return nil, fmt.Errorf("invalid mapping format: %s (source and target cannot be empty)", mapping)
+		}
+
+		result[sourceStatus] = health.HealthStatusCode(targetStatus)
+	}
+
+	return result, nil
 }

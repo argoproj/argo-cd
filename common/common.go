@@ -211,6 +211,10 @@ const (
 	// can be disregarded.
 	AnnotationIgnoreHealthCheck = "argocd.argoproj.io/ignore-healthcheck"
 
+	// AnnotationHealthAggregateOverrides allows overriding how a resource's health status is aggregated
+	// into Application health. Format: "SourceStatus=TargetStatus" or "Status1=Target1,Status2=Target2"
+	AnnotationHealthAggregateOverrides = "argocd.argoproj.io/health-aggregate-overrides"
+
 	// AnnotationKeyManagedBy is annotation name which indicates that k8s resource is managed by an application.
 	AnnotationKeyManagedBy = "managed-by"
 	// AnnotationValueManagedByArgoCD is a 'managed-by' annotation value for resources managed by Argo CD
