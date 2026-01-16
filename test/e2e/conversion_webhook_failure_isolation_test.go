@@ -23,7 +23,7 @@ func TestConversionWebhookFailureIsolation(t *testing.T) {
 	// Step 1: Bring up working app that will NOT be impacted (to test isolation)
 	isolatedAppName := "isolated-guestbook-app"
 	t.Log("📱 Creating isolated app (will NOT be impacted)")
-	Given(t).
+	ctx := Given(t).
 		Name(isolatedAppName).
 		Path("guestbook"). // Standard Kubernetes resources
 		When().
@@ -32,7 +32,8 @@ func TestConversionWebhookFailureIsolation(t *testing.T) {
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(HealthIs(health.HealthStatusHealthy)).
-		Expect(SyncStatusIs(SyncStatusCodeSynced))
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Given()
 
 	// Step 2: Set up CRD first, then create app that uses it
 	crdAppName := "crd-using-app"
@@ -43,7 +44,7 @@ func TestConversionWebhookFailureIsolation(t *testing.T) {
 	time.Sleep(10 * time.Second)
 
 	t.Log("📱 Creating CRD-using app (will be impacted)")
-	GivenWithSameState(t).
+	GivenWithSameState(ctx).
 		Name(crdAppName).
 		Path("conversion-webhook-test/resources"). // Only the resources, not the CRD
 		When().
@@ -67,12 +68,12 @@ func TestConversionWebhookFailureIsolation(t *testing.T) {
 
 	// Step 5: Trigger hard refresh of both apps
 	t.Log("🔄 Triggering hard refresh of both applications")
-	GivenWithSameState(t).
+	GivenWithSameState(ctx).
 		Name(crdAppName).
 		When().
 		Refresh(RefreshTypeHard)
 
-	GivenWithSameState(t).
+	GivenWithSameState(ctx).
 		Name(isolatedAppName).
 		When().
 		Refresh(RefreshTypeHard)
@@ -82,7 +83,7 @@ func TestConversionWebhookFailureIsolation(t *testing.T) {
 
 	// Step 5b: Trigger sync of CRD app to force conversion webhook failure
 	t.Log("🔄 Triggering sync of CRD app to encounter conversion webhook failure")
-	GivenWithSameState(t).
+	GivenWithSameState(ctx).
 		Name(crdAppName).
 		When().
 		IgnoreErrors().
@@ -102,7 +103,7 @@ func TestConversionWebhookFailureIsolation(t *testing.T) {
 
 	// Step 7: Validate that unimpacted app is not affected
 	t.Log("🔍 Validating isolated app is not impacted")
-	GivenWithSameState(t).
+	GivenWithSameState(ctx).
 		Name(isolatedAppName).
 		When().
 		Then().
@@ -127,7 +128,7 @@ func TestConversionWebhookFailureIsolation(t *testing.T) {
 
 	// Step 9: Trigger hard refresh of CRD app after fix to re-evaluate tainted GVKs
 	t.Log("🔄 Triggering hard refresh of CRD app after fix to re-evaluate tainted GVKs")
-	GivenWithSameState(t).
+	GivenWithSameState(ctx).
 		Name(crdAppName).
 		When().
 		Refresh(RefreshTypeHard)
@@ -137,7 +138,7 @@ func TestConversionWebhookFailureIsolation(t *testing.T) {
 
 	// Step 10: Trigger sync of CRD app after taint validation to recover
 	t.Log("🔄 Triggering sync of CRD app after taint validation to recover")
-	GivenWithSameState(t).
+	GivenWithSameState(ctx).
 		Name(crdAppName).
 		When().
 		Sync().
@@ -146,7 +147,7 @@ func TestConversionWebhookFailureIsolation(t *testing.T) {
 		Expect(HealthIs(health.HealthStatusHealthy))
 
 	// Also refresh isolated app to confirm it's still healthy
-	GivenWithSameState(t).
+	GivenWithSameState(ctx).
 		Name(isolatedAppName).
 		When().
 		Refresh(RefreshTypeNormal)
@@ -156,7 +157,7 @@ func TestConversionWebhookFailureIsolation(t *testing.T) {
 
 	// Step 11: Validate that isolated app remains healthy after recovery
 	t.Log("🔍 Validating isolated app remains healthy after recovery")
-	GivenWithSameState(t).
+	GivenWithSameState(ctx).
 		Name(isolatedAppName).
 		When().
 		Then().

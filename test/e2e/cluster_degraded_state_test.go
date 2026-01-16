@@ -17,14 +17,13 @@ import (
 // it shows as degraded in the API and contains the failedResourceGVKs
 func TestClusterDegradedState(t *testing.T) {
 	// Create a test cluster - use Given() to set up clean state
-	clusterFixture.
+	clusterCtx := clusterFixture.
 		Given(t).
 		Name("test-degraded").
 		Project(fixture.ProjectName).
 		Upsert(true).
-		Server(KubernetesInternalAPIServerAddr).
-		When().
-		CreateWithRBAC()
+		Server(KubernetesInternalAPIServerAddr)
+	clusterCtx.When().CreateWithRBAC()
 
 	// Wait for the cluster to be registered and synced, and for cache invalidation to fully take effect
 	time.Sleep(5 * time.Second)
@@ -43,7 +42,7 @@ func TestClusterDegradedState(t *testing.T) {
 	// Create an ArgoCD application that manages the conversion webhook resources
 	// This ensures ArgoCD has ownership and will attempt to list the GVK
 	t.Log("📱 Creating ArgoCD application to manage conversion webhook resources")
-	GivenWithSameState(t).
+	GivenWithSameState(clusterCtx).
 		Path("conversion-webhook-test/resources").
 		When().
 		CreateApp().
@@ -68,7 +67,7 @@ func TestClusterDegradedState(t *testing.T) {
 
 	// Follow up with application hard refresh to force cache sync and trigger conversion webhook failure detection
 	t.Log("🔄 Hard refreshing application to force re-examination of conversion webhook GVKs")
-	GivenWithSameState(t).
+	GivenWithSameState(clusterCtx).
 		When().
 		Refresh(RefreshTypeHard)
 
@@ -91,14 +90,13 @@ func TestClusterDegradedState(t *testing.T) {
 // it transitions back to healthy and clears the failedResourceGVKs
 func TestClusterDegradedStateRecovery(t *testing.T) {
 	// Create a test cluster
-	clusterFixture.
+	clusterCtx := clusterFixture.
 		Given(t).
 		Name("test-recovery").
 		Project(fixture.ProjectName).
 		Upsert(true).
-		Server(KubernetesInternalAPIServerAddr).
-		When().
-		CreateWithRBAC()
+		Server(KubernetesInternalAPIServerAddr)
+	clusterCtx.When().CreateWithRBAC()
 
 	// Wait for the cluster to be registered and synced
 	time.Sleep(2 * time.Second)
@@ -114,7 +112,7 @@ func TestClusterDegradedStateRecovery(t *testing.T) {
 	// Create an ArgoCD application that manages the conversion webhook resources
 	// This ensures ArgoCD has ownership and will attempt to list the GVK
 	t.Log("📱 Creating ArgoCD application to manage conversion webhook resources")
-	GivenWithSameState(t).
+	GivenWithSameState(clusterCtx).
 		Path("conversion-webhook-test/resources").
 		When().
 		CreateApp().
@@ -139,7 +137,7 @@ func TestClusterDegradedStateRecovery(t *testing.T) {
 
 	// Follow up with application hard refresh to force cache sync and trigger conversion webhook failure detection
 	t.Log("🔄 Hard refreshing application to force re-examination of conversion webhook GVKs")
-	GivenWithSameState(t).
+	GivenWithSameState(clusterCtx).
 		When().
 		Refresh(RefreshTypeHard)
 
@@ -162,7 +160,7 @@ func TestClusterDegradedStateRecovery(t *testing.T) {
 
 	// Follow up with application hard refresh to force cache sync and trigger recovery detection
 	t.Log("🔄 Hard refreshing application to force re-examination of fixed GVKs")
-	GivenWithSameState(t).
+	GivenWithSameState(clusterCtx).
 		When().
 		Refresh(RefreshTypeHard)
 
