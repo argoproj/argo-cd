@@ -90,6 +90,7 @@ func NewApplicationGetResourceCommand(clientOpts *argocdclient.ClientOptions) *c
 		// If resource name is "" find all resources of that kind
 		var resources []unstructured.Unstructured
 		var fetchedStr string
+		var fetchedStrSb91 strings.Builder
 		for _, r := range tree.Nodes {
 			if (resourceName != "" && r.Name != resourceName) || (group != "" && r.Group != group) || r.Kind != kind {
 				continue
@@ -119,9 +120,10 @@ func NewApplicationGetResourceCommand(clientOpts *argocdclient.ClientOptions) *c
 				obj = filterFieldsFromObject(obj, filteredFields)
 			}
 
-			fetchedStr += obj.GetName() + ", "
+			fetchedStrSb91.WriteString(obj.GetName() + ", ")
 			resources = append(resources, *obj)
 		}
+		fetchedStr += fetchedStrSb91.String()
 		printManifests(&resources, len(filteredFields) > 0, resourceName == "", output)
 
 		if fetchedStr != "" {
