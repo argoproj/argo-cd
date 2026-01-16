@@ -2,7 +2,6 @@ package sourceintegrity
 
 import (
 	"fmt"
-	"strings"
 	"testing"
 
 	"github.com/sirupsen/logrus"
@@ -221,11 +220,9 @@ func TestComparingWithGPGFingerprint(t *testing.T) {
 	require.True(t, IsLongKeyID(fingerprint))
 
 	gitClient := &gitmocks.Client{}
-	gitClient.EXPECT().IsAnnotatedTag(mock.Anything).Return(true)
-	gitClient.EXPECT().CommitSHA().Return("ignored", nil)
-	gitClient.EXPECT().TagSignature(mock.Anything).Return(&git.RevisionSignatureInfo{
+	gitClient.EXPECT().LsSignatures(mock.Anything, mock.Anything).Return([]git.RevisionSignatureInfo{{
 		Revision: "1.0", VerificationResult: git.GPGVerificationResultGood, SignatureKeyID: shortKey, Date: "ignored", AuthorIdentity: "ignored",
-	}, nil)
+	}}, nil)
 
 	gpgWithTag := &v1alpha1.SourceIntegrityGitPolicyGPG{Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeHead, Keys: []string{fingerprint}}
 	// And verifying a given revision
@@ -247,18 +244,14 @@ func TestGPGHeadValid(t *testing.T) {
 		{
 			revision: sha,
 			check: func(gitClient *gitmocks.Client, logger utilTest.LogHook) {
-				gitClient.AssertCalled(t, "IsAnnotatedTag", sha)
 				gitClient.AssertCalled(t, "LsSignatures", sha, false)
-				gitClient.AssertNotCalled(t, "TagSignature", mock.Anything)
 				assert.Empty(t, logger.GetEntries())
 			},
 		},
 		{
 			revision: tag,
 			check: func(gitClient *gitmocks.Client, logger utilTest.LogHook) {
-				gitClient.AssertCalled(t, "IsAnnotatedTag", tag)
-				gitClient.AssertCalled(t, "TagSignature", tag)
-				gitClient.AssertNotCalled(t, "LsSignatures", mock.Anything, mock.Anything)
+				gitClient.AssertCalled(t, "LsSignatures", tag, false)
 				assert.Empty(t, logger.GetEntries())
 			},
 		},
@@ -268,17 +261,10 @@ func TestGPGHeadValid(t *testing.T) {
 		t.Run("verify "+test.revision, func(t *testing.T) {
 			// Given repo with a tagged commit
 			gitClient := &gitmocks.Client{}
-			gitClient.EXPECT().CommitSHA().RunAndReturn(func() (string, error) { return sha, nil })
-			gitClient.EXPECT().IsAnnotatedTag(mock.Anything).RunAndReturn(func(s string) bool { return tag == s })
 			gitClient.EXPECT().LsSignatures(mock.Anything, mock.Anything).RunAndReturn(func(revision string, _ bool) ([]git.RevisionSignatureInfo, error) {
 				return []git.RevisionSignatureInfo{{
 					Revision: revision, VerificationResult: git.GPGVerificationResultGood, SignatureKeyID: keyId, Date: "ignored", AuthorIdentity: "ignored",
 				}}, nil
-			})
-			gitClient.EXPECT().TagSignature(mock.Anything).RunAndReturn(func(revision string) (*git.RevisionSignatureInfo, error) {
-				return &git.RevisionSignatureInfo{
-					Revision: revision, VerificationResult: git.GPGVerificationResultGood, SignatureKeyID: keyId, Date: "ignored", AuthorIdentity: "ignored",
-				}, nil
 			})
 
 			logger := utilTest.LogHook{}
@@ -286,7 +272,10 @@ func TestGPGHeadValid(t *testing.T) {
 			t.Cleanup(logger.CleanupHook)
 
 			// When using head mode
-			gpgWithTag := &v1alpha1.SourceIntegrityGitPolicyGPG{Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeHead, Keys: []string{keyId, "0000000000000000"}}
+			gpgWithTag := &v1alpha1.SourceIntegrityGitPolicyGPG{
+				Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeHead,
+				Keys: []string{keyId, "0000000000000000"},
+			}
 			// And verifying a given revision
 			result, err := verify(gpgWithTag, gitClient, test.revision)
 			require.NoError(t, err)
@@ -411,33 +400,47 @@ func TestGPGStrictValid(t *testing.T) {
 	const tagFirst = "tag-first"
 	const tagSecond = "tag-second"
 	const tagThird = "tag-third"
-	tag2commit := map[string]string{
-		tagFirst:  shaFirst,
-		tagSecond: shaSecond,
-		tagThird:  shaThird,
-	}
+
 	const keyOfThird = "9c698b961c1088db"
 	const keyOfSecond = "f4b9db205449e1d9"
 	const keyOfFirst = "92bfcec2e8161558"
-	rsi3 := git.RevisionSignatureInfo{
-		Revision: shaThird, VerificationResult: git.GPGVerificationResultGood,
-		SignatureKeyID: keyOfThird, Date: "ignored", AuthorIdentity: "ignored",
+
+	rsi := func(rev string, key string) git.RevisionSignatureInfo {
+		return git.RevisionSignatureInfo{
+			Revision:           rev,
+			VerificationResult: git.GPGVerificationResultGood,
+			SignatureKeyID:     key,
+			Date:               "ignored",
+			AuthorIdentity:     "ignored",
+		}
 	}
-	rsi2 := git.RevisionSignatureInfo{
-		Revision: shaSecond, VerificationResult: git.GPGVerificationResultGood,
-		SignatureKeyID: keyOfSecond, Date: "ignored", AuthorIdentity: "ignored",
-	}
-	rsi1 := git.RevisionSignatureInfo{
-		Revision: shaFirst, VerificationResult: git.GPGVerificationResultGood,
-		SignatureKeyID: keyOfFirst, Date: "ignored", AuthorIdentity: "ignored",
+	// To be resolved as lsSignatures[deep][revision]
+	lsSignatures := map[bool]map[string][]git.RevisionSignatureInfo{
+		// Return info for all preceding revisions. If revision is a tag, start with a tag.
+		true: {
+			shaFirst:  []git.RevisionSignatureInfo{rsi(shaFirst, keyOfFirst)},
+			tagFirst:  []git.RevisionSignatureInfo{rsi(tagFirst, keyOfFirst), rsi(tagFirst, keyOfFirst)},
+			shaSecond: []git.RevisionSignatureInfo{rsi(shaSecond, keyOfSecond), rsi(shaFirst, keyOfFirst)},
+			tagSecond: []git.RevisionSignatureInfo{rsi(tagSecond, keyOfSecond), rsi(shaSecond, keyOfSecond), rsi(shaFirst, keyOfFirst)},
+			shaThird:  []git.RevisionSignatureInfo{rsi(shaThird, keyOfThird), rsi(shaSecond, keyOfSecond), rsi(shaFirst, keyOfFirst)},
+			tagThird:  []git.RevisionSignatureInfo{rsi(tagThird, keyOfThird), rsi(shaThird, keyOfThird), rsi(shaSecond, keyOfSecond), rsi(shaFirst, keyOfFirst)},
+		},
+		// Return info for just the tag or revision
+		false: {
+			shaFirst:  []git.RevisionSignatureInfo{rsi(shaFirst, keyOfFirst)},
+			tagFirst:  []git.RevisionSignatureInfo{rsi(tagFirst, keyOfFirst)},
+			shaSecond: []git.RevisionSignatureInfo{rsi(shaSecond, keyOfSecond)},
+			tagSecond: []git.RevisionSignatureInfo{rsi(tagSecond, keyOfSecond)},
+			shaThird:  []git.RevisionSignatureInfo{rsi(shaThird, keyOfThird)},
+			tagThird:  []git.RevisionSignatureInfo{rsi(tagThird, keyOfThird)},
+		},
 	}
 
 	tests := []struct {
-		revision        string
-		expectedErr     string
-		expectedPassed  []string
-		expectedTagArgs []any
-		expectedLsArgs  []any
+		revision       string
+		expectedErr    string
+		expectedPassed []string
+		expectedLsArgs []any
 	}{
 		{
 			revision:       shaFirst,
@@ -456,24 +459,21 @@ func TestGPGStrictValid(t *testing.T) {
 			expectedLsArgs: []any{shaThird, true},
 		},
 		{
-			revision:        tagFirst,
-			expectedPassed:  []string{"GIT/GPG"},
-			expectedTagArgs: []any{tagFirst},
-			expectedLsArgs:  []any{shaFirst, true},
+			revision:       tagFirst,
+			expectedPassed: []string{"GIT/GPG"},
+			expectedLsArgs: []any{shaFirst, true},
 		},
 		{
-			revision:        tagSecond,
-			expectedPassed:  []string{"GIT/GPG"},
-			expectedTagArgs: []any{tagSecond},
-			expectedLsArgs:  []any{shaSecond, true},
+			revision:       tagSecond,
+			expectedPassed: []string{"GIT/GPG"},
+			expectedLsArgs: []any{shaSecond, true},
 		},
 		{
 			revision:       tagThird,
 			expectedPassed: []string{},
 			expectedErr: fmt.Sprintf(`GIT/GPG: Failed verifying revision %s by 'ignored': signed with unallowed key (key_id=%s)
 GIT/GPG: Failed verifying revision %s by 'ignored': signed with unallowed key (key_id=%s)`, tagThird, keyOfThird, shaThird, keyOfThird),
-			expectedTagArgs: []any{tagThird},
-			expectedLsArgs:  []any{shaThird, true},
+			expectedLsArgs: []any{shaThird, true},
 		},
 	}
 
@@ -481,56 +481,15 @@ GIT/GPG: Failed verifying revision %s by 'ignored': signed with unallowed key (k
 		t.Run("verify "+test.revision, func(t *testing.T) {
 			// Given repo with a tagged commit
 			gitClient := &gitmocks.Client{}
-			gitClient.EXPECT().CommitSHA().RunAndReturn(func() (string, error) {
-				if sha, ok := tag2commit[test.revision]; ok {
-					return sha, nil
-				}
-				return test.revision, nil
-			})
-			gitClient.EXPECT().IsAnnotatedTag(mock.Anything).RunAndReturn(func(revision string) bool {
-				return strings.HasPrefix(revision, "tag-")
-			})
-			gitClient.EXPECT().TagSignature(mock.Anything).RunAndReturn(func(tagRevision string) (*git.RevisionSignatureInfo, error) {
-				keyId := ""
-				switch tagRevision {
-				case tagFirst:
-					keyId = keyOfFirst
-				case tagSecond:
-					keyId = keyOfSecond
-				case tagThird:
-					keyId = keyOfThird
-				default:
-					require.Fail(t, "tag revision '"+tagRevision+"' not recognized")
-				}
-				return &git.RevisionSignatureInfo{
-					Revision: tagRevision, VerificationResult: git.GPGVerificationResultGood, SignatureKeyID: keyId, Date: "ignored", AuthorIdentity: "ignored",
-				}, nil
-			})
-			gitClient.EXPECT().LsSignatures(mock.Anything, mock.Anything).RunAndReturn(func(revision string, deep bool) (info []git.RevisionSignatureInfo, err error) {
-				// Return current revision info if not `deep`, return with all ancestry otherwise.
-				if revision == shaThird || revision == tagThird {
-					info = append(info, rsi3)
-					if !deep {
-						return info, err
+			gitClient.EXPECT().LsSignatures(mock.Anything, mock.Anything).RunAndReturn(
+				func(revision string, deep bool) (info []git.RevisionSignatureInfo, err error) {
+					if ret, ok := lsSignatures[deep][revision]; ok {
+						return ret, nil
 					}
-				}
-				if revision == shaSecond || revision == tagSecond {
-					info = append(info, rsi2)
-					if !deep {
-						return info, err
-					}
-				}
-				if revision == shaFirst || revision == tagFirst {
-					info = append(info, rsi1)
-				}
 
-				if len(info) == 0 {
-					// Expected one of the 6
 					panic("unknown revision " + revision)
-				}
-
-				return info, err
-			})
+				},
+			)
 
 			logger := utilTest.LogHook{}
 			logrus.AddHook(&logger)
@@ -544,6 +503,7 @@ GIT/GPG: Failed verifying revision %s by 'ignored': signed with unallowed key (k
 			// And verifying a given revision
 			result, err := verify(gpgWithTag, gitClient, test.revision)
 			require.NoError(t, err)
+
 			// Then it is checked and valid
 			err = result.AsError()
 			if test.expectedErr == "" {
@@ -552,21 +512,9 @@ GIT/GPG: Failed verifying revision %s by 'ignored': signed with unallowed key (k
 			} else {
 				require.Error(t, err)
 				assert.Equal(t, test.expectedErr, err.Error())
+				assert.False(t, result.IsValid())
 			}
 			assert.Equal(t, test.expectedPassed, result.PassedChecks())
-
-			// verify if only the intended interaction happened
-			if len(test.expectedTagArgs) > 0 {
-				gitClient.AssertCalled(t, "TagSignature", test.expectedTagArgs...)
-			} else {
-				gitClient.AssertNotCalled(t, "TagSignature")
-			}
-			if len(test.expectedLsArgs) > 0 {
-				gitClient.AssertCalled(t, "LsSignatures", test.expectedLsArgs...)
-			} else {
-				gitClient.AssertNotCalled(t, "LsSignatures")
-			}
-
 			assert.Empty(t, logger.GetEntries())
 		})
 	}

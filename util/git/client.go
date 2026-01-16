@@ -137,9 +137,13 @@ type Client interface {
 	LsLargeFiles() ([]string, error)
 	CommitSHA() (string, error)
 	RevisionMetadata(revision string) (*RevisionMetadata, error)
-	TagSignature(tagRevision string) (*RevisionSignatureInfo, error)
+	// LsSignatures gets a list of revisions including their GPG signature info.
+	// If revision is an annotated tag or a semantic constraint matching an annotated tag, its signature is reported as wll
+	// If deep==true, list the commits backwards in history until a signed "seal commit" or repo init commit. The listing includes those seal commits.
+	// If deep==false, examines the revisionSha only, and the.
 	LsSignatures(revision string, deep bool) ([]RevisionSignatureInfo, error)
-	IsAnnotatedTag(string) bool
+	// IsAnnotatedTag determines if the revision is, or resolves to an annotated tag.
+	IsAnnotatedTag(revision string) bool
 	ChangedFiles(revision string, targetRevision string) ([]string, error)
 	IsRevisionPresent(revision string) bool
 	// SetAuthor sets the author name and email in the git configuration.
@@ -1042,7 +1046,7 @@ func validateGpgKey(key string, revision string) error {
 	return fmt.Errorf("gpg failed interpretting reported signing key for %q: %q", revision, key)
 }
 
-func (m *nativeGitClient) TagSignature(tagRevision string) (*RevisionSignatureInfo, error) {
+func (m *nativeGitClient) tagSignature(tagRevision string) (*RevisionSignatureInfo, error) {
 	ctx := context.Background()
 	// Unlike for tags, there is no nice way to slurp all signature info for tag. So this extracts parts from 2 different commands.
 	cmd := m.cmdWithGPG(ctx, "for-each-ref", "refs/tags/"+tagRevision, `--format=%(taggerdate),%(taggername) "%(taggeremail)"`)
@@ -1109,58 +1113,45 @@ func evaluateGpgSignStatus(cmdErr error, tagGpgOut string) (result GPGVerificati
 	return "", "", fmt.Errorf("unexpected `git verify-tag --raw` output: %q", tagGpgOut)
 }
 
-// LsSignatures gets a list of revisions including their signature info.
-//
-// If deep==true, list the commits backwards in history until a signed "seal commit" or repo init commit. The listing includes those seal commits.
-// If deep==false, examines the revisionSha only.
-func (m *nativeGitClient) LsSignatures(revisionSha string, deep bool) ([]RevisionSignatureInfo, error) {
-	// In repo-server, the repository is check out in detached-head state and branch names cannot be looked up.
-	// Make sure the revision has been resolved by the client calling this.
-	if !IsCommitSHA(revisionSha) {
-		return nil, fmt.Errorf("invalid revision sha for LsSignatures %q", revisionSha)
-	}
+func (m *nativeGitClient) LsSignatures(unresolvedRevision string, deep bool) ([]RevisionSignatureInfo, error) {
 
-	ctx := context.Background()
-
-	// This is using a two-step approach to solve the following problem: find all ancestors of a given revision in git history DAG,
-	// stopping on a signed seal commit, or an init commit. Note there might be multiple seal commits that separate the revision
-	// form init commit in case the history merged past the most recent seal commit.
-	//
-	// 1) Find all seal commits based on the trailer in their message. This searches the entire git history, which is unnecessary,
-	//    but there does not seem to be a decent way to stop on the most recent signed ones in each branch with a single git invocation.
-	//    Found commits are later eliminated to the correctly signed and trusted ones - this is to make sure that unsigned
-	//    or untrusted seal commits do not stop the search.
-	// 2) Find all the ancestor commits from the given revision stopping on any of the identified seal commits.
-
-	var commitFilterArgs []string
-	if deep {
-		// Find all seal commits with their signing indicator
-		cmd := m.cmdWithGPG(ctx, "rev-list", `--pretty=format:%G?,%H`, "--no-commit-header", "--grep=Argocd-gpg-seal:", "--regexp-ignore-case", revisionSha)
-		sealCommitsRawOut, err := m.runCmdOutput(cmd, runOpts{})
+	// Resolve eventual semantic tag constraint before annotated tag detection
+	if versions.IsConstraint(unresolvedRevision) {
+		refs, err := m.getRefs()
 		if err != nil {
 			return nil, err
 		}
-
-		commitFilterArgs, err = m.getSealRevListFilter(revisionSha, sealCommitsRawOut)
+		unresolvedRevision, err = versions.MaxVersion(unresolvedRevision, getGitTags(refs))
 		if err != nil {
 			return nil, err
 		}
-	} else {
-		// List only the one revision - no seal commit search done
-		commitFilterArgs = []string{revisionSha, "-1", "--"}
 	}
 
-	// Find all commits until the most recent seal commits(s), including
+	var signatures []RevisionSignatureInfo
+	if m.IsAnnotatedTag(unresolvedRevision) {
+		signature, err := m.tagSignature(unresolvedRevision)
+		if err != nil {
+			return nil, err
+		}
+		signatures = append(signatures, *signature)
 
-	// See git-rev-list(1) for description of the format string
-	lsArgs := append([]string{"rev-list", `--pretty=format:%H,%G?,%GK,"%aD","%an <%ae>"`, "--no-commit-header"}, commitFilterArgs...)
-	commitSignaturesRawOut, err := m.runCmdOutput(m.cmdWithGPG(ctx, lsArgs...), runOpts{})
+		// Check just the annotated tag
+		if !deep {
+			return signatures, nil
+		}
+	}
+
+	_, err := m.Checkout(unresolvedRevision, true)
+	if err != nil {
+		return nil, err
+	}
+
+	commitSignaturesRawOut, err := m.listRawSignatures(deep)
 	if err != nil {
 		return nil, err
 	}
 
 	// Final LF will be cut by executil
-	var commits []RevisionSignatureInfo
 	csvR := csv.NewReader(strings.NewReader(commitSignaturesRawOut))
 	for {
 		r, err := csvR.Read()
@@ -1181,7 +1172,7 @@ func (m *nativeGitClient) LsSignatures(revisionSha string, deep bool) ([]Revisio
 		if err := validateGpgKey(keyId, revision); err != nil {
 			return nil, err
 		}
-		commits = append(commits, RevisionSignatureInfo{
+		signatures = append(signatures, RevisionSignatureInfo{
 			Revision:           revision,
 			VerificationResult: gpgVerificationFromGitRevParse(r[1]),
 			SignatureKeyID:     keyId,
@@ -1190,7 +1181,54 @@ func (m *nativeGitClient) LsSignatures(revisionSha string, deep bool) ([]Revisio
 		})
 	}
 
-	return commits, nil
+	return signatures, nil
+}
+
+func (m *nativeGitClient) listRawSignatures(deep bool) (string, error) {
+	revisionSha, err := m.CommitSHA()
+	if err != nil {
+		return "", err
+	}
+
+	ctx := context.Background()
+
+	// This is using a two-step approach to solve the following problem: find all ancestors of a given revision in git history DAG,
+	// stopping on a signed seal commit, or an init commit. Note there might be multiple seal commits that separate the revision
+	// form init commit in case the history merged past the most recent seal commit.
+	//
+	// 1) Find all seal commits based on the trailer in their message. This searches the entire git history, which is unnecessary,
+	//    but there does not seem to be a decent way to stop on the most recent seal commits in each branch with a single git invocation.
+	//    Found commits are later eliminated to the correctly signed and trusted ones - this is to make sure that unsigned
+	//    or untrusted commits with a seal trailer do not stop the history verification.
+	// 2) Find all the ancestor commits from the given revision stopping on any of the identified seal commits.
+
+	// See git-rev-list(1) for description of the format string
+
+	var commitFilterArgs []string
+	if deep {
+		// Find all seal commits with their signing indicator
+		cmd := m.cmdWithGPG(ctx, "rev-list", `--pretty=format:%G?,%H`, "--no-commit-header", "--grep=Argocd-gpg-seal:", "--regexp-ignore-case", revisionSha)
+		sealCommitsRawOut, err := m.runCmdOutput(cmd, runOpts{})
+		if err != nil {
+			return "", err
+		}
+
+		commitFilterArgs, err = m.getSealRevListFilter(revisionSha, sealCommitsRawOut)
+		if err != nil {
+			return "", err
+		}
+	} else {
+		// List only the one revision - no seal commit search done
+		commitFilterArgs = []string{revisionSha, "-1", "--"}
+	}
+
+	// Find all commits until the most recent seal commits(s), including
+	lsArgs := append([]string{"rev-list", `--pretty=format:%H,%G?,%GK,"%aD","%an <%ae>"`, "--no-commit-header"}, commitFilterArgs...)
+	commitSignaturesRawOut, err := m.runCmdOutput(m.cmdWithGPG(ctx, lsArgs...), runOpts{})
+	if err != nil {
+		return "", err
+	}
+	return commitSignaturesRawOut, nil
 }
 
 func (m *nativeGitClient) getSealRevListFilter(revision string, sealCommitsRawOut string) ([]string, error) {
@@ -1223,11 +1261,12 @@ func (m *nativeGitClient) getSealRevListFilter(revision string, sealCommitsRawOu
 	return append([]string{"--boundary", revision, "--not"}, sealCommits...), nil
 }
 
-// IsAnnotatedTag returns true if the revision points to an annotated tag
+// IsAnnotatedTag returns true if the revision is an annotated tag existing in the repository, and false for everything else.
 func (m *nativeGitClient) IsAnnotatedTag(revision string) bool {
-	cmd := exec.CommandContext(context.Background(), "git", "describe", "--exact-match", revision)
+	cmd := exec.CommandContext(context.Background(), "git", "cat-file", "-t", revision)
 	out, err := m.runCmdOutput(cmd, runOpts{SkipErrorLogging: true})
-	if out != "" && err == nil {
+	// a lightweight tag returns "commit" - makes sense in the git world
+	if err == nil && out == "tag" {
 		return true
 	}
 	return false

@@ -94,42 +94,21 @@ func findMatchingGitPolicies(si *v1alpha1.SourceIntegrityGit, repoURL string) (p
 func verify(g *v1alpha1.SourceIntegrityGitPolicyGPG, gitClient git.Client, unresolvedRevision string) (result *v1alpha1.SourceIntegrityCheckResult, err error) {
 	const checkName = "GIT/GPG"
 
-	var revisions []git.RevisionSignatureInfo
-
-	verifyingTag := gitClient.IsAnnotatedTag(unresolvedRevision)
-	// If on tag, verify tag in both head and strict mode
-	if verifyingTag {
-		tagRev, err := gitClient.TagSignature(unresolvedRevision)
-		if err != nil {
-			return nil, err
-		}
-		revisions = append(revisions, *tagRev)
-	}
-
-	commitSHA, err := gitClient.CommitSHA()
-	if err != nil {
-		return nil, err
-	}
-
+	var deep bool
 	switch g.Mode {
+	// verify tag if on tag, latest revision otherwise
 	case v1alpha1.SourceIntegrityGitPolicyGPGModeHead:
-		// verify tag if on tag, latest revision otherwise
-		if !verifyingTag {
-			tagRevs, err := gitClient.LsSignatures(commitSHA, false)
-			if err != nil {
-				return nil, err
-			}
-			revisions = append(revisions, tagRevs...)
-		}
+		deep = false
+	// verify history from the current commit
 	case v1alpha1.SourceIntegrityGitPolicyGPGModeStrict:
-		// verify history from the current commit
-		deepRevs, err := gitClient.LsSignatures(commitSHA, true)
-		if err != nil {
-			return nil, err
-		}
-		revisions = append(revisions, deepRevs...)
+		deep = true
 	default:
 		return nil, fmt.Errorf("unknown GPG mode %q configured for GIT source integrity", g.Mode)
+	}
+
+	revisions, err := gitClient.LsSignatures(unresolvedRevision, deep)
+	if err != nil {
+		return nil, err
 	}
 
 	return &v1alpha1.SourceIntegrityCheckResult{Checks: []v1alpha1.SourceIntegrityCheckResultItem{{
