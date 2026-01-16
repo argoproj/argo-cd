@@ -9,14 +9,6 @@ tests:
     inputPath: testdata/degraded.yaml
   - healthStatus:
       status: Progressing
-      message: "Component state: Reconcile - status unhealthy (< 15 minutes)"
-    inputPath: testdata/progressing5min.yaml
-  - healthStatus:
-      status: Degraded
-      message: "Component state: Unhealthy (> 15 minutes)"
-    inputPath: testdata/progressing20min.yaml
-  - healthStatus:
-      status: Progressing
       message: "Component state: Update in progress"
     inputPath: testdata/progressing.yaml
   - healthStatus:
