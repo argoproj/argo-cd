@@ -33,6 +33,7 @@ async function checkAuthState(): Promise<AuthState> {
         if (err?.response?.status === 401 || err?.status === 401) {
             return {loggedIn: false, isSSO: false};
         }
+        console.error('Failed to check SSO configuration:', err);
         throw err;
     }
 }
