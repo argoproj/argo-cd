@@ -51,6 +51,10 @@ const (
 
 var _ Client = &nativeOCIClient{}
 
+// OCI Distribution Spec v1.1's implement referrer API.
+// SBOMs have a industri standard media type, there is no common media type for k8s manifests?
+const validArtifactType = "application/vnd.kubernetes.manifest.v1"
+
 type tagsCache interface {
 	SetOCITags(repo string, indexData []byte) error
 	GetOCITags(repo string, indexData *[]byte) error
@@ -182,7 +186,7 @@ func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, proxy
 	}, reg.Ping, layerMediaTypes, opts...), nil
 }
 
-func newClientWithLock(repoURL string, repoLock sync.KeyLock, repo oras.ReadOnlyTarget, tagsFunc func(context.Context, string) ([]string, error), pingFunc func(ctx context.Context) error, layerMediaTypes []string, opts ...ClientOpts) Client {
+func newClientWithLock(repoURL string, repoLock sync.KeyLock, repo oras.ReadOnlyGraphTarget, tagsFunc func(context.Context, string) ([]string, error), pingFunc func(ctx context.Context) error, layerMediaTypes []string, opts ...ClientOpts) Client {
 	c := &nativeOCIClient{
 		repoURL:           repoURL,
 		repoLock:          repoLock,
@@ -215,7 +219,7 @@ type nativeOCIClient struct {
 	EventHandlers
 
 	repoURL                         string
-	repo                            oras.ReadOnlyTarget
+	repo                            oras.ReadOnlyGraphTarget
 	tagsFunc                        func(context.Context, string) ([]string, error)
 	repoLock                        sync.KeyLock
 	tagsCache                       tagsCache
@@ -464,9 +468,29 @@ func (c *nativeOCIClient) getTags(ctx context.Context, noCache bool) ([]string, 
 
 // resolveDigest resolves a digest from a tag.
 func (c *nativeOCIClient) resolveDigest(ctx context.Context, revision string) (string, error) {
+	var descriptor imagev1.Descriptor
+
 	descriptor, err := c.repo.Resolve(ctx, revision)
 	if err != nil {
 		return "", fmt.Errorf("cannot get digest for revision %s: %w", revision, err)
+	}
+	// Check if there is a artifact attached for the specific digest (image tag)
+	// example of a OCI app image having deployment manifests attached to it:
+	// $ oras attach \
+	//     --artifact-type application/vnd.kubernetes.manifest.v1 \
+	//     registry.example.com/myapp:main \
+	//     ./manifests:application/vnd.oci.image.layer.v1.tar+gzip
+	referrers, err := c.repo.Predecessors(ctx, descriptor)
+	// don't return if referrers failed. (OCI registries which don't implement ocispec 1.1)
+	if err == nil {
+		for _, ref := range referrers {
+			// Check for a valid artifact media type
+			if ref.ArtifactType == validArtifactType {
+				// Overwrite desc with referrer and stop
+				descriptor = ref
+				break
+			}
+		}
 	}
 
 	return descriptor.Digest.String(), nil
@@ -686,7 +710,7 @@ func (s *compressedLayerExtracterStore) Push(ctx context.Context, desc imagev1.D
 	return s.Store.Push(ctx, desc, content)
 }
 
-func getOCIManifest(ctx context.Context, digest string, repo oras.ReadOnlyTarget) (*imagev1.Manifest, error) {
+func getOCIManifest(ctx context.Context, digest string, repo oras.ReadOnlyGraphTarget) (*imagev1.Manifest, error) {
 	desc, err := repo.Resolve(ctx, digest)
 	if err != nil {
 		return nil, fmt.Errorf("error resolving oci repo from digest, %w", err)
