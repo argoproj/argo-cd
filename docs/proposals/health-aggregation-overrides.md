@@ -54,10 +54,9 @@ Currently, Argo CD aggregates resource health into Application health using a "w
 ### Non-Goals
 
 1. Changing how individual resource health is calculated (that's already customizable via Lua)
-2. Implementing complex conditional logic (save for future Lua-based approach)
-3. Changing the core aggregation algorithm (`health.IsWorse()`)
-4. Supporting aggregation based on resource relationships or dependencies
-5. Modifying health status display in UI (only affects aggregation logic)
+2. Changing the core aggregation algorithm (`health.IsWorse()`)
+3. Supporting aggregation based on resource relationships or dependencies
+4. Modifying health status display in UI (only affects aggregation logic)
 
 ## Proposal
 
