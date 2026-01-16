@@ -281,6 +281,28 @@ func TestSyncToSignedAnnotatedTagWithUnallowedKey(t *testing.T) {
 		Expect(Condition(ApplicationConditionComparisonError, "signed with unallowed key (key_id="+fixture.GpgGoodKeyID+")"))
 }
 
+func TestSyncToTagBasedConstraint(t *testing.T) {
+	fixture.SkipOnEnv(t, "GPG")
+	fixture.EnsureCleanState(t)
+	Given(t).
+		Project("gpg").
+		Revision("2.*").
+		Path(guestbookPath).
+		GPGPublicKeyAdded().
+		Sleep(2).
+		When().
+		AddSignedFile("test.yaml", "null").
+		AddSignedTag("1.0").
+		IgnoreErrors().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		Expect(NoConditions())
+}
+
 func TestNamespacedSyncToUnsignedCommit(t *testing.T) {
 	fixture.SkipOnEnv(t, "GPG")
 	fixture.EnsureCleanState(t)
