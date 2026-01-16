@@ -35,16 +35,16 @@ func (c *Consequences) AndCLIOutput(block func(output string, err error)) *Conse
 
 // AndFailedResourceGVKsExist checks that the failedResourceGVKs field appears in CLI output
 func (c *Consequences) AndFailedResourceGVKsExist() *Consequences {
-	c.context.t.Helper()
+	c.context.T().Helper()
 	if c.actions.lastError != nil {
-		c.context.t.Fatalf("Error in command: %v", c.actions.lastError)
+		c.context.T().Fatalf("Error in command: %v", c.actions.lastError)
 	}
 	if c.actions.lastOutput == "" {
-		c.context.t.Fatal("No output to check")
+		c.context.T().Fatal("No output to check")
 	}
 
 	if !FailedResourceGVKsFieldExists(c.actions.lastOutput) {
-		c.context.t.Fatal("failedResourceGVKs field missing from output")
+		c.context.T().Fatal("failedResourceGVKs field missing from output")
 	}
 
 	return c
