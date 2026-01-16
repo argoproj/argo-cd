@@ -143,14 +143,40 @@ func (a *EnvEntry) IsZero() bool {
 
 // NewEnvEntry parses a string in format name=value and returns an EnvEntry object
 func NewEnvEntry(text string) (*EnvEntry, error) {
-	parts := strings.SplitN(text, "=", 2)
-	if len(parts) != 2 {
+	name, value, ok := splitOnce(text)
+	if !ok {
 		return nil, fmt.Errorf("expected env entry of the form: param=value but received: %s", text)
 	}
-	return &EnvEntry{
-		Name:  parts[0],
-		Value: parts[1],
-	}, nil
+	return &EnvEntry{ Name: name, Value: value }, nil
+}
+
+// splitOnce splits a string on the first '=' and returns the left and right
+// hand sides and a boolean indicating success. It's unexported to keep callers
+// in this package consistent about parsing "name=value" style strings.
+func splitOnce(text string) (string, string, bool) {
+	parts := strings.SplitN(text, "=", 2)
+	if len(parts) != 2 {
+		return "", "", false
+	}
+	return parts[0], parts[1], true
+}
+
+// parseMapString parses a comma-separated list of key=value items into a map.
+// Returns an error if any item doesn't contain an '='.
+func parseMapString(value string) (map[string]string, error) {
+	mapValues := make(map[string]string)
+	if value == "" {
+		return mapValues, nil
+	}
+	keyValues := strings.Split(value, ",")
+	for _, kv := range keyValues {
+		k, v, ok := splitOnce(kv)
+		if !ok {
+			return nil, fmt.Errorf("invalid map format: %s", kv)
+		}
+		mapValues[k] = v
+	}
+	return mapValues, nil
 }
 
 // Env is a list of environment variable entries
@@ -201,13 +227,10 @@ type ParamEntry struct {
 
 // NewParamEntry parses a parameter in format name=string, name=map, name=array and returns an ParamEntry object
 func NewParamEntry(text string, paramType string) (*ParamEntry, error) {
-	parts := strings.SplitN(text, "=", 2)
-	if len(parts) != 2 {
+	name, value, ok := splitOnce(text)
+	if !ok {
 		return nil, fmt.Errorf("expected parameter entry of the form: param=string, param=map, or param=array. Received: %s", text)
 	}
-
-	name := parts[0]
-	value := parts[1]
 
 	switch paramType {
 	case "string":
@@ -216,15 +239,9 @@ func NewParamEntry(text string, paramType string) (*ParamEntry, error) {
 			StringValue: &value,
 		}, nil
 	case "map":
-		mapValues := make(map[string]string)
-		keyValues := strings.Split(value, ",")
-
-		for _, kv := range keyValues {
-			kvParts := strings.SplitN(kv, "=", 2)
-			if len(kvParts) != 2 {
-				return nil, fmt.Errorf("invalid map format: %s", kv)
-			}
-			mapValues[kvParts[0]] = kvParts[1]
+		mapValues, err := parseMapString(value)
+		if err != nil {
+			return nil, err
 		}
 
 		return &ParamEntry{
