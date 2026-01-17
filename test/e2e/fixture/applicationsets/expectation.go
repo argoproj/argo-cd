@@ -120,13 +120,12 @@ func ApplicationSetHasConditions(expectedConditions []v1alpha1.ApplicationSetCon
 	}
 }
 
-func ApplicationSetHasCondition(applicationSetName string, expType v1alpha1.ApplicationSetConditionType, expStatus v1alpha1.ApplicationSetConditionStatus, expMessage *regexp.Regexp, expReason string) Expectation {
+func ApplicationSetHasCondition(expType v1alpha1.ApplicationSetConditionType, expStatus v1alpha1.ApplicationSetConditionStatus, expMessage *regexp.Regexp, expReason string) Expectation {
 	return func(c *Consequences) (state, string) {
-		foundApplicationSet := c.applicationSet(applicationSetName)
+		foundApplicationSet := c.applicationSet(c.context.GetName())
 		if foundApplicationSet == nil {
-			return pending, fmt.Sprintf("application set '%s' not found", applicationSetName)
+			return pending, fmt.Sprintf("application set '%s' not found", c.context.GetName())
 		}
-
 		got := foundApplicationSet.Status.Conditions
 		message := fmt.Sprintf("condition {%s %s %s %s} in %v", expType, expMessage, expStatus, expReason, got)
 		for _, condition := range got {

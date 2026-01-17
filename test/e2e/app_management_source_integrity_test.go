@@ -286,7 +286,7 @@ func TestSyncToTagBasedConstraint(t *testing.T) {
 	fixture.EnsureCleanState(t)
 	Given(t).
 		Project("gpg").
-		Revision("2.*").
+		Revision("1.*").
 		Path(guestbookPath).
 		GPGPublicKeyAdded().
 		Sleep(2).
