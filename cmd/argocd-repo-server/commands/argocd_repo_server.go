@@ -49,6 +49,7 @@ var (
 	pauseGenerationOnFailureForMinutes           = env.ParseNumFromEnv(common.EnvPauseGenerationMinutes, 60, 0, math.MaxInt32)
 	pauseGenerationOnFailureForRequests          = env.ParseNumFromEnv(common.EnvPauseGenerationRequests, 0, 0, math.MaxInt32)
 	gitSubmoduleEnabled                          = env.ParseBoolFromEnv(common.EnvGitSubmoduleEnabled, true)
+	helmUserAgent                                = env.StringFromEnv(common.EnvHelmUserAgent, "")
 )
 
 func NewCommand() *cobra.Command {
@@ -157,6 +158,7 @@ func NewCommand() *cobra.Command {
 				CMPUseManifestGeneratePaths:                  cmpUseManifestGeneratePaths,
 				OCIMediaTypes:                                ociMediaTypes,
 				EnableBuiltinGitConfig:                       enableBuiltinGitConfig,
+				HelmUserAgent:                                helmUserAgent,
 			}, askPassServer)
 			errors.CheckError(err)
 
