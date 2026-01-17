@@ -320,23 +320,18 @@ func TestSimpleGitDirectoryGeneratorGPGEnabledUnsignedCommits(t *testing.T) {
 		Then().Expect(ApplicationsDoNotExist(expectedApps)).
 		// verify the ApplicationSet error status conditions were set correctly
 		Expect(ApplicationSetHasCondition(
-			"simple-git-generator",
-
 			v1alpha1.ApplicationSetConditionErrorOccurred,
 			v1alpha1.ApplicationSetConditionStatusTrue,
 			expectedErrorMessage,
 			v1alpha1.ApplicationSetReasonApplicationParamsGenerationError,
 		)).
 		Expect(ApplicationSetHasCondition(
-			"simple-git-generator",
-
 			v1alpha1.ApplicationSetConditionParametersGenerated,
 			v1alpha1.ApplicationSetConditionStatusFalse,
 			expectedErrorMessage,
 			v1alpha1.ApplicationSetReasonErrorOccurred,
 		)).
 		Expect(ApplicationSetHasCondition(
-			"simple-git-generator",
 			v1alpha1.ApplicationSetConditionResourcesUpToDate,
 			v1alpha1.ApplicationSetConditionStatusFalse,
 			expectedErrorMessage,
@@ -427,21 +422,18 @@ func TestSimpleGitDirectoryGeneratorGPGEnabledWithoutKnownKeys(t *testing.T) {
 		}).Then().
 		// verify the ApplicationSet error status conditions were set correctly
 		Expect(ApplicationSetHasCondition(
-			"simple-git-generator",
 			v1alpha1.ApplicationSetConditionErrorOccurred,
 			v1alpha1.ApplicationSetConditionStatusTrue,
 			expectedErrorMessage,
 			v1alpha1.ApplicationSetReasonApplicationParamsGenerationError,
 		)).
 		Expect(ApplicationSetHasCondition(
-			"simple-git-generator",
 			v1alpha1.ApplicationSetConditionParametersGenerated,
 			v1alpha1.ApplicationSetConditionStatusFalse,
 			expectedErrorMessage,
 			v1alpha1.ApplicationSetReasonErrorOccurred,
 		)).
 		Expect(ApplicationSetHasCondition(
-			"simple-git-generator",
 			v1alpha1.ApplicationSetConditionResourcesUpToDate,
 			v1alpha1.ApplicationSetConditionStatusFalse,
 			expectedErrorMessage,
@@ -590,7 +582,7 @@ func TestSimpleGitFilesGeneratorGPGEnabledUnsignedCommits(t *testing.T) {
 		}
 	}
 
-	expectedApps := []v1alpha1.Application{
+	unexpectedApps := []v1alpha1.Application{
 		generateExpectedApp("engineering-dev-guestbook"),
 		generateExpectedApp("engineering-prod-guestbook"),
 	}
@@ -635,30 +627,27 @@ func TestSimpleGitFilesGeneratorGPGEnabledUnsignedCommits(t *testing.T) {
 				},
 			},
 		}).
-		Then().Expect(ApplicationsDoNotExist(expectedApps)).
+		Then().Expect(ApplicationsDoNotExist(unexpectedApps)).
 		Expect(ApplicationSetHasCondition(
-			"simple-git-generator",
 			v1alpha1.ApplicationSetConditionErrorOccurred,
 			v1alpha1.ApplicationSetConditionStatusTrue,
 			expectedErrorMessage,
 			v1alpha1.ApplicationSetReasonApplicationParamsGenerationError,
 		)).
 		Expect(ApplicationSetHasCondition(
-			"simple-git-generator",
 			v1alpha1.ApplicationSetConditionParametersGenerated,
 			v1alpha1.ApplicationSetConditionStatusFalse,
 			expectedErrorMessage,
 			v1alpha1.ApplicationSetReasonErrorOccurred,
 		)).
 		Expect(ApplicationSetHasCondition(
-			"simple-git-generator",
 			v1alpha1.ApplicationSetConditionResourcesUpToDate,
 			v1alpha1.ApplicationSetConditionStatusFalse,
 			expectedErrorMessage,
 			v1alpha1.ApplicationSetReasonErrorOccurred,
 		)).
 		When().Delete().
-		Then().Expect(ApplicationsDoNotExist(expectedApps))
+		Then().Expect(ApplicationsDoNotExist(unexpectedApps))
 }
 
 func TestSimpleGitFilesGeneratorGPGEnabledWithoutKnownKeys(t *testing.T) {
@@ -739,21 +728,18 @@ func TestSimpleGitFilesGeneratorGPGEnabledWithoutKnownKeys(t *testing.T) {
 		}).Then().
 		// verify the ApplicationSet error status conditions were set correctly
 		Expect(ApplicationSetHasCondition(
-			"simple-git-generator",
 			v1alpha1.ApplicationSetConditionErrorOccurred,
 			v1alpha1.ApplicationSetConditionStatusTrue,
 			expectedErrorMessage,
 			v1alpha1.ApplicationSetReasonApplicationParamsGenerationError,
 		)).
 		Expect(ApplicationSetHasCondition(
-			"simple-git-generator",
 			v1alpha1.ApplicationSetConditionParametersGenerated,
 			v1alpha1.ApplicationSetConditionStatusFalse,
 			expectedErrorMessage,
 			v1alpha1.ApplicationSetReasonErrorOccurred,
 		)).
 		Expect(ApplicationSetHasCondition(
-			"simple-git-generator",
 			v1alpha1.ApplicationSetConditionResourcesUpToDate,
 			v1alpha1.ApplicationSetConditionStatusFalse,
 			expectedErrorMessage,
