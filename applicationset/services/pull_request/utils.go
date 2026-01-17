@@ -6,9 +6,25 @@ import (
 	"regexp"
 	"time"
 
-	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	log "github.com/sirupsen/logrus"
+
+	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
+
+func compileTimeDurationFilter(filterValue *string, output **time.Duration, filterName string) error {
+	if filterValue == nil {
+		return nil
+	}
+
+	d, err := time.ParseDuration(*filterValue)
+	if err != nil {
+		return fmt.Errorf("error parsing %s duration %s: %w", filterName, *filterValue, err)
+	}
+
+	*output = &d
+
+	return nil
+}
 
 func compileFilters(filters []argoprojiov1alpha1.PullRequestGeneratorFilter) ([]*Filter, error) {
 	outFilters := make([]*Filter, 0, len(filters))
@@ -33,19 +49,11 @@ func compileFilters(filters []argoprojiov1alpha1.PullRequestGeneratorFilter) ([]
 				return nil, fmt.Errorf("error compiling TitleMatch regexp %q: %w", *filter.TitleMatch, err)
 			}
 		}
-		if filter.CreatedWithin != nil {
-			createdWithin, err := time.ParseDuration(*filter.CreatedWithin)
-			if err != nil {
-				return nil, fmt.Errorf("error parsing CreatedWithin duration %s: %w", *filter.CreatedWithin, err)
-			}
-			outFilter.CreatedWithin = &createdWithin
+		if err := compileTimeDurationFilter(filter.CreatedWithin, &outFilter.CreatedWithin, "CreatedWithin"); err != nil {
+			return nil, err
 		}
-		if filter.UpdatedWithin != nil {
-			updatedWithin, err := time.ParseDuration(*filter.UpdatedWithin)
-			if err != nil {
-				return nil, fmt.Errorf("error parsing UpdatedWithin duration %s: %w", *filter.UpdatedWithin, err)
-			}
-			outFilter.UpdatedWithin = &updatedWithin
+		if err := compileTimeDurationFilter(filter.UpdatedWithin, &outFilter.UpdatedWithin, "UpdatedWithin"); err != nil {
+			return nil, err
 		}
 		outFilters = append(outFilters, outFilter)
 	}
@@ -62,10 +70,10 @@ func matchFilter(pullRequest *PullRequest, filter *Filter) bool {
 	if filter.TitleMatch != nil && !filter.TitleMatch.MatchString(pullRequest.Title) {
 		return false
 	}
-	if filter.CreatedWithin != nil && pullRequest.CreatedAt.Before(time.Now().UTC().Add(-*filter.CreatedWithin)) {
+	if pullRequest.IsCreatedWithin(filter.CreatedWithin) {
 		return false
 	}
-	if filter.UpdatedWithin != nil && pullRequest.UpdatedAt.Before(time.Now().UTC().Add(-*filter.UpdatedWithin)) {
+	if pullRequest.IsUpdatedWithin(filter.UpdatedWithin) {
 		return false
 	}
 
