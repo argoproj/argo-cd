@@ -16,6 +16,7 @@ import (
 	gitopsDiff "github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/sync"
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
+	"github.com/argoproj/gitops-engine/pkg/sync/hook"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
@@ -304,6 +305,9 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, project *v1alp
 		}
 	}
 
+	// Check if hooks should run on partial syncs
+	runHooksOnPartialSync := syncOp.SyncOptions.HasOption(cdcommon.SyncOptionRunHooksOnPartialSync)
+
 	opts := []sync.SyncOpt{
 		sync.WithLogr(logutils.NewLogrusLogger(logEntry)),
 		sync.WithHealthOverride(lua.ResourceHealthOverrides(resourceOverrides)),
@@ -329,6 +333,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, project *v1alp
 		sync.WithInitialState(state.Phase, state.Message, initialResourcesRes, state.StartedAt),
 		sync.WithResourcesFilter(func(key kube.ResourceKey, target *unstructured.Unstructured, live *unstructured.Unstructured) bool {
 			return (len(syncOp.Resources) == 0 ||
+				(runHooksOnPartialSync && hook.IsHook(target)) ||
 				isPostDeleteHook(target) ||
 				isPreDeleteHook(target) ||
 				argo.ContainsSyncResource(key.Name, key.Namespace, schema.GroupVersionKind{Kind: key.Kind, Group: key.Group}, syncOp.Resources)) &&
