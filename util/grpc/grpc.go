@@ -190,8 +190,8 @@ func ClientIPFromHTTPRequest(r *http.Request) string {
 	// Check X-Forwarded-For header (can contain multiple IPs, first is the client)
 	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
 		// X-Forwarded-For can be a comma-separated list; take the first one
-		if idx := strings.Index(xff, ","); idx != -1 {
-			return strings.TrimSpace(xff[:idx])
+		if first, _, found := strings.Cut(xff, ","); found {
+			return strings.TrimSpace(first)
 		}
 		return strings.TrimSpace(xff)
 	}
