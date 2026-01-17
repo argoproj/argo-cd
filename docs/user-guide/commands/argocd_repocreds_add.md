@@ -37,6 +37,7 @@ argocd repocreds add REPOURL [flags]
 ### Options
 
 ```
+      --azure-tenant-id string                  azure tenant id for workload identity authentication (overrides AZURE_TENANT_ID env var)
       --bearer-token string                     bearer token to the Git repository
       --enable-oci                              Specifies whether helm-oci support should be enabled for this repo
       --force-http-basic-auth                   whether to force basic auth when connecting via HTTP

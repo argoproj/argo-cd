@@ -55,10 +55,12 @@ type RepoCreds struct {
 	NoProxy string `json:"noProxy,omitempty" protobuf:"bytes,23,opt,name=noProxy"`
 	// UseAzureWorkloadIdentity specifies whether to use Azure Workload Identity for authentication
 	UseAzureWorkloadIdentity bool `json:"useAzureWorkloadIdentity,omitempty" protobuf:"bytes,24,opt,name=useAzureWorkloadIdentity"`
+	// AzureTenantId specifies the Azure tenant ID to use for Workload Identity authentication (overrides AZURE_TENANT_ID env var)
+	AzureTenantId string `json:"azureTenantId,omitempty" protobuf:"bytes,25,opt,name=azureTenantId"`
 	// BearerToken contains the bearer token used for Git BitBucket Data Center auth at the repo server
-	BearerToken string `json:"bearerToken,omitempty" protobuf:"bytes,25,opt,name=bearerToken"`
+	BearerToken string `json:"bearerToken,omitempty" protobuf:"bytes,26,opt,name=bearerToken"`
 	// InsecureOCIForceHttp specifies whether the connection to the repository uses TLS at _all_. If true, no TLS. This flag is applicable for OCI repos only.
-	InsecureOCIForceHttp bool `json:"insecureOCIForceHttp,omitempty" protobuf:"bytes,26,opt,name=insecureOCIForceHttp"` //nolint:revive //FIXME(var-naming)
+	InsecureOCIForceHttp bool `json:"insecureOCIForceHttp,omitempty" protobuf:"bytes,27,opt,name=insecureOCIForceHttp"` //nolint:revive //FIXME(var-naming)
 }
 
 // Repository is a repository holding application configurations
@@ -112,12 +114,14 @@ type Repository struct {
 	NoProxy string `json:"noProxy,omitempty" protobuf:"bytes,23,opt,name=noProxy"`
 	// UseAzureWorkloadIdentity specifies whether to use Azure Workload Identity for authentication
 	UseAzureWorkloadIdentity bool `json:"useAzureWorkloadIdentity,omitempty" protobuf:"bytes,24,opt,name=useAzureWorkloadIdentity"`
+	// AzureTenantId specifies the Azure tenant ID to use for Workload Identity authentication (overrides AZURE_TENANT_ID env var)
+	AzureTenantId string `json:"azureTenantId,omitempty" protobuf:"bytes,25,opt,name=azureTenantId"`
 	// BearerToken contains the bearer token used for Git BitBucket Data Center auth at the repo server
-	BearerToken string `json:"bearerToken,omitempty" protobuf:"bytes,25,opt,name=bearerToken"`
+	BearerToken string `json:"bearerToken,omitempty" protobuf:"bytes,26,opt,name=bearerToken"`
 	// InsecureOCIForceHttp specifies whether the connection to the repository uses TLS at _all_. If true, no TLS. This flag is applicable for OCI repos only.
-	InsecureOCIForceHttp bool `json:"insecureOCIForceHttp,omitempty" protobuf:"bytes,26,opt,name=insecureOCIForceHttp"` //nolint:revive //FIXME(var-naming)
+	InsecureOCIForceHttp bool `json:"insecureOCIForceHttp,omitempty" protobuf:"bytes,27,opt,name=insecureOCIForceHttp"` //nolint:revive //FIXME(var-naming)
 	// Depth specifies the depth for shallow clones. A value of 0 or omitting the field indicates a full clone.
-	Depth int64 `json:"depth,omitempty" protobuf:"bytes,27,opt,name=depth"`
+	Depth int64 `json:"depth,omitempty" protobuf:"bytes,28,opt,name=depth"`
 }
 
 // IsInsecure returns true if the repository has been configured to skip server verification or set to HTTP only
@@ -174,6 +178,9 @@ func (repo *Repository) CopyCredentialsFromRepo(source *Repository) {
 		repo.InsecureOCIForceHttp = source.InsecureOCIForceHttp
 		repo.ForceHttpBasicAuth = source.ForceHttpBasicAuth
 		repo.UseAzureWorkloadIdentity = source.UseAzureWorkloadIdentity
+		if repo.AzureTenantId == "" {
+			repo.AzureTenantId = source.AzureTenantId
+		}
 	}
 }
 
@@ -227,6 +234,9 @@ func (repo *Repository) CopyCredentialsFrom(source *RepoCreds) {
 		repo.InsecureOCIForceHttp = source.InsecureOCIForceHttp
 		repo.ForceHttpBasicAuth = source.ForceHttpBasicAuth
 		repo.UseAzureWorkloadIdentity = source.UseAzureWorkloadIdentity
+		if repo.AzureTenantId == "" {
+			repo.AzureTenantId = source.AzureTenantId
+		}
 	}
 }
 
@@ -273,7 +283,7 @@ func (repo *Repository) GetGitCreds(store git.CredsStore) git.Creds {
 		return git.NewGoogleCloudCreds(repo.GCPServiceAccountKey, store)
 	}
 	if repo.UseAzureWorkloadIdentity {
-		return git.NewAzureWorkloadIdentityCreds(store, workloadidentity.NewWorkloadIdentityTokenProvider())
+		return git.NewAzureWorkloadIdentityCreds(store, workloadidentity.NewWorkloadIdentityTokenProvider(workloadidentity.WithTenantID(repo.AzureTenantId)))
 	}
 	return git.NopCreds{}
 }
@@ -287,7 +297,7 @@ func (repo *Repository) GetHelmCreds() helm.Creds {
 			[]byte(repo.TLSClientCertData),
 			[]byte(repo.TLSClientCertKey),
 			repo.Insecure,
-			workloadidentity.NewWorkloadIdentityTokenProvider(),
+			workloadidentity.NewWorkloadIdentityTokenProvider(workloadidentity.WithTenantID(repo.AzureTenantId)),
 		)
 	}
 

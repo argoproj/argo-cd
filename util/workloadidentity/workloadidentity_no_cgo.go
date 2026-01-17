@@ -16,7 +16,7 @@ type WorkloadIdentityTokenProvider struct {
 const CGOError = "CGO is not enabled, cannot use workload identity token provider"
 
 // Code that does not require CGO
-func NewWorkloadIdentityTokenProvider() TokenProvider {
+func NewWorkloadIdentityTokenProvider(opts ...TokenProviderOption) TokenProvider {
 	panic(CGOError)
 }
 
