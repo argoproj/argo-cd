@@ -89,7 +89,7 @@ func TestV1beta1SourceDeprecated(t *testing.T) {
 	namespace := getTestNamespace()
 
 	app := newV1beta1App("test-source-deprecated-"+randomString(5), namespace)
-	//lint:ignore SA1019 we want to check that app.Spec.Source in fact can't be used
+	//nolint:staticcheck // intentionally testing deprecated field rejection
 	app.Spec.Source = &v1alpha1.ApplicationSource{
 		RepoURL:        "https://github.com/argoproj/argocd-example-apps",
 		Path:           "guestbook",
