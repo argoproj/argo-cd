@@ -9443,6 +9443,10 @@
       "type": "object",
       "title": "RepoCreds holds the definition for repository credentials",
       "properties": {
+        "azureTenantId": {
+          "type": "string",
+          "title": "AzureTenantId specifies the Azure tenant ID to use for Workload Identity authentication (overrides AZURE_TENANT_ID env var)"
+        },
         "bearerToken": {
           "type": "string",
           "title": "BearerToken contains the bearer token used for Git BitBucket Data Center auth at the repo server"
@@ -9542,6 +9546,10 @@
       "type": "object",
       "title": "Repository is a repository holding application configurations",
       "properties": {
+        "azureTenantId": {
+          "type": "string",
+          "title": "AzureTenantId specifies the Azure tenant ID to use for Workload Identity authentication (overrides AZURE_TENANT_ID env var)"
+        },
         "bearerToken": {
           "type": "string",
           "title": "BearerToken contains the bearer token used for Git BitBucket Data Center auth at the repo server"
