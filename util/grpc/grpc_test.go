@@ -251,7 +251,7 @@ func TestClientIPFromHTTPRequest(t *testing.T) {
 		{
 			name: "X-Forwarded-For header with single IP",
 			setupReq: func() *http.Request {
-				req, _ := http.NewRequest("GET", "/", nil)
+				req, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, "/", http.NoBody)
 				req.Header.Set("X-Forwarded-For", "203.0.113.195")
 				req.RemoteAddr = "10.0.0.1:12345"
 				return req
@@ -261,7 +261,7 @@ func TestClientIPFromHTTPRequest(t *testing.T) {
 		{
 			name: "X-Forwarded-For header with multiple IPs",
 			setupReq: func() *http.Request {
-				req, _ := http.NewRequest("GET", "/", nil)
+				req, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, "/", http.NoBody)
 				req.Header.Set("X-Forwarded-For", "203.0.113.195, 70.41.3.18, 150.172.238.178")
 				req.RemoteAddr = "10.0.0.1:12345"
 				return req
@@ -271,7 +271,7 @@ func TestClientIPFromHTTPRequest(t *testing.T) {
 		{
 			name: "X-Real-IP header",
 			setupReq: func() *http.Request {
-				req, _ := http.NewRequest("GET", "/", nil)
+				req, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, "/", http.NoBody)
 				req.Header.Set("X-Real-IP", "203.0.113.195")
 				req.RemoteAddr = "10.0.0.1:12345"
 				return req
@@ -281,7 +281,7 @@ func TestClientIPFromHTTPRequest(t *testing.T) {
 		{
 			name: "X-Forwarded-For takes precedence over X-Real-IP",
 			setupReq: func() *http.Request {
-				req, _ := http.NewRequest("GET", "/", nil)
+				req, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, "/", http.NoBody)
 				req.Header.Set("X-Forwarded-For", "203.0.113.195")
 				req.Header.Set("X-Real-IP", "70.41.3.18")
 				req.RemoteAddr = "10.0.0.1:12345"
@@ -292,7 +292,7 @@ func TestClientIPFromHTTPRequest(t *testing.T) {
 		{
 			name: "Fallback to RemoteAddr",
 			setupReq: func() *http.Request {
-				req, _ := http.NewRequest("GET", "/", nil)
+				req, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, "/", http.NoBody)
 				req.RemoteAddr = "10.0.0.1:12345"
 				return req
 			},
@@ -301,7 +301,7 @@ func TestClientIPFromHTTPRequest(t *testing.T) {
 		{
 			name: "X-Forwarded-For with spaces",
 			setupReq: func() *http.Request {
-				req, _ := http.NewRequest("GET", "/", nil)
+				req, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, "/", http.NoBody)
 				req.Header.Set("X-Forwarded-For", "  203.0.113.195  ")
 				req.RemoteAddr = "10.0.0.1:12345"
 				return req
