@@ -1690,6 +1690,11 @@ func (in *ClusterCacheInfo) DeepCopyInto(out *ClusterCacheInfo) {
 		in, out := &in.LastCacheSyncTime, &out.LastCacheSyncTime
 		*out = (*in).DeepCopy()
 	}
+	if in.FailedResourceGVKs != nil {
+		in, out := &in.FailedResourceGVKs, &out.FailedResourceGVKs
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 

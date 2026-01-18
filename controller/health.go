@@ -18,11 +18,21 @@ import (
 
 // setApplicationHealth updates the health statuses of all resources performed in the comparison
 func setApplicationHealth(resources []managedResource, statuses []appv1.ResourceStatus, resourceOverrides map[string]appv1.ResourceOverride, app *appv1.Application, persistResourceHealth bool) (health.HealthStatusCode, error) {
+	return setApplicationHealthWithClusterInfo(resources, statuses, resourceOverrides, app, persistResourceHealth, nil)
+}
+
+// setApplicationHealthWithClusterInfo updates the health statuses with optional cluster health information
+func setApplicationHealthWithClusterInfo(resources []managedResource, statuses []appv1.ResourceStatus, resourceOverrides map[string]appv1.ResourceOverride, app *appv1.Application, persistResourceHealth bool, clusterHealth *ClusterHealthStatus) (health.HealthStatusCode, error) {
 	var savedErr error
 	var errCount uint
 	var containsResources, containsLiveResources bool
 
+	// Start with Healthy status, but adjust if app uses tainted resources
 	appHealthStatus := health.HealthStatusHealthy
+	if clusterHealth != nil && clusterHealth.UsesTaintedResources {
+		// If app uses tainted resources, start with Degraded status
+		appHealthStatus = health.HealthStatusDegraded
+	}
 	for i, res := range resources {
 		if res.Target != nil && hookutil.Skip(res.Target) {
 			continue

@@ -6,7 +6,9 @@
   "scripts": {
     "compile": "npx tsc",
     "test": "node out/test001.js",
+    "test-cluster-gvks": "node out/test-cluster-tainted-gvks.js",
     "pretest": "cp .env out/.env",
+    "pretest-cluster-gvks": "cp .env out/.env",
     "lint": "tslint -p ."
   },
   "author": "Keith Chong",

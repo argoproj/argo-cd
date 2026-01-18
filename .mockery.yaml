@@ -80,9 +80,13 @@ packages:
     interfaces:
       TokenProvider: {}
   github.com/argoproj/gitops-engine/pkg/cache:
+    config:
+      dir: gitops-engine/pkg/cache/mocks
     interfaces:
       ClusterCache: {}
   github.com/argoproj/gitops-engine/pkg/diff:
+    config:
+      dir: gitops-engine/pkg/diff/mocks
     interfaces:
       ServerSideDryRunner: {}
   github.com/microsoft/azure-devops-go-api/azuredevops/v7/git:
