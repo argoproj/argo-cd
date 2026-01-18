@@ -397,6 +397,26 @@ func (sc *syncContext) setRunningPhase(tasks syncTasks, isPendingDeletion bool) 
 		return
 	}
 
+	{
+		// Check for prune tasks pending confirmation
+		if !sc.pruneConfirmed {
+			var resources []string
+			for _, task := range tasks {
+				if task.isPrune() && resourceutil.HasAnnotationOption(task.liveObj, common.AnnotationSyncOptions, common.SyncOptionPruneRequireConfirm) {
+					resources = append(resources, fmt.Sprintf("%s/%s/%s", task.obj().GetAPIVersion(), task.obj().GetKind(), task.name()))
+				}
+			}
+			if len(resources) > 0 {
+				andMessage := ""
+				if len(resources) > 1 {
+					andMessage = fmt.Sprintf(" and %d more resources", len(resources)-1)
+				}
+				sc.setOperationPhase(common.OperationRunning, fmt.Sprintf("Waiting for pruning confirmation of %s%s", resources[0], andMessage))
+				return
+			}
+		}
+	}
+
 	hooks, resources := tasks.Split(func(task *syncTask) bool { return task.isHook() })
 
 	reason := "completion of hook"
@@ -620,9 +640,7 @@ func (sc *syncContext) Sync() {
 			sc.setRunningPhase(remainingTasks, false)
 		}
 	default:
-		sc.setRunningPhase(tasks.Filter(func(task *syncTask) bool {
-			return task.deleteOnPhaseCompletion()
-		}), true)
+		sc.setRunningPhase(tasks, true)
 	}
 }
 
@@ -1422,20 +1440,11 @@ func (sc *syncContext) runTasks(tasks syncTasks, dryRun bool) runState {
 	// prune first
 	{
 		if !sc.pruneConfirmed {
-			var resources []string
 			for _, task := range pruneTasks {
 				if resourceutil.HasAnnotationOption(task.liveObj, common.AnnotationSyncOptions, common.SyncOptionPruneRequireConfirm) {
-					resources = append(resources, fmt.Sprintf("%s/%s/%s", task.obj().GetAPIVersion(), task.obj().GetKind(), task.name()))
+					sc.log.WithValues("task", task).Info("Prune requires confirmation")
+					return pending
 				}
-			}
-			if len(resources) > 0 {
-				sc.log.WithValues("resources", resources).Info("Prune requires confirmation")
-				andMessage := ""
-				if len(resources) > 1 {
-					andMessage = fmt.Sprintf(" and %d more resources", len(resources)-1)
-				}
-				sc.message = fmt.Sprintf("Waiting for pruning confirmation of %s%s", resources[0], andMessage)
-				return pending
 			}
 		}
 
