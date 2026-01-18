@@ -294,6 +294,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Pismo](https://pismo.io/)
 1. [PITS Globale Datenrettungsdienste](https://www.pitsdatenrettung.de/)
 1. [Platform9 Systems](https://platform9.com/)
+1. [Playground Tech](https://playgroundgroup.io)
 1. [Polarpoint.io](https://polarpoint.io)
 1. [Pollinate](https://www.pollinate.global)
 1. [PostFinance](https://github.com/postfinance)
