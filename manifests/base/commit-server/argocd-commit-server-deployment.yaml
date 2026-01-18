@@ -54,6 +54,18 @@ spec:
                 name: argocd-cmd-params-cm
                 key: log.format.timestamp
                 optional: true
+          - name: ARGOCD_COMMIT_SERVER_AUTHOR_NAME
+            valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: commitserver.author.name
+                optional: true
+          - name: ARGOCD_COMMIT_SERVER_AUTHOR_EMAIL
+            valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: commitserver.author.email
+                optional: true
         ports:
         - containerPort: 8086
         - containerPort: 8087

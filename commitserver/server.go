@@ -23,6 +23,11 @@ func NewServer(gitCredsStore git.CredsStore, metricsServer *metrics.Server) *Arg
 	return &ArgoCDCommitServer{commitService: commit.NewService(gitCredsStore, metricsServer)}
 }
 
+// SetAuthorConfig sets the git commit author name and email for the commit server.
+func (a *ArgoCDCommitServer) SetAuthorConfig(name, email string) {
+	a.commitService.SetAuthorConfig(name, email)
+}
+
 // CreateGRPC creates a new gRPC server.
 func (a *ArgoCDCommitServer) CreateGRPC() *grpc.Server {
 	server := grpc.NewServer(grpc.MaxRecvMsgSize(apiclient.MaxGRPCMessageSize))
