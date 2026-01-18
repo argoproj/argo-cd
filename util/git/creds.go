@@ -555,7 +555,7 @@ func (g GitHubAppCreds) getInstallationTransport() (*ghinstallation.Transport, e
 	h := sha256.New()
 	_, err := fmt.Fprintf(h, "%s %d %d %s", g.privateKey, g.appID, g.appInstallId, g.baseURL)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get get SHA256 hash for GitHub app credentials: %w", err)
+		return nil, fmt.Errorf("failed to get SHA256 hash for GitHub app credentials: %w", err)
 	}
 	key := hex.EncodeToString(h.Sum(nil))
 
@@ -898,7 +898,7 @@ func (c GoogleCloudCreds) getAccessToken() (string, error) {
 
 	token, err := ts.Token()
 	if err != nil {
-		return "", fmt.Errorf("failed to get get SHA256 hash for Google Cloud credentials: %w", err)
+		return "", fmt.Errorf("failed to get SHA256 hash for Google Cloud credentials: %w", err)
 	}
 
 	return token.AccessToken, nil
@@ -943,7 +943,7 @@ func (creds AzureWorkloadIdentityCreds) getAccessToken(scope string) (string, er
 	// Compute hash of creds for lookup in cache
 	key, err := argoutils.GenerateCacheKey("%s", scope)
 	if err != nil {
-		return "", fmt.Errorf("failed to get get SHA256 hash for Azure credentials: %w", err)
+		return "", fmt.Errorf("failed to get SHA256 hash for Azure credentials: %w", err)
 	}
 
 	t, found := azureTokenCache.Get(key)

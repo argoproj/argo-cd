@@ -7347,7 +7347,7 @@
       "type": "object",
       "properties": {
         "applyNestedSelectors": {
-          "description": "ApplyNestedSelectors enables selectors defined within the generators of two level-nested matrix or merge generators\nDeprecated: This field is ignored, and the behavior is always enabled. The field will be removed in a future\nversion of the ApplicationSet CRD.",
+          "description": "ApplyNestedSelectors enables selectors defined within the generators of two level-nested matrix or merge generators.\n\nDeprecated: This field is ignored, and the behavior is always enabled. The field will be removed in a future\nversion of the ApplicationSet CRD.",
           "type": "boolean"
         },
         "generators": {
@@ -7404,6 +7404,9 @@
           "items": {
             "$ref": "#/definitions/v1alpha1ApplicationSetCondition"
           }
+        },
+        "health": {
+          "$ref": "#/definitions/v1alpha1HealthStatus"
         },
         "resources": {
           "description": "Resources is a list of Applications resources managed by this application set.",

@@ -247,6 +247,11 @@
       border-color: #88879E;
     }
   
+    .card .label--exploit {
+      background-color: #8B5A96;
+      border-color: #8B5A96;
+    }
+  
     .severity--low {
       border-color: #88879E;
     }
@@ -487,13 +492,13 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">January 4th 2026, 12:37:08 am (UTC+00:00)</p>
+                <p class="timestamp">January 18th 2026, 12:33:49 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
                 <ul>
-                  <li class="paths">redis:7.2.11-alpine (apk)</li>
-                  <li class="paths">redis:7.2.11-alpine/tianon/gosu//usr/local/bin/gosu (gomodules)</li>
+                  <li class="paths">public.ecr.aws/docker/library/redis:7.2.11-alpine/docker/library/redis (apk)</li>
+                  <li class="paths">public.ecr.aws/docker/library/redis:7.2.11-alpine/tianon/gosu//usr/local/bin/gosu (gomodules)</li>
                 </ul>
               </div>
     
@@ -516,6 +521,9 @@
                     <div class="label label--low">
                         <span class="label__text">low severity</span>
                     </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
                 </div>
         
                 <hr/>
@@ -532,7 +540,7 @@
         
                     <li class="card__meta__item">Introduced through:
         
-                                docker-image|redis@7.2.11-alpine and busybox/busybox@1.37.0-r13
+                                docker-image|public.ecr.aws/docker/library/redis@7.2.11-alpine and busybox/busybox@1.37.0-r13
         
                     </li>
                 </ul>
@@ -545,7 +553,7 @@
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|redis@7.2.11-alpine
+                                        docker-image|public.ecr.aws/docker/library/redis@7.2.11-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         busybox/busybox@1.37.0-r13
                                         
@@ -554,7 +562,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|redis@7.2.11-alpine
+                                        docker-image|public.ecr.aws/docker/library/redis@7.2.11-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         alpine-baselayout/alpine-baselayout@3.6.8-r1
                                          <span class="list-paths__item__arrow">›</span> 
@@ -567,7 +575,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|redis@7.2.11-alpine
+                                        docker-image|public.ecr.aws/docker/library/redis@7.2.11-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         busybox/busybox-binsh@1.37.0-r13
                                         
@@ -576,7 +584,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|redis@7.2.11-alpine
+                                        docker-image|public.ecr.aws/docker/library/redis@7.2.11-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         alpine-baselayout/alpine-baselayout@3.6.8-r1
                                          <span class="list-paths__item__arrow">›</span> 
@@ -587,7 +595,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|redis@7.2.11-alpine
+                                        docker-image|public.ecr.aws/docker/library/redis@7.2.11-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         busybox/ssl_client@1.37.0-r13
                                         
@@ -629,6 +637,9 @@
                     <div class="label label--low">
                         <span class="label__text">low severity</span>
                     </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
                 </div>
         
                 <hr/>
@@ -645,7 +656,7 @@
         
                     <li class="card__meta__item">Introduced through:
         
-                                docker-image|redis@7.2.11-alpine and busybox/busybox@1.37.0-r13
+                                docker-image|public.ecr.aws/docker/library/redis@7.2.11-alpine and busybox/busybox@1.37.0-r13
         
                     </li>
                 </ul>
@@ -658,7 +669,7 @@
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|redis@7.2.11-alpine
+                                        docker-image|public.ecr.aws/docker/library/redis@7.2.11-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         busybox/busybox@1.37.0-r13
                                         
@@ -667,7 +678,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|redis@7.2.11-alpine
+                                        docker-image|public.ecr.aws/docker/library/redis@7.2.11-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         alpine-baselayout/alpine-baselayout@3.6.8-r1
                                          <span class="list-paths__item__arrow">›</span> 
@@ -680,7 +691,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|redis@7.2.11-alpine
+                                        docker-image|public.ecr.aws/docker/library/redis@7.2.11-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         busybox/busybox-binsh@1.37.0-r13
                                         
@@ -689,7 +700,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|redis@7.2.11-alpine
+                                        docker-image|public.ecr.aws/docker/library/redis@7.2.11-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         alpine-baselayout/alpine-baselayout@3.6.8-r1
                                          <span class="list-paths__item__arrow">›</span> 
@@ -700,7 +711,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|redis@7.2.11-alpine
+                                        docker-image|public.ecr.aws/docker/library/redis@7.2.11-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         busybox/ssl_client@1.37.0-r13
                                         
