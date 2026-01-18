@@ -1853,6 +1853,7 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		appNamespace string
 		cluster      string
 		path         string
+		files        []string
 	)
 	command := &cobra.Command{
 		Use:   "list",
@@ -1891,6 +1892,9 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			if path != "" {
 				appList = argo.FilterByPath(appList, path)
 			}
+			if len(files) != 0 {
+				appList = argo.FilterByFile(appList, files)
+			}
 
 			switch output {
 			case "yaml", "json":
@@ -1912,6 +1916,7 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Only list applications in namespace")
 	command.Flags().StringVarP(&cluster, "cluster", "c", "", "List apps by cluster name or url")
 	command.Flags().StringVarP(&path, "path", "P", "", "List apps by path")
+	command.Flags().StringArrayVarP(&files, "file", "f", []string{}, "List apps affected by file")
 	return command
 }
 
