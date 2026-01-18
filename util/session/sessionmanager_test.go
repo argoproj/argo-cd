@@ -617,9 +617,11 @@ func TestLoginRateLimiter(t *testing.T) {
 
 func TestMaxUsernameLength(t *testing.T) {
 	username := ""
+	var usernameSb620 strings.Builder
 	for i := 0; i < maxUsernameLength+1; i++ {
-		username += "a"
+		usernameSb620.WriteString("a")
 	}
+	username += usernameSb620.String()
 	settingsMgr := settings.NewSettingsManager(t.Context(), getKubeClient(t, "password", true), "argocd")
 	mgr := newSessionManager(settingsMgr, getProjLister(), NewUserStateStorage(nil))
 	err := mgr.VerifyUsernamePassword(username, "password")

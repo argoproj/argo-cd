@@ -178,7 +178,9 @@ nav:
   - user-guide/private-repositories.md
   - user-guide/plugins.md
   - user-guide/multiple_sources.md
-  - GnuPG verification: user-guide/gpg-verification.md
+  - Source Integrity Verification:
+    - user-guide/source-integrity.md
+    - Git GnuPG verification: user-guide/source-integrity-git-gpg.md
   - user-guide/auto_sync.md
   - Diffing:
     - Diff Strategies: user-guide/diff-strategies.md
