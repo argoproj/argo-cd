@@ -1,9 +1,12 @@
 package pull_request
 
 import (
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
+	"time"
 
 	"github.com/google/go-github/v69/github"
 	"github.com/stretchr/testify/assert"
@@ -12,6 +15,39 @@ import (
 
 func toPtr(s string) *string {
 	return &s
+}
+
+func mockGitHubPRListHandler(t *testing.T) *httptest.Server {
+	t.Helper()
+
+	mux := http.NewServeMux()
+	server := httptest.NewServer(mux)
+
+	nonExistingPath := "/api/v3/repos/nonexistent/nonexistent/pulls"
+
+	mux.HandleFunc(nonExistingPath, func(w http.ResponseWriter, _ *http.Request) {
+		// Return 404 status to simulate repository not found
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = w.Write([]byte(`{"message": "404 Project Not Found"}`))
+	})
+
+	path := "/api/v3/repos/octocat/Hello-World/pulls"
+
+	mux.HandleFunc(path, func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		writeGitHubPRListResponse(t, w)
+	})
+
+	return server
+}
+
+func writeGitHubPRListResponse(t *testing.T, w io.Writer) {
+	t.Helper()
+	f, err := os.Open("fixtures/github_pr_list_response.json")
+	require.NoErrorf(t, err, "error opening fixture file: %v", err)
+
+	_, err = io.Copy(w, f)
+	require.NoErrorf(t, err, "error writing response: %v", err)
 }
 
 func TestContainLabels(t *testing.T) {
@@ -90,18 +126,34 @@ func TestGetGitHubPRLabelNames(t *testing.T) {
 	}
 }
 
-func TestGitHubListReturnsRepositoryNotFoundError(t *testing.T) {
-	mux := http.NewServeMux()
-	server := httptest.NewServer(mux)
+func TestGithubList(t *testing.T) {
+	server := mockGitHubPRListHandler(t)
 	defer server.Close()
 
-	path := "/repos/nonexistent/nonexistent/pulls"
+	svc, err := NewGithubService("", server.URL, "octocat", "Hello-World", []string{}, nil)
+	require.NoError(t, err)
 
-	mux.HandleFunc(path, func(w http.ResponseWriter, _ *http.Request) {
-		// Return 404 status to simulate repository not found
-		w.WriteHeader(http.StatusNotFound)
-		_, _ = w.Write([]byte(`{"message": "404 Project Not Found"}`))
-	})
+	prs, err := svc.List(t.Context())
+	require.NoError(t, err)
+
+	assert.Len(t, prs, 1)
+
+	pr := prs[0]
+
+	assert.Equal(t, int64(1347), pr.Number)
+	assert.Equal(t, "Amazing new feature", pr.Title)
+	assert.Equal(t, "master", pr.TargetBranch)
+	assert.Equal(t, "6dcb09b5b57875f334f61aebed695e2e4193db5e", pr.HeadSHA)
+	assert.Len(t, pr.Labels, 1)
+	assert.Equal(t, "bug", pr.Labels[0])
+	assert.Equal(t, "octocat", pr.Author)
+	assert.Equal(t, "2011-01-26T19:01:12Z", pr.CreatedAt.Format(time.RFC3339))
+	assert.Equal(t, "2011-01-26T19:01:12Z", pr.UpdatedAt.Format(time.RFC3339))
+}
+
+func TestGitHubListReturnsRepositoryNotFoundError(t *testing.T) {
+	server := mockGitHubPRListHandler(t)
+	defer server.Close()
 
 	svc, err := NewGithubService("", server.URL, "nonexistent", "nonexistent", []string{}, nil)
 	require.NoError(t, err)
