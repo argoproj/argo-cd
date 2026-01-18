@@ -85,10 +85,20 @@ func Test_InitCommand_FiltersUnsupportedKubectlFlags(t *testing.T) {
 
 	InitCommand(cmd)
 
-	assert.Nil(t, cmd.Flags().Lookup("disable-compression"))
-	assert.Nil(t, cmd.Flags().Lookup("as"))
-	assert.Nil(t, cmd.Flags().Lookup("as-group"))
-	assert.Nil(t, cmd.Flags().Lookup("as-uid"))
+	unsupported := []string{
+		"disable-compression",
+		"certificate-authority",
+		"client-certificate",
+		"client-key",
+		"as",
+		"as-group",
+		"as-uid",
+	}
+
+	for _, f := range unsupported {
+		assert.Nil(t, cmd.Flags().Lookup(f))
+	}
+
 	assert.NotNil(t, cmd.Flags().Lookup("context"))
 	assert.NotNil(t, cmd.Flags().Lookup("namespace"))
 }
