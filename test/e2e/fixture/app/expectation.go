@@ -28,6 +28,26 @@ const (
 
 type Expectation func(c *Consequences) (state state, message string)
 
+func Or(e1 Expectation, e2 Expectation) Expectation {
+	return func(c *Consequences) (state, string) {
+		s1, m1 := e1(c)
+		if s1 == succeeded {
+			return s1, m1
+		}
+		s2, m2 := e2(c)
+		if s2 == succeeded {
+			return s2, m2
+		}
+		if s1 == pending {
+			return s1, m1
+		}
+		if s2 == pending {
+			return s2, m2
+		}
+		return failed, fmt.Sprintf("expectations unsuccessful: %s and %s", m1, m2)
+	}
+}
+
 func OperationPhaseIs(expected common.OperationPhase) Expectation {
 	return func(c *Consequences) (state, string) {
 		operationState := c.app().Status.OperationState
@@ -199,6 +219,9 @@ func ResourceHealthWithNamespaceIs(kind, resource, namespace string, expected he
 
 func ResourceResultNumbering(num int) Expectation {
 	return func(c *Consequences) (state, string) {
+		if c.app().Status.OperationState == nil || c.app().Status.OperationState.SyncResult == nil {
+			return pending, "no sync result yet"
+		}
 		actualNum := len(c.app().Status.OperationState.SyncResult.Resources)
 		if actualNum < num {
 			return pending, fmt.Sprintf("not enough results yet, want %d, got %d", num, actualNum)
@@ -211,6 +234,9 @@ func ResourceResultNumbering(num int) Expectation {
 
 func ResourceResultIs(result v1alpha1.ResourceResult) Expectation {
 	return func(c *Consequences) (state, string) {
+		if c.app().Status.OperationState == nil || c.app().Status.OperationState.SyncResult == nil {
+			return pending, "no sync result yet"
+		}
 		results := c.app().Status.OperationState.SyncResult.Resources
 		for _, res := range results {
 			if reflect.DeepEqual(*res, result) {
@@ -233,6 +259,9 @@ func sameResourceResult(res1, res2 v1alpha1.ResourceResult) bool {
 
 func ResourceResultMatches(result v1alpha1.ResourceResult) Expectation {
 	return func(c *Consequences) (state, string) {
+		if c.app().Status.OperationState == nil || c.app().Status.OperationState.SyncResult == nil {
+			return pending, "no sync result yet"
+		}
 		results := c.app().Status.OperationState.SyncResult.Resources
 		for _, res := range results {
 			if sameResourceResult(*res, result) {
