@@ -267,7 +267,14 @@ message GitDirectoriesResponse {
     repeated string paths = 1;
 }
 
+message SourceMeta {
+    github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.Repository repo = 1;
+    string revision = 2;
+    string syncedRevision = 3;
+}
+
 message UpdateRevisionForPathsRequest {
+    // saved for support backward compatibility
     github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.Repository repo = 1;
 
     string appLabelKey = 2;
@@ -286,12 +293,16 @@ message UpdateRevisionForPathsRequest {
 
     bool noRevisionCache = 14;
     string installationID = 15;
+
+    // SourceMetas contains metadata for all sources to check (main source and ref sources)
+    // Each SourceMeta contains repository with credentials, revision, and syncedRevision
+    repeated SourceMeta sourceMetas = 16;
 }
 
 message UpdateRevisionForPathsResponse {
-    // Changes indicates whether any changes were detected in the provided paths. If false, it means that the manifest
-    // cache was updated to the new revision. If true, it means that there are relevant changes in the repo files and
-    // that new manifests should be generated.
+    // Changes indicates whether any changes were detected in the provided paths between syncedRevision and revision.
+    // If true, it means that there are relevant changes in the repo files and that new manifests should be generated.
+    // If false, it means no changes were detected and the cache was updated.
     bool changes = 1;
     string revision = 2;
 }

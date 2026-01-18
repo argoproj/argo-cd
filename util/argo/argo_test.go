@@ -32,6 +32,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/test"
 	"github.com/argoproj/argo-cd/v3/util/db"
 	dbmocks "github.com/argoproj/argo-cd/v3/util/db/mocks"
+	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
@@ -1999,6 +2000,178 @@ func TestValidateManagedByURL(t *testing.T) {
 			} else {
 				assert.Empty(t, conditions, "Expected no validation conditions for valid URL")
 			}
+		})
+	}
+}
+
+func TestGetRelatedRefAppSource(t *testing.T) {
+	tests := []struct {
+		name      string
+		sourceRef argoappv1.ApplicationSource
+		sources   argoappv1.ApplicationSources
+		result    argoappv1.ApplicationSources
+	}{
+		{
+			name: "helm and git as ref source",
+			sourceRef: argoappv1.ApplicationSource{Helm: &argoappv1.ApplicationSourceHelm{
+				ValueFiles: []string{"$values_src/test-app-001/values.yaml"},
+			}, Chart: "test-chart", TargetRevision: "0.0.1"},
+
+			sources: argoappv1.ApplicationSources{
+				{RepoURL: "https://github.com/argocd", Ref: "values_src", TargetRevision: "main"},
+				{Helm: &argoappv1.ApplicationSourceHelm{
+					ValueFiles: []string{"$values_src/test-app-001/values.yaml"},
+				}, Chart: "test-chart", TargetRevision: "0.0.1"},
+			},
+			result: argoappv1.ApplicationSources{
+				{RepoURL: "https://github.com/argocd", Ref: "values_src", TargetRevision: "main"},
+			},
+		},
+		{
+			name: "2 refs and 2 helm with refs sources",
+			sourceRef: argoappv1.ApplicationSource{Helm: &argoappv1.ApplicationSourceHelm{
+				ValueFiles: []string{"$values_src/test-app-001/values.yaml"},
+			}, Chart: "test-chart", TargetRevision: "0.0.1"},
+			sources: argoappv1.ApplicationSources{
+				{RepoURL: "https://github.com/argocd", Ref: "values_src", TargetRevision: "main"},
+				{RepoURL: "https://github.com/argocd-2", Ref: "values_src_common", TargetRevision: "main"},
+				{Helm: &argoappv1.ApplicationSourceHelm{
+					ValueFiles: []string{"$values_src/test-app-001/values.yaml"},
+				}, Chart: "test-chart", TargetRevision: "0.0.1"},
+				{Helm: &argoappv1.ApplicationSourceHelm{
+					ValueFiles: []string{"$values_src_common/test-app-001/values.yaml"},
+				}, Chart: "test-chart-1", TargetRevision: "0.0.1"},
+			},
+			result: argoappv1.ApplicationSources{{RepoURL: "https://github.com/argocd", Ref: "values_src", TargetRevision: "main"}},
+		},
+		{
+			name: "only reference sources",
+			sourceRef: argoappv1.ApplicationSource{
+				RepoURL:        "https://github.com/argocd",
+				TargetRevision: "main",
+				Ref:            "values_src",
+			},
+			sources: argoappv1.ApplicationSources{
+				{
+					RepoURL:        "https://github.com/argocd",
+					TargetRevision: "main",
+					Ref:            "values_src",
+				},
+			},
+			result: argoappv1.ApplicationSources{},
+		},
+		{
+			name: "only helm sources",
+			sourceRef: argoappv1.ApplicationSource{Helm: &argoappv1.ApplicationSourceHelm{
+				ValueFiles: []string{"test-app-001/values.yaml"},
+			}, Chart: "test-chart", TargetRevision: "0.0.1"},
+			sources: argoappv1.ApplicationSources{
+				{Helm: &argoappv1.ApplicationSourceHelm{
+					ValueFiles: []string{"test-app-001/values.yaml"},
+				}, Chart: "test-chart", TargetRevision: "0.0.1"},
+			},
+			result: argoappv1.ApplicationSources{},
+		},
+
+		{
+			name: "duplicate sources",
+			sourceRef: argoappv1.ApplicationSource{Helm: &argoappv1.ApplicationSourceHelm{
+				ValueFiles: []string{"$values_src/test-app-001/values.yaml", "$values_src/test-app-001/values-2.yaml"},
+			}, Chart: "test-chart", TargetRevision: "0.0.1"},
+			sources: argoappv1.ApplicationSources{
+				{RepoURL: "https://github.com/argocd", Ref: "values_src", TargetRevision: "main"},
+				{RepoURL: "https://github.com/argocd-2", Ref: "values_src_common", TargetRevision: "main"},
+				{Helm: &argoappv1.ApplicationSourceHelm{
+					ValueFiles: []string{"$values_src/test-app-001/values.yaml"},
+				}, Chart: "test-chart", TargetRevision: "0.0.1"},
+				{Helm: &argoappv1.ApplicationSourceHelm{
+					ValueFiles: []string{"$values_src_common/test-app-001/values.yaml"},
+				}, Chart: "test-chart-1", TargetRevision: "0.0.1"},
+			},
+			result: argoappv1.ApplicationSources{{RepoURL: "https://github.com/argocd", Ref: "values_src", TargetRevision: "main"}},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resSources := GetRelatedRefSources(tt.sourceRef, tt.sources)
+			assert.Equal(t, tt.result, resSources)
+		})
+	}
+}
+
+func TestUpdateRefSourcesWithResolvedRevisions(t *testing.T) {
+	tests := []struct {
+		name              string
+		refSources        argoappv1.RefTargetRevisionMapping
+		resolvedRevisions map[string]string
+		result            argoappv1.RefTargetRevisionMapping
+	}{
+		{
+			name: "only one ref source",
+			refSources: argoappv1.RefTargetRevisionMapping{
+				"values": &argoappv1.RefTarget{
+					Repo:           argoappv1.Repository{Repo: "https://github.com/argocd"},
+					TargetRevision: "branch-1",
+					Chart:          "chart",
+				},
+			},
+			resolvedRevisions: map[string]string{
+				git.NormalizeGitURL("https://github.com/argocd"): "12345-hash",
+			},
+			result: argoappv1.RefTargetRevisionMapping{
+				"values": &argoappv1.RefTarget{
+					Repo:           argoappv1.Repository{Repo: "https://github.com/argocd"},
+					TargetRevision: "12345-hash",
+					Chart:          "chart",
+				},
+			},
+		},
+		{
+			name: "two ref source with only one resolved",
+			refSources: argoappv1.RefTargetRevisionMapping{
+				"values": &argoappv1.RefTarget{
+					Repo:           argoappv1.Repository{Repo: "https://github.com/argocd"},
+					TargetRevision: "branch-1",
+					Chart:          "chart",
+				},
+				"values_1": &argoappv1.RefTarget{
+					Repo:           argoappv1.Repository{Repo: "https://github.com/argocd-1"},
+					TargetRevision: "branch-1",
+					Chart:          "chart",
+				},
+			},
+			resolvedRevisions: map[string]string{
+				git.NormalizeGitURL("https://github.com/argocd"): "12345-hash",
+			},
+			result: argoappv1.RefTargetRevisionMapping{
+				"values": &argoappv1.RefTarget{
+					Repo:           argoappv1.Repository{Repo: "https://github.com/argocd"},
+					TargetRevision: "12345-hash",
+					Chart:          "chart",
+				},
+				"values_1": &argoappv1.RefTarget{
+					Repo:           argoappv1.Repository{Repo: "https://github.com/argocd-1"},
+					TargetRevision: "branch-1",
+					Chart:          "chart",
+				},
+			},
+		},
+		{
+			name:       "two ref source with only one resolved",
+			refSources: nil,
+			resolvedRevisions: map[string]string{
+				git.NormalizeGitURL("https://github.com/argocd"): "12345-hash",
+			},
+			result: nil,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			copyRefSources := tt.refSources.DeepCopy()
+
+			rReFSources := UpdateRefSourcesWithResolvedRevisions(copyRefSources, tt.resolvedRevisions)
+			assert.Equal(t, tt.result, rReFSources)
+			assert.Equal(t, tt.result, copyRefSources)
 		})
 	}
 }
