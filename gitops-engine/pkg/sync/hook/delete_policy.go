@@ -19,8 +19,6 @@ func DeletePolicies(obj *unstructured.Unstructured) []common.HookDeletePolicy {
 	for _, p := range helmhook.DeletePolicies(obj) {
 		policies = append(policies, p.DeletePolicy())
 	}
-	if len(policies) == 0 {
-		policies = append(policies, common.HookDeletePolicyBeforeHookCreation)
-	}
+	// No default deletion policy - hooks should only be deleted when explicitly configured
 	return policies
 }
