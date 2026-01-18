@@ -364,6 +364,15 @@ func (s *Server) Update(ctx context.Context, q *project.ProjectUpdateRequest) (*
 	}
 	q.Project.NormalizePolicies()
 	q.Project.NormalizeJWTTokens()
+
+	// NOTE: `/projects/:name/detailed` returns a virtual project (global project specs appended).
+	// Some clients (notably the UI) historically used that virtual project as the edit source and
+	// then sent it back via Update, which persists inherited/global entries into the AppProject CR.
+	// Since global merge is append-based, that results in duplicates on every subsequent edit.
+	// Strip inherited entries here to make the API safe for all clients.
+	globalProjects := argo.GetGlobalProjects(q.Project, listersv1alpha1.NewAppProjectLister(s.projInformer.GetIndexer()), s.settingsMgr)
+	argo.StripInheritedGlobalProjectSpec(q.Project, globalProjects)
+
 	err := validateProject(q.Project)
 	if err != nil {
 		return nil, err
