@@ -565,6 +565,80 @@ func TestAppProject_IsGroupKindPermitted(t *testing.T) {
 	assert.True(t, proj7.IsGroupKindNamePermitted(schema.GroupKind{Group: "", Kind: "Namespace"}, "team1-namespace", false))
 }
 
+func TestGlobMatch(t *testing.T) {
+	tests := []struct {
+		name          string
+		pattern       string
+		val           string
+		allowNegation bool
+		expected      bool
+	}{
+		{
+			name:          "exact match",
+			pattern:       "foo",
+			val:           "foo",
+			allowNegation: false,
+			expected:      true,
+		},
+		{
+			name:          "glob wildcard match",
+			pattern:       "foo*",
+			val:           "foobar",
+			allowNegation: false,
+			expected:      true,
+		},
+		{
+			name:          "glob wildcard no match",
+			pattern:       "foo*",
+			val:           "bar",
+			allowNegation: false,
+			expected:      false,
+		},
+		{
+			name:          "star matches everything",
+			pattern:       "*",
+			val:           "anything",
+			allowNegation: false,
+			expected:      true,
+		},
+		{
+			name:          "deny pattern with negation allowed - match",
+			pattern:       "!foo",
+			val:           "foo",
+			allowNegation: true,
+			expected:      false,
+		},
+		{
+			name:          "deny pattern with negation allowed - no match",
+			pattern:       "!foo",
+			val:           "bar",
+			allowNegation: true,
+			expected:      true,
+		},
+		{
+			name:          "deny pattern ignored when negation not allowed",
+			pattern:       "!foo",
+			val:           "foo",
+			allowNegation: false,
+			expected:      false, // treated as literal pattern "!foo"
+		},
+		{
+			name:          "deny pattern ignored when negation not allowed - no match",
+			pattern:       "!foo",
+			val:           "!foo",
+			allowNegation: false,
+			expected:      true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := globMatch(tt.pattern, tt.val, tt.allowNegation)
+			require.Equal(t, tt.expected, result)
+		})
+	}
+}
+
 func TestAppProject_GetRoleByName(t *testing.T) {
 	t.Run("NotExists", func(t *testing.T) {
 		p := &AppProject{}
