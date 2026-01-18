@@ -9953,6 +9953,10 @@
             "$ref": "#/definitions/v1alpha1KnownTypeField"
           }
         },
+        "normalizeAs": {
+          "description": "NormalizeAs indicates that the resource should be normalized as a different resource type.",
+          "type": "string"
+        },
         "useOpenLibs": {
           "description": "UseOpenLibs indicates whether to use open-source libraries for the resource.",
           "type": "boolean"

@@ -2489,6 +2489,7 @@ type rawResourceOverride struct {
 	IgnoreDifferences     string           `json:"ignoreDifferences,omitempty"`
 	IgnoreResourceUpdates string           `json:"ignoreResourceUpdates,omitempty"`
 	KnownTypeFields       []KnownTypeField `json:"knownTypeFields,omitempty"`
+	NormalizeAs           string           `json:"normalizeAs,omitempty"`
 }
 
 // ResourceOverride holds configuration to customize resource diffing and health assessment
@@ -2505,6 +2506,8 @@ type ResourceOverride struct {
 	IgnoreResourceUpdates OverrideIgnoreDiff `protobuf:"bytes,6,opt,name=ignoreResourceUpdates"`
 	// KnownTypeFields lists fields for which unit conversions should be applied.
 	KnownTypeFields []KnownTypeField `protobuf:"bytes,4,opt,name=knownTypeFields"`
+	// NormalizeAs indicates that the resource should be normalized as a different resource type.
+	NormalizeAs string `protobuf:"bytes,7,opt,name=normalizeAs"`
 }
 
 // UnmarshalJSON unmarshals a JSON byte slice into a ResourceOverride object.
@@ -2519,6 +2522,7 @@ func (ro *ResourceOverride) UnmarshalJSON(data []byte) error {
 	ro.HealthLua = raw.HealthLua
 	ro.UseOpenLibs = raw.UseOpenLibs
 	ro.Actions = raw.Actions
+	ro.NormalizeAs = raw.NormalizeAs
 	err := yaml.Unmarshal([]byte(raw.IgnoreDifferences), &ro.IgnoreDifferences)
 	if err != nil {
 		return err
@@ -2541,7 +2545,7 @@ func (ro ResourceOverride) MarshalJSON() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	raw := &rawResourceOverride{ro.HealthLua, ro.UseOpenLibs, ro.Actions, string(ignoreDifferencesData), string(ignoreResourceUpdatesData), ro.KnownTypeFields}
+	raw := &rawResourceOverride{ro.HealthLua, ro.UseOpenLibs, ro.Actions, string(ignoreDifferencesData), string(ignoreResourceUpdatesData), ro.KnownTypeFields, ro.NormalizeAs}
 	return json.Marshal(raw)
 }
 

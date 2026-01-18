@@ -238,6 +238,9 @@ const (
 	LabelKeyComponentRepoServer = "app.kubernetes.io/component"
 	// LabelValueComponentRepoServer is the label value for the repo-server component
 	LabelValueComponentRepoServer = "repo-server"
+	// AnnotationKeyNormalizeAs when set on a custom resource will be normalized as the given known K8s resource.
+	// For now only the K8s standard secret is supported
+	AnnotationKeyNormalizeAs = "argocd.argoproj.io/normalize-as"
 )
 
 // Environment variables for tuning and debugging Argo CD
