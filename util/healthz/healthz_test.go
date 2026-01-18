@@ -4,10 +4,10 @@ import (
 	"errors"
 	"net"
 	"net/http"
-	"testing"
 	"strings"
+	"testing"
 
-	logrus "github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -63,12 +63,12 @@ func TestHealthCheck(t *testing.T) {
 	resp, err = http.DefaultClient.Do(req)
 	require.NoError(t, err)
 	require.Equalf(t, http.StatusServiceUnavailable, resp.StatusCode, "Was expecting status code 503 from health check, but got %d instead", resp.StatusCode)
-	assert.Greater(t, len(hook.Entries), 0, "Was expecting at least one log entry from health check, but got none")
+	assert.NotEmpty(t, hook.Entries, "Was expecting at least one log entry from health check, but got none")
 	expectedMsg := "Error serving healh check request: " + svcErrMsg
 	assert.Condition(t,
 		func() bool {
 			for _, entry := range hook.Entries {
-				if entry.Level == logrus.ErrorLevel &&
+				if entry.Level == log.ErrorLevel &&
 					strings.HasPrefix(entry.Message, expectedMsg) {
 					return true
 				}

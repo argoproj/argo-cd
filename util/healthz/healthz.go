@@ -15,7 +15,7 @@ func ServeHealthCheck(mux *http.ServeMux, f func(r *http.Request) error) {
 		startTs := time.Now()
 		if err := f(r); err != nil {
 			w.WriteHeader(http.StatusServiceUnavailable)
-			log.WithField("duration", time.Since(startTs)).Errorf("Error serving healh check request: %v", err);
+			log.WithField("duration", time.Since(startTs)).Errorf("Error serving healh check request: %v", err)
 		} else {
 			fmt.Fprintln(w, "ok")
 		}
