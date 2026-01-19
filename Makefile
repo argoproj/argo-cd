@@ -86,8 +86,6 @@ ARGOCD_IN_CI?=false
 ARGOCD_TEST_E2E?=true
 ARGOCD_BIN_MODE?=true
 
-ARGOCD_LINT_GOGC?=20
-
 # Depending on where we are (legacy or non-legacy pwd), we need to use
 # different Docker volume mounts for our source tree
 LEGACY_PATH=$(GOPATH)/src/github.com/argoproj/argo-cd
@@ -147,7 +145,6 @@ define run-in-test-client
 		-e ARGOCD_E2E_K3S=$(ARGOCD_E2E_K3S) \
 		-e GITHUB_TOKEN \
 		-e GOCACHE=/tmp/go-build-cache \
-		-e ARGOCD_LINT_GOGC=$(ARGOCD_LINT_GOGC) \
 		-v ${DOCKER_SRC_MOUNT} \
 		-v ${GOPATH}/pkg/mod:/go/pkg/mod${VOLUME_MOUNT} \
 		-v ${GOCACHE}:/tmp/go-build-cache${VOLUME_MOUNT} \
@@ -223,7 +220,7 @@ $(error IMAGE_NAMESPACE must be set when IMAGE_REGISTRY is set (e.g. IMAGE_NAMES
 endif
 else
 ifdef IMAGE_NAMESPACE
-# for backwards compatibility with the old way like IMAGE_NAMESPACE='quay.io/argoproj' 
+# for backwards compatibility with the old way like IMAGE_NAMESPACE='quay.io/argoproj'
 IMAGE_PREFIX=${IMAGE_NAMESPACE}/
 else
 # Neither namespace nor registry given - apply the default values
@@ -415,9 +412,7 @@ lint: test-tools-image
 .PHONY: lint-local
 lint-local:
 	golangci-lint --version
-	# NOTE: If you get a "Killed" OOM message, try reducing the value of GOGC
-	# See https://github.com/golangci/golangci-lint#memory-usage-of-golangci-lint
-	GOGC=$(ARGOCD_LINT_GOGC) GOMAXPROCS=2 golangci-lint run --fix --verbose
+	golangci-lint run --fix --verbose
 
 .PHONY: lint-ui
 lint-ui: test-tools-image
