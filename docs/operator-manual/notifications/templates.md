@@ -122,6 +122,14 @@ metadata:
 data:
   template.my-custom-template-slack-template: |
     message: "Author: {{(call .repo.GetCommitMetadata .app.status.sync.revision).Author}}"
+  template.slack-with-mentions: |
+    message: |
+      {{ $authors := call .repo.GetCommitAuthorsFromPreviousSync }}
+      {{ if $authors }}
+        Application {{.app.metadata.name}} synced. Authors: {{ join $authors ", " }}
+      {{ else }}
+        Application {{.app.metadata.name}} synced by {{.app.status.operationState.operation.initiatedBy.username}}
+      {{ end }}
 ```
 
 {!docs/operator-manual/notifications/functions.md!}

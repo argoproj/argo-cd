@@ -137,6 +137,8 @@ type Client interface {
 	VerifyCommitSignature(string) (string, error)
 	IsAnnotatedTag(string) bool
 	ChangedFiles(revision string, targetRevision string) ([]string, error)
+	// GetCommitAuthorsBetween returns unique commit authors between two revisions (exclusive of fromRevision, inclusive of toRevision)
+	GetCommitAuthorsBetween(fromRevision string, toRevision string) ([]string, error)
 	IsRevisionPresent(revision string) bool
 	// SetAuthor sets the author name and email in the git configuration.
 	SetAuthor(name, email string) (string, error)
@@ -859,6 +861,76 @@ func (m *nativeGitClient) RevisionMetadata(revision string) (*RevisionMetadata, 
 		Message:    message,
 		References: relatedCommits,
 	}, nil
+}
+
+// GetCommitAuthorsBetween returns unique commit authors between two revisions
+// (exclusive of fromRevision, inclusive of toRevision)
+// Returns authors in the format "Name <email>"
+// Returns empty slice if revisions are the same, if there are no commits between them,
+// or if either revision doesn't exist (error is logged but not returned)
+func (m *nativeGitClient) GetCommitAuthorsBetween(fromRevision string, toRevision string) ([]string, error) {
+	// Validate inputs
+	if fromRevision == "" || toRevision == "" {
+		return []string{}, nil
+	}
+	
+	// If revisions are the same, return empty
+	if fromRevision == toRevision {
+		return []string{}, nil
+	}
+	
+	ctx := context.Background()
+	
+	// Check if revisions exist (best effort - don't fail if check fails)
+	// This helps avoid confusing error messages
+	if !m.IsRevisionPresent(fromRevision) {
+		log.Debugf("fromRevision %s not present in repository %s, returning empty authors", fromRevision, m.repoURL)
+		return []string{}, nil
+	}
+	if !m.IsRevisionPresent(toRevision) {
+		log.Debugf("toRevision %s not present in repository %s, returning empty authors", toRevision, m.repoURL)
+		return []string{}, nil
+	}
+	
+	// Use git log to get all commits between fromRevision and toRevision
+	// Format: %an <%ae> gives us "Name <email>" format
+	// --format=%an <%ae> --no-merges to exclude merge commits
+	// Use ^fromRevision to exclude commits from fromRevision
+	// Use --reverse to get chronological order (though we deduplicate anyway)
+	out, err := m.runCmd(ctx, "log", "--format=%an <%ae>", "--no-merges", "^"+fromRevision, toRevision)
+	if err != nil {
+		// If git log fails (e.g., invalid range, no commits), return empty slice
+		// This is expected behavior when there are no commits between revisions
+		// or when fromRevision is not an ancestor of toRevision
+		log.Debugf("git log failed for range ^%s..%s in repo %s: %v, returning empty authors", fromRevision, toRevision, m.repoURL, err)
+		return []string{}, nil
+	}
+	
+	// Handle empty output (no commits between revisions)
+	out = strings.TrimSpace(out)
+	if out == "" {
+		return []string{}, nil
+	}
+	
+	// Split by newlines and collect unique authors
+	authorMap := make(map[string]bool)
+	lines := strings.Split(out, "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line != "" {
+			authorMap[line] = true
+		}
+	}
+	
+	// Convert map to slice
+	authors := make([]string, 0, len(authorMap))
+	for author := range authorMap {
+		authors = append(authors, author)
+	}
+	
+	// Sort for consistent output
+	sort.Strings(authors)
+	return authors, nil
 }
 
 func truncate(str string) string {

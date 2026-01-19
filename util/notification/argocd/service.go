@@ -17,6 +17,7 @@ import (
 type Service interface {
 	GetCommitMetadata(ctx context.Context, repoURL string, commitSHA string, project string) (*shared.CommitMetadata, error)
 	GetAppDetails(ctx context.Context, app *v1alpha1.Application) (*shared.AppDetail, error)
+	GetCommitAuthorsBetween(ctx context.Context, repoURL string, fromRevision string, toRevision string, project string) ([]string, error)
 }
 
 func NewArgoCDService(clientset kubernetes.Interface, namespace string, repoClientset apiclient.Clientset) (*argoCDService, error) {
@@ -116,6 +117,38 @@ func (svc *argoCDService) GetAppDetails(ctx context.Context, app *v1alpha1.Appli
 		Kustomize: appDetail.Kustomize,
 		Directory: appDetail.Directory,
 	}, nil
+}
+
+func (svc *argoCDService) GetCommitAuthorsBetween(ctx context.Context, repoURL string, fromRevision string, toRevision string, project string) ([]string, error) {
+	// Validate inputs
+	if fromRevision == "" || toRevision == "" {
+		return []string{}, nil
+	}
+	if fromRevision == toRevision {
+		return []string{}, nil
+	}
+
+	argocdDB := db.NewDB(svc.namespace, svc.settingsMgr, svc.clientset)
+	repo, err := argocdDB.GetRepository(ctx, repoURL, project)
+	if err != nil {
+		// Return empty on error to avoid breaking notifications
+		log.Debugf("failed to get repository %s in project %s: %v, returning empty authors", repoURL, project, err)
+		return []string{}, nil
+	}
+	response, err := svc.repoServerClient.GetCommitAuthorsBetween(ctx, &apiclient.RepoServerCommitAuthorsRequest{
+		Repo:         repo,
+		FromRevision: fromRevision,
+		ToRevision:   toRevision,
+	})
+	if err != nil {
+		// Return empty on error to avoid breaking notifications
+		log.Debugf("failed to get commit authors between %s and %s: %v, returning empty authors", fromRevision, toRevision, err)
+		return []string{}, nil
+	}
+	if response == nil {
+		return []string{}, nil
+	}
+	return response.Authors, nil
 }
 
 func (svc *argoCDService) Close() {

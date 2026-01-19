@@ -69,6 +69,164 @@ func getCommitMetadata(commitSHA string, app *unstructured.Unstructured, argocdS
 	return meta, nil
 }
 
+func getCommitAuthorsBetween(fromRevision string, toRevision string, app *unstructured.Unstructured, argocdService service.Service) ([]string, error) {
+	// Validate inputs
+	if fromRevision == "" || toRevision == "" {
+		return []string{}, nil
+	}
+	if fromRevision == toRevision {
+		return []string{}, nil
+	}
+	
+	repoURL, ok, err := unstructured.NestedString(app.Object, "spec", "source", "repoURL")
+	if err != nil {
+		return []string{}, nil
+	}
+	if !ok || repoURL == "" {
+		return []string{}, nil
+	}
+	project, ok, err := unstructured.NestedString(app.Object, "spec", "project")
+	if err != nil {
+		return []string{}, nil
+	}
+	if !ok {
+		// Default project if not specified
+		project = "default"
+	}
+
+	authors, err := argocdService.GetCommitAuthorsBetween(context.Background(), repoURL, fromRevision, toRevision, project)
+	if err != nil {
+		// Return empty on error to avoid breaking notifications
+		return []string{}, nil
+	}
+	return authors, nil
+}
+
+// getCommitAuthorsFromPreviousSync gets commit authors between the previous sync and current sync
+// Returns empty slice if there's no history, no current revision, or if revisions are the same
+func getCommitAuthorsFromPreviousSync(app *unstructured.Unstructured, argocdService service.Service) ([]string, error) {
+	// Get current revision(s)
+	currentRevisions, ok, err := unstructured.NestedStringSlice(app.Object, "status", "sync", "revisions")
+	if err != nil {
+		// Log error but return empty to avoid breaking notifications
+		return []string{}, nil
+	}
+	var currentRevision string
+	if !ok || len(currentRevisions) == 0 {
+		// Try single revision field
+		var ok2 bool
+		currentRevision, ok2, err = unstructured.NestedString(app.Object, "status", "sync", "revision")
+		if err != nil {
+			return []string{}, nil
+		}
+		if !ok2 || currentRevision == "" {
+			// No current revision, return empty
+			return []string{}, nil
+		}
+	} else {
+		// For multisource, use the first source's revision
+		currentRevision = currentRevisions[0]
+		if currentRevision == "" {
+			return []string{}, nil
+		}
+	}
+
+	// Get previous revision from history
+	var previousRevision string
+	history, ok, err := unstructured.NestedSlice(app.Object, "status", "history")
+	if err != nil {
+		return []string{}, nil
+	}
+	if ok && len(history) > 0 {
+		// Get the last history entry (most recent previous sync)
+		lastHistory := history[len(history)-1]
+		lastHistoryMap, ok := lastHistory.(map[string]interface{})
+		if ok {
+			// Try revisions field first (for multisource)
+			if revs, exists := lastHistoryMap["revisions"]; exists {
+				if revsSlice, ok := revs.([]interface{}); ok && len(revsSlice) > 0 {
+					if revStr, ok := revsSlice[0].(string); ok && revStr != "" {
+						previousRevision = revStr
+					}
+				}
+			} else if rev, exists := lastHistoryMap["revision"]; exists {
+				// Fall back to single revision field
+				if revStr, ok := rev.(string); ok && revStr != "" {
+					previousRevision = revStr
+				}
+			}
+		}
+	}
+
+	// If no previous revision, return empty (first sync or no history)
+	if previousRevision == "" {
+		return []string{}, nil
+	}
+
+	// If previous and current are the same, return empty (no new commits)
+	if previousRevision == currentRevision {
+		return []string{}, nil
+	}
+
+	// Get authors between revisions
+	// Errors are handled gracefully - if there's an issue, return empty
+	authors, err := getCommitAuthorsBetween(previousRevision, currentRevision, app, argocdService)
+	if err != nil {
+		// Log error but return empty to avoid breaking notifications
+		return []string{}, nil
+	}
+	return authors, nil
+}
+
+// extractEmailFromAuthor extracts email from "Name <email>" format
+// Handles edge cases like missing brackets, empty strings, etc.
+func extractEmailFromAuthor(author string) string {
+	if author == "" {
+		return ""
+	}
+	author = strings.TrimSpace(author)
+	
+	// Format is typically "Name <email>" or just "email"
+	start := strings.Index(author, "<")
+	end := strings.Index(author, ">")
+	if start != -1 && end != -1 && end > start {
+		email := strings.TrimSpace(author[start+1 : end])
+		if email != "" {
+			return email
+		}
+	}
+	// If no angle brackets, check if it looks like an email
+	// Otherwise return the whole string trimmed
+	trimmed := strings.TrimSpace(author)
+	if strings.Contains(trimmed, "@") {
+		return trimmed
+	}
+	// If it doesn't look like an email, return empty
+	return ""
+}
+
+// formatSlackMentions formats a list of authors as Slack mentions
+// This is a helper that extracts emails - users will need to map emails to Slack user IDs
+// Returns comma-separated list of emails
+func formatSlackMentions(authors []string) string {
+	if len(authors) == 0 {
+		return ""
+	}
+	mentions := make([]string, 0, len(authors))
+	seen := make(map[string]bool)
+	for _, author := range authors {
+		email := extractEmailFromAuthor(author)
+		if email != "" && !seen[email] {
+			mentions = append(mentions, email)
+			seen[email] = true
+		}
+	}
+	if len(mentions) == 0 {
+		return ""
+	}
+	return strings.Join(mentions, ", ")
+}
+
 func FullNameByRepoURL(rawURL string) string {
 	parsed, err := giturls.Parse(rawURL)
 	if err != nil {
@@ -106,6 +264,24 @@ func NewExprs(argocdService service.Service, app *unstructured.Unstructured) map
 
 			return *meta
 		},
+		"GetCommitAuthorsBetween": func(fromRevision string, toRevision string) any {
+			authors, err := getCommitAuthorsBetween(fromRevision, toRevision, app, argocdService)
+			if err != nil {
+				panic(err)
+			}
+
+			return authors
+		},
+		"GetCommitAuthorsFromPreviousSync": func() any {
+			authors, err := getCommitAuthorsFromPreviousSync(app, argocdService)
+			if err != nil {
+				panic(err)
+			}
+
+			return authors
+		},
+		"ExtractEmailFromAuthor": extractEmailFromAuthor,
+		"FormatSlackMentions":    formatSlackMentions,
 		"GetAppDetails": func() any {
 			appDetails, err := getAppDetails(app, argocdService)
 			if err != nil {
