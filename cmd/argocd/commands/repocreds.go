@@ -200,6 +200,7 @@ func NewRepoCredsAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comma
 	command.Flags().StringVar(&gcpServiceAccountKeyPath, "gcp-service-account-key-path", "", "service account key for the Google Cloud Platform")
 	command.Flags().BoolVar(&repo.ForceHttpBasicAuth, "force-http-basic-auth", false, "whether to force basic auth when connecting via HTTP")
 	command.Flags().BoolVar(&repo.UseAzureWorkloadIdentity, "use-azure-workload-identity", false, "whether to use azure workload identity for authentication")
+	command.Flags().StringVar(&repo.AzureTenantId, "azure-tenant-id", "", "azure tenant id for workload identity authentication (overrides AZURE_TENANT_ID env var)")
 	command.Flags().StringVar(&repo.Proxy, "proxy-url", "", "If provided, this URL will be used to connect via proxy")
 	return command
 }
