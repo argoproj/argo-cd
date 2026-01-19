@@ -40,6 +40,7 @@ message Settings {
     string uiBannerPosition = 20;
     string statusBadgeRootUrl = 21;
     bool execEnabled = 22;
+    string uiDefaultTheme = 30;
     string controllerNamespace = 23;
     bool appsInAnyNamespaceEnabled = 24;
     bool impersonationEnabled = 25;
