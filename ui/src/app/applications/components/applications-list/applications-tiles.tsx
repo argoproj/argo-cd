@@ -208,6 +208,32 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                                         </div>
                                                     </div>
                                                     <div className='row'>
+                                                        <div className='columns small-3' title='Annotations:'>
+                                                            Annotations:
+                                                        </div>
+                                                        <div className='columns small-9'>
+                                                            <Tooltip
+                                                                zIndex={4}
+                                                                content={
+                                                                    <div>
+                                                                        {Object.keys(app.metadata.annotations || {})
+                                                                            .map(annotation => ({label: annotation, value: app.metadata.annotations[annotation]}))
+                                                                            .map(item => (
+                                                                                <div key={item.label}>
+                                                                                    {item.label}={item.value}
+                                                                                </div>
+                                                                            ))}
+                                                                    </div>
+                                                                }>
+                                                                <span>
+                                                                    {Object.keys(app.metadata.annotations || {})
+                                                                        .map(annotation => `${annotation}=${app.metadata.annotations[annotation]}`)
+                                                                        .join(', ')}
+                                                                </span>
+                                                            </Tooltip>
+                                                        </div>
+                                                    </div>
+                                                    <div className='row'>
                                                         <div className='columns small-3' title='Status:'>
                                                             Status:
                                                         </div>
