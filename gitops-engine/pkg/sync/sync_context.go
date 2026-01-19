@@ -430,7 +430,7 @@ func (sc *syncContext) setRunningPhase(tasks syncTasks, isPendingDeletion bool) 
 	sc.setOperationPhase(common.OperationRunning, message)
 }
 
-// sync has performs the actual apply or hook based sync
+// Sync executes next synchronization step and updates operation status.
 func (sc *syncContext) Sync() {
 	sc.log.WithValues("skipHooks", sc.skipHooks, "started", sc.started()).Info("Syncing")
 	tasks, ok := sc.getSyncTasks()
@@ -643,7 +643,8 @@ func (sc *syncContext) Sync() {
 	}
 }
 
-// terminate looks for any running jobs/workflow hooks and deletes the resource
+// Terminate terminates sync operation. The method is asynchronous: it starts deletion is related K8S resources
+// such as in-flight resource hooks, updates operation status, and exists without waiting for resource completion.
 func (sc *syncContext) Terminate() {
 	sc.log.V(1).Info("terminating")
 	tasks, _ := sc.getSyncTasks()
@@ -667,6 +668,7 @@ func (sc *syncContext) Terminate() {
 	}
 }
 
+// GetState returns current sync operation state and information about resources synchronized so far.
 func (sc *syncContext) GetState() (common.OperationPhase, string, []common.ResourceSyncResult) {
 	var resourceRes []common.ResourceSyncResult
 	for _, v := range sc.syncRes {
@@ -705,7 +707,10 @@ func (sc *syncContext) getNamespaceCreationTask(tasks syncTasks) *syncTask {
 	return nil
 }
 
-// terminateHooksPreemptively terminates ongoing hook tasks
+// terminateHooksPreemptively terminates ongoing hook tasks, Usually, when a hook is running,
+// the gitops engine controller waits for its completion. However, when terminating a sync operation,
+// or when we encounter an unexpected error, we need to preemptively terminate any running hooks
+// by removing their finalizers and deleting them.
 func (sc *syncContext) terminateHooksPreemptively(tasks syncTasks) bool {
 	terminateSuccessful := true
 	for _, task := range tasks {
