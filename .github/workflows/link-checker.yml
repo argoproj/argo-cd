@@ -40,13 +40,19 @@ jobs:
         uses: lycheeverse/lychee-action@v2.6.1
         with:
           args: >
-            --accept '100..=103,200..=299,403,429'
+            --accept '100..=103,200..=299,403,429,302'
             --exclude-all-private
+            --exclude-loopback
+            --exclude-mail
+            --exclude 'kubernetes.default.svc'
+            --exclude '0.0.0.0'
+            --exclude 'your\.'
+            --exclude '^file://'
             --timeout 60
             docs/
 
       - name: Create Issue From File #Create automated issue if issue is not created already
-        if: env.lychee_exit_code != 0 && steps.check_issue.outputs.exists == 'false'
+        if: steps.lychee.outputs.exit_code != '0' && steps.check_issue.outputs.exists == 'false'
         uses: peter-evans/create-issue-from-file@v5
         with:
           title: Broken Link Detected in Docs
