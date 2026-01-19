@@ -11,6 +11,7 @@
 | release.yaml       | Build images, cli-binaries, provenances, and post actions      |
 | scorecard.yaml     | Generate scorecard for supply-chain security                   |
 | update-snyk.yaml   | Scheduled snyk reports                                         |
+| link-checker.yml   | Check for broken links in /docs                                |
 
 # Reusable workflows
 
