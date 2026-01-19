@@ -68,4 +68,15 @@ func Test_syncTask_deleteBeforeCreation(t *testing.T) {
 func Test_syncTask_wave(t *testing.T) {
 	assert.Equal(t, 0, (&syncTask{targetObj: testingutils.NewPod()}).wave())
 	assert.Equal(t, 1, (&syncTask{targetObj: testingutils.Annotate(testingutils.NewPod(), "argocd.argoproj.io/sync-wave", "1")}).wave())
+	assert.Equal(t, 0, (&syncTask{targetObj: testingutils.NewPod()}).waveGroup())
+	assert.Equal(t, 1, (&syncTask{targetObj: testingutils.Annotate(testingutils.NewPod(), "argocd.argoproj.io/sync-wave-group", "1")}).waveGroup())
+	assert.Equal(t, []int{}, (&syncTask{targetObj: testingutils.NewPod()}).waveGroupDependencies())
+	assert.Equal(t, []int{}, (&syncTask{targetObj: testingutils.Annotate(testingutils.NewPod(), "argocd.argoproj.io/sync-wave-group-dependencies", "1,2")}).waveGroupDependencies())
+	assert.Equal(t, []int{1}, (&syncTask{targetObj: testingutils.Annotate(testingutils.Annotate(testingutils.NewPod(), "argocd.argoproj.io/sync-wave-group-dependencies", "1,2"), "argocd.argoproj.io/sync-wave-group", "2")}).waveGroupDependencies())
+	assert.Equal(t, []int{1, 2}, (&syncTask{targetObj: testingutils.Annotate(testingutils.Annotate(testingutils.NewPod(), "argocd.argoproj.io/sync-wave-group-dependencies", "1,2"), "argocd.argoproj.io/sync-wave-group", "3")}).waveGroupDependencies())
+	assert.Equal(t, true, (&syncTask{targetObj: testingutils.Annotate(testingutils.Annotate(testingutils.NewPod(), "argocd.argoproj.io/sync-wave-group-dependencies", "1,2"), "argocd.argoproj.io/sync-wave-group", "3")}).dependendsOn((&syncTask{targetObj: testingutils.Annotate(testingutils.NewPod(), "argocd.argoproj.io/sync-wave-group", "1")})))
+	assert.Equal(t, false, (&syncTask{targetObj: testingutils.Annotate(testingutils.Annotate(testingutils.NewPod(), "argocd.argoproj.io/sync-wave-group-dependencies", "1,2"), "argocd.argoproj.io/sync-wave-group", "3")}).dependendsOn((&syncTask{targetObj: testingutils.Annotate(testingutils.NewPod(), "argocd.argoproj.io/sync-wave-group", "4")})))
+	assert.Equal(t, true, (&syncTask{targetObj: testingutils.Annotate(testingutils.NewPod(), "argocd.argoproj.io/sync-wave", "3")}).dependendsOn((&syncTask{targetObj: testingutils.Annotate(testingutils.NewPod(), "argocd.argoproj.io/sync-wave", "2")})))
+	assert.Equal(t, false, (&syncTask{targetObj: testingutils.Annotate(testingutils.NewPod(), "argocd.argoproj.io/sync-wave", "3")}).dependendsOn((&syncTask{targetObj: testingutils.Annotate(testingutils.NewPod(), "argocd.argoproj.io/sync-wave", "4")})))
+
 }
