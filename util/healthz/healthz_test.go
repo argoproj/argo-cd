@@ -73,8 +73,9 @@ func TestHealthCheck(t *testing.T) {
 			break
 		}
 	}
-	assert.NotNil(t, foundEntry, "Expected an error message '%s', but it was't found", expectedMsg)
-	actualErrMsg := foundEntry.Data["error"].(error).Error()
-	assert.Equal(t, svcErrMsg, actualErrMsg, "expected original error message '"+svcErrMsg+"', but got '"+actualErrMsg+"'")
+	require.NotEmpty(t, foundEntry, "Expected an error message '%s', but it was't found", expectedMsg)
+	actualErr, ok := foundEntry.Data["error"].(error)
+	require.Truef(t, ok, "Expected error field to contain an error, but got %v", actualErr)
+	assert.Equal(t, svcErrMsg, actualErr.Error(), "expected original error message '"+svcErrMsg+"', but got '"+actualErr.Error()+"'")
 	assert.Greater(t, foundEntry.Data["duration"].(time.Duration), time.Duration(0))
 }
