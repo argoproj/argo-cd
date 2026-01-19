@@ -15,6 +15,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
+	"github.com/argoproj/gitops-engine/pkg/health"
+
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/applicationset"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -2173,4 +2175,50 @@ func TestApplicationSetAPIListResourceEvents(t *testing.T) {
 			assert.NotNil(t, events)
 		}).
 		When().Delete().Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{}))
+}
+
+// TestApplicationSetHealthStatusCLI tests that the CLI commands display the health status field for an ApplicationSet.
+func TestApplicationSetHealthStatusCLI(t *testing.T) {
+	Given(t).
+		When().Create(v1alpha1.ApplicationSet{
+		Spec: v1alpha1.ApplicationSetSpec{
+			GoTemplate: true,
+			Template: v1alpha1.ApplicationSetTemplate{
+				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "health-cli-guestbook"},
+				Spec: v1alpha1.ApplicationSpec{
+					Project: "default",
+					Source: &v1alpha1.ApplicationSource{
+						RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+						TargetRevision: "HEAD",
+						Path:           "guestbook",
+					},
+					Destination: v1alpha1.ApplicationDestination{
+						Server:    "https://kubernetes.default.svc",
+						Namespace: "guestbook",
+					},
+				},
+			},
+			Generators: []v1alpha1.ApplicationSetGenerator{
+				{
+					List: &v1alpha1.ListGenerator{
+						Elements: []apiextensionsv1.JSON{{
+							Raw: []byte(`{"cluster": "my-cluster"}`),
+						}},
+					},
+				},
+			},
+		},
+	}).Then().
+		// Wait for the ApplicationSet to be ready
+		Expect(ApplicationSetHasConditions(ExpectedConditions)).
+		Expect(ApplicationSetHasHealthStatus(health.HealthStatusHealthy)).
+		// Test 'argocd appset get' shows Health Status field
+		When().AppSetGet().
+		Then().
+		Expect(Success("Health Status:      Healthy")).
+		// Test 'argocd appset list' shows HEALTH column header
+		When().AppSetList().
+		Then().
+		Expect(Success("PROJECT  SYNCPOLICY  HEALTH   CONDITIONS")).
+		Expect(Success("default  nil         Healthy  "))
 }

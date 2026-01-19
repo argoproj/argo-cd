@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="8 known vulnerabilities found in 51 vulnerable dependency paths.">
+  <meta name="description" content="7 known vulnerabilities found in 11 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -245,6 +245,11 @@
     .card .label--low {
       background-color: #88879E;
       border-color: #88879E;
+    }
+  
+    .card .label--exploit {
+      background-color: #8B5A96;
+      border-color: #8B5A96;
     }
   
     .severity--low {
@@ -487,7 +492,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">January 4th 2026, 12:33:48 am (UTC+00:00)</p>
+                <p class="timestamp">January 18th 2026, 12:33:30 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
@@ -499,9 +504,9 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>8</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>51 vulnerable dependency paths</span></div>
-                <div class="meta-count"><span>2104</span> <span>dependencies</span></div>
+                <div class="meta-count"><span>7</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>11 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>2105</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
           </header><!-- .project__header -->
@@ -516,6 +521,9 @@
                 <div class="card__labels">
                     <div class="label label--critical">
                         <span class="label__text">critical severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Proof of Concept</span>
                     </div>
                 </div>
         
@@ -591,6 +599,9 @@
                 <div class="card__labels">
                     <div class="label label--high">
                         <span class="label__text">high severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Proof of Concept</span>
                     </div>
                 </div>
         
@@ -676,717 +687,6 @@
             </div>
         
         </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
-            <h2 class="card__title">Allocation of Resources Without Limits or Throttling</h2>
-            <div class="card__section">
-        
-                <div class="card__labels">
-                    <div class="label label--high">
-                        <span class="label__text">high severity</span>
-                    </div>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: /argo-cd/argoproj/argo-cd/v3 <span class="list-paths__item__arrow">›</span> go.mod
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: golang
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            github.com/expr-lang/expr/builtin
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-        
-                                    github.com/argoproj/argo-cd/v3@0.0.0, github.com/expr-lang/expr@1.17.5 and others
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/builtin@1.17.5
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/parser@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/builtin@1.17.5
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/vm@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/builtin@1.17.5
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/triggers@#87bf0576a872
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/vm@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/builtin@1.17.5
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/compiler@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/builtin@1.17.5
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/patcher@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/builtin@1.17.5
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/triggers@#87bf0576a872
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/builtin@1.17.5
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/compiler@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/checker@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/builtin@1.17.5
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/vm@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/conf@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/builtin@1.17.5
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/triggers@#87bf0576a872
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/vm@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/conf@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/builtin@1.17.5
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/triggers@#87bf0576a872
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/parser@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/builtin@1.17.5
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/api@#87bf0576a872
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/triggers@#87bf0576a872
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/vm@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/builtin@1.17.5
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/cmd@#87bf0576a872
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/triggers@#87bf0576a872
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/vm@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/builtin@1.17.5
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/controller@#87bf0576a872
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/triggers@#87bf0576a872
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/vm@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/builtin@1.17.5
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/triggers@#87bf0576a872
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/compiler@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/builtin@1.17.5
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/triggers@#87bf0576a872
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/patcher@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/builtin@1.17.5
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/api@#87bf0576a872
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/triggers@#87bf0576a872
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/builtin@1.17.5
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/cmd@#87bf0576a872
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/triggers@#87bf0576a872
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/builtin@1.17.5
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/controller@#87bf0576a872
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/triggers@#87bf0576a872
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/builtin@1.17.5
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/triggers@#87bf0576a872
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/compiler@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/checker@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/builtin@1.17.5
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/api@#87bf0576a872
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/triggers@#87bf0576a872
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/vm@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/conf@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/builtin@1.17.5
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/cmd@#87bf0576a872
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/triggers@#87bf0576a872
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/vm@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/conf@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/builtin@1.17.5
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/controller@#87bf0576a872
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/triggers@#87bf0576a872
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/vm@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/conf@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/builtin@1.17.5
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/api@#87bf0576a872
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/triggers@#87bf0576a872
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/parser@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/builtin@1.17.5
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/cmd@#87bf0576a872
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/triggers@#87bf0576a872
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/parser@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/builtin@1.17.5
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/controller@#87bf0576a872
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/triggers@#87bf0576a872
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/parser@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/builtin@1.17.5
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/api@#87bf0576a872
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/triggers@#87bf0576a872
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/compiler@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/builtin@1.17.5
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/cmd@#87bf0576a872
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/triggers@#87bf0576a872
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/compiler@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/builtin@1.17.5
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/controller@#87bf0576a872
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/triggers@#87bf0576a872
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/compiler@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/builtin@1.17.5
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/api@#87bf0576a872
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/triggers@#87bf0576a872
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/patcher@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/builtin@1.17.5
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/cmd@#87bf0576a872
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/triggers@#87bf0576a872
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/patcher@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/builtin@1.17.5
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/controller@#87bf0576a872
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/triggers@#87bf0576a872
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/patcher@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/builtin@1.17.5
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/api@#87bf0576a872
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/triggers@#87bf0576a872
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/compiler@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/checker@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/builtin@1.17.5
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/cmd@#87bf0576a872
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/triggers@#87bf0576a872
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/compiler@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/checker@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/builtin@1.17.5
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/controller@#87bf0576a872
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/triggers@#87bf0576a872
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/compiler@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/checker@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/builtin@1.17.5
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/vm@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/conf@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/types@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/checker/nature@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/builtin@1.17.5
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/triggers@#87bf0576a872
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/vm@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/conf@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/types@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/checker/nature@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/builtin@1.17.5
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/api@#87bf0576a872
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/triggers@#87bf0576a872
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/vm@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/conf@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/types@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/checker/nature@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/builtin@1.17.5
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/cmd@#87bf0576a872
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/triggers@#87bf0576a872
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/vm@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/conf@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/types@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/checker/nature@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/builtin@1.17.5
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/controller@#87bf0576a872
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/triggers@#87bf0576a872
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/vm@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/conf@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/types@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/checker/nature@1.17.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/expr-lang/expr/builtin@1.17.5
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="overview">Overview</h2>
-        <p>Affected versions of this package are vulnerable to Allocation of Resources Without Limits or Throttling via the <code>flatten</code>, <code>min</code>, <code>max</code>, <code>mean</code>, and <code>median</code> functions when processing deeply nested or cyclic data structures. An attacker can cause the application to crash by supplying maliciously crafted input that triggers unbounded recursion and stack exhaustion. </p>
-        <h2 id="workaround">Workaround</h2>
-        <p>This vulnerability can be mitigated by ensuring evaluation environments do not contain cyclic references, validating or sanitizing externally supplied data structures, and wrapping expression evaluation with panic recovery to prevent a full process crash.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>github.com/expr-lang/expr/builtin</code> to version 1.17.7 or higher.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="https://github.com/expr-lang/expr/commit/3dbda4bd9c2531a05fe0ea77a4bf4d7f294dc1da">GitHub Commit</a></li>
-        <li><a href="https://github.com/expr-lang/expr/pull/870">GitHub PR</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GITHUBCOMEXPRLANGEXPRBUILTIN-14459108">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
             <h2 class="card__title">Prototype Pollution</h2>
             <div class="card__section">
@@ -1394,6 +694,9 @@
                 <div class="card__labels">
                     <div class="label label--medium">
                         <span class="label__text">medium severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Proof of Concept</span>
                     </div>
                 </div>
         
@@ -1555,6 +858,9 @@
                 <div class="card__labels">
                     <div class="label label--medium">
                         <span class="label__text">medium severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
                     </div>
                 </div>
         
@@ -1724,6 +1030,9 @@
                     <div class="label label--medium">
                         <span class="label__text">medium severity</span>
                     </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Proof of Concept</span>
+                    </div>
                 </div>
         
                 <hr/>
@@ -1871,6 +1180,9 @@
                     <div class="label label--low">
                         <span class="label__text">low severity</span>
                     </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Proof of Concept</span>
+                    </div>
                 </div>
         
                 <hr/>
@@ -1942,6 +1254,9 @@
                 <div class="card__labels">
                     <div class="label label--low">
                         <span class="label__text">low severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Proof of Concept</span>
                     </div>
                 </div>
         
