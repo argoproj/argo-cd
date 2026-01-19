@@ -333,9 +333,6 @@ func manifestCacheKey(revision string, appSrc *appv1.ApplicationSource, srcRefs 
 	//       refSourceCommitSHAs has been added. We don't need to know the _target_ revisions of the referenced sources
 	//       when the _resolved_ revisions are already part of the key.
 
-	log.Debug("=======REF=========")
-	log.Debug(srcRefs)
-	log.Debug("=======REF=========")
 	trackingKey := trackingKey(appLabelKey, trackingMethod)
 	key := fmt.Sprintf("mfst|%s|%s|%s|%s|%d", trackingKey, appName, revision, namespace, appSourceKey(appSrc, srcRefs, refSourceCommitSHAs)+clusterRuntimeInfoKey(info))
 	if installationID != "" {
