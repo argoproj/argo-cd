@@ -487,3 +487,341 @@ func TestIsSkipLabelMatches(t *testing.T) {
 		})
 	}
 }
+
+func Test_checkAppHasNoNeedToStopOperation(t *testing.T) {
+	tests := []struct {
+		name          string
+		liveObj       unstructured.Unstructured
+		stopOperation bool
+		expected      bool
+	}{
+		{
+			name: "Application with operation and stopOperation=true returns false",
+			liveObj: unstructured.Unstructured{
+				Object: map[string]any{
+					"kind": "Application",
+					"operation": map[string]any{
+						"sync": map[string]any{},
+					},
+				},
+			},
+			stopOperation: true,
+			expected:      false,
+		},
+		{
+			name: "Application with operation and stopOperation=false returns true",
+			liveObj: unstructured.Unstructured{
+				Object: map[string]any{
+					"kind": "Application",
+					"operation": map[string]any{
+						"sync": map[string]any{},
+					},
+				},
+			},
+			stopOperation: false,
+			expected:      true,
+		},
+		{
+			name: "Application without operation and stopOperation=true returns true",
+			liveObj: unstructured.Unstructured{
+				Object: map[string]any{
+					"kind": "Application",
+				},
+			},
+			stopOperation: true,
+			expected:      true,
+		},
+		{
+			name: "Non-Application resource with stopOperation=true returns true",
+			liveObj: unstructured.Unstructured{
+				Object: map[string]any{
+					"kind": "ConfigMap",
+				},
+			},
+			stopOperation: true,
+			expected:      true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := checkAppHasNoNeedToStopOperation(tt.liveObj, tt.stopOperation)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func Test_updateLive(t *testing.T) {
+	tests := []struct {
+		name          string
+		bak           *unstructured.Unstructured
+		live          *unstructured.Unstructured
+		stopOperation bool
+		validate      func(t *testing.T, result *unstructured.Unstructured)
+	}{
+		{
+			name: "Secret updates data field",
+			bak: &unstructured.Unstructured{
+				Object: map[string]any{
+					"kind":       "Secret",
+					"apiVersion": "v1",
+					"metadata": map[string]any{
+						"name":        "test-secret",
+						"annotations": map[string]any{"backup-annotation": "value"},
+						"labels":      map[string]any{"backup-label": "value"},
+					},
+					"data": map[string]any{
+						"password": "bmV3cGFzc3dvcmQ=",
+					},
+				},
+			},
+			live: &unstructured.Unstructured{
+				Object: map[string]any{
+					"kind":       "Secret",
+					"apiVersion": "v1",
+					"metadata": map[string]any{
+						"name":            "test-secret",
+						"resourceVersion": "12345",
+					},
+					"data": map[string]any{
+						"password": "b2xkcGFzc3dvcmQ=",
+					},
+				},
+			},
+			stopOperation: false,
+			validate: func(t *testing.T, result *unstructured.Unstructured) {
+				t.Helper()
+				assert.Equal(t, "bmV3cGFzc3dvcmQ=", result.Object["data"].(map[string]any)["password"])
+				assert.Equal(t, "12345", result.GetResourceVersion())
+			},
+		},
+		{
+			name: "ConfigMap updates data field",
+			bak: &unstructured.Unstructured{
+				Object: map[string]any{
+					"kind":       "ConfigMap",
+					"apiVersion": "v1",
+					"metadata": map[string]any{
+						"name": "test-cm",
+					},
+					"data": map[string]any{
+						"config.yaml": "new: value",
+					},
+				},
+			},
+			live: &unstructured.Unstructured{
+				Object: map[string]any{
+					"kind":       "ConfigMap",
+					"apiVersion": "v1",
+					"metadata": map[string]any{
+						"name":            "test-cm",
+						"resourceVersion": "67890",
+					},
+					"data": map[string]any{
+						"config.yaml": "old: value",
+					},
+				},
+			},
+			stopOperation: false,
+			validate: func(t *testing.T, result *unstructured.Unstructured) {
+				t.Helper()
+				assert.Equal(t, "new: value", result.Object["data"].(map[string]any)["config.yaml"])
+			},
+		},
+		{
+			name: "AppProject updates spec field",
+			bak: &unstructured.Unstructured{
+				Object: map[string]any{
+					"kind":       "AppProject",
+					"apiVersion": "argoproj.io/v1alpha1",
+					"metadata": map[string]any{
+						"name": "test-project",
+					},
+					"spec": map[string]any{
+						"description": "new description",
+					},
+				},
+			},
+			live: &unstructured.Unstructured{
+				Object: map[string]any{
+					"kind":       "AppProject",
+					"apiVersion": "argoproj.io/v1alpha1",
+					"metadata": map[string]any{
+						"name":            "test-project",
+						"resourceVersion": "11111",
+					},
+					"spec": map[string]any{
+						"description": "old description",
+					},
+				},
+			},
+			stopOperation: false,
+			validate: func(t *testing.T, result *unstructured.Unstructured) {
+				t.Helper()
+				spec := result.Object["spec"].(map[string]any)
+				assert.Equal(t, "new description", spec["description"])
+			},
+		},
+		{
+			name: "Application updates spec and status",
+			bak: &unstructured.Unstructured{
+				Object: map[string]any{
+					"kind":       "Application",
+					"apiVersion": "argoproj.io/v1alpha1",
+					"metadata": map[string]any{
+						"name": "test-app",
+					},
+					"spec": map[string]any{
+						"project": "default",
+					},
+					"status": map[string]any{
+						"sync": map[string]any{"status": "Synced"},
+					},
+				},
+			},
+			live: &unstructured.Unstructured{
+				Object: map[string]any{
+					"kind":       "Application",
+					"apiVersion": "argoproj.io/v1alpha1",
+					"metadata": map[string]any{
+						"name":            "test-app",
+						"resourceVersion": "22222",
+					},
+					"spec": map[string]any{
+						"project": "other",
+					},
+					"status": map[string]any{
+						"sync": map[string]any{"status": "OutOfSync"},
+					},
+				},
+			},
+			stopOperation: false,
+			validate: func(t *testing.T, result *unstructured.Unstructured) {
+				t.Helper()
+				spec := result.Object["spec"].(map[string]any)
+				assert.Equal(t, "default", spec["project"])
+				status := result.Object["status"].(map[string]any)
+				sync := status["sync"].(map[string]any)
+				assert.Equal(t, "Synced", sync["status"])
+			},
+		},
+		{
+			name: "Application with stopOperation=true clears operation",
+			bak: &unstructured.Unstructured{
+				Object: map[string]any{
+					"kind":       "Application",
+					"apiVersion": "argoproj.io/v1alpha1",
+					"metadata": map[string]any{
+						"name": "test-app",
+					},
+					"spec": map[string]any{
+						"project": "default",
+					},
+				},
+			},
+			live: &unstructured.Unstructured{
+				Object: map[string]any{
+					"kind":       "Application",
+					"apiVersion": "argoproj.io/v1alpha1",
+					"metadata": map[string]any{
+						"name":            "test-app",
+						"resourceVersion": "33333",
+					},
+					"spec": map[string]any{
+						"project": "default",
+					},
+					"operation": map[string]any{
+						"sync": map[string]any{
+							"revision": "abc123",
+						},
+					},
+				},
+			},
+			stopOperation: true,
+			validate: func(t *testing.T, result *unstructured.Unstructured) {
+				t.Helper()
+				assert.Nil(t, result.Object["operation"])
+			},
+		},
+		{
+			name: "Application with stopOperation=false preserves operation",
+			bak: &unstructured.Unstructured{
+				Object: map[string]any{
+					"kind":       "Application",
+					"apiVersion": "argoproj.io/v1alpha1",
+					"metadata": map[string]any{
+						"name": "test-app",
+					},
+					"spec": map[string]any{
+						"project": "default",
+					},
+				},
+			},
+			live: &unstructured.Unstructured{
+				Object: map[string]any{
+					"kind":       "Application",
+					"apiVersion": "argoproj.io/v1alpha1",
+					"metadata": map[string]any{
+						"name":            "test-app",
+						"resourceVersion": "44444",
+					},
+					"spec": map[string]any{
+						"project": "default",
+					},
+					"operation": map[string]any{
+						"sync": map[string]any{
+							"revision": "abc123",
+						},
+					},
+				},
+			},
+			stopOperation: false,
+			validate: func(t *testing.T, result *unstructured.Unstructured) {
+				t.Helper()
+				assert.NotNil(t, result.Object["operation"])
+			},
+		},
+		{
+			name: "ApplicationSet updates spec field",
+			bak: &unstructured.Unstructured{
+				Object: map[string]any{
+					"kind":       "ApplicationSet",
+					"apiVersion": "argoproj.io/v1alpha1",
+					"metadata": map[string]any{
+						"name": "test-appset",
+					},
+					"spec": map[string]any{
+						"generators": []any{},
+					},
+				},
+			},
+			live: &unstructured.Unstructured{
+				Object: map[string]any{
+					"kind":       "ApplicationSet",
+					"apiVersion": "argoproj.io/v1alpha1",
+					"metadata": map[string]any{
+						"name":            "test-appset",
+						"resourceVersion": "55555",
+					},
+					"spec": map[string]any{
+						"generators": []any{
+							map[string]any{"list": map[string]any{}},
+						},
+					},
+				},
+			},
+			stopOperation: false,
+			validate: func(t *testing.T, result *unstructured.Unstructured) {
+				t.Helper()
+				spec := result.Object["spec"].(map[string]any)
+				generators := spec["generators"].([]any)
+				assert.Empty(t, generators)
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := updateLive(tt.bak, tt.live, tt.stopOperation)
+			tt.validate(t, result)
+		})
+	}
+}
