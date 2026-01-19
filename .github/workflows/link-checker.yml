@@ -1,10 +1,10 @@
-# Broken Link checker
+#Broken Link checker
 name: Docs Link Checker
 
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 0 * * *" # Runs daily
+    - cron: "0 0 * * *" #Runs once a day
 
 permissions:
   contents: read
@@ -13,12 +13,29 @@ permissions:
 jobs:
   linkChecker:
     runs-on: ubuntu-latest
-
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      
-      - name: Docs Link Checker # Run Lychee
+      - name: Check for existing open link-check issue
+        id: check_issue #For checking if the issue is already raised
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: "open",
+              labels: "automated issue",
+              per_page: 100,
+            });
+
+            const exists = issues.some(issue =>
+              issue.title.includes("Broken Link Detected")
+            );
+
+            core.setOutput("exists", exists);
+
+      - name: Docs Link Checker #Link checking is intentionally scoped to docs/ to reduce CI runtime and avoid scanning non-documentation files.
         id: lychee
         uses: lycheeverse/lychee-action@v2.6.1
         continue-on-error: true
@@ -31,84 +48,10 @@ jobs:
             --timeout 60
             docs/
 
-      
-      - name: Generate hash of broken links # Generate hash only if links failed
-        id: hash
-        if: steps.lychee.outputs.exit_code != '0'
-        run: |
-          HASH=$(sha256sum lychee/out.md | awk '{print $1}')
-          echo "hash=$HASH" >> "$GITHUB_OUTPUT"
-
-      
-      - name: Find existing issue # Find existing automated issue
-        id: find_issue
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const issues = await github.rest.issues.listForRepo({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              state: "open",
-              labels: "automated issue",
-              per_page: 100
-            });
-
-            const issue = issues.data.find(i =>
-              i.title === "Broken Link Detected in Docs"
-            );
-
-            if (issue) {
-              core.setOutput("exists", "true");
-              core.setOutput("number", issue.number);
-              core.setOutput("body", issue.body || "");
-            } else {
-              core.setOutput("exists", "false");
-            }
-
-      
-      - name: Create new issue # Create new issue if no issue exists
-        if: steps.lychee.outputs.exit_code != '0' && steps.find_issue.outputs.exists == 'false'
+      - name: Create Issue From File #Create automated issue if issue is not created already
+        if: steps.lychee.outputs.exit_code != '0' && steps.check_issue.outputs.exists == 'false'
         uses: peter-evans/create-issue-from-file@v5
         with:
           title: Broken Link Detected in Docs
           content-filepath: ./lychee/out.md
-          labels: automated issue, documentation
-          body: |
-            <!-- lychee-hash: ${{ steps.hash.outputs.hash }} -->
-
-      
-      - name: Create new issue if links changed # Create new issue if links changed
-        if: >
-          steps.lychee.outputs.exit_code != '0' &&
-          steps.find_issue.outputs.exists == 'true' &&
-          !contains(steps.find_issue.outputs.body, steps.hash.outputs.hash)
-        uses: peter-evans/create-issue-from-file@v5
-        with:
-          title: Broken Link Detected in Docs
-          content-filepath: ./lychee/out.md
-          labels: automated issue, documentation
-          body: |
-            <!-- lychee-hash: ${{ steps.hash.outputs.hash }} -->
-
-      - name: Comment on existing issue # Comment if links are unchanged
-        if: >
-          steps.lychee.outputs.exit_code != '0' &&
-          steps.find_issue.outputs.exists == 'true' &&
-          contains(steps.find_issue.outputs.body, steps.hash.outputs.hash)
-        uses: actions/github-script@v7
-        with:
-          script: |
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: Number("${{ steps.find_issue.outputs.number }}"),
-              body:
-                "**Broken links detected again**\n\n" +
-                "No change in affected links.\n\n" +
-                "Latest run:\n" +
-                context.serverUrl + "/" +
-                context.repo.owner + "/" +
-                context.repo.repo +
-                "/actions/runs/" +
-                context.runId
-            });
+          labels: automated issue, documentation, good first issue
