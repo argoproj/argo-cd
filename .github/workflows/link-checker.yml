@@ -4,7 +4,7 @@ name: Docs Link Checker
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 0 * * *" # Runs once a day
+    - cron: "0 0 * * *" # Runs daily
 
 permissions:
   contents: read
@@ -17,88 +17,95 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Docs Link Checker # Run lychee
+      
+      - name: Docs Link Checker # Run Lychee
         id: lychee
         uses: lycheeverse/lychee-action@v2.6.1
         continue-on-error: true
         with:
           args: >
-            --accept '100..=103,200..=299,302,403,429'
+            --accept '100..=103,200..=299,403,429,302'
             --exclude-all-private
             --exclude-loopback
             --exclude-file .lycheeignore
             --timeout 60
             docs/
 
-      - name: Exit if no broken links # Stop early if no broken links
-        if: steps.lychee.outputs.exit_code == '0'
-        run: echo "No broken links detected."
-
-      - name: Compute broken link hash # Compute hash of current broken links
+      
+      - name: Generate hash of broken links # Generate hash only if links failed
         id: hash
         if: steps.lychee.outputs.exit_code != '0'
         run: |
-          HASH=$(sha256sum lychee/out.md | cut -d ' ' -f1)
-          echo "hash=$HASH" >> $GITHUB_OUTPUT
+          HASH=$(sha256sum lychee/out.md | awk '{print $1}')
+          echo "hash=$HASH" >> "$GITHUB_OUTPUT"
 
-      - name: Check existing issue # Fetch existing automated issue + stored hash
-        id: check_issue
-        if: steps.lychee.outputs.exit_code != '0'
+      
+      - name: Find existing issue # Find existing automated issue
+        id: find_issue
         uses: actions/github-script@v7
         with:
           script: |
-            const { data: issues } = await github.rest.issues.listForRepo({
+            const issues = await github.rest.issues.listForRepo({
               owner: context.repo.owner,
               repo: context.repo.repo,
               state: "open",
               labels: "automated issue",
-              per_page: 100,
+              per_page: 100
             });
 
-            let issueNumber = "";
-            let existingHash = "";
+            const issue = issues.data.find(i =>
+              i.title === "Broken Link Detected in Docs"
+            );
 
-            for (const issue of issues) {
-              if (issue.title.includes("Broken Link Detected")) {
-                issueNumber = issue.number;
-                const match = issue.body?.match(/lychee-hash:\s*(\w+)/);
-                if (match) {
-                  existingHash = match[1];
-                }
-                break;
-              }
+            if (issue) {
+              core.setOutput("exists", "true");
+              core.setOutput("number", issue.number);
+              core.setOutput("body", issue.body || "");
+            } else {
+              core.setOutput("exists", "false");
             }
 
-            core.setOutput("issue_number", issueNumber);
-            core.setOutput("existing_hash", existingHash);
-
-      - name: Create Issue From File # Create NEW issue only if broken links changed
-        if: >
-          steps.lychee.outputs.exit_code != '0' &&
-          steps.hash.outputs.hash != steps.check_issue.outputs.existing_hash
+      
+      - name: Create new issue # Create new issue if no issue exists
+        if: steps.lychee.outputs.exit_code != '0' && steps.find_issue.outputs.exists == 'false'
         uses: peter-evans/create-issue-from-file@v5
         with:
           title: Broken Link Detected in Docs
           content-filepath: ./lychee/out.md
-          labels: automated issue, documentation, good first issue
+          labels: automated issue, documentation
           body: |
             <!-- lychee-hash: ${{ steps.hash.outputs.hash }} -->
 
-      - name: Comment on existing issue # Comment on existing issue if same failures persist
+      
+      - name: Create new issue if links changed # Create new issue if links changed
         if: >
           steps.lychee.outputs.exit_code != '0' &&
-          steps.hash.outputs.hash == steps.check_issue.outputs.existing_hash &&
-          steps.check_issue.outputs.issue_number != ''
+          steps.find_issue.outputs.exists == 'true' &&
+          !contains(steps.find_issue.outputs.body, steps.hash.outputs.hash)
+        uses: peter-evans/create-issue-from-file@v5
+        with:
+          title: Broken Link Detected in Docs
+          content-filepath: ./lychee/out.md
+          labels: automated issue, documentation
+          body: |
+            <!-- lychee-hash: ${{ steps.hash.outputs.hash }} -->
+
+      - name: Comment on existing issue # Comment if links are unchanged
+        if: >
+          steps.lychee.outputs.exit_code != '0' &&
+          steps.find_issue.outputs.exists == 'true' &&
+          contains(steps.find_issue.outputs.body, steps.hash.outputs.hash)
         uses: actions/github-script@v7
         with:
           script: |
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              issue_number: Number("${{ steps.check_issue.outputs.issue_number }}"),
+              issue_number: Number("${{ steps.find_issue.outputs.number }}"),
               body:
-                "*Broken links still present*\n\n" +
-                "No new broken links detected since the last report.\n\n" +
+                "**Broken links detected again**\n\n" +
+                "No change in affected links.\n\n" +
+                "Latest run:\n" +
                 context.serverUrl + "/" +
                 context.repo.owner + "/" +
                 context.repo.repo +
