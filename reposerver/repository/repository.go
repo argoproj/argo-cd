@@ -3119,7 +3119,6 @@ func (s *Service) UpdateRevisionForPaths(_ context.Context, request *apiclient.U
 
 		if request.SyncedRevision != request.Revision {
 			resolvedRevision, syncedRevision, sourceHasChanges, err = s.gitSourceHasChanges(request.Repo, request.Revision, request.SyncedRevision, refreshPaths, gitClientOpts)
-
 			if err != nil {
 				return nil, err
 			}
@@ -3153,7 +3152,6 @@ func (s *Service) UpdateRevisionForPaths(_ context.Context, request *apiclient.U
 
 		if sRefSource.TargetRevision != request.RefSources[refName].TargetRevision {
 			resolvedRevision, syncedRevision, sourceHasChanges, err = s.gitSourceHasChanges(&sRefSource.Repo, request.RefSources[refName].TargetRevision, sRefSource.TargetRevision, refreshPaths, gitClientOpts)
-
 			if err != nil {
 				return nil, err
 			}
