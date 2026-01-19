@@ -25,7 +25,12 @@ Kubernetes), then the user effectively has the same privileges as that ServiceAc
       exec.enabled: "true"
     ```
 
-2. Patch the `argocd-server` Role (if using namespaced Argo) or ClusterRole (if using clustered Argo) to allow `argocd-server`
+2. Restart Argo CD
+
+### Permissions for Kubernetes <1.31
+Starting in Kubernetes 1.31, the `get` privilege is enough to exec into a container, so no additional permissions are required. Enabling web terminal before Kubernetes 1.31 requires adding additional RBAC permissions.
+
+1. Patch the `argocd-server` Role (if using namespaced Argo) or ClusterRole (if using clustered Argo) to allow `argocd-server`
 to `exec` into pods
 
         - apiGroups:
@@ -45,7 +50,7 @@ to `exec` into pods
          kubectl patch clusterrole <argocd-server-clusterrole-name> --type='json' -p='[{"op": "add", "path": "/rules/-", "value": {"apiGroups": ["*"], "resources": ["pods/exec"], "verbs": ["create"]}}]'
          ```
 
-3. Add RBAC rules to allow your users to `create` the `exec` resource i.e. 
+2. Add RBAC rules to allow your users to `create` the `exec` resource i.e. 
 
         p, role:myrole, exec, create, */*, allow 
 

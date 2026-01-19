@@ -24,13 +24,13 @@ jobs:
 
       # Some codegen commands require Go to be setup
       - name: Setup Golang
-        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
+        uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5 # v6.2.0
         with:
           # renovate: datasource=golang-version packageName=golang
-          go-version: 1.25.5
+          go-version: 1.25.6
 
       - name: Self-hosted Renovate
-        uses: renovatebot/github-action@a7e89c349a53ab0c9d8458eb85f4b415e55848e7 #44.2.3
+        uses: renovatebot/github-action@66387ab8c2464d575b933fa44e9e5a86b2822809 #44.2.4
         with:
           configurationFile: .github/configs/renovate-config.js
           token: '${{ steps.get_token.outputs.token }}'
