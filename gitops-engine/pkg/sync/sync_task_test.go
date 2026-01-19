@@ -68,4 +68,18 @@ func Test_syncTask_deleteBeforeCreation(t *testing.T) {
 func Test_syncTask_wave(t *testing.T) {
 	assert.Equal(t, 0, (&syncTask{targetObj: testingutils.NewPod()}).wave())
 	assert.Equal(t, 1, (&syncTask{targetObj: testingutils.Annotate(testingutils.NewPod(), "argocd.argoproj.io/sync-wave", "1")}).wave())
+	assert.Equal(t, "Default", (&syncTask{targetObj: testingutils.NewPod()}).waveGroup())
+	assert.Equal(t, "1", (&syncTask{targetObj: testingutils.Annotate(testingutils.NewPod(), "argocd.argoproj.io/sync-wave-group", "1")}).waveGroup())
+	assert.Equal(t, []string{}, (&syncTask{targetObj: testingutils.NewPod()}).waveGroupDependencies())
+	assert.Equal(t, []string{"1", "2"}, (&syncTask{targetObj: testingutils.Annotate(testingutils.NewPod(), "argocd.argoproj.io/depends-on", "1,2")}).waveGroupDependencies())
+	assert.Equal(t, []string{"1", "2"}, (&syncTask{targetObj: testingutils.Annotate(testingutils.Annotate(testingutils.NewPod(), "argocd.argoproj.io/depends-on", "1,2"), "argocd.argoproj.io/sync-wave-group", "2")}).waveGroupDependencies())
+
+	var dependencyGraph1 = common.WaveDependencyGraph{Dependencies: map[common.GroupIdentity][]common.GroupIdentity{common.GroupIdentity{Phase: "", WaveGroup: "3"}: []common.GroupIdentity{common.GroupIdentity{Phase: "", WaveGroup: "1"}, common.GroupIdentity{Phase: "", WaveGroup: "2"}}}}
+	assert.Equal(t, true, (&syncTask{targetObj: testingutils.Annotate(testingutils.Annotate(testingutils.NewPod(), "argocd.argoproj.io/depends-on", "1,2"), "argocd.argoproj.io/sync-wave-group", "3")}).dependsOn((&syncTask{targetObj: testingutils.Annotate(testingutils.NewPod(), "argocd.argoproj.io/sync-wave-group", "1")}), dependencyGraph1))
+	assert.Equal(t, false, (&syncTask{targetObj: testingutils.Annotate(testingutils.Annotate(testingutils.NewPod(), "argocd.argoproj.io/depends-on", "1,2"), "argocd.argoproj.io/sync-wave-group", "3")}).dependsOn((&syncTask{targetObj: testingutils.Annotate(testingutils.NewPod(), "argocd.argoproj.io/sync-wave-group", "4")}), dependencyGraph1))
+
+	var dependencyGraph2 = common.WaveDependencyGraph{Dependencies: map[common.GroupIdentity][]common.GroupIdentity{common.GroupIdentity{Phase: "", WaveGroup: ""}: []common.GroupIdentity{}}}
+	assert.Equal(t, true, (&syncTask{targetObj: testingutils.Annotate(testingutils.NewPod(), "argocd.argoproj.io/sync-wave", "3")}).dependsOn((&syncTask{targetObj: testingutils.Annotate(testingutils.NewPod(), "argocd.argoproj.io/sync-wave", "2")}), dependencyGraph2))
+	assert.Equal(t, false, (&syncTask{targetObj: testingutils.Annotate(testingutils.NewPod(), "argocd.argoproj.io/sync-wave", "3")}).dependsOn((&syncTask{targetObj: testingutils.Annotate(testingutils.NewPod(), "argocd.argoproj.io/sync-wave", "4")}), dependencyGraph2))
+
 }

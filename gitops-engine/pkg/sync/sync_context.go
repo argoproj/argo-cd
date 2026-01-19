@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -439,6 +440,11 @@ func (sc *syncContext) Sync() {
 		return
 	}
 
+	dependencyGraph, isCircularDependencyFree := tasks.getDependencyGraph()
+	if !isCircularDependencyFree {
+		sc.setOperationPhase(common.OperationFailed, "Sync Wave groups contain circular dependencies")
+	}
+
 	if sc.started() {
 		sc.log.WithValues("tasks", tasks).Info("Tasks")
 	} else {
@@ -578,18 +584,20 @@ func (sc *syncContext) Sync() {
 		return
 	}
 
-	// remove any tasks not in this wave
+	// remove any tasks which have unsynced dependencies
 	phase := tasks.phase()
-	wave := tasks.wave()
-	finalWave := phase == tasks.lastPhase() && wave == tasks.lastWave()
+	independentSyncIdentities := tasks.independentSyncIdentities(dependencyGraph)
+	allSyncIdentities := tasks.syncIdentities()
 
 	// if it is the last phase/wave and the only remaining tasks are non-hooks, the we are successful
 	// EVEN if those objects subsequently degraded
 	// This handles the common case where neither hooks or waves are used and a sync equates to simply an (asynchronous) kubectl apply of manifests, which succeeds immediately.
-	remainingTasks := tasks.Filter(func(t *syncTask) bool { return t.phase != phase || wave != t.wave() || t.isHook() })
+	remainingTasks := tasks.Filter(func(t *syncTask) bool {
+		return !slices.Contains(independentSyncIdentities, t.identity()) || t.isHook()
+	})
 
-	sc.log.WithValues("phase", phase, "wave", wave, "tasks", tasks, "syncFailTasks", syncFailTasks).V(1).Info("Filtering tasks in correct phase and wave")
-	tasks = tasks.Filter(func(t *syncTask) bool { return t.phase == phase && t.wave() == wave })
+	sc.log.WithValues("phase", phase, "independentSyncIdentities", independentSyncIdentities, "tasks", tasks, "syncFailTasks", syncFailTasks).V(1).Info("Filtering tasks in correct phase and wave")
+	tasks = tasks.Filter(func(t *syncTask) bool { return slices.Contains(independentSyncIdentities, t.identity()) })
 
 	sc.setOperationPhase(common.OperationRunning, "one or more tasks are running")
 
@@ -597,7 +605,8 @@ func (sc *syncContext) Sync() {
 	runState := sc.runTasks(tasks, false)
 
 	if sc.syncWaveHook != nil && runState != failed {
-		err := sc.syncWaveHook(phase, wave, finalWave)
+		finalWave := phase == tasks.lastPhase() && len(independentSyncIdentities) == len(allSyncIdentities)
+		err := sc.syncWaveHook(independentSyncIdentities, finalWave)
 		if err != nil {
 			sc.deleteHooks(hooksPendingDeletionFailed)
 			sc.setOperationPhase(common.OperationFailed, fmt.Sprintf("SyncWaveHook failed: %v", err))
@@ -927,52 +936,61 @@ func (sc *syncContext) getSyncTasks() (_ syncTasks, successful bool) {
 	}
 
 	// for prune tasks, modify the waves for proper cleanup i.e reverse of sync wave (creation order)
-	pruneTasks := make(map[int][]*syncTask)
+
+	tasksByWaveGroup := make(map[string][]*syncTask)
 	for _, task := range tasks {
-		if task.isPrune() {
-			pruneTasks[task.wave()] = append(pruneTasks[task.wave()], task)
-		}
+		tasksByWaveGroup[task.waveGroup()] = append(tasksByWaveGroup[task.waveGroup()], task)
 	}
-
-	var uniquePruneWaves []int
-	for k := range pruneTasks {
-		uniquePruneWaves = append(uniquePruneWaves, k)
-	}
-	sort.Ints(uniquePruneWaves)
-
-	// reorder waves for pruning tasks using symmetric swap on prune waves
-	n := len(uniquePruneWaves)
-	for i := 0; i < n/2; i++ {
-		// waves to swap
-		startWave := uniquePruneWaves[i]
-		endWave := uniquePruneWaves[n-1-i]
-
-		for _, task := range pruneTasks[startWave] {
-			task.waveOverride = &endWave
-		}
-
-		for _, task := range pruneTasks[endWave] {
-			task.waveOverride = &startWave
-		}
-	}
-
-	// for pruneLast tasks, modify the wave to sync phase last wave of tasks + 1
-	// to ensure proper cleanup, syncPhaseLastWave should also consider prune tasks to determine last wave
-	syncPhaseLastWave := 0
-	for _, task := range tasks {
-		if task.phase == common.SyncPhaseSync {
-			if task.wave() > syncPhaseLastWave {
-				syncPhaseLastWave = task.wave()
+	for waveGroup := range tasksByWaveGroup {
+		pruneTasks := make(map[int][]*syncTask)
+		for _, task := range tasksByWaveGroup[waveGroup] {
+			if task.isPrune() {
+				pruneTasks[task.wave()] = append(pruneTasks[task.wave()], task)
 			}
 		}
-	}
-	syncPhaseLastWave = syncPhaseLastWave + 1
 
-	for _, task := range tasks {
-		if task.isPrune() &&
-			(sc.pruneLast || resourceutil.HasAnnotationOption(task.liveObj, common.AnnotationSyncOptions, common.SyncOptionPruneLast)) {
-			task.waveOverride = &syncPhaseLastWave
+		var uniquePruneWaves []int
+		for k := range pruneTasks {
+			uniquePruneWaves = append(uniquePruneWaves, k)
 		}
+		sort.Ints(uniquePruneWaves)
+
+		// reorder waves for pruning tasks using symmetric swap on prune waves
+		n := len(uniquePruneWaves)
+		for j := 0; j < n/2; j++ {
+			// waves to swap
+			startWave := uniquePruneWaves[j]
+			endWave := uniquePruneWaves[n-1-j]
+
+			for _, task := range pruneTasks[startWave] {
+				task.waveOverride = &endWave
+			}
+
+			for _, task := range pruneTasks[endWave] {
+				task.waveOverride = &startWave
+			}
+		}
+
+		// for pruneLast tasks, modify the wave to sync phase last wave of tasks + 1
+		// to ensure proper cleanup, syncPhaseLastWave should also consider prune tasks to determine last wave
+
+		syncPhaseLastWave := 0
+		for _, task := range tasksByWaveGroup[waveGroup] {
+			if task.phase == common.SyncPhaseSync {
+				if task.wave() > syncPhaseLastWave {
+					syncPhaseLastWave = task.wave()
+				}
+			}
+		}
+		syncPhaseLastWave = syncPhaseLastWave + 1
+
+		for _, task := range tasksByWaveGroup[waveGroup] {
+			if task.isPrune() &&
+				(sc.pruneLast || resourceutil.HasAnnotationOption(task.liveObj, common.AnnotationSyncOptions, common.SyncOptionPruneLast)) {
+				task.waveOverride = &syncPhaseLastWave
+			}
+		}
+
 	}
 
 	tasks.Sort()
