@@ -3,6 +3,7 @@ package initialize
 import (
 	"testing"
 
+	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
 	"github.com/stretchr/testify/assert"
 )
@@ -77,4 +78,27 @@ func Test_FlagContextNil(t *testing.T) {
 	})
 
 	assert.Empty(t, res)
+}
+
+func Test_InitCommand_FiltersUnsupportedKubectlFlags(t *testing.T) {
+	cmd := &cobra.Command{}
+
+	InitCommand(cmd)
+
+	unsupported := []string{
+		"disable-compression",
+		"certificate-authority",
+		"client-certificate",
+		"client-key",
+		"as",
+		"as-group",
+		"as-uid",
+	}
+
+	for _, f := range unsupported {
+		assert.Nil(t, cmd.Flags().Lookup(f))
+	}
+
+	assert.NotNil(t, cmd.Flags().Lookup("context"))
+	assert.NotNil(t, cmd.Flags().Lookup("namespace"))
 }
