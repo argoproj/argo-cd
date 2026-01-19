@@ -4,8 +4,8 @@ import (
 	"errors"
 	"net"
 	"net/http"
-	"strings"
 	"testing"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/sirupsen/logrus/hooks/test"
@@ -64,15 +64,18 @@ func TestHealthCheck(t *testing.T) {
 	require.NoError(t, err)
 	require.Equalf(t, http.StatusServiceUnavailable, resp.StatusCode, "Was expecting status code 503 from health check, but got %d instead", resp.StatusCode)
 	assert.NotEmpty(t, hook.Entries, "Was expecting at least one log entry from health check, but got none")
-	expectedMsg := "Error serving healh check request: " + svcErrMsg
-	assert.Condition(t,
-		func() bool {
-			for _, entry := range hook.Entries {
-				if entry.Level == log.ErrorLevel &&
-					strings.HasPrefix(entry.Message, expectedMsg) {
-					return true
-				}
-			}
-			return false
-		}, "Was expecting and error message like '%s' but it wan't found", expectedMsg)
+	expectedMsg := "Error serving health check request"
+	var foundEntry log.Entry
+	for _, entry := range hook.Entries {
+		if entry.Level == log.ErrorLevel &&
+			entry.Message == expectedMsg {
+			foundEntry = entry
+			break
+		}
+	}
+	assert.NotNil(t, foundEntry, "Expected an error message '%s', but it was't found", expectedMsg)
+	actualErrMsg := foundEntry.Data["error"].(error).Error()
+	assert.Equal(t, svcErrMsg, actualErrMsg, "expected original error message '"+svcErrMsg+"', but got '"+actualErrMsg+"'")
+	assert.Greater(t, foundEntry.Data["duration"].(time.Duration), time.Duration(0))
+
 }
