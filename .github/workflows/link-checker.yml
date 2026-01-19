@@ -5,6 +5,7 @@ on:
   workflow_dispatch:
   schedule:
     - cron: "0 0 * * *" #Runs once a day
+
 permissions:
   contents: read
   issues: write
@@ -14,6 +15,25 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+
+      - name: Check for existing open link-check issue
+        id: check_issue #For checking if the issue is already raised
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: "open",
+              labels: "automated issue",
+              per_page: 100,
+            });
+
+            const exists = issues.some(issue =>
+              issue.title.includes("Broken Link Detected")
+            );
+
+            core.setOutput("exists", exists);
 
       - name: Docs Link Checker #Link checking is intentionally scoped to docs/ to reduce CI runtime and avoid scanning non-documentation files.
         id: lychee
@@ -25,10 +45,11 @@ jobs:
             --timeout 60
             docs/
 
-      - name: Create Issue From File
-        if: env.lychee_exit_code != 0
+      - name: Create Issue From File #Create automated issue if issue is not created already
+        if: env.lychee_exit_code != 0 && steps.check_issue.outputs.exists == 'false'
         uses: peter-evans/create-issue-from-file@v5
         with:
-          title: Broken Link Detected in Docs (Help Wanted)
+          title: Broken Link Detected in Docs
           content-filepath: ./lychee/out.md
-          labels: report, automated issue, documentation, good first issue
+          labels: automated issue, documentation, good first issue
+
