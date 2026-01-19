@@ -9,7 +9,6 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/io/files"
-	"github.com/argoproj/argo-cd/v3/util/security"
 )
 
 func Path(root, path string) (string, error) {
@@ -105,11 +104,13 @@ func GetAppRefreshPaths(app *v1alpha1.Application) []string {
 			if item == "" {
 				continue
 			}
-			if filepath.IsAbs(item) {
-				paths = append(paths, item[1:])
+			cleanedItem := filepath.Clean(item)
+
+			if filepath.IsAbs(cleanedItem) {
+				paths = append(paths, cleanedItem[1:])
 			} else {
 				for _, source := range app.Spec.GetSources() {
-					paths = append(paths, filepath.Clean(filepath.Join(source.Path, item)))
+					paths = append(paths, filepath.Clean(filepath.Join(source.Path, cleanedItem)))
 				}
 			}
 		}
@@ -139,7 +140,9 @@ func AppFilesHaveChanged(refreshPaths []string, changedFiles []string) bool {
 			item = ensureAbsPath(item)
 			if f == item {
 				return true
-			} else if _, err := security.EnforceToCurrentRoot(item, f); err == nil {
+			} else if isPathInside(item, f) {
+				// We use a local helper instead of security.EnforceToCurrentRoot
+				// This prevents the code from trying to OPEN the file (which likely doesn't exist locally)
 				return true
 			} else if matched, err := filepath.Match(item, f); err == nil && matched {
 				return true
@@ -148,6 +151,25 @@ func AppFilesHaveChanged(refreshPaths []string, changedFiles []string) bool {
 	}
 
 	return false
+}
+
+// isPathInside checks if requestedPath is inside currentRoot purely using lexical analysis.
+// It does NOT touch the filesystem, making it safe for comparing abstract Git paths.
+func isPathInside(currentRoot, requestedPath string) bool {
+	cleanRoot := filepath.Clean(currentRoot)
+	cleanPath := filepath.Clean(requestedPath)
+
+	relPath, err := filepath.Rel(cleanRoot, cleanPath)
+	if err != nil {
+		return false
+	}
+
+	// If the path starts with "..", it is outside the root.
+	if relPath == ".." || strings.HasPrefix(relPath, ".."+string(filepath.Separator)) {
+		return false
+	}
+
+	return true
 }
 
 func ensureAbsPath(input string) string {

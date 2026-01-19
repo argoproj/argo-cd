@@ -209,6 +209,11 @@ func Test_GetAppRefreshPaths(t *testing.T) {
 		{"file two relative paths", getApp("./README.md;../shared/my-deployment.yaml", "my-app"), []string{"my-app/README.md", "shared/my-deployment.yaml"}},
 		{"glob path", getApp("/source/*/my-deployment.yaml", "source/path"), []string{"source/*/my-deployment.yaml"}},
 		{"empty path", getApp(".;", "source/path"), []string{"source/path"}},
+		{
+			name:          "AbsolutePath_With_DotDot_Should_Be_Cleaned",
+			app:           getApp("/services/service1/../service2/some-other-values.yaml", "app"),
+			expectedPaths: []string{"services/service2/some-other-values.yaml"},
+		},
 	}
 	for _, tt := range tests {
 		ttc := tt
