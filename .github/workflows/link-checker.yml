@@ -44,6 +44,7 @@ jobs:
             --accept '100..=103,200..=299,403,429,302'
             --exclude-all-private
             --exclude-loopback
+            --exclude-file .lycheeignore
             --timeout 60
             docs/
 
