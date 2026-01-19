@@ -77,7 +77,7 @@ on an app which is pinned to a revision.
 
 When deploying applications, Argo CD relies on the `targetRevision` field to determine
 which revision of the Git repository to use. This can be a branch, tag, or commit SHA.
-Sometimes, multiple Git references can have hte same name (eg. a branch and a tag both named `release-1.0`).
+Sometimes, multiple Git references can have the same name (eg. a branch and a tag both named `release-1.0`).
 These ambiguous references can lead to unexpected behavior, such as constant reconciliation loops.
 
 Today, Argo CD fetches all branches and tags from the repository. If the `targetRevision` matches multiple references, Argo CD
