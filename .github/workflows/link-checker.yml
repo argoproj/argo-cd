@@ -1,4 +1,4 @@
-#Broken Link checker
+# Broken Link checker
 name: Docs Link Checker
 
 on:
@@ -14,10 +14,10 @@ jobs:
   linkChecker:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v4
 
-      - name: Check for existing open link-check issue
-        id: check_issue #For checking if the issue is already raised
+      - name: Check for existing open link-check issue #For checking if the issue is already raised
+        id: check_issue
         uses: actions/github-script@v7
         with:
           script: |
@@ -56,3 +56,27 @@ jobs:
           content-filepath: ./lychee/out.md
           labels: automated issue, documentation, good first issue
 
+      - name: Comment on existing issue
+        if: steps.lychee.outputs.exit_code != '0' && steps.check_issue.outputs.exists == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: "open",
+              labels: "automated issue",
+            });
+
+            const issue = issues.find(i =>
+              i.title.includes("Broken Link Detected")
+            );
+
+            if (issue) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: '*New broken links detected''
+              });
+            }
