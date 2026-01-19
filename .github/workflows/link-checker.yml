@@ -24,7 +24,6 @@ jobs:
             --exclude-all-private
             --timeout 60
             docs/
-            documentation/
 
       - name: Create Issue From File
         if: env.lychee_exit_code != 0
