@@ -67,9 +67,11 @@ func NewCommand() *cobra.Command {
 
 			healthz.ServeHealthCheck(http.DefaultServeMux, func(r *http.Request) error {
 				if val, ok := r.URL.Query()["full"]; ok && len(val) > 0 && val[0] == "true" {
-					// connect to itself to make sure commit server is able to serve connection
-					// used by liveness probe to auto restart commit server
-					conn, err := apiclient.NewConnection(fmt.Sprintf("localhost:%d", listenPort))
+					// Connect to itself to verify commit server is able to serve connections.
+					// Used by liveness probe to auto-restart unhealthy commit server pods.
+					// Use 127.0.0.1 instead of localhost to bypass DNS resolution and avoid
+					// unnecessary gRPC service config lookups (see issue #24991).
+					conn, err := apiclient.NewConnection(fmt.Sprintf("127.0.0.1:%d", listenPort))
 					if err != nil {
 						return err
 					}

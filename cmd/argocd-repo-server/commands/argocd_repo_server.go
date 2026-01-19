@@ -177,10 +177,12 @@ func NewCommand() *cobra.Command {
 
 			healthz.ServeHealthCheck(http.DefaultServeMux, func(r *http.Request) error {
 				if val, ok := r.URL.Query()["full"]; ok && len(val) > 0 && val[0] == "true" {
-					// connect to itself to make sure repo server is able to serve connection
-					// used by liveness probe to auto restart repo server
-					// see https://github.com/argoproj/argo-cd/issues/5110 for more information
-					conn, err := apiclient.NewConnection(fmt.Sprintf("localhost:%d", listenPort), 60, &apiclient.TLSConfiguration{DisableTLS: disableTLS})
+					// Connect to itself to verify repo server is able to serve connections.
+					// Used by liveness probe to auto-restart unhealthy repo server pods.
+					// Use 127.0.0.1 instead of localhost to bypass DNS resolution and avoid
+					// unnecessary gRPC service config lookups (see issue #24991).
+					// See also: https://github.com/argoproj/argo-cd/issues/5110
+					conn, err := apiclient.NewConnection(fmt.Sprintf("127.0.0.1:%d", listenPort), 60, &apiclient.TLSConfiguration{DisableTLS: disableTLS})
 					if err != nil {
 						return err
 					}
