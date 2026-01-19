@@ -92,4 +92,3 @@ Argo CD is being actively developed by the community. Our releases can be found 
 ## Adoption
 
 Organizations who have officially adopted Argo CD can be found [here](https://github.com/argoproj/argo-cd/blob/master/USERS.md).
-
