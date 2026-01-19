@@ -77,6 +77,14 @@ jobs:
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: issue.number,
-                body: '*New broken links detected''
+                body: 
+                    "*New broken links detected*\n\n" +
+                    "See the latest workflow run for details:\n" +
+                    context.serverUrl + "/" +
+                    context.repo.owner + "/" +
+                    context.repo.repo +
+                    "/actions/runs/" +
+                    context.runId
               });
             }
+
