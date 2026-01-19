@@ -77,5 +77,4 @@ func TestHealthCheck(t *testing.T) {
 	actualErrMsg := foundEntry.Data["error"].(error).Error()
 	assert.Equal(t, svcErrMsg, actualErrMsg, "expected original error message '"+svcErrMsg+"', but got '"+actualErrMsg+"'")
 	assert.Greater(t, foundEntry.Data["duration"].(time.Duration), time.Duration(0))
-
 }
