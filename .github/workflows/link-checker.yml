@@ -15,7 +15,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Docs Link Checker #Link checking is intentionally scoped to docs/ and documentation/ to reduce CI runtime and avoid scanning non-documentation files.
+      - name: Docs Link Checker #Link checking is intentionally scoped to docs/ to reduce CI runtime and avoid scanning non-documentation files.
         id: lychee
         uses: lycheeverse/lychee-action@v2.6.1
         with:
