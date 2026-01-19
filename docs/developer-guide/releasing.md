@@ -98,11 +98,15 @@ checks to see if the release came out correctly:
 
 ### If something went wrong
 
-If something went wrong, damage should be limited. Depending on the steps that
-have been performed, you will need to manually clean up.
+A new Argo CD release results in:
+- A new GitHub release created
+- Stable Git tag pointing to the release (if the release is the latest release)
+- The release Go packages are published for using Argo CD code as dependency
+- Docker images and SBOM artifacts are published
 
-* If the container image has been pushed to Quay.io, delete it
-* Delete the release (if created) from the `Releases` page on GitHub
+Because of all the above dependencies, in a case of a release that failed, it is not safe to delete and recreate it.
+Instead, create the next patch release (for example, if 3.2.4 failed, create 3.2.5 after fixing the problem, but don't recreate 3.2.4).
+Upon successful publishing of the fixed release (3.2.5 in our example), copy the full release notes manually from the failed release (3.2.4 in our example) and then update the failed release (3.2.4 in our example) release notes to state this release is invalid and should not be used.
 
 ### Manual releasing
 
