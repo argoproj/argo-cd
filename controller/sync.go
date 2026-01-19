@@ -305,7 +305,6 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, project *v1alp
 		}
 	}
 
-	// Check if hooks should run on partial syncs
 	runHooksOnPartialSync := syncOp.SyncOptions.HasOption(cdcommon.SyncOptionRunHooksOnPartialSync)
 
 	opts := []sync.SyncOpt{
