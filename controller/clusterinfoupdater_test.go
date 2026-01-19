@@ -94,7 +94,7 @@ func TestClusterSecretUpdater(t *testing.T) {
 		require.NoError(t, err, "Invoking updateClusterInfo failed.")
 
 		var clusterInfo v1alpha1.ClusterInfo
-		err = appCache.GetClusterInfo(cluster.Server, &clusterInfo)
+		err = appCache.GetClusterInfo(cluster.Server+cluster.Name, &clusterInfo)
 		require.NoError(t, err)
 		assert.Equal(t, updatedK8sVersion, clusterInfo.ServerVersion)
 		assert.Equal(t, test.ExpectedStatus, clusterInfo.ConnectionState.Status)

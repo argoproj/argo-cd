@@ -1354,15 +1354,6 @@ func TestRemoveFinalizerOnInvalidDestination_DestinationTypes(t *testing.T) {
 			expectFinalizerRemoved: true,
 		},
 		{
-			name: "invalid cluster by both valid",
-			destinationField: v1alpha1.ApplicationDestination{
-				Namespace: "namespace",
-				Name:      "mycluster2",
-				Server:    "https://kubernetes.default.svc",
-			},
-			expectFinalizerRemoved: true,
-		},
-		{
 			name: "invalid cluster by both invalid",
 			destinationField: v1alpha1.ApplicationDestination{
 				Namespace: "namespace",
@@ -2081,30 +2072,6 @@ func TestValidateGeneratedApplications(t *testing.T) {
 				},
 			},
 			validationErrors: map[string]error{},
-		},
-		{
-			name: "can't have both name and server defined",
-			apps: []v1alpha1.Application{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "app",
-					},
-					Spec: v1alpha1.ApplicationSpec{
-						Project: "default",
-						Source: &v1alpha1.ApplicationSource{
-							RepoURL:        "https://url",
-							Path:           "/",
-							TargetRevision: "HEAD",
-						},
-						Destination: v1alpha1.ApplicationDestination{
-							Namespace: "namespace",
-							Server:    "my-server",
-							Name:      "my-cluster",
-						},
-					},
-				},
-			},
-			validationErrors: map[string]error{"app": errors.New("application destination spec is invalid: application destination can't have both name and server defined: my-cluster my-server")},
 		},
 		{
 			name: "project mismatch should return error",
