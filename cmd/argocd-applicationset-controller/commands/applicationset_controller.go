@@ -244,9 +244,10 @@ func NewCommand() *cobra.Command {
 				})
 
 			if err = (&controllers.ApplicationSetReconciler{
-				Generators:                 topLevelGenerators,
-				Client:                     mgr.GetClient(),
-				Scheme:                     mgr.GetScheme(),
+				Generators: topLevelGenerators,
+				Client:     mgr.GetClient(),
+				Scheme:     mgr.GetScheme(),
+				//nolint:staticcheck // FIXME: the method is deprecated see https://github.com/argoproj/argo-cd/issues/26067
 				Recorder:                   mgr.GetEventRecorderFor("applicationset-controller"),
 				Renderer:                   &utils.Render{},
 				Policy:                     policyObj,
