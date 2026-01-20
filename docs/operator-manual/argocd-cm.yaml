@@ -354,6 +354,13 @@ data:
   # refresh will wait between 0 and 60 seconds before processing. Disabled when the value is 0 (default).
   webhook.reconciliation.jitter: 0s
 
+  # webhook.reconciliation.jitter.threshold is the minimum number of applications that must be affected by a webhook event
+  # before jitter is applied. This prevents adding unnecessary delays for webhook events that affect only a few applications.
+  # For example, if set to 10, jitter will only be applied when more than 10 applications are affected by a single webhook
+  # event. When the number of affected applications is at or below this threshold, refreshes happen immediately without jitter.
+  # This works together with webhook.reconciliation.jitter. Default is 10.
+  webhook.reconciliation.jitter.threshold: "10"
+
   # cluster.inClusterEnabled indicates whether to allow in-cluster server address. This is enabled by default.
   cluster.inClusterEnabled: "true"
 

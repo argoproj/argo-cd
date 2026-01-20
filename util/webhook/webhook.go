@@ -102,13 +102,11 @@ type ArgoCDWebhookHandler struct {
 	queue                  chan any
 	refreshQueue           workqueue.TypedDelayingInterface[any]
 	maxWebhookPayloadSizeB int64
-	webhookRefreshJitter   time.Duration
+	webhookRefreshJitter          time.Duration
+	webhookRefreshJitterThreshold int
 }
 
-func NewHandler(namespace string, applicationNamespaces []string, webhookParallelism int, webhookRefreshWorkers int, appClientset appclientset.Interface, appsLister alpha1.ApplicationLister,
-	set *settings.ArgoCDSettings, settingsSrc settingsSource, repoCache *cache.Cache,
-	serverCache *servercache.Cache, argoDB db.ArgoDB, maxWebhookPayloadSizeB int64, webhookRefreshJitter time.Duration,
-) *ArgoCDWebhookHandler {
+func NewHandler(namespace string, applicationNamespaces []string, webhookParallelism int, webhookRefreshWorkers int, appClientset appclientset.Interface, appsLister alpha1.ApplicationLister, set *settings.ArgoCDSettings, settingsSrc settingsSource, repoCache *cache.Cache, serverCache *servercache.Cache, argoDB db.ArgoDB, maxWebhookPayloadSizeB int64, webhookRefreshJitter time.Duration, webhookRefreshJitterThreshold int) *ArgoCDWebhookHandler {
 	githubWebhook, err := github.New(github.Options.Secret(set.GetWebhookGitHubSecret()))
 	if err != nil {
 		log.Warnf("Unable to init the GitHub webhook")
@@ -157,23 +155,25 @@ func NewHandler(namespace string, applicationNamespaces []string, webhookParalle
 	}
 	parsers = append(parsers, newGHCRParser(set.GetWebhookGitHubSecret()))
 
-	log.Infof("webhookRefreshJitter=%v", webhookRefreshJitter)
+	log.Debugf("webhookRefreshJitter=%v", webhookRefreshJitter)
+	log.Debugf("webhookRefreshJitterThreshold=%d", webhookRefreshJitterThreshold)
 
 	acdWebhook := ArgoCDWebhookHandler{
-		ns:                     namespace,
-		appNs:                  applicationNamespaces,
-		appClientset:           appClientset,
-		parsers:                parsers,
-		settingsSrc:            settingsSrc,
-		repoCache:              repoCache,
-		serverCache:            serverCache,
-		settings:               set,
-		db:                     argoDB,
-		queue:                  make(chan any, payloadQueueSize),
-		refreshQueue:           workqueue.NewTypedDelayingQueue[any](),
-		maxWebhookPayloadSizeB: maxWebhookPayloadSizeB,
-		appsLister:             appsLister,
-		webhookRefreshJitter:   webhookRefreshJitter,
+		ns:                            namespace,
+		appNs:                         applicationNamespaces,
+		appClientset:                  appClientset,
+		parsers:                       parsers,
+		settingsSrc:                   settingsSrc,
+		repoCache:                     repoCache,
+		serverCache:                   serverCache,
+		settings:                      set,
+		db:                            argoDB,
+		queue:                         make(chan any, payloadQueueSize),
+		refreshQueue:                  workqueue.NewTypedDelayingQueue[any](),
+		maxWebhookPayloadSizeB:        maxWebhookPayloadSizeB,
+		appsLister:                    appsLister,
+		webhookRefreshJitter:          webhookRefreshJitter,
+		webhookRefreshJitterThreshold: webhookRefreshJitterThreshold,
 	}
 
 	acdWebhook.startWorkerPool(webhookParallelism)
@@ -472,9 +472,6 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 		}
 	}
 
-	// Track app count for conditional jitter
-	appCount := 0
-
 	for _, webURL := range webURLs {
 		repoRegexp, err := GetWebURLRegex(webURL)
 		if err != nil {
@@ -527,8 +524,8 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 							appNamespace: app.Namespace,
 							hydrateType:  hydrateType,
 						}
-						// Apply jitter only if more than 10 apps are affected
-						if appCount > 10 && a.webhookRefreshJitter != 0 {
+						// Apply jitter only if more than threshold apps are affected
+						if appCount > a.webhookRefreshJitterThreshold && a.webhookRefreshJitter != 0 {
 							jitter := time.Duration(float64(a.webhookRefreshJitter) * rand.Float64())
 							a.refreshQueue.AddAfter(req, jitter)
 						} else {
@@ -846,18 +843,6 @@ func (a *ArgoCDWebhookHandler) processWebhook(r *http.Request) (any, bool, error
 // Shutdown gracefully shuts down the webhook handler by closing queues and waiting for workers
 func (a *ArgoCDWebhookHandler) Shutdown() {
 	close(a.queue)
-	// Wait for refresh queue to drain and finish processing all items
-	for a.refreshQueue.Len() > 0 || !a.refreshQueue.ShuttingDown() {
-		time.Sleep(10 * time.Millisecond)
-		// If queue is empty and not processing, we can break
-		if a.refreshQueue.Len() == 0 {
-			// Give a small grace period for items being processed
-			time.Sleep(50 * time.Millisecond)
-			if a.refreshQueue.Len() == 0 {
-				break
-			}
-		}
-	}
-	a.refreshQueue.ShutDown()
+	a.refreshQueue.ShutDownWithDrain()
 	a.Wait()
 }
