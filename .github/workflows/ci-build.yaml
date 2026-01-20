@@ -435,8 +435,6 @@ jobs:
             latest: false
           - version: v1.32.1
             latest: false
-          - version: v1.31.0
-            latest: false
     needs:
       - build-go
       - changes
