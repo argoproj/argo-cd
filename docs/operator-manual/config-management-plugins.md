@@ -552,3 +552,28 @@ spec:
   provideGitCreds: true
 ```
 
+## Disabling gRPC Service Config Lookups
+
+By default, gRPC performs DNS TXT lookups for `_grpc_config.<hostname>` to retrieve service configuration (see [gRPC DNS-based Service Config](https://github.com/grpc/proposal/blob/master/A2-service-configs-in-dns.md)). In dual-stack (IPv4+IPv6) environments or environments with slow DNS resolution, these lookups can cause timeouts and connection failures.
+
+ArgoCD disables these lookups by default (via `GRPC_ENABLE_TXT_SERVICE_CONFIG=false` in the Dockerfile), as most users do not use DNS TXT records for gRPC service configuration.
+
+If you need to enable gRPC service config lookups, you can set it one of three ways:
+
+1. The `--grpc-enable-txt-service-config` argument on the repo server.
+2. The `reposerver.grpc.enable.txt.service.config` key if you are using `argocd-cmd-params-cm`
+3. Directly setting `GRPC_ENABLE_TXT_SERVICE_CONFIG=true` environment variable on the repo server.
+
+Example using ConfigMap:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cmd-params-cm
+data:
+  reposerver.grpc.enable.txt.service.config: "true"
+```
+
+For more information, see [issue #24991](https://github.com/argoproj/argo-cd/issues/24991).
+
