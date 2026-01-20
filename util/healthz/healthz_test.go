@@ -75,7 +75,7 @@ func TestHealthCheck(t *testing.T) {
 	}
 	require.NotEmpty(t, foundEntry, "Expected an error message '%s', but it was't found", expectedMsg)
 	actualErr, ok := foundEntry.Data["error"].(error)
-	require.Truef(t, ok, "Expected error field to contain an error, but got %v", actualErr)
+	require.True(t, ok, "Expected 'error' field to contain an error, but it doesn't")
 	assert.Equal(t, svcErrMsg, actualErr.Error(), "expected original error message '"+svcErrMsg+"', but got '"+actualErr.Error()+"'")
 	assert.Greater(t, foundEntry.Data["duration"].(time.Duration), time.Duration(0))
 }
