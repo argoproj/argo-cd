@@ -144,7 +144,7 @@ func newMockHandler(reactor *reactorDef, applicationNamespaces []string, maxPayl
 		1*time.Minute,
 		1*time.Minute,
 		10*time.Second,
-	), servercache.NewCache(appstate.NewCache(cacheClient, time.Minute), time.Minute, time.Minute), argoDB, maxPayloadSize, 0)
+	), servercache.NewCache(appstate.NewCache(cacheClient, time.Minute), time.Minute, time.Minute), argoDB, maxPayloadSize, 0, 10)
 }
 
 func TestGitHubCommitEvent(t *testing.T) {
@@ -230,6 +230,7 @@ func TestGitHubCommitEvent_MultiSource_Refresh(t *testing.T) {
 	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
+	time.Sleep(50 * time.Millisecond) // Give workers time to process the queued items
 	h.Shutdown()
 	assert.Equal(t, http.StatusOK, w.Code)
 	expectedLogResult := "Requested app 'app-to-refresh' refresh"
@@ -314,6 +315,7 @@ func TestGitHubCommitEvent_AppsInOtherNamespaces(t *testing.T) {
 	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
+	time.Sleep(50 * time.Millisecond) // Give workers time to process the queued items
 	h.Shutdown()
 	assert.Equal(t, http.StatusOK, w.Code)
 
@@ -387,6 +389,7 @@ func TestGitHubCommitEvent_Hydrate(t *testing.T) {
 	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
+	time.Sleep(50 * time.Millisecond) // Give workers time to process the queued items
 	h.Shutdown()
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.True(t, patched)
@@ -1783,6 +1786,7 @@ func TestWebhookRefreshWithJitter(t *testing.T) {
 			&mocks.ArgoDB{},
 			int64(50)*1024*1024,
 			2*time.Second,
+			10,
 		)
 
 		req := &appRefreshRequest{
