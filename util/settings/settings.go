@@ -566,6 +566,9 @@ const (
 	// default max webhook payload size is 50MB
 	defaultMaxWebhookPayloadSize = int64(50) * 1024 * 1024
 
+	// default webhook refresh jitter threshold
+	defaultWebhookRefreshJitterThreshold = 10
+
 	// application sync with impersonation feature is disabled by default.
 	defaultImpersonationEnabledFlag = false
 )
@@ -2424,22 +2427,22 @@ func (mgr *SettingsManager) GetWebhookRefreshJitterThreshold() int {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
 		log.Warnf("Failed to get config map for webhook refresh jitter threshold: %v", err)
-		return 10
+		return defaultWebhookRefreshJitterThreshold
 	}
 
 	if argoCDCM.Data[settingsWebhookRefreshJitterThreshold] == "" {
-		return 10
+		return defaultWebhookRefreshJitterThreshold
 	}
 
 	threshold, err := strconv.Atoi(argoCDCM.Data[settingsWebhookRefreshJitterThreshold])
 	if err != nil {
 		log.Warnf("Failed to parse '%s' key: %v", settingsWebhookRefreshJitterThreshold, err)
-		return 10
+		return defaultWebhookRefreshJitterThreshold
 	}
 
 	if threshold < 0 {
-		log.Warnf("Invalid '%s' value %d, must be >= 0, using default 10", settingsWebhookRefreshJitterThreshold, threshold)
-		return 10
+		log.Warnf("Invalid '%s' value %d, must be >= 0, using default %d", settingsWebhookRefreshJitterThreshold, threshold, defaultWebhookRefreshJitterThreshold)
+		return defaultWebhookRefreshJitterThreshold
 	}
 
 	return threshold
