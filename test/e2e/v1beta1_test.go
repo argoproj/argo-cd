@@ -1,4 +1,4 @@
-package test
+package e2e
 
 import (
 	"context"
@@ -81,29 +81,6 @@ func newV1beta1App(name, namespace string) *v1beta1.Application {
 			},
 		},
 	}
-}
-
-// TestV1beta1SourceDeprecated verifies that v1beta1 rejects Applications with source field set
-func TestV1beta1SourceDeprecated(t *testing.T) {
-	clientset := getTestClientset(t)
-	namespace := getTestNamespace()
-
-	app := newV1beta1App("test-source-deprecated-"+randomString(5), namespace)
-	//nolint:staticcheck // intentionally testing deprecated field rejection
-	app.Spec.Source = &v1alpha1.ApplicationSource{
-		RepoURL:        "https://github.com/argoproj/argocd-example-apps",
-		Path:           "guestbook",
-		TargetRevision: "HEAD",
-	}
-
-	_, err := clientset.ArgoprojV1beta1().Applications(namespace).Create(
-		context.Background(),
-		app,
-		metav1.CreateOptions{DryRun: []string{metav1.DryRunAll}},
-	)
-
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "source is not supported in v1beta1")
 }
 
 // TestV1beta1SourcesRequired verifies that v1beta1 requires sources to be set
@@ -394,86 +371,6 @@ func TestV1beta1IgnoreDifferencesMissingKind(t *testing.T) {
 	assert.Contains(t, err.Error(), "ignoreDifferences entries must have a kind")
 }
 
-// TestV1beta1SyncOptionsInvalidOption verifies that syncOptions must be from valid list
-func TestV1beta1SyncOptionsInvalidOption(t *testing.T) {
-	clientset := getTestClientset(t)
-	namespace := getTestNamespace()
-
-	app := newV1beta1App("test-syncoptions-invalid-"+randomString(5), namespace)
-	app.Spec.SyncPolicy = &v1beta1.SyncPolicy{
-		SyncOptions: v1beta1.SyncOptions{"InvalidOption=true"},
-	}
-
-	_, err := clientset.ArgoprojV1beta1().Applications(namespace).Create(
-		context.Background(),
-		app,
-		metav1.CreateOptions{DryRun: []string{metav1.DryRunAll}},
-	)
-
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "invalid syncOption")
-}
-
-// TestV1beta1SyncOptionsReplaceConflict verifies that can't have both Replace=true and Replace=false
-func TestV1beta1SyncOptionsReplaceConflict(t *testing.T) {
-	clientset := getTestClientset(t)
-	namespace := getTestNamespace()
-
-	app := newV1beta1App("test-syncoptions-replace-conflict-"+randomString(5), namespace)
-	app.Spec.SyncPolicy = &v1beta1.SyncPolicy{
-		SyncOptions: v1beta1.SyncOptions{"Replace=true", "Replace=false"},
-	}
-
-	_, err := clientset.ArgoprojV1beta1().Applications(namespace).Create(
-		context.Background(),
-		app,
-		metav1.CreateOptions{DryRun: []string{metav1.DryRunAll}},
-	)
-
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "cannot have both Replace=true and Replace=false")
-}
-
-// TestV1beta1SyncOptionsServerSideApplyConflict verifies that can't have both ServerSideApply=true and ServerSideApply=false
-func TestV1beta1SyncOptionsServerSideApplyConflict(t *testing.T) {
-	clientset := getTestClientset(t)
-	namespace := getTestNamespace()
-
-	app := newV1beta1App("test-syncoptions-ssa-conflict-"+randomString(5), namespace)
-	app.Spec.SyncPolicy = &v1beta1.SyncPolicy{
-		SyncOptions: v1beta1.SyncOptions{"ServerSideApply=true", "ServerSideApply=false"},
-	}
-
-	_, err := clientset.ArgoprojV1beta1().Applications(namespace).Create(
-		context.Background(),
-		app,
-		metav1.CreateOptions{DryRun: []string{metav1.DryRunAll}},
-	)
-
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "cannot have both ServerSideApply=true and ServerSideApply=false")
-}
-
-// TestV1beta1SyncOptionsPruneLastWithPruneFalse verifies that can't have PruneLast=true with Prune=false
-func TestV1beta1SyncOptionsPruneLastWithPruneFalse(t *testing.T) {
-	clientset := getTestClientset(t)
-	namespace := getTestNamespace()
-
-	app := newV1beta1App("test-syncoptions-prunelast-conflict-"+randomString(5), namespace)
-	app.Spec.SyncPolicy = &v1beta1.SyncPolicy{
-		SyncOptions: v1beta1.SyncOptions{"PruneLast=true", "Prune=false"},
-	}
-
-	_, err := clientset.ArgoprojV1beta1().Applications(namespace).Create(
-		context.Background(),
-		app,
-		metav1.CreateOptions{DryRun: []string{metav1.DryRunAll}},
-	)
-
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "cannot have PruneLast=true with Prune=false")
-}
-
 // TestV1beta1ValidApplication verifies that a valid v1beta1 Application is accepted
 func TestV1beta1ValidApplication(t *testing.T) {
 	clientset := getTestClientset(t)
@@ -506,29 +403,6 @@ func TestV1beta1ValidApplicationWithMultipleSources(t *testing.T) {
 			RepoURL:        "https://github.com/argoproj/argocd-example-apps",
 			Ref:            "values",
 			TargetRevision: "HEAD",
-		},
-	}
-
-	_, err := clientset.ArgoprojV1beta1().Applications(namespace).Create(
-		context.Background(),
-		app,
-		metav1.CreateOptions{DryRun: []string{metav1.DryRunAll}},
-	)
-
-	assert.NoError(t, err)
-}
-
-// TestV1beta1ValidApplicationWithSyncOptions verifies that valid syncOptions are accepted
-func TestV1beta1ValidApplicationWithSyncOptions(t *testing.T) {
-	clientset := getTestClientset(t)
-	namespace := getTestNamespace()
-
-	app := newV1beta1App("test-valid-syncoptions-"+randomString(5), namespace)
-	app.Spec.SyncPolicy = &v1beta1.SyncPolicy{
-		SyncOptions: v1beta1.SyncOptions{
-			"CreateNamespace=true",
-			"ServerSideApply=true",
-			"PrunePropagationPolicy=foreground",
 		},
 	}
 

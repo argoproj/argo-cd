@@ -53,6 +53,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/controller/sharding"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	appv1beta1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1beta1"
 	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/v3/pkg/client/informers/externalversions/application/v1alpha1"
 	applisters "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
@@ -1415,7 +1416,7 @@ func (ctrl *ApplicationController) setAppCondition(app *appv1.Application, condi
 		},
 	})
 	if err == nil {
-		_, err = ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Patch(context.Background(), app.Name, types.MergePatchType, patch, metav1.PatchOptions{})
+		_, err = ctrl.PatchAppStatusWithWriteBack(context.Background(), app.Name, app.Namespace, types.MergePatchType, patch, metav1.PatchOptions{})
 	}
 	if err != nil {
 		logCtx.WithError(err).Error("Unable to set application condition")
@@ -1578,47 +1579,63 @@ func (ctrl *ApplicationController) setOperationState(app *appv1.Application, sta
 		now := metav1.Now()
 		state.FinishedAt = &now
 	}
-	patch := map[string]any{
-		"status": map[string]any{
-			"operationState": state,
-		},
-	}
-	if state.Phase.Completed() {
-		// If operation is completed, clear the operation field to indicate no operation is
-		// in progress.
-		patch["operation"] = nil
-	}
 	if reflect.DeepEqual(app.Status.OperationState, state) {
 		logCtx.Infof("No operation updates necessary to '%s'. Skipping patch", app.QualifiedName())
 		return
 	}
-	patchJSON, err := json.Marshal(patch)
+
+	// Build status patch for operationState
+	statusPatch := map[string]any{
+		"status": map[string]any{
+			"operationState": state,
+		},
+	}
+	statusPatchJSON, err := json.Marshal(statusPatch)
 	if err != nil {
-		logCtx.WithError(err).Error("error marshaling json")
+		logCtx.WithError(err).Error("error marshaling status json")
 		return
 	}
 	if app.Status.OperationState != nil && app.Status.OperationState.FinishedAt != nil && state.FinishedAt == nil {
-		patchJSON, err = jsonpatch.MergeMergePatches(patchJSON, []byte(`{"status": {"operationState": {"finishedAt": null}}}`))
+		statusPatchJSON, err = jsonpatch.MergeMergePatches(statusPatchJSON, []byte(`{"status": {"operationState": {"finishedAt": null}}}`))
 		if err != nil {
 			logCtx.WithError(err).Error("error merging operation state patch")
 			return
 		}
 	}
 
+	// Patch status using the status subresource
 	kube.RetryUntilSucceed(context.Background(), updateOperationStateTimeout, "Update application operation state", logutils.NewLogrusLogger(logutils.NewWithCurrentConfig()), func() error {
-		_, err := ctrl.PatchAppWithWriteBack(context.Background(), app.Name, app.Namespace, types.MergePatchType, patchJSON, metav1.PatchOptions{})
+		_, err := ctrl.PatchAppStatusWithWriteBack(context.Background(), app.Name, app.Namespace, types.MergePatchType, statusPatchJSON, metav1.PatchOptions{})
 		if err != nil {
 			// Stop retrying updating deleted application
 			if apierrors.IsNotFound(err) {
 				return nil
 			}
-			// kube.RetryUntilSucceed logs failed attempts at "debug" level, but we want to know if this fails. Log a
-			// warning.
 			logCtx.WithError(err).Warn("error patching application with operation state")
 			return fmt.Errorf("error patching application with operation state: %w", err)
 		}
 		return nil
 	})
+
+	// If operation is completed, clear the operation field (spec) in a separate patch
+	if state.Phase.Completed() {
+		specPatch, err := json.Marshal(map[string]any{"operation": nil})
+		if err != nil {
+			logCtx.WithError(err).Error("error marshaling operation clear patch")
+		} else {
+			kube.RetryUntilSucceed(context.Background(), updateOperationStateTimeout, "Clear application operation", logutils.NewLogrusLogger(logutils.NewWithCurrentConfig()), func() error {
+				_, err := ctrl.PatchAppWithWriteBack(context.Background(), app.Name, app.Namespace, types.MergePatchType, specPatch, metav1.PatchOptions{})
+				if err != nil {
+					if apierrors.IsNotFound(err) {
+						return nil
+					}
+					logCtx.WithError(err).Warn("error clearing application operation field")
+					return fmt.Errorf("error clearing application operation field: %w", err)
+				}
+				return nil
+			})
+		}
+	}
 
 	logCtx.Infof("updated '%s' operation (phase: %s)", app.QualifiedName(), state.Phase)
 	if state.Phase.Completed() {
@@ -1673,6 +1690,19 @@ func (ctrl *ApplicationController) PatchAppWithWriteBack(ctx context.Context, na
 	}
 	ctrl.writeBackToInformer(patchedApp)
 	return patchedApp, err
+}
+
+// PatchAppStatusWithWriteBack patches an application's status using the v1beta1 status subresource
+// and writes it back to the informer cache. This ensures proper separation between spec and status updates.
+func (ctrl *ApplicationController) PatchAppStatusWithWriteBack(ctx context.Context, name, ns string, pt types.PatchType, data []byte, opts metav1.PatchOptions) (result *appv1.Application, err error) {
+	patchedApp, err := ctrl.applicationClientset.ArgoprojV1beta1().Applications(ns).Patch(ctx, name, pt, data, opts, "status")
+	if err != nil {
+		return nil, err
+	}
+	// Convert v1beta1 back to v1alpha1 for the informer cache
+	v1alpha1App := appv1beta1.ConvertToV1alpha1(patchedApp)
+	ctrl.writeBackToInformer(v1alpha1App)
+	return v1alpha1App, err
 }
 
 func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext bool) {
@@ -2128,36 +2158,63 @@ func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, new
 		// make sure the last transition time is the same and populated if the health is the same
 		newStatus.Health.LastTransitionTime = orig.Status.Health.LastTransitionTime
 	}
-	var newAnnotations map[string]string
-	if orig.GetAnnotations() != nil {
-		newAnnotations = make(map[string]string)
-		for k, v := range orig.GetAnnotations() {
-			newAnnotations[k] = v
-		}
-		delete(newAnnotations, appv1.AnnotationKeyRefresh)
-		delete(newAnnotations, appv1.AnnotationKeyHydrate)
-	}
-	patch, modified, err := createMergePatch(
-		&appv1.Application{ObjectMeta: metav1.ObjectMeta{Annotations: orig.GetAnnotations()}, Status: orig.Status},
-		&appv1.Application{ObjectMeta: metav1.ObjectMeta{Annotations: newAnnotations}, Status: *newStatus})
-	if err != nil {
-		logCtx.WithError(err).Error("Error constructing app status patch")
-		return patchDuration
-	}
-	if !modified {
-		logCtx.Infof("No status changes. Skipping patch")
-		return patchDuration
-	}
-	// calculate time for path call
+
+	// calculate time for patch calls
 	start := time.Now()
 	defer func() {
 		patchDuration = time.Since(start)
 	}()
-	_, err = ctrl.PatchAppWithWriteBack(context.Background(), orig.Name, orig.Namespace, types.MergePatchType, patch, metav1.PatchOptions{})
+
+	// Patch status using the status subresource
+	statusPatch, statusModified, err := createMergePatch(
+		&appv1.Application{Status: orig.Status},
+		&appv1.Application{Status: *newStatus})
 	if err != nil {
-		logCtx.WithError(err).Warn("Error updating application")
-	} else {
-		logCtx.Infof("Update successful")
+		logCtx.WithError(err).Error("Error constructing app status patch")
+		return patchDuration
+	}
+	if statusModified {
+		_, err = ctrl.PatchAppStatusWithWriteBack(context.Background(), orig.Name, orig.Namespace, types.MergePatchType, statusPatch, metav1.PatchOptions{})
+		if err != nil {
+			logCtx.WithError(err).Warn("Error updating application status")
+		} else {
+			logCtx.Infof("Status update successful")
+		}
+	}
+
+	// Clear refresh/hydrate annotations using a separate metadata patch
+	origAnnotations := orig.GetAnnotations()
+	if origAnnotations != nil {
+		_, hasRefresh := origAnnotations[appv1.AnnotationKeyRefresh]
+		_, hasHydrate := origAnnotations[appv1.AnnotationKeyHydrate]
+		if hasRefresh || hasHydrate {
+			// Build annotation patch to remove these keys (set to null in merge patch)
+			annotationPatch := map[string]any{
+				"metadata": map[string]any{
+					"annotations": map[string]any{},
+				},
+			}
+			annotations := annotationPatch["metadata"].(map[string]any)["annotations"].(map[string]any)
+			if hasRefresh {
+				annotations[appv1.AnnotationKeyRefresh] = nil
+			}
+			if hasHydrate {
+				annotations[appv1.AnnotationKeyHydrate] = nil
+			}
+			metadataPatchJSON, err := json.Marshal(annotationPatch)
+			if err != nil {
+				logCtx.WithError(err).Error("Error constructing annotation patch")
+			} else {
+				_, err = ctrl.PatchAppWithWriteBack(context.Background(), orig.Name, orig.Namespace, types.MergePatchType, metadataPatchJSON, metav1.PatchOptions{})
+				if err != nil {
+					logCtx.WithError(err).Warn("Error clearing refresh annotations")
+				}
+			}
+		}
+	}
+
+	if !statusModified {
+		logCtx.Infof("No status changes. Skipping patch")
 	}
 	return patchDuration
 }
@@ -2286,10 +2343,9 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 		}
 	}
 
-	appIf := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace)
 	ts.AddCheckpoint("get_applications_ms")
 	start := time.Now()
-	updatedApp, err := argo.SetAppOperation(appIf, app.Name, &op)
+	updatedApp, err := argo.SetAppOperation(ctrl.applicationClientset, app.Name, app.Namespace, &op)
 	ts.AddCheckpoint("set_app_operation_ms")
 	setOpTime := time.Since(start)
 	if err != nil {

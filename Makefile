@@ -554,6 +554,16 @@ start-local: mod-vendor-local dep-ui-local cli-local
 	ARGOCD_APPLICATION_NAMESPACES=$(ARGOCD_APPLICATION_NAMESPACES) \
 		goreman -f $(ARGOCD_PROCFILE) start ${ARGOCD_START}
 
+# Deploy the conversion webhook for local development
+# This deploys the webhook into the cluster so that conversion works when running start-local
+.PHONY: deploy-conversion-webhook
+deploy-conversion-webhook:
+	kubectl create ns argocd || true
+	kustomize build manifests/base/conversion-webhook | kubectl apply -n argocd -f -
+	kubectl apply -f manifests/crds/application-crd.yaml --server-side
+	@echo "Conversion webhook deployed. The webhook will auto-generate TLS certs and inject the CA bundle."
+	@echo "You can now run 'make start-local' to start ArgoCD locally."
+
 # Run goreman start with exclude option , provide exclude env variable with list of services
 .PHONY: run
 run:

@@ -43,7 +43,7 @@ import (
 	argocommon "github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1beta1"
 	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
 	applisters "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
@@ -2103,8 +2103,7 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 
 	appName := syncReq.GetName()
 	appNs := s.appNamespaceOrDefault(syncReq.GetAppNamespace())
-	appIf := s.appclientset.ArgoprojV1alpha1().Applications(appNs)
-	a, err = argo.SetAppOperation(appIf, appName, &op)
+	a, err = argo.SetAppOperation(s.appclientset, appName, appNs, &op)
 	if err != nil {
 		return nil, fmt.Errorf("error setting app operation: %w", err)
 	}
@@ -2243,8 +2242,7 @@ func (s *Server) Rollback(ctx context.Context, rollbackReq *application.Applicat
 	}
 	appName := rollbackReq.GetName()
 	appNs := s.appNamespaceOrDefault(rollbackReq.GetAppNamespace())
-	appIf := s.appclientset.ArgoprojV1alpha1().Applications(appNs)
-	a, err = argo.SetAppOperation(appIf, appName, &op)
+	a, err = argo.SetAppOperation(s.appclientset, appName, appNs, &op)
 	if err != nil {
 		return nil, fmt.Errorf("error setting app operation: %w", err)
 	}
@@ -2443,9 +2441,23 @@ func (s *Server) TerminateOperation(ctx context.Context, termOpReq *application.
 		if a.Operation == nil || a.Status.OperationState == nil {
 			return nil, status.Errorf(codes.InvalidArgument, "Unable to terminate operation. No operation is in progress")
 		}
-		a.Status.OperationState.Phase = common.OperationTerminating
-		updated, err := s.appclientset.ArgoprojV1alpha1().Applications(appNs).Update(ctx, a, metav1.UpdateOptions{})
+
+		// Use status subresource patch via v1beta1 client to update operation state
+		statusPatch, err := json.Marshal(map[string]any{
+			"status": map[string]any{
+				"operationState": map[string]any{
+					"phase": common.OperationTerminating,
+				},
+			},
+		})
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling status patch: %w", err)
+		}
+
+		patchedApp, err := s.appclientset.ArgoprojV1beta1().Applications(appNs).Patch(ctx, appName, types.MergePatchType, statusPatch, metav1.PatchOptions{}, "status")
 		if err == nil {
+			// Convert back to v1alpha1 for waitSync
+			updated := v1beta1.ConvertToV1alpha1(patchedApp)
 			s.waitSync(updated)
 			s.logAppEvent(ctx, a, argo.EventReasonResourceUpdated, "terminated running operation")
 			return &application.OperationTerminateResponse{}, nil

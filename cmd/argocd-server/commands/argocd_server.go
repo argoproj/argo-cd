@@ -236,6 +236,7 @@ func NewCommand() *cobra.Command {
 				ContentTypes:            contentTypesList,
 				EnableGZip:              enableGZip,
 				TLSConfigCustomizer:     tlsConfigCustomizer,
+				RestConfig:              config,
 				Cache:                   cache,
 				RepoServerCache:         repoServerCache,
 				XFrameOptions:           frameOptions,

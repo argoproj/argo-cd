@@ -7,6 +7,17 @@ metadata:
     app.kubernetes.io/part-of: argocd
   name: applications.argoproj.io
 spec:
+  conversion:
+    strategy: Webhook
+    webhook:
+      clientConfig:
+        service:
+          name: argocd-conversion-webhook
+          namespace: argocd
+          path: /convert
+          port: 443
+      conversionReviewVersions:
+      - v1
   group: argoproj.io
   names:
     kind: Application
@@ -8046,379 +8057,6 @@ spec:
                   Default is 10.
                 format: int64
                 type: integer
-              source:
-                description: 'Deprecated: Source is not supported in v1beta1. Use
-                  Sources instead.'
-                properties:
-                  chart:
-                    description: Chart is a Helm chart name, and must be specified
-                      for applications sourced from a Helm repo.
-                    type: string
-                  directory:
-                    description: Directory holds path/directory specific options
-                    properties:
-                      exclude:
-                        description: Exclude contains a glob pattern to match paths
-                          against that should be explicitly excluded from being used
-                          during manifest generation
-                        type: string
-                      include:
-                        description: Include contains a glob pattern to match paths
-                          against that should be explicitly included during manifest
-                          generation
-                        type: string
-                      jsonnet:
-                        description: Jsonnet holds options specific to Jsonnet
-                        properties:
-                          extVars:
-                            description: ExtVars is a list of Jsonnet External Variables
-                            items:
-                              description: JsonnetVar represents a variable to be
-                                passed to jsonnet during manifest generation
-                              properties:
-                                code:
-                                  type: boolean
-                                name:
-                                  type: string
-                                value:
-                                  type: string
-                              required:
-                              - name
-                              - value
-                              type: object
-                            type: array
-                          libs:
-                            description: Additional library search dirs
-                            items:
-                              type: string
-                            type: array
-                          tlas:
-                            description: TLAS is a list of Jsonnet Top-level Arguments
-                            items:
-                              description: JsonnetVar represents a variable to be
-                                passed to jsonnet during manifest generation
-                              properties:
-                                code:
-                                  type: boolean
-                                name:
-                                  type: string
-                                value:
-                                  type: string
-                              required:
-                              - name
-                              - value
-                              type: object
-                            type: array
-                        type: object
-                      recurse:
-                        description: Recurse specifies whether to scan a directory
-                          recursively for manifests
-                        type: boolean
-                    type: object
-                  helm:
-                    description: Helm holds helm specific options
-                    properties:
-                      apiVersions:
-                        description: |-
-                          APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
-                          Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
-                        items:
-                          type: string
-                        type: array
-                      fileParameters:
-                        description: FileParameters are file parameters to the helm
-                          template
-                        items:
-                          description: HelmFileParameter is a file parameter that's
-                            passed to helm template during manifest generation
-                          properties:
-                            name:
-                              description: Name is the name of the Helm parameter
-                              type: string
-                            path:
-                              description: Path is the path to the file containing
-                                the values for the Helm parameter
-                              type: string
-                          type: object
-                        type: array
-                      ignoreMissingValueFiles:
-                        description: IgnoreMissingValueFiles prevents helm template
-                          from failing when valueFiles do not exist locally by not
-                          appending them to helm template --values
-                        type: boolean
-                      kubeVersion:
-                        description: |-
-                          KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
-                          uses the Kubernetes version of the target cluster.
-                        type: string
-                      namespace:
-                        description: Namespace is an optional namespace to template
-                          with. If left empty, defaults to the app's destination namespace.
-                        type: string
-                      parameters:
-                        description: Parameters is a list of Helm parameters which
-                          are passed to the helm template command upon manifest generation
-                        items:
-                          description: HelmParameter is a parameter that's passed
-                            to helm template during manifest generation
-                          properties:
-                            forceString:
-                              description: ForceString determines whether to tell
-                                Helm to interpret booleans and numbers as strings
-                              type: boolean
-                            name:
-                              description: Name is the name of the Helm parameter
-                              type: string
-                            value:
-                              description: Value is the value for the Helm parameter
-                              type: string
-                          type: object
-                        type: array
-                      passCredentials:
-                        description: PassCredentials pass credentials to all domains
-                          (Helm's --pass-credentials)
-                        type: boolean
-                      releaseName:
-                        description: ReleaseName is the Helm release name to use.
-                          If omitted it will use the application name
-                        type: string
-                      skipCrds:
-                        description: SkipCrds skips custom resource definition installation
-                          step (Helm's --skip-crds)
-                        type: boolean
-                      skipSchemaValidation:
-                        description: SkipSchemaValidation skips JSON schema validation
-                          (Helm's --skip-schema-validation)
-                        type: boolean
-                      skipTests:
-                        description: SkipTests skips test manifest installation step
-                          (Helm's --skip-tests).
-                        type: boolean
-                      valueFiles:
-                        description: ValuesFiles is a list of Helm value files to
-                          use when generating a template
-                        items:
-                          type: string
-                        type: array
-                      values:
-                        description: Values specifies Helm values to be passed to
-                          helm template, typically defined as a block. ValuesObject
-                          takes precedence over Values, so use one or the other.
-                        type: string
-                      valuesObject:
-                        description: ValuesObject specifies Helm values to be passed
-                          to helm template, defined as a map. This takes precedence
-                          over Values.
-                        type: object
-                        x-kubernetes-preserve-unknown-fields: true
-                      version:
-                        description: Version is the Helm version to use for templating
-                          ("3")
-                        type: string
-                    type: object
-                  kustomize:
-                    description: Kustomize holds kustomize specific options
-                    properties:
-                      apiVersions:
-                        description: |-
-                          APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
-                          Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
-                        items:
-                          type: string
-                        type: array
-                      commonAnnotations:
-                        additionalProperties:
-                          type: string
-                        description: CommonAnnotations is a list of additional annotations
-                          to add to rendered manifests
-                        type: object
-                      commonAnnotationsEnvsubst:
-                        description: CommonAnnotationsEnvsubst specifies whether to
-                          apply env variables substitution for annotation values
-                        type: boolean
-                      commonLabels:
-                        additionalProperties:
-                          type: string
-                        description: CommonLabels is a list of additional labels to
-                          add to rendered manifests
-                        type: object
-                      components:
-                        description: Components specifies a list of kustomize components
-                          to add to the kustomization before building
-                        items:
-                          type: string
-                        type: array
-                      forceCommonAnnotations:
-                        description: ForceCommonAnnotations specifies whether to force
-                          applying common annotations to resources for Kustomize apps
-                        type: boolean
-                      forceCommonLabels:
-                        description: ForceCommonLabels specifies whether to force
-                          applying common labels to resources for Kustomize apps
-                        type: boolean
-                      ignoreMissingComponents:
-                        description: IgnoreMissingComponents prevents kustomize from
-                          failing when components do not exist locally by not appending
-                          them to kustomization file
-                        type: boolean
-                      images:
-                        description: Images is a list of Kustomize image override
-                          specifications
-                        items:
-                          description: KustomizeImage represents a Kustomize image
-                            definition in the format [old_image_name=]<image_name>:<image_tag>
-                          type: string
-                        type: array
-                      kubeVersion:
-                        description: |-
-                          KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
-                          uses the Kubernetes version of the target cluster.
-                        type: string
-                      labelIncludeTemplates:
-                        description: LabelIncludeTemplates specifies whether to apply
-                          common labels to resource templates or not
-                        type: boolean
-                      labelWithoutSelector:
-                        description: LabelWithoutSelector specifies whether to apply
-                          common labels to resource selectors or not
-                        type: boolean
-                      namePrefix:
-                        description: NamePrefix is a prefix appended to resources
-                          for Kustomize apps
-                        type: string
-                      nameSuffix:
-                        description: NameSuffix is a suffix appended to resources
-                          for Kustomize apps
-                        type: string
-                      namespace:
-                        description: Namespace sets the namespace that Kustomize adds
-                          to all resources
-                        type: string
-                      patches:
-                        description: Patches is a list of Kustomize patches
-                        items:
-                          properties:
-                            options:
-                              additionalProperties:
-                                type: boolean
-                              type: object
-                            patch:
-                              type: string
-                            path:
-                              type: string
-                            target:
-                              properties:
-                                annotationSelector:
-                                  type: string
-                                group:
-                                  type: string
-                                kind:
-                                  type: string
-                                labelSelector:
-                                  type: string
-                                name:
-                                  type: string
-                                namespace:
-                                  type: string
-                                version:
-                                  type: string
-                              type: object
-                          type: object
-                        type: array
-                      replicas:
-                        description: Replicas is a list of Kustomize Replicas override
-                          specifications
-                        items:
-                          properties:
-                            count:
-                              anyOf:
-                              - type: integer
-                              - type: string
-                              description: Number of replicas
-                              x-kubernetes-int-or-string: true
-                            name:
-                              description: Name of Deployment or StatefulSet
-                              type: string
-                          required:
-                          - count
-                          - name
-                          type: object
-                        type: array
-                      version:
-                        description: Version controls which version of Kustomize to
-                          use for rendering manifests
-                        type: string
-                    type: object
-                  name:
-                    description: Name is used to refer to a source and is displayed
-                      in the UI. It is used in multi-source Applications.
-                    type: string
-                  path:
-                    description: Path is a directory path within the Git repository,
-                      and is only valid for applications sourced from Git.
-                    type: string
-                  plugin:
-                    description: Plugin holds config management plugin specific options
-                    properties:
-                      env:
-                        description: Env is a list of environment variable entries
-                        items:
-                          description: EnvEntry represents an entry in the application's
-                            environment
-                          properties:
-                            name:
-                              description: Name is the name of the variable, usually
-                                expressed in uppercase
-                              type: string
-                            value:
-                              description: Value is the value of the variable
-                              type: string
-                          required:
-                          - name
-                          - value
-                          type: object
-                        type: array
-                      name:
-                        type: string
-                      parameters:
-                        items:
-                          properties:
-                            array:
-                              description: Array is the value of an array type parameter.
-                              items:
-                                type: string
-                              type: array
-                            map:
-                              additionalProperties:
-                                type: string
-                              description: Map is the value of a map type parameter.
-                              type: object
-                            name:
-                              description: Name is the name identifying a parameter.
-                              type: string
-                            string:
-                              description: String_ is the value of a string type parameter.
-                              type: string
-                          type: object
-                        type: array
-                    type: object
-                  ref:
-                    description: Ref is reference to another source within sources
-                      field. This field will not be used if used with a `source` tag.
-                    type: string
-                  repoURL:
-                    description: RepoURL is the URL to the repository (Git or Helm)
-                      that contains the application manifests
-                    type: string
-                  targetRevision:
-                    description: |-
-                      TargetRevision defines the revision of the source to sync the application to.
-                      In case of Git, this can be commit, tag, or branch. If omitted, will equal to HEAD.
-                      In case of Helm, this is a semver tag for the Chart's version.
-                    type: string
-                required:
-                - repoURL
-                type: object
               sourceHydrator:
                 description: SourceHydrator provides a way to push hydrated manifests
                   back to git before syncing them to the cluster.
@@ -9284,22 +8922,98 @@ spec:
                         type: boolean
                     type: object
                   syncOptions:
-                    description: Options allow you to specify whole app sync-options
-                    items:
-                      type: string
-                    maxItems: 20
-                    type: array
-                    x-kubernetes-validations:
-                    - message: invalid syncOption, must be one of the predefined options
-                      rule: self.all(s, s in ['SkipDryRunOnMissingResource=true','Prune=false','Validate=false','PruneLast=true','Replace=true','Replace=false','Force=true','ServerSideApply=true','ServerSideApply=false','Delete=false','Delete=confirm','ApplyOutOfSyncOnly=true','ApplyOutOfSyncOnly=false','Prune=confirm','ClientSideApplyMigration=true','ClientSideApplyMigration=false','PrunePropagationPolicy=background','PrunePropagationPolicy=foreground','PrunePropagationPolicy=orphan','CreateNamespace=true','RespectIgnoreDifferences=true','FailOnSharedResource=true'])
+                    description: SyncOptions provide per-sync sync-options
+                    properties:
+                      applyOutOfSyncOnly:
+                        description: 'ApplyOutOfSyncOnly only applies resources that
+                          are out of sync (default: false)'
+                        type: boolean
+                      clientSideApplyMigration:
+                        description: 'ClientSideApplyMigration enables migration from
+                          client-side to server-side apply (default: false)'
+                        type: boolean
+                      createNamespace:
+                        description: 'CreateNamespace creates the namespace if it
+                          doesn''t exist (default: false)'
+                        type: boolean
+                      delete:
+                        allOf:
+                        - enum:
+                          - enabled
+                          - disabled
+                          - confirm
+                        - enum:
+                          - enabled
+                          - disabled
+                          - confirm
+                        description: Delete controls whether deletion is enabled,
+                          disabled, or requires confirmation
+                        type: string
+                      failOnSharedResource:
+                        description: 'FailOnSharedResource fails sync if a resource
+                          is already applied by another application (default: false)'
+                        type: boolean
+                      force:
+                        description: 'Force uses `kubectl apply --force` which deletes
+                          and recreates resources (default: false)'
+                        type: boolean
+                      prune:
+                        allOf:
+                        - enum:
+                          - enabled
+                          - disabled
+                          - confirm
+                        - enum:
+                          - enabled
+                          - disabled
+                          - confirm
+                        description: Prune controls whether pruning is enabled, disabled,
+                          or requires confirmation
+                        type: string
+                      pruneLast:
+                        description: 'PruneLast causes resources to be pruned after
+                          all other resources have been synced (default: false)'
+                        type: boolean
+                      prunePropagationPolicy:
+                        allOf:
+                        - enum:
+                          - background
+                          - foreground
+                          - orphan
+                        - enum:
+                          - background
+                          - foreground
+                          - orphan
+                        description: PrunePropagationPolicy sets the propagation policy
+                          for pruning
+                        type: string
+                      replace:
+                        description: 'Replace uses `kubectl replace` instead of `kubectl
+                          apply` (default: false)'
+                        type: boolean
+                      respectIgnoreDifferences:
+                        description: 'RespectIgnoreDifferences respects ignoreDifferences
+                          config during sync (default: false)'
+                        type: boolean
+                      serverSideApply:
+                        description: 'ServerSideApply uses server-side apply for syncing
+                          (default: false)'
+                        type: boolean
+                      skipDryRunOnMissingResource:
+                        description: 'SkipDryRunOnMissingResource skips dry-run when
+                          CRDs are missing (default: false)'
+                        type: boolean
+                      validate:
+                        description: 'Validate enables/disables kubectl validation
+                          (default: true)'
+                        type: boolean
+                    type: object
                 type: object
             required:
             - destination
             - project
             type: object
             x-kubernetes-validations:
-            - message: source is not supported in v1beta1, use sources instead
-              rule: '!(has(self.source) && self.source != null)'
             - message: sources is required (or sourceHydrator must be set)
               rule: (has(self.sources) && size(self.sources) > 0) || has(self.sourceHydrator)
             - message: cannot have both sources and sourceHydrator defined
@@ -9321,6 +9035,9 @@ spec:
                 0) && (!has(s.chart) || size(s.chart) == 0))'
             - message: project is required
               rule: has(self.project) && size(self.project) > 0
+            - message: project must be a valid DNS subdomain (lowercase alphanumeric,
+                '-', or '.', must start and end with alphanumeric, max 253 chars)
+              rule: size(self.project) <= 253 && self.project.matches('^[a-z0-9]([-a-z0-9.]*[a-z0-9])?$')
             - message: destination must have either server or name set
               rule: (has(self.destination.server) && size(self.destination.server)
                 > 0) || (has(self.destination.name) && size(self.destination.name)
@@ -9342,40 +9059,11 @@ spec:
             - message: ignoreDifferences entries must have a kind
               rule: '!has(self.ignoreDifferences) || self.ignoreDifferences.all(d,
                 has(d.kind) && size(d.kind) > 0)'
-            - message: 'PrunePropagationPolicy must be one of: background, foreground,
-                orphan'
+            - message: cannot have pruneLast=true with prune=disabled
               rule: '!has(self.syncPolicy) || !has(self.syncPolicy.syncOptions) ||
-                !self.syncPolicy.syncOptions.exists(s, s.startsWith(''PrunePropagationPolicy=''))
-                || self.syncPolicy.syncOptions.exists(s, s in [''PrunePropagationPolicy=background'',
-                ''PrunePropagationPolicy=foreground'', ''PrunePropagationPolicy=orphan''])'
-            - message: cannot have both Replace=true and Replace=false
-              rule: '!has(self.syncPolicy) || !has(self.syncPolicy.syncOptions) ||
-                !(self.syncPolicy.syncOptions.exists(s, s == ''Replace=true'') &&
-                self.syncPolicy.syncOptions.exists(s, s == ''Replace=false''))'
-            - message: cannot have both ServerSideApply=true and ServerSideApply=false
-              rule: '!has(self.syncPolicy) || !has(self.syncPolicy.syncOptions) ||
-                !(self.syncPolicy.syncOptions.exists(s, s == ''ServerSideApply=true'')
-                && self.syncPolicy.syncOptions.exists(s, s == ''ServerSideApply=false''))'
-            - message: cannot have both ApplyOutOfSyncOnly=true and ApplyOutOfSyncOnly=false
-              rule: '!has(self.syncPolicy) || !has(self.syncPolicy.syncOptions) ||
-                !(self.syncPolicy.syncOptions.exists(s, s == ''ApplyOutOfSyncOnly=true'')
-                && self.syncPolicy.syncOptions.exists(s, s == ''ApplyOutOfSyncOnly=false''))'
-            - message: cannot have both ClientSideApplyMigration=true and ClientSideApplyMigration=false
-              rule: '!has(self.syncPolicy) || !has(self.syncPolicy.syncOptions) ||
-                !(self.syncPolicy.syncOptions.exists(s, s == ''ClientSideApplyMigration=true'')
-                && self.syncPolicy.syncOptions.exists(s, s == ''ClientSideApplyMigration=false''))'
-            - message: cannot have both Prune=false and Prune=confirm
-              rule: '!has(self.syncPolicy) || !has(self.syncPolicy.syncOptions) ||
-                !(self.syncPolicy.syncOptions.exists(s, s == ''Prune=false'') && self.syncPolicy.syncOptions.exists(s,
-                s == ''Prune=confirm''))'
-            - message: cannot have both Delete=false and Delete=confirm
-              rule: '!has(self.syncPolicy) || !has(self.syncPolicy.syncOptions) ||
-                !(self.syncPolicy.syncOptions.exists(s, s == ''Delete=false'') &&
-                self.syncPolicy.syncOptions.exists(s, s == ''Delete=confirm''))'
-            - message: cannot have PruneLast=true with Prune=false
-              rule: '!has(self.syncPolicy) || !has(self.syncPolicy.syncOptions) ||
-                !(self.syncPolicy.syncOptions.exists(s, s == ''PruneLast=true'') &&
-                self.syncPolicy.syncOptions.exists(s, s == ''Prune=false''))'
+                !has(self.syncPolicy.syncOptions.pruneLast) || !self.syncPolicy.syncOptions.pruneLast
+                || !has(self.syncPolicy.syncOptions.prune) || self.syncPolicy.syncOptions.prune
+                != ''disabled'''
           status:
             description: ApplicationStatus contains status information for the application
             properties:
@@ -14068,7 +13756,8 @@ spec:
         type: object
     served: true
     storage: false
-    subresources: {}
+    subresources:
+      status: {}
 ---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
@@ -37633,6 +37322,15 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   labels:
+    app.kubernetes.io/component: conversion-webhook
+    app.kubernetes.io/name: argocd-conversion-webhook
+    app.kubernetes.io/part-of: argocd
+  name: argocd-conversion-webhook
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
     app.kubernetes.io/component: dex-server
     app.kubernetes.io/name: argocd-dex-server
     app.kubernetes.io/part-of: argocd
@@ -38028,6 +37726,25 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   labels:
+    app.kubernetes.io/component: conversion-webhook
+    app.kubernetes.io/name: argocd-conversion-webhook
+    app.kubernetes.io/part-of: argocd
+  name: argocd-conversion-webhook
+rules:
+- apiGroups:
+  - apiextensions.k8s.io
+  resourceNames:
+  - applications.argoproj.io
+  resources:
+  - customresourcedefinitions
+  verbs:
+  - get
+  - patch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
     app.kubernetes.io/component: server
     app.kubernetes.io/name: argocd-server
     app.kubernetes.io/part-of: argocd
@@ -38204,6 +37921,23 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: argocd-applicationset-controller
+  namespace: argocd
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/component: conversion-webhook
+    app.kubernetes.io/name: argocd-conversion-webhook
+    app.kubernetes.io/part-of: argocd
+  name: argocd-conversion-webhook
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: argocd-conversion-webhook
+subjects:
+- kind: ServiceAccount
+  name: argocd-conversion-webhook
   namespace: argocd
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -38430,6 +38164,23 @@ spec:
     targetPort: metrics
   selector:
     app.kubernetes.io/name: argocd-applicationset-controller
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/component: conversion-webhook
+    app.kubernetes.io/name: argocd-conversion-webhook
+    app.kubernetes.io/part-of: argocd
+  name: argocd-conversion-webhook
+spec:
+  ports:
+  - name: https
+    port: 443
+    protocol: TCP
+    targetPort: 8443
+  selector:
+    app.kubernetes.io/name: argocd-conversion-webhook
 ---
 apiVersion: v1
 kind: Service
@@ -38820,6 +38571,109 @@ spec:
           name: argocd-cmd-params-cm
           optional: true
         name: argocd-cmd-params-cm
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/component: conversion-webhook
+    app.kubernetes.io/name: argocd-conversion-webhook
+    app.kubernetes.io/part-of: argocd
+  name: argocd-conversion-webhook
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: argocd-conversion-webhook
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: argocd-conversion-webhook
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: argocd-conversion-webhook
+              topologyKey: kubernetes.io/hostname
+            weight: 100
+      automountServiceAccountToken: true
+      containers:
+      - args:
+        - --port=8443
+        - --tls-cert-path=/tls/tls.crt
+        - --tls-key-path=/tls/tls.key
+        command:
+        - argocd-conversion-webhook
+        env:
+        - name: ARGOCD_CONVERSION_WEBHOOK_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: ARGOCD_CONVERSION_WEBHOOK_LOGFORMAT
+          valueFrom:
+            configMapKeyRef:
+              key: conversionwebhook.log.format
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_CONVERSION_WEBHOOK_LOGLEVEL
+          valueFrom:
+            configMapKeyRef:
+              key: conversionwebhook.log.level
+              name: argocd-cmd-params-cm
+              optional: true
+        image: quay.io/argoproj/argocd:latest
+        imagePullPolicy: Always
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /healthz
+            port: 8443
+            scheme: HTTPS
+          initialDelaySeconds: 15
+          periodSeconds: 20
+          timeoutSeconds: 10
+        name: argocd-conversion-webhook
+        ports:
+        - containerPort: 8443
+          name: https
+          protocol: TCP
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8443
+            scheme: HTTPS
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+        resources:
+          limits:
+            cpu: 100m
+            memory: 64Mi
+          requests:
+            cpu: 10m
+            memory: 32Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          seccompProfile:
+            type: RuntimeDefault
+        volumeMounts:
+        - mountPath: /tls
+          name: tls
+          readOnly: true
+      serviceAccountName: argocd-conversion-webhook
+      volumes:
+      - name: tls
+        secret:
+          optional: true
+          secretName: argocd-conversion-webhook-tls
 ---
 apiVersion: apps/v1
 kind: Deployment

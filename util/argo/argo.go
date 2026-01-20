@@ -27,6 +27,8 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/gpg"
 
 	argoappv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1beta1"
+	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/typed/application/v1alpha1"
 	applicationsv1 "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
@@ -902,30 +904,56 @@ func verifyGenerateManifests(
 	return conditions
 }
 
-// SetAppOperation updates an application with the specified operation, retrying conflict errors
-func SetAppOperation(appIf v1alpha1.ApplicationInterface, appName string, op *argoappv1.Operation) (*argoappv1.Application, error) {
+// SetAppOperation updates an application with the specified operation, retrying conflict errors.
+// It uses the v1beta1 status subresource to clear operationState separately from the spec update.
+func SetAppOperation(clientset appclientset.Interface, appName, appNs string, op *argoappv1.Operation) (*argoappv1.Application, error) {
+	if op.Sync == nil {
+		return nil, status.Errorf(codes.InvalidArgument, "Operation unspecified")
+	}
+
+	appIf := clientset.ArgoprojV1alpha1().Applications(appNs)
+
 	for {
 		a, err := appIf.Get(context.Background(), appName, metav1.GetOptions{})
 		if err != nil {
 			return nil, fmt.Errorf("error getting application %q: %w", appName, err)
 		}
-		a = a.DeepCopy()
 		if a.Operation != nil {
 			return nil, ErrAnotherOperationInProgress
 		}
+
+		// Step 1: Update the operation field (spec) via v1alpha1
+		a = a.DeepCopy()
 		a.Operation = op
-		a.Status.OperationState = nil
 		a, err = appIf.Update(context.Background(), a, metav1.UpdateOptions{})
-		if op.Sync == nil {
-			return nil, status.Errorf(codes.InvalidArgument, "Operation unspecified")
+		if err != nil {
+			if !apierrors.IsConflict(err) {
+				return nil, fmt.Errorf("error updating application %q: %w", appName, err)
+			}
+			log.Warnf("Failed to set operation for app '%s' due to update conflict. Retrying again...", appName)
+			continue
 		}
-		if err == nil {
+
+		// Step 2: Clear operationState via v1beta1 status subresource
+		statusPatch, err := json.Marshal(map[string]any{
+			"status": map[string]any{
+				"operationState": nil,
+			},
+		})
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling status patch: %w", err)
+		}
+
+		patchedApp, err := clientset.ArgoprojV1beta1().Applications(appNs).Patch(
+			context.Background(), appName, types.MergePatchType, statusPatch, metav1.PatchOptions{}, "status")
+		if err != nil {
+			// If status patch fails, the operation is still set - log warning but don't fail
+			log.Warnf("Failed to clear operationState for app '%s': %v", appName, err)
 			return a, nil
 		}
-		if !apierrors.IsConflict(err) {
-			return nil, fmt.Errorf("error updating application %q: %w", appName, err)
-		}
-		log.Warnf("Failed to set operation for app '%s' due to update conflict. Retrying again...", appName)
+
+		// Convert back to v1alpha1 for return type consistency
+		return v1beta1.ConvertToV1alpha1(patchedApp), nil
 	}
 }
 

@@ -23,6 +23,8 @@ type ApplicationsGetter interface {
 type ApplicationInterface interface {
 	Create(ctx context.Context, application *applicationv1beta1.Application, opts v1.CreateOptions) (*applicationv1beta1.Application, error)
 	Update(ctx context.Context, application *applicationv1beta1.Application, opts v1.UpdateOptions) (*applicationv1beta1.Application, error)
+	// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
+	UpdateStatus(ctx context.Context, application *applicationv1beta1.Application, opts v1.UpdateOptions) (*applicationv1beta1.Application, error)
 	Delete(ctx context.Context, name string, opts v1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error
 	Get(ctx context.Context, name string, opts v1.GetOptions) (*applicationv1beta1.Application, error)

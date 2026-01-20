@@ -46,6 +46,7 @@ import (
 	mockcommitclient "github.com/argoproj/argo-cd/v3/commitserver/apiclient/mocks"
 	mockstatecache "github.com/argoproj/argo-cd/v3/controller/cache/mocks"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1beta1"
 	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/fake"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	mockrepoclient "github.com/argoproj/argo-cd/v3/reposerver/apiclient/mocks"
@@ -1021,8 +1022,12 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 			return defaultReactor.React(action)
 		})
-		fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 			patched = true
+			// Return the correct type based on which API version client is calling
+			if action.GetResource().Version == "v1beta1" {
+				return true, &v1beta1.Application{}, nil
+			}
 			return true, &v1alpha1.Application{}, nil
 		})
 		err := ctrl.finalizeApplicationDeletion(app, func(_ string) ([]*v1alpha1.Cluster, error) {
@@ -1073,8 +1078,11 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 			return defaultReactor.React(action)
 		})
-		fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 			patched = true
+			if action.GetResource().Version == "v1beta1" {
+				return true, &v1beta1.Application{}, nil
+			}
 			return true, &v1alpha1.Application{}, nil
 		})
 		err := ctrl.finalizeApplicationDeletion(app, func(_ string) ([]*v1alpha1.Cluster, error) {
@@ -1107,8 +1115,11 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 			return defaultReactor.React(action)
 		})
-		fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 			patched = true
+			if action.GetResource().Version == "v1beta1" {
+				return true, &v1beta1.Application{}, nil
+			}
 			return true, &v1alpha1.Application{}, nil
 		})
 		err := ctrl.finalizeApplicationDeletion(app, func(_ string) ([]*v1alpha1.Cluster, error) {
@@ -1174,8 +1185,11 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 			return defaultReactor.React(action)
 		})
-		fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 			patched = true
+			if action.GetResource().Version == "v1beta1" {
+				return true, &v1beta1.Application{}, nil
+			}
 			return true, &v1alpha1.Application{}, nil
 		})
 		err := ctrl.finalizeApplicationDeletion(app, func(_ string) ([]*v1alpha1.Cluster, error) {
@@ -1208,8 +1222,11 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 			return defaultReactor.React(action)
 		})
-		fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 			patched = true
+			if action.GetResource().Version == "v1beta1" {
+				return true, &v1beta1.Application{}, nil
+			}
 			return true, &v1alpha1.Application{}, nil
 		})
 		err := ctrl.finalizeApplicationDeletion(app, func(_ string) ([]*v1alpha1.Cluster, error) {
@@ -1246,8 +1263,11 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 			return defaultReactor.React(action)
 		})
-		fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 			patched = true
+			if action.GetResource().Version == "v1beta1" {
+				return true, &v1beta1.Application{}, nil
+			}
 			return true, &v1alpha1.Application{}, nil
 		})
 		err := ctrl.finalizeApplicationDeletion(app, func(_ string) ([]*v1alpha1.Cluster, error) {
@@ -1287,8 +1307,11 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 			return defaultReactor.React(action)
 		})
-		fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 			patched = true
+			if action.GetResource().Version == "v1beta1" {
+				return true, &v1beta1.Application{}, nil
+			}
 			return true, &v1alpha1.Application{}, nil
 		})
 		err := ctrl.finalizeApplicationDeletion(app, func(_ string) ([]*v1alpha1.Cluster, error) {
@@ -1334,8 +1357,11 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 			return defaultReactor.React(action)
 		})
-		fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 			patched = true
+			if action.GetResource().Version == "v1beta1" {
+				return true, &v1beta1.Application{}, nil
+			}
 			return true, &v1alpha1.Application{}, nil
 		})
 		err := ctrl.finalizeApplicationDeletion(app, func(_ string) ([]*v1alpha1.Cluster, error) {
@@ -1511,6 +1537,9 @@ func TestNormalizeApplication(t *testing.T) {
 					normalized = true
 				}
 			}
+			if action.GetResource().Version == "v1beta1" {
+				return true, &v1beta1.Application{}, nil
+			}
 			return true, &v1alpha1.Application{}, nil
 		})
 		ctrl.processAppRefreshQueueItem()
@@ -1532,6 +1561,9 @@ func TestNormalizeApplication(t *testing.T) {
 				if string(patchAction.GetPatch()) == `{"spec":{"project":"default"},"status":{"sync":{"comparedTo":{"destination":{},"source":{"repoURL":""}}}}}` {
 					normalized = true
 				}
+			}
+			if action.GetResource().Version == "v1beta1" {
+				return true, &v1beta1.Application{}, nil
 			}
 			return true, &v1alpha1.Application{}, nil
 		})
@@ -1631,8 +1663,12 @@ func TestSetOperationStateOnDeletedApp(t *testing.T) {
 	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
 	fakeAppCs.ReactionChain = nil
 	patched := false
-	fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+	fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 		patched = true
+		// Return the correct type based on which API version client is calling
+		if action.GetResource().Version == "v1beta1" {
+			return true, &v1beta1.Application{}, apierrors.NewNotFound(schema.GroupResource{}, "my-app")
+		}
 		return true, &v1alpha1.Application{}, apierrors.NewNotFound(schema.GroupResource{}, "my-app")
 	})
 	ctrl.setOperationState(newFakeApp(), &v1alpha1.OperationState{Phase: synccommon.OperationSucceeded})
@@ -1649,10 +1685,14 @@ func TestSetOperationStateLogRetries(t *testing.T) {
 	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
 	fakeAppCs.ReactionChain = nil
 	patched := false
-	fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-		if !patched {
-			patched = true
-			return true, &v1alpha1.Application{}, errors.New("fake error")
+	fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		// Return the correct type based on which API version client is calling
+		if action.GetResource().Version == "v1beta1" {
+			if !patched {
+				patched = true
+				return true, &v1beta1.Application{}, errors.New("fake error")
+			}
+			return true, &v1beta1.Application{}, nil
 		}
 		return true, &v1alpha1.Application{}, nil
 	})
@@ -1994,6 +2034,9 @@ func TestUpdateReconciledAt(t *testing.T) {
 		if patchAction, ok := action.(kubetesting.PatchAction); ok {
 			require.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
 		}
+		if action.GetResource().Version == "v1beta1" {
+			return true, &v1beta1.Application{}, nil
+		}
 		return true, &v1alpha1.Application{}, nil
 	})
 
@@ -2270,8 +2313,15 @@ func TestFinalizeProjectDeletion_HasApplications(t *testing.T) {
 
 	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
 	patched := false
-	fakeAppCs.PrependReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+	fakeAppCs.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 		patched = true
+		// Return correct type based on resource kind
+		if action.GetResource().Resource == "appprojects" {
+			return true, &v1alpha1.AppProject{}, nil
+		}
+		if action.GetResource().Version == "v1beta1" {
+			return true, &v1beta1.Application{}, nil
+		}
 		return true, &v1alpha1.Application{}, nil
 	})
 
@@ -2315,6 +2365,9 @@ func TestProcessRequestedAppOperation_FailedNoRetries(t *testing.T) {
 		if patchAction, ok := action.(kubetesting.PatchAction); ok {
 			require.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
 		}
+		if action.GetResource().Version == "v1beta1" {
+			return true, &v1beta1.Application{}, nil
+		}
 		return true, &v1alpha1.Application{}, nil
 	})
 
@@ -2345,6 +2398,9 @@ func TestProcessRequestedAppOperation_InvalidDestination(t *testing.T) {
 			if patchAction, ok := action.(kubetesting.PatchAction); ok {
 				require.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
 			}
+			if action.GetResource().Version == "v1beta1" {
+				return true, &v1beta1.Application{}, nil
+			}
 			return true, &v1alpha1.Application{}, nil
 		})
 	}()
@@ -2370,6 +2426,9 @@ func TestProcessRequestedAppOperation_FailedHasRetries(t *testing.T) {
 	fakeAppCs.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 		if patchAction, ok := action.(kubetesting.PatchAction); ok {
 			require.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
+		}
+		if action.GetResource().Version == "v1beta1" {
+			return true, &v1beta1.Application{}, nil
 		}
 		return true, &v1alpha1.Application{}, nil
 	})
@@ -2417,6 +2476,9 @@ func TestProcessRequestedAppOperation_RunningPreviouslyFailed(t *testing.T) {
 	fakeAppCs.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 		if patchAction, ok := action.(kubetesting.PatchAction); ok {
 			require.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
+		}
+		if action.GetResource().Version == "v1beta1" {
+			return true, &v1beta1.Application{}, nil
 		}
 		return true, &v1alpha1.Application{}, nil
 	})
@@ -2470,8 +2532,11 @@ func TestProcessRequestedAppOperation_RunningPreviouslyFailedBackoff(t *testing.
 	}
 	ctrl := newFakeController(t.Context(), data, nil)
 	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
-	fakeAppCs.PrependReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+	fakeAppCs.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 		require.FailNow(t, "A patch should not have been called if the backoff has not passed")
+		if action.GetResource().Version == "v1beta1" {
+			return true, &v1beta1.Application{}, nil
+		}
 		return true, &v1alpha1.Application{}, nil
 	})
 
@@ -2503,6 +2568,9 @@ func TestProcessRequestedAppOperation_HasRetriesTerminated(t *testing.T) {
 		if patchAction, ok := action.(kubetesting.PatchAction); ok {
 			require.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
 		}
+		if action.GetResource().Version == "v1beta1" {
+			return true, &v1beta1.Application{}, nil
+		}
 		return true, &v1alpha1.Application{}, nil
 	})
 
@@ -2531,6 +2599,9 @@ func TestProcessRequestedAppOperation_Successful(t *testing.T) {
 	fakeAppCs.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 		if patchAction, ok := action.(kubetesting.PatchAction); ok {
 			require.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
+		}
+		if action.GetResource().Version == "v1beta1" {
+			return true, &v1beta1.Application{}, nil
 		}
 		return true, &v1alpha1.Application{}, nil
 	})
