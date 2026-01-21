@@ -69,6 +69,12 @@ type Dependencies interface {
 
 	// GetHydratorCommitMessageTemplate gets the configured template for rendering commit messages.
 	GetHydratorCommitMessageTemplate() (string, error)
+
+	// GetCommitAuthorName gets the configured commit author name from argocd-cm ConfigMap.
+	GetCommitAuthorName() (string, error)
+
+	// GetCommitAuthorEmail gets the configured commit author email from argocd-cm ConfigMap.
+	GetCommitAuthorEmail() (string, error)
 }
 
 // Hydrator is the main struct that implements the hydration logic. It uses the Dependencies interface to access the
@@ -432,6 +438,16 @@ func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application, project
 		return targetRevision, "", errors, fmt.Errorf("failed to get hydrator commit templated message: %w", errMsg)
 	}
 
+	// get commit author configuration from argocd-cm
+	authorName, err := h.dependencies.GetCommitAuthorName()
+	if err != nil {
+		return targetRevision, "", errors, fmt.Errorf("failed to get commit author name: %w", err)
+	}
+	authorEmail, err := h.dependencies.GetCommitAuthorEmail()
+	if err != nil {
+		return targetRevision, "", errors, fmt.Errorf("failed to get commit author email: %w", err)
+	}
+
 	manifestsRequest := commitclient.CommitHydratedManifestsRequest{
 		Repo:              repo,
 		SyncBranch:        syncBranch,
@@ -440,6 +456,8 @@ func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application, project
 		CommitMessage:     commitMessage,
 		Paths:             paths,
 		DryCommitMetadata: revisionMetadata,
+		AuthorName:        authorName,
+		AuthorEmail:       authorEmail,
 	}
 
 	closer, commitService, err := h.commitClientset.NewCommitServerClient()
