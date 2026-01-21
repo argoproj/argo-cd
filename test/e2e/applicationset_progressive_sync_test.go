@@ -1,7 +1,9 @@
 package e2e
 
 import (
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/applicationsets"
 	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -14,57 +16,87 @@ func TestApplicationSetProgressiveSync(t *testing.T) {
 		t.Skip("Skipping progressive sync tests - env variable not set to enable progressive sync")
 	}
 	expectedDevApp := v1alpha1.Application{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       application.ApplicationKind,
+			APIVersion: "argoproj.io/v1alpha1",
+		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "app1-dev",
+			Name:      "app1-dev",
+			Namespace: fixture.TestNamespace(),
 			Labels: map[string]string{
 				"environment": "dev",
+			},
+			Finalizers: []string{
+				"resources-finalizer.argocd.argoproj.io",
 			},
 		},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
 			Source: &v1alpha1.ApplicationSource{
-				RepoURL: "https://github.com/ranakan19/test-yamls",
-				Path:    "apps/app1",
+				RepoURL:        "https://github.com/ranakan19/test-yamls",
+				Path:           "apps/app1",
+				TargetRevision: "HEAD",
 			},
 			Destination: v1alpha1.ApplicationDestination{
-				Server: "https://kubernetes.default.svc",
+				Server:    "https://kubernetes.default.svc",
+				Namespace: "app1",
 			},
 		},
 	}
 
 	expectedStageApp := v1alpha1.Application{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       application.ApplicationKind,
+			APIVersion: "argoproj.io/v1alpha1",
+		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "app2-staging",
+			Name:      "app2-staging",
+			Namespace: fixture.TestNamespace(),
 			Labels: map[string]string{
 				"environment": "staging",
+			},
+			Finalizers: []string{
+				"resources-finalizer.argocd.argoproj.io",
 			},
 		},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
 			Source: &v1alpha1.ApplicationSource{
-				RepoURL: "https://github.com/ranakan19/test-yamls",
-				Path:    "apps/app2",
+				RepoURL:        "https://github.com/ranakan19/test-yamls",
+				Path:           "apps/app2",
+				TargetRevision: "HEAD",
 			},
 			Destination: v1alpha1.ApplicationDestination{
-				Server: "https://kubernetes.default.svc",
+				Server:    "https://kubernetes.default.svc",
+				Namespace: "app2",
 			},
 		},
 	}
 	expectedProdApp := v1alpha1.Application{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       application.ApplicationKind,
+			APIVersion: "argoproj.io/v1alpha1",
+		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "app3-prod",
+			Name:      "app3-prod",
+			Namespace: fixture.TestNamespace(),
 			Labels: map[string]string{
 				"environment": "prod",
+			},
+			Finalizers: []string{
+				"resources-finalizer.argocd.argoproj.io",
 			},
 		},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
 			Source: &v1alpha1.ApplicationSource{
-				RepoURL: "https://github.com/ranakan19/test-yamls",
-				Path:    "apps/app3",
+				RepoURL:        "https://github.com/ranakan19/test-yamls",
+				Path:           "apps/app3",
+				TargetRevision: "HEAD",
 			},
 			Destination: v1alpha1.ApplicationDestination{
-				Server: "https://kubernetes.default.svc",
+				Server:    "https://kubernetes.default.svc",
+				Namespace: "app3",
 			},
 		},
 	}
@@ -79,7 +111,8 @@ func TestApplicationSetProgressiveSync(t *testing.T) {
 				GoTemplate: true,
 				Template: v1alpha1.ApplicationSetTemplate{
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{
-						Name: "{{.name}}-{{.environment}}",
+						Name:      "{{.name}}-{{.environment}}",
+						Namespace: fixture.TestNamespace(),
 						Labels: map[string]string{
 							"environment": "{{.environment}}",
 						},
@@ -92,7 +125,8 @@ func TestApplicationSetProgressiveSync(t *testing.T) {
 							TargetRevision: "HEAD",
 						},
 						Destination: v1alpha1.ApplicationDestination{
-							Server: "https://kubernetes.default.svc",
+							Server:    "https://kubernetes.default.svc",
+							Namespace: "{{.name}}",
 						},
 					},
 				},
