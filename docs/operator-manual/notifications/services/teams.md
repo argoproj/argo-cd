@@ -15,7 +15,7 @@ If you are currently using Office 365 Connectors (Incoming Webhook), you should 
 
 **Migration Resources:**
 - [Microsoft Deprecation Notice](https://devblogs.microsoft.com/microsoft365dev/retirement-of-office-365-connectors-within-microsoft-teams/)
-- [Create incoming webhooks with Workflows for Microsoft Teams] (https://support.microsoft.com/en-us/office/create-incoming-webhooks-with-workflows-for-microsoft-teams-8ae491c7-0394-4861-ba59-055e33f75498)
+- [Create incoming webhooks with Workflows for Microsoft Teams](https://support.microsoft.com/en-us/office/create-incoming-webhooks-with-workflows-for-microsoft-teams-4b3b0b0e-0b5a-4b5a-9b5a-0b5a-4b5a-9b5a)
 
 ---
 
