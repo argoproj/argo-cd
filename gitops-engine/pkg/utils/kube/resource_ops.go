@@ -276,8 +276,6 @@ func (k *kubectlResourceOperations) CreateResource(ctx context.Context, obj *uns
 		// Defensive handling: if the `create` command failed because the object already exists
 		// (concurrent create race), verify the object exists and treat as success.
 		// This avoids failing an entire sync for a transient 409 caused by a race.
-		//
-		// Detection: prefer structured apierrors.IsAlreadyExists. Fallback: string match.
 		if apierrors.IsAlreadyExists(createErr) || strings.Contains(strings.ToLower(createErr.Error()), "already exists") {
 			// Attempt to GET the existing object to confirm presence.
 			dynamicClient, dErr := dynamic.NewForConfig(k.config)
