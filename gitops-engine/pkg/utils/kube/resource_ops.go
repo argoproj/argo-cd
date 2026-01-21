@@ -11,6 +11,7 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/spf13/cobra"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -268,7 +269,43 @@ func (k *kubectlResourceOperations) CreateResource(ctx context.Context, obj *uns
 			_ = command.Flags().Set("validate", "true")
 		}
 
-		return createOptions.RunCreate(k.fact, command)
+		createErr := createOptions.RunCreate(k.fact, command)
+		if createErr == nil {
+			return nil
+		}
+		// Defensive handling: if the `create` command failed because the object already exists
+		// (concurrent create race), verify the object exists and treat as success.
+		// This avoids failing an entire sync for a transient 409 caused by a race.
+		//
+		// Detection: prefer structured apierrors.IsAlreadyExists. Fallback: string match.
+		if apierrors.IsAlreadyExists(createErr) || strings.Contains(strings.ToLower(createErr.Error()), "already exists") {
+			// Attempt to GET the existing object to confirm presence.
+			dynamicClient, dErr := dynamic.NewForConfig(k.config)
+			if dErr != nil {
+				return createErr
+			}
+			disco, dErr := discovery.NewDiscoveryClientForConfig(k.config)
+			if dErr != nil {
+				return dErr
+			}
+			apiResource, dErr := ServerResourceForGroupVersionKind(disco, gvk, "get")
+			if dErr != nil {
+				return dErr
+			}
+			groupVersionRes := gvk.GroupVersion().WithResource(apiResource.Name)
+			dynamicResource := ToResourceInterface(dynamicClient, apiResource, groupVersionRes, obj.GetNamespace())
+			_, getErr := dynamicResource.Get(ctx, obj.GetName(), metav1.GetOptions{})
+			if getErr == nil {
+				// Object is present — treat the transient AlreadyExists as success.
+				k.log.Info(fmt.Sprintf("Create reported AlreadyExists for %s/%s but object exists - treating as success", obj.GetKind(), obj.GetName()))
+				return nil
+			}
+			// GET failed — fall back to returning original create error.
+			return createErr
+		}
+
+		// Not an AlreadyExists case — return original error.
+		return err
 	})
 }
 

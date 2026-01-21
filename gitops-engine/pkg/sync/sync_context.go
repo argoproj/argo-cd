@@ -206,6 +206,12 @@ func WithServerSideApplyManager(manager string) SyncOpt {
 	}
 }
 
+func WithMockResourceOperations(resourceOps kubeutil.ResourceOperations) SyncOpt {
+	return func(ctx *syncContext) {
+		ctx.resourceOps = resourceOps
+	}
+}
+
 // WithClientSideApplyMigration configures client-side apply migration for server-side apply.
 // When enabled, fields managed by the specified manager will be migrated to server-side apply.
 // Defaults to enabled=true with manager="kubectl-client-side-apply" if not configured.
@@ -1273,6 +1279,17 @@ func (sc *syncContext) targetObjs() []*unstructured.Unstructured {
 		}
 	}
 	return objs
+}
+
+func (sc *syncContext) syncResList() []common.ResourceSyncResult {
+	sc.lock.Lock()
+	defer sc.lock.Unlock()
+
+	results := make([]common.ResourceSyncResult, 0, len(sc.syncRes))
+	for _, r := range sc.syncRes {
+		results = append(results, r)
+	}
+	return results
 }
 
 func isCRDOfGroupKind(group string, kind string, obj *unstructured.Unstructured) bool {

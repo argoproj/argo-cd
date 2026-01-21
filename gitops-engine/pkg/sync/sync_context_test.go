@@ -8,19 +8,19 @@ import (
 	"net/http/httptest"
 	"reflect"
 	"strings"
+	"sync"
 	"testing"
 	"time"
-
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/discovery"
 	fakedisco "k8s.io/client-go/discovery/fake"
 	"k8s.io/client-go/dynamic/fake"
@@ -30,6 +30,7 @@ import (
 
 	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/health"
+	"github.com/argoproj/gitops-engine/pkg/sync/common"
 	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/sync/hook"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
@@ -2447,6 +2448,58 @@ func TestNeedsClientSideApplyMigration(t *testing.T) {
 			assert.Equal(t, tt.expected, result)
 		})
 	}
+}
+
+// Add a new test that simulates two concurrent create attempts where the second fails with AlreadyExists.
+// The test should assert the overall sync does not fail because of the transient 409.
+func TestSync_Replace_DuplicateCreateRace(t *testing.T) {
+	target := withReplaceAnnotation(testingutils.NewPod())
+	target.SetNamespace(testingutils.FakeArgoCDNamespace)
+
+	// Create mock resourceOps with a sequence-capable test stub that will:
+	//  - on the first CreateResource call: succeed (return nil)
+	//  - on the second CreateResource call: return AlreadyExists error
+	seqOps := kubetest.NewSeqTestResourceOps()
+	seqOps.SetCreateBehaviorSequence([]error{
+		nil,
+		apierrors.NewAlreadyExists(schema.GroupResource{Group: "rbac.authorization.k8s.io", Resource: "roles"}, target.GetName()),
+	})
+
+	// create two sync contexts with a target resource that will be scheduled twice.
+	syncCtx1 := newSyncCtx(target, seqOps)
+	syncCtx2 := newSyncCtx(target, seqOps)
+
+	// run both syncs concurrently
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		syncCtx1.Sync()
+	}()
+	go func() {
+		defer wg.Done()
+		syncCtx2.Sync()
+	}()
+	wg.Wait()
+
+	// Assert: both sync results should show the resource and should not be marked failed.
+	res1 := getResourceResult(syncCtx1.syncResList(), kube.GetResourceKey(target))
+	require.NotNil(t, res1, "expected resource sync result present for first sync but got nil")
+	assert.NotEqual(t, common.OperationFailed, res1.SyncPhase, "first sync should not be marked failed when concurrent create produced AlreadyExists")
+
+	res2 := getResourceResult(syncCtx2.syncResList(), kube.GetResourceKey(target))
+	require.NotNil(t, res2, "expected resource sync result present for second sync but got nil")
+	assert.NotEqual(t, common.OperationFailed, res2.SyncPhase, "second sync should not be marked failed when concurrent create produced AlreadyExists")
+}
+
+func newSyncCtx(target *unstructured.Unstructured, seqOps *kubetest.MockSeqResourceOpts) *syncContext {
+	syncCtx := newTestSyncCtx(nil)
+	syncCtx.resources = groupResources(ReconciliationResult{
+		Live:   []*unstructured.Unstructured{nil},
+		Target: []*unstructured.Unstructured{target.DeepCopy()},
+	})
+	syncCtx.resourceOps = seqOps
+	return syncCtx
 }
 
 func diffResultListClusterResource() *diff.DiffResultList {
