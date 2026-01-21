@@ -19,7 +19,7 @@ which might cause health check to return `Progressing` state instead of `Healthy
 
 * `Ingress` is considered healthy if `status.loadBalancer.ingress` list is non-empty, with at least one value
   for `hostname` or `IP`. Some ingress controllers
-  ([contour](https://github.com/heptio/contour/issues/403)
+  ([contour](https://github.com/projectcontour/contour/issues/403)
   , [traefik](https://github.com/argoproj/argo-cd/issues/968#issuecomment-451082913)) don't update
   `status.loadBalancer.ingress` field which causes `Ingress` to stuck in `Progressing` state forever.
 
