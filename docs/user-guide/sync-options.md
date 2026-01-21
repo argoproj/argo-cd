@@ -334,7 +334,7 @@ When client-side apply migration is enabled:
    - Move the 'last-applied-configuration' annotation to be managed by the specified manager
    - Perform the server-side apply, which will auto migrate all the fields under the manager that owns the 'last-applied-configuration' annotation.
 
-This feature is based on Kubernetes' [client-side apply migration KEP](https://kubernetes.io/docs/reference/using-api/server-side-apply), which provides the auto migration from client-side to server-side apply.
+This feature is based on Kubernetes' [client-side to server-side apply migration](https://kubernetes.io/docs/reference/using-api/server-side-apply/#migration-between-client-side-and-server-side-apply).
 
 ## Fail the sync if a shared resource is found
 
