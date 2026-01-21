@@ -948,7 +948,7 @@ func TestHandleEvent(t *testing.T) {
 			updateCache: false,
 		},
 		{
-			name: "source hydrator dry source without annotation - refreshes and hydrates when dry path matches",
+			name: "source hydrator dry source without annotation - always refreshes and hydrates",
 			app: &v1alpha1.Application{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-app",
@@ -968,7 +968,7 @@ func TestHandleEvent(t *testing.T) {
 					},
 				},
 			},
-			changedFile: "dry/path/app.yaml",
+			changedFile: "other/path/app.yaml",
 			hasRefresh:  true,
 			hasHydrate:  true,
 			updateCache: false,

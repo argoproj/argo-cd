@@ -101,17 +101,15 @@ func CheckOutOfBoundsSymlinks(basePath string) error {
 // The source parameter influences the returned refresh paths:
 //   - if source hydrator configured AND source is syncSource: use sync source path (ignores annotation)
 //   - if source hydrator configured AND source is drySource WITH annotation: use annotation paths with drySource base
-//   - if source hydrator configured AND source is drySource WITHOUT annotation: use dry source path
 //   - if source hydrator not configured: use annotation paths with source base, or empty if no annotation
 func GetSourceRefreshPaths(app *v1alpha1.Application, source v1alpha1.ApplicationSource) []string {
 	annotationPaths, hasAnnotation := app.Annotations[v1alpha1.AnnotationKeyManifestGeneratePaths]
 
-	// if source is syncSource or drySource without annotation, use the source path
 	if app.Spec.SourceHydrator != nil {
 		syncSource := app.Spec.SourceHydrator.GetSyncSource()
-		drySource := app.Spec.SourceHydrator.GetDrySource()
 
-		if (source).Equals(&syncSource) || (!hasAnnotation && (source).Equals(&drySource)) {
+		// if source is syncSource use the source path
+		if (source).Equals(&syncSource) {
 			return []string{source.Path}
 		}
 	}

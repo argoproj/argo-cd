@@ -178,7 +178,7 @@ func Test_GetAppRefreshPaths(t *testing.T) {
 			name:          "source hydrator dry source without annotation",
 			app:           getSourceHydratorApp(nil, "dry/path", "sync/path"),
 			source:        v1alpha1.ApplicationSource{Path: "dry/path"},
-			expectedPaths: []string{"dry/path"},
+			expectedPaths: []string{},
 		},
 		{
 			name:          "source hydrator sync source with annotation",
