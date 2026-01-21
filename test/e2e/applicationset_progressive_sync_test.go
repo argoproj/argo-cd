@@ -3,7 +3,7 @@ package e2e
 import (
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/applicationsets"
-	v1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"os"
 	"testing"
