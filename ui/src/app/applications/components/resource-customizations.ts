@@ -4,19 +4,19 @@
 // resourceIconGroups is a map of resource kind globs to whether or not a custom icon exists for that kind.
 // Each glob corresponds to a directory under ui/src/assets/images/resources, where any asterisk is represented as an underscore (_).
 export const resourceIconGroups = {
+    '*.crossplane.io': true,
+    '*.fluxcd.io': true,
+    '*.knative.dev': true,
     'cassandra.rook.io': true,
     'cert-manager.io': true,
     'core.spinkube.dev': true,
-    '*.crossplane.io': true,
     'external-secrets.io': true,
     'flagger.app': true,
-    '*.fluxcd.io': true,
     'install.istio.io': true,
     'jaegertracing.io': true,
     'k8s.keycloak.org': true,
     'kafka.strimzi.io': true,
     'keda.sh': true,
-    '*.knative.dev': true,
     'kubevirt.io': true,
     'kyverno.io': true,
     'opentelemetry.io': true,
