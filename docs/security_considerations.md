@@ -32,7 +32,7 @@ no fix yet.
 
 ## Known Issues And Workarounds
 
-A recent security audit (thanks a lot to [Matt Hamilton](https://github.com/Eriner) of [https://soluble.ai](https://soluble.ai) )
+A recent security audit (thanks a lot to [Matt Hamilton](https://github.com/Eriner) of Soluble AI (acquired by https://www.fortinet.com) )
 has revealed several limitations in Argo CD which could compromise security.
 Most of the issues are related to the built-in user management implementation.
 
