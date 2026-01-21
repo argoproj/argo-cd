@@ -349,7 +349,9 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                                                 Last Sync:
                                                             </div>
                                                             <div className='columns small-9'>
-                                                                {AppUtils.formatCreationTimestamp(typedApp.status.operationState.finishedAt || typedApp.status.operationState.startedAt)}
+                                                                {AppUtils.formatCreationTimestamp(
+                                                                    typedApp.status.operationState.finishedAt || typedApp.status.operationState.startedAt
+                                                                )}
                                                             </div>
                                                         </div>
                                                     )}

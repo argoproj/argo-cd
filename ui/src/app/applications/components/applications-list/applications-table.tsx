@@ -149,7 +149,8 @@ export const ApplicationsTable = (props: {
                                                         <div className='row'>
                                                             <div className='show-for-xxlarge columns small-2'>Destination:</div>
                                                             <div className='columns small-12 xxlarge-10'>
-                                                                <Cluster server={typedApp.spec.destination.server} name={typedApp.spec.destination.name} />/{typedApp.spec.destination.namespace}
+                                                                <Cluster server={typedApp.spec.destination.server} name={typedApp.spec.destination.name} />/
+                                                                {typedApp.spec.destination.namespace}
                                                             </div>
                                                         </div>
                                                     </div>
@@ -171,7 +172,8 @@ export const ApplicationsTable = (props: {
                                                     )}
                                                     {!isApplication && typedAppSet && (
                                                         <>
-                                                            <AppUtils.HealthStatusIcon state={{status: getAppSetHealthStatus(typedAppSet), message: ''}} /> <span>{getAppSetHealthStatus(typedAppSet)}</span>
+                                                            <AppUtils.HealthStatusIcon state={{status: getAppSetHealthStatus(typedAppSet), message: ''}} />{' '}
+                                                            <span>{getAppSetHealthStatus(typedAppSet)}</span>
                                                         </>
                                                     )}
                                                     {isApplication && (
