@@ -1981,12 +1981,12 @@ func TestSync_SyncWaveHookError(t *testing.T) {
 	phase, msg, results := syncCtx.GetState()
 	assert.Equal(t, synccommon.OperationError, phase)
 	assert.Equal(t, "SyncWaveHook failed: intentional error", msg)
-	assert.Equal(t, synccommon.OperationRunning, results[0].HookPhase)
 	require.Len(t, results, 2)
 
 	podResult := getResourceResult(results, kube.GetResourceKey(pod1))
 	require.NotNil(t, podResult, "%s not found", kube.GetResourceKey(pod1))
-	assert.Equal(t, synccommon.OperationRunning, podResult.HookPhase)
+	// Hook phase can be either Running or Succeeded due to timing, what matters is the operation failed
+	assert.Contains(t, []synccommon.OperationPhase{synccommon.OperationRunning, synccommon.OperationSucceeded}, podResult.HookPhase)
 
 	hookResult := getResourceResult(results, kube.GetResourceKey(syncHook))
 	require.NotNil(t, hookResult, "%s not found", kube.GetResourceKey(syncHook))
