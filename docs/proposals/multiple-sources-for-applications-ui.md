@@ -50,7 +50,7 @@ rollback which includes [controller and UI changes](https://github.com/argoproj/
 
 Thus, multiple source applications are not considered first class citizens in the UI.
 
-Note, see the [Open Questions](https://github.com/argoproj/argo-cd/docs/proposals/multiple-sources-for-applications-ui.md#open-questions) 
+Note, see the [Open Questions](#open-questions) 
 section for concerns regarding the priority or value of some of the above changes.
 
 ## Motivation
