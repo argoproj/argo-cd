@@ -478,6 +478,13 @@ start-e2e: test-tools-image
 	mkdir -p ${GOCACHE}
 	$(call run-in-test-server,make ARGOCD_PROCFILE=test/container/Procfile start-e2e-local)
 
+# Builds and loads the ArgoCD image for e2e testing (for conversion webhook)
+.PHONY: build-e2e-image
+build-e2e-image:
+	DOCKER_BUILDKIT=1 $(DOCKER) build -t argocd-e2e:latest --platform=$(TARGET_ARCH) .
+	@echo "Built argocd-e2e:latest image"
+	@echo "If using k3d, load the image with: k3d image import argocd-e2e:latest"
+
 # Starts e2e server locally (or within a container)
 .PHONY: start-e2e-local
 start-e2e-local: mod-vendor-local dep-ui-local cli-local
