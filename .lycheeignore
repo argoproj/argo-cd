@@ -22,5 +22,8 @@ pthree\.org
 # Ignore archived / legacy docs
 docs\.sigstore\.dev
 docs\.mattermost\.com
-busybox.net
+^https://busybox\.net
+
+# Team Workflows docs
+^https://support\.microsoft\.com
 
