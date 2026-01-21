@@ -334,7 +334,9 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                                             <div className='columns small-3' title='Applications:'>
                                                                 Applications:
                                                             </div>
-                                                            <div className='columns small-9'>{typedAppSet.status?.applicationStatus?.length || 0}</div>
+                                                            <div className='columns small-9'>
+                                                                {typedAppSet.status?.resourcesCount ?? typedAppSet.status?.resources?.length ?? 0}
+                                                            </div>
                                                         </div>
                                                     )}
                                                     <div className='row'>
