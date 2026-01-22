@@ -554,7 +554,7 @@ jobs:
   test-e2e-progressive-sync-enabled:
     name: Run progressive syncs E2E tests
     if: ${{ needs.changes.outputs.backend == 'true' }}
-    runs-on: ubuntu-24.04
+    runs-on: ${{ github.repository == 'argoproj/argo-cd' && 'oracle-vm-16cpu-64gb-x86-64' || 'ubuntu-24.04' }}
     needs:
       - build-go
       - changes
@@ -569,6 +569,13 @@ jobs:
       GITHUB_TOKEN: ${{ secrets.E2E_TEST_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
       GITLAB_TOKEN: ${{ secrets.E2E_TEST_GITLAB_TOKEN }}
     steps:
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be
+        with:
+          large-packages: false
+          docker-images: false
+          swap-storage: false
+          tool-cache: false
       - name: Checkout code
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
       - name: Setup Golang
@@ -643,11 +650,8 @@ jobs:
           done
       - name: Run progressive syncs E2E tests
         run: |
-          set -x
-          export GO111MODULE=off
-          DIST_DIR=dist PACKAGES="./test/e2e" ./hack/test.sh -timeout 30m -v -run TestApplicationSetProgressiveSync
-          goreman run stop-all || echo "goreman trouble"
-          sleep 30
+           set -x
+           make PACKAGES="./test/e2e/applicationset_progressive_sync_test.go" test-e2e-local
       - name: Upload e2e-server logs
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:

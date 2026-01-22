@@ -282,7 +282,6 @@ func CheckApplicationInRightSteps(step string, expectedApps []string) Expectatio
 			}
 		}
 		if len(stepApps) != len(expectedApps) {
-			fmt.Sprintf("appset Name : '%s', context Name: '%s'", appSet.Name, c.context.GetName())
 			return pending, fmt.Sprintf("expected %d apps in step '%s' for appset '%s', but got %d", len(expectedApps), step, c.context.GetName(), len(stepApps))
 		}
 
