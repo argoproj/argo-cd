@@ -1311,6 +1311,9 @@ func (sc *syncContext) applyObject(t *syncTask, dryRun, validate bool) (common.R
 			}
 		} else {
 			message, err = sc.resourceOps.CreateResource(context.TODO(), t.targetObj, dryRunStrategy, validate)
+			if apierrors.IsAlreadyExists(err) {
+				return common.ResultCodeSynced, fmt.Sprintf("%s/%s created (race)", t.targetObj.GetKind(), t.targetObj.GetName())
+			}
 		}
 	} else {
 		message, err = sc.resourceOps.ApplyResource(context.TODO(), t.targetObj, dryRunStrategy, force, validate, serverSideApply, sc.serverSideApplyManager)

@@ -2618,11 +2618,11 @@ func TestSync_Replace_DuplicateCreateRace(t *testing.T) {
 	// Assert: both sync results should show the resource and should not be marked failed.
 	res1 := getResourceResult(syncCtx1.syncResList(), kube.GetResourceKey(target))
 	require.NotNil(t, res1, "expected resource sync result present for first sync but got nil")
-	assert.NotEqual(t, common.OperationFailed, res1.SyncPhase, "first sync should not be marked failed when concurrent create produced AlreadyExists")
+	assert.NotEqual(t, common.OperationFailed, res1.HookPhase, "first sync should not be marked failed when concurrent create produced AlreadyExists")
 
 	res2 := getResourceResult(syncCtx2.syncResList(), kube.GetResourceKey(target))
 	require.NotNil(t, res2, "expected resource sync result present for second sync but got nil")
-	assert.NotEqual(t, common.OperationFailed, res2.SyncPhase, "second sync should not be marked failed when concurrent create produced AlreadyExists")
+	assert.NotEqual(t, common.OperationFailed, res2.HookPhase, "second sync should not be marked failed when concurrent create produced AlreadyExists")
 }
 
 func newSyncCtx(target *unstructured.Unstructured, seqOps *kubetest.MockSeqResourceOpts) *syncContext {
