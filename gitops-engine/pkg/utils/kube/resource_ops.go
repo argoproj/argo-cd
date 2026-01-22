@@ -15,6 +15,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
@@ -45,6 +46,13 @@ type ResourceOperations interface {
 	CreateResource(ctx context.Context, obj *unstructured.Unstructured, dryRunStrategy cmdutil.DryRunStrategy, validate bool) (string, error)
 	UpdateResource(ctx context.Context, obj *unstructured.Unstructured, dryRunStrategy cmdutil.DryRunStrategy) (*unstructured.Unstructured, error)
 }
+
+// Dynamic functions to allow unit-testing
+type (
+	newDynamicClientFunc                  func(*rest.Config) (dynamic.Interface, error)
+	newDiscoveryClientFunc                func(*rest.Config) (discovery.DiscoveryInterface, error)
+	serverResourceForGroupVersionKindFunc func(discovery.DiscoveryInterface, schema.GroupVersionKind, string) (*metav1.APIResource, error)
+)
 
 // This is a generic implementation for doing most kubectl operations. Implements the ResourceOperations interface.
 type kubectlResourceOperations struct {
@@ -244,6 +252,25 @@ func (k *kubectlResourceOperations) ReplaceResource(ctx context.Context, obj *un
 }
 
 func (k *kubectlResourceOperations) CreateResource(ctx context.Context, obj *unstructured.Unstructured, dryRunStrategy cmdutil.DryRunStrategy, validate bool) (string, error) {
+	return k.createResource(ctx, obj, dryRunStrategy, validate,
+		func(config *rest.Config) (dynamic.Interface, error) {
+			return dynamic.NewForConfig(config)
+		},
+		func(config *rest.Config) (discovery.DiscoveryInterface, error) {
+			return discovery.NewDiscoveryClientForConfig(config)
+		},
+		ServerResourceForGroupVersionKind)
+}
+
+func (k *kubectlResourceOperations) createResource(
+	ctx context.Context,
+	obj *unstructured.Unstructured,
+	dryRunStrategy cmdutil.DryRunStrategy,
+	validate bool,
+	newDynamicClient newDynamicClientFunc,
+	newDiscoveryClient newDiscoveryClientFunc,
+	serverResourceForGroupVersionKind serverResourceForGroupVersionKindFunc,
+) (string, error) {
 	gvk := obj.GroupVersionKind()
 	span := k.tracer.StartSpan("CreateResource")
 	span.SetBaggageItem("kind", gvk.Kind)
@@ -269,42 +296,53 @@ func (k *kubectlResourceOperations) CreateResource(ctx context.Context, obj *uns
 			_ = command.Flags().Set("validate", "true")
 		}
 
-		createErr := createOptions.RunCreate(k.fact, command)
-		if createErr == nil {
-			return nil
-		}
-		// Defensive handling: if the `create` command failed because the object already exists
-		// (concurrent create race), verify the object exists and treat as success.
-		// This avoids failing an entire sync for a transient 409 caused by a race.
-		if apierrors.IsAlreadyExists(createErr) || strings.Contains(strings.ToLower(createErr.Error()), "already exists") {
-			// Attempt to GET the existing object to confirm presence.
-			dynamicClient, dErr := dynamic.NewForConfig(k.config)
-			if dErr != nil {
-				return createErr
-			}
-			disco, dErr := discovery.NewDiscoveryClientForConfig(k.config)
-			if dErr != nil {
-				return dErr
-			}
-			apiResource, dErr := ServerResourceForGroupVersionKind(disco, gvk, "get")
-			if dErr != nil {
-				return dErr
-			}
-			groupVersionRes := gvk.GroupVersion().WithResource(apiResource.Name)
-			dynamicResource := ToResourceInterface(dynamicClient, apiResource, groupVersionRes, obj.GetNamespace())
-			_, getErr := dynamicResource.Get(ctx, obj.GetName(), metav1.GetOptions{})
-			if getErr == nil {
-				// Object is present — treat the transient AlreadyExists as success.
-				k.log.Info(fmt.Sprintf("Create reported AlreadyExists for %s/%s but object exists - treating as success", obj.GetKind(), obj.GetName()))
-				return nil
-			}
-			// GET failed — fall back to returning original create error.
+		return k.executeCreateWithRecovery(ctx, obj,
+			func() error { return createOptions.RunCreate(k.fact, command) },
+			newDynamicClient,
+			newDiscoveryClient,
+			serverResourceForGroupVersionKind)
+	})
+}
+
+func (k *kubectlResourceOperations) executeCreateWithRecovery(
+	ctx context.Context,
+	obj *unstructured.Unstructured,
+	executor func() error,
+	newDynamicClient newDynamicClientFunc,
+	newDiscoveryClient newDiscoveryClientFunc,
+	serverResourceForGroupVersionKind serverResourceForGroupVersionKindFunc,
+) error {
+	createErr := executor()
+	if createErr == nil {
+		return nil
+	}
+	// Defensive handling: if the `create` command failed because the object already exists
+	// (concurrent create race), verify the object exists and treat as success.
+	// This avoids failing an entire sync for a transient 409 caused by a race.
+	if apierrors.IsAlreadyExists(createErr) || strings.Contains(strings.ToLower(createErr.Error()), "already exists") {
+		dynamicClient, dErr := newDynamicClient(k.config)
+		if dErr != nil {
 			return createErr
 		}
+		disco, dErr := newDiscoveryClient(k.config)
+		if dErr != nil {
+			return dErr
+		}
+		apiResource, dErr := serverResourceForGroupVersionKind(disco, obj.GroupVersionKind(), "get")
+		if dErr != nil {
+			return dErr
+		}
+		groupVersionRes := obj.GroupVersionKind().GroupVersion().WithResource(apiResource.Name)
+		dynamicResource := ToResourceInterface(dynamicClient, apiResource, groupVersionRes, obj.GetNamespace())
+		_, getErr := dynamicResource.Get(ctx, obj.GetName(), metav1.GetOptions{})
+		if getErr == nil {
+			k.log.Info(fmt.Sprintf("Create reported AlreadyExists for %s/%s but object exists - treating as success", obj.GetKind(), obj.GetName()))
+			return nil
+		}
+		return createErr
+	}
 
-		// Not an AlreadyExists case — return original error.
-		return err
-	})
+	return createErr
 }
 
 func (k *kubectlResourceOperations) UpdateResource(ctx context.Context, obj *unstructured.Unstructured, dryRunStrategy cmdutil.DryRunStrategy) (*unstructured.Unstructured, error) {
