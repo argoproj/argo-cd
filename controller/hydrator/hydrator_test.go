@@ -645,6 +645,8 @@ func TestProcessHydrationQueueItem_SuccessfulHydration(t *testing.T) {
 	rc.EXPECT().GetRevisionMetadata(mock.Anything, mock.Anything).Return(nil, nil).Once()
 	d.EXPECT().GetWriteCredentials(mock.Anything, "https://example.com/repo", "test-project").Return(nil, nil).Once()
 	d.EXPECT().GetHydratorCommitMessageTemplate().Return("commit message", nil).Once()
+	d.EXPECT().GetCommitAuthorName().Return("", nil).Once()
+	d.EXPECT().GetCommitAuthorEmail().Return("", nil).Once()
 	cc.EXPECT().CommitHydratedManifests(mock.Anything, mock.Anything).Return(&commitclient.CommitHydratedManifestsResponse{HydratedSha: "def456"}, nil).Once()
 
 	h.ProcessHydrationQueueItem(hydrationKey)
@@ -804,6 +806,8 @@ func TestHydrator_hydrate_Success(t *testing.T) {
 	})
 	d.EXPECT().GetWriteCredentials(mock.Anything, readRepo.Repo, proj.Name).Return(writeRepo, nil)
 	d.EXPECT().GetHydratorCommitMessageTemplate().Return("commit message", nil)
+	d.EXPECT().GetCommitAuthorName().Return("", nil)
+	d.EXPECT().GetCommitAuthorEmail().Return("", nil)
 	cc.EXPECT().CommitHydratedManifests(mock.Anything, mock.Anything).Return(&commitclient.CommitHydratedManifestsResponse{HydratedSha: "hydrated123"}, nil).Run(func(_ context.Context, in *commitclient.CommitHydratedManifestsRequest, _ ...grpc.CallOption) {
 		assert.Equal(t, "commit message", in.CommitMessage)
 		assert.Equal(t, "hydrated", in.SyncBranch)
@@ -1011,6 +1015,8 @@ func TestHydrator_hydrate_CommitHydratedManifestsError(t *testing.T) {
 	rc.EXPECT().GetRevisionMetadata(mock.Anything, mock.Anything).Return(&v1alpha1.RevisionMetadata{}, nil)
 	d.EXPECT().GetWriteCredentials(mock.Anything, mock.Anything, mock.Anything).Return(&v1alpha1.Repository{Repo: "https://example.com/repo"}, nil)
 	d.EXPECT().GetHydratorCommitMessageTemplate().Return("commit message", nil)
+	d.EXPECT().GetCommitAuthorName().Return("", nil)
+	d.EXPECT().GetCommitAuthorEmail().Return("", nil)
 	cc.EXPECT().CommitHydratedManifests(mock.Anything, mock.Anything).Return(nil, errors.New("commit error"))
 	logCtx := log.NewEntry(log.StandardLogger())
 

@@ -4,3 +4,4 @@ metadata:
   name: my-map
 data:
   message: {{ .Values.message }}
+  helmns: {{ .Release.Namespace }}

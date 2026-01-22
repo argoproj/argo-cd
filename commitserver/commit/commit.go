@@ -272,15 +272,18 @@ func (s *Service) initGitClient(logCtx *log.Entry, r *apiclient.CommitHydratedMa
 	//	 cleanupOrLog()
 	//	 return nil, "", nil, fmt.Errorf("failed to get github app info: %w", err)
 	// }
-	var authorName, authorEmail string
-
+	// Use author name and email from request, defaulting to "Argo CD" if not provided
+	authorName := r.AuthorName
 	if authorName == "" {
 		authorName = "Argo CD"
 	}
+	authorEmail := r.AuthorEmail
 	if authorEmail == "" {
-		logCtx.Warnf("Author email not available, using 'argo-cd@example.com'.")
 		authorEmail = "argo-cd@example.com"
 	}
+
+	logCtx.Debugf("Author config: request name='%s', request email='%s', final name='%s', final email='%s'",
+		r.AuthorName, r.AuthorEmail, authorName, authorEmail)
 
 	logCtx.Debugf("Setting author %s <%s>", authorName, authorEmail)
 	_, err = gitClient.SetAuthor(authorName, authorEmail)

@@ -119,7 +119,7 @@ func (k *kubectlResourceOperations) runResourceCommand(ctx context.Context, obj 
 	defer io.DeleteFile(manifestFile.Name())
 
 	var out []string
-	// rbac resouces are first applied with auth reconcile kubectl feature.
+	// rbac resources are first applied with auth reconcile kubectl feature.
 	if obj.GetAPIVersion() == "rbac.authorization.k8s.io/v1" {
 		outReconcile, err := k.rbacReconcile(ctx, obj, manifestFile.Name(), dryRunStrategy)
 		if err != nil {
