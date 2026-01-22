@@ -7291,6 +7291,9 @@
         "merge": {
           "$ref": "#/definitions/v1alpha1MergeGenerator"
         },
+        "oci": {
+          "$ref": "#/definitions/v1alpha1OciGenerator"
+        },
         "plugin": {
           "$ref": "#/definitions/v1alpha1PluginGenerator"
         },
@@ -7341,6 +7344,9 @@
         },
         "merge": {
           "$ref": "#/definitions/v1JSON"
+        },
+        "oci": {
+          "$ref": "#/definitions/v1alpha1OciGenerator"
         },
         "plugin": {
           "$ref": "#/definitions/v1alpha1PluginGenerator"
@@ -9100,6 +9106,68 @@
         },
         "version": {
           "type": "string"
+        }
+      }
+    },
+    "v1alpha1OciDirectoryGeneratorItem": {
+      "type": "object",
+      "properties": {
+        "exclude": {
+          "type": "boolean"
+        },
+        "path": {
+          "type": "string"
+        }
+      }
+    },
+    "v1alpha1OciFileGeneratorItem": {
+      "type": "object",
+      "properties": {
+        "exclude": {
+          "type": "boolean"
+        },
+        "path": {
+          "type": "string"
+        }
+      }
+    },
+    "v1alpha1OciGenerator": {
+      "type": "object",
+      "properties": {
+        "directories": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1OciDirectoryGeneratorItem"
+          }
+        },
+        "files": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1OciFileGeneratorItem"
+          }
+        },
+        "pathParamPrefix": {
+          "type": "string"
+        },
+        "repoURL": {
+          "type": "string"
+        },
+        "requeueAfterSeconds": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "revision": {
+          "type": "string"
+        },
+        "template": {
+          "$ref": "#/definitions/v1alpha1ApplicationSetTemplate"
+        },
+        "values": {
+          "type": "object",
+          "title": "Values contains key/value pairs which are passed directly as parameters to the template",
+          "additionalProperties": {
+            "type": "string"
+          }
         }
       }
     },
