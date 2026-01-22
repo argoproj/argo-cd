@@ -293,16 +293,23 @@ func PushChartToAuthenticatedOCIRegistry(t *testing.T, chartPathName, chartName,
 }
 
 // PushImageToOCIRegistry adds a helm chart to helm OCI registry
-func PushImageToOCIRegistry(t *testing.T, pathName, tag string) {
+// The optional pushPath parameter specifies what to push from the pathName directory.
+// If not provided, it defaults to "." (everything in the directory).
+func PushImageToOCIRegistry(t *testing.T, pathName, tag string, pushPath ...string) {
 	t.Helper()
 	imagePath := "./" + pathName
+
+	pathToPush := "."
+	if len(pushPath) > 0 && pushPath[0] != "" {
+		pathToPush = pushPath[0]
+	}
 
 	errors.NewHandler(t).FailOnErr(fixture.Run(
 		imagePath,
 		"oras",
 		"push",
 		fmt.Sprintf("%s:%s", fmt.Sprintf("%s/%s", strings.TrimPrefix(fixture.OCIHostURL, "oci://"), filepath.Base(pathName)), tag),
-		".",
+		pathToPush,
 	))
 }
 

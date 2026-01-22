@@ -520,6 +520,40 @@ func (c *Cache) GetGitDirectories(repoURL, revision string) ([]string, error) {
 	return item, err
 }
 
+func ociFilesKey(repoURL, revision, pattern string) string {
+	return fmt.Sprintf("ocifiles|%s|%s|%s", repoURL, revision, pattern)
+}
+
+func (c *Cache) SetOciFiles(repoURL, revision, pattern string, files map[string][]byte) error {
+	return c.cache.SetItem(
+		ociFilesKey(repoURL, revision, pattern),
+		&files,
+		&cacheutil.CacheActionOpts{Expiration: c.repoCacheExpiration})
+}
+
+func (c *Cache) GetOciFiles(repoURL, revision, pattern string) (map[string][]byte, error) {
+	var item map[string][]byte
+	err := c.cache.GetItem(ociFilesKey(repoURL, revision, pattern), &item)
+	return item, err
+}
+
+func ociDirectoriesKey(repoURL, revision string) string {
+	return fmt.Sprintf("ocidirs|%s|%s", repoURL, revision)
+}
+
+func (c *Cache) SetOciDirectories(repoURL, revision string, directories []string) error {
+	return c.cache.SetItem(
+		ociDirectoriesKey(repoURL, revision),
+		&directories,
+		&cacheutil.CacheActionOpts{Expiration: c.repoCacheExpiration})
+}
+
+func (c *Cache) GetOciDirectories(repoURL, revision string) ([]string, error) {
+	var item []string
+	err := c.cache.GetItem(ociDirectoriesKey(repoURL, revision), &item)
+	return item, err
+}
+
 func (cmr *CachedManifestResponse) shallowCopy() *CachedManifestResponse {
 	if cmr == nil {
 		return nil

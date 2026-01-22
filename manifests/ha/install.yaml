@@ -14270,6 +14270,918 @@ spec:
                                 x-kubernetes-preserve-unknown-fields: true
                               merge:
                                 x-kubernetes-preserve-unknown-fields: true
+                              oci:
+                                properties:
+                                  directories:
+                                    items:
+                                      properties:
+                                        exclude:
+                                          type: boolean
+                                        path:
+                                          type: string
+                                      required:
+                                      - path
+                                      type: object
+                                    type: array
+                                  files:
+                                    items:
+                                      properties:
+                                        exclude:
+                                          type: boolean
+                                        path:
+                                          type: string
+                                      required:
+                                      - path
+                                      type: object
+                                    type: array
+                                  pathParamPrefix:
+                                    type: string
+                                  repoURL:
+                                    type: string
+                                  requeueAfterSeconds:
+                                    format: int64
+                                    type: integer
+                                  revision:
+                                    type: string
+                                  template:
+                                    properties:
+                                      metadata:
+                                        properties:
+                                          annotations:
+                                            additionalProperties:
+                                              type: string
+                                            type: object
+                                          finalizers:
+                                            items:
+                                              type: string
+                                            type: array
+                                          labels:
+                                            additionalProperties:
+                                              type: string
+                                            type: object
+                                          name:
+                                            type: string
+                                          namespace:
+                                            type: string
+                                        type: object
+                                      spec:
+                                        properties:
+                                          destination:
+                                            properties:
+                                              name:
+                                                type: string
+                                              namespace:
+                                                type: string
+                                              server:
+                                                type: string
+                                            type: object
+                                          ignoreDifferences:
+                                            items:
+                                              properties:
+                                                group:
+                                                  type: string
+                                                jqPathExpressions:
+                                                  items:
+                                                    type: string
+                                                  type: array
+                                                jsonPointers:
+                                                  items:
+                                                    type: string
+                                                  type: array
+                                                kind:
+                                                  type: string
+                                                managedFieldsManagers:
+                                                  items:
+                                                    type: string
+                                                  type: array
+                                                name:
+                                                  type: string
+                                                namespace:
+                                                  type: string
+                                              required:
+                                              - kind
+                                              type: object
+                                            type: array
+                                          info:
+                                            items:
+                                              properties:
+                                                name:
+                                                  type: string
+                                                value:
+                                                  type: string
+                                              required:
+                                              - name
+                                              - value
+                                              type: object
+                                            type: array
+                                          project:
+                                            type: string
+                                          revisionHistoryLimit:
+                                            format: int64
+                                            type: integer
+                                          source:
+                                            properties:
+                                              chart:
+                                                type: string
+                                              directory:
+                                                properties:
+                                                  exclude:
+                                                    type: string
+                                                  include:
+                                                    type: string
+                                                  jsonnet:
+                                                    properties:
+                                                      extVars:
+                                                        items:
+                                                          properties:
+                                                            code:
+                                                              type: boolean
+                                                            name:
+                                                              type: string
+                                                            value:
+                                                              type: string
+                                                          required:
+                                                          - name
+                                                          - value
+                                                          type: object
+                                                        type: array
+                                                      libs:
+                                                        items:
+                                                          type: string
+                                                        type: array
+                                                      tlas:
+                                                        items:
+                                                          properties:
+                                                            code:
+                                                              type: boolean
+                                                            name:
+                                                              type: string
+                                                            value:
+                                                              type: string
+                                                          required:
+                                                          - name
+                                                          - value
+                                                          type: object
+                                                        type: array
+                                                    type: object
+                                                  recurse:
+                                                    type: boolean
+                                                type: object
+                                              helm:
+                                                properties:
+                                                  apiVersions:
+                                                    items:
+                                                      type: string
+                                                    type: array
+                                                  fileParameters:
+                                                    items:
+                                                      properties:
+                                                        name:
+                                                          type: string
+                                                        path:
+                                                          type: string
+                                                      type: object
+                                                    type: array
+                                                  ignoreMissingValueFiles:
+                                                    type: boolean
+                                                  kubeVersion:
+                                                    type: string
+                                                  namespace:
+                                                    type: string
+                                                  parameters:
+                                                    items:
+                                                      properties:
+                                                        forceString:
+                                                          type: boolean
+                                                        name:
+                                                          type: string
+                                                        value:
+                                                          type: string
+                                                      type: object
+                                                    type: array
+                                                  passCredentials:
+                                                    type: boolean
+                                                  releaseName:
+                                                    type: string
+                                                  skipCrds:
+                                                    type: boolean
+                                                  skipSchemaValidation:
+                                                    type: boolean
+                                                  skipTests:
+                                                    type: boolean
+                                                  valueFiles:
+                                                    items:
+                                                      type: string
+                                                    type: array
+                                                  values:
+                                                    type: string
+                                                  valuesObject:
+                                                    type: object
+                                                    x-kubernetes-preserve-unknown-fields: true
+                                                  version:
+                                                    type: string
+                                                type: object
+                                              kustomize:
+                                                properties:
+                                                  apiVersions:
+                                                    items:
+                                                      type: string
+                                                    type: array
+                                                  commonAnnotations:
+                                                    additionalProperties:
+                                                      type: string
+                                                    type: object
+                                                  commonAnnotationsEnvsubst:
+                                                    type: boolean
+                                                  commonLabels:
+                                                    additionalProperties:
+                                                      type: string
+                                                    type: object
+                                                  components:
+                                                    items:
+                                                      type: string
+                                                    type: array
+                                                  forceCommonAnnotations:
+                                                    type: boolean
+                                                  forceCommonLabels:
+                                                    type: boolean
+                                                  ignoreMissingComponents:
+                                                    type: boolean
+                                                  images:
+                                                    items:
+                                                      type: string
+                                                    type: array
+                                                  kubeVersion:
+                                                    type: string
+                                                  labelIncludeTemplates:
+                                                    type: boolean
+                                                  labelWithoutSelector:
+                                                    type: boolean
+                                                  namePrefix:
+                                                    type: string
+                                                  nameSuffix:
+                                                    type: string
+                                                  namespace:
+                                                    type: string
+                                                  patches:
+                                                    items:
+                                                      properties:
+                                                        options:
+                                                          additionalProperties:
+                                                            type: boolean
+                                                          type: object
+                                                        patch:
+                                                          type: string
+                                                        path:
+                                                          type: string
+                                                        target:
+                                                          properties:
+                                                            annotationSelector:
+                                                              type: string
+                                                            group:
+                                                              type: string
+                                                            kind:
+                                                              type: string
+                                                            labelSelector:
+                                                              type: string
+                                                            name:
+                                                              type: string
+                                                            namespace:
+                                                              type: string
+                                                            version:
+                                                              type: string
+                                                          type: object
+                                                      type: object
+                                                    type: array
+                                                  replicas:
+                                                    items:
+                                                      properties:
+                                                        count:
+                                                          anyOf:
+                                                          - type: integer
+                                                          - type: string
+                                                          x-kubernetes-int-or-string: true
+                                                        name:
+                                                          type: string
+                                                      required:
+                                                      - count
+                                                      - name
+                                                      type: object
+                                                    type: array
+                                                  version:
+                                                    type: string
+                                                type: object
+                                              name:
+                                                type: string
+                                              path:
+                                                type: string
+                                              plugin:
+                                                properties:
+                                                  env:
+                                                    items:
+                                                      properties:
+                                                        name:
+                                                          type: string
+                                                        value:
+                                                          type: string
+                                                      required:
+                                                      - name
+                                                      - value
+                                                      type: object
+                                                    type: array
+                                                  name:
+                                                    type: string
+                                                  parameters:
+                                                    items:
+                                                      properties:
+                                                        array:
+                                                          items:
+                                                            type: string
+                                                          type: array
+                                                        map:
+                                                          additionalProperties:
+                                                            type: string
+                                                          type: object
+                                                        name:
+                                                          type: string
+                                                        string:
+                                                          type: string
+                                                      type: object
+                                                    type: array
+                                                type: object
+                                              ref:
+                                                type: string
+                                              repoURL:
+                                                type: string
+                                              targetRevision:
+                                                type: string
+                                            required:
+                                            - repoURL
+                                            type: object
+                                          sourceHydrator:
+                                            properties:
+                                              drySource:
+                                                properties:
+                                                  directory:
+                                                    properties:
+                                                      exclude:
+                                                        type: string
+                                                      include:
+                                                        type: string
+                                                      jsonnet:
+                                                        properties:
+                                                          extVars:
+                                                            items:
+                                                              properties:
+                                                                code:
+                                                                  type: boolean
+                                                                name:
+                                                                  type: string
+                                                                value:
+                                                                  type: string
+                                                              required:
+                                                              - name
+                                                              - value
+                                                              type: object
+                                                            type: array
+                                                          libs:
+                                                            items:
+                                                              type: string
+                                                            type: array
+                                                          tlas:
+                                                            items:
+                                                              properties:
+                                                                code:
+                                                                  type: boolean
+                                                                name:
+                                                                  type: string
+                                                                value:
+                                                                  type: string
+                                                              required:
+                                                              - name
+                                                              - value
+                                                              type: object
+                                                            type: array
+                                                        type: object
+                                                      recurse:
+                                                        type: boolean
+                                                    type: object
+                                                  helm:
+                                                    properties:
+                                                      apiVersions:
+                                                        items:
+                                                          type: string
+                                                        type: array
+                                                      fileParameters:
+                                                        items:
+                                                          properties:
+                                                            name:
+                                                              type: string
+                                                            path:
+                                                              type: string
+                                                          type: object
+                                                        type: array
+                                                      ignoreMissingValueFiles:
+                                                        type: boolean
+                                                      kubeVersion:
+                                                        type: string
+                                                      namespace:
+                                                        type: string
+                                                      parameters:
+                                                        items:
+                                                          properties:
+                                                            forceString:
+                                                              type: boolean
+                                                            name:
+                                                              type: string
+                                                            value:
+                                                              type: string
+                                                          type: object
+                                                        type: array
+                                                      passCredentials:
+                                                        type: boolean
+                                                      releaseName:
+                                                        type: string
+                                                      skipCrds:
+                                                        type: boolean
+                                                      skipSchemaValidation:
+                                                        type: boolean
+                                                      skipTests:
+                                                        type: boolean
+                                                      valueFiles:
+                                                        items:
+                                                          type: string
+                                                        type: array
+                                                      values:
+                                                        type: string
+                                                      valuesObject:
+                                                        type: object
+                                                        x-kubernetes-preserve-unknown-fields: true
+                                                      version:
+                                                        type: string
+                                                    type: object
+                                                  kustomize:
+                                                    properties:
+                                                      apiVersions:
+                                                        items:
+                                                          type: string
+                                                        type: array
+                                                      commonAnnotations:
+                                                        additionalProperties:
+                                                          type: string
+                                                        type: object
+                                                      commonAnnotationsEnvsubst:
+                                                        type: boolean
+                                                      commonLabels:
+                                                        additionalProperties:
+                                                          type: string
+                                                        type: object
+                                                      components:
+                                                        items:
+                                                          type: string
+                                                        type: array
+                                                      forceCommonAnnotations:
+                                                        type: boolean
+                                                      forceCommonLabels:
+                                                        type: boolean
+                                                      ignoreMissingComponents:
+                                                        type: boolean
+                                                      images:
+                                                        items:
+                                                          type: string
+                                                        type: array
+                                                      kubeVersion:
+                                                        type: string
+                                                      labelIncludeTemplates:
+                                                        type: boolean
+                                                      labelWithoutSelector:
+                                                        type: boolean
+                                                      namePrefix:
+                                                        type: string
+                                                      nameSuffix:
+                                                        type: string
+                                                      namespace:
+                                                        type: string
+                                                      patches:
+                                                        items:
+                                                          properties:
+                                                            options:
+                                                              additionalProperties:
+                                                                type: boolean
+                                                              type: object
+                                                            patch:
+                                                              type: string
+                                                            path:
+                                                              type: string
+                                                            target:
+                                                              properties:
+                                                                annotationSelector:
+                                                                  type: string
+                                                                group:
+                                                                  type: string
+                                                                kind:
+                                                                  type: string
+                                                                labelSelector:
+                                                                  type: string
+                                                                name:
+                                                                  type: string
+                                                                namespace:
+                                                                  type: string
+                                                                version:
+                                                                  type: string
+                                                              type: object
+                                                          type: object
+                                                        type: array
+                                                      replicas:
+                                                        items:
+                                                          properties:
+                                                            count:
+                                                              anyOf:
+                                                              - type: integer
+                                                              - type: string
+                                                              x-kubernetes-int-or-string: true
+                                                            name:
+                                                              type: string
+                                                          required:
+                                                          - count
+                                                          - name
+                                                          type: object
+                                                        type: array
+                                                      version:
+                                                        type: string
+                                                    type: object
+                                                  path:
+                                                    type: string
+                                                  plugin:
+                                                    properties:
+                                                      env:
+                                                        items:
+                                                          properties:
+                                                            name:
+                                                              type: string
+                                                            value:
+                                                              type: string
+                                                          required:
+                                                          - name
+                                                          - value
+                                                          type: object
+                                                        type: array
+                                                      name:
+                                                        type: string
+                                                      parameters:
+                                                        items:
+                                                          properties:
+                                                            array:
+                                                              items:
+                                                                type: string
+                                                              type: array
+                                                            map:
+                                                              additionalProperties:
+                                                                type: string
+                                                              type: object
+                                                            name:
+                                                              type: string
+                                                            string:
+                                                              type: string
+                                                          type: object
+                                                        type: array
+                                                    type: object
+                                                  repoURL:
+                                                    type: string
+                                                  targetRevision:
+                                                    type: string
+                                                required:
+                                                - path
+                                                - repoURL
+                                                - targetRevision
+                                                type: object
+                                              hydrateTo:
+                                                properties:
+                                                  targetBranch:
+                                                    type: string
+                                                required:
+                                                - targetBranch
+                                                type: object
+                                              syncSource:
+                                                properties:
+                                                  path:
+                                                    minLength: 1
+                                                    pattern: ^.{2,}|[^./]$
+                                                    type: string
+                                                  targetBranch:
+                                                    type: string
+                                                required:
+                                                - path
+                                                - targetBranch
+                                                type: object
+                                            required:
+                                            - drySource
+                                            - syncSource
+                                            type: object
+                                          sources:
+                                            items:
+                                              properties:
+                                                chart:
+                                                  type: string
+                                                directory:
+                                                  properties:
+                                                    exclude:
+                                                      type: string
+                                                    include:
+                                                      type: string
+                                                    jsonnet:
+                                                      properties:
+                                                        extVars:
+                                                          items:
+                                                            properties:
+                                                              code:
+                                                                type: boolean
+                                                              name:
+                                                                type: string
+                                                              value:
+                                                                type: string
+                                                            required:
+                                                            - name
+                                                            - value
+                                                            type: object
+                                                          type: array
+                                                        libs:
+                                                          items:
+                                                            type: string
+                                                          type: array
+                                                        tlas:
+                                                          items:
+                                                            properties:
+                                                              code:
+                                                                type: boolean
+                                                              name:
+                                                                type: string
+                                                              value:
+                                                                type: string
+                                                            required:
+                                                            - name
+                                                            - value
+                                                            type: object
+                                                          type: array
+                                                      type: object
+                                                    recurse:
+                                                      type: boolean
+                                                  type: object
+                                                helm:
+                                                  properties:
+                                                    apiVersions:
+                                                      items:
+                                                        type: string
+                                                      type: array
+                                                    fileParameters:
+                                                      items:
+                                                        properties:
+                                                          name:
+                                                            type: string
+                                                          path:
+                                                            type: string
+                                                        type: object
+                                                      type: array
+                                                    ignoreMissingValueFiles:
+                                                      type: boolean
+                                                    kubeVersion:
+                                                      type: string
+                                                    namespace:
+                                                      type: string
+                                                    parameters:
+                                                      items:
+                                                        properties:
+                                                          forceString:
+                                                            type: boolean
+                                                          name:
+                                                            type: string
+                                                          value:
+                                                            type: string
+                                                        type: object
+                                                      type: array
+                                                    passCredentials:
+                                                      type: boolean
+                                                    releaseName:
+                                                      type: string
+                                                    skipCrds:
+                                                      type: boolean
+                                                    skipSchemaValidation:
+                                                      type: boolean
+                                                    skipTests:
+                                                      type: boolean
+                                                    valueFiles:
+                                                      items:
+                                                        type: string
+                                                      type: array
+                                                    values:
+                                                      type: string
+                                                    valuesObject:
+                                                      type: object
+                                                      x-kubernetes-preserve-unknown-fields: true
+                                                    version:
+                                                      type: string
+                                                  type: object
+                                                kustomize:
+                                                  properties:
+                                                    apiVersions:
+                                                      items:
+                                                        type: string
+                                                      type: array
+                                                    commonAnnotations:
+                                                      additionalProperties:
+                                                        type: string
+                                                      type: object
+                                                    commonAnnotationsEnvsubst:
+                                                      type: boolean
+                                                    commonLabels:
+                                                      additionalProperties:
+                                                        type: string
+                                                      type: object
+                                                    components:
+                                                      items:
+                                                        type: string
+                                                      type: array
+                                                    forceCommonAnnotations:
+                                                      type: boolean
+                                                    forceCommonLabels:
+                                                      type: boolean
+                                                    ignoreMissingComponents:
+                                                      type: boolean
+                                                    images:
+                                                      items:
+                                                        type: string
+                                                      type: array
+                                                    kubeVersion:
+                                                      type: string
+                                                    labelIncludeTemplates:
+                                                      type: boolean
+                                                    labelWithoutSelector:
+                                                      type: boolean
+                                                    namePrefix:
+                                                      type: string
+                                                    nameSuffix:
+                                                      type: string
+                                                    namespace:
+                                                      type: string
+                                                    patches:
+                                                      items:
+                                                        properties:
+                                                          options:
+                                                            additionalProperties:
+                                                              type: boolean
+                                                            type: object
+                                                          patch:
+                                                            type: string
+                                                          path:
+                                                            type: string
+                                                          target:
+                                                            properties:
+                                                              annotationSelector:
+                                                                type: string
+                                                              group:
+                                                                type: string
+                                                              kind:
+                                                                type: string
+                                                              labelSelector:
+                                                                type: string
+                                                              name:
+                                                                type: string
+                                                              namespace:
+                                                                type: string
+                                                              version:
+                                                                type: string
+                                                            type: object
+                                                        type: object
+                                                      type: array
+                                                    replicas:
+                                                      items:
+                                                        properties:
+                                                          count:
+                                                            anyOf:
+                                                            - type: integer
+                                                            - type: string
+                                                            x-kubernetes-int-or-string: true
+                                                          name:
+                                                            type: string
+                                                        required:
+                                                        - count
+                                                        - name
+                                                        type: object
+                                                      type: array
+                                                    version:
+                                                      type: string
+                                                  type: object
+                                                name:
+                                                  type: string
+                                                path:
+                                                  type: string
+                                                plugin:
+                                                  properties:
+                                                    env:
+                                                      items:
+                                                        properties:
+                                                          name:
+                                                            type: string
+                                                          value:
+                                                            type: string
+                                                        required:
+                                                        - name
+                                                        - value
+                                                        type: object
+                                                      type: array
+                                                    name:
+                                                      type: string
+                                                    parameters:
+                                                      items:
+                                                        properties:
+                                                          array:
+                                                            items:
+                                                              type: string
+                                                            type: array
+                                                          map:
+                                                            additionalProperties:
+                                                              type: string
+                                                            type: object
+                                                          name:
+                                                            type: string
+                                                          string:
+                                                            type: string
+                                                        type: object
+                                                      type: array
+                                                  type: object
+                                                ref:
+                                                  type: string
+                                                repoURL:
+                                                  type: string
+                                                targetRevision:
+                                                  type: string
+                                              required:
+                                              - repoURL
+                                              type: object
+                                            type: array
+                                          syncPolicy:
+                                            properties:
+                                              automated:
+                                                properties:
+                                                  allowEmpty:
+                                                    type: boolean
+                                                  enabled:
+                                                    type: boolean
+                                                  prune:
+                                                    type: boolean
+                                                  selfHeal:
+                                                    type: boolean
+                                                type: object
+                                              managedNamespaceMetadata:
+                                                properties:
+                                                  annotations:
+                                                    additionalProperties:
+                                                      type: string
+                                                    type: object
+                                                  labels:
+                                                    additionalProperties:
+                                                      type: string
+                                                    type: object
+                                                type: object
+                                              retry:
+                                                properties:
+                                                  backoff:
+                                                    properties:
+                                                      duration:
+                                                        type: string
+                                                      factor:
+                                                        format: int64
+                                                        type: integer
+                                                      maxDuration:
+                                                        type: string
+                                                    type: object
+                                                  limit:
+                                                    format: int64
+                                                    type: integer
+                                                  refresh:
+                                                    type: boolean
+                                                type: object
+                                              syncOptions:
+                                                items:
+                                                  type: string
+                                                type: array
+                                            type: object
+                                        required:
+                                        - destination
+                                        - project
+                                        type: object
+                                    required:
+                                    - metadata
+                                    - spec
+                                    type: object
+                                  values:
+                                    additionalProperties:
+                                      type: string
+                                    type: object
+                                required:
+                                - repoURL
+                                - revision
+                                type: object
                               plugin:
                                 properties:
                                   configMapRef:
@@ -21922,6 +22834,918 @@ spec:
                                 x-kubernetes-preserve-unknown-fields: true
                               merge:
                                 x-kubernetes-preserve-unknown-fields: true
+                              oci:
+                                properties:
+                                  directories:
+                                    items:
+                                      properties:
+                                        exclude:
+                                          type: boolean
+                                        path:
+                                          type: string
+                                      required:
+                                      - path
+                                      type: object
+                                    type: array
+                                  files:
+                                    items:
+                                      properties:
+                                        exclude:
+                                          type: boolean
+                                        path:
+                                          type: string
+                                      required:
+                                      - path
+                                      type: object
+                                    type: array
+                                  pathParamPrefix:
+                                    type: string
+                                  repoURL:
+                                    type: string
+                                  requeueAfterSeconds:
+                                    format: int64
+                                    type: integer
+                                  revision:
+                                    type: string
+                                  template:
+                                    properties:
+                                      metadata:
+                                        properties:
+                                          annotations:
+                                            additionalProperties:
+                                              type: string
+                                            type: object
+                                          finalizers:
+                                            items:
+                                              type: string
+                                            type: array
+                                          labels:
+                                            additionalProperties:
+                                              type: string
+                                            type: object
+                                          name:
+                                            type: string
+                                          namespace:
+                                            type: string
+                                        type: object
+                                      spec:
+                                        properties:
+                                          destination:
+                                            properties:
+                                              name:
+                                                type: string
+                                              namespace:
+                                                type: string
+                                              server:
+                                                type: string
+                                            type: object
+                                          ignoreDifferences:
+                                            items:
+                                              properties:
+                                                group:
+                                                  type: string
+                                                jqPathExpressions:
+                                                  items:
+                                                    type: string
+                                                  type: array
+                                                jsonPointers:
+                                                  items:
+                                                    type: string
+                                                  type: array
+                                                kind:
+                                                  type: string
+                                                managedFieldsManagers:
+                                                  items:
+                                                    type: string
+                                                  type: array
+                                                name:
+                                                  type: string
+                                                namespace:
+                                                  type: string
+                                              required:
+                                              - kind
+                                              type: object
+                                            type: array
+                                          info:
+                                            items:
+                                              properties:
+                                                name:
+                                                  type: string
+                                                value:
+                                                  type: string
+                                              required:
+                                              - name
+                                              - value
+                                              type: object
+                                            type: array
+                                          project:
+                                            type: string
+                                          revisionHistoryLimit:
+                                            format: int64
+                                            type: integer
+                                          source:
+                                            properties:
+                                              chart:
+                                                type: string
+                                              directory:
+                                                properties:
+                                                  exclude:
+                                                    type: string
+                                                  include:
+                                                    type: string
+                                                  jsonnet:
+                                                    properties:
+                                                      extVars:
+                                                        items:
+                                                          properties:
+                                                            code:
+                                                              type: boolean
+                                                            name:
+                                                              type: string
+                                                            value:
+                                                              type: string
+                                                          required:
+                                                          - name
+                                                          - value
+                                                          type: object
+                                                        type: array
+                                                      libs:
+                                                        items:
+                                                          type: string
+                                                        type: array
+                                                      tlas:
+                                                        items:
+                                                          properties:
+                                                            code:
+                                                              type: boolean
+                                                            name:
+                                                              type: string
+                                                            value:
+                                                              type: string
+                                                          required:
+                                                          - name
+                                                          - value
+                                                          type: object
+                                                        type: array
+                                                    type: object
+                                                  recurse:
+                                                    type: boolean
+                                                type: object
+                                              helm:
+                                                properties:
+                                                  apiVersions:
+                                                    items:
+                                                      type: string
+                                                    type: array
+                                                  fileParameters:
+                                                    items:
+                                                      properties:
+                                                        name:
+                                                          type: string
+                                                        path:
+                                                          type: string
+                                                      type: object
+                                                    type: array
+                                                  ignoreMissingValueFiles:
+                                                    type: boolean
+                                                  kubeVersion:
+                                                    type: string
+                                                  namespace:
+                                                    type: string
+                                                  parameters:
+                                                    items:
+                                                      properties:
+                                                        forceString:
+                                                          type: boolean
+                                                        name:
+                                                          type: string
+                                                        value:
+                                                          type: string
+                                                      type: object
+                                                    type: array
+                                                  passCredentials:
+                                                    type: boolean
+                                                  releaseName:
+                                                    type: string
+                                                  skipCrds:
+                                                    type: boolean
+                                                  skipSchemaValidation:
+                                                    type: boolean
+                                                  skipTests:
+                                                    type: boolean
+                                                  valueFiles:
+                                                    items:
+                                                      type: string
+                                                    type: array
+                                                  values:
+                                                    type: string
+                                                  valuesObject:
+                                                    type: object
+                                                    x-kubernetes-preserve-unknown-fields: true
+                                                  version:
+                                                    type: string
+                                                type: object
+                                              kustomize:
+                                                properties:
+                                                  apiVersions:
+                                                    items:
+                                                      type: string
+                                                    type: array
+                                                  commonAnnotations:
+                                                    additionalProperties:
+                                                      type: string
+                                                    type: object
+                                                  commonAnnotationsEnvsubst:
+                                                    type: boolean
+                                                  commonLabels:
+                                                    additionalProperties:
+                                                      type: string
+                                                    type: object
+                                                  components:
+                                                    items:
+                                                      type: string
+                                                    type: array
+                                                  forceCommonAnnotations:
+                                                    type: boolean
+                                                  forceCommonLabels:
+                                                    type: boolean
+                                                  ignoreMissingComponents:
+                                                    type: boolean
+                                                  images:
+                                                    items:
+                                                      type: string
+                                                    type: array
+                                                  kubeVersion:
+                                                    type: string
+                                                  labelIncludeTemplates:
+                                                    type: boolean
+                                                  labelWithoutSelector:
+                                                    type: boolean
+                                                  namePrefix:
+                                                    type: string
+                                                  nameSuffix:
+                                                    type: string
+                                                  namespace:
+                                                    type: string
+                                                  patches:
+                                                    items:
+                                                      properties:
+                                                        options:
+                                                          additionalProperties:
+                                                            type: boolean
+                                                          type: object
+                                                        patch:
+                                                          type: string
+                                                        path:
+                                                          type: string
+                                                        target:
+                                                          properties:
+                                                            annotationSelector:
+                                                              type: string
+                                                            group:
+                                                              type: string
+                                                            kind:
+                                                              type: string
+                                                            labelSelector:
+                                                              type: string
+                                                            name:
+                                                              type: string
+                                                            namespace:
+                                                              type: string
+                                                            version:
+                                                              type: string
+                                                          type: object
+                                                      type: object
+                                                    type: array
+                                                  replicas:
+                                                    items:
+                                                      properties:
+                                                        count:
+                                                          anyOf:
+                                                          - type: integer
+                                                          - type: string
+                                                          x-kubernetes-int-or-string: true
+                                                        name:
+                                                          type: string
+                                                      required:
+                                                      - count
+                                                      - name
+                                                      type: object
+                                                    type: array
+                                                  version:
+                                                    type: string
+                                                type: object
+                                              name:
+                                                type: string
+                                              path:
+                                                type: string
+                                              plugin:
+                                                properties:
+                                                  env:
+                                                    items:
+                                                      properties:
+                                                        name:
+                                                          type: string
+                                                        value:
+                                                          type: string
+                                                      required:
+                                                      - name
+                                                      - value
+                                                      type: object
+                                                    type: array
+                                                  name:
+                                                    type: string
+                                                  parameters:
+                                                    items:
+                                                      properties:
+                                                        array:
+                                                          items:
+                                                            type: string
+                                                          type: array
+                                                        map:
+                                                          additionalProperties:
+                                                            type: string
+                                                          type: object
+                                                        name:
+                                                          type: string
+                                                        string:
+                                                          type: string
+                                                      type: object
+                                                    type: array
+                                                type: object
+                                              ref:
+                                                type: string
+                                              repoURL:
+                                                type: string
+                                              targetRevision:
+                                                type: string
+                                            required:
+                                            - repoURL
+                                            type: object
+                                          sourceHydrator:
+                                            properties:
+                                              drySource:
+                                                properties:
+                                                  directory:
+                                                    properties:
+                                                      exclude:
+                                                        type: string
+                                                      include:
+                                                        type: string
+                                                      jsonnet:
+                                                        properties:
+                                                          extVars:
+                                                            items:
+                                                              properties:
+                                                                code:
+                                                                  type: boolean
+                                                                name:
+                                                                  type: string
+                                                                value:
+                                                                  type: string
+                                                              required:
+                                                              - name
+                                                              - value
+                                                              type: object
+                                                            type: array
+                                                          libs:
+                                                            items:
+                                                              type: string
+                                                            type: array
+                                                          tlas:
+                                                            items:
+                                                              properties:
+                                                                code:
+                                                                  type: boolean
+                                                                name:
+                                                                  type: string
+                                                                value:
+                                                                  type: string
+                                                              required:
+                                                              - name
+                                                              - value
+                                                              type: object
+                                                            type: array
+                                                        type: object
+                                                      recurse:
+                                                        type: boolean
+                                                    type: object
+                                                  helm:
+                                                    properties:
+                                                      apiVersions:
+                                                        items:
+                                                          type: string
+                                                        type: array
+                                                      fileParameters:
+                                                        items:
+                                                          properties:
+                                                            name:
+                                                              type: string
+                                                            path:
+                                                              type: string
+                                                          type: object
+                                                        type: array
+                                                      ignoreMissingValueFiles:
+                                                        type: boolean
+                                                      kubeVersion:
+                                                        type: string
+                                                      namespace:
+                                                        type: string
+                                                      parameters:
+                                                        items:
+                                                          properties:
+                                                            forceString:
+                                                              type: boolean
+                                                            name:
+                                                              type: string
+                                                            value:
+                                                              type: string
+                                                          type: object
+                                                        type: array
+                                                      passCredentials:
+                                                        type: boolean
+                                                      releaseName:
+                                                        type: string
+                                                      skipCrds:
+                                                        type: boolean
+                                                      skipSchemaValidation:
+                                                        type: boolean
+                                                      skipTests:
+                                                        type: boolean
+                                                      valueFiles:
+                                                        items:
+                                                          type: string
+                                                        type: array
+                                                      values:
+                                                        type: string
+                                                      valuesObject:
+                                                        type: object
+                                                        x-kubernetes-preserve-unknown-fields: true
+                                                      version:
+                                                        type: string
+                                                    type: object
+                                                  kustomize:
+                                                    properties:
+                                                      apiVersions:
+                                                        items:
+                                                          type: string
+                                                        type: array
+                                                      commonAnnotations:
+                                                        additionalProperties:
+                                                          type: string
+                                                        type: object
+                                                      commonAnnotationsEnvsubst:
+                                                        type: boolean
+                                                      commonLabels:
+                                                        additionalProperties:
+                                                          type: string
+                                                        type: object
+                                                      components:
+                                                        items:
+                                                          type: string
+                                                        type: array
+                                                      forceCommonAnnotations:
+                                                        type: boolean
+                                                      forceCommonLabels:
+                                                        type: boolean
+                                                      ignoreMissingComponents:
+                                                        type: boolean
+                                                      images:
+                                                        items:
+                                                          type: string
+                                                        type: array
+                                                      kubeVersion:
+                                                        type: string
+                                                      labelIncludeTemplates:
+                                                        type: boolean
+                                                      labelWithoutSelector:
+                                                        type: boolean
+                                                      namePrefix:
+                                                        type: string
+                                                      nameSuffix:
+                                                        type: string
+                                                      namespace:
+                                                        type: string
+                                                      patches:
+                                                        items:
+                                                          properties:
+                                                            options:
+                                                              additionalProperties:
+                                                                type: boolean
+                                                              type: object
+                                                            patch:
+                                                              type: string
+                                                            path:
+                                                              type: string
+                                                            target:
+                                                              properties:
+                                                                annotationSelector:
+                                                                  type: string
+                                                                group:
+                                                                  type: string
+                                                                kind:
+                                                                  type: string
+                                                                labelSelector:
+                                                                  type: string
+                                                                name:
+                                                                  type: string
+                                                                namespace:
+                                                                  type: string
+                                                                version:
+                                                                  type: string
+                                                              type: object
+                                                          type: object
+                                                        type: array
+                                                      replicas:
+                                                        items:
+                                                          properties:
+                                                            count:
+                                                              anyOf:
+                                                              - type: integer
+                                                              - type: string
+                                                              x-kubernetes-int-or-string: true
+                                                            name:
+                                                              type: string
+                                                          required:
+                                                          - count
+                                                          - name
+                                                          type: object
+                                                        type: array
+                                                      version:
+                                                        type: string
+                                                    type: object
+                                                  path:
+                                                    type: string
+                                                  plugin:
+                                                    properties:
+                                                      env:
+                                                        items:
+                                                          properties:
+                                                            name:
+                                                              type: string
+                                                            value:
+                                                              type: string
+                                                          required:
+                                                          - name
+                                                          - value
+                                                          type: object
+                                                        type: array
+                                                      name:
+                                                        type: string
+                                                      parameters:
+                                                        items:
+                                                          properties:
+                                                            array:
+                                                              items:
+                                                                type: string
+                                                              type: array
+                                                            map:
+                                                              additionalProperties:
+                                                                type: string
+                                                              type: object
+                                                            name:
+                                                              type: string
+                                                            string:
+                                                              type: string
+                                                          type: object
+                                                        type: array
+                                                    type: object
+                                                  repoURL:
+                                                    type: string
+                                                  targetRevision:
+                                                    type: string
+                                                required:
+                                                - path
+                                                - repoURL
+                                                - targetRevision
+                                                type: object
+                                              hydrateTo:
+                                                properties:
+                                                  targetBranch:
+                                                    type: string
+                                                required:
+                                                - targetBranch
+                                                type: object
+                                              syncSource:
+                                                properties:
+                                                  path:
+                                                    minLength: 1
+                                                    pattern: ^.{2,}|[^./]$
+                                                    type: string
+                                                  targetBranch:
+                                                    type: string
+                                                required:
+                                                - path
+                                                - targetBranch
+                                                type: object
+                                            required:
+                                            - drySource
+                                            - syncSource
+                                            type: object
+                                          sources:
+                                            items:
+                                              properties:
+                                                chart:
+                                                  type: string
+                                                directory:
+                                                  properties:
+                                                    exclude:
+                                                      type: string
+                                                    include:
+                                                      type: string
+                                                    jsonnet:
+                                                      properties:
+                                                        extVars:
+                                                          items:
+                                                            properties:
+                                                              code:
+                                                                type: boolean
+                                                              name:
+                                                                type: string
+                                                              value:
+                                                                type: string
+                                                            required:
+                                                            - name
+                                                            - value
+                                                            type: object
+                                                          type: array
+                                                        libs:
+                                                          items:
+                                                            type: string
+                                                          type: array
+                                                        tlas:
+                                                          items:
+                                                            properties:
+                                                              code:
+                                                                type: boolean
+                                                              name:
+                                                                type: string
+                                                              value:
+                                                                type: string
+                                                            required:
+                                                            - name
+                                                            - value
+                                                            type: object
+                                                          type: array
+                                                      type: object
+                                                    recurse:
+                                                      type: boolean
+                                                  type: object
+                                                helm:
+                                                  properties:
+                                                    apiVersions:
+                                                      items:
+                                                        type: string
+                                                      type: array
+                                                    fileParameters:
+                                                      items:
+                                                        properties:
+                                                          name:
+                                                            type: string
+                                                          path:
+                                                            type: string
+                                                        type: object
+                                                      type: array
+                                                    ignoreMissingValueFiles:
+                                                      type: boolean
+                                                    kubeVersion:
+                                                      type: string
+                                                    namespace:
+                                                      type: string
+                                                    parameters:
+                                                      items:
+                                                        properties:
+                                                          forceString:
+                                                            type: boolean
+                                                          name:
+                                                            type: string
+                                                          value:
+                                                            type: string
+                                                        type: object
+                                                      type: array
+                                                    passCredentials:
+                                                      type: boolean
+                                                    releaseName:
+                                                      type: string
+                                                    skipCrds:
+                                                      type: boolean
+                                                    skipSchemaValidation:
+                                                      type: boolean
+                                                    skipTests:
+                                                      type: boolean
+                                                    valueFiles:
+                                                      items:
+                                                        type: string
+                                                      type: array
+                                                    values:
+                                                      type: string
+                                                    valuesObject:
+                                                      type: object
+                                                      x-kubernetes-preserve-unknown-fields: true
+                                                    version:
+                                                      type: string
+                                                  type: object
+                                                kustomize:
+                                                  properties:
+                                                    apiVersions:
+                                                      items:
+                                                        type: string
+                                                      type: array
+                                                    commonAnnotations:
+                                                      additionalProperties:
+                                                        type: string
+                                                      type: object
+                                                    commonAnnotationsEnvsubst:
+                                                      type: boolean
+                                                    commonLabels:
+                                                      additionalProperties:
+                                                        type: string
+                                                      type: object
+                                                    components:
+                                                      items:
+                                                        type: string
+                                                      type: array
+                                                    forceCommonAnnotations:
+                                                      type: boolean
+                                                    forceCommonLabels:
+                                                      type: boolean
+                                                    ignoreMissingComponents:
+                                                      type: boolean
+                                                    images:
+                                                      items:
+                                                        type: string
+                                                      type: array
+                                                    kubeVersion:
+                                                      type: string
+                                                    labelIncludeTemplates:
+                                                      type: boolean
+                                                    labelWithoutSelector:
+                                                      type: boolean
+                                                    namePrefix:
+                                                      type: string
+                                                    nameSuffix:
+                                                      type: string
+                                                    namespace:
+                                                      type: string
+                                                    patches:
+                                                      items:
+                                                        properties:
+                                                          options:
+                                                            additionalProperties:
+                                                              type: boolean
+                                                            type: object
+                                                          patch:
+                                                            type: string
+                                                          path:
+                                                            type: string
+                                                          target:
+                                                            properties:
+                                                              annotationSelector:
+                                                                type: string
+                                                              group:
+                                                                type: string
+                                                              kind:
+                                                                type: string
+                                                              labelSelector:
+                                                                type: string
+                                                              name:
+                                                                type: string
+                                                              namespace:
+                                                                type: string
+                                                              version:
+                                                                type: string
+                                                            type: object
+                                                        type: object
+                                                      type: array
+                                                    replicas:
+                                                      items:
+                                                        properties:
+                                                          count:
+                                                            anyOf:
+                                                            - type: integer
+                                                            - type: string
+                                                            x-kubernetes-int-or-string: true
+                                                          name:
+                                                            type: string
+                                                        required:
+                                                        - count
+                                                        - name
+                                                        type: object
+                                                      type: array
+                                                    version:
+                                                      type: string
+                                                  type: object
+                                                name:
+                                                  type: string
+                                                path:
+                                                  type: string
+                                                plugin:
+                                                  properties:
+                                                    env:
+                                                      items:
+                                                        properties:
+                                                          name:
+                                                            type: string
+                                                          value:
+                                                            type: string
+                                                        required:
+                                                        - name
+                                                        - value
+                                                        type: object
+                                                      type: array
+                                                    name:
+                                                      type: string
+                                                    parameters:
+                                                      items:
+                                                        properties:
+                                                          array:
+                                                            items:
+                                                              type: string
+                                                            type: array
+                                                          map:
+                                                            additionalProperties:
+                                                              type: string
+                                                            type: object
+                                                          name:
+                                                            type: string
+                                                          string:
+                                                            type: string
+                                                        type: object
+                                                      type: array
+                                                  type: object
+                                                ref:
+                                                  type: string
+                                                repoURL:
+                                                  type: string
+                                                targetRevision:
+                                                  type: string
+                                              required:
+                                              - repoURL
+                                              type: object
+                                            type: array
+                                          syncPolicy:
+                                            properties:
+                                              automated:
+                                                properties:
+                                                  allowEmpty:
+                                                    type: boolean
+                                                  enabled:
+                                                    type: boolean
+                                                  prune:
+                                                    type: boolean
+                                                  selfHeal:
+                                                    type: boolean
+                                                type: object
+                                              managedNamespaceMetadata:
+                                                properties:
+                                                  annotations:
+                                                    additionalProperties:
+                                                      type: string
+                                                    type: object
+                                                  labels:
+                                                    additionalProperties:
+                                                      type: string
+                                                    type: object
+                                                type: object
+                                              retry:
+                                                properties:
+                                                  backoff:
+                                                    properties:
+                                                      duration:
+                                                        type: string
+                                                      factor:
+                                                        format: int64
+                                                        type: integer
+                                                      maxDuration:
+                                                        type: string
+                                                    type: object
+                                                  limit:
+                                                    format: int64
+                                                    type: integer
+                                                  refresh:
+                                                    type: boolean
+                                                type: object
+                                              syncOptions:
+                                                items:
+                                                  type: string
+                                                type: array
+                                            type: object
+                                        required:
+                                        - destination
+                                        - project
+                                        type: object
+                                    required:
+                                    - metadata
+                                    - spec
+                                    type: object
+                                  values:
+                                    additionalProperties:
+                                      type: string
+                                    type: object
+                                required:
+                                - repoURL
+                                - revision
+                                type: object
                               plugin:
                                 properties:
                                   configMapRef:
@@ -25958,6 +27782,918 @@ spec:
                       required:
                       - generators
                       - mergeKeys
+                      type: object
+                    oci:
+                      properties:
+                        directories:
+                          items:
+                            properties:
+                              exclude:
+                                type: boolean
+                              path:
+                                type: string
+                            required:
+                            - path
+                            type: object
+                          type: array
+                        files:
+                          items:
+                            properties:
+                              exclude:
+                                type: boolean
+                              path:
+                                type: string
+                            required:
+                            - path
+                            type: object
+                          type: array
+                        pathParamPrefix:
+                          type: string
+                        repoURL:
+                          type: string
+                        requeueAfterSeconds:
+                          format: int64
+                          type: integer
+                        revision:
+                          type: string
+                        template:
+                          properties:
+                            metadata:
+                              properties:
+                                annotations:
+                                  additionalProperties:
+                                    type: string
+                                  type: object
+                                finalizers:
+                                  items:
+                                    type: string
+                                  type: array
+                                labels:
+                                  additionalProperties:
+                                    type: string
+                                  type: object
+                                name:
+                                  type: string
+                                namespace:
+                                  type: string
+                              type: object
+                            spec:
+                              properties:
+                                destination:
+                                  properties:
+                                    name:
+                                      type: string
+                                    namespace:
+                                      type: string
+                                    server:
+                                      type: string
+                                  type: object
+                                ignoreDifferences:
+                                  items:
+                                    properties:
+                                      group:
+                                        type: string
+                                      jqPathExpressions:
+                                        items:
+                                          type: string
+                                        type: array
+                                      jsonPointers:
+                                        items:
+                                          type: string
+                                        type: array
+                                      kind:
+                                        type: string
+                                      managedFieldsManagers:
+                                        items:
+                                          type: string
+                                        type: array
+                                      name:
+                                        type: string
+                                      namespace:
+                                        type: string
+                                    required:
+                                    - kind
+                                    type: object
+                                  type: array
+                                info:
+                                  items:
+                                    properties:
+                                      name:
+                                        type: string
+                                      value:
+                                        type: string
+                                    required:
+                                    - name
+                                    - value
+                                    type: object
+                                  type: array
+                                project:
+                                  type: string
+                                revisionHistoryLimit:
+                                  format: int64
+                                  type: integer
+                                source:
+                                  properties:
+                                    chart:
+                                      type: string
+                                    directory:
+                                      properties:
+                                        exclude:
+                                          type: string
+                                        include:
+                                          type: string
+                                        jsonnet:
+                                          properties:
+                                            extVars:
+                                              items:
+                                                properties:
+                                                  code:
+                                                    type: boolean
+                                                  name:
+                                                    type: string
+                                                  value:
+                                                    type: string
+                                                required:
+                                                - name
+                                                - value
+                                                type: object
+                                              type: array
+                                            libs:
+                                              items:
+                                                type: string
+                                              type: array
+                                            tlas:
+                                              items:
+                                                properties:
+                                                  code:
+                                                    type: boolean
+                                                  name:
+                                                    type: string
+                                                  value:
+                                                    type: string
+                                                required:
+                                                - name
+                                                - value
+                                                type: object
+                                              type: array
+                                          type: object
+                                        recurse:
+                                          type: boolean
+                                      type: object
+                                    helm:
+                                      properties:
+                                        apiVersions:
+                                          items:
+                                            type: string
+                                          type: array
+                                        fileParameters:
+                                          items:
+                                            properties:
+                                              name:
+                                                type: string
+                                              path:
+                                                type: string
+                                            type: object
+                                          type: array
+                                        ignoreMissingValueFiles:
+                                          type: boolean
+                                        kubeVersion:
+                                          type: string
+                                        namespace:
+                                          type: string
+                                        parameters:
+                                          items:
+                                            properties:
+                                              forceString:
+                                                type: boolean
+                                              name:
+                                                type: string
+                                              value:
+                                                type: string
+                                            type: object
+                                          type: array
+                                        passCredentials:
+                                          type: boolean
+                                        releaseName:
+                                          type: string
+                                        skipCrds:
+                                          type: boolean
+                                        skipSchemaValidation:
+                                          type: boolean
+                                        skipTests:
+                                          type: boolean
+                                        valueFiles:
+                                          items:
+                                            type: string
+                                          type: array
+                                        values:
+                                          type: string
+                                        valuesObject:
+                                          type: object
+                                          x-kubernetes-preserve-unknown-fields: true
+                                        version:
+                                          type: string
+                                      type: object
+                                    kustomize:
+                                      properties:
+                                        apiVersions:
+                                          items:
+                                            type: string
+                                          type: array
+                                        commonAnnotations:
+                                          additionalProperties:
+                                            type: string
+                                          type: object
+                                        commonAnnotationsEnvsubst:
+                                          type: boolean
+                                        commonLabels:
+                                          additionalProperties:
+                                            type: string
+                                          type: object
+                                        components:
+                                          items:
+                                            type: string
+                                          type: array
+                                        forceCommonAnnotations:
+                                          type: boolean
+                                        forceCommonLabels:
+                                          type: boolean
+                                        ignoreMissingComponents:
+                                          type: boolean
+                                        images:
+                                          items:
+                                            type: string
+                                          type: array
+                                        kubeVersion:
+                                          type: string
+                                        labelIncludeTemplates:
+                                          type: boolean
+                                        labelWithoutSelector:
+                                          type: boolean
+                                        namePrefix:
+                                          type: string
+                                        nameSuffix:
+                                          type: string
+                                        namespace:
+                                          type: string
+                                        patches:
+                                          items:
+                                            properties:
+                                              options:
+                                                additionalProperties:
+                                                  type: boolean
+                                                type: object
+                                              patch:
+                                                type: string
+                                              path:
+                                                type: string
+                                              target:
+                                                properties:
+                                                  annotationSelector:
+                                                    type: string
+                                                  group:
+                                                    type: string
+                                                  kind:
+                                                    type: string
+                                                  labelSelector:
+                                                    type: string
+                                                  name:
+                                                    type: string
+                                                  namespace:
+                                                    type: string
+                                                  version:
+                                                    type: string
+                                                type: object
+                                            type: object
+                                          type: array
+                                        replicas:
+                                          items:
+                                            properties:
+                                              count:
+                                                anyOf:
+                                                - type: integer
+                                                - type: string
+                                                x-kubernetes-int-or-string: true
+                                              name:
+                                                type: string
+                                            required:
+                                            - count
+                                            - name
+                                            type: object
+                                          type: array
+                                        version:
+                                          type: string
+                                      type: object
+                                    name:
+                                      type: string
+                                    path:
+                                      type: string
+                                    plugin:
+                                      properties:
+                                        env:
+                                          items:
+                                            properties:
+                                              name:
+                                                type: string
+                                              value:
+                                                type: string
+                                            required:
+                                            - name
+                                            - value
+                                            type: object
+                                          type: array
+                                        name:
+                                          type: string
+                                        parameters:
+                                          items:
+                                            properties:
+                                              array:
+                                                items:
+                                                  type: string
+                                                type: array
+                                              map:
+                                                additionalProperties:
+                                                  type: string
+                                                type: object
+                                              name:
+                                                type: string
+                                              string:
+                                                type: string
+                                            type: object
+                                          type: array
+                                      type: object
+                                    ref:
+                                      type: string
+                                    repoURL:
+                                      type: string
+                                    targetRevision:
+                                      type: string
+                                  required:
+                                  - repoURL
+                                  type: object
+                                sourceHydrator:
+                                  properties:
+                                    drySource:
+                                      properties:
+                                        directory:
+                                          properties:
+                                            exclude:
+                                              type: string
+                                            include:
+                                              type: string
+                                            jsonnet:
+                                              properties:
+                                                extVars:
+                                                  items:
+                                                    properties:
+                                                      code:
+                                                        type: boolean
+                                                      name:
+                                                        type: string
+                                                      value:
+                                                        type: string
+                                                    required:
+                                                    - name
+                                                    - value
+                                                    type: object
+                                                  type: array
+                                                libs:
+                                                  items:
+                                                    type: string
+                                                  type: array
+                                                tlas:
+                                                  items:
+                                                    properties:
+                                                      code:
+                                                        type: boolean
+                                                      name:
+                                                        type: string
+                                                      value:
+                                                        type: string
+                                                    required:
+                                                    - name
+                                                    - value
+                                                    type: object
+                                                  type: array
+                                              type: object
+                                            recurse:
+                                              type: boolean
+                                          type: object
+                                        helm:
+                                          properties:
+                                            apiVersions:
+                                              items:
+                                                type: string
+                                              type: array
+                                            fileParameters:
+                                              items:
+                                                properties:
+                                                  name:
+                                                    type: string
+                                                  path:
+                                                    type: string
+                                                type: object
+                                              type: array
+                                            ignoreMissingValueFiles:
+                                              type: boolean
+                                            kubeVersion:
+                                              type: string
+                                            namespace:
+                                              type: string
+                                            parameters:
+                                              items:
+                                                properties:
+                                                  forceString:
+                                                    type: boolean
+                                                  name:
+                                                    type: string
+                                                  value:
+                                                    type: string
+                                                type: object
+                                              type: array
+                                            passCredentials:
+                                              type: boolean
+                                            releaseName:
+                                              type: string
+                                            skipCrds:
+                                              type: boolean
+                                            skipSchemaValidation:
+                                              type: boolean
+                                            skipTests:
+                                              type: boolean
+                                            valueFiles:
+                                              items:
+                                                type: string
+                                              type: array
+                                            values:
+                                              type: string
+                                            valuesObject:
+                                              type: object
+                                              x-kubernetes-preserve-unknown-fields: true
+                                            version:
+                                              type: string
+                                          type: object
+                                        kustomize:
+                                          properties:
+                                            apiVersions:
+                                              items:
+                                                type: string
+                                              type: array
+                                            commonAnnotations:
+                                              additionalProperties:
+                                                type: string
+                                              type: object
+                                            commonAnnotationsEnvsubst:
+                                              type: boolean
+                                            commonLabels:
+                                              additionalProperties:
+                                                type: string
+                                              type: object
+                                            components:
+                                              items:
+                                                type: string
+                                              type: array
+                                            forceCommonAnnotations:
+                                              type: boolean
+                                            forceCommonLabels:
+                                              type: boolean
+                                            ignoreMissingComponents:
+                                              type: boolean
+                                            images:
+                                              items:
+                                                type: string
+                                              type: array
+                                            kubeVersion:
+                                              type: string
+                                            labelIncludeTemplates:
+                                              type: boolean
+                                            labelWithoutSelector:
+                                              type: boolean
+                                            namePrefix:
+                                              type: string
+                                            nameSuffix:
+                                              type: string
+                                            namespace:
+                                              type: string
+                                            patches:
+                                              items:
+                                                properties:
+                                                  options:
+                                                    additionalProperties:
+                                                      type: boolean
+                                                    type: object
+                                                  patch:
+                                                    type: string
+                                                  path:
+                                                    type: string
+                                                  target:
+                                                    properties:
+                                                      annotationSelector:
+                                                        type: string
+                                                      group:
+                                                        type: string
+                                                      kind:
+                                                        type: string
+                                                      labelSelector:
+                                                        type: string
+                                                      name:
+                                                        type: string
+                                                      namespace:
+                                                        type: string
+                                                      version:
+                                                        type: string
+                                                    type: object
+                                                type: object
+                                              type: array
+                                            replicas:
+                                              items:
+                                                properties:
+                                                  count:
+                                                    anyOf:
+                                                    - type: integer
+                                                    - type: string
+                                                    x-kubernetes-int-or-string: true
+                                                  name:
+                                                    type: string
+                                                required:
+                                                - count
+                                                - name
+                                                type: object
+                                              type: array
+                                            version:
+                                              type: string
+                                          type: object
+                                        path:
+                                          type: string
+                                        plugin:
+                                          properties:
+                                            env:
+                                              items:
+                                                properties:
+                                                  name:
+                                                    type: string
+                                                  value:
+                                                    type: string
+                                                required:
+                                                - name
+                                                - value
+                                                type: object
+                                              type: array
+                                            name:
+                                              type: string
+                                            parameters:
+                                              items:
+                                                properties:
+                                                  array:
+                                                    items:
+                                                      type: string
+                                                    type: array
+                                                  map:
+                                                    additionalProperties:
+                                                      type: string
+                                                    type: object
+                                                  name:
+                                                    type: string
+                                                  string:
+                                                    type: string
+                                                type: object
+                                              type: array
+                                          type: object
+                                        repoURL:
+                                          type: string
+                                        targetRevision:
+                                          type: string
+                                      required:
+                                      - path
+                                      - repoURL
+                                      - targetRevision
+                                      type: object
+                                    hydrateTo:
+                                      properties:
+                                        targetBranch:
+                                          type: string
+                                      required:
+                                      - targetBranch
+                                      type: object
+                                    syncSource:
+                                      properties:
+                                        path:
+                                          minLength: 1
+                                          pattern: ^.{2,}|[^./]$
+                                          type: string
+                                        targetBranch:
+                                          type: string
+                                      required:
+                                      - path
+                                      - targetBranch
+                                      type: object
+                                  required:
+                                  - drySource
+                                  - syncSource
+                                  type: object
+                                sources:
+                                  items:
+                                    properties:
+                                      chart:
+                                        type: string
+                                      directory:
+                                        properties:
+                                          exclude:
+                                            type: string
+                                          include:
+                                            type: string
+                                          jsonnet:
+                                            properties:
+                                              extVars:
+                                                items:
+                                                  properties:
+                                                    code:
+                                                      type: boolean
+                                                    name:
+                                                      type: string
+                                                    value:
+                                                      type: string
+                                                  required:
+                                                  - name
+                                                  - value
+                                                  type: object
+                                                type: array
+                                              libs:
+                                                items:
+                                                  type: string
+                                                type: array
+                                              tlas:
+                                                items:
+                                                  properties:
+                                                    code:
+                                                      type: boolean
+                                                    name:
+                                                      type: string
+                                                    value:
+                                                      type: string
+                                                  required:
+                                                  - name
+                                                  - value
+                                                  type: object
+                                                type: array
+                                            type: object
+                                          recurse:
+                                            type: boolean
+                                        type: object
+                                      helm:
+                                        properties:
+                                          apiVersions:
+                                            items:
+                                              type: string
+                                            type: array
+                                          fileParameters:
+                                            items:
+                                              properties:
+                                                name:
+                                                  type: string
+                                                path:
+                                                  type: string
+                                              type: object
+                                            type: array
+                                          ignoreMissingValueFiles:
+                                            type: boolean
+                                          kubeVersion:
+                                            type: string
+                                          namespace:
+                                            type: string
+                                          parameters:
+                                            items:
+                                              properties:
+                                                forceString:
+                                                  type: boolean
+                                                name:
+                                                  type: string
+                                                value:
+                                                  type: string
+                                              type: object
+                                            type: array
+                                          passCredentials:
+                                            type: boolean
+                                          releaseName:
+                                            type: string
+                                          skipCrds:
+                                            type: boolean
+                                          skipSchemaValidation:
+                                            type: boolean
+                                          skipTests:
+                                            type: boolean
+                                          valueFiles:
+                                            items:
+                                              type: string
+                                            type: array
+                                          values:
+                                            type: string
+                                          valuesObject:
+                                            type: object
+                                            x-kubernetes-preserve-unknown-fields: true
+                                          version:
+                                            type: string
+                                        type: object
+                                      kustomize:
+                                        properties:
+                                          apiVersions:
+                                            items:
+                                              type: string
+                                            type: array
+                                          commonAnnotations:
+                                            additionalProperties:
+                                              type: string
+                                            type: object
+                                          commonAnnotationsEnvsubst:
+                                            type: boolean
+                                          commonLabels:
+                                            additionalProperties:
+                                              type: string
+                                            type: object
+                                          components:
+                                            items:
+                                              type: string
+                                            type: array
+                                          forceCommonAnnotations:
+                                            type: boolean
+                                          forceCommonLabels:
+                                            type: boolean
+                                          ignoreMissingComponents:
+                                            type: boolean
+                                          images:
+                                            items:
+                                              type: string
+                                            type: array
+                                          kubeVersion:
+                                            type: string
+                                          labelIncludeTemplates:
+                                            type: boolean
+                                          labelWithoutSelector:
+                                            type: boolean
+                                          namePrefix:
+                                            type: string
+                                          nameSuffix:
+                                            type: string
+                                          namespace:
+                                            type: string
+                                          patches:
+                                            items:
+                                              properties:
+                                                options:
+                                                  additionalProperties:
+                                                    type: boolean
+                                                  type: object
+                                                patch:
+                                                  type: string
+                                                path:
+                                                  type: string
+                                                target:
+                                                  properties:
+                                                    annotationSelector:
+                                                      type: string
+                                                    group:
+                                                      type: string
+                                                    kind:
+                                                      type: string
+                                                    labelSelector:
+                                                      type: string
+                                                    name:
+                                                      type: string
+                                                    namespace:
+                                                      type: string
+                                                    version:
+                                                      type: string
+                                                  type: object
+                                              type: object
+                                            type: array
+                                          replicas:
+                                            items:
+                                              properties:
+                                                count:
+                                                  anyOf:
+                                                  - type: integer
+                                                  - type: string
+                                                  x-kubernetes-int-or-string: true
+                                                name:
+                                                  type: string
+                                              required:
+                                              - count
+                                              - name
+                                              type: object
+                                            type: array
+                                          version:
+                                            type: string
+                                        type: object
+                                      name:
+                                        type: string
+                                      path:
+                                        type: string
+                                      plugin:
+                                        properties:
+                                          env:
+                                            items:
+                                              properties:
+                                                name:
+                                                  type: string
+                                                value:
+                                                  type: string
+                                              required:
+                                              - name
+                                              - value
+                                              type: object
+                                            type: array
+                                          name:
+                                            type: string
+                                          parameters:
+                                            items:
+                                              properties:
+                                                array:
+                                                  items:
+                                                    type: string
+                                                  type: array
+                                                map:
+                                                  additionalProperties:
+                                                    type: string
+                                                  type: object
+                                                name:
+                                                  type: string
+                                                string:
+                                                  type: string
+                                              type: object
+                                            type: array
+                                        type: object
+                                      ref:
+                                        type: string
+                                      repoURL:
+                                        type: string
+                                      targetRevision:
+                                        type: string
+                                    required:
+                                    - repoURL
+                                    type: object
+                                  type: array
+                                syncPolicy:
+                                  properties:
+                                    automated:
+                                      properties:
+                                        allowEmpty:
+                                          type: boolean
+                                        enabled:
+                                          type: boolean
+                                        prune:
+                                          type: boolean
+                                        selfHeal:
+                                          type: boolean
+                                      type: object
+                                    managedNamespaceMetadata:
+                                      properties:
+                                        annotations:
+                                          additionalProperties:
+                                            type: string
+                                          type: object
+                                        labels:
+                                          additionalProperties:
+                                            type: string
+                                          type: object
+                                      type: object
+                                    retry:
+                                      properties:
+                                        backoff:
+                                          properties:
+                                            duration:
+                                              type: string
+                                            factor:
+                                              format: int64
+                                              type: integer
+                                            maxDuration:
+                                              type: string
+                                          type: object
+                                        limit:
+                                          format: int64
+                                          type: integer
+                                        refresh:
+                                          type: boolean
+                                      type: object
+                                    syncOptions:
+                                      items:
+                                        type: string
+                                      type: array
+                                  type: object
+                              required:
+                              - destination
+                              - project
+                              type: object
+                          required:
+                          - metadata
+                          - spec
+                          type: object
+                        values:
+                          additionalProperties:
+                            type: string
+                          type: object
+                      required:
+                      - repoURL
+                      - revision
                       type: object
                     plugin:
                       properties:

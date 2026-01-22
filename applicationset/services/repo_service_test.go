@@ -175,3 +175,135 @@ func TestNewArgoCDService(t *testing.T) {
 	service := NewArgoCDService(testDB, false, &repo_mocks.Clientset{}, false)
 	assert.NotNil(t, service)
 }
+
+func TestGetOciDirectories(t *testing.T) {
+	type fields struct {
+		getRepository     func(ctx context.Context, url, project string) (*v1alpha1.Repository, error)
+		getOciDirectories func(ctx context.Context, req *apiclient.OciDirectoriesRequest) (*apiclient.OciDirectoriesResponse, error)
+	}
+	type args struct {
+		ctx             context.Context
+		repoURL         string
+		revision        string
+		noRevisionCache bool
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    []string
+		wantErr assert.ErrorAssertionFunc
+	}{
+		{name: "ErrorGettingRepos", fields: fields{
+			getRepository: func(_ context.Context, _, _ string) (*v1alpha1.Repository, error) {
+				return nil, errors.New("unable to get repos")
+			},
+		}, args: args{}, want: nil, wantErr: assert.Error},
+		{name: "ErrorGettingDirs", fields: fields{
+			getRepository: func(_ context.Context, _, _ string) (*v1alpha1.Repository, error) {
+				return &v1alpha1.Repository{}, nil
+			},
+			getOciDirectories: func(_ context.Context, _ *apiclient.OciDirectoriesRequest) (*apiclient.OciDirectoriesResponse, error) {
+				return nil, errors.New("unable to get OCI dirs")
+			},
+		}, args: args{}, want: nil, wantErr: assert.Error},
+		{name: "HappyCase", fields: fields{
+			getRepository: func(_ context.Context, _, _ string) (*v1alpha1.Repository, error) {
+				return &v1alpha1.Repository{
+					Repo: "oci://ghcr.io/example/manifests",
+				}, nil
+			},
+			getOciDirectories: func(_ context.Context, _ *apiclient.OciDirectoriesRequest) (*apiclient.OciDirectoriesResponse, error) {
+				return &apiclient.OciDirectoriesResponse{
+					Paths: []string{"apps", "apps/prod", "apps/staging"},
+				}, nil
+			},
+		}, args: args{
+			repoURL:  "oci://ghcr.io/example/manifests",
+			revision: "v1.0.0",
+		}, want: []string{"apps", "apps/prod", "apps/staging"}, wantErr: assert.NoError},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a := &argoCDService{
+				getRepository:                   tt.fields.getRepository,
+				getOciDirectoriesFromRepoServer: tt.fields.getOciDirectories,
+			}
+			got, err := a.GetOciDirectories(tt.args.ctx, tt.args.repoURL, tt.args.revision, "", tt.args.noRevisionCache)
+			if !tt.wantErr(t, err, fmt.Sprintf("GetOciDirectories(%v, %v, %v, %v)", tt.args.ctx, tt.args.repoURL, tt.args.revision, tt.args.noRevisionCache)) {
+				return
+			}
+			assert.Equalf(t, tt.want, got, "GetOciDirectories(%v, %v, %v, %v)", tt.args.ctx, tt.args.repoURL, tt.args.revision, tt.args.noRevisionCache)
+		})
+	}
+}
+
+func TestGetOciFiles(t *testing.T) {
+	type fields struct {
+		getRepository func(ctx context.Context, url, project string) (*v1alpha1.Repository, error)
+		getOciFiles   func(ctx context.Context, req *apiclient.OciFilesRequest) (*apiclient.OciFilesResponse, error)
+	}
+	type args struct {
+		ctx             context.Context
+		repoURL         string
+		revision        string
+		pattern         string
+		noRevisionCache bool
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    map[string][]byte
+		wantErr assert.ErrorAssertionFunc
+	}{
+		{name: "ErrorGettingRepos", fields: fields{
+			getRepository: func(_ context.Context, _, _ string) (*v1alpha1.Repository, error) {
+				return nil, errors.New("unable to get repos")
+			},
+		}, args: args{}, want: nil, wantErr: assert.Error},
+		{name: "ErrorGettingFiles", fields: fields{
+			getRepository: func(_ context.Context, _, _ string) (*v1alpha1.Repository, error) {
+				return &v1alpha1.Repository{}, nil
+			},
+			getOciFiles: func(_ context.Context, _ *apiclient.OciFilesRequest) (*apiclient.OciFilesResponse, error) {
+				return nil, errors.New("unable to get OCI files")
+			},
+		}, args: args{}, want: nil, wantErr: assert.Error},
+		{name: "HappyCase", fields: fields{
+			getRepository: func(_ context.Context, _, _ string) (*v1alpha1.Repository, error) {
+				return &v1alpha1.Repository{
+					Repo: "oci://ghcr.io/example/manifests",
+				}, nil
+			},
+			getOciFiles: func(_ context.Context, _ *apiclient.OciFilesRequest) (*apiclient.OciFilesResponse, error) {
+				return &apiclient.OciFilesResponse{
+					Map: map[string][]byte{
+						"config.json": []byte(`{"cluster": "production"}`),
+						"values.yaml": []byte("replicas: 3"),
+					},
+				}, nil
+			},
+		}, args: args{
+			repoURL:  "oci://ghcr.io/example/manifests",
+			revision: "v1.0.0",
+			pattern:  "*.json",
+		}, want: map[string][]byte{
+			"config.json": []byte(`{"cluster": "production"}`),
+			"values.yaml": []byte("replicas: 3"),
+		}, wantErr: assert.NoError},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a := &argoCDService{
+				getRepository:             tt.fields.getRepository,
+				getOciFilesFromRepoServer: tt.fields.getOciFiles,
+			}
+			got, err := a.GetOciFiles(tt.args.ctx, tt.args.repoURL, tt.args.revision, "", tt.args.pattern, tt.args.noRevisionCache)
+			if !tt.wantErr(t, err, fmt.Sprintf("GetOciFiles(%v, %v, %v, %v, %v)", tt.args.ctx, tt.args.repoURL, tt.args.revision, tt.args.pattern, tt.args.noRevisionCache)) {
+				return
+			}
+			assert.Equalf(t, tt.want, got, "GetOciFiles(%v, %v, %v, %v, %v)", tt.args.ctx, tt.args.repoURL, tt.args.revision, tt.args.pattern, tt.args.noRevisionCache)
+		})
+	}
+}

@@ -4,20 +4,15 @@ import (
 	"context"
 	"fmt"
 	"maps"
-	"path"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
-	"github.com/jeremywohl/flatten"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v3/applicationset/services"
-	"github.com/argoproj/argo-cd/v3/applicationset/utils"
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/gpg"
 )
@@ -128,9 +123,9 @@ func (g *GitGenerator) generateParamsForGitDirectories(appSetGenerator *argoproj
 		"pathParamPrefix": appSetGenerator.Git.PathParamPrefix,
 	}).Info("applications result from the repo service")
 
-	requestedApps := g.filterApps(appSetGenerator.Git.Directories, allPaths)
+	requestedApps := filterGitPaths(appSetGenerator.Git.Directories, allPaths)
 
-	res, err := g.generateParamsFromApps(requestedApps, appSetGenerator, useGoTemplate, goTemplateOptions)
+	res, err := generateParamsFromPaths(requestedApps, appSetGenerator.Git.PathParamPrefix, appSetGenerator.Git.Values, useGoTemplate, goTemplateOptions)
 	if err != nil {
 		return nil, fmt.Errorf("error generating params from apps: %w", err)
 	}
@@ -205,7 +200,7 @@ func (g *GitGenerator) generateParamsForGitFiles(appSetGenerator *argoprojiov1al
 	var allParams []map[string]any
 	for _, filePath := range filePaths {
 		// A JSON / YAML file path can contain multiple sets of parameters (ie it is an array)
-		paramsFromFileArray, err := g.generateParamsFromGitFile(filePath, fileContentMap[filePath], appSetGenerator.Git.Values, useGoTemplate, goTemplateOptions, appSetGenerator.Git.PathParamPrefix)
+		paramsFromFileArray, err := parseFileParams(filePath, fileContentMap[filePath], appSetGenerator.Git.PathParamPrefix, appSetGenerator.Git.Values, useGoTemplate, goTemplateOptions)
 		if err != nil {
 			return nil, fmt.Errorf("unable to process file '%s': %w", filePath, err)
 		}
@@ -213,164 +208,4 @@ func (g *GitGenerator) generateParamsForGitFiles(appSetGenerator *argoprojiov1al
 	}
 
 	return allParams, nil
-}
-
-// generateParamsFromGitFile parses the content of a Git-tracked file and generates a slice of parameter maps.
-// The file can contain a single YAML/JSON object or an array of such objects. Depending on the useGoTemplate flag,
-// it either preserves structure for Go templating or flattens the objects for use as plain key-value parameters.
-func (g *GitGenerator) generateParamsFromGitFile(filePath string, fileContent []byte, values map[string]string, useGoTemplate bool, goTemplateOptions []string, pathParamPrefix string) ([]map[string]any, error) {
-	objectsFound := []map[string]any{}
-
-	// First, we attempt to parse as a single object.
-	// This will also succeed for empty files.
-	singleObj := map[string]any{}
-	err := yaml.Unmarshal(fileContent, &singleObj)
-	if err == nil {
-		objectsFound = append(objectsFound, singleObj)
-	} else {
-		// If unable to parse as an object, try to parse as an array
-		err = yaml.Unmarshal(fileContent, &objectsFound)
-		if err != nil {
-			return nil, fmt.Errorf("unable to parse file: %w", err)
-		}
-	}
-
-	res := []map[string]any{}
-
-	for _, objectFound := range objectsFound {
-		params := map[string]any{}
-
-		if useGoTemplate {
-			maps.Copy(params, objectFound)
-
-			paramPath := map[string]any{}
-
-			paramPath["path"] = path.Dir(filePath)
-			paramPath["basename"] = path.Base(paramPath["path"].(string))
-			paramPath["filename"] = path.Base(filePath)
-			paramPath["basenameNormalized"] = utils.SanitizeName(path.Base(paramPath["path"].(string)))
-			paramPath["filenameNormalized"] = utils.SanitizeName(path.Base(paramPath["filename"].(string)))
-			paramPath["segments"] = strings.Split(paramPath["path"].(string), "/")
-			if pathParamPrefix != "" {
-				params[pathParamPrefix] = map[string]any{"path": paramPath}
-			} else {
-				params["path"] = paramPath
-			}
-		} else {
-			flat, err := flatten.Flatten(objectFound, "", flatten.DotStyle)
-			if err != nil {
-				return nil, fmt.Errorf("error flattening object: %w", err)
-			}
-			for k, v := range flat {
-				params[k] = fmt.Sprintf("%v", v)
-			}
-			pathParamName := "path"
-			if pathParamPrefix != "" {
-				pathParamName = pathParamPrefix + "." + pathParamName
-			}
-			params[pathParamName] = path.Dir(filePath)
-			params[pathParamName+".basename"] = path.Base(params[pathParamName].(string))
-			params[pathParamName+".filename"] = path.Base(filePath)
-			params[pathParamName+".basenameNormalized"] = utils.SanitizeName(path.Base(params[pathParamName].(string)))
-			params[pathParamName+".filenameNormalized"] = utils.SanitizeName(path.Base(params[pathParamName+".filename"].(string)))
-			for k, v := range strings.Split(params[pathParamName].(string), "/") {
-				if v != "" {
-					params[pathParamName+"["+strconv.Itoa(k)+"]"] = v
-				}
-			}
-		}
-
-		err := appendTemplatedValues(values, params, useGoTemplate, goTemplateOptions)
-		if err != nil {
-			return nil, fmt.Errorf("failed to append templated values: %w", err)
-		}
-
-		res = append(res, params)
-	}
-
-	return res, nil
-}
-
-// filterApps filters the list of all application paths based on inclusion and exclusion rules
-// defined in GitDirectoryGeneratorItems. Each item can either include or exclude matching paths.
-func (g *GitGenerator) filterApps(directories []argoprojiov1alpha1.GitDirectoryGeneratorItem, allPaths []string) []string {
-	var res []string
-	for _, appPath := range allPaths {
-		appInclude := false
-		appExclude := false
-		// Iterating over each appPath and check whether directories object has requestedPath that matches the appPath
-		for _, requestedPath := range directories {
-			match, err := path.Match(requestedPath.Path, appPath)
-			if err != nil {
-				log.WithError(err).WithField("requestedPath", requestedPath).
-					WithField("appPath", appPath).Error("error while matching appPath to requestedPath")
-				continue
-			}
-			if match && !requestedPath.Exclude {
-				appInclude = true
-			}
-			if match && requestedPath.Exclude {
-				appExclude = true
-			}
-		}
-		// Whenever there is a path with exclude: true it won't be included, even if it is included in a different path pattern
-		if appInclude && !appExclude {
-			res = append(res, appPath)
-		}
-	}
-	return res
-}
-
-// generateParamsFromApps generates a list of parameter maps based on the given app paths.
-// Each app path is converted into a parameter object with path metadata (basename, segments, etc.).
-// It supports both Go templates and flat key-value parameters.
-func (g *GitGenerator) generateParamsFromApps(requestedApps []string, appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, useGoTemplate bool, goTemplateOptions []string) ([]map[string]any, error) {
-	res := make([]map[string]any, len(requestedApps))
-	for i, a := range requestedApps {
-		params := make(map[string]any, 5)
-
-		if useGoTemplate {
-			paramPath := map[string]any{}
-			paramPath["path"] = a
-			paramPath["basename"] = path.Base(a)
-			paramPath["basenameNormalized"] = utils.SanitizeName(path.Base(a))
-			paramPath["segments"] = strings.Split(paramPath["path"].(string), "/")
-			if appSetGenerator.Git.PathParamPrefix != "" {
-				params[appSetGenerator.Git.PathParamPrefix] = map[string]any{"path": paramPath}
-			} else {
-				params["path"] = paramPath
-			}
-		} else {
-			pathParamName := "path"
-			if appSetGenerator.Git.PathParamPrefix != "" {
-				pathParamName = appSetGenerator.Git.PathParamPrefix + "." + pathParamName
-			}
-			params[pathParamName] = a
-			params[pathParamName+".basename"] = path.Base(a)
-			params[pathParamName+".basenameNormalized"] = utils.SanitizeName(path.Base(a))
-			for k, v := range strings.Split(params[pathParamName].(string), "/") {
-				if v != "" {
-					params[pathParamName+"["+strconv.Itoa(k)+"]"] = v
-				}
-			}
-		}
-
-		err := appendTemplatedValues(appSetGenerator.Git.Values, params, useGoTemplate, goTemplateOptions)
-		if err != nil {
-			return nil, fmt.Errorf("failed to append templated values: %w", err)
-		}
-
-		res[i] = params
-	}
-
-	return res, nil
-}
-
-// resolveProjectName resolves a project name whether templated or not
-func resolveProjectName(project string) string {
-	if strings.Contains(project, "{{") {
-		return ""
-	}
-
-	return project
 }
