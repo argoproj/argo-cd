@@ -106,22 +106,22 @@ func verify(g *v1alpha1.SourceIntegrityGitPolicyGPG, gitClient git.Client, unres
 		return nil, fmt.Errorf("unknown GPG mode %q configured for GIT source integrity", g.Mode)
 	}
 
-	revisions, err := gitClient.LsSignatures(unresolvedRevision, deep)
+	signatures, err := gitClient.LsSignatures(unresolvedRevision, deep)
 	if err != nil {
 		return nil, err
 	}
 
 	return &v1alpha1.SourceIntegrityCheckResult{Checks: []v1alpha1.SourceIntegrityCheckResultItem{{
 		Name:     checkName,
-		Problems: describeProblems(g, revisions),
+		Problems: describeProblems(g, signatures),
 	}}}, nil
 }
 
 // describeProblems reports 10 most recent problematic signatures or unsigned commits.
-func describeProblems(g *v1alpha1.SourceIntegrityGitPolicyGPG, revisions []git.RevisionSignatureInfo) []string {
+func describeProblems(g *v1alpha1.SourceIntegrityGitPolicyGPG, signatureInfos []git.RevisionSignatureInfo) []string {
 	reportedKeys := make(map[string]any)
 	var problems []string
-	for _, signatureInfo := range revisions {
+	for _, signatureInfo := range signatureInfos {
 		// Do not report the same key twice unless:
 		// - the revision is unsigned (unsigned commits can have different authors, so they are worth reporting)
 		// - the revision is a tag (tags are signed separately from commits)
