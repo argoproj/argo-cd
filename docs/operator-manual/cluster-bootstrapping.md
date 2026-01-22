@@ -220,7 +220,7 @@ See [Deleting Applications in the UI](../user-guide/app_deletion.md#deleting-app
 
 ### Ignoring differences in child applications
 
-To allow changes in child apps without triggering an out-of-sync status, or modification for debugging etc, the app of apps pattern works with [diff customization](../user-guide/diffing/). The example below shows how to ignore changes to syncPolicy and other common values.
+To allow changes in child apps without triggering an out-of-sync status, or modification for debugging etc, the app of apps pattern works with [diff customization](../user-guide/diffing.md). The example below shows how to ignore changes to syncPolicy and other common values.
 
 ```yaml
 spec:

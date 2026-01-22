@@ -436,7 +436,7 @@ You can customize this interval per ApplicationSet using
 > and directory lists from Git. Therefore, the Git generator is
 > affected by the Repo Server's Revision Cache Expiration setting
 > (see the description of the `timeout.reconciliation` parameter in
-> [argocd-cm.yaml](../argocd-cm-yaml.md/#:~:text=timeout.reconciliation%3A)).
+> [argocd-cm.yaml](../argocd-cm-yaml.md)).
 > If this value exceeds the configured Git Polling Interval, the
 > Git generator might not see files or directories from new commits
 > until the previous cache entry expires.
