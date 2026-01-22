@@ -213,6 +213,7 @@ nav:
   - Development Environment: developer-guide/development-environment.md
   - Development Cycle: developer-guide/development-cycle.md
   - Submit Your PR: developer-guide/submit-your-pr.md
+  - Backport Your Fix: developer-guide/backporting-fixes.md
   - Architecture:
     - developer-guide/architecture/authz-authn.md
     - developer-guide/architecture/components.md
