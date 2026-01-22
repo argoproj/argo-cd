@@ -309,8 +309,7 @@ type operationContext struct {
 	sourceIntegrityResult *v1alpha1.SourceIntegrityCheckResult
 }
 
-// The 'operation' function parameter of 'runRepoOperation' may call this function to retrieve
-// the appPath or GPG verificationResult.
+// The 'operation' function parameter of 'runRepoOperation' may call this function to retrieve operationContext data.
 // Failure to generate either of these values will return an error which may be cached by
 // the calling function (for example, 'runManifestGen')
 type operationContextSrc = func() (*operationContext, error)

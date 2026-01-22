@@ -119,35 +119,43 @@ func TestNullOrEmptyDoesNothing(t *testing.T) {
 }
 
 func TestPolicyMatching(t *testing.T) {
-	eitherOr := &v1alpha1.SourceIntegrityGitPolicy{
+	group := &v1alpha1.SourceIntegrityGitPolicy{
 		Repos: []v1alpha1.SourceIntegrityGitPolicyRepo{
-			{URL: "https://github.com/group/either.git"},
-			{URL: "https://github.com/group/or.git"},
+			{URL: "https://github.com/group/*"},
+			{URL: "!https://github.com/group/*-legacy.git"},
+			{URL: "!https://github.com/group/*-critical.git"},
 		},
-		GPG: &v1alpha1.SourceIntegrityGitPolicyGPG{},
+		GPG: &v1alpha1.SourceIntegrityGitPolicyGPG{
+			Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeHead,
+		},
 	}
-	ignored := &v1alpha1.SourceIntegrityGitPolicy{
+	legacy := &v1alpha1.SourceIntegrityGitPolicy{
 		Repos: []v1alpha1.SourceIntegrityGitPolicyRepo{
-			{URL: "https://github.com/group/ignored.git"},
+			{URL: "https://github.com/group/*-legacy.git"},
 		},
 		GPG: &v1alpha1.SourceIntegrityGitPolicyGPG{
 			Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeNone,
 		},
 	}
-	group := &v1alpha1.SourceIntegrityGitPolicy{
+	critical := &v1alpha1.SourceIntegrityGitPolicy{
 		Repos: []v1alpha1.SourceIntegrityGitPolicyRepo{
-			{URL: "https://github.com/group/*"},
+			{URL: "https://github.com/group/*-critical.git"},
 		},
-		GPG: &v1alpha1.SourceIntegrityGitPolicyGPG{},
+		GPG: &v1alpha1.SourceIntegrityGitPolicyGPG{
+			Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeStrict,
+		},
 	}
-	prefix := &v1alpha1.SourceIntegrityGitPolicy{
+	// collides with group
+	duplicated := &v1alpha1.SourceIntegrityGitPolicy{
 		Repos: []v1alpha1.SourceIntegrityGitPolicyRepo{
-			{URL: "https://github.com/group*"},
+			{URL: "https://github.com/group/duplicated.git"},
 		},
-		GPG: &v1alpha1.SourceIntegrityGitPolicyGPG{},
+		GPG: &v1alpha1.SourceIntegrityGitPolicyGPG{
+			Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeHead,
+		},
 	}
 	sig := &v1alpha1.SourceIntegrityGit{
-		Policies: []*v1alpha1.SourceIntegrityGitPolicy{eitherOr, ignored, group, prefix},
+		Policies: []*v1alpha1.SourceIntegrityGitPolicy{group, legacy, critical, duplicated},
 	}
 
 	p := func(ps ...*v1alpha1.SourceIntegrityGitPolicy) []*v1alpha1.SourceIntegrityGitPolicy { return ps }
@@ -158,35 +166,30 @@ func TestPolicyMatching(t *testing.T) {
 		expectedNoFunc   bool
 	}{
 		{
-			repo:             "https://github.com/group/either.git",
-			expectedPolicies: p(eitherOr, group, prefix),
-			expectedLogs:     []string{"Multiple (3) git source integrity policies found for repo URL: https://github.com/group/either.git. Using the first matching one"},
-		},
-		{
-			repo:             "https://github.com/group/or.git",
-			expectedPolicies: p(eitherOr, group, prefix),
-			expectedLogs:     []string{"Multiple (3) git source integrity policies found for repo URL: https://github.com/group/or.git. Using the first matching one"},
-		},
-		{
-			repo:             "https://github.com/group/fork.git",
-			expectedPolicies: p(group, prefix),
-			expectedLogs:     []string{"Multiple (2) git source integrity policies found for repo URL: https://github.com/group/fork.git. Using the first matching one"},
-		},
-		{
-			repo:             "https://github.com/grouplette/main.git",
-			expectedPolicies: p(prefix),
+			repo:             "https://github.com/group/head.git",
+			expectedPolicies: p(group),
 			expectedLogs:     []string{},
+		},
+		{
+			repo:             "https://github.com/group/foo-legacy.git",
+			expectedPolicies: p(legacy),
+			expectedLogs:     []string{},
+			expectedNoFunc:   true, // The mode is "none"
+		},
+		{
+			repo:             "https://github.com/group/bar-critical.git",
+			expectedPolicies: p(critical),
+			expectedLogs:     []string{},
+		},
+		{
+			repo:             "https://github.com/group/duplicated.git",
+			expectedPolicies: p(group, duplicated),
+			expectedLogs:     []string{"multiple (2) git source integrity policies found for repo URL: https://github.com/group/duplicated.git"},
 		},
 		{
 			repo:             "https://gitlab.com/foo/bar.git",
 			expectedPolicies: p(),
 			expectedLogs:     []string{"No git source integrity policies found for repo URL: https://gitlab.com/foo/bar.git"},
-			expectedNoFunc:   true,
-		},
-		{
-			repo:             "https://github.com/group/ignored.git",
-			expectedPolicies: p(ignored, group, prefix),
-			expectedLogs:     []string{"Multiple (3) git source integrity policies found for repo URL: https://github.com/group/ignored.git. Using the first matching one"},
 			expectedNoFunc:   true,
 		},
 	}
