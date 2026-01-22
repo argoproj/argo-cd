@@ -2375,7 +2375,7 @@ func TestAppProjectSpec_AddWindow(t *testing.T) {
 	}
 }
 
-func TestAppProject_SourceIntegrity(t *testing.T) {
+func TestAppProject_EffectiveSourceIntegrity(t *testing.T) {
 	sourceIntegrity := func(repo string, mode SourceIntegrityGitPolicyGPGMode, keys ...string) *SourceIntegrity {
 		return &SourceIntegrity{
 			Git: &SourceIntegrityGit{
@@ -2411,39 +2411,19 @@ func TestAppProject_SourceIntegrity(t *testing.T) {
 			},
 			expected: sourceIntegrity("*", SourceIntegrityGitPolicyGPGModeHead, "LEGACY", "KEYS", "FOUND"),
 		}, {
-			name: "old ignored, overlap with new on *",
+			name: "old ignored, replaced",
 			spec: AppProjectSpec{
 				SignatureKeys:   []SignatureKey{{"LEGACY"}, {"KEYS"}, {"FOUND"}},
-				SourceIntegrity: sourceIntegrity("*", SourceIntegrityGitPolicyGPGModeStrict, "NEW_KEY"),
-			},
-			expected: sourceIntegrity("*", SourceIntegrityGitPolicyGPGModeStrict, "NEW_KEY"),
-		}, {
-			name: "old, merge with new",
-			spec: AppProjectSpec{
-				SignatureKeys:   []SignatureKey{{KeyID: "LEGACY_KEY"}},
 				SourceIntegrity: sourceIntegrity("https://github.com/*", SourceIntegrityGitPolicyGPGModeStrict, "NEW_KEY"),
 			},
-			expected: &SourceIntegrity{
-				Git: &SourceIntegrityGit{
-					Policies: []*SourceIntegrityGitPolicy{
-						{
-							// Kept
-							Repos: []SourceIntegrityGitPolicyRepo{{URL: "https://github.com/*"}},
-							GPG: &SourceIntegrityGitPolicyGPG{
-								Mode: SourceIntegrityGitPolicyGPGModeStrict,
-								Keys: []string{"NEW_KEY"},
-							},
-						}, {
-							// Added
-							Repos: []SourceIntegrityGitPolicyRepo{{URL: "*"}},
-							GPG: &SourceIntegrityGitPolicyGPG{
-								Mode: SourceIntegrityGitPolicyGPGModeHead,
-								Keys: []string{"LEGACY_KEY"},
-							},
-						},
-					},
-				},
+			expected: sourceIntegrity("https://github.com/*", SourceIntegrityGitPolicyGPGModeStrict, "NEW_KEY"),
+		}, {
+			name: "old, not using Git checks",
+			spec: AppProjectSpec{
+				SignatureKeys:   []SignatureKey{{KeyID: "LEGACY_KEY"}},
+				SourceIntegrity: &SourceIntegrity{}, // Once something non-git is supported, needs checking they merge
 			},
+			expected: sourceIntegrity("*", SourceIntegrityGitPolicyGPGModeHead, "LEGACY_KEY"),
 		},
 	}
 	for _, tt := range tests {

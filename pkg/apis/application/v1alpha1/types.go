@@ -2777,40 +2777,31 @@ func (proj *AppProject) EffectiveSourceIntegrity() *SourceIntegrity {
 		return proj.Spec.SourceIntegrity
 	}
 
-	// Create SourceIntegrity from legacy SignatureKeys
-	if proj.Spec.SourceIntegrity == nil {
-		log.Warnf("Creating project SourceIntegrity from legacy SignatureKeys specified in %s AppProject.", proj.Name)
-		return &SourceIntegrity{
-			Git: &SourceIntegrityGit{
-				Policies: []*SourceIntegrityGitPolicy{{
-					Repos: []SourceIntegrityGitPolicyRepo{{URL: "*"}},
-					GPG: &SourceIntegrityGitPolicyGPG{
-						Mode: "head",
-						Keys: legacyKeys,
-					},
-				}},
+	migratedGit := &SourceIntegrityGit{
+		Policies: []*SourceIntegrityGitPolicy{{
+			Repos: []SourceIntegrityGitPolicyRepo{{URL: "*"}},
+			GPG: &SourceIntegrityGitPolicyGPG{
+				Mode: SourceIntegrityGitPolicyGPGModeHead,
+				Keys: legacyKeys,
 			},
-		}
+		}},
 	}
 
-	for _, p := range proj.Spec.SourceIntegrity.Git.Policies {
-		for _, repo := range p.Repos {
-			if repo.URL == "*" {
-				log.Warnf("Both SourceIntegrity and SignatureKeys specified in %s AppProject. Ignoring SignatureKeys", proj.Name)
-				return proj.Spec.SourceIntegrity
-			}
+	if proj.Spec.SourceIntegrity != nil {
+		if proj.Spec.SourceIntegrity.Git != nil {
+			log.Warnf("Both SourceIntegrity and SignatureKeys specified in %s AppProject. Ignoring SignatureKeys. Migrate them to SourceIntegrity.", proj.Name)
+			return proj.Spec.SourceIntegrity
 		}
+
+		// Preserve non-git checks without modifying project - use deep-copy and amend
+		log.Warnf("Merging SourceIntegrity with legacy SignatureKeys specified in %s AppProject. Migrate them to SourceIntegrity.", proj.Name)
+		deepCopy := proj.Spec.SourceIntegrity.DeepCopy()
+		deepCopy.Git = migratedGit
+		return deepCopy
 	}
 
-	log.Warnf("Both SourceIntegrity and SignatureKeys specified in %s AppProject. Adding policy with %d legacy keys for all repositories", proj.Name, len(legacyKeys))
-	proj.Spec.SourceIntegrity.Git.Policies = append(proj.Spec.SourceIntegrity.Git.Policies, &SourceIntegrityGitPolicy{
-		Repos: []SourceIntegrityGitPolicyRepo{{URL: "*"}},
-		GPG: &SourceIntegrityGitPolicyGPG{
-			Mode: "head",
-			Keys: legacyKeys,
-		},
-	})
-	return proj.Spec.SourceIntegrity
+	log.Warnf("Creating project SourceIntegrity from legacy SignatureKeys specified in %s AppProject. Migrate them to SourceIntegrity.", proj.Name)
+	return &SourceIntegrity{Git: migratedGit}
 }
 
 // ClusterResourceRestrictionItem is a cluster resource that is restricted by the project's whitelist or blacklist

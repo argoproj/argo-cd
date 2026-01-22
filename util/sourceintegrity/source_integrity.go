@@ -1,6 +1,7 @@
 package sourceintegrity
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -12,7 +13,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/glob"
 )
 
-type gitFunc func(gitClient git.Client, unresolvedRevision string) (*v1alpha1.SourceIntegrityCheckResult, error)
+type gitFunc func(gitClient git.Client, verifiedRevision string) (*v1alpha1.SourceIntegrityCheckResult, error)
 
 var _gpgDisabledLoggedAlready bool
 
@@ -33,16 +34,17 @@ func HasCriteria(si *v1alpha1.SourceIntegrity, sources ...v1alpha1.ApplicationSo
 	return false
 }
 
-// VerifyGit makes sure the git repository satisfies the criteria declared
+// VerifyGit makes sure the git repository satisfies the criteria declared.
 // It returns nil in case there were no relevant criteria, a check result if there were.
-func VerifyGit(si *v1alpha1.SourceIntegrity, gitClient git.Client, unresolvedRevision string) (result *v1alpha1.SourceIntegrityCheckResult, err error) {
+// The verifiedRevision is expected to be either an annotated tag to a resolved commit sha - the revision, its signature is being verified.
+func VerifyGit(si *v1alpha1.SourceIntegrity, gitClient git.Client, verifiedRevision string) (result *v1alpha1.SourceIntegrityCheckResult, err error) {
 	if si == nil || si.Git == nil {
 		return nil, nil
 	}
 
 	check := lookupGit(si, gitClient.RepoURL())
 	if check != nil {
-		return check(gitClient, unresolvedRevision)
+		return check(gitClient, verifiedRevision)
 	}
 	return nil, nil
 }
@@ -55,7 +57,13 @@ func lookupGit(si *v1alpha1.SourceIntegrity, repoURL string) gitFunc {
 		return nil
 	}
 	if nPolicies > 1 {
-		log.Infof("Multiple (%d) git source integrity policies found for repo URL: %s. Using the first matching one", nPolicies, repoURL)
+		// Multiple matching policies is an error. BUT, it has to return a check that fails for every repo.
+		// This is to make sure that a mistake in argo cd configuration does not disable verification until fixed.
+		msg := fmt.Sprintf("multiple (%d) git source integrity policies found for repo URL: %s", nPolicies, repoURL)
+		log.Warn(msg)
+		return func(_ git.Client, _ string) (*v1alpha1.SourceIntegrityCheckResult, error) {
+			return nil, errors.New(msg)
+		}
 	}
 
 	policy := policies[0]
@@ -71,8 +79,8 @@ func lookupGit(si *v1alpha1.SourceIntegrity, repoURL string) gitFunc {
 			return nil
 		}
 
-		return func(gitClient git.Client, unresolvedRevision string) (*v1alpha1.SourceIntegrityCheckResult, error) {
-			return verify(policy.GPG, gitClient, unresolvedRevision)
+		return func(gitClient git.Client, verifiedRevision string) (*v1alpha1.SourceIntegrityCheckResult, error) {
+			return verify(policy.GPG, gitClient, verifiedRevision)
 		}
 	}
 
@@ -82,16 +90,38 @@ func lookupGit(si *v1alpha1.SourceIntegrity, repoURL string) gitFunc {
 
 func findMatchingGitPolicies(si *v1alpha1.SourceIntegrityGit, repoURL string) (policies []*v1alpha1.SourceIntegrityGitPolicy) {
 	for _, p := range si.Policies {
+		include := false
 		for _, r := range p.Repos {
-			if r.URL == "*" || glob.Match(r.URL, repoURL) {
-				policies = append(policies, p)
+			m := repoMatches(r.URL, repoURL)
+			if m == -1 {
+				include = false
+				break
+			} else if m == 1 {
+				include = true
 			}
+		}
+		if include {
+			policies = append(policies, p)
 		}
 	}
 	return policies
 }
 
-func verify(g *v1alpha1.SourceIntegrityGitPolicyGPG, gitClient git.Client, unresolvedRevision string) (result *v1alpha1.SourceIntegrityCheckResult, err error) {
+func repoMatches(urlGlob string, repoURL string) int {
+	if strings.HasPrefix(urlGlob, "!") {
+		if glob.Match(urlGlob[1:], repoURL) {
+			return -1
+		}
+	} else {
+		if glob.Match(urlGlob, repoURL) {
+			return 1
+		}
+	}
+
+	return 0
+}
+
+func verify(g *v1alpha1.SourceIntegrityGitPolicyGPG, gitClient git.Client, verifiedRevision string) (result *v1alpha1.SourceIntegrityCheckResult, err error) {
 	const checkName = "GIT/GPG"
 
 	var deep bool
@@ -106,22 +136,22 @@ func verify(g *v1alpha1.SourceIntegrityGitPolicyGPG, gitClient git.Client, unres
 		return nil, fmt.Errorf("unknown GPG mode %q configured for GIT source integrity", g.Mode)
 	}
 
-	revisions, err := gitClient.LsSignatures(unresolvedRevision, deep)
+	signatures, err := gitClient.LsSignatures(verifiedRevision, deep)
 	if err != nil {
 		return nil, err
 	}
 
 	return &v1alpha1.SourceIntegrityCheckResult{Checks: []v1alpha1.SourceIntegrityCheckResultItem{{
 		Name:     checkName,
-		Problems: describeProblems(g, revisions),
+		Problems: describeProblems(g, signatures),
 	}}}, nil
 }
 
 // describeProblems reports 10 most recent problematic signatures or unsigned commits.
-func describeProblems(g *v1alpha1.SourceIntegrityGitPolicyGPG, revisions []git.RevisionSignatureInfo) []string {
+func describeProblems(g *v1alpha1.SourceIntegrityGitPolicyGPG, signatureInfos []git.RevisionSignatureInfo) []string {
 	reportedKeys := make(map[string]any)
 	var problems []string
-	for _, signatureInfo := range revisions {
+	for _, signatureInfo := range signatureInfos {
 		// Do not report the same key twice unless:
 		// - the revision is unsigned (unsigned commits can have different authors, so they are worth reporting)
 		// - the revision is a tag (tags are signed separately from commits)

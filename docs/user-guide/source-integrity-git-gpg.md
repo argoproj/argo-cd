@@ -155,7 +155,8 @@ spec:
     git:
       policies:
         - repos:
-            - "https://github.com/my-group/*"
+            - url: "https://github.com/my-group/*"
+            - url: "!https://github.com/my-group/ignored.git"
           gpg:
             mode: "none|head|strict"
             keys:
@@ -163,8 +164,11 @@ spec:
 ```
 
 The `repos ` key contains a list of glob-style patterns matched against the URL of the source to verify.
-When the pattern matches a source, it will be verified by a given strategy.
-Sources not matched by any policy will not have its integrity verified.
+Given strategy will be used when matched some of the positive globs, while not matched by any of the negative ones (starting with `!`).
+
+Only one policy is applied per source repository, and sources not matched by any policy will not have its integrity verified.
+
+Note that a multi-source application can have each of its source repositories validated against a different policy.
 
 ### The `gpg` verification policy
 
@@ -214,46 +218,6 @@ Such commits can have the following organization-level semantics:
 To create a seal commit, run `git commit --signoff --gpg-sign --trailer="Argocd-gpg-seal: <justification>"` and push to branch pulled by Argo CD.
 Using seal commits is preferable to rewriting git history as it eliminates the room for eventual rebasing mistakes that would jeopardize either source integrity or correctness of the repository data.
 
-#### Significance of Git policy order
-
-Policies are not accumulative.
-Only one policy is applied per source repository, and therefore the order of their definitions is significant.
-
-Note that a multi-source application can have its source repositories each validated against a different policy.
-
-Argo CD will select the first policy that matches a repository source URL, and will ignore any other policies that follow.
-Policies are being evaluated top-down, so more specific policies must come before the less specific broad ones.
-
-As an example, consider you want to verify that all commits across all repositories you source from `github.com` have a valid signature from GitHub's web signing key.
-However, on a specific repository, you want to have a different policy, using `strict` mode and allowing a different signer in addition.
-You would set up the more specific policy first, and then the broad one:
-
-```yaml
-apiVersion: argoproj.io/v1alpha1
-kind: AppProject
-metadata:
-  name: gpg
-  namespace: argocd
-spec:
-  sourceIntegrity:
-    git:
-      policies:
-        - repos: ['https://github.com/example/super-secure']
-          gpg:
-            mode: strict
-            keys:
-              - 4AEE18F83AFDEB23
-              - D56C4FCA57A46444
-        - repos: ['https://github.com/*']
-          gpg:
-            mode: head
-            keys:
-              - 4AEE18F83AFDEB23
-```
-
-If the policies had been defined in reversed order, the specific policy for `https://github.com/example/super-secure` would never match.
-This is because that repository URL is matched by the other policy's pattern (`https://github.com/*`).
-
 ## Upgrade to Source Integrity Verification
 
 To migrate from the legacy declaration to the new source verification policies, remove `.spec.signatureKeys` and then define desired policies in `.spec.sourceIntegrity.git.policies`.
@@ -266,7 +230,8 @@ spec:
   sourceIntegrity:
     git:
       policies:
-        - repos: ["*"] # For any repository in the project
+        - repos:
+          - url: "*" # For any repository in the project
           gpg:
             mode: "head" # Verify only the HEAD of the target revision
             keys:
