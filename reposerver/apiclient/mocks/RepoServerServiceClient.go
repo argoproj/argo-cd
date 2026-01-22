@@ -644,6 +644,180 @@ func (_c *RepoServerServiceClient_GetOCIMetadata_Call) RunAndReturn(run func(ctx
 	return _c
 }
 
+// GetOciDirectories provides a mock function for the type RepoServerServiceClient
+func (_mock *RepoServerServiceClient) GetOciDirectories(ctx context.Context, in *apiclient.OciDirectoriesRequest, opts ...grpc.CallOption) (*apiclient.OciDirectoriesResponse, error) {
+	// grpc.CallOption
+	_va := make([]interface{}, len(opts))
+	for _i := range opts {
+		_va[_i] = opts[_i]
+	}
+	var _ca []interface{}
+	_ca = append(_ca, ctx, in)
+	_ca = append(_ca, _va...)
+	ret := _mock.Called(_ca...)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetOciDirectories")
+	}
+
+	var r0 *apiclient.OciDirectoriesResponse
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *apiclient.OciDirectoriesRequest, ...grpc.CallOption) (*apiclient.OciDirectoriesResponse, error)); ok {
+		return returnFunc(ctx, in, opts...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *apiclient.OciDirectoriesRequest, ...grpc.CallOption) *apiclient.OciDirectoriesResponse); ok {
+		r0 = returnFunc(ctx, in, opts...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*apiclient.OciDirectoriesResponse)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, *apiclient.OciDirectoriesRequest, ...grpc.CallOption) error); ok {
+		r1 = returnFunc(ctx, in, opts...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// RepoServerServiceClient_GetOciDirectories_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetOciDirectories'
+type RepoServerServiceClient_GetOciDirectories_Call struct {
+	*mock.Call
+}
+
+// GetOciDirectories is a helper method to define mock.On call
+//   - ctx context.Context
+//   - in *apiclient.OciDirectoriesRequest
+//   - opts ...grpc.CallOption
+func (_e *RepoServerServiceClient_Expecter) GetOciDirectories(ctx interface{}, in interface{}, opts ...interface{}) *RepoServerServiceClient_GetOciDirectories_Call {
+	return &RepoServerServiceClient_GetOciDirectories_Call{Call: _e.mock.On("GetOciDirectories",
+		append([]interface{}{ctx, in}, opts...)...)}
+}
+
+func (_c *RepoServerServiceClient_GetOciDirectories_Call) Run(run func(ctx context.Context, in *apiclient.OciDirectoriesRequest, opts ...grpc.CallOption)) *RepoServerServiceClient_GetOciDirectories_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 *apiclient.OciDirectoriesRequest
+		if args[1] != nil {
+			arg1 = args[1].(*apiclient.OciDirectoriesRequest)
+		}
+		var arg2 []grpc.CallOption
+		variadicArgs := make([]grpc.CallOption, len(args)-2)
+		for i, a := range args[2:] {
+			if a != nil {
+				variadicArgs[i] = a.(grpc.CallOption)
+			}
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *RepoServerServiceClient_GetOciDirectories_Call) Return(ociDirectoriesResponse *apiclient.OciDirectoriesResponse, err error) *RepoServerServiceClient_GetOciDirectories_Call {
+	_c.Call.Return(ociDirectoriesResponse, err)
+	return _c
+}
+
+func (_c *RepoServerServiceClient_GetOciDirectories_Call) RunAndReturn(run func(ctx context.Context, in *apiclient.OciDirectoriesRequest, opts ...grpc.CallOption) (*apiclient.OciDirectoriesResponse, error)) *RepoServerServiceClient_GetOciDirectories_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetOciFiles provides a mock function for the type RepoServerServiceClient
+func (_mock *RepoServerServiceClient) GetOciFiles(ctx context.Context, in *apiclient.OciFilesRequest, opts ...grpc.CallOption) (*apiclient.OciFilesResponse, error) {
+	// grpc.CallOption
+	_va := make([]interface{}, len(opts))
+	for _i := range opts {
+		_va[_i] = opts[_i]
+	}
+	var _ca []interface{}
+	_ca = append(_ca, ctx, in)
+	_ca = append(_ca, _va...)
+	ret := _mock.Called(_ca...)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetOciFiles")
+	}
+
+	var r0 *apiclient.OciFilesResponse
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *apiclient.OciFilesRequest, ...grpc.CallOption) (*apiclient.OciFilesResponse, error)); ok {
+		return returnFunc(ctx, in, opts...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *apiclient.OciFilesRequest, ...grpc.CallOption) *apiclient.OciFilesResponse); ok {
+		r0 = returnFunc(ctx, in, opts...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*apiclient.OciFilesResponse)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, *apiclient.OciFilesRequest, ...grpc.CallOption) error); ok {
+		r1 = returnFunc(ctx, in, opts...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// RepoServerServiceClient_GetOciFiles_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetOciFiles'
+type RepoServerServiceClient_GetOciFiles_Call struct {
+	*mock.Call
+}
+
+// GetOciFiles is a helper method to define mock.On call
+//   - ctx context.Context
+//   - in *apiclient.OciFilesRequest
+//   - opts ...grpc.CallOption
+func (_e *RepoServerServiceClient_Expecter) GetOciFiles(ctx interface{}, in interface{}, opts ...interface{}) *RepoServerServiceClient_GetOciFiles_Call {
+	return &RepoServerServiceClient_GetOciFiles_Call{Call: _e.mock.On("GetOciFiles",
+		append([]interface{}{ctx, in}, opts...)...)}
+}
+
+func (_c *RepoServerServiceClient_GetOciFiles_Call) Run(run func(ctx context.Context, in *apiclient.OciFilesRequest, opts ...grpc.CallOption)) *RepoServerServiceClient_GetOciFiles_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 *apiclient.OciFilesRequest
+		if args[1] != nil {
+			arg1 = args[1].(*apiclient.OciFilesRequest)
+		}
+		var arg2 []grpc.CallOption
+		variadicArgs := make([]grpc.CallOption, len(args)-2)
+		for i, a := range args[2:] {
+			if a != nil {
+				variadicArgs[i] = a.(grpc.CallOption)
+			}
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *RepoServerServiceClient_GetOciFiles_Call) Return(ociFilesResponse *apiclient.OciFilesResponse, err error) *RepoServerServiceClient_GetOciFiles_Call {
+	_c.Call.Return(ociFilesResponse, err)
+	return _c
+}
+
+func (_c *RepoServerServiceClient_GetOciFiles_Call) RunAndReturn(run func(ctx context.Context, in *apiclient.OciFilesRequest, opts ...grpc.CallOption) (*apiclient.OciFilesResponse, error)) *RepoServerServiceClient_GetOciFiles_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetRevisionChartDetails provides a mock function for the type RepoServerServiceClient
 func (_mock *RepoServerServiceClient) GetRevisionChartDetails(ctx context.Context, in *apiclient.RepoServerRevisionChartDetailsRequest, opts ...grpc.CallOption) (*v1alpha1.ChartDetails, error) {
 	// grpc.CallOption
