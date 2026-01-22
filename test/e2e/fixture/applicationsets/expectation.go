@@ -3,6 +3,7 @@ package applicationsets
 import (
 	"fmt"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -242,4 +243,52 @@ func appsAreEqual(one v1alpha1.Application, two v1alpha1.Application) bool {
 // conditionsAreEqual returns true if the appset status conditions are equal, comparing only fields of interest
 func conditionsAreEqual(one, two *[]v1alpha1.ApplicationSetCondition) bool {
 	return reflect.DeepEqual(filterConditionFields(one), filterConditionFields(two))
+}
+
+func ApplicationSetApplicationStatusAreEqual(expectedStatuses map[string]v1alpha1.ApplicationSetApplicationStatus) Expectation {
+	return func(c *Consequences) (state, string) {
+		appSet := c.applicationSet(c.context.GetName())
+		if appSet == nil {
+			return pending, fmt.Sprintf("no application set found with name '%s'", c.context.GetName())
+		}
+
+		for _, appStatus := range appSet.Status.ApplicationStatus {
+			expectedstatus, found := expectedStatuses[appStatus.Application]
+			if !found {
+				continue // Appset has more apps than expected - not ideal
+			}
+			if appStatus.Status != expectedstatus.Status {
+				return failed, fmt.Sprintf("expected status '%s' but got '%s'", expectedstatus, appStatus.Status)
+			}
+		}
+		return succeeded, fmt.Sprintf("all applications in ApplicationSet's: '%s' Application Status have expected statuses ", c.context.GetName())
+	}
+}
+
+// This function checks that a step has expected app
+// This function checks that a step has expected apps
+// since one step can have multiple apps
+func CheckApplicationInRightSteps(step string, expectedApps []string) Expectation {
+	return func(c *Consequences) (state, string) {
+		appSet := c.applicationSet(c.context.GetName())
+		if appSet == nil {
+			return pending, fmt.Sprintf("no application set found with name '%s'", c.context.GetName())
+		}
+
+		var stepApps []string
+		for _, appStatus := range appSet.Status.ApplicationStatus {
+			if appStatus.Step == step {
+				stepApps = append(stepApps, appStatus.Application)
+			}
+		}
+		if len(stepApps) != len(expectedApps) {
+			fmt.Sprintf("appset Name : '%s', context Name: '%s'", appSet.Name, c.context.GetName())
+			return pending, fmt.Sprintf("expected %d apps in step '%s' for appset '%s', but got %d", len(expectedApps), step, c.context.GetName(), len(stepApps))
+		}
+
+		if !slices.Equal(stepApps, expectedApps) {
+			return pending, fmt.Sprintf("In step '%s', expected apps: '%s', but got: '%s'", step, expectedApps, stepApps)
+		}
+		return succeeded, fmt.Sprintf("Step '%s' has expected apps: '%s'", step, expectedApps)
+	}
 }

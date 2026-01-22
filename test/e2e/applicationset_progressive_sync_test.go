@@ -9,6 +9,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"os"
 	"testing"
+	"time"
 )
 
 func TestApplicationSetProgressiveSync(t *testing.T) {
@@ -128,6 +129,9 @@ func TestApplicationSetProgressiveSync(t *testing.T) {
 							Server:    "https://kubernetes.default.svc",
 							Namespace: "{{.name}}",
 						},
+						SyncPolicy: &v1alpha1.SyncPolicy{
+							SyncOptions: v1alpha1.SyncOptions{"CreateNamespace=true"},
+						},
 					},
 				},
 				Generators: []v1alpha1.ApplicationSetGenerator{
@@ -178,10 +182,21 @@ func TestApplicationSetProgressiveSync(t *testing.T) {
 			},
 		}).
 		Then().
+		And(func() {
+			t.Log("ApplicationSet created ")
+			time.Sleep(5 * time.Second)
+		}).
 		Expect(ApplicationsExist([]v1alpha1.Application{expectedDevApp, expectedStageApp, expectedProdApp})).
-		// cleanup
+		And(func() {
+			t.Log("All applications exist")
+			time.Sleep(30 * time.Second) // added to see the applications on UI
+		}).
+		ExpectWithDuration(CheckApplicationInRightSteps("1", []string{"app1-dev"}), time.Minute).
+		ExpectWithDuration(CheckApplicationInRightSteps("2", []string{"app2-staging"}), time.Second*5).
+		ExpectWithDuration(CheckApplicationInRightSteps("3", []string{"app3-prod"}), time.Second*5).
+		//cleanup
 		When().
 		Delete().
 		Then().
-		Expect(ApplicationsDoNotExist([]v1alpha1.Application{expectedDevApp, expectedStageApp, expectedProdApp}))
+		ExpectWithDuration(ApplicationsDoNotExist([]v1alpha1.Application{expectedDevApp, expectedStageApp, expectedProdApp}), time.Minute)
 }
