@@ -54,25 +54,25 @@ spec:
             path: /healthz
             port: 8443
             scheme: HTTPS
-          initialDelaySeconds: 15
-          periodSeconds: 20
-          failureThreshold: 3
-          timeoutSeconds: 10
+          initialDelaySeconds: 5
+          periodSeconds: 30
+          failureThreshold: 5
+          timeoutSeconds: 15
         readinessProbe:
           httpGet:
             path: /readyz
             port: 8443
             scheme: HTTPS
-          initialDelaySeconds: 10
+          initialDelaySeconds: 3
           periodSeconds: 10
-          timeoutSeconds: 5
+          timeoutSeconds: 10
         resources:
           requests:
-            cpu: 10m
-            memory: 32Mi
-          limits:
-            cpu: 100m
+            cpu: 50m
             memory: 64Mi
+          limits:
+            cpu: 500m
+            memory: 128Mi
         securityContext:
           runAsNonRoot: true
           readOnlyRootFilesystem: true

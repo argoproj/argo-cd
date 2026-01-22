@@ -9021,9 +9021,6 @@ spec:
             - message: all sources must have a repoURL
               rule: '!has(self.sources) || size(self.sources) == 0 || self.sources.all(s,
                 has(s.repoURL) && size(s.repoURL) > 0)'
-            - message: all sources must have a targetRevision
-              rule: '!has(self.sources) || size(self.sources) == 0 || self.sources.all(s,
-                has(s.targetRevision) && size(s.targetRevision) > 0)'
             - message: sources cannot have both chart and path defined
               rule: '!has(self.sources) || size(self.sources) == 0 || self.sources.all(s,
                 !has(s.chart) || !has(s.path) || size(s.chart) == 0 || size(s.path)
@@ -9045,9 +9042,9 @@ spec:
               rule: '!((has(self.destination.server) && size(self.destination.server)
                 > 0) && (has(self.destination.name) && size(self.destination.name)
                 > 0))'
-            - message: retry limit must be >= 0
+            - message: retry limit must be >= -1 (-1 is unlimited)
               rule: '!has(self.syncPolicy) || !has(self.syncPolicy.retry) || !has(self.syncPolicy.retry.limit)
-                || self.syncPolicy.retry.limit >= 0'
+                || self.syncPolicy.retry.limit >= -1'
             - message: retry backoff factor must be >= 1
               rule: '!has(self.syncPolicy) || !has(self.syncPolicy.retry) || !has(self.syncPolicy.retry.backoff)
                 || !has(self.syncPolicy.retry.backoff.factor) || self.syncPolicy.retry.backoff.factor

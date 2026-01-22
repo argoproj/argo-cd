@@ -488,12 +488,16 @@ build-e2e-image:
 # Starts e2e server locally (or within a container)
 .PHONY: start-e2e-local
 start-e2e-local: mod-vendor-local dep-ui-local cli-local
+	kubectl create ns argocd || true
 	kubectl create ns argocd-e2e || true
 	kubectl create ns argocd-e2e-external || true
 	kubectl create ns argocd-e2e-external-2 || true
 	kubectl config set-context --current --namespace=argocd-e2e
 	kustomize build test/manifests/base | kubectl apply --server-side -f -
 	kubectl apply -f https://raw.githubusercontent.com/open-cluster-management/api/a6845f2ebcb186ec26b832f60c988537a58f3859/cluster/v1alpha1/0000_04_clusters.open-cluster-management.io_placementdecisions.crd.yaml
+	# Wait for conversion webhook to be ready (required for Application CRD operations)
+	@echo "Waiting for conversion webhook to be ready..."
+	kubectl -n argocd rollout status deployment/argocd-conversion-webhook --timeout=60s || echo "Conversion webhook not available, continuing without it"
 	# Create GPG keys and source directories
 	if test -d /tmp/argo-e2e/app/config/gpg; then rm -rf /tmp/argo-e2e/app/config/gpg/*; fi
 	mkdir -p /tmp/argo-e2e/app/config/gpg/keys && chmod 0700 /tmp/argo-e2e/app/config/gpg/keys

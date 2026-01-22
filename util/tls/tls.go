@@ -392,6 +392,10 @@ func LoadX509Cert(path string) (*x509.Certificate, error) {
 // the specified list of hosts. If hosts is nil or empty, self-signed cert
 // creation will be disabled.
 func CreateServerTLSConfig(tlsCertPath, tlsKeyPath string, hosts []string) (*tls.Config, error) {
+	return CreateTLSConfig(tlsCertPath, tlsKeyPath, hosts, false)
+}
+
+func CreateTLSConfig(tlsCertPath, tlsKeyPath string, hosts []string, isCA bool) (*tls.Config, error) {
 	var cert *tls.Certificate
 	var err error
 
@@ -424,7 +428,7 @@ func CreateServerTLSConfig(tlsCertPath, tlsKeyPath string, hosts []string) (*tls
 		c, err := GenerateX509KeyPair(CertOptions{
 			Hosts:        hosts,
 			Organization: "Argo CD",
-			IsCA:         false,
+			IsCA:         isCA,
 		})
 		if err != nil {
 			return nil, fmt.Errorf("error generating X509 key pair: %w", err)

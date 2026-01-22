@@ -1416,7 +1416,11 @@ func (ctrl *ApplicationController) setAppCondition(app *appv1.Application, condi
 		},
 	})
 	if err == nil {
-		_, err = ctrl.PatchAppStatusWithWriteBack(context.Background(), app.Name, app.Namespace, types.MergePatchType, patch, metav1.PatchOptions{})
+		// Use direct patch without writeBackToInformer since this can be called from the indexer.
+		// Writing back to the informer from within the indexer causes a deadlock because
+		// the indexer runs during store.Update() and writeBackToInformer calls store.Update() again.
+		_, err = ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Patch(
+			context.Background(), app.Name, types.MergePatchType, patch, metav1.PatchOptions{})
 	}
 	if err != nil {
 		logCtx.WithError(err).Error("Unable to set application condition")
@@ -1802,6 +1806,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	if hasErrors {
 		app.Status.Sync.Status = appv1.SyncStatusCodeUnknown
 		app.Status.Health.Status = health.HealthStatusUnknown
+		app.Status.ReconciledAt = &now
 		patchDuration = ctrl.persistAppStatus(origApp, &app.Status)
 
 		if err := ctrl.cache.SetAppResourcesTree(app.InstanceName(ctrl.namespace), &appv1.ApplicationTree{}); err != nil {

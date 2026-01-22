@@ -9022,9 +9022,6 @@ spec:
             - message: all sources must have a repoURL
               rule: '!has(self.sources) || size(self.sources) == 0 || self.sources.all(s,
                 has(s.repoURL) && size(s.repoURL) > 0)'
-            - message: all sources must have a targetRevision
-              rule: '!has(self.sources) || size(self.sources) == 0 || self.sources.all(s,
-                has(s.targetRevision) && size(s.targetRevision) > 0)'
             - message: sources cannot have both chart and path defined
               rule: '!has(self.sources) || size(self.sources) == 0 || self.sources.all(s,
                 !has(s.chart) || !has(s.path) || size(s.chart) == 0 || size(s.path)
@@ -9046,9 +9043,9 @@ spec:
               rule: '!((has(self.destination.server) && size(self.destination.server)
                 > 0) && (has(self.destination.name) && size(self.destination.name)
                 > 0))'
-            - message: retry limit must be >= 0
+            - message: retry limit must be >= -1 (-1 is unlimited)
               rule: '!has(self.syncPolicy) || !has(self.syncPolicy.retry) || !has(self.syncPolicy.retry.limit)
-                || self.syncPolicy.retry.limit >= 0'
+                || self.syncPolicy.retry.limit >= -1'
             - message: retry backoff factor must be >= 1
               rule: '!has(self.syncPolicy) || !has(self.syncPolicy.retry) || !has(self.syncPolicy.retry.backoff)
                 || !has(self.syncPolicy.retry.backoff.factor) || self.syncPolicy.retry.backoff.factor
@@ -37304,6 +37301,16 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   labels:
+    app.kubernetes.io/component: conversion-webhook
+    app.kubernetes.io/name: argocd-conversion-webhook
+    app.kubernetes.io/part-of: argocd
+  name: argocd-conversion-webhook
+  namespace: argocd
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
     app.kubernetes.io/component: application-controller
     app.kubernetes.io/name: argocd-application-controller
     app.kubernetes.io/part-of: argocd
@@ -37326,15 +37333,6 @@ metadata:
     app.kubernetes.io/name: argocd-commit-server
     app.kubernetes.io/part-of: argocd
   name: argocd-commit-server
----
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  labels:
-    app.kubernetes.io/component: conversion-webhook
-    app.kubernetes.io/name: argocd-conversion-webhook
-    app.kubernetes.io/part-of: argocd
-  name: argocd-conversion-webhook
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -38159,6 +38157,24 @@ apiVersion: v1
 kind: Service
 metadata:
   labels:
+    app.kubernetes.io/component: conversion-webhook
+    app.kubernetes.io/name: argocd-conversion-webhook
+    app.kubernetes.io/part-of: argocd
+  name: argocd-conversion-webhook
+  namespace: argocd
+spec:
+  ports:
+  - name: https
+    port: 443
+    protocol: TCP
+    targetPort: 8443
+  selector:
+    app.kubernetes.io/name: argocd-conversion-webhook
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
     app.kubernetes.io/component: applicationset-controller
     app.kubernetes.io/name: argocd-applicationset-controller
     app.kubernetes.io/part-of: argocd
@@ -38196,23 +38212,6 @@ spec:
     targetPort: 8087
   selector:
     app.kubernetes.io/name: argocd-commit-server
----
-apiVersion: v1
-kind: Service
-metadata:
-  labels:
-    app.kubernetes.io/component: conversion-webhook
-    app.kubernetes.io/name: argocd-conversion-webhook
-    app.kubernetes.io/part-of: argocd
-  name: argocd-conversion-webhook
-spec:
-  ports:
-  - name: https
-    port: 443
-    protocol: TCP
-    targetPort: 8443
-  selector:
-    app.kubernetes.io/name: argocd-conversion-webhook
 ---
 apiVersion: v1
 kind: Service
@@ -38348,6 +38347,110 @@ spec:
     targetPort: 8083
   selector:
     app.kubernetes.io/name: argocd-server
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/component: conversion-webhook
+    app.kubernetes.io/name: argocd-conversion-webhook
+    app.kubernetes.io/part-of: argocd
+  name: argocd-conversion-webhook
+  namespace: argocd
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: argocd-conversion-webhook
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: argocd-conversion-webhook
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: argocd-conversion-webhook
+              topologyKey: kubernetes.io/hostname
+            weight: 100
+      automountServiceAccountToken: true
+      containers:
+      - args:
+        - --port=8443
+        - --tls-cert-path=/tls/tls.crt
+        - --tls-key-path=/tls/tls.key
+        command:
+        - argocd-conversion-webhook
+        env:
+        - name: ARGOCD_CONVERSION_WEBHOOK_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: ARGOCD_CONVERSION_WEBHOOK_LOGFORMAT
+          valueFrom:
+            configMapKeyRef:
+              key: conversionwebhook.log.format
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_CONVERSION_WEBHOOK_LOGLEVEL
+          valueFrom:
+            configMapKeyRef:
+              key: conversionwebhook.log.level
+              name: argocd-cmd-params-cm
+              optional: true
+        image: quay.io/argoproj/argocd:latest
+        imagePullPolicy: Always
+        livenessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /healthz
+            port: 8443
+            scheme: HTTPS
+          initialDelaySeconds: 5
+          periodSeconds: 30
+          timeoutSeconds: 15
+        name: argocd-conversion-webhook
+        ports:
+        - containerPort: 8443
+          name: https
+          protocol: TCP
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8443
+            scheme: HTTPS
+          initialDelaySeconds: 3
+          periodSeconds: 10
+          timeoutSeconds: 10
+        resources:
+          limits:
+            cpu: 500m
+            memory: 128Mi
+          requests:
+            cpu: 50m
+            memory: 64Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          seccompProfile:
+            type: RuntimeDefault
+        volumeMounts:
+        - mountPath: /tls
+          name: tls
+          readOnly: true
+      serviceAccountName: argocd-conversion-webhook
+      volumes:
+      - name: tls
+        secret:
+          optional: true
+          secretName: argocd-conversion-webhook-tls
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -38737,109 +38840,6 @@ spec:
             path: ca.crt
           optional: true
           secretName: argocd-commit-server-tls
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  labels:
-    app.kubernetes.io/component: conversion-webhook
-    app.kubernetes.io/name: argocd-conversion-webhook
-    app.kubernetes.io/part-of: argocd
-  name: argocd-conversion-webhook
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app.kubernetes.io/name: argocd-conversion-webhook
-  template:
-    metadata:
-      labels:
-        app.kubernetes.io/name: argocd-conversion-webhook
-    spec:
-      affinity:
-        podAntiAffinity:
-          preferredDuringSchedulingIgnoredDuringExecution:
-          - podAffinityTerm:
-              labelSelector:
-                matchLabels:
-                  app.kubernetes.io/name: argocd-conversion-webhook
-              topologyKey: kubernetes.io/hostname
-            weight: 100
-      automountServiceAccountToken: true
-      containers:
-      - args:
-        - --port=8443
-        - --tls-cert-path=/tls/tls.crt
-        - --tls-key-path=/tls/tls.key
-        command:
-        - argocd-conversion-webhook
-        env:
-        - name: ARGOCD_CONVERSION_WEBHOOK_NAMESPACE
-          valueFrom:
-            fieldRef:
-              fieldPath: metadata.namespace
-        - name: ARGOCD_CONVERSION_WEBHOOK_LOGFORMAT
-          valueFrom:
-            configMapKeyRef:
-              key: conversionwebhook.log.format
-              name: argocd-cmd-params-cm
-              optional: true
-        - name: ARGOCD_CONVERSION_WEBHOOK_LOGLEVEL
-          valueFrom:
-            configMapKeyRef:
-              key: conversionwebhook.log.level
-              name: argocd-cmd-params-cm
-              optional: true
-        image: quay.io/argoproj/argocd:latest
-        imagePullPolicy: Always
-        livenessProbe:
-          failureThreshold: 3
-          httpGet:
-            path: /healthz
-            port: 8443
-            scheme: HTTPS
-          initialDelaySeconds: 15
-          periodSeconds: 20
-          timeoutSeconds: 10
-        name: argocd-conversion-webhook
-        ports:
-        - containerPort: 8443
-          name: https
-          protocol: TCP
-        readinessProbe:
-          httpGet:
-            path: /readyz
-            port: 8443
-            scheme: HTTPS
-          initialDelaySeconds: 10
-          periodSeconds: 10
-          timeoutSeconds: 5
-        resources:
-          limits:
-            cpu: 100m
-            memory: 64Mi
-          requests:
-            cpu: 10m
-            memory: 32Mi
-        securityContext:
-          allowPrivilegeEscalation: false
-          capabilities:
-            drop:
-            - ALL
-          readOnlyRootFilesystem: true
-          runAsNonRoot: true
-          seccompProfile:
-            type: RuntimeDefault
-        volumeMounts:
-        - mountPath: /tls
-          name: tls
-          readOnly: true
-      serviceAccountName: argocd-conversion-webhook
-      volumes:
-      - name: tls
-        secret:
-          optional: true
-          secretName: argocd-conversion-webhook-tls
 ---
 apiVersion: apps/v1
 kind: Deployment

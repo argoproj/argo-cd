@@ -65,7 +65,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -97,7 +96,6 @@ import (
 	servercache "github.com/argoproj/argo-cd/v3/server/cache"
 	"github.com/argoproj/argo-cd/v3/server/certificate"
 	"github.com/argoproj/argo-cd/v3/server/cluster"
-	"github.com/argoproj/argo-cd/v3/server/conversion"
 	"github.com/argoproj/argo-cd/v3/server/extension"
 	"github.com/argoproj/argo-cd/v3/server/gpgkey"
 	"github.com/argoproj/argo-cd/v3/server/logout"
@@ -237,7 +235,6 @@ type ArgoCDServerOpts struct {
 	RepoServerCache         *repocache.Cache
 	RedisClient             *redis.Client
 	TLSConfigCustomizer     tlsutil.ConfigCustomizer
-	RestConfig              *rest.Config
 	XFrameOptions           string
 	ContentSecurityPolicy   string
 	ApplicationNamespaces   []string
@@ -558,15 +555,6 @@ func (server *ArgoCDServer) Init(ctx context.Context) {
 	go server.appsetInformer.Run(ctx.Done())
 	go server.configMapInformer.Run(ctx.Done())
 	go server.secretInformer.Run(ctx.Done())
-
-	// Inject CA bundle into CRD for conversion webhook (runs async, non-blocking)
-	if server.RestConfig != nil && server.settings.Certificate != nil && !server.Insecure {
-		go func() {
-			if err := conversion.InjectCABundle(ctx, server.RestConfig, server.settings.Certificate); err != nil {
-				log.Warnf("Failed to inject CA bundle into Application CRD: %v", err)
-			}
-		}()
-	}
 }
 
 // Run runs the API Server
@@ -1264,9 +1252,6 @@ func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWeb
 	acdWebhookHandler := webhook.NewHandler(server.Namespace, server.ApplicationNamespaces, server.WebhookParallelism, server.AppClientset, server.appLister, server.settings, server.settingsMgr, server.RepoServerCache, server.Cache, argoDB, server.settingsMgr.GetMaxWebhookPayloadSize())
 
 	mux.HandleFunc("/api/webhook", acdWebhookHandler.Handler)
-
-	// CRD conversion webhook for Application v1alpha1 <-> v1beta1
-	mux.Handle("/api/convert", conversion.NewHandler())
 
 	// Serve cli binaries directly from API server
 	registerDownloadHandlers(mux, "/download")

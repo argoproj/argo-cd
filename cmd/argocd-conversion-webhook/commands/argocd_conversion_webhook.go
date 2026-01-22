@@ -63,7 +63,7 @@ func NewCommand() *cobra.Command {
 			}
 
 			// Create TLS config (will generate self-signed cert if not provided)
-			tlsConfig, err := tlsutil.CreateServerTLSConfig(tlsCertPath, tlsKeyPath, hosts)
+			tlsConfig, err := tlsutil.CreateTLSConfig(tlsCertPath, tlsKeyPath, hosts, true)
 			if err != nil {
 				return fmt.Errorf("failed to create TLS config: %w", err)
 			}
@@ -135,6 +135,8 @@ func NewCommand() *cobra.Command {
 				}
 				close(errCh)
 			}()
+
+			log.Infof("Started conversion webhook server on port %d", port)
 
 			// Wait for shutdown signal or server error
 			select {

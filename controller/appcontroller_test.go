@@ -295,12 +295,11 @@ func newFakeControllerWithResync(ctx context.Context, data *fakeData, appResyncP
 			patchAction.GetName(),
 		)
 		if err != nil {
-			// Tracker might be locked during cache sync, fall back to our map
-			if stored, ok := appStore.Load(key); ok {
-				app = stored.(*v1alpha1.Application).DeepCopy()
-			} else {
+			stored, ok := appStore.Load(key)
+			if !ok {
 				return true, nil, err
 			}
+			app = stored.(*v1alpha1.Application).DeepCopy()
 		} else {
 			app = obj.(*v1alpha1.Application)
 		}
@@ -346,11 +345,11 @@ func newFakeControllerWithResync(ctx context.Context, data *fakeData, appResyncP
 			getAction.GetName(),
 		)
 		if err != nil {
-			if stored, ok := appStore.Load(key); ok {
-				app = stored.(*v1alpha1.Application)
-			} else {
+			stored, ok := appStore.Load(key)
+			if !ok {
 				return true, nil, err
 			}
+			app = stored.(*v1alpha1.Application)
 		} else {
 			app = obj.(*v1alpha1.Application)
 		}

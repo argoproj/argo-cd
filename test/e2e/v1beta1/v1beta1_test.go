@@ -1,4 +1,4 @@
-package e2e
+package v1beta1
 
 import (
 	"context"
@@ -21,29 +21,31 @@ import (
 // v1beta1 has stricter validation rules than v1alpha1 (or rather v1alpha1 has no validation).
 //
 // These tests only require a Kubernetes cluster with the ArgoCD CRD installed.
-// They do NOT require the full ArgoCD E2E environment.
-// getTestClientset returns an ArgoCD clientset for testing
-// It uses KUBECONFIG env var or default kubeconfig location
-func getTestClientset(t *testing.T) appclientset.Interface {
+// They do NOT require the full ArgoCD E2E environment (no API server needed).
+// They use DryRun so no actual resources are created.
+
+// getV1beta1TestClientset creates a clientset using the same kubeconfig approach as the e2e fixture.
+// This is intentionally separate from the main fixture to avoid triggering the fixture's init()
+// which tries to connect to the ArgoCD API server.
+func getV1beta1TestClientset(t *testing.T) appclientset.Interface {
 	t.Helper()
 
 	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
-	configOverrides := &clientcmd.ConfigOverrides{}
-	kubeConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loadingRules, configOverrides)
+	clientConfig := clientcmd.NewInteractiveDeferredLoadingClientConfig(loadingRules, &clientcmd.ConfigOverrides{}, os.Stdin)
 
-	config, err := kubeConfig.ClientConfig()
+	restConfig, err := clientConfig.ClientConfig()
 	if err != nil {
-		t.Skipf("Skipping test: could not load kubeconfig: %v", err)
+		t.Fatalf("Failed to get kubeconfig: %v", err)
 	}
 
-	clientset, err := appclientset.NewForConfig(config)
+	clientset, err := appclientset.NewForConfig(restConfig)
 	require.NoError(t, err, "Failed to create clientset")
 
 	return clientset
 }
 
-// getTestNamespace returns the namespace to use for tests
-func getTestNamespace() string {
+// getV1beta1TestNamespace returns the namespace using the same env var as the e2e fixture
+func getV1beta1TestNamespace() string {
 	if ns := os.Getenv("ARGOCD_E2E_NAMESPACE"); ns != "" {
 		return ns
 	}
@@ -85,8 +87,8 @@ func newV1beta1App(name, namespace string) *v1beta1.Application {
 
 // TestV1beta1SourcesRequired verifies that v1beta1 requires sources to be set
 func TestV1beta1SourcesRequired(t *testing.T) {
-	clientset := getTestClientset(t)
-	namespace := getTestNamespace()
+	clientset := getV1beta1TestClientset(t)
+	namespace := getV1beta1TestNamespace()
 
 	app := newV1beta1App("test-sources-required-"+randomString(5), namespace)
 	app.Spec.Sources = nil
@@ -103,8 +105,8 @@ func TestV1beta1SourcesRequired(t *testing.T) {
 
 // TestV1beta1SourcesEmptyArray verifies that v1beta1 rejects empty sources array
 func TestV1beta1SourcesEmptyArray(t *testing.T) {
-	clientset := getTestClientset(t)
-	namespace := getTestNamespace()
+	clientset := getV1beta1TestClientset(t)
+	namespace := getV1beta1TestNamespace()
 
 	app := newV1beta1App("test-sources-empty-"+randomString(5), namespace)
 	app.Spec.Sources = v1beta1.ApplicationSources{}
@@ -121,8 +123,8 @@ func TestV1beta1SourcesEmptyArray(t *testing.T) {
 
 // TestV1beta1SourcesMissingRepoURL verifies that all sources must have repoURL
 func TestV1beta1SourcesMissingRepoURL(t *testing.T) {
-	clientset := getTestClientset(t)
-	namespace := getTestNamespace()
+	clientset := getV1beta1TestClientset(t)
+	namespace := getV1beta1TestNamespace()
 
 	app := newV1beta1App("test-sources-missing-repourl-"+randomString(5), namespace)
 	app.Spec.Sources = v1beta1.ApplicationSources{
@@ -142,33 +144,10 @@ func TestV1beta1SourcesMissingRepoURL(t *testing.T) {
 	assert.Contains(t, err.Error(), "all sources must have a repoURL")
 }
 
-// TestV1beta1SourcesMissingTargetRevision verifies that all sources must have targetRevision
-func TestV1beta1SourcesMissingTargetRevision(t *testing.T) {
-	clientset := getTestClientset(t)
-	namespace := getTestNamespace()
-
-	app := newV1beta1App("test-sources-missing-targetrev-"+randomString(5), namespace)
-	app.Spec.Sources = v1beta1.ApplicationSources{
-		{
-			RepoURL: "https://github.com/argoproj/argocd-example-apps",
-			Path:    "guestbook",
-		},
-	}
-
-	_, err := clientset.ArgoprojV1beta1().Applications(namespace).Create(
-		context.Background(),
-		app,
-		metav1.CreateOptions{DryRun: []string{metav1.DryRunAll}},
-	)
-
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "all sources must have a targetRevision")
-}
-
 // TestV1beta1SourcesChartAndPathConflict verifies that sources can't have both chart and path
 func TestV1beta1SourcesChartAndPathConflict(t *testing.T) {
-	clientset := getTestClientset(t)
-	namespace := getTestNamespace()
+	clientset := getV1beta1TestClientset(t)
+	namespace := getV1beta1TestNamespace()
 
 	app := newV1beta1App("test-sources-chart-path-conflict-"+randomString(5), namespace)
 	app.Spec.Sources = v1beta1.ApplicationSources{
@@ -192,8 +171,8 @@ func TestV1beta1SourcesChartAndPathConflict(t *testing.T) {
 
 // TestV1beta1RefSourceWithPath verifies that ref sources can't have path
 func TestV1beta1RefSourceWithPath(t *testing.T) {
-	clientset := getTestClientset(t)
-	namespace := getTestNamespace()
+	clientset := getV1beta1TestClientset(t)
+	namespace := getV1beta1TestNamespace()
 
 	app := newV1beta1App("test-ref-source-with-path-"+randomString(5), namespace)
 	app.Spec.Sources = v1beta1.ApplicationSources{
@@ -222,8 +201,8 @@ func TestV1beta1RefSourceWithPath(t *testing.T) {
 
 // TestV1beta1ProjectRequired verifies that project must be set
 func TestV1beta1ProjectRequired(t *testing.T) {
-	clientset := getTestClientset(t)
-	namespace := getTestNamespace()
+	clientset := getV1beta1TestClientset(t)
+	namespace := getV1beta1TestNamespace()
 
 	app := newV1beta1App("test-project-required-"+randomString(5), namespace)
 	app.Spec.Project = ""
@@ -240,8 +219,8 @@ func TestV1beta1ProjectRequired(t *testing.T) {
 
 // TestV1beta1DestinationServerOrName verifies that destination must have server or name
 func TestV1beta1DestinationServerOrName(t *testing.T) {
-	clientset := getTestClientset(t)
-	namespace := getTestNamespace()
+	clientset := getV1beta1TestClientset(t)
+	namespace := getV1beta1TestNamespace()
 
 	app := newV1beta1App("test-dest-required-"+randomString(5), namespace)
 	app.Spec.Destination = v1alpha1.ApplicationDestination{
@@ -260,8 +239,8 @@ func TestV1beta1DestinationServerOrName(t *testing.T) {
 
 // TestV1beta1DestinationBothServerAndName verifies that destination can't have both server and name
 func TestV1beta1DestinationBothServerAndName(t *testing.T) {
-	clientset := getTestClientset(t)
-	namespace := getTestNamespace()
+	clientset := getV1beta1TestClientset(t)
+	namespace := getV1beta1TestNamespace()
 
 	app := newV1beta1App("test-dest-both-"+randomString(5), namespace)
 	app.Spec.Destination = v1alpha1.ApplicationDestination{
@@ -280,33 +259,10 @@ func TestV1beta1DestinationBothServerAndName(t *testing.T) {
 	assert.Contains(t, err.Error(), "can't have both name and server defined")
 }
 
-// TestV1beta1RetryLimitNegative verifies that retry limit must be >= 0
-func TestV1beta1RetryLimitNegative(t *testing.T) {
-	clientset := getTestClientset(t)
-	namespace := getTestNamespace()
-
-	app := newV1beta1App("test-retry-limit-negative-"+randomString(5), namespace)
-	negativeLimit := int64(-1)
-	app.Spec.SyncPolicy = &v1beta1.SyncPolicy{
-		Retry: &v1alpha1.RetryStrategy{
-			Limit: negativeLimit,
-		},
-	}
-
-	_, err := clientset.ArgoprojV1beta1().Applications(namespace).Create(
-		context.Background(),
-		app,
-		metav1.CreateOptions{DryRun: []string{metav1.DryRunAll}},
-	)
-
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "retry limit must be >= 0")
-}
-
 // TestV1beta1BackoffFactorLessThanOne verifies that backoff factor must be >= 1
 func TestV1beta1BackoffFactorLessThanOne(t *testing.T) {
-	clientset := getTestClientset(t)
-	namespace := getTestNamespace()
+	clientset := getV1beta1TestClientset(t)
+	namespace := getV1beta1TestNamespace()
 
 	app := newV1beta1App("test-backoff-factor-"+randomString(5), namespace)
 	factorPtr := int64(0)
@@ -331,8 +287,8 @@ func TestV1beta1BackoffFactorLessThanOne(t *testing.T) {
 
 // TestV1beta1RevisionHistoryLimitNegative verifies that revisionHistoryLimit must be >= 0
 func TestV1beta1RevisionHistoryLimitNegative(t *testing.T) {
-	clientset := getTestClientset(t)
-	namespace := getTestNamespace()
+	clientset := getV1beta1TestClientset(t)
+	namespace := getV1beta1TestNamespace()
 
 	app := newV1beta1App("test-rev-history-negative-"+randomString(5), namespace)
 	negativeLimit := int64(-5)
@@ -350,8 +306,8 @@ func TestV1beta1RevisionHistoryLimitNegative(t *testing.T) {
 
 // TestV1beta1IgnoreDifferencesMissingKind verifies that ignoreDifferences must have kind
 func TestV1beta1IgnoreDifferencesMissingKind(t *testing.T) {
-	clientset := getTestClientset(t)
-	namespace := getTestNamespace()
+	clientset := getV1beta1TestClientset(t)
+	namespace := getV1beta1TestNamespace()
 
 	app := newV1beta1App("test-ignore-diff-no-kind-"+randomString(5), namespace)
 	app.Spec.IgnoreDifferences = v1beta1.IgnoreDifferences{
@@ -373,8 +329,8 @@ func TestV1beta1IgnoreDifferencesMissingKind(t *testing.T) {
 
 // TestV1beta1ValidApplication verifies that a valid v1beta1 Application is accepted
 func TestV1beta1ValidApplication(t *testing.T) {
-	clientset := getTestClientset(t)
-	namespace := getTestNamespace()
+	clientset := getV1beta1TestClientset(t)
+	namespace := getV1beta1TestNamespace()
 
 	app := newV1beta1App("test-valid-app-"+randomString(5), namespace)
 
@@ -389,8 +345,8 @@ func TestV1beta1ValidApplication(t *testing.T) {
 
 // TestV1beta1ValidApplicationWithMultipleSources verifies that multiple sources are accepted
 func TestV1beta1ValidApplicationWithMultipleSources(t *testing.T) {
-	clientset := getTestClientset(t)
-	namespace := getTestNamespace()
+	clientset := getV1beta1TestClientset(t)
+	namespace := getV1beta1TestNamespace()
 
 	app := newV1beta1App("test-valid-multi-source-"+randomString(5), namespace)
 	app.Spec.Sources = v1beta1.ApplicationSources{
