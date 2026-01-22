@@ -20,6 +20,7 @@ func GetGenerators(ctx context.Context, c client.Client, k8sClient kubernetes.In
 		"ClusterDecisionResource": NewDuckTypeGenerator(ctx, dynamicClient, k8sClient, controllerNamespace, clusterInformer),
 		"PullRequest":             NewPullRequestGenerator(c, scmConfig),
 		"Plugin":                  NewPluginGenerator(c, controllerNamespace),
+		"Oci":                     NewOciGenerator(argoCDService),
 	}
 
 	nestedGenerators := map[string]Generator{
@@ -32,6 +33,7 @@ func GetGenerators(ctx context.Context, c client.Client, k8sClient kubernetes.In
 		"Plugin":                  terminalGenerators["Plugin"],
 		"Matrix":                  NewMatrixGenerator(terminalGenerators),
 		"Merge":                   NewMergeGenerator(terminalGenerators),
+		"Oci":                     terminalGenerators["Oci"],
 	}
 
 	topLevelGenerators := map[string]Generator{
@@ -44,6 +46,7 @@ func GetGenerators(ctx context.Context, c client.Client, k8sClient kubernetes.In
 		"Plugin":                  terminalGenerators["Plugin"],
 		"Matrix":                  NewMatrixGenerator(nestedGenerators),
 		"Merge":                   NewMergeGenerator(nestedGenerators),
+		"Oci":                     terminalGenerators["Oci"],
 	}
 
 	return topLevelGenerators
