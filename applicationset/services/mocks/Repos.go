@@ -226,3 +226,181 @@ func (_c *Repos_GetFiles_Call) RunAndReturn(run func(ctx context.Context, repoUR
 	_c.Call.Return(run)
 	return _c
 }
+
+// GetOciDirectories provides a mock function for the type Repos
+func (_mock *Repos) GetOciDirectories(ctx context.Context, repoURL string, revision string, project string, noRevisionCache bool) ([]string, error) {
+	ret := _mock.Called(ctx, repoURL, revision, project, noRevisionCache)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetOciDirectories")
+	}
+
+	var r0 []string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, bool) ([]string, error)); ok {
+		return returnFunc(ctx, repoURL, revision, project, noRevisionCache)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, bool) []string); ok {
+		r0 = returnFunc(ctx, repoURL, revision, project, noRevisionCache)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, string, bool) error); ok {
+		r1 = returnFunc(ctx, repoURL, revision, project, noRevisionCache)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Repos_GetOciDirectories_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetOciDirectories'
+type Repos_GetOciDirectories_Call struct {
+	*mock.Call
+}
+
+// GetOciDirectories is a helper method to define mock.On call
+//   - ctx context.Context
+//   - repoURL string
+//   - revision string
+//   - project string
+//   - noRevisionCache bool
+func (_e *Repos_Expecter) GetOciDirectories(ctx interface{}, repoURL interface{}, revision interface{}, project interface{}, noRevisionCache interface{}) *Repos_GetOciDirectories_Call {
+	return &Repos_GetOciDirectories_Call{Call: _e.mock.On("GetOciDirectories", ctx, repoURL, revision, project, noRevisionCache)}
+}
+
+func (_c *Repos_GetOciDirectories_Call) Run(run func(ctx context.Context, repoURL string, revision string, project string, noRevisionCache bool)) *Repos_GetOciDirectories_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		var arg4 bool
+		if args[4] != nil {
+			arg4 = args[4].(bool)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4,
+		)
+	})
+	return _c
+}
+
+func (_c *Repos_GetOciDirectories_Call) Return(strings []string, err error) *Repos_GetOciDirectories_Call {
+	_c.Call.Return(strings, err)
+	return _c
+}
+
+func (_c *Repos_GetOciDirectories_Call) RunAndReturn(run func(ctx context.Context, repoURL string, revision string, project string, noRevisionCache bool) ([]string, error)) *Repos_GetOciDirectories_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetOciFiles provides a mock function for the type Repos
+func (_mock *Repos) GetOciFiles(ctx context.Context, repoURL string, revision string, project string, pattern string, noRevisionCache bool) (map[string][]byte, error) {
+	ret := _mock.Called(ctx, repoURL, revision, project, pattern, noRevisionCache)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetOciFiles")
+	}
+
+	var r0 map[string][]byte
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, string, bool) (map[string][]byte, error)); ok {
+		return returnFunc(ctx, repoURL, revision, project, pattern, noRevisionCache)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, string, bool) map[string][]byte); ok {
+		r0 = returnFunc(ctx, repoURL, revision, project, pattern, noRevisionCache)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(map[string][]byte)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, string, string, bool) error); ok {
+		r1 = returnFunc(ctx, repoURL, revision, project, pattern, noRevisionCache)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Repos_GetOciFiles_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetOciFiles'
+type Repos_GetOciFiles_Call struct {
+	*mock.Call
+}
+
+// GetOciFiles is a helper method to define mock.On call
+//   - ctx context.Context
+//   - repoURL string
+//   - revision string
+//   - project string
+//   - pattern string
+//   - noRevisionCache bool
+func (_e *Repos_Expecter) GetOciFiles(ctx interface{}, repoURL interface{}, revision interface{}, project interface{}, pattern interface{}, noRevisionCache interface{}) *Repos_GetOciFiles_Call {
+	return &Repos_GetOciFiles_Call{Call: _e.mock.On("GetOciFiles", ctx, repoURL, revision, project, pattern, noRevisionCache)}
+}
+
+func (_c *Repos_GetOciFiles_Call) Run(run func(ctx context.Context, repoURL string, revision string, project string, pattern string, noRevisionCache bool)) *Repos_GetOciFiles_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		var arg4 string
+		if args[4] != nil {
+			arg4 = args[4].(string)
+		}
+		var arg5 bool
+		if args[5] != nil {
+			arg5 = args[5].(bool)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4,
+			arg5,
+		)
+	})
+	return _c
+}
+
+func (_c *Repos_GetOciFiles_Call) Return(stringToBytes map[string][]byte, err error) *Repos_GetOciFiles_Call {
+	_c.Call.Return(stringToBytes, err)
+	return _c
+}
+
+func (_c *Repos_GetOciFiles_Call) RunAndReturn(run func(ctx context.Context, repoURL string, revision string, project string, pattern string, noRevisionCache bool) (map[string][]byte, error)) *Repos_GetOciFiles_Call {
+	_c.Call.Return(run)
+	return _c
+}
