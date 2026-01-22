@@ -88,7 +88,7 @@ func (g *GitGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Applic
 		}
 		sourceIntegrity = appProject.EffectiveSourceIntegrity()
 	} else {
-		log.WithField("appset", appSet.Name).Infof("Cannot detect source integrity, project name templated")
+		log.WithField("appset", appSet.Name).Infof("Cannot enforce eventual source integrity, project name templated")
 	}
 
 	// If the project field is templated, we cannot resolve the project name, so we pass an empty string to the repo-server.
