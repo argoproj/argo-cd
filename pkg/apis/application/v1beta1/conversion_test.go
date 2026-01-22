@@ -310,11 +310,12 @@ func TestConvertToV1alpha1_BasicApplication(t *testing.T) {
 	assert.Equal(t, "test-app", dst.Name)
 	assert.Equal(t, "argocd", dst.Namespace)
 	assert.Equal(t, "default", dst.Spec.Project)
-	require.Len(t, dst.Spec.Sources, 1)
-	assert.Equal(t, "https://github.com/example/repo", dst.Spec.Sources[0].RepoURL)
-	// Single source should also populate the Source field for backward compat
+	// Single source from v1beta1 should only set Source (not Sources)
+	// to preserve HasMultipleSources() returning false for single-source apps
+	assert.Empty(t, dst.Spec.Sources, "Sources should be empty for single-source apps")
 	require.NotNil(t, dst.Spec.Source)
 	assert.Equal(t, "https://github.com/example/repo", dst.Spec.Source.RepoURL)
+	assert.False(t, dst.Spec.HasMultipleSources(), "Single-source app should not have multiple sources")
 }
 
 func TestConvertToV1alpha1_MultipleSources(t *testing.T) {
@@ -356,6 +357,7 @@ func TestConvertToV1alpha1_MultipleSources(t *testing.T) {
 }
 
 func TestConvertRoundTrip_V1alpha1ToV1beta1ToV1alpha1(t *testing.T) {
+	// Test with Source (not Sources) - the common case for single-source apps
 	original := &v1alpha1.Application{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "argoproj.io/v1alpha1",
@@ -375,12 +377,10 @@ func TestConvertRoundTrip_V1alpha1ToV1beta1ToV1alpha1(t *testing.T) {
 				Server:    "https://kubernetes.default.svc",
 				Namespace: "default",
 			},
-			Sources: v1alpha1.ApplicationSources{
-				{
-					RepoURL:        "https://github.com/example/repo",
-					Path:           "manifests",
-					TargetRevision: "main",
-				},
+			Source: &v1alpha1.ApplicationSource{
+				RepoURL:        "https://github.com/example/repo",
+				Path:           "manifests",
+				TargetRevision: "main",
 			},
 			SyncPolicy: &v1alpha1.SyncPolicy{
 				Automated: &v1alpha1.SyncPolicyAutomated{
@@ -426,7 +426,11 @@ func TestConvertRoundTrip_V1alpha1ToV1beta1ToV1alpha1(t *testing.T) {
 	assert.Equal(t, original.Labels, roundTripped.Labels)
 	assert.Equal(t, original.Spec.Project, roundTripped.Spec.Project)
 	assert.Equal(t, original.Spec.Destination, roundTripped.Spec.Destination)
-	assert.Equal(t, original.Spec.Sources, roundTripped.Spec.Sources)
+	// Single-source apps should preserve Source and keep Sources empty
+	require.NotNil(t, roundTripped.Spec.Source)
+	assert.Equal(t, original.Spec.Source.RepoURL, roundTripped.Spec.Source.RepoURL)
+	assert.Empty(t, roundTripped.Spec.Sources, "Sources should be empty for single-source apps")
+	assert.False(t, roundTripped.Spec.HasMultipleSources(), "Single-source app should not have multiple sources")
 	assert.Equal(t, original.Spec.SyncPolicy.Automated.Prune, roundTripped.Spec.SyncPolicy.Automated.Prune)
 	assert.Equal(t, original.Spec.SyncPolicy.Automated.SelfHeal, roundTripped.Spec.SyncPolicy.Automated.SelfHeal)
 	assert.Equal(t, original.Spec.SyncPolicy.SyncOptions, roundTripped.Spec.SyncPolicy.SyncOptions)

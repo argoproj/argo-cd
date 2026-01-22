@@ -61,6 +61,15 @@ import (
 
 var testEnableEventList []string = argo.DefaultEnableEventList()
 
+// mustMarshalJSON marshals obj to JSON, panicking on error (for use in tests).
+func mustMarshalJSON(obj any) []byte {
+	data, err := json.Marshal(obj)
+	if err != nil {
+		panic(err)
+	}
+	return data
+}
+
 type namespacedResource struct {
 	v1alpha1.ResourceNode
 	AppName string
@@ -163,11 +172,15 @@ func newFakeControllerWithResync(ctx context.Context, data *fakeData, appResyncP
 	// Initialize the settings manager to ensure cluster cache is ready
 	_ = settingsMgr.ResyncInformers()
 	kubectl := &MockKubectl{Kubectl: &kubetest.MockKubectlCmd{}}
+
+	// Create the fake app clientset with v1alpha1 objects only
+	fakeAppClientset := appclientset.NewSimpleClientset(data.apps...)
+
 	ctrl, err := NewApplicationController(
 		test.FakeArgoCDNamespace,
 		settingsMgr,
 		kubeClient,
-		appclientset.NewSimpleClientset(data.apps...),
+		fakeAppClientset,
 		mockRepoClientset,
 		mockCommitClientset,
 		appstatecache.NewCache(

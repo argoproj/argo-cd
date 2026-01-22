@@ -2,8 +2,10 @@ package application
 
 import (
 	"context"
+	"encoding/json"
 	stderrors "errors"
 	"fmt"
+
 	"io"
 	"slices"
 	"strconv"
@@ -11,6 +13,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	jsonpatch "github.com/evanphx/json-patch"
 
 	"k8s.io/apimachinery/pkg/labels"
 
@@ -45,6 +49,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1beta1"
 	apps "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/fake"
 	appinformer "github.com/argoproj/argo-cd/v3/pkg/client/informers/externalversions"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
@@ -68,6 +73,15 @@ const (
 )
 
 var testEnableEventList []string = argo.DefaultEnableEventList()
+
+// mustMarshalJSON marshals obj to JSON, panicking on error (for use in tests).
+func mustMarshalJSON(obj any) []byte {
+	data, err := json.Marshal(obj)
+	if err != nil {
+		panic(err)
+	}
+	return data
+}
 
 type broadcasterMock struct {
 	objects []runtime.Object
@@ -221,6 +235,65 @@ func newTestAppServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforcer),
 	objects = append(objects, defaultProj, myProj, projWithSyncWindows)
 
 	fakeAppsClientset := apps.NewSimpleClientset(objects...)
+
+	// Add reactor to handle v1beta1 application operations by converting from/to v1alpha1
+	// This is needed because the code now uses v1beta1 for status subresource operations
+	fakeAppsClientset.PrependReactor("patch", "applications", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		if action.GetResource().Version != "v1beta1" {
+			return false, nil, nil
+		}
+		patchAction := action.(kubetesting.PatchAction)
+		// Get the v1alpha1 object from tracker
+		obj, err := fakeAppsClientset.Tracker().Get(
+			v1alpha1.SchemeGroupVersion.WithResource("applications"),
+			patchAction.GetNamespace(),
+			patchAction.GetName(),
+		)
+		if err != nil {
+			return true, nil, err
+		}
+		app := obj.(*v1alpha1.Application)
+		// Apply the JSON merge patch to the app
+		patchedBytes, err := jsonpatch.MergePatch(
+			mustMarshalJSON(app),
+			patchAction.GetPatch(),
+		)
+		if err != nil {
+			return true, nil, err
+		}
+		patchedApp := &v1alpha1.Application{}
+		if err := json.Unmarshal(patchedBytes, patchedApp); err != nil {
+			return true, nil, err
+		}
+		// Update the tracker with the patched v1alpha1 object
+		if err := fakeAppsClientset.Tracker().Update(
+			v1alpha1.SchemeGroupVersion.WithResource("applications"),
+			patchedApp,
+			patchAction.GetNamespace(),
+		); err != nil {
+			return true, nil, err
+		}
+		// Return the patched app as v1beta1
+		return true, v1beta1.ConvertFromV1alpha1(patchedApp), nil
+	})
+	fakeAppsClientset.PrependReactor("get", "applications", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		if action.GetResource().Version != "v1beta1" {
+			return false, nil, nil
+		}
+		getAction := action.(kubetesting.GetAction)
+		// Get the v1alpha1 object from tracker
+		obj, err := fakeAppsClientset.Tracker().Get(
+			v1alpha1.SchemeGroupVersion.WithResource("applications"),
+			getAction.GetNamespace(),
+			getAction.GetName(),
+		)
+		if err != nil {
+			return true, nil, err
+		}
+		// Return as v1beta1
+		return true, v1beta1.ConvertFromV1alpha1(obj.(*v1alpha1.Application)), nil
+	})
+
 	factory := appinformer.NewSharedInformerFactoryWithOptions(fakeAppsClientset, 0, appinformer.WithNamespace(""), appinformer.WithTweakListOptions(func(_ *metav1.ListOptions) {}))
 	fakeProjLister := factory.Argoproj().V1alpha1().AppProjects().Lister().AppProjects(testNamespace)
 
@@ -4626,24 +4699,31 @@ func TestTerminateOperationWithConflicts(t *testing.T) {
 		return true, freshApp, nil
 	})
 
-	// Mock Update to return conflict on first call, success on second
-	fakeAppCs.AddReactor("update", "applications", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-		updateCallCount++
-		updateAction := action.(kubetesting.UpdateAction)
-		app := updateAction.GetObject().(*v1alpha1.Application)
+	// Mock Patch to return conflict on first call, success on second
+	// TerminateOperation uses v1beta1 Patch on status subresource
+	patchCallCount := 0
+	fakeAppCs.AddReactor("patch", "applications", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		patchCallCount++
+		updateCallCount++ // Keep tracking for assertion
 
-		// First call (with original resource version): return conflict
-		if app.ResourceVersion == "1" {
+		// First call: return conflict to trigger retry
+		if patchCallCount == 1 {
 			return true, nil, apierrors.NewConflict(
 				schema.GroupResource{Group: "argoproj.io", Resource: "applications"},
-				app.Name,
+				testApp.Name,
 				stderrors.New("the object has been modified"),
 			)
 		}
 
-		// Second call (with refreshed resource version from Get): return success
-		updatedApp := app.DeepCopy()
-		return true, updatedApp, nil
+		// Second call: return success with appropriate type based on API version
+		if action.GetResource().Version == "v1beta1" {
+			patchedApp := v1beta1.ConvertFromV1alpha1(testApp.DeepCopy())
+			patchedApp.Status.OperationState.Phase = synccommon.OperationTerminating
+			return true, patchedApp, nil
+		}
+		patchedApp := testApp.DeepCopy()
+		patchedApp.Status.OperationState.Phase = synccommon.OperationTerminating
+		return true, patchedApp, nil
 	})
 
 	// Attempt to terminate the operation
@@ -4653,5 +4733,5 @@ func TestTerminateOperationWithConflicts(t *testing.T) {
 
 	// Should succeed after retrying with the fresh app
 	require.NoError(t, err)
-	assert.GreaterOrEqual(t, updateCallCount, 2, "Update should be called at least twice (once with conflict, once with success)")
+	assert.GreaterOrEqual(t, updateCallCount, 2, "Patch should be called at least twice (once with conflict, once with success)")
 }

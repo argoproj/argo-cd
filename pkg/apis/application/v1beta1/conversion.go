@@ -16,8 +16,9 @@ func ConvertFromV1alpha1(src *v1alpha1.Application) *Application {
 		Operation:  src.Operation,
 	}
 
-	// Update API version
+	// Update API version and Kind
 	dst.APIVersion = SchemeGroupVersion.String()
+	dst.Kind = "Application"
 
 	// Convert spec
 	dst.Spec = convertSpecFromV1alpha1(&src.Spec)
@@ -192,15 +193,16 @@ func convertSpecToV1alpha1(src *ApplicationSpec) v1alpha1.ApplicationSpec {
 		IgnoreDifferences:    v1alpha1.IgnoreDifferences(src.IgnoreDifferences),
 		Info:                 src.Info,
 		RevisionHistoryLimit: src.RevisionHistoryLimit,
-		Sources:              v1alpha1.ApplicationSources(src.Sources),
 		SourceHydrator:       src.SourceHydrator,
 	}
 
-	// For backward compatibility with clients expecting the Source field,
-	// populate Source from Sources[0] if there's exactly one source.
-	// This ensures round-trip compatibility for simple single-source apps.
+	// Preserve original v1alpha1 source structure for backward compatibility:
+	// - If exactly one source: set only Source (not Sources) to keep HasMultipleSources() false
+	// - If multiple sources: set Sources
 	if len(src.Sources) == 1 {
 		dst.Source = &src.Sources[0]
+	} else if len(src.Sources) > 1 {
+		dst.Sources = v1alpha1.ApplicationSources(src.Sources)
 	}
 
 	// Convert SyncPolicy
