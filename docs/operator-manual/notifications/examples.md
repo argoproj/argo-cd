@@ -31,7 +31,7 @@ data:
     send: [on-deployed-template]
 ```
 
-This, as explained in the [triggers section](triggers/#avoid-sending-same-notification-too-often), will generate a notification when the app is synced and healthy. We then need to create a subscription for the webhook integration:
+This, as explained in the [triggers section](triggers.md#avoid-sending-same-notification-too-often), will generate a notification when the app is synced and healthy. We then need to create a subscription for the webhook integration:
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -125,7 +125,7 @@ data:
     send: [on-deployed-template]
 ```
 
-Now, with the setup above, a sync will send the list of images to your Slack application. For more information about integratin with Slack, see the [Slack integration guide](/operator-manual/notifications/services/slack/).
+Now, with the setup above, a sync will send the list of images to your Slack application. For more information about integratin with Slack, see the [Slack integration guide](services/slack.md).
 
 ### Deduplicating images
 
