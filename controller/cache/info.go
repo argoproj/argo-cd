@@ -63,7 +63,7 @@ func populateNodeInfo(un *unstructured.Unstructured, res *ResourceInfo, customLa
 		}
 	case "gateway.networking.k8s.io":
 		if gvk.Kind == "HTTPRoute" {
-			populateHttpRouteInfo(un, res)
+			populateHTTPRouteInfo(un, res)
 		}
 	case "networking.istio.io":
 		switch gvk.Kind {
@@ -245,7 +245,7 @@ func populateIngressInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 	res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{TargetRefs: targets, Ingress: ingress, ExternalURLs: urls}
 }
 
-func populateHttpRouteInfo(un *unstructured.Unstructured, res *ResourceInfo) {
+func populateHTTPRouteInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 	targetsMap := make(map[v1alpha1.ResourceRef]bool)
 	if rules, ok, err := unstructured.NestedSlice(un.Object, "spec", "rules"); ok && err == nil {
 		for i := range rules {
@@ -296,11 +296,11 @@ func populateHttpRouteInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 				continue
 			}
 			stringPort := "https" // since we can't get the information from the referenced gateway resource here, we assume https
-			externalUrlBase := fmt.Sprintf("%s://%s", stringPort, hostname)
+			externalURLBase := fmt.Sprintf("%s://%s", stringPort, hostname)
 
 			if rules, ok, err := unstructured.NestedSlice(un.Object, "spec", "rules"); ok && err == nil {
 				if len(rules) == 0 {
-					urlsSet[externalUrlBase] = true
+					urlsSet[externalURLBase] = true
 					continue
 				}
 				for i := range rules {
@@ -313,7 +313,7 @@ func populateHttpRouteInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 						continue
 					}
 					if len(matches) == 0 {
-						urlsSet[externalUrlBase] = true
+						urlsSet[externalURLBase] = true
 						continue
 					}
 					for j := range matches {
@@ -329,8 +329,8 @@ func populateHttpRouteInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 						if pathValue, ok, err := unstructured.NestedString(matchPath, "value"); ok && err == nil {
 							subPath = strings.TrimSuffix(pathValue, "*")
 						}
-						externalUrl := externalUrlBase + subPath
-						urlsSet[externalUrl] = true
+						externalURL := externalURLBase + subPath
+						urlsSet[externalURL] = true
 					}
 				}
 			}
