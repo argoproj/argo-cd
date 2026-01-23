@@ -61,6 +61,10 @@ func populateNodeInfo(un *unstructured.Unstructured, res *ResourceInfo, customLa
 		if gvk.Kind == kube.IngressKind {
 			populateIngressInfo(un, res)
 		}
+	case "gateway.networking.k8s.io":
+		if gvk.Kind == "HTTPRoute" {
+			populateHttpRouteInfo(un, res)
+		}
 	case "networking.istio.io":
 		switch gvk.Kind {
 		case "VirtualService":
@@ -239,6 +243,114 @@ func populateIngressInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 	}
 
 	res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{TargetRefs: targets, Ingress: ingress, ExternalURLs: urls}
+}
+
+func populateHttpRouteInfo(un *unstructured.Unstructured, res *ResourceInfo) {
+	targetsMap := make(map[v1alpha1.ResourceRef]bool)
+	if rules, ok, err := unstructured.NestedSlice(un.Object, "spec", "rules"); ok && err == nil {
+		for i := range rules {
+			rule, ok := rules[i].(map[string]any)
+			if !ok {
+				continue
+			}
+			backendRefs, ok, err := unstructured.NestedSlice(rule, "backendRefs")
+			if !ok || err != nil {
+				continue
+			}
+			for j := range backendRefs {
+				backendRef, ok := backendRefs[j].(map[string]any)
+				if !ok {
+					continue
+				}
+				backendRefGroup, ok, err := unstructured.NestedString(backendRef, "group")
+				if !ok || err != nil {
+					backendRefGroup = ""
+				}
+				backendRefKind, ok, err := unstructured.NestedString(backendRef, "kind")
+				if !ok || err != nil {
+					backendRefKind = ""
+				}
+				backendRefNamespace, ok, err := unstructured.NestedString(backendRef, "namespace")
+				if !ok || err != nil {
+					backendRefNamespace = un.GetNamespace()
+				}
+				backendRefName, ok, err := unstructured.NestedString(backendRef, "name")
+				if !ok || err != nil {
+					backendRefName = ""
+				}
+				targetsMap[v1alpha1.ResourceRef{
+					Group:     backendRefGroup,
+					Kind:      backendRefKind,
+					Namespace: backendRefNamespace,
+					Name:      backendRefName,
+				}] = true
+			}
+		}
+	}
+
+	urlsSet := make(map[string]bool)
+	if hostnames, ok, err := unstructured.NestedSlice(un.Object, "spec", "hostnames"); ok && err == nil {
+		for i := range hostnames {
+			hostname, ok := hostnames[i].(string)
+			if !ok {
+				continue
+			}
+			stringPort := "https" // since we can't get the information from the referenced gateway resource here, we assume https
+			externalUrlBase := fmt.Sprintf("%s://%s", stringPort, hostname)
+
+			if rules, ok, err := unstructured.NestedSlice(un.Object, "spec", "rules"); ok && err == nil {
+				if len(rules) == 0 {
+					urlsSet[externalUrlBase] = true
+					continue
+				}
+				for i := range rules {
+					rule, ok := rules[i].(map[string]any)
+					if !ok {
+						continue
+					}
+					matches, ok, err := unstructured.NestedSlice(rule, "matches")
+					if !ok || err != nil {
+						continue
+					}
+					if len(matches) == 0 {
+						urlsSet[externalUrlBase] = true
+						continue
+					}
+					for j := range matches {
+						match, ok := matches[j].(map[string]any)
+						if !ok {
+							continue
+						}
+						matchPath, ok, err := unstructured.NestedMap(match, "path")
+						if !ok || err != nil {
+							continue
+						}
+						subPath := ""
+						if pathValue, ok, err := unstructured.NestedString(matchPath, "value"); ok && err == nil {
+							subPath = strings.TrimSuffix(pathValue, "*")
+						}
+						externalUrl := externalUrlBase + subPath
+						urlsSet[externalUrl] = true
+					}
+				}
+			}
+		}
+	}
+
+	targets := make([]v1alpha1.ResourceRef, 0)
+	for target := range targetsMap {
+		targets = append(targets, target)
+	}
+
+	var urls []string
+	if res.NetworkingInfo != nil {
+		urls = res.NetworkingInfo.ExternalURLs
+	}
+	for url := range urlsSet {
+		urls = append(urls, url)
+	}
+
+	res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{TargetRefs: targets, ExternalURLs: urls}
 }
 
 func populateIstioVirtualServiceInfo(un *unstructured.Unstructured, res *ResourceInfo) {

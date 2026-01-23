@@ -1605,3 +1605,153 @@ func TestManifestHash(t *testing.T) {
 	assert.Equal(t, expected, hash)
 	assert.NoError(t, err)
 }
+
+func TestGetHTTPRouteInfo(t *testing.T) {
+	t.Parallel()
+
+	t.Run("TestGetHTTPRouteInfo", func(t *testing.T) {
+		t.Parallel()
+
+		httpRoute := strToUnstructured(`
+  apiVersion: gateway.networking.k8s.io/v1
+  kind: HTTPRoute
+  metadata:
+    name: helm-guestbook
+    namespace: default
+    resourceVersion: "123"
+  spec:
+    hostnames:
+    - helm-guestbook.example.com
+    parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: helm-guestbook
+    rules:
+    - backendRefs:
+      - group: ""
+        kind: Service
+        name: helm-guestbook
+        port: 80
+      matches:
+      - path:
+          type: PathPrefix
+          value: /
+`)
+
+		info := &ResourceInfo{}
+		populateNodeInfo(httpRoute, info, []string{})
+		assert.Equal(t, &v1alpha1.ResourceNetworkingInfo{
+			TargetRefs: []v1alpha1.ResourceRef{{
+				Namespace: "default",
+				Group:     "",
+				Kind:      kube.ServiceKind,
+				Name:      "helm-guestbook",
+			}},
+			ExternalURLs: []string{"https://helm-guestbook.example.com/"},
+		}, info.NetworkingInfo)
+	})
+
+	t.Run("TestGetHTTPRouteInfoWithMultipleHosts", func(t *testing.T) {
+		t.Parallel()
+
+		httpRoute := strToUnstructured(`
+  apiVersion: gateway.networking.k8s.io/v1
+  kind: HTTPRoute
+  metadata:
+    name: helm-guestbook
+    namespace: default
+    resourceVersion: "123"
+  spec:
+    hostnames:
+    - helm-guestbook.example.com
+    - helm-guestbook-2.example.com
+    - helm-guestbook-3.example.com
+    parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: helm-guestbook
+    rules:
+    - backendRefs:
+      - group: ""
+        kind: Service
+        name: helm-guestbook
+        port: 80
+      matches:
+      - path:
+          type: PathPrefix
+          value: /
+`)
+
+		info := &ResourceInfo{}
+		populateNodeInfo(httpRoute, info, []string{})
+		assert.Equal(t, &v1alpha1.ResourceNetworkingInfo{
+			TargetRefs: []v1alpha1.ResourceRef{{
+				Namespace: "default",
+				Group:     "",
+				Kind:      kube.ServiceKind,
+				Name:      "helm-guestbook",
+			}},
+			ExternalURLs: []string{"https://helm-guestbook.example.com/", "https://helm-guestbook-2.example.com/", "https://helm-guestbook-3.example.com/"},
+		}, info.NetworkingInfo)
+	})
+
+	t.Run("TestGetHTTPRouteInfoWithMultipleHostsAndRulesAndPaths", func(t *testing.T) {
+		t.Parallel()
+
+		httpRoute := strToUnstructured(`
+  apiVersion: gateway.networking.k8s.io/v1
+  kind: HTTPRoute
+  metadata:
+    name: helm-guestbook
+    namespace: default
+    resourceVersion: "123"
+  spec:
+    hostnames:
+    - helm-guestbook.example.com
+    - helm-guestbook-2.example.com
+    parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: helm-guestbook
+    rules:
+    - backendRefs:
+      - group: ""
+        kind: Service
+        name: helm-guestbook
+        port: 80
+      matches:
+      - path:
+          type: PathPrefix
+          value: /api
+      - path:
+          type: PathPrefix
+          value: /api-v2
+    - backendRefs:
+      - group: ""
+        kind: Service
+        name: helm-guestbook-2
+        port: 80
+      matches:
+      - path:
+          type: PathPrefix
+          value: /apu
+`)
+
+		info := &ResourceInfo{}
+		populateNodeInfo(httpRoute, info, []string{})
+		assert.Equal(t, &v1alpha1.ResourceNetworkingInfo{
+			TargetRefs: []v1alpha1.ResourceRef{{
+				Namespace: "default",
+				Group:     "",
+				Kind:      kube.ServiceKind,
+				Name:      "helm-guestbook",
+			}, {
+				Namespace: "default",
+				Group:     "",
+				Kind:      kube.ServiceKind,
+				Name:      "helm-guestbook-2",
+			}},
+			ExternalURLs: []string{"https://helm-guestbook.example.com/api", "https://helm-guestbook.example.com/api-v2", "https://helm-guestbook.example.com/apu", "https://helm-guestbook-2.example.com/api", "https://helm-guestbook-2.example.com/api-v2", "https://helm-guestbook-2.example.com/apu"},
+		}, info.NetworkingInfo)
+	})
+}
