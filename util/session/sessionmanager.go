@@ -512,6 +512,7 @@ func WithAuthMiddleware(disabled bool, isSSOConfigured bool, ssoClientApp *oidcu
 		}
 		claims, _, err := authn.VerifyToken(ctx, tokenString)
 		if err != nil {
+			log.Warnf("Failed to verify token (client: %s): %v", httputil.ClientIP(r), err)
 			http.Error(w, "Invalid token", http.StatusUnauthorized)
 			return
 		}

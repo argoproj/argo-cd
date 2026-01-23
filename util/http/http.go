@@ -242,6 +242,22 @@ func drainBody(body io.ReadCloser) {
 	}
 }
 
+// ClientIP extracts the client IP address from an HTTP request, checking
+// X-Forwarded-For and X-Real-IP headers before falling back to RemoteAddr.
+func ClientIP(r *http.Request) string {
+	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+		// X-Forwarded-For can contain multiple IPs; the first is the client
+		if i := strings.Index(xff, ","); i != -1 {
+			return strings.TrimSpace(xff[:i])
+		}
+		return strings.TrimSpace(xff)
+	}
+	if xri := r.Header.Get("X-Real-IP"); xri != "" {
+		return strings.TrimSpace(xri)
+	}
+	return r.RemoteAddr
+}
+
 func SetTokenCookie(token string, baseHRef string, isSecure bool, w http.ResponseWriter) error {
 	var path string
 	if baseHRef != "" {
