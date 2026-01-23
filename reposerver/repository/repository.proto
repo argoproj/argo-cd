@@ -166,6 +166,20 @@ message RepoServerRevisionMetadataRequest {
     bool checkSignature = 3;
 }
 
+message RepoServerCommitAuthorsRequest {
+    // the repo
+    github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.Repository repo = 1;
+    // the from revision (exclusive)
+    string fromRevision = 2;
+    // the to revision (inclusive)
+    string toRevision = 3;
+}
+
+message RepoServerCommitAuthorsResponse {
+    // list of unique commit authors in "Name <email>" format
+    repeated string authors = 1;
+}
+
 message RepoServerRevisionChartDetailsRequest {
     // the repo
     github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.Repository repo = 1;
@@ -337,6 +351,10 @@ service RepoServerService {
 
     // Get the meta-data (author, date, tags, message) for a specific revision of the repo
     rpc GetRevisionMetadata(RepoServerRevisionMetadataRequest) returns (github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.RevisionMetadata) {
+    }
+
+    // GetCommitAuthorsBetween returns unique commit authors between two revisions
+    rpc GetCommitAuthorsBetween(RepoServerCommitAuthorsRequest) returns (RepoServerCommitAuthorsResponse) {
     }
 
     // Get the meta-data (author, date, tags, message) for a specific revision of the OCI image
