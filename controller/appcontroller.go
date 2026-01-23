@@ -1588,10 +1588,21 @@ func (ctrl *ApplicationController) setOperationState(app *appv1.Application, sta
 		return
 	}
 
+	// Get the current app to fetch the latest generation
+	// This is needed because the generation may have changed since we started the operation
+	generation := app.Generation
+	currentApp, err := ctrl.applicationClientset.ArgoprojV1beta1().Applications(app.Namespace).Get(
+		context.Background(), app.Name, metav1.GetOptions{})
+	if err == nil {
+		generation = currentApp.Generation
+	}
+
 	// Build status patch for operationState
+	// Include observedGeneration for v1beta1 API
 	statusPatch := map[string]any{
 		"status": map[string]any{
-			"operationState": state,
+			"operationState":     state,
+			"observedGeneration": generation,
 		},
 	}
 	statusPatchJSON, err := json.Marshal(statusPatch)
@@ -2144,6 +2155,28 @@ func createMergePatch(orig, newV any) ([]byte, bool, error) {
 	return patch, string(patch) != "{}", nil
 }
 
+// addObservedGenerationToPatch adds the observedGeneration field to a status merge patch.
+// This is needed because v1alpha1 types don't have observedGeneration, but v1beta1 does.
+// The controller patches using the v1beta1 API, so we add this field to the patch.
+func addObservedGenerationToPatch(patch []byte, generation int64) ([]byte, error) {
+	var patchMap map[string]any
+	if err := json.Unmarshal(patch, &patchMap); err != nil {
+		return nil, err
+	}
+
+	// Get or create the status object in the patch
+	status, ok := patchMap["status"].(map[string]any)
+	if !ok {
+		status = make(map[string]any)
+		patchMap["status"] = status
+	}
+
+	// Set observedGeneration
+	status["observedGeneration"] = generation
+
+	return json.Marshal(patchMap)
+}
+
 // persistAppStatus persists updates to application status. If no changes were made, it is a no-op
 func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, newStatus *appv1.ApplicationStatus) (patchDuration time.Duration) {
 	logCtx := log.WithFields(applog.GetAppLogFields(orig))
@@ -2179,6 +2212,29 @@ func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, new
 		return patchDuration
 	}
 	if statusModified {
+		// Get the current app to fetch the latest generation
+		// This is needed because the generation may have changed since we started reconciling
+		// (e.g., due to normalization by admission webhooks)
+		currentApp, err := ctrl.applicationClientset.ArgoprojV1beta1().Applications(orig.Namespace).Get(
+			context.Background(), orig.Name, metav1.GetOptions{})
+		if err != nil {
+			logCtx.WithError(err).Warn("Error fetching current app for observedGeneration")
+			// Fall back to using orig.Generation
+			currentApp = nil
+		}
+
+		// Add observedGeneration to the status patch for v1beta1 API
+		// This field is only present in v1beta1 and indicates the generation
+		// that was last processed by the controller
+		generation := orig.Generation
+		if currentApp != nil {
+			generation = currentApp.Generation
+		}
+		statusPatch, err = addObservedGenerationToPatch(statusPatch, generation)
+		if err != nil {
+			logCtx.WithError(err).Error("Error adding observedGeneration to status patch")
+			return patchDuration
+		}
 		_, err = ctrl.PatchAppStatusWithWriteBack(context.Background(), orig.Name, orig.Namespace, types.MergePatchType, statusPatch, metav1.PatchOptions{})
 		if err != nil {
 			logCtx.WithError(err).Warn("Error updating application status")

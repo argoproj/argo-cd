@@ -3204,6 +3204,14 @@ spec:
                   Deprecated: controller no longer updates ObservedAt field
                 format: date-time
                 type: string
+              observedGeneration:
+                description: |-
+                  ObservedGeneration is the most recent generation observed for this application.
+                  It corresponds to the application's generation, which is updated on mutation by the API Server.
+                  This field is used to indicate whether the controller has processed the latest spec changes.
+                  Note: This field is managed by the controller via the v1beta1 API's status subresource.
+                format: int64
+                type: integer
               operationState:
                 description: OperationState contains information about any ongoing
                   operations, such as a sync
@@ -9946,6 +9954,14 @@ spec:
                   Deprecated: controller no longer updates ObservedAt field
                 format: date-time
                 type: string
+              observedGeneration:
+                description: |-
+                  ObservedGeneration is the most recent generation observed for this application.
+                  It corresponds to the application's generation, which is updated on mutation by the API Server.
+                  This field is used to indicate whether the controller has processed the latest spec changes.
+                  Note: This field is managed by the controller via the v1beta1 API's status subresource.
+                format: int64
+                type: integer
               operationState:
                 description: OperationState contains information about any ongoing
                   operations, such as a sync

@@ -7846,6 +7846,11 @@
         "observedAt": {
           "$ref": "#/definitions/v1Time"
         },
+        "observedGeneration": {
+          "type": "integer",
+          "format": "int64",
+          "title": "ObservedGeneration is the most recent generation observed for this application.\nIt corresponds to the application's generation, which is updated on mutation by the API Server.\nThis field is used to indicate whether the controller has processed the latest spec changes.\nNote: This field is managed by the controller via the v1beta1 API's status subresource.\n+optional"
+        },
         "operationState": {
           "$ref": "#/definitions/v1alpha1OperationState"
         },

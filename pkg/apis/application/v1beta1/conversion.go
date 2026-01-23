@@ -12,8 +12,8 @@ func ConvertFromV1alpha1(src *v1alpha1.Application) *Application {
 	dst := &Application{
 		TypeMeta:   src.TypeMeta,
 		ObjectMeta: src.ObjectMeta,
-		Status:     src.Status,
 		Operation:  src.Operation,
+		Status:     src.Status, // Same type, no conversion needed
 	}
 
 	// Update API version and Kind
@@ -173,8 +173,8 @@ func ConvertToV1alpha1(src *Application) *v1alpha1.Application {
 	dst := &v1alpha1.Application{
 		TypeMeta:   src.TypeMeta,
 		ObjectMeta: src.ObjectMeta,
-		Status:     src.Status,
 		Operation:  src.Operation,
+		Status:     src.Status, // Same type, no conversion needed
 	}
 
 	// Update API version

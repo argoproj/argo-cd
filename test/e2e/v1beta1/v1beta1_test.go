@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -369,4 +370,162 @@ func TestV1beta1ValidApplicationWithMultipleSources(t *testing.T) {
 	)
 
 	assert.NoError(t, err)
+}
+
+// TestV1beta1ObservedGeneration verifies that observedGeneration is set in v1beta1 status
+// after the controller reconciles the application.
+// This test requires the full ArgoCD E2E environment to be running.
+func TestV1beta1ObservedGeneration(t *testing.T) {
+	/*
+		if os.Getenv("ARGOCD_E2E_TEST") != "true" {
+			t.Skip("Skipping: requires full ArgoCD E2E environment (set ARGOCD_E2E_TEST=true)")
+		}
+
+	*/
+
+	clientset := getV1beta1TestClientset(t)
+	namespace := getV1beta1TestNamespace()
+
+	appName := "test-observed-gen-" + randomString(5)
+	app := newV1beta1App(appName, namespace)
+
+	// Create the application (not DryRun - we need the controller to reconcile it)
+	_, err := clientset.ArgoprojV1beta1().Applications(namespace).Create(
+		context.Background(),
+		app,
+		metav1.CreateOptions{},
+	)
+	require.NoError(t, err)
+
+	// Cleanup
+	defer func() {
+		_ = clientset.ArgoprojV1beta1().Applications(namespace).Delete(
+			context.Background(),
+			appName,
+			metav1.DeleteOptions{},
+		)
+	}()
+
+	// Wait for the controller to reconcile (status will be updated)
+	// Poll until status.observedGeneration is set or timeout
+	var reconciledApp *v1beta1.Application
+	require.Eventually(t, func() bool {
+		reconciledApp, err = clientset.ArgoprojV1beta1().Applications(namespace).Get(
+			context.Background(),
+			appName,
+			metav1.GetOptions{},
+		)
+		if err != nil {
+			return false
+		}
+		// Check if observedGeneration is set (non-zero indicates reconciliation)
+		return reconciledApp.Status.ObservedGeneration > 0
+	}, 60*time.Second, 1*time.Second, "Timed out waiting for observedGeneration to be set")
+
+	// Verify observedGeneration matches the current generation
+	// Note: We use reconciledApp.Generation, not createdApp.Generation, because
+	// normalization/defaulting webhooks may have bumped the generation after creation
+	assert.Equal(t, reconciledApp.Generation, reconciledApp.Status.ObservedGeneration,
+		"observedGeneration should match metadata.generation after reconciliation")
+
+	// Also verify via v1alpha1 API - observedGeneration should NOT be present
+	// (v1alpha1.ApplicationStatus doesn't have the field)
+	v1alpha1App, err := clientset.ArgoprojV1alpha1().Applications(namespace).Get(
+		context.Background(),
+		appName,
+		metav1.GetOptions{},
+	)
+	require.NoError(t, err)
+
+	// v1alpha1.ApplicationStatus doesn't have ObservedGeneration field,
+	// so we can't check it directly. We just verify the status is populated.
+	assert.NotEmpty(t, v1alpha1App.Status.Sync.Status, "v1alpha1 status should be populated")
+}
+
+// TestV1beta1ObservedGenerationUpdatesOnSpecChange verifies that observedGeneration
+// is updated when the spec changes.
+// This test requires the full ArgoCD E2E environment to be running.
+func TestV1beta1ObservedGenerationUpdatesOnSpecChange(t *testing.T) {
+	/*
+		if os.Getenv("ARGOCD_E2E_TEST") != "true" {
+			t.Skip("Skipping: requires full ArgoCD E2E environment (set ARGOCD_E2E_TEST=true)")
+		}
+
+	*/
+
+	clientset := getV1beta1TestClientset(t)
+	namespace := getV1beta1TestNamespace()
+
+	appName := "test-observed-gen-update-" + randomString(5)
+	app := newV1beta1App(appName, namespace)
+
+	// Create the application
+	_, err := clientset.ArgoprojV1beta1().Applications(namespace).Create(
+		context.Background(),
+		app,
+		metav1.CreateOptions{},
+	)
+	require.NoError(t, err)
+
+	// Cleanup
+	defer func() {
+		_ = clientset.ArgoprojV1beta1().Applications(namespace).Delete(
+			context.Background(),
+			appName,
+			metav1.DeleteOptions{},
+		)
+	}()
+
+	// Wait for initial reconciliation - observedGeneration should match current generation
+	// Note: generation may increase after creation due to normalization/defaulting
+	var reconciledApp *v1beta1.Application
+	require.Eventually(t, func() bool {
+		reconciledApp, err = clientset.ArgoprojV1beta1().Applications(namespace).Get(
+			context.Background(),
+			appName,
+			metav1.GetOptions{},
+		)
+		if err != nil {
+			return false
+		}
+		// Wait until observedGeneration catches up to generation
+		return reconciledApp.Status.ObservedGeneration == reconciledApp.Generation
+	}, 60*time.Second, 1*time.Second, "Timed out waiting for initial reconciliation")
+
+	initialGeneration := reconciledApp.Generation
+
+	// Update the spec to trigger a new generation
+	reconciledApp.Spec.Sources[0].TargetRevision = "main"
+	updatedApp, err := clientset.ArgoprojV1beta1().Applications(namespace).Update(
+		context.Background(),
+		reconciledApp,
+		metav1.UpdateOptions{},
+	)
+	require.NoError(t, err)
+
+	// Note: We don't rely on updatedApp.Generation because normalization webhooks
+	// may bump it again. Instead, we verify that observedGeneration catches up
+	// to whatever the current generation is.
+	_ = updatedApp // Ensure spec change was accepted
+
+	// Wait for observedGeneration to catch up to the current generation
+	// The generation should be higher than initial after our spec update
+	require.Eventually(t, func() bool {
+		reconciledApp, err = clientset.ArgoprojV1beta1().Applications(namespace).Get(
+			context.Background(),
+			appName,
+			metav1.GetOptions{},
+		)
+		if err != nil {
+			return false
+		}
+		// observedGeneration should match current generation AND be higher than initial
+		return reconciledApp.Status.ObservedGeneration == reconciledApp.Generation &&
+			reconciledApp.Generation > initialGeneration
+	}, 60*time.Second, 1*time.Second, "Timed out waiting for observedGeneration to update")
+
+	assert.Equal(t, reconciledApp.Generation, reconciledApp.Status.ObservedGeneration,
+		"observedGeneration should match current generation after spec change")
+	assert.Greater(t, reconciledApp.Generation, initialGeneration,
+		"generation should have increased after spec update")
 }

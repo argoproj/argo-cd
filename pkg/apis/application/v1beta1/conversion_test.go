@@ -496,6 +496,113 @@ func TestConvertRoundTrip_V1beta1ToV1alpha1ToV1beta1(t *testing.T) {
 	assert.True(t, *roundTripped.Spec.SyncPolicy.SyncOptions.CreateNamespace)
 }
 
+func TestConvertStatus_ObservedGeneration(t *testing.T) {
+	// Test that ObservedGeneration is preserved in both directions
+	// Both v1alpha1 and v1beta1 now have the ObservedGeneration field
+
+	t.Run("v1alpha1 to v1beta1 - ObservedGeneration is preserved", func(t *testing.T) {
+		src := &v1alpha1.Application{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:       "test-app",
+				Namespace:  "argocd",
+				Generation: 5,
+			},
+			Spec: v1alpha1.ApplicationSpec{
+				Project: "default",
+				Destination: v1alpha1.ApplicationDestination{
+					Server:    "https://kubernetes.default.svc",
+					Namespace: "default",
+				},
+				Source: &v1alpha1.ApplicationSource{
+					RepoURL: "https://github.com/example/repo",
+				},
+			},
+			Status: v1alpha1.ApplicationStatus{
+				ObservedGeneration: 3,
+				Sync: v1alpha1.SyncStatus{
+					Status: v1alpha1.SyncStatusCodeSynced,
+				},
+			},
+		}
+
+		dst := ConvertFromV1alpha1(src)
+
+		// ObservedGeneration should be preserved
+		assert.Equal(t, int64(3), dst.Status.ObservedGeneration)
+		// Other status fields should be preserved
+		assert.Equal(t, v1alpha1.SyncStatusCodeSynced, dst.Status.Sync.Status)
+	})
+
+	t.Run("v1beta1 to v1alpha1 - ObservedGeneration is preserved", func(t *testing.T) {
+		src := &Application{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:       "test-app",
+				Namespace:  "argocd",
+				Generation: 5,
+			},
+			Spec: ApplicationSpec{
+				Project: "default",
+				Destination: v1alpha1.ApplicationDestination{
+					Server:    "https://kubernetes.default.svc",
+					Namespace: "default",
+				},
+				Sources: ApplicationSources{
+					{RepoURL: "https://github.com/example/repo"},
+				},
+			},
+			Status: v1alpha1.ApplicationStatus{
+				ObservedGeneration: 3,
+				Sync: v1alpha1.SyncStatus{
+					Status: v1alpha1.SyncStatusCodeSynced,
+				},
+			},
+		}
+
+		dst := ConvertToV1alpha1(src)
+
+		// ObservedGeneration should be preserved
+		assert.Equal(t, int64(3), dst.Status.ObservedGeneration)
+		// Other status fields should be preserved
+		assert.Equal(t, v1alpha1.SyncStatusCodeSynced, dst.Status.Sync.Status)
+	})
+
+	t.Run("round-trip preserves ObservedGeneration", func(t *testing.T) {
+		// When converting v1beta1 -> v1alpha1 -> v1beta1, ObservedGeneration is preserved
+		src := &Application{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:       "test-app",
+				Namespace:  "argocd",
+				Generation: 5,
+			},
+			Spec: ApplicationSpec{
+				Project: "default",
+				Destination: v1alpha1.ApplicationDestination{
+					Server:    "https://kubernetes.default.svc",
+					Namespace: "default",
+				},
+				Sources: ApplicationSources{
+					{RepoURL: "https://github.com/example/repo"},
+				},
+			},
+			Status: v1alpha1.ApplicationStatus{
+				ObservedGeneration: 3,
+				Sync: v1alpha1.SyncStatus{
+					Status: v1alpha1.SyncStatusCodeSynced,
+				},
+			},
+		}
+
+		// Convert to v1alpha1 and back
+		v1alpha1App := ConvertToV1alpha1(src)
+		roundTripped := ConvertFromV1alpha1(v1alpha1App)
+
+		// ObservedGeneration is preserved in round-trip
+		assert.Equal(t, int64(3), roundTripped.Status.ObservedGeneration)
+		// Other status fields should be preserved
+		assert.Equal(t, v1alpha1.SyncStatusCodeSynced, roundTripped.Status.Sync.Status)
+	})
+}
+
 func int64Ptr(i int64) *int64 {
 	return &i
 }
