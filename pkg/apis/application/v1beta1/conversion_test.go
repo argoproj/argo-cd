@@ -310,13 +310,12 @@ func TestConvertToV1alpha1_BasicApplication(t *testing.T) {
 	assert.Equal(t, "test-app", dst.Name)
 	assert.Equal(t, "argocd", dst.Namespace)
 	assert.Equal(t, "default", dst.Spec.Project)
-	// Conversion always sets both Source and Sources for compatibility.
-	// This ensures apps that started as multi-source remain multi-source after source removal.
-	require.Len(t, dst.Spec.Sources, 1, "Sources should be set")
+	// For single-source apps, only Source is set (not Sources) to preserve
+	// the original v1alpha1 single-source behavior
 	require.NotNil(t, dst.Spec.Source)
 	assert.Equal(t, "https://github.com/example/repo", dst.Spec.Source.RepoURL)
-	assert.Equal(t, "https://github.com/example/repo", dst.Spec.Sources[0].RepoURL)
-	assert.True(t, dst.Spec.HasMultipleSources(), "App should have HasMultipleSources true since Sources is set")
+	assert.Empty(t, dst.Spec.Sources, "Sources should not be set for single-source apps")
+	assert.False(t, dst.Spec.HasMultipleSources(), "Single-source app should have HasMultipleSources false")
 }
 
 func TestConvertToV1alpha1_MultipleSources(t *testing.T) {
@@ -427,12 +426,12 @@ func TestConvertRoundTrip_V1alpha1ToV1beta1ToV1alpha1(t *testing.T) {
 	assert.Equal(t, original.Labels, roundTripped.Labels)
 	assert.Equal(t, original.Spec.Project, roundTripped.Spec.Project)
 	assert.Equal(t, original.Spec.Destination, roundTripped.Spec.Destination)
-	// Conversion sets both Source and Sources for compatibility
+	// For single-source apps, only Source is set (not Sources) to preserve
+	// the original v1alpha1 single-source behavior
 	require.NotNil(t, roundTripped.Spec.Source)
 	assert.Equal(t, original.Spec.Source.RepoURL, roundTripped.Spec.Source.RepoURL)
-	require.Len(t, roundTripped.Spec.Sources, 1, "Sources should be set")
-	assert.Equal(t, original.Spec.Source.RepoURL, roundTripped.Spec.Sources[0].RepoURL)
-	assert.True(t, roundTripped.Spec.HasMultipleSources(), "HasMultipleSources should be true since Sources is set")
+	assert.Empty(t, roundTripped.Spec.Sources, "Sources should not be set for single-source apps")
+	assert.False(t, roundTripped.Spec.HasMultipleSources(), "Single-source app should have HasMultipleSources false")
 	assert.Equal(t, original.Spec.SyncPolicy.Automated.Prune, roundTripped.Spec.SyncPolicy.Automated.Prune)
 	assert.Equal(t, original.Spec.SyncPolicy.Automated.SelfHeal, roundTripped.Spec.SyncPolicy.Automated.SelfHeal)
 	assert.Equal(t, original.Spec.SyncPolicy.SyncOptions, roundTripped.Spec.SyncPolicy.SyncOptions)
