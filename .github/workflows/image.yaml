@@ -20,7 +20,7 @@ jobs:
     permissions:
       contents: read
     # Always run to calculate variables - other jobs check outputs
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     outputs:
       image-tag: ${{ steps.image.outputs.tag}}
       platforms: ${{ steps.platforms.outputs.platforms }}
@@ -31,7 +31,7 @@ jobs:
       ghcr_provenance_image: ${{ steps.image.outputs.ghcr_provenance_image }}
       allow_ghcr_publish: ${{ steps.image.outputs.allow_ghcr_publish }}
     steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Set image tag and names
         run: |
@@ -86,7 +86,7 @@ jobs:
     with:
       # Note: cannot use env variables to set go-version (https://docs.github.com/en/actions/using-workflows/reusing-workflows#limitations)
       # renovate: datasource=golang-version packageName=golang
-      go-version: 1.25.5
+      go-version: 1.25.6
       platforms: ${{ needs.set-vars.outputs.platforms }}
       push: false
 
@@ -103,7 +103,7 @@ jobs:
       ghcr_image_name: ${{ needs.set-vars.outputs.ghcr_image_name }}
       # Note: cannot use env variables to set go-version (https://docs.github.com/en/actions/using-workflows/reusing-workflows#limitations)
       # renovate: datasource=golang-version packageName=golang
-      go-version: 1.25.5
+      go-version: 1.25.6
       platforms: ${{ needs.set-vars.outputs.platforms }}
       push: true
     secrets:
@@ -138,9 +138,9 @@ jobs:
       contents: write # for git to push upgrade commit if not already deployed
       packages: write # for pushing packages to GHCR, which is used by cd.apps.argoproj.io to avoid polluting Quay with tags
     if: ${{ github.repository == 'argoproj/argo-cd' && github.event_name == 'push' }}
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - run: git clone "https://$TOKEN@github.com/argoproj/argoproj-deployments"
         env:
           TOKEN: ${{ secrets.TOKEN }}

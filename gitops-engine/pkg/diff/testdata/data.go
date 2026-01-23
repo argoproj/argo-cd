@@ -86,4 +86,13 @@ var (
 
 	//go:embed ssd-deploy-composite-key-predicted-live.json
 	DeploymentCompositeKeyPredictedLiveJSONSSD string
+
+	//go:embed ssd-configmap-config.yaml
+	ConfigMapConfigYAMLSSD string
+
+	//go:embed ssd-configmap-live.yaml
+	ConfigMapLiveYAMLSSD string
+
+	//go:embed ssd-configmap-predicted-live.json
+	ConfigMapPredictedLiveJSONSSD string
 )
