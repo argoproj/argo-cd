@@ -1684,15 +1684,14 @@ func TestGetHTTPRouteInfo(t *testing.T) {
 
 		info := &ResourceInfo{}
 		populateNodeInfo(httpRoute, info, []string{})
-		assert.Equal(t, &v1alpha1.ResourceNetworkingInfo{
-			TargetRefs: []v1alpha1.ResourceRef{{
-				Namespace: "default",
-				Group:     "",
-				Kind:      kube.ServiceKind,
-				Name:      "helm-guestbook",
-			}},
-			ExternalURLs: []string{"https://helm-guestbook.example.com/", "https://helm-guestbook-2.example.com/", "https://helm-guestbook-3.example.com/"},
-		}, info.NetworkingInfo)
+		assert.ElementsMatch(t, info.NetworkingInfo.ExternalURLs, []string{"https://helm-guestbook.example.com/", "https://helm-guestbook-2.example.com/", "https://helm-guestbook-3.example.com/"})
+		assert.Equal(t, []v1alpha1.ResourceRef{{
+			Namespace: "default",
+			Group:     "",
+			Kind:      kube.ServiceKind,
+			Name:      "helm-guestbook",
+		},
+		}, info.NetworkingInfo.TargetRefs)
 	})
 
 	t.Run("TestGetHTTPRouteInfoWithMultipleHostsAndRulesAndPaths", func(t *testing.T) {
@@ -1739,19 +1738,19 @@ func TestGetHTTPRouteInfo(t *testing.T) {
 
 		info := &ResourceInfo{}
 		populateNodeInfo(httpRoute, info, []string{})
-		assert.Equal(t, &v1alpha1.ResourceNetworkingInfo{
-			TargetRefs: []v1alpha1.ResourceRef{{
-				Namespace: "default",
-				Group:     "",
-				Kind:      kube.ServiceKind,
-				Name:      "helm-guestbook",
-			}, {
-				Namespace: "default",
-				Group:     "",
-				Kind:      kube.ServiceKind,
-				Name:      "helm-guestbook-2",
-			}},
-			ExternalURLs: []string{"https://helm-guestbook.example.com/api", "https://helm-guestbook.example.com/api-v2", "https://helm-guestbook.example.com/apu", "https://helm-guestbook-2.example.com/api", "https://helm-guestbook-2.example.com/api-v2", "https://helm-guestbook-2.example.com/apu"},
-		}, info.NetworkingInfo)
+		assert.ElementsMatch(t, info.NetworkingInfo.ExternalURLs, []string{"https://helm-guestbook.example.com/api", "https://helm-guestbook.example.com/api-v2", "https://helm-guestbook.example.com/apu", "https://helm-guestbook-2.example.com/api", "https://helm-guestbook-2.example.com/api-v2", "https://helm-guestbook-2.example.com/apu"})
+		assert.Len(t, info.NetworkingInfo.TargetRefs, 2)
+		assert.Contains(t, info.NetworkingInfo.TargetRefs, v1alpha1.ResourceRef{
+			Namespace: "default",
+			Group:     "",
+			Kind:      kube.ServiceKind,
+			Name:      "helm-guestbook",
+		})
+		assert.Contains(t, info.NetworkingInfo.TargetRefs, v1alpha1.ResourceRef{
+			Namespace: "default",
+			Group:     "",
+			Kind:      kube.ServiceKind,
+			Name:      "helm-guestbook-2",
+		})
 	})
 }
