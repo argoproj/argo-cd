@@ -3472,6 +3472,22 @@ func NewApplicationAddSourceCommand(clientOpts *argocdclient.ClientOptions) *cob
 				errors.CheckError(err)
 
 				fmt.Printf("Application '%s' updated successfully\n", app.Name)
+			} else if app.Spec.Source != nil {
+				appSource, _ := cmdutil.ConstructSource(&argoappv1.ApplicationSource{}, appOpts, c.Flags())
+				app.Spec.Sources = argoappv1.ApplicationSources{
+					*app.Spec.Source,
+					*appSource,
+				}
+				app.Spec.Source = nil
+				setParameterOverrides(app, appOpts.Parameters, 2)
+				_, err = appIf.UpdateSpec(ctx, &application.ApplicationUpdateSpecRequest{
+					Name:         &app.Name,
+					Spec:         &app.Spec,
+					Validate:     &appOpts.Validate,
+					AppNamespace: &appNs,
+				})
+				errors.CheckError(err)
+				fmt.Printf("Application '%s' updated successfully\n", app.Name)
 			} else {
 				errors.Fatal(errors.ErrorGeneric, fmt.Sprintf("Cannot add source: application %s does not have spec.sources defined", appName))
 			}
