@@ -1685,12 +1685,13 @@ func TestGetHTTPRouteInfo(t *testing.T) {
 		info := &ResourceInfo{}
 		populateNodeInfo(httpRoute, info, []string{})
 		assert.ElementsMatch(t, info.NetworkingInfo.ExternalURLs, []string{"https://helm-guestbook.example.com/", "https://helm-guestbook-2.example.com/", "https://helm-guestbook-3.example.com/"})
-		assert.Equal(t, []v1alpha1.ResourceRef{{
-			Namespace: "default",
-			Group:     "",
-			Kind:      kube.ServiceKind,
-			Name:      "helm-guestbook",
-		},
+		assert.Equal(t, []v1alpha1.ResourceRef{
+			{
+				Namespace: "default",
+				Group:     "",
+				Kind:      kube.ServiceKind,
+				Name:      "helm-guestbook",
+			},
 		}, info.NetworkingInfo.TargetRefs)
 	})
 
