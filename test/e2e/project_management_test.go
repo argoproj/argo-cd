@@ -42,9 +42,9 @@ func assertProjHasEvent(t *testing.T, a *v1alpha1.AppProject, message string, re
 }
 
 func TestProjectCreation(t *testing.T) {
-	fixture.EnsureCleanState(t)
+	ctx := fixture.EnsureCleanState(t)
 
-	projectName := "proj-" + fixture.Name()
+	projectName := "proj-" + ctx.GetName()
 	_, err := fixture.RunCli("proj", "create", projectName,
 		"--description", "Test description",
 		"-d", "https://192.168.99.100:8443,default",
@@ -445,9 +445,9 @@ func TestRemoveOrphanedIgnore(t *testing.T) {
 	assertProjHasEvent(t, proj, "update", argo.EventReasonResourceUpdated)
 }
 
-func createAndConfigGlobalProject() error {
+func createAndConfigGlobalProject(ctx context.Context, testName string) error {
 	// Create global project
-	projectGlobalName := "proj-g-" + fixture.Name()
+	projectGlobalName := "proj-g-" + testName
 	_, err := fixture.RunCli("proj", "create", projectGlobalName,
 		"--description", "Test description",
 		"-d", "https://192.168.99.100:8443,default",
@@ -458,7 +458,7 @@ func createAndConfigGlobalProject() error {
 		return err
 	}
 
-	projGlobal, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Get(context.Background(), projectGlobalName, metav1.GetOptions{})
+	projGlobal, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Get(ctx, projectGlobalName, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -471,11 +471,11 @@ func createAndConfigGlobalProject() error {
 		{Group: "", Kind: "Deployment"},
 	}
 
-	projGlobal.Spec.ClusterResourceWhitelist = []metav1.GroupKind{
+	projGlobal.Spec.ClusterResourceWhitelist = []v1alpha1.ClusterResourceRestrictionItem{
 		{Group: "", Kind: "Job"},
 	}
 
-	projGlobal.Spec.ClusterResourceBlacklist = []metav1.GroupKind{
+	projGlobal.Spec.ClusterResourceBlacklist = []v1alpha1.ClusterResourceRestrictionItem{
 		{Group: "", Kind: "Pod"},
 	}
 
@@ -483,7 +483,7 @@ func createAndConfigGlobalProject() error {
 	win := &v1alpha1.SyncWindow{Kind: "deny", Schedule: "* * * * *", Duration: "1h", Applications: []string{"*"}}
 	projGlobal.Spec.SyncWindows = append(projGlobal.Spec.SyncWindows, win)
 
-	_, err = fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Update(context.Background(), projGlobal, metav1.UpdateOptions{})
+	_, err = fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Update(ctx, projGlobal, metav1.UpdateOptions{})
 	if err != nil {
 		return err
 	}
@@ -512,12 +512,12 @@ func createAndConfigGlobalProject() error {
 }
 
 func TestGetVirtualProjectNoMatch(t *testing.T) {
-	fixture.EnsureCleanState(t)
-	err := createAndConfigGlobalProject()
+	ctx := fixture.EnsureCleanState(t)
+	err := createAndConfigGlobalProject(t.Context(), ctx.GetName())
 	require.NoError(t, err)
 
 	// Create project which does not match global project settings
-	projectName := "proj-" + fixture.Name()
+	projectName := "proj-" + ctx.GetName()
 	_, err = fixture.RunCli("proj", "create", projectName,
 		"--description", "Test description",
 		"-d", v1alpha1.KubernetesInternalAPIServerAddr+",*",
@@ -529,26 +529,27 @@ func TestGetVirtualProjectNoMatch(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create an app belongs to proj project
-	_, err = fixture.RunCli("app", "create", fixture.Name(), "--repo", fixture.RepoURL(fixture.RepoURLTypeFile),
-		"--path", guestbookPath, "--project", proj.Name, "--dest-server", v1alpha1.KubernetesInternalAPIServerAddr, "--dest-namespace", fixture.DeploymentNamespace())
+	_, err = fixture.RunCli("app", "create", ctx.GetName(), "--repo", fixture.RepoURL(fixture.RepoURLTypeFile),
+		"--path", guestbookPath, "--project", proj.Name, "--dest-server", v1alpha1.KubernetesInternalAPIServerAddr, "--dest-namespace", ctx.DeploymentNamespace())
 	require.NoError(t, err)
 
 	// App trying to sync a resource which is not blacked listed anywhere
-	_, err = fixture.RunCli("app", "sync", fixture.Name(), "--resource", "apps:Deployment:guestbook-ui", "--timeout", strconv.Itoa(10))
+	_, err = fixture.RunCli("app", "sync", ctx.GetName(), "--resource", "apps:Deployment:guestbook-ui", "--timeout", strconv.Itoa(10))
 	require.NoError(t, err)
 
 	// app trying to sync a resource which is black listed by global project
-	_, err = fixture.RunCli("app", "sync", fixture.Name(), "--resource", ":Service:guestbook-ui", "--timeout", strconv.Itoa(10))
+	_, err = fixture.RunCli("app", "sync", ctx.GetName(), "--resource", ":Service:guestbook-ui", "--timeout", strconv.Itoa(10))
 	require.NoError(t, err)
 }
 
 func TestGetVirtualProjectMatch(t *testing.T) {
-	fixture.EnsureCleanState(t)
-	err := createAndConfigGlobalProject()
+	testCtx := fixture.EnsureCleanState(t)
+	ctx := t.Context()
+	err := createAndConfigGlobalProject(ctx, testCtx.GetName())
 	require.NoError(t, err)
 
 	// Create project which matches global project settings
-	projectName := "proj-" + fixture.Name()
+	projectName := "proj-" + testCtx.GetName()
 	_, err = fixture.RunCli("proj", "create", projectName,
 		"--description", "Test description",
 		"-d", v1alpha1.KubernetesInternalAPIServerAddr+",*",
@@ -556,25 +557,25 @@ func TestGetVirtualProjectMatch(t *testing.T) {
 		"--orphaned-resources")
 	require.NoError(t, err)
 
-	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Get(t.Context(), projectName, metav1.GetOptions{})
+	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Get(ctx, projectName, metav1.GetOptions{})
 	require.NoError(t, err)
 
 	// Add a label to this project so that this project match global project selector
 	proj.Labels = map[string]string{"opt": "me"}
-	_, err = fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Update(t.Context(), proj, metav1.UpdateOptions{})
+	_, err = fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Update(ctx, proj, metav1.UpdateOptions{})
 	require.NoError(t, err)
 
 	// Create an app belongs to proj project
-	_, err = fixture.RunCli("app", "create", fixture.Name(), "--repo", fixture.RepoURL(fixture.RepoURLTypeFile),
-		"--path", guestbookPath, "--project", proj.Name, "--dest-server", v1alpha1.KubernetesInternalAPIServerAddr, "--dest-namespace", fixture.DeploymentNamespace())
+	_, err = fixture.RunCli("app", "create", testCtx.GetName(), "--repo", fixture.RepoURL(fixture.RepoURLTypeFile),
+		"--path", guestbookPath, "--project", proj.Name, "--dest-server", v1alpha1.KubernetesInternalAPIServerAddr, "--dest-namespace", testCtx.DeploymentNamespace())
 	require.NoError(t, err)
 
 	// App trying to sync a resource which is not blacked listed anywhere
-	_, err = fixture.RunCli("app", "sync", fixture.Name(), "--resource", "apps:Deployment:guestbook-ui", "--timeout", strconv.Itoa(10))
+	_, err = fixture.RunCli("app", "sync", testCtx.GetName(), "--resource", "apps:Deployment:guestbook-ui", "--timeout", strconv.Itoa(10))
 	require.ErrorContains(t, err, "blocked by sync window")
 
 	// app trying to sync a resource which is black listed by global project
-	_, err = fixture.RunCli("app", "sync", fixture.Name(), "--resource", ":Service:guestbook-ui", "--timeout", strconv.Itoa(10))
+	_, err = fixture.RunCli("app", "sync", testCtx.GetName(), "--resource", ":Service:guestbook-ui", "--timeout", strconv.Itoa(10))
 	assert.ErrorContains(t, err, "blocked by sync window")
 }
 

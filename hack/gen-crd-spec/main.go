@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -22,8 +23,8 @@ var kindToCRDPath = map[string]string{
 	application.ApplicationSetFullName: "manifests/crds/applicationset-crd.yaml",
 }
 
-func getCustomResourceDefinitions() map[string]*apiextensionsv1.CustomResourceDefinition {
-	crdYamlBytes, err := exec.Command(
+func getCustomResourceDefinitions(ctx context.Context) map[string]*apiextensionsv1.CustomResourceDefinition {
+	crdYamlBytes, err := exec.CommandContext(ctx,
 		"controller-gen",
 		"paths=./pkg/apis/application/...",
 		"crd:crdVersions=v1",
@@ -124,7 +125,7 @@ func checkErr(err error) {
 }
 
 func main() {
-	crdsapp := getCustomResourceDefinitions()
+	crdsapp := getCustomResourceDefinitions(context.Background())
 	for kind, path := range kindToCRDPath {
 		crd := crdsapp[kind]
 		if crd == nil {

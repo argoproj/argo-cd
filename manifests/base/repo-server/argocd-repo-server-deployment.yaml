@@ -239,6 +239,12 @@ spec:
                 key: reposerver.git.request.timeout
                 name: argocd-cmd-params-cm
                 optional: true
+          - name: ARGOCD_REPO_SERVER_ENABLE_BUILTIN_GIT_CONFIG
+            valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: reposerver.enable.builtin.git.config
+                optional: true
           - name: ARGOCD_GRPC_MAX_SIZE_MB
             valueFrom:
               configMapKeyRef:
@@ -249,6 +255,12 @@ spec:
             valueFrom:
               configMapKeyRef:
                 key: reposerver.include.hidden.directories
+                name: argocd-cmd-params-cm
+                optional: true
+          - name: ARGOCD_HELM_USER_AGENT
+            valueFrom:
+              configMapKeyRef:
+                key: reposerver.helm.user.agent
                 name: argocd-cmd-params-cm
                 optional: true
           - name: HELM_CACHE_HOME
@@ -301,11 +313,11 @@ spec:
         - mountPath: /home/argocd/cmp-server/plugins
           name: plugins
       initContainers:
-      - command:
-        - /bin/cp
-        - -n
-        - /usr/local/bin/argocd
-        - /var/run/argocd/argocd-cmp-server
+      - args:
+          - /bin/cp --update=none /usr/local/bin/argocd /var/run/argocd/argocd && /bin/ln -s /var/run/argocd/argocd /var/run/argocd/argocd-cmp-server
+        command:
+          - sh
+          - '-c'
         image: quay.io/argoproj/argocd:latest
         name: copyutil
         securityContext:

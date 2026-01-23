@@ -11,15 +11,22 @@ import (
 )
 
 type MetricsServer struct {
-	handler                  http.Handler
-	gitFetchFailCounter      *prometheus.CounterVec
-	gitLsRemoteFailCounter   *prometheus.CounterVec
-	gitRequestCounter        *prometheus.CounterVec
-	gitRequestHistogram      *prometheus.HistogramVec
-	repoPendingRequestsGauge *prometheus.GaugeVec
-	redisRequestCounter      *prometheus.CounterVec
-	redisRequestHistogram    *prometheus.HistogramVec
-	PrometheusRegistry       *prometheus.Registry
+	handler                       http.Handler
+	gitFetchFailCounter           *prometheus.CounterVec
+	gitLsRemoteFailCounter        *prometheus.CounterVec
+	gitRequestCounter             *prometheus.CounterVec
+	gitRequestHistogram           *prometheus.HistogramVec
+	repoPendingRequestsGauge      *prometheus.GaugeVec
+	redisRequestCounter           *prometheus.CounterVec
+	redisRequestHistogram         *prometheus.HistogramVec
+	ociExtractFailCounter         *prometheus.CounterVec
+	ociResolveRevisionFailCounter *prometheus.CounterVec
+	ociDigestMetadataCounter      *prometheus.CounterVec
+	ociGetTagsFailCounter         *prometheus.CounterVec
+	ociTestRepoFailCounter        *prometheus.CounterVec
+	ociRequestCounter             *prometheus.CounterVec
+	ociRequestHistogram           *prometheus.HistogramVec
+	PrometheusRegistry            *prometheus.Registry
 }
 
 type GitRequestType string
@@ -100,16 +107,87 @@ func NewMetricsServer() *MetricsServer {
 	)
 	registry.MustRegister(redisRequestHistogram)
 
+	ociExtractFailCounter := prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "argocd_oci_extract_fail_total",
+			Help: "Number of OCI extract requests failures by repo server",
+		},
+		[]string{"repo", "revision"},
+	)
+	registry.MustRegister(ociExtractFailCounter)
+
+	ociResolveRevisionFailCounter := prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "argocd_oci_resolve_revision_fail_total",
+			Help: "Number of OCI resolve revision requests failures by repo server",
+		},
+		[]string{"repo", "revision"},
+	)
+	registry.MustRegister(ociResolveRevisionFailCounter)
+
+	ociDigestMetadataCounter := prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "argocd_oci_digest_metadata_fail_total",
+			Help: "Number of OCI digest metadata requests failures by repo server",
+		},
+		[]string{"repo", "revision"},
+	)
+	registry.MustRegister(ociDigestMetadataCounter)
+
+	ociGetTagsFailCounter := prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "argocd_oci_get_tags_fail_total",
+			Help: "Number of OCI get tags failures by repo server",
+		},
+		[]string{"repo"},
+	)
+	registry.MustRegister(ociGetTagsFailCounter)
+
+	ociTestRepoFailCounter := prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "argocd_oci_test_repo_fail_total",
+			Help: "Number of OCI test repo requests failures by repo server",
+		},
+		[]string{"repo"},
+	)
+	registry.MustRegister(ociTestRepoFailCounter)
+
+	ociRequestCounter := prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "argocd_oci_request_total",
+			Help: "Number of OCI requests performed by repo server",
+		},
+		[]string{"repo", "request_type"},
+	)
+	registry.MustRegister(ociRequestCounter)
+
+	ociRequestHistogram := prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "argocd_oci_request_duration_seconds",
+			Help:    "OCI requests duration seconds.",
+			Buckets: []float64{0.1, 0.25, .5, 1, 2, 4, 10, 20},
+		},
+		[]string{"repo", "request_type"},
+	)
+	registry.MustRegister(ociRequestHistogram)
+
 	return &MetricsServer{
-		handler:                  promhttp.HandlerFor(registry, promhttp.HandlerOpts{}),
-		gitFetchFailCounter:      gitFetchFailCounter,
-		gitLsRemoteFailCounter:   gitLsRemoteFailCounter,
-		gitRequestCounter:        gitRequestCounter,
-		gitRequestHistogram:      gitRequestHistogram,
-		repoPendingRequestsGauge: repoPendingRequestsGauge,
-		redisRequestCounter:      redisRequestCounter,
-		redisRequestHistogram:    redisRequestHistogram,
-		PrometheusRegistry:       registry,
+		handler:                       promhttp.HandlerFor(registry, promhttp.HandlerOpts{}),
+		gitFetchFailCounter:           gitFetchFailCounter,
+		gitLsRemoteFailCounter:        gitLsRemoteFailCounter,
+		gitRequestCounter:             gitRequestCounter,
+		gitRequestHistogram:           gitRequestHistogram,
+		repoPendingRequestsGauge:      repoPendingRequestsGauge,
+		redisRequestCounter:           redisRequestCounter,
+		redisRequestHistogram:         redisRequestHistogram,
+		ociRequestCounter:             ociRequestCounter,
+		ociRequestHistogram:           ociRequestHistogram,
+		ociExtractFailCounter:         ociExtractFailCounter,
+		ociResolveRevisionFailCounter: ociResolveRevisionFailCounter,
+		ociGetTagsFailCounter:         ociGetTagsFailCounter,
+		ociDigestMetadataCounter:      ociDigestMetadataCounter,
+		ociTestRepoFailCounter:        ociTestRepoFailCounter,
+		PrometheusRegistry:            registry,
 	}
 }
 
@@ -148,4 +226,38 @@ func (m *MetricsServer) IncRedisRequest(failed bool) {
 
 func (m *MetricsServer) ObserveRedisRequestDuration(duration time.Duration) {
 	m.redisRequestHistogram.WithLabelValues("argocd-repo-server").Observe(duration.Seconds())
+}
+
+// IncOCIRequest increments the OCI requests counter
+func (m *MetricsServer) IncOCIRequest(repo string, requestType OCIRequestType) {
+	m.ociRequestCounter.WithLabelValues(repo, string(requestType)).Inc()
+}
+
+func (m *MetricsServer) ObserveOCIRequestDuration(repo string, requestType OCIRequestType, duration time.Duration) {
+	m.ociRequestHistogram.WithLabelValues(repo, string(requestType)).Observe(duration.Seconds())
+}
+
+// IncOCIExtractFailCounter increments the OCI failed extract requests counter
+func (m *MetricsServer) IncOCIExtractFailCounter(repo string, revision string) {
+	m.ociExtractFailCounter.WithLabelValues(repo, revision).Inc()
+}
+
+// IncOCIResolveRevisionFailCounter increments the OCI failed resolve revision requests counter
+func (m *MetricsServer) IncOCIResolveRevisionFailCounter(repo string, revision string) {
+	m.ociResolveRevisionFailCounter.WithLabelValues(repo, revision).Inc()
+}
+
+// IncOCIDigestMetadataCounter increments the OCI failed digest metadata requests counter
+func (m *MetricsServer) IncOCIDigestMetadataCounter(repo string, revision string) {
+	m.ociDigestMetadataCounter.WithLabelValues(repo, revision).Inc()
+}
+
+// IncOCIGetTagsFailCounter increments the OCI failed get tags requests counter
+func (m *MetricsServer) IncOCIGetTagsFailCounter(repo string) {
+	m.ociGetTagsFailCounter.WithLabelValues(repo).Inc()
+}
+
+// IncOCITestRepoFailCounter increments the OCI failed test repo requests counter
+func (m *MetricsServer) IncOCITestRepoFailCounter(repo string) {
+	m.ociTestRepoFailCounter.WithLabelValues(repo).Inc()
 }

@@ -101,7 +101,7 @@ func testProject() *v1alpha1.AppProject {
 func TestHandlerFeatureIsEnabled(t *testing.T) {
 	settingsMgr := settings.NewSettingsManager(t.Context(), fake.NewClientset(argoCDCm(), argoCDSecret()), "default")
 	handler := NewHandler(appclientset.NewSimpleClientset(testApp()), settingsMgr, "default", []string{})
-	req, err := http.NewRequest(http.MethodGet, "/api/badge?name=test-app", http.NoBody)
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "/api/badge?name=test-app", http.NoBody)
 	require.NoError(t, err)
 
 	rr := httptest.NewRecorder()
@@ -204,7 +204,7 @@ func TestHandlerFeatureProjectIsEnabled(t *testing.T) {
 		}
 		handler := NewHandler(appclientset.NewSimpleClientset(objects...), settingsMgr, tt.namespace, []string{})
 		rr := httptest.NewRecorder()
-		req, err := http.NewRequest(http.MethodGet, tt.apiEndPoint, http.NoBody)
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, tt.apiEndPoint, http.NoBody)
 		require.NoError(t, err)
 		handler.ServeHTTP(rr, req)
 		require.Equal(t, tt.response, rr.Result().StatusCode)
@@ -226,7 +226,7 @@ func TestHandlerNamespacesIsEnabled(t *testing.T) {
 	t.Run("Application in allowed namespace", func(t *testing.T) {
 		settingsMgr := settings.NewSettingsManager(t.Context(), fake.NewClientset(argoCDCm(), argoCDSecret()), "default")
 		handler := NewHandler(appclientset.NewSimpleClientset(testApp2()), settingsMgr, "default", []string{"argocd-test"})
-		req, err := http.NewRequest(http.MethodGet, "/api/badge?name=test-app&namespace=argocd-test", http.NoBody)
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "/api/badge?name=test-app&namespace=argocd-test", http.NoBody)
 		require.NoError(t, err)
 
 		rr := httptest.NewRecorder()
@@ -247,7 +247,7 @@ func TestHandlerNamespacesIsEnabled(t *testing.T) {
 	t.Run("Application in disallowed namespace", func(t *testing.T) {
 		settingsMgr := settings.NewSettingsManager(t.Context(), fake.NewClientset(argoCDCm(), argoCDSecret()), "default")
 		handler := NewHandler(appclientset.NewSimpleClientset(testApp2()), settingsMgr, "default", []string{"argocd-test"})
-		req, err := http.NewRequest(http.MethodGet, "/api/badge?name=test-app&namespace=kube-system", http.NoBody)
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "/api/badge?name=test-app&namespace=kube-system", http.NoBody)
 		require.NoError(t, err)
 
 		rr := httptest.NewRecorder()
@@ -264,7 +264,7 @@ func TestHandlerNamespacesIsEnabled(t *testing.T) {
 	t.Run("Request with illegal namespace", func(t *testing.T) {
 		settingsMgr := settings.NewSettingsManager(t.Context(), fake.NewClientset(argoCDCm(), argoCDSecret()), "default")
 		handler := NewHandler(appclientset.NewSimpleClientset(testApp2()), settingsMgr, "default", []string{"argocd-test"})
-		req, err := http.NewRequest(http.MethodGet, "/api/badge?name=test-app&namespace=kube()system", http.NoBody)
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "/api/badge?name=test-app&namespace=kube()system", http.NoBody)
 		require.NoError(t, err)
 
 		rr := httptest.NewRecorder()
@@ -277,7 +277,7 @@ func TestHandlerNamespacesIsEnabled(t *testing.T) {
 func TestHandlerFeatureIsEnabledKeepFullRevisionIsEnabled(t *testing.T) {
 	settingsMgr := settings.NewSettingsManager(t.Context(), fake.NewClientset(argoCDCm(), argoCDSecret()), "default")
 	handler := NewHandler(appclientset.NewSimpleClientset(testApp3()), settingsMgr, "argocd-test", []string{""})
-	req, err := http.NewRequest(http.MethodGet, "/api/badge?name=test-app&revision=true&keepFullRevision=true", http.NoBody)
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "/api/badge?name=test-app&revision=true&keepFullRevision=true", http.NoBody)
 	require.NoError(t, err)
 
 	rr := httptest.NewRecorder()
@@ -298,7 +298,7 @@ func TestHandlerFeatureIsEnabledKeepFullRevisionIsEnabled(t *testing.T) {
 func TestHandlerFeatureIsEnabledKeepFullRevisionIsDisabled(t *testing.T) {
 	settingsMgr := settings.NewSettingsManager(t.Context(), fake.NewClientset(argoCDCm(), argoCDSecret()), "default")
 	handler := NewHandler(appclientset.NewSimpleClientset(testApp3()), settingsMgr, "argocd-test", []string{})
-	req, err := http.NewRequest(http.MethodGet, "/api/badge?name=test-app&revision=true&keepFullRevision=false", http.NoBody)
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "/api/badge?name=test-app&revision=true&keepFullRevision=false", http.NoBody)
 	require.NoError(t, err)
 
 	rr := httptest.NewRecorder()
@@ -319,7 +319,7 @@ func TestHandlerFeatureIsEnabledKeepFullRevisionIsDisabled(t *testing.T) {
 func TestHandlerFeatureIsEnabledKeepFullRevisionAndWidthIsEnabled(t *testing.T) {
 	settingsMgr := settings.NewSettingsManager(t.Context(), fake.NewClientset(argoCDCm(), argoCDSecret()), "default")
 	handler := NewHandler(appclientset.NewSimpleClientset(testApp3()), settingsMgr, "argocd-test", []string{""})
-	req, err := http.NewRequest(http.MethodGet, "/api/badge?name=test-app&revision=true&keepFullRevision=true&width=500", http.NoBody)
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "/api/badge?name=test-app&revision=true&keepFullRevision=true&width=500", http.NoBody)
 	require.NoError(t, err)
 
 	rr := httptest.NewRecorder()
@@ -393,7 +393,7 @@ func createApplicationsWithName(appCombo, projectName []string, namespace string
 func TestHandlerFeatureIsEnabledRevisionIsEnabled(t *testing.T) {
 	settingsMgr := settings.NewSettingsManager(t.Context(), fake.NewClientset(argoCDCm(), argoCDSecret()), "default")
 	handler := NewHandler(appclientset.NewSimpleClientset(testApp()), settingsMgr, "default", []string{})
-	req, err := http.NewRequest(http.MethodGet, "/api/badge?name=test-app&revision=true", http.NoBody)
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "/api/badge?name=test-app&revision=true", http.NoBody)
 	require.NoError(t, err)
 
 	rr := httptest.NewRecorder()
@@ -417,7 +417,7 @@ func TestHandlerRevisionIsEnabledNoOperationState(t *testing.T) {
 
 	settingsMgr := settings.NewSettingsManager(t.Context(), fake.NewClientset(argoCDCm(), argoCDSecret()), "default")
 	handler := NewHandler(appclientset.NewSimpleClientset(app), settingsMgr, "default", []string{})
-	req, err := http.NewRequest(http.MethodGet, "/api/badge?name=test-app&revision=true", http.NoBody)
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "/api/badge?name=test-app&revision=true", http.NoBody)
 	require.NoError(t, err)
 
 	rr := httptest.NewRecorder()
@@ -441,7 +441,7 @@ func TestHandlerRevisionIsEnabledShortCommitSHA(t *testing.T) {
 
 	settingsMgr := settings.NewSettingsManager(t.Context(), fake.NewClientset(argoCDCm(), argoCDSecret()), "default")
 	handler := NewHandler(appclientset.NewSimpleClientset(app), settingsMgr, "default", []string{})
-	req, err := http.NewRequest(http.MethodGet, "/api/badge?name=test-app&revision=true", http.NoBody)
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "/api/badge?name=test-app&revision=true", http.NoBody)
 	require.NoError(t, err)
 
 	rr := httptest.NewRecorder()
@@ -451,13 +451,31 @@ func TestHandlerRevisionIsEnabledShortCommitSHA(t *testing.T) {
 	assert.Contains(t, response, "(abc)")
 }
 
+func TestHandlerRevisionIsEnabledMultipleSources(t *testing.T) {
+	app := testApp()
+	app.Status.OperationState.SyncResult.Revision = ""
+	app.Status.OperationState.SyncResult.Revisions = []string{"aa29b85", "cf41g63"}
+
+	settingsMgr := settings.NewSettingsManager(t.Context(), fake.NewClientset(argoCDCm(), argoCDSecret()), "default")
+	handler := NewHandler(appclientset.NewSimpleClientset(app), settingsMgr, "default", []string{})
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "/api/badge?name=test-app&revision=true", http.NoBody)
+	require.NoError(t, err)
+
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	response := rr.Body.String()
+	assert.Contains(t, response, "(aa29b85)")
+	assert.NotContains(t, response, "(cf41g63)")
+}
+
 func TestHandlerFeatureIsDisabled(t *testing.T) {
 	argoCDCmDisabled := argoCDCm()
 	delete(argoCDCmDisabled.Data, "statusbadge.enabled")
 
 	settingsMgr := settings.NewSettingsManager(t.Context(), fake.NewSimpleClientset(argoCDCmDisabled, argoCDSecret()), "default")
 	handler := NewHandler(appclientset.NewSimpleClientset(testApp()), settingsMgr, "default", []string{})
-	req, err := http.NewRequest(http.MethodGet, "/api/badge?name=test-app", http.NoBody)
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "/api/badge?name=test-app", http.NoBody)
 	require.NoError(t, err)
 
 	rr := httptest.NewRecorder()
@@ -478,7 +496,7 @@ func TestHandlerFeatureIsDisabled(t *testing.T) {
 func TestHandlerApplicationNameInBadgeIsEnabled(t *testing.T) {
 	settingsMgr := settings.NewSettingsManager(t.Context(), fake.NewSimpleClientset(argoCDCm(), argoCDSecret()), "default")
 	handler := NewHandler(appclientset.NewSimpleClientset(testApp()), settingsMgr, "default", []string{})
-	req, err := http.NewRequest(http.MethodGet, "/api/badge?name=test-app&showAppName=true", http.NoBody)
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "/api/badge?name=test-app&showAppName=true", http.NoBody)
 	require.NoError(t, err)
 
 	rr := httptest.NewRecorder()
@@ -505,7 +523,7 @@ func TestHandlerApplicationNameInBadgeIsEnabled(t *testing.T) {
 func TestHandlerApplicationNameInBadgeIsDisabled(t *testing.T) {
 	settingsMgr := settings.NewSettingsManager(t.Context(), fake.NewSimpleClientset(argoCDCm(), argoCDSecret()), "default")
 	handler := NewHandler(appclientset.NewSimpleClientset(testApp()), settingsMgr, "default", []string{})
-	req, err := http.NewRequest(http.MethodGet, "/api/badge?name=test-app", http.NoBody)
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "/api/badge?name=test-app", http.NoBody)
 	require.NoError(t, err)
 
 	rr := httptest.NewRecorder()

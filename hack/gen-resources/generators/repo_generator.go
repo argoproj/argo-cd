@@ -31,11 +31,10 @@ func NewRepoGenerator(clientSet *kubernetes.Clientset) Generator {
 	return &RepoGenerator{clientSet: clientSet, bar: &util.Bar{}}
 }
 
-func fetchRepos(token string, page int) ([]Repo, error) {
-	client := &http.Client{}
-	req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("https://api.github.com/repos/argoproj/argocd-example-apps/forks?per_page=100&page=%v", page), http.NoBody)
+func fetchRepos(ctx context.Context, token string, page int) ([]Repo, error) {
+	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("https://api.github.com/repos/argoproj/argocd-example-apps/forks?per_page=100&page=%v", page), http.NoBody)
 	req.Header.Set("Authorization", token)
-	resp, err := client.Do(req)
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -54,6 +53,7 @@ func fetchRepos(token string, page int) ([]Repo, error) {
 func FetchRepos(token string, samples int) ([]Repo, error) {
 	log.Print("Fetch repos started")
 	var (
+		ctx   = context.Background()
 		repos []Repo
 		page  = 1
 	)
@@ -62,7 +62,7 @@ func FetchRepos(token string, samples int) ([]Repo, error) {
 		if page%10 == 0 {
 			log.Printf("Fetch repos, page: %v", page)
 		}
-		fetchedRepos, err := fetchRepos(token, page)
+		fetchedRepos, err := fetchRepos(ctx, token, page)
 		if err != nil {
 			return nil, err
 		}

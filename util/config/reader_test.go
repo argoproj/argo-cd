@@ -69,10 +69,11 @@ func TestUnmarshalRemoteFile(t *testing.T) {
 		field2 = 42
 	)
 	sentinel := fmt.Sprintf("---\nfield1: %q\nfield2: %d", field1, field2)
+	lc := &net.ListenConfig{}
 
 	serve := func(c chan<- string) {
 		// listen on first available dynamic (unprivileged) port
-		listener, err := net.Listen("tcp", ":0")
+		listener, err := lc.Listen(t.Context(), "tcp", ":0")
 		if err != nil {
 			panic(err)
 		}

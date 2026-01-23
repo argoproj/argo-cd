@@ -71,17 +71,19 @@ Example:
 ./hack/trigger-release.sh v2.7.2 upstream
 ```
 
-!!! tip
-    The tag must be in one of the following formats to trigger the GH workflow:<br>
-    * GA: `v<MAJOR>.<MINOR>.<PATCH>`<br>
-    * Pre-release: `v<MAJOR>.<MINOR>.<PATCH>-rc<RC#>`
+The script will ask for confirmation, type `y` to proceed. If no confirmation is received within 30 seconds, the script will abort.
+
+> [!TIP]
+> The tag must be in one of the following formats to trigger the GH workflow:<br>
+> * GA: `v<MAJOR>.<MINOR>.<PATCH>`<br>
+> * Pre-release: `v<MAJOR>.<MINOR>.<PATCH>-rc<RC#>`
 
 Once the script is executed successfully, a GitHub workflow will start
 execution. You can follow its progress under the [Actions](https://github.com/argoproj/argo-cd/actions/workflows/release.yaml) tab, the name of the action is `Publish ArgoCD Release`. 
 
-!!! warning
-    You cannot perform more than one release on the same release branch at the
-    same time.
+> [!WARNING]
+> You cannot perform more than one release on the same release branch at the
+> same time.
 
 ### Verifying automated release
 

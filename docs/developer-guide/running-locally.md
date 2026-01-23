@@ -21,7 +21,7 @@ First push the installation manifest into argocd namespace:
 
 ```shell
 kubectl create namespace argocd
-kubectl apply -n argocd --force -f manifests/install.yaml
+kubectl apply -n argocd --server-side --force-conflicts -f manifests/install.yaml
 ```
 
 The services you will start later assume you are running in the namespace where Argo CD is installed. You can set the current context default namespace as follows:
@@ -199,6 +199,7 @@ docker login
 You will need to push the built images to your own Docker namespace:
 
 ```bash
+export IMAGE_REGISTRY=docker.io
 export IMAGE_NAMESPACE=youraccount
 ```
 
@@ -208,15 +209,34 @@ If you don't set `IMAGE_TAG` in your environment, the default of `:latest` will 
 export IMAGE_TAG=1.5.0-myrc
 ```
 
+> [!NOTE]
+> The image will be built for `linux/amd64` platform by default. If you are running on Mac with Apple chip (ARM),
+> you need to specify the correct buld platform by running:
+> ```bash
+> export TARGET_ARCH=linux/arm64 
+> ```
+
 Then you can build & push the image in one step:
 
 ```bash
 DOCKER_PUSH=true make image
 ```
 
+To speed up building of images you may use the DEV_IMAGE option that builds the argocd binaries in the users desktop environment
+(instead of building everything in Docker) and copies them into the result image:
+
+```bash
+DEV_IMAGE=true DOCKER_PUSH=true make image
+```
+
+> [!NOTE]
+> The first run of this build task may take a long time because it needs first to build the base image first; however,
+> once it's done, the build process should be much faster than a regular full image build in Docker.
+
+
 #### Configure manifests for your image
 
-With `IMAGE_NAMESPACE` and `IMAGE_TAG` still set, run:
+With `IMAGE_REGISTRY`, `IMAGE_NAMESPACE` and `IMAGE_TAG` still set, run:
 
 ```bash
 make manifests
@@ -230,13 +250,13 @@ make manifests-local
 
 (depending on your toolchain) to build a new set of installation manifests which include your specific image reference.
 
-!!!note
-    Do not commit these manifests to your repository. If you want to revert the changes, the easiest way is to unset `IMAGE_NAMESPACE` and `IMAGE_TAG` from your environment and run `make manifests` again. This will re-create the default manifests.
+> [!NOTE]
+> Do not commit these manifests to your repository. If you want to revert the changes, the easiest way is to unset `IMAGE_REGISTRY`, `IMAGE_NAMESPACE` and `IMAGE_TAG` from your environment and run `make manifests` again. This will re-create the default manifests.
 
 #### Configure your cluster with custom manifests
 
 The final step is to push the manifests to your cluster, so it will pull and run your image:
 
 ```bash
-kubectl apply -n argocd --force -f manifests/install.yaml
+kubectl apply -n argocd --server-side --force-conflicts -f manifests/install.yaml
 ```

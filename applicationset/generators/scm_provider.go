@@ -315,9 +315,9 @@ func (g *SCMProviderGenerator) githubProvider(ctx context.Context, github *argop
 		}
 
 		if g.enableGitHubAPIMetrics {
-			return scm_provider.NewGithubAppProviderFor(*auth, github.Organization, github.API, github.AllBranches, httpClient)
+			return scm_provider.NewGithubAppProviderFor(ctx, *auth, github.Organization, github.API, github.AllBranches, httpClient)
 		}
-		return scm_provider.NewGithubAppProviderFor(*auth, github.Organization, github.API, github.AllBranches)
+		return scm_provider.NewGithubAppProviderFor(ctx, *auth, github.Organization, github.API, github.AllBranches)
 	}
 
 	token, err := utils.GetSecretRef(ctx, g.client, github.TokenRef, applicationSetInfo.Namespace, g.tokenRefStrictMode)

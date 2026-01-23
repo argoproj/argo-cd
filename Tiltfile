@@ -10,6 +10,14 @@ cmd_button(
     text='make codegen-local',
 )
 
+cmd_button(
+    'make test-local',
+    argv=['sh', '-c', 'make test-local'],
+    location=location.NAV,
+    icon_name='science',
+    text='make test-local',
+)
+
 # add ui button in web ui to run make codegen-local (top nav)
 cmd_button(
     'make cli-local',
@@ -115,6 +123,7 @@ k8s_resource(
         '9345:2345',
         '8083:8083'
     ],
+    resource_deps=['build']
 )
 
 # track crds
@@ -140,6 +149,7 @@ k8s_resource(
         '9346:2345',
         '8084:8084'
     ],
+    resource_deps=['build']
 )
 
 # track argocd-redis resources and port forward
@@ -154,6 +164,7 @@ k8s_resource(
     port_forwards=[
         '6379:6379',
     ],
+    resource_deps=['build']
 )
 
 # track argocd-applicationset-controller resources
@@ -172,6 +183,7 @@ k8s_resource(
         '8085:8080',
         '7000:7000'
     ],
+    resource_deps=['build']
 )
 
 # track argocd-application-controller resources
@@ -189,6 +201,7 @@ k8s_resource(
         '9348:2345',
         '8086:8082',
     ],
+    resource_deps=['build']
 )
 
 # track argocd-notifications-controller resources
@@ -206,6 +219,7 @@ k8s_resource(
         '9349:2345',
         '8087:9001',
     ],
+    resource_deps=['build']
 )
 
 # track argocd-dex-server resources
@@ -217,6 +231,7 @@ k8s_resource(
         'argocd-dex-server:role',
         'argocd-dex-server:rolebinding',
     ],
+    resource_deps=['build']
 )
 
 # track argocd-commit-server resources
@@ -231,6 +246,19 @@ k8s_resource(
         '8088:8087',
         '8089:8086',
     ],
+    resource_deps=['build']
+)
+
+# ui dependencies
+local_resource(
+    'node-modules',
+    'yarn',
+    dir='ui',
+    deps = [
+        'ui/package.json',
+        'ui/yarn.lock',
+    ],
+    allow_parallel=True,
 )
 
 # docker for ui
@@ -252,6 +280,7 @@ k8s_resource(
     port_forwards=[
         '4000:4000',
     ],
+    resource_deps=['node-modules'],
 )
 
 # linting
@@ -270,6 +299,7 @@ local_resource(
         'ui',
     ],
     allow_parallel=True,
+    resource_deps=['node-modules'],
 )
 
 local_resource(
@@ -279,5 +309,6 @@ local_resource(
         'go.mod',
         'go.sum',
     ],
+    allow_parallel=True,
 )
 

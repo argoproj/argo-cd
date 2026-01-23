@@ -4,7 +4,6 @@
 
 Web UI for [Argo CD](https://github.com/argoproj/argo-cd).
 
-
 ## Getting started
 
   1. Install [NodeJS](https://nodejs.org/en/download/) and [Yarn](https://yarnpkg.com).  On macOS with [Homebrew](https://brew.sh/), running `brew install node yarn` will accomplish this.
@@ -20,7 +19,7 @@ To do the same and push to a Docker registry, run `IMAGE_NAMESPACE=yourimagerepo
 
 Make sure your code passes the lint checks:
 
-```
+```bash
 yarn lint --fix
 ```
 
@@ -29,6 +28,7 @@ If you are using VSCode, add this configuration to `.vscode/settings.json` in th
 Install [Eslint Extension](https://marketplace.visualstudio.com/items?itemName=dbaeumer.vscode-eslint) in VSCode.
 
 `.vscode/settings.json`
+
 ```json
 {
   "eslint.format.enable": true,
@@ -41,6 +41,6 @@ Install [Eslint Extension](https://marketplace.visualstudio.com/items?itemName=d
             "!cwd": false
         }
     ],
-    "eslint.experimental.useFlatConfig": true
+    "eslint.useFlatConfig": true
 }
 ```
