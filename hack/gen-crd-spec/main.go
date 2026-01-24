@@ -143,10 +143,7 @@ func main() {
 
 // addConversionWebhook configures the CRD to use a conversion webhook
 // for converting between v1alpha1 and v1beta1 API versions.
-// The caBundle is injected by cert-manager via the annotation.
 func addConversionWebhook(crd *apiextensionsv1.CustomResourceDefinition) {
-	// Add cert-manager annotation for automatic CA bundle injection
-	// Users can alternatively populate caBundle manually if not using cert-manager
 	if crd.Annotations == nil {
 		crd.Annotations = make(map[string]string)
 	}

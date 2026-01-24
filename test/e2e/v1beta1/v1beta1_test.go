@@ -376,12 +376,9 @@ func TestV1beta1ValidApplicationWithMultipleSources(t *testing.T) {
 // after the controller reconciles the application.
 // This test requires the full ArgoCD E2E environment to be running.
 func TestV1beta1ObservedGeneration(t *testing.T) {
-	/*
-		if os.Getenv("ARGOCD_E2E_TEST") != "true" {
-			t.Skip("Skipping: requires full ArgoCD E2E environment (set ARGOCD_E2E_TEST=true)")
-		}
-
-	*/
+	if os.Getenv("ARGOCD_E2E_TEST") != "true" {
+		t.Skip("Skipping: requires full ArgoCD E2E environment (set ARGOCD_E2E_TEST=true)")
+	}
 
 	clientset := getV1beta1TestClientset(t)
 	namespace := getV1beta1TestNamespace()
@@ -446,12 +443,9 @@ func TestV1beta1ObservedGeneration(t *testing.T) {
 // is updated when the spec changes.
 // This test requires the full ArgoCD E2E environment to be running.
 func TestV1beta1ObservedGenerationUpdatesOnSpecChange(t *testing.T) {
-	/*
-		if os.Getenv("ARGOCD_E2E_TEST") != "true" {
-			t.Skip("Skipping: requires full ArgoCD E2E environment (set ARGOCD_E2E_TEST=true)")
-		}
-
-	*/
+	if os.Getenv("ARGOCD_E2E_TEST") != "true" {
+		t.Skip("Skipping: requires full ArgoCD E2E environment (set ARGOCD_E2E_TEST=true)")
+	}
 
 	clientset := getV1beta1TestClientset(t)
 	namespace := getV1beta1TestNamespace()

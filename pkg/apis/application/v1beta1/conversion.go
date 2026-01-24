@@ -1,6 +1,7 @@
 package v1beta1
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -86,77 +87,77 @@ func convertSyncOptionsFromStrings(opts v1alpha1.SyncOptions) *SyncOptions {
 		switch opt {
 		// Validate
 		case "Validate=true":
-			dst.Validate = boolPtr(true)
+			dst.Validate = ptr(true)
 		case "Validate=false":
-			dst.Validate = boolPtr(false)
+			dst.Validate = ptr(false)
 
 		// CreateNamespace
 		case "CreateNamespace=true":
-			dst.CreateNamespace = boolPtr(true)
+			dst.CreateNamespace = ptr(true)
 
 		// PruneLast
 		case "PruneLast=true":
-			dst.PruneLast = boolPtr(true)
+			dst.PruneLast = ptr(true)
 
 		// Replace
 		case "Replace=true":
-			dst.Replace = boolPtr(true)
+			dst.Replace = ptr(true)
 		case "Replace=false":
-			dst.Replace = boolPtr(false)
+			dst.Replace = ptr(false)
 
 		// Force
 		case "Force=true":
-			dst.Force = boolPtr(true)
+			dst.Force = ptr(true)
 
 		// ServerSideApply
 		case "ServerSideApply=true":
-			dst.ServerSideApply = boolPtr(true)
+			dst.ServerSideApply = ptr(true)
 		case "ServerSideApply=false":
-			dst.ServerSideApply = boolPtr(false)
+			dst.ServerSideApply = ptr(false)
 
 		// ApplyOutOfSyncOnly
 		case "ApplyOutOfSyncOnly=true":
-			dst.ApplyOutOfSyncOnly = boolPtr(true)
+			dst.ApplyOutOfSyncOnly = ptr(true)
 		case "ApplyOutOfSyncOnly=false":
-			dst.ApplyOutOfSyncOnly = boolPtr(false)
+			dst.ApplyOutOfSyncOnly = ptr(false)
 
 		// SkipDryRunOnMissingResource
 		case "SkipDryRunOnMissingResource=true":
-			dst.SkipDryRunOnMissingResource = boolPtr(true)
+			dst.SkipDryRunOnMissingResource = ptr(true)
 
 		// RespectIgnoreDifferences
 		case "RespectIgnoreDifferences=true":
-			dst.RespectIgnoreDifferences = boolPtr(true)
+			dst.RespectIgnoreDifferences = ptr(true)
 
 		// FailOnSharedResource
 		case "FailOnSharedResource=true":
-			dst.FailOnSharedResource = boolPtr(true)
+			dst.FailOnSharedResource = ptr(true)
 
 		// ClientSideApplyMigration
 		case "ClientSideApplyMigration=true":
-			dst.ClientSideApplyMigration = boolPtr(true)
+			dst.ClientSideApplyMigration = ptr(true)
 		case "ClientSideApplyMigration=false":
-			dst.ClientSideApplyMigration = boolPtr(false)
+			dst.ClientSideApplyMigration = ptr(false)
 
 		// Prune options
 		case "Prune=false":
-			dst.Prune = pruneDeletePtr(SyncOptionDisabled)
+			dst.Prune = ptr(SyncOptionDisabled)
 		case "Prune=confirm":
-			dst.Prune = pruneDeletePtr(SyncOptionConfirm)
+			dst.Prune = ptr(SyncOptionConfirm)
 
 		// Delete options
 		case "Delete=false":
-			dst.Delete = pruneDeletePtr(SyncOptionDisabled)
+			dst.Delete = ptr(SyncOptionDisabled)
 		case "Delete=confirm":
-			dst.Delete = pruneDeletePtr(SyncOptionConfirm)
+			dst.Delete = ptr(SyncOptionConfirm)
 
 		// PrunePropagationPolicy
 		case "PrunePropagationPolicy=background":
-			dst.PrunePropagationPolicy = propagationPtr(PrunePropagationPolicyBackground)
+			dst.PrunePropagationPolicy = ptr(PrunePropagationPolicyBackground)
 		case "PrunePropagationPolicy=foreground":
-			dst.PrunePropagationPolicy = propagationPtr(PrunePropagationPolicyForeground)
+			dst.PrunePropagationPolicy = ptr(PrunePropagationPolicyForeground)
 		case "PrunePropagationPolicy=orphan":
-			dst.PrunePropagationPolicy = propagationPtr(PrunePropagationPolicyOrphan)
+			dst.PrunePropagationPolicy = ptr(PrunePropagationPolicyOrphan)
 
 		default:
 			// Handle any unrecognized options by checking if they match known patterns
@@ -266,11 +267,7 @@ func convertSyncOptionsToStrings(opts *SyncOptions) v1alpha1.SyncOptions {
 
 	// Replace
 	if opts.Replace != nil {
-		if *opts.Replace {
-			result = append(result, "Replace=true")
-		} else {
-			result = append(result, "Replace=false")
-		}
+		result = append(result, fmt.Sprintf("Replace=%v", *opts.Replace))
 	}
 
 	// Force
@@ -280,20 +277,12 @@ func convertSyncOptionsToStrings(opts *SyncOptions) v1alpha1.SyncOptions {
 
 	// ServerSideApply
 	if opts.ServerSideApply != nil {
-		if *opts.ServerSideApply {
-			result = append(result, "ServerSideApply=true")
-		} else {
-			result = append(result, "ServerSideApply=false")
-		}
+		result = append(result, fmt.Sprintf("ServerSideApply=%v", *opts.ServerSideApply))
 	}
 
 	// ApplyOutOfSyncOnly
 	if opts.ApplyOutOfSyncOnly != nil {
-		if *opts.ApplyOutOfSyncOnly {
-			result = append(result, "ApplyOutOfSyncOnly=true")
-		} else {
-			result = append(result, "ApplyOutOfSyncOnly=false")
-		}
+		result = append(result, fmt.Sprintf("ApplyOutOfSyncOnly=%v", *opts.ApplyOutOfSyncOnly))
 	}
 
 	// SkipDryRunOnMissingResource
@@ -313,11 +302,7 @@ func convertSyncOptionsToStrings(opts *SyncOptions) v1alpha1.SyncOptions {
 
 	// ClientSideApplyMigration
 	if opts.ClientSideApplyMigration != nil {
-		if *opts.ClientSideApplyMigration {
-			result = append(result, "ClientSideApplyMigration=true")
-		} else {
-			result = append(result, "ClientSideApplyMigration=false")
-		}
+		result = append(result, fmt.Sprintf("ClientSideApplyMigration=%v", *opts.ClientSideApplyMigration))
 	}
 
 	// Prune
@@ -350,7 +335,7 @@ func convertSyncOptionsToStrings(opts *SyncOptions) v1alpha1.SyncOptions {
 	return result
 }
 
-// Helper functions
-func boolPtr(b bool) *bool                                            { return &b }
-func pruneDeletePtr(p SyncOptionPruneDelete) *SyncOptionPruneDelete   { return &p }
-func propagationPtr(p PrunePropagationPolicy) *PrunePropagationPolicy { return &p }
+// TODO: In Go 1.26 replace with new
+func ptr[T any](d T) *T {
+	return &d
+}

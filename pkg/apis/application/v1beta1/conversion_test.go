@@ -392,7 +392,7 @@ func TestConvertRoundTrip_V1alpha1ToV1beta1ToV1alpha1(t *testing.T) {
 					"ServerSideApply=true",
 				},
 			},
-			RevisionHistoryLimit: int64Ptr(10),
+			RevisionHistoryLimit: ptr(int64(10)),
 			IgnoreDifferences: v1alpha1.IgnoreDifferences{
 				{
 					Group: "apps",
@@ -470,7 +470,7 @@ func TestConvertRoundTrip_V1beta1ToV1alpha1ToV1beta1(t *testing.T) {
 					SelfHeal: true,
 				},
 				SyncOptions: &SyncOptions{
-					CreateNamespace: boolPtr(true),
+					CreateNamespace: ptr(true),
 				},
 			},
 		},
@@ -738,8 +738,4 @@ func TestConvertToV1alpha1_SourceHydratorPreserved(t *testing.T) {
 	// Source and Sources should NOT be set for hydrator apps
 	assert.Nil(t, dst.Spec.Source, "Source should not be set for hydrator apps")
 	assert.Empty(t, dst.Spec.Sources, "Sources should be empty for hydrator apps")
-}
-
-func int64Ptr(i int64) *int64 {
-	return &i
 }
