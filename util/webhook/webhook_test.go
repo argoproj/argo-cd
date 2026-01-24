@@ -717,6 +717,7 @@ func Test_GetAPIURLRegex(t *testing.T) {
 		{true, "https://user@example.com/", "https://example.com/", "https+username should match https"},
 		{true, "http://example.com/", "https://user@example.com/", "http should match https+username"},
 		{true, "https://example.com/", "https://user@example.com/", "https should match https+username"},
+		{true, "https://git.ourenterprise.com/", "https://git.ourenterprise.com/api/v3", "enterprise API URL with path should match base repo URL"},
 	}
 
 	for _, testCase := range tests {
