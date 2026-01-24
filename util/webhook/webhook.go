@@ -433,8 +433,8 @@ func GetAPIURLRegex(apiURL string) (*regexp.Regexp, error) {
 	// 2. Optional: username followed by `@`
 	// 3. Required: hostname parsed from `webURL`
 	// 4. Optional: `:` followed by port number
-	// 5. Optional: `/`
-	return getURLRegex(apiURL, `(?i)^(https?://)?(%[1]s@)?%[2]s(:\d+)?/?$`)
+	// 5. Optional: `/` followed by path parsed from `webURL`
+	return getURLRegex(apiURL, `(?i)^(https?://)?(%[1]s@)?%[2]s(:\d+)?(/[\w.%/-]*)?$`)
 }
 
 func getURLRegex(originalURL string, regexpFormat string) (*regexp.Regexp, error) {
