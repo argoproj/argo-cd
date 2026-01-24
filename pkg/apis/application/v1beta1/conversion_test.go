@@ -603,6 +603,143 @@ func TestConvertStatus_ObservedGeneration(t *testing.T) {
 	})
 }
 
+func TestConvertFromV1alpha1_SourceHydratorDoesNotSetSources(t *testing.T) {
+	// When SourceHydrator is set, Sources should NOT be set in v1beta1
+	// because the CEL validation rule "cannot have both sources and sourceHydrator defined" would fail
+	src := &v1alpha1.Application{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "argoproj.io/v1alpha1",
+			Kind:       "Application",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-hydrator-app",
+			Namespace: "argocd",
+		},
+		Spec: v1alpha1.ApplicationSpec{
+			Project: "default",
+			Destination: v1alpha1.ApplicationDestination{
+				Server:    "https://kubernetes.default.svc",
+				Namespace: "default",
+			},
+			SourceHydrator: &v1alpha1.SourceHydrator{
+				DrySource: v1alpha1.DrySource{
+					RepoURL:        "https://github.com/example/repo",
+					Path:           "configs",
+					TargetRevision: "main",
+				},
+				SyncSource: v1alpha1.SyncSource{
+					Path:         "hydrated",
+					TargetBranch: "env/dev",
+				},
+			},
+		},
+	}
+
+	dst := ConvertFromV1alpha1(src)
+
+	// SourceHydrator should be preserved
+	require.NotNil(t, dst.Spec.SourceHydrator)
+	assert.Equal(t, "https://github.com/example/repo", dst.Spec.SourceHydrator.DrySource.RepoURL)
+	assert.Equal(t, "env/dev", dst.Spec.SourceHydrator.SyncSource.TargetBranch)
+
+	// Sources should NOT be set (empty) for hydrator apps
+	assert.Empty(t, dst.Spec.Sources, "Sources should be empty for hydrator apps to satisfy CEL validation")
+}
+
+func TestConvertFromV1alpha1_SourceHydratorIgnoresSourcesIfBothSet(t *testing.T) {
+	// Even if v1alpha1 has both SourceHydrator and Sources set (which shouldn't happen),
+	// v1beta1 should prioritize SourceHydrator and not set Sources
+	src := &v1alpha1.Application{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "argoproj.io/v1alpha1",
+			Kind:       "Application",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-hydrator-app",
+			Namespace: "argocd",
+		},
+		Spec: v1alpha1.ApplicationSpec{
+			Project: "default",
+			Destination: v1alpha1.ApplicationDestination{
+				Server:    "https://kubernetes.default.svc",
+				Namespace: "default",
+			},
+			SourceHydrator: &v1alpha1.SourceHydrator{
+				DrySource: v1alpha1.DrySource{
+					RepoURL:        "https://github.com/example/repo",
+					Path:           "configs",
+					TargetRevision: "main",
+				},
+				SyncSource: v1alpha1.SyncSource{
+					Path:         "hydrated",
+					TargetBranch: "env/dev",
+				},
+			},
+			// This shouldn't happen in practice, but testing defensive behavior
+			Sources: v1alpha1.ApplicationSources{
+				{
+					RepoURL:        "https://github.com/example/other-repo",
+					Path:           "manifests",
+					TargetRevision: "main",
+				},
+			},
+		},
+	}
+
+	dst := ConvertFromV1alpha1(src)
+
+	// SourceHydrator should be preserved
+	require.NotNil(t, dst.Spec.SourceHydrator)
+
+	// Sources should NOT be set, even if it was set in v1alpha1
+	// This prevents CEL validation failure
+	assert.Empty(t, dst.Spec.Sources, "Sources should be empty for hydrator apps even if v1alpha1 had Sources set")
+}
+
+func TestConvertToV1alpha1_SourceHydratorPreserved(t *testing.T) {
+	// Test that SourceHydrator is preserved when converting from v1beta1 to v1alpha1
+	src := &Application{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "argoproj.io/v1beta1",
+			Kind:       "Application",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-hydrator-app",
+			Namespace: "argocd",
+		},
+		Spec: ApplicationSpec{
+			Project: "default",
+			Destination: v1alpha1.ApplicationDestination{
+				Server:    "https://kubernetes.default.svc",
+				Namespace: "default",
+			},
+			SourceHydrator: &v1alpha1.SourceHydrator{
+				DrySource: v1alpha1.DrySource{
+					RepoURL:        "https://github.com/example/repo",
+					Path:           "configs",
+					TargetRevision: "main",
+				},
+				SyncSource: v1alpha1.SyncSource{
+					Path:         "hydrated",
+					TargetBranch: "env/dev",
+				},
+			},
+			// Sources should be empty for hydrator apps
+		},
+	}
+
+	dst := ConvertToV1alpha1(src)
+
+	// SourceHydrator should be preserved
+	require.NotNil(t, dst.Spec.SourceHydrator)
+	assert.Equal(t, "https://github.com/example/repo", dst.Spec.SourceHydrator.DrySource.RepoURL)
+	assert.Equal(t, "env/dev", dst.Spec.SourceHydrator.SyncSource.TargetBranch)
+
+	// Source and Sources should NOT be set for hydrator apps
+	assert.Nil(t, dst.Spec.Source, "Source should not be set for hydrator apps")
+	assert.Empty(t, dst.Spec.Sources, "Sources should be empty for hydrator apps")
+}
+
 func int64Ptr(i int64) *int64 {
 	return &i
 }

@@ -38,13 +38,17 @@ func convertSpecFromV1alpha1(src *v1alpha1.ApplicationSpec) ApplicationSpec {
 		SourceHydrator:       src.SourceHydrator,
 	}
 
-	// Merge source into sources
+	// Merge source into sources for non-hydrator apps only.
+	// For hydrator apps, Sources must not be set as the CEL validation rule
+	// "cannot have both sources and sourceHydrator defined" would fail.
 	// If Sources is already populated, use it directly
 	// If only Source is set, convert it to Sources[0]
-	if len(src.Sources) > 0 {
-		dst.Sources = ApplicationSources(src.Sources)
-	} else if src.Source != nil {
-		dst.Sources = ApplicationSources{*src.Source}
+	if src.SourceHydrator == nil {
+		if len(src.Sources) > 0 {
+			dst.Sources = ApplicationSources(src.Sources)
+		} else if src.Source != nil {
+			dst.Sources = ApplicationSources{*src.Source}
+		}
 	}
 
 	// Convert SyncPolicy
