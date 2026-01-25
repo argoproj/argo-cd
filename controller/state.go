@@ -303,7 +303,6 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 			if updateRevisionResult.Revision != "" {
 				revision = updateRevisionResult.Revision
 			}
-
 		} else if !source.IsRef() {
 			// revisionsMayHaveChanges is set to true if at least one revision is not possible to be updated
 			revisionsMayHaveChanges = true
